@@ -7,6 +7,11 @@ import (
 	"github.com/sunholo-data/ailang/internal/core"
 )
 
+// crossModuleInlineDepth is the maximum number of hops through imported-module
+// function bodies we will follow before refusing to inline (falling back to M3
+// contract-based reasoning).
+const crossModuleInlineDepth = 3
+
 // CalleeInfo describes a resolved callee function for SMT encoding.
 type CalleeInfo struct {
 	Name       string
@@ -24,12 +29,15 @@ type CalleeDef struct {
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
-// resolves their Core bodies from the program, and returns ordered
+// resolves their Core bodies from the program (and optionally from
+// importedPrograms for cross-module calls), and returns ordered
 // define-fun declarations for SMT-LIB emission.
 //
 // The returned definitions are topologically ordered: if A calls B,
 // B's definition appears before A's. Circular calls are detected
 // and produce an error.
+//
+// importedPrograms may be nil — when nil, only same-module callees are resolved.
 func ResolveCallees(
 	funcName string,
 	body core.CoreExpr,
@@ -37,19 +45,25 @@ func ResolveCallees(
 	surfaceParams map[string][]FunctionParam,
 	surfaceReturnSorts map[string]string,
 	adtTypes map[string][]ADTVariant,
+	importedPrograms ...map[string]*core.Program,
 ) ([]CalleeDef, error) {
 	if prog == nil {
 		return nil, nil
 	}
 
-	// Find all user-defined function calls in the body
-	callees := collectCalleeCalls(body, funcName, prog)
+	var imported map[string]*core.Program
+	if len(importedPrograms) > 0 {
+		imported = importedPrograms[0]
+	}
+
+	// Find all user-defined function calls in the body (same-module + cross-module)
+	callees := collectCalleeCalls(body, funcName, prog, imported, 0)
 	if len(callees) == 0 {
 		return nil, nil
 	}
 
 	// Build topological order with cycle detection
-	order, err := topoSort(callees, funcName, prog)
+	order, err := topoSort(callees, funcName, prog, imported)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +71,9 @@ func ResolveCallees(
 	// Encode each callee as a define-fun
 	var defs []CalleeDef
 	for _, calleeName := range order {
-		calleeBody := findFuncBody(prog, calleeName)
-		if calleeBody == nil {
+		// Look up body in current program first, then imported programs
+		calleeBody, calleeProg := findFuncBodyInAnyProg(calleeName, prog, imported)
+		if calleeBody == nil || calleeProg == nil {
 			continue
 		}
 
@@ -66,7 +81,7 @@ func ResolveCallees(
 		_, innerBody := unwrapLambda(calleeBody)
 
 		// Check if callee is SMT-encodable
-		meta := prog.Meta[calleeName]
+		meta := calleeProg.Meta[calleeName]
 		if meta == nil {
 			continue
 		}
@@ -100,6 +115,20 @@ func ResolveCallees(
 	return defs, nil
 }
 
+// findFuncBodyInAnyProg looks up a function body first in the current program,
+// then in importedPrograms. Returns (body, sourceProg) or (nil, nil) if not found.
+func findFuncBodyInAnyProg(funcName string, prog *core.Program, importedPrograms map[string]*core.Program) (core.CoreExpr, *core.Program) {
+	if body := findFuncBody(prog, funcName); body != nil {
+		return body, prog
+	}
+	for _, imp := range importedPrograms {
+		if body := findFuncBody(imp, funcName); body != nil {
+			return body, imp
+		}
+	}
+	return nil, nil
+}
+
 // buildDefineFun generates an SMT-LIB define-fun declaration.
 //
 //	(define-fun name ((p1 Sort1) (p2 Sort2)) RetSort body)
@@ -118,9 +147,10 @@ func buildDefineFun(name string, params []FunctionParam, returnSort string, body
 
 // collectCalleeCalls walks the body and collects names of user-defined
 // functions that are called (VarGlobal references where module != "$builtin").
-func collectCalleeCalls(body core.CoreExpr, selfName string, prog *core.Program) []string {
+// xmodDepth tracks how many cross-module hops we've taken; stops at crossModuleInlineDepth.
+func collectCalleeCalls(body core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program, xmodDepth int) []string {
 	seen := make(map[string]bool)
-	collectCalleeCallsInner(body, selfName, prog, seen)
+	collectCalleeCallsInner(body, selfName, prog, imported, seen, xmodDepth)
 	var result []string
 	for name := range seen {
 		result = append(result, name)
@@ -128,27 +158,28 @@ func collectCalleeCalls(body core.CoreExpr, selfName string, prog *core.Program)
 	return result
 }
 
-func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, seen map[string]bool) {
+func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program, seen map[string]bool, xmodDepth int) {
 	if expr == nil {
 		return
 	}
 	switch e := expr.(type) {
 	case *core.App:
-		// Check if function is a user-defined call via VarGlobal (cross-module)
+		// Check if function is a user-defined call via VarGlobal
 		if vg, ok := e.Func.(*core.VarGlobal); ok {
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
 				// Skip stdlib functions with known SMT mappings (handled as builtins by encoder)
 				if _, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); !mapped {
-					// Check if this is actually a function in the program (not an ADT constructor)
-					if findFuncBody(prog, vg.Ref.Name) != nil {
-						if !seen[vg.Ref.Name] {
-							seen[vg.Ref.Name] = true
-							// Recursively check the callee's body for transitive calls
-							calleeBody := findFuncBody(prog, vg.Ref.Name)
-							if calleeBody != nil {
-								_, innerBody := unwrapLambda(calleeBody)
-								collectCalleeCallsInner(innerBody, selfName, prog, seen)
-							}
+					calleeBody, _ := findFuncBodyInAnyProg(vg.Ref.Name, prog, imported)
+					if calleeBody != nil && !seen[vg.Ref.Name] {
+						seen[vg.Ref.Name] = true
+						// Recurse into callee body; increment xmodDepth for cross-module hops
+						nextDepth := xmodDepth
+						if findFuncBody(prog, vg.Ref.Name) == nil {
+							nextDepth++ // crossing a module boundary
+						}
+						if nextDepth <= crossModuleInlineDepth {
+							_, innerBody := unwrapLambda(calleeBody)
+							collectCalleeCallsInner(innerBody, selfName, prog, imported, seen, nextDepth)
 						}
 					}
 				}
@@ -157,82 +188,79 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		// Check if function is a user-defined call via plain Var (same-module)
 		if v, ok := e.Func.(*core.Var); ok {
 			if v.Name != selfName {
-				if findFuncBody(prog, v.Name) != nil {
+				if calleeBody := findFuncBody(prog, v.Name); calleeBody != nil {
 					if !seen[v.Name] {
 						seen[v.Name] = true
-						calleeBody := findFuncBody(prog, v.Name)
-						if calleeBody != nil {
-							_, innerBody := unwrapLambda(calleeBody)
-							collectCalleeCallsInner(innerBody, selfName, prog, seen)
-						}
+						_, innerBody := unwrapLambda(calleeBody)
+						collectCalleeCallsInner(innerBody, selfName, prog, imported, seen, xmodDepth)
 					}
 				}
 			}
 		}
 		// Also check for curried calls: App(App(VarGlobal(...), args1), args2)
 		if innerApp, ok := e.Func.(*core.App); ok {
-			collectCalleeCallsInner(innerApp, selfName, prog, seen)
+			collectCalleeCallsInner(innerApp, selfName, prog, imported, seen, xmodDepth)
 		}
 		// Walk arguments
 		for _, arg := range e.Args {
-			collectCalleeCallsInner(arg, selfName, prog, seen)
+			collectCalleeCallsInner(arg, selfName, prog, imported, seen, xmodDepth)
 		}
-		collectCalleeCallsInner(e.Func, selfName, prog, seen)
+		collectCalleeCallsInner(e.Func, selfName, prog, imported, seen, xmodDepth)
 	case *core.If:
-		collectCalleeCallsInner(e.Cond, selfName, prog, seen)
-		collectCalleeCallsInner(e.Then, selfName, prog, seen)
-		collectCalleeCallsInner(e.Else, selfName, prog, seen)
+		collectCalleeCallsInner(e.Cond, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Then, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Else, selfName, prog, imported, seen, xmodDepth)
 	case *core.Let:
-		collectCalleeCallsInner(e.Value, selfName, prog, seen)
-		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+		collectCalleeCallsInner(e.Value, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Body, selfName, prog, imported, seen, xmodDepth)
 	case *core.LetRec:
 		for _, b := range e.Bindings {
-			collectCalleeCallsInner(b.Value, selfName, prog, seen)
+			collectCalleeCallsInner(b.Value, selfName, prog, imported, seen, xmodDepth)
 		}
-		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+		collectCalleeCallsInner(e.Body, selfName, prog, imported, seen, xmodDepth)
 	case *core.Match:
-		collectCalleeCallsInner(e.Scrutinee, selfName, prog, seen)
+		collectCalleeCallsInner(e.Scrutinee, selfName, prog, imported, seen, xmodDepth)
 		for _, arm := range e.Arms {
-			collectCalleeCallsInner(arm.Body, selfName, prog, seen)
+			collectCalleeCallsInner(arm.Body, selfName, prog, imported, seen, xmodDepth)
 		}
 	case *core.BinOp:
-		collectCalleeCallsInner(e.Left, selfName, prog, seen)
-		collectCalleeCallsInner(e.Right, selfName, prog, seen)
+		collectCalleeCallsInner(e.Left, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Right, selfName, prog, imported, seen, xmodDepth)
 	case *core.UnOp:
-		collectCalleeCallsInner(e.Operand, selfName, prog, seen)
+		collectCalleeCallsInner(e.Operand, selfName, prog, imported, seen, xmodDepth)
 	case *core.Intrinsic:
 		for _, arg := range e.Args {
-			collectCalleeCallsInner(arg, selfName, prog, seen)
+			collectCalleeCallsInner(arg, selfName, prog, imported, seen, xmodDepth)
 		}
 	case *core.DictApp:
-		collectCalleeCallsInner(e.Dict, selfName, prog, seen)
+		collectCalleeCallsInner(e.Dict, selfName, prog, imported, seen, xmodDepth)
 		for _, arg := range e.Args {
-			collectCalleeCallsInner(arg, selfName, prog, seen)
+			collectCalleeCallsInner(arg, selfName, prog, imported, seen, xmodDepth)
 		}
 	case *core.DictAbs:
-		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+		collectCalleeCallsInner(e.Body, selfName, prog, imported, seen, xmodDepth)
 	case *core.Lambda:
-		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+		collectCalleeCallsInner(e.Body, selfName, prog, imported, seen, xmodDepth)
 	case *core.Forall:
-		collectCalleeCallsInner(e.Lo, selfName, prog, seen)
-		collectCalleeCallsInner(e.Hi, selfName, prog, seen)
-		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+		collectCalleeCallsInner(e.Lo, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Hi, selfName, prog, imported, seen, xmodDepth)
+		collectCalleeCallsInner(e.Body, selfName, prog, imported, seen, xmodDepth)
 	}
 }
 
 // topoSort returns a topological ordering of callee functions.
 // If A calls B, B appears before A in the result.
 // Returns error if circular dependencies are detected.
-func topoSort(callees []string, rootFunc string, prog *core.Program) ([]string, error) {
+func topoSort(callees []string, rootFunc string, prog *core.Program, imported map[string]*core.Program) ([]string, error) {
 	// Build adjacency: for each callee, find what it calls
 	adj := make(map[string][]string)
 	for _, name := range callees {
-		body := findFuncBody(prog, name)
+		body, sourceProg := findFuncBodyInAnyProg(name, prog, imported)
 		if body == nil {
 			continue
 		}
 		_, innerBody := unwrapLambda(body)
-		deps := collectDirectCalls(innerBody, name, prog)
+		deps := collectDirectCalls(innerBody, name, sourceProg, imported)
 		adj[name] = deps
 	}
 
@@ -276,9 +304,9 @@ func topoSort(callees []string, rootFunc string, prog *core.Program) ([]string, 
 
 // collectDirectCalls collects only the direct (non-transitive) callee references
 // in a function body. Used for building the dependency graph.
-func collectDirectCalls(body core.CoreExpr, selfName string, prog *core.Program) []string {
+func collectDirectCalls(body core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program) []string {
 	seen := make(map[string]bool)
-	collectDirectCallsInner(body, selfName, prog, seen)
+	collectDirectCallsInner(body, selfName, prog, imported, seen)
 	var result []string
 	for name := range seen {
 		result = append(result, name)
@@ -286,7 +314,7 @@ func collectDirectCalls(body core.CoreExpr, selfName string, prog *core.Program)
 	return result
 }
 
-func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, seen map[string]bool) {
+func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program, seen map[string]bool) {
 	if expr == nil {
 		return
 	}
@@ -296,7 +324,7 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
 				// Skip stdlib functions with known SMT mappings
 				if _, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); !mapped {
-					if findFuncBody(prog, vg.Ref.Name) != nil {
+					if body, _ := findFuncBodyInAnyProg(vg.Ref.Name, prog, imported); body != nil {
 						seen[vg.Ref.Name] = true
 					}
 				}
@@ -311,48 +339,48 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 			}
 		}
 		for _, arg := range e.Args {
-			collectDirectCallsInner(arg, selfName, prog, seen)
+			collectDirectCallsInner(arg, selfName, prog, imported, seen)
 		}
-		collectDirectCallsInner(e.Func, selfName, prog, seen)
+		collectDirectCallsInner(e.Func, selfName, prog, imported, seen)
 	case *core.If:
-		collectDirectCallsInner(e.Cond, selfName, prog, seen)
-		collectDirectCallsInner(e.Then, selfName, prog, seen)
-		collectDirectCallsInner(e.Else, selfName, prog, seen)
+		collectDirectCallsInner(e.Cond, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Then, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Else, selfName, prog, imported, seen)
 	case *core.Let:
-		collectDirectCallsInner(e.Value, selfName, prog, seen)
-		collectDirectCallsInner(e.Body, selfName, prog, seen)
+		collectDirectCallsInner(e.Value, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, imported, seen)
 	case *core.LetRec:
 		for _, b := range e.Bindings {
-			collectDirectCallsInner(b.Value, selfName, prog, seen)
+			collectDirectCallsInner(b.Value, selfName, prog, imported, seen)
 		}
-		collectDirectCallsInner(e.Body, selfName, prog, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, imported, seen)
 	case *core.Match:
-		collectDirectCallsInner(e.Scrutinee, selfName, prog, seen)
+		collectDirectCallsInner(e.Scrutinee, selfName, prog, imported, seen)
 		for _, arm := range e.Arms {
-			collectDirectCallsInner(arm.Body, selfName, prog, seen)
+			collectDirectCallsInner(arm.Body, selfName, prog, imported, seen)
 		}
 	case *core.BinOp:
-		collectDirectCallsInner(e.Left, selfName, prog, seen)
-		collectDirectCallsInner(e.Right, selfName, prog, seen)
+		collectDirectCallsInner(e.Left, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Right, selfName, prog, imported, seen)
 	case *core.UnOp:
-		collectDirectCallsInner(e.Operand, selfName, prog, seen)
+		collectDirectCallsInner(e.Operand, selfName, prog, imported, seen)
 	case *core.Intrinsic:
 		for _, arg := range e.Args {
-			collectDirectCallsInner(arg, selfName, prog, seen)
+			collectDirectCallsInner(arg, selfName, prog, imported, seen)
 		}
 	case *core.DictApp:
-		collectDirectCallsInner(e.Dict, selfName, prog, seen)
+		collectDirectCallsInner(e.Dict, selfName, prog, imported, seen)
 		for _, arg := range e.Args {
-			collectDirectCallsInner(arg, selfName, prog, seen)
+			collectDirectCallsInner(arg, selfName, prog, imported, seen)
 		}
 	case *core.DictAbs:
-		collectDirectCallsInner(e.Body, selfName, prog, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, imported, seen)
 	case *core.Lambda:
-		collectDirectCallsInner(e.Body, selfName, prog, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, imported, seen)
 	case *core.Forall:
-		collectDirectCallsInner(e.Lo, selfName, prog, seen)
-		collectDirectCallsInner(e.Hi, selfName, prog, seen)
-		collectDirectCallsInner(e.Body, selfName, prog, seen)
+		collectDirectCallsInner(e.Lo, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Hi, selfName, prog, imported, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, imported, seen)
 	}
 }
 

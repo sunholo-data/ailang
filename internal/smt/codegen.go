@@ -127,6 +127,7 @@ func EncodeFunction(
 		calleeDefs, err = ResolveCallees(
 			funcName, body, opts[0].Program,
 			opts[0].SurfaceParams, opts[0].SurfaceReturnSorts, adtTypes,
+			opts[0].ImportedPrograms,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("resolving cross-function calls: %w", err)

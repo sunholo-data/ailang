@@ -43,7 +43,7 @@ func TestCollectCalleeCalls_NoCallees(t *testing.T) {
 		map[string]*core.DeclMeta{"f": pureMeta()},
 	)
 
-	calls := collectCalleeCalls(body, "f", prog)
+	calls := collectCalleeCalls(body, "f", prog, nil, 0)
 	if len(calls) != 0 {
 		t.Errorf("expected 0 callees, got %d: %v", len(calls), calls)
 	}
@@ -70,7 +70,7 @@ func TestCollectCalleeCalls_DirectCall(t *testing.T) {
 		},
 	)
 
-	calls := collectCalleeCalls(fBody, "f", prog)
+	calls := collectCalleeCalls(fBody, "f", prog, nil, 0)
 	if len(calls) != 1 {
 		t.Fatalf("expected 1 callee, got %d: %v", len(calls), calls)
 	}
@@ -100,7 +100,7 @@ func TestCollectCalleeCalls_TransitiveCall(t *testing.T) {
 		map[string]*core.DeclMeta{"a": pureMeta(), "b": pureMeta(), "c": pureMeta()},
 	)
 
-	calls := collectCalleeCalls(aBody, "a", prog)
+	calls := collectCalleeCalls(aBody, "a", prog, nil, 0)
 	if len(calls) != 2 {
 		t.Fatalf("expected 2 callees (b, c), got %d: %v", len(calls), calls)
 	}
@@ -128,7 +128,7 @@ func TestCollectCalleeCalls_IgnoresBuiltins(t *testing.T) {
 		map[string]*core.DeclMeta{"f": pureMeta()},
 	)
 
-	calls := collectCalleeCalls(body, "f", prog)
+	calls := collectCalleeCalls(body, "f", prog, nil, 0)
 	if len(calls) != 0 {
 		t.Errorf("expected 0 callees for builtin calls, got %d: %v", len(calls), calls)
 	}
@@ -149,7 +149,7 @@ func TestTopoSort_SimpleChain(t *testing.T) {
 		map[string]*core.DeclMeta{"b": pureMeta(), "c": pureMeta()},
 	)
 
-	order, err := topoSort([]string{"b", "c"}, "a", prog)
+	order, err := topoSort([]string{"b", "c"}, "a", prog, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestTopoSort_CircularCall(t *testing.T) {
 		map[string]*core.DeclMeta{"a": pureMeta(), "b": pureMeta()},
 	)
 
-	_, err := topoSort([]string{"a", "b"}, "root", prog)
+	_, err := topoSort([]string{"a", "b"}, "root", prog, nil)
 	if err == nil {
 		t.Fatal("expected circular call error, got nil")
 	}

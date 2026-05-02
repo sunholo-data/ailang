@@ -184,12 +184,31 @@ func verifyCommand() {
 		}
 	}
 
-	// Build imported programs map for cross-module function call resolution.
+	// Build imported programs map and extend surface params/sorts from imported modules.
 	importedPrograms := make(map[string]*core.Program)
 	if result.Modules != nil {
 		for modPath, mod := range result.Modules {
 			if mod.Core != nil {
 				importedPrograms[modPath] = mod.Core
+			}
+			// Include imported module functions in surface params/sorts so the
+			// callee resolver can build correct define-fun signatures for them.
+			if mod.File != nil {
+				for _, fd := range mod.File.Funcs {
+					if _, exists := allSurfaceParams[fd.Name]; exists {
+						continue // current module takes priority
+					}
+					var params []smt.FunctionParam
+					for _, p := range fd.Params {
+						if pt := convertASTTypeToType(p.Type); pt != nil {
+							params = append(params, smt.FunctionParam{Name: p.Name, Type: pt})
+						}
+					}
+					allSurfaceParams[fd.Name] = params
+					if fd.ReturnType != nil {
+						allSurfaceReturnSorts[fd.Name] = astTypeToSMTSort(fd.ReturnType)
+					}
+				}
 			}
 		}
 	}
