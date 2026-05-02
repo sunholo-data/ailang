@@ -3,8 +3,11 @@
 -- All version-scoped: examples that PASS under for_version.
 module mcp_tools/examples
 
-import mcp_tools/lib (readOrError, errorJson)
-import std/json (Json)
+import mcp_tools/lib (readOrError, errorJson, envelope, resolveVersion, readVersionedJson, unknownVersionError)
+import std/json (Json, jo, kv, js, ja, getArray, getString)
+import std/option (getOrElse)
+import std/list (filter, take)
+import std/string (toLower, contains)
 
 -- Filter examples that pass under for_version, optionally by features/status.
 -- features = comma-separated tags ("effects,records"); empty = no filter.
@@ -24,12 +27,27 @@ export func exampleGet(path: string, forVersion: string) -> Json ! {Env, FS} =
     let suffix = "examples/${path}.json" in
     readOrError(forVersion, suffix)
 
--- Best-fit example for a free-form concept query ("how do I use effects?").
--- Single best result, not a list.
+-- Best-fit examples for a free-form concept query ("how do I use effects?").
+-- Filters server-side on why + title; returns up to 5 matches.
 @route("POST", "/api/mcp/example_for_concept")
 @mcp_name("example_for_concept")
 export func exampleForConcept(concept: string, forVersion: string) -> Json ! {Env, FS} =
   if concept == "" then
     errorJson("missing_field", "concept is required")
   else
-    readOrError(forVersion, "example_concept_index.json")
+    let resolved = resolveVersion(forVersion) in
+    if resolved == "unknown" then
+      unknownVersionError(forVersion, "latest")
+    else
+      match readVersionedJson(resolved, "example_concept_index.json") {
+        Err(reason) => errorJson("snapshot_read_failed", reason),
+        Ok(idx) =>
+          let q = toLower(concept) in
+          let all = getOrElse(getArray(idx, "examples"), []) in
+          let matched = filter(
+            \e. contains(toLower(getOrElse(getString(e, "why"), "")), q) ||
+                contains(toLower(getOrElse(getString(e, "title"), "")), q),
+            all) in
+          let top = take(5, matched) in
+          envelope(resolved, jo([kv("examples", ja(top)), kv("query", js(concept))]))
+      }

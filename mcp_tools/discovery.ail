@@ -1,8 +1,11 @@
 -- mcp_tools/discovery.ail — docs navigation and search MCP tools.
 module mcp_tools/discovery
 
-import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson)
-import std/json (Json)
+import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion, readVersionedJson, unknownVersionError)
+import std/json (Json, jo, kv, js, ja, getArray, getString)
+import std/option (getOrElse)
+import std/list (filter, take)
+import std/string (toLower, contains)
 
 -- Sidebar tree as JSON. Replaces scraping the Docusaurus sidebar.
 -- Version-scoped: snapshot of that release's docs site nav.
@@ -12,14 +15,29 @@ export func docsNav(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "docs_nav.json")
 
 -- Full-text search across doc Markdown for the given version.
--- M1: thin pass-through over a pre-built index. M2 may swap to FTS5.
+-- Filters server-side on lowercased body + title; returns top 10 matches.
 @route("POST", "/api/mcp/docs_search")
 @mcp_name("docs_search")
 export func docsSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
   if query == "" then
     errorJson("missing_field", "query is required")
   else
-    readOrError(forVersion, "docs_search_index.json")
+    let resolved = resolveVersion(forVersion) in
+    if resolved == "unknown" then
+      unknownVersionError(forVersion, "latest")
+    else
+      match readVersionedJson(resolved, "docs_search_index.json") {
+        Err(reason) => errorJson("snapshot_read_failed", reason),
+        Ok(idx) =>
+          let q = toLower(query) in
+          let all = getOrElse(getArray(idx, "pages"), []) in
+          let matched = filter(
+            \p. contains(getOrElse(getString(p, "body"), ""), q) ||
+                contains(toLower(getOrElse(getString(p, "title"), "")), q),
+            all) in
+          let top = take(10, matched) in
+          envelope(resolved, jo([kv("pages", ja(top)), kv("query", js(query))]))
+      }
 
 -- What changed in a given release (added/changed/fixed/breaking).
 @route("POST", "/api/mcp/changelog_for_version")

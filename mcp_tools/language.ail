@@ -5,8 +5,11 @@
 -- cross-version content leak.
 module mcp_tools/language
 
-import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion)
-import std/json (jo, kv, js, ja)
+import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion, readVersionedJson, unknownVersionError)
+import std/json (jo, kv, js, ja, getArray, getString, getOr, jn)
+import std/option (getOrElse)
+import std/list (filter, take, map)
+import std/string (toLower, contains)
 
 -- List all AILANG versions the server can answer for.
 @route("POST", "/api/mcp/ailang_versions")
@@ -40,14 +43,27 @@ export func stdlibModule(name: string, forVersion: string) -> Json ! {Env, FS} =
     readOrError(forVersion, suffix)
 
 -- Find stdlib functions by name, signature, or keyword.
--- For M1 this is a thin pass-through over a pre-built index; M2 may swap to FTS.
+-- Filters the pre-built search index server-side; returns top 20 matches.
 @route("POST", "/api/mcp/stdlib_search")
 @mcp_name("stdlib_search")
 export func stdlibSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
   if query == "" then
     errorJson("missing_field", "query is required")
   else
-    readOrError(forVersion, "stdlib_search_index.json")
+    let resolved = resolveVersion(forVersion) in
+    if resolved == "unknown" then
+      unknownVersionError(forVersion, "latest")
+    else
+      match readVersionedJson(resolved, "stdlib_search_index.json") {
+        Err(reason) => errorJson("snapshot_read_failed", reason),
+        Ok(idx) =>
+          let q = toLower(query) in
+          let all = getOrElse(getArray(idx, "exports"), []) in
+          let matched = filter(\e. contains(getOrElse(getString(e, "keywords"), ""), q), all) in
+          let top = take(20, matched) in
+          let strip = \e. jo([kv("module", getOr(e, "module", jn())), kv("name", getOr(e, "name", jn())), kv("signature", getOr(e, "signature", jn())), kv("doc", getOr(e, "doc", jn())), kv("pure", getOr(e, "pure", jn())), kv("effects", getOr(e, "effects", jn()))]) in
+          envelope(resolved, jo([kv("exports", ja(map(strip, top))), kv("query", js(query))]))
+      }
 
 -- Known limitations (Y-combinator, etc.) optionally filtered by category.
 @route("POST", "/api/mcp/limitations_list")
