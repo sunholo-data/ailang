@@ -174,11 +174,34 @@ func InitGoogleCloudTrace(ctx context.Context, serviceName string) (ShutdownFunc
 		return nil, err
 	}
 
-	// Create Google Cloud Trace exporter (uses ADC automatically)
-	traceExporter, err := cloudtrace.New(cloudtrace.WithProjectID(projectID))
-	if err != nil {
-		return nil, err
+	// Create Google Cloud Trace exporter with a timeout guard.
+	// cloudtrace.New calls google.FindDefaultCredentials which can make network
+	// calls (OAuth refresh to accounts.google.com, or GCP metadata server) that
+	// hang indefinitely in sandboxed or network-restricted environments.
+	// We run it in a goroutine with a 3s deadline so short-lived commands like
+	// `ailang check` are never blocked by a credential fetch.
+	type exporterResult struct {
+		exp sdktrace.SpanExporter
+		err error
 	}
+	expCh := make(chan exporterResult, 1)
+	go func() {
+		exp, err := cloudtrace.New(cloudtrace.WithProjectID(projectID))
+		expCh <- exporterResult{exp, err}
+	}()
+
+	var traceExporter sdktrace.SpanExporter
+	select {
+	case r := <-expCh:
+		if r.err != nil {
+			return nil, r.err
+		}
+		traceExporter = r.exp
+	case <-time.After(3 * time.Second):
+		log.Printf("GCP Cloud Trace: ADC credential fetch timed out (>3s) — telemetry disabled")
+		return func(context.Context) error { return nil }, nil
+	}
+
 	shutdownFuncs = append(shutdownFuncs, traceExporter.Shutdown)
 
 	// Create trace provider with synced exporter for immediate visibility
@@ -271,15 +294,28 @@ func InitDual(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 	// Collect span exporters
 	var spanExporters []sdktrace.SpanExporter
 
-	// Add Google Cloud Trace exporter
+	// Add Google Cloud Trace exporter (with timeout guard — same reason as InitGoogleCloudTrace)
 	projectID := GoogleCloudProject()
 	if projectID != "" {
-		gcpExporter, err := cloudtrace.New(cloudtrace.WithProjectID(projectID))
-		if err != nil {
-			return nil, err
+		type gcpResult struct {
+			exp sdktrace.SpanExporter
+			err error
 		}
-		shutdownFuncs = append(shutdownFuncs, gcpExporter.Shutdown)
-		spanExporters = append(spanExporters, gcpExporter)
+		gcpCh := make(chan gcpResult, 1)
+		go func() {
+			exp, err := cloudtrace.New(cloudtrace.WithProjectID(projectID))
+			gcpCh <- gcpResult{exp, err}
+		}()
+		select {
+		case r := <-gcpCh:
+			if r.err != nil {
+				return nil, r.err
+			}
+			shutdownFuncs = append(shutdownFuncs, r.exp.Shutdown)
+			spanExporters = append(spanExporters, r.exp)
+		case <-time.After(3 * time.Second):
+			log.Printf("GCP Cloud Trace: ADC credential fetch timed out (>3s) — skipping GCP exporter")
+		}
 	}
 
 	// Add OTLP exporter — but only if the endpoint is reachable.
