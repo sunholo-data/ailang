@@ -91,6 +91,9 @@ func buildVersioned(root, dir, version string) error {
 	if err := writeStdlibSummary(root, dir); err != nil {
 		return fmt.Errorf("stdlib_summary: %w", err)
 	}
+	if err := writeStdlibModules(root, dir); err != nil {
+		return fmt.Errorf("stdlib_modules: %w", err)
+	}
 	if err := writeStdlibSearchIndex(root, dir); err != nil {
 		return fmt.Errorf("stdlib_search_index: %w", err)
 	}
@@ -160,6 +163,163 @@ func writeStdlibSummary(root, dir string) error {
 	return writeJSON(filepath.Join(dir, "stdlib_summary.json"), map[string]any{
 		"modules": mods,
 	})
+}
+
+// writeStdlibModules emits one JSON file per stdlib module at
+// stdlib/std/<name>.json so the stdlib_module MCP tool can serve per-module
+// docs. The path matches the suffix "stdlib/${name}.json" that the tool
+// constructs when name = "std/process" etc.
+func writeStdlibModules(root, dir string) error {
+	stdDir := filepath.Join(root, "std")
+	entries, err := os.ReadDir(stdDir)
+	if err != nil {
+		return err
+	}
+
+	// Effects capturing: group 5 = effects inside {}.
+	// End delimiter accepts both = (expression body) and { (block body).
+	// Return type excludes { to stop before the effects group or block start.
+	// [ \t]* in the comment regex prevents consuming newlines across blank -- lines.
+	// (?:\[[^\]]*\])? handles generic type params like [k, v] after the function name.
+	exportFuncRe := regexp.MustCompile(`(?m)^\s*export\s+(pure\s+)?func\s+(\w+)(?:\[[^\]]*\])?\s*(\([^)]*\))(?:\s*->\s*([^=\n!{]+?))?(?:\s*!\s*\{([^}]*)\})?\s*(?:=|\{)`)
+	// type name[params] = first-line-of-def
+	exportTypeRe := regexp.MustCompile(`(?m)^\s*export\s+type\s+(\w+)(\[[^\]]*\])?\s*=\s*([^\n]*)`)
+	commentRe := regexp.MustCompile(`(?m)^--[ \t]*([^\n]+)`)
+	importRe := regexp.MustCompile(`(?m)^import\s+(\S+)\s*\(([^)]*)\)`)
+
+	type exportEntry struct {
+		Kind      string   `json:"kind"`
+		Name      string   `json:"name"`
+		Signature string   `json:"signature"`
+		Doc       string   `json:"doc,omitempty"`
+		Pure      bool     `json:"pure,omitempty"`
+		Effects   []string `json:"effects,omitempty"`
+	}
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ail") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(stdDir, e.Name()))
+		if err != nil {
+			continue
+		}
+		modName := "std/" + strings.TrimSuffix(e.Name(), ".ail")
+		text := string(body)
+
+		// Summary: first non-bookkeeping comment
+		summary := ""
+		for _, m := range commentRe.FindAllStringSubmatch(text, -1) {
+			line := strings.TrimSpace(m[1])
+			if line == "" || strings.HasPrefix(strings.ToLower(line), "std/") {
+				continue
+			}
+			summary = line
+			break
+		}
+
+		// Imports
+		type importRow struct {
+			Module string `json:"module"`
+			Names  string `json:"names"`
+		}
+		var imports []importRow
+		for _, m := range importRe.FindAllStringSubmatch(text, -1) {
+			imports = append(imports, importRow{
+				Module: m[1],
+				Names:  strings.TrimSpace(m[2]),
+			})
+		}
+
+		exports := []exportEntry{}
+
+		// Exported functions
+		for _, m := range exportFuncRe.FindAllStringSubmatchIndex(text, -1) {
+			isPure := m[2] >= 0 && m[3] >= 0 && strings.TrimSpace(text[m[2]:m[3]]) != ""
+			name := text[m[4]:m[5]]
+			args := text[m[6]:m[7]]
+			ret := ""
+			if m[8] >= 0 && m[9] >= 0 {
+				ret = strings.TrimSpace(text[m[8]:m[9]])
+			}
+			var effects []string
+			if m[10] >= 0 && m[11] >= 0 {
+				for _, eff := range strings.Split(text[m[10]:m[11]], ",") {
+					if t := strings.TrimSpace(eff); t != "" {
+						effects = append(effects, t)
+					}
+				}
+			}
+			sig := name + args
+			if ret != "" {
+				sig += " -> " + ret
+			}
+			if len(effects) > 0 {
+				sig += " ! {" + strings.Join(effects, ", ") + "}"
+			}
+			entry := exportEntry{
+				Kind:      "func",
+				Name:      name,
+				Signature: sig,
+				Doc:       docCommentAbove(text, m[0]),
+				Pure:      isPure,
+			}
+			if len(effects) > 0 {
+				entry.Effects = effects
+			}
+			exports = append(exports, entry)
+		}
+
+		// Exported types
+		for _, m := range exportTypeRe.FindAllStringSubmatchIndex(text, -1) {
+			name := text[m[2]:m[3]]
+			params := ""
+			if m[4] >= 0 && m[5] >= 0 {
+				params = text[m[4]:m[5]]
+			}
+			defnFirst := strings.TrimSpace(text[m[6]:m[7]])
+			sig := "type " + name + params + " = " + defnFirst
+			if len(sig) > 120 {
+				sig = sig[:120] + "…"
+			}
+			exports = append(exports, exportEntry{
+				Kind:      "type",
+				Name:      name,
+				Signature: sig,
+				Doc:       docCommentAbove(text, m[0]),
+			})
+		}
+
+		// Types first (alphabetical), then funcs (alphabetical)
+		sort.Slice(exports, func(i, j int) bool {
+			ki, kj := 1, 1
+			if exports[i].Kind == "type" {
+				ki = 0
+			}
+			if exports[j].Kind == "type" {
+				kj = 0
+			}
+			if ki != kj {
+				return ki < kj
+			}
+			return exports[i].Name < exports[j].Name
+		})
+
+		// Output path: stdlib/std/process.json for module std/process
+		outPath := filepath.Join(dir, "stdlib", modName+".json")
+		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+			return err
+		}
+		if err := writeJSON(outPath, map[string]any{
+			"module":  modName,
+			"summary": summary,
+			"imports": imports,
+			"exports": exports,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeEffects(dir string) error {
