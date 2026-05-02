@@ -85,7 +85,8 @@ var (
 // under a generic runner (e.g. deliberate non-zero process exit).
 // Paths are relative to the repo root.
 var skippedExamples = map[string]string{
-	"examples/runnable/exit_code.ail": "intentionally exits with non-zero code (42) to demo std/io exit()",
+	"examples/runnable/exit_code.ail":                            "intentionally exits with non-zero code (42) to demo std/io exit()",
+	"examples/runnable/contracts/cross_module_functions_lib.ail": "library module (no main) — imported by cross_module_functions.ail; not a standalone runnable",
 }
 
 // ailangBinary returns the path to a pre-built ailang binary.
