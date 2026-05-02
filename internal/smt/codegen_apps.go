@@ -97,6 +97,12 @@ func encodeApp(app *core.App) (string, error) {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
 			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
 		}
+		// Contract-based callee: substitute result constant (call site collapses to the constant)
+		if activeContractCallees != nil {
+			if resultConst, ok := activeContractCallees[vg.Ref.Name]; ok {
+				return resultConst, nil
+			}
+		}
 		// ADT constructor application
 		name := stripConstructorPrefix(vg.Ref.Name)
 		return encodeConstructorApp(name, app.Args)

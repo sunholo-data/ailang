@@ -123,7 +123,9 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	if os.Getenv("AILANG_DUMP_SMT") == "" {
+		defer os.Remove(tmpPath)
+	}
 
 	if _, err := tmpFile.WriteString(smtlib); err != nil {
 		tmpFile.Close()

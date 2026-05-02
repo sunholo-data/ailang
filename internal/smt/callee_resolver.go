@@ -23,9 +23,11 @@ type CalleeInfo struct {
 
 // CalleeDef holds a ready-to-emit SMT-LIB define-fun for a callee.
 type CalleeDef struct {
-	Name    string
-	SMTLib  string // The (define-fun ...) declaration
-	ADTDecl string // Any ADT declarations needed (may be empty)
+	Name        string
+	SMTLib      string // The (define-fun ...) or contract (declare-const + assert) declaration
+	ADTDecl     string // Any ADT declarations needed (may be empty)
+	IsContract  bool   // True when using contract-as-spec fallback (not define-fun)
+	ResultConst string // Non-empty when IsContract: the constant to substitute for call sites
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -85,16 +87,45 @@ func ResolveCallees(
 		if meta == nil {
 			continue
 		}
-		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody)
-		if !encodable {
-			continue
-		}
 
 		// Get params and return sort
 		params := surfaceParams[calleeName]
 		returnSort := surfaceReturnSorts[calleeName]
 		if returnSort == "" {
 			returnSort = "Int"
+		}
+
+		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody)
+		if !encodable {
+			// Contract-as-spec fallback: emit a declare-const for the callee result
+			// and assert only the ensures clauses as axioms.
+			// Requires clauses are skipped because they reference param names that
+			// cannot be substituted without call-site arg tracking (deferred to M4).
+			var ensuresOnly []*core.Contract
+			for _, c := range meta.Contracts {
+				if c.Kind == core.EnsuresKind {
+					ensuresOnly = append(ensuresOnly, c)
+				}
+			}
+			if len(ensuresOnly) > 0 {
+				spec := ContractSpec{
+					FuncName:   calleeName,
+					Params:     params,
+					ReturnSort: returnSort,
+					Ensures:    ensuresOnly,
+					// Requires omitted — cannot bind without call-site args
+				}
+				contractDecl, err := EncodeCalleeByContract(spec, nil, 0)
+				if err == nil {
+					defs = append(defs, CalleeDef{
+						Name:        calleeName,
+						SMTLib:      contractDecl.SMTLib,
+						IsContract:  true,
+						ResultConst: contractDecl.ResultConst,
+					})
+				}
+			}
+			continue
 		}
 
 		// Encode the callee body

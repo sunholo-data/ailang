@@ -190,6 +190,18 @@ func verifyCommand() {
 		for modPath, mod := range result.Modules {
 			if mod.Core != nil {
 				importedPrograms[modPath] = mod.Core
+				// Apply the same IsPure fixup as for same-module functions:
+				// imported functions with ! {} (empty effects) are semantically
+				// pure and must be marked so the callee resolver can inline them.
+				if mod.File != nil {
+					for _, fd := range mod.File.Funcs {
+						if meta, ok := mod.Core.Meta[fd.Name]; ok {
+							if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
+								meta.IsPure = true
+							}
+						}
+					}
+				}
 			}
 			// Include imported module functions in surface params/sorts so the
 			// callee resolver can build correct define-fun signatures for them.

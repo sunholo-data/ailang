@@ -31,6 +31,10 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		if e.Ref.Module == "$builtin" {
 			return e.Ref.Name, nil
 		}
+		// Pre-encoded sentinel from contract substitution — pass through as-is.
+		if e.Ref.Module == "$encoded" || e.Ref.Module == "$const" {
+			return e.Ref.Name, nil
+		}
 		// For ADT constructors, strip make_Type_ prefix
 		return stripConstructorPrefix(e.Ref.Name), nil
 
