@@ -90,6 +90,10 @@ type EncodeFunctionOpts struct {
 	// to their TRecord types. These are pre-registered during record type collection
 	// so that named sorts take priority over anonymous Record_field1_field2 sorts.
 	RecordTypeAliases map[string]*types.TRecord
+	// ImportedPrograms maps module paths to their compiled Core programs.
+	// Used to inline or contract-verify calls to imported pure functions.
+	// Nil map means no cross-module function resolution (backwards-compatible default).
+	ImportedPrograms map[string]*core.Program
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.

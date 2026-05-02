@@ -184,12 +184,23 @@ func verifyCommand() {
 		}
 	}
 
+	// Build imported programs map for cross-module function call resolution.
+	importedPrograms := make(map[string]*core.Program)
+	if result.Modules != nil {
+		for modPath, mod := range result.Modules {
+			if mod.Core != nil {
+				importedPrograms[modPath] = mod.Core
+			}
+		}
+	}
+
 	encOpts := smt.EncodeFunctionOpts{
 		Program:            coreProg,
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
 		ExtraDeclarations:  adtRecordDecls,
 		RecordTypeAliases:  recordAliases,
+		ImportedPrograms:   importedPrograms,
 	}
 
 	// Process each function with contracts
