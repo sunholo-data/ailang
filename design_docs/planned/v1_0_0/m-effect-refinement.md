@@ -54,8 +54,11 @@ The same shape — single effect token masking multiple incompatible contracts �
 | `!{Clock}` | pinned-deterministic / wall-clock |
 | `!{Net}` | recorded/replayable / live |
 | `!{FS}` | fixture-sandbox / real-disk |
+| `!{AI}` | direct fixed-model / runtime-routed / replay-only / BYOK |
 
-[M-CRYPTORAND](../v0_13_0/m-cryptorand.md) is a point fix: it splits Rand into `!{Rand}` and `!{CryptoRand}`. But duplicating effect tokens for every contract variation does not scale, and it leaves `Clock`, `Net`, `FS` uncorrected.
+[M-CRYPTORAND](../v0_13_0/m-cryptorand.md) is a point fix: it splits Rand into `!{Rand}` and `!{CryptoRand}`. But duplicating effect tokens for every contract variation does not scale, and it leaves `Clock`, `Net`, `FS`, `AI` uncorrected.
+
+The AI row was added to the taxonomy by [M-AI-OPENROUTER](../v0_16_0/m-ai-openrouter-provider.md) (v0.16.0): the OpenRouter sprint shipped runtime-routed AI calls (`AIRoutingPolicy`) and captured routing decisions in the trace, but had to enforce explicit opt-in via a `--allow-routing` runtime flag rather than the planned `!{AI[mode=routeable]}` type-level marker — because parameterised effects didn't exist yet. M-EFFECT-REFINEMENT is the canonical home for that deferred work; see [Example 4: Modal AI](#example-4-modal-ai) below.
 
 **Current State:**
 - `std/clock` can be seeded (`AILANG_SEED` pins time) or wall-clock, with no type-level distinction.
@@ -324,13 +327,59 @@ export func weak_token() -> string ! {Rand[mode=os]} = random_bytes(16) |> hex_e
 --   Fix: use Rand[mode=crypto] or add `os` to envelope modes
 ```
 
+### Example 4: Modal AI
+
+**Context:** [M-AI-OPENROUTER](../v0_16_0/m-ai-openrouter-provider.md) (v0.16.0) shipped runtime-routed AI calls — OpenRouter can dynamically pick a provider per call, falling back through a configured order. The original sprint plan called for `!{AI[Routeable]}` as a type-level marker that gates which functions are allowed to use a routing-capable provider. Without parameterised effects, M-AI-OPENROUTER had to fall back to a runtime `--allow-routing` flag and a `ResolvedRoute` trace payload. M-EFFECT-REFINEMENT delivers the missing type-level dimension.
+
+**Modes for AI:**
+
+| Mode | Meaning | Replay contract |
+|---|---|---|
+| `mode=fixed` (default) | One configured provider+model. Equivalent to today's bare `!{AI}`. | Deterministic — request hash maps to recorded response. |
+| `mode=routeable` | Runtime may pick from a fallback list (OpenRouter's `provider.order`). Resolved model captured in trace. | Pin-to-resolved by default (replay calls `resolved_model` directly); `--reroute` opts back into live routing. |
+| `mode=replay-only` | No live calls permitted; response must come from cache/trace. | Hard fail if no cached response. |
+| `scope=byok` | Bring-your-own-key path — provider keys flow as scoped capabilities, not ambient config. | Orthogonal to mode; combines, e.g., `AI[mode=routeable, scope=byok]`. |
+
+```ailang
+import std/ai (call)
+
+-- Tier A: fixed model (today's default; no syntax change for existing programs)
+export func summarize(text: string) -> string ! {AI[mode=fixed]} =
+  call("Summarize: " ++ text)
+-- Bare !{AI} elaborates to !{AI[mode=fixed]} — back-compat preserved.
+
+-- Tier B: runtime-routed; opts into OpenRouter-style fallback at the type level.
+-- Replaces M-AI-OPENROUTER's runtime --allow-routing flag.
+export func summarize_routed(text: string) -> string ! {AI[mode=routeable]} =
+  call("Summarize: " ++ text)
+
+-- Tier C: deterministic-replay only — useful for offline agent eval.
+-- Live calls are a typed error.
+export func eval_against_fixture(prompt: string) -> string ! {AI[mode=replay-only]} =
+  call(prompt)
+
+-- BYOK: scope-parameterised key path. Combines with any mode.
+export func with_byok_key() -> string ! {AI[mode=routeable, scope=byok]} =
+  call("...")
+```
+
+**Compile-time check:** a function declared `!{AI[mode=fixed]}` cannot call a function whose signature is `!{AI[mode=routeable]}` without explicit widening — this is the type-level expression of the `--allow-routing` runtime gate. The error mirrors the routing rejection in `internal/ai/openai/anthropic/gemini/ollama` Generate methods that M-AI-OPENROUTER M2 already ships at the runtime layer.
+
+**Trace integration:** the existing `EffectEvent.Route *ResolvedRoute` payload (shipped in M-AI-OPENROUTER M3) is the replay-contract data for `AI[mode=routeable]`. No trace-schema change needed when this milestone lands; only the type-level enforcement is new.
+
+**Migration from v0.16.0 runtime gate:**
+- Programs that today rely on `--allow-routing` keep working unchanged: bare `!{AI}` elaborates to `!{AI[mode=fixed]}`, which raises a type error if the host has routing flags set. The runtime gate becomes the elaborator's fallback when programs have not yet adopted modes.
+- Programs that want to opt into routing add `mode=routeable` to the effect row and drop `--allow-routing` from their invocation.
+- The `AIHandlerWithRouting` interface (M-AI-OPENROUTER M3) is reused as-is by the elaborated handlers.
+
 ## Success Criteria
 
 - [ ] `!{E[mode=X]}` syntax parses and type-checks
 - [ ] Unification rules specified, documented, tested for all effect pairs
 - [ ] Back-compat: every existing AILANG program continues to type-check without modification
 - [ ] `type CryptoRand = Rand[mode=crypto]` alias verified zero-diff with M-CRYPTORAND programs
-- [ ] Clock, Net, FS ported with modes + aliases
+- [ ] Clock, Net, FS, AI ported with modes + aliases (`AI[mode=fixed|routeable|replay-only]`, `AI[scope=byok]`)
+- [ ] M-AI-OPENROUTER's `--allow-routing` runtime gate is subsumed by `AI[mode=routeable]` type checking; bare `!{AI}` continues to require the runtime flag for back-compat
 - [ ] Replay contract registry populated for all (effect, mode) pairs shipped
 - [ ] Trace tooling reads contract label and dispatches correctly
 - [ ] M-ENTROPY envelope accepts per-effect mode constraints and enforces at compile time
