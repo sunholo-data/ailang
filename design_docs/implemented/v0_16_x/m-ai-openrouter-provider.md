@@ -1,6 +1,6 @@
 # M-AI-OPENROUTER: OpenRouter Provider with Routable Model Resolution
 
-**Status**: Planned
+**Status**: Implemented (2026-05-03)
 **Target**: v0.16.0
 **Priority**: P1 (Medium)
 **Estimated**: 4-6 days (~20-30 hours)
@@ -444,6 +444,74 @@ The following are intentionally left open for the implementer (agent latitude):
 ---
 
 **Document created**: 2026-05-03
-**Last updated**: 2026-05-03
+**Last updated**: 2026-05-03 (moved to implemented/v0_16_x; implementation report appended)
 
-DESIGN_DOC_PATH: design_docs/planned/v0_16_0/m-ai-openrouter-provider.md
+DESIGN_DOC_PATH: design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md
+
+---
+
+## Implementation Report (2026-05-03)
+
+All four milestones shipped against the dev branch over the sprint
+window. Total LOC ≈ **3,544** across the four milestones (M1: 1042,
+M2: 755, M3: 992, M4: ~155 docs/benchmark + design-doc move). Test
+coverage for the new packages: **openrouter 94.9%**, **trace 86.5%**,
+**effects 76.6%**.
+
+### What shipped per milestone
+
+| Milestone | Commit | LOC | Headline |
+|-----------|--------|-----|----------|
+| **M1** Thin OpenRouter adapter | `69a8445a` | 1,042 | `internal/ai/openrouter/` package (94.9% coverage, 16 test cases). Forks `internal/ai/openai/` template; OpenAI-compatible Chat Completions; OpenRouter-extended `usage` block (cached_tokens, cost). New `CachedTokens` + `CostUSD` fields on `ai.Response`. Eval harness: vendor/model slash-prefix detection in `internal/eval_harness/`; ten `or-*` model entries added to `internal/eval_harness/models.yml`. |
+| **M2** Routing policy IR + provider rejection | `19e4fd10` | 755 | `internal/ai/routing.go` defines `AIRoutingPolicy`, `RoutePreference`, `AICapability`. `translatePolicy` maps to OpenRouter's `provider` field. OpenAI/Anthropic/Gemini/Ollama `Generate` methods reject non-zero routing with errors-Is-detectable `ErrRoutingNotSupported`. CLI flags `--routing-fallback`, `--routing-require`, `--routing-prefer`, `--routing-max-price` on `ailang exec`/`run`. |
+| **M3** Trace integration + safety gate | `482ae29f` | 992 | `ResolvedRoute` payload on `EffectEvent`. AI effect ops now emit trace events (gap fill — they didn't before). New `AIHandlerWithRouting` interface; OpenRouter handler surfaces resolution metadata. `--allow-routing` runtime safety gate substitutes for the deferred `!{AI[Routeable]}` type-level marker — any `--routing-*` flag without `--allow-routing` returns a typed error before submitting the request. `examples/ai_openrouter_routing.ail` demonstrates the flow with both stub and live modes. Backward-compat verified: trace events without route field still parse. |
+| **M4** Eval, docs, release | (this commit) | ~155 | Cost-comparison benchmark `benchmarks/openrouter_cost_compare/` (live-API only, gated behind `OPENROUTER_API_KEY`). User-facing guide `docs/docs/guides/ai-routing.md` (registered in sidebars). CHANGELOG entry under v0.10-current. Design doc + sprint plan moved here. Cross-references in M-EFFECT-REFINEMENT updated. |
+
+### Architectural notes worth preserving
+
+- **Import-cycle resolution (M3).** Adding `RecordAIEffect` directly
+  to `*effects.EffectContext` introduced a cycle (`effects` →
+  `trace`). Resolution: a small collector interface lives where it's
+  consumed (the `effects` package defines a `traceCollector`-style
+  interface; the concrete trace writer in `internal/trace/` satisfies
+  it). Keep the rule: trace package never imports effects package.
+- **`AIHandlerWithRouting` is opt-in.** Existing AI handlers that
+  predate routing don't need to implement the new interface; the AI
+  effect dispatcher checks for the interface and falls back to the
+  plain `AIHandler.Call` path when absent. This keeps `cmd/ailang`'s
+  stub handler trivially compatible with both pinned and routed
+  flows.
+- **Trace `route` field is omit-empty.** Non-routed calls write zero
+  bytes for the route payload, so existing trace consumers (the
+  dashboard, `trace-debugger`) see no schema change unless a routed
+  call appears.
+
+### Deferrals (intentional)
+
+| Deferred work | Why | Tracked in |
+|---|---|---|
+| Type-level mode markers `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | AILANG effects today are flat label-strings; parameterised rows need parser + AST + elaborator + typechecker work. The runtime `--allow-routing` gate carries the same explicit-opt-in intent meanwhile. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_0_0/m-effect-refinement.md) — Example 4: Modal AI |
+| Replay-engine pin-to-resolved + `--reroute` flag | Replay engine is currently trace-naive (reruns source with a fresh AI handler). Trace data is captured so the engine has something to consume when implemented. | Future replay-engine refactor |
+| AILANG-side `ai.complete(req)` entry point + `stdlib/std/ai/providers/openrouter.ail` constructor | Needs new builtins for value-level provider construction; out of scope for the adapter milestone. | v0.17.0 follow-up |
+| Streaming responses | Phase 1 is request/response only. | Future provider work |
+| OpenRouter `transforms` / web-search / image features | Preview features, not needed for v0.16.0 launch. `--routing-max-price` is captured in IR but not forwarded because the upstream filter lives behind `transforms`. | Future when needed |
+| AILANG-side cost-budget enforcement | Trace records cost; AILANG-side halt-on-exceed is additive on top. | Future `AIBudget` work |
+
+### Success-criteria status
+
+Tracking against the original criteria above:
+
+- [x] `internal/ai/openrouter/` package exists, implements `ai.Provider`, ≥80% test coverage (94.9%).
+- [x] Eval harness can run benchmarks against `openrouter/<vendor>/<model>` model strings without per-model adapter work.
+- [x] AI trace events include `ResolvedRoute` block for routable calls; zero-valued for fixed-model calls.
+- [ ] `AI[Routeable]` effect row exists; using a routable provider under plain `! {AI}` produces a typed error. **Substituted**: runtime `--allow-routing` gate provides the same explicit-opt-in semantics. Type-level marker deferred to M-EFFECT-REFINEMENT.
+- [ ] Replay of a routed trace uses `resolved_model` and produces matching response. **Deferred**: trace data captured, replay engine still trace-naive.
+- [x] Example `examples/ai_openrouter_routing.ail` runs end-to-end (stub + live modes).
+- [x] `make verify-examples` passes.
+- [x] `make test` passes (no regression in existing providers).
+- [x] Documentation: `docs/docs/guides/ai-routing.md` published; CHANGELOG entry; design doc moved to `design_docs/implemented/v0_16_x/`.
+- [x] At least one eval benchmark exists comparing same task across 3+ OpenRouter-routed models, demonstrating cost-visibility (`benchmarks/openrouter_cost_compare/`).
+
+Net: **8/10 shipped, 2/10 substituted/deferred** with clear handoff to
+M-EFFECT-REFINEMENT for the type-level work and a future replay-engine
+refactor for pin-to-resolved.

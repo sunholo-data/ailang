@@ -70,6 +70,7 @@ const sidebars = {
             'prompts/current',
             'guides/ai-prompt-guide',
             'guides/ai-effect',
+            'guides/ai-routing',
           ],
         },
         {

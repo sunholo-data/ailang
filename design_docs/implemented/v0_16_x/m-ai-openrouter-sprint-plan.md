@@ -6,7 +6,8 @@ Add OpenRouter as an AILANG AI provider, with a new `AI[Routeable]` effect-row m
 
 **Sprint ID:** M-AI-OPENROUTER
 **Target Version:** v0.16.0
-**Design Doc:** [design_docs/planned/v0_16_0/m-ai-openrouter-provider.md](m-ai-openrouter-provider.md)
+**Design Doc:** [design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md](m-ai-openrouter-provider.md)
+**Status:** Implemented (2026-05-03) — see implementation report at the bottom of the design doc.
 **Duration:** 4 days (~26-34 hours, 2-3 calendar weeks if part-time)
 **Dependencies:** None (M-UNIFIED-AI-PROVIDERS shipped in v0.5.10; M-ARCH1 base-class refactor is *not* blocking)
 **Risk Level:** Medium
@@ -245,5 +246,5 @@ Add OpenRouter as an AILANG AI provider, with a new `AI[Routeable]` effect-row m
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v0_16_0/m-ai-openrouter-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_16_x/m-ai-openrouter-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-AI-OPENROUTER.json`

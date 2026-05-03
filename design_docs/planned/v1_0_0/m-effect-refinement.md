@@ -58,7 +58,7 @@ The same shape — single effect token masking multiple incompatible contracts �
 
 [M-CRYPTORAND](../v0_13_0/m-cryptorand.md) is a point fix: it splits Rand into `!{Rand}` and `!{CryptoRand}`. But duplicating effect tokens for every contract variation does not scale, and it leaves `Clock`, `Net`, `FS`, `AI` uncorrected.
 
-The AI row was added to the taxonomy by [M-AI-OPENROUTER](../v0_16_0/m-ai-openrouter-provider.md) (v0.16.0): the OpenRouter sprint shipped runtime-routed AI calls (`AIRoutingPolicy`) and captured routing decisions in the trace, but had to enforce explicit opt-in via a `--allow-routing` runtime flag rather than the planned `!{AI[mode=routeable]}` type-level marker — because parameterised effects didn't exist yet. M-EFFECT-REFINEMENT is the canonical home for that deferred work; see [Example 4: Modal AI](#example-4-modal-ai) below.
+The AI row was added to the taxonomy by [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) (v0.16.0): the OpenRouter sprint shipped runtime-routed AI calls (`AIRoutingPolicy`) and captured routing decisions in the trace, but had to enforce explicit opt-in via a `--allow-routing` runtime flag rather than the planned `!{AI[mode=routeable]}` type-level marker — because parameterised effects didn't exist yet. M-EFFECT-REFINEMENT is the canonical home for that deferred work; see [Example 4: Modal AI](#example-4-modal-ai) below.
 
 **Current State:**
 - `std/clock` can be seeded (`AILANG_SEED` pins time) or wall-clock, with no type-level distinction.
@@ -329,7 +329,7 @@ export func weak_token() -> string ! {Rand[mode=os]} = random_bytes(16) |> hex_e
 
 ### Example 4: Modal AI
 
-**Context:** [M-AI-OPENROUTER](../v0_16_0/m-ai-openrouter-provider.md) (v0.16.0) shipped runtime-routed AI calls — OpenRouter can dynamically pick a provider per call, falling back through a configured order. The original sprint plan called for `!{AI[Routeable]}` as a type-level marker that gates which functions are allowed to use a routing-capable provider. Without parameterised effects, M-AI-OPENROUTER had to fall back to a runtime `--allow-routing` flag and a `ResolvedRoute` trace payload. M-EFFECT-REFINEMENT delivers the missing type-level dimension.
+**Context:** [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) (v0.16.0) shipped runtime-routed AI calls — OpenRouter can dynamically pick a provider per call, falling back through a configured order. The original sprint plan called for `!{AI[Routeable]}` as a type-level marker that gates which functions are allowed to use a routing-capable provider. Without parameterised effects, M-AI-OPENROUTER had to fall back to a runtime `--allow-routing` flag and a `ResolvedRoute` trace payload. M-EFFECT-REFINEMENT delivers the missing type-level dimension.
 
 **Modes for AI:**
 
