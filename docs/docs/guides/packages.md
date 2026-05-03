@@ -302,6 +302,17 @@ Each package can include an `AGENT.md` — a structured guide for AI agents with
 | `AILANG_REGISTRY` | Registry URL (default: `https://storage.googleapis.com/ailang-registry`) |
 | `AILANG_REGISTRY_VALIDATOR` | Validator service URL (for `ailang publish`) |
 | `AILANG_REGISTRY_API_KEY` | API key for publishing |
+| `AILANG_CLOUD_PROJECT` | GCP project hosting the cascade Pub/Sub topic (e.g. `ailang-multivac-dev`). When unset, `ailang publish` skips the cascade-topic publish and only emits legacy inbox messages. |
+| `AILANG_TOPIC_PREFIX` | Prefix for cascade topic names (default: `ailang`). Cloud envs use the env-specific prefix (`ailang-dev`, `ailang-test`, `ailang`). The full topic name is `<prefix>-cascade`. |
+
+**Cascade env vars:** Both `AILANG_CLOUD_PROJECT` and `AILANG_TOPIC_PREFIX` must match the cloud coordinator's deployment. For the public `ailang-dev` environment:
+
+```bash
+export AILANG_CLOUD_PROJECT=ailang-multivac-dev
+export AILANG_TOPIC_PREFIX=ailang-dev
+```
+
+Without these, `ailang publish` still uploads to the registry and notifies dependent inboxes, but the cloud coordinator never wakes up to open repair PRs — the cascade is effectively local-only.
 
 ### Admin: Rebuild Index
 
