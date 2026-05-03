@@ -156,15 +156,22 @@ Add OpenRouter as an AILANG AI provider, with a new `AI[Routeable]` effect-row m
 - Replay engine (location TBD by impl) (~50 LOC delta)
 - `cmd/ailang/` — add `--reroute` flag (~20 LOC delta)
 
-**Acceptance Criteria:**
-- [ ] `AI[Routeable]` parses and type-checks; declaring `! {AI[Routeable]}` is accepted
-- [ ] Routable provider used under plain `! {AI}` produces typed error `AIError.RouteableProviderNotAllowed { required: "AI[Routeable]", declared: "AI" }`
-- [ ] Every OpenRouter call writes a populated `ResolvedRoute` to the trace event (unit test asserts non-empty)
-- [ ] Trace schema change is additive: existing non-routable trace events still parse correctly (backward compat test)
-- [ ] Replay of a routed trace uses `resolved_model`, response matches modulo expected nondeterminism
-- [ ] `--reroute` flag re-runs routing logic during replay (integration test)
-- [ ] `examples/ai_openrouter_routing.ail` runs end-to-end, trace shows `resolved_model` populated
-- [ ] Handoff message sent to dashboard / trace-debugger owners describing new fields
+**Acceptance Criteria (M3, as shipped):**
+- [x] AI effect ops emit trace events via `ctx.RecordAIEffect` (gap fill — they previously did not)
+- [x] `EffectEvent` gains optional `Route *ResolvedRoute` payload
+- [x] OpenRouter handler surfaces resolution metadata via `AIHandlerWithRouting`
+- [x] Runtime safety gate: `--allow-routing` required with any `--routing-*` flag
+- [x] `examples/ai_openrouter_routing.ail` demonstrates the flow
+- [x] Backward-compat: existing trace events parse correctly without route field (regression tests)
+- [ ] ~~`AI[Routeable]` effect-row marker (parses, type-checks)~~ — **DEFERRED** to a future language-feature sprint (parser + AST + elaborator + typechecker changes)
+- [ ] ~~Routable provider used under plain `! {AI}` produces typed error~~ — **DEFERRED** (same reason)
+- [ ] ~~`AI[BYOK]`, `AI[ReplayOnly]` row markers~~ — **DEFERRED** (same reason)
+- [ ] ~~Replay engine pin-to-resolved + `--reroute` flag~~ — **DEFERRED** (needs trace-aware AI handler for replay; bigger replay-engine refactor)
+- [ ] ~~Handoff message to dashboard / trace-debugger owners~~ — separate communication task
+
+**Deferred to follow-up:**
+- **Type-level effect-row markers for AI variants.** Architectural reality: AILANG effects today are flat label-strings (`! {AI}`), not parameterized rows. `AI[Routeable]` would need parser/AST/elaborator/typechecker work — a multi-day language feature out of scope for this milestone. The runtime substance (capture routing in trace, require `--allow-routing`) is shipped here, providing the same explicit-opt-in intent at runtime instead of compile-time.
+- **Replay-engine pin-to-resolved.** Today's replay engine reruns the source file with a fresh AI handler; pinning to `resolved_model` would require a "trace-replay handler" that consults the baseline trace for each AI call. The trace data is now captured (so replay has something to consume); the engine work is tracked for follow-up.
 
 **Risks:**
 - **High**: Effect-row changes ripple through type-checker — Mitigation: scope row markers as simple boolean flags, defer generalization; run `make test` after each row-marker addition

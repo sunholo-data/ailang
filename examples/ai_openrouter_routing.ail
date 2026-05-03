@@ -1,0 +1,40 @@
+-- examples/ai_openrouter_routing.ail
+-- Demonstrates OpenRouter provider routing via CLI flags.
+--
+-- Run with stub handler (no API key, deterministic):
+--   ailang run --caps IO,AI --ai-stub --entry main examples/ai_openrouter_routing.ail
+--
+-- Run with real OpenRouter routing:
+--   export OPENROUTER_API_KEY=...
+--   ailang run --caps IO,AI \
+--     --ai openrouter/auto \
+--     --routing-fallback "anthropic,openai,google" \
+--     --routing-require structured_outputs \
+--     --routing-prefer cheapest \
+--     --allow-routing \
+--     --emit-trace jsonl \
+--     --entry main examples/ai_openrouter_routing.ail \
+--     > trace.jsonl
+--
+-- Inspect the trace to see ResolvedRoute populated:
+--   jq 'select(.event=="effect" and .effect.effect_name=="AI") | .effect.route' trace.jsonl
+--
+-- Notes:
+--   * The runtime safety gate requires --allow-routing whenever any
+--     --routing-* flag is set. This is the runtime equivalent of the
+--     planned AI[Routeable] type-level marker (deferred to a follow-up
+--     language-feature sprint).
+--   * AILANG-side provider({...}) constructor is also deferred; today,
+--     routing is configured via CLI flags only.
+
+module examples/ai_openrouter_routing
+
+import std/ai (call)
+import std/io (println)
+
+export func main() -> () ! {AI, IO} {
+  println("Calling AI through configured provider (routing-aware)...");
+  let response = call("Summarize the AILANG language in one sentence.");
+  println("Response:");
+  println(response)
+}

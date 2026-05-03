@@ -92,6 +92,8 @@ func runExec() {
 		"Routing preference: cheapest|fastest|most_reliable")
 	routingMaxPrice := fs.String("routing-max-price", "",
 		"Max price per million tokens in USD (currently parsed but not forwarded; reserved for v0.17.0)")
+	allowRouting := fs.Bool("allow-routing", false,
+		"Required acknowledgment when --routing-* flags are set; routing introduces dynamic provider selection so explicit opt-in is required")
 
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
@@ -100,6 +102,7 @@ func runExec() {
 		"system-prompt", "api-only", "register-task", "dry-run",
 		"stream-json", "quiet", "json",
 		"routing-fallback", "routing-require", "routing-prefer", "routing-max-price",
+		"allow-routing",
 	})
 
 	if err := fs.Parse(args); err != nil {
@@ -216,7 +219,7 @@ func runExec() {
 	var result *executor.Result
 	if *apiOnly {
 		routing, routingErr := buildRoutingPolicy(provider,
-			*routingFallback, *routingRequire, *routingPrefer, *routingMaxPrice)
+			*routingFallback, *routingRequire, *routingPrefer, *routingMaxPrice, *allowRouting)
 		if routingErr != nil {
 			err = routingErr
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
@@ -357,9 +360,18 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 //   - When the provider isn't openrouter and any routing flag is set, we return an
 //     error early rather than relying on the provider to reject it, so the CLI gives
 //     a fast, friendly diagnostic.
-func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string) (*ai.AIRoutingPolicy, error) {
+//   - Safety gate: any routing flag set without allowRouting=true returns a typed
+//     error before submitting the request. Routing introduces dynamic provider
+//     selection, so explicit opt-in is required. This is the runtime equivalent
+//     of the design doc's AI[Routeable] type-level marker.
+func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string, allowRouting bool) (*ai.AIRoutingPolicy, error) {
 	if fallback == "" && require == "" && prefer == "" && maxPrice == "" {
 		return nil, nil
+	}
+	if !allowRouting {
+		return nil, fmt.Errorf("routing flags set but --allow-routing not enabled.\n" +
+			"Routing introduces dynamic provider selection; pass --allow-routing\n" +
+			"to acknowledge this is intentional")
 	}
 	if provider != "openrouter" {
 		return nil, fmt.Errorf("--routing-* flags require --provider openrouter (got %q)", provider)

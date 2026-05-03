@@ -155,14 +155,27 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		costUSD = strconv.FormatFloat(result.Usage.Cost, 'f', -1, 64)
 	}
 
+	// FallbackChain: OpenRouter doesn't reliably surface a true fallback
+	// chain in standard responses. For successful calls we report the
+	// resolved model as a single-element chain so consumers always see a
+	// non-empty list when routing was active. If we adopt a richer signal
+	// later, this is the place to populate it.
+	var fallbackChain []string
+	if result.Model != "" {
+		fallbackChain = []string{result.Model}
+	}
+
 	return &ai.Response{
-		Text:         text,
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: outputTokens,
-		TotalTokens:  result.Usage.TotalTokens,
-		ReasonTokens: reasoningTokens,
-		CachedTokens: result.Usage.PromptTokensDetails.CachedTokens,
-		CostUSD:      costUSD,
-		Model:        result.Model,
+		Text:             text,
+		InputTokens:      result.Usage.PromptTokens,
+		OutputTokens:     outputTokens,
+		TotalTokens:      result.Usage.TotalTokens,
+		ReasonTokens:     reasoningTokens,
+		CachedTokens:     result.Usage.PromptTokensDetails.CachedTokens,
+		CostUSD:          costUSD,
+		Model:            result.Model,
+		RequestedModel:   req.Model,
+		ResolvedProvider: result.Provider,
+		FallbackChain:    fallbackChain,
 	}, nil
 }

@@ -168,7 +168,11 @@ models.yml                          # MODIFIED: add openrouter/* entries
 
 4. **`AI[Routeable]` row marker** — A new effect row that providers self-declare they need. The OpenRouter handler's `Capabilities()` method returns `{Routeable: true}`. The AI effect handler checks: if program declared `! {AI}` (no Routeable), reject routable providers at handler dispatch with a typed error. If program declared `! {AI[Routeable]}`, allow.
 
+   **Status (M3): DEFERRED.** AILANG effects are flat label-strings (`! {AI}`) today, not parameterized rows. Implementing `AI[Routeable]` requires parser + AST + elaborator + typechecker changes — out of scope for the M3 milestone window. M3 ships the **runtime equivalent** instead: a `--allow-routing` CLI flag that must accompany any `--routing-*` flag, otherwise the CLI returns a typed error before submitting the request. This enforces the same "explicit opt-in for routing" intent as the type-level marker would, just at runtime.
+
 5. **Replay policy** — Default: replay uses `resolved_model` from the trace, calling that specific model directly (bypassing OpenRouter routing on replay). Optional `--reroute` flag re-runs routing logic, useful for "what would happen now" analysis but not deterministic.
+
+   **Status (M3): DEFERRED (engine work).** M3 ships the trace-side substance — `EffectEvent.Route` is now populated with `requested_model`, `resolved_model`, `resolved_provider`, fallback chain, prompt/completion/cached/reasoning tokens, and cost. The replay engine itself is not yet trace-aware: it reruns the source file with a fresh AI handler, so it doesn't currently consult `resolved_model`. Wiring a trace-replay handler that pins to `resolved_model` is a separate replay-engine refactor tracked for follow-up.
 
 ### Implementation Plan
 
@@ -190,13 +194,16 @@ models.yml                          # MODIFIED: add openrouter/* entries
 - [ ] Tests for routing policy translation and rejection paths
 
 **Phase 3: AI[Routeable] effect + trace schema** (~6-8 hours)
-- [ ] Add `Routeable` (and stub `BYOK`, `ReplayOnly`) row markers to effect-row representation
-- [ ] AI effect handler checks routable-provider capability against declared effect row
-- [ ] Extend AI trace event schema with `ResolvedRoute` block
-- [ ] Update trace-debugger / dashboard consumers (or coordinate handoff)
-- [ ] Replay engine: prefer `resolved_model` over `requested_model` when replaying a routable call
-- [ ] Documentation: `docs/docs/guides/ai-routing.md` covering effect markers, replay semantics, OpenRouter setup
-- [ ] Example: `examples/ai_openrouter_routing.ail` showing `AI[Routeable]` declaration and policy
+- [ ] ~~Add `Routeable` (and stub `BYOK`, `ReplayOnly`) row markers to effect-row representation~~ — **DEFERRED**: AILANG effects are flat label-strings today (`! {AI}`); parameterized rows need parser + AST + elaborator + typechecker changes (multi-day language-feature effort). Tracked for a follow-up sprint.
+- [ ] ~~AI effect handler checks routable-provider capability against declared effect row~~ — **DEFERRED** (depends on row-marker type-level work above).
+- [x] Extend AI trace event schema with `ResolvedRoute` block — shipped (additive `Route` field on `EffectEvent`, `RecordAIEffect` collector method).
+- [x] AI effect ops emit trace events with optional routing metadata (gap fill — AI ops previously did not record trace events at all).
+- [x] OpenRouter handler surfaces resolution metadata via `AIHandlerWithRouting` interface; `ai.Response` gains `RequestedModel`, `ResolvedProvider`, `FallbackChain` fields.
+- [x] Runtime safety gate: any `--routing-*` flag without `--allow-routing` returns a typed error before submitting the request — runtime equivalent of the type-level `AI[Routeable]` opt-in.
+- [ ] ~~Update trace-debugger / dashboard consumers (or coordinate handoff)~~ — separate communication task; new field is additive so existing consumers continue to work.
+- [ ] ~~Replay engine: prefer `resolved_model` over `requested_model` when replaying a routable call~~ — **DEFERRED**: requires a trace-replay AI handler that consults the baseline trace for each call; bigger replay-engine refactor. Trace data is now captured so the replay engine has something to read when implemented.
+- [ ] Documentation: `docs/docs/guides/ai-routing.md` covering effect markers, replay semantics, OpenRouter setup — pending M4.
+- [x] Example: `examples/ai_openrouter_routing.ail` shipped — uses CLI-flag routing config; `AI[Routeable]` declaration deferred with the type-level work.
 
 ### Files to Modify/Create
 

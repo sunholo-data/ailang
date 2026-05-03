@@ -219,6 +219,40 @@ func (c *Collector) RecordEffect(effectName, opName string, args []string, resul
 	c.notify(traceEvt)
 }
 
+// RecordAIEffect records an AI effect invocation with optional routing metadata.
+//
+// Behaves like RecordEffect with EffectName="AI" but additionally attaches
+// the supplied ResolvedRoute (which may be nil for non-routed AI calls).
+// Used by the AI effect ops to surface OpenRouter routing decisions in the
+// trace stream.
+func (c *Collector) RecordAIEffect(opName string, args []string, result string, route *ResolvedRoute) {
+	if !c.Enabled() {
+		return
+	}
+	evt := EffectEvent{
+		EffectName: "AI",
+		OpName:     opName,
+		Args:       args,
+		Result:     result,
+		Route:      route,
+	}
+	if IsNonDeterministic("AI", opName) {
+		f := false
+		evt.Deterministic = &f
+	}
+	traceEvt := TraceEvent{
+		Version:     traceVersion,
+		Event:       EventEffect,
+		TimestampNS: c.nowNS(),
+		Depth:       c.depth,
+		TraceID:     c.traceID,
+		SpanID:      c.currentSpanID(),
+		Effect:      &evt,
+	}
+	c.events = append(c.events, traceEvt)
+	c.notify(traceEvt)
+}
+
 // RecordContractCheck records a contract verification result.
 func (c *Collector) RecordContractCheck(kind string, passed bool, msg, location, function string) {
 	if !c.Enabled() {

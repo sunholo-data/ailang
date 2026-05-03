@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 // ErrNoAIHandler is returned when AI.call is invoked without a configured handler
@@ -39,12 +40,47 @@ type AIHandler interface {
 	CallImageBase64(prompt string, options string) (string, error)
 }
 
+// AIHandlerWithRouting is an optional capability — handlers that implement
+// it can report routing metadata about their most recent Call/CallJson.
+//
+// The unified ai.Handler in internal/ai implements this and surfaces
+// OpenRouter resolution data (requested vs resolved model, fallback
+// chain, cost, cached tokens) so the AI effect ops can attach it to
+// trace events.
+//
+// Thread-safety: callers must invoke LastRoutingMetadata() immediately
+// after the matching Call/CallJson returns, before any other handler
+// operation. Single-threaded use only — matches the AIHandler contract.
+type AIHandlerWithRouting interface {
+	AIHandler
+	// LastRoutingMetadata returns routing info for the most recent
+	// Call/CallJson, or nil if the call did not engage routing.
+	LastRoutingMetadata() *trace.ResolvedRoute
+}
+
+// errAICallFmt is the format string used by all AI op error wrappers.
+// Centralized so the literal isn't duplicated across each op.
+const errAICallFmt = "E_AI_CALL_ERROR: %w"
+
 // AIContext holds the handler for the current execution
 //
 // Thread-safety: AIContext is designed for single-threaded use
 // within one evaluation. Create a new context for each step/tick.
 type AIContext struct {
 	handler AIHandler
+}
+
+// LastRoutingMetadata returns routing info from the underlying handler
+// if it implements AIHandlerWithRouting. Returns nil otherwise (or when
+// the handler is nil, or the most recent call didn't engage routing).
+func (c *AIContext) LastRoutingMetadata() *trace.ResolvedRoute {
+	if c == nil || c.handler == nil {
+		return nil
+	}
+	if rh, ok := c.handler.(AIHandlerWithRouting); ok {
+		return rh.LastRoutingMetadata()
+	}
+	return nil
 }
 
 // NewAIContext creates a context with the given handler
@@ -199,10 +235,32 @@ func aiCall(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	output, err := ctx.AI.Call(input.Value)
 	if err != nil {
-		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+		return nil, fmt.Errorf(errAICallFmt, err)
 	}
 
+	// Record trace event with optional routing metadata. Truncate args/result
+	// to keep the trace stream compact (long prompts/responses dominate size).
+	ctx.RecordAIEffect("call",
+		[]string{truncateForTrace(input.Value)},
+		truncateForTrace(output),
+		ctx.AI.LastRoutingMetadata(),
+	)
+
 	return &eval.StringValue{Value: output}, nil
+}
+
+// traceArgMaxLen caps the length of a single trace arg/result string so a
+// 100k-token prompt doesn't bloat the trace stream. Matches the rough
+// envelope used elsewhere in the trace pipeline.
+const traceArgMaxLen = 256
+
+// truncateForTrace shortens long strings for inclusion in a trace event,
+// appending an ellipsis marker when the input was clipped.
+func truncateForTrace(s string) string {
+	if len(s) <= traceArgMaxLen {
+		return s
+	}
+	return s[:traceArgMaxLen] + "...[truncated]"
 }
 
 // aiCallJson implements AI.callJson(input: string, schema: string) -> string
@@ -227,8 +285,14 @@ func aiCallJson(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	output, err := ctx.AI.CallJson(input.Value, schema.Value)
 	if err != nil {
-		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+		return nil, fmt.Errorf(errAICallFmt, err)
 	}
+
+	ctx.RecordAIEffect("callJson",
+		[]string{truncateForTrace(input.Value), truncateForTrace(schema.Value)},
+		truncateForTrace(output),
+		ctx.AI.LastRoutingMetadata(),
+	)
 
 	return &eval.StringValue{Value: output}, nil
 }
@@ -250,8 +314,14 @@ func aiCallJsonSimple(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	output, err := ctx.AI.CallJson(input.Value, "")
 	if err != nil {
-		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+		return nil, fmt.Errorf(errAICallFmt, err)
 	}
+
+	ctx.RecordAIEffect("callJsonSimple",
+		[]string{truncateForTrace(input.Value)},
+		truncateForTrace(output),
+		ctx.AI.LastRoutingMetadata(),
+	)
 
 	return &eval.StringValue{Value: output}, nil
 }
@@ -283,7 +353,7 @@ func aiCallImage(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	result, err := ctx.AI.CallImage(prompt.Value, outputPath.Value, options.Value)
 	if err != nil {
-		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+		return nil, fmt.Errorf(errAICallFmt, err)
 	}
 
 	return &eval.StringValue{Value: result}, nil
@@ -311,7 +381,7 @@ func aiCallImageBase64(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	result, err := ctx.AI.CallImageBase64(prompt.Value, options.Value)
 	if err != nil {
-		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+		return nil, fmt.Errorf(errAICallFmt, err)
 	}
 
 	return &eval.StringValue{Value: result}, nil

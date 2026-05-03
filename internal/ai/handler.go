@@ -8,15 +8,26 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 // Handler wraps a Provider for use with the effects.AIHandler interface.
 // This bridges the unified AI package with AILANG's effect system.
+//
+// Thread-safety: single-threaded use within one evaluation. lastRoute is
+// updated after every call and read immediately afterwards by the AI
+// effect ops via LastRoutingMetadata().
 type Handler struct {
 	provider     Provider
 	model        string
 	systemPrompt string
 	maxTokens    int
+
+	// lastRoute caches routing metadata from the most recent successful
+	// Generate() call. nil when the response had no routing-distinct
+	// metadata (direct providers, OR calls that didn't engage routing).
+	lastRoute *trace.ResolvedRoute
 }
 
 // HandlerOption configures a Handler.
@@ -70,10 +81,61 @@ func (h *Handler) Call(input string) (string, error) {
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
 	})
+	h.captureRoute(resp, err)
 	if err != nil {
 		return "", err
 	}
 	return resp.Text, nil
+}
+
+// captureRoute updates h.lastRoute from a Response. Called after every
+// provider.Generate so the AI effect ops can attach routing metadata to
+// trace events. We only populate lastRoute when the response has
+// routing-distinct metadata (RequestedModel != Model OR CachedTokens > 0
+// OR CostUSD != "" OR ResolvedProvider != ""); otherwise leave it nil so
+// trace events for direct providers stay clean.
+//
+// On error we clear the previous metadata so a subsequent successful call
+// from a non-routing provider doesn't inherit stale routing info.
+func (h *Handler) captureRoute(resp *Response, err error) {
+	if err != nil || resp == nil {
+		h.lastRoute = nil
+		return
+	}
+
+	hasRouting := resp.RequestedModel != "" && resp.RequestedModel != resp.Model
+	hasRouting = hasRouting || resp.ResolvedProvider != ""
+	hasRouting = hasRouting || resp.CachedTokens > 0
+	hasRouting = hasRouting || resp.CostUSD != ""
+	hasRouting = hasRouting || len(resp.FallbackChain) > 0
+
+	if !hasRouting {
+		h.lastRoute = nil
+		return
+	}
+
+	h.lastRoute = &trace.ResolvedRoute{
+		RequestedModel:   resp.RequestedModel,
+		ResolvedModel:    resp.Model,
+		ResolvedProvider: resp.ResolvedProvider,
+		FallbackChain:    resp.FallbackChain,
+		PromptTokens:     resp.InputTokens,
+		CompletionTokens: resp.OutputTokens,
+		CachedTokens:     resp.CachedTokens,
+		ReasoningTokens:  resp.ReasonTokens,
+		CostUSD:          resp.CostUSD,
+	}
+}
+
+// LastRoutingMetadata returns routing info for the most recent Call,
+// CallJson, or related operation, or nil if the call did not engage
+// routing.
+//
+// Thread-safety: caller must invoke immediately after the matching
+// Call/CallJson returns, before any other handler operation.
+// Single-threaded use only — matches the AI handler contract.
+func (h *Handler) LastRoutingMetadata() *trace.ResolvedRoute {
+	return h.lastRoute
 }
 
 // jsonMaxTokensMinimum is the minimum max_tokens for JSON structured output.
@@ -102,6 +164,7 @@ func (h *Handler) CallJson(input string, schema string) (string, error) {
 		ResponseFormat: "json",
 		ResponseSchema: schema,
 	})
+	h.captureRoute(resp, err)
 	if err != nil {
 		return "", err
 	}
@@ -118,6 +181,7 @@ func (h *Handler) CallWithContext(ctx context.Context, input string) (string, er
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
 	})
+	h.captureRoute(resp, err)
 	if err != nil {
 		return "", err
 	}

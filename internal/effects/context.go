@@ -655,3 +655,11 @@ func (ctx *EffContext) RecordEffect(effectName, opName string, args []string, re
 		ctx.Trace.RecordEffect(effectName, opName, args, result)
 	}
 }
+
+// RecordAIEffect delegates to the trace collector with optional routing metadata.
+// Effect name is fixed to "AI". Route may be nil for non-routed AI calls.
+func (ctx *EffContext) RecordAIEffect(opName string, args []string, result string, route *trace.ResolvedRoute) {
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordAIEffect(opName, args, result, route)
+	}
+}

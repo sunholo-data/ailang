@@ -462,6 +462,89 @@ func TestClient_Generate_OptionalAttributionHeaders(t *testing.T) {
 	}
 }
 
+// TestClient_Generate_PopulatesResolutionMetadata verifies that the
+// OpenRouter response top-level "provider" field, the requested model from
+// the request, and the resolved model from the response all flow into the
+// new ai.Response routing fields. This is the substance behind the M3
+// trace ResolvedRoute payload.
+func TestClient_Generate_PopulatesResolutionMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw := `{
+			"id": "gen-xyz",
+			"model": "anthropic/claude-sonnet-4.5",
+			"provider": "Anthropic",
+			"choices": [
+				{"index": 0, "message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}
+			],
+			"usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}
+		}`
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(raw))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL))
+
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "openrouter/auto",
+		UserPrompt: "ping",
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+
+	if resp.RequestedModel != "openrouter/auto" {
+		t.Errorf("RequestedModel = %q, want openrouter/auto", resp.RequestedModel)
+	}
+	if resp.Model != "anthropic/claude-sonnet-4.5" {
+		t.Errorf("Model = %q, want anthropic/claude-sonnet-4.5", resp.Model)
+	}
+	if resp.ResolvedProvider != "Anthropic" {
+		t.Errorf("ResolvedProvider = %q, want Anthropic", resp.ResolvedProvider)
+	}
+	if len(resp.FallbackChain) != 1 || resp.FallbackChain[0] != "anthropic/claude-sonnet-4.5" {
+		t.Errorf("FallbackChain = %v, want [anthropic/claude-sonnet-4.5]", resp.FallbackChain)
+	}
+}
+
+// TestClient_Generate_EmptyProviderFieldLeavesResolvedProviderEmpty
+// verifies that when OpenRouter omits the top-level "provider" field
+// (which is what happens for many routes), ResolvedProvider stays empty
+// rather than being fabricated from the model string.
+func TestClient_Generate_EmptyProviderFieldLeavesResolvedProviderEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// No "provider" field
+		raw := `{
+			"id": "gen-1",
+			"model": "openai/gpt-5",
+			"choices": [{"message": {"content": "hi"}}],
+			"usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+		}`
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(raw))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL))
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "openai/gpt-5",
+		UserPrompt: "ping",
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if resp.ResolvedProvider != "" {
+		t.Errorf("ResolvedProvider = %q, want empty when upstream omits provider field", resp.ResolvedProvider)
+	}
+	if resp.RequestedModel != "openai/gpt-5" {
+		t.Errorf("RequestedModel = %q", resp.RequestedModel)
+	}
+	// FallbackChain should always include the resolved model for a successful call.
+	if len(resp.FallbackChain) != 1 || resp.FallbackChain[0] != "openai/gpt-5" {
+		t.Errorf("FallbackChain = %v, want [openai/gpt-5]", resp.FallbackChain)
+	}
+}
+
 func TestClient_Name(t *testing.T) {
 	client := NewClient("test-key")
 	if client.Name() != "openrouter" {

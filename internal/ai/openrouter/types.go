@@ -45,13 +45,18 @@ type chatMessage struct {
 }
 
 // chatResponse represents the response from OpenRouter's Chat Completions API.
+//
+// Provider is an OpenRouter extension reporting which underlying vendor
+// served the request when routing is engaged (e.g. "Anthropic", "OpenAI").
+// Not all responses include it; absent → empty string.
 type chatResponse struct {
-	ID      string       `json:"id"`
-	Object  string       `json:"object"`
-	Created int64        `json:"created"`
-	Model   string       `json:"model"`
-	Choices []chatChoice `json:"choices"`
-	Usage   chatUsage    `json:"usage"`
+	ID       string       `json:"id"`
+	Object   string       `json:"object"`
+	Created  int64        `json:"created"`
+	Model    string       `json:"model"`
+	Provider string       `json:"provider,omitempty"`
+	Choices  []chatChoice `json:"choices"`
+	Usage    chatUsage    `json:"usage"`
 }
 
 // chatChoice represents a completion choice.

@@ -68,6 +68,32 @@ type EffectEvent struct {
 	Args          []string `json:"args,omitempty"`          //
 	Result        string   `json:"result,omitempty"`        //
 	Deterministic *bool    `json:"deterministic,omitempty"` // nil=unknown, true=deterministic, false=non-deterministic
+
+	// Route captures dynamic-routing metadata for AI effect events that
+	// went through a routing-capable provider (OpenRouter). Nil for direct
+	// provider calls and all non-AI effects. Additive — old trace events
+	// without this field unmarshal correctly with Route == nil.
+	Route *ResolvedRoute `json:"route,omitempty"`
+}
+
+// ResolvedRoute captures dynamic-routing metadata for an AI effect event.
+//
+// Populated when an AI call goes through a routing-capable provider
+// (currently: OpenRouter). Nil for direct provider calls. Additive to
+// EffectEvent — backward-compatible with old traces (zero-valued
+// ResolvedRoute fields parse fine).
+//
+// CostUSD is stored as a string to preserve provider-reported precision.
+type ResolvedRoute struct {
+	RequestedModel   string   `json:"requested_model,omitempty"`
+	ResolvedModel    string   `json:"resolved_model,omitempty"`
+	ResolvedProvider string   `json:"resolved_provider,omitempty"`
+	FallbackChain    []string `json:"fallback_chain,omitempty"`
+	PromptTokens     int      `json:"prompt_tokens,omitempty"`
+	CompletionTokens int      `json:"completion_tokens,omitempty"`
+	CachedTokens     int      `json:"cached_tokens,omitempty"`
+	ReasoningTokens  int      `json:"reasoning_tokens,omitempty"`
+	CostUSD          string   `json:"cost_usd,omitempty"`
 }
 
 // nonDeterministicOps maps effect.op pairs that are inherently non-deterministic.

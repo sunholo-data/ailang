@@ -107,6 +107,24 @@ type Response struct {
 
 	// Model is the model that was actually used (may differ from request)
 	Model string
+
+	// RequestedModel is the model the caller asked for. May differ from
+	// Model (which is what the provider actually used) when routing is in
+	// effect. OpenRouter is the only provider where these can differ today;
+	// direct providers leave this empty (in which case Model is the
+	// requested-and-used model).
+	RequestedModel string
+
+	// ResolvedProvider is the underlying provider that ultimately served
+	// the request (e.g., "anthropic" when OpenRouter routed to
+	// claude-sonnet-4.5). Empty when not applicable or not reported.
+	ResolvedProvider string
+
+	// FallbackChain lists the models tried in order before settling on
+	// Model. Empty for direct providers; usually [Model] for successful
+	// first-try OpenRouter calls. Reserved for future use when richer
+	// fallback signals become available.
+	FallbackChain []string
 }
 
 // RequestsImage returns true if the request asks for image generation.
