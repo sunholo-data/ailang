@@ -1,0 +1,165 @@
+package openrouter
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/sunholo-data/ailang/internal/ai"
+)
+
+// generateChat uses OpenRouter's Chat Completions API (/v1/chat/completions).
+//
+// OpenRouter's API is OpenAI-compatible. The wire format matches OpenAI Chat
+// Completions exactly, with two notable extensions on the response:
+//   - usage.prompt_tokens_details.cached_tokens — input tokens served from cache
+//   - usage.cost — total inference cost in USD
+//
+// The optional HTTP-Referer and X-Title headers are an OpenRouter convention
+// (used for app-leaderboard attribution). They are sent only when the
+// OPENROUTER_HTTP_REFERER and OPENROUTER_X_TITLE environment variables are set.
+func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Build messages
+	var messages []chatMessage
+
+	if req.SystemPrompt != "" {
+		messages = append(messages, chatMessage{
+			Role:    "system",
+			Content: req.SystemPrompt,
+		})
+	}
+
+	messages = append(messages, chatMessage{
+		Role:    "user",
+		Content: req.UserPrompt,
+	})
+
+	// Build request. OpenRouter normalizes max_tokens for upstream providers,
+	// so we always use MaxTokens (no max_completion_tokens distinction).
+	apiReq := chatRequest{
+		Model:    req.Model,
+		Messages: messages,
+	}
+
+	maxTokens := req.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 4096
+	}
+	apiReq.MaxTokens = maxTokens
+
+	if req.Temperature > 0 {
+		apiReq.Temperature = req.Temperature
+	}
+
+	// Check for seed in options
+	if req.Options != nil {
+		if seed, ok := req.Options["seed"].(int64); ok {
+			apiReq.Seed = &seed
+		}
+	}
+
+	// Add structured output configuration
+	if req.ResponseFormat == "json" {
+		if req.ResponseSchema != "" {
+			apiReq.ResponseFormat = &chatResponseFormat{
+				Type: "json_schema",
+				JSONSchema: &chatJSONSchema{
+					Name:   "response",
+					Schema: json.RawMessage(req.ResponseSchema),
+					Strict: true,
+				},
+			}
+		} else {
+			apiReq.ResponseFormat = &chatResponseFormat{
+				Type: "json_object",
+			}
+		}
+	}
+
+	// Marshal request
+	jsonBody, err := json.Marshal(apiReq)
+	if err != nil {
+		return nil, ai.NewProviderError("openrouter", 0, "failed to marshal request", err)
+	}
+
+	// Create HTTP request
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, ai.NewProviderError("openrouter", 0, "failed to create request", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	// Optional OpenRouter-specific attribution headers
+	if referer := os.Getenv("OPENROUTER_HTTP_REFERER"); referer != "" {
+		httpReq.Header.Set("HTTP-Referer", referer)
+	}
+	if title := os.Getenv("OPENROUTER_X_TITLE"); title != "" {
+		httpReq.Header.Set("X-Title", title)
+	}
+
+	// Execute request
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, ai.NewProviderError("openrouter", 0, "request failed", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, ai.NewProviderError("openrouter", resp.StatusCode, "failed to read response", err)
+	}
+
+	// Handle errors
+	if resp.StatusCode != http.StatusOK {
+		var errResp errorResponse
+		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
+			return nil, ai.NewProviderError("openrouter", resp.StatusCode, errResp.Error.Message, nil)
+		}
+		return nil, ai.NewProviderError("openrouter", resp.StatusCode, string(body), nil)
+	}
+
+	// Parse successful response
+	var result chatResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, ai.NewProviderError("openrouter", 0, "failed to parse response", err)
+	}
+
+	if len(result.Choices) == 0 {
+		return nil, ai.NewProviderError("openrouter", 0, "no choices in response", nil)
+	}
+
+	text := result.Choices[0].Message.Content
+
+	// Calculate output tokens. For reasoning models, completion_tokens
+	// includes reasoning_tokens — split them out the same way openai does.
+	outputTokens := result.Usage.CompletionTokens
+	reasoningTokens := result.Usage.CompletionTokensDetails.ReasoningTokens
+	if reasoningTokens > 0 {
+		outputTokens = outputTokens - reasoningTokens
+	}
+
+	// Cost is reported as a float by OpenRouter; preserve precision via
+	// strconv.FormatFloat. Empty string when the upstream did not report cost.
+	costUSD := ""
+	if result.Usage.Cost != 0 {
+		costUSD = strconv.FormatFloat(result.Usage.Cost, 'f', -1, 64)
+	}
+
+	return &ai.Response{
+		Text:         text,
+		InputTokens:  result.Usage.PromptTokens,
+		OutputTokens: outputTokens,
+		TotalTokens:  result.Usage.TotalTokens,
+		ReasonTokens: reasoningTokens,
+		CachedTokens: result.Usage.PromptTokensDetails.CachedTokens,
+		CostUSD:      costUSD,
+		Model:        result.Model,
+	}, nil
+}

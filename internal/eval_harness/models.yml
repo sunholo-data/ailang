@@ -886,6 +886,126 @@ models:
       Good for fast local document text extraction.
       Requires: ollama pull MedAIBase/PaddleOCR-VL:0.9b
 
+  # =============================================================================
+  # OpenRouter (https://openrouter.ai)
+  # =============================================================================
+  # OpenRouter is a unified gateway fronting ~100 LLMs from many vendors via an
+  # OpenAI-compatible Chat Completions API. The provider field is "openrouter"
+  # and the api_name uses OpenRouter's "vendor/model" convention.
+  #
+  # Pricing here is set to 0 because cost varies per resolved model and is
+  # reported back by OpenRouter on each request (see ai.Response.CostUSD).
+
+  or-claude-sonnet-4-5:
+    api_name: "anthropic/claude-sonnet-4.5"
+    provider: "openrouter"
+    description: "Claude Sonnet 4.5 via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-gpt5:
+    api_name: "openai/gpt-5"
+    provider: "openrouter"
+    description: "GPT-5 via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-gpt5-mini:
+    api_name: "openai/gpt-5-mini"
+    provider: "openrouter"
+    description: "GPT-5 mini via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-gemini-2-5-pro:
+    api_name: "google/gemini-2.5-pro"
+    provider: "openrouter"
+    description: "Gemini 2.5 Pro via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-gemini-2-5-flash:
+    api_name: "google/gemini-2.5-flash"
+    provider: "openrouter"
+    description: "Gemini 2.5 Flash via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-llama-3-3-70b:
+    api_name: "meta-llama/llama-3.3-70b-instruct"
+    provider: "openrouter"
+    description: "Llama 3.3 70B Instruct via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-deepseek-v3:
+    api_name: "deepseek/deepseek-chat"
+    provider: "openrouter"
+    description: "DeepSeek V3 (deepseek-chat) via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-qwen-2-5-72b:
+    api_name: "qwen/qwen-2.5-72b-instruct"
+    provider: "openrouter"
+    description: "Qwen 2.5 72B Instruct via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-mistral-large:
+    api_name: "mistralai/mistral-large"
+    provider: "openrouter"
+    description: "Mistral Large via OpenRouter"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
+  or-auto:
+    api_name: "openrouter/auto"
+    provider: "openrouter"
+    description: "OpenRouter auto-routing — let OpenRouter pick the best model"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
 

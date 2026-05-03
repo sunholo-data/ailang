@@ -13,6 +13,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/ai/openrouter"
 )
 
 // providerAdapter wraps ai.Provider for eval harness use.
@@ -47,6 +48,11 @@ func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
 		// Strip ollama: prefix if present
 		model = strings.TrimPrefix(model, "ollama:")
 		provider = client
+	case "openrouter":
+		// Strip optional explicit "openrouter:" prefix; the model name itself
+		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5").
+		model = strings.TrimPrefix(model, "openrouter:")
+		provider = openrouter.NewClient(apiKey)
 	default:
 		return nil, fmt.Errorf("unsupported provider for model: %s", model)
 	}
@@ -95,6 +101,26 @@ func guessProvider(model string) string {
 		return "ollama"
 	}
 
+	// Explicit openrouter: prefix
+	if strings.HasPrefix(lower, "openrouter:") {
+		return "openrouter"
+	}
+
+	// OpenRouter convention: model strings are "vendor/model" with a "/" in
+	// them. Detect this BEFORE the bare-prefix checks so that
+	// "anthropic/claude-..." routes to OpenRouter, not the direct Anthropic API.
+	if strings.Contains(lower, "/") {
+		orVendors := []string{
+			"anthropic/", "openai/", "google/", "meta-llama/", "mistralai/",
+			"deepseek/", "qwen/", "nvidia/", "x-ai/", "cohere/", "openrouter/",
+		}
+		for _, v := range orVendors {
+			if strings.HasPrefix(lower, v) {
+				return "openrouter"
+			}
+		}
+	}
+
 	// Check common prefixes
 	switch {
 	case strings.HasPrefix(lower, "gpt"),
@@ -137,6 +163,8 @@ func getAPIKeyForProvider(provider string, model string) (string, error) {
 	case "ollama":
 		// Ollama is local, no API key required
 		return "", nil
+	case "openrouter":
+		envVar = "OPENROUTER_API_KEY"
 	default:
 		return "", fmt.Errorf("unsupported provider: %s (model: %s)", provider, model)
 	}

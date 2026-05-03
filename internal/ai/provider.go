@@ -85,6 +85,16 @@ type Response struct {
 	// ReasonTokens is the number of reasoning tokens (for o1/codex models)
 	ReasonTokens int
 
+	// CachedTokens is the number of cached input tokens (provider-specific).
+	// OpenRouter reports this in usage.prompt_tokens_details.cached_tokens.
+	// Other providers may leave this as 0.
+	CachedTokens int
+
+	// CostUSD is the inference cost in USD as reported by the provider.
+	// Stored as a string to preserve provider-reported precision.
+	// OpenRouter reports this in usage.cost. Empty string if not reported.
+	CostUSD string
+
 	// Model is the model that was actually used (may differ from request)
 	Model string
 }

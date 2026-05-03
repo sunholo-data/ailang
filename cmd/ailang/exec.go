@@ -18,6 +18,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/ai/openrouter"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
@@ -115,11 +116,11 @@ func runExec() {
 	// Validate provider
 	validProviders := map[string]bool{
 		"claude": true, "gemini": true, "openai": true,
-		"anthropic": true, "ollama": true,
+		"anthropic": true, "ollama": true, "openrouter": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter\n")
 		os.Exit(1)
 	}
 
@@ -357,6 +358,12 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 		if ollamaErr != nil {
 			return nil, fmt.Errorf("failed to create ollama client: %w", ollamaErr)
 		}
+	case "openrouter":
+		apiKey := os.Getenv("OPENROUTER_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("OPENROUTER_API_KEY environment variable required")
+		}
+		client = openrouter.NewClient(apiKey)
 	default:
 		return nil, fmt.Errorf("API mode not supported for provider %s (use CLI mode)", provider)
 	}
