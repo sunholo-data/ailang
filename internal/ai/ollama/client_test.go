@@ -1,6 +1,8 @@
 package ollama
 
 import (
+	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -104,5 +106,28 @@ func TestCheckConnection(t *testing.T) {
 	err = client.CheckConnection(t.Context())
 	if err != nil {
 		t.Skipf("Ollama not running (expected in CI): %v", err)
+	}
+}
+
+// TestGenerate_RejectsRoutingPolicy ensures ollama refuses routing policies
+// rather than silently ignoring them. Per CLAUDE.md no-silent-fallbacks.
+func TestGenerate_RejectsRoutingPolicy(t *testing.T) {
+	client, err := NewClient(WithEndpoint("http://localhost:1"))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	_, err = client.Generate(context.Background(), &ai.Request{
+		Model:      "codellama:7b",
+		UserPrompt: "hi",
+		Routing: &ai.AIRoutingPolicy{
+			Order:         []string{"local"},
+			AllowFallback: true,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error rejecting routing policy, got nil")
+	}
+	if !errors.Is(err, ai.ErrRoutingNotSupported) {
+		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }

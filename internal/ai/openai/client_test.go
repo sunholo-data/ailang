@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -679,5 +680,25 @@ func TestClient_Generate_ResponsesAPI_Error(t *testing.T) {
 	}
 	if providerErr.Message != "Invalid model" {
 		t.Errorf("Message = %q, want %q", providerErr.Message, "Invalid model")
+	}
+}
+
+// TestGenerate_RejectsRoutingPolicy ensures openai refuses routing policies
+// rather than silently ignoring them. Per CLAUDE.md no-silent-fallbacks.
+func TestGenerate_RejectsRoutingPolicy(t *testing.T) {
+	client := NewClient("test-key")
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "gpt-4",
+		UserPrompt: "hi",
+		Routing: &ai.AIRoutingPolicy{
+			Order:         []string{"anthropic"},
+			AllowFallback: true,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error rejecting routing policy, got nil")
+	}
+	if !errors.Is(err, ai.ErrRoutingNotSupported) {
+		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }

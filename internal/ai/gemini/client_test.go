@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -473,5 +474,25 @@ func TestBuildParts_FileData_JSONMarshal(t *testing.T) {
 	}
 	if _, hasInline := raw["inlineData"]; hasInline {
 		t.Error("expected no inlineData key in JSON when fileData is set")
+	}
+}
+
+// TestGenerate_RejectsRoutingPolicy ensures gemini refuses routing policies
+// rather than silently ignoring them. Per CLAUDE.md no-silent-fallbacks.
+func TestGenerate_RejectsRoutingPolicy(t *testing.T) {
+	client := NewClient("test-key")
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "gemini-2.5-flash",
+		UserPrompt: "hi",
+		Routing: &ai.AIRoutingPolicy{
+			Order:         []string{"google"},
+			AllowFallback: true,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error rejecting routing policy, got nil")
+	}
+	if !errors.Is(err, ai.ErrRoutingNotSupported) {
+		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }

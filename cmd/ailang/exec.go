@@ -82,12 +82,24 @@ func runExec() {
 	quiet := fs.Bool("quiet", false, "Suppress streaming output, only show final result")
 	jsonOutput := fs.Bool("json", false, "Output result as single JSON object (for programmatic use)")
 
+	// Routing flags (consumed only by --api-only with --provider openrouter; other
+	// providers reject a non-zero policy with ai.ErrRoutingNotSupported).
+	routingFallback := fs.String("routing-fallback", "",
+		"Comma-separated provider order for OpenRouter (e.g. \"anthropic,openai,google\"); also enables fallback")
+	routingRequire := fs.String("routing-require", "",
+		"Comma-separated required model capabilities (e.g. \"structured_outputs,tool_calling\")")
+	routingPrefer := fs.String("routing-prefer", "",
+		"Routing preference: cheapest|fastest|most_reliable")
+	routingMaxPrice := fs.String("routing-max-price", "",
+		"Max price per million tokens in USD (currently parsed but not forwarded; reserved for v0.17.0)")
+
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
 	args = normalizeArgsForFlags(args, []string{
 		"workspace", "model", "timeout", "task-id", "parent-task-id",
 		"system-prompt", "api-only", "register-task", "dry-run",
 		"stream-json", "quiet", "json",
+		"routing-fallback", "routing-require", "routing-prefer", "routing-max-price",
 	})
 
 	if err := fs.Parse(args); err != nil {
@@ -203,8 +215,19 @@ func runExec() {
 	streamEvents := *streamJSON && !*quiet && !*jsonOutput
 	var result *executor.Result
 	if *apiOnly {
-		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, streamEvents)
+		routing, routingErr := buildRoutingPolicy(provider,
+			*routingFallback, *routingRequire, *routingPrefer, *routingMaxPrice)
+		if routingErr != nil {
+			err = routingErr
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
+			os.Exit(1)
+		}
+		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, streamEvents, routing)
 	} else {
+		// Non-API-only paths don't carry routing yet; warn if user passed it.
+		if *routingFallback != "" || *routingRequire != "" || *routingPrefer != "" || *routingMaxPrice != "" {
+			fmt.Fprintf(os.Stderr, "Warning: --routing-* flags are ignored without --api-only\n")
+		}
 		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, streamEvents)
 	}
 
@@ -323,8 +346,67 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 	return exec.ExecuteStreaming(ctx, task, handler)
 }
 
+// buildRoutingPolicy assembles an *ai.AIRoutingPolicy from the four routing
+// CLI flags. Returns (nil, nil) when all flags are empty (no policy).
+//
+// Validation:
+//   - routing-prefer must be one of "cheapest", "fastest", "most_reliable" (or empty).
+//   - routing-fallback / routing-require parse comma-separated lists, trimming whitespace.
+//   - routing-max-price is forwarded as a string (preserving precision); not validated
+//     for numeric format here — OpenRouter is not yet receiving it (see translatePolicy).
+//   - When the provider isn't openrouter and any routing flag is set, we return an
+//     error early rather than relying on the provider to reject it, so the CLI gives
+//     a fast, friendly diagnostic.
+func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string) (*ai.AIRoutingPolicy, error) {
+	if fallback == "" && require == "" && prefer == "" && maxPrice == "" {
+		return nil, nil
+	}
+	if provider != "openrouter" {
+		return nil, fmt.Errorf("--routing-* flags require --provider openrouter (got %q)", provider)
+	}
+
+	p := &ai.AIRoutingPolicy{}
+
+	if fallback != "" {
+		for _, s := range strings.Split(fallback, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				p.Order = append(p.Order, s)
+			}
+		}
+		// Specifying a fallback list implies AllowFallback=true.
+		p.AllowFallback = true
+	}
+
+	if require != "" {
+		for _, s := range strings.Split(require, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				p.Require = append(p.Require, ai.AICapability(s))
+			}
+		}
+	}
+
+	switch prefer {
+	case "":
+		// no-op
+	case "cheapest":
+		p.Prefer = ai.PreferCheapest
+	case "fastest":
+		p.Prefer = ai.PreferFastest
+	case "most_reliable":
+		p.Prefer = ai.PreferMostReliable
+	default:
+		return nil, fmt.Errorf("--routing-prefer must be one of cheapest|fastest|most_reliable (got %q)", prefer)
+	}
+
+	p.MaxPricePerMTok = maxPrice
+
+	return p, nil
+}
+
 // executeAPI uses the API provider directly (no file editing)
-func executeAPI(ctx context.Context, provider, directive, model, systemPrompt string, timeout time.Duration, streamJSON bool) (*executor.Result, error) {
+func executeAPI(ctx context.Context, provider, directive, model, systemPrompt string, timeout time.Duration, streamJSON bool, routing *ai.AIRoutingPolicy) (*executor.Result, error) {
 	// Create API client based on provider
 	var client ai.Provider
 	var err error
@@ -373,6 +455,7 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 		Model:        model,
 		SystemPrompt: systemPrompt,
 		UserPrompt:   directive,
+		Routing:      routing,
 	}
 
 	// Execute

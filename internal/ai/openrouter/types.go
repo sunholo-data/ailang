@@ -19,6 +19,10 @@ type chatRequest struct {
 	Temperature    float64             `json:"temperature,omitempty"`
 	Seed           *int64              `json:"seed,omitempty"`
 	ResponseFormat *chatResponseFormat `json:"response_format,omitempty"`
+	// Provider carries OpenRouter's dynamic routing config. Translated from
+	// ai.AIRoutingPolicy by translatePolicy; nil when the caller did not
+	// supply a routing policy.
+	Provider *providerField `json:"provider,omitempty"`
 }
 
 // chatResponseFormat configures structured output.

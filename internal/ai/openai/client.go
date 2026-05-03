@@ -67,6 +67,11 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 // Generate implements ai.Provider.
 // It routes to either Chat Completions or Responses API based on the model.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	if req.Routing != nil && req.Routing.HasRouting() {
+		return nil, ai.NewProviderError("openai", 0,
+			"this provider does not support AIRoutingPolicy; use openrouter instead",
+			ai.ErrRoutingNotSupported)
+	}
 	if ai.RequestsImage(req) {
 		return nil, ai.NewProviderError("openai", 0, "image generation not supported by provider \"openai\" (model: "+req.Model+") — use a Gemini image model", nil)
 	}

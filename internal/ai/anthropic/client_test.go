@@ -3,6 +3,7 @@ package anthropic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -285,5 +286,25 @@ func TestClient_WithOptions(t *testing.T) {
 	}
 	if client.apiVersion != "2024-01-01" {
 		t.Errorf("apiVersion = %q, want %q", client.apiVersion, "2024-01-01")
+	}
+}
+
+// TestGenerate_RejectsRoutingPolicy ensures anthropic refuses routing policies
+// rather than silently ignoring them. Per CLAUDE.md no-silent-fallbacks.
+func TestGenerate_RejectsRoutingPolicy(t *testing.T) {
+	client := NewClient("test-key")
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "claude-sonnet-4-5",
+		UserPrompt: "hi",
+		Routing: &ai.AIRoutingPolicy{
+			Order:         []string{"anthropic"},
+			AllowFallback: true,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error rejecting routing policy, got nil")
+	}
+	if !errors.Is(err, ai.ErrRoutingNotSupported) {
+		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }

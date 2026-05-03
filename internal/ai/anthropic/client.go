@@ -131,6 +131,11 @@ type errorResponse struct {
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	if req.Routing != nil && req.Routing.HasRouting() {
+		return nil, ai.NewProviderError("anthropic", 0,
+			"this provider does not support AIRoutingPolicy; use openrouter instead",
+			ai.ErrRoutingNotSupported)
+	}
 	if ai.RequestsImage(req) {
 		return nil, ai.NewProviderError("anthropic", 0, "image generation not supported by provider \"anthropic\" (model: "+req.Model+")", nil)
 	}

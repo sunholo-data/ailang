@@ -87,6 +87,11 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 // Generate implements ai.Provider.
 // It uses Ollama's Chat API for instruction following.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	if req.Routing != nil && req.Routing.HasRouting() {
+		return nil, ai.NewProviderError("ollama", 0,
+			"this provider does not support AIRoutingPolicy; use openrouter instead",
+			ai.ErrRoutingNotSupported)
+	}
 	if ai.RequestsImage(req) {
 		return nil, ai.NewProviderError("ollama", 0, "image generation not supported by provider \"ollama\" (model: "+req.Model+")", nil)
 	}

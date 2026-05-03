@@ -106,13 +106,19 @@ Add OpenRouter as an AILANG AI provider, with a new `AI[Routeable]` effect-row m
 - `internal/ai/openai/client.go`, `internal/ai/anthropic/client.go`, `internal/ai/gemini/client.go`, `internal/ai/ollama/client.go` (~10 LOC each — error if routing non-nil with order)
 
 **Acceptance Criteria:**
-- [ ] `AIRoutingPolicy`, `RoutePreference`, `AICapability` exported from `internal/ai`
-- [ ] `ai.Request.Routing` is optional pointer — nil for backward compat with all existing call sites
-- [ ] OpenRouter request body includes `provider: {order: [...], allow_fallbacks: bool, require_parameters: [...]}` when policy present
-- [ ] Other providers reject non-nil routing with typed error
-- [ ] AILANG program calling `openrouter.provider({...route: {...}})` constructs valid `Provider` value
-- [ ] `go test ./internal/ai/...` passes; routing-translation tests cover edge cases
-- [ ] Linting clean
+- [x] `AIRoutingPolicy`, `RoutePreference`, `AICapability` exported from `internal/ai`
+- [x] `ai.Request.Routing` is optional pointer — nil for backward compat with all existing call sites
+- [x] OpenRouter request body includes `provider: {order: [...], allow_fallbacks: bool, require_parameters: [...]}` when policy present
+- [x] Other providers reject non-nil routing with typed error (`ai.ErrRoutingNotSupported`)
+- [ ] ~~AILANG program calling `openrouter.provider({...route: {...}})` constructs valid `Provider` value~~ — **DEFERRED** (see below)
+- [x] `go test ./internal/ai/...` passes; routing-translation tests cover edge cases
+- [x] Linting clean
+- [x] CLI plumbing: `--routing-fallback`, `--routing-require`, `--routing-prefer`, `--routing-max-price` flags on `ailang exec`
+
+**Deferred to follow-up:**
+- AILANG-side `stdlib/std/ai/providers/openrouter.ail` constructor. The current `std/ai.ail` exposes only `call`/`callJson`, with provider config purely host-side. Adding a value-level `provider({...})` requires new builtins and a new `ai.complete(req)` entry point — out of scope for M2. Tracked for v0.17.0.
+- `MaxPricePerMTok` field forwarding. The IR carries the value but `translatePolicy` silently drops it — OpenRouter's per-call max-price filter lives under `transforms` which the design doc explicitly defers. Wiring is a single switch when the broader transforms work lands.
+- `OutputSchema *JSONSchema` field on `ai.Request`. Not added in M2 — `ResponseSchema string` already exists and OpenRouter happily consumes it via the existing `response_format` path. M3 (or a later milestone) can promote to a structured type when needed.
 
 **Risks:**
 - AILANG-side record-typed `route` field — `stdlib/std/ai/providers/openrouter.ail` needs to type-check cleanly under existing AI module — Mitigation: mirror existing `provider({...})` patterns from openai.ail / anthropic.ail

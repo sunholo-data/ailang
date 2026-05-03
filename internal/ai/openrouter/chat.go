@@ -62,6 +62,9 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		}
 	}
 
+	// Translate optional routing policy. Nil when no policy or zero policy.
+	apiReq.Provider = translatePolicy(req.Routing)
+
 	// Add structured output configuration
 	if req.ResponseFormat == "json" {
 		if req.ResponseSchema != "" {

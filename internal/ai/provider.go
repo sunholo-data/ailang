@@ -15,6 +15,11 @@ import (
 )
 
 // Request represents a generic AI request.
+//
+// Most fields map directly onto provider-native parameters. The optional
+// Routing field carries an AIRoutingPolicy for dynamic provider selection
+// — currently consumed only by OpenRouter; other providers reject a
+// non-zero policy with ErrRoutingNotSupported.
 type Request struct {
 	// Model is the model name (e.g., "gemini-2.5-flash", "gpt-5", "claude-sonnet-4-5")
 	Model string
@@ -49,6 +54,11 @@ type Request struct {
 
 	// Options contains provider-specific options
 	Options map[string]any
+
+	// Routing is an optional dynamic-routing policy. When set with HasRouting()
+	// returning true, only providers that support routing (currently: openrouter)
+	// will accept the request. Other providers return ErrRoutingNotSupported.
+	Routing *AIRoutingPolicy
 }
 
 // ImageOptions configures image generation parameters.
