@@ -226,7 +226,83 @@ scripts/run_test_benchmark.sh <model-name>
 - Cost calculation works
 - No errors in logs
 
-### 5. Document the Model
+### 5. Apply the Smoke-Test Gate (HARD RULE)
+
+**Rule of thumb (project-wide):**
+> **Rule out adding a model to our eval suite if it can't pass ALL the smoke tests.**
+
+A "smoke test" is a small set (typically 3 benchmarks) that established proprietary
+frontier models (claude-sonnet-4-6, gpt5-mini) pass cleanly. If those pass and a
+candidate model fails any of them, the candidate doesn't enter the eval rotation —
+the failure is on the model, not the harness or the benchmark.
+
+**Standard smoke set (May 2026):**
+- `fizzbuzz` — control-flow + simple I/O
+- `adt_option` — AILANG ADT pattern matching (language-specific)
+- `csv_to_json_converter` — string parsing + records (medium complexity)
+
+**Run smoke against a candidate:**
+```bash
+ailang eval-suite \
+  --models <candidate>,claude-sonnet-4-6 \
+  --benchmarks fizzbuzz,adt_option,csv_to_json_converter \
+  --langs ailang \
+  --output /tmp/smoke_<candidate> \
+  --parallel 2
+
+# Tabulate pass/fail
+for f in /tmp/smoke_<candidate>/standard/*.json; do
+  name=$(basename "$f" .json | sed 's/_[0-9]*$//')
+  jq -r --arg name "$name" '"\($name)\t\(if .compile_ok and .runtime_ok and .stdout_ok then "PASS" else "FAIL" end)\t\(.err_code // "—")"' "$f"
+done | column -ts $'\t'
+```
+
+**Decision tree:**
+1. **claude-sonnet-4-6 fails any benchmark** — smoke set is broken; fix the
+   benchmark before evaluating candidates.
+2. **Candidate fails all 3** — CUT. Do not add to models.yml. Note the failure
+   types in the cut commit message (WRONG_LANG, syntax, runtime, wrong-output)
+   for future reference.
+3. **Candidate fails 1 of 3 (2/3 pass)** — NEAR-MISS. Optionally keep with a
+   "near-miss" comment block in models.yml (see precedent: `or-gemma-4-26b`,
+   `or-qwen3-coder-flash`). Re-run periodically; if it starts passing all 3,
+   that's a signal stdlib/prompt has improved.
+4. **Candidate passes all 3** — proceed to step 6 (Document) and add to
+   models.yml normally.
+
+**Failure-mode taxonomy** (worth capturing in the cut commit message):
+
+| Failure | Meaning | Likely cause |
+|---------|---------|--------------|
+| `WRONG_LANG` | Model produced Python/JS instead of AILANG | Prompt-following gap; small/MoE models lose plot at 23k-token system prompt |
+| `syntax-error` (no WRONG_LANG) | Invented AILANG syntax (e.g. `let rec`, `\n.` lambda) | Model hasn't seen enough AILANG in training |
+| `wrong-output` | Compiled and ran, wrong stdout | Spec-following gap, not language gap |
+| `runtime-error` | Compiled, crashed at runtime | Logic bug |
+
+**2026-05-04 finding (precedent):** Tested 6 SOTA OS models (Gemma 4 26B, Qwen3
+30B-A3B, Qwen3 235B-A22B, DeepSeek V4 Flash, Kimi K2.6, Qwen3 Coder Flash)
+against this smoke set. Proprietary baselines passed 3/3; **zero OS models
+passed all 3**. Most common failure: WRONG_LANG (model produced Python). Even
+frontier-class OS models fall back on training-corpus patterns when given
+AILANG's 23k-token teaching prompt — they've seen plenty of Python but very
+little AILANG. Two near-misses (`or-gemma-4-26b`, `or-qwen3-coder-flash`)
+retained on the watchlist; rest cut.
+
+**Implication for stdlib/prompt work:** the smoke test doubles as a
+language-improvement metric. Re-run it after stdlib changes or prompt
+revisions; if the near-miss watchlist starts passing the third benchmark, the
+language has become more "trainable-feel."
+
+**Caveat — agent mode is a separate gate:** the smoke set above runs in
+**standard** (single-shot API generation) mode. Models that fail standard mode
+may still perform usefully in **agent** mode (`--agent` flag, opencode/pi
+harnesses) where they get multi-turn iteration. If a candidate fails standard
+smoke, run `ailang eval-suite --agent --models <candidate> ...` separately
+before fully cutting it. Agent mode results don't override the standard-mode
+gate but can justify adding the model under a different harness entry (e.g.
+`opencode-<candidate>`, `pi-<candidate>`).
+
+### 6. Document the Model
 
 **Update relevant documentation:**
 - Add model to this skill's resource guide
@@ -234,7 +310,7 @@ scripts/run_test_benchmark.sh <model-name>
 - Document authentication requirements
 - Add to teaching prompts if needed
 
-### 6. Optional: Run Full Eval
+### 7. Optional: Run Full Eval
 
 **If model looks good:**
 

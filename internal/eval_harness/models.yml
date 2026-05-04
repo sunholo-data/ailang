@@ -992,24 +992,39 @@ models:
     notes: "Note: Mistral Large is proprietary, not open-source. Listed here for OpenRouter cost-comparison parity."
 
   # =================================================================
-  # SOTA open-source via OpenRouter (M-AI-EFFECT-MODES expansion, May 2026)
+  # SOTA open-source via OpenRouter — NEAR-MISS WATCHLIST (2026-05-04)
   #
-  # Curated to three current-frontier OS families: Qwen3, Gemma 4,
-  # DeepSeek V4. All entries pulled live from
-  # https://openrouter.ai/api/v1/models on 2026-05-04. Pricing varies
-  # by upstream per call — see trace.route.cost_usd for actuals.
+  # 13 SOTA OS models (Qwen3, Gemma 4, DeepSeek V4, Moonshot Kimi)
+  # smoke-tested against fizzbuzz/adt_option/csv_to_json. Proprietary
+  # baselines (claude-sonnet-4-6, gpt5-mini) passed all 3; the OS
+  # models did not. Per rule of thumb, only models passing ALL smoke
+  # tests enter the eval rotation.
   #
-  # Live-validated (cost shown for ~50-token call):
-  #   or-gemma-4-26b      -> $0.0000074-$0.00001004 (Cloudflare/Parasail/DeepInfra)
-  #   or-qwen3-235b       -> $0.00001776 (SiliconFlow), resolved to qwen3-235b-a22b-07-25
+  # The two entries below are kept as a "near-miss watchlist":
+  # they passed 2/3 smoke benchmarks. Re-running this smoke after
+  # stdlib/prompt-improvement work is a useful signal: if these start
+  # passing all 3, the language has become more "trainable-feel."
+  #
+  # Smoke results (2026-05-04, claude-sonnet-4-6 + gpt5-mini both 3/3):
+  #   or-gemma-4-26b        2/3 (csv_to_json: WRONG_LANG)       → KEEP (near-miss)
+  #   or-qwen3-coder-flash  2/3 (csv_to_json: PAR_001 syntax)   → KEEP (near-miss)
+  #
+  # Cut (failed 0-1/3, not in eval rotation):
+  #   or-qwen3-30b-a3b, or-qwen3-235b, or-deepseek-v4-flash,
+  #   or-kimi-k2-6 (and untested variants: or-qwen3-32b, -coder,
+  #   -30b-thinking, -235b-thinking, or-gemma-4-31b, or-deepseek-v4-pro,
+  #   or-deepseek-r1, or-kimi-k2-thinking).
+  #
+  # Users can still invoke any OpenRouter model ad-hoc via
+  # `ailang run --ai vendor/model` — the runtime infrastructure
+  # (M-AI-OPENROUTER + M-AI-EFFECT-MODES) is fully validated; we just
+  # don't add models to the curated eval suite until they pass smoke.
   # =================================================================
-
-  # ---- Gemma 4 (Google MoE) ----
 
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
-    description: "Gemma 4 26B-A4B-IT via OpenRouter — Google MoE (26B total / ~4B active)"
+    description: "Gemma 4 26B-A4B-IT via OpenRouter — Google MoE (NEAR-MISS: 2/3 smoke 2026-05-04)"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 8192
     model_family: "gemma-4"
@@ -1017,178 +1032,25 @@ models:
       input_per_1k: 0.00006   # $0.06 per 1M
       output_per_1k: 0.00033  # $0.33 per 1M
     notes: |
-      Live-validated 2026-05-04. Resolved to google/gemma-4-26b-a4b-it-20260403
-      snapshot. Three sequential calls dynamically routed across Cloudflare,
-      Parasail, and DeepInfra at $0.0000074-$0.00001004 each.
-
-  or-gemma-4-31b:
-    api_name: "google/gemma-4-31b-it"
-    provider: "openrouter"
-    description: "Gemma 4 31B-IT via OpenRouter — larger Gemma 4 dense variant"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    model_family: "gemma-4"
-    pricing:
-      input_per_1k: 0.00013   # $0.13 per 1M
-      output_per_1k: 0.00038  # $0.38 per 1M
-    notes: "Dense 31B variant of Gemma 4. Higher capability than 26B-A4B at ~2x cost."
-
-  # ---- Qwen3 (Alibaba; current SOTA OS at multiple sizes) ----
-
-  or-qwen3-30b-a3b:
-    api_name: "qwen/qwen3-30b-a3b-instruct-2507"
-    provider: "openrouter"
-    description: "Qwen3 30B-A3B Instruct (Jul 2025 snapshot) — small MoE (30B total / 3B active)"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
-    model_family: "qwen3-30b"
-    pricing:
-      input_per_1k: 0.00009   # $0.09 per 1M
-      output_per_1k: 0.0003   # $0.30 per 1M
-    notes: "Small-model latency, mid-tier capability via MoE. Replaces local Ollama small-model use."
-
-  or-qwen3-32b:
-    api_name: "qwen/qwen3-32b"
-    provider: "openrouter"
-    description: "Qwen3 32B (dense) via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
-    model_family: "qwen3-32b"
-    pricing:
-      input_per_1k: 0.00008   # $0.08 per 1M
-      output_per_1k: 0.00024  # $0.24 per 1M
-    notes: "Dense 32B for general-purpose eval. Cheaper than the 30B-A3B variant."
-
-  or-qwen3-30b-thinking:
-    api_name: "qwen/qwen3-30b-a3b-thinking-2507"
-    provider: "openrouter"
-    description: "Qwen3 30B-A3B Thinking — small-cost chain-of-thought reasoning"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
-    model_family: "qwen3-thinking"
-    pricing:
-      input_per_1k: 0.00008   # $0.08 per 1M
-      output_per_1k: 0.0004   # $0.40 per 1M
-    notes: "Reasoning model with thinking tokens. Cheapest entry into chain-of-thought eval."
-
-  or-qwen3-235b:
-    api_name: "qwen/qwen3-235b-a22b-2507"
-    provider: "openrouter"
-    description: "Qwen3 235B-A22B (Jul 2025 snapshot) — best $/quality OS frontier"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
-    model_family: "qwen3-235b"
-    pricing:
-      input_per_1k: 0.000071  # $0.071 per 1M
-      output_per_1k: 0.0001   # $0.10 per 1M
-    notes: |
-      235B MoE / 22B active. Live-validated 2026-05-04: resolved to
-      qwen/qwen3-235b-a22b-07-25 via SiliconFlow at $0.00001776 per call.
-      The 2507 snapshot is dramatically cheaper than the original 235B.
-
-  or-qwen3-235b-thinking:
-    api_name: "qwen/qwen3-235b-a22b-thinking-2507"
-    provider: "openrouter"
-    description: "Qwen3 235B-A22B Thinking — frontier-grade open reasoning"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "qwen3-thinking"
-    pricing:
-      input_per_1k: 0.0001495 # $0.15 per 1M
-      output_per_1k: 0.001495 # $1.495 per 1M
-    notes: "235B MoE / 22B active with extended thinking. Frontier OS reasoning."
-
-  or-qwen3-coder:
-    api_name: "qwen/qwen3-coder"
-    provider: "openrouter"
-    description: "Qwen3 Coder — current SOTA OS coding model"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "qwen3-coder"
-    pricing:
-      input_per_1k: 0.00022   # $0.22 per 1M
-      output_per_1k: 0.0018   # $1.80 per 1M
-    notes: "Top-of-class OS coding model per HumanEval+ / SWE-Bench."
+      26B total / ~4B active MoE. Smoke 2026-05-04: fizzbuzz✅ adt_option✅
+      csv_to_json❌ (WRONG_LANG — model produced Python). Cheapest validated
+      OS model in the spread; closest to passing the full smoke set.
+      Re-test after stdlib/prompt improvements.
 
   or-qwen3-coder-flash:
     api_name: "qwen/qwen3-coder-flash"
     provider: "openrouter"
-    description: "Qwen3 Coder Flash — cheap+fast coder variant"
+    description: "Qwen3 Coder Flash via OpenRouter (NEAR-MISS: 2/3 smoke 2026-05-04)"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536
     model_family: "qwen3-coder"
     pricing:
       input_per_1k: 0.000195  # $0.195 per 1M
       output_per_1k: 0.000975 # $0.975 per 1M
-    notes: "Faster, cheaper Qwen3 Coder for high-volume code-eval runs."
-
-  # ---- DeepSeek (V4 generation + R1 reasoning) ----
-
-  or-deepseek-v4-flash:
-    api_name: "deepseek/deepseek-v4-flash"
-    provider: "openrouter"
-    description: "DeepSeek V4 Flash — newest DeepSeek generation, lightweight tier"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "deepseek-v4"
-    pricing:
-      input_per_1k: 0.00014   # $0.14 per 1M
-      output_per_1k: 0.00028  # $0.28 per 1M
-    notes: "DeepSeek V4 family. Flash variant for speed; pair with v4-pro for capability comparison."
-
-  or-deepseek-v4-pro:
-    api_name: "deepseek/deepseek-v4-pro"
-    provider: "openrouter"
-    description: "DeepSeek V4 Pro — newest DeepSeek generation, high-capability tier"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "deepseek-v4"
-    pricing:
-      input_per_1k: 0.000435  # $0.435 per 1M
-      output_per_1k: 0.00087  # $0.87 per 1M
-    notes: "DeepSeek V4 high-capability variant. ~3x more expensive than Flash."
-
-  or-deepseek-r1:
-    api_name: "deepseek/deepseek-r1-0528"
-    provider: "openrouter"
-    description: "DeepSeek R1 (May 2025 snapshot) — reasoning specialist"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "deepseek-r1"
-    pricing:
-      input_per_1k: 0.0005    # $0.50 per 1M
-      output_per_1k: 0.00215  # $2.15 per 1M (reasoning surcharge)
-    notes: "Latest R1 snapshot; cheaper than original. Pair with V4 for reasoning vs general comparison."
-
-  # ---- Moonshot Kimi (long-context generalist + reasoning variant) ----
-
-  or-kimi-k2-6:
-    api_name: "moonshotai/kimi-k2.6"
-    provider: "openrouter"
-    description: "Kimi K2.6 — Moonshot AI's current flagship (long context)"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
-    model_family: "kimi"
-    pricing:
-      input_per_1k: 0.00074   # $0.74 per 1M
-      output_per_1k: 0.00349  # $3.49 per 1M
     notes: |
-      Latest Kimi K2.6 (Moonshot AI, China). Strong long-context reasoning
-      and multilingual capability. Earlier snapshots available:
-      moonshotai/kimi-k2 (original), moonshotai/kimi-k2-0905 (cheap snapshot
-      $0.40/$2.00), moonshotai/kimi-k2.5 ($0.44/$2.00).
-
-  or-kimi-k2-thinking:
-    api_name: "moonshotai/kimi-k2-thinking"
-    provider: "openrouter"
-    description: "Kimi K2 Thinking — Moonshot AI's reasoning variant"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536
-    model_family: "kimi-thinking"
-    pricing:
-      input_per_1k: 0.0006    # $0.60 per 1M
-      output_per_1k: 0.0025   # $2.50 per 1M
-    notes: "K2 Thinking variant for chain-of-thought eval. Pair with kimi-k2.6 for thinking-vs-direct comparison."
+      Smoke 2026-05-04: fizzbuzz✅ adt_option✅ csv_to_json❌ (PAR_001 syntax
+      error in repair attempt). Code-specialist model; closest non-Gemma OS
+      candidate. Re-test after stdlib/prompt improvements.
 
   or-auto:
     api_name: "openrouter/auto"
