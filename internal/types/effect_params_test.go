@@ -28,11 +28,11 @@ func TestDefaultModeFor(t *testing.T) {
 		wantOK    bool
 	}{
 		{"Rand", "mode", "os", true},
-		// Phase 1: only Rand is registered. Other effects must return false.
+		{"AI", "mode", "fixed", true}, // M-AI-EFFECT-MODES (v0.15.0)
+		// Other effects: no entry yet. Their port sprints (Phase 5 of parent doc) add rows.
 		{"Clock", "", "", false},
 		{"Net", "", "", false},
 		{"FS", "", "", false},
-		{"AI", "", "", false},
 		{"IO", "", "", false},
 		{"Unknown", "", "", false},
 	}
@@ -409,6 +409,155 @@ func TestParamMapsEqual(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := paramMapsEqual(tc.a, tc.b); got != tc.want {
 				t.Errorf("paramMapsEqual(%v, %v) = %v, want %v", tc.a, tc.b, got, tc.want)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// M-AI-EFFECT-MODES (v0.15.0): tests for the AI row in defaultEffectModes
+// =============================================================================
+
+// TestElaborateEffectRow_AIDefault checks that bare !{AI} desugars to
+// !{AI[mode=fixed]} via the M-AI-EFFECT-MODES default-mode entry.
+func TestElaborateEffectRow_AIDefault(t *testing.T) {
+	// Bare !{AI} → Params["AI"] = {"mode": "fixed"}
+	row, err := ElaborateEffectRow([]string{"AI"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "fixed" || len(got) != 1 {
+		t.Errorf("expected Params[AI] = {mode: fixed}, got %v", got)
+	}
+
+	// !{AI, IO} — AI gets default, IO does not (no entry for IO).
+	row, err = ElaborateEffectRow([]string{"AI", "IO"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "fixed" {
+		t.Errorf("expected Params[AI] = {mode: fixed}, got %v", got)
+	}
+	if _, has := row.Params["IO"]; has {
+		t.Errorf("expected Params[IO] unset (no default registered), got %v", row.Params["IO"])
+	}
+
+	// !{AI, Rand} — both get their defaults (AI=fixed, Rand=os).
+	row, err = ElaborateEffectRow([]string{"AI", "Rand"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "fixed" {
+		t.Errorf("expected Params[AI] = {mode: fixed}, got %v", got)
+	}
+	if got := row.Params["Rand"]; got["mode"] != "os" {
+		t.Errorf("expected Params[Rand] = {mode: os}, got %v", got)
+	}
+}
+
+// TestElaborateEffectRowWithBudgets_AIUserParamsOverrideDefault checks that
+// user-supplied AI params override the registered default.
+func TestElaborateEffectRowWithBudgets_AIUserParamsOverrideDefault(t *testing.T) {
+	// !{AI[mode=routeable]} preserves user-supplied param (does NOT desugar to fixed).
+	annotations := []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "routeable"}}},
+	}
+	row, err := ElaborateEffectRowWithBudgets(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "routeable" || len(got) != 1 {
+		t.Errorf("expected Params[AI] = {mode: routeable}, got %v", got)
+	}
+
+	// !{AI[mode=replay-only]} also preserves user param (parser-accepted; runtime stub).
+	annotations = []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "replay-only"}}},
+	}
+	row, err = ElaborateEffectRowWithBudgets(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "replay-only" {
+		t.Errorf("expected Params[AI] = {mode: replay-only}, got %v", got)
+	}
+
+	// !{AI[mode=routeable, scope=byok]} preserves both params.
+	annotations = []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{
+			{Key: "mode", Value: "routeable"},
+			{Key: "scope", Value: "byok"},
+		}},
+	}
+	row, err = ElaborateEffectRowWithBudgets(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "routeable" || got["scope"] != "byok" || len(got) != 2 {
+		t.Errorf("expected Params[AI] = {mode: routeable, scope: byok}, got %v", got)
+	}
+
+	// Bare !{AI} (no Params on the annotation) gets the default applied.
+	annotations = []ast.EffectAnnotation{{Name: "AI"}}
+	row, err = ElaborateEffectRowWithBudgets(annotations)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := row.Params["AI"]; got["mode"] != "fixed" {
+		t.Errorf("expected bare AI to default to {mode: fixed}, got %v", got)
+	}
+}
+
+// TestUnifyRows_AIModes covers the 5 unification cases for AI parameters,
+// matching the matrix in the design doc Examples section.
+func TestUnifyRows_AIModes(t *testing.T) {
+	mkRow := func(t *testing.T, effs []ast.EffectAnnotation, tail string) *Row {
+		t.Helper()
+		row, err := ElaborateEffectRowWithBudgets(effs)
+		if err != nil {
+			t.Fatalf("ElaborateEffectRowWithBudgets failed: %v", err)
+		}
+		if tail != "" {
+			row.Tail = &RowVar{Name: tail, Kind: EffectRow}
+		}
+		return row
+	}
+
+	annAIFixed := []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "fixed"}}},
+	}
+	annAIRouteable := []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "routeable"}}},
+	}
+	annAIBare := []ast.EffectAnnotation{{Name: "AI"}}
+	annAIFixedFS := []ast.EffectAnnotation{
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "fixed"}}},
+		{Name: "FS"},
+	}
+	annFSAIFixed := []ast.EffectAnnotation{
+		{Name: "FS"},
+		{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "fixed"}}},
+	}
+
+	cases := []struct {
+		name    string
+		row1    *Row
+		row2    *Row
+		wantErr bool
+	}{
+		{"same mode (fixed)", mkRow(t, annAIFixed, ""), mkRow(t, annAIFixed, ""), false},
+		{"default-desugar match", mkRow(t, annAIFixed, ""), mkRow(t, annAIBare, ""), false},
+		{"different modes (fixed vs routeable)", mkRow(t, annAIFixed, ""), mkRow(t, annAIRouteable, ""), true},
+		{"polymorphic tail", mkRow(t, annAIFixed, "a"), mkRow(t, annAIFixedFS, "b"), false},
+		{"row swap", mkRow(t, annAIFixedFS, ""), mkRow(t, annFSAIFixed, ""), false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			u := NewUnifier()
+			_, err := u.unifyRows(tc.row1, tc.row2, Substitution{})
+			if (err != nil) != tc.wantErr {
+				t.Errorf("unifyRows: got err=%v, wantErr=%v", err, tc.wantErr)
 			}
 		})
 	}

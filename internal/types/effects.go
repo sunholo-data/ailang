@@ -17,20 +17,25 @@ func isEffectRowVar(name string) bool {
 // When a bare effect (no params) is elaborated, if its name has an entry
 // here, the elaborator desugars to the parameterised form.
 //
-// Phase 1 (v0.15.0) ships only the Rand entry. Other effects (Clock,
-// Net, FS, AI) intentionally have no entry — their bare forms continue
-// to type-check unchanged (back-compat). Their port sprints add rows
-// here in their respective milestones.
+// v0.15.0 ships two entries:
+//   - Rand: pilot from M-EFFECT-REFINEMENT-PHASE1
+//   - AI:   M-AI-EFFECT-MODES — bare !{AI} desugars to !{AI[mode=fixed]};
+//     !{AI[mode=routeable]} attests routing intent at the type level
+//     and skips M-AI-OPENROUTER's --allow-routing runtime gate.
+//
+// Other effects (Clock, Net, FS) intentionally have no entry — their bare
+// forms continue to type-check unchanged (back-compat). Their port sprints
+// (Phase 5 of M-EFFECT-REFINEMENT v1.0.0) add rows here.
 //
 // This is intentional, not a fallback (per CLAUDE.md no-silent-fallbacks).
 // Effects without entries stay bare; they don't silently get a default.
 var defaultEffectModes = map[string]struct{ Key, Value string }{
 	"Rand": {Key: "mode", Value: "os"},
+	"AI":   {Key: "mode", Value: "fixed"},
 	// Future:
 	// "Clock": {Key: "mode", Value: "wall"},
 	// "Net":   {Key: "mode", Value: "live"},
 	// "FS":    {Key: "mode", Value: "real"},
-	// "AI":    {Key: "mode", Value: "fixed"},
 }
 
 // DefaultModeFor returns the default mode key=value for an effect, if one is registered.
