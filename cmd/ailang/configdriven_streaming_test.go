@@ -160,12 +160,18 @@ func TestAIStreamCall_ProviderNotFound(t *testing.T) {
 		t.Fatalf("expected Err, got %s", tagged.CtorName)
 	}
 	inner := tagged.Fields[0].(*eval.TaggedValue)
-	if inner.CtorName != "ProviderNotFound" {
-		t.Errorf("expected ProviderNotFound variant, got %s", inner.CtorName)
+	// Provider-registry misses map to ProtocolError with a [ProviderNotFound] tag prefix —
+	// see configdriven_streaming.go's "Error encoding" note for the rationale.
+	if inner.CtorName != "ProtocolError" {
+		t.Errorf("expected ProtocolError variant, got %s", inner.CtorName)
+	}
+	msg := inner.Fields[0].(*eval.StringValue).Value
+	if !strings.Contains(msg, "[ProviderNotFound]") {
+		t.Errorf("error message should carry [ProviderNotFound] code prefix, got: %q", msg)
 	}
 }
 
-// Verifies streaming.enabled=false → ConnectionFailed with explanatory message.
+// Verifies streaming.enabled=false → ProtocolError with [CapabilityNotSupported] tag.
 func TestAIStreamCall_StreamingNotEnabled(t *testing.T) {
 	ai.GlobalProviderRegistry.Reset()
 	defer ai.GlobalProviderRegistry.Reset()
@@ -195,10 +201,13 @@ func TestAIStreamCall_StreamingNotEnabled(t *testing.T) {
 		t.Fatalf("expected Err, got %s", tagged.CtorName)
 	}
 	inner := tagged.Fields[0].(*eval.TaggedValue)
-	if inner.CtorName != "ConnectionFailed" {
-		t.Errorf("expected ConnectionFailed variant, got %s", inner.CtorName)
+	if inner.CtorName != "ProtocolError" {
+		t.Errorf("expected ProtocolError variant, got %s", inner.CtorName)
 	}
 	msg := inner.Fields[0].(*eval.StringValue).Value
+	if !strings.Contains(msg, "[CapabilityNotSupported]") {
+		t.Errorf("error message should carry [CapabilityNotSupported] code prefix, got: %q", msg)
+	}
 	if !strings.Contains(msg, "does not enable streaming") {
 		t.Errorf("error message should explain streaming is disabled, got: %q", msg)
 	}

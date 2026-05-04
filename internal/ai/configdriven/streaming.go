@@ -35,16 +35,22 @@ type StreamRequest struct {
 // streaming dispatch goes through here so the budget/cap/span machinery
 // applies uniformly.
 func BuildStreamRequest(spec *pkg.AIProviderSpec, model string, messagesJSON string) (*StreamRequest, *ai.ProviderError) {
+	// Error messages here flow up through aiStreamCall in cmd/ailang and
+	// get wrapped as Err(ProtocolError("...message...")). To preserve
+	// machine-readable error categorisation through that wrapping, we
+	// prefix each message with a "[<code>]" tag — callers can pattern-match
+	// on the ProtocolError variant AND parse the [code] prefix to get the
+	// specific failure class.
 	if spec == nil {
-		return nil, ai.NewProviderError("", 0, "config-driven streaming: nil spec", nil)
+		return nil, ai.NewProviderError("", 0, "[InternalError] config-driven streaming: nil spec", nil)
 	}
 	if !spec.Streaming.Enabled {
 		return nil, ai.NewProviderError(spec.Name, 0,
-			fmt.Sprintf("provider %q does not enable streaming (set [ai_provider.streaming] enabled = true)", spec.Name), nil)
+			fmt.Sprintf("[CapabilityNotSupported] provider %q does not enable streaming (set [ai_provider.streaming] enabled = true)", spec.Name), nil)
 	}
 	if !spec.Capabilities.Streaming {
 		return nil, ai.NewProviderError(spec.Name, 0,
-			fmt.Sprintf("provider %q advertises capabilities.streaming = false", spec.Name), nil)
+			fmt.Sprintf("[CapabilityNotSupported] provider %q advertises capabilities.streaming = false", spec.Name), nil)
 	}
 
 	// Models allow-list enforcement (mirrors Provider.Generate).
@@ -58,7 +64,7 @@ func BuildStreamRequest(spec *pkg.AIProviderSpec, model string, messagesJSON str
 		}
 		if !ok {
 			return nil, ai.NewProviderError(spec.Name, 0,
-				fmt.Sprintf("model %q is not in the allowed list for provider %q", model, spec.Name), nil)
+				fmt.Sprintf("[ModelNotAllowed] model %q is not in the allowed list for provider %q", model, spec.Name), nil)
 		}
 	}
 

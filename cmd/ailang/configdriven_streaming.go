@@ -70,13 +70,22 @@ func aiStreamCall(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 
 	// Look up the registered config-driven provider. Built-ins are NOT in
 	// this registry by design (D4 — built-ins stay built-in); a built-in
-	// name returns ProviderNotFound here, which is the correct error for
-	// streaming-via-config. Streaming for built-ins is out of scope for v1.
+	// name produces a structured ProtocolError here. Streaming for
+	// built-ins is out of scope for v1.
+	//
+	// Error encoding: AILANG's std/stream declares only five StreamErrorKind
+	// variants (ConnectionFailed, Timeout, BudgetExhausted, ProtocolError,
+	// MessageTooLarge). Provider-registry / capability misses are mapped to
+	// ProtocolError with a structured "[<code>] <message>" prefix so callers
+	// pattern-matching on the variant get the right shape AND callers
+	// inspecting the message string can switch on the [code] tag. Adding
+	// AI-specific variants to StreamErrorKind was rejected because the type
+	// is generic; AI-specific error structure belongs in std/ai/streaming
+	// (deferred to v1.1 alongside parseDelta).
 	registered, ok := ai.GlobalProviderRegistry.Lookup(providerName)
 	if !ok {
-		return makeStreamError("ProviderNotFound",
-			fmt.Sprintf("AI provider %q is not registered as a config-driven provider. "+
-				"Add an [[ai_provider]] block to ailang.toml or check installed packages.",
+		return makeStreamError("ProtocolError",
+			fmt.Sprintf("[ProviderNotFound] AI provider %q is not registered as a config-driven provider. Add an [[ai_provider]] block to ailang.toml or check installed packages.",
 				providerName)), nil
 	}
 
@@ -85,8 +94,8 @@ func aiStreamCall(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	// streaming. Type-assert to access the streaming sub-block.
 	configProvider, ok := registered.(*configdriven.Provider)
 	if !ok {
-		return makeStreamError("ProviderNotFound",
-			fmt.Sprintf("provider %q is not a config-driven provider; v1 streaming only supports providers declared via [[ai_provider]]",
+		return makeStreamError("ProtocolError",
+			fmt.Sprintf("[ProviderNotFound] provider %q is not a config-driven provider; v1 streaming only supports providers declared via [[ai_provider]]",
 				providerName)), nil
 	}
 	spec := configProvider.Spec()
@@ -96,7 +105,11 @@ func aiStreamCall(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	// references resolve at call time.
 	streamReq, perr := configdriven.BuildStreamRequest(spec, model, messagesJSON)
 	if perr != nil {
-		return makeStreamError("ConnectionFailed", perr.Message), nil
+		// BuildStreamRequest's pre-flight failures (CapabilityNotSupported,
+		// ModelNotAllowed, missing env vars) are configuration violations,
+		// not transport failures — map to ProtocolError. The "[code]"
+		// prefix is preserved in perr.Message so callers can switch on it.
+		return makeStreamError("ProtocolError", perr.Message), nil
 	}
 
 	// Trace event before the network call. Mirrors aiCall's trace structure

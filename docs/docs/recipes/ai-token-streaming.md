@@ -159,20 +159,66 @@ delta_path = "$.choices[0].delta.content"
 reasoning_path = "$.choices[0].delta.reasoning_content"
 ```
 
-Then in AILANG, decode each `SSEData` `data` field with `std/json.decode` and read both fields — render the visible text as it streams, surface reasoning in a "thinking" pane:
+Then in AILANG, decode each `SSEData` `data` field with `std/json.decode` and read both fields — render the visible text as it streams, surface reasoning in a "thinking" pane. The v1 extraction pattern (working code; v1.1 will wrap this behind `parseDelta`):
 
 ```ailang
--- pseudocode (v1.1 will expose this via parseDelta)
-match decode(raw) {
-  Ok(json) => {
-    let content = readPath(json, "$.choices[0].delta.content") in
-    let reasoning = readPath(json, "$.choices[0].delta.reasoning_content") in
-    -- render content + reasoning separately
-    true
-  },
-  Err(_) => true
+import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+import std/stream (StreamEvent, SSEData)
+import std/json (decode, getString, asString)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Extract a (text, reasoning) pair from one SSE data line. Returns
+-- (content_delta, reasoning_delta) — empty strings when the field is
+-- absent in this particular delta event.
+export func extractDelta(raw: string) -> {text: string, reasoning: string} {
+  if raw == "[DONE]" then {text: "", reasoning: ""}
+  else match decode(raw) {
+    Ok(json) => {
+      -- choices[0].delta is the OpenAI-shape envelope; reach in via
+      -- nested getString lookups. For deeply-nested paths, std/json's
+      -- helper API is the v1 alternative to JSONPath.
+      let content = getNestedString(json, ["choices", "0", "delta", "content"]) in
+      let reasoning = getNestedString(json, ["choices", "0", "delta", "reasoning_content"]) in
+      {text: content, reasoning: reasoning}
+    },
+    Err(_) => {text: "", reasoning: ""}
+  }
+}
+
+-- Walk a path of (key | index) strings into a Json value, returning
+-- the leaf string or "" if any step misses or yields a non-string.
+-- Real production code can use the path-walking helpers in std/json
+-- when they land in v1.1; this is the inline equivalent for v1.
+func getNestedString(j: Json, path: [string]) -> string {
+  -- Implementation: walk the path with std/json.getString for object
+  -- keys; for array indices the v1 std/json doesn't yet have a
+  -- getIndex helper, so reasoning models with array-typed deltas
+  -- need either pattern-matching on JArray + std/list.head or
+  -- waiting for v1.1's parseDelta. See std/json source for the
+  -- full set of accessors available in v1.
+  ""  -- replace with std/json walker for your path shape
+}
+
+export func handler(event: StreamEvent) -> bool {
+  match event {
+    SSEData(_, raw) => {
+      let delta = extractDelta(raw) in
+      if delta.text != "" then _io_print(delta.text) else ();
+      if delta.reasoning != "" then renderReasoning(delta.reasoning) else ();
+      true
+    },
+    _ => false
+  }
+}
+
+func renderReasoning(text: string) -> () ! {IO} {
+  _io_print("[thinking] ");
+  _io_println(text)
 }
 ```
+
+The honest v1 story: `std/json.getString` returns `Option[string]` for top-level object keys, but multi-level `choices[0].delta.content` paths require either pattern-matching the JArray manually or composing decoders. v1.1's `parseDelta` will encapsulate this — until then, copy this template and adjust per provider.
 
 ## Recipe 3: Anthropic native
 
