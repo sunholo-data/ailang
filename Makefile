@@ -295,6 +295,21 @@ bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"
 	@go build -o bin/build-snapshot ./tools/build-snapshot/
 
+## install-notify-daemon: Install the macOS notification daemon under launchd (env=ENV, default prod)
+install-notify-daemon: build
+	@echo "$(BOLD)Installing ailang notify daemon (env=$${ENV:-prod})...$(RESET)"
+	@./bin/ailang daemon install --env $${ENV:-prod} --binary $$(pwd)/bin/ailang
+	@echo "$(BOLD)✓ Daemon installed. Status:$(RESET)"
+	@./bin/ailang daemon status
+
+## uninstall-notify-daemon: Remove the macOS notification daemon
+uninstall-notify-daemon: build
+	@./bin/ailang daemon uninstall
+
+## smoke-notify-daemon: End-to-end smoke test against ailang-multivac-dev
+smoke-notify-daemon: build
+	@./scripts/smoke-notify-daemon.sh
+
 ## mcp-local: Run the MCP server locally against the build/snapshot/ directory
 mcp-local: build snapshot
 	@echo "$(BOLD)Starting MCP server on http://localhost:8080/mcp/ ...$(RESET)"

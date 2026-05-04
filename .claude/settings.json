@@ -54,7 +54,10 @@
       "Bash(.claude/skills/sonarcloud-triage/scripts/:*)",
       "Skill(sonarcloud-triage)",
       "Bash(gcloud run *)",
-      "mcp__ailang-docs__stdlib_modules"
+      "mcp__ailang-docs__stdlib_modules",
+      "Bash(gsutil ls *)",
+      "Bash(gsutil cat *)",
+      "Bash(gcloud firestore *)"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
@@ -79,11 +82,6 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/check_public_feedback.sh",
-            "timeout": 8
           }
         ]
       }
