@@ -26,6 +26,12 @@
         <string>{{.Project}}</string>
         <key>AILANG_STORAGE</key>
         <string>gcp</string>
+        <!-- launchd's default PATH excludes /opt/homebrew/bin and /usr/local/bin
+             where Homebrew installs terminal-notifier. Without this entry the
+             daemon silently falls back to osascript (which shows the Script
+             Editor icon instead of the AILANG logo). -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 </dict>
 </plist>

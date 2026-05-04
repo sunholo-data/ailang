@@ -5,11 +5,18 @@
 package notify
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
 )
+
+//go:embed ailang-logo.png
+var ailangIconPNG []byte
 
 // ErrNotifierUnavailable is returned when neither terminal-notifier nor
 // osascript is on PATH. Callers should treat this as a non-fatal degradation
@@ -45,6 +52,41 @@ func (execRunner) run(name string, args ...string) error {
 
 var defaultRunner runner = execRunner{}
 
+// iconPathOnce ensures we materialize the embedded AILANG logo at most once
+// per process, even under concurrent Notify calls.
+var (
+	iconPathOnce sync.Once
+	iconPath     string
+)
+
+// ensureIconPath writes the embedded AILANG logo to ~/.ailang/cache/
+// notify-icon.png if it's not already there, and returns the path. Returns ""
+// (with no error) if anything fails — the caller treats an empty path as
+// "no icon", which is non-fatal. The icon is per-user; we don't pollute /tmp.
+func ensureIconPath() string {
+	iconPathOnce.Do(func() {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return
+		}
+		dir := filepath.Join(home, ".ailang", "cache")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return
+		}
+		path := filepath.Join(dir, "notify-icon.png")
+		// Idempotent: only write if missing or stale (size mismatch).
+		if info, err := os.Stat(path); err == nil && info.Size() == int64(len(ailangIconPNG)) {
+			iconPath = path
+			return
+		}
+		if err := os.WriteFile(path, ailangIconPNG, 0o644); err != nil {
+			return
+		}
+		iconPath = path
+	})
+	return iconPath
+}
+
 // Notify fires a single macOS notification. Returns ErrNotifierUnavailable when
 // neither backend is on PATH; returns the underlying exec error wrapped if the
 // chosen backend fails to run.
@@ -76,6 +118,9 @@ func notifyTerminalNotifier(n Notification) error {
 	}
 	if n.URL != "" {
 		args = append(args, "-execute", fmt.Sprintf("open %q", n.URL))
+	}
+	if path := ensureIconPath(); path != "" {
+		args = append(args, "-appIcon", path)
 	}
 	if err := defaultRunner.run("terminal-notifier", args...); err != nil {
 		return fmt.Errorf("notify: terminal-notifier failed: %w", err)
