@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/sunholo-data/ailang/internal/daemon"
@@ -32,9 +34,34 @@ func daemonCommand() {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
-	case "install", "uninstall", "status":
-		fmt.Fprintf(os.Stderr, "%s: '%s' subcommand lands in M3 of M-MAC-NOTIFY-DAEMON\n", red("Error"), args[0])
-		os.Exit(1)
+	case "install":
+		if err := daemonInstall(args[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	case "uninstall":
+		if err := daemon.Uninstall(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Println("ailang daemon: uninstalled")
+	case "status":
+		out, err := daemon.Status()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Println(out)
+		// Show last 10 log lines if the log exists.
+		if data, err := os.ReadFile("/tmp/ailang-daemon.log"); err == nil {
+			lines := splitLastN(string(data), 10)
+			if len(lines) > 0 {
+				fmt.Println("\nrecent log:")
+				for _, l := range lines {
+					fmt.Println("  " + l)
+				}
+			}
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown daemon subcommand '%s' (want run|install|uninstall|status)\n", red("Error"), args[0])
 		os.Exit(1)
@@ -94,6 +121,39 @@ func daemonRun(args []string) error {
 		envOrDefault(*envFlag, fc.Env, "prod"), project, cfg.EventsSub, cfg.MessagesSub, cfg.DryRun)
 
 	return d.Run(ctx)
+}
+
+func daemonInstall(args []string) error {
+	fs := flag.NewFlagSet("daemon install", flag.ExitOnError)
+	envFlag := fs.String("env", "prod", "Cloud environment to subscribe to (dev|test|prod).")
+	binPath := fs.String("binary", "", "Absolute path to the ailang binary. Default: result of `which ailang`.")
+	force := fs.Bool("force", false, "Overwrite existing plist.")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	bin := *binPath
+	if bin == "" {
+		resolved, err := exec.LookPath("ailang")
+		if err != nil {
+			return fmt.Errorf("could not locate ailang binary: %w (pass --binary)", err)
+		}
+		bin = resolved
+	}
+	if err := daemon.Install(daemon.InstallOpts{Env: *envFlag, BinaryPath: bin, Force: *force}); err != nil {
+		return err
+	}
+	fmt.Printf("ailang daemon: installed (env=%s, binary=%s)\n", *envFlag, bin)
+	fmt.Println("            log: /tmp/ailang-daemon.log")
+	fmt.Println("           stop: ailang daemon uninstall")
+	return nil
+}
+
+func splitLastN(s string, n int) []string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) <= n {
+		return lines
+	}
+	return lines[len(lines)-n:]
 }
 
 // signalContext returns a context cancelled on SIGINT/SIGTERM so the daemon

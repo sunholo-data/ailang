@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sunholo.ailang.daemon</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{.BinaryPath}}</string>
+        <string>daemon</string>
+        <string>run</string>
+        <string>--env</string>
+        <string>{{.Env}}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-daemon.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>AILANG_CLOUD_PROJECT</key>
+        <string>{{.Project}}</string>
+        <key>AILANG_STORAGE</key>
+        <string>gcp</string>
+    </dict>
+</dict>
+</plist>
