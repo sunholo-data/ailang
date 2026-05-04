@@ -1,0 +1,58 @@
+-- examples/modal_rand.ail
+-- Demonstrates parameterised effect syntax (!{E[k=v, ...]}) introduced in
+-- M-EFFECT-REFINEMENT Phase 1 (v0.15.0).
+--
+-- Rand is the pilot effect: bare !{Rand} desugars to !{Rand[mode=os]} via
+-- the per-effect default-mode table. Authors can opt into explicit modes:
+--
+--   !{Rand}                       -- default (mode=os, OS entropy)
+--   !{Rand[mode=os]}              -- explicit form of the default
+--   !{Rand[mode=seeded]}          -- deterministic for replay/testing
+--   !{Rand[mode=crypto]}          -- cryptographic strength (future)
+--
+-- Phase 1 ships the syntax + row algebra + unification scaffolding; the
+-- runtime treats all Rand modes identically (all dispatch to the existing
+-- _rand_int / _rand_float / _rand_bool builtins). Mode-aware runtime
+-- dispatch lands in Phase 3 (replay contract registry).
+--
+-- Run with:
+--   ailang run --caps Rand,IO --entry main examples/modal_rand.ail
+--
+-- See:
+--   design_docs/planned/v0_15_0/m-effect-refinement-phase1.md
+--   design_docs/planned/v1_0_0/m-effect-refinement.md (parent, Example 1)
+
+module examples/modal_rand
+
+import std/rand (rand_int, rand_seed)
+import std/io (println)
+
+-- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
+-- Existing programs that wrote !{Rand} continue to type-check unchanged.
+export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+
+-- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
+-- Unifies with bare form via the default-desugar match in the unifier.
+export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+
+-- Explicit !{Rand[mode=seeded]} — distinct from mode=os under invariant
+-- unification. A function declared with mode=seeded cannot be passed where
+-- mode=os is expected (and vice versa) without going through a widening
+-- coercion that the language doesn't yet provide.
+export func deterministic_roll() -> int ! {Rand[mode=seeded]} = {
+  rand_seed(42);
+  rand_int(1, 100)
+}
+
+-- main demonstrates the three forms together. Each function carries its
+-- own mode in its signature; the type checker ensures callers match.
+export func main() -> () ! {Rand, IO} = {
+  let r1 = roll_d6() in
+  println("roll_d6 (bare Rand): ${show(r1)}");
+
+  let r2 = roll_d20() in
+  println("roll_d20 (Rand[mode=os]): ${show(r2)}");
+
+  let r3 = deterministic_roll() in
+  println("deterministic_roll (Rand[mode=seeded]): ${show(r3)}")
+}
