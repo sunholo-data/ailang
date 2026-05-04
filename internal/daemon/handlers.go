@@ -1,0 +1,129 @@
+package daemon
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/notify"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+)
+
+const (
+	messageBodyMax  = 220
+	taskGroupPrefix = "ailang-task-"
+)
+
+// taskNotification builds a Notification for a task event. The second return
+// value reports whether to fire — only "pending_approval" / "completed" /
+// "failed" produce notifications; intermediate states (running, queued) are
+// skipped.
+func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
+	switch t.Status {
+	case "pending_approval":
+		return notify.Notification{
+			Title:    "⏳ Approval needed",
+			Subtitle: t.AgentID,
+			Body:     fmt.Sprintf("%s: %s", t.AgentID, t.TaskID),
+			Sound:    "Glass",
+			Group:    taskGroupPrefix + t.TaskID,
+			URL:      taskURL(t.TaskID),
+		}, true
+	case "completed":
+		body := fmt.Sprintf("%s: task %s", t.AgentID, t.TaskID)
+		if t.NumTurns > 0 {
+			body += fmt.Sprintf(" (%d turns, $%.4f)", t.NumTurns, t.CostUSD)
+		}
+		return notify.Notification{
+			Title:    "✅ Task done",
+			Subtitle: t.AgentID,
+			Body:     body,
+			Sound:    "Ping",
+			Group:    taskGroupPrefix + t.TaskID,
+			URL:      taskURL(t.TaskID),
+		}, true
+	case "failed":
+		body := fmt.Sprintf("%s: %s", t.AgentID, t.TaskID)
+		if t.ErrorMsg != "" {
+			body += " — " + t.ErrorMsg
+		}
+		return notify.Notification{
+			Title:    "❌ Task failed",
+			Subtitle: t.AgentID,
+			Body:     truncate(body, messageBodyMax),
+			Sound:    "Basso",
+			Group:    taskGroupPrefix + t.TaskID,
+			URL:      taskURL(t.TaskID),
+		}, true
+	default:
+		return notify.Notification{}, false
+	}
+}
+
+// messageNotification builds a Notification for an inbox message. Public-feedback
+// messages get a dedicated 🌐 prefix; everything else uses the generic shape.
+func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) {
+	if m == nil {
+		return notify.Notification{}, false
+	}
+	if m.ToInbox == "public-feedback" {
+		return notify.Notification{
+			Title:    "🌐 External feedback",
+			Subtitle: m.FromAgent,
+			Body:     truncate(fmt.Sprintf("[%s] %s", m.ToInbox, m.Title), messageBodyMax),
+			Sound:    "Pop",
+			Group:    "ailang-public-feedback",
+			URL:      inboxURL(m.ToInbox),
+		}, true
+	}
+	return notify.Notification{
+		Title:    "✉️  Message from " + m.FromAgent,
+		Subtitle: m.ToInbox,
+		Body:     truncate(fmt.Sprintf("%s — %s", m.Title, m.Payload), messageBodyMax),
+		Sound:    "Pop",
+		Group:    "ailang-msg-" + m.ToInbox,
+		URL:      inboxURL(m.ToInbox),
+	}, true
+}
+
+// shouldExclude reports whether the notification matches any exclude pattern
+// (substring match on Title). Used to honour ~/.ailang/config/notify_excludes.conf.
+func shouldExclude(n notify.Notification, excludes []string) bool {
+	for _, p := range excludes {
+		if p == "" {
+			continue
+		}
+		if strings.Contains(n.Title, p) || strings.Contains(n.Body, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func taskDedupKey(taskID, status string) string {
+	return "task:" + taskID + ":" + status
+}
+
+func messageDedupKey(messageID string) string {
+	return "msg:" + messageID
+}
+
+func taskURL(taskID string) string {
+	return "https://dashboard.ailang.sunholo.com/tasks/" + taskID
+}
+
+func inboxURL(inbox string) string {
+	return "https://dashboard.ailang.sunholo.com/inbox/" + inbox
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	const ellipsis = "…" // 3 bytes (UTF-8)
+	cut := max - len(ellipsis)
+	if cut < 0 {
+		cut = 0
+	}
+	return s[:cut] + ellipsis
+}
