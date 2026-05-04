@@ -1,6 +1,6 @@
 # M-MAC-NOTIFY-DAEMON: Mac Notification Daemon for Cloud Events
 
-**Status**: Planned
+**Status**: ✅ IMPLEMENTED (2026-05-04, sprint M-MAC-NOTIFY-DAEMON, 4 milestones, 36 tests)
 **Target**: v0.15.0
 **Priority**: P1 — required for human-in-the-loop approval workflow on laptop and real-time external feedback (`public-feedback` inbox)
 **Estimated**: 2-3 days
