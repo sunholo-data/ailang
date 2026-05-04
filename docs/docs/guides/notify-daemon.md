@@ -55,7 +55,12 @@ The default subcommand is `run`, so `ailang daemon` alone starts the foreground 
 
 Other Pub/Sub events (intermediate task states like `running` or `queued`) are silently dropped.
 
-Click-actions on macOS notifications open the relevant Cloud Run dashboard URL (requires `terminal-notifier`; the `osascript` fallback path has no click action but still fires the notification).
+Click-actions on macOS notifications open the AILANG dashboard root (requires `terminal-notifier`; the `osascript` fallback path has no click-action support). Deep links to specific tasks/inboxes are intentionally not used — the dashboard is currently a single-page app without client-side routes for `/tasks/<id>` or `/inbox/<name>`, so deep links would 404.
+
+## Known limitations
+
+- **Notification icon is `terminal-notifier`'s default**, not the AILANG logo. macOS binds notification identity to the bundle that posted the notification; `terminal-notifier`'s `-appIcon` flag is ignored on recent macOS versions. The only reliable fix is to ship a signed `AILANG.app` bundle registered as a notification source, which is out of scope here.
+- **launchd's default `PATH` excludes Homebrew prefixes.** Without our explicit `PATH` entry in the plist, the daemon would silently fall back to `osascript` (no click-action support) because `exec.LookPath("terminal-notifier")` would fail. The plist sets `PATH=/opt/homebrew/bin:/usr/local/bin:...` to fix this.
 
 ## Dedup
 

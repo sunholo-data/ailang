@@ -108,12 +108,19 @@ func messageDedupKey(messageID string) string {
 	return "msg:" + messageID
 }
 
-func taskURL(taskID string) string {
-	return "https://dashboard.ailang.sunholo.com/tasks/" + taskID
+// dashboardURL returns the dashboard root. Earlier iterations tried to deep-link
+// to /tasks/<id> and /inbox/<name>, but the dashboard is a single-page app
+// without client-side routes for those paths — every deep link 404'd. Until
+// the dashboard ships those routes, click-actions open the root and the user
+// navigates from there.
+const dashboardURL = "https://dashboard.ailang.sunholo.com/"
+
+func taskURL(_ string) string {
+	return dashboardURL
 }
 
-func inboxURL(inbox string) string {
-	return "https://dashboard.ailang.sunholo.com/inbox/" + inbox
+func inboxURL(_ string) string {
+	return dashboardURL
 }
 
 func truncate(s string, max int) string {
