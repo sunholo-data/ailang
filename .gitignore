@@ -98,3 +98,4 @@ code-harness-skills/
 # in-tree was removed in M4 of M-SUPPLY-CHAIN-HARDENING.
 /examples/sim_stub/sim_stub
 /examples/sim_stub/sim_stub_release
+.DS_Store

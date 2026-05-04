@@ -365,12 +365,18 @@ jobs:
         echo '' >> changelog.md
         echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
 
-    - name: Create Release
+    - name: Create Release (draft)
+      # Created as a draft so the SLSA provenance job (next) can attach
+      # multiple.intoto.jsonl. Once a release is published GitHub locks
+      # its assets ("immutable releases") and post-publish uploads fail
+      # with "Cannot upload assets to an immutable release". The
+      # finalize-release job below flips draft=false after provenance
+      # uploads its attestation.
       uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
       with:
         name: AILANG ${{ steps.get_version.outputs.VERSION }}
         body_path: changelog.md
-        draft: false
+        draft: true
         prerelease: ${{ contains(steps.get_version.outputs.VERSION, '-') }}
         files: |
           artifacts/**/*.tar.gz
@@ -406,4 +412,31 @@ jobs:
     with:
       base64-subjects: "${{ needs.create-release.outputs.hashes }}"
       upload-assets: true
+      # Keep the release in draft state while we attach provenance.
+      # GitHub locks asset lists once a release is published
+      # ("immutable releases"), so post-publish uploads fail with
+      # "Cannot upload assets to an immutable release". Typed as
+      # string per the generator's input schema.
+      draft-release: "true"
       provenance-name: "multiple.intoto.jsonl"
+
+  finalize-release:
+    name: Publish Release
+    needs: [provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        # Flip draft -> published now that provenance has been attached.
+        # After this point GitHub locks the asset list (immutable
+        # releases), which is what we want — the published release is
+        # complete and tamper-evident.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" \
+            --repo "${{ github.repository }}" \
+            --draft=false
