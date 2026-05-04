@@ -1,0 +1,69 @@
+-- examples/ai_modes.ail
+-- Demonstrates AI effect modes (M-AI-EFFECT-MODES, v0.15.0).
+--
+-- Three forms shown side-by-side:
+--   !{AI}                   — bare; desugars to !{AI[mode=fixed]} via the
+--                              default-mode table. Direct provider call.
+--   !{AI[mode=fixed]}       — explicit form of the default. Equivalent to bare.
+--   !{AI[mode=routeable]}   — opts into runtime provider routing (OpenRouter).
+--                              Skips the --allow-routing CLI gate at the type
+--                              level; the !{AI[mode=routeable]} marker attests
+--                              intent.
+--
+-- Interactive smoke test (deterministic, no API key required):
+--   ailang run --caps AI,IO --ai-stub --entry main examples/ai_modes.ail
+--
+-- Live OpenRouter routing (requires OPENROUTER_API_KEY):
+--   export OPENROUTER_API_KEY=sk-or-...
+--   ailang run --caps AI,IO \
+--     --ai openrouter/auto \
+--     --routing-fallback "anthropic,openai,google" \
+--     --routing-prefer cheapest \
+--     --entry main examples/ai_modes.ail
+--   (Note: NO --allow-routing required; summarize_routeable's type
+--    declaration !{AI[mode=routeable]} attests intent.)
+--
+-- See:
+--   docs/docs/guides/ai-routing.md
+--   docs/docs/guides/parameterised-effects.md
+--   design_docs/planned/v0_15_0/m-ai-effect-modes.md
+
+module examples/ai_modes
+
+import std/ai (call)
+import std/io (println)
+
+-- summarize_default uses bare !{AI}, which the type system desugars to
+-- !{AI[mode=fixed]}. Existing programs using bare !{AI} continue to work
+-- unchanged (zero-diff back-compat).
+export func summarize_default(text: string) -> string ! {AI} =
+  call("Summarize: ${text}")
+
+-- summarize_explicit_fixed shows the explicit form of the default.
+-- Functionally identical to summarize_default; the explicit annotation
+-- makes the intent visible to readers.
+export func summarize_explicit_fixed(text: string) -> string ! {AI[mode=fixed]} =
+  call("Summarize: ${text}")
+
+-- summarize_routeable opts into runtime routing at the type level.
+-- When the host configures OpenRouter with --routing-* flags, this function
+-- is permitted to use them WITHOUT --allow-routing — the type-level marker
+-- replaces the runtime gate. summarize_default and summarize_explicit_fixed
+-- under the same routing flags would still require --allow-routing.
+export func summarize_routeable(text: string) -> string ! {AI[mode=routeable]} =
+  call("Summarize: ${text}")
+
+-- main calls all three. Each function carries its own mode in its signature;
+-- the type checker enforces the distinction (e.g., a !{AI[mode=fixed]}
+-- function cannot be passed where !{AI[mode=routeable]} is expected and
+-- vice versa, since unification is invariant on params).
+export func main() -> () ! {AI, IO} = {
+  let r1 = summarize_default("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_default (bare AI -> AI[mode=fixed]): ${r1}");
+
+  let r2 = summarize_explicit_fixed("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_explicit_fixed (AI[mode=fixed]): ${r2}");
+
+  let r3 = summarize_routeable("AILANG is a deterministic language for AI code synthesis.") in
+  println("summarize_routeable (AI[mode=routeable]): ${r3}")
+}
