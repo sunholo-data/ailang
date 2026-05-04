@@ -12,7 +12,6 @@ import (
 	"runtime/debug"
 	rpprof "runtime/pprof"
 
-	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -136,18 +135,21 @@ func runCommand() {
 		os.Exit(1)
 	}
 
-	// Build routing policy from flags. We pass providerHint="" because `run`
-	// determines the provider from --ai <model> at handler-setup time (via
+	// M-AI-EFFECT-MODES M2: snapshot the routing flag values now and defer
+	// routing-policy construction until AFTER typecheck so the safety-gate
+	// decision can consult the entry function's declared AI mode. A program
+	// declared !{AI[mode=routeable]} attests routing intent at the type
+	// level, which is stronger evidence than the runtime --allow-routing
+	// flag, so the gate is bypassed in that case. Bare !{AI} (desugars to
+	// mode=fixed) and programs without AI in the entry effect row still
+	// require --allow-routing.
+	//
+	// At policy build time we pass providerHint="" because `run` determines
+	// the provider from --ai <model> at handler-setup time (via
 	// ai.GuessProvider). The handler dispatch surfaces "non-openrouter
 	// provider with routing" mismatches via ai.ErrRoutingNotSupported on the
 	// first AI call, which is the right level for that error.
-	routingPolicy, routingErr := buildRoutingPolicy("",
-		*routingFlags.fallback, *routingFlags.require, *routingFlags.prefer,
-		*routingFlags.maxPrice, *routingFlags.allowRouting)
-	if routingErr != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
-		os.Exit(1)
-	}
+	routingValues := routingFlags.snapshot()
 
 	// Resolve --args-json / --args-file / stdin into a single effective JSON
 	// string. PowerShell quote-mangling makes inline JSON unusable on Windows;
@@ -234,10 +236,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingPolicy, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingPolicy *ai.AIRoutingPolicy, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingValues routingFlagValues, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
 	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
 	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
 	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
@@ -459,6 +461,15 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				fmt.Fprintf(os.Stderr, "%s Batch mode: %d inputs, compiled once\n", cyan("→"), len(programArgs))
 			}
 
+			// M-AI-EFFECT-MODES M2: resolve the routing policy once per
+			// batch run; the declared mode is the same for every input
+			// because the same entry function is invoked.
+			batchRoutingPolicy, batchRoutingErr := resolveRoutingPolicy(aiRoutingValues, result.Interface, entry)
+			if batchRoutingErr != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), batchRoutingErr)
+				os.Exit(1)
+			}
+
 			batchErrors := 0
 			for i, input := range programArgs {
 				if !quiet {
@@ -470,7 +481,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 					netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata,
 					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
 					processTimeout, processAllowlist, processMaxOutput,
-					aiStub, aiModel, aiRoutingPolicy, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
+					aiStub, aiModel, batchRoutingPolicy, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
 					filename, bytecodeMode, strictBytecode)
 				if batchErr != nil {
 					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), batchErr)
@@ -523,6 +534,16 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)       // Stream for WebSocket connections (M-STREAM-BIDI)
 			if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+
+			// M-AI-EFFECT-MODES M2: build the routing policy now that typecheck
+			// has produced the entry function's effect row. The declared AI
+			// mode (routeable / replay-only) bypasses the runtime --allow-routing
+			// gate; bare !{AI} (mode=fixed) still requires it.
+			aiRoutingPolicy, routingErr := resolveRoutingPolicy(aiRoutingValues, result.Interface, entry)
+			if routingErr != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
 				os.Exit(1)
 			}
 			if err := setupAIHandler(effCtx, aiStub, aiModel, aiRoutingPolicy); err != nil {

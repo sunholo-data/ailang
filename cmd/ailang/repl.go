@@ -73,5 +73,5 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact/quiet for watch mode)
 	// Default to main entrypoint with null args for watch mode, no caps, no stdlib overrides, no env overrides, no CLI args, no relaxModules, no debug-types, no budget bypass, no contract verification
-	runFile(filename, []string{}, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, false, "", maxRecursionDepth, "", false, false, "", "", "", "", "", false, "", nil, false, false, false, 0, false, "", false, "", "", false, "", false, false, false, "", false, "30s", "", 10*1024*1024, false, false, false)
+	runFile(filename, []string{}, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, false, "", maxRecursionDepth, "", false, false, "", "", "", "", "", false, "", routingFlagValues{}, false, false, false, 0, false, "", false, "", "", false, "", false, false, false, "", false, "30s", "", 10*1024*1024, false, false, false)
 }

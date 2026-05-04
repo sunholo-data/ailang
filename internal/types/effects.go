@@ -108,6 +108,34 @@ func effectParamsCompatible(a, b *Row, effectName string) bool {
 	return paramMapsEqual(effectiveParamsOf(a, effectName), effectiveParamsOf(b, effectName))
 }
 
+// EffectModeFor returns the "mode" parameter value for a given effect in a row.
+// Returns ("", false) if the row is nil, doesn't contain the effect, or has no
+// mode parameter for it.
+//
+// Uses effectiveParamsOf so bare !{AI} returns "fixed" (its registered default
+// under M-AI-EFFECT-MODES) and bare !{Rand} returns "os". This is the read
+// path used by the CLI safety-gate (cmd/ailang/routing_flags.go) to decide
+// whether a program's declared AI mode permits the runtime --allow-routing
+// gate to be skipped.
+func EffectModeFor(row *Row, effectName string) (mode string, ok bool) {
+	if row == nil {
+		return "", false
+	}
+	// Only consult params if the effect is actually present in the row.
+	if _, hasLabel := row.Labels[effectName]; !hasLabel {
+		return "", false
+	}
+	p := effectiveParamsOf(row, effectName)
+	if p == nil {
+		return "", false
+	}
+	v, has := p["mode"]
+	if !has {
+		return "", false
+	}
+	return v, true
+}
+
 // applyDefaultParam populates params[effectName] from DefaultModeFor if no
 // explicit params were supplied for that effect. No-op for effects without
 // a registered default. Mutates the params map in place.

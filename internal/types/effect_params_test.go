@@ -508,6 +508,84 @@ func TestElaborateEffectRowWithBudgets_AIUserParamsOverrideDefault(t *testing.T)
 	}
 }
 
+// TestEffectModeFor_AI verifies the read-path used by the CLI safety-gate
+// (M-AI-EFFECT-MODES M2): EffectModeFor must return the declared mode for an
+// effect in a row, applying the default-mode desugar so bare !{AI} reads as
+// "fixed". Returns ("", false) for nil rows, missing effects, or effects with
+// no mode param (and no default).
+func TestEffectModeFor_AI(t *testing.T) {
+	t.Run("nil row returns no mode", func(t *testing.T) {
+		got, ok := EffectModeFor(nil, "AI")
+		if got != "" || ok {
+			t.Errorf("EffectModeFor(nil, \"AI\") = (%q, %v), want (\"\", false)", got, ok)
+		}
+	})
+
+	t.Run("AI not in row returns no mode", func(t *testing.T) {
+		row, err := ElaborateEffectRow([]string{"IO", "FS"})
+		if err != nil {
+			t.Fatalf("ElaborateEffectRow failed: %v", err)
+		}
+		got, ok := EffectModeFor(row, "AI")
+		if got != "" || ok {
+			t.Errorf("EffectModeFor(IO/FS row, \"AI\") = (%q, %v), want (\"\", false)", got, ok)
+		}
+	})
+
+	t.Run("bare AI desugars to fixed", func(t *testing.T) {
+		row, err := ElaborateEffectRow([]string{"AI"})
+		if err != nil {
+			t.Fatalf("ElaborateEffectRow failed: %v", err)
+		}
+		got, ok := EffectModeFor(row, "AI")
+		if got != "fixed" || !ok {
+			t.Errorf("EffectModeFor(bare AI row, \"AI\") = (%q, %v), want (\"fixed\", true)", got, ok)
+		}
+	})
+
+	t.Run("explicit mode=routeable returns routeable", func(t *testing.T) {
+		annotations := []ast.EffectAnnotation{
+			{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "routeable"}}},
+		}
+		row, err := ElaborateEffectRowWithBudgets(annotations)
+		if err != nil {
+			t.Fatalf("ElaborateEffectRowWithBudgets failed: %v", err)
+		}
+		got, ok := EffectModeFor(row, "AI")
+		if got != "routeable" || !ok {
+			t.Errorf("EffectModeFor(AI[mode=routeable], \"AI\") = (%q, %v), want (\"routeable\", true)", got, ok)
+		}
+	})
+
+	t.Run("explicit mode=replay-only returns replay-only", func(t *testing.T) {
+		annotations := []ast.EffectAnnotation{
+			{Name: "AI", Params: []ast.EffectParam{{Key: "mode", Value: "replay-only"}}},
+		}
+		row, err := ElaborateEffectRowWithBudgets(annotations)
+		if err != nil {
+			t.Fatalf("ElaborateEffectRowWithBudgets failed: %v", err)
+		}
+		got, ok := EffectModeFor(row, "AI")
+		if got != "replay-only" || !ok {
+			t.Errorf("EffectModeFor(AI[mode=replay-only], \"AI\") = (%q, %v), want (\"replay-only\", true)", got, ok)
+		}
+	})
+
+	t.Run("effect with no mode param returns false", func(t *testing.T) {
+		// Manually construct a row with AI label but no mode param entry —
+		// simulates a row hand-built without going through ElaborateEffectRow.
+		row := &Row{
+			Kind:   EffectRow,
+			Labels: map[string]Type{"IO": Unit()},
+			Params: nil, // IO has no default mode, so no entry
+		}
+		got, ok := EffectModeFor(row, "IO")
+		if got != "" || ok {
+			t.Errorf("EffectModeFor(IO row, \"IO\") = (%q, %v), want (\"\", false)", got, ok)
+		}
+	})
+}
+
 // TestUnifyRows_AIModes covers the 5 unification cases for AI parameters,
 // matching the matrix in the design doc Examples section.
 func TestUnifyRows_AIModes(t *testing.T) {

@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // routingFlagSet holds pointers to the routing CLI flags. Returned by
@@ -22,6 +24,30 @@ type routingFlagSet struct {
 	prefer       *string
 	maxPrice     *string
 	allowRouting *bool
+}
+
+// routingFlagValues is the dereferenced snapshot of the routing flags after
+// fs.Parse. Used to defer policy construction until after typecheck so the
+// safety-gate decision can consult the entry function's declared AI mode
+// (M-AI-EFFECT-MODES M2). routingFlagSet.snapshot() builds this.
+type routingFlagValues struct {
+	fallback     string
+	require      string
+	prefer       string
+	maxPrice     string
+	allowRouting bool
+}
+
+// snapshot dereferences the flag pointers into a value struct, suitable for
+// threading through `runFile` and resolving after typecheck completes.
+func (r *routingFlagSet) snapshot() routingFlagValues {
+	return routingFlagValues{
+		fallback:     *r.fallback,
+		require:      *r.require,
+		prefer:       *r.prefer,
+		maxPrice:     *r.maxPrice,
+		allowRouting: *r.allowRouting,
+	}
 }
 
 // registerRoutingFlags registers the standard --routing-* flags on the given
@@ -71,6 +97,14 @@ func routingFlagNames() []string {
 //     error before submitting the request. Routing introduces dynamic provider
 //     selection, so explicit opt-in is required. This is the runtime equivalent
 //     of the design doc's AI[Routeable] type-level marker.
+//
+// M-AI-EFFECT-MODES M2 relaxation: callers that have access to the elaborated
+// entry-function effect row should resolve the declared AI mode via
+// DetermineDeclaredAIMode and OR its result into allowRouting. A program
+// declared !{AI[mode=routeable]} attests routing intent at the type level,
+// which is stronger evidence than the runtime --allow-routing flag, so the
+// gate is bypassed. Bare !{AI} (which desugars to mode=fixed) and programs
+// without an AI effect at all are unaffected — they still require the flag.
 func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string, allowRouting bool) (*ai.AIRoutingPolicy, error) {
 	if fallback == "" && require == "" && prefer == "" && maxPrice == "" {
 		return nil, nil
@@ -126,4 +160,64 @@ func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string, al
 	p.MaxPricePerMTok = maxPrice
 
 	return p, nil
+}
+
+// resolveRoutingPolicy is the M-AI-EFFECT-MODES M2 entry point used by
+// `ailang run` after typecheck completes. It snapshots the runtime
+// --allow-routing flag, ORs in the type-level evidence from the entry
+// function's declared AI mode, then delegates to buildRoutingPolicy.
+//
+// The relaxation: when DetermineDeclaredAIMode returns "routeable" or
+// "replay-only", the declared signature attests routing intent at the
+// type level — stronger evidence than the runtime flag — so the
+// safety-gate is bypassed. Bare !{AI} (which desugars to mode=fixed)
+// and programs without AI in the entry effect row still require
+// --allow-routing to be passed explicitly.
+//
+// Returns (nil, nil) when no --routing-* flags were set; the caller
+// (setupAIHandler) treats a nil policy as "no routing requested".
+func resolveRoutingPolicy(values routingFlagValues, programIface *iface.Iface, entry string) (*ai.AIRoutingPolicy, error) {
+	declaredMode := DetermineDeclaredAIMode(programIface, entry)
+	allowRoutingEffective := values.allowRouting
+	switch declaredMode {
+	case "routeable", "replay-only":
+		// Type-level marker attests intent; runtime gate redundant.
+		allowRoutingEffective = true
+	}
+	return buildRoutingPolicy("",
+		values.fallback, values.require, values.prefer, values.maxPrice,
+		allowRoutingEffective)
+}
+
+// DetermineDeclaredAIMode walks the elaborated entry function's type scheme
+// and returns the AI mode declared on its effect row. Returns "" if the
+// interface is nil, the entry isn't exported, the entry's type is not a
+// function, or its effect row doesn't contain AI.
+//
+// The result feeds the M-AI-EFFECT-MODES M2 safety-gate relaxation in
+// `ailang run`: a program declared !{AI[mode=routeable]} (or replay-only)
+// has attested routing intent at the type level, so the runtime
+// --allow-routing requirement is bypassed.
+//
+// "fixed" is returned for bare !{AI} (which desugars to mode=fixed under
+// the M-AI-EFFECT-MODES default-mode entry); the safety gate then enforces
+// the existing --allow-routing requirement.
+//
+// We deliberately consult only the entry function's signature: the elaborated
+// effect row of the entry attests the program's overall AI usage intent.
+// Inner functions are unified against this row by the typechecker.
+func DetermineDeclaredAIMode(iface *iface.Iface, entry string) string {
+	if iface == nil {
+		return ""
+	}
+	item, ok := iface.GetExport(entry)
+	if !ok || item == nil || item.Type == nil {
+		return ""
+	}
+	fn, ok := item.Type.Type.(*types.TFunc2)
+	if !ok || fn == nil {
+		return ""
+	}
+	mode, _ := types.EffectModeFor(fn.EffectRow, "AI")
+	return mode
 }

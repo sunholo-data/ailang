@@ -106,3 +106,23 @@ func (p *AIRoutingPolicy) HasRouting() bool {
 // detect this case and either remove the policy, switch to OpenRouter, or
 // surface the error to the user.
 var ErrRoutingNotSupported = errors.New("routing policy not supported by this provider")
+
+// ErrRoutingRequiresRouteableMode is returned when a routing policy is supplied
+// for a function declared !{AI[mode=fixed]} (or bare !{AI} which desugars to
+// fixed under M-AI-EFFECT-MODES). The fix is either to declare
+// !{AI[mode=routeable]} on the function signature (preferred — type-level
+// intent), or to remove the routing flags.
+//
+// This is the runtime sibling to the type-level invariant unification check
+// that rejects !{AI[mode=fixed]} unifying with !{AI[mode=routeable]}. The CLI
+// safety-gate (cmd/ailang/routing_flags.go) is the load-bearing protection;
+// providers may also raise this error as defence-in-depth on any path that
+// bypasses the typechecker (manual handler construction, embedded use, etc.).
+//
+// TODO(M-AI-EFFECT-MODES M3+): wire the declared mode through Request so
+// providers can enforce this at handler.Generate time. The current
+// AIHandler interface (string -> string) doesn't carry effect-row info;
+// extending it requires plumbing a DeclaredAIMode field on Request and
+// populating it from the calling function's elaborated effect row at AI
+// op invocation. The CLI-side gate is sufficient protection for v0.15.0.
+var ErrRoutingRequiresRouteableMode = errors.New("routing requires !{AI[mode=routeable]} on the function signature")
