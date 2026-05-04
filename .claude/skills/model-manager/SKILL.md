@@ -302,6 +302,49 @@ before fully cutting it. Agent mode results don't override the standard-mode
 gate but can justify adding the model under a different harness entry (e.g.
 `opencode-<candidate>`, `pi-<candidate>`).
 
+**2026-05-04 agent-mode smoke finding (precedent):** Tested 9 OS-via-OR
+candidates through opencode harness. Cross-mode behaviour:
+
+| Model | Standard | Agent | Δ |
+|-------|---------:|------:|--:|
+| **GLM 5** (z.ai) | not tested | **3/3** ✅ | — first OS model to pass |
+| Gemma 4 26B | 2/3 | 2/3 | 0 (same near-miss) |
+| DeepSeek V4 Flash | 0/3 | 2/3 | **+2** (agent unlock) |
+| GLM 4.7 Flash | not tested | 2/3 | — near-miss |
+| Kimi K2.6 | 1/3 | 1/3 | 0 |
+| Qwen3 30B-A3B | 1/3 | 1/3 | 0 |
+| Qwen3 Coder Flash | 2/3 | 1/3 | **-1** (agent regressed) |
+| DeepSeek V4 Pro | not tested | 1/3 | Pro under-performed Flash |
+| Qwen3 235B-A22B | 0/3 | 0/3 | 0 |
+
+Key takeaways for the model-manager workflow:
+
+1. **Agent mode is not a universal fix.** Most models that fail standard
+   smoke also fail agent smoke. Multi-turn helps when the model can read
+   compile errors and adjust; it hurts when the model interprets tool-call
+   setup as the answer (Qwen3 Coder Flash regression).
+
+2. **Pro tier ≠ better.** DeepSeek V4 Pro (1/3) under-performed V4 Flash
+   (2/3) on AILANG smoke. The Pro reasoning/long-output overhead can hurt
+   simple-task accuracy. Test both tiers when available.
+
+3. **csv_to_json_converter is the gating benchmark.** Of the 27 benchmark
+   runs (9 models × 3), csv_to_json was the single most-failed test — only
+   GLM 5 passed it among OS candidates. v0.14.2 baseline confirms:
+   gpt5-4-mini and gemini-3-1-pro also fail csv_to_json, while
+   claude-sonnet-4-6, claude-opus-4-7, gpt5-5, gemini-3-flash all pass.
+   Use csv_to_json as the highest-signal smoke when running a quick test.
+
+4. **GLM 5 is genuinely cost-competitive frontier OS.** $0.60/$2.08 per 1M
+   tokens, ~5–7× cheaper than Claude Sonnet 4.6 on input. Worth standing
+   inclusion in eval rotation alongside frontier proprietary models.
+
+5. **Vendor-prefix wiring is forward-compat infrastructure.** When adding
+   models from a new vendor (e.g. `z-ai/`, `moonshotai/`, `microsoft/`),
+   add the prefix to `internal/ai/config.go::openrouterVendorPrefixes` so
+   future ad-hoc `ailang run --ai vendor/model` invocations work without
+   needing a models.yml entry.
+
 ### 6. Document the Model
 
 **Update relevant documentation:**

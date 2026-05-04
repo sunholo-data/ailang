@@ -787,6 +787,110 @@ models:
       Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
 
   # =============================================================================
+  # OpenRouter-routed OS via opencode harness (M-AI-EFFECT-MODES, May 2026)
+  #
+  # Cross-harness comparison: same OS families we smoke-tested in standard
+  # mode (single-shot, /tmp/eval_smoke_sota_os/), now via agent mode
+  # (multi-turn iteration with tools, /tmp/eval_smoke_agent_or/ +
+  # /tmp/eval_smoke_agent_motoko/).
+  #
+  # Headline finding 2026-05-04: GLM 5 (z.ai) PASSED 3/3 in agent mode —
+  # first open-source model to clear the full smoke set. This validates
+  # Motoko's recommendation. GLM 5 also beat gpt5-4-mini and gemini-3-1-pro
+  # on csv_to_json (the gating benchmark from v0.14.2 baseline) at ~7×
+  # lower cost than Claude Sonnet 4.6.
+  #
+  # Cross-harness behaviour observed:
+  #   DeepSeek V4 Flash: 0/3 standard → 2/3 agent (+2; iteration unlocked)
+  #   Qwen3 Coder Flash: 2/3 standard → 1/3 agent (-1; multi-turn confused it)
+  #   Most others: same 0-2/3 in both modes (multi-turn doesn't compensate
+  #     for never having seen AILANG)
+  #
+  # Per rule of thumb (must pass ALL smoke), entries below are categorised:
+  #   PASS — earned a place in eval rotation
+  #   NEAR-MISS — 2/3, on watchlist for stdlib/prompt improvement signal
+  #   (cut entries removed from this file; smoke history retained in
+  #    git log + eval_results/baselines/v0.14.x for re-verification)
+  # =============================================================================
+
+  # ---- PASS (3/3 smoke) ----
+
+  opencode-or-glm-5:
+    api_name: "z-ai/glm-5"
+    provider: "openrouter"
+    description: "GLM 5 (z.ai) via opencode+OpenRouter — first OS model to PASS full AILANG smoke"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/z-ai/glm-5"
+    model_family: "glm-5"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0006   # $0.60 per 1M
+      output_per_1k: 0.00208 # $2.08 per 1M
+    notes: |
+      Agent-mode smoke 2026-05-04: 3/3 (fizzbuzz✅ adt_option✅ csv_to_json✅).
+      First OS model to pass the full smoke set. ~7× cheaper than Claude
+      Sonnet 4.6 ($3/$15 per 1M) on input. Beat gpt5-4-mini and
+      gemini-3-1-pro on csv_to_json (the gating benchmark from v0.14.2).
+      Recommended by Motoko for AILANG eval.
+
+  # ---- NEAR-MISS (2/3 smoke, watchlist for stdlib/prompt improvement) ----
+
+  opencode-or-gemma-4-26b:
+    api_name: "google/gemma-4-26b-a4b-it"
+    provider: "openrouter"
+    description: "Gemma 4 26B via opencode+OpenRouter (NEAR-MISS: 2/3 agent smoke)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
+    model_family: "gemma-4"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.00006
+      output_per_1k: 0.00033
+    notes: |
+      Smoke 2026-05-04: standard 2/3 (csv WRONG_LANG), agent 2/3 (same csv fail).
+      Cheapest near-miss; agent mode didn't unlock csv_to_json for it.
+      Re-test after stdlib/prompt improvements.
+
+  opencode-or-deepseek-v4-flash:
+    api_name: "deepseek/deepseek-v4-flash"
+    provider: "openrouter"
+    description: "DeepSeek V4 Flash via opencode+OpenRouter (NEAR-MISS: 0/3 std → 2/3 agent)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.00014
+      output_per_1k: 0.00028
+    notes: |
+      Smoke 2026-05-04: standard 0/3, agent 2/3 (+2). Best agent-mode
+      uplift in the spread — multi-turn iteration recovered fizzbuzz and
+      adt_option that single-shot couldn't. csv_to_json still fails.
+      Validates Motoko's "DeepSeek V4 Flash good for AILANG" recommendation.
+      Note: V4 Pro under-performed Flash (1/3 vs 2/3) — Pro's reasoning
+      overhead may hurt simple-task accuracy.
+
+  opencode-or-glm-4-7-flash:
+    api_name: "z-ai/glm-4.7-flash"
+    provider: "openrouter"
+    description: "GLM 4.7 Flash (z.ai) via opencode+OpenRouter (NEAR-MISS: 2/3 agent smoke)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/z-ai/glm-4.7-flash"
+    model_family: "glm-4-7"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00006   # $0.06 per 1M (cheapest in spread)
+      output_per_1k: 0.0004   # $0.40 per 1M
+    notes: |
+      Smoke 2026-05-04: agent 2/3 (csv failed). Cheaper z.ai variant
+      pairing with GLM 5. Cheapest agent-mode entry — useful for
+      high-volume eval where pass-rate >2/3 is acceptable.
+
+  # =============================================================================
   # LOCAL MODELS (via Ollama)
   # =============================================================================
   # These models run locally via Ollama - no API keys or costs.
