@@ -1,6 +1,6 @@
 {
   "version": "0.15.0",
-  "timestamp": "2026-05-04T20:59:09+02:00",
+  "timestamp": "2026-05-04T21:10:37+02:00",
   "totalRuns": 544,
   "aggregates": {
     "agentBenchmarks": [
@@ -3333,6 +3333,13 @@
         "successRate": 0.8529411764705882
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.8529411764705882,
+        "totalCostUSD": 4.105761599999998,
+        "totalRuns": 68,
+        "totalTokens": 3063412
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.20588235294117646,
@@ -3341,7 +3348,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.7941176470588235,
           "agentSuccessRateAdjusted": 1,
-          "avgTokens": 0,
+          "avgCost": 0.07817429411764705,
+          "avgTokens": 504.05882352941177,
           "successRate": 0.7941176470588235,
           "totalRuns": 34
         },
@@ -3352,7 +3360,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9117647058823529,
           "agentSuccessRateAdjusted": 0.9393939393939394,
-          "avgTokens": 0,
+          "avgCost": 0.0425834,
+          "avgTokens": 502.9117647058824,
           "successRate": 0.9117647058823529,
           "totalRuns": 34
         }
@@ -3372,6 +3381,13 @@
         "successRate": 0.6617647058823529
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.6617647058823529,
+        "totalCostUSD": 0.8982353400000002,
+        "totalRuns": 68,
+        "totalTokens": 1861189
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.5294117647058824,
@@ -3380,7 +3396,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.4411764705882353,
           "agentSuccessRateAdjusted": 0.9375,
-          "avgTokens": 0,
+          "avgCost": 0.012664897058823527,
+          "avgTokens": 387.94117647058823,
           "successRate": 0.4411764705882353,
           "totalRuns": 34
         },
@@ -3391,7 +3408,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.8823529411764706,
           "agentSuccessRateAdjusted": 0.9375,
-          "avgTokens": 0,
+          "avgCost": 0.013753789411764705,
+          "avgTokens": 675.2352941176471,
           "successRate": 0.8823529411764706,
           "totalRuns": 34
         }
@@ -3411,6 +3429,13 @@
         "successRate": 0.9558823529411765
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.9558823529411765,
+        "totalCostUSD": 13.38393495,
+        "totalRuns": 68,
+        "totalTokens": 74931
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0,
@@ -3419,7 +3444,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9411764705882353,
           "agentSuccessRateAdjusted": 0.9411764705882353,
-          "avgTokens": 0,
+          "avgCost": 0.28160081029411765,
+          "avgTokens": 1351.735294117647,
           "successRate": 0.9411764705882353,
           "totalRuns": 34
         },
@@ -3430,7 +3456,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9705882352941176,
           "agentSuccessRateAdjusted": 0.9705882352941176,
-          "avgTokens": 0,
+          "avgCost": 0.11204433529411763,
+          "avgTokens": 841,
           "successRate": 0.9705882352941176,
           "totalRuns": 34
         }
@@ -3934,6 +3961,13 @@
         "successRate": 0.8529411764705882
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.8529411764705882,
+        "totalCostUSD": 4.105761599999998,
+        "totalRuns": 68,
+        "totalTokens": 3063412
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.20588235294117646,
@@ -3942,7 +3976,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.7941176470588235,
           "agentSuccessRateAdjusted": 1,
-          "avgTokens": 0,
+          "avgCost": 0.07817429411764705,
+          "avgTokens": 504.05882352941177,
           "successRate": 0.7941176470588235,
           "totalRuns": 34
         },
@@ -3953,7 +3988,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9117647058823529,
           "agentSuccessRateAdjusted": 0.9393939393939394,
-          "avgTokens": 0,
+          "avgCost": 0.0425834,
+          "avgTokens": 502.9117647058824,
           "successRate": 0.9117647058823529,
           "totalRuns": 34
         }
@@ -3973,6 +4009,13 @@
         "successRate": 0.6617647058823529
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.6617647058823529,
+        "totalCostUSD": 0.8982353400000002,
+        "totalRuns": 68,
+        "totalTokens": 1861189
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.5294117647058824,
@@ -3981,7 +4024,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.4411764705882353,
           "agentSuccessRateAdjusted": 0.9375,
-          "avgTokens": 0,
+          "avgCost": 0.012664897058823527,
+          "avgTokens": 387.94117647058823,
           "successRate": 0.4411764705882353,
           "totalRuns": 34
         },
@@ -3992,7 +4036,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.8823529411764706,
           "agentSuccessRateAdjusted": 0.9375,
-          "avgTokens": 0,
+          "avgCost": 0.013753789411764705,
+          "avgTokens": 675.2352941176471,
           "successRate": 0.8823529411764706,
           "totalRuns": 34
         }
@@ -4012,6 +4057,13 @@
         "successRate": 0.9558823529411765
       },
       "agent_cli": "opencode",
+      "aggregates": {
+        "avgDurationMs": 0,
+        "finalSuccess": 0.9558823529411765,
+        "totalCostUSD": 13.38393495,
+        "totalRuns": 68,
+        "totalTokens": 74931
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0,
@@ -4020,7 +4072,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9411764705882353,
           "agentSuccessRateAdjusted": 0.9411764705882353,
-          "avgTokens": 0,
+          "avgCost": 0.28160081029411765,
+          "avgTokens": 1351.735294117647,
           "successRate": 0.9411764705882353,
           "totalRuns": 34
         },
@@ -4031,7 +4084,8 @@
           "agentRuns": 34,
           "agentSuccessRate": 0.9705882352941176,
           "agentSuccessRateAdjusted": 0.9705882352941176,
-          "avgTokens": 0,
+          "avgCost": 0.11204433529411763,
+          "avgTokens": 841,
           "successRate": 0.9705882352941176,
           "totalRuns": 34
         }
@@ -7971,7 +8025,7 @@
   "history": [
     {
       "version": "v0.15.0",
-      "timestamp": "2026-05-04T20:59:05+02:00",
+      "timestamp": "2026-05-04T21:10:34+02:00",
       "successRate": 0.7334558823529411,
       "totalRuns": 544,
       "successCount": 399,

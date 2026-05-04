@@ -3,30 +3,26 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import styles from './styles.module.css';
 
 function formatModelName(name) {
-  // Check most specific patterns first for proper display names
-  if (name.includes('claude-opus-4-7')) return 'Claude Opus 4.7';
-  if (name.includes('claude-opus-4-6')) return 'Claude Opus 4.6';
-  if (name.includes('claude-opus-4-5')) return 'Claude Opus 4.5';
-  if (name.includes('claude-sonnet-4-6')) return 'Claude Sonnet 4.6';
-  if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
-  if (name.includes('claude-haiku-4-5')) return 'Claude Haiku 4.5';
-  if (name.includes('gpt5-4-mini') || name.includes('gpt5-4mini')) return 'GPT-5.4 Mini';
-  if (name.includes('gpt5-4')) return 'GPT-5.4';
-  if (name.includes('gpt5-2-codex')) return 'GPT-5.2 Codex';
-  if (name.includes('gpt5-2-instant')) return 'GPT-5.2 Instant';
-  if (name.includes('gpt5-2')) return 'GPT-5.2';
-  if (name.includes('gpt5-1-instant')) return 'GPT-5.1 Instant';
-  if (name.includes('gpt5-1-codex')) return 'GPT-5.1 Codex';
-  if (name.includes('gpt5-1')) return 'GPT-5.1';
-  if (name.includes('gpt-5-mini') || name.includes('gpt5-mini')) return 'GPT-5 Mini';
-  if (name.includes('gpt-5') || name.includes('gpt5')) return 'GPT-5';
-  if (name.includes('gemini-3-1-pro')) return 'Gemini 3.1 Pro';
-  if (name.includes('gemini-3-flash')) return 'Gemini 3.0 Flash';
-  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
-  if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
-  if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
-  // Fallback: capitalize first letter of each word
-  return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  // Surface harness + provider as explicit suffixes. See
+  // BenchmarkExplorer/index.jsx::modelShort for the canonical version.
+  let s = name;
+  let suffix = '';
+  if (s.startsWith('opencode-or-')) { suffix = ' (agent · OR)'; s = s.slice('opencode-or-'.length); }
+  else if (s.startsWith('opencode-')) { suffix = ' (agent)';     s = s.slice('opencode-'.length); }
+  else if (s.startsWith('pi-'))       { suffix = ' (Pi)';        s = s.slice('pi-'.length); }
+  else if (s.startsWith('or-'))       { suffix = ' (OR)';        s = s.slice('or-'.length); }
+  s = s
+    .replace(/^claude-/, 'Claude ')
+    .replace(/^gemini-/, 'Gemini ')
+    .replace(/^gpt5/, 'GPT-5')
+    .replace(/^minimax-/, 'MiniMax ')
+    .replace(/^glm-/, 'GLM ')
+    .replace(/^kimi-/, 'Kimi ')
+    .replace(/^qwen3-/, 'Qwen3 ')
+    .replace(/^gemma4-/, 'Gemma4 ')
+    .replace(/^deepseek-/, 'DeepSeek ')
+    .replace(/-/g, ' ');
+  return s + suffix;
 }
 
 /**
@@ -297,39 +293,84 @@ export default function ModelRadarComparison() {
         </div>
 
         {/* Chart 3: Cost Efficiency */}
-        <div className={styles.chartCard}>
-          <h3>Cost per 1000 Successes</h3>
-          <p className={styles.subtitle}>Dollar cost for 1000 successful benchmarks</p>
-          <ResponsiveContainer width="100%" height={350}>
-            <RadarChart data={radarData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="model" />
-              <PolarRadiusAxis angle={90} domain={[0, 2]} />
-              <Tooltip formatter={formatTooltip} />
-              <Legend />
-              <Radar
-                name="AILANG Cost ($)"
-                dataKey="AILANG Cost ($)"
-                stroke="#8B5CF6"
-                fill="#8B5CF6"
-                fillOpacity={0.3}
-                strokeWidth={3}
-              />
-              <Radar
-                name="Python Cost ($)"
-                dataKey="Python Cost ($)"
-                stroke="#10B981"
-                fill="#10B981"
-                fillOpacity={0.3}
-                strokeWidth={2}
-                strokeDasharray="5 5"
-              />
-            </RadarChart>
-          </ResponsiveContainer>
-          <div className={styles.chartNote}>
-            <strong>Purple = AILANG cost, Green = Python cost (in dollars).</strong> Shows cost for 1000 successful benchmark runs per language. Lower = better value. Example: $0.50 means 1000 successful benchmarks cost fifty cents. Ideal for budget-conscious model selection.
-          </div>
-        </div>
+        {(() => {
+          // Cost-per-1000 has wide dynamic range — direct API models are
+          // ~$0.50–$5 while opencode-wrapped agent models can be $50–$300
+          // (multi-turn loops resend full context each turn). One outlier
+          // collapses every other spoke to ~zero, so we cap the *display*
+          // value at the median × 5 and surface the real number in the
+          // tooltip + an outlier list under the chart.
+          const allCosts = radarData.flatMap(d => [d['AILANG Cost ($)'], d['Python Cost ($)']]).filter(v => v > 0).sort((a, b) => a - b);
+          const median = allCosts.length ? allCosts[Math.floor(allCosts.length / 2)] : 0;
+          const capValue = Math.max(median * 5, 5); // never below $5 cap
+          const cappedRadarData = radarData.map(d => ({
+            ...d,
+            'AILANG Cost ($)': Math.min(d['AILANG Cost ($)'] || 0, capValue),
+            'Python Cost ($)': Math.min(d['Python Cost ($)'] || 0, capValue),
+            // keep originals for the tooltip
+            _ailangCostReal: d['AILANG Cost ($)'],
+            _pythonCostReal: d['Python Cost ($)'],
+          }));
+          const outliers = radarData.filter(d =>
+            (d['AILANG Cost ($)'] > capValue) || (d['Python Cost ($)'] > capValue)
+          );
+          const formatCostTooltip = (value, name, props) => {
+            if (typeof value !== 'number') return value;
+            const real = name === 'AILANG Cost ($)'
+              ? props?.payload?._ailangCostReal
+              : props?.payload?._pythonCostReal;
+            const realStr = (typeof real === 'number') ? real.toFixed(2) : value.toFixed(2);
+            return value < real ? `${realStr} (clipped at ${capValue.toFixed(0)})` : realStr;
+          };
+          return (
+            <div className={styles.chartCard}>
+              <h3>Cost per 1000 Successes</h3>
+              <p className={styles.subtitle}>Dollar cost for 1000 successful benchmarks (display capped at ${capValue.toFixed(0)} for readability)</p>
+              <ResponsiveContainer width="100%" height={350}>
+                <RadarChart data={cappedRadarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="model" />
+                  <PolarRadiusAxis angle={90} domain={[0, capValue]} />
+                  <Tooltip formatter={formatCostTooltip} />
+                  <Legend />
+                  <Radar
+                    name="AILANG Cost ($)"
+                    dataKey="AILANG Cost ($)"
+                    stroke="#8B5CF6"
+                    fill="#8B5CF6"
+                    fillOpacity={0.3}
+                    strokeWidth={3}
+                  />
+                  <Radar
+                    name="Python Cost ($)"
+                    dataKey="Python Cost ($)"
+                    stroke="#10B981"
+                    fill="#10B981"
+                    fillOpacity={0.3}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+              <div className={styles.chartNote}>
+                <strong>Purple = AILANG cost, Green = Python cost (in dollars).</strong> Cost for 1000 successful benchmark runs per language; lower = better value. Display clipped at <strong>${capValue.toFixed(0)}</strong> (5× median) so non-outlier models stay readable.
+                {outliers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <strong>Outliers (real values):</strong>
+                    <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                      {outliers.map(o => (
+                        <li key={o.model}>
+                          {o.model}: AILANG ${(o['_ailangCostReal'] || 0).toFixed(2)} · Python ${(o['_pythonCostReal'] || 0).toFixed(2)}
+                          {(o.model.includes('opencode') || o.model.includes('agent')) && ' — agent harness amplifies cost (multi-turn re-sends full context)'}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </div>

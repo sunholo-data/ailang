@@ -328,8 +328,14 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	// Per-model, per-language agent stats (for JS/Go in BenchmarkExplorer).
 	// Tracks api_error count so the explorer can surface adjusted pass rates
-	// at the per-(model × language) granularity its mini-bars use.
-	type agentLangStat struct{ runs, success, apiErrors int }
+	// at the per-(model × language) granularity its mini-bars use. Tokens +
+	// cost included so agent-only models (opencode-*) can populate the
+	// dashboard's Token Usage by Model + Cost charts (was zeroed before).
+	type agentLangStat struct {
+		runs, success, apiErrors int
+		tokens                   int
+		cost                     float64
+	}
 	modelAgentLangStats := make(map[string]map[string]agentLangStat)
 	for _, r := range agentResults {
 		if modelAgentLangStats[r.Model] == nil {
@@ -343,6 +349,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if r.ErrorCategory == "api_error" {
 			ls.apiErrors++
 		}
+		ls.tokens += r.OutputTokens
+		ls.cost += r.CostUSD
 		modelAgentLangStats[r.Model][r.Lang] = ls
 	}
 
@@ -439,7 +447,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				if _, exists := langBreakdown[lang]; !exists && als.runs > 0 {
 					entry := map[string]interface{}{
 						"successRate":       float64(als.success) / float64(als.runs),
-						"avgTokens":         0,
+						"avgTokens":         float64(als.tokens) / float64(als.runs),
+						"avgCost":           als.cost / float64(als.runs),
 						"totalRuns":         als.runs,
 						"agentOnly":         true,
 						"agentApiErrors":    als.apiErrors,
@@ -503,6 +512,15 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if _, exists := modelsJS[modelName]; !exists && agentStats.runs > 0 {
 			entry := map[string]interface{}{
 				"totalRuns": agentStats.runs,
+				// Top-level aggregates so Token/Cost charts that read
+				// stats.aggregates.totalCostUSD pick up agent-only models.
+				"aggregates": map[string]interface{}{
+					"totalRuns":     agentStats.runs,
+					"totalTokens":   agentStats.totalTokens,
+					"totalCostUSD":  agentStats.totalCost,
+					"finalSuccess":  float64(agentStats.success) / float64(agentStats.runs),
+					"avgDurationMs": 0,
+				},
 				"agentStats": map[string]interface{}{
 					"runs":         agentStats.runs,
 					"successRate":  float64(agentStats.success) / float64(agentStats.runs),
@@ -524,7 +542,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 						rawRate := float64(als.success) / float64(als.runs)
 						langEntry := map[string]interface{}{
 							"successRate":       rawRate,
-							"avgTokens":         0,
+							"avgTokens":         float64(als.tokens) / float64(als.runs),
+							"avgCost":           als.cost / float64(als.runs),
 							"totalRuns":         als.runs,
 							"agentOnly":         true,
 							"agentRuns":         als.runs,

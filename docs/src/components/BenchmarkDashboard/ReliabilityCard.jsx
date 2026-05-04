@@ -3,21 +3,26 @@ import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import styles from './styles.module.css';
 
 function formatModelName(name) {
-  if (name.includes('claude-sonnet')) return 'Claude Sonnet';
-  if (name.includes('claude-haiku')) return 'Claude Haiku';
-  if (name.includes('claude-opus')) return 'Claude Opus';
-  if (name.includes('gemini-3-1-pro') || name.includes('gemini-3-pro')) return 'Gemini 3 Pro';
-  if (name.includes('gemini-3-flash')) return 'Gemini 3 Flash';
-  if (name.includes('gemini-2-5-pro')) return 'Gemini 2.5 Pro';
-  if (name.includes('gemini-2-5-flash')) return 'Gemini 2.5 Flash';
-  if (name.includes('gpt5-2-codex')) return 'GPT-5 Codex';
-  if (name.includes('gpt5-4')) return 'GPT-5.4';
-  if (name.includes('gpt5-1-instant')) return 'GPT-5.1 Instant';
-  if (name.includes('gpt5-1')) return 'GPT-5.1';
-  if (name.includes('gpt5-mini')) return 'GPT-5 Mini';
-  if (name.includes('gpt-5-mini')) return 'GPT-5 Mini';
-  if (name.includes('gpt-5')) return 'GPT-5';
-  return name;
+  // Surface harness + provider as explicit suffixes. See
+  // BenchmarkExplorer/index.jsx::modelShort for the canonical version.
+  let s = name;
+  let suffix = '';
+  if (s.startsWith('opencode-or-')) { suffix = ' (agent · OR)'; s = s.slice('opencode-or-'.length); }
+  else if (s.startsWith('opencode-')) { suffix = ' (agent)';     s = s.slice('opencode-'.length); }
+  else if (s.startsWith('pi-'))       { suffix = ' (Pi)';        s = s.slice('pi-'.length); }
+  else if (s.startsWith('or-'))       { suffix = ' (OR)';        s = s.slice('or-'.length); }
+  s = s
+    .replace(/^claude-/, 'Claude ')
+    .replace(/^gemini-/, 'Gemini ')
+    .replace(/^gpt5/, 'GPT-5')
+    .replace(/^minimax-/, 'MiniMax ')
+    .replace(/^glm-/, 'GLM ')
+    .replace(/^kimi-/, 'Kimi ')
+    .replace(/^qwen3-/, 'Qwen3 ')
+    .replace(/^gemma4-/, 'Gemma4 ')
+    .replace(/^deepseek-/, 'DeepSeek ')
+    .replace(/-/g, ' ');
+  return s + suffix;
 }
 
 // ReliabilityCard surfaces API + refusal metrics as a first-class signal.

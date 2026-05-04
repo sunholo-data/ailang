@@ -1,6 +1,6 @@
 {
-  "version": "v0.14.2",
-  "timestamp": "2026-04-27T00:00:00+00:00",
+  "version": "v0.15.0",
+  "timestamp": "2026-05-04T00:00:00+00:00",
   "methodology": "Manual assessment against AILANG Design Axioms (docs/docs/references/axioms.mdx)",
   "summary": {
     "totalScore": 23,
@@ -257,6 +257,14 @@
       "maxScore": 24,
       "percentage": 95.8,
       "notes": "Infrastructure release (Windows hotfix + Pi harness via M-EXEC-PI). No axiom-level changes from v0.9.2."
+    },
+    {
+      "version": "v0.15.0",
+      "date": "2026-05-04",
+      "score": 23,
+      "maxScore": 24,
+      "percentage": 95.8,
+      "notes": "Parameterised effects (M-EFFECT-REFINEMENT-PHASE1) + AI mode markers (M-AI-EFFECT-MODES) strengthen A1 (determinism) and A2 (replayability) at the type level. Bare !{AI} desugars to !{AI[mode=fixed]}; routing requires explicit !{AI[mode=routeable]}. SOTA OS models (GLM 5, MiniMax M2.7) added to eval suite via OpenRouter. Net axiom delta zero (already 23/24); added type-level guarantees rather than new axiom dimensions."
     }
   ]
 }

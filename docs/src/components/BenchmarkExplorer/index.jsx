@@ -102,7 +102,31 @@ const rowHeader = { padding: '8px 14px', fontWeight: 700, textAlign: 'left', whi
 const rowStyle = { borderBottom: '1px solid var(--ifm-color-emphasis-200)' };
 
 function modelShort(key) {
-  return key.replace('claude-', 'Claude ').replace('gemini-', 'Gemini ').replace('opencode-', 'OC/').replace('gpt5', 'GPT-5').replace(/-/g, ' ');
+  // Surface harness + provider as explicit suffixes instead of cryptic prefix
+  // chains. Examples:
+  //   opencode-or-glm-5    → "GLM 5 (agent · OR)"
+  //   opencode-sonnet-4-6  → "Sonnet 4.6 (agent)"
+  //   or-glm-5             → "GLM 5 (OR)"
+  //   claude-sonnet-4-6    → "Claude Sonnet 4.6"
+  //   gpt5-4-mini          → "GPT-5 4 mini"
+  let s = key;
+  let suffix = '';
+  if (s.startsWith('opencode-or-')) { suffix = ' (agent · OR)'; s = s.slice('opencode-or-'.length); }
+  else if (s.startsWith('opencode-')) { suffix = ' (agent)';     s = s.slice('opencode-'.length); }
+  else if (s.startsWith('pi-'))       { suffix = ' (Pi)';        s = s.slice('pi-'.length); }
+  else if (s.startsWith('or-'))       { suffix = ' (OR)';        s = s.slice('or-'.length); }
+  s = s
+    .replace(/^claude-/, 'Claude ')
+    .replace(/^gemini-/, 'Gemini ')
+    .replace(/^gpt5/, 'GPT-5')
+    .replace(/^minimax-/, 'MiniMax ')
+    .replace(/^glm-/, 'GLM ')
+    .replace(/^kimi-/, 'Kimi ')
+    .replace(/^qwen3-/, 'Qwen3 ')
+    .replace(/^gemma4-/, 'Gemma4 ')
+    .replace(/^deepseek-/, 'DeepSeek ')
+    .replace(/-/g, ' ');
+  return s + suffix;
 }
 
 function familyLabel(fam) {

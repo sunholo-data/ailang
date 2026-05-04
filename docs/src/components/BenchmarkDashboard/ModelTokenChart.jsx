@@ -3,15 +3,26 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import styles from './styles.module.css';
 
 function formatModelName(name) {
-  // Check most specific patterns first
-  if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
-  if (name.includes('gpt-5-mini')) return 'GPT-5 Mini';
-  if (name.includes('gpt-5')) return 'GPT-5';
-  if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
-  if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
-  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
-  // Fallback: capitalize first letter of each word
-  return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  // Surface harness + provider as explicit suffixes. See
+  // BenchmarkExplorer/index.jsx::modelShort for the canonical version.
+  let s = name;
+  let suffix = '';
+  if (s.startsWith('opencode-or-')) { suffix = ' (agent · OR)'; s = s.slice('opencode-or-'.length); }
+  else if (s.startsWith('opencode-')) { suffix = ' (agent)';     s = s.slice('opencode-'.length); }
+  else if (s.startsWith('pi-'))       { suffix = ' (Pi)';        s = s.slice('pi-'.length); }
+  else if (s.startsWith('or-'))       { suffix = ' (OR)';        s = s.slice('or-'.length); }
+  s = s
+    .replace(/^claude-/, 'Claude ')
+    .replace(/^gemini-/, 'Gemini ')
+    .replace(/^gpt5/, 'GPT-5')
+    .replace(/^minimax-/, 'MiniMax ')
+    .replace(/^glm-/, 'GLM ')
+    .replace(/^kimi-/, 'Kimi ')
+    .replace(/^qwen3-/, 'Qwen3 ')
+    .replace(/^gemma4-/, 'Gemma4 ')
+    .replace(/^deepseek-/, 'DeepSeek ')
+    .replace(/-/g, ' ');
+  return s + suffix;
 }
 
 export default function ModelTokenChart({ models }) {
