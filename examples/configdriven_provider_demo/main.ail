@@ -1,0 +1,28 @@
+-- examples/configdriven_provider_demo/main.ail
+--
+-- Demonstrates calling an AI provider that was declared as a [[ai_provider]]
+-- block in this directory's ailang.toml — no Go code, no binary fork.
+--
+-- Setup:
+--   1. Start a local OpenAI-compatible server on port 8000 (vLLM, llama.cpp,
+--      etc.). Or change `name = "demo-vllm"` in ailang.toml to another
+--      registered provider name.
+--   2. Run:
+--        cd examples/configdriven_provider_demo
+--        ailang run --caps AI,IO --ai demo-vllm --model demo-vllm/your-model main.ail
+--
+-- The harvest at CLI startup picks up [[ai_provider]] from this ailang.toml
+-- and registers `demo-vllm` as a routable provider. The std/ai.call below
+-- then dispatches to your local server through the unified AI effect:
+-- budget tracked, AI cap gated, trace span emitted — same machinery as
+-- built-in providers like openai or anthropic.
+
+module examples/configdriven_provider_demo/main
+
+import std/ai (call)
+import std/io (println)
+
+export func main() -> () ! {AI, IO} {
+  let response = call("Give me a one-line greeting in exactly five words.") in
+  println(response)
+}

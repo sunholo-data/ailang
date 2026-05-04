@@ -23,6 +23,15 @@
 --   })
 --
 -- Requires: --caps Stream
+--
+-- ## See also
+--
+-- For AI provider token streaming (OpenAI / OpenRouter / Anthropic / vLLM /
+-- llama.cpp / any HTTP-shaped LLM endpoint), use `std/ai/streaming` rather
+-- than calling `_stream_sse_post` directly — it composes these primitives
+-- with the M-AI-PROVIDER-CONFIG registry so URL, auth, and request shape
+-- come from declared `[[ai_provider]]` config rather than caller code, and
+-- the AI cap + budget tracker apply uniformly.
 
 module std/stream
 

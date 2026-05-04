@@ -23,7 +23,8 @@ type PackageManifest struct {
 	Effects      EffectConfig           `toml:"effects"`
 	Metadata     map[string]interface{} `toml:"metadata"`
 	Stability    StabilityConfig        `toml:"stability"`
-	Cascade      CascadeConfig          `toml:"cascade"` // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
+	Cascade      CascadeConfig          `toml:"cascade"`     // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
+	AIProviders  []AIProviderSpec       `toml:"ai_provider"` // M-AI-PROVIDER-CONFIG (v0.16.0); see internal/pkg/ai_provider.go
 }
 
 // CascadeConfig holds the optional [cascade] section in ailang.toml.
@@ -241,6 +242,11 @@ func (m *PackageManifest) Validate() error {
 		default:
 			return fmt.Errorf("invalid stability level %q, must be experimental|stable|frozen", m.Stability.Level)
 		}
+	}
+
+	// Validate [[ai_provider]] blocks (M-AI-PROVIDER-CONFIG, v0.16.0)
+	if err := validateAIProviders(m.AIProviders); err != nil {
+		return err
 	}
 
 	return nil

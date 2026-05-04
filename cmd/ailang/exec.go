@@ -383,7 +383,14 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 		}
 		client = openrouter.NewClient(apiKey)
 	default:
-		return nil, fmt.Errorf("API mode not supported for provider %s (use CLI mode)", provider)
+		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
+		// Built-ins are checked above first (D4 — built-ins win on collision).
+		// Auth, endpoint, request shape all live in the package's [[ai_provider]] block.
+		if cd := LookupConfigDrivenProvider(provider); cd != nil {
+			client = cd
+		} else {
+			return nil, fmt.Errorf("API mode not supported for provider %s (use CLI mode, or install a package declaring an [[ai_provider]] with name = %q)", provider, provider)
+		}
 	}
 
 	// Build request

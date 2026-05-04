@@ -1,0 +1,149 @@
+-- std/ai/streaming.ail
+-- Token streaming for config-driven AI providers (M-AI-STREAMING-HELPER, v0.15.0).
+--
+-- Composes std/stream's SSE-via-POST primitive (_stream_sse_post) with the
+-- M-AI-PROVIDER-CONFIG registry: caller passes a registered provider name +
+-- model + a pre-serialised messages JSON string, never a URL or API key.
+-- Auth, endpoint, and request shape all come from the [[ai_provider]] block
+-- in ailang.toml.
+--
+-- Effect signature: ! {AI, Stream, Net}
+--   - AI: budget tracking + cap gating (preserves M-AI-PROVIDER-CONFIG D11)
+--   - Stream: SSE event-loop machinery
+--   - Net: underlying HTTP POST
+--
+-- Built-in providers (openai, anthropic, gemini, ollama, openrouter) are NOT
+-- routable through this in v1 — they have their own streaming code paths in
+-- future milestones. v1 supports only providers declared via [[ai_provider]].
+--
+-- ## Quick start (single import)
+--
+-- The connection-driving functions (onEvent, runEventLoop, disconnect) are
+-- re-exported from std/stream as a convenience so consumers only need ONE
+-- import for the streaming code path. Pattern-match constructors (SSEData,
+-- Closed, etc.) still come from std/stream.
+--
+--   import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+--   import std/stream (SSEData)   -- pattern-match constructor
+--   import std/result (Result, Ok, Err)
+--
+--   export func main() -> () ! {AI, Stream, Net, IO} {
+--     let body = "[{\"role\":\"user\",\"content\":\"Say hi\"}]" in
+--     match openaiCompatStream("openai", "gpt-4o-mini", body) {
+--       Ok(conn) => {
+--         onEvent(conn, \event ->
+--           match event {
+--             SSEData(_, data) => { _io_print(data); true },
+--             _ => false
+--           });
+--         runEventLoop(conn);
+--         disconnect(conn)
+--       },
+--       Err(_) => _io_println("stream failed")
+--     }
+--   }
+--
+-- ## See also
+--   std/ai            — non-streaming AI call surface (call, callJson, ...)
+--   std/stream        — generic streaming primitives (SSEData / runEventLoop / onEvent)
+--   docs/recipes/ai-token-streaming — full provider recipes (OpenAI, OpenRouter, Anthropic)
+--
+-- ## v1 limitations
+--   - messages is a pre-serialised JSON string, not a typed [Message] list.
+--     Caller is responsible for JSON encoding. This will become a typed
+--     parameter in v2 once std/json gains record-of-records encoding sugar.
+--   - parseDelta (typed extraction of TokenDelta from SSE events) is deferred
+--     to v1.1. For v1, callers extract token text from raw SSEData(eventType,
+--     data) JSON manually — see the recipes page for shape-specific patterns.
+
+module std/ai/streaming
+
+import std/stream (StreamConn, StreamEvent, StreamErrorKind)
+import std/stream as Stream (onEvent, runEventLoop, disconnect)
+import std/result (Result)
+
+-- A unified token-delta record. Reserved for v1.1 when parseDelta lands.
+-- Documents the shape callers should target when assembling deltas from
+-- raw SSE event JSON in the meantime.
+export type TokenDelta = {
+  text: string,         -- normal content delta (empty when only reasoning)
+  reasoning: string,    -- reasoning_content / thinking delta (empty for non-reasoning models)
+  done: bool            -- true on [DONE] sentinel or terminal SSE event
+}
+
+-- AILANG-side error record. The Go layer returns StreamErrorKind variants
+-- (ProviderNotFound | ConnectionFailed | BudgetExhausted | ...);
+-- this type is provided for callers wrapping the underlying Result with
+-- richer error semantics in their own code.
+export type AIError = {
+  code: string,
+  message: string,
+  retryable: bool
+}
+
+-- Open an SSE token stream against an OpenAI-shaped provider.
+--
+-- The provider must:
+--   - be registered via [[ai_provider]] in ailang.toml
+--   - declare request_shape = "openai_chat" or "simple_completion"
+--   - declare [ai_provider.streaming] enabled = true with a delta_path
+--   - declare capabilities.streaming = true
+--
+-- messagesJson is a pre-serialised JSON array of {role, content} records.
+--
+-- Returns a StreamConn the caller drives with std/stream.onEvent +
+-- runEventLoop. The Go layer injects "stream": true into the request body
+-- automatically for openai_chat and simple_completion request shapes.
+--
+-- For Anthropic-shaped providers use anthropicStream() instead — the wire
+-- format and SSE event taxonomy differ.
+export func openaiCompatStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net} {
+  _ai_stream_call(provider, model, messagesJson)
+}
+
+-- Open an SSE token stream against an Anthropic-shaped provider.
+-- Same contract as openaiCompatStream; provider's request_shape must be
+-- "anthropic_messages". The wire format and SSE event taxonomy
+-- (message_start, content_block_delta, message_stop) differ from OpenAI's,
+-- but the AILANG surface is identical.
+export func anthropicStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net} {
+  _ai_stream_call(provider, model, messagesJson)
+}
+
+-- ============================================================================
+-- Re-exports from std/stream
+-- ============================================================================
+--
+-- Thin pass-through wrappers so consumers can import the entire streaming
+-- code path from one place. Identical semantics to the std/stream functions
+-- of the same names — these add no behavior, just an import-surface
+-- convenience.
+--
+-- Pattern-match constructors (SSEData, Closed, StreamError, Message) still
+-- need to be imported from std/stream — AILANG type constructors don't
+-- re-export through wrapper functions.
+
+-- Register an event handler for a streaming connection. Handler receives
+-- each StreamEvent and returns true to continue, false to stop the loop.
+export func onEvent(conn: StreamConn, handler: (StreamEvent) -> bool) -> unit ! {Stream} {
+  Stream.onEvent(conn, handler)
+}
+
+-- Block and pump events through the registered handler until the handler
+-- returns false or the connection closes.
+export func runEventLoop(conn: StreamConn) -> unit ! {Stream} {
+  Stream.runEventLoop(conn)
+}
+
+-- Close the streaming connection. Idempotent: calling twice is safe.
+export func disconnect(conn: StreamConn) -> unit ! {Stream} {
+  Stream.disconnect(conn)
+}

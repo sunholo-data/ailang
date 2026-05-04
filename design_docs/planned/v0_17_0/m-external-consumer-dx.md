@@ -262,7 +262,7 @@ Defer detailed design to a follow-up if items 1-3 fill the sprint. Listed here s
 - New: `docs/docs/reference/errors/mod012.md`.
 - Updated: `docs/docs/reference/errors/typ_effect_row_mismatch.md`.
 - Updated: `docs/docs/reference/errors/index.md` (add `error_codes.json` consumption section).
-- New: `docs/docs/guides/external-consumers.md` — short guide for projects vendoring/consuming AILANG, linking to the artifacts and explaining how to file feedback (GitHub issues, MCP `submit_feedback`, `ailang messages send --github`).
+- New: `docs/docs/guides/external-consumers.md` — short guide for projects vendoring/consuming AILANG, linking to the artifacts and explaining how to file feedback (GitHub issues, MCP `submit_feedback`, `ailang messages send --github`). **Must cross-reference**: [docs/docs/guides/custom-ai-providers.md](../../../docs/docs/guides/custom-ai-providers.md) (v0.16.0; "for new AI providers, write a `[[ai_provider]]` block — no Go fork needed") and [docs/docs/recipes/ai-token-streaming.md](../../planned/v0_17_0/m-ai-streaming-helper.md) (v0.17.0; same release as this milestone). Both are the headline external-consumer wins of v0.16/v0.17 and are the primary reason an external consumer chose to fork in the first place.
 - CHANGELOG.md: entry under v0.17.0.
 
 ## Receive Path (Already Working)
@@ -274,4 +274,7 @@ External submissions via `mcp.ailang.sunholo.com` → Pub/Sub → Firestore (`in
 - M-AGENT-MCP M7.1 — `submit_feedback` MCP tool already wired to Pub/Sub. External consumers can already submit structured feedback; this milestone gives them better diagnostics to *base* that feedback on.
 - M-MAC-NOTIFY-DAEMON — between-session real-time notifications. Complementary to the SessionStart hook above; not required for receive path correctness.
 - M-AI-TOOL-LOOP — same release; complementary (one improves diagnostics for AILANG-as-target-language; the other lets AILANG drive agent loops).
+- **[M-AI-PROVIDER-CONFIG](../v0_16_0/m-ai-provider-config.md)** (v0.16.0, prerequisite for v0.17 work) — Closes the AI provider extension surface. The motivating evidence for THIS milestone (motoko fork) is also the motivating evidence for that one. The external-consumers guide is the load-bearing cross-reference: anyone who would have considered forking AILANG for a custom provider should land on `custom-ai-providers.md` before reaching for a binary fork.
+- **[M-AI-STREAMING-HELPER](./m-ai-streaming-helper.md)** (same release, v0.17.0) — Token streaming on top of the v0.16 config-driven providers. Together with `[[ai_provider]]` config, makes the entire motoko fork's binary changes obsolete (~1,500 LOC of Go → ~50 LOC of TOML).
+- See also [motoko-integration-sequence.md](../motoko-integration-sequence.md) — master plan tying v0.16, v0.17, and the eventual motoko PR-A/PR-B together.
 - Future: M-AILANG-AUTHOR-API (proposed v0.18) — programmatic AST-builder for structured tool-call authoring, which depends on the canonical pretty-printer being decoupled from the parser. Out of scope here.

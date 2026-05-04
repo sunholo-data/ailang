@@ -32,6 +32,22 @@ import (
 // passed a non-nil routingPolicy, we treat that as a configuration mistake
 // and warn — there is no handler to attach the policy to.
 func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, routingPolicy *ai.AIRoutingPolicy) error {
+	// M-AI-PROVIDER-CONFIG: harvest [[ai_provider]] blocks from the project's
+	// ailang.toml + dependency manifests before consulting the registry in
+	// setupAIHandlerFromConfig / setupAIHandlerDirect. Idempotent — safe to
+	// call repeatedly across multiple AI handler setups in the same process.
+	cwd, _ := os.Getwd()
+	if err := HarvestAndRegisterFromDir(cwd); err != nil {
+		// Cross-package duplicate-name conflicts are surfaced here as fatal —
+		// the user must resolve before the program can be reasoned about.
+		return fmt.Errorf("AI provider registration failed: %w", err)
+	}
+	if diags := ai.GlobalProviderRegistry.Diagnostics(); len(diags) > 0 {
+		for _, msg := range diags {
+			fmt.Fprintln(os.Stderr, msg)
+		}
+	}
+
 	if aiStub {
 		// Stub handler ignores routing policy — that's fine, this is for
 		// flag-shape testing without any real provider call.
@@ -66,6 +82,14 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy)
 	}
 
+	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy)
+}
+
+// setupAIHandlerFromConfig configures the AI effect handler from a resolved
+// models.yml entry. Extracted from setupAIHandler so tests can drive the
+// dispatch path (built-in switch + config-driven registry default) without
+// going through eval_harness.GlobalModelsConfig.
+func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy) error {
 	// Get API key from environment (may be empty for Google ADC)
 	apiKey := os.Getenv(model.EnvVar)
 
@@ -126,7 +150,17 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 		handler = client.NewHandler(model.APIName, opts...)
 
 	default:
-		return fmt.Errorf("unsupported AI provider: %s", model.Provider)
+		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
+		// Built-in dispatch above wins on collision (D4).
+		if cd := LookupConfigDrivenProvider(model.Provider); cd != nil {
+			handler = ai.NewHandler(cd, model.APIName, opts...)
+		} else {
+			names := ai.GlobalProviderRegistry.Names()
+			if len(names) > 0 {
+				return fmt.Errorf("unsupported AI provider: %q (built-in: openai, anthropic, gemini, ollama, openrouter; config-driven: %v)", model.Provider, names)
+			}
+			return fmt.Errorf("unsupported AI provider: %s", model.Provider)
+		}
 	}
 
 	effCtx.AI = effects.NewAIContext(handler)
@@ -212,7 +246,18 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingP
 		handler = client.NewHandler(model, opts...)
 
 	default:
-		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt-/gemini-/ollama: or vendor/model for OpenRouter)", modelName)
+		// M-AI-PROVIDER-CONFIG: try config-driven provider via "<name>/<model>"
+		// prefix. GuessProvider above already handles known OpenRouter vendor
+		// prefixes; anything else with a "/" might be a config-driven provider.
+		if slash := strings.Index(modelName, "/"); slash > 0 {
+			providerName := modelName[:slash]
+			modelPart := modelName[slash+1:]
+			if cd := LookupConfigDrivenProvider(providerName); cd != nil {
+				handler = ai.NewHandler(cd, modelPart, opts...)
+				break
+			}
+		}
+		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt-/gemini-/ollama: or vendor/model for OpenRouter, or install a package declaring an [[ai_provider]] block)", modelName)
 	}
 
 	effCtx.AI = effects.NewAIContext(handler)

@@ -1,0 +1,70 @@
+-- examples/runnable/ai_stream_openai.ail
+-- Demonstrates AI token streaming via std/ai/streaming.
+--
+-- Setup:
+--   1. Add an [[ai_provider]] block to ailang.toml in the working directory
+--      with name = "openai-stream-demo" pointing at your endpoint, e.g.:
+--
+--      [[ai_provider]]
+--      schema_version = 1
+--      name = "openai-stream-demo"
+--      endpoint = "https://api.openai.com/v1/chat/completions"
+--      request_shape = "openai_chat"
+--      response_path = "$.choices[0].message.content"
+--      auth = { type = "bearer", env = "OPENAI_API_KEY" }
+--      capabilities = { tool_calling = false, json_mode = true, streaming = true,
+--                       vision = false, structured_outputs = false }
+--      [ai_provider.streaming]
+--      enabled = true
+--      delta_path = "$.choices[0].delta.content"
+--      done_sentinel = "[DONE]"
+--
+--   2. Run:
+--      export OPENAI_API_KEY=...
+--      ailang run --caps AI,Stream,Net,IO \
+--        --ai openai-stream-demo --model openai-stream-demo/gpt-4o-mini \
+--        examples/runnable/ai_stream_openai.ail
+--
+-- The example streams a short response from the registered provider and
+-- prints each SSE data event as it arrives. URL/auth/body shape come from
+-- the [[ai_provider]] config — no caller-supplied secrets, no caller URL.
+
+module examples/runnable/ai_stream_openai
+
+import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+import std/stream (StreamEvent, SSEData, Closed, StreamError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+-- A messages array as a JSON string. v1 callers serialize manually;
+-- v1.1 will accept a typed [Message] list.
+export func messagesJson() -> string {
+  "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]"
+}
+
+-- Event handler: print SSE data events, stop on close or [DONE] sentinel.
+-- Returns false to stop the event loop, true to continue.
+export func handler(event: StreamEvent) -> bool {
+  match event {
+    SSEData(eventType, data) =>
+      if data == "[DONE]" then false
+      else { _io_print(data); _io_print("\n"); true },
+    Closed(_, _) => false,
+    StreamError(_) => false,
+    _ => true
+  }
+}
+
+export func main() -> () ! {AI, Stream, Net, IO} {
+  let result = openaiCompatStream("openai-stream-demo", "gpt-4o-mini", messagesJson()) in
+  match result {
+    Ok(conn) => {
+      println("connected; streaming...");
+      onEvent(conn, handler);
+      runEventLoop(conn);
+      disconnect(conn);
+      println("done")
+    },
+    Err(_) => println("stream failed (provider not registered? check ailang.toml)")
+  }
+}

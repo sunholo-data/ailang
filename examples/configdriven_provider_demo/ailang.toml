@@ -1,0 +1,41 @@
+[package]
+name = "examples/configdriven_provider_demo"
+version = "0.1.0"
+edition = "1"
+ailang = ">=0.15.0"
+description = "Reference example: register a custom AI provider via [[ai_provider]] config — no Go code, no fork."
+
+[exports]
+modules = ["examples/configdriven_provider_demo/main"]
+
+[effects]
+max = ["AI", "IO"]
+
+# Reference [[ai_provider]] declaration — zero Go, no binary fork.
+# Anything HTTP-shaped that fits one of the named request shapes
+# (openai_chat, anthropic_messages, simple_completion) registers as a
+# first-class AI provider with full budget tracking, AI cap gating, and
+# trace integration. See docs/docs/guides/custom-ai-providers.md.
+[[ai_provider]]
+schema_version = 1
+name = "demo-vllm"
+endpoint = "http://localhost:8000/v1/chat/completions"
+request_shape = "openai_chat"
+response_path = "$.choices[0].message.content"
+error_path = "$.error.message"
+auth = { type = "none" }                                          # local server, no key
+cost = { input_per_1m_usd = 0.0, output_per_1m_usd = 0.0 }        # local — free
+capabilities = { tool_calling = false, json_mode = true, streaming = true, vision = false, structured_outputs = false }
+
+# A second provider, OpenAI-shaped but pointing at OpenRouter — works because
+# OpenRouter's chat-completions wire format is OpenAI-compatible. The
+# bearer-auth shape pulls the secret from OPENROUTER_API_KEY at call time.
+[[ai_provider]]
+schema_version = 1
+name = "demo-openrouter-via-config"
+endpoint = "https://openrouter.ai/api/v1/chat/completions"
+request_shape = "openai_chat"
+response_path = "$.choices[0].message.content"
+auth = { type = "bearer", env = "OPENROUTER_API_KEY" }
+cost = { input_per_1m_usd = 0.5, output_per_1m_usd = 1.5 }        # illustrative; real values per model
+capabilities = { tool_calling = false, json_mode = true, streaming = true, vision = false, structured_outputs = false }

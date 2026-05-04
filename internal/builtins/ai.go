@@ -12,6 +12,7 @@ func init() {
 	registerAICallJsonSimple()
 	registerAICallImage()
 	registerAICallImageBase64()
+	registerAIStreamCall()
 }
 
 // _ai_call: Call the AI oracle with a string input
@@ -281,4 +282,93 @@ func aiCallImageBase64Impl(ctx *effects.EffContext, args []eval.Value) (eval.Val
 		return nil, err
 	}
 	return effects.Call(ctx, "AI", "callImageBase64", args)
+}
+
+// _ai_stream_call: Open an SSE token stream from a config-driven AI provider
+// (M-AI-STREAMING-HELPER, v0.15.0).
+//
+// The AI.streamCall effect op is registered in cmd/ailang/configdriven_streaming.go
+// (not in internal/effects/) to break the import cycle between
+// internal/ai/configdriven and internal/telemetry/internal/effects.
+//
+// Routes through the M-AI-PROVIDER-CONFIG registry (D11): caller passes a
+// provider name + model + serialised messages, never URL or API key. Returns
+// Result[StreamConn, StreamError] so the AILANG side handles connection
+// failures via the existing pattern.
+func registerAIStreamCall() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_stream_call",
+		NumArgs: 3, // provider: string, model: string, messages_json: string
+		Effect:  "AI",
+		Type:    makeAIStreamCallType,
+		Impl:    aiStreamCallImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Open an SSE token stream from a config-driven AI provider",
+			LongDesc: `Streams token deltas from an AI provider declared via [[ai_provider]]
+in ailang.toml. The provider must declare [ai_provider.streaming] enabled = true
+and capabilities.streaming = true.
+
+Caller passes:
+  - provider: registered provider name (e.g. "vllm", "openrouter-via-config")
+  - model:    model identifier within that provider (e.g. "llama-3.1-70b")
+  - messages_json: JSON array of {role, content} records
+
+Returns Result[StreamConn, StreamError]. Use std/stream.onEvent +
+runEventLoop to consume the SSE event stream; use std/ai/streaming.parseDelta
+to extract TokenDelta records from each event.
+
+EFFECT SIGNATURE: ! {AI, Stream, Net} — AI cap gates spend, Stream provides
+the event-loop machinery, Net underlies the HTTP POST. Built-in providers
+(openai, anthropic, gemini, ollama, openrouter) are NOT routable here in v1
+— they have their own streaming code paths in future milestones.
+
+INTEGRATION: budget tracking, AI cap, and trace span emission all flow
+through the standard AI effect machinery — same shape as non-streaming
+_ai_call.`,
+			Params: []ParamDoc{
+				{Name: "provider", Description: "Registered config-driven provider name"},
+				{Name: "model", Description: "Model identifier within the provider"},
+				{Name: "messages_json", Description: "JSON array of {role, content} records"},
+			},
+			Returns: "Result[StreamConn, StreamError]",
+			SeeAlso: []string{
+				"std/ai/streaming.openaiCompatStream",
+				"std/ai/streaming.anthropicStream",
+				"std/stream.onEvent",
+				"_stream_sse_post",
+			},
+			Since:     "v0.15.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "streaming", "sse", "config-driven"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_stream_call builtin: " + err.Error())
+	}
+}
+
+func makeAIStreamCallType() types.Type {
+	T := types.NewBuilder()
+	// (provider: string, model: string, messages_json: string) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
+	// Matches the existing _stream_sse_post return shape so the AILANG-side
+	// std/ai/streaming wrapper can pattern-match on Ok/Err uniformly.
+	return T.Func(
+		T.String(), // provider
+		T.String(), // model
+		T.String(), // messages_json
+	).Returns(
+		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
+	).Effects("AI", "Stream", "Net")
+}
+
+func aiStreamCallImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	if err := ctx.RequireCapWithBudget("Stream", "stream.sse_post"); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "streamCall", args)
 }

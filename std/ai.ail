@@ -31,6 +31,21 @@
 --   - game.NewStubAIHandler() for testing
 --   - Your custom handler for production (e.g., OpenAI, local LLM)
 --   - Nil handler = error (no silent fallbacks)
+--
+-- ## Token streaming (v0.15.0+)
+--
+-- For SSE token streaming via the M-AI-PROVIDER-CONFIG registry, see
+-- `std/ai/streaming` — exposes `openaiCompatStream` and `anthropicStream`
+-- which dispatch to a registered config-driven provider with full AI cap +
+-- budget tracking. Recipes for OpenAI, OpenRouter, and Anthropic live at
+-- `docs/recipes/ai-token-streaming`.
+--
+-- ## Custom providers
+--
+-- To add a new AI provider as a package (no Go code, no binary fork), see
+-- the `[[ai_provider]]` block in `ailang.toml` and the guide at
+-- `docs/guides/custom-ai-providers`. Streaming providers in v0.15.0+ also
+-- declare an `[ai_provider.streaming]` sub-block consumed by std/ai/streaming.
 
 module std/ai
 
