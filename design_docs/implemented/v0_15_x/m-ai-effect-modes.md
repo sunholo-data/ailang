@@ -1,6 +1,6 @@
 # M-AI-EFFECT-MODES: AI Effect Modes (mode=fixed|routeable|replay-only, scope=byok)
 
-**Status**: Planned
+**Status**: Implemented (2026-05-04)
 **Target**: v0.15.0 (alongside M-EFFECT-REFINEMENT-PHASE1; same release window since v0.14.3 is current and v0.15.0 hasn't shipped)
 **Priority**: P1 — Medium (completes the type-level half of M-AI-OPENROUTER's deferred work; pilots Phase 5 of parent doc on AI as the second mode-bearing effect after Rand)
 **Estimated**: ~25-30 hours (~3-4 working days)
@@ -369,6 +369,107 @@ The parent design doc retains the full picture; this Phase-5-AI doc is the v0.15
 ---
 
 **Document created**: 2026-05-04
-**Last updated**: 2026-05-04
+**Last updated**: 2026-05-04 (status flipped to Implemented; report appended)
 
-DESIGN_DOC_PATH: design_docs/planned/v0_15_0/m-ai-effect-modes.md
+DESIGN_DOC_PATH: design_docs/implemented/v0_15_x/m-ai-effect-modes.md
+
+---
+
+## Implementation Report (2026-05-04)
+
+All four milestones shipped against the `dev` branch over the sprint
+window. Total LOC ≈ **810** across the four milestones (M1: ~30+140
+tests, M2: ~451, M3: ~40, M4: ~150 docs/no Go). Mechanism already
+validated by M-EFFECT-REFINEMENT-PHASE1's Rand pilot — this sprint
+was the second instance of the same pattern.
+
+### What shipped per milestone
+
+| Milestone | Commit | LOC | Headline |
+|-----------|--------|-----|----------|
+| **M1** AI default-mode entry + bare desugar | `28d92602` | ~30 + ~140 tests | Single-row addition to `defaultEffectModes` in `internal/types/effects.go`: `"AI": {"mode", "fixed"}`. Bare `!{AI}` desugars via the existing default-mode machinery from M-EFFECT-REFINEMENT-PHASE1 M2; existing AI-using examples produce zero-diff typecheck output. Tests run with `-count=20` for determinism. |
+| **M2** Runtime check + `--allow-routing` relaxation | `43f8266a` | ~451, 8 new tests | New `ErrRoutingRequiresRouteableMode` sentinel in `internal/ai/`. New `EffectModeFor` helper. The **`routingFlagValues` snapshot pattern** is the load-bearing architectural decision: routing-flag values are captured at CLI flag parse time before typecheck completes, then `determineDeclaredAIMode` reads the entry function's elaborated effect row from `Iface.Exports[entry].Type.Type.EffectRow` after typecheck and flips `allowRouting=true` whenever the declared mode is `routeable` or `replay-only`. Bare `!{AI}` + flags + `--allow-routing` continues to work as the back-compat fallback path. Smoke-tested all 4 paths end-to-end. |
+| **M3** Worked example | `01642550` | ~40 | `examples/ai_modes.ail` demonstrates bare `!{AI}`, explicit `!{AI[mode=fixed]}`, and `!{AI[mode=routeable]}` side by side. Both relaxation paths verified end-to-end: routeable entry skips `--allow-routing`; bare-`!{AI}` entry still hits the safety gate (back-compat). |
+| **M4** Docs + release | (this commit) | ~150 | `docs/docs/guides/ai-routing.md` gains a new "Type-level mode markers (v0.15.0+)" section. `docs/docs/guides/parameterised-effects.md` updated to list AI in the default-mode table. Teaching prompts in `prompts/v0.16.0.md` and `cmd/ailang/prompts/v0.16.0.md` gain an AI modes subsection mirroring the existing Rand modes section; `versions.json` SHA-256 hashes updated for both. CHANGELOG entry under `[Unreleased] - targeting v0.15.0` in `changelogs/v0.10-current.md`. Design doc + sprint plan moved from `design_docs/planned/v0_15_0/` to `design_docs/implemented/v0_15_x/`; status flipped; this report appended. |
+
+### Architectural notes worth preserving
+
+- **Plumbing approach: deferred-to-handler-setup-time, not
+  per-call (M2).** The design doc proposed three options (a/b/c)
+  for plumbing the declared mode from typechecker output to runtime
+  enforcement. Option c (handler-side check inside the OpenRouter
+  handler) was the original recommendation, but during M2 it became
+  clear that wiring the declared mode through `AIContext.Call` would
+  require extending the `AIHandler` interface from
+  `string -> string` to carry the effect row — a much larger surface
+  change. Instead, M2 lifted the check to **CLI setup time**: the
+  `routingFlagValues` snapshot captures CLI flag values pre-typecheck;
+  `determineDeclaredAIMode` reads the entry function's effect row
+  from `Iface.Exports[entry].Type.Type.EffectRow` post-typecheck;
+  `cmd/ailang/routing_flags.go` flips `allowRouting=true` when the
+  declared mode is `routeable` or `replay-only`. This covers the
+  user-visible safety property (the `--allow-routing` gate is the
+  enforcement point users see) without needing a handler-side mirror.
+- **Back-compat path preserved verbatim (M2).** Programs using bare
+  `!{AI}` + `--routing-*` flags + `--allow-routing` continue to work
+  unchanged. The bare desugar to `!{AI[mode=fixed]}` does not affect
+  the relaxation logic because `determineDeclaredAIMode` reads the
+  desugared row's `Params["AI"]["mode"]` value — `fixed` does not
+  trigger the relaxation, so the existing safety gate fires as
+  before. Only an explicit `!{AI[mode=routeable]}` declaration skips
+  the gate.
+- **Reused parameterised-effects machinery, no new typesystem
+  work.** This sprint validated the design hypothesis from
+  M-EFFECT-REFINEMENT-PHASE1: that adding a new mode-bearing effect
+  is a one-row table edit plus an enforcement point, not a
+  typesystem extension. The unification rules, JSON round-trip, and
+  pretty-printer ordering all came for free from the Phase 1
+  scaffolding.
+- **Step-5 handler-side defence-in-depth deferred (intentional).**
+  The original sprint plan included a handler-side check inside the
+  OpenRouter handler as defence-in-depth: even if the CLI gate were
+  bypassed (e.g., via programmatic API), the handler would still
+  reject routing config on a `mode=fixed` row. This was deferred
+  because (a) the CLI is the only entry point today, and (b) wiring
+  the declared mode through `AIHandler` is a non-trivial interface
+  extension. When AI calls become value-level via
+  `ai.complete(req, mode=...)` (tracked in
+  `design_docs/planned/v0_17_0/m-ai-tool-loop.md`), the handler-side
+  mirror becomes a natural extension of the request struct and lands
+  there.
+
+### Deferrals (intentional)
+
+| Deferred work | Why | Tracked in |
+|---|---|---|
+| Handler-side defence-in-depth check | CLI gate at runtime is the user-visible enforcement point; handler-side mirror would need extending `AIHandler` interface to carry declared mode through `AIContext.Call`. Lands naturally when value-level `ai.complete(req)` ships. | [m-ai-tool-loop](../../planned/v0_17_0/m-ai-tool-loop.md) (proposed) |
+| `mode=replay-only` runtime enforcement | Parser accepts the value; runtime treats as fixed (no replay-engine integration). The relaxation logic also lets `replay-only` skip the `--allow-routing` gate (replay rows attest intent the same way `routeable` does). Actual replay-only enforcement needs a trace-aware AI handler. | Phase 3 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
+| `scope=byok` runtime enforcement | Parser accepts the value; runtime is identical to ambient-key path. Full BYOK semantics (key rotation, capability flow) need a separate design doc. | Phase 4 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
+| Replay-engine pin-to-resolved + `--reroute` flag | Trace data captured by M-AI-OPENROUTER M3; replay engine itself is trace-naive. Separate replay-engine refactor. | Phase 3 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
+| Clock/Net/FS mode ports | Same one-row pattern as this sprint. Each is its own sprint. | Phase 5 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
+| Subtyping or widening coercion between modes | Invariant unification only in v0.15.0; some users may want `routeable <: fixed`. Research question for v1.0+. | [parent doc](../../planned/v1_0_0/m-effect-refinement.md) Future Work |
+
+### Success-criteria status
+
+Tracking against the original criteria above:
+
+- [x] `DefaultModeFor("AI")` returns `("mode", "fixed", true)`.
+- [x] Bare `! {AI}` elaborates to a Row with `Params["AI"] == {"mode": "fixed"}`.
+- [x] `! {AI[mode=routeable]}` and `! {AI[mode=fixed]}` are distinct under unification (invariant rules from M-EFFECT-REFINEMENT-PHASE1 M2 carry through unchanged).
+- [ ] OpenRouter handler rejects routing config on a function declared `! {AI[mode=fixed]}` (or bare `! {AI}`) with typed error. **Scope-reduced**: handler-side check deferred (see Deferrals); the CLI-level relaxation in M2 covers the user-visible safety property. Programs that try to use `!{AI[mode=fixed]}` + `--routing-*` flags without `--allow-routing` still hit the existing M-AI-OPENROUTER safety gate; only `!{AI[mode=routeable]}` skips it.
+- [x] OpenRouter handler accepts routing config on `! {AI[mode=routeable]}` without `--allow-routing` (CLI-level relaxation; smoke-tested end-to-end).
+- [x] Bare `! {AI}` + routing flags + `--allow-routing` continues to work (back-compat).
+- [x] `examples/ai_modes.ail` runs end-to-end with `--ai-stub`.
+- [x] `make test` green (no regressions).
+- [x] `make verify-examples` continues to pass.
+- [x] Docs updated: `ai-routing.md`, `parameterised-effects.md`.
+- [x] CHANGELOG entry under v0.15.0.
+- [x] Design doc + sprint plan moved to `design_docs/implemented/v0_15_x/`.
+
+Net: **10/11 shipped, 1/11 scope-reduced** with the user-visible
+safety property preserved by an alternative mechanism (CLI-level
+relaxation rather than handler-side defence-in-depth). The
+deferred handler-side check lands naturally when value-level
+`ai.complete(req)` ships.
+
+

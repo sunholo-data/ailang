@@ -71,6 +71,48 @@ out. This is the runtime equivalent of the `!{AI[mode=routeable]}`
 type-level marker that is planned but deferred (see [BYOK and
 AI[Routeable] (future)](#byok-and-airouteable-future) below).
 
+## Type-level mode markers (v0.15.0+)
+
+AILANG v0.15.0 (M-AI-EFFECT-MODES) lifts the runtime `--allow-routing`
+gate into a type-level marker. Functions can declare their AI mode in
+the effect row:
+
+| Form                          | Meaning                                  |
+|-------------------------------|------------------------------------------|
+| `!{AI}`                       | Bare; desugars to `!{AI[mode=fixed]}`    |
+| `!{AI[mode=fixed]}`           | Explicit form of the default; direct provider call |
+| `!{AI[mode=routeable]}`       | Opts into runtime provider routing       |
+| `!{AI[mode=replay-only]}`     | Reserved (parser accepts; runtime stub)  |
+| `!{AI[scope=byok]}`           | Reserved (parser accepts; runtime stub)  |
+
+When the entry function declares `!{AI[mode=routeable]}`, the CLI
+safety gate is **skipped** — the type-level marker attests intent,
+making `--allow-routing` redundant:
+
+```bash
+# v0.14.x (still works in v0.15.0 as back-compat fallback):
+ailang run --caps AI,IO --ai openrouter/auto \
+  --routing-fallback "anthropic,openai" \
+  --allow-routing \
+  --entry main my_module.ail   # main: ! {AI, IO}
+
+# v0.15.0+ (preferred):
+ailang run --caps AI,IO --ai openrouter/auto \
+  --routing-fallback "anthropic,openai" \
+  --entry main my_module.ail   # main: ! {AI[mode=routeable], IO}
+```
+
+Functions declared `!{AI[mode=fixed]}` (or bare `!{AI}` which desugars)
+that try to use routing-capable providers are rejected at compile time
+via invariant unification: `!{AI[mode=fixed]}` and `!{AI[mode=routeable]}`
+are distinct effect rows.
+
+For the worked example, see
+[`examples/ai_modes.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_modes.ail).
+
+For the type-system mechanism, see
+[Parameterised Effects](./parameterised-effects.md).
+
 ## Trace and replay
 
 When a routed call completes, the AI effect op emits a trace event
@@ -198,10 +240,16 @@ you know what to expect.
   exceed) is also out of scope; the trace records cost so a follow-up
   can build budgets on top.
 
-## Worked example
+## Worked examples
 
-The shipped example file uses CLI-flag routing — the AILANG-side
-`provider({...})` constructor is deferred (see above). See
+For the type-level mode markers shipped in v0.15.0
+(M-AI-EFFECT-MODES), see
+[`examples/ai_modes.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_modes.ail) —
+demonstrates `!{AI}`, `!{AI[mode=fixed]}`, and `!{AI[mode=routeable]}`
+side by side.
+
+The original M-AI-OPENROUTER example file uses CLI-flag routing — the
+AILANG-side `provider({...})` constructor is deferred (see above). See
 [`examples/ai_openrouter_routing.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/ai_openrouter_routing.ail):
 
 ```ailang

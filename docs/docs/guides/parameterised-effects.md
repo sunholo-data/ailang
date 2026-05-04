@@ -96,18 +96,27 @@ shapes:
 ## Default modes (back-compat aliasing)
 
 Bare `!{E}` desugars to `!{E[mode=default_for_E]}` via a per-effect
-lookup table compiled into the typechecker. Phase 1 ships exactly one
-entry: `Rand → mode=os`. Effects that do not appear in the table (every
+lookup table compiled into the typechecker. v0.15.0 ships two entries:
+`Rand → mode=os` (Phase 1 pilot) and `AI → mode=fixed`
+(M-AI-EFFECT-MODES). Effects that do not appear in the table (every
 other effect today) keep their bare form unchanged.
 
-| Effect | Phase 1 default | Future modes (parent doc) |
+| Effect | v0.15.0 default | Future modes (parent doc) |
 |---|---|---|
 | `Rand` | `mode=os` | `seeded`, `crypto` (Phase 1 syntax; runtime in Phase 3) |
+| `AI` | `mode=fixed` | `routeable`, `replay-only`, `byok` (M-AI-EFFECT-MODES; routeable shipped) |
 | `Clock` | (none yet) | `wall`, `pinned` (Phase 5) |
 | `Net` | (none yet) | `live`, `recorded` (Phase 5) |
 | `FS` | (none yet) | `real`, `fixture` (Phase 5) |
-| `AI` | (none yet) | `fixed`, `routeable`, `replay-only`, `byok` (Phase 5) |
 | `IO`, `Env`, `Process`, `Debug`, `Declassify` | (none) | not in scope |
+
+`AI` joined the default-mode table in
+[M-AI-EFFECT-MODES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ai-effect-modes.md)
+(v0.15.0). Bare `!{AI}` desugars to `!{AI[mode=fixed]}`; functions
+declared `!{AI[mode=routeable]}` opt into runtime provider routing at
+the type level and skip the `--allow-routing` CLI gate. See the
+[AI Routing guide](./ai-routing.md#type-level-mode-markers-v0150)
+for the worked flow.
 
 Adding a new mode means adding a row to
 [`internal/types/effects.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/types/effects.go)
@@ -189,10 +198,12 @@ all live in the parent doc:
   function to a sandboxed filesystem.
 - **Phase 5 — Clock / Net / FS / AI ports.** Each adds a row to the
   default-mode table and ports its stdlib. The `AI[mode=routeable]`
-  marker subsumes the runtime `--allow-routing` gate from
+  marker shipped in v0.15.0 ([M-AI-EFFECT-MODES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ai-effect-modes.md))
+  and now subsumes the runtime `--allow-routing` gate from
   M-AI-OPENROUTER (v0.16.0) as a type-level property — see [Modal AI
   in the parent
   doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md#example-4-modal-ai).
+  Clock, Net, and FS ports remain pending.
 - **Phase 6 — M-ENTROPY integration.** Envelope-level mode validation
   composes with the language-level rules.
 
