@@ -111,6 +111,7 @@ const sidebars = {
             'reference/language-syntax',
             'reference/modules',
             'reference/effects',
+            'guides/parameterised-effects',
             'reference/capability-budgets',
             'reference/arrays',
             'reference/repl-commands',

@@ -1,6 +1,6 @@
 # M-EFFECT-REFINEMENT Phase 1: Parameterised Effect Syntax + Row Algebra (Rand pilot)
 
-**Status**: Planned
+**Status**: Implemented (2026-05-04)
 **Target**: v0.15.0
 **Priority**: P1 — Medium (foundation for type-level mode markers; unblocks `AI[mode=routeable]` from M-AI-OPENROUTER)
 **Estimated**: ~37 hours (~4-5 working days)
@@ -390,6 +390,95 @@ The parent design doc retains the full 8-phase picture; this Phase-1 doc is the 
 ---
 
 **Document created**: 2026-05-04
-**Last updated**: 2026-05-04
+**Last updated**: 2026-05-04 (status flipped to Implemented; report appended)
 
-DESIGN_DOC_PATH: design_docs/planned/v0_15_0/m-effect-refinement-phase1.md
+DESIGN_DOC_PATH: design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md
+
+---
+
+## Implementation Report (2026-05-04)
+
+All four milestones shipped against the `dev` branch over the sprint
+window. Total LOC ≈ **1,506** across the four milestones (M1: 573,
+M2: 565, M3: 58, M4: ~310 docs/no Go).
+
+### What shipped per milestone
+
+| Milestone | Commit | LOC | Headline |
+|-----------|--------|-----|----------|
+| **M1** Parser + AST | `a90ada21` | 573 | `EffectParam{Key, Value}` AST node; `EffectAnnotation.Params []EffectParam`; lexer disambiguation kept the existing `LBRACKET` token (parser-level context check sufficient — effect rows are already a known parser context); pretty-printer alphabetical by key with `-count=20` determinism guard. 22 new tests; 6 structured parse errors with stable codes `PAR_EFF010`–`PAR_EFF014` (empty `[]`, missing key, missing value, missing `=`, wrong separator `:`, missing comma, duplicate key). |
+| **M2** Row algebra + invariant unification | `320b2a6c` | 565 | `Row.Params map[string]map[string]string` extends the effect row representation. `defaultEffectModes` table in `internal/types/effects.go` ships exactly one row: `Rand → ("mode", "os")`. `DefaultModeFor(name)` exposes it. The **`effectiveParamsOf`** back-compat bridge is the load-bearing architectural decision: rows from `validate_effects.go::stringSliceToEffectRow` have nil `Params`, while elaborator-built rows have desugared `Params` — the bridge consults `DefaultModeFor` during comparison so both row sources unify cleanly. JSON round-trip uses `omitempty` on `Params` so older iface caches load unchanged. 12 test functions / ~30 sub-cases run with `-count=20`. Zero-diff verified: 332/332 example `.ail` files byte-identical pre-/post-sprint. |
+| **M3** Worked example | `72859118` | 58 | `examples/modal_rand.ail` demonstrates bare `!{Rand}`, explicit `!{Rand[mode=os]}`, and `!{Rand[mode=seeded]}` side by side; runs end-to-end under `ailang run --caps Rand,IO`. The CryptoRand zero-diff regression originally scoped for M3 was **skipped** — see scope-reduction note below. |
+| **M4** Docs + release | (this commit) | ~310 | User guide `docs/docs/guides/parameterised-effects.md` (registered in `docs/sidebars.js` under Reference > Language). Teaching prompts updated in `prompts/v0.16.0.md` and `cmd/ailang/prompts/v0.16.0.md`. CHANGELOG entry under `[Unreleased] - targeting v0.15.0` in `changelogs/v0.10-current.md`. Design doc + sprint plan moved to `design_docs/implemented/v0_15_x/`; status flipped; this report appended. `make build && make test && make verify-examples` clean (file-size pre-existing failures elsewhere are out of scope). |
+
+### Architectural notes worth preserving
+
+- **`effectiveParamsOf` back-compat bridge (M2).** The cleanest way
+  to land Phase 1 without rewriting every effect-row constructor in
+  the codebase was a normalisation step at unification time. Rows
+  constructed by older paths (most notably
+  `validate_effects.go::stringSliceToEffectRow`, which still operates
+  on `[]string` effect names) carry a nil `Params` field. The
+  elaborator builds rows with desugared `Params` already populated.
+  Rather than thread the desugar through every constructor,
+  `effectiveParamsOf` calls `DefaultModeFor` during comparison and
+  fills the gap. This preserves the invariant ("two rows that
+  represent the same effect set unify") without forcing a flag-day
+  migration of every row constructor.
+- **JSON `omitempty` on `Params` (M2).** Iface caches written by
+  pre-sprint binaries have no `Params` field. Decoding them with the
+  new `Row.Params` field absent reads as the empty map, which the
+  back-compat bridge then fills via `DefaultModeFor`. This means
+  there is no cache-invalidation step for users upgrading across the
+  Phase-1 boundary; old `.ailang_iface` artefacts continue to load.
+- **CryptoRand-doesn't-exist scope reduction (M3).** The original
+  Phase 1 design doc and sprint plan called for `type CryptoRand =
+  Rand[mode=crypto]` as the load-bearing zero-diff validation. On
+  inspection during M3, no `CryptoRand` effect token actually exists
+  in this codebase: the v0.13.0 M-CRYPTORAND landed as a
+  point-fix splitting use cases at the standard-library level rather
+  than introducing a separate effect, so there are no callers of
+  `! {CryptoRand}` to validate against. The default-mode desugar
+  (bare `!{Rand}` ⇄ `!{Rand[mode=os]}`) gives the same back-compat
+  property the alias check would have demonstrated. The alternative —
+  adding a `CryptoRand` token retroactively just so the alias check
+  has something to consume — would have created throwaway code. M3
+  shipped the runnable worked example (`examples/modal_rand.ail`)
+  which exercises the row algebra in a way that is meaningful for
+  authors rather than for a hypothetical alias.
+- **Pretty-printer alphabetical ordering (M1).** Insertion order
+  would have been faster but golden-file tests would flake under
+  Go's randomised map iteration. The `-count=20` determinism guard
+  in M1's test suite catches any accidental reintroduction of map
+  iteration in the canonicaliser.
+
+### Deferrals (intentional)
+
+| Deferred work | Why | Tracked in |
+|---|---|---|
+| Replay contract registry / mode-aware runtime dispatch | Phase 1 ships syntax + types only. Runtime treats all `Rand` modes identically (all dispatch to the same `_rand_int` / `_rand_float` / `_rand_bool` builtins). Runtime dispatch is a follow-up sprint. | [M-EFFECT-REFINEMENT (v1.0.0) — Phase 3](../../planned/v1_0_0/m-effect-refinement.md) |
+| Capability scoping `scope=...` | Beyond mode parameters; scope parameters extend to FS sandboxing / Net recording. Independent design. | [M-EFFECT-REFINEMENT — Phase 4](../../planned/v1_0_0/m-effect-refinement.md) |
+| Clock / Net / FS port | Each adds one row to `defaultEffectModes` and ports its stdlib. Ships per-effect as separate sprints. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_0_0/m-effect-refinement.md) |
+| AI port `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | Subsumes [M-AI-OPENROUTER](../v0_16_x/m-ai-openrouter-provider.md)'s runtime `--allow-routing` gate as a type-level marker. Phase 1 unblocks the work but does not yet port AI to modes. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_0_0/m-effect-refinement.md), [Example 4: Modal AI](../../planned/v1_0_0/m-effect-refinement.md#example-4-modal-ai) |
+| M-ENTROPY mode constraints | Envelope-level mode validation composes with the language-level rules. Ships with M-ENTROPY itself. | [M-ENTROPY](../../planned/v1_0_0/m-entropy-budgets.md), [M-EFFECT-REFINEMENT — Phase 6](../../planned/v1_0_0/m-effect-refinement.md) |
+| Open / user-extensible mode sets | Phase 1 closed-set decision was deliberate (auditable, simpler unification, compiler-enforced rollouts). User-extensible modes are a v1.0+ research question. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_0_0/m-effect-refinement.md) |
+| CryptoRand alias zero-diff | `CryptoRand` doesn't exist as an effect token in this codebase (M-CRYPTORAND landed at the stdlib level rather than as a new effect). Default-mode desugar gives the same back-compat property. | Not re-tracked (scope-reduction; not a deferral) |
+
+### Success-criteria status
+
+Tracking against the original criteria above:
+
+- [x] `! {E[k=v, k2=v2]}` parses and type-checks; AST exposes parameters.
+- [x] Unification rules: invariant on params; same params unify, different params do NOT unify; row tail polymorphism works.
+- [x] Bare `! {Rand}` desugars to `! {Rand[mode=os]}` via the default-mode table; identical typechecker behaviour pre-/post-sprint on existing programs (332/332 example files byte-identical).
+- [ ] `type CryptoRand = Rand[mode=crypto]` alias works; existing M-CRYPTORAND programs compile and run zero-diff. **Scope-reduced**: `CryptoRand` doesn't exist as an effect token in this codebase, so the alias check had nothing to validate against. Default-mode desugar gives the back-compat property the alias check would have demonstrated; the load-bearing zero-diff data point is the 332/332 example sweep instead.
+- [x] Worked example `examples/modal_rand.ail` runs end-to-end.
+- [x] User guide `docs/docs/guides/parameterised-effects.md` published, registered in sidebar.
+- [x] Teaching prompt updated with parameterised-effects section (both `prompts/v0.16.0.md` and `cmd/ailang/prompts/v0.16.0.md`).
+- [x] `make build && make test && make verify-examples` green; `make lint` clean. Pre-existing file-size failures unrelated to this sprint (e.g. `registry_codegen.go`, `coordinator.go`) remain — out of scope.
+- [x] CHANGELOG entry references parent design doc + this Phase-1 doc.
+
+Net: **8/9 shipped, 1/9 scope-reduced** with the back-compat property
+preserved by an alternative mechanism (default-mode desugar +
+332/332 byte-identical example sweep).
+
