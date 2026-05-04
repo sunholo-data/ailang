@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 )
@@ -10,6 +11,111 @@ import (
 // isEffectRowVar returns true if name is a lowercase identifier (effect row variable)
 func isEffectRowVar(name string) bool {
 	return len(name) > 0 && name[0] >= 'a' && name[0] <= 'z'
+}
+
+// defaultEffectModes is the per-effect default-mode lookup table.
+// When a bare effect (no params) is elaborated, if its name has an entry
+// here, the elaborator desugars to the parameterised form.
+//
+// Phase 1 (v0.15.0) ships only the Rand entry. Other effects (Clock,
+// Net, FS, AI) intentionally have no entry — their bare forms continue
+// to type-check unchanged (back-compat). Their port sprints add rows
+// here in their respective milestones.
+//
+// This is intentional, not a fallback (per CLAUDE.md no-silent-fallbacks).
+// Effects without entries stay bare; they don't silently get a default.
+var defaultEffectModes = map[string]struct{ Key, Value string }{
+	"Rand": {Key: "mode", Value: "os"},
+	// Future:
+	// "Clock": {Key: "mode", Value: "wall"},
+	// "Net":   {Key: "mode", Value: "live"},
+	// "FS":    {Key: "mode", Value: "real"},
+	// "AI":    {Key: "mode", Value: "fixed"},
+}
+
+// DefaultModeFor returns the default mode key=value for an effect, if one is registered.
+// Returns ("", "", false) for effects without a registered default.
+//
+// Used during effect-row elaboration: bare !{Rand} desugars to !{Rand[mode=os]}
+// because Rand has a registered default. Bare !{IO} stays bare because IO has none.
+func DefaultModeFor(effectName string) (key, value string, ok bool) {
+	if e, found := defaultEffectModes[effectName]; found {
+		return e.Key, e.Value, true
+	}
+	return "", "", false
+}
+
+// paramsOf returns the param map for an effect in a row, or nil if none.
+// Helper for invariant unification of parameterised effects.
+func paramsOf(r *Row, effectName string) map[string]string {
+	if r == nil || r.Params == nil {
+		return nil
+	}
+	return r.Params[effectName]
+}
+
+// effectiveParamsOf returns the effective param map for an effect: explicitly
+// stored params if present, otherwise the registered default for that effect
+// (via DefaultModeFor), otherwise nil.
+//
+// This is the comparison-time normalisation used by paramsEqualForEffect and
+// effectParamsCompatible. Two rows that only differ by "explicit Rand[mode=os]
+// vs nil Rand" are considered identical because both desugar to the same
+// effective params.
+//
+// Without this, rows built outside the elaborator (e.g. via
+// stringSliceToEffectRow in pipeline/validate_effects.go) would be incompatible
+// with rows built inside the elaborator (which applies defaults). Phase 1 ships
+// only the Rand default; effects without entries return nil unchanged.
+func effectiveParamsOf(r *Row, effectName string) map[string]string {
+	if p := paramsOf(r, effectName); len(p) > 0 {
+		return p
+	}
+	if k, v, ok := DefaultModeFor(effectName); ok {
+		return map[string]string{k: v}
+	}
+	return nil
+}
+
+// paramMapsEqual compares two effect-parameter maps for invariant unification.
+// nil and empty maps are treated as equivalent.
+//
+// This is a low-level comparison used by tests and directly when you have two
+// raw param maps. For comparing effect rows during unification or subsumption,
+// use effectParamsCompatible (which applies the default-mode normalisation).
+func paramMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if bv, ok := b[k]; !ok || v != bv {
+			return false
+		}
+	}
+	return true
+}
+
+// effectParamsCompatible compares per-effect params between two rows, normalising
+// each side via effectiveParamsOf so that "explicit default" and "implicit
+// default (nil)" are treated as equal. Two non-default values still fail
+// (invariant), as does default vs explicit non-default.
+func effectParamsCompatible(a, b *Row, effectName string) bool {
+	return paramMapsEqual(effectiveParamsOf(a, effectName), effectiveParamsOf(b, effectName))
+}
+
+// applyDefaultParam populates params[effectName] from DefaultModeFor if no
+// explicit params were supplied for that effect. No-op for effects without
+// a registered default. Mutates the params map in place.
+func applyDefaultParam(params map[string]map[string]string, effectName string) {
+	if params == nil {
+		return
+	}
+	if _, alreadySet := params[effectName]; alreadySet {
+		return
+	}
+	if k, v, ok := DefaultModeFor(effectName); ok {
+		params[effectName] = map[string]string{k: v}
+	}
 }
 
 // ElaborateEffectRow converts AST effect names to a normalized effect row
@@ -53,6 +159,17 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 		labels[name] = Unit()
 	}
 
+	// Apply default-mode desugar for bare effects with registered defaults
+	// (M-EFFECT-REFINEMENT Phase 1: Rand→{mode=os}). Effects without an
+	// entry in defaultEffectModes get no entry here (back-compat).
+	params := make(map[string]map[string]string)
+	for _, name := range sortedNames {
+		applyDefaultParam(params, name)
+	}
+	if len(params) == 0 {
+		params = nil
+	}
+
 	// Set row tail for effect polymorphism
 	var tail *RowVar
 	if rowVarName != "" {
@@ -63,6 +180,7 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 		Kind:   EffectRow,
 		Labels: labels,
 		Tail:   tail,
+		Params: params,
 	}, nil
 }
 
@@ -80,6 +198,10 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 	validatedEffects := make(map[string]bool)
 	budgets := make(map[string]*int)
 	minBudgets := make(map[string]*int)
+	// Per-effect parameter map (M-EFFECT-REFINEMENT Phase 1).
+	// Populated explicitly from eff.Params; defaults applied below for
+	// bare effects with registered DefaultModeFor entries.
+	params := make(map[string]map[string]string)
 	var rowVarName string
 
 	for _, eff := range effects {
@@ -104,6 +226,14 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 			// Copy min value to avoid pointer aliasing
 			val := *eff.Min
 			minBudgets[eff.Name] = &val
+		}
+		// Capture explicit user-supplied params; user wins over default.
+		if len(eff.Params) > 0 {
+			pmap := make(map[string]string, len(eff.Params))
+			for _, p := range eff.Params {
+				pmap[p.Key] = p.Value
+			}
+			params[eff.Name] = pmap
 		}
 	}
 
@@ -131,6 +261,16 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 		minBudgetsMap = minBudgets
 	}
 
+	// Apply default-mode desugar for bare effects with registered defaults.
+	// User-supplied params (already in params map) win over defaults.
+	for _, name := range sortedNames {
+		applyDefaultParam(params, name)
+	}
+	var paramsMap map[string]map[string]string
+	if len(params) > 0 {
+		paramsMap = params
+	}
+
 	// Set row tail for effect polymorphism
 	var tail *RowVar
 	if rowVarName != "" {
@@ -143,6 +283,7 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 		Tail:       tail,
 		Budgets:    budgetsMap,
 		MinBudgets: minBudgetsMap,
+		Params:     paramsMap,
 	}, nil
 }
 
@@ -241,6 +382,39 @@ func UnionEffectRows(a, b *Row) *Row {
 		}
 	}
 
+	// Merge per-effect params (M-EFFECT-REFINEMENT Phase 1).
+	// When both rows specify params for the same effect, they should already
+	// be equal (the unifier enforces invariance upstream). If they disagree
+	// here we conservatively prefer 'a' and continue; this matches the
+	// pragmatic union semantics used by the rest of the row algebra and
+	// keeps the function total. A mismatch should have been caught by
+	// unifyRows before reaching union.
+	var params map[string]map[string]string
+	if a.Params != nil || b.Params != nil {
+		params = make(map[string]map[string]string)
+		for _, name := range labels {
+			ap := paramsOf(a, name)
+			bp := paramsOf(b, name)
+			switch {
+			case len(ap) > 0:
+				cp := make(map[string]string, len(ap))
+				for k, v := range ap {
+					cp[k] = v
+				}
+				params[name] = cp
+			case len(bp) > 0:
+				cp := make(map[string]string, len(bp))
+				for k, v := range bp {
+					cp[k] = v
+				}
+				params[name] = cp
+			}
+		}
+		if len(params) == 0 {
+			params = nil
+		}
+	}
+
 	// If no effects after merging, return nil (pure)
 	if len(effectLabels) == 0 {
 		return nil
@@ -251,12 +425,18 @@ func UnionEffectRows(a, b *Row) *Row {
 		Labels:  effectLabels,
 		Tail:    nil,
 		Budgets: budgets,
+		Params:  params,
 	}
 }
 
 // SubsumeEffectRows checks if effect row 'a' is subsumed by effect row 'b'
 // Returns true if all effects in 'a' are present in 'b'
 // Pure (nil) is subsumed by anything
+//
+// Phase 1 (M-EFFECT-REFINEMENT): for parameterised effects the param map
+// is invariant — !{Rand[mode=os]} is NOT subsumed by !{Rand[mode=seeded]}.
+// This is required so the routeable→fixed example becomes a typecheck
+// rejection in Phase 5.
 func SubsumeEffectRows(a, b *Row) bool {
 	if a == nil {
 		return true // Pure is subsumed by anything
@@ -265,9 +445,15 @@ func SubsumeEffectRows(a, b *Row) bool {
 		return a == nil // Only pure is subsumed by pure
 	}
 
-	// All labels in 'a' must be in 'b'
+	// All labels in 'a' must be in 'b' with matching params (invariant).
+	// effectParamsCompatible normalises each side via DefaultModeFor so a
+	// row with explicit Rand[mode=os] is compatible with a row whose Rand
+	// has nil params (both desugar to the same effective {mode: os}).
 	for k := range a.Labels {
 		if _, ok := b.Labels[k]; !ok {
+			return false
+		}
+		if !effectParamsCompatible(a, b, k) {
 			return false
 		}
 	}
@@ -307,21 +493,37 @@ func FormatEffectRow(row *Row) string {
 	}
 	sort.Strings(labels)
 
-	// Format as ! {Effect1, Effect2, ...} with optional budgets
+	// Format as ! {Effect1, Effect2, ...} with optional params and budgets
 	result := "! {"
 	for i, label := range labels {
 		if i > 0 {
 			result += ", "
 		}
+		head := label
+		// Include params block if present (alphabetical by key)
+		if row.Params != nil {
+			if pmap, ok := row.Params[label]; ok && len(pmap) > 0 {
+				pkeys := make([]string, 0, len(pmap))
+				for pk := range pmap {
+					pkeys = append(pkeys, pk)
+				}
+				sort.Strings(pkeys)
+				paramParts := make([]string, len(pkeys))
+				for j, pk := range pkeys {
+					paramParts[j] = fmt.Sprintf("%s=%s", pk, pmap[pk])
+				}
+				head = fmt.Sprintf("%s[%s]", label, strings.Join(paramParts, ", "))
+			}
+		}
 		// Include budget annotation if present
 		if row.Budgets != nil {
 			if budget, ok := row.Budgets[label]; ok && budget != nil {
-				result += fmt.Sprintf("%s @limit=%d", label, *budget)
+				result += fmt.Sprintf("%s @limit=%d", head, *budget)
 			} else {
-				result += label
+				result += head
 			}
 		} else {
-			result += label
+			result += head
 		}
 	}
 	result += "}"

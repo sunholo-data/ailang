@@ -65,6 +65,13 @@ type Row struct {
 	Tail       *RowVar         // Optional row variable for extension
 	Budgets    map[string]*int // For effects: optional budget limits (nil = unlimited)
 	MinBudgets map[string]*int // For effects: optional minimum usage requirements (M-DX25 M4)
+	// Params is per-effect parameter map: effect_name -> (param_key -> param_value).
+	// NEW in M-EFFECT-REFINEMENT Phase 1 (v0.15.0). Nil/empty for non-parameterised
+	// effects (back-compat). Only populated for effect rows (Kind == EffectRow);
+	// records leave it nil. Used for invariant unification — !{Rand[mode=os]} does
+	// NOT unify with !{Rand[mode=seeded]}, but DOES unify with bare !{Rand} after
+	// default-mode desugar via DefaultModeFor.
+	Params map[string]map[string]string
 }
 
 func (r *Row) String() string {
@@ -78,6 +85,22 @@ func (r *Row) String() string {
 	var parts []string
 	for _, k := range keys {
 		if r.Kind.Equals(EffectRow) {
+			// Effect head: name with optional [param=value, ...] block (alphabetical by key)
+			head := k
+			if r.Params != nil {
+				if pmap, ok := r.Params[k]; ok && len(pmap) > 0 {
+					pkeys := make([]string, 0, len(pmap))
+					for pk := range pmap {
+						pkeys = append(pkeys, pk)
+					}
+					sort.Strings(pkeys)
+					paramParts := make([]string, len(pkeys))
+					for i, pk := range pkeys {
+						paramParts[i] = fmt.Sprintf("%s=%s", pk, pmap[pk])
+					}
+					head = fmt.Sprintf("%s[%s]", k, strings.Join(paramParts, ", "))
+				}
+			}
 			// For effect rows, include budget annotations if present
 			var annotations []string
 			if r.MinBudgets != nil {
@@ -91,9 +114,9 @@ func (r *Row) String() string {
 				}
 			}
 			if len(annotations) > 0 {
-				parts = append(parts, k+" "+strings.Join(annotations, " "))
+				parts = append(parts, head+" "+strings.Join(annotations, " "))
 			} else {
-				parts = append(parts, k)
+				parts = append(parts, head)
 			}
 		} else {
 			parts = append(parts, fmt.Sprintf("%s: %s", k, r.Labels[k].String()))
@@ -127,6 +150,10 @@ func (r *Row) Equals(other Type) bool {
 			if !equalBudgets(r.Budgets, o.Budgets) {
 				return false
 			}
+			// Compare per-effect params (invariant; nil and empty are equivalent)
+			if !equalParams(r.Params, o.Params) {
+				return false
+			}
 		}
 		if r.Tail == nil && o.Tail == nil {
 			return true
@@ -137,6 +164,42 @@ func (r *Row) Equals(other Type) bool {
 		return false
 	}
 	return false
+}
+
+// equalParams compares two per-effect parameter maps for invariant equality.
+// nil and empty maps are treated as equivalent. Used by Row.Equals.
+func equalParams(a, b map[string]map[string]string) bool {
+	// Strip empty inner maps before counting (nil == empty inner)
+	aLen := 0
+	for _, m := range a {
+		if len(m) > 0 {
+			aLen++
+		}
+	}
+	bLen := 0
+	for _, m := range b {
+		if len(m) > 0 {
+			bLen++
+		}
+	}
+	if aLen != bLen {
+		return false
+	}
+	for effect, am := range a {
+		if len(am) == 0 {
+			continue
+		}
+		bm := b[effect]
+		if len(am) != len(bm) {
+			return false
+		}
+		for k, v := range am {
+			if bv, ok := bm[k]; !ok || bv != v {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // equalBudgets compares two budget maps for equality
@@ -190,6 +253,25 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 		}
 	}
 
+	// Preserve effect params (M-EFFECT-REFINEMENT Phase 1)
+	var params map[string]map[string]string
+	if r.Params != nil {
+		params = make(map[string]map[string]string)
+		for effect, pmap := range r.Params {
+			if len(pmap) == 0 {
+				continue
+			}
+			inner := make(map[string]string, len(pmap))
+			for k, v := range pmap {
+				inner[k] = v
+			}
+			params[effect] = inner
+		}
+		if len(params) == 0 {
+			params = nil
+		}
+	}
+
 	var tail *RowVar
 	if r.Tail != nil {
 		if sub, ok := subs[r.Tail.Name]; ok {
@@ -208,6 +290,22 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 						budgets[k] = v
 					}
 				}
+				// Merge params from substituted row
+				if subRow.Params != nil {
+					if params == nil {
+						params = make(map[string]map[string]string)
+					}
+					for effect, pmap := range subRow.Params {
+						if len(pmap) == 0 {
+							continue
+						}
+						inner := make(map[string]string, len(pmap))
+						for pk, pv := range pmap {
+							inner[pk] = pv
+						}
+						params[effect] = inner
+					}
+				}
 				tail = subRow.Tail
 			} else if subVar, ok := sub.(*RowVar); ok {
 				tail = subVar
@@ -222,6 +320,7 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 		Labels:  labels,
 		Tail:    tail,
 		Budgets: budgets,
+		Params:  params,
 	}
 }
 

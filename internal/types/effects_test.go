@@ -398,9 +398,13 @@ func TestFormatEffectRow(t *testing.T) {
 			expected: "! {FS, IO, Net}",
 		},
 		{
+			// M-EFFECT-REFINEMENT Phase 1: Rand has a registered default mode
+			// (mode=os) so bare !{Rand} desugars to !{Rand[mode=os]}. Other
+			// effects (IO, FS, Net, Clock, DB, Trace, Async) have no default
+			// registered and stay bare (back-compat).
 			name:     "all effects",
 			effects:  []string{"IO", "FS", "Net", "Clock", "Rand", "DB", "Trace", "Async"},
-			expected: "! {Async, Clock, DB, FS, IO, Net, Rand, Trace}",
+			expected: "! {Async, Clock, DB, FS, IO, Net, Rand[mode=os], Trace}",
 		},
 	}
 

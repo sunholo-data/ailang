@@ -242,6 +242,31 @@ func (u *Unifier) unifyRows(row1, row2 *Row, sub Substitution) (Substitution, er
 		return nil, fmt.Errorf("row kind mismatch: %v vs %v", row1.Kind, row2.Kind)
 	}
 
+	// Phase 1 (M-EFFECT-REFINEMENT): for effect rows, parameterised effects
+	// must have invariant param maps. !{Rand[mode=os]} unifies with !{Rand}
+	// (after default-desugar both have Params["Rand"] = {"mode": "os"}) but
+	// not with !{Rand[mode=seeded]}. Records leave Params nil so this is a
+	// no-op for them.
+	//
+	// Comparison is done via effectParamsCompatible which normalises each
+	// side to its effective params (applying DefaultModeFor for nil entries).
+	// This makes rows built outside the elaborator (e.g. raw stringSliceToEffectRow
+	// in the pipeline) compatible with rows built via ElaborateEffectRow.
+	if row1.Kind.Equals(EffectRow) {
+		// Only check effects present in BOTH rows. Effects unique to one
+		// row are captured by the tail (handled below) and their params
+		// flow through with them.
+		for effectName := range row1.Labels {
+			if _, in2 := row2.Labels[effectName]; !in2 {
+				continue
+			}
+			if !effectParamsCompatible(row1, row2, effectName) {
+				return nil, fmt.Errorf("effect %s param mismatch: %v vs %v",
+					effectName, paramsOf(row1, effectName), paramsOf(row2, effectName))
+			}
+		}
+	}
+
 	// Collect all field names from both rows
 	allFields := make(map[string]bool)
 	for name := range row1.Labels {

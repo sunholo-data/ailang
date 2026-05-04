@@ -261,13 +261,30 @@ func (r *Row) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 	}
+	// Effect-row params (M-EFFECT-REFINEMENT Phase 1). Strip empty inner
+	// maps so omitempty actually fires on the outer map (otherwise an
+	// empty inner persists in JSON and breaks the back-compat invariant
+	// "old caches have no params field"). nil/empty round-trips to nil.
+	var paramsForJSON map[string]map[string]string
+	if len(r.Params) > 0 {
+		for effect, pmap := range r.Params {
+			if len(pmap) == 0 {
+				continue
+			}
+			if paramsForJSON == nil {
+				paramsForJSON = make(map[string]map[string]string)
+			}
+			paramsForJSON[effect] = pmap
+		}
+	}
 	raw, _ := json.Marshal(struct {
-		Kind       json.RawMessage            `json:"kind"`
-		Labels     map[string]json.RawMessage `json:"labels"`
-		Tail       json.RawMessage            `json:"tail,omitempty"`
-		Budgets    map[string]*int            `json:"budgets,omitempty"`
-		MinBudgets map[string]*int            `json:"min_budgets,omitempty"`
-	}{kindBytes, labels, tailBytes, r.Budgets, r.MinBudgets})
+		Kind       json.RawMessage              `json:"kind"`
+		Labels     map[string]json.RawMessage   `json:"labels"`
+		Tail       json.RawMessage              `json:"tail,omitempty"`
+		Budgets    map[string]*int              `json:"budgets,omitempty"`
+		MinBudgets map[string]*int              `json:"min_budgets,omitempty"`
+		Params     map[string]map[string]string `json:"params,omitempty"`
+	}{kindBytes, labels, tailBytes, r.Budgets, r.MinBudgets, paramsForJSON})
 	return json.Marshal(typeJSON{Tag: "row", Data: raw})
 }
 
@@ -544,11 +561,12 @@ func UnmarshalType(data []byte) (Type, error) {
 // unmarshalRow deserializes a Row from its data payload.
 func unmarshalRow(data []byte) (*Row, error) {
 	var d struct {
-		Kind       json.RawMessage            `json:"kind"`
-		Labels     map[string]json.RawMessage `json:"labels"`
-		Tail       json.RawMessage            `json:"tail,omitempty"`
-		Budgets    map[string]*int            `json:"budgets,omitempty"`
-		MinBudgets map[string]*int            `json:"min_budgets,omitempty"`
+		Kind       json.RawMessage              `json:"kind"`
+		Labels     map[string]json.RawMessage   `json:"labels"`
+		Tail       json.RawMessage              `json:"tail,omitempty"`
+		Budgets    map[string]*int              `json:"budgets,omitempty"`
+		MinBudgets map[string]*int              `json:"min_budgets,omitempty"`
+		Params     map[string]map[string]string `json:"params,omitempty"`
 	}
 	if err := json.Unmarshal(data, &d); err != nil {
 		return nil, err
@@ -579,12 +597,29 @@ func unmarshalRow(data []byte) (*Row, error) {
 		}
 	}
 
+	// Strip empty inner maps so old-format JSON (no "params" field) and
+	// new-format JSON with an explicitly-empty params map both produce
+	// Params == nil. Preserves back-compat with old iface caches.
+	var params map[string]map[string]string
+	if len(d.Params) > 0 {
+		for effect, pmap := range d.Params {
+			if len(pmap) == 0 {
+				continue
+			}
+			if params == nil {
+				params = make(map[string]map[string]string)
+			}
+			params[effect] = pmap
+		}
+	}
+
 	return &Row{
 		Kind:       k,
 		Labels:     labels,
 		Tail:       tail,
 		Budgets:    d.Budgets,
 		MinBudgets: d.MinBudgets,
+		Params:     params,
 	}, nil
 }
 
