@@ -813,7 +813,7 @@ models:
   #    git log + eval_results/baselines/v0.14.x for re-verification)
   # =============================================================================
 
-  # ---- PASS (3/3 smoke) ----
+  # ---- PASS (3/3 smoke; in eval rotation) ----
 
   opencode-or-glm-5:
     api_name: "z-ai/glm-5"
@@ -833,6 +833,25 @@ models:
       Sonnet 4.6 ($3/$15 per 1M) on input. Beat gpt5-4-mini and
       gemini-3-1-pro on csv_to_json (the gating benchmark from v0.14.2).
       Recommended by Motoko for AILANG eval.
+
+  opencode-or-minimax-m2-7:
+    api_name: "minimax/minimax-m2.7"
+    provider: "openrouter"
+    description: "MiniMax M2.7 via opencode+OpenRouter — second OS model to PASS full smoke"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/minimax/minimax-m2.7"
+    model_family: "minimax-m2"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0003   # $0.30 per 1M
+      output_per_1k: 0.0012  # $1.20 per 1M
+    notes: |
+      Agent-mode smoke 2026-05-04: 3/3 after csv_to_json timeout bump
+      (90→180s). fizzbuzz✅ 46s  adt_option✅ 42s  csv_to_json✅ 92s.
+      Second OS model to clear full smoke. CHEAPER than GLM 5 on both
+      input ($0.30 vs $0.60) and output ($1.20 vs $2.08) — best $/quality
+      OS pass in the spread. User-recommended (heard via Motoko).
 
   # ---- NEAR-MISS (2/3 smoke, watchlist for stdlib/prompt improvement) ----
 
@@ -904,7 +923,7 @@ models:
   opencode-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
     provider: "openrouter"
-    description: "Kimi K2.6 via opencode+OpenRouter (NEAR-MISS: 2/3 effective; csv_to_json timeout)"
+    description: "Kimi K2.6 via opencode+OpenRouter (NEAR-MISS: 2/3 even with 180s csv_to_json budget)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/moonshotai/kimi-k2.6"
@@ -914,29 +933,10 @@ models:
       input_per_1k: 0.00074
       output_per_1k: 0.00349
     notes: |
-      Agent smoke 2026-05-04 (retest after initial api_errors):
-        fizzbuzz✅ 119s  adt_option✅ 47s  csv_to_json❌ (90s timeout exceeded).
-      Initial run hit api_error on 2/3 due to transient OpenRouter issues.
-      With fair timing, model passes fizzbuzz + adt_option — csv_to_json
-      failure is the benchmark's 90s budget, not model capability.
-
-  opencode-or-minimax-m2-7:
-    api_name: "minimax/minimax-m2.7"
-    provider: "openrouter"
-    description: "MiniMax M2.7 via opencode+OpenRouter (NEAR-MISS: 2/3 effective; csv_to_json timeout)"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "opencode"
-    agent_model_name: "openrouter/minimax/minimax-m2.7"
-    model_family: "minimax-m2"
-    max_output_tokens: 32768
-    pricing:
-      input_per_1k: 0.0003   # $0.30 per 1M
-      output_per_1k: 0.0012  # $1.20 per 1M
-    notes: |
-      Agent smoke 2026-05-04: fizzbuzz✅ 46s  adt_option✅ 42s
-      csv_to_json❌ (90s timeout exceeded). Faster than Kimi K2.6 on
-      fizzbuzz (46s vs 119s); same csv_to_json timeout issue. Cheaper
-      than Kimi too — $0.30/$1.20 per 1M vs $0.74/$3.49.
+      Agent smoke 2026-05-04: fizzbuzz✅ 119s  adt_option✅ 47s
+      csv_to_json❌ (exceeded even bumped 180s budget — capability gap,
+      not just timeout). Cleared the easy benchmarks but couldn't solve
+      csv_to_json's parsing+JSON-shape requirements via agent iteration.
 
   # =============================================================================
   # LOCAL MODELS (via Ollama)

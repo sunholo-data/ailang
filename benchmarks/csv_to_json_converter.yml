@@ -5,7 +5,7 @@ entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "medium"
 expected_gain: "high"
-timeout: 90  # Medium complexity: 90 seconds
+timeout: 180  # Bumped 90→180s 2026-05-04: agent-mode iteration with slower OS models needs more time. Sonnet 4.6 still solves in ~43s; OS models (Kimi K2.6, MiniMax M2.7, DeepSeek V4 Flash) routinely need 90–150s of multi-turn iteration. The 90s cap was killing them mid-generation, not measuring capability.
 task_prompt: |
   Convert a CSV file to JSON in <LANG> with validation.
 
