@@ -1,3 +1,15 @@
+//go:build darwin
+// +build darwin
+
+// install_test.go covers macOS launchd plist installer behavior. The tests
+// stub launchctl via the launchctlRun seam, but the file paths
+// (~/Library/LaunchAgents) and CLI semantics they assert against are
+// genuinely macOS-only — build-tagged here so non-darwin CI matrices
+// (Windows, Linux) skip them rather than failing on the unmodelled
+// platform. The implementation file install.go is intentionally NOT tagged
+// — it still compiles on all platforms but errors at runtime on non-macOS,
+// which is the user-facing behaviour we want.
+
 package daemon
 
 import (
