@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -54,21 +55,52 @@ func (p Pos) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.File, p.Line, p.Column)
 }
 
-// EffectAnnotation represents an effect with optional budget constraints
-// Syntax: IO or IO @limit=5 or IO @min=1 or IO @min=1 @limit=5
-// Row variables: lowercase identifiers like 'e' in ! {e} for effect polymorphism
+// EffectParam is a single key=value pair on a parameterised effect.
+// Used in row markers like AI[mode=routeable], Rand[mode=crypto, scope=identity].
+// Both Key and Value are bare identifiers (no quoting); structured values are
+// out of scope for Phase 1 of M-EFFECT-REFINEMENT.
+type EffectParam struct {
+	Key   string
+	Value string
+	Pos   Pos
+}
+
+// EffectAnnotation represents an effect with optional parameters and budget constraints.
+// Syntax:
+//
+//	IO                                   -- bare effect
+//	Rand[mode=crypto]                    -- parameterised
+//	Rand[mode=crypto, scope=identity]    -- multiple params
+//	IO @limit=5                          -- bare with budget
+//	AI[mode=routeable] @limit=10         -- parameterised + budget
+//
+// Row variables: lowercase identifiers like 'e' in ! {e} for effect polymorphism.
 type EffectAnnotation struct {
-	Name     string // Effect name (e.g., "IO", "FS", "Net") or row variable (e.g., "e")
-	IsRowVar bool   // True if this is an effect row variable (lowercase identifier)
-	Budget   *int   // Optional budget limit / max (nil = unlimited)
-	Min      *int   // Optional minimum usage requirement (nil = no minimum) (M-DX25 M4)
+	Name     string        // Effect name (e.g., "IO", "FS", "Net") or row variable (e.g., "e")
+	IsRowVar bool          // True if this is an effect row variable (lowercase identifier)
+	Params   []EffectParam // Optional parameter list (e.g. [mode=crypto]); empty/nil for bare effects
+	Budget   *int          // Optional budget limit / max (nil = unlimited)
+	Min      *int          // Optional minimum usage requirement (nil = no minimum) (M-DX25 M4)
 	Pos      Pos
 }
 
-// String formats the effect annotation for display
+// String formats the effect annotation for display.
+// Parameters are emitted in alphabetical-by-key order for golden-file determinism.
 func (e *EffectAnnotation) String() string {
-	var parts []string
-	parts = append(parts, e.Name)
+	head := e.Name
+	if len(e.Params) > 0 {
+		// Sort a copy so we never mutate caller-provided data.
+		sorted := make([]EffectParam, len(e.Params))
+		copy(sorted, e.Params)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i].Key < sorted[j].Key })
+		paramParts := make([]string, len(sorted))
+		for i, p := range sorted {
+			paramParts[i] = fmt.Sprintf("%s=%s", p.Key, p.Value)
+		}
+		head = fmt.Sprintf("%s[%s]", e.Name, strings.Join(paramParts, ", "))
+	}
+
+	parts := []string{head}
 	if e.Min != nil {
 		parts = append(parts, fmt.Sprintf("@min=%d", *e.Min))
 	}
@@ -76,7 +108,7 @@ func (e *EffectAnnotation) String() string {
 		parts = append(parts, fmt.Sprintf("@limit=%d", *e.Budget))
 	}
 	if len(parts) == 1 {
-		return e.Name
+		return head
 	}
 	return strings.Join(parts, " ")
 }

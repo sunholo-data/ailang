@@ -93,6 +93,13 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 			seen[effectName] = true
 		}
 
+		// Parse optional parameter list: [k=v, k2=v2] (M-EFFECT-REFINEMENT Phase 1)
+		// Must come BEFORE the @-annotations.
+		var params []ast.EffectParam
+		if p.peekTokenIs(lexer.LBRACKET) {
+			params = p.parseEffectParams()
+		}
+
 		// Parse optional annotations: @min=N and/or @limit=N (M-DX25 M4)
 		var budget *int
 		var min *int
@@ -170,6 +177,7 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		effects = append(effects, ast.EffectAnnotation{
 			Name:     effectName,
 			IsRowVar: isRowVar,
+			Params:   params,
 			Budget:   budget,
 			Min:      min,
 			Pos:      ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
@@ -191,6 +199,97 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 	}
 
 	return effects
+}
+
+// parseEffectParams parses the [k=v, k2=v2] suffix on an effect name.
+// Cursor enters at the effect name's position (peekToken is LBRACKET).
+// Returns the parsed params, with the cursor left at RBRACKET on success.
+// On error, advances past the closing RBRACKET (or to RBRACE/EOF) and returns
+// whatever it parsed.
+//
+// M-EFFECT-REFINEMENT Phase 1: introduces parameterised-effect syntax. Both
+// keys and values are bare identifiers; structured values (strings, ints,
+// expressions) are out of scope for Phase 1.
+func (p *Parser) parseEffectParams() []ast.EffectParam {
+	// Advance to LBRACKET
+	if !p.expectPeek(lexer.LBRACKET) {
+		return nil
+	}
+
+	var params []ast.EffectParam
+	seen := make(map[string]bool)
+
+	// Empty bracket list [] is a parse error
+	if p.peekTokenIs(lexer.RBRACKET) {
+		p.nextToken() // consume RBRACKET so cursor convention is preserved
+		p.report("PAR_EFF010_EMPTY_PARAMS",
+			"empty parameter list",
+			"Provide at least one parameter like [mode=os], or remove the brackets")
+		return nil
+	}
+
+	for !p.peekTokenIs(lexer.RBRACKET) && !p.peekTokenIs(lexer.EOF) {
+		// Expect key
+		if !p.expectPeek(lexer.IDENT) {
+			p.report("PAR_EFF011_PARAM_KEY",
+				"expected parameter key (identifier)",
+				"Use [key=value] syntax with bare-identifier keys")
+			// Skip to RBRACKET or RBRACE to recover
+			for !p.peekTokenIs(lexer.RBRACKET) && !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
+				p.nextToken()
+			}
+			break
+		}
+		keyName := p.curToken.Literal
+		keyPos := ast.Pos{Line: p.curToken.Line, Column: p.curToken.Column, File: p.curToken.File}
+
+		// Expect =
+		if !p.expectPeek(lexer.ASSIGN) {
+			p.report("PAR_EFF012_PARAM_EQ",
+				fmt.Sprintf("expected '=' after parameter key '%s'", keyName),
+				"Use [key=value] syntax")
+			break
+		}
+
+		// Expect value (bare identifier; structured values out of scope for Phase 1)
+		if !p.expectPeek(lexer.IDENT) {
+			p.report("PAR_EFF013_PARAM_VAL",
+				fmt.Sprintf("expected value for parameter '%s'", keyName),
+				"Use a bare identifier like [mode=os] or [mode=crypto]")
+			break
+		}
+		valName := p.curToken.Literal
+
+		// Detect duplicate keys
+		if seen[keyName] {
+			p.report("PAR_EFF014_PARAM_DUP",
+				fmt.Sprintf("duplicate parameter key '%s'", keyName),
+				fmt.Sprintf("Remove the duplicate '%s='", keyName))
+		} else {
+			seen[keyName] = true
+		}
+
+		params = append(params, ast.EffectParam{
+			Key:   keyName,
+			Value: valName,
+			Pos:   keyPos,
+		})
+
+		// Comma or end
+		if p.peekTokenIs(lexer.RBRACKET) {
+			break
+		}
+		if !p.expectPeek(lexer.COMMA) {
+			p.reportExpected(lexer.COMMA, "Add ',' between parameters or ']' to close")
+			break
+		}
+	}
+
+	if !p.expectPeek(lexer.RBRACKET) {
+		p.reportExpected(lexer.RBRACKET, "Add ']' to close parameter list")
+	}
+
+	return params
 }
 
 // suggestEffect finds closest matching effect name (simple heuristic)
