@@ -24,6 +24,11 @@ type Handler struct {
 	systemPrompt string
 	maxTokens    int
 
+	// routingPolicy is attached to every outgoing Request when non-nil. Set
+	// via WithRoutingPolicy. Only OpenRouter consumes it; other providers
+	// reject a non-zero policy with ErrRoutingNotSupported. nil = no policy.
+	routingPolicy *AIRoutingPolicy
+
 	// lastRoute caches routing metadata from the most recent successful
 	// Generate() call. nil when the response had no routing-distinct
 	// metadata (direct providers, OR calls that didn't engage routing).
@@ -44,6 +49,17 @@ func WithSystemPrompt(prompt string) HandlerOption {
 func WithMaxTokens(tokens int) HandlerOption {
 	return func(h *Handler) {
 		h.maxTokens = tokens
+	}
+}
+
+// WithRoutingPolicy attaches an AIRoutingPolicy to every outgoing Request
+// from this handler. The policy is consumed only by the OpenRouter provider;
+// other providers will reject a non-zero policy with ErrRoutingNotSupported.
+//
+// Pass nil (or omit the option) for no policy.
+func WithRoutingPolicy(p *AIRoutingPolicy) HandlerOption {
+	return func(h *Handler) {
+		h.routingPolicy = p
 	}
 }
 
@@ -80,6 +96,7 @@ func (h *Handler) Call(input string) (string, error) {
 		SystemPrompt: h.systemPrompt,
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
+		Routing:      h.routingPolicy,
 	})
 	h.captureRoute(resp, err)
 	if err != nil {
@@ -163,6 +180,7 @@ func (h *Handler) CallJson(input string, schema string) (string, error) {
 		MaxTokens:      maxTokens,
 		ResponseFormat: "json",
 		ResponseSchema: schema,
+		Routing:        h.routingPolicy,
 	})
 	h.captureRoute(resp, err)
 	if err != nil {
@@ -180,6 +198,7 @@ func (h *Handler) CallWithContext(ctx context.Context, input string) (string, er
 		SystemPrompt: h.systemPrompt,
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
+		Routing:      h.routingPolicy,
 	})
 	h.captureRoute(resp, err)
 	if err != nil {
@@ -196,6 +215,7 @@ func (h *Handler) GenerateWithDetails(ctx context.Context, input string) (*Respo
 		SystemPrompt: h.systemPrompt,
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
+		Routing:      h.routingPolicy,
 	})
 }
 
@@ -209,6 +229,7 @@ func (h *Handler) CallImage(prompt, outputPath, options string) (string, error) 
 		UserPrompt:         prompt,
 		ResponseModalities: []string{"IMAGE"},
 		ImageOptions:       opts,
+		Routing:            h.routingPolicy,
 	})
 	if err != nil {
 		return "", err
@@ -238,6 +259,7 @@ func (h *Handler) CallImageBase64(prompt, options string) (string, error) {
 		UserPrompt:         prompt,
 		ResponseModalities: []string{"IMAGE"},
 		ImageOptions:       opts,
+		Routing:            h.routingPolicy,
 	})
 	if err != nil {
 		return "", err

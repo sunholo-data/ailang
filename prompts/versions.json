@@ -562,8 +562,8 @@
     },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
-      "hash": "8be7946f2318991110299311701ad5e26ee2c8d64f8f6121591c508b4f6c55ab",
-      "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example",
+      "hash": "29d4a2449ccfacb1e5ab61c2aa06747cc91e21bd6d8c6c8bf2eee04eae43fb7a",
+      "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example, OpenRouter model strings",
       "created": "2026-04-30",
       "tags": [
         "production",

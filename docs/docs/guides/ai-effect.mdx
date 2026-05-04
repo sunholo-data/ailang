@@ -191,8 +191,28 @@ ailang builtins show _ai_call
 
 Use the AI effect for simple LLM calls. Use `std/net` when you need full control over HTTP requests (custom endpoints, streaming, etc.).
 
+## OpenRouter for Multi-Vendor Routing
+
+The AI effect can also be backed by [OpenRouter](https://openrouter.ai),
+a single API that fronts ~100 models across many vendors. Pass a
+`vendor/model` model string (e.g., `anthropic/claude-sonnet-4.5`,
+`openai/gpt-5-mini`, or `openrouter/auto`) and AILANG dispatches the
+call through OpenRouter automatically.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+ailang run --caps IO,AI --ai openrouter/auto --entry main file.ail
+```
+
+For dynamic provider selection (fallback chains, capability requirements,
+cost preferences) see the [AI Provider Routing](./ai-routing.md) guide —
+this complements the `--ai` flag with `--routing-fallback`,
+`--routing-require`, `--routing-prefer`, and the `--allow-routing` safety
+gate.
+
 ## Related Documentation
 
+- [AI Provider Routing](./ai-routing.md) - OpenRouter routing flags and policy reference
 - [AI API Integration (HTTP)](/docs/examples/ai-api-integration) - Raw HTTP approach
 - [Effects Reference](/docs/reference/effects) - Effect system overview
 - [Module Execution](/docs/guides/module_execution) - Running AILANG modules

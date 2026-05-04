@@ -24,22 +24,22 @@ type providerAdapter struct {
 
 // newProviderAdapter creates a provider adapter for the given model.
 func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
-	providerType := guessProvider(model)
+	providerType := ai.GuessProvider(model)
 
 	var provider ai.Provider
 	switch providerType {
-	case "openai":
+	case ai.ProviderOpenAI:
 		provider = openai.NewClient(apiKey)
-	case "anthropic":
+	case ai.ProviderAnthropic:
 		provider = anthropic.NewClient(apiKey)
-	case "google":
+	case ai.ProviderGoogle:
 		// Gemini uses ADC (Application Default Credentials) via Vertex AI
 		client, err := gemini.NewVertexAIClient("")
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 		}
 		provider = client
-	case "ollama":
+	case ai.ProviderOllama:
 		// Ollama is local, strip the "ollama:" prefix for the model name
 		client, err := ollama.NewClient()
 		if err != nil {
@@ -48,7 +48,7 @@ func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
 		// Strip ollama: prefix if present
 		model = strings.TrimPrefix(model, "ollama:")
 		provider = client
-	case "openrouter":
+	case ai.ProviderOpenRouter:
 		// Strip optional explicit "openrouter:" prefix; the model name itself
 		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5").
 		model = strings.TrimPrefix(model, "openrouter:")
@@ -91,81 +91,22 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 	}, nil
 }
 
-// guessProvider determines the provider from a model name.
-// This duplicates logic from ai.GuessProvider but returns string for compatibility.
-func guessProvider(model string) string {
-	lower := strings.ToLower(model)
-
-	// Check for explicit ollama: prefix first (highest priority)
-	if strings.HasPrefix(lower, "ollama:") {
-		return "ollama"
-	}
-
-	// Explicit openrouter: prefix
-	if strings.HasPrefix(lower, "openrouter:") {
-		return "openrouter"
-	}
-
-	// OpenRouter convention: model strings are "vendor/model" with a "/" in
-	// them. Detect this BEFORE the bare-prefix checks so that
-	// "anthropic/claude-..." routes to OpenRouter, not the direct Anthropic API.
-	if strings.Contains(lower, "/") {
-		orVendors := []string{
-			"anthropic/", "openai/", "google/", "meta-llama/", "mistralai/",
-			"deepseek/", "qwen/", "nvidia/", "x-ai/", "cohere/", "openrouter/",
-		}
-		for _, v := range orVendors {
-			if strings.HasPrefix(lower, v) {
-				return "openrouter"
-			}
-		}
-	}
-
-	// Check common prefixes
-	switch {
-	case strings.HasPrefix(lower, "gpt"),
-		strings.HasPrefix(lower, "o1"),
-		strings.HasPrefix(lower, "o3"),
-		strings.HasPrefix(lower, "codex"):
-		return "openai"
-	case strings.HasPrefix(lower, "claude"):
-		return "anthropic"
-	case strings.HasPrefix(lower, "gemini"):
-		return "google"
-	}
-
-	// Check for provider keywords
-	switch {
-	case strings.Contains(lower, "openai"):
-		return "openai"
-	case strings.Contains(lower, "anthropic"):
-		return "anthropic"
-	case strings.Contains(lower, "google"), strings.Contains(lower, "vertex"):
-		return "google"
-	case strings.Contains(lower, "ollama"):
-		return "ollama"
-	}
-
-	return "unknown"
-}
-
 // getAPIKeyForProvider returns the API key for the given provider.
+// Uses ai.EnvVarForProvider as the single source of truth for provider →
+// env-var mapping.
 func getAPIKeyForProvider(provider string, model string) (string, error) {
-	var envVar string
-	switch provider {
-	case "openai":
-		envVar = "OPENAI_API_KEY"
-	case "anthropic":
-		envVar = "ANTHROPIC_API_KEY"
-	case "google":
+	providerType := ai.ProviderFromString(provider)
+	switch providerType {
+	case ai.ProviderGoogle:
 		// Google uses ADC, no API key required
 		return "", nil
-	case "ollama":
+	case ai.ProviderOllama:
 		// Ollama is local, no API key required
 		return "", nil
-	case "openrouter":
-		envVar = "OPENROUTER_API_KEY"
-	default:
+	}
+
+	envVar := ai.EnvVarForProvider(providerType)
+	if envVar == "" {
 		return "", fmt.Errorf("unsupported provider: %s (model: %s)", provider, model)
 	}
 

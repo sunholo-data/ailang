@@ -11,13 +11,79 @@ import (
 type stubProvider struct {
 	resp *Response
 	err  error
+	// lastReq is the most recent Request seen by Generate. Used by
+	// WithRoutingPolicy plumbing tests to assert req.Routing was set.
+	lastReq *Request
 }
 
-func (s *stubProvider) Generate(_ context.Context, _ *Request) (*Response, error) {
+func (s *stubProvider) Generate(_ context.Context, req *Request) (*Response, error) {
+	s.lastReq = req
 	return s.resp, s.err
 }
 
 func (s *stubProvider) Name() string { return "stub" }
+
+// TestHandler_WithRoutingPolicy_AttachesPolicyToRequest verifies that a
+// Handler constructed with WithRoutingPolicy(p) sets req.Routing on every
+// outgoing Generate. This is the M-AI-OPENROUTER follow-up plumbing: routing
+// flags on `ailang run` must reach the provider via this path.
+func TestHandler_WithRoutingPolicy_AttachesPolicyToRequest(t *testing.T) {
+	provider := &stubProvider{
+		resp: &Response{Text: "hi", Model: "openrouter/auto"},
+	}
+	policy := &AIRoutingPolicy{
+		Order:         []string{"anthropic", "openai"},
+		AllowFallback: true,
+		Prefer:        PreferCheapest,
+	}
+	h := NewHandler(provider, "openrouter/auto", WithRoutingPolicy(policy))
+	if _, err := h.Call("ping"); err != nil {
+		t.Fatalf("Call() error = %v", err)
+	}
+	if provider.lastReq == nil {
+		t.Fatal("provider.Generate not called")
+	}
+	if provider.lastReq.Routing != policy {
+		t.Fatalf("req.Routing = %+v, want pointer-equal to policy %+v",
+			provider.lastReq.Routing, policy)
+	}
+}
+
+// TestHandler_NoRoutingPolicy_LeavesRequestRoutingNil verifies the default
+// path: when WithRoutingPolicy is not used, outgoing Requests have nil
+// Routing — the existing behaviour relied on by direct providers.
+func TestHandler_NoRoutingPolicy_LeavesRequestRoutingNil(t *testing.T) {
+	provider := &stubProvider{
+		resp: &Response{Text: "hi", Model: "claude-sonnet-4-5"},
+	}
+	h := NewHandler(provider, "claude-sonnet-4-5")
+	if _, err := h.Call("ping"); err != nil {
+		t.Fatalf("Call() error = %v", err)
+	}
+	if provider.lastReq.Routing != nil {
+		t.Errorf("req.Routing = %+v, want nil when WithRoutingPolicy is unused",
+			provider.lastReq.Routing)
+	}
+}
+
+// TestHandler_WithRoutingPolicy_AppliesToCallJson verifies the policy reaches
+// the JSON-mode call path too (CallJson builds its own Request).
+func TestHandler_WithRoutingPolicy_AppliesToCallJson(t *testing.T) {
+	provider := &stubProvider{
+		resp: &Response{Text: "{}", Model: "openrouter/auto"},
+	}
+	policy := &AIRoutingPolicy{Order: []string{"anthropic"}, AllowFallback: true}
+	h := NewHandler(provider, "openrouter/auto", WithRoutingPolicy(policy))
+	if _, err := h.CallJson("ping", ""); err != nil {
+		t.Fatalf("CallJson() error = %v", err)
+	}
+	if provider.lastReq.Routing != policy {
+		t.Errorf("CallJson: req.Routing = %+v, want pointer-equal to policy", provider.lastReq.Routing)
+	}
+	if provider.lastReq.ResponseFormat != "json" {
+		t.Errorf("CallJson: ResponseFormat = %q, want \"json\"", provider.lastReq.ResponseFormat)
+	}
+}
 
 // TestHandler_LastRoutingMetadata_RoutedResponse verifies that a response
 // with RequestedModel != Model populates lastRoute on the handler so the

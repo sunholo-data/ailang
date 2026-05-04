@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	rpprof "runtime/pprof"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -62,8 +63,16 @@ func runCommand() {
 
 	// Effect handler flags
 	aiStubFlag := fs.Bool("ai-stub", false, "Enable AI effect with stub handler (returns default responses)")
-	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash)")
+	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	debugFlag := fs.Bool("debug", false, "Enable Debug effect with context (collects logs/assertions)")
+
+	// AI routing flags (M-AI-OPENROUTER follow-up). Shared with `ailang exec`
+	// via routing_flags.go. The routing policy is consumed by the OpenRouter
+	// provider only; other providers reject a non-zero policy with
+	// ai.ErrRoutingNotSupported. Safety gate: any --routing-* flag without
+	// --allow-routing fails loudly because routing introduces dynamic
+	// provider selection.
+	routingFlags := registerRoutingFlags(fs)
 
 	// Module relaxation flag
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
@@ -124,6 +133,19 @@ func runCommand() {
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Build routing policy from flags. We pass providerHint="" because `run`
+	// determines the provider from --ai <model> at handler-setup time (via
+	// ai.GuessProvider). The handler dispatch surfaces "non-openrouter
+	// provider with routing" mismatches via ai.ErrRoutingNotSupported on the
+	// first AI call, which is the right level for that error.
+	routingPolicy, routingErr := buildRoutingPolicy("",
+		*routingFlags.fallback, *routingFlags.require, *routingFlags.prefer,
+		*routingFlags.maxPrice, *routingFlags.allowRouting)
+	if routingErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
 		os.Exit(1)
 	}
 
@@ -212,10 +234,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingPolicy, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingPolicy *ai.AIRoutingPolicy, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
 	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
 	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
 	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
@@ -448,7 +470,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 					netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata,
 					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
 					processTimeout, processAllowlist, processMaxOutput,
-					aiStub, aiModel, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
+					aiStub, aiModel, aiRoutingPolicy, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
 					filename, bytecodeMode, strictBytecode)
 				if batchErr != nil {
 					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), batchErr)
@@ -503,7 +525,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
-			if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
+			if err := setupAIHandler(effCtx, aiStub, aiModel, aiRoutingPolicy); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)
 			}

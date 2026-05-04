@@ -83,27 +83,19 @@ func runExec() {
 	jsonOutput := fs.Bool("json", false, "Output result as single JSON object (for programmatic use)")
 
 	// Routing flags (consumed only by --api-only with --provider openrouter; other
-	// providers reject a non-zero policy with ai.ErrRoutingNotSupported).
-	routingFallback := fs.String("routing-fallback", "",
-		"Comma-separated provider order for OpenRouter (e.g. \"anthropic,openai,google\"); also enables fallback")
-	routingRequire := fs.String("routing-require", "",
-		"Comma-separated required model capabilities (e.g. \"structured_outputs,tool_calling\")")
-	routingPrefer := fs.String("routing-prefer", "",
-		"Routing preference: cheapest|fastest|most_reliable")
-	routingMaxPrice := fs.String("routing-max-price", "",
-		"Max price per million tokens in USD (currently parsed but not forwarded; reserved for v0.17.0)")
-	allowRouting := fs.Bool("allow-routing", false,
-		"Required acknowledgment when --routing-* flags are set; routing introduces dynamic provider selection so explicit opt-in is required")
+	// providers reject a non-zero policy with ai.ErrRoutingNotSupported). Shared
+	// registration with `ailang run` lives in routing_flags.go.
+	routing := registerRoutingFlags(fs)
 
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
-	args = normalizeArgsForFlags(args, []string{
+	normalizable := []string{
 		"workspace", "model", "timeout", "task-id", "parent-task-id",
 		"system-prompt", "api-only", "register-task", "dry-run",
 		"stream-json", "quiet", "json",
-		"routing-fallback", "routing-require", "routing-prefer", "routing-max-price",
-		"allow-routing",
-	})
+	}
+	normalizable = append(normalizable, routingFlagNames()...)
+	args = normalizeArgsForFlags(args, normalizable)
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -218,17 +210,17 @@ func runExec() {
 	streamEvents := *streamJSON && !*quiet && !*jsonOutput
 	var result *executor.Result
 	if *apiOnly {
-		routing, routingErr := buildRoutingPolicy(provider,
-			*routingFallback, *routingRequire, *routingPrefer, *routingMaxPrice, *allowRouting)
+		policy, routingErr := buildRoutingPolicy(provider,
+			*routing.fallback, *routing.require, *routing.prefer, *routing.maxPrice, *routing.allowRouting)
 		if routingErr != nil {
 			err = routingErr
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), routingErr)
 			os.Exit(1)
 		}
-		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, streamEvents, routing)
+		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, streamEvents, policy)
 	} else {
 		// Non-API-only paths don't carry routing yet; warn if user passed it.
-		if *routingFallback != "" || *routingRequire != "" || *routingPrefer != "" || *routingMaxPrice != "" {
+		if *routing.fallback != "" || *routing.require != "" || *routing.prefer != "" || *routing.maxPrice != "" {
 			fmt.Fprintf(os.Stderr, "Warning: --routing-* flags are ignored without --api-only\n")
 		}
 		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, streamEvents)
@@ -347,74 +339,6 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 
 	// Execute with streaming
 	return exec.ExecuteStreaming(ctx, task, handler)
-}
-
-// buildRoutingPolicy assembles an *ai.AIRoutingPolicy from the four routing
-// CLI flags. Returns (nil, nil) when all flags are empty (no policy).
-//
-// Validation:
-//   - routing-prefer must be one of "cheapest", "fastest", "most_reliable" (or empty).
-//   - routing-fallback / routing-require parse comma-separated lists, trimming whitespace.
-//   - routing-max-price is forwarded as a string (preserving precision); not validated
-//     for numeric format here — OpenRouter is not yet receiving it (see translatePolicy).
-//   - When the provider isn't openrouter and any routing flag is set, we return an
-//     error early rather than relying on the provider to reject it, so the CLI gives
-//     a fast, friendly diagnostic.
-//   - Safety gate: any routing flag set without allowRouting=true returns a typed
-//     error before submitting the request. Routing introduces dynamic provider
-//     selection, so explicit opt-in is required. This is the runtime equivalent
-//     of the design doc's AI[Routeable] type-level marker.
-func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string, allowRouting bool) (*ai.AIRoutingPolicy, error) {
-	if fallback == "" && require == "" && prefer == "" && maxPrice == "" {
-		return nil, nil
-	}
-	if !allowRouting {
-		return nil, fmt.Errorf("routing flags set but --allow-routing not enabled.\n" +
-			"Routing introduces dynamic provider selection; pass --allow-routing\n" +
-			"to acknowledge this is intentional")
-	}
-	if provider != "openrouter" {
-		return nil, fmt.Errorf("--routing-* flags require --provider openrouter (got %q)", provider)
-	}
-
-	p := &ai.AIRoutingPolicy{}
-
-	if fallback != "" {
-		for _, s := range strings.Split(fallback, ",") {
-			s = strings.TrimSpace(s)
-			if s != "" {
-				p.Order = append(p.Order, s)
-			}
-		}
-		// Specifying a fallback list implies AllowFallback=true.
-		p.AllowFallback = true
-	}
-
-	if require != "" {
-		for _, s := range strings.Split(require, ",") {
-			s = strings.TrimSpace(s)
-			if s != "" {
-				p.Require = append(p.Require, ai.AICapability(s))
-			}
-		}
-	}
-
-	switch prefer {
-	case "":
-		// no-op
-	case "cheapest":
-		p.Prefer = ai.PreferCheapest
-	case "fastest":
-		p.Prefer = ai.PreferFastest
-	case "most_reliable":
-		p.Prefer = ai.PreferMostReliable
-	default:
-		return nil, fmt.Errorf("--routing-prefer must be one of cheapest|fastest|most_reliable (got %q)", prefer)
-	}
-
-	p.MaxPricePerMTok = maxPrice
-
-	return p, nil
 }
 
 // executeAPI uses the API provider directly (no file editing)
