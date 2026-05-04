@@ -473,6 +473,56 @@ export func main() -> () ! {IO} { println("hi") }
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
 
+### Parameterised Effects (v0.15.0+)
+
+Effect rows can carry `[key=value]` parameters that ride alongside the
+effect name. Phase 1 ships the syntax and unification rules; the
+runtime currently treats all modes identically (mode-aware dispatch
+lands later).
+
+```ailang
+-- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
+func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+
+-- Same effect signature as bare !{Rand}; unifies via default-desugar.
+func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+
+-- Distinct mode — does NOT unify with mode=os under invariant rules.
+func deterministic() -> int ! {Rand[mode=seeded]} = {
+  rand_seed(42);
+  rand_int(1, 100)
+}
+```
+
+**Rules:**
+- Bare `!{Rand}` is shorthand for `!{Rand[mode=os]}`.
+- Different param values do NOT unify: `!{Rand[mode=os]}` and
+  `!{Rand[mode=seeded]}` are distinct effect rows.
+- v0.15.0 ships two default-mode entries: `Rand → mode=os` and
+  `AI → mode=fixed`. Other effects (`IO`, `FS`, `Net`, `Env`, ...)
+  have no params yet — write `!{IO}`, not `!{IO[...]}`.
+- Mode set is closed (compiler-known per effect); user code cannot
+  introduce new modes.
+
+See [Parameterised Effects guide](https://ailang.sunholo.com/docs/guides/parameterised-effects).
+
+**AI modes (v0.15.0+):**
+
+```ailang
+-- Bare !{AI} desugars to !{AI[mode=fixed]} (direct provider call).
+func summarize(text: string) -> string ! {AI} = call(text)
+
+-- !{AI[mode=routeable]} opts into runtime provider routing
+-- (e.g. OpenRouter). Skips the --allow-routing CLI gate.
+func summarize_routed(text: string) -> string ! {AI[mode=routeable]} = call(text)
+```
+
+Rules:
+- Different param values do NOT unify: `!{AI[mode=fixed]}` and
+  `!{AI[mode=routeable]}` are distinct.
+- Bare `!{AI}` continues to work; existing programs unchanged.
+- See [AI Routing guide](https://ailang.sunholo.com/docs/guides/ai-routing) for routing flags.
+
 ### Debug Effect — True Ghost Effect for Logging
 
 **Debug is a ghost effect** — fully invisible to callers, zero-cost in release mode. Use `Debug` instead of `IO` (println) for logging in packages. No effect declarations, no --caps, no config needed:
@@ -1480,8 +1530,14 @@ ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail  # Anthropic
 ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail         # OpenAI
 ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google
 ailang run --caps IO,AI --ai ollama:llama3 --entry main file.ail     # Ollama (local)
+ailang run --caps IO,AI --ai openrouter/auto --entry main file.ail   # OpenRouter (~100 models)
 ailang run --caps IO,AI --ai-stub --entry main file.ail              # Testing stub
 ```
+
+**Model strings**: plain provider names (`claude-sonnet-4-5`, `gemini-2-5-flash`)
+hit that vendor directly. `vendor/model` strings (`anthropic/claude-sonnet-4.5`,
+`openai/gpt-5-mini`, `openrouter/auto`) route through OpenRouter — needs
+`OPENROUTER_API_KEY`.
 
 **Authentication setup (required before using `--ai`):**
 

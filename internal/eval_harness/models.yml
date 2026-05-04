@@ -1173,6 +1173,35 @@ models:
   # don't add models to the curated eval suite until they pass smoke.
   # =================================================================
 
+  or-glm-5:
+    api_name: "z-ai/glm-5"
+    provider: "openrouter"
+    description: "GLM 5 (z.ai) via OpenRouter — first OS PASS 3/3 smoke (added v0.15.0)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "glm-5"
+    pricing:
+      input_per_1k: 0.0006   # $0.60 per 1M
+      output_per_1k: 0.00208 # $2.08 per 1M
+    notes: |
+      Standard-eval companion to opencode-or-glm-5. Both share api_name and
+      provider; opencode-* variant adds agent_cli for opencode harness.
+      Use for direct (single-call) eval mode. Recommended by Motoko for AILANG.
+
+  or-minimax-m2-7:
+    api_name: "minimax/minimax-m2.7"
+    provider: "openrouter"
+    description: "MiniMax M2.7 via OpenRouter — second OS PASS 3/3 smoke (added v0.15.0)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "minimax-m2"
+    pricing:
+      input_per_1k: 0.0003   # $0.30 per 1M
+      output_per_1k: 0.0012  # $1.20 per 1M
+    notes: |
+      Standard-eval companion to opencode-or-minimax-m2-7. Cheapest OS PASS
+      model in the spread ($0.30/$1.20 per 1M).
+
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
@@ -1249,6 +1278,8 @@ extended_suite:
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
   - "gemini-3-flash"   # Google fast + cheap (Dec 2025)
+  - "or-glm-5"         # z.ai GLM 5 via OpenRouter — first OS PASS smoke (added v0.15.0)
+  - "or-minimax-m2-7"  # MiniMax M2.7 via OpenRouter — second OS PASS smoke (added v0.15.0)
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
@@ -1268,6 +1299,8 @@ agent_suite:
   - "gemini-3-flash"        # agent_cli: "gemini"    — Google cheap (already lowest tier)
   - "gpt5-4-mini"           # agent_cli: "codex"     — OpenAI cheap (was gpt5-4, swapped to keep cost down)
   - "opencode-sonnet-4-6"   # agent_cli: "opencode"  — Sonnet via opencode (cross-harness pair to claude-sonnet-4-6)
+  - "opencode-or-glm-5"     # agent_cli: "opencode"  — GLM 5 via OpenRouter (PASS smoke 3/3, 2026-05-04, first OS) — added v0.15.0
+  - "opencode-or-minimax-m2-7" # agent_cli: "opencode" — MiniMax M2.7 via OpenRouter (PASS smoke 3/3, 2026-05-04, cheapest OS) — added v0.15.0
 
 # Language × Harness suite - cheapest model per harness for 4-language sweep
 # Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)

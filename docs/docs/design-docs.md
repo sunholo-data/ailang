@@ -10,8 +10,11 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.16.x
 
+- [M-AI-OPENROUTER: OpenRouter Provider with Routable Model Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
+- [Sprint Plan: M-AI-OPENROUTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-sprint-plan.md)
 - [Sprint Plan: M-PKG-AUTONOMOUS-CASCADE-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe-sprint-plan.md)
 - [M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe.md)
+- [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-cascade-deterministic-first.md)
 
 ## v0.16.0
 
@@ -20,8 +23,14 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.15.x
 
+- [Sprint Plan: M-AI-EFFECT-MODES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ai-effect-modes-sprint-plan.md)
+- [M-AI-EFFECT-MODES: AI Effect Modes (mode=fixed|routeable|replay-only, scope=byok)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ai-effect-modes.md)
 - [Sprint Plan: M-CI-BUILD-SPEED (Cut multivac CI from ~25min to ~5min)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed-sprint-plan.md)
 - [M-CI-BUILD-SPEED: Cut multivac build time from ~25min to ~5min](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed.md)
+- [Sprint Plan: M-EFFECT-REFINEMENT-PHASE1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-effect-refinement-phase1-sprint-plan.md)
+- [M-EFFECT-REFINEMENT Phase 1: Parameterised Effect Syntax + Row Algebra (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md)
+- [M-MAC-NOTIFY-DAEMON — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-mac-notify-daemon-sprint-plan.md)
+- [M-MAC-NOTIFY-DAEMON: Mac Notification Daemon for Cloud Events](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-mac-notify-daemon.md)
 - [Sprint Plan: M-SMT-CROSS-MODULE-FUNCTIONS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-smt-cross-module-functions-sprint-plan.md)
 - [M-SMT-CROSS-MODULE-FUNCTIONS: Z3 verification of imported function calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-smt-cross-module-functions.md)
 
@@ -946,4 +955,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 694 design documents across 80 versions.*
+*Generated at build time. 705 design documents across 80 versions.*

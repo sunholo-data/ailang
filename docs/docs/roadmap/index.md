@@ -30,17 +30,25 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
-## Planned for v0.16.x
+## Planned for v0.17.0
 
-- [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_x/m-pkg-cascade-deterministic-first.md)
+- [M-AI-STREAMING-HELPER Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper-sprint-plan.md)
+- [M-AI-STREAMING-HELPER: AI Token Streaming Helper + Cross-Domain Discovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md)
+- [Sprint Plan: M-AI-TOOL-LOOP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-tool-loop-sprint-plan.md)
+- [M-AI-TOOL-LOOP: Multi-Turn AI Tool Dispatch (`std/ai.step` / `runTools`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-tool-loop.md)
+- [M-BENCH-MOTOKO: Motoko Agent as a Benchmark Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-bench-motoko-executor.md)
+- [M-EXTERNAL-CONSUMER-DX: Diagnostics & Artifacts for External AILANG Projects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx.md)
 
 ## Planned for v0.16.0
 
 - [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-agent-safe-runner.md)
+- [M-AI-EFFECT-MODES-FOLLOWUPS: Close the Loose Ends from v0.15.0 AI Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-ai-effect-modes-followups.md)
 
 ## Planned for v0.15.0
 
+- [M-AI-PROVIDER-CONFIG: Config-Driven AI Providers via Package Manifests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md)
 - [M-BENCHMARK-SECTION: Multi-Page Benchmark Section for AILANG Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-benchmark-section-redesign.md)
+- [M-CASCADE-OBSERVABILITY: Surface Cascade AI Conversation History](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-cascade-observability.md)
 - [M-EVAL-GAP-FIXES: Eval-discovered AILANG and harness improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-gap-fixes.md)
 - [M-EVAL-RESULTS-FOLDER-STRUCTURE: Model-First Eval Results Layout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-results-folder-structure.md)
 - [M-EVAL-TRUST-SIGNALS: External Trust Signals for AILANG Eval Results](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-trust-signals.md)
@@ -132,4 +140,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 88 planned features across 7 upcoming versions.*
+*Generated at build time. 96 planned features across 7 upcoming versions.*
