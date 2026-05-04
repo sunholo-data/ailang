@@ -226,7 +226,7 @@ template when writing parameterised-effect code.
 - [M-AI-OPENROUTER (v0.16.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
   — runtime `--allow-routing` gate that Phase 5 of the parent doc
   subsumes as `!{AI[mode=routeable]}`.
-- [Effects reference](../reference/effects.mdx) — the catalogue of
+- [Effects reference](../reference/effects.md) — the catalogue of
   effects today, none of which yet declare parameters except `Rand`.
 - [`internal/types/effects.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/types/effects.go)
   — `defaultEffectModes` table, `DefaultModeFor`,

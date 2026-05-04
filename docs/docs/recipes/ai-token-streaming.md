@@ -261,7 +261,7 @@ All streaming functions require `! {AI, Stream, Net}`:
 - **`Stream`**: SSE event-loop machinery
 - **`Net`**: underlying HTTP POST
 
-This is intentionally stricter than `std/stream.sseConnect` (which needs only `Stream`) — without the `AI` cap, AILANG cannot enforce per-provider cost ceilings. The architectural decision is documented in [m-ai-provider-config.md D11](../../design_docs/planned/v0_15_0/m-ai-provider-config.md) and the [streaming-helper design doc](../../design_docs/planned/v0_17_0/m-ai-streaming-helper.md).
+This is intentionally stricter than `std/stream.sseConnect` (which needs only `Stream`) — without the `AI` cap, AILANG cannot enforce per-provider cost ceilings. The architectural decision is documented in [m-ai-provider-config.md D11](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md) and the [streaming-helper design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md).
 
 ## v1 limitations
 

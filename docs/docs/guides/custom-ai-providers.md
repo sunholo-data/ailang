@@ -202,4 +202,4 @@ If you hit a limitation, file feedback via the MCP `submit_feedback` tool or ope
 - [Design doc: M-AI-PROVIDER-CONFIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md) — architectural reasoning
 - [Design doc: motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md) — the external-consumer evidence base for this milestone
 - [`std/ai`](./ai-effect.mdx) — the `AI` effect this dispatches through
-- [`std/stream`](../runnable/stream_sse.ail) — the SSE infrastructure consumed by streaming providers (v0.17.0)
+- [`std/stream`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/stream_sse.ail) — the SSE infrastructure consumed by streaming providers (v0.17.0)
