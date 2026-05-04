@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -96,12 +97,16 @@ func TestRegisterConfigDrivenProviders_CrossPackageDuplicate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected duplicate-name error across packages")
 	}
-	// Error must reference both source manifest paths so user can resolve
-	if !strings.Contains(err.Error(), "/tmp/pkg/a/ailang.toml") ||
-		!strings.Contains(err.Error(), "/tmp/pkg/b/ailang.toml") {
+	// Error must reference both source manifest paths so user can resolve.
+	// Normalize to forward slashes for portability — Windows filepath.Abs
+	// turns /tmp/... into D:\tmp\..., so a literal Contains("/tmp/...") miss
+	// would be a path-separator artefact, not a behavior gap.
+	errNorm := filepath.ToSlash(err.Error())
+	if !strings.Contains(errNorm, "pkg/a/ailang.toml") ||
+		!strings.Contains(errNorm, "pkg/b/ailang.toml") {
 		t.Errorf("error must name both manifests, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "vllm") {
+	if !strings.Contains(errNorm, "vllm") {
 		t.Errorf("error must mention provider name, got: %v", err)
 	}
 }
