@@ -1,10 +1,11 @@
 # M-MAC-NOTIFY-DAEMON: Mac Notification Daemon for Cloud Events
 
 **Status**: Planned
-**Target**: v1.0.0
-**Priority**: P1 — required for human-in-the-loop approval workflow on laptop
-**Estimated**: 1-2 days
-**Source**: Need to know when cloud agents need approval or complete tasks
+**Target**: v0.15.0
+**Priority**: P1 — required for human-in-the-loop approval workflow on laptop and real-time external feedback (`public-feedback` inbox)
+**Estimated**: 2-3 days
+**Source**: Need to know when cloud agents need approval, when tasks complete, or when external agents file public feedback via the MCP `submit_feedback` tool. Pulled forward from v1.0.0 to v0.15.0 after motoko_agent integration surfaced the need for real-time public-feedback notification (the SessionStart hook in `scripts/hooks/check_public_feedback.sh` only fires at session start; this daemon adds between-session pings).
+**Supersedes**: `M5: Minimum-viable feedback notifier` carve-out in [m-pkg-feedback-loop.md](m-pkg-feedback-loop.md)
 
 ---
 
@@ -36,6 +37,7 @@ A persistent background process (`ailang daemon`) that:
 | `TaskStreamEvent{status: "completed"}` | Task finished successfully | "✅ Task done" | `{agent}: {task_title} ({turns} turns, ${cost})` |
 | `TaskStreamEvent{status: "failed"}` | Task failed | "❌ Task failed" | `{agent}: {task_title} — {error}` |
 | `InboxMessage` on `messages-laptop` sub | New message from agent | "✉️ Message from {from}" | `{title}: {preview}` |
+| `InboxMessage` with `to_inbox=public-feedback` | External feedback via MCP | "🌐 External feedback" | `[{category}] {title}` (click → Firestore doc URL) |
 | Package published to registry | Registry update | "📦 Package published" | `{vendor}/{name} v{version}` |
 
 ### Click action

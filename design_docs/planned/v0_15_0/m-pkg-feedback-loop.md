@@ -110,7 +110,9 @@ Suspects to audit:
 
 Each fix is ~5-15 LOC. Estimate ~5-7 commands need the same change. Total ~80 LOC across all of them. Add a regression test that picks one CLI command and asserts it honors AILANG_STORAGE=gcp by checking which env var was read.
 
-### M5: Minimum-viable notifier for new feedback (carve-out from M-MAC-NOTIFY-DAEMON)
+### M5: Minimum-viable notifier for new feedback (carve-out from M-MAC-NOTIFY-DAEMON) — **SUPERSEDED**
+
+> **Status (2026-05-04): Superseded by full [M-MAC-NOTIFY-DAEMON](m-mac-notify-daemon.md), pulled forward from v1.0.0 to v0.15.0.** The full sprint subsumes this carve-out: the public-feedback handler ships as part of the umbrella `ailang daemon` command, and removal of `scripts/hooks/check_public_feedback.sh` is handled there. This M5 section is retained for historical context only and **must not be implemented separately** — sprint-executor should treat this milestone as already completed via the full daemon sprint.
 
 The user's immediate need is "tell me when new public-feedback or pkg:* feedback arrives". The full M-MAC-NOTIFY-DAEMON design (planned, not implemented) covers task approvals, completions, registry events, etc. — too big for this sprint.
 
