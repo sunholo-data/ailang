@@ -24,7 +24,7 @@ const (
 var openrouterVendorPrefixes = []string{
 	"anthropic/", "openai/", "google/", "meta-llama/", "mistralai/",
 	"deepseek/", "qwen/", "nvidia/", "x-ai/", "cohere/", "openrouter/",
-	"moonshotai/", "microsoft/", "z-ai/", // M-AI-EFFECT-MODES eval-suite expansion (May 2026)
+	"moonshotai/", "microsoft/", "z-ai/", "minimax/", // M-AI-EFFECT-MODES eval-suite expansion (May 2026)
 }
 
 // ModelConfig contains provider-specific model configuration.

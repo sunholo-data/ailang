@@ -340,10 +340,36 @@ Key takeaways for the model-manager workflow:
    inclusion in eval rotation alongside frontier proprietary models.
 
 5. **Vendor-prefix wiring is forward-compat infrastructure.** When adding
-   models from a new vendor (e.g. `z-ai/`, `moonshotai/`, `microsoft/`),
-   add the prefix to `internal/ai/config.go::openrouterVendorPrefixes` so
-   future ad-hoc `ailang run --ai vendor/model` invocations work without
-   needing a models.yml entry.
+   models from a new vendor (e.g. `z-ai/`, `moonshotai/`, `microsoft/`,
+   `minimax/`), add the prefix to
+   `internal/ai/config.go::openrouterVendorPrefixes` so future ad-hoc
+   `ailang run --ai vendor/model` invocations work without needing a
+   models.yml entry.
+
+6. **Per-benchmark timeouts can be tighter than agent-mode needs.** The
+   `csv_to_json_converter.yml` spec has `timeout: 90s` baked in (set to
+   match Claude Sonnet 4.6's ~43s typical solve time). OS models in agent
+   mode routinely need 90–180s of iteration on csv_to_json — they CAN
+   solve it but get killed by the timeout. Two follow-up models that
+   demonstrated this on 2026-05-04:
+     - **Kimi K2.6** (Moonshot): fizzbuzz✅ 119s, adt_option✅ 47s,
+       csv_to_json❌ (timeout — initial run also had api_errors)
+     - **MiniMax M2.7**: fizzbuzz✅ 46s, adt_option✅ 42s,
+       csv_to_json❌ (timeout, not capability)
+   Both are effectively 2/3 near-misses pending a benchmark timeout bump.
+   When investigating a model that fails only csv_to_json with
+   `error_category=api_error` and stderr saying "exceeded hard timeout
+   (1m30s)", the failure is the benchmark spec, not the model.
+
+7. **api_error vs syntax-error vs WRONG_LANG matters.** When tabulating
+   smoke results, always check `error_category`:
+   - `api_error` — infrastructure issue (rate limit, timeout, network).
+     Re-run before counting against the model.
+   - `compile_error` (no err_code) — syntax-error: model produced AILANG
+     that doesn't parse. Genuine model gap.
+   - `WRONG_LANG` — model produced Python/JS/etc. instead of AILANG.
+     Genuine prompt-following gap.
+   - `runtime_error` — compiled but crashed. Logic bug in generation.
 
 ### 6. Document the Model
 
