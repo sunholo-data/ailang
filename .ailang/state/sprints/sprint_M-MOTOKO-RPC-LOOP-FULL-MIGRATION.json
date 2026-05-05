@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MOTOKO-RPC-LOOP-FULL-MIGRATION",
-  "status": "ready",
+  "status": "in_progress",
   "blocked_reason": null,
   "created": "2026-05-05T20:30:00Z",
   "design_doc": "motoko_agent/design_docs/planned/m-motoko-rpc-loop-full-migration.md",
@@ -101,10 +101,10 @@
         "Smoke test scripts/smoke_v2_intercept.ail with synthetic Accept stub passes",
         "make check_core still passes (currently 22/22)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-05T22:53:00Z",
+      "completed": "2026-05-05T22:55:30Z",
+      "notes": "M3 wired both dispatch_response_intercept (DP1a) and dispatch_solver_candidate (DP1b) into agent_loop_v2.loop_v2. ResponseInterceptDecision (InterceptHandled / NoIntercept) and FinalizeDecision (Accept / ContinueWithFeedback / NoDecision) handled per the rpc.ail behavior pattern. Added envelope_to_tool_message + mk_v2_ext_ctx + messages_to_msgs helpers. run_v2 signature extended with rt/task/env_url/hybrid_tools/budget params. rpc.ail call site updated. M3 smoke (scripts/smoke_v2_intercept.ail) PASS against real OpenRouter+GLM-5 with empty extension registry. make check_core: 22/22 still passes. ~150 LOC added per estimate."
     },
     {
       "id": "M4_TOOL_GATING_POLICY",
