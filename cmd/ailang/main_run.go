@@ -21,7 +21,15 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/term"
 )
+
+// isStdoutTTY reports whether stdout is connected to a terminal. Used to
+// decide whether to enable the M-PERF6B 64KB stdout buffer (terminal: yes,
+// pipe: no — see comment at the buffer construction site for context).
+func isStdoutTTY() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
 
 func runCommand() {
 	// Parse run subcommand flags
@@ -510,8 +518,27 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			grantCapabilities(effCtx, caps)
 
 			// M-PERF6B: Buffer stdout writes to reduce syscall overhead from println
+			// — but only when stdout is a terminal. Long-running programs that
+			// emit JSON events to a piped stdout (e.g. motoko_agent's TS frontend
+			// reading the AILANG runtime's stdout) need real-time line delivery,
+			// not block-buffered batches. With a 64KB buffer, small events sit in
+			// memory until the buffer fills or the process exits — the agent loop
+			// never exits during a turn, so events never reach downstream
+			// consumers. Detect non-TTY and skip buffering in that case.
+			//
+			// Caught while running motoko_agent end-to-end on AILANG v0.15.x:
+			// every agent turn produced 0 visible events at the TUI because all
+			// thinking_stream_*, thinking_delta, session_start, etc. JSON lines
+			// stayed buffered. See https://github.com/arniwesth/motoko_agent/pull/3
 			stdoutBuf := bufio.NewWriterSize(os.Stdout, 64*1024) // 64KB buffer
-			effCtx.IOWriter = stdoutBuf
+			if isStdoutTTY() {
+				effCtx.IOWriter = stdoutBuf
+			} else {
+				// Piped stdout: emit each println directly so downstream
+				// line-readers (TS env-servers, logging pipes, journalctl, etc.)
+				// see events in real time.
+				effCtx.IOWriter = os.Stdout
+			}
 
 			// OTEL: Wire Go context and span wrapper for effect tracing
 			effCtx.GoCtx = ctx
