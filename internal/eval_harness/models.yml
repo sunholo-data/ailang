@@ -904,7 +904,7 @@ models:
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
     provider: "openrouter"
-    description: "GLM 4.7 Flash (z.ai) via opencode+OpenRouter (NEAR-MISS: 2/3 agent smoke)"
+    description: "GLM 4.7 Flash (z.ai) via opencode+OpenRouter — PROMOTED 3/3 PASS 2026-05-05 with v0.16.0 budgets"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-4.7-flash"
@@ -918,9 +918,13 @@ models:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
-      Smoke 2026-05-04: agent 2/3 (csv failed). Cheaper z.ai variant
-      pairing with GLM 5. Cheapest agent-mode entry — useful for
-      high-volume eval where pass-rate >2/3 is acceptable.
+      Smoke 2026-05-04 (60s opencode hard timeout): agent 2/3, csv failed.
+      Re-smoke 2026-05-05 (M-EVAL-COST-AND-SPEED-BUDGETS,
+      budgets:hard_timeout_secs=600): agent 3/3 PASS — fizzbuzz 22s,
+      adt_option 18s, csv_to_json 131s (was killed by 60s cap before).
+      PROMOTED to agent_suite v0.16.0. Validates the timeout-as-budget
+      misclassification — capability was real, just slow. Cheapest z.ai
+      variant pairing with GLM 5; cheapest agent-mode entry overall.
 
   # ---- More NEAR-MISSES (effectively 2/3; csv_to_json timeout is benchmark-spec, not capability) ----
   #
@@ -1318,6 +1322,7 @@ agent_suite:
   - "opencode-sonnet-4-6"   # agent_cli: "opencode"  — Sonnet via opencode (cross-harness pair to claude-sonnet-4-6)
   - "opencode-or-glm-5"     # agent_cli: "opencode"  — GLM 5 via OpenRouter (PASS smoke 3/3, 2026-05-04, first OS) — added v0.15.0
   - "opencode-or-minimax-m2-7" # agent_cli: "opencode" — MiniMax M2.7 via OpenRouter (PASS smoke 3/3, 2026-05-04, cheapest OS) — added v0.15.0
+  - "opencode-or-glm-4-7-flash" # agent_cli: "opencode" — GLM 4.7 Flash via OpenRouter (PASS smoke 3/3 with budgets:hard_timeout_secs=600, 2026-05-05) — added v0.16.0 via M-EVAL-COST-AND-SPEED-BUDGETS
 
 # Language × Harness suite - cheapest model per harness for 4-language sweep
 # Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)

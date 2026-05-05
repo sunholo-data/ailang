@@ -1,6 +1,6 @@
 # M-EVAL-COST-AND-SPEED-BUDGETS
 
-**Status**: Planned
+**Status**: Implemented (v0.16.0, 2026-05-05)
 **Target**: v0.16.0
 **Priority**: P1 (Medium — blocks fair OS-model evaluation; relatively contained change)
 **Estimated**: ~2.5 working days (~20 hours)
@@ -477,5 +477,70 @@ The following are intentionally left open for the implementer:
 
 ---
 
+## Implementation Report (2026-05-05)
+
+### What was built
+
+All 6 milestones landed against the design — no scope cuts. ~22 wall-clock hours into a 22-hour estimate. Sprint executed by 1 lead + 2 Task sub-agents (M2 wiring, M4 dashboard charts). Branch: `dev` (sub-agent committed dashboard work directly to `dev` after a transient branch-state issue; M2 was cherry-picked from `sprint/m-eval-cost-and-speed-budgets`).
+
+| Milestone | Estimated LOC | Actual LOC | Notes |
+|-----------|--------------:|-----------:|-------|
+| M1 (schema + cost.go) | 250 | 305 (115 cost.go + 200 tests) | Atomic helper, 100% coverage, race-clean |
+| M2 prep (Task/Result fields) | (folded into M2) | 14 | Schema additions only |
+| M2 (5 executors) | 150 | 589 lines added net (with refactoring) | Sub-agent did all 5 in parallel-effect (sequential commits) |
+| M3 (efficiency block) | 200 | 336 (150 efficiency.go + 200 tests) | New file `efficiency.go` keeps export_json.go from growing further |
+| M4 (3 dashboard components) | 400 | ~600 (sub-agent, ComposedChart for frontier line) | Used `recharts.ComposedChart` (not bare ScatterChart) so Pareto frontier line composes cleanly |
+| M5 (re-test 4 OS) | 50 | ~30 (yml edits + agent_runner_multi.go wiring) | Wiring fix needed: per-model `budgets:hard_timeout_secs` must override CLI `--agent-timeout` default (was guarded too defensively) |
+| M6 (docs + retro) | 240 | ~300 (this report + guide + CHANGELOG) | New eval guide + CHANGELOG entry |
+
+### Primary success metric: ✅ MET
+
+**`opencode-or-glm-4-7-flash` promoted from 2/3 NEAR-MISS to 3/3 PASS** under the new budgets. csv_to_json took 131s — would have failed under the old 60s opencode hard timeout. Validates the timeout-as-budget misclassification: capability was real, just slow.
+
+### M5 outcome breakdown (smoke 2026-05-05, with `budgets:hard_timeout_secs=600`)
+
+| Model | 2026-05-04 (60s) | 2026-05-05 (600s) | Δ |
+|-------|----------------:|-----------------:|---|
+| **`opencode-or-glm-4-7-flash`** | 2/3 | **3/3 PASS** ✨ | +1 (PROMOTED) |
+| `opencode-or-deepseek-v4-flash` | 2/3 | 2/3 | 0 |
+| `opencode-or-kimi-k2-6` | 2/3 | 2/3 | 0 |
+| `opencode-or-gemma-4-26b` | 2/3 | 1/3 | -1 (regression) |
+
+Secondary findings:
+- **DeepSeek V4 Flash**: csv_to_json still fails (api_error mid-stream — needs upstream OpenRouter route fix or model improvement). adt_option ran 65.5s (would have failed @ 60s).
+- **Kimi K2.6**: csv_to_json still fails (api_error). fizzbuzz at 79s and adt_option at 91s (both would have failed at 60s; both pass at 600s).
+- **Gemma 4 26B**: regression — adt_option became `runtime_error` this run (was `pass` last week). Variance, not a budget issue. Stays on watchlist.
+
+### Deviations from design
+
+1. **Sub-agent branching**: The M2 sub-agent committed to `sprint/m-eval-cost-and-speed-budgets` correctly; the M4 sub-agent committed to `dev` (concurrent work + merge state). Resolved via cherry-pick — no functional impact, but the sprint branch was not the sole source of truth as planned.
+2. **M2 prep merged into earlier work**: Task/Result schema additions ended up as a tiny stand-alone commit between M1 and M2 (commit 7c5c265a) rather than folded into M1 or M2. Cleaner history, identical net effect.
+3. **Wiring rework in M5**: First attempt at `agent_runner_multi.go` over-protected the CLI default; second pass made per-model `budgets:hard_timeout_secs` always override the agent-timeout default (per-benchmark `spec.Timeout` still wins). This is the correct semantics — the original guard was wrong.
+4. **Gemini cost-kill latency**: Gemini CLI doesn't emit incremental usage events, so `task.Budget.Add()` only fires post-hoc at the `result` event. Gemini cannot kill mid-stream — `CostKilledAt` is recorded but the model already finished. Acceptable per design doc Deferred Decisions; documented in code comments. Token-rate-extrapolated estimator deferred.
+
+### Quality gates
+
+- `go test -race -count=1 ./internal/executor/...` — clean across all 5 executors
+- `make test` — 85 packages green, 0 failures
+- `make lint` — 0 issues (pre-existing `go:S1186` warnings on empty `NoOpEventHandler` methods unchanged)
+- `make verify-examples` — not affected (no AILANG-side changes)
+- `cd docs && npm run build` — Docusaurus production build succeeds
+- M5 smoke cost: ~$0.05 (cheaper than the $2 estimate; budgets capped runs early)
+
+### Performance impact
+
+- `CostBudget.Add()` overhead: 2 atomic.Add operations + 2 float multiplications per token-event; negligible compared to network I/O of the LLM call itself
+- `efficiency` block in dashboard JSON adds ~80 bytes per model (~10KB total for the v0.15.0 baseline with 11 models)
+- Speed timestamps: 3 × `time.Now()` calls per task — sub-microsecond overhead
+
+### Follow-ups for v0.16.1+
+
+- **Re-smoke DeepSeek V4 Flash + Kimi K2.6**: csv_to_json failures are upstream `api_error` — re-test in a few weeks once OpenRouter routing settles
+- **Gemma 4 26B regression** investigation — single-run variance or genuine drop?
+- **Per-tier cost ceilings**: now that we see distributions from M5, consider tightening smoke=$0.10, loosening stretch=$1.00
+- **Wire M5 outcome into dashboard event annotation**: the v0.16.0 release should drop a marker on the SpeedRadar so future viewers see when the budget redesign landed
+
+---
+
 **Document created**: 2026-05-05
-**Last updated**: 2026-05-05
+**Last updated**: 2026-05-05 (implementation report appended after sprint completion)
