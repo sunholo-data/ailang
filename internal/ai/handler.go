@@ -305,3 +305,32 @@ func (h *Handler) Provider() Provider {
 func (h *Handler) Model() string {
 	return h.model
 }
+
+// Step implements effects.AIHandler.Step (M-AI-TOOL-LOOP, v0.17.0). It
+// dispatches to the bound provider's Step method, wiring the per-call
+// model + handler-bound system prompt + max-tokens + routing policy onto
+// the request, and forwards Messages + Tools verbatim. Errors flow back
+// unchanged — the effect-op layer wraps them into *AIError before
+// returning Err(AIError record) to AILANG.
+//
+// Note: the model parameter is per-call routable; the handler-bound model
+// (h.model) is used only as a default when model == "".
+func (h *Handler) Step(model string, messages []Message, tools []ToolSchema) (*Response, error) {
+	chosenModel := model
+	if chosenModel == "" {
+		chosenModel = h.model
+	}
+	resp, err := h.provider.Step(context.Background(), &Request{
+		Model:        chosenModel,
+		SystemPrompt: h.systemPrompt,
+		MaxTokens:    h.maxTokens,
+		Routing:      h.routingPolicy,
+		Messages:     messages,
+		Tools:        tools,
+	})
+	h.captureRoute(resp, err)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

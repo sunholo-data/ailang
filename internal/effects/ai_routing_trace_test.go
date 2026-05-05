@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
@@ -34,6 +35,12 @@ func (h *routingStubHandler) CallImageBase64(_, _ string) (string, error) {
 
 func (h *routingStubHandler) LastRoutingMetadata() *trace.ResolvedRoute {
 	return h.route
+}
+
+// Step satisfies the M-AI-TOOL-LOOP extension to AIHandler. These tests
+// only exercise Call/CallJson, so the stub returns a fixed response.
+func (h *routingStubHandler) Step(model string, _ []ai.Message, _ []ai.ToolSchema) (*ai.Response, error) {
+	return &ai.Response{Text: h.response, FinishReason: "stop", Model: model}, nil
 }
 
 // TestAICall_RecordsTraceEventWithRoute verifies that aiCall emits an

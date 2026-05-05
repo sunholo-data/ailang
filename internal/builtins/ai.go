@@ -14,6 +14,10 @@ func init() {
 	registerAICallImageBase64()
 	registerAIStreamCall()
 	registerAICallStream()
+	// M-AI-TOOL-LOOP (v0.17.0) — Result-returning + multi-turn variants
+	registerAICallResult()
+	registerAICallJsonResult()
+	registerAIStep()
 }
 
 // _ai_call: Call the AI oracle with a string input

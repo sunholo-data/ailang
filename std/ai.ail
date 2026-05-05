@@ -49,6 +49,116 @@
 
 module std/ai
 
+import std/result (Result, Ok, Err)
+
+-- ============================================================================
+-- Multi-turn / tool-aware types (M-AI-TOOL-LOOP, v0.17.0)
+-- ============================================================================
+--
+-- AIError is the canonical typed error returned by Result-returning AI calls.
+-- Shape mirrors std/ai/streaming.AIError byte-for-byte. Field semantics:
+--   code      : one of AuthFailed | RateLimit | Timeout | ConnectionFailed |
+--               BudgetExhausted | ProviderNotFound | CapabilityNotSupported |
+--               ProtocolError | ModelNotAllowed | ContextLength |
+--               SchemaValidation | ToolsNotSupported | ModelNotFound | Internal
+--   message   : human-readable, may include provider name verbatim
+--   retryable : true for transient/network/load conditions; false for
+--               configuration / auth / schema mismatches
+export type AIError = {
+  code: string,
+  message: string,
+  retryable: bool
+}
+
+-- ToolCall is one tool invocation emitted by the model in a step response.
+-- The host dispatches it (looking up `name` in the registered tool catalog),
+-- then feeds the result back as a Message with role="tool" and tool_call_id
+-- matching this id.
+--
+-- arguments is JSON-encoded as a string — caller decodes per the advertised
+-- parameters schema.
+export type ToolCall = {
+  id: string,
+  name: string,
+  arguments: string
+}
+
+-- Message is one entry in a multi-turn conversation.
+--   role         : "user" | "assistant" | "tool" | "system"
+--   content      : prose; may be empty for assistant messages whose tool_calls
+--                  is non-empty
+--   tool_calls   : assistant only — invocations the model emitted
+--   tool_call_id : "tool" role only — references a prior ToolCall.id
+export type Message = {
+  role: string,
+  content: string,
+  tool_calls: [ToolCall],
+  tool_call_id: string
+}
+
+-- ToolSchema declares one tool the model may call. Parameters is the raw
+-- JSON Schema string (same shape as Request.ResponseSchema).
+export type ToolSchema = {
+  name: string,
+  description: string,
+  parameters: string
+}
+
+-- StepResult is what one agent turn produces. When tool_calls is non-empty,
+-- the loop driver should dispatch each ToolCall, append the results as
+-- tool-role messages, and call step again. When tool_calls is empty AND
+-- finish_reason is "stop", the loop terminates.
+--
+-- finish_reason : "stop" | "tool_calls" | "length" | "error"
+export type StepResult = {
+  message: Message,
+  tool_calls: [ToolCall],
+  finish_reason: string,
+  input_tokens: int,
+  output_tokens: int
+}
+
+-- ============================================================================
+-- Result-returning single-shot calls (typed errors)
+-- ============================================================================
+--
+-- These bring the non-streaming AI surface to parity with v0.15.1's
+-- callStream (which already returns Result[string, AIError]). Existing
+-- call/callJson/callJsonSimple stay as-is for back-compat — new code
+-- should prefer the Result variants.
+
+-- callResult: Result-returning variant of call.
+-- On success returns Ok(text); on failure returns Err(AIError).
+export func callResult(input: string) -> Result[string, AIError] ! {AI} =
+  _ai_call_result(input)
+
+-- callJsonResult: Result-returning variant of callJson.
+-- Same schema-enforced JSON output, but typed errors via Err(AIError).
+export func callJsonResult(input: string, schema: string)
+  -> Result[string, AIError] ! {AI} =
+  _ai_call_json_result(input, schema)
+
+-- ============================================================================
+-- Multi-turn / tool-aware step
+-- ============================================================================
+--
+-- step: One agent turn. Takes a conversation + optional tool catalog,
+-- returns the assistant's response. Loop drivers (e.g. runTools, M6)
+-- dispatch any returned tool_calls and call step again with the results
+-- appended as tool-role messages.
+--
+-- Pass model="" to use the handler-bound model.
+export func step(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema]
+) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step(model, messages, tools)
+
+-- ============================================================================
+-- Legacy single-shot calls (pre-v0.17.0 — kept for back-compat)
+-- ============================================================================
+
 -- call: Call the AI oracle with a string input
 -- Input is typically JSON-encoded context
 -- Output is typically JSON-encoded response

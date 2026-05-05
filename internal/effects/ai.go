@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
@@ -38,6 +39,21 @@ type AIHandler interface {
 	// CallImageBase64 generates an image and returns it as a JSON string
 	// containing base64-encoded data: {"base64": "...", "mime_type": "image/png"}.
 	CallImageBase64(prompt string, options string) (string, error)
+
+	// Step is the multi-turn / tool-aware completion entry point introduced
+	// by M-AI-TOOL-LOOP (v0.17.0). Unlike Call/CallJson, it takes a
+	// conversation (messages) plus an optional tool catalog (tools), and
+	// returns an *ai.Response carrying assistant Text + ToolCalls +
+	// FinishReason. On failure, returns a plain error which the caller
+	// (the aiStep effect op) classifies via ai.ClassifyError into a typed
+	// *ai.AIError before returning Err(AIError record) to AILANG.
+	//
+	// Model is passed explicitly because Step is per-call routable (unlike
+	// Call/CallJson which use the handler's bound model).
+	//
+	// Reuses ai.Message / ai.ToolSchema / ai.Response (defined in
+	// internal/ai during M1) to avoid wire-type duplication.
+	Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error)
 }
 
 // AIHandlerWithRouting is an optional capability — handlers that implement
@@ -127,6 +143,17 @@ func (c *AIContext) CallImageBase64(prompt, options string) (string, error) {
 	return c.handler.CallImageBase64(prompt, options)
 }
 
+// Step is the multi-turn / tool-aware completion entry point — passes
+// through to the underlying handler. Introduced by M-AI-TOOL-LOOP (v0.17.0).
+// Sentinel error path (no handler) returns ErrNoAIHandler so the calling
+// effect op can wrap it as AIError{ProviderNotFound} for the AILANG side.
+func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error) {
+	if c.handler == nil {
+		return nil, ErrNoAIHandler
+	}
+	return c.handler.Step(model, messages, tools)
+}
+
 // StubAIHandler returns deterministic placeholder responses
 //
 // Use for testing and development. Supports:
@@ -187,6 +214,22 @@ func (h *StubAIHandler) CallImage(prompt, outputPath, options string) (string, e
 func (h *StubAIHandler) CallImageBase64(prompt, options string) (string, error) {
 	b64 := base64.StdEncoding.EncodeToString(stubPNG)
 	return fmt.Sprintf(`{"base64":"%s","mime_type":"image/png"}`, b64), nil
+}
+
+// Step is the stub multi-turn / tool-aware completion. Mirrors the Call
+// stub's deterministic-response behaviour: returns the configured default
+// response as Text with FinishReason="stop" and no tool calls. Useful for
+// runTools tests where the loop should terminate after one turn.
+func (h *StubAIHandler) Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error) {
+	// Synthesize a single text turn from the default response. Tests that
+	// need richer behaviour (forced tool_calls, simulated errors) should
+	// use a custom handler instead of the stub.
+	return &ai.Response{
+		Text:         h.defaultResponse,
+		FinishReason: "stop",
+		Model:        model,
+		// Tokens: stubs don't account.
+	}, nil
 }
 
 // stubPNG is a minimal valid 1x1 transparent PNG (67 bytes).
