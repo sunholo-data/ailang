@@ -98,6 +98,8 @@ func TestRealModelsYmlBackCompat(t *testing.T) {
 
 	// Spot-check a known-cheap model, a known-expensive model, and a
 	// known-free local model. They should all resolve to sensible defaults.
+	// Use models WITHOUT explicit budgets: blocks so we exercise the
+	// default-formula path. (or-glm-5 has explicit $0.30 as of v0.15.1.)
 	checks := []struct {
 		key       string
 		minBudget float64
@@ -105,9 +107,11 @@ func TestRealModelsYmlBackCompat(t *testing.T) {
 	}{
 		// Free local models: ResolvedMaxCostUSD should be 0
 		{key: "ollama-codellama", minBudget: 0, maxBudget: 0},
-		// Cheap OS models should fall under the $0.50 ceiling
-		{key: "or-glm-5", minBudget: 0.05, maxBudget: 0.20},
-		// Pricey flagship should clip to $0.50
+		// Mid-tier OpenAI cheap (no explicit budget) — formula resolves
+		// to ~$0.19 (input × 64K + output × 32K, capped at $0.50).
+		{key: "gpt5-4-mini", minBudget: 0.05, maxBudget: 0.50},
+		// Pricey flagship — formula × 64K input × 32K output far
+		// exceeds $0.50 ceiling, so resolves to clipped value.
 		{key: "claude-opus-4-7", minBudget: 0.50, maxBudget: 0.50},
 	}
 
