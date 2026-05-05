@@ -838,17 +838,28 @@ func (p *Parser) parseLabelOrRefinementSuffix(base ast.Type) ast.Type {
 	}
 
 	// T{not IDENT} — refinement annotation.
-	// Use 2-token lookahead: only enter this path when {not follows the base type,
-	// so function body braces (-> T { body }) are never misidentified.
-	// Unsupported forms ({!label}, {not a && not b}, {label=...}) are also caught here.
+	// Use 4-token lookahead to disambiguate the refinement form from a function
+	// body that opens with a boolean negation. The two are otherwise identical
+	// at peek=LBRACE peek2=NOT:
+	//
+	//   T{not LABEL}                        →  peek3=IDENT, peek4=RBRACE       (refinement)
+	//   func name(...) -> T { not f(x) }    →  peek3=IDENT, peek4=LPAREN/etc.  (body)
+	//
+	// The previous 2-token lookahead misclaimed the function-body case and
+	// emitted PAR_REFINE_MVP — broke motoko_agent's idiomatic
+	// `func is_extension_tool_call(...) -> bool { not is_native(c.tool) }`.
+	// See M-PARSER-REFINEMENT-LOOKAHEAD (v0.15.2) for the regression history.
 	if p.peekTokenIs(lexer.LBRACE) {
-		// Safe to enter the refinement path if:
-		//   peek=LBRACE and peek2=NOT  → valid or invalid refinement form
-		//   peek=LBRACE and peek2=BANG → {!...} error form, still ours to diagnose
-		//
-		// Everything else (peek2=IDENT, peek2=whatever) means this is a record
-		// literal or function body — don't touch it.
-		if !p.peek2TokenIs(lexer.NOT) && !p.peek2TokenIs(lexer.BANG) {
+		// Safe to enter the refinement path only if we see a complete
+		//   `{ not IDENT }` form
+		// or the malformed `{ ! ... }` BANG form (still ours to diagnose).
+		// Everything else (record literals, function bodies, conjunctions
+		// like `{not a && not b}`) defers to the appropriate downstream parser.
+		isWellFormedNot := p.peek2TokenIs(lexer.NOT) &&
+			p.peek3TokenIs(lexer.IDENT) &&
+			p.peek4TokenIs(lexer.RBRACE)
+		isMalformedBang := p.peek2TokenIs(lexer.BANG)
+		if !isWellFormedNot && !isMalformedBang {
 			return base
 		}
 

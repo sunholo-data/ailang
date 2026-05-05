@@ -13,6 +13,8 @@ type Parser struct {
 	curToken   lexer.Token
 	peekToken  lexer.Token
 	peek2Token lexer.Token // 2nd lookahead — used by parseLabelOrRefinementSuffix
+	peek3Token lexer.Token // 3rd lookahead — disambiguates refinement {not IDENT} from `func ... -> bool { not f(...) }`
+	peek4Token lexer.Token // 4th lookahead — same disambiguation; checks for closing RBRACE
 	errors     []error
 
 	// Pratt parsing
@@ -118,10 +120,14 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.DOT, p.parseRecordAccess)
 	p.registerInfix(lexer.LARROW, p.parseSendExpression)
 
-	// Read three tokens to prime curToken, peekToken, and peek2Token
-	p.nextToken() // peek2Token ← first token from lexer
-	p.nextToken() // peekToken  ← peek2Token (first), peek2Token ← second
-	p.nextToken() // curToken   ← peekToken (first), peekToken ← second, peek2Token ← third
+	// Read five tokens to prime curToken, peekToken, peek2Token, peek3Token, peek4Token.
+	// peek3Token + peek4Token are used by parseLabelOrRefinementSuffix to disambiguate
+	// refinement type `T{not LABEL}` from a function body `func ... -> T { not f(x) }`.
+	p.nextToken()
+	p.nextToken()
+	p.nextToken()
+	p.nextToken()
+	p.nextToken()
 
 	return p
 }
@@ -197,7 +203,9 @@ func (p *Parser) reportSugarError(sugarName, example, canonical string) {
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.peek2Token
-	p.peek2Token = p.l.NextToken()
+	p.peek2Token = p.peek3Token
+	p.peek3Token = p.peek4Token
+	p.peek4Token = p.l.NextToken()
 }
 
 func (p *Parser) curTokenIs(t lexer.TokenType) bool {
@@ -210,6 +218,14 @@ func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
 
 func (p *Parser) peek2TokenIs(t lexer.TokenType) bool {
 	return p.peek2Token.Type == t
+}
+
+func (p *Parser) peek3TokenIs(t lexer.TokenType) bool {
+	return p.peek3Token.Type == t
+}
+
+func (p *Parser) peek4TokenIs(t lexer.TokenType) bool {
+	return p.peek4Token.Type == t
 }
 
 func (p *Parser) expectPeek(t lexer.TokenType) bool {

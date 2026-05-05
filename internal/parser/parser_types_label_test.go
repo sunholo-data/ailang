@@ -106,9 +106,16 @@ func TestLabelSyntaxErrors(t *testing.T) {
 			wantErr: "not",
 		},
 		{
+			// `{not email && not user}` doesn't match the strict refinement
+			// shape `{not IDENT}` (peek4 is `&&`, not `}`), so the parser
+			// declines to enter refinement parsing and the malformed input
+			// fails at the surrounding parameter-list parser. Any parse error
+			// suffices — the user sees that the form is unsupported.
+			// Tightened in M-PARSER-REFINEMENT-LOOKAHEAD (v0.15.2): peek3+peek4
+			// disambiguation takes precedence over the dedicated MVP error.
 			name:    "conjunction not supported",
 			input:   "module test\nexport func h(x: string{not email && not user}) -> string { x }\n",
-			wantErr: "MVP",
+			wantErr: "PAR_", // any parser error code
 		},
 		{
 			// {label = email} is indistinguishable from a function body at 2-token lookahead;
@@ -202,5 +209,90 @@ func TestExistingTypeSyntaxUnchanged(t *testing.T) {
 		if len(p.Errors()) > 0 {
 			t.Errorf("regression in unlabelled syntax for %q: %v", src, p.Errors())
 		}
+	}
+}
+
+// TestRefinementVsFunctionBodyDisambiguation guards against the regression
+// introduced by M-TAINT-TYPES (v0.14.3) where the refinement-type parser
+// path mis-claimed a function body opening `{ not <call>(...) }` as a
+// refinement, emitting PAR_REFINE_MVP instead of letting the function body
+// parse normally. Caught when migrating motoko_agent off its AILANG fork
+// (the fork was based on v0.13.0, predates M-TAINT-TYPES, so the syntax
+// was idiomatic in motoko-agent's bool-returning helpers).
+//
+// Fixed in M-PARSER-REFINEMENT-LOOKAHEAD (v0.15.2) by extending the parser
+// to 4-token lookahead and tightening the refinement-entry guard to require
+// peek3=IDENT && peek4=RBRACE (the exact `{not LABEL}` shape).
+//
+// Each case below MUST parse without errors. The function uses `not <call>`
+// as a top-level expression in a function body whose return type is `bool`
+// — historically the most ambiguous position with the refinement syntax.
+func TestRefinementVsFunctionBodyDisambiguation(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "not <call> as function body",
+			src: "module test\n" +
+				"pure func is_pos(x: int) -> bool { x > 0 }\n" +
+				"func is_neg(x: int) -> bool {\n" +
+				"  not is_pos(x)\n" +
+				"}\n",
+		},
+		{
+			name: "not <call> with field access",
+			src: "module test\n" +
+				"type T = { v: int }\n" +
+				"pure func is_pos(t: T) -> bool { t.v > 0 }\n" +
+				"func is_neg(t: T) -> bool {\n" +
+				"  not is_pos(t)\n" +
+				"}\n",
+		},
+		{
+			name: "not <call> in let body returning bool",
+			src: "module test\n" +
+				"pure func has(x: int) -> bool { x > 0 }\n" +
+				"export func main() -> () ! {IO} {\n" +
+				"  let result = not has(5) in\n" +
+				"  if result then _io_println(\"no\") else _io_println(\"yes\")\n" +
+				"}\n",
+		},
+		{
+			// The motoko_agent rpc.ail pattern verbatim (modulo names).
+			name: "motoko_agent is_extension_tool_call shape",
+			src: "module test\n" +
+				"type Tool = { tool: string }\n" +
+				"pure func is_native_tool_name(name: string) -> bool {\n" +
+				"  name == \"WriteFile\"\n" +
+				"}\n" +
+				"func is_extension_tool_call(call_req: Tool) -> bool {\n" +
+				"  not is_native_tool_name(call_req.tool)\n" +
+				"}\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := lexer.New(tc.src, "test.ail")
+			p := New(l)
+			p.Parse()
+			if len(p.Errors()) > 0 {
+				t.Errorf("expected clean parse, got errors: %v\nsource:\n%s", p.Errors(), tc.src)
+			}
+		})
+	}
+}
+
+// TestRefinementStillParsesAfterDisambiguation: the well-formed
+// `T{not LABEL}` refinement syntax must still work after the lookahead
+// tightening. Belt-and-suspenders coverage alongside the existing
+// TestRefinementSyntaxParam.
+func TestRefinementStillParsesAfterDisambiguation(t *testing.T) {
+	src := "module test\nexport func h(x: string{not email}) -> string { x }\n"
+	l := lexer.New(src, "test.ail")
+	p := New(l)
+	p.Parse()
+	if len(p.Errors()) > 0 {
+		t.Errorf("refinement parsing regression — `string{not email}` should parse: %v", p.Errors())
 	}
 }
