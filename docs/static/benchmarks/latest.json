@@ -1,6 +1,6 @@
 {
-  "version": "0.15.0",
-  "timestamp": "2026-05-04T21:10:37+02:00",
+  "version": "v0.15.0",
+  "timestamp": "2026-05-05T11:51:01+02:00",
   "totalRuns": 544,
   "aggregates": {
     "agentBenchmarks": [
@@ -2033,6 +2033,15 @@
           "tokens": 76138
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 156.5,
+        "median_turns_to_success": 0,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.20074,
+        "speed_efficiency_score": 0.8800574579735895,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "avgTokens": 611.7647058823529,
@@ -2282,6 +2291,15 @@
           "success": true,
           "tokens": 28246
         }
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 12158,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.11883045,
+        "speed_efficiency_score": 0.7092279523855329,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -2535,6 +2553,15 @@
           "tokens": 25792
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 36,
+        "median_turns_to_success": 0,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.05466,
+        "speed_efficiency_score": 0.6907620133802072,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "avgTokens": 239.5,
@@ -2784,6 +2811,15 @@
           "success": false,
           "tokens": 0
         }
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 488.5,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.092606,
+        "speed_efficiency_score": 0.5688976368381155,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -3046,6 +3082,15 @@
           "tokens": 24208
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 22706,
+        "median_turns_to_success": 1,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.33531,
+        "speed_efficiency_score": 0.6134415171528916,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.058823529411764705,
@@ -3297,6 +3342,15 @@
           "tokens": 24294
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 262,
+        "median_turns_to_success": 0,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.13482500000000003,
+        "speed_efficiency_score": 0.8638748055061526,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "avgTokens": 362.7352941176471,
@@ -3339,6 +3393,15 @@
         "totalCostUSD": 4.105761599999998,
         "totalRuns": 68,
         "totalTokens": 3063412
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 35873.5,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.112178,
+        "speed_efficiency_score": 0.533791616956044,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -3388,6 +3451,15 @@
         "totalRuns": 68,
         "totalTokens": 1861189
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 35902,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.022517099999999995,
+        "speed_efficiency_score": 0.41402559230194547,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.5294117647058824,
@@ -3435,6 +3507,15 @@
         "totalCostUSD": 13.38393495,
         "totalRuns": 68,
         "totalTokens": 74931
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 16009,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.325608,
+        "speed_efficiency_score": 0.7545546076973857,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -3682,6 +3763,15 @@
           "tokens": 23945
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 161.5,
+        "median_turns_to_success": 0,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.015054799999999998,
+        "speed_efficiency_score": 0.5573234005918383,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "avgTokens": 335.2647058823529,
@@ -3923,6 +4013,15 @@
           "tokens": 23454
         }
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 41,
+        "median_turns_to_success": 0,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.0074351999999999994,
+        "speed_efficiency_score": 0.6172252882099193,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "avgTokens": 361.4117647058824,
@@ -3967,6 +4066,15 @@
         "totalCostUSD": 4.105761599999998,
         "totalRuns": 68,
         "totalTokens": 3063412
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 35873.5,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.112178,
+        "speed_efficiency_score": 0.533791616956044,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -4016,6 +4124,15 @@
         "totalRuns": 68,
         "totalTokens": 1861189
       },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 35902,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.022517099999999995,
+        "speed_efficiency_score": 0.41402559230194547,
+        "cost_killed_count": 0
+      },
       "languages": {
         "ailang": {
           "agentApiErrorRate": 0.5294117647058824,
@@ -4063,6 +4180,15 @@
         "totalCostUSD": 13.38393495,
         "totalRuns": 68,
         "totalTokens": 74931
+      },
+      "efficiency": {
+        "median_time_to_first_attempt_ms": 0,
+        "median_time_to_success_ms": 16009,
+        "median_turns_to_success": 4,
+        "median_tokens_per_sec": 0,
+        "p90_cost_per_success": 0.325608,
+        "speed_efficiency_score": 0.7545546076973857,
+        "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
@@ -8025,7 +8151,7 @@
   "history": [
     {
       "version": "v0.15.0",
-      "timestamp": "2026-05-04T21:10:34+02:00",
+      "timestamp": "2026-05-05T11:50:57+02:00",
       "successRate": 0.7334558823529411,
       "totalRuns": 544,
       "successCount": 399,

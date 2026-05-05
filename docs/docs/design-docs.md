@@ -36,7 +36,11 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.15.1
 
+- [M-AI-CALL-STREAM-HELPER Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-ai-call-stream-helper-sprint-plan.md)
+- [M-AI-CALL-STREAM-HELPER: Synchronous accumulator wrapper for AI token streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-ai-call-stream-helper.md)
 - [M-BRAIN-BOOTSTRAP: `ailang micro-rag bootstrap` for fresh installs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-brain-bootstrap.md)
+- [M-EVAL-COST-AND-SPEED-BUDGETS — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md)
+- [M-EVAL-COST-AND-SPEED-BUDGETS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md)
 
 ## v0.15.0
 
@@ -955,4 +959,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 705 design documents across 80 versions.*
+*Generated at build time. 709 design documents across 80 versions.*

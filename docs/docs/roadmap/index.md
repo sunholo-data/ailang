@@ -44,6 +44,10 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-agent-safe-runner.md)
 - [M-AI-EFFECT-MODES-FOLLOWUPS: Close the Loose Ends from v0.15.0 AI Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-ai-effect-modes-followups.md)
 
+## Planned for v0.15.x
+
+- [M-AI-CALL-STREAM-HELPER: Synchronous accumulator wrapper for AI token streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_x/m-ai-call-stream-helper.md)
+
 ## Planned for v0.15.0
 
 - [M-AI-PROVIDER-CONFIG: Config-Driven AI Providers via Package Manifests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md)
@@ -140,4 +144,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 96 planned features across 7 upcoming versions.*
+*Generated at build time. 97 planned features across 8 upcoming versions.*

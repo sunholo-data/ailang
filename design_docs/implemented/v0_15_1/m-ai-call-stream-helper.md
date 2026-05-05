@@ -1,7 +1,9 @@
 # M-AI-CALL-STREAM-HELPER: Synchronous accumulator wrapper for AI token streaming
 
-**Status**: Planned
+**Status**: Implemented (v0.15.1)
 **Target**: v0.15.1 (patch release)
+**Implemented**: 2026-05-05 (commit 7c1bae03)
+**Evaluation**: passed round 1, score 97/100 — see `.ailang/state/evaluations/eval_M-AI-CALL-STREAM-HELPER_round_1.json`
 **Priority**: P2 (low — `openaiCompatStream` + manual event loop already works; this is ergonomic sugar with measurable downstream impact)
 **Estimated**: 4-6 hours
 **Dependencies**:
