@@ -1,0 +1,110 @@
+-- examples/runnable/ai_tool_loop.ail
+-- Demonstrates std/ai.runTools — the multi-turn tool dispatch loop driver
+-- introduced by M-AI-TOOL-LOOP (v0.17.0).
+--
+-- The example builds a 2-tool catalog (read_doc, list_docs), starts a
+-- conversation with one user turn ("Summarize the contents of nda.docx"),
+-- and lets runTools drive the agent loop:
+--   1. step asks the model what to do
+--   2. model emits a tool_call (e.g. read_doc with name=nda.docx)
+--   3. runTools calls dispatch(call) → "<doc body>"
+--   4. step is called again with the tool result appended
+--   5. model emits a final assistant message → loop terminates
+--
+-- The dispatch callback in this example is pure — it returns hard-coded
+-- strings keyed off the tool name. Real consumers (e.g. motoko_agent)
+-- run a callback with effects {FS, Process} that actually reads files /
+-- runs commands; AILANG's row polymorphism lets such a callback compose
+-- with runTools without changing runTools' signature.
+--
+-- Setup:
+--   ailang run --caps AI,IO --ai gemini-3-flash-preview \
+--     examples/runnable/ai_tool_loop.ail
+--
+-- For deterministic behaviour against the stub handler:
+--   ailang run --caps AI,IO --ai-stub examples/runnable/ai_tool_loop.ail
+
+module examples/runnable/ai_tool_loop
+
+import std/ai (
+  runTools, callResult, AIError, Message, ToolCall, ToolSchema, StepResult
+)
+import std/io (println)
+import std/result (Result, Ok, Err)
+import std/list (length)
+
+-- Build a tool catalog the model may call.
+export func tools() -> [ToolSchema] {
+  [
+    {
+      name: "read_doc",
+      description: "Read the named document and return its contents",
+      parameters: "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"]}"
+    },
+    {
+      name: "list_docs",
+      description: "List the names of all available documents",
+      parameters: "{\"type\":\"object\",\"properties\":{}}"
+    }
+  ]
+}
+
+-- Initial conversation: one user message.
+export func initialMessages() -> [Message] {
+  [
+    {
+      role: "user",
+      content: "Summarize the contents of nda.docx",
+      tool_calls: [],
+      tool_call_id: ""
+    }
+  ]
+}
+
+-- Dispatch callback. In a real agent this would do file I/O / shell exec /
+-- HTTP requests / etc. with appropriate effects. Here we return canned
+-- strings so the example is deterministic and runs offline against any
+-- AI handler that emits tool_calls.
+export pure func dispatch(call: ToolCall) -> string {
+  if call.name == "read_doc"
+  then "[NDA between Acme Corp and Beta LLC, dated 2026-01-15. Confidential information defined as ... 2-year term ... governed by Delaware law.]"
+  else if call.name == "list_docs"
+  then "nda.docx, employment_contract.docx, lease.pdf"
+  else "unknown tool: ${call.name}"
+}
+
+-- Render the typed-error path with retry-decision branch.
+export pure func renderError(e: AIError) -> string {
+  let retryStr = if e.retryable then "true" else "false";
+  "[${e.code}] retryable=${retryStr}: ${e.message}"
+}
+
+-- Pull the last message's content for display. If somehow empty (shouldn't
+-- happen — runTools always appends at least one message on Ok), return a
+-- sentinel so the example output is still informative.
+export pure func lastMessage(messages: [Message]) -> string {
+  match messages {
+    [] => "<no messages>",
+    [msg] => msg.content,
+    [_, ...rest] => lastMessage(rest)
+  }
+}
+
+export func main() -> () ! {AI, IO} {
+  -- Cap the loop at 8 steps. Reasonable for read_doc → summarize flows;
+  -- raise for deeper agent traces.
+  match runTools("", initialMessages(), tools(), dispatch, 8) {
+    Ok(messages) => {
+      let n = length(messages);
+      println("=== runTools succeeded: ${show(n)} messages in transcript ===");
+      println("Final assistant text:");
+      println(lastMessage(messages))
+    },
+    Err(e) =>
+      -- Typed-error retry-decision branch — the whole point of returning
+      -- AIError instead of a plain string.
+      if e.retryable
+      then println("Transient error (would retry): ${renderError(e)}")
+      else println("Fatal error: ${renderError(e)}")
+  }
+}

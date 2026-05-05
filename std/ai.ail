@@ -143,7 +143,7 @@ export func callJsonResult(input: string, schema: string)
 -- ============================================================================
 --
 -- step: One agent turn. Takes a conversation + optional tool catalog,
--- returns the assistant's response. Loop drivers (e.g. runTools, M6)
+-- returns the assistant's response. Loop drivers (e.g. runTools below)
 -- dispatch any returned tool_calls and call step again with the results
 -- appended as tool-role messages.
 --
@@ -154,6 +154,77 @@ export func step(
   tools: [ToolSchema]
 ) -> Result[StepResult, AIError] ! {AI} =
   _ai_step(model, messages, tools)
+
+-- runTools: convenience loop driver for multi-turn tool dispatch.
+--
+-- Calls step in a loop until the model returns finish_reason != "tool_calls"
+-- or step_budget reaches 0. For each tool_call the model emits, dispatch is
+-- called with the ToolCall and the returned string becomes the tool-role
+-- message content fed back on the next turn.
+--
+-- Returns Ok(messages) — the FULL final conversation including the original
+-- input plus every assistant + tool message produced during the loop. The
+-- caller can extract the last assistant message, the full transcript, or
+-- whatever shape they need.
+--
+-- Errors:
+--   - step_budget exhausted     -> Err(AIError{Internal, retryable=false})
+--   - any step returns Err(e)   -> Err(e) propagated verbatim
+--
+-- Effect row: declared as ! {AI}. The dispatch callback's effects (if any)
+-- propagate via row polymorphism — pass a dispatch with effects {FS, Process}
+-- and the runTools call site will infer ! {AI, FS, Process} automatically.
+export func runTools(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema],
+  dispatch: (ToolCall) -> string,
+  step_budget: int
+) -> Result[[Message], AIError] ! {AI} {
+  if step_budget <= 0
+  then Err({
+    code: "Internal",
+    message: "runTools: step budget exhausted",
+    retryable: false
+  })
+  else match step(model, messages, tools) {
+    Err(e) => Err(e),
+    Ok(result) =>
+      if result.finish_reason != "tool_calls"
+      then Ok(messages ++ [result.message])
+      else {
+        let toolMessages = dispatchToolCalls(result.tool_calls, dispatch);
+        let nextMessages = (messages ++ [result.message]) ++ toolMessages;
+        runTools(model, nextMessages, tools, dispatch, step_budget - 1)
+      }
+  }
+}
+
+-- dispatchToolCalls runs the dispatch callback once per ToolCall and
+-- constructs a tool-role Message for each result. The Message.tool_call_id
+-- carries the matching ToolCall.id so the model can correlate which
+-- response corresponds to which call on the next turn.
+--
+-- Note: not exported — internal helper for runTools. Effect row inferred
+-- from dispatch's row.
+func dispatchToolCalls(
+  calls: [ToolCall],
+  dispatch: (ToolCall) -> string
+) -> [Message] {
+  match calls {
+    [] => [],
+    [call, ...rest] => {
+      let result = dispatch(call);
+      let msg: Message = {
+        role: "tool",
+        content: result,
+        tool_calls: [],
+        tool_call_id: call.id
+      };
+      [msg] ++ dispatchToolCalls(rest, dispatch)
+    }
+  }
+}
 
 -- ============================================================================
 -- Legacy single-shot calls (pre-v0.17.0 — kept for back-compat)
