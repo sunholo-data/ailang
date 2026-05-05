@@ -41,8 +41,21 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-export default function PerModelTrend({ history, events, selectedTier }) {
+// Metric options for the M4 dropdown (M-EVAL-COST-AND-SPEED-BUDGETS).
+// Success rate has full history coverage. TTS / cost-per-success only land
+// in history once M5 reruns the suite with the new measurement paths — until
+// then we plot a single point per model at the latest version using the
+// current `models` snapshot.
+const METRIC_OPTIONS = [
+  { id: 'successRate', label: 'Success Rate %', unit: '%', historic: true },
+  { id: 'tts',         label: 'Time to Success (sec)', unit: 's', historic: false },
+  { id: 'costPerSuccess', label: 'Cost per Success ($)', unit: '$', historic: false },
+];
+
+export default function PerModelTrend({ history, events, selectedTier, models: currentModels }) {
   const [selectedLanguage, setSelectedLanguage] = useState('ailang');
+  const [selectedMetric, setSelectedMetric] = useState('successRate');
+  const metric = METRIC_OPTIONS.find((m) => m.id === selectedMetric) || METRIC_OPTIONS[0];
   // Selected-models set: empty Set = "show all" (default). Clicking a chip
   // when the set is empty solos that model; subsequent clicks add or remove
   // from the selection. Clicking the last remaining selection clears back
@@ -90,13 +103,30 @@ export default function PerModelTrend({ history, events, selectedTier }) {
     }
   });
 
-  // Provider-grouped color assignment (Anthropic/OpenAI/Google shades) so
-  // new models don't fall through to grey when the static palette runs out.
-  const modelColors = assignModelColors(allModels);
-
   // Track api-error gate metadata per (version, model) so the tooltip can
   // explain why a dot is missing. Key: `${version}|${model}`.
   const apiErrorMeta = {};
+
+  // Read a per-(version,model,lang) metric value. Success rate has complete
+  // historic coverage; TTS / cost-per-success may not be in history yet
+  // (added by M3 — pre-M3 baselines simply return null and the line skips).
+  const valueFor = (langStats) => {
+    if (!langStats) return null;
+    if (selectedMetric === 'successRate') {
+      return parseFloat((langStats.successRate * 100).toFixed(1));
+    }
+    if (selectedMetric === 'tts') {
+      // Look for either snake_case or camelCase — M3 emits camelCase but
+      // future history shapes might mirror the top-level efficiency block.
+      const ms = langStats.medianTimeToSuccessMs ?? langStats.median_time_to_success_ms;
+      return typeof ms === 'number' && ms > 0 ? parseFloat((ms / 1000).toFixed(2)) : null;
+    }
+    if (selectedMetric === 'costPerSuccess') {
+      const usd = langStats.p90CostPerSuccess ?? langStats.p90_cost_per_success;
+      return typeof usd === 'number' && usd > 0 ? parseFloat(usd.toFixed(4)) : null;
+    }
+    return null;
+  };
 
   // Transform history data for recharts. Apply API-error 0% gate: if ≥50%
   // of a model's runs on this baseline were api_error, null out the point
@@ -118,19 +148,69 @@ export default function PerModelTrend({ history, events, selectedTier }) {
         const apiErrors = lang.apiErrorCount || 0;
         const gated = total > 0 && apiErrors / total >= 0.5;
 
-        if (gated) {
+        // API-error gate only meaningfully applies to success-rate (a 0%
+        // due to quota errors is misleading). For latency/cost metrics
+        // we just emit null when the underlying value isn't available.
+        if (gated && selectedMetric === 'successRate') {
           apiErrorMeta[`${versionLabel}|${modelName}`] = { apiErrors, total };
           point[modelName] = null;
           return;
         }
 
-        const successRate = lang.successRate * 100;
-        point[modelName] = parseFloat(successRate.toFixed(1));
+        point[modelName] = valueFor(lang);
       });
     }
 
     return point;
   });
+
+  // Latest-snapshot fallback for metrics that history hasn't been backfilled
+  // for yet (TTS, cost-per-success). We graft the current `models` prop's
+  // efficiency block onto the most recent chartData row so the user sees at
+  // least one dot per model. The dropdown stays useful pre-M5.
+  const usingSnapshotFallback =
+    !metric.historic &&
+    chartData.length > 0 &&
+    currentModels &&
+    chartData[chartData.length - 1] &&
+    Array.from(allModels).every((m) => chartData[chartData.length - 1][m] == null);
+
+  if (usingSnapshotFallback) {
+    const latestRow = chartData[chartData.length - 1];
+    Object.entries(currentModels).forEach(([modelName, modelData]) => {
+      const eff = modelData?.efficiency;
+      if (!eff) return;
+      if (selectedMetric === 'tts') {
+        const ms = eff.median_time_to_success_ms;
+        if (typeof ms === 'number' && ms > 0) {
+          latestRow[modelName] = parseFloat((ms / 1000).toFixed(2));
+        }
+      } else if (selectedMetric === 'costPerSuccess') {
+        const usd = eff.p90_cost_per_success;
+        if (typeof usd === 'number' && usd > 0) {
+          latestRow[modelName] = parseFloat(usd.toFixed(4));
+        }
+      }
+    });
+    // Make sure the latest snapshot's models are in allModels so they get
+    // chips + lines even if the older history shape didn't list them.
+    Object.keys(currentModels).forEach((m) => allModels.add(m));
+  }
+
+  // Provider-grouped color assignment (Anthropic/OpenAI/Google shades) so
+  // new models don't fall through to grey when the static palette runs out.
+  // Computed after the snapshot fallback has potentially added models so
+  // every chip + line gets a stable colour.
+  const modelColors = assignModelColors(allModels);
+
+  // Format a metric value for display (tooltip/axis ticks).
+  const formatValue = (value) => {
+    if (value == null) return '—';
+    if (selectedMetric === 'successRate') return `${value}%`;
+    if (selectedMetric === 'tts') return `${value}s`;
+    if (selectedMetric === 'costPerSuccess') return `$${value.toFixed(4)}`;
+    return String(value);
+  };
 
   // Custom tooltip — shows API-error gate info for models with null points
   // on this baseline (infra failures, not code-quality 0%s).
@@ -148,7 +228,7 @@ export default function PerModelTrend({ history, events, selectedTier }) {
           {payload.map((entry, index) => (
             <p key={index} className={styles.tooltipValue}>
               <span className={styles.tooltipDot} style={{backgroundColor: entry.color}} />
-              {formatModelName(entry.name)}: {entry.value}%
+              {formatModelName(entry.name)}: {formatValue(entry.value)}
             </p>
           ))}
           {gatedHere.length > 0 && (
@@ -186,26 +266,58 @@ export default function PerModelTrend({ history, events, selectedTier }) {
     <div className={styles.chartContainer}>
       <div className={styles.chartHeader}>
         <div className={styles.chartTitle}>
-          Success Rate by Model Over Time
+          {metric.label} by Model Over Time
           {selectedTier && <span style={{ fontWeight: 400, color: 'var(--ifm-color-emphasis-600)', fontSize: '0.85em' }}>
             {' '}({selectedTier} tier)
           </span>}
         </div>
-        <div className={styles.languageToggle}>
-          <button
-            className={selectedLanguage === 'ailang' ? styles.toggleActive : styles.toggleInactive}
-            onClick={() => setSelectedLanguage('ailang')}
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            value={selectedMetric}
+            onChange={(e) => setSelectedMetric(e.target.value)}
+            style={{
+              padding: '4px 8px',
+              fontSize: '0.85rem',
+              border: '1px solid var(--ifm-color-emphasis-300)',
+              borderRadius: 4,
+              background: 'var(--ifm-background-surface-color)',
+              color: 'var(--ifm-color-emphasis-900)',
+            }}
+            aria-label="Metric"
           >
-            AILANG
-          </button>
-          <button
-            className={selectedLanguage === 'python' ? styles.toggleActive : styles.toggleInactive}
-            onClick={() => setSelectedLanguage('python')}
-          >
-            Python
-          </button>
+            {METRIC_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
+          <div className={styles.languageToggle}>
+            <button
+              className={selectedLanguage === 'ailang' ? styles.toggleActive : styles.toggleInactive}
+              onClick={() => setSelectedLanguage('ailang')}
+            >
+              AILANG
+            </button>
+            <button
+              className={selectedLanguage === 'python' ? styles.toggleActive : styles.toggleInactive}
+              onClick={() => setSelectedLanguage('python')}
+            >
+              Python
+            </button>
+          </div>
         </div>
       </div>
+      {usingSnapshotFallback && (
+        <div style={{
+          margin: '0.5rem 0 1rem',
+          padding: '0.5rem 0.75rem',
+          background: 'var(--ifm-color-emphasis-100)',
+          borderLeft: '3px solid #F59E0B',
+          fontSize: '0.85rem',
+          color: 'var(--ifm-color-emphasis-800)',
+        }}>
+          History doesn't carry this metric yet — showing the latest snapshot only.
+          M5 will backfill once the suite reruns with the new measurement paths.
+        </div>
+      )}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-200)" />
@@ -220,8 +332,16 @@ export default function PerModelTrend({ history, events, selectedTier }) {
           <YAxis
             stroke="var(--ifm-color-emphasis-600)"
             tick={{ fill: 'var(--ifm-color-emphasis-800)' }}
-            domain={[0, 100]}
-            label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }}
+            domain={selectedMetric === 'successRate' ? [0, 100] : ['auto', 'auto']}
+            tickFormatter={(v) => formatValue(v)}
+            label={{
+              value:
+                selectedMetric === 'successRate' ? 'Success Rate (%)'
+                : selectedMetric === 'tts' ? 'Time to Success (sec)'
+                : 'Cost / Success ($)',
+              angle: -90,
+              position: 'insideLeft',
+            }}
           />
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
           {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {

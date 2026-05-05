@@ -13,6 +13,8 @@ import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
 import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
+import SpeedRadar from './SpeedRadar';
+import CostSpeedFrontier from './CostSpeedFrontier';
 import styles from './styles.module.css';
 
 // Tier order + labels for the M6 toggle. Core is the headline tier
@@ -341,7 +343,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           <p className={styles.sectionSubtitle}>
             Track how each AI model's performance evolves across AILANG versions
           </p>
-          <PerModelTrend history={history} events={events} selectedTier={selectedTier} />
+          <PerModelTrend history={history} events={events} selectedTier={selectedTier} models={models} />
         </div>
       )}
 
@@ -434,6 +436,30 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         </p>
         <RadarCharts data={data} />
       </div>
+
+      {/* Speed Radar (M-EVAL-COST-AND-SPEED-BUDGETS M4) — sits next to the
+          existing cost radar in ModelRadarComparison so the two efficiency
+          radars are visually paired on the page. */}
+      {models && Object.keys(models).length > 0 && (
+        <div className={styles.section}>
+          <h3>Speed Comparison</h3>
+          <p className={styles.sectionSubtitle}>
+            Median wall-clock time to a passing run, per model. Outlier-clipped at 5× median.
+          </p>
+          <SpeedRadar models={models} />
+        </div>
+      )}
+
+      {/* Cost vs Speed Pareto Frontier (M-EVAL-COST-AND-SPEED-BUDGETS M4) */}
+      {models && Object.keys(models).length > 0 && (
+        <div className={styles.section}>
+          <h3>Cost vs Speed Frontier</h3>
+          <p className={styles.sectionSubtitle}>
+            Pareto-efficient picks at the intersection of $/success and seconds/success.
+          </p>
+          <CostSpeedFrontier models={models} />
+        </div>
+      )}
 
       {/* Agent Performance Detail */}
       {aggregates.agentRuns > 0 && (
