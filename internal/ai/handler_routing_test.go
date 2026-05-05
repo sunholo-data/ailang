@@ -23,6 +23,13 @@ func (s *stubProvider) Generate(_ context.Context, req *Request) (*Response, err
 
 func (s *stubProvider) Name() string { return "stub" }
 
+// Step is a stub for the M-AI-TOOL-LOOP Provider interface extension.
+// These tests don't exercise the multi-turn path; the stub satisfies the
+// interface so the existing routing tests keep compiling.
+func (s *stubProvider) Step(ctx context.Context, req *Request) (*Response, error) {
+	return s.Generate(ctx, req)
+}
+
 // TestHandler_WithRoutingPolicy_AttachesPolicyToRequest verifies that a
 // Handler constructed with WithRoutingPolicy(p) sets req.Routing on every
 // outgoing Generate. This is the M-AI-OPENROUTER follow-up plumbing: routing

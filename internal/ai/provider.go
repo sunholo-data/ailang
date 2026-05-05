@@ -59,6 +59,50 @@ type Request struct {
 	// returning true, only providers that support routing (currently: openrouter)
 	// will accept the request. Other providers return ErrRoutingNotSupported.
 	Routing *AIRoutingPolicy
+
+	// Messages, when non-empty, supersedes SystemPrompt + UserPrompt.
+	// Used for multi-turn conversations and Provider.Step tool dispatch.
+	// Adapters that see a non-empty Messages MUST use it; legacy single-shot
+	// callers that only set SystemPrompt + UserPrompt continue to work
+	// unchanged on the Generate path.
+	Messages []Message
+
+	// Tools advertises tool schemas the model may call. Empty = no tools.
+	// Only consulted by Provider.Step. Providers that do not support tools
+	// (currently: ollama) return AIError{Code: CodeToolsNotSupported,
+	// Retryable: false} when len(Tools) > 0.
+	Tools []ToolSchema
+}
+
+// Message is one entry in a multi-turn AI conversation.
+//
+//	Role           string ("user" | "assistant" | "tool" | "system")
+//	Content        prose content (may be empty for assistant messages
+//	               whose ToolCalls is non-empty)
+//	ToolCalls      assistant only — tool invocations the model emitted
+//	ToolCallID     "tool" role only — references a prior ToolCall.ID
+type Message struct {
+	Role       string
+	Content    string
+	ToolCalls  []ToolCall
+	ToolCallID string
+}
+
+// ToolSchema is a JSON-Schema-described tool the model may call.
+// Parameters is the raw JSON Schema string (same shape as Request.ResponseSchema).
+type ToolSchema struct {
+	Name        string
+	Description string
+	Parameters  string // JSON Schema as a string
+}
+
+// ToolCall is a single tool invocation emitted by the model in a Step
+// response. The host dispatches it and feeds the result back as a Message
+// with Role="tool" and ToolCallID matching this ID.
+type ToolCall struct {
+	ID        string // provider-assigned (Anthropic, OpenAI) or adapter-generated (Gemini)
+	Name      string // tool name from the advertised ToolSchema
+	Arguments string // JSON-encoded; caller decodes per the advertised parameters schema
 }
 
 // ImageOptions configures image generation parameters.
@@ -125,6 +169,19 @@ type Response struct {
 	// first-try OpenRouter calls. Reserved for future use when richer
 	// fallback signals become available.
 	FallbackChain []string
+
+	// ToolCalls, when non-empty, indicates the model wants the host to
+	// dispatch these tools and feed results back via a follow-up Step call.
+	// Only populated by Provider.Step responses; Generate leaves this nil.
+	ToolCalls []ToolCall
+
+	// FinishReason is the normalized stop reason. One of:
+	//   "stop"        — natural end of model turn (no tool calls)
+	//   "tool_calls"  — model emitted tool calls; loop driver should dispatch
+	//   "length"      — truncated by max_tokens
+	//   "error"       — provider-side error after partial response
+	// Empty on legacy Generate responses (back-compat).
+	FinishReason string
 }
 
 // RequestsImage returns true if the request asks for image generation.
@@ -143,6 +200,15 @@ type Provider interface {
 	// Generate makes a single completion request.
 	// The context can be used for cancellation and timeouts.
 	Generate(ctx context.Context, req *Request) (*Response, error)
+
+	// Step is the multi-turn / tool-aware variant of Generate, added by
+	// M-AI-TOOL-LOOP (v0.17.0). It uses req.Messages and req.Tools, and
+	// populates resp.ToolCalls + resp.FinishReason. Adapters that have
+	// not yet implemented Step return an *AIError with Code = CodeInternal
+	// and a "not yet implemented" message; adapters that fundamentally
+	// cannot support tools (e.g. ollama) return CodeToolsNotSupported when
+	// len(req.Tools) > 0 and otherwise fall through to Generate.
+	Step(ctx context.Context, req *Request) (*Response, error)
 
 	// Name returns the provider name (e.g., "openai", "gemini", "anthropic")
 	Name() string

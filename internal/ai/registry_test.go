@@ -13,6 +13,9 @@ func (f *fakeProvider) Name() string { return f.name }
 func (f *fakeProvider) Generate(ctx context.Context, req *Request) (*Response, error) {
 	return &Response{Text: "ok from " + f.name}, nil
 }
+func (f *fakeProvider) Step(ctx context.Context, req *Request) (*Response, error) {
+	return f.Generate(ctx, req)
+}
 
 func TestRegistry_RegisterAndLookup(t *testing.T) {
 	r := NewProviderRegistry()

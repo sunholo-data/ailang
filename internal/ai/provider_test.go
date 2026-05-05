@@ -28,6 +28,13 @@ func (m *mockProvider) Name() string {
 	return m.name
 }
 
+// Step is a stub for the M-AI-TOOL-LOOP Provider interface extension.
+// Routes to Generate so existing tests that only exercise single-shot
+// paths keep working unchanged.
+func (m *mockProvider) Step(ctx context.Context, req *Request) (*Response, error) {
+	return m.Generate(ctx, req)
+}
+
 func TestProviderError(t *testing.T) {
 	tests := []struct {
 		name       string
