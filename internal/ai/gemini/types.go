@@ -8,7 +8,40 @@ import "encoding/json"
 type generateRequest struct {
 	Contents          []content         `json:"contents"`
 	SystemInstruction *content          `json:"systemInstruction,omitempty"`
+	Tools             []toolBlock       `json:"tools,omitempty"`
 	GenerationConfig  *generationConfig `json:"generationConfig,omitempty"`
+}
+
+// toolBlock is one entry in the top-level "tools" array. Gemini groups
+// function declarations together; M-AI-TOOL-LOOP M3 emits a single block
+// containing all advertised tools.
+type toolBlock struct {
+	FunctionDeclarations []functionDeclaration `json:"functionDeclarations"`
+}
+
+// functionDeclaration describes one callable tool to the model.
+// Parameters is the decoded JSON Schema (object form), since Gemini rejects
+// the schema as a string.
+type functionDeclaration struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Parameters  map[string]interface{} `json:"parameters,omitempty"`
+}
+
+// functionCall is the model-emitted tool invocation that appears as a
+// part on a "model" content. Args is decoded JSON (object form).
+type functionCall struct {
+	Name string                 `json:"name"`
+	Args map[string]interface{} `json:"args"`
+}
+
+// functionResponse is the host-supplied tool result that appears as a
+// part on a "user" content (Gemini reuses the user role for tool results).
+// Response is a free-form JSON object — by convention M3 wraps the
+// stringified tool output as {"content": <string>}.
+type functionResponse struct {
+	Name     string                 `json:"name"`
+	Response map[string]interface{} `json:"response"`
 }
 
 // content represents a content block with role and parts.
@@ -17,11 +50,13 @@ type content struct {
 	Parts []part `json:"parts"`
 }
 
-// part represents a content part (text, inline_data, file_data, etc).
+// part represents a content part (text, inline_data, file_data, functionCall, functionResponse).
 type part struct {
-	Text       string      `json:"text,omitempty"`
-	InlineData *inlineData `json:"inlineData,omitempty"` // For multimodal (images, PDFs, etc.)
-	FileData   *fileData   `json:"fileData,omitempty"`   // For file URI references (GCS, Files API)
+	Text             string            `json:"text,omitempty"`
+	InlineData       *inlineData       `json:"inlineData,omitempty"`       // For multimodal (images, PDFs, etc.)
+	FileData         *fileData         `json:"fileData,omitempty"`         // For file URI references (GCS, Files API)
+	FunctionCall     *functionCall     `json:"functionCall,omitempty"`     // Model-emitted tool invocation (Step path)
+	FunctionResponse *functionResponse `json:"functionResponse,omitempty"` // Host-supplied tool result (Step path)
 }
 
 // inlineData represents inline binary data for multimodal requests.
@@ -51,6 +86,16 @@ type generationConfig struct {
 type generateResponse struct {
 	Candidates    []candidate   `json:"candidates"`
 	UsageMetadata usageMetadata `json:"usageMetadata"`
+}
+
+// stepRawResponse is the Step-path response shape — same fields as
+// generateResponse plus modelVersion (added by Gemini in v1beta when a
+// model alias resolves to a specific revision). Kept separate so the
+// legacy Generate path's response shape stays untouched.
+type stepRawResponse struct {
+	Candidates    []candidate   `json:"candidates"`
+	UsageMetadata usageMetadata `json:"usageMetadata"`
+	ModelVersion  string        `json:"modelVersion,omitempty"`
 }
 
 // candidate represents a generation candidate.
