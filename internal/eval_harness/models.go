@@ -27,6 +27,7 @@ type ModelConfig struct {
 	GCPProject               string  `yaml:"gcp_project"`        // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
 	GCPLocation              string  `yaml:"gcp_location"`       // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
 	Pricing                  Pricing `yaml:"pricing"`
+	Budgets                  Budgets `yaml:"budgets"` // M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cost-aware budget overrides
 	Notes                    string  `yaml:"notes"`
 }
 
@@ -34,6 +35,51 @@ type ModelConfig struct {
 type Pricing struct {
 	InputPer1K  float64 `yaml:"input_per_1k"`
 	OutputPer1K float64 `yaml:"output_per_1k"`
+}
+
+// Budgets represents per-model cost-and-speed budget overrides
+// (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+//
+// Defaults when omitted:
+//
+//	MaxCostUSD          = min($0.50, input_per_1k × 64 + output_per_1k × 32)
+//	HardTimeoutSecs     = 600  (was 60-180s before this milestone)
+//	ExpectedTTFTSecs    = 30   (legacy default, used for "abnormally slow" alerts)
+//	ExpectedTTFSolutionSecs = 0  (no alert if 0)
+//
+// Cost is the primary gate; wall-clock HardTimeoutSecs is a safety net for
+// hung connections, not a cost proxy.
+type Budgets struct {
+	MaxCostUSD              float64 `yaml:"max_cost_usd"`
+	HardTimeoutSecs         int     `yaml:"hard_timeout_secs"`
+	ExpectedTTFTSecs        int     `yaml:"expected_ttft_secs"`
+	ExpectedTTFSolutionSecs int     `yaml:"expected_ttf_solution_secs"`
+}
+
+// ResolvedMaxCostUSD returns the effective cost ceiling for a model:
+// the explicit Budgets.MaxCostUSD when set, otherwise the default formula.
+// Returns 0 if pricing is also zero (free local models — no enforcement).
+func (m *ModelConfig) ResolvedMaxCostUSD() float64 {
+	if m.Budgets.MaxCostUSD > 0 {
+		return m.Budgets.MaxCostUSD
+	}
+	// Default formula: min($0.50, input × 64 + output × 32)
+	formula := m.Pricing.InputPer1K*64.0 + m.Pricing.OutputPer1K*32.0
+	const ceilingUSD = 0.50
+	if formula < ceilingUSD {
+		return formula
+	}
+	return ceilingUSD
+}
+
+// ResolvedHardTimeoutSecs returns the effective wall-clock safety net.
+// Default raised from 60-180s to 600s in v0.16.0 because cost is now the
+// primary gate.
+func (m *ModelConfig) ResolvedHardTimeoutSecs() int {
+	if m.Budgets.HardTimeoutSecs > 0 {
+		return m.Budgets.HardTimeoutSecs
+	}
+	return 600
 }
 
 // ModelsConfig represents the entire models.yml configuration
