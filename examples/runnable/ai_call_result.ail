@@ -1,0 +1,44 @@
+-- examples/runnable/ai_call_result.ail
+-- Demonstrates std/ai.callResult — the Result-returning variant of call,
+-- introduced by M-AI-TOOL-LOOP (v0.17.0).
+--
+-- callResult mirrors call's wire path but returns Result[string, AIError]
+-- instead of crashing the host on failure. The typed AIError carries
+-- structured retry-vs-surface signal (retryable bool + code string) so
+-- agents can route on it without parsing string error messages.
+--
+-- Use this in code where you want to handle provider failures explicitly
+-- (rate limits, auth errors, transient timeouts) — particularly inside
+-- agent loops, retries, or pipelines where panic-on-error is unacceptable.
+--
+-- Setup:
+--   ailang run --caps AI,IO --ai gemini-3-flash-preview \
+--     examples/runnable/ai_call_result.ail
+--
+-- For deterministic offline behaviour:
+--   ailang run --caps AI,IO --ai-stub examples/runnable/ai_call_result.ail
+
+module examples/runnable/ai_call_result
+
+import std/ai (callResult, AIError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+-- Render a typed AIError with the retry-decision branch explicit.
+-- AIError shape: { code: string, message: string, retryable: bool }.
+export pure func renderError(e: AIError) -> string {
+  let retryStr = if e.retryable then "retryable" else "fatal";
+  "[${e.code}/${retryStr}] ${e.message}"
+}
+
+export func main() -> () ! {AI, IO} {
+  match callResult("Say hi in five words.") {
+    Ok(response) =>
+      println("AI response: ${response}"),
+    Err(e) =>
+      -- Typed error gives us the retry hint directly — no message parsing.
+      if e.retryable
+      then println("Transient error (would retry): ${renderError(e)}")
+      else println("Fatal error: ${renderError(e)}")
+  }
+}

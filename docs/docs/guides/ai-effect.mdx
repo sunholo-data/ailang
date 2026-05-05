@@ -1,6 +1,8 @@
 import CodeBlock from '@theme/CodeBlock';
 import AIEffectExample from '!!raw-loader!@site/../examples/runnable/ai_effect.ail';
 import NPCDialogueExample from '!!raw-loader!@site/../examples/docs/npc_dialogue.ail';
+import AICallResultExample from '!!raw-loader!@site/../examples/runnable/ai_call_result.ail';
+import AIToolLoopExample from '!!raw-loader!@site/../examples/runnable/ai_tool_loop.ail';
 
 # AI Effect: Calling LLMs from AILANG
 
@@ -172,12 +174,115 @@ Models are looked up in `models.yml` or guessed from name prefixes:
 - `gpt-*` → OpenAI
 - `gemini-*` → Google
 
+## Typed Errors with `callResult` / `callJsonResult` (v0.17.0+)
+
+The legacy `call` and `callJson` crash the host on provider failure, which is
+fine for one-shot scripts but wrong for agent loops, retries, or pipelines.
+`callResult` / `callJsonResult` are drop-in replacements that return
+`Result[string, AIError]` instead — the same wire path, but typed errors flow
+back as `Err(AIError {code, message, retryable})`.
+
+`AIError.code` is one of a fixed vocabulary that lets agents route on failure
+type without parsing message strings:
+
+| Code | Retryable? | Typical cause |
+|---|---|---|
+| `AuthFailed` | no | 401/403 — bad API key |
+| `RateLimit` | yes | 429 — slow down and retry |
+| `Timeout` | yes | network / context deadline |
+| `ConnectionFailed` | yes | TCP / TLS / DNS issues |
+| `ContextLength` | no | prompt exceeds model window |
+| `SchemaValidation` | no | response doesn't match callJson schema |
+| `ToolsNotSupported` | no | provider can't do tools (Ollama, configdriven) |
+| `ModelNotFound` | no | 404 — model name typo |
+| `BudgetExhausted` | no | AI cap budget overflow |
+| `Internal` | yes | 5xx or unclassified — conservative default |
+
+**Same shape as `std/ai/streaming.AIError`** (shipped v0.15.0) — one error
+record across the whole `std/ai` surface, single source of truth for
+retry-decision logic.
+
+```bash
+ailang run --caps AI,IO --ai gemini-3-flash-preview \
+  examples/runnable/ai_call_result.ail
+```
+
+<CodeBlock language="ailang">{AICallResultExample}</CodeBlock>
+
+## Multi-Turn Tool Dispatch with `step` and `runTools` (v0.17.0+)
+
+For agentic workflows where the model emits tool calls and the host
+dispatches them, `step` (one model turn) and `runTools` (loop driver) close
+the gap. The full agent loop — provider HTTP, tool-call parsing, message
+threading, typed errors — fits in a few lines of pure AILANG.
+
+**Shapes:**
+```ailang
+type Message = { role: string, content: string,
+                 tool_calls: [ToolCall], tool_call_id: string }
+type ToolSchema = { name: string, description: string, parameters: string }
+type ToolCall = { id: string, name: string, arguments: string }
+type StepResult = { message: Message, tool_calls: [ToolCall],
+                    finish_reason: string,
+                    input_tokens: int, output_tokens: int }
+```
+
+**`step`** is one model turn. Pass conversation + tool catalog, get the
+assistant's response back. When `finish_reason == "tool_calls"`, the model
+is asking the host to dispatch tools and continue.
+
+**`runTools`** is the convenience loop driver. It calls `step` in a loop,
+runs your `dispatch` callback on each tool call, threads results back as
+tool-role messages, and terminates when the model is done OR the step
+budget hits zero.
+
+```ailang
+runTools(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema],
+  dispatch: (ToolCall) -> string,   -- effect-polymorphic; can be ! {FS, Process, ...}
+  step_budget: int
+) -> Result[[Message], AIError] ! {AI}
+```
+
+The `dispatch` callback's effects propagate via row polymorphism — pass a
+dispatch with `! {FS, Process}` (e.g. real file I/O + shell exec) and
+`runTools` infers `! {AI, FS, Process}` automatically. No signature change
+needed.
+
+**Provider parity:**
+
+| Provider | Tool support | Notes |
+|---|---|---|
+| Anthropic | yes | Messages API `tool_use` content blocks |
+| Gemini | yes | `functionCall` parts; adapter generates stable IDs |
+| OpenAI | yes | Chat Completions `tool_calls` |
+| OpenRouter | yes | Passthrough (composes with `Routing` policies) |
+| Ollama | no — typed reject | `AIError{ToolsNotSupported}`; falls through to chat for no-tools |
+| Configdriven | no in v1 | Same typed reject pattern |
+
+**Worked example:** a 2-tool catalog with offline-deterministic dispatch.
+
+```bash
+ailang run --caps AI,IO --ai gemini-3-flash-preview \
+  examples/runnable/ai_tool_loop.ail
+```
+
+<CodeBlock language="ailang">{AIToolLoopExample}</CodeBlock>
+
+For the broader integration with `motoko_agent` (the first AILANG-native
+coding agent retiring its hand-rolled tool dispatch), see the
+[Motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md).
+
 ## Builtin Documentation
 
 View full builtin documentation:
 
 ```bash
 ailang builtins show _ai_call
+ailang builtins show _ai_call_result   # v0.17.0+
+ailang builtins show _ai_step          # v0.17.0+
 ```
 
 ## Comparison: AI Effect vs HTTP API
