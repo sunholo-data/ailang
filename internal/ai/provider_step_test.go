@@ -12,12 +12,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
 	"github.com/sunholo-data/ailang/internal/ai/configdriven"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
-	"github.com/sunholo-data/ailang/internal/ai/openrouter"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -30,19 +25,18 @@ type stepProvider interface {
 }
 
 func TestProviderStep_AllStubsReturnAIError(t *testing.T) {
-	ollamaClient, err := ollama.NewClient()
-	if err != nil {
-		t.Fatalf("ollama.NewClient: %v", err)
-	}
+	// Note: ollama is NOT in this list — M4 wired its Step to delegate to
+	// Generate when len(req.Tools) == 0 (instead of returning a stub),
+	// so it has its own targeted tests in internal/ai/ollama/step_test.go.
+	// The remaining providers (configdriven only, since M2-M4 landed real
+	// impls in anthropic/gemini/openai/openrouter) are still stubs in
+	// terms of "tools rejected, no real impl yet" — though configdriven
+	// goes through CodeToolsNotSupported when tools present, and a
+	// CodeInternal stub when tools absent.
 	providers := []struct {
 		name string
 		p    stepProvider
 	}{
-		{"openai", openai.NewClient("dummy")},
-		{"anthropic", anthropic.NewClient("dummy")},
-		{"gemini", gemini.NewClient("dummy")},
-		{"ollama", ollamaClient},
-		{"openrouter", openrouter.NewClient("dummy")},
 		{"configdriven", configdriven.New(&pkg.AIProviderSpec{Name: "test"})},
 	}
 
@@ -76,33 +70,9 @@ func TestProviderStep_AllStubsReturnAIError(t *testing.T) {
 	}
 }
 
-func TestProviderStep_OllamaToolsNotSupported(t *testing.T) {
-	// Ollama is the one provider that v1 deliberately rejects tools at
-	// the Step boundary (rather than being a stub-pending-impl). Verify
-	// the typed error code matches the design-doc commitment.
-	c, err := ollama.NewClient()
-	if err != nil {
-		t.Fatalf("ollama.NewClient: %v", err)
-	}
-	req := &ai.Request{
-		Model: "llama3.2",
-		Tools: []ai.ToolSchema{{Name: "noop", Description: "n/a", Parameters: "{}"}},
-	}
-	_, err = c.Step(context.Background(), req)
-	if err == nil {
-		t.Fatal("ollama Step with tools returned nil error; expected ToolsNotSupported")
-	}
-	var aiErr *ai.AIError
-	if !errors.As(err, &aiErr) {
-		t.Fatalf("ollama Step error not *AIError: %T", err)
-	}
-	if aiErr.Code != ai.CodeToolsNotSupported {
-		t.Errorf("Code = %q, want %q", aiErr.Code, ai.CodeToolsNotSupported)
-	}
-	if aiErr.Retryable {
-		t.Error("ToolsNotSupported should not be retryable")
-	}
-}
+// Note: TestProviderStep_OllamaToolsNotSupported was removed — the
+// equivalent assertion lives in-package at
+// internal/ai/ollama/step_test.go::TestStep_ToolsRejected.
 
 func TestProviderStep_ConfigdrivenToolsNotSupported(t *testing.T) {
 	// Same shape as the ollama test — config-driven providers also
