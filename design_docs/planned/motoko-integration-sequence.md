@@ -40,7 +40,8 @@ Each of these has now (or will soon have) a corresponding upstream fix. This doc
 | **v0.15.0 release** | [release-manager skill](/.claude/skills/release-manager) | 1 | 🔵 **Ready** — M-AI-PROVIDER-CONFIG complete; M-AI-EFFECT-MODES-FOLLOWUPS optional add-on | M-AI-PROVIDER-CONFIG (✅) |
 | **M-AI-STREAMING-HELPER** | [planned/v0_17_0/m-ai-streaming-helper.md](v0_17_0/m-ai-streaming-helper.md) | 1 | ✅ **Code + docs landed** (M1-M3, 2026-05-04). Pulled forward from v0.17.0 to v0.15.0 because all prerequisites had shipped. ~700 LOC, 12 tests passing. Awaiting release. | v0.15.0 release |
 | **M-EXTERNAL-CONSUMER-DX** | [planned/v0_17_0/m-external-consumer-dx.md](v0_17_0/m-external-consumer-dx.md) | 2 | 🟢 Planned | None hard |
-| **v0.17.0 release** | [release-manager skill](/.claude/skills/release-manager) | 2 | ⏳ After consumer-dx (streaming pulled into v0.15.0) | Phase 2 milestones |
+| **M-AI-TOOL-LOOP** | [implemented/v0_17_x/m-ai-tool-loop.md](../implemented/v0_17_x/m-ai-tool-loop.md) | 2 | ✅ **Implemented** (8/8 milestones, 2026-05-05). std/ai gains step / runTools / callResult / callJsonResult + 5 record types (AIError, Message, ToolCall, ToolSchema, StepResult). Real Step impls in anthropic / gemini / openai / openrouter; ollama rejects tools at boundary. ~6h wall-clock vs 7d plan estimate (parallel sub-agents on M2/M3/M4). Closes the last upstream gap that motoko_agent's tool_contract.ail / tool_runtime.ail filled. | None hard |
+| **v0.17.0 release** | [release-manager skill](/.claude/skills/release-manager) | 2 | ⏳ After M-EXTERNAL-CONSUMER-DX (M-AI-TOOL-LOOP ✅, M-AI-STREAMING-HELPER ✅) | Phase 2 milestones |
 | **PR-A: drop fork code** (arniwesth/ailang) | This doc § Phase 3 | 3 | ⏳ After v0.17.0 ships | Phase 1 + Phase 2 |
 | **PR-B: migrate consumer** (arniwesth/motoko_agent) | This doc § Phase 3 | 3 | ⏳ After v0.17.0 ships | Phase 1 + Phase 2, PR-A optional |
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 // fakeStepHandler is a controllable AIHandler for Step-path testing.
@@ -283,6 +284,75 @@ func TestAIStep_NilHandler_ReturnsErr(t *testing.T) {
 	}
 }
 
+// TestAIStep_RecordsTraceEvent verifies the new ops emit AI/step events
+// via the same RecordAIEffect machinery as call/callJson — so dashboards
+// and replay get a uniform view across single-shot and tool-loop calls.
+// Acceptance criterion from M7: ailang trace list shows ai.step events.
+func TestAIStep_RecordsTraceEvent(t *testing.T) {
+	h := &fakeStepHandler{
+		stepResp: &ai.Response{
+			Text:         "ok",
+			FinishReason: "stop",
+			InputTokens:  10,
+			OutputTokens: 5,
+		},
+	}
+	collector := traceCollector(t)
+	ctx := NewEffContext(nil)
+	ctx.Grant(NewCapability("AI"))
+	ctx.AI = NewAIContext(h)
+	ctx.Trace = collector
+
+	args := []eval.Value{
+		&eval.StringValue{Value: "claude-sonnet-4-5"},
+		&eval.ListValue{Elements: []eval.Value{}},
+		&eval.ListValue{Elements: []eval.Value{}},
+	}
+	if _, err := Call(ctx, "AI", "step", args); err != nil {
+		t.Fatalf("Call: %v", err)
+	}
+
+	stepEvent := findAIEvent(collector, "step")
+	if stepEvent == nil {
+		t.Fatal("no AI/step trace event recorded")
+	}
+	if !contains(stepEvent.Result, "tool_calls:0") {
+		t.Errorf("event Result = %q; want it to mention tool_calls:0", stepEvent.Result)
+	}
+	if !contains(stepEvent.Result, "finish:stop") {
+		t.Errorf("event Result = %q; want it to mention finish:stop", stepEvent.Result)
+	}
+}
+
+// TestAIStep_RecordsErrorEvent verifies the trace event on failure carries
+// the AIError code so telemetry consumers can route on it (e.g. count
+// rate-limit failures separately from auth failures).
+func TestAIStep_RecordsErrorEvent(t *testing.T) {
+	h := &fakeStepHandler{stepErr: ai.NewAIError(ai.CodeRateLimit, "throttled", true)}
+	collector := traceCollector(t)
+	ctx := NewEffContext(nil)
+	ctx.Grant(NewCapability("AI"))
+	ctx.AI = NewAIContext(h)
+	ctx.Trace = collector
+
+	args := []eval.Value{
+		&eval.StringValue{Value: "any"},
+		&eval.ListValue{Elements: []eval.Value{}},
+		&eval.ListValue{Elements: []eval.Value{}},
+	}
+	if _, err := Call(ctx, "AI", "step", args); err != nil {
+		t.Fatalf("Call: %v", err)
+	}
+
+	stepEvent := findAIEvent(collector, "step")
+	if stepEvent == nil {
+		t.Fatal("no AI/step trace event recorded on failure")
+	}
+	if !contains(stepEvent.Result, "err:RateLimit") {
+		t.Errorf("event Result = %q; want \"err:RateLimit\"", stepEvent.Result)
+	}
+}
+
 func TestAIStep_BadMessageType_ReturnsSchemaValidationErr(t *testing.T) {
 	// Pass a non-record (string) where a Message record is expected.
 	// The decoder should produce a SchemaValidation typed error.
@@ -342,4 +412,21 @@ func toolSchemaRecordVal(name, desc, params string) eval.Value {
 			"parameters":  &eval.StringValue{Value: params},
 		},
 	}
+}
+
+// traceCollector returns a fresh trace collector for one test.
+func traceCollector(_ *testing.T) *trace.Collector {
+	return trace.NewCollector()
+}
+
+// findAIEvent walks the collector's events and returns the first AI event
+// whose OpName matches op (e.g. "step", "callResult"). Returns nil if not
+// found, so callers can write `if ev == nil { t.Fatal(...) }`.
+func findAIEvent(c *trace.Collector, op string) *trace.EffectEvent {
+	for _, ev := range c.Events() {
+		if ev.Effect != nil && ev.Effect.EffectName == "AI" && ev.Effect.OpName == op {
+			return ev.Effect
+		}
+	}
+	return nil
 }

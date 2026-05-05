@@ -4,10 +4,13 @@
 
 Add multi-turn AI tool dispatch to AILANG: `std/ai.step` (one model turn), `std/ai.runTools` (loop driver), and `callResult`/`callJsonResult` Result-returning variants of the existing single-shot calls. **Reuses** the existing `AIError` type from `std/ai/streaming` (shipped v0.15.0). Extends the AI provider interface with `Step`, plumbs tool calls and typed errors through the trace, implements against Claude + Gemini + OpenRouter + OpenAI. Unblocks pure-AILANG agentic workflows, the planned `docparse legal review` workflow in ailang-parse v0.18.0, and lets `motoko_agent` retire its `tool_contract.ail`/`tool_runtime.ail` user-space tool dispatch (~200 LOC of agent-loop boilerplate).
 
+**Status:** ✅ Complete (8/8 milestones, 2026-05-05). See per-milestone notes in the sprint JSON `.ailang/state/sprints/sprint_M-AI-TOOL-LOOP.json` for actual deliverables and commits.
+
 **Sprint ID:** M-AI-TOOL-LOOP
 **Target Version:** v0.17.0
-**Design Doc:** [design_docs/planned/v0_17_0/m-ai-tool-loop.md](m-ai-tool-loop.md)
-**Duration:** 7 working days (~42-52 hours, ~2 calendar weeks if part-time)
+**Design Doc:** [m-ai-tool-loop.md](m-ai-tool-loop.md)
+**Estimated:** 7 working days (~42-52 hours, ~2 calendar weeks if part-time)
+**Actual:** ~6 hours wall-clock (single session). Compression from infrastructure reuse (AIError + streaming + OpenRouter shipped v0.15.x) + parallel worktree-isolated sub-agents on M2/M3/M4.
 **Refreshed:** 2026-05-05 against v0.15.1 codebase — pulled out AIError adoption work (already shipped v0.15.0) and streaming-related milestones (already shipped v0.15.0/v0.15.1)
 **Dependencies:** All shipped:
 - ✅ M-UNIFIED-AI-PROVIDERS (v0.5.10)

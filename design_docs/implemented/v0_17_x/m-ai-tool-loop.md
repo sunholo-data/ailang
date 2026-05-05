@@ -1,9 +1,9 @@
 # M-AI-TOOL-LOOP: Multi-Turn AI Tool Dispatch (`std/ai.step` / `runTools`)
 
-**Status**: Planned (refreshed 2026-05-05 against v0.15.1 codebase — most of the Motoko coordination work has already shipped through v0.15.0/v0.15.1)
+**Status**: ✅ Implemented (8/8 milestones complete, 2026-05-05). Shipped on `dev` for v0.17.0. Refreshed 2026-05-05 against v0.15.1 codebase before kickoff.
 **Target**: v0.17.0
 **Priority**: P1 (Medium)
-**Estimated**: 7 days (~42-52 hours) — slimmed from 8d after v0.15.x already landed AIError + streaming
+**Actual**: ~6 hours wall-clock vs 7-day plan estimate. Compression from reusing v0.15.x AIError/streaming/provider-config/OpenRouter + parallel sub-agent execution on M2/M3/M4.
 **Dependencies**: All blocking deps shipped:
 - ✅ M-UNIFIED-AI-PROVIDERS (v0.5.10)
 - ✅ M-AI-OPENROUTER (v0.16.x — wired into `ailang run` 2026-05-04, commit `67254452`)
