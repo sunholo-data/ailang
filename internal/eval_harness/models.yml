@@ -827,6 +827,12 @@ models:
     pricing:
       input_per_1k: 0.0006   # $0.60 per 1M
       output_per_1k: 0.00208 # $2.08 per 1M
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): explicit OS parity budget.
+    # Default formula resolves to $0.105 — generous bump to $0.30 matches the
+    # 4 OS near-misses tested in M5, gives multi-turn agent loops headroom.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Agent-mode smoke 2026-05-04: 3/3 (fizzbuzz✅ adt_option✅ csv_to_json✅).
       First OS model to pass the full smoke set. ~7× cheaper than Claude
@@ -846,6 +852,12 @@ models:
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): explicit OS parity budget.
+    # Default formula resolves to $0.058 — generous bump to $0.30 matches the
+    # 4 OS near-misses tested in M5; eliminates 29% api-error rate from v0.15.0.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Agent-mode smoke 2026-05-04: 3/3 after csv_to_json timeout bump
       (90→180s). fizzbuzz✅ 46s  adt_option✅ 42s  csv_to_json✅ 92s.
@@ -1204,6 +1216,12 @@ models:
     pricing:
       input_per_1k: 0.0006   # $0.60 per 1M
       output_per_1k: 0.00208 # $2.08 per 1M
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): standard-mode parity with the
+    # opencode-or-glm-5 agent variant. Default formula resolves to $0.105;
+    # explicit $0.30 keeps the cap symmetric across both modes.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Standard-eval companion to opencode-or-glm-5. Both share api_name and
       provider; opencode-* variant adds agent_cli for opencode harness.
@@ -1219,6 +1237,11 @@ models:
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): standard-mode parity with the
+    # opencode-or-minimax-m2-7 agent variant. Default $0.058 → explicit $0.30.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Standard-eval companion to opencode-or-minimax-m2-7. Cheapest OS PASS
       model in the spread ($0.30/$1.20 per 1M).
