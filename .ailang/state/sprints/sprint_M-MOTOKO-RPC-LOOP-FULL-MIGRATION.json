@@ -1,0 +1,238 @@
+{
+  "sprint_id": "M-MOTOKO-RPC-LOOP-FULL-MIGRATION",
+  "status": "blocked",
+  "blocked_reason": "Pre-flight gates 1-3 require arni's input before M3 can start. See sprint plan §Pre-Flight Checklist. Gates 1+2 block M3; Gate 3 blocks M6.",
+  "created": "2026-05-05T20:30:00Z",
+  "design_doc": "motoko_agent/design_docs/planned/m-motoko-rpc-loop-full-migration.md",
+  "sprint_plan": "motoko_agent/design_docs/planned/m-motoko-rpc-loop-full-migration-sprint-plan.md",
+  "execution_repo": "/Users/mark/dev/sunholo/motoko_agent",
+  "execution_branch": "ailang-tool-loop-migration",
+  "github_issues": [],
+  "preflight_gates": [
+    {
+      "gate": 1,
+      "title": "Sprint cadence",
+      "blocking": ["M3"],
+      "question": "Single 3-week sprint vs split across 2-3 releases?",
+      "default": "single 3-week sprint (recommended)",
+      "answered": false
+    },
+    {
+      "gate": 2,
+      "title": "Compose extension contract change",
+      "blocking": ["M5"],
+      "question": "Choose option (a) typed migration / (b) compatibility shim / (c) drop compose extensions",
+      "default": null,
+      "answered": false
+    },
+    {
+      "gate": 3,
+      "title": "ohmy_pi backend complexity",
+      "blocking": ["M6"],
+      "questions": [
+        "Q1: Sync vs async dispatch shape?",
+        "Q2: Result schema parity with native ToolResultEnvelope?",
+        "Q3: Is delegated execution stable or under active development?",
+        "Q4: Are there ohmy_pi-specific tools needing ToolSchema entries?"
+      ],
+      "default_fallback": "option (b) defer ohmy_pi temporarily — return ToolErrorResult for delegated calls",
+      "answered": false
+    },
+    {
+      "gate": 4,
+      "title": "SYSTEM.md update timing",
+      "blocking": ["M10"],
+      "question": "Confirm replacing JSON-block instructions with provider-native API instructions in M10",
+      "default": "yes if M9 passes",
+      "answered": false
+    },
+    {
+      "gate": 5,
+      "title": "Default-on switch timing",
+      "blocking": ["post-M10"],
+      "question": "When does MOTOKO_AGENT_V2 stop being opt-in?",
+      "options": [
+        "(i) immediately at M10 (recommended once M9 passes)",
+        "(ii) after one stable motoko release with v2 default-off but available",
+        "(iii) user-by-user opt-in for N weeks before flipping default"
+      ],
+      "answered": false
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day_net": 80,
+    "estimated_total_loc_net": 1000,
+    "estimated_days_realistic": 14,
+    "estimated_days_optimistic": 9,
+    "estimated_days_pessimistic": 25,
+    "loc_breakdown_note": "NET LOC deletion across motoko_agent. Gross LOC churn is much higher (~1700 added across milestones, ~2700 deleted in M7+M10). Velocity is intentionally lower than AILANG-internal sprints because this is cross-repo with arni-decision gates and a 5-provider test matrix."
+  },
+  "features": [
+    {
+      "id": "M3_EXTENSION_INTERCEPT_DISPATCH",
+      "description": "Integrate dispatch_response_intercept(ext, response_text) into v2's per-turn flow. Each step() return calls intercept, branches on Accept / ContinueWithFeedback / NoIntercept / NoDecision. ~150 LOC added to agent_loop_v2.ail; rpc_loop unchanged.",
+      "estimated_loc": 150,
+      "estimated_days": 1,
+      "risk_level": "low",
+      "dependencies": [],
+      "blocked_by_gates": [1],
+      "acceptance_criteria": [
+        "v2 calls dispatch_response_intercept(ext, result.message.content) on each step return",
+        "Accept(output) short-circuits the loop with done event carrying output",
+        "ContinueWithFeedback(fb) injects {role:user, content:fb} message and recurses",
+        "NoIntercept and NoDecision fall through to tool dispatch unchanged",
+        "Smoke test scripts/smoke_v2_intercept.ail with synthetic Accept stub passes",
+        "make check_core still passes (currently 22/22)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_TOOL_GATING_POLICY",
+      "description": "Run apply_tool_policy on the typed [ToolCall] from step. Translate ToolCall ↔ ToolCallEnvelope (M1 adapter), pass to existing gating logic, get back gated.allowed and gated.denied. Denied calls become tool-result messages with denial reason. ~120 LOC.",
+      "estimated_loc": 120,
+      "estimated_days": 0.5,
+      "risk_level": "low",
+      "dependencies": ["M3_EXTENSION_INTERCEPT_DISPATCH"],
+      "blocked_by_gates": [],
+      "acceptance_criteria": [
+        "v2 calls policy gate on every typed [ToolCall] returned by step()",
+        "gated.allowed flows to native dispatch; gated.denied becomes tool-role messages with denial JSON",
+        "Denied calls do NOT reach run_native_batch",
+        "Smoke test: synthetic stub denies BashExec; v2 emits denied tool-result message",
+        "All M3 acceptance criteria still hold (regression-free)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_TOOL_HANDLE_ROUTING_AND_COMPOSE_CONTRACT",
+      "description": "Integrate route_tool_handles_typed to let extensions handle specific tool names directly. Migrate compose extensions (claimcheck, author_loop) per arni's chosen path (a/b/c). ~300 LOC — heaviest individual milestone.",
+      "estimated_loc": 300,
+      "estimated_days": 2,
+      "risk_level": "medium",
+      "dependencies": ["M4_TOOL_GATING_POLICY"],
+      "blocked_by_gates": [2],
+      "acceptance_criteria": [
+        "Extension-routed tools (e.g. compose_check_premise) bypass run_native_batch and return their own ToolResultEnvelope",
+        "claimcheck still validates compose-author output between turns per arni's chosen migration path",
+        "author_loop still injects multi-attempt feedback for ailang-snippet authoring",
+        "One existing claimcheck-using benchmark task passes end-to-end",
+        "All M3+M4 acceptance criteria still hold"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "GATING: arni must choose option (a) typed migration / (b) compatibility shim / (c) drop compose extensions before this milestone starts."
+    },
+    {
+      "id": "M6_NATIVE_VS_OHMY_PI_BACKEND_SPLIT",
+      "description": "Integrate split_by_backend(handled.passthrough, settings.ohmy_pi). Native calls go through run_native_batch; delegated calls go through ohmy_pi's existing infrastructure. ~230 LOC.",
+      "estimated_loc": 230,
+      "estimated_days": 2,
+      "risk_level": "high",
+      "dependencies": ["M5_TOOL_HANDLE_ROUTING_AND_COMPOSE_CONTRACT"],
+      "blocked_by_gates": [3],
+      "acceptance_criteria": [
+        "Native tool calls dispatch through run_native_batch exactly as today",
+        "Delegated tool calls dispatch through ohmy_pi's existing client and return ToolResultEnvelopes",
+        "Mixed batches (some native, some delegated) work correctly",
+        "settings.ohmy_pi=false falls back to all-native dispatch with no errors",
+        "Smoke test against ohmy_pi-configured backend passes",
+        "All M3-M5 acceptance criteria still hold"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "GATING: arni must answer four ohmy_pi questions before this milestone starts. Fallback option (b) defer ohmy_pi if blocking — return ToolErrorResult for delegated calls."
+    },
+    {
+      "id": "M7_HYBRID_MODE_AND_PARSE_CLEANUP",
+      "description": "Hybrid mode: extract_bash shorthand for prose containing $ <cmd> when no typed tool_calls. DELETE parse_tool_calls, indicates_continuation_intent, extract_any_tool_json_candidate, looks_like_non_json_tool_syntax, parse_legacy_terminal_call, parse_legacy_direct_call from parse.ail. ~100 LOC added + ~400 LOC deleted = ~300 LOC NET DELETION.",
+      "estimated_loc": -300,
+      "estimated_days": 0.5,
+      "risk_level": "low",
+      "dependencies": ["M6_NATIVE_VS_OHMY_PI_BACKEND_SPLIT"],
+      "blocked_by_gates": [],
+      "acceptance_criteria": [
+        "v2 falls through to extract_bash when step() returns tool_calls=[] AND finish_reason=stop AND prose contains $ <cmd> line-prefix",
+        "Extracted bash command becomes a synthetic BashExec tool call dispatched through native path",
+        "Smoke test: MOTOKO_AGENT_V2=1 motoko \"$ pwd\" works",
+        "make check_core still passes",
+        "~400 LOC deleted from parse.ail with no regression"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8_MULTI_TURN_CONVERSATION_LOOP",
+      "description": "Multi-turn conversation loop: after v2's main task completes (done event), loop back for the user's next task input. ~80 LOC.",
+      "estimated_loc": 80,
+      "estimated_days": 0.5,
+      "risk_level": "low",
+      "dependencies": ["M7_HYBRID_MODE_AND_PARSE_CLEANUP"],
+      "blocked_by_gates": [],
+      "acceptance_criteria": [
+        "After v2 emits done, awaits next user input via stdin/env-server",
+        "New user message gets appended to running message history",
+        "Loop resumes via fresh step() call with appended history",
+        "TUI session smoke test: two consecutive prompts work without restart",
+        "TUI state machine handles v2 done→next-task transition correctly"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9_TEST_MATRIX",
+      "description": "Validate v2 across 5 model providers × 5 benchmark tasks. Capture model-specific quirks (Gemini functionCall ID generation, OpenAI argument-string-vs-object). ~150 LOC driver + ~200 LOC benchmark fixtures.",
+      "estimated_loc": 350,
+      "estimated_days": 2.5,
+      "risk_level": "medium",
+      "dependencies": ["M8_MULTI_TURN_CONVERSATION_LOOP"],
+      "blocked_by_gates": [],
+      "acceptance_criteria": [
+        "Claude Sonnet 4.5: 5/5 benchmark tasks pass",
+        "Gemini 3 Pro: 5/5 pass (likely surfaces functionCall ID quirks — fix upstream)",
+        "GPT-5: 5/5 pass",
+        "GLM-5: at least 4/5 pass (acceptable for smaller OS model)",
+        "MiniMax M2.7: at least 4/5 pass",
+        "Any per-provider bug found gets a regression test in upstream internal/ai/<provider>/step_test.go",
+        "Documented compatibility matrix in docs/v2-model-compatibility.md"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M10_PRODUCTION_CUTOVER",
+      "description": "DELETE rpc_loop, conversation_loop, env-var branch (~600 LOC). Rename agent_loop_v2.ail → agent_loop.ail. Replace SYSTEM.md JSON-block instructions with provider-native API description. Drop MOTOKO_AGENT_V2 forwarding from runtime-process.ts. ~50 LOC adjustments + ~600 LOC deletion.",
+      "estimated_loc": -550,
+      "estimated_days": 1,
+      "risk_level": "low",
+      "dependencies": ["M9_TEST_MATRIX"],
+      "blocked_by_gates": [4, 5],
+      "acceptance_criteria": [
+        "make check_core passes (~19 modules after dead code removal)",
+        "All benchmark tasks pass without MOTOKO_AGENT_V2 env var",
+        "AILANG fork (arniwesth/ailang@motoko) declared archivable",
+        "Net LOC deleted from motoko_agent ≥800 (target ~1000)",
+        "SYSTEM.md tool-call instructions replaced with provider-native protocol description",
+        "motoko_agent CHANGELOG entry references all 6 retained decision points"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "GATING: arni's confirmation on Gate 4 (SYSTEM.md update) and Gate 5 (default-on switch timing)."
+    }
+  ],
+  "notes": "Cross-repo sprint executing in /Users/mark/dev/sunholo/motoko_agent (downstream consumer), not AILANG itself. AILANG side ships v0.15.2 (already shipped); no AILANG version bumps expected during this sprint unless M9 surfaces upstream bugs. AILANG fork retirement is THE outcome. Three blocking gates (1, 2, 3) before M3/M5/M6 can run; sprint-executor must verify with arni before starting each respective milestone. Pessimistic estimate (~25 days) accounts for ohmy_pi rewrite OR compose extension redesign; optimistic estimate (~9 days) assumes both wildcards resolve cleanly."
+}
