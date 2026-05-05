@@ -2,115 +2,116 @@
 
 ## Summary
 
-Add multi-turn AI tool dispatch to AILANG: `std/ai.step` (one model turn), `std/ai.runTools` (loop driver), `AIError` typed error (lifted from Motoko fork), and `callResult`/`callJsonResult` Result-returning variants of the existing single-shot calls. Extend the AI provider interface with `Step`, plumb tool calls and typed errors through the trace, implement against Claude + Gemini + OpenRouter. Unblocks pure-AILANG agentic workflows, the planned `docparse legal review` workflow in ailang-parse v0.18.0, and harmonizes with the `motoko_agent` harness (currently rolling its own tool dispatch in `tool_contract.ail`/`tool_runtime.ail`).
+Add multi-turn AI tool dispatch to AILANG: `std/ai.step` (one model turn), `std/ai.runTools` (loop driver), and `callResult`/`callJsonResult` Result-returning variants of the existing single-shot calls. **Reuses** the existing `AIError` type from `std/ai/streaming` (shipped v0.15.0). Extends the AI provider interface with `Step`, plumbs tool calls and typed errors through the trace, implements against Claude + Gemini + OpenRouter + OpenAI. Unblocks pure-AILANG agentic workflows, the planned `docparse legal review` workflow in ailang-parse v0.18.0, and lets `motoko_agent` retire its `tool_contract.ail`/`tool_runtime.ail` user-space tool dispatch (~200 LOC of agent-loop boilerplate).
 
 **Sprint ID:** M-AI-TOOL-LOOP
 **Target Version:** v0.17.0
 **Design Doc:** [design_docs/planned/v0_17_0/m-ai-tool-loop.md](m-ai-tool-loop.md)
-**Duration:** 8 working days (~48-58 hours, ~3 calendar weeks if part-time)
-**Dependencies:** None blocking (M-UNIFIED-AI-PROVIDERS shipped v0.5.10; M-AI-OPENROUTER v0.16.0 lands cleanly under us but is not required)
-**Downstream consumers:**
+**Duration:** 7 working days (~42-52 hours, ~2 calendar weeks if part-time)
+**Refreshed:** 2026-05-05 against v0.15.1 codebase — pulled out AIError adoption work (already shipped v0.15.0) and streaming-related milestones (already shipped v0.15.0/v0.15.1)
+**Dependencies:** All shipped:
+- ✅ M-UNIFIED-AI-PROVIDERS (v0.5.10)
+- ✅ M-AI-OPENROUTER (v0.16.x — wired into `ailang run` 2026-05-04)
+- ✅ M-AI-PROVIDER-CONFIG (v0.15.0)
+- ✅ M-AI-EFFECT-MODES (v0.15.0)
+- ✅ M-AI-STREAMING-HELPER (v0.15.0)
+- ✅ M-AI-CALL-STREAM-HELPER (v0.15.1) — shipped `AIError` type
+
+**Companion in v0.17.0:**
+- [m-external-consumer-dx.md](m-external-consumer-dx.md) — error_codes.json artifact + diagnostics motoko_agent will consume
+- [m-bench-motoko-executor.md](m-bench-motoko-executor.md) — adds motoko_agent as a benchmark executor (downstream consumer of this sprint via cleaner agent-loop API)
+
+**Downstream consumers (after v0.17.0 ships):**
 - ailang-parse v0.18.0 Part 3 (`docparse legal review` CLI)
-- `sunholo-data/motoko_agent` (swap custom tool dispatch onto `runTools`)
-- arniwesth/ailang motoko branch (retire `std/ai_motoko` parallel namespace; its `_motoko` files become re-export shims)
+- `arniwesth/motoko_agent` (swap custom tool dispatch onto `runTools` — coordinate with [motoko-agent-v0.15.0-migration.md](../motoko-agent-v0.15.0-migration.md))
 
-**Risk Level:** Medium (provider format normalization + Motoko coordination)
+**Risk Level:** Low-Medium — provider format normalization is the main risk; AIError + streaming coordination is no longer a risk (shipped).
 
-**Awaiting design-freeze decisions (see design doc § High-Impact Decisions):**
-- ⏳ Extend existing `Request`/`Response` with `Messages`/`Tools`/`ToolCalls` (recommended) vs new `StepRequest` type
-- ⏳ Tool schema as opaque JSON Schema string (recommended) vs typed AILANG ADT
-- ⏳ Loop in user-space via `runTools` (recommended) vs baked into the builtin
-- ⏳ Provider parity: Claude + Gemini + OpenRouter in this sprint; OpenAI/Ollama return typed error if tools requested
-- ⏳ Adopt Motoko `AIError` shape verbatim (recommended) — needs arniwesth sign-off before M0 closes
-- ⏳ Streaming via separate `stepStream` follow-up in v0.17.x (recommended) vs in-step chunk callback
+**Open decisions (see design doc § High-Impact Decisions):**
+- ⏳ `dispatch: (ToolCall) -> string` callback signature — confirm sufficient for motoko_agent or widen. Resolves in M0.
 
-This plan assumes the recommended decisions are ratified. If any flips, milestone estimates shift by 0.5-1 day each. The two new Motoko-related decisions are the most consequential — they should be confirmed before M0 begins.
+All other decisions (extend Request/Response, opaque JSON Schema, user-space loop, AIError shape, streaming-as-deferred, provider parity) are recommended-and-defaulted based on the v0.15.x decisions that already shipped. Open to flipping any of them in review, but defaults track the rest of the codebase.
 
 ## Current Status Analysis
 
-### Completed Recently (last 14 days, informs velocity)
+### Completed Recently (informs velocity + reduces this sprint's scope)
 
-- ✅ **M-AGENT-MCP** sprint (7/8 milestones, in-flight): server-side filtering, per-module stdlib snapshots, MCP HTTP transport hardening
-- ✅ **MCP server-side filtering** for `docs_search`, `example_for_concept`, `stdlib_search`
-- ✅ **Per-stdlib-module JSON** for `stdlib_module` MCP tool
-- ✅ **OpenRouter provider** sprint plan in flight (M-AI-OPENROUTER v0.16.0)
-- ✅ **Verify-examples skip list** for intentionally-failing examples
+- ✅ **M-AI-CALL-STREAM-HELPER** (v0.15.1, 2026-05-05) — `callStream` synchronous accumulator returning `Result[string, AIError]`. ~555 LOC, ~5 hours wall-clock against 4-6h estimate. **Establishes the AIError type this sprint reuses.**
+- ✅ **M-AI-STREAMING-HELPER** (v0.15.0) — lower-level `openaiCompatStream`/`anthropicStream` primitives over registered `[[ai_provider]]` config. ~700 LOC, ~5.5h wall-clock against 6h estimate.
+- ✅ **M-AI-PROVIDER-CONFIG** (v0.15.0) — declarative `[[ai_provider]]` TOML blocks; 95 tests passing.
+- ✅ **M-AI-EFFECT-MODES** (v0.15.0) — `!{AI[mode=fixed]}` / `!{AI[mode=routeable]}` via M-EFFECT-REFINEMENT.
+- ✅ **M-AI-OPENROUTER** (v0.16.x, 2026-05-04) — wired into `ailang run` (commit `67254452`).
+- ✅ **M-EVAL-COST-AND-SPEED-BUDGETS** (v0.15.1) — `Task.Budget *CostBudget` plumbed through executor interface.
 
 ### Velocity
 
-- **Recent average**: ~150-250 LOC/day for milestone-style work; multi-day milestones land in 1-3 calendar days
-- **Estimated capacity for this sprint**: ~1,800-2,200 LOC (implementation + tests) over 6 working days
-- **Confidence**: Medium — provider format normalization (Anthropic vs Gemini vs OpenAI tool-use shapes) is fiddly; the eval harness already does some of this work in Go and we can lift normalization patterns from there
+- **Recent average**: ~150-250 LOC/day for milestone-style work; the recent v0.15.x AI-related milestones consistently landed in or under estimate (5-5.5h actual on 4-6h estimates).
+- **Estimated capacity for this sprint**: ~1,500-2,000 LOC (implementation + tests) over 7 working days
+- **Confidence**: Medium-high — provider format normalization (Anthropic vs Gemini vs OpenAI tool-use shapes) remains the main risk; the eval harness already does some of this work in Go and we can lift normalization patterns from there. AIError shape risk eliminated (already shipped).
 
 ### Remaining from Design Doc
 
-- ⏳ **M0: Motoko coordination + AIError adoption** (~50 LOC impl, 0.5d)
-- ⏳ **M1: Provider interface + Request/Response extension + AIError + error mapping** (~400 LOC impl + 200 LOC tests = 600 LOC, 1d)
-- ⏳ **M2: Anthropic adapter `Step` + AIError mapping** (~350 LOC impl + 250 LOC tests = 600 LOC, 1d)
-- ⏳ **M3: Gemini adapter `Step` + AIError mapping** (~350 LOC impl + 250 LOC tests = 600 LOC, 1d)
-- ⏳ **M4: OpenRouter + OpenAI/Ollama parity + AIError mapping** (~200 LOC impl + 150 LOC tests = 350 LOC, 0.5d)
-- ⏳ **M5: `callResult`/`callJsonResult` + `_ai_step` builtin + AILANG types** (~300 LOC impl + 150 LOC tests = 450 LOC, 1.5d)
-- ⏳ **M6: `std/ai.step` and `runTools` AILANG impl** (~150 LOC impl + 200 LOC tests = 350 LOC, 1d)
-- ⏳ **M7: Trace schema (incl. AIError) + replay + motoko_agent compat swap + docs + release** (~250 LOC + docs + CHANGELOG, 1.5d)
+- ⏳ **M0: Confirm dispatch callback signature** against motoko_agent's existing tool runtime (~50 LOC notes, 0.25d)
+- ⏳ **M1: Provider interface + Request/Response extension + extend wrapErrAsAIError** (~300 LOC impl + 150 LOC tests = 450 LOC, 0.75d)
+- ⏳ **M2: Anthropic adapter `Step`** (~300 LOC impl + 200 LOC tests = 500 LOC, 1d)
+- ⏳ **M3: Gemini adapter `Step`** (~300 LOC impl + 200 LOC tests = 500 LOC, 1d)
+- ⏳ **M4: OpenAI/OpenRouter `Step` + Ollama tools_not_supported** (~200 LOC impl + 150 LOC tests = 350 LOC, 0.5d)
+- ⏳ **M5: `callResult`/`callJsonResult` + `_ai_step` builtin + AILANG types** (~250 LOC impl + 150 LOC tests = 400 LOC, 1d)
+- ⏳ **M6: `std/ai.step` and `runTools` AILANG impl + worked example** (~200 LOC impl + 200 LOC tests = 400 LOC, 1d)
+- ⏳ **M7: Trace schema + replay + motoko_agent compat swap + docs + release** (~200 LOC + docs + CHANGELOG, 1.5d)
 
-**Total estimate:** ~2,950 LOC across 8 milestones, 8 working days.
+**Total estimate:** ~2,200 LOC across 8 milestones, 7 working days. (Down from 2,950 LOC / 8d in the pre-refresh estimate — savings come from reusing the existing AIError type and dropping the streaming work.)
 
 ## Proposed Milestones
 
-### M0: Motoko coordination + AIError adoption
+### M0: Confirm dispatch callback signature
 
-**Goal:** Lock the typed-error contract and tool-dispatch callback signature against actual Motoko-side usage before any code lands. Confirm the proposed `AIError` shape matches `std/ai_motoko.AIError` byte-for-byte. Confirm `dispatch: (ToolCall) -> string` is sufficient for `motoko_agent`'s tool-runtime needs. If either needs widening, do it here — not after M1 ships.
+**Goal:** Lock the `dispatch: (ToolCall) -> string` signature against actual `motoko_agent` usage before any code lands. AIError shape work is no longer in scope (already shipped v0.15.0; this sprint reuses the existing type unchanged).
 
-**Estimated:** ~50 LOC (mostly notes + a stub re-export in `std/ai_motoko.ail`); 0.5 day (~3-4 hours)
+**Estimated:** ~50 LOC notes; 0.25 day (~2 hours)
 
 **Tasks:**
-- Read [arniwesth/ailang motoko branch `std/ai_motoko.ail`](https://github.com/arniwesth/ailang/blob/motoko/std/ai_motoko.ail) — diff `AIError` shape against the design doc; flag any divergence
-- Read `sunholo-data/motoko_agent/src/core/tool_contract.ail` and `tool_runtime.ail` — extract the `(ToolCall) -> string` callback shape they actually use; confirm it covers their needs (per-call timeout? structured tool errors? conversation context?)
-- If `dispatch` signature needs widening, propose the change in this doc and bump the M6 estimate
-- Open a coordination issue / message to arniwesth confirming AIError verbatim adoption + streaming follow-up plan
-- Update `std/ai_motoko.ail` (in our repo's compatibility shim, not the fork) with a one-line stub re-export plan documented for M5 to wire up
+- Read `arniwesth/motoko_agent/src/core/tool_contract.ail` and `tool_runtime.ail` — extract the callback shape their tool runtime actually uses; confirm `(ToolCall) -> string` covers their needs (per-call timeout? structured tool errors? conversation context?)
+- If `dispatch` signature needs widening (e.g. `(ToolCall) -> Result[string, ToolError]` or `(ToolCall, ConversationCtx) -> string`), update the design doc and bump M6 estimate by 0.5d
+- Open a coordination message in [motoko-integration-sequence.md](../motoko-integration-sequence.md) status board so arniwesth knows the tool-loop work is starting and what the proposed callback shape is
 
 **Files to read (no edits this milestone):**
-- `arniwesth/ailang/std/ai_motoko.ail` (motoko branch)
-- `arniwesth/ailang/internal/effects/ai_motoko.go` (motoko branch) — confirms how Motoko fills the AIError fields
-- `sunholo-data/motoko_agent/src/core/tool_contract.ail`
-- `sunholo-data/motoko_agent/src/core/tool_runtime.ail`
+- `arniwesth/motoko_agent/src/core/tool_contract.ail`
+- `arniwesth/motoko_agent/src/core/tool_runtime.ail`
 
 **Acceptance Criteria:**
-- [ ] AIError shape in design doc confirmed verbatim-compatible with `std/ai_motoko.AIError` (or design doc updated to match)
 - [ ] `dispatch: (ToolCall) -> string` confirmed sufficient for motoko_agent's tool runtime (or signature widened in design doc)
-- [ ] arniwesth has signed off on the AIError adoption + streaming-as-follow-up plan in writing
+- [ ] motoko-integration-sequence.md status board updated with M-AI-TOOL-LOOP entry
 
 **Risks:**
-- arniwesth disagrees on AIError shape — Mitigation: this milestone is exactly the place to surface that; better to find out before M1
 - motoko_agent's existing dispatch contract needs richer inputs/outputs than `(ToolCall) -> string` — Mitigation: widen the signature here; M6 absorbs the extra implementation cost (~+0.5d)
 
 ---
 
-### M1: Provider interface + Request/Response extension + AIError type
+### M1: Provider interface + Request/Response extension
 
-**Goal:** Add `Messages`, `Tools`, `ToolCalls`, `FinishReason` fields to `internal/ai.Request`/`Response`. Add `Step(ctx, *Request) (*Response, error)` method to the `Provider` interface. Add `AIError` Go struct + the provider-error → AIError mapping table in `internal/ai/errors.go`. All existing providers stub `Step` with `AIError{code: "internal", message: "not yet implemented", retryable: false}`; existing `Generate` keeps working unchanged.
+**Goal:** Add `Messages`, `Tools`, `ToolCalls`, `FinishReason` fields to `internal/ai.Request`/`Response`. Add `Step(ctx, *Request) (*Response, error)` method to the `Provider` interface. Extend the existing `wrapErrAsAIError` (currently in `internal/effects/stream.go`) — or factor a shared `internal/ai/errors.go` if call sites multiply — to emit the new codes (`rate_limit`, `context_length`, `schema_validation`, `tools_not_supported`). All existing providers stub `Step` with `AIError{code: "internal", message: "not yet implemented", retryable: false}`; existing `Generate` keeps working unchanged.
 
-**Estimated:** ~400 LOC implementation + ~200 LOC tests = 600 LOC
-**Duration:** 1 day (~6-8 hours)
+**Estimated:** ~300 LOC implementation + ~150 LOC tests = 450 LOC
+**Duration:** 0.75 day (~5-6 hours)
 
 **Tasks:**
-- Morning: Define `AIError` struct in `internal/ai/errors.go` matching the AILANG-side record byte-for-byte (`Provider`, `StatusCode`, `Retryable`, `Code`, `Message`)
-- Morning: Define error-code constants (`CodeAuthFailed`, `CodeRateLimit`, `CodeTimeout`, `CodeContextLength`, `CodeToolsNotSupported`, `CodeSchemaValidation`, `CodeTransport`, `CodeModelNotFound`, `CodeInternal`)
-- Morning: Implement `func ClassifyHTTPError(provider string, statusCode int, body []byte) *AIError` per the mapping table in the design doc (single source of truth — every adapter calls this rather than rolling its own)
-- Morning: Define `Message`, `ToolSchema`, `ToolCall` structs in `internal/ai/provider.go`
-- Morning: Add `Messages`, `Tools` to `Request`; `ToolCalls`, `FinishReason` to `Response`
-- Afternoon: Add `Step` to `Provider` interface; stub in `openai/`, `anthropic/`, `gemini/`, `ollama/`, `openrouter/` returning `&AIError{Code: CodeInternal, Message: "step not yet implemented", Retryable: false}`
-- Afternoon: Unit tests for `ClassifyHTTPError` covering every code in the mapping table
-- Afternoon: Unit tests for the new struct round-trips and the interface contract
+- Read existing `wrapErrAsAIError` in `internal/effects/stream.go` to confirm shape; decide whether to extend in place or factor to `internal/ai/errors.go` (factor recommended once non-streaming AI calls also use it)
+- Define `Message`, `ToolSchema`, `ToolCall` structs in `internal/ai/provider.go`
+- Add `Messages`, `Tools` to `Request`; `ToolCalls`, `FinishReason` to `Response`
+- Add `Step` to `Provider` interface; stub in `openai/`, `anthropic/`, `gemini/`, `ollama/`, `openrouter/` returning `AIError{Code: "internal", Message: "step not yet implemented", Retryable: false}`
+- Add new code constants (`rate_limit`, `context_length`, `schema_validation`, `tools_not_supported`) alongside the existing ones; extend `wrapErrAsAIError` to recognize them
+- Unit tests for the extended classifier covering every new code
+- Unit tests for the new struct round-trips and the interface contract
 
 **Files to create:**
-- `internal/ai/errors.go` (~150 LOC) — `AIError` struct, code constants, `ClassifyHTTPError`, conversion to/from Go `error`
-- `internal/ai/errors_test.go` (~150 LOC) — mapping-table tests
+- `internal/ai/errors.go` (~80 LOC) — IF factoring out of `internal/effects/stream.go`; otherwise extend in place
+- `internal/ai/errors_test.go` (~100 LOC) — new-code mapping tests
 - `internal/ai/provider_step_test.go` (~100 LOC) — interface contract tests
 
 **Files to modify:**
 - `internal/ai/provider.go` (~120 LOC delta) — extend Request/Response, add Step
+- `internal/effects/stream.go` (~30 LOC delta) — IF extending in place; otherwise import from new errors.go
 - `internal/ai/openai/handler.go` (~20 LOC delta) — stub Step
 - `internal/ai/anthropic/handler.go` (~20 LOC delta) — stub Step
 - `internal/ai/gemini/handler.go` (~20 LOC delta) — stub Step
@@ -119,14 +120,14 @@ This plan assumes the recommended decisions are ratified. If any flips, mileston
 
 **Acceptance Criteria:**
 - [ ] `go build ./...` clean — all providers compile with new interface
-- [ ] `go test ./internal/ai/...` passes (existing tests unaffected)
-- [ ] `errors_test.go` covers every `AIError.Code` value in the design doc's mapping table
+- [ ] `go test ./internal/ai/...` and `go test ./internal/effects/...` pass (existing tests unaffected)
+- [ ] `errors_test.go` covers every new `AIError.code` value (`rate_limit`, `context_length`, `schema_validation`, `tools_not_supported`)
 - [ ] `provider_step_test.go` verifies Step exists on all providers and returns a stub `AIError` (not panic, not nil)
-- [ ] `AIError` Go struct field names + JSON tags match the AILANG record field order (so the round-trip in M5 is mechanical)
+- [ ] AIError shape unchanged from v0.15.0: `{code, message, retryable}` only — no new fields
 
 **Risks:**
 - Adding a method to an interface is a breaking change for any external Provider impls. Mitigation: search-grep for external impls first; document in CHANGELOG as "Provider interface extension"
-- Mapping table edge cases (e.g. Anthropic's `overloaded_error` 529 — is it retryable?). Mitigation: per-provider override hook in `ClassifyHTTPError`; document each override in code comment with provider doc link
+- Mapping table edge cases (e.g. Anthropic's `overloaded_error` 529 — is it retryable?). Mitigation: per-provider override hook; document each override in code comment with provider doc link
 
 ---
 
@@ -202,65 +203,70 @@ This plan assumes the recommended decisions are ratified. If any flips, mileston
 
 **Goal:** OpenRouter routes to whatever the underlying model supports; the adapter just passes tools/messages through unchanged (it speaks OpenAI Chat Completions). OpenAI gets a real `Step` (since the format is what OpenRouter passes through anyway). Ollama returns `ErrToolsNotSupported` when tools are present, else falls back to `Generate`.
 
-**Estimated:** ~150 LOC implementation + ~100 LOC tests = 250 LOC
+**Estimated:** ~200 LOC implementation + ~150 LOC tests = 350 LOC
 **Duration:** 0.5 day (~3-4 hours)
 
 **Tasks:**
-- Morning: Implement `Step` in `openrouter/` and `openai/` against OpenAI Chat Completions tool-use format (very similar — both use the `tools`/`tool_calls` schema)
-- Morning: Implement Ollama `Step`: if `len(req.Tools) == 0`, call existing `Generate`; otherwise return `ErrToolsNotSupported`
-- Afternoon: Tests covering passthrough behavior on OpenRouter, OpenAI live-shape parsing, Ollama not-supported path
+- Morning: Implement `Step` in `openai/` against OpenAI Chat Completions tool-use format
+- Morning: Implement `Step` in `openrouter/` as a thin passthrough over `openai/`'s implementation using OpenRouter's HTTP base — OpenRouter already speaks OpenAI Chat Completions
+- Morning: Implement Ollama `Step`: if `len(req.Tools) == 0`, call existing `Generate`; otherwise return `AIError{code: "tools_not_supported", retryable: false}`
+- Afternoon: Tests covering OpenAI live-shape parsing, OpenRouter passthrough behaviour (verify `Routing` field still works alongside tools), Ollama not-supported path
 
 **Files to create:**
-- `internal/ai/openai/step.go` (~80 LOC)
-- `internal/ai/openrouter/step.go` (~30 LOC) — thin wrapper over openai's Step using OpenRouter's HTTP base
-- `internal/ai/openai/step_test.go` (~100 LOC)
+- `internal/ai/openai/step.go` (~100 LOC)
+- `internal/ai/openrouter/step.go` (~40 LOC) — thin wrapper over openai's Step using OpenRouter's HTTP base
+- `internal/ai/openai/step_test.go` (~120 LOC)
+- `internal/ai/openrouter/step_test.go` (~50 LOC)
 
 **Files to modify:**
-- `internal/ai/ollama/handler.go` (~30 LOC delta) — Step routing
+- `internal/ai/ollama/handler.go` (~40 LOC delta) — Step routing
 
 **Acceptance Criteria:**
 - [ ] `go test ./internal/ai/openai/... ./internal/ai/openrouter/... ./internal/ai/ollama/...` passes
 - [ ] OpenRouter route to a tool-supporting model (e.g. `anthropic/claude-sonnet-4.5`) executes a tool call end-to-end
+- [ ] OpenRouter `Step` correctly composes with the existing `Routing` field added by M-AI-OPENROUTER (a routed-model tool call works)
 - [ ] Ollama with tools returns the typed error rather than silently dropping tools
 
 ---
 
-### M5: `callResult`/`callJsonResult` + `_ai_step` builtin + AILANG types
+### M5: `callResult`/`callJsonResult` + `_ai_step` builtin + new AILANG types
 
-**Goal:** Wire the Go `Provider.Step` to AILANG via a new `_ai_step` builtin. Add `_ai_call_result` and `_ai_call_json_result` builtins (Result-returning variants of the existing single-shot calls). Define the AILANG-side records (`AIError`, `ToolSchema`, `ToolCall`, `Message`, `StepResult`) with conversion to/from the Go structs.
+**Goal:** Wire the Go `Provider.Step` to AILANG via a new `_ai_step` builtin. Add `_ai_call_result` and `_ai_call_json_result` builtins (Result-returning variants of the existing single-shot calls). Define new AILANG records (`ToolSchema`, `ToolCall`, `Message`, `StepResult`) in `std/ai.ail` and re-import `AIError` from `std/ai/streaming.ail` (no new error type).
 
-**Estimated:** ~300 LOC implementation + ~150 LOC tests = 450 LOC
-**Duration:** 1.5 days (~9-12 hours)
+**Estimated:** ~250 LOC implementation + ~150 LOC tests = 400 LOC
+**Duration:** 1 day (~6-8 hours)
 
 **Tasks:**
-- Day 1 morning: Define AILANG record types in `std/ai.ail` — `AIError`, `ToolSchema`, `ToolCall`, `Message`, `StepResult` (definitions only; functions in M6)
-- Day 1 morning: Add `_ai_call_result(input) -> Result[string, AIError]` builtin — wraps the existing `_ai_call` path but catches the Go error and converts to `AIError` via `ClassifyHTTPError` (or similar for non-HTTP errors)
-- Day 1 morning: Add `_ai_call_json_result(input, schema) -> Result[string, AIError]` builtin — same pattern over `_ai_call_json`
-- Day 1 afternoon: Add `_ai_step(model, messages, tools) -> Result[StepResult, AIError]` builtin in `internal/builtins/ai_step.go`
-- Day 1 afternoon: Implement record→Go-struct converters for `Message`, `ToolSchema` and Go-struct→record converters for `StepResult`, `ToolCall`, `AIError`
-- Day 2 morning: Hook all three new builtins into the AI effect handler — same dispatch pattern as `_ai_call_json`
-- Day 2 morning: Builtin tests covering type signatures, capability requirement (`AI`), record round-trip, AIError population on simulated failures (HTTP fixture for each `code` value)
-- Day 2 afternoon: Snapshot regen: `make snapshot` to update stdlib JSON snapshot for MCP
+- Morning: Re-export `AIError` from `std/ai.ail` (`import std/ai/streaming (AIError)`) — single source of truth
+- Morning: Define new AILANG record types in `std/ai.ail` — `ToolSchema`, `ToolCall`, `Message`, `StepResult` (definitions only; functions in M6)
+- Morning: Add `_ai_call_result(input) -> Result[string, AIError]` builtin — wraps existing `_ai_call` path, catches Go error, converts to `AIError` via the extended `wrapErrAsAIError`
+- Morning: Add `_ai_call_json_result(input, schema) -> Result[string, AIError]` builtin — same pattern over `_ai_call_json`
+- Afternoon: Add `_ai_step(model, messages, tools) -> Result[StepResult, AIError]` builtin in `internal/builtins/ai_step.go`
+- Afternoon: Implement record→Go-struct converters for `Message`, `ToolSchema` and Go-struct→record converters for `StepResult`, `ToolCall` (AIError converter already exists from v0.15.1)
+- Afternoon: Hook all three new builtins into the AI effect handler — same dispatch pattern as `_ai_call_json`
+- Afternoon: Builtin tests covering type signatures, capability requirement (`AI`), record round-trip, AIError population on simulated failures
+- Afternoon: Snapshot regen: `make snapshot` to update stdlib JSON snapshot for MCP
 
 **Files to create:**
-- `internal/builtins/ai_step.go` (~200 LOC) — `_ai_step`, `_ai_call_result`, `_ai_call_json_result` builtins + record↔struct converters
+- `internal/builtins/ai_step.go` (~180 LOC) — `_ai_step`, `_ai_call_result`, `_ai_call_json_result` builtins + record↔struct converters
 
 **Files to modify:**
 - `internal/builtins/ai.go` (~80 LOC delta) — register the three new builtins
-- `std/ai.ail` (~80 LOC delta) — record type definitions for `AIError`, `ToolSchema`, `ToolCall`, `Message`, `StepResult`
+- `std/ai.ail` (~50 LOC delta) — re-export `AIError`, add `ToolSchema`/`ToolCall`/`Message`/`StepResult` definitions
 - `internal/builtins/ai_test.go` (~150 LOC delta) — builtin tests including AIError population
+- `internal/pipeline/testdata/builtin_types.golden` (regenerated)
 - `internal/stdlib/snapshots/std_ai.json` (regenerated)
 
 **Acceptance Criteria:**
 - [ ] `_ai_step` callable from AILANG; round-trips a single `Message`/`ToolCall`/`StepResult`
-- [ ] `_ai_call_result` and `_ai_call_json_result` callable from AILANG; happy path returns `Ok(string)`, simulated provider errors return `Err(AIError{...})` with the correct `code`/`retryable`/`statusCode`
+- [ ] `_ai_call_result` and `_ai_call_json_result` callable from AILANG; happy path returns `Ok(string)`, simulated provider errors return `Err(AIError{...})` with the correct `code`/`retryable`
 - [ ] All three builtin signatures include `! {AI}` effect; calling without capability fails at runtime with the standard capability error
-- [ ] `AIError` AILANG record fields match `internal/ai.AIError` Go struct fields exactly (regression-tested via a snapshot)
+- [ ] `AIError` reused unchanged from v0.15.0 — `std/ai.AIError` is literally the same type as `std/ai/streaming.AIError`
 - [ ] `make snapshot` regenerates stdlib JSON cleanly; MCP `stdlib_module std/ai` returns all new types
 
 **Risks:**
 - Record-to-struct conversion for nested types (`Message.tool_calls: list[ToolCall]`) is tedious. Mitigation: lift the pattern from existing `callJson` schema-string handling; add a converter helper if it shows up >2 places
-- AIError JSON snapshot test couples Go and AILANG sides — both must update together. Mitigation: a single `make snapshot` regenerates both (already true for stdlib)
+- Re-exporting AIError across two stdlib modules — confirm AILANG's import-resolver handles this cleanly without producing a "duplicate type" warning. Mitigation: prior art exists in other stdlib modules; if resolver complains, move AIError canonical home to `std/ai.ail` and have `std/ai/streaming.ail` re-import (cleaner anyway)
 
 ---
 
@@ -315,39 +321,41 @@ This plan assumes the recommended decisions are ratified. If any flips, mileston
 
 ### M7: Trace schema + replay + motoko_agent compat swap + docs + release
 
-**Goal:** Per-step trace events capture messages-in, tools-advertised, tool_calls-emitted, dispatch-results, tokens, cost, AND any AIError. Replay reconstructs a `runTools` conversation. Run a real motoko_agent compat swap to validate the API against actual external usage. Update CHANGELOG and design-docs index. Move design doc to `implemented/v0_17_x/`.
+**Goal:** Per-step trace events capture messages-in, tools-advertised, tool_calls-emitted, dispatch-results, tokens, cost, AND any AIError — mirroring the existing `streamCall` span shape so dashboards/telemetry consumers see uniform events across streaming and tool-loop AI calls. Replay reconstructs a `runTools` conversation. Run a real motoko_agent compat swap to validate the API against actual external usage. Update CHANGELOG and design-docs index. Move design doc to `implemented/v0_17_x/`.
 
-**Estimated:** ~250 LOC + docs + CHANGELOG
+**Estimated:** ~200 LOC + docs + CHANGELOG
 **Duration:** 1.5 days (~9-12 hours)
 
 **Tasks:**
-- Day 1 morning: Extend trace event schema in `internal/trace/events.go` with `ai.step.request`, `ai.step.response`, and `ai.error` event types (the last carrying full `AIError` fields for telemetry/dashboard consumption)
-- Day 1 morning: Wire trace emission from `_ai_step` and `_ai_call_result`/`_ai_call_json_result` builtins: capture redacted message snapshot (truncate large content), tool list, response, tokens, cost, AIError on failure
+- Day 1 morning: Extend trace event schema in `internal/trace/events.go` with `ai.step.request` and `ai.step.response` event types (mirroring the existing `AI/streamCall` span shape from M-AI-CALL-STREAM-HELPER); AIError fields piggyback on the response event when present
+- Day 1 morning: Wire trace emission from `_ai_step` and `_ai_call_result`/`_ai_call_json_result` builtins: capture redacted message snapshot (truncate large content), tool list, response, tokens, cost, AIError on failure. Reuse the snapshot-test pattern from v0.15.1's `configdriven_callstream_test.go` (no double-span)
 - Day 1 afternoon: Replay path: `ailang trace replay <trace_id>` for a `runTools` conversation reconstructs and re-runs the loop deterministically (assuming dispatch is pure); on a failed conversation, replay surfaces the recorded AIError verbatim
-- Day 2 morning: **motoko_agent compat swap** — clone `sunholo-data/motoko_agent`, identify one tool-loop site in `src/core/`, replace its custom `tool_runtime` dispatch with `std/ai.runTools`, run their existing tests; document the diff as the canonical migration example
-- Day 2 morning: Coordinate with arniwesth to land the `std/ai_motoko.ail` re-export shim in their fork (separate PR, but coordinated timing)
-- Day 2 afternoon: Update [docs/docs/guides/ai-effects.md](docs/docs/guides/ai-effects.md) (or create) with `callResult`/`callJsonResult`, `step`/`runTools`, AIError sections; include the worked example AND the motoko_agent migration example
-- Day 2 afternoon: CHANGELOG entry under v0.17.0 referencing this design doc, the sprint plan, the M-EXTERNAL-CONSUMER-DX companion, and the Motoko coordination
+- Day 2 morning: **motoko_agent compat swap** — clone `arniwesth/motoko_agent`, identify one tool-loop site in `src/core/tool_runtime.ail`, replace with `std/ai.runTools`, run their existing tests; document the diff as the canonical migration example. Coordinate timing with [motoko-agent-v0.15.0-migration.md](../motoko-agent-v0.15.0-migration.md) — likely lands in the same PR or a follow-up
+- Day 2 afternoon: Update [docs/docs/guides/ai-effects.md](docs/docs/guides/ai-effects.md) (or create) with `callResult`/`callJsonResult`, `step`/`runTools` sections; include the worked example AND the motoko_agent migration example. Note that AIError section already lives in [docs/docs/recipes/ai-token-streaming.md](docs/docs/recipes/ai-token-streaming.md) from v0.15.1 — cross-link, don't duplicate
+- Day 2 afternoon: CHANGELOG entry under v0.17.0 referencing this design doc, the sprint plan, the M-EXTERNAL-CONSUMER-DX companion, and the motoko-integration-sequence master plan
+- Day 2 afternoon: Update [motoko-integration-sequence.md](../motoko-integration-sequence.md) status board to ✅ for M-AI-TOOL-LOOP
 - Day 2 afternoon: Move `design_docs/planned/v0_17_0/m-ai-tool-loop.md` and `m-ai-tool-loop-sprint-plan.md` to `design_docs/implemented/v0_17_x/` once release is cut
 
 **Files to modify:**
-- `internal/trace/events.go` (~120 LOC delta) — incl. AIError fields
+- `internal/trace/events.go` (~80 LOC delta)
 - `internal/builtins/ai_step.go` (~60 LOC delta) — emit trace events for all three new builtins
 - `cmd/ailang/trace.go` (~40 LOC delta) — replay path for tool-loop traces
-- `docs/docs/guides/ai-effects.md` (~120 LOC delta or new file)
-- `CHANGELOG.md` (~25 LOC delta)
+- `docs/docs/guides/ai-effects.md` (~100 LOC delta or new file)
+- `CHANGELOG.md` (~20 LOC delta)
+- `design_docs/planned/motoko-integration-sequence.md` (~5 LOC delta) — status board update
 - Move + Status header update on the two design docs
 
-**Files to create (in motoko_agent, separate PR):**
+**Files to create (in motoko_agent, coordinated PR):**
 - `examples/ailang-tool-loop-migration.md` (~80 LOC) — diff + commentary of the swap
 
 **Acceptance Criteria:**
-- [ ] `ailang trace list --hours 1` shows `ai.step.request`/`ai.step.response`/`ai.error` events from a `runTools` invocation
+- [ ] `ailang trace list --hours 1` shows `ai.step.request`/`ai.step.response` events from a `runTools` invocation
 - [ ] `ailang trace replay <id>` reproduces the conversation given the same dispatch callback (deterministic), including any recorded AIError
 - [ ] Trace size stays within existing `AILANG_TRACE_MAX_SPANS` budget on a 10-step loop (no truncation rollup needed in normal use)
+- [ ] No-double-span snapshot test passes (mirroring v0.15.1's `callStream` test)
 - [ ] motoko_agent's existing tests pass after swapping one tool-loop site to `std/ai.runTools`; the diff is committed as the migration example
-- [ ] arniwesth has reviewed and approved the `std/ai_motoko` shim PR against their fork (or explicitly deferred it to v0.17.1)
-- [ ] CHANGELOG.md entry references the design doc, sprint plan, M-EXTERNAL-CONSUMER-DX, and Motoko coordination
+- [ ] motoko-integration-sequence.md status board updated to ✅ for M-AI-TOOL-LOOP
+- [ ] CHANGELOG.md entry references the design doc, sprint plan, M-EXTERNAL-CONSUMER-DX, and motoko-integration-sequence
 - [ ] Both docs landed in `design_docs/implemented/v0_17_x/`
 - [ ] `make ci` passes (build, test, lint, verify-examples, file-size check)
 
@@ -356,29 +364,34 @@ This plan assumes the recommended decisions are ratified. If any flips, mileston
 ## Cross-cutting acceptance criteria (sprint-level)
 
 - [ ] `make ci` passes at end of M7
-- [ ] All four providers (Claude, Gemini, OpenRouter, OpenAI) execute a tool call end-to-end against fixtures with correctly-classified `AIError` on simulated failures
+- [ ] All four tool-capable providers (Claude, Gemini, OpenAI, OpenRouter) execute a tool call end-to-end against fixtures with correctly-classified `AIError` on simulated failures
+- [ ] Ollama returns `AIError{code: "tools_not_supported", retryable: false}` when tools are present
 - [ ] Worked example `examples/ai_tool_loop.ail` runs on a live provider (smoke test, manual) and demonstrates the typed-error retry branch
 - [ ] Trace replay deterministic for `runTools` conversations
+- [ ] AIError reused unchanged from v0.15.0 — no schema migration, no new error type
 - [ ] CHANGELOG entry references both this sprint plan and the design doc
 - [ ] Both docs moved to `design_docs/implemented/v0_17_x/`
 - [ ] **motoko_agent compatibility validated:** at least one tool-loop site swapped to `std/ai.runTools` with passing tests; diff committed as the migration example
-- [ ] **Motoko fork harmonized:** `std/ai_motoko.callResult` / `callJsonResult` become re-export shims (in arniwesth's fork, coordinated PR); streaming variants follow in v0.17.x
+- [ ] **motoko-integration-sequence.md status board updated** to ✅ for M-AI-TOOL-LOOP
 - [ ] Downstream ailang-parse v0.18.0 Part 3 (`docparse legal review`) is unblocked: spot-check by importing `std/ai` and round-tripping a fake tool call from an ailang-parse test
 
-## Total: 8 working days, ~2,950 LOC
+## Total: 7 working days, ~2,200 LOC
 
 | Milestone | Duration | LOC |
 |-----------|----------|-----|
-| M0: Motoko coordination + AIError adoption | 0.5d | 50 |
-| M1: Provider interface + AIError + error mapping | 1d | 600 |
-| M2: Anthropic Step + AIError mapping | 1d | 600 |
-| M3: Gemini Step + AIError mapping | 1d | 600 |
-| M4: OpenRouter/OpenAI/Ollama parity + AIError | 0.5d | 350 |
-| M5: `callResult`/`callJsonResult` + `_ai_step` builtin | 1.5d | 450 |
-| M6: AILANG `step`/`runTools` + `callResult`/`callJsonResult` wrappers | 1d | 350 |
-| M7: Trace + replay + motoko_agent swap + docs + release | 1.5d | 250 + docs |
-| **Total** | **8d** | **~2,950** |
+| M0: Confirm dispatch callback signature | 0.25d | 50 |
+| M1: Provider interface + Request/Response + extend wrapErrAsAIError | 0.75d | 450 |
+| M2: Anthropic Step | 1d | 500 |
+| M3: Gemini Step | 1d | 500 |
+| M4: OpenAI/OpenRouter Step + Ollama tools_not_supported | 0.5d | 350 |
+| M5: `callResult`/`callJsonResult` + `_ai_step` builtin + new types | 1d | 400 |
+| M6: AILANG `step`/`runTools` + worked example | 1d | 400 |
+| M7: Trace + replay + motoko_agent swap + docs + release | 1.5d | 200 + docs |
+| **Total** | **7d** | **~2,200** |
+
+Pre-refresh estimate was 8d / 2,950 LOC — the refresh saves 1d / 750 LOC by reusing the existing v0.15.0 `AIError` type and the existing v0.15.1 `wrapErrAsAIError` classifier instead of building them fresh.
 
 Parallelization opportunities:
 - **M2 and M3 are independent** — could run in parallel via Task sub-agents to shave ~1 day off if needed
-- **M0 motoko_agent code-read can begin before sprint kickoff** — no AILANG-side changes, just reading two files in another repo and confirming a callback signature; treat as pre-sprint reading rather than a milestone if you prefer
+- **M0 motoko_agent code-read** is a pre-sprint reading task; can complete before formal sprint kickoff
+- **M7 motoko_agent compat swap** can run in parallel with the docs/CHANGELOG work on Day 2
