@@ -87,6 +87,13 @@ type AgentBenchmarkResult struct {
 	VerifySkipped   int    `json:"verify_skipped"`        // Count of skipped functions
 	VerifyErrors    int    `json:"verify_errors"`         // Count of Z3 errors
 	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
+
+	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
+	// Populated from executor.Result. Zero values mean "not measured".
+	CostKilledAt   float64 `json:"cost_killed_at,omitempty"`   // > 0 if execution stopped because cost budget exceeded
+	FirstAttemptMs int64   `json:"first_attempt_ms,omitempty"` // ms from task start to first solution submission
+	SuccessAtMs    int64   `json:"success_at_ms,omitempty"`    // ms from task start to first passing solution (-1 = never)
+	TokensPerSec   float64 `json:"tokens_per_sec,omitempty"`   // OutputTokens / generation_seconds
 }
 
 // TokenUsage captures detailed token metrics

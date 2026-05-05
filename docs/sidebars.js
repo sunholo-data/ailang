@@ -199,6 +199,11 @@ const sidebars = {
               id: 'benchmarks/performance',
               label: 'Model Leaderboard',
             },
+            {
+              type: 'doc',
+              id: 'benchmarks/value',
+              label: 'Value Score',
+            },
             'benchmarks/codebase-stats',
           ],
         },

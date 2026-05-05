@@ -15,6 +15,7 @@ Real-world performance metrics for AILANG and Python across multiple AI models, 
 :::tip Explore and browse
 - **[Benchmark Explorer →](/docs/benchmarks/explorer)** — filter by language, harness, and model; cross-harness comparison table
 - **[Benchmark Gallery →](/docs/benchmarks/gallery)** — browse all benchmark tasks with pass rates and code samples
+- **[Value Score →](/docs/benchmarks/value)** — cost vs quality vs speed analysis with Pareto frontier
 :::
 
 ## Evaluation Modes

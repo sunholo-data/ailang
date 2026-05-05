@@ -15,6 +15,9 @@ import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
 import SpeedRadar from './SpeedRadar';
 import CostSpeedFrontier from './CostSpeedFrontier';
+// Note: ValueScoreTable + QualityScatter moved to dedicated /docs/benchmarks/value page
+// via ValueDashboard component (better thematic separation; this page stays focused
+// on the existing leaderboard view).
 import styles from './styles.module.css';
 
 // Tier order + labels for the M6 toggle. Core is the headline tier
@@ -460,6 +463,9 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           <CostSpeedFrontier models={models} />
         </div>
       )}
+
+      {/* Cost/quality/speed analysis lives on the dedicated /benchmarks/value page
+          to keep this leaderboard view focused. See ValueDashboard component. */}
 
       {/* Agent Performance Detail */}
       {aggregates.agentRuns > 0 && (

@@ -273,6 +273,13 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		StdoutOk:      validation.StdoutOk,
 		Stdout:        validation.Stdout,
 		Stderr:        validation.Stderr,
+
+		// M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): propagate speed/cost metrics
+		// from executor.Result so they land in BenchmarkResult JSON output.
+		CostKilledAt:   result.CostKilledAt,
+		FirstAttemptMs: result.FirstAttemptMs,
+		SuccessAtMs:    result.SuccessAtMs,
+		TokensPerSec:   result.TokensPerSec,
 	}, nil
 }
 

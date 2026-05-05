@@ -1,0 +1,93 @@
+import React, { useEffect, useState } from 'react';
+import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
+import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
+import dashboardStyles from '@site/src/components/BenchmarkDashboard/styles.module.css';
+
+/**
+ * ValueDashboard — dedicated page for cost / quality / speed analysis.
+ *
+ * Three lenses on the same baseline data:
+ *   1. Pass Rate vs Cost  (LMArena-style "score vs $")
+ *   2. Pass Rate vs Speed (interactive vs batch tradeoff)
+ *   3. Weighted Value Score table with N=1..4 quality weighting
+ *
+ * Reads from /benchmarks/latest.json (same source as the main Model Leaderboard).
+ */
+export default function ValueDashboard() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch('/benchmarks/latest.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load benchmark data');
+        return res.json();
+      })
+      .then(setData)
+      .catch(err => {
+        console.error('Error loading benchmarks:', err);
+        setError(err.message);
+      });
+  }, []);
+
+  if (error) return <div className={dashboardStyles.error}>Error: {error}</div>;
+  if (!data) return <div className={dashboardStyles.loading}>Loading benchmark data...</div>;
+
+  const models = data.models || {};
+
+  return (
+    <div>
+      <div className={dashboardStyles.section}>
+        <h2>Pass Rate vs Cost</h2>
+        <p className={dashboardStyles.sectionSubtitle}>
+          Industry-standard "score vs cost" plot. NW corner = best value (cheap + accurate).
+          The dashed green line is the <strong>Pareto frontier</strong> — models on it are non-dominated
+          (no other model is both cheaper AND higher pass-rate). Color codes the agent harness.
+        </p>
+        <QualityScatter models={models} xMetric="cost" />
+      </div>
+
+      <div className={dashboardStyles.section}>
+        <h2>Pass Rate vs Speed</h2>
+        <p className={dashboardStyles.sectionSubtitle}>
+          Score vs median time-to-success. NW corner = fastest accurate models.
+          Useful for picking interactive (low latency) vs batch (high throughput) workloads.
+          Speed metric is post-v0.15.1 — older baselines fall back to total duration.
+        </p>
+        <QualityScatter models={models} xMetric="speed" />
+      </div>
+
+      <div className={dashboardStyles.section}>
+        <ValueScoreTable models={models} />
+      </div>
+
+      <div className={dashboardStyles.section}>
+        <h3>How to read these charts</h3>
+        <ul>
+          <li>
+            <strong>Cost-pure (N=1):</strong> Use to find the cheapest model that meets your
+            quality bar. Best for batch processing or screening pipelines.
+          </li>
+          <li>
+            <strong>Balanced (N=2):</strong> Default recommendation — squares the pass-rate so
+            quality drops cost less than savings drop value. Good for general production.
+          </li>
+          <li>
+            <strong>Quality-weighted (N=3, N=4):</strong> Use when accuracy matters more than
+            spend — e.g. customer-facing code gen, regression-critical paths.
+          </li>
+          <li>
+            <strong>Pareto frontier:</strong> Models on the dashed line are <em>provably optimal</em>
+            for some tradeoff. Models off the frontier are <em>strictly dominated</em> (some other
+            model is both cheaper/faster AND higher pass-rate).
+          </li>
+        </ul>
+
+        <p style={{ marginTop: '1em' }}>
+          <strong>Score formula:</strong>{' '}
+          <code>pass_rate<sup>N</sup> / (cost_per_success × (1 + median_TTS_seconds / 60))</code>
+        </p>
+      </div>
+    </div>
+  );
+}
