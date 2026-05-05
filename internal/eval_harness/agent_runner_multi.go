@@ -169,6 +169,22 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if cfg.GCPLocation != "" {
 				task.GCPLocation = cfg.GCPLocation
 			}
+			// M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): populate Task.Budget
+			// from the resolved per-model cost ceiling. Wall-clock Timeout
+			// is bumped to the budgets:hard_timeout_secs default (600s) to
+			// give cost the primary gate; cost.go does the kill-on-exceed.
+			if maxCost := cfg.ResolvedMaxCostUSD(); maxCost > 0 {
+				task.Budget = executor.NewCostBudget(maxCost, cfg.Pricing.InputPer1K, cfg.Pricing.OutputPer1K)
+			}
+			// Per-benchmark spec.Timeout (e.g. csv_to_json's 180s override) wins.
+			// Otherwise per-model budgets:hard_timeout_secs takes precedence over
+			// the CLI agent-timeout default (typically 60s) — the whole point of
+			// this milestone is that wall-clock is a safety net, not a cost proxy.
+			if spec.Timeout == 0 {
+				if hardSecs := cfg.ResolvedHardTimeoutSecs(); hardSecs > 0 {
+					task.Timeout = time.Duration(hardSecs) * time.Second
+				}
+			}
 		}
 	}
 

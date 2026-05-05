@@ -867,6 +867,10 @@ models:
     pricing:
       input_per_1k: 0.00006
       output_per_1k: 0.00033
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cheapest in spread, generous time.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Smoke 2026-05-04: standard 2/3 (csv WRONG_LANG), agent 2/3 (same csv fail).
       Cheapest near-miss; agent mode didn't unlock csv_to_json for it.
@@ -884,6 +888,11 @@ models:
     pricing:
       input_per_1k: 0.00014
       output_per_1k: 0.00028
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): generous time, tight cost.
+    # Cheap model (~$0.003/benchmark) — 30¢ cap is 100x typical cost.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Smoke 2026-05-04: standard 0/3, agent 2/3 (+2). Best agent-mode
       uplift in the spread — multi-turn iteration recovered fizzbuzz and
@@ -904,6 +913,10 @@ models:
     pricing:
       input_per_1k: 0.00006   # $0.06 per 1M (cheapest in spread)
       output_per_1k: 0.0004   # $0.40 per 1M
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cheapest agent-mode entry.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Smoke 2026-05-04: agent 2/3 (csv failed). Cheaper z.ai variant
       pairing with GLM 5. Cheapest agent-mode entry — useful for
@@ -932,6 +945,10 @@ models:
     pricing:
       input_per_1k: 0.00074
       output_per_1k: 0.00349
+    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): mid-tier OS — 30¢ cap.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
     notes: |
       Agent smoke 2026-05-04: fizzbuzz✅ 119s  adt_option✅ 47s
       csv_to_json❌ (exceeded even bumped 180s budget — capability gap,
