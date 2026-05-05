@@ -1,0 +1,56 @@
+-- examples/runnable/ai_call_stream.ail
+-- Demonstrates the synchronous accumulator wrapper std/ai/streaming.callStream
+-- (M-AI-CALL-STREAM-HELPER, v0.15.1+).
+--
+-- callStream is the zero-boilerplate streaming path: it opens the connection,
+-- drives the SSE event loop in Go, accumulates content deltas, and returns
+-- Result[string, AIError]. Compare to ai_stream_openai.ail (same module),
+-- which uses the lower-level openaiCompatStream + manual onEvent/runEventLoop
+-- when you need per-token control flow (chat UIs, early stop, etc.).
+--
+-- Setup:
+--   1. Add an [[ai_provider]] block to ailang.toml in the working directory
+--      with name = "openai-stream-demo" (or your own name); see
+--      ai_stream_openai.ail for the full TOML.
+--
+--   2. Run:
+--      export OPENAI_API_KEY=...
+--      ailang run --caps AI,Stream,Net,IO \
+--        --ai openai-stream-demo --model openai-stream-demo/gpt-4o-mini \
+--        examples/runnable/ai_call_stream.ail
+--
+-- The example streams a short response and prints the FULL accumulated
+-- string at the end. URL/auth/body shape come from the [[ai_provider]]
+-- config — no caller-supplied secrets, no caller URL, no event loop.
+
+module examples/runnable/ai_call_stream
+
+import std/ai/streaming (callStream, AIError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+-- A messages array as a JSON string. v1 callers serialize manually;
+-- v1.1 will accept a typed [Message] list.
+export func messagesJson() -> string {
+  "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]"
+}
+
+-- Render an AIError record as a single line — code, message, retryable flag.
+-- AIError is a record { code: string, message: string, retryable: bool }
+-- where code flattens StreamErrorKind variants (ConnectionFailed, AuthFailed,
+-- BudgetExhausted, Timeout, ProviderNotFound, CapabilityNotSupported,
+-- ProtocolError) into a structured wire-friendly string.
+export func renderError(e: AIError) -> string {
+  let retryStr = if e.retryable then "true" else "false" in
+  "stream failed: code=${e.code} retryable=${retryStr} message=${e.message}"
+}
+
+export func main() -> () ! {AI, Stream, Net, IO} {
+  match callStream("openai-stream-demo", "gpt-4o-mini", messagesJson()) {
+    Ok(text) => {
+      println("=== streamed response ===");
+      println(text)
+    },
+    Err(e) => println(renderError(e))
+  }
+}

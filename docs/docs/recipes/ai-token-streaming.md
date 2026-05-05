@@ -312,6 +312,7 @@ This is intentionally stricter than `std/stream.sseConnect` (which needs only `S
 - [`std/ai/streaming`](https://github.com/sunholo-data/ailang/blob/dev/std/ai/streaming.ail) — module source
 - [`std/stream`](../guides/streaming.md) — generic SSE/WebSocket primitives
 - [Custom AI Providers guide](../guides/custom-ai-providers.md) — full `[[ai_provider]]` schema reference
-- [`examples/runnable/ai_stream_openai.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/ai_stream_openai.ail) — runnable demo
+- [`examples/runnable/ai_call_stream.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/ai_call_stream.ail) — runnable demo using `callStream` (zero-boilerplate)
+- [`examples/runnable/ai_stream_openai.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/ai_stream_openai.ail) — runnable demo using the manual event loop
 - [Design doc: M-AI-STREAMING-HELPER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md)
 - [Design doc: motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md) — external-consumer evidence
