@@ -34,8 +34,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [M-AI-STREAMING-HELPER Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper-sprint-plan.md)
 - [M-AI-STREAMING-HELPER: AI Token Streaming Helper + Cross-Domain Discovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md)
-- [Sprint Plan: M-AI-TOOL-LOOP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-tool-loop-sprint-plan.md)
-- [M-AI-TOOL-LOOP: Multi-Turn AI Tool Dispatch (`std/ai.step` / `runTools`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-tool-loop.md)
 - [M-BENCH-MOTOKO: Motoko Agent as a Benchmark Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-bench-motoko-executor.md)
 - [M-EXTERNAL-CONSUMER-DX: Diagnostics & Artifacts for External AILANG Projects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx.md)
 
@@ -44,9 +42,9 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-agent-safe-runner.md)
 - [M-AI-EFFECT-MODES-FOLLOWUPS: Close the Loose Ends from v0.15.0 AI Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-ai-effect-modes-followups.md)
 
-## Planned for v0.15.x
+## Planned for v0.15.2
 
-- [M-AI-CALL-STREAM-HELPER: Synchronous accumulator wrapper for AI token streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_x/m-ai-call-stream-helper.md)
+- [M-EVAL-FOLLOWUPS-V0151](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_2/m-eval-followups.md)
 
 ## Planned for v0.15.0
 
@@ -144,4 +142,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 97 planned features across 8 upcoming versions.*
+*Generated at build time. 95 planned features across 8 upcoming versions.*

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
 import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
+import CostSpeedFrontier from '@site/src/components/BenchmarkDashboard/CostSpeedFrontier';
 import dashboardStyles from '@site/src/components/BenchmarkDashboard/styles.module.css';
 
 /**
@@ -55,6 +56,17 @@ export default function ValueDashboard() {
           Speed metric is post-v0.15.1 — older baselines fall back to total duration.
         </p>
         <QualityScatter models={models} xMetric="speed" />
+      </div>
+
+      <div className={dashboardStyles.section}>
+        <h2>Cost vs Speed Frontier</h2>
+        <p className={dashboardStyles.sectionSubtitle}>
+          Two-dimensional cost-and-speed view. Lower-left corner = best (cheap AND fast).
+          The dashed green line is the <strong>cost-speed Pareto frontier</strong>: any model
+          off the line pays more dollars or seconds (or both) than a frontier model with
+          comparable success rate. Marker size encodes pass rate.
+        </p>
+        <CostSpeedFrontier models={models} />
       </div>
 
       <div className={dashboardStyles.section}>

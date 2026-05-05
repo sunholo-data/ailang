@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Line,
   ComposedChart,
+  LabelList,
 } from 'recharts';
 import styles from './styles.module.css';
 
@@ -48,6 +49,35 @@ const HARNESS_COLOR = {
 
 function harnessFor(modelMeta) {
   return modelMeta?.agent_cli || 'api';
+}
+
+// Compact inline label (matches QualityScatter convention).
+function shortLabel(name) {
+  if (name.startsWith('opencode-or-')) return shortFamily(name.slice('opencode-or-'.length)) + ' (OC)';
+  if (name.startsWith('opencode-'))    return shortFamily(name.slice('opencode-'.length))    + ' (OC)';
+  if (name.startsWith('or-'))          return shortFamily(name.slice('or-'.length));
+  if (name.startsWith('pi-'))          return shortFamily(name.slice('pi-'.length))          + ' (Pi)';
+  return shortFamily(name);
+}
+
+function shortFamily(s) {
+  if (s.startsWith('claude-'))   return s.slice('claude-'.length).replace(/-/g, ' ').replace(/(\d) (\d)/g, '$1.$2').replace(/^./, c => c.toUpperCase());
+  if (s.startsWith('gpt5'))      return s.replace(/^gpt5/, 'GPT-5').replace(/-(\d)/g, '.$1').replace(/-/g, ' ');
+  if (s.startsWith('gemini-'))   return s.replace('gemini-', 'Gem ').replace(/-(\d)/g, '.$1').replace(/-/g, ' ');
+  if (s.startsWith('glm-'))      return s.replace('glm-', 'GLM ').replace(/-(\d)/g, '.$1').replace(/-/g, ' ');
+  if (s.startsWith('minimax-'))  return s.replace('minimax-', 'MiniMax ').replace(/-(\d)/g, '.$1');
+  if (s.startsWith('kimi-'))     return s.replace('kimi-', 'Kimi ').replace(/-(\d)/g, '.$1');
+  if (s.startsWith('deepseek-')) return s.replace('deepseek-', 'DeepSeek ').replace(/-(\d)/g, '.$1');
+  if (s.startsWith('gemma4-'))   return s.replace('gemma4-', 'Gemma 4 ').replace(/-(\d)/g, '.$1');
+  if (s.startsWith('qwen3-'))    return s.replace('qwen3-', 'Qwen3 ').replace(/-(\d)/g, '.$1');
+  return s.replace(/-/g, ' ');
+}
+
+function formatSeconds2sf(s) {
+  if (s <= 0) return '0';
+  if (s >= 10) return s.toFixed(0);
+  if (s >= 1) return s.toFixed(1);
+  return s.toFixed(2);
 }
 
 /**
@@ -116,6 +146,7 @@ export default function CostSpeedFrontier({ models }) {
       return {
         name,
         label: formatModelName(name),
+        labelName: shortLabel(name),
         x: cost,
         y: ttsMs / 1000,
         successRate: success,
@@ -155,12 +186,13 @@ export default function CostSpeedFrontier({ models }) {
     byHarness[p.harness].push(p);
   }
 
-  // Frontier line — recharts needs a sorted dataset whose x/y match the
-  // scatter axes. We sort by ascending x (cost) and use a Line in a
-  // ComposedChart-style layering trick: actually ScatterChart supports a
-  // Line child via syncing dataset, but the simplest robust approach is
-  // ComposedChart with two series: line for frontier, scatter for points.
-  const frontierSorted = [...frontier].sort((a, b) => a.x - b.x);
+  // Frontier line — sort by ascending x (cost). Carry full payload through
+  // each vertex so when the line vertex IS the closest hover target, the
+  // tooltip still resolves a model name. (Without this, hovering near a
+  // frontier point near the line could yield a payload missing label/harness
+  // and the tooltip silently early-returns null — that's the "tooltips don't
+  // show on some" symptom.)
+  const frontierSorted = [...frontier].sort((a, b) => a.x - b.x).map(p => ({ ...p }));
 
   // Custom tooltip — show all dimensions including success rate.
   const renderTooltip = ({ active, payload }) => {
@@ -175,7 +207,7 @@ export default function CostSpeedFrontier({ models }) {
           Harness: {p.harness}
         </p>
         <p className={styles.tooltipValue}>Cost / success: ${p.x.toFixed(4)}</p>
-        <p className={styles.tooltipValue}>Time / success: {p.y.toFixed(1)} s</p>
+        <p className={styles.tooltipValue}>Time / success: {formatSeconds2sf(p.y)}s</p>
         <p className={styles.tooltipValue}>Success rate: {(p.successRate * 100).toFixed(1)}%</p>
         {frontierNames.has(p.name) && (
           <p className={styles.tooltipValue} style={{ marginTop: 6, fontWeight: 600, color: '#10B981' }}>
@@ -222,8 +254,11 @@ export default function CostSpeedFrontier({ models }) {
           <ZAxis type="number" dataKey="z" range={[80, 400]} />
           <Tooltip content={renderTooltip} cursor={{ strokeDasharray: '3 3' }} />
           <Legend />
-          {/* Frontier line — drawn first so scatter dots overlay. Plotted via
-              a Line series whose data is a separate sorted slice. */}
+          {/* Frontier line — drawn first so scatter dots overlay. activeDot
+              is disabled so the line doesn't intercept hover events from the
+              scatter dots beneath it (recharts ComposedChart will otherwise
+              prefer the line's activeDot for hover, swallowing tooltips on
+              non-frontier scatter points that pass under the line). */}
           <Line
             type="monotone"
             data={frontierSorted}
@@ -233,6 +268,7 @@ export default function CostSpeedFrontier({ models }) {
             strokeWidth={2}
             strokeDasharray="6 4"
             dot={false}
+            activeDot={false}
             isAnimationActive={false}
             legendType="line"
           />
@@ -243,7 +279,19 @@ export default function CostSpeedFrontier({ models }) {
               data={pts}
               fill={HARNESS_COLOR[harness] || HARNESS_COLOR.api}
               shape="circle"
-            />
+            >
+              <LabelList
+                dataKey="labelName"
+                position="right"
+                offset={8}
+                style={{
+                  fontSize: 11,
+                  fill: 'var(--ifm-color-emphasis-800)',
+                  fontWeight: 500,
+                  pointerEvents: 'none',
+                }}
+              />
+            </Scatter>
           ))}
         </ComposedChart>
       </ResponsiveContainer>

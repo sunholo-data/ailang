@@ -8,6 +8,11 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.17.x
+
+- [Sprint Plan: M-AI-TOOL-LOOP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_x/m-ai-tool-loop-sprint-plan.md)
+- [M-AI-TOOL-LOOP: Multi-Turn AI Tool Dispatch (`std/ai.step` / `runTools`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_x/m-ai-tool-loop.md)
+
 ## v0.16.x
 
 - [M-AI-OPENROUTER: OpenRouter Provider with Routable Model Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
@@ -959,4 +964,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 709 design documents across 80 versions.*
+*Generated at build time. 711 design documents across 81 versions.*

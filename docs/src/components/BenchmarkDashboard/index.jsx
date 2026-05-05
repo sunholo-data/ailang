@@ -14,10 +14,10 @@ import AxiomScorecard from './AxiomScorecard';
 import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
 import SpeedRadar from './SpeedRadar';
-import CostSpeedFrontier from './CostSpeedFrontier';
-// Note: ValueScoreTable + QualityScatter moved to dedicated /docs/benchmarks/value page
-// via ValueDashboard component (better thematic separation; this page stays focused
-// on the existing leaderboard view).
+// Cost-vs-speed Pareto frontier moved to /docs/benchmarks/value
+// (ValueDashboard) — see CostSpeedFrontier import there.
+// ValueScoreTable + QualityScatter also live on the dedicated value page.
+// This file keeps the leaderboard view focused on success-rate trends.
 import styles from './styles.module.css';
 
 // Tier order + labels for the M6 toggle. Core is the headline tier
@@ -453,19 +453,9 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         </div>
       )}
 
-      {/* Cost vs Speed Pareto Frontier (M-EVAL-COST-AND-SPEED-BUDGETS M4) */}
-      {models && Object.keys(models).length > 0 && (
-        <div className={styles.section}>
-          <h3>Cost vs Speed Frontier</h3>
-          <p className={styles.sectionSubtitle}>
-            Pareto-efficient picks at the intersection of $/success and seconds/success.
-          </p>
-          <CostSpeedFrontier models={models} />
-        </div>
-      )}
-
-      {/* Cost/quality/speed analysis lives on the dedicated /benchmarks/value page
-          to keep this leaderboard view focused. See ValueDashboard component. */}
+      {/* Cost-vs-speed Pareto frontier + Value Score lenses live on the dedicated
+          /benchmarks/value page (ValueDashboard component). This page stays focused
+          on the leaderboard / success-rate-over-time view. */}
 
       {/* Agent Performance Detail */}
       {aggregates.agentRuns > 0 && (

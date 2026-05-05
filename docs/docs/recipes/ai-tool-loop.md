@@ -159,7 +159,7 @@ type AIError = {
 }
 ```
 
-See the [AI Effect guide](../guides/ai-effect.md#typed-errors-with-callresult--calljsonresult-v0170)
+See the [AI Effect guide](../guides/ai-effect.mdx#typed-errors-with-callresult--calljsonresult-v0170)
 for the full code vocabulary and retry-vs-fatal taxonomy.
 
 ## Worked example
@@ -184,7 +184,7 @@ live model.
 
 ## Related
 
-- [AI Effect guide](../guides/ai-effect.md) — full reference for the `std/ai` surface
+- [AI Effect guide](../guides/ai-effect.mdx) — full reference for the `std/ai` surface
 - [AI Token Streaming](./ai-token-streaming.md) — streaming companion recipe
 - [AI Provider Routing](../guides/ai-routing.md) — OpenRouter `Routing` policies
 - [Custom AI Providers](../guides/custom-ai-providers.md) — `[[ai_provider]]` config
