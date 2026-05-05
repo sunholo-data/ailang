@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"syscall/js"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -121,6 +122,12 @@ func (h *WasmAIHandler) CallImage(prompt, outputPath, options string) (string, e
 // The JS host is responsible for returning JSON: {"base64": "...", "mime_type": "..."}
 func (h *WasmAIHandler) CallImageBase64(prompt, options string) (string, error) {
 	return h.Call(prompt)
+}
+
+// Step is not supported in WASM — multi-turn tool-loop requires server-side
+// orchestration and is not available in the browser sandbox.
+func (h *WasmAIHandler) Step(_ string, _ []ai.Message, _ []ai.ToolSchema) (*ai.Response, error) {
+	return nil, fmt.Errorf("ai.step not supported in WASM environment")
 }
 
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
