@@ -221,12 +221,18 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
         .map((m) => ({ model: m, meta: apiErrorMeta[`${label}|${m}`] }))
         .filter((r) => r.meta);
       const eventsHere = eventsByVersion.get(label) || [];
+      // Sort entries best-at-top. For successRate higher = better;
+      // for tts and costPerSuccess lower = better.
+      const lowerIsBetter = selectedMetric === 'tts' || selectedMetric === 'costPerSuccess';
+      const sortedPayload = [...payload]
+        .filter((e) => e.value != null)
+        .sort((a, b) => lowerIsBetter ? a.value - b.value : b.value - a.value);
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
           {data.date && <p className={styles.tooltipDate}>{data.date}</p>}
-          {payload.map((entry, index) => (
-            <p key={index} className={styles.tooltipValue}>
+          {sortedPayload.map((entry, index) => (
+            <p key={entry.name || index} className={styles.tooltipValue}>
               <span className={styles.tooltipDot} style={{backgroundColor: entry.color}} />
               {formatModelName(entry.name)}: {formatValue(entry.value)}
             </p>

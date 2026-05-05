@@ -375,30 +375,31 @@ export default function BenchmarkExplorer() {
       {!activeHarness && <CrossHarnessTable data={data} allLangs={langs} />}
 
       {/* Table 1: language × model heatmap */}
-      <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Language × Model</h3>
+      <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Model × Language</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no results yet
+        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no results yet. Transposed so all models
+        fit vertically without horizontal scroll.
       </p>
 
       <div className={styles.tableScroll} style={{ marginBottom: 32 }}>
         <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
-              <th style={{ ...th, textAlign: 'left' }}>Language</th>
-              {models.map(m => <th key={m} style={th} title={m}>{modelShort(m)}</th>)}
+              <th style={{ ...th, textAlign: 'left' }}>Model</th>
+              {langs.map(lang => <th key={lang} style={th}>{LANG_LABEL[lang] || lang}</th>)}
             </tr>
           </thead>
           <tbody>
-            {langs.map(lang => (
-              <tr key={lang} style={rowStyle}>
-                <td style={rowHeader}>{LANG_LABEL[lang] || lang}</td>
-                {models.map(m => {
+            {models.map(m => (
+              <tr key={m} style={rowStyle}>
+                <td style={rowHeader} title={m}>{modelShort(m)}</td>
+                {langs.map(lang => {
                   const ld = data.models[m]?.languages?.[lang];
                   // For models that ran in agent mode for this lang, prefer adjusted.
                   // Otherwise fall back to plain successRate (standard or agent-only).
                   return (
                     <Cell
-                      key={m}
+                      key={lang}
                       rate={ld?.agentSuccessRate ?? ld?.successRate ?? null}
                       adjusted={ld?.agentSuccessRateAdjusted}
                       apiErrorRate={ld?.agentApiErrorRate}
@@ -411,47 +412,83 @@ export default function BenchmarkExplorer() {
         </table>
       </div>
 
-      {/* Table 2: harness × language summary */}
+      {/* Table 2: harness × language summary, with per-model drill-down rows */}
       <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Harness × Language</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        Aggregated across all models using each harness.
+        Bold rows are per-harness aggregates; indented rows show each model's contribution.
       </p>
 
       <div className={styles.tableScroll}>
         <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
-              <th style={{ ...th, textAlign: 'left' }}>Harness</th>
+              <th style={{ ...th, textAlign: 'left' }}>Harness / Model</th>
               {langs.map(l => <th key={l} style={th}>{LANG_LABEL[l] || l}</th>)}
               <th style={th}>Avg Cost/run</th>
-              <th style={th}>Models</th>
+              <th style={th}>Runs</th>
             </tr>
           </thead>
           <tbody>
             {(activeHarness ? [activeHarness] : allHarnesses).map(h => {
               const hr = data.harnesses[h];
               if (!hr) return null;
+              const harnessModels = (hr.models || []).slice().sort();
               return (
-                <tr key={h} style={rowStyle}>
-                  <td style={rowHeader}>{HARNESS_LABEL[h] || h}</td>
-                  {langs.map(l => {
-                    const hl = hr.languages?.[l];
+                <React.Fragment key={h}>
+                  <tr style={{ ...rowStyle, background: 'var(--ifm-color-emphasis-100)' }}>
+                    <td style={{ ...rowHeader, fontWeight: 700 }}>{HARNESS_LABEL[h] || h}</td>
+                    {langs.map(l => {
+                      const hl = hr.languages?.[l];
+                      return (
+                        <Cell
+                          key={l}
+                          rate={hl?.successRate ?? null}
+                          adjusted={hl?.successRateAdjusted}
+                          apiErrorRate={hl?.apiErrorRate}
+                        />
+                      );
+                    })}
+                    <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {hr.avg_cost_usd != null ? `$${hr.avg_cost_usd.toFixed(4)}` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', fontWeight: 600 }}>
+                      {harnessModels.length} model{harnessModels.length === 1 ? '' : 's'}
+                    </td>
+                  </tr>
+                  {harnessModels.map(modelName => {
+                    const m = data.models?.[modelName];
+                    if (!m) return null;
+                    const modelLangs = m.languages || {};
+                    // Per-model average cost: total cost / total runs across all langs.
+                    const totalRuns = m.aggregates?.totalRuns || m.totalRuns || 0;
+                    const totalCost = m.aggregates?.totalCostUSD || (m.agentStats?.avgCost || 0) * totalRuns || 0;
+                    const avgCost = totalRuns > 0 ? totalCost / totalRuns : null;
                     return (
-                      <Cell
-                        key={l}
-                        rate={hl?.successRate ?? null}
-                        adjusted={hl?.successRateAdjusted}
-                        apiErrorRate={hl?.apiErrorRate}
-                      />
+                      <tr key={`${h}-${modelName}`} style={rowStyle}>
+                        <td style={{ ...rowHeader, paddingLeft: 32, fontWeight: 400, fontSize: '0.82rem', color: 'var(--ifm-color-emphasis-700)' }}>
+                          ↳ {modelShort(modelName)}
+                        </td>
+                        {langs.map(l => {
+                          const ld = modelLangs[l];
+                          return (
+                            <Cell
+                              key={l}
+                              rate={ld?.agentSuccessRate ?? ld?.successRate ?? null}
+                              adjusted={ld?.agentSuccessRateAdjusted ?? ld?.successRateAdjusted}
+                              apiErrorRate={ld?.agentApiErrorRate ?? ld?.apiErrorRate}
+                            />
+                          );
+                        })}
+                        <td style={{ textAlign: 'center', padding: '6px 12px', fontSize: '0.78rem', color: 'var(--ifm-color-emphasis-700)' }}>
+                          {avgCost != null ? `$${avgCost.toFixed(4)}` : '—'}
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '6px 12px', fontSize: '0.78rem', color: 'var(--ifm-color-emphasis-600)' }}>
+                          {totalRuns}
+                        </td>
+                      </tr>
                     );
                   })}
-                  <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem' }}>
-                    {hr.avg_cost_usd != null ? `$${hr.avg_cost_usd.toFixed(4)}` : '—'}
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)' }}>
-                    {(hr.models || []).length}
-                  </td>
-                </tr>
+                </React.Fragment>
               );
             })}
           </tbody>

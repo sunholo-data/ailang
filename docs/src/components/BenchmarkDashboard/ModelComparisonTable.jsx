@@ -57,6 +57,19 @@ export default function ModelComparisonTable({ models }) {
       };
     });
 
+  // Sample-size sanity check: lang_harness_suite models (claude-haiku-4-5,
+  // opencode-haiku) only ran the core tier (~23 benchmarks per language)
+  // while agent_suite/extended_suite models ran core+stretch (~34 per
+  // language). Same percentages computed on different benchmark sets are not
+  // directly comparable — flag the partial samples so readers don't conclude
+  // "haiku is the best model" when it actually skipped the hardest 11 tasks.
+  const fullRuns = Math.max(0, ...tableData.map(r => Math.max(r.ailangRuns, r.pythonRuns)));
+  for (const row of tableData) {
+    const minRuns = Math.min(row.ailangRuns || 0, row.pythonRuns || 0);
+    row.isPartialSample = fullRuns > 0 && minRuns > 0 && minRuns < fullRuns;
+    row.runs = minRuns;
+  }
+
   // Sort table data
   const sortedData = [...tableData].sort((a, b) => {
     let aVal = a[sortColumn];
@@ -122,7 +135,28 @@ export default function ModelComparisonTable({ models }) {
         <tbody>
           {sortedData.map((row) => (
             <tr key={row.modelName}>
-              <td className={styles.tableModelName}>{row.displayName}</td>
+              <td className={styles.tableModelName}>
+                {row.displayName}
+                {row.isPartialSample && (
+                  <span
+                    title={`Partial sample: ran ${row.runs}/${fullRuns} benchmarks (core tier only). Pass-rate not directly comparable to models that ran the full core+stretch suite.`}
+                    style={{
+                      marginLeft: 6,
+                      fontSize: '0.7em',
+                      padding: '1px 5px',
+                      borderRadius: 3,
+                      background: 'var(--ifm-color-warning-lightest)',
+                      color: 'var(--ifm-color-warning-darkest)',
+                      border: '1px solid var(--ifm-color-warning-light)',
+                      verticalAlign: 'middle',
+                      cursor: 'help',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠ {row.runs}/{fullRuns}
+                  </span>
+                )}
+              </td>
               <td className={styles.tableNumber}>
                 <span className={styles.successBadge} style={{
                   backgroundColor: row.ailangSuccess >= 70 ? 'var(--ifm-color-success)' :

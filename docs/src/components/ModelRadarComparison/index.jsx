@@ -86,20 +86,38 @@ export default function ModelRadarComparison() {
     const ailangTokens = modelData.languages?.ailang?.avgTokens || 0;
     const pythonTokens = modelData.languages?.python?.avgTokens || 0;
 
-    // Cost per 1000 successful runs per language (in dollars)
-    // Estimate language cost proportionally based on token usage
+    // Cost per 1000 successful runs per language (in dollars).
+    //
+    // Prior implementation prorated cost by OUTPUT-token share — but
+    // aggregates.totalTokens is INPUT+OUTPUT+cache, while languages.{lang}.avgTokens
+    // is output-only. That skewed the proportion massively for Opus-class models
+    // (huge input-cache usage drives totalTokens up, shrinking the output-only
+    // numerator's share to ~1%) vs Haiku-class models (almost all output, so the
+    // share goes to ~35%). Result: Haiku appeared MORE expensive per success
+    // than Opus, which is the opposite of reality.
+    //
+    // Correct approach: use the explicit per-language avgCost when the schema
+    // has it (agent-only models / recent baselines have it), else fall back to
+    // (overall_cost / overall_runs) × lang_runs — assuming equal cost per run
+    // across languages, which is accurate for standard eval (input prompt sizes
+    // are similar) and a reasonable approximation for agent eval too.
     const ailangData = modelData.languages.ailang || {};
     const pythonData = modelData.languages.python || {};
 
-    const totalModelTokens = modelData.aggregates?.totalTokens || 1;
-    const ailangTotalTokens = (ailangData.avgTokens || 0) * (ailangData.totalRuns || 0);
-    const pythonTotalTokens = (pythonData.avgTokens || 0) * (pythonData.totalRuns || 0);
+    const totalModelRuns =
+      modelData.aggregates?.totalRuns ||
+      modelData.totalRuns ||
+      ((ailangData.totalRuns || 0) + (pythonData.totalRuns || 0)) ||
+      0;
+    const totalModelCost = modelData.aggregates?.totalCostUSD || 0;
+    const costPerRun = totalModelRuns > 0 ? totalModelCost / totalModelRuns : 0;
 
-    const ailangCostProportion = ailangTotalTokens / totalModelTokens;
-    const pythonCostProportion = pythonTotalTokens / totalModelTokens;
+    // Prefer explicit per-language avgCost when present.
+    const ailangCostPerRun = ailangData.avgCost ?? costPerRun;
+    const pythonCostPerRun = pythonData.avgCost ?? costPerRun;
 
-    const ailangEstimatedCost = (modelData.aggregates?.totalCostUSD || 0) * ailangCostProportion;
-    const pythonEstimatedCost = (modelData.aggregates?.totalCostUSD || 0) * pythonCostProportion;
+    const ailangEstimatedCost = ailangCostPerRun * (ailangData.totalRuns || 0);
+    const pythonEstimatedCost = pythonCostPerRun * (pythonData.totalRuns || 0);
 
     const ailangSuccessCount = (ailangData.successRate || 0) * (ailangData.totalRuns || 0);
     const pythonSuccessCount = (pythonData.successRate || 0) * (pythonData.totalRuns || 0);
@@ -311,8 +329,11 @@ export default function ModelRadarComparison() {
             _ailangCostReal: d['AILANG Cost ($)'],
             _pythonCostReal: d['Python Cost ($)'],
           }));
-          const outliers = radarData.filter(d =>
-            (d['AILANG Cost ($)'] > capValue) || (d['Python Cost ($)'] > capValue)
+          // Outliers are points whose REAL value exceeds the display cap.
+          // Use the capped dataset's _*_Real fields so the outlier list shows
+          // the actual numbers (not the clipped ones).
+          const outliers = cappedRadarData.filter(d =>
+            (d._ailangCostReal > capValue) || (d._pythonCostReal > capValue)
           );
           const formatCostTooltip = (value, name, props) => {
             if (typeof value !== 'number') return value;
