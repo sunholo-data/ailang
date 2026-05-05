@@ -199,6 +199,20 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var stderrBuf strings.Builder
 	var lastSessionID string
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
+	// firstAttemptMs records ms from task start to the first Write/Edit tool
+	// call (or the first text event if no tool calls). costKilled signals
+	// budget breach during step_finish — we kill the process and exit.
+	//
+	// NOTE: opencode's step_finish carries per-step token deltas, so the
+	// budget tally is naturally incremental and mid-stream cancellation works.
+	// Some opencode plugins/providers may not emit step_finish (or emit it
+	// only at session end); for those, the tally still works correctly but
+	// mid-stream killing degrades to end-of-stream killing.
+	var firstAttemptMs int64 = -1
+	var firstStreamEventAt time.Time
+	var costKilled bool
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -243,6 +257,9 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			switch ev.Type {
 			case "step_start":
 				numSteps++
+				if firstStreamEventAt.IsZero() {
+					firstStreamEventAt = time.Now()
+				}
 				_, stepSpan = telemetry.StartSpan(ctx, opencodeTracer, "opencode.step",
 					trace.WithAttributes(
 						attribute.Int("opencode.step_num", numSteps),
@@ -256,6 +273,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				if text != "" {
 					transcriptBuf.WriteString(text)
 					handler.OnText(text)
+					// M-EVAL-COST-AND-SPEED-BUDGETS: first text = candidate solution if
+					// no Write/Edit tool calls were made earlier.
+					if firstAttemptMs < 0 {
+						firstAttemptMs = time.Since(startTime).Milliseconds()
+					}
 				}
 
 			case "tool_use":
@@ -270,12 +292,24 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				} else {
 					handler.OnToolUse(toolName, inputStr)
 				}
+				// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit tool call = first solution attempt.
+				if firstAttemptMs < 0 && (toolName == "Write" || toolName == "Edit") {
+					firstAttemptMs = time.Since(startTime).Milliseconds()
+				}
 
 			case "step_finish":
 				// Per-step delta: sum across all step_finish events.
 				inputTokens += ev.Part.Tokens.Input
 				outputTokens += ev.Part.Tokens.Output
 				totalCostUSD += ev.Part.Cost
+
+				// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-step deltas.
+				if task.Budget != nil && (ev.Part.Tokens.Input > 0 || ev.Part.Tokens.Output > 0) {
+					if _, exceeded := task.Budget.Add(ev.Part.Tokens.Input, ev.Part.Tokens.Output); exceeded {
+						costKilled = true
+						_ = cmd.Process.Kill()
+					}
+				}
 
 				if stepSpan != nil {
 					stepSpan.SetAttributes(
@@ -304,54 +338,80 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				attribute.Float64("opencode.cost_usd", totalCostUSD),
 			)
 
+			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metrics.
+			tokensPerSec := computeTokensPerSec(outputTokens, firstStreamEventAt)
+
 			if err != nil {
 				span.SetStatus(codes.Error, err.Error())
+				errMsg := fmt.Sprintf("opencode exited with error: %v\nstderr: %s", err, stderrBuf.String())
+				success := false
+				if costKilled {
+					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+				}
 				return &executor.Result{
-					Success:       false,
-					Output:        transcriptBuf.String(),
-					Error:         fmt.Sprintf("opencode exited with error: %v\nstderr: %s", err, stderrBuf.String()),
-					DurationMS:    int(duration.Milliseconds()),
-					InputTokens:   inputTokens,
-					OutputTokens:  outputTokens,
-					CostUSD:       totalCostUSD,
-					NumTurns:      numSteps,
-					ToolCallCount: toolCallCount,
-					SessionID:     lastSessionID,
-					ProviderData:  opencodeProviderData(rawEvents),
+					Success:        success,
+					Output:         transcriptBuf.String(),
+					Error:          errMsg,
+					DurationMS:     int(duration.Milliseconds()),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostUSD:        totalCostUSD,
+					NumTurns:       numSteps,
+					ToolCallCount:  toolCallCount,
+					SessionID:      lastSessionID,
+					ProviderData:   opencodeProviderData(rawEvents),
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
+					TokensPerSec:   tokensPerSec,
 				}, nil
 			}
 
 			output := transcriptBuf.String()
 			success := output != "" || toolCallCount > 0
+			if costKilled {
+				success = false
+			}
 
 			span.SetStatus(codes.Ok, "")
 			return &executor.Result{
-				Success:       success,
-				Output:        output,
-				DurationMS:    int(duration.Milliseconds()),
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				CostUSD:       totalCostUSD,
-				NumTurns:      numSteps,
-				ToolCallCount: toolCallCount,
-				SessionID:     lastSessionID,
-				ProviderData:  opencodeProviderData(rawEvents),
+				Success:        success,
+				Output:         output,
+				DurationMS:     int(duration.Milliseconds()),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostUSD:        totalCostUSD,
+				NumTurns:       numSteps,
+				ToolCallCount:  toolCallCount,
+				SessionID:      lastSessionID,
+				ProviderData:   opencodeProviderData(rawEvents),
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
+				TokensPerSec:   tokensPerSec,
 			}, nil
 
 		case <-hardTimer.C:
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
+				Success:        false,
+				Error:          fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-ttftTimer.C:
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, "ttft timeout")
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("opencode produced no output within %v (prefill timeout)", ttftTimeout),
+				Success:        false,
+				Error:          fmt.Sprintf("opencode produced no output within %v (prefill timeout)", ttftTimeout),
+				FirstAttemptMs: -1,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-idleCheck.C:
@@ -360,8 +420,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				_ = cmd.Process.Kill()
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
-					Success: false,
-					Error:   fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
+					Success:        false,
+					Error:          fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - since)
@@ -370,8 +435,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
+				Success:        false,
+				Error:          fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 		}
 	}
@@ -493,6 +563,20 @@ func parseOpenCodeEvent(line []byte) (*opencodeNDJSON, error) {
 		ev.Raw = raw
 	}
 	return &ev, nil
+}
+
+// computeTokensPerSec returns OutputTokens / generation_seconds, where
+// generation_seconds spans from the first stream event to "now". Returns
+// 0 if either side is unmeasured. Used by Result.TokensPerSec.
+func computeTokensPerSec(outputTokens int, firstStreamEventAt time.Time) float64 {
+	if firstStreamEventAt.IsZero() || outputTokens <= 0 {
+		return 0
+	}
+	gen := time.Since(firstStreamEventAt).Seconds()
+	if gen <= 0 {
+		return 0
+	}
+	return float64(outputTokens) / gen
 }
 
 // opencodeProviderData wraps raw events as Result.ProviderData.

@@ -190,6 +190,15 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var turnSpan trace.Span // Track current turn's OTEL span
 	var stderrBuf strings.Builder
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
+	// Gemini CLI does not emit incremental usage — tokens arrive only in the
+	// terminal "result" event. Cost-budget enforcement is therefore
+	// effectively post-hoc: Budget.Add() is called at result time and
+	// CostKilledAt is populated, but mid-stream cancellation is not feasible
+	// without a token estimator (deferred per design doc Deferred Decisions).
+	var firstAttemptMs int64 = -1
+	var firstStreamEventAt time.Time
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -262,6 +271,14 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					// Assistant response text
 					handler.OnText(event.Content)
 					transcriptBuf.WriteString(event.Content)
+					// M-EVAL-COST-AND-SPEED-BUDGETS: first assistant text = candidate solution
+					// (fallback when no Write/Edit tool calls).
+					if firstStreamEventAt.IsZero() {
+						firstStreamEventAt = time.Now()
+					}
+					if firstAttemptMs < 0 && event.Content != "" {
+						firstAttemptMs = time.Since(startTime).Milliseconds()
+					}
 				} else if event.Role == "user" {
 					// User message (just log it)
 					transcriptBuf.WriteString(fmt.Sprintf("[USER] %s\n", event.Content))
@@ -270,8 +287,15 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			case "tool_use":
 				// Tool invocation (Gemini CLI uses "tool_use", not "tool_call")
 				toolCallCount++
+				if firstStreamEventAt.IsZero() {
+					firstStreamEventAt = time.Now()
+				}
 				handler.OnToolUse(event.ToolName, string(event.Parameters))
 				transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", event.ToolName))
+				// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit = first solution attempt.
+				if firstAttemptMs < 0 && (event.ToolName == "Write" || event.ToolName == "Edit") {
+					firstAttemptMs = time.Since(startTime).Milliseconds()
+				}
 
 			case "tool_result":
 				// Tool result - each tool result triggers a new assistant turn
@@ -303,6 +327,13 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				}
 				inputTokens = event.Stats.InputTokens
 				outputTokens = event.Stats.OutputTokens
+				// M-EVAL-COST-AND-SPEED-BUDGETS: post-hoc cost tally.
+				// Gemini CLI emits usage only at the result event, so mid-stream
+				// cancellation is not feasible; CostKilledAt is still populated
+				// so callers can see if the budget was breached.
+				if task.Budget != nil && (inputTokens > 0 || outputTokens > 0) {
+					_, _ = task.Budget.Add(inputTokens, outputTokens)
+				}
 				handler.OnTurnEnd(turnNum)
 				// End turn span
 				if turnSpan != nil {
@@ -346,13 +377,18 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Bool("task.success", false),
 			)
 			return &executor.Result{
-				Success:       false,
-				Error:         fmt.Sprintf("timeout after %v (hard ceiling)", timeout),
-				DurationMS:    int(time.Since(startTime).Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
+				Success:        false,
+				Error:          fmt.Sprintf("timeout after %v (hard ceiling)", timeout),
+				DurationMS:     int(time.Since(startTime).Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-idleCheck.C:
@@ -372,13 +408,18 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					attribute.Bool("task.success", false),
 				)
 				return &executor.Result{
-					Success:       false,
-					Error:         fmt.Sprintf("timeout after %v idle (no output for %v, total runtime %v)", idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second)),
-					DurationMS:    int(time.Since(startTime).Milliseconds()),
-					NumTurns:      turnNum,
-					ToolCallCount: toolCallCount,
-					SessionID:     sessionID,
-					Transcript:    transcriptBuf.String(),
+					Success:        false,
+					Error:          fmt.Sprintf("timeout after %v idle (no output for %v, total runtime %v)", idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second)),
+					DurationMS:     int(time.Since(startTime).Milliseconds()),
+					NumTurns:       turnNum,
+					ToolCallCount:  toolCallCount,
+					SessionID:      sessionID,
+					Transcript:     transcriptBuf.String(),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
 				}, nil
 			}
 			// Activity detected since last check — reset idle timer for remaining time
@@ -388,6 +429,14 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		case err := <-done:
 			// Normal completion (success or error)
 			duration := time.Since(startTime)
+
+			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metric.
+			var tokensPerSec float64
+			if !firstStreamEventAt.IsZero() && outputTokens > 0 {
+				if gen := time.Since(firstStreamEventAt).Seconds(); gen > 0 {
+					tokensPerSec = float64(outputTokens) / gen
+				}
+			}
 
 			if err != nil {
 				handler.OnError(err)
@@ -403,13 +452,19 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
 				}
 				return &executor.Result{
-					Success:       false,
-					Error:         errMsg,
-					DurationMS:    int(duration.Milliseconds()),
-					NumTurns:      turnNum,
-					ToolCallCount: toolCallCount,
-					SessionID:     sessionID,
-					Transcript:    transcriptBuf.String(),
+					Success:        false,
+					Error:          errMsg,
+					DurationMS:     int(duration.Milliseconds()),
+					NumTurns:       turnNum,
+					ToolCallCount:  toolCallCount,
+					SessionID:      sessionID,
+					Transcript:     transcriptBuf.String(),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
+					TokensPerSec:   tokensPerSec,
 				}, nil
 			}
 
@@ -421,6 +476,9 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 			success := true
 			if finalResult != nil && finalResult.Status != "success" {
+				success = false
+			}
+			if killedAt := task.Budget.KilledAt(); killedAt > 0 {
 				success = false
 			}
 
@@ -440,16 +498,20 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			}
 
 			return &executor.Result{
-				Success:       success,
-				Output:        transcriptBuf.String(),
-				DurationMS:    int(duration.Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				CostUSD:       cost,
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
+				Success:        success,
+				Output:         transcriptBuf.String(),
+				DurationMS:     int(duration.Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				CostUSD:        cost,
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
+				TokensPerSec:   tokensPerSec,
 			}, nil
 		}
 	}

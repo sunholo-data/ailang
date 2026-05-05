@@ -313,6 +313,20 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var currentToolName string
 	var currentToolInput strings.Builder
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS: speed instrumentation.
+	// firstAttemptMs records ms from task start to the first time the agent
+	// commits a candidate solution (first Write/Edit tool call OR first
+	// assistant text if no tool calls). costKilled signals cost-budget
+	// breach mid-stream (budget.Add() returned exceeded == true).
+	var firstAttemptMs int64 = -1
+	var firstStreamEventAt time.Time
+	var costKilled bool
+	// runningInputTokens / runningOutputTokens track the cumulative usage
+	// reported in message_delta events; we feed deltas into Budget.Add().
+	// Claude emits cumulative output_tokens in message_delta and the full
+	// usage block only at the terminal "result" event.
+	var runningInputTokens, runningOutputTokens int
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -372,6 +386,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
 
 				case "content_block_start":
+					if firstStreamEventAt.IsZero() {
+						firstStreamEventAt = time.Now()
+					}
 					contentBlock, _ := streamEvent["content_block"].(map[string]interface{})
 					if contentBlock != nil {
 						if blockType, _ := contentBlock["type"].(string); blockType == "tool_use" {
@@ -379,6 +396,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 							currentToolName, _ = contentBlock["name"].(string)
 							currentToolInput.Reset()
 							transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", currentToolName))
+							// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit = first solution attempt.
+							if firstAttemptMs < 0 && (currentToolName == "Write" || currentToolName == "Edit") {
+								firstAttemptMs = time.Since(startTime).Milliseconds()
+							}
 						}
 					}
 
@@ -395,6 +416,32 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 							// Accumulate tool input chunks — emitted at content_block_stop
 							if partial, ok := delta["partial_json"].(string); ok {
 								currentToolInput.WriteString(partial)
+							}
+						}
+					}
+
+				case "message_delta":
+					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally.
+					// Claude emits cumulative usage in message_delta.usage; convert
+					// cumulative→delta and feed to Budget.Add(). Out-of-order or
+					// duplicate values are guarded by max(running, new).
+					if usage, ok := streamEvent["usage"].(map[string]interface{}); ok {
+						newIn := intFromAny(usage["input_tokens"])
+						newOut := intFromAny(usage["output_tokens"])
+						deltaIn := newIn - runningInputTokens
+						deltaOut := newOut - runningOutputTokens
+						if deltaIn < 0 {
+							deltaIn = 0
+						}
+						if deltaOut < 0 {
+							deltaOut = 0
+						}
+						runningInputTokens = newIn
+						runningOutputTokens = newOut
+						if task.Budget != nil && (deltaIn > 0 || deltaOut > 0) {
+							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
+								costKilled = true
+								_ = cmd.Process.Kill()
 							}
 						}
 					}
@@ -434,6 +481,24 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					}
 					done <- fmt.Errorf("failed to parse final result: %w", err)
 					return
+				}
+				// M-EVAL-COST-AND-SPEED-BUDGETS: reconcile cumulative usage from final result.
+				// message_delta deltas may under-count cache tokens; the result event has
+				// the canonical totals. Add only the residual to keep Budget.Current accurate.
+				if task.Budget != nil && finalResult != nil {
+					residualIn := finalResult.Usage.InputTokens - runningInputTokens
+					residualOut := finalResult.Usage.OutputTokens - runningOutputTokens
+					if residualIn < 0 {
+						residualIn = 0
+					}
+					if residualOut < 0 {
+						residualOut = 0
+					}
+					if residualIn > 0 || residualOut > 0 {
+						_, _ = task.Budget.Add(residualIn, residualOut)
+					}
+					runningInputTokens = finalResult.Usage.InputTokens
+					runningOutputTokens = finalResult.Usage.OutputTokens
 				}
 				// Notify MetricsHandler with cost/token data (M-CLOUD-PROGRESS-TRACKING).
 				// This lets cloud handlers broadcast metrics before the executor returns.
@@ -477,13 +542,18 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.Bool("task.success", false),
 		)
 		return &executor.Result{
-			Success:       false,
-			Error:         fmt.Sprintf("timeout after %v", timeout),
-			DurationMS:    int(time.Since(startTime).Milliseconds()),
-			NumTurns:      turnNum,
-			ToolCallCount: toolCallCount,
-			SessionID:     sessionID,
-			Transcript:    transcriptBuf.String(),
+			Success:        false,
+			Error:          fmt.Sprintf("timeout after %v", timeout),
+			DurationMS:     int(time.Since(startTime).Milliseconds()),
+			NumTurns:       turnNum,
+			ToolCallCount:  toolCallCount,
+			SessionID:      sessionID,
+			Transcript:     transcriptBuf.String(),
+			InputTokens:    runningInputTokens,
+			OutputTokens:   runningOutputTokens,
+			CostKilledAt:   task.Budget.KilledAt(),
+			FirstAttemptMs: firstAttemptMs,
+			SuccessAtMs:    -1,
 		}, nil
 
 	case err := <-done:
@@ -497,14 +567,23 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", false),
 			)
+			errMsg := err.Error()
+			if costKilled {
+				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+			}
 			return &executor.Result{
-				Success:       false,
-				Error:         err.Error(),
-				DurationMS:    int(duration.Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
+				Success:        false,
+				Error:          errMsg,
+				DurationMS:     int(duration.Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				InputTokens:    runningInputTokens,
+				OutputTokens:   runningOutputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 		}
 
@@ -516,13 +595,18 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
 			)
 			return &executor.Result{
-				Success:       true,
-				Output:        "Session completed",
-				DurationMS:    int(duration.Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
+				Success:        true,
+				Output:         "Session completed",
+				DurationMS:     int(duration.Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				InputTokens:    runningInputTokens,
+				OutputTokens:   runningOutputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 		}
 
@@ -548,11 +632,28 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		if permissionDeniedCount > 0 && errorMsg == "" {
 			errorMsg = fmt.Sprintf("permission denied: %d tool calls were blocked", permissionDeniedCount)
 		}
+		if costKilled && errorMsg == "" {
+			errorMsg = fmt.Sprintf("cost budget exceeded ($%.4f)", task.Budget.KilledAt())
+			success = false
+		}
 
 		if !success {
 			span.SetStatus(codes.Error, errorMsg)
 		} else {
 			span.SetStatus(codes.Ok, "task completed successfully")
+		}
+
+		// M-EVAL-COST-AND-SPEED-BUDGETS: speed metrics.
+		// TokensPerSec = output_tokens / generation_seconds (first event → end).
+		var tokensPerSec float64
+		if !firstStreamEventAt.IsZero() && finalResult.Usage.OutputTokens > 0 {
+			genSec := time.Since(firstStreamEventAt).Seconds()
+			if genSec > 0 {
+				tokensPerSec = float64(finalResult.Usage.OutputTokens) / genSec
+			}
+		}
+		if firstAttemptMs < 0 {
+			firstAttemptMs = -1
 		}
 
 		return &executor.Result{
@@ -569,6 +670,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			CacheCreationInputTokens: finalResult.Usage.CacheCreationInputTokens,
 			SessionID:                sessionID,
 			Transcript:               transcriptBuf.String(),
+			CostKilledAt:             task.Budget.KilledAt(),
+			FirstAttemptMs:           firstAttemptMs,
+			SuccessAtMs:              -1,
+			TokensPerSec:             tokensPerSec,
 		}, nil
 	}
 }
@@ -663,6 +768,24 @@ func isCloudWorkspace(workspace string) bool {
 func isValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil
+}
+
+// intFromAny coerces a JSON-decoded number-ish value to int.
+// json.Unmarshal into map[string]interface{} yields float64 for numbers;
+// some payloads may also use json.Number or raw int. Returns 0 on miss.
+func intFromAny(v interface{}) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case json.Number:
+		i, _ := n.Int64()
+		return int(i)
+	}
+	return 0
 }
 
 // installPlugins registers marketplaces and installs third-party plugins.

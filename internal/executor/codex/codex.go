@@ -210,6 +210,15 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var stderrBuf strings.Builder
 	sawResult := false
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
+	// Codex emits cumulative input/output tokens (old format: per-message;
+	// new format: at turn.completed). We compute deltas to feed Budget.Add()
+	// incrementally. costKilled signals breach and triggers an early kill.
+	var firstAttemptMs int64 = -1
+	var firstStreamEventAt time.Time
+	var costKilled bool
+	var prevBudgetIn, prevBudgetOut int
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -263,6 +272,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 
 			case "turn.started":
 				turnNum++
+				if firstStreamEventAt.IsZero() {
+					firstStreamEventAt = time.Now()
+				}
 				turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
 
 			case "item.completed":
@@ -277,10 +289,19 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 						}
 						handler.OnToolUse(toolLabel, "")
 						transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", toolLabel))
+						// M-EVAL-COST-AND-SPEED-BUDGETS: first file_change = first solution attempt.
+						if firstAttemptMs < 0 && ev.Item.Type == "file_change" {
+							firstAttemptMs = time.Since(startTime).Milliseconds()
+						}
 					case "agent_message":
 						if ev.Item.Text != "" {
 							handler.OnText(ev.Item.Text)
 							transcriptBuf.WriteString(ev.Item.Text)
+							// M-EVAL-COST-AND-SPEED-BUDGETS: fallback first-attempt
+							// signal when no file_change has occurred yet.
+							if firstAttemptMs < 0 {
+								firstAttemptMs = time.Since(startTime).Milliseconds()
+							}
 						}
 					}
 				}
@@ -293,6 +314,25 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					}
 					if ev.Usage.OutputTokens > outputTokens {
 						outputTokens = ev.Usage.OutputTokens
+					}
+					// M-EVAL-COST-AND-SPEED-BUDGETS: per-turn cumulative→delta.
+					if task.Budget != nil {
+						deltaIn := inputTokens - prevBudgetIn
+						deltaOut := outputTokens - prevBudgetOut
+						if deltaIn < 0 {
+							deltaIn = 0
+						}
+						if deltaOut < 0 {
+							deltaOut = 0
+						}
+						prevBudgetIn = inputTokens
+						prevBudgetOut = outputTokens
+						if deltaIn > 0 || deltaOut > 0 {
+							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
+								costKilled = true
+								_ = cmd.Process.Kill()
+							}
+						}
 					}
 				}
 				// New format has no separate "result" event — turn.completed
@@ -316,6 +356,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				}
 
 			case "message":
+				if firstStreamEventAt.IsZero() {
+					firstStreamEventAt = time.Now()
+				}
 				if turnNum == 0 {
 					turnNum = 1
 					turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
@@ -327,6 +370,11 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				if ev.Text != "" {
 					handler.OnText(ev.Text)
 					transcriptBuf.WriteString(ev.Text)
+					// M-EVAL-COST-AND-SPEED-BUDGETS: first non-empty assistant text
+					// = first solution attempt (old format has no separate file_change event).
+					if firstAttemptMs < 0 {
+						firstAttemptMs = time.Since(startTime).Milliseconds()
+					}
 				}
 				// Old format: cumulative tokens_used per message.
 				if ev.Tokens.Input > inputTokens {
@@ -334,6 +382,25 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				}
 				if ev.Tokens.Output > outputTokens {
 					outputTokens = ev.Tokens.Output
+				}
+				// M-EVAL-COST-AND-SPEED-BUDGETS: cumulative→delta tally.
+				if task.Budget != nil {
+					deltaIn := inputTokens - prevBudgetIn
+					deltaOut := outputTokens - prevBudgetOut
+					if deltaIn < 0 {
+						deltaIn = 0
+					}
+					if deltaOut < 0 {
+						deltaOut = 0
+					}
+					prevBudgetIn = inputTokens
+					prevBudgetOut = outputTokens
+					if deltaIn > 0 || deltaOut > 0 {
+						if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
+							costKilled = true
+							_ = cmd.Process.Kill()
+						}
+					}
 				}
 
 			case "tool_use", "tool_call":
@@ -352,6 +419,22 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					}
 					if ev.Tokens.Output > outputTokens {
 						outputTokens = ev.Tokens.Output
+					}
+				}
+				// M-EVAL-COST-AND-SPEED-BUDGETS: residual tally at terminal event.
+				if task.Budget != nil {
+					deltaIn := inputTokens - prevBudgetIn
+					deltaOut := outputTokens - prevBudgetOut
+					if deltaIn < 0 {
+						deltaIn = 0
+					}
+					if deltaOut < 0 {
+						deltaOut = 0
+					}
+					prevBudgetIn = inputTokens
+					prevBudgetOut = outputTokens
+					if deltaIn > 0 || deltaOut > 0 {
+						_, _ = task.Budget.Add(deltaIn, deltaOut)
 					}
 				}
 				sawResult = true
@@ -392,14 +475,19 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				attribute.Bool("task.success", false),
 			)
 			return &executor.Result{
-				Success:       false,
-				Error:         timeoutErr.Error(),
-				DurationMS:    int(time.Since(startTime).Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
-				ProviderData:  providerData(rawEvents),
+				Success:        false,
+				Error:          timeoutErr.Error(),
+				DurationMS:     int(time.Since(startTime).Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				ProviderData:   providerData(rawEvents),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-ttftTimer.C:
@@ -413,14 +501,16 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				attribute.Bool("task.success", false),
 			)
 			return &executor.Result{
-				Success:       false,
-				Error:         ttftErr.Error(),
-				DurationMS:    int(time.Since(startTime).Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
-				ProviderData:  providerData(rawEvents),
+				Success:        false,
+				Error:          ttftErr.Error(),
+				DurationMS:     int(time.Since(startTime).Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				ProviderData:   providerData(rawEvents),
+				FirstAttemptMs: -1,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-idleCheck.C:
@@ -437,20 +527,34 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					attribute.Bool("task.success", false),
 				)
 				return &executor.Result{
-					Success:       false,
-					Error:         idleErr.Error(),
-					DurationMS:    int(time.Since(startTime).Milliseconds()),
-					NumTurns:      turnNum,
-					ToolCallCount: toolCallCount,
-					SessionID:     sessionID,
-					Transcript:    transcriptBuf.String(),
-					ProviderData:  providerData(rawEvents),
+					Success:        false,
+					Error:          idleErr.Error(),
+					DurationMS:     int(time.Since(startTime).Milliseconds()),
+					NumTurns:       turnNum,
+					ToolCallCount:  toolCallCount,
+					SessionID:      sessionID,
+					Transcript:     transcriptBuf.String(),
+					ProviderData:   providerData(rawEvents),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - idle)
 
 		case err := <-done:
 			duration := time.Since(startTime)
+
+			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metric.
+			var tokensPerSec float64
+			if !firstStreamEventAt.IsZero() && outputTokens > 0 {
+				if gen := time.Since(firstStreamEventAt).Seconds(); gen > 0 {
+					tokensPerSec = float64(outputTokens) / gen
+				}
+			}
+
 			if err != nil {
 				handler.OnError(err)
 				span.RecordError(err)
@@ -463,15 +567,24 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				if stderrContent := stderrBuf.String(); stderrContent != "" {
 					errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
 				}
+				if costKilled {
+					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+				}
 				return &executor.Result{
-					Success:       false,
-					Error:         errMsg,
-					DurationMS:    int(duration.Milliseconds()),
-					NumTurns:      turnNum,
-					ToolCallCount: toolCallCount,
-					SessionID:     sessionID,
-					Transcript:    transcriptBuf.String(),
-					ProviderData:  providerData(rawEvents),
+					Success:        false,
+					Error:          errMsg,
+					DurationMS:     int(duration.Milliseconds()),
+					NumTurns:       turnNum,
+					ToolCallCount:  toolCallCount,
+					SessionID:      sessionID,
+					Transcript:     transcriptBuf.String(),
+					ProviderData:   providerData(rawEvents),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
+					TokensPerSec:   tokensPerSec,
 				}, nil
 			}
 
@@ -480,6 +593,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				OutputTokens: outputTokens,
 			})
 			success := sawResult
+			if costKilled {
+				success = false
+			}
 
 			span.SetAttributes(
 				attribute.Int("task.turns", turnNum),
@@ -496,17 +612,21 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}
 
 			return &executor.Result{
-				Success:       success,
-				Output:        transcriptBuf.String(),
-				DurationMS:    int(duration.Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				CostUSD:       cost,
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
-				ProviderData:  providerData(rawEvents),
+				Success:        success,
+				Output:         transcriptBuf.String(),
+				DurationMS:     int(duration.Milliseconds()),
+				NumTurns:       turnNum,
+				ToolCallCount:  toolCallCount,
+				CostUSD:        cost,
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				SessionID:      sessionID,
+				Transcript:     transcriptBuf.String(),
+				ProviderData:   providerData(rawEvents),
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
+				TokensPerSec:   tokensPerSec,
 			}, nil
 		}
 	}

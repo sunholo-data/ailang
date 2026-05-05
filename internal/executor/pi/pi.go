@@ -179,6 +179,14 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
+	// pi emits per-turn token deltas in message_end (role=assistant), so the
+	// budget tally is naturally incremental. costKilled signals breach and
+	// triggers an early process kill.
+	var firstAttemptMs int64 = -1
+	var firstStreamEventAt time.Time
+	var costKilled bool
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -237,8 +245,16 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				switch ame.Type {
 				case "text_delta":
 					if ame.Delta != "" {
+						if firstStreamEventAt.IsZero() {
+							firstStreamEventAt = time.Now()
+						}
 						transcriptBuf.WriteString(ame.Delta)
 						handler.OnText(ame.Delta)
+						// M-EVAL-COST-AND-SPEED-BUDGETS: first text = candidate solution
+						// (when no Write/Edit tool calls have occurred yet).
+						if firstAttemptMs < 0 {
+							firstAttemptMs = time.Since(startTime).Milliseconds()
+						}
 					}
 				}
 
@@ -252,6 +268,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					argsStr = "{}"
 				}
 				handler.OnToolUse(ev.ToolName, argsStr)
+				// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit = first solution attempt.
+				if firstAttemptMs < 0 && (ev.ToolName == "Write" || ev.ToolName == "Edit") {
+					firstAttemptMs = time.Since(startTime).Milliseconds()
+				}
 
 			case "tool_execution_end":
 				output := flattenPiToolResult(ev.Result)
@@ -266,6 +286,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
+					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.
+					if task.Budget != nil && (u.Input > 0 || u.Output > 0) {
+						if _, exceeded := task.Budget.Add(u.Input, u.Output); exceeded {
+							costKilled = true
+							_ = cmd.Process.Kill()
+						}
+					}
 				}
 
 			case "turn_end":
@@ -304,12 +331,24 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				attribute.Float64("pi.cost_usd", totalCostUSD),
 			)
 
+			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metric.
+			var tokensPerSec float64
+			if !firstStreamEventAt.IsZero() && outputTokens > 0 {
+				if gen := time.Since(firstStreamEventAt).Seconds(); gen > 0 {
+					tokensPerSec = float64(outputTokens) / gen
+				}
+			}
+
 			if err != nil {
 				span.SetStatus(codes.Error, err.Error())
+				errMsg := fmt.Sprintf("pi exited with error: %v\nstderr: %s", err, stderrBuf.String())
+				if costKilled {
+					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+				}
 				return &executor.Result{
 					Success:                  false,
 					Output:                   transcriptBuf.String(),
-					Error:                    fmt.Sprintf("pi exited with error: %v\nstderr: %s", err, stderrBuf.String()),
+					Error:                    errMsg,
 					DurationMS:               int(duration.Milliseconds()),
 					InputTokens:              inputTokens,
 					OutputTokens:             outputTokens,
@@ -320,11 +359,18 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					ToolCallCount:            toolCallCount,
 					SessionID:                sessionID,
 					ProviderData:             piProviderData(rawEvents),
+					CostKilledAt:             task.Budget.KilledAt(),
+					FirstAttemptMs:           firstAttemptMs,
+					SuccessAtMs:              -1,
+					TokensPerSec:             tokensPerSec,
 				}, nil
 			}
 
 			output := transcriptBuf.String()
 			success := output != "" || toolCallCount > 0
+			if costKilled {
+				success = false
+			}
 
 			span.SetStatus(codes.Ok, "")
 			return &executor.Result{
@@ -340,22 +386,33 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				ToolCallCount:            toolCallCount,
 				SessionID:                sessionID,
 				ProviderData:             piProviderData(rawEvents),
+				CostKilledAt:             task.Budget.KilledAt(),
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
+				TokensPerSec:             tokensPerSec,
 			}, nil
 
 		case <-hardTimer.C:
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("pi exceeded hard timeout (%v)", timeout),
+				Success:        false,
+				Error:          fmt.Sprintf("pi exceeded hard timeout (%v)", timeout),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-ttftTimer.C:
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, "ttft timeout")
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("pi produced no output within %v (prefill timeout)", ttftTimeout),
+				Success:        false,
+				Error:          fmt.Sprintf("pi produced no output within %v (prefill timeout)", ttftTimeout),
+				FirstAttemptMs: -1,
+				SuccessAtMs:    -1,
 			}, nil
 
 		case <-idleCheck.C:
@@ -364,8 +421,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				_ = cmd.Process.Kill()
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
-					Success: false,
-					Error:   fmt.Sprintf("pi idle for %v mid-generation (no output)", since),
+					Success:        false,
+					Error:          fmt.Sprintf("pi idle for %v mid-generation (no output)", since),
+					InputTokens:    inputTokens,
+					OutputTokens:   outputTokens,
+					CostKilledAt:   task.Budget.KilledAt(),
+					FirstAttemptMs: firstAttemptMs,
+					SuccessAtMs:    -1,
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - since)
@@ -374,8 +436,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
-				Success: false,
-				Error:   fmt.Sprintf("pi cancelled: %v", ctx.Err()),
+				Success:        false,
+				Error:          fmt.Sprintf("pi cancelled: %v", ctx.Err()),
+				InputTokens:    inputTokens,
+				OutputTokens:   outputTokens,
+				CostKilledAt:   task.Budget.KilledAt(),
+				FirstAttemptMs: firstAttemptMs,
+				SuccessAtMs:    -1,
 			}, nil
 		}
 	}
