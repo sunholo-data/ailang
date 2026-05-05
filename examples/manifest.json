@@ -263,6 +263,31 @@
       "description": "Demonstrates callJson: AI returns schema-enforced JSON output"
     },
     {
+      "path": "runnable/ai_stream_openai.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "config-driven"
+      ],
+      "description": "AI token streaming via std/ai/streaming.openaiCompatStream + manual event loop (per-delta control flow)"
+    },
+    {
+      "path": "runnable/ai_call_stream.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "config-driven",
+        "accumulator"
+      ],
+      "description": "AI token streaming via std/ai/streaming.callStream — synchronous accumulator returning Result[string, AIError]"
+    },
+    {
       "path": "array_adt.ail",
       "status": "working",
       "tags": [
