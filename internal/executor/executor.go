@@ -67,6 +67,13 @@ type Task struct {
 	// for the subprocess. Populated from models.yml gcp_project / gcp_location fields.
 	GCPProject  string
 	GCPLocation string
+
+	// Cost budget (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+	// When set to a non-nil *CostBudget, executors call budget.Add(input, output)
+	// at their natural token-tally event point and exit early with
+	// Result.CostKilledAt > 0 if the budget is exceeded mid-stream.
+	// Nil = legacy behaviour (wall-clock-only).
+	Budget *CostBudget
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.
@@ -104,6 +111,13 @@ type Result struct {
 
 	// Provider-specific data
 	ProviderData map[string]any // Raw provider response data
+
+	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+	// Populated by executors that wire Task.Budget. Zero values mean "not measured".
+	CostKilledAt   float64 // > 0 if execution stopped because cost budget exceeded; 0 otherwise
+	FirstAttemptMs int64   // ms from task start to first solution submission (-1 = never)
+	SuccessAtMs    int64   // ms from task start to first passing solution (-1 = never)
+	TokensPerSec   float64 // OutputTokens / generation_seconds (0 if duration not measured)
 }
 
 // TokenUsage captures token metrics
