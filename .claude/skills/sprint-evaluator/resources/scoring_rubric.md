@@ -75,7 +75,43 @@ AI judgment comparing implementation against design doc intent:
 | 1-3 | Major architectural divergence from design |
 | 0 | Implementation bears little resemblance to design |
 
-### 7. Performance Verification (conditional — perf sprints only)
+### 7. Regression Surface Coverage (conditional — shared compilation infrastructure)
+
+**Applies when:** The implementation modifies any of:
+- `internal/parser/`, `internal/lexer/`, `internal/ast/`
+- `internal/types/`, `internal/elaborate/`, `internal/iface/`
+- `internal/codegen/`, `internal/eval/`, `internal/vm/`
+- `internal/effects/` (effect-row algebra changes)
+- `cmd/ailang/exec.go` and other compilation entry points
+
+**When not triggered:** Skip entirely, no points added or deducted.
+
+**When it IS triggered:** This becomes a **HARD FAIL** category (10 bonus points available).
+
+| Score | Condition |
+|-------|-----------|
+| 10 | Design doc has filled-in Conflict Surface section; "Programs that MUST still work" fixtures all have explicit regression tests; `make verify-examples` green; AST diff (or equivalent corpus differential) clean OR every diff explicitly justified in commit message |
+| 7 | Conflict Surface section present + fixture tests added, but no AST/corpus differential check ran |
+| 4 | Some regression tests added (e.g. one example pinned), but Conflict Surface section missing or hand-waved ("no conflicts" with no enumeration) |
+| 0 | **HARD FAIL** — touched shared compilation infrastructure with no regression-surface analysis at all |
+
+**What "Conflict Surface filled in" means:**
+- Section enumerates the syntactic/semantic positions touched
+- Names ≥3 OTHER valid constructs that already live in those positions
+- Shows the disambiguation strategy (with token-stream depth or context flag)
+- Names 3-5 existing programs (in `examples/`, `std/`, or external consumers) that exercise the position
+- Calls out anything that intentionally breaks (or affirms nothing intentionally breaks)
+
+A section that says "no conflicts" without enumeration is treated as missing.
+
+**What counts as a fixture test:**
+- A unit test that pins the parse output / typecheck output / eval output of a real program
+- Located alongside the implementation (`*_test.go` or equivalent)
+- Named after the program / motoko-style consumer it protects (e.g. `TestRefinementVsFunctionBodyDisambiguation/motoko_agent_is_extension_tool_call_shape`)
+
+**Why hard fail?** [M-PARSER-REFINEMENT-LOOKAHEAD](../../../changelogs/v0.10-current.md) (v0.15.2) fixed a regression that shipped 18 months earlier in M-TAINT-TYPES (v0.14.3). Adding `T{not LABEL}` syntax silently broke `func ... -> bool { not f(x) }` because nobody enumerated what else used `{` after a type. The original tests covered the new feature exhaustively but never asked "what existing valid programs become newly invalid?" External consumers (motoko_agent fork on v0.13.0) hit ~14 mis-parses when migrating. **The cost of skipping this gate is paid by users, not by the team that introduces the regression — and it's paid late.** Hard fail because the failure mode is "looks fine in isolation, breaks the world in aggregate."
+
+### 8. Performance Verification (conditional — perf sprints only)
 
 **Applies when:** Design doc or sprint JSON contains performance goals (keywords: "performance", "speedup", "latency", "benchmark", "CPU profile", or `performance_goals` field in sprint JSON).
 
@@ -120,6 +156,7 @@ These cause automatic rejection regardless of total score:
 2. **Less than 50% acceptance criteria met** — Core requirements unmet
 3. **No commits on implementation branch** — Nothing was implemented
 4. **Performance sprint with no profiling data** — Cannot verify optimization worked
+5. **Shared compilation infrastructure touched without regression-surface analysis** — Triggers when the sprint modifies parser/lexer/typechecker/codegen/effects paths. The Conflict Surface section in the design doc must be filled with enumerated alternatives, AND fixture tests must exist for the named "Programs that MUST still work" entries. Failure mode: M-TAINT-TYPES-style silent regressions.
 
 ## Score Interpretation
 

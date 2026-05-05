@@ -199,6 +199,23 @@ Bug reported: [SolarPlanet] return type panics
 - [ ] Look at git history - has this area been patched repeatedly?
 - [ ] Design fix to cover ALL cases, not just the reported one
 
+**⚠️ CRITICAL: Conflict Surface Analysis (REQUIRED for parser/typechecker/codegen changes)**
+
+**If the design touches `internal/parser/`, `internal/lexer/`, `internal/ast/`, `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/codegen/`, `internal/eval/`, `internal/vm/`, `internal/effects/`, or `cmd/ailang/exec.go`:**
+
+The design doc MUST include a **Conflict Surface** section (see [resources/design_doc_structure.md](resources/design_doc_structure.md)) enumerating:
+1. What syntactic/semantic positions does this change extend?
+2. What OTHER valid constructs already live in those positions?
+3. How does the parser/typechecker disambiguate?
+4. Which existing programs MUST still work post-change? (3-5 fixtures)
+5. What deliberately changes (intentional incompatibilities)?
+
+**Why this is required**: most language regressions come from "I didn't realize X also uses this position." The author is the only one who can credibly enumerate the conflict surface. Reviewers can sanity-check but can't generate the list.
+
+**Concrete case study**: M-TAINT-TYPES (v0.14.3) added `T{not LABEL}` refinement syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. The 2-token-lookahead disambiguation was insufficient. The motoko_agent fork (still on v0.13.0) hit ~14 mis-parses when migrating to v0.15.x. Caught months after release. See [M-PARSER-REFINEMENT-LOOKAHEAD changelog entry](../../../changelogs/v0.10-current.md) for the fix.
+
+**The honest answer is almost never "no conflicts"**: if the section says that for a parser/typechecker change, the author hasn't looked hard enough.
+
 **Check existing work:** The create script auto-searches for related docs using both SimHash and neural embeddings. Review the results before filling in the template.
 
 **Warning signs of fragmented design** (expand scope if you see these):

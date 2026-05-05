@@ -387,6 +387,81 @@ RegisterEffectBuiltin(BuiltinSpec{
 - Always include "Documentation updated"
 - Include performance/metric targets
 
+### Conflict Surface (REQUIRED for parser/lexer/typechecker/codegen changes)
+
+**This section is MANDATORY when the design touches any of:**
+- `internal/parser/`, `internal/lexer/`, `internal/ast/`
+- `internal/types/`, `internal/elaborate/`, `internal/iface/`
+- `internal/codegen/`, `internal/eval/`, `internal/vm/`
+- `internal/effects/` (effect-row algebra changes)
+- `cmd/ailang/exec.go` and other compilation entry points
+
+**Purpose**: Force the author to enumerate, at design time, what existing valid programs could break. Catches the "we didn't think about that interaction" regressions before they ship — see [M-PARSER-REFINEMENT-LOOKAHEAD](../../../changelogs/v0.10-current.md) for the case study where M-TAINT-TYPES added `T{not LABEL}` syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. Cost a real consumer (motoko_agent fork) ~14 mis-parses.
+
+**Required content**:
+
+```markdown
+## Conflict Surface
+
+### Syntactic positions touched
+
+What grammar productions / parser entry points / token positions does this
+change extend? List them concretely:
+
+- "Adds a new suffix `T<...>` after type expressions, parsed by
+  `parseLabelOrRefinementSuffix` at parser_type.go:222"
+- "Modifies `parseInfixExpression` to recognize a new operator at
+  precedence band 3"
+- "Changes the AST shape of `*ast.FuncDecl` to add a new field"
+
+### What else lives here
+
+For each position above, enumerate the OTHER valid constructs that already
+appear in that position. Do NOT just say "function bodies use `{`" —
+write out the SHAPE of what comes after the `{`:
+
+| Position | Existing valid form | Shape |
+|----------|--------------------|-------|
+| After type in return-type position | function body | `{ <expr> }` where `<expr>` can be any expression |
+| After type in return-type position | refinement (this PR) | `{ not <ident> }` |
+| After type in return-type position | (any third claimer? e.g. record literal in a let-binding) | enumerate |
+
+If two positions look identical at the lookahead depth your parser uses,
+either:
+  (a) extend the lookahead (preferred — see M-PARSER-REFINEMENT-LOOKAHEAD's
+      4-token approach), OR
+  (b) explain why the disambiguation is sound (e.g. "refinements only
+      appear in type-annotation contexts, which the caller tracks")
+
+### Disambiguation strategy
+
+How does the parser/typechecker decide which interpretation applies?
+Show the exact token-stream check or context flag that picks the right
+path. If you say "context X never appears with construct Y", explain
+WHY the grammar prevents that.
+
+### Programs that MUST still work
+
+List 3-5 existing programs (file paths in `examples/` or `std/`, or
+external consumers like motoko_agent) that exercise the same syntactic
+position your change touches. These become regression test fixtures
+in M1. If you can't name 3-5, your test corpus is too narrow — search
+harder before merging.
+
+### What deliberately changes
+
+If the change WILL break some previously-valid construct (e.g. a
+deprecated form is being removed), say so explicitly. List the affected
+syntax + the migration path. Anything not listed here that breaks is
+a regression, not an intentional change.
+```
+
+**Why this section exists**: most language regressions come from "I didn't realize that other thing also uses this position." The author is closer to the new feature than anyone else; they're the only one who can credibly enumerate the conflict surface. Reviewers can sanity-check but can't generate the list.
+
+**Failure mode without this section**: tests cover what the author wrote (positive cases for the new feature, specific negative cases the author thought of). Sibling syntax — valid pre-change — silently breaks. Caught only when an external consumer hits it.
+
+**Reviewer rule**: if this section says "no conflicts" for a parser/typechecker change, push back. The honest answer is almost always "here are the candidates and here's why each is safe."
+
 ### Testing Strategy
 
 ```markdown
@@ -401,6 +476,11 @@ RegisterEffectBuiltin(BuiltinSpec{
 - End-to-end builtin calls from REPL
 - Cross-module builtin usage
 - Error propagation
+
+**Regression-surface tests** (REQUIRED if Conflict Surface section was filled in):
+- One test per "Programs that MUST still work" entry. Pin the exact
+  parse/typecheck/eval output (or AST snapshot). Failures here are
+  regressions, not test churn.
 
 **Manual testing:**
 - Add new builtin in <3 hours

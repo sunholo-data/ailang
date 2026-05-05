@@ -158,7 +158,13 @@ Apply scoring rubric (see [resources/scoring_rubric.md](resources/scoring_rubric
 | Code Quality | 15 | No |
 | Documentation | 15 | No |
 | Design Fidelity | 10 | No |
-| **Total** | **100** | **Pass: 70+** |
+| Regression Surface Coverage (conditional) | +10 | Yes if triggered with no analysis |
+| Performance Verification (conditional) | +10 | Yes if perf sprint with no profile |
+| **Total** | **100** (+20 conditional) | **Pass: 70+** |
+
+**Conditional categories**:
+- **Regression Surface Coverage** triggers when the sprint touches `internal/parser/`, `internal/lexer/`, `internal/ast/`, `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/codegen/`, `internal/eval/`, `internal/vm/`, `internal/effects/`, or `cmd/ailang/exec.go`. Hard fail if triggered without a Conflict Surface analysis in the design doc and fixture tests for the named "Programs that MUST still work". Catches M-TAINT-TYPES-style silent regressions.
+- **Performance Verification** triggers on perf sprints (design doc keywords). Hard fail without before/after profiling data.
 
 Generate report:
 ```bash
