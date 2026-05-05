@@ -660,4 +660,3 @@ func TestStep_AssistantContentNullPlusToolCalls(t *testing.T) {
 		t.Fatalf("assistant tool_calls len = %d, want 1", len(asst.ToolCalls))
 	}
 }
-
