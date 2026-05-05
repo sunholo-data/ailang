@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-MOTOKO-RPC-LOOP-FULL-MIGRATION",
-  "status": "blocked",
-  "blocked_reason": "Pre-flight gates 1-3 require arni's input before M3 can start. See sprint plan §Pre-Flight Checklist. Gates 1+2 block M3; Gate 3 blocks M6.",
+  "status": "ready",
+  "blocked_reason": null,
   "created": "2026-05-05T20:30:00Z",
   "design_doc": "motoko_agent/design_docs/planned/m-motoko-rpc-loop-full-migration.md",
   "sprint_plan": "motoko_agent/design_docs/planned/m-motoko-rpc-loop-full-migration-sprint-plan.md",
@@ -12,23 +12,31 @@
     {
       "gate": 1,
       "title": "Sprint cadence",
-      "blocking": ["M3"],
+      "blocking": [
+        "M3"
+      ],
       "question": "Single 3-week sprint vs split across 2-3 releases?",
       "default": "single 3-week sprint (recommended)",
-      "answered": false
+      "answered": true,
+      "answer": "single 3-week sprint"
     },
     {
       "gate": 2,
       "title": "Compose extension contract change",
-      "blocking": ["M5"],
+      "blocking": [
+        "M5"
+      ],
       "question": "Choose option (a) typed migration / (b) compatibility shim / (c) drop compose extensions",
       "default": null,
-      "answered": false
+      "answered": true,
+      "answer": "option (a) typed migration — compose extensions are essential"
     },
     {
       "gate": 3,
       "title": "ohmy_pi backend complexity",
-      "blocking": ["M6"],
+      "blocking": [
+        "M6"
+      ],
       "questions": [
         "Q1: Sync vs async dispatch shape?",
         "Q2: Result schema parity with native ToolResultEnvelope?",
@@ -36,27 +44,34 @@
         "Q4: Are there ohmy_pi-specific tools needing ToolSchema entries?"
       ],
       "default_fallback": "option (b) defer ohmy_pi temporarily — return ToolErrorResult for delegated calls",
-      "answered": false
+      "answered": true,
+      "answer": "full ohmy_pi port: sync dispatch, schema parity confirmed, stable, no new ToolSchemas needed"
     },
     {
       "gate": 4,
       "title": "SYSTEM.md update timing",
-      "blocking": ["M10"],
+      "blocking": [
+        "M10"
+      ],
       "question": "Confirm replacing JSON-block instructions with provider-native API instructions in M10",
       "default": "yes if M9 passes",
-      "answered": false
+      "answered": true,
+      "answer": "yes — SYSTEM.md replacement at M10"
     },
     {
       "gate": 5,
       "title": "Default-on switch timing",
-      "blocking": ["post-M10"],
+      "blocking": [
+        "post-M10"
+      ],
       "question": "When does MOTOKO_AGENT_V2 stop being opt-in?",
       "options": [
         "(i) immediately at M10 (recommended once M9 passes)",
         "(ii) after one stable motoko release with v2 default-off but available",
         "(iii) user-by-user opt-in for N weeks before flipping default"
       ],
-      "answered": false
+      "answered": true,
+      "answer": "(i) immediately at M10 — this IS the cutover"
     }
   ],
   "velocity": {
@@ -75,7 +90,9 @@
       "estimated_days": 1,
       "risk_level": "low",
       "dependencies": [],
-      "blocked_by_gates": [1],
+      "blocked_by_gates": [
+        1
+      ],
       "acceptance_criteria": [
         "v2 calls dispatch_response_intercept(ext, result.message.content) on each step return",
         "Accept(output) short-circuits the loop with done event carrying output",
@@ -95,7 +112,9 @@
       "estimated_loc": 120,
       "estimated_days": 0.5,
       "risk_level": "low",
-      "dependencies": ["M3_EXTENSION_INTERCEPT_DISPATCH"],
+      "dependencies": [
+        "M3_EXTENSION_INTERCEPT_DISPATCH"
+      ],
       "blocked_by_gates": [],
       "acceptance_criteria": [
         "v2 calls policy gate on every typed [ToolCall] returned by step()",
@@ -115,8 +134,12 @@
       "estimated_loc": 300,
       "estimated_days": 2,
       "risk_level": "medium",
-      "dependencies": ["M4_TOOL_GATING_POLICY"],
-      "blocked_by_gates": [2],
+      "dependencies": [
+        "M4_TOOL_GATING_POLICY"
+      ],
+      "blocked_by_gates": [
+        2
+      ],
       "acceptance_criteria": [
         "Extension-routed tools (e.g. compose_check_premise) bypass run_native_batch and return their own ToolResultEnvelope",
         "claimcheck still validates compose-author output between turns per arni's chosen migration path",
@@ -135,8 +158,12 @@
       "estimated_loc": 230,
       "estimated_days": 2,
       "risk_level": "high",
-      "dependencies": ["M5_TOOL_HANDLE_ROUTING_AND_COMPOSE_CONTRACT"],
-      "blocked_by_gates": [3],
+      "dependencies": [
+        "M5_TOOL_HANDLE_ROUTING_AND_COMPOSE_CONTRACT"
+      ],
+      "blocked_by_gates": [
+        3
+      ],
       "acceptance_criteria": [
         "Native tool calls dispatch through run_native_batch exactly as today",
         "Delegated tool calls dispatch through ohmy_pi's existing client and return ToolResultEnvelopes",
@@ -156,7 +183,9 @@
       "estimated_loc": -300,
       "estimated_days": 0.5,
       "risk_level": "low",
-      "dependencies": ["M6_NATIVE_VS_OHMY_PI_BACKEND_SPLIT"],
+      "dependencies": [
+        "M6_NATIVE_VS_OHMY_PI_BACKEND_SPLIT"
+      ],
       "blocked_by_gates": [],
       "acceptance_criteria": [
         "v2 falls through to extract_bash when step() returns tool_calls=[] AND finish_reason=stop AND prose contains $ <cmd> line-prefix",
@@ -176,7 +205,9 @@
       "estimated_loc": 80,
       "estimated_days": 0.5,
       "risk_level": "low",
-      "dependencies": ["M7_HYBRID_MODE_AND_PARSE_CLEANUP"],
+      "dependencies": [
+        "M7_HYBRID_MODE_AND_PARSE_CLEANUP"
+      ],
       "blocked_by_gates": [],
       "acceptance_criteria": [
         "After v2 emits done, awaits next user input via stdin/env-server",
@@ -196,7 +227,9 @@
       "estimated_loc": 350,
       "estimated_days": 2.5,
       "risk_level": "medium",
-      "dependencies": ["M8_MULTI_TURN_CONVERSATION_LOOP"],
+      "dependencies": [
+        "M8_MULTI_TURN_CONVERSATION_LOOP"
+      ],
       "blocked_by_gates": [],
       "acceptance_criteria": [
         "Claude Sonnet 4.5: 5/5 benchmark tasks pass",
@@ -218,8 +251,13 @@
       "estimated_loc": -550,
       "estimated_days": 1,
       "risk_level": "low",
-      "dependencies": ["M9_TEST_MATRIX"],
-      "blocked_by_gates": [4, 5],
+      "dependencies": [
+        "M9_TEST_MATRIX"
+      ],
+      "blocked_by_gates": [
+        4,
+        5
+      ],
       "acceptance_criteria": [
         "make check_core passes (~19 modules after dead code removal)",
         "All benchmark tasks pass without MOTOKO_AGENT_V2 env var",
