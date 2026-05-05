@@ -5,12 +5,12 @@ import (
 )
 
 // EfficiencyAggregates captures per-model speed-and-cost efficiency
-// observables (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+// observables (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 //
 // All fields are summary statistics over the runs that succeeded
 // (StdoutOk == true). Fields default to 0 when:
 //   - No runs succeeded
-//   - The underlying speed metric was never measured (executor pre-v0.16.0)
+//   - The underlying speed metric was never measured (executor pre-v0.15.1)
 type EfficiencyAggregates struct {
 	// Time-to-first-attempt: ms from task start to first solution submission.
 	// Median across successful runs.

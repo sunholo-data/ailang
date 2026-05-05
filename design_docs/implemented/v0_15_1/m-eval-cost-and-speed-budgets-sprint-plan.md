@@ -1,7 +1,7 @@
 # M-EVAL-COST-AND-SPEED-BUDGETS — Sprint Plan
 
 **Sprint ID**: M-EVAL-COST-AND-SPEED-BUDGETS
-**Target**: v0.16.0
+**Target**: v0.15.1 (re-targeted from v0.16.0)
 **Design doc**: [m-eval-cost-and-speed-budgets.md](m-eval-cost-and-speed-budgets.md)
 **Estimated duration**: 2.5 working days (~22 hours)
 **Total LOC estimate**: ~1290 LOC implementation + ~250 LOC tests
@@ -214,15 +214,15 @@ Each executor:
    - Result-file new fields reference
    - Migration guide for legacy baselines
 2. Update `docs/docs/guides/evaluation/README.md` to link new guide
-3. Move design doc: `design_docs/planned/v0_16_0/m-eval-cost-and-speed-budgets.md` → `design_docs/implemented/v0_16_0/m-eval-cost-and-speed-budgets.md`
-4. Move sprint plan: `design_docs/planned/v0_16_0/m-eval-cost-and-speed-budgets-sprint-plan.md` → `design_docs/implemented/v0_16_0/m-eval-cost-and-speed-budgets-sprint-plan.md`
+3. Move design doc: `design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md` → `design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md`
+4. Move sprint plan: `design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md` → `design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md`
 5. Append implementation report to design doc (what was built, deviations, M5 outcome)
-6. CHANGELOG entry under v0.16.0 with M-EVAL summary + curation outcome
+6. CHANGELOG entry under v0.15.1 with M-EVAL summary + curation outcome
 
 **Acceptance criteria**:
 - [ ] New eval guide linked from `docs/docs/guides/evaluation/README.md`
-- [ ] Design doc + sprint plan moved to `implemented/v0_16_0/`
-- [ ] CHANGELOG `[v0.16.0]` section references this milestone with link to design doc
+- [ ] Design doc + sprint plan moved to `implemented/v0_15_1/`
+- [ ] CHANGELOG `[v0.15.1]` section references this milestone with link to design doc
 - [ ] Implementation report includes: M5 outcome (which models promoted), any deviations from design, performance impact (cost-helper overhead negligible if true)
 
 **Risk**: Low. Pure documentation.
@@ -281,7 +281,7 @@ M4 + M5 can run in parallel via Task sub-agents on Day 2/Day 3 if useful, but th
 - [ ] At least 1 of (DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash, Gemma 4 26B) promotes to PASS
 - [ ] Dashboard renders SpeedRadar + CostSpeedFrontier locally without errors
 - [ ] v0.14.x and v0.15.0 baselines replay identically (back-compat)
-- [ ] CHANGELOG v0.16.0 entry references this design doc
+- [ ] CHANGELOG v0.15.1 entry references this design doc
 
 ## Risks & Mitigations
 
@@ -300,7 +300,7 @@ None. All 6 high-impact decisions are resolved in the design doc's Design Freeze
 
 ## Success Criteria (User-Visible)
 
-After this sprint ships in v0.16.0:
+After this sprint ships in v0.15.1:
 
 1. **Eval suite curators** can add cheap-but-slow models without artificial timeout exclusion
 2. **Dashboard users** can see Pareto frontier of cost vs speed vs success — pick optimal model by use-case

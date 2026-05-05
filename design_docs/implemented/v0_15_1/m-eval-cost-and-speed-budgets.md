@@ -1,7 +1,7 @@
 # M-EVAL-COST-AND-SPEED-BUDGETS
 
-**Status**: Implemented (v0.16.0, 2026-05-05)
-**Target**: v0.16.0
+**Status**: Implemented (v0.15.1, 2026-05-05)
+**Target**: v0.15.1 (re-targeted from v0.16.0 post-sprint to ship alongside M-AI-CALL-STREAM-HELPER)
 **Priority**: P1 (Medium — blocks fair OS-model evaluation; relatively contained change)
 **Estimated**: ~2.5 working days (~20 hours)
 **Dependencies**:
@@ -281,8 +281,8 @@ hard_timeout_secs = 600  (was 60-180; raised because cost is now primary gate)
 
 **M6: Docs + design doc retro** (~2h, ~150 LOC docs)
 - [ ] New section in `docs/docs/guides/evaluation/` covering cost-and-speed budgets
-- [ ] Move design doc to `implemented/v0_16_0/`
-- [ ] CHANGELOG entry under v0.16.0
+- [ ] Move design doc to `implemented/v0_15_1/`
+- [ ] CHANGELOG entry under v0.15.1
 
 ### Files to Modify/Create
 
@@ -290,7 +290,7 @@ hard_timeout_secs = 600  (was 60-180; raised because cost is now primary gate)
 - `internal/executor/cost.go` — shared cost-budget helper (~250 LOC)
 - `docs/src/components/BenchmarkDashboard/SpeedRadar.jsx` — NEW radar chart (~200 LOC)
 - `docs/src/components/BenchmarkDashboard/CostSpeedFrontier.jsx` — NEW Pareto scatter (~200 LOC)
-- `design_docs/implemented/v0_16_0/m-eval-cost-and-speed-budgets-sprint-plan.md` — sprint plan (created at sprint kickoff)
+- `design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md` — sprint plan (created at sprint kickoff)
 
 **Modified files:**
 - `internal/executor/executor.go` — `Task`/`Result` field additions (~30 LOC)
@@ -369,7 +369,7 @@ opencode-sonnet-4-6 on a pathological 50-turn agent loop:
 - [ ] Default `MaxCostUSD = min($0.50, input × 64K + output × 32K)` formula applied when `budgets:` omitted
 - [ ] At least 1 of (DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash, Gemma 4 26B) promotes to PASS smoke after re-test
 - [ ] Dashboard shows new Speed Radar and Cost-Speed Frontier charts
-- [ ] CHANGELOG v0.16.0 entry references this design doc
+- [ ] CHANGELOG v0.15.1 entry references this design doc
 - [ ] Existing eval baselines (v0.14.x, v0.15.0) replay with identical results when budgets blocks omitted (back-compat)
 - [ ] All `make test`, `make lint`, `make verify-examples` green
 

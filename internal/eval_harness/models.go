@@ -38,7 +38,7 @@ type Pricing struct {
 }
 
 // Budgets represents per-model cost-and-speed budget overrides
-// (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+// (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 //
 // Defaults when omitted:
 //
@@ -73,7 +73,7 @@ func (m *ModelConfig) ResolvedMaxCostUSD() float64 {
 }
 
 // ResolvedHardTimeoutSecs returns the effective wall-clock safety net.
-// Default raised from 60-180s to 600s in v0.16.0 because cost is now the
+// Default raised from 60-180s to 600s in v0.15.1 because cost is now the
 // primary gate.
 func (m *ModelConfig) ResolvedHardTimeoutSecs() int {
 	if m.Budgets.HardTimeoutSecs > 0 {

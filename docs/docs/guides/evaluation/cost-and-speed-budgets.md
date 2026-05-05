@@ -3,17 +3,17 @@ title: Cost-and-Speed Budgets
 sidebar_position: 9
 ---
 
-# Cost-and-Speed Budgets (v0.16.0+)
+# Cost-and-Speed Budgets (v0.15.1+)
 
 The eval harness uses **cost** as the primary execution gate, not wall-clock time. This lets cheap-but-slow models (like the open-source SOTA models on OpenRouter) get fair evaluation, while still preventing expensive models from running away.
 
 ## Why cost > time
 
-Before v0.16.0, the harness enforced wall-clock timeouts (60s opencode, 90-180s benchmark-level) as a *proxy* for cost control. This systematically excluded cheap-but-slow models — DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash — even though they cost fractions of a cent per benchmark.
+Before v0.15.1, the harness enforced wall-clock timeouts (60s opencode, 90-180s benchmark-level) as a *proxy* for cost control. This systematically excluded cheap-but-slow models — DeepSeek V4 Flash, Kimi K2.6, GLM 4.7 Flash — even though they cost fractions of a cent per benchmark.
 
 Meanwhile expensive models (`opencode-sonnet-4-6` at ~$0.20/call × multi-turn = $13.38 across 68 runs) were *not* effectively constrained by wall-clock — each call was fast, just expensive.
 
-**Cost is the right dimension.** v0.16.0 makes it explicit.
+**Cost is the right dimension.** v0.15.1 makes it explicit.
 
 ## How it works
 
@@ -101,9 +101,9 @@ The existing `PerModelTrend` chart gains a metric dropdown: Success Rate / Time 
 ## Migration guide
 
 **For existing baselines (v0.14.x, v0.15.0):**
-- Pre-v0.16.0 result JSONs lack `cost_killed_at`/`first_attempt_ms`/`success_at_ms`/`tokens_per_sec` fields → all default to 0
+- Pre-v0.15.1 result JSONs lack `cost_killed_at`/`first_attempt_ms`/`success_at_ms`/`tokens_per_sec` fields → all default to 0
 - `median_time_to_success_ms` falls back to `duration_ms` for these baselines (`ComputeEfficiency` uses `DurationMs` when `SuccessAtMs <= 0`)
-- Dashboard Speed Radar will show realistic data for v0.16.0+ baselines; pre-v0.16.0 entries appear with full DurationMs (post-hoc) instead of true TTS
+- Dashboard Speed Radar will show realistic data for v0.15.1+ baselines; pre-v0.15.1 entries appear with full DurationMs (post-hoc) instead of true TTS
 
 **For new evaluations:**
 - No action needed — the eval harness automatically populates `Task.Budget` from each model's resolved `MaxCostUSD`
@@ -125,6 +125,6 @@ some-model:
 
 ## See also
 
-- [Design doc](../../../../design_docs/implemented/v0_16_0/m-eval-cost-and-speed-budgets.md) — full architectural rationale + axiom scoring
-- [Sprint plan](../../../../design_docs/implemented/v0_16_0/m-eval-cost-and-speed-budgets-sprint-plan.md) — milestone breakdown
+- [Design doc](../../../../design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — full architectural rationale + axiom scoring
+- [Sprint plan](../../../../design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md) — milestone breakdown
 - [Model configuration guide](./model-configuration.md) — full `models.yml` schema

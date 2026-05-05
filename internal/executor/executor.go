@@ -68,7 +68,7 @@ type Task struct {
 	GCPProject  string
 	GCPLocation string
 
-	// Cost budget (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+	// Cost budget (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 	// When set to a non-nil *CostBudget, executors call budget.Add(input, output)
 	// at their natural token-tally event point and exit early with
 	// Result.CostKilledAt > 0 if the budget is exceeded mid-stream.
@@ -112,7 +112,7 @@ type Result struct {
 	// Provider-specific data
 	ProviderData map[string]any // Raw provider response data
 
-	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 	// Populated by executors that wire Task.Budget. Zero values mean "not measured".
 	CostKilledAt   float64 // > 0 if execution stopped because cost budget exceeded; 0 otherwise
 	FirstAttemptMs int64   // ms from task start to first solution submission (-1 = never)
