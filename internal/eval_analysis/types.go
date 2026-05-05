@@ -62,6 +62,14 @@ type BenchmarkResult struct {
 	// by DetectRefusal() scanning stdout+stderr. Not written by eval_harness,
 	// purely a read-side annotation so historical results inherit it.
 	RefusalDetected bool `json:"refusal_detected,omitempty"`
+
+	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.16.0).
+	// Zero values mean "not measured" — preserves byte-identical replay of
+	// pre-v0.16.0 baselines (additive schema only).
+	CostKilledAt   float64 `json:"cost_killed_at,omitempty"`   // > 0 if execution stopped because cost budget exceeded
+	FirstAttemptMs int64   `json:"first_attempt_ms,omitempty"` // ms from task start to first solution submission
+	SuccessAtMs    int64   `json:"success_at_ms,omitempty"`    // ms from task start to first passing solution (-1 = never)
+	TokensPerSec   float64 `json:"tokens_per_sec,omitempty"`   // OutputTokens / generation_seconds
 }
 
 // Baseline represents a stored baseline with metadata

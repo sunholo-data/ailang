@@ -378,6 +378,18 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		modelAgentStats[r.Model] = stats
 	}
 
+	// M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): per-model efficiency aggregates.
+	// Group ALL results (standard + agent) by model so the dashboard can show
+	// speed/cost frontiers irrespective of which mode the model ran in.
+	resultsByModel := make(map[string][]*BenchmarkResult)
+	for _, r := range results {
+		resultsByModel[r.Model] = append(resultsByModel[r.Model], r)
+	}
+	modelEfficiency := make(map[string]EfficiencyAggregates)
+	for modelName, modelResults := range resultsByModel {
+		modelEfficiency[modelName] = ComputeEfficiency(modelResults)
+	}
+
 	// Convert models to camelCase for JavaScript (nested aggregates)
 	modelsJS := make(map[string]interface{})
 	for name, stats := range matrix.Models {
@@ -489,6 +501,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 			}
 		}
+		// M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): per-model efficiency block.
+		// Drives SpeedRadar + CostSpeedFrontier dashboard charts (M4).
+		if eff, ok := modelEfficiency[name]; ok {
+			modelData["efficiency"] = eff
+		}
 		// M-DASH-V2: attach per-model reliability counters so the dashboard
 		// can tooltip the API Reliability card ("gemini-3-1-pro: 13/33").
 		if rel, ok := reliability.PerModel[name]; ok {
@@ -530,6 +547,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 					"avgTokens":    float64(agentStats.totalTokens) / float64(agentStats.runs),
 					"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 				},
+			}
+			// M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): per-model efficiency
+			// block for agent-only models too — Pareto frontier needs them.
+			if eff, ok := modelEfficiency[modelName]; ok {
+				entry["efficiency"] = eff
 			}
 			// Per-language agent success rates (JS/Go from lang_harness_suite).
 			// Includes adjusted rate + api_error counts so the Explorer's mini-bars
