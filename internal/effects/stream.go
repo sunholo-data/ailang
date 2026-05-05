@@ -115,6 +115,68 @@ func (sc *StreamConnection) Status() StreamStatus {
 	return sc.status
 }
 
+// SSEEventInfo is the exported, Go-callable representation of one stream
+// event. Used by Go-side consumers like the AI call-stream accumulator
+// (M-AI-CALL-STREAM-HELPER) which drain events directly without going
+// through the AILANG handler dispatch path.
+//
+// Field semantics mirror the unexported streamEvent struct one-for-one
+// so existing AILANG-side ADT mapping in this file stays the source of
+// truth. Kind values: "sse_data", "message", "binary", "opened",
+// "closed", "error", "ping", "source_text", "source_bytes".
+type SSEEventInfo struct {
+	Kind        string // event tag — see field doc above
+	EventType   string // SSE event: field (sse_data only)
+	Data        string // text body (sse_data, message, error)
+	BinaryData  []byte // raw bytes (binary, source_bytes)
+	CloseCode   int    // close code (closed only)
+	CloseReason string // close reason (closed only)
+	ErrType     string // error type tag (error only)
+	SourceName  string // M-ASYNC-IO source tag
+}
+
+// DrainEventsToFunc drains events from the connection into a Go-side
+// callback. The callback returns true to continue, false to stop the
+// loop. Returns nil on clean termination (callback returned false or
+// channel closed) or a timeout error if no events arrive within the
+// connection's idleTimeout.
+//
+// Used by Go-side accumulator helpers (e.g. _ai_call_stream) that
+// implement their own loop logic in Go rather than dispatching to an
+// AILANG handler. AILANG-facing consumers should still use
+// runEventLoop + onEvent for the standard event-loop pattern.
+//
+// Threading: the read goroutine continues writing to the event buffer
+// independently. This method is safe to call once per connection;
+// concurrent drains on the same connection are not supported.
+func (sc *StreamConnection) DrainEventsToFunc(cb func(SSEEventInfo) bool) error {
+	for {
+		select {
+		case evt, ok := <-sc.eventBuffer:
+			if !ok {
+				return nil
+			}
+			info := SSEEventInfo{
+				Kind:        evt.kind,
+				EventType:   evt.sseEventType,
+				Data:        evt.text,
+				BinaryData:  evt.data,
+				CloseCode:   evt.code,
+				CloseReason: evt.reason,
+				ErrType:     evt.errType,
+				SourceName:  evt.sourceName,
+			}
+			if !cb(info) {
+				return nil
+			}
+		case <-time.After(sc.idleTimeout):
+			return fmt.Errorf("E_STREAM_IDLE_TIMEOUT: no events for %v", sc.idleTimeout)
+		case <-sc.done:
+			return nil
+		}
+	}
+}
+
 func init() {
 	RegisterOp("Stream", "connect", StreamConnect)
 	RegisterOp("Stream", "send", StreamSend)

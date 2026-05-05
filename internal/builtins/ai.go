@@ -13,6 +13,7 @@ func init() {
 	registerAICallImage()
 	registerAICallImageBase64()
 	registerAIStreamCall()
+	registerAICallStream()
 }
 
 // _ai_call: Call the AI oracle with a string input
@@ -371,4 +372,105 @@ func aiStreamCallImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		return nil, err
 	}
 	return effects.Call(ctx, "AI", "streamCall", args)
+}
+
+// _ai_call_stream: Synchronous accumulator wrapper around _ai_stream_call
+// (M-AI-CALL-STREAM-HELPER, v0.15.1).
+//
+// Opens an SSE token stream from a config-driven AI provider, drives the
+// event loop in Go, accumulates content deltas, and returns a single
+// Result[string, AIError]. Eliminates the user-side event-loop +
+// accumulator boilerplate that consumers like motoko_agent had to build
+// by hand against the lower-level _ai_stream_call primitive.
+//
+// The AI.callStream effect op is registered in cmd/ailang/configdriven_streaming.go
+// alongside streamCall, for the same import-cycle reason.
+func registerAICallStream() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_call_stream",
+		NumArgs: 3, // provider: string, model: string, messages_json: string
+		Effect:  "AI",
+		Type:    makeAICallStreamType,
+		Impl:    aiCallStreamImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Stream tokens from a config-driven AI provider and return the accumulated string",
+			LongDesc: `Synchronous accumulator over _ai_stream_call: opens the SSE
+connection, drains events in Go, accumulates content deltas via the provider's
+[ai_provider.streaming] delta_path, and returns Result[string, AIError].
+
+Use this when you want the streaming-friendly transport (token-by-token
+network framing, configurable timeouts, structured failure) without writing
+the event loop yourself. Functionally equivalent to a non-streaming _ai_call,
+but flows through the streaming code path so providers that ONLY support
+streaming (e.g. some OpenRouter-routed deployments) work as drop-in.
+
+ERROR MAPPING:
+  StreamErrorKind variants are flattened into AIError records:
+  - ConnectionFailed (retryable=true): network failure opening the stream
+  - AuthFailed (retryable=false):       4xx auth errors from upstream
+  - Timeout (retryable=true):           idle timeout drained the connection
+  - BudgetExhausted (retryable=false):  Stream/AI cap budget overflow
+  - ProviderNotFound (retryable=false): provider name not registered
+  - CapabilityNotSupported (retryable=false): streaming.enabled = false
+  - ProtocolError (retryable=false):    malformed upstream response
+
+REASONING FIELDS:
+  In v0.15.1, reasoning_content / thinking deltas are READ from upstream
+  events but NOT included in the accumulated string. Only visible content
+  appears. v0.15.2's callStreamWithReasoning will surface both.
+
+TRACE SPANS:
+  Exactly ONE AI/streamCall span is emitted per _ai_call_stream invocation
+  — the underlying streamCall op records the span; this accumulator does NOT
+  emit a separate span.`,
+			Params: []ParamDoc{
+				{Name: "provider", Description: "Registered config-driven provider name"},
+				{Name: "model", Description: "Model identifier within the provider"},
+				{Name: "messages_json", Description: "JSON array of {role, content} records"},
+			},
+			Returns: "Result[string, AIError]",
+			SeeAlso: []string{
+				"_ai_stream_call",
+				"std/ai/streaming.callStream",
+				"std/ai/streaming.openaiCompatStream",
+			},
+			Since:     "v0.15.1",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "streaming", "sse", "config-driven", "accumulator"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_call_stream builtin: " + err.Error())
+	}
+}
+
+func makeAICallStreamType() types.Type {
+	T := types.NewBuilder()
+	// (provider: string, model: string, messages_json: string)
+	//   -> Result[string, AIError] ! {AI, Stream, Net}
+	// AIError is a record { code: string, message: string, retryable: bool }.
+	aiErrorType := T.Record(
+		types.Field("code", T.String()),
+		types.Field("message", T.String()),
+		types.Field("retryable", T.Bool()),
+	)
+	return T.Func(
+		T.String(), // provider
+		T.String(), // model
+		T.String(), // messages_json
+	).Returns(
+		T.App("Result", T.String(), aiErrorType),
+	).Effects("AI", "Stream", "Net")
+}
+
+func aiCallStreamImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	if err := ctx.RequireCapWithBudget("Stream", "stream.sse_post"); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "callStream", args)
 }

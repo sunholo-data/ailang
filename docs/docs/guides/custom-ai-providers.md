@@ -111,7 +111,7 @@ The TOML keys match the wire identifiers used in [`internal/ai/routing.go`](http
 |-----|---------|
 | `tool_calling` | Function/tool calling supported |
 | `json_mode` | JSON-mode output supported |
-| `streaming` | SSE token streaming supported (consumed in v0.17.0 by M-AI-STREAMING-HELPER) |
+| `streaming` | SSE token streaming supported. Surface: [`std/ai/streaming.callStream`](../recipes/ai-token-streaming.md#quick-start-callstream) (v0.15.1+) and `openaiCompatStream`/`anthropicStream` (v0.15.0+) |
 | `vision` | Multimodal image input/output supported |
 | `structured_outputs` | Schema-enforced structured output (`response_format = json_schema`) supported |
 
@@ -188,7 +188,7 @@ The runtime tracks the harvested providers in a global registry (see [`internal/
 
 - **Custom auth flows** (AWS SigV4, Azure AD, OAuth) — not supported; use the `auth_headers` escape with `${ENV_VAR}` for static tokens, or rely on built-in providers for full custom auth.
 - **Non-HTTP transports** (gRPC, persistent WebSocket) — Go-side; not in v1 schema.
-- **Streaming** — schema accepts `[ai_provider.streaming]` blocks but the runtime hook lands in v0.17.0 with M-AI-STREAMING-HELPER.
+- **Streaming** — `[ai_provider.streaming]` blocks are runtime-supported via [`std/ai/streaming`](../recipes/ai-token-streaming.md): `callStream` for the accumulated final string (v0.15.1+), `openaiCompatStream`/`anthropicStream` + the manual event loop for per-delta hooks (v0.15.0+).
 - **Tool-use templating** — `capabilities.tool_calling` flag works, but the request-shape templating for tool definitions is deferred to schema v2.
 - **Image input templating** — same.
 - **`request_shape = "custom"` + `request_template`** — reserved in the schema; runtime support deferred to schema v2.

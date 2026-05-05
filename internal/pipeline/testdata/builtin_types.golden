@@ -11,6 +11,7 @@ _ai_call_image : (string, string, string) -> string ! {AI}
 _ai_call_image_base64 : (string, string) -> string ! {AI}
 _ai_call_json : (string, string) -> string ! {AI}
 _ai_call_json_simple : string -> string ! {AI}
+_ai_call_stream : (string, string, string) -> Result[string, {code: string, message: string, retryable: bool}] ! {AI, Net, Stream}
 _ai_stream_call : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {AI, Net, Stream}
 _array_append : (Array[a], a) -> Array[a]
 _array_empty : () -> Array[a]

@@ -14,7 +14,7 @@
 The motoko_agent project currently depends on a **fork of AILANG** (`github.com/sunholo-data/ailang` `motoko` branch) cloned at install-time by `scripts/install-prerequisites.sh`. The fork existed for three reasons that are all now obsolete in upstream v0.15.0:
 
 1. **Custom OpenAI base-URL routing** → expressible as `[[ai_provider]]` block in `ailang.toml` (M-AI-PROVIDER-CONFIG)
-2. **Token streaming** (`std/ai_motoko.callStreamResult`, 6 Go files) → `std/ai/streaming.openaiCompatStream` + event loop (M-AI-STREAMING-HELPER)
+2. **Token streaming** (`std/ai_motoko.callStreamResult`, 6 Go files) → `std/ai/streaming.callStream` (v0.15.1+, drop-in synchronous accumulator) or `openaiCompatStream` + event loop for per-delta UI updates
 3. **OpenRouter prefix routing** → built-in `openrouter` provider, wired into `ailang run` (M-AI-OPENROUTER)
 
 This doc captures the full migration plan: what changes, why each change is honest progress (not a sideways swap), and what we need from arni's team before code can land.
@@ -47,11 +47,20 @@ This doc captures the full migration plan: what changes, why each change is hone
 | Final-string accumulator | Built into `AIStreamResult.output` | Caller maintains a `mut accumulated: string` (or threads it via `runEventLoopFold` if we add one) |
 | Messages serialization | Strongly typed `[Message]` arg | Pre-serialised JSON string (v1.1 will accept typed lists once `std/json` gains record-of-records encoding) |
 
-### v1.1 follow-up that closes the boilerplate gap
+### v0.15.1 helper: `callStream` closes the boilerplate gap
 
-Worth flagging upfront: the fork's `AIStreamResult` accumulator pattern is genuinely useful for the common "stream-and-render-then-done" case. v0.15.0 doesn't ship a built-in accumulator helper, but **a 30-line `std/ai/streaming.callStream(provider, model, messages) -> Result[string, AIError]`** wrapper that drives the event loop internally would close the gap. Should land in v0.15.1 or v0.16.0; tracked here, not in scope for this migration.
+**Update (2026-05-05): the v1.1 helper anticipated below shipped as M-AI-CALL-STREAM-HELPER and is available from v0.15.1+.** It exposes exactly the synchronous accumulator the fork's `AIStreamResult` provided, with the same effect signature:
 
-The migration is therefore "use the new API now (less convenient, more correct)" with a documented v1.1 helper landing soon to give the convenience back.
+```ailang
+import std/ai/streaming (callStream, AIError)
+
+callStream(provider: string, model: string, messagesJson: string)
+  -> Result[string, AIError] ! {AI, Stream, Net}
+```
+
+For motoko_agent's call sites this means each migration shrinks from ~20 lines of `match openaiCompatStream + onEvent + runEventLoop + accumulator` to a single `callStream(...)` call followed by the existing `match Ok(text) | Err(e)` pattern — almost the same diff size as the original `callStreamResult` substitution. **Targeting v0.15.1 means: use `callStream` directly; no need to write `runStreamCall` inline.**
+
+The migration is therefore "swap one streaming call for another" with the v0.15.1 helper restoring the convenience the fork had.
 
 ---
 
@@ -124,65 +133,27 @@ else {
 
 The fork's `callStreamResult` accumulates internally and hands back the full string.
 
-### After (v0.15.0)
+### After (v0.15.1+)
+
+With `callStream` shipped in v0.15.1, each call site reduces to a single import + a single function call. Motoko_agent's `AIError` shape needs slight remapping (the upstream `AIError` doesn't carry `provider` / `statusCode` — those can be filled in from caller context) but the structural pattern is identical to the fork's `AIStreamResult.ok` switch:
 
 ```ailang
-import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
-import std/stream (StreamEvent, SSEData, Closed, StreamError)
-import std/json (decode, getString)
-import std/option (Option, Some, None)
-import std/result (Result, Ok, Err)
+import std/ai/streaming (callStream, AIError)
 
--- Helper: extract the content delta from one OpenAI-shape SSE event payload.
--- v1.1 will expose this as parseDelta in std/ai/streaming directly.
-func extractContent(raw: string) -> string {
-  if raw == "[DONE]" then ""
-  else match decode(raw) {
-    Ok(json) => extractContentFromJson(json),
-    Err(_) => ""
-  }
-}
-
--- Accumulate streamed deltas into a single string by closing over a Ref.
--- This is the accumulator the fork's callStreamResult provides for free;
--- v1.1 will bring it back as std/ai/streaming.callStream — for v0.15.0 we
--- write it inline.
-func runStreamCall(
-  provider: string, model: string, messagesJson: string
-) -> Result[string, AIError] ! {AI, Stream, Net} {
-  let acc = ref "" in
-  match openaiCompatStream(provider, model, messagesJson) {
-    Ok(conn) => {
-      onEvent(conn, \event ->
-        match event {
-          SSEData(_, raw) => {
-            if raw == "[DONE]" then false
-            else { acc := !acc ++ extractContent(raw); true }
-          },
-          Closed(_, _) => false,
-          StreamError(_) => false,
-          _ => true
-        });
-      runEventLoop(conn);
-      disconnect(conn);
-      Ok(!acc)
-    },
-    Err(e) => Err({
-      message: streamErrorMessage(e),
-      provider: provider,
-      statusCode: 0,
-      retryable: streamErrorRetryable(e),
-      code: streamErrorCode(e)
-    })
-  }
-}
-
--- Caller's site shrinks from "callStreamResult + check r.ok" to:
 let messagesJson = "[{\"role\":\"user\",\"content\":\"" ++ escape(input) ++ "\"}]" in
-runStreamCall(providerName, model, messagesJson)
+match callStream(providerName, model, messagesJson) {
+  Ok(text) => Ok(text),
+  Err(e) => Err({
+    message: e.message,
+    provider: providerName,           -- caller-supplied (not on upstream AIError)
+    statusCode: 0,                    -- v0.15.1's AIError omits HTTP status; future enhancement
+    retryable: e.retryable,
+    code: e.code
+  })
+}
 ```
 
-**The boilerplate above (`runStreamCall`)** is the v1.1 helper anticipated for `std/ai/streaming` — write it once in motoko_agent for v0.15.0, drop it when v1.1 lands.
+**Reasoning models**: in v0.15.1 `callStream` returns visible content only — `reasoning_content` / `thinking` deltas are read but not surfaced. v0.15.2's `callStreamWithReasoning` will return both. If motoko_agent needs the reasoning trace before then, drop down to `openaiCompatStream` + the manual event loop and inspect deltas yourself.
 
 ### Streaming-progress events (the fork's `chunks` array)
 
@@ -256,16 +227,16 @@ The PR will land as a draft with this design doc. Before any code lands, we need
 
 ## Implementation plan (post-arni-ack)
 
-Once questions are answered, execute in 4 milestones on the `ailang-v0.15.0-migration` branch:
+Once questions are answered, execute in 4 milestones on the `ailang-v0.15.0-migration` branch. **Estimate revised down to ~2 hours after v0.15.1 shipped `callStream`** — the previously planned `runStreamCall` accumulator helper is now upstream, so M2 collapses from 1 hour of inline-helper authoring to ~20 minutes of a smoke check that the new built-in import resolves.
 
 | M | Description | Estimated |
 |---|------|-----|
-| **M1** | Install script swap to upstream v0.15.0 + ailang.toml `ailang` constraint + `[[ai_provider]]` blocks | 30 min |
-| **M2** | Write `runStreamCall` accumulator helper module in motoko_agent (v1.1 helper anticipated) + Tier 1 smoke | 1 hour |
-| **M3** | Migrate the 4 `.ail` call sites + `env-server.ts` codegen + Tier 1 smoke after each | 2-3 hours |
+| **M1** | Install script swap to upstream v0.15.1 (or later) + ailang.toml `ailang = ">=0.15.1"` constraint + `[[ai_provider]]` blocks | 30 min |
+| **M2** | Verify `callStream` import resolves + Tier 1 smoke (one call site rewritten as a probe) | ~20 min |
+| **M3** | Migrate the 4 `.ail` call sites + `env-server.ts` codegen + Tier 1 smoke after each — each call site is now a one-line `callStreamResult(...)` → `callStream(...)` swap plus the `AIError` shape mapping shown above | ~30 min |
 | **M4** | Tier 2 smoke against real provider; if green, flip PR from draft to ready-for-review | 30 min + arni's review window |
 
-Total: ~4-5 hours of focused work post-questions.
+Total: ~2 hours of focused work post-questions (down from 4-5 hours; the v0.15.1 helper recovers the convenience the fork's `callStreamResult` had).
 
 ---
 

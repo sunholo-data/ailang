@@ -118,6 +118,42 @@ export func anthropicStream(
   _ai_stream_call(provider, model, messagesJson)
 }
 
+-- Synchronous accumulator wrapper (M-AI-CALL-STREAM-HELPER, v0.15.1).
+--
+-- Drives the SSE event loop in Go and returns the accumulated content
+-- as a single string, eliminating the user-side onEvent + runEventLoop +
+-- StringBuilder boilerplate that consumers like motoko_agent had to write
+-- against the lower-level openaiCompatStream / anthropicStream primitives.
+--
+-- Use this when you want streaming-friendly transport (token-by-token
+-- network framing, configurable timeouts, structured failure) but only
+-- care about the final string. For per-token UI updates, drop down to
+-- openaiCompatStream + onEvent.
+--
+-- Reasoning fields (reasoning_content, thinking) are READ from upstream
+-- events but NOT included in the returned string in v0.15.1 — only visible
+-- content accumulates. v0.15.2's callStreamWithReasoning will surface both.
+--
+-- Errors flatten StreamErrorKind into a structured AIError record:
+--   - ConnectionFailed (retryable=true):       network / open failure
+--   - AuthFailed (retryable=false):            4xx auth from upstream
+--   - Timeout (retryable=true):                idle timeout
+--   - BudgetExhausted (retryable=false):       Stream/AI cap budget overflow
+--   - ProviderNotFound (retryable=false):      provider name not registered
+--   - CapabilityNotSupported (retryable=false): streaming.enabled = false
+--   - ProtocolError (retryable=false):         malformed upstream response
+--
+-- Trace span semantics: exactly ONE AI/streamCall span per call
+-- (the underlying primitive owns the span; the accumulator does NOT
+-- emit a separate one).
+export func callStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[string, AIError] ! {AI, Stream, Net} {
+  _ai_call_stream(provider, model, messagesJson)
+}
+
 -- ============================================================================
 -- Re-exports from std/stream
 -- ============================================================================

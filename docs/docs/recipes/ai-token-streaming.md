@@ -5,13 +5,85 @@ sidebar_position: 10
 
 # AI Token Streaming
 
-**Status**: Available since AILANG **v0.15.0**.
+**Status**: Available since AILANG **v0.15.0**. The accumulator wrapper [`callStream`](#quick-start-callstream) is **v0.15.1+**.
 
 Stream LLM token-by-token responses through the AI effect with full budget tracking, capability gating, and trace integration. Composes [`std/stream`](../guides/streaming.md)'s SSE-via-POST primitive with the [M-AI-PROVIDER-CONFIG registry](../guides/custom-ai-providers.md) so URL, auth, and request body shape come from `[[ai_provider]]` config in your `ailang.toml` — no caller-supplied URLs or API keys.
 
-## Quick start
+## Quick start: `callStream`
 
-`std/ai/streaming` re-exports the connection-driving functions from `std/stream` (`onEvent`, `runEventLoop`, `disconnect`) so a typical streaming program needs only one import for the streaming code path. Pattern-match constructors (`SSEData`, `Closed`, etc.) still come from `std/stream`.
+If you only need the accumulated final string (the most common case for non-UI agents), use [`callStream`](https://github.com/sunholo-data/ailang/blob/dev/std/ai/streaming.ail). It opens the connection, drives the event loop in Go, accumulates content deltas, and returns `Result[string, AIError]` — no caller-side event handler, no `runEventLoop`, no manual JSON extraction.
+
+```ailang
+import std/ai/streaming (callStream, AIError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {AI, Stream, Net, IO} {
+  let body = "[{\"role\":\"user\",\"content\":\"Say hi in five words.\"}]" in
+  match callStream("my-openai", "gpt-4o-mini", body) {
+    Ok(text) => println(text),
+    Err(e) => println("stream failed: " ++ e.code ++ " (retryable=" ++ (if e.retryable then "true" else "false") ++ ")")
+  }
+}
+```
+
+```bash
+ailang run --caps AI,Stream,Net,IO --ai my-openai --model my-openai/gpt-4o-mini app.ail
+```
+
+`callStream` works against any `[[ai_provider]]` whose `streaming.enabled = true` — OpenAI, OpenRouter, Anthropic, vLLM, llama.cpp, Together, Groq, Anyscale, Fireworks, etc. Provider-specific event taxonomies (`[DONE]` sentinel vs `message_stop`) are handled internally.
+
+For per-token UI updates, drop down to `openaiCompatStream` + the manual event loop — see [Advanced: token-by-token control flow](#advanced-token-by-token-control-flow) below.
+
+## When to use which
+
+| Use case | Path |
+|----------|------|
+| **Accumulated final string from an LLM (most common)** | [`std/ai/streaming.callStream`](#quick-start-callstream) |
+| Per-token UI updates / streaming chunks to a frontend | [`std/ai/streaming.openaiCompatStream`](#advanced-token-by-token-control-flow) + `onEvent` + `runEventLoop` |
+| Non-streaming JSON-shaped responses with schemas | [`std/ai`](../guides/ai-effect.mdx) — `callJson`, `callJsonSimple` |
+| Generic SSE consumption (non-AI HTTP server, GET-style SSE) | [`std/stream.sseConnect`](../guides/streaming.md) |
+
+`callStream` is the zero-boilerplate option: same wire format, same providers, same effect signature, but you get back a single string instead of having to assemble the event loop yourself. `openaiCompatStream` + event loop is the right choice when you need the *deltas themselves* — for streaming output to a chat UI, for instance.
+
+## API surface
+
+`std/ai/streaming` exports the synchronous accumulator (`callStream`), two stream-opening primitives, and the `AIError` record:
+
+```ailang
+-- Accumulator wrapper (v0.15.1+) — opens, drives the loop, returns the joined string.
+export func callStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[string, AIError] ! {AI, Stream, Net}
+
+-- Stream-opening primitives — return a StreamConn the caller drives.
+export func openaiCompatStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
+
+export func anthropicStream(
+  provider: string,
+  model: string,
+  messagesJson: string
+) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
+
+export type AIError = { code: string, message: string, retryable: bool }
+
+-- v1.1 reserved
+export type TokenDelta = { text: string, reasoning: string, done: bool }
+```
+
+All three streaming functions take a registered provider name + model + a pre-serialised messages JSON array. The Go layer injects `"stream": true` into the request body for `openai_chat`/`simple_completion` request shapes; Anthropic streaming is selected via the `anthropic_messages` request shape and SSE event types in the response (no body flag needed).
+
+Reasoning fields (`reasoning_content`, `thinking`) emitted by reasoning models are READ by `callStream` but not included in the returned string in v0.15.1 — only visible content accumulates. v0.15.2's `callStreamWithReasoning` will surface both.
+
+## Advanced: token-by-token control flow
+
+When you need each delta as it arrives (chat UI, progress indication, early-stop on a sentinel), use the underlying primitive `openaiCompatStream` (or `anthropicStream`) and drive the event loop yourself. `std/ai/streaming` re-exports `onEvent`, `runEventLoop`, and `disconnect` from `std/stream` so a typical streaming program needs only one import for the streaming code path. Pattern-match constructors (`SSEData`, `Closed`, etc.) still come from `std/stream`.
 
 ```ailang
 import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
@@ -41,43 +113,7 @@ export func main() -> () ! {AI, Stream, Net, IO} {
 }
 ```
 
-```bash
-ailang run --caps AI,Stream,Net,IO --ai my-openai --model my-openai/gpt-4o-mini app.ail
-```
-
-## When to use which
-
-| Use case | Path |
-|----------|------|
-| AI provider streaming (OpenAI / OpenRouter / Anthropic / vLLM / llama.cpp / Together / Groq / Anyscale / Fireworks) | **`std/ai/streaming`** (this guide) |
-| Generic SSE consumption (non-AI HTTP server, GET-style SSE) | [`std/stream.sseConnect`](../guides/streaming.md) |
-| Built-in AI calls without streaming | [`std/ai`](../guides/ai-effect.mdx) — `call`, `callJson`, `callJsonSimple` |
-
-The dispatch differs: `std/ai/streaming` requires the `AI` capability and routes through the `[[ai_provider]]` registry; `std/stream.sseConnect` requires only the `Stream` capability and takes a caller-supplied URL.
-
-## API surface
-
-`std/ai/streaming` exports two stream-opening functions plus types reserved for the v1.1 typed-extraction API:
-
-```ailang
-export func openaiCompatStream(
-  provider: string,
-  model: string,
-  messagesJson: string
-) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
-
-export func anthropicStream(
-  provider: string,
-  model: string,
-  messagesJson: string
-) -> Result[StreamConn, StreamErrorKind] ! {AI, Stream, Net}
-
--- v1.1 reserved
-export type TokenDelta = { text: string, reasoning: string, done: bool }
-export type AIError = { code: string, message: string, retryable: bool }
-```
-
-Both functions take a registered provider name + model + a pre-serialised messages JSON array. The Go layer injects `"stream": true` into the request body for `openai_chat`/`simple_completion` request shapes; Anthropic streaming is selected via the `anthropic_messages` request shape and SSE event types in the response (no body flag needed).
+For most non-UI agents — code synthesis, tool dispatching, evaluations — `callStream` is simpler and equivalent. Reach for the manual event loop only when you genuinely need per-delta hooks.
 
 ## Recipe 1: OpenAI
 
