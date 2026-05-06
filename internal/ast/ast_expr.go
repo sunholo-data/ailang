@@ -84,6 +84,12 @@ const (
 )
 
 func (l *Literal) String() string {
+	if l.Kind == StringLit {
+		if s, ok := l.Value.(string); ok {
+			escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s)
+			return `"` + escaped + `"`
+		}
+	}
 	return fmt.Sprintf("%v", l.Value)
 }
 func (l *Literal) Position() Pos { return l.Pos }

@@ -184,6 +184,30 @@ func TestDeterministicMarshaling(t *testing.T) {
 	}
 }
 
+// TestLiteralString_StringLit verifies that StringLit literals are serialized
+// as properly quoted and escaped AILANG source text. This guards against a
+// property-test codegen bug where backslashes in random string values were
+// emitted unescaped, producing unparseable source.
+func TestLiteralString_StringLit(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{"hello", `"hello"`},
+		{`back\slash`, `"back\\slash"`},
+		{`say "hi"`, `"say \"hi\""`},
+		{`a\b\"c`, `"a\\b\\\"c"`},
+		{"", `""`},
+	}
+	for _, c := range cases {
+		lit := &Literal{Kind: StringLit, Value: c.raw}
+		got := lit.String()
+		if got != c.want {
+			t.Errorf("Literal{%q}.String() = %s, want %s", c.raw, got, c.want)
+		}
+	}
+}
+
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && hasSubstring(s, substr)
