@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-STD-DEFLATE-ZLIB",
+  "status": "not_started",
+  "created": "2026-05-06T06:03:46Z",
+  "design_doc": "design_docs/planned/v0_16_0/m-std-deflate-zlib.md",
+  "sprint_plan": "design_docs/planned/v0_16_0/m-std-deflate-zlib-sprint-plan.md",
+  "github_issues": [
+    223
+  ],
+  "velocity": {
+    "target_loc_per_day": 460,
+    "estimated_total_loc": 460,
+    "estimated_days": 1,
+    "loc_breakdown_note": "Single-day sprint. Direct mirror of std/gzip shape (v0.12.0 precedent: ~500 LOC). Go's compress/flate and compress/zlib provide all four primitives natively, so no new architecture. Breakdown: ~250 LOC builtins + ~150 LOC tests (M1) + ~30 LOC stdlib wrapper (M2) + ~30 LOC example + ~20 LOC CHANGELOG/doc updates (M3)."
+  },
+  "features": [
+    {
+      "id": "M1_BUILTINS_AND_TESTS",
+      "description": "Create internal/builtins/deflate.go with four registered builtins (_deflate_inflate, _deflate_inflateZlib, _deflate_deflate, _deflate_deflateZlib) backed by Go's compress/flate and compress/zlib. Apply 100MB decompressed-size cap mirroring std/gzip. Wire into RegisterAll. Write deflate_test.go covering round-trip, cross-format negative, malformed input, output cap, and level-monotonicity tests.",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Four builtins registered (_deflate_inflate, _deflate_inflateZlib, _deflate_deflate, _deflate_deflateZlib)",
+        "Round-trip: inflate(deflate(x, level)) == x for level in {0, 1, 6, 9, -1}",
+        "Round-trip: inflateZlib(deflateZlib(x, level)) == x for the same levels",
+        "Cross-format negative: inflate(deflateZlib(x, 6)) returns Err (zlib header confuses raw deflate)",
+        "Malformed base64/deflate input returns typed Err, no panic",
+        "Output cap test: hand-built stream decompressing past 100MB returns Err",
+        "Level monotonicity: deflate(input, 9) size <= deflate(input, 1) size for non-trivial input",
+        "make test passes",
+        "make lint clean"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_STDLIB_WRAPPER",
+      "description": "Create std/deflate.ail with module declaration, import std/result, and four exported pure func declarations matching the std/gzip.ail shape exactly. Doc-comments must explain the raw vs zlib-wrapped pairs and call out concrete use cases (PDF FlateDecode -> use inflateZlib; raw deflate streams -> use inflate). Verify stdlib loader picks it up.",
+      "estimated_loc": 30,
+      "dependencies": ["M1_BUILTINS_AND_TESTS"],
+      "acceptance_criteria": [
+        "std/deflate.ail exports inflate, inflateZlib, deflate, deflateZlib as pure func",
+        "Module loads without error: ailang on a one-liner that imports std/deflate resolves",
+        "Doc-comments include 'use inflateZlib for PDF/HTTP, inflate for raw deflate' guidance",
+        "make build && make install succeeds"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_EXAMPLE_CHANGELOG_DOC_MOVE",
+      "description": "Create examples/std_deflate_pdf_objstm.ail demonstrating PDF FlateDecode-style decompression (hand-rolled small zlib payload, decoded via inflateZlib, printed). Run make verify-examples. Add CHANGELOG.md entry under v0.16.0. Move design doc from design_docs/planned/v0_16_0/ to design_docs/implemented/v0_16_x/ and append an implementation report (status, LOC actual vs estimate, file paths, test coverage).",
+      "estimated_loc": 50,
+      "dependencies": ["M2_STDLIB_WRAPPER"],
+      "acceptance_criteria": [
+        "examples/std_deflate_pdf_objstm.ail exists and runs via make verify-examples",
+        "CHANGELOG.md has v0.16.0 entry referencing std/deflate with the four function names and PDF FlateDecode use case",
+        "Design doc moved to design_docs/implemented/v0_16_x/m-std-deflate-zlib.md",
+        "Implementation report appended to moved doc (LOC actual vs estimate, files created/modified)",
+        "Sprint plan also moved to design_docs/implemented/v0_16_x/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
