@@ -123,10 +123,10 @@
         "Smoke test: synthetic stub denies BashExec; v2 emits denied tool-result message",
         "All M3 acceptance criteria still hold (regression-free)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-06T07:10:00Z",
+      "completed": "2026-05-06T07:13:30Z",
+      "notes": "M4 wired per-call tool-gating policy (DP3) into v2. New helper policy_denied_message builds structured tool-role denial JSON (error/denied_by_policy/tool/reason). dispatch_calls now takes (rt, ctx, calls, workdir, step_idx, stream_id) — for each call: tool_call_to_envelope → dispatch_tool_policy → branch on Allow/NoOpinion/Deny. Allowed calls dispatch via dispatch_one as before; denied calls produce a tool-role Message with tool_call_id correlation and skip dispatch_one entirely. Two smoke tests: smoke_v2_policy.ail (real OpenRouter+GLM-5, empty registry, regression-free) and smoke_v2_policy_denial.ail (synthetic deny-all hook, exercises Deny path). Both pass. make check_core: 22/22."
     },
     {
       "id": "M5_TOOL_HANDLE_ROUTING_AND_COMPOSE_CONTRACT",
