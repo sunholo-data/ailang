@@ -5,9 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
+
+// resolveSandboxPath resolves a path against the sandbox root.
+//
+// Relative paths are joined with the sandbox (existing behaviour).
+// Absolute paths that fall within the sandbox are returned as-is — this
+// allows programs to use absolute paths for files they already know live
+// inside the sandbox (e.g. config files resolved from an absolute workdir).
+// Absolute paths that escape the sandbox are rejected with an error.
+//
+// Before this fix, filepath.Join(sandbox, "/abs/path") produced
+// "/sandbox/abs/path" (a doubled path that never exists on disk), causing
+// all FS operations with absolute sandbox-relative paths to fail silently.
+func resolveSandboxPath(sandbox, path string) (string, error) {
+	if !filepath.IsAbs(path) {
+		return filepath.Join(sandbox, path), nil
+	}
+	clean := filepath.Clean(path)
+	sandboxClean := filepath.Clean(sandbox)
+	if clean != sandboxClean && !strings.HasPrefix(clean, sandboxClean+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q escapes sandbox %q", path, sandbox)
+	}
+	return clean, nil
+}
 
 // init registers FS effect operations
 func init() {
@@ -71,7 +95,11 @@ func fsReadFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox if configured
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	// Read file
@@ -122,7 +150,11 @@ func fsWriteFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	// Write file (0644 permissions)
@@ -173,7 +205,11 @@ func fsWriteFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	// Write file (0644 permissions)
@@ -222,7 +258,11 @@ func fsAppendFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -281,7 +321,11 @@ func fsAppendFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -328,9 +372,13 @@ func fsExists(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 
-	// Apply sandbox
+	// Apply sandbox — paths outside sandbox are treated as non-existent.
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return &eval.BoolValue{Value: false}, nil
+		}
+		path = resolved
 	}
 
 	// Check existence
@@ -386,7 +434,11 @@ func fsReadFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox if configured
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	// Read file
@@ -417,7 +469,11 @@ func fsListDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	// Apply sandbox if configured
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	entries, err := os.ReadDir(path)
@@ -449,7 +505,11 @@ func fsMkdir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.Mkdir(path, 0755); err != nil {
@@ -474,7 +534,11 @@ func fsMkdirAll(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.MkdirAll(path, 0755); err != nil {
@@ -499,7 +563,11 @@ func fsIsDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return &eval.BoolValue{Value: false}, nil
+		}
+		path = resolved
 	}
 
 	info, err := os.Stat(path)
@@ -525,7 +593,11 @@ func fsIsFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return &eval.BoolValue{Value: false}, nil
+		}
+		path = resolved
 	}
 
 	info, err := os.Stat(path)
@@ -551,7 +623,11 @@ func fsRemoveFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.Remove(path); err != nil {
@@ -583,7 +659,11 @@ func fsReadFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	content, err := os.ReadFile(path)
@@ -609,7 +689,11 @@ func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.WriteFile(path, []byte(contentVal.Value), 0644); err != nil {
@@ -634,7 +718,11 @@ func fsAppendFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -660,7 +748,11 @@ func fsRemoveFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.Remove(path); err != nil {
@@ -681,7 +773,11 @@ func fsMkdirAllResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	path := pathVal.Value
 	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
 	}
 
 	if err := os.MkdirAll(path, 0755); err != nil {

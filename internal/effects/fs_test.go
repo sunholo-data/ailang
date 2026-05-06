@@ -916,3 +916,75 @@ func TestFSSandbox_IsDir(t *testing.T) {
 		t.Error("expected true for sandboxed directory")
 	}
 }
+
+// TestFSSandbox_AbsolutePathWithinSandbox verifies that absolute paths pointing
+// inside the sandbox are accepted and resolved correctly (regression for the
+// "double-path" bug where filepath.Join(sandbox, absPath) produced
+// /sandbox/sandbox/config.json instead of /sandbox/config.json).
+func TestFSSandbox_AbsolutePathWithinSandbox(t *testing.T) {
+	sandbox, err := os.MkdirTemp("", "sandbox-abspath-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	// Write a file using its absolute path
+	absFile := filepath.Join(sandbox, "config.json")
+	if err := os.WriteFile(absFile, []byte(`{"ok":true}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := NewEffContext([]string{})
+	ctx.Env.Sandbox = sandbox
+	ctx.Grant(NewCapability("FS"))
+
+	// exists(absolutePath) must return true, not false
+	result, err := Call(ctx, "FS", "exists", []eval.Value{&eval.StringValue{Value: absFile}})
+	if err != nil {
+		t.Fatalf("exists: unexpected error: %v", err)
+	}
+	if !result.(*eval.BoolValue).Value {
+		t.Error("exists: expected true for absolute path inside sandbox, got false")
+	}
+
+	// readFile(absolutePath) must return the content
+	result2, err := Call(ctx, "FS", "readFile", []eval.Value{&eval.StringValue{Value: absFile}})
+	if err != nil {
+		t.Fatalf("readFile: unexpected error: %v", err)
+	}
+	if result2.(*eval.StringValue).Value != `{"ok":true}` {
+		t.Errorf("readFile: unexpected content: %q", result2.(*eval.StringValue).Value)
+	}
+}
+
+// TestFSSandbox_AbsolutePathOutsideSandbox verifies that absolute paths
+// pointing outside the sandbox are rejected (exists returns false; readFile
+// returns an error).
+func TestFSSandbox_AbsolutePathOutsideSandbox(t *testing.T) {
+	sandbox, err := os.MkdirTemp("", "sandbox-escape-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(sandbox)
+
+	ctx := NewEffContext([]string{})
+	ctx.Env.Sandbox = sandbox
+	ctx.Grant(NewCapability("FS"))
+
+	outsidePath := "/etc/hostname"
+
+	// exists must return false (silently deny, not error)
+	result, err := Call(ctx, "FS", "exists", []eval.Value{&eval.StringValue{Value: outsidePath}})
+	if err != nil {
+		t.Fatalf("exists: unexpected error for outside path: %v", err)
+	}
+	if result.(*eval.BoolValue).Value {
+		t.Error("exists: expected false for path outside sandbox")
+	}
+
+	// readFile must return an error
+	_, err = Call(ctx, "FS", "readFile", []eval.Value{&eval.StringValue{Value: outsidePath}})
+	if err == nil {
+		t.Error("readFile: expected error for path outside sandbox, got nil")
+	}
+}
