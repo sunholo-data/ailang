@@ -69,17 +69,22 @@ _escapeXml : string -> string
 _float_to_int : float -> int
 _fs_appendFile : (string, string) -> () ! {FS}
 _fs_appendFileBytes : (string, bytes) -> () ! {FS}
+_fs_appendFileResult : (string, string) -> Result[(), string] ! {FS}
 _fs_exists : string -> bool ! {FS}
 _fs_isDir : string -> bool ! {FS}
 _fs_isFile : string -> bool ! {FS}
 _fs_listDir : string -> list[string] ! {FS}
 _fs_mkdir : string -> () ! {FS}
 _fs_mkdirAll : string -> () ! {FS}
+_fs_mkdirAllResult : string -> Result[(), string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
+_fs_readFileResult : string -> Result[string, string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
+_fs_removeFileResult : string -> Result[(), string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
+_fs_writeFileResult : (string, string) -> Result[(), string] ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
