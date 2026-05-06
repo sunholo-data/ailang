@@ -290,6 +290,13 @@ verify-install-guide:
 	fi
 	@echo "$(BOLD)✓ install_guide_overrides.json is in sync with canonical sources$(RESET)"
 
+## error-codes: Generate dist/error_codes.json — machine-readable registry of all AILANG error codes
+error-codes:
+	@echo "$(BOLD)Generating dist/error_codes.json...$(RESET)"
+	@mkdir -p dist
+	@go run ./tools/gen-error-codes/ internal/errors/codes.go dist/error_codes.json
+	@echo "$(GREEN)✓ dist/error_codes.json generated$(RESET)"
+
 ## bin/build-snapshot: Build the snapshot tool
 bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"

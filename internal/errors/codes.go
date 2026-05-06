@@ -252,6 +252,9 @@ var ErrorRegistry = map[string]ErrorInfo{
 	PAR011: {PAR011, "parser", "syntax", "Missing ) in parameter list"},
 	PAR012: {PAR012, "parser", "syntax", "Reserved keyword as identifier"},
 	PAR013: {PAR013, "parser", "syntax", "Unexpected token before tests/properties"},
+	PAR014: {PAR014, "parser", "compat", "JS/TS 'const' keyword — use 'let' instead"},
+	PAR015: {PAR015, "parser", "compat", "Python bare assignment — use 'let x = ...' instead"},
+	PAR999: {PAR999, "parser", "internal", "Internal parser error (please file a bug)"},
 
 	// Module errors
 	MOD001: {MOD001, "module", "structure", "Module name/path mismatch"},
@@ -262,6 +265,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD010: {MOD010, "module", "validation", "Module/path mismatch"},
 	MOD011: {MOD011, "module", "structure", "Multiple module declarations"},
 	MOD012: {MOD012, "module", "structure", "Implicit module warning"},
+	MOD013: {MOD013, "module", "package", "Shared module_prefix between root and dependency"},
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
 
 	// Loader errors

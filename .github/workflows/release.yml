@@ -226,9 +226,33 @@ jobs:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.zip
 
+  build-error-codes:
+    name: Generate error_codes.json
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.9'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Generate error_codes.json
+      run: make error-codes
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: error-codes
+        path: dist/error_codes.json
+
   create-release:
     name: Create GitHub Release
-    needs: [build-release, build-wasm, build-bootstrap-content, build-examples]
+    needs: [build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
     runs-on: ubuntu-latest
     # id-token: write is required for cosign keyless signing — the job
     # requests an OIDC token from GitHub which Sigstore's Fulcio CA uses
@@ -267,15 +291,15 @@ jobs:
         # Flatten actions/download-artifact's nested folders (one subdir per
         # artifact) into a single directory so the hash file references
         # basenames only — what the installer downloads into its $TMPDIR.
-        find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print0 \
+        find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.json' \) -print0 \
           | xargs -0 -I{} cp {} artifacts-flat/
         cd artifacts-flat
         ls -la
         # Canonical SHA256SUMS (one file per release).
-        sha256sum *.tar.gz *.zip > SHA256SUMS
+        sha256sum *.tar.gz *.zip *.json > SHA256SUMS
         # Per-artifact companions so the installer can fetch just the one
         # matching the archive it downloaded (avoids a full SHA256SUMS pull).
-        for f in *.tar.gz *.zip; do
+        for f in *.tar.gz *.zip *.json; do
           sha256sum "$f" > "$f.sha256"
         done
         echo "::group::SHA256SUMS"
@@ -308,7 +332,7 @@ jobs:
       run: |
         set -euo pipefail
         cd artifacts-flat
-        for f in *.tar.gz *.zip SHA256SUMS; do
+        for f in *.tar.gz *.zip *.json SHA256SUMS; do
           echo "Signing $f..."
           cosign sign-blob --yes \
             --output-signature "$f.sig" \
@@ -381,6 +405,7 @@ jobs:
         files: |
           artifacts/**/*.tar.gz
           artifacts/**/*.zip
+          artifacts/**/*.json
           artifacts-flat/SHA256SUMS
           artifacts-flat/*.sha256
           artifacts-flat/*.sig

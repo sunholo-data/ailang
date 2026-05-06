@@ -1,0 +1,347 @@
+{
+  "schema_version": "v1",
+  "records": [
+    {
+      "code": "DSG001",
+      "category": "transform",
+      "summary": "Invalid desugaring",
+      "fix_hint": "DSG001 indicates invalid desugaring transformation"
+    },
+    {
+      "code": "DSG002",
+      "category": "scope",
+      "summary": "Alpha-renaming conflict",
+      "fix_hint": "DSG002 indicates alpha-renaming conflict"
+    },
+    {
+      "code": "DSG003",
+      "category": "recursion",
+      "summary": "Invalid recursive binding",
+      "fix_hint": "DSG003 indicates recursive function without proper binding"
+    },
+    {
+      "code": "DSG010",
+      "category": "purity",
+      "summary": "Pure func calls effectful (warning)",
+      "fix_hint": "DSG010 indicates pure func calls effectful things (warning placeholder)"
+    },
+    {
+      "code": "ELB005",
+      "category": "validation",
+      "summary": "Invalid Core AST",
+      "fix_hint": "ELB005 indicates invalid Core AST structure after elaboration"
+    },
+    {
+      "code": "ELB006",
+      "category": "normalize",
+      "summary": "ANF normalization failed",
+      "fix_hint": "ELB006 indicates failed ANF normalization"
+    },
+    {
+      "code": "EVA001",
+      "category": "scope",
+      "summary": "Unbound variable",
+      "fix_hint": "EVA001 indicates unbound variable at runtime"
+    },
+    {
+      "code": "EVA002",
+      "category": "pattern",
+      "summary": "Pattern match failure",
+      "fix_hint": "EVA002 indicates pattern match failure at runtime"
+    },
+    {
+      "code": "EVA003",
+      "category": "type",
+      "summary": "Type assertion failed",
+      "fix_hint": "EVA003 indicates type assertion failed"
+    },
+    {
+      "code": "EVA004",
+      "category": "effect",
+      "summary": "Missing capability",
+      "fix_hint": "EVA004 indicates effect capability not provided"
+    },
+    {
+      "code": "EVA005",
+      "category": "recursion",
+      "summary": "Infinite recursion",
+      "fix_hint": "EVA005 indicates infinite recursion detected"
+    },
+    {
+      "code": "IMP001",
+      "category": "syntax",
+      "summary": "Invalid import syntax",
+      "fix_hint": "IMP001 indicates invalid import syntax"
+    },
+    {
+      "code": "IMP002",
+      "category": "resolution",
+      "summary": "Module not found",
+      "fix_hint": "IMP002 indicates import of non-existent module"
+    },
+    {
+      "code": "IMP003",
+      "category": "dependency",
+      "summary": "Cyclic import",
+      "fix_hint": "IMP003 indicates cyclic import dependency"
+    },
+    {
+      "code": "IMP004",
+      "category": "syntax",
+      "summary": "Invalid selective import",
+      "fix_hint": "IMP004 indicates invalid selective import syntax"
+    },
+    {
+      "code": "IMP005",
+      "category": "validation",
+      "summary": "Non-module import",
+      "fix_hint": "IMP005 indicates importing from non-module file"
+    },
+    {
+      "code": "IMP010",
+      "category": "feature",
+      "summary": "Unknown import form",
+      "fix_hint": "IMP010 indicates unknown import form (reject aliasing for MVP)"
+    },
+    {
+      "code": "IMP011",
+      "category": "resolution",
+      "summary": "Unknown symbol in import",
+      "fix_hint": "IMP011 indicates unknown symbol in selective import"
+    },
+    {
+      "code": "IMP012",
+      "category": "namespace",
+      "summary": "Duplicate binding from import",
+      "fix_hint": "IMP012 indicates duplicate binding introduced by import"
+    },
+    {
+      "code": "LDR001",
+      "category": "resolution",
+      "summary": "Module not found",
+      "fix_hint": "LDR001 indicates module file not found"
+    },
+    {
+      "code": "LDR002",
+      "category": "dependency",
+      "summary": "Circular dependency",
+      "fix_hint": "LDR002 indicates circular module dependency detected"
+    },
+    {
+      "code": "LDR003",
+      "category": "namespace",
+      "summary": "Duplicate module",
+      "fix_hint": "LDR003 indicates duplicate module definition"
+    },
+    {
+      "code": "LDR004",
+      "category": "resolution",
+      "summary": "Import not exported",
+      "fix_hint": "LDR004 indicates import of non-existent export"
+    },
+    {
+      "code": "LDR005",
+      "category": "resolution",
+      "summary": "Ambiguous import",
+      "fix_hint": "LDR005 indicates ambiguous import (multiple modules export same name)"
+    },
+    {
+      "code": "LNK005",
+      "category": "version",
+      "summary": "Version mismatch",
+      "fix_hint": "LNK005 indicates version mismatch in linked modules"
+    },
+    {
+      "code": "MOD001",
+      "category": "structure",
+      "summary": "Module name/path mismatch",
+      "fix_hint": "MOD001 indicates module name doesn't match file path"
+    },
+    {
+      "code": "MOD002",
+      "category": "structure",
+      "summary": "Multiple modules per file",
+      "fix_hint": "MOD002 indicates multiple module declarations in single file"
+    },
+    {
+      "code": "MOD003",
+      "category": "feature",
+      "summary": "Re-export not supported",
+      "fix_hint": "MOD003 indicates unsupported re-export attempt"
+    },
+    {
+      "code": "MOD004",
+      "category": "namespace",
+      "summary": "Duplicate export",
+      "fix_hint": "MOD004 indicates duplicate export in module"
+    },
+    {
+      "code": "MOD005",
+      "category": "syntax",
+      "summary": "Invalid module path",
+      "fix_hint": "MOD005 indicates invalid module path format"
+    },
+    {
+      "code": "MOD006",
+      "category": "validation",
+      "summary": "Export of private (underscore) name",
+      "fix_hint": "MOD006 indicates attempted export of underscore-prefixed (private) name"
+    },
+    {
+      "code": "MOD010",
+      "category": "validation",
+      "summary": "Module/path mismatch",
+      "fix_hint": "MOD010 indicates module/path mismatch (e.g., module foo/bar but file is foo/baz.ail)"
+    },
+    {
+      "code": "MOD011",
+      "category": "structure",
+      "summary": "Multiple module declarations",
+      "fix_hint": "MOD011 indicates multiple module declarations per file"
+    },
+    {
+      "code": "MOD012",
+      "category": "structure",
+      "summary": "Implicit module warning",
+      "fix_hint": "MOD012 indicates implicit module (file without module declaration)"
+    },
+    {
+      "code": "MOD013",
+      "category": "package",
+      "summary": "Shared module_prefix between root and dependency",
+      "fix_hint": "MOD013 indicates two packages share the same module_prefix, causing\nambiguous import resolution when one of them is the root project"
+    },
+    {
+      "code": "PAR001",
+      "category": "syntax",
+      "summary": "Unexpected token",
+      "fix_hint": "PAR001 indicates an unexpected token was encountered during parsing"
+    },
+    {
+      "code": "PAR002",
+      "category": "syntax",
+      "summary": "Missing closing delimiter",
+      "fix_hint": "PAR002 indicates a missing closing delimiter (paren, bracket, brace)"
+    },
+    {
+      "code": "PAR003",
+      "category": "syntax",
+      "summary": "Invalid function declaration",
+      "fix_hint": "PAR003 indicates invalid function declaration syntax"
+    },
+    {
+      "code": "PAR004",
+      "category": "syntax",
+      "summary": "Invalid module declaration",
+      "fix_hint": "PAR004 indicates invalid module declaration syntax"
+    },
+    {
+      "code": "PAR005",
+      "category": "syntax",
+      "summary": "Invalid import statement",
+      "fix_hint": "PAR005 indicates invalid import statement syntax"
+    },
+    {
+      "code": "PAR006",
+      "category": "syntax",
+      "summary": "Invalid test block",
+      "fix_hint": "PAR006 indicates invalid test block syntax"
+    },
+    {
+      "code": "PAR007",
+      "category": "syntax",
+      "summary": "Invalid property block",
+      "fix_hint": "PAR007 indicates invalid property block syntax"
+    },
+    {
+      "code": "PAR008",
+      "category": "syntax",
+      "summary": "Invalid pattern match",
+      "fix_hint": "PAR008 indicates invalid pattern match syntax"
+    },
+    {
+      "code": "PAR009",
+      "category": "syntax",
+      "summary": "Invalid type annotation",
+      "fix_hint": "PAR009 indicates invalid type annotation syntax"
+    },
+    {
+      "code": "PAR010",
+      "category": "syntax",
+      "summary": "Unexpected token after func signature",
+      "fix_hint": "PAR010 indicates unexpected token after func signature (likely missing {)"
+    },
+    {
+      "code": "PAR011",
+      "category": "syntax",
+      "summary": "Missing ) in parameter list",
+      "fix_hint": "PAR011 indicates missing ) in parameter list"
+    },
+    {
+      "code": "PAR012",
+      "category": "syntax",
+      "summary": "Reserved keyword as identifier",
+      "fix_hint": "PAR012 indicates reserved keyword used as identifier"
+    },
+    {
+      "code": "PAR013",
+      "category": "syntax",
+      "summary": "Unexpected token before tests/properties",
+      "fix_hint": "PAR013 indicates unexpected token before tests/properties (common missing })"
+    },
+    {
+      "code": "PAR014",
+      "category": "compat",
+      "summary": "JS/TS 'const' keyword — use 'let' instead",
+      "fix_hint": "PAR014 indicates 'const' keyword used (JavaScript/TypeScript pattern)"
+    },
+    {
+      "code": "PAR015",
+      "category": "compat",
+      "summary": "Python bare assignment — use 'let x = ...' instead",
+      "fix_hint": "PAR015 indicates bare assignment without 'let' keyword (Python pattern)"
+    },
+    {
+      "code": "PAR999",
+      "category": "internal",
+      "summary": "Internal parser error (please file a bug)",
+      "fix_hint": "PAR999 indicates internal parser error/panic"
+    },
+    {
+      "code": "RT007",
+      "category": "memory",
+      "summary": "Out of memory",
+      "fix_hint": "RT007 indicates out of memory"
+    },
+    {
+      "code": "RT008",
+      "category": "timeout",
+      "summary": "Timeout exceeded",
+      "fix_hint": "RT008 indicates timeout exceeded"
+    },
+    {
+      "code": "RT009",
+      "category": "cycle",
+      "summary": "Value initialization cycle detected",
+      "fix_hint": "RT009 indicates value initialization cycle detected"
+    },
+    {
+      "code": "TC008",
+      "category": "recursion",
+      "summary": "Non-terminating type",
+      "fix_hint": "TC008 indicates recursive type without base case"
+    },
+    {
+      "code": "TC009",
+      "category": "effect",
+      "summary": "Effect constraint violated",
+      "fix_hint": "TC009 indicates effect constraint violation"
+    },
+    {
+      "code": "TC010",
+      "category": "instance",
+      "summary": "Missing type class instance",
+      "fix_hint": "TC010 indicates missing type class instance"
+    }
+  ]
+}
