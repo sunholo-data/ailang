@@ -14,6 +14,7 @@ import (
 // CombinedResolver resolves both builtin functions and user-defined functions from the environment.
 // Used for inline test harness evaluation to support functions that depend on imports.
 // It handles:
+// - $adt synthetic module (ADT constructors from imported modules, e.g. Some/None from std/option)
 // - Builtin references (module="$builtin" or name starts with "_")
 // - Module-qualified references (module="std/list" name="filter")
 // - Local references (module="" or module matches current file)
@@ -25,6 +26,13 @@ type CombinedResolver struct {
 
 // ResolveValue implements eval.GlobalResolver for combined resolution.
 func (r *CombinedResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
+	// Case 0: $adt synthetic module — ADT constructors from imported modules.
+	// The elaborator generates VarGlobal{Module:"$adt", Name:"make_Option_Some"} for
+	// constructor calls on imported ADTs. Search r.Modules[*].Iface.Constructors.
+	if ref.Module == "$adt" {
+		return r.resolveAdtFactory(ref.Name)
+	}
+
 	// Case 1: Builtin references (module="$builtin" or name starts with "_")
 	if ref.Module == "$builtin" || strings.HasPrefix(ref.Name, "_") {
 		if val, ok := r.Builtins.Get(ref.Name); ok {
@@ -78,6 +86,43 @@ func (r *CombinedResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) 
 
 	// Case 4: Not found - return error (will be caught during harness evaluation)
 	return nil, fmt.Errorf("undefined reference: %s (module: %s)", ref.Name, ref.Module)
+}
+
+// resolveAdtFactory resolves $adt synthetic module references for imported ADT constructors.
+// Parses "make_Option_Some" → typeName="Option", ctorName="Some", then searches
+// r.Modules for a matching Iface.Constructors entry to determine arity.
+func (r *CombinedResolver) resolveAdtFactory(factoryName string) (eval.Value, error) {
+	if !strings.HasPrefix(factoryName, "make_") {
+		return nil, fmt.Errorf("invalid $adt factory name: %s", factoryName)
+	}
+	parts := strings.SplitN(factoryName[5:], "_", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid $adt factory format: %s (expected make_TypeName_CtorName)", factoryName)
+	}
+	typeName, ctorName := parts[0], parts[1]
+
+	for _, mod := range r.Modules {
+		if mod == nil || mod.Iface == nil || mod.Iface.Constructors == nil {
+			continue
+		}
+		ctor, ok := mod.Iface.Constructors[ctorName]
+		if !ok || ctor.TypeName != typeName {
+			continue
+		}
+		if ctor.Arity == 0 {
+			return &eval.TaggedValue{
+				TypeName: typeName,
+				CtorName: ctorName,
+				Fields:   []eval.Value{},
+			}, nil
+		}
+		return &eval.ConstructorClosure{
+			TypeName: typeName,
+			CtorName: ctorName,
+			Arity:    ctor.Arity,
+		}, nil
+	}
+	return nil, fmt.Errorf("constructor %s.%s not found in any loaded module", typeName, ctorName)
 }
 
 // equalValues performs deep equality check on eval values.

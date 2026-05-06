@@ -86,6 +86,66 @@ func check_str_len(s: string) -> int
 	}
 }
 
+// TestADTConstructorFromImportedModule reproduces the bug where inline test bodies use
+// ADT constructors (Some/None) imported from another module.
+// Before the fix: "harness evaluation failed: failed to resolve global $adt.make_Option_Some:
+// module $adt not found or function make_Option_Some not in module"
+func TestADTConstructorFromImportedModule(t *testing.T) {
+	source := `module test_adt_harness
+
+import std/option (Some, None)
+
+func wrap_some(n: int) -> bool
+  tests [
+    (1, true),
+    (0, true)
+  ]
+  { match Some(n) { Some(_) => true, None => false } }
+
+func is_none(n: int) -> bool
+  tests [
+    (0, false)
+  ]
+  { match None { Some(_) => true, None => false } }
+`
+	result := runInlineTestsOnSource(t, source)
+	if result.FailedTests > 0 {
+		t.Errorf("expected 0 failures, got %d; first error: %s",
+			result.FailedTests, firstFailureError(result))
+	}
+	if result.PassedTests == 0 {
+		t.Error("expected at least 1 test to pass")
+	}
+}
+
+// TestADTConstructorInCluster reproduces the bug on the cluster evaluation path:
+// the tested function calls a local helper that uses an imported ADT constructor.
+// Before the fix: same "$adt not found" error via EvaluateInlineTestsWithCluster.
+func TestADTConstructorInCluster(t *testing.T) {
+	source := `module test_adt_cluster
+
+import std/option (Some, None)
+
+func wrap(n: int) -> bool =
+  match Some(n) { Some(_) => true, None => false }
+
+func tested(n: int) -> bool
+  tests [
+    (1, true),
+    (0, true)
+  ]
+  { wrap(n) }
+`
+	result := runInlineTestsOnSource(t, source)
+	if result.FailedTests > 0 {
+		t.Errorf("expected 0 failures, got %d; first error: %s",
+			result.FailedTests, firstFailureError(result))
+	}
+	if result.PassedTests == 0 {
+		t.Error("expected at least 1 test to pass")
+	}
+}
+
 // firstFailureError returns the error message of the first failed test, for diagnostics.
 func firstFailureError(r *SuiteResult) string {
 	for _, tr := range r.Tests {
