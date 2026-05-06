@@ -248,31 +248,56 @@ func TestStep_EmptyToolCallArgumentsDefaultsToObject(t *testing.T) {
 }
 
 // TestStep_MaxTokensAndTemperatureForwarded verifies non-zero MaxTokens and
-// Temperature serialise into the request body.
+// Temperature serialise into the request body. GPT-5+ and o-series models
+// reject "max_tokens" with HTTP 400 ("Unsupported parameter; use
+// 'max_completion_tokens' instead"), so BuildChatStepRequest routes the
+// value to MaxCompletionTokens for those models. This test pins both
+// branches: a legacy model (gpt-4o) → max_tokens, a reasoning model
+// (gpt-5) → max_completion_tokens. Regression test for an issue surfaced
+// by the M9 motoko_agent provider matrix run on 2026-05-06.
 func TestStep_MaxTokensAndTemperatureForwarded(t *testing.T) {
-	cap := &captureHandler{}
-	server := httptest.NewServer(cap)
-	defer server.Close()
+	cases := []struct {
+		name          string
+		model         string
+		wantLegacy    int // expected max_tokens
+		wantReasoning int // expected max_completion_tokens
+	}{
+		{name: "legacy gpt-4o uses max_tokens", model: "gpt-4o", wantLegacy: 2048, wantReasoning: 0},
+		{name: "reasoning gpt-5 uses max_completion_tokens", model: "gpt-5", wantLegacy: 0, wantReasoning: 2048},
+		{name: "reasoning gpt-5-mini uses max_completion_tokens", model: "gpt-5-mini", wantLegacy: 0, wantReasoning: 2048},
+		{name: "reasoning o1-preview uses max_completion_tokens", model: "o1-preview", wantLegacy: 0, wantReasoning: 2048},
+		{name: "reasoning o3-mini uses max_completion_tokens", model: "o3-mini", wantLegacy: 0, wantReasoning: 2048},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cap := &captureHandler{}
+			server := httptest.NewServer(cap)
+			defer server.Close()
 
-	client := NewClient("k", WithBaseURL(server.URL))
-	_, err := client.Step(context.Background(), &ai.Request{
-		Model:       "gpt-5",
-		Messages:    []ai.Message{{Role: "user", Content: "x"}},
-		MaxTokens:   2048,
-		Temperature: 0.42,
-	})
-	if err != nil {
-		t.Fatalf("Step() error = %v", err)
-	}
-	var sent stepReqBody
-	if err := json.Unmarshal(cap.captured, &sent); err != nil {
-		t.Fatalf("captured body not JSON: %v", err)
-	}
-	if sent.MaxTokens != 2048 {
-		t.Errorf("max_tokens = %d, want 2048", sent.MaxTokens)
-	}
-	if sent.Temperature == nil || *sent.Temperature != 0.42 {
-		t.Errorf("temperature = %v, want 0.42", sent.Temperature)
+			client := NewClient("k", WithBaseURL(server.URL))
+			_, err := client.Step(context.Background(), &ai.Request{
+				Model:       tc.model,
+				Messages:    []ai.Message{{Role: "user", Content: "x"}},
+				MaxTokens:   2048,
+				Temperature: 0.42,
+			})
+			if err != nil {
+				t.Fatalf("Step() error = %v", err)
+			}
+			var sent stepReqBody
+			if err := json.Unmarshal(cap.captured, &sent); err != nil {
+				t.Fatalf("captured body not JSON: %v", err)
+			}
+			if sent.MaxTokens != tc.wantLegacy {
+				t.Errorf("max_tokens = %d, want %d", sent.MaxTokens, tc.wantLegacy)
+			}
+			if sent.MaxCompletionTokens != tc.wantReasoning {
+				t.Errorf("max_completion_tokens = %d, want %d", sent.MaxCompletionTokens, tc.wantReasoning)
+			}
+			if sent.Temperature == nil || *sent.Temperature != 0.42 {
+				t.Errorf("temperature = %v, want 0.42", sent.Temperature)
+			}
+		})
 	}
 }
 

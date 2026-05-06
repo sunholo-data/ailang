@@ -15,11 +15,12 @@ import (
 // stepReqBody mirrors the wire shape Step sends to OpenAI Chat Completions
 // so tests can inspect what was actually serialized.
 type stepReqBody struct {
-	Model       string           `json:"model"`
-	MaxTokens   int              `json:"max_tokens,omitempty"`
-	Messages    []stepReqMessage `json:"messages"`
-	Temperature *float64         `json:"temperature,omitempty"`
-	Tools       []stepReqToolDef `json:"tools,omitempty"`
+	Model               string           `json:"model"`
+	MaxTokens           int              `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int              `json:"max_completion_tokens,omitempty"`
+	Messages            []stepReqMessage `json:"messages"`
+	Temperature         *float64         `json:"temperature,omitempty"`
+	Tools               []stepReqToolDef `json:"tools,omitempty"`
 }
 
 // stepReqMessage uses json.RawMessage for content so tests can verify the

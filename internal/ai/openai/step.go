@@ -125,12 +125,20 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 // ChatStepRequest is the on-the-wire request body for a Chat Completions
 // tool-use call. Exported so OpenRouter can extend it with its provider-routing
 // field by composition (see openrouter package).
+//
+// MaxTokens vs MaxCompletionTokens: OpenAI's GPT-5+ and o-series reasoning
+// models (o1, o3) reject max_tokens with HTTP 400 "Unsupported parameter:
+// 'max_tokens' is not supported with this model. Use 'max_completion_tokens'
+// instead." BuildChatStepRequest routes the value to whichever field the
+// model accepts (see usesMaxCompletionTokens). Only one of the two will be
+// set on a given request — the omitempty tags keep the wire payload clean.
 type ChatStepRequest struct {
-	Model       string            `json:"model"`
-	Messages    []ChatStepMessage `json:"messages"`
-	Tools       []ChatStepToolDef `json:"tools,omitempty"`
-	MaxTokens   int               `json:"max_tokens,omitempty"`
-	Temperature float64           `json:"temperature,omitempty"`
+	Model               string            `json:"model"`
+	Messages            []ChatStepMessage `json:"messages"`
+	Tools               []ChatStepToolDef `json:"tools,omitempty"`
+	MaxTokens           int               `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
+	Temperature         float64           `json:"temperature,omitempty"`
 }
 
 // ChatStepMessage is one entry in the messages array. Content is a
@@ -228,7 +236,13 @@ func BuildChatStepRequest(req *ai.Request) (*ChatStepRequest, *ai.AIError) {
 		Model: req.Model,
 	}
 	if req.MaxTokens > 0 {
-		out.MaxTokens = req.MaxTokens
+		// GPT-5+ and o-series require max_completion_tokens; legacy models
+		// require max_tokens. usesMaxCompletionTokens routes by model id.
+		if usesMaxCompletionTokens(req.Model) {
+			out.MaxCompletionTokens = req.MaxTokens
+		} else {
+			out.MaxTokens = req.MaxTokens
+		}
 	}
 	if req.Temperature > 0 {
 		out.Temperature = req.Temperature
