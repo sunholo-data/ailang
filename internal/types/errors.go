@@ -133,15 +133,35 @@ func newEffectRowError(expected, actual *Row, path []string) *TypeCheckError {
 	suggestions := []string{}
 
 	if len(missing) > 0 {
-		message = fmt.Sprintf("missing required effects: {%s}", strings.Join(missing, ", "))
+		parts := make([]string, len(missing))
+		for i, label := range missing {
+			if expected.Provenance != nil {
+				if span, ok := expected.Provenance[label]; ok && span.Start.File != "" {
+					parts[i] = fmt.Sprintf("%s (slot at %s)", label, span.Start)
+					continue
+				}
+			}
+			parts[i] = label
+		}
+		message = fmt.Sprintf("missing required effects: {%s}", strings.Join(parts, ", "))
 		suggestions = append(suggestions, fmt.Sprintf("Consider adding capability %s", strings.Join(missing, ", ")))
 	}
 
 	if len(extra) > 0 {
+		parts := make([]string, len(extra))
+		for i, label := range extra {
+			if actual.Provenance != nil {
+				if span, ok := actual.Provenance[label]; ok && span.Start.File != "" {
+					parts[i] = fmt.Sprintf("%s (introduced at %s)", label, span.Start)
+					continue
+				}
+			}
+			parts[i] = label
+		}
 		if len(missing) > 0 {
-			message += fmt.Sprintf("; has extra effects: {%s}", strings.Join(extra, ", "))
+			message += fmt.Sprintf("; has extra effects: {%s}", strings.Join(parts, ", "))
 		} else {
-			message = fmt.Sprintf("has extra effects: {%s}", strings.Join(extra, ", "))
+			message = fmt.Sprintf("has extra effects: {%s}", strings.Join(parts, ", "))
 		}
 		suggestions = append(suggestions, fmt.Sprintf("Consider handling effect %s", strings.Join(extra, ", ")))
 	}

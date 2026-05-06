@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -352,12 +353,25 @@ func combineEffects(e1, e2 *Row) *Row {
 		combined[k] = v
 	}
 
+	// Merge provenance from both rows (e1 wins on conflict — first call site wins)
+	var prov map[string]ast.Span
+	if e1.Provenance != nil || e2.Provenance != nil {
+		prov = make(map[string]ast.Span)
+		for k, v := range e2.Provenance {
+			prov[k] = v
+		}
+		for k, v := range e1.Provenance {
+			prov[k] = v
+		}
+	}
+
 	// For now, ignore tail variables in combination
 	// Full implementation would handle row unification
 	return &Row{
-		Kind:   EffectRow,
-		Labels: combined,
-		Tail:   nil,
+		Kind:       EffectRow,
+		Labels:     combined,
+		Provenance: prov,
+		Tail:       nil,
 	}
 }
 

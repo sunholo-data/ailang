@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // TypeV2 represents types with proper kind tracking
@@ -72,6 +74,10 @@ type Row struct {
 	// NOT unify with !{Rand[mode=seeded]}, but DOES unify with bare !{Rand} after
 	// default-mode desugar via DefaultModeFor.
 	Params map[string]map[string]string
+	// Provenance maps effect label names to the source span where that label was
+	// introduced (e.g. the call site of an effectful builtin). Nil by default and
+	// intentionally excluded from Equals — provenance never causes unification failures.
+	Provenance map[string]ast.Span
 }
 
 func (r *Row) String() string {
