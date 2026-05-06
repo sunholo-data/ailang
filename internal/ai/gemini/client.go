@@ -79,10 +79,14 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 // NewVertexAIClient creates a new Gemini client using ADC (Vertex AI).
 // If projectID is empty, it will be fetched from gcloud config.
 func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) {
+	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if location == "" {
+		location = "global"
+	}
 	c := &Client{
 		projectID:  projectID,
 		authType:   AuthADC,
-		location:   "global",
+		location:   location,
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {

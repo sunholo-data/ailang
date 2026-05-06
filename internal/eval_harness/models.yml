@@ -506,6 +506,16 @@ models:
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
   # Google Gemini 3 Flash (released December 17, 2025)
+  gemini-3-flash-preview:
+    api_name: "gemini-3-flash-preview"
+    provider: "google"
+    description: "Gemini 3 Flash (alias for gemini-3-flash, for use with --ai gemini-3-flash-preview)"
+    env_var: ""
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    model_family: "gemini-3-flash"
+    max_output_tokens: 65536   # 65K max output; needed because thinking tokens eat into budget
+
   gemini-3-flash:
     api_name: "gemini-3-flash-preview"
     provider: "google"

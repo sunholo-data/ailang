@@ -257,8 +257,11 @@ func parseStepResponse(req *ai.Request, body []byte) (*ai.Response, error) {
 			fmt.Sprintf("gemini: failed to parse response: %v", err), false)
 	}
 	if len(raw.Candidates) == 0 {
-		return nil, ai.NewAIError(ai.CodeProtocolError,
-			"gemini: response contained no candidates", false)
+		msg := "gemini: response contained no candidates"
+		if raw.PromptFeedback.BlockReason != "" {
+			msg += " (blocked: " + raw.PromptFeedback.BlockReason + ")"
+		}
+		return nil, ai.NewAIError(ai.CodeProtocolError, msg, false)
 	}
 
 	cand := raw.Candidates[0]

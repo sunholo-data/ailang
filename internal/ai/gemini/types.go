@@ -93,9 +93,20 @@ type generateResponse struct {
 // model alias resolves to a specific revision). Kept separate so the
 // legacy Generate path's response shape stays untouched.
 type stepRawResponse struct {
-	Candidates    []candidate   `json:"candidates"`
-	UsageMetadata usageMetadata `json:"usageMetadata"`
-	ModelVersion  string        `json:"modelVersion,omitempty"`
+	Candidates     []candidate    `json:"candidates"`
+	UsageMetadata  usageMetadata  `json:"usageMetadata"`
+	ModelVersion   string         `json:"modelVersion,omitempty"`
+	PromptFeedback promptFeedback `json:"promptFeedback,omitempty"`
+}
+
+// promptFeedback captures safety block information returned by Gemini when
+// the prompt is blocked before any candidates are generated.
+type promptFeedback struct {
+	BlockReason   string `json:"blockReason,omitempty"`
+	SafetyRatings []struct {
+		Category    string `json:"category"`
+		Probability string `json:"probability"`
+	} `json:"safetyRatings,omitempty"`
 }
 
 // candidate represents a generation candidate.
