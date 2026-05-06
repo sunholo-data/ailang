@@ -1,0 +1,107 @@
+{
+  "sprint_id": "M-STD-DEFLATE-ZLIB",
+  "evaluation_round": 1,
+  "timestamp": "2026-05-06T06:32:35Z",
+  "design_doc": "design_docs/implemented/v0_16_x/m-std-deflate-zlib.md",
+  "sprint_plan": "design_docs/implemented/v0_16_x/m-std-deflate-zlib-sprint-plan.md",
+  "total_score": 91,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 28,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 10,
+    "regression_surface_coverage": "n/a (sprint did not touch parser/types/codegen)",
+    "performance_verification": "n/a (not a perf sprint)"
+  },
+  "hard_fails": [],
+  "feedback": [
+    {
+      "severity": "info",
+      "category": "tooling",
+      "issue": "scripts/check_acceptance_criteria.sh produced 3 false-negative 'missing' findings due to literal-string lookup (didn't account for examples/runnable/ subdir; didn't list design_docs/implemented/v0_16_x/ contents)",
+      "verification": "manually confirmed all 3 files exist: ls examples/runnable/std_deflate_pdf_objstm.ail design_docs/implemented/v0_16_x/m-std-deflate-zlib.md design_docs/implemented/v0_16_x/m-std-deflate-zlib-sprint-plan.md",
+      "suggestion": "future iteration of check_acceptance_criteria.sh should fall back to find/glob when literal path matches fail"
+    },
+    {
+      "severity": "info",
+      "category": "tooling",
+      "issue": "scripts/evaluate_sprint.sh reported 4 file-size warnings (>800 LOC) — all pre-existing files unrelated to this sprint (effects/fs_test.go, eval_suite.go, coordinator_cloud.go, registry-validator/main.go)",
+      "verification": "git show --stat c48c3aa4 shows largest sprint file is internal/builtins/deflate.go (~360 LOC), well within limits",
+      "suggestion": "evaluator should diff file-size warnings against base branch to filter pre-existing"
+    }
+  ],
+  "checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "verify_examples_passes_for_new_example": true,
+    "golden_snapshot_regenerated": true,
+    "file_sizes_for_new_files_ok": true,
+    "todo_hack_count": 0
+  },
+  "acceptance_criteria_independent_verification": {
+    "M1_BUILTINS_AND_TESTS": {
+      "criteria_total": 9,
+      "verified_met": 9,
+      "verified_missing": 0,
+      "evidence": [
+        "4 builtins (_deflate_inflate, _deflate_inflateZlib, _deflate_deflate, _deflate_deflateZlib) all registered — confirmed via grep",
+        "Round-trip tests TestDeflateRawRoundTrip and TestDeflateZlibRoundTrip cover levels {0, 1, 6, 9, -1} — confirmed in deflate_test.go",
+        "Cross-format tests TestDeflate_CrossFormat_RawToZlibInflate and TestDeflate_CrossFormat_ZlibToRawInflate present",
+        "Malformed input tests (4 functions): TestDeflateInflate_InvalidBase64, TestDeflateInflateZlib_InvalidBase64, TestDeflateInflateZlib_NotZlib, TestDeflateDeflate_InvalidBase64",
+        "Output-cap tests TestDeflateInflate_BombRejected and TestDeflateInflateZlib_BombRejected synthesize 150MB streams and assert Err with 'exceeds'",
+        "Level monotonicity: TestDeflate_LevelMonotonicity asserts level-9 size <= level-1 size",
+        "make test passes (verified)",
+        "make lint clean (verified)",
+        "Bonus: TestDeflate_GzipBodyCrossDecode proves RFC 1951 wire compat; TestDeflate_Deterministic runs 20 iterations per pure variant"
+      ]
+    },
+    "M2_STDLIB_WRAPPER": {
+      "criteria_total": 4,
+      "verified_met": 4,
+      "verified_missing": 0,
+      "evidence": [
+        "std/deflate.ail exports inflate, inflateZlib, deflate, deflateZlib all as 'export pure func' (4 grep hits)",
+        "Module load verified end-to-end: ailang run on a one-liner that imports std/deflate succeeded with 'ok: round-trip preserved input'",
+        "Doc-comments include 'For PDF/HTTP/PNG, use inflateZlib instead' guidance (grep confirmed)",
+        "make build && make install (via make quick-install) succeeded"
+      ]
+    },
+    "M3_EXAMPLE_CHANGELOG_DOC_MOVE": {
+      "criteria_total": 5,
+      "verified_met": 5,
+      "verified_missing": 0,
+      "evidence": [
+        "examples/runnable/std_deflate_pdf_objstm.ail exists and passes make verify-examples (in 'Passing Examples' section of report)",
+        "CHANGELOG entry under [Unreleased] in changelogs/v0.10-current.md with all 4 function names and PDF FlateDecode use case explicit",
+        "Design doc moved to design_docs/implemented/v0_16_x/m-std-deflate-zlib.md (verified via ls)",
+        "Implementation report appended to moved doc (LOC actual vs estimate table, files created/modified list, test coverage breakdown, deviations section)",
+        "Sprint plan moved to design_docs/implemented/v0_16_x/m-std-deflate-zlib-sprint-plan.md (verified via ls)"
+      ]
+    },
+    "summary": {
+      "criteria_total": 18,
+      "criteria_verified_met": 18,
+      "criteria_verified_missing": 0,
+      "pct": 100,
+      "raw_score_30": 30,
+      "scored_28_because": "−2 for the script's 22% false-negative reading; the 100% manual verification is what the evaluator actually trusts but score is rounded down to acknowledge the imperfect tooling"
+    }
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Implementation matches design doc verbatim. Both design-freeze items resolved before implementation (new std/deflate module, 100MB cap). API shape, base64 boundary, and naming convention identical to the proposed design. No silent deviations. Bonus tests (gzip-body cross-decode, determinism) exceed plan."
+  },
+  "documentation": {
+    "score": 15,
+    "notes": "CHANGELOG entry comprehensive (architecture, milestone breakdown, final-numbers section). Design doc moved with implementation report appended. NEW (post-sprint, this evaluation): added std/deflate row to docs/docs/reference/stdlib.md and dedicated section to prompts/v0.16.0.md (parallel to std/gzip section). Manifest entry added for the new runnable example."
+  },
+  "code_quality": {
+    "score": 13,
+    "notes": "Files well within size budgets (largest is deflate_test.go at 340 LOC, deflate.go at 360 LOC). Code is a clean parallel of gzip.go shape — agents can read either to learn the pattern. Comments are informational and load-bearing (RFC numbers, header byte explanations, naming caveats). Two minor nits: (1) helper readBounded shared between inflate variants could similarly be shared with gzip's gunzipBounded but is intentionally not coupled per gzip.go's prior precedent; (2) zlib error message hint 'try _deflate_inflate' uses internal builtin name in user-facing text — the public API name 'inflate' would read better, deduct 2 pts."
+  },
+  "notes": "Sprint passes evaluation cleanly (91/100). All 18 acceptance criteria independently verified met (script's heuristic-based 'missing' findings were false-negatives — directly checked each file/symbol). Implementation matches design doc verbatim, both design-freeze items resolved before coding, all 3 milestones shipped in a single 2-hour session against a 1-day estimate. Test coverage exceeds the plan (added gzip-body RFC 1951 wire-compat test and a 20-iteration determinism loop). Sprint commit c48c3aa4 is on dev with refs #223. Doc-completeness gap closed during evaluation: stdlib reference table, prompts/v0.16.0.md teaching section, and examples/manifest.json entry added (separate commit). Outstanding minor item for follow-up: zlib-error-hint string uses internal builtin name '_deflate_inflate' rather than the public 'inflate' — a 1-line tweak, not blocking."
+}

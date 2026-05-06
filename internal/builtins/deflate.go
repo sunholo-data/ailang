@@ -29,6 +29,9 @@ import (
 
 const (
 	deflateMaxDecompressedSize = 100 * 1024 * 1024 // 100 MB — matches std/gzip
+	deflateModule              = "std/deflate"
+	deflateSinceVersion        = "v0.16.0"
+	deflateInvalidBase64Fmt    = "invalid base64: %v"
 )
 
 func init() {
@@ -82,6 +85,25 @@ func validateDeflateLevel(level int) error {
 	return nil
 }
 
+// Shared type signatures for the four deflate builtins.
+// Both inflate variants are string -> Result[string, string]; both deflate
+// variants are (string, int) -> Result[string, string]. Defined once so
+// adding a future variant doesn't tempt copy-paste drift.
+
+func makeDeflateInflateLikeType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(
+		T.App("Result", T.String(), T.String()),
+	).Build()
+}
+
+func makeDeflateDeflateLikeType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.Int()).Returns(
+		T.App("Result", T.String(), T.String()),
+	).Build()
+}
+
 // ============================================================================
 // _deflate_inflate: string -> Result[string, string]   (pure)
 // ============================================================================
@@ -91,12 +113,12 @@ func validateDeflateLevel(level int) error {
 
 func registerDeflateInflate() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
-		Module:  "std/deflate",
+		Module:  deflateModule,
 		Name:    "_deflate_inflate",
 		NumArgs: 1,
 		IsPure:  true,
 		Effect:  "",
-		Type:    makeDeflateInflateType,
+		Type:    makeDeflateInflateLikeType,
 		Impl:    deflateInflateImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Inflate raw deflate stream (base64 in, base64 out)",
@@ -109,7 +131,7 @@ func registerDeflateInflate() {
 				{Code: `_deflate_inflate(b64_of_raw_deflate)`, Description: "Returns Ok(base64-encoded decompressed bytes)"},
 			},
 			SeeAlso:   []string{"_deflate_deflate", "_deflate_inflateZlib", "_gzip_decompress"},
-			Since:     "v0.16.0",
+			Since:     deflateSinceVersion,
 			Stability: StabilityStable,
 			Tags:      []string{"deflate", "decompress", "pure"},
 			Category:  "deflate",
@@ -120,13 +142,6 @@ func registerDeflateInflate() {
 	}
 }
 
-func makeDeflateInflateType() types.Type {
-	T := types.NewBuilder()
-	return T.Func(T.String()).Returns(
-		T.App("Result", T.String(), T.String()),
-	).Build()
-}
-
 func deflateInflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	inVal, ok := args[0].(*eval.StringValue)
 	if !ok {
@@ -135,7 +150,7 @@ func deflateInflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 
 	compressed, err := base64.StdEncoding.DecodeString(inVal.Value)
 	if err != nil {
-		return deflateMakeErr(fmt.Sprintf("invalid base64: %v", err)), nil
+		return deflateMakeErr(fmt.Sprintf(deflateInvalidBase64Fmt, err)), nil
 	}
 
 	fr := flate.NewReader(bytes.NewReader(compressed))
@@ -158,12 +173,12 @@ func deflateInflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 
 func registerDeflateInflateZlib() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
-		Module:  "std/deflate",
+		Module:  deflateModule,
 		Name:    "_deflate_inflateZlib",
 		NumArgs: 1,
 		IsPure:  true,
 		Effect:  "",
-		Type:    makeDeflateInflateZlibType,
+		Type:    makeDeflateInflateLikeType,
 		Impl:    deflateInflateZlibImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Inflate zlib-wrapped (RFC 1950) stream (base64 in, base64 out)",
@@ -176,7 +191,7 @@ func registerDeflateInflateZlib() {
 				{Code: `_deflate_inflateZlib(b64_of_pdf_objstm)`, Description: "Decompress a PDF /ObjStm FlateDecode payload"},
 			},
 			SeeAlso:   []string{"_deflate_deflateZlib", "_deflate_inflate", "_gzip_decompress"},
-			Since:     "v0.16.0",
+			Since:     deflateSinceVersion,
 			Stability: StabilityStable,
 			Tags:      []string{"deflate", "zlib", "decompress", "pure"},
 			Category:  "deflate",
@@ -187,13 +202,6 @@ func registerDeflateInflateZlib() {
 	}
 }
 
-func makeDeflateInflateZlibType() types.Type {
-	T := types.NewBuilder()
-	return T.Func(T.String()).Returns(
-		T.App("Result", T.String(), T.String()),
-	).Build()
-}
-
 func deflateInflateZlibImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	inVal, ok := args[0].(*eval.StringValue)
 	if !ok {
@@ -202,13 +210,13 @@ func deflateInflateZlibImpl(_ *effects.EffContext, args []eval.Value) (eval.Valu
 
 	compressed, err := base64.StdEncoding.DecodeString(inVal.Value)
 	if err != nil {
-		return deflateMakeErr(fmt.Sprintf("invalid base64: %v", err)), nil
+		return deflateMakeErr(fmt.Sprintf(deflateInvalidBase64Fmt, err)), nil
 	}
 
 	zr, err := zlib.NewReader(bytes.NewReader(compressed))
 	if err != nil {
 		// zlib.NewReader fails if the header is malformed (e.g., raw deflate input).
-		return deflateMakeErr(fmt.Sprintf("invalid zlib stream: %v (input may be raw deflate — try _deflate_inflate)", err)), nil
+		return deflateMakeErr(fmt.Sprintf("invalid zlib stream: %v (input may be raw deflate — use std/deflate.inflate instead)", err)), nil
 	}
 	defer zr.Close()
 
@@ -228,12 +236,12 @@ func deflateInflateZlibImpl(_ *effects.EffContext, args []eval.Value) (eval.Valu
 
 func registerDeflateDeflate() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
-		Module:  "std/deflate",
+		Module:  deflateModule,
 		Name:    "_deflate_deflate",
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",
-		Type:    makeDeflateDeflateType,
+		Type:    makeDeflateDeflateLikeType,
 		Impl:    deflateDeflateImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Compress to raw deflate stream (base64 in, base64 out)",
@@ -247,7 +255,7 @@ func registerDeflateDeflate() {
 				{Code: `_deflate_deflate(b64_of_text, 6)`, Description: "Returns Ok(base64-encoded raw deflate stream)"},
 			},
 			SeeAlso:   []string{"_deflate_inflate", "_deflate_deflateZlib", "_gzip_compress"},
-			Since:     "v0.16.0",
+			Since:     deflateSinceVersion,
 			Stability: StabilityStable,
 			Tags:      []string{"deflate", "compress", "pure"},
 			Category:  "deflate",
@@ -256,13 +264,6 @@ func registerDeflateDeflate() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _deflate_deflate: %v", err))
 	}
-}
-
-func makeDeflateDeflateType() types.Type {
-	T := types.NewBuilder()
-	return T.Func(T.String(), T.Int()).Returns(
-		T.App("Result", T.String(), T.String()),
-	).Build()
 }
 
 func deflateDeflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
@@ -277,7 +278,7 @@ func deflateDeflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 
 	raw, err := base64.StdEncoding.DecodeString(inVal.Value)
 	if err != nil {
-		return deflateMakeErr(fmt.Sprintf("invalid base64: %v", err)), nil
+		return deflateMakeErr(fmt.Sprintf(deflateInvalidBase64Fmt, err)), nil
 	}
 
 	if err := validateDeflateLevel(levelVal.Value); err != nil {
@@ -308,12 +309,12 @@ func deflateDeflateImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 
 func registerDeflateDeflateZlib() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
-		Module:  "std/deflate",
+		Module:  deflateModule,
 		Name:    "_deflate_deflateZlib",
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",
-		Type:    makeDeflateDeflateZlibType,
+		Type:    makeDeflateDeflateLikeType,
 		Impl:    deflateDeflateZlibImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Compress to zlib-wrapped (RFC 1950) stream (base64 in, base64 out)",
@@ -327,7 +328,7 @@ func registerDeflateDeflateZlib() {
 				{Code: `_deflate_deflateZlib(b64_of_text, 6)`, Description: "Returns Ok(base64-encoded zlib-wrapped stream)"},
 			},
 			SeeAlso:   []string{"_deflate_inflateZlib", "_deflate_deflate", "_gzip_compress"},
-			Since:     "v0.16.0",
+			Since:     deflateSinceVersion,
 			Stability: StabilityStable,
 			Tags:      []string{"deflate", "zlib", "compress", "pure"},
 			Category:  "deflate",
@@ -336,13 +337,6 @@ func registerDeflateDeflateZlib() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _deflate_deflateZlib: %v", err))
 	}
-}
-
-func makeDeflateDeflateZlibType() types.Type {
-	T := types.NewBuilder()
-	return T.Func(T.String(), T.Int()).Returns(
-		T.App("Result", T.String(), T.String()),
-	).Build()
 }
 
 func deflateDeflateZlibImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
@@ -357,7 +351,7 @@ func deflateDeflateZlibImpl(_ *effects.EffContext, args []eval.Value) (eval.Valu
 
 	raw, err := base64.StdEncoding.DecodeString(inVal.Value)
 	if err != nil {
-		return deflateMakeErr(fmt.Sprintf("invalid base64: %v", err)), nil
+		return deflateMakeErr(fmt.Sprintf(deflateInvalidBase64Fmt, err)), nil
 	}
 
 	if err := validateDeflateLevel(levelVal.Value); err != nil {

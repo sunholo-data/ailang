@@ -54,6 +54,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/json` | JSON encode/decode | — |
 | `std/xml` | Parse XML strings into `XmlNode` trees, query elements | — |
 | `std/gzip` | Gzip compress/decompress (base64-encoded I/O) | — |
+| `std/deflate` | Raw deflate (RFC 1951) and zlib-wrapped (RFC 1950) primitives — PDF FlateDecode, HTTP `Content-Encoding: deflate`, PNG IDAT | — |
 | `std/zip` | Read/write ZIP archives (including `.docx`, `.xlsx`, `.epub`) | — |
 | `std/tar` | Read entries from uncompressed tar archives | — |
 | `std/jwt` | Parse and verify JSON Web Tokens | — |

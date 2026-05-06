@@ -1632,6 +1632,25 @@ match extractAll("archive.tar", "./dest") {
 - `std/tar`: `listEntries`, `readEntry`, `readEntryBytes`, `extractAll`, `readFromGzip`, `readFromGzipBytes` — all `! {FS}`
 - Caps: 10K entries, 100MB decompressed per entry (bomb defence). Respects `AILANG_FS_SANDBOX`.
 
+## Raw Deflate / Zlib (std/deflate) — v0.16.0+
+
+For raw zlib/deflate streams *without* the gzip or zip wrapper. Use this for **PDF FlateDecode** (PDF /ObjStm in PDF 1.5+), HTTP `Content-Encoding: deflate`, PNG IDAT chunks, WebSocket permessage-deflate.
+
+```ailang
+import std/deflate (inflateZlib)
+import std/result (Result, Ok, Err)
+
+-- Decode a PDF FlateDecode payload (zlib-wrapped, RFC 1950)
+match inflateZlib(b64_of_objstm) {
+  Ok(decompressedB64) => println(decompressedB64),
+  Err(msg)            => println("inflate failed: ${msg}")
+}
+```
+
+- **All four functions are pure** (no effect row): `inflate(b64)`, `inflateZlib(b64)`, `deflate(b64, level)`, `deflateZlib(b64, level)`
+- `inflate`/`deflate` = raw RFC 1951 (no header, no trailer); `inflateZlib`/`deflateZlib` = RFC 1950 (2-byte zlib header + adler32). **For PDF/HTTP/PNG: use the Zlib variants.**
+- Same base64-string boundary as `std/gzip` and `std/zip.readEntryBytes`. Same 100MB output cap.
+
 ## XML Parsing (std/xml)
 
 Parse and query XML documents. **Pure functions** (no effect needed):
