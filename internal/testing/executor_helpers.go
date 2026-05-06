@@ -39,22 +39,21 @@ func (r *CombinedResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) 
 
 	// Case 2: Module-qualified reference (e.g., std/list.filter)
 	if ref.Module != "" {
-		// Look for the function in the specified module
+		// Prefer module-qualified key to avoid alias collision when two modules
+		// export the same function name (e.g. std/string.length vs std/list.length).
+		qualifiedKey := ref.Module + "." + ref.Name
+		if val, ok := r.Env.Get(qualifiedKey); ok {
+			return val, nil
+		}
+		// Fall back to bare name lookup for modules whose path wasn't captured
 		if mod, ok := r.Modules[ref.Module]; ok && mod != nil {
-			// Try to find the function in the module's Core program
 			for _, decl := range mod.Core.Decls {
-				// Check Let bindings
-				if let, ok := decl.(*core.Let); ok {
-					if let.Name == ref.Name {
-						// Try to get this from the environment (should have been evaluated)
-						if val, ok := r.Env.Get(ref.Name); ok {
-							return val, nil
-						}
-						// If not in environment, return error with details
-						return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
+				if let, ok := decl.(*core.Let); ok && let.Name == ref.Name {
+					if val, ok := r.Env.Get(ref.Name); ok {
+						return val, nil
 					}
+					return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
 				}
-				// Check LetRec bindings
 				if letRec, ok := decl.(*core.LetRec); ok {
 					for _, binding := range letRec.Bindings {
 						if binding.Name == ref.Name {
@@ -290,12 +289,13 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 
 	// PASS 1: Collect pending bindings (lambdas) and inject non-lambda values
 	type PendingLambdaBinding struct {
-		name   string
-		lambda *core.Lambda
+		name       string
+		lambda     *core.Lambda
+		modulePath string // used for module-qualified env key to prevent alias collision
 	}
 	var pendingLambdas []PendingLambdaBinding
 
-	for _, mod := range e.modules {
+	for modulePath, mod := range e.modules {
 		if mod.Core == nil {
 			continue
 		}
@@ -307,8 +307,9 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 				// For pure functions, the value is a Lambda - queue it for Pass 2
 				if lambda, ok := d.Value.(*core.Lambda); ok {
 					pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-						name:   d.Name,
-						lambda: lambda,
+						name:       d.Name,
+						lambda:     lambda,
+						modulePath: modulePath,
 					})
 				} else if _, ok := d.Value.(*core.VarGlobal); ok {
 					// This is a re-export of another module's function
@@ -324,8 +325,9 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 				for _, binding := range d.Bindings {
 					if lambda, ok := binding.Value.(*core.Lambda); ok {
 						pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-							name:   binding.Name,
-							lambda: lambda,
+							name:       binding.Name,
+							lambda:     lambda,
+							modulePath: modulePath,
 						})
 					}
 				}
@@ -335,6 +337,9 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 
 	// PASS 2: Now create FunctionValues with the fully-populated environment
 	// This ensures all function dependencies can be resolved from env.
+	// Also bind under a module-qualified key ("std/string.length") so that
+	// CombinedResolver can distinguish same-named functions from different modules
+	// (e.g. std/string.length vs std/list.length imported with an alias).
 	for _, pending := range pendingLambdas {
 		funcVal := &eval.FunctionValue{
 			Params: extractLambdaParams(pending.lambda),
@@ -343,5 +348,8 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 			Typed:  true,
 		}
 		env.Set(pending.name, funcVal)
+		if pending.modulePath != "" {
+			env.Set(pending.modulePath+"."+pending.name, funcVal)
+		}
 	}
 }

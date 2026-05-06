@@ -348,7 +348,13 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 
 	evaluator := eval.NewCoreEvaluator()
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
+	env := evaluator.Env()
+	e.injectModuleBindings(evaluator, env)
+	resolver := &CombinedResolver{
+		Builtins: builtinRegistry,
+		Env:      env,
+		Modules:  e.modules,
+	}
 	evaluator.SetGlobalResolver(resolver)
 	e.injectADTConstructors(evaluator)
 
@@ -394,6 +400,8 @@ func (e *Executor) ExtractPureClusterForFunction(
 	if result.Artifacts.Core == nil {
 		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
 	}
+
+	e.modules = result.Modules
 
 	coreProg := result.Artifacts.Core
 	g := BuildCallGraph(coreProg)
