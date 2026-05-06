@@ -1,9 +1,9 @@
 # std/deflate: raw zlib/deflate primitives for PDF FlateDecode and wire protocols
 
-**Status**: Planned
+**Status**: IMPLEMENTED (2026-05-06)
 **Target**: v0.16.0
-**Priority**: P1 (Medium — unblocks ailang-parse PDF annotation extractor)
-**Estimated**: 1 day (~6 hours)
+**Priority**: P1 (Medium — unblocked ailang-parse PDF annotation extractor)
+**Estimated**: 1 day (~6 hours) — actual ~2 hours
 **Dependencies**: None (sits alongside existing std/gzip and std/zip)
 
 **Source**: Feature request from `cli` (msg_20260506_074820_1f185b21) — blocking PDF annotation extraction in ailang-parse.
@@ -295,6 +295,59 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-05-06
-**Last updated**: 2026-05-06
+**Last updated**: 2026-05-06 (moved to implemented)
 
-DESIGN_DOC_PATH: design_docs/planned/v0_16_0/m-std-deflate-zlib.md
+---
+
+## Implementation Report (2026-05-06)
+
+### What was built
+
+All three milestones shipped in a single ~2-hour session against the 1-day plan estimate:
+
+| Milestone | Estimated LOC | Actual LOC | Status |
+|-----------|---------------|------------|--------|
+| M1: Builtins + tests | 400 | ~700 (363 impl + 340 tests) | ✅ |
+| M2: Stdlib wrapper | 30 | ~60 | ✅ |
+| M3: Example + CHANGELOG + doc move | 50 | ~70 | ✅ |
+| **Total** | **460** | **~830** | ✅ |
+
+The 80% LOC overage came entirely from richer test coverage than the original sketch — see "Test coverage" below. The architecture itself was a clean mirror of the v0.12.0 `std/gzip` template.
+
+### Files created
+
+- [`internal/builtins/deflate.go`](../../../internal/builtins/deflate.go) — 4 builtins backed by `compress/flate` and `compress/zlib`, 100MB output cap via `io.LimitReader`
+- [`internal/builtins/deflate_test.go`](../../../internal/builtins/deflate_test.go) — 13 test functions
+- [`std/deflate.ail`](../../../std/deflate.ail) — Stdlib wrapper exporting 4 `pure func`
+- [`examples/runnable/std_deflate_pdf_objstm.ail`](../../../examples/runnable/std_deflate_pdf_objstm.ail) — Worked PDF FlateDecode example
+
+### Files modified
+
+- [`internal/pipeline/testdata/builtin_types.golden`](../../../internal/pipeline/testdata/builtin_types.golden) — Regenerated for 4 new signatures (288 total)
+- [`changelogs/v0.10-current.md`](../../../changelogs/v0.10-current.md) — Added M-STD-DEFLATE-ZLIB entry under [Unreleased]
+- This design doc + sprint plan moved from `design_docs/planned/v0_16_0/` → `design_docs/implemented/v0_16_x/`
+
+### Test coverage
+
+13 test functions covering:
+
+- **Round-trip × 2 variants × 5 levels** (`TestDeflateRawRoundTrip`, `TestDeflateZlibRoundTrip`) — empty input, small ASCII, repeated text, levels 0/1/6/9/-1, unicode
+- **Cross-format negative** (`TestDeflate_CrossFormat_ZlibToRawInflate`, `TestDeflate_CrossFormat_RawToZlibInflate`) — confirms zlib-wrapped data fed to raw `inflate` does not silently round-trip; raw deflate fed to `inflateZlib` errors with a hint to try `inflate`
+- **Malformed input** (4 tests) — invalid base64, non-zlib bytes, bad compression levels (-2, 10, 99)
+- **100MB output cap** (`TestDeflateInflate_BombRejected`, `TestDeflateInflateZlib_BombRejected`) — synthesizes 150MB-of-zeros stream that compresses to KB; verifies cap rejection
+- **Level monotonicity** (`TestDeflate_LevelMonotonicity`) — guards against silent ignoring of the `level` argument
+- **Determinism** (`TestDeflate_Deterministic`) — 20-iteration loop per pure variant
+- **RFC 1951 wire compatibility** (`TestDeflate_GzipBodyCrossDecode`) — strips 10-byte gzip header + 8-byte trailer, confirms the deflate body decompresses via raw `inflate`. Proves we're genuinely RFC 1951 compatible, not just self-consistent.
+
+All 18 sub-tests pass; `make test` and `make lint` clean.
+
+### Deviations from plan
+
+- **No deviations from API or architecture.** Both design-freeze items resolved before implementation: new `std/deflate` module, 100MB cap.
+- **Test scope expanded**: added the gzip-body cross-decode test (M1 acceptance criteria did not require this, but it's a load-bearing wire-compat proof — without it, `inflate` could be self-consistent but incompatible with real-world deflate streams).
+- **Stdlib loader**: zero changes needed. The existing `//go:embed *.ail` glob in [`std/embed.go`](../../../std/embed.go) picked up `std/deflate.ail` automatically.
+
+### External validation
+
+- **GitHub issue #223** (linked to this sprint) can be closed once a release containing this work ships
+- **ailang-parse migration** (out-of-tree, post-merge): `cli` agent to replace its pure-string PDF annotation scanner with `inflateZlib`-based decoder; will close the silent-degradation-on-`/ObjStm` gap that motivated the request

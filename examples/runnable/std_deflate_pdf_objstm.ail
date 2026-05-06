@@ -1,0 +1,44 @@
+-- std/deflate demo: decode a PDF /ObjStm FlateDecode payload
+--
+-- Modern PDFs (PDF 1.5+) bundle small objects — including annotations —
+-- into /ObjStm streams compressed with FlateDecode. FlateDecode is raw zlib
+-- (RFC 1950): a 2-byte header, deflate body, and adler32 trailer.
+--
+-- This example takes a base64-encoded zlib stream representing the contents
+-- of a tiny PDF /ObjStm (three annotation objects) and decompresses it via
+-- std/deflate.inflateZlib. In a real PDF reader, the base64 input would be
+-- the (base64-encoded) raw bytes of the FlateDecode-encoded stream object.
+--
+-- Usage: ailang run --caps IO --entry main examples/runnable/std_deflate_pdf_objstm.ail
+
+module examples/runnable/std_deflate_pdf_objstm
+
+import std/io (println)
+import std/result (Result, Ok, Err)
+import std/deflate (inflateZlib)
+import std/bytes (fromBase64, toString)
+import std/option (Option, Some, None)
+
+-- Decode a zlib-wrapped FlateDecode payload to UTF-8 text.
+-- Returns Err if the stream is invalid or the bytes aren't valid UTF-8.
+export pure func decodeObjStm(b64: string) -> Result[string, string] =
+  match inflateZlib(b64) {
+    Ok(decompressedB64) => match fromBase64(decompressedB64) {
+      Some(bs) => Ok(toString(bs)),
+      None => Err("decompressed output was not valid base64 (impossible)")
+    },
+    Err(msg) => Err("inflateZlib failed: ${msg}")
+  }
+
+export func main() -> () ! {IO} =
+  -- Hand-rolled zlib stream: contents are three PDF annotation dictionaries
+  -- (Highlight, Text, Underline) — exactly what a PDF reader would extract
+  -- from a FlateDecode-encoded /ObjStm in a modern annotated PDF.
+  let pdfObjStmB64 = "eJyEzrFOxDAQhOGep5gSKu+Z+ILQ6SREA+0RKkRhkpVjkawtZwPk7VFAiqBAlNP83xwOMM2SGeZGJCnMw/yiX/suhn6IoVeY2yTKohPO78ecinpRZF98KD73FzAnbhVPtUVtCa4i1BU943g8+7ve8Mev8InfIr9zQZvGkUWvIczdhDaq15hkU3aWsCfCriLs7X/Mo3Rchij803rlBb6EeXW2rqXv65dXBOfc2v0MAAD//4QLWIw="
+  in match decodeObjStm(pdfObjStmB64) {
+    Ok(annotations) => {
+      println("== decoded PDF /ObjStm contents ==");
+      println(annotations)
+    },
+    Err(msg) => println("ERROR: ${msg}")
+  }

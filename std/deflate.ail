@@ -1,0 +1,59 @@
+-- std/deflate - raw deflate (RFC 1951) and zlib (RFC 1950) primitives
+--
+-- Use this module when you need to (de)compress with the deflate algorithm
+-- but WITHOUT the gzip wrapper. Common cases:
+--   - PDF FlateDecode streams (PDF /ObjStm in PDF 1.5+ uses zlib framing)
+--   - HTTP Content-Encoding: deflate (zlib-wrapped despite the name)
+--   - PNG IDAT chunks (zlib-wrapped)
+--   - WebSocket permessage-deflate (raw deflate, no wrapper)
+--
+-- Choosing between the two pairs:
+--   inflate / deflate          -> raw RFC 1951 (no header, no trailer)
+--   inflateZlib / deflateZlib  -> RFC 1950 wrapped (2-byte zlib header + adler32)
+--
+-- For PDF / HTTP / PNG / typical "deflate" payloads on the wire: use the Zlib variants.
+-- For raw deflate streams (e.g., the body inside a gzip or zip entry once the wrapper
+-- has been stripped, or WebSocket permessage-deflate): use the non-Zlib variants.
+--
+-- All binary data crosses the AILANG boundary as base64-encoded strings,
+-- mirroring std/gzip and std/zip.readEntryBytes. Use std/bytes primitives to
+-- convert between base64 strings, raw bytes, and UTF-8 text.
+--
+-- Security: decompressed output is capped at 100MB (matches std/gzip and std/zip).
+--
+-- Usage:
+--   import std/deflate (inflateZlib)
+--   import std/result (Result, Ok, Err)
+--
+--   func decodePdfObjStm(b64: string) -> Result[string, string] =
+--     inflateZlib(b64)
+
+module std/deflate
+
+import std/result (Result)
+
+-- Inflate a base64-encoded raw deflate (RFC 1951) stream.
+-- No zlib header, no adler32 trailer. For PDF/HTTP/PNG, use inflateZlib instead.
+-- Returns Ok(base64 of decompressed bytes) or Err(message).
+-- Rejects streams whose decompressed size exceeds 100MB.
+export pure func inflate(input: string) -> Result[string, string] = _deflate_inflate(input)
+
+-- Inflate a base64-encoded zlib (RFC 1950) stream.
+-- Includes 2-byte zlib header + deflate body + adler32 trailer.
+-- Use this for PDF FlateDecode, HTTP Content-Encoding: deflate, PNG IDAT, WebSocket permessage-deflate.
+-- Returns Ok(base64 of decompressed bytes) or Err(message).
+-- Rejects streams whose decompressed size exceeds 100MB.
+export pure func inflateZlib(input: string) -> Result[string, string] = _deflate_inflateZlib(input)
+
+-- Compress base64-encoded bytes to a raw deflate (RFC 1951) stream.
+-- No zlib header, no adler32 trailer. For zlib-wrapped output, use deflateZlib.
+-- Level: 0 (no compression) to 9 (best). Use -1 for default (level 6).
+-- Returns Ok(base64 of raw deflate bytes) or Err(message).
+export pure func deflate(input: string, level: int) -> Result[string, string] = _deflate_deflate(input, level)
+
+-- Compress base64-encoded bytes to a zlib (RFC 1950) stream.
+-- Output includes the 2-byte zlib header and adler32 trailer.
+-- Suitable for HTTP Content-Encoding: deflate output, PDF /ObjStm authoring, etc.
+-- Level: 0 (no compression) to 9 (best). Use -1 for default (level 6).
+-- Returns Ok(base64 of zlib-wrapped bytes) or Err(message).
+export pure func deflateZlib(input: string, level: int) -> Result[string, string] = _deflate_deflateZlib(input, level)

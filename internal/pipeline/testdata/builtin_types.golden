@@ -46,6 +46,10 @@ _crypto_sha256bytes : bytes -> string
 _crypto_sha256hex : string -> string
 _debug_check : (bool, string, string) -> () ! {Debug}
 _debug_log : (string, string) -> () ! {Debug}
+_deflate_deflate : (string, int) -> Result[string, string]
+_deflate_deflateZlib : (string, int) -> Result[string, string]
+_deflate_inflate : string -> Result[string, string]
+_deflate_inflateZlib : string -> Result[string, string]
 _dt_add : (int, int, int, int) -> int
 _dt_diffDays : (int, int) -> int
 _dt_formatISODate : int -> string

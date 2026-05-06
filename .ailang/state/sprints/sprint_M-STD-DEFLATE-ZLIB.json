@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-STD-DEFLATE-ZLIB",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-05-06T06:03:46Z",
-  "design_doc": "design_docs/planned/v0_16_0/m-std-deflate-zlib.md",
-  "sprint_plan": "design_docs/planned/v0_16_0/m-std-deflate-zlib-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_16_x/m-std-deflate-zlib.md",
+  "sprint_plan": "design_docs/implemented/v0_16_x/m-std-deflate-zlib-sprint-plan.md",
   "github_issues": [
     223
   ],
@@ -30,32 +30,36 @@
         "make test passes",
         "make lint clean"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-06T08:15:00Z",
+      "completed": "2026-05-06T08:30:00Z",
+      "notes": "deflate.go (363 LOC) + deflate_test.go (340 LOC). All 18 deflate tests pass. Updated builtin_types.golden (288 signatures). Lint clean."
     },
     {
       "id": "M2_STDLIB_WRAPPER",
       "description": "Create std/deflate.ail with module declaration, import std/result, and four exported pure func declarations matching the std/gzip.ail shape exactly. Doc-comments must explain the raw vs zlib-wrapped pairs and call out concrete use cases (PDF FlateDecode -> use inflateZlib; raw deflate streams -> use inflate). Verify stdlib loader picks it up.",
       "estimated_loc": 30,
-      "dependencies": ["M1_BUILTINS_AND_TESTS"],
+      "dependencies": [
+        "M1_BUILTINS_AND_TESTS"
+      ],
       "acceptance_criteria": [
         "std/deflate.ail exports inflate, inflateZlib, deflate, deflateZlib as pure func",
         "Module loads without error: ailang on a one-liner that imports std/deflate resolves",
         "Doc-comments include 'use inflateZlib for PDF/HTTP, inflate for raw deflate' guidance",
         "make build && make install succeeds"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-06T08:30:00Z",
+      "completed": "2026-05-06T08:35:00Z",
+      "notes": "std/deflate.ail (~60 LOC) — embed picks it up via existing //go:embed *.ail glob. Verified end-to-end with round-trip program: deflateZlib + inflateZlib preserves input."
     },
     {
       "id": "M3_EXAMPLE_CHANGELOG_DOC_MOVE",
       "description": "Create examples/std_deflate_pdf_objstm.ail demonstrating PDF FlateDecode-style decompression (hand-rolled small zlib payload, decoded via inflateZlib, printed). Run make verify-examples. Add CHANGELOG.md entry under v0.16.0. Move design doc from design_docs/planned/v0_16_0/ to design_docs/implemented/v0_16_x/ and append an implementation report (status, LOC actual vs estimate, file paths, test coverage).",
       "estimated_loc": 50,
-      "dependencies": ["M2_STDLIB_WRAPPER"],
+      "dependencies": [
+        "M2_STDLIB_WRAPPER"
+      ],
       "acceptance_criteria": [
         "examples/std_deflate_pdf_objstm.ail exists and runs via make verify-examples",
         "CHANGELOG.md has v0.16.0 entry referencing std/deflate with the four function names and PDF FlateDecode use case",
@@ -63,10 +67,11 @@
         "Implementation report appended to moved doc (LOC actual vs estimate, files created/modified)",
         "Sprint plan also moved to design_docs/implemented/v0_16_x/"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-06T08:35:00Z",
+      "completed": "2026-05-06T08:50:00Z",
+      "notes": "Example std_deflate_pdf_objstm.ail decodes a hand-rolled FlateDecode payload (3 PDF annotation dicts) and passes verify-examples. CHANGELOG entry added under [Unreleased] (v0.16.0 target). Both design doc + sprint plan moved to design_docs/implemented/v0_16_x/ with implementation report appended (actual ~830 LOC vs 460 estimate)."
     }
-  ]
+  ],
+  "completed": "2026-05-06T08:50:00Z"
 }
