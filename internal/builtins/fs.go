@@ -436,4 +436,186 @@ func registerFS() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_removeFile: %v", err))
 	}
+
+	// ========================================================================
+	// M-AILANG-FS-RESULT (v0.16.0): Result-returning fs builtins
+	// ========================================================================
+	//
+	// Each registration below mirrors its panicking twin but returns
+	// Result[T, string] so agent runtimes can recover from syscall failures
+	// (missing parent dir, permission denied, sandbox violation) without
+	// crashing the agent process. See design_docs/planned/v0_16_0/
+	// m-ailang-fs-result.md for context.
+
+	// _fs_readFileResult
+	implReadFileResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "readFileResult", args)
+	}
+	typeReadFileResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(
+			T.App("Result", T.String(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_readFileResult", NumArgs: 1, IsPure: false, Effect: "FS",
+		Type: typeReadFileResult, Impl: implReadFileResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Read a file's contents as a UTF-8 string, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to the file to read"},
+			},
+			Returns: "Result[string, string] - Ok(contents) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_readFileResult("config.yaml")`, Description: "Returns Ok(contents) or Err(\"cannot read file: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_readFile for agent runtimes that need to recover from missing/unreadable files without crashing. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_readFile", "_fs_readFileBytes", "_fs_writeFileResult"},
+			Since:     "v0.16.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "read", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_readFileResult: %v", err))
+	}
+
+	// _fs_writeFileResult
+	implWriteFileResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "writeFileResult", args)
+	}
+	typeWriteFileResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.String()).Returns(
+			T.App("Result", T.Unit(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_writeFileResult", NumArgs: 2, IsPure: false, Effect: "FS",
+		Type: typeWriteFileResult, Impl: implWriteFileResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Write string content to a file, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to the file to write"},
+				{Name: "content", Description: "String content to write"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_writeFileResult("output.txt", "hello")`, Description: "Returns Ok(()) or Err(\"cannot write file: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_writeFile. Returns Err on missing parent dir, permission denied, sandbox violation, etc. instead of escaping as a runtime panic. File permissions: 0644.",
+			SeeAlso:   []string{"_fs_writeFile", "_fs_writeFileBytes", "_fs_readFileResult", "_fs_mkdirAllResult"},
+			Since:     "v0.16.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "write", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_writeFileResult: %v", err))
+	}
+
+	// _fs_appendFileResult
+	implAppendFileResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "appendFileResult", args)
+	}
+	typeAppendFileResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.String()).Returns(
+			T.App("Result", T.Unit(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_appendFileResult", NumArgs: 2, IsPure: false, Effect: "FS",
+		Type: typeAppendFileResult, Impl: implAppendFileResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Append string content to a file, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to the file to append to"},
+				{Name: "content", Description: "String content to append"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_appendFileResult("log.txt", "new entry\n")`, Description: "Returns Ok(()) or Err(\"cannot append to file: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_appendFile. Creates the file with 0644 permissions if it doesn't exist. Returns Err on permission denied, sandbox violation, etc.",
+			SeeAlso:   []string{"_fs_appendFile", "_fs_writeFileResult"},
+			Since:     "v0.16.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "append", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_appendFileResult: %v", err))
+	}
+
+	// _fs_removeFileResult
+	implRemoveFileResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "removeFileResult", args)
+	}
+	typeRemoveFileResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(
+			T.App("Result", T.Unit(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_removeFileResult", NumArgs: 1, IsPure: false, Effect: "FS",
+		Type: typeRemoveFileResult, Impl: implRemoveFileResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Remove a file or empty directory, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to remove"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_removeFileResult("/tmp/old.txt")`, Description: "Returns Ok(()) or Err(\"cannot remove file: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_removeFile. Returns Err if the file doesn't exist, directory not empty, permission denied, etc.",
+			SeeAlso:   []string{"_fs_removeFile", "_fs_exists"},
+			Since:     "v0.16.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "remove", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_removeFileResult: %v", err))
+	}
+
+	// _fs_mkdirAllResult
+	implMkdirAllResult := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "mkdirAllResult", args)
+	}
+	typeMkdirAllResult := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(
+			T.App("Result", T.Unit(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_mkdirAllResult", NumArgs: 1, IsPure: false, Effect: "FS",
+		Type: typeMkdirAllResult, Impl: implMkdirAllResult,
+		Metadata: &BuiltinMetadata{
+			Description: "Create a directory and all parent directories, returning Result instead of panicking on failure",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Directory path to create"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_fs_mkdirAllResult("a/b/c")`, Description: "Creates a/, a/b/, a/b/c/. Returns Ok(()) or Err(\"cannot create directory: ...\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_mkdirAll. No-op if the directory already exists. Returns Err on permission denied, name conflict with existing file, sandbox violation, etc. Directory permissions: 0755.",
+			SeeAlso:   []string{"_fs_mkdir", "_fs_mkdirAll"},
+			Since:     "v0.16.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "mkdir", "result", "safe"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_mkdirAllResult: %v", err))
+	}
 }

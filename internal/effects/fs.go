@@ -24,6 +24,16 @@ func init() {
 	RegisterOp("FS", "isDir", fsIsDir)
 	RegisterOp("FS", "isFile", fsIsFile)
 	RegisterOp("FS", "removeFile", fsRemoveFile)
+
+	// M-AILANG-FS-RESULT (v0.16.0): Result-returning variants for agent
+	// runtimes that need to recover from fs syscall failures without
+	// crashing. The void-returning variants above panic through the effect
+	// system; these wrap errors as Err(string).
+	RegisterOp("FS", "readFileResult", fsReadFileResult)
+	RegisterOp("FS", "writeFileResult", fsWriteFileResult)
+	RegisterOp("FS", "appendFileResult", fsAppendFileResult)
+	RegisterOp("FS", "removeFileResult", fsRemoveFileResult)
+	RegisterOp("FS", "mkdirAllResult", fsMkdirAllResult)
 }
 
 // fsReadFile implements FS.readFile(path: String) -> String
@@ -549,4 +559,133 @@ func fsRemoveFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	return &eval.UnitValue{}, nil
+}
+
+// ============================================================================
+// M-AILANG-FS-RESULT (v0.16.0): Result-returning variants
+// ============================================================================
+//
+// Each handler below mirrors its void-returning twin above but wraps syscall
+// failures as Err(message) using fsMakeErr/fsMakeOk instead of returning a
+// Go error (which AILANG turns into a runtime panic that escapes the effect
+// system). Agent runtimes that dispatch fs operations against user-supplied
+// paths should prefer these over the panicking variants.
+
+// fsReadFileResult implements FS.readFileResult(path: String) -> Result[String, String]
+func fsReadFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("readFileResult: expected 1 argument, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("readFileResult: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
+	}
+	return fsMakeOk(&eval.StringValue{Value: string(content)}), nil
+}
+
+// fsWriteFileResult implements FS.writeFileResult(path: String, content: String) -> Result[(), String]
+func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("writeFileResult: expected 2 arguments, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("writeFileResult: expected String for path, got %T", args[0])
+	}
+	contentVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("writeFileResult: expected String for content, got %T", args[1])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	if err := os.WriteFile(path, []byte(contentVal.Value), 0644); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}
+
+// fsAppendFileResult implements FS.appendFileResult(path: String, content: String) -> Result[(), String]
+func fsAppendFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("appendFileResult: expected 2 arguments, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("appendFileResult: expected String for path, got %T", args[0])
+	}
+	contentVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("appendFileResult: expected String for content, got %T", args[1])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
+	}
+	defer f.Close()
+	if _, err := f.WriteString(contentVal.Value); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}
+
+// fsRemoveFileResult implements FS.removeFileResult(path: String) -> Result[(), String]
+func fsRemoveFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("removeFileResult: expected 1 argument, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("removeFileResult: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot remove file: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}
+
+// fsMkdirAllResult implements FS.mkdirAllResult(path: String) -> Result[(), String]
+func fsMkdirAllResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("mkdirAllResult: expected 1 argument, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("mkdirAllResult: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot create directory: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
 }

@@ -97,3 +97,40 @@ export func isFile(path: string) -> bool ! {FS} = _fs_isFile(path)
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func removeFile(path: string) -> () ! {FS} = _fs_removeFile(path)
+
+-- ============================================================================
+-- Result-returning variants (M-AILANG-FS-RESULT, since v0.16.0)
+-- ============================================================================
+-- These wrap fs syscall failures as Err(string) instead of escaping as a
+-- runtime panic. Use these in agent runtimes or anywhere a fs operation may
+-- fail in user-supplied paths and the caller wants to recover gracefully.
+
+-- Read file contents as a UTF-8 string, returning Result instead of panicking
+-- @example match readFileResult("config.yaml") { Ok(c) => c, Err(_) => "" }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readFileResult(path: string) -> Result[string, string] ! {FS} = _fs_readFileResult(path)
+
+-- Write string content to a file, returning Result instead of panicking
+-- @example match writeFileResult("out.txt", "hi") { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func writeFileResult(path: string, content: string) -> Result[(), string] ! {FS} = _fs_writeFileResult(path, content)
+
+-- Append string content to a file, returning Result instead of panicking
+-- @example match appendFileResult("log.txt", "entry\n") { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func appendFileResult(path: string, content: string) -> Result[(), string] ! {FS} = _fs_appendFileResult(path, content)
+
+-- Remove a file, returning Result instead of panicking
+-- @example match removeFileResult("/tmp/old.txt") { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func removeFileResult(path: string) -> Result[(), string] ! {FS} = _fs_removeFileResult(path)
+
+-- Create directory and all parent directories, returning Result instead of panicking
+-- @example match mkdirAllResult("a/b/c") { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func mkdirAllResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirAllResult(path)
