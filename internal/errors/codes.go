@@ -90,6 +90,10 @@ const (
 	// MOD012 indicates implicit module (file without module declaration)
 	MOD012 = "MOD012"
 
+	// MOD013 indicates two packages share the same module_prefix, causing
+	// ambiguous import resolution when one of them is the root project
+	MOD013 = "MOD013"
+
 	// ============================================================================
 	// Loader Errors (LDR###)
 	// ============================================================================

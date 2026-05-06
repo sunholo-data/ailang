@@ -15,9 +15,14 @@ import (
 var currentPackageManifest *pkg.PackageManifest
 
 // currentModulePrefixMap holds module_prefix mappings for all loaded packages.
-// Set by tryLoadPackageResolver, read by MOD010 validation.
+// Set by tryLoadPackageResolver, read by MOD010 validation and MOD013 detection.
 // Key: package name (e.g., "sunholo/docparse"), Value: module_prefix (e.g., "docparse").
 var currentModulePrefixMap map[string]string
+
+// currentRootPkgName is the package name of the root project (from ailang.toml).
+// Set by tryLoadPackageResolver, read by MOD013 detection to identify which entry
+// in currentModulePrefixMap belongs to the root vs a dependency.
+var currentRootPkgName string
 
 // tryLoadPackageResolver attempts to set up a package resolver from
 // ailang.toml + ailang.lock in the given directory. Returns nil if
@@ -37,6 +42,7 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 		return nil
 	}
 	currentPackageManifest = manifest
+	currentRootPkgName = manifest.Package.Name
 
 	// Build module_prefix map from current package and dependencies
 	currentModulePrefixMap = make(map[string]string)

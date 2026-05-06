@@ -181,3 +181,89 @@ func TestDetectModulePathCollisions_EmptyFilePathFallback(t *testing.T) {
 		t.Fatal("expected collision when two empty-path modules share a declared name")
 	}
 }
+
+// --- MOD013: module_prefix overlap tests ---
+
+func TestDetectModulePrefixOverlap_SamePrefixRootAndDep(t *testing.T) {
+	// Motoko scenario: root "local/motoko_agent" and dep "sunholo/motoko_core"
+	// both use module_prefix = "src". Must emit MOD013.
+	prefixMap := map[string]string{
+		"local/motoko_agent":  "src",
+		"sunholo/motoko_core": "src",
+	}
+	err := detectModulePrefixOverlap(prefixMap, "local/motoko_agent")
+	if err == nil {
+		t.Fatal("expected MOD013 error, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "MOD013") {
+		t.Errorf("error should mention MOD013, got: %s", msg)
+	}
+	if !strings.Contains(msg, "local/motoko_agent") {
+		t.Errorf("error should name root package, got: %s", msg)
+	}
+	if !strings.Contains(msg, "sunholo/motoko_core") {
+		t.Errorf("error should name dep package, got: %s", msg)
+	}
+	if !strings.Contains(msg, `"src"`) {
+		t.Errorf("error should show the shared prefix, got: %s", msg)
+	}
+}
+
+func TestDetectModulePrefixOverlap_DifferentPrefixes(t *testing.T) {
+	// Root and dep have different prefixes — no overlap, no error.
+	prefixMap := map[string]string{
+		"local/my_project": "src",
+		"sunholo/some_dep": "lib",
+	}
+	if err := detectModulePrefixOverlap(prefixMap, "local/my_project"); err != nil {
+		t.Fatalf("different prefixes should not trigger MOD013: %v", err)
+	}
+}
+
+func TestDetectModulePrefixOverlap_RootOnlyPrefix(t *testing.T) {
+	// Root has a prefix, no deps share it — no error.
+	prefixMap := map[string]string{
+		"local/my_project": "src",
+	}
+	if err := detectModulePrefixOverlap(prefixMap, "local/my_project"); err != nil {
+		t.Fatalf("single-owner prefix should not trigger MOD013: %v", err)
+	}
+}
+
+func TestDetectModulePrefixOverlap_TwoDepsSharePrefix_NoRoot(t *testing.T) {
+	// Two deps share a prefix but neither is the root — no MOD013.
+	// (Root not in prefix map at all means root has no module_prefix.)
+	prefixMap := map[string]string{
+		"sunholo/dep_a": "shared",
+		"sunholo/dep_b": "shared",
+	}
+	if err := detectModulePrefixOverlap(prefixMap, "local/my_root"); err != nil {
+		t.Fatalf("dep-only prefix conflict should not trigger MOD013 (root uninvolved): %v", err)
+	}
+}
+
+func TestDetectModulePrefixOverlap_EmptyMap(t *testing.T) {
+	if err := detectModulePrefixOverlap(map[string]string{}, "local/root"); err != nil {
+		t.Fatalf("empty map should not error: %v", err)
+	}
+}
+
+func TestDetectModulePrefixOverlap_ErrorMessageContainsFixHints(t *testing.T) {
+	// Error message must include all three fix options.
+	prefixMap := map[string]string{
+		"local/root": "src",
+		"ext/dep":    "src",
+	}
+	err := detectModulePrefixOverlap(prefixMap, "local/root")
+	if err == nil {
+		t.Fatal("expected MOD013 error")
+	}
+	msg := err.Error()
+	// All three fix hints must be present.
+	for _, hint := range []string{"Remove", "Change", "pkg/"} {
+		if !strings.Contains(msg, hint) {
+			t.Errorf("error message missing fix hint %q: %s", hint, msg)
+		}
+	}
+}

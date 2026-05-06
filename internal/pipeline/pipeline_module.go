@@ -129,6 +129,19 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		return result, err
 	}
 
+	// MOD013: Detect module_prefix overlap between root project and a dependency.
+	//
+	// When the root project and a dep share the same module_prefix (e.g. both
+	// use module_prefix = "src"), imports of root-only modules like rpc.ail can
+	// silently cross the package boundary — the compiler strips the shared prefix
+	// and constructs a pkg/-qualified path that points at the dep instead of the
+	// root, producing a confusing "not exported by package" error with no pointer
+	// to the underlying ambiguity.
+	if err := detectModulePrefixOverlap(currentModulePrefixMap, currentRootPkgName); err != nil {
+		pipelineSpan.RecordError(err)
+		return result, err
+	}
+
 	// Phase 2: Topological sort
 	start = time.Now()
 	_, topoSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.topo_sort")
@@ -547,6 +560,78 @@ func detectModulePathCollisions(modules map[string]*loader.LoadedModule) error {
 		if err := checkCollision(e); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// detectModulePrefixOverlap returns an error (MOD013) when the root project and
+// one or more dependency packages share the same module_prefix value.
+//
+// When root and dep share module_prefix = "src", imports of root-only modules
+// (e.g. rpc.ail) silently cross the package boundary: the compiler strips the
+// shared prefix and builds a pkg/-qualified path that resolves to the dep instead
+// of the root, yielding an opaque "not exported by package" error with no pointer
+// to the ambiguity. The motoko_agent scenario (root + sunholo/motoko_core both
+// using module_prefix = "src") is the canonical reproduction.
+//
+// Only fires when the root package is involved in the overlap — two deps sharing
+// a prefix without the root is allowed (they import each other via pkg/ explicitly).
+func detectModulePrefixOverlap(prefixMap map[string]string, rootPkgName string) error {
+	if rootPkgName == "" || len(prefixMap) == 0 {
+		return nil
+	}
+
+	// Group package names by their module_prefix value.
+	byPrefix := make(map[string][]string)
+	for pkg, prefix := range prefixMap {
+		if prefix != "" {
+			byPrefix[prefix] = append(byPrefix[prefix], pkg)
+		}
+	}
+
+	for prefix, pkgs := range byPrefix {
+		if len(pkgs) < 2 {
+			continue
+		}
+		// Only fire when the root package is one of the claimants.
+		rootInGroup := false
+		for _, p := range pkgs {
+			if p == rootPkgName {
+				rootInGroup = true
+				break
+			}
+		}
+		if !rootInGroup {
+			continue
+		}
+
+		// Collect the dep names (everything except the root) for the message.
+		deps := make([]string, 0, len(pkgs)-1)
+		for _, p := range pkgs {
+			if p != rootPkgName {
+				deps = append(deps, p)
+			}
+		}
+		sort.Strings(deps)
+
+		return fmt.Errorf(
+			"Error MOD013: ambiguous module ownership under shared module_prefix\n\n"+
+				"  Root project:  %s\n"+
+				"  Dependency:    %s\n"+
+				"  Shared prefix: %q\n\n"+
+				"  Both the root project and the dependency use module_prefix = %q.\n"+
+				"  Imports of root-only modules (e.g. `import src/core/rpc`) can silently\n"+
+				"  cross the package boundary and resolve against the dep instead of the root.\n\n"+
+				"  Fix one of:\n"+
+				"    1. Remove %s from your [dependencies] if your project IS\n"+
+				"       the canonical source of those modules.\n"+
+				"    2. Change one side's module_prefix to a distinct value (e.g. rename\n"+
+				"       the dep's prefix from %q to a longer, unique segment).\n"+
+				"    3. Use explicit pkg/ imports in extension packages that need the dep:\n"+
+				"       `import pkg/%s/core/tool_contract (...)`",
+			rootPkgName, strings.Join(deps, ", "), prefix, prefix,
+			strings.Join(deps, " or "), prefix, strings.Join(deps, "/"),
+		)
 	}
 	return nil
 }
