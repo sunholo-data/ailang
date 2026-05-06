@@ -113,10 +113,15 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 		handler = client.NewHandler(model.APIName, opts...)
 
 	case ai.ProviderOpenAI:
-		if apiKey == "" {
-			return fmt.Errorf("%s environment variable required for model %s", model.EnvVar, aiModel)
+		customBaseURL := strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
+		if apiKey == "" && customBaseURL == "" {
+			return fmt.Errorf("%s environment variable required for model %s (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)", model.EnvVar, aiModel)
 		}
-		client := openai.NewClient(apiKey)
+		var clientOpts []openai.ClientOption
+		if customBaseURL != "" {
+			clientOpts = append(clientOpts, openai.WithBaseURL(customBaseURL))
+		}
+		client := openai.NewClient(apiKey, clientOpts...)
 		handler = client.NewHandler(model.APIName, opts...)
 
 	case ai.ProviderGoogle:

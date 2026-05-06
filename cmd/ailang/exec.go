@@ -350,10 +350,15 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 	switch provider {
 	case "openai":
 		apiKey := os.Getenv("OPENAI_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("OPENAI_API_KEY environment variable required")
+		customBaseURL := strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
+		if apiKey == "" && customBaseURL == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)")
 		}
-		client = openai.NewClient(apiKey)
+		var clientOpts []openai.ClientOption
+		if customBaseURL != "" {
+			clientOpts = append(clientOpts, openai.WithBaseURL(customBaseURL))
+		}
+		client = openai.NewClient(apiKey, clientOpts...)
 	case "anthropic":
 		apiKey := os.Getenv("ANTHROPIC_API_KEY")
 		if apiKey == "" {
