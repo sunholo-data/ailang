@@ -1,10 +1,13 @@
 # M-AILANG-FS-RESULT — Result-returning std/fs builtins
 
-**Status**: Planned
+**Status**: Implemented (2026-05-06)
 **Target**: v0.16.0
 **Priority**: P1 (medium — agent-runtime safety)
-**Estimated**: 0.5 day
+**Estimated**: 0.5 day (actual: ~30 min single session)
 **Dependencies**: None
+**Implementation commits**:
+- AILANG: `90cc85ad` (5 builtins + Go handlers + std/fs exports + 11 Go tests)
+- motoko_agent: `be10cab` (tool_runtime.ail dispatcher migration + regression smoke)
 
 **Bug Report**: Surfaced during M-MOTOKO-RPC-LOOP-FULL-MIGRATION live testing
 ([motoko_agent commit 06f74e5](https://github.com/sunholo-data/motoko_agent/commit/06f74e5))
