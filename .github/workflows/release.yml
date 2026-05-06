@@ -198,7 +198,7 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
         VERSION: ${{ steps.get_version.outputs.VERSION }}
       run: |
-        go build -v -ldflags "-X main.Version=${VERSION}" -o bin/${{ matrix.binary_name }} ./cmd/ailang
+        go build -v -ldflags "-X github.com/sunholo-data/ailang/internal/version.Version=${VERSION}" -o bin/${{ matrix.binary_name }} ./cmd/ailang
 
     - name: Create archive (Unix)
       if: matrix.os != 'windows-latest'
