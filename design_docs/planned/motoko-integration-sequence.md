@@ -34,16 +34,16 @@ Each of these has now (or will soon have) a corresponding upstream fix. This doc
 | **M-AI-OPENROUTER** | [implemented/v0_16_x/m-ai-openrouter-provider.md](../implemented/v0_16_x/m-ai-openrouter-provider.md) | 0 | ✅ Implemented (v0.16.x) — wired into `ailang run` (commit `67254452`, 2026-05-04) | — |
 | **M-EFFECT-REFINEMENT Phase 1** | [implemented/v0_15_x/m-effect-refinement-phase1.md](../implemented/v0_15_x/m-effect-refinement-phase1.md) | 0/parallel | ✅ Implemented (v0.15.0; Rand pilot; AI port via M-AI-EFFECT-MODES below) | None blocking |
 | **M-AI-EFFECT-MODES** | [implemented/v0_15_x/m-ai-effect-modes.md](../implemented/v0_15_x/m-ai-effect-modes.md) | 0/parallel | ✅ Implemented (v0.15.0) — bare `!{AI}` desugars to `!{AI[mode=fixed]}`; `!{AI[mode=routeable]}` skips `--allow-routing` gate at type level. Validates D12. | M-EFFECT-REFINEMENT Phase 1 |
-| **M-AI-PROVIDER-CONFIG** | [planned/v0_15_0/m-ai-provider-config.md](v0_15_0/m-ai-provider-config.md) | 1 | ✅ **Code + docs landed** (M1-M4, 2026-05-04). 95 tests passing. Awaiting release. | None |
+| **M-AI-PROVIDER-CONFIG** | [implemented/v0_15_0/m-ai-provider-config.md](../implemented/v0_15_0/m-ai-provider-config.md) | 1 | ✅ **Shipped (v0.15.0, 2026-05-04)** — 95 tests, config-driven `[[ai_provider]]` TOML schema live | None |
 | **Reference package** | [examples/configdriven_provider_demo/](../../examples/configdriven_provider_demo/) | 1 | ✅ Shipped (in-repo example). External `ailang-packages` package can follow if needed. | M-AI-PROVIDER-CONFIG schema |
-| **M-AI-EFFECT-MODES-FOLLOWUPS** | [planned/v0_15_0/m-ai-effect-modes-followups.md](v0_15_0/m-ai-effect-modes-followups.md) | 1/parallel | 🟢 Planned, optional bundle for v0.15.0 (handler defence + replay-only runtime + byok stub + replay-engine pin) | M-AI-EFFECT-MODES |
-| **v0.15.0 release** | [release-manager skill](/.claude/skills/release-manager) | 1 | 🔵 **Ready** — M-AI-PROVIDER-CONFIG complete; M-AI-EFFECT-MODES-FOLLOWUPS optional add-on | M-AI-PROVIDER-CONFIG (✅) |
-| **M-AI-STREAMING-HELPER** | [planned/v0_17_0/m-ai-streaming-helper.md](v0_17_0/m-ai-streaming-helper.md) | 1 | ✅ **Code + docs landed** (M1-M3, 2026-05-04). Pulled forward from v0.17.0 to v0.15.0 because all prerequisites had shipped. ~700 LOC, 12 tests passing. Awaiting release. | v0.15.0 release |
-| **M-EXTERNAL-CONSUMER-DX** | [planned/v0_17_0/m-external-consumer-dx.md](v0_17_0/m-external-consumer-dx.md) | 2 | 🟢 Planned | None hard |
-| **M-AI-TOOL-LOOP** | [implemented/v0_17_x/m-ai-tool-loop.md](../implemented/v0_17_x/m-ai-tool-loop.md) | 2 | ✅ **Implemented** (8/8 milestones, 2026-05-05). std/ai gains step / runTools / callResult / callJsonResult + 5 record types (AIError, Message, ToolCall, ToolSchema, StepResult). Real Step impls in anthropic / gemini / openai / openrouter; ollama rejects tools at boundary. ~6h wall-clock vs 7d plan estimate (parallel sub-agents on M2/M3/M4). Closes the last upstream gap that motoko_agent's tool_contract.ail / tool_runtime.ail filled. | None hard |
-| **v0.17.0 release** | [release-manager skill](/.claude/skills/release-manager) | 2 | ⏳ After M-EXTERNAL-CONSUMER-DX (M-AI-TOOL-LOOP ✅, M-AI-STREAMING-HELPER ✅) | Phase 2 milestones |
+| **M-AI-EFFECT-MODES-FOLLOWUPS** | [planned/v0_15_0/m-ai-effect-modes-followups.md](v0_15_0/m-ai-effect-modes-followups.md) | 1/parallel | 🟢 Deferred — optional bundle (handler defence + replay-only runtime + byok stub) not required for motoko integration | M-AI-EFFECT-MODES |
+| **v0.15.0 release** | [release-manager skill](/.claude/skills/release-manager) | 1 | ✅ **Shipped (2026-05-04)** | M-AI-PROVIDER-CONFIG (✅) |
+| **M-AI-STREAMING-HELPER** | [implemented/v0_15_0/m-ai-streaming-helper.md](../implemented/v0_15_0/m-ai-streaming-helper.md) | 1 | ✅ **Shipped (v0.15.0, 2026-05-04)** — core streaming primitives; `callStream` accumulator helper added v0.15.1 | v0.15.0 release |
+| **M-EXTERNAL-CONSUMER-DX** | [planned/v0_17_0/m-external-consumer-dx.md](v0_17_0/m-external-consumer-dx.md) | 2 | 🔵 **In progress** — OPENAI local endpoint relax shipped v0.16.2; MOD013 + effect-row provenance + error_codes.json in Unreleased targeting v0.17.0 | None hard |
+| **M-AI-TOOL-LOOP** | [implemented/v0_17_x/m-ai-tool-loop.md](../implemented/v0_17_x/m-ai-tool-loop.md) | 2 | ✅ **Merged to dev, targeting v0.17.0** — `step` / `runTools` / `callResult` / `callJsonResult` + 5 types. Closes the last gap motoko_agent's hand-rolled `tool_contract.ail` filled. | None hard |
+| **v0.17.0 release** | [release-manager skill](/.claude/skills/release-manager) | 2 | ⏳ After M-EXTERNAL-CONSUMER-DX completes (M-AI-TOOL-LOOP ✅, M-AI-STREAMING-HELPER ✅) | Phase 2 milestones |
 | **PR-A: drop fork code** (arniwesth/ailang) | This doc § Phase 3 | 3 | ⏳ After v0.17.0 ships | Phase 1 + Phase 2 |
-| **PR-B: migrate consumer** (arniwesth/motoko_agent) | This doc § Phase 3 | 3 | ⏳ After v0.17.0 ships | Phase 1 + Phase 2, PR-A optional |
+| **PR-B: migrate consumer** (arniwesth/motoko_agent) | This doc § Phase 3 | 3 | 🔵 **In progress (2026-05-07)** — `ailang-tool-loop-migration` (PR #4) + `motoko-dx-compaction-pending` active. EditFile fix, DP7 verifier gate, `on_describe_tools` hook landed. Not waiting for v0.17.0 — incremental migration under way. | Phase 1 + Phase 2, PR-A optional |
 
 **Legend**: ✅ done · 🟢 planned (active) · ⏳ blocked · 🔴 risk
 
@@ -237,4 +237,4 @@ After arni is on upstream, additional items become tractable:
 ---
 
 **Document created**: 2026-05-04
-**Last updated**: 2026-05-04
+**Last updated**: 2026-05-07
