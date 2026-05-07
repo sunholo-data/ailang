@@ -54,12 +54,19 @@ type extRegistryTemplateData struct {
 }
 
 // deriveShortName converts a package ref to a short identifier.
-// "motoko-ext-exa-search@0.4.1" → "exa_search"
-// "motoko-ext-mcp" → "mcp"
+// "motoko-ext-exa-search@0.4.1" → "exa_search"       (unvendored, hyphenated)
+// "sunholo/motoko_ext_exa_search@0.4.1" → "exa_search" (vendor-prefixed, underscored)
+// "sunholo/motoko_ext_abi@1.0.0" → "abi"
 // "my-tool" → "my_tool"
 func deriveShortName(pkgRef string) string {
 	name := stripVersion(pkgRef)
+	// Strip vendor prefix (vendor/name → name) for packages using vendor/name format.
+	if i := strings.IndexByte(name, '/'); i >= 0 {
+		name = name[i+1:]
+	}
+	// Strip motoko-ext- prefix (hyphenated) or motoko_ext_ prefix (underscored).
 	name = strings.TrimPrefix(name, "motoko-ext-")
+	name = strings.TrimPrefix(name, "motoko_ext_")
 	return strings.ReplaceAll(name, "-", "_")
 }
 

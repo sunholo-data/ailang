@@ -217,11 +217,17 @@ packages = []
 
 func TestDeriveShortName(t *testing.T) {
 	cases := []struct{ input, want string }{
+		// Unvendored (legacy / registry packages with flat names)
 		{"motoko-ext-exa-search@0.4.1", "exa_search"},
 		{"motoko-ext-mcp", "mcp"},
 		{"motoko-ext-compaction@0.2.0", "compaction"},
 		{"my-tool", "my_tool"},
 		{"simple", "simple"},
+		// Vendor-prefixed with underscores (ailang.toml requires vendor/name; module paths can't have hyphens)
+		{"sunholo/motoko_ext_test_dummy@0.1.0", "test_dummy"},
+		{"sunholo/motoko_ext_exa_search@0.4.1", "exa_search"},
+		{"sunholo/motoko_ext_abi@1.0.0", "abi"},
+		{"acme/my_plugin@2.0.0", "my_plugin"},
 	}
 	for _, tc := range cases {
 		got := deriveShortName(tc.input)
