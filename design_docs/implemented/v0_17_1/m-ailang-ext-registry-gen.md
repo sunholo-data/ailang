@@ -1,6 +1,6 @@
 # M-AILANG-EXT-REGISTRY-GEN: `ailang generate-extension-registry` command
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.17.0
 **Priority**: P1 — unblocks motoko package ecosystem
 **Estimated**: 2-3 days (~200 LOC)
