@@ -5,6 +5,7 @@
 **Priority**: P1 (High — strategic measurement for cheap-model + tuned-harness vs frontier-model thesis; first AILANG-native agent benchmarked alongside third-party CLIs)
 **Estimated**: 3 days (~16 hours: 8h Pillar 1 / 4h Pillar 2 / 4h fixtures + tests + docs)
 **Dependencies**:
+- ⚠️ **BLOCKING — M-MOTOKO-EVAL-INSTRUMENTATION** ([motoko_agent design doc](https://github.com/sunholo-data/motoko_agent/blob/motoko-dx-compaction-pending/design_docs/planned/m-motoko-eval-instrumentation.md)) — motoko's session JSONL must emit per-step `tokens` + `cost_usd` and a terminal `run_summary` event. Without this, `Result.CostUSD` and `Result.InputTokens`/`Result.OutputTokens` populate as zero, the leaderboard shows motoko as "free" and "tokenless", and the threshold-measurement experiment that is the strategic point of this sprint is meaningless. Estimated 0.5–1 day in motoko_agent; lands on PR #6 (`motoko-dx-compaction-pending` branch).
 - ✅ EXECUTOR_SHAPE.md two-pillar contract (formalized in v0.15.0 by [m-exec-expand-codex-opencode](../../implemented/v0_15_0/m-exec-expand-codex-opencode.md))
 - ✅ Pi adapter pattern ([M-EXEC-PI](../../implemented/v0_14_2/m-exec-pi-harness.md)) — closest analogue (multi-provider CLI, no Go toolchain inside the container)
 - ✅ M-AI-OPENROUTER (merged v0.14.x) — motoko routes through OpenRouter, so cost-normalization path exists

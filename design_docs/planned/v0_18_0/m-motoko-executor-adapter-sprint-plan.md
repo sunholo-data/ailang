@@ -7,6 +7,8 @@
 
 > This plan drives execution against the design doc. All architectural decisions, axiom scoring, risks, and rationale live there. This file is the milestone-by-milestone schedule.
 
+> **⚠️ BLOCKING PREREQUISITE**: This sprint cannot start until [M-MOTOKO-EVAL-INSTRUMENTATION](https://github.com/sunholo-data/motoko_agent/blob/motoko-dx-compaction-pending/design_docs/planned/m-motoko-eval-instrumentation.md) lands in motoko_agent (PR #6). Without it, the adapter can populate Result.Output but Result.CostUSD/InputTokens/OutputTokens stay zero — making the threshold-measurement experiment that is the strategic point of this sprint useless. Sequence: motoko-side ~0.5–1 day, then this sprint ~3 days.
+
 ---
 
 ## Why this sprint, why now
@@ -160,6 +162,7 @@ Strict serial order — each milestone unblocks the next. No parallel tracks.
 
 | Dependency | Status | Owner | Notes |
 |---|---|---|---|
+| **M-MOTOKO-EVAL-INSTRUMENTATION** (motoko-side JSONL schema v1) | ⚠️ **BLOCKING — not started** | sunholo-data/motoko_agent | Lands on PR #6 (`motoko-dx-compaction-pending`). Adds per-step `tokens`+`cost_usd` + terminal `run_summary` event. ~0.5–1 day. **This sprint cannot start until that lands.** See [m-motoko-eval-instrumentation.md](https://github.com/sunholo-data/motoko_agent/blob/motoko-dx-compaction-pending/design_docs/planned/m-motoko-eval-instrumentation.md) |
 | motoko_agent fork stable on AILANG dev | ✅ green | sunholo-data/motoko_agent | PR #6 open at `arniwesth/motoko_agent`; all today's fixes flowed through |
 | 9 motoko-ext-* packages registry-published | ✅ done | sunholo-data/ailang-packages | abi 1.0.0 + 8 leaf packages including a2a@0.1.1 (today) |
 | ailang-multivac dev pipeline access | ⚠️ verify | mark | dev project Cloud Build + Artifact Registry must be writable for sunholo-voight-kampff |
