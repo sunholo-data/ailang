@@ -47,6 +47,28 @@ ailang serve-api ./api/ --port 8080
 ailang serve-api ./api/ --port 8080 --frontend ./ui
 ```
 
+:::caution basePath = current working directory
+
+`serve-api` derives the **basePath** (the under-which-modules-register filter) from the **current working directory**, not from the path argument. A module file is registered as a route only if it lives under the CWD on disk *and* its declared module path resolves to that location.
+
+This matters for hosted packages whose modules use a canonical namespaced declaration like `module sunholo/<pkg>/<module>` (the convention used across `ailang-packages/packages/*`). If you run from outside the package directory:
+
+```bash
+# ❌ basePath = /Users/me/elsewhere; declared "sunholo/<pkg>/<module>"
+#    resolves to the package source under ailang-packages/, which is
+#    outside basePath → silently filtered (logged as "Skipped: ...").
+cd /Users/me/elsewhere
+ailang serve-api /abs/path/to/ailang-packages/packages/<pkg>/
+
+# ✅ basePath = /abs/path/to/ailang-packages/packages/<pkg>/
+cd /abs/path/to/ailang-packages/packages/<pkg>/
+ailang serve-api .
+```
+
+`cd` into the package directory first, or use a `module main` (flat) declaration if you need to serve from elsewhere.
+
+:::
+
 ---
 
 ## How It Works
