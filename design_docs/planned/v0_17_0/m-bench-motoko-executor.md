@@ -6,8 +6,12 @@ type: project
 
 # M-BENCH-MOTOKO: Motoko Agent as a Benchmark Executor
 
-**Status**: Planned
-**Target**: v0.17.0
+> **⚠️ SUPERSEDED (2026-05-07)** by [`design_docs/planned/v0_18_0/m-motoko-executor-adapter.md`](../v0_18_0/m-motoko-executor-adapter.md).
+>
+> This doc is preserved for historical context — it captures the original strategic framing and the BLOCKING dependency on motoko stdlib catch-up (now resolved via M-MOTOKO-EXTENSION-INTEGRATION shipped 2026-05-07). The replacement doc reframes the work strictly around the EXECUTOR_SHAPE.md two-pillar contract (formalized v0.15.0, post-this-doc) and drops the now-unnecessary headless-mode fork-side spec.
+
+**Status**: Superseded
+**Target**: v0.17.0 (never shipped — see superseding doc for v0.18.0 plan)
 **Priority**: P2 (Medium — closes the loop on dogfooding by benchmarking the first AILANG-native coding agent against the same task suite as Claude/Gemini/Codex; surfaces self-referential signal that no other executor can produce)
 **Estimated**: 4-5 days (~26-32 hours) for local; +2 days for cloud
 **Dependencies**:
