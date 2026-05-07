@@ -15,7 +15,7 @@ COVERAGE_THRESHOLD := 29
 test-coverage: ## Run tests with coverage
 	@echo "Running tests with coverage..."
 	@mkdir -p $(COVERAGE_DIR)
-	@$(GOTEST) -v -coverprofile=$(COVERAGE_FILE) -covermode=atomic $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+	@$(GOTEST) -v -coverprofile=$(COVERAGE_FILE) -covermode=atomic $$($(GOCMD) list -f '{{if .TestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v /scripts | grep -v /examples/agents)
 	@echo "$(GREEN)$(CHECKMARK) Coverage report generated$(RESET)"
 
 # Display quick coverage badge
