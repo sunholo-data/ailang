@@ -126,6 +126,7 @@ func printHelp() {
 	fmt.Printf("  %s              Add dependency (--path, --git, or --registry)\n", cyan("add [flags]"))
 	fmt.Printf("  %s                       Resolve dependencies, generate lockfile\n", cyan("lock"))
 	fmt.Printf("  %s                       Show dependency tree\n", cyan("tree"))
+	fmt.Printf("  %s  Emit static extension dispatch file from [extensions]\n", cyan("generate-extension-registry"))
 	fmt.Println()
 	fmt.Println("Package Coordination:")
 	fmt.Printf("  %s  Emit upgrade-available message\n", cyan("pkg notify-upgrade <pkg>@<ver>"))

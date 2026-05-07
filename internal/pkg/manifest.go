@@ -16,15 +16,40 @@ const ManifestFile = "ailang.toml"
 
 // PackageManifest represents the contents of an ailang.toml file.
 type PackageManifest struct {
-	Package      PackageInfo            `toml:"package"`
-	Exports      ExportConfig           `toml:"exports"`
-	Dependencies map[string]Dependency  `toml:"dependencies"`
-	DevDeps      map[string]Dependency  `toml:"dependencies_dev"`
-	Effects      EffectConfig           `toml:"effects"`
-	Metadata     map[string]interface{} `toml:"metadata"`
-	Stability    StabilityConfig        `toml:"stability"`
-	Cascade      CascadeConfig          `toml:"cascade"`     // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
-	AIProviders  []AIProviderSpec       `toml:"ai_provider"` // M-AI-PROVIDER-CONFIG (v0.16.0); see internal/pkg/ai_provider.go
+	Package      PackageInfo             `toml:"package"`
+	Exports      ExportConfig            `toml:"exports"`
+	Dependencies map[string]Dependency   `toml:"dependencies"`
+	DevDeps      map[string]Dependency   `toml:"dependencies_dev"`
+	Effects      EffectConfig            `toml:"effects"`
+	Metadata     map[string]interface{}  `toml:"metadata"`
+	Stability    StabilityConfig         `toml:"stability"`
+	Cascade      CascadeConfig           `toml:"cascade"`     // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
+	AIProviders  []AIProviderSpec        `toml:"ai_provider"` // M-AI-PROVIDER-CONFIG (v0.16.0); see internal/pkg/ai_provider.go
+	Extensions   ExtensionRegistryConfig `toml:"extensions"`  // M-AILANG-EXT-REGISTRY-GEN (v0.17.1)
+}
+
+// ExtensionRegistryConfig holds the optional [extensions] section in ailang.toml.
+// When non-empty, "ailang generate-extension-registry" reads this to emit a static
+// dispatch file that wires the listed extension packages into a resolve() function.
+//
+// Example:
+//
+//	[extensions]
+//	packages      = ["motoko-ext-compaction@0.2.0", "motoko-ext-exa-search@0.4.1"]
+//	config_import = "src/core/config.RuntimeConfig"
+//	hooks_import  = "src/core/ext/types.ExtensionHooks"
+//	output        = "src/core/ext/registry_generated.ail"
+type ExtensionRegistryConfig struct {
+	// Packages lists extension packages to wire in, each pinned with @version.
+	Packages []string `toml:"packages"`
+	// ConfigImport is the "module/path.TypeName" of the config type passed to each extension.
+	ConfigImport string `toml:"config_import"`
+	// HooksImport is the "module/path.TypeName" of the hooks return type.
+	HooksImport string `toml:"hooks_import"`
+	// Output is the path for the generated file (default: "registry_generated.ail").
+	Output string `toml:"output"`
+	// ModuleName overrides the generated module declaration (default: derived from Output path).
+	ModuleName string `toml:"module_name"`
 }
 
 // CascadeConfig holds the optional [cascade] section in ailang.toml.
@@ -247,6 +272,16 @@ func (m *PackageManifest) Validate() error {
 	// Validate [[ai_provider]] blocks (M-AI-PROVIDER-CONFIG, v0.16.0)
 	if err := validateAIProviders(m.AIProviders); err != nil {
 		return err
+	}
+
+	// Validate [extensions] block (M-AILANG-EXT-REGISTRY-GEN, v0.17.1)
+	if len(m.Extensions.Packages) > 0 {
+		if m.Extensions.ConfigImport == "" {
+			return fmt.Errorf("[extensions].config_import is required when packages are listed")
+		}
+		if m.Extensions.HooksImport == "" {
+			return fmt.Errorf("[extensions].hooks_import is required when packages are listed")
+		}
 	}
 
 	return nil

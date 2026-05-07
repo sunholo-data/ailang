@@ -374,6 +374,12 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "generate-extension-registry":
+		if err := extRegistryGenCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "pkg-docs":
 		if err := pkgDocsCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

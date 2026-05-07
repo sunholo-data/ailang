@@ -465,6 +465,135 @@ func TestManifest_MapModuleToImportPath(t *testing.T) {
 // (M-PKG-AUTONOMOUS-CASCADE-SAFE M3) round-trips through TOML and that
 // the EffectiveMaxCostUSD helper applies the default when the section
 // is absent or set to a non-positive value.
+func TestExtensionRegistryConfig_Parse(t *testing.T) {
+	tomlInput := `[package]
+name = "vendor/myapp"
+version = "0.1.0"
+edition = "2025"
+
+[extensions]
+packages      = ["motoko-ext-compaction@0.2.0", "motoko-ext-exa-search@0.4.1"]
+config_import = "src/core/config.RuntimeConfig"
+hooks_import  = "src/core/ext/types.ExtensionHooks"
+output        = "src/core/ext/registry_generated.ail"
+`
+	tmp := t.TempDir() + "/ailang.toml"
+	if err := os.WriteFile(tmp, []byte(tomlInput), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	m, err := LoadManifestFile(tmp)
+	if err != nil {
+		t.Fatalf("LoadManifestFile: %v", err)
+	}
+	if got := len(m.Extensions.Packages); got != 2 {
+		t.Errorf("Packages len: got %d, want 2", got)
+	}
+	if m.Extensions.Packages[0] != "motoko-ext-compaction@0.2.0" {
+		t.Errorf("Packages[0]: got %q", m.Extensions.Packages[0])
+	}
+	if m.Extensions.ConfigImport != "src/core/config.RuntimeConfig" {
+		t.Errorf("ConfigImport: got %q", m.Extensions.ConfigImport)
+	}
+	if m.Extensions.HooksImport != "src/core/ext/types.ExtensionHooks" {
+		t.Errorf("HooksImport: got %q", m.Extensions.HooksImport)
+	}
+	if m.Extensions.Output != "src/core/ext/registry_generated.ail" {
+		t.Errorf("Output: got %q", m.Extensions.Output)
+	}
+}
+
+func TestExtensionRegistryConfig_ParseEmpty(t *testing.T) {
+	tomlInput := `[package]
+name = "vendor/myapp"
+version = "0.1.0"
+edition = "2025"
+`
+	tmp := t.TempDir() + "/ailang.toml"
+	if err := os.WriteFile(tmp, []byte(tomlInput), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	m, err := LoadManifestFile(tmp)
+	if err != nil {
+		t.Fatalf("LoadManifestFile: %v", err)
+	}
+	if len(m.Extensions.Packages) != 0 {
+		t.Errorf("expected empty packages, got %v", m.Extensions.Packages)
+	}
+	if m.Extensions.ConfigImport != "" || m.Extensions.HooksImport != "" {
+		t.Errorf("expected zero-value Extensions")
+	}
+}
+
+func TestPackageManifest_Validate_Extensions_MissingConfigImport(t *testing.T) {
+	tomlInput := `[package]
+name = "vendor/myapp"
+version = "0.1.0"
+edition = "2025"
+
+[extensions]
+packages     = ["motoko-ext-compaction@0.2.0"]
+hooks_import = "src/core/ext/types.ExtensionHooks"
+`
+	tmp := t.TempDir() + "/ailang.toml"
+	if err := os.WriteFile(tmp, []byte(tomlInput), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, err := LoadManifestFile(tmp)
+	if err == nil {
+		t.Fatal("expected validation error for missing config_import, got nil")
+	}
+	if !strings.Contains(err.Error(), "config_import") {
+		t.Errorf("error should mention config_import, got: %v", err)
+	}
+}
+
+func TestPackageManifest_Validate_Extensions_MissingHooksImport(t *testing.T) {
+	tomlInput := `[package]
+name = "vendor/myapp"
+version = "0.1.0"
+edition = "2025"
+
+[extensions]
+packages      = ["motoko-ext-exa-search@0.4.1"]
+config_import = "src/core/config.RuntimeConfig"
+`
+	tmp := t.TempDir() + "/ailang.toml"
+	if err := os.WriteFile(tmp, []byte(tomlInput), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, err := LoadManifestFile(tmp)
+	if err == nil {
+		t.Fatal("expected validation error for missing hooks_import, got nil")
+	}
+	if !strings.Contains(err.Error(), "hooks_import") {
+		t.Errorf("error should mention hooks_import, got: %v", err)
+	}
+}
+
+func TestPackageManifest_Validate_Extensions_BothImportsPresent(t *testing.T) {
+	tomlInput := `[package]
+name = "vendor/myapp"
+version = "0.1.0"
+edition = "2025"
+
+[extensions]
+packages      = ["motoko-ext-compaction@0.2.0"]
+config_import = "src/core/config.RuntimeConfig"
+hooks_import  = "src/core/ext/types.ExtensionHooks"
+`
+	tmp := t.TempDir() + "/ailang.toml"
+	if err := os.WriteFile(tmp, []byte(tomlInput), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	m, err := LoadManifestFile(tmp)
+	if err != nil {
+		t.Fatalf("expected validation to pass, got: %v", err)
+	}
+	if len(m.Extensions.Packages) != 1 {
+		t.Errorf("expected 1 package, got %d", len(m.Extensions.Packages))
+	}
+}
+
 func TestCascadeConfig_Parse(t *testing.T) {
 	cases := []struct {
 		name string
