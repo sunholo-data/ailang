@@ -24,13 +24,42 @@ module {{.ModuleName}}
 
 {{range .Imports}}import {{.ImportPrefix}}{{.ModulePath}}/register (register_with_config as register_{{.Alias}})
 {{end}}import {{.ConfigModule}} ({{.ConfigType}})
-import {{.HooksModule}} ({{.HooksType}})
+import {{.HooksModule}} ({{.HooksType}}){{if .RegistryModule}}
+import {{.RegistryModule}} ({{.RegistryType}})
+import std/string (split, trim){{end}}
 import std/option (Option, Some, None)
 
-export func resolve(name: string, cfg: {{.ConfigType}}) -> Option[{{.HooksType}}] {
+{{if .RegistryModule}}func{{else}}export func{{end}} resolve(name: string, cfg: {{.ConfigType}}) -> Option[{{.HooksType}}] {
 {{range $i, $pkg := .Packages}}  {{if $i}}else {{end}}if name == "{{$pkg.ShortName}}" then Some(register_{{$pkg.Alias}}(cfg))
 {{end}}  else None
 }
+{{- if .RegistryModule}}
+
+func with_id(h: {{.HooksType}}, id: string) -> {{.HooksType}} {
+  { h | id: id }
+}
+
+func parse_tokens(xs: [string], idx: int, acc: [{{.HooksType}}], cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {Env, FS} {
+  match xs {
+    [] => { hooks: acc },
+    raw :: rest => {
+      let name = trim(raw);
+      match resolve(name, cfg) {
+        None => parse_tokens(rest, idx + 1, acc, cfg),
+        Some(hook) => {
+          let id = "${name}#${show(idx)}";
+          parse_tokens(rest, idx + 1, acc ++ [with_id(hook, id)], cfg)
+        }
+      }
+    }
+  }
+}
+
+export func parse_core_ext_order(raw: string, cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {Env, FS} {
+  if trim(raw) == "" then { hooks: [] }
+  else parse_tokens(split(raw, ","), 0, [], cfg)
+}
+{{- end}}
 `
 
 type extImport struct {
@@ -45,13 +74,15 @@ type extPkg struct {
 }
 
 type extRegistryTemplateData struct {
-	ModuleName   string
-	Imports      []extImport
-	ConfigModule string
-	ConfigType   string
-	HooksModule  string
-	HooksType    string
-	Packages     []extPkg
+	ModuleName     string
+	Imports        []extImport
+	ConfigModule   string
+	ConfigType     string
+	HooksModule    string
+	HooksType      string
+	RegistryModule string
+	RegistryType   string
+	Packages       []extPkg
 }
 
 // deriveShortName converts a package ref to a short identifier.
@@ -148,6 +179,13 @@ func extRegistryGenCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("hooks_import: %w", err)
 	}
+	var registryModule, registryType string
+	if ext.RegistryImport != "" {
+		registryModule, registryType, err = splitImportPath(ext.RegistryImport)
+		if err != nil {
+			return fmt.Errorf("registry_import: %w", err)
+		}
+	}
 
 	var imports []extImport
 	var packages []extPkg
@@ -168,13 +206,15 @@ func extRegistryGenCommand(args []string) error {
 	}
 
 	data := extRegistryTemplateData{
-		ModuleName:   moduleName,
-		Imports:      imports,
-		ConfigModule: configModule,
-		ConfigType:   configType,
-		HooksModule:  hooksModule,
-		HooksType:    hooksType,
-		Packages:     packages,
+		ModuleName:     moduleName,
+		Imports:        imports,
+		ConfigModule:   configModule,
+		ConfigType:     configType,
+		HooksModule:    hooksModule,
+		HooksType:      hooksType,
+		RegistryModule: registryModule,
+		RegistryType:   registryType,
+		Packages:       packages,
 	}
 
 	tmpl, err := template.New("registry").Parse(extRegistryTemplate)

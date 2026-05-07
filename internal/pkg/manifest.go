@@ -46,6 +46,10 @@ type ExtensionRegistryConfig struct {
 	ConfigImport string `toml:"config_import"`
 	// HooksImport is the "module/path.TypeName" of the hooks return type.
 	HooksImport string `toml:"hooks_import"`
+	// RegistryImport is the optional "module/path.TypeName" of the registry container type.
+	// When set, the generator also emits parse_core_ext_order() and supporting helpers so
+	// the generated file is a complete standalone registry entry point.
+	RegistryImport string `toml:"registry_import"`
 	// Output is the path for the generated file (default: "registry_generated.ail").
 	Output string `toml:"output"`
 	// ModuleName overrides the generated module declaration (default: derived from Output path).
