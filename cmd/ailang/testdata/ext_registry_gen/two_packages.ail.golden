@@ -4,8 +4,8 @@
 
 module src/core/ext/registry_generated
 
-import motoko-ext-compaction/register (register_with_config) as register_compaction
-import motoko-ext-exa-search/register (register_with_config) as register_exa_search
+import motoko-ext-compaction/register (register_with_config as register_compaction)
+import motoko-ext-exa-search/register (register_with_config as register_exa_search)
 import src/core/config (RuntimeConfig)
 import src/core/ext/types (ExtensionHooks)
 import std/option (Option, Some, None)
