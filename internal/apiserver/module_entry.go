@@ -51,6 +51,20 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	// file (or stdlib) and serve-api doesn't register its routes.
 	if !strings.HasPrefix(absFile+string(filepath.Separator), s.normalizedBasePath) &&
 		absFile != strings.TrimSuffix(s.normalizedBasePath, string(filepath.Separator)) {
+		// Diagnostic: log non-stdlib, non-pkg-cache rejections so operators
+		// can see when a deeply-namespaced declared path causes a project
+		// module to be loaded from a cache location instead of basePath.
+		// Skip the noise-floor cases (stdlib + dependency cache resolutions).
+		if loaded.File.Module != nil {
+			declared := loaded.File.Module.Path
+			if declared != "" &&
+				!strings.HasPrefix(declared, "std/") &&
+				!strings.Contains(absFile, "/.ailang/") &&
+				!strings.Contains(absFile, "/std/") {
+				log.Printf("  Skipped: %s (declared %q resolves outside basePath %s — file at %s)",
+					filepath.Base(absFile), declared, s.normalizedBasePath, absFile)
+			}
+		}
 		return "", false, nil
 	}
 
