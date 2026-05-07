@@ -12,7 +12,8 @@ listed here (or listed as `Review required`).
 | Rule | Scope | Verdict | Comment |
 |------|-------|---------|---------|
 | `go:S2245` | `internal/observatory/seed.go` (math/rand) | **Safe** | Deterministic seeding for reproducible benchmarks; crypto/rand would break reproducibility. |
-| `go:S4036` | `cmd/ailang/` (exec from PATH) | **Safe** | Running known dev tools (git/go/ailang) from PATH is standard for a developer CLI. |
+| `go:S4036` | `cmd/ailang/`, `internal/daemon/` (exec from PATH) | **Safe** | Running known system/dev tools (launchctl, git, go, ailang) from PATH is standard for a developer CLI and daemon installer. |
+| `typescript:S4036` | `internal/executor/opencode/plugins/` (spawnSync from PATH) | **Safe** | `spawnSync("ailang", ...)` in OpenCode plugin — running the ailang CLI from PATH, same rationale as go:S4036. |
 | `go:S1313` | `internal/apiserver/`, `internal/effects/stream_context.go` | **Safe** | Localhost / example IP constants, not secrets. |
 | `typescript:S5852` | `ui/src/.../evolutionTreeUtils.ts`, `smartLabel.ts` | **Safe** | ReDoS bounded by internal event-label inputs; never receives user content. |
 | `typescript:S2245` | `ui/src/.../useEventQueue.ts` | **Safe** | Math.random used for UI jitter/debounce, not security-sensitive. |
@@ -29,6 +30,8 @@ listed here (or listed as `Review required`).
 |------|-----------|---------|---------|
 | `gosecurity:S6096` | `internal/builtins/tar.go:472,476,484` | **False Positive** | Guarded by isEntryPathTraversal + filepath.Rel containment check at lines 458-468; analyzer doesn't follow the guard. |
 | `go:S5542` | `internal/builtins/crypto_rsa.go:89` | **False Positive** | PKCS1v15 used for signature verification only (required for RS256 JWT interop), not encryption. |
+| `text:S8564` | `internal/apiserver/templates/web_app/ui/package.json` | **False Positive** | Code generation template — not an installed package; lock file is irrelevant; users run npm install after copying the template. |
+| `text:S8564` | `cmd/ailang/editor_assets/vscode/package.json` | **False Positive** | Embedded VS Code extension asset (syntax highlighting only, no runtime deps installed from CI); lock file is not applicable for embedded editor assets. |
 
 ## Issues — bulk via `mark_wontfix.sh RULE_KEY "comment"`
 
