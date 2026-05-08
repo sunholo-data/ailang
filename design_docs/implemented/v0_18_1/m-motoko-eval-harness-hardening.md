@@ -1,9 +1,16 @@
 # M-MOTOKO-EVAL-HARNESS-HARDENING: Close all 10 integration gaps surfaced by live smoke
 
-**Status**: Planned
+**Status**: Implemented (2026-05-08)
 **Target**: v0.18.1 (patch release on top of v0.18.0's M-MOTOKO-EXECUTOR-ADAPTER)
 **Priority**: P0 (High — blocks M5 threshold-measurement; without this, every motoko eval number is suspect)
 **Estimated**: 2–3 days (~300 LOC across both repos; cognitive load > LOC count due to cross-repo investigation)
+**Actual**: ~6 hours wall-clock, ~330 LOC + 11 new tests, single session
+
+**Result**: 5 of 7 acceptance-gate conditions met. Two (CostUSD>0 + end-to-end smoke success) blocked on a separate Bedrock validation issue (extension tool names with `/` fail Anthropic's `^[a-zA-Z0-9_-]{1,128}$` pattern) — pricing env-var plumbing verified by unit tests; live smoke needs the extension fix downstream.
+
+**Commits (cross-repo):**
+- AILANG `dev`: `20f97b00` (M2c HealthCheck), `06c28546` (M3a-c parser fallback + repo discovery), `a5d33677` (M5a-c pricing env-var passthrough)
+- motoko_agent `motoko-bisect-gap1` (PR target): `7997c8f` (M1c JSONL drain), `faada61` (M2a profile mirror), `7d595a4` (M2b/M2c CLI flags), `1055976` (M4a-c session_id unification), `77e7de0` (M5b cost env override)
 **Dependencies**:
 - ✅ M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0) — Pillar 1 + in-repo Pillar 2 shipped (commits `bc15bb8e` + `74ebf181` on AILANG dev)
 - ✅ M-MOTOKO-EVAL-INSTRUMENTATION (motoko commits `0c006be` + `84fa449`) — schema v1 JSONL contract

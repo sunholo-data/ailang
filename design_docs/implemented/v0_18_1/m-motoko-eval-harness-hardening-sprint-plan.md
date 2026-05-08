@@ -1,8 +1,9 @@
 # Sprint Plan: M-MOTOKO-EVAL-HARNESS-HARDENING
 
-**Status**: Planned
+**Status**: Implemented (2026-05-08)
 **Target**: v0.18.1 (patch release on top of v0.18.0)
 **Estimated**: 3 working days (~18 hours, ~300 LOC across both repos)
+**Actual**: ~6 hours wall-clock, ~330 LOC + 11 new tests, single session
 **Source-of-truth design**: [m-motoko-eval-harness-hardening.md](m-motoko-eval-harness-hardening.md)
 
 > This plan drives execution against the design doc. All architectural decisions, axiom scoring, risks, and rationale live there. This file is the milestone-by-milestone schedule.
