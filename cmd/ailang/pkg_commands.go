@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -262,6 +263,9 @@ func pkgLockCommand(args []string) error {
 		return nil
 	}
 
+	// Load previous lockfile before overwriting, for ratchet detection.
+	prevLF, _ := pkg.LoadLockFile(cwd)
+
 	resolved, err := pkg.ResolveDependencies(manifest, cwd)
 	if err != nil {
 		return fmt.Errorf("dependency resolution failed: %w", err)
@@ -277,6 +281,12 @@ func pkgLockCommand(args []string) error {
 	lf.AILANGVersion = Version
 	if err := lf.Save(cwd); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
+	}
+
+	// Warn when a path dep's version changed without a corresponding
+	// upgrade-available message — this is the "silent ratchet" failure mode.
+	if prevLF != nil {
+		warnSilentRatchet(resolved, prevLF)
 	}
 
 	fmt.Printf("%s Generated %s (%d packages)\n", green("✓"), pkg.LockFileName, len(resolved))
@@ -323,4 +333,66 @@ func pkgTreeCommand(args []string) error {
 
 	fmt.Print(tree)
 	return nil
+}
+
+// warnSilentRatchet emits a stderr warning for each path dep whose version
+// changed since the previous lockfile without a corresponding upgrade-available
+// message in the messaging inbox.  This catches the "silent ratchet" where a
+// developer bumps [package].version without running `ailang publish`.
+//
+// Warnings are best-effort: if the messaging store is unavailable the check is
+// skipped silently.  The lock file is always written regardless.
+func warnSilentRatchet(resolved []pkg.ResolvedPackage, prevLF *pkg.LockFile) {
+	// Build a version map from the previous lockfile.
+	prevVersions := make(map[string]string, len(prevLF.Packages))
+	for _, lp := range prevLF.Packages {
+		prevVersions[lp.Name] = lp.Version
+	}
+
+	// Open the messaging store read-only; skip silently if unavailable.
+	dbPath := messaging.GetDefaultDatabasePath()
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		return
+	}
+	defer store.Close()
+
+	for _, r := range resolved {
+		if r.Source != "path" {
+			continue // only path deps can silently ratchet
+		}
+		prev, ok := prevVersions[r.Name]
+		if !ok || prev == r.Version {
+			continue // new dep or version unchanged
+		}
+
+		// Version changed — check for an upgrade-available message.
+		msgs, listErr := store.ListInboxMessages(messaging.InboxListOptions{
+			Inbox:       messaging.FormatPackageInbox(r.Name),
+			IncludeRead: true,
+			Limit:       50,
+		})
+		if listErr != nil {
+			continue
+		}
+
+		found := false
+		for _, msg := range msgs {
+			env, extractErr := messaging.ExtractPackageEnvelope(&msg)
+			if extractErr != nil || env == nil {
+				continue
+			}
+			if env.Kind == messaging.PkgMsgUpgradeAvailable && env.Package.ToVersion == r.Version {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			fmt.Fprintf(os.Stderr, "%s %s resolved to %s (was %s in lockfile)\n",
+				yellow("⚠"), r.Name, r.Version, prev)
+			fmt.Fprintf(os.Stderr, "   No upgrade-available message found. Run 'ailang publish' in the\n")
+			fmt.Fprintf(os.Stderr, "   package directory to announce this change and trigger cascade tests.\n")
+		}
+	}
 }
