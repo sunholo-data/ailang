@@ -434,7 +434,8 @@ Delivery as a single sprint executed by sprint-executor against this design doc;
 ## Future Work
 
 Features that build on this:
-- **M-BENCH-MOTOKO-EXTENSIONS** (proposed v0.19) — add `motoko-with-context_mode`, `motoko-with-omnigraph`, etc. as separate `models.yml` entries to benchmark per-extension contribution to the harness lift
+- **[M-MOTOKO-EXT-PER-TASK](../v0_19_0/m-motoko-ext-per-task.md)** (planned v0.19.0) — replaces this sprint's build-time extension-baking with per-invocation extension specification via `Task.Metadata["motoko_extensions"]`. Strips `Dockerfile.agent-motoko` to a kernel-only image; adds content-hash caching + an env-aware allowlist policy. **This unlocks M-BENCH-MOTOKO-EXTENSIONS as a trivial follow-up** (just add more models.yml entries with different extension stacks). User-confirmed direction post-v0.18.0 evaluator PASS.
+- **M-BENCH-MOTOKO-EXTENSIONS** (proposed v0.19+, becomes trivial after M-MOTOKO-EXT-PER-TASK) — add `motoko-with-context_mode`, `motoko-with-omnigraph`, etc. as separate `models.yml` entries to benchmark per-extension contribution to the harness lift
 - **M-BENCH-MOTOKO-OPEN-WEIGHTS** (proposed v0.19) — expand the open-weight model row coverage (Qwen, Llama, Mistral) once GLM-5 and Gemma 4 prove the routing path
 - **M-MOTOKO-DOGFOOD-CI** (proposed v0.19) — wire the motoko adapter into AILANG's own CI so AILANG-side regressions that affect motoko surface in our PR checks, not only in motoko's CI
 - **M-MOTOKO-CLAUDE-CLOUD** (proposed v0.20) — re-evaluate binding `ANTHROPIC_API_KEY` to the motoko Cloud Run Job once we have a per-Job cost cap policy in place (currently blocked by EXECUTOR_SHAPE §8 cost-control rule)
