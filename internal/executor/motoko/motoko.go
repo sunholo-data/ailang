@@ -38,10 +38,13 @@ package motoko
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +72,17 @@ type MotokoExecutor struct {
 	gitRev      string
 	ailangBuilt string
 	motokoRepo  string
+
+	// HealthCheck deduplication (M-MOTOKO-PARALLEL-EXECUTION-ISOLATION
+	// v0.18.2 follow-up): without this, parallel eval-suite runs spawn
+	// `motoko --version` once PER TASK — N parallel tasks = N concurrent
+	// bun startups racing on shared node_modules + .bun/cache. Once-per-
+	// executor caching means HealthCheck pays the bun-startup cost ONCE
+	// regardless of parallel-N, dramatically reducing the startup-race
+	// surface area. The version query result is immutable for the
+	// executor's lifetime so caching is safe.
+	healthCheckOnce sync.Once
+	healthCheckErr  error
 }
 
 // New creates a new MotokoExecutor.
@@ -223,6 +237,24 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	}
 	cmd.Env = env
 
+	// Capture subprocess stderr to a per-task file. When the subprocess
+	// crashes BEFORE writing JSONL (the v0.18.2 H4 dur=0 pattern), the
+	// JSONL parser produces "motoko terminated without emitting run_summary"
+	// — but the actual crash reason is in stderr. Pre-fix: stderr was
+	// dropped.
+	stderrBuf := &strings.Builder{}
+	cmd.Stderr = stderrBuf
+
+	// M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2) Phase 2 debugging:
+	// also tee stderr to a per-task file so we can see what failing parallel
+	// spawns actually output. Always-on (cheap, files are small).
+	stderrLogPath := filepath.Join(os.TempDir(), "motoko-stderr-"+strings.TrimPrefix(sessionID, "session_")+".log")
+	stderrFile, fileErr := os.Create(stderrLogPath)
+	if fileErr == nil {
+		cmd.Stderr = io.MultiWriter(stderrBuf, stderrFile)
+		defer stderrFile.Close()
+	}
+
 	startTime := time.Now()
 	if err := cmd.Run(); err != nil {
 		// Process failure is NOT necessarily a task failure — the JSONL may
@@ -230,6 +262,11 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		// Continue to parse; only fail-hard on unparseable / missing JSONL.
 		if os.Getenv("DEBUG_AGENT") != "" {
 			fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] subprocess exit error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] stderr file: %s (size: %d)\n", stderrLogPath, stderrBuf.Len())
+			if stderrBuf.Len() > 0 {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] subprocess stderr (last 2KB):\n%s\n",
+					tailString(stderrBuf.String(), 2048))
+			}
 		}
 	}
 
@@ -333,6 +370,22 @@ func (e *MotokoExecutor) CostModel() *executor.CostModel {
 //     any flag; we degrade to "version unknown" rather than refusing
 //     the executor).
 func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
+	// M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2): cache the result
+	// once-per-executor. Pre-cache, the eval harness called HealthCheck
+	// per-task, which spawned `motoko --version` per-task — at parallel-N,
+	// N concurrent bun startups raced on shared node_modules + .bun/cache,
+	// causing N-1 of them to die with exit 1 silently (the dur=0 pattern
+	// in Phase 1 captures). Caching means we pay the bun-startup cost
+	// once and parallel siblings see the cached result.
+	e.healthCheckOnce.Do(func() {
+		e.healthCheckErr = e.runHealthCheck(ctx)
+	})
+	return e.healthCheckErr
+}
+
+// runHealthCheck performs the actual one-time validation. Called from
+// HealthCheck under sync.Once so it runs exactly once per executor lifetime.
+func (e *MotokoExecutor) runHealthCheck(ctx context.Context) error {
 	motokoPath := e.motokoPath
 	resolvedPath := motokoPath
 	if abs, err := exec.LookPath(motokoPath); err == nil {
@@ -363,7 +416,102 @@ func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
 		e.parseVersionOutput(string(out))
 	}
 
+	// M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2) M4-M5: warn loudly
+	// about operational gotchas that wasted hours of debugging this sprint.
+	// Both are warnings (stderr), NOT errors — they don't block execution.
+	// The user can ignore them at their own risk.
+	e.warnIfStaleBunProcesses()
+	if e.motokoRepo != "" {
+		e.warnIfStaleAilangLock(e.motokoRepo)
+	}
+
 	return nil
+}
+
+// warnIfStaleBunProcesses scans for lingering bun processes that hold ports
+// in the wrapper's pick_free_port range (18080-18099). These are typically
+// orphaned from interrupted prior runs; they cause new motoko spawns to hit
+// EADDRINUSE silently if the wrapper's lsof probe races with them. This
+// sprint's investigation lost ~2 hours to exactly this scenario before the
+// stale processes were noticed and killed. Fix: warn the operator with a
+// one-liner remediation command.
+func (e *MotokoExecutor) warnIfStaleBunProcesses() {
+	out, err := exec.Command("lsof", "-i", "-P").Output()
+	if err != nil {
+		return // lsof not available; not critical
+	}
+	// Look for TCP LISTEN sockets in the 18080-18099 port range (motoko
+	// wrapper's reserved range for env-server).
+	bunPids := make(map[string]bool)
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.Contains(line, "bun") || !strings.Contains(line, "(LISTEN)") {
+			continue
+		}
+		// Match :180XX where XX is 80-99
+		if !strings.Contains(line, ":1808") && !strings.Contains(line, ":1809") {
+			continue
+		}
+		// Extract PID (column 2 in lsof output).
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			bunPids[fields[1]] = true
+		}
+	}
+	if len(bunPids) > 0 {
+		pids := make([]string, 0, len(bunPids))
+		for pid := range bunPids {
+			pids = append(pids, pid)
+		}
+		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: %d stale bun process(es) hold ports in motoko's range (18080-18099): PIDs %s\n",
+			len(bunPids), strings.Join(pids, ", "))
+		fmt.Fprintf(os.Stderr, "[motoko/healthcheck]          These can cause parallel motoko spawns to hit EADDRINUSE. Cleanup: pkill -9 -f 'bun.*src/tui'\n")
+	}
+}
+
+// warnIfStaleAilangLock checks whether motoko's ailang.lock matches the
+// current disk state of its dependencies. When the operator publishes a new
+// version of an extension package (e.g. ran `ailang publish` for v0.1.1
+// while motoko's lock still records v0.1.0), the lock-vs-disk drift causes
+// AILANG type-checking to fail with cryptic effect-row mismatches in
+// registry_generated.ail. This sprint's investigation lost ~1 hour to
+// exactly this scenario.
+func (e *MotokoExecutor) warnIfStaleAilangLock(motokoRepo string) {
+	lockPath := filepath.Join(motokoRepo, "ailang.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		return // no lock file, nothing to compare
+	}
+	// Don't try to recompute hashes here — too expensive for HealthCheck.
+	// Instead, check the lock's mtime against the package source mtimes;
+	// if any package source is newer than the lock, the lock is stale.
+	lockInfo, err := os.Stat(lockPath)
+	if err != nil {
+		return
+	}
+	packagesDir := filepath.Dir(filepath.Dir(motokoRepo)) + "/ailang-packages/packages"
+	if _, err := os.Stat(packagesDir); err != nil {
+		return // ailang-packages not at the canonical sibling path; skip
+	}
+	entries, err := os.ReadDir(packagesDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		tomlPath := filepath.Join(packagesDir, entry.Name(), "ailang.toml")
+		tomlInfo, err := os.Stat(tomlPath)
+		if err != nil {
+			continue
+		}
+		if tomlInfo.ModTime().After(lockInfo.ModTime()) {
+			fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: %s/ailang.toml is newer than %s\n",
+				entry.Name(), lockPath)
+			fmt.Fprintf(os.Stderr, "[motoko/healthcheck]          Stale lock causes effect-row mismatch errors. Fix: cd %s && ailang lock && ailang generate-extension-registry\n",
+				motokoRepo)
+			return // one warning is enough; don't spam per-package
+		}
+	}
 }
 
 // parseVersionOutput populates the executor's version fields from the

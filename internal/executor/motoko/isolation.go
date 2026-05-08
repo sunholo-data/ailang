@@ -7,6 +7,21 @@ import (
 	"strings"
 )
 
+// tailString returns the last n bytes of s, prefixed with "..." when truncated.
+// Used to bound the size of stderr captured from a crashed subprocess so it
+// fits in a Result error message without flooding the eval-harness logs.
+func tailString(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return "..." + s[len(s)-n:]
+}
+
+// noopCleanup is the cleanup func returned on error paths. Defining it as a
+// named var avoids the "empty function literal" lint warning AND lets callers
+// `defer cleanup()` unconditionally even when setupTaskCacheDir errored.
+var noopCleanup = func() { /* intentionally empty: nothing to clean up on error */ }
+
 // setupTaskCacheDir creates a per-task AILANG cache directory and returns
 // (path, cleanup, err). The path is intended to be set as AILANG_CACHE_DIR
 // in the spawned motoko subprocess so AILANG's NewCacheStore writes to it
@@ -32,12 +47,12 @@ func setupTaskCacheDir(sessionID string) (path string, cleanup func(), err error
 	if safeID == "" {
 		// Defensive: empty sessionID would produce a colliding "motoko-task-/"
 		// dir. Caller should always provide one but fail loud if not.
-		return "", func() {}, fmt.Errorf("setupTaskCacheDir: sessionID is empty; cannot create per-task isolation")
+		return "", noopCleanup, fmt.Errorf("setupTaskCacheDir: sessionID is empty; cannot create per-task isolation")
 	}
 
 	dir := filepath.Join(os.TempDir(), "motoko-task-"+safeID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", func() {}, fmt.Errorf("create per-task cache dir %q: %w", dir, err)
+		return "", noopCleanup, fmt.Errorf("create per-task cache dir %q: %w", dir, err)
 	}
 
 	cleanup = func() {
