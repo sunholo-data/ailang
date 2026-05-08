@@ -434,6 +434,7 @@ Delivery as a single sprint executed by sprint-executor against this design doc;
 ## Future Work
 
 Features that build on this:
+- **[M-MOTOKO-EVAL-HARNESS-HARDENING](../v0_18_1/m-motoko-eval-harness-hardening.md)** (planned v0.18.1) — patch release closing 10 integration gaps surfaced by live smoke testing. Today's adapter ships structurally correct code that passes 22+ fixture tests; first live run revealed gaps (CostUSD=0, Success gated incorrectly, session_id 3-way mismatch, MOTOKO_REPO env-var dependency, etc.). v0.18.1 is the trustworthy-numbers prerequisite for M5 of THIS sprint and for M-MOTOKO-EXT-PER-TASK below.
 - **[M-MOTOKO-EXT-PER-TASK](../v0_19_0/m-motoko-ext-per-task.md)** (planned v0.19.0) — replaces this sprint's build-time extension-baking with per-invocation extension specification via `Task.Metadata["motoko_extensions"]`. Strips `Dockerfile.agent-motoko` to a kernel-only image; adds content-hash caching + an env-aware allowlist policy. **This unlocks M-BENCH-MOTOKO-EXTENSIONS as a trivial follow-up** (just add more models.yml entries with different extension stacks). User-confirmed direction post-v0.18.0 evaluator PASS.
 - **M-BENCH-MOTOKO-EXTENSIONS** (proposed v0.19+, becomes trivial after M-MOTOKO-EXT-PER-TASK) — add `motoko-with-context_mode`, `motoko-with-omnigraph`, etc. as separate `models.yml` entries to benchmark per-extension contribution to the harness lift
 - **M-BENCH-MOTOKO-OPEN-WEIGHTS** (proposed v0.19) — expand the open-weight model row coverage (Qwen, Llama, Mistral) once GLM-5 and Gemma 4 prove the routing path

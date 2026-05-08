@@ -5,7 +5,8 @@
 **Priority**: P1 (High — unblocks per-extension benchmark analysis; replaces the v0.18.0 single-config Dockerfile with a per-invocation architecture)
 **Estimated**: 1.5–2 days (~250 LOC across both repos)
 **Dependencies**:
-- ✅ M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0) — ships the single-config adapter baseline this design REPLACES. Local-validation pass on v0.18.0 is the gating event for this sprint to start.
+- ✅ M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0) — ships the single-config adapter baseline this design REPLACES.
+- 🔵 **[M-MOTOKO-EVAL-HARNESS-HARDENING](../v0_18_1/m-motoko-eval-harness-hardening.md) (v0.18.1) — BLOCKING**. v0.19.0 needs accurate session_id flow (gap #4 of v0.18.1) + accurate extension visibility (gap #6) to validate per-extension contribution. Without v0.18.1, this sprint cannot prove its central claim because the underlying telemetry isn't trustworthy.
 - ✅ M-MOTOKO-EVAL-INSTRUMENTATION (motoko commits 0c006be + 84fa449) — schema v1 JSONL contract motoko emits per-task is unchanged by this work
 - 🔵 motoko-side `MOTOKO_REGISTRY_OVERRIDE` env var support (~5 LOC change to motoko_agent's startup; this doc tracks it as M0)
 
