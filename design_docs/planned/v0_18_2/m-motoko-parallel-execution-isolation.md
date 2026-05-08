@@ -133,6 +133,50 @@ Three architectural hypotheses for this crash (this sprint will bisect and confi
 - [x] **MOTOKO_HOME naming + lifecycle**: `${TMPDIR}/motoko-task-<uuid>/` created via `git worktree add`, removed via `git worktree remove --force` in `defer cleanup()`
 - [x] **HealthCheck cache-warming**: opt-in via `--warm-cache`. Additionally: HealthCheck should remember the version metadata once-per-executor to avoid spawning bun on every task call
 
+### Alternatives Considered (and why worktree wins)
+
+| Approach | Fixes H1? | Fixes H4? | Setup time | Disk | Implementation |
+|---|---|---|---|---|---|
+| **A. `git worktree add`** (chosen) | ✅ | ✅ | ~1-2s | ~50MB unique + shared `.git` objects | Native git, one shell-out per task |
+| **B. AILANG_CACHE_DIR env var** (NEW found in investigation) | ✅ | ❌ | ~0s | KB | Requires AILANG-side patch to honor env var; adapter sets per-task |
+| **C. Hardlink-mirror via `cp -al`** (original proposal) | ❌ (hardlinks share inodes!) | ✅ | ~100ms | shared inodes | Discarded — defeats the cache-write isolation purpose |
+| **D. Full `cp -r MOTOKO_REPO`** | ✅ | ✅ | ~5s | ~200MB unique | Slow, high disk |
+| **E. File-lock around bun startup** | ✅ | ✅ | 0s | 0 | Defeats parallelism — sessions wait single-file |
+| **F. Pre-warm in HealthCheck (once-per-executor) + keep shared MOTOKO_REPO** | ✅ (cache hot for all sessions) | ❓ (helps but doesn't isolate) | 0s after first | 0 | Cheapest, may still race on warm-cache reads |
+| **G. Per-task BUN_INSTALL_CACHE override** | ❌ | partial | 0s | KB | Only addresses bun's package cache, not V8 startup |
+
+**Why A (worktree) over B (env var) over F (pre-warm only)**:
+- The dur=0 crashes happen BEFORE any FS activity captured by lsof — strong evidence for **H4 (bun startup race)** as the immediate killer. Cache-only fixes (B, F) don't address H4, so they'd reduce but not eliminate the failure rate.
+- Worktree gives motoko's bun process its OWN `node_modules/`, `src/tui/dist/`, AND `.ailang/cache/` — all the shared state H4 races on, eliminated in one move.
+- Worktree's 1-2s setup is amortized across the entire benchmark run (~30s+ per task) — the cost is negligible (<5%).
+- Worktree's git-native tooling means correct cleanup (handles edge cases — interrupted runs leave orphan worktrees that `git worktree prune` fixes).
+
+**Why we ALSO want F as a complement**:
+- Worktrees don't share their `.ailang/cache/` — first run in each worktree pays the cold-compile cost (~10-30s for motoko's full module graph). Pre-warming in HealthCheck (once-per-executor in MOTOKO_REPO) means the worktree-mirror inherits a hot cache when created.
+- Net effect: `git worktree add` (1-2s) + hardlinked-warm-cache → per-task setup well under 5s.
+
+**Worktree limitations** (to validate in M2a):
+- motoko's wrapper does `cd $MOTOKO_REPO`. Worktrees expose the same files at a different path — the AILANG runtime should be path-independent, but motoko's `package.json` paths or `dist/` resolution might assume canonical path. M2a verifies by running motoko from a worktree as a smoke test BEFORE relying on the architecture.
+- `git worktree` requires the source to be a git repo (motoko_agent is). For non-git installs (e.g. tarball), fall back to `cp -r` (option D). The adapter detects via `git -C <path> rev-parse` and dispatches.
+
+### Worktree validation update (M2a pre-flight, 2026-05-08)
+
+Tested `git worktree add --detach /tmp/motoko-worktree-test HEAD` — exposes a clean checkout but **does NOT include `.gitignore`'d files**: `node_modules/` and `src/tui/dist/` are missing. Running motoko from a fresh worktree would require `npm install` + `npm run build` per task (~30s each, blowing the 8-min wall-clock budget at parallel-4).
+
+**Mitigations** (worktree still viable):
+- (a) **Symlink `node_modules` + `dist` from canonical MOTOKO_REPO into the worktree** — `ln -s` is atomic and read-only at runtime (bun doesn't write to either). Setup ~100ms total. Risk: if MOTOKO_REPO's dist is rebuilt mid-task, worktrees see stale code (acceptable — eval runs are batches, not concurrent with edits).
+- (b) **Bind-mount node_modules read-only** (Linux only) — better isolation but macOS-incompatible (smoke runner is macOS).
+- (c) **Drop the worktree idea entirely** — go with the lighter `AILANG_CACHE_DIR` env override.
+
+**Recommendation: ship (c) `AILANG_CACHE_DIR` in v0.18.2 + defer (a) worktree-with-symlinks to v0.18.3 if H4 isn't fully addressed.** Rationale:
+- (c) is **~30 LOC patch in AILANG** (NewCacheStore reads env override) + **~5 LOC in adapter** (set env per task)
+- The adapter approach in (c) **directly addresses the confirmed H1** and any H4 component caused by `.ailang/cache` reads racing
+- (c) is **observable**: easy to verify each parallel task wrote to its own cache via `ls /tmp/motoko-task-*/cache/`
+- If parallel-4 STILL hits dur=0 after (c), we have evidence H4 has a non-cache component (V8 startup, bun module init) — escalate to worktree in v0.18.3
+- v0.18.2 ships the SMALLER fix faster; v0.18.3 escalates if needed
+
+This is the pivoted plan for Phase 2-3.
+
 ### Impact
 
 - **Tactical**: `ailang eval-suite --agent-parallel 2` is the standard release-baseline command. Motoko-on-parallel = unreliable means we either (a) run motoko serially while everything else parallelizes (bottleneck — motoko is the slowest harness) or (b) accept noisy comparison data.
