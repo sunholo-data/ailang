@@ -1,6 +1,6 @@
 module github.com/sunholo-data/ailang
 
-go 1.25.10
+go 1.26.0
 
 require (
 	cloud.google.com/go/firestore v1.22.0
@@ -21,7 +21,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/modelcontextprotocol/go-sdk v1.5.0
-	github.com/ollama/ollama v0.21.2
+	github.com/ollama/ollama v0.23.2
 	github.com/peterh/liner v1.2.2
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
 	github.com/stretchr/testify v1.11.1
