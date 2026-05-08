@@ -1,0 +1,6 @@
+{"schema_version":"1","session_id":"session_test-crash","type":"session_start","task":"Long task","model":"openrouter/anthropic/claude-haiku-4-5","brainVersion":"0.2.0","config_profile":"dogfood","backend_mode":"external_http","loaded_extensions":[],"motoko_commit":"84fa449"}
+{"schema_version":"1","session_id":"session_test-crash","type":"thinking","step":0,"text":"Starting","finish_reason":"tool_calls","tool_calls":1,"input_tokens":234,"output_tokens":89,"cost_usd":0.000412}
+{"schema_version":"1","session_id":"session_test-crash","type":"native_tool_calls","step":0,"tool_calls":[{"id":"tc1","tool":"BashExec","arguments":{}}]}
+{"schema_version":"1","session_id":"session_test-crash","type":"thinking","step":1,"text":"Continuing","finish_reason":"tool_calls","tool_calls":1,"input_tokens":345,"output_tokens":120,"cost_usd":0.000600}
+This line is not JSON and should be skipped silently.
+{"schema_version":"1","session_id":"session_test-crash","type":"error","source":"agent_loop_v2","code":"Internal","message":"unexpected panic in dispatcher"}

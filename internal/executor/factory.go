@@ -45,6 +45,11 @@ type Config struct {
 	PiPath  string // Path to pi CLI binary
 	PiModel string // Default pi model (provider/model format)
 
+	// motoko configuration (M-MOTOKO-EXECUTOR-ADAPTER)
+	MotokoPath    string // Path to motoko CLI binary (default: "motoko")
+	MotokoModel   string // Default motoko model (provider/model format, routes via OpenRouter)
+	MotokoProfile string // MOTOKO_CONFIG profile name (default: "dogfood")
+
 	// Common settings
 	TimeoutSeconds int
 	WorkspaceDir   string
@@ -67,6 +72,9 @@ func DefaultConfig() *Config {
 		OpenCodeModel:    "anthropic/claude-haiku-4-5",
 		PiPath:           "pi",
 		PiModel:          "anthropic/claude-haiku-4-5",
+		MotokoPath:       "motoko",
+		MotokoModel:      "openrouter/anthropic/claude-haiku-4-5",
+		MotokoProfile:    "dogfood",
 		TimeoutSeconds:   300,
 		WorkspaceDir:     os.TempDir(),
 	}

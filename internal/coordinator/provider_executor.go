@@ -10,6 +10,7 @@ import (
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/codex"
 	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
+	_ "github.com/sunholo-data/ailang/internal/executor/motoko"
 	_ "github.com/sunholo-data/ailang/internal/executor/opencode"
 	_ "github.com/sunholo-data/ailang/internal/executor/pi"
 )

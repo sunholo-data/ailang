@@ -769,6 +769,100 @@ models:
       Cross-harness comparison member for the gemini-3-flash family.
       Requires: pi CLI (npm i -g @mariozechner/pi-coding-agent) + GEMINI_API_KEY (or ADC).
 
+  # ===== motoko_agent: AILANG-native agent harness =========================
+  # The first production-scale coding agent built on AILANG itself (~5,200 LOC
+  # of .ail modules + 9 motoko-ext-* extension packages). Routes models via
+  # OpenRouter; emits schema-v1 session JSONL with per-step tokens + cost +
+  # cache fields + terminal run_summary (M-MOTOKO-EVAL-INSTRUMENTATION,
+  # motoko_agent commit 84fa449 on PR #6 against arniwesth/motoko_agent).
+  #
+  # Cross-harness comparison rationale (M-MOTOKO-EXECUTOR-ADAPTER):
+  # paired against vanilla claude-haiku-4-5 / claude-sonnet-4-6, motoko-glm-5
+  # routes via OpenRouter to test the cheap-OS-model + tuned-harness vs
+  # frontier-model thesis. motoko-gemma-4 covers open-weight model coverage
+  # (no first-party Gemma agent CLI exists; OpenRouter is the bridge).
+
+  motoko-claude-haiku-4-5:
+    api_name: "claude-haiku-4-5-20251001"
+    provider: "anthropic"
+    description: "Claude Haiku 4.5 via motoko_agent (AILANG-native harness with DP7 verifier + microRAG context + extensions)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/anthropic/claude-haiku-4-5"
+    model_family: "claude-haiku-4-5"                 # Pairs with claude-haiku-4-5 + opencode-haiku + pi-claude-haiku-4-5
+    max_output_tokens: 16000
+    pricing:
+      input_per_1k: 0.00025
+      output_per_1k: 0.00125
+    notes: |
+      Claude Haiku 4.5 evaluated via the motoko_agent harness — the FIRST
+      AILANG-native agent in the eval suite. Routes via OpenRouter so this
+      entry uses OPENROUTER_API_KEY (NOT ANTHROPIC_API_KEY) — matches the
+      cost-control rule from EXECUTOR_SHAPE.md §8 (motoko's cloud Job
+      explicitly omits Anthropic API key bindings).
+      Cross-harness threshold-measurement experiment: pair against
+      vanilla claude-haiku-4-5 to quantify the harness lift (DP7 verifier
+      gate + microRAG context + contract feedback) on cheap models.
+      Requires: motoko CLI + OPENROUTER_API_KEY.
+
+  motoko-claude-sonnet-4-6:
+    api_name: "claude-sonnet-4-6"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.6 via motoko_agent — premium model + tuned harness ceiling"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/anthropic/claude-sonnet-4-6"
+    model_family: "claude-sonnet-4-6"
+    max_output_tokens: 64000
+    pricing:
+      input_per_1k: 0.003
+      output_per_1k: 0.015
+    notes: |
+      Claude Sonnet 4.6 via motoko. Establishes the harness-on-frontier
+      ceiling — pair against vanilla claude-sonnet-4-6 to measure
+      "does motoko hurt or help when the model is already strong?"
+      Requires: motoko CLI + OPENROUTER_API_KEY.
+
+  motoko-glm-5:
+    api_name: "z-ai/glm-5"
+    provider: "openrouter"
+    description: "GLM-5 (open-weight, top OS-model on AILANG bench) via motoko_agent — cheap-model+tuned-harness lift test"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/z-ai/glm-5"
+    model_family: "glm-5"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.00060   # $0.60 per 1M
+      output_per_1k: 0.00208   # $2.08 per 1M
+    notes: |
+      GLM-5 via motoko. Best-performing OS model on the AILANG benchmark
+      suite (85.3% raw success on motoko's vendored runs, $0.60/M in,
+      $2.08/M out). THE strategic measurement target: does motoko's
+      harness lift OS-model AILANG correctness above the proprietary-
+      model threshold at a fraction of the cost?
+      Requires: motoko CLI + OPENROUTER_API_KEY.
+
+  motoko-gemma-4:
+    api_name: "google/gemma-4-27b-it"
+    provider: "openrouter"
+    description: "Gemma 4 27B via motoko_agent — open-weight coverage (no first-party Gemma agent CLI exists)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/google/gemma-4-27b-it"
+    model_family: "gemma-4"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0001
+      output_per_1k: 0.0003
+    notes: |
+      Gemma 4 27B via motoko. Open-weight model with no first-party
+      coding-agent CLI; motoko-as-host is the bridge that lets Gemma
+      participate in the eval suite on equal footing with Claude/GPT/
+      Gemini-Pro. Validates M-AI-OPENROUTER's open-weight cost-
+      normalization path under real eval traffic.
+      Requires: motoko CLI + OPENROUTER_API_KEY.
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
@@ -1391,6 +1485,10 @@ agent_suite:
   - "opencode-or-glm-5"     # agent_cli: "opencode"  — GLM 5 via OpenRouter (PASS smoke 3/3, 2026-05-04, first OS) — added v0.15.0
   - "opencode-or-minimax-m2-7" # agent_cli: "opencode" — MiniMax M2.7 via OpenRouter (PASS smoke 3/3, 2026-05-04, cheapest OS) — added v0.15.0
   - "opencode-or-glm-4-7-flash" # agent_cli: "opencode" — GLM 4.7 Flash via OpenRouter (PASS smoke 3/3 with budgets:hard_timeout_secs=600, 2026-05-05) — added v0.15.1 via M-EVAL-COST-AND-SPEED-BUDGETS
+  - "motoko-claude-haiku-4-5"   # agent_cli: "motoko" — AILANG-native harness on cheap model (M-MOTOKO-EXECUTOR-ADAPTER, v0.18.0) — THE threshold-measurement experiment
+  - "motoko-claude-sonnet-4-6"  # agent_cli: "motoko" — AILANG-native harness on premium model (frontier ceiling)
+  - "motoko-glm-5"              # agent_cli: "motoko" — AILANG-native harness on top-OS model (cost-arbitrage thesis)
+  - "motoko-gemma-4"            # agent_cli: "motoko" — AILANG-native harness on open-weight Gemma (no first-party Gemma agent CLI)
 
 # Language × Harness suite - cheapest model per harness for 4-language sweep
 # Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)
@@ -1407,13 +1505,14 @@ ollama_suite:
   - "opencode-gemma4-26b"   # Gemma 4 26B — 32GB Mac, relaxed TTFT (480s)
 
 harness_suite:
-  - "claude-sonnet-4-6"       # Sonnet via Claude Code CLI
-  - "opencode-sonnet-4-6"     # Sonnet via opencode harness
-  - "pi-claude-sonnet-4-6"    # Sonnet via pi minimal harness (3-way claude-sonnet-4-6 family)
-  - "gemini-3-flash"          # Gemini Flash via Gemini CLI
-  - "opencode-gemini-3-flash" # Gemini Flash via opencode harness (ailang-dev + global location)
-  - "gpt5-5"                  # GPT-5.5 via Codex CLI harness (Apr 2026)
-  - "opencode-gpt5-5"         # GPT-5.5 via opencode harness (cross-harness comparison)
+  - "claude-sonnet-4-6"        # Sonnet via Claude Code CLI
+  - "opencode-sonnet-4-6"      # Sonnet via opencode harness
+  - "pi-claude-sonnet-4-6"     # Sonnet via pi minimal harness (3-way claude-sonnet-4-6 family)
+  - "motoko-claude-sonnet-4-6" # Sonnet via motoko AILANG-native harness (4-way claude-sonnet-4-6 family)
+  - "gemini-3-flash"           # Gemini Flash via Gemini CLI
+  - "opencode-gemini-3-flash"  # Gemini Flash via opencode harness (ailang-dev + global location)
+  - "gpt5-5"                   # GPT-5.5 via Codex CLI harness (Apr 2026)
+  - "opencode-gpt5-5"          # GPT-5.5 via opencode harness (cross-harness comparison)
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
