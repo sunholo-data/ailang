@@ -88,6 +88,7 @@ code-harness-skills/
 # Stray compiled binary (build output lands in repo root)
 /registry-validator
 .claude/scheduled_tasks.lock
+.claude/worktrees/
 # Per-developer Claude Code overrides. settings.json is shared (project-wide
 # permission allowlist + hooks); settings.local.json is the personal-overrides
 # slot every developer keeps locally.

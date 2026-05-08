@@ -76,7 +76,7 @@ func TestNotifyUpgrade_FromConsumerWithPathDep(t *testing.T) {
 
 	// Consumer workspace with a path dep
 	consumerDir := t.TempDir()
-	tomlContent := "[package]\nname = \"myapp/src\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = { path = \"" + extDir + "\" }\n"
+	tomlContent := "[package]\nname = \"myapp/src\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = { path = \"" + filepath.ToSlash(extDir) + "\" }\n"
 	if err := os.WriteFile(filepath.Join(consumerDir, "ailang.toml"), []byte(tomlContent), 0600); err != nil {
 		t.Fatal(err)
 	}

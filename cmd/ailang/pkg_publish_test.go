@@ -33,17 +33,17 @@ func TestRewritePathDeps_Whitespace(t *testing.T) {
 	}{
 		{
 			name:    "single-space (canonical)",
-			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = { path = \"" + depDir + "\" }\n",
+			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = { path = \"" + filepath.ToSlash(depDir) + "\" }\n",
 			wantRew: true,
 		},
 		{
 			name:    "aligned padding around equals",
-			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\"   = { path = \"" + depDir + "\" }\n",
+			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\"   = { path = \"" + filepath.ToSlash(depDir) + "\" }\n",
 			wantRew: true,
 		},
 		{
 			name:    "extra spaces inside braces",
-			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = {  path = \"" + depDir + "\"  }\n",
+			toml:    "[package]\nname = \"myorg/host\"\nversion = \"1.0.0\"\nedition = \"1\"\n\n[dependencies]\n\"sunholo/myext\" = {  path = \"" + filepath.ToSlash(depDir) + "\"  }\n",
 			wantRew: true,
 		},
 		{
