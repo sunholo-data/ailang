@@ -130,6 +130,12 @@ func (h *WasmAIHandler) Step(_ string, _ []ai.Message, _ []ai.ToolSchema) (*ai.R
 	return nil, fmt.Errorf("ai.step not supported in WASM environment")
 }
 
+// StepWithCache is the cache-aware variant (M-AI-PROMPT-CACHING v0.18.4).
+// Same status as Step — not supported in WASM. Cache hints are ignored.
+func (h *WasmAIHandler) StepWithCache(_ string, _ []ai.Message, _ []ai.ToolSchema, _ []ai.CacheBreakpoint) (*ai.Response, error) {
+	return nil, fmt.Errorf("ai.stepWithCache not supported in WASM environment")
+}
+
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
 func ailangValueToJS(v eval.Value) interface{} {
 	if v == nil {
