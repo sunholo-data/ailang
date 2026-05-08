@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -73,27 +74,51 @@ func pkgNotifyUpgradeCommand(args []string) error {
 		return fmt.Errorf("no ailang.toml found: %w", err)
 	}
 
-	// Determine change class based on interface hash change
+	// Determine change class based on interface hash change.
+	// Three cases:
+	//   A. Running from inside the package directory itself.
+	//   B. Running from a consumer that has the package as a path dep.
+	//   C. Running from a consumer that doesn't have the package (registry-only
+	//      or completely unrelated workspace) — hashes stay empty.
 	changeClass := "A" // default: internal only
 	toInterfaceHash := ""
 	toContentHash := ""
+
 	if manifest.Package.Name == pkgName {
-		// We're the package being upgraded — compute current hashes
-		resolved, resolveErr := pkg.ResolveDependencies(manifest, cwd)
-		if resolveErr == nil {
-			for _, r := range resolved {
-				if r.Name == pkgName {
-					toInterfaceHash = r.InterfaceHash
-					toContentHash = r.ContentHash
-					break
+		// Case A: we ARE the package being upgraded.
+		// Compute hashes directly from the current manifest and directory.
+		toInterfaceHash = pkg.InterfaceHash(manifest)
+		if h, err := pkg.ContentHash(cwd); err == nil {
+			toContentHash = h
+		}
+	} else {
+		// Case B: look for a path dep in the consumer's manifest.
+		for depName, dep := range manifest.Dependencies {
+			if depName != pkgName || dep.Path == "" {
+				continue
+			}
+			depDir := dep.Path
+			if !filepath.IsAbs(depDir) {
+				depDir = filepath.Join(cwd, dep.Path)
+			}
+			depManifest, loadErr := pkg.LoadManifest(depDir)
+			if loadErr == nil {
+				toInterfaceHash = pkg.InterfaceHash(depManifest)
+				if h, err := pkg.ContentHash(depDir); err == nil {
+					toContentHash = h
 				}
 			}
+			break
 		}
-		if fromInterfaceHash != "" && toInterfaceHash != "" && fromInterfaceHash != toInterfaceHash {
-			changeClass = "C" // contract change
-		} else if fromContentHash != "" && toContentHash != "" && fromContentHash != toContentHash {
-			changeClass = "B" // content changed, interface same
-		}
+		// Case C: package not found locally — hashes remain empty.
+		// The registry-resolver path is omitted: it would require network
+		// access and was the path that failed for path deps.
+	}
+
+	if fromInterfaceHash != "" && toInterfaceHash != "" && fromInterfaceHash != toInterfaceHash {
+		changeClass = "C" // contract change
+	} else if fromContentHash != "" && toContentHash != "" && fromContentHash != toContentHash {
+		changeClass = "B" // content changed, interface same
 	}
 
 	// Find affected workspaces by scanning for lockfiles that depend on this package
