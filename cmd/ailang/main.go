@@ -461,6 +461,9 @@ func main() {
 	case "examples":
 		examplesCommand(flag.Args()[1:])
 
+	case "sandbox-check":
+		sandboxCheckCommand(flag.Args()[1:])
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()

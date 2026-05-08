@@ -8,7 +8,30 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/trace"
 )
+
+// logSandboxReject emits diagnostics when an FS operation silently returns false
+// because the requested path escapes the sandbox (exists/isDir/isFile contract).
+//
+// Two diagnostic channels, both zero-cost when inactive:
+//  1. AILANG_FS_SANDBOX_DEBUG=1 → stderr line:
+//     [ailang/sandbox] REJECT <op>(<path>) → escapes sandbox "<sandbox>" (returns <result>)
+//  2. AILANG_TRACE=deep + active trace collector → RecordEffect event tagged sandbox.reject
+func logSandboxReject(ctx *EffContext, op, attemptedPath, result string) {
+	if os.Getenv("AILANG_FS_SANDBOX_DEBUG") == "1" {
+		fmt.Fprintf(os.Stderr, "[ailang/sandbox] REJECT %s(%q) → escapes sandbox %q (returns %s)\n",
+			op, attemptedPath, ctx.Env.Sandbox, result)
+	}
+
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		if tier, err := trace.TierFromEnv(); err == nil && tier == trace.TierDeep {
+			ctx.RecordEffect("FS", op+".sandbox.reject",
+				[]string{attemptedPath, ctx.Env.Sandbox},
+				result)
+		}
+	}
+}
 
 // resolveSandboxPath resolves a path against the sandbox root.
 //
@@ -376,6 +399,7 @@ func fsExists(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if ctx.Env.Sandbox != "" {
 		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
 		if sandboxErr != nil {
+			logSandboxReject(ctx, "exists", path, "false")
 			return &eval.BoolValue{Value: false}, nil
 		}
 		path = resolved
@@ -565,6 +589,7 @@ func fsIsDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if ctx.Env.Sandbox != "" {
 		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
 		if sandboxErr != nil {
+			logSandboxReject(ctx, "isDir", path, "false")
 			return &eval.BoolValue{Value: false}, nil
 		}
 		path = resolved
@@ -595,6 +620,7 @@ func fsIsFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if ctx.Env.Sandbox != "" {
 		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
 		if sandboxErr != nil {
+			logSandboxReject(ctx, "isFile", path, "false")
 			return &eval.BoolValue{Value: false}, nil
 		}
 		path = resolved
