@@ -385,3 +385,68 @@ func TestCacheStore_ArtifactRoundTrip_DiverseExprTypes(t *testing.T) {
 		t.Errorf("DictRef.ClassName: got %q", dr.ClassName)
 	}
 }
+
+// TestNewCacheStore_HonorsEnvOverride covers M-MOTOKO-PARALLEL-EXECUTION-
+// ISOLATION (v0.18.2) M2a — when AILANG_CACHE_DIR is set, NewCacheStore
+// uses the override instead of <projectDir>/.ailang/cache. This lets
+// orchestrators (e.g. the motoko adapter) give parallel sessions
+// isolated cache dirs without copying source trees.
+func TestNewCacheStore_HonorsEnvOverride(t *testing.T) {
+	override := t.TempDir()
+	projectDir := t.TempDir() // Should be ignored when env is set.
+
+	t.Setenv("AILANG_CACHE_DIR", override)
+
+	cs, err := NewCacheStore(projectDir)
+	if err != nil {
+		t.Fatalf("NewCacheStore: %v", err)
+	}
+
+	// Cache must live under the override path, not under projectDir.
+	cs.Store("std/test", &CacheEntry{
+		CacheKey:      "k1",
+		IfaceDigest:   "d1",
+		IfaceJSON:     []byte(`{}`),
+		CompileTimeMs: 1,
+		Timestamp:     time.Now(),
+	})
+	if err := cs.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Manifest must exist in the override dir, NOT projectDir.
+	if _, err := os.Stat(override + "/compile/manifest.json"); err != nil {
+		t.Errorf("manifest not found in override dir: %v", err)
+	}
+	if _, err := os.Stat(projectDir + "/.ailang/cache/compile/manifest.json"); err == nil {
+		t.Error("manifest UNEXPECTEDLY created in projectDir; should be in override only")
+	}
+}
+
+// TestNewCacheStore_EmptyEnvFallsBackToProjectDir verifies that an EMPTY
+// AILANG_CACHE_DIR is treated as unset (back-compat: operators with stale
+// env from a previous session must not break).
+func TestNewCacheStore_EmptyEnvFallsBackToProjectDir(t *testing.T) {
+	projectDir := t.TempDir()
+	t.Setenv("AILANG_CACHE_DIR", "")
+
+	cs, err := NewCacheStore(projectDir)
+	if err != nil {
+		t.Fatalf("NewCacheStore: %v", err)
+	}
+	cs.Store("std/test", &CacheEntry{
+		CacheKey:      "k1",
+		IfaceDigest:   "d1",
+		IfaceJSON:     []byte(`{}`),
+		CompileTimeMs: 1,
+		Timestamp:     time.Now(),
+	})
+	if err := cs.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Manifest in projectDir (default behavior).
+	if _, err := os.Stat(projectDir + "/.ailang/cache/compile/manifest.json"); err != nil {
+		t.Errorf("expected default-path manifest, got: %v", err)
+	}
+}

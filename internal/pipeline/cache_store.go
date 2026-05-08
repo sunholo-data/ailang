@@ -44,9 +44,28 @@ type CacheEntry struct {
 	Timestamp     time.Time `json:"timestamp"`
 }
 
-// NewCacheStore creates or loads a cache store from the given directory.
+// NewCacheStore creates or loads a cache store.
+//
+// Cache location resolution (in order):
+//  1. $AILANG_CACHE_DIR/compile/  — explicit override (M-MOTOKO-PARALLEL-EXECUTION-
+//     ISOLATION v0.18.2). Lets a single host run multiple AILANG processes against
+//     the same project source without racing on cache writes. Each process gets its
+//     own isolated cache. Set per-spawn by orchestrators (e.g. the motoko adapter
+//     sets AILANG_CACHE_DIR=/tmp/motoko-task-<uuid>/cache per parallel task).
+//  2. <projectDir>/.ailang/cache/compile/  — default (back-compat).
+//
+// Why an env-override and not a constructor arg: the cache lives several frames
+// down the pipeline call stack; threading projectDir through every call site to
+// add an optional override would touch ~10 files. The env var is read here at
+// the point of use, zero plumbing change for callers.
 func NewCacheStore(projectDir string) (*CacheStore, error) {
-	dir := filepath.Join(projectDir, ".ailang", "cache", "compile")
+	var dir string
+	if override := os.Getenv("AILANG_CACHE_DIR"); override != "" {
+		// Operator override: full control, no projectDir prefix.
+		dir = filepath.Join(override, "compile")
+	} else {
+		dir = filepath.Join(projectDir, ".ailang", "cache", "compile")
+	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create cache dir: %w", err)
 	}

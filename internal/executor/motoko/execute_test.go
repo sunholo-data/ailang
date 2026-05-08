@@ -90,6 +90,151 @@ exit 0
 	}
 }
 
+// TestExecute_PerTaskCacheDir covers M-MOTOKO-PARALLEL-EXECUTION-ISOLATION
+// (v0.18.2) M2b: Execute MUST set AILANG_CACHE_DIR to a per-session unique
+// path under TMPDIR, AND the dir must be cleaned up after Execute returns.
+//
+// This is the load-bearing fix for the dur=0 parallel-execution crash —
+// without per-task cache isolation, parallel motoko sessions race on
+// writes to MOTOKO_REPO/src/core/.ailang/cache/.../core.gob, corrupting
+// the file and crashing subsequent reads before the runtime initializes.
+func TestExecute_PerTaskCacheDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	envDump := filepath.Join(tmp, "received-cache-dir.txt")
+	mockScript := `#!/bin/bash
+set -e
+LOGDIR="$WORKDIR/.motoko/logfile"
+mkdir -p "$LOGDIR"
+SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
+# Capture the per-task cache dir env var so the test can assert against it.
+echo "AILANG_CACHE_DIR=${AILANG_CACHE_DIR:-UNSET}" > "` + envDump + `"
+# Minimal JSONL so adapter parsing succeeds.
+cat > "$LOGDIR/$SESSION.jsonl" <<EOF
+{"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"x","brainVersion":"0.2.0"}
+{"schema_version":"1","session_id":"$SESSION","type":"run_summary","finish_reason":"stop","duration_ms":1,"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}
+EOF
+exit 0
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	res, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "any",
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if !res.Success {
+		t.Fatalf("Success = false; want true. Error: %s", res.Error)
+	}
+
+	// Assert the env var was set to a non-empty per-task path.
+	dump, err := os.ReadFile(envDump)
+	if err != nil {
+		t.Fatalf("reading env dump: %v", err)
+	}
+	got := strings.TrimSpace(string(dump))
+	if got == "AILANG_CACHE_DIR=UNSET" || got == "AILANG_CACHE_DIR=" {
+		t.Errorf("AILANG_CACHE_DIR not set on subprocess; got: %q", got)
+	}
+	// The path should include "motoko-task-" prefix indicating per-session isolation.
+	if !strings.Contains(got, "motoko-task-") {
+		t.Errorf("AILANG_CACHE_DIR doesn't look like a per-task path; got: %q", got)
+	}
+
+	// Assert the dir was cleaned up after Execute returned. Extract the path
+	// from the dump line ("AILANG_CACHE_DIR=/tmp/motoko-task-...") and stat it.
+	cacheDir := strings.TrimPrefix(got, "AILANG_CACHE_DIR=")
+	if _, err := os.Stat(cacheDir); !os.IsNotExist(err) {
+		t.Errorf("per-task cache dir %q not cleaned up after Execute; stat err=%v", cacheDir, err)
+	}
+}
+
+// TestExecute_TwoSequentialCalls_DistinctCacheDirs verifies that two
+// sequential Execute calls (same executor instance, distinct sessionIDs)
+// receive DISTINCT AILANG_CACHE_DIR paths. This guards against accidental
+// caching at the executor level that would leak the same dir between calls.
+func TestExecute_TwoSequentialCalls_DistinctCacheDirs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	dumpA := filepath.Join(tmp, "dump-A.txt")
+	dumpB := filepath.Join(tmp, "dump-B.txt")
+	// The mock decides which dump to write based on a marker in the directive.
+	mockScript := `#!/bin/bash
+set -e
+LOGDIR="$WORKDIR/.motoko/logfile"
+mkdir -p "$LOGDIR"
+SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
+# Pick which dump file based on directive content.
+if echo "$@" | grep -q "DUMPA"; then
+  echo "$AILANG_CACHE_DIR" > "` + dumpA + `"
+else
+  echo "$AILANG_CACHE_DIR" > "` + dumpB + `"
+fi
+cat > "$LOGDIR/$SESSION.jsonl" <<EOF
+{"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"x","brainVersion":"0.2.0"}
+{"schema_version":"1","session_id":"$SESSION","type":"run_summary","finish_reason":"stop","duration_ms":1,"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}
+EOF
+exit 0
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+
+	if _, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "DUMPA marker",
+	}); err != nil {
+		t.Fatalf("Execute A: %v", err)
+	}
+	if _, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "DUMPB marker",
+	}); err != nil {
+		t.Fatalf("Execute B: %v", err)
+	}
+
+	pathA := strings.TrimSpace(string(mustRead(t, dumpA)))
+	pathB := strings.TrimSpace(string(mustRead(t, dumpB)))
+	if pathA == "" || pathB == "" {
+		t.Fatalf("one of the dumps is empty: A=%q B=%q", pathA, pathB)
+	}
+	if pathA == pathB {
+		t.Errorf("two Execute calls reused the same cache dir: %q (must be distinct per session)", pathA)
+	}
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading %q: %v", path, err)
+	}
+	return data
+}
+
 // TestExecute_BudgetEnvVarPassthrough covers M-MOTOKO-EVAL-HARNESS-HARDENING
 // M5a-c (gaps #3, #9): when Task.Budget is set, the adapter must convert
 // per-1K USD rates to per-1M millicents and pass them as

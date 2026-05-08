@@ -156,6 +156,24 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] SessionID: %s\n", sessionID)
 	}
 
+	// M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2): create a per-task
+	// AILANG cache dir so parallel motoko sessions don't race on writes to
+	// MOTOKO_REPO/src/core/.ailang/cache/compile/.../core.gob. Pre-v0.18.2,
+	// 2+ parallel `ailang run` invocations against the same project would
+	// both detect fresh sources, both compile, both os.WriteFile() the same
+	// .gob — last writer wins, partial writes corrupted the file, downstream
+	// reads crashed before runtime initialization → 0-byte JSONL → adapter
+	// reported "motoko terminated without emitting run_summary (likely
+	// crash)". This isolates the write target without copying the source
+	// tree (which would also pull in 200MB+ of node_modules/dist). Phase 1
+	// findings: design_docs/planned/v0_18_2/m-motoko-parallel-execution-
+	// isolation.md
+	taskCacheDir, taskCacheCleanup, err := setupTaskCacheDir(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("setup per-task cache dir: %w", err)
+	}
+	defer taskCacheCleanup()
+
 	env := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
@@ -168,6 +186,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"MODEL="+e.getModel(task),
 		"MOTOKO_CONFIG="+e.profile,
 		"MOTOKO_SESSION_ID="+sessionID,
+		"AILANG_CACHE_DIR="+taskCacheDir,
 		// M-MOTOKO-EVAL-HARNESS-HARDENING follow-up (2026-05-08): force
 		// ENV_PORT=0 so the wrapper's `pick_free_port` short-circuits
 		// (it only fires when ENV_PORT is unset) and the TS env-server
