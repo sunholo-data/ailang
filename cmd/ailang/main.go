@@ -398,8 +398,11 @@ func main() {
 			fmt.Println("  stats                       Show ecosystem-wide statistics")
 			fmt.Println("  provenance <pkg>@<ver>      Show provenance chain for a version")
 			fmt.Println("  history <pkg>@<ver>         Show version history timeline")
-			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message")
+			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message (manual fallback)")
 			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
+			fmt.Println()
+			fmt.Println("To publish a new version and fire the full cascade bus:")
+			fmt.Println("  ailang publish              (preferred — wraps notify-upgrade + cascade-topic)")
 			os.Exit(1)
 		}
 		switch subArgs[0] {
