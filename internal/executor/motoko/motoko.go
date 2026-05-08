@@ -187,7 +187,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	wallDurationMS := int(time.Since(startTime).Milliseconds())
 
 	// Locate the session JSONL motoko wrote during the run.
-	jsonlPath, findErr := findSessionJSONL(task.Workspace, sessionID)
+	jsonlPath, findErr := findSessionJSONL(task.Workspace, sessionID, e.motokoRepo)
 	if findErr != nil {
 		span.SetStatus(codes.Error, "session jsonl not found")
 		return &executor.Result{

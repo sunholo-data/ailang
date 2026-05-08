@@ -12,6 +12,11 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
+// motokoStateDir is the per-repo state subdirectory motoko writes to:
+// session JSONL, profile config, etc. Used by findSessionJSONL when
+// searching multiple candidate roots (workspace, MOTOKO_REPO, discovered).
+const motokoStateDir = ".motoko"
+
 // Schema-v1 events emitted by motoko's session JSONL. Every event carries
 // `schema_version: "1"`, `session_id`, and `type`. Documented in motoko_agent
 // design_docs/implemented/motoko_agent/m-motoko-eval-instrumentation.md.
@@ -131,15 +136,23 @@ func parseSessionLine(line []byte) (*motokoEvent, map[string]any, error) {
 //  3. **MOTOKO_REPO fallback** (added after smoke testing 2026-05-08): the
 //     current motoko wrapper does `cd "$MOTOKO_REPO"` before exec'ing the
 //     agent, so JSONL actually lands in `$MOTOKO_REPO/.motoko/logfile/`
-//     — NOT the workspace. Search there too. The right long-term fix is
-//     M-MOTOKO-EXT-PER-TASK's MOTOKO_REGISTRY_OVERRIDE / a new
-//     MOTOKO_LOGFILE_DIR env var; this fallback unblocks v0.18.0.
-//  4. Return ("", err) if neither exists — caller treats as "no JSONL" and
+//     — NOT the workspace. Search there too.
+//  4. **discoveredRepo fallback** (M-MOTOKO-EVAL-HARNESS-HARDENING M3b,
+//     gap #5): when MOTOKO_REPO env is not set but the executor's
+//     HealthCheck populated motokoRepo from `motoko --version` output,
+//     use that path. Lets the adapter work with zero env-var setup.
+//  5. Return ("", err) if none exist — caller treats as "no JSONL" and
 //     emits a Result with Error pointing to that fact.
-func findSessionJSONL(workspace, sessionID string) (string, error) {
-	candidates := []string{filepath.Join(workspace, ".motoko", "logfile")}
+func findSessionJSONL(workspace, sessionID, discoveredRepo string) (string, error) {
+	candidates := []string{filepath.Join(workspace, motokoStateDir, "logfile")}
 	if motokoRepo := os.Getenv("MOTOKO_REPO"); motokoRepo != "" {
-		candidates = append(candidates, filepath.Join(motokoRepo, ".motoko", "logfile"))
+		candidates = append(candidates, filepath.Join(motokoRepo, motokoStateDir, "logfile"))
+	} else if discoveredRepo != "" {
+		// MOTOKO_REPO env was unset but `motoko --version` reported one.
+		// This is the zero-config path: HealthCheck queried the binary,
+		// stashed the answer, and now we use it without requiring the
+		// caller to plumb an env var through their setup.
+		candidates = append(candidates, filepath.Join(discoveredRepo, motokoStateDir, "logfile"))
 	}
 
 	var lastErr error
@@ -340,7 +353,15 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		return nil, fmt.Errorf("scanner: %w", err)
 	}
 
-	// If run_summary is missing (crash mid-run), fall back to summed totals.
+	// If run_summary is missing, fall back to summed totals + infer success
+	// from the last thinking event's finish_reason. M-MOTOKO-EVAL-HARNESS-
+	// HARDENING M3a (gap #2): pre-M1c the JSONL frequently truncated before
+	// run_summary reached disk, but the run had completed successfully. The
+	// parser was setting Success=false in that case, mis-attributing
+	// successful runs as crashes. Now: prefer run_summary when present;
+	// otherwise treat finish_reason="stop" on the last thinking event as
+	// success (motoko emitted a clean stop, just lost the trailing summary).
+	// finish_reason="error" or absent = treat as crash.
 	if !gotRunSummary {
 		res.InputTokens = sumInputTokens
 		res.OutputTokens = sumOutputTokens
@@ -348,13 +369,21 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		res.CacheCreationInputTokens = sumCacheCreation
 		res.CostUSD = sumCostUSD
 		res.NumTurns = numTurns
-		// No run_summary = motoko didn't reach a clean termination.
-		res.Success = false
 		switch {
 		case gotErrorEvent:
+			res.Success = false
 			res.Error = "motoko emitted error event without run_summary: " + errorEventMessage
+		case lastFinishReason == "stop":
+			res.Success = true
+			res.ProviderData["motoko_finish_reason"] = lastFinishReason
+			res.ProviderData["motoko_run_summary_missing"] = true
 		default:
-			res.Error = "motoko terminated without emitting run_summary (likely crash)"
+			res.Success = false
+			if lastFinishReason != "" {
+				res.Error = "motoko terminated with finish_reason=" + lastFinishReason + " and no run_summary"
+			} else {
+				res.Error = "motoko terminated without emitting run_summary (likely crash)"
+			}
 		}
 	}
 

@@ -136,6 +136,40 @@ func TestParseSessionJSONL_NoSummaryCrash(t *testing.T) {
 	}
 }
 
+// TestParseSessionJSONL_TruncatedSuccess covers M-MOTOKO-EVAL-HARNESS-
+// HARDENING M3a (gap #2): when run_summary is missing BUT the last
+// thinking event has finish_reason="stop", the run completed successfully
+// and the JSONL was truncated by the TS exit-on-done bug (since fixed in
+// M1c). The parser must report Success=true with summed totals — not
+// false-attribute the run as a crash.
+func TestParseSessionJSONL_TruncatedSuccess(t *testing.T) {
+	res, err := parseSessionJSONL("testdata/session_no_summary_truncated_success.jsonl")
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if !res.Success {
+		t.Errorf("Success = false, want true (last thinking finish_reason=stop). Error=%q", res.Error)
+	}
+	if res.Error != "" {
+		t.Errorf("Error = %q, want empty (truncated success is not a failure)", res.Error)
+	}
+	if res.InputTokens != 2300 {
+		t.Errorf("InputTokens = %d, want 2300 (1100+1200)", res.InputTokens)
+	}
+	if res.OutputTokens != 55 {
+		t.Errorf("OutputTokens = %d, want 55 (40+15)", res.OutputTokens)
+	}
+	if res.NumTurns != 2 {
+		t.Errorf("NumTurns = %d, want 2", res.NumTurns)
+	}
+	if got, ok := res.ProviderData["motoko_run_summary_missing"].(bool); !ok || !got {
+		t.Errorf("ProviderData[motoko_run_summary_missing] = %v, want true (signal to consumers)", res.ProviderData["motoko_run_summary_missing"])
+	}
+	if got := res.ProviderData["motoko_finish_reason"]; got != "stop" {
+		t.Errorf("ProviderData[motoko_finish_reason] = %v, want stop", got)
+	}
+}
+
 // TestParseSessionJSONL_TolerantToNonJSONLines verifies that non-JSON
 // preamble / trailer chatter (e.g. the "This line is not JSON" line in
 // the crash fixture) is skipped silently rather than aborting the parse.
@@ -187,7 +221,7 @@ func TestFindSessionJSONL_DirectMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := findSessionJSONL(tmp, "session_my-id")
+	got, err := findSessionJSONL(tmp, "session_my-id", "")
 	if err != nil {
 		t.Fatalf("findSessionJSONL: %v", err)
 	}
@@ -214,7 +248,7 @@ func TestFindSessionJSONL_FallbackToNewest(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Sanity: stat ordering
-	got, err := findSessionJSONL(tmp, "session_does-not-exist")
+	got, err := findSessionJSONL(tmp, "session_does-not-exist", "")
 	if err != nil {
 		t.Fatalf("findSessionJSONL: %v", err)
 	}
@@ -227,9 +261,69 @@ func TestFindSessionJSONL_FallbackToNewest(t *testing.T) {
 // has no .motoko/logfile directory.
 func TestFindSessionJSONL_MissingDir(t *testing.T) {
 	tmp := t.TempDir()
-	_, err := findSessionJSONL(tmp, "anything")
+	_, err := findSessionJSONL(tmp, "anything", "")
 	if err == nil {
 		t.Error("findSessionJSONL on workspace without .motoko/logfile/ should fail")
+	}
+}
+
+// TestFindSessionJSONL_DiscoveredRepoFallback covers M-MOTOKO-EVAL-HARNESS-
+// HARDENING M3b (gap #5): when MOTOKO_REPO env is unset but the executor's
+// HealthCheck populated discoveredRepo from `motoko --version`, the JSONL
+// search must fall back to <discoveredRepo>/.motoko/logfile/.
+func TestFindSessionJSONL_DiscoveredRepoFallback(t *testing.T) {
+	// Workspace has no .motoko/logfile/ — forces the search past the first
+	// candidate and into the fallback chain.
+	workspace := t.TempDir()
+	repo := t.TempDir()
+	logDir := filepath.Join(repo, motokoStateDir, "logfile")
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	wantPath := filepath.Join(logDir, "session_discovered.jsonl")
+	if err := os.WriteFile(wantPath, []byte(`{"type":"session_start"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Critical: MOTOKO_REPO env must be UNSET for the discoveredRepo branch
+	// to fire (env wins over discovered when both are present).
+	t.Setenv("MOTOKO_REPO", "")
+
+	got, err := findSessionJSONL(workspace, "session_discovered", repo)
+	if err != nil {
+		t.Fatalf("findSessionJSONL with discoveredRepo fallback: %v", err)
+	}
+	if got != wantPath {
+		t.Errorf("got %q, want %q (discoveredRepo fallback should locate JSONL)", got, wantPath)
+	}
+}
+
+// TestFindSessionJSONL_EnvWinsOverDiscovered verifies that when both
+// MOTOKO_REPO env and discoveredRepo are set, the env-set path takes
+// precedence (operator override > auto-discovery).
+func TestFindSessionJSONL_EnvWinsOverDiscovered(t *testing.T) {
+	workspace := t.TempDir()
+	envRepo := t.TempDir()
+	discoveredRepo := t.TempDir()
+
+	// Put a JSONL in BOTH candidate dirs with the same session id.
+	for _, repo := range []string{envRepo, discoveredRepo} {
+		logDir := filepath.Join(repo, motokoStateDir, "logfile")
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(logDir, "session_x.jsonl"), []byte(`{}`), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("MOTOKO_REPO", envRepo)
+
+	got, err := findSessionJSONL(workspace, "session_x", discoveredRepo)
+	if err != nil {
+		t.Fatalf("findSessionJSONL: %v", err)
+	}
+	wantPath := filepath.Join(envRepo, motokoStateDir, "logfile", "session_x.jsonl")
+	if got != wantPath {
+		t.Errorf("got %q, want %q (MOTOKO_REPO env should beat discoveredRepo)", got, wantPath)
 	}
 }
 
