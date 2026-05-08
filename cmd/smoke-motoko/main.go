@@ -88,11 +88,23 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
+	// M-MOTOKO-EVAL-HARNESS-HARDENING M5d: hardcoded Budget for the smoke
+	// runner so motoko's cost_warning + cost_exhausted thresholds and the
+	// Result.CostUSD field exercise the env-var pricing path. The eval
+	// harness derives this from models.yml; the smoke runner doesn't have
+	// that wired (it's a one-off CLI), so we hardcode the haiku-4-5 rates.
+	// Updating: keep in sync with internal/eval_harness/models.yml entry
+	// "motoko-claude-haiku-4-5".pricing (input_per_1k=0.00025, output=0.00125).
 	startTime := time.Now()
 	res, err := exec.Execute(ctx, &executor.Task{
 		Workspace: wsDir,
 		Directive: *task,
 		Model:     *model,
+		Budget: executor.NewCostBudget(
+			0,       // MaxUSD=0 means "tally only, no enforcement"
+			0.00025, // InputPer1K USD (claude-haiku-4-5)
+			0.00125, // OutputPer1K USD
+		),
 	})
 	elapsed := time.Since(startTime)
 

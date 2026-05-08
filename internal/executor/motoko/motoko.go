@@ -172,6 +172,25 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if task.Workspace != "" {
 		env = append(env, "WORKDIR="+task.Workspace)
 	}
+	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
+	// from Task.Budget (sourced from models.yml by the eval harness) so
+	// motoko's cost_warning + cost_exhausted thresholds fire and run_summary
+	// reports a non-zero cost_usd. Pre-M5a, motoko's profile had no cost_rates
+	// for openrouter/anthropic models, leading to CostUSD=0 across every
+	// motoko-* model. Source-of-truth flow: AILANG models.yml → CostBudget
+	// (per-1K USD) → motoko env vars (per-1M millicents).
+	if task.Budget != nil {
+		if task.Budget.InputPer1K > 0 {
+			// per-1K USD × 1e8 = per-1M millicents
+			//   (×1000 for K→M, ×100 for $→¢, ×1000 for ¢→m¢)
+			inputMillicents := int64(task.Budget.InputPer1K * 1e8)
+			env = append(env, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
+		}
+		if task.Budget.OutputPer1K > 0 {
+			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
+			env = append(env, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
+		}
+	}
 	cmd.Env = env
 
 	startTime := time.Now()
