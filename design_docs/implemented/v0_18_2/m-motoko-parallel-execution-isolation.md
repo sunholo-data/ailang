@@ -159,6 +159,49 @@ Three architectural hypotheses for this crash (this sprint will bisect and confi
 - motoko's wrapper does `cd $MOTOKO_REPO`. Worktrees expose the same files at a different path — the AILANG runtime should be path-independent, but motoko's `package.json` paths or `dist/` resolution might assume canonical path. M2a verifies by running motoko from a worktree as a smoke test BEFORE relying on the architecture.
 - `git worktree` requires the source to be a git repo (motoko_agent is). For non-git installs (e.g. tarball), fall back to `cp -r` (option D). The adapter detects via `git -C <path> rev-parse` and dispatches.
 
+### POST-IMPLEMENTATION FINDINGS (2026-05-08, after M2-M5 shipped)
+
+**Both H1 and H4 hypotheses turned out to be WRONG** as the root cause of the catastrophic dur=0 failures we'd been chasing. The M2 AILANG_CACHE_DIR fix didn't move the needle (parallel-2 still 1/4); the M3 HealthCheck dedup didn't either (still 0/4). The actual culprits, found by capturing per-spawn stderr to files:
+
+**Real cause #1: Stale bun processes from the day's debugging.** PIDs 12378, 13799, 31167, 42911, 88753 (spawned hours ago across various interrupted test runs) were still listening on ports 18080-18083 + 18099 — the entire range the motoko wrapper's `pick_free_port` probes. New parallel motoko spawns racing on `lsof -i ":$port"` against these stale listeners produced exactly the dur=0 + EADDRINUSE pattern we'd been investigating.
+
+**Real cause #2: Stale `ailang.lock` after publishing v0.1.1 of ext packages.** Earlier in the session I'd published `motoko-ext-{omnigraph,context-mode,exa-search}@0.1.1` to the registry. motoko's `ailang.lock` still recorded sha256 of v0.1.0. AILANG type-checked against the new packages on disk but resolved via the lock — the effect rows on `on_build_system_prompt` mismatched, producing:
+```
+Error: type error in src/core/ext/registry_generated (decl 0):
+type unification failed at [if branches at registry_generated.ail:21:3]:
+failed to unify type argument 0: failed to unify record field
+'on_build_system_prompt': failed to unify effect rows: incompatible
+closed rows: r1 has extra labels [], r2 has extra labels [Env FS]
+```
+
+**Validation in clean state:**
+- After killing stale processes + `ailang lock` + `ailang generate-extension-registry`:
+  - parallel-2 × 4 alphabetically-early benchmarks: **4/4 (100%)**
+  - parallel-4 × 15 smoke benchmarks iter 1: **13/15 (86.7%)**
+  - parallel-4 × 15 smoke benchmarks iter 2: **14/15 (93.3%)**
+  - **Combined parallel-4 × 30 runs: 27/30 (90%)** — statistically equivalent to serial 42/45 (93.3%)
+
+**The 3 parallel-4 failures across 30 runs:**
+1. iter1 `balanced_parens`: model-quality miss (claude-haiku produced AILANG with bare assignment instead of `let`)
+2. iter1 `numeric_modulo`: motoko-internal `tool_use_id` correlation bug in hybrid mode (logged for follow-up: see `design_docs/planned/v0_18_3/m-motoko-hybrid-tool-correlation.md`)
+3. iter2 `records_book`: residual ~7% dur=0 race — small enough to be acceptable for v0.18.2 ship; further investigation deferred
+
+**Lessons learned (recorded for the AILANG project's institutional memory):**
+1. **Process pollution from interactive debugging is a category of failure that confounds investigation.** A clean-slate test should be the FIRST step when debugging mysterious failures, not the last. The M3.5 (HealthCheck stale-process detection) addresses this for future operators.
+2. **Cross-repo lock-file drift is invisible until type errors appear.** Publishing a new package version while a downstream project's lock is unrefreshed produces cryptic AILANG errors, not "lock is stale" warnings. The M5 (HealthCheck lock-staleness check) addresses this.
+3. **Investigation-first didn't prevent the wrong-hypothesis trap.** Phase 1's lsof/dtruss snapshots correctly identified that the dying PIDs died BEFORE FS or TCP activity — but the natural conclusion (H4 = bun startup race) was wrong. The actual evidence was 200ms-resolution lsof showing stale PIDs on the wrapper's port range, which I recorded but didn't recognize. **Lesson**: when an instrumentation result includes "noise" (PIDs older than the test window), treat that noise as a candidate explanation, not just a filter target.
+
+### Sprint pivot (post-findings)
+
+The original Phase 2-4 plan (per-task isolation via `git worktree` or hardlink-mirror) is **NOT NEEDED**. The actual scope shipped is:
+- M2: AILANG_CACHE_DIR env override (kept as defensive isolation; harmless even though not the immediate fix)
+- M3: HealthCheck `sync.Once` dedup (kept; reduces bun startup overhead at parallel-N)
+- M4: HealthCheck stale-process warning (NEW; surfaces the operational gotcha)
+- M5: HealthCheck stale-lock warning (NEW; surfaces the lock drift)
+- M6: Document follow-up motoko hybrid-tool bug (deferred to v0.18.3)
+
+Worktree-with-symlinks proposal is **fully cancelled** — no architectural race exists to justify the symlink complexity.
+
 ### Worktree validation update (M2a pre-flight, 2026-05-08)
 
 Tested `git worktree add --detach /tmp/motoko-worktree-test HEAD` — exposes a clean checkout but **does NOT include `.gitignore`'d files**: `node_modules/` and `src/tui/dist/` are missing. Running motoko from a fresh worktree would require `npm install` + `npm run build` per task (~30s each, blowing the 8-min wall-clock budget at parallel-4).
