@@ -100,6 +100,39 @@ Three architectural hypotheses for this crash (this sprint will bisect and confi
 
 **H3: Shared registry state.** Some startup-time write to `MOTOKO_REPO/src/core/ext/registry_generated.ail` or `MOTOKO_REPO/.motoko/store/` — both parallel sessions race on the same file. (Less likely than H1/H2 because the registry is checked-in source, but worth ruling out via instrumentation.)
 
+### Phase 1 Findings (2026-05-08, post-investigation)
+
+**Repro:** `ailang eval-suite --agent --models motoko-claude-haiku-4-5 --benchmarks adt_option,balanced_parens,binary_tree_sum,canonical_normalization --langs ailang --agent-parallel 2` produced **3 of 4 failures** (75% failure rate), all with `dur_s=0` + 0-byte JSONL — exactly matches the failure signature seen in v1/v2 parallel runs. Captured: `eval_results/v0_18_2_phase1_repro/` + `/tmp/motoko-fs-contention-20260508-163736/`.
+
+**lsof timeline analysis:**
+- Snapshot captured 18 distinct motoko-family PIDs over a 180s window at 200ms resolution
+- 4 simultaneous `motoko --version` HealthCheck spawns at 16:37:44 (PIDs 12337-12340) — 4 because adapter HealthCheck fires per-task and parallel-2 means 2-at-a-time but with cumulative spawns over the run
+- 4 simultaneous wrapper-script spawns at 16:37:45 (PIDs 12460-12463) — these are the 4 task spawns
+- **Only 1 of 4 task spawns reached `ailang run`** (PID 12627, sourced from wrapper PID 12463)
+- The 3 dying wrappers (12460-12462) died BETWEEN the bash wrapper and the bun startup. No TCP sockets, no .ailang/cache writes, no .motoko/store writes captured for them — they crashed before any FS or network operation that lsof would observe at 200ms granularity.
+
+**Hypothesis verdict:**
+
+| Hypothesis | Evidence | Verdict |
+|---|---|---|
+| **H1 (cache race)** | lsof saw NO double-writes to `.ailang/cache/`. **BUT** lsof at 200ms intervals would miss fast .gob writes (microseconds). And the consistent "alphabetically-first benchmarks fail" pattern across v1/v2/Phase1 strongly suggests cold-cache contention — once a sibling has WRITTEN the cache, subsequent siblings READ from it cleanly. | **Likely contributor** |
+| **H2 (env-server cross-routing)** | TCP listen sockets show 5 PIDs each on UNIQUE kernel-picked ports. **No same-port-from-multiple-PIDs.** The v0.18.1 EADDRINUSE handler is working as designed — sessions don't share env-servers in this run | **Disconfirmed** as primary cause for THIS failure mode (still relevant defense-in-depth) |
+| **H3 (registry race)** | lsof saw NO writes to `registry_generated.ail` or `.motoko/store/` from any PID | **Disconfirmed** |
+| **H4 (bun startup race) — NEW** | The 3 dying spawns died BEFORE bun's `startEnvServer` ran (no TCP socket entry). Bun's startup involves loading `src/tui/dist/*.js` (~50 modules), TS native compilation, V8 cache warmup. With 2-4 simultaneous bun spawns reading from shared `node_modules` + `.bun/cache/`, transient I/O failures or cache-corruption races are plausible. **Strongly suggested by the dying-before-FS-activity pattern.** | **Likely contributor** |
+
+**Conclusion:** The failure is **a 2-cause compound**: (a) **H1 cold-cache race** where `ailang run` recompiles `.ail` source on first run after a code change and 2+ parallel runs both try to write the same .gob, AND (b) **H4 bun startup race** where parallel bun spawns race on shared node_modules / V8 cache. Both are consequences of the same architectural problem: **all parallel motoko sessions share the same MOTOKO_REPO directory**.
+
+**Implication for Phase 2-4 design:**
+- A per-task isolation strategy (worktree, hardlink-mirror, OR full-copy) addresses BOTH H1 and H4 at the same architectural level — each session gets its own copy of `.ailang/cache/` AND `node_modules/` AND `src/tui/dist/`.
+- **`git worktree` is the strongest candidate** because it handles all 4 hypotheses cleanly: separate working tree (H1, H3), separate startup environment (H4), zero shared mutable state (H2 already disconfirmed but freed of any future concern).
+- The HealthCheck `motoko --version` call (added in v0.18.1 M2c) compounds the problem by adding 1 extra bun spawn per task — should be cached/deduplicated to once-per-executor (not once-per-task) as a separate small fix.
+
+**Design Freeze updates** (based on findings):
+- [x] **Per-task isolation strategy: `git worktree`** — addresses both H1 + H4 cleanly, native git tooling, the Agent tool already uses this pattern (`isolation: "worktree"`)
+- [x] **Single env-server architecture: drop auto_start branch, keep inline `startEnvServer` in bun** — H2 is disconfirmed but the 2-server architecture is still wasteful; one-per-session is cleaner
+- [x] **MOTOKO_HOME naming + lifecycle**: `${TMPDIR}/motoko-task-<uuid>/` created via `git worktree add`, removed via `git worktree remove --force` in `defer cleanup()`
+- [x] **HealthCheck cache-warming**: opt-in via `--warm-cache`. Additionally: HealthCheck should remember the version metadata once-per-executor to avoid spawning bun on every task call
+
 ### Impact
 
 - **Tactical**: `ailang eval-suite --agent-parallel 2` is the standard release-baseline command. Motoko-on-parallel = unreliable means we either (a) run motoko serially while everything else parallelizes (bottleneck — motoko is the slowest harness) or (b) accept noisy comparison data.
@@ -129,7 +162,7 @@ Three architectural hypotheses for this crash (this sprint will bisect and confi
 | Single env-server per motoko process (drop the inline-server-in-bun OR drop the auto_start) | Today's two-server architecture (inline in bun + auto_start spawn) is the proximate cause of the EADDRINUSE-retry-creates-cross-task-routing bug. ONE env-server per session (kernel-picked port, owned by that session's workdir) is simpler and race-free | human | design | med (changes either index.ts startEnvServer call OR backend.ail auto_start branch) |
 | Cache-warming as part of HealthCheck (single-threaded compile pass before parallel sessions launch) | Even with per-task isolation, if H1 is real (cache-write race), the FIRST run must complete a clean cache build — subsequent runs read-only from a hot cache. HealthCheck is the natural pre-flight hook | agent | implementation | low |
 | Investigation-first ordering for the dur=0 crash — debug instrumentation BEFORE writing the fix | We have 3 hypotheses (H1/H2/H3) and don't know which is actually firing. Picking the wrong one = wasted sprint. Mirrors the v0.18.1 gap #1 phase-1 pattern (which paid off) | human | design | low (but blocks phases 2-3 until known) |
-| Hardlink-mirror vs full-copy for MOTOKO_HOME | Hardlink saves disk + setup time but doesn't isolate writes (both link targets point to same inode). Full copy isolates but is slow (~5s for the AILANG cache alone). Pick after Phase 1 nails down which paths are actually written-to | agent | implementation | med (the answer informs the per-task setup speed, which affects HealthCheck latency) |
+| Worktree vs hardlink-mirror vs full-copy for MOTOKO_HOME setup | **Three candidates** for per-task isolation: (a) `git worktree add /tmp/motoko-task-<uuid>` — native git primitive, separate working tree, shared `.git` objects, well-known pattern (Agent tool already uses it via `isolation: "worktree"`), cleanup via `git worktree remove`; (b) hardlink-mirror via `cp -al` — fast (~100ms) but shares inodes (writes from one task visible to another → defeats the purpose); (c) full `cp -r` — slow (~5s for AILANG cache) but truly isolated. **Recommendation: worktree** is the cleanest if `motoko_agent` is a git repo (it is) and if motoko's runtime accepts working from a worktree path that isn't the canonical clone (needs Phase 1 verification). Pick after Phase 1 confirms motoko's startup works from a worktree path | agent | implementation | med (the answer informs setup speed AND determines whether v0.18.2 ships a generic isolation helper or a motoko-specific one) |
 | MOTOKO_REPO discovery semantics: stays as the "source-of-truth template repo", with MOTOKO_HOME being the per-task working copy | Keeps the existing v0.18.1 MOTOKO_REPO discovery code intact; adds a layer beneath rather than replacing | agent | implementation | low |
 
 ### Design Freeze
