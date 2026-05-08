@@ -72,6 +72,35 @@ type Request struct {
 	// (currently: ollama) return AIError{Code: CodeToolsNotSupported,
 	// Retryable: false} when len(Tools) > 0.
 	Tools []ToolSchema
+
+	// CacheBreakpoints declares opt-in prompt-cache hints (M-AI-PROMPT-CACHING,
+	// v0.18.4). Empty = no caching, bit-for-bit identical wire shape to today.
+	// Each provider interprets per its own contract:
+	//
+	//   - Anthropic (direct + Bedrock + Vertex): stamps cache_control:
+	//     {type:"ephemeral"} on the matching content block. Phase 1 supports
+	//     position="system" only; "last_user" + "tool_result" deferred.
+	//   - OpenAI: NO-OP (auto-caches prompts ≥1024 tokens). Emits a one-shot
+	//     session warning so callers know hints were observed but ignored.
+	//   - Gemini: NO-OP for v0.18.4. Emits one-shot warning. Explicit
+	//     CachedContent API integration deferred to a later sprint.
+	//   - OpenRouter: dispatches based on model-string prefix (anthropic/...
+	//     -> Anthropic shape; openai/... or google/... -> NO-OP + warning).
+	//   - Ollama: silent NO-OP (local model, no caching API).
+	CacheBreakpoints []CacheBreakpoint
+}
+
+// CacheBreakpoint is a single opt-in prompt-cache hint. Mirrors the AILANG
+// `std/ai.CacheBreakpoint` record shape byte-for-byte.
+//
+//	Position : "system" | "last_user" | "tool_result"
+//	           Phase 1 supports "system" only; others reserved for Phase 2.
+//	TTL      : "ephemeral" | "5m"
+//	           Anthropic ephemeral = ~5min server TTL; longer Anthropic tiers TBD.
+//	           Providers that don't expose TTL choices ignore this field.
+type CacheBreakpoint struct {
+	Position string
+	TTL      string
 }
 
 // Message is one entry in a multi-turn AI conversation.

@@ -157,12 +157,12 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 // in client.go because Generate's messageContent.Content is a plain string,
 // while Step needs json.RawMessage to support both string and content-array.
 type stepMessagesRequest struct {
-	Model       string        `json:"model"`
-	MaxTokens   int           `json:"max_tokens"`
-	System      string        `json:"system,omitempty"`
-	Messages    []stepMessage `json:"messages"`
-	Temperature float64       `json:"temperature,omitempty"`
-	Tools       []stepToolDef `json:"tools,omitempty"`
+	Model       string          `json:"model"`
+	MaxTokens   int             `json:"max_tokens"`
+	System      json.RawMessage `json:"system,omitempty"`
+	Messages    []stepMessage   `json:"messages"`
+	Temperature float64         `json:"temperature,omitempty"`
+	Tools       []stepToolDef   `json:"tools,omitempty"`
 }
 
 type stepMessage struct {
@@ -202,9 +202,12 @@ func buildStepRequest(req *ai.Request) (*stepMessagesRequest, *ai.AIError) {
 		Model:     req.Model,
 		MaxTokens: maxTokens,
 	}
-	if req.SystemPrompt != "" {
-		apiReq.System = req.SystemPrompt
+	systemField, err := systemFieldFromPrompt(req.SystemPrompt, req.CacheBreakpoints)
+	if err != nil {
+		return nil, ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("anthropic: failed to marshal system field: %v", err), false)
 	}
+	apiReq.System = systemField
 	if req.Temperature > 0 {
 		apiReq.Temperature = req.Temperature
 	}

@@ -35,6 +35,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
 			"gemini: AIRoutingPolicy not supported; use openrouter instead", false)
 	}
+	// M-AI-PROMPT-CACHING (v0.18.4): Gemini exposes Context Caching via a
+	// separate async API (CachedContent create + reference by ID), which
+	// doesn't fit the synchronous CacheBreakpoint hint shape. Warn once
+	// per session and proceed without caching. Explicit CachedContent
+	// integration deferred to a Phase 2 design.
+	if len(req.CacheBreakpoints) > 0 {
+		ai.WarnOnceCacheHintIgnored("gemini", "no_explicit_api")
+	}
 
 	apiReq, err := buildStepRequest(req)
 	if err != nil {

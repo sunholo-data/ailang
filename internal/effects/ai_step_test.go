@@ -17,11 +17,12 @@ import (
 // Lets each test pin a Step response, error, and capture the most-recent
 // arguments for assertion.
 type fakeStepHandler struct {
-	stepResp     *ai.Response
-	stepErr      error
-	lastModel    string
-	lastMessages []ai.Message
-	lastTools    []ai.ToolSchema
+	stepResp             *ai.Response
+	stepErr              error
+	lastModel            string
+	lastMessages         []ai.Message
+	lastTools            []ai.ToolSchema
+	lastCacheBreakpoints []ai.CacheBreakpoint
 	// Call/CallJson responses for callResult/callJsonResult tests.
 	callResp     string
 	callErr      error
@@ -46,6 +47,10 @@ func (h *fakeStepHandler) Step(model string, messages []ai.Message, tools []ai.T
 	h.lastMessages = messages
 	h.lastTools = tools
 	return h.stepResp, h.stepErr
+}
+func (h *fakeStepHandler) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
+	h.lastCacheBreakpoints = cacheBreakpoints
+	return h.Step(model, messages, tools)
 }
 
 // ============================================================================

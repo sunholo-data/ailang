@@ -45,6 +45,12 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
 			"openai: AIRoutingPolicy not supported; use openrouter instead", false)
 	}
+	// M-AI-PROMPT-CACHING (v0.18.4): OpenAI auto-caches prompts >=1024 tokens
+	// transparently. Explicit cache hints have no effect; warn once per session
+	// so callers know hints were observed but ignored. The call proceeds normally.
+	if len(req.CacheBreakpoints) > 0 {
+		ai.WarnOnceCacheHintIgnored("openai", "auto_cache")
+	}
 
 	ctx, span := telemetry.StartSpan(ctx, openaiTracer, "openai.step",
 		trace.WithAttributes(

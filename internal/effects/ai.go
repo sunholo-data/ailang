@@ -54,6 +54,18 @@ type AIHandler interface {
 	// Reuses ai.Message / ai.ToolSchema / ai.Response (defined in
 	// internal/ai during M1) to avoid wire-type duplication.
 	Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error)
+
+	// StepWithCache is the cache-aware variant introduced by
+	// M-AI-PROMPT-CACHING (v0.18.4). Same contract as Step but with an
+	// extra slice of opt-in CacheBreakpoint hints that providers interpret
+	// per their own caching contract — empty slice = identical behavior to
+	// Step, bit-for-bit identical wire shape.
+	//
+	// Stubs and test handlers may delegate to Step (cache hints are pure
+	// telemetry/cost optimization, not behaviorally observable). The real
+	// ai.Handler propagates breakpoints into ai.Request.CacheBreakpoints
+	// so the per-provider step.go can act on them.
+	StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error)
 }
 
 // AIHandlerWithRouting is an optional capability — handlers that implement
@@ -154,6 +166,15 @@ func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSch
 	return c.handler.Step(model, messages, tools)
 }
 
+// StepWithCache is the cache-aware variant — passes through to the handler.
+// Empty cacheBreakpoints behaves bit-for-bit identically to Step.
+func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
+	if c.handler == nil {
+		return nil, ErrNoAIHandler
+	}
+	return c.handler.StepWithCache(model, messages, tools, cacheBreakpoints)
+}
+
 // StubAIHandler returns deterministic placeholder responses
 //
 // Use for testing and development. Supports:
@@ -230,6 +251,13 @@ func (h *StubAIHandler) Step(model string, messages []ai.Message, tools []ai.Too
 		Model:        model,
 		// Tokens: stubs don't account.
 	}, nil
+}
+
+// StepWithCache delegates to Step — cache hints are non-behavioral and the
+// stub doesn't account tokens, so they have nothing to act on. The slice
+// is accepted but ignored.
+func (h *StubAIHandler) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, _ []ai.CacheBreakpoint) (*ai.Response, error) {
+	return h.Step(model, messages, tools)
 }
 
 // stubPNG is a minimal valid 1x1 transparent PNG (67 bytes).

@@ -104,6 +104,29 @@ export type ToolSchema = {
   parameters: string
 }
 
+-- CacheBreakpoint is one opt-in prompt-cache hint (M-AI-PROMPT-CACHING, v0.18.4).
+-- Empty list = no caching, bit-for-bit identical wire shape to today.
+--
+--   position : "system" | "last_user" | "tool_result"
+--              Phase 1 supports "system" only (others reserved for Phase 2).
+--   ttl      : "ephemeral" | "5m"
+--              Anthropic ephemeral = ~5min server TTL; longer Anthropic tiers TBD.
+--              Providers without TTL choices ignore this field.
+--
+-- Per-provider behavior (from Go-side ai.CacheBreakpoint docs):
+--   Anthropic: stamps cache_control:{type:"ephemeral"} on the matching
+--              content block. Inspect StepResult.cache_read_input_tokens
+--              to verify cache hits on subsequent turns.
+--   OpenAI:    NO-OP (auto-caches prompts >=1024 tokens). Emits one-shot
+--              session warning so callers know hints were ignored.
+--   Gemini:    NO-OP for v0.18.4. Explicit CachedContent API deferred.
+--   OpenRouter: dispatches based on model-string prefix.
+--   Ollama:    silent NO-OP (local model).
+export type CacheBreakpoint = {
+  position: string,
+  ttl: string
+}
+
 -- StepResult is what one agent turn produces. When tool_calls is non-empty,
 -- the loop driver should dispatch each ToolCall, append the results as
 -- tool-role messages, and call step again. When tool_calls is empty AND
@@ -162,6 +185,29 @@ export func step(
   tools: [ToolSchema]
 ) -> Result[StepResult, AIError] ! {AI} =
   _ai_step(model, messages, tools)
+
+-- stepWithCache: cache-aware variant of step (M-AI-PROMPT-CACHING, v0.18.4).
+--
+-- Identical to step except it accepts an opt-in list of CacheBreakpoint hints
+-- that providers interpret per their own caching contract. Empty list ([])
+-- produces bit-for-bit identical behavior to step.
+--
+-- Typical usage — cache a stable system prompt across many turns:
+--
+--   let breakpoints = [{ position: "system", ttl: "ephemeral" }];
+--   match stepWithCache(model, messages, tools, breakpoints) {
+--     Ok(r) => -- r.cache_read_input_tokens > 0 on warm turns
+--     Err(e) => ...
+--   }
+--
+-- See CacheBreakpoint type for per-provider behavior.
+export func stepWithCache(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema],
+  cache_breakpoints: [CacheBreakpoint]
+) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step_with_cache(model, messages, tools, cache_breakpoints)
 
 -- runTools: convenience loop driver for multi-turn tool dispatch.
 --

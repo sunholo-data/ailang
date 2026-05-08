@@ -49,6 +49,7 @@ func init() {
 	RegisterOp("AI", "callResult", aiCallResult)
 	RegisterOp("AI", "callJsonResult", aiCallJsonResult)
 	RegisterOp("AI", "step", aiStep)
+	RegisterOp("AI", "stepWithCache", aiStepWithCache)
 }
 
 // ============================================================================
@@ -202,6 +203,73 @@ func aiStep(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 }
 
 // ============================================================================
+// aiStepWithCache — multi-turn / tool-aware with opt-in prompt-cache hints
+// (M-AI-PROMPT-CACHING, v0.18.4)
+// ============================================================================
+
+// aiStepWithCache implements AI.stepWithCache(model, messages, tools,
+// cache_breakpoints) -> Result[StepResult, AIError]. Identical to aiStep
+// except it accepts a 4th argument: a list[CacheBreakpoint] of opt-in
+// prompt-cache hints, threaded onto the underlying provider Request.
+//
+// Empty cache_breakpoints produces bit-for-bit identical behavior to aiStep.
+func aiStepWithCache(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 4 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithCache: expected 4 arguments, got %d", len(args))
+	}
+	model, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithCache: expected string model, got %T", args[0])
+	}
+	messagesArg, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithCache: expected list[Message] messages, got %T", args[1])
+	}
+	toolsArg, ok := args[2].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithCache: expected list[ToolSchema] tools, got %T", args[2])
+	}
+	breakpointsArg, ok := args[3].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: stepWithCache: expected list[CacheBreakpoint] cache_breakpoints, got %T", args[3])
+	}
+	if ctx.AI == nil {
+		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeProviderNotFound, ErrNoAIHandler.Error(), false)), nil
+	}
+
+	messages, conversionErr := decodeMessages(messagesArg)
+	if conversionErr != nil {
+		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
+	}
+	tools, conversionErr := decodeToolSchemas(toolsArg)
+	if conversionErr != nil {
+		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
+	}
+	breakpoints, conversionErr := decodeCacheBreakpoints(breakpointsArg)
+	if conversionErr != nil {
+		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeSchemaValidation, conversionErr.Error(), false)), nil
+	}
+
+	resp, err := ctx.AI.StepWithCache(model.Value, messages, tools, breakpoints)
+	if err != nil {
+		aiErr := classifyOpError(err)
+		ctx.RecordAIEffect("stepWithCache",
+			[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d", len(messages), len(tools), len(breakpoints))},
+			fmt.Sprintf(errResultPrefix, aiErr.Code),
+			ctx.AI.LastRoutingMetadata(),
+		)
+		return makeAIErrorResultRecord(aiErr), nil
+	}
+
+	ctx.RecordAIEffect("stepWithCache",
+		[]string{truncateForTrace(model.Value), fmt.Sprintf("messages:%d tools:%d cache:%d", len(messages), len(tools), len(breakpoints))},
+		fmt.Sprintf("text:%s tool_calls:%d finish:%s cache_read:%d cache_create:%d", truncateForTrace(resp.Text), len(resp.ToolCalls), resp.FinishReason, resp.CacheReadInputTokens, resp.CacheCreationInputTokens),
+		ctx.AI.LastRoutingMetadata(),
+	)
+	return makeOkStepResult(resp), nil
+}
+
+// ============================================================================
 // Decoders — AILANG records → Go structs
 // ============================================================================
 
@@ -245,6 +313,28 @@ func decodeToolCalls(list *eval.ListValue) ([]ai.ToolCall, error) {
 			ID:        getStringField(rec, "id"),
 			Name:      getStringField(rec, "name"),
 			Arguments: getStringField(rec, "arguments"),
+		})
+	}
+	return out, nil
+}
+
+// decodeCacheBreakpoints converts an AILANG list of CacheBreakpoint records
+// into []ai.CacheBreakpoint. Tolerates missing fields (treated as empty
+// strings) — provider-side validation rejects unknown positions with a
+// once-per-session warning rather than failing.
+func decodeCacheBreakpoints(list *eval.ListValue) ([]ai.CacheBreakpoint, error) {
+	if list == nil || len(list.Elements) == 0 {
+		return nil, nil
+	}
+	out := make([]ai.CacheBreakpoint, 0, len(list.Elements))
+	for i, elem := range list.Elements {
+		rec, ok := elem.(*eval.RecordValue)
+		if !ok {
+			return nil, fmt.Errorf("cache_breakpoints[%d]: expected record, got %T", i, elem)
+		}
+		out = append(out, ai.CacheBreakpoint{
+			Position: getStringField(rec, "position"),
+			TTL:      getStringField(rec, "ttl"),
 		})
 	}
 	return out, nil

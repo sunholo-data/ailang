@@ -263,6 +263,17 @@
       "description": "Demonstrates callJson: AI returns schema-enforced JSON output"
     },
     {
+      "path": "runnable/ai_caching.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "cache",
+        "tool-use"
+      ],
+      "description": "Demonstrates std/ai.stepWithCache — opt-in prompt caching across providers (M-AI-PROMPT-CACHING v0.18.4)"
+    },
+    {
       "path": "runnable/ai_stream_openai.ail",
       "status": "working",
       "tags": [

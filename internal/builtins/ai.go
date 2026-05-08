@@ -18,6 +18,8 @@ func init() {
 	registerAICallResult()
 	registerAICallJsonResult()
 	registerAIStep()
+	// M-AI-PROMPT-CACHING (v0.18.4) — opt-in prompt-cache hints
+	registerAIStepWithCache()
 }
 
 // _ai_call: Call the AI oracle with a string input

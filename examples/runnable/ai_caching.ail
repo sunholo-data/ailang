@@ -1,0 +1,67 @@
+-- examples/runnable/ai_caching.ail
+-- Demonstrates std/ai.stepWithCache — opt-in prompt caching across providers,
+-- introduced by M-AI-PROMPT-CACHING (v0.18.4).
+--
+-- stepWithCache is identical to step except it accepts a list of CacheBreakpoint
+-- hints. Each provider interprets per its own contract:
+--
+--   - Anthropic (direct + Bedrock + Vertex): stamps cache_control:{type:"ephemeral"}
+--     on the matching content block. Result: 90% off cached input cost on warm
+--     turns. Inspect StepResult.cache_read_input_tokens to verify hits.
+--   - OpenAI: NO-OP (auto-caches prompts >=1024 tokens). Emits one-shot warning.
+--   - Gemini: NO-OP for v0.18.4. Explicit CachedContent API deferred.
+--   - OpenRouter: dispatches based on model-string prefix (anthropic/* gets
+--     cache_control; openai/* and google/* warn-and-no-op).
+--   - Ollama: silent NO-OP (local model).
+--
+-- Empty cache_breakpoints ([]) produces bit-for-bit identical wire shape to
+-- the legacy step() call — back-compat is preserved.
+--
+-- Setup:
+--   ailang run --caps AI,IO --ai claude-3-5-haiku \
+--     examples/runnable/ai_caching.ail
+--
+-- For deterministic offline behaviour:
+--   ailang run --caps AI,IO --ai-stub examples/runnable/ai_caching.ail
+
+module examples/runnable/ai_caching
+
+import std/ai (stepWithCache, Message, ToolSchema, CacheBreakpoint, StepResult, AIError)
+import std/io (println)
+import std/result (Result, Ok, Err)
+
+-- A stable, repeated system prompt is the most rewarding target for caching.
+-- Loaded once, reused across many turns.
+export pure func systemPrompt() -> string {
+  "You are a terse haiku composer. Reply with exactly three lines, 5-7-5 syllables, no preamble."
+}
+
+-- Render a cache-hit summary for one step's telemetry.
+export pure func renderCacheStats(r: StepResult) -> string {
+  "in=${show(r.input_tokens)} cache_read=${show(r.cache_read_input_tokens)} cache_create=${show(r.cache_creation_input_tokens)}"
+}
+
+export func main() -> () ! {AI, IO} {
+  let breakpoints: [CacheBreakpoint] = [
+    { position: "system", ttl: "ephemeral" }
+  ];
+
+  let messages: [Message] = [
+    { role: "system", content: systemPrompt(), tool_calls: [], tool_call_id: "" },
+    { role: "user",   content: "Compose a haiku about prompt caching.", tool_calls: [], tool_call_id: "" }
+  ];
+
+  let result = stepWithCache("", messages, [], breakpoints);
+
+  match result {
+    Ok(r) => {
+      println("Haiku: ${r.message.content}");
+      println("Step telemetry: ${renderCacheStats(r)}");
+      println("(cache_read>0 means provider served some input from cache; cache_create>0 means it just wrote a new cache entry. Both 0 means caching is not engaged — likely OpenAI/Gemini/Ollama or first turn against Anthropic.)")
+    },
+    Err(e) => {
+      let retryStr = if e.retryable then "retryable" else "fatal";
+      println("Error [${e.code}/${retryStr}]: ${e.message}")
+    }
+  }
+}

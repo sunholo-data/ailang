@@ -55,6 +55,17 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, aiErr
 	}
 
+	// M-AI-PROMPT-CACHING (v0.18.4): apply cache_breakpoints per the routed-
+	// to-provider's contract. anthropic/* gets cache_control stamped on the
+	// system message; openai/* and google/* warn-and-no-op; unknown prefixes
+	// silent no-op. Empty breakpoints = no-op (bit-for-bit identical wire bytes).
+	if cacheErr := applyCacheHintsForRoute(chatReq, req.Model, req.CacheBreakpoints); cacheErr != nil {
+		e := ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("openrouter: failed to apply cache hints: %v", cacheErr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+
 	// Wrap the shared body in an OpenRouter-extended envelope that adds the
 	// optional `provider` field. We marshal the wrapped struct so the wire
 	// JSON is exactly: { ...chat completions fields, provider?: {...} }.

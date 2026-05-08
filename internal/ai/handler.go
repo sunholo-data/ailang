@@ -316,17 +316,28 @@ func (h *Handler) Model() string {
 // Note: the model parameter is per-call routable; the handler-bound model
 // (h.model) is used only as a default when model == "".
 func (h *Handler) Step(model string, messages []Message, tools []ToolSchema) (*Response, error) {
+	return h.StepWithCache(model, messages, tools, nil)
+}
+
+// StepWithCache is the cache-aware variant introduced by M-AI-PROMPT-CACHING
+// (v0.18.4). Same dispatch as Step but threads CacheBreakpoints onto the
+// outgoing Request so per-provider step.go can stamp cache_control markers
+// (Anthropic) or NO-OP with a once-per-session warning (OpenAI/Gemini).
+//
+// Empty cacheBreakpoints behaves bit-for-bit identically to Step.
+func (h *Handler) StepWithCache(model string, messages []Message, tools []ToolSchema, cacheBreakpoints []CacheBreakpoint) (*Response, error) {
 	chosenModel := model
 	if chosenModel == "" {
 		chosenModel = h.model
 	}
 	resp, err := h.provider.Step(context.Background(), &Request{
-		Model:        chosenModel,
-		SystemPrompt: h.systemPrompt,
-		MaxTokens:    h.maxTokens,
-		Routing:      h.routingPolicy,
-		Messages:     messages,
-		Tools:        tools,
+		Model:            chosenModel,
+		SystemPrompt:     h.systemPrompt,
+		MaxTokens:        h.maxTokens,
+		Routing:          h.routingPolicy,
+		Messages:         messages,
+		Tools:            tools,
+		CacheBreakpoints: cacheBreakpoints,
 	})
 	h.captureRoute(resp, err)
 	if err != nil {

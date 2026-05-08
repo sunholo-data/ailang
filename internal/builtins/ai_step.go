@@ -53,6 +53,16 @@ func toolSchemaRecordType(T *types.Builder) types.Type {
 	)
 }
 
+// cacheBreakpointRecordType returns the AILANG CacheBreakpoint record shape.
+// Mirrors ai.CacheBreakpoint byte-for-byte. Introduced by M-AI-PROMPT-CACHING
+// (v0.18.4).
+func cacheBreakpointRecordType(T *types.Builder) types.Type {
+	return T.Record(
+		types.Field("position", T.String()),
+		types.Field("ttl", T.String()),
+	)
+}
+
 // stepResultRecordType returns the AILANG StepResult record shape.
 //
 // Cache-token fields (cache_read_input_tokens, cache_creation_input_tokens)
@@ -261,4 +271,80 @@ func aiStepImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) 
 		return nil, err
 	}
 	return effects.Call(ctx, "AI", "step", args)
+}
+
+// ============================================================================
+// _ai_step_with_cache: cache-aware variant of _ai_step
+// (M-AI-PROMPT-CACHING, v0.18.4)
+// ============================================================================
+
+func registerAIStepWithCache() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_step_with_cache",
+		NumArgs: 4, // model, messages, tools, cache_breakpoints
+		Effect:  "AI",
+		Type:    makeAIStepWithCacheType,
+		Impl:    aiStepWithCacheImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Cache-aware multi-turn AI completion returning Result[StepResult, AIError]",
+			LongDesc: `Identical to _ai_step except it accepts a 4th argument: a list of
+opt-in CacheBreakpoint hints that providers interpret per their own caching
+contract.
+
+Per-provider behavior:
+  - Anthropic (direct/Bedrock/Vertex): stamps cache_control:{type:"ephemeral"}
+    on the matching content block. Phase 1 supports position="system" only.
+  - OpenAI: NO-OP (auto-caches prompts >=1024 tokens). Emits one-shot
+    session warning so callers know hints were ignored.
+  - Gemini: NO-OP for v0.18.4. Emits one-shot warning. Explicit
+    CachedContent API integration deferred.
+  - OpenRouter: dispatches based on model-string prefix (anthropic/...
+    -> Anthropic shape; openai/google/other -> NO-OP + warning).
+  - Ollama: silent NO-OP (local model, no caching API).
+
+Empty cache_breakpoints produces bit-for-bit identical wire bytes vs
+_ai_step. Inspect StepResult.cache_read_input_tokens to verify cache hits.`,
+			Params: []ParamDoc{
+				{Name: "model", Description: "Model ID (or empty for handler default)"},
+				{Name: "messages", Description: "Conversation as list[Message]"},
+				{Name: "tools", Description: "Tool catalog as list[ToolSchema]"},
+				{Name: "cache_breakpoints", Description: "Opt-in cache hints as list[CacheBreakpoint]"},
+			},
+			Returns: "Result[StepResult, AIError]",
+			SeeAlso: []string{
+				"_ai_step",
+				"std/ai.stepWithCache",
+			},
+			Since:     "v0.18.4",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "result", "tool-use", "multi-turn", "agent", "cache"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_step_with_cache builtin: " + err.Error())
+	}
+}
+
+func makeAIStepWithCacheType() types.Type {
+	T := types.NewBuilder()
+	// (model: string, messages: list[Message], tools: list[ToolSchema],
+	//  cache_breakpoints: list[CacheBreakpoint])
+	//   -> Result[StepResult, AIError] ! {AI}
+	return T.Func(
+		T.String(),
+		T.List(messageRecordType(T)),
+		T.List(toolSchemaRecordType(T)),
+		T.List(cacheBreakpointRecordType(T)),
+	).
+		Returns(T.App("Result", stepResultRecordType(T), aiErrorRecordType(T))).
+		Effects("AI")
+}
+
+func aiStepWithCacheImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "stepWithCache", args)
 }
