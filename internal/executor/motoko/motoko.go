@@ -40,6 +40,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/google/uuid"
@@ -275,7 +276,7 @@ func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
 	if info.IsDir() {
 		return fmt.Errorf("motoko path %q is a directory, expected an executable", motokoPath)
 	}
-	if info.Mode().Perm()&0111 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
 		return fmt.Errorf("motoko binary at %q is not executable (chmod +x)", motokoPath)
 	}
 	if os.Getenv("OPENROUTER_API_KEY") == "" {
