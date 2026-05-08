@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -157,11 +158,18 @@ func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool,
 		}
 		version := depManifest.Package.Version
 
-		// Replace path dep with version dep
-		old := fmt.Sprintf(`"%s" = { path = "%s" }`, depName, dep.Path)
+		// Replace path dep with version dep.
+		// Use a regex to tolerate any whitespace variant the author may have
+		// used (single-space, column-aligned, extra inner-brace spaces, etc.).
 		replacement := fmt.Sprintf(`"%s" = "%s"`, depName, version)
-		if strings.Contains(content, old) {
-			content = strings.Replace(content, old, replacement, 1)
+		pattern := fmt.Sprintf(`"%s"\s*=\s*\{\s*path\s*=\s*"%s"\s*\}`,
+			regexp.QuoteMeta(depName), regexp.QuoteMeta(dep.Path))
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false, fmt.Errorf("internal: bad rewrite pattern for %s: %w", depName, err)
+		}
+		if re.MatchString(content) {
+			content = re.ReplaceAllLiteralString(content, replacement)
 			fmt.Printf("  %s Rewrote dep %s: path %q → registry %s\n", cyan("→"), depName, dep.Path, version)
 			rewritten = true
 		}
