@@ -3,6 +3,7 @@ package openrouter
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -14,8 +15,34 @@ import (
 var openrouterTracer = telemetry.Tracer("ai.openrouter")
 
 const (
-	defaultBaseURL = "https://openrouter.ai/api/v1"
+	defaultBaseURL     = "https://openrouter.ai/api/v1"
+	defaultHTTPReferer = "https://ailang.sunholo.com"
+	defaultXTitle      = "AILANG"
+	defaultCategories  = "cli-agent,cloud-agent"
 )
+
+// setAttributionHeaders stamps OpenRouter app-attribution headers on r.
+// HTTP-Referer is mandatory for app pages and rankings; X-Title sets the
+// display name; X-OpenRouter-Categories places the app in marketplace buckets.
+// Defaults are always sent; env vars OPENROUTER_HTTP_REFERER, OPENROUTER_X_TITLE,
+// and OPENROUTER_CATEGORIES override them when set.
+func setAttributionHeaders(r *http.Request) {
+	referer := defaultHTTPReferer
+	if v := os.Getenv("OPENROUTER_HTTP_REFERER"); v != "" {
+		referer = v
+	}
+	title := defaultXTitle
+	if v := os.Getenv("OPENROUTER_X_TITLE"); v != "" {
+		title = v
+	}
+	categories := defaultCategories
+	if v := os.Getenv("OPENROUTER_CATEGORIES"); v != "" {
+		categories = v
+	}
+	r.Header.Set("HTTP-Referer", referer)
+	r.Header.Set("X-Title", title)
+	r.Header.Set("X-OpenRouter-Categories", categories)
+}
 
 // Client implements ai.Provider for OpenRouter's unified Chat Completions API.
 //

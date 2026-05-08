@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -97,14 +96,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	// Optional OpenRouter-specific attribution headers
-	if referer := os.Getenv("OPENROUTER_HTTP_REFERER"); referer != "" {
-		httpReq.Header.Set("HTTP-Referer", referer)
-	}
-	if title := os.Getenv("OPENROUTER_X_TITLE"); title != "" {
-		httpReq.Header.Set("X-Title", title)
-	}
+	setAttributionHeaders(httpReq)
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)

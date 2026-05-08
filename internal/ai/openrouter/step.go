@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
@@ -85,13 +84,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	// Optional OpenRouter attribution headers — same lift as Generate.
-	if referer := os.Getenv("OPENROUTER_HTTP_REFERER"); referer != "" {
-		httpReq.Header.Set("HTTP-Referer", referer)
-	}
-	if title := os.Getenv("OPENROUTER_X_TITLE"); title != "" {
-		httpReq.Header.Set("X-Title", title)
-	}
+	setAttributionHeaders(httpReq)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
