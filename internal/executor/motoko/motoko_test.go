@@ -116,20 +116,40 @@ func TestHealthCheck_BinaryMissing(t *testing.T) {
 	}
 }
 
-// TestHealthCheck_MockBinary uses a POSIX shell stub that responds to
-// --version. Exercises the success path without requiring real motoko on
-// PATH (CI-safe).
+// TestHealthCheck_MockBinary verifies the binary-existence + executability
+// check passes against a POSIX shell stub. motoko has no --version mode (any
+// flag becomes task input), so HealthCheck deliberately doesn't run the
+// binary — just verifies it exists, is a regular file, and is executable.
 func TestHealthCheck_MockBinary(t *testing.T) {
 	tmpdir := t.TempDir()
 	mockPath := filepath.Join(tmpdir, "motoko")
-	mockScript := "#!/bin/bash\nif [ \"$1\" = \"--version\" ]; then echo \"motoko mock 0.0.1\"; exit 0; fi\nexit 1\n"
-	if err := os.WriteFile(mockPath, []byte(mockScript), 0755); err != nil {
+	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nexit 0\n"), 0755); err != nil {
 		t.Fatalf("failed to write mock binary: %v", err)
 	}
+
+	// HealthCheck also requires OPENROUTER_API_KEY to be set (wrapper
+	// pre-flight requirement). Set a placeholder for this test.
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-test-stub-not-real")
 
 	exec, _ := New(&executor.Config{MotokoPath: mockPath})
 	if err := exec.HealthCheck(context.Background()); err != nil {
 		t.Errorf("HealthCheck against mock binary failed: %v", err)
+	}
+}
+
+// TestHealthCheck_MissingAPIKey verifies HealthCheck fails clearly when
+// OPENROUTER_API_KEY is not set (motoko's wrapper requires it up-front).
+func TestHealthCheck_MissingAPIKey(t *testing.T) {
+	tmpdir := t.TempDir()
+	mockPath := filepath.Join(tmpdir, "motoko")
+	if err := os.WriteFile(mockPath, []byte("#!/bin/bash\nexit 0\n"), 0755); err != nil {
+		t.Fatalf("failed to write mock binary: %v", err)
+	}
+
+	t.Setenv("OPENROUTER_API_KEY", "")
+	exec, _ := New(&executor.Config{MotokoPath: mockPath})
+	if err := exec.HealthCheck(context.Background()); err == nil {
+		t.Errorf("HealthCheck succeeded with empty OPENROUTER_API_KEY; expected error")
 	}
 }
 

@@ -128,13 +128,37 @@ func parseSessionLine(line []byte) (*motokoEvent, map[string]any, error) {
 //  2. Fall back to the newest *.jsonl in the same directory (handles cases
 //     where the wrapper renames the file or our env-var injection didn't
 //     reach the wrapper layer).
-//  3. Return ("", nil) if neither exists — caller treats as "no JSONL" and
+//  3. **MOTOKO_REPO fallback** (added after smoke testing 2026-05-08): the
+//     current motoko wrapper does `cd "$MOTOKO_REPO"` before exec'ing the
+//     agent, so JSONL actually lands in `$MOTOKO_REPO/.motoko/logfile/`
+//     — NOT the workspace. Search there too. The right long-term fix is
+//     M-MOTOKO-EXT-PER-TASK's MOTOKO_REGISTRY_OVERRIDE / a new
+//     MOTOKO_LOGFILE_DIR env var; this fallback unblocks v0.18.0.
+//  4. Return ("", err) if neither exists — caller treats as "no JSONL" and
 //     emits a Result with Error pointing to that fact.
 func findSessionJSONL(workspace, sessionID string) (string, error) {
-	logDir := filepath.Join(workspace, ".motoko", "logfile")
-	if _, err := os.Stat(logDir); err != nil {
-		return "", fmt.Errorf("motoko logfile dir not found at %s: %w", logDir, err)
+	candidates := []string{filepath.Join(workspace, ".motoko", "logfile")}
+	if motokoRepo := os.Getenv("MOTOKO_REPO"); motokoRepo != "" {
+		candidates = append(candidates, filepath.Join(motokoRepo, ".motoko", "logfile"))
 	}
+
+	var lastErr error
+	for _, logDir := range candidates {
+		if _, err := os.Stat(logDir); err != nil {
+			lastErr = err
+			continue
+		}
+		path, err := findJSONLInDir(logDir, sessionID)
+		if err == nil {
+			return path, nil
+		}
+		lastErr = err
+	}
+	return "", fmt.Errorf("motoko session JSONL not found in workspace or MOTOKO_REPO: %w", lastErr)
+}
+
+// findJSONLInDir is the single-directory search logic used by findSessionJSONL.
+func findJSONLInDir(logDir, sessionID string) (string, error) {
 
 	if sessionID != "" {
 		candidate := filepath.Join(logDir, sessionID+".jsonl")

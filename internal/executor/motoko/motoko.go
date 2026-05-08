@@ -255,22 +255,31 @@ func (e *MotokoExecutor) CostModel() *executor.CostModel {
 	}
 }
 
-// HealthCheck verifies the motoko binary exists on PATH and responds.
+// HealthCheck verifies the motoko binary exists and is executable.
+//
+// IMPORTANT: motoko has no `--version` or `--help` mode — both flags are
+// treated as task input by the agent loop and would spawn an LLM call (and
+// hang waiting for the TUI). We deliberately check ONLY for binary existence
+// + executability + presence of OPENROUTER_API_KEY (which the wrapper requires
+// up-front, so an unset key would cause every Execute to fail).
 func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
 	motokoPath := e.motokoPath
-	if _, err := exec.LookPath(motokoPath); err != nil {
-		if _, statErr := os.Stat(motokoPath); statErr != nil {
-			return fmt.Errorf("motoko CLI not found: %w (build from sunholo-data/motoko_agent)", err)
-		}
+	resolvedPath := motokoPath
+	if abs, err := exec.LookPath(motokoPath); err == nil {
+		resolvedPath = abs
 	}
-	checkCmd := exec.CommandContext(ctx, motokoPath, "--version")
-	if err := checkCmd.Run(); err != nil {
-		// motoko --version may not be implemented; fall back to --help which
-		// every CLI supports.
-		helpCmd := exec.CommandContext(ctx, motokoPath, "--help")
-		if helpErr := helpCmd.Run(); helpErr != nil {
-			return fmt.Errorf("motoko binary not responsive: --version: %v; --help: %w", err, helpErr)
-		}
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("motoko CLI not found at %q: %w (build from sunholo-data/motoko_agent or set MotokoPath)", motokoPath, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("motoko path %q is a directory, expected an executable", motokoPath)
+	}
+	if info.Mode().Perm()&0111 == 0 {
+		return fmt.Errorf("motoko binary at %q is not executable (chmod +x)", motokoPath)
+	}
+	if os.Getenv("OPENROUTER_API_KEY") == "" {
+		return fmt.Errorf("OPENROUTER_API_KEY not set — motoko routes ALL models via OpenRouter; set this env var or expect every Execute to fail at the wrapper's pre-flight check")
 	}
 	return nil
 }
