@@ -1,0 +1,59 @@
+# AILANG Agent Executor — motoko variant (motoko_agent, no Go toolchain)
+# M-MOTOKO-EXECUTOR-ADAPTER: Use for AILANG-native agent runs against any
+# OpenRouter-routable model. Use for: cross-harness comparisons (motoko-X vs
+# vanilla-X) and open-weight model evaluation (Gemma 4, GLM-5, Qwen, etc.).
+#
+# Cost-control rule (EXECUTOR_SHAPE.md §8): when this image is deployed as
+# a Cloud Run Job, secret bindings MUST exclude ANTHROPIC_API_KEY. motoko
+# routes Anthropic models via OpenRouter; binding both would re-expose the
+# pay-per-token billing surface that the Pi precedent deliberately avoided.
+# Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
+
+ARG PROJECT
+ARG MOTOKO_COMMIT=84fa449
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
+# wrapper around scripts/run-agent.sh that drives the AILANG runtime + the
+# motoko-ext-* extension packages).
+USER root
+
+# Bun runtime (motoko's TUI wrapper requires bun >= 1.0).
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
+    && mv /root/.bun/bin/bun /usr/local/bin/bun \
+    && chmod +x /usr/local/bin/bun
+
+# Clone motoko_agent at the pinned commit (84fa449 = PR #6 head with schema-v1
+# instrumentation per M-MOTOKO-EVAL-INSTRUMENTATION). Bumping this requires
+# also bumping the pinned commit in the in-repo adapter README and recapturing
+# the testdata/ fixtures.
+RUN git clone --depth=50 https://github.com/sunholo-data/motoko_agent.git /opt/motoko_agent \
+    && cd /opt/motoko_agent \
+    && git checkout ${MOTOKO_COMMIT}
+
+# Install bun deps (TUI runtime + tool dispatcher harness).
+RUN cd /opt/motoko_agent && bun install --frozen-lockfile || bun install
+
+# Install motoko-ext-* packages from the AILANG package registry. The pinned
+# commit's ailang.toml lists the version pins; ailang lock + install resolves
+# them. Requires the ailang binary already in /usr/local/bin/ from agent-base.
+RUN cd /opt/motoko_agent && ailang lock && ailang install || true
+
+# Symlink the run-agent wrapper to /usr/local/bin/motoko so the executor
+# adapter's `exec.LookPath("motoko")` resolves cleanly. The wrapper script
+# accepts the directive as a positional arg and reads MODEL / MOTOKO_CONFIG /
+# WORKDIR / MOTOKO_SESSION_ID from env.
+RUN ln -s /opt/motoko_agent/scripts/run-agent.sh /usr/local/bin/motoko
+
+# Bake the commit SHA so motoko's run_summary.motoko_commit is non-"dev"
+# in cloud-deployed runs (mitigates self-referential masking — see motoko's
+# M-MOTOKO-EVAL-INSTRUMENTATION Risk #4).
+ENV MOTOKO_COMMIT=${MOTOKO_COMMIT}
+
+USER ailang
+
+# NOTE for ailang-multivac PR authors:
+#   This image works against the public sunholo-data/motoko_agent repo.
+#   If you switch the pinned commit to one on a private branch, also bind
+#   a deploy key or switch to git+ssh in the clone above. The current setup
+#   assumes public-clone + frozen-version semantics.

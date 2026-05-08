@@ -74,6 +74,7 @@ var knownVariants = map[string]bool{
 	"codex-go":  true,
 	"opencode":  true,
 	"pi":        true,
+	"motoko":    true, // M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0): AILANG-native agent
 	"eval":      true,
 	"eval-go":   true,
 }
