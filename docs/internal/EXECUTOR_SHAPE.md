@@ -66,6 +66,9 @@ Close() error
 - `internal/executor/claude/claude.go:764-773` — `Register()` + `init()` pattern
 - `internal/executor/gemini/gemini.go` — same pattern for Gemini CLI
 - `internal/executor/codex/codex.go:541-548` — same pattern for Codex CLI
+- `internal/executor/opencode/opencode.go:592-601` — same pattern for opencode CLI
+- `internal/executor/pi/pi.go` — same pattern for pi CLI (multi-provider, no Go toolchain)
+- `internal/executor/motoko/motoko.go:267-278` — same pattern for motoko_agent (AILANG-native; reads JSONL from `.motoko/logfile/` rather than stdout — see package README for the schema-v1 contract)
 
 ### Streaming Parser Contract
 
