@@ -110,12 +110,20 @@ export type ToolSchema = {
 -- finish_reason is "stop", the loop terminates.
 --
 -- finish_reason : "stop" | "tool_calls" | "length" | "error"
+--
+-- cache_read_input_tokens / cache_creation_input_tokens surface upstream
+-- prompt-cache telemetry: Anthropic populates both; OpenAI + Gemini fill
+-- cache_read only (their APIs don't surface a separate cache-write count);
+-- providers without prompt caching leave both at 0. Useful for eval-harness
+-- cost telemetry that distinguishes cold-cache vs warm-cache per-step costs.
 export type StepResult = {
   message: Message,
   tool_calls: [ToolCall],
   finish_reason: string,
   input_tokens: int,
-  output_tokens: int
+  output_tokens: int,
+  cache_read_input_tokens: int,
+  cache_creation_input_tokens: int
 }
 
 -- ============================================================================

@@ -308,11 +308,13 @@ func makeOkStepResult(resp *ai.Response) eval.Value {
 	}
 	stepResult := &eval.RecordValue{
 		Fields: map[string]eval.Value{
-			"message":       msgRec,
-			"tool_calls":    encodeToolCalls(resp.ToolCalls),
-			"finish_reason": &eval.StringValue{Value: resp.FinishReason},
-			"input_tokens":  &eval.IntValue{Value: resp.InputTokens},
-			"output_tokens": &eval.IntValue{Value: resp.OutputTokens},
+			"message":                     msgRec,
+			"tool_calls":                  encodeToolCalls(resp.ToolCalls),
+			"finish_reason":               &eval.StringValue{Value: resp.FinishReason},
+			"input_tokens":                &eval.IntValue{Value: resp.InputTokens},
+			"output_tokens":               &eval.IntValue{Value: resp.OutputTokens},
+			"cache_read_input_tokens":     &eval.IntValue{Value: resp.CacheReadInputTokens},
+			"cache_creation_input_tokens": &eval.IntValue{Value: resp.CacheCreationInputTokens},
 		},
 	}
 	return &eval.TaggedValue{

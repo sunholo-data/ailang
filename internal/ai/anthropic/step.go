@@ -109,11 +109,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 
 	out := &ai.Response{
-		InputTokens:  result.Usage.InputTokens,
-		OutputTokens: result.Usage.OutputTokens,
-		TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens,
-		Model:        result.Model,
-		FinishReason: mapStopReason(result.StopReason),
+		InputTokens:              result.Usage.InputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		TotalTokens:              result.Usage.InputTokens + result.Usage.OutputTokens,
+		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+		Model:                    result.Model,
+		FinishReason:             mapStopReason(result.StopReason),
 	}
 
 	var textParts []string

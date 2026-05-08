@@ -54,6 +54,13 @@ func toolSchemaRecordType(T *types.Builder) types.Type {
 }
 
 // stepResultRecordType returns the AILANG StepResult record shape.
+//
+// Cache-token fields (cache_read_input_tokens, cache_creation_input_tokens)
+// surface upstream prompt-cache telemetry: Anthropic populates both;
+// OpenAI + Gemini populate cache_read only (no separate cache-write count
+// in their APIs); other providers leave both at 0. Useful for eval-harness
+// cost telemetry that needs to distinguish "cold cache" vs "warm cache"
+// per-step costs.
 func stepResultRecordType(T *types.Builder) types.Type {
 	return T.Record(
 		types.Field("message", messageRecordType(T)),
@@ -61,6 +68,8 @@ func stepResultRecordType(T *types.Builder) types.Type {
 		types.Field("finish_reason", T.String()),
 		types.Field("input_tokens", T.Int()),
 		types.Field("output_tokens", T.Int()),
+		types.Field("cache_read_input_tokens", T.Int()),
+		types.Field("cache_creation_input_tokens", T.Int()),
 	)
 }
 

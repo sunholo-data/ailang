@@ -59,10 +59,7 @@ func TestClient_Generate_Success(t *testing.T) {
 				{Type: "text", Text: "Hello, how can I help you today?"},
 			},
 			StopReason: "end_turn",
-			Usage: struct {
-				InputTokens  int `json:"input_tokens"`
-				OutputTokens int `json:"output_tokens"`
-			}{
+			Usage: anthropicUsage{
 				InputTokens:  15,
 				OutputTokens: 10,
 			},

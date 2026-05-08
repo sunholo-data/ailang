@@ -88,10 +88,7 @@ func TestStep_TextOnly_HappyPath(t *testing.T) {
 				{Type: "text", Text: "Hello there!"},
 			},
 			StopReason: "end_turn",
-			Usage: struct {
-				InputTokens  int `json:"input_tokens"`
-				OutputTokens int `json:"output_tokens"`
-			}{
+			Usage: anthropicUsage{
 				InputTokens:  12,
 				OutputTokens: 7,
 			},

@@ -208,9 +208,17 @@ type ChatStepRespMessage struct {
 
 // ChatStepUsage is the token-usage block.
 type ChatStepUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens        int                       `json:"prompt_tokens"`
+	CompletionTokens    int                       `json:"completion_tokens"`
+	TotalTokens         int                       `json:"total_tokens"`
+	PromptTokensDetails *ChatStepPromptTokDetails `json:"prompt_tokens_details,omitempty"`
+}
+
+// ChatStepPromptTokDetails carries OpenAI's prompt-cache breakdown
+// (cached_tokens). Anthropic-style cache_creation_input_tokens has no
+// equivalent on OpenAI — the cache write isn't surfaced separately.
+type ChatStepPromptTokDetails struct {
+	CachedTokens int `json:"cached_tokens"`
 }
 
 // ChatStepErrorEnvelope is the OpenAI/OpenRouter error response shape.
@@ -447,14 +455,19 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 		model = requestedModel
 	}
 
+	cacheRead := 0
+	if raw.Usage.PromptTokensDetails != nil {
+		cacheRead = raw.Usage.PromptTokensDetails.CachedTokens
+	}
 	return &ai.Response{
-		Text:         text,
-		InputTokens:  raw.Usage.PromptTokens,
-		OutputTokens: raw.Usage.CompletionTokens,
-		TotalTokens:  raw.Usage.TotalTokens,
-		Model:        model,
-		ToolCalls:    toolCalls,
-		FinishReason: MapChatFinishReason(choice.FinishReason),
+		Text:                 text,
+		InputTokens:          raw.Usage.PromptTokens,
+		OutputTokens:         raw.Usage.CompletionTokens,
+		TotalTokens:          raw.Usage.TotalTokens,
+		CacheReadInputTokens: cacheRead,
+		Model:                model,
+		ToolCalls:            toolCalls,
+		FinishReason:         MapChatFinishReason(choice.FinishReason),
 	}, nil
 }
 

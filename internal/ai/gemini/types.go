@@ -121,10 +121,11 @@ type candidate struct {
 
 // usageMetadata represents token usage.
 type usageMetadata struct {
-	PromptTokenCount     int `json:"promptTokenCount"`
-	CandidatesTokenCount int `json:"candidatesTokenCount"`
-	TotalTokenCount      int `json:"totalTokenCount"`
-	ThoughtsTokenCount   int `json:"thoughtsTokenCount,omitempty"` // Reasoning tokens (Gemini 3+)
+	PromptTokenCount        int `json:"promptTokenCount"`
+	CandidatesTokenCount    int `json:"candidatesTokenCount"`
+	TotalTokenCount         int `json:"totalTokenCount"`
+	ThoughtsTokenCount      int `json:"thoughtsTokenCount,omitempty"`      // Reasoning tokens (Gemini 3+)
+	CachedContentTokenCount int `json:"cachedContentTokenCount,omitempty"` // Cache hit tokens (Gemini context-caching)
 }
 
 // errorResponse represents an error response from the API.

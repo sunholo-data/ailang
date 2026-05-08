@@ -306,14 +306,15 @@ func parseStepResponse(req *ai.Request, body []byte) (*ai.Response, error) {
 	}
 
 	return &ai.Response{
-		Text:         strings.Join(textParts, "\n"),
-		InputTokens:  raw.UsageMetadata.PromptTokenCount,
-		OutputTokens: raw.UsageMetadata.CandidatesTokenCount,
-		TotalTokens:  raw.UsageMetadata.TotalTokenCount,
-		ReasonTokens: raw.UsageMetadata.ThoughtsTokenCount,
-		Model:        model,
-		ToolCalls:    toolCalls,
-		FinishReason: finish,
+		Text:                 strings.Join(textParts, "\n"),
+		InputTokens:          raw.UsageMetadata.PromptTokenCount,
+		OutputTokens:         raw.UsageMetadata.CandidatesTokenCount,
+		TotalTokens:          raw.UsageMetadata.TotalTokenCount,
+		ReasonTokens:         raw.UsageMetadata.ThoughtsTokenCount,
+		CacheReadInputTokens: raw.UsageMetadata.CachedContentTokenCount,
+		Model:                model,
+		ToolCalls:            toolCalls,
+		FinishReason:         finish,
 	}, nil
 }
 

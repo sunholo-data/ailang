@@ -142,7 +142,24 @@ type Response struct {
 	// CachedTokens is the number of cached input tokens (provider-specific).
 	// OpenRouter reports this in usage.prompt_tokens_details.cached_tokens.
 	// Other providers may leave this as 0.
+	//
+	// DEPRECATED: prefer CacheReadInputTokens (same data, normalized name).
+	// Kept for back-compat with the OpenRouter cost-normalization path.
 	CachedTokens int
+
+	// CacheReadInputTokens is the number of input tokens served from the
+	// provider's prompt cache (a "cache hit"). Anthropic surfaces this as
+	// usage.cache_read_input_tokens; OpenAI as usage.prompt_tokens_details.cached_tokens;
+	// Gemini as usageMetadata.cachedContentTokenCount. Providers that don't
+	// support prompt caching (or didn't this turn) report 0.
+	CacheReadInputTokens int
+
+	// CacheCreationInputTokens is the number of input tokens written into
+	// the provider's prompt cache this turn (a "cache write"). Anthropic-
+	// specific (usage.cache_creation_input_tokens); other providers leave 0.
+	// Useful for distinguishing "cold cache" vs "warm cache" cost profiles
+	// in eval-harness telemetry.
+	CacheCreationInputTokens int
 
 	// CostUSD is the inference cost in USD as reported by the provider.
 	// Stored as a string to preserve provider-reported precision.

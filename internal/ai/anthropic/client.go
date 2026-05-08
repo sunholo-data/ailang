@@ -97,6 +97,17 @@ type toolChoice struct {
 	Name string `json:"name"` // tool name
 }
 
+// anthropicUsage is the named usage block from the Messages API. Extracted
+// from messagesResponse so callers (tests, future telemetry) can construct
+// it by name and adding fields doesn't break inline-struct literals at
+// every callsite (caught while wiring cache_*_input_tokens fields).
+type anthropicUsage struct {
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+}
+
 // messagesResponse represents the response from the Messages API.
 type messagesResponse struct {
 	ID           string         `json:"id"`
@@ -106,10 +117,7 @@ type messagesResponse struct {
 	Content      []contentBlock `json:"content"`
 	StopReason   string         `json:"stop_reason"`
 	StopSequence string         `json:"stop_sequence"`
-	Usage        struct {
-		InputTokens  int `json:"input_tokens"`
-		OutputTokens int `json:"output_tokens"`
-	} `json:"usage"`
+	Usage        anthropicUsage `json:"usage"`
 }
 
 type contentBlock struct {

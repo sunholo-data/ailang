@@ -14,7 +14,7 @@ _ai_call_json_result : (string, string) -> Result[string, {code: string, message
 _ai_call_json_simple : string -> string ! {AI}
 _ai_call_result : string -> Result[string, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_call_stream : (string, string, string) -> Result[string, {code: string, message: string, retryable: bool}] ! {AI, Net, Stream}
-_ai_step : (string, list[{content: string, role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}]) -> Result[{finish_reason: string, input_tokens: int, message: {content: string, role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}] ! {AI}
+_ai_step : (string, list[{content: string, role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}]) -> Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_stream_call : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {AI, Net, Stream}
 _array_append : (Array[a], a) -> Array[a]
 _array_empty : () -> Array[a]
