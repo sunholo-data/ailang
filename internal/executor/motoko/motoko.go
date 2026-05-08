@@ -41,6 +41,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,6 +60,15 @@ type MotokoExecutor struct {
 	model          string
 	profile        string
 	timeoutSeconds int
+
+	// Version metadata, populated by HealthCheck via `motoko --version`.
+	// All four default to "unknown" if the version query fails (older
+	// motoko binaries pre-M2c hang on any flag). Used for telemetry +
+	// drift detection across eval runs.
+	tuiVersion  string
+	gitRev      string
+	ailangBuilt string
+	motokoRepo  string
 }
 
 // New creates a new MotokoExecutor.
@@ -256,13 +266,23 @@ func (e *MotokoExecutor) CostModel() *executor.CostModel {
 	}
 }
 
-// HealthCheck verifies the motoko binary exists and is executable.
+// HealthCheck verifies the motoko binary exists, is executable, and (when
+// available) reports its version + git rev.
 //
-// IMPORTANT: motoko has no `--version` or `--help` mode — both flags are
-// treated as task input by the agent loop and would spawn an LLM call (and
-// hang waiting for the TUI). We deliberately check ONLY for binary existence
-// + executability + presence of OPENROUTER_API_KEY (which the wrapper requires
-// up-front, so an unset key would cause every Execute to fail).
+// HISTORY: motoko had no `--version` mode prior to M-MOTOKO-EVAL-HARNESS-
+// HARDENING (v0.18.1) — every flag was treated as task input by the agent
+// loop and would spawn an LLM call (and hang waiting for the TUI). M2c
+// added `motoko --version` which now exits 0 with structured key=value
+// output (tui_version, git_rev, ailang_built, motoko_repo).
+//
+// HealthCheck:
+//  1. Verifies binary existence + executability (always required)
+//  2. Verifies OPENROUTER_API_KEY is set (wrapper pre-flight requirement)
+//  3. Calls `motoko --version` with a 5s timeout — if it succeeds, the
+//     version + git_rev are stashed in MotokoExecutor for telemetry.
+//     Failure here is NON-FATAL (older motoko binaries pre-M2c hang on
+//     any flag; we degrade to "version unknown" rather than refusing
+//     the executor).
 func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
 	motokoPath := e.motokoPath
 	resolvedPath := motokoPath
@@ -282,7 +302,42 @@ func (e *MotokoExecutor) HealthCheck(ctx context.Context) error {
 	if os.Getenv("OPENROUTER_API_KEY") == "" {
 		return fmt.Errorf("OPENROUTER_API_KEY not set — motoko routes ALL models via OpenRouter; set this env var or expect every Execute to fail at the wrapper's pre-flight check")
 	}
+
+	// Best-effort version query (M-MOTOKO-EVAL-HARNESS-HARDENING M2c). Older
+	// motoko binaries (pre-M2c) treat --version as task input and hang. The
+	// 5s timeout caps that worst case; on timeout/error we leave version
+	// fields at their default ("unknown") and proceed.
+	versionCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, vErr := exec.CommandContext(versionCtx, motokoPath, "--version").Output()
+	if vErr == nil {
+		e.parseVersionOutput(string(out))
+	}
+
 	return nil
+}
+
+// parseVersionOutput populates the executor's version fields from the
+// `motoko --version` key=value output. Lines that don't match the expected
+// format are silently ignored.
+func (e *MotokoExecutor) parseVersionOutput(out string) {
+	for _, line := range strings.Split(out, "\n") {
+		idx := strings.Index(line, "=")
+		if idx <= 0 {
+			continue
+		}
+		key, val := line[:idx], strings.TrimSpace(line[idx+1:])
+		switch key {
+		case "tui_version":
+			e.tuiVersion = val
+		case "git_rev":
+			e.gitRev = val
+		case "ailang_built":
+			e.ailangBuilt = val
+		case "motoko_repo":
+			e.motokoRepo = val
+		}
+	}
 }
 
 // Close releases any resources held by the executor.

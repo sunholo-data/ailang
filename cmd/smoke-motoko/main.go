@@ -40,6 +40,15 @@ func main() {
 		os.Exit(2)
 	}
 
+	// motoko's wrapper does `cd "$MOTOKO_REPO"` before exec'ing — JSONL
+	// lands there, NOT in the task workspace. The adapter's
+	// findSessionJSONL has a MOTOKO_REPO env-var fallback for exactly this;
+	// default it to the wrapper's hardcoded fallback if the user hasn't
+	// set it explicitly.
+	if os.Getenv("MOTOKO_REPO") == "" {
+		_ = os.Setenv("MOTOKO_REPO", "/Users/mark/dev/sunholo/motoko_agent")
+	}
+
 	// Mutate the global factory's config in place — the motoko package's
 	// init() already registered the builder against this factory, so we
 	// must NOT replace it (that would orphan all registrations).
