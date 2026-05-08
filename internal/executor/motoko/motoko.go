@@ -168,6 +168,17 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"MODEL="+e.getModel(task),
 		"MOTOKO_CONFIG="+e.profile,
 		"MOTOKO_SESSION_ID="+sessionID,
+		// M-MOTOKO-EVAL-HARNESS-HARDENING follow-up (2026-05-08): force
+		// ENV_PORT=0 so the wrapper's `pick_free_port` short-circuits
+		// (it only fires when ENV_PORT is unset) and the TS env-server
+		// gets to bind to port 0 — kernel atomically picks a free port
+		// inside the bind() syscall, no TOCTOU race. Required for
+		// --agent-parallel >= 2 in the AILANG eval harness; safe for
+		// serial use too. Pre-fix, parallel spawns of motoko would
+		// both win the lsof probe for the same port, the second one's
+		// bind() failed → wrapper crashed → 0-byte JSONL → adapter
+		// reported "motoko terminated without emitting run_summary".
+		"ENV_PORT=0",
 	)
 	if task.Workspace != "" {
 		env = append(env, "WORKDIR="+task.Workspace)
