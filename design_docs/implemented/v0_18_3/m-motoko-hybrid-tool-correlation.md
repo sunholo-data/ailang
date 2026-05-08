@@ -1,9 +1,11 @@
 # M-MOTOKO-HYBRID-TOOL-CORRELATION: Fix tool_use_id correlation in motoko's hybrid-bash mode
 
-**Status**: Planned
+**Status**: Implemented (2026-05-08)
 **Target**: v0.18.3 (patch on top of v0.18.2)
 **Priority**: P2 (Medium — degrades but doesn't block parallel motoko eval runs; ~7% sporadic failure on numeric_modulo and similar benchmarks)
 **Estimated**: 2–4 hours (~50 LOC + tests)
+**Actual**: ~30 minutes wall-clock, 26 LOC (Option A — inject synthetic tool_use), verified by re-running the failing numeric_modulo benchmark (PASS in 33s, $0.089). Full smoke regression deferred — OpenRouter monthly quota exhausted by today's debugging.
+**Implemented in**: motoko_agent commit `d767b1c` on `motoko-bisect-gap1`.
 **Dependencies**: ✅ M-MOTOKO-EVAL-HARNESS-HARDENING (v0.18.1) + M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2)
 
 **Author**: Claude Sonnet 4.6 + Mark
