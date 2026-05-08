@@ -151,14 +151,14 @@ Exit code 0 = ALLOW, 1 = REJECT. Scriptable for use in shell-level debugging.
 
 ## Acceptance Criteria
 
-- [ ] **M1**: `AILANG_FS_SANDBOX_DEBUG=1` causes rejected `exists`, `isDir`, `isFile` calls to emit `[ailang/sandbox] REJECT ...` to stderr
-- [ ] **M1**: No output when `AILANG_FS_SANDBOX_DEBUG` is unset (zero-cost in production)
-- [ ] **M1**: Log line includes: op name, attempted path, sandbox root, return value
-- [ ] **M2**: `AILANG_TRACE=deep` records sandbox rejections as trace events on the FS span (skips if no trace collector)
-- [ ] **M3**: `ailang sandbox-check <path>` prints ALLOW/REJECT with resolved path and exits 0/1
-- [ ] **M3**: `ailang sandbox-check` with no `AILANG_FS_SANDBOX` set prints a clear "no sandbox configured" message
-- [ ] Unit tests for `logSandboxReject` output (capture stderr in test)
-- [ ] `make ci` passes
+- [x] **M1**: `AILANG_FS_SANDBOX_DEBUG=1` causes rejected `exists`, `isDir`, `isFile` calls to emit `[ailang/sandbox] REJECT ...` to stderr
+- [x] **M1**: No output when `AILANG_FS_SANDBOX_DEBUG` is unset (zero-cost in production)
+- [x] **M1**: Log line includes: op name, attempted path, sandbox root, return value
+- [x] **M2**: `AILANG_TRACE=deep` records sandbox rejections as trace events on the FS span (skips if no trace collector)
+- [x] **M3**: `ailang sandbox-check <path>` prints ALLOW/REJECT with resolved path and exits 0/1
+- [x] **M3**: `ailang sandbox-check` with no `AILANG_FS_SANDBOX` set prints a clear "no sandbox configured" message
+- [x] Unit tests for `logSandboxReject` output (capture stderr in test)
+- [x] `make test` + `make lint` pass (12 new tests, 0 lint issues)
 
 ---
 

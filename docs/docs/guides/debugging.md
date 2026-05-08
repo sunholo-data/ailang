@@ -506,6 +506,59 @@ make report-file-sizes    # Show files >500 lines
 make doc PKG=<package>    # Show package documentation
 ```
 
+## Sandbox Debugging (`AILANG_FS_SANDBOX`)
+
+When `AILANG_FS_SANDBOX` is set, all FS operations are restricted to a root directory. `exists`, `isDir`, and `isFile` silently return `false` for out-of-sandbox paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning.
+
+### Symptom
+
+A program reads config, gets empty values (`extensions.order = []`, `cost_rates = {}`), and no error is reported. The real cause is that the config file path escapes the sandbox and `fileExists(path)` returned `false`.
+
+### 3-step diagnosis
+
+**Step 1 — identify which paths are being rejected:**
+```bash
+AILANG_FS_SANDBOX=/tmp/task AILANG_FS_SANDBOX_DEBUG=1 ailang run your_program.ail
+# stderr output:
+# [ailang/sandbox] REJECT exists("/home/mark/.motoko/config/default/config.json") → escapes sandbox "/tmp/task" (returns false)
+```
+
+**Step 2 — confirm the resolution interactively:**
+```bash
+AILANG_FS_SANDBOX=/tmp/task ailang sandbox-check /home/mark/.motoko/config/default/config.json
+# sandbox:  /tmp/task
+# path:     /home/mark/.motoko/config/default/config.json (absolute)
+# result:   REJECT — escapes sandbox "/tmp/task"
+#           exists/isDir/isFile → false
+#           readFile/writeFile/etc → error
+```
+
+**Step 3 — fix** by ensuring the config path is within the sandbox, or by setting an env var that directs the program to a fallback within the sandbox:
+```bash
+# Example: motoko uses MOTOKO_REPO to find config when workdir is a scratch dir
+MOTOKO_REPO=/tmp/task AILANG_FS_SANDBOX=/tmp/task ailang run your_program.ail
+```
+
+### `ailang sandbox-check` reference
+
+```bash
+ailang sandbox-check <path>   # ALLOW/REJECT + resolved path, exits 0/1
+```
+
+Exit 0 = ALLOW (path is within sandbox or sandbox not configured).  
+Exit 1 = REJECT (path escapes sandbox).
+
+No `AILANG_FS_SANDBOX` set → prints "no sandbox configured", exits 0.
+
+### Trace-based diagnosis
+
+Under `AILANG_TRACE=deep`, sandbox rejections are recorded as `FS.<op>.sandbox.reject` events in the OTEL trace collector and visible in `ailang trace list`:
+
+```bash
+AILANG_TRACE=deep ailang run your_program.ail --emit-trace auto
+ailang trace list --hours 1   # look for FS.exists.sandbox.reject events
+```
+
 ## See Also
 
 - [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
