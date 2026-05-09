@@ -224,6 +224,27 @@ func (c *Client) buildURL(model string) (string, error) {
 	}
 }
 
+// buildStreamURL constructs the streaming API URL. Same shape as buildURL
+// but swaps :generateContent for :streamGenerateContent and appends
+// alt=sse so the response is SSE-framed (text/event-stream of one JSON
+// object per data: line) rather than a raw JSON array.
+//
+// Used by StreamStep (M-AI-STEP-STREAMING v0.18.7).
+func (c *Client) buildStreamURL(model string) (string, error) {
+	if c.baseURL != "" {
+		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", c.baseURL, model), nil
+	}
+	switch c.authType {
+	case AuthAPIKey:
+		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse&key=%s", aiStudioBaseURL, model, c.apiKey), nil
+	case AuthADC:
+		return fmt.Sprintf("%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
+			vertexAIBaseURL, c.projectID, c.location, model), nil
+	default:
+		return "", ai.NewProviderError("gemini", 0, "unknown auth type", nil)
+	}
+}
+
 // addAuth adds authentication headers to the request.
 func (c *Client) addAuth(req *http.Request) error {
 	switch c.authType {
