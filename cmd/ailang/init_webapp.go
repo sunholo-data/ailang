@@ -34,6 +34,8 @@ func initCommand(args []string) error {
 		return initWebApp(name)
 	case "package":
 		return initPackageCommand(flagSet.Args()[1:])
+	case "motoko-extension":
+		return initMotokoExtensionCommand(flagSet.Args()[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown init type %q\n", red("Error"), kind)
 		printInitHelp()

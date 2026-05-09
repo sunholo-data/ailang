@@ -22,45 +22,103 @@ You'll need:
 
 ---
 
-## Step 1: Scaffold the package
-
-Create the directory under `ailang-packages/packages/`:
+## Step 1: Scaffold the package (one command)
 
 ```bash
-cd ../ailang-packages/packages
-mkdir motoko-ext-openkb
-cd motoko-ext-openkb
+cd ../ailang-packages
+ailang init motoko-extension \
+  --name arniwesth/motoko_ext_openkb \
+  --tools "OpenKBSearch,OpenKBList" \
+  --effects "FS,Process,Env"
 ```
 
-Naming convention: **`motoko-ext-<short_name>`** with hyphens. The `motoko-ext-` prefix is automatically stripped by the registry generator's short-name derivation, leaving `openkb` as the dispatch key.
+That generates a working package at `packages/motoko-ext-openkb/` with 5 files:
 
-Create `ailang.toml`:
-
-```toml
-[package]
-name = "sunholo/motoko_ext_openkb"   # underscores in module-style name; matches dependency declaration
-version = "0.1.0"
-edition = "1"
-
-[dependencies]
-"sunholo/motoko_ext_abi" = { path = "../motoko-ext-abi" }   # path = OK while developing the package itself
-
-[effects]
-max = ["Process", "FS", "Env"]   # everything your extension needs at MOST
-
-[exports]
-modules = [
-  "sunholo/motoko_ext_openkb/register",   # MUST end in /register
-  "sunholo/motoko_ext_openkb/openkb",
-  "sunholo/motoko_ext_openkb/types"
-]
+```
+packages/motoko-ext-openkb/
+├── ailang.toml          (registry deps + exports + effects)
+├── register.ail         (canonical register_with_config wrapper)
+├── types.ail            (placeholder type — edit me)
+├── openkb.ail           (8-hook ExtensionHooks, all no-op defaults)
+└── README.md            (links to publishing guide)
 ```
 
-> **Why `_ext_` matters.** The generator strips `motoko-ext-` from package short-names. If you name it `motoko_openkb` instead, the dispatch key becomes `motoko_openkb` (ugly) instead of `openkb` (clean). Arni's first attempt used `motoko_openkb` — easy to miss.
+The output passes `ailang lock + ailang check` immediately — you can edit logic without first having to make the structure compile.
+
+> **Why this command exists.** The naming, layout, and 8-hook contract conventions are easy to get wrong (see [Common pitfalls](#common-pitfalls-the-first-attempt-failures) at the end). The scaffolder makes the canonical shape the path of least resistance — particularly important when an AI agent is creating the extension on the fly.
+
+> **Manual scaffolding** (if you want to understand the structure or you're not on AILANG ≥ 0.18.5): see the [appendix below](#appendix-manual-scaffolding).
 
 ---
 
-## Step 2: Define your types
+## Step 2: Edit the generated stubs
+
+The scaffolded `<short>.ail` (e.g. `openkb.ail`) has all 8 ExtensionHooks fields populated as no-op defaults. Open it and replace the relevant hooks with real logic:
+
+- `on_describe_tools` — return a `[ToolSchema]` describing each tool you listed in `--tools`. The model uses these schemas to call your tools correctly.
+- `on_tool_handle` — pattern-match on `call.name` and run the tool. Return `Handled(result)` instead of `Delegate` for tools you handle.
+- Other hooks (system prompt, budget, policy, response intercept, solver) — leave as no-ops unless you need them.
+
+Edit `types.ail` to define real types your extension exports.
+
+You can `ailang check register.ail` after each edit to catch errors early. The skeleton always type-checks — your edits should keep it that way.
+
+---
+
+## Step 3: Wire it into motoko_agent
+
+Open `motoko_agent/ailang.toml` and add (during development — see [path vs registry](./extension-packages.md#path-vs-registry-checklist)):
+
+```toml
+[dependencies]
+"arniwesth/motoko_ext_openkb" = { path = "../ailang-packages/packages/motoko-ext-openkb" }
+
+[extensions]
+packages = [
+  # ... existing entries ...
+  "arniwesth/motoko_ext_openkb@0.1.0",
+]
+```
+
+Then re-lock + regenerate the dispatch:
+
+```bash
+ailang lock
+ailang generate-extension-registry   # rewrites src/core/ext/registry_generated.ail
+make check_core                       # type-check everything
+```
+
+When you're ready to ship, swap the path-dep for a registry version (`= "0.1.0"`) and run [`ailang publish`](./package-publishing.md).
+
+---
+
+## Common pitfalls (the "first attempt" failures)
+
+These four mistakes wreck most first attempts when scaffolding by hand. The `ailang init motoko-extension` command makes each one **structurally impossible** — but for awareness:
+
+| Mistake | Symptom | Auto-prevented by scaffolder? |
+|---|---|---|
+| Putting the extension inside `motoko_agent/src/core/ext/openkb/` | Can't version it; conflicts with `generate-extension-registry`; can't be reused by other motoko hosts | ✅ Output dir is always `packages/motoko-ext-<name>/` |
+| Naming it `motoko_openkb` instead of `motoko-ext-openkb` | Short-name derivation produces ugly key (`motoko_openkb` instead of `openkb`) | ✅ `--name` validation rejects names without the `motoko_ext_` infix |
+| Hand-editing `src/core/ext/registry.ail` (or `registry_generated.ail`) | Changes vanish next time someone runs `ailang generate-extension-registry` | ✅ Scaffolder never writes a registry file in the package |
+| Leaving `path = "../..."` in the host `ailang.toml` for production | Lockfile bakes in your absolute path; PR/CI clones break | ✅ Generated `ailang.toml` uses the registry version of `motoko_ext_abi`, never `path = "../..."` |
+
+---
+
+## Going further
+
+- Real reference implementation: [`motoko-ext-exa-search`](https://github.com/sunholo-data/ailang-packages/tree/main/packages/motoko-ext-exa-search) — closest in shape to what most third-party extensions need
+- Multi-tool example with budget hooks: [`motoko-ext-omnigraph`](https://github.com/sunholo-data/ailang-packages/tree/main/packages/motoko-ext-omnigraph)
+- Hook contract reference: [`pkg/sunholo/motoko_ext_abi/types.ExtensionHooks`](https://github.com/sunholo-data/ailang-packages/blob/main/packages/motoko-ext-abi/types.ail)
+- Publishing your extension to the AILANG package registry: [Publishing Your Package](./package-publishing.md)
+
+---
+
+## Appendix: Manual scaffolding
+
+If you don't have AILANG ≥ 0.18.5 (which ships the `ailang init motoko-extension` command), or if you want to understand exactly what the scaffolder generates and why, you can produce the same files by hand. The walkthrough below explains each file in detail.
+
+### A.1: Define your types manually
 
 Create `types.ail`:
 
@@ -83,7 +141,7 @@ ailang check types.ail   # should print "✓ No errors found!"
 
 ---
 
-## Step 3: Implement your tool
+### A.2: Implement your tool manually
 
 Create `openkb.ail`:
 
@@ -146,7 +204,7 @@ export func make_hooks(workdir: string) -> ExtensionHooks ! {Env, FS} {
 
 ---
 
-## Step 4: Write the `register` entry point
+### A.3: Write the `register` entry point manually
 
 Create `register.ail`:
 
@@ -174,7 +232,7 @@ ailang check register.ail             # ✓ No errors found!
 
 ---
 
-## Step 5: Wire it into motoko_agent
+### A.4: Wire it into motoko_agent manually
 
 Open `motoko_agent/ailang.toml` and add:
 
@@ -195,7 +253,7 @@ packages = [
 
 ---
 
-## Step 6: Regenerate the registry
+### A.5: Regenerate the registry manually
 
 **Do not hand-edit `src/core/ext/registry_generated.ail`.** Run:
 
@@ -216,7 +274,7 @@ grep -A 1 "openkb" src/core/ext/registry_generated.ail
 
 ---
 
-## Step 7: Configure + test
+### A.6: Configure + test manually
 
 Add a config block in `.motoko/config/default/openkb.json` (or wherever your motoko config is):
 
@@ -238,24 +296,4 @@ make run TASK="search the openkb for AILANG syntax"   # smoke test
 
 If `make check_core` fails, diff `src/core/ext/registry_generated.ail` against your last commit — most likely the generator added/removed a line that conflicts with a stale hand-edit.
 
----
-
-## Common pitfalls (the "first attempt" failures)
-
-These are the four mistakes that wreck most first attempts. Each was hit at least once in the wild.
-
-| Mistake | Symptom | Fix |
-|---|---|---|
-| Putting the extension inside `motoko_agent/src/core/ext/openkb/` | Can't version it; conflicts with `generate-extension-registry`; can't be reused by other motoko hosts | Put it in `ailang-packages/packages/motoko-ext-openkb/` |
-| Naming it `motoko_openkb` instead of `motoko-ext-openkb` | Short-name derivation produces ugly key (`motoko_openkb` instead of `openkb`) | Use the `motoko-ext-` prefix; underscores in `[package].name` field but hyphens in directory name |
-| Hand-editing `src/core/ext/registry.ail` (or `registry_generated.ail`) | Changes vanish next time someone runs `ailang generate-extension-registry` | Always regenerate; never hand-edit the dispatch file |
-| Leaving `path = "../..."` in the host `ailang.toml` for production | Lockfile bakes in your absolute path; PR/CI clones break | Swap to registry version + re-lock before opening PR |
-
----
-
-## Going further
-
-- Real reference implementation: [`motoko-ext-exa-search`](https://github.com/sunholo-data/ailang-packages/tree/main/packages/motoko-ext-exa-search) — closest in shape to what most third-party extensions need
-- Multi-tool example with budget hooks: [`motoko-ext-omnigraph`](https://github.com/sunholo-data/ailang-packages/tree/main/packages/motoko-ext-omnigraph)
-- Hook contract reference: [`pkg/sunholo/motoko_ext_abi/types.ExtensionHooks`](https://github.com/sunholo-data/ailang-packages/blob/main/packages/motoko-ext-abi/types.ail)
-- Publishing your extension to the AILANG package registry: see [Package Publishing](./package-publishing.md)
+(The full "Common pitfalls" table and "Going further" links are at the top of this guide, before the appendix.)

@@ -1,6 +1,6 @@
 # [Feature Name]
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: [Version, e.g., v0.4.0]
 **Priority**: [P0/P1/P2 - High/Medium/Low]
 **Estimated**: [Time estimate, e.g., 2 days]

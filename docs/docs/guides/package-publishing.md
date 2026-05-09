@@ -101,7 +101,7 @@ github.com/arniwesth/motoko-extensions/
 └── .github/workflows/publish.yml   # optional: auto-publish on tag push
 ```
 
-You can mirror Sunholo's `motoko-ext-` naming convention so motoko_agent's registry-generator strips the prefix correctly — see the [build-an-extension tutorial](./build-a-motoko-extension.md#step-1-scaffold-the-package) for details.
+You can mirror Sunholo's `motoko-ext-` naming convention so motoko_agent's registry-generator strips the prefix correctly — see the [build-an-extension tutorial](./build-a-motoko-extension.md#step-1-scaffold-the-package-one-command) for details.
 
 ---
 
