@@ -226,22 +226,40 @@ let hooks = resolve(extension_name, cfg)
 
 ### 5. Workflow for adding a new extension to motoko_agent
 
-```bash
-# In motoko_agent repo:
-# 1. Add to ailang.toml [extensions]
-# 2. Re-lock
-ailang lock
+**Recommended (AILANG ≥ 0.18.5):** scaffold the extension package in one command, then wire it into the host:
 
-# 3. Regenerate
+```bash
+# 1. Scaffold the package (in your ailang-packages clone)
+cd ../ailang-packages
+ailang init motoko-extension \
+  --name <namespace>/motoko_ext_<short> \
+  --tools "Tool1,Tool2" \
+  --effects "FS,Process,Env"
+# → creates packages/motoko-ext-<short>/ with 5 files, ready to type-check
+
+# 2. Edit packages/motoko-ext-<short>/<short>.ail to fill in your tool's logic
+
+# 3. Wire into motoko_agent's ailang.toml (path-dep during dev; swap to
+#    registry version before opening a PR):
+#      [dependencies]
+#      "<namespace>/motoko_ext_<short>" = { path = "../ailang-packages/packages/motoko-ext-<short>" }
+#      [extensions]
+#      packages = [ ..., "<namespace>/motoko_ext_<short>@0.1.0" ]
+
+# 4. Re-lock + regenerate dispatch
+cd ../motoko_agent
+ailang lock
 ailang generate-extension-registry
 
-# 4. Check it compiles
-ailang check src/core/ext/registry_generated.ail
-
-# 5. Commit
-git add ailang.lock src/core/ext/registry_generated.ail
-git commit -m "Add motoko-ext-new-tool extension"
+# 5. Type-check + commit
+make check_core
+git add ailang.toml ailang.lock src/core/ext/registry_generated.ail
+git commit -m "Add motoko-ext-<short> extension"
 ```
+
+For a step-by-step walkthrough including the contents of each generated file, see [Build Your First motoko Extension](./build-a-motoko-extension.md).
+
+**Manual scaffolding (any AILANG version):** see the [appendix in the build tutorial](./build-a-motoko-extension.md#appendix-manual-scaffolding) for the explicit file-by-file walkthrough.
 
 ### Path vs registry checklist
 
