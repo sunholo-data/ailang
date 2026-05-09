@@ -163,6 +163,10 @@ type stepMessagesRequest struct {
 	Messages    []stepMessage   `json:"messages"`
 	Temperature float64         `json:"temperature,omitempty"`
 	Tools       []stepToolDef   `json:"tools,omitempty"`
+	// Stream is set true by StreamStep (M-AI-STEP-STREAMING v0.18.7) to
+	// switch the wire format to SSE. omitempty keeps the non-streaming
+	// Step request bit-for-bit identical to pre-v0.18.7 wire bytes.
+	Stream bool `json:"stream,omitempty"`
 }
 
 type stepMessage struct {
