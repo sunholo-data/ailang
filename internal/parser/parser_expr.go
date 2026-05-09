@@ -532,6 +532,11 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 		// Check if next token is DOT (end of params) or another IDENT (more params)
 		if p.peekTokenIs(lexer.DOT) {
 			break
+		} else if p.peekTokenIs(lexer.ARROW) {
+			// \x -> body is wrong; AILANG uses \x. body (dot, not arrow)
+			p.nextToken() // consume -> to prevent cascading PAR_NO_PREFIX_PARSE
+			p.errors = append(p.errors, fmt.Errorf("lambda body separator is '.' not '->' at %s\n\t\twrite: \\%s. <body>", p.curToken.Position(), params[len(params)-1].Name))
+			return nil
 		} else if !p.peekTokenIs(lexer.IDENT) {
 			p.errors = append(p.errors, fmt.Errorf("expected '.' after lambda parameter at %s", p.peekToken.Position()))
 			return nil

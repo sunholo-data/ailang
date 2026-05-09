@@ -158,12 +158,17 @@ type streamContentBlockStart struct {
 // "content_block_delta" event. The discriminator is delta.type:
 //   - "text_delta"        → delta.text accumulates assistant content
 //   - "input_json_delta"  → delta.partial_json accumulates tool_use args
+//   - "thinking_delta"    → delta.thinking accumulates extended-thinking
+//     content (v0.18.8, claude-opus-4.5+ with
+//     thinking enabled). Surfaces as
+//     ai.StreamThinkingDelta to the user callback.
 type streamContentBlockDelta struct {
 	Index int `json:"index"`
 	Delta struct {
 		Type        string `json:"type"`
 		Text        string `json:"text,omitempty"`
 		PartialJSON string `json:"partial_json,omitempty"`
+		Thinking    string `json:"thinking,omitempty"`
 	} `json:"delta"`
 }
 
@@ -321,6 +326,15 @@ func dispatchAnthropicSSEEvent(
 			}
 		case "input_json_delta":
 			b.inputJSON.WriteString(ev.Delta.PartialJSON)
+		case "thinking_delta":
+			// Extended-thinking chunk (v0.18.8). Reasoning is NOT
+			// accumulated into the block's text builder — that gets
+			// concatenated into Response.Text, which by API contract
+			// excludes reasoning. Reasoning flows ONLY through the
+			// callback so consumers can choose to render or drop.
+			if onChunk != nil && ev.Delta.Thinking != "" {
+				onChunk(ai.StreamThinkingDelta{Text: ev.Delta.Thinking})
+			}
 		}
 
 	case "content_block_stop":

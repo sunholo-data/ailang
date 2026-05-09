@@ -215,6 +215,91 @@ func TestStreamStep_HTTPError(t *testing.T) {
 	}
 }
 
+// TestStreamStep_ParsesThinkingDelta verifies that extended-thinking
+// content_block_delta events of type "thinking_delta" surface as
+// ai.StreamThinkingDelta callbacks AND that the reasoning text does
+// NOT leak into Response.Text (which by API contract is content-only).
+// (M-AI-STEP-STREAMING-THINKING, v0.18.8)
+func TestStreamStep_ParsesThinkingDelta(t *testing.T) {
+	// Realistic Anthropic SSE sequence with extended thinking enabled:
+	// content_block index 0 = thinking, index 1 = text. Two thinking
+	// deltas, then a text delta, then close-out.
+	sseBody := strings.Join([]string{
+		`event: message_start`,
+		`data: {"type":"message_start","message":{"id":"msg_th","model":"claude-opus-4-5","role":"assistant","content":[],"stop_reason":null,"usage":{"input_tokens":50,"output_tokens":1}}}`,
+		``,
+		`event: content_block_start`,
+		`data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}`,
+		``,
+		`event: content_block_delta`,
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think"}}`,
+		``,
+		`event: content_block_delta`,
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" about this..."}}`,
+		``,
+		`event: content_block_stop`,
+		`data: {"type":"content_block_stop","index":0}`,
+		``,
+		`event: content_block_start`,
+		`data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`,
+		``,
+		`event: content_block_delta`,
+		`data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Answer"}}`,
+		``,
+		`event: content_block_stop`,
+		`data: {"type":"content_block_stop","index":1}`,
+		``,
+		`event: message_delta`,
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":50,"output_tokens":15}}`,
+		``,
+	}, "\n")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, sseBody)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var contentChunks, thinkingChunks []string
+	resp, err := client.StreamStep(context.Background(), &ai.Request{
+		Model:    "claude-opus-4-5",
+		Messages: []ai.Message{{Role: "user", Content: "think please"}},
+	}, func(chunk ai.StreamChunk) {
+		switch c := chunk.(type) {
+		case ai.StreamContentDelta:
+			contentChunks = append(contentChunks, c.Text)
+		case ai.StreamThinkingDelta:
+			thinkingChunks = append(thinkingChunks, c.Text)
+		}
+	})
+	if err != nil {
+		t.Fatalf("StreamStep returned error: %v", err)
+	}
+
+	// Two thinking deltas should fire as ai.StreamThinkingDelta.
+	if len(thinkingChunks) != 2 {
+		t.Errorf("ThinkingDelta count = %d, want 2 (chunks: %v)", len(thinkingChunks), thinkingChunks)
+	}
+	if got := strings.Join(thinkingChunks, ""); got != "Let me think about this..." {
+		t.Errorf("thinking concat = %q, want %q", got, "Let me think about this...")
+	}
+
+	// One content delta should fire as ai.StreamContentDelta.
+	if len(contentChunks) != 1 || contentChunks[0] != "Answer" {
+		t.Errorf("ContentDelta = %v, want [\"Answer\"]", contentChunks)
+	}
+
+	// CRITICAL: reasoning text MUST NOT leak into Response.Text.
+	// The API contract is that Text holds only assistant-visible content.
+	if resp.Text != "Answer" {
+		t.Errorf("resp.Text = %q, want %q (reasoning must NOT leak into Text)", resp.Text, "Answer")
+	}
+	if strings.Contains(resp.Text, "Let me think") {
+		t.Errorf("resp.Text contains thinking content: %q", resp.Text)
+	}
+}
+
 // TestStreamStep_StreamFlagSet verifies that StreamStep sends "stream":true
 // in the request body — non-streaming Step does NOT, and the omitempty on
 // the Stream field is what guarantees that.

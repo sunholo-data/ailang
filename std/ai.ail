@@ -213,27 +213,53 @@ export func stepWithCache(
 -- Streaming variant (M-AI-STEP-STREAMING, v0.18.7)
 -- ============================================================================
 
--- StreamChunk is one event emitted by stepWithStream's on_chunk callback as
--- the SSE stream drains. Phase 1 (v0.18.7) ships ContentDelta + Usage only.
+-- StreamChunk is one event emitted by stepWithStream's on_chunk callback
+-- as the SSE stream drains.
 --
--- Future variants reserved for Phase 2:
---   ToolCallDelta(...)  -- partial tool_use blocks (Anthropic) / tool_calls
---                          fragments (OpenAI). Requires per-provider JSON
---                          fragment buffering until the block closes.
---   ThinkingDelta(...)  -- Anthropic extended-thinking deltas.
+-- v0.18.7 (Phase 1):     ContentDelta + Usage
+-- v0.18.8 (this file):   + ThinkingDelta — surfaces Anthropic extended-
+--                          thinking, OpenAI o1/o3 reasoning_content, and
+--                          Gemini thought parts as a separate stream
+-- Future (Phase 2):       + ToolCallDelta — partial tool_use blocks
+--                          (requires per-provider JSON-fragment buffering)
+--
+-- Variant semantics:
+--   ContentDelta(text)   — assistant-visible text fragment. Concatenation
+--                          of all ContentDelta payloads equals
+--                          StepResult.message.content.
+--   ThinkingDelta(text)  — model reasoning fragment. NOT included in
+--                          StepResult.message.content. Total
+--                          reasoning-token count surfaces via
+--                          StepResult.reason_tokens (for cost telemetry).
+--                          Render in a separate UI surface or log
+--                          channel; safe to drop entirely if you don't
+--                          want to expose reasoning to end users.
+--   Usage({...})         — terminal token-count summary. Fires once per
+--                          stream, near the end.
 --
 -- Per-provider behavior:
---   Anthropic (direct/Bedrock/Vertex): native SSE; ContentDelta per
---                                      content_block_delta event + final
---                                      Usage from message_delta.
---   OpenAI / OpenRouter (anthropic/* prefix → Anthropic shape):
---                                      native SSE; ContentDelta per delta
---                                      + final Usage from chat.completion.chunk.
---   Gemini / Ollama / config-driven:   NO-OP fallback — calls stepWithCache
---                                      and fires one synthetic
---                                      ContentDelta(full_text) + one Usage.
+--   Anthropic (direct/Bedrock/Vertex):
+--     ContentDelta per text content_block_delta event.
+--     ThinkingDelta per content_block_delta of type thinking_delta
+--     (only when extended thinking is enabled on the request).
+--     Usage from message_delta.
+--   OpenAI:
+--     ContentDelta per delta.content fragment.
+--     ThinkingDelta per delta.reasoning_content fragment (o1/o3 models).
+--     Usage from final chunk (when stream_options.include_usage:true).
+--   OpenRouter:
+--     Anthropic/* prefix → Anthropic shape via OR's translation.
+--     OpenAI/* prefix    → OpenAI shape.
+--   Gemini (AI Studio + Vertex):
+--     ContentDelta per text part.
+--     ThinkingDelta per part with thought:true flag.
+--     Usage at end-of-stream (final chunk's authoritative usageMetadata).
+--   Ollama / config-driven providers:
+--     NO-OP fallback — calls stepWithCache and fires one synthetic
+--     ContentDelta(full_text) + one Usage. No ThinkingDelta surfaces.
 export type StreamChunk =
     ContentDelta(string)
+  | ThinkingDelta(string)
   | Usage({
       input_tokens: int,
       output_tokens: int,
@@ -248,21 +274,31 @@ export type StreamChunk =
 -- same Ok(StepResult)/Err(AIError) shape as stepWithCache — the callback
 -- is purely a side-channel for incremental rendering.
 --
--- Typical usage — token-by-token TUI rendering:
+-- Typical usage — token-by-token TUI rendering with separate thinking
+-- panel:
 --
 --   -- match-in-lambda is a known parser bug, so factor the chunk
 --   -- handler out into a top-level function (see runnable/ai_streaming.ail).
 --   func render(chunk: StreamChunk) -> () ! {IO} {
 --     match chunk {
---       ContentDelta(text) => print(text),
---       Usage(_) => println("")
+--       ContentDelta(text)  => print(text),               -- main pane
+--       ThinkingDelta(text) => printThinking(text),       -- side pane
+--       Usage(_)            => println("")
 --     }
 --   }
 --
 --   match stepWithStream(model, messages, [], breakpoints, render) {
---     Ok(r) => -- r.Text holds the full accumulated text
+--     Ok(r) => -- r.Text holds the full accumulated CONTENT (not thinking)
 --     Err(e) => ...
 --   }
+--
+-- ThinkingDelta only fires when the underlying provider+model emits
+-- API-level reasoning (Anthropic extended-thinking, OpenAI o1/o3
+-- reasoning_content, Gemini thought parts). Models that embed
+-- <thinking>...</thinking> tags inside their content stream (glm-5,
+-- deepseek-r1, etc.) deliver reasoning via ContentDelta — strip with
+-- a tag-aware splitter on the consumer side if you want to separate
+-- them.
 --
 -- The callback's effect row is open (`\!{IO}` is typical but not required).
 -- Errors thrown from the callback are recorded as trace events but do NOT

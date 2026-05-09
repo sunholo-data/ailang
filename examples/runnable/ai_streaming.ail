@@ -29,19 +29,28 @@
 
 module examples/runnable/ai_streaming
 
-import std/ai (stepWithStream, Message, ToolSchema, CacheBreakpoint, StepResult, AIError, StreamChunk, ContentDelta, Usage)
+import std/ai (stepWithStream, Message, ToolSchema, CacheBreakpoint, StepResult, AIError, StreamChunk, ContentDelta, ThinkingDelta, Usage)
 import std/io (println, print)
 import std/result (Result, Ok, Err)
 
 -- The on_chunk callback. Pattern-match on the StreamChunk variant to
--- distinguish content from end-of-stream usage telemetry.
+-- distinguish content (visible answer), thinking (model reasoning), and
+-- end-of-stream usage telemetry.
 --
 -- The callback's effect row is open — typically {IO} for stdout streaming
 -- but you can wire whatever side-channel you need (a websocket, a
 -- TUI buffer, a metrics sink, etc.).
+--
+-- ThinkingDelta only fires when the underlying provider+model emits
+-- API-level reasoning (Anthropic claude-opus-4.5+ extended-thinking,
+-- OpenAI o1/o3 reasoning_content, Gemini 2.5+ thought parts). Models
+-- that embed <thinking>...</thinking> tags inline (glm-5, deepseek-r1)
+-- deliver reasoning via ContentDelta — split with a tag-aware helper
+-- on the consumer side if you want to separate them.
 export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
   match chunk {
     ContentDelta(text) => print(text),
+    ThinkingDelta(text) => print("[think] ${text}"),  -- prefix to distinguish
     Usage(_) => println("")  -- newline after the streamed content finishes
   }
 }

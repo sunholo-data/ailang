@@ -51,8 +51,14 @@ type content struct {
 }
 
 // part represents a content part (text, inline_data, file_data, functionCall, functionResponse).
+//
+// Thought (v0.18.8): when true, the Text field carries model reasoning
+// rather than user-visible content. Surfaces as ai.StreamThinkingDelta
+// during streaming. Reasoning text is NOT accumulated into Response.Text;
+// reasoning-token count surfaces via UsageMetadata.ThoughtsTokenCount.
 type part struct {
 	Text             string            `json:"text,omitempty"`
+	Thought          bool              `json:"thought,omitempty"`          // Reasoning part (Gemini 2.5+ thinking models)
 	InlineData       *inlineData       `json:"inlineData,omitempty"`       // For multimodal (images, PDFs, etc.)
 	FileData         *fileData         `json:"fileData,omitempty"`         // For file URI references (GCS, Files API)
 	FunctionCall     *functionCall     `json:"functionCall,omitempty"`     // Model-emitted tool invocation (Step path)

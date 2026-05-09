@@ -144,6 +144,63 @@ func TestStreamStep_ParsesFunctionCalls(t *testing.T) {
 	}
 }
 
+// TestStreamStep_ParsesThoughtParts verifies that Gemini 2.5+ thinking
+// parts (parts with thought:true flag) surface as ai.StreamThinkingDelta
+// AND that their text does NOT leak into Response.Text (which by API
+// contract is content-only, matching Anthropic and OpenAI semantics).
+// (M-AI-STEP-STREAMING-THINKING, v0.18.8)
+func TestStreamStep_ParsesThoughtParts(t *testing.T) {
+	// Realistic Gemini 2.5 Pro thinking-mode SSE: chunk 1 has a thought
+	// part, chunk 2 has the actual answer, chunk 3 finalizes with usage.
+	sseBody := strings.Join([]string{
+		`data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Let me reason about this.","thought":true}]}}],"modelVersion":"gemini-2.5-pro","usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":8,"thoughtsTokenCount":8,"totalTokenCount":48}}`,
+		``,
+		`data: {"candidates":[{"content":{"role":"model","parts":[{"text":"The answer is 42."}]}}],"modelVersion":"gemini-2.5-pro","usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":14,"thoughtsTokenCount":8,"totalTokenCount":54}}`,
+		``,
+		`data: {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[]}}],"modelVersion":"gemini-2.5-pro","usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":14,"thoughtsTokenCount":8,"totalTokenCount":54}}`,
+		``,
+	}, "\n")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, sseBody)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var contentChunks, thinkingChunks []string
+	resp, err := client.StreamStep(context.Background(), &ai.Request{
+		Model:    "gemini-2.5-pro",
+		Messages: []ai.Message{{Role: "user", Content: "think please"}},
+	}, func(chunk ai.StreamChunk) {
+		switch c := chunk.(type) {
+		case ai.StreamContentDelta:
+			contentChunks = append(contentChunks, c.Text)
+		case ai.StreamThinkingDelta:
+			thinkingChunks = append(thinkingChunks, c.Text)
+		}
+	})
+	if err != nil {
+		t.Fatalf("StreamStep returned error: %v", err)
+	}
+
+	if len(thinkingChunks) != 1 || thinkingChunks[0] != "Let me reason about this." {
+		t.Errorf("ThinkingDelta = %v, want [\"Let me reason about this.\"]", thinkingChunks)
+	}
+	if len(contentChunks) != 1 || contentChunks[0] != "The answer is 42." {
+		t.Errorf("ContentDelta = %v, want [\"The answer is 42.\"]", contentChunks)
+	}
+
+	// CRITICAL: thought-part text MUST NOT leak into Response.Text.
+	if resp.Text != "The answer is 42." {
+		t.Errorf("resp.Text = %q, want %q (thought must NOT leak)", resp.Text, "The answer is 42.")
+	}
+	// ReasonTokens should reflect Gemini's thoughtsTokenCount.
+	if resp.ReasonTokens != 8 {
+		t.Errorf("resp.ReasonTokens = %d, want 8", resp.ReasonTokens)
+	}
+}
+
 // TestStreamStep_StreamURLUsesAltSse verifies that StreamStep targets the
 // streamGenerateContent endpoint (not generateContent) AND requests SSE
 // framing via alt=sse — without alt=sse, Gemini returns a JSON array which

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -260,6 +261,27 @@ func TestLambdas(t *testing.T) {
 			output := parseAndPrint(t, tt.input)
 			goldenCompare(t, tt.golden, output)
 		})
+	}
+}
+
+// TestLambdaWrongArrowError tests that \x -> body gives a clear error pointing at dot syntax.
+// Regression: this pattern produced cascading "expected '}'" errors that looked like
+// a match-in-lambda parser bug (see design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md).
+func TestLambdaWrongArrowError(t *testing.T) {
+	errs := mustParseError(t, `\chunk -> chunk`)
+	if len(errs) == 0 {
+		t.Fatal("expected error for \\x -> body syntax")
+	}
+	msg := errs[0].Error()
+	if !strings.Contains(msg, "separator is '.' not '->'") {
+		t.Errorf("expected actionable error about dot syntax, got: %s", msg)
+	}
+	if !strings.Contains(msg, `\chunk.`) {
+		t.Errorf("expected suggested fix \\chunk. in error, got: %s", msg)
+	}
+	// Must produce exactly one error — no cascading PAR_NO_PREFIX_PARSE
+	if len(errs) > 1 {
+		t.Errorf("expected 1 error, got %d: %v", len(errs), errs)
 	}
 }
 

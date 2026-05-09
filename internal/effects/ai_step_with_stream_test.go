@@ -216,6 +216,82 @@ func TestAIStepWithStream_NoFnCallerWiredReturnsTypedErr(t *testing.T) {
 	}
 }
 
+// TestAIStepWithStream_EncodesThinkingDeltaCorrectly verifies that the
+// effect op encodes ai.StreamThinkingDelta as a TaggedValue with
+// CtorName="ThinkingDelta" — matching the std/ai.StreamChunk ADT shape
+// that user pattern-match arms expect.
+// (M-AI-STEP-STREAMING-THINKING, v0.18.8)
+func TestAIStepWithStream_EncodesThinkingDeltaCorrectly(t *testing.T) {
+	// Local handler that fires both ContentDelta + ThinkingDelta + Usage.
+	h := &thinkingFakeHandler{
+		text:     "answer",
+		thinking: "reasoning",
+	}
+
+	var captured []eval.Value
+	ctx := &EffContext{
+		AI:       NewAIContext(h),
+		FnCaller: captureFnCaller(&captured),
+		Caps:     map[string]Capability{"AI": NewCapability("AI")},
+	}
+
+	_, err := aiStepWithStream(ctx, []eval.Value{
+		&eval.StringValue{Value: "claude-opus-4-5"},
+		&eval.ListValue{Elements: []eval.Value{}},
+		&eval.ListValue{Elements: []eval.Value{}},
+		&eval.ListValue{Elements: []eval.Value{}},
+		&eval.UnitValue{},
+	})
+	if err != nil {
+		t.Fatalf("aiStepWithStream returned error: %v", err)
+	}
+
+	// Expect 3 chunks: ThinkingDelta + ContentDelta + Usage.
+	if len(captured) != 3 {
+		t.Fatalf("captured chunk count = %d, want 3", len(captured))
+	}
+
+	// Chunk 0: ThinkingDelta("reasoning")
+	thinking, ok := captured[0].(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("captured[0] type = %T, want *eval.TaggedValue", captured[0])
+	}
+	if thinking.CtorName != "ThinkingDelta" {
+		t.Errorf("captured[0].CtorName = %q, want ThinkingDelta", thinking.CtorName)
+	}
+	if got := thinking.Fields[0].(*eval.StringValue).Value; got != "reasoning" {
+		t.Errorf("ThinkingDelta payload = %q, want reasoning", got)
+	}
+
+	// Chunk 1: ContentDelta("answer")
+	content, ok := captured[1].(*eval.TaggedValue)
+	if !ok || content.CtorName != "ContentDelta" {
+		t.Errorf("captured[1] = %v, want ContentDelta(...)", captured[1])
+	}
+}
+
+// thinkingFakeHandler is a controllable AIHandler that fires a
+// StreamThinkingDelta + StreamContentDelta + StreamUsage during
+// StepWithStream. Used to exercise the v0.18.8 encoder path.
+type thinkingFakeHandler struct {
+	fakeStepHandler
+	text     string
+	thinking string
+}
+
+func (h *thinkingFakeHandler) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, _ []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	if onChunk != nil {
+		if h.thinking != "" {
+			onChunk(ai.StreamThinkingDelta{Text: h.thinking})
+		}
+		if h.text != "" {
+			onChunk(ai.StreamContentDelta{Text: h.text})
+		}
+		onChunk(ai.StreamUsage{InputTokens: 10, OutputTokens: 5})
+	}
+	return &ai.Response{Text: h.text, FinishReason: "stop"}, nil
+}
+
 // TestAIStepWithStream_PassesCacheBreakpointsToHandler verifies that the
 // cache_breakpoints arg is decoded and threaded through to the handler's
 // StepWithStream call (so anthropic-style cache_control hints work for

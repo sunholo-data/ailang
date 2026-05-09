@@ -372,15 +372,21 @@ func aiStepWithStream(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // AILANG `StreamChunk` ADT. Mirrors the type definitions in std/ai.ail
 // (see M-AI-STEP-STREAMING design doc for shape contract).
 //
-//	ai.StreamContentDelta{Text} → ContentDelta(string)
-//	ai.StreamUsage{...}         → Usage({input_tokens, output_tokens,
-//	                                    cache_read_input_tokens,
-//	                                    cache_creation_input_tokens})
+//	ai.StreamContentDelta{Text}  → ContentDelta(string)
+//	ai.StreamThinkingDelta{Text} → ThinkingDelta(string)  (v0.18.8)
+//	ai.StreamUsage{...}          → Usage({input_tokens, output_tokens,
+//	                                     cache_read_input_tokens,
+//	                                     cache_creation_input_tokens})
 func encodeStreamChunk(chunk ai.StreamChunk) eval.Value {
 	switch c := chunk.(type) {
 	case ai.StreamContentDelta:
 		return &eval.TaggedValue{
 			CtorName: "ContentDelta",
+			Fields:   []eval.Value{&eval.StringValue{Value: c.Text}},
+		}
+	case ai.StreamThinkingDelta:
+		return &eval.TaggedValue{
+			CtorName: "ThinkingDelta",
 			Fields:   []eval.Value{&eval.StringValue{Value: c.Text}},
 		}
 	case ai.StreamUsage:

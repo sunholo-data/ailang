@@ -172,6 +172,17 @@ func parseGeminiSSEStream(req *ai.Request, body io.Reader, onChunk func(ai.Strea
 				})
 				continue
 			}
+			// Thought parts (v0.18.8): Gemini 2.5+ thinking models emit
+			// reasoning as parts with thought:true. Reasoning text is NOT
+			// accumulated into textParts (which becomes Response.Text);
+			// it flows ONLY through the StreamThinkingDelta callback so
+			// consumers can render it separately or drop it.
+			if p.Thought {
+				if onChunk != nil && p.Text != "" {
+					onChunk(ai.StreamThinkingDelta{Text: p.Text})
+				}
+				continue
+			}
 			if p.Text != "" {
 				textParts = append(textParts, p.Text)
 				if onChunk != nil {

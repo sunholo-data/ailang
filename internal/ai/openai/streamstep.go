@@ -140,10 +140,16 @@ type ChatStepStreamChoice struct {
 // ChatStepStreamDelta is the partial assistant message in a streaming
 // chunk. Role is set on the FIRST chunk; Content accumulates per chunk;
 // ToolCalls fragments accumulate per chunk per tool-call index.
+//
+// ReasoningContent (v0.18.8) carries per-chunk reasoning text from
+// OpenAI's o1/o3 reasoning models. Surfaces as ai.StreamThinkingDelta
+// to the user callback. Does NOT accumulate into Response.Text — the
+// final assistant content comes only from delta.content.
 type ChatStepStreamDelta struct {
-	Role      string                       `json:"role,omitempty"`
-	Content   string                       `json:"content,omitempty"`
-	ToolCalls []ChatStepStreamToolCallFrag `json:"tool_calls,omitempty"`
+	Role             string                       `json:"role,omitempty"`
+	Content          string                       `json:"content,omitempty"`
+	ReasoningContent string                       `json:"reasoning_content,omitempty"`
+	ToolCalls        []ChatStepStreamToolCallFrag `json:"tool_calls,omitempty"`
 }
 
 // ChatStepStreamToolCallFrag is one fragment of a tool_call in a streaming
@@ -240,6 +246,15 @@ func ParseChatStepSSEStream(body io.Reader, requestedModel string, onChunk func(
 				if onChunk != nil {
 					onChunk(ai.StreamContentDelta{Text: choice.Delta.Content})
 				}
+			}
+			// Reasoning content fragment (v0.18.8). o1/o3 models emit
+			// reasoning via delta.reasoning_content separate from
+			// delta.content. NOT accumulated into Response.Text — the
+			// final answer comes via delta.content. Surfaces as
+			// ai.StreamThinkingDelta so callers can render it in a
+			// separate UI surface (or drop it entirely).
+			if choice.Delta.ReasoningContent != "" && onChunk != nil {
+				onChunk(ai.StreamThinkingDelta{Text: choice.Delta.ReasoningContent})
 			}
 			for _, tcFrag := range choice.Delta.ToolCalls {
 				acc, ok := toolCalls[tcFrag.Index]

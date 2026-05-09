@@ -160,6 +160,70 @@ func TestStreamStep_ParsesToolCallFragments(t *testing.T) {
 	}
 }
 
+// TestStreamStep_ParsesReasoningContent verifies that o1/o3 reasoning
+// models' delta.reasoning_content surfaces as ai.StreamThinkingDelta
+// AND that reasoning text does NOT leak into Response.Text (which by
+// API contract is content-only).
+// (M-AI-STEP-STREAMING-THINKING, v0.18.8)
+func TestStreamStep_ParsesReasoningContent(t *testing.T) {
+	// Realistic OpenAI o1 streaming sequence: 2 reasoning_content deltas
+	// (the model thinking), then 2 content deltas (the actual answer).
+	sseBody := strings.Join([]string{
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Let me work through"},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[{"index":0,"delta":{"reasoning_content":" this carefully."},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[{"index":0,"delta":{"content":"The "},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[{"index":0,"delta":{"content":"answer."},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		``,
+		`data: {"id":"chatcmpl-th","object":"chat.completion.chunk","model":"o1-mini","choices":[],"usage":{"prompt_tokens":40,"completion_tokens":12,"total_tokens":52}}`,
+		``,
+		`data: [DONE]`,
+		``,
+	}, "\n")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, sseBody)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var contentChunks, thinkingChunks []string
+	resp, err := client.StreamStep(context.Background(), &ai.Request{
+		Model:    "o1-mini",
+		Messages: []ai.Message{{Role: "user", Content: "think please"}},
+	}, func(chunk ai.StreamChunk) {
+		switch c := chunk.(type) {
+		case ai.StreamContentDelta:
+			contentChunks = append(contentChunks, c.Text)
+		case ai.StreamThinkingDelta:
+			thinkingChunks = append(thinkingChunks, c.Text)
+		}
+	})
+	if err != nil {
+		t.Fatalf("StreamStep returned error: %v", err)
+	}
+
+	if len(thinkingChunks) != 2 {
+		t.Errorf("ThinkingDelta count = %d, want 2 (chunks: %v)", len(thinkingChunks), thinkingChunks)
+	}
+	if got := strings.Join(thinkingChunks, ""); got != "Let me work through this carefully." {
+		t.Errorf("thinking concat = %q", got)
+	}
+	if len(contentChunks) != 2 {
+		t.Errorf("ContentDelta count = %d, want 2", len(contentChunks))
+	}
+
+	// CRITICAL: reasoning text MUST NOT appear in Response.Text.
+	if resp.Text != "The answer." {
+		t.Errorf("resp.Text = %q, want %q (reasoning must NOT leak)", resp.Text, "The answer.")
+	}
+}
+
 // TestStreamStep_StreamFlagAndOptionsSet verifies that StreamStep sends
 // "stream":true AND "stream_options":{"include_usage":true} — the latter
 // is what makes OpenAI emit a final usage chunk at all.

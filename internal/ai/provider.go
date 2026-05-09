@@ -95,8 +95,17 @@ type Request struct {
 // concrete types let providers fire typed deltas without a per-provider
 // ADT. Mirrors the AILANG `std/ai.StreamChunk` ADT shape.
 //
-// Phase 1 variants: ContentDelta + Usage only. Phase 2 will add
-// ToolCallDelta + ThinkingDelta — see M-AI-STEP-STREAMING-TOOLS.
+// Variants:
+//   - ContentDelta:  assistant text fragment (v0.18.7)
+//   - ThinkingDelta: reasoning/thought fragment (v0.18.8) — surfaces
+//     Anthropic extended-thinking, OpenAI o1/o3
+//     reasoning_content, and Gemini thought parts.
+//     Reasoning text is NOT included in StepResult.Text;
+//     callers that want to log/render thinking must
+//     capture it via this callback.
+//   - Usage:         terminal token-count summary (v0.18.7)
+//
+// Future variant: ToolCallDelta — see M-AI-STEP-STREAMING-TOOLS.
 type StreamChunk interface {
 	// streamChunkMarker is intentionally unexported — closes the type
 	// to the variants defined in this package.
@@ -113,6 +122,31 @@ type StreamContentDelta struct {
 func (StreamContentDelta) streamChunkMarker() {
 	// Marker method — intentionally empty. Closes the StreamChunk
 	// interface to the variants defined in this package.
+}
+
+// StreamThinkingDelta carries a slice of model reasoning/thought content
+// as it arrives over SSE (M-AI-STEP-STREAMING-THINKING, v0.18.8).
+// Distinguished from StreamContentDelta because reasoning is typically
+// rendered in a separate UI surface (collapsible panel, side pane) and
+// excluded from logged transcripts.
+//
+// Per-provider sources:
+//   - Anthropic: content_block_delta events of type "thinking_delta"
+//     (extended-thinking-enabled requests on claude-opus-4.5 etc.).
+//   - OpenAI:    delta.reasoning_content on o1/o3 reasoning models.
+//   - Gemini:    parts with thought:true flag.
+//   - OpenRouter: dispatches to whichever upstream provider's shape the
+//     routed-to model uses.
+//
+// Reasoning text is NOT included in the final ai.Response.Text; it
+// flows ONLY through this callback. ReasonTokens (existing field on
+// ai.Response) tracks the count separately for cost telemetry.
+type StreamThinkingDelta struct {
+	Text string
+}
+
+func (StreamThinkingDelta) streamChunkMarker() {
+	// Marker method — intentionally empty. See StreamContentDelta.
 }
 
 // StreamUsage carries the usage block (token counts + cache metrics)
