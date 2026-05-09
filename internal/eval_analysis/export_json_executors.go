@@ -205,12 +205,14 @@ type harnessTotals struct {
 	totalCost  float64
 	totalDurMs int64
 	languages  map[string]*executorLangTotals
+	tiers      map[string]map[string]*executorLangTotals // tier -> lang -> totals
 }
 
 // buildHarnessAggregates groups agent results by their harness (agent_cli field
 // from ModelConfig) and returns a map ready for DashboardJSON.Harnesses.
 // Results with no matching ModelConfig entry are grouped under "unknown".
-func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interface{} {
+// benchmarkTier maps benchmark ID -> tier name (smoke/core/stretch); pass nil to skip tier breakdown.
+func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[string]string) map[string]interface{} {
 	cfg := eval_harness.GlobalModelsConfig
 	perHarness := make(map[string]*harnessTotals)
 
@@ -227,6 +229,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 			h = &harnessTotals{
 				models:    make(map[string]struct{}),
 				languages: make(map[string]*executorLangTotals),
+				tiers:     make(map[string]map[string]*executorLangTotals),
 			}
 			perHarness[harness] = h
 		}
@@ -253,6 +256,28 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 		if r.StdoutOk {
 			ls.success++
 		}
+
+		// Per-tier breakdown
+		if tier := benchmarkTier[r.ID]; tier != "" {
+			if h.tiers[tier] == nil {
+				h.tiers[tier] = make(map[string]*executorLangTotals)
+			}
+			tls := h.tiers[tier][r.Lang]
+			if tls == nil {
+				tls = &executorLangTotals{}
+				h.tiers[tier][r.Lang] = tls
+			}
+			tls.runs++
+			tls.cost += r.CostUSD
+			tls.tokens += r.TotalTokens
+			tls.turns += r.AgentTurns
+			if r.ErrorCategory == "api_error" {
+				tls.apiErrors++
+			}
+			if r.StdoutOk {
+				tls.success++
+			}
+		}
 	}
 
 	harnessDisplayNames := map[string]string{
@@ -260,6 +285,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 		"gemini":   "Gemini CLI",
 		"opencode": "opencode CLI",
 		"codex":    "Codex CLI",
+		"motoko":   "motoko_agent",
 	}
 
 	result := make(map[string]interface{}, len(perHarness))
@@ -297,6 +323,31 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 			langBreakdown[lang] = entry
 		}
 
+		// Per-tier breakdown: tier -> lang -> { runs, successRate, ... }
+		tiersBreakdown := make(map[string]interface{}, len(h.tiers))
+		for tier, tierLangs := range h.tiers {
+			langEntries := make(map[string]interface{}, len(tierLangs))
+			for lang, tls := range tierLangs {
+				if tls.runs == 0 {
+					continue
+				}
+				e := map[string]interface{}{
+					"runs":         tls.runs,
+					"successRate":  float64(tls.success) / float64(tls.runs),
+					"avgCost":      tls.cost / float64(tls.runs),
+					"apiErrors":    tls.apiErrors,
+					"apiErrorRate": float64(tls.apiErrors) / float64(tls.runs),
+				}
+				if nonApi := tls.runs - tls.apiErrors; nonApi > 0 {
+					e["successRateAdjusted"] = float64(tls.success) / float64(nonApi)
+				}
+				langEntries[lang] = e
+			}
+			if len(langEntries) > 0 {
+				tiersBreakdown[tier] = langEntries
+			}
+		}
+
 		entry := map[string]interface{}{
 			"name":            harness,
 			"display_name":    displayName,
@@ -306,6 +357,9 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 			"avg_cost_usd":    h.totalCost / float64(h.runs),
 			"avg_duration_ms": float64(h.totalDurMs) / float64(h.runs),
 			"languages":       langBreakdown,
+		}
+		if len(tiersBreakdown) > 0 {
+			entry["tiers"] = tiersBreakdown
 		}
 		result[harness] = entry
 	}

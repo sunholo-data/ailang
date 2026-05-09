@@ -4,7 +4,7 @@ import styles from './styles.module.css';
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_SHORT = { ailang: 'AILANG', python: 'Python', javascript: 'JS', go: 'Go' };
 const LANG_COLOR = { ailang: '#6366f1', python: '#eab308', javascript: '#f97316', go: '#06b6d4' };
-const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex', pi: 'Pi' };
+const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex', pi: 'Pi', motoko: 'motoko_agent' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
 function pct(v) {
@@ -41,11 +41,16 @@ function adjRate(rate, apiErrorRate) {
 // see the infra noise that's been factored out. Heatmap color follows the
 // number being shown as primary.
 function Cell({ rate, adjusted, apiErrorRate }) {
-  const showAdjusted = adjusted != null && apiErrorRate != null && apiErrorRate > 0.05
+  // Hide adjusted when apiErrorRate > 0.5: at that threshold the formula
+  // successRate / (1 - apiErrorRate) amplifies noise to absurd values
+  // (e.g. 9% raw / 0.09 denominator = 100% "adjusted").
+  const showAdjusted = adjusted != null && apiErrorRate != null
+    && apiErrorRate > 0.05 && apiErrorRate <= 0.5
     && rate != null && Math.abs(adjusted - rate) >= 0.01;
   const primary = showAdjusted ? adjusted : rate;
   const p = pct(primary);
   const showRaw = showAdjusted && rate != null;
+  const highErrorRate = apiErrorRate != null && apiErrorRate > 0.5;
   return (
     <td style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(primary), color: rateColor(primary), fontWeight: primary >= 0.85 ? 700 : 400 }}>
       {p == null ? '—' : `${p}%`}
@@ -53,6 +58,12 @@ function Cell({ rate, adjusted, apiErrorRate }) {
         <span style={{ display: 'block', fontSize: '0.7em', color: 'var(--ifm-color-emphasis-500)', fontWeight: 400, fontStyle: 'italic' }}
               title={`Raw rate before excluding API errors`}>
           (raw {Math.round(rate * 100)}%)
+        </span>
+      )}
+      {highErrorRate && (
+        <span style={{ display: 'block', fontSize: '0.65em', color: 'var(--ifm-color-emphasis-400)', fontWeight: 400 }}
+              title={`${Math.round(apiErrorRate * 100)}% of runs were API errors — adjusted rate unreliable`}>
+          ⚠ {Math.round(apiErrorRate * 100)}% errors
         </span>
       )}
     </td>
@@ -75,6 +86,9 @@ function Chip({ label, active, onClick }) {
     </button>
   );
 }
+
+const TIER_LABEL = { smoke: 'Smoke', core: 'Core', stretch: 'Stretch', vision: 'Vision' };
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'vision'];
 
 function FilterBar({ harnesses, activeHarness, onHarness, langs, activeLang, onLang }) {
   return (
@@ -140,8 +154,8 @@ function familyLabel(fam) {
 // RAW shown on a sub-row so the bar's flex-1 area is the same width across
 // all rows regardless of whether an adjustment annotation is present.
 function MiniBar({ lang, rate, adjusted, apiErrorRate, apiErrors }) {
-  const showAdjusted = apiErrorRate != null && apiErrorRate > 0.05 && adjusted != null
-    && rate != null && Math.abs(adjusted - rate) >= 0.01;
+  const showAdjusted = apiErrorRate != null && apiErrorRate > 0.05 && apiErrorRate <= 0.5
+    && adjusted != null && rate != null && Math.abs(adjusted - rate) >= 0.01;
   const primary = showAdjusted ? adjusted : rate;
   const p = primary != null ? Math.round(primary * 100) : null;
   const color = LANG_COLOR[lang] || '#94a3b8';
@@ -256,7 +270,7 @@ function CrossHarnessTable({ data, allLangs }) {
           <tbody>
             {crossHarness.map(([fam, variants]) => {
               const sorted = [...variants].sort((a, b) => {
-                const order = { claude: 0, gemini: 1, codex: 2, opencode: 3, pi: 4 };
+                const order = { claude: 0, gemini: 1, codex: 2, opencode: 3, pi: 4, motoko: 5 };
                 return (order[a.agent_cli] ?? 9) - (order[b.agent_cli] ?? 9);
               });
               // Baseline for cross-harness delta uses ADJUSTED rate when available
@@ -265,8 +279,9 @@ function CrossHarnessTable({ data, allLangs }) {
               for (const l of allLangs) {
                 const ld0 = sorted[0]?.languages?.[l];
                 const apiErr0 = sorted[0]?.agentStats?.apiErrorRate ?? 0;
-                const adj0 = adjRate(ld0?.successRate, apiErr0);
-                baseline[l] = (apiErr0 > 0.05 && adj0 != null) ? adj0 : (ld0?.successRate ?? null);
+                const agentRate0 = ld0?.agentSuccessRate ?? ld0?.successRate ?? null;
+                const adj0 = adjRate(agentRate0, apiErr0);
+                baseline[l] = (apiErr0 > 0.05 && adj0 != null) ? adj0 : agentRate0;
               }
               return sorted.map((v, i) => {
                 const apiErrRate = v.agentStats?.apiErrorRate ?? 0;
@@ -280,11 +295,11 @@ function CrossHarnessTable({ data, allLangs }) {
                       </span>
                     </td>
                     {allLangs.map(l => {
-                      const rate = v.languages?.[l]?.successRate ?? null;
+                      const rate = v.languages?.[l]?.agentSuccessRate ?? v.languages?.[l]?.successRate ?? null;
                       const adj = adjRate(rate, apiErrRate);
                       // ADJUSTED is primary when api errors are non-trivial; raw is secondary.
-                      const showAdjusted = apiErrRate > 0.05 && adj != null && rate != null
-                        && Math.abs(adj - rate) >= 0.01;
+                      const showAdjusted = apiErrRate > 0.05 && apiErrRate <= 0.5
+                        && adj != null && rate != null && Math.abs(adj - rate) >= 0.01;
                       const primary = showAdjusted ? adj : rate;
                       const base = i > 0 ? baseline[l] : null;
                       const delta = (base != null && primary != null) ? Math.round((primary - base) * 100) : null;
@@ -336,6 +351,7 @@ export default function BenchmarkExplorer() {
   const [error, setError] = useState(null);
   const [activeHarness, setActiveHarness] = useState(null);
   const [activeLang, setActiveLang] = useState(null);
+  const [activeTier, setActiveTier] = useState(null);
 
   useEffect(() => {
     fetch('/benchmarks/latest.json')
@@ -352,6 +368,10 @@ export default function BenchmarkExplorer() {
   const langs = activeLang ? [activeLang] : allLangs;
 
   const allHarnesses = Object.keys(data.harnesses || {}).sort();
+  // Collect tiers that appear in at least one harness
+  const allTiers = TIER_ORDER.filter(t =>
+    Object.values(data.harnesses || {}).some(h => h.tiers?.[t])
+  );
   const allModels = Object.keys(data.models || {}).sort();
   const models = activeHarness
     ? allModels.filter(m => data.models[m]?.agent_cli === activeHarness)
@@ -413,10 +433,19 @@ export default function BenchmarkExplorer() {
       </div>
 
       {/* Table 2: harness × language summary, with per-model drill-down rows */}
-      <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Harness × Language</h3>
-      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        Bold rows are per-harness aggregates; indented rows show each model's contribution.
-      </p>
+      <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: '1rem' }}>Pass Rate by Harness × Language</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 8, fontSize: '0.82rem' }}>
+        <span style={{ color: 'var(--ifm-color-emphasis-600)' }}>Tier:</span>
+        <Chip label="All" active={!activeTier} onClick={() => setActiveTier(null)} />
+        {allTiers.map(t => (
+          <Chip key={t} label={TIER_LABEL[t] || t} active={activeTier === t} onClick={() => setActiveTier(activeTier === t ? null : t)} />
+        ))}
+        <span style={{ color: 'var(--ifm-color-emphasis-500)', marginLeft: 8, fontSize: '0.78rem' }}>
+          {activeTier
+            ? 'Per-harness rates for selected tier. Model sub-rows hidden (no per-tier model breakdown yet).'
+            : 'Bold rows are per-harness aggregates; indented rows show each model\'s contribution.'}
+        </span>
+      </div>
 
       <div className={styles.tableScroll}>
         <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
@@ -432,13 +461,20 @@ export default function BenchmarkExplorer() {
             {(activeHarness ? [activeHarness] : allHarnesses).map(h => {
               const hr = data.harnesses[h];
               if (!hr) return null;
+              // When a tier filter is active, skip harnesses with no data for that tier
+              if (activeTier && !hr.tiers?.[activeTier]) return null;
               const harnessModels = (hr.models || []).slice().sort();
               return (
                 <React.Fragment key={h}>
                   <tr style={{ ...rowStyle, background: 'var(--ifm-color-emphasis-100)' }}>
-                    <td style={{ ...rowHeader, fontWeight: 700 }}>{HARNESS_LABEL[h] || h}</td>
+                    <td style={{ ...rowHeader, fontWeight: 700 }}>
+                      {HARNESS_LABEL[h] || h}
+                      {activeTier && <span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--ifm-color-emphasis-500)', marginLeft: 6 }}>({TIER_LABEL[activeTier] || activeTier})</span>}
+                    </td>
                     {langs.map(l => {
-                      const hl = hr.languages?.[l];
+                      const hl = activeTier
+                        ? hr.tiers?.[activeTier]?.[l]
+                        : hr.languages?.[l];
                       return (
                         <Cell
                           key={l}
@@ -452,10 +488,12 @@ export default function BenchmarkExplorer() {
                       {hr.avg_cost_usd != null ? `$${hr.avg_cost_usd.toFixed(4)}` : '—'}
                     </td>
                     <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', fontWeight: 600 }}>
-                      {harnessModels.length} model{harnessModels.length === 1 ? '' : 's'}
+                      {activeTier
+                        ? (() => { const runs = langs.reduce((s, l) => s + (hr.tiers?.[activeTier]?.[l]?.runs ?? 0), 0); return runs > 0 ? `${runs} runs` : '—'; })()
+                        : `${harnessModels.length} model${harnessModels.length === 1 ? '' : 's'}`}
                     </td>
                   </tr>
-                  {harnessModels.map(modelName => {
+                  {!activeTier && harnessModels.map(modelName => {
                     const m = data.models?.[modelName];
                     if (!m) return null;
                     const modelLangs = m.languages || {};

@@ -1087,7 +1087,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// already past the 800-line soft limit.
 	tiersJS := buildTierAggregates(resultsForTiers, benchmarkTier)
 	tagsJS := buildTagAggregates(resultsForTiers)
-	harnessesJS := buildHarnessAggregates(agentResults)
+	harnessesJS := buildHarnessAggregates(agentResults, benchmarkTier)
 	suiteEvents, err := LoadSuiteEvents("benchmarks/events.yml")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: load events.yml: %v\n", err)

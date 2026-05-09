@@ -66,7 +66,26 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 		return results[i].Timestamp.After(results[j].Timestamp)
 	})
 
-	return results, nil
+	// Deduplicate: keep only the latest result per (model, benchmark_id, lang, seed).
+	// This ensures re-runs (e.g. debug runs followed by a clean eval suite run) don't
+	// pollute aggregate stats — only the most-recent attempt for each slot is kept.
+	type dedupKey struct {
+		Model string
+		ID    string
+		Lang  string
+		Seed  int64
+	}
+	seen := make(map[dedupKey]struct{}, len(results))
+	deduped := results[:0]
+	for _, r := range results { // already newest-first, so first seen = latest
+		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed}
+		if _, exists := seen[k]; !exists {
+			seen[k] = struct{}{}
+			deduped = append(deduped, r)
+		}
+	}
+
+	return deduped, nil
 }
 
 // LoadResult loads a single benchmark result from a JSON file

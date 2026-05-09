@@ -41,7 +41,7 @@ func TestBuildHarnessAggregates(t *testing.T) {
 
 	// Patch: buildHarnessAggregates uses cfg.GetAgentCLI; with nil cfg it groups everything as "unknown".
 	// We verify nil-cfg graceful degradation: no panic, single "unknown" bucket.
-	harnessMap := buildHarnessAggregates(results)
+	harnessMap := buildHarnessAggregates(results, nil)
 	if len(harnessMap) == 0 {
 		t.Fatal("expected at least one harness entry, got empty map")
 	}
@@ -76,7 +76,7 @@ func TestBuildHarnessAggregates(t *testing.T) {
 
 // TestBuildHarnessAggregatesEmpty verifies no panic on empty input.
 func TestBuildHarnessAggregatesEmpty(t *testing.T) {
-	result := buildHarnessAggregates(nil)
+	result := buildHarnessAggregates(nil, nil)
 	if result == nil {
 		t.Error("expected non-nil map for nil input")
 	}
