@@ -145,6 +145,18 @@ type ChatStepRequest struct {
 	MaxTokens           int               `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
 	Temperature         float64           `json:"temperature,omitempty"`
+	// Stream + StreamOptions are set by StreamStep (M-AI-STEP-STREAMING
+	// v0.18.7). omitempty keeps the non-streaming Step request bit-for-bit
+	// identical to pre-v0.18.7 wire bytes.
+	Stream        bool              `json:"stream,omitempty"`
+	StreamOptions *ChatStreamOption `json:"stream_options,omitempty"`
+}
+
+// ChatStreamOption controls per-stream behaviour. The only field we set is
+// IncludeUsage which tells OpenAI to emit a final chunk carrying the usage
+// block (otherwise streamed responses contain NO token counts at all).
+type ChatStreamOption struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
 // ChatStepMessage is one entry in the messages array. Content is a
