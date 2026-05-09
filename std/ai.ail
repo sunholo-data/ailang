@@ -250,11 +250,15 @@ export type StreamChunk =
 --
 -- Typical usage — token-by-token TUI rendering:
 --
---   let render = \chunk ->
+--   -- match-in-lambda is a known parser bug, so factor the chunk
+--   -- handler out into a top-level function (see runnable/ai_streaming.ail).
+--   func render(chunk: StreamChunk) -> () ! {IO} {
 --     match chunk {
 --       ContentDelta(text) => print(text),
 --       Usage(_) => println("")
---     };
+--     }
+--   }
+--
 --   match stepWithStream(model, messages, [], breakpoints, render) {
 --     Ok(r) => -- r.Text holds the full accumulated text
 --     Err(e) => ...
