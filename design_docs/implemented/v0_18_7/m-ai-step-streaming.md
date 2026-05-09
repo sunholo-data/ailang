@@ -1,6 +1,6 @@
 # M-AI-STEP-STREAMING: Typed-StepResult streaming via per-chunk callback
 
-**Status**: Planned
+**Status**: Implemented (v0.18.7)
 **Target**: v0.18.7 (patch on top of v0.18.6, ships within ~3 days of design freeze)
 **Priority**: P1 (blocks motoko TUI streaming UX which Arni explicitly requested in [arniwesth/motoko_agent#10](https://github.com/arniwesth/motoko_agent/discussions/10); not blocking AILANG itself)
 **Estimated**: ~1 day Phase 1 (~250-350 LOC + tests). Phase 2 (ToolCallDelta + ThinkingDelta) is a separate sprint
