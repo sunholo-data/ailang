@@ -2,10 +2,19 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("sandbox path tests use POSIX-style paths and are not applicable on Windows")
+	}
+}
+
 func TestResolveSandboxPathCheck_Relative(t *testing.T) {
+	skipOnWindows(t)
 	sandbox := "/tmp/sandbox"
 	got, err := resolveSandboxPathCheck(sandbox, "config.json")
 	if err != nil {
@@ -18,6 +27,7 @@ func TestResolveSandboxPathCheck_Relative(t *testing.T) {
 }
 
 func TestResolveSandboxPathCheck_AbsoluteWithin(t *testing.T) {
+	skipOnWindows(t)
 	sandbox := "/tmp/sandbox"
 	path := "/tmp/sandbox/subdir/file.txt"
 	got, err := resolveSandboxPathCheck(sandbox, path)
@@ -30,6 +40,7 @@ func TestResolveSandboxPathCheck_AbsoluteWithin(t *testing.T) {
 }
 
 func TestResolveSandboxPathCheck_AbsoluteEscapes(t *testing.T) {
+	skipOnWindows(t)
 	sandbox := "/tmp/sandbox"
 	_, err := resolveSandboxPathCheck(sandbox, "/etc/passwd")
 	if err == nil {
@@ -38,6 +49,7 @@ func TestResolveSandboxPathCheck_AbsoluteEscapes(t *testing.T) {
 }
 
 func TestResolveSandboxPathCheck_SandboxRootExact(t *testing.T) {
+	skipOnWindows(t)
 	sandbox := "/tmp/sandbox"
 	got, err := resolveSandboxPathCheck(sandbox, "/tmp/sandbox")
 	if err != nil {
@@ -49,6 +61,7 @@ func TestResolveSandboxPathCheck_SandboxRootExact(t *testing.T) {
 }
 
 func TestResolveSandboxPathCheck_TraversalAttempt(t *testing.T) {
+	skipOnWindows(t)
 	sandbox := "/tmp/sandbox"
 	_, err := resolveSandboxPathCheck(sandbox, "/tmp/sandbox/../other")
 	if err == nil {
