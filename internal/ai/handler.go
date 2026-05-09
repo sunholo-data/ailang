@@ -325,6 +325,59 @@ func (h *Handler) Step(model string, messages []Message, tools []ToolSchema) (*R
 // (Anthropic) or NO-OP with a once-per-session warning (OpenAI/Gemini).
 //
 // Empty cacheBreakpoints behaves bit-for-bit identically to Step.
+// StepWithStream is the streaming variant introduced by M-AI-STEP-STREAMING
+// (v0.18.7). Same dispatch as StepWithCache but each provider's per-chunk
+// SSE callback fires onChunk with typed StreamChunk values during the call.
+// The returned *Response is byte-equal to what StepWithCache would return
+// for the same input — onChunk is observational, not behavioral.
+//
+// v1 provider support:
+//   - Anthropic + OpenAI + OpenRouter: full SSE streaming
+//   - Gemini + Ollama + configdriven: NO-OP fallback (call Step + fire one
+//     synthetic ContentDelta + Usage from the final response)
+func (h *Handler) StepWithStream(model string, messages []Message, tools []ToolSchema, cacheBreakpoints []CacheBreakpoint, onChunk func(StreamChunk)) (*Response, error) {
+	chosenModel := model
+	if chosenModel == "" {
+		chosenModel = h.model
+	}
+	streamingProvider, ok := h.provider.(StreamingProvider)
+	if !ok {
+		// Provider doesn't implement streaming — fall back to non-streaming
+		// Step + one synthetic ContentDelta + Usage from the final response.
+		// Preserves the callback contract so callers don't need to branch.
+		resp, err := h.StepWithCache(chosenModel, messages, tools, cacheBreakpoints)
+		if err != nil {
+			return nil, err
+		}
+		if onChunk != nil {
+			if resp.Text != "" {
+				onChunk(StreamContentDelta{Text: resp.Text})
+			}
+			onChunk(StreamUsage{
+				InputTokens:              resp.InputTokens,
+				OutputTokens:             resp.OutputTokens,
+				CacheReadInputTokens:     resp.CacheReadInputTokens,
+				CacheCreationInputTokens: resp.CacheCreationInputTokens,
+			})
+		}
+		return resp, nil
+	}
+	resp, err := streamingProvider.StreamStep(context.Background(), &Request{
+		Model:            chosenModel,
+		SystemPrompt:     h.systemPrompt,
+		MaxTokens:        h.maxTokens,
+		Routing:          h.routingPolicy,
+		Messages:         messages,
+		Tools:            tools,
+		CacheBreakpoints: cacheBreakpoints,
+	}, onChunk)
+	h.captureRoute(resp, err)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (h *Handler) StepWithCache(model string, messages []Message, tools []ToolSchema, cacheBreakpoints []CacheBreakpoint) (*Response, error) {
 	chosenModel := model
 	if chosenModel == "" {

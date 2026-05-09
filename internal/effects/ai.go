@@ -66,6 +66,25 @@ type AIHandler interface {
 	// ai.Handler propagates breakpoints into ai.Request.CacheBreakpoints
 	// so the per-provider step.go can act on them.
 	StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error)
+
+	// StepWithStream is the streaming variant introduced by
+	// M-AI-STEP-STREAMING (v0.18.7). Same return shape as StepWithCache
+	// — typed *ai.Response with tool_calls, token counts, cache metrics
+	// — but invokes onChunk with each ai.StreamChunk as it arrives over
+	// SSE during the call. Empty chunks-list (single-shot non-streaming
+	// providers) is fine: onChunk fires zero or more times.
+	//
+	// Stubs and test handlers may delegate to Step + fire one synthetic
+	// ContentDelta(text) + Usage from the final response. The real
+	// ai.Handler routes per-provider — Anthropic + OpenAI + OpenRouter
+	// stream natively; Gemini + Ollama + configdriven fallback to Step
+	// + one synthetic chunk pair.
+	//
+	// onChunk runs synchronously inside the SSE read loop. Callbacks
+	// should not block on long I/O — for slow work, queue and process
+	// async. Same row-polymorphism contract as cache_breakpoints in
+	// v0.18.4: the AILANG-side closure's effect row extends transitively.
+	StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error)
 }
 
 // AIHandlerWithRouting is an optional capability — handlers that implement
@@ -175,6 +194,16 @@ func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []a
 	return c.handler.StepWithCache(model, messages, tools, cacheBreakpoints)
 }
 
+// StepWithStream is the streaming variant — passes through to the handler.
+// onChunk fires per-chunk during SSE processing; final return is the same
+// typed *ai.Response as StepWithCache.
+func (c *AIContext) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	if c.handler == nil {
+		return nil, ErrNoAIHandler
+	}
+	return c.handler.StepWithStream(model, messages, tools, cacheBreakpoints, onChunk)
+}
+
 // StubAIHandler returns deterministic placeholder responses
 //
 // Use for testing and development. Supports:
@@ -256,6 +285,28 @@ func (h *StubAIHandler) Step(model string, messages []ai.Message, tools []ai.Too
 // StepWithCache delegates to Step — cache hints are non-behavioral and the
 // stub doesn't account tokens, so they have nothing to act on. The slice
 // is accepted but ignored.
+// StepWithStream delegates to Step then fires one synthetic ContentDelta
+// + Usage with the stub's deterministic response — preserves the streaming
+// callback contract for tests that exercise the full chunk-arrival path.
+func (h *StubAIHandler) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, _ []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	resp, err := h.Step(model, messages, tools)
+	if err != nil {
+		return nil, err
+	}
+	if onChunk != nil {
+		if resp.Text != "" {
+			onChunk(ai.StreamContentDelta{Text: resp.Text})
+		}
+		onChunk(ai.StreamUsage{
+			InputTokens:              resp.InputTokens,
+			OutputTokens:             resp.OutputTokens,
+			CacheReadInputTokens:     resp.CacheReadInputTokens,
+			CacheCreationInputTokens: resp.CacheCreationInputTokens,
+		})
+	}
+	return resp, nil
+}
+
 func (h *StubAIHandler) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, _ []ai.CacheBreakpoint) (*ai.Response, error) {
 	return h.Step(model, messages, tools)
 }

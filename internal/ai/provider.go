@@ -90,6 +90,46 @@ type Request struct {
 	CacheBreakpoints []CacheBreakpoint
 }
 
+// StreamChunk is one event emitted to the user callback during a
+// stepWithStream call (M-AI-STEP-STREAMING, v0.18.7). The interface +
+// concrete types let providers fire typed deltas without a per-provider
+// ADT. Mirrors the AILANG `std/ai.StreamChunk` ADT shape.
+//
+// Phase 1 variants: ContentDelta + Usage only. Phase 2 will add
+// ToolCallDelta + ThinkingDelta — see M-AI-STEP-STREAMING-TOOLS.
+type StreamChunk interface {
+	// streamChunkMarker is intentionally unexported — closes the type
+	// to the variants defined in this package.
+	streamChunkMarker()
+}
+
+// StreamContentDelta carries a slice of assistant text content as it
+// arrives over SSE. Multiple deltas may fire per response; the final
+// StepResult.Text is the concatenation of all of them.
+type StreamContentDelta struct {
+	Text string
+}
+
+func (StreamContentDelta) streamChunkMarker() {
+	// Marker method — intentionally empty. Closes the StreamChunk
+	// interface to the variants defined in this package.
+}
+
+// StreamUsage carries the usage block (token counts + cache metrics)
+// from the provider's terminal SSE event. Fires once per stream, near
+// the end. Mirrors the same field set as ai.Response's token fields so
+// callers can do incremental cost tracking.
+type StreamUsage struct {
+	InputTokens              int
+	OutputTokens             int
+	CacheReadInputTokens     int
+	CacheCreationInputTokens int
+}
+
+func (StreamUsage) streamChunkMarker() {
+	// Marker method — intentionally empty. See StreamContentDelta.
+}
+
 // CacheBreakpoint is a single opt-in prompt-cache hint. Mirrors the AILANG
 // `std/ai.CacheBreakpoint` record shape byte-for-byte.
 //
@@ -258,6 +298,19 @@ type Provider interface {
 
 	// Name returns the provider name (e.g., "openai", "gemini", "anthropic")
 	Name() string
+}
+
+// StreamingProvider is an OPTIONAL capability — providers that implement it
+// expose a typed-StepResult streaming variant where onChunk fires per SSE
+// chunk during the call. The returned *Response is byte-equal to what Step
+// would return for the same input — onChunk is observational, not behavioral.
+//
+// Introduced by M-AI-STEP-STREAMING (v0.18.7). Phase 1 implementations:
+// anthropic, openai, openrouter. Providers without StreamingProvider get
+// a NO-OP fallback at the Handler layer (call Step + fire one synthetic
+// ContentDelta + Usage).
+type StreamingProvider interface {
+	StreamStep(ctx context.Context, req *Request, onChunk func(StreamChunk)) (*Response, error)
 }
 
 // ProviderError represents an error from an AI provider.

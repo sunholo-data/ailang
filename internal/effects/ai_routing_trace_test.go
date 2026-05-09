@@ -45,6 +45,9 @@ func (h *routingStubHandler) Step(model string, _ []ai.Message, _ []ai.ToolSchem
 func (h *routingStubHandler) StepWithCache(model string, m []ai.Message, t []ai.ToolSchema, _ []ai.CacheBreakpoint) (*ai.Response, error) {
 	return h.Step(model, m, t)
 }
+func (h *routingStubHandler) StepWithStream(model string, m []ai.Message, t []ai.ToolSchema, _ []ai.CacheBreakpoint, _ func(ai.StreamChunk)) (*ai.Response, error) {
+	return h.Step(model, m, t)
+}
 
 // TestAICall_RecordsTraceEventWithRoute verifies that aiCall emits an
 // effect trace event tagged with the routing metadata returned by an

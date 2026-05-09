@@ -348,3 +348,136 @@ func aiStepWithCacheImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value
 	}
 	return effects.Call(ctx, "AI", "stepWithCache", args)
 }
+
+// ============================================================================
+// _ai_step_with_stream: streaming variant of _ai_step_with_cache
+// (M-AI-STEP-STREAMING, v0.18.7)
+// ============================================================================
+
+// streamChunkType returns the AILANG StreamChunk ADT shape.
+//
+// Mirrors the type definition in std/ai.ail:
+//
+//	type StreamChunk =
+//	  | ContentDelta(string)
+//	  | Usage({ input_tokens: int, output_tokens: int,
+//	           cache_read_input_tokens: int, cache_creation_input_tokens: int })
+//
+// Phase 1 (v0.18.7) ships ContentDelta + Usage only. ToolCallDelta and
+// ThinkingDelta are reserved for Phase 2 once per-provider JSON-fragment
+// buffering is in place.
+func streamChunkType(T *types.Builder) types.Type {
+	// StreamChunk is exposed as an ADT in AILANG; on the Go-side type-checker
+	// surface we treat it as a named type App so callers can pattern-match it.
+	return T.App("StreamChunk")
+}
+
+// streamUsageRecordType returns the record carried by StreamChunk.Usage.
+// Kept as a separate helper so the type checker sees the same shape the
+// effect op encodes via encodeStreamChunk.
+func streamUsageRecordType(T *types.Builder) types.Type {
+	return T.Record(
+		types.Field("input_tokens", T.Int()),
+		types.Field("output_tokens", T.Int()),
+		types.Field("cache_read_input_tokens", T.Int()),
+		types.Field("cache_creation_input_tokens", T.Int()),
+	)
+}
+
+func registerAIStepWithStream() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_step_with_stream",
+		NumArgs: 5, // model, messages, tools, cache_breakpoints, on_chunk
+		Effect:  "AI",
+		Type:    makeAIStepWithStreamType,
+		Impl:    aiStepWithStreamImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Streaming multi-turn AI completion with per-chunk callback returning Result[StepResult, AIError]",
+			LongDesc: `Identical to _ai_step_with_cache except for a 5th argument: an AILANG
+closure invoked once per StreamChunk as the SSE stream drains. The final
+return value is the same Ok(StepResult)/Err(AIError) shape as
+_ai_step_with_cache — the callback is purely a side-channel for incremental
+rendering (e.g. token-by-token TUI output).
+
+StreamChunk variants (Phase 1):
+  ContentDelta(string)
+    -- one chunk of assistant text content as it arrives
+  Usage({input_tokens, output_tokens, cache_read_input_tokens,
+        cache_creation_input_tokens})
+    -- final usage block (per-provider timing varies)
+
+Per-provider behavior:
+  - Anthropic (direct/Bedrock/Vertex): native SSE, ContentDelta per chunk
+    + final Usage from message_delta.
+  - OpenAI / OpenRouter (anthropic/* prefix routes through Anthropic shape):
+    native SSE, ContentDelta per delta + final Usage from chat.completion.chunk.
+  - Gemini / Ollama / config-driven providers: NO-OP fallback — calls
+    StepWithCache and fires one synthetic ContentDelta(full_text) + one
+    final Usage chunk. Same StepResult shape, no incremental visibility.
+
+The callback's effects propagate via row polymorphism — typically users
+will pass an IO-effect closure for stdout streaming, but the row is open.
+
+Empty cache_breakpoints + non-streaming providers produces bit-for-bit
+identical StepResult to stepWithCache.`,
+			Params: []ParamDoc{
+				{Name: "model", Description: "Model ID (or empty for handler default)"},
+				{Name: "messages", Description: "Conversation as list[Message]"},
+				{Name: "tools", Description: "Tool catalog as list[ToolSchema]"},
+				{Name: "cache_breakpoints", Description: "Opt-in cache hints as list[CacheBreakpoint]"},
+				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () invoked per chunk"},
+			},
+			Returns: "Result[StepResult, AIError]",
+			SeeAlso: []string{
+				"_ai_step_with_cache",
+				"_ai_call_stream",
+				"std/ai.stepWithStream",
+			},
+			Since:     "v0.18.7",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "result", "tool-use", "multi-turn", "agent", "cache", "streaming"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_step_with_stream builtin: " + err.Error())
+	}
+}
+
+func makeAIStepWithStreamType() types.Type {
+	T := types.NewBuilder()
+	// (model: string, messages: list[Message], tools: list[ToolSchema],
+	//  cache_breakpoints: list[CacheBreakpoint],
+	//  on_chunk: (StreamChunk) -> ())
+	//   -> Result[StepResult, AIError] ! {AI}
+	//
+	// Note on callback effects: the callback's effect row is intentionally
+	// left open in the Go-side type so AILANG's row polymorphism can flow
+	// the user's effects through (typically {IO}). The std/ai.stepWithStream
+	// wrapper in std/ai.ail surfaces this as `(StreamChunk) -> () \! {IO}`.
+	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).Build()
+	return T.Func(
+		T.String(),
+		T.List(messageRecordType(T)),
+		T.List(toolSchemaRecordType(T)),
+		T.List(cacheBreakpointRecordType(T)),
+		onChunkType,
+	).
+		Returns(T.App("Result", stepResultRecordType(T), aiErrorRecordType(T))).
+		Effects("AI")
+}
+
+func aiStepWithStreamImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "stepWithStream", args)
+}
+
+// streamUsageRecordType is referenced for documentation symmetry with
+// stepResultRecordType / cacheBreakpointRecordType. It is currently unused
+// at the Go-side type surface (StreamChunk is exposed as an opaque ADT App
+// rather than a record-of-fields) but retained so future tooling that
+// inspects builtin metadata can find the canonical shape in one place.
+var _ = streamUsageRecordType

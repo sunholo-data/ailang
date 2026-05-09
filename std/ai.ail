@@ -209,6 +209,72 @@ export func stepWithCache(
 ) -> Result[StepResult, AIError] ! {AI} =
   _ai_step_with_cache(model, messages, tools, cache_breakpoints)
 
+-- ============================================================================
+-- Streaming variant (M-AI-STEP-STREAMING, v0.18.7)
+-- ============================================================================
+
+-- StreamChunk is one event emitted by stepWithStream's on_chunk callback as
+-- the SSE stream drains. Phase 1 (v0.18.7) ships ContentDelta + Usage only.
+--
+-- Future variants reserved for Phase 2:
+--   ToolCallDelta(...)  -- partial tool_use blocks (Anthropic) / tool_calls
+--                          fragments (OpenAI). Requires per-provider JSON
+--                          fragment buffering until the block closes.
+--   ThinkingDelta(...)  -- Anthropic extended-thinking deltas.
+--
+-- Per-provider behavior:
+--   Anthropic (direct/Bedrock/Vertex): native SSE; ContentDelta per
+--                                      content_block_delta event + final
+--                                      Usage from message_delta.
+--   OpenAI / OpenRouter (anthropic/* prefix → Anthropic shape):
+--                                      native SSE; ContentDelta per delta
+--                                      + final Usage from chat.completion.chunk.
+--   Gemini / Ollama / config-driven:   NO-OP fallback — calls stepWithCache
+--                                      and fires one synthetic
+--                                      ContentDelta(full_text) + one Usage.
+export type StreamChunk =
+    ContentDelta(string)
+  | Usage({
+      input_tokens: int,
+      output_tokens: int,
+      cache_read_input_tokens: int,
+      cache_creation_input_tokens: int
+    })
+
+-- stepWithStream: streaming variant of stepWithCache.
+--
+-- Identical to stepWithCache except for a 5th argument: a callback invoked
+-- once per StreamChunk as the SSE stream drains. The final return is the
+-- same Ok(StepResult)/Err(AIError) shape as stepWithCache — the callback
+-- is purely a side-channel for incremental rendering.
+--
+-- Typical usage — token-by-token TUI rendering:
+--
+--   let render = \chunk ->
+--     match chunk {
+--       ContentDelta(text) => print(text),
+--       Usage(_) => println("")
+--     };
+--   match stepWithStream(model, messages, [], breakpoints, render) {
+--     Ok(r) => -- r.Text holds the full accumulated text
+--     Err(e) => ...
+--   }
+--
+-- The callback's effect row is open (`\!{IO}` is typical but not required).
+-- Errors thrown from the callback are recorded as trace events but do NOT
+-- abort the SSE drain — the caller still receives a complete StepResult.
+--
+-- For providers without native streaming, the callback fires exactly twice:
+-- once with ContentDelta(full_text) then once with Usage(...).
+export func stepWithStream(
+  model: string,
+  messages: [Message],
+  tools: [ToolSchema],
+  cache_breakpoints: [CacheBreakpoint],
+  on_chunk: (StreamChunk) -> () ! {IO}
+) -> Result[StepResult, AIError] ! {AI} =
+  _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
+
 -- runTools: convenience loop driver for multi-turn tool dispatch.
 --
 -- Calls step in a loop until the model returns finish_reason != "tool_calls"

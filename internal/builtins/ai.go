@@ -20,6 +20,8 @@ func init() {
 	registerAIStep()
 	// M-AI-PROMPT-CACHING (v0.18.4) — opt-in prompt-cache hints
 	registerAIStepWithCache()
+	// M-AI-STEP-STREAMING (v0.18.7) — typed-StepResult streaming variant
+	registerAIStepWithStream()
 }
 
 // _ai_call: Call the AI oracle with a string input

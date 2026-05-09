@@ -136,6 +136,12 @@ func (h *WasmAIHandler) StepWithCache(_ string, _ []ai.Message, _ []ai.ToolSchem
 	return nil, fmt.Errorf("ai.stepWithCache not supported in WASM environment")
 }
 
+// StepWithStream is the streaming variant (M-AI-STEP-STREAMING v0.18.7).
+// Same status as Step — not supported in WASM. Callback is never invoked.
+func (h *WasmAIHandler) StepWithStream(_ string, _ []ai.Message, _ []ai.ToolSchema, _ []ai.CacheBreakpoint, _ func(ai.StreamChunk)) (*ai.Response, error) {
+	return nil, fmt.Errorf("ai.stepWithStream not supported in WASM environment")
+}
+
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
 func ailangValueToJS(v eval.Value) interface{} {
 	if v == nil {

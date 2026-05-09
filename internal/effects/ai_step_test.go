@@ -23,6 +23,7 @@ type fakeStepHandler struct {
 	lastMessages         []ai.Message
 	lastTools            []ai.ToolSchema
 	lastCacheBreakpoints []ai.CacheBreakpoint
+	lastStreamChunkCount int
 	// Call/CallJson responses for callResult/callJsonResult tests.
 	callResp     string
 	callErr      error
@@ -47,6 +48,23 @@ func (h *fakeStepHandler) Step(model string, messages []ai.Message, tools []ai.T
 	h.lastMessages = messages
 	h.lastTools = tools
 	return h.stepResp, h.stepErr
+}
+func (h *fakeStepHandler) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	h.lastCacheBreakpoints = cacheBreakpoints
+	h.lastStreamChunkCount = 0
+	resp, err := h.Step(model, messages, tools)
+	if err != nil {
+		return nil, err
+	}
+	if onChunk != nil {
+		if resp.Text != "" {
+			onChunk(ai.StreamContentDelta{Text: resp.Text})
+			h.lastStreamChunkCount++
+		}
+		onChunk(ai.StreamUsage{InputTokens: resp.InputTokens, OutputTokens: resp.OutputTokens})
+		h.lastStreamChunkCount++
+	}
+	return resp, nil
 }
 func (h *fakeStepHandler) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
 	h.lastCacheBreakpoints = cacheBreakpoints
