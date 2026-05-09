@@ -1,0 +1,86 @@
+-- examples/runnable/ai_streaming.ail
+-- Demonstrates std/ai.stepWithStream — typed-StepResult streaming with a
+-- per-chunk callback, introduced by M-AI-STEP-STREAMING (v0.18.7).
+--
+-- stepWithStream is identical to stepWithCache except for a 5th argument:
+-- a callback invoked once per StreamChunk as the SSE stream drains. The
+-- final return value is the same Ok(StepResult)/Err(AIError) shape as
+-- stepWithCache — the callback is purely a side-channel for incremental
+-- rendering (e.g. token-by-token TUI output).
+--
+-- Per-provider behaviour:
+--
+--   - Anthropic (direct + Bedrock + Vertex): native SSE; ContentDelta per
+--     content_block_delta event + final Usage from message_delta.
+--   - OpenAI / OpenRouter (anthropic/* prefix → Anthropic shape): native
+--     SSE; ContentDelta per delta + final Usage from chat.completion.chunk.
+--   - Gemini / Ollama / config-driven providers: NO-OP fallback — calls
+--     stepWithCache and fires one synthetic ContentDelta(full_text) +
+--     one Usage chunk. Same StepResult shape, no incremental visibility.
+--
+-- Setup:
+--   ailang run --caps AI,IO --ai claude-3-5-haiku \
+--     examples/runnable/ai_streaming.ail
+--
+-- For deterministic offline behaviour:
+--   ailang run --caps AI,IO --ai-stub examples/runnable/ai_streaming.ail
+--   (the stub will fire one ContentDelta with the full stub response and
+--    one Usage chunk — same shape as the live providers' fallback path)
+
+module examples/runnable/ai_streaming
+
+import std/ai (stepWithStream, Message, ToolSchema, CacheBreakpoint, StepResult, AIError, StreamChunk, ContentDelta, Usage)
+import std/io (println, print)
+import std/result (Result, Ok, Err)
+
+-- The on_chunk callback. Pattern-match on the StreamChunk variant to
+-- distinguish content from end-of-stream usage telemetry.
+--
+-- The callback's effect row is open — typically {IO} for stdout streaming
+-- but you can wire whatever side-channel you need (a websocket, a
+-- TUI buffer, a metrics sink, etc.).
+export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
+  match chunk {
+    ContentDelta(text) => print(text),
+    Usage(_) => println("")  -- newline after the streamed content finishes
+  }
+}
+
+export func main() -> () ! {AI, IO} {
+  let messages: [Message] = [
+    {
+      role: "system",
+      content: "You are a terse haiku composer. Reply with exactly three lines, 5-7-5 syllables, no preamble.",
+      tool_calls: [],
+      tool_call_id: ""
+    },
+    {
+      role: "user",
+      content: "Compose a haiku about streaming tokens.",
+      tool_calls: [],
+      tool_call_id: ""
+    }
+  ];
+
+  -- Cache the system prompt — works seamlessly with streaming on Anthropic
+  -- and Anthropic-via-OpenRouter routes.
+  let breakpoints: [CacheBreakpoint] = [
+    { position: "system", ttl: "ephemeral" }
+  ];
+
+  println("Streaming response:");
+  let result = stepWithStream("", messages, [], breakpoints, renderChunk);
+
+  match result {
+    Ok(r) => {
+      println("---");
+      println("Finish reason: ${r.finish_reason}");
+      println("Tokens: in=${show(r.input_tokens)} out=${show(r.output_tokens)}");
+      println("Cache: read=${show(r.cache_read_input_tokens)} create=${show(r.cache_creation_input_tokens)}")
+    },
+    Err(e) => {
+      let retryStr = if e.retryable then "retryable" else "fatal";
+      println("Error [${e.code}/${retryStr}]: ${e.message}")
+    }
+  }
+}

@@ -299,6 +299,20 @@
       "description": "AI token streaming via std/ai/streaming.callStream — synchronous accumulator returning Result[string, AIError]"
     },
     {
+      "path": "runnable/ai_streaming.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "tool-use",
+        "cache",
+        "typed"
+      ],
+      "description": "Demonstrates std/ai.stepWithStream — typed-StepResult streaming with per-chunk callback (M-AI-STEP-STREAMING v0.18.7)"
+    },
+    {
       "path": "array_adt.ail",
       "status": "working",
       "tags": [
