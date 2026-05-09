@@ -195,17 +195,23 @@ version = "0.5.0"
 edition = "2025"
 
 [dependencies]
-"motoko-ext-abi" = "1.0.0"
+"sunholo/motoko_ext_abi" = "1.0.0"
 
 [extensions]
 packages = [
-  "motoko-ext-compaction@0.2.0",
-  "motoko-ext-exa-search@0.4.1",
+  "sunholo/motoko_ext_compaction@0.2.0",
+  "sunholo/motoko_ext_exa_search@0.4.1",
 ]
 config_import = "src/core/config.RuntimeConfig"
 hooks_import  = "src/core/ext/types.ExtensionHooks"
 output        = "src/core/ext/registry_generated.ail"
 ```
+
+> **Use registry versions, not local paths.** Declaring `"sunholo/motoko_ext_foo" = "0.1.1"` resolves the package from the AILANG package registry — the lock file gets `"source": "registry"` and the build is portable across machines.
+>
+> The `{ path = "../ailang-packages/packages/motoko-ext-foo" }` form exists for **package-author dev loops** (editing the package and the host together): `ailang lock` reads the package directly from the local checkout, baking your absolute path into `ailang.lock`. That breaks for any other contributor or CI runner.
+>
+> Before opening a PR or shipping a release, swap path-based deps to registry versions and re-lock. See the [path vs registry checklist](#path-vs-registry-checklist) below.
 
 ### 4. Generated file location
 
@@ -236,6 +242,32 @@ ailang check src/core/ext/registry_generated.ail
 git add ailang.lock src/core/ext/registry_generated.ail
 git commit -m "Add motoko-ext-new-tool extension"
 ```
+
+### Path vs registry checklist
+
+Before opening a PR (or any time you want a portable lock file), verify your `[dependencies]` block is registry-resolved:
+
+```bash
+# 1. Inspect the lock file — every package should have "source": "registry"
+jq '[.packages[] | {name, version, source}]' ailang.lock
+
+# 2. If any have "source": "path" with an absolute path under your home dir,
+#    edit ailang.toml to declare the registry version instead:
+#      WRONG:  "sunholo/motoko_ext_foo" = { path = "../ailang-packages/packages/motoko-ext-foo" }
+#      RIGHT:  "sunholo/motoko_ext_foo" = "0.1.1"
+
+# 3. Re-lock and verify
+ailang lock
+jq '[.packages[] | select(.source=="path")]' ailang.lock
+# Output should be `[]` — no path-sourced packages
+
+# 4. Type-check still passes
+ailang check src/core/<your_module>.ail   # or your project's equivalent
+```
+
+**Why the trap exists.** In package-author dev loops you frequently want to edit a package and immediately consume the change in the host. The `{ path = ... }` form does that without a publish round-trip. But once you stop iterating, the path is dead weight — it makes the lock file non-portable and breaks any external clone (PR reviewer, CI runner, fresh contributor).
+
+The fix is mechanical (TOML edit + `ailang lock`) but easy to forget. Make this part of your pre-PR checklist.
 
 ### Short name table for motoko_agent
 
