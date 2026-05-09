@@ -143,8 +143,10 @@ func TestParseInitMotokoExtensionFlags_Valid(t *testing.T) {
 	if len(mef.tools) != 2 || mef.tools[0] != "OpenKBSearch" || mef.tools[1] != "OpenKBList" {
 		t.Errorf("tools = %v", mef.tools)
 	}
-	if len(mef.effects) != 2 {
-		t.Errorf("effects = %v", mef.effects)
+	// Effects auto-includes Env + FS for register_with_config (so length=3 here:
+	// FS, Process from user + Env auto-added since it wasn't there).
+	if len(mef.effects) != 3 {
+		t.Errorf("effects = %v (expected 3 entries: user FS,Process + auto Env)", mef.effects)
 	}
 }
 
@@ -154,6 +156,56 @@ func TestParseInitMotokoExtensionFlags_RejectBadName(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid --name")
+	}
+}
+
+// TestParseInitMotokoExtensionFlags_AutoIncludesEnvAndFS — generated
+// register.ail's `register_with_config` declares `! {Env, FS}`, so the
+// package's [effects].max MUST permit them or `ailang check` rejects.
+// Auto-include both regardless of what the user passes for --effects.
+//
+// Regression: this was a real shipping bug in v0.18.5 — caught by local
+// post-release verification before any user reported it.
+func TestParseInitMotokoExtensionFlags_AutoIncludesEnvAndFS(t *testing.T) {
+	cases := []struct {
+		name      string
+		userInput string
+		mustHave  []string
+	}{
+		{"empty_user_effects", "", []string{"Env", "FS"}},
+		{"only_FS", "FS", []string{"FS", "Env"}},
+		{"only_Env", "Env", []string{"Env", "FS"}},
+		{"FS_Process_no_Env", "FS,Process", []string{"FS", "Process", "Env"}},
+		{"already_has_both", "Env,FS,Process", []string{"Env", "FS", "Process"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			args := []string{"--name", "ns/motoko_ext_x"}
+			if c.userInput != "" {
+				args = append(args, "--effects", c.userInput)
+			}
+			mef, err := parseInitMotokoExtensionFlags(args)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			have := make(map[string]bool)
+			for _, e := range mef.effects {
+				have[e] = true
+			}
+			for _, want := range c.mustHave {
+				if !have[want] {
+					t.Errorf("effect %q missing from %v", want, mef.effects)
+				}
+			}
+		})
+	}
+}
+
+func TestEnsureEffects_Idempotent(t *testing.T) {
+	in := []string{"Env", "FS", "Process"}
+	out := ensureEffects(in, "Env", "FS")
+	if len(out) != 3 {
+		t.Errorf("ensureEffects added duplicates: %v", out)
 	}
 }
 

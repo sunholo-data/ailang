@@ -15,7 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -122,7 +122,31 @@ func parseInitMotokoExtensionFlags(args []string) (*motokoExtensionFlags, error)
 		return nil, err
 	}
 
+	// Auto-include Env + FS in the effect ceiling. The generated
+	// register.ail's `register_with_config` declares `! {Env, FS}` (matching
+	// the canonical motoko-ext-* shape — see motoko-ext-test-dummy / exa-search),
+	// so the package's [effects].max MUST permit them or the type-checker
+	// rejects the package on `ailang check register.ail`. User-supplied
+	// --effects extend this baseline, never replace it.
+	mef.effects = ensureEffects(mef.effects, "Env", "FS")
+
 	return mef, nil
+}
+
+// ensureEffects returns effects with each `required` entry present (idempotent).
+// Preserves user ordering and only appends missing entries.
+func ensureEffects(effects []string, required ...string) []string {
+	have := make(map[string]bool, len(effects))
+	for _, e := range effects {
+		have[e] = true
+	}
+	out := append([]string(nil), effects...)
+	for _, r := range required {
+		if !have[r] {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // validatePackageName enforces the <namespace>/<motoko_ext_xxx> shape so the
@@ -172,7 +196,7 @@ func deriveOutputDir(packageName string) string {
 	pkg := parts[len(parts)-1]
 	// motoko_ext_openkb → motoko-ext-openkb
 	dirName := strings.ReplaceAll(pkg, "_", "-")
-	return filepath.Join("packages", dirName)
+	return path.Join("packages", dirName)
 }
 
 // splitCSV trims whitespace, drops empty entries. Returns nil for empty input
