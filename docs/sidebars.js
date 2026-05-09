@@ -126,6 +126,9 @@ const sidebars = {
           items: [
             'reference/stdlib',
             'guides/packages',
+            'guides/extension-packages',
+            'guides/build-a-motoko-extension',
+            'guides/package-publishing',
             {
               type: 'doc',
               id: 'packages/index',
