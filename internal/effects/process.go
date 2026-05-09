@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -134,10 +135,25 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	cmd.Stdout = stdoutLimited
 	cmd.Stderr = stderrLimited
 
-	// Step 4: Execute
+	// Step 4: Execute.
+	//
+	// DEBUG_PROCESS=1 emits stderr trace lines so hangs / timeouts in
+	// child processes are attributable to the exact (cmd, args) tuple.
+	// The motoko BashExec hang on 2026-05-09 (find . | head -20 in a
+	// directory with deep node_modules) cost ~30 min to triage because
+	// exec was a black hole — no telemetry until cmd.Run() returned.
+	debugProcess := os.Getenv("DEBUG_PROCESS") == "1"
+	if debugProcess {
+		fmt.Fprintf(os.Stderr, "[process] start cmd=%s args=%v timeout=%s\n",
+			resolvedPath, cmdArgs, pc.Timeout)
+	}
 	startTime := time.Now()
 	err := cmd.Run()
 	durationMs := time.Since(startTime).Milliseconds()
+	if debugProcess {
+		fmt.Fprintf(os.Stderr, "[process] done cmd=%s duration=%dms err=%v stdout=%dB stderr=%dB\n",
+			resolvedPath, durationMs, err, stdoutBuf.Len(), stderrBuf.Len())
+	}
 
 	// Step 5: Check for output limit exceeded
 	if stdoutLimited.exceeded || stderrLimited.exceeded {
