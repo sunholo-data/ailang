@@ -547,7 +547,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool,
 	streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool,
 	processTimeout string, processAllowlist string, processMaxOutput int64,
-	aiStub bool, aiModel string, aiRoutingPolicy *ai.AIRoutingPolicy,
+	aiStub bool, aiModel string, aiRoutingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution,
 	allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string,
 	filename string, bytecodeMode bool, strictBytecode bool) error {
 
@@ -572,7 +572,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)
 	}
-	if err := setupAIHandler(effCtx, aiStub, aiModel, aiRoutingPolicy); err != nil {
+	if err := setupAIHandler(effCtx, aiStub, aiModel, aiRoutingPolicy, attr); err != nil {
 		return fmt.Errorf("AI handler setup: %w", err)
 	}
 	// Debug is auto-granted as a ghost effect in NewEffContext() — no conditional setup needed

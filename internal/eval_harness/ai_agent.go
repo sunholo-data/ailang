@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // AIAgent generates code using LLM APIs.
@@ -14,6 +16,7 @@ type AIAgent struct {
 	model        string           // API model name (e.g., "claude-sonnet-4-5-20250929") - used for API calls
 	adapter      *providerAdapter // Unified provider adapter
 	seed         int64
+	attribution  *ai.Attribution // OpenRouter app-attribution overrides (nil = use defaults)
 }
 
 // NewAIAgent creates a new AI agent using unified providers.
@@ -37,11 +40,18 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	}
 
 	return &AIAgent{
-		friendlyName: model,   // Store original friendly name for cost lookups
-		model:        apiName, // Use resolved API name for API calls
+		friendlyName: model,
+		model:        apiName,
 		adapter:      adapter,
 		seed:         seed,
+		attribution:  nil,
 	}, nil
+}
+
+// WithAttribution sets OpenRouter app-attribution overrides for this agent.
+func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
+	a.attribution = attr
+	return a
 }
 
 // GenerateCode generates code using the unified provider.

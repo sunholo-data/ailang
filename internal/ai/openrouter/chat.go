@@ -96,7 +96,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	setAttributionHeaders(httpReq)
+	setAttributionHeaders(httpReq, req.Attribution)
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)

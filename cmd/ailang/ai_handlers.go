@@ -31,7 +31,7 @@ import (
 // the first call. If aiModel is empty (no AI configured) and the caller
 // passed a non-nil routingPolicy, we treat that as a configuration mistake
 // and warn — there is no handler to attach the policy to.
-func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, routingPolicy *ai.AIRoutingPolicy) error {
+func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
 	// M-AI-PROVIDER-CONFIG: harvest [[ai_provider]] blocks from the project's
 	// ailang.toml + dependency manifests before consulting the registry in
 	// setupAIHandlerFromConfig / setupAIHandlerDirect. Idempotent — safe to
@@ -72,24 +72,24 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 	// Load models config to look up model details
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		// Config not found - try to use model name directly with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy)
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
 	}
 
 	// Look up model in config
 	model, err := eval_harness.GlobalModelsConfig.GetModel(aiModel)
 	if err != nil {
 		// Model not in config - try direct usage with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy)
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
 	}
 
-	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy)
+	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy, attr)
 }
 
 // setupAIHandlerFromConfig configures the AI effect handler from a resolved
 // models.yml entry. Extracted from setupAIHandler so tests can drive the
 // dispatch path (built-in switch + config-driven registry default) without
 // going through eval_harness.GlobalModelsConfig.
-func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy) error {
+func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
 	// Get API key from environment (may be empty for Google ADC)
 	apiKey := os.Getenv(model.EnvVar)
 
@@ -100,6 +100,9 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 	}
 	if routingPolicy != nil {
 		opts = append(opts, ai.WithRoutingPolicy(routingPolicy))
+	}
+	if attr != nil {
+		opts = append(opts, ai.WithAttribution(attr))
 	}
 
 	// Create handler based on provider using unified ai package
@@ -178,7 +181,7 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 // routingPolicy is optional and threaded onto the handler via WithRoutingPolicy
 // when non-nil. Only OpenRouter consumes it; passing a routing policy with a
 // non-OpenRouter provider yields ai.ErrRoutingNotSupported on the first call.
-func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy) error {
+func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
 	// Guess provider from model name
 	provider := ai.GuessProvider(modelName)
 
@@ -186,6 +189,9 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingP
 	var opts []ai.HandlerOption
 	if routingPolicy != nil {
 		opts = append(opts, ai.WithRoutingPolicy(routingPolicy))
+	}
+	if attr != nil {
+		opts = append(opts, ai.WithAttribution(attr))
 	}
 
 	var handler effects.AIHandler

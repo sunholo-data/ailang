@@ -18,8 +18,9 @@ import (
 
 // providerAdapter wraps ai.Provider for eval harness use.
 type providerAdapter struct {
-	provider ai.Provider
-	model    string
+	provider    ai.Provider
+	model       string
+	attribution *ai.Attribution // OpenRouter app-attribution overrides
 }
 
 // newProviderAdapter creates a provider adapter for the given model.
@@ -58,9 +59,15 @@ func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
 	}
 
 	return &providerAdapter{
-		provider: provider,
-		model:    model,
+		provider:    provider,
+		model:       model,
+		attribution: nil,
 	}, nil
+}
+
+// setAttribution sets OpenRouter app-attribution overrides.
+func (p *providerAdapter) setAttribution(attr *ai.Attribution) {
+	p.attribution = attr
 }
 
 // generate calls the unified provider and converts to GenerateResult.
@@ -75,6 +82,7 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 		SystemPrompt: systemPrompt,
 		UserPrompt:   prompt,
 		MaxTokens:    4096,
+		Attribution:  p.attribution,
 	}
 
 	resp, err := p.provider.Generate(ctx, req)

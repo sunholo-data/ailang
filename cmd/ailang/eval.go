@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -25,6 +26,10 @@ func runEval() {
 	listModels := fs.Bool("list-models", false, "List available models and exit")
 	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID (e.g., v0.3.0-baseline, v0.3.0-hints)")
+	// OpenRouter app-attribution flags
+	orReferer := fs.String("openrouter-referer", "", "Override HTTP-Referer for OpenRouter app attribution (e.g., https://ailang.sunholo.com/eval)")
+	orTitle := fs.String("openrouter-title", "", "Override X-OpenRouter-Title for OpenRouter app attribution")
+	orCategories := fs.String("openrouter-categories", "", "Override X-OpenRouter-Categories for OpenRouter app attribution (e.g., cli-agent,programming-app)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -81,6 +86,16 @@ func runEval() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to create AI agent: %v\n", red("Error"), err)
 		os.Exit(1)
+	}
+	// Apply OpenRouter attribution overrides if any flag is set
+	if *orReferer != "" || *orTitle != "" || *orCategories != "" {
+		aiAgent.WithAttribution(&ai.Attribution{
+			HTTPReferer: *orReferer,
+			Title:       *orTitle,
+			Categories:  *orCategories,
+		})
+		fmt.Printf("  %s OpenRouter attribution: referer=%s title=%s categories=%s\n",
+			cyan("ℹ"), *orReferer, *orTitle, *orCategories)
 	}
 	agent = aiAgent
 

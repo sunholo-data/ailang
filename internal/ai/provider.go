@@ -14,6 +14,15 @@ import (
 	"fmt"
 )
 
+// Attribution carries per-request OpenRouter app-attribution overrides.
+// When non-nil and fields are non-empty, they take precedence over env vars
+// and defaults. Used by eval harness and CLI to track usage by pipeline type.
+type Attribution struct {
+	HTTPReferer string // e.g. "https://ailang.sunholo.com/eval"
+	Title       string // e.g. "AILANG Eval Suite"
+	Categories  string // e.g. "cli-agent,programming-app"
+}
+
 // Request represents a generic AI request.
 //
 // Most fields map directly onto provider-native parameters. The optional
@@ -21,6 +30,10 @@ import (
 // — currently consumed only by OpenRouter; other providers reject a
 // non-zero policy with ErrRoutingNotSupported.
 type Request struct {
+	// Attribution carries per-request OpenRouter app-attribution overrides.
+	// When set, fields override env vars and defaults in the OpenRouter client.
+	Attribution *Attribution
+
 	// Model is the model name (e.g., "gemini-2.5-flash", "gpt-5", "claude-sonnet-4-5")
 	Model string
 

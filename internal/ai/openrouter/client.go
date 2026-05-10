@@ -22,25 +22,49 @@ const (
 )
 
 // setAttributionHeaders stamps OpenRouter app-attribution headers on r.
-// HTTP-Referer is mandatory for app pages and rankings; X-Title sets the
-// display name; X-OpenRouter-Categories places the app in marketplace buckets.
-// Defaults are always sent; env vars OPENROUTER_HTTP_REFERER, OPENROUTER_X_TITLE,
-// and OPENROUTER_CATEGORIES override them when set.
-func setAttributionHeaders(r *http.Request) {
+//
+// HTTP-Referer is mandatory for app pages and rankings.
+// X-OpenRouter-Title is the new canonical header (v0.16.0+); X-Title is kept
+// for backwards compatibility with older OpenRouter middleware.
+// X-OpenRouter-Categories places the app in marketplace buckets.
+//
+// Precedence (highest to lowest):
+//  1. Per-request overrides from req.Attribution (if set)
+//  2. Environment variables OPENROUTER_HTTP_REFERER, OPENROUTER_X_TITLE,
+//     OPENROUTER_CATEGORIES
+//  3. Built-in defaults
+func setAttributionHeaders(r *http.Request, attr *ai.Attribution) {
 	referer := defaultHTTPReferer
+	title := defaultXTitle
+	categories := defaultCategories
+
+	// Layer 2: env vars override defaults
 	if v := os.Getenv("OPENROUTER_HTTP_REFERER"); v != "" {
 		referer = v
 	}
-	title := defaultXTitle
 	if v := os.Getenv("OPENROUTER_X_TITLE"); v != "" {
 		title = v
 	}
-	categories := defaultCategories
 	if v := os.Getenv("OPENROUTER_CATEGORIES"); v != "" {
 		categories = v
 	}
+
+	// Layer 1: per-request overrides take highest precedence
+	if attr != nil {
+		if attr.HTTPReferer != "" {
+			referer = attr.HTTPReferer
+		}
+		if attr.Title != "" {
+			title = attr.Title
+		}
+		if attr.Categories != "" {
+			categories = attr.Categories
+		}
+	}
+
 	r.Header.Set("HTTP-Referer", referer)
-	r.Header.Set("X-Title", title)
+	r.Header.Set("X-OpenRouter-Title", title) // Canonical (v0.16.0+)
+	r.Header.Set("X-Title", title)            // Backwards compat
 	r.Header.Set("X-OpenRouter-Categories", categories)
 }
 

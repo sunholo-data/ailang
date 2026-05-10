@@ -29,6 +29,10 @@ type Handler struct {
 	// reject a non-zero policy with ErrRoutingNotSupported. nil = no policy.
 	routingPolicy *AIRoutingPolicy
 
+	// attribution carries per-request OpenRouter app-attribution overrides.
+	// Passed through to every Request. nil = use env vars / defaults.
+	attribution *Attribution
+
 	// lastRoute caches routing metadata from the most recent successful
 	// Generate() call. nil when the response had no routing-distinct
 	// metadata (direct providers, OR calls that didn't engage routing).
@@ -60,6 +64,14 @@ func WithMaxTokens(tokens int) HandlerOption {
 func WithRoutingPolicy(p *AIRoutingPolicy) HandlerOption {
 	return func(h *Handler) {
 		h.routingPolicy = p
+	}
+}
+
+// WithAttribution attaches per-request OpenRouter app-attribution overrides.
+// The values override env vars and defaults. Only consumed by OpenRouter.
+func WithAttribution(a *Attribution) HandlerOption {
+	return func(h *Handler) {
+		h.attribution = a
 	}
 }
 
@@ -97,6 +109,7 @@ func (h *Handler) Call(input string) (string, error) {
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
 		Routing:      h.routingPolicy,
+		Attribution:  h.attribution,
 	})
 	h.captureRoute(resp, err)
 	if err != nil {
