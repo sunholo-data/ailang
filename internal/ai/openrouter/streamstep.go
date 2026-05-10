@@ -3,6 +3,7 @@ package openrouter
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,7 +65,25 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 		return nil, e
 	}
 
-	body, marshalErr := marshalStepBodyWithProvider(chatReq, translatePolicy(req.Routing))
+	// Build the wire body with OpenRouter-specific extensions:
+	//   - "provider":{...} routing policy (when req.Routing populated)
+	//   - "include_reasoning":true (v0.18.9 — opt-in for reasoning chunks
+	//      from OR-routed thinking models like deepseek-r1, anthropic-
+	//      via-OR, qwen-thinking. Confirmed via direct-curl probe of
+	//      openrouter.ai/api/v1: without this flag OR drops reasoning
+	//      silently regardless of underlying provider's native field name)
+	extras := [][]byte{[]byte(`"include_reasoning":true`)}
+	if pf := translatePolicy(req.Routing); pf != nil {
+		pfBytes, marshalErr := json.Marshal(pf)
+		if marshalErr != nil {
+			e := ai.NewAIError(ai.CodeInternal,
+				fmt.Sprintf("openrouter: failed to marshal provider field: %v", marshalErr), false)
+			recordStepError(span, e)
+			return nil, e
+		}
+		extras = append(extras, append([]byte(`"provider":`), pfBytes...))
+	}
+	body, marshalErr := marshalStepBodyWithExtras(chatReq, extras)
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal stream request: %v", marshalErr), false)

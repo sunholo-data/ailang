@@ -141,14 +141,29 @@ type ChatStepStreamChoice struct {
 // chunk. Role is set on the FIRST chunk; Content accumulates per chunk;
 // ToolCalls fragments accumulate per chunk per tool-call index.
 //
-// ReasoningContent (v0.18.8) carries per-chunk reasoning text from
-// OpenAI's o1/o3 reasoning models. Surfaces as ai.StreamThinkingDelta
-// to the user callback. Does NOT accumulate into Response.Text — the
-// final assistant content comes only from delta.content.
+// Reasoning fields (v0.18.8 + v0.18.9): per-chunk model-reasoning text.
+// Surfaces as ai.StreamThinkingDelta to the user callback. Does NOT
+// accumulate into Response.Text — the final assistant content comes
+// only from delta.content. Two fields because providers don't agree:
+//
+//   - ReasoningContent (`reasoning_content`): OpenAI o1/o3 direct API.
+//     Per the OpenAI Chat Completions reasoning-model spec (v0.18.8).
+//   - Reasoning (`reasoning`): OpenRouter's normalized field. EVERY
+//     OpenRouter-routed reasoning model surfaces here, regardless of
+//     the underlying provider's native field name (DeepSeek-R1 via
+//     Novita, Anthropic Claude via Bedrock, Qwen-thinking, etc.).
+//     Verified by direct-curl probe of openrouter.ai/api/v1 against
+//     deepseek/deepseek-r1 and anthropic/claude-opus-4.5 — both
+//     emit through `delta.reasoning` (v0.18.9).
+//
+// At parse time we fire one ThinkingDelta per non-empty value across
+// either field. In practice only one fires per chunk; the dual field
+// support is just provider-shape defensive.
 type ChatStepStreamDelta struct {
 	Role             string                       `json:"role,omitempty"`
 	Content          string                       `json:"content,omitempty"`
 	ReasoningContent string                       `json:"reasoning_content,omitempty"`
+	Reasoning        string                       `json:"reasoning,omitempty"`
 	ToolCalls        []ChatStepStreamToolCallFrag `json:"tool_calls,omitempty"`
 }
 
@@ -247,14 +262,19 @@ func ParseChatStepSSEStream(body io.Reader, requestedModel string, onChunk func(
 					onChunk(ai.StreamContentDelta{Text: choice.Delta.Content})
 				}
 			}
-			// Reasoning content fragment (v0.18.8). o1/o3 models emit
-			// reasoning via delta.reasoning_content separate from
-			// delta.content. NOT accumulated into Response.Text — the
-			// final answer comes via delta.content. Surfaces as
-			// ai.StreamThinkingDelta so callers can render it in a
-			// separate UI surface (or drop it entirely).
+			// Reasoning content fragment.
+			//   v0.18.8: delta.reasoning_content (OpenAI o1/o3 direct).
+			//   v0.18.9: delta.reasoning (OpenRouter-normalized — every
+			//            OR-routed reasoning model emits via this field
+			//            regardless of underlying provider, including
+			//            DeepSeek-R1, Anthropic-via-OR, Qwen-thinking).
+			// Both fire as ai.StreamThinkingDelta. NOT accumulated into
+			// Response.Text — the final answer comes via delta.content.
 			if choice.Delta.ReasoningContent != "" && onChunk != nil {
 				onChunk(ai.StreamThinkingDelta{Text: choice.Delta.ReasoningContent})
+			}
+			if choice.Delta.Reasoning != "" && onChunk != nil {
+				onChunk(ai.StreamThinkingDelta{Text: choice.Delta.Reasoning})
 			}
 			for _, tcFrag := range choice.Delta.ToolCalls {
 				acc, ok := toolCalls[tcFrag.Index]

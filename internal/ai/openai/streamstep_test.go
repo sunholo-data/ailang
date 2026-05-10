@@ -224,6 +224,70 @@ func TestStreamStep_ParsesReasoningContent(t *testing.T) {
 	}
 }
 
+// TestStreamStep_ParsesOpenRouterReasoningField verifies that
+// delta.reasoning (OpenRouter's normalized reasoning field) surfaces as
+// ai.StreamThinkingDelta — alongside the existing delta.reasoning_content
+// (OpenAI o1/o3 direct API spec) handling.
+//
+// This was the v0.18.9 bug: deepseek-r1 / anthropic-via-OR / qwen-thinking
+// all stream reasoning through OpenRouter via `delta.reasoning`, NOT
+// `delta.reasoning_content`. v0.18.8 only read the latter — so EVERY
+// OR-routed thinking model dropped reasoning silently. Confirmed by
+// direct-curl probe of openrouter.ai/api/v1.
+func TestStreamStep_ParsesOpenRouterReasoningField(t *testing.T) {
+	// Realistic OpenRouter SSE for deepseek-r1: 3 reasoning chunks via
+	// delta.reasoning (with reasoning_details metadata), then 1 content
+	// chunk via delta.content, then finish.
+	sseBody := strings.Join([]string{
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[{"index":0,"delta":{"role":"assistant","reasoning":"I need","reasoning_details":[{"type":"reasoning.text","text":"I need","format":"unknown","index":0}]},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[{"index":0,"delta":{"reasoning":" to add"},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[{"index":0,"delta":{"reasoning":" 5+7."},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[{"index":0,"delta":{"content":"12"},"finish_reason":null}]}`,
+		``,
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		``,
+		`data: {"id":"gen-1","object":"chat.completion.chunk","model":"deepseek/deepseek-r1","choices":[],"usage":{"prompt_tokens":15,"completion_tokens":3,"total_tokens":18}}`,
+		``,
+		`data: [DONE]`,
+		``,
+	}, "\n")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, sseBody)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	var contentChunks, thinkingChunks []string
+	resp, err := client.StreamStep(context.Background(), &ai.Request{
+		Model:    "deepseek/deepseek-r1",
+		Messages: []ai.Message{{Role: "user", Content: "5+7?"}},
+	}, func(chunk ai.StreamChunk) {
+		switch c := chunk.(type) {
+		case ai.StreamContentDelta:
+			contentChunks = append(contentChunks, c.Text)
+		case ai.StreamThinkingDelta:
+			thinkingChunks = append(thinkingChunks, c.Text)
+		}
+	})
+	if err != nil {
+		t.Fatalf("StreamStep returned error: %v", err)
+	}
+	if len(thinkingChunks) != 3 {
+		t.Errorf("ThinkingDelta count = %d, want 3 (chunks: %v)", len(thinkingChunks), thinkingChunks)
+	}
+	if got := strings.Join(thinkingChunks, ""); got != "I need to add 5+7." {
+		t.Errorf("thinking concat = %q, want %q", got, "I need to add 5+7.")
+	}
+	if resp.Text != "12" {
+		t.Errorf("resp.Text = %q, want %q (reasoning must NOT leak)", resp.Text, "12")
+	}
+}
+
 // TestStreamStep_StreamFlagAndOptionsSet verifies that StreamStep sends
 // "stream":true AND "stream_options":{"include_usage":true} — the latter
 // is what makes OpenAI emit a final usage chunk at all.

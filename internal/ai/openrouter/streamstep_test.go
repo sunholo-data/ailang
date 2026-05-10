@@ -117,6 +117,40 @@ func TestStreamStep_RoutingPolicyOnTheWire(t *testing.T) {
 	}
 }
 
+// TestStreamStep_IncludeReasoningOnTheWire verifies that StreamStep
+// always sends "include_reasoning":true so OpenRouter-routed thinking
+// models surface reasoning chunks via delta.reasoning. Without this
+// flag, deepseek-r1 / anthropic-via-OR / qwen-thinking all silently
+// drop reasoning regardless of the underlying provider's native field.
+// (M-AI-OPENROUTER-REASONING-FIELD, v0.18.9)
+func TestStreamStep_IncludeReasoningOnTheWire(t *testing.T) {
+	var capturedBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, r.ContentLength)
+		_, _ = r.Body.Read(buf)
+		capturedBody = buf
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, `data: {"choices":[{"delta":{},"finish_reason":"stop"}]}`+"\n\n"+`data: [DONE]`+"\n\n")
+	}))
+	defer srv.Close()
+
+	client := NewClient("k", WithBaseURL(srv.URL), WithHTTPClient(srv.Client()))
+	_, err := client.StreamStep(context.Background(), &ai.Request{
+		Model:    "deepseek/deepseek-r1",
+		Messages: []ai.Message{{Role: "user", Content: "x"}},
+	}, func(_ ai.StreamChunk) {})
+	if err != nil {
+		t.Fatalf("StreamStep returned error: %v", err)
+	}
+	body := string(capturedBody)
+	if !strings.Contains(body, `"include_reasoning":true`) {
+		t.Errorf("missing include_reasoning:true (OR drops reasoning silently without it): %s", body)
+	}
+	if !strings.Contains(body, `"stream":true`) {
+		t.Errorf("missing stream:true: %s", body)
+	}
+}
+
 // TestStreamStep_HTTPError verifies the error envelope is hoisted.
 func TestStreamStep_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -130,37 +130,56 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	return out, nil
 }
 
-// marshalStepBodyWithProvider serialises the OpenAI ChatStepRequest with an
-// optional OpenRouter `provider` field appended at the top level. Two paths:
+// marshalStepBodyWithProvider serialises the OpenAI ChatStepRequest with
+// optional OpenRouter-specific extensions appended at the top level.
 //
-//   - provider == nil: marshal the OpenAI shape directly (back-compat fast path).
-//   - provider != nil: marshal both, splice the `provider` key into the body
-//     by trimming the trailing `}` and appending `,"provider":<provider>}`.
+// extraFields is a list of pre-marshalled `"key":<value>` fragments that
+// get spliced into the JSON body before the closing `}`. Used to inject
+// OpenRouter-specific fields like "provider":{...} (routing policy) and
+// "include_reasoning":true (v0.18.9 — opt-in for reasoning chunks on
+// OpenRouter-routed thinking models like deepseek-r1, anthropic-via-OR,
+// qwen-thinking; without this flag OpenRouter drops reasoning silently).
 //
-// The splice approach (vs. decode-into-map round-trip) is both cheaper and
+// Splice approach (vs. decode-into-map round-trip): both cheaper and
 // keeps the OpenAI helper completely decoupled from OpenRouter-specific
-// extensions. The trailing-`}` splice is safe because json.Marshal on a Go
-// struct is guaranteed to emit a single object — no leading/trailing
-// whitespace, terminator is the final byte.
-func marshalStepBodyWithProvider(chatReq *openai.ChatStepRequest, provider *providerField) ([]byte, error) {
+// extensions. Safe because json.Marshal on a Go struct is guaranteed to
+// emit a single object — no leading/trailing whitespace, terminator is
+// the final byte.
+func marshalStepBodyWithExtras(chatReq *openai.ChatStepRequest, extraFields [][]byte) ([]byte, error) {
 	chatBytes, err := json.Marshal(chatReq)
 	if err != nil {
 		return nil, err
 	}
-	if provider == nil {
+	if len(extraFields) == 0 {
 		return chatBytes, nil
+	}
+	totalExtra := 0
+	for _, f := range extraFields {
+		totalExtra += len(f) + 1 // +1 for leading comma
+	}
+	out := make([]byte, 0, len(chatBytes)+totalExtra)
+	out = append(out, chatBytes[:len(chatBytes)-1]...)
+	for _, f := range extraFields {
+		out = append(out, ',')
+		out = append(out, f...)
+	}
+	out = append(out, '}')
+	return out, nil
+}
+
+// marshalStepBodyWithProvider preserves the original signature for the
+// non-streaming Step path (only injects a provider field). Wraps the
+// new extras-list helper for backward compatibility.
+func marshalStepBodyWithProvider(chatReq *openai.ChatStepRequest, provider *providerField) ([]byte, error) {
+	if provider == nil {
+		return marshalStepBodyWithExtras(chatReq, nil)
 	}
 	provBytes, err := json.Marshal(provider)
 	if err != nil {
 		return nil, err
 	}
-	// Splice in the provider field. chatBytes is guaranteed to end with `}`.
-	out := make([]byte, 0, len(chatBytes)+len(provBytes)+len(`,"provider":`)+1)
-	out = append(out, chatBytes[:len(chatBytes)-1]...)
-	out = append(out, []byte(`,"provider":`)...)
-	out = append(out, provBytes...)
-	out = append(out, '}')
-	return out, nil
+	field := append([]byte(`"provider":`), provBytes...)
+	return marshalStepBodyWithExtras(chatReq, [][]byte{field})
 }
 
 // recordStepError annotates the span with the AIError's code/message and
