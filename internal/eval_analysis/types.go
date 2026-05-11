@@ -346,6 +346,11 @@ type DashboardJSON struct {
 	// M-DASH-V2: suite-change annotations rendered as ReferenceLine on every
 	// time-series chart. Sourced from benchmarks/events.yml.
 	Events []SuiteEvent `json:"events,omitempty"`
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): top-level sweet-spot
+	// view. Per-model sweet_spot blocks live inside Models[name]["sweet_spot"];
+	// the global block carries the cross-model views (per-benchmark champions,
+	// the slow threshold the report was computed with).
+	SweetSpotGlobal map[string]interface{} `json:"sweet_spot_global,omitempty"`
 }
 
 // HistoryEntry represents a single version's data in the history array

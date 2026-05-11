@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-05-11T13:57:54Z",
   "design_doc": "design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration.md",
   "sprint_plan": "design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration-sprint-plan.md",
@@ -28,17 +28,19 @@
         "internal/eval_analysis/export_json.go",
         "internal/eval_analysis/export_json_sweet_spot_test.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T16:00:00Z",
+      "completed": "2026-05-11T16:30:00Z",
+      "notes": "DollarsPerPass + ParetoFrontier + FinishReasons added to SweetSpotRow with computation in BuildSweetSpot. SweetSpotGlobal added to DashboardJSON type. renderSweetSpotRow helper produces stable camelCase-keyed map. End-to-end smoke against eval_results/m_eval_sweet_spot_hard confirmed: deepseek-v4-flash $0.0243/pass + claude-haiku-4-5 $0.0592/pass both Pareto-optimal; gemma and kimi correctly marked dominated. 5 new unit tests + all 11 existing sweet_spot tests pass."
     },
     {
       "id": "M2_NUMERICAL_PARITY_TEST",
       "description": "sweet_spot_parity_test.go asserts CLI sweet-spot output matches embedded latest.json for every per-model field. Operational drift guard in CI.",
       "estimated_loc": 150,
       "estimated_hours": 3,
-      "dependencies": ["M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"],
+      "dependencies": [
+        "M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"
+      ],
       "acceptance_criteria": [
         "Test compares pass_rate, median_tts_ms, p90_cost_per_success, speed_efficiency, bucket counts, champion entries between CLI and JSON output",
         "Float comparisons to 4 decimal places; ints/strings exact",
@@ -58,7 +60,9 @@
       "description": "Two new JSX components: DollarsPerPassTable (sortable model x $/pass x pass-rate x total-spend, ratio toggle) + BenchmarkChampionsTable (per-benchmark cheapest/fastest winners). Wired into BenchmarkDashboard/index.jsx.",
       "estimated_loc": 350,
       "estimated_hours": 6,
-      "dependencies": ["M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"],
+      "dependencies": [
+        "M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"
+      ],
       "acceptance_criteria": [
         "DollarsPerPassTable renders without console errors; default-sorted ascending",
         "Ratio toggle renders the 12.4x gemma-vs-deepseek headline",
@@ -82,7 +86,9 @@
       "description": "FailureCategoryBars JSX: stacked horizontal bars per model, color-coded by family (capability/budget/provider/success). QualityScatter extension: bucket coloring + tier-filter dropdown.",
       "estimated_loc": 290,
       "estimated_hours": 5,
-      "dependencies": ["M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"],
+      "dependencies": [
+        "M1_EMBED_SWEET_SPOT_IN_LATEST_JSON"
+      ],
       "acceptance_criteria": [
         "FailureCategoryBars renders the typed category breakdown",
         "QualityScatter tier filter works on v0.18.5 baseline data",
@@ -105,7 +111,10 @@
       "description": "Add 'Reading the dashboard sweet-spot view' section to evaluation guide with annotated screenshots. CHANGELOG entry under v0.19.0.",
       "estimated_loc": 120,
       "estimated_hours": 3,
-      "dependencies": ["M3_DOLLARS_PER_PASS_AND_CHAMPIONS_TABLES", "M4_FAILURE_CATEGORY_BARS_AND_TIER_FILTER"],
+      "dependencies": [
+        "M3_DOLLARS_PER_PASS_AND_CHAMPIONS_TABLES",
+        "M4_FAILURE_CATEGORY_BARS_AND_TIER_FILTER"
+      ],
       "acceptance_criteria": [
         "docs/docs/guides/evaluation/cost-and-speed-budgets.md gains 'Reading the dashboard sweet-spot view' section",
         "2-3 dashboard screenshots from validation dataset embedded",

@@ -390,6 +390,26 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		modelEfficiency[modelName] = ComputeEfficiency(modelResults)
 	}
 
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): build the sweet-spot
+	// report once and key it by (Model, Executor) — the same key Sweet-Spot
+	// uses internally. We then attach the per-(model, harness) bucket /
+	// $/pass / Pareto data to each model entry. Champions are a top-level
+	// per-benchmark map.
+	sweetSpotReport := BuildSweetSpot(results, SweetSpotOpts{})
+	sweetSpotByModel := make(map[string][]SweetSpotRow)
+	for _, row := range sweetSpotReport.Rows {
+		// Sort within each model: most TotalRuns first → that's the "default"
+		// harness for the model card.
+		sweetSpotByModel[row.Model] = append(sweetSpotByModel[row.Model], row)
+	}
+	for m := range sweetSpotByModel {
+		rs := sweetSpotByModel[m]
+		sort.SliceStable(rs, func(i, j int) bool {
+			return rs[i].TotalRuns > rs[j].TotalRuns
+		})
+		sweetSpotByModel[m] = rs
+	}
+
 	// Convert models to camelCase for JavaScript (nested aggregates)
 	modelsJS := make(map[string]interface{})
 	for name, stats := range matrix.Models {
@@ -506,6 +526,22 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if eff, ok := modelEfficiency[name]; ok {
 			modelData["efficiency"] = eff
 		}
+		// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): per-model
+		// sweet_spot block. Drives DollarsPerPassTable, FailureCategoryBars,
+		// QualityScatter bucket coloring. When a model has multiple harness
+		// rows (e.g. claude-haiku-4-5 ran via claude AND opencode), we
+		// publish each as `sweet_spot_by_harness` and the dominant one
+		// (most runs) as `sweet_spot` for default rendering.
+		if ssRows, ok := sweetSpotByModel[name]; ok && len(ssRows) > 0 {
+			modelData["sweet_spot"] = renderSweetSpotRow(ssRows[0])
+			if len(ssRows) > 1 {
+				byHarness := make(map[string]interface{}, len(ssRows))
+				for _, r := range ssRows {
+					byHarness[r.Harness] = renderSweetSpotRow(r)
+				}
+				modelData["sweet_spot_by_harness"] = byHarness
+			}
+		}
 		// M-DASH-V2: attach per-model reliability counters so the dashboard
 		// can tooltip the API Reliability card ("gemini-3-1-pro: 13/33").
 		if rel, ok := reliability.PerModel[name]; ok {
@@ -552,6 +588,18 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			// block for agent-only models too — Pareto frontier needs them.
 			if eff, ok := modelEfficiency[modelName]; ok {
 				entry["efficiency"] = eff
+			}
+			// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): same per-model
+			// sweet_spot block as the standard-models branch above.
+			if ssRows, ok := sweetSpotByModel[modelName]; ok && len(ssRows) > 0 {
+				entry["sweet_spot"] = renderSweetSpotRow(ssRows[0])
+				if len(ssRows) > 1 {
+					byHarness := make(map[string]interface{}, len(ssRows))
+					for _, r := range ssRows {
+						byHarness[r.Harness] = renderSweetSpotRow(r)
+					}
+					entry["sweet_spot_by_harness"] = byHarness
+				}
 			}
 			// Per-language agent success rates (JS/Go from lang_harness_suite).
 			// Includes adjusted rate + api_error counts so the Explorer's mini-bars
@@ -1107,6 +1155,27 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.Executors = executorsJS
 	dashboard.Harnesses = harnessesJS
 	dashboard.Events = suiteEvents
+
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): top-level sweet-spot
+	// block. Carries per-benchmark cheapest/fastest pass champions plus the
+	// slow threshold used. Per-model sweet_spot lives in dashboard.Models.
+	champions := make([]map[string]interface{}, 0, len(sweetSpotReport.Champions))
+	for _, c := range sweetSpotReport.Champions {
+		champions = append(champions, map[string]interface{}{
+			"benchmark_id":      c.BenchmarkID,
+			"cheapest_model":    c.CheapestModel,
+			"cheapest_cost_usd": c.CheapestCost,
+			"cheapest_tts_ms":   c.CheapestTTSMs,
+			"fastest_model":     c.FastestModel,
+			"fastest_tts_ms":    c.FastestTTSMs,
+			"fastest_cost_usd":  c.FastestCost,
+		})
+	}
+	dashboard.SweetSpotGlobal = map[string]interface{}{
+		"champions":         champions,
+		"slow_threshold_ms": sweetSpotReport.SlowMs,
+		"total_runs":        sweetSpotReport.TotalRuns,
+	}
 
 	// Write atomically
 	if err := writeJSONAtomic(outputPath, dashboard); err != nil {

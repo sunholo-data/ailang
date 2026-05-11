@@ -58,6 +58,16 @@ type SweetSpotRow struct {
 	P90CostPerSuccess  float64 `json:"p90_cost_per_success"`
 	SpeedEfficiency    float64 `json:"speed_efficiency"`
 
+	// DollarsPerPass is total $ across all runs / number of passes. The
+	// headline economic metric for the dashboard. 0 when no passes.
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
+	DollarsPerPass float64 `json:"dollars_per_pass"`
+
+	// ParetoFrontier is true when no other model has BOTH lower $/win AND
+	// lower median TTS. Computed across all rows in the same SweetSpotReport.
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
+	ParetoFrontier bool `json:"pareto_frontier"`
+
 	// Failure-cause counts (from the typed ErrorCategory taxonomy).
 	CostKilledCount    int `json:"cost_killed_count"`
 	StepExhaustedCount int `json:"step_exhausted_count"`
@@ -65,6 +75,11 @@ type SweetSpotRow struct {
 	QuotaCount         int `json:"quota_count"`
 	RateLimitCount     int `json:"rate_limit_count"`
 	APIErrorCount      int `json:"api_error_count"`
+
+	// FinishReasons counts the executor finish_reason values seen across
+	// this model's runs. Empty/missing finish_reason counts as "".
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
+	FinishReasons map[string]int `json:"finish_reasons,omitempty"`
 
 	Buckets SweetSpotBucket `json:"buckets"`
 }
@@ -107,6 +122,36 @@ func BuildSweetSpot(results []*BenchmarkResult, opts SweetSpotOpts) SweetSpotRep
 	rows := make([]SweetSpotRow, 0, len(byKey))
 	for k, rs := range byKey {
 		rows = append(rows, buildRow(k.model, k.harness, rs, opts))
+	}
+
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): Pareto-frontier
+	// classification across all rows. A row is on the frontier if no
+	// other row has BOTH lower P90CostPerSuccess AND lower MedianTTSMs.
+	// Rows with zero values (no successful runs) are NEVER on the
+	// frontier — they can't be the "best" at anything.
+	for i := range rows {
+		ri := &rows[i]
+		if ri.P90CostPerSuccess <= 0 || ri.MedianTTSMs <= 0 {
+			ri.ParetoFrontier = false
+			continue
+		}
+		dominated := false
+		for j := range rows {
+			if i == j {
+				continue
+			}
+			rj := rows[j]
+			if rj.P90CostPerSuccess <= 0 || rj.MedianTTSMs <= 0 {
+				continue
+			}
+			if rj.P90CostPerSuccess <= ri.P90CostPerSuccess &&
+				rj.MedianTTSMs <= ri.MedianTTSMs &&
+				(rj.P90CostPerSuccess < ri.P90CostPerSuccess || rj.MedianTTSMs < ri.MedianTTSMs) {
+				dominated = true
+				break
+			}
+		}
+		ri.ParetoFrontier = !dominated
 	}
 
 	sort.SliceStable(rows, func(i, j int) bool {
@@ -152,11 +197,15 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 
 	passes := 0
 	excluded := 0
+	totalCost := 0.0
+	finishReasons := map[string]int{}
 
 	for _, r := range rs {
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			excluded++
 		}
+		totalCost += r.CostUSD
+		finishReasons[r.FinishReason]++
 
 		// Failure-cause tally
 		switch r.ErrorCategory {
@@ -207,6 +256,14 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 	row.MedianTokensPerSec = eff.MedianTokensPerSec
 	row.P90CostPerSuccess = eff.P90CostPerSuccess
 	row.SpeedEfficiency = eff.SpeedEfficiencyScore
+
+	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): per-pass economics
+	// and finish_reason breakdown. DollarsPerPass is the headline website
+	// number; FinishReasons is the executor-stop diagnostic.
+	if passes > 0 {
+		row.DollarsPerPass = totalCost / float64(passes)
+	}
+	row.FinishReasons = finishReasons
 
 	// Bucket each benchmark for this model.
 	for _, r := range rs {
@@ -468,6 +525,45 @@ func FormatSweetSpotCSV(report SweetSpotReport) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+// renderSweetSpotRow converts a SweetSpotRow into the camelCase-keyed map
+// shape used in the dashboard JSON output (M-EVAL-SWEET-SPOT-WEBSITE-
+// INTEGRATION v0.19.0). Mirrors the JSX field names that the new
+// DollarsPerPassTable / BenchmarkChampionsTable / FailureCategoryBars
+// components read.
+//
+// All numeric fields are emitted unconditionally so consumers can rely on
+// shape stability — zero values mean "not measured / not applicable".
+func renderSweetSpotRow(r SweetSpotRow) map[string]interface{} {
+	return map[string]interface{}{
+		"model":                 r.Model,
+		"harness":               r.Harness,
+		"total_runs":            r.TotalRuns,
+		"pass_rate":             r.PassRate,
+		"median_tts_ms":         r.MedianTTSMs,
+		"median_tokens_per_sec": r.MedianTokensPerSec,
+		"p90_cost_per_success":  r.P90CostPerSuccess,
+		"speed_efficiency":      r.SpeedEfficiency,
+		"dollars_per_pass":      r.DollarsPerPass,
+		"pareto_frontier":       r.ParetoFrontier,
+		"buckets": map[string]int{
+			"fast_pass":          r.Buckets.FastPass,
+			"slow_pass":          r.Buckets.SlowPass,
+			"budget_blocked":     r.Buckets.BudgetBlocked,
+			"capability_blocked": r.Buckets.CapabilityBlocked,
+			"provider_blocked":   r.Buckets.ProviderBlocked,
+		},
+		"error_categories": map[string]int{
+			"cost_killed":     r.CostKilledCount,
+			"step_exhausted":  r.StepExhaustedCount,
+			"timeout":         r.TimeoutCount,
+			"quota_exhausted": r.QuotaCount,
+			"rate_limit":      r.RateLimitCount,
+			"api_error":       r.APIErrorCount,
+		},
+		"finish_reasons": r.FinishReasons,
+	}
 }
 
 // FormatSweetSpotJSON marshals the report to indented JSON.
