@@ -108,66 +108,85 @@ export default function DollarsPerPassTable({ models }) {
 
   return (
     <div className={styles.chartContainer}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-        <h3 style={{ margin: 0 }}>$/Pass Economics</h3>
-        <label style={{ fontSize: '0.85rem', cursor: 'pointer' }}>
+      <div className={styles.sweetSpotHeader}>
+        <h3>$/Pass Economics</h3>
+        <label className={styles.sweetSpotToggle}>
           <input
             type="checkbox"
             checked={showRatio}
             onChange={(e) => setShowRatio(e.target.checked)}
-            style={{ marginRight: 6 }}
           />
           Show as ratio vs cheapest
         </label>
       </div>
 
       {headlineRatio !== null && headlineRatio > 2 && (
-        <p style={{ fontSize: '0.95rem', color: 'var(--ifm-color-emphasis-700)', marginBottom: 12 }}>
+        <p className={styles.sweetSpotHeadlineNote}>
           The most expensive passing model is <strong>{headlineRatio.toFixed(1)}×</strong> more expensive
           per success than the cheapest. Sort by $/pass to see the spread.
         </p>
       )}
 
-      <table className={styles.comparisonTable} style={{ width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>Model</th>
-            <th onClick={() => handleSort('dollars_per_pass')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              {showRatio ? `Ratio${arrow('dollars_per_pass')}` : `$/pass${arrow('dollars_per_pass')}`}
-            </th>
-            <th onClick={() => handleSort('passRate')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              Pass rate{arrow('passRate')}
-            </th>
-            <th onClick={() => handleSort('totalRuns')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              Runs{arrow('totalRuns')}
-            </th>
-            <th onClick={() => handleSort('totalCost')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              Total spend{arrow('totalCost')}
-            </th>
-            <th style={{ textAlign: 'center' }}>Frontier</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.name}>
-              <td>{r.displayName}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                {showRatio
-                  ? `${r.ratio.toFixed(1)}×`
-                  : `$${r.dollarsPerPass.toFixed(4)}`}
-              </td>
-              <td style={{ textAlign: 'right' }}>{(r.passRate * 100).toFixed(1)}%</td>
-              <td style={{ textAlign: 'right' }}>{r.totalRuns}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>${r.totalCost.toFixed(2)}</td>
-              <td style={{ textAlign: 'center' }}>
-                {r.pareto ? <span style={{ color: 'var(--ifm-color-success)' }}>✓</span> : <span style={{ color: 'var(--ifm-color-emphasis-400)' }}>—</span>}
-              </td>
+      <div className={styles.tableWrapper}>
+        <table className={styles.comparisonTable}>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('dollars_per_pass')}
+                style={{ textAlign: 'right' }}
+              >
+                {showRatio ? `Ratio${arrow('dollars_per_pass')}` : `$/pass${arrow('dollars_per_pass')}`}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('passRate')}
+                style={{ textAlign: 'right' }}
+              >
+                Pass rate{arrow('passRate')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('totalRuns')}
+                style={{ textAlign: 'right' }}
+              >
+                Runs{arrow('totalRuns')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('totalCost')}
+                style={{ textAlign: 'right' }}
+              >
+                Total spend{arrow('totalCost')}
+              </th>
+              <th style={{ textAlign: 'center' }}>Frontier</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.name}>
+                <td>{r.displayName}</td>
+                <td className={styles.sweetSpotNumCell}>
+                  {showRatio
+                    ? `${r.ratio.toFixed(1)}×`
+                    : `$${r.dollarsPerPass.toFixed(4)}`}
+                </td>
+                <td className={styles.sweetSpotNumCell}>{(r.passRate * 100).toFixed(1)}%</td>
+                <td className={styles.sweetSpotNumCell}>{r.totalRuns}</td>
+                <td className={styles.sweetSpotNumCell}>${r.totalCost.toFixed(2)}</td>
+                <td className={styles.sweetSpotCenterCell}>
+                  {r.pareto
+                    ? <span className={styles.sweetSpotFrontierYes}>✓</span>
+                    : <span className={styles.sweetSpotFrontierNo}>—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginTop: 8 }}>
+      <p className={styles.sweetSpotFootnote}>
         <strong>$/pass</strong> = total cost / number of passing runs.{' '}
         <strong>Frontier</strong> ✓ means no other model has BOTH lower $/win AND lower median time-to-success.
       </p>

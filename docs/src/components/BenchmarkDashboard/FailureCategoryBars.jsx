@@ -1,15 +1,9 @@
 import React, { useMemo } from 'react';
 import styles from './styles.module.css';
 
-// Color tokens for the 4 outcome families. Match the CLI sweet-spot text
-// output's mental model (capability=red, budget=orange, provider=gray,
-// success=green). Falls back to CSS vars so dark mode picks up correctly.
-const COLORS = {
-  success:    'var(--ifm-color-success, #16a34a)',
-  capability: 'var(--ifm-color-danger,  #dc2626)',
-  budget:     'var(--ifm-color-warning, #d97706)',
-  provider:   'var(--ifm-color-emphasis-500, #6b7280)',
-};
+// Color tokens for the 4 outcome families live in styles.module.css
+// (.failureSuccess / .failureBudget / .failureCapability / .failureProvider)
+// so dark-mode CSS vars work and JSX stays free of inline color strings.
 
 function formatModelName(name) {
   let s = name;
@@ -86,13 +80,10 @@ export default function FailureCategoryBars({ models }) {
     );
   }
 
-  // Longest label width drives the label column.
-  const labelWidth = 220;
-
   return (
     <div className={styles.chartContainer}>
       <h3 style={{ margin: '0 0 8px 0' }}>Failure Modes by Outcome Family</h3>
-      <p style={{ fontSize: '0.9rem', color: 'var(--ifm-color-emphasis-700)', marginBottom: 12 }}>
+      <p className={styles.sweetSpotHeadlineNote}>
         Each (model × benchmark) lands in exactly one bucket. Capability =
         broken code; Budget = ran out of $ or turns (operator could raise);
         Provider = quota/rate-limit (provider noise, excluded from capability scoring).
@@ -101,81 +92,45 @@ export default function FailureCategoryBars({ models }) {
       <div role="img" aria-label="Failure mode breakdown per model">
         {rows.map(r => {
           const segments = [
-            { key: 'success',    label: 'Success',    count: r.success,    color: COLORS.success },
-            { key: 'budget',     label: 'Budget',     count: r.budget,     color: COLORS.budget },
-            { key: 'capability', label: 'Capability', count: r.capability, color: COLORS.capability },
-            { key: 'provider',   label: 'Provider',   count: r.provider,   color: COLORS.provider },
+            { key: 'success',    label: 'Success',    count: r.success,    cls: styles.failureSuccess },
+            { key: 'budget',     label: 'Budget',     count: r.budget,     cls: styles.failureBudget },
+            { key: 'capability', label: 'Capability', count: r.capability, cls: styles.failureCapability },
+            { key: 'provider',   label: 'Provider',   count: r.provider,   cls: styles.failureProvider },
           ];
           return (
-            <div key={r.name} style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: '0.85rem' }}>
-              <div style={{
-                width: labelWidth,
-                paddingRight: 10,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {r.displayName}
-              </div>
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                height: 22,
-                border: '1px solid var(--ifm-color-emphasis-300)',
-                borderRadius: 3,
-                overflow: 'hidden',
-              }}>
+            <div key={r.name} className={styles.failureBarRow}>
+              <div className={styles.failureBarLabel}>{r.displayName}</div>
+              <div className={styles.failureBar}>
                 {segments.map(seg => {
                   const pct = (seg.count / r.total) * 100;
                   if (pct === 0) return null;
                   return (
                     <div
                       key={seg.key}
+                      className={`${styles.failureBarSegment} ${seg.cls}`}
                       title={`${seg.label}: ${seg.count} of ${r.total} (${pct.toFixed(0)}%)`}
-                      style={{
-                        width: `${pct}%`,
-                        background: seg.color,
-                        color: '#fff',
-                        fontSize: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }}
+                      style={{ width: `${pct}%` }}
                     >
                       {pct > 8 ? seg.count : ''}
                     </div>
                   );
                 })}
               </div>
-              <div style={{
-                width: 50,
-                paddingLeft: 10,
-                fontFamily: 'monospace',
-                color: 'var(--ifm-color-emphasis-700)',
-              }}>
-                {r.total}
-              </div>
+              <div className={styles.failureBarTotal}>{r.total}</div>
             </div>
           );
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: '0.8rem', flexWrap: 'wrap' }}>
+      <div className={styles.failureLegend}>
         {[
-          { key: 'success', label: 'Success (fast + slow passes)' },
-          { key: 'budget',  label: 'Budget-blocked (cost_killed, step_exhausted)' },
-          { key: 'capability', label: 'Capability-blocked (compile/runtime/logic/timeout)' },
-          { key: 'provider', label: 'Provider-blocked (quota / rate_limit / api_error)' },
+          { key: 'success',    label: 'Success (fast + slow passes)',                          cls: styles.failureSuccess },
+          { key: 'budget',     label: 'Budget-blocked (cost_killed, step_exhausted)',          cls: styles.failureBudget },
+          { key: 'capability', label: 'Capability-blocked (compile/runtime/logic/timeout)',    cls: styles.failureCapability },
+          { key: 'provider',   label: 'Provider-blocked (quota / rate_limit / api_error)',     cls: styles.failureProvider },
         ].map(item => (
-          <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              width: 12,
-              height: 12,
-              background: COLORS[item.key],
-              borderRadius: 2,
-              display: 'inline-block',
-            }} />
+          <div key={item.key} className={styles.failureLegendItem}>
+            <span className={`${styles.failureLegendSwatch} ${item.cls}`} />
             <span>{item.label}</span>
           </div>
         ))}

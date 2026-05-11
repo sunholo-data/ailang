@@ -75,55 +75,74 @@ export default function BenchmarkChampionsTable({ sweetSpotGlobal }) {
   return (
     <div className={styles.chartContainer}>
       <h3 style={{ margin: '0 0 8px 0' }}>Cheapest / Fastest Pass per Benchmark</h3>
-      <p style={{ fontSize: '0.9rem', color: 'var(--ifm-color-emphasis-700)', marginBottom: 12 }}>
+      <p className={styles.sweetSpotHeadlineNote}>
         For each benchmark, the model that passes for the lowest cost and the model
         that passes the fastest. Same model can win both columns when it dominates.
       </p>
 
-      <table className={styles.comparisonTable} style={{ width: '100%' }}>
-        <thead>
-          <tr>
-            <th onClick={() => handleSort('benchmark_id')} style={{ textAlign: 'left', cursor: 'pointer' }}>
-              Benchmark{arrow('benchmark_id')}
-            </th>
-            <th onClick={() => handleSort('cheapest_model')} style={{ textAlign: 'left', cursor: 'pointer' }}>
-              Cheapest model{arrow('cheapest_model')}
-            </th>
-            <th onClick={() => handleSort('cheapest_cost_usd')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              Cost{arrow('cheapest_cost_usd')}
-            </th>
-            <th onClick={() => handleSort('fastest_model')} style={{ textAlign: 'left', cursor: 'pointer' }}>
-              Fastest model{arrow('fastest_model')}
-            </th>
-            <th onClick={() => handleSort('fastest_tts_ms')} style={{ textAlign: 'right', cursor: 'pointer' }}>
-              TTS{arrow('fastest_tts_ms')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => {
-            const sameWinner = r.cheapest_model === r.fastest_model;
-            return (
-              <tr key={r.benchmark_id}>
-                <td><code>{r.benchmark_id}</code></td>
-                <td>{formatModelName(r.cheapest_model)}</td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                  ${(r.cheapest_cost_usd || 0).toFixed(4)}
-                </td>
-                <td style={{
-                  color: sameWinner ? 'var(--ifm-color-emphasis-500)' : undefined,
-                  fontStyle: sameWinner ? 'italic' : undefined,
-                }}>
-                  {sameWinner ? `↑ (same)` : formatModelName(r.fastest_model)}
-                </td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                  {((r.fastest_tts_ms || 0) / 1000).toFixed(1)}s
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className={styles.tableWrapper}>
+        <table className={styles.comparisonTable}>
+          <thead>
+            <tr>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('benchmark_id')}
+              >
+                Benchmark{arrow('benchmark_id')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('cheapest_model')}
+              >
+                Cheapest model{arrow('cheapest_model')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('cheapest_cost_usd')}
+                style={{ textAlign: 'right' }}
+              >
+                Cost{arrow('cheapest_cost_usd')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('fastest_model')}
+              >
+                Fastest model{arrow('fastest_model')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('fastest_tts_ms')}
+                style={{ textAlign: 'right' }}
+              >
+                TTS{arrow('fastest_tts_ms')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => {
+              const sameWinner = r.cheapest_model === r.fastest_model;
+              return (
+                <tr key={r.benchmark_id}>
+                  <td><code>{r.benchmark_id}</code></td>
+                  <td>{formatModelName(r.cheapest_model)}</td>
+                  <td className={styles.sweetSpotNumCell}>
+                    ${(r.cheapest_cost_usd || 0).toFixed(4)}
+                  </td>
+                  <td style={{
+                    color: sameWinner ? 'var(--ifm-color-emphasis-500)' : undefined,
+                    fontStyle: sameWinner ? 'italic' : undefined,
+                  }}>
+                    {sameWinner ? `↑ (same)` : formatModelName(r.fastest_model)}
+                  </td>
+                  <td className={styles.sweetSpotNumCell}>
+                    {((r.fastest_tts_ms || 0) / 1000).toFixed(1)}s
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
