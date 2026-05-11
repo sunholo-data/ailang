@@ -1,0 +1,74 @@
+-- std/smoke - Helpers for AILANG package _smoke.ail boot probes
+--
+-- Companion to the v0.19.0 pre-publish smoke gate. Promotes the canonical
+-- "exercise every advertised tool" pattern from a hand-rolled fold in each
+-- package's _smoke.ail to a one-liner.
+--
+-- Why a stdlib helper rather than baking the dispatch into the gate runner:
+-- the smoke runner deliberately treats _smoke.ail as a plain ailang program,
+-- so packages keep full control over what synthetic context to construct,
+-- which tools to skip (e.g. ones that legitimately require live Process),
+-- and how to interpret a Delegate vs Handled result. dispatchAllTools is
+-- the simple-default; packages can compose smaller pieces (forEachTool /
+-- okMessage) when they need finer control.
+--
+-- See M-EXT-PORTABILITY-GATE (v0.19.0) and follow-up F1 (v0.19.1).
+
+module std/smoke
+
+import std/io (println)
+
+-- Iterate `tools`, calling `dispatch(name)` for each. Prints
+-- `OK: tool <name> dispatched without crash` after each successful call.
+-- A panic inside `dispatch` aborts the whole smoke run (correct behaviour:
+-- the gate marks the publish as failed and prints the captured output).
+--
+-- The dispatch closure carries whatever effects the caller needs — typical
+-- usage from a package smoke is `\name. hooks.on_tool_handle(ctx, env(name))`
+-- which is row-polymorphic over the host's effect set.
+--
+-- @example
+--   import std/smoke (dispatchAllTools)
+--   ...
+--   dispatchAllTools(
+--     hooks.provided_tools,
+--     \name. {
+--       let _ = hooks.on_tool_handle(synthetic_ctx, mk_envelope(name));
+--       ()
+--     }
+--   )
+export func dispatchAllTools(
+  tools: [string],
+  dispatch: (string) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream}
+) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} =
+  match tools {
+    [] => (),
+    name :: rest =>
+      let _ = dispatch(name) in
+      let _ = println("OK: tool ${name} dispatched without crash") in
+      dispatchAllTools(rest, dispatch)
+  }
+
+-- Single-tool variant for packages that want to opt-in / opt-out per tool.
+-- Same shape as dispatchAllTools but for one name; trivial sugar that exists
+-- mainly so smoke files read declaratively.
+--
+-- @example
+--   import std/smoke (dispatchTool)
+--   dispatchTool("Search", \name. exa_search.dispatch(ctx, name))
+export func dispatchTool(
+  name: string,
+  dispatch: (string) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream}
+) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} =
+  let _ = dispatch(name) in
+  println("OK: tool ${name} dispatched without crash")
+
+-- Print the conventional OK marker that the parent Makefile :: verify-extensions
+-- greps for ("^OK:"). Use as the last line of a bespoke _smoke.ail when
+-- dispatchAllTools doesn't fit the shape.
+--
+-- @example
+--   import std/smoke (okSuite)
+--   okSuite("compaction_ai")  -- prints "OK: compaction_ai smoke complete"
+export func okSuite(name: string) -> () ! {IO} =
+  println("OK: ${name} smoke complete")
