@@ -50,10 +50,10 @@
       "files_to_modify": [
         "internal/eval_analysis/sweet_spot_parity_test.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T16:35:00Z",
+      "completed": "2026-05-11T16:45:00Z",
+      "notes": "sweet_spot_parity_test asserts every numerical field round-trips identically between BuildSweetSpot (CLI side) and renderSweetSpotRow (dashboard JSON side). Validated against all 3 M-EVAL-SWEET-SPOT validation datasets (56 runs across validation/hard/stretch tiers). Float tolerance 1e-4; ints/bools exact. Subtests per dataset for granular failure isolation. All pass on first run."
     },
     {
       "id": "M3_DOLLARS_PER_PASS_AND_CHAMPIONS_TABLES",
