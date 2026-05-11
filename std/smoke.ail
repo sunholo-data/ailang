@@ -39,8 +39,8 @@ import std/io (println)
 --   )
 export func dispatchAllTools(
   tools: [string],
-  dispatch: (string) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream}
-) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} =
+  dispatch: (string) -> () ! {e}
+) -> () ! {IO, e} =
   match tools {
     [] => (),
     name :: rest =>
@@ -58,8 +58,8 @@ export func dispatchAllTools(
 --   dispatchTool("Search", \name. exa_search.dispatch(ctx, name))
 export func dispatchTool(
   name: string,
-  dispatch: (string) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream}
-) -> () ! {IO, Process, FS, AI, Env, Net, SharedMem, Clock, Stream} =
+  dispatch: (string) -> () ! {e}
+) -> () ! {IO, e} =
   let _ = dispatch(name) in
   println("OK: tool ${name} dispatched without crash")
 
