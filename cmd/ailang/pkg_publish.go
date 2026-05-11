@@ -86,6 +86,13 @@ func pkgPublishCommand(args []string) error {
 		return fmt.Errorf("asset validation failed: %w", err)
 	}
 
+	// M-EXT-PORTABILITY-GATE (v0.19.0): run pre-publish smoke test in a temp
+	// dir so packages whose tools crash in an empty workdir are rejected at
+	// publish time rather than discovered by consumers at runtime.
+	if err := runPrePublishSmoke(cwd, manifest); err != nil {
+		return err
+	}
+
 	// Create tarball (uses the rewritten ailang.toml with registry deps)
 	tarballData, err := pkg.CreateTarball(cwd)
 	if err != nil {
@@ -121,6 +128,47 @@ func pkgPublishCommand(args []string) error {
 	// Auto-emit package coordination messages (M-PKG-MSG)
 	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
 
+	return nil
+}
+
+// runPrePublishSmoke executes the package's _smoke.ail in a temp directory
+// (M-EXT-PORTABILITY-GATE, v0.19.0). On crash it blocks publish with a clear
+// error; on absence it warns (or hard-fails for [extension] packages).
+func runPrePublishSmoke(packageDir string, manifest *pkg.PackageManifest) error {
+	smokePath := filepath.Join(packageDir, pkg.SmokeFile)
+	smokePresent := false
+	if info, err := os.Stat(smokePath); err == nil && !info.IsDir() {
+		smokePresent = true
+	}
+
+	if !smokePresent {
+		if pkg.HasExtensionBlock(manifest) {
+			return fmt.Errorf("publish blocked: package declares [extension] but has no %s (required for extension packages)", pkg.SmokeFile)
+		}
+		fmt.Printf("%s no %s — publishing without smoke gate (recommended for v1.0+)\n", yellow("⚠"), pkg.SmokeFile)
+		return nil
+	}
+
+	bin, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot locate ailang binary for smoke run: %w", err)
+	}
+
+	timeout := pkg.DefaultSmokeTimeout
+	fmt.Printf("  Running %s in temp workdir (timeout %s)...\n", pkg.SmokeFile, timeout)
+
+	res, err := pkg.RunSmokeInTempDir(packageDir, bin, timeout)
+	if err != nil {
+		return fmt.Errorf("smoke runner failed: %w", err)
+	}
+	if !res.Passed {
+		fmt.Printf("\n--- %s output ---\n%s\n--- end output ---\n\n", pkg.SmokeFile, res.Output)
+		if res.TimedOut {
+			return fmt.Errorf("publish blocked: %s timed out after %s", pkg.SmokeFile, res.Duration.Truncate(time.Millisecond))
+		}
+		return fmt.Errorf("publish blocked: %s failed with exit code %d (see output above)", pkg.SmokeFile, res.ExitCode)
+	}
+	fmt.Printf("%s %s passed (%.2fs)\n", green("✓"), pkg.SmokeFile, res.Duration.Seconds())
 	return nil
 }
 
