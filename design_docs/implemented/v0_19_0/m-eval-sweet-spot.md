@@ -1,6 +1,6 @@
 # M-EVAL-SWEET-SPOT: Eval Sweet-Spot Reporting & Failure-Category Distinguishability
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.19.0
 **Priority**: P1 (Medium — unblocks honest cross-model comparison, especially OpenRouter cheap-but-slow models)
 **Estimated**: ~3 working days (~24 hours)
