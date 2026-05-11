@@ -484,6 +484,16 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				os.Exit(1)
 			}
 
+			// Build OpenRouter attribution overrides if any flag is set
+			var attr *ai.Attribution
+			if orReferer != "" || orTitle != "" || orCategories != "" {
+				attr = &ai.Attribution{
+					HTTPReferer: orReferer,
+					Title:       orTitle,
+					Categories:  orCategories,
+				}
+			}
+
 			batchErrors := 0
 			for i, input := range programArgs {
 				if !quiet {

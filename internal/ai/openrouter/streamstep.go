@@ -100,7 +100,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "text/event-stream")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	setAttributionHeaders(httpReq)
+	setAttributionHeaders(httpReq, req.Attribution)
 
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {

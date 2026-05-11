@@ -84,7 +84,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	setAttributionHeaders(httpReq)
+	setAttributionHeaders(httpReq, req.Attribution)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
