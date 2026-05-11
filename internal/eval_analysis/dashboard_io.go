@@ -87,7 +87,7 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 	// run failed with err 429/quota showed up as real code-quality 0%s.
 	apiErrorByModelLang := map[string]map[string]int{}
 	for _, r := range results {
-		if r.ErrorCategory != "api_error" {
+		if !ShouldExcludeFromCapability(r.ErrorCategory) {
 			continue
 		}
 		if apiErrorByModelLang[r.Model] == nil {

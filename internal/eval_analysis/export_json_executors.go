@@ -101,7 +101,7 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		ls.turns += r.AgentTurns
 		ls.tokens += r.TotalTokens
 		ls.cost += r.CostUSD
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			ls.apiErrors++
 		}
 		if r.StdoutOk {
@@ -250,7 +250,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 		ls.cost += r.CostUSD
 		ls.tokens += r.TotalTokens
 		ls.turns += r.AgentTurns
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			ls.apiErrors++
 		}
 		if r.StdoutOk {
@@ -271,7 +271,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 			tls.cost += r.CostUSD
 			tls.tokens += r.TotalTokens
 			tls.turns += r.AgentTurns
-			if r.ErrorCategory == "api_error" {
+			if ShouldExcludeFromCapability(r.ErrorCategory) {
 				tls.apiErrors++
 			}
 			if r.StdoutOk {

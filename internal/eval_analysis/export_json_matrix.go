@@ -30,7 +30,7 @@ func (a *dimAcc) add(r *BenchmarkResult) {
 	if r.OutputTokens > 0 {
 		a.tokens += r.OutputTokens
 	}
-	if r.ErrorCategory == "api_error" {
+	if ShouldExcludeFromCapability(r.ErrorCategory) {
 		a.apiErrors++
 	}
 	if r.RefusalDetected {
@@ -212,7 +212,7 @@ func computeTierExtras(
 		if r.StdoutOk {
 			pl.stdoutOk++
 		}
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			pl.apiErrors++
 		}
 		if r.RefusalDetected {
@@ -289,7 +289,7 @@ func computeReliability(results []*BenchmarkResult) *ReliabilityCounts {
 		r.PerModel[res.Model] = getOrCreateReliability(r.PerModel, res.Model)
 		m := r.PerModel[res.Model]
 		m.TotalRuns++
-		if res.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(res.ErrorCategory) {
 			r.APIErrorCount++
 			m.APIErrorCount++
 			if m.LanguageAPIErrors == nil {

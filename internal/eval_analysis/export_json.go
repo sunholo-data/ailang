@@ -210,7 +210,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if r.StdoutOk {
 			stats.success++
 		}
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			stats.apiErrors++
 		}
 		stats.turns += r.AgentTurns
@@ -227,7 +227,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			if r.StdoutOk {
 				hs.success++
 			}
-			if r.ErrorCategory == "api_error" {
+			if ShouldExcludeFromCapability(r.ErrorCategory) {
 				hs.apiErrors++
 			}
 		}
@@ -346,7 +346,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if r.StdoutOk {
 			ls.success++
 		}
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			ls.apiErrors++
 		}
 		ls.tokens += r.OutputTokens
@@ -369,7 +369,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if r.StdoutOk {
 			stats.success++
 		}
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			stats.apiErrors++
 		}
 		stats.totalTurns += r.AgentTurns
@@ -725,7 +725,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	for _, r := range standardResults {
 		stats := langStandardStats[r.Lang]
-		isApiErr := r.ErrorCategory == "api_error"
+		isApiErr := ShouldExcludeFromCapability(r.ErrorCategory)
 
 		// Zero-shot metrics: Count ALL runs, but look at first attempt only
 		// Success rate: based on first_attempt_ok across all runs
@@ -863,7 +863,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats.turns += r.AgentTurns
 		stats.tokens += r.TotalTokens
 		stats.cost += r.CostUSD
-		if r.ErrorCategory == "api_error" {
+		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			stats.apiErrors++
 		}
 

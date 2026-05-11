@@ -84,10 +84,10 @@
         "internal/eval_analysis/export_json_executors.go",
         "internal/eval_analysis/export_json_matrix.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T12:30:00Z",
+      "completed": "2026-05-11T12:45:00Z",
+      "notes": "ShouldExcludeFromCapability helper introduced. 12 inline checks across dashboard_io.go, export_json.go, export_json_executors.go, export_json_matrix.go replaced. Deviation from design: helper INCLUDES api_error in the exclusion set (not just quota+rate_limit as the doc proposed) to preserve dashboard semantics for legacy result JSONs that pre-date M1 categorization. Documented future direction to remove api_error once historical data is refreshed. 11 unit tests for the helper."
     },
     {
       "id": "M4_SWEET_SPOT_CLI_AND_REPORTS",
