@@ -70,6 +70,10 @@ type BenchmarkResult struct {
 	FirstAttemptMs int64   `json:"first_attempt_ms,omitempty"` // ms from task start to first solution submission
 	SuccessAtMs    int64   `json:"success_at_ms,omitempty"`    // ms from task start to first passing solution (-1 = never)
 	TokensPerSec   float64 `json:"tokens_per_sec,omitempty"`   // OutputTokens / generation_seconds
+
+	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) — executor stop signal.
+	// Read from per-result JSONs when present; empty for legacy data.
+	FinishReason string `json:"finish_reason,omitempty"`
 }
 
 // Baseline represents a stored baseline with metadata

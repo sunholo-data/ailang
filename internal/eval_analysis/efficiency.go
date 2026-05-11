@@ -141,6 +141,25 @@ func percentile(xs []float64, p float64) float64 {
 	return xs[idx]
 }
 
+// EfficiencyByModel groups results by Model and returns per-model efficiency
+// aggregates. Extracted from export_json.go so the CLI (FormatMatrix, eval-
+// sweet-spot) and the dashboard exporter share one definition.
+//
+// Returns a map keyed by model name. An entry is present even if the model
+// has zero successful runs (the aggregate fields default to 0) — keeps
+// downstream code from special-casing empty slices.
+func EfficiencyByModel(results []*BenchmarkResult) map[string]EfficiencyAggregates {
+	byModel := map[string][]*BenchmarkResult{}
+	for _, r := range results {
+		byModel[r.Model] = append(byModel[r.Model], r)
+	}
+	out := make(map[string]EfficiencyAggregates, len(byModel))
+	for m, rs := range byModel {
+		out[m] = ComputeEfficiency(rs)
+	}
+	return out
+}
+
 // CountCostKilled returns the count of cost-killed runs in the slice.
 // Used to populate the "Top Error Codes" table (cost_killed becomes a
 // distinct category).

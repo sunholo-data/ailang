@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
@@ -445,4 +446,83 @@ func runEvalReport() {
 
 	// Print to stdout
 	fmt.Print(output)
+}
+
+// runEvalSweetSpot generates a sweet-spot report from a results directory
+// (M-EVAL-SWEET-SPOT, v0.19.0).
+//
+// Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N]
+func runEvalSweetSpot() {
+	if flag.NArg() < 2 {
+		fmt.Fprintf(os.Stderr, "%s: missing results directory\n", red("Error"))
+		fmt.Println("Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N]")
+		fmt.Println("")
+		fmt.Println("Show per-model cost-vs-time-vs-success sweet-spot ranking.")
+		fmt.Println("")
+		fmt.Println("Options:")
+		fmt.Println("  --format=text|csv|json   Output format (default: text)")
+		fmt.Println("  --slow-ms=N              Slow-pass threshold in ms (default: 60000)")
+		fmt.Println("")
+		fmt.Println("Examples:")
+		fmt.Println("  ailang eval-sweet-spot eval_results/standard")
+		fmt.Println("  ailang eval-sweet-spot eval_results/v0_18_5_core_3harness --format=csv > sweet.csv")
+		fmt.Println("  ailang eval-sweet-spot eval_results/standard --slow-ms=30000")
+		os.Exit(1)
+	}
+
+	resultsDir := flag.Arg(1)
+
+	// Parse flags from positional args 2+.
+	format := "text"
+	slowMs := int64(60_000)
+	for i := 2; i < flag.NArg(); i++ {
+		arg := flag.Arg(i)
+		switch {
+		case strings.HasPrefix(arg, "--format="):
+			format = strings.TrimPrefix(arg, "--format=")
+		case strings.HasPrefix(arg, "--slow-ms="):
+			n, err := strconv.ParseInt(strings.TrimPrefix(arg, "--slow-ms="), 10, 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: invalid --slow-ms value: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			slowMs = n
+		}
+	}
+
+	results, err := eval_analysis.LoadResults(resultsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to load results: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if len(results) == 0 {
+		fmt.Fprintf(os.Stderr, "%s: no results found in %s\n", yellow("Warning"), resultsDir)
+		os.Exit(0)
+	}
+
+	report := eval_analysis.BuildSweetSpot(results, eval_analysis.SweetSpotOpts{SlowMs: slowMs})
+
+	var out string
+	switch format {
+	case "text":
+		out = eval_analysis.FormatSweetSpotText(report, isTerminal())
+	case "csv":
+		out, err = eval_analysis.FormatSweetSpotCSV(report)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: CSV format failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	case "json":
+		out, err = eval_analysis.FormatSweetSpotJSON(report)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: JSON format failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "%s: unknown format '%s'\n", red("Error"), format)
+		fmt.Fprintf(os.Stderr, "Supported formats: text, csv, json\n")
+		os.Exit(1)
+	}
+
+	fmt.Print(out)
 }

@@ -206,6 +206,9 @@ func main() {
 	case "eval-matrix":
 		runEvalMatrix()
 
+	case "eval-sweet-spot":
+		runEvalSweetSpot()
+
 	case "eval-summary":
 		runEvalSummary()
 

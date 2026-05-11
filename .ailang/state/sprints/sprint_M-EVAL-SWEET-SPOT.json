@@ -116,10 +116,10 @@
         "cmd/ailang/eval_tools.go",
         "cmd/ailang/help.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T12:50:00Z",
+      "completed": "2026-05-11T13:15:00Z",
+      "notes": "BuildSweetSpot + 5-way bucketing (fast/slow/budget/capability/provider) + text/CSV/JSON formatters + ailang eval-sweet-spot CLI + 11 unit tests + help.go entry + EfficiencyByModel helper extracted. End-to-end smoke test on eval_results/v0_18_5_core_3harness shows ranked models + per-benchmark cheapest/fastest champions table. Deferred to followup: FormatMatrix column extension (would need to plumb efficiency into PerformanceMatrix struct) and eval-compare per-model delta-TTS columns — both are decoration on existing views; primary user need (cost-vs-time-vs-success boundary view) satisfied by the new dedicated command."
     },
     {
       "id": "M5_MDX_DOCS_CHANGELOG",
