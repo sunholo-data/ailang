@@ -81,6 +81,12 @@ type RunMetrics struct {
 	FirstAttemptMs int64   `json:"first_attempt_ms,omitempty"` // ms from task start to first solution submission
 	SuccessAtMs    int64   `json:"success_at_ms,omitempty"`    // ms from task start to first passing solution (-1 = never)
 	TokensPerSec   float64 `json:"tokens_per_sec,omitempty"`   // OutputTokens / generation_seconds
+
+	// Executor finish reason (M-EVAL-SWEET-SPOT, v0.19.0). Promoted from
+	// executor ProviderData (e.g. motoko_finish_reason="cost_exhausted") and
+	// from agent runners on max-turns exit ("step_exhausted"). Empty when
+	// the executor didn't surface a finish signal. Used by CategorizeAgentError.
+	FinishReason string `json:"finish_reason,omitempty"`
 }
 
 // EvalMode constants
@@ -95,8 +101,19 @@ const (
 	ErrorCategoryCompile = "compile_error"
 	ErrorCategoryRuntime = "runtime_error"
 	ErrorCategoryLogic   = "logic_error"
-	ErrorCategoryAPI     = "api_error"    // API call failed (timeout, rate limit, connection error)
+	ErrorCategoryAPI     = "api_error"    // API call failed — fallback when no more specific cause is known
 	ErrorCategoryVerify  = "verify_error" // Contract verification failed (M-CONTRACT-EVAL)
+
+	// Typed failure categories (M-EVAL-SWEET-SPOT, v0.19.0). Replace blanket
+	// api_error attribution where the cause is actually identifiable. The
+	// distinction matters for capability scoring: a model that times out or
+	// runs out of turns may still be capable given more budget, while a
+	// quota-exhausted run says nothing about the model's capability.
+	ErrorCategoryTimeout        = "timeout"         // Wall-clock or context deadline exceeded
+	ErrorCategoryQuotaExhausted = "quota_exhausted" // Provider account/key cap reached (e.g. OpenRouter monthly limit)
+	ErrorCategoryRateLimit      = "rate_limit"      // 429 — transient, distinct from monthly cap
+	ErrorCategoryCostKilled     = "cost_killed"     // Eval-side $ budget exceeded (motoko cost_exhausted, future executor caps)
+	ErrorCategoryStepExhausted  = "step_exhausted"  // Agent ran out of turns / step budget without success
 )
 
 // CategorizeError determines the error category based on execution results
