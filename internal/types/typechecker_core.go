@@ -255,6 +255,26 @@ func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
 	tc.constructorTypes[ctorName] = typeName
 }
 
+// lookupADTConstructors returns the list of constructor names registered
+// for the given ADT type name. Reverses the constructorTypes map. Returns
+// nil if the ADT name isn't known.
+//
+// M-MATCH-ADT-XCHECK (v0.18.10): used by NewMatchForeignConstructorError
+// to enumerate the valid constructors of both the scrutinee's ADT and the
+// foreign constructor's ADT in the error message.
+func (tc *CoreTypeChecker) lookupADTConstructors(adtName string) []string {
+	if tc.constructorTypes == nil {
+		return nil
+	}
+	var out []string
+	for ctor, adt := range tc.constructorTypes {
+		if adt == adtName {
+			out = append(out, ctor)
+		}
+	}
+	return out
+}
+
 // SetADTTypeParams sets the ADT type → number of type parameters mapping.
 // M-TAPP-FIX: Used to generate proper TApp types in pattern matching.
 func (tc *CoreTypeChecker) SetADTTypeParams(params map[string]int) {

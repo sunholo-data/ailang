@@ -1,0 +1,73 @@
+{
+  "sprint_id": "M-MATCH-ADT-XCHECK",
+  "status": "in_progress",
+  "created": "2026-05-11T12:10:11Z",
+  "design_doc": "design_docs/planned/v0_18_10/m-match-adt-xcheck.md",
+  "sprint_plan": "design_docs/planned/v0_18_10/m-match-adt-xcheck-sprint-plan.md",
+  "github_issues": [
+    16
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 500,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_CORE_TYPECHECKER_CROSS_CHECK",
+      "description": "Core typechecker cross-check: add MatchForeignConstructorError + checkPattern enforcement so match arms can only use constructors from the scrutinee ADT",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`match Option { Err(_) => ... }` produces `MatchForeignConstructorError` with the specified message format",
+        "`match Result { Some(_) => ... }` symmetric",
+        "`match list { Some(_) => ... }` rejected",
+        "`match Option { Some(_) => ..., None => ... }` still compiles",
+        "`match _ { Some(_) => ..., None => ... }` (wildcard scrutinee — rare but possible) doesn't crash",
+        "All 5 unit tests pass"
+      ],
+      "passes": true,
+      "started": "2026-05-11T14:10:00Z",
+      "completed": "2026-05-11T14:25:00Z",
+      "notes": "Added MatchForeignConstructorError type + lookupADTConstructors helper + extractADTName helper + cross-check in checkPattern. Existing unification path catches inferred-type cases (TVar scrutinees); new structured error fires for explicit-annotation cases. All 6 unit tests pass. Full test suite green."
+    },
+    {
+      "id": "M2_REGRESSION_COVERAGE_EDGE_CASES",
+      "description": "Regression coverage + edge cases: zero stdlib/example breakage, nested-pattern + polymorphic-scrutinee + wildcard-mixing tests, expected-fail example files",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_CORE_TYPECHECKER_CROSS_CHECK"
+      ],
+      "acceptance_criteria": [
+        "`make test` passes (zero new failures)",
+        "`make verify-stdlib` passes (all stdlib modules type-check)",
+        "`make verify-examples` passes (all examples type-check OR are listed as expected-fail)",
+        "4+ edge-case tests added and passing",
+        "2+ expected-fail example files added (with `.expected_error.txt` companions if convention used)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DOCS_CHANGELOG_RELEASE_ARTIFAC",
+      "description": "Docs + CHANGELOG + release artifacts: option-vs-result.md reference page, [v0.18.10] CHANGELOG section, design doc to implemented/, std/VERSION bump",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2_REGRESSION_COVERAGE_EDGE_CASES"
+      ],
+      "acceptance_criteria": [
+        "`docs/docs/reference/option-vs-result.md` exists and lints clean (docusaurus build doesn't break)",
+        "CHANGELOG entry under `[v0.18.10] - 2026-05-XX`",
+        "Design doc in `implemented/v0_18_10/`",
+        "`std/VERSION` shows `v0.18.10`",
+        "Website version constants updated"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

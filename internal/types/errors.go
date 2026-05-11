@@ -21,6 +21,16 @@ const (
 	MissingEffectError      TypeErrorKind = "missing_effect"
 	ExtraEffectError        TypeErrorKind = "extra_effect"
 	UnsolvedConstraintError TypeErrorKind = "unsolved_constraint"
+
+	// MatchForeignConstructorError (M-MATCH-ADT-XCHECK, v0.18.10) fires
+	// when a match arm uses a constructor from a different ADT than the
+	// scrutinee's type. The previous mechanism — letting unification
+	// produce a generic "type constructor mismatch" — caught the bug
+	// but the error message didn't tell users which arm's constructor
+	// was wrong or what they should have used instead. This kind
+	// surfaces the offending constructor name AND lists the constructors
+	// of both ADTs so the fix is obvious from the error message alone.
+	MatchForeignConstructorError TypeErrorKind = "match_foreign_constructor"
 )
 
 // TypeCheckError represents a detailed type checking error
@@ -64,6 +74,49 @@ func NewKindMismatchError(expected, actual Kind, path []string) *TypeCheckError 
 		Kind:    KindMismatchError,
 		Path:    path,
 		Message: fmt.Sprintf("kind mismatch: expected %s, got %s", expected, actual),
+	}
+}
+
+// NewMatchForeignConstructorError creates a structured error for match
+// arms that reference a constructor from a different ADT than the
+// scrutinee's type. ctor is the offending constructor name (e.g. "Err"),
+// ctorADT is the ADT it belongs to (e.g. "Result"), and scrutADT is the
+// scrutinee's ADT (e.g. "Option"). ctorList/scrutList enumerate the
+// valid constructors of each ADT so the user can fix the mistake from
+// the error message alone.
+//
+// Example output:
+//
+//	match arm constructor 'Err' belongs to ADT 'Result', not 'Option'
+//	(the scrutinee's type).
+//	  Option's constructors are: None, Some
+//	  Result's constructors are: Err, Ok
+//	  Suggestion: did you mean 'None' or 'Some'?
+//
+// M-MATCH-ADT-XCHECK (v0.18.10). See also:
+// design_docs/implemented/v0_18_10/m-match-adt-xcheck.md.
+func NewMatchForeignConstructorError(ctor, ctorADT, scrutADT string, ctorList, scrutList []string, path []string) *TypeCheckError {
+	sort.Strings(ctorList)
+	sort.Strings(scrutList)
+	suggestion := ""
+	if len(scrutList) > 0 {
+		if len(scrutList) == 1 {
+			suggestion = fmt.Sprintf("did you mean '%s'?", scrutList[0])
+		} else {
+			suggestion = fmt.Sprintf("did you mean one of: %s?", strings.Join(scrutList, ", "))
+		}
+	}
+	msg := fmt.Sprintf(
+		"match arm constructor '%s' belongs to ADT '%s', not '%s' (the scrutinee's type).\n  %s's constructors are: %s\n  %s's constructors are: %s",
+		ctor, ctorADT, scrutADT,
+		scrutADT, strings.Join(scrutList, ", "),
+		ctorADT, strings.Join(ctorList, ", "),
+	)
+	return &TypeCheckError{
+		Kind:       MatchForeignConstructorError,
+		Path:       path,
+		Message:    msg,
+		Suggestion: suggestion,
 	}
 }
 

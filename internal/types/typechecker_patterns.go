@@ -148,6 +148,30 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {
 			if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+				// M-MATCH-ADT-XCHECK (v0.18.10): if the scrutinee's type
+				// is already concretely resolved to a different ADT,
+				// fail FAST with a structured error naming both ADTs
+				// and their constructor lists. Previously this case
+				// reached unification with a generic "type constructor
+				// mismatch" error that didn't tell users WHICH arm's
+				// constructor was wrong. The new error message names
+				// the offending constructor + suggests the right one
+				// from the scrutinee's ADT.
+				//
+				// Polymorphic scrutinees (fresh TVars) fall through to
+				// the constraint-based path as before — extractADTName
+				// returns "" for unresolved types, so the check is
+				// conservative and doesn't fire on legitimately
+				// polymorphic code.
+				if scrutADT := extractADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
+					ctorList := tc.lookupADTConstructors(adtTypeName)
+					scrutList := tc.lookupADTConstructors(scrutADT)
+					return nil, nil, NewMatchForeignConstructorError(
+						p.Name, adtTypeName, scrutADT,
+						ctorList, scrutList,
+						[]string{fmt.Sprintf("constructor pattern %s", p.Name)},
+					)
+				}
 				// M-TAPP-FIX: Check if ADT has type parameters
 				// If so, create TApp with fresh type vars, not just TCon
 				var adtType Type
