@@ -1,0 +1,31 @@
+-- Demo: resolve files bundled inside an installed AILANG package.
+--
+-- Packages can ship arbitrary helper files (scripts, schemas, templates)
+-- under their `assets/` subdirectory. At runtime, std/package.assetPath
+-- resolves them to absolute filesystem paths.
+--
+-- Bundling: declare assets in the package's ailang.toml:
+--   [assets]
+--   files = ["mcp-call.mjs", "schemas/tool-call.json"]
+--
+-- See M-EXT-PORTABILITY-GATE (v0.19.0):
+-- https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_19_0/m-ext-portability-gate.md
+--
+-- Run: ailang run --caps IO,FS --entry main examples/asset_path.ail
+--
+-- Expected output:
+--   not installed: package not installed: nonexistent/pkg
+--
+-- (To see the Ok branch, install a package with bundled assets and call
+--  assetPath with its real vendor/name.)
+module examples/asset_path
+
+import std/package (assetPath)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+export func main() -> () ! {IO, FS} =
+  match assetPath("nonexistent/pkg", "foo.txt") {
+    Ok(p)  => println("found: ${p}"),
+    Err(e) => println("not installed: ${e}")
+  }

@@ -1,0 +1,46 @@
+-- Demo: AILANG extension self-disables when its required workdir input is absent.
+--
+-- Pattern: instead of crashing on the first tool dispatch when consumer
+-- state is missing, the extension's register_with_config returns hooks
+-- with `provided_tools: []`. The host (motoko_agent) then advertises no
+-- tools from this extension, so on_tool_handle is never invoked.
+--
+-- This is the canonical motoko_ext_omnigraph 0.2.1 pattern.
+--
+-- See M-EXT-PORTABILITY-GATE (v0.19.0):
+-- https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_19_0/m-ext-portability-gate.md
+--
+-- Run: ailang run --caps IO,FS --entry main examples/extension_self_disable.ail
+--
+-- Expected output:
+--   ext disabled: required workdir file not found: /tmp/missing-config.yaml
+--   provided_tools = []
+module examples/extension_self_disable
+
+import std/extension (requireWorkdirFile)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- A tiny stand-in for an ExtensionHooks-shaped value. Real extensions
+-- import pkg/sunholo/motoko_ext_abi/types and return the full record;
+-- this example uses just the field that matters for the self-disable
+-- decision.
+type Hooks = { provided_tools: [string] }
+
+func active_hooks() -> Hooks =
+  { provided_tools: ["MyTool", "OtherTool"] }
+
+func disabled_hooks() -> Hooks =
+  { provided_tools: [] }
+
+export func main() -> () ! {IO, FS} =
+  let hooks = match requireWorkdirFile("/tmp", "missing-config.yaml") {
+    Ok(_) => active_hooks(),
+    Err(e) =>
+      let _ = println("ext disabled: ${e}") in
+      disabled_hooks()
+  } in
+  match hooks.provided_tools {
+    [] => println("provided_tools = []"),
+    _  => println("provided_tools = (active)")
+  }
