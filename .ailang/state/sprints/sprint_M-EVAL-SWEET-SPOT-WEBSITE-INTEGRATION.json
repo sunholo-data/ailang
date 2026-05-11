@@ -76,10 +76,10 @@
         "docs/src/components/BenchmarkDashboard/BenchmarkChampionsTable.jsx",
         "docs/src/components/BenchmarkDashboard/index.jsx"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T16:50:00Z",
+      "completed": "2026-05-11T17:15:00Z",
+      "notes": "DollarsPerPassTable + BenchmarkChampionsTable JSX components, wired into BenchmarkDashboard/index.jsx. Both consume the new sweet_spot blocks from latest.json without client-side recomputation. DollarsPerPassTable: default-sorted ascending by $/pass, Pareto frontier badge, ratio toggle surfaces the headline N× spread. BenchmarkChampionsTable: cheapest/fastest model per benchmark, same-winner detection collapses redundant cells. Used existing styles.comparisonTable class. cd docs && npm run build succeeds."
     },
     {
       "id": "M4_FAILURE_CATEGORY_BARS_AND_TIER_FILTER",

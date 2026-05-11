@@ -14,6 +14,8 @@ import AxiomScorecard from './AxiomScorecard';
 import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
 import SpeedRadar from './SpeedRadar';
+import DollarsPerPassTable from './DollarsPerPassTable';
+import BenchmarkChampionsTable from './BenchmarkChampionsTable';
 // Cost-vs-speed Pareto frontier moved to /docs/benchmarks/value
 // (ValueDashboard) — see CostSpeedFrontier import there.
 // ValueScoreTable + QualityScatter also live on the dedicated value page.
@@ -183,6 +185,10 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
   }
 
   const { aggregates, models, benchmarks, version, totalRuns, history, languages, tiers, events, tags } = data;
+  // M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): top-level sweet-spot
+  // block populated by Go exporter. Missing on pre-v0.19.0 dashboards —
+  // components gate-check and render a "regenerate" hint when absent.
+  const sweetSpotGlobal = data.sweet_spot_global;
 
   // Use AILANG-specific metrics for the dashboard
   const ailangStats = languages?.ailang || aggregates;
@@ -450,6 +456,23 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
             Median wall-clock time to a passing run, per model. Outlier-clipped at 5× median.
           </p>
           <SpeedRadar models={models} />
+        </div>
+      )}
+
+      {/* M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): $/pass economics
+          + per-benchmark champions. These ride on the pre-computed
+          sweet_spot block in latest.json. */}
+      {models && Object.keys(models).length > 0 && (
+        <div className={styles.section}>
+          <h3>$/Pass Economics + Per-Benchmark Champions</h3>
+          <p className={styles.sectionSubtitle}>
+            Headline cost-per-success comparison. Pareto-frontier badge marks
+            models for which no alternative is both cheaper AND faster.
+          </p>
+          <DollarsPerPassTable models={models} />
+          {sweetSpotGlobal && (
+            <BenchmarkChampionsTable sweetSpotGlobal={sweetSpotGlobal} />
+          )}
         </div>
       )}
 
