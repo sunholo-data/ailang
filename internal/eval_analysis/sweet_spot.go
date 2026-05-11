@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -396,6 +397,12 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 		sb.WriteString("\n")
 	}
 
+	// Cost-vs-Time frontier (NEW v0.19.0)
+	if frontier := FormatCostSpeedFrontier(report, useColor); frontier != "" {
+		sb.WriteString(frontier)
+		sb.WriteString("\n")
+	}
+
 	// Champions
 	if len(report.Champions) > 0 {
 		sb.WriteString(colorize("Cheapest / Fastest Pass per Benchmark\n", colorBold, useColor))
@@ -471,6 +478,162 @@ func FormatSweetSpotJSON(report SweetSpotReport) (string, error) {
 	}
 	return string(b), nil
 }
+
+// FormatCostSpeedFrontier produces an ASCII cost-vs-time scatter on log-log
+// axes and a Pareto-frontier table. Each model with at least one successful
+// run gets a point at (median p90 cost-per-success, median time-to-success).
+//
+// Pareto-optimal models — those for which no other model has BOTH lower cost
+// AND lower time — are flagged with `*` in the scatter and listed first in
+// the frontier table.
+//
+// Returns "" if no model has both metrics populated.
+func FormatCostSpeedFrontier(report SweetSpotReport, useColor bool) string {
+	var pts []frontierPoint
+	for _, r := range report.Rows {
+		if r.P90CostPerSuccess <= 0 || r.MedianTTSMs <= 0 {
+			continue
+		}
+		label := r.Model
+		if r.Harness != "" && r.Harness != r.Model {
+			label = r.Model + "·" + r.Harness
+		}
+		pts = append(pts, frontierPoint{
+			label:   label,
+			costUSD: r.P90CostPerSuccess,
+			ttsSec:  r.MedianTTSMs / 1000.0,
+		})
+	}
+	if len(pts) < 2 {
+		return ""
+	}
+
+	// Pareto frontier: point P is dominated if ∃ Q with Q.cost ≤ P.cost
+	// AND Q.tts ≤ P.tts AND (Q.cost < P.cost OR Q.tts < P.tts).
+	for i := range pts {
+		dominated := false
+		for j := range pts {
+			if i == j {
+				continue
+			}
+			if pts[j].costUSD <= pts[i].costUSD && pts[j].ttsSec <= pts[i].ttsSec &&
+				(pts[j].costUSD < pts[i].costUSD || pts[j].ttsSec < pts[i].ttsSec) {
+				dominated = true
+				break
+			}
+		}
+		pts[i].pareto = !dominated
+	}
+
+	// Compute log-axis bounds.
+	minLogCost, maxLogCost := pts[0].logCost(), pts[0].logCost()
+	minLogTime, maxLogTime := pts[0].logTime(), pts[0].logTime()
+	for _, p := range pts[1:] {
+		if v := p.logCost(); v < minLogCost {
+			minLogCost = v
+		} else if v > maxLogCost {
+			maxLogCost = v
+		}
+		if v := p.logTime(); v < minLogTime {
+			minLogTime = v
+		} else if v > maxLogTime {
+			maxLogTime = v
+		}
+	}
+	// Pad bounds slightly.
+	const pad = 0.1
+	minLogCost -= pad
+	maxLogCost += pad
+	minLogTime -= pad
+	maxLogTime += pad
+
+	// Grid dimensions
+	const W, H = 50, 12
+	grid := make([][]byte, H)
+	for i := range grid {
+		grid[i] = []byte(strings.Repeat(" ", W))
+	}
+
+	// Plot points (top-left = high cost, fast; bottom-right = low cost, slow — we flip Y so high-time is at the bottom).
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if len(pts) > len(letters) {
+		pts = pts[:len(letters)] // safety
+	}
+	for i, p := range pts {
+		x := int(((p.logCost() - minLogCost) / (maxLogCost - minLogCost)) * float64(W-1))
+		// Y axis: small logTime (fast) → small y (top); large logTime (slow) → large y (bottom).
+		// Matches the "fast … slow" labels rendered below.
+		y := int(((p.logTime() - minLogTime) / (maxLogTime - minLogTime)) * float64(H-1))
+		if x < 0 {
+			x = 0
+		} else if x >= W {
+			x = W - 1
+		}
+		if y < 0 {
+			y = 0
+		} else if y >= H {
+			y = H - 1
+		}
+		ch := letters[i]
+		if p.pareto {
+			ch = letters[i] - 'A' + 'a' // lowercase = on frontier
+		}
+		grid[y][x] = ch
+	}
+
+	var sb strings.Builder
+	sb.WriteString(colorize("Cost vs Time Frontier (log-log; lowercase = Pareto-optimal)\n", colorBold, useColor))
+	sb.WriteString(strings.Repeat("─", 60) + "\n")
+	sb.WriteString(fmt.Sprintf("  fast %6.1fs ┤", pts[0].invLog(minLogTime)))
+	sb.WriteString(string(grid[0]))
+	sb.WriteString("\n")
+	for i := 1; i < H-1; i++ {
+		sb.WriteString("              │")
+		sb.WriteString(string(grid[i]))
+		sb.WriteString("\n")
+	}
+	sb.WriteString(fmt.Sprintf("  slow %6.1fs ┤", pts[0].invLog(maxLogTime)))
+	sb.WriteString(string(grid[H-1]))
+	sb.WriteString("\n")
+	sb.WriteString("              └" + strings.Repeat("─", W) + "\n")
+	sb.WriteString(fmt.Sprintf("              %8.4f$%s%8.4f$ cost / success\n",
+		expLog(minLogCost),
+		strings.Repeat(" ", W-18),
+		expLog(maxLogCost)))
+	sb.WriteString("\n")
+
+	// Legend with Pareto frontier first
+	sb.WriteString(fmt.Sprintf("%-3s %-38s %10s %10s %s\n",
+		"Sym", "Model", "$/win", "Med TTS", "Pareto?"))
+	for i, p := range pts {
+		ch := letters[i]
+		paretoFlag := ""
+		if p.pareto {
+			ch = letters[i] - 'A' + 'a'
+			paretoFlag = colorize("✓ frontier", colorGreen, useColor)
+		} else {
+			paretoFlag = "dominated"
+		}
+		sb.WriteString(fmt.Sprintf(" %c  %-38s %9.4f$ %8.1fs  %s\n",
+			ch, truncate(p.label, 38), p.costUSD, p.ttsSec, paretoFlag))
+	}
+	return sb.String()
+}
+
+// frontierPoint is used by FormatCostSpeedFrontier to position models on
+// the cost-vs-time scatter and to classify Pareto-frontier membership.
+type frontierPoint struct {
+	label   string
+	costUSD float64
+	ttsSec  float64
+	pareto  bool
+}
+
+// logCost returns log10(cost). Cost is guaranteed > 0 by caller filter.
+func (p frontierPoint) logCost() float64         { return math.Log10(p.costUSD) }
+func (p frontierPoint) logTime() float64         { return math.Log10(p.ttsSec) }
+func (p frontierPoint) invLog(v float64) float64 { return math.Pow(10, v) }
+func expLog(v float64) float64                   { return math.Pow(10, v) }
 
 // FormatSweetSpotMDX renders the report as a Docusaurus-ready markdown
 // section (plain tables, no custom components). Suitable for inlining into
