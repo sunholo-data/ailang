@@ -1,6 +1,10 @@
 package pkg
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -217,6 +221,76 @@ func TestManifest_AssetValidation(t *testing.T) {
 				t.Errorf("unexpected validation error: %v", err)
 			}
 		})
+	}
+}
+
+// TestCreateTarball_PathSeparatorIsForwardSlash regression-pins the cross-
+// platform tarball hash determinism that CreateTarball promises (M-EXT-
+// PORTABILITY-GATE follow-up F4). filepath.ToSlash was added to the tarball
+// walker in v0.19.0 so a tarball built on Windows would produce identical
+// SHA256s to one built on Unix; this test asserts the resulting tar entries
+// always use `/` even for nested paths, regardless of the host's OS
+// separator.
+//
+// On Unix this is a regression-pin (would only break if someone removed
+// ToSlash); on Windows it would catch a real bug.
+func TestCreateTarball_PathSeparatorIsForwardSlash(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(`[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+`), 0644)
+	os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/pkg/core\n"), 0644)
+	// Two levels of nesting under assets/ — the entry the walker would
+	// most plausibly mangle on Windows.
+	os.MkdirAll(filepath.Join(dir, AssetsDir, "scripts", "bin"), 0755)
+	os.WriteFile(filepath.Join(dir, AssetsDir, "scripts", "bin", "run.sh"), []byte("#!/bin/sh\n"), 0644)
+	os.WriteFile(filepath.Join(dir, AssetsDir, "schema.json"), []byte("{}"), 0644)
+
+	data, err := CreateTarball(dir)
+	if err != nil {
+		t.Fatalf("CreateTarball: %v", err)
+	}
+
+	// Walk the resulting archive and inspect every header.Name. Backslashes
+	// would mean the walker leaked the host separator into the archive.
+	gr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("gzip.NewReader: %v", err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+	seen := []string{}
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar.Next: %v", err)
+		}
+		seen = append(seen, hdr.Name)
+		if strings.ContainsRune(hdr.Name, '\\') {
+			t.Errorf("tarball entry %q contains backslash; cross-platform hash determinism broken", hdr.Name)
+		}
+	}
+
+	// Sanity-check we actually walked nested assets — guards against a
+	// future regression where the walker silently stops descending.
+	wantSubstrings := []string{"assets/scripts/bin/run.sh", "assets/schema.json"}
+	for _, want := range wantSubstrings {
+		found := false
+		for _, name := range seen {
+			if name == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected entry %q in tarball; got: %v", want, seen)
+		}
 	}
 }
 
