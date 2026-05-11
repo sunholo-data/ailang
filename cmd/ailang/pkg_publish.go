@@ -80,6 +80,12 @@ func pkgPublishCommand(args []string) error {
 		}
 	}
 
+	// M-EXT-PORTABILITY-GATE (v0.19.0): verify declared assets exist before
+	// shipping a tarball whose runtime assetPath() lookups would all return Err.
+	if err := pkg.VerifyDeclaredAssets(cwd, manifest); err != nil {
+		return fmt.Errorf("asset validation failed: %w", err)
+	}
+
 	// Create tarball (uses the rewritten ailang.toml with registry deps)
 	tarballData, err := pkg.CreateTarball(cwd)
 	if err != nil {

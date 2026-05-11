@@ -103,6 +103,123 @@ edition = "1"
 	}
 }
 
+func TestCreateTarball_IncludesAssets(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(`[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+
+[assets]
+files = ["foo.txt", "scripts/bar.mjs"]
+`), 0644)
+	os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/pkg/core\n"), 0644)
+	os.MkdirAll(filepath.Join(dir, AssetsDir, "scripts"), 0755)
+	os.WriteFile(filepath.Join(dir, AssetsDir, "foo.txt"), []byte("hello\n"), 0644)
+	os.WriteFile(filepath.Join(dir, AssetsDir, "scripts", "bar.mjs"), []byte("console.log('x')\n"), 0644)
+
+	data, err := CreateTarball(dir)
+	if err != nil {
+		t.Fatalf("CreateTarball: %v", err)
+	}
+
+	destDir := t.TempDir()
+	if err := ExtractTarball(data, destDir); err != nil {
+		t.Fatalf("ExtractTarball: %v", err)
+	}
+
+	for _, f := range []string{"assets/foo.txt", "assets/scripts/bar.mjs"} {
+		if _, err := os.Stat(filepath.Join(destDir, f)); err != nil {
+			t.Errorf("expected asset %s to be bundled, got: %v", f, err)
+		}
+	}
+}
+
+func TestCreateTarball_AssetHashDeterministic(t *testing.T) {
+	makeDir := func() string {
+		dir := t.TempDir()
+		os.WriteFile(filepath.Join(dir, ManifestFile), []byte(`[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+`), 0644)
+		os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/pkg/core\n"), 0644)
+		os.MkdirAll(filepath.Join(dir, AssetsDir), 0755)
+		os.WriteFile(filepath.Join(dir, AssetsDir, "foo.txt"), []byte("hello\n"), 0644)
+		os.WriteFile(filepath.Join(dir, AssetsDir, "bar.json"), []byte(`{"x":1}`+"\n"), 0644)
+		return dir
+	}
+
+	d1, err := CreateTarball(makeDir())
+	if err != nil {
+		t.Fatalf("CreateTarball #1: %v", err)
+	}
+	d2, err := CreateTarball(makeDir())
+	if err != nil {
+		t.Fatalf("CreateTarball #2: %v", err)
+	}
+	if TarballHash(d1) != TarballHash(d2) {
+		t.Errorf("tarball with assets not deterministic: %s != %s", TarballHash(d1), TarballHash(d2))
+	}
+}
+
+func TestVerifyDeclaredAssets(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, AssetsDir), 0755)
+	os.WriteFile(filepath.Join(dir, AssetsDir, "foo.txt"), []byte("x"), 0644)
+
+	// Pass: declared file exists
+	if err := VerifyDeclaredAssets(dir, &PackageManifest{Assets: AssetConfig{Files: []string{"foo.txt"}}}); err != nil {
+		t.Errorf("expected pass for present asset, got: %v", err)
+	}
+
+	// Fail: declared file missing
+	if err := VerifyDeclaredAssets(dir, &PackageManifest{Assets: AssetConfig{Files: []string{"missing.txt"}}}); err == nil {
+		t.Errorf("expected error for missing declared asset")
+	}
+
+	// Pass: nil manifest, no assets
+	if err := VerifyDeclaredAssets(dir, nil); err != nil {
+		t.Errorf("expected pass for nil manifest, got: %v", err)
+	}
+
+	// Pass: no declared assets
+	if err := VerifyDeclaredAssets(dir, &PackageManifest{}); err != nil {
+		t.Errorf("expected pass for empty Assets, got: %v", err)
+	}
+}
+
+func TestManifest_AssetValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		assets  []string
+		wantErr bool
+	}{
+		{"empty list ok", nil, false},
+		{"valid relative path", []string{"foo.txt", "scripts/bar.mjs"}, false},
+		{"empty entry rejected", []string{""}, true},
+		{"absolute path rejected", []string{"/etc/passwd"}, true},
+		{"parent traversal rejected", []string{"../etc/passwd"}, true},
+		{"nested traversal rejected", []string{"a/../../b"}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &PackageManifest{
+				Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+				Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+				Assets:  AssetConfig{Files: tc.assets},
+			}
+			err := m.Validate()
+			if tc.wantErr && err == nil {
+				t.Errorf("expected validation error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected validation error: %v", err)
+			}
+		})
+	}
+}
+
 func TestTarballHash(t *testing.T) {
 	h := TarballHash([]byte("test data"))
 	if !strings.HasPrefix(h, "sha256:") {

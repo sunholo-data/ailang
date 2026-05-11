@@ -15,8 +15,12 @@ import (
 	"time"
 )
 
+// AssetsDir is the package subdirectory whose contents are bundled verbatim.
+const AssetsDir = "assets"
+
 // CreateTarball creates a deterministic tar.gz of a package directory.
-// Includes: ailang.toml, *.ail files, AGENT.md. Excludes: .git, tests/, ailang.lock.
+// Includes: ailang.toml, *.ail files, AGENT.md, _smoke.ail, anything under assets/.
+// Excludes: .git, tests/, ailang.lock.
 // Files are sorted and timestamps zeroed for determinism.
 func CreateTarball(packageDir string) ([]byte, error) {
 	packageDir, err := filepath.Abs(packageDir)
@@ -45,9 +49,21 @@ func CreateTarball(packageDir string) ([]byte, error) {
 			return nil
 		}
 
-		// Include: ailang.toml, *.ail, AGENT.md
-		if rel == ManifestFile || strings.HasSuffix(rel, ".ail") || rel == "AGENT.md" {
-			files = append(files, rel)
+		// Defense-in-depth: never include a path with ".." segments, even via symlink games.
+		clean := filepath.Clean(rel)
+		if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
+			return fmt.Errorf("invalid relative path in package: %q", rel)
+		}
+
+		// Include: ailang.toml, *.ail, AGENT.md, anything under assets/.
+		// Use forward slashes so the tarball entry name is stable cross-platform.
+		relForward := filepath.ToSlash(rel)
+		switch {
+		case rel == ManifestFile,
+			strings.HasSuffix(rel, ".ail"),
+			rel == "AGENT.md",
+			strings.HasPrefix(relForward, AssetsDir+"/"):
+			files = append(files, relForward)
 		}
 
 		return nil
@@ -151,4 +167,26 @@ func ExtractTarball(data []byte, destDir string) error {
 func TarballHash(data []byte) string {
 	h := sha256.Sum256(data)
 	return "sha256:" + hex.EncodeToString(h[:])
+}
+
+// VerifyDeclaredAssets checks that every file listed in [assets].files exists
+// under packageDir/assets/. Returns nil if no assets are declared.
+//
+// This runs at publish time so a typo in ailang.toml fails loud rather than
+// shipping a tarball whose runtime assetPath() lookups all return Err.
+func VerifyDeclaredAssets(packageDir string, manifest *PackageManifest) error {
+	if manifest == nil || len(manifest.Assets.Files) == 0 {
+		return nil
+	}
+	for _, rel := range manifest.Assets.Files {
+		full := filepath.Join(packageDir, AssetsDir, rel)
+		info, err := os.Stat(full)
+		if err != nil {
+			return fmt.Errorf("[assets].files: declared asset %q not found at %s", rel, filepath.Join(AssetsDir, rel))
+		}
+		if info.IsDir() {
+			return fmt.Errorf("[assets].files: declared asset %q is a directory; only files allowed", rel)
+		}
+	}
+	return nil
 }

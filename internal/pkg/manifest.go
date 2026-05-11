@@ -26,6 +26,25 @@ type PackageManifest struct {
 	Cascade      CascadeConfig           `toml:"cascade"`     // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
 	AIProviders  []AIProviderSpec        `toml:"ai_provider"` // M-AI-PROVIDER-CONFIG (v0.16.0); see internal/pkg/ai_provider.go
 	Extensions   ExtensionRegistryConfig `toml:"extensions"`  // M-AILANG-EXT-REGISTRY-GEN (v0.17.1)
+	Assets       AssetConfig             `toml:"assets"`      // M-EXT-PORTABILITY-GATE (v0.19.0)
+}
+
+// AssetConfig holds the optional [assets] section in ailang.toml.
+// Lists files under the package's assets/ subdirectory that ship with the
+// tarball and can be resolved at runtime via std/package.assetPath().
+//
+// Example:
+//
+//	[assets]
+//	files = ["mcp-call.mjs", "schemas/tool-call.json"]
+//
+// At publish time, every file listed in assets.files MUST exist under the
+// package's assets/ directory or publish is rejected.
+type AssetConfig struct {
+	// Files declares the expected assets relative to the package's assets/ dir.
+	// When non-empty, validates each file exists at publish time.
+	// When empty, all files under assets/ are still bundled (declaration is optional).
+	Files []string `toml:"files"`
 }
 
 // ExtensionRegistryConfig holds the optional [extensions] section in ailang.toml.
@@ -276,6 +295,20 @@ func (m *PackageManifest) Validate() error {
 	// Validate [[ai_provider]] blocks (M-AI-PROVIDER-CONFIG, v0.16.0)
 	if err := validateAIProviders(m.AIProviders); err != nil {
 		return err
+	}
+
+	// Validate [assets].files entries are clean relative paths (M-EXT-PORTABILITY-GATE, v0.19.0)
+	for _, asset := range m.Assets.Files {
+		if asset == "" {
+			return fmt.Errorf("[assets].files contains empty entry")
+		}
+		if filepath.IsAbs(asset) {
+			return fmt.Errorf("[assets].files entry %q must be relative to assets/", asset)
+		}
+		clean := filepath.Clean(asset)
+		if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
+			return fmt.Errorf("[assets].files entry %q must not escape assets/", asset)
+		}
 	}
 
 	// Validate [extensions] block (M-AILANG-EXT-REGISTRY-GEN, v0.17.1)

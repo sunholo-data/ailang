@@ -1,0 +1,32 @@
+-- std/package - Resolve files bundled inside an installed AILANG package
+--
+-- Lets a package ship arbitrary files (helper scripts, schemas, templates)
+-- under its assets/ subdirectory and resolve their absolute paths at runtime.
+--
+-- Bundling: declare assets in ailang.toml:
+--
+--   [assets]
+--   files = ["mcp-call.mjs", "schemas/tool-call.json"]
+--
+-- At publish time, every file listed in [assets].files must exist under the
+-- package's assets/ directory or publish is rejected.
+--
+-- Requires: FS capability (--caps FS)
+
+module std/package
+
+import std/result(Result, Ok, Err)
+
+-- Resolve an asset shipped inside an installed package.
+-- pkg_name must be the canonical vendor/name (e.g. "sunholo/motoko_ext_mcp").
+-- rel_path is relative to the package's assets/ subdirectory.
+-- Returns Ok(absolute path) when the asset exists, Err(message) otherwise.
+--
+-- @requires FS capability
+-- @example
+--   match assetPath("sunholo/motoko_ext_mcp", "mcp-call.mjs") {
+--     Ok(p)  => spawnNode(p),
+--     Err(e) => Delegate
+--   }
+export func assetPath(pkg_name: string, rel_path: string) -> Result[string, string] ! {FS} =
+  _pkg_asset_path(pkg_name, rel_path)
