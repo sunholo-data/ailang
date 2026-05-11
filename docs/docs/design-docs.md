@@ -8,21 +8,94 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.19.0
+
+- [Sprint Plan: M-EVAL-SWEET-SPOT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-sprint-plan.md)
+- [M-EVAL-SWEET-SPOT: Eval Sweet-Spot Reporting & Failure-Category Distinguishability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot.md)
+- [M-FS-SANDBOX-DIAGNOSTICS: Sandbox path rejection diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-fs-sandbox-diagnostics.md)
+
+## v0.18.10
+
+- [Sprint Plan: M-MATCH-ADT-XCHECK (v0.18.10)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_10/m-match-adt-xcheck-sprint-plan.md)
+- [M-MATCH-ADT-XCHECK: typechecker rejects match arms with constructors from a foreign ADT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_10/m-match-adt-xcheck.md)
+
+## v0.18.9
+
+- [M-AI-OPENROUTER-APP-ATTRIBUTION: per-request app attribution overrides for OpenRouter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_9/m-ai-openrouter-app-attribution.md)
+- [M-AI-OPENROUTER-REASONING-FIELD: surface reasoning from OR-routed thinking models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_9/m-ai-openrouter-reasoning-field.md)
+
+## v0.18.8
+
+- [M-AI-STEP-STREAMING-THINKING: API-level reasoning as separate stream variant](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_8/m-ai-step-streaming-thinking.md)
+
+## v0.18.7
+
+- [Sprint Plan: M-AI-STEP-STREAMING (v0.18.7)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_7/m-ai-step-streaming-sprint-plan.md)
+- [M-AI-STEP-STREAMING: Typed-StepResult streaming via per-chunk callback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_7/m-ai-step-streaming.md)
+
+## v0.18.5
+
+- [Sprint Plan: M-EXT-SCAFFOLD-AI-FIRST (v0.18.5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_5/m-ext-scaffold-ai-first-sprint-plan.md)
+- [[Feature Name]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_5/m-ext-scaffold-ai-first.md)
+
+## v0.18.4
+
+- [Sprint Plan: M-AI-PROMPT-CACHING (v0.18.4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_4/m-ai-prompt-caching-sprint-plan.md)
+- [M-AI-PROMPT-CACHING: Model-independent prompt-cache hints across all AI providers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_4/m-ai-prompt-caching.md)
+
+## v0.18.3
+
+- [M-MOTOKO-HYBRID-TOOL-CORRELATION: Fix tool_use_id correlation in motoko's hybrid-bash mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_3/m-motoko-hybrid-tool-correlation.md)
+
+## v0.18.2
+
+- [Sprint Plan: M-MOTOKO-PARALLEL-EXECUTION-ISOLATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_2/m-motoko-parallel-execution-isolation-sprint-plan.md)
+- [M-MOTOKO-PARALLEL-EXECUTION-ISOLATION: Per-task isolation so `--agent-parallel ≥ 2` works](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_2/m-motoko-parallel-execution-isolation.md)
+
+## v0.18.1
+
+- [Sprint Plan: M-MOTOKO-EVAL-HARNESS-HARDENING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_1/m-motoko-eval-harness-hardening-sprint-plan.md)
+- [M-MOTOKO-EVAL-HARNESS-HARDENING: Close all 10 integration gaps surfaced by live smoke](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_1/m-motoko-eval-harness-hardening.md)
+
+## v0.18.0
+
+- [M-PKG-AUTO-UPDATE-DX: Package Auto-Update Bus DX Fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_0/m-pkg-auto-update-dx.md)
+
 ## v0.17.x
 
 - [Sprint Plan: M-AI-TOOL-LOOP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_x/m-ai-tool-loop-sprint-plan.md)
 - [M-AI-TOOL-LOOP: Multi-Turn AI Tool Dispatch (`std/ai.step` / `runTools`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_x/m-ai-tool-loop.md)
 
-## v0.16.x
+## v0.17.1
 
-- [M-AI-OPENROUTER: OpenRouter Provider with Routable Model Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
-- [Sprint Plan: M-AI-OPENROUTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-sprint-plan.md)
-- [Sprint Plan: M-PKG-AUTONOMOUS-CASCADE-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe-sprint-plan.md)
-- [M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe.md)
-- [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-cascade-deterministic-first.md)
+- [Sprint Plan: M-AILANG-EXT-REGISTRY-GEN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_1/m-ailang-ext-registry-gen-sprint-plan.md)
+- [M-AILANG-EXT-REGISTRY-GEN: `ailang generate-extension-registry` command](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_1/m-ailang-ext-registry-gen.md)
+- [M-MOTOKO-EXTENSION-INTEGRATION Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_17_1/m-motoko-extension-integration-sprint-plan.md)
+
+## v0.16.4
+
+- [M-TESTING-ADT-IMPORT-RESOLUTION: Fix inline test harness failing to resolve imported ADT constructors](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_4/m-testing-adt-import-resolution.md)
+
+## v0.16.3
+
+- [Sprint Plan: M-MOTOKO-INLINE-TEST-HARNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_3/m-motoko-inline-test-harness-sprint-plan.md)
+- [M-MOTOKO-INLINE-TEST-HARNESS: Fix inline test harness for import-dependent helpers and aliased import collisions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_3/m-motoko-inline-test-harness.md)
+
+## v0.16.2
+
+- [fix property test string escape](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_2/fix-property-test-string-escape.md)
 
 ## v0.16.0
 
+- [M-AI-OPENROUTER: OpenRouter Provider with Routable Model Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-ai-openrouter-provider.md)
+- [Sprint Plan: M-AI-OPENROUTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-ai-openrouter-sprint-plan.md)
+- [Sprint Plan — M-AILANG-FS-RESULT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-ailang-fs-result-sprint-plan.md)
+- [M-AILANG-FS-RESULT — Result-returning std/fs builtins](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-ailang-fs-result.md)
+- [Sprint Plan: M-PKG-AUTONOMOUS-CASCADE-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-pkg-autonomous-cascade-safe-sprint-plan.md)
+- [M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-pkg-autonomous-cascade-safe.md)
+- [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-pkg-cascade-deterministic-first.md)
+- [Sprint Plan: M-STD-DEFLATE-ZLIB](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-std-deflate-zlib-sprint-plan.md)
+- [std/deflate: raw zlib/deflate primitives for PDF FlateDecode and wire protocols](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-std-deflate-zlib.md)
 - [M-TAINT-TYPES — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types-sprint-plan.md)
 - [M-TAINT-TYPES: Value-Labelled Information-Flow Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
 
@@ -964,4 +1037,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 711 design documents across 81 versions.*
+*Generated at build time. 742 design documents across 95 versions.*

@@ -30,11 +30,34 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.19.0
+
+- [M-BENCHMARK-DATA-INTEGRITY: Benchmark Dashboard Data Integrity Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-benchmark-data-integrity.md)
+- [Sprint Plan: M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration-sprint-plan.md)
+- [M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION: Surface sweet-spot data on the public benchmark dashboard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration.md)
+- [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
+- [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
+
+## Planned for v0.18.9
+
+- [M-PROCESS-PGID-CLEANUP: kill process group on Process effect timeout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_9/m-process-pgid-cleanup.md)
+
+## Planned for v0.18.0
+
+- [Sprint Plan: M-MOTOKO-EXECUTOR-ADAPTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-motoko-executor-adapter-sprint-plan.md)
+- [M-MOTOKO-EXECUTOR-ADAPTER: motoko_agent as a CLI-Subprocess Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-motoko-executor-adapter.md)
+- [Sprint Plan: M-PKG-AUTO-UPDATE-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-pkg-auto-update-dx-sprint-plan.md)
+- [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-serve-api-live-tool-registry.md)
+
 ## Planned for v0.17.0
 
+- [M-AGENT-LOOP-ARCHITECTURE: Where Should the Multi-Turn Agent Loop Live?](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-agent-loop-architecture.md)
+- [M-AI-OPENAI-LOCAL-ENDPOINT-RELAX — Allow empty OPENAI_API_KEY when OPENAI_BASE_URL is custom](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-openai-local-endpoint-relax.md)
+- [M-AI-REASONING-EFFORT — Cross-Provider Request-Side Reasoning Control](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-reasoning-effort.md)
 - [M-AI-STREAMING-HELPER Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper-sprint-plan.md)
 - [M-AI-STREAMING-HELPER: AI Token Streaming Helper + Cross-Domain Discovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md)
 - [M-BENCH-MOTOKO: Motoko Agent as a Benchmark Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-bench-motoko-executor.md)
+- [M-EXTERNAL-CONSUMER-DX Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx-sprint-plan.md)
 - [M-EXTERNAL-CONSUMER-DX: Diagnostics & Artifacts for External AILANG Projects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx.md)
 
 ## Planned for v0.16.0
@@ -88,7 +111,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX-EXAMPLES-COVERAGE: Stdlib Examples for Every Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-examples-coverage.md)
 - [M-DX-EXPECTED-FAIL-FIXES: Fix Remaining Expected-Fail Examples](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-expected-fail-fixes.md)
 - [M-DX-JSON-BOOL: JSON Boolean Coercion and Firestore Encoding Consistency](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-json-bool-coercion.md)
-- [M-DX-MATCH-HOF: Fix `match` Inside Block-Body Lambdas in HOF Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-match-in-hof-block-lambda.md)
 - [M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-record-cons-pattern.md)
 - [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-split-argument-warning.md)
 - [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-tapp-trecord-unification.md)
@@ -142,4 +164,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 95 planned features across 8 upcoming versions.*
+*Generated at build time. 108 planned features across 11 upcoming versions.*

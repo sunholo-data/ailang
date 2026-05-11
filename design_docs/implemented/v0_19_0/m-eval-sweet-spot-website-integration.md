@@ -1,6 +1,6 @@
 # M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION: Surface sweet-spot data on the public benchmark dashboard
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.19.0
 **Priority**: P1 (Medium — data already exists end-to-end; without dashboard surfaces operators can't see it without CLI access)
 **Estimated**: ~3 working days (~22 hours)
