@@ -923,8 +923,13 @@ models:
     pricing:
       input_per_1k: 0.00006
       output_per_1k: 0.00024
+    # M-EVAL-SWEET-SPOT-FOLLOWUP-P1 (v0.19.0): cap dropped from $0.50 to
+    # $0.30 to actually trigger cost_killed on stretch benchmarks. Prior
+    # validation showed gemma can burn $0.94 on a trivial benchmark when
+    # uncapped — that's the exact pattern we want to surface in the
+    # budget_blocked bucket.
     budgets:
-      max_cost_usd: 0.50
+      max_cost_usd: 0.30
       hard_timeout_secs: 3600
     notes: |
       Added v0.19.0 for M-EVAL-SWEET-SPOT validation. Pairs with
