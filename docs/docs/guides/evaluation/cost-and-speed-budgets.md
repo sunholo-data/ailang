@@ -123,8 +123,51 @@ some-model:
 
 `MaxCostUSD == 0` makes `CostBudget.Add()` always return `exceeded=false`. Useful for back-compat testing and replay verification.
 
+## Reading the sweet-spot report (v0.19.0+, M-EVAL-SWEET-SPOT)
+
+`ailang eval-sweet-spot <results_dir>` consumes the same per-result speed and cost metrics described above and answers a different question: **where is the cost-vs-time-vs-success Pareto frontier across all the models that ran in this directory?**
+
+```bash
+ailang eval-sweet-spot eval_results/v0_18_5_core_3harness
+ailang eval-sweet-spot eval_results/standard --format=csv --slow-ms=30000 > sweet.csv
+ailang eval-sweet-spot eval_results/standard --format=mdx     # for blog posts / docs inlining
+ailang eval-sweet-spot eval_results/standard --format=json    # programmatic consumption
+```
+
+### Failure-category taxonomy
+
+To make the buckets meaningful, v0.19.0 introduced 5 typed `ErrorCategory` values that replace catch-all `api_error` attribution where the cause is identifiable:
+
+| Category | What it means | Capability signal? |
+|---|---|---|
+| `timeout` | Wall-clock or context deadline exceeded | ✅ yes — model couldn't solve in budget |
+| `quota_exhausted` | Provider account/key cap reached (e.g. OpenRouter monthly limit) | ❌ no — provider noise |
+| `rate_limit` | 429 / transient throttling | ❌ no — provider noise |
+| `cost_killed` | Eval-side $ budget exceeded (motoko `cost_exhausted`, future executor caps) | ✅ yes — operator could raise budget |
+| `step_exhausted` | Agent ran out of turns / step budget | ✅ yes — operator could raise budget |
+| `api_error` | Catch-all when no more specific cause is detectable | partial — kept excluded during legacy-JSON transition |
+
+The eval harness assigns these via `CategorizeAgentError(err, finishReason)`, which is also offline-recomputable from `stderr` strings on existing result JSONs.
+
+### Sweet-spot buckets
+
+For each `(model × harness × benchmark)`, the report assigns exactly one bucket:
+
+- **fast_pass** — model passes within the slow threshold (default 60s)
+- **slow_pass** — passes but slower than the threshold
+- **budget_blocked** — failed with `cost_killed` or `step_exhausted`; raising the budget might flip this to a pass
+- **capability_blocked** — `compile_error` / `runtime_error` / `logic_error` / `timeout`; the model genuinely couldn't solve the task within reasonable scope
+- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error`; excluded from pass-rate denominators (not the model's fault)
+
+The per-benchmark "Cheapest / Fastest pass" footer names the model with the lowest cost-per-success and the lowest TTS for each benchmark, considering only runs where `stdout_ok == true`.
+
+### Example
+
+See [`examples/eval_sweet_spot_example.md`](https://github.com/sunholo-data/ailang/blob/dev/examples/eval_sweet_spot_example.md) for a real CLI output snippet against `eval_results/v0_18_5_core_3harness`.
+
 ## See also
 
 - [Design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — full architectural rationale + axiom scoring
 - [Sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets-sprint-plan.md) — milestone breakdown
+- [Sweet-spot design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot.md) — v0.19.0 follow-on for failure-category disambiguation + sweet-spot CLI
 - [Model configuration guide](./model-configuration.md) — full `models.yml` schema

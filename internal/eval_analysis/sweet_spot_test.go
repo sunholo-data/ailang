@@ -221,6 +221,23 @@ func TestFormatSweetSpotText_RendersAllSections(t *testing.T) {
 	}
 }
 
+func TestFormatSweetSpotMDX_RendersTables(t *testing.T) {
+	results := []*BenchmarkResult{
+		sweetSpotResult("b1", "m", "", "none", true, 0.05, 30_000),
+	}
+	out := FormatSweetSpotMDX(BuildSweetSpot(results, SweetSpotOpts{}))
+	for _, want := range []string{
+		"## Sweet Spot",
+		"| Model |",
+		"### Cheapest / Fastest Pass per Benchmark",
+		"| Benchmark |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("MDX missing %q\n--- output ---\n%s", want, out)
+		}
+	}
+}
+
 func TestEfficiencyByModel_GroupsCorrectly(t *testing.T) {
 	results := []*BenchmarkResult{
 		sweetSpotResult("b1", "a", "", "none", true, 0.05, 30_000),

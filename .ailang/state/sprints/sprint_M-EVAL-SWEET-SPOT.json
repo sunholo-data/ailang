@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EVAL-SWEET-SPOT",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-05-11T10:49:13Z",
   "design_doc": "design_docs/planned/v0_19_0/m-eval-sweet-spot.md",
   "sprint_plan": "design_docs/planned/v0_19_0/m-eval-sweet-spot-sprint-plan.md",
@@ -143,10 +143,10 @@
         "CHANGELOG.md",
         "examples/eval_sweet_spot_example.md"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T13:20:00Z",
+      "completed": "2026-05-11T13:40:00Z",
+      "notes": "FormatSweetSpotMDX added with markdown table output; CLI --format=mdx wired. CHANGELOG.md v0.10-current.md entry under [Unreleased] with full M1-M5 narrative + empirical rollout findings + deferred-followup list. docs/docs/guides/evaluation/cost-and-speed-budgets.md gained Reading the sweet-spot report section with failure-category reference table and bucket taxonomy. examples/eval_sweet_spot_example.md captures real CLI output from v0_18_5_core_3harness in text/CSV/JSON. Deferred: standalone MDX section emission from ExportDocusaurusMDX (would require signature change to thread BenchmarkResult through) — left as M-EVAL-SWEET-SPOT-FOLLOWUP."
     }
   ]
 }

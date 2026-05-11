@@ -472,5 +472,61 @@ func FormatSweetSpotJSON(report SweetSpotReport) (string, error) {
 	return string(b), nil
 }
 
+// FormatSweetSpotMDX renders the report as a Docusaurus-ready markdown
+// section (plain tables, no custom components). Suitable for inlining into
+// the auto-generated dashboard MDX.
+func FormatSweetSpotMDX(report SweetSpotReport) string {
+	var sb strings.Builder
+	sb.WriteString("## Sweet Spot\n\n")
+	sb.WriteString(fmt.Sprintf(
+		"Per-model cost-vs-time-vs-success ranking (slow threshold = %.0fs, %d total runs).\n\n",
+		float64(report.SlowMs)/1000, report.TotalRuns,
+	))
+	sb.WriteString("Buckets per (model × benchmark):\n\n")
+	sb.WriteString("- **fast_pass** — model passes within the slow threshold\n")
+	sb.WriteString("- **slow_pass** — passes but takes longer than the threshold\n")
+	sb.WriteString("- **budget_blocked** — failed due to `cost_killed` or `step_exhausted` (more budget could help)\n")
+	sb.WriteString("- **capability_blocked** — `compile_error` / `runtime_error` / `logic_error` / `timeout`\n")
+	sb.WriteString("- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error` (excluded from pass rate)\n\n")
+
+	if len(report.Rows) == 0 {
+		sb.WriteString("_No data._\n")
+		return sb.String()
+	}
+
+	sb.WriteString("| Model | Pass% | Median TTS | Tokens/s | p90 $/win | Fast | Slow | Budget | Capability |\n")
+	sb.WriteString("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
+	for _, r := range report.Rows {
+		label := r.Model
+		if r.Harness != "" && r.Harness != r.Model {
+			label = r.Model + " · " + r.Harness
+		}
+		sb.WriteString(fmt.Sprintf("| %s | %.1f%% | %.1fs | %.0f | $%.4f | %d | %d | %d | %d |\n",
+			label,
+			r.PassRate*100,
+			r.MedianTTSMs/1000,
+			r.MedianTokensPerSec,
+			r.P90CostPerSuccess,
+			r.Buckets.FastPass,
+			r.Buckets.SlowPass,
+			r.Buckets.BudgetBlocked,
+			r.Buckets.CapabilityBlocked,
+		))
+	}
+
+	if len(report.Champions) > 0 {
+		sb.WriteString("\n### Cheapest / Fastest Pass per Benchmark\n\n")
+		sb.WriteString("| Benchmark | Cheapest model | $/win | Fastest model | TTS |\n")
+		sb.WriteString("|---|---|---:|---|---:|\n")
+		for _, c := range report.Champions {
+			sb.WriteString(fmt.Sprintf("| %s | %s | $%.4f | %s | %.1fs |\n",
+				c.BenchmarkID, c.CheapestModel, c.CheapestCost,
+				c.FastestModel, c.FastestTTSMs/1000))
+		}
+	}
+
+	return sb.String()
+}
+
 func itoa(n int) string     { return fmt.Sprintf("%d", n) }
 func ftoa(f float64) string { return fmt.Sprintf("%g", f) }

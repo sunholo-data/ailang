@@ -518,9 +518,11 @@ func runEvalSweetSpot() {
 			fmt.Fprintf(os.Stderr, "%s: JSON format failed: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
+	case "mdx", "markdown":
+		out = eval_analysis.FormatSweetSpotMDX(report)
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown format '%s'\n", red("Error"), format)
-		fmt.Fprintf(os.Stderr, "Supported formats: text, csv, json\n")
+		fmt.Fprintf(os.Stderr, "Supported formats: text, csv, json, mdx\n")
 		os.Exit(1)
 	}
 
