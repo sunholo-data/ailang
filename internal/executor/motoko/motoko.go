@@ -234,6 +234,21 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
 			env = append(env, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
 		}
+		// M-EVAL-SWEET-SPOT-FOLLOWUP (v0.19.0): forward the hard cost cap so
+		// motoko's internal budget gate actually fires `finish_reason=
+		// "cost_exhausted"` when the cumulative cost crosses it. Pre-this,
+		// the cap was recorded as metadata only — gemma-4-26b famously ran
+		// to $0.94 against a $0.50 cap on balanced_parens (43 min, 222
+		// turns) because motoko never knew about the cap. Source-of-truth
+		// flow: models.yml budgets.max_cost_usd → CostBudget.MaxUSD →
+		// AI_MAX_COST_USD_CENTS (motoko reads this in src/core/config.ail).
+		// Motoko expects cents; CostBudget.MaxUSD is dollars → ×100.
+		if task.Budget.MaxUSD > 0 {
+			maxUSDCents := int64(task.Budget.MaxUSD * 100)
+			if maxUSDCents > 0 {
+				env = append(env, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
+			}
+		}
 	}
 	cmd.Env = env
 

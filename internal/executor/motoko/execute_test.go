@@ -263,6 +263,7 @@ SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
 {
   echo "MOTOKO_COST_INPUT_PER_1M_MILLICENTS=${MOTOKO_COST_INPUT_PER_1M_MILLICENTS:-UNSET}"
   echo "MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=${MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS:-UNSET}"
+  echo "AI_MAX_COST_USD_CENTS=${AI_MAX_COST_USD_CENTS:-UNSET}"
 } > "` + envDump + `"
 # Minimal JSONL so the adapter completes parsing without error.
 cat > "$LOGDIR/$SESSION.jsonl" <<EOF
@@ -289,10 +290,11 @@ exit 0
 	// claude-haiku-4-5 rates: 0.00025 input / 0.00125 output per 1K USD.
 	// Expected per-1M millicents: 0.00025 × 1e8 = 25000  (input)
 	//                              0.00125 × 1e8 = 125000 (output)
+	// Cost cap: $0.50 → AI_MAX_COST_USD_CENTS=50 (M-EVAL-SWEET-SPOT-FOLLOWUP)
 	res, err := exec.Execute(context.Background(), &executor.Task{
 		Workspace: wsDir,
 		Directive: "any",
-		Budget:    executor.NewCostBudget(0, 0.00025, 0.00125),
+		Budget:    executor.NewCostBudget(0.50, 0.00025, 0.00125),
 	})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
@@ -311,6 +313,12 @@ exit 0
 	}
 	if !strings.Contains(got, "MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=125000\n") {
 		t.Errorf("output rate env var missing or wrong; got:\n%s", got)
+	}
+	// M-EVAL-SWEET-SPOT-FOLLOWUP: the hard cost cap must reach motoko as
+	// AI_MAX_COST_USD_CENTS so motoko's internal budget gate fires
+	// finish_reason="cost_exhausted" on overrun.
+	if !strings.Contains(got, "AI_MAX_COST_USD_CENTS=50\n") {
+		t.Errorf("AI_MAX_COST_USD_CENTS env var missing or wrong; got:\n%s", got)
 	}
 }
 
@@ -334,6 +342,7 @@ SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
 {
   echo "MOTOKO_COST_INPUT_PER_1M_MILLICENTS=${MOTOKO_COST_INPUT_PER_1M_MILLICENTS:-UNSET}"
   echo "MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=${MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS:-UNSET}"
+  echo "AI_MAX_COST_USD_CENTS=${AI_MAX_COST_USD_CENTS:-UNSET}"
 } > "` + envDump + `"
 cat > "$LOGDIR/$SESSION.jsonl" <<EOF
 {"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"x","brainVersion":"0.2.0"}
@@ -364,6 +373,9 @@ exit 0
 	}
 	if !strings.Contains(got, "MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=UNSET\n") {
 		t.Errorf("output rate env var should be UNSET when Budget is nil; got:\n%s", got)
+	}
+	if !strings.Contains(got, "AI_MAX_COST_USD_CENTS=UNSET\n") {
+		t.Errorf("AI_MAX_COST_USD_CENTS should be UNSET when Budget is nil; got:\n%s", got)
 	}
 }
 

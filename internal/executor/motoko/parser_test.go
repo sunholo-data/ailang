@@ -91,6 +91,12 @@ func TestParseSessionJSONL_CostExhausted(t *testing.T) {
 	if res.FinishReason != "cost_exhausted" {
 		t.Errorf("Result.FinishReason = %q, want cost_exhausted", res.FinishReason)
 	}
+	// M-EVAL-SWEET-SPOT-FOLLOWUP: CostKilledAt must be populated when motoko
+	// stopped because its cost cap fired. Drives the budget_blocked bucket
+	// in sweet-spot reporting.
+	if res.CostKilledAt != 0.046 {
+		t.Errorf("CostKilledAt = %v, want 0.046 (= CostUSD when cost_exhausted)", res.CostKilledAt)
+	}
 }
 
 // TestParseSessionJSONL_DP7Rejected verifies dp7_verifier_rejected events

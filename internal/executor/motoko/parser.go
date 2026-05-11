@@ -351,6 +351,13 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 			// top-level field so the eval harness can categorize without
 			// reaching into ProviderData.
 			res.FinishReason = ev.FinishReason
+			// M-EVAL-SWEET-SPOT-FOLLOWUP: when motoko stopped because its
+			// cost cap fired, populate Result.CostKilledAt so the per-result
+			// JSON's cost_killed_at field is non-zero (drives the new
+			// budget_blocked sweet-spot bucket).
+			if ev.FinishReason == "cost_exhausted" {
+				res.CostKilledAt = res.CostUSD
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
