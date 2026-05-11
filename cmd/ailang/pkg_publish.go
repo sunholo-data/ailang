@@ -155,6 +155,9 @@ func runPrePublishSmoke(packageDir string, manifest *pkg.PackageManifest) error 
 	}
 
 	timeout := pkg.DefaultSmokeTimeout
+	if manifest != nil && manifest.Smoke.TimeoutSeconds > 0 {
+		timeout = time.Duration(manifest.Smoke.TimeoutSeconds) * time.Second
+	}
 	fmt.Printf("  Running %s in temp workdir (timeout %s)...\n", pkg.SmokeFile, timeout)
 
 	res, err := pkg.RunSmokeInTempDir(packageDir, bin, timeout)

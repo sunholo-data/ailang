@@ -220,6 +220,38 @@ func TestManifest_AssetValidation(t *testing.T) {
 	}
 }
 
+func TestManifest_SmokeTimeoutValidation(t *testing.T) {
+	cases := []struct {
+		name           string
+		timeoutSeconds int
+		wantErr        bool
+	}{
+		{"unset (zero) ok", 0, false},
+		{"valid low boundary", 1, false},
+		{"valid mid", 30, false},
+		{"valid high boundary", 300, false},
+		{"negative rejected", -1, true},
+		{"too large rejected", 301, true},
+		{"absurdly large rejected", 99999, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &PackageManifest{
+				Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+				Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+				Smoke:   SmokeConfig{TimeoutSeconds: tc.timeoutSeconds},
+			}
+			err := m.Validate()
+			if tc.wantErr && err == nil {
+				t.Errorf("expected validation error for %d, got nil", tc.timeoutSeconds)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected validation error for %d: %v", tc.timeoutSeconds, err)
+			}
+		})
+	}
+}
+
 func TestTarballHash(t *testing.T) {
 	h := TarballHash([]byte("test data"))
 	if !strings.HasPrefix(h, "sha256:") {

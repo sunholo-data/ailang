@@ -27,6 +27,24 @@ type PackageManifest struct {
 	AIProviders  []AIProviderSpec        `toml:"ai_provider"` // M-AI-PROVIDER-CONFIG (v0.16.0); see internal/pkg/ai_provider.go
 	Extensions   ExtensionRegistryConfig `toml:"extensions"`  // M-AILANG-EXT-REGISTRY-GEN (v0.17.1)
 	Assets       AssetConfig             `toml:"assets"`      // M-EXT-PORTABILITY-GATE (v0.19.0)
+	Smoke        SmokeConfig             `toml:"smoke"`       // M-EXT-PORTABILITY-GATE follow-up (v0.19.1)
+}
+
+// SmokeConfig holds the optional [smoke] section in ailang.toml.
+// Lets a package override the default pre-publish smoke-test timeout
+// (M-EXT-PORTABILITY-GATE, v0.19.0; configurable in v0.19.1).
+//
+// Example:
+//
+//	[smoke]
+//	timeout_seconds = 60   # extension needs 60s for cold-start AI calls
+//
+// Allowed range: 1-300 seconds. 0 (or unset) means "use the runner default".
+type SmokeConfig struct {
+	// TimeoutSeconds overrides the default smoke-test wall-clock cap.
+	// Must be in [1, 300] when non-zero; rejected at manifest-load time
+	// otherwise so a typo fails loud rather than silently extending publish.
+	TimeoutSeconds int `toml:"timeout_seconds"`
 }
 
 // AssetConfig holds the optional [assets] section in ailang.toml.
@@ -309,6 +327,14 @@ func (m *PackageManifest) Validate() error {
 		if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
 			return fmt.Errorf("[assets].files entry %q must not escape assets/", asset)
 		}
+	}
+
+	// Validate [smoke] block (M-EXT-PORTABILITY-GATE follow-up, v0.19.1).
+	// 0 (or unset) is fine — runner uses DefaultSmokeTimeout. Non-zero must
+	// be in [1, 300] seconds; rejecting outside this range prevents a typo
+	// like `timeout_seconds = -1` from silently extending publish forever.
+	if m.Smoke.TimeoutSeconds < 0 || m.Smoke.TimeoutSeconds > 300 {
+		return fmt.Errorf("[smoke].timeout_seconds must be in [1, 300] when set, got %d", m.Smoke.TimeoutSeconds)
 	}
 
 	// Validate [extensions] block (M-AILANG-EXT-REGISTRY-GEN, v0.17.1)

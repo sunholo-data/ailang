@@ -191,6 +191,43 @@ export func main() -> () ! {FS, IO} =
 	}
 }
 
+// TestRunSmokeInTempDir_RespectsCustomTimeout asserts that callers can pass
+// a short timeout (e.g. derived from [smoke].timeout_seconds in ailang.toml)
+// and the runner honours it. Pairs with TestRunSmokeInTempDir_Timeout which
+// exercises the default 30s case.
+func TestRunSmokeInTempDir_RespectsCustomTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timeout test in -short mode")
+	}
+	bin := findAilangBinary(t)
+
+	pkgDir := t.TempDir()
+	writeMinimalPackage(t, pkgDir, `module _smoke
+
+import std/clock (sleep)
+
+export func main() -> () ! {Clock} = sleep(30000)
+`)
+
+	// A 500ms timeout against a 30s sleep — verifies the per-call timeout
+	// argument is the controlling knob, not just DefaultSmokeTimeout.
+	start := time.Now()
+	res, err := RunSmokeInTempDir(pkgDir, bin, 500*time.Millisecond)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("RunSmokeInTempDir: %v", err)
+	}
+	if !res.TimedOut {
+		t.Errorf("expected timeout, got Passed=%v ExitCode=%d", res.Passed, res.ExitCode)
+	}
+	// Custom 500ms timeout should fire well under the default 30s. Give a
+	// generous ceiling for slow CI but reject "took the full default".
+	if elapsed > 5*time.Second {
+		t.Errorf("custom timeout not honoured: took %v (expected ~500ms)", elapsed)
+	}
+}
+
 // TestRunSmokeInTempDir_NoSmokeFile reports an infrastructure error when the
 // package has no _smoke.ail. (The publish wrapper in cmd/ailang interprets
 // this as "no smoke = warn but allow", but the runner itself draws a
