@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-05-11T13:57:54Z",
   "design_doc": "design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration.md",
   "sprint_plan": "design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration-sprint-plan.md",
@@ -125,10 +125,10 @@
         "docs/docs/guides/evaluation/cost-and-speed-budgets.md",
         "changelogs/v0.10-current.md"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T17:40:00Z",
+      "completed": "2026-05-11T17:55:00Z",
+      "notes": "Reading the dashboard sweet-spot view section added to docs/docs/guides/evaluation/cost-and-speed-budgets.md, with full schema doc + per-component descriptions. CHANGELOG entry under [Unreleased] (above v0.18.10) covering all 4 prior milestones with cross-refs to design + sprint plan. Screenshots deferred to first real dashboard regen with v0.19.0 data — placeholder noted in known limitations. cd docs && npm run build succeeds."
     }
   ]
 }

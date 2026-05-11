@@ -165,6 +165,83 @@ The per-benchmark "Cheapest / Fastest pass" footer names the model with the lowe
 
 See [`examples/eval_sweet_spot_example.md`](https://github.com/sunholo-data/ailang/blob/dev/examples/eval_sweet_spot_example.md) for a real CLI output snippet against `eval_results/v0_18_5_core_3harness`.
 
+## Reading the dashboard sweet-spot view (v0.19.0+, M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION)
+
+The same sweet-spot data that drives `ailang eval-sweet-spot` is now embedded in `docs/static/benchmarks/latest.json` and surfaced by 3 new components on the public benchmark dashboard. All three read pre-computed values from the Go exporter — there is **no client-side recomputation** of bucket assignment or Pareto frontier membership. A CI test (`sweet_spot_parity_test`) asserts numerical equality between the CLI output and the dashboard JSON, so anywhere you see a number on the dashboard, the CLI will produce the same value to 4 decimal places.
+
+### `$/Pass Economics` table
+
+The headline economic comparison. For each model, shows:
+
+- **$/pass** — total cost divided by number of passing runs (default-sort ascending)
+- **Pass rate**
+- **Runs** — total runs feeding this row
+- **Total spend** — actual $ across all runs
+- **Frontier** — ✓ when no other model has both lower $/win AND lower median TTS
+
+A "Show as ratio vs cheapest" toggle replaces the $/pass column with `model$ / cheapest$`. This surfaces the large absolute spreads — e.g. validation runs showed gemma-4-26b at **12.4× the $/pass of deepseek-v4-flash** on the same benchmarks.
+
+### `Cheapest / Fastest Pass per Benchmark` table
+
+Per-benchmark champions. For each benchmark in `sweet_spot_global.champions[]`:
+
+- **Cheapest model** + cost — the model that solved it for the lowest $
+- **Fastest model** + TTS — the model that solved it in the lowest median time
+
+When the same model wins both columns, the fastest cell collapses to "↑ (same)" to reduce visual noise.
+
+Operator question this answers: "I want to run benchmark X, which model is cheapest / fastest?" — direct answer in one row.
+
+### `Failure Modes` stacked bars
+
+Per-model breakdown of every `(model × benchmark)` outcome into 4 family colors:
+
+- **Success** (green): `fast_pass` + `slow_pass` (the model solved it)
+- **Budget** (orange): `cost_killed` + `step_exhausted` — operator could raise budget and possibly flip these to passes
+- **Capability** (red): `compile_error` / `runtime_error` / `logic_error` / `timeout` — the model couldn't write working code in scope
+- **Provider** (gray): `quota_exhausted` / `rate_limit` / `api_error` — provider-side noise, **excluded from capability scoring**
+
+Operator question: "Did this model fail because it can't code, because we capped it too low, or because the provider 429'd us?" — visible at a glance.
+
+### Data flow (latest.json schema additions)
+
+The Go exporter (`ExportBenchmarkJSON` in `internal/eval_analysis/export_json.go`) embeds:
+
+```json
+{
+  "models": {
+    "motoko-or-deepseek-v4-flash": {
+      "aggregates": { ... },
+      "efficiency": { ... },
+      "sweet_spot": {
+        "pass_rate": 0.857,
+        "median_tts_ms": 46700,
+        "p90_cost_per_success": 0.0422,
+        "dollars_per_pass": 0.038,
+        "pareto_frontier": true,
+        "buckets": { "fast_pass": 4, "slow_pass": 5, "budget_blocked": 0, "capability_blocked": 1, "provider_blocked": 0 },
+        "finish_reasons": { "stop": 13 },
+        "error_categories": { "cost_killed": 0, "step_exhausted": 0, "timeout": 0, "quota_exhausted": 0, "rate_limit": 0, "api_error": 1 }
+      }
+    }
+  },
+  "sweet_spot_global": {
+    "champions": [
+      { "benchmark_id": "lambda_calc", "cheapest_model": "motoko-or-deepseek-v4-flash", "cheapest_cost_usd": 0.0159, "fastest_model": "claude-haiku-4-5", "fastest_tts_ms": 29000 }
+    ],
+    "slow_threshold_ms": 60000,
+    "total_runs": 56
+  }
+}
+```
+
+Pre-v0.19.0 baselines that don't carry `finish_reason` or typed `error_category` values still produce a valid (mostly-zero) `sweet_spot` block — the dashboard components gate-check for presence and render a "regenerate with v0.19.0+" hint when missing.
+
+### Known limitations
+
+- **Tier filter on QualityScatter**: not yet wired. The frontier-inversion phenomenon (deepseek dominates hard tier, claude+gemma share stretch — see the M-EVAL-SWEET-SPOT validation report) is invisible in the current aggregate Pareto chart. Adding a tier filter requires per-tier `sweet_spot.tiers[tier]` data, which depends on M-BENCHMARK-DATA-INTEGRITY Issue #5. Tracked as a follow-up.
+- **Sweet-spot data only as accurate as the input run set**: aggregate `sweet_spot` is per-model not per-(model × tier × prompt-version). Filtering the input result set before regenerating gives a sliced view.
+
 ## See also
 
 - [Design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — full architectural rationale + axiom scoring
