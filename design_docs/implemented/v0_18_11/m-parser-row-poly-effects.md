@@ -1,10 +1,10 @@
 # M-PARSER-ROW-POLY-EFFECTS: row-extension `|` sugar for effect annotations
 
 **Status**: IMPLEMENTED — both Phase 1 (smoke.ail rewrite) and Phase 2 (`|` sugar) shipped same session.
-**Target**: v0.19.0 (Phase 1 + Phase 2 both)
+**Target**: v0.18.11 (Phase 1 + Phase 2 both)
 **Priority**: P1 → P2 after discovery (parser change was 60 LOC, tests 90 LOC)
 **Estimated**: 0 LOC (Phase 1 used existing comma syntax) + ~150 LOC (Phase 2 `|` sugar — actual: 60+90 LOC)
-**Dependencies**: M-EXT-PORTABILITY-GATE (v0.19.0) — surfaced during round-2 follow-up F1
+**Dependencies**: M-EXT-PORTABILITY-GATE (v0.18.11) — surfaced during round-2 follow-up F1
 **Author**: Claude Opus 4.7 + Mark
 **Created**: 2026-05-11
 **Source**: M-EXT-PORTABILITY-GATE round-2 evaluation residual ([report](../../../.ailang/state/evaluations/eval_M-EXT-PORTABILITY-GATE_round_2.json))
@@ -53,7 +53,7 @@ The two failing forms are **syntactic sugar only**. They're idiomatic in Koka/Ef
 
 ## Goals
 
-**Immediate (v0.19.0)**:
+**Immediate (v0.18.11)**:
 
 1. **Fix `std/smoke.ail` to use comma syntax** — narrows callback signature from the 9-effect union to `! {e}`, restores the harness promise that callers pay only for their dispatcher's actual effects.
 2. **Document the comma syntax** in stdlib reference + CHANGELOG so future stdlib helpers know the pattern.
@@ -88,7 +88,7 @@ Disambiguation: `!` precedes the row, so the parser knows whether `|` is "record
 
 ## Solution
 
-### Phase 1 (immediate, v0.19.0) — `std/smoke.ail` fix
+### Phase 1 (immediate, v0.18.11) — `std/smoke.ail` fix
 
 Replace the wide-union signatures with the comma-syntax row-var form:
 
@@ -137,7 +137,7 @@ if p.peekTokenIs(lexer.PIPE) {
 
 ## Acceptance
 
-**Phase 1 (v0.19.0)**:
+**Phase 1 (v0.18.11)**:
 - [x] `std/smoke.dispatchAllTools` rewritten with `! {IO, e}` row-var signature
 - [x] `std/smoke.dispatchTool` same
 - [x] Caller test verifies `--caps IO` alone is sufficient (was previously requiring `--caps IO,Process,FS,AI,Env,Net,SharedMem,Clock,Stream`)
@@ -150,7 +150,7 @@ if p.peekTokenIs(lexer.PIPE) {
 - [x] All existing parser tests pass unchanged
 - [x] `TestEffectRowExtensionPipeSugar` covers 5 cases (single label + pipe, multi label + pipe, comma regression, typo-after-pipe, case-insensitive-typo-after-pipe)
 - [x] `std/smoke.ail` updated to use the canonical `! {IO | e}` form
-- [x] CHANGELOG entry folded into [v0.19.0]
+- [x] CHANGELOG entry folded into [v0.18.11]
 
 ## Why the original premise was wrong
 
@@ -164,7 +164,7 @@ A more helpful error would be: "row-extension syntax `! {Label | rowVar}` not ye
 |---|---|---|
 | `std/smoke.ail` | replace wide-union signatures with `! {e}` / `! {IO, e}` | ~6 lines changed |
 | `changelogs/v0.10-current.md` | note comma-syntax row-var pattern, downgrade `|` sugar to v0.19.2 | ~25 added |
-| `design_docs/planned/v0_19_0/m-parser-row-poly-effects.md` | THIS doc | new |
+| `design_docs/planned/v0_18_11/m-parser-row-poly-effects.md` | THIS doc | new |
 | **Total Phase 1** | | **~30 LOC** |
 
 ## Why this matters for AI-author workflows

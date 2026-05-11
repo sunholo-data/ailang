@@ -1,7 +1,7 @@
-# Sprint Plan: M-EXT-PORTABILITY-GATE (v0.19.0)
+# Sprint Plan: M-EXT-PORTABILITY-GATE (v0.18.11)
 
 **Design doc**: [m-ext-portability-gate.md](./m-ext-portability-gate.md)
-**Target**: v0.19.0
+**Target**: v0.18.11
 **Estimated**: ~1200 LOC across 4 repos, 2-3 days at current velocity (M-MATCH-ADT-XCHECK shipped ~760 LOC in 2 hours)
 **Risk level**: Medium — multi-repo coordination, but each milestone is bounded and each repo's part is independently testable
 **Author**: Claude Opus 4.7 + Mark
@@ -168,7 +168,7 @@ Verified what already exists vs needs creating:
 | 2 (am) | M3 part 1: AILANG std/extension + omnigraph 0.2.1 | 1.5h | requireWorkdirFile shipped + omnigraph published |
 | 2 (am) | M3 part 2: mcp 0.2.1 with bundled asset | 1.5h | mcp published with mcp-call.mjs in assets/ |
 | 2 (pm) | M3 part 3: motoko pin bump + acceptance | 1h | motoko PR updated; verify in fresh workdir |
-| 2 (pm) | Release v0.19.0 + CHANGELOG | 1h | tag, push, release notes |
+| 2 (pm) | Release v0.18.11 + CHANGELOG | 1h | tag, push, release notes |
 
 Total: ~12 hours = 2 sessions.
 
@@ -178,8 +178,8 @@ Total: ~12 hours = 2 sessions.
 
 | Repo | Branch | What lands |
 |---|---|---|
-| `sunholo-data/ailang` | `dev` | M1 (tarball + builtins + std/package.ail) + M2 (publish_validator + smoke gate) + M3 part 1 (std/extension.ail) + CHANGELOG + v0.19.0 release |
-| `sunholo-data/ailang-packages` | `feat/portability-v0.19.0` (NEW) | motoko-ext-omnigraph 0.2.1 + motoko-ext-mcp 0.2.1 + per-package `_smoke.ail`s |
+| `sunholo-data/ailang` | `dev` | M1 (tarball + builtins + std/package.ail) + M2 (publish_validator + smoke gate) + M3 part 1 (std/extension.ail) + CHANGELOG + v0.18.11 release |
+| `sunholo-data/ailang-packages` | `feat/portability-v0.18.11` (NEW) | motoko-ext-omnigraph 0.2.1 + motoko-ext-mcp 0.2.1 + per-package `_smoke.ail`s |
 | `sunholo-voight-kampff/motoko_agent` | `feature/compaction-ai-profile-switching` (existing PR #16) | pin bump commit |
 | `sunholo-data/ailang` | `cmd/registry-validator/` | M4 follow-up sprint — server-side enforcement (NOT in this sprint scope) |
 
@@ -222,8 +222,8 @@ Total: ~12 hours = 2 sessions.
 | ailang | `std/package.ail` | NEW — `assetPath` export | +30 |
 | ailang | `std/extension.ail` | NEW — `requireWorkdirFile` export | +20 |
 | ailang | `internal/pipeline/testdata/builtin_types.golden` | regen for new builtin | +1 |
-| ailang | `changelogs/v0.10-current.md` | [v0.19.0] section | +50 |
-| ailang | `std/VERSION` | v0.18.10 → v0.19.0 | 1 |
+| ailang | `changelogs/v0.10-current.md` | [v0.18.11] section | +50 |
+| ailang | `std/VERSION` | v0.18.10 → v0.18.11 | 1 |
 | ailang | `docs/src/constants/version.js` | STABLE_RELEASE | 1 |
 | ailang | `docs/docs/reference/extension-portability.md` | NEW — pattern guide | +120 |
 | ailang-pkgs | `packages/motoko-ext-omnigraph/register.ail` | self-disable pattern | +25 |

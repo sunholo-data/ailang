@@ -1,7 +1,7 @@
 # M-EXT-PORTABILITY-GATE: pre-publish durability gate + asset bundling for extension packages
 
 **Status**: IMPLEMENTED
-**Target**: v0.19.0 (multi-sprint — has 3 milestones with strict dependencies)
+**Target**: v0.18.11 (multi-sprint — has 3 milestones with strict dependencies)
 **Priority**: P0 (broken extensions are shipping to the registry today; bug class compounds across every consumer project)
 **Estimated**: ~5-7 days (~1200 LOC across AILANG core + ailang-packages + motoko_agent + the registry validator service)
 **Dependencies**: ✅ M-MATCH-ADT-XCHECK (v0.18.10) closed the typechecker side; this closes the publish + runtime sides.
