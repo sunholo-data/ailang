@@ -1,9 +1,9 @@
 # M-PARSER-ROW-POLY-EFFECTS: row-extension `|` sugar for effect annotations
 
-**Status**: PARTIAL — Discovery superseded the original premise. Comma-syntax already works; only the `|` separator sugar is missing.
-**Target**: v0.19.0 (immediate fix) + v0.19.2 (future `|` sugar)
-**Priority**: P1 → DOWNGRADED to P2 after discovery
-**Estimated**: 0 LOC (immediate fix is `std/smoke.ail` rewrite using existing syntax) + ~80 LOC (future `|` sugar)
+**Status**: IMPLEMENTED — both Phase 1 (smoke.ail rewrite) and Phase 2 (`|` sugar) shipped same session.
+**Target**: v0.19.0 (Phase 1 + Phase 2 both)
+**Priority**: P1 → P2 after discovery (parser change was 60 LOC, tests 90 LOC)
+**Estimated**: 0 LOC (Phase 1 used existing comma syntax) + ~150 LOC (Phase 2 `|` sugar — actual: 60+90 LOC)
 **Dependencies**: M-EXT-PORTABILITY-GATE (v0.19.0) — surfaced during round-2 follow-up F1
 **Author**: Claude Opus 4.7 + Mark
 **Created**: 2026-05-11
@@ -144,12 +144,13 @@ if p.peekTokenIs(lexer.PIPE) {
 - [x] Caller test with `--caps IO,FS` dispatcher works correctly (row-poly propagates)
 - [x] CHANGELOG note: comma-syntax row-var is the canonical pattern; `|` sugar planned for later
 
-**Phase 2 (future)**:
-- [ ] Parser accepts `! {IO | e}` and `! {IO, FS | e}`
-- [ ] Parser accepts bare `! e` (no braces)
-- [ ] All existing parser tests pass unchanged
-- [ ] `TestParseRowPolyEffects` covers 4 sugar forms
-- [ ] CHANGELOG entry under [v0.19.2]
+**Phase 2 (shipped this session)**:
+- [x] Parser accepts `! {IO | e}` and `! {IO, FS | e}`
+- [ ] Parser accepts bare `! e` (no braces) — DEFERRED, comma + pipe forms cover the use case
+- [x] All existing parser tests pass unchanged
+- [x] `TestEffectRowExtensionPipeSugar` covers 5 cases (single label + pipe, multi label + pipe, comma regression, typo-after-pipe, case-insensitive-typo-after-pipe)
+- [x] `std/smoke.ail` updated to use the canonical `! {IO | e}` form
+- [x] CHANGELOG entry folded into [v0.19.0]
 
 ## Why the original premise was wrong
 

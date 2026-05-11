@@ -127,6 +127,105 @@ func TestEffectAnnotationParsing(t *testing.T) {
 	}
 }
 
+// TestEffectRowExtensionPipeSugar exercises M-PARSER-ROW-POLY-EFFECTS Phase 2
+// (v0.19.2): Koka-style `! {IO | e}` row-extension sugar. Validates that the
+// new PIPE separator parses to the same EffectAnnotation slice shape that
+// the comma form `! {IO, e}` already produces, and that error cases are
+// reported with the expected code.
+func TestEffectRowExtensionPipeSugar(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectedEffects []string // Name field of each EffectAnnotation in order
+		expectedRowVar  string   // empty if last entry is not a row var
+		shouldError     bool
+		errorCode       string
+	}{
+		{
+			name:            "single label with row extension",
+			input:           "func f() -> int ! {IO | e} { 42 }",
+			expectedEffects: []string{"IO", "e"},
+			expectedRowVar:  "e",
+		},
+		{
+			name:            "multi label with row extension",
+			input:           "func f() -> int ! {IO, FS | rest} { 42 }",
+			expectedEffects: []string{"IO", "FS", "rest"},
+			expectedRowVar:  "rest",
+		},
+		{
+			name:            "comma form still parses (regression)",
+			input:           "func f() -> int ! {IO, e} { 42 }",
+			expectedEffects: []string{"IO", "e"},
+			expectedRowVar:  "e",
+		},
+		{
+			name:        "pipe followed by capitalized name is a typo not a row var",
+			input:       "func f() -> int ! {IO | IO2} { 42 }",
+			shouldError: true,
+			errorCode:   "PAR_EFF015_ROW_VAR_AFTER_PIPE",
+		},
+		{
+			name:        "pipe followed by case-insensitive match to known effect rejected",
+			input:       "func f() -> int ! {FS | io} { 42 }",
+			shouldError: true,
+			errorCode:   "PAR_EFF015_ROW_VAR_AFTER_PIPE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input, "test.ail")
+			p := New(l)
+			program := p.Parse()
+
+			if tt.shouldError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected error code %s, got no errors", tt.errorCode)
+				}
+				foundError := false
+				for _, err := range p.Errors() {
+					if perr, ok := err.(*ParserError); ok && perr.Code == tt.errorCode {
+						foundError = true
+						break
+					}
+				}
+				if !foundError {
+					t.Errorf("expected error code %s, got: %v", tt.errorCode, p.Errors())
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("unexpected parser errors: %v", p.Errors())
+			}
+			if program == nil || len(program.File.Funcs) == 0 {
+				t.Fatal("expected one function declaration")
+			}
+
+			fn := program.File.Funcs[0]
+			if len(fn.Effects) != len(tt.expectedEffects) {
+				t.Fatalf("expected %d effects, got %d: %v", len(tt.expectedEffects), len(fn.Effects), fn.Effects)
+			}
+			for i, want := range tt.expectedEffects {
+				if fn.Effects[i].Name != want {
+					t.Errorf("effect[%d]: want %q, got %q", i, want, fn.Effects[i].Name)
+				}
+			}
+			// Verify row-var flag is set on the tail entry.
+			if tt.expectedRowVar != "" {
+				tail := fn.Effects[len(fn.Effects)-1]
+				if !tail.IsRowVar {
+					t.Errorf("tail entry %q should have IsRowVar=true", tail.Name)
+				}
+				if tail.Name != tt.expectedRowVar {
+					t.Errorf("tail row var: want %q, got %q", tt.expectedRowVar, tail.Name)
+				}
+			}
+		})
+	}
+}
+
 func TestLambdaEffectAnnotationParsing(t *testing.T) {
 	tests := []struct {
 		name            string

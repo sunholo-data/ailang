@@ -183,13 +183,59 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 			Pos:      ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
 		})
 
-		// Check for comma or closing brace
+		// Check for comma, pipe (row-extension sugar), or closing brace.
+		// `! {IO | e}` is sugar for `! {IO, e}` — Koka-style effect-row extension.
+		// After PIPE we accept exactly one row variable and then RBRACE.
+		// (M-PARSER-ROW-POLY-EFFECTS Phase 2, v0.19.2.)
 		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
 
+		if p.peekTokenIs(lexer.PIPE) {
+			p.nextToken() // consume |
+			if !p.expectPeek(lexer.IDENT) {
+				p.report("PAR_EFF015_ROW_VAR_AFTER_PIPE",
+					"expected row variable after '|' in effect annotation",
+					"Use a lowercase identifier like '! {IO | e}' or '! {IO | rest}'")
+				break
+			}
+			rowName := p.curToken.Literal
+			rowLine := p.curToken.Line
+			rowCol := p.curToken.Column
+			rowFile := p.curToken.File
+			// Row variable must be a lowercase identifier (and not case-insensitively
+			// match a known effect — that would be a typo, not a row var).
+			isLowercase := len(rowName) > 0 && rowName[0] >= 'a' && rowName[0] <= 'z'
+			isTypo := false
+			for k := range knownEffects {
+				if strings.EqualFold(k, rowName) {
+					isTypo = true
+					break
+				}
+			}
+			if !isLowercase || isTypo {
+				p.report("PAR_EFF015_ROW_VAR_AFTER_PIPE",
+					fmt.Sprintf("'%s' after '|' is not a row variable", rowName),
+					"Row variables must be lowercase identifiers like 'e' or 'rest' that don't match a known effect name")
+				break
+			}
+			if seen[rowName] {
+				p.report("PAR_EFF001_DUP",
+					fmt.Sprintf("duplicate effect '%s' in annotation", rowName),
+					fmt.Sprintf("Remove duplicate '%s'", rowName))
+			} else {
+				seen[rowName] = true
+			}
+			effects = append(effects, ast.EffectAnnotation{
+				Name:     rowName,
+				IsRowVar: true,
+				Pos:      ast.Pos{Line: rowLine, Column: rowCol, File: rowFile},
+			})
+			break
+		}
+
 		if !p.expectPeek(lexer.COMMA) {
-			p.reportExpected(lexer.COMMA, "Add ',' between effect names")
+			p.reportExpected(lexer.COMMA, "Add ',' between effect names or '|' before a row variable")
 			break
 		}
 	}

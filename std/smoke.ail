@@ -40,7 +40,7 @@ import std/io (println)
 export func dispatchAllTools(
   tools: [string],
   dispatch: (string) -> () ! {e}
-) -> () ! {IO, e} =
+) -> () ! {IO | e} =
   match tools {
     [] => (),
     name :: rest =>
@@ -59,7 +59,7 @@ export func dispatchAllTools(
 export func dispatchTool(
   name: string,
   dispatch: (string) -> () ! {e}
-) -> () ! {IO, e} =
+) -> () ! {IO | e} =
   let _ = dispatch(name) in
   println("OK: tool ${name} dispatched without crash")
 
