@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-MATCH-ADT-XCHECK",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-05-11T12:10:11Z",
-  "design_doc": "design_docs/planned/v0_18_10/m-match-adt-xcheck.md",
-  "sprint_plan": "design_docs/planned/v0_18_10/m-match-adt-xcheck-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_18_10/m-match-adt-xcheck.md",
+  "sprint_plan": "design_docs/implemented/v0_18_10/m-match-adt-xcheck-sprint-plan.md",
   "github_issues": [
     16
   ],
@@ -64,10 +64,11 @@
         "`std/VERSION` shows `v0.18.10`",
         "Website version constants updated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T14:35:00Z",
+      "completed": "2026-05-11T14:45:00Z",
+      "notes": "docs/docs/reference/option-vs-result.md created. CHANGELOG entry under [v0.18.10] added. std/VERSION → v0.18.10. Website STABLE_RELEASE bumped. Design doc + sprint plan moved to implemented/v0_18_10/. All tests pass, WASM build clean, verify-examples 178/180 (2 pre-existing skips)."
     }
-  ]
+  ],
+  "completed": "2026-05-11T14:45:00Z"
 }

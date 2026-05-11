@@ -1,6 +1,6 @@
 # M-MATCH-ADT-XCHECK: typechecker rejects match arms with constructors from a foreign ADT
 
-**Status**: Planned
+**Status**: Implemented (v0.18.10)
 **Target**: v0.18.10 (or v0.19.0 — type-checker work is non-trivial)
 **Priority**: P1 (real bug-class enabler — silent runtime panics that pass `ailang check`)
 **Estimated**: ~2-3 days (~400-600 LOC including tests + the new error code + LSP wiring)
