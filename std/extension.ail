@@ -1,0 +1,31 @@
+-- std/extension - Helpers for AILANG extension packages
+--
+-- Conventions and small utilities for packages that plug into a host runtime
+-- (typically motoko_agent) via the [extension] manifest block. The first
+-- helper, requireWorkdirFile, lets an extension cleanly self-disable when a
+-- required input is missing — far better than calling the panicking variant
+-- of std/fs.readFile and bringing the host down.
+--
+-- See M-EXT-PORTABILITY-GATE (v0.19.0) for the rationale.
+
+module std/extension
+
+import std/fs (fileExists)
+import std/result (Result, Ok, Err)
+
+-- Returns Ok(()) when `<workdir>/<rel>` exists, Err(message) otherwise.
+-- Use this at the top of an extension's register_with_config so the host
+-- can decide to skip the extension when its required input is absent,
+-- rather than crashing on the first tool dispatch.
+--
+-- @requires FS capability
+-- @example
+--   match requireWorkdirFile(workdir, "omnigraph/omnigraph.yaml") {
+--     Ok(())  => activeHooks(workdir),
+--     Err(_)  => disabledHooks   -- empty provided_tools, host skips us
+--   }
+export func requireWorkdirFile(workdir: string, rel: string) -> Result[(), string] ! {FS} =
+  let path = "${workdir}/${rel}" in
+  if fileExists(path)
+    then Ok(())
+    else Err("required workdir file not found: ${path}")
