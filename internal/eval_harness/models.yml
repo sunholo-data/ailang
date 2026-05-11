@@ -863,6 +863,75 @@ models:
       normalization path under real eval traffic.
       Requires: motoko CLI + OPENROUTER_API_KEY.
 
+  # M-EVAL-SWEET-SPOT validation (v0.19.0): cheap OpenRouter models on the
+  # motoko harness for cost-vs-time-vs-success boundary testing. Paired with
+  # the opencode-or-* entries below to compare harnesses on the same model.
+  # Cost-gated: max_cost_usd allows enough headroom for multi-turn solves;
+  # hard_timeout_secs is a pure network-hang safety net, NOT a cost proxy.
+
+  motoko-or-deepseek-v4-flash:
+    api_name: "deepseek/deepseek-v4-flash"
+    provider: "openrouter"
+    description: "DeepSeek V4 Flash via motoko_agent — cheap-but-slow sweet-spot probe"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.00014
+      output_per_1k: 0.00028
+    budgets:
+      max_cost_usd: 0.50      # generous: validates "more $ → more passes" hypothesis
+      hard_timeout_secs: 3600 # 1 hour safety net only; cost is the real gate
+    notes: |
+      Added v0.19.0 for M-EVAL-SWEET-SPOT validation. Pairs with
+      opencode-or-deepseek-v4-flash to compare motoko vs opencode harness
+      on the same cheap model. Expected to land in slow_pass bucket on
+      easy benchmarks and budget_blocked on hard ones.
+
+  motoko-or-kimi-k2-6:
+    api_name: "moonshotai/kimi-k2.6"
+    provider: "openrouter"
+    description: "Kimi K2.6 via motoko_agent — cheap-but-slow sweet-spot probe"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/moonshotai/kimi-k2.6"
+    model_family: "kimi"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00057
+      output_per_1k: 0.00228
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added v0.19.0 for M-EVAL-SWEET-SPOT validation. Pairs with
+      opencode-or-kimi-k2-6. Kimi historically needed long multi-turn
+      iteration (~90-180s on csv_to_json under opencode); motoko harness
+      may surface the same pattern with different finish_reason signals.
+
+  motoko-or-gemma-4-26b:
+    api_name: "google/gemma-4-26b-a4b-it"
+    provider: "openrouter"
+    description: "Gemma 4 26B MoE via motoko_agent — cheap-but-slow sweet-spot probe"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
+    model_family: "gemma-4"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00006
+      output_per_1k: 0.00024
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added v0.19.0 for M-EVAL-SWEET-SPOT validation. Pairs with
+      opencode-or-gemma-4-26b. MoE model — 26B total, ~3.8B active
+      per token. Mid-tier price; tests the "cheap MoE catches up given
+      budget" hypothesis directly against the dense Gemma 4 27B above.
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
@@ -1018,14 +1087,15 @@ models:
     pricing:
       input_per_1k: 0.00006
       output_per_1k: 0.00033
-    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): cheapest in spread, generous time.
+    # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
     notes: |
       Smoke 2026-05-04: standard 2/3 (csv WRONG_LANG), agent 2/3 (same csv fail).
       Cheapest near-miss; agent mode didn't unlock csv_to_json for it.
       Re-test after stdlib/prompt improvements.
+      v0.19.0: timeout bumped to 3600s (network-hang net only) — cost gates.
 
   opencode-or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash"
@@ -1039,11 +1109,12 @@ models:
     pricing:
       input_per_1k: 0.00014
       output_per_1k: 0.00028
-    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): generous time, tight cost.
-    # Cheap model (~$0.003/benchmark) — 30¢ cap is 100x typical cost.
+    # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
+    # Cheap model (~$0.003/benchmark) — 50¢ cap is 150x typical cost.
+    # hard_timeout_secs is a network-hang safety net, not a cost proxy.
     budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
     notes: |
       Smoke 2026-05-04: standard 0/3, agent 2/3 (+2). Best agent-mode
       uplift in the spread — multi-turn iteration recovered fizzbuzz and
@@ -1051,6 +1122,8 @@ models:
       Validates Motoko's "DeepSeek V4 Flash good for AILANG" recommendation.
       Note: V4 Pro under-performed Flash (1/3 vs 2/3) — Pro's reasoning
       overhead may hurt simple-task accuracy.
+      v0.19.0: timeout bumped to 3600s (network-hang net only) for
+      M-EVAL-SWEET-SPOT validation — cost is the real budget gate.
 
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
@@ -1100,15 +1173,16 @@ models:
     pricing:
       input_per_1k: 0.00074
       output_per_1k: 0.00349
-    # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): mid-tier OS — 30¢ cap.
+    # M-EVAL-SWEET-SPOT (v0.19.0): bumped from 600s to cost-only gating.
     budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
     notes: |
       Agent smoke 2026-05-04: fizzbuzz✅ 119s  adt_option✅ 47s
       csv_to_json❌ (exceeded even bumped 180s budget — capability gap,
       not just timeout). Cleared the easy benchmarks but couldn't solve
       csv_to_json's parsing+JSON-shape requirements via agent iteration.
+      v0.19.0: timeout bumped to 3600s — re-test under cost-only gating.
 
   # =============================================================================
   # LOCAL MODELS (via Ollama)
