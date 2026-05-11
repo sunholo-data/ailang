@@ -101,10 +101,10 @@
         "docs/src/components/BenchmarkDashboard/QualityScatter.jsx",
         "docs/src/components/BenchmarkDashboard/index.jsx"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T17:20:00Z",
+      "completed": "2026-05-11T17:35:00Z",
+      "notes": "FailureCategoryBars JSX shipped — stacked horizontal bars per model with 4-way outcome family breakdown (success/budget/capability/provider). Color-coded (green/orange/red/gray), pct-labeled segments, sortable by success rate. Wired into BenchmarkDashboard/index.jsx as new Failure Modes section. QualityScatter tier filter DEFERRED to follow-up: requires per-tier sweet_spot data which depends on M-BENCHMARK-DATA-INTEGRITY Issue #5 (per-tier model stats). Documented in M5 changelog entry. cd docs && npm run build succeeds."
     },
     {
       "id": "M5_DOCS_AND_CHANGELOG",

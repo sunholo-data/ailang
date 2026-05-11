@@ -16,6 +16,7 @@ import ReliabilityCard from './ReliabilityCard';
 import SpeedRadar from './SpeedRadar';
 import DollarsPerPassTable from './DollarsPerPassTable';
 import BenchmarkChampionsTable from './BenchmarkChampionsTable';
+import FailureCategoryBars from './FailureCategoryBars';
 // Cost-vs-speed Pareto frontier moved to /docs/benchmarks/value
 // (ValueDashboard) — see CostSpeedFrontier import there.
 // ValueScoreTable + QualityScatter also live on the dedicated value page.
@@ -473,6 +474,21 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           {sweetSpotGlobal && (
             <BenchmarkChampionsTable sweetSpotGlobal={sweetSpotGlobal} />
           )}
+        </div>
+      )}
+
+      {/* M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION M4 (v0.19.0): per-model
+          outcome-family stacked bars. Answers "why did this model fail?"
+          — capability vs budget vs provider noise. */}
+      {models && Object.keys(models).length > 0 && (
+        <div className={styles.section}>
+          <h3>Failure Modes</h3>
+          <p className={styles.sectionSubtitle}>
+            Per-model breakdown of every (model × benchmark) outcome.
+            Budget-blocked failures could pass with more $/turns; provider-blocked
+            ones are excluded from capability scoring.
+          </p>
+          <FailureCategoryBars models={models} />
         </div>
       )}
 
