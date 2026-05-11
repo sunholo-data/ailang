@@ -33,8 +33,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 ## Planned for v0.19.0
 
 - [M-BENCHMARK-DATA-INTEGRITY: Benchmark Dashboard Data Integrity Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-benchmark-data-integrity.md)
-- [Sprint Plan: M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration-sprint-plan.md)
-- [M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION: Surface sweet-spot data on the public benchmark dashboard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-eval-sweet-spot-website-integration.md)
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
 
@@ -164,4 +162,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 108 planned features across 11 upcoming versions.*
+*Generated at build time. 106 planned features across 11 upcoming versions.*

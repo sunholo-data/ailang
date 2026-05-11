@@ -11,6 +11,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.19.0
 
 - [Sprint Plan: M-EVAL-SWEET-SPOT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-sprint-plan.md)
+- [Sprint Plan: M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-website-integration-sprint-plan.md)
+- [M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION: Surface sweet-spot data on the public benchmark dashboard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-website-integration.md)
 - [M-EVAL-SWEET-SPOT: Eval Sweet-Spot Reporting & Failure-Category Distinguishability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot.md)
 - [M-FS-SANDBOX-DIAGNOSTICS: Sandbox path rejection diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-fs-sandbox-diagnostics.md)
 
@@ -1037,4 +1039,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 742 design documents across 95 versions.*
+*Generated at build time. 744 design documents across 95 versions.*
