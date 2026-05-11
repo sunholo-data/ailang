@@ -1,0 +1,8 @@
+{
+  "context_mode": {
+    "bin": "context-mode",
+    "timeout_ms": 25000,
+    "max_output_chars": 6000,
+    "snapshot_key_prefix": "ctxmode:snapshot:"
+  }
+}

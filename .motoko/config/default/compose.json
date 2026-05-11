@@ -1,0 +1,30 @@
+{
+  "compose": {
+    "mode": "subagent",
+    "subagent_model": "",
+    "max_attempts": 50,
+    "effect_guard": "1",
+    "certificate_template": false,
+    "authoring": {
+      "structured": true,
+      "author_tools": false,
+      "author_tools_budget": 25,
+      "author_tools_max_bytes": 16384,
+      "author_tools_max_turns": 24,
+      "author_tools_deny_globs": [],
+      "authoring_budget": 40,
+      "fallback_after": 3,
+      "min_observed_chars": 180,
+      "stdout_max_bytes": 4000
+    },
+    "claimcheck": {
+      "enabled": true,
+      "informalizer_model": "",
+      "comparator_model": "",
+      "timeout_ms": 30000,
+      "max_invocations": 10,
+      "stdout_max_bytes": 4000,
+      "ledger_in_informalizer": true
+    }
+  }
+}

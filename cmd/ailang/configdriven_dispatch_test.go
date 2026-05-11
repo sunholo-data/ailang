@@ -66,7 +66,7 @@ func TestE2E_SetupAIHandlerFromConfig_DispatchesToConfigDriven(t *testing.T) {
 		APIName:  "llama-3.1-70b",
 		EnvVar:   "E2E_VLLM_KEY",
 	}
-	if err := setupAIHandlerFromConfig(effCtx, model, "llama-3.1-70b", nil); err != nil {
+	if err := setupAIHandlerFromConfig(effCtx, model, "llama-3.1-70b", nil, nil); err != nil {
 		t.Fatalf("setupAIHandlerFromConfig failed: %v", err)
 	}
 	if effCtx.AI == nil {
@@ -115,7 +115,7 @@ func TestE2E_SetupAIHandlerDirect_DispatchesToConfigDriven(t *testing.T) {
 	}
 
 	effCtx := &effects.EffContext{}
-	if err := setupAIHandlerDirect(effCtx, "directtest/some-model", nil); err != nil {
+	if err := setupAIHandlerDirect(effCtx, "directtest/some-model", nil, nil); err != nil {
 		t.Fatalf("setupAIHandlerDirect failed: %v", err)
 	}
 	out, err := effCtx.AI.Call("Hi")
@@ -165,7 +165,7 @@ func TestE2E_BuiltinWinsOverConfigDrivenShadow(t *testing.T) {
 		APIName:  "gpt-4o",
 		EnvVar:   "OPENAI_API_KEY",
 	}
-	err := setupAIHandlerFromConfig(effCtx, model, "gpt-4o", nil)
+	err := setupAIHandlerFromConfig(effCtx, model, "gpt-4o", nil, nil)
 	// Expect the built-in's "OPENAI_API_KEY required" error, NOT a successful
 	// dispatch into our shadow server.
 	if err == nil {
@@ -203,7 +203,7 @@ func TestE2E_UnknownProvider_HelpfulError(t *testing.T) {
 		Provider: "definitely-not-registered",
 		APIName:  "x",
 	}
-	err := setupAIHandlerFromConfig(effCtx, model, "x", nil)
+	err := setupAIHandlerFromConfig(effCtx, model, "x", nil, nil)
 	if err == nil {
 		t.Fatal("expected error for unknown provider")
 	}

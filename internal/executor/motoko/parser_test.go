@@ -85,6 +85,12 @@ func TestParseSessionJSONL_CostExhausted(t *testing.T) {
 	if fr, _ := res.ProviderData["motoko_finish_reason"].(string); fr != "cost_exhausted" {
 		t.Errorf("ProviderData[motoko_finish_reason] = %q, want cost_exhausted", fr)
 	}
+	// M-EVAL-SWEET-SPOT: top-level Result.FinishReason must mirror the
+	// ProviderData entry so the eval harness can classify without dipping
+	// into the provider-specific map.
+	if res.FinishReason != "cost_exhausted" {
+		t.Errorf("Result.FinishReason = %q, want cost_exhausted", res.FinishReason)
+	}
 }
 
 // TestParseSessionJSONL_DP7Rejected verifies dp7_verifier_rejected events

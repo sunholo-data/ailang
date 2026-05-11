@@ -118,6 +118,13 @@ type Result struct {
 	FirstAttemptMs int64   // ms from task start to first solution submission (-1 = never)
 	SuccessAtMs    int64   // ms from task start to first passing solution (-1 = never)
 	TokensPerSec   float64 // OutputTokens / generation_seconds (0 if duration not measured)
+
+	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) is the structured executor
+	// stop signal: "stop" (normal completion), "cost_exhausted" (motoko cost
+	// cap), "step_exhausted" (agent ran out of turns), "timeout", "error",
+	// or "". The eval harness consumes this via CategorizeAgentError to
+	// promote ambiguous api_error rows into typed buckets.
+	FinishReason string
 }
 
 // TokenUsage captures token metrics

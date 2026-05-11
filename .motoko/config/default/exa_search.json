@@ -1,0 +1,6 @@
+{
+  "exa_search": {
+    "timeout_ms": 30000,
+    "max_output_chars": 8000
+  }
+}

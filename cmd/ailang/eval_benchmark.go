@@ -136,6 +136,13 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			benchSpan.RecordError(err)
 			benchSpan.SetStatus(codes.Error, "agent benchmark failed")
 
+			// M-EVAL-SWEET-SPOT: classify the failure into a typed category
+			// when the error string carries a recognizable signal (OpenRouter
+			// quota kill, 429, context deadline). Otherwise stays as
+			// api_error. result is nil on err-return so we can't read a
+			// FinishReason here.
+			errCategory := eval_harness.CategorizeAgentError(err, "")
+
 			apiErrorMetrics := &eval_harness.RunMetrics{
 				ID:             spec.ID,
 				Lang:           lang,
@@ -145,7 +152,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				CompileOk:      false,
 				RuntimeOk:      false,
 				StdoutOk:       false,
-				ErrorCategory:  eval_harness.ErrorCategoryAPI,
+				ErrorCategory:  errCategory,
 				Stderr:         fmt.Sprintf("API Error: %v", err),
 				ExpectedStdout: spec.ExpectedOut,
 				Timestamp:      time.Now(),
@@ -164,7 +171,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 					Condition:     condition,
 					EvalMode:      "agent",
 					Executor:      executorName,
-					ErrorCategory: string(eval_harness.ErrorCategoryAPI),
+					ErrorCategory: errCategory,
 					Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
 				}
 				_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
@@ -176,6 +183,17 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 		// Convert AgentBenchmarkResult to RunMetrics format for logging
 		// Agent mode now uses standard validation fields (compile_ok, runtime_ok, stdout_ok)
+		// M-EVAL-SWEET-SPOT: when the executor surfaces a structured
+		// FinishReason (motoko cost_exhausted, future step_exhausted),
+		// promote that to the canonical ErrorCategory. Otherwise fall back
+		// to the standard compile/runtime/logic classification.
+		errCategory := eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+		if !result.Success && result.FinishReason != "" {
+			if typed := eval_harness.CategorizeAgentError(nil, result.FinishReason); typed != eval_harness.ErrorCategoryAPI {
+				errCategory = typed
+			}
+		}
+
 		metrics := &eval_harness.RunMetrics{
 			ID:           result.BenchmarkID,
 			Lang:         lang,
@@ -192,8 +210,8 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			RuntimeOk:  result.RuntimeOk,
 			StdoutOk:   result.StdoutOk,
 			DurationMs: int64(result.DurationMS),
-			// Use standard error categorization (same as standard eval mode)
-			ErrorCategory:  eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk),
+			// M-EVAL-SWEET-SPOT: prefers FinishReason-derived category when available
+			ErrorCategory:  errCategory,
 			Stdout:         result.Stdout,
 			Stderr:         result.Stderr,
 			ExpectedStdout: spec.ExpectedOut,
@@ -216,6 +234,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			FirstAttemptMs: result.FirstAttemptMs,
 			SuccessAtMs:    result.SuccessAtMs,
 			TokensPerSec:   result.TokensPerSec,
+
+			// Executor finish signal (M-EVAL-SWEET-SPOT, v0.19.0)
+			FinishReason: result.FinishReason,
 		}
 
 		// Append transcript to stderr for backward compatibility with existing tools

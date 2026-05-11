@@ -347,6 +347,10 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 				res.ProviderData["motoko_model"] = motokoModel
 			}
 			res.ProviderData["motoko_finish_reason"] = ev.FinishReason
+			// M-EVAL-SWEET-SPOT: promote the finish_reason to the canonical
+			// top-level field so the eval harness can categorize without
+			// reaching into ProviderData.
+			res.FinishReason = ev.FinishReason
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -377,10 +381,12 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 			res.Success = true
 			res.ProviderData["motoko_finish_reason"] = lastFinishReason
 			res.ProviderData["motoko_run_summary_missing"] = true
+			res.FinishReason = lastFinishReason
 		default:
 			res.Success = false
 			if lastFinishReason != "" {
 				res.Error = "motoko terminated with finish_reason=" + lastFinishReason + " and no run_summary"
+				res.FinishReason = lastFinishReason
 			} else {
 				res.Error = "motoko terminated without emitting run_summary (likely crash)"
 			}

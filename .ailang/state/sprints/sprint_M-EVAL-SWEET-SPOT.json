@@ -56,10 +56,10 @@
         "internal/eval_harness/agent_runner_streaming.go",
         "cmd/ailang/eval_benchmark.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T12:00:00Z",
+      "completed": "2026-05-11T12:25:00Z",
+      "notes": "FinishReason promoted to top-level executor.Result and AgentBenchmarkResult. Motoko parser writes res.FinishReason in 3 paths (success run_summary, no-runsummary stop, no-runsummary error). cmd/ailang/eval_benchmark.go uses CategorizeAgentError both in err path and to promote FinishReason over CategorizeError when present. No step_exhausted impl: CLI executors (claude/gemini/opencode) have no harness-side turn budget — agents decide when to stop. Pre-existing cc726339 test breakage fixed (setupAIHandlerFromConfig + setupAIHandlerDirect Attribution arg)."
     },
     {
       "id": "M3_REPLACE_API_ERROR_FILTER_WITH_HELPER",

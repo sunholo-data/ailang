@@ -59,7 +59,7 @@ func TestSetupAIHandlerFromConfig_OpenAIKeyRelaxation(t *testing.T) {
 			t.Setenv("OPENAI_BASE_URL", tc.baseURL)
 
 			effCtx := effects.NewEffContext([]string{})
-			err := setupAIHandlerFromConfig(effCtx, model, "gpt-5", nil)
+			err := setupAIHandlerFromConfig(effCtx, model, "gpt-5", nil, nil)
 
 			if tc.wantErr {
 				if err == nil {
