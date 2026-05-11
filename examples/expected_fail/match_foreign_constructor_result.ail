@@ -1,0 +1,21 @@
+-- examples/expected_fail/match_foreign_constructor_result.ail
+--
+-- M-MATCH-ADT-XCHECK (v0.18.10) — symmetric to
+-- match_foreign_constructor_option.ail.
+--
+-- Pattern-matching a Result value with Option's Some/None constructors.
+-- Common confusion in the opposite direction: users sometimes try to
+-- match a Result with Some/None when they really want Ok/Err.
+
+module examples/expected_fail/match_foreign_constructor_result
+
+import std/result (Result, Ok, Err)
+import std/option (Some, None)
+
+export pure func main() -> string {
+  let x: Result[string, string] = Ok("hi");
+  match x {
+    Some(s) => s,
+    None => "none"
+  }
+}

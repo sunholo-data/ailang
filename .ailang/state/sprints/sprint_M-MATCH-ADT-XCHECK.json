@@ -45,10 +45,10 @@
         "4+ edge-case tests added and passing",
         "2+ expected-fail example files added (with `.expected_error.txt` companions if convention used)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-05-11T14:25:00Z",
+      "completed": "2026-05-11T14:35:00Z",
+      "notes": "9 unit tests total (added NestedValid, NestedInner, VariableArmAllowed). 2 expected_fail examples added + README updated. Full make test green, make verify-examples 178/180 (2 pre-existing skips)."
     },
     {
       "id": "M3_DOCS_CHANGELOG_RELEASE_ARTIFAC",

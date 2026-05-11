@@ -8,6 +8,16 @@ These examples demonstrate features that have known parser or runtime bugs. They
 - `contracts/list_recursive_verify.ail` — Multiple `requires` blocks rejected (`PAR_DUPLICATE_REQUIRES`)
 - `serve_api_webhook.ail` — `let` binding inside `@raw` route handler fails to parse
 
+## Type-Checker Rejections (correctly fail to type-check)
+
+These are NOT bugs — they're examples of code the typechecker MUST
+reject. Acceptance: each one fails `ailang check` with a clear,
+specific error message. If they ever start passing, a real
+regression has shipped.
+
+- `match_foreign_constructor_option.ail` — `match Option { Err(_) ... }` (M-MATCH-ADT-XCHECK v0.18.10)
+- `match_foreign_constructor_result.ail` — `match Result { Some(_) ... }` (M-MATCH-ADT-XCHECK v0.18.10)
+
 ## Runtime Bugs
 
 - `effect_budgets.ail` — `@limit=N` annotation breaks cap checking at runtime

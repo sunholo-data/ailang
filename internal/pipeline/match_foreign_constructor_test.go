@@ -237,3 +237,82 @@ export pure func main() -> string =
 		t.Fatal("expected typecheck error: wildcard arm shouldn't suppress foreign-ctor error")
 	}
 }
+
+// TestMatchForeignConstructor_NestedValid verifies that nested
+// constructor patterns where EACH constructor matches its respective
+// scrutinee's ADT type-check cleanly. This is the regression test for
+// the realistic case `Option[Result[T, E]]` — common in std/ai.step
+// (Option-wrapped Result) and similar APIs.
+func TestMatchForeignConstructor_NestedValid(t *testing.T) {
+	tempDir := t.TempDir()
+	writeMiniStdlib(t, filepath.Join(tempDir, "std"))
+
+	testContent := `module test
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+export pure func main() -> string =
+  let x: Option[Result[string, string]] = Some(Ok("hi")) in
+  match x {
+    Some(Ok(v)) => v,
+    Some(Err(e)) => e,
+    None => "none"
+  }
+`
+	err := runCheck(t, tempDir, testContent)
+	if err != nil {
+		t.Fatalf("valid nested Option[Result[...]] match should type-check, got: %s", err)
+	}
+}
+
+// TestMatchForeignConstructor_NestedInner verifies that a foreign ctor
+// at the INNER nesting level is rejected (the outer Some/None matches
+// the outer Option, but the inner pattern matches against the WRONG ADT).
+func TestMatchForeignConstructor_NestedInner(t *testing.T) {
+	tempDir := t.TempDir()
+	writeMiniStdlib(t, filepath.Join(tempDir, "std"))
+
+	testContent := `module test
+import std/option (Option, Some, None)
+import std/result (Some as RSome)
+
+-- Try to match an inner Option[string] using a Result-shaped pattern.
+-- (Renaming Some via 'as' is hypothetical here — point is the inner
+--  Err/Ok against an Option payload triggers the cross-check.)
+export pure func main() -> string =
+  let x: Option[Option[string]] = Some(Some("hi")) in
+  match x {
+    Some(Err(_)) => "no",
+    Some(_) => "yes",
+    None => "none"
+  }
+`
+	err := runCheck(t, tempDir, testContent)
+	if err == nil {
+		t.Fatal("expected typecheck error: inner Err against Option[string] is a foreign ctor")
+	}
+}
+
+// TestMatchForeignConstructor_VariableArmAllowed ensures a variable-
+// binding arm next to a foreign-constructor arm: the variable arm
+// works fine (binds the scrutinee), but the foreign-ctor arm still fails.
+func TestMatchForeignConstructor_VariableArmAllowed(t *testing.T) {
+	tempDir := t.TempDir()
+	writeMiniStdlib(t, filepath.Join(tempDir, "std"))
+
+	testContent := `module test
+import std/option (Option, Some, None)
+import std/result (Err)
+
+export pure func main() -> string =
+  let x: Option[string] = Some("hi") in
+  match x {
+    other => "got something",
+    Err(_) => "bad"
+  }
+`
+	err := runCheck(t, tempDir, testContent)
+	if err == nil {
+		t.Fatal("expected typecheck error: variable arm shouldn't suppress foreign-ctor error")
+	}
+}

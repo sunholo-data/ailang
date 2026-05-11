@@ -1,0 +1,29 @@
+-- examples/expected_fail/match_foreign_constructor_option.ail
+--
+-- M-MATCH-ADT-XCHECK (v0.18.10) — verifies the typechecker rejects
+-- match arms that use constructors of a foreign ADT.
+--
+-- This is the EXACT bug shape that crashed motoko_ext_compaction_ai
+-- 0.1.1 in production (arniwesth/motoko_agent#16): pattern-matching
+-- the result of `getString` (which returns Option[string]) with
+-- Result's `Err`/`Ok` constructors.
+--
+-- Expected error includes "Option" + "Result" + the offending
+-- constructor name (Err or Ok) so users immediately see what's wrong.
+--
+-- This file is in expected_fail/ because it's MEANT to fail
+-- type-check. If `make verify-examples` ever stops rejecting it,
+-- M-MATCH-ADT-XCHECK has regressed.
+
+module examples/expected_fail/match_foreign_constructor_option
+
+import std/option (Option, Some, None)
+import std/result (Ok, Err)
+
+export pure func main() -> string {
+  let x: Option[string] = Some("hi");
+  match x {
+    Err(_) => "decode failed",
+    Ok(m) => m
+  }
+}
