@@ -6,7 +6,7 @@ type: planned
 
 # M-PKG-INTRA-PACKAGE-IMPORTS: intra-package imports for multi-module packages
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.19.0 (small, additive; co-locate with M-NET-BINARY-BODIES and M-COORDINATOR-INBOX-WILDCARDS)
 **Priority**: P1 — silently constrains package authoring; every multi-module package author hits it on day one and works around it by inlining types
 **Estimated**: ~120 LOC core + ~200 LOC tests + docs (~4–6h)

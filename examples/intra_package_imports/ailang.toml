@@ -1,0 +1,19 @@
+[package]
+name = "examples/intra_package_imports"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = [
+  "examples/intra_package_imports/types",
+  "examples/intra_package_imports/service",
+]
+
+[effects]
+max = []
+
+[stability]
+level = "experimental"
+
+[metadata]
+ai_summary = "Demonstrates the three intra-package import forms for multi-module AILANG packages."

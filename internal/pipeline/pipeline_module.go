@@ -85,13 +85,26 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	modLoader := loader.NewModuleLoader(".")
 	modLoader.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
 
-	// Wire up package loader if ailang.toml + ailang.lock exist
-	if pkgResolver := tryLoadPackageResolver("."); pkgResolver != nil {
+	// Wire up package loader. Prefer the lock-backed resolver; if no lock
+	// file exists yet but an ailang.toml does, fall back to a self-only
+	// resolver so intra-package imports work during authoring. External
+	// pkg/<other>/... imports under the fallback still error clearly.
+	pkgResolver := tryLoadPackageResolver(".")
+	if pkgResolver == nil {
+		pkgResolver = tryLoadSelfOnlyPackageResolver(".")
+	}
+	if pkgResolver != nil {
 		modLoader.SetPackageResolver(pkgResolver)
 		// Pass module_prefix map so bare imports within packages resolve correctly
 		// e.g., "docparse/types/document" → "pkg/sunholo/ailang_parse/types/document"
 		if len(currentModulePrefixMap) > 0 {
 			modLoader.SetModulePrefixMap(currentModulePrefixMap)
+		}
+		// Tell the loader the current package name so bare canonical imports
+		// (e.g. `import sunholo/linkedin/types` from within sunholo/linkedin)
+		// route through the self-reference path instead of failing as LDR001.
+		if currentRootPkgName != "" {
+			modLoader.SetCurrentPackageName(currentRootPkgName)
 		}
 	}
 

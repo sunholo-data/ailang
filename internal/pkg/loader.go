@@ -23,6 +23,21 @@ func NewPackageLoader(lf *LockFile, rootDir string) *PackageLoader {
 	}
 }
 
+// NewSelfOnlyPackageLoader creates a loader that can only resolve
+// self-references against the package declared in rootDir's ailang.toml.
+// External pkg/<other>/... imports return a clear "no lock file" error
+// instead of LDR001. Useful during authoring before `ailang lock` runs.
+func NewSelfOnlyPackageLoader(rootDir string) (*PackageLoader, error) {
+	if _, err := LoadManifest(rootDir); err != nil {
+		return nil, fmt.Errorf("not a package (no ailang.toml in %s): %w", rootDir, err)
+	}
+	return &PackageLoader{
+		lockFile:  &LockFile{Schema: LockFileSchema, Version: "1.0.0"},
+		manifests: make(map[string]*PackageManifest),
+		rootDir:   rootDir,
+	}, nil
+}
+
 // ResolveImport resolves a package import path to a source file path.
 // importPath is the path without the pkg/ prefix: "vendor/name/module"
 // Returns the absolute path to the .ail source file.
