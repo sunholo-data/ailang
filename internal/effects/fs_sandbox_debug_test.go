@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -67,8 +68,13 @@ func TestSandboxReject_Exists(t *testing.T) {
 	if !strings.Contains(log, escapingPath) {
 		t.Errorf("log should include attempted path %q, got: %q", escapingPath, log)
 	}
-	if !strings.Contains(log, sandbox) {
-		t.Errorf("log should include sandbox %q, got: %q", sandbox, log)
+	// The log formats the sandbox via %q, which Go-escapes backslashes. On
+	// Windows the raw tempdir path contains `\` but the log emits `\\`, so a
+	// naive Contains(log, sandbox) misses. Compare against the same quoted
+	// form the logger produces.
+	if !strings.Contains(log, strconv.Quote(sandbox)) {
+		t.Errorf("log should include sandbox %q (formatted as %s), got: %q",
+			sandbox, strconv.Quote(sandbox), log)
 	}
 }
 

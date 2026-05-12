@@ -79,10 +79,14 @@ func testReferenceSolutions(t *testing.T, lang string) {
 				t.Fatalf("reference solution not found: %s: %v", srcPath, err)
 			}
 
-			timeout := 30 * time.Second
-			if rs.bench == "recursion_fibonacci" {
-				timeout = 60 * time.Second
-			}
+			// Reference solutions are tiny programs; wall-clock is dominated
+			// by interpreter startup (~slow on Windows CI runners — node alone
+			// can take >20s cold). recursion_fibonacci was getting the only
+			// 60s slot, but fizzbuzz hits the same 30s cliff on Windows. Give
+			// every benchmark the same generous slot — the only thing the
+			// shorter limit was buying was faster failure on a hang, and any
+			// real hang would still time out well before 60s of useful work.
+			timeout := 60 * time.Second
 
 			runner := rs.runner()
 			result, err := runner.Run(string(code), timeout)
