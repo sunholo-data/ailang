@@ -72,6 +72,22 @@ curl -fsSL https://ailang.sunholo.com/install.sh | bash
 
 This auto-detects your OS and architecture, downloads the latest release, and installs to `/usr/local/bin`. Pin a specific version with `VERSION=v0.9.0` before the curl.
 
+### In GitHub Actions
+
+Use the official [`sunholo-data/setup-ailang`](https://github.com/sunholo-data/setup-ailang) action — one step, with platform auto-detect, SHA256 verification, and binary caching:
+
+```yaml
+- uses: sunholo-data/setup-ailang@v1
+  with:
+    version: latest                     # or a specific tag like 'v0.18.11'
+    cache: true                         # ~25s install drops to ~5s on cache hit
+    github-token: ${{ github.token }}   # avoids the 60/hr anonymous GH API limit
+- run: ailang --version
+- run: ailang lock && ailang run main.ail
+```
+
+For other CI systems (CircleCI, GitLab, Buildkite, Jenkins), use the `install.sh` one-liner above.
+
 <details>
 <summary>Manual installation (per-platform commands)</summary>
 
