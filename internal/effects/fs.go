@@ -41,11 +41,19 @@ func logSandboxReject(ctx *EffContext, op, attemptedPath, result string) {
 // inside the sandbox (e.g. config files resolved from an absolute workdir).
 // Absolute paths that escape the sandbox are rejected with an error.
 //
+// "Absolute" here means absolute on *any* mainstream host, not just the
+// current one. A .ail program saying fs.exists("/etc/passwd") must trigger
+// the sandbox reject path consistently on Linux, macOS, and Windows — the
+// security model can't depend on what filepath.IsAbs says about the same
+// string on different hosts. Without this, on Windows the leading-slash
+// path would be treated as relative, joined into the sandbox, and silently
+// resolve to a missing file with no diagnostic.
+//
 // Before this fix, filepath.Join(sandbox, "/abs/path") produced
 // "/sandbox/abs/path" (a doubled path that never exists on disk), causing
 // all FS operations with absolute sandbox-relative paths to fail silently.
 func resolveSandboxPath(sandbox, path string) (string, error) {
-	if !filepath.IsAbs(path) {
+	if !isAbsoluteCrossPlatform(path) {
 		return filepath.Join(sandbox, path), nil
 	}
 	clean := filepath.Clean(path)

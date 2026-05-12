@@ -52,7 +52,11 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if relPath == "" {
 		return fsMakeErr("invalid relative path: empty"), nil
 	}
-	if filepath.IsAbs(relPath) {
+	if isAbsoluteCrossPlatform(relPath) {
+		// Reject paths that would be absolute on ANY mainstream host, not just
+		// the current one. A package compiled on Windows might call this with
+		// "/etc/passwd" — that's still escape on Linux, even though Windows's
+		// filepath.IsAbs would say false.
 		return fsMakeErr(fmt.Sprintf("invalid relative path: %q must be relative to assets/", relPath)), nil
 	}
 	clean := filepath.Clean(relPath)

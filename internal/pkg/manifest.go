@@ -315,12 +315,16 @@ func (m *PackageManifest) Validate() error {
 		return err
 	}
 
-	// Validate [assets].files entries are clean relative paths (M-EXT-PORTABILITY-GATE, v0.19.0)
+	// Validate [assets].files entries are clean relative paths (M-EXT-PORTABILITY-GATE, v0.19.0).
+	// Manifests are validated cross-platform — a Windows publisher running the
+	// validator must still reject "/etc/passwd". Go's filepath.IsAbs is GOOS-
+	// specific (returns false for "/etc/passwd" on Windows), so we use
+	// IsAbsoluteCrossPlatform instead.
 	for _, asset := range m.Assets.Files {
 		if asset == "" {
 			return fmt.Errorf("[assets].files contains empty entry")
 		}
-		if filepath.IsAbs(asset) {
+		if IsAbsoluteCrossPlatform(asset) {
 			return fmt.Errorf("[assets].files entry %q must be relative to assets/", asset)
 		}
 		clean := filepath.Clean(asset)
