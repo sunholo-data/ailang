@@ -21,12 +21,13 @@ import (
 
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
-	cache            map[string]*LoadedModule
-	basePath         string              // Base directory for relative imports
-	strictSyntaxMode bool                // When true, syntactic sugar is not allowed
-	stdlibResolver   *StdlibResolver     // Stdlib path resolver (initialized lazily)
-	pkgLoader        PackageResolver     // Optional package loader for pkg/ imports
-	modulePrefixMap  map[string][]string // module_prefix → package names (e.g., "docparse" → ["sunholo/ailang_parse", "sunholo/docparse"])
+	cache              map[string]*LoadedModule
+	basePath           string              // Base directory for relative imports
+	strictSyntaxMode   bool                // When true, syntactic sugar is not allowed
+	stdlibResolver     *StdlibResolver     // Stdlib path resolver (initialized lazily)
+	pkgLoader          PackageResolver     // Optional package loader for pkg/ imports
+	modulePrefixMap    map[string][]string // module_prefix → package names (e.g., "docparse" → ["sunholo/ailang_parse", "sunholo/docparse"])
+	currentPackageName string              // <vendor>/<name> of the package being compiled, when known. Enables bare-canonical self-imports (e.g., "import sunholo/linkedin/types" from within sunholo/linkedin).
 }
 
 // PackageResolver resolves package imports to source file paths.
@@ -65,6 +66,27 @@ func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 // SetPackageResolver sets the resolver for pkg/ imports.
 func (ml *ModuleLoader) SetPackageResolver(resolver PackageResolver) {
 	ml.pkgLoader = resolver
+}
+
+// SetCurrentPackageName records the <vendor>/<name> of the package being
+// compiled. When set, bare canonical imports whose first two segments match
+// this name (e.g. `import sunholo/linkedin/types` from within sunholo/linkedin)
+// route through the package resolver's self-reference path instead of falling
+// through to project-relative resolution. Pass "" to clear.
+func (ml *ModuleLoader) SetCurrentPackageName(name string) {
+	ml.currentPackageName = name
+}
+
+// pathMatchesPackagePrefix reports whether canonPath is a self-reference to
+// pkgName. pkgName is "<vendor>/<name>"; a match requires canonPath to equal
+// pkgName or extend it with `/<submodule>...`. Bare "sunholo/linkedin" matches
+// pkgName "sunholo/linkedin"; "sunholo/linkedin/types" matches too;
+// "sunholo/linkedin_other" does NOT (boundary check).
+func pathMatchesPackagePrefix(canonPath, pkgName string) bool {
+	if canonPath == pkgName {
+		return true
+	}
+	return strings.HasPrefix(canonPath, pkgName+"/")
 }
 
 // SetModulePrefixMap sets the module_prefix → package name mapping.
@@ -187,6 +209,22 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
 		fullPath = canonPath
+	} else if ml.pkgLoader != nil && ml.currentPackageName != "" && pathMatchesPackagePrefix(canonPath, ml.currentPackageName) {
+		// Bare canonical self-import: `import sunholo/linkedin/types` from
+		// within the `sunholo/linkedin` package. The natural author form —
+		// module declarations use this same path. Route through the package
+		// resolver's self-reference path so it resolves to the sibling file.
+		resolvedPath, err := ml.pkgLoader.ResolveImport(canonPath)
+		if err != nil {
+			searchTrace = append(searchTrace, "self("+ml.currentPackageName+"): failed: "+err.Error())
+			// Don't fall through — if the prefix matches but resolution fails,
+			// the author's intent was clear and the surfaced error (e.g. "not
+			// in exports list") is more useful than a project-relative miss.
+			report := newLDR001(canonicalID, searchTrace, ml.suggestSimilar(path), nil)
+			return nil, errors.WrapReport(report)
+		}
+		fullPath = resolvedPath
+		searchTrace = append(searchTrace, "self("+ml.currentPackageName+"): "+resolvedPath)
 	} else if ml.pkgLoader != nil && ml.modulePrefixMap != nil {
 		// Try module_prefix resolution: bare imports like "docparse/types/document"
 		// may be intra-package imports where "docparse" is a module_prefix.

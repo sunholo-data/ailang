@@ -200,6 +200,9 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 | `httpGet` | `string -> string ! {Net}` | HTTP GET, returns body string directly |
 | `httpPost` | `(string, string) -> string ! {Net}` | HTTP POST, returns body string directly |
 | `httpRequest` | `(string, string, List[{name, value}], string) -> Result[HttpResponse, NetError] ! {Net}` | Full HTTP with headers, status codes, structured errors |
+| `httpRequestBytes` | `(string, string, List[{name, value}], bytes) -> Result[HttpResponse, NetError] ! {Net}` | Same as `httpRequest` but body is raw bytes (image/PDF/binary upload). Defaults `Content-Type: application/octet-stream`. |
+
+`HttpResponse` includes both `body: string` (UTF-8 view, lossy for binary) and `bodyBytes: bytes` (raw payload, always exact). Use `bodyBytes` for binary downloads.
 
 **Security Features:**
 - DNS rebinding prevention

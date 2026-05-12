@@ -1,0 +1,3 @@
+module examples/intra_package_imports/types
+
+export pure func greeting() -> string = "Hello"

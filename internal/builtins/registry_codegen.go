@@ -1064,6 +1064,7 @@ func registerEffectCodegenSpecs() {
 		{"_clock_now", "now", "Now", 0},
 		{"_net_httpGet", "httpGet", "HttpGet", 1},
 		{"_net_httpRequest", "httpRequest", "HttpRequest", 1},
+		{"_net_httpRequestBytes", "httpRequestBytes", "HttpRequestBytes", 1},
 	}
 	for _, spec := range ioEffectFuncs {
 		funcName := spec.funcName

@@ -1,0 +1,19 @@
+module examples/intra_package_imports/service
+
+-- AILANG offers three equivalent forms for importing a sibling module
+-- from within the same package. Pick whichever reads best for your code:
+--
+--   1. Bare canonical (matches the module declaration above):
+--        import examples/intra_package_imports/types (greeting)
+--
+--   2. Relative (shortest; recommended for siblings):
+--        import ./types (greeting)
+--
+--   3. Canonical with explicit pkg/ prefix:
+--        import pkg/examples/intra_package_imports/types (greeting)
+--
+-- All three resolve to the same file and produce identical interface hashes.
+-- This file uses the relative form.
+import ./types (greeting)
+
+export pure func greet(name: string) -> string = "${greeting()}, ${name}!"

@@ -243,4 +243,5 @@ func registerNetMeta() {
 	Registry["_net_httpGet"] = &BuiltinMeta{Name: "_net_httpGet", NumArgs: 1, IsPure: false}
 	Registry["_net_httpPost"] = &BuiltinMeta{Name: "_net_httpPost", NumArgs: 2, IsPure: false}
 	Registry["_net_httpRequest"] = &BuiltinMeta{Name: "_net_httpRequest", NumArgs: 4, IsPure: false}
+	Registry["_net_httpRequestBytes"] = &BuiltinMeta{Name: "_net_httpRequestBytes", NumArgs: 4, IsPure: false}
 }

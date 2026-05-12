@@ -481,6 +481,19 @@ import std/result (Ok, Err)                   -- STDLIB: bundled
 ```
 `./` resolves in module namespace: if current module is `a/b/c`, then `./d` means `a/b/d`.
 
+**Intra-package sibling imports — three equivalent forms.** All three resolve to the same file and produce identical interface hashes. Pick whichever reads best:
+```ailang
+-- 1. Bare canonical (matches what the imported module declares — useful when reading top-down)
+import sunholo/linkedin/types (Profile)
+
+-- 2. Relative (shortest; mirrors filesystem layout)
+import ./types (Profile)
+
+-- 3. Canonical with explicit pkg/ prefix (most explicit; matches consumer-side imports)
+import pkg/sunholo/linkedin/types (Profile)
+```
+Forms 1 and 2 work even before `ailang lock` runs — useful while authoring a fresh multi-module package. External dependencies (any `pkg/<other-vendor>/...` import) still require `ailang.lock`. See [`examples/intra_package_imports/`](https://github.com/sunholo-data/ailang/tree/dev/examples/intra_package_imports) for a runnable example.
+
 **4. `Ok`/`Err` not in prelude**: Every file that uses `Result` needs `import std/result (Ok, Err)`.
 
 **5. Run `ailang lock` after changing dependencies**: The lockfile must be regenerated whenever `[dependencies]` changes.

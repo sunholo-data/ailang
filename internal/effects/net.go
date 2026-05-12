@@ -1,6 +1,7 @@
 package effects
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -12,11 +13,14 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
+const headerContentType = "Content-Type"
+
 // init registers Net effect operations
 func init() {
 	RegisterOp("Net", "httpGet", netHTTPGet)
 	RegisterOp("Net", "httpPost", netHTTPPost)
 	RegisterOp("Net", "httpRequest", NetHTTPRequest)
+	RegisterOp("Net", "httpRequestBytes", NetHTTPRequestBytes)
 }
 
 // netHttpGet implements Net.httpGet(url: String) -> String
@@ -226,7 +230,7 @@ func netHTTPPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
 	}
 	req.Header.Set("User-Agent", ctx.Net.UserAgent)
-	req.Header.Set("Content-Type", "application/json") // Default to JSON
+	req.Header.Set(headerContentType, "application/json") // Default to JSON
 	req.Host = u.Host
 
 	resp, err := client.Do(req)
@@ -421,59 +425,155 @@ func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if !ok {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: method must be String, got %T", args[0])
 	}
-	method := strings.ToUpper(methodVal.Value)
-
 	urlVal, ok := args[1].(*eval.StringValue)
 	if !ok {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: url must be String, got %T", args[1])
 	}
-	urlStr := urlVal.Value
-
 	headersList, ok := args[2].(*eval.ListValue)
 	if !ok {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: headers must be List, got %T", args[2])
 	}
-
 	bodyVal, ok := args[3].(*eval.StringValue)
 	if !ok {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: body must be String, got %T", args[3])
 	}
-	body := bodyVal.Value
 
-	// Step 2: Validate HTTP method (whitelist)
-	if method != "GET" && method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && method != "HEAD" {
-		return makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST, PUT, PATCH, DELETE, HEAD)", method)), nil
+	var reqBody io.Reader
+	if bodyVal.Value != "" {
+		reqBody = strings.NewReader(bodyVal.Value)
 	}
 
-	// Step 3: Parse and validate URL
+	client, req, errVal := buildSecureRequest(ctx, methodVal.Value, urlVal.Value, headersList, reqBody)
+	if errVal != nil {
+		return errVal, nil
+	}
+
+	return executeAndBuildResponse(ctx, client, req)
+}
+
+// NetHTTPRequestBytes implements Net.httpRequestBytes(method, url, headers, body: bytes)
+//
+// Like NetHTTPRequest, but the request body is raw bytes. Defaults Content-Type
+// to "application/octet-stream" if the caller doesn't supply one. Sets an explicit
+// Content-Length to suppress chunked transfer encoding (binary upload servers
+// often require a fixed length).
+//
+// Use cases: PUT/POST raw image/PDF/binary uploads, S3-style object uploads,
+// gRPC-style binary protobufs, multipart forms (caller assembles the bytes).
+//
+// All security checks (DNS rebinding, IP block, redirect validation, header
+// validation, response size limit) are identical to NetHTTPRequest — the only
+// difference is the request body type.
+//
+// Example AILANG code:
+//
+//	import std/fs (readFileBytes)
+//	import std/bytes (fromBase64)
+//	let Ok(b64) = readFileBytes("photo.png")
+//	let Some(bytes) = fromBase64(b64)
+//	httpRequestBytes("PUT", uploadUrl, [], bytes)
+func NetHTTPRequestBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	// Capability check
+	if !ctx.HasCap("Net") {
+		return nil, NewCapabilityError("Net")
+	}
+
+	if len(args) != 4 {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequestBytes: expected 4 arguments (method, url, headers, body), got %d", len(args))
+	}
+
+	methodVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequestBytes: method must be String, got %T", args[0])
+	}
+	urlVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequestBytes: url must be String, got %T", args[1])
+	}
+	headersList, ok := args[2].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequestBytes: headers must be List, got %T", args[2])
+	}
+	bodyVal, ok := args[3].(*eval.BytesValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequestBytes: body must be Bytes, got %T", args[3])
+	}
+
+	var reqBody io.Reader
+	if len(bodyVal.Value) > 0 {
+		reqBody = bytes.NewReader(bodyVal.Value)
+	}
+
+	client, req, errVal := buildSecureRequest(ctx, methodVal.Value, urlVal.Value, headersList, reqBody)
+	if errVal != nil {
+		return errVal, nil
+	}
+
+	// Default Content-Type to application/octet-stream if caller didn't set one.
+	// (buildSecureRequest applies user headers before we get here.)
+	if req.Header.Get(headerContentType) == "" {
+		req.Header.Set(headerContentType, "application/octet-stream")
+	}
+	// Set explicit Content-Length to suppress chunked encoding —
+	// many binary-upload servers (S3, LinkedIn images, etc.) require a fixed length.
+	req.ContentLength = int64(len(bodyVal.Value))
+
+	return executeAndBuildResponse(ctx, client, req)
+}
+
+// buildSecureRequest validates inputs and constructs a secured (*http.Client, *http.Request)
+// pair ready to execute. It runs all of the network capability validation steps
+// (method whitelist, URL parse, protocol/domain/IP validation, header parsing+validation)
+// and applies User-Agent, Host, and user-supplied headers to the request.
+//
+// Caller is responsible for: capability check (HasCap("Net")), argument unpacking,
+// and supplying the request body as an io.Reader (or nil for empty body).
+//
+// Returns:
+//   - (client, req, nil) on success — request is ready for client.Do(req)
+//   - (nil, nil, errVal) for any validation failure — errVal is a Result.Err to return
+func buildSecureRequest(
+	ctx *EffContext,
+	rawMethod, urlStr string,
+	headersList *eval.ListValue,
+	body io.Reader,
+) (*http.Client, *http.Request, eval.Value) {
+	method := strings.ToUpper(rawMethod)
+
+	// Validate HTTP method (whitelist)
+	if method != "GET" && method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && method != "HEAD" {
+		return nil, nil, makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST, PUT, PATCH, DELETE, HEAD)", method))
+	}
+
+	// Parse and validate URL
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		return makeResultErr("Transport", fmt.Sprintf("invalid URL: %v", err)), nil
+		return nil, nil, makeResultErr("Transport", fmt.Sprintf("invalid URL: %v", err))
 	}
 
-	// Step 4: Protocol validation
+	// Protocol validation
 	if err := validateProtocol(u.Scheme, ctx); err != nil {
-		return makeResultErr("Transport", err.Error()), nil
+		return nil, nil, makeResultErr("Transport", err.Error())
 	}
 
-	// Step 5: Domain allowlist check
+	// Domain allowlist check
 	if !isAllowedDomain(u.Hostname(), ctx.Net.AllowedDomains) {
-		return makeResultErr("DisallowedHost", u.Hostname()), nil
+		return nil, nil, makeResultErr("DisallowedHost", u.Hostname())
 	}
 
-	// Step 6: DNS resolution + IP validation
+	// DNS resolution + IP validation (prevent DNS rebinding)
 	validatedIP, err := resolveAndValidateIP(u.Hostname(), ctx)
 	if err != nil {
-		return makeResultErr("Transport", err.Error()), nil
+		return nil, nil, makeResultErr("Transport", err.Error())
 	}
 
-	// Step 7: Parse and validate headers
+	// Parse and validate headers
 	userHeaders, err := parseHeaders(headersList)
 	if err != nil {
-		return makeResultErr("InvalidHeader", err.Error()), nil
+		return nil, nil, makeResultErr("InvalidHeader", err.Error())
 	}
 
-	// Step 8: Build HTTP client with security config
+	// Build HTTP client with security config (DialContext pinned to validated IP)
 	originalHost := u.Host // Save for cross-origin detection
 	client := &http.Client{
 		Timeout: ctx.Net.Timeout,
@@ -499,40 +599,40 @@ func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		},
 	}
 
-	// Step 9: Build request
-	var reqBody io.Reader
-	if body != "" {
-		reqBody = strings.NewReader(body)
-	}
-
-	req, err := http.NewRequest(method, urlStr, reqBody)
+	// Build request
+	req, err := http.NewRequest(method, urlStr, body)
 	if err != nil {
-		return makeResultErr("Transport", fmt.Sprintf("request creation failed: %v", err)), nil
+		return nil, nil, makeResultErr("Transport", fmt.Sprintf("request creation failed: %v", err))
 	}
 
-	// Set User-Agent
+	// Set User-Agent and Host (for virtual hosting)
 	req.Header.Set("User-Agent", ctx.Net.UserAgent)
-	// Set Host header to original hostname (for virtual hosting)
 	req.Host = u.Host
 	// Let Go handle Accept-Encoding for transparent gzip decompression
 	// (Don't allow user override)
 
-	// Apply user headers (with validation)
+	// Apply user headers (with name validation)
 	for _, hdr := range userHeaders {
 		if err := validateHeaderName(hdr.Name); err != nil {
-			return makeResultErr("InvalidHeader", err.Error()), nil
+			return nil, nil, makeResultErr("InvalidHeader", err.Error())
 		}
 		req.Header.Set(hdr.Name, hdr.Value)
 	}
 
-	// Step 10: Execute request
+	return client, req, nil
+}
+
+// executeAndBuildResponse runs the prepared request, reads the response body
+// (capped at MaxBytes), and constructs the AILANG HttpResponse record wrapped
+// in Result.Ok. Returns Result.Err for transport or size-limit failures.
+func executeAndBuildResponse(ctx *EffContext, client *http.Client, req *http.Request) (eval.Value, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return makeResultErr("Transport", err.Error()), nil
 	}
 	defer resp.Body.Close()
 
-	// Step 11: Read body with size limit
+	// Read body with size limit
 	limitedReader := io.LimitReader(resp.Body, ctx.Net.MaxBytes)
 	respBody, err := io.ReadAll(limitedReader)
 	if err != nil {
@@ -547,17 +647,19 @@ func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
-	// Step 12: Build HttpResponse record
+	// Build HttpResponse record
+	// body is the UTF-8 view (existing field, may be lossy for binary payloads).
+	// bodyBytes is the raw payload — always populated, even for binary content.
 	httpResp := &eval.RecordValue{
 		Fields: map[string]eval.Value{
-			"status":  &eval.IntValue{Value: resp.StatusCode},
-			"headers": makeHeadersList(resp.Header),
-			"body":    &eval.StringValue{Value: string(respBody)},
-			"ok":      &eval.BoolValue{Value: resp.StatusCode >= 200 && resp.StatusCode < 300},
+			"status":    &eval.IntValue{Value: resp.StatusCode},
+			"headers":   makeHeadersList(resp.Header),
+			"body":      &eval.StringValue{Value: string(respBody)},
+			"bodyBytes": &eval.BytesValue{Value: respBody},
+			"ok":        &eval.BoolValue{Value: resp.StatusCode >= 200 && resp.StatusCode < 300},
 		},
 	}
 
-	// Step 13: Return Ok(httpResp)
 	return &eval.TaggedValue{
 		ModulePath: "std/result",
 		TypeName:   "Result",

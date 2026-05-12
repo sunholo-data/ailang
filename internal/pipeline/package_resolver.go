@@ -80,6 +80,37 @@ func loadDepManifest(pkgLoader *pkg.PackageLoader, depName string) (*pkg.Package
 	return pkgLoader.LoadManifestByName(depName)
 }
 
+// tryLoadSelfOnlyPackageResolver attempts to set up a self-only package
+// resolver from ailang.toml alone (no ailang.lock). Returns nil if no
+// manifest exists. This is the authoring fallback: a freshly-initialized
+// package can resolve sibling imports before `ailang lock` has been run.
+// External pkg/<other>/... imports under this resolver fail with a clear
+// "run ailang lock" error rather than LDR001.
+func tryLoadSelfOnlyPackageResolver(dir string) loader.PackageResolver {
+	manifestDir := pkg.FindManifest(dir)
+	if manifestDir == "" {
+		return nil
+	}
+
+	manifest, err := pkg.LoadManifest(manifestDir)
+	if err != nil {
+		return nil
+	}
+	currentPackageManifest = manifest
+	currentRootPkgName = manifest.Package.Name
+
+	currentModulePrefixMap = make(map[string]string)
+	if manifest.Package.ModulePrefix != "" {
+		currentModulePrefixMap[manifest.Package.Name] = manifest.Package.ModulePrefix
+	}
+
+	pkgLoader, err := pkg.NewSelfOnlyPackageLoader(manifestDir)
+	if err != nil {
+		return nil
+	}
+	return pkgLoader
+}
+
 // validateEffectCeiling checks that a module's declared function effects
 // do not exceed the current package's [effects].max ceiling.
 // Only applies when an ailang.toml exists; bare projects are unchecked.
