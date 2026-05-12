@@ -49,9 +49,18 @@ EXPECTED_BINARIES=(
     "win32.x64.ailang.zip"
 )
 
+# Fetch the asset list ONCE up front. Don't pipe `gh ... | grep -q` per
+# iteration — `grep -q` short-circuits on first match, SIGPIPEs the upstream
+# pipeline, and under `set -o pipefail` that turns into a non-zero status
+# even when the grep matched. Streams that exhaust before grep exits (i.e.
+# matches near the end of the list) hide the bug; matches near the start
+# trigger spurious "missing" reports. Capturing once and grepping in-shell
+# removes the pipeline entirely.
+ASSET_LIST=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+
 BINARY_FAILURES=0
 for binary in "${EXPECTED_BINARIES[@]}"; do
-    if gh release view "$TAG" --json assets --jq ".assets[].name" | grep -q "^$binary$"; then
+    if echo "$ASSET_LIST" | grep -qx "$binary"; then
         echo "  ✓ $binary"
     else
         echo "  ✗ $binary (missing)"
