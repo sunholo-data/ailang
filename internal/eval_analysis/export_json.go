@@ -241,6 +241,16 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	benchmarkTier := make(map[string]string) // benchmarkID -> tier
 	benchmarksJS := make(map[string]interface{})
 	for id, stats := range matrix.Benchmarks {
+		// Skip benchmarks whose YAML spec no longer exists on disk. Historical
+		// runs for renamed/removed benchmarks remain in summary.jsonl, but the
+		// gallery should only show the *current* benchmark set — otherwise dead
+		// IDs appear with no prompt and a frozen, misleading success rate.
+		specPath := filepath.Join("benchmarks", id+".yml")
+		spec, err := eval_harness.LoadSpec(specPath)
+		if err != nil {
+			continue
+		}
+
 		benchmark := map[string]interface{}{
 			"totalRuns":   stats.TotalRuns,
 			"successRate": stats.SuccessRate,
@@ -248,26 +258,20 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			"languages":   stats.Languages,
 		}
 
-		// Load task prompt from benchmark YAML file
-		specPath := filepath.Join("benchmarks", id+".yml")
-		if _, err := os.Stat(specPath); err == nil {
-			if spec, err := eval_harness.LoadSpec(specPath); err == nil {
-				// Use TaskPrompt if available, otherwise fall back to Prompt
-				if spec.TaskPrompt != "" {
-					benchmark["taskPrompt"] = spec.TaskPrompt
-				} else if spec.Prompt != "" {
-					benchmark["taskPrompt"] = spec.Prompt
-				}
-				// Expose tier + tags so the dashboard can filter per-tier
-				// and render tag chips. Tier defaults to "core" in LoadSpec.
-				if spec.Tier != "" {
-					benchmark["tier"] = spec.Tier
-					benchmarkTier[id] = spec.Tier
-				}
-				if len(spec.Tags) > 0 {
-					benchmark["tags"] = spec.Tags
-				}
-			}
+		// Use TaskPrompt if available, otherwise fall back to Prompt
+		if spec.TaskPrompt != "" {
+			benchmark["taskPrompt"] = spec.TaskPrompt
+		} else if spec.Prompt != "" {
+			benchmark["taskPrompt"] = spec.Prompt
+		}
+		// Expose tier + tags so the dashboard can filter per-tier
+		// and render tag chips. Tier defaults to "core" in LoadSpec.
+		if spec.Tier != "" {
+			benchmark["tier"] = spec.Tier
+			benchmarkTier[id] = spec.Tier
+		}
+		if len(spec.Tags) > 0 {
+			benchmark["tags"] = spec.Tags
 		}
 
 		// Add code samples if available
