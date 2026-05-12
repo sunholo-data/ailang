@@ -176,12 +176,13 @@ func TestBuiltinTypes_CriticalSignatures(t *testing.T) {
 	specs := builtins.AllSpecs()
 
 	critical := map[string]string{
-		"_io_print":        "string -> () ! {IO}",
-		"_io_println":      "string -> () ! {IO}",
-		"_io_readLine":     "() -> string ! {IO}",
-		"_net_httpRequest": "(string, string, list[{name: string, value: string}], string) -> Result[{body: string, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}",
-		"_str_len":         "string -> int",
-		"concat_String":    "(string, string) -> string",
+		"_io_print":             "string -> () ! {IO}",
+		"_io_println":           "string -> () ! {IO}",
+		"_io_readLine":          "() -> string ! {IO}",
+		"_net_httpRequest":      "(string, string, list[{name: string, value: string}], string) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}",
+		"_net_httpRequestBytes": "(string, string, list[{name: string, value: string}], bytes) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}",
+		"_str_len":              "string -> int",
+		"concat_String":         "(string, string) -> string",
 	}
 
 	for name, expectedSig := range critical {

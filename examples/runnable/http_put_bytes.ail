@@ -1,0 +1,31 @@
+-- http_put_bytes.ail - Binary PUT upload example (M-NET-BINARY-BODIES)
+--
+-- Demonstrates `httpRequestBytes` for sending raw binary payloads over HTTP.
+-- Use case: image/PDF/audio uploads, S3-style object PUT, gRPC binary protocols.
+--
+-- This example uploads a 4-byte "RIFF" header (the magic bytes of a WAV file)
+-- to httpbin.org/put, which echoes the request and lets us verify status.
+module examples/runnable/http_put_bytes
+
+import std/io (println)
+import std/net (httpRequestBytes)
+import std/bytes (fromInts, length)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {IO, Net} {
+  -- Build 4 raw bytes representing the "RIFF" magic header (82='R', 73='I', 70='F')
+  let payload = fromInts([82, 73, 70, 70]);
+  println("Uploading ${show(length(payload))} raw bytes...");
+
+  let url = "https://httpbin.org/put";
+  let headers = [{name: "X-Demo", value: "ailang-binary-upload"}];
+
+  match httpRequestBytes("PUT", url, headers, payload) {
+    Ok(resp) =>
+      if resp.ok then
+        println("OK: HTTP ${show(resp.status)} (response is ${show(length(resp.bodyBytes))} bytes)")
+      else
+        println("HTTP error: ${show(resp.status)}"),
+    Err(_) => println("Request failed (network unavailable?)")
+  }
+}

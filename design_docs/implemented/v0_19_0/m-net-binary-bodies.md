@@ -1,12 +1,12 @@
 ---
 name: M-NET-BINARY-BODIES
 description: Binary request/response bodies for std/net (httpRequestBytes + bodyBytes) — unblocks image/PDF/binary uploads
-type: planned
+type: implemented
 ---
 
 # M-NET-BINARY-BODIES: binary request and response bodies for `std/net`
 
-**Status**: Planned
+**Status**: IMPLEMENTED (v0.19.0)
 **Target**: v0.19.0 (small, additive; co-locate with M-COORDINATOR-INBOX-WILDCARDS)
 **Priority**: P1 — hard-blocks any AILANG integration that needs binary upload/download
 **Estimated**: ~80 LOC core + ~120 LOC tests + stdlib + docs (~3–5h)

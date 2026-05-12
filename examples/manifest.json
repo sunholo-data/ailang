@@ -572,6 +572,17 @@
       "description": "http_simple.ail - Simple HTTP request example"
     },
     {
+      "path": "http_put_bytes.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "effects",
+        "net",
+        "binary"
+      ],
+      "description": "http_put_bytes.ail - PUT raw bytes (image/binary upload via httpRequestBytes)"
+    },
+    {
       "path": "if_else_chain.ail",
       "status": "working",
       "tags": [

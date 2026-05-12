@@ -16,7 +16,8 @@ export type NetError =
 export type HttpResponse = {
   status: int,                           -- HTTP status code (200, 404, etc.)
   headers: List[{name: string, value: string}], -- Response headers (preserved order)
-  body: string,                          -- Response body
+  body: string,                          -- Response body as UTF-8 (lossy for binary payloads)
+  bodyBytes: bytes,                      -- Response body as raw bytes (always exact)
   ok: bool                               -- true if status 200-299
 }
 
@@ -133,4 +134,47 @@ export func httpRequest(
   body: string
 ) -> Result[HttpResponse, NetError] ! {Net} {
   _net_httpRequest(method, url, headers, body)
+}
+
+-- HTTP request with raw bytes body (binary upload)
+--
+-- Like httpRequest, but the body is raw bytes. Use for binary uploads
+-- (images, PDFs, audio) or any protocol that needs exact byte-level control.
+--
+-- Defaults Content-Type to "application/octet-stream" if you don't supply one.
+-- Sets explicit Content-Length (no chunked encoding) — required by many
+-- binary-upload servers (S3, LinkedIn images, etc.).
+--
+-- Security features: Same as httpRequest()
+--
+-- Args:
+--   method: String - HTTP method ("PUT", "POST", etc.)
+--   url: String - Target URL
+--   headers: List[{name, value}] - Custom headers
+--   body: bytes - Raw bytes payload
+--
+-- Returns:
+--   Result[HttpResponse, NetError] — resp.bodyBytes has the raw response payload
+--
+-- Example (LinkedIn-style image upload):
+--   import std/fs (readFileBytes)
+--   import std/bytes (fromBase64)
+--
+--   match readFileBytes("photo.png") {
+--     Ok(b64) => match fromBase64(b64) {
+--       Some(imgBytes) => match httpRequestBytes("PUT", uploadUrl, [], imgBytes) {
+--         Ok(resp) => if resp.ok then "uploaded" else "status: ${show(resp.status)}",
+--         Err(_) => "upload failed"
+--       },
+--       None => "decode failed"
+--     },
+--     Err(e) => "read failed: ${e}"
+--   }
+export func httpRequestBytes(
+  method: string,
+  url: string,
+  headers: List[{name: string, value: string}],
+  body: bytes
+) -> Result[HttpResponse, NetError] ! {Net} {
+  _net_httpRequestBytes(method, url, headers, body)
 }
