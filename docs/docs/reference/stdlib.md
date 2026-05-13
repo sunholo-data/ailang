@@ -87,6 +87,14 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/sharedindex` | Namespace-partitioned similarity search index | `SharedIndex` |
 | `std/simhash` | SimHash fingerprints for near-duplicate detection | — |
 
+## Package & Extension Authoring
+
+| Module | Purpose | Capability |
+|---|---|---|
+| `std/package` | Resolve paths to assets shipped inside a package (helper scripts, schemas, templates) | `FS` |
+| `std/extension` | Conventions and helpers for packages that plug into a host runtime (workdir requirements, etc.) | `FS` |
+| `std/smoke` | Pre-publish smoke-gate helpers: `dispatchAllTools`, `dispatchTool`, `okSuite` for v0.19.0+ canonical smoke suites | `IO` |
+
 ## Tracing & Debug
 
 | Module | Purpose | Capability |
