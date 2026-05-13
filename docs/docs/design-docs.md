@@ -15,6 +15,17 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION: Surface sweet-spot data on the public benchmark dashboard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-website-integration.md)
 - [M-EVAL-SWEET-SPOT: Eval Sweet-Spot Reporting & Failure-Category Distinguishability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot.md)
 - [M-FS-SANDBOX-DIAGNOSTICS: Sandbox path rejection diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-fs-sandbox-diagnostics.md)
+- [M-NET-BINARY-BODIES — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-net-binary-bodies-sprint-plan.md)
+- [M-NET-BINARY-BODIES: binary request and response bodies for `std/net`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-net-binary-bodies.md)
+- [M-PKG-INTRA-PACKAGE-IMPORTS — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-pkg-intra-package-imports-sprint-plan.md)
+- [M-PKG-INTRA-PACKAGE-IMPORTS: intra-package imports for multi-module packages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-pkg-intra-package-imports.md)
+
+## v0.18.11
+
+- [M-CI-SETUP-AILANG-ACTION: official setup-ailang GitHub Action + install discoverability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_11/m-ci-setup-ailang-action.md)
+- [Sprint Plan: M-EXT-PORTABILITY-GATE (v0.18.11)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_11/m-ext-portability-gate-sprint-plan.md)
+- [M-EXT-PORTABILITY-GATE: pre-publish durability gate + asset bundling for extension packages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_11/m-ext-portability-gate.md)
+- [M-PARSER-ROW-POLY-EFFECTS: row-extension `|` sugar for effect annotations](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_18_11/m-parser-row-poly-effects.md)
 
 ## v0.18.10
 
@@ -1039,4 +1050,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 744 design documents across 95 versions.*
+*Generated at build time. 752 design documents across 96 versions.*

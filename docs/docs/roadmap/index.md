@@ -33,8 +33,13 @@ For completed features, see [Design Documents](/docs/design-docs).
 ## Planned for v0.19.0
 
 - [M-BENCHMARK-DATA-INTEGRITY: Benchmark Dashboard Data Integrity Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-benchmark-data-integrity.md)
+- [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md)
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
+- [Sprint Plan: M-WASM-AI-STEP-BYO-KEY (v0.19.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-byo-key-sprint-plan.md)
+- [M-WASM-AI-STEP-BYO-KEY: WASM `ai.step` via direct BYO-key provider fetch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-byo-key.md)
+- [M-WASM-AI-STEP-VIA-MESSAGES: WASM `ai.step` mediated by the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md)
+- [M-WASM-CLOUD-MESSAGES: AILANG-WASM browser participates in the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-cloud-messages.md)
 
 ## Planned for v0.18.9
 
@@ -162,4 +167,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 106 planned features across 11 upcoming versions.*
+*Generated at build time. 111 planned features across 11 upcoming versions.*

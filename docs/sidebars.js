@@ -163,6 +163,7 @@ const sidebars = {
           items: [
             'guides/go-interop',
             'guides/wasm-integration',
+            'guides/wasm-ai-step-byo-key',
             'guides/serve-api',
           ],
         },
