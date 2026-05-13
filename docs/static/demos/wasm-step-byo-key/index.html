@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AILANG WASM — ai.step BYO key</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 2em auto; padding: 0 1em; color: #222; }
+    h1 { font-size: 1.4em; }
+    label { display: block; margin: 0.6em 0 0.2em; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 0.5em; font-size: 14px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { font-family: monospace; resize: vertical; }
+    button { margin-top: 0.8em; padding: 0.5em 1.2em; font-size: 14px; cursor: pointer; }
+    pre { background: #f5f5f5; padding: 0.8em; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    #stream-pane { background: #1e1e1e; color: #e0e0e0; min-height: 4em; }
+    .row { display: flex; gap: 0.8em; }
+    .row > * { flex: 1; }
+    .small { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>AILANG WASM — ai.step BYO API key</h1>
+  <p class="small">
+    Demo for <code>ai.step</code> / <code>ai.stepWithCache</code> / <code>ai.stepWithStream</code>
+    running in browser-AILANG against direct provider HTTP endpoints — no
+    server-side coordinator. Paste your API key once; it is stored in
+    <code>localStorage</code> and sent only to the provider you select.
+  </p>
+
+  <label>Provider + Model</label>
+  <div class="row">
+    <select id="provider">
+      <option value="anthropic">Anthropic (claude-haiku-4-5)</option>
+      <option value="openrouter">OpenRouter (openrouter/auto)</option>
+      <option value="gemini">Gemini AI Studio (gemini-3-flash-preview)</option>
+    </select>
+    <input id="model" value="claude-haiku-4-5-20251001" />
+  </div>
+
+  <label for="apikey">API Key (separate per provider, stored in localStorage)</label>
+  <input id="apikey" type="password" placeholder="sk-ant-... / sk-or-... / AIzaSy..." />
+  <p class="small" id="key-status"></p>
+
+  <label>System prompt (used by askCached only)</label>
+  <textarea id="system" rows="2">You are a terse haiku composer. Reply with exactly three lines.</textarea>
+
+  <label>User prompt</label>
+  <textarea id="prompt" rows="3">Compose a haiku about WebAssembly.</textarea>
+
+  <div class="row">
+    <button id="ask-btn">ask (single-shot)</button>
+    <button id="cached-btn">askCached</button>
+    <button id="stream-btn">askStreaming</button>
+  </div>
+
+  <h2>Result</h2>
+  <pre id="result">(no call yet)</pre>
+
+  <h2>Streaming chunks (renderChunk side-channel)</h2>
+  <pre id="stream-pane">(empty)</pre>
+
+  <script src="/wasm/wasm_exec.js"></script>
+  <script src="/js/ailang-repl.js"></script>
+  <script>
+    const apikeyInput = document.getElementById('apikey');
+    const keyStatus   = document.getElementById('key-status');
+    const repl        = new AilangREPL();
+    const resultPane  = document.getElementById('result');
+    const streamPane  = document.getElementById('stream-pane');
+    const providerSel = document.getElementById('provider');
+    const modelInput  = document.getElementById('model');
+
+    // Per-provider key storage so users can keep all three keys around without
+    // overwriting each other. Common foot-gun before this fix: paste OpenRouter
+    // key, switch to Anthropic provider, get a 401 with a confusing error.
+    const KEY_PREFIX  = 'ailang-step-byo-key-';
+    const PROVIDERS = {
+      anthropic: { defaultModel: 'claude-haiku-4-5-20251001',          keyHint: 'sk-ant-...' },
+      openrouter:{ defaultModel: 'openrouter/auto',                    keyHint: 'sk-or-...' },
+      gemini:    { defaultModel: 'gemini-3-flash-preview',             keyHint: 'AIzaSy... (Google AI Studio)' },
+    };
+
+    function loadKeyForCurrentProvider() {
+      const stored = localStorage.getItem(KEY_PREFIX + providerSel.value) || '';
+      apikeyInput.value = stored;
+      apikeyInput.placeholder = PROVIDERS[providerSel.value].keyHint;
+      keyStatus.textContent = stored
+        ? `✓ Key loaded for ${providerSel.value} (length ${stored.length})`
+        : `No key stored for ${providerSel.value} — paste one and tab out to save`;
+    }
+
+    apikeyInput.addEventListener('change', () => {
+      localStorage.setItem(KEY_PREFIX + providerSel.value, apikeyInput.value);
+      keyStatus.textContent = `✓ Key saved for ${providerSel.value}`;
+    });
+
+    providerSel.addEventListener('change', () => {
+      modelInput.value = PROVIDERS[providerSel.value].defaultModel;
+      loadKeyForCurrentProvider();
+    });
+
+    function getApiKey() {
+      const k = localStorage.getItem(KEY_PREFIX + providerSel.value);
+      if (!k) throw new Error(`No ${providerSel.value} API key in localStorage`);
+      return k;
+    }
+
+    loadKeyForCurrentProvider();
+
+    // ---- JS handlers that turn ai.step calls into provider HTTP fetches ----
+    //
+    // Each handler receives:
+    //   step:           (model, messages, tools)                              -> Promise<Response>
+    //   stepWithCache:  (model, messages, tools, breakpoints)                 -> Promise<Response>
+    //   stepWithStream: (model, messages, tools, breakpoints, onChunk)        -> Promise<Response>
+    //
+    // The Response object must have:
+    //   { text, tool_calls, input_tokens, output_tokens,
+    //     cache_read_input_tokens, cache_creation_input_tokens,
+    //     finish_reason, model }
+    //
+    // Tool calls aren't exercised by this demo (we pass empty tools=[]) so
+    // tool_calls is always [].
+
+    async function callAnthropic(model, messages, opts) {
+      const apiKey = getApiKey();
+
+      // Anthropic distinguishes system message from messages array.
+      const sys = messages.find(m => m.role === 'system');
+      const turns = messages.filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const body = {
+        model,
+        max_tokens: 1024,
+        messages: turns,
+      };
+      if (sys) {
+        // Apply cache_control if breakpoints opted in to system caching.
+        const wantsCache = (opts.breakpoints || []).some(bp => bp.position === 'system');
+        body.system = wantsCache
+          ? [{ type: 'text', text: sys.content, cache_control: { type: 'ephemeral' } }]
+          : sys.content;
+      }
+      if (opts.stream) body.stream = true;
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (opts.stream) {
+        return await drainAnthropicStream(resp, model, opts.onChunk);
+      }
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+      const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        input_tokens: data.usage?.input_tokens || 0,
+        output_tokens: data.usage?.output_tokens || 0,
+        cache_read_input_tokens: data.usage?.cache_read_input_tokens || 0,
+        cache_creation_input_tokens: data.usage?.cache_creation_input_tokens || 0,
+        finish_reason: data.stop_reason || 'end_turn',
+        model: data.model || model,
+      };
+    }
+
+    async function drainAnthropicStream(resp, model, onChunk) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let text = '';
+      const usage = { input_tokens: 0, output_tokens: 0,
+                      cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (!payload || payload === '[DONE]') continue;
+          let evt;
+          try { evt = JSON.parse(payload); } catch { continue; }
+
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            text += evt.delta.text;
+            onChunk({ kind: 'ContentDelta', text: evt.delta.text });
+          } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'thinking_delta') {
+            onChunk({ kind: 'ThinkingDelta', text: evt.delta.thinking });
+          } else if (evt.type === 'message_delta' && evt.usage) {
+            Object.assign(usage, {
+              input_tokens: evt.usage.input_tokens || usage.input_tokens,
+              output_tokens: evt.usage.output_tokens || usage.output_tokens,
+              cache_read_input_tokens: evt.usage.cache_read_input_tokens || 0,
+              cache_creation_input_tokens: evt.usage.cache_creation_input_tokens || 0,
+            });
+          }
+        }
+      }
+      onChunk({ kind: 'Usage', ...usage });
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        ...usage,
+        finish_reason: 'end_turn', model,
+      };
+    }
+
+    async function callOpenRouter(model, messages, opts) {
+      const apiKey = getApiKey();
+      const body = { model, messages: messages.map(m => ({ role: m.role, content: m.content })) };
+      if (opts.stream) body.stream = true;
+      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (opts.stream) return await drainOpenAIStream(resp, model, opts.onChunk);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+      const choice = data.choices?.[0]?.message || {};
+      return {
+        message: { role: 'assistant', content: choice.content || '', tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        input_tokens: data.usage?.prompt_tokens || 0,
+        output_tokens: data.usage?.completion_tokens || 0,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+        finish_reason: data.choices?.[0]?.finish_reason || 'stop',
+        model: data.model || model,
+      };
+    }
+
+    async function drainOpenAIStream(resp, model, onChunk) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let text = '';
+      const usage = { input_tokens: 0, output_tokens: 0,
+                      cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (!payload || payload === '[DONE]') continue;
+          let evt;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          const delta = evt.choices?.[0]?.delta?.content;
+          if (delta) {
+            text += delta;
+            onChunk({ kind: 'ContentDelta', text: delta });
+          }
+          if (evt.usage) {
+            usage.input_tokens = evt.usage.prompt_tokens || 0;
+            usage.output_tokens = evt.usage.completion_tokens || 0;
+          }
+        }
+      }
+      onChunk({ kind: 'Usage', ...usage });
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        ...usage,
+        finish_reason: 'stop', model,
+      };
+    }
+
+    // Gemini AI Studio direct fetch. Uses the v1beta generateContent endpoint
+    // with API key as URL parameter. cache_breakpoints are not yet honored
+    // (Gemini's CachedContent API requires a separate creation step). Streaming
+    // uses streamGenerateContent + alt=sse.
+    async function callGemini(model, messages, opts) {
+      const apiKey = getApiKey();
+      // Gemini's REST schema: system_instruction split out from contents.
+      const sys = messages.find(m => m.role === 'system');
+      const turns = messages.filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role === 'assistant' ? 'model' : m.role,
+                     parts: [{ text: m.content }] }));
+      const body = { contents: turns };
+      if (sys) body.system_instruction = { parts: [{ text: sys.content }] };
+
+      const endpoint = opts.stream
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (opts.stream) return await drainGeminiStream(resp, model, opts.onChunk);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+      const text = (data.candidates?.[0]?.content?.parts || [])
+        .map(p => p.text || '').join('');
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        input_tokens: data.usageMetadata?.promptTokenCount || 0,
+        output_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+        cache_read_input_tokens: data.usageMetadata?.cachedContentTokenCount || 0,
+        cache_creation_input_tokens: 0,
+        finish_reason: data.candidates?.[0]?.finishReason || 'STOP',
+        model: data.modelVersion || model,
+      };
+    }
+
+    async function drainGeminiStream(resp, model, onChunk) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', text = '';
+      const usage = { input_tokens: 0, output_tokens: 0,
+                      cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (!payload) continue;
+          let evt;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          const delta = (evt.candidates?.[0]?.content?.parts || [])
+            .map(p => p.text || '').join('');
+          if (delta) {
+            text += delta;
+            onChunk({ kind: 'ContentDelta', text: delta });
+          }
+          if (evt.usageMetadata) {
+            usage.input_tokens = evt.usageMetadata.promptTokenCount || 0;
+            usage.output_tokens = evt.usageMetadata.candidatesTokenCount || 0;
+            usage.cache_read_input_tokens = evt.usageMetadata.cachedContentTokenCount || 0;
+          }
+        }
+      }
+      onChunk({ kind: 'Usage', ...usage });
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        ...usage,
+        finish_reason: 'STOP', model,
+      };
+    }
+
+    function dispatch(model, messages, opts) {
+      switch (providerSel.value) {
+        case 'anthropic':  return callAnthropic(model, messages, opts);
+        case 'openrouter': return callOpenRouter(model, messages, opts);
+        case 'gemini':     return callGemini(model, messages, opts);
+        default: throw new Error(`Unknown provider: ${providerSel.value}`);
+      }
+    }
+
+    repl.init('/wasm/ailang.wasm').then(async () => {
+      // Register the three Step variants. AILANG passes JS objects as-is.
+      ailangSetAIStepHandler(async (model, messages, tools) => {
+        return await dispatch(model, messages, { breakpoints: [], stream: false });
+      });
+      ailangSetAIStepWithCacheHandler(async (model, messages, tools, breakpoints) => {
+        return await dispatch(model, messages, { breakpoints, stream: false });
+      });
+      ailangSetAIStepWithStreamHandler(async (model, messages, tools, breakpoints, onChunk) => {
+        streamPane.textContent = '';
+        return await dispatch(model, messages, {
+          breakpoints,
+          stream: true,
+          onChunk: (chunk) => {
+            // Mirror to the streaming pane so users see SSE landing in real time.
+            // The Go side will also forward to AILANG's renderChunk via println.
+            if (chunk.kind === 'ContentDelta') streamPane.textContent += chunk.text;
+            else streamPane.textContent += `\n[${chunk.kind}]`;
+            onChunk(chunk);
+          },
+        });
+      });
+
+      // Route AILANG println (from renderChunk) into the result pane footer.
+      ailangSetEffectHandler('IO', {
+        print:   (s) => { resultPane.textContent += s; },
+        println: (s) => { resultPane.textContent += s + '\n'; },
+      });
+
+      // Load the demo module from the .ail file we ship next to this HTML.
+      const src = await (await fetch('./chat.ail')).text();
+      // Module name in repl.loadModule must match the `module` declaration.
+      await repl.loadModule('examples/wasm_step_byo_key/chat', src);
+
+      const ask = async (entryPoint, args) => {
+        resultPane.textContent = '';
+        try {
+          const r = await ailangCallAsync('examples/wasm_step_byo_key/chat', entryPoint, ...args);
+          if (!r.success) throw new Error(r.error);
+          if (resultPane.textContent === '') resultPane.textContent = r.result;
+        } catch (e) {
+          resultPane.textContent = 'ERROR: ' + e.message;
+        }
+      };
+
+      document.getElementById('ask-btn').onclick = () =>
+        ask('ask', [modelInput.value, document.getElementById('prompt').value]);
+      document.getElementById('cached-btn').onclick = () =>
+        ask('askCached', [modelInput.value, document.getElementById('system').value, document.getElementById('prompt').value]);
+      document.getElementById('stream-btn').onclick = () =>
+        ask('askStreaming', [modelInput.value, document.getElementById('prompt').value]);
+    });
+  </script>
+</body>
+</html>

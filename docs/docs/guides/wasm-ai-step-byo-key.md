@@ -6,6 +6,10 @@ sidebar_label: WASM ai.step (BYO key)
 
 # Browser `ai.step` with BYO API key
 
+:::tip Try it live
+**[→ Open the live demo](pathname:///demos/wasm-step-byo-key/index.html)** — paste your API key, pick a provider (Anthropic / OpenRouter / Gemini), and click `ask` / `askCached` / `askStreaming`. Keys are stored per-provider in your browser's `localStorage` and sent only to the provider you select. No backend.
+:::
+
 Browser-AILANG (the WASM build) can call the typed [`std/ai`](/docs/reference/stdlib) Step family — `ai.step`, `ai.stepWithCache`, `ai.stepWithStream` — against a real LLM provider directly from the browser, with no AILANG coordinator or backend in the loop. The user's API key lives in `localStorage` and is sent only to the provider they pick.
 
 This is the proven [`ai.call` BYO-key pattern](./wasm-integration#aihandler) extended to the typed multi-turn Step API. Use it when you want a "try this AI agent in your browser, no signup" landing page that talks to OpenRouter or Anthropic directly.
