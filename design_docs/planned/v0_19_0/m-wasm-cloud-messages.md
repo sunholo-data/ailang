@@ -418,8 +418,9 @@ The following are intentionally left open for the implementer:
 - [design_docs/planned/v1_0_0/global-collaboration-hub.md](../v1_0_0/global-collaboration-hub.md) (0.45) — long-range vision this is a step toward
 - [design_docs/planned/v0_15_0/m-cascade-observability.md](../v0_15_0/m-cascade-observability.md) (0.41) — observability for the same coordinator/Pub/Sub stack
 
-**Companion future doc (out of scope here):**
-- M-WASM-AI-STEP-BRIDGE — the OTHER browser-AILANG path (BYO-key direct fetch). Smaller scope, ships standalone. Not blocked by this; the two are complementary.
+**Companion v0.19.0 docs (browser ai.step transports — both ship in v0.19.0):**
+- [M-WASM-AI-STEP-BYO-KEY](./m-wasm-ai-step-byo-key.md) — direct browser-fetch with localStorage API key. Lower latency, no backend, matches existing AILANG-demo BYO-key pattern. Ships standalone — not blocked by this design.
+- [M-WASM-AI-STEP-VIA-MESSAGES](./m-wasm-ai-step-via-messages.md) — `ai.step` mediated by the cloud message bus. Higher latency (~1-2s polling) but centralized cost tracking, no CORS issues, server-side provider keys. Layers on top of THIS design (depends on M1).
 
 ---
 
