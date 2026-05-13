@@ -1,0 +1,72 @@
+-- Browser-AILANG demo: ai.step with BYO API key.
+--
+-- This module is loaded by index.html via repl.loadModule(). The HTML page
+-- registers JS handlers (ailangSetAIStepHandler, ailangSetAIStepWithStreamHandler)
+-- that fetch directly from the provider with the API key the user pasted into
+-- localStorage — no server-side coordinator involved.
+--
+-- Three exports demonstrate the three Step variants:
+--   ask          → ai.step (single-shot, no caching, no streaming)
+--   askCached    → ai.stepWithCache (system-prompt caching demo)
+--   askStreaming → ai.stepWithStream (token-by-token rendering)
+module examples/wasm_step_byo_key/chat
+
+import std/ai (step, stepWithCache, stepWithStream, Message, ToolSchema, CacheBreakpoint, StreamChunk, ContentDelta, ThinkingDelta, Usage, StepResult, AIError)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- Single-turn ai.step. Returns the assistant text or an error string.
+export func ask(model: string, prompt: string) -> string ! {AI} = {
+  let messages: [Message] = [
+    { role: "user", content: prompt, tool_calls: [], tool_call_id: "" }
+  ];
+  let tools: [ToolSchema] = [];
+  match step(model, messages, tools) {
+    Ok(result) => result.message.content,
+    Err(e) => "ERROR(${e.code}): ${e.message}"
+  }
+}
+
+-- Same as ask, but with a system-prompt cache breakpoint. The JS handler
+-- forwards the breakpoints to Anthropic's cache_control field (or skips
+-- them on providers that don't support caching).
+export func askCached(model: string, system: string, prompt: string) -> string ! {AI} = {
+  let messages: [Message] = [
+    { role: "system", content: system, tool_calls: [], tool_call_id: "" },
+    { role: "user",   content: prompt, tool_calls: [], tool_call_id: "" }
+  ];
+  let tools: [ToolSchema] = [];
+  let breakpoints: [CacheBreakpoint] = [
+    { position: "system", ttl: "ephemeral" }
+  ];
+  match stepWithCache(model, messages, tools, breakpoints) {
+    Ok(result) => "[cache_read=${show(result.cache_read_input_tokens)}] ${result.message.content}",
+    Err(e) => "ERROR(${e.code}): ${e.message}"
+  }
+}
+
+-- Streaming variant. on_chunk is called once per StreamChunk while the SSE
+-- drains; the JS host wires this back to a DOM update so the user sees text
+-- appear token-by-token.
+--
+-- match-in-lambda is a parser limitation, so the chunk handler is a top-level
+-- function, per the std/ai docs.
+export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
+  match chunk {
+    ContentDelta(text)  => println("[content] ${text}"),
+    ThinkingDelta(text) => println("[thinking] ${text}"),
+    Usage(_)            => println("[usage] stream-end")
+  }
+}
+
+export func askStreaming(model: string, prompt: string) -> string ! {AI, IO} = {
+  let messages: [Message] = [
+    { role: "user", content: prompt, tool_calls: [], tool_call_id: "" }
+  ];
+  let tools: [ToolSchema] = [];
+  let breakpoints: [CacheBreakpoint] = [];
+  match stepWithStream(model, messages, tools, breakpoints, renderChunk) {
+    Ok(result) => result.message.content,
+    Err(e) => "ERROR(${e.code}): ${e.message}"
+  }
+}
