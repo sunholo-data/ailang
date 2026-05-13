@@ -113,9 +113,9 @@ Ship `std/html` as a thin Go wrapper around `golang.org/x/net/html` that returns
 **Tasks:**
 - `docs/docs/reference/stdlib/std-html.md` — parallel structure to `std-xml.md`, two functions documented with examples.
 - Add row to `docs/docs/reference/stdlib/index.md`.
-- `CHANGELOG.md`: v0.20.0 entry under "Added" — `std/html` HTML5 parser, references inbox msg 62a9b106 and ailang-parse v0.13.0 follow-up.
-- `ailang messages send ailang-core "Shipped: std/html in v0.20.0" --title "RE: std/html stdlib module"`
-- Move design doc from `design_docs/planned/v0_20_0/` → `design_docs/implemented/v0_20_0/` after release.
+- `CHANGELOG.md`: v0.19.1 entry under "Added" — `std/html` HTML5 parser, references inbox msg 62a9b106 and ailang-parse v0.13.0 follow-up.
+- `ailang messages send ailang-core "Shipped: std/html in v0.19.1" --title "RE: std/html stdlib module"`
+- Move design doc from `design_docs/planned/v0_19_1/` → `design_docs/implemented/v0_19_1/` after release.
 
 **Acceptance Criteria:**
 - [ ] `make docs` builds clean (if applicable).

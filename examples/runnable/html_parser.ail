@@ -1,0 +1,56 @@
+-- HTML5 parsing with std/html
+-- Demonstrates the lenient HTML5 parser handling real-world quirks:
+-- unclosed tags, boolean attributes, mixed-case tags. The XmlNode tree
+-- returned by std/html is interchangeable with std/xml — same findAll,
+-- findFirst, getText, getAttr, getTag accessors.
+--
+-- Usage: ailang run --caps IO --entry main html_parser.ail
+module examples/runnable/html_parser
+
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+import std/html (parse, parseFragment)
+import std/xml (findAll, findFirst, getText, getTag, getAttr)
+import std/list as List (length)
+import std/io (println)
+
+export func main() -> int ! {IO} {
+  -- Real-world HTML5 with unclosed paragraphs, mixed-case tags,
+  -- and a boolean attribute. A strict XML parser would reject this.
+  let html = "<!DOCTYPE html><HTML><body><p>first<p>second<input type=\"checkbox\" checked><a href=\"https://example.com\">link</a></body></HTML>";
+
+  match parse(html) {
+    Ok(root) => {
+      -- Root is the <html> element (lower-cased by HTML5 parser).
+      println("root tag: ${getTag(root)}");
+
+      -- Lenient parse splits <p>first<p>second into two siblings.
+      let paragraphs = findAll(root, "p");
+      println("paragraphs: ${show(List.length(paragraphs))}");
+
+      -- Find the link and extract its href.
+      match findFirst(root, "a") {
+        Some(a) => match getAttr(a, "href") {
+          Some(href) => println("href: ${href}"),
+          None => println("no href")
+        },
+        None => println("no link found")
+      };
+
+      -- Find the boolean attribute on <input>. HTML5 emits value "" for it.
+      match findFirst(root, "input") {
+        Some(inp) => match getAttr(inp, "checked") {
+          Some(_) => println("checked: yes (boolean attr present)"),
+          None => println("not checked")
+        },
+        None => println("no input")
+      };
+
+      0
+    },
+    Err(msg) => {
+      println("parse error: ${msg}");
+      1
+    }
+  }
+}

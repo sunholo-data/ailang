@@ -1,0 +1,37 @@
+-- std/html - HTML5 parsing
+--
+-- Lenient HTML5 parsing via Go's golang.org/x/net/html (WHATWG spec-compliant).
+-- Returns the same XmlNode ADT that std/xml uses, so all of std/xml's
+-- tree-walking helpers (findAll, findFirst, getText, getAttr, getTag,
+-- getChildren) work identically on HTML trees.
+--
+-- Handles real-world HTML5 oddities automatically:
+--   - Unclosed tags (<p>a<p>b → two siblings, not nested)
+--   - Boolean attributes (<input disabled> → attr value is "")
+--   - Mixed case (<DIV> → "div")
+--   - Overlapping nesting (<b><i></b></i> → fixed up)
+--
+-- Security: 256 depth limit, 50MB input size limit (same as std/xml).
+--
+-- Usage:
+--   import std/html (parse, parseFragment)
+--   import std/xml (findAll, getText)  -- query helpers from std/xml
+--   match parse("<p>hello</p>") {
+--     Ok(root) => println(getText(root)),
+--     Err(msg) => println(msg)
+--   }
+
+module std/html
+
+import std/result (Result)
+import std/xml (XmlNode)
+
+-- Parse a full HTML5 document.
+-- Returns the <html> element at the top of the tree (DOCTYPE and the
+-- synthetic document root are stripped). Use this for complete pages.
+export pure func parse(html: string) -> Result[XmlNode, string] = _html_parse(html)
+
+-- Parse an HTML5 fragment (no <html>/<head>/<body> wrapper synthesized).
+-- Returns a list of top-level nodes in document order — Elements, Text,
+-- and Comments. Use this for snippets like email bodies or CMS content.
+export pure func parseFragment(html: string) -> Result[[XmlNode], string] = _html_parseFragment(html)

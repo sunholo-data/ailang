@@ -1,7 +1,8 @@
 # M-STDLIB-HTML: `std/html` — HTML5 Parser Module
 
-**Status**: Planned
-**Target**: v0.20.0
+**Status**: Implemented
+**Target**: v0.19.1
+**Implemented**: 2026-05-13
 **Priority**: P1 (Medium — unblocks ongoing churn in dependent project)
 **Estimated**: 2 days
 **Dependencies**: Cross-module ADT import (shipped v0.19.0, confirms `std/html` can `import std/xml (XmlNode)`).
@@ -122,7 +123,7 @@ Add a new builtin file `internal/builtins/html.go` that wraps `golang.org/x/net/
 **Phase 4: Docs + announce (~1 hour)**
 - [ ] `docs/docs/reference/stdlib/std-html.md` parallel to `std-xml.md`.
 - [ ] Add `std/html` to the Stdlib Index page.
-- [ ] CHANGELOG entry under v0.20.0.
+- [ ] CHANGELOG entry under v0.19.1.
 - [ ] Reply to inbox msg 62a9b106 with ship confirmation.
 
 ### Files to Modify/Create
@@ -137,7 +138,7 @@ Add a new builtin file `internal/builtins/html.go` that wraps `golang.org/x/net/
 
 **Modified files:**
 - `go.mod` / `go.sum` — promote `golang.org/x/net` from indirect to direct.
-- `CHANGELOG.md` — v0.20.0 entry.
+- `CHANGELOG.md` — v0.19.1 entry.
 - `docs/docs/reference/stdlib/index.md` — add `std/html` row.
 
 ## Examples

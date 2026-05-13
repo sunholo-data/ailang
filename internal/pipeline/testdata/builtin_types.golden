@@ -96,6 +96,8 @@ _gzip_decompress : string -> Result[string, string]
 _gzip_decompressFile : string -> Result[string, string] ! {FS}
 _hamming_distance : (int, int) -> int
 _has_header : (a, string) -> bool
+_html_parse : string -> Result[XmlNode, string]
+_html_parseFragment : string -> Result[list[XmlNode], string]
 _int_to_float : int -> float
 _io_exit : int -> () ! {IO}
 _io_print : string -> () ! {IO}

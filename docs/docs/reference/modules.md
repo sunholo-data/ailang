@@ -353,6 +353,33 @@ let tag = _xml_getTag(node);
 
 **XmlNode ADT:** `Element(tag, attrs, children) | Text(content) | CData(content) | Comment(content)`
 
+### std/html
+
+Lenient HTML5 parsing (pure functions, no effect required). Wraps `golang.org/x/net/html` (WHATWG-spec). Returns the **same `XmlNode` ADT as `std/xml`**, so every `std/xml` query — `findAll`, `findFirst`, `getText`, `getAttr`, `getTag`, `getChildren` — works unchanged on HTML trees.
+
+```typescript
+import std/result (Result, Ok, Err)
+import std/html (parse, parseFragment)
+import std/xml (findAll, getText, getAttr)
+
+-- Parse a full document. Handles unclosed tags, boolean attrs, mixed case.
+let result = parse("<p>first<p>second<input disabled>");
+
+-- Parse a fragment (no <html>/<body> wrapper synthesized).
+let frag = parseFragment("<p>a</p><p>b</p>");
+```
+
+**Functions:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `parse` | `string -> Result[XmlNode, string]` | Lenient HTML5 document parse; returns the `<html>` element |
+| `parseFragment` | `string -> Result[[XmlNode], string]` | HTML5 fragment parse; list of top-level nodes |
+
+**Security:** 256 depth limit, 50MB input size limit (same as `std/xml`).
+
+**Since:** v0.19.1.
+
 ### std/prelude
 
 Common utilities automatically available:

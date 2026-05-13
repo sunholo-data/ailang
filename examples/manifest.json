@@ -1440,6 +1440,25 @@
       "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes"
     },
     {
+      "path": "runnable/html_parser.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "html",
+        "parsing",
+        "adt",
+        "result",
+        "option",
+        "std/html",
+        "std/xml"
+      ],
+      "description": "HTML5 parsing with std/html: lenient parse of unclosed tags, boolean attributes, mixed-case tags; returns same XmlNode ADT as std/xml",
+      "run_flags": [
+        "--caps",
+        "IO"
+      ]
+    },
+    {
       "path": "runnable/xml_fold.ail",
       "status": "working",
       "tags": [

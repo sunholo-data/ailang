@@ -29,14 +29,16 @@
   <label>Provider + Model</label>
   <div class="row">
     <select id="provider">
-      <option value="anthropic">Anthropic (claude-3-5-haiku-latest)</option>
+      <option value="anthropic">Anthropic (claude-haiku-4-5)</option>
       <option value="openrouter">OpenRouter (openrouter/auto)</option>
+      <option value="gemini">Gemini AI Studio (gemini-3-flash-preview)</option>
     </select>
-    <input id="model" value="claude-3-5-haiku-latest" />
+    <input id="model" value="claude-haiku-4-5-20251001" />
   </div>
 
-  <label>API Key (stored in localStorage)</label>
-  <input id="apikey" type="password" placeholder="sk-ant-... or sk-or-..." />
+  <label for="apikey">API Key (separate per provider, stored in localStorage)</label>
+  <input id="apikey" type="password" placeholder="sk-ant-... / sk-or-... / AIzaSy..." />
+  <p class="small" id="key-status"></p>
 
   <label>System prompt (used by askCached only)</label>
   <textarea id="system" rows="2">You are a terse haiku composer. Reply with exactly three lines.</textarea>
@@ -59,25 +61,50 @@
   <script src="/wasm/wasm_exec.js"></script>
   <script src="/js/ailang-repl.js"></script>
   <script>
-    // Restore API key from localStorage on page load.
     const apikeyInput = document.getElementById('apikey');
-    apikeyInput.value = localStorage.getItem('ailang-step-byo-key') || '';
-    apikeyInput.addEventListener('change', () => {
-      localStorage.setItem('ailang-step-byo-key', apikeyInput.value);
-    });
-
-    const repl = new AilangREPL();
-    const resultPane = document.getElementById('result');
-    const streamPane = document.getElementById('stream-pane');
+    const keyStatus   = document.getElementById('key-status');
+    const repl        = new AilangREPL();
+    const resultPane  = document.getElementById('result');
+    const streamPane  = document.getElementById('stream-pane');
     const providerSel = document.getElementById('provider');
-    const modelInput = document.getElementById('model');
+    const modelInput  = document.getElementById('model');
 
-    // Switch model placeholder when provider changes.
-    providerSel.addEventListener('change', () => {
-      modelInput.value = providerSel.value === 'anthropic'
-        ? 'claude-3-5-haiku-latest'
-        : 'openrouter/auto';
+    // Per-provider key storage so users can keep all three keys around without
+    // overwriting each other. Common foot-gun before this fix: paste OpenRouter
+    // key, switch to Anthropic provider, get a 401 with a confusing error.
+    const KEY_PREFIX  = 'ailang-step-byo-key-';
+    const PROVIDERS = {
+      anthropic: { defaultModel: 'claude-haiku-4-5-20251001',          keyHint: 'sk-ant-...' },
+      openrouter:{ defaultModel: 'openrouter/auto',                    keyHint: 'sk-or-...' },
+      gemini:    { defaultModel: 'gemini-3-flash-preview',             keyHint: 'AIzaSy... (Google AI Studio)' },
+    };
+
+    function loadKeyForCurrentProvider() {
+      const stored = localStorage.getItem(KEY_PREFIX + providerSel.value) || '';
+      apikeyInput.value = stored;
+      apikeyInput.placeholder = PROVIDERS[providerSel.value].keyHint;
+      keyStatus.textContent = stored
+        ? `✓ Key loaded for ${providerSel.value} (length ${stored.length})`
+        : `No key stored for ${providerSel.value} — paste one and tab out to save`;
+    }
+
+    apikeyInput.addEventListener('change', () => {
+      localStorage.setItem(KEY_PREFIX + providerSel.value, apikeyInput.value);
+      keyStatus.textContent = `✓ Key saved for ${providerSel.value}`;
     });
+
+    providerSel.addEventListener('change', () => {
+      modelInput.value = PROVIDERS[providerSel.value].defaultModel;
+      loadKeyForCurrentProvider();
+    });
+
+    function getApiKey() {
+      const k = localStorage.getItem(KEY_PREFIX + providerSel.value);
+      if (!k) throw new Error(`No ${providerSel.value} API key in localStorage`);
+      return k;
+    }
+
+    loadKeyForCurrentProvider();
 
     // ---- JS handlers that turn ai.step calls into provider HTTP fetches ----
     //
@@ -95,8 +122,7 @@
     // tool_calls is always [].
 
     async function callAnthropic(model, messages, opts) {
-      const apiKey = localStorage.getItem('ailang-step-byo-key');
-      if (!apiKey) throw new Error('No API key in localStorage. Paste one above and retry.');
+      const apiKey = getApiKey();
 
       // Anthropic distinguishes system message from messages array.
       const sys = messages.find(m => m.role === 'system');
@@ -134,8 +160,9 @@
       const data = await resp.json();
       if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
+      const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
       return {
-        text: (data.content || []).filter(c => c.type === 'text').map(c => c.text).join(''),
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
         tool_calls: [],
         input_tokens: data.usage?.input_tokens || 0,
         output_tokens: data.usage?.output_tokens || 0,
@@ -185,15 +212,15 @@
       }
       onChunk({ kind: 'Usage', ...usage });
       return {
-        text, tool_calls: [],
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
         ...usage,
         finish_reason: 'end_turn', model,
       };
     }
 
     async function callOpenRouter(model, messages, opts) {
-      const apiKey = localStorage.getItem('ailang-step-byo-key');
-      if (!apiKey) throw new Error('No API key in localStorage.');
+      const apiKey = getApiKey();
       const body = { model, messages: messages.map(m => ({ role: m.role, content: m.content })) };
       if (opts.stream) body.stream = true;
       const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -209,7 +236,7 @@
       if (data.error) throw new Error(data.error.message);
       const choice = data.choices?.[0]?.message || {};
       return {
-        text: choice.content || '',
+        message: { role: 'assistant', content: choice.content || '', tool_calls: [], tool_call_id: '' },
         tool_calls: [],
         input_tokens: data.usage?.prompt_tokens || 0,
         output_tokens: data.usage?.completion_tokens || 0,
@@ -251,13 +278,102 @@
         }
       }
       onChunk({ kind: 'Usage', ...usage });
-      return { text, tool_calls: [], ...usage, finish_reason: 'stop', model };
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        ...usage,
+        finish_reason: 'stop', model,
+      };
+    }
+
+    // Gemini AI Studio direct fetch. Uses the v1beta generateContent endpoint
+    // with API key as URL parameter. cache_breakpoints are not yet honored
+    // (Gemini's CachedContent API requires a separate creation step). Streaming
+    // uses streamGenerateContent + alt=sse.
+    async function callGemini(model, messages, opts) {
+      const apiKey = getApiKey();
+      // Gemini's REST schema: system_instruction split out from contents.
+      const sys = messages.find(m => m.role === 'system');
+      const turns = messages.filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role === 'assistant' ? 'model' : m.role,
+                     parts: [{ text: m.content }] }));
+      const body = { contents: turns };
+      if (sys) body.system_instruction = { parts: [{ text: sys.content }] };
+
+      const endpoint = opts.stream
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (opts.stream) return await drainGeminiStream(resp, model, opts.onChunk);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+      const text = (data.candidates?.[0]?.content?.parts || [])
+        .map(p => p.text || '').join('');
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        input_tokens: data.usageMetadata?.promptTokenCount || 0,
+        output_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+        cache_read_input_tokens: data.usageMetadata?.cachedContentTokenCount || 0,
+        cache_creation_input_tokens: 0,
+        finish_reason: data.candidates?.[0]?.finishReason || 'STOP',
+        model: data.modelVersion || model,
+      };
+    }
+
+    async function drainGeminiStream(resp, model, onChunk) {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', text = '';
+      const usage = { input_tokens: 0, output_tokens: 0,
+                      cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (!payload) continue;
+          let evt;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          const delta = (evt.candidates?.[0]?.content?.parts || [])
+            .map(p => p.text || '').join('');
+          if (delta) {
+            text += delta;
+            onChunk({ kind: 'ContentDelta', text: delta });
+          }
+          if (evt.usageMetadata) {
+            usage.input_tokens = evt.usageMetadata.promptTokenCount || 0;
+            usage.output_tokens = evt.usageMetadata.candidatesTokenCount || 0;
+            usage.cache_read_input_tokens = evt.usageMetadata.cachedContentTokenCount || 0;
+          }
+        }
+      }
+      onChunk({ kind: 'Usage', ...usage });
+      return {
+        message: { role: 'assistant', content: text, tool_calls: [], tool_call_id: '' },
+        tool_calls: [],
+        ...usage,
+        finish_reason: 'STOP', model,
+      };
     }
 
     function dispatch(model, messages, opts) {
-      return providerSel.value === 'anthropic'
-        ? callAnthropic(model, messages, opts)
-        : callOpenRouter(model, messages, opts);
+      switch (providerSel.value) {
+        case 'anthropic':  return callAnthropic(model, messages, opts);
+        case 'openrouter': return callOpenRouter(model, messages, opts);
+        case 'gemini':     return callGemini(model, messages, opts);
+        default: throw new Error(`Unknown provider: ${providerSel.value}`);
+      }
     }
 
     repl.init('/wasm/ailang.wasm').then(async () => {
