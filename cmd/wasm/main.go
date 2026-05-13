@@ -567,6 +567,9 @@ func main() {
 	// Register effect handler functions (M-WASM-EFFECTS)
 	js.Global().Set("ailangSetEffectHandler", js.FuncOf(setEffectHandler))
 	js.Global().Set("ailangSetAIHandler", js.FuncOf(setAIHandler))
+	js.Global().Set("ailangSetAIStepHandler", js.FuncOf(setAIStepHandler))
+	js.Global().Set("ailangSetAIStepWithCacheHandler", js.FuncOf(setAIStepWithCacheHandler))
+	js.Global().Set("ailangSetAIStepWithStreamHandler", js.FuncOf(setAIStepWithStreamHandler))
 	js.Global().Set("ailangGrantCapability", js.FuncOf(grantCapability))
 
 	// Register trace handler (M-WASM-TRACE)

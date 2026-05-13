@@ -89,11 +89,24 @@ func registerJSEffectHandler(effectName string, handlers js.Value) {
 	}
 }
 
-// WasmAIHandler implements effects.AIHandler via a JS callback.
-// It bridges the Go AIHandler interface to a JavaScript function
-// that can call external APIs (e.g., Gemini Flash via fetch).
+// WasmAIHandler implements effects.AIHandler via JS callbacks.
+// It bridges the Go AIHandler interface to JavaScript functions
+// that can call external APIs (e.g., Anthropic / OpenRouter via fetch).
+//
+// Five callbacks total — one per AIHandler method:
+//   - callback:                 ai.call / ai.callJson / ai.callImage*
+//   - stepCallback:             ai.step (M-WASM-AI-STEP-BYO-KEY)
+//   - stepWithCacheCallback:    ai.stepWithCache (M-WASM-AI-STEP-BYO-KEY)
+//   - stepWithStreamCallback:   ai.stepWithStream (M-WASM-AI-STEP-BYO-KEY)
+//
+// Each is registered separately via its own ailangSet*Handler global.
+// A nil/missing callback for a given method returns a typed error
+// rather than panicking, so AILANG-side code sees a normal AIError.
 type WasmAIHandler struct {
-	callback js.Value
+	callback               js.Value
+	stepCallback           js.Value
+	stepWithCacheCallback  js.Value
+	stepWithStreamCallback js.Value
 }
 
 // Call invokes the JS callback with the input string.
@@ -124,22 +137,276 @@ func (h *WasmAIHandler) CallImageBase64(prompt, options string) (string, error) 
 	return h.Call(prompt)
 }
 
-// Step is not supported in WASM — multi-turn tool-loop requires server-side
-// orchestration and is not available in the browser sandbox.
-func (h *WasmAIHandler) Step(_ string, _ []ai.Message, _ []ai.ToolSchema) (*ai.Response, error) {
-	return nil, fmt.Errorf("ai.step not supported in WASM environment")
+// Step invokes the registered JS step callback with the model + messages +
+// tools. The callback should fetch the provider directly (BYO-key from
+// localStorage) and return a JS object with the response shape.
+// (M-WASM-AI-STEP-BYO-KEY, v0.19.0.)
+//
+// Expected JS callback signature:
+//
+//	async (model, messages, tools) => ({
+//	  message: { role, content, tool_calls, tool_call_id },
+//	  tool_calls: [...],
+//	  finish_reason: "stop" | "tool_calls" | ...,
+//	  input_tokens: N, output_tokens: N,
+//	  cache_read_input_tokens: N, cache_creation_input_tokens: N
+//	})
+//
+// Returns a clean Go error when no handler was registered (callable via
+// ailangSetAIStepHandler). The aiStep effect op upstream classifies that
+// into Err(AIError{code:"no_handler"}) for the AILANG caller.
+func (h *WasmAIHandler) Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error) {
+	if !h.stepCallback.Truthy() {
+		return nil, fmt.Errorf("no_handler: ai.step requires a JS handler — call ailangSetAIStepHandler(fn) first")
+	}
+	jsModel := js.ValueOf(model)
+	jsMsgs := js.ValueOf(messagesToJSCompat(messages))
+	jsTools := js.ValueOf(toolsToJSCompat(tools))
+	result := h.stepCallback.Invoke(jsModel, jsMsgs, jsTools)
+	resolved, err := awaitJSResult(result)
+	if err != nil {
+		return nil, err
+	}
+	return jsToResponse(resolved)
 }
 
-// StepWithCache is the cache-aware variant (M-AI-PROMPT-CACHING v0.18.4).
-// Same status as Step — not supported in WASM. Cache hints are ignored.
-func (h *WasmAIHandler) StepWithCache(_ string, _ []ai.Message, _ []ai.ToolSchema, _ []ai.CacheBreakpoint) (*ai.Response, error) {
-	return nil, fmt.Errorf("ai.stepWithCache not supported in WASM environment")
+// StepWithCache mirrors Step but adds cache_breakpoints — opt-in
+// prompt-cache hints (Anthropic's cache_control). The JS callback
+// receives a 4th arg as a JS array of {position, ttl} objects.
+// Empty cache_breakpoints serialize to a JS empty array, not null.
+// (M-WASM-AI-STEP-BYO-KEY, v0.19.0.)
+func (h *WasmAIHandler) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
+	if !h.stepWithCacheCallback.Truthy() {
+		return nil, fmt.Errorf("no_handler: ai.stepWithCache requires a JS handler — call ailangSetAIStepWithCacheHandler(fn) first")
+	}
+	jsModel := js.ValueOf(model)
+	jsMsgs := js.ValueOf(messagesToJSCompat(messages))
+	jsTools := js.ValueOf(toolsToJSCompat(tools))
+	jsBreakpoints := js.ValueOf(cacheBreakpointsToJSCompat(cacheBreakpoints))
+	result := h.stepWithCacheCallback.Invoke(jsModel, jsMsgs, jsTools, jsBreakpoints)
+	resolved, err := awaitJSResult(result)
+	if err != nil {
+		return nil, err
+	}
+	return jsToResponse(resolved)
 }
 
-// StepWithStream is the streaming variant (M-AI-STEP-STREAMING v0.18.7).
-// Same status as Step — not supported in WASM. Callback is never invoked.
-func (h *WasmAIHandler) StepWithStream(_ string, _ []ai.Message, _ []ai.ToolSchema, _ []ai.CacheBreakpoint, _ func(ai.StreamChunk)) (*ai.Response, error) {
-	return nil, fmt.Errorf("ai.stepWithStream not supported in WASM environment")
+// StepWithStream mirrors StepWithCache but adds a per-chunk callback. The
+// JS handler receives the wrapped Go callback as its 5th arg (as a JS
+// function) and fires it for each StreamChunk variant — ContentDelta,
+// ThinkingDelta, Usage — by passing a JS object {kind, text} or
+// {kind, input_tokens, output_tokens, cache_read_input_tokens,
+// cache_creation_input_tokens} at end-of-stream.
+//
+// The JS-side onChunk wrapper is freed via funcWrapper.Release() once
+// the JS handler resolves its Promise, preventing a memory leak from
+// long-lived AILANG closures.
+// (M-WASM-AI-STEP-BYO-KEY, v0.19.0.)
+func (h *WasmAIHandler) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	if !h.stepWithStreamCallback.Truthy() {
+		return nil, fmt.Errorf("no_handler: ai.stepWithStream requires a JS handler — call ailangSetAIStepWithStreamHandler(fn) first")
+	}
+	// Wrap the Go callback as a JS function. The JS handler invokes this
+	// per chunk; we translate the JS object to the appropriate StreamChunk
+	// variant and call onChunk.
+	funcWrapper := js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
+		if len(args) < 1 {
+			return nil
+		}
+		chunk := jsToStreamChunk(args[0])
+		if chunk != nil {
+			onChunk(chunk)
+		}
+		return nil
+	})
+	defer funcWrapper.Release()
+
+	jsModel := js.ValueOf(model)
+	jsMsgs := js.ValueOf(messagesToJSCompat(messages))
+	jsTools := js.ValueOf(toolsToJSCompat(tools))
+	jsBreakpoints := js.ValueOf(cacheBreakpointsToJSCompat(cacheBreakpoints))
+	result := h.stepWithStreamCallback.Invoke(jsModel, jsMsgs, jsTools, jsBreakpoints, funcWrapper)
+	resolved, err := awaitJSResult(result)
+	if err != nil {
+		return nil, err
+	}
+	return jsToResponse(resolved)
+}
+
+// ─── JS conversion helpers (M-WASM-AI-STEP-BYO-KEY) ───────────────────
+
+// messagesToJSCompat converts []ai.Message to a slice that js.ValueOf can
+// wrap as a JS array of objects. Each message becomes an object with
+// {role, content, tool_calls, tool_call_id}. Empty tool_calls serializes
+// as a JS empty array (not null), matching the wire shape OpenAI / Anthropic
+// expect on assistant-without-tool-call messages.
+func messagesToJSCompat(msgs []ai.Message) []interface{} {
+	out := make([]interface{}, len(msgs))
+	for i, m := range msgs {
+		tcOut := make([]interface{}, len(m.ToolCalls))
+		for j, tc := range m.ToolCalls {
+			tcOut[j] = map[string]interface{}{
+				"id":        tc.ID,
+				"name":      tc.Name,
+				"arguments": tc.Arguments,
+			}
+		}
+		out[i] = map[string]interface{}{
+			"role":         m.Role,
+			"content":      m.Content,
+			"tool_calls":   tcOut,
+			"tool_call_id": m.ToolCallID,
+		}
+	}
+	return out
+}
+
+// toolsToJSCompat converts []ai.ToolSchema to a JS-array-compatible slice.
+// Parameters is the raw JSON Schema string; the JS shim is responsible
+// for parsing it before sending to the provider.
+func toolsToJSCompat(tools []ai.ToolSchema) []interface{} {
+	out := make([]interface{}, len(tools))
+	for i, t := range tools {
+		out[i] = map[string]interface{}{
+			"name":        t.Name,
+			"description": t.Description,
+			"parameters":  t.Parameters,
+		}
+	}
+	return out
+}
+
+// cacheBreakpointsToJSCompat converts []ai.CacheBreakpoint similarly.
+// Empty input → JS empty array (not null).
+func cacheBreakpointsToJSCompat(bps []ai.CacheBreakpoint) []interface{} {
+	out := make([]interface{}, len(bps))
+	for i, bp := range bps {
+		out[i] = map[string]interface{}{
+			"position": bp.Position,
+			"ttl":      bp.TTL,
+		}
+	}
+	return out
+}
+
+// jsToResponse decodes the JS handler's response object into *ai.Response.
+// Tolerates two tool_calls layouts: top-level (`v.tool_calls`) or nested
+// under message (`v.message.tool_calls`). Token-count fields default to
+// zero when absent. Returns an error when the JS value isn't an object
+// (e.g., the handler accidentally returned a string error).
+func jsToResponse(v js.Value) (*ai.Response, error) {
+	if v.Type() != js.TypeObject {
+		return nil, fmt.Errorf("step response must be a JS object, got %s (value=%v)", v.Type(), v)
+	}
+
+	var text string
+	msg := v.Get("message")
+	if msg.Type() == js.TypeObject {
+		if c := msg.Get("content"); c.Type() == js.TypeString {
+			text = c.String()
+		}
+	}
+
+	// Prefer top-level tool_calls (provider canonical), fall back to nested.
+	toolCallsJS := v.Get("tool_calls")
+	if !toolCallsJS.Truthy() && msg.Type() == js.TypeObject {
+		toolCallsJS = msg.Get("tool_calls")
+	}
+	toolCalls := jsToToolCalls(toolCallsJS)
+
+	return &ai.Response{
+		Text:                     text,
+		ToolCalls:                toolCalls,
+		InputTokens:              jsGetInt(v, "input_tokens"),
+		OutputTokens:             jsGetInt(v, "output_tokens"),
+		CacheReadInputTokens:     jsGetInt(v, "cache_read_input_tokens"),
+		CacheCreationInputTokens: jsGetInt(v, "cache_creation_input_tokens"),
+		FinishReason:             jsGetString(v, "finish_reason"),
+		Model:                    jsGetString(v, "model"),
+	}, nil
+}
+
+// jsToToolCalls decodes a JS array of tool-call objects. Each entry may be
+// in either of two shapes (provider variation):
+//
+//	{id: "...", name: "...", arguments: "..."}            (flat — the AILANG canonical shape)
+//	{id: "...", function: {name: "...", arguments: "..."}} (OpenAI nested)
+//
+// Returns nil for non-array inputs (handles missing-field gracefully).
+func jsToToolCalls(v js.Value) []ai.ToolCall {
+	if !v.Truthy() {
+		return nil
+	}
+	arrayCtor := js.Global().Get("Array")
+	if arrayCtor.Truthy() && !v.InstanceOf(arrayCtor) {
+		return nil
+	}
+	n := v.Length()
+	out := make([]ai.ToolCall, 0, n)
+	for i := 0; i < n; i++ {
+		entry := v.Index(i)
+		if entry.Type() != js.TypeObject {
+			continue
+		}
+		tc := ai.ToolCall{
+			ID: jsGetString(entry, "id"),
+		}
+		// Try nested {function: {name, arguments}} first
+		fn := entry.Get("function")
+		if fn.Type() == js.TypeObject {
+			tc.Name = jsGetString(fn, "name")
+			tc.Arguments = jsGetString(fn, "arguments")
+		} else {
+			// Flat shape
+			tc.Name = jsGetString(entry, "name")
+			tc.Arguments = jsGetString(entry, "arguments")
+		}
+		out = append(out, tc)
+	}
+	return out
+}
+
+// jsToStreamChunk decodes a JS chunk object into an ai.StreamChunk variant.
+// Discriminator: `kind` field, one of "ContentDelta" | "ThinkingDelta" | "Usage".
+// Returns nil for unknown kinds (caller skips the chunk silently).
+func jsToStreamChunk(v js.Value) ai.StreamChunk {
+	if v.Type() != js.TypeObject {
+		return nil
+	}
+	switch jsGetString(v, "kind") {
+	case "ContentDelta":
+		return ai.StreamContentDelta{Text: jsGetString(v, "text")}
+	case "ThinkingDelta":
+		return ai.StreamThinkingDelta{Text: jsGetString(v, "text")}
+	case "Usage":
+		return ai.StreamUsage{
+			InputTokens:              jsGetInt(v, "input_tokens"),
+			OutputTokens:             jsGetInt(v, "output_tokens"),
+			CacheReadInputTokens:     jsGetInt(v, "cache_read_input_tokens"),
+			CacheCreationInputTokens: jsGetInt(v, "cache_creation_input_tokens"),
+		}
+	}
+	return nil
+}
+
+// jsGetString safely extracts a string field from a JS object. Returns "" for
+// missing/non-string fields.
+func jsGetString(v js.Value, key string) string {
+	f := v.Get(key)
+	if f.Type() == js.TypeString {
+		return f.String()
+	}
+	return ""
+}
+
+// jsGetInt safely extracts an integer field from a JS object. Returns 0 for
+// missing/non-numeric fields. Truncates floats to int.
+func jsGetInt(v js.Value, key string) int {
+	f := v.Get(key)
+	if f.Type() == js.TypeNumber {
+		return int(f.Float())
+	}
+	return 0
 }
 
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
@@ -306,9 +573,32 @@ func setEffectHandler(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// wasmAIHandlerSingleton is a process-wide WasmAIHandler that all four
+// setters (ailangSetAIHandler + ailangSetAIStep*Handler) mutate. Without
+// this, calling e.g. ailangSetAIStepHandler after ailangSetAIHandler would
+// replace the entire handler and clobber the previously-registered call
+// callback. The singleton lets users register the four callbacks
+// independently in any order.
+//
+// The first set-call also wires the singleton into the REPL via
+// replInstance.repl.SetAIHandler. Subsequent set-calls just mutate the
+// singleton in-place; the REPL still holds the same pointer.
+var wasmAIHandlerSingleton *WasmAIHandler
+
+// getOrCreateAIHandler returns the singleton WasmAIHandler, creating and
+// wiring it to the REPL on first call.
+func getOrCreateAIHandler() *WasmAIHandler {
+	if wasmAIHandlerSingleton == nil {
+		wasmAIHandlerSingleton = &WasmAIHandler{}
+		replInstance.repl.SetAIHandler(wasmAIHandlerSingleton)
+	}
+	return wasmAIHandlerSingleton
+}
+
 // setAIHandler: ailangSetAIHandler(fn)
-// Convenience wrapper that configures the AI handler on EffContext.AI
-// and also registers the JS callback in the effect registry.
+// Wires the JS callback for ai.call / ai.callJson / ai.callImage*.
+// Mutates the singleton WasmAIHandler — safe to call before/after the
+// step setters.
 func setAIHandler(this js.Value, args []js.Value) interface{} {
 	if len(args) < 1 {
 		return map[string]interface{}{
@@ -316,16 +606,55 @@ func setAIHandler(this js.Value, args []js.Value) interface{} {
 			"error":   "ailangSetAIHandler requires 1 argument: callback function",
 		}
 	}
+	getOrCreateAIHandler().callback = args[0]
+	return map[string]interface{}{"success": true}
+}
 
-	callback := args[0]
-
-	// Set the dedicated AI handler (used by aiCall in effects/ai.go)
-	handler := &WasmAIHandler{callback: callback}
-	replInstance.repl.SetAIHandler(handler)
-
-	return map[string]interface{}{
-		"success": true,
+// setAIStepHandler: ailangSetAIStepHandler(fn)
+// Wires the JS callback for ai.step. The callback receives
+// (model, messages, tools) and returns a Promise resolving to the
+// step response object. M-WASM-AI-STEP-BYO-KEY (v0.19.0).
+func setAIStepHandler(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangSetAIStepHandler requires 1 argument: callback function",
+		}
 	}
+	getOrCreateAIHandler().stepCallback = args[0]
+	return map[string]interface{}{"success": true}
+}
+
+// setAIStepWithCacheHandler: ailangSetAIStepWithCacheHandler(fn)
+// Wires the JS callback for ai.stepWithCache. The callback receives
+// (model, messages, tools, cache_breakpoints) and returns a Promise
+// resolving to the step response object. M-WASM-AI-STEP-BYO-KEY (v0.19.0).
+func setAIStepWithCacheHandler(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangSetAIStepWithCacheHandler requires 1 argument: callback function",
+		}
+	}
+	getOrCreateAIHandler().stepWithCacheCallback = args[0]
+	return map[string]interface{}{"success": true}
+}
+
+// setAIStepWithStreamHandler: ailangSetAIStepWithStreamHandler(fn)
+// Wires the JS callback for ai.stepWithStream. The callback receives
+// (model, messages, tools, cache_breakpoints, onChunk) and returns a
+// Promise resolving to the final step response. The 5th arg is a JS
+// function the handler invokes per chunk; AILANG translates each
+// invocation back to a StreamChunk variant. M-WASM-AI-STEP-BYO-KEY (v0.19.0).
+func setAIStepWithStreamHandler(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangSetAIStepWithStreamHandler requires 1 argument: callback function",
+		}
+	}
+	getOrCreateAIHandler().stepWithStreamCallback = args[0]
+	return map[string]interface{}{"success": true}
 }
 
 // grantCapability: ailangGrantCapability(name)
