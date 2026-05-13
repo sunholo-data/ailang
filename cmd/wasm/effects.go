@@ -12,6 +12,32 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
+// jsRejectionToString extracts a human-readable string from a JS rejection
+// value. Plain strings pass through; Error objects yield their .message
+// field; other objects yield their .toString() result. This avoids the
+// "<object>" fallback from js.Value.String() on Type=Object values.
+func jsRejectionToString(v js.Value) string {
+	switch v.Type() {
+	case js.TypeString:
+		return v.String()
+	case js.TypeObject:
+		// Prefer .message (standard Error objects).
+		if m := v.Get("message"); m.Type() == js.TypeString {
+			s := m.String()
+			if s != "" {
+				return s
+			}
+		}
+		// Fall back to JS .toString() (catches custom error shapes).
+		if v.Get("toString").Truthy() {
+			return v.Call("toString").String()
+		}
+		return "<object>"
+	default:
+		return v.String()
+	}
+}
+
 // awaitJSResult handles both sync returns and Promise returns from JS callbacks.
 // If the result has a .then method (i.e. is a Promise), it awaits resolution.
 func awaitJSResult(result js.Value) (js.Value, error) {
@@ -41,7 +67,7 @@ func awaitPromise(promise js.Value) (js.Value, error) {
 	catchFn := js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
 		msg := "effect handler error"
 		if len(args) > 0 {
-			msg = args[0].String()
+			msg = jsRejectionToString(args[0])
 		}
 		errCh <- fmt.Errorf("%s", msg)
 		return nil
