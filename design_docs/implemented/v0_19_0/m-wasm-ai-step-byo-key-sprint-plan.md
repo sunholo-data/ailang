@@ -1,8 +1,10 @@
 # Sprint Plan: M-WASM-AI-STEP-BYO-KEY (v0.19.0)
 
+**Status**: Implemented (2026-05-13, evaluator score 91/100 on round 2)
 **Design doc**: [m-wasm-ai-step-byo-key.md](./m-wasm-ai-step-byo-key.md)
 **Target**: v0.19.0
 **Estimated**: ~5 days (~40 hours), but at recent velocity (M-EXT-PORTABILITY-GATE shipped ~1500 LOC across 2 sessions yesterday) realistically **2 sessions / ~10 hours of focused work** to ship code+tests+demo.
+**Actual**: 1 session, 2 sprint-evaluator rounds. Round 1: shipped M1-M4 code + demo + CHANGELOG (78/100). Round 2: extracted helpers for testability + 8 unit tests + docs guide (91/100, PASS).
 **Risk level**: **Low** — pure runtime extension, no parser/typechecker/codegen touched, all infrastructure pre-verified
 **Author**: Claude Opus 4.7 + Mark
 **Created**: 2026-05-13

@@ -1,9 +1,10 @@
 # M-WASM-AI-STEP-BYO-KEY: WASM `ai.step` via direct BYO-key provider fetch
 
-**Status**: Planned
+**Status**: Implemented (v0.19.0, 2026-05-13)
 **Target**: v0.19.0
 **Priority**: P1
 **Estimated**: ~5 days (~40 hours)
+**Actual**: 1 session, 2 sprint-evaluator rounds (scored 78 → 91/100). Browser smoke-test against real openrouter/auto + ai.call BYO-key regression check still recommended before user-facing announcement of the demo.
 **Dependencies**: existing WASM-JS bridge in `cmd/wasm/effects.go` (already shipped); existing AILANG-demo BYO-key pattern (`ailangSetAIHandler` → fetch with localStorage key)
 **Author**: Claude Opus 4.7 + Mark
 **Created**: 2026-05-13
