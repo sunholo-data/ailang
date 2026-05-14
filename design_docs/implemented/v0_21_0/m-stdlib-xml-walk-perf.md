@@ -1,6 +1,6 @@
 ## M-STDLIB-XML-WALK-PERF: `std/xml` — Cut FFI Cost of Tree Walks
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.21.0
 **Priority**: P1 (High — actively bottlenecking sunholo/ailang-parse; profile data attached)
 **Estimated**: 2 days
