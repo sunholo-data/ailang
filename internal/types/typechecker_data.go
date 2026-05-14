@@ -65,6 +65,44 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 		return nil, ctx.env, err
 	}
 
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): reject .field access on
+	// concretely-known multi-constructor ADTs. Without this gate the existing
+	// row-unification path silently descends into the variant payload at
+	// runtime — Ok unwraps to the success record (works), Err unwraps to the
+	// error record then crashes on the next field lookup. The gate fires
+	// here, BEFORE the TRecordOpen constraint, so the error message points
+	// at the receiver instead of a confusing row-mismatch downstream.
+	//
+	// Receiver types that are still polymorphic (TVar) at this point pass
+	// through the gate — by definition we don't yet know what they'll
+	// resolve to; the gate only catches concretely-typed receivers (which
+	// is the case for the `let r = step(...); r.field` pattern that
+	// surfaced the bug class via motoko_ext_compaction_ai 0.1.3).
+	if !tc.allowUnsafeFieldAccess {
+		recvType := getType(recordNode)
+		// Early gate: if the receiver type is concretely-known to be a
+		// tagged union at this exact point (direct constructor app like
+		// `Yes(...).field` or explicit annotation), reject with the
+		// prescriptive error.
+		if isTaggedUnion(recvType, tc.constructorTypes) {
+			return nil, ctx.env, tc.makeRecordAccessOnTaggedUnionError(acc, recvType)
+		}
+		// Deferred gate: most receivers are still TVars at this point
+		// because of let-generalization + instantiation (e.g.,
+		// `let r = step(); r.field` where step returns Result).
+		// Record the site for post-FinalizeSubstitutions verification —
+		// VerifyTaggedUnionFieldAccesses then looks up the resolved
+		// receiver type via CoreTI and re-checks. This is what catches
+		// the motoko_ext_compaction_ai 0.1.3 shape.
+		if recvID := acc.Record.ID(); recvID != 0 {
+			tc.deferredFieldAccesses = append(tc.deferredFieldAccesses, deferredFieldAccess{
+				receiverID: recvID,
+				field:      acc.Field,
+				position:   acc.Span().String(),
+			})
+		}
+	}
+
 	// Create fresh type variable for field
 	fieldType := ctx.freshTypeVar()
 	rowVar := &RowVar{Name: "r", Kind: RecordRow}

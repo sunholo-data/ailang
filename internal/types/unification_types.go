@@ -236,6 +236,13 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		}
 		return nil, fmt.Errorf("cannot unify %s with %s", t1.String(), t2Con.Name)
 	}
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): if t1 is a parameterized
+	// tagged-union ADT (Result[T, E], Option[T], ...) and t2 is TRecordOpen,
+	// the user wrote `expr.field` where `expr` is a Result/Option value.
+	// Surface the prescriptive match template — same as the TCon case above.
+	if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
+		return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
+	}
 	return nil, fmt.Errorf("cannot unify type application with %T", t2)
 }
 

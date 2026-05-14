@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TYPECHECK-NO-AUTO-UNWRAP-RESULT",
-  "status": "not_started",
+  "status": "partially_completed",
   "created": "2026-05-14T06:01:33Z",
   "design_doc": "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result.md",
   "sprint_plan": "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result-sprint-plan.md",
@@ -27,16 +27,18 @@
         "Existing internal/types/ test suite (~600 tests) still passes — no regression",
         "make test + make lint clean"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": false,
+      "started": "2026-05-14T06:56:19Z",
+      "completed": "2026-05-14T06:56:19Z",
+      "notes": "Partially shipped. Predicate (10 unit tests pass), early gate in inferRecordAccess, unifier-side gate (TApp/TCon ↔ TRecordOpen in both unifyTypeApps + unifyRecordOpen default case), deferred verifier post-FinalizeSubstitutions, --allow-unsafe-field-access migration field on CoreTypeChecker, prescriptive error message templates with actual constructor names. CATCHES: direct constructor app + explicit annotation patterns. MISSES: let r = funcReturningResult(); r.field (receiver becomes TRecordOpen post-unification, Result info lost from CoreTI before verifier runs — root cause is permissive row unification in the constraint solver). The exact compaction_ai 0.1.3 shape is still unhandled at compile time. Deferred to v0.20.1 as M1b: parallel source-type map approach (~80 LOC, lower regression risk than tightening the unifier). Compensating control via per-package smoke tests already shipped (compaction_ai 0.1.5)."
     },
     {
       "id": "M2_AUDIT_SWEEP",
       "description": "tools/find_unsafe_field_access.sh audit script + fix every flagged callsite in repo + add compaction_ai 0.1.3 source as expected_fail regression fixture",
       "estimated_loc": 130,
-      "dependencies": ["M1_TYPECHECKER_CORE"],
+      "dependencies": [
+        "M1_TYPECHECKER_CORE"
+      ],
       "acceptance_criteria": [
         "tools/find_unsafe_field_access.sh exists, greps for `let X = funcThatReturnsResult(...)` followed by X.field patterns, outputs file:line:expression",
         "Audit ran against every .ail file in examples/, std/, examples/runnable/, examples/expected_fail/ — failure list captured at design_docs/planned/v0_20_0/m-typecheck-audit-results.md",
@@ -49,13 +51,16 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "DEFERRED to v0.20.1. The early/unifier gates catch a smaller subset than the scope envisioned, so the audit sweep would find fewer affected sites and the ecosystem migration impact is reduced. Re-plan once M1b lands."
     },
     {
       "id": "M3_ECOSYSTEM_DOCS_CHANGELOG",
       "description": "Drift-check published sunholo/* packages + per-package fix PRs + AILANG prompts updated + docs/docs/guides/result-discipline.md guide + CHANGELOG entry under [v0.20.0] + design doc moved to implemented/v0_20_0/",
       "estimated_loc": 190,
-      "dependencies": ["M1_TYPECHECKER_CORE", "M2_AUDIT_SWEEP"],
+      "dependencies": [
+        "M1_TYPECHECKER_CORE",
+        "M2_AUDIT_SWEEP"
+      ],
       "acceptance_criteria": [
         "Drift-check ran every published sunholo/* package against the v0.20.0 strict checker, failure list captured",
         "Every affected package either has a fix PR queued OR is documented as needing the --allow-unsafe-field-access escape hatch until its maintainer migrates",
@@ -70,9 +75,12 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "DEFERRED to v0.20.1. Will re-scope alongside M1b + M2."
     }
   ],
-  "started": null,
-  "completed": null
+  "started": "2026-05-14T06:56:19Z",
+  "completed": null,
+  "partially_completed": "2026-05-14T06:56:19Z",
+  "deferred_to": "v0.20.1",
+  "deferred_notes": "M1 partial: shipped early gate + unifier gate + deferred verifier + predicate + tests. The deeper fix for the let-bound function-call shape (root cause: permissive row unification swapping Result for TRecordOpen via TVar substitution) deferred to v0.20.1 as M1b. M2 audit sweep + M3 ecosystem migration also deferred since coverage is smaller than originally scoped."
 }

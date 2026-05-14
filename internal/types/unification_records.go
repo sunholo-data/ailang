@@ -231,6 +231,15 @@ func (u *Unifier) unifyRecordOpen(t1 *TRecordOpen, t2 Type, sub Substitution) (S
 		return u.Unify(t2, t1, sub)
 
 	default:
+		// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): if the right-hand side
+		// is a tagged-union ADT (Result, Option, multi-variant), the user
+		// wrote `expr.field` where `expr` is a Result/Option value. Surface
+		// the prescriptive match template instead of the generic "cannot
+		// unify open record with *types.TApp" error. Mirror of the gate in
+		// unifyTypeApps for the swapped argument order.
+		if isTaggedUnion(t2, u.constructorTypes) {
+			return nil, makeUnificationTaggedUnionError(t2, t1, u.constructorTypes)
+		}
 		return nil, fmt.Errorf("cannot unify open record with %T", t2)
 	}
 }

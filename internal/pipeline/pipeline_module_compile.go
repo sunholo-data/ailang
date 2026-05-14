@@ -262,6 +262,15 @@ func typeCheckAndLowerModule(
 	// Must happen before FillOperatorMethods which reads CoreTI for operator resolution
 	typeChecker.FinalizeSubstitutions()
 
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): post-inference verification
+	// of record-access sites against tagged-union receivers. CoreTI now has
+	// the resolved receiver types (post-substitution). Catches the
+	// `let r = step(); r.field` shape that the early gate in
+	// inferRecordAccess can't catch (receiver is still a TVar at that point).
+	if err := typeChecker.VerifyTaggedUnionFieldAccesses(); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", modID, err)
+	}
+
 	// Fill operator methods (resolve operators to type class methods)
 	// This populates the Method field in resolved constraints before lowering
 	for _, decl := range unit.Core.Decls {

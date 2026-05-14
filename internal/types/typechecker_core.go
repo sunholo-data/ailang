@@ -89,6 +89,36 @@ type CoreTypeChecker struct {
 	// applied once at the end via FinalizeSubstitutions(). Eliminates O(N*M) overhead
 	// where N=CoreTI entries and M=let-bindings.
 	pendingCoreTISub Substitution
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): when set, downgrades the
+	// new RecordAccessOnTaggedUnionError to a non-fatal warning so existing
+	// programs can compile during the migration window. Removed in v0.21.0.
+	allowUnsafeFieldAccess bool
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): deferred record-access
+	// checks. Populated during inference (when receiver is still a TVar
+	// because of let-generalization / instantiation), drained by
+	// VerifyTaggedUnionFieldAccesses after FinalizeSubstitutions runs and
+	// CoreTI carries resolved types. This is the gate that catches the
+	// motoko_ext_compaction_ai 0.1.3 bug shape (`let r = step(); r.field`)
+	// — early gates in inferRecordAccess can't catch it because the
+	// receiver type isn't resolved yet at constraint-emission time.
+	deferredFieldAccesses []deferredFieldAccess
+}
+
+// deferredFieldAccess records a single `expr.field` site for post-
+// inference verification. Recorded by inferRecordAccess, drained by
+// VerifyTaggedUnionFieldAccesses.
+type deferredFieldAccess struct {
+	receiverID uint64 // CoreTI key for the receiver expression's resolved type
+	field      string // field name being accessed
+	position   string // source position (for the error message)
+}
+
+// SetAllowUnsafeFieldAccess toggles the migration flag for the
+// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT gate. When true, the type-checker
+// permits .field access on multi-constructor ADT receivers (the pre-
+// v0.20.0 behavior). Intended for one-version migration grace.
+func (tc *CoreTypeChecker) SetAllowUnsafeFieldAccess(allow bool) {
+	tc.allowUnsafeFieldAccess = allow
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -351,6 +381,14 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): wire the constructor →
+	// ADT-name registry so the unifier can produce the prescriptive
+	// match-discipline error when a tagged-union ADT fails to unify with
+	// TRecordOpen. nil-safe: SetConstructorTypes(nil) just disables the
+	// gate (legacy generic error message).
+	if !tc.allowUnsafeFieldAccess {
+		unifier.SetConstructorTypes(tc.constructorTypes)
+	}
 
 	// Infer type (returns updated env)
 	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)

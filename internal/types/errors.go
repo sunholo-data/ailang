@@ -31,6 +31,17 @@ const (
 	// surfaces the offending constructor name AND lists the constructors
 	// of both ADTs so the fix is obvious from the error message alone.
 	MatchForeignConstructorError TypeErrorKind = "match_foreign_constructor"
+
+	// RecordAccessOnTaggedUnionError (M-TYPECHECK-NO-AUTO-UNWRAP-RESULT,
+	// v0.20.0) fires when `expr.field` is applied to a value typed as a
+	// multi-constructor ADT (Result, Option, user-defined multi-variant).
+	// Pre-v0.20.0 this silently auto-unwrapped the variant payload at
+	// runtime — the Ok path of `result.message.content` worked while the
+	// Err path crashed with `cannot access field of non-record value:
+	// *eval.StringValue`. This error code rejects the access at compile
+	// time with a prescriptive `match { Ok(x) => ..., Err(e) => ... }`
+	// template, forcing the consumer to author both arms.
+	RecordAccessOnTaggedUnionError TypeErrorKind = "record_access_on_tagged_union"
 )
 
 // TypeCheckError represents a detailed type checking error

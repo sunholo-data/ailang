@@ -17,6 +17,22 @@ type Unifier struct {
 	aliasEnv map[string]Type
 	// M-DX11-PHASE2: Debug sink for emitting OnSubstitute events during unification
 	debugSink TypeDebugSink
+	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): constructor → ADT-name
+	// registry. When set, the unifier surfaces a prescriptive error when
+	// a tagged-union ADT fails to unify with TRecordOpen (the row
+	// produced by `expr.field` access). Without this, the user gets
+	// "cannot unify type constructor X with *types.TRecordOpen" — true
+	// but unhelpful. With it: a `match { Ok(x) => ..., Err(e) => ... }`
+	// template using actual constructor names.
+	constructorTypes map[string]string
+}
+
+// SetConstructorTypes wires the ADT registry the unifier needs to
+// produce the M-TYPECHECK-NO-AUTO-UNWRAP-RESULT prescriptive error.
+// Called by CoreTypeChecker during inference setup. Safe to leave nil
+// (the gate short-circuits to the legacy generic error message).
+func (u *Unifier) SetConstructorTypes(ctors map[string]string) {
+	u.constructorTypes = ctors
 }
 
 // freshRowVarName generates a unique row variable name (M-FIX-NESTED-RECORD-LIST)
@@ -214,6 +230,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		// the TCon represents the same parameterized type
 		if t2App, ok := t2.(*TApp); ok {
 			return u.unifyTypeApps(t2App, t1, sub)
+		}
+		// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): if t1 is a tagged-
+		// union ADT and t2 is TRecordOpen, the user wrote `expr.field`
+		// where `expr` is a Result/Option/multi-variant value. Surface
+		// the prescriptive match template instead of the generic
+		// "cannot unify type constructor X with *types.TRecordOpen".
+		if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
+			return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 		}
 		return nil, fmt.Errorf("cannot unify type constructor %s with %T", t1.Name, t2)
 

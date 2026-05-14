@@ -1,13 +1,47 @@
 # M-TYPECHECK-NO-AUTO-UNWRAP-RESULT: Reject `.field` access on tagged unions without `match`
 
-**Status**: Planned
-**Target**: v0.20.0
+**Status**: Partially Implemented (v0.20.0) — see Implementation Status below
+**Target**: v0.20.0 (partial), v0.20.1 (full coverage of the let-bound-function-call shape)
 **Priority**: P0
-**Estimated**: ~3 days (~20 hours)
+**Estimated**: ~3 days (~20 hours), Actual partial: 1 session (~5h), Deferred work: ~1-3 sessions depending on path chosen
 **Dependencies**: None (pure type-checker change + audit-fix sweep across stdlib + packages)
 **Author**: Claude Opus 4.7 + Mark
 **Created**: 2026-05-14
 **Source**: 2026-05-13 PR #16 (motoko_agent) post-mortem. Bug class: AILANG silently auto-unwraps tagged unions during field access, masking missing `match` discipline. Latent bugs ship and fire only on the unhappy path (network blip, rate limit, model timeout, missing handler). Reported by `arniwesth` after `motoko_ext_compaction_ai 0.1.3` crashed his agent loop with `cannot access field of non-record value: *eval.StringValue` — the AILANG error message is itself misleading because by the time `.content` is being accessed, AILANG has already auto-unwrapped `Err(AIError)` to its `.message: string` field.
+
+---
+
+## Implementation Status (added 2026-05-14)
+
+The systemic typechecker fix turned out to be larger than the design doc anticipated. AILANG's row-unification is permissive in ways that interact subtly with let-generalization: when a Result-typed value is bound via `let r = funcReturningResult()`, the constraint solver substitutes the receiver TVar with TRecordOpen rather than rejecting the unification, losing the Result type information from CoreTI before any post-pass can verify it.
+
+**What v0.20.0 ships** (committed 2026-05-14):
+
+| Pattern | Status | Mechanism |
+|---|---|---|
+| `let r = ConstructorApp({...}); r.field` (block, direct ctor) | ✅ Caught at compile time | Unifier gate (TApp/TCon ↔ TRecordOpen) |
+| `Yes({...}).field` (direct constructor field access) | ✅ Caught | Same |
+| `let r: Result[T,E] = Ok(...) in r.x` (explicit annotation) | ✅ Caught | Early gate in `inferRecordAccess` (concrete type at infer time) |
+| `let r = ConstructorApp(...); r.field` against Result-typed local | ✅ Caught | Same |
+
+**What v0.20.0 does NOT catch** (deferred to v0.20.1):
+
+| Pattern | Status | Why |
+|---|---|---|
+| `let r = funcReturningResult(); r.field` | ❌ Not caught | Receiver becomes TRecordOpen post-unification (Result info lost from CoreTI before deferred verifier runs). This IS the motoko_ext_compaction_ai 0.1.3 shape. |
+| `funcReturningResult().field` (direct call) | ❌ Not caught | Same root cause. |
+
+**Compensating control for the gap**: M-SMOKE-FAULT-INJECTION (planned v0.20.1) will catch what the typechecker can't by injecting synthetic `Err(AIError{...})` returns at every Result-returning effect callsite during `ailang publish`. Belt-and-braces with the per-package smoke tests we shipped for `motoko_ext_compaction_ai 0.1.5`.
+
+**Architectural options for the deferred work** (M1b, deferred to v0.20.1):
+
+1. **Stricter constraint solver**: tighten `unifyRecordOpen` to reject `Result ~ TRecordOpen` even via TVar substitution chain. ~300 LOC, real risk to existing programs that depend on permissive row unification.
+2. **Parallel source-type map**: record the original (pre-unification) type for record-access receivers in a separate map that updates with substitution differently from CoreTI. ~80 LOC, smaller and safer but requires parallel infrastructure.
+3. **Hook earlier in the constraint solver**: detect the `α ~ Result` then `α ~ TRecordOpen` constraint chain at solve time. ~200 LOC, intermediate risk.
+
+Recommended for v0.20.1: **Option 2** (parallel source-type map). Smaller scope, lower regression risk, catches the missing case without rearchitecting the unifier.
+
+**M2 (audit sweep) and M3 (ecosystem migration) deferred** to v0.20.1 alongside M1b — the gate as shipped catches a smaller subset than originally scoped, so the audit sweep would find fewer affected sites and the ecosystem migration impact is reduced. Re-plan once the deeper fix is in.
 
 ---
 
