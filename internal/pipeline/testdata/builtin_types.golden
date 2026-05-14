@@ -156,6 +156,8 @@ _math_sqrt : float -> float
 _math_tan : float -> float
 _net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _net_httpRequestBytes : (string, string, list[{name: string, value: string}], bytes) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_net_url_encode : string -> string
+_net_url_encode_form : list[{name: string, value: string}] -> string
 _ollama_embed : (string, string) -> list[float] ! {IO}
 _pkg_asset_path : (string, string) -> Result[string, string] ! {FS}
 _process_close_stdin : ProcessHandle -> () ! {Process}

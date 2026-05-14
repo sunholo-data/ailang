@@ -1,0 +1,26 @@
+module examples/runnable/url_encode
+
+import std/io (println)
+import std/net (urlEncode, urlEncodeForm)
+
+-- Single-value percent-encoding (path/query/fragment safe).
+-- Space becomes %20 (RFC 3986), unsafe chars are percent-encoded.
+pure func encodeSecret() -> string =
+  urlEncode("a/b=c+d&e f")
+
+-- Build a full application/x-www-form-urlencoded body — the body shape
+-- every OAuth2 token-exchange endpoint expects. Space becomes + (WHATWG
+-- form spec). Keys are sorted alphabetically by url.Values.Encode.
+pure func oauthBody() -> string =
+  urlEncodeForm([
+    {name: "grant_type",    value: "authorization_code"},
+    {name: "code",          value: "ABC=123/xyz"},
+    {name: "client_id",     value: "linkedin_id"},
+    {name: "client_secret", value: "secret/with+unsafe=chars"},
+    {name: "redirect_uri",  value: "https://example.com/cb"}
+  ])
+
+export func main() -> () ! {IO} {
+  println("urlEncode:     ${encodeSecret()}");
+  println("urlEncodeForm: ${oauthBody()}")
+}

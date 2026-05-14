@@ -178,3 +178,47 @@ export func httpRequestBytes(
 ) -> Result[HttpResponse, NetError] ! {Net} {
   _net_httpRequestBytes(method, url, headers, body)
 }
+
+-- Percent-encode a string for use in a URL (path, query, fragment, or form value).
+--
+-- Encodes per RFC 3986: space becomes %20, reserved chars (= & + / etc.) are
+-- percent-encoded, unreserved chars (A-Z a-z 0-9 - _ . ~) pass through. Safe
+-- to use in any URL position.
+--
+-- For building a full application/x-www-form-urlencoded body from {name,value}
+-- pairs, use urlEncodeForm — it encodes space as + per the WHATWG form spec,
+-- which is what HTTP servers expect for form bodies.
+--
+-- Pure function: no Net capability needed.
+--
+-- Examples:
+--   urlEncode("hello world")        -- "hello%20world"
+--   urlEncode("a/b=c+d&e")          -- "a%2Fb%3Dc%2Bd%26e"
+--   urlEncode("café")               -- "caf%C3%A9"
+export func urlEncode(s: string) -> string {
+  _net_url_encode(s)
+}
+
+-- Build an application/x-www-form-urlencoded body from {name,value} records.
+--
+-- Encodes space as + (WHATWG form spec — what HTTP servers expect for form
+-- bodies). Other unsafe characters are percent-encoded. Keys are sorted
+-- alphabetically (Go url.Values.Encode behavior); if you need order-preserving
+-- output for signing schemes (AWS SigV4, OAuth1.0a), build the body manually
+-- with urlEncode on each value.
+--
+-- Pure function: no Net capability needed. Pass the result as the `body`
+-- argument to httpRequest along with a
+-- {name: "Content-Type", value: "application/x-www-form-urlencoded"} header.
+--
+-- Example (LinkedIn OAuth2 token exchange):
+--   let body = urlEncodeForm([
+--     {name: "grant_type",    value: "authorization_code"},
+--     {name: "code",          value: code},
+--     {name: "client_id",     value: clientId},
+--     {name: "client_secret", value: clientSecret},
+--     {name: "redirect_uri",  value: redirectUri}
+--   ])
+export func urlEncodeForm(params: List[{name: string, value: string}]) -> string {
+  _net_url_encode_form(params)
+}
