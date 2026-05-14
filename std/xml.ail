@@ -29,6 +29,15 @@ export type XmlNode =
   | Text(string)
   | Comment(string)
 
+-- NodeKind classifies an XmlNode without string-equality on the tag.
+-- Returned by nodeKind(node) so callers can pattern-match exhaustively
+-- instead of testing `getTag(n) == ""` to detect text. Constructors are
+-- prefixed to avoid name collision with XmlNode's Element/Text/Comment.
+export type NodeKind =
+  | KindElement
+  | KindText
+  | KindComment
+
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML
 export pure func parse(xml: string) -> Result[XmlNode, string] = _xml_parse(xml)
@@ -116,3 +125,33 @@ export pure func xmlText(content: string) -> XmlNode = _xmlText(content)
 
 -- Create a Comment node
 export pure func xmlComment(content: string) -> XmlNode = _xmlComment(content)
+
+-- M-STDLIB-XML-WALK-PERF (v0.21.0): Tree-walk performance builtins
+--
+-- Eliminate the dominant FFI/allocation cost of XmlNode tree walks:
+--   * foldChildren        — fold over direct children without allocating [XmlNode]
+--   * foldChildrenStep    — bounded fold; handler returns FoldStep[a] = Continue|Stop
+--   * getAttrMap          — all attributes in one FFI call instead of N getAttr calls
+--   * nodeKind            — classify a node by variant instead of `getTag(n) == ""`
+
+-- Fold over direct children of an Element without materialising [XmlNode].
+-- Non-Element nodes return init unchanged.
+-- Replaces: foldl(f, init, getChildren(node)).
+export pure func foldChildren[a](node: XmlNode, init: a, f: (a, XmlNode) -> a) -> a
+  = _xml_foldChildren(node, init, f)
+
+-- Bounded variant of foldChildren. Handler returns Continue(a) | Stop(a).
+-- Stop(acc') halts the walk immediately and returns acc'.
+export pure func foldChildrenStep[a](node: XmlNode, init: a, f: (a, XmlNode) -> FoldStep[a]) -> a
+  = _xml_foldChildrenStep(node, init, f)
+
+-- All attributes of an Element as Map[string, string]. Non-Element nodes return empty map.
+-- Replaces: N separate getAttr calls when extracting multiple attributes from one node.
+-- Duplicate attribute names: last write wins.
+export pure func getAttrMap(node: XmlNode) -> Map[string, string]
+  = _xml_getAttrMap(node)
+
+-- Classify a node as KindElement | KindText | KindComment without string-equality on the tag.
+-- Use instead of `getTag(n) == ""` text-detection patterns.
+export pure func nodeKind(node: XmlNode) -> NodeKind
+  = _xml_nodeKind(node)

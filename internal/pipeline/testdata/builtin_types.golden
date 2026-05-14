@@ -239,10 +239,14 @@ _xml_findAll : (XmlNode, string) -> list[XmlNode]
 _xml_findAllAttrs : (XmlNode, string, string) -> list[string]
 _xml_findAllTexts : (XmlNode, string) -> list[string]
 _xml_findFirst : (XmlNode, string) -> Option[XmlNode]
+_xml_foldChildren : (XmlNode, a, (a, XmlNode) -> a) -> a
+_xml_foldChildrenStep : (XmlNode, a, (a, XmlNode) -> FoldStep[a]) -> a
 _xml_getAttr : (XmlNode, string) -> Option[string]
+_xml_getAttrMap : XmlNode -> Map[string, string]
 _xml_getChildren : XmlNode -> list[XmlNode]
 _xml_getTag : XmlNode -> string
 _xml_getText : XmlNode -> string
+_xml_nodeKind : XmlNode -> NodeKind
 _xml_parse : string -> Result[XmlNode, string]
 _xml_parseElements : (string, string, int) -> Result[list[XmlNode], string]
 _xml_parseFold : (string, string, a, (a, XmlNode) -> a) -> Result[a, string]
