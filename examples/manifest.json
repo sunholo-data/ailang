@@ -1472,6 +1472,19 @@
       "description": "XML fold: process elements one-at-a-time via parseFold without building a result list"
     },
     {
+      "path": "runnable/xml_walk_perf.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "performance",
+        "foldChildren",
+        "getAttrMap",
+        "std/xml"
+      ],
+      "description": "Wallclock comparison of classic getChildren+getAttr walks vs new foldChildren+getAttrMap walks (M-STDLIB-XML-WALK-PERF)"
+    },
+    {
       "path": "runnable/zip_xml_fold.ail",
       "status": "working",
       "tags": [

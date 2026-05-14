@@ -1,0 +1,111 @@
+-- xml_walk_perf: AILANG-level wallclock comparison of the classic
+-- getChildren+foldl tree-walk vs the new foldChildren+getAttrMap path.
+--
+-- Both walkers count direct children whose `id` attribute is present and
+-- check whether each child has its expected attribute. The work per child
+-- is logically identical; only the FFI boundary count differs.
+--
+-- Run: ailang run --caps Clock,IO examples/runnable/xml_walk_perf.ail
+module examples/runnable/xml_walk_perf
+
+import std/clock (now)
+import std/xml (parse, getChildren, getAttr, foldChildren, getAttrMap, XmlNode)
+import std/list (foldl)
+import std/string (length)
+import std/map (lookup)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Build N <row> elements concatenated.
+export pure func rows(i: int, n: int, acc: string) -> string {
+  if i >= n
+  then acc
+  else rows(
+    i + 1,
+    n,
+    "${acc}<row id='1' a='x' b='y' c='z' d='w' e='v' f='u' g='t' h='s' i='r'>cell</row>"
+  )
+}
+
+export pure func buildDoc(n: int) -> string {
+  let empty = "" in
+  if n <= 0
+  then "<table></table>"
+  else "<table>${rows(0, n, empty)}</table>"
+}
+
+-- Count attributes present per child via per-attr getAttr calls.
+-- 10 FFI crossings per child × N children.
+export pure func presentAttrsClassic(c: XmlNode) -> int {
+  let p1 = match getAttr(c, "id") { Some(_) => 1, None => 0 };
+  let p2 = match getAttr(c, "a")  { Some(_) => 1, None => 0 };
+  let p3 = match getAttr(c, "b")  { Some(_) => 1, None => 0 };
+  let p4 = match getAttr(c, "c")  { Some(_) => 1, None => 0 };
+  let p5 = match getAttr(c, "d")  { Some(_) => 1, None => 0 };
+  let p6 = match getAttr(c, "e")  { Some(_) => 1, None => 0 };
+  let p7 = match getAttr(c, "f")  { Some(_) => 1, None => 0 };
+  let p8 = match getAttr(c, "g")  { Some(_) => 1, None => 0 };
+  let p9 = match getAttr(c, "h")  { Some(_) => 1, None => 0 };
+  let p10 = match getAttr(c, "i") { Some(_) => 1, None => 0 };
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10
+}
+
+-- Count the same attributes via one getAttrMap + 10 map lookups.
+-- 1 FFI crossing per child for the map; lookups are pure AILANG.
+export pure func presentAttrsFold(c: XmlNode) -> int {
+  let attrs = getAttrMap(c);
+  let p1 = match lookup(attrs, "id") { Some(_) => 1, None => 0 };
+  let p2 = match lookup(attrs, "a")  { Some(_) => 1, None => 0 };
+  let p3 = match lookup(attrs, "b")  { Some(_) => 1, None => 0 };
+  let p4 = match lookup(attrs, "c")  { Some(_) => 1, None => 0 };
+  let p5 = match lookup(attrs, "d")  { Some(_) => 1, None => 0 };
+  let p6 = match lookup(attrs, "e")  { Some(_) => 1, None => 0 };
+  let p7 = match lookup(attrs, "f")  { Some(_) => 1, None => 0 };
+  let p8 = match lookup(attrs, "g")  { Some(_) => 1, None => 0 };
+  let p9 = match lookup(attrs, "h")  { Some(_) => 1, None => 0 };
+  let p10 = match lookup(attrs, "i") { Some(_) => 1, None => 0 };
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10
+}
+
+-- Classic walker: getChildren materialises a list, foldl iterates.
+-- Per child: 5 getAttr FFI calls.
+export pure func classicSum(root: XmlNode) -> int {
+  foldl(
+    \acc c. acc + presentAttrsClassic(c),
+    0,
+    getChildren(root)
+  )
+}
+
+-- New walker: foldChildren walks directly (no intermediate [XmlNode]).
+-- Per child: 1 getAttrMap FFI call + 5 pure map lookups.
+export pure func foldSum(root: XmlNode) -> int {
+  foldChildren(root, 0, \acc c. acc + presentAttrsFold(c))
+}
+
+export func main() -> () ! {IO, Clock} {
+  let doc = buildDoc(2000);
+  println("input_bytes=${show(length(doc))}");
+  match parse(doc) {
+    Ok(root) => {
+      -- Warm-up so allocator state / cache effects are equalised.
+      let _ = classicSum(root);
+      let _ = foldSum(root);
+
+      let t0 = now();
+      let n1 = classicSum(root);
+      let t1 = now();
+      let n2 = foldSum(root);
+      let t2 = now();
+
+      let classicMs = t1 - t0;
+      let foldMs = t2 - t1;
+      println("classic: count=${show(n1)} time_ms=${show(classicMs)}");
+      println("fold:    count=${show(n2)} time_ms=${show(foldMs)}");
+      if n1 == n2
+      then println("agreement: counts match (${show(n1)})")
+      else println("DISAGREEMENT")
+    },
+    Err(e) => println("PARSE-FAIL: ${e}")
+  }
+}
