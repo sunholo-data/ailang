@@ -155,3 +155,18 @@ export pure func getAttrMap(node: XmlNode) -> Map[string, string]
 -- Use instead of `getTag(n) == ""` text-detection patterns.
 export pure func nodeKind(node: XmlNode) -> NodeKind
   = _xml_nodeKind(node)
+
+-- Go-iterative flatMap over direct children. Use this — NOT foldChildren —
+-- when the walker produces a flat list of outputs. Internally appends into
+-- one Go-native slice, so callers avoid both the [XmlNode] alloc that
+-- getChildren makes AND the prepend+reverse penalty that an AILANG-side
+-- fold accumulator would incur.
+--
+-- Replaces: flatMap(f, getChildren(node)).
+export pure func flatMapChildren[a](node: XmlNode, f: (XmlNode) -> [a]) -> [a]
+  = _xml_flatMapChildren(node, f)
+
+-- Go-iterative map over direct children. Use when f produces exactly one
+-- output element per child. Replaces: map(f, getChildren(node)).
+export pure func mapChildren[a](node: XmlNode, f: (XmlNode) -> a) -> [a]
+  = _xml_mapChildren(node, f)

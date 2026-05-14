@@ -21,6 +21,8 @@ func init() {
 	registerXmlFoldChildrenStep()
 	registerXmlGetAttrMap()
 	registerXmlNodeKind()
+	registerXmlFlatMapChildren()
+	registerXmlMapChildren()
 }
 
 // ============================================================================
@@ -587,4 +589,152 @@ func xmlNodeKindImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, erro
 		// KindComment (and anything else — defensive default since XmlNode is closed).
 		return &eval.TaggedValue{TypeName: "NodeKind", CtorName: "KindComment", Fields: nil}, nil
 	}
+}
+
+// ============================================================================
+// _xml_flatMapChildren: XmlNode -> (XmlNode -> [a]) -> [a]
+// Go-iterative flatMap over direct children. Each child callback returns a list;
+// results are concatenated into a single Go-native slice with O(1) amortised
+// append (no [XmlNode] intermediate, no AILANG-side cons+reverse penalty).
+//
+// Mirrors _list_takeFlatMap's iterative pattern. This is the right primitive
+// when the walker produces a flat list of outputs (the dominant pattern in
+// real tree walkers); foldChildren is for scalar accumulators.
+//
+// Added in M4 of M-STDLIB-XML-WALK-PERF after sunholo/ailang-parse reported
+// foldChildren regressed allocations 229MB → 395MB on a 1.7MB Mollie page.
+// ============================================================================
+
+func registerXmlFlatMapChildren() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_xml_flatMapChildren",
+		NumArgs: 2,
+		IsPure:  true,
+		Type:    makeXmlFlatMapChildrenType,
+		Impl:    xmlFlatMapChildrenImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Go-iterative flatMap over direct children — replaces flatMap(f, getChildren(node))",
+			LongDesc:    "Applies f to each direct child of an Element (f returns a [a]), concatenating results into a single list. Allocations use Go-native slice append (O(1) amortised), so callers do not pay the AILANG-side prepend+reverse penalty that foldChildren incurs when producing a list. Non-Element nodes return []. Use this when the walker output is a flat list; use foldChildren when accumulating to a scalar.",
+			Params: []ParamDoc{
+				{Name: "node", Description: "Element to walk"},
+				{Name: "f", Description: "Function: (XmlNode) -> [a]"},
+			},
+			Returns:   "[a] - concatenated outputs from f over each direct child",
+			Examples:  []Example{{Code: `_xml_flatMapChildren(root, \c. processNode(c))`, Description: "Process each direct child, flatten results"}},
+			SeeAlso:   []string{"_xml_mapChildren", "_xml_foldChildren", "_list_flatMap"},
+			Since:     "v0.21.0",
+			Stability: StabilityStable,
+			Tags:      []string{"xml", "walk", "flatMap", "performance"},
+			Category:  "xml",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _xml_flatMapChildren: %v", err))
+	}
+}
+
+// Type: forall a. (XmlNode, (XmlNode) -> [a]) -> [a]
+func makeXmlFlatMapChildrenType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	xmlNodeType := T.Con("XmlNode")
+	fn := T.Func(xmlNodeType).Returns(T.List(a)).Build()
+	return T.Func(xmlNodeType, fn).Returns(T.List(a)).Build()
+}
+
+func xmlFlatMapChildrenImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if ctx == nil || ctx.FnCaller == nil {
+		return nil, fmt.Errorf("_xml_flatMapChildren: FnCaller not set (evaluator not wired)")
+	}
+	tv, ok := args[0].(*eval.TaggedValue)
+	if !ok || tv.CtorName != "Element" {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	children, ok := tv.Fields[2].(*eval.ListValue)
+	if !ok {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	fn := args[1]
+	// Pre-size to children count as a rough hint; Go's append amortises growth from there.
+	result := make([]eval.Value, 0, len(children.Elements))
+	for _, child := range children.Elements {
+		innerVal, err := ctx.FnCaller(fn, child)
+		if err != nil {
+			return nil, err
+		}
+		innerList, ok := innerVal.(*eval.ListValue)
+		if !ok {
+			return nil, fmt.Errorf("_xml_flatMapChildren: callback must return a List, got %T", innerVal)
+		}
+		result = append(result, innerList.Elements...)
+	}
+	return &eval.ListValue{Elements: result}, nil
+}
+
+// ============================================================================
+// _xml_mapChildren: XmlNode -> (XmlNode -> a) -> [a]
+// Go-iterative map over direct children. Like flatMapChildren but each callback
+// returns one element (not a list), so result length equals number of children.
+// ============================================================================
+
+func registerXmlMapChildren() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_xml_mapChildren",
+		NumArgs: 2,
+		IsPure:  true,
+		Type:    makeXmlMapChildrenType,
+		Impl:    xmlMapChildrenImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Go-iterative map over direct children — replaces map(f, getChildren(node))",
+			LongDesc:    "Applies f to each direct child of an Element (f returns one element of type a), producing [a] in document order. Allocates exactly one slice of the right size, with O(1) amortised append. Non-Element nodes return []. Use when each child yields exactly one output element; use flatMapChildren if f returns a list.",
+			Params: []ParamDoc{
+				{Name: "node", Description: "Element to walk"},
+				{Name: "f", Description: "Function: (XmlNode) -> a"},
+			},
+			Returns:   "[a] - one output per direct child, in document order",
+			SeeAlso:   []string{"_xml_flatMapChildren", "_xml_foldChildren"},
+			Since:     "v0.21.0",
+			Stability: StabilityStable,
+			Tags:      []string{"xml", "walk", "map", "performance"},
+			Category:  "xml",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _xml_mapChildren: %v", err))
+	}
+}
+
+// Type: forall a. (XmlNode, (XmlNode) -> a) -> [a]
+func makeXmlMapChildrenType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	xmlNodeType := T.Con("XmlNode")
+	fn := T.Func(xmlNodeType).Returns(a).Build()
+	return T.Func(xmlNodeType, fn).Returns(T.List(a)).Build()
+}
+
+func xmlMapChildrenImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if ctx == nil || ctx.FnCaller == nil {
+		return nil, fmt.Errorf("_xml_mapChildren: FnCaller not set (evaluator not wired)")
+	}
+	tv, ok := args[0].(*eval.TaggedValue)
+	if !ok || tv.CtorName != "Element" {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	children, ok := tv.Fields[2].(*eval.ListValue)
+	if !ok {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	fn := args[1]
+	result := make([]eval.Value, len(children.Elements))
+	for i, child := range children.Elements {
+		out, err := ctx.FnCaller(fn, child)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = out
+	}
+	return &eval.ListValue{Elements: result}, nil
 }
