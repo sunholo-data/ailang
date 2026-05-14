@@ -1,0 +1,78 @@
+{
+  "sprint_id": "M-TYPECHECK-NO-AUTO-UNWRAP-RESULT",
+  "status": "not_started",
+  "created": "2026-05-14T06:01:33Z",
+  "design_doc": "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result.md",
+  "sprint_plan": "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 600,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_TYPECHECKER_CORE",
+      "description": "isTaggedUnion predicate + inferRecordAccess gate + TYP_RECORD_ACCESS_ON_TAGGED_UNION error code + --allow-unsafe-field-access migration flag + 9 unit tests",
+      "estimated_loc": 280,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal/types/tagged_union_predicate.go exists with isTaggedUnion(t, env) -> bool, cycle-safe per .claude/rules/type-system.md (uses traverse.Walk or carries visited map)",
+        "isTaggedUnion returns true for multi-constructor ADTs (Result[T,E], Option[T], user-defined multi-variant) and false for single-constructor ADTs, records, primitives, function types, type variables",
+        "internal/types/typechecker_data.go inferRecordAccess calls the gate BEFORE the existing TRecordOpen constraint and returns TYP_RECORD_ACCESS_ON_TAGGED_UNION error on tagged-union receiver",
+        "internal/elaborate/error_codes.go registers TYP_RECORD_ACCESS_ON_TAGGED_UNION with prescriptive hint template that includes receiver type name, first 3 constructor names, and a match { Ok(x) => ..., Err(e) => ... } template",
+        "cmd/ailang/main.go has --allow-unsafe-field-access flag that downgrades the new error to a WARN-level diagnostic (logged loudly per occurrence)",
+        "internal/types/tagged_union_field_access_test.go exists with 9 tests covering: rejects Result.field, rejects Option.field, rejects user multi-variant ADT.field, allows single-constructor ADT.field, allows plain record.field, allows .field inside a match arm binding, migration flag downgrades to warning, isTaggedUnion handles type aliases, isTaggedUnion is cycle-safe on recursive types",
+        "All 9 new tests pass under make test",
+        "Existing internal/types/ test suite (~600 tests) still passes — no regression",
+        "make test + make lint clean"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_AUDIT_SWEEP",
+      "description": "tools/find_unsafe_field_access.sh audit script + fix every flagged callsite in repo + add compaction_ai 0.1.3 source as expected_fail regression fixture",
+      "estimated_loc": 130,
+      "dependencies": ["M1_TYPECHECKER_CORE"],
+      "acceptance_criteria": [
+        "tools/find_unsafe_field_access.sh exists, greps for `let X = funcThatReturnsResult(...)` followed by X.field patterns, outputs file:line:expression",
+        "Audit ran against every .ail file in examples/, std/, examples/runnable/, examples/expected_fail/ — failure list captured at design_docs/planned/v0_20_0/m-typecheck-audit-results.md",
+        "Every flagged callsite fixed via match { Ok(x) => ..., Err(e) => ... } — no in-repo .ail file fails to type-check under strict mode",
+        "examples/expected_fail/compaction_ai_field_access_on_result.ail exists, reproduces the exact 0.1.3 bug shape (let result = step(...); result.message.content), triggers TYP_RECORD_ACCESS_ON_TAGGED_UNION when checked",
+        "make verify-examples green",
+        "Total fix count <=150 — if higher, fall back to migration-flag-default-warn for v0.20.0 (documented in design doc risk table) and defer hard-error to v0.20.1",
+        "make test + make lint still clean"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ECOSYSTEM_DOCS_CHANGELOG",
+      "description": "Drift-check published sunholo/* packages + per-package fix PRs + AILANG prompts updated + docs/docs/guides/result-discipline.md guide + CHANGELOG entry under [v0.20.0] + design doc moved to implemented/v0_20_0/",
+      "estimated_loc": 190,
+      "dependencies": ["M1_TYPECHECKER_CORE", "M2_AUDIT_SWEEP"],
+      "acceptance_criteria": [
+        "Drift-check ran every published sunholo/* package against the v0.20.0 strict checker, failure list captured",
+        "Every affected package either has a fix PR queued OR is documented as needing the --allow-unsafe-field-access escape hatch until its maintainer migrates",
+        "prompts/v0.20.0/syntax.md leads with the Result/Option discipline (every consumer MUST match), shows the new prescriptive error message verbatim, marks the old result.field pattern as REJECTED with a fix template",
+        "docs/docs/guides/result-discipline.md exists (~100-130 LOC) with: why the gate exists (links compaction_ai post-mortem), isTaggedUnion exact rules (single-ctor/record/primitive exempt), migration flag usage, three before/after examples",
+        "docs/sidebars.js wires the new guide into the Reference section",
+        "changelogs/v0.10-current.md has [v0.20.0] entry with: breaking-change flag, migration path via --allow-unsafe-field-access, audit results link, ecosystem migration list, motoko_ext_compaction_ai 0.1.3 acknowledged as the surfacing case",
+        "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result.md moved to design_docs/implemented/v0_20_0/, status field updated from Planned to Implemented",
+        "design_docs/planned/v0_20_0/m-typecheck-no-auto-unwrap-result-sprint-plan.md moved alongside, status updated",
+        "make test + make lint + make verify-examples all green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "started": null,
+  "completed": null
+}
