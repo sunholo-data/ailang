@@ -100,6 +100,9 @@ func buildVersioned(root, dir, version string) error {
 	if err := writeDocsSearchIndex(root, dir); err != nil {
 		return fmt.Errorf("docs_search_index: %w", err)
 	}
+	if err := writeDocsNav(root, dir); err != nil {
+		return fmt.Errorf("docs_nav: %w", err)
+	}
 	if err := writeExampleConceptIndex(root, dir); err != nil {
 		return fmt.Errorf("example_concept_index: %w", err)
 	}
@@ -978,6 +981,121 @@ func writeDocsSearchIndex(root, dir string) error {
 	sort.Slice(pages, func(i, j int) bool { return pages[i].Path < pages[j].Path })
 	return writeJSON(filepath.Join(dir, "docs_search_index.json"), map[string]any{
 		"pages": pages,
+	})
+}
+
+// writeDocsNav walks docs/docs/**/*.{md,mdx} and emits a hierarchical sidebar
+// tree as JSON. Replaces scraping the Docusaurus sidebar at runtime — agents
+// call docs_nav() to discover routes without parsing sidebars.js.
+//
+// The tree mirrors the on-disk directory structure: each subdirectory becomes
+// a category node; each .md/.mdx becomes a doc node. Titles come from
+// frontmatter `title:` first, then the first `# ` heading, then the filename.
+// `index.md`/`intro.md` files are hoisted as the category's overview doc.
+func writeDocsNav(root, dir string) error {
+	docsDir := filepath.Join(root, "docs", "docs")
+	frontmatterRe := regexp.MustCompile(`(?s)\A---\s*\n(.*?)\n---\s*\n`)
+	frontmatterTitleRe := regexp.MustCompile(`(?m)^title:\s*['"]?([^'"\n]+?)['"]?\s*$`)
+	titleRe := regexp.MustCompile(`(?m)^#\s+(.+)$`)
+
+	type node struct {
+		Type  string  `json:"type"`            // "doc" or "category"
+		ID    string  `json:"id,omitempty"`    // doc route, e.g. "guides/agent-mcp"
+		Label string  `json:"label,omitempty"` // category label
+		Title string  `json:"title,omitempty"` // doc title
+		Items []*node `json:"items,omitempty"` // category children
+	}
+
+	docTitle := func(p string) string {
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
+		}
+		text := string(body)
+		if m := frontmatterRe.FindStringSubmatch(text); len(m) > 1 {
+			if t := frontmatterTitleRe.FindStringSubmatch(m[1]); len(t) > 1 {
+				return strings.TrimSpace(t[1])
+			}
+			text = frontmatterRe.ReplaceAllString(text, "")
+		}
+		if m := titleRe.FindStringSubmatch(text); len(m) > 1 {
+			return strings.TrimSpace(m[1])
+		}
+		return strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
+	}
+
+	// Two-pass walk: collect dir → []entries, then build tree top-down.
+	type entry struct {
+		name  string // base name without extension
+		isDoc bool
+		title string
+		docID string // route id, e.g. "guides/agent-mcp"
+	}
+	dirEntries := map[string][]entry{}
+	dirSubdirs := map[string][]string{}
+
+	err := filepath.Walk(docsDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(docsDir, p)
+		if rel == "." {
+			return nil
+		}
+		parent := filepath.Dir(rel)
+		if parent == "." {
+			parent = ""
+		}
+		if info.IsDir() {
+			dirSubdirs[parent] = append(dirSubdirs[parent], rel)
+			return nil
+		}
+		if !strings.HasSuffix(p, ".md") && !strings.HasSuffix(p, ".mdx") {
+			return nil
+		}
+		base := strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
+		docID := strings.TrimSuffix(rel, filepath.Ext(rel))
+		docID = filepath.ToSlash(docID)
+		dirEntries[parent] = append(dirEntries[parent], entry{
+			name:  base,
+			isDoc: true,
+			title: docTitle(p),
+			docID: docID,
+		})
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var build func(prefix string) []*node
+	build = func(prefix string) []*node {
+		var out []*node
+		for _, e := range dirEntries[prefix] {
+			out = append(out, &node{Type: "doc", ID: e.docID, Title: e.title})
+		}
+		for _, sub := range dirSubdirs[prefix] {
+			label := filepath.Base(sub)
+			out = append(out, &node{
+				Type:  "category",
+				Label: label,
+				Items: build(sub),
+			})
+		}
+		sort.SliceStable(out, func(i, j int) bool {
+			// Docs before categories within a level; alphabetical within each group.
+			if out[i].Type != out[j].Type {
+				return out[i].Type == "doc"
+			}
+			ki := out[i].ID + out[i].Label
+			kj := out[j].ID + out[j].Label
+			return ki < kj
+		})
+		return out
+	}
+
+	return writeJSON(filepath.Join(dir, "docs_nav.json"), map[string]any{
+		"items": build(""),
 	})
 }
 
