@@ -227,7 +227,7 @@ func runMessagesReply(args []string) {
 		os.Exit(1)
 	}
 
-	msgID := fs.Arg(0)
+	msgIDArg := fs.Arg(0)
 	replyText := fs.Arg(1)
 
 	store, err := openStore()
@@ -237,10 +237,20 @@ func runMessagesReply(args []string) {
 	}
 	defer store.Close()
 
+	msgID, err := resolveMessageID(store, msgIDArg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
 	// Look up the original message
 	msg, err := store.GetInboxMessage(msgID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: message not found: %v\n", red("Error"), err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if msg == nil {
+		fmt.Fprintf(os.Stderr, "%s: message %q not found\n", red("Error"), msgIDArg)
 		os.Exit(1)
 	}
 
