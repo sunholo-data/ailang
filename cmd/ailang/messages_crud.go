@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
@@ -124,8 +125,8 @@ func runMessagesList(args []string) {
 
 func runMessagesAck(args []string) {
 	fs := flag.NewFlagSet("messages ack", flag.ExitOnError)
-	all := fs.Bool("all", false, "Acknowledge all unread messages")
-	inbox := fs.String("inbox", "", "Filter by inbox when using --all (default: 'user'; use 'all' for every inbox)")
+	all := fs.Bool("all", false, "Acknowledge all unread messages (spans every inbox; scope with --inbox)")
+	inbox := fs.String("inbox", "", "Scope --all to a single inbox (default: every inbox)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -140,16 +141,27 @@ func runMessagesAck(args []string) {
 	defer store.Close()
 
 	if *all {
-		// Default to "user" inbox to avoid accidentally acking agent inboxes
-		// (sprint-executor, sprint-planner, etc.) which the coordinator polls
+		// No --inbox = ack every inbox. Pass-through "all" as alias for
+		// the empty-string "every inbox" semantics in MarkAllInboxMessagesRead.
 		targetInbox := *inbox
-		if targetInbox == "" {
-			targetInbox = "user"
-		}
-		// Special value "all" means ack across every inbox
 		if targetInbox == "all" {
 			targetInbox = ""
 		}
+
+		// When acking across every inbox, gather a per-inbox breakdown first
+		// so the user sees what's being cleared (otherwise a bare total hides
+		// the fact that this command crosses agent/coordinator inboxes too).
+		var breakdown map[string]int
+		if targetInbox == "" {
+			msgs, err := store.ListInboxMessages(messaging.InboxListOptions{UnreadOnly: true})
+			if err == nil {
+				breakdown = make(map[string]int, len(msgs))
+				for _, m := range msgs {
+					breakdown[m.ToInbox]++
+				}
+			}
+		}
+
 		count, err := store.MarkAllInboxMessagesRead(targetInbox)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -157,6 +169,21 @@ func runMessagesAck(args []string) {
 		}
 		if targetInbox == "" {
 			fmt.Printf("%s %d message(s) marked as read (all inboxes).\n", green("✓"), count)
+			if len(breakdown) > 0 {
+				inboxes := make([]string, 0, len(breakdown))
+				for k := range breakdown {
+					inboxes = append(inboxes, k)
+				}
+				sort.Slice(inboxes, func(i, j int) bool {
+					if breakdown[inboxes[i]] != breakdown[inboxes[j]] {
+						return breakdown[inboxes[i]] > breakdown[inboxes[j]]
+					}
+					return inboxes[i] < inboxes[j]
+				})
+				for _, ib := range inboxes {
+					fmt.Printf("    %4d  %s\n", breakdown[ib], ib)
+				}
+			}
 		} else {
 			fmt.Printf("%s %d message(s) marked as read (inbox: %s).\n", green("✓"), count, targetInbox)
 		}
