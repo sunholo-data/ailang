@@ -146,6 +146,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Web & API:")
 	fmt.Printf("  %s [flags] <path...>  Serve AILANG exports as REST endpoints\n", cyan("serve-api"))
+	fmt.Printf("  %s [--stdio]              Language Server Protocol server (for AI agents and IDEs)\n", cyan("lsp"))
 	fmt.Printf("  %s [name]       Scaffold a new AILANG web app (API + React)\n", cyan("init web-app"))
 	fmt.Println()
 	fmt.Println("WebAssembly (Browser):")
