@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "ailang-tools",
+  "description": "Repo-local Claude Code plugins for AILANG development",
+  "owner": {
+    "name": "AILANG"
+  },
+  "plugins": [
+    {
+      "name": "ailang-go-lsp",
+      "source": "./.claude/plugins/ailang-go-lsp",
+      "description": "gopls language server for the AILANG Go implementation — instant diagnostics, go-to-def, find references, hover types. Requires gopls on PATH.",
+      "category": "lsp",
+      "tags": ["lsp", "go", "gopls"]
+    }
+  ]
+}

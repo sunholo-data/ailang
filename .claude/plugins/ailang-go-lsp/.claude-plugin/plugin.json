@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ailang-go-lsp",
+  "version": "0.1.0",
+  "description": "gopls language server for Claude Code while working on the AILANG Go implementation (~6k files, ~315k LOC). Provides instant diagnostics, go-to-definition, references, and hover types so the agent doesn't have to grep the codebase to navigate it.",
+  "author": {
+    "name": "AILANG"
+  },
+  "keywords": ["lsp", "go", "gopls"]
+}

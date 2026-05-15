@@ -114,6 +114,23 @@ Priorities: Machine decidability, semantic transparency, compositional determini
 
 ---
 
+## Claude Code Plugins (LSP)
+
+This repo ships a local Claude Code marketplace at [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) with:
+
+- **ailang-go-lsp** — runs `gopls` so Claude gets real-time Go diagnostics, go-to-definition, find-references, and hover types instead of grepping the codebase. Requires `gopls` on PATH (`go install golang.org/x/tools/gopls@latest`).
+
+One-time install (per developer):
+
+```
+/plugin marketplace add /Users/mark/dev/sunholo/ailang
+/plugin install ailang-go-lsp@ailang-tools
+```
+
+Verify with `/plugin` (should show ailang-go-lsp under Installed, no entry under Errors).
+
+---
+
 ## Conditional Rules (`.claude/rules/`)
 
 Domain-specific rules load automatically when working with matching files:
