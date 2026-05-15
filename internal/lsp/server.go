@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"go.lsp.dev/jsonrpc2"
@@ -28,6 +29,12 @@ type Server struct {
 	unimplementedServer
 
 	logger *zap.Logger
+	client protocol.Client // captured in Run; used to push diagnostics
+
+	// docs holds the most recent text per open URI. Populated by DidOpen
+	// (full text) and updated by DidChange. Used by DidSave to drive the
+	// pipeline with the in-memory buffer rather than re-reading the file.
+	docs sync.Map // map[protocol.DocumentURI]string
 
 	// Lifecycle state guarded by atomics so test clients can race against
 	// shutdown without us needing a mutex on the hot path.
@@ -54,7 +61,8 @@ func NewServer(logger *zap.Logger) *Server {
 // (shutdown + exit), and non-nil if exit arrived without a prior shutdown.
 func (s *Server) Run(ctx context.Context, rwc io.ReadWriteCloser) error {
 	stream := jsonrpc2.NewStream(rwc)
-	_, conn, _ := protocol.NewServer(ctx, s, stream, s.logger)
+	_, conn, client := protocol.NewServer(ctx, s, stream, s.logger)
+	s.client = client
 
 	select {
 	case <-conn.Done():
@@ -79,7 +87,13 @@ func (s *Server) Initialize(_ context.Context, _ *protocol.InitializeParams) (*p
 	}
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			TextDocumentSync: protocol.TextDocumentSyncKindFull,
+			// Full text on every change, plus didOpen/didClose + didSave with text.
+			// M2 only re-runs the pipeline on didSave; didChange just stores the buffer.
+			TextDocumentSync: &protocol.TextDocumentSyncOptions{
+				OpenClose: true,
+				Change:    protocol.TextDocumentSyncKindFull,
+				Save:      &protocol.SaveOptions{IncludeText: true},
+			},
 		},
 		ServerInfo: &protocol.ServerInfo{
 			Name:    ServerName,

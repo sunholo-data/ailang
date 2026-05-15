@@ -148,13 +148,32 @@ func TestUnsupportedRequestReturnsMethodNotFound(t *testing.T) {
 	}
 }
 
-// assertCapabilities locks in the M1 capability contract: TextDocumentSync
-// is the ONLY thing advertised. Everything else stays nil/false until later
-// milestones flip its switch.
+// assertCapabilities locks in the post-M2 capability contract: text-document
+// sync is advertised with full options (openClose + change + save with text)
+// because M2 needs save notifications to trigger diagnostics. Everything
+// else stays nil/false until later milestones flip its switch.
 func assertCapabilities(t *testing.T, caps protocol.ServerCapabilities) {
 	t.Helper()
-	if caps.TextDocumentSync == nil {
-		t.Error("TextDocumentSync should be advertised in M1")
+	// After JSON round-trip the typed *TextDocumentSyncOptions becomes a
+	// map[string]interface{} on the client side, so we have to handle both.
+	switch sync := caps.TextDocumentSync.(type) {
+	case *protocol.TextDocumentSyncOptions:
+		if !sync.OpenClose {
+			t.Error("TextDocumentSync.OpenClose must be true so M2 sees didOpen/didClose")
+		}
+		if sync.Save == nil || !sync.Save.IncludeText {
+			t.Error("TextDocumentSync.Save.IncludeText must be true so M2 didSave handler can re-typecheck without disk read")
+		}
+	case map[string]interface{}:
+		if openClose, _ := sync["openClose"].(bool); !openClose {
+			t.Error("TextDocumentSync.openClose must be true so M2 sees didOpen/didClose")
+		}
+		save, _ := sync["save"].(map[string]interface{})
+		if includeText, _ := save["includeText"].(bool); !includeText {
+			t.Error("TextDocumentSync.save.includeText must be true so M2 didSave handler can re-typecheck without disk read")
+		}
+	default:
+		t.Fatalf("TextDocumentSync must be *TextDocumentSyncOptions or map (after JSON), got %T", caps.TextDocumentSync)
 	}
 	if caps.HoverProvider != nil {
 		t.Errorf("HoverProvider must stay nil until M3, got %v", caps.HoverProvider)
