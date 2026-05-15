@@ -90,6 +90,54 @@ func TestHealthEndpoint(t *testing.T) {
 	if resp.ExportsCount < 2 {
 		t.Errorf("expected at least 2 exports, got %d", resp.ExportsCount)
 	}
+	if len(resp.DroppedModules) != 0 {
+		t.Errorf("healthy server should have no dropped_modules; got %d", len(resp.DroppedModules))
+	}
+}
+
+// TestHealthEndpoint_WithDrops asserts that /health reports
+// status=degraded and lists dropped_modules when modules were rejected
+// by the under-basePath filter. M-SERVEAPI-SURFACE-DROPS M3.
+func TestHealthEndpoint_WithDrops(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	srv.droppedModules = append(srv.droppedModules, DroppedModule{
+		PhysicalPath: "/cache/sunholo/billing_entitlements/0.4.1/plan.ail",
+		DeclaredPath: "pkg/sunholo/billing_entitlements/plan",
+		FileBaseName: "plan.ail",
+		Annotations:  []string{"@route"},
+		Reason:       "outside-basePath",
+	})
+
+	mux := srv.buildRoutes()
+	req := httptest.NewRequest("GET", "/api/_health", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var resp HealthResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Status != "degraded" {
+		t.Errorf("expected status 'degraded' with a drop present, got %q", resp.Status)
+	}
+	if len(resp.DroppedModules) != 1 {
+		t.Fatalf("expected 1 dropped module in /health, got %d", len(resp.DroppedModules))
+	}
+	got := resp.DroppedModules[0]
+	if got.Declared != "pkg/sunholo/billing_entitlements/plan" {
+		t.Errorf("Declared = %q, want %q", got.Declared, "pkg/sunholo/billing_entitlements/plan")
+	}
+	if len(got.Annotations) != 1 || got.Annotations[0] != "@route" {
+		t.Errorf("Annotations = %v, want [\"@route\"]", got.Annotations)
+	}
+	if resp.DroppedWarning == "" {
+		t.Errorf("dropped_warning should be set when @route-bearing drops are present")
+	}
 }
 
 func TestListModules(t *testing.T) {

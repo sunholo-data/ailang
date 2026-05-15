@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/loader"
 )
 
@@ -301,6 +302,90 @@ func TestValidateRegistration_NonAnnotationDropOnlyWarns(t *testing.T) {
 
 	if err := srv.ValidateRegistration(); err != nil {
 		t.Errorf("non-annotation drop should not fail validation; got error: %v", err)
+	}
+}
+
+// TestRegisterModule_DropsOutsideBasePathReachValidateRegistration is
+// the M-SERVEAPI-SURFACE-DROPS integration test. It exercises the full
+// chain: registerModule rejects an out-of-basePath module → recordDrop
+// captures it with @route annotation → ValidateRegistration partitions
+// it as fatal and returns a non-nil error. This is the path that fixes
+// the docparse v0.14.1 billing bug class.
+func TestRegisterModule_DropsOutsideBasePathReachValidateRegistration(t *testing.T) {
+	t.Setenv(AllowDropsEnvVar, "")
+
+	// Build a docparse-style layout: project lives at projectDir; a
+	// "package cache" sits in cacheDir alongside it.
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, "project")
+	cacheDir := filepath.Join(tmpDir, "cache")
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cacheFile := filepath.Join(cacheDir, "handler.ail")
+	if err := os.WriteFile(cacheFile, []byte("module pkg/example/handler\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := New(projectDir, Config{Port: "0"})
+	defer srv.Close()
+
+	// Synthesize a LoadedModule whose File.Path is the cache file
+	// (outside basePath) and whose File.Funcs declares @route. This is
+	// what the loader would produce for a published handler module
+	// whose physical resolution lands outside the server's basePath.
+	loaded := &loader.LoadedModule{
+		Path: "pkg/example/handler",
+		File: &ast.File{
+			Path: cacheFile,
+			Module: &ast.ModuleDecl{
+				Path: "pkg/example/handler",
+			},
+			Funcs: []*ast.FuncDecl{
+				{
+					Name: "publishedHandler",
+					Annotations: []*ast.Annotation{
+						{Name: "route", Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "GET"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/foo"},
+						}},
+					},
+				},
+			},
+		},
+		Iface: iface.NewIface("pkg/example/handler"),
+	}
+
+	key, ok, err := srv.registerModule(loaded)
+	if err != nil {
+		t.Fatalf("registerModule returned unexpected error: %v", err)
+	}
+	if ok || key != "" {
+		t.Errorf("registerModule registered an out-of-basePath module: key=%q ok=%v", key, ok)
+	}
+
+	// Drop should be recorded with @route annotation, ready for
+	// ValidateRegistration to fail-fast on.
+	drops := srv.DroppedModules()
+	if len(drops) != 1 {
+		t.Fatalf("expected 1 dropped module, got %d", len(drops))
+	}
+	if drops[0].DeclaredPath != "pkg/example/handler" {
+		t.Errorf("drop DeclaredPath = %q, want %q", drops[0].DeclaredPath, "pkg/example/handler")
+	}
+	if len(drops[0].Annotations) != 1 || drops[0].Annotations[0] != "@route" {
+		t.Errorf("drop Annotations = %v, want [\"@route\"]", drops[0].Annotations)
+	}
+
+	// ValidateRegistration must surface this as a fatal error.
+	if err := srv.ValidateRegistration(); err == nil {
+		t.Fatal("ValidateRegistration returned nil; want error for @route-bearing drop")
+	} else if !strings.Contains(err.Error(), "pkg/example/handler") {
+		t.Errorf("ValidateRegistration error missing declared path: %v", err)
 	}
 }
 

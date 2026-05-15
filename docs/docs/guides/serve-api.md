@@ -428,6 +428,63 @@ curl -X POST http://localhost:8080/a2a/ \
 
 ---
 
+## Strict Module Registration (v0.21.0+)
+
+`serve-api` will refuse to start if a module carrying an `@route` annotation was silently dropped by the under-basePath filter. Before this guard, a deployment layout that placed handler dependencies outside the server's basePath (a common pattern when running from inside a published package's cache directory) could lead to handlers returning structurally-valid but semantically-empty responses — see the [docparse v0.14.1 billing bug post-mortem](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-serveapi-surface-drops.md) for the original incident.
+
+### What happens
+
+After `LoadModules` and before the HTTP listener binds, the server partitions all dropped modules:
+
+- **Fatal** — drop has at least one `@route` function. The server prints a structured error to stderr naming the file, declared module path, basePath, resolved path, and annotations, then exits 1.
+- **Non-fatal** — drop has no annotations (e.g. a stdlib resolution edge). The server emits a single `⚠  Dropped N module(s) outside basePath: ...` warning line in the startup banner but continues.
+
+### Escape hatch
+
+Set `AILANG_SERVE_API_ALLOW_DROPS=1` to demote the fatal failure to a strong WARN log line. The server starts and `/api/_health` reports `status: "degraded"` with the dropped modules listed under `dropped_modules`. Intentionally env-var-only (no CLI flag) to force operators to make the bypass explicit in their Dockerfile or deployment manifest, so it doesn't become a permanent local convenience.
+
+```bash
+# Recommended: fix the deployment layout
+ailang serve-api --caps Net,FS,Env,IO --port 8080 .
+
+# Migration escape hatch — TEMPORARY ONLY
+AILANG_SERVE_API_ALLOW_DROPS=1 ailang serve-api --caps Net,FS,Env,IO --port 8080 .
+```
+
+### Detecting partial registration
+
+Readiness probes can check `/api/_health` for partial registration:
+
+```json
+{
+  "status": "degraded",
+  "modules_count": 6,
+  "exports_count": 18,
+  "dropped_modules": [
+    {
+      "declared": "pkg/sunholo/billing_entitlements/plan",
+      "resolved": "/root/.ailang/cache/.../plan.ail",
+      "annotations": ["@route"]
+    }
+  ],
+  "dropped_warning": "AILANG_SERVE_API_ALLOW_DROPS is set — service is running with @route-bearing modules dropped"
+}
+```
+
+A healthy server response omits `dropped_modules` and `dropped_warning` entirely (via `omitempty`):
+
+```json
+{"status": "ok", "modules_count": 6, "exports_count": 18}
+```
+
+### Resolution options
+
+When `serve-api` fails to start with a fatal drop, the error message lists three paths forward:
+
+1. **Move basePath outward.** If basePath is the package cache directory, change it to a project root that contains all import targets. This is usually the cleanest fix.
+2. **Replace relative imports with canonical ones.** Inside a published package, prefer `import pkg/sunholo/foo/bar` over `import ./bar` — relative imports inside a package can resolve to a different physical location than callers reach via the canonical path, surfacing as a silent drop here.
+3. **Set `AILANG_SERVE_API_ALLOW_DROPS=1`.** Last resort for migration scenarios; not recommended for production.
+
 ## CLI Reference
 
 ### `ailang serve-api`
