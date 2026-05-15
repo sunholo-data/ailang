@@ -20,6 +20,7 @@ type Executor struct {
 	sourceFile  *ast.File // Full source file for context
 	enableDebug bool
 	modules     map[string]*loader.LoadedModule // Cached modules from last pipeline run
+	lastMeta    map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
 }
 
 // NewExecutor creates a new test executor.
@@ -29,7 +30,21 @@ func NewExecutor(modulePath string) *Executor {
 		sourceFile:  nil,
 		enableDebug: false,
 		modules:     make(map[string]*loader.LoadedModule),
+		lastMeta:    nil,
 	}
+}
+
+// LastDeclMeta returns the cached DeclMeta for the given function from the most
+// recent pipeline run (populated by ExtractFunctionBinding). Nil if not present.
+//
+// M-DX26 Phase 5.1: used to access the *already-lowered* ensures predicate
+// (i.e. with arithmetic ops resolved to typed dictionary calls), avoiding the
+// need to re-implement OpLowering on the surface AST in the test harness.
+func (e *Executor) LastDeclMeta(funcName string) *core.DeclMeta {
+	if e.lastMeta == nil {
+		return nil
+	}
+	return e.lastMeta[funcName]
 }
 
 // SetSourceFile sets the source file to provide context for test evaluation.
@@ -101,7 +116,21 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 // EvaluateExpression source-synthesis path by evaluating Core directly,
 // the same way EvaluateInlineTestsWithHarness does for inline tests blocks.
 func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
-	harnessExpr := BuildEnsuresPropertyHarness(binding, params, predicate)
+	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarness(binding, params, predicate))
+}
+
+// EvaluateEnsuresHarnessFromCore is the lowered-Core variant — accepts a predicate
+// that has already been through OpLowering (typically pulled from
+// `result.Artifacts.Core.Meta[funcName].Contracts[i].Expr`).
+//
+// M-DX26 Phase 5.1: this is the path the runner uses so arithmetic operators
+// in ensures predicates work without re-implementing OpLowering on the AST side.
+func (e *Executor) EvaluateEnsuresHarnessFromCore(binding core.RecBinding, params []EnsuresParam, predicateCore core.CoreExpr) (eval.Value, error) {
+	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarnessFromCore(binding, params, predicateCore))
+}
+
+// evaluateEnsuresHarnessCore is the shared evaluation step for both AST and Core entry points.
+func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.Value, error) {
 
 	coreProg := &core.Program{
 		Decls: []core.CoreExpr{harnessExpr},
@@ -236,6 +265,10 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	if result.Artifacts.Core == nil {
 		return nil, fmt.Errorf("pipeline did not produce Core program")
 	}
+
+	// M-DX26 Phase 5.1: Cache the elaborated + lowered Meta so runEnsuresProperty
+	// can pull the already-lowered ensures predicate (arithmetic ops resolved).
+	e.lastMeta = result.Artifacts.Core.Meta
 
 	// Search for the function binding in Core.Decls
 	for _, decl := range result.Artifacts.Core.Decls {

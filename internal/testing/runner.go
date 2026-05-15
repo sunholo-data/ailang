@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -272,10 +273,23 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 	}
 
 	// Extract the Core function binding (re-uses the inline-tests path).
+	// This also caches the elaborated + lowered DeclMeta on the executor.
 	binding, err := r.executor.ExtractFunctionBinding(propCase.FunctionCtx, r.executor.sourceFile)
 	if err != nil {
 		result.Status = StatusFail
 		result.Error = fmt.Sprintf("failed to extract function binding for %s: %v", propCase.FunctionCtx, err)
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// M-DX26 Phase 5.1: Pull the *already-lowered* ensures predicate from Core.Meta
+	// instead of converting the surface AST predicate ourselves. This lets arithmetic
+	// operators (`+`, `*`) in predicates work — they get rewritten to typed dictionary
+	// calls during the standard OpLowering pass that runs over Meta.Contracts.
+	loweredPredicate := r.findLoweredEnsuresPredicate(propCase)
+	if loweredPredicate == nil {
+		result.Status = StatusFail
+		result.Error = fmt.Sprintf("could not locate lowered ensures predicate for %s", propCase.FunctionCtx)
 		result.Duration = time.Since(start)
 		return result
 	}
@@ -311,7 +325,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 			}
 		}
 
-		boolValueRaw, err := r.executor.EvaluateEnsuresHarness(*binding, ensuresParams, propCase.Property.Expr)
+		boolValueRaw, err := r.executor.EvaluateEnsuresHarnessFromCore(*binding, ensuresParams, loweredPredicate)
 		if err != nil {
 			result.Status = StatusFail
 			result.Error = fmt.Sprintf("test %d: %v", testNum, err)
@@ -343,6 +357,55 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 	result.Status = StatusPass
 	result.Duration = time.Since(start)
 	return result
+}
+
+// findLoweredEnsuresPredicate locates the lowered Core predicate for an ensures
+// PropertyCase by counting its position among ensures-only properties on the
+// function and indexing into the cached DeclMeta's ensures-only Contracts.
+//
+// The elaborator skips forall properties when emitting Contracts (file_funcs.go),
+// so requires/ensures contracts are emitted in their original source order.
+// Within ensures-only entries, the i-th one in propCase.Function.Properties
+// matches the i-th ensures Contract in DeclMeta.Contracts.
+func (r *Runner) findLoweredEnsuresPredicate(propCase PropertyCase) core.CoreExpr {
+	if propCase.Function == nil {
+		return nil
+	}
+	meta := r.executor.LastDeclMeta(propCase.FunctionCtx)
+	if meta == nil {
+		return nil
+	}
+
+	// Count which ensures-index this PropertyCase has among the function's properties.
+	ensuresIndex := -1
+	target := propCase.Property
+	count := 0
+	for _, p := range propCase.Function.Properties {
+		if p.Kind != ast.EnsuresKind {
+			continue
+		}
+		if p == target {
+			ensuresIndex = count
+			break
+		}
+		count++
+	}
+	if ensuresIndex < 0 {
+		return nil
+	}
+
+	// Walk DeclMeta.Contracts taking the n-th EnsuresKind one.
+	count = 0
+	for _, c := range meta.Contracts {
+		if c.Kind != core.EnsuresKind {
+			continue
+		}
+		if count == ensuresIndex {
+			return c.Expr
+		}
+		count++
+	}
+	return nil
 }
 
 // formatEnsuresInputs renders generated parameter values as `name=value, ...` for counterexample reporting.

@@ -295,11 +295,25 @@ type EnsuresParam struct {
 // Inputs:
 //   - binding: Core LetRec binding for the function being verified.
 //   - params: Per-parameter (name, generated value) pairs for this iteration.
-//   - predicate: AST expression of the ensures predicate.
+//   - predicate: AST expression of the ensures predicate. Goes through astExprToCore,
+//     so arithmetic ops will produce raw `*core.BinOp` and trip the evaluator on
+//     `+`/`*`/etc. Use BuildEnsuresPropertyHarnessFromCore for already-lowered predicates.
 //
 // Output: Core expression that, when evaluated, returns true if ensures holds for these inputs.
 func BuildEnsuresPropertyHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) core.CoreExpr {
-	predicateCore := astExprToCore(predicate)
+	return BuildEnsuresPropertyHarnessFromCore(binding, params, astExprToCore(predicate))
+}
+
+// BuildEnsuresPropertyHarnessFromCore is the lowered-Core variant of
+// BuildEnsuresPropertyHarness. The runner passes the predicate from
+// `result.Artifacts.Core.Meta[funcName].Contracts[i].Expr`, which has already been
+// through OpLowering — so arithmetic ops (`+`, `*`, ...) resolve to typed dictionary
+// calls and the evaluator can run them.
+//
+// M-DX26 Phase 5.1: This is the path the runner uses in production. The AST-based
+// BuildEnsuresPropertyHarness wrapper is kept for unit tests and for any caller
+// that has only an AST predicate.
+func BuildEnsuresPropertyHarnessFromCore(binding core.RecBinding, params []EnsuresParam, predicateCore core.CoreExpr) core.CoreExpr {
 
 	funcVar := &core.Var{
 		CoreNode: core.CoreNode{

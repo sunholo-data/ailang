@@ -103,11 +103,6 @@ export func main() -> int ! {} { 0 }
 // TestRunEnsuresProperty_MultiArgPredicateReferencesParams verifies that an
 // ensures predicate referencing both `result` and a function parameter
 // (e.g. `result >= x`) evaluates correctly — both names must be in scope.
-//
-// NOTE: arithmetic ops (`+`, `*`) in predicates require operator dictionary
-// elaboration which the test harness doesn't perform. v1 of M-DX26 Phase 5
-// supports comparison-only predicates against function parameters; arithmetic
-// in predicates is tracked as a follow-up limitation.
 func TestRunEnsuresProperty_MultiArgPredicateReferencesParams(t *testing.T) {
 	src := `module ensures_test
 
@@ -127,6 +122,62 @@ export func main() -> int ! {} { 0 }
 	pr := result.Properties[0]
 	if pr.Status != StatusPass {
 		t.Errorf("Expected StatusPass for correct maxOf, got %v (error: %s)", pr.Status, pr.Error)
+	}
+}
+
+// TestRunEnsuresProperty_ArithmeticInPredicate verifies that arithmetic operators
+// (`+`, `*`, etc.) inside an ensures predicate work — the runner pulls the
+// already-lowered Core predicate from Meta.Contracts so dictionary calls have
+// already replaced the raw operators (M-DX26 Phase 5.1).
+func TestRunEnsuresProperty_ArithmeticInPredicate(t *testing.T) {
+	src := `module ensures_test
+
+export pure func add(x: int, y: int) -> int
+  ensures { result == x + y }
+{
+  x + y
+}
+
+export func main() -> int ! {} { 0 }
+`
+	result := runEnsuresFromSource(t, src)
+	if len(result.Properties) == 0 {
+		t.Fatalf("Expected at least one property result, got 0")
+	}
+
+	pr := result.Properties[0]
+	if pr.Status != StatusPass {
+		t.Errorf("Expected StatusPass for correct add with arithmetic predicate, got %v (error: %s)", pr.Status, pr.Error)
+	}
+	if pr.TestsRun != 100 {
+		t.Errorf("Expected 100 iterations on Pass, got %d", pr.TestsRun)
+	}
+}
+
+// TestRunEnsuresProperty_ArithmeticViolation verifies that a buggy implementation
+// is caught even when the predicate contains arithmetic.
+func TestRunEnsuresProperty_ArithmeticViolation(t *testing.T) {
+	src := `module ensures_test
+
+export pure func badAdd(x: int, y: int) -> int
+  ensures { result == x + y }
+{
+  x + y + 1
+}
+
+export func main() -> int ! {} { 0 }
+`
+	result := runEnsuresFromSource(t, src)
+	if len(result.Properties) == 0 {
+		t.Fatalf("Expected at least one property result, got 0")
+	}
+
+	pr := result.Properties[0]
+	if pr.Status != StatusFail {
+		t.Errorf("Expected StatusFail for buggy add, got %v (error: %s)", pr.Status, pr.Error)
+	}
+	if !strings.Contains(pr.Error, "ensures violated") {
+		t.Errorf("Expected 'ensures violated' in error, got: %s", pr.Error)
 	}
 }
 
