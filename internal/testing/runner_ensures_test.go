@@ -154,6 +154,66 @@ export func main() -> int ! {} { 0 }
 	}
 }
 
+// TestRunRequiresProperty_TautologyPasses (M-DX26 Phase 5.2) — a `requires`
+// clause that is true for every int input should run all 100 iterations and
+// report Pass. Previously this failed with `evaluation failed: empty program`.
+func TestRunRequiresProperty_TautologyPasses(t *testing.T) {
+	src := `module ensures_test
+
+export pure func anyInt(x: int) -> int
+  requires { x == x }
+{
+  x
+}
+
+export func main() -> int ! {} { 0 }
+`
+	result := runEnsuresFromSource(t, src)
+	if len(result.Properties) == 0 {
+		t.Fatalf("Expected at least one property result, got 0")
+	}
+
+	pr := result.Properties[0]
+	if pr.Status != StatusPass {
+		t.Errorf("Expected StatusPass for `requires { x == x }`, got %v (error: %s)", pr.Status, pr.Error)
+	}
+	if pr.TestsRun != 100 {
+		t.Errorf("Expected 100 iterations on Pass, got %d", pr.TestsRun)
+	}
+}
+
+// TestRunRequiresProperty_OutOfContractReportsSkip (M-DX26 Phase 5.2) — a
+// `requires` that random inputs frequently violate (e.g. `x >= 0`) should report
+// Skip with the offending input, not Fail (the function isn't being called and
+// the inputs are simply out-of-contract).
+func TestRunRequiresProperty_OutOfContractReportsSkip(t *testing.T) {
+	src := `module ensures_test
+
+export pure func absolute(x: int) -> int
+  requires { x >= 0 }
+{
+  x
+}
+
+export func main() -> int ! {} { 0 }
+`
+	result := runEnsuresFromSource(t, src)
+	if len(result.Properties) == 0 {
+		t.Fatalf("Expected at least one property result, got 0")
+	}
+
+	pr := result.Properties[0]
+	if pr.Status != StatusSkip {
+		t.Errorf("Expected StatusSkip for unsatisfiable `requires { x >= 0 }`, got %v (error: %s)", pr.Status, pr.Error)
+	}
+	if !strings.Contains(pr.Error, "requires not satisfied") {
+		t.Errorf("Expected 'requires not satisfied' in error, got: %s", pr.Error)
+	}
+	if !strings.Contains(pr.Error, "x=") {
+		t.Errorf("Expected counterexample to include 'x=', got: %s", pr.Error)
+	}
+}
+
 // TestRunEnsuresProperty_ArithmeticViolation verifies that a buggy implementation
 // is caught even when the predicate contains arithmetic.
 func TestRunEnsuresProperty_ArithmeticViolation(t *testing.T) {

@@ -151,12 +151,15 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 
 // runProperty executes a property-based test with generators and shrinking.
 func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
-	// M-DX26 Phase 5: ensures clauses route through a separate harness that
-	// actually calls the function and binds `result` to its return value.
-	// requires/forall properties stay on the (still broken) EvaluateExpression
+	// M-DX26 Phase 5: ensures/requires clauses route through dedicated harnesses
+	// that pull the already-lowered Core predicate from Meta.Contracts.
+	// forall-style properties remain on the broken EvaluateExpression
 	// source-synthesis path until the broader Option A refactor.
-	if propCase.Property.Kind == ast.EnsuresKind {
+	switch propCase.Property.Kind {
+	case ast.EnsuresKind:
 		return r.runEnsuresProperty(propCase)
+	case ast.RequiresKind:
+		return r.runRequiresProperty(propCase)
 	}
 
 	start := time.Now()
@@ -286,7 +289,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 	// instead of converting the surface AST predicate ourselves. This lets arithmetic
 	// operators (`+`, `*`) in predicates work — they get rewritten to typed dictionary
 	// calls during the standard OpLowering pass that runs over Meta.Contracts.
-	loweredPredicate := r.findLoweredEnsuresPredicate(propCase)
+	loweredPredicate := r.findLoweredContractPredicate(propCase, ast.EnsuresKind, core.EnsuresKind)
 	if loweredPredicate == nil {
 		result.Status = StatusFail
 		result.Error = fmt.Sprintf("could not locate lowered ensures predicate for %s", propCase.FunctionCtx)
@@ -359,15 +362,136 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 	return result
 }
 
-// findLoweredEnsuresPredicate locates the lowered Core predicate for an ensures
-// PropertyCase by counting its position among ensures-only properties on the
-// function and indexing into the cached DeclMeta's ensures-only Contracts.
+// runRequiresProperty executes a requires-clause property test.
+//
+// Unlike `ensures`, `requires` runs *before* the function would be called and
+// references parameters only (no `result`). For each iteration we generate
+// parameter values and evaluate the lowered predicate.
+//
+// A `requires` clause that evaluates to false on a generated input is **not** a
+// function bug — the test is "out of contract" and would normally be discarded
+// by a property tester. For now we report it as a Skip with the offending input
+// so users can refine their generators. The function being verified is never
+// called from this path.
+//
+// M-DX26 Phase 5.2.
+func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
+	start := time.Now()
+
+	result := PropertyResult{
+		Name:     propCase.Name,
+		Location: propCase.Location.String(),
+		TestsRun: 0,
+	}
+
+	if propCase.Function == nil {
+		result.Status = StatusSkip
+		result.Error = "requires property has no function context (top-level requires not supported)"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	if r.executor.sourceFile == nil {
+		result.Status = StatusFail
+		result.Error = "source file not set on executor (call SetSourceFile first)"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// We still need ExtractFunctionBinding to populate LastDeclMeta with the
+	// elaborated + lowered Contracts. The returned binding itself is unused for
+	// requires (we never call the function).
+	if _, err := r.executor.ExtractFunctionBinding(propCase.FunctionCtx, r.executor.sourceFile); err != nil {
+		result.Status = StatusFail
+		result.Error = fmt.Sprintf("failed to extract function binding for %s: %v", propCase.FunctionCtx, err)
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	loweredPredicate := r.findLoweredContractPredicate(propCase, ast.RequiresKind, core.RequiresKind)
+	if loweredPredicate == nil {
+		result.Status = StatusFail
+		result.Error = fmt.Sprintf("could not locate lowered requires predicate for %s", propCase.FunctionCtx)
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	params := propCase.Function.Params
+	generators := make([]Generator, len(params))
+	for i, p := range params {
+		gen, _ := r.createGeneratorForType(p.Type)
+		if gen == nil {
+			result.Status = StatusSkip
+			result.Error = fmt.Sprintf("no generator for parameter %s: %v", p.Name, p.Type)
+			result.Duration = time.Since(start)
+			return result
+		}
+		generators[i] = gen
+	}
+
+	const numTests = 100
+	config := DefaultConfig()
+	rng := newRNG(config.Seed)
+
+	for testNum := 0; testNum < numTests; testNum++ {
+		generatedValues := make([]eval.Value, len(generators))
+		harnessParams := make([]EnsuresParam, len(generators))
+		for i, gen := range generators {
+			v := gen.Generate(rng)
+			generatedValues[i] = v
+			harnessParams[i] = EnsuresParam{
+				Name:  params[i].Name,
+				Value: astExprToCore(r.valueToLiteral(v)),
+			}
+		}
+
+		boolValueRaw, err := r.executor.EvaluateRequiresHarnessFromCore(harnessParams, loweredPredicate)
+		if err != nil {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("test %d: %v", testNum, err)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		boolVal, ok := boolValueRaw.(*eval.BoolValue)
+		if !ok {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("test %d: requires predicate must return bool, got %T", testNum, boolValueRaw)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		if !boolVal.Value {
+			// Out-of-contract input — surface it so users can refine generators.
+			// We mark the property Skipped (not Fail) because random inputs that
+			// violate `requires` aren't a function bug.
+			result.Status = StatusSkip
+			result.Error = fmt.Sprintf("requires not satisfied by random input (consider tighter generators): %s", formatEnsuresInputs(params, generatedValues))
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		result.TestsRun++
+	}
+
+	result.Status = StatusPass
+	result.Duration = time.Since(start)
+	return result
+}
+
+// findLoweredContractPredicate locates the lowered Core predicate for a
+// requires- or ensures-PropertyCase by counting its position among same-kind
+// properties on the function and indexing into the cached DeclMeta's same-kind
+// Contracts.
 //
 // The elaborator skips forall properties when emitting Contracts (file_funcs.go),
 // so requires/ensures contracts are emitted in their original source order.
-// Within ensures-only entries, the i-th one in propCase.Function.Properties
-// matches the i-th ensures Contract in DeclMeta.Contracts.
-func (r *Runner) findLoweredEnsuresPredicate(propCase PropertyCase) core.CoreExpr {
+// Within same-kind entries, the i-th one in propCase.Function.Properties matches
+// the i-th same-kind Contract in DeclMeta.Contracts.
+func (r *Runner) findLoweredContractPredicate(propCase PropertyCase, astKind ast.ContractKind, coreKind core.ContractKind) core.CoreExpr {
 	if propCase.Function == nil {
 		return nil
 	}
@@ -376,31 +500,31 @@ func (r *Runner) findLoweredEnsuresPredicate(propCase PropertyCase) core.CoreExp
 		return nil
 	}
 
-	// Count which ensures-index this PropertyCase has among the function's properties.
-	ensuresIndex := -1
+	// Count which same-kind-index this PropertyCase has among the function's properties.
+	contractIndex := -1
 	target := propCase.Property
 	count := 0
 	for _, p := range propCase.Function.Properties {
-		if p.Kind != ast.EnsuresKind {
+		if p.Kind != astKind {
 			continue
 		}
 		if p == target {
-			ensuresIndex = count
+			contractIndex = count
 			break
 		}
 		count++
 	}
-	if ensuresIndex < 0 {
+	if contractIndex < 0 {
 		return nil
 	}
 
-	// Walk DeclMeta.Contracts taking the n-th EnsuresKind one.
+	// Walk DeclMeta.Contracts taking the n-th same-kind one.
 	count = 0
 	for _, c := range meta.Contracts {
-		if c.Kind != core.EnsuresKind {
+		if c.Kind != coreKind {
 			continue
 		}
-		if count == ensuresIndex {
+		if count == contractIndex {
 			return c.Expr
 		}
 		count++

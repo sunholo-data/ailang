@@ -129,6 +129,17 @@ func (e *Executor) EvaluateEnsuresHarnessFromCore(binding core.RecBinding, param
 	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarnessFromCore(binding, params, predicateCore))
 }
 
+// EvaluateRequiresHarnessFromCore evaluates a requires-clause predicate against
+// generated parameter values. M-DX26 Phase 5.2.
+//
+// `requires` does NOT need a function binding — the predicate runs before the
+// function would be called and references parameters only. Returns the predicate's
+// BoolValue: true = requires holds (inputs are in-contract), false = requires
+// violated (test discarded).
+func (e *Executor) EvaluateRequiresHarnessFromCore(params []EnsuresParam, predicateCore core.CoreExpr) (eval.Value, error) {
+	return e.evaluateEnsuresHarnessCore(BuildRequiresPropertyHarnessFromCore(params, predicateCore))
+}
+
 // evaluateEnsuresHarnessCore is the shared evaluation step for both AST and Core entry points.
 func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.Value, error) {
 

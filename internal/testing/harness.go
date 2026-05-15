@@ -373,6 +373,45 @@ func BuildEnsuresPropertyHarnessFromCore(binding core.RecBinding, params []Ensur
 	}
 }
 
+// BuildRequiresPropertyHarnessFromCore creates a synthetic Core expression for
+// evaluating a single requires-clause predicate with generated parameter values.
+//
+// `requires` runs *before* the function call, so unlike ensures we:
+//   - do not bind `result` (it doesn't exist yet),
+//   - do not call the function at all (the predicate is over the inputs).
+//
+// Builds:
+//
+//	Let("p1", val_1,
+//	  Let("p2", val_2,
+//	    ...
+//	    <predicate-as-already-lowered-Core>    -- references "p1", "p2", ...
+//	    ))
+//
+// The predicate must already be through OpLowering (typically pulled from
+// `Core.Meta[funcName].Contracts[i].Expr` where Kind == RequiresKind), so any
+// arithmetic in the predicate already resolves to dictionary calls.
+//
+// Output evaluates to a BoolValue: true = requires holds for these inputs,
+// false = requires violated (so the test should be discarded — calling the
+// function with these inputs is "out of contract", not a function bug).
+//
+// M-DX26 Phase 5.2.
+func BuildRequiresPropertyHarnessFromCore(params []EnsuresParam, predicateCore core.CoreExpr) core.CoreExpr {
+	body := predicateCore
+	for i := len(params) - 1; i >= 0; i-- {
+		body = &core.Let{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name:  params[i].Name,
+			Value: params[i].Value,
+			Body:  body,
+		}
+	}
+	return body
+}
+
 // BuildClusterTestHarness creates a synthetic Core expression for testing a function
 // with cross-function dependencies.
 //

@@ -24,12 +24,14 @@ Phase 5 (`ensures` result binding via dedicated harness) shipped on `dev` for v0
 
 **Phase 5.1 (shipped same day, follow-up):** the v1 limitation around arithmetic ops in predicates (`result == x + y` tripped `BinOp reached evaluator; dictionaries not elaborated`) is fixed. The runner now uses `EvaluateEnsuresHarnessFromCore` and pulls the *already-lowered* predicate from `result.Artifacts.Core.Meta[funcName].Contracts[i].Expr` — which has been through the same OpLowering pass that powers `--verify-contracts` (see [M-CONTRACTS-OPLOWERING](../../implemented/v0_8_0/m-contracts-oplowering.md), shipped v0.8.0). Two new tests in `runner_ensures_test.go` cover correct + buggy `add` with `result == x + y`. Implementation: cache `Core.Meta` on Executor (`lastMeta`), expose via `LastDeclMeta(funcName)`, locate the matching contract by counting ensures-position in `Function.Properties` and indexing into the kind-filtered `Contracts` slice. The AST-based `EvaluateEnsuresHarness` and `BuildEnsuresPropertyHarness` are kept as wrappers for unit tests but no production caller uses them.
 
-**Still planned (not in this update):**
-- **Option A**: Refactor `EvaluateExpression` to do direct Core evaluation for forall-style properties (and `requires` clauses, which still fail with `evaluation failed: empty program`).
-- **Counterexample shrinking** for ensures violations.
-- **Smart generators** for tighter `ensures` coverage (random ints rarely hit interesting `if/else`-chain branches).
+**Phase 5.2 (also shipped same day):** `requires` clauses also routed through the lowered-Core path. The runner now branches on both `ast.EnsuresKind` and `ast.RequiresKind`. New `BuildRequiresPropertyHarnessFromCore` skips the function call (the predicate runs before the call, references parameters only) and skips the `result` binding. Generated inputs that violate `requires` are reported as `Skipped` (not Fail) — they're out-of-contract, not a function bug. Helper `findLoweredEnsuresPredicate` was generalized to `findLoweredContractPredicate(propCase, astKind, coreKind)` to serve both. 2 new tests in `runner_ensures_test.go`. After Phase 5.2, `examples/runnable/contracts/basic.ail` shows clean separation: requires either pass (`safeDivide_property_1` 100/100) or skip (`absolute_property_1` skipped because random ints aren't all ≥ 0); ensures fail with counterexamples for the genuinely buggy postconditions. **No more `evaluation failed: empty program` for either contract kind.**
 
-This doc stays in `planned/` until Option A also ships. Sprint plan: [`design_docs/planned/v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md`](../v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md).
+**Still planned (not in this update):**
+- **Option A (now scoped to forall only)**: Refactor `EvaluateExpression` to do direct Core evaluation for `properties [forall(...) => expr]` blocks. These are the only remaining victims of the broken source-synthesis path. Lower priority since no inbox traffic mentions forall properties.
+- **Counterexample shrinking** for ensures violations.
+- **Smart generators** for tighter `requires`/`ensures` coverage (random ints rarely satisfy `x >= 0` or hit interesting `if/else`-chain branches).
+
+This doc stays in `planned/` until forall (Option A) also ships, but the door is now open to move it to `implemented/v0_21_0/` with a forall footnote if we decide forall isn't worth fixing. Sprint plan: [`design_docs/planned/v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md`](../v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md).
 
 ---
 
