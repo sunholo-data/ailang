@@ -51,20 +51,27 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	// file (or stdlib) and serve-api doesn't register its routes.
 	if !strings.HasPrefix(absFile+string(filepath.Separator), s.normalizedBasePath) &&
 		absFile != strings.TrimSuffix(s.normalizedBasePath, string(filepath.Separator)) {
+		declaredPath := ""
+		if loaded.File.Module != nil {
+			declaredPath = loaded.File.Module.Path
+		}
 		// Diagnostic: log non-stdlib, non-pkg-cache rejections so operators
 		// can see when a deeply-namespaced declared path causes a project
 		// module to be loaded from a cache location instead of basePath.
 		// Skip the noise-floor cases (stdlib + dependency cache resolutions).
-		if loaded.File.Module != nil {
-			declared := loaded.File.Module.Path
-			if declared != "" &&
-				!strings.HasPrefix(declared, "std/") &&
-				!strings.Contains(absFile, "/.ailang/") &&
-				!strings.Contains(absFile, "/std/") {
-				log.Printf("  Skipped: %s (declared %q resolves outside basePath %s — file at %s)",
-					filepath.Base(absFile), declared, s.normalizedBasePath, absFile)
-			}
+		if declaredPath != "" &&
+			!strings.HasPrefix(declaredPath, "std/") &&
+			!strings.Contains(absFile, "/.ailang/") &&
+			!strings.Contains(absFile, "/std/") {
+			log.Printf("  Skipped: %s (declared %q resolves outside basePath %s — file at %s)",
+				filepath.Base(absFile), declaredPath, s.normalizedBasePath, absFile)
 		}
+		// M-SERVEAPI-SURFACE-DROPS: track the drop so ValidateRegistration
+		// can fail-fast on @route-bearing rejections (and /health can
+		// surface partial registration). Stdlib + cache-noise drops are
+		// recorded too — ValidateRegistration partitions by annotation,
+		// not by log filtering.
+		s.recordDrop(loaded, absFile, declaredPath)
 		return "", false, nil
 	}
 
@@ -122,6 +129,33 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 
 	log.Printf("  Registered: %s (%d exports)", rel, len(info.Exports))
 	return physicalPath, true, nil
+}
+
+// recordDrop appends a DroppedModule entry to s.droppedModules. Called
+// from registerModule's under-basePath rejection branch. Annotations are
+// scanned from the loaded.File's function declarations: currently only
+// "@route" is surfaced (it's the trigger for ValidateRegistration's
+// fail-fast). Other annotations may be added later without changing the
+// API — DroppedModule.Annotations is a free-form string slice.
+func (s *Server) recordDrop(loaded *loader.LoadedModule, absFile, declaredPath string) {
+	drop := DroppedModule{
+		PhysicalPath: absFile,
+		DeclaredPath: declaredPath,
+		FileBaseName: filepath.Base(absFile),
+		Reason:       "outside-basePath",
+	}
+	if loaded.File != nil {
+		for _, fn := range loaded.File.Funcs {
+			if fn.GetAnnotation("route") != nil {
+				drop.Annotations = append(drop.Annotations, "@route")
+				break // presence-check only; one entry is enough
+			}
+		}
+	}
+
+	s.mu.Lock()
+	s.droppedModules = append(s.droppedModules, drop)
+	s.mu.Unlock()
 }
 
 // findModuleByRelPath looks up a registered module by its RelPath

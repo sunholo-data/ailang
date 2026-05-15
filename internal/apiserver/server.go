@@ -45,8 +45,14 @@ type Server struct {
 	// other map or derivation writes to it. Every entry goes through
 	// registerModule.
 	modules map[string]*ModuleInfo
-	mu      sync.RWMutex
-	port    string
+	// droppedModules records LoadedModules rejected by registerModule's
+	// under-basePath filter. Populated as a side effect of registerModule
+	// when a module's symlink-resolved path lies outside normalizedBasePath.
+	// Read by ValidateRegistration (which fail-fasts on @route-bearing
+	// drops) and by /api/v1/health.
+	droppedModules []DroppedModule
+	mu             sync.RWMutex
+	port           string
 	// basePath is the user-supplied project root. Stored as the caller
 	// passed it (for display / relative-path derivation convenience).
 	basePath string

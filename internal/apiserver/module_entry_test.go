@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/loader"
 )
 
 // TestRegisterModule_IsSoleWriteSite asserts the M-SERVEAPI-UNIFY
@@ -113,6 +116,105 @@ func TestRegisterModule_Idempotent(t *testing.T) {
 	after := len(srv.modules)
 	if after != before {
 		t.Errorf("LoadModules not idempotent: before=%d, after=%d", before, after)
+	}
+}
+
+// TestRecordDrop_TracksOutsideBasePath asserts that recordDrop appends
+// a DroppedModule entry with the correct PhysicalPath, DeclaredPath, and
+// FileBaseName. M-SERVEAPI-SURFACE-DROPS M1.
+func TestRecordDrop_TracksOutsideBasePath(t *testing.T) {
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	loaded := &loader.LoadedModule{
+		File: &ast.File{
+			Path: "/some/cache/dir/billing_entitlements/plan.ail",
+			Module: &ast.ModuleDecl{
+				Path: "pkg/sunholo/billing_entitlements/plan",
+			},
+		},
+	}
+	srv.recordDrop(loaded, loaded.File.Path, loaded.File.Module.Path)
+
+	if got := len(srv.droppedModules); got != 1 {
+		t.Fatalf("droppedModules length = %d, want 1", got)
+	}
+	d := srv.droppedModules[0]
+	if d.PhysicalPath != loaded.File.Path {
+		t.Errorf("PhysicalPath = %q, want %q", d.PhysicalPath, loaded.File.Path)
+	}
+	if d.DeclaredPath != "pkg/sunholo/billing_entitlements/plan" {
+		t.Errorf("DeclaredPath = %q, want %q", d.DeclaredPath, "pkg/sunholo/billing_entitlements/plan")
+	}
+	if d.FileBaseName != "plan.ail" {
+		t.Errorf("FileBaseName = %q, want %q", d.FileBaseName, "plan.ail")
+	}
+	if d.Reason != "outside-basePath" {
+		t.Errorf("Reason = %q, want %q", d.Reason, "outside-basePath")
+	}
+	if len(d.Annotations) != 0 {
+		t.Errorf("Annotations = %v, want empty (no @route in fixture)", d.Annotations)
+	}
+}
+
+// TestRecordDrop_DetectsRouteAnnotation asserts that recordDrop captures
+// "@route" in the Annotations slice when at least one function in the
+// dropped module's File has a @route annotation. The presence-check is
+// what drives ValidateRegistration's fail-fast partitioning in M2.
+func TestRecordDrop_DetectsRouteAnnotation(t *testing.T) {
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	loaded := &loader.LoadedModule{
+		File: &ast.File{
+			Path: "/cache/api/handler.ail",
+			Module: &ast.ModuleDecl{
+				Path: "pkg/example/handler",
+			},
+			Funcs: []*ast.FuncDecl{
+				{
+					Name: "plainFunc",
+					// no annotations
+				},
+				{
+					Name: "exposedHandler",
+					Annotations: []*ast.Annotation{
+						{Name: "route", Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "GET"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/foo"},
+						}},
+					},
+				},
+			},
+		},
+	}
+	srv.recordDrop(loaded, loaded.File.Path, loaded.File.Module.Path)
+
+	if len(srv.droppedModules) != 1 {
+		t.Fatalf("droppedModules length = %d, want 1", len(srv.droppedModules))
+	}
+	got := srv.droppedModules[0].Annotations
+	if len(got) != 1 || got[0] != "@route" {
+		t.Errorf("Annotations = %v, want [\"@route\"]", got)
+	}
+}
+
+// TestRecordDrop_NilFileSafe asserts that recordDrop handles a
+// LoadedModule with a nil File without panicking. This guards the
+// (unlikely but possible) case where a module fails to parse but is
+// still passed to registerModule.
+func TestRecordDrop_NilFileSafe(t *testing.T) {
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	loaded := &loader.LoadedModule{File: nil}
+	srv.recordDrop(loaded, "/some/path.ail", "")
+
+	if len(srv.droppedModules) != 1 {
+		t.Fatalf("droppedModules length = %d, want 1 (recordDrop must not panic on nil File)", len(srv.droppedModules))
+	}
+	if len(srv.droppedModules[0].Annotations) != 0 {
+		t.Errorf("Annotations should be empty when File is nil")
 	}
 }
 
