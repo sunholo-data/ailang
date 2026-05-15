@@ -101,13 +101,15 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		ExportsCount: totalExports,
 	}
 
-	// M-SERVEAPI-SURFACE-DROPS: surface partial registration. When the
-	// server started despite drops (either because the drops were
-	// non-fatal, or because AILANG_SERVE_API_ALLOW_DROPS=1 was set),
-	// /health goes "degraded" with the dropped module identities so
-	// readiness probes can route traffic away from this revision.
+	// M-SERVEAPI-SURFACE-DROPS: surface partial registration. ALL drops
+	// are listed in DroppedModules so operators retain diagnostic
+	// visibility into stdlib resolution edges and other noise-floor
+	// rejections. But Status only goes "degraded" when an @route-bearing
+	// drop is present — that's the case where a customer-facing endpoint
+	// is missing and the readiness probe should route traffic away. A
+	// stdlib resolution edge on an otherwise-functional service shouldn't
+	// take the revision out of rotation.
 	if len(drops) > 0 {
-		resp.Status = "degraded"
 		resp.DroppedModules = make([]DroppedModuleHealth, 0, len(drops))
 		hasRouteDrop := false
 		for _, d := range drops {
@@ -124,6 +126,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if hasRouteDrop {
+			resp.Status = "degraded"
 			resp.DroppedWarning = AllowDropsEnvVar + " is set — service is running with @route-bearing modules dropped"
 		}
 	}

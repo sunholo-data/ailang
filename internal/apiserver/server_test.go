@@ -140,6 +140,50 @@ func TestHealthEndpoint_WithDrops(t *testing.T) {
 	}
 }
 
+// TestHealthEndpoint_NonAnnotationDropStaysOk asserts that drops without
+// @route (e.g. stdlib resolution edges) populate dropped_modules for
+// diagnostic visibility but do NOT degrade the health status —
+// readiness probes shouldn't route traffic away from a service that
+// hit a routine resolution edge but is otherwise fully functional.
+// Sprint plan acceptance criterion M3 fixture C.
+func TestHealthEndpoint_NonAnnotationDropStaysOk(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	srv.droppedModules = append(srv.droppedModules, DroppedModule{
+		PhysicalPath: "/some/std/option.ail",
+		DeclaredPath: "std/option",
+		FileBaseName: "option.ail",
+		Annotations:  nil, // no @route
+		Reason:       "outside-basePath",
+	})
+
+	mux := srv.buildRoutes()
+	req := httptest.NewRequest("GET", "/api/_health", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var resp HealthResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status 'ok' for non-annotation drop, got %q", resp.Status)
+	}
+	if len(resp.DroppedModules) != 1 {
+		t.Fatalf("dropped_modules should still be populated for diagnostic visibility, got %d entries", len(resp.DroppedModules))
+	}
+	if resp.DroppedModules[0].Declared != "std/option" {
+		t.Errorf("Declared = %q, want %q", resp.DroppedModules[0].Declared, "std/option")
+	}
+	if resp.DroppedWarning != "" {
+		t.Errorf("dropped_warning should be empty when no @route-bearing drops; got %q", resp.DroppedWarning)
+	}
+}
+
 func TestListModules(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()

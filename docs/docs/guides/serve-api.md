@@ -477,6 +477,16 @@ A healthy server response omits `dropped_modules` and `dropped_warning` entirely
 {"status": "ok", "modules_count": 6, "exports_count": 18}
 ```
 
+**Status semantics:**
+
+| Drops present | `@route`-bearing drop? | `status`  | `dropped_modules` | Routes traffic? |
+|---------------|------------------------|-----------|-------------------|-----------------|
+| No            | —                      | `ok`      | omitted           | Yes (healthy)   |
+| Yes           | No (stdlib edge etc.)  | `ok`      | populated         | Yes (diagnostic-only) |
+| Yes           | Yes (allow-drops set)  | `degraded`| populated         | No (probe routes away) |
+
+Non-annotation drops keep `status: "ok"` so a routine stdlib resolution edge doesn't take a fully-functional revision out of rotation. The drops are still listed in `dropped_modules` for operator visibility. Only `@route`-bearing drops — which mean a customer-facing endpoint is missing — flip `status` to `"degraded"` (which only happens when `AILANG_SERVE_API_ALLOW_DROPS=1` is set, since the server would otherwise have refused to start).
+
 ### Resolution options
 
 When `serve-api` fails to start with a fatal drop, the error message lists three paths forward:
