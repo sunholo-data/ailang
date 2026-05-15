@@ -271,7 +271,6 @@ func TestXmlMapChildren_PreservesDocumentOrder(t *testing.T) {
 	}
 }
 
-
 // ============================================================================
 // M4 benchmarks: list-output workload (the regression shape)
 // ============================================================================

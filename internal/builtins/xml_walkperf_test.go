@@ -552,7 +552,6 @@ func BenchmarkAttr_PerAttr_7x100(b *testing.B) {
 	}
 }
 
-
 // BenchmarkAttr_AttrMap_7x100 extracts the same 7 attributes from 100 nodes
 // using one _xml_getAttrMap call per node, then 7 lookups against the map.
 func BenchmarkAttr_AttrMap_7x100(b *testing.B) {
