@@ -1882,10 +1882,28 @@
         "--entry",
         "main"
       ]
+    },
+    {
+      "path": "runnable/parser_block_trailing_record.ail",
+      "status": "working",
+      "tags": [
+        "parser",
+        "regression",
+        "record",
+        "block",
+        "if-then-else"
+      ],
+      "description": "Demonstrates the M-PARSER-BLOCK-TR fix (inbox c8813647): a block expression with `;`-separated effect statements followed by a trailing record literal now parses cleanly inside if-then-else branches.",
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ]
     }
   ],
   "statistics": {
-    "total": 143,
+    "total": 144,
     "working": 136,
     "aspirational": 4,
     "broken": 3,

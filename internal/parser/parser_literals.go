@@ -474,39 +474,29 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 			Exprs: []ast.Expr{startExpr},
 		}
 
-		// Parse remaining expressions in the block
-		for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
-			// Check if next token is RBRACE (end of block)
+		// Parse remaining `;`-separated expressions in the block.
+		// IMPORTANT (M-PARSER-BLOCK-TR): use PEEK-based termination, mirroring
+		// parseBlockOrExpression. The previous CUR-based loop incorrectly exited
+		// when the just-parsed expression was a record literal — it confused the
+		// inner record's closing `}` (where parseExpression leaves the cursor)
+		// for the outer block's `}`. Resulting bug: `{ stmt; {a:1} }` parsed as
+		// the inner record-only block, leaving the outer `}` unconsumed and the
+		// caller (e.g. if-then-else) failing to find its `else` token.
+		for p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to SEMICOLON
+
+			// Trailing semicolon support: `{ a; b; }`
 			if p.peekTokenIs(lexer.RBRACE) {
-				p.nextToken()
 				break
 			}
 
-			// Check for semicolon (more expressions follow)
-			if p.peekTokenIs(lexer.SEMICOLON) {
-				p.nextToken() // move to SEMICOLON
-				p.nextToken() // move past SEMICOLON
-
-				// Check for trailing semicolon
-				if p.curTokenIs(lexer.RBRACE) {
-					break
-				}
-
-				expr := p.parseExpression(LOWEST)
-				block.Exprs = append(block.Exprs, expr)
-				continue
-			}
-
-			// No semicolon and no RBRACE in peek.
-			// This could be valid if we're at the end of the block but the block
-			// is used in a context where something else follows (e.g., comma in match arm).
-			// Check if we're at a reasonable stopping point.
-			// For now, we'll break and let the caller handle it.
-			break
+			p.nextToken() // move past SEMICOLON to the next expression
+			expr := p.parseExpression(LOWEST)
+			block.Exprs = append(block.Exprs, expr)
 		}
 
-		if !p.curTokenIs(lexer.RBRACE) {
-			p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
+		if !p.expectPeek(lexer.RBRACE) {
+			p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.peekToken.Type))
 			return nil
 		}
 

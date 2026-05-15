@@ -1,0 +1,27 @@
+-- examples/runnable/parser_block_trailing_record.ail
+-- Acceptance demo for M-PARSER-BLOCK-TR (inbox c8813647).
+--
+-- A block expression with a `;`-separated effect statement followed by a
+-- trailing record literal should parse cleanly. Before this fix, the
+-- pattern `{ stmt; {a: 1, b: 0} }` failed with PAR_UNEXPECTED_TOKEN
+-- because the parser treated the inner record's `}` as the outer block's
+-- `}`, leaving the outer `}` unconsumed.
+--
+-- This example mirrors the docparse/main.ail shape that prompted the report.
+
+module examples/runnable/parser_block_trailing_record
+
+import std/io (println)
+
+export func main() -> int ! {IO} {
+  let parsed = if true
+    then {
+      println("then-branch effect");
+      {fmt: "docx", aiCalls: 0}
+    }
+    else {
+      println("else-branch effect");
+      {fmt: "txt", aiCalls: 1}
+    }
+  in parsed.aiCalls
+}
