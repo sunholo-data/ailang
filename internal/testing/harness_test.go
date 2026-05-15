@@ -521,3 +521,227 @@ func makeBoolLit(value bool) *ast.Literal {
 		Value: value,
 	}
 }
+
+func makeStringLit(value string) *ast.Literal {
+	return &ast.Literal{
+		Kind:  ast.StringLit,
+		Value: value,
+	}
+}
+
+func makeIdent(name string) *ast.Identifier {
+	return &ast.Identifier{Name: name}
+}
+
+// Tests for BuildEnsuresPropertyHarness (M-DX26 Phase 5)
+
+// TestBuildEnsuresPropertyHarness_SingleArg verifies the harness shape for
+// `pure func absolute(x: int) -> int ensures { result >= 0 }`
+// with a generated input value of 5.
+func TestBuildEnsuresPropertyHarness_SingleArg(t *testing.T) {
+	binding := core.RecBinding{
+		Name:  "absolute",
+		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
+	}
+
+	params := []EnsuresParam{
+		{Name: "x", Value: &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: int64(5)}},
+	}
+
+	// Predicate: result >= 0
+	predicate := &ast.BinaryOp{
+		Left:  makeIdent("result"),
+		Op:    ">=",
+		Right: makeIntLit(0),
+	}
+
+	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+
+	letRec, ok := result.(*core.LetRec)
+	if !ok {
+		t.Fatalf("Expected LetRec, got %T", result)
+	}
+	if len(letRec.Bindings) != 1 || letRec.Bindings[0].Name != "absolute" {
+		t.Fatalf("Expected single binding 'absolute', got %v", letRec.Bindings)
+	}
+
+	// Outer Let binds the parameter `x` to the generated value.
+	xLet, ok := letRec.Body.(*core.Let)
+	if !ok {
+		t.Fatalf("Expected outer Let (param binding) in LetRec body, got %T", letRec.Body)
+	}
+	if xLet.Name != "x" {
+		t.Errorf("Expected outer Let.Name = 'x' (function param name), got %q", xLet.Name)
+	}
+
+	// Inner Let binds `result` to the function call.
+	resultLet, ok := xLet.Body.(*core.Let)
+	if !ok {
+		t.Fatalf("Expected inner Let (result binding), got %T", xLet.Body)
+	}
+	if resultLet.Name != "result" {
+		t.Errorf("Expected inner Let.Name = 'result', got %q", resultLet.Name)
+	}
+
+	app, ok := resultLet.Value.(*core.App)
+	if !ok {
+		t.Fatalf("Expected App in result Let.Value, got %T", resultLet.Value)
+	}
+	funcVar, ok := app.Func.(*core.Var)
+	if !ok || funcVar.Name != "absolute" {
+		t.Errorf("Expected App.Func = Var('absolute'), got %T", app.Func)
+	}
+	if len(app.Args) != 1 {
+		t.Errorf("Expected 1 arg, got %d", len(app.Args))
+	}
+	// The arg should be a Var reference to "x", not the raw literal.
+	argVar, ok := app.Args[0].(*core.Var)
+	if !ok || argVar.Name != "x" {
+		t.Errorf("Expected App.Args[0] = Var('x'), got %T", app.Args[0])
+	}
+
+	binOp, ok := resultLet.Body.(*core.BinOp)
+	if !ok {
+		t.Fatalf("Expected BinOp in result Let.Body (predicate), got %T", resultLet.Body)
+	}
+	if binOp.Op != ">=" {
+		t.Errorf("Expected predicate Op '>=', got %q", binOp.Op)
+	}
+	leftVar, ok := binOp.Left.(*core.Var)
+	if !ok || leftVar.Name != "result" {
+		t.Errorf("Expected predicate Left = Var('result'), got %T", binOp.Left)
+	}
+}
+
+// TestBuildEnsuresPropertyHarness_MultiArg verifies multi-argument function call
+// `pure func add(x: int, y: int) -> int ensures { result == x + y }`
+// with generated values (3, 4).
+func TestBuildEnsuresPropertyHarness_MultiArg(t *testing.T) {
+	binding := core.RecBinding{
+		Name:  "add",
+		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
+	}
+
+	params := []EnsuresParam{
+		{Name: "x", Value: &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: int64(3)}},
+		{Name: "y", Value: &core.Lit{CoreNode: core.CoreNode{NodeID: 3}, Kind: core.IntLit, Value: int64(4)}},
+	}
+
+	// Predicate: result == x + y
+	predicate := &ast.BinaryOp{
+		Left: makeIdent("result"),
+		Op:   "==",
+		Right: &ast.BinaryOp{
+			Left:  makeIdent("x"),
+			Op:    "+",
+			Right: makeIdent("y"),
+		},
+	}
+
+	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+
+	// Outer = Let(x, 3, ...), then Let(y, 4, ...), then Let(result, App, predicate).
+	letRec := result.(*core.LetRec)
+	xLet := letRec.Body.(*core.Let)
+	if xLet.Name != "x" {
+		t.Errorf("Expected outer Let name 'x', got %q", xLet.Name)
+	}
+	yLet := xLet.Body.(*core.Let)
+	if yLet.Name != "y" {
+		t.Errorf("Expected next Let name 'y', got %q", yLet.Name)
+	}
+	resultLet := yLet.Body.(*core.Let)
+	app := resultLet.Value.(*core.App)
+
+	if len(app.Args) != 2 {
+		t.Fatalf("Expected 2 args, got %d", len(app.Args))
+	}
+	for i, name := range []string{"x", "y"} {
+		argVar, ok := app.Args[i].(*core.Var)
+		if !ok {
+			t.Fatalf("Expected Var at arg %d, got %T", i, app.Args[i])
+		}
+		if argVar.Name != name {
+			t.Errorf("Expected arg %d = Var(%s), got Var(%s)", i, name, argVar.Name)
+		}
+	}
+}
+
+// TestBuildEnsuresPropertyHarness_StringPredicate verifies string-returning func
+// with a string-equality predicate (the reporter's exact case).
+func TestBuildEnsuresPropertyHarness_StringPredicate(t *testing.T) {
+	binding := core.RecBinding{
+		Name:  "tag",
+		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
+	}
+
+	params := []EnsuresParam{
+		{Name: "n", Value: &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: int64(0)}},
+	}
+
+	// Predicate: result == "neg" || result == "pos"
+	predicate := &ast.BinaryOp{
+		Left: &ast.BinaryOp{
+			Left:  makeIdent("result"),
+			Op:    "==",
+			Right: makeStringLit("neg"),
+		},
+		Op: "||",
+		Right: &ast.BinaryOp{
+			Left:  makeIdent("result"),
+			Op:    "==",
+			Right: makeStringLit("pos"),
+		},
+	}
+
+	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+
+	letRec := result.(*core.LetRec)
+	nLet := letRec.Body.(*core.Let)
+	resultLet := nLet.Body.(*core.Let)
+	binOp, ok := resultLet.Body.(*core.BinOp)
+	if !ok {
+		t.Fatalf("Expected BinOp predicate, got %T", resultLet.Body)
+	}
+	if binOp.Op != "||" {
+		t.Errorf("Expected outer Op '||', got %q", binOp.Op)
+	}
+}
+
+// TestBuildEnsuresPropertyHarness_PredicateIgnoresResult verifies a predicate
+// that doesn't reference `result` still builds a valid harness — the function is
+// still called (its return value goes into `result`, unused), and the predicate
+// evaluates against parameter references only.
+func TestBuildEnsuresPropertyHarness_PredicateIgnoresResult(t *testing.T) {
+	binding := core.RecBinding{
+		Name:  "id",
+		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
+	}
+
+	params := []EnsuresParam{
+		{Name: "x", Value: &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: int64(7)}},
+	}
+
+	// Predicate: true (constant — pathological but legal)
+	predicate := makeBoolLit(true)
+
+	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+
+	letRec := result.(*core.LetRec)
+	xLet := letRec.Body.(*core.Let)
+	resultLet, ok := xLet.Body.(*core.Let)
+	if !ok {
+		t.Fatalf("Expected inner result Let, got %T", xLet.Body)
+	}
+	if resultLet.Name != "result" {
+		t.Errorf("Expected inner Let.Name = 'result' even when unused, got %q", resultLet.Name)
+	}
+
+	lit, ok := resultLet.Body.(*core.Lit)
+	if !ok {
+		t.Fatalf("Expected Lit in result Let.Body, got %T", resultLet.Body)
+	}
+	if v, ok := lit.Value.(bool); !ok || v != true {
+		t.Errorf("Expected predicate Lit(true), got %v", lit.Value)
+	}
+}

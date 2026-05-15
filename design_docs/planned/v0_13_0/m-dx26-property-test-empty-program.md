@@ -1,11 +1,134 @@
 # M-DX26: Property Test "Empty Program" Bug
 
-**Status:** Planned
-**Target:** v0.7.2
-**Priority:** P1 (High - blocks property-based testing)
-**Estimated:** 4-6 hours
+**Status:** Planned (still unimplemented at v0.19.2; re-confirmed 2026-05-15)
+**Target:** v0.21.0 (originally v0.7.2 — slipped through 12 minor releases)
+**Priority:** P1 (High - blocks property-based testing AND silently makes `ensures` non-verifying)
+**Estimated:** 4-6 hours (Option A) — see also **Update 2** for the deeper `result`-binding fix
 **Dependencies:** None
 **Created:** 2026-01-28
+**Last Updated:** 2026-05-15
+
+---
+
+## Update 3 (2026-05-15, evening): Phase 5 Implemented in v0.21.0
+
+Phase 5 (`ensures` result binding via dedicated harness) shipped on `dev` for v0.21.0:
+
+- `internal/testing/collector.go` — `PropertyCase` now carries `FunctionCtx` and `Function` so the runner can resolve the function each `ensures` is attached to.
+- `internal/testing/harness.go` — new `BuildEnsuresPropertyHarness` (and `EnsuresParam`) builds `LetRec(f, λ..., Let(p1, val_1, Let(p2, val_2, ..., Let("result", App(f, [p1, p2, ...]), <predicate>))))` — both `result` and each function parameter are in scope for the predicate.
+- `internal/testing/executor.go` — new `EvaluateEnsuresHarness` evaluates the harness via direct Core eval, reusing the `CombinedResolver` / `injectModuleBindings` / `injectADTConstructors` plumbing already used by inline tests.
+- `internal/testing/runner.go` — `runProperty` branches on `ast.EnsuresKind` to a new `runEnsuresProperty` helper. Generates one value per function parameter, runs 100 iterations, reports the first violating input as `ensures violated for input: name=value, ...`.
+- `examples/runnable/contracts/ensures_violation_demo.ail` — acceptance demo (intentional `clampBuggy` reports counterexample, `clampOk` passes).
+- 4 unit tests for `BuildEnsuresPropertyHarness`, 4 integration tests in `runner_ensures_test.go`. `make test` and `make lint` clean.
+- Inbox `cdd55f9f` (sender: `cli`, sunholo/ailang-parse) reply pending.
+
+**v1 limitation (worth tracking):** arithmetic ops (`+`, `*`, etc.) inside ensures predicates trip the `BinOp reached evaluator; dictionaries not elaborated` error because the harness builder uses raw `core.BinOp` without operator-dictionary lowering. Comparison ops (`==`, `>=`, `<`, ...) and boolean ops (`&&`, `||`) work today. This is a follow-up that would either run the predicate through the elaborator's operator-dict pass before harness construction, or defer to the broader Option A refactor.
+
+**Still planned (not in this update):**
+- **Option A**: Refactor `EvaluateExpression` to do direct Core evaluation for forall-style properties (and `requires` clauses, which still fail with `evaluation failed: empty program`).
+- **Counterexample shrinking** for ensures violations.
+- **Smart generators** for tighter `ensures` coverage (random ints rarely hit interesting `if/else`-chain branches).
+
+This doc stays in `planned/` until Option A also ships. Sprint plan: [`design_docs/planned/v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md`](../v0_21_0/m-dx26-ensures-result-binding-sprint-plan.md).
+
+---
+
+## Update 2 (2026-05-15): Re-confirmed on v0.19.2 + Deeper Architectural Issue Found
+
+**Inbox**: msg `cdd55f9f-7add-40b4-9d75-13b674287d8c` from `cli` (sunholo/ailang-parse), 2026-05-15.
+**Reporter** initially attributed this to a property-test generator emitting invalid `_test.ail` for `pure func ... ensures { ... } -> string`. Investigation confirms the underlying bug is **the same M-DX26**, but with two additional findings the original 2026-01-28 doc didn't capture:
+
+### Finding 2.1 — The bug surfaces as either `empty program` OR `PAR_UNEXPECTED_TOKEN`
+
+The original doc only documented the `evaluation failed: empty program` error path. The reporter saw `PAR_UNEXPECTED_TOKEN at _test.ail:10:25: expected next token to be ), got IDENT instead`. Both errors come from the **same root cause** — `EvaluateExpression` synthesising AILANG source via `fmt.Sprintf("%v", ast)` — but the surface error depends on whether the resulting string happens to parse to zero declarations (→ "empty program") or to a syntactically broken token stream (→ `PAR_UNEXPECTED_TOKEN`). The `_test.ail` file in the error message is the synthetic `Source.Filename` from [internal/testing/executor.go:85](../../../internal/testing/executor.go#L85), not a real file on disk.
+
+The doc's existing diagnosis (Option A — direct Core evaluation) is still the right fix.
+
+### Finding 2.2 — Even if source synthesis worked, `ensures` would still be unverified
+
+The runner's `runProperty` ([internal/testing/runner.go:151](../../../internal/testing/runner.go#L151)) iterates `propCase.Property.Binders` to create generators. For `ensures`-derived properties, **`Binders` is `nil`** — see [parser_contracts.go:144](../../../internal/parser/parser_contracts.go#L144), where contract predicates are emitted with `Binders: nil` because `ensures` doesn't take a `forall` clause. This means:
+
+1. The generator loop runs zero times.
+2. `bindPropertyValues(prop, [])` returns the predicate unchanged.
+3. The predicate references `result` — which is **never bound to anything** by the runner. There is no code that:
+   - Generates inputs for the function's parameters,
+   - Calls the function with those inputs,
+   - Captures the return value,
+   - Substitutes it for `result` in the predicate.
+
+So even after Option A lands, every `ensures { result ⋯ }` clause will evaluate to "result is unbound". `ensures` clauses across the whole codebase are currently **silently non-verifying** — the runner reports failure for the wrong reason (source synthesis broke), masking the deeper fact that the property runner has no `result`-binding mechanism.
+
+### Triangulation against reporter's narrowing
+
+The reporter narrowed the trigger to `(pure + ensures + string return)`. Re-running their three "non-trigger" cases on the same binary (md5 `af124e1f30221cb274869cbcc414ab0a`, commit `24fd623d`) shows the same `evaluation failed: empty program` error for `int` and `bool` returns too — so the narrowing was an artefact of which functions in their codebase had the property test path actually exercised. **The bug is universal across all `ensures` clauses, regardless of return type.**
+
+### Updated Implementation Plan
+
+The original 4-phase plan is still correct for surfacing the failure (Option A). Add a new **Phase 5** before declaring this done:
+
+#### Phase 5: Bind `result` in `ensures` Properties (2-3 hours, NEW)
+
+**File: `internal/testing/runner.go` `runProperty()`**
+
+For property cases derived from `ensures` (detectable by `propCase.Property.Kind == ast.EnsuresKind`):
+
+1. Resolve the function the `ensures` clause is attached to (already known via `propCase.Name` — the collector emits `<funcName>_property_<i>`).
+2. Build a generator for **each function parameter type** (not for `Binders`, which is empty).
+3. Each test iteration:
+   a. Generate parameter values.
+   b. Evaluate the function call `funcName(arg1, arg2, ...)` to get the return value.
+   c. Bind that return value to `result` in the predicate's environment.
+   d. Evaluate the predicate.
+   e. If false → the function violates its `ensures`; report counterexample (the input that produced the bad output).
+
+This is what `ensures` is *supposed to mean* per the M-VERIFY design ([m-verify-runtime-contracts.md](../../implemented/v0_6_1/m-verify-runtime-contracts.md)): a postcondition checked against the function's actual output. Without Phase 5, `ensures` is a documentation comment, not a verifier.
+
+`requires` clauses are simpler — they reference parameters directly, no `result` substitution needed. Still need parameter generators though.
+
+### Reporter Workaround
+
+Reporter (correctly) drops `ensures` and keeps inline `tests [...]` blocks. That avoids the failure but loses any contract coverage. Same recommendation stands until Phase 5 ships: prefer `tests [...]` over `ensures` if you want any verification at all.
+
+### New Files to Modify (delta from original plan)
+
+| File | Changes | LOC |
+|------|---------|-----|
+| `internal/testing/runner.go` | Add `runEnsuresProperty()` branch in `runProperty()` | ~80 |
+| `internal/testing/executor.go` | Add `EvaluateFunctionCall(funcName, args, sourceFile)` helper | ~40 |
+| `internal/testing/runner_ensures_test.go` | Tests for `ensures` violations & counterexamples | ~150 |
+| `examples/contracts_ensures_demo.ail` | Working `ensures`-with-counterexample demo | ~30 |
+| **Phase 5 subtotal** | | **~300** |
+| **Combined with original ~265** | | **~565** |
+
+### Acceptance test for Update 2
+
+```ailang
+module test/ensures_violation
+
+export pure func clamp(x: int) -> int
+  ensures { result >= 0 && result <= 10 }
+{
+  if x < 0 then -1     -- intentional bug
+  else if x > 10 then 11
+  else x
+}
+```
+
+After Phase 5, `ailang test` on this module should report:
+
+```
+Properties:
+  ✗ clamp_property_1 (3 cases, 12.4ms)
+      ensures violated for input: -1
+      result = -1, expected: result >= 0 && result <= 10
+```
+
+instead of the current `evaluation failed: empty program`.
+
+---
+
+## Original Doc (2026-01-28)
+
 
 ## Problem Statement
 

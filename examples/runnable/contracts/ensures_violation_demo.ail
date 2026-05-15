@@ -1,0 +1,35 @@
+-- examples/runnable/contracts/ensures_violation_demo.ail
+-- Acceptance test for M-DX26 Phase 5: ensures clauses must actually verify.
+--
+-- The `clampBuggy` function has an INTENTIONAL bug: it returns -1 when x < 0
+-- instead of clamping to 0. Its `ensures { result >= 0 && result <= 10 }` clause
+-- should catch this — `ailang test` MUST report a counterexample (a negative input)
+-- and exit non-zero.
+--
+-- Before M-DX26 Phase 5: every property fails with `evaluation failed: empty program`.
+-- After M-DX26 Phase 5: clampBuggy_property_1 reports `ensures violated for input: <negative int>`
+--                      and clampOk_property_1 passes.
+
+module examples/runnable/contracts/ensures_violation_demo
+
+-- INTENTIONAL BUG: returns -1 for negative inputs (violates `result >= 0`).
+export pure func clampBuggy(x: int) -> int
+  ensures { result >= 0 && result <= 10 }
+{
+  if x < 0 then -1
+  else if x > 10 then 10
+  else x
+}
+
+-- Correct implementation; same `ensures` clause; should pass.
+export pure func clampOk(x: int) -> int
+  ensures { result >= 0 && result <= 10 }
+{
+  if x < 0 then 0
+  else if x > 10 then 10
+  else x
+}
+
+export func main() -> int ! {} {
+  clampOk(5)
+}

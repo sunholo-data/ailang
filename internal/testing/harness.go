@@ -197,6 +197,18 @@ func astExprToCore(expr ast.Expr) core.CoreExpr {
 			Op:      e.Op,
 			Operand: operand,
 		}
+	case *ast.BinaryOp:
+		// Predicates in ensures clauses use binary ops: ==, !=, <, <=, >, >=, &&, ||, +, *, ...
+		left := astExprToCore(e.Left)
+		right := astExprToCore(e.Right)
+		return &core.BinOp{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Op:    e.Op,
+			Left:  left,
+			Right: right,
+		}
 	case *ast.Identifier:
 		// Handle identifiers (including ADT constructors like None, True, False)
 		return &core.Var{
@@ -251,6 +263,99 @@ func astLitKindToCore(kind ast.LiteralKind) core.LitKind {
 		return core.UnitLit
 	default:
 		panic(fmt.Sprintf("unsupported literal kind: %v", kind))
+	}
+}
+
+// EnsuresParam pairs a function parameter name with its generated Core value
+// for one iteration of an ensures property test.
+type EnsuresParam struct {
+	Name  string
+	Value core.CoreExpr
+}
+
+// BuildEnsuresPropertyHarness creates a synthetic Core expression for evaluating
+// a single ensures-clause predicate against the function's actual return value.
+//
+// Given the function binding, the parameter name/value pairs for one test iteration,
+// and the predicate AST, builds:
+//
+//	LetRec(f, λ...,
+//	  Let("p1", val_1,
+//	    Let("p2", val_2,
+//	      ...
+//	      Let("result", App(f, [p1, p2, ...]),
+//	        <predicate-as-Core>    -- may reference "result", "p1", "p2", ...
+//	      )))
+//
+// Both the special name `result` and each function parameter are in scope for
+// the predicate, since ensures clauses reference both (e.g. `result > x`).
+//
+// Evaluates to a BoolValue: true = ensures holds for this input, false = ensures violated.
+//
+// Inputs:
+//   - binding: Core LetRec binding for the function being verified.
+//   - params: Per-parameter (name, generated value) pairs for this iteration.
+//   - predicate: AST expression of the ensures predicate.
+//
+// Output: Core expression that, when evaluated, returns true if ensures holds for these inputs.
+func BuildEnsuresPropertyHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) core.CoreExpr {
+	predicateCore := astExprToCore(predicate)
+
+	funcVar := &core.Var{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Name: binding.Name,
+	}
+
+	// Reference each bound parameter by name in the function call.
+	callArgs := make([]core.CoreExpr, len(params))
+	for i, p := range params {
+		callArgs[i] = &core.Var{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name: p.Name,
+		}
+	}
+
+	functionCall := &core.App{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Func: funcVar,
+		Args: callArgs,
+	}
+
+	// Innermost: Let("result", App(f, [p1, ...]), <predicate>).
+	body := core.CoreExpr(&core.Let{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Name:  "result",
+		Value: functionCall,
+		Body:  predicateCore,
+	})
+
+	// Wrap each parameter binding from innermost outward, so generated literals
+	// are bound under their AILANG-source names and visible to the predicate.
+	for i := len(params) - 1; i >= 0; i-- {
+		body = &core.Let{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name:  params[i].Name,
+			Value: params[i].Value,
+			Body:  body,
+		}
+	}
+
+	return &core.LetRec{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Bindings: []core.RecBinding{binding},
+		Body:     body,
 	}
 }
 

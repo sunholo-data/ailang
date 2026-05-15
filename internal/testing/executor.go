@@ -94,6 +94,38 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 	return result.Value, nil
 }
 
+// EvaluateEnsuresHarness evaluates a single iteration of an ensures-clause property test.
+// Returns a *eval.BoolValue: true if the ensures predicate held for the given inputs, false if violated.
+//
+// This is the M-DX26 Phase 5 entry point — it routes around the broken
+// EvaluateExpression source-synthesis path by evaluating Core directly,
+// the same way EvaluateInlineTestsWithHarness does for inline tests blocks.
+func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
+	harnessExpr := BuildEnsuresPropertyHarness(binding, params, predicate)
+
+	coreProg := &core.Program{
+		Decls: []core.CoreExpr{harnessExpr},
+	}
+
+	evaluator := eval.NewCoreEvaluator()
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	env := evaluator.Env()
+	e.injectModuleBindings(evaluator, env)
+	resolver := &CombinedResolver{
+		Builtins: builtinRegistry,
+		Env:      env,
+		Modules:  e.modules,
+	}
+	evaluator.SetGlobalResolver(resolver)
+	e.injectADTConstructors(evaluator)
+
+	result, err := evaluator.EvalCoreProgram(coreProg)
+	if err != nil {
+		return nil, fmt.Errorf("ensures harness evaluation failed: %w", err)
+	}
+	return result, nil
+}
+
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
 // This is the PREFERRED method for inline tests (fixes scoping issues in EvaluateExpression).
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {

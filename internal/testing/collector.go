@@ -19,10 +19,12 @@ type TestCase struct {
 
 // PropertyCase represents a property-based test extracted from the AST.
 type PropertyCase struct {
-	Name     string        // Property name
-	Property *ast.Property // The property specification (forall(...) => expr)
-	Location ast.Pos       // Source location
-	IsInline bool          // true for properties[...], false for property "name" {}
+	Name        string        // Property name
+	Property    *ast.Property // The property specification (forall(...) => expr)
+	Location    ast.Pos       // Source location
+	IsInline    bool          // true for properties[...], false for property "name" {}
+	FunctionCtx string        // Function name if this is an inline property (empty for top-level)
+	Function    *ast.FuncDecl // Function declaration this property is attached to (nil for top-level); needed by EnsuresKind to access parameter types and call the function
 }
 
 // TestSuite represents all tests and properties extracted from a module.
@@ -134,10 +136,12 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 	if decl.Properties != nil {
 		for i, prop := range decl.Properties {
 			propCase := PropertyCase{
-				Name:     fmt.Sprintf("%s_property_%d", funcName, i+1), // e.g., "factorial_property_1"
-				Property: prop,
-				Location: prop.Pos,
-				IsInline: true,
+				Name:        fmt.Sprintf("%s_property_%d", funcName, i+1), // e.g., "factorial_property_1"
+				Property:    prop,
+				Location:    prop.Pos,
+				IsInline:    true,
+				FunctionCtx: funcName,
+				Function:    decl,
 			}
 			c.suite.Properties = append(c.suite.Properties, propCase)
 		}
