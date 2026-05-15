@@ -264,6 +264,8 @@ func printHelp() {
 	fmt.Println("  AILANG_RELAX_MODULES=1              Allow module path mismatch (prototyping)")
 	fmt.Println("  AILANG_NO_TRACE=1                   Disable all tracing (2x faster, no observability)")
 	fmt.Println("  AILANG_PARENT_TASK_ID=<id>          Set parent task for trace hierarchy")
+	fmt.Println("  AILANG_SERVE_API_ALLOW_DROPS=1      Allow serve-api to start when @route-bearing modules were dropped")
+	fmt.Println("                                      (under-basePath filter). NOT recommended; use only during migration.")
 	fmt.Println("  OTEL_EXPORTER_OTLP_ENDPOINT=<url>   Enable OTLP telemetry export")
 	fmt.Println("  GOOGLE_CLOUD_PROJECT=<id>           Enable GCP Cloud Trace")
 	fmt.Println()

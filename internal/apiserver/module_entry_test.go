@@ -218,6 +218,92 @@ func TestRecordDrop_NilFileSafe(t *testing.T) {
 	}
 }
 
+// TestValidateRegistration_NoDrops asserts that ValidateRegistration
+// returns nil when no modules were dropped. M-SERVEAPI-SURFACE-DROPS M2.
+func TestValidateRegistration_NoDrops(t *testing.T) {
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	if err := srv.ValidateRegistration(); err != nil {
+		t.Errorf("ValidateRegistration with no drops returned error: %v", err)
+	}
+}
+
+// TestValidateRegistration_FatalDropFailsStart asserts that a drop with
+// "@route" in Annotations causes ValidateRegistration to return a
+// non-nil error naming the dropped module's identifiers.
+func TestValidateRegistration_FatalDropFailsStart(t *testing.T) {
+	t.Setenv(AllowDropsEnvVar, "") // ensure allow-drops is OFF
+
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	srv.droppedModules = append(srv.droppedModules, DroppedModule{
+		PhysicalPath: "/cache/sunholo/billing_entitlements/0.4.1/plan.ail",
+		DeclaredPath: "pkg/sunholo/billing_entitlements/plan",
+		FileBaseName: "plan.ail",
+		Annotations:  []string{"@route"},
+		Reason:       "outside-basePath",
+	})
+
+	err := srv.ValidateRegistration()
+	if err == nil {
+		t.Fatal("ValidateRegistration returned nil; want error for @route-bearing drop")
+	}
+	msg := err.Error()
+	// Error message must name the file, declared path, and annotations
+	// so operators can act on it without rerunning with extra debug flags.
+	for _, want := range []string{"plan.ail", "pkg/sunholo/billing_entitlements/plan", "@route"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error message missing %q\nfull message:\n%s", want, msg)
+		}
+	}
+}
+
+// TestValidateRegistration_AllowDropsEscapeHatch asserts that setting
+// AILANG_SERVE_API_ALLOW_DROPS=1 demotes a fatal drop to a strong WARN
+// (ValidateRegistration returns nil).
+func TestValidateRegistration_AllowDropsEscapeHatch(t *testing.T) {
+	t.Setenv(AllowDropsEnvVar, "1")
+
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	srv.droppedModules = append(srv.droppedModules, DroppedModule{
+		PhysicalPath: "/cache/foo/bar.ail",
+		DeclaredPath: "pkg/foo/bar",
+		FileBaseName: "bar.ail",
+		Annotations:  []string{"@route"},
+		Reason:       "outside-basePath",
+	})
+
+	if err := srv.ValidateRegistration(); err != nil {
+		t.Errorf("ValidateRegistration with allow-drops=1 returned error: %v", err)
+	}
+}
+
+// TestValidateRegistration_NonAnnotationDropOnlyWarns asserts that a
+// drop without any annotations (e.g. a stdlib resolution edge) does NOT
+// cause ValidateRegistration to fail — it only logs the WARN banner.
+func TestValidateRegistration_NonAnnotationDropOnlyWarns(t *testing.T) {
+	t.Setenv(AllowDropsEnvVar, "")
+
+	srv := New(t.TempDir(), Config{Port: "0"})
+	defer srv.Close()
+
+	srv.droppedModules = append(srv.droppedModules, DroppedModule{
+		PhysicalPath: "/some/std/option.ail",
+		DeclaredPath: "std/option",
+		FileBaseName: "option.ail",
+		Annotations:  nil, // no @route
+		Reason:       "outside-basePath",
+	})
+
+	if err := srv.ValidateRegistration(); err != nil {
+		t.Errorf("non-annotation drop should not fail validation; got error: %v", err)
+	}
+}
+
 // TestServer_NormalizedBasePath asserts New() computes
 // normalizedBasePath correctly: absolute, symlink-resolved, with a
 // trailing separator.

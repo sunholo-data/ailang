@@ -148,6 +148,22 @@ func serveAPICommand(args []string) error {
 		return fmt.Errorf("failed to load modules: %w", err)
 	}
 
+	// M-SERVEAPI-SURFACE-DROPS: fail-fast if any @route-bearing module
+	// was dropped by the under-basePath filter. Operators previously had
+	// no signal that their handler module's imports landed outside
+	// basePath (the docparse v0.14.1 billing bug). The escape hatch
+	// AILANG_SERVE_API_ALLOW_DROPS=1 demotes this to a WARN.
+	if err := srv.ValidateRegistration(); err != nil {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Error: serve-api refuses to start with @route-bearing modules dropped:")
+		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, "Resolution options:")
+		fmt.Fprintln(os.Stderr, "  1. Move basePath outward (use a project root that contains all imports)")
+		fmt.Fprintln(os.Stderr, "  2. Replace relative ./X imports with canonical pkg/... imports")
+		fmt.Fprintln(os.Stderr, "  3. Set AILANG_SERVE_API_ALLOW_DROPS=1 to start anyway (NOT recommended)")
+		os.Exit(1)
+	}
+
 	// Wire FnCaller/FnCallerN for stream event handler dispatch and iterative builtins
 	if effCtx != nil {
 		effCtx.FnCallerN = srv.GetEngine().GetCallValueN()
