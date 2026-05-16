@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -338,8 +339,18 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 
 // runPythonSolution executes and validates a Python solution using the
 // uv-managed pinned Python runtime.
+//
+// Wires spec.CliArgs into the subprocess invocation and spec.Stdin onto
+// the subprocess's stdin. Without these, every benchmark whose Python
+// solution reads sys.argv[1] or sys.stdin will fail at runtime even
+// though the generated code is correct — see
+// design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md for the
+// full context (v0.20.0 cli_args + pipeline benchmarks exposed this).
 func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResult {
-	cmd, uvErr := newPythonCommand(solutionPath)
+	// newPythonCommand is variadic — pass solution path + spec's CLI args
+	// in the same slice so they all land after `uv run --python 3.12 --`.
+	args := append([]string{solutionPath}, spec.CliArgs...)
+	cmd, uvErr := newPythonCommand(args...)
 	if uvErr != nil {
 		return ValidationResult{
 			CompileOk: false,
@@ -347,6 +358,9 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 			StdoutOk:  false,
 			Stderr:    uvErr.Error(),
 		}
+	}
+	if spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(spec.Stdin)
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
