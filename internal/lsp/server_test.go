@@ -126,12 +126,13 @@ func TestUnsupportedRequestReturnsMethodNotFound(t *testing.T) {
 		t.Fatalf("initialized: %v", err)
 	}
 
-	// textDocument/documentSymbol is deferred to M5 — must error MethodNotFound.
-	dsParams := &protocol.DocumentSymbolParams{}
-	var dsRes []interface{}
-	_, err := cliConn.Call(ctx, "textDocument/documentSymbol", dsParams, &dsRes)
+	// textDocument/completion is deferred indefinitely (out of MVP scope) —
+	// must error MethodNotFound.
+	cmpParams := &protocol.CompletionParams{}
+	var cmpRes protocol.CompletionList
+	_, err := cliConn.Call(ctx, "textDocument/completion", cmpParams, &cmpRes)
 	if err == nil {
-		t.Fatal("textDocument/documentSymbol returned no error pre-M5; want MethodNotFound")
+		t.Fatal("textDocument/completion returned no error; it's deferred and must MethodNotFound")
 	}
 
 	// Clean up so the test goroutine exits.
@@ -204,8 +205,8 @@ func assertCapabilities(t *testing.T, caps protocol.ServerCapabilities) {
 	if !truthy(caps.ReferencesProvider) {
 		t.Errorf("ReferencesProvider must be true after M4, got %v", caps.ReferencesProvider)
 	}
-	if caps.DocumentSymbolProvider != nil {
-		t.Errorf("DocumentSymbolProvider must stay nil until M5, got %v", caps.DocumentSymbolProvider)
+	if !truthy(caps.DocumentSymbolProvider) {
+		t.Errorf("DocumentSymbolProvider must be true after M5, got %v", caps.DocumentSymbolProvider)
 	}
 	if caps.CompletionProvider != nil {
 		t.Error("CompletionProvider is deferred (out of MVP scope) — must stay nil")

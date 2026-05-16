@@ -104,6 +104,8 @@ func (s *Server) Initialize(_ context.Context, _ *protocol.InitializeParams) (*p
 			// M4: definition + references for top-level identifiers.
 			DefinitionProvider: true,
 			ReferencesProvider: true,
+			// M5: outline view (functions, ADTs+constructors, type classes).
+			DocumentSymbolProvider: true,
 		},
 		ServerInfo: &protocol.ServerInfo{
 			Name:    ServerName,
