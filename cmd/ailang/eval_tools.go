@@ -451,20 +451,24 @@ func runEvalReport() {
 // runEvalSweetSpot generates a sweet-spot report from a results directory
 // (M-EVAL-SWEET-SPOT, v0.19.0).
 //
-// Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N]
+// Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N] [--lang=LANG]
 func runEvalSweetSpot() {
 	if flag.NArg() < 2 {
 		fmt.Fprintf(os.Stderr, "%s: missing results directory\n", red("Error"))
-		fmt.Println("Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N]")
+		fmt.Println("Usage: ailang eval-sweet-spot <results_dir> [--format=text|csv|json] [--slow-ms=N] [--lang=LANG]")
 		fmt.Println("")
 		fmt.Println("Show per-model cost-vs-time-vs-success sweet-spot ranking.")
 		fmt.Println("")
 		fmt.Println("Options:")
 		fmt.Println("  --format=text|csv|json   Output format (default: text)")
 		fmt.Println("  --slow-ms=N              Slow-pass threshold in ms (default: 60000)")
+		fmt.Println("  --lang=LANG              Restrict to runs of one language (e.g. ailang, python, javascript, go)")
+		fmt.Println("                           Comma-separated list also accepted (--lang=ailang,python)")
 		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-sweet-spot eval_results/standard")
+		fmt.Println("  ailang eval-sweet-spot eval_results/baselines/v0.20.0/agent --lang=ailang")
+		fmt.Println("  ailang eval-sweet-spot eval_results/baselines/v0.20.0/agent --lang=python")
 		fmt.Println("  ailang eval-sweet-spot eval_results/v0_18_5_core_3harness --format=csv > sweet.csv")
 		fmt.Println("  ailang eval-sweet-spot eval_results/standard --slow-ms=30000")
 		os.Exit(1)
@@ -475,6 +479,7 @@ func runEvalSweetSpot() {
 	// Parse flags from positional args 2+.
 	format := "text"
 	slowMs := int64(60_000)
+	var langFilter []string
 	for i := 2; i < flag.NArg(); i++ {
 		arg := flag.Arg(i)
 		switch {
@@ -487,6 +492,11 @@ func runEvalSweetSpot() {
 				os.Exit(1)
 			}
 			slowMs = n
+		case strings.HasPrefix(arg, "--lang="):
+			langFilter = strings.Split(strings.TrimPrefix(arg, "--lang="), ",")
+			for i, l := range langFilter {
+				langFilter[i] = strings.TrimSpace(strings.ToLower(l))
+			}
 		}
 	}
 
@@ -498,6 +508,29 @@ func runEvalSweetSpot() {
 	if len(results) == 0 {
 		fmt.Fprintf(os.Stderr, "%s: no results found in %s\n", yellow("Warning"), resultsDir)
 		os.Exit(0)
+	}
+
+	// Apply --lang filter if requested. Done HERE (post-load, pre-BuildSweetSpot)
+	// so the Pareto frontier is computed only over the requested-language subset.
+	if len(langFilter) > 0 {
+		allowed := map[string]bool{}
+		for _, l := range langFilter {
+			allowed[l] = true
+		}
+		filtered := results[:0]
+		for _, r := range results {
+			if allowed[strings.ToLower(r.Lang)] {
+				filtered = append(filtered, r)
+			}
+		}
+		results = filtered
+		if len(results) == 0 {
+			fmt.Fprintf(os.Stderr, "%s: no results matched --lang=%s in %s\n",
+				yellow("Warning"), strings.Join(langFilter, ","), resultsDir)
+			os.Exit(0)
+		}
+		fmt.Fprintf(os.Stderr, "%s --lang filter: %d runs (langs: %s)\n",
+			cyan("→"), len(results), strings.Join(langFilter, ","))
 	}
 
 	report := eval_analysis.BuildSweetSpot(results, eval_analysis.SweetSpotOpts{SlowMs: slowMs})
