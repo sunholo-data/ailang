@@ -439,6 +439,31 @@ After release, verify both prompt registries are consistent:
 
 Both are embedded in the binary via `//go:embed all:prompts`. New toolchain features should be reflected in the devtools prompt.
 
+## ailang_bootstrap Plugin Sync
+
+The user-facing Claude Code marketplace lives in the sibling repo `ailang_bootstrap` ([`.claude-plugin/marketplace.json`](../../../../ailang_bootstrap/.claude-plugin/marketplace.json)). It mirrors a small set of LSP plugins from this repo so end users get them via their bootstrap install.
+
+**Plugins mirrored**: `ailang-lsp` (sourced at `ailang_bootstrap/plugins/ailang-lsp/`).
+
+**On every release, verify the mirrored plugin is byte-identical to this repo's:**
+
+```bash
+# Compare and resync if drift detected (typically only the version field bumps).
+diff -q .claude/plugins/ailang-lsp/.lsp.json \
+        ../ailang_bootstrap/plugins/ailang-lsp/.lsp.json
+diff -q .claude/plugins/ailang-lsp/.claude-plugin/plugin.json \
+        ../ailang_bootstrap/plugins/ailang-lsp/.claude-plugin/plugin.json
+
+# If diff reports differences:
+cp .claude/plugins/ailang-lsp/.lsp.json \
+   ../ailang_bootstrap/plugins/ailang-lsp/.lsp.json
+cp .claude/plugins/ailang-lsp/.claude-plugin/plugin.json \
+   ../ailang_bootstrap/plugins/ailang-lsp/.claude-plugin/plugin.json
+# Then commit in ailang_bootstrap.
+```
+
+**The `ailang-go-lsp` plugin is NOT mirrored** — it's developer-facing (only useful when working ON the AILANG Go implementation), so it stays in this repo's `ailang-tools` marketplace only.
+
 ## Common Issues
 
 ### Tests Fail Before Release

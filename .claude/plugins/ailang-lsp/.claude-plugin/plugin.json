@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ailang-lsp",
   "version": "0.1.0",
-  "description": "AILANG language server (M-AILANG-LSP-FOR-AI). Wires the in-tree `ailang lsp` subcommand into Claude Code so an agent editing .ail files gets real-time diagnostics, hover types, go-to-definition, find-references, and document symbols. Requires the `ailang` binary on PATH (build with `make install` from the repo root).",
+  "description": "AILANG language server (M-AILANG-LSP-FOR-AI). Wires the in-tree `ailang lsp` subcommand into Claude Code so an agent editing .ail files gets real-time diagnostics, hover types, go-to-definition, find-references, and document symbols. Requires the `ailang` binary on PATH (install AILANG separately).",
   "author": {
     "name": "AILANG"
   },
