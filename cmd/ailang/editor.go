@@ -137,6 +137,7 @@ func installVSCode() {
 	}{
 		{"editor_assets/vscode/package.json", filepath.Join(extDir, "package.json")},
 		{"editor_assets/vscode/language-configuration.json", filepath.Join(extDir, "language-configuration.json")},
+		{"editor_assets/vscode/extension.js", filepath.Join(extDir, "extension.js")},
 		{"editor_assets/vscode/syntaxes/ailang.tmLanguage.json", filepath.Join(syntaxDir, "ailang.tmLanguage.json")},
 	}
 
@@ -154,9 +155,19 @@ func installVSCode() {
 
 	fmt.Printf("%s Extension installed to %s\n", green("✓"), extDir)
 	fmt.Println()
+	fmt.Println("What you get:")
+	fmt.Println("  • Syntax highlighting + bracket matching for .ail files")
+	fmt.Println("  • Language Server (diagnostics on save, hover types,")
+	fmt.Println("    go-to-definition, find-references, document symbols)")
+	fmt.Println("    — spawns `ailang lsp --stdio` automatically")
+	fmt.Println()
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Restart VS Code or run 'Developer: Reload Window'")
-	fmt.Println("  2. Open any .ail file to see syntax highlighting")
+	fmt.Println("  2. Open any .ail file — diagnostics appear inline on save")
+	fmt.Println()
+	fmt.Println("Troubleshooting:")
+	fmt.Println("  • If no diagnostics: check `which ailang` works (binary on PATH)")
+	fmt.Println("  • Errors surface in View → Output → 'AILANG Language Server'")
 }
 
 func uninstallVSCode() {

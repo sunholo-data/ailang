@@ -297,6 +297,16 @@ error-codes:
 	@go run ./tools/gen-error-codes/ internal/errors/codes.go dist/error_codes.json
 	@echo "$(GREEN)✓ dist/error_codes.json generated$(RESET)"
 
+## vscode-extension-bundle: Rebuild the AILANG VS Code extension bundle (extension.js)
+##                          embedded into the ailang binary. Run after editing
+##                          tools/vscode-extension-build/extension-src.js or bumping
+##                          its vscode-languageclient dependency.
+vscode-extension-bundle:
+	@echo "$(BOLD)Bundling AILANG VS Code extension...$(RESET)"
+	@bash tools/vscode-extension-build/bundle.sh
+	@echo "$(GREEN)✓ cmd/ailang/editor_assets/vscode/extension.js updated$(RESET)"
+	@echo "  Remember to re-run 'make install' so the new bundle is embedded in your local ailang binary."
+
 ## bin/build-snapshot: Build the snapshot tool
 bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"

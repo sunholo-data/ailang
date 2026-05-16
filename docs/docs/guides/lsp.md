@@ -44,14 +44,32 @@ After install, `/plugin` should list `ailang-lsp` under **Installed** with no en
 
 > **AILANG contributors**: this repo also ships a developer-facing marketplace at [`.claude-plugin/marketplace.json`](https://github.com/sunholo-data/ailang/blob/dev/.claude-plugin/marketplace.json) (`ailang-tools`). Install from a local checkout via `/plugin marketplace add /path/to/your/ailang/checkout` + `/plugin install ailang-lsp@ailang-tools` to dogfood against the dev binary.
 
-## Installing for a generic LSP client (VS Code / Emacs / Helix / nvim)
+## Installing for VS Code (recommended for humans)
 
-Any LSP client can connect to `ailang lsp --stdio`. **No AILANG source clone required** — just the binary on PATH. The client config needs to:
+One command — the `ailang` binary ships an embedded VS Code extension that installs both syntax highlighting AND the LSP wiring:
 
-1. Spawn `ailang lsp --stdio` as the language server for files matching `*.ail`.
-2. Set the language ID to `ailang`.
+```bash
+ailang editor install vscode
+```
 
-Example (VS Code, via the [Generic LSP Client (v2)](https://marketplace.visualstudio.com/items?itemName=zsol.vscode-glspc) extension):
+Then in VS Code: **Cmd+Shift+P → Developer: Reload Window**. Open any `.ail` file — colors appear immediately, and diagnostics arrive inline on save. The extension auto-spawns `ailang lsp --stdio` for `.ail` files via the standard `vscode-languageclient` runtime.
+
+**Verifying it works:**
+1. After reload, open any `.ail` file
+2. Check `ps aux | grep "ailang lsp"` — you should see one process
+3. Errors in VS Code's Output panel under "AILANG Language Server" if anything went wrong
+4. To uninstall: `ailang editor uninstall vscode`
+
+The extension version that ships embedded is `0.3.0` — bumps to the AILANG binary include the latest extension version. Re-run `ailang editor install vscode` after upgrading `ailang` to pick up extension changes.
+
+### For other LSP clients (Emacs / Helix / nvim)
+
+Any LSP client can connect to `ailang lsp --stdio`. Configure your client to:
+
+1. Spawn `ailang lsp --stdio` as the language server for files matching `*.ail`
+2. Set the language ID to `ailang`
+
+For VS Code users who'd rather use a generic LSP client extension (instead of the embedded one above), the [Generic LSP Client (v2)](https://marketplace.visualstudio.com/items?itemName=zsol.vscode-glspc) extension works with:
 
 ```json
 {
@@ -62,7 +80,7 @@ Example (VS Code, via the [Generic LSP Client (v2)](https://marketplace.visualst
 }
 ```
 
-(Reload the VS Code window after editing settings — glspc spawns the LSP on the next file open.)
+This path skips the syntax-highlighting bundle but is useful if you want full control over the LSP-client lifecycle.
 
 ## Workspace behaviour
 

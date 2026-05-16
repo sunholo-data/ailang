@@ -1,19 +1,21 @@
 {
   "name": "ailang",
   "displayName": "AILANG Language Support",
-  "description": "Syntax highlighting and language support for AILANG (.ail files)",
-  "version": "0.2.0",
+  "description": "Syntax highlighting + LSP (diagnostics, hover, definition, references, document symbols) for AILANG (.ail) files. Spawns `ailang lsp --stdio` — requires the ailang binary on PATH.",
+  "version": "0.3.0",
   "publisher": "sunholo",
   "repository": {
     "type": "git",
     "url": "https://github.com/sunholo-data/ailang"
   },
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.75.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
+  "main": "./extension.js",
   "contributes": {
     "languages": [
       {

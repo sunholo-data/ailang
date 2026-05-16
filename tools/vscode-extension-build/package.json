@@ -1,0 +1,11 @@
+{
+  "name": "ailang-vscode-extension-build",
+  "private": true,
+  "description": "Bundling rig for the AILANG VS Code extension. Run bundle.sh to produce the committed cmd/ailang/editor_assets/vscode/extension.js. The build node_modules are NOT shipped — only the bundled output is embedded in the ailang binary.",
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}
