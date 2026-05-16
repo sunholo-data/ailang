@@ -1560,12 +1560,15 @@ agent_suite:
   - "claude-sonnet-4-6"     # agent_cli: "claude"    — kept as longitudinal anchor across releases
   - "gemini-3-flash"        # agent_cli: "gemini"    — Google cheap (already lowest tier)
   - "gpt5-4-mini"           # agent_cli: "codex"     — OpenAI cheap (was gpt5-4, swapped to keep cost down)
-  - "opencode-sonnet-4-6"   # agent_cli: "opencode"  — Sonnet via opencode (cross-harness pair to claude-sonnet-4-6)
+  # opencode-sonnet-4-6 and motoko-claude-sonnet-4-6 removed (2026-05-16, v0.20.0
+  # post-release): sonnet-4-6 is already the longitudinal anchor via its native
+  # claude-code harness slot above; the cross-harness duplicates inflated cost
+  # without adding signal. Use `harness_suite` (--cross-harness flag) for explicit
+  # cross-harness comparison runs that genuinely need same-model-different-CLI pairs.
   - "opencode-or-glm-5"     # agent_cli: "opencode"  — GLM 5 via OpenRouter (PASS smoke 3/3, 2026-05-04, first OS) — added v0.15.0
   - "opencode-or-minimax-m2-7" # agent_cli: "opencode" — MiniMax M2.7 via OpenRouter (PASS smoke 3/3, 2026-05-04, cheapest OS) — added v0.15.0
   - "opencode-or-glm-4-7-flash" # agent_cli: "opencode" — GLM 4.7 Flash via OpenRouter (PASS smoke 3/3 with budgets:hard_timeout_secs=600, 2026-05-05) — added v0.15.1 via M-EVAL-COST-AND-SPEED-BUDGETS
   - "motoko-claude-haiku-4-5"   # agent_cli: "motoko" — AILANG-native harness on cheap model (M-MOTOKO-EXECUTOR-ADAPTER, v0.18.0) — THE threshold-measurement experiment
-  - "motoko-claude-sonnet-4-6"  # agent_cli: "motoko" — AILANG-native harness on premium model (frontier ceiling)
   - "motoko-glm-5"              # agent_cli: "motoko" — AILANG-native harness on top-OS model (cost-arbitrage thesis)
   - "motoko-gemma-4"            # agent_cli: "motoko" — AILANG-native harness on open-weight Gemma (no first-party Gemma agent CLI)
 
