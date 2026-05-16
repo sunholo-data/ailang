@@ -63,6 +63,20 @@ type SweetSpotRow struct {
 	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
 	DollarsPerPass float64 `json:"dollars_per_pass"`
 
+	// CostOverheadVsBest is the median ratio (this_model_cost / best_passer_cost)
+	// computed per benchmark this model passed. 1.0 = matched the cheapest passer
+	// on every benchmark; 5.0 = on average spent 5x more $ than the cheapest
+	// passer. 0 when the model passed no benchmarks. The "best" denominator is
+	// per-benchmark min(CostUSD) across all models that passed THAT benchmark.
+	// Captures "if a perfect router picked the cheapest model per benchmark, how
+	// much more would this model cost than that router?"
+	CostOverheadVsBest float64 `json:"cost_overhead_vs_best"`
+
+	// TokenOverheadVsBest is the same shape but for TotalTokens. Distinguishes
+	// "expensive because of per-token pricing" (high $-overhead, low token-overhead)
+	// from "expensive because of inefficient iteration" (high on both).
+	TokenOverheadVsBest float64 `json:"token_overhead_vs_best"`
+
 	// ParetoFrontier is true when no other model has BOTH lower $/win AND
 	// lower median TTS. Computed across all rows in the same SweetSpotReport.
 	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
@@ -122,6 +136,54 @@ func BuildSweetSpot(results []*BenchmarkResult, opts SweetSpotOpts) SweetSpotRep
 	rows := make([]SweetSpotRow, 0, len(byKey))
 	for k, rs := range byKey {
 		rows = append(rows, buildRow(k.model, k.harness, rs, opts))
+	}
+
+	// Per-benchmark "best passer" cost and tokens — used to compute each
+	// model's overhead vs the optimal allocator (price-of-anarchy framing).
+	// Only PASSING runs contribute to the denominator: failing runs don't
+	// have a meaningful "cost" and would skew the floor downward unfairly.
+	bestCostByBench := map[string]float64{}
+	bestTokensByBench := map[string]int{}
+	for _, r := range results {
+		if !r.StdoutOk {
+			continue
+		}
+		// Only count runs with positive cost/tokens — zero values mean the
+		// executor never charged us (motoko local, api_error early-out, etc.)
+		// and would create a degenerate 0 floor.
+		if r.CostUSD > 0 {
+			if cur, ok := bestCostByBench[r.ID]; !ok || r.CostUSD < cur {
+				bestCostByBench[r.ID] = r.CostUSD
+			}
+		}
+		if r.TotalTokens > 0 {
+			if cur, ok := bestTokensByBench[r.ID]; !ok || r.TotalTokens < cur {
+				bestTokensByBench[r.ID] = r.TotalTokens
+			}
+		}
+	}
+	// Group passing runs per (model, harness) and compute the overhead median.
+	for i := range rows {
+		ri := &rows[i]
+		rs := byKey[key{ri.Model, ri.Harness}]
+		var costRatios, tokenRatios []float64
+		for _, r := range rs {
+			if !r.StdoutOk {
+				continue
+			}
+			if r.CostUSD > 0 {
+				if best, ok := bestCostByBench[r.ID]; ok && best > 0 {
+					costRatios = append(costRatios, r.CostUSD/best)
+				}
+			}
+			if r.TotalTokens > 0 {
+				if best, ok := bestTokensByBench[r.ID]; ok && best > 0 {
+					tokenRatios = append(tokenRatios, float64(r.TotalTokens)/float64(best))
+				}
+			}
+		}
+		ri.CostOverheadVsBest = median(costRatios)
+		ri.TokenOverheadVsBest = median(tokenRatios)
 	}
 
 	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): Pareto-frontier
@@ -387,6 +449,20 @@ func modelLabel(r *BenchmarkResult) string {
 	return r.Model
 }
 
+// formatOverhead renders a CostOverheadVsBest / TokenOverheadVsBest ratio
+// as a compact human-readable string. "—" for zero (no qualifying passes),
+// "1.0×" for matched-the-cheapest, "X.X×" for typical, "XXX×" with no
+// decimal when ratio ≥ 100 to keep column width sane.
+func formatOverhead(ratio float64) string {
+	if ratio <= 0 {
+		return "—"
+	}
+	if ratio >= 100 {
+		return fmt.Sprintf("%.0f×", ratio)
+	}
+	return fmt.Sprintf("%.1f×", ratio)
+}
+
 // FormatSweetSpotText renders the report as a human-readable ANSI table.
 func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 	var sb strings.Builder
@@ -401,10 +477,12 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 		return sb.String()
 	}
 
-	// Header
-	sb.WriteString(fmt.Sprintf("%-38s %6s %8s %7s %10s %5s %5s %5s %5s\n",
-		"Model", "Pass%", "MedTTS", "Tok/s", "p90$/win", "Fast", "Slow", "Bdgt", "Cap"))
-	sb.WriteString(strings.Repeat("─", 95) + "\n")
+	// Header — $-Ovhd and Tok-Ovhd added per the "actual value found" metric:
+	// median ratio of this-model-cost / cheapest-passer-cost per benchmark.
+	// 1.0× = matched the cheapest passer on every benchmark this model passed.
+	sb.WriteString(fmt.Sprintf("%-38s %6s %8s %7s %10s %8s %9s %5s %5s %5s %5s\n",
+		"Model", "Pass%", "MedTTS", "Tok/s", "p90$/win", "$-Ovhd", "Tok-Ovhd", "Fast", "Slow", "Bdgt", "Cap"))
+	sb.WriteString(strings.Repeat("─", 115) + "\n")
 
 	for _, row := range report.Rows {
 		label := row.Model
@@ -412,18 +490,23 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 			label = row.Model + " · " + row.Harness
 		}
 		label = truncate(label, 38)
-		sb.WriteString(fmt.Sprintf("%-38s %5.1f%% %7.1fs %7.0f %9.4f$ %5d %5d %5d %5d\n",
+		sb.WriteString(fmt.Sprintf("%-38s %5.1f%% %7.1fs %7.0f %9.4f$ %7s %8s %5d %5d %5d %5d\n",
 			label,
 			row.PassRate*100,
 			row.MedianTTSMs/1000,
 			row.MedianTokensPerSec,
 			row.P90CostPerSuccess,
+			formatOverhead(row.CostOverheadVsBest),
+			formatOverhead(row.TokenOverheadVsBest),
 			row.Buckets.FastPass,
 			row.Buckets.SlowPass,
 			row.Buckets.BudgetBlocked,
 			row.Buckets.CapabilityBlocked,
 		))
 	}
+	sb.WriteString("\n")
+	sb.WriteString(colorize("  $-Ovhd / Tok-Ovhd: median ratio of this-model-cost (or tokens) vs cheapest passer per benchmark.\n", colorYellow, useColor))
+	sb.WriteString(colorize("  1.0× = matched the cheapest passer on every benchmark; — = no qualifying passes.\n", colorYellow, useColor))
 	sb.WriteString("\n")
 
 	// Failure-cause breakdown (only when at least one model has typed
