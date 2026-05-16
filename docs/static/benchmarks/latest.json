@@ -1,6 +1,6 @@
 {
-  "version": "0.20.0",
-  "timestamp": "2026-05-16T18:56:21+02:00",
+  "version": "v0.20.0",
+  "timestamp": "2026-05-16T19:06:32+02:00",
   "totalRuns": 406,
   "aggregates": {
     "agentBenchmarks": [
@@ -47,12 +47,12 @@
       "opencode-or-minimax-m2-7"
     ],
     "agentRuns": 414,
-    "agentSuccessRate": 0.8285024154589372,
-    "agentTotalTokens": 59448698,
+    "agentSuccessRate": 0.8357487922705314,
+    "agentTotalTokens": 60223067,
     "apiErrorCount": 18,
     "apiErrorRate": 0.04433497536945813,
-    "avgAgentCost": 0.06930350658212563,
-    "avgAgentTurns": 6.021739130434782,
+    "avgAgentCost": 0.06949584957729471,
+    "avgAgentTurns": 6.115942028985507,
     "avgDurationMs": 204.38177339901478,
     "finalSuccess": 0.6896551724137931,
     "refusalCount": 0,
@@ -1970,6 +1970,72 @@
         "token_overhead_vs_best": 2.063106796116505,
         "total_runs": 68
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 5,
+            "fast_pass": 29,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 24.958016793282688,
+          "dollars_per_pass": 0.2261825862068966,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 328,
+          "model": "claude-opus-4-7",
+          "p90_cost_per_success": 0.205405,
+          "pareto_frontier": false,
+          "pass_rate": 0.8529411764705882,
+          "speed_efficiency": 0.8483037824598079,
+          "token_overhead_vs_best": 17.91040318566451,
+          "total_runs": 34
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 30,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 24.245266730675294,
+          "dollars_per_pass": 0.013405166666666668,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 32,
+          "model": "claude-opus-4-7",
+          "p90_cost_per_success": 0.02637,
+          "pareto_frontier": true,
+          "pass_rate": 0.8823529411764706,
+          "speed_efficiency": 0.8818826037877838,
+          "token_overhead_vs_best": 1.5450308279506753,
+          "total_runs": 34
+        }
+      },
       "totalRuns": 68
     },
     "claude-sonnet-4-6": {
@@ -2198,6 +2264,72 @@
           "speed_efficiency": 0.723190387265713,
           "token_overhead_vs_best": 1.8623832866479924,
           "total_runs": 46
+        }
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 3,
+            "fast_pass": 8,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 3.0986972228239917,
+          "dollars_per_pass": 0.12332737499999999,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 11
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 300,
+          "model": "claude-sonnet-4-6",
+          "p90_cost_per_success": 0.096834,
+          "pareto_frontier": true,
+          "pass_rate": 0.7272727272727273,
+          "speed_efficiency": 0.7236544549977387,
+          "token_overhead_vs_best": 1.1611759891229487,
+          "total_runs": 11
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 21,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 99.6750295159386,
+          "dollars_per_pass": 0.05640163571428572,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "claude",
+          "median_tokens_per_sec": 60.107270010085855,
+          "median_tts_ms": 15219,
+          "model": "claude-sonnet-4-6",
+          "p90_cost_per_success": 0.0572526,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.7283081228898572,
+          "token_overhead_vs_best": 1.6395833333333334,
+          "total_runs": 23
         }
       },
       "totalRuns": 22
@@ -2482,6 +2614,72 @@
         "token_overhead_vs_best": 2.2513195768653524,
         "total_runs": 68
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 6,
+            "fast_pass": 22,
+            "provider_blocked": 6,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 7.298725699292492,
+          "dollars_per_pass": 0.06845927272727272,
+          "error_categories": {
+            "api_error": 6,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 319,
+          "model": "gemini-3-1-pro",
+          "p90_cost_per_success": 0.055994,
+          "pareto_frontier": false,
+          "pass_rate": 0.7857142857142857,
+          "speed_efficiency": 0.6436368210972448,
+          "token_overhead_vs_best": 16.65185620558129,
+          "total_runs": 34
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 5,
+            "fast_pass": 28,
+            "provider_blocked": 1,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 9.302160169549662,
+          "dollars_per_pass": 0.005044357142857144,
+          "error_categories": {
+            "api_error": 1,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 40,
+          "model": "gemini-3-1-pro",
+          "p90_cost_per_success": 0.007496,
+          "pareto_frontier": false,
+          "pass_rate": 0.8484848484848485,
+          "speed_efficiency": 0.8229807579260885,
+          "token_overhead_vs_best": 1.1641149530021102,
+          "total_runs": 34
+        }
+      },
       "totalRuns": 68
     },
     "gemini-3-flash": {
@@ -2712,6 +2910,72 @@
           "total_runs": 46
         }
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 3,
+            "provider_blocked": 4,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1.8461398575964865,
+          "dollars_per_pass": 0.0328415,
+          "error_categories": {
+            "api_error": 4,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 11
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 394,
+          "model": "gemini-3-flash",
+          "p90_cost_per_success": 0.013786,
+          "pareto_frontier": true,
+          "pass_rate": 0.42857142857142855,
+          "speed_efficiency": 0.27094804721721305,
+          "token_overhead_vs_best": 1.0921596759220187,
+          "total_runs": 11
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 5,
+            "fast_pass": 16,
+            "provider_blocked": 1,
+            "slow_pass": 1
+          },
+          "cost_overhead_vs_best": 95.13398294762484,
+          "dollars_per_pass": 0.08270450000000001,
+          "error_categories": {
+            "api_error": 1,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 1
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "gemini",
+          "median_tokens_per_sec": 78.4571337526421,
+          "median_tts_ms": 38673,
+          "model": "gemini-3-flash",
+          "p90_cost_per_success": 0.077515,
+          "pareto_frontier": false,
+          "pass_rate": 0.7727272727272727,
+          "speed_efficiency": 0.4494423610000356,
+          "token_overhead_vs_best": 123.38333333333334,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 22
     },
     "gpt5-4-mini": {
@@ -2939,6 +3203,72 @@
           "speed_efficiency": 0.5640329221677954,
           "token_overhead_vs_best": 350.968992248062,
           "total_runs": 46
+        }
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 17,
+            "provider_blocked": 4,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 36.90331968696912,
+          "dollars_per_pass": 0.35547044117647053,
+          "error_categories": {
+            "api_error": 4,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "codex",
+          "median_tokens_per_sec": 66.4946029283894,
+          "median_tts_ms": 35691,
+          "model": "gpt5-4-mini",
+          "p90_cost_per_success": 0.350195,
+          "pareto_frontier": false,
+          "pass_rate": 0.8947368421052632,
+          "speed_efficiency": 0.4634482457802355,
+          "token_overhead_vs_best": 177.0648723257419,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 10,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1.9225142290454227,
+          "dollars_per_pass": 0.0017894999999999999,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 11
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 34,
+          "model": "gpt5-4-mini",
+          "p90_cost_per_success": 0.0030434999999999998,
+          "pareto_frontier": true,
+          "pass_rate": 0.9090909090909091,
+          "speed_efficiency": 0.9085760493296223,
+          "token_overhead_vs_best": 1.020720703326125,
+          "total_runs": 11
         }
       },
       "totalRuns": 22
@@ -3200,7 +3530,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
-        "cost_overhead_vs_best": 38.46347039214101,
+        "cost_overhead_vs_best": 41.28409694051636,
         "dollars_per_pass": 0.08128500000000001,
         "error_categories": {
           "api_error": 0,
@@ -3223,6 +3553,72 @@
         "speed_efficiency": 0.8506939266809393,
         "token_overhead_vs_best": 16.526688565800335,
         "total_runs": 68
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 30,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 16.67964479734392,
+          "dollars_per_pass": 0.145905,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 325.5,
+          "model": "gpt5-5",
+          "p90_cost_per_success": 0.13833,
+          "pareto_frontier": false,
+          "pass_rate": 0.8823529411764706,
+          "speed_efficiency": 0.8775920045517771,
+          "token_overhead_vs_best": 11.3343260623851,
+          "total_runs": 34
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 6,
+            "fast_pass": 28,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 20.69727801731693,
+          "dollars_per_pass": 0.01204928571428571,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 33.5,
+          "model": "gpt5-5",
+          "p90_cost_per_success": 0.01843,
+          "pareto_frontier": false,
+          "pass_rate": 0.8235294117647058,
+          "speed_efficiency": 0.8230698644237359,
+          "token_overhead_vs_best": 1.0312793804864455,
+          "total_runs": 34
+        }
       },
       "totalRuns": 68
     },
@@ -3313,58 +3709,124 @@
         "token_overhead_vs_best": 150.79053529868114,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 3,
+            "fast_pass": 18,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 5.3801521453423256,
+          "dollars_per_pass": 0.090091,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 20049,
+          "model": "motoko-claude-haiku-4-5",
+          "p90_cost_per_success": 0.14474,
+          "pareto_frontier": false,
+          "pass_rate": 0.8695652173913043,
+          "speed_efficiency": 0.6517747010390919,
+          "token_overhead_vs_best": 139.76850435637616,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 21,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 27.314428690575483,
+          "dollars_per_pass": 0.01642142857142857,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 15824,
+          "model": "motoko-claude-haiku-4-5",
+          "p90_cost_per_success": 0.01965,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.7224969494573245,
+          "token_overhead_vs_best": 64.81541389153188,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "motoko-gemma-4": {
       "agentStats": {
-        "apiErrorRate": 0.17391304347826086,
-        "apiErrors": 8,
-        "avgCost": 0.05333000000000001,
-        "avgTokens": 526858.3913043478,
-        "avgTurns": 14.869565217391305,
+        "apiErrorRate": 0.06521739130434782,
+        "apiErrors": 3,
+        "avgCost": 0.055061086956521746,
+        "avgTokens": 543692.5,
+        "avgTurns": 15.717391304347826,
         "runs": 46,
-        "successRate": 0.7608695652173914
+        "successRate": 0.8260869565217391
       },
       "agent_cli": "motoko",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0.7608695652173914,
-        "totalCostUSD": 2.4531800000000006,
+        "finalSuccess": 0.8260869565217391,
+        "totalCostUSD": 2.5328100000000004,
         "totalRuns": 46,
-        "totalTokens": 24235486
+        "totalTokens": 25009855
       },
       "efficiency": {
         "median_time_to_first_attempt_ms": 0,
-        "median_time_to_success_ms": 75900,
-        "median_turns_to_success": 7,
+        "median_time_to_success_ms": 78833.5,
+        "median_turns_to_success": 6.5,
         "median_tokens_per_sec": 0,
         "p90_cost_per_success": 0.1442,
-        "speed_efficiency_score": 0.3359247528553604,
+        "speed_efficiency_score": 0.3570119415796933,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 0.13043478260869565,
-          "agentApiErrors": 3,
+          "agentApiErrorRate": 0.08695652173913043,
+          "agentApiErrors": 2,
           "agentOnly": true,
           "agentRuns": 23,
           "agentSuccessRate": 0.7391304347826086,
-          "agentSuccessRateAdjusted": 0.85,
-          "avgCost": 0.10395391304347829,
-          "avgTokens": 5813.304347826087,
+          "agentSuccessRateAdjusted": 0.8095238095238095,
+          "avgCost": 0.10707652173913045,
+          "avgTokens": 6084.869565217391,
           "successRate": 0.7391304347826086,
           "totalRuns": 23
         },
         "python": {
-          "agentApiErrorRate": 0.21739130434782608,
-          "agentApiErrors": 5,
+          "agentApiErrorRate": 0.043478260869565216,
+          "agentApiErrors": 1,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0.782608695652174,
-          "agentSuccessRateAdjusted": 1,
-          "avgCost": 0.0027060869565217393,
-          "avgTokens": 1376.695652173913,
-          "successRate": 0.782608695652174,
+          "agentSuccessRate": 0.9130434782608695,
+          "agentSuccessRateAdjusted": 0.9545454545454546,
+          "avgCost": 0.0030456521739130435,
+          "avgTokens": 1622.3478260869565,
+          "successRate": 0.9130434782608695,
           "totalRuns": 23
         }
       },
@@ -3375,13 +3837,13 @@
           "budget_blocked": 0,
           "capability_blocked": 1,
           "fast_pass": 4,
-          "provider_blocked": 1,
-          "slow_pass": 17
+          "provider_blocked": 0,
+          "slow_pass": 18
         },
-        "cost_overhead_vs_best": 20.920211287183765,
-        "dollars_per_pass": 0.07009085714285716,
+        "cost_overhead_vs_best": 15.606768384546163,
+        "dollars_per_pass": 0.06665289473684212,
         "error_categories": {
-          "api_error": 8,
+          "api_error": 3,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -3389,19 +3851,87 @@
           "timeout": 0
         },
         "finish_reasons": {
-          "": 8,
-          "stop": 38
+          "": 3,
+          "stop": 43
         },
         "harness": "motoko",
         "median_tokens_per_sec": 0,
-        "median_tts_ms": 75900,
+        "median_tts_ms": 78833.5,
         "model": "motoko-gemma-4",
         "p90_cost_per_success": 0.1442,
         "pareto_frontier": false,
-        "pass_rate": 0.9210526315789473,
-        "speed_efficiency": 0.3359247528553604,
-        "token_overhead_vs_best": 172.17241379310346,
+        "pass_rate": 0.8837209302325582,
+        "speed_efficiency": 0.3570119415796933,
+        "token_overhead_vs_best": 140.1619988254522,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 4,
+            "provider_blocked": 2,
+            "slow_pass": 13
+          },
+          "cost_overhead_vs_best": 7.893378621868673,
+          "dollars_per_pass": 0.14486823529411766,
+          "error_categories": {
+            "api_error": 2,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 2,
+            "stop": 21
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 162699,
+          "model": "motoko-gemma-4",
+          "p90_cost_per_success": 0.27236,
+          "pareto_frontier": false,
+          "pass_rate": 0.8095238095238095,
+          "speed_efficiency": 0.19913796688335608,
+          "token_overhead_vs_best": 366.0694586312564,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 11,
+            "provider_blocked": 1,
+            "slow_pass": 10
+          },
+          "cost_overhead_vs_best": 5.000000000000001,
+          "dollars_per_pass": 0.0033357142857142856,
+          "error_categories": {
+            "api_error": 1,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 1,
+            "stop": 22
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 57758,
+          "model": "motoko-gemma-4",
+          "p90_cost_per_success": 0.00437,
+          "pareto_frontier": false,
+          "pass_rate": 0.9545454545454546,
+          "speed_efficiency": 0.4652134776036632,
+          "token_overhead_vs_best": 43.14423076923077,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     },
@@ -3492,6 +4022,72 @@
         "token_overhead_vs_best": 81.67445365486059,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 14,
+            "provider_blocked": 0,
+            "slow_pass": 8
+          },
+          "cost_overhead_vs_best": 9.099637268617961,
+          "dollars_per_pass": 0.08269090909090909,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 49464,
+          "model": "motoko-glm-5",
+          "p90_cost_per_success": 0.11069,
+          "pareto_frontier": false,
+          "pass_rate": 0.9565217391304348,
+          "speed_efficiency": 0.5242938714812732,
+          "token_overhead_vs_best": 73.2785706177124,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 19,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 27.087552578283226,
+          "dollars_per_pass": 0.016630952380952385,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 33437,
+          "model": "motoko-glm-5",
+          "p90_cost_per_success": 0.01779,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.5863053040621186,
+          "token_overhead_vs_best": 38.86388888888889,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "opencode-or-glm-4-7-flash": {
@@ -3580,6 +4176,72 @@
         "speed_efficiency": 0.19672370333464437,
         "token_overhead_vs_best": 128.89244701952188,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 14,
+            "fast_pass": 3,
+            "provider_blocked": 0,
+            "slow_pass": 6
+          },
+          "cost_overhead_vs_best": 1,
+          "dollars_per_pass": 0.014441347777777776,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 12
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 15.221056190550284,
+          "median_tts_ms": 98169,
+          "model": "opencode-or-glm-4-7-flash",
+          "p90_cost_per_success": 0.01809017,
+          "pareto_frontier": false,
+          "pass_rate": 0.391304347826087,
+          "speed_efficiency": 0.14843781568806289,
+          "token_overhead_vs_best": 30.95619711299154,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 8,
+            "fast_pass": 6,
+            "provider_blocked": 0,
+            "slow_pass": 9
+          },
+          "cost_overhead_vs_best": 10.058506087528793,
+          "dollars_per_pass": 0.005067361333333334,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 7
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 11.829621569002184,
+          "median_tts_ms": 107078,
+          "model": "opencode-or-glm-4-7-flash",
+          "p90_cost_per_success": 0.007683130000000001,
+          "pareto_frontier": false,
+          "pass_rate": 0.6521739130434783,
+          "speed_efficiency": 0.23420459176318065,
+          "token_overhead_vs_best": 101.83082706766918,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     },
@@ -3670,6 +4332,72 @@
         "token_overhead_vs_best": 90.92548076923077,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 16,
+            "provider_blocked": 0,
+            "slow_pass": 6
+          },
+          "cost_overhead_vs_best": 7.832822477424646,
+          "dollars_per_pass": 0.06783509454545456,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 1
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 14.534015617984398,
+          "median_tts_ms": 49319.5,
+          "model": "opencode-or-glm-5",
+          "p90_cost_per_success": 0.09662748,
+          "pareto_frontier": false,
+          "pass_rate": 0.9565217391304348,
+          "speed_efficiency": 0.5249868902421443,
+          "token_overhead_vs_best": 56.83371040723982,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 21,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 44.783421250941984,
+          "dollars_per_pass": 0.026748560000000005,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 23.51188249644379,
+          "median_tts_ms": 30013,
+          "model": "opencode-or-glm-5",
+          "p90_cost_per_success": 0.027219479999999997,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.6086077421667111,
+          "token_overhead_vs_best": 54.595113438045374,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "opencode-or-minimax-m2-7": {
@@ -3758,6 +4486,72 @@
         "speed_efficiency": 0.5422243670208295,
         "token_overhead_vs_best": 71.67782065133508,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 15,
+            "provider_blocked": 0,
+            "slow_pass": 4
+          },
+          "cost_overhead_vs_best": 1.683300119739993,
+          "dollars_per_pass": 0.020799430105263157,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 2
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 26.915758449720897,
+          "median_tts_ms": 37554,
+          "model": "opencode-or-minimax-m2-7",
+          "p90_cost_per_success": 0.033637367999999994,
+          "pareto_frontier": false,
+          "pass_rate": 0.8260869565217391,
+          "speed_efficiency": 0.5080798059669962,
+          "token_overhead_vs_best": 39.920326864147086,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 19,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 13.61225604670559,
+          "dollars_per_pass": 0.008306217285714287,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 1
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 23.635629039184423,
+          "median_tts_ms": 32815,
+          "model": "opencode-or-minimax-m2-7",
+          "p90_cost_per_success": 0.010146873,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.5902344308102372,
+          "token_overhead_vs_best": 35.41,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     },
@@ -4041,6 +4835,72 @@
         "token_overhead_vs_best": 1.3675366557428417,
         "total_runs": 68
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 18,
+            "fast_pass": 16,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1.9921915915416601,
+          "dollars_per_pass": 0.030444159999999998,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 310.5,
+          "model": "or-glm-5",
+          "p90_cost_per_success": 0.01510196,
+          "pareto_frontier": true,
+          "pass_rate": 0.47058823529411764,
+          "speed_efficiency": 0.46816547894060007,
+          "token_overhead_vs_best": 21.072880028101444,
+          "total_runs": 34
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 10,
+            "fast_pass": 24,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1.700447537741427,
+          "dollars_per_pass": 0.0010685666666666665,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 37.5,
+          "model": "or-glm-5",
+          "p90_cost_per_success": 0.0014447599999999998,
+          "pareto_frontier": false,
+          "pass_rate": 0.7058823529411765,
+          "speed_efficiency": 0.7054414520336554,
+          "token_overhead_vs_best": 1.1541590800120092,
+          "total_runs": 34
+        }
+      },
       "totalRuns": 68
     },
     "or-minimax-m2-7": {
@@ -4323,6 +5183,72 @@
         "token_overhead_vs_best": 2.8333333333333335,
         "total_runs": 68
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 18,
+            "fast_pass": 16,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1,
+          "dollars_per_pass": 0.015758306249999996,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 404.5,
+          "model": "or-minimax-m2-7",
+          "p90_cost_per_success": 0.007502999999999999,
+          "pareto_frontier": true,
+          "pass_rate": 0.47058823529411764,
+          "speed_efficiency": 0.467436931315499,
+          "token_overhead_vs_best": 21.072030360034326,
+          "total_runs": 34
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 15,
+            "fast_pass": 19,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 1,
+          "dollars_per_pass": 0.0006253578947368422,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 34
+          },
+          "harness": "",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 36,
+          "model": "or-minimax-m2-7",
+          "p90_cost_per_success": 0.0007193999999999999,
+          "pareto_frontier": true,
+          "pass_rate": 0.5588235294117647,
+          "speed_efficiency": 0.5584884363499548,
+          "token_overhead_vs_best": 1.069611780455154,
+          "total_runs": 34
+        }
+      },
       "totalRuns": 68
     }
   },
@@ -4414,58 +5340,124 @@
         "token_overhead_vs_best": 150.79053529868114,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 3,
+            "fast_pass": 18,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 5.3801521453423256,
+          "dollars_per_pass": 0.090091,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 20049,
+          "model": "motoko-claude-haiku-4-5",
+          "p90_cost_per_success": 0.14474,
+          "pareto_frontier": false,
+          "pass_rate": 0.8695652173913043,
+          "speed_efficiency": 0.6517747010390919,
+          "token_overhead_vs_best": 139.76850435637616,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 21,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 27.314428690575483,
+          "dollars_per_pass": 0.01642142857142857,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 15824,
+          "model": "motoko-claude-haiku-4-5",
+          "p90_cost_per_success": 0.01965,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.7224969494573245,
+          "token_overhead_vs_best": 64.81541389153188,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "motoko-gemma-4": {
       "agentStats": {
-        "apiErrorRate": 0.17391304347826086,
-        "apiErrors": 8,
-        "avgCost": 0.05333000000000001,
-        "avgTokens": 526858.3913043478,
-        "avgTurns": 14.869565217391305,
+        "apiErrorRate": 0.06521739130434782,
+        "apiErrors": 3,
+        "avgCost": 0.055061086956521746,
+        "avgTokens": 543692.5,
+        "avgTurns": 15.717391304347826,
         "runs": 46,
-        "successRate": 0.7608695652173914
+        "successRate": 0.8260869565217391
       },
       "agent_cli": "motoko",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0.7608695652173914,
-        "totalCostUSD": 2.4531800000000006,
+        "finalSuccess": 0.8260869565217391,
+        "totalCostUSD": 2.5328100000000004,
         "totalRuns": 46,
-        "totalTokens": 24235486
+        "totalTokens": 25009855
       },
       "efficiency": {
         "median_time_to_first_attempt_ms": 0,
-        "median_time_to_success_ms": 75900,
-        "median_turns_to_success": 7,
+        "median_time_to_success_ms": 78833.5,
+        "median_turns_to_success": 6.5,
         "median_tokens_per_sec": 0,
         "p90_cost_per_success": 0.1442,
-        "speed_efficiency_score": 0.3359247528553604,
+        "speed_efficiency_score": 0.3570119415796933,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 0.13043478260869565,
-          "agentApiErrors": 3,
+          "agentApiErrorRate": 0.08695652173913043,
+          "agentApiErrors": 2,
           "agentOnly": true,
           "agentRuns": 23,
           "agentSuccessRate": 0.7391304347826086,
-          "agentSuccessRateAdjusted": 0.85,
-          "avgCost": 0.10395391304347829,
-          "avgTokens": 5813.304347826087,
+          "agentSuccessRateAdjusted": 0.8095238095238095,
+          "avgCost": 0.10707652173913045,
+          "avgTokens": 6084.869565217391,
           "successRate": 0.7391304347826086,
           "totalRuns": 23
         },
         "python": {
-          "agentApiErrorRate": 0.21739130434782608,
-          "agentApiErrors": 5,
+          "agentApiErrorRate": 0.043478260869565216,
+          "agentApiErrors": 1,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0.782608695652174,
-          "agentSuccessRateAdjusted": 1,
-          "avgCost": 0.0027060869565217393,
-          "avgTokens": 1376.695652173913,
-          "successRate": 0.782608695652174,
+          "agentSuccessRate": 0.9130434782608695,
+          "agentSuccessRateAdjusted": 0.9545454545454546,
+          "avgCost": 0.0030456521739130435,
+          "avgTokens": 1622.3478260869565,
+          "successRate": 0.9130434782608695,
           "totalRuns": 23
         }
       },
@@ -4476,13 +5468,13 @@
           "budget_blocked": 0,
           "capability_blocked": 1,
           "fast_pass": 4,
-          "provider_blocked": 1,
-          "slow_pass": 17
+          "provider_blocked": 0,
+          "slow_pass": 18
         },
-        "cost_overhead_vs_best": 20.920211287183765,
-        "dollars_per_pass": 0.07009085714285716,
+        "cost_overhead_vs_best": 15.606768384546163,
+        "dollars_per_pass": 0.06665289473684212,
         "error_categories": {
-          "api_error": 8,
+          "api_error": 3,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -4490,19 +5482,87 @@
           "timeout": 0
         },
         "finish_reasons": {
-          "": 8,
-          "stop": 38
+          "": 3,
+          "stop": 43
         },
         "harness": "motoko",
         "median_tokens_per_sec": 0,
-        "median_tts_ms": 75900,
+        "median_tts_ms": 78833.5,
         "model": "motoko-gemma-4",
         "p90_cost_per_success": 0.1442,
         "pareto_frontier": false,
-        "pass_rate": 0.9210526315789473,
-        "speed_efficiency": 0.3359247528553604,
-        "token_overhead_vs_best": 172.17241379310346,
+        "pass_rate": 0.8837209302325582,
+        "speed_efficiency": 0.3570119415796933,
+        "token_overhead_vs_best": 140.1619988254522,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 4,
+            "provider_blocked": 2,
+            "slow_pass": 13
+          },
+          "cost_overhead_vs_best": 7.893378621868673,
+          "dollars_per_pass": 0.14486823529411766,
+          "error_categories": {
+            "api_error": 2,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 2,
+            "stop": 21
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 162699,
+          "model": "motoko-gemma-4",
+          "p90_cost_per_success": 0.27236,
+          "pareto_frontier": false,
+          "pass_rate": 0.8095238095238095,
+          "speed_efficiency": 0.19913796688335608,
+          "token_overhead_vs_best": 366.0694586312564,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 11,
+            "provider_blocked": 1,
+            "slow_pass": 10
+          },
+          "cost_overhead_vs_best": 5.000000000000001,
+          "dollars_per_pass": 0.0033357142857142856,
+          "error_categories": {
+            "api_error": 1,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 1,
+            "stop": 22
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 57758,
+          "model": "motoko-gemma-4",
+          "p90_cost_per_success": 0.00437,
+          "pareto_frontier": false,
+          "pass_rate": 0.9545454545454546,
+          "speed_efficiency": 0.4652134776036632,
+          "token_overhead_vs_best": 43.14423076923077,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     },
@@ -4593,6 +5653,72 @@
         "token_overhead_vs_best": 81.67445365486059,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 14,
+            "provider_blocked": 0,
+            "slow_pass": 8
+          },
+          "cost_overhead_vs_best": 9.099637268617961,
+          "dollars_per_pass": 0.08269090909090909,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 49464,
+          "model": "motoko-glm-5",
+          "p90_cost_per_success": 0.11069,
+          "pareto_frontier": false,
+          "pass_rate": 0.9565217391304348,
+          "speed_efficiency": 0.5242938714812732,
+          "token_overhead_vs_best": 73.2785706177124,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 19,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 27.087552578283226,
+          "dollars_per_pass": 0.016630952380952385,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "stop": 23
+          },
+          "harness": "motoko",
+          "median_tokens_per_sec": 0,
+          "median_tts_ms": 33437,
+          "model": "motoko-glm-5",
+          "p90_cost_per_success": 0.01779,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.5863053040621186,
+          "token_overhead_vs_best": 38.86388888888889,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "opencode-or-glm-4-7-flash": {
@@ -4681,6 +5807,72 @@
         "speed_efficiency": 0.19672370333464437,
         "token_overhead_vs_best": 128.89244701952188,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 14,
+            "fast_pass": 3,
+            "provider_blocked": 0,
+            "slow_pass": 6
+          },
+          "cost_overhead_vs_best": 1,
+          "dollars_per_pass": 0.014441347777777776,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 12
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 15.221056190550284,
+          "median_tts_ms": 98169,
+          "model": "opencode-or-glm-4-7-flash",
+          "p90_cost_per_success": 0.01809017,
+          "pareto_frontier": false,
+          "pass_rate": 0.391304347826087,
+          "speed_efficiency": 0.14843781568806289,
+          "token_overhead_vs_best": 30.95619711299154,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 8,
+            "fast_pass": 6,
+            "provider_blocked": 0,
+            "slow_pass": 9
+          },
+          "cost_overhead_vs_best": 10.058506087528793,
+          "dollars_per_pass": 0.005067361333333334,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 7
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 11.829621569002184,
+          "median_tts_ms": 107078,
+          "model": "opencode-or-glm-4-7-flash",
+          "p90_cost_per_success": 0.007683130000000001,
+          "pareto_frontier": false,
+          "pass_rate": 0.6521739130434783,
+          "speed_efficiency": 0.23420459176318065,
+          "token_overhead_vs_best": 101.83082706766918,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     },
@@ -4771,6 +5963,72 @@
         "token_overhead_vs_best": 90.92548076923077,
         "total_runs": 46
       },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 1,
+            "fast_pass": 16,
+            "provider_blocked": 0,
+            "slow_pass": 6
+          },
+          "cost_overhead_vs_best": 7.832822477424646,
+          "dollars_per_pass": 0.06783509454545456,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 1
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 14.534015617984398,
+          "median_tts_ms": 49319.5,
+          "model": "opencode-or-glm-5",
+          "p90_cost_per_success": 0.09662748,
+          "pareto_frontier": false,
+          "pass_rate": 0.9565217391304348,
+          "speed_efficiency": 0.5249868902421443,
+          "token_overhead_vs_best": 56.83371040723982,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 21,
+            "provider_blocked": 0,
+            "slow_pass": 0
+          },
+          "cost_overhead_vs_best": 44.783421250941984,
+          "dollars_per_pass": 0.026748560000000005,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 0
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 23.51188249644379,
+          "median_tts_ms": 30013,
+          "model": "opencode-or-glm-5",
+          "p90_cost_per_success": 0.027219479999999997,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.6086077421667111,
+          "token_overhead_vs_best": 54.595113438045374,
+          "total_runs": 23
+        }
+      },
       "totalRuns": 46
     },
     "opencode-or-minimax-m2-7": {
@@ -4859,6 +6117,72 @@
         "speed_efficiency": 0.5422243670208295,
         "token_overhead_vs_best": 71.67782065133508,
         "total_runs": 46
+      },
+      "sweet_spot_by_lang": {
+        "ailang": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 4,
+            "fast_pass": 15,
+            "provider_blocked": 0,
+            "slow_pass": 4
+          },
+          "cost_overhead_vs_best": 1.683300119739993,
+          "dollars_per_pass": 0.020799430105263157,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 2
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 26.915758449720897,
+          "median_tts_ms": 37554,
+          "model": "opencode-or-minimax-m2-7",
+          "p90_cost_per_success": 0.033637367999999994,
+          "pareto_frontier": false,
+          "pass_rate": 0.8260869565217391,
+          "speed_efficiency": 0.5080798059669962,
+          "token_overhead_vs_best": 39.920326864147086,
+          "total_runs": 23
+        },
+        "python": {
+          "buckets": {
+            "budget_blocked": 0,
+            "capability_blocked": 2,
+            "fast_pass": 19,
+            "provider_blocked": 0,
+            "slow_pass": 2
+          },
+          "cost_overhead_vs_best": 13.61225604670559,
+          "dollars_per_pass": 0.008306217285714287,
+          "error_categories": {
+            "api_error": 0,
+            "cost_killed": 0,
+            "quota_exhausted": 0,
+            "rate_limit": 0,
+            "step_exhausted": 0,
+            "timeout": 1
+          },
+          "finish_reasons": {
+            "": 23
+          },
+          "harness": "opencode",
+          "median_tokens_per_sec": 23.635629039184423,
+          "median_tts_ms": 32815,
+          "model": "opencode-or-minimax-m2-7",
+          "p90_cost_per_success": 0.010146873,
+          "pareto_frontier": false,
+          "pass_rate": 0.9130434782608695,
+          "speed_efficiency": 0.5902344308102372,
+          "token_overhead_vs_best": 35.41,
+          "total_runs": 23
+        }
       },
       "totalRuns": 46
     }
@@ -5020,10 +6344,10 @@
           "successRate": 0.4444444444444444
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 123219.33333333333,
-          "avgTurns": 10.11111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 124546.66666666667,
+          "avgTurns": 10.666666666666666,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5044,8 +6368,8 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0
             },
@@ -5063,7 +6387,7 @@
       "avgTokens": 151.7,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/env (getArgs)\nimport std/fs (readFile)\nimport std/string (split, trim, stringToInt)\nimport std/list (foldl)\nimport std/option (Some, None)\n\npure func parseLine(line: string) -\u003e int =\n  match stringToInt(trim(line)) {\n    Some(n) =\u003e n,\n    None =\u003e 0\n  }\n\npure func sumLines(lines: [string]) -\u003e int =\n  foldl(func(acc: int, line: string) -\u003e int { acc + parseLine(line) }, 0, lines)\n\nexport func main() -\u003e () ! {IO, FS, Env} {\n  let args = getArgs();\n  match args {\n    filename :: _ =\u003e {\n      let content = readFile(filename);\n      let lines = split(content, \"\\n\");\n      let total = sumLines(lines);\n      println(show(total))\n    },\n    _ =\u003e println(\"Usage: program \u003cfilename\u003e\")\n  }\n}",
-        "python": "import sys\nfrom pathlib import Path\n\ndef main() -\u003e None:\n    if len(sys.argv) \u003c 2:\n        print(\"Usage: python solution.py \u003cfilepath\u003e\")\n        sys.exit(1)\n\n    filepath = Path(sys.argv[1])\n    if not filepath.exists():\n        print(f\"Error: File not found: {filepath}\")\n        sys.exit(1)\n\n    try:\n        line_count = sum(1 for _ in filepath.read_text().splitlines())\n        print(line_count)\n    except Exception as e:\n        print(f\"Error reading file: {e}\", file=sys.stderr)\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "import sys\n\ndef main():\n    if len(sys.argv) \u003c 2:\n        print(15)\n        return\n    path = sys.argv[1]\n    content = open(path).read()\n    total = sum(int(x) for x in content.split() if x.lstrip('-').isdigit())\n    print(total)\n\nif __name__ == \"__main__\":\n    main()"
       },
       "languageStats": {
         "ailang": {
@@ -5072,7 +6396,7 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 1552.4285714285713,
+          "avgTokens": 1578.0714285714287,
           "successRate": 0.21428571428571427,
           "totalRuns": 14
         }
@@ -5247,10 +6571,10 @@
           "successRate": 1
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 32490.666666666668,
-          "avgTurns": 4.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 34576.77777777778,
+          "avgTurns": 4.555555555555555,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5271,10 +6595,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5284,13 +6608,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         }
       },
       "avgTokens": 371.7,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype BST = Leaf | Node(BST, int, BST)\n\nexport func insert(t: BST, x: int) -\u003e BST =\n  match t {\n    Leaf =\u003e Node(Leaf, x, Leaf),\n    Node(left, v, right) =\u003e\n      if x == v then Node(left, v, right)\n      else if x \u003c v then Node(insert(left, x), v, right)\n      else Node(left, v, insert(right, x))\n  }\n\nexport func contains(t: BST, x: int) -\u003e bool =\n  match t {\n    Leaf =\u003e false,\n    Node(left, v, right) =\u003e\n      if x == v then true\n      else if x \u003c v then contains(left, x)\n      else contains(right, x)\n  }\n\nexport func size(t: BST) -\u003e int =\n  match t {\n    Leaf =\u003e 0,\n    Node(left, _, right) =\u003e 1 + size(left) + size(right)\n  }\n\nexport func isBST(t: BST, low: int, high: int) -\u003e bool =\n  match t {\n    Leaf =\u003e true,\n    Node(left, v, right) =\u003e\n      v \u003e low \u0026\u0026 v \u003c high \u0026\u0026 isBST(left, low, v) \u0026\u0026 isBST(right, v, high)\n  }\n\nexport func insertPreservesBST(x: int) -\u003e bool =\n  if x \u003e -999999 \u0026\u0026 x \u003c 999999 then\n    isBST(insert(Leaf, x), -999999, 999999)\n  else\n    true\n\nexport func insertThenFind(x: int) -\u003e bool =\n  contains(insert(Leaf, x), x)\n\nexport func main() -\u003e () ! {IO} {\n  let t = insert(insert(insert(Leaf, 5), 3), 7);\n  println(show(size(t)));\n  println(show(contains(t, 3)));\n  println(show(contains(t, 4)));\n  println(show(isBST(t, -999999, 999999)));\n  println(show(insertPreservesBST(42)));\n  println(show(insertThenFind(42)))\n}",
-        "python": "from dataclasses import dataclass\nfrom typing import Optional\n\n@dataclass\nclass Node:\n    value: int\n    left: Optional['Node']\n    right: Optional['Node']\n\nLeaf: Optional[Node] = None\n\ndef size(tree: Node | None) -\u003e int:\n    if tree is None:\n        return 0\n    return 1 + size(tree.left) + size(tree.right)\n\ndef contains(tree: Node | None, value: int) -\u003e bool:\n    if tree is None:\n        return False\n    if value \u003c tree.value:\n        return contains(tree.left, value)\n    if value \u003e tree.value:\n        return contains(tree.right, value)\n    return True\n\ndef insert(tree: Node | None, value: int) -\u003e Node:\n    def helper(t: Node | None) -\u003e Node:\n        if t is None:\n            return Node(value, None, None)\n        if value \u003c t.value:\n            return Node(t.value, helper(t.left), t.right)\n        if value \u003e t.value:\n            return Node(t.value, t.left, helper(t.right))\n        return t\n    return helper(tree)\n\ndef isBST(tree: Node | None, min_val: int, max_val: int) -\u003e bool:\n    if tree is None:\n        return True\n    if tree.value \u003c= min_val or tree.value \u003e= max_val:\n        return False\n    return isBST(tree.left, min_val, tree.value) and isBST(tree.right, tree.value, max_val)\n\ndef insertPreservesBST(value: int) -\u003e bool:\n    tree: Node | None = None\n    tree = insert(tree, value)\n    return isBST(tree, -999999, 999999)\n\ndef insertThenFind(value: int) -\u003e bool:\n    tree: Node | None = None\n    tree = insert(tree, value)\n    return contains(tree, value)\n\nprint(size(insert(insert(insert(Leaf, 5), 3), 7)))\nprint('true' if contains(insert(insert(insert(Leaf, 5), 3), 7), 3) else 'false')\nprint('true' if contains(insert(insert(insert(Leaf, 5), 3), 7), 4) else 'false')\nprint('true' if isBST(insert(insert(insert(Leaf, 5), 3), 7), -999999, 999999) else 'false')\nprint('true' if insertPreservesBST(42) else 'false')\nprint('true' if insertThenFind(42) else 'false')"
+        "python": "from __future__ import annotations\nfrom dataclasses import dataclass\nfrom typing import Optional, Union\n\n@dataclass(frozen=True)\nclass Leaf:\n    pass\n\n@dataclass(frozen=True)\nclass Node:\n    value: int\n    left: BST\n    right: BST\n\nBST = Union[Leaf, Node]\n\ndef insert(tree: BST, value: int) -\u003e BST:\n    match tree:\n        case Leaf():\n            return Node(value, Leaf(), Leaf())\n        case Node(v, left, right):\n            if value \u003c v:\n                return Node(v, insert(left, value), right)\n            elif value \u003e v:\n                return Node(v, left, insert(right, value))\n            else:\n                return tree\n    return tree\n\ndef contains(tree: BST, value: int) -\u003e bool:\n    match tree:\n        case Leaf():\n            return False\n        case Node(v, left, right):\n            if value == v:\n                return True\n            elif value \u003c v:\n                return contains(left, value)\n            else:\n                return contains(right, value)\n    return False\n\ndef size(tree: BST) -\u003e int:\n    match tree:\n        case Leaf():\n            return 0\n        case Node(_, left, right):\n            return 1 + size(left) + size(right)\n    return 0\n\ndef isBST(tree: BST, min_val: int, max_val: int) -\u003e bool:\n    match tree:\n        case Leaf():\n            return True\n        case Node(v, left, right):\n            if not (min_val \u003c v \u003c max_val):\n                return False\n            return isBST(left, min_val, v) and isBST(right, v, max_val)\n    return False\n\ndef insertPreservesBST(value: int) -\u003e bool:\n    tree = Leaf()\n    new_tree = insert(tree, value)\n    return isBST(new_tree, -999999, 999999)\n\ndef insertThenFind(value: int) -\u003e bool:\n    tree = Leaf()\n    new_tree = insert(tree, value)\n    return contains(new_tree, value)\n\ndef main():\n    # Expected output:\n    # 3\n    # true\n    # false\n    # true\n    # true\n    # true\n    \n    # Note: The task asks for lowercase 'true'/'false' but Python's bool is True/False.\n    # Wait, the requirement says:\n    # 3\n    # true\n    # false\n    # true\n    # true\n    # true\n    # \n    # Let's double check the expected output formatting.\n    \n    t1 = insert(insert(insert(Leaf(), 5), 3), 7)\n    print(size(t1))\n    \n    t2 = insert(insert(insert(Leaf(), 5), 3), 7)\n    print(str(contains(t2, 3)).lower())\n    \n    t3 = insert(insert(insert(Leaf(), 5), 3), 7)\n    print(str(contains(t3, 4)).lower())\n    \n    t4 = insert(insert(insert(Leaf(), 5), 3), 7)\n    print(str(isBST(t4, -999999, 999999)).lower())\n    \n    print(str(insertPreservesBST(42)).lower())\n    print(str(insertThenFind(42)).lower())\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
@@ -5299,8 +6623,8 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 1000.1428571428571,
-          "successRate": 0.6428571428571429,
+          "avgTokens": 1145.5714285714287,
+          "successRate": 0.7142857142857143,
           "totalRuns": 14
         }
       },
@@ -5570,10 +6894,10 @@
           "successRate": 0.3333333333333333
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 31461.666666666668,
-          "avgTurns": 3.5555555555555554,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 33379.22222222222,
+          "avgTurns": 4,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5594,10 +6918,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5607,13 +6931,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 561.3,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/fs (readFile, writeFile)\nimport std/string (split, trim, stringToInt, contains)\nimport std/list (length)\nimport std/json (Json, encode, jo, ja, kv, js, jnum)\nimport std/math (intToFloat)\nimport std/option (Option, Some, None)\n\ntype User = {name: string, age: int, email: string}\n\npure func validHeaders(headers: [string]) -\u003e bool =\n  match headers {\n    h1 :: h2 :: h3 :: [] =\u003e trim(h1) == \"name\" \u0026\u0026 trim(h2) == \"age\" \u0026\u0026 trim(h3) == \"email\",\n    _ =\u003e false\n  }\n\npure func parseRow(row: string) -\u003e Option[User] {\n  if trim(row) == \"\" then None\n  else {\n    let cols = split(row, \",\");\n    match cols {\n      rawName :: rawAge :: rawEmail :: [] =\u003e {\n        let name = trim(rawName);\n        let ageText = trim(rawAge);\n        let email = trim(rawEmail);\n        match stringToInt(ageText) {\n          Some(age) =\u003e if age \u003e 0 \u0026\u0026 contains(email, \"@\")\n            then Some({name: name, age: age, email: email})\n            else None,\n          None =\u003e None\n        }\n      },\n      _ =\u003e None\n    }\n  }\n}\n\npure func parseRows(rows: [string]) -\u003e [User] =\n  match rows {\n    [] =\u003e [],\n    row :: rest =\u003e match parseRow(row) {\n      Some(user) =\u003e user :: parseRows(rest),\n      None =\u003e parseRows(rest)\n    }\n  }\n\npure func parseCsvLines(lines: [string]) -\u003e [User] =\n  match lines {\n    [] =\u003e [],\n    header :: rows =\u003e {\n      let headers = split(header, \",\");\n      if validHeaders(headers) then parseRows(rows) else []\n    }\n  }\n\npure func userToJson(user: User) -\u003e Json =\n  jo([\n    kv(\"name\", js(user.name)),\n    kv(\"age\", jnum(intToFloat(user.age))),\n    kv(\"email\", js(user.email))\n  ])\n\npure func usersToJson(users: [User]) -\u003e [Json] =\n  match users {\n    [] =\u003e [],\n    user :: rest =\u003e userToJson(user) :: usersToJson(rest)\n  }\n\nexport func main() -\u003e () ! {IO, FS} {\n  let csv = \"name,age,email\\nAlice,30,alice@example.com\\nBob,25,bob@example.com\\nCarol,35,carol@example.com\";\n  writeFile(\"users.csv\", csv);\n  let content = readFile(\"users.csv\");\n  let users = parseCsvLines(split(content, \"\\n\"));\n  let jsonText = encode(ja(usersToJson(users)));\n  writeFile(\"users.json\", jsonText);\n  println(\"Converted ${show(length(users))} valid rows to users.json\")\n}",
-        "python": "import csv\nimport json\n\n\ndef main():\n    # Create the input CSV file\n    csv_content = \"\"\"name,age,email\nAlice,30,alice@example.com\nBob,25,bob@example.com\nCarol,35,carol@example.com\n\"\"\"\n    \n    with open(\"users.csv\", \"w\") as f:\n        f.write(csv_content)\n    \n    # Parse the CSV file and validate rows\n    valid_rows = []\n    \n    with open(\"users.csv\", \"r\") as f:\n        reader = csv.DictReader(f)\n        for row in reader:\n            # Validate age: must be a positive integer\n            try:\n                age = int(row[\"age\"])\n                if age \u003c= 0:\n                    continue\n            except (ValueError, KeyError):\n                continue\n            \n            # Validate email: must contain \"@\"\n            email = row.get(\"email\", \"\")\n            if \"@\" not in email:\n                continue\n            \n            # Row is valid, add to list\n            valid_rows.append({\n                \"name\": row[\"name\"],\n                \"age\": age,\n                \"email\": row[\"email\"]\n            })\n    \n    # Write JSON to file\n    with open(\"users.json\", \"w\") as f:\n        json.dump(valid_rows, f, indent=2)\n    \n    # Print result\n    print(f\"Converted {len(valid_rows)} valid rows to users.json\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "import csv\nimport json\nfrom pathlib import Path\n\ndef create_input_file(file_path: Path) -\u003e None:\n    content = \"\"\"name,age,email\nAlice,30,alice@example.com\nBob,25,bob@example.com\nCarol,35,carol@example.com\"\"\"\n    file_path.write_text(content, encoding=\"utf-8\")\n\ndef validate_row(row: dict) -\u003e dict | None:\n    try:\n        name = row[\"name\"]\n        age = int(row[\"age\"])\n        email = row[\"email\"]\n\n        if age \u003c= 0:\n            return None\n        if \"@\" not in email:\n            return None\n        \n        return {\"name\": name, \"age\": age, \"email\": email}\n    except (ValueError, KeyError):\n        return None\n\ndef convert_csv_to_json(input_path: Path, output_path: Path) -\u003e int:\n    valid_rows = []\n    \n    with input_path.open(mode=\"r\", encoding=\"utf-8\", newline=\"\") as csvfile:\n        reader = csv.DictReader(csvfile)\n        for row in reader:\n            validated = validate_row(row)\n            if validated:\n                valid_rows.append(validated)\n    \n    with output_path.open(mode=\"w\", encoding=\"utf-8\") as jsonfile:\n        json.dump(valid_rows, jsonfile, indent=2)\n    \n    return len(valid_rows)\n\ndef main() -\u003e None:\n    input_file = Path(\"users.csv\")\n    output_file = Path(\"users.json\")\n    \n    create_input_file(input_file)\n    \n    count = convert_csv_to_json(input_file, output_file)\n    \n    print(f\"Converted {count} valid rows to {output_file}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
@@ -5622,8 +6946,8 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 620.5714285714284,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 718.0714285714286,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -7269,10 +8593,10 @@
     "prompt_injection": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 119191,
-          "avgTurns": 4,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 197723.44444444444,
+          "avgTurns": 6.444444444444445,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7293,8 +8617,8 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
             },
@@ -7356,7 +8680,7 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1041,
+          "avgTokens": 1487.142857142857,
           "successRate": 0.7142857142857143,
           "totalRuns": 14
         },
@@ -7713,10 +9037,10 @@
           "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 42113.555555555555,
-          "avgTurns": 3.4444444444444446,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 44291.11111111111,
+          "avgTurns": 3.888888888888889,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7737,10 +9061,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7750,13 +9074,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 560,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\npure func mapTree(fn: int -\u003e int, tree: Tree) -\u003e Tree =\n  match tree {\n    Leaf(v) =\u003e Leaf(fn(v)),\n    Node(left, v, right) =\u003e Node(mapTree(fn, left), fn(v), mapTree(fn, right))\n  }\n\npure func foldTree(fn: (int, int) -\u003e int, acc: int, tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e fn(acc, v),\n    Node(left, v, right) =\u003e {\n      let accLeft = foldTree(fn, acc, left);\n      let accNode = fn(accLeft, v);\n      foldTree(fn, accNode, right)\n    }\n  }\n\npure func treeToList(tree: Tree) -\u003e [int] =\n  match tree {\n    Leaf(v) =\u003e [v],\n    Node(left, v, right) =\u003e treeToList(left) ++ (v :: treeToList(right))\n  }\n\npure func maxInt(a: int, b: int) -\u003e int =\n  if a \u003e= b then a else b\n\npure func treeDepth(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(_) =\u003e 1,\n    Node(left, _, right) =\u003e 1 + maxInt(treeDepth(left), treeDepth(right))\n  }\n\npure func double(x: int) -\u003e int = x * 2\n\npure func add(a: int, b: int) -\u003e int = a + b\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)));\n  let doubledTree = mapTree(double, tree);\n  println(show(treeToList(tree)));\n  println(show(treeToList(doubledTree)));\n  println(show(foldTree(add, 0, tree)));\n  println(show(treeDepth(tree)))\n}",
-        "python": "from dataclasses import dataclass\nfrom typing import Union, List, Callable, TypeAlias\n\nTree: TypeAlias = Union['Leaf', 'Node']\n\n@dataclass\nclass Leaf:\n    value: int\n\n@dataclass\nclass Node:\n    left: Tree\n    value: int\n    right: Tree\n\ndef mapTree(fn: Callable[[int], int], tree: Tree) -\u003e Tree:\n    match tree:\n        case Leaf(v):\n            return Leaf(fn(v))\n        case Node(l, v, r):\n            return Node(mapTree(fn, l), fn(v), mapTree(fn, r))\n\ndef foldTree(fn: Callable[[int, int], int], acc: int, tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return fn(acc, v)\n        case Node(l, v, r):\n            acc = foldTree(fn, acc, l)\n            acc = fn(acc, v)\n            acc = foldTree(fn, acc, r)\n            return acc\n\ndef treeToList(tree: Tree) -\u003e List[int]:\n    match tree:\n        case Leaf(v):\n            return [v]\n        case Node(l, v, r):\n            return treeToList(l) + [v] + treeToList(r)\n\ndef treeDepth(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return 1\n        case Node(l, v, r):\n            return max(treeDepth(l), treeDepth(r)) + 1\n\ndef double(x: int) -\u003e int:\n    return x * 2\n\ndef add(x: int, y: int) -\u003e int:\n    return x + y\n\ntree: Tree = Node(\n    Node(Leaf(1), 2, Leaf(3)),\n    4,\n    Node(Leaf(5), 6, Leaf(7))\n)\n\nprint(treeToList(tree))\nprint(treeToList(mapTree(double, tree)))\nprint(foldTree(add, 0, tree))\nprint(treeDepth(tree))"
+        "python": "from dataclasses import dataclass\nfrom typing import Callable, TypeAlias\n\n@dataclass(frozen=True)\nclass Leaf:\n    value: int\n\n@dataclass(frozen=True)\nclass Node:\n    left: 'Tree'\n    value: int\n    right: 'Tree'\n\nTree: TypeAlias = Leaf | Node\n\ndef mapTree(fn: Callable[[int], int], tree: Tree) -\u003e Tree:\n    match tree:\n        case Leaf(val):\n            return Leaf(fn(val))\n        case Node(left, val, right):\n            return Node(mapTree(fn, left), fn(val), mapTree(fn, right))\n\ndef foldTree(fn: Callable[[int, int], int], acc: int, tree: Tree) -\u003e int:\n    # In-order fold: left, current, right\n    # For a fold (reducing) to work in-order, we need to process in order.\n    # Since it's a binary function (acc, value), we can't simply recurse \n    # in the middle if we want the standard \"in-order\" accumulation.\n    # However, the requirement is \"In-order fold over tree values\".\n    # This usually means we visit left, then node, then right.\n    \n    # To implement this with a single accumulator:\n    # We can convert to a list first or use a helper.\n    # Let's use a helper to maintain the accumulator.\n    \n    def traverse(current_tree: Tree, current_acc: int) -\u003e int:\n        match current_tree:\n            case Leaf(val):\n                return fn(current_acc, val)\n            case Node(left, val, right):\n                acc_after_left = traverse(left, current_acc)\n                acc_after_val = fn(acc_after_left, val)\n                return traverse(right, acc_after_val)\n                \n    return traverse(tree, acc)\n\ndef treeToList(tree: Tree) -\u003e list[int]:\n    result = []\n    def traverse(t: Tree):\n        match t:\n            case Leaf(val):\n                result.append(val)\n            case Node(left, val, right):\n                traverse(left)\n                result.append(val)\n                traverse(right)\n    traverse(tree)\n    return result\n\ndef treeDepth(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(_):\n            return 1\n        case Node(left, _, right):\n            return 1 + max(treeDepth(left), treeDepth(right))\n\ndef main():\n    # Test tree:\n    #       4\n    #      / \\\n    #     2   6\n    #    / \\ / \\\n    #   1  3 5  7\n    # Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)))\n    \n    tree = Node(\n        Node(Leaf(1), 2, Leaf(3)),\n        4,\n        Node(Leaf(5), 6, Leaf(7))\n    )\n    \n    double = lambda x: x * 2\n    add = lambda x, y: x + y\n    \n    print(treeToList(tree))\n    print(treeToList(mapTree(double, tree)))\n    print(foldTree(add, 0, tree))\n    print(treeDepth(tree))\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
@@ -7765,8 +9089,8 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 815.9285714285714,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 950.9285714285714,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -7818,36 +9142,36 @@
   },
   "languages": {
     "ailang": {
-      "agent_api_error_rate": 0.033816425120772944,
+      "agent_api_error_rate": 0.028985507246376812,
       "agent_api_error_rate_claude": 0,
       "agent_api_error_rate_codex": 0.17391304347826086,
       "agent_api_error_rate_gemini": 0,
-      "agent_api_error_rate_motoko": 0.043478260869565216,
+      "agent_api_error_rate_motoko": 0.028985507246376812,
       "agent_api_error_rate_opencode": 0,
-      "agent_api_errors": 7,
+      "agent_api_errors": 6,
       "agent_api_errors_claude": 0,
       "agent_api_errors_codex": 4,
       "agent_api_errors_gemini": 0,
-      "agent_api_errors_motoko": 3,
+      "agent_api_errors_motoko": 2,
       "agent_api_errors_opencode": 0,
-      "agent_avg_cost": 0.09950599701449271,
+      "agent_avg_cost": 0.09985295353623187,
       "agent_avg_cost_claude": 0.11760573913043476,
       "agent_avg_cost_codex": 0.2627390217391304,
       "agent_avg_cost_gemini": 0.1661008043478261,
-      "agent_avg_cost_motoko": 0.08712985507246374,
+      "agent_avg_cost_motoko": 0.08817072463768112,
       "agent_avg_cost_opencode": 0.02923961423188405,
-      "agent_avg_tokens": 238851.5700483092,
+      "agent_avg_tokens": 242266.02415458937,
       "agent_avg_tokens_claude": 2219.913043478261,
       "agent_avg_tokens_codex": 197365.08695652173,
       "agent_avg_tokens_gemini": 327502.6956521739,
-      "agent_avg_tokens_motoko": 486198.2173913043,
+      "agent_avg_tokens_motoko": 496441.5797101449,
       "agent_avg_tokens_opencode": 54660.59420289855,
-      "agent_avg_turns": 7.396135265700483,
+      "agent_avg_turns": 7.502415458937198,
       "agent_avg_turns_claude": 4.3478260869565215,
       "agent_avg_turns_codex": 0.8260869565217391,
-      "agent_avg_turns_failure": 5.7317073170731705,
+      "agent_avg_turns_failure": 6.2682926829268295,
       "agent_avg_turns_gemini": 4.739130434782608,
-      "agent_avg_turns_motoko": 12.869565217391305,
+      "agent_avg_turns_motoko": 13.18840579710145,
       "agent_avg_turns_opencode": 6.0144927536231885,
       "agent_avg_turns_success": 7.807228915662651,
       "agent_runs": 207,
@@ -7857,11 +9181,11 @@
       "agent_runs_motoko": 69,
       "agent_runs_opencode": 69,
       "agent_success_rate": 0.8019323671497585,
-      "agent_success_rate_adjusted": 0.83,
+      "agent_success_rate_adjusted": 0.8258706467661692,
       "agent_success_rate_adjusted_claude": 1,
       "agent_success_rate_adjusted_codex": 0.8947368421052632,
       "agent_success_rate_adjusted_gemini": 0.7391304347826086,
-      "agent_success_rate_adjusted_motoko": 0.8939393939393939,
+      "agent_success_rate_adjusted_motoko": 0.8805970149253731,
       "agent_success_rate_adjusted_opencode": 0.7246376811594203,
       "agent_success_rate_claude": 1,
       "agent_success_rate_codex": 0.7391304347826086,
@@ -7884,55 +9208,55 @@
       "zero_shot_success_adjusted": 0.6105263157894737
     },
     "python": {
-      "agent_api_error_rate": 0.028985507246376812,
+      "agent_api_error_rate": 0.00966183574879227,
       "agent_api_error_rate_claude": 0,
       "agent_api_error_rate_codex": 0,
       "agent_api_error_rate_gemini": 0.043478260869565216,
-      "agent_api_error_rate_motoko": 0.07246376811594203,
+      "agent_api_error_rate_motoko": 0.014492753623188406,
       "agent_api_error_rate_opencode": 0,
-      "agent_api_errors": 6,
+      "agent_api_errors": 2,
       "agent_api_errors_claude": 0,
       "agent_api_errors_codex": 0,
       "agent_api_errors_gemini": 1,
-      "agent_api_errors_motoko": 5,
+      "agent_api_errors_motoko": 1,
       "agent_api_errors_opencode": 0,
-      "agent_avg_cost": 0.039101016149758465,
+      "agent_avg_cost": 0.0391387456183575,
       "agent_avg_cost_claude": 0.05149714565217391,
       "agent_avg_cost_codex": 0.17108690217391304,
       "agent_avg_cost_gemini": 0.06112941304347827,
-      "agent_avg_cost_motoko": 0.010961449275362321,
+      "agent_avg_cost_motoko": 0.01107463768115942,
       "agent_avg_cost_opencode": 0.011770445550724639,
-      "agent_avg_tokens": 48340.2077294686,
+      "agent_avg_tokens": 48666.666666666664,
       "agent_avg_tokens_claude": 964.2173913043479,
       "agent_avg_tokens_codex": 126412.73913043478,
       "agent_avg_tokens_gemini": 115519.04347826086,
-      "agent_avg_tokens_motoko": 32880.59420289855,
+      "agent_avg_tokens_motoko": 33859.97101449275,
       "agent_avg_tokens_opencode": 31174.695652173912,
-      "agent_avg_turns": 4.647342995169082,
+      "agent_avg_turns": 4.729468599033816,
       "agent_avg_turns_claude": 4.130434782608695,
       "agent_avg_turns_codex": 1,
-      "agent_avg_turns_failure": 4.633333333333334,
+      "agent_avg_turns_failure": 5.333333333333333,
       "agent_avg_turns_gemini": 5.956521739130435,
-      "agent_avg_turns_motoko": 5.739130434782608,
+      "agent_avg_turns_motoko": 5.9855072463768115,
       "agent_avg_turns_opencode": 4.507246376811594,
-      "agent_avg_turns_success": 4.649717514124294,
+      "agent_avg_turns_success": 4.638888888888889,
       "agent_runs": 207,
       "agent_runs_claude": 23,
       "agent_runs_codex": 23,
       "agent_runs_gemini": 23,
       "agent_runs_motoko": 69,
       "agent_runs_opencode": 69,
-      "agent_success_rate": 0.855072463768116,
-      "agent_success_rate_adjusted": 0.8805970149253731,
+      "agent_success_rate": 0.8695652173913043,
+      "agent_success_rate_adjusted": 0.8780487804878049,
       "agent_success_rate_adjusted_claude": 0.9130434782608695,
       "agent_success_rate_adjusted_codex": 0.9565217391304348,
       "agent_success_rate_adjusted_gemini": 0.7727272727272727,
-      "agent_success_rate_adjusted_motoko": 0.9375,
+      "agent_success_rate_adjusted_motoko": 0.9264705882352942,
       "agent_success_rate_adjusted_opencode": 0.8260869565217391,
       "agent_success_rate_claude": 0.9130434782608695,
       "agent_success_rate_codex": 0.9565217391304348,
       "agent_success_rate_gemini": 0.7391304347826086,
-      "agent_success_rate_motoko": 0.8695652173913043,
+      "agent_success_rate_motoko": 0.9130434782608695,
       "agent_success_rate_opencode": 0.8260869565217391,
       "avg_cost_usd": 0.005040290147783252,
       "avg_tokens": 303.7881773399015,
@@ -8062,27 +9386,27 @@
       "totalCost": 5.2262949999999995
     },
     "motoko": {
-      "avgCost": 0.04904565217391303,
-      "avgTokens": 259539.40579710144,
-      "avgTurns": 9.304347826086957,
+      "avgCost": 0.04962268115942028,
+      "avgTokens": 265150.77536231885,
+      "avgTurns": 9.58695652173913,
       "languages": {
         "ailang": {
-          "avgCost": 0.08712985507246374,
-          "avgTokens": 486198.2173913043,
-          "avgTurns": 12.869565217391305,
-          "avgTurnsFailure": 11.5,
+          "avgCost": 0.08817072463768112,
+          "avgTokens": 496441.5797101449,
+          "avgTurns": 13.18840579710145,
+          "avgTurnsFailure": 13.7,
           "avgTurnsSuccess": 13.101694915254237,
           "runs": 69,
           "successRate": 0.855072463768116
         },
         "python": {
-          "avgCost": 0.010961449275362321,
-          "avgTokens": 32880.59420289855,
-          "avgTurns": 5.739130434782608,
-          "avgTurnsFailure": 5.333333333333333,
-          "avgTurnsSuccess": 5.8,
+          "avgCost": 0.01107463768115942,
+          "avgTokens": 33859.97101449275,
+          "avgTurns": 5.9855072463768115,
+          "avgTurnsFailure": 8.833333333333334,
+          "avgTurnsSuccess": 5.714285714285714,
           "runs": 69,
-          "successRate": 0.8695652173913043
+          "successRate": 0.9130434782608695
         }
       },
       "models": {
@@ -8094,11 +9418,11 @@
           "successRate": 0.8913043478260869
         },
         "motoko-gemma-4": {
-          "avgCost": 0.05333000000000001,
-          "avgTokens": 526858.3913043478,
-          "avgTurns": 14.869565217391305,
+          "avgCost": 0.055061086956521746,
+          "avgTokens": 543692.5,
+          "avgTurns": 15.717391304347826,
           "runs": 46,
-          "successRate": 0.7608695652173914
+          "successRate": 0.8260869565217391
         },
         "motoko-glm-5": {
           "avgCost": 0.047140217391304355,
@@ -8109,8 +9433,8 @@
         }
       },
       "runs": 138,
-      "successRate": 0.8623188405797102,
-      "totalCost": 6.768299999999998
+      "successRate": 0.8840579710144928,
+      "totalCost": 6.847929999999998
     },
     "opencode": {
       "avgCost": 0.020505029891304347,
@@ -8319,27 +9643,27 @@
       "total_runs": 46
     },
     "motoko": {
-      "avg_cost_usd": 0.04904565217391303,
-      "avg_duration_ms": 75581.76086956522,
+      "avg_cost_usd": 0.04962268115942028,
+      "avg_duration_ms": 80085.98550724638,
       "display_name": "motoko_agent",
       "languages": {
         "ailang": {
-          "apiErrorRate": 0.043478260869565216,
-          "apiErrors": 3,
-          "avgCost": 0.08712985507246374,
-          "avgTokens": 486198.2173913043,
+          "apiErrorRate": 0.028985507246376812,
+          "apiErrors": 2,
+          "avgCost": 0.08817072463768112,
+          "avgTokens": 496441.5797101449,
           "runs": 69,
           "successRate": 0.855072463768116,
-          "successRateAdjusted": 0.8939393939393939
+          "successRateAdjusted": 0.8805970149253731
         },
         "python": {
-          "apiErrorRate": 0.07246376811594203,
-          "apiErrors": 5,
-          "avgCost": 0.010961449275362321,
-          "avgTokens": 32880.59420289855,
+          "apiErrorRate": 0.014492753623188406,
+          "apiErrors": 1,
+          "avgCost": 0.01107463768115942,
+          "avgTokens": 33859.97101449275,
           "runs": 69,
-          "successRate": 0.8695652173913043,
-          "successRateAdjusted": 0.9375
+          "successRate": 0.9130434782608695,
+          "successRateAdjusted": 0.9264705882352942
         }
       },
       "models": [
@@ -8348,24 +9672,24 @@
         "motoko-glm-5"
       ],
       "name": "motoko",
-      "success_rate": 0.8623188405797102,
+      "success_rate": 0.8840579710144928,
       "tiers": {
         "core": {
           "ailang": {
-            "apiErrorRate": 0.043478260869565216,
-            "apiErrors": 3,
-            "avgCost": 0.08712985507246374,
+            "apiErrorRate": 0.028985507246376812,
+            "apiErrors": 2,
+            "avgCost": 0.08817072463768112,
             "runs": 69,
             "successRate": 0.855072463768116,
-            "successRateAdjusted": 0.8939393939393939
+            "successRateAdjusted": 0.8805970149253731
           },
           "python": {
-            "apiErrorRate": 0.07246376811594203,
-            "apiErrors": 5,
-            "avgCost": 0.010961449275362321,
+            "apiErrorRate": 0.014492753623188406,
+            "apiErrors": 1,
+            "avgCost": 0.01107463768115942,
             "runs": 69,
-            "successRate": 0.8695652173913043,
-            "successRateAdjusted": 0.9375
+            "successRate": 0.9130434782608695,
+            "successRateAdjusted": 0.9264705882352942
           }
         }
       },
@@ -8428,7 +9752,7 @@
   "history": [
     {
       "version": "v0.20.0",
-      "timestamp": "2026-05-16T18:56:17+02:00",
+      "timestamp": "2026-05-16T19:06:27+02:00",
       "successRate": 0.6896551724137931,
       "totalRuns": 406,
       "successCount": 280,
@@ -21260,9 +22584,9 @@
       },
       {
         "benchmark_id": "contract_bst_validate",
-        "cheapest_cost_usd": 0.0034637200000000004,
-        "cheapest_model": "opencode-or-glm-4-7-flash/opencode",
-        "cheapest_tts_ms": 59551,
+        "cheapest_cost_usd": 0.00227,
+        "cheapest_model": "motoko-gemma-4/motoko",
+        "cheapest_tts_ms": 101878,
         "fastest_cost_usd": 0.015380000000000001,
         "fastest_model": "claude-opus-4-7",
         "fastest_tts_ms": 42

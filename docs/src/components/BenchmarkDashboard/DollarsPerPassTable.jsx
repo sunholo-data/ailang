@@ -46,11 +46,28 @@ export default function DollarsPerPassTable({ models }) {
   const [showRatio, setShowRatio] = useState(false);
   const [sortBy, setSortBy] = useState('dollars_per_pass');
   const [sortDir, setSortDir] = useState('asc');
+  // langView: 'all' uses the pooled sweet_spot; 'ailang' / 'python' uses
+  // models[name].sweet_spot_by_lang[langView]. Discover available langs
+  // from the data so the toggle reflects what's actually computed.
+  const [langView, setLangView] = useState('all');
+
+  const availableLangs = useMemo(() => {
+    const set = new Set();
+    for (const stats of Object.values(models || {})) {
+      const byLang = stats?.sweet_spot_by_lang;
+      if (!byLang) continue;
+      for (const k of Object.keys(byLang)) set.add(k);
+    }
+    return Array.from(set).sort();
+  }, [models]);
 
   const rows = useMemo(() => {
     const data = [];
     for (const [name, stats] of Object.entries(models || {})) {
-      const ss = stats.sweet_spot;
+      // Pick which sweet-spot block to read: pooled vs per-lang.
+      const ss = langView === 'all'
+        ? stats.sweet_spot
+        : (stats.sweet_spot_by_lang && stats.sweet_spot_by_lang[langView]);
       if (!ss) continue;
       // Skip rows with zero pass rate — they don't have meaningful $/pass.
       if (!ss.dollars_per_pass || ss.dollars_per_pass <= 0) continue;
@@ -68,6 +85,8 @@ export default function DollarsPerPassTable({ models }) {
         // inefficiency in concert with the tokens-overhead column.
         costOverhead: ss.cost_overhead_vs_best || 0,
         tokenOverhead: ss.token_overhead_vs_best || 0,
+        // pareto_frontier is computed within the selected language's subset
+        // when langView != 'all', so this flag is language-relative.
         pareto: !!ss.pareto_frontier,
       });
     }
@@ -85,7 +104,7 @@ export default function DollarsPerPassTable({ models }) {
       return av < bv ? -dir : dir;
     });
     return data;
-  }, [models, sortBy, sortDir]);
+  }, [models, sortBy, sortDir, langView]);
 
   if (rows.length === 0) {
     return (
@@ -116,15 +135,40 @@ export default function DollarsPerPassTable({ models }) {
     <div className={styles.chartContainer}>
       <div className={styles.sweetSpotHeader}>
         <h3>$/Pass Economics</h3>
-        <label className={styles.sweetSpotToggle}>
-          <input
-            type="checkbox"
-            checked={showRatio}
-            onChange={(e) => setShowRatio(e.target.checked)}
-          />
-          Show as ratio vs cheapest
-        </label>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {availableLangs.length > 0 && (
+            <label className={styles.sweetSpotToggle}>
+              Language:{' '}
+              <select
+                value={langView}
+                onChange={(e) => setLangView(e.target.value)}
+                style={{ marginLeft: '0.25rem' }}
+              >
+                <option value="all">All (pooled)</option>
+                {availableLangs.map(l => (
+                  <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)} only</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className={styles.sweetSpotToggle}>
+            <input
+              type="checkbox"
+              checked={showRatio}
+              onChange={(e) => setShowRatio(e.target.checked)}
+            />
+            Show as ratio vs cheapest
+          </label>
+        </div>
       </div>
+      {langView !== 'all' && (
+        <p className={styles.sweetSpotHeadlineNote}>
+          Showing <strong>{langView}</strong> runs only. Pareto frontier, $-Ovhd, and Tok-Ovhd are
+          computed within the <strong>{langView}</strong>-only subset — a model can be on the frontier
+          for one language but dominated for another. <strong>claude-sonnet-4-6</strong> is the classic
+          example: frontier on Python, dominated on AILANG.
+        </p>
+      )}
 
       {headlineRatio !== null && headlineRatio > 2 && (
         <p className={styles.sweetSpotHeadlineNote}>

@@ -414,6 +414,31 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		sweetSpotByModel[m] = rs
 	}
 
+	// Per-language sweet-spot — same shape as sweetSpotByModel but partitioned
+	// by source language so the dashboard can render an "AILANG only / Python
+	// only / pooled" toggle. Costs are computed within the language's subset
+	// only, so $-Ovhd and Tok-Ovhd reflect the per-language frontier (not the
+	// pooled one). Failures on a language don't pollute the other language's
+	// numbers.
+	resultsByLang := map[string][]*BenchmarkResult{}
+	for _, r := range results {
+		if r.Lang == "" {
+			continue
+		}
+		resultsByLang[r.Lang] = append(resultsByLang[r.Lang], r)
+	}
+	// sweetSpotByModelByLang[modelName][langName] = []SweetSpotRow
+	sweetSpotByModelByLang := map[string]map[string][]SweetSpotRow{}
+	for lang, rs := range resultsByLang {
+		langReport := BuildSweetSpot(rs, SweetSpotOpts{})
+		for _, row := range langReport.Rows {
+			if sweetSpotByModelByLang[row.Model] == nil {
+				sweetSpotByModelByLang[row.Model] = map[string][]SweetSpotRow{}
+			}
+			sweetSpotByModelByLang[row.Model][lang] = append(sweetSpotByModelByLang[row.Model][lang], row)
+		}
+	}
+
 	// Convert models to camelCase for JavaScript (nested aggregates)
 	modelsJS := make(map[string]interface{})
 	for name, stats := range matrix.Models {
@@ -546,6 +571,25 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				modelData["sweet_spot_by_harness"] = byHarness
 			}
 		}
+		// Per-language sweet-spot: per-language Pareto frontiers + overhead
+		// metrics so the dashboard can split the economics table by source
+		// language (AILANG vs Python). Same shape as sweet_spot_by_harness
+		// but keyed by lang. Models that ran in only one language will have
+		// just that key populated.
+		if langMap, ok := sweetSpotByModelByLang[name]; ok && len(langMap) > 0 {
+			byLang := make(map[string]interface{}, len(langMap))
+			for lang, rows := range langMap {
+				if len(rows) == 0 {
+					continue
+				}
+				// Same convention as the pooled block: dominant-harness row
+				// (most runs) is the "default" rendering for that language.
+				byLang[lang] = renderSweetSpotRow(rows[0])
+			}
+			if len(byLang) > 0 {
+				modelData["sweet_spot_by_lang"] = byLang
+			}
+		}
 		// M-DASH-V2: attach per-model reliability counters so the dashboard
 		// can tooltip the API Reliability card ("gemini-3-1-pro: 13/33").
 		if rel, ok := reliability.PerModel[name]; ok {
@@ -603,6 +647,21 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 						byHarness[r.Harness] = renderSweetSpotRow(r)
 					}
 					entry["sweet_spot_by_harness"] = byHarness
+				}
+			}
+			// Per-language sweet-spot block (mirrors standard-models branch
+			// above). Lets the dashboard surface per-language Pareto frontiers
+			// even for agent-only models like the lang_harness_suite cohort.
+			if langMap, ok := sweetSpotByModelByLang[modelName]; ok && len(langMap) > 0 {
+				byLang := make(map[string]interface{}, len(langMap))
+				for lang, rows := range langMap {
+					if len(rows) == 0 {
+						continue
+					}
+					byLang[lang] = renderSweetSpotRow(rows[0])
+				}
+				if len(byLang) > 0 {
+					entry["sweet_spot_by_lang"] = byLang
 				}
 			}
 			// Per-language agent success rates (JS/Go from lang_harness_suite).
