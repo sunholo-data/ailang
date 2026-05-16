@@ -16,59 +16,59 @@
 
 **Out of MVP scope** (deferred to follow-up milestones, see CHANGELOG entry for the full list): completion, signature help, code actions, formatting, rename, semantic tokens, code lens, inlay hints, per-keystroke incremental re-typecheck, workspace-wide reference scan, and shared cross-session server caching.
 
-## Installing for use with Claude Code (recommended)
+## Prerequisite (both install paths)
 
-The repo ships an `ailang-lsp` plugin in its local marketplace at [`.claude-plugin/marketplace.json`](https://github.com/sunholo-data/ailang/blob/dev/.claude-plugin/marketplace.json) — installing it in your Claude Code session takes two commands:
+You need the `ailang` binary on your PATH. **No AILANG source clone required** — `ailang lsp` is built into the same binary that runs `ailang check`, `ailang run`, etc.
 
 ```bash
-/plugin marketplace add /path/to/your/ailang/checkout
-/plugin install ailang-lsp@ailang-tools
+# Install from a release (no clone required):
+curl -sSL https://ailang.sunholo.com/install.sh | sh
+
+# Verify:
+which ailang        # should print a path
+ailang lsp -h       # should print usage for the lsp subcommand
+```
+
+If you've cloned this repo and want to use a development build instead, `make install` from the repo root installs the dirty build to `~/go/bin/ailang`.
+
+## Installing for use with Claude Code (recommended for AI agents)
+
+The `ailang-lsp` plugin ships in the public `ailang-marketplace` hosted at [`sunholo-data/ailang_bootstrap`](https://github.com/sunholo-data/ailang_bootstrap). Install in your Claude Code session — **no clone required**:
+
+```bash
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang-lsp@ailang-marketplace
 ```
 
 After install, `/plugin` should list `ailang-lsp` under **Installed** with no entry under **Errors**. Open a `.ail` file in a Claude Code session and the agent will get diagnostics, hover, and the rest automatically — no further wiring.
 
-**Prerequisite**: the `ailang` binary must be on your PATH. From the repo root:
-
-```bash
-make install   # installs to /Users/<you>/go/bin/ailang
-```
-
-Verify:
-
-```bash
-ailang lsp --stdio < /dev/null   # reads zero LSP frames; should print nothing and exit cleanly
-which ailang                     # /Users/<you>/go/bin/ailang
-```
+> **AILANG contributors**: this repo also ships a developer-facing marketplace at [`.claude-plugin/marketplace.json`](https://github.com/sunholo-data/ailang/blob/dev/.claude-plugin/marketplace.json) (`ailang-tools`). Install from a local checkout via `/plugin marketplace add /path/to/your/ailang/checkout` + `/plugin install ailang-lsp@ailang-tools` to dogfood against the dev binary.
 
 ## Installing for a generic LSP client (VS Code / Emacs / Helix / nvim)
 
-Any LSP client can connect to `ailang lsp --stdio`. The client config needs to:
+Any LSP client can connect to `ailang lsp --stdio`. **No AILANG source clone required** — just the binary on PATH. The client config needs to:
 
 1. Spawn `ailang lsp --stdio` as the language server for files matching `*.ail`.
 2. Set the language ID to `ailang`.
 
-Example (VS Code, via the [generic LSP extension](https://marketplace.visualstudio.com/items?itemName=vsls-contrib.lsp-client)):
+Example (VS Code, via the [Generic LSP Client (v2)](https://marketplace.visualstudio.com/items?itemName=zsol.vscode-glspc) extension):
 
 ```json
 {
-  "lspClient.serverCommands": {
-    "ailang": {
-      "command": "ailang",
-      "args": ["lsp", "--stdio"],
-      "documentSelector": ["ailang"]
-    }
-  },
-  "files.associations": { "*.ail": "ailang" }
+  "files.associations": { "*.ail": "ailang" },
+  "glspc.server.command": "ailang",
+  "glspc.server.commandArguments": ["lsp", "--stdio"],
+  "glspc.server.languageId": ["ailang"]
 }
 ```
 
-## Workspace setup (avoid MOD010 surprises)
+(Reload the VS Code window after editing settings — glspc spawns the LSP on the next file open.)
 
-AILANG's module loader expects the file's `module` declaration to match its on-disk path relative to a project root. When `ailang lsp` is started from a Claude Code session whose working directory IS the project root (the normal case), this Just Works. When started against an absolute path *outside* a workspace context, the loader emits `MOD010` and cross-module navigation falls back to "no result".
+## Workspace behaviour
 
-For agent use: open the `.ail` file from inside its workspace (Claude Code's `rootUri` should be the project root containing the `.ail` files). The diagnostics path will surface MOD010 with a `Fix:` suggestion if you hit it.
+The LSP always runs with `RelaxModules` on, so the `MOD010` module-path-vs-file-path strict check that fires from `ailang check` is downgraded inside the LSP. This is by design — the LSP receives absolute file URIs from the editor and has no reliable way to compute the relative-to-project-root path the strict mode wants, so without the relax-mode every file would surface only an MOD010 error and drown out real diagnostics. Strict checking stays the default for `ailang check` (CI gate); the LSP is for navigation + edit-time feedback.
 
-For human use under VS Code: open the *folder*, not the file.
+If you do want strict module-path checking at the same time, run `ailang check <file>` from the terminal — it's the same compiler, just with strict mode on.
 
 ## Token-cost rationale (for AI-agent users)
 
