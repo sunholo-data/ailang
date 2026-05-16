@@ -208,9 +208,10 @@ function ModelLanguageSpread({ models, data, allLangs }) {
               <div style={{ fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-500)', marginBottom: 10 }}>{harness}</div>
               {allLangs.map(l => {
                 const ld = md?.languages?.[l];
-                // Prefer agent-specific rate when available (this section is "Agent" focused).
-                // Fallback to overall successRate (which mixes std + agent for back-compat).
-                const rate = ld?.agentSuccessRate ?? ld?.successRate ?? null;
+                // Agent-mode only: no fallback to ld.successRate (that's 0-shot
+                // API). Models without agent runs were already filtered out
+                // upstream, so ld.agentSuccessRate is the only honest source.
+                const rate = ld?.agentSuccessRate ?? null;
                 return (
                   <MiniBar
                     key={l}
@@ -235,6 +236,12 @@ function ModelLanguageSpread({ models, data, allLangs }) {
 function CrossHarnessTable({ data, allLangs }) {
   const families = {};
   for (const [id, m] of Object.entries(data.models || {})) {
+    // Agent-mode only: skip variants that have no agent runs. Otherwise a
+    // standard-only sibling in the model family (e.g. claude-sonnet-4-6 the
+    // 0-shot row vs claude-sonnet-4-6 the agent row in older data) would
+    // appear as a harness with 0-shot data and inflate the cross-harness
+    // delta misleadingly.
+    if (m.agentStats == null) continue;
     const fam = m.model_family || id;
     if (!families[fam]) families[fam] = [];
     families[fam].push({ id, ...m });
@@ -279,7 +286,8 @@ function CrossHarnessTable({ data, allLangs }) {
               for (const l of allLangs) {
                 const ld0 = sorted[0]?.languages?.[l];
                 const apiErr0 = sorted[0]?.agentStats?.apiErrorRate ?? 0;
-                const agentRate0 = ld0?.agentSuccessRate ?? ld0?.successRate ?? null;
+                // Agent-mode only: see note in upstream table.
+                const agentRate0 = ld0?.agentSuccessRate ?? null;
                 const adj0 = adjRate(agentRate0, apiErr0);
                 baseline[l] = (apiErr0 > 0.05 && adj0 != null) ? adj0 : agentRate0;
               }
@@ -295,7 +303,7 @@ function CrossHarnessTable({ data, allLangs }) {
                       </span>
                     </td>
                     {allLangs.map(l => {
-                      const rate = v.languages?.[l]?.agentSuccessRate ?? v.languages?.[l]?.successRate ?? null;
+                      const rate = v.languages?.[l]?.agentSuccessRate ?? null;
                       const adj = adjRate(rate, apiErrRate);
                       // ADJUSTED is primary when api errors are non-trivial; raw is secondary.
                       const showAdjusted = apiErrRate > 0.05 && apiErrRate <= 0.5
@@ -372,7 +380,15 @@ export default function BenchmarkExplorer() {
   const allTiers = TIER_ORDER.filter(t =>
     Object.values(data.harnesses || {}).some(h => h.tiers?.[t])
   );
-  const allModels = Object.keys(data.models || {}).sort();
+  // Agent Harness Explorer = agent-mode only. A model is "agent-mode" iff it
+  // actually has agent runs (agentStats != null) — not just `agent_cli` set
+  // (which only declares that an executor binding exists). Without this guard,
+  // standard-only models like claude-opus-4-7 (no agent runs, but agent_cli:
+  // "claude" is configured) leak into the table with their 0-shot successRate
+  // shown alongside genuine agent pass rates — apples-to-oranges.
+  const allModels = Object.keys(data.models || {})
+    .filter(m => data.models[m]?.agentStats != null)
+    .sort();
   const models = activeHarness
     ? allModels.filter(m => data.models[m]?.agent_cli === activeHarness)
     : allModels;
@@ -397,8 +413,9 @@ export default function BenchmarkExplorer() {
       {/* Table 1: language × model heatmap */}
       <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Model × Language</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no results yet. Transposed so all models
-        fit vertically without horizontal scroll.
+        <strong>Agent mode only.</strong> Standard 0-shot API results are excluded — see the{' '}
+        <a href="/ailang/docs/benchmarks/performance">benchmarks page</a> for those.
+        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no agent results for this model × language.
       </p>
 
       <div className={styles.tableScroll} style={{ marginBottom: 32 }}>
@@ -415,12 +432,13 @@ export default function BenchmarkExplorer() {
                 <td style={rowHeader} title={m}>{modelShort(m)}</td>
                 {langs.map(lang => {
                   const ld = data.models[m]?.languages?.[lang];
-                  // For models that ran in agent mode for this lang, prefer adjusted.
-                  // Otherwise fall back to plain successRate (standard or agent-only).
+                  // Agent-mode only: never fall back to ld.successRate (that's
+                  // 0-shot API mode). If a model lacks agent runs for this
+                  // language, render — rather than mixing modes silently.
                   return (
                     <Cell
                       key={lang}
-                      rate={ld?.agentSuccessRate ?? ld?.successRate ?? null}
+                      rate={ld?.agentSuccessRate ?? null}
                       adjusted={ld?.agentSuccessRateAdjusted}
                       apiErrorRate={ld?.agentApiErrorRate}
                     />
@@ -508,12 +526,14 @@ export default function BenchmarkExplorer() {
                         </td>
                         {langs.map(l => {
                           const ld = modelLangs[l];
+                          // Agent-mode only: see note on the model × language
+                          // table above — no fallback to ld.successRate here.
                           return (
                             <Cell
                               key={l}
-                              rate={ld?.agentSuccessRate ?? ld?.successRate ?? null}
-                              adjusted={ld?.agentSuccessRateAdjusted ?? ld?.successRateAdjusted}
-                              apiErrorRate={ld?.agentApiErrorRate ?? ld?.apiErrorRate}
+                              rate={ld?.agentSuccessRate ?? null}
+                              adjusted={ld?.agentSuccessRateAdjusted}
+                              apiErrorRate={ld?.agentApiErrorRate}
                             />
                           );
                         })}
