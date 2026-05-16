@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -154,6 +155,18 @@ func installVSCode() {
 	}
 
 	fmt.Printf("%s Extension installed to %s\n", green("✓"), extDir)
+
+	// Invalidate VS Code's extension cache so it re-scans on next start.
+	// Without this, the cache file pins the *previous* version's manifest
+	// (incl. missing `main` entry from pre-0.3.0 builds → LSP doesn't
+	// activate). Failure here is non-fatal; we log and continue.
+	if removed, err := invalidateVSCodeExtensionCache(home, "sunholo.ailang"); err != nil {
+		fmt.Printf("  %s could not refresh VS Code extension cache: %v\n", red("⚠"), err)
+		fmt.Println("    You may need to fully quit VS Code (Cmd+Q) and reopen to pick up the new version.")
+	} else if removed {
+		fmt.Printf("  %s refreshed VS Code's extensions.json cache (forces metadata re-scan)\n", green("✓"))
+	}
+
 	fmt.Println()
 	fmt.Println("What you get:")
 	fmt.Println("  • Syntax highlighting + bracket matching for .ail files")
@@ -162,12 +175,78 @@ func installVSCode() {
 	fmt.Println("    — spawns `ailang lsp --stdio` automatically")
 	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  1. Restart VS Code or run 'Developer: Reload Window'")
+	fmt.Println("  1. Fully quit VS Code (Cmd+Q on Mac, File→Exit elsewhere) and reopen")
+	fmt.Println("     (a window reload is NOT enough on first install/upgrade)")
 	fmt.Println("  2. Open any .ail file — diagnostics appear inline on save")
 	fmt.Println()
 	fmt.Println("Troubleshooting:")
 	fmt.Println("  • If no diagnostics: check `which ailang` works (binary on PATH)")
 	fmt.Println("  • Errors surface in View → Output → 'AILANG Language Server'")
+}
+
+// invalidateVSCodeExtensionCache removes the given extension ID from
+// VS Code's ~/.vscode/extensions/extensions.json manifest cache. VS Code
+// reads this file on startup; an out-of-date entry there causes the UI
+// to show the previous version's metadata even after the on-disk
+// package.json has been updated.
+//
+// Returns (true, nil) when an entry was removed, (false, nil) when no
+// matching entry existed, or an error if the file couldn't be read/written.
+func invalidateVSCodeExtensionCache(home, extID string) (bool, error) {
+	cachePath := filepath.Join(home, ".vscode", "extensions", "extensions.json")
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No cache yet → first-ever extension install. Nothing to invalidate.
+			return false, nil
+		}
+		return false, fmt.Errorf("read %s: %w", cachePath, err)
+	}
+
+	var entries []map[string]interface{}
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return false, fmt.Errorf("parse %s: %w", cachePath, err)
+	}
+
+	want := strings.ToLower(extID)
+	kept := make([]map[string]interface{}, 0, len(entries))
+	removed := false
+	for _, e := range entries {
+		id := ""
+		if ident, ok := e["identifier"].(map[string]interface{}); ok {
+			if s, ok := ident["id"].(string); ok {
+				id = s
+			}
+		}
+		if id == "" {
+			if s, ok := e["id"].(string); ok {
+				id = s
+			}
+		}
+		if strings.ToLower(id) == want {
+			removed = true
+			continue
+		}
+		kept = append(kept, e)
+	}
+
+	if !removed {
+		return false, nil
+	}
+
+	out, err := json.Marshal(kept)
+	if err != nil {
+		return false, fmt.Errorf("encode: %w", err)
+	}
+	// Atomic write so a crash mid-write doesn't corrupt the cache.
+	tmpPath := cachePath + ".ailang-tmp"
+	if err := os.WriteFile(tmpPath, out, 0o644); err != nil {
+		return false, fmt.Errorf("write tmp: %w", err)
+	}
+	if err := os.Rename(tmpPath, cachePath); err != nil {
+		return false, fmt.Errorf("rename: %w", err)
+	}
+	return true, nil
 }
 
 func uninstallVSCode() {
@@ -189,7 +268,14 @@ func uninstallVSCode() {
 		os.Exit(1)
 	}
 
+	// Drop the matching entry from VS Code's extensions.json cache too —
+	// otherwise a stale entry points at the now-deleted dir.
+	if _, err := invalidateVSCodeExtensionCache(home, "sunholo.ailang"); err != nil {
+		fmt.Printf("  %s could not refresh VS Code extension cache: %v\n", red("⚠"), err)
+	}
+
 	fmt.Printf("%s VS Code extension uninstalled\n", green("✓"))
+	fmt.Println("  Fully quit VS Code (Cmd+Q) and reopen to complete the removal.")
 }
 
 func installVim(isNeovim bool) {
