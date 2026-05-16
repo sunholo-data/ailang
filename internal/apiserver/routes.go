@@ -412,8 +412,13 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			return
 		}
 
+		// resolveArgs owns the precedence: body → query (when body source
+		// is not Real) → zero-value padding. The provenance-based fallback
+		// guard prevents zero-padding from silently shadowing query args
+		// for GET handlers with declared params.
+		// See: design_docs/planned/v0_21_0/m-serveapi-get-query-shadow.md
 		var parseErr error
-		args, parseErr = parseArgsWithNames(body, opt.ParamNames, opt.ParamTypes)
+		args, _, parseErr = resolveArgs(r, body, opt.ParamNames, opt.ParamTypes)
 		if parseErr != nil {
 			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
@@ -435,7 +440,9 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
-	// Fall back to query parameters when body args are empty (e.g., GET requests)
+	// Multipart and raw paths don't route through resolveArgs; preserve the
+	// historical "empty args + query present" fallback for them so that
+	// query data still reaches handlers that bypassed JSON-body parsing.
 	if len(args) == 0 && len(r.URL.Query()) > 0 {
 		args = parseQueryArgs(r.URL.Query())
 	}

@@ -241,69 +241,13 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes
 //  1. {"args": [...]} — positional (existing behavior, with zero-value padding)
 //  2. JSON object with keys matching paramNames — named binding
 //  3. Any other JSON value — single argument (existing behavior)
+//
+// Implementation lives in parseArgsWithNamesEx (argresolve.go); this wrapper
+// preserves the (args, error) signature for callers and tests that don't
+// need argument-source provenance.
 func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string) ([]interface{}, error) {
-	if len(paramNames) == 0 {
-		return parseArgs(body)
-	}
-	if len(body) == 0 {
-		// Empty body + declared params → pad with type zero-values,
-		// matching the behavior of POST {} (UnmatchedKeysZeroValuePadding).
-		// This lets user code run its normal validation instead of
-		// crashing inside builtins on UnitValue or hitting arity errors.
-		if len(paramTypes) == 0 {
-			return parseArgs(body)
-		}
-		args := make([]interface{}, len(paramNames))
-		for i := range paramNames {
-			if i < len(paramTypes) {
-				args[i] = zeroValueForType(paramTypes[i])
-			}
-		}
-		return args, nil
-	}
-
-	// Quick check: try structured {"args": [...]} first (backward compat)
-	var req FunctionCallRequest
-	if err := json.Unmarshal(body, &req); err == nil && req.Args != nil {
-		// Pad positional args if fewer than expected parameters
-		if len(req.Args) < len(paramNames) && len(paramTypes) > 0 {
-			padded := make([]interface{}, len(paramNames))
-			copy(padded, req.Args)
-			for i := len(req.Args); i < len(paramNames); i++ {
-				if i < len(paramTypes) {
-					padded[i] = zeroValueForType(paramTypes[i])
-				}
-			}
-			return padded, nil
-		}
-		return req.Args, nil
-	}
-
-	// Try named binding: parse as JSON object and match keys to param names
-	var obj map[string]interface{}
-	bodyIsObject := json.Unmarshal(body, &obj) == nil
-	if bodyIsObject && len(obj) > 0 {
-		if named := parseNamedArgs(obj, paramNames, paramTypes); named != nil {
-			return named, nil
-		}
-	}
-
-	// If body is a JSON object but no keys matched declared params,
-	// return zero-value-padded args instead of passing the raw object as a
-	// single argument (which would give e.g. a Record to a string param).
-	// Non-object bodies (strings, numbers, arrays) still fall through to parseArgs.
-	if bodyIsObject && len(paramNames) > 0 && len(paramTypes) > 0 {
-		args := make([]interface{}, len(paramNames))
-		for i := range paramNames {
-			if i < len(paramTypes) {
-				args[i] = zeroValueForType(paramTypes[i])
-			}
-		}
-		return args, nil
-	}
-
-	// Fall back to single-arg parsing (non-object body or no declared params)
-	return parseArgs(body)
+	args, _, err := parseArgsWithNamesEx(body, paramNames, paramTypes)
+	return args, err
 }
 
 // parseArgs extracts function arguments from the JSON body.
