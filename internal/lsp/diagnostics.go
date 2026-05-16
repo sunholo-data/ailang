@@ -15,6 +15,20 @@ import (
 // running against the same file.
 const DiagnosticSource = "ailang"
 
+// lspPipelineConfig returns the pipeline.Config that every LSP handler
+// uses when invoking pipeline.Run. The single notable setting is
+// RelaxModules: the LSP receives absolute file URIs from the editor and
+// has no reliable way to compute the relative-to-project-root path the
+// strict module-path check expects — so MOD010 would fire on essentially
+// every file we open and drown out real diagnostics. Strict checking
+// remains the right default for `ailang check`; the LSP wants navigation
+// + real edit-time feedback, not deployment-shape gatekeeping.
+func lspPipelineConfig() pipeline.Config {
+	return pipeline.Config{
+		RelaxModules: true,
+	}
+}
+
 // runPipelineForDiagnostics runs the type-check pipeline on the given source
 // and returns LSP diagnostics derived from any structured errors it
 // produces. Exhaustiveness warnings come back as DiagnosticSeverityWarning;
@@ -23,11 +37,7 @@ const DiagnosticSource = "ailang"
 // The path is the on-disk filename (used for span filtering — diagnostics
 // for OTHER files are dropped, since LSP diagnostics are URI-scoped).
 func runPipelineForDiagnostics(path string, code string) []protocol.Diagnostic {
-	cfg := pipeline.Config{
-		// Type-check only: we don't want to evaluate the program from the LSP.
-		// pipeline.Run defaults are conservative; explicit zero-value Config
-		// is fine for M2.
-	}
+	cfg := lspPipelineConfig()
 	src := pipeline.Source{
 		Code:     code,
 		Filename: path,

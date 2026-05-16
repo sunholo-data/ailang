@@ -79,9 +79,9 @@ func (s *Server) Hover(_ context.Context, params *protocol.HoverParams) (*protoc
 func (s *Server) formatHoverContents(id *ast.Identifier, path string, src string) string {
 	// Re-run the pipeline against the in-memory buffer so the type info we
 	// hand back reflects the user's current edits, not stale on-disk state.
-	cfg := pipeline.Config{}
+	// Use the shared LSP-tuned Config (relaxes MOD010, see diagnostics.go).
 	srcBundle := pipeline.Source{Code: src, Filename: path}
-	result, _ := pipeline.Run(cfg, srcBundle)
+	result, _ := pipeline.Run(lspPipelineConfig(), srcBundle)
 
 	if scheme := lookupTypeInResult(result, id.Name); scheme != nil {
 		return formatScheme(id.Name, scheme)

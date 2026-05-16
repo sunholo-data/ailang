@@ -58,10 +58,10 @@ func (s *Server) Definition(_ context.Context, params *protocol.DefinitionParams
 	}
 
 	// Re-run pipeline so we have the loaded modules table for cross-file
-	// resolution. Same in-memory buffer as the M2/M3 path.
-	cfg := pipeline.Config{}
+	// resolution. Same in-memory buffer as the M2/M3 path; same LSP-tuned
+	// Config (MOD010 relaxed — see diagnostics.go).
 	srcBundle := pipeline.Source{Code: src, Filename: path}
-	result, _ := pipeline.Run(cfg, srcBundle)
+	result, _ := pipeline.Run(lspPipelineConfig(), srcBundle)
 
 	// 1. Same-file: walk root file's FuncDecls.
 	if loc, ok := s.findFuncInFile(path, src, id.Name); ok {
