@@ -420,9 +420,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// only, so $-Ovhd and Tok-Ovhd reflect the per-language frontier (not the
 	// pooled one). Failures on a language don't pollute the other language's
 	// numbers.
+	//
+	// AGENT-ONLY: standard 0-shot mode has no iteration loop, so its pass
+	// rates aren't comparable to agent runs. Filtering to EvalMode=="agent"
+	// keeps the language toggle apples-to-apples across harnesses.
 	resultsByLang := map[string][]*BenchmarkResult{}
 	for _, r := range results {
-		if r.Lang == "" {
+		if r.Lang == "" || r.EvalMode != "agent" {
 			continue
 		}
 		resultsByLang[r.Lang] = append(resultsByLang[r.Lang], r)

@@ -1,6 +1,6 @@
 {
   "version": "v0.20.0",
-  "timestamp": "2026-05-16T19:06:32+02:00",
+  "timestamp": "2026-05-16T19:21:37+02:00",
   "totalRuns": 406,
   "aggregates": {
     "agentBenchmarks": [
@@ -1970,72 +1970,6 @@
         "token_overhead_vs_best": 2.063106796116505,
         "total_runs": 68
       },
-      "sweet_spot_by_lang": {
-        "ailang": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 5,
-            "fast_pass": 29,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 24.958016793282688,
-          "dollars_per_pass": 0.2261825862068966,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 328,
-          "model": "claude-opus-4-7",
-          "p90_cost_per_success": 0.205405,
-          "pareto_frontier": false,
-          "pass_rate": 0.8529411764705882,
-          "speed_efficiency": 0.8483037824598079,
-          "token_overhead_vs_best": 17.91040318566451,
-          "total_runs": 34
-        },
-        "python": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 4,
-            "fast_pass": 30,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 24.245266730675294,
-          "dollars_per_pass": 0.013405166666666668,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 32,
-          "model": "claude-opus-4-7",
-          "p90_cost_per_success": 0.02637,
-          "pareto_frontier": true,
-          "pass_rate": 0.8823529411764706,
-          "speed_efficiency": 0.8818826037877838,
-          "token_overhead_vs_best": 1.5450308279506753,
-          "total_runs": 34
-        }
-      },
       "totalRuns": 68
     },
     "claude-sonnet-4-6": {
@@ -2270,13 +2204,13 @@
         "ailang": {
           "buckets": {
             "budget_blocked": 0,
-            "capability_blocked": 3,
-            "fast_pass": 8,
+            "capability_blocked": 0,
+            "fast_pass": 19,
             "provider_blocked": 0,
-            "slow_pass": 0
+            "slow_pass": 4
           },
-          "cost_overhead_vs_best": 3.0986972228239917,
-          "dollars_per_pass": 0.12332737499999999,
+          "cost_overhead_vs_best": 6.355452818840585,
+          "dollars_per_pass": 0.11760573913043476,
           "error_categories": {
             "api_error": 0,
             "cost_killed": 0,
@@ -2286,18 +2220,18 @@
             "timeout": 0
           },
           "finish_reasons": {
-            "": 11
+            "": 23
           },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 300,
+          "harness": "claude",
+          "median_tokens_per_sec": 57.45874280527078,
+          "median_tts_ms": 26928,
           "model": "claude-sonnet-4-6",
-          "p90_cost_per_success": 0.096834,
-          "pareto_frontier": true,
-          "pass_rate": 0.7272727272727273,
-          "speed_efficiency": 0.7236544549977387,
-          "token_overhead_vs_best": 1.1611759891229487,
-          "total_runs": 11
+          "p90_cost_per_success": 0.16527525,
+          "pareto_frontier": false,
+          "pass_rate": 1,
+          "speed_efficiency": 0.6902263942573164,
+          "token_overhead_vs_best": 1,
+          "total_runs": 23
         },
         "python": {
           "buckets": {
@@ -2307,7 +2241,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 99.6750295159386,
+          "cost_overhead_vs_best": 23.825507246376812,
           "dollars_per_pass": 0.05640163571428572,
           "error_categories": {
             "api_error": 0,
@@ -2325,10 +2259,10 @@
           "median_tts_ms": 15219,
           "model": "claude-sonnet-4-6",
           "p90_cost_per_success": 0.0572526,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.7283081228898572,
-          "token_overhead_vs_best": 1.6395833333333334,
+          "token_overhead_vs_best": 1,
           "total_runs": 23
         }
       },
@@ -2614,72 +2548,6 @@
         "token_overhead_vs_best": 2.2513195768653524,
         "total_runs": 68
       },
-      "sweet_spot_by_lang": {
-        "ailang": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 6,
-            "fast_pass": 22,
-            "provider_blocked": 6,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 7.298725699292492,
-          "dollars_per_pass": 0.06845927272727272,
-          "error_categories": {
-            "api_error": 6,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 319,
-          "model": "gemini-3-1-pro",
-          "p90_cost_per_success": 0.055994,
-          "pareto_frontier": false,
-          "pass_rate": 0.7857142857142857,
-          "speed_efficiency": 0.6436368210972448,
-          "token_overhead_vs_best": 16.65185620558129,
-          "total_runs": 34
-        },
-        "python": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 5,
-            "fast_pass": 28,
-            "provider_blocked": 1,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 9.302160169549662,
-          "dollars_per_pass": 0.005044357142857144,
-          "error_categories": {
-            "api_error": 1,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 40,
-          "model": "gemini-3-1-pro",
-          "p90_cost_per_success": 0.007496,
-          "pareto_frontier": false,
-          "pass_rate": 0.8484848484848485,
-          "speed_efficiency": 0.8229807579260885,
-          "token_overhead_vs_best": 1.1641149530021102,
-          "total_runs": 34
-        }
-      },
       "totalRuns": 68
     },
     "gemini-3-flash": {
@@ -2914,34 +2782,34 @@
         "ailang": {
           "buckets": {
             "budget_blocked": 0,
-            "capability_blocked": 4,
-            "fast_pass": 3,
-            "provider_blocked": 4,
-            "slow_pass": 0
+            "capability_blocked": 6,
+            "fast_pass": 2,
+            "provider_blocked": 0,
+            "slow_pass": 15
           },
-          "cost_overhead_vs_best": 1.8461398575964865,
-          "dollars_per_pass": 0.0328415,
+          "cost_overhead_vs_best": 14.510137194118444,
+          "dollars_per_pass": 0.2247246176470588,
           "error_categories": {
-            "api_error": 4,
+            "api_error": 0,
             "cost_killed": 0,
             "quota_exhausted": 0,
             "rate_limit": 0,
             "step_exhausted": 0,
-            "timeout": 0
+            "timeout": 4
           },
           "finish_reasons": {
-            "": 11
+            "": 23
           },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 394,
+          "harness": "gemini",
+          "median_tokens_per_sec": 48.0647303866734,
+          "median_tts_ms": 171565,
           "model": "gemini-3-flash",
-          "p90_cost_per_success": 0.013786,
-          "pareto_frontier": true,
-          "pass_rate": 0.42857142857142855,
-          "speed_efficiency": 0.27094804721721305,
-          "token_overhead_vs_best": 1.0921596759220187,
-          "total_runs": 11
+          "p90_cost_per_success": 0.2201415,
+          "pareto_frontier": false,
+          "pass_rate": 0.7391304347826086,
+          "speed_efficiency": 0.1915135106210201,
+          "token_overhead_vs_best": 191.3232217573222,
+          "total_runs": 23
         },
         "python": {
           "buckets": {
@@ -2951,7 +2819,7 @@
             "provider_blocked": 1,
             "slow_pass": 1
           },
-          "cost_overhead_vs_best": 95.13398294762484,
+          "cost_overhead_vs_best": 15.960101010101008,
           "dollars_per_pass": 0.08270450000000001,
           "error_categories": {
             "api_error": 1,
@@ -2972,7 +2840,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.7727272727272727,
           "speed_efficiency": 0.4494423610000356,
-          "token_overhead_vs_best": 123.38333333333334,
+          "token_overhead_vs_best": 79.88848920863309,
           "total_runs": 23
         }
       },
@@ -3214,7 +3082,7 @@
             "provider_blocked": 4,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 36.90331968696912,
+          "cost_overhead_vs_best": 20.084962116199826,
           "dollars_per_pass": 0.35547044117647053,
           "error_categories": {
             "api_error": 4,
@@ -3242,12 +3110,12 @@
           "buckets": {
             "budget_blocked": 0,
             "capability_blocked": 1,
-            "fast_pass": 10,
+            "fast_pass": 22,
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 1.9225142290454227,
-          "dollars_per_pass": 0.0017894999999999999,
+          "cost_overhead_vs_best": 76.49282036808978,
+          "dollars_per_pass": 0.17886357954545454,
           "error_categories": {
             "api_error": 0,
             "cost_killed": 0,
@@ -3257,18 +3125,18 @@
             "timeout": 0
           },
           "finish_reasons": {
-            "": 11
+            "": 23
           },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 34,
+          "harness": "codex",
+          "median_tokens_per_sec": 52.7538334079416,
+          "median_tts_ms": 27841.5,
           "model": "gpt5-4-mini",
-          "p90_cost_per_success": 0.0030434999999999998,
-          "pareto_frontier": true,
-          "pass_rate": 0.9090909090909091,
-          "speed_efficiency": 0.9085760493296223,
-          "token_overhead_vs_best": 1.020720703326125,
-          "total_runs": 11
+          "p90_cost_per_success": 0.1938425,
+          "pareto_frontier": false,
+          "pass_rate": 0.9565217391304348,
+          "speed_efficiency": 0.6533506867235429,
+          "token_overhead_vs_best": 136.03009755771336,
+          "total_runs": 23
         }
       },
       "totalRuns": 22
@@ -3554,72 +3422,6 @@
         "token_overhead_vs_best": 16.526688565800335,
         "total_runs": 68
       },
-      "sweet_spot_by_lang": {
-        "ailang": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 4,
-            "fast_pass": 30,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 16.67964479734392,
-          "dollars_per_pass": 0.145905,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 325.5,
-          "model": "gpt5-5",
-          "p90_cost_per_success": 0.13833,
-          "pareto_frontier": false,
-          "pass_rate": 0.8823529411764706,
-          "speed_efficiency": 0.8775920045517771,
-          "token_overhead_vs_best": 11.3343260623851,
-          "total_runs": 34
-        },
-        "python": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 6,
-            "fast_pass": 28,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 20.69727801731693,
-          "dollars_per_pass": 0.01204928571428571,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 33.5,
-          "model": "gpt5-5",
-          "p90_cost_per_success": 0.01843,
-          "pareto_frontier": false,
-          "pass_rate": 0.8235294117647058,
-          "speed_efficiency": 0.8230698644237359,
-          "token_overhead_vs_best": 1.0312793804864455,
-          "total_runs": 34
-        }
-      },
       "totalRuns": 68
     },
     "motoko-claude-haiku-4-5": {
@@ -3718,7 +3520,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 5.3801521453423256,
+          "cost_overhead_vs_best": 4.526834831902186,
           "dollars_per_pass": 0.090091,
           "error_categories": {
             "api_error": 0,
@@ -3736,7 +3538,7 @@
           "median_tts_ms": 20049,
           "model": "motoko-claude-haiku-4-5",
           "p90_cost_per_success": 0.14474,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.8695652173913043,
           "speed_efficiency": 0.6517747010390919,
           "token_overhead_vs_best": 139.76850435637616,
@@ -3750,7 +3552,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 27.314428690575483,
+          "cost_overhead_vs_best": 5.331632653061225,
           "dollars_per_pass": 0.01642142857142857,
           "error_categories": {
             "api_error": 0,
@@ -3768,10 +3570,10 @@
           "median_tts_ms": 15824,
           "model": "motoko-claude-haiku-4-5",
           "p90_cost_per_success": 0.01965,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.7224969494573245,
-          "token_overhead_vs_best": 64.81541389153188,
+          "token_overhead_vs_best": 40.440522875816995,
           "total_runs": 23
         }
       },
@@ -3874,7 +3676,7 @@
             "provider_blocked": 2,
             "slow_pass": 13
           },
-          "cost_overhead_vs_best": 7.893378621868673,
+          "cost_overhead_vs_best": 5.517913872561729,
           "dollars_per_pass": 0.14486823529411766,
           "error_categories": {
             "api_error": 2,
@@ -3907,7 +3709,7 @@
             "provider_blocked": 1,
             "slow_pass": 10
           },
-          "cost_overhead_vs_best": 5.000000000000001,
+          "cost_overhead_vs_best": 1,
           "dollars_per_pass": 0.0033357142857142856,
           "error_categories": {
             "api_error": 1,
@@ -3926,10 +3728,10 @@
           "median_tts_ms": 57758,
           "model": "motoko-gemma-4",
           "p90_cost_per_success": 0.00437,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9545454545454546,
           "speed_efficiency": 0.4652134776036632,
-          "token_overhead_vs_best": 43.14423076923077,
+          "token_overhead_vs_best": 21.923452768729643,
           "total_runs": 23
         }
       },
@@ -4031,7 +3833,7 @@
             "provider_blocked": 0,
             "slow_pass": 8
           },
-          "cost_overhead_vs_best": 9.099637268617961,
+          "cost_overhead_vs_best": 5.068837874224335,
           "dollars_per_pass": 0.08269090909090909,
           "error_categories": {
             "api_error": 0,
@@ -4063,7 +3865,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 27.087552578283226,
+          "cost_overhead_vs_best": 6.22289156626506,
           "dollars_per_pass": 0.016630952380952385,
           "error_categories": {
             "api_error": 0,
@@ -4084,7 +3886,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.5863053040621186,
-          "token_overhead_vs_best": 38.86388888888889,
+          "token_overhead_vs_best": 20.750204081632653,
           "total_runs": 23
         }
       },
@@ -4204,7 +4006,7 @@
           "median_tts_ms": 98169,
           "model": "opencode-or-glm-4-7-flash",
           "p90_cost_per_success": 0.01809017,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.391304347826087,
           "speed_efficiency": 0.14843781568806289,
           "token_overhead_vs_best": 30.95619711299154,
@@ -4218,7 +4020,7 @@
             "provider_blocked": 0,
             "slow_pass": 9
           },
-          "cost_overhead_vs_best": 10.058506087528793,
+          "cost_overhead_vs_best": 1.7154685990338165,
           "dollars_per_pass": 0.005067361333333334,
           "error_categories": {
             "api_error": 0,
@@ -4239,7 +4041,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.6521739130434783,
           "speed_efficiency": 0.23420459176318065,
-          "token_overhead_vs_best": 101.83082706766918,
+          "token_overhead_vs_best": 41.697257383966246,
           "total_runs": 23
         }
       },
@@ -4341,7 +4143,7 @@
             "provider_blocked": 0,
             "slow_pass": 6
           },
-          "cost_overhead_vs_best": 7.832822477424646,
+          "cost_overhead_vs_best": 4.521045909866581,
           "dollars_per_pass": 0.06783509454545456,
           "error_categories": {
             "api_error": 0,
@@ -4373,7 +4175,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 44.783421250941984,
+          "cost_overhead_vs_best": 10.491258620689655,
           "dollars_per_pass": 0.026748560000000005,
           "error_categories": {
             "api_error": 0,
@@ -4394,7 +4196,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.6086077421667111,
-          "token_overhead_vs_best": 54.595113438045374,
+          "token_overhead_vs_best": 32.55640243902439,
           "total_runs": 23
         }
       },
@@ -4496,7 +4298,7 @@
             "provider_blocked": 0,
             "slow_pass": 4
           },
-          "cost_overhead_vs_best": 1.683300119739993,
+          "cost_overhead_vs_best": 1,
           "dollars_per_pass": 0.020799430105263157,
           "error_categories": {
             "api_error": 0,
@@ -4514,7 +4316,7 @@
           "median_tts_ms": 37554,
           "model": "opencode-or-minimax-m2-7",
           "p90_cost_per_success": 0.033637367999999994,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.8260869565217391,
           "speed_efficiency": 0.5080798059669962,
           "token_overhead_vs_best": 39.920326864147086,
@@ -4528,7 +4330,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 13.61225604670559,
+          "cost_overhead_vs_best": 2.916428787878788,
           "dollars_per_pass": 0.008306217285714287,
           "error_categories": {
             "api_error": 0,
@@ -4546,10 +4348,10 @@
           "median_tts_ms": 32815,
           "model": "opencode-or-minimax-m2-7",
           "p90_cost_per_success": 0.010146873,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.5902344308102372,
-          "token_overhead_vs_best": 35.41,
+          "token_overhead_vs_best": 24.054517133956388,
           "total_runs": 23
         }
       },
@@ -4835,72 +4637,6 @@
         "token_overhead_vs_best": 1.3675366557428417,
         "total_runs": 68
       },
-      "sweet_spot_by_lang": {
-        "ailang": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 18,
-            "fast_pass": 16,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 1.9921915915416601,
-          "dollars_per_pass": 0.030444159999999998,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 310.5,
-          "model": "or-glm-5",
-          "p90_cost_per_success": 0.01510196,
-          "pareto_frontier": true,
-          "pass_rate": 0.47058823529411764,
-          "speed_efficiency": 0.46816547894060007,
-          "token_overhead_vs_best": 21.072880028101444,
-          "total_runs": 34
-        },
-        "python": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 10,
-            "fast_pass": 24,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 1.700447537741427,
-          "dollars_per_pass": 0.0010685666666666665,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 37.5,
-          "model": "or-glm-5",
-          "p90_cost_per_success": 0.0014447599999999998,
-          "pareto_frontier": false,
-          "pass_rate": 0.7058823529411765,
-          "speed_efficiency": 0.7054414520336554,
-          "token_overhead_vs_best": 1.1541590800120092,
-          "total_runs": 34
-        }
-      },
       "totalRuns": 68
     },
     "or-minimax-m2-7": {
@@ -5183,72 +4919,6 @@
         "token_overhead_vs_best": 2.8333333333333335,
         "total_runs": 68
       },
-      "sweet_spot_by_lang": {
-        "ailang": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 18,
-            "fast_pass": 16,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 1,
-          "dollars_per_pass": 0.015758306249999996,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 404.5,
-          "model": "or-minimax-m2-7",
-          "p90_cost_per_success": 0.007502999999999999,
-          "pareto_frontier": true,
-          "pass_rate": 0.47058823529411764,
-          "speed_efficiency": 0.467436931315499,
-          "token_overhead_vs_best": 21.072030360034326,
-          "total_runs": 34
-        },
-        "python": {
-          "buckets": {
-            "budget_blocked": 0,
-            "capability_blocked": 15,
-            "fast_pass": 19,
-            "provider_blocked": 0,
-            "slow_pass": 0
-          },
-          "cost_overhead_vs_best": 1,
-          "dollars_per_pass": 0.0006253578947368422,
-          "error_categories": {
-            "api_error": 0,
-            "cost_killed": 0,
-            "quota_exhausted": 0,
-            "rate_limit": 0,
-            "step_exhausted": 0,
-            "timeout": 0
-          },
-          "finish_reasons": {
-            "": 34
-          },
-          "harness": "",
-          "median_tokens_per_sec": 0,
-          "median_tts_ms": 36,
-          "model": "or-minimax-m2-7",
-          "p90_cost_per_success": 0.0007193999999999999,
-          "pareto_frontier": true,
-          "pass_rate": 0.5588235294117647,
-          "speed_efficiency": 0.5584884363499548,
-          "token_overhead_vs_best": 1.069611780455154,
-          "total_runs": 34
-        }
-      },
       "totalRuns": 68
     }
   },
@@ -5349,7 +5019,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 5.3801521453423256,
+          "cost_overhead_vs_best": 4.526834831902186,
           "dollars_per_pass": 0.090091,
           "error_categories": {
             "api_error": 0,
@@ -5367,7 +5037,7 @@
           "median_tts_ms": 20049,
           "model": "motoko-claude-haiku-4-5",
           "p90_cost_per_success": 0.14474,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.8695652173913043,
           "speed_efficiency": 0.6517747010390919,
           "token_overhead_vs_best": 139.76850435637616,
@@ -5381,7 +5051,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 27.314428690575483,
+          "cost_overhead_vs_best": 5.331632653061225,
           "dollars_per_pass": 0.01642142857142857,
           "error_categories": {
             "api_error": 0,
@@ -5399,10 +5069,10 @@
           "median_tts_ms": 15824,
           "model": "motoko-claude-haiku-4-5",
           "p90_cost_per_success": 0.01965,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.7224969494573245,
-          "token_overhead_vs_best": 64.81541389153188,
+          "token_overhead_vs_best": 40.440522875816995,
           "total_runs": 23
         }
       },
@@ -5505,7 +5175,7 @@
             "provider_blocked": 2,
             "slow_pass": 13
           },
-          "cost_overhead_vs_best": 7.893378621868673,
+          "cost_overhead_vs_best": 5.517913872561729,
           "dollars_per_pass": 0.14486823529411766,
           "error_categories": {
             "api_error": 2,
@@ -5538,7 +5208,7 @@
             "provider_blocked": 1,
             "slow_pass": 10
           },
-          "cost_overhead_vs_best": 5.000000000000001,
+          "cost_overhead_vs_best": 1,
           "dollars_per_pass": 0.0033357142857142856,
           "error_categories": {
             "api_error": 1,
@@ -5557,10 +5227,10 @@
           "median_tts_ms": 57758,
           "model": "motoko-gemma-4",
           "p90_cost_per_success": 0.00437,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9545454545454546,
           "speed_efficiency": 0.4652134776036632,
-          "token_overhead_vs_best": 43.14423076923077,
+          "token_overhead_vs_best": 21.923452768729643,
           "total_runs": 23
         }
       },
@@ -5662,7 +5332,7 @@
             "provider_blocked": 0,
             "slow_pass": 8
           },
-          "cost_overhead_vs_best": 9.099637268617961,
+          "cost_overhead_vs_best": 5.068837874224335,
           "dollars_per_pass": 0.08269090909090909,
           "error_categories": {
             "api_error": 0,
@@ -5694,7 +5364,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 27.087552578283226,
+          "cost_overhead_vs_best": 6.22289156626506,
           "dollars_per_pass": 0.016630952380952385,
           "error_categories": {
             "api_error": 0,
@@ -5715,7 +5385,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.5863053040621186,
-          "token_overhead_vs_best": 38.86388888888889,
+          "token_overhead_vs_best": 20.750204081632653,
           "total_runs": 23
         }
       },
@@ -5835,7 +5505,7 @@
           "median_tts_ms": 98169,
           "model": "opencode-or-glm-4-7-flash",
           "p90_cost_per_success": 0.01809017,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.391304347826087,
           "speed_efficiency": 0.14843781568806289,
           "token_overhead_vs_best": 30.95619711299154,
@@ -5849,7 +5519,7 @@
             "provider_blocked": 0,
             "slow_pass": 9
           },
-          "cost_overhead_vs_best": 10.058506087528793,
+          "cost_overhead_vs_best": 1.7154685990338165,
           "dollars_per_pass": 0.005067361333333334,
           "error_categories": {
             "api_error": 0,
@@ -5870,7 +5540,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.6521739130434783,
           "speed_efficiency": 0.23420459176318065,
-          "token_overhead_vs_best": 101.83082706766918,
+          "token_overhead_vs_best": 41.697257383966246,
           "total_runs": 23
         }
       },
@@ -5972,7 +5642,7 @@
             "provider_blocked": 0,
             "slow_pass": 6
           },
-          "cost_overhead_vs_best": 7.832822477424646,
+          "cost_overhead_vs_best": 4.521045909866581,
           "dollars_per_pass": 0.06783509454545456,
           "error_categories": {
             "api_error": 0,
@@ -6004,7 +5674,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
-          "cost_overhead_vs_best": 44.783421250941984,
+          "cost_overhead_vs_best": 10.491258620689655,
           "dollars_per_pass": 0.026748560000000005,
           "error_categories": {
             "api_error": 0,
@@ -6025,7 +5695,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.6086077421667111,
-          "token_overhead_vs_best": 54.595113438045374,
+          "token_overhead_vs_best": 32.55640243902439,
           "total_runs": 23
         }
       },
@@ -6127,7 +5797,7 @@
             "provider_blocked": 0,
             "slow_pass": 4
           },
-          "cost_overhead_vs_best": 1.683300119739993,
+          "cost_overhead_vs_best": 1,
           "dollars_per_pass": 0.020799430105263157,
           "error_categories": {
             "api_error": 0,
@@ -6145,7 +5815,7 @@
           "median_tts_ms": 37554,
           "model": "opencode-or-minimax-m2-7",
           "p90_cost_per_success": 0.033637367999999994,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.8260869565217391,
           "speed_efficiency": 0.5080798059669962,
           "token_overhead_vs_best": 39.920326864147086,
@@ -6159,7 +5829,7 @@
             "provider_blocked": 0,
             "slow_pass": 2
           },
-          "cost_overhead_vs_best": 13.61225604670559,
+          "cost_overhead_vs_best": 2.916428787878788,
           "dollars_per_pass": 0.008306217285714287,
           "error_categories": {
             "api_error": 0,
@@ -6177,10 +5847,10 @@
           "median_tts_ms": 32815,
           "model": "opencode-or-minimax-m2-7",
           "p90_cost_per_success": 0.010146873,
-          "pareto_frontier": false,
+          "pareto_frontier": true,
           "pass_rate": 0.9130434782608695,
           "speed_efficiency": 0.5902344308102372,
-          "token_overhead_vs_best": 35.41,
+          "token_overhead_vs_best": 24.054517133956388,
           "total_runs": 23
         }
       },
@@ -9752,7 +9422,7 @@
   "history": [
     {
       "version": "v0.20.0",
-      "timestamp": "2026-05-16T19:06:27+02:00",
+      "timestamp": "2026-05-16T19:21:33+02:00",
       "successRate": 0.6896551724137931,
       "totalRuns": 406,
       "successCount": 280,

@@ -163,10 +163,10 @@ export default function DollarsPerPassTable({ models }) {
       </div>
       {langView !== 'all' && (
         <p className={styles.sweetSpotHeadlineNote}>
-          Showing <strong>{langView}</strong> runs only. Pareto frontier, $-Ovhd, and Tok-Ovhd are
-          computed within the <strong>{langView}</strong>-only subset — a model can be on the frontier
-          for one language but dominated for another. <strong>claude-sonnet-4-6</strong> is the classic
-          example: frontier on Python, dominated on AILANG.
+          Showing <strong>{langView}</strong> <strong>agent-mode</strong> runs only (standard 0-shot
+          excluded, since it has no iteration loop and isn't comparable). Pareto frontier, $-Ovhd,
+          and Tok-Ovhd are computed within the <strong>{langView}</strong>-only subset — a model can
+          be on the frontier for one language but dominated for another.
         </p>
       )}
 
