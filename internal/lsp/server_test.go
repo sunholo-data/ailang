@@ -126,12 +126,12 @@ func TestUnsupportedRequestReturnsMethodNotFound(t *testing.T) {
 		t.Fatalf("initialized: %v", err)
 	}
 
-	// textDocument/hover is deferred to M3 — must error MethodNotFound.
-	hoverParams := &protocol.HoverParams{}
-	var hoverRes protocol.Hover
-	_, err := cliConn.Call(ctx, "textDocument/hover", hoverParams, &hoverRes)
+	// textDocument/definition is deferred to M4 — must error MethodNotFound.
+	defParams := &protocol.DefinitionParams{}
+	var defRes []protocol.Location
+	_, err := cliConn.Call(ctx, "textDocument/definition", defParams, &defRes)
 	if err == nil {
-		t.Fatal("textDocument/hover returned no error in M1; want MethodNotFound")
+		t.Fatal("textDocument/definition returned no error pre-M4; want MethodNotFound")
 	}
 
 	// Clean up so the test goroutine exits.
@@ -175,8 +175,13 @@ func assertCapabilities(t *testing.T, caps protocol.ServerCapabilities) {
 	default:
 		t.Fatalf("TextDocumentSync must be *TextDocumentSyncOptions or map (after JSON), got %T", caps.TextDocumentSync)
 	}
-	if caps.HoverProvider != nil {
-		t.Errorf("HoverProvider must stay nil until M3, got %v", caps.HoverProvider)
+	switch v := caps.HoverProvider.(type) {
+	case bool:
+		if !v {
+			t.Error("HoverProvider must be true after M3")
+		}
+	case nil:
+		t.Error("HoverProvider must be advertised after M3")
 	}
 	if caps.DefinitionProvider != nil {
 		t.Errorf("DefinitionProvider must stay nil until M4, got %v", caps.DefinitionProvider)

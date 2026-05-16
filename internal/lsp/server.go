@@ -36,6 +36,10 @@ type Server struct {
 	// pipeline with the in-memory buffer rather than re-reading the file.
 	docs sync.Map // map[protocol.DocumentURI]string
 
+	// indexes caches the most recent PositionIndex per file path so hover/
+	// definition/references handlers don't re-parse the file every request.
+	indexes *indexCache
+
 	// Lifecycle state guarded by atomics so test clients can race against
 	// shutdown without us needing a mutex on the hot path.
 	initialized   atomic.Bool
@@ -50,8 +54,9 @@ func NewServer(logger *zap.Logger) *Server {
 		logger = zap.NewNop()
 	}
 	return &Server{
-		logger: logger,
-		exitCh: make(chan struct{}),
+		logger:  logger,
+		exitCh:  make(chan struct{}),
+		indexes: newIndexCache(),
 	}
 }
 
@@ -94,6 +99,8 @@ func (s *Server) Initialize(_ context.Context, _ *protocol.InitializeParams) (*p
 				Change:    protocol.TextDocumentSyncKindFull,
 				Save:      &protocol.SaveOptions{IncludeText: true},
 			},
+			// M3: hover answers for top-level identifiers (locals deferred).
+			HoverProvider: true,
 		},
 		ServerInfo: &protocol.ServerInfo{
 			Name:    ServerName,
