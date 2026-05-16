@@ -72,8 +72,12 @@ func TestRunPythonSolution_WiresStdin(t *testing.T) {
 	if !result.RuntimeOk {
 		t.Errorf("RuntimeOk = false, want true; stderr: %q\nstdout: %q", result.Stderr, result.Stdout)
 	}
-	if !result.StdoutOk {
-		t.Errorf("StdoutOk = false (stdin was NOT piped)\n  expected: %q\n  got:      %q",
+	// Normalize CRLF→LF: Python's print() emits \r\n on Windows. The bug we're
+	// regression-testing is "stdin reaches the subprocess and is processed" —
+	// line-ending discipline is orthogonal and would only mask the wiring bug.
+	gotNormalized := strings.ReplaceAll(result.Stdout, "\r\n", "\n")
+	if gotNormalized != spec.ExpectedOut {
+		t.Errorf("stdout mismatch (stdin may not have been piped)\n  expected: %q\n  got:      %q",
 			spec.ExpectedOut, result.Stdout)
 	}
 }
@@ -104,6 +108,3 @@ func TestRunPythonSolution_NoSpecInputsIsBenign(t *testing.T) {
 			spec.ExpectedOut, result.Stdout, result.Stderr)
 	}
 }
-
-// ensure strings stays imported in this file if it ever needs trimming.
-var _ = strings.TrimSpace
