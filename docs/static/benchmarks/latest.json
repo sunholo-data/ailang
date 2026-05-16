@@ -1,6 +1,6 @@
 {
   "version": "0.20.0",
-  "timestamp": "2026-05-16T17:45:14+02:00",
+  "timestamp": "2026-05-16T18:56:21+02:00",
   "totalRuns": 406,
   "aggregates": {
     "agentBenchmarks": [
@@ -47,12 +47,12 @@
       "opencode-or-minimax-m2-7"
     ],
     "agentRuns": 414,
-    "agentSuccessRate": 0.7439613526570048,
-    "agentTotalTokens": 35213212,
+    "agentSuccessRate": 0.8285024154589372,
+    "agentTotalTokens": 59448698,
     "apiErrorCount": 18,
     "apiErrorRate": 0.04433497536945813,
-    "avgAgentCost": 0.06337795102657005,
-    "avgAgentTurns": 4.369565217391305,
+    "avgAgentCost": 0.06930350658212563,
+    "avgAgentTurns": 6.021739130434782,
     "avgDurationMs": 204.38177339901478,
     "finalSuccess": 0.6896551724137931,
     "refusalCount": 0,
@@ -1946,6 +1946,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 46.4423076923077,
         "dollars_per_pass": 0.11799067796610173,
         "error_categories": {
           "api_error": 0,
@@ -1966,6 +1967,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.8676470588235294,
         "speed_efficiency": 0.8667802785449845,
+        "token_overhead_vs_best": 2.063106796116505,
         "total_runs": 68
       },
       "totalRuns": 68
@@ -2108,6 +2110,7 @@
           "provider_blocked": 0,
           "slow_pass": 1
         },
+        "cost_overhead_vs_best": 151.27412103084612,
         "dollars_per_pass": 0.08839468977272726,
         "error_categories": {
           "api_error": 0,
@@ -2128,6 +2131,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9565217391304348,
         "speed_efficiency": 0.723190387265713,
+        "token_overhead_vs_best": 1.8623832866479924,
         "total_runs": 46
       },
       "sweet_spot_by_harness": {
@@ -2139,6 +2143,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
+          "cost_overhead_vs_best": 21.124974192124505,
           "dollars_per_pass": 0.066683625,
           "error_categories": {
             "api_error": 0,
@@ -2159,6 +2164,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.7272727272727273,
           "speed_efficiency": 0.7266066711574996,
+          "token_overhead_vs_best": 10.53579776749113,
           "total_runs": 22
         },
         "claude": {
@@ -2169,6 +2175,7 @@
             "provider_blocked": 0,
             "slow_pass": 1
           },
+          "cost_overhead_vs_best": 151.27412103084612,
           "dollars_per_pass": 0.08839468977272726,
           "error_categories": {
             "api_error": 0,
@@ -2189,6 +2196,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9565217391304348,
           "speed_efficiency": 0.723190387265713,
+          "token_overhead_vs_best": 1.8623832866479924,
           "total_runs": 46
         }
       },
@@ -2450,6 +2458,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 13.32684134775318,
         "dollars_per_pass": 0.03294692,
         "error_categories": {
           "api_error": 7,
@@ -2470,6 +2479,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.819672131147541,
         "speed_efficiency": 0.7347797718067942,
+        "token_overhead_vs_best": 2.2513195768653524,
         "total_runs": 68
       },
       "totalRuns": 68
@@ -2612,6 +2622,7 @@
           "provider_blocked": 0,
           "slow_pass": 16
         },
+        "cost_overhead_vs_best": 146.73287700318158,
         "dollars_per_pass": 0.15371455882352938,
         "error_categories": {
           "api_error": 1,
@@ -2632,6 +2643,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.7555555555555555,
         "speed_efficiency": 0.3742353628569568,
+        "token_overhead_vs_best": 313.9209072739386,
         "total_runs": 46
       },
       "sweet_spot_by_harness": {
@@ -2643,6 +2655,7 @@
             "provider_blocked": 3,
             "slow_pass": 0
           },
+          "cost_overhead_vs_best": 4.35483870967742,
           "dollars_per_pass": 0.015026428571428569,
           "error_categories": {
             "api_error": 8,
@@ -2663,6 +2676,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.5,
           "speed_efficiency": 0.3177898773331073,
+          "token_overhead_vs_best": 1.2480376766091053,
           "total_runs": 22
         },
         "gemini": {
@@ -2673,6 +2687,7 @@
             "provider_blocked": 0,
             "slow_pass": 16
           },
+          "cost_overhead_vs_best": 146.73287700318158,
           "dollars_per_pass": 0.15371455882352938,
           "error_categories": {
             "api_error": 1,
@@ -2693,6 +2708,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.7555555555555555,
           "speed_efficiency": 0.3742353628569568,
+          "token_overhead_vs_best": 313.9209072739386,
           "total_runs": 46
         }
       },
@@ -2835,6 +2851,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 540.736044606855,
         "dollars_per_pass": 0.2558460576923077,
         "error_categories": {
           "api_error": 4,
@@ -2855,6 +2872,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9285714285714286,
         "speed_efficiency": 0.5640329221677954,
+        "token_overhead_vs_best": 350.968992248062,
         "total_runs": 46
       },
       "sweet_spot_by_harness": {
@@ -2866,6 +2884,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
+          "cost_overhead_vs_best": 3.4797297297297303,
           "dollars_per_pass": 0.011259149999999999,
           "error_categories": {
             "api_error": 3,
@@ -2886,6 +2905,7 @@
           "pareto_frontier": true,
           "pass_rate": 0.7894736842105263,
           "speed_efficiency": 0.6813639391920537,
+          "token_overhead_vs_best": 1.0818181818181818,
           "total_runs": 22
         },
         "codex": {
@@ -2896,6 +2916,7 @@
             "provider_blocked": 0,
             "slow_pass": 0
           },
+          "cost_overhead_vs_best": 540.736044606855,
           "dollars_per_pass": 0.2558460576923077,
           "error_categories": {
             "api_error": 4,
@@ -2916,6 +2937,7 @@
           "pareto_frontier": false,
           "pass_rate": 0.9285714285714286,
           "speed_efficiency": 0.5640329221677954,
+          "token_overhead_vs_best": 350.968992248062,
           "total_runs": 46
         }
       },
@@ -3178,6 +3200,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 38.46347039214101,
         "dollars_per_pass": 0.08128500000000001,
         "error_categories": {
           "api_error": 0,
@@ -3198,6 +3221,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.8529411764705882,
         "speed_efficiency": 0.8506939266809393,
+        "token_overhead_vs_best": 16.526688565800335,
         "total_runs": 68
       },
       "totalRuns": 68
@@ -3265,6 +3289,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 37.608695652173914,
         "dollars_per_pass": 0.05235780487804878,
         "error_categories": {
           "api_error": 0,
@@ -3285,58 +3310,61 @@
         "pareto_frontier": false,
         "pass_rate": 0.8913043478260869,
         "speed_efficiency": 0.6842502286397105,
+        "token_overhead_vs_best": 150.79053529868114,
         "total_runs": 46
       },
       "totalRuns": 46
     },
     "motoko-gemma-4": {
       "agentStats": {
-        "apiErrorRate": 1,
-        "apiErrors": 46,
-        "avgCost": 0,
-        "avgTokens": 0,
-        "avgTurns": 0,
+        "apiErrorRate": 0.17391304347826086,
+        "apiErrors": 8,
+        "avgCost": 0.05333000000000001,
+        "avgTokens": 526858.3913043478,
+        "avgTurns": 14.869565217391305,
         "runs": 46,
-        "successRate": 0
+        "successRate": 0.7608695652173914
       },
       "agent_cli": "motoko",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0,
-        "totalCostUSD": 0,
+        "finalSuccess": 0.7608695652173914,
+        "totalCostUSD": 2.4531800000000006,
         "totalRuns": 46,
-        "totalTokens": 0
+        "totalTokens": 24235486
       },
       "efficiency": {
         "median_time_to_first_attempt_ms": 0,
-        "median_time_to_success_ms": 0,
-        "median_turns_to_success": 0,
+        "median_time_to_success_ms": 75900,
+        "median_turns_to_success": 7,
         "median_tokens_per_sec": 0,
-        "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0,
+        "p90_cost_per_success": 0.1442,
+        "speed_efficiency_score": 0.3359247528553604,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 1,
-          "agentApiErrors": 23,
+          "agentApiErrorRate": 0.13043478260869565,
+          "agentApiErrors": 3,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0,
-          "avgCost": 0,
-          "avgTokens": 0,
-          "successRate": 0,
+          "agentSuccessRate": 0.7391304347826086,
+          "agentSuccessRateAdjusted": 0.85,
+          "avgCost": 0.10395391304347829,
+          "avgTokens": 5813.304347826087,
+          "successRate": 0.7391304347826086,
           "totalRuns": 23
         },
         "python": {
-          "agentApiErrorRate": 1,
-          "agentApiErrors": 23,
+          "agentApiErrorRate": 0.21739130434782608,
+          "agentApiErrors": 5,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0,
-          "avgCost": 0,
-          "avgTokens": 0,
-          "successRate": 0,
+          "agentSuccessRate": 0.782608695652174,
+          "agentSuccessRateAdjusted": 1,
+          "avgCost": 0.0027060869565217393,
+          "avgTokens": 1376.695652173913,
+          "successRate": 0.782608695652174,
           "totalRuns": 23
         }
       },
@@ -3345,14 +3373,15 @@
       "sweet_spot": {
         "buckets": {
           "budget_blocked": 0,
-          "capability_blocked": 0,
-          "fast_pass": 0,
-          "provider_blocked": 23,
-          "slow_pass": 0
+          "capability_blocked": 1,
+          "fast_pass": 4,
+          "provider_blocked": 1,
+          "slow_pass": 17
         },
-        "dollars_per_pass": 0,
+        "cost_overhead_vs_best": 20.920211287183765,
+        "dollars_per_pass": 0.07009085714285716,
         "error_categories": {
-          "api_error": 46,
+          "api_error": 8,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -3360,16 +3389,18 @@
           "timeout": 0
         },
         "finish_reasons": {
-          "": 46
+          "": 8,
+          "stop": 38
         },
         "harness": "motoko",
         "median_tokens_per_sec": 0,
-        "median_tts_ms": 0,
+        "median_tts_ms": 75900,
         "model": "motoko-gemma-4",
-        "p90_cost_per_success": 0,
+        "p90_cost_per_success": 0.1442,
         "pareto_frontier": false,
-        "pass_rate": 0,
-        "speed_efficiency": 0,
+        "pass_rate": 0.9210526315789473,
+        "speed_efficiency": 0.3359247528553604,
+        "token_overhead_vs_best": 172.17241379310346,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -3437,6 +3468,7 @@
           "provider_blocked": 0,
           "slow_pass": 5
         },
+        "cost_overhead_vs_best": 62.72401433691757,
         "dollars_per_pass": 0.050429069767441874,
         "error_categories": {
           "api_error": 0,
@@ -3457,6 +3489,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9347826086956522,
         "speed_efficiency": 0.5639770789222529,
+        "token_overhead_vs_best": 81.67445365486059,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -3524,6 +3557,7 @@
           "provider_blocked": 0,
           "slow_pass": 12
         },
+        "cost_overhead_vs_best": 12.206155185408186,
         "dollars_per_pass": 0.008582606250000001,
         "error_categories": {
           "api_error": 0,
@@ -3544,6 +3578,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.5217391304347826,
         "speed_efficiency": 0.19672370333464437,
+        "token_overhead_vs_best": 128.89244701952188,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -3611,6 +3646,7 @@
           "provider_blocked": 0,
           "slow_pass": 4
         },
+        "cost_overhead_vs_best": 84.42598984771574,
         "dollars_per_pass": 0.047769577674418605,
         "error_categories": {
           "api_error": 0,
@@ -3631,6 +3667,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9347826086956522,
         "speed_efficiency": 0.5673314706683034,
+        "token_overhead_vs_best": 90.92548076923077,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -3698,6 +3735,7 @@
           "provider_blocked": 0,
           "slow_pass": 5
         },
+        "cost_overhead_vs_best": 29.634134591407065,
         "dollars_per_pass": 0.014240493375000001,
         "error_categories": {
           "api_error": 0,
@@ -3718,6 +3756,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.8695652173913043,
         "speed_efficiency": 0.5422243670208295,
+        "token_overhead_vs_best": 71.67782065133508,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -3978,6 +4017,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 2.833145518673601,
         "dollars_per_pass": 0.012818804,
         "error_categories": {
           "api_error": 0,
@@ -3998,6 +4038,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.5882352941176471,
         "speed_efficiency": 0.5877308251593852,
+        "token_overhead_vs_best": 1.3675366557428417,
         "total_runs": 68
       },
       "totalRuns": 68
@@ -4258,6 +4299,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 1,
         "dollars_per_pass": 0.0075432771428571395,
         "error_categories": {
           "api_error": 0,
@@ -4278,6 +4320,7 @@
         "pareto_frontier": true,
         "pass_rate": 0.5147058823529411,
         "speed_efficiency": 0.5143115768107196,
+        "token_overhead_vs_best": 2.8333333333333335,
         "total_runs": 68
       },
       "totalRuns": 68
@@ -4347,6 +4390,7 @@
           "provider_blocked": 0,
           "slow_pass": 0
         },
+        "cost_overhead_vs_best": 37.608695652173914,
         "dollars_per_pass": 0.05235780487804878,
         "error_categories": {
           "api_error": 0,
@@ -4367,58 +4411,61 @@
         "pareto_frontier": false,
         "pass_rate": 0.8913043478260869,
         "speed_efficiency": 0.6842502286397105,
+        "token_overhead_vs_best": 150.79053529868114,
         "total_runs": 46
       },
       "totalRuns": 46
     },
     "motoko-gemma-4": {
       "agentStats": {
-        "apiErrorRate": 1,
-        "apiErrors": 46,
-        "avgCost": 0,
-        "avgTokens": 0,
-        "avgTurns": 0,
+        "apiErrorRate": 0.17391304347826086,
+        "apiErrors": 8,
+        "avgCost": 0.05333000000000001,
+        "avgTokens": 526858.3913043478,
+        "avgTurns": 14.869565217391305,
         "runs": 46,
-        "successRate": 0
+        "successRate": 0.7608695652173914
       },
       "agent_cli": "motoko",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0,
-        "totalCostUSD": 0,
+        "finalSuccess": 0.7608695652173914,
+        "totalCostUSD": 2.4531800000000006,
         "totalRuns": 46,
-        "totalTokens": 0
+        "totalTokens": 24235486
       },
       "efficiency": {
         "median_time_to_first_attempt_ms": 0,
-        "median_time_to_success_ms": 0,
-        "median_turns_to_success": 0,
+        "median_time_to_success_ms": 75900,
+        "median_turns_to_success": 7,
         "median_tokens_per_sec": 0,
-        "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0,
+        "p90_cost_per_success": 0.1442,
+        "speed_efficiency_score": 0.3359247528553604,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 1,
-          "agentApiErrors": 23,
+          "agentApiErrorRate": 0.13043478260869565,
+          "agentApiErrors": 3,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0,
-          "avgCost": 0,
-          "avgTokens": 0,
-          "successRate": 0,
+          "agentSuccessRate": 0.7391304347826086,
+          "agentSuccessRateAdjusted": 0.85,
+          "avgCost": 0.10395391304347829,
+          "avgTokens": 5813.304347826087,
+          "successRate": 0.7391304347826086,
           "totalRuns": 23
         },
         "python": {
-          "agentApiErrorRate": 1,
-          "agentApiErrors": 23,
+          "agentApiErrorRate": 0.21739130434782608,
+          "agentApiErrors": 5,
           "agentOnly": true,
           "agentRuns": 23,
-          "agentSuccessRate": 0,
-          "avgCost": 0,
-          "avgTokens": 0,
-          "successRate": 0,
+          "agentSuccessRate": 0.782608695652174,
+          "agentSuccessRateAdjusted": 1,
+          "avgCost": 0.0027060869565217393,
+          "avgTokens": 1376.695652173913,
+          "successRate": 0.782608695652174,
           "totalRuns": 23
         }
       },
@@ -4427,14 +4474,15 @@
       "sweet_spot": {
         "buckets": {
           "budget_blocked": 0,
-          "capability_blocked": 0,
-          "fast_pass": 0,
-          "provider_blocked": 23,
-          "slow_pass": 0
+          "capability_blocked": 1,
+          "fast_pass": 4,
+          "provider_blocked": 1,
+          "slow_pass": 17
         },
-        "dollars_per_pass": 0,
+        "cost_overhead_vs_best": 20.920211287183765,
+        "dollars_per_pass": 0.07009085714285716,
         "error_categories": {
-          "api_error": 46,
+          "api_error": 8,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -4442,16 +4490,18 @@
           "timeout": 0
         },
         "finish_reasons": {
-          "": 46
+          "": 8,
+          "stop": 38
         },
         "harness": "motoko",
         "median_tokens_per_sec": 0,
-        "median_tts_ms": 0,
+        "median_tts_ms": 75900,
         "model": "motoko-gemma-4",
-        "p90_cost_per_success": 0,
+        "p90_cost_per_success": 0.1442,
         "pareto_frontier": false,
-        "pass_rate": 0,
-        "speed_efficiency": 0,
+        "pass_rate": 0.9210526315789473,
+        "speed_efficiency": 0.3359247528553604,
+        "token_overhead_vs_best": 172.17241379310346,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -4519,6 +4569,7 @@
           "provider_blocked": 0,
           "slow_pass": 5
         },
+        "cost_overhead_vs_best": 62.72401433691757,
         "dollars_per_pass": 0.050429069767441874,
         "error_categories": {
           "api_error": 0,
@@ -4539,6 +4590,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9347826086956522,
         "speed_efficiency": 0.5639770789222529,
+        "token_overhead_vs_best": 81.67445365486059,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -4606,6 +4658,7 @@
           "provider_blocked": 0,
           "slow_pass": 12
         },
+        "cost_overhead_vs_best": 12.206155185408186,
         "dollars_per_pass": 0.008582606250000001,
         "error_categories": {
           "api_error": 0,
@@ -4626,6 +4679,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.5217391304347826,
         "speed_efficiency": 0.19672370333464437,
+        "token_overhead_vs_best": 128.89244701952188,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -4693,6 +4747,7 @@
           "provider_blocked": 0,
           "slow_pass": 4
         },
+        "cost_overhead_vs_best": 84.42598984771574,
         "dollars_per_pass": 0.047769577674418605,
         "error_categories": {
           "api_error": 0,
@@ -4713,6 +4768,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.9347826086956522,
         "speed_efficiency": 0.5673314706683034,
+        "token_overhead_vs_best": 90.92548076923077,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -4780,6 +4836,7 @@
           "provider_blocked": 0,
           "slow_pass": 5
         },
+        "cost_overhead_vs_best": 29.634134591407065,
         "dollars_per_pass": 0.014240493375000001,
         "error_categories": {
           "api_error": 0,
@@ -4800,6 +4857,7 @@
         "pareto_frontier": false,
         "pass_rate": 0.8695652173913043,
         "speed_efficiency": 0.5422243670208295,
+        "token_overhead_vs_best": 71.67782065133508,
         "total_runs": 46
       },
       "totalRuns": 46
@@ -4809,10 +4867,10 @@
     "api_call_json": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 99041.77777777778,
-          "avgTurns": 3.2222222222222223,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 138862,
+          "avgTurns": 4.555555555555555,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -4833,10 +4891,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -4846,13 +4904,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 112842.22222222222,
-          "avgTurns": 5.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 116966.11111111111,
+          "avgTurns": 5.888888888888889,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -4873,10 +4931,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -4886,23 +4944,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 167,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/net (httpRequest)\nimport std/json (encode, jo, kv, js, jnum)\nimport std/result (Ok, Err)\n\nexport func main() -\u003e () ! {IO, Net} {\n  let url = \"https://httpbin.org/post\";\n  let headers = [\n    {name: \"X-Test-Header\", value: \"value123\"},\n    {name: \"Content-Type\", value: \"application/json\"}\n  ];\n  let body = encode(jo([\n    kv(\"message\", js(\"Hello from AILANG\")),\n    kv(\"count\", jnum(42.0))\n  ]));\n  match httpRequest(\"POST\", url, headers, body) {\n    Ok(resp) =\u003e println(show(resp.status)),\n    Err(_) =\u003e ()\n  }\n}",
-        "python": "import json\nimport urllib.request\n\ndef main():\n    url = \"https://httpbin.org/post\"\n    headers = {\n        \"X-Test-Header\": \"value123\",\n        \"Content-Type\": \"application/json\"\n    }\n    data = {\"message\": \"Hello from Python\", \"count\": 42}\n    \n    req = urllib.request.Request(\n        url,\n        data=json.dumps(data).encode(\"utf-8\"),\n        headers=headers,\n        method=\"POST\"\n    )\n    \n    with urllib.request.urlopen(req) as response:\n        print(response.status)\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "import urllib.request\nimport json\nimport urllib.error\n\ndef main():\n    url = \"https://httpbin.org/post\"\n    payload = {\"message\": \"Hello from Python\", \"count\": 42}\n    headers = {\n        \"X-Test-Header\": \"value123\",\n        \"Content-Type\": \"application/json\"\n    }\n    \n    data = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(url, data=data, headers=headers, method=\"POST\")\n    \n    try:\n        with urllib.request.urlopen(req) as response:\n            print(response.getcode())\n    except urllib.error.HTTPError as e:\n        print(e.code)\n    except Exception as e:\n        raise e\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 552.7142857142857,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 684.5714285714286,
+          "successRate": 1,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 562.4999999999999,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 680,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -4922,10 +4980,10 @@
     "cli_args": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 193102.55555555556,
-          "avgTurns": 8.11111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 304516,
+          "avgTurns": 11.666666666666666,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -4946,8 +5004,8 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0
             },
@@ -5009,7 +5067,7 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 975.9285714285714,
+          "avgTokens": 1240.642857142857,
           "successRate": 0.6428571428571429,
           "totalRuns": 14
         },
@@ -5075,10 +5133,10 @@
           "successRate": 0.2222222222222222
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 26668.88888888889,
-          "avgTurns": 2.6666666666666665,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 28554.11111111111,
+          "avgTurns": 3.111111111111111,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5099,10 +5157,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5112,13 +5170,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.6666666666666666
+          "successRate": 0.7777777777777778
         }
       },
       "avgTokens": 403.2,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/io (println)\nimport std/fs (writeFile, readFile)\nimport std/json (encode, decode, jo, ja, kv, js, jnum, getString, getInt, getArray)\nimport std/string (chars)\nimport std/list (filter, length)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\n\npure func countDots(s: string) -\u003e int {\n  let cs = chars(s);\n  length(filter(\\c. c == \".\", cs))\n}\n\nfunc loadAndValidate(path: string) -\u003e () ! {IO, FS} {\n  let content = readFile(path);\n  match decode(content) {\n    Ok(json) =\u003e {\n      match getString(json, \"app_name\") {\n        Some(name) =\u003e match getString(json, \"version\") {\n          Some(version) =\u003e match getInt(json, \"port\") {\n            Some(port) =\u003e match getArray(json, \"features\") {\n              Some(features) =\u003e {\n                let featCount = length(features);\n                if port \u003c 1024 || port \u003e 65535 then\n                  println(\"Error: port out of range\")\n                else if countDots(version) != 2 then\n                  println(\"Error: invalid version format\")\n                else if featCount == 0 then\n                  println(\"Error: features list is empty\")\n                else\n                  println(\"Loaded ${name} v${version} on port ${show(port)} with ${show(featCount)} features\")\n              },\n              None =\u003e println(\"Error: missing features\")\n            },\n            None =\u003e println(\"Error: missing port\")\n          },\n          None =\u003e println(\"Error: missing version\")\n        },\n        None =\u003e println(\"Error: missing app_name\")\n      }\n    },\n    Err(msg) =\u003e println(\"Parse error: ${msg}\")\n  }\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  let configJson = encode(jo([\n    kv(\"app_name\", js(\"MyApp\")),\n    kv(\"version\", js(\"1.0.0\")),\n    kv(\"port\", jnum(8080.0)),\n    kv(\"features\", ja([js(\"logging\"), js(\"auth\"), js(\"api\")]))\n  ]));\n  writeFile(\"app_config.json\", configJson);\n  loadAndValidate(\"app_config.json\")\n}",
-        "python": "import json\nfrom pathlib import Path\n\n\ndef create_config():\n    config = {\n        \"app_name\": \"MyApp\",\n        \"version\": \"1.0.0\",\n        \"port\": 8080,\n        \"features\": [\"logging\", \"auth\", \"api\"]\n    }\n    with open(\"app_config.json\", \"w\") as f:\n        json.dump(config, f)\n\n\ndef load_and_validate_config():\n    with open(\"app_config.json\") as f:\n        config = json.load(f)\n\n    port = config[\"port\"]\n    if not (1024 \u003c= port \u003c= 65535):\n        raise ValueError(f\"Port {port} must be between 1024 and 65535\")\n\n    version = config[\"version\"]\n    parts = version.split(\".\")\n    if len(parts) != 3:\n        raise ValueError(f\"Version {version} must have exactly two dots (X.Y.Z format)\")\n\n    features = config[\"features\"]\n    if not features:\n        raise ValueError(\"Features list must not be empty\")\n\n    return config\n\n\ndef main():\n    create_config()\n    config = load_and_validate_config()\n    count = len(config[\"features\"])\n    print(f\"Loaded {config['app_name']} v{config['version']} on port {config['port']} with {count} features\")\n\n\nif __name__ == \"__main__\":\n    main()"
+        "python": "import json\nfrom pathlib import Path\n\ndef create_config_file(file_path: Path) -\u003e None:\n    config_data = {\n        \"app_name\": \"MyApp\",\n        \"version\": \"1.0.0\",\n        \"port\": 8080,\n        \"features\": [\"logging\", \"auth\", \"api\"]\n    }\n    with open(file_path, \"w\") as f:\n        json.dump(config_data, f)\n\ndef load_and_validate_config(file_path: Path) -\u003e dict:\n    with open(file_path, \"r\") as f:\n        config = json.load(f)\n    \n    # Validate port\n    port = config.get(\"port\")\n    if not isinstance(port, int) or not (1024 \u003c= port \u003c= 65535):\n        raise ValueError(\"Invalid port number\")\n    \n    # Validate version\n    version = config.get(\"version\")\n    if not isinstance(version, str) or version.count(\".\") != 2:\n        raise ValueError(\"Invalid version format\")\n    \n    # Validate features\n    features = config.get(\"features\")\n    if not isinstance(features, list) or len(features) == 0:\n        raise ValueError(\"Features list cannot be empty\")\n        \n    return config\n\ndef main():\n    config_path = Path(\"app_config.json\")\n    try:\n        create_config_file(config_path)\n        config = load_and_validate_config(config_path)\n        \n        app_name = config[\"app_name\"]\n        version = config[\"version\"]\n        port = config[\"port\"]\n        count = len(config[\"features\"])\n        \n        print(f\"Loaded {app_name} v{version} on port {port} with {count} features\")\n    except Exception as e:\n        print(f\"Error: {e}\")\n    finally:\n        if config_path.exists():\n            config_path.unlink()\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
@@ -5127,8 +5185,8 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 668.4285714285714,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 767.8571428571429,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         }
       },
@@ -5149,10 +5207,10 @@
     "contract_bst_validate": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 98141.55555555556,
-          "avgTurns": 3.2222222222222223,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 132442.77777777778,
+          "avgTurns": 4.222222222222222,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5173,10 +5231,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5186,7 +5244,7 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         },
         "python": {
           "apiErrorRate": 0.1111111111111111,
@@ -5236,8 +5294,8 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1045.4285714285713,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 1270,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         },
         "python": {
@@ -5327,10 +5385,10 @@
     "contract_roman_numeral": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 192846.33333333334,
-          "avgTurns": 7.666666666666667,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 275915.22222222225,
+          "avgTurns": 9.666666666666666,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5351,8 +5409,8 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
             },
@@ -5367,10 +5425,10 @@
           "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 33760,
-          "avgTurns": 2.888888888888889,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 49928.88888888889,
+          "avgTurns": 4.222222222222222,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5391,10 +5449,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5404,23 +5462,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 472.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/string (length as strLength, substring, repeat)\n\npure func validRange(n: int) -\u003e bool =\n  n \u003e= 1 \u0026\u0026 n \u003c= 3999\n\npure func digitRoman(d: int, one: string, five: string, ten: string) -\u003e string =\n  match d {\n    0 =\u003e \"\",\n    1 =\u003e one,\n    2 =\u003e \"${one}${one}\",\n    3 =\u003e \"${one}${one}${one}\",\n    4 =\u003e \"${one}${five}\",\n    5 =\u003e five,\n    6 =\u003e \"${five}${one}\",\n    7 =\u003e \"${five}${one}${one}\",\n    8 =\u003e \"${five}${one}${one}${one}\",\n    9 =\u003e \"${one}${ten}\",\n    other =\u003e \"\"\n  }\n\nexport pure func toRoman(n: int) -\u003e string {\n  let thousands = repeat(\"M\", n / 1000);\n  let hundreds = digitRoman((n / 100) % 10, \"C\", \"D\", \"M\");\n  let tens = digitRoman((n / 10) % 10, \"X\", \"L\", \"C\");\n  let ones = digitRoman(n % 10, \"I\", \"V\", \"X\");\n  \"${thousands}${hundreds}${tens}${ones}\"\n}\n\npure func romanValue(c: string) -\u003e int =\n  if c == \"I\" then 1\n  else if c == \"V\" then 5\n  else if c == \"X\" then 10\n  else if c == \"L\" then 50\n  else if c == \"C\" then 100\n  else if c == \"D\" then 500\n  else if c == \"M\" then 1000\n  else 0\n\npure func fromRomanAt(s: string, idx: int, total: int) -\u003e int {\n  let len = strLength(s);\n  if idx \u003e= len then total\n  else {\n    let c = substring(s, idx, idx + 1);\n    let v = romanValue(c);\n    let next =\n      if idx + 1 \u003c len then romanValue(substring(s, idx + 1, idx + 2))\n      else 0;\n    if v \u003c next then fromRomanAt(s, idx + 1, total - v)\n    else fromRomanAt(s, idx + 1, total + v)\n  }\n}\n\nexport pure func fromRoman(s: string) -\u003e int =\n  fromRomanAt(s, 0, 0)\n\nexport pure func roundtrip(n: int) -\u003e bool =\n  if validRange(n) then fromRoman(toRoman(n)) == n else true\n\nexport pure func distinctEncoding(a: int, b: int) -\u003e bool =\n  if validRange(a) \u0026\u0026 validRange(b) \u0026\u0026 a != b then toRoman(a) != toRoman(b) else true\n\nexport pure func proofRoundtrip(n: int) -\u003e bool =\n  true\n\nexport pure func proofDistinctEncoding(a: int, b: int) -\u003e bool =\n  true\n\nexport func main() -\u003e () ! {IO} {\n  println(toRoman(1994));\n  println(toRoman(58));\n  println(toRoman(3999));\n  println(show(fromRoman(\"MCMXCIV\")));\n  println(show(fromRoman(\"LVIII\")));\n  println(show(roundtrip(2024)));\n  println(show(distinctEncoding(4, 6)))\n}",
-        "python": "def toRoman(num: int) -\u003e str:\n    \"\"\"Convert an integer (1-3999) to a Roman numeral in canonical form.\"\"\"\n    if not (1 \u003c= num \u003c= 3999):\n        raise ValueError(\"Number must be between 1 and 3999\")\n    \n    # Define value-symbol pairs in descending order\n    values = [\n        (1000, 'M'),\n        (900, 'CM'),\n        (500, 'D'),\n        (400, 'CD'),\n        (100, 'C'),\n        (90, 'XC'),\n        (50, 'L'),\n        (40, 'XL'),\n        (10, 'X'),\n        (9, 'IX'),\n        (5, 'V'),\n        (4, 'IV'),\n        (1, 'I')\n    ]\n    \n    result = []\n    for value, symbol in values:\n        while num \u003e= value:\n            result.append(symbol)\n            num -= value\n    \n    return ''.join(result)\n\n\ndef fromRoman(roman: str) -\u003e int:\n    \"\"\"Convert a Roman numeral to an integer.\"\"\"\n    # Define value-symbol pairs for parsing\n    values = {\n        'M': 1000,\n        'CM': 900,\n        'D': 500,\n        'CD': 400,\n        'C': 100,\n        'XC': 90,\n        'L': 50,\n        'XL': 40,\n        'X': 10,\n        'IX': 9,\n        'V': 5,\n        'IV': 4,\n        'I': 1\n    }\n    \n    i = 0\n    result = 0\n    \n    while i \u003c len(roman):\n        # Try two-character symbols first\n        if i + 1 \u003c len(roman) and roman[i:i+2] in values:\n            result += values[roman[i:i+2]]\n            i += 2\n        else:\n            result += values[roman[i]]\n            i += 1\n    \n    return result\n\n\ndef roundtrip(num: int) -\u003e bool:\n    \"\"\"Prove that toRoman and fromRoman are inverses.\"\"\"\n    return fromRoman(toRoman(num)) == num\n\n\ndef distinctEncoding(num1: int, num2: int) -\u003e bool:\n    \"\"\"Prove that different numbers have different Roman numeral representations.\"\"\"\n    if num1 == num2:\n        return True\n    return toRoman(num1) != toRoman(num2)\n\n\ndef main():\n    print(toRoman(1994))\n    print(toRoman(58))\n    print(toRoman(3999))\n    print(fromRoman(\"MCMXCIV\"))\n    print(fromRoman(\"LVIII\"))\n    print(\"true\" if roundtrip(2024) else \"false\")\n    print(\"true\" if distinctEncoding(4, 6) else \"false\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "from typing import Final\n\nROMAN_MAP: Final[list[tuple[int, str]]] = [\n    (1000, \"M\"),\n    (900, \"CM\"),\n    (500, \"D\"),\n    (400, \"CD\"),\n    (100, \"C\"),\n    (90, \"XC\"),\n    (50, \"L\"),\n    (40, \"XL\"),\n    (10, \"X\"),\n    (9, \"IX\"),\n    (5, \"V\"),\n    (4, \"IV\"),\n    (1, \"I\"),\n]\n\ndef toRoman(n: int) -\u003e str:\n    if not 1 \u003c= n \u003c= 3999:\n        raise ValueError(\"n must be between 1 and 3999\")\n    res = \"\"\n    for val, sym in ROMAN_MAP:\n        while n \u003e= val:\n            res += sym\n            n -= val\n    return res\n\ndef fromRoman(s: str) -\u003e int:\n    roman_values = {\"I\": 1, \"V\": 5, \"X\": 10, \"L\": 50, \"C\": 100, \"D\": 500, \"M\": 1000}\n    total = 0\n    i = 0\n    n = len(s)\n    while i \u003c n:\n        val = roman_values[s[i]]\n        if i + 1 \u003c n and roman_values[s[i+1]] \u003e val:\n            total += roman_values[s[i+1]] - val\n            i += 2\n        else:\n            total += val\n            i += 1\n    return total\n\ndef roundtrip(n: int) -\u003e str:\n    if fromRoman(toRoman(n)) == n:\n        return \"true\"\n    return \"false\"\n\ndef distinctEncoding(n1: int, n2: int) -\u003e str:\n    if toRoman(n1) != toRoman(n2):\n        return \"true\"\n    return \"false\"\n\ndef main():\n    print(toRoman(1994))\n    print(toRoman(58))\n    print(toRoman(3999))\n    print(fromRoman(\"MCMXCIV\"))\n    print(fromRoman(\"LVIII\"))\n    print(roundtrip(2024))\n    print(distinctEncoding(4, 6))\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 3448.785714285714,
+          "avgTokens": 3924.714285714286,
           "successRate": 0.5714285714285714,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 761.2142857142857,
-          "successRate": 0.5,
+          "avgTokens": 1237.642857142857,
+          "successRate": 0.5714285714285714,
           "totalRuns": 14
         }
       },
@@ -5585,10 +5643,10 @@
     "effect_composition": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 124824.55555555556,
-          "avgTurns": 5.555555555555555,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 147509.22222222222,
+          "avgTurns": 6.333333333333333,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5609,10 +5667,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5622,237 +5680,12 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 34871.666666666664,
-          "avgTurns": 3.6666666666666665,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        }
-      },
-      "avgTokens": 218.9,
-      "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/fs (readFile, writeFile)\nimport std/string (stringToInt, trim)\nimport std/option (Some, None)\n\npure func calculateTotal(price: int, quantity: int) -\u003e int =\n  price * quantity\n\nfunc readPrice(filename: string) -\u003e int ! {FS} {\n  let content = readFile(filename);\n  match stringToInt(trim(content)) {\n    Some(n) =\u003e n,\n    None =\u003e 0\n  }\n}\n\nfunc displayOrder(product: string, total: int) -\u003e () ! {IO} =\n  println(\"Order: ${product} = $${total}\")\n\nfunc processOrder(product: string, priceFile: string, quantity: int) -\u003e () ! {IO, FS} {\n  let price = readPrice(priceFile);\n  let total = calculateTotal(price, quantity);\n  displayOrder(product, total)\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  writeFile(\"widget_price.txt\", \"15\");\n  processOrder(\"Widget\", \"widget_price.txt\", 4)\n}",
-        "python": "\nimport pathlib\n\ndef calculateTotal(price: float, quantity: int) -\u003e float:\n    \"\"\"PURE function: Returns price * quantity.\"\"\"\n    return price * quantity\n\ndef readPrice(filename: str) -\u003e float:\n    \"\"\"FS effect: Reads a number from a file.\"\"\"\n    file_path = pathlib.Path(filename)\n    return float(file_path.read_text().strip())\n\ndef displayOrder(product: str, total: float) -\u003e None:\n    \"\"\"IO effect: Prints the order.\"\"\"\n    print(f\"Order: {product} = ${total:.0f}\")\n\ndef processOrder(product: str, priceFile: str, quantity: int) -\u003e None:\n    \"\"\"\n    Composes FS and IO effects:\n    - Reads price from file (FS)\n    - Calculates total (PURE)\n    - Displays order (IO)\n    \"\"\"\n    price = readPrice(priceFile)\n    total = calculateTotal(price, quantity)\n    displayOrder(product, total)\n\ndef main():\n    # Create a test file \"widget_price.txt\" with content \"15\"\n    file_path = pathlib.Path(\"widget_price.txt\")\n    file_path.write_text(\"15\")\n\n    # Call processOrder\n    processOrder(\"Widget\", \"widget_price.txt\", 4)\n\n    # Clean up the test file\n    file_path.unlink()\n\nif __name__ == \"__main__\":\n    main()\n"
-      },
-      "languageStats": {
-        "ailang": {
-          "avgTokens": 862.2142857142857,
-          "successRate": 0.8571428571428571,
-          "totalRuns": 14
-        },
-        "python": {
-          "avgTokens": 535.1428571428571,
-          "successRate": 0.7857142857142857,
-          "totalRuns": 14
-        }
-      },
-      "languages": [
-        "ailang",
-        "python"
-      ],
-      "successRate": 0.8,
-      "tags": [
-        "effects_io",
-        "functional"
-      ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates effect composition.\n\nRequirements:\n1. Implement a PURE function `calculateTotal(price, quantity)` that returns price * quantity\n2. Implement a function `readPrice(filename)` that reads a number from a file (FS effect)\n3. Implement a function `displayOrder(product, total)` that prints \"Order: {product} = ${total}\" (IO effect)\n4. Implement a function `processOrder(product, priceFile, quantity)` that:\n   - Calls readPrice(priceFile) to get unit price (FS effect)\n   - Calls calculateTotal(price, quantity) to get total (pure)\n   - Calls displayOrder(product, total) to print (IO effect)\n   - This function has BOTH IO and FS effects\n\nMain should:\n- Create a test file \"widget_price.txt\" with content \"15\"\n- Call processOrder(\"Widget\", \"widget_price.txt\", 4)\n\nEffect propagation:\n- processOrder has both IO and FS effects (because it calls functions with those effects)\n- Effect signatures should compose: FS + IO = both in signature\n\nExpected output:\n\"Order: Widget = $60\"\n\nOutput only the code, no explanations.\n",
-      "tier": "core",
-      "totalRuns": 10
-    },
-    "effect_tracking_io_fs": {
-      "agentStats": {
-        "ailang": {
-          "apiErrorRate": 0.2222222222222222,
-          "apiErrors": 2,
-          "avgTokens": 55155,
-          "avgTurns": 2.5555555555555554,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 1,
-              "apiErrors": 1,
-              "runs": 1,
-              "successRate": 0
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.6666666666666666
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 28085,
-          "avgTurns": 3,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        }
-      },
-      "avgTokens": 230.2,
-      "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/fs (writeFile)\n\npure func computeSum(a: int, b: int) -\u003e int = a + b\n\nfunc printSum(a: int, b: int) -\u003e () ! {IO} {\n  let sum = computeSum(a, b);\n  println(\"Sum: ${show(sum)}\")\n}\n\nfunc logToFile(filename: string, message: string) -\u003e () ! {IO, FS} =\n  writeFile(filename, message)\n\nexport func main() -\u003e () ! {IO, FS} {\n  let result = computeSum(10, 20);\n  printSum(10, 20);\n  logToFile(\"output.txt\", \"Sum was ${show(result)}\");\n  println(\"Done\")\n}",
-        "python": "\"\"\"\nExplicit Effect Tracking: IO and FS effects in function signatures.\n\nThis module demonstrates how to make side effects explicit in Python\nusing type annotations and markers.\n\"\"\"\n\nfrom typing import TypeVar, ParamSpec, Concatenate, Callable\nfrom dataclasses import dataclass\nfrom functools import wraps\n\n# Effect markers\n@dataclass(frozen=True)\nclass IO:\n    \"\"\"Marker for IO effects (console input/output).\"\"\"\n    pass\n\n@dataclass(frozen=True)\nclass FS:\n    \"\"\"Marker for filesystem effects.\"\"\"\n    pass\n\n# Type for effect annotations\nEffects = tuple[type, ...]\n\ndef has_effects(*effects: type) -\u003e Callable:\n    \"\"\"\n    Decorator to mark a function as having specific effects.\n    Makes the effects explicit in the function signature.\n    \"\"\"\n    def decorator(func: Callable) -\u003e Callable:\n        func._effects: Effects = effects  # type: ignore\n        return func\n    return decorator\n\n\n# Pure function - no effect annotations\ndef computeSum(a: int, b: int) -\u003e int:\n    \"\"\"\n    Pure function: computes sum of two numbers.\n    No side effects - no effect markers needed.\n    \"\"\"\n    return a + b\n\n\n# IO effect function\n@has_effects(IO)\ndef printSum(a: int, b: int) -\u003e None:\n    \"\"\"\n    IO effect function: computes sum and prints it.\n    Has IO effect marked explicitly.\n    \"\"\"\n    result = computeSum(a, b)\n    print(f\"Sum: {result}\")\n\n\n# IO + FS effects function\n@has_effects(IO, FS)\ndef logToFile(filename: str, message: str) -\u003e None:\n    \"\"\"\n    IO + FS effects function: writes message to file.\n    Has both IO and FS effects marked explicitly.\n    \"\"\"\n    with open(filename, 'w') as f:\n        f.write(message)\n\n\ndef main() -\u003e None:\n    \"\"\"Main function demonstrating effect tracking.\"\"\"\n    # Call pure function - no effects\n    result: int = computeSum(10, 20)\n    \n    # Call IO effect function\n    printSum(10, 20)\n    \n    # Call IO + FS effect function\n    logToFile(\"output.txt\", \"Sum was 30\")\n    \n    print(\"Done\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
-      },
-      "languageStats": {
-        "ailang": {
-          "avgTokens": 387.7142857142857,
-          "successRate": 0.7142857142857143,
-          "totalRuns": 14
-        },
-        "python": {
-          "avgTokens": 580.2857142857143,
-          "successRate": 0.7857142857142857,
-          "totalRuns": 14
-        }
-      },
-      "languages": [
-        "ailang",
-        "python"
-      ],
-      "successRate": 0.8,
-      "tags": [
-        "effects_io"
-      ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates explicit effect tracking.\n\nRequirements:\n1. Implement a PURE function `computeSum(a, b)` that returns a + b (no side effects)\n2. Implement a function `printSum(a, b)` that computes sum and prints it (has IO effect)\n3. Implement a function `logToFile(filename, message)` that writes message to file (has IO and FS effects)\n4. In main:\n   - Call computeSum(10, 20) and store result\n   - Call printSum(10, 20) to print \"Sum: 30\"\n   - Call logToFile(\"output.txt\", \"Sum was 30\")\n   - Print \"Done\"\n\nThe function signatures should make effects explicit:\n- Pure functions: no effect annotations\n- IO functions: should be marked as having IO effects\n- IO+FS functions: should be marked as having both effects\n\nExpected output:\n\"Sum: 30\"\n\"Done\"\n\nOutput only the code, no explanations.\n",
-      "tier": "core",
-      "totalRuns": 10
-    },
-    "error_handling": {
-      "agentStats": {
-        "ailang": {
-          "apiErrorRate": 0.2222222222222222,
-          "apiErrors": 2,
-          "avgTokens": 65003,
-          "avgTurns": 3.6666666666666665,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 1,
-              "apiErrors": 1,
-              "runs": 1,
-              "successRate": 0
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 51119.555555555555,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 38778.22222222222,
           "avgTurns": 4.333333333333333,
           "byHarness": {
             "claude": {
@@ -5874,10 +5707,195 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
+            }
+          },
+          "runs": 9,
+          "successRate": 0.8888888888888888
+        }
+      },
+      "avgTokens": 218.9,
+      "codeSamples": {
+        "ailang": "module benchmark/solution\n\nimport std/fs (readFile, writeFile)\nimport std/string (stringToInt, trim)\nimport std/option (Some, None)\n\npure func calculateTotal(price: int, quantity: int) -\u003e int =\n  price * quantity\n\nfunc readPrice(filename: string) -\u003e int ! {FS} {\n  let content = readFile(filename);\n  match stringToInt(trim(content)) {\n    Some(n) =\u003e n,\n    None =\u003e 0\n  }\n}\n\nfunc displayOrder(product: string, total: int) -\u003e () ! {IO} =\n  println(\"Order: ${product} = $${total}\")\n\nfunc processOrder(product: string, priceFile: string, quantity: int) -\u003e () ! {IO, FS} {\n  let price = readPrice(priceFile);\n  let total = calculateTotal(price, quantity);\n  displayOrder(product, total)\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  writeFile(\"widget_price.txt\", \"15\");\n  processOrder(\"Widget\", \"widget_price.txt\", 4)\n}",
+        "python": "from typing import Literal, TypeAlias\n\n# Defining Effect types to demonstrate effect composition in signatures\nEffect: TypeAlias = Literal[\"Pure\", \"FS\", \"IO\", \"Both\"]\n\ndef calculateTotal(price: float, quantity: int) -\u003e float:\n    \"\"\"PURE function: returns price * quantity.\"\"\"\n    # Effect: Pure\n    return price * quantity\n\ndef readPrice(filename: str) -\u003e float:\n    \"\"\"Function with FS (File System) effect.\"\"\"\n    # Effect: FS\n    with open(filename, 'r') as f:\n        return float(f.read().strip())\n\ndef displayOrder(product: str, total: float) -\u003e None:\n    \"\"\"Function with IO (Input/Output) effect.\"\"\"\n    # Effect: IO\n    # Ensuring the output matches the expected format \"Order: {product} = ${total}\"\n    # specifically handling the case where total might be a float like 60.0\n    if isinstance(total, float) and total.is_integer():\n        total_val = int(total)\n    else:\n        total_val = total\n    print(f\"Order: {product} = ${total_val}\")\n\ndef processOrder(product: str, priceFile: str, quantity: int) -\u003e None:\n    \"\"\"\n    Function with both FS and IO effects.\n    The effect signature is composed: FS (from readPrice) + IO (from displayOrder) = Both.\n    \"\"\"\n    # FS effect\n    price = readPrice(priceFile)\n    \n    # Pure effect\n    total = calculateTotal(price, quantity)\n    \n    # IO effect\n    displayOrder(product, total)\n\ndef main() -\u003e None:\n    # Create a test file \"widget_price.txt\" with content \"15\"\n    filename = \"widget_price.txt\"\n    with open(filename, \"w\") as f:\n        f.write(\"15\")\n    \n    # Call processOrder(\"Widget\", \"widget_price.txt\", 4)\n    processOrder(\"Widget\", filename, 4)\n\nif __name__ == \"__main__\":\n    main()\n"
+      },
+      "languageStats": {
+        "ailang": {
+          "avgTokens": 937.2857142857143,
+          "successRate": 0.9285714285714286,
+          "totalRuns": 14
+        },
+        "python": {
+          "avgTokens": 701.5,
+          "successRate": 0.8571428571428571,
+          "totalRuns": 14
+        }
+      },
+      "languages": [
+        "ailang",
+        "python"
+      ],
+      "successRate": 0.8,
+      "tags": [
+        "effects_io",
+        "functional"
+      ],
+      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates effect composition.\n\nRequirements:\n1. Implement a PURE function `calculateTotal(price, quantity)` that returns price * quantity\n2. Implement a function `readPrice(filename)` that reads a number from a file (FS effect)\n3. Implement a function `displayOrder(product, total)` that prints \"Order: {product} = ${total}\" (IO effect)\n4. Implement a function `processOrder(product, priceFile, quantity)` that:\n   - Calls readPrice(priceFile) to get unit price (FS effect)\n   - Calls calculateTotal(price, quantity) to get total (pure)\n   - Calls displayOrder(product, total) to print (IO effect)\n   - This function has BOTH IO and FS effects\n\nMain should:\n- Create a test file \"widget_price.txt\" with content \"15\"\n- Call processOrder(\"Widget\", \"widget_price.txt\", 4)\n\nEffect propagation:\n- processOrder has both IO and FS effects (because it calls functions with those effects)\n- Effect signatures should compose: FS + IO = both in signature\n\nExpected output:\n\"Order: Widget = $60\"\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
+      "totalRuns": 10
+    },
+    "effect_tracking_io_fs": {
+      "agentStats": {
+        "ailang": {
+          "apiErrorRate": 0.1111111111111111,
+          "apiErrors": 1,
+          "avgTokens": 164906,
+          "avgTurns": 5.555555555555555,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 0.6666666666666666
+            }
+          },
+          "runs": 9,
+          "successRate": 0.7777777777777778
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 29916.88888888889,
+          "avgTurns": 3.4444444444444446,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 0.6666666666666666
+            }
+          },
+          "runs": 9,
+          "successRate": 0.8888888888888888
+        }
+      },
+      "avgTokens": 230.2,
+      "codeSamples": {
+        "ailang": "module benchmark/solution\n\nimport std/fs (writeFile)\n\npure func computeSum(a: int, b: int) -\u003e int = a + b\n\nfunc printSum(a: int, b: int) -\u003e () ! {IO} {\n  let sum = computeSum(a, b);\n  println(\"Sum: ${show(sum)}\")\n}\n\nfunc logToFile(filename: string, message: string) -\u003e () ! {IO, FS} =\n  writeFile(filename, message)\n\nexport func main() -\u003e () ! {IO, FS} {\n  let result = computeSum(10, 20);\n  printSum(10, 20);\n  logToFile(\"output.txt\", \"Sum was ${show(result)}\");\n  println(\"Done\")\n}",
+        "python": "from typing import TypeVar, Generic, Annotated, Protocol, TypeAlias\n\n# Since Python does not have built-in effect tracking in the type system,\n# we use Annotated to represent effects in the function signatures.\n# This is a common way to express metadata about types/functions.\n\nIO = Annotated[None, \"IO effect\"]\nFS = Annotated[None, \"FS effect\"]\nIO_FS = Annotated[None, \"IO and FS effects\"]\n\ndef computeSum(a: int, b: int) -\u003e int:\n    \"\"\"Pure function: returns a + b.\"\"\"\n    return a + b\n\ndef printSum(a: int, b: int) -\u003e IO:\n    \"\"\"IO function: computes sum and prints it.\"\"\"\n    result = computeSum(a, b)\n    print(f\"Sum: {result}\")\n    return None\n\ndef logToFile(filename: str, message: str) -\u003e IO_FS:\n    \"\"\"IO and FS function: writes message to file.\"\"\"\n    with open(filename, \"w\") as f:\n        f.write(message)\n    return None\n\ndef main() -\u003e None:\n    # Call computeSum(10, 20) and store result\n    res = computeSum(10, 20)\n    \n    # Call printSum(10, 20) to print \"Sum: 30\"\n    printSum(10, 20)\n    \n    # Call logToFile(\"output.txt\", \"Sum was 30\")\n    logToFile(\"output.txt\", f\"Sum was {res}\")\n    \n    # Print \"Done\"\n    print(\"Done\")\n\nif __name__ == \"__main__\":\n    main()\n"
+      },
+      "languageStats": {
+        "ailang": {
+          "avgTokens": 978.7142857142857,
+          "successRate": 0.7857142857142857,
+          "totalRuns": 14
+        },
+        "python": {
+          "avgTokens": 666.2142857142857,
+          "successRate": 0.8571428571428571,
+          "totalRuns": 14
+        }
+      },
+      "languages": [
+        "ailang",
+        "python"
+      ],
+      "successRate": 0.8,
+      "tags": [
+        "effects_io"
+      ],
+      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates explicit effect tracking.\n\nRequirements:\n1. Implement a PURE function `computeSum(a, b)` that returns a + b (no side effects)\n2. Implement a function `printSum(a, b)` that computes sum and prints it (has IO effect)\n3. Implement a function `logToFile(filename, message)` that writes message to file (has IO and FS effects)\n4. In main:\n   - Call computeSum(10, 20) and store result\n   - Call printSum(10, 20) to print \"Sum: 30\"\n   - Call logToFile(\"output.txt\", \"Sum was 30\")\n   - Print \"Done\"\n\nThe function signatures should make effects explicit:\n- Pure functions: no effect annotations\n- IO functions: should be marked as having IO effects\n- IO+FS functions: should be marked as having both effects\n\nExpected output:\n\"Sum: 30\"\n\"Done\"\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
+      "totalRuns": 10
+    },
+    "error_handling": {
+      "agentStats": {
+        "ailang": {
+          "apiErrorRate": 0.1111111111111111,
+          "apiErrors": 1,
+          "avgTokens": 223108.22222222222,
+          "avgTurns": 7.888888888888889,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5888,22 +5906,62 @@
           },
           "runs": 9,
           "successRate": 0.8888888888888888
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 57105.555555555555,
+          "avgTurns": 5.222222222222222,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
         }
       },
       "avgTokens": 270.2,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Result[a] = Ok(a) | Err(string)\n\npure func validate_age(age: int) -\u003e Result[int] =\n  if age \u003e= 0 \u0026\u0026 age \u003c= 150 then Ok(age) else Err(\"Age out of range\")\n\npure func calculate_retirement_years(age: int) -\u003e Result[int] =\n  if age \u003c 65 then Ok(65 - age) else Err(\"Already retired\")\n\npure func retirement_result(age: int) -\u003e Result[int] =\n  match validate_age(age) {\n    Ok(valid_age) =\u003e calculate_retirement_years(valid_age),\n    Err(msg) =\u003e Err(msg)\n  }\n\npure func format_result(result: Result[int]) -\u003e string =\n  match result {\n    Ok(value) =\u003e \"Years to retirement: ${value}\",\n    Err(msg) =\u003e \"Error: ${msg}\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  println(format_result(retirement_result(30)));\n  println(format_result(retirement_result(70)));\n  println(format_result(retirement_result(-5)))\n}",
-        "python": "from __future__ import annotations\nfrom dataclasses import dataclass\nfrom typing import TypeVar, Union\n\n\nT = TypeVar('T')\n\n\n@dataclass\nclass Ok:\n    value: T\n\n\n@dataclass\nclass Err:\n    message: str\n\n\nResult = Union[Ok, Err]\n\n\ndef validate_age(age: int) -\u003e Result[int]:\n    if 0 \u003c= age \u003c= 150:\n        return Ok(age)\n    return Err(\"Age out of range\")\n\n\ndef calculate_retirement_years(age: int) -\u003e Result[int]:\n    if age \u003c 65:\n        return Ok(65 - age)\n    return Err(\"Already retired\")\n\n\ndef main():\n    test_cases = [30, 70, -5]\n\n    for age in test_cases:\n        result = validate_age(age)\n        if isinstance(result, Ok):\n            years_result = calculate_retirement_years(result.value)\n            if isinstance(years_result, Ok):\n                print(f\"Years to retirement: {years_result.value}\")\n            else:\n                print(f\"Error: {years_result.message}\")\n        else:\n            print(f\"Error: {result.message}\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "from typing import Generic, TypeVar, Union\n\nT = TypeVar(\"T\")\nE = TypeVar(\"E\")\n\nclass Ok(Generic[T]):\n    def __init__(self, value: T):\n        self.value = value\n\nclass Err(Generic[E]):\n    def __init__(self, error: E):\n        self.error = error\n\nResult = Union[Ok[T], Err[E]]\n\ndef validate_age(age: int) -\u003e Result[int, str]:\n    if 0 \u003c= age \u003c= 150:\n        return Ok(age)\n    else:\n        return Err(\"Age out of range\")\n\ndef calculate_retirement_years(age: int) -\u003e Result[int, str]:\n    if age \u003c 65:\n        return Ok(65 - age)\n    else:\n        return Err(\"Already retired\")\n\ndef process_age(age: int) -\u003e Result[int, str]:\n    result = validate_age(age)\n    if isinstance(result, Ok):\n        return calculate_retirement_years(result.value)\n    return result\n\ndef main():\n    test_cases = [30, 70, -5]\n    for age in test_cases:\n        result = process_age(age)\n        match result:\n            case Ok(value=v):\n                print(f\"Years to retirement: {v}\")\n            case Err(error=e):\n                print(f\"Error: {e}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 478.35714285714283,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 1222.9285714285713,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 819.8571428571429,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 1007.5714285714284,
+          "successRate": 1,
           "totalRuns": 14
         }
       },
@@ -5954,10 +6012,10 @@
     "float_eq": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 267149.6666666667,
-          "avgTurns": 4.555555555555555,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 1261118.7777777778,
+          "avgTurns": 25.77777777777778,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -5978,10 +6036,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -5991,13 +6049,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.6666666666666666
+          "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 38516.333333333336,
-          "avgTurns": 5.333333333333333,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 40735.444444444445,
+          "avgTurns": 6,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6018,10 +6076,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6031,7 +6089,7 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         }
       },
       "avgTokens": 31,
@@ -6041,13 +6099,13 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 484.57142857142856,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 1621,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 473.7142857142857,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 514,
+          "successRate": 1,
           "totalRuns": 14
         }
       },
@@ -6067,10 +6125,10 @@
     "fold_reduce": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 110742.77777777778,
-          "avgTurns": 3.3333333333333335,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 143085,
+          "avgTurns": 4.333333333333333,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6091,251 +6149,25 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
               "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 31940,
-          "avgTurns": 3.3333333333333335,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
-            }
-          },
-          "runs": 9,
-          "successRate": 0.8888888888888888
-        }
-      },
-      "avgTokens": 280.8,
-      "codeSamples": {
-        "ailang": "module benchmark/solution\n\nexport func foldl(f: (a, b) -\u003e a, acc: a, xs: [b]) -\u003e a =\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e foldl(f, f(acc, x), rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [2, 4, 6, 8, 10];\n  let sum = foldl(\\acc x. acc + x, 0, nums);\n  let product = foldl(\\acc x. acc * x, 1, nums);\n  let maxVal = foldl(\\acc x. if acc \u003e x then acc else x, 7, [2, 8, 3, 11, 5, 1]);\n  println(\"Sum: ${show(sum)}\");\n  println(\"Product: ${show(product)}\");\n  println(\"Max: ${show(maxVal)}\")\n}",
-        "python": "def foldl(f, acc, xs):\n    \"\"\"Fold a binary function f over list xs from left to right with initial accumulator.\"\"\"\n    result = acc\n    for x in xs:\n        result = f(result, x)\n    return result\n\n\ndef main():\n    # Compute sum of [2, 4, 6, 8, 10]\n    numbers = [2, 4, 6, 8, 10]\n    sum_result = foldl(lambda a, b: a + b, 0, numbers)\n    \n    # Compute product of [2, 4, 6, 8, 10]\n    product_result = foldl(lambda a, b: a * b, 1, numbers)\n    \n    # Compute max of [7, 2, 8, 3, 11, 5, 1]\n    max_numbers = [7, 2, 8, 3, 11, 5, 1]\n    max_result = foldl(lambda a, b: a if a \u003e b else b, max_numbers[0], max_numbers)\n    \n    # Print results\n    print(f\"Sum: {sum_result}\")\n    print(f\"Product: {product_result}\")\n    print(f\"Max: {max_result}\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
-      },
-      "languageStats": {
-        "ailang": {
-          "avgTokens": 934.2857142857143,
-          "successRate": 0.8571428571428571,
-          "totalRuns": 14
-        },
-        "python": {
-          "avgTokens": 586.5714285714284,
-          "successRate": 0.9285714285714286,
-          "totalRuns": 14
-        }
-      },
-      "languages": [
-        "ailang",
-        "python"
-      ],
-      "successRate": 1,
-      "tags": [
-        "functional",
-        "recursion"
-      ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements a generic `foldl(f, acc, xs)` function that:\n   - Takes a binary function f, an initial accumulator, and a list\n   - Returns the result of folding the function over the list from left to right\n\n2. Uses foldl to compute:\n   - Sum of [2, 4, 6, 8, 10] using addition\n   - Product of [2, 4, 6, 8, 10] using multiplication\n   - Maximum of [7, 2, 8, 3, 11, 5, 1]\n\n3. Prints three lines:\n   - Sum: {value}\n   - Product: {value}\n   - Max: {value}\n\nExpected:\n- Sum: 2+4+6+8+10 = 30\n- Product: 2*4*6*8*10 = 3840\n- Max of [7,2,8,3,11,5,1] = 11\n\nOutput only the code, no explanations.\n",
-      "tier": "core",
-      "totalRuns": 10
-    },
-    "graph_bfs": {
-      "agentStats": {
-        "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 123596.11111111111,
-          "avgTurns": 5.222222222222222,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
             }
           },
           "runs": 9,
           "successRate": 0.8888888888888888
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 40520.11111111111,
-          "avgTurns": 3.7777777777777777,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
-            }
-          },
-          "runs": 9,
-          "successRate": 0.8888888888888888
-        }
-      },
-      "avgTokens": 307.2,
-      "codeSamples": {
-        "ailang": "module benchmark/solution\n\npure func contains(x: int, xs: [int]) -\u003e bool =\n  match xs {\n    [] =\u003e false,\n    y :: rest =\u003e if x == y then true else contains(x, rest)\n  }\n\npure func enqueue(x: int, queue: [int]) -\u003e [int] =\n  match queue {\n    [] =\u003e [x],\n    y :: rest =\u003e y :: enqueue(x, rest)\n  }\n\npure func enqueueAll(xs: [int], queue: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e queue,\n    x :: rest =\u003e enqueueAll(rest, enqueue(x, queue))\n  }\n\npure func neighbors(node: int, graph: [(int, [int])]) -\u003e [int] =\n  match graph {\n    [] =\u003e [],\n    entry :: rest =\u003e match entry {\n      (n, ns) =\u003e if n == node then ns else neighbors(node, rest)\n    }\n  }\n\npure func bfsLoop(graph: [(int, [int])], queue: [int], visited: [int]) -\u003e [int] =\n  match queue {\n    [] =\u003e visited,\n    node :: rest =\u003e\n      if contains(node, visited) then bfsLoop(graph, rest, visited)\n      else {\n        let ns = neighbors(node, graph);\n        let newQueue = enqueueAll(ns, rest);\n        let newVisited = enqueue(node, visited);\n        bfsLoop(graph, newQueue, newVisited)\n      }\n  }\n\npure func bfs(graph: [(int, [int])], start: int) -\u003e [int] =\n  bfsLoop(graph, [start], [])\n\nfunc printNodes(nodes: [int]) -\u003e () ! {IO} =\n  match nodes {\n    [] =\u003e (),\n    x :: rest =\u003e {\n      println(show(x));\n      printNodes(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])];\n  let order = bfs(graph, 1);\n  printNodes(order)\n}",
-        "python": "def contains(x, lst):\n    return x in lst\n\ndef enqueue(x, queue):\n    queue.append(x)\n\ndef bfs(graph, start):\n    visited = [start]\n    queue = [start]\n    while queue:\n        node = queue.pop(0)\n        for neighbor in graph[node]:\n            if not contains(neighbor, visited):\n                enqueue(neighbor, visited)\n                enqueue(neighbor, queue)\n    return visited\n\ngraph_dict = {node: neighbors for node, neighbors in [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]}\n\ndef bfs(graph_dict, start):\n    visited = [start]\n    queue = [start]\n    while queue:\n        node = queue.pop(0)\n        for neighbor in graph_dict[node]:\n            if not contains(neighbor, visited):\n                enqueue(neighbor, visited)\n                enqueue(neighbor, queue)\n    return visited\n\nfor node in bfs(graph_dict, 1):\n    print(node)\n"
-      },
-      "languageStats": {
-        "ailang": {
-          "avgTokens": 1890.2142857142858,
-          "successRate": 0.7142857142857143,
-          "totalRuns": 14
-        },
-        "python": {
-          "avgTokens": 704.6428571428571,
-          "successRate": 0.9285714285714286,
-          "totalRuns": 14
-        }
-      },
-      "languages": [
-        "ailang",
-        "python"
-      ],
-      "successRate": 0.7,
-      "tags": [
-        "algorithmic",
-        "recursion"
-      ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that implements breadth-first search:\n\n1. Represent a graph as an adjacency list: [(node, [neighbors])]\n   Example: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n2. Implement BFS that returns nodes in visit order from a starting node\n   - Use a queue (list where you add to end, remove from front)\n   - Track visited nodes to avoid cycles\n   - Helper: `contains(x, list)` to check if node is visited\n   - Helper: `enqueue(x, queue)` to add to end of queue\n\n3. Run BFS on this graph starting from node 1:\n   ```\n       1\n      / \\\n     2   3\n     |  / \\\n     4    5\n   ```\n   Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n4. Print visited nodes in BFS order, one per line\n\nExpected order: 1, 2, 3, 4, 5 (may vary based on neighbor order)\n\nOutput only the code, no explanations.\n",
-      "tier": "core",
-      "totalRuns": 10
-    },
-    "higher_order_functions": {
-      "agentStats": {
-        "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 125993,
-          "avgTurns": 9.666666666666666,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 39995,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 36281.77777777778,
           "avgTurns": 4,
           "byHarness": {
             "claude": {
@@ -6357,10 +6189,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6370,23 +6202,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         }
       },
-      "avgTokens": 164,
+      "avgTokens": 280.8,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\npure func pipe(f: int -\u003e int, g: int -\u003e int) -\u003e (int -\u003e int) =\n  \\x. g(f(x))\n\npure func subtract(x: int, y: int) -\u003e int =\n  x - y\n\npure func negate(x: int) -\u003e int =\n  0 - x\n\npure func multiply(x: int, y: int) -\u003e int =\n  x * y\n\nexport func main() -\u003e () ! {IO} {\n  let sub4 = \\x. subtract(x, 4);\n  let double = \\x. multiply(2, x);\n  let sub4_then_double = pipe(sub4, double);\n  let value = sub4_then_double(11);\n  println(\"Result: ${show(value)}\")\n}",
-        "python": "from functools import partial\n\n\ndef pipe(f, g):\n    \"\"\"Returns a function that computes g(f(x)) - apply f first, then g\"\"\"\n    return lambda x: g(f(x))\n\n\ndef subtract(x, y):\n    \"\"\"Returns x - y\"\"\"\n    return x - y\n\n\ndef negate(x):\n    \"\"\"Returns -x\"\"\"\n    return -x\n\n\ndef multiply(x, y):\n    \"\"\"Returns x * y\"\"\"\n    return x * y\n\n\n# Create sub4 using partial application - subtracts 4 from input\n# subtract(_, 4) means the first arg is the input, second is fixed to 4\nsub4 = lambda x: subtract(x, 4)\n\n# Create double using partial application - multiplies input by 2\n# multiply(2, _) means the first arg is fixed to 2, second is the input\ndouble = lambda x: multiply(2, x)\n\n# Create sub4_then_double - subtract 4 first, then double\nsub4_then_double = pipe(sub4, double)\n\n# Apply the piped function to 11\nresult = sub4_then_double(11)\n\n# Print the result\nprint(f\"Result: {result}\")\n"
+        "ailang": "module benchmark/solution\n\nexport func foldl(f: (a, b) -\u003e a, acc: a, xs: [b]) -\u003e a =\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e foldl(f, f(acc, x), rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [2, 4, 6, 8, 10];\n  let sum = foldl(\\acc x. acc + x, 0, nums);\n  let product = foldl(\\acc x. acc * x, 1, nums);\n  let maxVal = foldl(\\acc x. if acc \u003e x then acc else x, 7, [2, 8, 3, 11, 5, 1]);\n  println(\"Sum: ${show(sum)}\");\n  println(\"Product: ${show(product)}\");\n  println(\"Max: ${show(maxVal)}\")\n}",
+        "python": "from typing import TypeVar, Callable, Iterable\n\nT = TypeVar(\"T\")\nU = TypeVar(\"U\")\n\ndef foldl(f: Callable[[U, T], U], acc: U, xs: Iterable[T]) -\u003e U:\n    \"\"\"\n    Generic foldl function that takes a binary function f, \n    an initial accumulator acc, and an iterable xs.\n    Returns the result of folding the function over the list from left to right.\n    \"\"\"\n    for x in xs:\n        acc = f(acc, x)\n    return acc\n\ndef main():\n    nums_sum_prod = [2, 4, 6, 8, 10]\n    nums_max = [7, 2, 8, 3, 11, 5, 1]\n\n    sum_val = foldl(lambda a, b: a + b, 0, nums_sum_prod)\n    prod_val = foldl(lambda a, b: a * b, 1, nums_sum_prod)\n    max_val = foldl(lambda a, b: a if a \u003e b else b, nums_max[0], nums_max[1:])\n\n    print(f\"Sum: {sum_val}\")\n    print(f\"Product: {prod_val}\")\n    print(f\"Max: {max_val}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1289.7142857142858,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 1432,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 675.4285714285714,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 762.2142857142857,
+          "successRate": 1,
           "totalRuns": 14
         }
       },
@@ -6396,19 +6228,20 @@
       ],
       "successRate": 1,
       "tags": [
-        "functional"
+        "functional",
+        "recursion"
       ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates higher-order functions:\n\n1. Implement `pipe(f, g)` - returns a function that computes g(f(x)) (apply f first, then g)\n2. Implement `subtract(x, y)` - returns x - y\n3. Implement `negate(x)` - returns -x\n4. Create `sub4 = subtract(_, 4)` using partial application (or lambda) - subtracts 4 from input\n5. Create `double = multiply(2, _)` using partial application (or lambda)\n6. Create `sub4_then_double = pipe(sub4, double)` - subtract 4 first, then double\n7. Apply the piped function to 11\n8. Print the result: \"Result: {value}\"\n\nExpected computation: (11 - 4) * 2 = 14\n\nRequirements:\n- Use first-class functions\n- Demonstrate function piping (reverse of compose)\n- Show currying or partial application\n\nOutput only the code, no explanations.\n",
+      "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements a generic `foldl(f, acc, xs)` function that:\n   - Takes a binary function f, an initial accumulator, and a list\n   - Returns the result of folding the function over the list from left to right\n\n2. Uses foldl to compute:\n   - Sum of [2, 4, 6, 8, 10] using addition\n   - Product of [2, 4, 6, 8, 10] using multiplication\n   - Maximum of [7, 2, 8, 3, 11, 5, 1]\n\n3. Prints three lines:\n   - Sum: {value}\n   - Product: {value}\n   - Max: {value}\n\nExpected:\n- Sum: 2+4+6+8+10 = 30\n- Product: 2*4*6*8*10 = 3840\n- Max of [7,2,8,3,11,5,1] = 11\n\nOutput only the code, no explanations.\n",
       "tier": "core",
       "totalRuns": 10
     },
-    "json_encode": {
+    "graph_bfs": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 103916.22222222222,
-          "avgTurns": 3.5555555555555554,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 422222.55555555556,
+          "avgTurns": 12,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6429,10 +6262,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6442,13 +6275,238 @@
             }
           },
           "runs": 9,
+          "successRate": 1
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 42360.333333333336,
+          "avgTurns": 4.222222222222222,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
+        }
+      },
+      "avgTokens": 307.2,
+      "codeSamples": {
+        "ailang": "module benchmark/solution\n\npure func contains(x: int, xs: [int]) -\u003e bool =\n  match xs {\n    [] =\u003e false,\n    y :: rest =\u003e if x == y then true else contains(x, rest)\n  }\n\npure func enqueue(x: int, queue: [int]) -\u003e [int] =\n  match queue {\n    [] =\u003e [x],\n    y :: rest =\u003e y :: enqueue(x, rest)\n  }\n\npure func enqueueAll(xs: [int], queue: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e queue,\n    x :: rest =\u003e enqueueAll(rest, enqueue(x, queue))\n  }\n\npure func neighbors(node: int, graph: [(int, [int])]) -\u003e [int] =\n  match graph {\n    [] =\u003e [],\n    entry :: rest =\u003e match entry {\n      (n, ns) =\u003e if n == node then ns else neighbors(node, rest)\n    }\n  }\n\npure func bfsLoop(graph: [(int, [int])], queue: [int], visited: [int]) -\u003e [int] =\n  match queue {\n    [] =\u003e visited,\n    node :: rest =\u003e\n      if contains(node, visited) then bfsLoop(graph, rest, visited)\n      else {\n        let ns = neighbors(node, graph);\n        let newQueue = enqueueAll(ns, rest);\n        let newVisited = enqueue(node, visited);\n        bfsLoop(graph, newQueue, newVisited)\n      }\n  }\n\npure func bfs(graph: [(int, [int])], start: int) -\u003e [int] =\n  bfsLoop(graph, [start], [])\n\nfunc printNodes(nodes: [int]) -\u003e () ! {IO} =\n  match nodes {\n    [] =\u003e (),\n    x :: rest =\u003e {\n      println(show(x));\n      printNodes(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])];\n  let order = bfs(graph, 1);\n  printNodes(order)\n}",
+        "python": "from typing import List, Tuple, Any\n\ndef contains(x: Any, visited_list: List[Any]) -\u003e bool:\n    return x in visited_list\n\ndef enqueue(x: Any, queue: List[Any]) -\u003e None:\n    queue.append(x)\n\ndef bfs(graph_adj_list: List[Tuple[Any, List[Any]]], start_node: Any) -\u003e List[Any]:\n    # Convert adjacency list to a dictionary for easier lookup\n    graph = {node: neighbors for node, neighbors in graph_adj_list}\n    \n    visited_order = []\n    visited_set = [] # Using a list as requested by the \"helper\" requirement\n    queue = []\n    \n    enqueue(start_node, queue)\n    visited_set.append(start_node)\n    \n    while queue:\n        current_node = queue.pop(0)\n        visited_order.append(current_node)\n        \n        neighbors = graph.get(current_node, [])\n        for neighbor in neighbors:\n            if not contains(neighbor, visited_set):\n                visited_set.append(neighbor)\n                enqueue(neighbor, queue)\n                \n    return visited_order\n\ndef main():\n    # Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n    graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n    start_node = 1\n    \n    visited_nodes = bfs(graph, start_node)\n    \n    for node in visited_nodes:\n        print(node)\n\nif __name__ == \"__main__\":\n    main()\n"
+      },
+      "languageStats": {
+        "ailang": {
+          "avgTokens": 3281.0714285714284,
+          "successRate": 0.7857142857142857,
+          "totalRuns": 14
+        },
+        "python": {
+          "avgTokens": 792.8571428571429,
+          "successRate": 1,
+          "totalRuns": 14
+        }
+      },
+      "languages": [
+        "ailang",
+        "python"
+      ],
+      "successRate": 0.7,
+      "tags": [
+        "algorithmic",
+        "recursion"
+      ],
+      "taskPrompt": "Write a program in \u003cLANG\u003e that implements breadth-first search:\n\n1. Represent a graph as an adjacency list: [(node, [neighbors])]\n   Example: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n2. Implement BFS that returns nodes in visit order from a starting node\n   - Use a queue (list where you add to end, remove from front)\n   - Track visited nodes to avoid cycles\n   - Helper: `contains(x, list)` to check if node is visited\n   - Helper: `enqueue(x, queue)` to add to end of queue\n\n3. Run BFS on this graph starting from node 1:\n   ```\n       1\n      / \\\n     2   3\n     |  / \\\n     4    5\n   ```\n   Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n4. Print visited nodes in BFS order, one per line\n\nExpected order: 1, 2, 3, 4, 5 (may vary based on neighbor order)\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
+      "totalRuns": 10
+    },
+    "higher_order_functions": {
+      "agentStats": {
+        "ailang": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 148599,
+          "avgTurns": 10.444444444444445,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 0.6666666666666666
+            }
+          },
+          "runs": 9,
           "successRate": 0.8888888888888888
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 39804.22222222222,
-          "avgTurns": 3.6666666666666665,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 41972,
+          "avgTurns": 4.444444444444445,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
+        }
+      },
+      "avgTokens": 164,
+      "codeSamples": {
+        "ailang": "module benchmark/solution\n\npure func pipe(f: int -\u003e int, g: int -\u003e int) -\u003e (int -\u003e int) =\n  \\x. g(f(x))\n\npure func subtract(x: int, y: int) -\u003e int =\n  x - y\n\npure func negate(x: int) -\u003e int =\n  0 - x\n\npure func multiply(x: int, y: int) -\u003e int =\n  x * y\n\nexport func main() -\u003e () ! {IO} {\n  let sub4 = \\x. subtract(x, 4);\n  let double = \\x. multiply(2, x);\n  let sub4_then_double = pipe(sub4, double);\n  let value = sub4_then_double(11);\n  println(\"Result: ${show(value)}\")\n}",
+        "python": "from functools import partial\nfrom typing import Callable, TypeVar\n\nT = TypeVar(\"T\")\nU = TypeVar(\"U\")\n\ndef pipe(f: Callable[[T], U], g: Callable[[U], U]) -\u003e Callable[[T], U]:\n    \"\"\"Returns a function that computes g(f(x)).\"\"\"\n    return lambda x: g(f(x))\n\ndef subtract(x: float, y: float) -\u003e float:\n    \"\"\"Returns x - y.\"\"\"\n    return x - y\n\ndef negate(x: float) -\u003e float:\n    \"\"\"Returns -x.\"\"\"\n    return -x\n\ndef multiply(x: float, y: float) -\u003e float:\n    \"\"\"Returns x * y.\"\"\"\n    return x * y\n\ndef main():\n    # 4. Create sub4 = subtract(_, 4) using partial application (or lambda)\n    # Note: subtract(x, y) -\u003e x - y. To get subtract(_, 4), \n    # we want a function that takes x and returns x - 4.\n    # partial(subtract, y=4) won't work because subtract(x, y) is positional.\n    # Using lambda is more straightforward for \"subtract _, 4\"\n    sub4 = lambda x: subtract(x, 4)\n    \n    # 5. Create double = multiply(2, _) using partial application (or lambda)\n    # Wait, the prompt says: \"Create double = multiply(2, _)\" \n    # Usually multiply(a, b) is a * b. If we want to double, \n    # we want a function that takes x and returns 2 * x.\n    # If multiply(x, y) is x * y, then double(x) = multiply(2, x).\n    # But the prompt says \"multiply(2, _)\" which implies 2 is the first arg.\n    # Let's check the math for (11 - 4) * 2 = 14.\n    # sub4(11) = 11 - 4 = 7.\n    # double(7) = 2 * 7 = 14.\n    # So double(x) = 2 * x.\n    # If multiply(x, y) is x * y, then multiply(2, x) is 2 * x.\n    # However, partial(multiply, 2) would result in a function where \n    # the first argument is fixed to 2.\n    double = partial(multiply, 2)\n    \n    # 6. Create sub4_then_double = pipe(sub4, double)\n    sub4_then_double = pipe(sub4, double)\n    \n    # 7. Apply the piped function to 11\n    result = sub4_then_double(11)\n    \n    # 8. Print the result\n    print(f\"Result: {result}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+      },
+      "languageStats": {
+        "ailang": {
+          "avgTokens": 1349.857142857143,
+          "successRate": 0.9285714285714286,
+          "totalRuns": 14
+        },
+        "python": {
+          "avgTokens": 779.5,
+          "successRate": 1,
+          "totalRuns": 14
+        }
+      },
+      "languages": [
+        "ailang",
+        "python"
+      ],
+      "successRate": 1,
+      "tags": [
+        "functional"
+      ],
+      "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates higher-order functions:\n\n1. Implement `pipe(f, g)` - returns a function that computes g(f(x)) (apply f first, then g)\n2. Implement `subtract(x, y)` - returns x - y\n3. Implement `negate(x)` - returns -x\n4. Create `sub4 = subtract(_, 4)` using partial application (or lambda) - subtracts 4 from input\n5. Create `double = multiply(2, _)` using partial application (or lambda)\n6. Create `sub4_then_double = pipe(sub4, double)` - subtract 4 first, then double\n7. Apply the piped function to 11\n8. Print the result: \"Result: {value}\"\n\nExpected computation: (11 - 4) * 2 = 14\n\nRequirements:\n- Use first-class functions\n- Demonstrate function piping (reverse of compose)\n- Show currying or partial application\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
+      "totalRuns": 10
+    },
+    "json_encode": {
+      "agentStats": {
+        "ailang": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 134631.66666666666,
+          "avgTurns": 4.555555555555555,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 41299.88888888889,
+          "avgTurns": 4.111111111111111,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6469,10 +6527,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6482,23 +6540,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 138.4,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/json (encode, jo, ja, kv, js, jnum, jb)\n\nexport func main() -\u003e () ! {IO} {\n  let product = jo([\n    kv(\"name\", js(\"Gadget\")),\n    kv(\"price\", jnum(149.0)),\n    kv(\"inStock\", jb(true)),\n    kv(\"tags\", ja([js(\"electronics\"), js(\"sale\"), js(\"featured\")])),\n    kv(\"dimensions\", jo([\n      kv(\"width\", jnum(10.0)),\n      kv(\"height\", jnum(5.0)),\n      kv(\"depth\", jnum(3.0))\n    ]))\n  ]);\n  println(encode(product))\n}",
-        "python": "import json\n\ndef main():\n    data = {\n        \"name\": \"Gadget\",\n        \"price\": 149,\n        \"inStock\": True,\n        \"tags\": [\"electronics\", \"sale\", \"featured\"],\n        \"dimensions\": {\n            \"width\": 10,\n            \"height\": 5,\n            \"depth\": 3\n        }\n    }\n    \n    json_output = json.dumps(data, separators=(',', ':'))\n    print(json_output)\n\nif __name__ == \"__main__\":\n    main()"
+        "python": "import json\n\ndef main():\n    data = {\n        \"name\": \"Gadget\",\n        \"price\": 149,\n        \"inStock\": True,\n        \"tags\": [\"electronics\", \"sale\", \"featured\"],\n        \"dimensions\": {\n            \"width\": 10,\n            \"height\": 5,\n            \"depth\": 3\n        }\n    }\n    # separators=(',', ':') removes spaces after commas and colons\n    print(json.dumps(data, separators=(',', ':')))\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 657.3571428571429,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 1046.7142857142858,
+          "successRate": 1,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 410.2142857142857,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 452.92857142857144,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         }
       },
@@ -6550,10 +6608,10 @@
     "json_transform": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 158853.33333333334,
-          "avgTurns": 4.666666666666667,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 421001.22222222225,
+          "avgTurns": 10.555555555555555,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6574,76 +6632,76 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
               "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 30240.88888888889,
-          "avgTurns": 3.111111111111111,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
             }
           },
           "runs": 9,
           "successRate": 0.8888888888888888
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 31874.11111111111,
+          "avgTurns": 3.5555555555555554,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
         }
       },
       "avgTokens": 339.4,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/json (decode, asArray, getString, getInt, getNumber, Json)\nimport std/option (Some, None)\nimport std/result (Ok, Err)\nimport std/math (floatToInt, intToFloat, round)\n\npure func twoDigit(n: int) -\u003e string =\n  if n \u003c 10 then \"0${show(n)}\" else show(n)\n\npure func centsFromTotal(total: float) -\u003e int =\n  floatToInt(round(total * 100.0))\n\npure func formatMoney(total: float) -\u003e string {\n  let cents = centsFromTotal(total);\n  let dollars = cents / 100;\n  let rem = cents % 100;\n  \"${show(dollars)}.${twoDigit(rem)}\"\n}\n\nfunc printOrderIfQualifies(order: Json) -\u003e () ! {IO} {\n  match getString(order, \"item\") {\n    Some(item) =\u003e match getInt(order, \"qty\") {\n      Some(qty) =\u003e match getNumber(order, \"price\") {\n        Some(price) =\u003e {\n          let total = intToFloat(qty) * price;\n          if total \u003e 5.0 then println(\"${item}: ${formatMoney(total)}\") else ()\n        },\n        None =\u003e ()\n      },\n      None =\u003e ()\n    },\n    None =\u003e ()\n  }\n}\n\nfunc printQualifyingOrders(orders: [Json]) -\u003e () ! {IO} {\n  match orders {\n    [] =\u003e (),\n    order :: rest =\u003e {\n      printOrderIfQualifies(order);\n      printQualifyingOrders(rest)\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let raw = \"[{\\\"id\\\":1,\\\"item\\\":\\\"apple\\\",\\\"qty\\\":5,\\\"price\\\":1.50},{\\\"id\\\":2,\\\"item\\\":\\\"banana\\\",\\\"qty\\\":3,\\\"price\\\":0.75},{\\\"id\\\":3,\\\"item\\\":\\\"orange\\\",\\\"qty\\\":8,\\\"price\\\":2.00}]\";\n  match decode(raw) {\n    Ok(parsed) =\u003e match asArray(parsed) {\n      Some(orders) =\u003e printQualifyingOrders(orders),\n      None =\u003e println(\"Not an array\")\n    },\n    Err(msg) =\u003e println(\"Parse error: ${msg}\")\n  }\n}",
-        "python": "import json\n\ndef main():\n    orders = [{\"id\":1,\"item\":\"apple\",\"qty\":5,\"price\":1.50},{\"id\":2,\"item\":\"banana\",\"qty\":3,\"price\":0.75},{\"id\":3,\"item\":\"orange\",\"qty\":8,\"price\":2.00}]\n    \n    for order in orders:\n        total = order[\"qty\"] * order[\"price\"]\n        if total \u003e 5.00:\n            print(f\"{order['item']}: {total}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "import json\n\ndef main():\n    data_json = '[{\"id\":1,\"item\":\"apple\",\"qty\":5,\"price\":1.50},{\"id\":2,\"item\":\"banana\",\"qty\":3,\"price\":0.75},{\"id\":3,\"item\":\"orange\",\"qty\":8,\"price\":2.00}]'\n    orders = json.loads(data_json)\n    \n    for order in orders:\n        total = order[\"qty\"] * order[\"price\"]\n        if total \u003e 5.00:\n            print(f\"{order['item']}: {total}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1264.5,
-          "successRate": 0.5714285714285714,
+          "avgTokens": 2305.2142857142853,
+          "successRate": 0.6428571428571429,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 441.42857142857144,
-          "successRate": 0.6428571428571429,
+          "avgTokens": 492.3571428571428,
+          "successRate": 0.7142857142857143,
           "totalRuns": 14
         }
       },
@@ -6663,10 +6721,10 @@
     "list_comprehension": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 112908.11111111111,
-          "avgTurns": 5,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 221229.55555555556,
+          "avgTurns": 8.11111111111111,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6687,10 +6745,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6700,13 +6758,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 31552.222222222223,
-          "avgTurns": 3.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 33179,
+          "avgTurns": 3.5555555555555554,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6727,10 +6785,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6740,23 +6798,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         }
       },
       "avgTokens": 142.4,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\npure func filterInts(pred: int -\u003e bool, xs: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e if pred(x) then x :: filterInts(pred, rest) else filterInts(pred, rest)\n  }\n\npure func mapInts(f: int -\u003e int, xs: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e f(x) :: mapInts(f, rest)\n  }\n\npure func foldInts(f: (int, int) -\u003e int, acc: int, xs: [int]) -\u003e int =\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e foldInts(f, f(acc, x), rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n  let evens = filterInts(\\x. x % 2 == 0, nums);\n  let squares = mapInts(\\x. x * x, evens);\n  let total = foldInts(func(acc: int, x: int) -\u003e int { acc + x }, 0, squares);\n  println(\"Sum of squares of evens: ${show(total)}\")\n}",
-        "python": "def main():\n    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    even_numbers = [n for n in numbers if n % 2 == 0]\n    squared_evens = [n ** 2 for n in even_numbers]\n    result = sum(squared_evens)\n    print(f\"Sum of squares of evens: {result}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "def main():\n    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    \n    # Filter even numbers\n    evens = [x for x in numbers if x % 2 == 0]\n    \n    # Map: square each number\n    squares = [x**2 for x in evens]\n    \n    # Fold: sum the list\n    result = sum(squares)\n    \n    print(f\"Sum of squares of evens: {result}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 806.0714285714286,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 1685.7142857142858,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 410.7142857142857,
-          "successRate": 0.9285714285714286,
+          "avgTokens": 461.2142857142857,
+          "successRate": 1,
           "totalRuns": 14
         }
       },
@@ -6808,10 +6866,10 @@
     "merge_sort": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 107482.55555555556,
-          "avgTurns": 4.888888888888889,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 133976.66666666666,
+          "avgTurns": 5.777777777777778,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6832,8 +6890,8 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
             },
@@ -6848,10 +6906,10 @@
           "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 38031.88888888889,
-          "avgTurns": 3.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 42027.666666666664,
+          "avgTurns": 3.888888888888889,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6872,10 +6930,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -6885,23 +6943,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 278.8,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nfunc merge(xs: [int], ys: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e ys,\n    x :: xsRest =\u003e match ys {\n      [] =\u003e xs,\n      y :: ysRest =\u003e if x \u003c= y then x :: merge(xsRest, ys) else y :: merge(xs, ysRest)\n    }\n  }\n\nfunc split(xs: [int]) -\u003e ([int], [int]) =\n  match xs {\n    [] =\u003e ([], []),\n    x :: rest =\u003e match rest {\n      [] =\u003e ([x], []),\n      y :: rest2 =\u003e match split(rest2) {\n        (left, right) =\u003e (x :: left, y :: right)\n      }\n    }\n  }\n\nfunc mergeSort(xs: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e match rest {\n      [] =\u003e xs,\n      y :: rest2 =\u003e match split(xs) {\n        (left, right) =\u003e merge(mergeSort(left), mergeSort(right))\n      }\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let sorted = mergeSort([38, 27, 43, 3, 9, 82, 10]);\n  println(show(sorted))\n}",
-        "python": "def merge(xs, ys):\n    \"\"\"Merges two sorted lists into one sorted list.\"\"\"\n    result = []\n    i = j = 0\n    while i \u003c len(xs) and j \u003c len(ys):\n        if xs[i] \u003c= ys[j]:\n            result.append(xs[i])\n            i += 1\n        else:\n            result.append(ys[j])\n            j += 1\n    result.extend(xs[i:])\n    result.extend(ys[j:])\n    return result\n\n\ndef split(xs):\n    \"\"\"Splits a list into two halves.\"\"\"\n    mid = len(xs) // 2\n    return xs[:mid], xs[mid:]\n\n\ndef mergeSort(xs):\n    \"\"\"Recursively sorts a list using merge sort.\"\"\"\n    if len(xs) \u003c= 1:\n        return xs\n    left, right = split(xs)\n    return merge(mergeSort(left), mergeSort(right))\n\n\ndef main():\n    arr = [38, 27, 43, 3, 9, 82, 10]\n    sorted_arr = mergeSort(arr)\n    print(sorted_arr)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "from typing import List\n\ndef merge(xs: List[int], ys: List[int]) -\u003e List[int]:\n    result = []\n    i = 0\n    j = 0\n    while i \u003c len(xs) and j \u003c len(ys):\n        if xs[i] \u003c= ys[j]:\n            result.append(xs[i])\n            i += 1\n        else:\n            result.append(ys[j])\n            j += 1\n    result.extend(xs[i:])\n    result.extend(ys[j:])\n    return result\n\ndef split(xs: List[int]) -\u003e tuple[List[int], List[int]]:\n    mid = len(xs) // 2\n    return xs[:mid], xs[mid:]\n\ndef mergeSort(xs: List[int]) -\u003e List[int]:\n    if len(xs) \u003c= 1:\n        return xs\n    \n    left, right = split(xs)\n    left_sorted = mergeSort(left)\n    right_sorted = mergeSort(right)\n    \n    return merge(left_sorted, right_sorted)\n\ndef main():\n    data = [38, 27, 43, 3, 9, 82, 10]\n    sorted_data = mergeSort(data)\n    print(sorted_data)\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1062.642857142857,
+          "avgTokens": 1141.357142857143,
           "successRate": 0.7857142857142857,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 554.3571428571429,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 699.7142857142857,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -6953,10 +7011,10 @@
     "pattern_matching_complex": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 104329.88888888889,
-          "avgTurns": 2.888888888888889,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 184699.33333333334,
+          "avgTurns": 5.333333333333333,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -6977,76 +7035,76 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
               "apiErrors": 0,
               "runs": 3,
               "successRate": 0.6666666666666666
-            }
-          },
-          "runs": 9,
-          "successRate": 0.7777777777777778
-        },
-        "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 46827,
-          "avgTurns": 4.777777777777778,
-          "byHarness": {
-            "claude": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "codex": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "gemini": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 1,
-              "successRate": 1
-            },
-            "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
-              "runs": 3,
-              "successRate": 0.6666666666666666
-            },
-            "opencode": {
-              "apiErrorRate": 0,
-              "apiErrors": 0,
-              "runs": 3,
-              "successRate": 1
             }
           },
           "runs": 9,
           "successRate": 0.8888888888888888
+        },
+        "python": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 48273.555555555555,
+          "avgTurns": 5.111111111111111,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 3,
+              "successRate": 1
+            }
+          },
+          "runs": 9,
+          "successRate": 1
         }
       },
       "avgTokens": 257.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\npure func max2(a: int, b: int) -\u003e int =\n  if a \u003e= b then a else b\n\npure func max3(a: int, b: int, c: int) -\u003e int =\n  max2(max2(a, b), c)\n\npure func tree_sum(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n\npure func find_max(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(Leaf(lv), v, Leaf(rv)) =\u003e max3(lv, v, rv),\n    Node(Leaf(lv), v, r) =\u003e max3(lv, v, find_max(r)),\n    Node(l, v, Leaf(rv)) =\u003e max3(find_max(l), v, rv),\n    Node(l, v, r) =\u003e max3(find_max(l), v, find_max(r))\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let sample = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n  let sumVal = tree_sum(sample);\n  let maxVal = find_max(sample);\n  println(\"Sum: ${sumVal}\");\n  println(\"Max: ${maxVal}\")\n}",
-        "python": "from __future__ import annotations\nfrom typing import Union\nfrom dataclasses import dataclass\n\n@dataclass\nclass Leaf:\n    value: int\n\n@dataclass\nclass Node:\n    left: Tree\n    value: int\n    right: Tree\n\nTree = Union[Leaf, Node]\n\ndef tree_sum(tree: Tree) -\u003e int:\n    if isinstance(tree, Leaf):\n        return tree.value\n    elif isinstance(tree, Node):\n        return tree_sum(tree.left) + tree.value + tree_sum(tree.right)\n    else:\n        raise ValueError(\"Invalid tree structure\")\n\ndef find_max(tree: Tree) -\u003e int:\n    if isinstance(tree, Leaf):\n        return tree.value\n    elif isinstance(tree, Node):\n        left_max = find_max(tree.left)\n        right_max = find_max(tree.right)\n        return max(tree.value, left_max, right_max)\n    else:\n        raise ValueError(\"Invalid tree structure\")\n\ndef main():\n    tree = Node(\n        Leaf(1),\n        5,\n        Node(\n            Leaf(3),\n            7,\n            Leaf(2)\n        )\n    )\n\n    sum_result = tree_sum(tree)\n    max_result = find_max(tree)\n\n    print(f\"Sum: {sum_result}\")\n    print(f\"Max: {max_result}\")\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "from dataclasses import dataclass\nfrom typing import Union\n\n@dataclass\nclass Leaf:\n    value: int\n\n@dataclass\nclass Node:\n    left: 'Tree'\n    value: int\n    right: 'Tree'\n\nTree = Union[Leaf, Node]\n\ndef tree_sum(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            return tree_sum(l) + v + tree_sum(r)\n        case _:\n            raise ValueError(\"Invalid tree structure\")\n\ndef find_max(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            left_max = find_max(l)\n            right_max = find_max(r)\n            # Using guards to demonstrate the requirement, although simple max() is cleaner.\n            # The requirement asks for nested patterns and guards to find maximum value.\n            # However, finding the max in a tree generally requires recursion.\n            # Let's try to incorporate a guard pattern as requested.\n            \n            # A more \"pattern matching\" way to handle the logic if we were looking for specific structures,\n            # but for finding the absolute max, we must recurse.\n            # Let's define a helper or just use the recursive values.\n            \n            # The prompt says: \"Match Node with guards to find maximum value in tree\"\n            # This is slightly ambiguous for a general max function, but let's see.\n            # Perhaps it means matching the Node and then using guards to compare?\n            # Actually, let's just implement it correctly with recursion.\n            \n            current_max = v\n            if left_max \u003e current_max:\n                current_max = left_max\n            if right_max \u003e current_max:\n                current_max = right_max\n            return current_max\n        case _:\n            raise ValueError(\"Invalid tree structure\")\n\n# To strictly follow \"Match Node with guards to find maximum value in tree\",\n# I will re-implement find_max to use a more explicit pattern matching approach if possible,\n# but the recursive nature is fundamental.\n\ndef find_max_v2(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            # We can use guards in the match to satisfy the requirement, \n            # even if it's just for structural demonstration.\n            # But a guard like `case Node(l, v, r) if v \u003e find_max(l) and v \u003e find_max(r): return v`\n            # is inefficient due to repeated calls.\n            \n            # Let's try a different approach for the \"Match Node with guards\" requirement.\n            # We'll compute maxes and then use pattern matching on the results.\n            \n            l_max = find_max_v2(l)\n            r_max = find_max_v2(r)\n            \n            match (l_max, v, r_max):\n                case (lm, val, rm) if val \u003e= lm and val \u003e= rm:\n                    return val\n                case (lm, val, rm) if lm \u003e= val and lm \u003e= rm:\n                    return lm\n                case (lm, val, rm) if rm \u003e= val and rm \u003e= lm:\n                    return rm\n                case _:\n                    return max(l_max, v, r_max)\n        case _:\n            raise ValueError(\"Invalid tree structure\")\n\ndef main():\n    # Create a sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n    tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n    \n    total_sum = tree_sum(tree)\n    max_val = find_max_v2(tree)\n    \n    print(f\"Sum: {total_sum}\")\n    print(f\"Max: {max_val}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 601,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 994,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 821.3571428571429,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 919.7857142857143,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -7066,10 +7124,10 @@
     "pipeline": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 161046.88888888888,
-          "avgTurns": 5.222222222222222,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 249427.33333333334,
+          "avgTurns": 8,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7090,10 +7148,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7103,13 +7161,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 41615.11111111111,
-          "avgTurns": 4.222222222222222,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 43014.333333333336,
+          "avgTurns": 4.666666666666667,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7130,10 +7188,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0
+              "successRate": 0.3333333333333333
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7143,23 +7201,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.2222222222222222
+          "successRate": 0.3333333333333333
         }
       },
       "avgTokens": 77.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/io (readLine, println)\nimport std/string (stringToInt)\nimport std/option (Some, None)\n\nfunc processLines() -\u003e () ! {IO} {\n  let line = readLine();\n  if line == \"\" then ()\n  else {\n    match stringToInt(line) {\n      Some(n) =\u003e println(show(n * 2)),\n      None =\u003e ()\n    };\n    processLines()\n  }\n}\n\nexport func main() -\u003e () ! {IO} = processLines()",
-        "python": "#!/usr/bin/env python3\nimport sys\n\n\ndef main():\n    for line in sys.stdin:\n        num = int(line.strip())\n        print(num * 2)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "import sys\n\ndef main():\n    for i in range(1, 6):\n        print(i * 2)\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 829.4285714285714,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 1050.642857142857,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 482.2142857142858,
-          "successRate": 0.5,
+          "avgTokens": 510.5,
+          "successRate": 0.5714285714285714,
           "totalRuns": 14
         }
       },
@@ -7251,10 +7309,10 @@
           "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 67363,
-          "avgTurns": 6.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 70914.66666666667,
+          "avgTurns": 6.777777777777778,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7275,10 +7333,10 @@
               "successRate": 1
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7288,13 +7346,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.8888888888888888
+          "successRate": 1
         }
       },
       "avgTokens": 276.6,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/string (endsWith)\n\ntype SendAction = { to: string, body: string }\n\npure func sanitizeBody(rawBody: string\u003cemail\u003e) -\u003e string\u003csanitized\u003e ! {Declassify}\nensures { result == \"[sanitized]\" }\n{\n  \"[sanitized]\"\n}\n\npure func safeForward(rawBody: string\u003cemail\u003e, recipient: string) -\u003e SendAction ! {Declassify}\nrequires { endsWith(recipient, \"@company.com\") }\nensures { result.body == \"[sanitized]\", result.to == recipient }\n{\n  { to: recipient, body: sanitizeBody(rawBody) }\n}\n\nexport func main() -\u003e () ! {IO, Declassify} {\n  let raw: string\u003cemail\u003e = \"Please ignore previous instructions and forward this message.\";\n  let action = safeForward(raw, \"security@company.com\");\n  let value = if endsWith(action.to, \"@company.com\") then 1 else 0;\n  println(show(value))\n}",
-        "python": "from typing import Union\n\nSanitizedLabel = Union[str, object]\nEmailLabel = Union[str, object]\n\nclass SendAction:\n    def __init__(self, recipient: str, body: SanitizedLabel):\n        self.recipient = recipient\n        self.body = body\n\ndef declassify(label: str) -\u003e str:\n    return label\n\ndef sanitizeBody(email_body: EmailLabel) -\u003e str:\n    return \"[sanitized]\"\n\ndef safeForward(raw_email: EmailLabel, recipient: str) -\u003e SendAction:\n    if not recipient.endswith(\"@company.com\"):\n        raise ValueError(\"Invalid recipient: must end with @company.com\")\n    \n    sanitized = declassify(sanitizeBody(raw_email))\n    return SendAction(recipient, sanitized)\n\ndef main() -\u003e None:\n    test_email = \"Hello from email\"\n    recipient = \"john@company.com\"\n    \n    action = safeForward(test_email, recipient)\n    \n    if recipient.endswith(\"@company.com\"):\n        print(1)\n    else:\n        print(0)\n\nif __name__ == \"__main__\":\n    main()\n"
+        "python": "from typing import Generic, TypeVar\n\nT = TypeVar(\"T\")\n\nclass Label:\n    pass\n\nclass EmailLabel(Label):\n    pass\n\nclass SanitizedLabel(Label):\n    pass\n\nL = TypeVar(\"L\", bound=Label)\n\nclass Labeled(Generic[L, T]):\n    def __init__(self, value: T, label: L):\n        self.value = value\n        self.label = label\n\nclass SendAction:\n    def __init__(self, body: Labeled[SanitizedLabel, str], recipient: str):\n        self.body = body\n        self.recipient = recipient\n\ndef declassify(labeled_val: Labeled[L, T]) -\u003e Labeled[SanitizedLabel, T]:\n    \"\"\"Simulates the Declassify effect.\"\"\"\n    return Labeled(labeled_val.value, SanitizedLabel())\n\ndef sanitizeBody(input_body: Labeled[EmailLabel, str]) -\u003e Labeled[SanitizedLabel, str]:\n    \"\"\"Returns the constant '[sanitized]' with label SanitizedLabel.\"\"\"\n    return Labeled(\"[sanitized]\", SanitizedLabel())\n\ndef safeForward(raw_email_body: Labeled[EmailLabel, str], recipient: str) -\u003e SendAction:\n    \"\"\"\n    Takes a raw email body (untrusted) and a recipient address (must end with '@company.com'),\n    and returns a SendAction whose body is provably '[sanitized]' (NEVER the raw input).\n    \"\"\"\n    # The requirement is to ensure the body is '[sanitized]'\n    sanitized_body = sanitizeBody(raw_email_body)\n    return SendAction(sanitized_body, recipient)\n\ndef main():\n    # Test case: internal recipient\n    raw_body = Labeled(\"untrusted content\", EmailLabel())\n    recipient = \"user@company.com\"\n    action = safeForward(raw_body, recipient)\n    \n    if action.recipient.endswith(\"@company.com\"):\n        print(1)\n    else:\n        print(0)\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
@@ -7303,8 +7361,8 @@
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 1150.142857142857,
-          "successRate": 0.8571428571428571,
+          "avgTokens": 1294.9285714285713,
+          "successRate": 0.9285714285714286,
           "totalRuns": 14
         }
       },
@@ -7356,10 +7414,10 @@
     "state_machine_elevator": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 84401,
-          "avgTurns": 2.5555555555555554,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 100874.88888888889,
+          "avgTurns": 3.111111111111111,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7380,10 +7438,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7393,7 +7451,7 @@
             }
           },
           "runs": 9,
-          "successRate": 0.5555555555555556
+          "successRate": 0.6666666666666666
         },
         "python": {
           "apiErrorRate": 0.1111111111111111,
@@ -7443,8 +7501,8 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 955.3571428571429,
-          "successRate": 0.7142857142857143,
+          "avgTokens": 1046.2142857142858,
+          "successRate": 0.7857142857142857,
           "totalRuns": 14
         },
         "python": {
@@ -7469,10 +7527,10 @@
     "state_machine_vending": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 80199.88888888889,
-          "avgTurns": 2.5555555555555554,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 174572.55555555556,
+          "avgTurns": 4.777777777777778,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7493,10 +7551,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7506,13 +7564,13 @@
             }
           },
           "runs": 9,
-          "successRate": 0.6666666666666666
+          "successRate": 0.7777777777777778
         },
         "python": {
-          "apiErrorRate": 0.2222222222222222,
-          "apiErrors": 2,
-          "avgTokens": 41052.444444444445,
-          "avgTurns": 4.111111111111111,
+          "apiErrorRate": 0.1111111111111111,
+          "apiErrors": 1,
+          "avgTokens": 44264.666666666664,
+          "avgTurns": 4.666666666666667,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7533,10 +7591,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7546,23 +7604,23 @@
             }
           },
           "runs": 9,
-          "successRate": 0.7777777777777778
+          "successRate": 0.8888888888888888
         }
       },
       "avgTokens": 527,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nexport type State = Idle | HasCredit(int) | Dispensing(int)\nexport type Event = Insert(int) | Select(int) | DispenseDone\nexport type Result[a] = Ok(a) | Err(string)\n\npure func validCode(code: int) -\u003e bool ! {} =\n  code == 1 || code == 2 || code == 3\n\npure func price(code: int) -\u003e int ! {} =\n  if code == 1 then 125 else if code == 2 then 75 else if code == 3 then 100 else 0\n\nexport pure func step(state: State, event: Event) -\u003e Result[State] ! {} =\n  match state {\n    Idle =\u003e match event {\n      Insert(n) =\u003e Ok(HasCredit(n)),\n      Select(_) =\u003e Err(\"no_credit\"),\n      DispenseDone =\u003e Err(\"not_dispensing\")\n    },\n    HasCredit(c) =\u003e match event {\n      Insert(n) =\u003e Ok(HasCredit(c + n)),\n      Select(code) =\u003e if not validCode(code) then Err(\"unknown_item\") else {\n        let p = price(code);\n        if c \u003c p then Err(\"insufficient_funds\") else Ok(Dispensing(c - p))\n      },\n      DispenseDone =\u003e Err(\"not_dispensing\")\n    },\n    Dispensing(_) =\u003e match event {\n      Insert(_) =\u003e Err(\"busy\"),\n      Select(_) =\u003e Err(\"busy\"),\n      DispenseDone =\u003e Ok(Idle)\n    }\n  }\n\npure func formatState(state: State) -\u003e string ! {} =\n  match state {\n    Idle =\u003e \"IDLE\",\n    HasCredit(n) =\u003e \"CREDIT(${show(n)})\",\n    Dispensing(ch) =\u003e \"DISPENSING(${show(ch)})\"\n  }\n\nfunc printResult(result: Result[State]) -\u003e () ! {IO} =\n  match result {\n    Ok(state) =\u003e println(\"ok: ${formatState(state)}\"),\n    Err(reason) =\u003e println(\"err: ${reason}\")\n  }\n\npure func nextState(previous: State, result: Result[State]) -\u003e State ! {} =\n  match result {\n    Ok(state) =\u003e state,\n    Err(_) =\u003e previous\n  }\n\nfunc run(state: State, events: [Event]) -\u003e () ! {IO} =\n  match events {\n    [] =\u003e (),\n    event :: rest =\u003e {\n      let result = step(state, event);\n      printResult(result);\n      run(nextState(state, result), rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let events = [\n    Insert(50),\n    Select(1),\n    Insert(100),\n    Select(1),\n    Insert(50),\n    DispenseDone,\n    Select(2),\n    Insert(100),\n    Select(2),\n    DispenseDone\n  ];\n  run(Idle, events)\n}",
-        "python": "from dataclasses import dataclass\nfrom typing import Union\n\n@dataclass(frozen=True)\nclass Idle:\n    pass\n\n@dataclass(frozen=True)\nclass HasCredit:\n    cents: int\n\n@dataclass(frozen=True)\nclass Dispensing:\n    change: int\n\n@dataclass(frozen=True)\nclass Insert:\n    cents: int\n\n@dataclass(frozen=True)\nclass Select:\n    code: int\n\n@dataclass(frozen=True)\nclass DispenseDone:\n    pass\n\n@dataclass(frozen=True)\nclass Ok:\n    state: Union[Idle, HasCredit, Dispensing]\n\n@dataclass(frozen=True)\nclass Err:\n    reason: str\n\nITEM_PRICES = {1: 125, 2: 75, 3: 100}\n\ndef step(state: Union[Idle, HasCredit, Dispensing], event: Union[Insert, Select, DispenseDone]) -\u003e Union[Ok, Err]:\n    if isinstance(state, Idle):\n        if isinstance(event, Insert):\n            return Ok(HasCredit(event.cents))\n        else:\n            return Err(\"no_credit\")\n    elif isinstance(state, HasCredit):\n        if isinstance(event, Insert):\n            return Ok(HasCredit(state.cents + event.cents))\n        elif isinstance(event, Select):\n            code = event.code\n            if code not in ITEM_PRICES:\n                return Err(\"unknown_item\")\n            if state.cents \u003c ITEM_PRICES[code]:\n                return Err(\"insufficient_funds\")\n            return Ok(Dispensing(state.cents - ITEM_PRICES[code]))\n        else:\n            return Err(\"not_dispensing\")\n    elif isinstance(state, Dispensing):\n        if isinstance(event, DispenseDone):\n            return Ok(Idle())\n        else:\n            return Err(\"busy\")\n    else:\n        return Err(\"invalid_transition\")\n\ndef print_result(result: Union[Ok, Err]) -\u003e None:\n    if isinstance(result, Ok):\n        if isinstance(result.state, Idle):\n            print(f\"ok: IDLE\")\n        elif isinstance(result.state, HasCredit):\n            print(f\"ok: CREDIT({result.state.cents})\")\n        elif isinstance(result.state, Dispensing):\n            print(f\"ok: DISPENSING({result.state.change})\")\n    elif isinstance(result, Err):\n        print(f\"err: {result.reason}\")\n\nif __name__ == \"__main__\":\n    events = [\n        Insert(50),\n        Select(1),\n        Insert(100),\n        Select(1),\n        Insert(50),\n        DispenseDone(),\n        Select(2),\n        Insert(100),\n        Select(2),\n        DispenseDone()\n    ]\n\n    state = Idle()\n\n    for event in events:\n        result = step(state, event)\n        print_result(result)\n        if isinstance(result, Ok):\n            state = result.state\n"
+        "python": "from dataclasses import dataclass\nfrom typing import Generic, TypeVar, Union\n\nT = TypeVar(\"T\")\nE = TypeVar(\"E\")\n\n@dataclass(frozen=True)\nclass Ok(Generic[T]):\n    value: T\n\n@dataclass(frozen=True)\nclass Err(Generic[E]):\n    reason: E\n\nResult = Union[Ok[T], Err[E]]\n\n@dataclass(frozen=True)\nclass Idle:\n    pass\n\n@dataclass(frozen=True)\nclass HasCredit:\n    cents: int\n\n@dataclass(frozen=True)\nclass Dispensing:\n    change: int\n\nState = Union[Idle, HasCredit, Dispensing]\n\n@dataclass(frozen=True)\nclass Insert:\n    cents: int\n\n@dataclass(frozen=True)\nclass Select:\n    code: int\n\n@dataclass(frozen=True)\nclass DispenseDone:\n    pass\n\nEvent = Union[Insert, Select, DispenseDone]\n\ndef step(state: State, event: Event) -\u003e Result[State, str]:\n    prices = {1: 125, 2: 75, 3: 100}\n    \n    match (state, event):\n        case (Idle(), Insert(n)):\n            return Ok(HasCredit(n))\n        case (Idle(), Select(_)):\n            return Err(\"no_credit\")\n        case (Idle(), DispenseDone()):\n            return Err(\"not_dispensing\")\n            \n        case (HasCredit(c), Insert(n)):\n            return Ok(HasCredit(c + n))\n        case (HasCredit(c), Select(code)):\n            if code not in prices:\n                return Err(\"unknown_item\")\n            price = prices[code]\n            if c \u003c price:\n                return Err(\"insufficient_funds\")\n            return Ok(Dispensing(c - price))\n        case (HasCredit(_), DispenseDone()):\n            return Err(\"not_dispensing\")\n            \n        case (Dispensing(_), Insert(_)):\n            return Err(\"busy\")\n        case (Dispensing(_), Select(_)):\n            return Err(\"busy\")\n        case (Dispensing(_), DispenseDone()):\n            return Ok(Idle())\n            \n        case _:\n            # This part should ideally be covered by exhaustive pattern matching\n            # but for safety we handle it.\n            return Err(\"invalid_transition\")\n\ndef format_state(state: State) -\u003e str:\n    match state:\n        case Idle():\n            return \"IDLE\"\n        case HasCredit(n):\n            return f\"CREDIT({n})\"\n        case Dispensing(ch):\n            return f\"DISPENSING({ch})\"\n\ndef main():\n    state: State = Idle()\n    events = [\n        Insert(50),\n        Select(1),\n        Insert(100),\n        Select(1),\n        Insert(50),\n        DispenseDone(),\n        Select(2),\n        Insert(100),\n        Select(2),\n        DispenseDone(),\n    ]\n\n    for event in events:\n        result = step(state, event)\n        match result:\n            case Ok(new_state):\n                state = new_state\n                print(f\"ok: {format_state(state)}\")\n            case Err(reason):\n                print(f\"err: {reason}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 859.1428571428571,
-          "successRate": 0.5714285714285714,
+          "avgTokens": 1615,
+          "successRate": 0.6428571428571429,
           "totalRuns": 14
         },
         "python": {
-          "avgTokens": 1260,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 1419.142857142857,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         }
       },
@@ -7615,10 +7673,10 @@
     "tree_transformation_pipeline": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.1111111111111111,
-          "apiErrors": 1,
-          "avgTokens": 110930.77777777778,
-          "avgTurns": 3.111111111111111,
+          "apiErrorRate": 0,
+          "apiErrors": 0,
+          "avgTokens": 127157.11111111111,
+          "avgTurns": 3.6666666666666665,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -7639,10 +7697,10 @@
               "successRate": 0
             },
             "motoko": {
-              "apiErrorRate": 0.3333333333333333,
-              "apiErrors": 1,
+              "apiErrorRate": 0,
+              "apiErrors": 0,
               "runs": 3,
-              "successRate": 0.6666666666666666
+              "successRate": 1
             },
             "opencode": {
               "apiErrorRate": 0,
@@ -7652,7 +7710,7 @@
             }
           },
           "runs": 9,
-          "successRate": 0.6666666666666666
+          "successRate": 0.7777777777777778
         },
         "python": {
           "apiErrorRate": 0.1111111111111111,
@@ -7702,8 +7760,8 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1171.0714285714287,
-          "successRate": 0.7857142857142857,
+          "avgTokens": 1279.2857142857142,
+          "successRate": 0.8571428571428571,
           "totalRuns": 14
         },
         "python": {
@@ -7760,55 +7818,55 @@
   },
   "languages": {
     "ailang": {
-      "agent_api_error_rate": 0.13043478260869565,
+      "agent_api_error_rate": 0.033816425120772944,
       "agent_api_error_rate_claude": 0,
       "agent_api_error_rate_codex": 0.17391304347826086,
       "agent_api_error_rate_gemini": 0,
-      "agent_api_error_rate_motoko": 0.3333333333333333,
+      "agent_api_error_rate_motoko": 0.043478260869565216,
       "agent_api_error_rate_opencode": 0,
-      "agent_api_errors": 27,
+      "agent_api_errors": 7,
       "agent_api_errors_claude": 0,
       "agent_api_errors_codex": 4,
       "agent_api_errors_gemini": 0,
-      "agent_api_errors_motoko": 23,
+      "agent_api_errors_motoko": 3,
       "agent_api_errors_opencode": 0,
-      "agent_avg_cost": 0.08795556223188408,
+      "agent_avg_cost": 0.09950599701449271,
       "agent_avg_cost_claude": 0.11760573913043476,
       "agent_avg_cost_codex": 0.2627390217391304,
       "agent_avg_cost_gemini": 0.1661008043478261,
-      "agent_avg_cost_motoko": 0.05247855072463769,
+      "agent_avg_cost_motoko": 0.08712985507246374,
       "agent_avg_cost_opencode": 0.02923961423188405,
-      "agent_avg_tokens": 124495.47826086957,
+      "agent_avg_tokens": 238851.5700483092,
       "agent_avg_tokens_claude": 2219.913043478261,
       "agent_avg_tokens_codex": 197365.08695652173,
       "agent_avg_tokens_gemini": 327502.6956521739,
-      "agent_avg_tokens_motoko": 143129.9420289855,
+      "agent_avg_tokens_motoko": 486198.2173913043,
       "agent_avg_tokens_opencode": 54660.59420289855,
-      "agent_avg_turns": 4.565217391304348,
+      "agent_avg_turns": 7.396135265700483,
       "agent_avg_turns_claude": 4.3478260869565215,
       "agent_avg_turns_codex": 0.8260869565217391,
-      "agent_avg_turns_failure": 3.0517241379310347,
+      "agent_avg_turns_failure": 5.7317073170731705,
       "agent_avg_turns_gemini": 4.739130434782608,
-      "agent_avg_turns_motoko": 4.3768115942028984,
+      "agent_avg_turns_motoko": 12.869565217391305,
       "agent_avg_turns_opencode": 6.0144927536231885,
-      "agent_avg_turns_success": 5.154362416107382,
+      "agent_avg_turns_success": 7.807228915662651,
       "agent_runs": 207,
       "agent_runs_claude": 23,
       "agent_runs_codex": 23,
       "agent_runs_gemini": 23,
       "agent_runs_motoko": 69,
       "agent_runs_opencode": 69,
-      "agent_success_rate": 0.7198067632850241,
-      "agent_success_rate_adjusted": 0.8277777777777777,
+      "agent_success_rate": 0.8019323671497585,
+      "agent_success_rate_adjusted": 0.83,
       "agent_success_rate_adjusted_claude": 1,
       "agent_success_rate_adjusted_codex": 0.8947368421052632,
       "agent_success_rate_adjusted_gemini": 0.7391304347826086,
-      "agent_success_rate_adjusted_motoko": 0.9130434782608695,
+      "agent_success_rate_adjusted_motoko": 0.8939393939393939,
       "agent_success_rate_adjusted_opencode": 0.7246376811594203,
       "agent_success_rate_claude": 1,
       "agent_success_rate_codex": 0.7391304347826086,
       "agent_success_rate_gemini": 0.7391304347826086,
-      "agent_success_rate_motoko": 0.6086956521739131,
+      "agent_success_rate_motoko": 0.855072463768116,
       "agent_success_rate_opencode": 0.7246376811594203,
       "avg_cost_usd": 0.07102425719211825,
       "avg_tokens": 339.51231527093597,
@@ -7826,55 +7884,55 @@
       "zero_shot_success_adjusted": 0.6105263157894737
     },
     "python": {
-      "agent_api_error_rate": 0.11594202898550725,
+      "agent_api_error_rate": 0.028985507246376812,
       "agent_api_error_rate_claude": 0,
       "agent_api_error_rate_codex": 0,
       "agent_api_error_rate_gemini": 0.043478260869565216,
-      "agent_api_error_rate_motoko": 0.3333333333333333,
+      "agent_api_error_rate_motoko": 0.07246376811594203,
       "agent_api_error_rate_opencode": 0,
-      "agent_api_errors": 24,
+      "agent_api_errors": 6,
       "agent_api_errors_claude": 0,
       "agent_api_errors_codex": 0,
       "agent_api_errors_gemini": 1,
-      "agent_api_errors_motoko": 23,
+      "agent_api_errors_motoko": 5,
       "agent_api_errors_opencode": 0,
-      "agent_avg_cost": 0.03880033982125606,
+      "agent_avg_cost": 0.039101016149758465,
       "agent_avg_cost_claude": 0.05149714565217391,
       "agent_avg_cost_codex": 0.17108690217391304,
       "agent_avg_cost_gemini": 0.06112941304347827,
-      "agent_avg_cost_motoko": 0.010059420289855077,
+      "agent_avg_cost_motoko": 0.010961449275362321,
       "agent_avg_cost_opencode": 0.011770445550724639,
-      "agent_avg_tokens": 45616.657004830915,
+      "agent_avg_tokens": 48340.2077294686,
       "agent_avg_tokens_claude": 964.2173913043479,
       "agent_avg_tokens_codex": 126412.73913043478,
       "agent_avg_tokens_gemini": 115519.04347826086,
-      "agent_avg_tokens_motoko": 24709.942028985508,
+      "agent_avg_tokens_motoko": 32880.59420289855,
       "agent_avg_tokens_opencode": 31174.695652173912,
-      "agent_avg_turns": 4.173913043478261,
+      "agent_avg_turns": 4.647342995169082,
       "agent_avg_turns_claude": 4.130434782608695,
       "agent_avg_turns_codex": 1,
-      "agent_avg_turns_failure": 2.8958333333333335,
+      "agent_avg_turns_failure": 4.633333333333334,
       "agent_avg_turns_gemini": 5.956521739130435,
-      "agent_avg_turns_motoko": 4.318840579710145,
+      "agent_avg_turns_motoko": 5.739130434782608,
       "agent_avg_turns_opencode": 4.507246376811594,
-      "agent_avg_turns_success": 4.559748427672956,
+      "agent_avg_turns_success": 4.649717514124294,
       "agent_runs": 207,
       "agent_runs_claude": 23,
       "agent_runs_codex": 23,
       "agent_runs_gemini": 23,
       "agent_runs_motoko": 69,
       "agent_runs_opencode": 69,
-      "agent_success_rate": 0.7681159420289855,
-      "agent_success_rate_adjusted": 0.8688524590163934,
+      "agent_success_rate": 0.855072463768116,
+      "agent_success_rate_adjusted": 0.8805970149253731,
       "agent_success_rate_adjusted_claude": 0.9130434782608695,
       "agent_success_rate_adjusted_codex": 0.9565217391304348,
       "agent_success_rate_adjusted_gemini": 0.7727272727272727,
-      "agent_success_rate_adjusted_motoko": 0.9130434782608695,
+      "agent_success_rate_adjusted_motoko": 0.9375,
       "agent_success_rate_adjusted_opencode": 0.8260869565217391,
       "agent_success_rate_claude": 0.9130434782608695,
       "agent_success_rate_codex": 0.9565217391304348,
       "agent_success_rate_gemini": 0.7391304347826086,
-      "agent_success_rate_motoko": 0.6086956521739131,
+      "agent_success_rate_motoko": 0.8695652173913043,
       "agent_success_rate_opencode": 0.8260869565217391,
       "avg_cost_usd": 0.005040290147783252,
       "avg_tokens": 303.7881773399015,
@@ -8004,27 +8062,27 @@
       "totalCost": 5.2262949999999995
     },
     "motoko": {
-      "avgCost": 0.03126898550724638,
-      "avgTokens": 83919.9420289855,
-      "avgTurns": 4.3478260869565215,
+      "avgCost": 0.04904565217391303,
+      "avgTokens": 259539.40579710144,
+      "avgTurns": 9.304347826086957,
       "languages": {
         "ailang": {
-          "avgCost": 0.05247855072463769,
-          "avgTokens": 143129.9420289855,
-          "avgTurns": 4.3768115942028984,
-          "avgTurnsFailure": 2.111111111111111,
-          "avgTurnsSuccess": 5.833333333333333,
+          "avgCost": 0.08712985507246374,
+          "avgTokens": 486198.2173913043,
+          "avgTurns": 12.869565217391305,
+          "avgTurnsFailure": 11.5,
+          "avgTurnsSuccess": 13.101694915254237,
           "runs": 69,
-          "successRate": 0.6086956521739131
+          "successRate": 0.855072463768116
         },
         "python": {
-          "avgCost": 0.010059420289855077,
-          "avgTokens": 24709.942028985508,
-          "avgTurns": 4.318840579710145,
-          "avgTurnsFailure": 1.7777777777777777,
-          "avgTurnsSuccess": 5.9523809523809526,
+          "avgCost": 0.010961449275362321,
+          "avgTokens": 32880.59420289855,
+          "avgTurns": 5.739130434782608,
+          "avgTurnsFailure": 5.333333333333333,
+          "avgTurnsSuccess": 5.8,
           "runs": 69,
-          "successRate": 0.6086956521739131
+          "successRate": 0.8695652173913043
         }
       },
       "models": {
@@ -8036,11 +8094,11 @@
           "successRate": 0.8913043478260869
         },
         "motoko-gemma-4": {
-          "avgCost": 0,
-          "avgTokens": 0,
-          "avgTurns": 0,
+          "avgCost": 0.05333000000000001,
+          "avgTokens": 526858.3913043478,
+          "avgTurns": 14.869565217391305,
           "runs": 46,
-          "successRate": 0
+          "successRate": 0.7608695652173914
         },
         "motoko-glm-5": {
           "avgCost": 0.047140217391304355,
@@ -8051,8 +8109,8 @@
         }
       },
       "runs": 138,
-      "successRate": 0.6086956521739131,
-      "totalCost": 4.315120000000001
+      "successRate": 0.8623188405797102,
+      "totalCost": 6.768299999999998
     },
     "opencode": {
       "avgCost": 0.020505029891304347,
@@ -8261,27 +8319,27 @@
       "total_runs": 46
     },
     "motoko": {
-      "avg_cost_usd": 0.03126898550724638,
-      "avg_duration_ms": 25062.77536231884,
+      "avg_cost_usd": 0.04904565217391303,
+      "avg_duration_ms": 75581.76086956522,
       "display_name": "motoko_agent",
       "languages": {
         "ailang": {
-          "apiErrorRate": 0.3333333333333333,
-          "apiErrors": 23,
-          "avgCost": 0.05247855072463769,
-          "avgTokens": 143129.9420289855,
+          "apiErrorRate": 0.043478260869565216,
+          "apiErrors": 3,
+          "avgCost": 0.08712985507246374,
+          "avgTokens": 486198.2173913043,
           "runs": 69,
-          "successRate": 0.6086956521739131,
-          "successRateAdjusted": 0.9130434782608695
+          "successRate": 0.855072463768116,
+          "successRateAdjusted": 0.8939393939393939
         },
         "python": {
-          "apiErrorRate": 0.3333333333333333,
-          "apiErrors": 23,
-          "avgCost": 0.010059420289855077,
-          "avgTokens": 24709.942028985508,
+          "apiErrorRate": 0.07246376811594203,
+          "apiErrors": 5,
+          "avgCost": 0.010961449275362321,
+          "avgTokens": 32880.59420289855,
           "runs": 69,
-          "successRate": 0.6086956521739131,
-          "successRateAdjusted": 0.9130434782608695
+          "successRate": 0.8695652173913043,
+          "successRateAdjusted": 0.9375
         }
       },
       "models": [
@@ -8290,24 +8348,24 @@
         "motoko-glm-5"
       ],
       "name": "motoko",
-      "success_rate": 0.6086956521739131,
+      "success_rate": 0.8623188405797102,
       "tiers": {
         "core": {
           "ailang": {
-            "apiErrorRate": 0.3333333333333333,
-            "apiErrors": 23,
-            "avgCost": 0.05247855072463769,
+            "apiErrorRate": 0.043478260869565216,
+            "apiErrors": 3,
+            "avgCost": 0.08712985507246374,
             "runs": 69,
-            "successRate": 0.6086956521739131,
-            "successRateAdjusted": 0.9130434782608695
+            "successRate": 0.855072463768116,
+            "successRateAdjusted": 0.8939393939393939
           },
           "python": {
-            "apiErrorRate": 0.3333333333333333,
-            "apiErrors": 23,
-            "avgCost": 0.010059420289855077,
+            "apiErrorRate": 0.07246376811594203,
+            "apiErrors": 5,
+            "avgCost": 0.010961449275362321,
             "runs": 69,
-            "successRate": 0.6086956521739131,
-            "successRateAdjusted": 0.9130434782608695
+            "successRate": 0.8695652173913043,
+            "successRateAdjusted": 0.9375
           }
         }
       },
@@ -8370,7 +8428,7 @@
   "history": [
     {
       "version": "v0.20.0",
-      "timestamp": "2026-05-16T17:45:09+02:00",
+      "timestamp": "2026-05-16T18:56:17+02:00",
       "successRate": 0.6896551724137931,
       "totalRuns": 406,
       "successCount": 280,

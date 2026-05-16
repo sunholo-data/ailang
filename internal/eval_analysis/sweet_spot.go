@@ -620,16 +620,18 @@ func FormatSweetSpotCSV(report SweetSpotReport) (string, error) {
 // shape stability — zero values mean "not measured / not applicable".
 func renderSweetSpotRow(r SweetSpotRow) map[string]interface{} {
 	return map[string]interface{}{
-		"model":                 r.Model,
-		"harness":               r.Harness,
-		"total_runs":            r.TotalRuns,
-		"pass_rate":             r.PassRate,
-		"median_tts_ms":         r.MedianTTSMs,
-		"median_tokens_per_sec": r.MedianTokensPerSec,
-		"p90_cost_per_success":  r.P90CostPerSuccess,
-		"speed_efficiency":      r.SpeedEfficiency,
-		"dollars_per_pass":      r.DollarsPerPass,
-		"pareto_frontier":       r.ParetoFrontier,
+		"model":                  r.Model,
+		"harness":                r.Harness,
+		"total_runs":             r.TotalRuns,
+		"pass_rate":              r.PassRate,
+		"median_tts_ms":          r.MedianTTSMs,
+		"median_tokens_per_sec":  r.MedianTokensPerSec,
+		"p90_cost_per_success":   r.P90CostPerSuccess,
+		"speed_efficiency":       r.SpeedEfficiency,
+		"dollars_per_pass":       r.DollarsPerPass,
+		"cost_overhead_vs_best":  r.CostOverheadVsBest,
+		"token_overhead_vs_best": r.TokenOverheadVsBest,
+		"pareto_frontier":        r.ParetoFrontier,
 		"buckets": map[string]int{
 			"fast_pass":          r.Buckets.FastPass,
 			"slow_pass":          r.Buckets.SlowPass,

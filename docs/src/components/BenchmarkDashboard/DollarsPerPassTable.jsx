@@ -62,6 +62,12 @@ export default function DollarsPerPassTable({ models }) {
         passRate: ss.pass_rate,
         totalRuns: ss.total_runs,
         totalCost: agg.totalCostUSD || (stats.agentStats?.avgCost || 0) * (ss.total_runs || 0),
+        // "$-overhead" = median ratio of this-model-cost / cheapest-passer-cost,
+        // computed per benchmark. 1.0 = matched the cheapest passer on every
+        // benchmark this model passed. Distinguishes pricing tax from
+        // inefficiency in concert with the tokens-overhead column.
+        costOverhead: ss.cost_overhead_vs_best || 0,
+        tokenOverhead: ss.token_overhead_vs_best || 0,
         pareto: !!ss.pareto_frontier,
       });
     }
@@ -141,6 +147,22 @@ export default function DollarsPerPassTable({ models }) {
               </th>
               <th
                 className={styles.sweetSpotSortable}
+                onClick={() => handleSort('costOverhead')}
+                style={{ textAlign: 'right' }}
+                title="Median ratio of this model's cost per benchmark vs the cheapest passer of that same benchmark. 1.0× = matched the cheapest passer everywhere. High = expensive per token."
+              >
+                $-Ovhd{arrow('costOverhead')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
+                onClick={() => handleSort('tokenOverhead')}
+                style={{ textAlign: 'right' }}
+                title="Same shape as $-Ovhd, but using token counts. 1.0× = solved every benchmark in the fewest tokens. High = inefficient iteration (lots of wasted turns)."
+              >
+                Tok-Ovhd{arrow('tokenOverhead')}
+              </th>
+              <th
+                className={styles.sweetSpotSortable}
                 onClick={() => handleSort('passRate')}
                 style={{ textAlign: 'right' }}
               >
@@ -172,6 +194,12 @@ export default function DollarsPerPassTable({ models }) {
                     ? `${r.ratio.toFixed(1)}×`
                     : `$${r.dollarsPerPass.toFixed(4)}`}
                 </td>
+                <td className={styles.sweetSpotNumCell}>
+                  {r.costOverhead > 0 ? (r.costOverhead >= 100 ? `${r.costOverhead.toFixed(0)}×` : `${r.costOverhead.toFixed(1)}×`) : '—'}
+                </td>
+                <td className={styles.sweetSpotNumCell}>
+                  {r.tokenOverhead > 0 ? (r.tokenOverhead >= 100 ? `${r.tokenOverhead.toFixed(0)}×` : `${r.tokenOverhead.toFixed(1)}×`) : '—'}
+                </td>
                 <td className={styles.sweetSpotNumCell}>{(r.passRate * 100).toFixed(1)}%</td>
                 <td className={styles.sweetSpotNumCell}>{r.totalRuns}</td>
                 <td className={styles.sweetSpotNumCell}>${r.totalCost.toFixed(2)}</td>
@@ -188,6 +216,13 @@ export default function DollarsPerPassTable({ models }) {
 
       <p className={styles.sweetSpotFootnote}>
         <strong>$/pass</strong> = total cost / number of passing runs.{' '}
+        <strong>$-Ovhd</strong> = median ratio of this model's cost vs the cheapest passer per benchmark
+        (1.0× = matched the cheapest on every benchmark; high = expensive per token).{' '}
+        <strong>Tok-Ovhd</strong> = same shape using token counts
+        (1.0× = token-optimal; high = inefficient iteration).{' '}
+        A model with <em>low Tok-Ovhd but high $-Ovhd</em> thinks efficiently but pays a per-token-pricing tax;
+        a model with <em>low $-Ovhd but high Tok-Ovhd</em> is cheap because of its provider's pricing,
+        not because it's solving things efficiently.{' '}
         <strong>Frontier</strong> ✓ means no other model has BOTH lower $/win AND lower median time-to-success.
       </p>
     </div>
