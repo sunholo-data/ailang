@@ -1,7 +1,7 @@
 # M-AILANG-LSP-FOR-AI — AILANG LSP server targeting AI coding agents (and humans)
 
-**Status**: Planned — awaiting design committee review
-**Target**: v0.21.0 (MVP scope; sprint-planner sets the exact slot)
+**Status**: ✅ Implemented in v0.20.0 (M1–M6 + extension-bundling fix-ups, 2026-05-15/16). Sprint plan: `m-ailang-lsp-for-ai-sprint-plan.md`. Commits: e4241108, 8bdd1eb8, b2731ae5, f782663b, 557673e6, 0b86e2b4, plus follow-ups 39fa41ec, 559c0214, e72d7440, eaf65ec7, 538f3952, f62b6791.
+**Target**: v0.20.0 (shipped one minor ahead of the originally-targeted v0.21.0 because sprint velocity outpaced the schedule)
 **Priority**: P1 — unblocks AI-agent productivity on large `.ail` codebases; not blocking a customer incident
 **Estimated**: Deliberately unstated — sprint-planner to size after committee picks Decisions 1–5
 **Dependencies**: None. Reuses existing `internal/types`, `internal/elaborate`, `internal/iface`, `internal/pipeline` outputs.

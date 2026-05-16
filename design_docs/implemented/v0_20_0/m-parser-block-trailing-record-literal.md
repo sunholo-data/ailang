@@ -1,7 +1,7 @@
 # M-PARSER-BLOCK-TRAILING-RECORD: Block Expression Greedily Consumes Trailing `{` as New Block Instead of Record Literal
 
-**Status**: ✅ Implemented in v0.21.0 (commit pending — sprint M-PARSER-BLOCK-TR, 2026-05-15)
-**Target**: v0.21.0 (tentative — placeholder bucket; v0.20.0 is locked on M-TYPECHECK-NO-AUTO-UNWRAP-RESULT)
+**Status**: ✅ Implemented in v0.20.0 (commit 7afb69d2, sprint M-PARSER-BLOCK-TR, 2026-05-15)
+**Target**: v0.20.0 (shipped alongside the LSP sprint; previously misfiled as v0.21.0)
 
 > **Implementation note (2026-05-15):** The actual root cause was *not* in `parseBlockOrExpression`'s inner-loop dispatch (as the design doc hypothesised below). It was in **`parseRecordLiteral`'s IDENT-branch block parser** at [internal/parser/parser_literals.go:478](../../../internal/parser/parser_literals.go#L478). That code used `curTokenIs(RBRACE)` for loop termination, so after parsing an inner record literal (which leaves cur at the inner `}`), the loop incorrectly treated the inner `}` as the BLOCK's `}` and exited — leaving the outer `}` unconsumed. The if-then-else parser then failed to find `else`, producing the misleading `expected else, got }` error. Fix: rewrite the loop using peek-based termination, mirroring `parseBlockOrExpression`. ~15 LOC. The dispatch in `parseBlockOrExpression` itself was already correct — the bug lived in the OTHER LBRACE entry point (`parseRecordLiteral`, the prefix function). Sprint plan: [m-parser-block-trailing-record-literal-sprint-plan.md](m-parser-block-trailing-record-literal-sprint-plan.md).
 **Priority**: P2 (Medium — clean workaround exists, but trips real codebases on idiomatic record-returning blocks)

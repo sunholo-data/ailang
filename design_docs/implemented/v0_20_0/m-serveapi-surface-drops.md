@@ -1,7 +1,7 @@
 # M-SERVEAPI-SURFACE-DROPS — Refuse to start when declared `@route` modules are silently dropped
 
-**Status**: Planned
-**Target**: v0.21.0
+**Status**: ✅ Implemented in v0.20.0 (M1: 06450b85, M2: 93f4b6fb, M3: eea88f33, /health-fix: 000da04a, 2026-05-15). Closes the docparse v0.14.1 silent-zero-entitlements class of bug (inbox `e1814c9f`).
+**Target**: v0.20.0 (shipped one minor ahead of the originally-targeted v0.21.0)
 **Priority**: P0 — directly fixes a class of production-visible silent failures
 **Estimated**: ~1 day (200-300 LOC + tests)
 **Dependencies**: None (builds on the partial fix in commit `a629a129`, shipped in v0.18.4)
