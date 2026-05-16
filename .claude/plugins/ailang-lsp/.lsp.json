@@ -1,0 +1,12 @@
+{
+  "ailang": {
+    "command": "ailang",
+    "args": ["lsp", "--stdio"],
+    "extensionToLanguage": {
+      ".ail": "ailang"
+    },
+    "restartOnCrash": true,
+    "maxRestarts": 3,
+    "startupTimeout": 30000
+  }
+}

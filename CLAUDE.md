@@ -119,15 +119,17 @@ Priorities: Machine decidability, semantic transparency, compositional determini
 This repo ships a local Claude Code marketplace at [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) with:
 
 - **ailang-go-lsp** — runs `gopls` so Claude gets real-time Go diagnostics, go-to-definition, find-references, and hover types instead of grepping the codebase. Requires `gopls` on PATH (`go install golang.org/x/tools/gopls@latest`).
+- **ailang-lsp** — runs `ailang lsp --stdio` so Claude gets the same capabilities for `.ail` files (diagnostics, hover types with effect rows, go-to-def, references, document symbols). Requires the `ailang` binary on PATH (`make install` from this repo).
 
 One-time install (per developer):
 
 ```
 /plugin marketplace add /Users/mark/dev/sunholo/ailang
 /plugin install ailang-go-lsp@ailang-tools
+/plugin install ailang-lsp@ailang-tools
 ```
 
-Verify with `/plugin` (should show ailang-go-lsp under Installed, no entry under Errors).
+Verify with `/plugin` (both should show under Installed, no entries under Errors). User guide: [docs/docs/guides/lsp.md](docs/docs/guides/lsp.md).
 
 ---
 

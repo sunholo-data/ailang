@@ -12,6 +12,13 @@
       "description": "gopls language server for the AILANG Go implementation — instant diagnostics, go-to-def, find references, hover types. Requires gopls on PATH.",
       "category": "lsp",
       "tags": ["lsp", "go", "gopls"]
+    },
+    {
+      "name": "ailang-lsp",
+      "source": "./.claude/plugins/ailang-lsp",
+      "description": "AILANG language server (`ailang lsp --stdio`) for .ail files — diagnostics on save, hover types, go-to-definition, references, document symbols. Requires the `ailang` binary on PATH.",
+      "category": "lsp",
+      "tags": ["lsp", "ailang", "ai-agent"]
     }
   ]
 }
