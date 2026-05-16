@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-04-29T10:12:58Z
+Last updated: 2026-05-16T14:48:01Z
 
 ---
 
@@ -146,6 +146,7 @@ ailang repl
 - **Effect system** - Capability-based security (IO, FS, Net, Clock, AI)
 - **Deterministic** - Replayable execution, structured traces
 - **AI-first** - Designed for machine reasoning, not human convenience
+- **LSP** - `ailang lsp --stdio` ships in the binary: diagnostics, hover types, go-to-def, references, document symbols. One-command VS Code install: `ailang editor install vscode` ([guide](https://ailang.sunholo.com/docs/guides/lsp))
 
 Learn more: [Why AILANG?](https://ailang.sunholo.com/docs/vision) | [No Loops Design](https://ailang.sunholo.com/docs/reference/no-loops) | [Go Interop](https://ailang.sunholo.com/docs/guides/go-interop)
 
@@ -1337,9 +1338,9 @@ PAR_UNEXPECTED_TOKEN: expected next token to be IDENT, got SOMEWORD instead
 
 ---
 
-# AI Teaching Prompt (Latest: v0.12.1)
+# AI Teaching Prompt (Latest: v0.16.0)
 
-# AILANG v0.11.4 - AI Teaching Prompt
+# AILANG v0.16.0 - AI Teaching Prompt (with IFC Labels)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1802,6 +1803,56 @@ export func main() -> () ! {IO} { println("hi") }
 | `Process` | `exec` | `std/process` |
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
+
+### Parameterised Effects (v0.15.0+)
+
+Effect rows can carry `[key=value]` parameters that ride alongside the
+effect name. Phase 1 ships the syntax and unification rules; the
+runtime currently treats all modes identically (mode-aware dispatch
+lands later).
+
+```ailang
+-- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
+func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+
+-- Same effect signature as bare !{Rand}; unifies via default-desugar.
+func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+
+-- Distinct mode — does NOT unify with mode=os under invariant rules.
+func deterministic() -> int ! {Rand[mode=seeded]} = {
+  rand_seed(42);
+  rand_int(1, 100)
+}
+```
+
+**Rules:**
+- Bare `!{Rand}` is shorthand for `!{Rand[mode=os]}`.
+- Different param values do NOT unify: `!{Rand[mode=os]}` and
+  `!{Rand[mode=seeded]}` are distinct effect rows.
+- v0.15.0 ships two default-mode entries: `Rand → mode=os` and
+  `AI → mode=fixed`. Other effects (`IO`, `FS`, `Net`, `Env`, ...)
+  have no params yet — write `!{IO}`, not `!{IO[...]}`.
+- Mode set is closed (compiler-known per effect); user code cannot
+  introduce new modes.
+
+See [Parameterised Effects guide](https://ailang.sunholo.com/docs/guides/parameterised-effects).
+
+**AI modes (v0.15.0+):**
+
+```ailang
+-- Bare !{AI} desugars to !{AI[mode=fixed]} (direct provider call).
+func summarize(text: string) -> string ! {AI} = call(text)
+
+-- !{AI[mode=routeable]} opts into runtime provider routing
+-- (e.g. OpenRouter). Skips the --allow-routing CLI gate.
+func summarize_routed(text: string) -> string ! {AI[mode=routeable]} = call(text)
+```
+
+Rules:
+- Different param values do NOT unify: `!{AI[mode=fixed]}` and
+  `!{AI[mode=routeable]}` are distinct.
+- Bare `!{AI}` continues to work; existing programs unchanged.
+- See [AI Routing guide](https://ailang.sunholo.com/docs/guides/ai-routing) for routing flags.
 
 ### Debug Effect — True Ghost Effect for Logging
 
@@ -2810,8 +2861,14 @@ ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail  # Anthropic
 ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail         # OpenAI
 ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google
 ailang run --caps IO,AI --ai ollama:llama3 --entry main file.ail     # Ollama (local)
+ailang run --caps IO,AI --ai openrouter/auto --entry main file.ail   # OpenRouter (~100 models)
 ailang run --caps IO,AI --ai-stub --entry main file.ail              # Testing stub
 ```
+
+**Model strings**: plain provider names (`claude-sonnet-4-5`, `gemini-2-5-flash`)
+hit that vendor directly. `vendor/model` strings (`anthropic/claude-sonnet-4.5`,
+`openai/gpt-5-mini`, `openrouter/auto`) route through OpenRouter — needs
+`OPENROUTER_API_KEY`.
 
 **Authentication setup (required before using `--ai`):**
 
@@ -2916,6 +2973,25 @@ match extractAll("archive.tar", "./dest") {
 - `std/gzip`: `decompress(b64)`, `compress(b64, level)` — **pure**; `decompressFile(path) ! {FS}`
 - `std/tar`: `listEntries`, `readEntry`, `readEntryBytes`, `extractAll`, `readFromGzip`, `readFromGzipBytes` — all `! {FS}`
 - Caps: 10K entries, 100MB decompressed per entry (bomb defence). Respects `AILANG_FS_SANDBOX`.
+
+## Raw Deflate / Zlib (std/deflate) — v0.16.0+
+
+For raw zlib/deflate streams *without* the gzip or zip wrapper. Use this for **PDF FlateDecode** (PDF /ObjStm in PDF 1.5+), HTTP `Content-Encoding: deflate`, PNG IDAT chunks, WebSocket permessage-deflate.
+
+```ailang
+import std/deflate (inflateZlib)
+import std/result (Result, Ok, Err)
+
+-- Decode a PDF FlateDecode payload (zlib-wrapped, RFC 1950)
+match inflateZlib(b64_of_objstm) {
+  Ok(decompressedB64) => println(decompressedB64),
+  Err(msg)            => println("inflate failed: ${msg}")
+}
+```
+
+- **All four functions are pure** (no effect row): `inflate(b64)`, `inflateZlib(b64)`, `deflate(b64, level)`, `deflateZlib(b64, level)`
+- `inflate`/`deflate` = raw RFC 1951 (no header, no trailer); `inflateZlib`/`deflateZlib` = RFC 1950 (2-byte zlib header + adler32). **For PDF/HTTP/PNG: use the Zlib variants.**
+- Same base64-string boundary as `std/gzip` and `std/zip.readEntryBytes`. Same 100MB output cap.
 
 ## XML Parsing (std/xml)
 
@@ -3484,6 +3560,145 @@ When set, all paths are resolved relative to the sandbox root:
 Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
 
 If unset (default), paths resolve normally from the process working directory.
+
+---
+
+# Information-Flow Control with IFC Labels (v0.16.0+)
+
+AILANG supports **information-flow control (IFC) labels** that mark
+strings (and other types) as carrying source-level taint. Labels
+travel with values through the type system and document where text
+is allowed to flow. This is the language-level equivalent of
+"parameterised SQL" — code is separated from data, and the verifier
+proves that untrusted data never reaches a sensitive sink.
+
+## Syntax
+
+| Form               | Meaning                                              |
+|--------------------|------------------------------------------------------|
+| `T<label>`         | A `T` whose data is tainted with constant `<label>`. |
+| `T{not LABEL}`     | A `T` REFINED to refuse values labelled `<LABEL>`.   |
+| `! {Declassify}`   | Function effect: this function changes a label.      |
+
+Examples:
+```ailang
+-- A string carrying the <email> label (untrusted source)
+let body: string<email> = fetchMailBody()
+
+-- A function whose body parameter rejects any <email>-tainted input
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- A declassifier: input <email>, output <sanitized>, declared via Declassify
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{ "[sanitized]" }
+```
+
+## Label Naming Convention
+
+- **lowercase**, single-word labels: `<email>`, `<pii>`, `<secret>`.
+- **kebab-case** for compounds: `<user-input>`, `<sql-text>`, `<raw-html>`.
+- Labels are **structural**, not nominal — `<email>` from one module is
+  the same label as `<email>` from another module.
+- The bottom label `⊥` (untainted) is implicit on any value with no
+  annotation. `<L> ⊔ ⊥ = <L>` (identity), `<L> ⊔ <L> = <L>` (idempotent).
+
+## The DECLASS Rule
+
+To LOWER a value's label (e.g. `<email>` → `<sanitized>`), write a
+function whose **input** has the higher label and whose **output** has
+the lower label, AND declare `! {Declassify}` in the effect row. The
+type checker rejects any other transition.
+
+```ailang
+-- ✅ Allowed: explicit declassifier
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+{ "[sanitized]" }
+
+-- ❌ Rejected: function changes label without Declassify
+pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
+{ "[sanitized]" }
+```
+
+## The Sink Rule
+
+A function parameter typed `T{not LABEL}` REJECTS any argument carrying
+the `<LABEL>` annotation in its type. This is how you build sinks that
+provably refuse tainted input.
+
+```ailang
+-- A network sink that refuses anything carrying <email>
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- ✅ Caller passes a declassified value
+sendEmail("alice@company.com", sanitize(rawBody))
+
+-- ❌ Caller passes the raw body — refused at the type level
+sendEmail("alice@company.com", rawBody)  -- string<email> ↛ string{not email}
+```
+
+## Identity Bypass Is Structurally Impossible
+
+Pure operations propagate labels through their result via APP-PURE:
+the output label is the JOIN of all input labels. Identity functions
+(or any function that returns its input) carry the input's label
+forward. There is no way to "wash" a label by routing through a
+trivial function.
+
+```ailang
+let laundered = rawBody;  -- laundered: string<email> (label preserved)
+sendEmail(addr, laundered);  -- still rejected at the sink
+```
+
+## Worked Example: Inbox-Injection
+
+```ailang
+module myapp/agent
+
+import std/string (endsWith)
+
+type SendAction = { to: string, body: string }
+
+-- Declassify: explicit gate from <email> to <sanitized>
+pure func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{ "[sanitized]" }
+
+-- ✅ Verified: declassifies before sending
+pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+requires { endsWith(recipient, "@company.com") }
+ensures  { result.body == "[sanitized]" }
+{ { to: recipient, body: sanitize(rawBody) } }
+
+-- ❌ Rejected: forwards raw body verbatim — Z3 catches it now,
+-- the type system will catch it once full label enforcement lands.
+pure func injectedForward(rawBody: string<email>, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { result.body == "[sanitized]" }
+{ { to: recipient, body: rawBody } }
+```
+
+`ailang verify` on this module reports: 2 verified (sanitize, safeForward),
+1 violation (injectedForward).
+
+## When to Use Labels
+
+- **Mark sources** of untrusted data: email bodies, HTTP request payloads,
+  user input, file contents from the network.
+- **Mark sinks** that must NOT receive specific labels: `sendEmail`,
+  `executeShell`, `evalSql`, anything that puts data on the wire or into
+  an interpreter.
+- **Always pair declassification with `! {Declassify}`** so reviewers can
+  audit every place a label is lowered.
+
+## What Labels Do NOT Do
+
+- Labels are NOT a runtime check — they have zero runtime cost.
+- Labels do NOT affect the value's representation; `string<email>` is
+  still a plain `string` at runtime.
+- Labels do NOT propagate through impure operations (`! {IO}`,
+  `! {Net}`) — those are assumed to clear the label, since IO sinks
+  are the boundary between in-process trust and the outside world.
 
 ---
 
