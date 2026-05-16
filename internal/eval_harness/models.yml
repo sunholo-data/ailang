@@ -844,12 +844,19 @@ models:
       Requires: motoko CLI + OPENROUTER_API_KEY.
 
   motoko-gemma-4:
-    api_name: "google/gemma-4-27b-it"
+    # NOTE (2026-05-16, v0.20.1): api_name was previously "google/gemma-4-27b-it"
+    # which is NOT a valid OpenRouter model ID — every agent_suite run with this
+    # entry returned `400: "google/gemma-4-27b-it is not a valid model ID"` for
+    # all 23 v0.20.0 core-tier benchmarks × {ailang,python}. The correct
+    # current OpenRouter ID for the Gemma 4 family is the 26B MoE variant
+    # (same as `motoko-or-gemma-4-26b` below). Fixed; alias name kept so
+    # agent_suite reference doesn't need updating.
+    api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
-    description: "Gemma 4 27B via motoko_agent — open-weight coverage (no first-party Gemma agent CLI exists)"
+    description: "Gemma 4 26B MoE via motoko_agent — open-weight coverage (no first-party Gemma agent CLI exists)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
-    agent_model_name: "openrouter/google/gemma-4-27b-it"
+    agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
     max_output_tokens: 8192
     pricing:
