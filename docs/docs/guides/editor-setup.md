@@ -1,6 +1,8 @@
 # Editor Setup
 
-Get syntax highlighting for AILANG in your favorite editor.
+Get syntax highlighting + language-server intelligence (diagnostics, hover types, go-to-definition, find-references, document outline) for AILANG in your favorite editor.
+
+> **VS Code users**: `ailang editor install vscode` now ships **both** syntax highlighting AND the AILANG Language Server in one command. See [LSP guide](./lsp.md) for what the LSP gives you and how it works under the hood.
 
 ## Quick Install (Recommended)
 
@@ -23,6 +25,17 @@ ailang editor status
 The CLI embeds all editor files, so it works from anywhere after `ailang` is installed.
 
 ## VS Code
+
+The extension shipped via `ailang editor install vscode` provides:
+
+| Capability | What you see |
+|---|---|
+| Syntax highlighting + bracket matching | Colored keywords, types, strings, etc. |
+| **Diagnostics** | Red squigglies on type errors after save (powered by `ailang lsp`) |
+| **Hover types** | Type signature popups for top-level identifiers |
+| **Go to definition** | Cmd+click on a function name jumps to its decl |
+| **Find references** | Right-click → "Find All References" |
+| **Document outline** | Functions + ADT constructors in the outline sidebar |
 
 ### CLI Install
 
@@ -52,6 +65,12 @@ Then restart VS Code or run **Developer: Reload Window** (Cmd+Shift+P on Mac, Ct
 2. Check bottom-right of VS Code shows "AILANG" as language
 3. Try "Developer: Reload Window" (Cmd+Shift+P)
 4. Check for conflicting extensions
+
+**Diagnostics / hover / go-to-def not working?**
+1. Check `which ailang` works — the LSP needs the binary on PATH
+2. Open VS Code's Output panel: View → Output → pick **"AILANG Language Server"** from the dropdown — any LSP startup errors surface here
+3. Verify the LSP process is alive: `ps aux | grep "ailang lsp"` should show one process per open `.ail` workspace
+4. See the [LSP guide](./lsp.md) for deeper troubleshooting (workspace-setup, the MOD010 relax behaviour, the token-cost rationale)
 
 **Extension not loading?**
 ```bash

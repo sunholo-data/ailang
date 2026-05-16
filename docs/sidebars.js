@@ -46,6 +46,7 @@ const sidebars = {
         'guides/getting-started',
         'guides/quick-start-examples',
         'guides/editor-setup',
+        'guides/lsp',
         'guides/module_execution',
         'guides/development',
         'guides/testing',
