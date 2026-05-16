@@ -101,6 +101,9 @@ func (s *Server) Initialize(_ context.Context, _ *protocol.InitializeParams) (*p
 			},
 			// M3: hover answers for top-level identifiers (locals deferred).
 			HoverProvider: true,
+			// M4: definition + references for top-level identifiers.
+			DefinitionProvider: true,
+			ReferencesProvider: true,
 		},
 		ServerInfo: &protocol.ServerInfo{
 			Name:    ServerName,

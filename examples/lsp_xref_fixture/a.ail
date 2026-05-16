@@ -1,0 +1,7 @@
+-- examples/lsp_xref_fixture/a.ail
+-- M-AILANG-LSP-FOR-AI M4 fixture: declares `add`, used by sibling b.ail.
+-- See docs/docs/guides/lsp.md for how cross-module navigation works.
+
+module examples/lsp_xref_fixture/a
+
+export pure func add(x: int, y: int) -> int = x + y

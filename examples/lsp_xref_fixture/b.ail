@@ -1,0 +1,9 @@
+-- examples/lsp_xref_fixture/b.ail
+-- M-AILANG-LSP-FOR-AI M4 fixture: imports `add` from sibling a.ail.
+-- Hovering or go-to-definition on `add` below should resolve to a.ail.
+
+module examples/lsp_xref_fixture/b
+
+import examples/lsp_xref_fixture/a (add)
+
+export pure func use_add() -> int = add(1, 2)

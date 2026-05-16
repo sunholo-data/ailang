@@ -126,12 +126,12 @@ func TestUnsupportedRequestReturnsMethodNotFound(t *testing.T) {
 		t.Fatalf("initialized: %v", err)
 	}
 
-	// textDocument/definition is deferred to M4 — must error MethodNotFound.
-	defParams := &protocol.DefinitionParams{}
-	var defRes []protocol.Location
-	_, err := cliConn.Call(ctx, "textDocument/definition", defParams, &defRes)
+	// textDocument/documentSymbol is deferred to M5 — must error MethodNotFound.
+	dsParams := &protocol.DocumentSymbolParams{}
+	var dsRes []interface{}
+	_, err := cliConn.Call(ctx, "textDocument/documentSymbol", dsParams, &dsRes)
 	if err == nil {
-		t.Fatal("textDocument/definition returned no error pre-M4; want MethodNotFound")
+		t.Fatal("textDocument/documentSymbol returned no error pre-M5; want MethodNotFound")
 	}
 
 	// Clean up so the test goroutine exits.
@@ -145,6 +145,21 @@ func TestUnsupportedRequestReturnsMethodNotFound(t *testing.T) {
 	case <-serverDone:
 	case <-ctx.Done():
 		t.Fatal("server did not shut down within timeout")
+	}
+}
+
+// truthy returns true when v is `true` (typed bool) or a nested options
+// struct/map (i.e. anything not nil and not literally false). LSP capability
+// fields are typed `interface{}` since the spec allows either bool or
+// options-struct shapes; both should count as "advertised".
+func truthy(v interface{}) bool {
+	switch x := v.(type) {
+	case nil:
+		return false
+	case bool:
+		return x
+	default:
+		return true
 	}
 }
 
@@ -183,11 +198,11 @@ func assertCapabilities(t *testing.T, caps protocol.ServerCapabilities) {
 	case nil:
 		t.Error("HoverProvider must be advertised after M3")
 	}
-	if caps.DefinitionProvider != nil {
-		t.Errorf("DefinitionProvider must stay nil until M4, got %v", caps.DefinitionProvider)
+	if !truthy(caps.DefinitionProvider) {
+		t.Errorf("DefinitionProvider must be true after M4, got %v", caps.DefinitionProvider)
 	}
-	if caps.ReferencesProvider != nil {
-		t.Errorf("ReferencesProvider must stay nil until M4, got %v", caps.ReferencesProvider)
+	if !truthy(caps.ReferencesProvider) {
+		t.Errorf("ReferencesProvider must be true after M4, got %v", caps.ReferencesProvider)
 	}
 	if caps.DocumentSymbolProvider != nil {
 		t.Errorf("DocumentSymbolProvider must stay nil until M5, got %v", caps.DocumentSymbolProvider)
