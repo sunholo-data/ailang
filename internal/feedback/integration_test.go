@@ -81,6 +81,15 @@ func TestIntegration_DefaultRouting(t *testing.T) {
 	if !strings.HasPrefix(title, testTitlePrefix) {
 		t.Errorf("title %q missing test marker prefix %q (would orphan in cleanup)", title, testTitlePrefix)
 	}
+
+	// Regression: the Firestore doc key MUST equal the returned ticket_id.
+	// The coordinator's pubsub adapter and `ailang messages read <fb_*>`
+	// both call MessageStore.GetInboxMessage(ticketID), which is a direct
+	// Doc(ticketID).Get(). If the publisher leaves InboxMessage.ID empty,
+	// the store auto-generates an inbox_<ts>_<rand> key and the lookup
+	// fails ("inbox message not found") — exactly the bug fixed alongside
+	// this test.
+	mustReadBackByDocID(t, res.TicketID)
 }
 
 func TestIntegration_PackageRouting_NoDispatch(t *testing.T) {
@@ -207,6 +216,26 @@ func mustReadBack(t *testing.T, messageID string) map[string]interface{} {
 	}
 	t.Fatalf("message %s did not appear in Firestore within 10s", messageID)
 	return nil
+}
+
+// mustReadBackByDocID asserts the doc is retrievable by ticket_id as the
+// Firestore doc key — the same code path the coordinator's pubsub adapter
+// (GetInboxMessage) and `ailang messages read` use. Distinct from
+// mustReadBack, which queries the message_id field.
+func mustReadBackByDocID(t *testing.T, ticketID string) {
+	t.Helper()
+	ctx := context.Background()
+	client := mustFirestoreClient(t)
+	defer client.Close()
+
+	doc, err := client.Collection(testInboxCollection).Doc(ticketID).Get(ctx)
+	if err != nil {
+		t.Fatalf("doc-key lookup for ticket %s failed: %v (this is the GetInboxMessage path the coordinator and CLI use)", ticketID, err)
+	}
+	// Sanity: the doc we found by key should also carry the same message_id field.
+	if got, _ := doc.Data()["message_id"].(string); got != ticketID {
+		t.Errorf("doc[%s].message_id = %q, want %q (doc key and message_id field must agree)", ticketID, got, ticketID)
+	}
 }
 
 func mustFirestoreClient(t *testing.T) *firestore.Client {

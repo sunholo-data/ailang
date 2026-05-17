@@ -188,7 +188,14 @@ func (p *Publisher) Submit(ctx context.Context, req Request) (*Result, error) {
 	}
 
 	now := time.Now().UTC()
+	// ID is the Firestore doc key; MessageID is the human/API-facing handle.
+	// Set BOTH to messageID so GetInboxMessage(ticketID) — used by the
+	// coordinator's pubsub adapter and `ailang messages read <fb_*>` — can
+	// resolve the ticket. Leaving ID empty causes the Firestore store to
+	// auto-generate an inbox_<ts>_<rand> key, which makes the doc
+	// unretrievable by the ticket_id we return to the caller.
 	msg := &messaging.InboxMessage{
+		ID:          messageID,
 		MessageID:   messageID,
 		ToInbox:     targetInbox,
 		FromAgent:   fromAgent,
