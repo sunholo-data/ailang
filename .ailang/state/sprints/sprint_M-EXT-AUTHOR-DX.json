@@ -36,7 +36,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-05-17",
-      "notes": null
+      "notes": "Ported PR #22 implementation to ailang-packages/packages/motoko-ext-context-mode/. register.ail rewired to existing prompts/context_mode/types helper modules (60 LOC). context_mode.ail gained ~120 LOC of schema machinery (describe_provided_tools, per-tool ctx_*_parameters, ext_tool_schema). 3 BashExec policy guards live in context_mode.ail. _smoke.ail asserts 18 advertised tools + 18 schemas. ABI bumped 2.1.0→2.2.0. Published as 0.2.3 (0.2.2 collided with prior publish). Verified resolvable via lock probe."
     },
     {
       "id": "M2_SCAFFOLD_ENHANCEMENTS",
@@ -55,7 +55,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-05-17",
-      "notes": null
+      "notes": "init_motoko_extension scaffold expanded from 5 → 6 files (adds _smoke.ail). Added on_pre_step hook (abi 2.2.0), ToolSchemas template field with per-tool placeholders, IO added to effect baseline, README documents path-dep workflow + Bedrock-safe naming + publish checklist. Tests updated for new file count + 4-effect baseline."
     },
     {
       "id": "M3_REGISTRY_NAMING_GATE",
@@ -73,7 +73,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-05-17",
-      "notes": null
+      "notes": "validateToolNames in registry-validator extracts names from provided_tools[] + ToolSchema name: fields; rejects with reason + 2 safe-rewrite suggestions (snake + Pascal). --allow-dotted-tool-names flag plumbs X-Allow-Dotted-Tool-Names header for migration grace. Code extracted to cmd/registry-validator/tool_names.go (150 LOC) post-evaluation. 6 unit tests + check_cache_test.go (75 versions × 37 packages, zero false positives)."
     },
     {
       "id": "M4_DOCS_GUIDE_CHANGELOG_MOVE",
@@ -95,7 +95,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-05-17",
-      "notes": null
+      "notes": "docs/docs/guides/motoko-extension-development.md (239 LOC) — 4-step canonical loop, 10-hook table, on_describe_tools cookbook (4 schema patterns), provider-naming matrix, migration path, publish checklist. Wired into Stdlib & Packages sidebar (not Deploy & Embed — defensible: it is authoring content). CHANGELOG entry under [v0.20.1] cross-links design doc + discussion #23 + 4 milestone artifacts. Design doc + sprint plan moved to implemented/v0_20_1/ with Status: Implemented."
     }
   ],
   "started": null,

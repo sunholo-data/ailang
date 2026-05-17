@@ -192,6 +192,20 @@ There's also a **concrete delivery** sitting in PR #22: the published `sunholo/m
 
 ---
 
+## Known Limitations (post-implementation)
+
+Surfaced during sprint-evaluator round 1 (2026-05-17). Documented here for the next author who hits one of these edges:
+
+1. **M3 naming gate is regex-based, not AST-based.** `validateToolNames` extracts names from `provided_tools: [...]` list literals and `name: "X"` ToolSchema fields via regex. Tools whose names are constructed dynamically — e.g. `name: stringify(foo)` or names assembled from a let-binding at runtime — slip through the gate. Verified low-impact: the M3 cache test runs the same regex against 75 cached versions × 37 packages and finds zero false negatives, i.e. no extant published package uses dynamic name construction in advertised tools. Future authors using non-literal name construction need to know this isn't checked at publish time. The motivating model: the gate is a safety floor against the v0.18.1-style typo class, not a full AST verifier.
+
+2. **`--allow-dotted-tool-names` is a one-way ratchet.** Once a package is republished with this flag, it ships dotted names to consumers; any consumer using Anthropic Bedrock or Vertex AI will fail at tool-registration with no obvious link back to the publishing decision. The validator error message names this risk, but agents reading only the success path won't see it. Use only for one-time republishes of legacy packages that are about to be deprecated or renamed — NOT for new packages. The flag mirrors `--allow-unsafe-field-access` from M-WASM-AI-STEP-BYO-KEY (v0.19.1), which has the same one-way-ratchet semantics for the same reason.
+
+3. **M1 smoke test doesn't exercise the BashExec policy hook.** `context_mode.ail` ships 3 distinct `on_policy` guards that deny BashExec when context-mode is loaded (verified shipped in 0.2.3), but `_smoke.ail` only asserts register-doesn't-panic + tool-count parity. The policy hook is pure (no MCP bridge needed) and could be exercised in the publish-sandbox smoke directly. Deferred to a follow-up because motoko_agent's `verify_extensions` integration suite already covers the policy end-to-end against a real bridge. A future M-EXT-SMOKE-COMPLETENESS sprint could close the gap.
+
+4. **Sidebar placement deviates from spec.** The acceptance criterion said "wire into Deploy & Embed alongside wasm-integration"; shipped placement is in "Stdlib & Packages" next to `build-a-motoko-extension`. Defensible: the new guide is about *authoring* extensions, not deploying them; the parallel tutorial guide is already in Stdlib & Packages. Future docs reshuffle may want to re-evaluate.
+
+---
+
 ## Risks & Mitigations
 
 | Risk | Mitigation |
