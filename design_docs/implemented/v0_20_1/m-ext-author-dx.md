@@ -1,7 +1,8 @@
 # M-EXT-AUTHOR-DX: Close the motoko_ext author-loop gaps
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.20.1
+**Implemented**: 2026-05-17
 **Priority**: P1
 **Estimated**: ~1 day (~8 hours)
 **Dependencies**: None — builds on M-EXT-SCAFFOLD-AI-FIRST (v0.18.5), M-EXT-PORTABILITY-GATE (v0.18.11), and the existing path-dependency machinery in `internal/pkg/`.

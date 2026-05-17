@@ -1,5 +1,6 @@
 # Sprint Plan: M-EXT-AUTHOR-DX (v0.20.1)
 
+**Status**: Implemented (2026-05-17)
 **Design doc**: [m-ext-author-dx.md](./m-ext-author-dx.md) (axiom score +6, committed `e906529a`)
 **Target**: v0.20.1
 **Estimated**: ~8h / 1 focused session, 4 milestones, ~670 LOC

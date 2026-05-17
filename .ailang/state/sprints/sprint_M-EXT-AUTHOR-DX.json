@@ -1,11 +1,16 @@
 {
   "sprint_id": "M-EXT-AUTHOR-DX",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-05-17T19:52:17Z",
   "design_doc": "design_docs/planned/v0_20_1/m-ext-author-dx.md",
   "sprint_plan": "design_docs/planned/v0_20_1/m-ext-author-dx-sprint-plan.md",
   "github_issues": [],
-  "github_discussions": [{"repo": "arniwesth/motoko_agent", "number": 23}],
+  "github_discussions": [
+    {
+      "repo": "arniwesth/motoko_agent",
+      "number": 23
+    }
+  ],
   "velocity": {
     "target_loc_per_day": 670,
     "estimated_total_loc": 670,
@@ -28,9 +33,9 @@
         "Smoke-tested locally against motoko_agent via path-dep: verify_extensions boots cleanly with context_mode loaded",
         "CHANGELOG entry in ailang-packages records the port + Arni's PR #22 attribution"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
+      "completed": "2026-05-17",
       "notes": null
     },
     {
@@ -47,9 +52,9 @@
         "Existing scaffold test (or new one in init_motoko_extension_test.go) verifies the 5-file structure",
         "make test + make lint clean"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
+      "completed": "2026-05-17",
       "notes": null
     },
     {
@@ -65,16 +70,20 @@
         "make test includes a unit test for validateToolNames covering: rejects 'ctx.execute' (dot), rejects 'ctx-exec' (dash), accepts 'ctx_execute' (underscore), accepts 'CtxExecute' (mixed case)",
         "make test + make lint clean"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
+      "completed": "2026-05-17",
       "notes": null
     },
     {
       "id": "M4_DOCS_GUIDE_CHANGELOG_MOVE",
       "description": "docs/docs/guides/motoko-extension-development.md (~250 LOC) as canonical extension-author guide. Wired into docs/sidebars.js under Deploy & Embed. CHANGELOG entry under [v0.20.1] documents all 4 milestones. Design doc + sprint plan moved to design_docs/implemented/v0_20_1/. Closes Q2 from discussion #23 + finalizes the sprint.",
       "estimated_loc": 290,
-      "dependencies": ["M1_CONTEXT_MODE_0_2_2", "M2_SCAFFOLD_ENHANCEMENTS", "M3_REGISTRY_NAMING_GATE"],
+      "dependencies": [
+        "M1_CONTEXT_MODE_0_2_2",
+        "M2_SCAFFOLD_ENHANCEMENTS",
+        "M3_REGISTRY_NAMING_GATE"
+      ],
       "acceptance_criteria": [
         "docs/docs/guides/motoko-extension-development.md exists (~250 LOC) covering: why extensions exist + when to write one, 4-step canonical loop (implement in ailang-packages → path-dep from consumer → smoke → publish → version-pin), smoke-test patterns, on_describe_tools cookbook with per-tool schema examples, provider-safe tool naming + why dots break Bedrock/Vertex AI, publish checklist, cross-links to motoko_ext_test_dummy + discussion #23",
         "docs/sidebars.js wires the new guide into Deploy & Embed alongside wasm-integration and wasm-ai-step-byo-key",
@@ -83,12 +92,16 @@
         "design_docs/planned/v0_20_1/m-ext-author-dx-sprint-plan.md moved alongside with status updated",
         "make test + make lint + make verify-examples all green"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
+      "completed": "2026-05-17",
       "notes": null
     }
   ],
   "started": null,
-  "completed": null
+  "completed": "2026-05-17",
+  "file_paths": {
+    "design_doc": "design_docs/implemented/v0_20_1/m-ext-author-dx.md",
+    "sprint_plan": "design_docs/implemented/v0_20_1/m-ext-author-dx-sprint-plan.md"
+  }
 }

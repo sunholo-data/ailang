@@ -62,6 +62,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'guides/ailang-vs-agents',
+        'guides/zero-comparison',
         'guides/agent-integration',
         {
           type: 'category',
@@ -129,6 +130,7 @@ const sidebars = {
             'guides/packages',
             'guides/extension-packages',
             'guides/build-a-motoko-extension',
+            'guides/motoko-extension-development',
             'guides/package-publishing',
             {
               type: 'doc',
