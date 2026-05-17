@@ -143,10 +143,13 @@ func TestParseInitMotokoExtensionFlags_Valid(t *testing.T) {
 	if len(mef.tools) != 2 || mef.tools[0] != "OpenKBSearch" || mef.tools[1] != "OpenKBList" {
 		t.Errorf("tools = %v", mef.tools)
 	}
-	// Effects auto-includes Env + FS for register_with_config (so length=3 here:
-	// FS, Process from user + Env auto-added since it wasn't there).
-	if len(mef.effects) != 3 {
-		t.Errorf("effects = %v (expected 3 entries: user FS,Process + auto Env)", mef.effects)
+	// Effects auto-includes Env + FS + IO. FS already present from user → not duplicated.
+	// Expected: [FS, Process, Env, IO] = 4 entries.
+	// M-EXT-AUTHOR-DX M2 (v0.20.1): IO added to baseline so the scaffolded
+	// _smoke.ail's println-based assertion logging passes the effect ceiling
+	// at publish-time smoke validation.
+	if len(mef.effects) != 4 {
+		t.Errorf("effects = %v (expected 4 entries: user FS,Process + auto Env,IO)", mef.effects)
 	}
 }
 
@@ -162,21 +165,23 @@ func TestParseInitMotokoExtensionFlags_RejectBadName(t *testing.T) {
 // TestParseInitMotokoExtensionFlags_AutoIncludesEnvAndFS — generated
 // register.ail's `register_with_config` declares `! {Env, FS}`, so the
 // package's [effects].max MUST permit them or `ailang check` rejects.
-// Auto-include both regardless of what the user passes for --effects.
+// _smoke.ail uses println so IO is also required (M-EXT-AUTHOR-DX M2).
+// Auto-include all three regardless of what the user passes for --effects.
 //
-// Regression: this was a real shipping bug in v0.18.5 — caught by local
-// post-release verification before any user reported it.
+// Regression: Env+FS was a real shipping bug in v0.18.5 — caught by local
+// post-release verification before any user reported it. IO was added
+// alongside the _smoke.ail scaffold in M-EXT-AUTHOR-DX (v0.20.1).
 func TestParseInitMotokoExtensionFlags_AutoIncludesEnvAndFS(t *testing.T) {
 	cases := []struct {
 		name      string
 		userInput string
 		mustHave  []string
 	}{
-		{"empty_user_effects", "", []string{"Env", "FS"}},
-		{"only_FS", "FS", []string{"FS", "Env"}},
-		{"only_Env", "Env", []string{"Env", "FS"}},
-		{"FS_Process_no_Env", "FS,Process", []string{"FS", "Process", "Env"}},
-		{"already_has_both", "Env,FS,Process", []string{"Env", "FS", "Process"}},
+		{"empty_user_effects", "", []string{"Env", "FS", "IO"}},
+		{"only_FS", "FS", []string{"FS", "Env", "IO"}},
+		{"only_Env", "Env", []string{"Env", "FS", "IO"}},
+		{"FS_Process_no_Env", "FS,Process", []string{"FS", "Process", "Env", "IO"}},
+		{"already_has_all", "Env,FS,IO,Process", []string{"Env", "FS", "IO", "Process"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -257,8 +262,12 @@ func TestScaffoldMotokoExtension_ProducesValidPackage(t *testing.T) {
 		t.Fatalf("scaffoldMotokoExtension: %v", err)
 	}
 
-	// Assertion 1: all 5 expected files exist
-	wantFiles := []string{"ailang.toml", "register.ail", "types.ail", "openkb.ail", "README.md"}
+	// Assertion 1: all 6 expected files exist
+	// M-EXT-AUTHOR-DX M2 (v0.20.1): added _smoke.ail to the scaffold so the
+	// publish sandbox has a real smoke to run; without it 0.2.1-style stub
+	// register bugs ship as functional regressions (cf. context_mode 0.2.1
+	// → 0.2.3 stub-register-class incident).
+	wantFiles := []string{"ailang.toml", "register.ail", "types.ail", "openkb.ail", "_smoke.ail", "README.md"}
 	for _, f := range wantFiles {
 		if _, statErr := os.Stat(filepath.Join(outDir, f)); statErr != nil {
 			t.Errorf("expected file missing: %s (%v)", f, statErr)

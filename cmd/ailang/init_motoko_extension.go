@@ -122,13 +122,14 @@ func parseInitMotokoExtensionFlags(args []string) (*motokoExtensionFlags, error)
 		return nil, err
 	}
 
-	// Auto-include Env + FS in the effect ceiling. The generated
-	// register.ail's `register_with_config` declares `! {Env, FS}` (matching
-	// the canonical motoko-ext-* shape — see motoko-ext-test-dummy / exa-search),
-	// so the package's [effects].max MUST permit them or the type-checker
-	// rejects the package on `ailang check register.ail`. User-supplied
-	// --effects extend this baseline, never replace it.
-	mef.effects = ensureEffects(mef.effects, "Env", "FS")
+	// Auto-include Env + FS + IO in the effect ceiling.
+	//   - Env + FS: required by register_with_config's effect annotation
+	//     (`! {Env, FS}`) — matches canonical motoko-ext-* shape.
+	//   - IO: required by _smoke.ail's println-based assertion logging.
+	//     Without IO in [effects].max the publish sandbox rejects the
+	//     smoke at type-check time. M-EXT-AUTHOR-DX M2 (v0.20.1).
+	// User-supplied --effects extend this baseline, never replace it.
+	mef.effects = ensureEffects(mef.effects, "Env", "FS", "IO")
 
 	return mef, nil
 }
