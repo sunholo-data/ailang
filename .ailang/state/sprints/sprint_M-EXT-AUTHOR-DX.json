@@ -1,0 +1,94 @@
+{
+  "sprint_id": "M-EXT-AUTHOR-DX",
+  "status": "not_started",
+  "created": "2026-05-17T19:52:17Z",
+  "design_doc": "design_docs/planned/v0_20_1/m-ext-author-dx.md",
+  "sprint_plan": "design_docs/planned/v0_20_1/m-ext-author-dx-sprint-plan.md",
+  "github_issues": [],
+  "github_discussions": [{"repo": "arniwesth/motoko_agent", "number": 23}],
+  "velocity": {
+    "target_loc_per_day": 670,
+    "estimated_total_loc": 670,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_CONTEXT_MODE_0_2_2",
+      "description": "Port arniwesth/motoko_agent PR #22 context_mode implementation to ailang-packages/packages/motoko-ext-context-mode/, bump 0.2.1 → 0.2.2, publish via cascade. Replaces the current stub with full provided_tools + on_tool_handle + on_describe_tools schemas + BashExec denial policy. Highest-leverage deliverable: lets Arni drop his local override.",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang-packages/packages/motoko-ext-context-mode/ updated with full implementation ported from arniwesth/motoko_agent PR #22 fix_context_mode_extension branch src/core/ext/context_mode/",
+        "register.ail has real provided_tools (CtxExecute, ctx_execute, CtxDoctor, CtxStats, ctx_index), real on_tool_handle routing through context-mode MCP bridge, on_describe_tools with concrete JSON schemas (required args: language, code, content, path, commands, queries per tool)",
+        "Policy logic added: deny direct BashExec calls when context-mode is loaded and the command targets context-mode",
+        "_smoke.ail exercises: register_with_config returns without panic, CtxDoctor/CtxStats dispatch, BashExec(context-mode ...) denied, on_describe_tools returns non-empty schemas",
+        "ailang.toml bumped to version 0.2.2",
+        "ailang check --package . passes",
+        "ailang publish --dry-run succeeds; ailang publish succeeds; registry index shows 0.2.2 as latest",
+        "Smoke-tested locally against motoko_agent via path-dep: verify_extensions boots cleanly with context_mode loaded",
+        "CHANGELOG entry in ailang-packages records the port + Arni's PR #22 attribution"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SCAFFOLD_ENHANCEMENTS",
+      "description": "cmd/ailang/init_motoko_extension.go enhanced to generate _smoke.ail template + per-tool on_describe_tools schema placeholders + README.md with path-dep workflow + publish checklist. Closes Q3 from discussion #23. Scaffold output goes from 3 files (manifest + register + types) to 5 files (+_smoke + README).",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang init motoko-extension --name X --tools \"A,B\" --effects \"FS\" generates 5 files: ailang.toml, register.ail, types.ail, _smoke.ail, README.md",
+        "_smoke.ail template covers register/dispatch/policy assertion patterns with `-- optional: drop if not applicable` markers (modeled on motoko_ext_compaction_ai 0.1.5 + arniwesth's smoke_context_mode_dispatch.ail shape)",
+        "Each --tools NAME arg produces an on_describe_tools block in register.ail with schema: '{\"type\":\"object\",\"required\":[],\"properties\":{}}' placeholder + TODO comment referencing Anthropic typed tool use docs",
+        "README.md includes: path-dep dev workflow link, publish checklist (bump version → ailang publish --dry-run → ailang publish → consumer switches back to version pin), provider-safe tool naming reminder",
+        "Generated scaffold passes ailang check --package . with zero edits",
+        "Existing scaffold test (or new one in init_motoko_extension_test.go) verifies the 5-file structure",
+        "make test + make lint clean"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_REGISTRY_NAMING_GATE",
+      "description": "cmd/registry-validator/main.go gains validateToolNames() that rejects publish when any advertised tool name contains '.' or non-[A-Za-z0-9_] characters (rejected by Anthropic Bedrock + Vertex AI). cmd/ailang/main.go gets --allow-dotted-tool-names migration flag mirroring --allow-unsafe-field-access pattern from M-WASM-AI-STEP-BYO-KEY. Closes Q4 from discussion #23.",
+      "estimated_loc": 60,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "cmd/registry-validator/main.go has validateToolNames() that extracts tool names from provided_tools + on_describe_tools manifest entries, checks each against the [A-Za-z0-9_] charset, and rejects publish on violation",
+        "Structured error: {kind: 'tool_name_invalid', tool: 'ctx.execute', reason: 'contains dot', suggestion: 'use ctx_execute or CtxExecute'}",
+        "cmd/ailang/main.go has --allow-dotted-tool-names flag that downgrades the gate to WARN-level (mirrors --allow-unsafe-field-access pattern); plumbed through to registry-validator via env var or HTTP header",
+        "scripts/check_published_tool_names.sh (NEW) runs the new gate against all 13 currently-published sunholo/motoko_ext_* packages — must show zero false positives BEFORE this milestone is marked complete",
+        "make test includes a unit test for validateToolNames covering: rejects 'ctx.execute' (dot), rejects 'ctx-exec' (dash), accepts 'ctx_execute' (underscore), accepts 'CtxExecute' (mixed case)",
+        "make test + make lint clean"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_GUIDE_CHANGELOG_MOVE",
+      "description": "docs/docs/guides/motoko-extension-development.md (~250 LOC) as canonical extension-author guide. Wired into docs/sidebars.js under Deploy & Embed. CHANGELOG entry under [v0.20.1] documents all 4 milestones. Design doc + sprint plan moved to design_docs/implemented/v0_20_1/. Closes Q2 from discussion #23 + finalizes the sprint.",
+      "estimated_loc": 290,
+      "dependencies": ["M1_CONTEXT_MODE_0_2_2", "M2_SCAFFOLD_ENHANCEMENTS", "M3_REGISTRY_NAMING_GATE"],
+      "acceptance_criteria": [
+        "docs/docs/guides/motoko-extension-development.md exists (~250 LOC) covering: why extensions exist + when to write one, 4-step canonical loop (implement in ailang-packages → path-dep from consumer → smoke → publish → version-pin), smoke-test patterns, on_describe_tools cookbook with per-tool schema examples, provider-safe tool naming + why dots break Bedrock/Vertex AI, publish checklist, cross-links to motoko_ext_test_dummy + discussion #23",
+        "docs/sidebars.js wires the new guide into Deploy & Embed alongside wasm-integration and wasm-ai-step-byo-key",
+        "changelogs/v0.10-current.md has [v0.20.1] entry covering: M1 context_mode 0.2.2, M2 scaffold enhancements, M3 registry naming gate + migration flag, M4 docs guide. Cross-links design doc + discussion #23.",
+        "design_docs/planned/v0_20_1/m-ext-author-dx.md moved to design_docs/implemented/v0_20_1/ with Status field updated from Planned to Implemented",
+        "design_docs/planned/v0_20_1/m-ext-author-dx-sprint-plan.md moved alongside with status updated",
+        "make test + make lint + make verify-examples all green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "started": null,
+  "completed": null
+}
