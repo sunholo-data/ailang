@@ -23,19 +23,23 @@ func pkgPublishCommand(args []string) error {
 	flagSet := flag.NewFlagSet("publish", flag.ExitOnError)
 	helpFlag := flagSet.Bool("help", false, "Show help")
 	dryRunFlag := flagSet.Bool("dry-run", false, "Create tarball but don't upload")
+	allowDottedToolNames := flagSet.Bool("allow-dotted-tool-names", false,
+		"Migration grace: downgrade the M-EXT-AUTHOR-DX naming gate from error to warning. Removed in v0.21.0.")
 
 	if err := flagSet.Parse(args); err != nil {
 		return err
 	}
 
 	if *helpFlag {
-		fmt.Println("Usage: ailang publish [--dry-run]")
+		fmt.Println("Usage: ailang publish [--dry-run] [--allow-dotted-tool-names]")
 		fmt.Println()
 		fmt.Println("Publish the current package to the AILANG registry.")
 		fmt.Println("Reads ailang.toml, creates a tarball, and uploads to the validation service.")
 		fmt.Println()
 		fmt.Println("Flags:")
-		fmt.Println("  --dry-run    Create tarball and show what would be published, without uploading")
+		fmt.Println("  --dry-run                    Create tarball and show what would be published, without uploading")
+		fmt.Println("  --allow-dotted-tool-names    Downgrade naming-gate errors to warnings (Bedrock-incompatible names")
+		fmt.Println("                               like 'ctx.execute' rejected by default; one-cycle migration grace, removed in v0.21.0)")
 		fmt.Println()
 		fmt.Println("Registry: $AILANG_REGISTRY (default: https://storage.googleapis.com/ailang-registry)")
 		return nil
@@ -119,7 +123,7 @@ func pkgPublishCommand(args []string) error {
 
 	fmt.Printf("  Uploading to %s...\n", validatorURL)
 
-	if err := uploadTarball(validatorURL+"/publish", tarballData); err != nil {
+	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames); err != nil {
 		return err
 	}
 
@@ -240,7 +244,7 @@ func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool,
 	return rewritten, nil
 }
 
-func uploadTarball(url string, tarballData []byte) error {
+func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool) error {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -265,6 +269,13 @@ func uploadTarball(url string, tarballData []byte) error {
 	// API key auth (from AILANG_REGISTRY_API_KEY env var)
 	if apiKey := os.Getenv("AILANG_REGISTRY_API_KEY"); apiKey != "" {
 		req.Header.Set("X-API-Key", apiKey)
+	}
+
+	// M-EXT-AUTHOR-DX M3 (v0.20.1): downgrade naming-gate errors to warnings
+	// during the v0.20.x migration window for packages that still advertise
+	// Bedrock-incompatible names (e.g. dotted aliases like "ctx.execute").
+	if allowDottedToolNames {
+		req.Header.Set("X-Allow-Dotted-Tool-Names", "true")
 	}
 
 	resp, err := client.Do(req)
