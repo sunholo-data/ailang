@@ -28,6 +28,7 @@ type EffContext struct {
 	Debug          *DebugContext         // Debug effect state (logs, assertions)
 	AI             *AIContext            // AI effect state (handler for AI.call)
 	DOM            *DOMContext           // DOM effect state (M-COG-RUNTIME, v0.21.x)
+	Msg            *MsgContext           // Msg effect state (M-COG-RUNTIME, v0.21.x)
 	SharedMem      *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
@@ -333,6 +334,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		Debug:           ctx.Debug,
 		AI:              ctx.AI,
 		DOM:             ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
+		Msg:             ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
 		SharedMem:       ctx.SharedMem,
 		SharedIndex:     ctx.SharedIndex,
 		Contracts:       ctx.Contracts,

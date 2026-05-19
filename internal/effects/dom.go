@@ -39,10 +39,10 @@ var ErrNoDOMHandler = errors.New("no DOM handler configured — DOM is only avai
 // topology has its own region; agents cannot patch outside their region.
 type RegionID string
 
-// NodeID names a node within a DOM region. Assigned by the handler when
+// DOMNodeID names a node within a DOM region. Assigned by the handler when
 // patches are applied — content-hashed in the browser host (M3) for replay
 // determinism. The stub uses sequential IDs for test determinism.
-type NodeID string
+type DOMNodeID string
 
 // ============================================================================
 // DOMPatch ADT — structured patches (no raw HTML/JS)
@@ -64,7 +64,7 @@ func (PatchAddPanel) isDOMPatch() {}
 
 // PatchUpdateNode replaces the content of an existing node.
 type PatchUpdateNode struct {
-	Node    NodeID
+	Node    DOMNodeID
 	Content string
 }
 
@@ -72,7 +72,7 @@ func (PatchUpdateNode) isDOMPatch() {}
 
 // PatchRemoveNode removes a node by ID.
 type PatchRemoveNode struct {
-	Node NodeID
+	Node DOMNodeID
 }
 
 func (PatchRemoveNode) isDOMPatch() {}
@@ -86,11 +86,11 @@ func (PatchAddTimeline) isDOMPatch() {}
 
 // PatchResult is the typed return of ApplyPatch.
 //
-// NodeID is the handler-assigned identifier (content-hashed in browser host
+// DOMNodeID is the handler-assigned identifier (content-hashed in browser host
 // for replay determinism; sequential in stub). BudgetRemaining = -1 means
 // unbounded (no budget configured); 0 means the next call will trap.
 type PatchResult struct {
-	NodeID          NodeID
+	NodeID          DOMNodeID
 	BudgetRemaining int
 }
 
@@ -99,7 +99,7 @@ type PatchResult struct {
 // ApplyBatch is atomic: either all patches apply or none do. A partial-failure
 // shape would defeat the replay-determinism guarantee.
 type BatchResult struct {
-	NodeIDs         []NodeID
+	NodeIDs         []DOMNodeID
 	BudgetRemaining int
 }
 
@@ -116,14 +116,14 @@ type DOMEvent interface {
 
 // EventClick fires when a user clicks a node.
 type EventClick struct {
-	Node NodeID
+	Node DOMNodeID
 }
 
 func (EventClick) isDOMEvent() {}
 
 // EventInput fires when input field content changes.
 type EventInput struct {
-	Node  NodeID
+	Node  DOMNodeID
 	Value string
 }
 
@@ -253,7 +253,7 @@ func (h *StubDOMHandler) ApplyPatch(region RegionID, patch DOMPatch) (*PatchResu
 	h.Applied = append(h.Applied, StubAppliedPatch{Region: region, Patch: patch})
 	h.nextNodeID++
 	return &PatchResult{
-		NodeID:          NodeID(fmt.Sprintf("stub_node_%d", h.nextNodeID)),
+		NodeID:          DOMNodeID(fmt.Sprintf("stub_node_%d", h.nextNodeID)),
 		BudgetRemaining: -1, // -1 = unbounded in stub
 	}, nil
 }
@@ -263,10 +263,10 @@ func (h *StubDOMHandler) ApplyBatch(region RegionID, patches []DOMPatch) (*Batch
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.Batches = append(h.Batches, StubAppliedBatch{Region: region, Patches: patches})
-	ids := make([]NodeID, len(patches))
+	ids := make([]DOMNodeID, len(patches))
 	for i := range patches {
 		h.nextNodeID++
-		ids[i] = NodeID(fmt.Sprintf("stub_node_%d", h.nextNodeID))
+		ids[i] = DOMNodeID(fmt.Sprintf("stub_node_%d", h.nextNodeID))
 	}
 	return &BatchResult{NodeIDs: ids, BudgetRemaining: -1}, nil
 }
@@ -389,7 +389,7 @@ func domStringArg(v eval.Value, name string) (string, error) {
 // decodeDOMPatch reads an AILANG variant value as a DOMPatch.
 //
 // Wire format: TaggedValue with CtorName matching the patch type and Fields
-// holding StringValue/NodeID arguments. New patch variants must be added here
+// holding StringValue/DOMNodeID arguments. New patch variants must be added here
 // in lockstep with the variant's definition above and the AILANG bindings in
 // stdlib/std/dom.ail.
 func decodeDOMPatch(v eval.Value) (DOMPatch, error) {
@@ -411,14 +411,14 @@ func decodeDOMPatch(v eval.Value) (DOMPatch, error) {
 			return nil, fmt.Errorf("UpdateNode: expected 2 fields (node, content), got %d", len(tv.Fields))
 		}
 		return PatchUpdateNode{
-			Node:    NodeID(domStringField(tv.Fields[0])),
+			Node:    DOMNodeID(domStringField(tv.Fields[0])),
 			Content: domStringField(tv.Fields[1]),
 		}, nil
 	case "RemoveNode":
 		if len(tv.Fields) != 1 {
 			return nil, fmt.Errorf("RemoveNode: expected 1 field (node), got %d", len(tv.Fields))
 		}
-		return PatchRemoveNode{Node: NodeID(domStringField(tv.Fields[0]))}, nil
+		return PatchRemoveNode{Node: DOMNodeID(domStringField(tv.Fields[0]))}, nil
 	case "AddTimeline":
 		if len(tv.Fields) != 1 {
 			return nil, fmt.Errorf("AddTimeline: expected 1 field (title), got %d", len(tv.Fields))

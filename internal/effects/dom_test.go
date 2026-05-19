@@ -97,7 +97,7 @@ func TestStubDOMHandler_ApplyBatch_AssignsNIDs(t *testing.T) {
 		t.Fatalf("expected 3 node IDs, got %d", len(res.NodeIDs))
 	}
 	// All distinct
-	seen := map[NodeID]bool{}
+	seen := map[DOMNodeID]bool{}
 	for _, id := range res.NodeIDs {
 		if seen[id] {
 			t.Errorf("duplicate node ID %q", id)
