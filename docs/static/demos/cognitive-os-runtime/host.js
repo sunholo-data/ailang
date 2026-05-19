@@ -525,6 +525,29 @@
     _applyPatchDirect: function (region, patch) {
       return applyPatchInternal(region, patch);
     },
+    // _applyPatchSilent applies a canonical DOM patch without emitting a
+    // PatchApplied event to the cognitive log. Use this when mirroring an
+    // event that another tab/host has ALREADY logged — without it, every
+    // open tab would re-emit each received utterance and the shared
+    // IndexedDB log would accumulate one duplicate per online tab.
+    //
+    // opts.remoteClock (optional): the originating tab's Lamport clock for
+    // this event. If provided, the local clock advances to max(local,
+    // remoteClock) + 1 — standard Lamport receive rule. Otherwise the clock
+    // just increments by 1 like a local event.
+    _applyPatchSilent: function (region, patch, opts) {
+      if (!state.canonical) {
+        throw new Error('CognitiveOS canonical_dom.js not loaded — patch dispatch unavailable');
+      }
+      opts = opts || {};
+      if (typeof opts.remoteClock === 'number') {
+        state.clock = Math.max(state.clock, opts.remoteClock) + 1;
+      } else {
+        state.clock += 1;
+      }
+      var regionEl = ensureRegion(region);
+      return state.canonical.applyPatch(regionEl, region, patch);
+    },
     _sendDirect: function (to, payload) {
       return sendInternal(to, payload);
     },

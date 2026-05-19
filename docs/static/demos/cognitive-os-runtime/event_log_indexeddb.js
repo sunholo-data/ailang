@@ -209,6 +209,36 @@
     });
   };
 
+  // queryRecent returns the LAST `limit` events in canonical (clock, sender)
+  // order. Implemented as a descending cursor that stops after `limit`
+  // entries, then a reversal — O(limit) not O(total). Use this for boot-time
+  // reconstruction so a fat log doesn't block the main thread for seconds.
+  CognitiveEventLog.prototype.queryRecent = function (limit) {
+    const self = this;
+    if (!self.db) return Promise.reject(new Error('queryRecent: open() not yet called'));
+    const cap = Math.max(1, parseInt(limit, 10) || 60);
+    return new Promise(function (resolve, reject) {
+      const tx = self.db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const idx = store.index(INDEX_NAME);
+      const collected = [];
+      const req = idx.openCursor(null, 'prev'); // descending
+      req.onsuccess = function (ev) {
+        const c = ev.target.result;
+        if (c && collected.length < cap) {
+          collected.push(c.value);
+          c.continue();
+        } else {
+          // Reverse so the caller gets oldest-first chronological order
+          resolve(collected.reverse());
+        }
+      };
+      req.onerror = function (ev) {
+        reject(new Error('queryRecent: index cursor failed: ' + (ev.target.error && ev.target.error.message)));
+      };
+    });
+  };
+
   // count returns the number of events currently in the store.
   CognitiveEventLog.prototype.count = function () {
     const self = this;

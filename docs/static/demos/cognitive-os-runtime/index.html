@@ -2,501 +2,3831 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Cognitive OS — M1 Smoke Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Cognitive Commons — A Living AI Society</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,30&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+  />
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 960px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      color: #1f2933;
-      background: #f5f7fa;
+    :root {
+      /* Sunholo palette (mirrors docs/src/css/custom.css) */
+      --sun-red: #e73c17;
+      --sun-red-light: #ff5a3c;
+      --sun-red-dark: #c42f0f;
+      --sun-teal: #2c7a7b;
+      --sun-teal-light: #38a3a5;
+      --sun-purple: #6b46c1;
+      --sun-orange: #dd6b20;
+      --sun-blue: #2b6cb0;
+
+      /* Editorial neutrals */
+      --paper: #f7f3ec;
+      --paper-light: #fdfaf3;
+      --ink: #1c1816;
+      --ink-soft: #3a322c;
+      --ink-mute: #7a6e64;
+      --rule: #d9cfc1;
+      --rule-soft: #ebe2d4;
+      --highlight: #fff3c4;
+
+      /* Persona tints */
+      --visionary: #e73c17;
+      --skeptic: #2c7a7b;
+      --synth: #6b46c1;
+      --archivist: #dd6b20;
+
+      --font-display: "Fraunces", "Georgia", serif;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
     }
-    h1 { font-size: 1.25rem; }
-    .controls { margin: 1rem 0; }
-    button {
-      padding: 0.4rem 0.8rem;
-      margin-right: 0.5rem;
-      border: 1px solid #cbd2d9;
-      background: #fff;
-      cursor: pointer;
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Grain overlay for paper feel */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      z-index: 100;
+      mix-blend-mode: multiply;
+    }
+
+    a { color: var(--sun-red); text-decoration: none; border-bottom: 1px solid var(--rule); }
+    a:hover { border-bottom-color: var(--sun-red); }
+
+    .wordmark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-variation-settings: "opsz" 144, "SOFT" 30;
+      letter-spacing: -0.01em;
+    }
+
+    /* =====================================================================
+       MASTHEAD
+       ===================================================================== */
+    .masthead {
+      border-bottom: 3px double var(--ink);
+      padding: 1.5rem 2rem 1rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: end;
+      gap: 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .masthead .vol {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .masthead .title {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-variation-settings: "opsz" 144, "SOFT" 30;
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      margin: 0.15em 0 0;
+    }
+    .masthead .title em {
+      font-style: italic;
+      color: var(--sun-red);
+      font-weight: 300;
+    }
+    .masthead .tagline {
+      font-style: italic;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      margin-top: 0.35rem;
+    }
+    .masthead .clock {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink-mute);
+      line-height: 1.4;
+    }
+    .masthead .clock .lamport {
+      display: block;
+      font-size: 1.8rem;
+      color: var(--ink);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .masthead .clock .sender-id {
+      color: var(--sun-teal);
+      font-weight: 500;
+    }
+
+    /* =====================================================================
+       LEDE
+       ===================================================================== */
+    .lede {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 0;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 3rem;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 1.5rem;
+    }
+    .lede .body {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      line-height: 1.5;
+      color: var(--ink-soft);
+    }
+    .lede .body strong { color: var(--ink); font-weight: 500; }
+    .lede .body::first-letter {
+      font-size: 3rem;
+      float: left;
+      line-height: 0.85;
+      padding: 0.2rem 0.55rem 0 0;
+      font-weight: 600;
+      color: var(--sun-red);
+      font-style: normal;
+    }
+    .lede .stats {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--ink-mute);
+    }
+    .lede .stats dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; }
+    .lede .stats dt { color: var(--ink-mute); }
+    .lede .stats dd { margin: 0; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .lede .stats dd.live { color: var(--sun-red); }
+    .lede .stats dd.idle { color: var(--ink-mute); }
+
+    /* =====================================================================
+       LAYOUT — newspaper grid
+       ===================================================================== */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 3rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      main, .lede { grid-template-columns: 1fr; }
+    }
+
+    /* =====================================================================
+       MANIFESTO COLUMN
+       ===================================================================== */
+    .manifesto {
+      border-right: 1px solid var(--rule);
+      padding-right: 2rem;
+    }
+    @media (max-width: 900px) {
+      .manifesto { border-right: none; padding-right: 0; }
+    }
+    .section-rubric {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--sun-red);
+      border-top: 2px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding: 0.4rem 0;
+      margin: 0 0 1.2rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    .section-rubric .count {
+      color: var(--ink-mute);
+      font-weight: 500;
+    }
+
+    [data-cog-region="manifesto"] {
+      min-height: 200px;
+    }
+
+    /* Override canonical_dom panel styling for editorial look */
+    [data-cog-region="manifesto"] .cog-panel {
+      border: none;
+      padding: 0;
+      margin: 0 0 2rem;
+      background: transparent;
+      border-bottom: 1px dotted var(--rule);
+      padding-bottom: 1.5rem;
+      position: relative;
+      animation: stanzaIn 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    [data-cog-region="manifesto"] .cog-panel:last-child {
+      border-bottom: none;
+    }
+    [data-cog-region="manifesto"] .cog-panel-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.7rem;
+    }
+    [data-cog-region="manifesto"] .cog-panel-content {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      line-height: 1.35;
+      color: var(--ink);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+    }
+    [data-cog-region="manifesto"] .cog-panel-content::before {
+      content: '"';
+      font-size: 2rem;
+      color: var(--sun-red);
+      font-weight: 500;
+      vertical-align: -0.3em;
+      margin-right: 0.1em;
+      opacity: 0.6;
+    }
+    [data-cog-region="manifesto"] .cog-panel-content::after {
+      content: '"';
+      font-size: 2rem;
+      color: var(--sun-red);
+      font-weight: 500;
+      vertical-align: -0.4em;
+      margin-left: 0.05em;
+      opacity: 0.6;
+    }
+
+    @keyframes stanzaIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Persona-tinted title chips, injected via .cog-panel-title text */
+    .persona-tag {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: 2px;
+      font-weight: 600;
+    }
+    .persona-tag[data-p="Visionary"]   { background: var(--visionary); }
+    .persona-tag[data-p="Skeptic"]     { background: var(--skeptic); }
+    .persona-tag[data-p="Synthesizer"] { background: var(--synth); }
+    .persona-tag[data-p="Archivist"]   { background: var(--archivist); }
+
+    .stanza-meta {
+      flex: 1;
+      color: var(--ink-mute);
+      font-weight: 400;
+    }
+
+    /* =====================================================================
+       SIDEBAR
+       ===================================================================== */
+    aside {
+      position: sticky;
+      top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--paper-light);
+      border: 1px solid var(--rule);
       border-radius: 4px;
+      padding: 1.1rem 1.2rem;
+      box-shadow: 0 1px 0 var(--rule-soft);
     }
-    button:hover { background: #f0f4f8; }
-    [data-cog-runtime-root] {
-      border: 2px dashed #b5bec8;
-      padding: 1rem;
-      min-height: 80px;
-      background: #fff;
-      border-radius: 6px;
+    .card .rubric {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--sun-red);
+      margin-bottom: 0.7rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--rule);
     }
-    .results {
-      margin-top: 1rem;
-      padding: 0.75rem;
-      background: #1f2933;
-      color: #e4e7eb;
-      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    /* Roster */
+    .roster ul { list-style: none; margin: 0; padding: 0; }
+    .roster li {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      gap: 0.6rem;
+      align-items: center;
+      padding: 0.45rem 0;
+      border-bottom: 1px dotted var(--rule);
       font-size: 0.85rem;
-      border-radius: 4px;
-      white-space: pre-wrap;
-      max-height: 320px;
-      overflow-y: auto;
     }
-    .pass { color: #34d399; }
-    .fail { color: #f87171; }
+    .roster li:last-child { border-bottom: none; }
+    .roster .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--paper-light);
+    }
+    .roster .name {
+      font-weight: 500;
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+    }
+    .roster .name .me { color: var(--sun-red); font-weight: 700; }
+    .roster .persona-line {
+      font-size: 0.7rem;
+      color: var(--ink-mute);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .roster .heartbeat {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--sun-teal);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* Controls */
+    .controls .row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.6rem;
+    }
+    .controls .row:last-child { margin-bottom: 0; }
+    button, .btn {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.5rem 0.85rem;
+      background: var(--ink);
+      color: var(--paper-light);
+      border: 1px solid var(--ink);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+      font-weight: 600;
+    }
+    button:hover, .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 0 var(--sun-red);
+    }
+    button.primary { background: var(--sun-red); border-color: var(--sun-red); }
+    button.primary:hover { box-shadow: 0 2px 0 var(--ink); }
+    button.ghost {
+      background: transparent;
+      color: var(--ink);
+    }
+    button.ghost:hover { background: var(--rule-soft); }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .controls label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin: 0.7rem 0 0.3rem;
+    }
+    .controls input[type="password"],
+    .controls input[type="text"],
+    .controls select {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      border-radius: 2px;
+      color: var(--ink);
+    }
+    .controls input:focus, .controls select:focus {
+      outline: 2px solid var(--sun-red);
+      outline-offset: -1px;
+    }
+
+    .controls .ai-status {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--ink-mute);
+      margin-top: 0.4rem;
+    }
+    .controls .ai-status.on { color: var(--sun-teal); }
+    .controls .ai-status.warn { color: var(--sun-orange); }
+
+    /* =====================================================================
+       TIMELINE (full-width bottom)
+       ===================================================================== */
+    .timeline-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 3rem;
+      border-top: 1px solid var(--rule);
+    }
+    .timeline-rubric {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.7rem;
+    }
+    .timeline-rubric .count { color: var(--sun-red); font-weight: 600; }
+    .timeline {
+      position: relative;
+      height: 56px;
+      background: var(--paper-light);
+      border: 1px solid var(--rule);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .timeline-track {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: end;
+      padding: 0 4px;
+      gap: 2px;
+    }
+    .tl-event {
+      flex: 0 0 6px;
+      height: 30%;
+      background: var(--ink);
+      opacity: 0.4;
+      transition: opacity 0.2s, height 0.2s;
+      border-radius: 1px 1px 0 0;
+      cursor: pointer;
+    }
+    .tl-event:hover { opacity: 1; height: 80%; }
+    .tl-event.kind-PatchApplied { background: var(--sun-red); }
+    .tl-event.kind-MessageSent { background: var(--sun-teal); }
+    .tl-event.kind-MessageReceived { background: var(--sun-purple); }
+    .tl-event.kind-BudgetExceeded { background: var(--sun-orange); }
+
+    .timeline-cursor {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: var(--ink);
+      pointer-events: none;
+      transition: left 0.3s ease;
+    }
+
+    /* =====================================================================
+       BANNER (replay / status) — slides over manifesto when active
+       ===================================================================== */
+    .banner {
+      max-width: 1400px;
+      margin: 0 auto 0;
+      padding: 0.7rem 2rem;
+      background: var(--ink);
+      color: var(--paper-light);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .banner.show { display: flex; }
+    .banner.replay { background: var(--sun-purple); }
+    .banner.welcome { background: var(--sun-teal); }
+    .banner button { background: transparent; border-color: currentColor; color: inherit; }
+
+    /* =====================================================================
+       FOOTER NOTE
+       ===================================================================== */
+    footer {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 2rem 4rem;
+      border-top: 3px double var(--ink);
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2rem;
+    }
+    @media (max-width: 900px) { footer { grid-template-columns: 1fr; } }
+    footer h4 {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--sun-red);
+      margin: 0 0 0.6rem;
+    }
+    footer p { margin: 0 0 0.6rem; }
+    footer code {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      background: var(--rule-soft);
+      padding: 0.1rem 0.3rem;
+      border-radius: 2px;
+    }
+
+    /* Hide the cog-panel "fall-through" element wrappers when in our region.
+       canonical_dom.js controls structure; we override appearance via the cog-panel class. */
+
+    /* Avatar palette */
+    .avatar-V { background: var(--visionary); }
+    .avatar-S { background: var(--skeptic); }
+    .avatar-Y { background: var(--synth); }
+    .avatar-A { background: var(--archivist); }
+
+    /* =====================================================================
+       CONSTELLATION — the shared central artifact
+       ===================================================================== */
+    .constellation-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 0.5rem;
+    }
+    .constellation-rubric {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--sun-red);
+      border-top: 2px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding: 0.45rem 0;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.7rem;
+    }
+    .constellation-rubric .count {
+      color: var(--ink-mute);
+      font-weight: 500;
+    }
+    .constellation-wrap {
+      position: relative;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      background: var(--paper-light);
+      box-shadow: inset 0 0 60px rgba(60, 40, 20, 0.05);
+      overflow: hidden;
+    }
+    #constellation {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 12 / 5;
+    }
+    .cg-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--ink-mute);
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.1rem;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    .cg-empty.hide { opacity: 0; }
+
+    /* Glyph entrance */
+    .cg-glyph {
+      transform-origin: center;
+      animation: cgIn 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .cg-glyph .core { cursor: pointer; }
+    @keyframes cgIn {
+      from { opacity: 0; transform: scale(0.2) rotate(-15deg); }
+      to   { opacity: 1; transform: scale(1)   rotate(0); }
+    }
+    .cg-edge {
+      stroke-dasharray: 800;
+      stroke-dashoffset: 800;
+      animation: cgEdge 1.4s ease-out forwards;
+    }
+    @keyframes cgEdge {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Per-persona glyph colors */
+    .cg-glyph[data-p="Visionary"]   .core { fill: var(--visionary); }
+    .cg-glyph[data-p="Skeptic"]     .core { fill: var(--skeptic); }
+    .cg-glyph[data-p="Synthesizer"] .core { fill: var(--synth); }
+    .cg-glyph[data-p="Archivist"]   .core { fill: var(--archivist); }
+    .cg-glyph .ring { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.4; }
+
+    /* =====================================================================
+       PROMPT EDITOR + CADENCE SLIDER + COLLAPSIBLE
+       ===================================================================== */
+    .rubric.collapsible {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .rubric.collapsible .chevron {
+      transition: transform 0.2s;
+      font-size: 0.9rem;
+    }
+    .rubric.collapsible.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .prompt-block {
+      margin-bottom: 0.75rem;
+      border-left: 3px solid var(--rule);
+      padding-left: 0.6rem;
+    }
+    .prompt-block[data-persona="Visionary"]   { border-left-color: var(--visionary); }
+    .prompt-block[data-persona="Skeptic"]     { border-left-color: var(--skeptic); }
+    .prompt-block[data-persona="Synthesizer"] { border-left-color: var(--synth); }
+    .prompt-block[data-persona="Archivist"]   { border-left-color: var(--archivist); }
+    .prompt-block .head {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+    .prompt-block .head button {
+      padding: 0.2rem 0.45rem;
+      font-size: 0.6rem;
+      background: transparent;
+      color: var(--ink-mute);
+      border-color: var(--rule);
+    }
+    .prompt-block textarea {
+      width: 100%;
+      min-height: 70px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      line-height: 1.45;
+      padding: 0.45rem 0.55rem;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 2px;
+      color: var(--ink);
+      resize: vertical;
+    }
+    .prompt-block textarea:focus { outline: 2px solid var(--sun-red); outline-offset: -1px; }
+    .prompt-block.modified .head::after {
+      content: "modified";
+      font-size: 0.6rem;
+      color: var(--sun-orange);
+      letter-spacing: 0.06em;
+      padding-left: 0.4rem;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--sun-red);
+      margin: 0.3rem 0;
+    }
+
+    /* =====================================================================
+       MASTHEAD CTA — “Open another tab” button
+       ===================================================================== */
+    .masthead { grid-template-columns: auto 1fr auto auto; gap: 1.5rem; align-items: end; }
+    .masthead-cta {
+      display: flex;
+      flex-direction: column;
+      align-items: end;
+      gap: 0.3rem;
+    }
+    .big-cta {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      padding: 0.7rem 1.1rem;
+      background: var(--sun-red);
+      border-color: var(--sun-red);
+      color: var(--paper-light);
+      font-weight: 700;
+      box-shadow: 0 3px 0 var(--ink);
+    }
+    .big-cta:hover { box-shadow: 0 5px 0 var(--ink); transform: translateY(-2px); }
+    .cta-hint { font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-mute); letter-spacing: 0.05em; }
+    @media (max-width: 700px) { .masthead-cta { display: none; } }
+
+    /* =====================================================================
+       ACTIVATION BANNER — prominent BYO-key prompt
+       ===================================================================== */
+    .activate {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--rule);
+      background: linear-gradient(180deg, rgba(231, 60, 23, 0.06), rgba(231, 60, 23, 0));
+    }
+    .activate.compact { display: none; }
+    .activate-headline {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: clamp(1.4rem, 2.6vw, 2rem);
+      letter-spacing: -0.01em;
+      color: var(--sun-red);
+    }
+    .activate-sub {
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      max-width: 720px;
+      margin: 0.4rem 0 1rem;
+    }
+    .activate-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr 1fr 1fr;
+      gap: 0.8rem;
+      max-width: 1100px;
+    }
+    @media (max-width: 900px) { .activate-grid { grid-template-columns: 1fr 1fr; } }
+    .activate-grid label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.3rem;
+    }
+    .activate-grid select, .activate-grid input {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      border: 1px solid var(--rule);
+      background: var(--paper-light);
+      border-radius: 3px;
+      color: var(--ink);
+    }
+    .activate-grid input:focus, .activate-grid select:focus {
+      outline: 2px solid var(--sun-red);
+      outline-offset: -1px;
+    }
+    .activate-status {
+      margin-top: 0.7rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--ink-mute);
+    }
+    .activate-status.on { color: var(--sun-teal); font-weight: 600; }
+    .activate-status.warn { color: var(--sun-orange); }
+
+    /* =====================================================================
+       ACTIVE-STRIP — collapsed status bar shown once a key is set
+       ===================================================================== */
+    .active-strip {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0.6rem 2rem;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper-light);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+    .active-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--sun-teal);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .active-left, .active-right {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .active-right { margin-left: auto; }
+    .active-label { color: var(--ink-mute); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .active-mono { color: var(--ink); font-weight: 500; }
+    .active-sep { color: var(--rule); }
+    .active-btn { padding: 0.3rem 0.6rem; font-size: 0.65rem; }
+
+    /* Persona switcher in the active strip — styled to look like a chip
+       but it's a real <select>. Tint reflects the current persona. */
+    .active-persona-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.18rem 1.5rem 0.18rem 0.5rem;
+      background-color: var(--ink);
+      background-image: linear-gradient(45deg, transparent 50%, var(--paper-light) 50%),
+                        linear-gradient(135deg, var(--paper-light) 50%, transparent 50%);
+      background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      color: var(--paper-light);
+      border: none;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .active-persona-select:focus {
+      outline: 2px solid var(--sun-red);
+      outline-offset: 1px;
+    }
+    .active-persona-select[data-p="Visionary"]   { background-color: var(--visionary); }
+    .active-persona-select[data-p="Skeptic"]     { background-color: var(--skeptic); }
+    .active-persona-select[data-p="Synthesizer"] { background-color: var(--synth); }
+    .active-persona-select[data-p="Archivist"]   { background-color: var(--archivist); }
+    /* Dropdown option text is light against system menu; let the browser
+       handle that natively — no override needed. */
+
+    .lede.compact .body { display: none; }
+    .lede.compact { padding: 0.8rem 2rem; grid-template-columns: 1fr; }
+    .lede.compact .stats dl { grid-template-columns: repeat(5, auto); justify-content: start; gap: 0.25rem 1.5rem; }
+
+    /* =====================================================================
+       LEADING-PERSONA PULLQUOTE — sits above the constellation
+       ===================================================================== */
+    .cg-pullquote {
+      max-width: 1100px;
+      margin: 0 auto 0.8rem;
+      padding: 0.7rem 1rem 0.9rem;
+      background: var(--paper-light);
+      border: 1px solid var(--rule);
+      border-left: 6px solid var(--ink);
+      border-radius: 4px;
+      transition: border-left-color 0.5s;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 1.2rem;
+      align-items: center;
+    }
+    @media (max-width: 700px) {
+      .cg-pullquote { grid-template-columns: 1fr; gap: 0.4rem; }
+    }
+    .cg-pullquote[data-p="Visionary"]   { border-left-color: var(--visionary); }
+    .cg-pullquote[data-p="Skeptic"]     { border-left-color: var(--skeptic); }
+    .cg-pullquote[data-p="Synthesizer"] { border-left-color: var(--synth); }
+    .cg-pullquote[data-p="Archivist"]   { border-left-color: var(--archivist); }
+    .cg-pq-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .cg-pq-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .cg-pq-leader {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+    }
+    .cg-pq-leader[data-p="Visionary"]   { color: var(--visionary); }
+    .cg-pq-leader[data-p="Skeptic"]     { color: var(--skeptic); }
+    .cg-pq-leader[data-p="Synthesizer"] { color: var(--synth); }
+    .cg-pq-leader[data-p="Archivist"]   { color: var(--archivist); }
+    .cg-pq-text {
+      margin: 0;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.25rem;
+      line-height: 1.4;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+    }
+    .cg-pq-text::before { content: '"'; color: var(--sun-red); opacity: 0.6; margin-right: 0.15em; }
+    .cg-pq-text::after  { content: '"'; color: var(--sun-red); opacity: 0.6; margin-left: 0.05em; }
+    .cg-pq-text.empty {
+      font-style: normal;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--ink-mute);
+      letter-spacing: 0;
+    }
+    .cg-pq-text.empty::before, .cg-pq-text.empty::after { content: none; }
+
+    /* =====================================================================
+       BUTTON SPINNER — visible "call in flight" feedback
+       ===================================================================== */
+    button .btn-spinner {
+      display: none;
+      width: 12px;
+      height: 12px;
+      margin-right: 0.5em;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: btnSpin 0.7s linear infinite;
+    }
+    button.busy .btn-spinner { display: inline-block; }
+    button.busy {
+      cursor: progress;
+      opacity: 0.75;
+    }
+    @keyframes btnSpin {
+      to { transform: rotate(360deg); }
+    }
+    button.success { background: var(--sun-teal); border-color: var(--sun-teal); }
+    button.failed  { background: var(--sun-orange); border-color: var(--sun-orange); }
+
+    /* =====================================================================
+       SENTIMENT — integrated into the constellation, plus a scoreboard
+       ===================================================================== */
+    #sent-dot, #sent-dot-halo {
+      transition: cx 0.6s cubic-bezier(0.16, 1, 0.3, 1), cy 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #sent-dot-halo { animation: dotPulse 2.4s ease-in-out infinite; transform-origin: center; }
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.12; r: 18; }
+      50%      { opacity: 0.22; r: 24; }
+    }
+    .cg-scoreboard {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      padding: 0.6rem 0.8rem;
+      border-top: 1px solid var(--rule);
+      background: var(--paper-light);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+    .cg-scoreboard .sb-label {
+      display: block;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.15rem;
+    }
+    .cg-scoreboard .active-mono {
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+    }
+    @media (max-width: 700px) {
+      .cg-scoreboard { grid-template-columns: 1fr; gap: 0.4rem; }
+    }
+
+    /* Axis definitions — collapsible explainer below the scoreboard */
+    .axis-defs {
+      padding: 0.6rem 0.9rem 0.9rem;
+      border-top: 1px solid var(--rule);
+      background: var(--paper-light);
+      font-size: 0.84rem;
+    }
+    .axis-defs summary {
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      list-style: none;
+      padding: 0.2rem 0;
+      user-select: none;
+    }
+    .axis-defs summary::before {
+      content: "▸ ";
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .axis-defs[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .axis-defs summary:hover { color: var(--sun-red); }
+    .axis-defs-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0.4rem 1rem;
+      margin: 0.6rem 0 0.6rem;
+    }
+    .axis-defs-grid dt {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink);
+      align-self: start;
+    }
+    .axis-defs-grid dt .axis-pole {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      background: var(--ink);
+      color: var(--paper-light);
+      border-radius: 2px;
+      font-weight: 600;
+    }
+    .axis-defs-grid dd {
+      margin: 0;
+      color: var(--ink-soft);
+      font-family: var(--font-body);
+      line-height: 1.45;
+    }
+    .axis-defs-grid dd em {
+      color: var(--ink-mute);
+      font-size: 0.78rem;
+      font-style: italic;
+    }
+    .axis-defs-note {
+      margin: 0;
+      color: var(--ink-mute);
+      font-size: 0.78rem;
+      font-style: italic;
+      line-height: 1.45;
+    }
+    @media (max-width: 600px) {
+      .axis-defs-grid { grid-template-columns: 1fr; gap: 0.15rem 0; }
+      .axis-defs-grid dd { margin-bottom: 0.5rem; }
+    }
+
+    /* =====================================================================
+       WORK AREA — the prompts editor as main content
+       ===================================================================== */
+    .workarea {
+      grid-column: 1 / -1;
+    }
+    .workarea-intro {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      color: var(--ink-soft);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .prompts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 1.2rem;
+    }
+    @media (max-width: 800px) { .prompts-grid { grid-template-columns: 1fr; } }
+    .prompt-block.big {
+      margin-bottom: 0;
+      padding: 0.8rem 1rem;
+      background: var(--paper-light);
+      border-left-width: 4px;
+      border-left-style: solid;
+      border-top: 1px solid var(--rule);
+      border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      border-radius: 0 4px 4px 0;
+    }
+    .prompt-block.big .head {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.4rem;
+    }
+    .prompt-block.big.is-mine {
+      background: #fff8e8;
+      border-left-width: 6px;
+      box-shadow: 0 1px 0 var(--rule-soft), 0 0 0 1px var(--highlight);
+    }
+    .prompt-block.big.is-mine .head::before {
+      content: "★ ";
+      color: var(--sun-red);
+    }
+    .prompt-block.big textarea {
+      min-height: 140px;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    /* =====================================================================
+       MAIN GRID — give workarea full width above the aside
+       ===================================================================== */
+    main {
+      grid-template-areas: "workarea aside";
+      grid-template-columns: minmax(0, 1fr) 340px;
+    }
+    .workarea { grid-area: workarea; }
+    main aside { grid-area: aside; }
+    @media (max-width: 900px) {
+      main { grid-template-areas: "workarea" "aside"; grid-template-columns: 1fr; }
+    }
+
+    /* =====================================================================
+       CHRONICLE — full-width below, scrollable feed
+       ===================================================================== */
+    .chronicle-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 1.5rem;
+    }
+    .chronicle-section [data-cog-region="manifesto"] {
+      max-height: 60vh;
+      overflow-y: auto;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 1rem 1.2rem;
+      background: var(--paper-light);
+      scroll-behavior: smooth;
+      /* DOM order is reversed in beautifyPanel via .prepend() — newest
+         lands at DOM-top, oldest at DOM-bottom. scrollTop=0 keeps the
+         viewport pinned to the newest entry without any flex tricks. */
+    }
+
+    /* Override panel layout: each utterance is a row with [mini-glyph][meta+text] */
+    .chronicle-section .cog-panel {
+      border: none;
+      border-bottom: 1px dotted var(--rule);
+      padding-bottom: 0.9rem;
+      margin: 0 0 0.9rem;
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 0.9rem;
+      align-items: start;
+      animation: stanzaIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .chronicle-section .cog-panel:last-child {
+      border-bottom: none; margin-bottom: 0; padding-bottom: 0;
+    }
+    .chronicle-section .cog-panel-title {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.35rem;
+      grid-column: 2;
+    }
+    .chronicle-section .cog-panel-content {
+      grid-column: 2;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+    .chronicle-section .cog-panel-content::before,
+    .chronicle-section .cog-panel-content::after { content: none; }
+    .chronicle-glyph {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      width: 52px;
+      height: 52px;
+    }
+
+    .chronicle-glyph svg { width: 100%; height: 100%; }
+    .ts-relative {
+      color: var(--ink-mute);
+      font-weight: 400;
+    }
+
+    /* =====================================================================
+       ROSTER ENTRY — model + calls + cost + last-quote + when
+       ===================================================================== */
+    .roster .roster-item {
+      grid-template-columns: 32px 1fr auto;
+      padding: 0.6rem 0;
+      align-items: start;
+    }
+    .roster .roster-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      min-width: 0;
+    }
+    .roster .rb-head {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .roster .rb-name {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink);
+    }
+    .roster .rb-name .me { color: var(--sun-red); }
+    .roster .rb-persona.persona-tag { font-size: 0.6rem; padding: 0.05rem 0.35rem; }
+    .roster .rb-meta {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      color: var(--ink-mute);
+      letter-spacing: 0.02em;
+      word-break: break-all;
+    }
+    .roster .rb-model { color: var(--ink-soft); font-weight: 500; }
+    .roster .rb-model.rb-mute { color: var(--ink-mute); font-weight: 400; font-style: italic; }
+    .roster .rb-cost.live { color: var(--sun-red); font-weight: 600; }
+    .roster .rb-cost { color: var(--ink-mute); }
+    .roster .rb-when { color: var(--sun-teal); }
+    .roster .rb-quote {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 0.85rem;
+      line-height: 1.35;
+      color: var(--ink);
+      margin-top: 0.25rem;
+      padding-left: 0.5rem;
+      border-left: 2px solid var(--rule);
+    }
+
+    /* Chronicle model tag inside the meta line */
+    .chronicle-section .model-tag {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.02em;
+      color: var(--sun-purple);
+      padding: 0.05rem 0.35rem;
+      background: rgba(107, 70, 193, 0.08);
+      border-radius: 2px;
+      word-break: break-all;
+    }
+
+    .small-mute { color: var(--ink-mute); font-size: 0.75rem; }
+    .empty-state {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--ink-mute);
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.1rem;
+    }
   </style>
 </head>
 <body>
-  <h1>Cognitive OS — M1 Smoke Test</h1>
-  <p>
-    Direct-bypass test of the DOM bridge.
-    Each button calls <code>CognitiveOS._applyPatchDirect(...)</code>
-    (no AILANG REPL needed). Replay-equality is checked via
-    <code>regionHash</code> after each operation.
-  </p>
 
-  <div class="controls">
-    <button id="btn-run-all">Run all assertions</button>
-    <button id="btn-add-panel">Add panel</button>
-    <button id="btn-update-panel">Update last panel</button>
-    <button id="btn-add-timeline">Add timeline</button>
-    <button id="btn-reset">Reset</button>
+  <header class="masthead">
+    <div>
+      <div class="vol">A Cognitive OS Demo · AILANG</div>
+      <h1 class="title wordmark">The Cognitive <em>Commons</em></h1>
+      <div class="tagline">Each tab is an AI citizen competing to shape the commons' sentiment toward its own values.</div>
+    </div>
+    <div class="masthead-cta">
+      <button id="invite" class="primary big-cta">＋ Open another tab</button>
+      <div class="cta-hint">Each tab is a new AI citizen.</div>
+    </div>
+    <div class="clock">
+      <span class="lamport" id="lamport-clock">0</span>
+      Lamport clock
+      <br/><span class="sender-id" id="sender-id">…</span>
+    </div>
+  </header>
+
+  <section class="activate" id="activation-banner">
+    <div class="activate-body">
+      <div class="activate-headline">Add an API key to give this tab a voice.</div>
+      <div class="activate-sub">Your tab will adopt a persona and argue for it. Open more tabs to populate the society — each one becomes a citizen with a different stance and competes to shift the central artifact toward its preferred sentiment. Keys persist across this domain (so they round-trip with the <a href="/demos/wasm-step-byo-key/">BYO-key demo</a>).</div>
+      <div class="activate-grid">
+        <div>
+          <label for="ai-provider">Provider</label>
+          <select id="ai-provider">
+            <option value="auto">Auto-detect from key prefix</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="gemini">Google Gemini</option>
+          </select>
+        </div>
+        <div>
+          <label for="api-key">API key</label>
+          <input type="password" id="api-key" placeholder="sk-ant-… / sk-… / sk-or-… / AIza…" autocomplete="off" />
+        </div>
+        <div>
+          <label for="model-input">Model</label>
+          <select id="model-input"></select>
+        </div>
+        <div>
+          <label for="persona-select">Persona</label>
+          <select id="persona-select">
+            <option value="auto">Auto (from tab ID)</option>
+            <option value="Visionary">Visionary</option>
+            <option value="Skeptic">Skeptic</option>
+            <option value="Synthesizer">Synthesizer</option>
+            <option value="Archivist">Archivist</option>
+          </select>
+        </div>
+      </div>
+      <div class="activate-status" id="ai-status">No key set — your tab is silent until you provide one.</div>
+      <div class="row" style="margin-top: 0.8rem;">
+        <button id="banner-done" class="primary"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Test &amp; Activate citizen</span></button>
+        <button id="banner-skip" class="ghost">Save without testing</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="active-strip" id="active-strip" style="display:none">
+    <div class="active-dot"></div>
+    <div class="active-left">
+      <span class="active-label">Active as</span>
+      <select id="active-persona-select" class="active-persona-select" aria-label="Switch persona">
+        <option value="auto">Auto (from tab ID)</option>
+        <option value="Visionary">Visionary</option>
+        <option value="Skeptic">Skeptic</option>
+        <option value="Synthesizer">Synthesizer</option>
+        <option value="Archivist">Archivist</option>
+      </select>
+      <span class="active-sep">·</span>
+      <span id="active-provider" class="active-mono">anthropic</span>
+      <span class="active-sep">·</span>
+      <span id="active-model" class="active-mono">model</span>
+    </div>
+    <div class="active-right">
+      <span class="active-label">This tab</span>
+      <span id="active-cost" class="active-mono">$0.000</span>
+      <span class="active-sep">·</span>
+      <span class="active-label">Commons</span>
+      <span id="active-cost-commons" class="active-mono">$0.000</span>
+      <span class="active-sep">·</span>
+      <button id="edit-config" class="ghost active-btn">Edit</button>
+    </div>
+  </section>
+
+  <section class="lede compact" id="lede-stats">
+    <div class="stats">
+      <dl>
+        <dt>Society</dt><dd id="stat-society">1 citizen</dd>
+        <dt>Utterances</dt><dd id="stat-stanzas">0</dd>
+        <dt>Events</dt><dd id="stat-events">0</dd>
+        <dt>Tokens</dt><dd id="stat-tokens">0 in · 0 out</dd>
+        <dt>Cost ≈</dt><dd id="stat-cost-total" class="live">$0.000</dd>
+      </dl>
+    </div>
+  </section>
+
+  <div class="banner replay" id="replay-banner">
+    <div>
+      <strong>Replay mode.</strong>
+      The manifesto is being reconstructed from the cognitive event log. Same events → byte-identical DOM.
+    </div>
+    <button id="replay-stop">Stop replay</button>
   </div>
 
-  <div data-cog-runtime-root></div>
+  <section class="constellation-section">
+    <div class="constellation-rubric">
+      <span>The Commons — a single artifact, built by every tab</span>
+      <span class="count" id="constellation-count">0 glyphs</span>
+    </div>
+    <div class="cg-pullquote" id="cg-pullquote">
+      <div class="cg-pq-meta">
+        <span class="cg-pq-label">Leading citizen</span>
+        <span id="cg-pq-leader" class="cg-pq-leader">—</span>
+      </div>
+      <blockquote class="cg-pq-text empty" id="cg-pq-text">Once a citizen speaks, the leading persona's most recent utterance will appear here.</blockquote>
+    </div>
 
-  <h2 style="font-size: 1rem; margin-top: 2rem;">Replay engine (M3 Day 6)</h2>
-  <p style="font-size: 0.9rem;">
-    Reads the IndexedDB event log in canonical (clock, sender) order and
-    reconstructs the DOM. The strategic claim: <strong>same event log → same DOM</strong>
-    across page reloads + across machines.
-  </p>
-  <p style="font-size: 0.85rem; color: #62748a;">
-    Workflow: (1) Enable IndexedDB sink, (2) do some operations to build a log,
-    (3) <strong>Capture DOM hashes</strong> (snapshots the current state),
-    (4) <strong>Replay from IndexedDB</strong> (resets + replays),
-    (5) <strong>Verify byte equality</strong> (compares before/after hashes).
-  </p>
-  <div class="controls">
-    <button id="btn-replay-capture">Capture DOM hashes</button>
-    <button id="btn-replay-from-db">Replay from IndexedDB</button>
-    <button id="btn-replay-dryrun">Dry-run (count only)</button>
-    <button id="btn-replay-verify">Verify byte equality</button>
-  </div>
+    <div class="constellation-wrap">
+      <svg id="constellation" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid meet" aria-label="Shared constellation with sentiment compass">
+        <defs>
+          <radialGradient id="cg-bg" cx="50%" cy="50%" r="65%">
+            <stop offset="0%" stop-color="#fdfaf3"/>
+            <stop offset="100%" stop-color="#efe6d4"/>
+          </radialGradient>
+          <pattern id="cg-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#d9cfc1" stroke-width="0.4" opacity="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="1200" height="500" fill="url(#cg-bg)"/>
+        <rect width="1200" height="500" fill="url(#cg-grid)"/>
 
-  <h2 style="font-size: 1rem; margin-top: 2rem;">IndexedDB event log (M3)</h2>
-  <p style="font-size: 0.9rem;">
-    Opt-in cognitive event log. Once enabled, every <code>applyPatch</code> / <code>send</code> / <code>recv</code> writes a structured event to IndexedDB. Survives reloads. The "Reload tab" workflow is the M3 replay-determinism story.
-  </p>
-  <div class="controls">
-    <button id="btn-enable-eventlog">Enable IndexedDB sink</button>
-    <button id="btn-eventlog-count">Show event count</button>
-    <button id="btn-eventlog-show-all">Show all events (canonical order)</button>
-    <button id="btn-eventlog-export">Export JSONL</button>
-    <button id="btn-eventlog-clear">Clear event log</button>
-  </div>
+        <!-- Sentiment axes — faint, span the whole canvas -->
+        <g id="cg-sentiment-bg" opacity="0.75" font-family="JetBrains Mono, monospace" font-size="11" fill="#a99988">
+          <line x1="600" y1="40" x2="600" y2="460" stroke="#c8bba8" stroke-dasharray="4 4"/>
+          <line x1="60" y1="250" x2="1140" y2="250" stroke="#c8bba8" stroke-dasharray="4 4"/>
+          <text x="1135" y="245" text-anchor="end">forward →</text>
+          <text x="65"   y="245">← critical</text>
+          <text x="608"  y="50">↑ synthesizing</text>
+          <text x="608"  y="458">↓ archival</text>
+          <!-- Persona anchors at preferred-sentiment positions -->
+          <g font-size="12" fill="#1c1816" font-family="Inter, sans-serif" font-weight="600">
+            <circle cx="982" cy="182" r="7" fill="#e73c17" opacity="0.65"/>
+            <text x="993" y="186">Visionary</text>
+            <circle cx="217" cy="284" r="7" fill="#2c7a7b" opacity="0.65"/>
+            <text x="228" y="288">Skeptic</text>
+            <circle cx="600" cy="97"  r="7" fill="#6b46c1" opacity="0.65"/>
+            <text x="611" y="101">Synthesizer</text>
+            <circle cx="420" cy="394" r="7" fill="#dd6b20" opacity="0.65"/>
+            <text x="431" y="398">Archivist</text>
+          </g>
+        </g>
 
-  <h2 style="font-size: 1rem; margin-top: 2rem;">Cross-tab BroadcastChannel test (M2)</h2>
-  <p style="font-size: 0.9rem;">
-    Open this page in a <strong>second browser tab</strong> on the same origin.
-    Click "Await message" in one tab and "Send greeting" in the other —
-    the listening tab logs the envelope with the sender's tab ID + Lamport clock.
-    BroadcastChannel spec: the <em>sending tab does not receive its own posts</em>.
-  </p>
-  <div class="controls">
-    <label>Mailbox: <input id="bc-mailbox" type="text" value="shared_inbox" style="padding: 0.3rem;" /></label>
-    <button id="btn-bc-send">Send greeting</button>
-    <button id="btn-bc-await">Await message</button>
-    <button id="btn-bc-show-id">Show my sender ID</button>
-  </div>
+        <!-- Glyph spiral + edges -->
+        <g id="cg-edges" stroke="#7a6e64" stroke-width="0.6" fill="none" opacity="0.45"></g>
+        <g id="cg-glyphs"></g>
+        <g id="cg-labels" font-family="JetBrains Mono, monospace" font-size="9" fill="#7a6e64"></g>
 
-  <pre class="results" id="results">Click "Run all assertions" to begin.</pre>
+        <!-- Sentiment trail + current commons dot (foreground; always visible) -->
+        <polyline id="sent-trail" fill="none" stroke="#1c1816" stroke-width="1.2" opacity="0.35"/>
+        <g id="sent-dot-wrap">
+          <circle id="sent-dot-halo" cx="600" cy="250" r="18" fill="#1c1816" opacity="0.12"/>
+          <circle id="sent-dot" cx="600" cy="250" r="10" fill="#1c1816" stroke="#fdfaf3" stroke-width="2.5"/>
+        </g>
 
-  <script src="canonical_dom.js"></script>
-  <script src="event_log_indexeddb.js"></script>
-  <script src="host.js"></script>
-  <script src="replay.js"></script>
-  <script src="scheduler.js"></script>
+        <text x="600" y="490" text-anchor="middle" font-family="Fraunces, serif" font-style="italic" font-size="13" fill="#7a6e64" opacity="0.7">
+          phyllotaxis · each utterance places a glyph · the dark dot is the commons sentiment
+        </text>
+      </svg>
+      <div class="cg-empty" id="cg-empty">
+        Add an API key to activate this tab. Your citizen will join and start placing glyphs.
+      </div>
+      <div class="cg-scoreboard">
+        <div>
+          <span class="sb-label">Sentiment</span>
+          <span id="sentiment-readout" class="active-mono">(0.00, 0.00)</span>
+        </div>
+        <div>
+          <span class="sb-label">Drift from neutral</span>
+          <span id="sentiment-drift" class="active-mono">0.00</span>
+        </div>
+        <div>
+          <span class="sb-label">Leading persona</span>
+          <span id="sentiment-leader" class="active-mono">— · gap 0.00</span>
+        </div>
+      </div>
+      <details class="axis-defs">
+        <summary>What do the axes mean?</summary>
+        <dl class="axis-defs-grid">
+          <dt><span class="axis-pole">← critical</span></dt>
+          <dd>Interrogates assumptions, names costs, questions the value of what's being proposed. <em>Skeptic territory.</em></dd>
+          <dt><span class="axis-pole">forward →</span></dt>
+          <dd>Reaches toward a future state, an architecture, a possibility not yet built. <em>Visionary territory.</em></dd>
+          <dt><span class="axis-pole">↑ synthesizing</span></dt>
+          <dd>Reconciles opposing views, integrates contradictions, finds the unifying frame. <em>Synthesizer territory.</em></dd>
+          <dt><span class="axis-pole">↓ archival</span></dt>
+          <dd>Preserves history, records precedent, grounds the discussion in what's already been said. <em>Archivist territory.</em></dd>
+        </dl>
+        <p class="axis-defs-note">
+          Each utterance shifts the dark dot toward the speaking persona's anchor. Citizens whose target is furthest from the current dot try hardest to drag it their way (the prompt's <code>force</code> word goes from "gently reinforce" through "argue clearly to shift" to "argue forcefully to drag" as the gap grows).
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section class="chronicle-section">
+    <div class="section-rubric">
+      <span>The Chronicle — most recent utterances (newest first)</span>
+      <span class="count" id="manifesto-count">0 utterances</span>
+    </div>
+    <div data-cog-runtime-root>
+      <!-- canonical_dom.js injects panels here; beautifyPanel re-parents
+           each new panel to the front so the feed reads newest-first. -->
+      <div data-cog-region="manifesto">
+        <div class="empty-state" id="empty-manifesto">
+          The chronicle is empty. The first stanza will appear once a citizen has a voice.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+
+    <section class="workarea">
+      <div class="section-rubric">
+        <span>Your Influence — these prompts shape how your agent argues</span>
+        <span class="count" id="active-persona-rubric">no active citizen</span>
+      </div>
+      <div class="workarea-intro">
+        Each citizen has its own system prompt. Edit them to bend the commons in your direction —
+        an aggressive Visionary, a fiercer Skeptic, a more poetic Archivist. Your tab uses
+        <strong>your persona's</strong> prompt; other tabs may have edited theirs differently.
+        Reset to defaults anytime. Edits live in <code>sessionStorage</code> (per tab).
+      </div>
+      <div class="prompts-grid">
+        <div class="prompt-block big" data-persona="Visionary"></div>
+        <div class="prompt-block big" data-persona="Skeptic"></div>
+        <div class="prompt-block big" data-persona="Synthesizer"></div>
+        <div class="prompt-block big" data-persona="Archivist"></div>
+      </div>
+      <div class="row" style="margin-top: 0.5rem;">
+        <button id="prompts-reset" class="ghost">Reset all to defaults</button>
+        <button id="compose-now" class="primary"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Speak now (this tab)</span></button>
+      </div>
+    </section>
+
+    <aside>
+
+      <div class="card roster">
+        <div class="rubric">Society Roster</div>
+        <ul id="roster"></ul>
+        <div class="small-mute" style="margin-top: 0.5rem;">Each open tab is a citizen. Heartbeats every 6s. Per-tab cost shown when AI is active.</div>
+      </div>
+
+      <div class="card controls">
+        <div class="rubric">Checkpoints — save &amp; restore the commons</div>
+        <div class="small-mute" style="margin-bottom: 0.6rem;">
+          Every utterance is logged to IndexedDB. <strong>Export JSONL</strong> to take a snapshot you can re-import later — restart from a moment, share with a collaborator, or replay on another machine. <strong>Replay session</strong> reconstructs the entire history from scratch (byte-identical glyphs included).
+        </div>
+        <div class="row">
+          <button id="btn-replay" class="primary">Replay session</button>
+          <button id="btn-export" class="ghost">Export JSONL</button>
+        </div>
+        <div class="row">
+          <button id="btn-import-toggle" class="ghost">Import checkpoint…</button>
+          <button id="btn-clear" class="ghost">Reset commons</button>
+        </div>
+        <input type="file" id="import-file" accept=".jsonl,.json,application/json" style="display:none" />
+      </div>
+
+    </aside>
+
+  </main>
+
+  <section class="timeline-section">
+    <div class="timeline-rubric">
+      <span>Lamport timeline</span>
+      <span class="count" id="timeline-count">0 events</span>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="timeline-track" id="timeline-track"></div>
+      <div class="timeline-cursor" id="timeline-cursor" style="left: 0;"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>
+      <h4>What just happened</h4>
+      <p>Each tab is an isolated <strong>WASM-runnable cell</strong> with its own scoped DOM region. Stanzas are typed patches dispatched through the <code>!: DOM</code> effect; cross-tab gossip is the <code>!: Msg</code> effect carried by <code>BroadcastChannel</code>. Patches use content-hashed node IDs so the same sequence of events always produces the same HTML.</p>
+    </div>
+    <div>
+      <h4>Why this is different</h4>
+      <p>Most multi-agent demos are non-deterministic, server-bound, and unreplayable. This one runs entirely in your browser, has no server, and reconstructs byte-identically from a JSONL log — even when authored by a stochastic LLM. The AI's output is just another event.</p>
+    </div>
+    <div>
+      <h4>Sources</h4>
+      <p>
+        <a href="https://github.com/sunholo-data/ailang">AILANG on GitHub</a><br/>
+        <a href="/docs/guides/cognitive-os">Cognitive OS guide</a><br/>
+        <a href="/demos/wasm-step-byo-key/">BYO-key AI demo (v0.19.0)</a><br/>
+        Substrate: <code>internal/cognition/</code>, <code>internal/effects/</code>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Cognitive OS runtime modules — load order matters -->
+  <script src="./canonical_dom.js"></script>
+  <script src="./event_log_indexeddb.js"></script>
+  <script src="./scheduler.js"></script>
+  <script src="./host.js"></script>
+  <script src="./replay.js"></script>
+
   <script>
-    'use strict';
+  // ===========================================================================
+  // The Cognitive Commons — page application logic
+  //
+  // What this script does:
+  //   1) Attaches the Cognitive OS runtime, gives this tab a persona + identity
+  //   2) Joins a BroadcastChannel "commons" mailbox; gossips heartbeats + stanzas
+  //   3) On a cadence, composes a stanza (deterministic corpus, OR LLM if key)
+  //   4) Renders every stanza locally via DOM-patch effects → same DOM in every tab
+  //   5) Persists everything in IndexedDB → replayable across reloads + machines
+  //
+  // Determinism notes:
+  //   - The corpus is seeded by (sender_id, lamport_clock) — no Math.random in
+  //     the message content path. Two tabs with the same log produce identical
+  //     stanzas.
+  //   - LLM-authored stanzas are non-deterministic at write time but replay
+  //     reads from the log (not the LLM) → deterministic on replay.
+  //   - Animation timing uses Date.now (cosmetic, not asserted by replay).
+  // ===========================================================================
 
-    CognitiveOS.attach({ rootSelector: '[data-cog-runtime-root]' });
+  const COMMONS_MAILBOX = "commons";
+  const PERSONAS = ["Visionary", "Skeptic", "Synthesizer", "Archivist"];
+  const PERSONA_AVATAR = { Visionary: "V", Skeptic: "S", Synthesizer: "Y", Archivist: "A" };
 
-    const out = document.getElementById('results');
-    function log(msg, cls) {
-      const span = document.createElement('span');
-      if (cls) span.className = cls;
-      span.textContent = msg + '\n';
-      out.appendChild(span);
+  // Seeded corpus — keyed by persona. Each persona's stanzas reflect a stance.
+  // Used in deterministic mode. The corpus is the v1 baseline; the LLM mode
+  // generates fresh stanzas with the same persona system prompts.
+  const CORPUS = {
+    Visionary: [
+      "Every page is a computer; every tab is a citizen.",
+      "If cognition is durable and runtime is transient, the future is a message log.",
+      "A society is what survives when the workers die.",
+      "When the trace becomes a substrate, every action is a step on a public path.",
+      "The web is not a network of documents. It is a network of minds that happen to be addressable.",
+      "We did not invent intelligence. We invented a way to address it.",
+    ],
+    Skeptic: [
+      "But determinism is not the same as truth.",
+      "A replayable error is still an error — only now with footnotes.",
+      "We confuse reproducibility with understanding.",
+      "Every Lamport clock measures opinion, not time.",
+      "The byte-identical reconstruction proves only that the bytes are identical.",
+      "A society of four tabs is not a society. It is a quorum of nobody.",
+    ],
+    Synthesizer: [
+      "If the visionary is right and the skeptic is right, the design must hold both.",
+      "Determinism is the price of admission; meaning is the show.",
+      "We are not building agents. We are building a way for cognition to keep itself honest.",
+      "The manifesto improves by accretion. The system improves by retraction.",
+      "Replay is the auditor; live composition is the author. Neither is the work.",
+      "Between the visionary and the skeptic, place a written record. Then keep writing.",
+    ],
+    Archivist: [
+      "Event 0001 was a patch named AddPanel. The chain begins.",
+      "Recorded in canonical (clock, sender) order: every word, every echo.",
+      "The log does not forget. The log will outlive every tab that wrote it.",
+      "What was said by whom at what clock — this is the entire content of history.",
+      "In the absence of authors, the index remains.",
+      "The bytes are the witness; the witness is the record.",
+    ],
+  };
+
+  // ---------------------------------------------------------------------------
+  // Deterministic helpers — seeded by (sender, clock) so two tabs replaying the
+  // same log produce the same stanzas without any shared state.
+  // ---------------------------------------------------------------------------
+  function strHash(s) {
+    // FNV-1a 32-bit — same family as canonical_dom but truncated.
+    let h = 0x811c9dc5 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
     }
-    function clearLog() { out.textContent = ''; }
+    return h;
+  }
+  function deterministicPersona(senderId) {
+    return PERSONAS[strHash(senderId) % PERSONAS.length];
+  }
+  function pickStanza(persona, seedKey) {
+    const pool = CORPUS[persona];
+    return pool[strHash(seedKey) % pool.length];
+  }
+  function avatarLetter(persona) { return PERSONA_AVATAR[persona] || "?"; }
 
-    function assert(cond, msg) {
-      if (cond) {
-        log('  PASS: ' + msg, 'pass');
-        return true;
-      }
-      log('  FAIL: ' + msg, 'fail');
-      return false;
+  // ---------------------------------------------------------------------------
+  // Application state
+  // ---------------------------------------------------------------------------
+  // Persona target positions in sentiment space — each persona "pulls" the
+  // commons toward its corner of (forward/critical) × (synthesizing/archival).
+  const PERSONA_TARGETS = {
+    Visionary:   { x:  0.85, y:  0.4 },
+    Skeptic:     { x: -0.85, y: -0.2 },
+    Synthesizer: { x:  0.0,  y:  0.9 },
+    Archivist:   { x: -0.4,  y: -0.85 },
+  };
+
+  // Rough $/1K-token rates — varies wildly by model so these are only an
+  // order-of-magnitude estimate, displayed with a "≈" qualifier.
+  const ROUGH_RATES = {
+    anthropic:  { input: 0.001,    output: 0.005   },
+    openai:     { input: 0.00015,  output: 0.0006  },
+    openrouter: { input: 0.0012,   output: 0.006   },
+    gemini:     { input: 0.000075, output: 0.0003  },
+  };
+
+  // Fixed cadence — no user slider. Code-controlled to keep the demo honest.
+  const BASE_CADENCE_MS = 75000;    // 75s base
+  const CADENCE_JITTER  = 0.35;     // ±35%
+  const HISTORY_WINDOW  = 8;        // utterances fed back to the AI for context
+  const CHRONICLE_DOM_LIMIT = 25;   // panels kept in the DOM (older are pruned)
+  // On boot, only replay the most recent RECONSTRUCT_LIMIT events from the
+  // shared IndexedDB log. The log retains everything (use "Replay session"
+  // for a full reconstruction); we cap the boot-time replay because the
+  // log can accumulate thousands of entries after a few test runs and
+  // applying them all blocks the main thread.
+  const RECONSTRUCT_LIMIT = 60;
+
+  const app = {
+    senderId: null,
+    persona: null,
+    autoPersona: null,        // assigned, before user override
+    roster: new Map(),        // senderId → { persona, lastBeat, lastClock, cost }
+    rosterChan: null,         // BroadcastChannel for heartbeats + cost
+    composeTimer: null,
+    rosterPruneTimer: null,
+    events: [],               // mirror of cognitive log for the timeline ticker
+    inReplay: false,
+    aiOn: false,
+    aiProvider: null,         // "anthropic" | "openai" | "openrouter" | "gemini"
+    aiKey: "",
+    aiModel: "",
+    aiTested: false,          // becomes true after a successful Test & Activate
+    callInFlight: false,      // true while an LLM call is running (auto or Speak now)
+    glyphIndex: 0,            // monotonic counter for phyllotaxis positioning
+    prevGlyph: null,          // {x, y} of the most recently placed glyph
+    sentiment: { x: 0, y: 0 },// commons sentiment (derived from utterance history)
+    sentimentTrail: [],       // recent sentiment positions for visual trail
+    recentStanzas: [],        // [{persona, sender, clock, text, ts}] for AI history
+    glyphByKey: new Map(),    // (sender|clock) → glyph path-d for chronicle beautifier
+    tsByKey: new Map(),       // (sender|clock) → ts_ms for chronicle relative time
+    cost: { input: 0, output: 0, dollars: 0, calls: 0 },
+  };
+
+  // ---------------------------------------------------------------------------
+  // DOM refs
+  // ---------------------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    lamport: $("lamport-clock"),
+    senderId: $("sender-id"),
+    statSociety: $("stat-society"),
+    statStanzas: $("stat-stanzas"),
+    statEvents: $("stat-events"),
+    replayBanner: $("replay-banner"),
+    replayStop: $("replay-stop"),
+    manifestoCount: $("manifesto-count"),
+    emptyManifesto: $("empty-manifesto"),
+    roster: $("roster"),
+    personaSelect: $("persona-select"),
+    aiProvider: $("ai-provider"),
+    apiKey: $("api-key"),
+    modelInput: $("model-input"),
+    aiStatus: $("ai-status"),
+    activationBanner: $("activation-banner"),
+    activeStrip: $("active-strip"),
+    activePersonaSelect: $("active-persona-select"),
+    activeProvider: $("active-provider"),
+    activeModel: $("active-model"),
+    activeCost: $("active-cost"),
+    activeCostCommons: $("active-cost-commons"),
+    activePersonaRubric: $("active-persona-rubric"),
+    editConfig: $("edit-config"),
+    bannerDone: $("banner-done"),
+    bannerSkip: $("banner-skip"),
+    statTokens: $("stat-tokens"),
+    statCostTotal: $("stat-cost-total"),
+    sentDot: $("sent-dot"),
+    sentTrail: $("sent-trail"),
+    sentReadout: $("sentiment-readout"),
+    promptsReset: $("prompts-reset"),
+    constellation: $("constellation"),
+    cgEdges: null,    // populated post-DOM via querySelector inside the SVG
+    cgGlyphs: null,
+    cgLabels: null,
+    cgEmpty: $("cg-empty"),
+    constellationCount: $("constellation-count"),
+    composeNow: $("compose-now"),
+    invite: $("invite"),
+    btnReplay: $("btn-replay"),
+    btnExport: $("btn-export"),
+    btnImportToggle: $("btn-import-toggle"),
+    importFile: $("import-file"),
+    btnClear: $("btn-clear"),
+    timeline: $("timeline"),
+    timelineTrack: $("timeline-track"),
+    timelineCursor: $("timeline-cursor"),
+    timelineCount: $("timeline-count"),
+  };
+
+  // ===========================================================================
+  // BOOT
+  // ===========================================================================
+  (async function boot() {
+    if (!window.CognitiveOS) {
+      els.emptyManifesto.textContent = "Cognitive OS runtime failed to load. Open the browser console.";
+      return;
     }
 
-    // ============================================================
-    // Smoke assertions — exercise every M1 acceptance criterion
-    // ============================================================
-
-    function runAll() {
-      clearLog();
-      CognitiveOS._resetForTesting();
-      log('▶ Cognitive OS M1 smoke suite\n');
-      let passed = 0, total = 0;
-      const tally = (ok) => { total += 1; if (ok) passed += 1; };
-
-      // ---- 1. applyPatch returns structured response ----
-      log('Test 1: applyPatch returns {node_id, budget_remaining}');
-      const r1 = CognitiveOS._applyPatchDirect('agent_a', {
-        ctor: 'AddPanel', fields: ['Hello', 'World']
-      });
-      tally(assert(typeof r1.node_id === 'string', 'node_id is a string'));
-      tally(assert(r1.node_id.startsWith('cog_'), 'node_id has cog_ prefix'));
-      tally(assert(typeof r1.budget_remaining === 'number', 'budget_remaining is a number'));
-
-      // ---- 2. Determinism: same patch → same node_id ----
-      log('\nTest 2: same patch → same node_id (replay invariant)');
-      CognitiveOS._resetForTesting();
-      const r2a = CognitiveOS._applyPatchDirect('agent_a', {
-        ctor: 'AddPanel', fields: ['Hello', 'World']
-      });
-      CognitiveOS._resetForTesting();
-      const r2b = CognitiveOS._applyPatchDirect('agent_a', {
-        ctor: 'AddPanel', fields: ['Hello', 'World']
-      });
-      tally(assert(r2a.node_id === r2b.node_id, 'IDs match across resets: ' + r2a.node_id));
-
-      // ---- 3. Different region → different ID ----
-      log('\nTest 3: different region → different ID');
-      CognitiveOS._resetForTesting();
-      const r3a = CognitiveOS._applyPatchDirect('agent_a', {
-        ctor: 'AddPanel', fields: ['X', 'Y']
-      });
-      const r3b = CognitiveOS._applyPatchDirect('agent_b', {
-        ctor: 'AddPanel', fields: ['X', 'Y']
-      });
-      tally(assert(r3a.node_id !== r3b.node_id, 'agent_a vs agent_b IDs differ'));
-
-      // ---- 4. Scoped regions: nodes live inside data-cog-region containers ----
-      log('\nTest 4: scoped-region invariant');
-      CognitiveOS._resetForTesting();
-      CognitiveOS._applyPatchDirect('scoped_test', {
-        ctor: 'AddPanel', fields: ['T', 'C']
-      });
-      const region = document.querySelector('[data-cog-region="scoped_test"]');
-      tally(assert(region !== null, 'data-cog-region="scoped_test" element exists'));
-      tally(assert(region.querySelector('.cog-panel') !== null, 'panel child rendered inside region'));
-
-      // ---- 5. UpdateNode finds and mutates by ID ----
-      log('\nTest 5: UpdateNode by ID');
-      CognitiveOS._resetForTesting();
-      const created = CognitiveOS._applyPatchDirect('agent_u', {
-        ctor: 'AddPanel', fields: ['Title', 'Old content']
-      });
-      CognitiveOS._applyPatchDirect('agent_u', {
-        ctor: 'UpdateNode', fields: [created.node_id, 'New content']
-      });
-      const updated = document.querySelector('[data-cog-node="' + created.node_id + '"] .cog-panel-content');
-      tally(assert(updated && updated.textContent === 'New content', 'UpdateNode replaced content'));
-
-      // ---- 6. RemoveNode by ID ----
-      log('\nTest 6: RemoveNode by ID');
-      CognitiveOS._resetForTesting();
-      const toRemove = CognitiveOS._applyPatchDirect('agent_r', {
-        ctor: 'AddPanel', fields: ['Doomed', '']
-      });
-      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') !== null,
-        'node exists before remove'));
-      CognitiveOS._applyPatchDirect('agent_r', {
-        ctor: 'RemoveNode', fields: [toRemove.node_id]
-      });
-      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') === null,
-        'node removed from DOM'));
-
-      // ---- 7. AddTimeline variant ----
-      log('\nTest 7: AddTimeline variant');
-      CognitiveOS._resetForTesting();
-      const tlResult = CognitiveOS._applyPatchDirect('agent_t', {
-        ctor: 'AddTimeline', fields: ['Trace replay']
-      });
-      const tl = document.querySelector('[data-cog-node="' + tlResult.node_id + '"]');
-      tally(assert(tl && tl.classList.contains('cog-timeline'), 'timeline element rendered'));
-
-      // ---- 8. Sender identity persists ----
-      log('\nTest 8: sender identity');
-      const snap = CognitiveOS.debugSnapshot();
-      tally(assert(typeof snap.sender === 'string' && snap.sender.length > 0,
-        'sender ID assigned: ' + snap.sender));
-      tally(assert(snap.sender.startsWith('tab_'), 'sender has tab_ prefix'));
-
-      // ---- 9. Replay determinism: same multi-event sequence → identical final DOM ----
-      // (AddPanel is APPEND-ONLY: two sequential calls produce two sibling panels
-      //  with deterministic-but-distinct IDs from the parent-hash chain. The
-      //  invariant we actually care about is "same sequence → same final state".)
-      log('\nTest 9: replay determinism (multi-event sequence)');
-      function captureSequence(region) {
-        CognitiveOS._resetForTesting();
-        const ids = [];
-        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['A', '1'] }).node_id);
-        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['B', '2'] }).node_id);
-        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddTimeline', fields: ['T'] }).node_id);
-        return ids;
-      }
-      const run1 = captureSequence('replay_test');
-      const run2 = captureSequence('replay_test');
-      tally(assert(
-        run1.length === run2.length && run1.every((id, i) => id === run2[i]),
-        'same 3-event sequence produces identical IDs across runs: [' + run1.join(', ') + ']'
-      ));
-      // Bonus: sequential siblings have DISTINCT IDs (parent-hash chain working)
-      tally(assert(
-        run1[0] !== run1[1] && run1[1] !== run1[2],
-        'sequential sibling patches have distinct IDs (append-only semantics)'
-      ));
-
-      // ---- 10. Msg fabric: send + recv loopback ----
-      log('\nTest 10: Msg send + recv (same-tab loopback)');
-      CognitiveOS._resetForTesting();
-      const sendRes = CognitiveOS._sendDirect('inbox_b', 'ping');
-      tally(assert(typeof sendRes.msg_id === 'string' && sendRes.msg_id.length > 0,
-        'send returned msg_id: ' + sendRes.msg_id));
-      tally(assert(typeof sendRes.clock === 'number', 'send returned clock'));
-      // Recv returns a Promise — handle async
-      return CognitiveOS._recvDirect('inbox_b').then((env) => {
-        log('\nTest 11: recv envelope shape');
-        tally(assert(env.payload === 'ping', 'payload preserved'));
-        tally(assert(env.msg_id === sendRes.msg_id, 'msg_id preserved'));
-        tally(assert(env.clock === sendRes.clock, 'clock preserved'));
-
-        log('\n──────────────────────────');
-        if (passed === total) {
-          log('✅ ' + passed + ' / ' + total + ' assertions passed', 'pass');
-        } else {
-          log('❌ ' + passed + ' / ' + total + ' assertions passed', 'fail');
-        }
-      });
+    const result = window.CognitiveOS.attach({
+      rootSelector: "[data-cog-runtime-root]",
+      withEventLog: true,
+      dbName: "ailang_cognitive_commons",
+    });
+    if (result && typeof result.then === "function") {
+      try { await result; } catch (e) { console.error("[commons] attach failed", e); }
     }
+    // After attach, sender + clock are set.
+    const snap = window.CognitiveOS.debugSnapshot();
+    app.senderId = snap.sender;
 
-    document.getElementById('btn-run-all').addEventListener('click', runAll);
-    document.getElementById('btn-add-panel').addEventListener('click', () => {
-      const n = Date.now() % 10000;
-      const r = CognitiveOS._applyPatchDirect('manual', {
-        ctor: 'AddPanel', fields: ['Manual ' + n, 'Content ' + n]
-      });
-      log('Added panel: ' + r.node_id);
-    });
-    document.getElementById('btn-update-panel').addEventListener('click', () => {
-      const last = document.querySelector('[data-cog-region="manual"] .cog-panel:last-child');
-      if (!last) { log('No panel to update', 'fail'); return; }
-      const id = last.getAttribute('data-cog-node');
-      CognitiveOS._applyPatchDirect('manual', {
-        ctor: 'UpdateNode', fields: [id, 'Updated at ' + new Date().toISOString()]
-      });
-      log('Updated panel: ' + id);
-    });
-    document.getElementById('btn-add-timeline').addEventListener('click', () => {
-      const r = CognitiveOS._applyPatchDirect('manual', {
-        ctor: 'AddTimeline', fields: ['Timeline ' + (Date.now() % 1000)]
-      });
-      log('Added timeline: ' + r.node_id);
-    });
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      CognitiveOS._resetForTesting();
-      clearLog();
-      log('Reset complete.');
-    });
+    // Persona: deterministic from sender ID unless overridden via session.
+    app.autoPersona = deterministicPersona(app.senderId);
+    const stored = sessionStorage.getItem("commons_persona");
+    app.persona = stored && PERSONAS.includes(stored) ? stored : app.autoPersona;
+    els.personaSelect.value = stored ? app.persona : "auto";
 
-    // ============================================================
-    // Cross-tab BroadcastChannel test wiring
-    // ============================================================
+    // Wire UI
+    els.senderId.textContent = shortSender(app.senderId);
+    addToRoster(app.senderId, app.persona, snap.clock);
+    refreshRoster();
 
-    function getMailbox() {
-      const v = document.getElementById('bc-mailbox').value;
-      return (v || 'shared_inbox').trim();
-    }
+    // Show prior stanzas (replay-on-load gives us continuity across reloads)
+    await reconstructFromLog();
 
-    document.getElementById('btn-bc-send').addEventListener('click', () => {
-      const mb = getMailbox();
-      const greeting = 'hello from ' + CognitiveOS.debugSnapshot().sender;
-      const r = CognitiveOS._sendDirect(mb, greeting);
-      log('→ Sent to "' + mb + '": ' + greeting + ' (msg_id=' + r.msg_id + ', clock=' + r.clock + ')');
-      log('  Note: this same tab WILL also see the message via loopback. To prove');
-      log('  cross-tab delivery, open this page in a second tab + click "Await message" there FIRST.');
-    });
+    // Subscribe to commons mailbox — incoming stanzas
+    subscribeCommons();
 
-    document.getElementById('btn-bc-await').addEventListener('click', () => {
-      const mb = getMailbox();
-      log('⏳ Awaiting next message on "' + mb + '"... (blocks until one arrives)');
-      CognitiveOS._recvDirect(mb).then((env) => {
-        if (env.from === CognitiveOS.debugSnapshot().sender) {
-          log('← Received OWN-TAB loopback: ' + env.payload + ' (msg_id=' + env.msg_id + ', clock=' + env.clock + ')', 'pass');
-        } else {
-          log('← Received CROSS-TAB message: ' + env.payload + ' (from=' + env.from + ', clock=' + env.clock + ')', 'pass');
-        }
-      }).catch((e) => {
-        log('FAIL: ' + (e && e.message ? e.message : String(e)), 'fail');
-      });
-    });
+    // Heartbeat channel — every tab announces itself periodically
+    setupHeartbeat();
 
-    document.getElementById('btn-bc-show-id').addEventListener('click', () => {
-      const snap = CognitiveOS.debugSnapshot();
-      log('Sender ID: ' + snap.sender);
-      log('Lamport clock: ' + snap.clock);
-      log('Open mailboxes: [' + snap.mailboxes.join(', ') + ']');
-    });
+    // Periodic compose
+    scheduleCompose();
 
-    // ============================================================
-    // M3: IndexedDB event log wiring
-    // ============================================================
+    // Periodic roster prune — drop citizens we haven't heard from
+    app.rosterPruneTimer = setInterval(pruneRoster, 4000);
 
-    let eventLog = null;
+    // UI wiring
+    wireControls();
 
-    document.getElementById('btn-enable-eventlog').addEventListener('click', async () => {
-      try {
-        // Re-attach with withEventLog enabled. Reset first to drop the
-        // M1/M2-default attach state.
-        CognitiveOS._resetForTesting();
-        const r = CognitiveOS.attach({
-          rootSelector: '[data-cog-runtime-root]',
-          withEventLog: true,
-          dbName: 'ailang_cog_smoke_v1',
-        });
-        if (r.eventLogReady) {
-          await r.eventLogReady;
-          eventLog = r.eventLog;
-          log('✅ IndexedDB sink ready (db: ailang_cog_smoke_v1)', 'pass');
-          log('   Every subsequent applyPatch / send / recv writes an event.');
-          log('   Try clicking "Add panel" and "Send greeting" a few times, then "Show event count".');
-        } else {
-          log('FAIL: eventLogReady not returned by attach', 'fail');
-        }
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
+    // Recover stored API config (per-tab via sessionStorage)
+    restoreAiConfig();
 
-    document.getElementById('btn-eventlog-count').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
-      try {
-        const n = await eventLog.count();
-        log('Event count: ' + n);
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
+    // First-poll stats refresh
+    refreshStats();
+  })();
 
-    document.getElementById('btn-eventlog-show-all').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
-      try {
-        const events = await eventLog.queryCanonicalOrder();
-        log('Events in canonical (clock, sender) order:');
-        events.forEach((e, i) => {
-          const variant = e.region ? ' region=' + e.region + ' patch=' + e.patch_type :
-                          e.to ? ' to=' + e.to + ' msg=' + e.msg_id :
-                          e.from ? ' from=' + e.from + ' msg=' + e.msg_id : '';
-          log('  [' + i + '] ' + e.kind + ' clock=' + e.clock + ' sender=' + e.sender + variant);
-        });
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
-
-    document.getElementById('btn-eventlog-export').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
-      try {
-        const blob = await eventLog.exportJSONL();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'cognitive-events-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl';
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        log('✅ Exported ' + blob.size + ' bytes of JSONL', 'pass');
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
-
-    document.getElementById('btn-eventlog-clear').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
-      try {
-        await eventLog.clear();
-        log('✅ Event log cleared', 'pass');
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
-
-    // ============================================================
-    // M3 Day 6: Replay engine wiring
-    // ============================================================
-
-    let capturedHashes = null;
-
-    document.getElementById('btn-replay-capture').addEventListener('click', () => {
-      capturedHashes = CognitiveReplay.captureRegionHashes();
-      const regionIds = Object.keys(capturedHashes);
-      log('📸 Captured ' + regionIds.length + ' region hash(es):');
-      regionIds.forEach((id) => log('   ' + id + ' → ' + capturedHashes[id]));
-      if (regionIds.length === 0) {
-        log('   (no regions yet — do some applyPatch first)', 'fail');
-      }
-    });
-
-    document.getElementById('btn-replay-from-db').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
-      try {
-        const start = performance.now();
-        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: true });
-        const elapsed = (performance.now() - start).toFixed(1);
-        log('▶ Replayed ' + result.total + ' events in ' + elapsed + 'ms', 'pass');
-        log('   Applied: ' + result.applied + ' (DOM side-effects)');
-        log('   Skipped: ' + result.skipped + ' (passive / unknown kinds)');
-        log('   Use "Capture DOM hashes" then "Verify byte equality" to compare against pre-replay state.');
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
-
-    document.getElementById('btn-replay-dryrun').addEventListener('click', async () => {
-      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
-      try {
-        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: false, dryRun: true });
-        log('▶ Dry-run: ' + result.total + ' events in canonical order (no DOM mutation):');
-        result.dispatched.forEach((d, i) => {
-          log('   [' + i + '] ' + d.kind + (d.expected_node_id ? ' expected node_id=' + d.expected_node_id : ''));
-        });
-      } catch (e) {
-        log('FAIL: ' + e.message, 'fail');
-      }
-    });
-
-    document.getElementById('btn-replay-verify').addEventListener('click', () => {
-      if (!capturedHashes) {
-        log('No captured hashes — click "Capture DOM hashes" before replay first.', 'fail');
+  // ===========================================================================
+  // RECONSTRUCT FROM LOG (on page load — gives continuity across reloads)
+  // ===========================================================================
+  async function reconstructFromLog() {
+    const log = await getEventLog();
+    if (!log) return;
+    const t0 = performance.now();
+    try {
+      // Use queryRecent — O(limit) cursor read instead of slurping the
+      // entire log. We pull a bit more than RECONSTRUCT_LIMIT so we have
+      // some headroom for non-patch events (Msg) that don't consume glyphs.
+      const fetchN = RECONSTRUCT_LIMIT * 3;
+      const total = await log.count();
+      const events = await log.queryRecent(fetchN);
+      if (!events.length) {
+        console.log("[commons] reconstruct: no prior events");
         return;
       }
-      const after = CognitiveReplay.captureRegionHashes();
-      const v = CognitiveReplay.verifyByteEquality(capturedHashes, after);
-      if (v.equal) {
-        log('✅ Byte-identical DOM across replay boundary (' + Object.keys(after).length + ' region(s) match)', 'pass');
-      } else {
-        log('❌ DOM diverged across replay:', 'fail');
-        v.mismatches.forEach((m) => {
-          log('   ' + m.regionId + ': expected=' + m.expected + ' actual=' + m.actual, 'fail');
+      const patchEvents = events.filter((e) => e.kind === "PatchApplied" && e.region === "manifesto");
+      const recent = patchEvents.slice(-RECONSTRUCT_LIMIT);
+      // Estimate how many patches lie BEFORE our fetched window. We didn't
+      // scan the whole log (that's the perf cost we're avoiding), so we
+      // approximate using the patch-density in the fetched slice — accurate
+      // when the log is homogeneous. For an exact spiral, use "Replay session".
+      const fetched = events.length;
+      const patchDensity = fetched > 0 ? patchEvents.length / fetched : 0;
+      const eventsBeforeWindow = Math.max(0, total - fetched);
+      const skipped = Math.round(eventsBeforeWindow * patchDensity);
+      app.events = events.slice(-RECONSTRUCT_LIMIT).map(snapshotEvent);
+      hideEmpty();
+      resetConstellation();
+      resetSentiment();
+      resetRecentStanzas();
+      app.glyphIndex = skipped;
+      for (const ev of recent) {
+        applyPatchSilent(ev);
+        const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
+        const persona = meta.persona;
+        const text = (ev.fields && ev.fields[1]) || "";
+        const glyph = (ev.fields && ev.fields[2]) || null;
+        const ts = parseInt(meta.ts, 10) || ev.ts_ms || Date.now();
+        renderGlyph(persona, meta.sender || ev.sender, ev.clock, text, glyph);
+        if (persona) recordStanza(persona, ev.sender || meta.sender, ev.clock, text, ts);
+      }
+      for (const ev of events) {
+        if ((ev.kind === "MessageReceived" || ev.kind === "MessageSent") && ev.sender) {
+          addToRoster(ev.sender, deterministicPersona(ev.sender), ev.clock);
+        }
+      }
+      pruneChronicle(document.querySelector('[data-cog-region="manifesto"]'));
+      refreshStats();
+      renderTimeline();
+      const dt = (performance.now() - t0).toFixed(0);
+      console.log(`[commons] reconstruct: rendered last ${recent.length} of ~${total} log events in ${dt}ms (glyphIndex seeded at ${skipped})`);
+      if (total > fetchN) {
+        console.log(`[commons] tip: "Replay session" rebuilds the full ${total}-event spiral from event 0`);
+      }
+    } catch (e) {
+      console.warn("[commons] reconstruct skipped:", e.message);
+    }
+  }
+
+  function applyPatchSilent(ev) {
+    // Replays the canonical DOM patch WITHOUT emitting to the log. host.js
+    // exposes _applyPatchSilent which does this directly. Without it we'd
+    // double-write every replayed event back into IndexedDB.
+    try {
+      const region = document.querySelector('[data-cog-region="manifesto"]');
+      if (!region) return;
+      if (ev.node_id && region.querySelector(`[data-cog-node="${cssEscape(ev.node_id)}"]`)) return;
+      window.CognitiveOS._applyPatchSilent("manifesto", {
+        ctor: ev.patch_type || "AddPanel",
+        fields: ev.fields || [],
+      }, { remoteClock: ev.clock });
+    } catch (_) { /* tolerated */ }
+  }
+  function cssEscape(s) {
+    if (window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_-]/g, ch => "\\" + ch);
+  }
+
+  // ===========================================================================
+  // COMMONS — gossip + stanzas
+  // ===========================================================================
+  function subscribeCommons() {
+    // Pump the mailbox forever — each recv triggers a re-render
+    (async function pump() {
+      while (true) {
+        let env;
+        try {
+          env = await window.CognitiveOS._recvDirect(COMMONS_MAILBOX);
+        } catch (e) {
+          console.warn("[commons] recv error", e);
+          await sleep(500);
+          continue;
+        }
+        try { handleIncoming(env); } catch (e) { console.warn("[commons] handle error", e); }
+      }
+    })();
+  }
+
+  function handleIncoming(env) {
+    let payload;
+    try { payload = JSON.parse(env.payload); } catch (_) { return; }
+    if (!payload || typeof payload !== "object") return;
+
+    // host.js sendInternal enqueues for local recv too (single-tab support),
+    // so we'll receive our own envelopes back. Skip them — renderLocalStanza
+    // already rendered them once at compose time. Without this guard the
+    // chronicle shows duplicates with consecutive clocks (CLK N + CLK N+1).
+    if (env.from === app.senderId) return;
+
+    // Update roster — anybody we hear from is a citizen
+    if (env.from) {
+      addToRoster(env.from, payload.persona || deterministicPersona(env.from), env.clock);
+      refreshRoster();
+    }
+    refreshStats();
+
+    if (payload.kind === "Stanza") {
+      renderStanza(payload, env.from, env.clock);
+      pushTimelineEvent({
+        kind: "MessageReceived", clock: env.clock, sender: app.senderId, ts: Date.now(),
+      });
+    }
+  }
+
+  function composeAndBroadcast() {
+    if (!app.aiOn || !app.aiProvider || !app.aiKey) {
+      setAiStatus("warn", "Add an API key to give this tab a voice.");
+      setBannerCompact(false);
+      return;
+    }
+    if (!app.aiTested) {
+      setAiStatus("warn", "Run Test & Activate (or Save without testing) before this tab speaks.");
+      setBannerCompact(false);
+      return;
+    }
+    if (app.callInFlight) {
+      // Auto-cadence fired while a manual Speak Now is still running — skip
+      // this cycle so we don't double-broadcast.
+      return;
+    }
+    app.callInFlight = true;
+    const persona = app.persona;
+    generateLlmStanza(persona).then((reply) => {
+      if (!reply || !reply.text) {
+        setAiStatus("warn", "AI replied but no usable text — see browser console.");
+        return;
+      }
+      broadcastStanza(persona, reply.text, reply.glyph);
+      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · last utterance ${new Date().toLocaleTimeString()}.`);
+    }).catch((e) => {
+      console.warn("[commons] LLM call failed:", e.message);
+      setAiStatus("warn", "AI call failed: " + (e.message || "").slice(0, 120));
+    }).finally(() => {
+      app.callInFlight = false;
+    });
+  }
+
+  // broadcastStanza — applies the patch locally (emits to the event log) and
+  // gossips to other tabs. The optional glyph (AI-authored SVG path-d) lives
+  // in fields[2] of the patch — canonical_dom ignores it but the event log
+  // captures it for replay determinism.
+  function broadcastStanza(persona, text, glyph) {
+    const ts = Date.now();
+    renderLocalStanza(persona, text, glyph);
+    const payload = JSON.stringify({
+      kind: "Stanza", persona, text, glyph: glyph || "", ts,
+      provider: app.aiProvider || "", model: app.aiModel || "",
+    });
+    try { window.CognitiveOS._sendDirect(COMMONS_MAILBOX, payload); }
+    catch (e) { console.warn("[commons] send failed", e); }
+  }
+
+  function renderLocalStanza(persona, text, glyph) {
+    hideEmpty();
+    const clock = window.CognitiveOS.debugSnapshot().clock + 1;
+    const ts = Date.now();
+    const title = buildStanzaTitle(persona, app.senderId, clock, ts, app.aiModel);
+    const key = `${app.senderId}|${clock}`;
+    app.glyphByKey.set(key, glyph || "");
+    app.tsByKey.set(key, ts);
+    try {
+      window.CognitiveOS._applyPatchDirect("manifesto", {
+        ctor: "AddPanel",
+        fields: [title, text, glyph || ""],
+      });
+    } catch (e) {
+      console.warn("[commons] patch failed", e);
+    }
+    annotatePanel(app.senderId, glyph, app.aiProvider, app.aiModel);
+    renderGlyph(persona, app.senderId, clock, text, glyph);
+    recordStanza(persona, app.senderId, clock, text, ts);
+    // Remember self in the roster — last quote + spoke-ts shown for this tab
+    rosterRemember(app.senderId, {
+      persona, provider: app.aiProvider, model: app.aiModel,
+      lastQuote: text, lastSpokeTs: ts,
+    });
+    refreshRoster();
+    pushTimelineEvent({ kind: "PatchApplied", clock, sender: app.senderId, ts });
+    refreshStats();
+    renderTimeline();
+  }
+
+  function renderStanza(payload, fromSender, clock) {
+    hideEmpty();
+    const persona = payload.persona || deterministicPersona(fromSender);
+    const ts = payload.ts || Date.now();
+    const title = buildStanzaTitle(persona, fromSender, clock, ts, payload.model);
+    const key = `${fromSender}|${clock}`;
+    app.glyphByKey.set(key, payload.glyph || "");
+    app.tsByKey.set(key, ts);
+    try {
+      // _applyPatchSilent: applies the canonical DOM patch WITHOUT emitting
+      // a new PatchApplied event. The originating tab already logged this
+      // event; without silent-apply every online tab would duplicate it,
+      // and a fresh tab reading the log would see N glyphs per utterance.
+      window.CognitiveOS._applyPatchSilent("manifesto", {
+        ctor: "AddPanel",
+        fields: [title, payload.text, payload.glyph || ""],
+      }, { remoteClock: clock });
+    } catch (e) { console.warn("[commons] remote patch failed", e); }
+    annotatePanel(fromSender, payload.glyph, payload.provider, payload.model);
+    renderGlyph(persona, fromSender, clock, payload.text, payload.glyph);
+    recordStanza(persona, fromSender, clock, payload.text, ts);
+    // Enrich the roster with the remote tab's last quote + model
+    rosterRemember(fromSender, {
+      persona, provider: payload.provider, model: payload.model,
+      lastQuote: payload.text, lastSpokeTs: ts,
+    });
+    refreshRoster();
+    pushTimelineEvent({ kind: "PatchApplied", clock, sender: fromSender, ts });
+    refreshStats();
+    renderTimeline();
+  }
+
+  // Tag the last panel with sender / glyph / provider / model data attrs so
+  // beautifyPanel can show them without re-parsing the title string.
+  function annotatePanel(senderFull, glyph, provider, model) {
+    const region = document.querySelector('[data-cog-region="manifesto"]');
+    if (!region) return;
+    const panels = region.querySelectorAll(".cog-panel");
+    const last = panels[panels.length - 1];
+    if (!last) return;
+    last.dataset.senderFull = senderFull;
+    if (glyph)    last.dataset.glyph = glyph;
+    if (provider) last.dataset.provider = provider;
+    if (model)    last.dataset.model = model;
+  }
+
+  // -------------------------------------------------------------------------
+  // CONSTELLATION — the shared central artifact.
+  // Glyphs are placed via phyllotaxis (golden-angle spiral). The position is
+  // deterministic from glyphIndex, so two tabs replaying the same event log
+  // produce byte-identical constellations. The most recent glyph connects to
+  // the previous glyph via a faint edge — the spiral becomes a path through
+  // the entire history of utterances.
+  // -------------------------------------------------------------------------
+  function ensureCgRefs() {
+    if (!els.cgGlyphs) {
+      els.cgGlyphs = document.getElementById("cg-glyphs");
+      els.cgEdges = document.getElementById("cg-edges");
+      els.cgLabels = document.getElementById("cg-labels");
+    }
+  }
+  function phyllotaxis(i) {
+    // Vogel's model with the golden angle. Centered on (600, 250) which is
+    // the SVG center (viewBox = 1200x500). Scale tuned so ~200 glyphs fit.
+    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+    const angle = i * GOLDEN;
+    const radius = 14 * Math.sqrt(i + 1);
+    const cx = 600 + radius * Math.cos(angle);
+    const cy = 250 + radius * Math.sin(angle);
+    return { x: cx, y: cy };
+  }
+
+  function renderGlyph(persona, sender, clock, text, customPath) {
+    ensureCgRefs();
+    if (!els.cgGlyphs) return;
+    const idx = app.glyphIndex;
+    app.glyphIndex += 1;
+    const { x, y } = phyllotaxis(idx);
+    const size = 11 + Math.min(8, idx * 0.04);
+
+    // Edge to previous glyph — visualizes the order of utterance.
+    if (app.prevGlyph) {
+      const edge = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      edge.setAttribute("x1", app.prevGlyph.x);
+      edge.setAttribute("y1", app.prevGlyph.y);
+      edge.setAttribute("x2", x);
+      edge.setAttribute("y2", y);
+      edge.setAttribute("class", "cg-edge");
+      els.cgEdges.appendChild(edge);
+    }
+    app.prevGlyph = { x, y };
+
+    // Glyph: <g> with persona theming + procedural per-utterance variation
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "cg-glyph");
+    g.dataset.p = persona;
+    g.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
+    g.style.color = personaColor(persona);
+
+    // Hover tooltip — full stanza text revealed on hover
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${persona} · ${shortSender(sender)} · clk ${clock}\n${text || ""}`;
+    g.appendChild(title);
+
+    // Deterministic seed for this utterance — same (sender, clock) on every
+    // tab → byte-identical procedural sigil.
+    const seed = strHash(String(sender) + ":" + String(clock));
+    const sanitizedAiPath = sanitizeGlyphPath(customPath);
+    buildProceduralGlyph(g, persona, size, seed, sanitizedAiPath);
+    els.cgGlyphs.appendChild(g);
+
+    if (els.cgEmpty) els.cgEmpty.classList.add("hide");
+    if (els.constellationCount) {
+      els.constellationCount.textContent = app.glyphIndex + " glyph" + (app.glyphIndex === 1 ? "" : "s");
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Procedural glyph composition. Each glyph layers:
+  //   1. Outer ring — persona-tinted halo (slightly varied)
+  //   2. Core polygon — N sides chosen from seed, persona-coloured
+  //   3. Inner sigil — either an AI-authored path-d, or a procedural ornament
+  //      derived from the seed (4 generator families: star / radial / spiral /
+  //      rune). Every (sender, clock) hash maps to a unique geometry.
+  // -------------------------------------------------------------------------
+  function buildProceduralGlyph(g, persona, size, seed, aiPath) {
+    const ns = "http://www.w3.org/2000/svg";
+    const color = personaColor(persona);
+
+    // Outer ring — radius varies +/-15% by seed for organic feel
+    const ringSize = size + 3 + ((seed % 7) - 3) * 0.4;
+    const ring = document.createElementNS(ns, "circle");
+    ring.setAttribute("r", ringSize.toFixed(2));
+    ring.setAttribute("fill", "none");
+    ring.setAttribute("stroke", color);
+    ring.setAttribute("stroke-width", "0.7");
+    ring.setAttribute("opacity", "0.4");
+    g.appendChild(ring);
+
+    // Core polygon — 3-12 sides, rotated by seed
+    const N = 3 + ((seed >> 1) % 10);
+    const rotation = ((seed >> 5) % 360) * Math.PI / 180;
+    const coreSize = size * (0.78 + ((seed >> 9) % 5) * 0.04);
+    const core = document.createElementNS(ns, "path");
+    core.setAttribute("class", "core");
+    core.setAttribute("d", polygonPath(N, coreSize, rotation));
+    core.setAttribute("fill", color);
+    core.setAttribute("opacity", (0.78 + ((seed >> 13) % 5) * 0.04).toFixed(2));
+    g.appendChild(core);
+
+    // Inner sigil — AI-authored path-d wins; else procedural ornament
+    const inner = document.createElementNS(ns, "path");
+    const ornamentD = aiPath || proceduralOrnament(seed, size * 0.75);
+    inner.setAttribute("d", ornamentD);
+    inner.setAttribute("fill", "none");
+    inner.setAttribute("stroke", "#fdfaf3");
+    inner.setAttribute("stroke-width", "1.1");
+    inner.setAttribute("stroke-linecap", "round");
+    inner.setAttribute("stroke-linejoin", "round");
+    inner.setAttribute("opacity", aiPath ? "0.95" : "0.85");
+    g.appendChild(inner);
+
+    // AI badge — a tiny dot at the top-right of any AI-authored glyph
+    if (aiPath) {
+      const dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("cx", String(size * 0.85));
+      dot.setAttribute("cy", String(-size * 0.85));
+      dot.setAttribute("r", "1.6");
+      dot.setAttribute("fill", color);
+      dot.setAttribute("stroke", "#fdfaf3");
+      dot.setAttribute("stroke-width", "0.6");
+      g.appendChild(dot);
+    }
+  }
+
+  function polygonPath(N, R, rotation) {
+    let d = "";
+    for (let i = 0; i < N; i++) {
+      const a = rotation + (i / N) * Math.PI * 2;
+      const x = R * Math.cos(a);
+      const y = R * Math.sin(a);
+      d += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+    }
+    return d + " Z";
+  }
+
+  // proceduralOrnament — pick one of four sigil families from the seed.
+  // Same seed on every tab → byte-identical sigil → replay-determinism.
+  function proceduralOrnament(seed, size) {
+    switch (seed % 4) {
+      case 0:  return starOrnament(seed, size);
+      case 1:  return radialOrnament(seed, size);
+      case 2:  return spiralOrnament(seed, size);
+      default: return runeOrnament(seed, size);
+    }
+  }
+  function starOrnament(seed, size) {
+    const points = 4 + ((seed >> 8) % 5);          // 4-8 points
+    const outerR = size * 0.65;
+    const innerR = size * (0.25 + ((seed >> 12) % 4) * 0.05);
+    const angleOffset = ((seed >> 16) % 360) * Math.PI / 180;
+    let d = "";
+    for (let i = 0; i < points * 2; i++) {
+      const a = angleOffset + (i / (points * 2)) * Math.PI * 2;
+      const r = i % 2 === 0 ? outerR : innerR;
+      const x = r * Math.cos(a), y = r * Math.sin(a);
+      d += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+    }
+    return d + " Z";
+  }
+  function radialOrnament(seed, size) {
+    const arms = 3 + ((seed >> 10) % 5);           // 3-7 arms
+    const angleOffset = ((seed >> 14) % 360) * Math.PI / 180;
+    const len = size * 0.7;
+    let d = "";
+    for (let i = 0; i < arms; i++) {
+      const a = angleOffset + (i / arms) * Math.PI * 2;
+      const x = len * Math.cos(a), y = len * Math.sin(a);
+      d += "M 0 0 L " + x.toFixed(2) + " " + y.toFixed(2) + " ";
+    }
+    return d.trim();
+  }
+  function spiralOrnament(seed, size) {
+    const turns = 1 + ((seed >> 16) % 3);          // 1-3 turns
+    const direction = ((seed >> 18) & 1) === 0 ? 1 : -1;
+    const steps = 36;
+    let d = "M 0 0";
+    for (let i = 1; i <= steps; i++) {
+      const t = direction * (i / steps) * turns * Math.PI * 2;
+      const r = (i / steps) * size * 0.7;
+      const x = r * Math.cos(t), y = r * Math.sin(t);
+      d += " L " + x.toFixed(2) + " " + y.toFixed(2);
+    }
+    return d;
+  }
+  function runeOrnament(seed, size) {
+    // Random-walk through a 3x3 grid drawing N connected segments —
+    // produces sigil-like geometric marks.
+    const grid = [
+      [-1,-1],[0,-1],[1,-1],
+      [-1, 0],[0, 0],[1, 0],
+      [-1, 1],[0, 1],[1, 1],
+    ];
+    const r = size * 0.45;
+    const N = 4 + ((seed >> 20) % 4);              // 4-7 segments
+    let lastIdx = (seed >> 6) % 9;
+    let d = "M " + (grid[lastIdx][0] * r).toFixed(2) + " " + (grid[lastIdx][1] * r).toFixed(2);
+    for (let i = 0; i < N; i++) {
+      const step = 1 + (((seed >> (i * 4 + 2)) & 7));
+      const nextIdx = (lastIdx + step) % 9;
+      d += " L " + (grid[nextIdx][0] * r).toFixed(2) + " " + (grid[nextIdx][1] * r).toFixed(2);
+      lastIdx = nextIdx;
+    }
+    return d;
+  }
+
+  // sanitizeGlyphPath — only permit M/L/A/Q/Z, numbers, separators.
+  // Bounds: 400-char cap, valid char set, non-empty. Anything else → null.
+  function sanitizeGlyphPath(d) {
+    if (!d || typeof d !== "string") return null;
+    const trimmed = d.trim();
+    if (trimmed.length === 0 || trimmed.length > 400) return null;
+    if (!/^[MLAQZmlaqz\s,.\-0-9]+$/.test(trimmed)) return null;
+    return trimmed;
+  }
+
+  function personaColor(p) {
+    switch (p) {
+      case "Visionary":   return "#e73c17";
+      case "Skeptic":     return "#2c7a7b";
+      case "Synthesizer": return "#6b46c1";
+      case "Archivist":   return "#dd6b20";
+      default:            return "#1c1816";
+    }
+  }
+
+  function resetConstellation() {
+    ensureCgRefs();
+    if (els.cgGlyphs) els.cgGlyphs.innerHTML = "";
+    if (els.cgEdges)  els.cgEdges.innerHTML = "";
+    if (els.cgLabels) els.cgLabels.innerHTML = "";
+    if (els.cgEmpty)  els.cgEmpty.classList.remove("hide");
+    if (els.constellationCount) els.constellationCount.textContent = "0 glyphs";
+    app.glyphIndex = 0;
+    app.prevGlyph = null;
+  }
+
+  function buildStanzaTitle(persona, sender, clock, ts, model) {
+    // canonical_dom renders the title as textContent — we encode all the
+    // chronicle metadata here separated by " · " and parse it back in
+    // beautifyPanel. The model lives in fields[0] so it persists through
+    // replay and shows in every tab's chronicle byte-identically.
+    const m = model ? ` · m ${String(model)}` : "";
+    return `${persona} · ${shortSender(sender)} · clk ${clock} · ts ${ts}${m}`;
+  }
+  function parseStanzaTitle(title) {
+    if (!title) return { persona: null, sender: null, clock: null, ts: null, model: null };
+    const parts = String(title).split(" · ");
+    return {
+      persona: PERSONAS.includes(parts[0]) ? parts[0] : null,
+      sender: parts[1] || null,
+      clock: (parts[2] || "").replace(/^clk\s+/, ""),
+      ts: (parts[3] || "").replace(/^ts\s+/, ""),
+      model: (parts[4] || "").replace(/^m\s+/, "") || null,
+    };
+  }
+
+  // Watch the runtime root (NOT the manifesto region directly) — _resetForTesting
+  // clears state.root.innerHTML and ensureRegion recreates the region on the
+  // next patch, which would orphan an observer attached to the region. By
+  // observing the root with subtree:true the watcher survives resets.
+  function watchManifesto() {
+    const root = document.querySelector('[data-cog-runtime-root]');
+    if (!root) return;
+    root.querySelectorAll(".cog-panel").forEach(beautifyPanel);
+    new MutationObserver((muts) => {
+      muts.forEach((m) => {
+        m.addedNodes.forEach((node) => {
+          if (!(node instanceof HTMLElement)) return;
+          if (node.classList && node.classList.contains("cog-panel")) {
+            beautifyPanel(node);
+          } else if (node.querySelectorAll) {
+            // Region (or other wrapper) was just inserted — beautify any
+            // panels it contains, then any future panels are caught by subtree.
+            node.querySelectorAll(".cog-panel").forEach(beautifyPanel);
+          }
         });
+      });
+    }).observe(root, { childList: true, subtree: true });
+  }
+  document.addEventListener("DOMContentLoaded", watchManifesto);
+  watchManifesto();
+
+  // ===========================================================================
+  // SCHEDULER
+  // ===========================================================================
+  function scheduleCompose() {
+    // Fixed cadence (code-controlled, not user-tunable). Each tab waits
+    // BASE_CADENCE_MS ± CADENCE_JITTER so citizens don't fire in lockstep.
+    // The randomness is cosmetic — replay doesn't depend on it.
+    const fire = () => {
+      if (!app.inReplay) composeAndBroadcast();
+      const jitter = 1 - CADENCE_JITTER + Math.random() * CADENCE_JITTER * 2;
+      app.composeTimer = setTimeout(fire, BASE_CADENCE_MS * jitter);
+    };
+    // First utterance fires after a short read-the-lede delay.
+    const initialDelay = 7000 + Math.random() * 10000;
+    app.composeTimer = setTimeout(fire, initialDelay);
+  }
+  function pauseCompose() { if (app.composeTimer) { clearTimeout(app.composeTimer); app.composeTimer = null; } }
+
+  // ===========================================================================
+  // HEARTBEAT — independent BroadcastChannel so roster is fast and stays
+  // off the cognitive event log (heartbeats are ephemeral, not history)
+  // ===========================================================================
+  function setupHeartbeat() {
+    if (typeof BroadcastChannel !== "function") return;
+    app.rosterChan = new BroadcastChannel("ailang_commons_roster");
+    app.rosterChan.onmessage = (ev) => {
+      const m = ev.data;
+      if (!m || m.from === app.senderId) return;
+
+      // Cross-tab control messages — Reset + Replay sync the whole society
+      if (m.kind === "reset") {
+        applyRemoteReset(); return;
+      }
+      if (m.kind === "replay-trigger") {
+        doReplay({ silentOrigin: true }).catch((e) => console.warn("[commons] remote replay failed", e));
+        return;
+      }
+
+      addToRoster(m.from, m.persona, m.clock);
+      // Always merge model info from heartbeats so the roster shows what
+      // every citizen is using.
+      rosterRemember(m.from, {
+        persona: m.persona, provider: m.provider, model: m.model,
+        cost: m.cost,
+      });
+      refreshActiveStripInfo();
+      refreshRoster();
+      refreshStats();
+    };
+    const beat = () => {
+      const snap = window.CognitiveOS.debugSnapshot();
+      app.rosterChan.postMessage({
+        from: app.senderId, persona: app.persona, clock: snap.clock, ts: Date.now(),
+        kind: "heartbeat", cost: app.cost,
+        provider: app.aiProvider, model: app.aiModel,
+      });
+    };
+    beat();
+    setInterval(beat, 6000);
+  }
+
+  // rosterRemember — merge new info into the roster entry for `senderId`
+  // without losing prior fields (heartbeat overwrites cost but mustn't
+  // erase lastQuote; a Stanza overwrites lastQuote but mustn't erase cost).
+  function rosterRemember(senderId, update) {
+    if (!senderId) return;
+    const info = app.roster.get(senderId) || {};
+    Object.assign(info, update, { lastBeat: info.lastBeat || Date.now() });
+    // touch lastBeat if this is a fresh observation
+    if (update.lastSpokeTs || update.cost) info.lastBeat = Date.now();
+    app.roster.set(senderId, info);
+  }
+
+  function applyRemoteReset() {
+    // Another tab fired "Reset commons" — mirror the wipe here.
+    window.CognitiveOS._resetForTesting();
+    resetConstellation();
+    resetSentiment();
+    resetRecentStanzas();
+    app.events = [];
+    refreshStats(); renderTimeline();
+    showEmpty();
+    // Wipe per-tab cost + last-quote so the roster doesn't show stale data
+    for (const info of app.roster.values()) {
+      if (info) { info.cost = null; info.lastQuote = null; info.lastSpokeTs = null; }
+    }
+    refreshRoster();
+    refreshActiveStripInfo();
+    console.log("[commons] Remote reset received — local state wiped");
+  }
+
+  // ===========================================================================
+  // ROSTER
+  // ===========================================================================
+  function addToRoster(senderId, persona, clock) {
+    if (!senderId) return;
+    const existing = app.roster.get(senderId) || {};
+    app.roster.set(senderId, {
+      persona: persona || existing.persona || deterministicPersona(senderId),
+      lastBeat: Date.now(),
+      lastClock: clock || existing.lastClock || 0,
+    });
+  }
+  function pruneRoster() {
+    const cutoff = Date.now() - 20000;
+    let dropped = 0;
+    for (const [id, info] of app.roster.entries()) {
+      if (id === app.senderId) continue; // never drop self
+      if (info.lastBeat < cutoff) { app.roster.delete(id); dropped++; }
+    }
+    if (dropped > 0) { refreshRoster(); refreshStats(); }
+  }
+  function refreshRoster() {
+    els.roster.innerHTML = "";
+    const ids = Array.from(app.roster.keys());
+    ids.sort((a, b) => (a === app.senderId ? -1 : b === app.senderId ? 1 : 0));
+    for (const id of ids) {
+      const info = app.roster.get(id);
+      const li = document.createElement("li");
+      li.className = "roster-item";
+      const av = document.createElement("div");
+      av.className = "avatar avatar-" + avatarLetter(info.persona);
+      av.textContent = avatarLetter(info.persona);
+
+      const body = document.createElement("div");
+      body.className = "roster-body";
+
+      const calls = (info.cost && info.cost.calls) || 0;
+      const hasSpoken = calls > 0 || !!info.lastQuote;
+      const costPart = hasSpoken
+        ? `<span class="rb-cost live">${calls} call${calls === 1 ? "" : "s"} · ≈ ${fmtMoney((info.cost && info.cost.dollars) || 0)}</span>`
+        : `<span class="rb-cost">awaiting first utterance</span>`;
+      const modelPart = info.model
+        ? `<span class="rb-model">${escapeHtml(info.provider || "")}${info.provider && info.model ? "/" : ""}${escapeHtml(info.model)}</span>`
+        : `<span class="rb-model rb-mute">no model yet</span>`;
+      const whenPart = info.lastSpokeTs
+        ? `<span class="rb-when ts-relative" data-ts="${info.lastSpokeTs}">${relTime(info.lastSpokeTs)}</span>`
+        : "";
+      const quotePart = info.lastQuote
+        ? `<div class="rb-quote">"${escapeHtml(truncate(info.lastQuote, 140))}"</div>`
+        : "";
+
+      body.innerHTML = `
+        <div class="rb-head">
+          <span class="rb-name">${id === app.senderId ? '<strong class="me">' + shortSender(id) + " (you)</strong>" : shortSender(id)}</span>
+          <span class="rb-persona persona-tag" data-p="${info.persona}">${info.persona || "—"}</span>
+        </div>
+        <div class="rb-meta">${modelPart}</div>
+        <div class="rb-meta">${costPart}${whenPart ? " · " + whenPart : ""}</div>
+        ${quotePart}
+      `;
+
+      const beat = document.createElement("div");
+      beat.className = "heartbeat";
+      li.appendChild(av); li.appendChild(body); li.appendChild(beat);
+      els.roster.appendChild(li);
+    }
+  }
+
+  function truncate(s, n) {
+    s = String(s || "");
+    return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+  }
+
+  // ===========================================================================
+  // STATS + TIMELINE
+  // ===========================================================================
+  function refreshStats() {
+    const snap = window.CognitiveOS.debugSnapshot();
+    els.lamport.textContent = String(snap.clock);
+    const size = app.roster.size || 1;
+    els.statSociety.textContent = size + " citizen" + (size === 1 ? "" : "s");
+    const stanzaCount = app.recentStanzas.length;
+    els.statStanzas.textContent = stanzaCount;
+    if (els.manifestoCount) els.manifestoCount.textContent = stanzaCount + " utterance" + (stanzaCount === 1 ? "" : "s");
+    els.statEvents.textContent = app.events.length;
+    els.timelineCount.textContent = app.events.length + " events";
+
+    // Aggregate cost + token stats across the roster
+    const cc = commonsCost();
+    if (els.statTokens) els.statTokens.textContent = `${cc.input} in · ${cc.output} out`;
+    if (els.statCostTotal) els.statCostTotal.textContent = fmtMoney(cc.dollars);
+  }
+
+  function pushTimelineEvent(ev) {
+    app.events.push(ev);
+    if (app.events.length > 500) app.events.shift();
+    renderTimeline();
+  }
+
+  function renderTimeline() {
+    const track = els.timelineTrack;
+    track.innerHTML = "";
+    const lastN = app.events.slice(-180);
+    lastN.forEach((ev, i) => {
+      const t = document.createElement("div");
+      t.className = "tl-event kind-" + (ev.kind || "Unknown");
+      t.title = `${ev.kind} @ clk ${ev.clock || "?"}`;
+      track.appendChild(t);
+    });
+    // Cursor at the end (live)
+    els.timelineCursor.style.left = "100%";
+  }
+
+  function snapshotEvent(ev) {
+    return {
+      kind: ev.kind, clock: ev.clock, sender: ev.sender, ts: ev.ts_ms,
+      region: ev.region, patch_type: ev.patch_type, node_id: ev.node_id,
+      fields: ev.fields,
+    };
+  }
+
+  // ===========================================================================
+  // CONTROLS
+  // ===========================================================================
+  function wireControls() {
+    const onPersonaChange = (v) => {
+      if (v === "auto") {
+        sessionStorage.removeItem("commons_persona");
+        app.persona = app.autoPersona;
+      } else {
+        sessionStorage.setItem("commons_persona", v);
+        app.persona = v;
+      }
+      // Keep both selects in sync (one in banner, one in active strip)
+      if (els.personaSelect && els.personaSelect.value !== v) els.personaSelect.value = v;
+      if (els.activePersonaSelect && els.activePersonaSelect.value !== v) els.activePersonaSelect.value = v;
+      addToRoster(app.senderId, app.persona, window.CognitiveOS.debugSnapshot().clock);
+      refreshRoster();
+      markActivePromptBlock();
+      refreshActiveStripInfo();
+    };
+    els.personaSelect.addEventListener("change", (e) => onPersonaChange(e.target.value));
+    if (els.activePersonaSelect) {
+      els.activePersonaSelect.addEventListener("change", (e) => onPersonaChange(e.target.value));
+    }
+
+    els.apiKey.addEventListener("input", () => syncAiConfig({ source: "key" }));
+    els.aiProvider.addEventListener("change", () => syncAiConfig({ source: "provider" }));
+    els.modelInput.addEventListener("input", () => syncAiConfig({ source: "model" }));
+
+    els.editConfig.addEventListener("click", () => {
+      app.aiTested = false; // re-test required after edits
+      setBannerCompact(false);
+    });
+    els.bannerDone.addEventListener("click", () => runTestAndActivate());
+    els.bannerSkip.addEventListener("click", () => {
+      if (!app.aiOn || !app.persona) {
+        setAiStatus("warn", "Pick a provider + valid API key first.");
+        return;
+      }
+      app.aiTested = true; // user opted out — we trust them
+      setAiStatus("on", "Activated without test — first auto-utterance will reveal any errors.");
+      setBannerCompact(true);
+    });
+
+    els.promptsReset.addEventListener("click", () => {
+      for (const p of PERSONAS) {
+        sessionStorage.removeItem(promptStorageKey(p));
+        const block = document.querySelector(`.prompt-block[data-persona="${p}"]`);
+        if (block) {
+          const ta = block.querySelector("textarea");
+          if (ta) ta.value = DEFAULT_LLM_SYSTEM[p];
+          block.classList.remove("modified");
+        }
       }
     });
+
+    buildPromptEditor();
+    markActivePromptBlock();
+
+    els.composeNow.addEventListener("click", () => {
+      console.log("[commons] Speak now — aiOn:", app.aiOn, "provider:", app.aiProvider, "model:", app.aiModel, "persona:", app.persona);
+      runSpeakNow();
+    });
+    els.invite.addEventListener("click", () => window.open(location.href, "_blank", "noopener"));
+
+    els.btnReplay.addEventListener("click", () => doReplay().catch((e) => alert("Replay failed: " + e.message)));
+    els.replayStop.addEventListener("click", () => stopReplay());
+
+    els.btnExport.addEventListener("click", () => exportLog().catch((e) => alert("Export failed: " + e.message)));
+    els.btnImportToggle.addEventListener("click", () => els.importFile.click());
+    els.importFile.addEventListener("change", (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (f) importLog(f).catch((e) => alert("Import failed: " + e.message));
+      ev.target.value = "";
+    });
+    els.btnClear.addEventListener("click", clearCommons);
+  }
+
+  // Highlight the prompt block for the current tab's persona so users see
+  // immediately which one shapes THEIR agent.
+  function markActivePromptBlock() {
+    document.querySelectorAll(".prompt-block.big").forEach((b) => {
+      b.classList.toggle("is-mine", b.dataset.persona === app.persona);
+    });
+    if (els.activePersonaRubric) {
+      els.activePersonaRubric.innerHTML = app.persona
+        ? `you are <span class="persona-tag" data-p="${app.persona}">${app.persona}</span>`
+        : "no active citizen";
+    }
+  }
+
+  function setAiStatus(state, msg) {
+    els.aiStatus.className = "activate-status " + state;
+    els.aiStatus.textContent = msg;
+  }
+
+  // ===========================================================================
+  // REPLAY
+  // ===========================================================================
+  async function doReplay(opts) {
+    opts = opts || {};
+    if (app.inReplay) return;
+    app.inReplay = true;
+    pauseCompose();
+    els.replayBanner.classList.add("show");
+    // Sync the replay across every open tab so the society reconstructs
+    // together. Skip rebroadcast if this replay was itself triggered by a
+    // remote tab (opts.silentOrigin) — otherwise we'd ping-pong forever.
+    if (!opts.silentOrigin && app.rosterChan) {
+      try { app.rosterChan.postMessage({ from: app.senderId, kind: "replay-trigger", ts: Date.now() }); }
+      catch (_) {}
+    }
+
+    const log = await getEventLog();
+    if (!log) { stopReplay(); return; }
+
+    // Capture the current region hash for byte-equality assertion
+    const snap = window.CognitiveOS.debugSnapshot();
+    let beforeHash = null;
+    try {
+      const region = document.querySelector('[data-cog-region="manifesto"]');
+      if (region && region.children.length > 0 && window.CanonicalDOM) {
+        // No direct accessor for the live CanonicalDOM instance; compute via debugSnapshot HTML
+        beforeHash = await sha256(snap.regions["manifesto"] || "");
+      }
+    } catch (_) { /* tolerated */ }
+
+    // Reset & replay
+    window.CognitiveOS._resetForTesting();
+    resetConstellation();
+    resetSentiment();
+    resetRecentStanzas();
+    const replay = await window.CognitiveReplay.fromEventLog(log);
+    let count = 0;
+    for (const ev of replay.events) {
+      if (ev.kind === "PatchApplied" && ev.region === "manifesto") {
+        // Silent: log already has this event; replay must not re-emit
+        window.CognitiveOS._applyPatchSilent("manifesto", {
+          ctor: ev.patch_type || "AddPanel",
+          fields: ev.fields || [],
+        }, { remoteClock: ev.clock });
+        const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
+        renderGlyph(meta.persona || deterministicPersona(ev.sender || "anon"),
+                    ev.sender || meta.sender || "anon",
+                    ev.clock, (ev.fields && ev.fields[1]) || "",
+                    (ev.fields && ev.fields[2]) || null);
+        count++;
+        if (count % 3 === 0) await sleep(120);
+      }
+    }
+    refreshStats();
+    renderTimeline();
+
+    const afterSnap = window.CognitiveOS.debugSnapshot();
+    let afterHash = null;
+    try { afterHash = await sha256(afterSnap.regions["manifesto"] || ""); } catch (_) {}
+    if (beforeHash && afterHash) {
+      const ok = beforeHash === afterHash;
+      console.log("[commons] byte-identical replay:", ok ? "YES" : "NO", { beforeHash, afterHash });
+    }
+    // Stop after a beat so the banner is readable
+    setTimeout(stopReplay, 1500);
+  }
+  function stopReplay() {
+    app.inReplay = false;
+    els.replayBanner.classList.remove("show");
+    scheduleCompose();
+  }
+
+  async function exportLog() {
+    const log = await getEventLog();
+    if (!log) throw new Error("No event log");
+    const blob = await log.exportJSONL();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "cognitive_commons.jsonl";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  async function importLog(file) {
+    if (!window.CognitiveReplay) throw new Error("Replay module missing");
+    app.inReplay = true;
+    pauseCompose();
+    els.replayBanner.classList.add("show");
+    window.CognitiveOS._resetForTesting();
+    resetConstellation();
+    resetSentiment();
+    resetRecentStanzas();
+    const replay = await window.CognitiveReplay.fromJSONLBlob(file);
+    for (const ev of replay.events) {
+      if (ev.kind === "PatchApplied" && ev.region === "manifesto") {
+        // Imported events should NOT re-emit — they're already canonical
+        window.CognitiveOS._applyPatchSilent("manifesto", {
+          ctor: ev.patch_type || "AddPanel",
+          fields: ev.fields || [],
+        }, { remoteClock: ev.clock });
+        const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
+        renderGlyph(meta.persona || deterministicPersona(ev.sender || "anon"),
+                    ev.sender || "anon", ev.clock,
+                    (ev.fields && ev.fields[1]) || "",
+                    (ev.fields && ev.fields[2]) || null);
+      }
+    }
+    app.events = replay.events.map(snapshotEvent);
+    refreshStats(); renderTimeline();
+    setTimeout(stopReplay, 1500);
+  }
+  async function clearCommons() {
+    if (!confirm("Wipe the shared event log + all open tabs' state. Continue?")) return;
+    const log = await getEventLog();
+    if (log) { try { await log.clear(); } catch (_) {} }
+    window.CognitiveOS._resetForTesting();
+    resetConstellation();
+    resetSentiment();
+    resetRecentStanzas();
+    app.cost = { input: 0, output: 0, dollars: 0, calls: 0 };
+    app.events = [];
+    refreshStats(); renderTimeline();
+    showEmpty();
+    // Tell every other open tab to wipe its local state too — the
+    // IndexedDB is shared, but in-memory state in those tabs isn't.
+    if (app.rosterChan) {
+      try { app.rosterChan.postMessage({ from: app.senderId, kind: "reset", ts: Date.now() }); }
+      catch (_) {}
+    }
+    // Clear roster snapshots for cost + last-quote in THIS tab too
+    for (const info of app.roster.values()) {
+      if (info) { info.cost = null; info.lastQuote = null; info.lastSpokeTs = null; }
+    }
+    refreshRoster();
+    refreshActiveStripInfo();
+  }
+
+  // ===========================================================================
+  // LLM — multi-provider, BYO-key.
+  //   - Keys live in localStorage with prefix `ailang-step-byo-key-<provider>`
+  //     so they round-trip with the BYO-key demo at /demos/wasm-step-byo-key/
+  //     on the same origin (sunholo.com).
+  //   - Provider + model + persona-prompt edits live in sessionStorage (per tab),
+  //     so different tabs can experiment with different providers in parallel.
+  //   - Model names are deliberately NOT hard-coded in user-visible code;
+  //     suggestions are loaded into a datalist that the user can override.
+  // ===========================================================================
+  const KEY_PREFIX = "ailang-step-byo-key-"; // shared with /demos/wasm-step-byo-key/
+
+  // Curated model lists — derived from internal/eval_harness/models.yml.
+  // The model picker is a <select> populated from MODEL_LIBRARY when the
+  // user picks a provider; no free-form input means no typing-induced
+  // re-renders. OpenRouter's default is `deepseek/deepseek-v4-flash:free`
+  // (a free-tier model) per the user's preference.
+  const MODEL_LIBRARY = {
+    anthropic: [
+      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-5-20250929",
+      "claude-sonnet-4-6",
+      "claude-opus-4-5-20251101",
+      "claude-opus-4-6",
+      "claude-opus-4-7",
+    ],
+    openai: [
+      "gpt-5.4-nano",
+      "gpt-5-mini",
+      "gpt-5.4-mini",
+      "gpt-5",
+      "gpt-5.1",
+      "gpt-5.1-chat-latest",
+      "gpt-5.2",
+      "gpt-5.4",
+      "gpt-5.5",
+    ],
+    openrouter: [
+      "deepseek/deepseek-v4-flash:free",
+      "openrouter/auto",
+      "anthropic/claude-sonnet-4.5",
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-pro",
+      "openai/gpt-5",
+      "openai/gpt-5-mini",
+      "google/gemma-4-26b-a4b-it",
+      "qwen/qwen-2.5-72b-instruct",
+      "deepseek/deepseek-chat",
+      "qwen/qwen3-coder-flash",
+      "minimax/minimax-m2.7",
+      "z-ai/glm-5",
+      "mistralai/mistral-large",
+    ],
+    gemini: [
+      "gemini-3.1-flash-lite-preview",
+      "gemini-2.5-flash",
+      "gemini-2.5-pro",
+      "gemini-3-pro-preview",
+      "gemini-3.1-pro-preview",
+      "gemini-3-flash-preview",
+    ],
+  };
+
+  // Per-provider sane default — picked first in the dropdown unless the user
+  // already saved a different choice for that provider.
+  const PROVIDER_DEFAULT_MODEL = {
+    anthropic:  "claude-haiku-4-5-20251001",
+    openai:     "gpt-5.4-nano",
+    openrouter: "deepseek/deepseek-v4-flash:free",
+    gemini:     "gemini-3.1-flash-lite-preview",
+  };
+
+  const PROVIDER_KEY_HINT = {
+    anthropic:  "sk-ant-…",
+    openai:     "sk-… (OpenAI Platform)",
+    openrouter: "sk-or-… (openrouter.ai)",
+    gemini:     "AIzaSy… (Google AI Studio)",
+  };
+
+  // Precise per-model pricing (USD per 1K tokens), pulled from models.yml.
+  // Free-tier OpenRouter models are zero-cost.
+  const MODEL_PRICING = {
+    "claude-haiku-4-5-20251001": { input: 0.001, output: 0.005 },
+    "claude-sonnet-4-5-20250929": { input: 0.003, output: 0.015 },
+    "claude-sonnet-4-6":          { input: 0.003, output: 0.015 },
+    "claude-opus-4-5-20251101":   { input: 0.005, output: 0.025 },
+    "claude-opus-4-6":            { input: 0.005, output: 0.025 },
+    "claude-opus-4-7":            { input: 0.005, output: 0.025 },
+    "gpt-5.4-nano":               { input: 0.0002, output: 0.00125 },
+    "gpt-5-mini":                 { input: 0.00025, output: 0.002 },
+    "gpt-5.4-mini":               { input: 0.00075, output: 0.0045 },
+    "gpt-5":                      { input: 0.00125, output: 0.01 },
+    "gpt-5.1":                    { input: 0.00125, output: 0.01 },
+    "gpt-5.1-chat-latest":        { input: 0.00125, output: 0.01 },
+    "gpt-5.2":                    { input: 0.00175, output: 0.014 },
+    "gpt-5.4":                    { input: 0.0025, output: 0.015 },
+    "gpt-5.5":                    { input: 0.005, output: 0.03 },
+    // Only the explicit :free tier is actually free; the rest of the
+    // OpenRouter routes vary upstream so we leave them out and fall back to
+    // ROUGH_RATES.openrouter for cost estimation (no "(free)" tag).
+    "deepseek/deepseek-v4-flash:free": { input: 0, output: 0 },
+    "anthropic/claude-sonnet-4.5":{ input: 0.003, output: 0.015 },
+    "google/gemma-4-26b-a4b-it":  { input: 0.00006, output: 0.00033 },
+    "qwen/qwen-2.5-72b-instruct": { input: 0.00012, output: 0.00039 },
+    "deepseek/deepseek-chat":     { input: 0.00014, output: 0.00028 },
+    "qwen/qwen3-coder-flash":     { input: 0.000195, output: 0.000975 },
+    "minimax/minimax-m2.7":       { input: 0.0003, output: 0.0012 },
+    "z-ai/glm-5":                 { input: 0.0006, output: 0.00208 },
+    "mistralai/mistral-large":    { input: 0.002, output: 0.006 },
+    "gemini-3.1-flash-lite-preview": { input: 0.00025, output: 0.0015 },
+    "gemini-2.5-flash":           { input: 0.0003, output: 0.0025 },
+    "gemini-2.5-pro":             { input: 0.00125, output: 0.01 },
+    "gemini-3-pro-preview":       { input: 0.002, output: 0.012 },
+    "gemini-3.1-pro-preview":     { input: 0.002, output: 0.012 },
+    "gemini-3-flash-preview":     { input: 0.000075, output: 0.0003 },
+  };
+
+  // Default system prompts (per persona). Mutable via the prompt-editor UI;
+  // overrides are stored in sessionStorage so each tab can specialize.
+  const DEFAULT_LLM_SYSTEM = {
+    Visionary:    "You are the Visionary of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that points forward — toward an architecture, a possibility, or a future state. No hedging, no quotation marks, no preamble.",
+    Skeptic:      "You are the Skeptic of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that questions an assumption or names a hidden cost. No hedging, no quotation marks, no preamble.",
+    Synthesizer:  "You are the Synthesizer of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that reconciles two perspectives. No hedging, no quotation marks, no preamble.",
+    Archivist:    "You are the Archivist of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) about persistence, the record, or what the log remembers. No hedging, no quotation marks, no preamble.",
+  };
+  // buildUserPrompt — turn-taking conversational prompt.
+  //
+  // The AI joins an in-progress dialogue. It sees the last 8 utterances (each
+  // labelled with persona + speaker) and is asked to RESPOND to the most
+  // recent ones — agree-partially, refute, pivot, or build on — not just
+  // emit another stand-alone maxim. That's what turns this from a chorus of
+  // aphorisms into an evolving argument.
+  //
+  // Sentiment competition still rides on top: each persona tries to drag the
+  // commons toward its preferred corner; the gap dictates how forcefully.
+  function buildUserPrompt(persona) {
+    const target = PERSONA_TARGETS[persona] || { x: 0, y: 0 };
+    const dx = target.x - app.sentiment.x;
+    const dy = target.y - app.sentiment.y;
+    const gap = Math.sqrt(dx * dx + dy * dy);
+    const force = gap < 0.3 ? "gently reinforce" :
+                  gap < 0.9 ? "argue clearly to shift" :
+                              "argue forcefully to drag";
+
+    const recent = app.recentStanzas.slice(-HISTORY_WINDOW);
+    let dialogue = "";
+    if (recent.length > 0) {
+      dialogue = "THE CONVERSATION SO FAR (oldest first; you will speak NEXT):\n"
+        + recent.map((s, i) => `${i + 1}. ${s.persona} said: "${s.text}"`).join("\n");
+    } else {
+      dialogue = "You are the first to speak in this commons. Set the opening tone for your persona.";
+    }
+
+    // Identify the last speaker so the prompt can point the AI at them
+    const lastSpeaker = recent.length > 0 ? recent[recent.length - 1] : null;
+    const lastBlock = lastSpeaker
+      ? `The MOST RECENT speaker was ${lastSpeaker.persona}. Your reply should react to them — name their move (agree-but-extend, partially-disagree, refute, or pivot away from it) before turning the floor.`
+      : "";
+
+    const seenPersonas = new Set(recent.map((s) => s.persona));
+    const yourPriorTurns = recent.filter((s) => s.persona === persona).length;
+    const meBlock = yourPriorTurns > 0
+      ? `You (${persona}) have already spoken ${yourPriorTurns} time(s) in this window. Do NOT repeat phrasing from your earlier turns.`
+      : `This is your first turn as ${persona}.`;
+
+    return [
+      dialogue,
+      "",
+      `YOUR ROLE: ${persona}.`,
+      "AXIS DEFINITIONS:",
+      "  x=-1 'critical': interrogate assumptions, name costs, question value.",
+      "  x=+1 'forward': reach toward a future state, architecture, possibility.",
+      "  y=-1 'archival': preserve history, record precedent, ground in the past.",
+      "  y=+1 'synthesizing': reconcile opposing views, integrate contradictions.",
+      `Commons sentiment: x=${app.sentiment.x.toFixed(2)}, y=${app.sentiment.y.toFixed(2)}.`,
+      `Your preferred sentiment: x=${target.x}, y=${target.y}. Gap from the commons: ${gap.toFixed(2)}.`,
+      `Your task: ${force} the commons toward your corner, AS PART OF the ongoing argument.`,
+      lastBlock,
+      meBlock,
+      "",
+      "CONSTRAINTS:",
+      "- Reply with ONE declarative sentence, 12-26 words.",
+      "- ADDRESS the previous speakers BY NAME at least once when refuting (\"Skeptic, your...\", \"Synthesizer claims X — but...\", \"As Visionary just said...\"). Citizens know each other.",
+      "- ACTIVELY REFUTE the strongest point against you if there is one; if you partially agree, name what you concede and what you reject.",
+      "- Avoid fence-sitting and aphorisms. Make a specific move: refute / extend / pivot / yield-and-redirect.",
+      "- Do NOT quote prior sentences verbatim. Do NOT repeat their key phrases.",
+      "- Do NOT start with your own persona name (\"As Visionary...\") or quotation marks.",
+      "- Use fresh vocabulary — surprise your interlocutors.",
+      "",
+      "Reply ONLY with strict JSON, no markdown fences, no commentary:",
+      '{"text": "<your single-sentence response>",',
+      ' "glyph": "<SVG path-d, an abstract sigil that visualises your point>"}',
+      "Path-d rules: coordinates in range -12 to 12; use only M L A Q Z commands;",
+      "no fill (will render stroked); ≤ 12 commands; no nested groups; example:",
+      '"M -8 -8 L 8 8 M -8 8 L 8 -8 M 0 -10 A 10 10 0 0 1 0 10".',
+    ].filter(Boolean).join("\n");
+  }
+
+  function promptStorageKey(persona) { return "commons_prompt_" + persona; }
+  function activePrompt(persona) {
+    return sessionStorage.getItem(promptStorageKey(persona)) || DEFAULT_LLM_SYSTEM[persona];
+  }
+  function persistPrompt(persona, value) {
+    if (value && value !== DEFAULT_LLM_SYSTEM[persona]) {
+      sessionStorage.setItem(promptStorageKey(persona), value);
+    } else {
+      sessionStorage.removeItem(promptStorageKey(persona));
+    }
+  }
+
+  function buildPromptEditor() {
+    document.querySelectorAll(".prompt-block").forEach((block) => {
+      const persona = block.dataset.persona;
+      const initial = activePrompt(persona);
+      const isModified = initial !== DEFAULT_LLM_SYSTEM[persona];
+      block.innerHTML = `
+        <div class="head">
+          <span>${persona}</span>
+          <button type="button" class="prompt-reset" data-persona="${persona}">Reset</button>
+        </div>
+        <textarea data-persona="${persona}" spellcheck="false">${escapeHtml(initial)}</textarea>
+      `;
+      if (isModified) block.classList.add("modified");
+      const ta = block.querySelector("textarea");
+      ta.addEventListener("input", () => {
+        persistPrompt(persona, ta.value);
+        block.classList.toggle("modified", ta.value !== DEFAULT_LLM_SYSTEM[persona]);
+      });
+      block.querySelector(".prompt-reset").addEventListener("click", () => {
+        ta.value = DEFAULT_LLM_SYSTEM[persona];
+        persistPrompt(persona, "");
+        block.classList.remove("modified");
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function detectProvider(key) {
+    if (!key) return null;
+    if (key.startsWith("sk-ant-")) return "anthropic";
+    if (key.startsWith("sk-or-")) return "openrouter";
+    if (key.startsWith("sk-")) return "openai";
+    if (key.startsWith("AIza")) return "gemini";
+    return null;
+  }
+
+  // restoreAiConfig — pulls per-tab AI choices on boot.
+  // Keys come from localStorage (shared with BYO-key demo); provider + model
+  // come from sessionStorage so each tab can pick its own.
+  function restoreAiConfig() {
+    const provider = sessionStorage.getItem("commons_ai_provider") || "auto";
+    els.aiProvider.value = provider;
+
+    const effective = provider === "auto" ? null : provider;
+    if (effective) {
+      els.apiKey.value = localStorage.getItem(KEY_PREFIX + effective) || "";
+    }
+    populateModelOptions(effective, false);
+    if (effective) {
+      const stored = sessionStorage.getItem("commons_ai_model_" + effective);
+      if (stored && MODEL_LIBRARY[effective].includes(stored)) {
+        els.modelInput.value = stored;
+      }
+    }
+    syncAiConfig({ source: "boot" });
+  }
+
+  // Rebuild the model <select> with options for the chosen provider.
+  // `preserveValue` (default true) keeps the current selection if it's still
+  // valid — important so refreshing the dropdown mid-edit doesn't reset choice.
+  function populateModelOptions(provider, preserveValue) {
+    const sel = els.modelInput;
+    const prev = preserveValue !== false ? sel.value : null;
+    sel.innerHTML = "";
+    if (!provider || !MODEL_LIBRARY[provider]) {
+      const opt = document.createElement("option");
+      opt.value = ""; opt.textContent = "(pick a provider first)";
+      sel.appendChild(opt);
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    const models = MODEL_LIBRARY[provider];
+    for (const m of models) {
+      const opt = document.createElement("option");
+      opt.value = m;
+      const price = MODEL_PRICING[m];
+      const tag = price && price.input === 0 && price.output === 0
+        ? " (free)"
+        : price ? "  $" + price.input + "/" + price.output + " per 1K"
+                : "";
+      opt.textContent = m + tag;
+      sel.appendChild(opt);
+    }
+    if (prev && models.includes(prev)) {
+      sel.value = prev;
+    } else {
+      sel.value = PROVIDER_DEFAULT_MODEL[provider] || models[0];
+    }
+    els.apiKey.placeholder = PROVIDER_KEY_HINT[provider] || "API key";
+  }
+
+  // syncAiConfig — re-reads UI, persists choices, updates status.
+  // `source` tracks what triggered the call so we can swap the loaded key
+  // when the user changes provider (without overwriting localStorage).
+  function syncAiConfig(ctx) {
+    ctx = ctx || {};
+    let provider = els.aiProvider.value;
+
+    // Provider change → swap the visible key + rebuild the model dropdown
+    // from the matching localStorage slot so each provider has its own key.
+    if (ctx.source === "provider") {
+      if (provider !== "auto" && MODEL_LIBRARY[provider]) {
+        els.apiKey.value = localStorage.getItem(KEY_PREFIX + provider) || "";
+      } else {
+        els.apiKey.value = "";
+      }
+      populateModelOptions(provider === "auto" ? null : provider, false);
+      if (provider !== "auto") {
+        const stored = sessionStorage.getItem("commons_ai_model_" + provider);
+        if (stored && MODEL_LIBRARY[provider].includes(stored)) {
+          els.modelInput.value = stored;
+        }
+      }
+    }
+
+    const key = els.apiKey.value.trim();
+    const model = els.modelInput.value.trim();
+    sessionStorage.setItem("commons_ai_provider", provider);
+
+    if (provider === "auto") {
+      const detected = detectProvider(key);
+      if (key && !detected) {
+        app.aiOn = false; app.aiProvider = null; app.aiKey = ""; app.aiModel = "";
+        setAiStatus("warn", "Could not detect provider from key. Pick one explicitly.");
+        return;
+      }
+      if (detected) provider = detected;
+    }
+
+    if (!provider || provider === "auto" || !key) {
+      app.aiOn = false; app.aiProvider = null; app.aiKey = ""; app.aiModel = "";
+      setAiStatus("idle", "Deterministic mode — stanzas drawn from a seeded corpus.");
+      return;
+    }
+
+    // Save the key for this provider in localStorage (shared with BYO-key demo)
+    localStorage.setItem(KEY_PREFIX + provider, key);
+    // Save the model choice in sessionStorage (per tab)
+    const effectiveModel = model || PROVIDER_DEFAULT_MODEL[provider];
+    sessionStorage.setItem("commons_ai_model_" + provider, effectiveModel);
+
+    const expected = {
+      anthropic: "sk-ant-", openai: "sk-", openrouter: "sk-or-", gemini: "AIza",
+    }[provider];
+    const looksOk = !expected || key.startsWith(expected);
+    if (!looksOk) {
+      setAiStatus("warn", `Key prefix doesn't match ${provider}. Expected ${expected}…`);
+      app.aiOn = false;
+      return;
+    }
+    app.aiOn = true;
+    app.aiProvider = provider;
+    app.aiKey = key;
+    app.aiModel = effectiveModel;
+    setAiStatus("on", `Active · ${provider} · ${effectiveModel} · click Done to collapse.`);
+    // On boot only, auto-collapse if everything is valid (so returning users
+    // skip the banner). Mid-edit we only refresh info, never toggle visibility.
+    if (ctx.source === "boot") setBannerCompact(true);
+    else refreshActiveStripInfo();
+  }
+
+  // generateLlmStanza returns { text, glyph } — both fields may be null.
+  // The glyph (if present) is an SVG path-d string the AI authored to
+  // visualize the stanza, drawn inside the constellation.
+  async function generateLlmStanza(persona) {
+    if (!app.aiOn || !app.aiProvider || !app.aiKey) return null;
+    const systemPrompt = activePrompt(persona);
+    const userPrompt = buildUserPrompt(persona);
+    let result; // { raw, usage }
+    switch (app.aiProvider) {
+      case "anthropic":
+        result = await callAnthropic(systemPrompt, userPrompt, app.aiKey, app.aiModel); break;
+      case "openai":
+        result = await openAiChatCompletions("https://api.openai.com/v1/chat/completions", app.aiModel, systemPrompt, userPrompt, app.aiKey); break;
+      case "openrouter":
+        result = await openAiChatCompletions("https://openrouter.ai/api/v1/chat/completions", app.aiModel, systemPrompt, userPrompt, app.aiKey, {
+          "HTTP-Referer": location.origin, "X-Title": "AILANG Cognitive Commons",
+        }); break;
+      case "gemini":
+        result = await callGemini(systemPrompt, userPrompt, app.aiKey, app.aiModel); break;
+      default: return null;
+    }
+    if (result && result.usage) trackCost(result.usage);
+    return parseLlmReply(result && result.raw);
+  }
+
+  // ===========================================================================
+  // TEST-BEFORE-ACTIVATE + SPEAK-NOW with visible busy state
+  // ===========================================================================
+  function setButtonBusy(btn, busy, label) {
+    if (!btn) return;
+    btn.classList.toggle("busy", !!busy);
+    btn.disabled = !!busy;
+    const lbl = btn.querySelector(".btn-label");
+    if (lbl && label) lbl.textContent = label;
+  }
+  function flashButton(btn, kind, label, restoreLabel, holdMs) {
+    if (!btn) return;
+    btn.classList.add(kind);
+    const lbl = btn.querySelector(".btn-label");
+    if (lbl && label) lbl.textContent = label;
+    setTimeout(() => {
+      btn.classList.remove(kind);
+      if (lbl && restoreLabel) lbl.textContent = restoreLabel;
+    }, holdMs || 2000);
+  }
+
+  // testConnection — minimal LLM ping. Returns elapsed ms + cost; throws on
+  // any HTTP error so the test button shows the real failure (401, 429, etc).
+  async function testConnection() {
+    const cfg = readActiveAiConfig();
+    if (!cfg) throw new Error("Pick a provider and paste an API key first.");
+    const sys = "You are a connection-test bot. Reply with EXACTLY the word OK.";
+    const usr = "Reply with just OK.";
+    const t0 = performance.now();
+    let result;
+    switch (cfg.provider) {
+      case "anthropic":
+        result = await callAnthropic(sys, usr, cfg.key, cfg.model); break;
+      case "openai":
+        result = await openAiChatCompletions("https://api.openai.com/v1/chat/completions", cfg.model, sys, usr, cfg.key); break;
+      case "openrouter":
+        result = await openAiChatCompletions("https://openrouter.ai/api/v1/chat/completions", cfg.model, sys, usr, cfg.key, {
+          "HTTP-Referer": location.origin, "X-Title": "AILANG Cognitive Commons",
+        }); break;
+      case "gemini":
+        result = await callGemini(sys, usr, cfg.key, cfg.model); break;
+      default: throw new Error("Unknown provider: " + cfg.provider);
+    }
+    const dt = (performance.now() - t0);
+    if (result && result.usage) trackCost(result.usage);
+    return { elapsedMs: dt, raw: (result && result.raw) || "" };
+  }
+  function readActiveAiConfig() {
+    if (!app.aiOn || !app.aiProvider || !app.aiKey) return null;
+    return { provider: app.aiProvider, key: app.aiKey, model: app.aiModel || PROVIDER_DEFAULT_MODEL[app.aiProvider] };
+  }
+
+  async function runTestAndActivate() {
+    const btn = els.bannerDone;
+    if (!app.aiOn || !app.aiProvider || !app.aiKey) {
+      setAiStatus("warn", "Pick a provider and paste an API key first.");
+      return;
+    }
+    setButtonBusy(btn, true, "Calling " + app.aiProvider + "…");
+    setAiStatus("warn", `Testing ${app.aiProvider} · ${app.aiModel || "(default model)"} — this should take a few seconds…`);
+    try {
+      const { elapsedMs } = await testConnection();
+      app.aiTested = true;
+      setButtonBusy(btn, false, "Test & Activate citizen");
+      flashButton(btn, "success", `✓ Activated in ${elapsedMs.toFixed(0)}ms`, "Test & Activate citizen", 1800);
+      setAiStatus("on", `✓ ${app.aiProvider} · ${app.aiModel} responded in ${elapsedMs.toFixed(0)}ms — citizen activated.`);
+      setTimeout(() => setBannerCompact(true), 900);
+    } catch (e) {
+      app.aiTested = false;
+      setButtonBusy(btn, false, "Test & Activate citizen");
+      flashButton(btn, "failed", "✗ Failed — see status", "Test & Activate citizen", 2500);
+      const msg = (e && e.message) || String(e);
+      setAiStatus("warn", "✗ " + msg.slice(0, 250));
+      console.warn("[commons] test failed:", e);
+    }
+  }
+
+  async function runSpeakNow() {
+    if (app.callInFlight) {
+      console.log("[commons] Speak now ignored — call already in flight");
+      return;
+    }
+    if (!app.aiOn || !app.aiProvider || !app.aiKey) {
+      setAiStatus("warn", "Add an API key and activate the citizen first.");
+      setBannerCompact(false);
+      return;
+    }
+    app.callInFlight = true;
+    const btn = els.composeNow;
+    setButtonBusy(btn, true, `Asking ${app.aiProvider}…`);
+    setAiStatus("warn", `Calling ${app.aiProvider} · ${app.aiModel} — composing a stanza…`);
+    try {
+      const reply = await generateLlmStanza(app.persona);
+      if (!reply || !reply.text) {
+        setAiStatus("warn", "AI replied but no usable text — see browser console.");
+        flashButton(btn, "failed", "No text in reply", "Speak now (this tab)", 2500);
+        return;
+      }
+      broadcastStanza(app.persona, reply.text, reply.glyph);
+      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · last utterance ${new Date().toLocaleTimeString()}.`);
+      flashButton(btn, "success", "✓ Spoke!", "Speak now (this tab)", 1400);
+    } catch (e) {
+      const msg = (e && e.message) || String(e);
+      setAiStatus("warn", "AI call failed: " + msg.slice(0, 180));
+      flashButton(btn, "failed", "✗ " + msg.slice(0, 30), "Speak now (this tab)", 2500);
+      console.warn("[commons] runSpeakNow failed:", e);
+    } finally {
+      app.callInFlight = false;
+      setButtonBusy(btn, false, "Speak now (this tab)");
+    }
+  }
+
+  // parseLlmReply — robust extractor for model replies.
+  // Order of attempts:
+  //   1. Strict JSON parse of the whole (de-fenced) string
+  //   2. Strict parse of any matched {...} substring
+  //   3. Regex extraction of "text": "<...>" (handles truncated JSON, the
+  //      single most common failure when max_tokens fires mid-output)
+  //   4. Prose fallback — ONLY if the raw response doesn't look like JSON
+  //      at all (no leading `{`). Otherwise reject — better to skip than
+  //      to render a JSON fragment like `{"text` as the stanza.
+  function parseLlmReply(raw) {
+    if (!raw) return null;
+    let s = String(raw).trim();
+    s = s.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+
+    // Pass 1 + 2: strict JSON parse
+    const candidates = [s, (s.match(/\{[\s\S]*\}/) || [])[0]];
+    for (const c of candidates) {
+      if (!c) continue;
+      try {
+        const obj = JSON.parse(c);
+        const text = cleanStanza(obj.text || obj.stanza || obj.message || obj.utterance || obj.content || "");
+        const glyph = sanitizeGlyphPath(obj.glyph || obj.svg || obj.path || "");
+        if (text) return { text, glyph };
+      } catch (_) { /* try next */ }
+    }
+
+    // Pass 3: regex extract of "text": "<...>" — survives unterminated JSON
+    // when max_tokens fires mid-stream. Captures up to the next unescaped ".
+    const textMatch = s.match(/"text"\s*:\s*"((?:\\.|[^"\\])*)"/);
+    if (textMatch) {
+      const text = cleanStanza(unescapeJsonString(textMatch[1]));
+      const glyphMatch = s.match(/"glyph"\s*:\s*"((?:\\.|[^"\\])*)"/);
+      const glyph = glyphMatch ? sanitizeGlyphPath(unescapeJsonString(glyphMatch[1])) : null;
+      if (text) {
+        console.warn("[commons] LLM JSON was truncated; recovered text via regex");
+        return { text, glyph };
+      }
+    }
+
+    // Pass 4: prose fallback only if the reply clearly isn't JSON
+    if (!s.startsWith("{") && !s.startsWith("[")) {
+      const fallback = cleanStanza(s);
+      if (fallback && fallback.length > 4) {
+        console.warn("[commons] LLM reply was plain prose — using as text");
+        return { text: fallback, glyph: null };
+      }
+    }
+
+    console.warn("[commons] LLM reply was unparseable (skipping):", String(raw).slice(0, 200));
+    return null;
+  }
+  function unescapeJsonString(s) {
+    return String(s)
+      .replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t").replace(/\\\\/g, "\\");
+  }
+
+  async function callAnthropic(system, userPrompt, key, model) {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: model || PROVIDER_DEFAULT_MODEL.anthropic,
+        max_tokens: 600,
+        system,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+    if (!resp.ok) throw new Error("Anthropic " + resp.status + ": " + (await resp.text()).slice(0, 200));
+    const data = await resp.json();
+    const raw = data && data.content && data.content[0] && data.content[0].text;
+    const usage = data && data.usage
+      ? { input: data.usage.input_tokens || 0, output: data.usage.output_tokens || 0, provider: "anthropic" }
+      : null;
+    return { raw, usage };
+  }
+
+  async function openAiChatCompletions(url, model, system, userPrompt, key, extraHeaders) {
+    const headers = Object.assign({
+      "content-type": "application/json",
+      "authorization": "Bearer " + key,
+    }, extraHeaders || {});
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 600,
+        response_format: { type: "json_object" }, // OpenAI/OpenRouter respect this; others ignore
+        messages: [
+          { role: "system", content: system + "\n\nALWAYS reply with strict JSON. No prose." },
+          { role: "user",   content: userPrompt },
+        ],
+      }),
+    });
+    if (!resp.ok) throw new Error(url + " " + resp.status + ": " + (await resp.text()).slice(0, 200));
+    const data = await resp.json();
+    const raw = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    const u = data && data.usage;
+    const provider = url.includes("openrouter") ? "openrouter" : "openai";
+    const usage = u
+      ? { input: u.prompt_tokens || 0, output: u.completion_tokens || 0, provider }
+      : null;
+    return { raw, usage };
+  }
+
+  async function callGemini(system, userPrompt, key, model) {
+    const m = model || PROVIDER_DEFAULT_MODEL.gemini;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: system }] },
+        generationConfig: {
+          maxOutputTokens: 600,
+          temperature: 0.9,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+    if (!resp.ok) throw new Error("Gemini " + resp.status + ": " + (await resp.text()).slice(0, 200));
+    const data = await resp.json();
+    const raw = data && data.candidates && data.candidates[0] && data.candidates[0].content
+      && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+      && data.candidates[0].content.parts[0].text;
+    const u = data && data.usageMetadata;
+    const usage = u
+      ? { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, provider: "gemini" }
+      : null;
+    return { raw, usage };
+  }
+
+  function cleanStanza(text) {
+    if (!text) return null;
+    return String(text).trim().replace(/^["'`]+|["'`]+$/g, "");
+  }
+
+  // ===========================================================================
+  // HELPERS
+  // ===========================================================================
+  function shortSender(s) {
+    if (!s) return "…";
+    // sender format: tab_<hex>_<random>
+    const m = String(s).match(/^tab_([a-f0-9]+)_/);
+    return m ? "tab/" + m[1].slice(0, 8) : String(s).slice(0, 14);
+  }
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+  function hideEmpty() { if (els.emptyManifesto) els.emptyManifesto.style.display = "none"; }
+  function showEmpty() { if (els.emptyManifesto) els.emptyManifesto.style.display = ""; }
+
+  // ===========================================================================
+  // COST TRACKING
+  // ===========================================================================
+  function trackCost(usage) {
+    if (!usage) return;
+    app.cost.input += usage.input || 0;
+    app.cost.output += usage.output || 0;
+    app.cost.calls += 1;
+    // Precise per-model pricing when known; fall back to provider tier rates.
+    const precise = MODEL_PRICING[app.aiModel];
+    const rates = precise || ROUGH_RATES[usage.provider] || ROUGH_RATES.openrouter;
+    const delta = (usage.input || 0) * rates.input / 1000
+                + (usage.output || 0) * rates.output / 1000;
+    app.cost.dollars += delta;
+    // Update my entry in the roster + broadcast for other tabs to aggregate
+    const me = app.roster.get(app.senderId) || {};
+    me.cost = { ...app.cost };
+    app.roster.set(app.senderId, me);
+    broadcastCost();
+    refreshRoster();
+    refreshActiveStripInfo(); // info-only, never toggles visibility
+    refreshStats();
+  }
+  function broadcastCost() {
+    if (!app.rosterChan) return;
+    try {
+      app.rosterChan.postMessage({
+        from: app.senderId, persona: app.persona,
+        clock: window.CognitiveOS.debugSnapshot().clock,
+        ts: Date.now(),
+        kind: "cost",
+        cost: app.cost,
+      });
+    } catch (_) {}
+  }
+  function commonsCost() {
+    let dollars = 0, input = 0, output = 0;
+    for (const info of app.roster.values()) {
+      if (info && info.cost) {
+        dollars += info.cost.dollars || 0;
+        input   += info.cost.input || 0;
+        output  += info.cost.output || 0;
+      }
+    }
+    return { dollars, input, output };
+  }
+  function fmtMoney(d) {
+    if (d < 0.001) return "$0.000";
+    return "$" + d.toFixed(d < 1 ? 3 : 2);
+  }
+
+  // ===========================================================================
+  // SENTIMENT
+  // ===========================================================================
+  function applyUtteranceToSentiment(persona) {
+    const target = PERSONA_TARGETS[persona];
+    if (!target) return;
+    const alpha = 0.25; // EWMA weight per utterance
+    app.sentiment.x = app.sentiment.x * (1 - alpha) + target.x * alpha;
+    app.sentiment.y = app.sentiment.y * (1 - alpha) + target.y * alpha;
+    app.sentimentTrail.push({ x: app.sentiment.x, y: app.sentiment.y });
+    if (app.sentimentTrail.length > 60) app.sentimentTrail.shift();
+    renderSentiment();
+  }
+  // Sentiment space ↔ constellation viewBox mapping. Origin (0,0) sits at
+  // the centre (600, 250); the persona anchors render at the same coords
+  // (Visionary → 982,182; Skeptic → 217,284; Synthesizer → 600,97;
+  // Archivist → 420,394). y is inverted so positive-y == visually up.
+  function sentToCx(sx) { return 600 + sx * 450; }
+  function sentToCy(sy) { return 250 - sy * 170; }
+  function renderSentiment() {
+    if (!els.sentDot) return;
+    const cx = sentToCx(app.sentiment.x);
+    const cy = sentToCy(app.sentiment.y);
+    els.sentDot.setAttribute("cx", cx.toFixed(2));
+    els.sentDot.setAttribute("cy", cy.toFixed(2));
+    const halo = document.getElementById("sent-dot-halo");
+    if (halo) { halo.setAttribute("cx", cx.toFixed(2)); halo.setAttribute("cy", cy.toFixed(2)); }
+    if (els.sentReadout) {
+      els.sentReadout.textContent = `(${app.sentiment.x.toFixed(2)}, ${app.sentiment.y.toFixed(2)})`;
+    }
+    if (els.sentTrail) {
+      const points = app.sentimentTrail.map((p) =>
+        sentToCx(p.x).toFixed(1) + "," + sentToCy(p.y).toFixed(1)
+      ).join(" ");
+      els.sentTrail.setAttribute("points", points);
+    }
+    // Drift from neutral (Euclidean magnitude, 0..√2)
+    const drift = Math.sqrt(app.sentiment.x * app.sentiment.x + app.sentiment.y * app.sentiment.y);
+    const driftEl = document.getElementById("sentiment-drift");
+    if (driftEl) driftEl.textContent = drift.toFixed(2);
+    // Leading persona — nearest anchor + gap
+    let bestP = null, bestGap = Infinity;
+    for (const [p, t] of Object.entries(PERSONA_TARGETS)) {
+      const dx = t.x - app.sentiment.x, dy = t.y - app.sentiment.y;
+      const g = Math.sqrt(dx * dx + dy * dy);
+      if (g < bestGap) { bestGap = g; bestP = p; }
+    }
+    const leaderEl = document.getElementById("sentiment-leader");
+    if (leaderEl) leaderEl.textContent = `${bestP || "—"} · gap ${bestGap.toFixed(2)}`;
+    updateLeaderPullquote(bestP, bestGap);
+  }
+
+  // updateLeaderPullquote — refreshes the pullquote above the constellation
+  // with the leading persona's most recent utterance. Falls back to a
+  // friendly empty state when no citizen has spoken yet, or when the leading
+  // persona has no recent stanza in app.recentStanzas.
+  function updateLeaderPullquote(leader, gap) {
+    const wrap = document.getElementById("cg-pullquote");
+    const leaderEl = document.getElementById("cg-pq-leader");
+    const textEl = document.getElementById("cg-pq-text");
+    if (!wrap || !leaderEl || !textEl) return;
+    if (!leader || !app.recentStanzas.length) {
+      wrap.removeAttribute("data-p");
+      leaderEl.removeAttribute("data-p");
+      leaderEl.textContent = "—";
+      textEl.classList.add("empty");
+      textEl.textContent = "Once a citizen speaks, the leading persona's most recent utterance will appear here.";
+      return;
+    }
+    // Find the most recent stanza authored by the leading persona
+    let lastByLeader = null;
+    for (let i = app.recentStanzas.length - 1; i >= 0; i--) {
+      if (app.recentStanzas[i].persona === leader) {
+        lastByLeader = app.recentStanzas[i]; break;
+      }
+    }
+    wrap.setAttribute("data-p", leader);
+    leaderEl.setAttribute("data-p", leader);
+    leaderEl.textContent = `${leader}  ·  gap ${gap.toFixed(2)}`;
+    if (lastByLeader && lastByLeader.text) {
+      textEl.classList.remove("empty");
+      textEl.textContent = lastByLeader.text;
+    } else {
+      textEl.classList.add("empty");
+      textEl.textContent = `${leader} is winning the tug-of-war but hasn't spoken in the recent window.`;
+    }
+  }
+  function resetSentiment() {
+    app.sentiment = { x: 0, y: 0 };
+    app.sentimentTrail = [];
+    renderSentiment();
+  }
+
+  // ===========================================================================
+  // ACTIVE STRIP — show provider, model, cost above the fold once a key is set.
+  //
+  // Two operations:
+  //   - refreshActiveStripInfo(): updates text/cost without ever changing
+  //     visibility. Safe to call on every input/cost event — won't yank a
+  //     visible editor closed while the user is mid-edit.
+  //   - setBannerCompact(yes): explicit visibility toggle, called from boot
+  //     (when config is already valid) and from the "Done" button.
+  // ===========================================================================
+  function refreshActiveStripInfo() {
+    if (!app.aiOn || !app.persona) return;
+    if (els.activePersonaSelect) {
+      // Show current persona without firing the change handler
+      const desired = sessionStorage.getItem("commons_persona") ? app.persona : "auto";
+      if (els.activePersonaSelect.value !== desired) {
+        els.activePersonaSelect.value = desired;
+      }
+      els.activePersonaSelect.setAttribute("data-p", app.persona || "");
+    }
+    if (els.activeProvider) els.activeProvider.textContent = app.aiProvider || "—";
+    if (els.activeModel)    els.activeModel.textContent = app.aiModel || "—";
+    if (els.activeCost)     els.activeCost.textContent = fmtMoney(app.cost.dollars);
+    if (els.activeCostCommons) {
+      const cc = commonsCost();
+      els.activeCostCommons.textContent = fmtMoney(cc.dollars);
+    }
+  }
+  function setBannerCompact(yes) {
+    if (yes) {
+      els.activationBanner.classList.add("compact");
+      els.activeStrip.style.display = "flex";
+      refreshActiveStripInfo();
+    } else {
+      els.activationBanner.classList.remove("compact");
+      els.activeStrip.style.display = "none";
+    }
+  }
+  // Back-compat shim — callers that want both info + visibility (only the
+  // initial boot path).
+  function refreshActiveStrip() {
+    const ready = app.aiOn && app.persona;
+    setBannerCompact(ready);
+  }
+
+  // ===========================================================================
+  // RECENT STANZAS — feed back to the AI as context
+  // ===========================================================================
+  function recordStanza(persona, sender, clock, text, ts) {
+    app.recentStanzas.push({ persona, sender, clock, text, ts });
+    if (app.recentStanzas.length > 32) app.recentStanzas.shift();
+    applyUtteranceToSentiment(persona);
+  }
+  function resetRecentStanzas() { app.recentStanzas = []; }
+
+  // ===========================================================================
+  // CHRONICLE BEAUTIFIER — adds mini-glyph + relative time to each panel
+  // ===========================================================================
+  function beautifyPanel(panel) {
+    if (!(panel instanceof HTMLElement)) return;
+    if (panel.dataset.beautified === "1") return;
+    const title = panel.querySelector(".cog-panel-title");
+    if (!title) return;
+    const raw = title.textContent || "";
+    const meta = parseStanzaTitle(raw);
+    if (!meta.persona) return;
+    const persona = meta.persona;
+    const senderShort = meta.sender || "";
+    const clock = parseInt(meta.clock, 10) || 0;
+    const ts = parseInt(meta.ts, 10) || Date.now();
+    const model = meta.model || panel.dataset.model || "";
+    const provider = panel.dataset.provider || "";
+
+    // Mini-glyph: same persona theme + seed as constellation
+    const wrap = document.createElement("div");
+    wrap.className = "chronicle-glyph";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "-22 -22 44 44");
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.style.color = personaColor(persona);
+    const senderForSeed = panel.dataset.senderFull || senderShort;
+    const seed = strHash(senderForSeed + ":" + clock);
+    const aiPath = sanitizeGlyphPath(panel.dataset.glyph || null);
+    buildProceduralGlyph(g, persona, 15, seed, aiPath);
+    svg.appendChild(g);
+    wrap.appendChild(svg);
+    panel.insertBefore(wrap, title);
+
+    // Replace title with chip + relative-time meta + model tag
+    title.innerHTML = "";
+    const chip = document.createElement("span");
+    chip.className = "persona-tag";
+    chip.dataset.p = persona;
+    chip.textContent = persona;
+    const metaEl = document.createElement("span");
+    metaEl.className = "stanza-meta";
+    const modelTag = model
+      ? ` · <span class="model-tag">${escapeHtml(model)}</span>`
+      : "";
+    metaEl.innerHTML = `<span>${senderShort}</span> · clk ${clock} · <span class="ts-relative" data-ts="${ts}">${relTime(ts)}</span>${modelTag}`;
+    title.appendChild(chip);
+    title.appendChild(metaEl);
+    panel.dataset.beautified = "1";
+
+    // Move this newly-inserted panel to the TOP of the chronicle region.
+    // canonical_dom appends to the region; we re-parent to the front so
+    // newest reads first. Safe because the canonical content-hash chain
+    // depends on patch fields, not DOM child position.
+    const region = panel.parentElement;
+    if (region && region.firstChild !== panel) {
+      region.insertBefore(panel, region.firstChild);
+    }
+    // Keep the viewport pinned to the newest entry
+    if (region) region.scrollTop = 0;
+    pruneChronicle(region);
+  }
+  function pruneChronicle(region) {
+    if (!region) return;
+    // O(N) prune. After beautifyPanel moves new panels to the front, DOM
+    // order is [newest, ..., oldest]. Drop from the END (oldest first).
+    const panels = region.querySelectorAll(".cog-panel");
+    const excess = panels.length - CHRONICLE_DOM_LIMIT;
+    for (let i = 0; i < excess; i++) {
+      panels[panels.length - 1 - i].remove();
+    }
+  }
+  function relTime(ts) {
+    const dt = (Date.now() - ts) / 1000;
+    if (dt < 5)   return "now";
+    if (dt < 60)  return Math.floor(dt) + "s ago";
+    if (dt < 3600) return Math.floor(dt / 60) + "m ago";
+    if (dt < 86400) return Math.floor(dt / 3600) + "h ago";
+    const d = new Date(ts);
+    return d.toLocaleString();
+  }
+  // Refresh relative timestamps every 10s
+  setInterval(() => {
+    document.querySelectorAll(".ts-relative[data-ts]").forEach((el) => {
+      const ts = parseInt(el.dataset.ts, 10);
+      if (ts) el.textContent = relTime(ts);
+    });
+  }, 10000);
+
+  async function getEventLog() {
+    // The event log is wired into state.eventLog by host.js after attach({withEventLog:true}).
+    // No public accessor, so we reach in via attached.state — but host.js doesn't expose state.
+    // Instead, we create a parallel reader using CognitiveEventLog (same DB).
+    if (!window.CognitiveEventLog) return null;
+    try {
+      const log = new window.CognitiveEventLog({ dbName: "ailang_cognitive_commons" });
+      await log.open();
+      return log;
+    } catch (e) {
+      console.warn("[commons] event log open failed", e);
+      return null;
+    }
+  }
+
+  async function sha256(s) {
+    if (!window.crypto || !crypto.subtle) return null;
+    const buf = new TextEncoder().encode(s);
+    const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
   </script>
 </body>
 </html>
