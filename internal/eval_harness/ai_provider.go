@@ -20,8 +20,16 @@ import (
 type providerAdapter struct {
 	provider    ai.Provider
 	model       string
+	maxTokens   int             // Max output tokens; 0 means use defaultMaxTokens
 	attribution *ai.Attribution // OpenRouter app-attribution overrides
 }
+
+// defaultMaxTokens is the fallback output budget when a model has no
+// max_output_tokens set in models.yml. Pre-reasoning models tolerate this fine;
+// reasoning models (Gemini 3.x, GPT-5, Claude 4.x thinking) need more headroom
+// because thoughtsTokenCount/reasoning_tokens consume part of the budget
+// invisibly. Models that need more should set max_output_tokens in models.yml.
+const defaultMaxTokens = 4096
 
 // newProviderAdapter creates a provider adapter for the given model.
 func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
@@ -61,6 +69,7 @@ func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
 	return &providerAdapter{
 		provider:    provider,
 		model:       model,
+		maxTokens:   0, // 0 => defaultMaxTokens; set via setMaxTokens
 		attribution: nil,
 	}, nil
 }
@@ -70,6 +79,12 @@ func (p *providerAdapter) setAttribution(attr *ai.Attribution) {
 	p.attribution = attr
 }
 
+// setMaxTokens overrides the per-request output budget.
+// Pass 0 to fall back to defaultMaxTokens.
+func (p *providerAdapter) setMaxTokens(n int) {
+	p.maxTokens = n
+}
+
 // generate calls the unified provider and converts to GenerateResult.
 func (p *providerAdapter) generate(ctx context.Context, prompt string) (*GenerateResult, error) {
 	systemPrompt := "You are a code generation engine. Output ONLY a complete, runnable program that solves the given task. " +
@@ -77,11 +92,16 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 		"Do NOT output placeholder or stub code — implement the full solution. " +
 		"Output raw code only, no code fences."
 
+	maxTokens := p.maxTokens
+	if maxTokens <= 0 {
+		maxTokens = defaultMaxTokens
+	}
+
 	req := &ai.Request{
 		Model:        p.model,
 		SystemPrompt: systemPrompt,
 		UserPrompt:   prompt,
-		MaxTokens:    4096,
+		MaxTokens:    maxTokens,
 		Attribution:  p.attribution,
 	}
 

@@ -39,6 +39,15 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
 
+	// Wire max_output_tokens from models.yml. Reasoning models (Gemini 3.x,
+	// GPT-5, Claude 4.x thinking) need this to avoid burning the whole 4K
+	// default budget on hidden thoughts and returning empty content.
+	if GlobalModelsConfig != nil {
+		if cfg, lookupErr := GlobalModelsConfig.GetModel(model); lookupErr == nil && cfg.MaxOutputTokens > 0 {
+			adapter.setMaxTokens(cfg.MaxOutputTokens)
+		}
+	}
+
 	return &AIAgent{
 		friendlyName: model,
 		model:        apiName,

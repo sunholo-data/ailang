@@ -57,7 +57,8 @@
       "mcp__ailang-docs__stdlib_modules",
       "Bash(gsutil ls *)",
       "Bash(gsutil cat *)",
-      "Bash(gcloud firestore *)"
+      "Bash(gcloud firestore *)",
+      "Bash(awk '{print \" result files so far:\", $1}')"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",

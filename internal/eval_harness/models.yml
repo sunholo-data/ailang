@@ -616,6 +616,36 @@ models:
       Also available: gemini-3.1-pro-preview-customtools (better at custom tool prioritization).
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
+  # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
+  gemini-3-5-flash:
+    api_name: "gemini-3.5-flash"
+    provider: "google"
+    description: "Gemini 3.5 Flash - strongest agentic/coding Flash model, beats 3.1 Pro on Terminal-Bench"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-3.5-flash"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    max_output_tokens: 65536   # 64K max output (model spec), 65536 = next power-of-two ceiling
+    pricing:
+      input_per_1k: 0.0015     # $1.50 per 1M = $0.0015 per 1K
+      output_per_1k: 0.009     # $9.00 per 1M = $0.009 per 1K
+    # Match gemini-3-flash agent budget — Flash class, reasoning-heavy, multi-turn agentic.
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Google's newest Flash model (released May 19, 2026 at Google I/O 2026).
+      First model in the Gemini 3.5 family. Strongest agentic/coding Flash to date:
+      beats Gemini 3.1 Pro on Terminal-Bench 2.1 (76.2 vs 70.3), MCP Atlas (83.6 vs 78.2),
+      Finance Agent v2 (57.9 vs 43.0), and GDPval-AA Elo (1656 vs 1314).
+      Knowledge cutoff: January 2026. 1M token input context, 64K output.
+      Pricing: $1.50/$9.00 per 1M tokens. Cached input: $0.15 per 1M.
+      Has adaptive reasoning (separate thoughtsTokenCount in usage metadata).
+      Available on Vertex AI global endpoint and AI Studio.
+      Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
+
   # =============================================================================
   # OPENCODE HARNESS MODELS
   # =============================================================================
