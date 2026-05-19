@@ -3,10 +3,11 @@
 **Status**: Planned
 **Target**: v0.21.x
 **Priority**: P0
-**Estimated**: ~95h across 3 weeks
+**Estimated**: ~105h across 3 weeks (revised from 95h after aligning DOM/Msg handlers with the step-pattern interface used by `internal/effects/ai_step.go`)
 **Parent**: [M-WASM-REFLECTIVE-RUNTIME (Cognitive OS umbrella)](./m-wasm-reflective-runtime.md)
 **Dependencies**:
 - Existing WASM evaluator/runtime ([m-wasm-dictionary-dispatch](../../implemented/v0_9_2/m-wasm-dictionary-dispatch.md), [m-wasm-closure-env](../../implemented/v0_8_1/m-wasm-closure-env.md))
+- Existing **AI step pattern** ([internal/effects/ai_step.go](../../../internal/effects/ai_step.go), [internal/effects/ai.go](../../../internal/effects/ai.go)) — DOM and Msg handlers follow this richer pattern, not the simpler `Call(input) → string` shape
 - Effect system (`!: IO, FS, Net, ...`)
 - Existing AILANG messaging CLI (`ailang messages send/list/read/ack`) — runtime API added alongside
 
@@ -176,6 +177,66 @@ fn relayTrace(t: Trace) !: Msg = send(NodeId("verifier"), TraceReport { trace: t
 }
 ```
 
+#### Handler Interfaces — Step Pattern Alignment
+
+DOM and Msg handlers follow the **step-pattern interface** established by [AIHandler](../../../internal/effects/ai.go) ([Call](../../../internal/effects/ai.go) / [Step](../../../internal/effects/ai.go) / [StepWithStream](../../../internal/effects/ai.go)) in [internal/effects/ai_step.go](../../../internal/effects/ai_step.go). This pattern provides four critical properties:
+
+1. **Multi-turn / transactional**: not just fire-and-forget, but sequences with structured state
+2. **Streaming via callback**: `onChunk`-style callbacks (`Subscribe` in our case) let DOM events and incoming messages flow back into AILANG incrementally
+3. **Typed `Result[T, Err]` variants**: `applyPatchResult`, `sendResult` etc. mirror `aiCallResult` / `aiStepResult` — graceful AILANG error handling without raw panics
+4. **Pluggable handler set at runtime via WASM bridge**: same shape `cmd/wasm/effects.go` already uses for `setAIHandler`
+
+**DOM handler interface:**
+
+```go
+type DOMHandler interface {
+    // ApplyPatch applies a single patch atomically; returns assigned NodeId,
+    // updated budget remaining, and any structured failure.
+    ApplyPatch(region RegionID, patch DOMPatch) (*PatchResult, error)
+
+    // ApplyBatch applies a sequence transactionally — all or nothing.
+    // Mirrors the multi-message shape of AIHandler.Step.
+    ApplyBatch(region RegionID, patches []DOMPatch) (*BatchResult, error)
+
+    // Subscribe streams DOM events (clicks, input, viewport changes) from a
+    // scoped region back into AILANG via onEvent. Cancellable like
+    // StepWithStream's onChunk. Subscribed events feed the cognitive event log.
+    Subscribe(region RegionID, eventTypes []string, onEvent func(DOMEvent)) (cancel func(), err error)
+}
+```
+
+`Subscribe` is the **critical asymmetry-breaker** vs. the simpler `Call` pattern: it makes the runtime *reflective* (the headline strategic claim). Without it, the DOM is write-only; with it, agents observe their own DOM-mediated environment.
+
+**Msg handler interface:**
+
+```go
+type MsgHandler interface {
+    // Send dispatches to a mailbox; returns delivery confirmation with
+    // assigned msgId + clock + peer identity (for routing audit).
+    Send(to Mailbox, payload []byte) (*SendResult, error)
+
+    // Recv blocks for the next message in the mailbox (or context cancel).
+    Recv(mailbox Mailbox) (*Message, error)
+
+    // Subscribe streams messages as they arrive — analogous to
+    // StepWithStream's onChunk. This is what the M3 deterministic
+    // scheduler hooks into: each message arrival is a clock-ordered event.
+    Subscribe(mailbox Mailbox, onMsg func(Message)) (cancel func(), err error)
+}
+```
+
+**Each interface ships with:**
+- A `StubHandler` implementation for tests (mirrors `StubAIHandler` in [ai.go:226](../../../internal/effects/ai.go#L226))
+- `Result[..., Err]`-returning op variants (`applyPatchResult`, `sendResult`) following the [ai_step.go:46](../../../internal/effects/ai_step.go#L46) registration pattern: `RegisterOp("DOM", "applyPatch", domApplyPatch)` + `RegisterOp("DOM", "applyPatchResult", domApplyPatchResult)`
+- Uniform trace events emitted via existing trace plumbing — feeds the cognitive event log in M2
+
+**Why this matters for sequencing:**
+- M2's deterministic scheduler hooks `Subscribe` callbacks — same shape across DOM (clicks) and Msg (arrivals) means one ordering algorithm covers both
+- M-COG-MEMORY's `SharedMem.subscribe(key, onWrite)` will follow the same pattern when shared state changes
+- M-COG-MESH's distributed transports plug in at the `Send`/`Recv` boundary — the trait shape doesn't change
+
+The trade-off vs. simpler `Call` shape: more interface surface (3 methods vs. 1) and ~300 extra LOC across M1. Captured in the revised estimate (M1: ~1,200 LOC; sprint total: ~3,100 LOC).
+
 ### Message Fabric + Event Log (Phase 2)
 
 **Transport trait** (Go-side):
@@ -216,19 +277,32 @@ Single-threaded event loop in browser host. Mailbox ordering: `(lamportClock, se
 
 ## Implementation Plan
 
-### Phase 1: Effect Plumbing (~30h)
+### Phase 1: Effect Plumbing (~40h, ~1,200 LOC) — step-pattern handlers
 
-- [ ] Add `DOM`, `Msg`, `Trace` to effect row vocabulary (find existing `IO`/`FS`/`Net` label site in `internal/types/`)
-- [ ] Define `DOMPatch` types in `internal/effects/dom.go`; JS bridge in `internal/effects/dom_js.go`
-- [ ] `internal/effects/msg.go` + `msg_js.go` — runtime `send`/`recv` wrapping `internal/messaging/`
-- [ ] `internal/effects/trace_cognition.go` — `!: Trace` for cognitive event emission
-- [ ] `internal/effects/ops.go` + `capability.go` — register new ops + caps + budgets
-- [ ] `cmd/wasm/effects.go` — wire JS callbacks for `host.dom.*`, `host.msg.*`, `host.trace.*` (follow `awaitJSResult` pattern)
-- [ ] `internal/cognition/manifest.go` — capability manifest generator (effects + budgets + transports)
-- [ ] Typechecker tests: each new effect flows through row inference
-- [ ] Negative tests: missing JS handler → runtime failure (analog of "missing import")
-- [ ] `stdlib/std/dom.ail` — DOM effect bindings
-- [ ] `stdlib/std/cognition.ail` — messaging + tracing API skeleton
+- [ ] **Day 1** ✅ Add `DOM`, `Msg`, `Trace` to effect row vocabulary (`internal/types/types.go` + `effects.go`) — *Trace already shipped v0.11.1; M1 Day 1 added DOM + Msg*
+- [ ] **Day 2** DOM handler (step pattern):
+  - [ ] `internal/effects/dom.go` — `DOMHandler` interface (`ApplyPatch` / `ApplyBatch` / `Subscribe`), `DOMPatch` ADT, `DOMEvent` ADT, `StubDOMHandler` for tests
+  - [ ] `internal/effects/dom_js.go` — JS-build-tag handler shape (full bridge wires Day 5–6)
+  - [ ] `internal/effects/dom_native.go` — non-JS fallback returning `ErrNoDOMHandler`
+  - [ ] Op registration via `init()` — both bare ops (`applyPatch`) and Result-returning variants (`applyPatchResult`)
+  - [ ] `stdlib/std/dom.ail` — AILANG bindings
+- [ ] **Day 3** Msg handler (step pattern, wraps `internal/messaging/`):
+  - [ ] `internal/effects/msg.go` — `MsgHandler` interface (`Send` / `Recv` / `Subscribe`), `Mailbox` / `Message` / `SendResult` types, `StubMsgHandler`
+  - [ ] `internal/effects/msg_js.go` + `msg_native.go` — build-tag pair
+  - [ ] Native handler routes to existing `internal/messaging/store.go` — CLI continues byte-identical
+  - [ ] Result-returning op variants (`sendResult`, `recvResult`)
+  - [ ] CLI behavior-equivalence snapshot: `ailang messages send/list/read/ack` byte-for-byte unchanged
+  - [ ] `stdlib/std/cognition.ail` — AILANG messaging API skeleton
+- [ ] **Day 4** Trace extension + capability manifest:
+  - [ ] `internal/effects/trace_cognition.go` — extends existing `Trace` effect with cognitive-event emit ops (event log persistence is M2; here we just record + buffer)
+  - [ ] `internal/effects/ops.go` + `capability.go` — register new caps + budgets (`DOM.patches`, `Msg.sends`, `Trace.events`)
+  - [ ] `internal/cognition/manifest.go` — capability manifest generator (effects + budgets + transports list)
+- [ ] **Day 5–6** WASM wire-up + checkpoint:
+  - [ ] `cmd/wasm/effects.go` — wire JS callbacks for `host.dom.*` (3 methods), `host.msg.*` (3 methods), `host.trace.*` (cognitive event emit). Follow existing `setAIHandler` / `awaitJSResult` patterns
+  - [ ] `cmd/wasm/main.go` — register pluggable DOM/Msg handlers in `WasmREPL` init
+  - [ ] Negative tests: program using `!: DOM` without a registered handler → typed AILANG `Result.Err(NoHandler)` (analog of existing `ErrNoAIHandler`)
+  - [ ] Subscribe-callback safety tests: cancel function frees JS side cleanly
+  - [ ] **M1 checkpoint:** types + handlers + manifest + WASM glue all green; `ailang messages` CLI behavior-equivalence verified
 
 ### Phase 2: Message Fabric + Event Log (~35h)
 
@@ -258,9 +332,9 @@ Single-threaded event loop in browser host. Mailbox ordering: `(lamportClock, se
 **Important:** paths reflect the existing AILANG layout — WASM lives in [cmd/wasm/](../../../cmd/wasm/), effects in [internal/effects/](../../../internal/effects/) (with `_js.go` build-tagged variants for browser builds), messaging in [internal/messaging/](../../../internal/messaging/). No new `codegen/` subtree is introduced.
 
 **New files (Go-side):**
-- `internal/effects/dom.go` + `internal/effects/dom_js.go` — DOM effect: shared types + JS-build-tag handler that bridges to host (~400 LOC total)
-- `internal/effects/msg.go` + `internal/effects/msg_js.go` — `!: Msg` runtime API wrapping [internal/messaging/](../../../internal/messaging/) (~250 LOC total)
-- `internal/effects/trace_cognition.go` — `!: Trace` effect for cognitive event emission (~150 LOC; extends existing trace plumbing)
+- `internal/effects/dom.go` + `dom_js.go` + `dom_native.go` — DOM step-pattern handler (`ApplyPatch` / `ApplyBatch` / `Subscribe`), `DOMPatch` + `DOMEvent` ADTs, `StubDOMHandler`, Result-variants (~550 LOC total)
+- `internal/effects/msg.go` + `msg_js.go` + `msg_native.go` — Msg step-pattern handler (`Send` / `Recv` / `Subscribe`), `Mailbox` + `Message` + `SendResult` types, `StubMsgHandler`, Result-variants, wraps existing [internal/messaging/](../../../internal/messaging/) (~450 LOC total)
+- `internal/effects/trace_cognition.go` — extends `!: Trace` with cognitive-event emit ops (~150 LOC; event-log persistence lands M2)
 - `internal/cognition/event_log.go` — append-only cognitive event log types + persistence (~400 LOC)
 - `internal/cognition/clock.go` — Lamport clock (~150 LOC)
 - `internal/cognition/scheduler.go` — deterministic event-loop scheduler (~350 LOC)
