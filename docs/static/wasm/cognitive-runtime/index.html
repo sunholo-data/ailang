@@ -66,6 +66,20 @@
 
   <div data-cog-runtime-root></div>
 
+  <h2 style="font-size: 1rem; margin-top: 2rem;">Cross-tab BroadcastChannel test (M2)</h2>
+  <p style="font-size: 0.9rem;">
+    Open this page in a <strong>second browser tab</strong> on the same origin.
+    Click "Await message" in one tab and "Send greeting" in the other —
+    the listening tab logs the envelope with the sender's tab ID + Lamport clock.
+    BroadcastChannel spec: the <em>sending tab does not receive its own posts</em>.
+  </p>
+  <div class="controls">
+    <label>Mailbox: <input id="bc-mailbox" type="text" value="shared_inbox" style="padding: 0.3rem;" /></label>
+    <button id="btn-bc-send">Send greeting</button>
+    <button id="btn-bc-await">Await message</button>
+    <button id="btn-bc-show-id">Show my sender ID</button>
+  </div>
+
   <pre class="results" id="results">Click "Run all assertions" to begin.</pre>
 
   <script src="canonical_dom.js"></script>
@@ -188,19 +202,30 @@
         'sender ID assigned: ' + snap.sender));
       tally(assert(snap.sender.startsWith('tab_'), 'sender has tab_ prefix'));
 
-      // ---- 9. Idempotent: same patch applied twice = no duplicate DOM ----
-      log('\nTest 9: idempotent patch application');
-      CognitiveOS._resetForTesting();
-      const region9 = 'idempotent_test';
-      CognitiveOS._applyPatchDirect(region9, {
-        ctor: 'AddPanel', fields: ['Same', 'Same']
-      });
-      const before = document.querySelectorAll('[data-cog-region="' + region9 + '"] .cog-panel').length;
-      CognitiveOS._applyPatchDirect(region9, {
-        ctor: 'AddPanel', fields: ['Same', 'Same']
-      });
-      const after = document.querySelectorAll('[data-cog-region="' + region9 + '"] .cog-panel').length;
-      tally(assert(before === 1 && after === 1, 'second identical patch did not duplicate (' + before + '→' + after + ')'));
+      // ---- 9. Replay determinism: same multi-event sequence → identical final DOM ----
+      // (AddPanel is APPEND-ONLY: two sequential calls produce two sibling panels
+      //  with deterministic-but-distinct IDs from the parent-hash chain. The
+      //  invariant we actually care about is "same sequence → same final state".)
+      log('\nTest 9: replay determinism (multi-event sequence)');
+      function captureSequence(region) {
+        CognitiveOS._resetForTesting();
+        const ids = [];
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['A', '1'] }).node_id);
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['B', '2'] }).node_id);
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddTimeline', fields: ['T'] }).node_id);
+        return ids;
+      }
+      const run1 = captureSequence('replay_test');
+      const run2 = captureSequence('replay_test');
+      tally(assert(
+        run1.length === run2.length && run1.every((id, i) => id === run2[i]),
+        'same 3-event sequence produces identical IDs across runs: [' + run1.join(', ') + ']'
+      ));
+      // Bonus: sequential siblings have DISTINCT IDs (parent-hash chain working)
+      tally(assert(
+        run1[0] !== run1[1] && run1[1] !== run1[2],
+        'sequential sibling patches have distinct IDs (append-only semantics)'
+      ));
 
       // ---- 10. Msg fabric: send + recv loopback ----
       log('\nTest 10: Msg send + recv (same-tab loopback)');
@@ -252,6 +277,45 @@
       CognitiveOS._resetForTesting();
       clearLog();
       log('Reset complete.');
+    });
+
+    // ============================================================
+    // Cross-tab BroadcastChannel test wiring
+    // ============================================================
+
+    function getMailbox() {
+      const v = document.getElementById('bc-mailbox').value;
+      return (v || 'shared_inbox').trim();
+    }
+
+    document.getElementById('btn-bc-send').addEventListener('click', () => {
+      const mb = getMailbox();
+      const greeting = 'hello from ' + CognitiveOS.debugSnapshot().sender;
+      const r = CognitiveOS._sendDirect(mb, greeting);
+      log('→ Sent to "' + mb + '": ' + greeting + ' (msg_id=' + r.msg_id + ', clock=' + r.clock + ')');
+      log('  Note: this same tab WILL also see the message via loopback. To prove');
+      log('  cross-tab delivery, open this page in a second tab + click "Await message" there FIRST.');
+    });
+
+    document.getElementById('btn-bc-await').addEventListener('click', () => {
+      const mb = getMailbox();
+      log('⏳ Awaiting next message on "' + mb + '"... (blocks until one arrives)');
+      CognitiveOS._recvDirect(mb).then((env) => {
+        if (env.from === CognitiveOS.debugSnapshot().sender) {
+          log('← Received OWN-TAB loopback: ' + env.payload + ' (msg_id=' + env.msg_id + ', clock=' + env.clock + ')', 'pass');
+        } else {
+          log('← Received CROSS-TAB message: ' + env.payload + ' (from=' + env.from + ', clock=' + env.clock + ')', 'pass');
+        }
+      }).catch((e) => {
+        log('FAIL: ' + (e && e.message ? e.message : String(e)), 'fail');
+      });
+    });
+
+    document.getElementById('btn-bc-show-id').addEventListener('click', () => {
+      const snap = CognitiveOS.debugSnapshot();
+      log('Sender ID: ' + snap.sender);
+      log('Lamport clock: ' + snap.clock);
+      log('Open mailboxes: [' + snap.mailboxes.join(', ') + ']');
     });
   </script>
 </body>

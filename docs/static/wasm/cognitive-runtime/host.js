@@ -156,6 +156,34 @@
 
   const mailboxes = new Map();   // mailbox name → array of pending envelopes
   const mailboxWaiters = new Map(); // mailbox name → array of resolve fns
+  const broadcastChannels = new Map(); // mailbox name → BroadcastChannel instance
+  state.broadcastChannels = broadcastChannels; // expose for sendInternal's cross-tab dispatch
+
+  // ensureBroadcastChannel lazy-creates a per-mailbox BroadcastChannel and
+  // wires its onmessage handler to enqueueDelivery. Returns null on
+  // engines that don't expose BroadcastChannel (older Safari, headless
+  // environments without the Web API).
+  function ensureBroadcastChannel(name) {
+    if (broadcastChannels.has(name)) return broadcastChannels.get(name);
+    if (typeof global.BroadcastChannel !== 'function') return null;
+    let bc;
+    try {
+      bc = new global.BroadcastChannel(name);
+    } catch (_) {
+      return null;
+    }
+    bc.onmessage = function (ev) {
+      // ev.data is the envelope the sender tab posted. Skip self-loop:
+      // BroadcastChannel does NOT deliver to the sending tab per spec,
+      // but defensive in case of polyfill quirks.
+      const env = ev && ev.data;
+      if (!env || typeof env !== 'object') return;
+      if (env.from === state.sender) return;
+      enqueueDelivery(env);
+    };
+    broadcastChannels.set(name, bc);
+    return bc;
+  }
 
   function enqueueDelivery(env) {
     const arr = mailboxes.get(env.to) || [];
@@ -184,9 +212,13 @@
     state.sentEnvelopes.set(env.msg_id, env);
     // Same-tab delivery (loopback) so single-tab demos work without a peer
     enqueueDelivery(env);
-    // M2: BroadcastChannel cross-tab delivery
-    if (state.broadcastChannels && state.broadcastChannels.has(env.to)) {
-      try { state.broadcastChannels.get(env.to).postMessage(env); } catch (_) {}
+    // M2: BroadcastChannel cross-tab delivery. Per spec, BroadcastChannel
+    // does NOT deliver to the sending tab — so the loopback above is the
+    // only path for same-tab Recv. The postMessage below propagates to
+    // all OTHER tabs on the same origin that have called ensureBroadcastChannel.
+    const bc = ensureBroadcastChannel(env.to);
+    if (bc) {
+      try { bc.postMessage(env); } catch (_) {}
     }
     return {
       msg_id: env.msg_id,
@@ -196,6 +228,10 @@
   }
 
   function recvInternal(mailboxName) {
+    // Eagerly bind a BroadcastChannel for this mailbox so cross-tab
+    // arrivals show up even if no Send has happened yet in this tab.
+    ensureBroadcastChannel(mailboxName);
+
     const arr = mailboxes.get(mailboxName) || [];
     if (arr.length > 0) {
       const env = arr.shift();
@@ -306,6 +342,10 @@
       // Re-create the instance to drop nodesById + regionParentHash
       // + re-inject the canonical style block.
       if (state.root) state.canonical = new global.CanonicalDOM(state.root);
+      // Close BroadcastChannels so the next test session doesn't
+      // inherit cross-tab subscriptions to dead handlers.
+      broadcastChannels.forEach(function (bc) { try { bc.close(); } catch (_) {} });
+      broadcastChannels.clear();
     },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

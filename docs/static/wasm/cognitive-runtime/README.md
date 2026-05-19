@@ -60,3 +60,11 @@ The smoke harness uses `CognitiveOS._applyPatchDirect()` to drive patches withou
 - Animations + transitions disabled inside scoped regions
 
 The replay engine in M3 verifies these guarantees via `regionHash()` content-hash equality after page refresh.
+
+## Patch semantics: append-only with parent-hash chain
+
+`AddPanel` and `AddTimeline` are **append-only**, not idempotent-on-content. Calling `AddPanel('A', 'B')` twice in sequence produces **two sibling panels**, not one — each gets a deterministic-but-distinct ID via the parent-hash chain.
+
+This is the right model for an event-driven runtime: the cognitive event log replays each AddPanel as a distinct event, and replay-determinism means "same sequence of events → same DOM", not "duplicate events collapse".
+
+If you want explicit replace-or-create semantics, use `UpdateNode(node_id, content)` with a stable `node_id`. `UpdateNode` IS idempotent — same `(node_id, content)` applied twice has no extra effect.
