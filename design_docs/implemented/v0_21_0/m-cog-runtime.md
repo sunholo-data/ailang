@@ -1,10 +1,12 @@
 # M-COG-RUNTIME: Cognition Runtime — Effects, Fabric, Event Log, Scheduler, DOM Replay
 
-**Status**: Planned
+**Status**: Implemented (Go-side substrate — browser-side continues in [M-COG-RUNTIME-BROWSER](../../planned/v0_21_0/m-cog-runtime-browser.md))
 **Target**: v0.21.x
 **Priority**: P0
 **Estimated**: ~105h across 3 weeks (revised from 95h after aligning DOM/Msg handlers with the step-pattern interface used by `internal/effects/ai_step.go`)
-**Parent**: [M-WASM-REFLECTIVE-RUNTIME (Cognitive OS umbrella)](./m-wasm-reflective-runtime.md)
+**Actual**: 13 commits across 3 milestones (~6,765 LOC + ~140 tests), commit range `4131d612..b530e482` on `dev`
+**Evaluation**: PASS at 91/100 (round 1) — see [`.ailang/state/evaluations/eval_M-COG-RUNTIME_round_1.json`](../../../.ailang/state/evaluations/eval_M-COG-RUNTIME_round_1.json)
+**Parent**: [M-WASM-REFLECTIVE-RUNTIME (Cognitive OS umbrella)](../../planned/v0_21_0/m-wasm-reflective-runtime.md)
 **Dependencies**:
 - Existing WASM evaluator/runtime ([m-wasm-dictionary-dispatch](../../implemented/v0_9_2/m-wasm-dictionary-dispatch.md), [m-wasm-closure-env](../../implemented/v0_8_1/m-wasm-closure-env.md))
 - Existing **AI step pattern** ([internal/effects/ai_step.go](../../../internal/effects/ai_step.go), [internal/effects/ai.go](../../../internal/effects/ai.go)) — DOM and Msg handlers follow this richer pattern, not the simpler `Call(input) → string` shape

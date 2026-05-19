@@ -1,5 +1,9 @@
 # Sprint Plan: M-COG-RUNTIME
 
+> **Status: SHIPPED** — Go-side substrate complete, commit range `4131d612..b530e482` on `dev`.
+> Evaluation: PASS at 91/100 (round 1) — see [`.ailang/state/evaluations/eval_M-COG-RUNTIME_round_1.json`](../../../.ailang/state/evaluations/eval_M-COG-RUNTIME_round_1.json).
+> Browser-side substrate continues in [M-COG-RUNTIME-BROWSER](../../planned/v0_21_0/m-cog-runtime-browser.md).
+
 ## Summary
 
 Ship the foundation for the Cognitive OS: three new effects (`DOM`, `Msg`, `Trace`), a transport-independent message fabric (LocalWorker + BroadcastChannel), a cognitive event log with Lamport clocks, a deterministic scheduler, and a browser DOM patch runtime with byte-identical replay. Extends the existing evaluator-in-WASM path (`cmd/wasm/`) — no new codegen backend.
