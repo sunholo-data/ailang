@@ -736,6 +736,114 @@ export func ask(question: string) -> string ! {AI} =
 | `evalAsync(input)` | `Promise<string>` | v0.7.2 | Async eval (for effects) |
 | `callAsync(mod, func, ...args)` | `Promise<{success, result?, error?}>` | v0.7.2 | Async call (for effects) |
 
+## Cognitive OS Substrate (v0.21.x)
+
+The WASM build ships the **Cognitive OS substrate** — a deterministic agent runtime layered on top of the standard WASM REPL. Agents declare effects, mutate scoped DOM regions, exchange messages, and produce replayable event logs.
+
+The Go-side substrate is complete and shippable (M-COG-RUNTIME, see [design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_21_0/m-cog-runtime.md)). The browser-side host JS that lights up the bridges is a follow-up sprint ([M-COG-RUNTIME-BROWSER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser.md)) — once it ships, the JS APIs below become directly usable end-to-end.
+
+### Effects shipped
+
+| Effect | Purpose | Stdlib module |
+|--------|---------|----------------|
+| `DOM` | Scoped, structured browser-DOM mutation (no raw HTML/JS injection) | `std/dom` |
+| `Msg` | Inter-agent messaging fabric — same code over LocalWorker / BroadcastChannel | `std/cognition` |
+| `Trace` | Cognitive event emission (already shipped v0.11.1; extension lands in M-COG-RUNTIME-BROWSER) | `std/trace` |
+
+### Step-pattern interface
+
+DOM and Msg handlers follow the [step-pattern interface](https://github.com/sunholo-data/ailang/blob/dev/internal/effects/ai_step.go) established by AI:
+
+- **DOMHandler**: `ApplyPatch` / `ApplyBatch` / `Subscribe`
+- **MsgHandler**: `Send` / `Recv` / `Subscribe`
+
+Each handler ships with a deterministic `Stub*Handler` for testing and Result-returning op variants (`applyPatchResult` etc.) that produce typed `Result[T, {code, message}]` for graceful AILANG-side error handling.
+
+### Cognitive event log
+
+Every effect call writes a typed event to the cognitive event log:
+
+| Event kind | Source |
+|------------|--------|
+| `MessageSent` | `Msg.send` |
+| `MessageReceived` | `Msg.recv` |
+| `PatchApplied` | `DOM.applyPatch` / `DOM.applyBatch` |
+| `CapabilityExceeded` | Budget overrun (M-COG-RUNTIME-BROWSER wires this) |
+| `TraceCaptured` | `Trace` span completion (M-COG-RUNTIME-BROWSER ext) |
+
+The log exports to JSONL for deterministic replay across machines. The `Replayer` re-feeds events through a fresh scheduler in canonical `(LamportClock, Sender)` order and produces byte-identical dispatch slices — the "deterministic distributed replay" property the [umbrella design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-wasm-reflective-runtime.md) names as the strategic claim of the Cognitive OS.
+
+### JavaScript API (Cognitive OS bridges)
+
+The browser-side host JS registers callbacks for each effect; the WASM bridge invokes them from Go:
+
+```javascript
+// DOM
+ailangSetDOMApplyPatchHandler((region, patch) => {
+  // patch = {ctor: "AddPanel", fields: ["title", "content"]} | UpdateNode | RemoveNode | AddTimeline
+  // Apply to <div data-cog-region="${region}"> and return {node_id, budget_remaining}
+});
+ailangSetDOMApplyBatchHandler((region, patches) => { /* ... */ });
+
+// Msg (transport-independent)
+ailangSetMsgSendHandler((to, payload) => {
+  // postMessage on BroadcastChannel(to) or send over WebSocket
+  return {msg_id, clock, budget_remaining};
+});
+ailangSetMsgRecvHandler((mailbox) => {
+  // Pull the next envelope; can return a Promise for async transports
+  return {msg_id, from, to, payload, clock};
+});
+```
+
+For the underlying Go-side primitives (Lamport clock, transport trait, scheduler, replay engine), see the [`internal/cognition/`](https://github.com/sunholo-data/ailang/tree/dev/internal/cognition) package.
+
+### Example: replayable DOM mutation
+
+```ailang
+module myagent
+
+import std/dom (DOMPatch, AddPanel, applyPatchResult)
+import std/cognition (sendMsgResult)
+import std/result (Result, Ok, Err)
+
+export func renderHeatmap(region: string) -> string ! {DOM} = {
+  match applyPatchResult(region, AddPanel("Status", "Running...")) {
+    Ok(r)  => "node:${r.node_id}",
+    Err(e) => "failed:${e.code}"
+  }
+}
+
+export func relay(to: string, payload: string) -> string ! {Msg} = {
+  match sendMsgResult(to, payload) {
+    Ok(r)  => "sent:${r.msg_id}@${show(r.clock)}",
+    Err(e) => "send_failed:${e.code}"
+  }
+}
+```
+
+A full runnable demo lives at [`examples/cognitive_os/single_agent_replay.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/cognitive_os/single_agent_replay.ail).
+
+### Status
+
+| Component | Status |
+|-----------|--------|
+| DOM / Msg effect labels in type system | ✅ Shipped (v0.21.x) |
+| Step-pattern handler interfaces + stubs | ✅ Shipped |
+| Result-returning op variants | ✅ Shipped |
+| AILANG stdlib bindings (`std/dom`, `std/cognition`) | ✅ Shipped |
+| WASM bridges (8 JS globals: `ailangSetDOM*Handler`, `ailangSetMsg*Handler`) | ✅ Shipped |
+| Lamport clock + cognitive event log + JSONL replay | ✅ Shipped |
+| Transport trait + LocalWorker + BroadcastChannel | ✅ Shipped |
+| Deterministic scheduler + replay engine | ✅ Shipped |
+| `NativeMsgHandler` wrapping Transport (non-WASM) | ✅ Shipped |
+| Browser host JS (`host.js`, `replay.js`, `canonical_dom.js`) | ⏳ M-COG-RUNTIME-BROWSER |
+| IndexedDB persistence sink | ⏳ M-COG-RUNTIME-BROWSER |
+| Subscribe ops wired through `FnCaller` to AILANG closures | ⏳ M-COG-RUNTIME-BROWSER |
+| `!: SharedMem` + `!: SemanticSearch` (semantic memory) | ⏳ M-COG-MEMORY (v0.22.0) |
+| WebSocket / FirestoreRelay / WebRTC transports | ⏳ M-COG-MESH (v0.22.x → v0.23) |
+| Collaborative 4-agent demo | ⏳ M-COG-MESH |
+
 ## REPL Commands
 
 The WebAssembly REPL supports the same commands as the CLI:

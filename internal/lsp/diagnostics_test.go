@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,18 @@ import (
 	"go.lsp.dev/protocol"
 	"go.lsp.dev/uri"
 )
+
+// diagWaitTimeout returns the per-wait timeout for diagnostic-arrival
+// assertions. Windows GitHub Actions runners have slower filesystem +
+// LSP pipeline latency than Linux/macOS — the 5s budget that works
+// locally times out in CI. Tripling on Windows preserves the test's
+// intent without making non-Windows runs slower.
+func diagWaitTimeout() time.Duration {
+	if runtime.GOOS == "windows" {
+		return 15 * time.Second
+	}
+	return 5 * time.Second
+}
 
 // diagSink captures publishDiagnostics notifications pushed from the server
 // to the test client. drain returns the most recent params for the given
@@ -84,7 +97,10 @@ func (d *diagSink) wait(u protocol.DocumentURI, timeout time.Duration) (*protoco
 // via the returned context.
 func startTestServer(t *testing.T) (context.Context, jsonrpc2.Conn, *diagSink, func()) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Server lifecycle must outlive the per-wait diagnostic timeout below
+	// — otherwise the parent context expires while a wait is still in
+	// flight. 3× diagWaitTimeout gives generous headroom on Windows.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*diagWaitTimeout())
 	srvSide, cliSide := net.Pipe()
 	srv := NewServer(nil)
 
@@ -167,7 +183,7 @@ func TestDidOpenWellTyped(t *testing.T) {
 		t.Fatalf("didOpen: %v", err)
 	}
 
-	params, ok := sink.wait(docURI, 5*time.Second)
+	params, ok := sink.wait(docURI, diagWaitTimeout())
 	if !ok {
 		t.Fatal("no publishDiagnostics arrived for well-typed file within 5s")
 	}
@@ -197,7 +213,7 @@ func TestDidOpenTypeError(t *testing.T) {
 		t.Fatalf("didOpen: %v", err)
 	}
 
-	params, ok := sink.wait(docURI, 5*time.Second)
+	params, ok := sink.wait(docURI, diagWaitTimeout())
 	if !ok {
 		t.Fatal("no publishDiagnostics arrived for type-error file within 5s")
 	}
@@ -233,7 +249,7 @@ func TestDidSaveRepublishes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("didOpen: %v", err)
 	}
-	first, ok := sink.wait(docURI, 5*time.Second)
+	first, ok := sink.wait(docURI, diagWaitTimeout())
 	if !ok {
 		t.Fatal("no diagnostics on didOpen")
 	}
@@ -259,7 +275,7 @@ func TestDidSaveRepublishes(t *testing.T) {
 	delete(sink.byURI, docURI)
 	sink.mu.Unlock()
 
-	second, ok := sink.wait(docURI, 5*time.Second)
+	second, ok := sink.wait(docURI, diagWaitTimeout())
 	if !ok {
 		t.Fatal("no diagnostics arrived after didSave")
 	}
