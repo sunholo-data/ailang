@@ -12,7 +12,7 @@ import (
 // ============================================================================
 
 func TestDOMOpsRegistered(t *testing.T) {
-	required := []string{"applyPatch", "applyBatch"}
+	required := []string{"applyPatch", "applyBatch", "applyPatchResult", "applyBatchResult"}
 	domOps, ok := Registry["DOM"]
 	if !ok {
 		t.Fatalf("Registry[\"DOM\"] not initialized — init() did not register ops")
@@ -300,5 +300,134 @@ func TestDOMApplyBatch_RoundTrip(t *testing.T) {
 	}
 	if len(h.Batches[0].Patches) != 2 {
 		t.Errorf("batch should have 2 patches, got %d", len(h.Batches[0].Patches))
+	}
+}
+
+// ============================================================================
+// Result-returning variants
+// ============================================================================
+
+// expectOk extracts the inner record from a Result.Ok value; fails fast otherwise.
+func expectOk(t *testing.T, v eval.Value) *eval.RecordValue {
+	t.Helper()
+	tv, ok := v.(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("expected TaggedValue, got %T", v)
+	}
+	if tv.CtorName != "Ok" {
+		t.Fatalf("expected Ok, got %s", tv.CtorName)
+	}
+	if len(tv.Fields) != 1 {
+		t.Fatalf("Ok should carry 1 field, got %d", len(tv.Fields))
+	}
+	rec, ok := tv.Fields[0].(*eval.RecordValue)
+	if !ok {
+		t.Fatalf("Ok inner should be RecordValue, got %T", tv.Fields[0])
+	}
+	return rec
+}
+
+// expectErr extracts the {code, message} from a Result.Err value; fails fast otherwise.
+func expectErr(t *testing.T, v eval.Value) (code, message string) {
+	t.Helper()
+	tv, ok := v.(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("expected TaggedValue, got %T", v)
+	}
+	if tv.CtorName != "Err" {
+		t.Fatalf("expected Err, got %s", tv.CtorName)
+	}
+	rec := tv.Fields[0].(*eval.RecordValue)
+	code = rec.Fields["code"].(*eval.StringValue).Value
+	message = rec.Fields["message"].(*eval.StringValue).Value
+	return
+}
+
+func TestDOMApplyPatchResult_OkOnSuccess(t *testing.T) {
+	h := NewStubDOMHandler()
+	ctx := &EffContext{DOM: NewDOMContext(h)}
+
+	res, err := domApplyPatchResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "agent_a"},
+		&eval.TaggedValue{CtorName: "AddPanel", Fields: []eval.Value{
+			&eval.StringValue{Value: "T"},
+			&eval.StringValue{Value: "C"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	rec := expectOk(t, res)
+	if _, ok := rec.Fields["node_id"]; !ok {
+		t.Error("Ok record missing node_id")
+	}
+}
+
+func TestDOMApplyPatchResult_ErrOnNoHandler(t *testing.T) {
+	ctx := &EffContext{DOM: nil}
+
+	res, err := domApplyPatchResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "agent_a"},
+		&eval.TaggedValue{CtorName: "AddPanel", Fields: []eval.Value{
+			&eval.StringValue{Value: "T"},
+			&eval.StringValue{Value: "C"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ := expectErr(t, res)
+	if code != CogErrCodeNoHandler {
+		t.Errorf("expected %q, got %q", CogErrCodeNoHandler, code)
+	}
+}
+
+func TestDOMApplyPatchResult_ErrOnInvalidArgs(t *testing.T) {
+	h := NewStubDOMHandler()
+	ctx := &EffContext{DOM: NewDOMContext(h)}
+
+	// Wrong arg count
+	res, err := domApplyPatchResult(ctx, []eval.Value{&eval.StringValue{Value: "only"}})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ := expectErr(t, res)
+	if code != CogErrCodeInvalidArgs {
+		t.Errorf("expected %q, got %q", CogErrCodeInvalidArgs, code)
+	}
+
+	// Unknown variant
+	res, err = domApplyPatchResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "agent_a"},
+		&eval.TaggedValue{CtorName: "BogusVariant", Fields: nil},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ = expectErr(t, res)
+	if code != CogErrCodeInvalidArgs {
+		t.Errorf("expected %q for unknown variant, got %q", CogErrCodeInvalidArgs, code)
+	}
+}
+
+func TestDOMApplyBatchResult_OkOnSuccess(t *testing.T) {
+	h := NewStubDOMHandler()
+	ctx := &EffContext{DOM: NewDOMContext(h)}
+
+	res, err := domApplyBatchResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "agent_a"},
+		&eval.ListValue{Elements: []eval.Value{
+			&eval.TaggedValue{CtorName: "AddPanel", Fields: []eval.Value{
+				&eval.StringValue{Value: "T1"},
+				&eval.StringValue{Value: "C1"},
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	rec := expectOk(t, res)
+	if _, ok := rec.Fields["node_ids"]; !ok {
+		t.Error("Ok record missing node_ids")
 	}
 }

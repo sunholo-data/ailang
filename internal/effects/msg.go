@@ -311,6 +311,8 @@ func (h *StubMsgHandler) Subscribe(mailbox Mailbox, onMsg func(Message)) (func()
 func init() {
 	RegisterOp("Msg", "send", msgSend)
 	RegisterOp("Msg", "recv", msgRecv)
+	RegisterOp("Msg", "sendResult", msgSendResult)
+	RegisterOp("Msg", "recvResult", msgRecvResult)
 }
 
 // msgSend implements Msg.send(to: string, payload: string) -> {msg_id: string, clock: int, budget_remaining: int}
@@ -394,4 +396,75 @@ func encodeMessage(m *Message) eval.Value {
 			"clock":   &eval.IntValue{Value: int(m.Clock)},
 		},
 	}
+}
+
+// ============================================================================
+// Result-returning op variants — Ok(record) / Err({code, message})
+// ============================================================================
+//
+// Shape mirrors DOM's applyPatchResult / applyBatchResult: arg-shape errors,
+// missing handler, and handler failures all surface as Err({code, message})
+// so AILANG callers get a uniform Result without raw Go-error panics.
+//
+// Shared helpers (makeOkResult, makeCognitionErrResult, error-code constants)
+// live in dom.go since DOM is the first user.
+
+// classifyMsgError maps Go errors from the handler into stable error codes.
+// Currently distinguishes NoHandler and NoMessage; extends in M2 as
+// transport-failure and budget-exceeded paths arrive.
+func classifyMsgError(err error) (code, message string) {
+	switch err {
+	case ErrNoMsgHandler:
+		return CogErrCodeNoHandler, err.Error()
+	case ErrNoMsgAvailable:
+		return CogErrCodeNoMessage, err.Error()
+	default:
+		return CogErrCodeInternal, err.Error()
+	}
+}
+
+// msgSendResult implements Msg.sendResult(to, payload)
+// -> Result[{msg_id, clock, budget_remaining}, {code, message}].
+func msgSendResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs,
+			fmt.Sprintf("sendResult: expected 2 arguments, got %d", len(args))), nil
+	}
+	to, err := msgStringArg(args[0], "to")
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	payload, err := msgStringArg(args[1], "payload")
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	res, err := ctx.Msg.Send(Mailbox(to), []byte(payload))
+	if err != nil {
+		code, msg := classifyMsgError(err)
+		return makeCognitionErrResult(code, msg), nil
+	}
+	return makeOkResult(encodeSendResult(res)), nil
+}
+
+// msgRecvResult implements Msg.recvResult(mailbox)
+// -> Result[{msg_id, from, to, payload, clock}, {code, message}].
+//
+// Empty-mailbox failures surface as Err(NoMessage) — the stub-only behavior.
+// The real browser-bridged handler will block until a message arrives, so
+// NoMessage will only happen in synchronous tests with no producer.
+func msgRecvResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs,
+			fmt.Sprintf("recvResult: expected 1 argument, got %d", len(args))), nil
+	}
+	mailbox, err := msgStringArg(args[0], "mailbox")
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	msg, err := ctx.Msg.Recv(Mailbox(mailbox))
+	if err != nil {
+		code, m := classifyMsgError(err)
+		return makeCognitionErrResult(code, m), nil
+	}
+	return makeOkResult(encodeMessage(msg)), nil
 }

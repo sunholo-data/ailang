@@ -313,12 +313,16 @@ func (h *StubDOMHandler) FireEvent(region RegionID, event DOMEvent) {
 
 // init registers DOM effect operations.
 //
-// Bare ops (applyPatch, applyBatch) — these are the M1-shippable surface.
-// Result-returning variants (applyPatchResult etc.) land in Day 4 alongside
-// the manifest generator, when the typed-error shape is locked.
+// Bare ops give raw Go-error semantics. Result-returning variants
+// (applyPatchResult / applyBatchResult) wrap success and failure into
+// AILANG Result[T, CognitionError] — mirroring the aiCallResult /
+// aiStepResult pattern in ai_step.go so AILANG callers get a uniform
+// shape instead of raw panics on missing handlers.
 func init() {
 	RegisterOp("DOM", "applyPatch", domApplyPatch)
 	RegisterOp("DOM", "applyBatch", domApplyBatch)
+	RegisterOp("DOM", "applyPatchResult", domApplyPatchResult)
+	RegisterOp("DOM", "applyBatchResult", domApplyBatchResult)
 }
 
 // domApplyPatch implements DOM.applyPatch(region: string, patch: DOMPatch) -> {node_id: string, budget_remaining: int}
@@ -461,4 +465,122 @@ func encodeBatchResult(r *BatchResult) eval.Value {
 			"budget_remaining": &eval.IntValue{Value: r.BudgetRemaining},
 		},
 	}
+}
+
+// ============================================================================
+// Cognitive OS shared Result helpers — used by both DOM and Msg
+// ============================================================================
+//
+// Cognitive OS effects (DOM, Msg, later SharedMem / SemanticSearch) share a
+// uniform {code, message} error shape — simpler than AIError because they
+// don't carry provider-classification semantics. Result-returning op variants
+// produce `Result[T, CognitionError]` where T is the effect-specific success
+// record.
+//
+// Error codes are stable strings; downstream consumers can pattern-match on
+// them. The set is intentionally small in M1 and grows as new failure modes
+// surface in M2 (CapabilityExceeded, transport errors).
+
+// Cognition error codes (stable string constants for pattern matching).
+const (
+	CogErrCodeNoHandler        = "NO_HANDLER"        // handler not configured for this runtime
+	CogErrCodeInvalidArgs      = "INVALID_ARGS"      // arg shape/type mismatch
+	CogErrCodeNoMessage        = "NO_MESSAGE"        // recv on empty mailbox (stub-only currently)
+	CogErrCodeInternal         = "INTERNAL"          // catch-all for unexpected handler failures
+	CogErrCodeBudgetExceeded   = "BUDGET_EXCEEDED"   // capability budget hit (M2 will set this)
+	CogErrCodeTransportFailure = "TRANSPORT_FAILURE" // transport-layer fault (M-COG-MESH)
+)
+
+// makeCognitionErrResult wraps a {code, message} record in Err(...).
+//
+// Shape matches the AILANG side: Result[T, {code: string, message: string}].
+// Uses the shared makeErrResult helper (env.go) for the Result tag itself —
+// only the inner error record is cognition-specific.
+//
+// Distinct from makeAIErrorResultRecord (which carries a third "retryable"
+// field) — cognitive failures are categorically structural, not provider-
+// transient, so retryability isn't a property of the error.
+func makeCognitionErrResult(code, message string) eval.Value {
+	return makeErrResult(&eval.RecordValue{
+		Fields: map[string]eval.Value{
+			"code":    &eval.StringValue{Value: code},
+			"message": &eval.StringValue{Value: message},
+		},
+	})
+}
+
+// classifyDOMError maps Go errors from the handler into stable error codes.
+// Currently only one classification (ErrNoDOMHandler); extends in M2 as
+// budget enforcement and transport faults arrive.
+func classifyDOMError(err error) (code, message string) {
+	switch err {
+	case ErrNoDOMHandler:
+		return CogErrCodeNoHandler, err.Error()
+	default:
+		return CogErrCodeInternal, err.Error()
+	}
+}
+
+// ============================================================================
+// Result-returning op variants — Ok(record) / Err({code, message})
+// ============================================================================
+
+// domApplyPatchResult implements DOM.applyPatchResult(region, patch)
+// -> Result[{node_id, budget_remaining}, {code, message}].
+//
+// Unlike domApplyPatch, this never returns a raw Go error to the evaluator:
+// arg-shape errors, missing handler, and handler failures all surface as
+// Err({code, message}) so AILANG callers can match without panicking.
+func domApplyPatchResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs,
+			fmt.Sprintf("applyPatchResult: expected 2 arguments, got %d", len(args))), nil
+	}
+	region, err := domStringArg(args[0], "region")
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	patch, err := decodeDOMPatch(args[1])
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	res, err := ctx.DOM.ApplyPatch(RegionID(region), patch)
+	if err != nil {
+		code, msg := classifyDOMError(err)
+		return makeCognitionErrResult(code, msg), nil
+	}
+	return makeOkResult(encodePatchResult(res)), nil
+}
+
+// domApplyBatchResult implements DOM.applyBatchResult(region, patches)
+// -> Result[{node_ids, budget_remaining}, {code, message}].
+func domApplyBatchResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs,
+			fmt.Sprintf("applyBatchResult: expected 2 arguments, got %d", len(args))), nil
+	}
+	region, err := domStringArg(args[0], "region")
+	if err != nil {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs, err.Error()), nil
+	}
+	list, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return makeCognitionErrResult(CogErrCodeInvalidArgs,
+			fmt.Sprintf("applyBatchResult: expected list of patches, got %T", args[1])), nil
+	}
+	patches := make([]DOMPatch, len(list.Elements))
+	for i, e := range list.Elements {
+		p, err := decodeDOMPatch(e)
+		if err != nil {
+			return makeCognitionErrResult(CogErrCodeInvalidArgs,
+				fmt.Sprintf("applyBatchResult[%d]: %s", i, err.Error())), nil
+		}
+		patches[i] = p
+	}
+	res, err := ctx.DOM.ApplyBatch(RegionID(region), patches)
+	if err != nil {
+		code, msg := classifyDOMError(err)
+		return makeCognitionErrResult(code, msg), nil
+	}
+	return makeOkResult(encodeBatchResult(res)), nil
 }

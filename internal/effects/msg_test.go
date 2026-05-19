@@ -12,7 +12,7 @@ import (
 // ============================================================================
 
 func TestMsgOpsRegistered(t *testing.T) {
-	required := []string{"send", "recv"}
+	required := []string{"send", "recv", "sendResult", "recvResult"}
 	msgOps, ok := Registry["Msg"]
 	if !ok {
 		t.Fatalf("Registry[\"Msg\"] not initialized — init() did not register ops")
@@ -254,4 +254,91 @@ func TestMsgEffect_DoesNotModifyMessagingPackage(t *testing.T) {
 	// verified at sprint-checkpoint time via `git diff --stat
 	// internal/messaging/`, not by a Go test.
 	t.Log("structural anchor: M-COG-RUNTIME M1 Msg effect must not modify internal/messaging/")
+}
+
+// ============================================================================
+// Result-returning variants
+// ============================================================================
+
+func TestMsgSendResult_OkOnSuccess(t *testing.T) {
+	h := NewStubMsgHandler("node_a")
+	ctx := &EffContext{Msg: NewMsgContext(h, "node_a")}
+
+	res, err := msgSendResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "inbox_b"},
+		&eval.StringValue{Value: "ping"},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	rec := expectOk(t, res)
+	if _, ok := rec.Fields["msg_id"]; !ok {
+		t.Error("Ok record missing msg_id")
+	}
+	if _, ok := rec.Fields["clock"]; !ok {
+		t.Error("Ok record missing clock")
+	}
+}
+
+func TestMsgSendResult_ErrOnNoHandler(t *testing.T) {
+	ctx := &EffContext{Msg: nil}
+
+	res, err := msgSendResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "inbox_b"},
+		&eval.StringValue{Value: "ping"},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ := expectErr(t, res)
+	if code != CogErrCodeNoHandler {
+		t.Errorf("expected %q, got %q", CogErrCodeNoHandler, code)
+	}
+}
+
+func TestMsgRecvResult_OkOnSuccess(t *testing.T) {
+	h := NewStubMsgHandler("node_a")
+	ctx := &EffContext{Msg: NewMsgContext(h, "node_a")}
+	_, _ = h.Send("inbox_a", []byte("hello"))
+
+	res, err := msgRecvResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "inbox_a"},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	rec := expectOk(t, res)
+	if payload := rec.Fields["payload"].(*eval.StringValue).Value; payload != "hello" {
+		t.Errorf("expected payload=hello, got %q", payload)
+	}
+}
+
+func TestMsgRecvResult_ErrOnEmptyMailbox(t *testing.T) {
+	h := NewStubMsgHandler("node_a")
+	ctx := &EffContext{Msg: NewMsgContext(h, "node_a")}
+
+	res, err := msgRecvResult(ctx, []eval.Value{
+		&eval.StringValue{Value: "empty_mailbox"},
+	})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ := expectErr(t, res)
+	if code != CogErrCodeNoMessage {
+		t.Errorf("expected %q, got %q", CogErrCodeNoMessage, code)
+	}
+}
+
+func TestMsgSendResult_ErrOnInvalidArgs(t *testing.T) {
+	h := NewStubMsgHandler("")
+	ctx := &EffContext{Msg: NewMsgContext(h, "")}
+
+	res, err := msgSendResult(ctx, []eval.Value{&eval.StringValue{Value: "only_one"}})
+	if err != nil {
+		t.Fatalf("Result-variants should never return Go errors, got: %v", err)
+	}
+	code, _ := expectErr(t, res)
+	if code != CogErrCodeInvalidArgs {
+		t.Errorf("expected %q, got %q", CogErrCodeInvalidArgs, code)
+	}
 }
