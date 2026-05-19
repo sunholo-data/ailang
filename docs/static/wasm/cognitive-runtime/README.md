@@ -7,10 +7,10 @@ Browser-side JS substrate that lights up the [M-COG-RUNTIME WASM bridges](https:
 | File | Role | Loaded |
 |------|------|--------|
 | `canonical_dom.js` | Deterministic DOM layer: content-hash node IDs, idempotent patches, no time/random deps | 1st |
-| `host.js` | WASM↔JS bridge: registers `ailangSet*Handler` callbacks; manages scoped regions + sender identity | 2nd |
-| `event_log_indexeddb.js` | (M3) IndexedDB persistence sink for the cognitive event log | later |
-| `replay.js` | (M3) JSONL → DOM reconstruction | later |
-| `scheduler.js` | (M3) Microtask-based JS scheduler mirroring Go-side ordering | later |
+| `event_log_indexeddb.js` | IndexedDB persistence sink for the cognitive event log | 2nd |
+| `host.js` | WASM↔JS bridge: registers `ailangSet*Handler` callbacks; manages scoped regions + sender identity | 3rd |
+| `replay.js` | JSONL → DOM reconstruction with content fidelity + byte-equality verification | 4th |
+| `scheduler.js` | Microtask-based JS event loop with kind-filtered subscribers + re-entrance safety | 5th |
 
 ## Loading order
 
@@ -32,10 +32,10 @@ Browser-side JS substrate that lights up the [M-COG-RUNTIME WASM bridges](https:
 
 ## Status
 
-- **M1** (shipped, this directory): host.js + canonical_dom.js + smoke index.html
-- **M2** (next): BroadcastChannel cross-tab wire-up
-- **M3** (later): IndexedDB sink + replay engine + JS scheduler
-- **M4** (later): Subscribe ops + `_cog_drain()` builtin
+- **M1** ✅ Shipped — host.js + canonical_dom.js + smoke index.html (11/11 assertions pass)
+- **M2** ✅ Shipped — BroadcastChannel cross-tab wire-up (20/20 + verified cross-tab delivery)
+- **M3** ✅ Shipped — IndexedDB sink + replay engine + JS scheduler (byte-identical DOM verified)
+- **M4** (next): Subscribe ops + `_cog_drain()` builtin
 - **M5** (last): Trace extension + Playwright + public demo deploy
 
 See [sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser-sprint-plan.md) and [design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser.md).
