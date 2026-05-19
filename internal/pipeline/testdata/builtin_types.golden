@@ -241,6 +241,7 @@ _tar_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
 _tar_readFromGzip : (string, string) -> Result[string, string] ! {FS}
 _tar_readFromGzipBytes : (string, string) -> Result[string, string] ! {FS}
 _trace_check : string -> bool
+_trace_emit : (string, int) -> () ! {Trace}
 _trace_event : (string, string) -> () ! {Trace}
 _trace_span_end : string -> () ! {Trace}
 _trace_span_start : string -> () ! {Trace}

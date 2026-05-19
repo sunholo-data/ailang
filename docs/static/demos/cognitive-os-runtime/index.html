@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cognitive OS — M1 Smoke Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1f2933;
+      background: #f5f7fa;
+    }
+    h1 { font-size: 1.25rem; }
+    .controls { margin: 1rem 0; }
+    button {
+      padding: 0.4rem 0.8rem;
+      margin-right: 0.5rem;
+      border: 1px solid #cbd2d9;
+      background: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover { background: #f0f4f8; }
+    [data-cog-runtime-root] {
+      border: 2px dashed #b5bec8;
+      padding: 1rem;
+      min-height: 80px;
+      background: #fff;
+      border-radius: 6px;
+    }
+    .results {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #1f2933;
+      color: #e4e7eb;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .pass { color: #34d399; }
+    .fail { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>Cognitive OS — M1 Smoke Test</h1>
+  <p>
+    Direct-bypass test of the DOM bridge.
+    Each button calls <code>CognitiveOS._applyPatchDirect(...)</code>
+    (no AILANG REPL needed). Replay-equality is checked via
+    <code>regionHash</code> after each operation.
+  </p>
+
+  <div class="controls">
+    <button id="btn-run-all">Run all assertions</button>
+    <button id="btn-add-panel">Add panel</button>
+    <button id="btn-update-panel">Update last panel</button>
+    <button id="btn-add-timeline">Add timeline</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+
+  <div data-cog-runtime-root></div>
+
+  <h2 style="font-size: 1rem; margin-top: 2rem;">Replay engine (M3 Day 6)</h2>
+  <p style="font-size: 0.9rem;">
+    Reads the IndexedDB event log in canonical (clock, sender) order and
+    reconstructs the DOM. The strategic claim: <strong>same event log → same DOM</strong>
+    across page reloads + across machines.
+  </p>
+  <p style="font-size: 0.85rem; color: #62748a;">
+    Workflow: (1) Enable IndexedDB sink, (2) do some operations to build a log,
+    (3) <strong>Capture DOM hashes</strong> (snapshots the current state),
+    (4) <strong>Replay from IndexedDB</strong> (resets + replays),
+    (5) <strong>Verify byte equality</strong> (compares before/after hashes).
+  </p>
+  <div class="controls">
+    <button id="btn-replay-capture">Capture DOM hashes</button>
+    <button id="btn-replay-from-db">Replay from IndexedDB</button>
+    <button id="btn-replay-dryrun">Dry-run (count only)</button>
+    <button id="btn-replay-verify">Verify byte equality</button>
+  </div>
+
+  <h2 style="font-size: 1rem; margin-top: 2rem;">IndexedDB event log (M3)</h2>
+  <p style="font-size: 0.9rem;">
+    Opt-in cognitive event log. Once enabled, every <code>applyPatch</code> / <code>send</code> / <code>recv</code> writes a structured event to IndexedDB. Survives reloads. The "Reload tab" workflow is the M3 replay-determinism story.
+  </p>
+  <div class="controls">
+    <button id="btn-enable-eventlog">Enable IndexedDB sink</button>
+    <button id="btn-eventlog-count">Show event count</button>
+    <button id="btn-eventlog-show-all">Show all events (canonical order)</button>
+    <button id="btn-eventlog-export">Export JSONL</button>
+    <button id="btn-eventlog-clear">Clear event log</button>
+  </div>
+
+  <h2 style="font-size: 1rem; margin-top: 2rem;">Cross-tab BroadcastChannel test (M2)</h2>
+  <p style="font-size: 0.9rem;">
+    Open this page in a <strong>second browser tab</strong> on the same origin.
+    Click "Await message" in one tab and "Send greeting" in the other —
+    the listening tab logs the envelope with the sender's tab ID + Lamport clock.
+    BroadcastChannel spec: the <em>sending tab does not receive its own posts</em>.
+  </p>
+  <div class="controls">
+    <label>Mailbox: <input id="bc-mailbox" type="text" value="shared_inbox" style="padding: 0.3rem;" /></label>
+    <button id="btn-bc-send">Send greeting</button>
+    <button id="btn-bc-await">Await message</button>
+    <button id="btn-bc-show-id">Show my sender ID</button>
+  </div>
+
+  <pre class="results" id="results">Click "Run all assertions" to begin.</pre>
+
+  <script src="canonical_dom.js"></script>
+  <script src="event_log_indexeddb.js"></script>
+  <script src="host.js"></script>
+  <script src="replay.js"></script>
+  <script src="scheduler.js"></script>
+  <script>
+    'use strict';
+
+    CognitiveOS.attach({ rootSelector: '[data-cog-runtime-root]' });
+
+    const out = document.getElementById('results');
+    function log(msg, cls) {
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = msg + '\n';
+      out.appendChild(span);
+    }
+    function clearLog() { out.textContent = ''; }
+
+    function assert(cond, msg) {
+      if (cond) {
+        log('  PASS: ' + msg, 'pass');
+        return true;
+      }
+      log('  FAIL: ' + msg, 'fail');
+      return false;
+    }
+
+    // ============================================================
+    // Smoke assertions — exercise every M1 acceptance criterion
+    // ============================================================
+
+    function runAll() {
+      clearLog();
+      CognitiveOS._resetForTesting();
+      log('▶ Cognitive OS M1 smoke suite\n');
+      let passed = 0, total = 0;
+      const tally = (ok) => { total += 1; if (ok) passed += 1; };
+
+      // ---- 1. applyPatch returns structured response ----
+      log('Test 1: applyPatch returns {node_id, budget_remaining}');
+      const r1 = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      tally(assert(typeof r1.node_id === 'string', 'node_id is a string'));
+      tally(assert(r1.node_id.startsWith('cog_'), 'node_id has cog_ prefix'));
+      tally(assert(typeof r1.budget_remaining === 'number', 'budget_remaining is a number'));
+
+      // ---- 2. Determinism: same patch → same node_id ----
+      log('\nTest 2: same patch → same node_id (replay invariant)');
+      CognitiveOS._resetForTesting();
+      const r2a = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      CognitiveOS._resetForTesting();
+      const r2b = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      tally(assert(r2a.node_id === r2b.node_id, 'IDs match across resets: ' + r2a.node_id));
+
+      // ---- 3. Different region → different ID ----
+      log('\nTest 3: different region → different ID');
+      CognitiveOS._resetForTesting();
+      const r3a = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['X', 'Y']
+      });
+      const r3b = CognitiveOS._applyPatchDirect('agent_b', {
+        ctor: 'AddPanel', fields: ['X', 'Y']
+      });
+      tally(assert(r3a.node_id !== r3b.node_id, 'agent_a vs agent_b IDs differ'));
+
+      // ---- 4. Scoped regions: nodes live inside data-cog-region containers ----
+      log('\nTest 4: scoped-region invariant');
+      CognitiveOS._resetForTesting();
+      CognitiveOS._applyPatchDirect('scoped_test', {
+        ctor: 'AddPanel', fields: ['T', 'C']
+      });
+      const region = document.querySelector('[data-cog-region="scoped_test"]');
+      tally(assert(region !== null, 'data-cog-region="scoped_test" element exists'));
+      tally(assert(region.querySelector('.cog-panel') !== null, 'panel child rendered inside region'));
+
+      // ---- 5. UpdateNode finds and mutates by ID ----
+      log('\nTest 5: UpdateNode by ID');
+      CognitiveOS._resetForTesting();
+      const created = CognitiveOS._applyPatchDirect('agent_u', {
+        ctor: 'AddPanel', fields: ['Title', 'Old content']
+      });
+      CognitiveOS._applyPatchDirect('agent_u', {
+        ctor: 'UpdateNode', fields: [created.node_id, 'New content']
+      });
+      const updated = document.querySelector('[data-cog-node="' + created.node_id + '"] .cog-panel-content');
+      tally(assert(updated && updated.textContent === 'New content', 'UpdateNode replaced content'));
+
+      // ---- 6. RemoveNode by ID ----
+      log('\nTest 6: RemoveNode by ID');
+      CognitiveOS._resetForTesting();
+      const toRemove = CognitiveOS._applyPatchDirect('agent_r', {
+        ctor: 'AddPanel', fields: ['Doomed', '']
+      });
+      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') !== null,
+        'node exists before remove'));
+      CognitiveOS._applyPatchDirect('agent_r', {
+        ctor: 'RemoveNode', fields: [toRemove.node_id]
+      });
+      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') === null,
+        'node removed from DOM'));
+
+      // ---- 7. AddTimeline variant ----
+      log('\nTest 7: AddTimeline variant');
+      CognitiveOS._resetForTesting();
+      const tlResult = CognitiveOS._applyPatchDirect('agent_t', {
+        ctor: 'AddTimeline', fields: ['Trace replay']
+      });
+      const tl = document.querySelector('[data-cog-node="' + tlResult.node_id + '"]');
+      tally(assert(tl && tl.classList.contains('cog-timeline'), 'timeline element rendered'));
+
+      // ---- 8. Sender identity persists ----
+      log('\nTest 8: sender identity');
+      const snap = CognitiveOS.debugSnapshot();
+      tally(assert(typeof snap.sender === 'string' && snap.sender.length > 0,
+        'sender ID assigned: ' + snap.sender));
+      tally(assert(snap.sender.startsWith('tab_'), 'sender has tab_ prefix'));
+
+      // ---- 9. Replay determinism: same multi-event sequence → identical final DOM ----
+      // (AddPanel is APPEND-ONLY: two sequential calls produce two sibling panels
+      //  with deterministic-but-distinct IDs from the parent-hash chain. The
+      //  invariant we actually care about is "same sequence → same final state".)
+      log('\nTest 9: replay determinism (multi-event sequence)');
+      function captureSequence(region) {
+        CognitiveOS._resetForTesting();
+        const ids = [];
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['A', '1'] }).node_id);
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddPanel', fields: ['B', '2'] }).node_id);
+        ids.push(CognitiveOS._applyPatchDirect(region, { ctor: 'AddTimeline', fields: ['T'] }).node_id);
+        return ids;
+      }
+      const run1 = captureSequence('replay_test');
+      const run2 = captureSequence('replay_test');
+      tally(assert(
+        run1.length === run2.length && run1.every((id, i) => id === run2[i]),
+        'same 3-event sequence produces identical IDs across runs: [' + run1.join(', ') + ']'
+      ));
+      // Bonus: sequential siblings have DISTINCT IDs (parent-hash chain working)
+      tally(assert(
+        run1[0] !== run1[1] && run1[1] !== run1[2],
+        'sequential sibling patches have distinct IDs (append-only semantics)'
+      ));
+
+      // ---- 10. Msg fabric: send + recv loopback ----
+      log('\nTest 10: Msg send + recv (same-tab loopback)');
+      CognitiveOS._resetForTesting();
+      const sendRes = CognitiveOS._sendDirect('inbox_b', 'ping');
+      tally(assert(typeof sendRes.msg_id === 'string' && sendRes.msg_id.length > 0,
+        'send returned msg_id: ' + sendRes.msg_id));
+      tally(assert(typeof sendRes.clock === 'number', 'send returned clock'));
+      // Recv returns a Promise — handle async
+      return CognitiveOS._recvDirect('inbox_b').then((env) => {
+        log('\nTest 11: recv envelope shape');
+        tally(assert(env.payload === 'ping', 'payload preserved'));
+        tally(assert(env.msg_id === sendRes.msg_id, 'msg_id preserved'));
+        tally(assert(env.clock === sendRes.clock, 'clock preserved'));
+
+        log('\n──────────────────────────');
+        if (passed === total) {
+          log('✅ ' + passed + ' / ' + total + ' assertions passed', 'pass');
+        } else {
+          log('❌ ' + passed + ' / ' + total + ' assertions passed', 'fail');
+        }
+      });
+    }
+
+    document.getElementById('btn-run-all').addEventListener('click', runAll);
+    document.getElementById('btn-add-panel').addEventListener('click', () => {
+      const n = Date.now() % 10000;
+      const r = CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'AddPanel', fields: ['Manual ' + n, 'Content ' + n]
+      });
+      log('Added panel: ' + r.node_id);
+    });
+    document.getElementById('btn-update-panel').addEventListener('click', () => {
+      const last = document.querySelector('[data-cog-region="manual"] .cog-panel:last-child');
+      if (!last) { log('No panel to update', 'fail'); return; }
+      const id = last.getAttribute('data-cog-node');
+      CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'UpdateNode', fields: [id, 'Updated at ' + new Date().toISOString()]
+      });
+      log('Updated panel: ' + id);
+    });
+    document.getElementById('btn-add-timeline').addEventListener('click', () => {
+      const r = CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'AddTimeline', fields: ['Timeline ' + (Date.now() % 1000)]
+      });
+      log('Added timeline: ' + r.node_id);
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      CognitiveOS._resetForTesting();
+      clearLog();
+      log('Reset complete.');
+    });
+
+    // ============================================================
+    // Cross-tab BroadcastChannel test wiring
+    // ============================================================
+
+    function getMailbox() {
+      const v = document.getElementById('bc-mailbox').value;
+      return (v || 'shared_inbox').trim();
+    }
+
+    document.getElementById('btn-bc-send').addEventListener('click', () => {
+      const mb = getMailbox();
+      const greeting = 'hello from ' + CognitiveOS.debugSnapshot().sender;
+      const r = CognitiveOS._sendDirect(mb, greeting);
+      log('→ Sent to "' + mb + '": ' + greeting + ' (msg_id=' + r.msg_id + ', clock=' + r.clock + ')');
+      log('  Note: this same tab WILL also see the message via loopback. To prove');
+      log('  cross-tab delivery, open this page in a second tab + click "Await message" there FIRST.');
+    });
+
+    document.getElementById('btn-bc-await').addEventListener('click', () => {
+      const mb = getMailbox();
+      log('⏳ Awaiting next message on "' + mb + '"... (blocks until one arrives)');
+      CognitiveOS._recvDirect(mb).then((env) => {
+        if (env.from === CognitiveOS.debugSnapshot().sender) {
+          log('← Received OWN-TAB loopback: ' + env.payload + ' (msg_id=' + env.msg_id + ', clock=' + env.clock + ')', 'pass');
+        } else {
+          log('← Received CROSS-TAB message: ' + env.payload + ' (from=' + env.from + ', clock=' + env.clock + ')', 'pass');
+        }
+      }).catch((e) => {
+        log('FAIL: ' + (e && e.message ? e.message : String(e)), 'fail');
+      });
+    });
+
+    document.getElementById('btn-bc-show-id').addEventListener('click', () => {
+      const snap = CognitiveOS.debugSnapshot();
+      log('Sender ID: ' + snap.sender);
+      log('Lamport clock: ' + snap.clock);
+      log('Open mailboxes: [' + snap.mailboxes.join(', ') + ']');
+    });
+
+    // ============================================================
+    // M3: IndexedDB event log wiring
+    // ============================================================
+
+    let eventLog = null;
+
+    document.getElementById('btn-enable-eventlog').addEventListener('click', async () => {
+      try {
+        // Re-attach with withEventLog enabled. Reset first to drop the
+        // M1/M2-default attach state.
+        CognitiveOS._resetForTesting();
+        const r = CognitiveOS.attach({
+          rootSelector: '[data-cog-runtime-root]',
+          withEventLog: true,
+          dbName: 'ailang_cog_smoke_v1',
+        });
+        if (r.eventLogReady) {
+          await r.eventLogReady;
+          eventLog = r.eventLog;
+          log('✅ IndexedDB sink ready (db: ailang_cog_smoke_v1)', 'pass');
+          log('   Every subsequent applyPatch / send / recv writes an event.');
+          log('   Try clicking "Add panel" and "Send greeting" a few times, then "Show event count".');
+        } else {
+          log('FAIL: eventLogReady not returned by attach', 'fail');
+        }
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-count').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const n = await eventLog.count();
+        log('Event count: ' + n);
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-show-all').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const events = await eventLog.queryCanonicalOrder();
+        log('Events in canonical (clock, sender) order:');
+        events.forEach((e, i) => {
+          const variant = e.region ? ' region=' + e.region + ' patch=' + e.patch_type :
+                          e.to ? ' to=' + e.to + ' msg=' + e.msg_id :
+                          e.from ? ' from=' + e.from + ' msg=' + e.msg_id : '';
+          log('  [' + i + '] ' + e.kind + ' clock=' + e.clock + ' sender=' + e.sender + variant);
+        });
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-export').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const blob = await eventLog.exportJSONL();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cognitive-events-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        log('✅ Exported ' + blob.size + ' bytes of JSONL', 'pass');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-clear').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        await eventLog.clear();
+        log('✅ Event log cleared', 'pass');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    // ============================================================
+    // M3 Day 6: Replay engine wiring
+    // ============================================================
+
+    let capturedHashes = null;
+
+    document.getElementById('btn-replay-capture').addEventListener('click', () => {
+      capturedHashes = CognitiveReplay.captureRegionHashes();
+      const regionIds = Object.keys(capturedHashes);
+      log('📸 Captured ' + regionIds.length + ' region hash(es):');
+      regionIds.forEach((id) => log('   ' + id + ' → ' + capturedHashes[id]));
+      if (regionIds.length === 0) {
+        log('   (no regions yet — do some applyPatch first)', 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-from-db').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
+      try {
+        const start = performance.now();
+        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: true });
+        const elapsed = (performance.now() - start).toFixed(1);
+        log('▶ Replayed ' + result.total + ' events in ' + elapsed + 'ms', 'pass');
+        log('   Applied: ' + result.applied + ' (DOM side-effects)');
+        log('   Skipped: ' + result.skipped + ' (passive / unknown kinds)');
+        log('   Use "Capture DOM hashes" then "Verify byte equality" to compare against pre-replay state.');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-dryrun').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
+      try {
+        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: false, dryRun: true });
+        log('▶ Dry-run: ' + result.total + ' events in canonical order (no DOM mutation):');
+        result.dispatched.forEach((d, i) => {
+          log('   [' + i + '] ' + d.kind + (d.expected_node_id ? ' expected node_id=' + d.expected_node_id : ''));
+        });
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-verify').addEventListener('click', () => {
+      if (!capturedHashes) {
+        log('No captured hashes — click "Capture DOM hashes" before replay first.', 'fail');
+        return;
+      }
+      const after = CognitiveReplay.captureRegionHashes();
+      const v = CognitiveReplay.verifyByteEquality(capturedHashes, after);
+      if (v.equal) {
+        log('✅ Byte-identical DOM across replay boundary (' + Object.keys(after).length + ' region(s) match)', 'pass');
+      } else {
+        log('❌ DOM diverged across replay:', 'fail');
+        v.mismatches.forEach((m) => {
+          log('   ' + m.regionId + ': expected=' + m.expected + ' actual=' + m.actual, 'fail');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -19,7 +19,7 @@ The original "reflective WASM runtime" design grew into a **Cognitive OS** spann
 | Child | Scope | Target | Estimate | Status |
 |-------|-------|--------|----------|--------|
 | **[M-COG-RUNTIME](../../implemented/v0_21_0/m-cog-runtime.md)** | Effects + Message Fabric + Event Log + Deterministic Scheduler (Go-side substrate) | v0.21.x | ~105h | **✅ Shipped** (13 commits, ~6,765 LOC, PASS @ 91/100) |
-| **[M-COG-RUNTIME-BROWSER](./m-cog-runtime-browser.md)** | Browser host JS + canonical DOM + IndexedDB persistence + Subscribe wiring + Trace ext | v0.21.x | ~50h | Planned |
+| **[M-COG-RUNTIME-BROWSER](./m-cog-runtime-browser.md)** | Browser host JS + canonical DOM + IndexedDB persistence + Subscribe wiring + Trace ext | v0.21.x | ~50h | **✅ Shipped** (~3,400 LOC, user-verified end-to-end, demo at ailang.sunholo.com/demos/cognitive-os-runtime/) |
 | **[M-COG-MEMORY](../v0_22_0/m-cog-memory.md)** | `!: SharedMem` + `!: SemanticSearch` + IndexedDB | v0.22.0 | ~25h | Planned |
 | **[M-COG-MESH](../v0_22_0/m-cog-mesh.md)** | Collaborative 4-agent demo + distributed transports | v0.22.x → v0.23 | ~45h+ | Planned |
 
