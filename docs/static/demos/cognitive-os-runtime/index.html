@@ -631,6 +631,93 @@
     }
     .cg-empty.hide { opacity: 0; }
 
+    /* =====================================================================
+       GLYPH HOVER TOOLTIP + zoom controls
+       ===================================================================== */
+    .cg-tooltip {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(0, 0);
+      transition: opacity 0.12s;
+      max-width: 360px;
+      min-width: 220px;
+      padding: 0.6rem 0.8rem;
+      background: var(--paper-light);
+      border: 1px solid var(--ink);
+      border-left-width: 6px;
+      border-radius: 3px;
+      box-shadow: 0 4px 14px rgba(28, 24, 22, 0.18);
+      z-index: 50;
+      font-family: var(--font-body);
+    }
+    .cg-tooltip.show { opacity: 1; }
+    .cg-tooltip[data-p="Visionary"]   { border-left-color: var(--visionary); }
+    .cg-tooltip[data-p="Skeptic"]     { border-left-color: var(--skeptic); }
+    .cg-tooltip[data-p="Synthesizer"] { border-left-color: var(--synth); }
+    .cg-tooltip[data-p="Archivist"]   { border-left-color: var(--archivist); }
+    .cg-tt-head {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .cg-tt-meta {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      color: var(--ink-mute);
+    }
+    .cg-tt-model {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.02em;
+      color: var(--sun-purple);
+      margin-bottom: 0.2rem;
+    }
+    .cg-tt-model:empty { display: none; }
+    .cg-tt-score {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ink-soft);
+      margin-bottom: 0.4rem;
+    }
+    .cg-tt-score:empty { display: none; }
+    .cg-tt-text {
+      margin: 0;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1rem;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .cg-tt-text::before { content: '"'; color: var(--sun-red); opacity: 0.6; margin-right: 0.1em; }
+    .cg-tt-text::after  { content: '"'; color: var(--sun-red); opacity: 0.6; margin-left: 0.05em; }
+
+    .cg-glyph .core { cursor: pointer; }
+    .cg-glyph:hover .ring { stroke-width: 2; opacity: 0.9; }
+
+    /* Constellation rubric — add zoom controls inline */
+    .constellation-rubric .cg-zoom {
+      display: inline-flex;
+      gap: 0.25rem;
+      margin-left: 0.7rem;
+    }
+    .constellation-rubric .cg-zoom button {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.6rem;
+      background: transparent;
+      color: var(--ink-soft);
+      border: 1px solid var(--rule);
+    }
+    .constellation-rubric .cg-zoom button:hover {
+      background: var(--rule-soft);
+      color: var(--ink);
+    }
+    .constellation-wrap { position: relative; }
+    #constellation { cursor: grab; user-select: none; touch-action: none; }
+    #constellation.dragging { cursor: grabbing; }
+
     /* Glyph entrance */
     .cg-glyph {
       transform-origin: center;
@@ -749,14 +836,147 @@
       text-transform: none;
       padding: 0.7rem 1.1rem;
       background: var(--sun-red);
-      border-color: var(--sun-red);
+      border: 1px solid var(--sun-red);
       color: var(--paper-light);
       font-weight: 700;
       box-shadow: 0 3px 0 var(--ink);
+      text-decoration: none;
+      display: inline-block;
+      border-radius: 2px;
+      transition: transform 0.1s, box-shadow 0.1s;
     }
+    a.big-cta { border-bottom: 1px solid var(--sun-red); } /* override .lede a {border-bottom:1px solid var(--rule)} */
     .big-cta:hover { box-shadow: 0 5px 0 var(--ink); transform: translateY(-2px); }
     .cta-hint { font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-mute); letter-spacing: 0.05em; }
     @media (max-width: 700px) { .masthead-cta { display: none; } }
+
+    /* =====================================================================
+       TOPIC BAR — the question the citizens are debating
+       ===================================================================== */
+    .topic-bar {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0.9rem 2rem 1rem;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper-light);
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      grid-template-areas: "label input" ". help";
+      gap: 0.3rem 0.9rem;
+      align-items: center;
+    }
+    .topic-bar .topic-label {
+      grid-area: label;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sun-red);
+      font-weight: 700;
+    }
+    .topic-bar .topic-input {
+      grid-area: input;
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+    }
+    .topic-bar .topic-input:focus {
+      outline: 2px solid var(--sun-red);
+      outline-offset: -1px;
+    }
+    .topic-bar .topic-input:placeholder-shown {
+      font-style: italic;
+      color: var(--ink-mute);
+    }
+    .topic-bar .topic-help {
+      grid-area: help;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      color: var(--ink-mute);
+    }
+    .topic-bar .topic-help.flash {
+      color: var(--sun-teal);
+      font-weight: 600;
+    }
+
+    /* =====================================================================
+       CONSENSUS BAR — the commons' rolling group statement
+       ===================================================================== */
+    .consensus-bar {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 1.2rem;
+      border-bottom: 1px solid var(--rule);
+      background: linear-gradient(180deg, rgba(255, 243, 196, 0.4), rgba(255, 243, 196, 0));
+    }
+    .consensus-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.4rem;
+    }
+    .consensus-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--sun-purple);
+      font-weight: 700;
+    }
+    .consensus-meta {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--ink-mute);
+      letter-spacing: 0.02em;
+    }
+    .consensus-meta[data-p="Visionary"]   { color: var(--visionary); }
+    .consensus-meta[data-p="Skeptic"]     { color: var(--skeptic); }
+    .consensus-meta[data-p="Synthesizer"] { color: var(--synth); }
+    .consensus-meta[data-p="Archivist"]   { color: var(--archivist); }
+    .consensus-text {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      line-height: 1.55;
+      color: var(--ink);
+      font-style: italic;
+      letter-spacing: -0.005em;
+      transition: opacity 0.3s;
+    }
+    .consensus-lock {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      color: var(--ink-mute);
+      padding: 0.1rem 0.45rem;
+      border: 1px dashed var(--rule);
+      border-radius: 2px;
+    }
+    .consensus-lock .lock-icon { margin-right: 0.2rem; }
+    .consensus-lock #consensus-lock-persona {
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+    }
+    .consensus-lock #consensus-lock-persona[data-p="Visionary"]   { color: var(--visionary); }
+    .consensus-lock #consensus-lock-persona[data-p="Skeptic"]     { color: var(--skeptic); }
+    .consensus-lock #consensus-lock-persona[data-p="Synthesizer"] { color: var(--synth); }
+    .consensus-lock #consensus-lock-persona[data-p="Archivist"]   { color: var(--archivist); }
+    .consensus-text strong { color: var(--ink); font-weight: 600; font-style: normal; }
+    .consensus-text.flash { animation: consensusFlash 0.7s; }
+    @keyframes consensusFlash {
+      0%   { background-color: rgba(231, 60, 23, 0.18); }
+      100% { background-color: transparent; }
+    }
 
     /* =====================================================================
        ACTIVATION BANNER — prominent BYO-key prompt
@@ -821,6 +1041,96 @@
     .activate-status.on { color: var(--sun-teal); font-weight: 600; }
     .activate-status.warn { color: var(--sun-orange); }
 
+    .activate-judge {
+      margin-top: 0.35rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--ink-mute);
+    }
+    .activate-judge-label {
+      color: var(--sun-purple);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 0.62rem;
+      margin-right: 0.4rem;
+    }
+    .activate-judge.free #ai-judge-status-text { color: var(--sun-teal); font-weight: 600; }
+
+    /* Onboarding panel inside the activation banner — shows assigned persona
+       + its editable system prompt so users know exactly who they're
+       activating before they click. */
+    .onboarding-persona {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--paper-light);
+      border: 1px solid var(--rule);
+      border-left: 6px solid var(--ink);
+      border-radius: 0 4px 4px 0;
+      transition: border-left-color 0.3s;
+    }
+    .onboarding-persona[data-p="Visionary"]   { border-left-color: var(--visionary); }
+    .onboarding-persona[data-p="Skeptic"]     { border-left-color: var(--skeptic); }
+    .onboarding-persona[data-p="Synthesizer"] { border-left-color: var(--synth); }
+    .onboarding-persona[data-p="Archivist"]   { border-left-color: var(--archivist); }
+    .onboarding-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .onboarding-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .onboarding-chip {
+      font-size: 0.8rem;
+      padding: 0.15rem 0.55rem;
+    }
+    .onboarding-hint {
+      font-style: italic;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+    }
+    .onboarding-prompt-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.3rem;
+    }
+    #onboarding-prompt {
+      width: 100%;
+      min-height: 96px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      padding: 0.55rem 0.7rem;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      color: var(--ink);
+      resize: vertical;
+    }
+    #onboarding-prompt:focus {
+      outline: 2px solid var(--sun-red);
+      outline-offset: -1px;
+    }
+    .onboarding-reset-row {
+      margin-top: 0.45rem;
+      text-align: right;
+    }
+    .onboarding-reset-row button {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.62rem;
+    }
+
     /* =====================================================================
        ACTIVE-STRIP — collapsed status bar shown once a key is set
        ===================================================================== */
@@ -849,6 +1159,65 @@
     .active-mono { color: var(--ink); font-weight: 500; }
     .active-sep { color: var(--rule); }
     .active-btn { padding: 0.3rem 0.6rem; font-size: 0.65rem; }
+
+    /* Resolved-persona indicator shown next to the active dropdown when
+       the value is "Auto" — tells the user which persona was assigned. */
+    .active-resolved {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      padding: 0.1rem 0.35rem;
+      border: 1px dashed var(--rule);
+      border-radius: 2px;
+    }
+    .active-resolved[data-p="Visionary"]   { color: var(--visionary); border-color: var(--visionary); }
+    .active-resolved[data-p="Skeptic"]     { color: var(--skeptic); border-color: var(--skeptic); }
+    .active-resolved[data-p="Synthesizer"] { color: var(--synth); border-color: var(--synth); }
+    .active-resolved[data-p="Archivist"]   { color: var(--archivist); border-color: var(--archivist); }
+    .active-resolved.hidden { display: none; }
+
+    /* Inline prompt peek — shows the active persona's system prompt
+       without requiring users to scroll to the work-area. */
+    .active-prompt-peek {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0.6rem 2rem 0.8rem;
+      background: var(--paper-light);
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--font-mono);
+    }
+    .app-peek-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      margin-bottom: 0.35rem;
+    }
+    .app-peek-label a {
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 0.7rem;
+      color: var(--sun-red);
+      border-bottom: 1px solid var(--rule);
+    }
+    #app-peek-prompt {
+      margin: 0;
+      padding: 0.5rem 0.7rem;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 2px;
+      color: var(--ink);
+      font-size: 0.72rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      max-height: 7em;
+      overflow-y: auto;
+    }
 
     /* Persona switcher in the active strip — styled to look like a chip
        but it's a real <select>. Tint reflects the current persona. */
@@ -1282,6 +1651,17 @@
       border-radius: 2px;
       word-break: break-all;
     }
+    .chronicle-section .score-tag {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.02em;
+      color: var(--sun-teal);
+      padding: 0.05rem 0.35rem;
+      background: rgba(44, 122, 123, 0.08);
+      border-radius: 2px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
 
     .small-mute { color: var(--ink-mute); font-size: 0.75rem; }
     .empty-state {
@@ -1300,11 +1680,11 @@
     <div>
       <div class="vol">A Cognitive OS Demo · AILANG</div>
       <h1 class="title wordmark">The Cognitive <em>Commons</em></h1>
-      <div class="tagline">Each tab is an AI citizen competing to shape the commons' sentiment toward its own values.</div>
+      <div class="tagline">Each browser tab is an AI citizen competing to shape the commons' sentiment toward its own values.</div>
     </div>
     <div class="masthead-cta">
-      <button id="invite" class="primary big-cta">＋ Open another tab</button>
-      <div class="cta-hint">Each tab is a new AI citizen.</div>
+      <a id="invite" class="primary big-cta" href="./" target="_blank" rel="noopener">＋ Open another tab</a>
+      <div class="cta-hint">Each tab is a new AI citizen. Cmd/Ctrl-click for background.</div>
     </div>
     <div class="clock">
       <span class="lamport" id="lamport-clock">0</span>
@@ -1312,6 +1692,24 @@
       <br/><span class="sender-id" id="sender-id">…</span>
     </div>
   </header>
+
+  <section class="topic-bar">
+    <label for="topic-input" class="topic-label">Topic of debate</label>
+    <input id="topic-input" class="topic-input" type="text" placeholder="What are the citizens arguing about? (any question or claim — politics, design, philosophy, your team's next decision…)" autocomplete="off" />
+    <span class="topic-help" id="topic-help">Saved per origin — all open tabs see the change.</span>
+  </section>
+
+  <section class="consensus-bar" id="consensus-bar">
+    <div class="consensus-head">
+      <span class="consensus-label">The commons' working statement</span>
+      <span class="consensus-lock" id="consensus-lock">
+        <span class="lock-icon">🔒</span>
+        edit lock: <span id="consensus-lock-persona" data-p="">—</span>
+      </span>
+      <span class="consensus-meta" id="consensus-meta">no edits yet</span>
+    </div>
+    <p class="consensus-text" id="consensus-text">Once a citizen speaks, this section will hold a 100-200 word collective statement on the topic. <strong>The rule of the commons:</strong> only the persona currently leading the sentiment dot (closest to its corner) is allowed to replace the draft. Other citizens must first shift sentiment toward their corner to earn the pen — so the doc evolves through actual rhetorical wins, not just by speaking last.</p>
+  </section>
 
   <section class="activate" id="activation-banner">
     <div class="activate-body">
@@ -1348,6 +1746,24 @@
         </div>
       </div>
       <div class="activate-status" id="ai-status">No key set — your tab is silent until you provide one.</div>
+      <div class="activate-judge" id="ai-judge-status">
+        <span class="activate-judge-label">Judge model:</span>
+        <span id="ai-judge-status-text">(no judge available — add a key)</span>
+      </div>
+
+      <div class="onboarding-persona" id="onboarding-persona">
+        <div class="onboarding-head">
+          <span class="onboarding-label">You will argue as</span>
+          <span class="persona-tag onboarding-chip" id="onboarding-chip" data-p="Visionary">Visionary</span>
+          <span class="onboarding-hint" id="onboarding-hint">— picked from your tab's ID. Change above or edit the prompt below.</span>
+        </div>
+        <label for="onboarding-prompt" class="onboarding-prompt-label">Your agent's system prompt (edit it to shape how it argues):</label>
+        <textarea id="onboarding-prompt" spellcheck="false"></textarea>
+        <div class="onboarding-reset-row">
+          <button id="onboarding-reset" class="ghost">Reset this persona's prompt to default</button>
+        </div>
+      </div>
+
       <div class="row" style="margin-top: 0.8rem;">
         <button id="banner-done" class="primary"><span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Test &amp; Activate citizen</span></button>
         <button id="banner-skip" class="ghost">Save without testing</button>
@@ -1355,21 +1771,32 @@
     </div>
   </section>
 
+  <section class="active-prompt-peek" id="active-prompt-peek" style="display:none">
+    <div class="app-peek-label">
+      <span id="app-peek-persona-label">Visionary's prompt (this tab):</span>
+      <a href="#" id="app-peek-edit" class="active-mono">edit in work-area below ↓</a>
+    </div>
+    <pre id="app-peek-prompt"></pre>
+  </section>
+
   <section class="active-strip" id="active-strip" style="display:none">
     <div class="active-dot"></div>
     <div class="active-left">
       <span class="active-label">Active as</span>
       <select id="active-persona-select" class="active-persona-select" aria-label="Switch persona">
-        <option value="auto">Auto (from tab ID)</option>
+        <option value="auto">Auto</option>
         <option value="Visionary">Visionary</option>
         <option value="Skeptic">Skeptic</option>
         <option value="Synthesizer">Synthesizer</option>
         <option value="Archivist">Archivist</option>
       </select>
+      <span id="active-resolved-persona" class="active-resolved" aria-hidden="true"></span>
       <span class="active-sep">·</span>
       <span id="active-provider" class="active-mono">anthropic</span>
       <span class="active-sep">·</span>
       <span id="active-model" class="active-mono">model</span>
+      <span class="active-sep">·</span>
+      <button id="active-show-prompt" class="ghost active-btn">Show prompt</button>
     </div>
     <div class="active-right">
       <span class="active-label">This tab</span>
@@ -1404,7 +1831,14 @@
 
   <section class="constellation-section">
     <div class="constellation-rubric">
-      <span>The Commons — a single artifact, built by every tab</span>
+      <span>
+        The Commons — a single artifact, built by every tab
+        <span class="cg-zoom">
+          <button id="cg-zoom-out" title="Zoom out (or scroll-wheel)">−</button>
+          <button id="cg-zoom-reset" title="Reset zoom">reset</button>
+          <button id="cg-zoom-in" title="Zoom in (or scroll-wheel)">+</button>
+        </span>
+      </span>
       <span class="count" id="constellation-count">0 glyphs</span>
     </div>
     <div class="cg-pullquote" id="cg-pullquote">
@@ -1450,24 +1884,38 @@
           </g>
         </g>
 
-        <!-- Glyph spiral + edges -->
-        <g id="cg-edges" stroke="#7a6e64" stroke-width="0.6" fill="none" opacity="0.45"></g>
+        <!-- Glyph spiral + edges. The edges read the persona color of the
+             current glyph; they're the visible "thread of the conversation". -->
+        <g id="cg-edges" stroke-width="0.9" fill="none" opacity="0.55"></g>
         <g id="cg-glyphs"></g>
         <g id="cg-labels" font-family="JetBrains Mono, monospace" font-size="9" fill="#7a6e64"></g>
 
-        <!-- Sentiment trail + current commons dot (foreground; always visible) -->
-        <polyline id="sent-trail" fill="none" stroke="#1c1816" stroke-width="1.2" opacity="0.35"/>
+        <!-- Sentiment trail — group of individual line segments so we can
+             fade each by age. Newest segment near opaque, oldest near zero. -->
+        <g id="sent-trail" fill="none"></g>
         <g id="sent-dot-wrap">
           <circle id="sent-dot-halo" cx="600" cy="250" r="18" fill="#1c1816" opacity="0.12"/>
           <circle id="sent-dot" cx="600" cy="250" r="10" fill="#1c1816" stroke="#fdfaf3" stroke-width="2.5"/>
         </g>
 
         <text x="600" y="490" text-anchor="middle" font-family="Fraunces, serif" font-style="italic" font-size="13" fill="#7a6e64" opacity="0.7">
-          phyllotaxis · each utterance places a glyph · the dark dot is the commons sentiment
+          each glyph marks where the utterance pushed the commons sentiment · edges trace the conversation's path
         </text>
       </svg>
       <div class="cg-empty" id="cg-empty">
         Add an API key to activate this tab. Your citizen will join and start placing glyphs.
+      </div>
+      <!-- Floating tooltip — populated on glyph hover with the full utterance. -->
+      <div class="cg-tooltip" id="cg-tooltip" aria-hidden="true">
+        <div class="cg-tt-head">
+          <span class="persona-tag" id="cg-tt-persona" data-p="Visionary">—</span>
+          <span class="cg-tt-meta">
+            <span id="cg-tt-sender">—</span> · clk <span id="cg-tt-clock">—</span> · <span id="cg-tt-time">—</span>
+          </span>
+        </div>
+        <div class="cg-tt-model" id="cg-tt-model"></div>
+        <div class="cg-tt-score" id="cg-tt-score"></div>
+        <blockquote class="cg-tt-text" id="cg-tt-text">—</blockquote>
       </div>
       <div class="cg-scoreboard">
         <div>
@@ -1496,7 +1944,7 @@
           <dd>Preserves history, records precedent, grounds the discussion in what's already been said. <em>Archivist territory.</em></dd>
         </dl>
         <p class="axis-defs-note">
-          Each utterance shifts the dark dot toward the speaking persona's anchor. Citizens whose target is furthest from the current dot try hardest to drag it their way (the prompt's <code>force</code> word goes from "gently reinforce" through "argue clearly to shift" to "argue forcefully to drag" as the gap grows).
+          Each utterance shifts the dark dot — by 25% toward the AI judge's score for that utterance (or the speaker's persona anchor if no judge). Every glyph drops a marker at the dot's new resting position, so the spiral of glyphs is literally a map of <em>what</em> was said across the sentiment plane. Citizens whose target is furthest from the current dot try hardest to drag it their way ("gently reinforce" → "argue clearly to shift" → "argue forcefully to drag" in the AI prompt as the gap grows).
         </p>
       </details>
     </div>
@@ -1726,10 +2174,17 @@
   // applying them all blocks the main thread.
   const RECONSTRUCT_LIMIT = 60;
 
+  // Default topic — open-ended enough to seed interesting debate. Users
+  // override via the topic-bar; the value is shared across all tabs of the
+  // same origin via localStorage + roster-channel broadcasts.
+  const DEFAULT_TOPIC = "What should the next decade of computing prioritize, and at what cost?";
+
   const app = {
     senderId: null,
     persona: null,
     autoPersona: null,        // assigned, before user override
+    topic: DEFAULT_TOPIC,
+    consensus: null,          // { text, editor, clock, ts } — rolling group statement
     roster: new Map(),        // senderId → { persona, lastBeat, lastClock, cost }
     rosterChan: null,         // BroadcastChannel for heartbeats + cost
     composeTimer: null,
@@ -1772,9 +2227,17 @@
     apiKey: $("api-key"),
     modelInput: $("model-input"),
     aiStatus: $("ai-status"),
+    aiJudgeStatus: $("ai-judge-status"),
+    aiJudgeStatusText: $("ai-judge-status-text"),
     activationBanner: $("activation-banner"),
     activeStrip: $("active-strip"),
     activePersonaSelect: $("active-persona-select"),
+    activeResolvedPersona: $("active-resolved-persona"),
+    activeShowPrompt: $("active-show-prompt"),
+    activePromptPeek: $("active-prompt-peek"),
+    appPeekPersonaLabel: $("app-peek-persona-label"),
+    appPeekPrompt: $("app-peek-prompt"),
+    appPeekEdit: $("app-peek-edit"),
     activeProvider: $("active-provider"),
     activeModel: $("active-model"),
     activeCost: $("active-cost"),
@@ -1783,6 +2246,28 @@
     editConfig: $("edit-config"),
     bannerDone: $("banner-done"),
     bannerSkip: $("banner-skip"),
+    onboardingPersona: $("onboarding-persona"),
+    onboardingChip: $("onboarding-chip"),
+    onboardingHint: $("onboarding-hint"),
+    onboardingPrompt: $("onboarding-prompt"),
+    onboardingReset: $("onboarding-reset"),
+    topicInput: $("topic-input"),
+    topicHelp: $("topic-help"),
+    consensusText: $("consensus-text"),
+    consensusMeta: $("consensus-meta"),
+    consensusLockPersona: $("consensus-lock-persona"),
+    cgTooltip: $("cg-tooltip"),
+    cgTtPersona: $("cg-tt-persona"),
+    cgTtSender: $("cg-tt-sender"),
+    cgTtClock: $("cg-tt-clock"),
+    cgTtTime: $("cg-tt-time"),
+    cgTtModel: $("cg-tt-model"),
+    cgTtScore: $("cg-tt-score"),
+    cgTtText: $("cg-tt-text"),
+    cgZoomIn: $("cg-zoom-in"),
+    cgZoomOut: $("cg-zoom-out"),
+    cgZoomReset: $("cg-zoom-reset"),
+    constellationWrap: null, // resolved later
     statTokens: $("stat-tokens"),
     statCostTotal: $("stat-cost-total"),
     sentDot: $("sent-dot"),
@@ -1860,6 +2345,11 @@
 
     // Recover stored API config (per-tab via sessionStorage)
     restoreAiConfig();
+    loadTopic();
+    wireTopicInput();
+    wireConstellationInteractions();
+    refreshJudgeStatus();
+    loadConsensus();
 
     // First-poll stats refresh
     refreshStats();
@@ -1889,25 +2379,28 @@
       // scan the whole log (that's the perf cost we're avoiding), so we
       // approximate using the patch-density in the fetched slice — accurate
       // when the log is homogeneous. For an exact spiral, use "Replay session".
-      const fetched = events.length;
-      const patchDensity = fetched > 0 ? patchEvents.length / fetched : 0;
-      const eventsBeforeWindow = Math.max(0, total - fetched);
-      const skipped = Math.round(eventsBeforeWindow * patchDensity);
       app.events = events.slice(-RECONSTRUCT_LIMIT).map(snapshotEvent);
       hideEmpty();
       resetConstellation();
       resetSentiment();
       resetRecentStanzas();
-      app.glyphIndex = skipped;
+      // Don't reset the consensus on boot reconstruct — applyConsensusEdit
+      // inside the loop replays edits chronologically, and the result is
+      // whatever the most recent event wrote. Resetting here would lose
+      // localStorage state when the reconstruct fetch slice is empty.
       for (const ev of recent) {
         applyPatchSilent(ev);
         const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
         const persona = meta.persona;
         const text = (ev.fields && ev.fields[1]) || "";
         const glyph = (ev.fields && ev.fields[2]) || null;
+        const score = decodeScore((ev.fields && ev.fields[3]) || "");
+        const manifesto = (ev.fields && ev.fields[4]) || "";
         const ts = parseInt(meta.ts, 10) || ev.ts_ms || Date.now();
+        annotatePanel(ev.sender || meta.sender || "anon", glyph, "", meta.model || "", score);
+        if (persona) recordStanza(persona, ev.sender || meta.sender, ev.clock, text, ts, score);
         renderGlyph(persona, meta.sender || ev.sender, ev.clock, text, glyph);
-        if (persona) recordStanza(persona, ev.sender || meta.sender, ev.clock, text, ts);
+        if (manifesto && persona) applyConsensusEdit(manifesto, persona, ev.clock);
       }
       for (const ev of events) {
         if ((ev.kind === "MessageReceived" || ev.kind === "MessageSent") && ev.sender) {
@@ -1918,7 +2411,7 @@
       refreshStats();
       renderTimeline();
       const dt = (performance.now() - t0).toFixed(0);
-      console.log(`[commons] reconstruct: rendered last ${recent.length} of ~${total} log events in ${dt}ms (glyphIndex seeded at ${skipped})`);
+      console.log(`[commons] reconstruct: rendered last ${recent.length} of ~${total} log events in ${dt}ms · glyphs placed at their sentiment positions`);
       if (total > fetchN) {
         console.log(`[commons] tip: "Replay session" rebuilds the full ${total}-event spiral from event 0`);
       }
@@ -2003,20 +2496,19 @@
       setBannerCompact(false);
       return;
     }
-    if (app.callInFlight) {
-      // Auto-cadence fired while a manual Speak Now is still running — skip
-      // this cycle so we don't double-broadcast.
-      return;
-    }
+    if (app.callInFlight) return;
     app.callInFlight = true;
     const persona = app.persona;
-    generateLlmStanza(persona).then((reply) => {
+    generateLlmStanza(persona).then(async (reply) => {
       if (!reply || !reply.text) {
         setAiStatus("warn", "AI replied but no usable text — see browser console.");
         return;
       }
-      broadcastStanza(persona, reply.text, reply.glyph);
-      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · last utterance ${new Date().toLocaleTimeString()}.`);
+      const score = await judgeUtterance(reply.text, persona);
+      broadcastStanza(persona, reply.text, reply.glyph, score, reply.manifesto);
+      const scoreLabel = score ? `score (${score.x.toFixed(2)}, ${score.y.toFixed(2)})` : "score: fallback";
+      const manLabel = reply.manifesto ? "manifesto: edited" : "manifesto: untouched";
+      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · ${scoreLabel} · ${manLabel} · ${new Date().toLocaleTimeString()}.`);
     }).catch((e) => {
       console.warn("[commons] LLM call failed:", e.message);
       setAiStatus("warn", "AI call failed: " + (e.message || "").slice(0, 120));
@@ -2029,18 +2521,31 @@
   // gossips to other tabs. The optional glyph (AI-authored SVG path-d) lives
   // in fields[2] of the patch — canonical_dom ignores it but the event log
   // captures it for replay determinism.
-  function broadcastStanza(persona, text, glyph) {
+  function broadcastStanza(persona, text, glyph, score, manifesto) {
     const ts = Date.now();
-    renderLocalStanza(persona, text, glyph);
+    renderLocalStanza(persona, text, glyph, score, manifesto);
     const payload = JSON.stringify({
       kind: "Stanza", persona, text, glyph: glyph || "", ts,
       provider: app.aiProvider || "", model: app.aiModel || "",
+      score: score || null,
+      manifesto: manifesto || null,
     });
     try { window.CognitiveOS._sendDirect(COMMONS_MAILBOX, payload); }
     catch (e) { console.warn("[commons] send failed", e); }
   }
 
-  function renderLocalStanza(persona, text, glyph) {
+  // Serialize the judge score into a compact string for the patch fields.
+  // Empty string when no judge score (replay falls back to persona target).
+  function encodeScore(s) { return s ? `${s.x.toFixed(3)},${s.y.toFixed(3)}` : ""; }
+  function decodeScore(str) {
+    if (!str || typeof str !== "string") return null;
+    const parts = str.split(",");
+    if (parts.length !== 2) return null;
+    const x = parseFloat(parts[0]), y = parseFloat(parts[1]);
+    return (isFinite(x) && isFinite(y)) ? { x, y } : null;
+  }
+
+  function renderLocalStanza(persona, text, glyph, score, manifesto) {
     hideEmpty();
     const clock = window.CognitiveOS.debugSnapshot().clock + 1;
     const ts = Date.now();
@@ -2051,15 +2556,18 @@
     try {
       window.CognitiveOS._applyPatchDirect("manifesto", {
         ctor: "AddPanel",
-        fields: [title, text, glyph || ""],
+        // fields[3] = judge score, fields[4] = manifesto edit
+        fields: [title, text, glyph || "", encodeScore(score), manifesto || ""],
       });
     } catch (e) {
       console.warn("[commons] patch failed", e);
     }
-    annotatePanel(app.senderId, glyph, app.aiProvider, app.aiModel);
+    annotatePanel(app.senderId, glyph, app.aiProvider, app.aiModel, score);
+    // Order: sentiment update BEFORE applyConsensusEdit, so a speech that
+    // earns the lead lets you edit the manifesto on the same turn.
+    recordStanza(persona, app.senderId, clock, text, ts, score);
     renderGlyph(persona, app.senderId, clock, text, glyph);
-    recordStanza(persona, app.senderId, clock, text, ts);
-    // Remember self in the roster — last quote + spoke-ts shown for this tab
+    if (manifesto) applyConsensusEdit(manifesto, persona, clock);
     rosterRemember(app.senderId, {
       persona, provider: app.aiProvider, model: app.aiModel,
       lastQuote: text, lastSpokeTs: ts,
@@ -2079,19 +2587,17 @@
     app.glyphByKey.set(key, payload.glyph || "");
     app.tsByKey.set(key, ts);
     try {
-      // _applyPatchSilent: applies the canonical DOM patch WITHOUT emitting
-      // a new PatchApplied event. The originating tab already logged this
-      // event; without silent-apply every online tab would duplicate it,
-      // and a fresh tab reading the log would see N glyphs per utterance.
+      // _applyPatchSilent: don't re-emit — originator already wrote this
+      // event to the shared IndexedDB log.
       window.CognitiveOS._applyPatchSilent("manifesto", {
         ctor: "AddPanel",
-        fields: [title, payload.text, payload.glyph || ""],
+        fields: [title, payload.text, payload.glyph || "", encodeScore(payload.score), payload.manifesto || ""],
       }, { remoteClock: clock });
     } catch (e) { console.warn("[commons] remote patch failed", e); }
-    annotatePanel(fromSender, payload.glyph, payload.provider, payload.model);
+    annotatePanel(fromSender, payload.glyph, payload.provider, payload.model, payload.score);
+    recordStanza(persona, fromSender, clock, payload.text, ts, payload.score);
+    if (payload.manifesto) applyConsensusEdit(payload.manifesto, persona, clock);
     renderGlyph(persona, fromSender, clock, payload.text, payload.glyph);
-    recordStanza(persona, fromSender, clock, payload.text, ts);
-    // Enrich the roster with the remote tab's last quote + model
     rosterRemember(fromSender, {
       persona, provider: payload.provider, model: payload.model,
       lastQuote: payload.text, lastSpokeTs: ts,
@@ -2102,9 +2608,9 @@
     renderTimeline();
   }
 
-  // Tag the last panel with sender / glyph / provider / model data attrs so
-  // beautifyPanel can show them without re-parsing the title string.
-  function annotatePanel(senderFull, glyph, provider, model) {
+  // Tag the last panel with sender / glyph / provider / model / score data
+  // attrs so beautifyPanel can show them without re-parsing the title.
+  function annotatePanel(senderFull, glyph, provider, model, score) {
     const region = document.querySelector('[data-cog-region="manifesto"]');
     if (!region) return;
     const panels = region.querySelectorAll(".cog-panel");
@@ -2114,6 +2620,9 @@
     if (glyph)    last.dataset.glyph = glyph;
     if (provider) last.dataset.provider = provider;
     if (model)    last.dataset.model = model;
+    if (score && isFinite(score.x) && isFinite(score.y)) {
+      last.dataset.score = `${score.x.toFixed(2)},${score.y.toFixed(2)}`;
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -2131,26 +2640,151 @@
       els.cgLabels = document.getElementById("cg-labels");
     }
   }
-  function phyllotaxis(i) {
-    // Vogel's model with the golden angle. Centered on (600, 250) which is
-    // the SVG center (viewBox = 1200x500). Scale tuned so ~200 glyphs fit.
-    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-    const angle = i * GOLDEN;
-    const radius = 14 * Math.sqrt(i + 1);
-    const cx = 600 + radius * Math.cos(angle);
-    const cy = 250 + radius * Math.sin(angle);
-    return { x: cx, y: cy };
+
+  // -------------------------------------------------------------------------
+  // CONSTELLATION INTERACTIONS — hover tooltip + pan + wheel zoom.
+  // Called once from boot. Uses event delegation on the constellation
+  // SVG so newly-rendered glyphs are picked up automatically.
+  // -------------------------------------------------------------------------
+  function wireConstellationInteractions() {
+    const svg = els.constellation;
+    const wrap = svg && svg.parentElement;
+    els.constellationWrap = wrap;
+    if (!svg || !wrap) return;
+
+    // ---- Hover tooltip (delegated mouseover on the SVG) ----
+    function onEnter(target, evt) {
+      // Walk up to the .cg-glyph wrapper
+      let g = target;
+      while (g && g !== svg && !(g.classList && g.classList.contains("cg-glyph"))) {
+        g = g.parentNode;
+      }
+      if (!g || !g.classList || !g.classList.contains("cg-glyph")) return;
+      const d = g.dataset;
+      const persona = d.persona || "—";
+      els.cgTooltip.setAttribute("data-p", persona);
+      els.cgTtPersona.setAttribute("data-p", persona);
+      els.cgTtPersona.textContent = persona;
+      els.cgTtSender.textContent = shortSender(d.sender || "");
+      els.cgTtClock.textContent = d.clock || "—";
+      const ts = parseInt(d.ts, 10);
+      els.cgTtTime.textContent = ts ? relTime(ts) + " · " + new Date(ts).toLocaleTimeString() : "—";
+      els.cgTtModel.textContent = d.model ? `via ${d.provider || ""}${d.provider ? "/" : ""}${d.model}` : "";
+      els.cgTtScore.textContent = d.score ? `judge score: (${d.score})` : "";
+      els.cgTtText.textContent = d.text || "—";
+      positionTooltip(evt);
+      els.cgTooltip.classList.add("show");
+      els.cgTooltip.setAttribute("aria-hidden", "false");
+    }
+    function onLeave() {
+      els.cgTooltip.classList.remove("show");
+      els.cgTooltip.setAttribute("aria-hidden", "true");
+    }
+    function positionTooltip(evt) {
+      const wrapRect = wrap.getBoundingClientRect();
+      const tipRect = els.cgTooltip.getBoundingClientRect();
+      const margin = 14;
+      let x = evt.clientX - wrapRect.left + margin;
+      let y = evt.clientY - wrapRect.top + margin;
+      // Flip when overflowing the wrap
+      if (x + tipRect.width > wrapRect.width - 4) x = evt.clientX - wrapRect.left - tipRect.width - margin;
+      if (y + tipRect.height > wrapRect.height - 4) y = evt.clientY - wrapRect.top - tipRect.height - margin;
+      els.cgTooltip.style.left = Math.max(4, x) + "px";
+      els.cgTooltip.style.top = Math.max(4, y) + "px";
+    }
+    svg.addEventListener("mouseover", (e) => onEnter(e.target, e));
+    svg.addEventListener("mousemove", (e) => {
+      if (els.cgTooltip.classList.contains("show")) positionTooltip(e);
+    });
+    svg.addEventListener("mouseout", (e) => {
+      // Only hide when leaving a glyph (not when entering a child of the same glyph)
+      const to = e.relatedTarget;
+      let g = e.target;
+      while (g && g !== svg && !(g.classList && g.classList.contains("cg-glyph"))) g = g.parentNode;
+      if (g && to && g.contains(to)) return;
+      onLeave();
+    });
+
+    // ---- Pan + wheel zoom ----
+    const DEFAULT_VB = { x: 0, y: 0, w: 1200, h: 500 };
+    const view = { ...DEFAULT_VB };
+    function applyVB() {
+      svg.setAttribute("viewBox", `${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`);
+    }
+    function svgPointFromMouse(evt) {
+      const rect = svg.getBoundingClientRect();
+      // Map screen → SVG-user-units
+      const sx = (evt.clientX - rect.left) / rect.width;
+      const sy = (evt.clientY - rect.top)  / rect.height;
+      return { x: view.x + sx * view.w, y: view.y + sy * view.h };
+    }
+    function zoomAt(pt, factor) {
+      const minW = 80, maxW = 2400;
+      const newW = Math.max(minW, Math.min(maxW, view.w * factor));
+      if (newW === view.w) return;
+      const k = newW / view.w;
+      view.x = pt.x - (pt.x - view.x) * k;
+      view.y = pt.y - (pt.y - view.y) * k;
+      view.w = newW;
+      view.h = view.h * k;
+      applyVB();
+    }
+    svg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.18 : 0.85;
+      zoomAt(svgPointFromMouse(e), factor);
+    }, { passive: false });
+
+    let dragStart = null;
+    svg.addEventListener("mousedown", (e) => {
+      // Don't start a drag from a glyph (so click-through to hover still works)
+      let g = e.target;
+      while (g && g !== svg && !(g.classList && g.classList.contains("cg-glyph"))) g = g.parentNode;
+      if (g && g.classList && g.classList.contains("cg-glyph")) return;
+      dragStart = { x: e.clientX, y: e.clientY, vbX: view.x, vbY: view.y };
+      svg.classList.add("dragging");
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!dragStart) return;
+      const rect = svg.getBoundingClientRect();
+      const dx = (e.clientX - dragStart.x) * (view.w / rect.width);
+      const dy = (e.clientY - dragStart.y) * (view.h / rect.height);
+      view.x = dragStart.vbX - dx;
+      view.y = dragStart.vbY - dy;
+      applyVB();
+    });
+    window.addEventListener("mouseup", () => {
+      if (dragStart) svg.classList.remove("dragging");
+      dragStart = null;
+    });
+
+    // ---- Zoom buttons ----
+    function center() { return { x: view.x + view.w / 2, y: view.y + view.h / 2 }; }
+    if (els.cgZoomIn)    els.cgZoomIn.addEventListener("click",    () => zoomAt(center(), 0.75));
+    if (els.cgZoomOut)   els.cgZoomOut.addEventListener("click",   () => zoomAt(center(), 1.33));
+    if (els.cgZoomReset) els.cgZoomReset.addEventListener("click", () => {
+      Object.assign(view, DEFAULT_VB); applyVB();
+    });
   }
+  // (phyllotaxis function removed — glyph positions are now driven by
+  // sentToCx/Cy(app.sentiment), so each glyph lands where the commons dot
+  // ended up after its utterance applied.)
 
   function renderGlyph(persona, sender, clock, text, customPath) {
     ensureCgRefs();
     if (!els.cgGlyphs) return;
-    const idx = app.glyphIndex;
+    // Position: where the commons sentiment dot landed AFTER this utterance
+    // was applied. Caller must update app.sentiment (via recordStanza)
+    // BEFORE invoking renderGlyph. Each glyph thus marks the (x, y) impact
+    // of its utterance on the commons — the constellation becomes a spatial
+    // record of what was said, not a temporal index of when.
     app.glyphIndex += 1;
-    const { x, y } = phyllotaxis(idx);
-    const size = 11 + Math.min(8, idx * 0.04);
+    const x = sentToCx(app.sentiment.x);
+    const y = sentToCy(app.sentiment.y);
+    const size = 13;
 
-    // Edge to previous glyph — visualizes the order of utterance.
+    // Edge to previous glyph — traces the conversation's path through
+    // sentiment space, coloured by the speaker who just made the move.
     if (app.prevGlyph) {
       const edge = document.createElementNS("http://www.w3.org/2000/svg", "line");
       edge.setAttribute("x1", app.prevGlyph.x);
@@ -2158,6 +2792,7 @@
       edge.setAttribute("x2", x);
       edge.setAttribute("y2", y);
       edge.setAttribute("class", "cg-edge");
+      edge.setAttribute("stroke", personaColor(persona));
       els.cgEdges.appendChild(edge);
     }
     app.prevGlyph = { x, y };
@@ -2169,7 +2804,27 @@
     g.setAttribute("transform", `translate(${x.toFixed(2)},${y.toFixed(2)})`);
     g.style.color = personaColor(persona);
 
-    // Hover tooltip — full stanza text revealed on hover
+    // Stash full event data on the <g> so the floating tooltip can read it
+    // on mouseover via event delegation (set up once in wireGlyphTooltip).
+    g.dataset.persona = persona || "";
+    g.dataset.sender = String(sender || "");
+    g.dataset.clock = String(clock || "");
+    g.dataset.ts = String(app.tsByKey.get(`${sender}|${clock}`) || Date.now());
+    g.dataset.text = text || "";
+    // Score: look up from app.recentStanzas (we just pushed it) so the
+    // tooltip can show the actual judge verdict.
+    const lastRecord = app.recentStanzas[app.recentStanzas.length - 1];
+    if (lastRecord && lastRecord.clock === clock && lastRecord.sender === sender && lastRecord.score) {
+      g.dataset.score = `${lastRecord.score.x.toFixed(2)},${lastRecord.score.y.toFixed(2)}`;
+    }
+    // model + provider from the panel annotation we made earlier — if
+    // available, look them up via the chronicle panel that just got created
+    const lastPanel = document.querySelector('[data-cog-region="manifesto"] .cog-panel:first-child');
+    if (lastPanel) {
+      if (lastPanel.dataset.model) g.dataset.model = lastPanel.dataset.model;
+      if (lastPanel.dataset.provider) g.dataset.provider = lastPanel.dataset.provider;
+    }
+    // Keep the native SVG title as a fallback for accessibility tools
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
     title.textContent = `${persona} · ${shortSender(sender)} · clk ${clock}\n${text || ""}`;
     g.appendChild(title);
@@ -2199,37 +2854,53 @@
     const ns = "http://www.w3.org/2000/svg";
     const color = personaColor(persona);
 
-    // Outer ring — radius varies +/-15% by seed for organic feel
+    // Outer ring — faint halo at persona color
     const ringSize = size + 3 + ((seed % 7) - 3) * 0.4;
     const ring = document.createElementNS(ns, "circle");
     ring.setAttribute("r", ringSize.toFixed(2));
     ring.setAttribute("fill", "none");
     ring.setAttribute("stroke", color);
-    ring.setAttribute("stroke-width", "0.7");
-    ring.setAttribute("opacity", "0.4");
+    ring.setAttribute("stroke-width", "0.9");
+    ring.setAttribute("opacity", "0.55");
     g.appendChild(ring);
 
-    // Core polygon — 3-12 sides, rotated by seed
+    // BACKDROP circle — solid persona-color disc that's GUARANTEED to fully
+    // enclose the inner sigil regardless of the polygon's side-count. Without
+    // it, a 3- or 4-sided polygon leaves wedges of pale paper between the
+    // polygon edge and the inner-sigil endpoints, so a white sigil ends up
+    // drawn partly on bare paper ("white on pale" = invisible).
+    const backdrop = document.createElementNS(ns, "circle");
+    backdrop.setAttribute("r", String(size * 0.92));
+    backdrop.setAttribute("fill", color);
+    backdrop.setAttribute("opacity", "0.94");
+    g.appendChild(backdrop);
+
+    // Decorative polygon — drawn AS AN OUTLINE on top of the backdrop so
+    // the per-utterance variety (3-12 sides, rotation) still reads as a
+    // shape, but no longer needs to fully cover the sigil.
     const N = 3 + ((seed >> 1) % 10);
     const rotation = ((seed >> 5) % 360) * Math.PI / 180;
-    const coreSize = size * (0.78 + ((seed >> 9) % 5) * 0.04);
+    const coreSize = size * (0.85 + ((seed >> 9) % 5) * 0.04);
     const core = document.createElementNS(ns, "path");
     core.setAttribute("class", "core");
     core.setAttribute("d", polygonPath(N, coreSize, rotation));
-    core.setAttribute("fill", color);
-    core.setAttribute("opacity", (0.78 + ((seed >> 13) % 5) * 0.04).toFixed(2));
+    core.setAttribute("fill", "none");
+    core.setAttribute("stroke", "#fdfaf3");
+    core.setAttribute("stroke-width", "0.7");
+    core.setAttribute("opacity", "0.45");
     g.appendChild(core);
 
-    // Inner sigil — AI-authored path-d wins; else procedural ornament
+    // Inner sigil — AI-authored path-d wins; else procedural ornament.
+    // Stays paper-light because it's now always on a solid persona backdrop.
     const inner = document.createElementNS(ns, "path");
-    const ornamentD = aiPath || proceduralOrnament(seed, size * 0.75);
+    const ornamentD = aiPath || proceduralOrnament(seed, size * 0.7);
     inner.setAttribute("d", ornamentD);
     inner.setAttribute("fill", "none");
     inner.setAttribute("stroke", "#fdfaf3");
-    inner.setAttribute("stroke-width", "1.1");
+    inner.setAttribute("stroke-width", "1.4");
     inner.setAttribute("stroke-linecap", "round");
     inner.setAttribute("stroke-linejoin", "round");
-    inner.setAttribute("opacity", aiPath ? "0.95" : "0.85");
+    inner.setAttribute("opacity", "0.95");
     g.appendChild(inner);
 
     // AI badge — a tiny dot at the top-right of any AI-authored glyph
@@ -2324,6 +2995,17 @@
       lastIdx = nextIdx;
     }
     return d;
+  }
+
+  // sanitizeManifesto — bound the size + strip obvious garbage. The
+  // 100-200 word target gives a 600-1500 char range; we accept a bit
+  // more for slack. Truncation just clips so we never store unbounded.
+  function sanitizeManifesto(s) {
+    if (!s || typeof s !== "string") return null;
+    let t = s.trim();
+    if (t.length < 40) return null;
+    if (t.length > 2400) t = t.slice(0, 2400) + "…";
+    return t;
   }
 
   // sanitizeGlyphPath — only permit M/L/A/Q/Z, numbers, separators.
@@ -2432,12 +3114,16 @@
       const m = ev.data;
       if (!m || m.from === app.senderId) return;
 
-      // Cross-tab control messages — Reset + Replay sync the whole society
+      // Cross-tab control messages — Reset + Replay + Topic sync
       if (m.kind === "reset") {
         applyRemoteReset(); return;
       }
       if (m.kind === "replay-trigger") {
         doReplay({ silentOrigin: true }).catch((e) => console.warn("[commons] remote replay failed", e));
+        return;
+      }
+      if (m.kind === "topic") {
+        applyRemoteTopic(m.topic);
         return;
       }
 
@@ -2476,12 +3162,168 @@
     app.roster.set(senderId, info);
   }
 
+  // -------------------------------------------------------------------------
+  // TOPIC OF DEBATE — shared per origin via localStorage + cross-tab gossip.
+  // Injected into every LLM author + judge call so all citizens know what
+  // they're arguing about. Edits propagate to other tabs within ~6s via
+  // the roster channel (or instantly via the topic-change broadcast below).
+  // -------------------------------------------------------------------------
+  function loadTopic() {
+    const stored = localStorage.getItem("commons_topic");
+    app.topic = (stored && stored.trim()) || DEFAULT_TOPIC;
+    if (els.topicInput) els.topicInput.value = app.topic;
+  }
+  function setTopic(value, opts) {
+    const v = String(value || "").trim();
+    if (!v || v === app.topic) return;
+    app.topic = v;
+    localStorage.setItem("commons_topic", v);
+    // Topic changed → stale consensus is now off-topic. Reset locally and
+    // let the next utterance start a fresh draft.
+    resetConsensus();
+    if (!opts || !opts.silentOrigin) {
+      if (app.rosterChan) {
+        try { app.rosterChan.postMessage({ from: app.senderId, kind: "topic", topic: v, ts: Date.now() }); }
+        catch (_) {}
+      }
+      flashTopicHelp("Saved · broadcasting to other tabs… (consensus reset)");
+    }
+  }
+  function applyRemoteTopic(t) {
+    if (!t || typeof t !== "string" || t === app.topic) return;
+    app.topic = t;
+    if (els.topicInput && document.activeElement !== els.topicInput) {
+      els.topicInput.value = t;
+    }
+    localStorage.setItem("commons_topic", t);
+    resetConsensus();
+    flashTopicHelp("Topic updated by another tab. Consensus reset.");
+  }
+  function flashTopicHelp(msg) {
+    if (!els.topicHelp) return;
+    const prev = els.topicHelp.textContent;
+    els.topicHelp.textContent = msg;
+    els.topicHelp.classList.add("flash");
+    clearTimeout(els.topicHelp._t);
+    els.topicHelp._t = setTimeout(() => {
+      els.topicHelp.textContent = "Saved per origin — all open tabs see the change.";
+      els.topicHelp.classList.remove("flash");
+    }, 2500);
+  }
+  function wireTopicInput() {
+    if (!els.topicInput) return;
+    let saveTimer;
+    els.topicInput.addEventListener("input", () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => setTopic(els.topicInput.value), 700);
+    });
+    els.topicInput.addEventListener("blur", () => {
+      clearTimeout(saveTimer);
+      setTopic(els.topicInput.value);
+    });
+    els.topicInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        clearTimeout(saveTimer);
+        setTopic(els.topicInput.value);
+        els.topicInput.blur();
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // CONSENSUS — the commons' rolling working statement.
+  //
+  // Each citizen, in the SAME JSON reply that produces their stanza, also
+  // proposes a 100-200 word edit to a shared statement on the topic. The
+  // most recent edit wins (the next speaker edits theirs). This keeps the
+  // statement evolving without scheduling extra LLM calls. Persisted per
+  // origin in localStorage; rides cross-tab in the Stanza payload itself.
+  // -------------------------------------------------------------------------
+  const DEFAULT_CONSENSUS_TEXT = "Once a citizen speaks, this section will hold a 100-200 word collective statement on the topic — each new utterance proposes an edit, the most recent draft wins.";
+
+  function loadConsensus() {
+    try {
+      const raw = localStorage.getItem("commons_consensus");
+      if (raw) app.consensus = JSON.parse(raw);
+    } catch (_) {}
+    if (!app.consensus) app.consensus = { text: "", editor: null, clock: 0, ts: 0 };
+    renderConsensus();
+  }
+  function applyConsensusEdit(text, editor, clock) {
+    if (!text || typeof text !== "string") return;
+    const trimmed = text.trim();
+    if (trimmed.length < 40) return;
+    // EDIT LOCK: only the persona currently leading the commons (closest
+    // to the sentiment dot) is permitted to replace the canonical draft.
+    // Others can still PROPOSE in their JSON; we silently discard the
+    // proposal here. This stops the doc from being clobbered every turn
+    // and gives "leader" a meaningful prize: authorial control until
+    // the next speaker dethrones you.
+    const leader = currentLeader();
+    if (!leader.persona || editor !== leader.persona) {
+      console.log(`[commons] manifesto edit from ${editor} rejected — leader is ${leader.persona} (gap ${leader.gap.toFixed(2)})`);
+      // Refresh the meta line so the lock-holder display stays accurate
+      renderConsensus();
+      return;
+    }
+    app.consensus = { text: trimmed, editor: editor || null, clock: clock || 0, ts: Date.now() };
+    try { localStorage.setItem("commons_consensus", JSON.stringify(app.consensus)); } catch (_) {}
+    renderConsensus({ flash: true });
+  }
+  function resetConsensus() {
+    app.consensus = { text: "", editor: null, clock: 0, ts: 0 };
+    try { localStorage.removeItem("commons_consensus"); } catch (_) {}
+    renderConsensus();
+  }
+  function renderConsensus(opts) {
+    if (!els.consensusText) return;
+    const t = (app.consensus && app.consensus.text) || "";
+    // When text is empty, show the default explainer (which describes
+    // the edit-lock rule). When we have a draft, show the draft as
+    // straight prose without the rule-text.
+    if (t) {
+      els.consensusText.innerHTML = "";
+      els.consensusText.textContent = t;
+    } else {
+      els.consensusText.innerHTML = DEFAULT_CONSENSUS_HTML;
+    }
+    if (els.consensusMeta) {
+      if (app.consensus && app.consensus.editor) {
+        const wc = t.split(/\s+/).filter(Boolean).length;
+        els.consensusMeta.setAttribute("data-p", app.consensus.editor);
+        els.consensusMeta.textContent = `last edited by ${app.consensus.editor} at clock ${app.consensus.clock} · ${wc} words`;
+      } else {
+        els.consensusMeta.removeAttribute("data-p");
+        els.consensusMeta.textContent = "no edits yet — waiting for the leader to draft";
+      }
+    }
+    // Update the edit-lock holder display from current sentiment
+    if (els.consensusLockPersona) {
+      const leader = currentLeader();
+      if (leader.persona) {
+        els.consensusLockPersona.setAttribute("data-p", leader.persona);
+        els.consensusLockPersona.textContent = leader.persona;
+      } else {
+        els.consensusLockPersona.removeAttribute("data-p");
+        els.consensusLockPersona.textContent = "—";
+      }
+    }
+    if (opts && opts.flash) {
+      els.consensusText.classList.remove("flash");
+      void els.consensusText.offsetWidth;
+      els.consensusText.classList.add("flash");
+    }
+  }
+  // HTML for the default empty-state explainer (uses <strong> for emphasis)
+  const DEFAULT_CONSENSUS_HTML = `Once a citizen speaks, this section will hold a 100-200 word collective statement on the topic. <strong>The rule of the commons:</strong> only the persona currently leading the sentiment dot (closest to its corner) is allowed to replace the draft. Other citizens must first shift sentiment toward their corner to earn the pen — so the doc evolves through actual rhetorical wins, not just by speaking last.`;
+
   function applyRemoteReset() {
     // Another tab fired "Reset commons" — mirror the wipe here.
     window.CognitiveOS._resetForTesting();
     resetConstellation();
     resetSentiment();
     resetRecentStanzas();
+    resetConsensus();
     app.events = [];
     refreshStats(); renderTimeline();
     showEmpty();
@@ -2627,13 +3469,13 @@
         sessionStorage.setItem("commons_persona", v);
         app.persona = v;
       }
-      // Keep both selects in sync (one in banner, one in active strip)
       if (els.personaSelect && els.personaSelect.value !== v) els.personaSelect.value = v;
       if (els.activePersonaSelect && els.activePersonaSelect.value !== v) els.activePersonaSelect.value = v;
       addToRoster(app.senderId, app.persona, window.CognitiveOS.debugSnapshot().clock);
       refreshRoster();
       markActivePromptBlock();
       refreshActiveStripInfo();
+      refreshOnboardingPanel();  // re-fill the activation-banner prompt with the new persona's text
     };
     els.personaSelect.addEventListener("change", (e) => onPersonaChange(e.target.value));
     if (els.activePersonaSelect) {
@@ -2647,7 +3489,34 @@
     els.editConfig.addEventListener("click", () => {
       app.aiTested = false; // re-test required after edits
       setBannerCompact(false);
+      refreshOnboardingPanel();
     });
+
+    // "Show prompt" — toggles the inline prompt-peek strip
+    if (els.activeShowPrompt) {
+      els.activeShowPrompt.addEventListener("click", () => {
+        const open = els.activePromptPeek.style.display !== "none";
+        if (open) {
+          els.activePromptPeek.style.display = "none";
+          els.activeShowPrompt.textContent = "Show prompt";
+        } else {
+          refreshPromptPeek();
+          els.activePromptPeek.style.display = "block";
+          els.activeShowPrompt.textContent = "Hide prompt";
+        }
+      });
+    }
+    if (els.appPeekEdit) {
+      els.appPeekEdit.addEventListener("click", (e) => {
+        e.preventDefault();
+        const block = document.querySelector(`.prompt-block[data-persona="${app.persona}"]`);
+        if (block) {
+          block.scrollIntoView({ behavior: "smooth", block: "center" });
+          const ta = block.querySelector("textarea");
+          if (ta) setTimeout(() => ta.focus(), 400);
+        }
+      });
+    }
     els.bannerDone.addEventListener("click", () => runTestAndActivate());
     els.bannerSkip.addEventListener("click", () => {
       if (!app.aiOn || !app.persona) {
@@ -2673,12 +3542,14 @@
 
     buildPromptEditor();
     markActivePromptBlock();
+    wireOnboardingPanel();
+    refreshOnboardingPanel();
 
     els.composeNow.addEventListener("click", () => {
       console.log("[commons] Speak now — aiOn:", app.aiOn, "provider:", app.aiProvider, "model:", app.aiModel, "persona:", app.persona);
       runSpeakNow();
     });
-    els.invite.addEventListener("click", () => window.open(location.href, "_blank", "noopener"));
+    // els.invite is now an <a href> — browser handles cmd-click / open in new tab natively.
 
     els.btnReplay.addEventListener("click", () => doReplay().catch((e) => alert("Replay failed: " + e.message)));
     els.replayStop.addEventListener("click", () => stopReplay());
@@ -2691,6 +3562,50 @@
       ev.target.value = "";
     });
     els.btnClear.addEventListener("click", clearCommons);
+  }
+
+  // Inline onboarding prompt — shows the active persona's system prompt
+  // in the activation banner so users see who they'll be and can edit
+  // before clicking Activate. Mirrors edits into sessionStorage so the
+  // work-area textarea picks up the same value.
+  function wireOnboardingPanel() {
+    if (!els.onboardingPrompt) return;
+    els.onboardingPrompt.addEventListener("input", () => {
+      if (!app.persona) return;
+      const v = els.onboardingPrompt.value;
+      persistPrompt(app.persona, v);
+      // Mirror into the corresponding work-area textarea so both views agree
+      const block = document.querySelector(`.prompt-block[data-persona="${app.persona}"]`);
+      if (block) {
+        const ta = block.querySelector("textarea");
+        if (ta && ta.value !== v) ta.value = v;
+        block.classList.toggle("modified", v !== DEFAULT_LLM_SYSTEM[app.persona]);
+      }
+    });
+    els.onboardingReset.addEventListener("click", () => {
+      if (!app.persona) return;
+      persistPrompt(app.persona, "");
+      els.onboardingPrompt.value = DEFAULT_LLM_SYSTEM[app.persona];
+      const block = document.querySelector(`.prompt-block[data-persona="${app.persona}"]`);
+      if (block) {
+        const ta = block.querySelector("textarea");
+        if (ta) ta.value = DEFAULT_LLM_SYSTEM[app.persona];
+        block.classList.remove("modified");
+      }
+    });
+  }
+  function refreshOnboardingPanel() {
+    if (!els.onboardingPersona || !app.persona) return;
+    els.onboardingPersona.setAttribute("data-p", app.persona);
+    els.onboardingChip.setAttribute("data-p", app.persona);
+    els.onboardingChip.textContent = app.persona;
+    const stored = sessionStorage.getItem("commons_persona");
+    if (els.onboardingHint) {
+      els.onboardingHint.textContent = stored
+        ? "— you chose this above. Edit the prompt below if you'd like."
+        : "— auto-picked from your tab's ID. Override with the Persona dropdown above, or edit the prompt below.";
+    }
+    els.onboardingPrompt.value = activePrompt(app.persona);
   }
 
   // Highlight the prompt block for the current tab's persona so users see
@@ -2709,6 +3624,15 @@
   function setAiStatus(state, msg) {
     els.aiStatus.className = "activate-status " + state;
     els.aiStatus.textContent = msg;
+    refreshJudgeStatus();
+  }
+  function refreshJudgeStatus() {
+    if (!els.aiJudgeStatusText) return;
+    const cfg = getJudgeConfig();
+    els.aiJudgeStatusText.textContent = judgeStatusText();
+    if (els.aiJudgeStatus) {
+      els.aiJudgeStatus.classList.toggle("free", !!(cfg && cfg.free));
+    }
   }
 
   // ===========================================================================
@@ -2747,6 +3671,7 @@
     resetConstellation();
     resetSentiment();
     resetRecentStanzas();
+    resetConsensus();
     const replay = await window.CognitiveReplay.fromEventLog(log);
     let count = 0;
     for (const ev of replay.events) {
@@ -2757,10 +3682,17 @@
           fields: ev.fields || [],
         }, { remoteClock: ev.clock });
         const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
-        renderGlyph(meta.persona || deterministicPersona(ev.sender || "anon"),
-                    ev.sender || meta.sender || "anon",
-                    ev.clock, (ev.fields && ev.fields[1]) || "",
-                    (ev.fields && ev.fields[2]) || null);
+        const replayPersona = meta.persona || deterministicPersona(ev.sender || "anon");
+        const replaySender = ev.sender || meta.sender || "anon";
+        const replayText = (ev.fields && ev.fields[1]) || "";
+        const replayGlyph = (ev.fields && ev.fields[2]) || null;
+        const replayScore = decodeScore((ev.fields && ev.fields[3]) || "");
+        const replayManifesto = (ev.fields && ev.fields[4]) || "";
+        const replayTs = parseInt(meta.ts, 10) || ev.ts_ms || Date.now();
+        annotatePanel(replaySender, replayGlyph, "", meta.model || "", replayScore);
+        recordStanza(replayPersona, replaySender, ev.clock, replayText, replayTs, replayScore);
+        renderGlyph(replayPersona, replaySender, ev.clock, replayText, replayGlyph);
+        if (replayManifesto) applyConsensusEdit(replayManifesto, replayPersona, ev.clock);
         count++;
         if (count % 3 === 0) await sleep(120);
       }
@@ -2803,6 +3735,7 @@
     resetConstellation();
     resetSentiment();
     resetRecentStanzas();
+    resetConsensus();
     const replay = await window.CognitiveReplay.fromJSONLBlob(file);
     for (const ev of replay.events) {
       if (ev.kind === "PatchApplied" && ev.region === "manifesto") {
@@ -2812,10 +3745,15 @@
           fields: ev.fields || [],
         }, { remoteClock: ev.clock });
         const meta = parseStanzaTitle(ev.fields && ev.fields[0]);
-        renderGlyph(meta.persona || deterministicPersona(ev.sender || "anon"),
-                    ev.sender || "anon", ev.clock,
-                    (ev.fields && ev.fields[1]) || "",
-                    (ev.fields && ev.fields[2]) || null);
+        const impPersona = meta.persona || deterministicPersona(ev.sender || "anon");
+        const impText = (ev.fields && ev.fields[1]) || "";
+        const impGlyph = (ev.fields && ev.fields[2]) || null;
+        const impScore = decodeScore((ev.fields && ev.fields[3]) || "");
+        const impManifesto = (ev.fields && ev.fields[4]) || "";
+        const impTs = parseInt(meta.ts, 10) || ev.ts_ms || Date.now();
+        recordStanza(impPersona, ev.sender || "anon", ev.clock, impText, impTs, impScore);
+        renderGlyph(impPersona, ev.sender || "anon", ev.clock, impText, impGlyph);
+        if (impManifesto) applyConsensusEdit(impManifesto, impPersona, ev.clock);
       }
     }
     app.events = replay.events.map(snapshotEvent);
@@ -2830,6 +3768,7 @@
     resetConstellation();
     resetSentiment();
     resetRecentStanzas();
+    resetConsensus();
     app.cost = { input: 0, output: 0, dollars: 0, calls: 0 };
     app.events = [];
     refreshStats(); renderTimeline();
@@ -2993,12 +3932,22 @@
                               "argue forcefully to drag";
 
     const recent = app.recentStanzas.slice(-HISTORY_WINDOW);
+    const topicQuoted = app.topic ? `"${app.topic}"` : "";
+    const topicBlock = app.topic
+      ? `========================================\nTOPIC OF DEBATE: ${topicQuoted}\n========================================\nEverything below is in service of arguing THIS topic. Do NOT drift into\ngeneric philosophy about your persona — every sentence must visibly engage\nwith the topic above.\n`
+      : "";
+
     let dialogue = "";
     if (recent.length > 0) {
-      dialogue = "THE CONVERSATION SO FAR (oldest first; you will speak NEXT):\n"
+      const dialogueHeader = app.topic
+        ? `THE DEBATE ON ${topicQuoted} SO FAR (oldest first; you will speak NEXT):`
+        : "THE CONVERSATION SO FAR (oldest first; you will speak NEXT):";
+      dialogue = dialogueHeader + "\n"
         + recent.map((s, i) => `${i + 1}. ${s.persona} said: "${s.text}"`).join("\n");
     } else {
-      dialogue = "You are the first to speak in this commons. Set the opening tone for your persona.";
+      dialogue = app.topic
+        ? `You are the first to speak. Open the debate on ${topicQuoted} from your persona's angle. Make a concrete, named claim about the topic — not a generic statement of your worldview.`
+        : "You are the first to speak in this commons. Set the opening tone for your persona.";
     }
 
     // Identify the last speaker so the prompt can point the AI at them
@@ -3013,8 +3962,25 @@
       ? `You (${persona}) have already spoken ${yourPriorTurns} time(s) in this window. Do NOT repeat phrasing from your earlier turns.`
       : `This is your first turn as ${persona}.`;
 
+    const priorManifesto = (app.consensus && app.consensus.text) || "";
+    const leader = currentLeader();
+    // After this utterance, the sentiment dot will shift toward the
+    // persona's target (or judge score). The displayed "leader" reflects
+    // CURRENT sentiment; whether THIS turn earns the lead depends on
+    // whether the speech is forceful enough to drag the dot closer to
+    // the speaker's corner than to anyone else's.
+    const isLeading = leader.persona === persona;
+    const lockBlock = isLeading
+      ? `\nEDIT LOCK STATUS: ✓ You ARE currently leading the commons (closest to the sentiment dot, gap ${leader.gap.toFixed(2)}). YOUR manifesto edit WILL replace the working statement.`
+      : `\nEDIT LOCK STATUS: ✗ You are NOT leading — ${leader.persona} is (gap ${leader.gap.toFixed(2)}). The current working statement is locked to them. Any "manifesto" field you produce will be DISCARDED. You can either omit it (saves tokens) or write a draft anyway — it will only land if your speech later dethrones the leader. Focus your stanza on shifting sentiment toward your corner.`;
+    const manifestoBlock = priorManifesto
+      ? `\nTHE COMMONS' CURRENT WORKING STATEMENT (locked to the leader):\n"""\n${priorManifesto}\n"""\nLast edited by ${(app.consensus && app.consensus.editor) || "no one"}.${lockBlock}`
+      : `\nTHE COMMONS' CURRENT WORKING STATEMENT: (empty — the first leader gets to draft it)${lockBlock}`;
+
     return [
+      topicBlock,
       dialogue,
+      manifestoBlock,
       "",
       `YOUR ROLE: ${persona}.`,
       "AXIS DEFINITIONS:",
@@ -3030,25 +3996,44 @@
       "",
       "CONSTRAINTS:",
       "- Reply with ONE declarative sentence, 12-26 words.",
+      app.topic ? `- STAY ON THE TOPIC: ${topicQuoted}. Every reply MUST name a concrete aspect of THIS topic — not a generic statement about consciousness, agency, or your worldview.` : "",
+      app.topic ? "- If the recent conversation has drifted (citizens stuck on abstract bickering), explicitly pull it back to the topic." : "",
       "- ADDRESS the previous speakers BY NAME at least once when refuting (\"Skeptic, your...\", \"Synthesizer claims X — but...\", \"As Visionary just said...\"). Citizens know each other.",
       "- ACTIVELY REFUTE the strongest point against you if there is one; if you partially agree, name what you concede and what you reject.",
-      "- Avoid fence-sitting and aphorisms. Make a specific move: refute / extend / pivot / yield-and-redirect.",
+      "- Avoid fence-sitting and aphorisms. Make a specific move on the TOPIC: refute / extend / pivot / yield-and-redirect.",
       "- Do NOT quote prior sentences verbatim. Do NOT repeat their key phrases.",
       "- Do NOT start with your own persona name (\"As Visionary...\") or quotation marks.",
       "- Use fresh vocabulary — surprise your interlocutors.",
       "",
       "Reply ONLY with strict JSON, no markdown fences, no commentary:",
-      '{"text": "<your single-sentence response>",',
-      ' "glyph": "<SVG path-d, an abstract sigil that visualises your point>"}',
+      '{',
+      '  "text": "<your single-sentence response, 12-26 words>",',
+      '  "glyph": "<SVG path-d, an abstract sigil that visualises your point>",',
+      '  "manifesto": "<ONLY IF you are leading (see EDIT LOCK STATUS above): your edit of the commons\' working statement; 100-200 words, anchored to the topic; build on the prior draft incrementally. If you are NOT leading, set this to empty string — your edit will be discarded.>"',
+      '}',
       "Path-d rules: coordinates in range -12 to 12; use only M L A Q Z commands;",
       "no fill (will render stroked); ≤ 12 commands; no nested groups; example:",
       '"M -8 -8 L 8 8 M -8 8 L 8 -8 M 0 -10 A 10 10 0 0 1 0 10".',
+      "Manifesto rules: ~150 words; format-agnostic (answer/manifesto/position/synthesis as the topic warrants); MUST address the topic specifically; build on the prior draft incrementally rather than rewriting from scratch.",
     ].filter(Boolean).join("\n");
   }
 
   function promptStorageKey(persona) { return "commons_prompt_" + persona; }
   function activePrompt(persona) {
     return sessionStorage.getItem(promptStorageKey(persona)) || DEFAULT_LLM_SYSTEM[persona];
+  }
+  // composeSystemPrompt — wrap the user's editable persona prompt with the
+  // current topic. Keeps the user's edits intact while making sure the model
+  // can't lose sight of what's being debated. Cheap, runs every call.
+  function composeSystemPrompt(persona) {
+    const base = activePrompt(persona);
+    if (!app.topic) return base;
+    return base
+      + "\n\n--- CURRENT DEBATE ---"
+      + "\nThe topic right now is: \"" + app.topic + "\"."
+      + "\nEvery reply you produce MUST visibly argue THIS topic from your persona's angle."
+      + "\nDo not lapse into generic statements about your persona's worldview without anchoring them"
+      + " to a specific aspect of the topic above. If the dialogue has drifted, pull it back.";
   }
   function persistPrompt(persona, value) {
     if (value && value !== DEFAULT_LLM_SYSTEM[persona]) {
@@ -3225,12 +4210,158 @@
     else refreshActiveStripInfo();
   }
 
+  // Free OpenRouter model used by the judge when available. Hardcoded so
+  // the judge never silently pulls a paid model — keeps the cost story
+  // honest. User-facing copy describes this in the activation banner.
+  const JUDGE_FREE_MODEL = "deepseek/deepseek-v4-flash:free";
+
+  // getJudgeConfig — pick the cheapest LLM available for scoring.
+  // Prefer a free OpenRouter model when an OpenRouter key is saved
+  // (anywhere on this origin — keys are shared via localStorage with
+  // the BYO-key demo). Falls back to the tab's author provider/model
+  // when no OpenRouter key exists.
+  function getJudgeConfig() {
+    const orKey = localStorage.getItem(KEY_PREFIX + "openrouter");
+    if (orKey && orKey.startsWith("sk-or-")) {
+      return { provider: "openrouter", key: orKey, model: JUDGE_FREE_MODEL, free: true };
+    }
+    if (app.aiOn && app.aiProvider && app.aiKey) {
+      return { provider: app.aiProvider, key: app.aiKey, model: app.aiModel, free: false };
+    }
+    return null;
+  }
+
+  // Human-readable description of which model will judge — for the UI.
+  function judgeStatusText() {
+    const cfg = getJudgeConfig();
+    if (!cfg) return "(no judge available — add a key)";
+    if (cfg.free) return `${cfg.provider}/${cfg.model} (free)`;
+    return `${cfg.provider}/${cfg.model} (same as author — save an OpenRouter key to use a free judge)`;
+  }
+
+  // judgeUtterance — ask the LLM to score an utterance on the sentiment
+  // plane. Returns {x, y} clamped to [-1, +1], or null on failure. The
+  // call is cheap (max_tokens 60). Uses a free OpenRouter model if an
+  // OpenRouter key is saved (anywhere on this origin), else falls back to
+  // the tab's author provider/model. Stored in the canonical patch as
+  // fields[3] so replay reproduces the exact score without re-judging.
+  async function judgeUtterance(text, persona) {
+    const cfg = getJudgeConfig();
+    if (!cfg) return null;
+    const sys = "You are an impartial judge of a multi-agent argument. Score the supplied utterance on TWO sentiment axes. Reply ONLY with JSON: {\"x\": <-1..+1>, \"y\": <-1..+1>}. No prose.";
+    const usr = [
+      app.topic ? `TOPIC OF DEBATE: ${app.topic}` : "",
+      "AXIS DEFINITIONS (score how the utterance moves the debate on this topic):",
+      "  x = -1 'critical': interrogates assumptions, names costs, questions value.",
+      "  x = +1 'forward': reaches toward future state, architecture, possibility.",
+      "  y = -1 'archival': preserves history, records precedent, grounds in past.",
+      "  y = +1 'synthesizing': reconciles opposing views, integrates contradictions.",
+      `Speaker positioned as: ${persona}.`,
+      `Utterance: "${text}"`,
+      "Score honestly — a Visionary can write something critical, and vice versa. The score reflects the TEXT, not the speaker's label.",
+      "Reply ONLY with strict JSON: {\"x\": <number>, \"y\": <number>}",
+    ].filter(Boolean).join("\n");
+    let result;
+    try {
+      switch (cfg.provider) {
+        case "anthropic":
+          result = await callJudgeAnthropic(sys, usr, cfg.key, cfg.model); break;
+        case "openai":
+          result = await callJudgeOpenAI("https://api.openai.com/v1/chat/completions", cfg.model, sys, usr, cfg.key); break;
+        case "openrouter":
+          result = await callJudgeOpenAI("https://openrouter.ai/api/v1/chat/completions", cfg.model, sys, usr, cfg.key, {
+            "HTTP-Referer": location.origin, "X-Title": "AILANG Cognitive Commons",
+          }); break;
+        case "gemini":
+          result = await callJudgeGemini(sys, usr, cfg.key, cfg.model); break;
+        default: return null;
+      }
+    } catch (e) {
+      console.warn("[commons] judge call failed:", e.message);
+      return null;
+    }
+    if (result && result.usage) trackCost(result.usage);
+    return parseJudgeReply(result && result.raw);
+  }
+  function parseJudgeReply(raw) {
+    if (!raw) return null;
+    let s = String(raw).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+    const m = s.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try {
+      const obj = JSON.parse(m[0]);
+      let x = parseFloat(obj.x), y = parseFloat(obj.y);
+      if (!isFinite(x) || !isFinite(y)) return null;
+      x = Math.max(-1, Math.min(1, x));
+      y = Math.max(-1, Math.min(1, y));
+      return { x, y };
+    } catch (_) { return null; }
+  }
+  async function callJudgeAnthropic(sys, usr, key, model) {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json", "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: model || PROVIDER_DEFAULT_MODEL.anthropic,
+        max_tokens: 60, system: sys,
+        messages: [{ role: "user", content: usr }],
+      }),
+    });
+    if (!resp.ok) throw new Error("Judge anthropic " + resp.status);
+    const data = await resp.json();
+    return {
+      raw: data && data.content && data.content[0] && data.content[0].text,
+      usage: data && data.usage ? { input: data.usage.input_tokens || 0, output: data.usage.output_tokens || 0, provider: "anthropic" } : null,
+    };
+  }
+  async function callJudgeOpenAI(url, model, sys, usr, key, extra) {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: Object.assign({ "content-type": "application/json", "authorization": "Bearer " + key }, extra || {}),
+      body: JSON.stringify({
+        model, max_tokens: 60,
+        response_format: { type: "json_object" },
+        messages: [{ role: "system", content: sys + "\n\nALWAYS reply with strict JSON only." }, { role: "user", content: usr }],
+      }),
+    });
+    if (!resp.ok) throw new Error("Judge openai " + resp.status);
+    const data = await resp.json();
+    const u = data && data.usage;
+    return {
+      raw: data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content,
+      usage: u ? { input: u.prompt_tokens || 0, output: u.completion_tokens || 0, provider: url.includes("openrouter") ? "openrouter" : "openai" } : null,
+    };
+  }
+  async function callJudgeGemini(sys, usr, key, model) {
+    const m = model || PROVIDER_DEFAULT_MODEL.gemini;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`;
+    const resp = await fetch(url, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: usr }] }],
+        systemInstruction: { parts: [{ text: sys }] },
+        generationConfig: { maxOutputTokens: 60, temperature: 0.3, responseMimeType: "application/json" },
+      }),
+    });
+    if (!resp.ok) throw new Error("Judge gemini " + resp.status);
+    const data = await resp.json();
+    const u = data && data.usageMetadata;
+    return {
+      raw: data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text,
+      usage: u ? { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, provider: "gemini" } : null,
+    };
+  }
+
   // generateLlmStanza returns { text, glyph } — both fields may be null.
   // The glyph (if present) is an SVG path-d string the AI authored to
   // visualize the stanza, drawn inside the constellation.
   async function generateLlmStanza(persona) {
     if (!app.aiOn || !app.aiProvider || !app.aiKey) return null;
-    const systemPrompt = activePrompt(persona);
+    const systemPrompt = composeSystemPrompt(persona);
     const userPrompt = buildUserPrompt(persona);
     let result; // { raw, usage }
     switch (app.aiProvider) {
@@ -3348,8 +4479,10 @@
         flashButton(btn, "failed", "No text in reply", "Speak now (this tab)", 2500);
         return;
       }
-      broadcastStanza(app.persona, reply.text, reply.glyph);
-      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · last utterance ${new Date().toLocaleTimeString()}.`);
+      const score = await judgeUtterance(reply.text, app.persona);
+      broadcastStanza(app.persona, reply.text, reply.glyph, score, reply.manifesto);
+      const scoreLabel = score ? `judge (${score.x.toFixed(2)}, ${score.y.toFixed(2)})` : "score: fallback";
+      setAiStatus("on", `Active · ${app.aiProvider} · ${app.aiModel} · ${scoreLabel} · ${new Date().toLocaleTimeString()}.`);
       flashButton(btn, "success", "✓ Spoke!", "Speak now (this tab)", 1400);
     } catch (e) {
       const msg = (e && e.message) || String(e);
@@ -3384,20 +4517,23 @@
         const obj = JSON.parse(c);
         const text = cleanStanza(obj.text || obj.stanza || obj.message || obj.utterance || obj.content || "");
         const glyph = sanitizeGlyphPath(obj.glyph || obj.svg || obj.path || "");
-        if (text) return { text, glyph };
+        const manifesto = sanitizeManifesto(obj.manifesto || obj.statement || obj.consensus || "");
+        if (text) return { text, glyph, manifesto };
       } catch (_) { /* try next */ }
     }
 
     // Pass 3: regex extract of "text": "<...>" — survives unterminated JSON
-    // when max_tokens fires mid-stream. Captures up to the next unescaped ".
+    // when max_tokens fires mid-stream.
     const textMatch = s.match(/"text"\s*:\s*"((?:\\.|[^"\\])*)"/);
     if (textMatch) {
       const text = cleanStanza(unescapeJsonString(textMatch[1]));
       const glyphMatch = s.match(/"glyph"\s*:\s*"((?:\\.|[^"\\])*)"/);
       const glyph = glyphMatch ? sanitizeGlyphPath(unescapeJsonString(glyphMatch[1])) : null;
+      const manifestoMatch = s.match(/"manifesto"\s*:\s*"((?:\\.|[^"\\])*)"/);
+      const manifesto = manifestoMatch ? sanitizeManifesto(unescapeJsonString(manifestoMatch[1])) : null;
       if (text) {
         console.warn("[commons] LLM JSON was truncated; recovered text via regex");
-        return { text, glyph };
+        return { text, glyph, manifesto };
       }
     }
 
@@ -3406,7 +4542,7 @@
       const fallback = cleanStanza(s);
       if (fallback && fallback.length > 4) {
         console.warn("[commons] LLM reply was plain prose — using as text");
-        return { text: fallback, glyph: null };
+        return { text: fallback, glyph: null, manifesto: null };
       }
     }
 
@@ -3430,7 +4566,7 @@
       },
       body: JSON.stringify({
         model: model || PROVIDER_DEFAULT_MODEL.anthropic,
-        max_tokens: 600,
+        max_tokens: 1200,
         system,
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -3454,7 +4590,7 @@
       headers,
       body: JSON.stringify({
         model: model,
-        max_tokens: 600,
+        max_tokens: 1200,
         response_format: { type: "json_object" }, // OpenAI/OpenRouter respect this; others ignore
         messages: [
           { role: "system", content: system + "\n\nALWAYS reply with strict JSON. No prose." },
@@ -3483,7 +4619,7 @@
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
         systemInstruction: { parts: [{ text: system }] },
         generationConfig: {
-          maxOutputTokens: 600,
+          maxOutputTokens: 1200,
           temperature: 0.9,
           responseMimeType: "application/json",
         },
@@ -3573,14 +4709,33 @@
   // ===========================================================================
   // SENTIMENT
   // ===========================================================================
-  function applyUtteranceToSentiment(persona) {
-    const target = PERSONA_TARGETS[persona];
-    if (!target) return;
-    const alpha = 0.25; // EWMA weight per utterance
-    app.sentiment.x = app.sentiment.x * (1 - alpha) + target.x * alpha;
-    app.sentiment.y = app.sentiment.y * (1 - alpha) + target.y * alpha;
-    app.sentimentTrail.push({ x: app.sentiment.x, y: app.sentiment.y });
-    if (app.sentimentTrail.length > 60) app.sentimentTrail.shift();
+  function applyUtteranceToSentiment(persona, score) {
+    // `score` (optional): AI-judged {x, y} for this specific utterance,
+    // overriding the persona's static target. Used when judgeUtterance
+    // succeeds — lets a Visionary write a critical line and have the dot
+    // move accordingly. Falls back to the persona's anchor on no-score.
+    let pullX, pullY;
+    if (score && isFinite(score.x) && isFinite(score.y)) {
+      pullX = score.x; pullY = score.y;
+    } else {
+      const target = PERSONA_TARGETS[persona];
+      if (!target) return;
+      pullX = target.x; pullY = target.y;
+    }
+    const alpha = 0.25;
+    app.sentiment.x = app.sentiment.x * (1 - alpha) + pullX * alpha;
+    app.sentiment.y = app.sentiment.y * (1 - alpha) + pullY * alpha;
+    // Only push when the dot has moved a meaningful distance — avoids
+    // the visual spaghetti of dozens of tiny segments stacked on top of
+    // each other. ~0.04 sentiment units = ~10px in viewBox space.
+    const last = app.sentimentTrail[app.sentimentTrail.length - 1];
+    if (!last ||
+        Math.abs(last.x - app.sentiment.x) > 0.04 ||
+        Math.abs(last.y - app.sentiment.y) > 0.04) {
+      app.sentimentTrail.push({ x: app.sentiment.x, y: app.sentiment.y });
+    }
+    // Shorter window keeps the trail readable
+    if (app.sentimentTrail.length > 24) app.sentimentTrail.shift();
     renderSentiment();
   }
   // Sentiment space ↔ constellation viewBox mapping. Origin (0,0) sits at
@@ -3601,10 +4756,28 @@
       els.sentReadout.textContent = `(${app.sentiment.x.toFixed(2)}, ${app.sentiment.y.toFixed(2)})`;
     }
     if (els.sentTrail) {
-      const points = app.sentimentTrail.map((p) =>
-        sentToCx(p.x).toFixed(1) + "," + sentToCy(p.y).toFixed(1)
-      ).join(" ");
-      els.sentTrail.setAttribute("points", points);
+      // Repaint trail as N independent segments with age-graduated opacity.
+      // The most recent segment is near-opaque so the eye picks up the
+      // current motion; older segments fade toward zero so the trail
+      // doesn't dominate the constellation visually.
+      els.sentTrail.innerHTML = "";
+      const trail = app.sentimentTrail;
+      const ns = "http://www.w3.org/2000/svg";
+      for (let i = 1; i < trail.length; i++) {
+        const a = trail[i - 1], b = trail[i];
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("x1", sentToCx(a.x).toFixed(1));
+        line.setAttribute("y1", sentToCy(a.y).toFixed(1));
+        line.setAttribute("x2", sentToCx(b.x).toFixed(1));
+        line.setAttribute("y2", sentToCy(b.y).toFixed(1));
+        line.setAttribute("stroke", "#1c1816");
+        line.setAttribute("stroke-width", "0.9");
+        line.setAttribute("stroke-dasharray", "3 3");
+        // Linear age fade: segment i of N gets opacity (i/N) * 0.55
+        const age = i / Math.max(1, trail.length - 1);
+        line.setAttribute("opacity", (age * 0.55).toFixed(2));
+        els.sentTrail.appendChild(line);
+      }
     }
     // Drift from neutral (Euclidean magnitude, 0..√2)
     const drift = Math.sqrt(app.sentiment.x * app.sentiment.x + app.sentiment.y * app.sentiment.y);
@@ -3620,6 +4793,13 @@
     const leaderEl = document.getElementById("sentiment-leader");
     if (leaderEl) leaderEl.textContent = `${bestP || "—"} · gap ${bestGap.toFixed(2)}`;
     updateLeaderPullquote(bestP, bestGap);
+    // The consensus edit-lock display follows the same leader — keep it fresh
+    if (els.consensusLockPersona) {
+      if (bestP) {
+        els.consensusLockPersona.setAttribute("data-p", bestP);
+        els.consensusLockPersona.textContent = bestP;
+      }
+    }
   }
 
   // updateLeaderPullquote — refreshes the pullquote above the constellation
@@ -3663,6 +4843,21 @@
     renderSentiment();
   }
 
+  // currentLeader — the persona whose target is closest to the current
+  // commons sentiment. Used for: (a) the scoreboard "Leading persona" panel
+  // (already implemented inline in renderSentiment), and (b) the manifesto
+  // edit-lock — only the leader gets to replace the working statement,
+  // preventing the doc from being clobbered by every speaker.
+  function currentLeader() {
+    let best = null, bestGap = Infinity;
+    for (const [p, t] of Object.entries(PERSONA_TARGETS)) {
+      const dx = t.x - app.sentiment.x, dy = t.y - app.sentiment.y;
+      const g = Math.sqrt(dx * dx + dy * dy);
+      if (g < bestGap) { bestGap = g; best = p; }
+    }
+    return { persona: best, gap: bestGap };
+  }
+
   // ===========================================================================
   // ACTIVE STRIP — show provider, model, cost above the fold once a key is set.
   //
@@ -3676,12 +4871,23 @@
   function refreshActiveStripInfo() {
     if (!app.aiOn || !app.persona) return;
     if (els.activePersonaSelect) {
-      // Show current persona without firing the change handler
       const desired = sessionStorage.getItem("commons_persona") ? app.persona : "auto";
       if (els.activePersonaSelect.value !== desired) {
         els.activePersonaSelect.value = desired;
       }
       els.activePersonaSelect.setAttribute("data-p", app.persona || "");
+    }
+    // Show the resolved persona next to the dropdown when on Auto, so the
+    // user can always see which citizen this tab is.
+    if (els.activeResolvedPersona) {
+      const onAuto = !sessionStorage.getItem("commons_persona");
+      if (onAuto && app.persona) {
+        els.activeResolvedPersona.textContent = "→ " + app.persona;
+        els.activeResolvedPersona.setAttribute("data-p", app.persona);
+        els.activeResolvedPersona.classList.remove("hidden");
+      } else {
+        els.activeResolvedPersona.classList.add("hidden");
+      }
     }
     if (els.activeProvider) els.activeProvider.textContent = app.aiProvider || "—";
     if (els.activeModel)    els.activeModel.textContent = app.aiModel || "—";
@@ -3690,6 +4896,16 @@
       const cc = commonsCost();
       els.activeCostCommons.textContent = fmtMoney(cc.dollars);
     }
+    // If the prompt-peek panel is open, keep its content fresh
+    if (els.activePromptPeek && els.activePromptPeek.style.display !== "none") {
+      refreshPromptPeek();
+    }
+  }
+
+  function refreshPromptPeek() {
+    if (!app.persona) return;
+    els.appPeekPersonaLabel.textContent = `${app.persona}'s prompt (this tab):`;
+    els.appPeekPrompt.textContent = activePrompt(app.persona);
   }
   function setBannerCompact(yes) {
     if (yes) {
@@ -3711,10 +4927,10 @@
   // ===========================================================================
   // RECENT STANZAS — feed back to the AI as context
   // ===========================================================================
-  function recordStanza(persona, sender, clock, text, ts) {
-    app.recentStanzas.push({ persona, sender, clock, text, ts });
+  function recordStanza(persona, sender, clock, text, ts, score) {
+    app.recentStanzas.push({ persona, sender, clock, text, ts, score });
     if (app.recentStanzas.length > 32) app.recentStanzas.shift();
-    applyUtteranceToSentiment(persona);
+    applyUtteranceToSentiment(persona, score);
   }
   function resetRecentStanzas() { app.recentStanzas = []; }
 
@@ -3735,6 +4951,7 @@
     const ts = parseInt(meta.ts, 10) || Date.now();
     const model = meta.model || panel.dataset.model || "";
     const provider = panel.dataset.provider || "";
+    const scoreStr = panel.dataset.score || "";
 
     // Mini-glyph: same persona theme + seed as constellation
     const wrap = document.createElement("div");
@@ -3762,7 +4979,20 @@
     const modelTag = model
       ? ` · <span class="model-tag">${escapeHtml(model)}</span>`
       : "";
-    metaEl.innerHTML = `<span>${senderShort}</span> · clk ${clock} · <span class="ts-relative" data-ts="${ts}">${relTime(ts)}</span>${modelTag}`;
+    let scoreTag = "";
+    if (scoreStr) {
+      const [sxStr, syStr] = scoreStr.split(",");
+      const sx = parseFloat(sxStr), sy = parseFloat(syStr);
+      if (isFinite(sx) && isFinite(sy)) {
+        // Pick the dominant axis label so the chip reads at a glance
+        const dom = Math.abs(sx) > Math.abs(sy)
+          ? (sx > 0 ? "→ forward" : "← critical")
+          : (sy > 0 ? "↑ synth" : "↓ archival");
+        const sign = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
+        scoreTag = ` · <span class="score-tag" title="Judge score on the sentiment plane">judge ${sign(sx)}, ${sign(sy)} (${dom})</span>`;
+      }
+    }
+    metaEl.innerHTML = `<span>${senderShort}</span> · clk ${clock} · <span class="ts-relative" data-ts="${ts}">${relTime(ts)}</span>${modelTag}${scoreTag}`;
     title.appendChild(chip);
     title.appendChild(metaEl);
     panel.dataset.beautified = "1";
