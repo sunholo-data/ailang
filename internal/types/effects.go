@@ -339,6 +339,8 @@ func IsKnownEffect(name string) bool {
 		"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
 		"Process":     true, // v0.8.0: External command execution (M-PROCESS)
 		"Declassify":  true, // v0.16.0: IFC declassification capability (M-TAINT-TYPES)
+		"DOM":         true, // v0.21.x: Cognitive OS — structured DOM patches (M-COG-RUNTIME)
+		"Msg":         true, // v0.21.x: Cognitive OS — runtime messaging fabric (M-COG-RUNTIME)
 	}
 	return knownEffects[name]
 }

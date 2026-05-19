@@ -2,6 +2,7 @@ package types
 
 import (
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -441,6 +442,8 @@ func TestSubsumeEffectRows_NoHierarchy(t *testing.T) {
 	independentEffects := []string{
 		"IO", "FS", "Net", "Clock", "Rand", "DB", "Trace", "Async", "Env",
 		"AI", "SharedMem", "SharedIndex", "Stream", "Process",
+		// M-COG-RUNTIME (v0.21.x): Cognitive OS effect labels
+		"DOM", "Msg",
 	}
 
 	for _, declared := range independentEffects {
@@ -465,6 +468,54 @@ func TestSubsumeEffectRows_NoHierarchy(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestIsKnownEffect_CognitiveOS pins the M-COG-RUNTIME (v0.21.x) effect labels
+// that the Cognitive OS substrate depends on. These labels are locked across
+// three sibling design docs (M-COG-RUNTIME / M-COG-MEMORY / M-COG-MESH) — do
+// not rename. Trace already shipped with M-WASM-TRACE (v0.11.1); DOM and Msg
+// are net-new.
+func TestIsKnownEffect_CognitiveOS(t *testing.T) {
+	cognitiveEffects := []string{"DOM", "Msg", "Trace"}
+	for _, name := range cognitiveEffects {
+		t.Run(name, func(t *testing.T) {
+			if !IsKnownEffect(name) {
+				t.Errorf("Cognitive OS effect %q must be registered in IsKnownEffect", name)
+			}
+		})
+	}
+}
+
+// TestElaborateEffectRow_CognitiveEffects pins that DOM, Msg, and Trace
+// flow through effect-row elaboration both individually and combined.
+// This is the row-inference acceptance test for M1 Day 1 of M-COG-RUNTIME.
+func TestElaborateEffectRow_CognitiveEffects(t *testing.T) {
+	cases := [][]string{
+		{"DOM"},
+		{"Msg"},
+		{"Trace"},
+		{"DOM", "Msg"},
+		{"DOM", "Msg", "Trace"},
+		{"DOM", "IO"},  // composes with existing effects
+		{"Msg", "Net"}, // composes with existing effects
+	}
+	for _, eff := range cases {
+		name := strings.Join(eff, ",")
+		t.Run("{"+name+"}", func(t *testing.T) {
+			row, err := ElaborateEffectRow(eff)
+			if err != nil {
+				t.Fatalf("ElaborateEffectRow(%v) failed: %v", eff, err)
+			}
+			if row == nil {
+				t.Fatal("ElaborateEffectRow returned nil row")
+			}
+			for _, label := range eff {
+				if _, ok := row.Labels[label]; !ok {
+					t.Errorf("expected label %q in row, got labels=%v", label, row.Labels)
+				}
+			}
+		})
 	}
 }
 

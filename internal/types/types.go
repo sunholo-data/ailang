@@ -453,6 +453,11 @@ var (
 	EffectClock = &SimpleEffect{Name: "Clock"}
 	EffectTrace = &SimpleEffect{Name: "Trace"}
 	EffectAsync = &SimpleEffect{Name: "Async"}
+
+	// M-COG-RUNTIME (v0.21.x) — Cognitive OS substrate effects.
+	// Labels locked across M-COG-RUNTIME / M-COG-MEMORY / M-COG-MESH; do not rename.
+	EffectDOM = &SimpleEffect{Name: "DOM"} // structured browser-DOM patches (scoped regions)
+	EffectMsg = &SimpleEffect{Name: "Msg"} // runtime messaging fabric (wraps internal/messaging/)
 )
 
 // Type variable generator
