@@ -191,7 +191,7 @@ Touches the browser-side WASM REPL assets ([`docs/static/wasm/`](../../../docs/s
 
 This is the **canonical pattern** for AILANG closures invoked from async event sources — solves the goroutine-safety problem by serializing through the evaluator's own goroutine.
 
-### Phase 5: Trace Extension + JS Test Harness (~10h)
+### Phase 5: Trace Extension + JS Test Harness + Public Demo (~10h)
 
 `internal/effects/trace_cognition.go`:
 - Extends the existing `Trace` effect with an op that emits `TraceCapturedEvent` into the cognitive event log
@@ -201,6 +201,23 @@ Playwright harness:
 - Browser-driven test: `npx playwright test` opens 2 tabs, runs an AILANG program that uses `!: {DOM, Msg}`, captures the event log
 - Asserts: same event log → same final DOM after refresh + replay
 - Asserts: tab-A's `sendMsg` arrives in tab-B's recvMsg loop
+
+**Public demo (mirrors `wasm-step-byo-key` structure):**
+
+Model on the shipped [`wasm-step-byo-key`](https://ailang.sunholo.com/demos/wasm-step-byo-key/) demo (v0.19.0, M-WASM-AI-STEP-BYO-KEY M4):
+
+| File | M-WASM-AI-STEP-BYO-KEY (precedent) | M-COG-RUNTIME-BROWSER (this doc) |
+|------|------------------------------------|----------------------------------|
+| Live URL | `ailang.sunholo.com/demos/wasm-step-byo-key/` | `ailang.sunholo.com/demos/cognitive-os-runtime/` |
+| Examples dir | `examples/wasm_step_byo_key/` | `examples/cognitive_os/` (`single_agent_replay.ail` already shipped) |
+| Static-site mirror | `docs/static/demos/wasm-step-byo-key/` | `docs/static/demos/cognitive-os-runtime/` |
+| README | Sets BYO-key context, type-check command, `make wasm-serve` flow | Same shape: explains scoped DOM, BroadcastChannel, replay-on-reload |
+| AILANG module | `chat.ail` — `ask` / `askCached` / `askStreaming` exports | `single_agent_replay.ail` already exists; expand with subscribe loop + replay export |
+| `index.html` | Registers `ailangSetAIStep*Handler`s, wires Anthropic/OpenRouter | Registers `ailangSetDOMApplyPatchHandler` + `ailangSetMsgSendHandler` + `ailangSetMsgRecvHandler`, wires BroadcastChannel + IndexedDB |
+
+The two demos sit side-by-side on the demos page and **layer** rather than compete: BYO-key shows "LLM in browser, no server"; this demo shows "agent UI + messaging in browser, no server". A future combined demo can use both effects in one session (`!: {AI, DOM, Msg}`).
+
+The JS-host playbook is identical between them — registration patterns, singleton wiring, awaitJSResult helpers all reused from `cmd/wasm/effects.go` and `effects_cognition.go`. Zero pattern duplication, only effect-specific JS payloads.
 
 ---
 
@@ -310,7 +327,8 @@ export func clickWatcher() -> Unit ! {DOM} = {
 - [ ] Trace effect emits `TraceCapturedEvent` records into the cognitive event log
 - [ ] Playwright headless test runs the demo + replay end-to-end in CI
 - [ ] All M-COG-RUNTIME (Go-side) tests continue to pass
-- [ ] Documentation updated: [`docs/docs/guides/wasm-runtime.md`](../../../docs/docs/guides/wasm-runtime.md) gets a Cognitive OS browser section
+- [ ] Documentation: [`docs/docs/guides/wasm-integration.md`](../../../docs/docs/guides/wasm-integration.md) Cognitive OS section expanded with the live-demo link (the M3-shipped section already exists)
+- [ ] **Public demo deployed** at `ailang.sunholo.com/demos/cognitive-os-runtime/` mirroring the `wasm-step-byo-key` shape (sibling files in `examples/cognitive_os/` and `docs/static/demos/cognitive-os-runtime/`)
 - [ ] CHANGELOG entry under v0.21.x
 
 ---
