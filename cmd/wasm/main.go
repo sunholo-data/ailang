@@ -575,6 +575,12 @@ func main() {
 	// Register trace handler (M-WASM-TRACE)
 	js.Global().Set("ailangSetTraceHandler", js.FuncOf(setTraceHandler))
 
+	// Register Cognitive OS handlers (M-COG-RUNTIME, v0.21.x)
+	js.Global().Set("ailangSetDOMApplyPatchHandler", js.FuncOf(setDOMApplyPatchHandler))
+	js.Global().Set("ailangSetDOMApplyBatchHandler", js.FuncOf(setDOMApplyBatchHandler))
+	js.Global().Set("ailangSetMsgSendHandler", js.FuncOf(setMsgSendHandler))
+	js.Global().Set("ailangSetMsgRecvHandler", js.FuncOf(setMsgRecvHandler))
+
 	// Register async evaluation functions (for effects that use Promises)
 	js.Global().Set("ailangEvalAsync", js.FuncOf(evalAsync))
 	js.Global().Set("ailangCallAsync", js.FuncOf(callAsync))

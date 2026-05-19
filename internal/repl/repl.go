@@ -167,6 +167,22 @@ func (r *REPL) SetAIHandler(handler effects.AIHandler) {
 	r.effContext.Grant(effects.NewCapability("AI"))
 }
 
+// SetDOMHandler configures the DOM effect handler and grants the DOM capability.
+// Used by the WASM bridge (cmd/wasm/effects.go) to wire JS-backed DOM mutations.
+// M-COG-RUNTIME, v0.21.x.
+func (r *REPL) SetDOMHandler(handler effects.DOMHandler) {
+	r.effContext.DOM = effects.NewDOMContext(handler)
+	r.effContext.Grant(effects.NewCapability("DOM"))
+}
+
+// SetMsgHandler configures the Msg effect handler and grants the Msg capability.
+// The self argument identifies this node for sender-stamped envelopes.
+// M-COG-RUNTIME, v0.21.x.
+func (r *REPL) SetMsgHandler(handler effects.MsgHandler, self effects.NodeID) {
+	r.effContext.Msg = effects.NewMsgContext(handler, self)
+	r.effContext.Grant(effects.NewCapability("Msg"))
+}
+
 // getPrompt returns the REPL prompt with active capabilities
 func (r *REPL) getPrompt() string {
 	if len(r.effContext.Caps) == 0 {
