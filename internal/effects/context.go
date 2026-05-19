@@ -29,6 +29,7 @@ type EffContext struct {
 	AI             *AIContext            // AI effect state (handler for AI.call)
 	DOM            *DOMContext           // DOM effect state (M-COG-RUNTIME, v0.21.x)
 	Msg            *MsgContext           // Msg effect state (M-COG-RUNTIME, v0.21.x)
+	Cog            *CogContext           // Subscribe/drain pending-callback queue (M-COG-RUNTIME-BROWSER M4)
 	SharedMem      *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
@@ -335,6 +336,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		AI:              ctx.AI,
 		DOM:             ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
 		Msg:             ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
+		Cog:             ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
 		SharedMem:       ctx.SharedMem,
 		SharedIndex:     ctx.SharedIndex,
 		Contracts:       ctx.Contracts,

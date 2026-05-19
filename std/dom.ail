@@ -57,3 +57,25 @@ export func applyPatchResult(region: string, patch: DOMPatch) -> (Result[{node_i
 export func applyBatchResult(region: string, patches: [DOMPatch]) -> (Result[{node_ids: [string], budget_remaining: int}, {code: string, message: string}]) ! {DOM} {
   _dom_apply_batch_result(region, patches)
 }
+
+-- M-COG-RUNTIME-BROWSER M4: Subscribe to DOM events
+-- ==================================================
+
+-- Subscribe to DOM events (clicks, input changes) within a scoped region.
+-- The callback fires via std/cognition drain — register Subscribe at
+-- startup, then call drain in a loop or after each operation.
+--
+-- DOMEvent variants (matches internal/effects/dom.go encodeDOMEvent):
+--   {kind: "Click", node: string}                — click on an element
+--   {kind: "Input", node: string, value: string} — input field change
+--
+-- @requires DOM + Cog capabilities
+-- @example
+--   subscribe("agent_a", ["click"], fn (ev) -> ()) -> () ! {DOM, Cog} => {
+--     -- handle ev.kind / ev.node
+--     ()
+--   });
+--   drain(1000)
+export func subscribe(region: string, eventTypes: [string], callback: (DOMEvent) -> () ! {DOM, Cog}) -> () ! {DOM, Cog} {
+  _dom_subscribe(region, eventTypes, callback)
+}

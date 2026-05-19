@@ -41,6 +41,7 @@ _bytes_to_base64 : bytes -> string
 _bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
+_cog_drain : int -> int ! {Cog}
 _crypto_constanttimeequal : (string, string) -> bool
 _crypto_hmacsha256 : (string, string) -> string
 _crypto_rsa_verify_pkcs1v15 : (bytes, bytes, string) -> Result[bool, string]
@@ -56,6 +57,7 @@ _dom_apply_batch : (string, list[DOMPatch]) -> {budget_remaining: int, node_ids:
 _dom_apply_batch_result : (string, list[DOMPatch]) -> Result[{budget_remaining: int, node_ids: list[string]}, {code: string, message: string}] ! {DOM}
 _dom_apply_patch : (string, DOMPatch) -> {budget_remaining: int, node_id: string} ! {DOM}
 _dom_apply_patch_result : (string, DOMPatch) -> Result[{budget_remaining: int, node_id: string}, {code: string, message: string}] ! {DOM}
+_dom_subscribe : (string, list[string], DOMEvent -> () ! {Cog, DOM}) -> () ! {Cog, DOM}
 _dt_add : (int, int, int, int) -> int
 _dt_diffDays : (int, int) -> int
 _dt_formatISODate : int -> string
@@ -162,6 +164,7 @@ _msg_recv : string -> {clock: int, from: string, msg_id: string, payload: string
 _msg_recv_result : string -> Result[{clock: int, from: string, msg_id: string, payload: string, to: string}, {code: string, message: string}] ! {Msg}
 _msg_send : (string, string) -> {budget_remaining: int, clock: int, msg_id: string} ! {Msg}
 _msg_send_result : (string, string) -> Result[{budget_remaining: int, clock: int, msg_id: string}, {code: string, message: string}] ! {Msg}
+_msg_subscribe : (string, {clock: int, from: string, msg_id: string, payload: string, to: string} -> () ! {Cog, Msg}) -> () ! {Cog, Msg}
 _net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _net_httpRequestBytes : (string, string, list[{name: string, value: string}], bytes) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _net_url_encode : string -> string

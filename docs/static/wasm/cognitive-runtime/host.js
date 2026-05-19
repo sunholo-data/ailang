@@ -314,6 +314,114 @@
   }
 
   // ========================================================================
+  // Subscribe bridges (M4) — DOM event listeners + Msg arrival callbacks
+  // ========================================================================
+  //
+  // Each makeXSubscribeBridge() returns a dual-signature function:
+  //   register(region/mailbox, ...args, bridgeFn) → returns subId
+  //   detach(subId)                               → removes registration
+  //
+  // Tracks per-subscription state in a Map so detach() can find + tear
+  // down the JS-side listener.
+
+  const domSubscriptions = new Map(); // subId → {region, eventTypes, listeners, bridgeFn}
+  const msgSubscriptions = new Map(); // subId → {mailbox, bridgeFn}
+  let nextSubId = 0;
+
+  function makeDOMSubscribeBridge() {
+    return function (regionOrSubId, eventTypes, bridgeFn) {
+      // Detach signature: single string argument that matches a known sub ID
+      if (typeof regionOrSubId === 'string' && eventTypes === undefined && domSubscriptions.has(regionOrSubId)) {
+        const sub = domSubscriptions.get(regionOrSubId);
+        sub.listeners.forEach(function (l) {
+          if (l.element && l.element.removeEventListener) {
+            l.element.removeEventListener(l.eventName, l.handler);
+          }
+        });
+        domSubscriptions.delete(regionOrSubId);
+        return null;
+      }
+      // Registration signature
+      const region = regionOrSubId;
+      const regionEl = ensureRegion(region);
+      const types = Array.isArray(eventTypes) ?
+        eventTypes :
+        (eventTypes && typeof eventTypes.length === 'number') ?
+          Array.prototype.slice.call(eventTypes) :
+          ['click'];
+      nextSubId += 1;
+      const subId = 'dom_sub_' + nextSubId;
+      const listeners = [];
+      types.forEach(function (eventName) {
+        const handler = function (ev) {
+          // Build the {kind, node, value?} envelope the Go bridge expects
+          const target = ev.target;
+          const node = (target && target.getAttribute) ? (target.getAttribute('data-cog-node') || '') : '';
+          const env = { kind: capitalize(eventName), node: node };
+          if (eventName === 'input' && target && 'value' in target) {
+            env.value = target.value;
+          }
+          try {
+            bridgeFn(env);
+          } catch (e) {
+            if (global.console && global.console.warn) {
+              global.console.warn('[CognitiveOS] DOM bridgeFn threw:', e);
+            }
+          }
+        };
+        regionEl.addEventListener(eventName, handler);
+        listeners.push({ element: regionEl, eventName: eventName, handler: handler });
+      });
+      domSubscriptions.set(subId, { region: region, eventTypes: types, listeners: listeners, bridgeFn: bridgeFn });
+      return subId;
+    };
+  }
+
+  function makeMsgSubscribeBridge() {
+    return function (mailboxOrSubId, bridgeFn) {
+      // Detach signature
+      if (typeof mailboxOrSubId === 'string' && bridgeFn === undefined && msgSubscriptions.has(mailboxOrSubId)) {
+        msgSubscriptions.delete(mailboxOrSubId);
+        // Note: we don't tear down the BroadcastChannel itself — other
+        // subscribers may still want arrivals. The local handler below
+        // checks the subscriptions map on each arrival.
+        return null;
+      }
+      // Registration
+      const mailbox = mailboxOrSubId;
+      nextSubId += 1;
+      const subId = 'msg_sub_' + nextSubId;
+      msgSubscriptions.set(subId, { mailbox: mailbox, bridgeFn: bridgeFn });
+      // Ensure the BroadcastChannel exists + arrivals are routed to bridges
+      ensureBroadcastChannel(mailbox);
+      return subId;
+    };
+  }
+
+  function capitalize(s) {
+    if (!s || typeof s !== 'string') return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // Extend enqueueDelivery (mailbox arrivals) to also fan out to msg subscribers
+  const _enqueueDeliveryOrig = enqueueDelivery;
+  enqueueDelivery = function (env) {
+    _enqueueDeliveryOrig(env);
+    // Fan out to all subscribers of this mailbox
+    msgSubscriptions.forEach(function (sub) {
+      if (sub.mailbox === env.to) {
+        try {
+          sub.bridgeFn(env);
+        } catch (e) {
+          if (global.console && global.console.warn) {
+            global.console.warn('[CognitiveOS] Msg bridgeFn threw:', e);
+          }
+        }
+      }
+    });
+  };
+
+  // ========================================================================
   // Public API — attach() wires JS globals; the rest is auto-managed
   // ========================================================================
 
@@ -370,6 +478,15 @@
       global.ailangSetMsgRecvHandler(function (mailboxName) {
         return recvInternal(mailboxName);
       });
+    }
+    // M4: Subscribe handlers — dual signature per the design.
+    //   first call: (region, eventTypes, bridgeFn) → subId
+    //   later call: (subId)                        → detach
+    if (typeof global.ailangSetDOMSubscribeHandler === 'function') {
+      global.ailangSetDOMSubscribeHandler(makeDOMSubscribeBridge());
+    }
+    if (typeof global.ailangSetMsgSubscribeHandler === 'function') {
+      global.ailangSetMsgSubscribeHandler(makeMsgSubscribeBridge());
     }
     return {
       sender: state.sender,

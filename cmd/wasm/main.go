@@ -580,6 +580,9 @@ func main() {
 	js.Global().Set("ailangSetDOMApplyBatchHandler", js.FuncOf(setDOMApplyBatchHandler))
 	js.Global().Set("ailangSetMsgSendHandler", js.FuncOf(setMsgSendHandler))
 	js.Global().Set("ailangSetMsgRecvHandler", js.FuncOf(setMsgRecvHandler))
+	// M-COG-RUNTIME-BROWSER M4: Subscribe wiring
+	js.Global().Set("ailangSetDOMSubscribeHandler", js.FuncOf(setDOMSubscribeHandler))
+	js.Global().Set("ailangSetMsgSubscribeHandler", js.FuncOf(setMsgSubscribeHandler))
 
 	// Register async evaluation functions (for effects that use Promises)
 	js.Global().Set("ailangEvalAsync", js.FuncOf(evalAsync))

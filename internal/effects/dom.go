@@ -323,6 +323,97 @@ func init() {
 	RegisterOp("DOM", "applyBatch", domApplyBatch)
 	RegisterOp("DOM", "applyPatchResult", domApplyPatchResult)
 	RegisterOp("DOM", "applyBatchResult", domApplyBatchResult)
+	RegisterOp("DOM", "subscribe", domSubscribe)
+}
+
+// ============================================================================
+// Subscribe op — M-COG-RUNTIME-BROWSER M4
+// ============================================================================
+//
+// AILANG signature (in std/dom.ail):
+//
+//	subscribe(region: string, eventTypes: [string], callback: (DOMEvent) -> ()) -> () ! DOM
+//
+// Wires the AILANG callback through the underlying DOMHandler, with
+// arrival events queued onto ctx.Cog for later dispatch via _cog_drain.
+// The cancel function (returned by handler.Subscribe) is currently
+// retained on the handler side; M5 may expose it as an explicit
+// unsubscribe builtin if/when cancellation matters in AILANG-side code.
+//
+// Browser path: WasmDOMHandler.Subscribe (cmd/wasm/effects_cognition.go)
+// registers a JS-side onmessage callback; when DOM events fire in the
+// scoped region, the JS host enqueues envelopes that the Go-side
+// onEvent closure relays into ctx.Cog.Enqueue.
+//
+// Native path: StubDOMHandler can fire events via its FireEvent helper;
+// onEvent is invoked synchronously from the same goroutine.
+func domSubscribe(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("E_DOM_TYPE_ERROR: subscribe: expected 3 args (region, eventTypes, callback), got %d", len(args))
+	}
+	region, err := domStringArg(args[0], "region")
+	if err != nil {
+		return nil, fmt.Errorf("E_DOM_TYPE_ERROR: subscribe: %w", err)
+	}
+	eventTypesVal, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_DOM_TYPE_ERROR: subscribe: expected eventTypes as list[string], got %T", args[1])
+	}
+	eventTypes := make([]string, 0, len(eventTypesVal.Elements))
+	for i, e := range eventTypesVal.Elements {
+		s, ok := e.(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("E_DOM_TYPE_ERROR: subscribe: eventTypes[%d] not a string", i)
+		}
+		eventTypes = append(eventTypes, s.Value)
+	}
+	callback := args[2] // AILANG closure (eval.Value); passed verbatim to ctx.Cog.Enqueue
+	if ctx.Cog == nil {
+		return nil, fmt.Errorf("E_DOM_NO_COG: subscribe: ctx.Cog not configured — wire one via NewCogContext()")
+	}
+
+	// onEvent runs on whatever goroutine fires the event (transport,
+	// JS bridge, test harness). We forward to ctx.Cog.Enqueue which is
+	// goroutine-safe; the AILANG callback then fires in _cog_drain on
+	// the evaluator's goroutine.
+	onEvent := func(ev DOMEvent) {
+		ctx.Cog.Enqueue(callback, encodeDOMEvent(ev))
+	}
+	if _, err := ctx.DOM.Subscribe(RegionID(region), eventTypes, onEvent); err != nil {
+		return nil, err
+	}
+	return &eval.UnitValue{}, nil
+}
+
+// encodeDOMEvent serializes a DOMEvent into an AILANG record for callback
+// invocation. Variant shape:
+//
+//	EventClick     -> {kind: "Click", node: string}
+//	EventInput     -> {kind: "Input", node: string, value: string}
+func encodeDOMEvent(ev DOMEvent) eval.Value {
+	switch v := ev.(type) {
+	case EventClick:
+		return &eval.RecordValue{
+			Fields: map[string]eval.Value{
+				"kind": &eval.StringValue{Value: "Click"},
+				"node": &eval.StringValue{Value: string(v.Node)},
+			},
+		}
+	case EventInput:
+		return &eval.RecordValue{
+			Fields: map[string]eval.Value{
+				"kind":  &eval.StringValue{Value: "Input"},
+				"node":  &eval.StringValue{Value: string(v.Node)},
+				"value": &eval.StringValue{Value: v.Value},
+			},
+		}
+	default:
+		return &eval.RecordValue{
+			Fields: map[string]eval.Value{
+				"kind": &eval.StringValue{Value: "Unknown"},
+			},
+		}
+	}
 }
 
 // domApplyPatch implements DOM.applyPatch(region: string, patch: DOMPatch) -> {node_id: string, budget_remaining: int}

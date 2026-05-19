@@ -104,15 +104,61 @@ func (h *WasmDOMHandler) ApplyBatch(region effects.RegionID, patches []effects.D
 	}, nil
 }
 
-// Subscribe is intentionally NOT wired in this iteration.
+// Subscribe registers a long-lived JS callback for DOM events in the
+// scoped region. The JS host (host.js) is responsible for installing
+// real DOM event listeners; this method bridges arrivals back into Go
+// via a js.Func that calls onEvent (which queues into ctx.Cog).
 //
-// The lifecycle (long-lived JS callback ↔ Go onEvent closure ↔ cancel)
-// requires careful management to avoid leaking js.Func references. M2's
-// scheduler is the primary consumer; wiring lands when the scheduler
-// arrives (M-COG-RUNTIME-BROWSER Phase 4). For now, returns a typed
-// no_handler error so callers see a clean failure.
+// JS callback signature (registered via ailangSetDOMSubscribeHandler):
+//
+//	(region, eventTypes) => js.Func({type, node, value?}) wrapper
+//
+// Cancel: returned function releases the js.Func reference + calls
+// the host's unsubscribe-by-id endpoint so the JS-side listener
+// detaches. Avoids leaking js.Func across many subscribe/cancel cycles.
 func (h *WasmDOMHandler) Subscribe(region effects.RegionID, eventTypes []string, onEvent func(effects.DOMEvent)) (func(), error) {
-	return nil, fmt.Errorf("not_implemented: DOM.subscribe wiring lands in M-COG-RUNTIME-BROWSER alongside the deterministic scheduler")
+	if !h.subscribeCallback.Truthy() {
+		return nil, fmt.Errorf("no_handler: DOM.subscribe requires a JS handler — call ailangSetDOMSubscribeHandler(fn) first")
+	}
+	// Wrap onEvent in a js.Func that the JS host invokes on each arrival.
+	// The wrapper decodes the {type, node, value?} object back into a
+	// typed effects.DOMEvent before passing to onEvent.
+	bridgeFn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) < 1 || args[0].Type() != js.TypeObject {
+			return nil
+		}
+		ev := args[0]
+		kind := jsGetString(ev, "kind")
+		node := effects.DOMNodeID(jsGetString(ev, "node"))
+		switch kind {
+		case "Click":
+			onEvent(effects.EventClick{Node: node})
+		case "Input":
+			onEvent(effects.EventInput{Node: node, Value: jsGetString(ev, "value")})
+		}
+		return nil
+	})
+
+	// Convert eventTypes to a JS array for the registration call.
+	jsTypes := make([]interface{}, len(eventTypes))
+	for i, t := range eventTypes {
+		jsTypes[i] = t
+	}
+	subID := h.subscribeCallback.Invoke(string(region), js.ValueOf(jsTypes), bridgeFn)
+
+	// Return a cancel that:
+	//   1. Asks JS to detach by ID via the same callback's "unsubscribe" arity
+	//   2. Releases the js.Func so the GC can reclaim it
+	cancel := func() {
+		if h.subscribeCallback.Truthy() {
+			// Convention: passing a single string sub-id to the same
+			// callback signals "unsubscribe this ID". The JS host handles
+			// the dual signature.
+			h.subscribeCallback.Invoke(subID)
+		}
+		bridgeFn.Release()
+	}
+	return cancel, nil
 }
 
 // domPatchToJS serializes a Go-side DOMPatch into a JS-friendly tagged
@@ -186,6 +232,22 @@ func setDOMApplyBatchHandler(this js.Value, args []js.Value) interface{} {
 	return map[string]interface{}{"success": true}
 }
 
+// setDOMSubscribeHandler: ailangSetDOMSubscribeHandler(fn)
+//
+// fn has a dual signature handled by the JS host:
+//   - fn(region, eventTypes, bridgeFn) → returns a sub-id string
+//   - fn(subId) → detaches the registration
+func setDOMSubscribeHandler(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangSetDOMSubscribeHandler requires 1 argument: callback function",
+		}
+	}
+	getOrCreateDOMHandler().subscribeCallback = args[0]
+	return map[string]interface{}{"success": true}
+}
+
 // ============================================================================
 // Cognitive OS — Msg effect bridge (M-COG-RUNTIME, v0.21.x)
 // ============================================================================
@@ -247,10 +309,40 @@ func (h *WasmMsgHandler) Recv(mailbox effects.Mailbox) (*effects.Message, error)
 	}, nil
 }
 
-// Subscribe is deferred to M-COG-RUNTIME-BROWSER alongside the JS
-// scheduler that consumes it — same rationale as WasmDOMHandler.Subscribe.
+// Subscribe registers a long-lived JS callback for mailbox arrivals.
+// The JS host wires the BroadcastChannel.onmessage; this method bridges
+// each arrival back into Go via a js.Func that decodes the envelope
+// and calls onMsg (which queues into ctx.Cog).
+//
+// Cancel: releases the js.Func + tells JS to detach the per-mailbox
+// listener registration (by passing the returned sub-id back to the
+// same callback — same dual-signature convention as WasmDOMHandler).
 func (h *WasmMsgHandler) Subscribe(mailbox effects.Mailbox, onMsg func(effects.Message)) (func(), error) {
-	return nil, fmt.Errorf("not_implemented: Msg.subscribe wiring lands in M-COG-RUNTIME-BROWSER alongside the deterministic scheduler")
+	if !h.subscribeCallback.Truthy() {
+		return nil, fmt.Errorf("no_handler: Msg.subscribe requires a JS handler — call ailangSetMsgSubscribeHandler(fn) first")
+	}
+	bridgeFn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) < 1 || args[0].Type() != js.TypeObject {
+			return nil
+		}
+		env := args[0]
+		onMsg(effects.Message{
+			ID:      effects.MsgID(jsGetString(env, "msg_id")),
+			From:    effects.NodeID(jsGetString(env, "from")),
+			To:      effects.Mailbox(jsGetString(env, "to")),
+			Payload: []byte(jsGetString(env, "payload")),
+			Clock:   effects.LamportClock(jsGetInt(env, "clock")),
+		})
+		return nil
+	})
+	subID := h.subscribeCallback.Invoke(string(mailbox), bridgeFn)
+	cancel := func() {
+		if h.subscribeCallback.Truthy() {
+			h.subscribeCallback.Invoke(subID)
+		}
+		bridgeFn.Release()
+	}
+	return cancel, nil
 }
 
 var wasmMsgHandlerSingleton *WasmMsgHandler
@@ -286,5 +378,20 @@ func setMsgRecvHandler(this js.Value, args []js.Value) interface{} {
 		}
 	}
 	getOrCreateMsgHandler().recvCallback = args[0]
+	return map[string]interface{}{"success": true}
+}
+
+// setMsgSubscribeHandler: ailangSetMsgSubscribeHandler(fn)
+// Dual signature (same convention as setDOMSubscribeHandler):
+//   - fn(mailbox, bridgeFn) → returns sub-id
+//   - fn(subId) → detaches
+func setMsgSubscribeHandler(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangSetMsgSubscribeHandler requires 1 argument: callback function",
+		}
+	}
+	getOrCreateMsgHandler().subscribeCallback = args[0]
 	return map[string]interface{}{"success": true}
 }

@@ -34,6 +34,7 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		"Declassify":  true, // IFC declassification capability (v0.16.0+, M-TAINT-TYPES)
 		"DOM":         true, // Cognitive OS — structured DOM patches (v0.21.x+, M-COG-RUNTIME)
 		"Msg":         true, // Cognitive OS — runtime messaging fabric (v0.21.x+, M-COG-RUNTIME)
+		"Cog":         true, // Cognitive OS — drain pump (v0.21.x+, M-COG-RUNTIME-BROWSER)
 	}
 
 	// We're at the BANG token

@@ -56,3 +56,28 @@ export func sendMsgResult(to: string, payload: string) -> (Result[{msg_id: strin
 export func recvMsgResult(mailbox: string) -> (Result[{msg_id: string, from: string, to: string, payload: string, clock: int}, {code: string, message: string}]) ! {Msg} {
   _msg_recv_result(mailbox)
 }
+
+-- M-COG-RUNTIME-BROWSER M4: Subscribe + drain pattern
+-- ===================================================
+
+-- Pump the per-evaluator pending callback queue. Each Subscribe-fired
+-- event is held until drain processes it on the evaluator's goroutine
+-- (preserves single-threaded determinism for AILANG closures).
+--
+-- timeout_ms semantics:
+--   0  -> non-blocking; returns immediately after draining what's queued
+--   >0 -> block up to ms waiting for new events when queue empties
+--   <0 -> block indefinitely until at least one event arrives
+--
+-- Returns the count of callbacks dispatched.
+-- @requires Cog capability
+export func drain(timeout_ms: int) -> int ! {Cog} {
+  _cog_drain(timeout_ms)
+}
+
+-- Subscribe to messages arriving in a mailbox. The callback fires
+-- asynchronously via drain — the registration is non-blocking.
+-- @requires Msg + Cog capabilities
+export func subscribeMsg(mailbox: string, callback: ({msg_id: string, from: string, to: string, payload: string, clock: int}) -> () ! {Msg, Cog}) -> () ! {Msg, Cog} {
+  _msg_subscribe(mailbox, callback)
+}

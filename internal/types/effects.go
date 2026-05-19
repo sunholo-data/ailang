@@ -341,6 +341,7 @@ func IsKnownEffect(name string) bool {
 		"Declassify":  true, // v0.16.0: IFC declassification capability (M-TAINT-TYPES)
 		"DOM":         true, // v0.21.x: Cognitive OS — structured DOM patches (M-COG-RUNTIME)
 		"Msg":         true, // v0.21.x: Cognitive OS — runtime messaging fabric (M-COG-RUNTIME)
+		"Cog":         true, // v0.21.x: Cognitive OS — drain pump for Subscribe callbacks (M-COG-RUNTIME-BROWSER)
 	}
 	return knownEffects[name]
 }

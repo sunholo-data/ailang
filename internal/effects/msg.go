@@ -313,6 +313,41 @@ func init() {
 	RegisterOp("Msg", "recv", msgRecv)
 	RegisterOp("Msg", "sendResult", msgSendResult)
 	RegisterOp("Msg", "recvResult", msgRecvResult)
+	RegisterOp("Msg", "subscribe", msgSubscribe)
+}
+
+// ============================================================================
+// Subscribe op — M-COG-RUNTIME-BROWSER M4
+// ============================================================================
+//
+// AILANG signature (in std/cognition.ail):
+//
+//	subscribeMsg(mailbox: string, callback: (Message) -> ()) -> () ! Msg
+//
+// Wires the AILANG callback through the MsgHandler. Browser path:
+// WasmMsgHandler.Subscribe registers a BroadcastChannel onmessage handler
+// that enqueues arrivals via ctx.Cog.Enqueue. AILANG drains them via
+// _cog_drain on the evaluator's goroutine.
+func msgSubscribe(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("E_MSG_TYPE_ERROR: subscribe: expected 2 args (mailbox, callback), got %d", len(args))
+	}
+	mailbox, err := msgStringArg(args[0], "mailbox")
+	if err != nil {
+		return nil, fmt.Errorf("E_MSG_TYPE_ERROR: subscribe: %w", err)
+	}
+	callback := args[1]
+	if ctx.Cog == nil {
+		return nil, fmt.Errorf("E_MSG_NO_COG: subscribe: ctx.Cog not configured")
+	}
+
+	onMsg := func(m Message) {
+		ctx.Cog.Enqueue(callback, encodeMessage(&m))
+	}
+	if _, err := ctx.Msg.Subscribe(Mailbox(mailbox), onMsg); err != nil {
+		return nil, err
+	}
+	return &eval.UnitValue{}, nil
 }
 
 // msgSend implements Msg.send(to: string, payload: string) -> {msg_id: string, clock: int, budget_remaining: int}
