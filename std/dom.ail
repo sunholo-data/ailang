@@ -1,0 +1,59 @@
+-- std/dom - Cognitive OS DOM substrate (M-COG-RUNTIME, v0.21.x)
+--
+-- Provides scoped, structured browser-DOM mutation + event subscription for
+-- the reflective Cognitive OS runtime. Agents address DOM by RegionID — they
+-- cannot patch outside their scoped region. All mutations are typed; no raw
+-- HTML/JS injection.
+--
+-- The DOM effect is browser-only — DOM ops outside a WASM/browser runtime
+-- return Err(NoHandler). Use applyPatch for raw success/panic semantics, or
+-- applyPatchResult for typed Result error handling.
+--
+-- Requires: DOM capability (--caps DOM)
+-- Design: design_docs/planned/v0_21_0/m-cog-runtime.md
+
+module std/dom
+
+import std/result (Result, Ok, Err)
+
+-- Structured DOM patch ADT.
+--
+-- Each variant maps to a typed Go-side DOMPatch in internal/effects/dom.go.
+-- New variants must be added in lockstep with decodeDOMPatch.
+export type DOMPatch =
+  | AddPanel(string, string)    -- title, content
+  | UpdateNode(string, string)  -- node_id, content
+  | RemoveNode(string)          -- node_id
+  | AddTimeline(string)         -- title
+
+-- Apply a single patch atomically.
+-- Returns the assigned node_id + remaining DOM.patches budget.
+-- Panics if no DOM handler is configured (non-browser runtime).
+-- @requires DOM capability
+export func applyPatch(region: string, patch: DOMPatch) -> ({node_id: string, budget_remaining: int}) ! {DOM} {
+  _dom_apply_patch(region, patch)
+}
+
+-- Apply a sequence of patches transactionally — all or nothing.
+-- Returns assigned node_ids in patch order + remaining budget.
+-- @requires DOM capability
+export func applyBatch(region: string, patches: [DOMPatch]) -> ({node_ids: [string], budget_remaining: int}) ! {DOM} {
+  _dom_apply_batch(region, patches)
+}
+
+-- Result-returning variant of applyPatch.
+-- Never panics: missing handler / bad args / handler failures surface as Err.
+-- @requires DOM capability
+-- @example match applyPatchResult("agent_a", AddPanel("T", "C")) {
+--            Ok(r) => r.node_id,
+--            Err(e) => "failed: " ++ e.code
+--          }
+export func applyPatchResult(region: string, patch: DOMPatch) -> (Result[{node_id: string, budget_remaining: int}, {code: string, message: string}]) ! {DOM} {
+  _dom_apply_patch_result(region, patch)
+}
+
+-- Result-returning variant of applyBatch.
+-- @requires DOM capability
+export func applyBatchResult(region: string, patches: [DOMPatch]) -> (Result[{node_ids: [string], budget_remaining: int}, {code: string, message: string}]) ! {DOM} {
+  _dom_apply_batch_result(region, patches)
+}

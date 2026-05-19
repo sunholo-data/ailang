@@ -1,0 +1,58 @@
+-- std/cognition - Cognitive OS message fabric (M-COG-RUNTIME, v0.21.x)
+--
+-- Provides inter-agent messaging for the Cognitive OS runtime. Transport-
+-- independent: the same agent code runs over LocalWorker (in-tab),
+-- BroadcastChannel (cross-tab same-origin), and later WebSocket /
+-- FirestoreRelay / WebRTC (M-COG-MESH).
+--
+-- This is a SIBLING to the `ailang messages` CLI, not a replacement. CLI
+-- behavior is byte-identical because internal/messaging/ is unchanged —
+-- the runtime API consumes the same store but exposes a typed-envelope
+-- send/recv/subscribe shape suited to in-flight agent coordination.
+--
+-- Requires: Msg capability (--caps Msg)
+-- Design: design_docs/planned/v0_21_0/m-cog-runtime.md
+
+module std/cognition
+
+import std/result (Result, Ok, Err)
+
+-- Send a payload to a mailbox (typically a NodeID or topic name).
+-- Returns the handler-assigned msg_id, Lamport clock, and remaining budget.
+-- Panics if no Msg handler is configured.
+--
+-- Named sendMsg (not send) because `send` is reserved for planned CSP/channel
+-- syntax (M-CSP-SESSION-TYPES, v1.1.0). Same for recvMsg vs recv.
+-- @requires Msg capability
+export func sendMsg(to: string, payload: string) -> ({msg_id: string, clock: int, budget_remaining: int}) ! {Msg} {
+  _msg_send(to, payload)
+}
+
+-- Receive the next message from a mailbox.
+-- Panics if no Msg handler is configured.
+-- Note: the stub handler returns a typed error on empty mailbox (used in
+-- synchronous tests). The real browser-bridged handler blocks until a
+-- message arrives or the transport closes.
+-- @requires Msg capability
+export func recvMsg(mailbox: string) -> ({msg_id: string, from: string, to: string, payload: string, clock: int}) ! {Msg} {
+  _msg_recv(mailbox)
+}
+
+-- Result-returning variant of sendMsg.
+-- Never panics: missing handler / bad args / handler failures surface as Err.
+-- @requires Msg capability
+-- @example match sendMsgResult("verifier", patch_json) {
+--            Ok(r) => "sent at clock " ++ show(r.clock),
+--            Err(e) => "send failed: " ++ e.code
+--          }
+export func sendMsgResult(to: string, payload: string) -> (Result[{msg_id: string, clock: int, budget_remaining: int}, {code: string, message: string}]) ! {Msg} {
+  _msg_send_result(to, payload)
+}
+
+-- Result-returning variant of recvMsg.
+-- Empty-mailbox cases surface as Err({code: "NO_MESSAGE", ...}) in the stub;
+-- in the real handler, only transport-close conditions produce Err.
+-- @requires Msg capability
+export func recvMsgResult(mailbox: string) -> (Result[{msg_id: string, from: string, to: string, payload: string, clock: int}, {code: string, message: string}]) ! {Msg} {
+  _msg_recv_result(mailbox)
+}

@@ -52,6 +52,10 @@ _deflate_deflate : (string, int) -> Result[string, string]
 _deflate_deflateZlib : (string, int) -> Result[string, string]
 _deflate_inflate : string -> Result[string, string]
 _deflate_inflateZlib : string -> Result[string, string]
+_dom_apply_batch : (string, list[DOMPatch]) -> {budget_remaining: int, node_ids: list[string]} ! {DOM}
+_dom_apply_batch_result : (string, list[DOMPatch]) -> Result[{budget_remaining: int, node_ids: list[string]}, {code: string, message: string}] ! {DOM}
+_dom_apply_patch : (string, DOMPatch) -> {budget_remaining: int, node_id: string} ! {DOM}
+_dom_apply_patch_result : (string, DOMPatch) -> Result[{budget_remaining: int, node_id: string}, {code: string, message: string}] ! {DOM}
 _dt_add : (int, int, int, int) -> int
 _dt_diffDays : (int, int) -> int
 _dt_formatISODate : int -> string
@@ -154,6 +158,10 @@ _math_round : float -> float
 _math_sin : float -> float
 _math_sqrt : float -> float
 _math_tan : float -> float
+_msg_recv : string -> {clock: int, from: string, msg_id: string, payload: string, to: string} ! {Msg}
+_msg_recv_result : string -> Result[{clock: int, from: string, msg_id: string, payload: string, to: string}, {code: string, message: string}] ! {Msg}
+_msg_send : (string, string) -> {budget_remaining: int, clock: int, msg_id: string} ! {Msg}
+_msg_send_result : (string, string) -> Result[{budget_remaining: int, clock: int, msg_id: string}, {code: string, message: string}] ! {Msg}
 _net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _net_httpRequestBytes : (string, string, list[{name: string, value: string}], bytes) -> Result[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _net_url_encode : string -> string

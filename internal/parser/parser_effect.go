@@ -32,6 +32,8 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		"Stream":      true, // Bidirectional WebSocket streaming (v0.8.1+, M-STREAM-BIDI)
 		"Process":     true, // External command execution (v0.8.0+, M-PROCESS)
 		"Declassify":  true, // IFC declassification capability (v0.16.0+, M-TAINT-TYPES)
+		"DOM":         true, // Cognitive OS — structured DOM patches (v0.21.x+, M-COG-RUNTIME)
+		"Msg":         true, // Cognitive OS — runtime messaging fabric (v0.21.x+, M-COG-RUNTIME)
 	}
 
 	// We're at the BANG token
@@ -49,7 +51,7 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		if !p.curTokenIs(lexer.IDENT) {
 			p.report("PAR_EFF004_INVALID",
 				"effect name must be an identifier",
-				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug, AI, SharedMem, SharedIndex")
+				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug, AI, SharedMem, SharedIndex, Stream, Process, Declassify, DOM, Msg")
 			continue
 		}
 
