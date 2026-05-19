@@ -66,6 +66,25 @@
 
   <div data-cog-runtime-root></div>
 
+  <h2 style="font-size: 1rem; margin-top: 2rem;">Replay engine (M3 Day 6)</h2>
+  <p style="font-size: 0.9rem;">
+    Reads the IndexedDB event log in canonical (clock, sender) order and
+    reconstructs the DOM. The strategic claim: <strong>same event log → same DOM</strong>
+    across page reloads + across machines.
+  </p>
+  <p style="font-size: 0.85rem; color: #62748a;">
+    Workflow: (1) Enable IndexedDB sink, (2) do some operations to build a log,
+    (3) <strong>Capture DOM hashes</strong> (snapshots the current state),
+    (4) <strong>Replay from IndexedDB</strong> (resets + replays),
+    (5) <strong>Verify byte equality</strong> (compares before/after hashes).
+  </p>
+  <div class="controls">
+    <button id="btn-replay-capture">Capture DOM hashes</button>
+    <button id="btn-replay-from-db">Replay from IndexedDB</button>
+    <button id="btn-replay-dryrun">Dry-run (count only)</button>
+    <button id="btn-replay-verify">Verify byte equality</button>
+  </div>
+
   <h2 style="font-size: 1rem; margin-top: 2rem;">IndexedDB event log (M3)</h2>
   <p style="font-size: 0.9rem;">
     Opt-in cognitive event log. Once enabled, every <code>applyPatch</code> / <code>send</code> / <code>recv</code> writes a structured event to IndexedDB. Survives reloads. The "Reload tab" workflow is the M3 replay-determinism story.
@@ -97,6 +116,7 @@
   <script src="canonical_dom.js"></script>
   <script src="event_log_indexeddb.js"></script>
   <script src="host.js"></script>
+  <script src="replay.js"></script>
   <script>
     'use strict';
 
@@ -413,6 +433,67 @@
         log('✅ Event log cleared', 'pass');
       } catch (e) {
         log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    // ============================================================
+    // M3 Day 6: Replay engine wiring
+    // ============================================================
+
+    let capturedHashes = null;
+
+    document.getElementById('btn-replay-capture').addEventListener('click', () => {
+      capturedHashes = CognitiveReplay.captureRegionHashes();
+      const regionIds = Object.keys(capturedHashes);
+      log('📸 Captured ' + regionIds.length + ' region hash(es):');
+      regionIds.forEach((id) => log('   ' + id + ' → ' + capturedHashes[id]));
+      if (regionIds.length === 0) {
+        log('   (no regions yet — do some applyPatch first)', 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-from-db').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
+      try {
+        const start = performance.now();
+        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: true });
+        const elapsed = (performance.now() - start).toFixed(1);
+        log('▶ Replayed ' + result.total + ' events in ' + elapsed + 'ms', 'pass');
+        log('   Applied: ' + result.applied + ' (DOM side-effects)');
+        log('   Skipped: ' + result.skipped + ' (passive / unknown kinds)');
+        log('   Use "Capture DOM hashes" then "Verify byte equality" to compare against pre-replay state.');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-dryrun').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the IndexedDB sink first.', 'fail'); return; }
+      try {
+        const result = await CognitiveReplay.fromEventLog(eventLog, { resetFirst: false, dryRun: true });
+        log('▶ Dry-run: ' + result.total + ' events in canonical order (no DOM mutation):');
+        result.dispatched.forEach((d, i) => {
+          log('   [' + i + '] ' + d.kind + (d.expected_node_id ? ' expected node_id=' + d.expected_node_id : ''));
+        });
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-replay-verify').addEventListener('click', () => {
+      if (!capturedHashes) {
+        log('No captured hashes — click "Capture DOM hashes" before replay first.', 'fail');
+        return;
+      }
+      const after = CognitiveReplay.captureRegionHashes();
+      const v = CognitiveReplay.verifyByteEquality(capturedHashes, after);
+      if (v.equal) {
+        log('✅ Byte-identical DOM across replay boundary (' + Object.keys(after).length + ' region(s) match)', 'pass');
+      } else {
+        log('❌ DOM diverged across replay:', 'fail');
+        v.mismatches.forEach((m) => {
+          log('   ' + m.regionId + ': expected=' + m.expected + ' actual=' + m.actual, 'fail');
+        });
       }
     });
   </script>

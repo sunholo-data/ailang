@@ -164,7 +164,13 @@
     state.clock += 1;
     const region = ensureRegion(regionId);
     const result = state.canonical.applyPatch(region, regionId, patch);
-    // Emit PatchApplied event for the cognitive event log
+    // Emit PatchApplied event for the cognitive event log.
+    // `fields` is a JS-side extension over the M-COG-RUNTIME Go-side
+    // PatchAppliedEvent struct — Go's struct silently ignores unknown
+    // JSON fields on Import (forward-compat), and adds the same field
+    // when the Go-side event_log.go is extended in a follow-up. Replay
+    // uses `fields` to reconstruct the original patch content (avoids
+    // the placeholder fallback in replay.js:patchFromEvent).
     emitEvent({
       kind: 'PatchApplied',
       clock: state.clock,
@@ -173,6 +179,7 @@
       region: regionId,
       patch_type: patch.ctor,
       node_id: result.nodeId,
+      fields: Array.isArray(patch.fields) ? patch.fields.slice() : [],
     });
     return {
       node_id: result.nodeId,
