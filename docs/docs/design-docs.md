@@ -8,6 +8,29 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.20.0
+
+- [M-AILANG-LSP-FOR-AI Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-ailang-lsp-for-ai-sprint-plan.md)
+- [M-AILANG-LSP-FOR-AI — AILANG LSP server targeting AI coding agents (and humans)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-ailang-lsp-for-ai.md)
+- [M-DX26 Phase 5: `ensures` Result Binding — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-dx26-ensures-result-binding-sprint-plan.md)
+- [M-PARSER-BLOCK-TRAILING-RECORD: Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-parser-block-trailing-record-literal-sprint-plan.md)
+- [M-PARSER-BLOCK-TRAILING-RECORD: Block Expression Greedily Consumes Trailing `{` as New Block Instead of Record Literal](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-parser-block-trailing-record-literal.md)
+- [M-SERVEAPI-SURFACE-DROPS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-serveapi-surface-drops-sprint-plan.md)
+- [M-SERVEAPI-SURFACE-DROPS — Refuse to start when declared `@route` modules are silently dropped](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-serveapi-surface-drops.md)
+- [Sprint Plan: M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-typecheck-no-auto-unwrap-result-sprint-plan.md)
+- [M-TYPECHECK-NO-AUTO-UNWRAP-RESULT: Reject `.field` access on tagged unions without `match`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-typecheck-no-auto-unwrap-result.md)
+
+## v0.19.2
+
+- [M-STDLIB-URL-ENCODE: URL form-encoding in std/net](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_2/m-stdlib-url-encode.md)
+- [m stdlib xml walk perf sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_2/m-stdlib-xml-walk-perf-sprint-plan.md)
+- [m stdlib xml walk perf](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_2/m-stdlib-xml-walk-perf.md)
+
+## v0.19.1
+
+- [Sprint Plan: M-STDLIB-HTML — `std/html` HTML5 Parser Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_1/m-stdlib-html-sprint-plan.md)
+- [M-STDLIB-HTML: `std/html` — HTML5 Parser Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_1/m-stdlib-html.md)
+
 ## v0.19.0
 
 - [Sprint Plan: M-EVAL-SWEET-SPOT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-eval-sweet-spot-sprint-plan.md)
@@ -19,6 +42,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-NET-BINARY-BODIES: binary request and response bodies for `std/net`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-net-binary-bodies.md)
 - [M-PKG-INTRA-PACKAGE-IMPORTS — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-pkg-intra-package-imports-sprint-plan.md)
 - [M-PKG-INTRA-PACKAGE-IMPORTS: intra-package imports for multi-module packages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-pkg-intra-package-imports.md)
+- [Sprint Plan: M-WASM-AI-STEP-BYO-KEY (v0.19.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-wasm-ai-step-byo-key-sprint-plan.md)
+- [M-WASM-AI-STEP-BYO-KEY: WASM `ai.step` via direct BYO-key provider fetch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_19_0/m-wasm-ai-step-byo-key.md)
 
 ## v0.18.11
 
@@ -1050,4 +1075,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 752 design documents across 96 versions.*
+*Generated at build time. 768 design documents across 99 versions.*

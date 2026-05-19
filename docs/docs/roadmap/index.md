@@ -25,10 +25,20 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
 - [M-ENTROPY: Semantic Entropy Budgets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-entropy-budgets.md)
 - [M-EU-COMPLIANCE-EFFECTS: Regulatory Trigger Effects for Agentic Systems](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-eu-compliance-effects.md)
+- [M-FORALL-PROPERTIES: Direct-Core Evaluation for `properties [forall(...) => ...]` Blocks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-forall-properties-direct-core-eval.md)
 - [M-PERF4: Bytecode Interpreter (Stretch Goal)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-perf4-bytecode-interpreter.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
+
+## Planned for v0.21.0
+
+- [M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-check-strict-fallbacks.md)
+- [M-EFFECT-HANDLERS: User-Definable Effect Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-effect-handlers.md)
+- [M-EVAL-AGENT-PYTHON-STDIO-WIRING — Python agent-mode runner drops `cli_args` and `stdin` from benchmark spec](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md)
+- [M-SERVEAPI-GET-QUERY-SHADOW — GET query args silently shadowed by zero-value padding](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-serveapi-get-query-shadow.md)
+- [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-stdlib-html-streaming.md)
+- [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-zero-language-learnings.md)
 
 ## Planned for v0.19.0
 
@@ -36,8 +46,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md)
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
-- [Sprint Plan: M-WASM-AI-STEP-BYO-KEY (v0.19.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-byo-key-sprint-plan.md)
-- [M-WASM-AI-STEP-BYO-KEY: WASM `ai.step` via direct BYO-key provider fetch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-byo-key.md)
 - [M-WASM-AI-STEP-VIA-MESSAGES: WASM `ai.step` mediated by the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md)
 - [M-WASM-CLOUD-MESSAGES: AILANG-WASM browser participates in the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-cloud-messages.md)
 
@@ -167,4 +175,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 111 planned features across 11 upcoming versions.*
+*Generated at build time. 116 planned features across 12 upcoming versions.*
