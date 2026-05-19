@@ -78,21 +78,24 @@
     return 'tab_' + hex;
   }
 
-  // resolveSender returns the per-tab NodeID, allocating one from localStorage
-  // on first call. The Date.now() salt isn't used as a clock — it just makes
-  // multi-tab same-origin sessions distinguishable in collision-free fashion.
+  // resolveSender returns the per-tab NodeID. Uses sessionStorage (NOT
+  // localStorage) so each browser tab gets its own identity — localStorage
+  // is shared across all tabs on an origin, which would make every tab
+  // appear as the same sender and break the BroadcastChannel self-loop
+  // guard. sessionStorage persists across reloads of the same tab, which
+  // is the right durability scope for a per-tab cognitive node.
   function resolveSender() {
     if (state.sender) return state.sender;
     try {
-      const stored = localStorage.getItem('ailang_cog_sender');
+      const stored = sessionStorage.getItem('ailang_cog_sender');
       if (stored && stored.length > 0) {
         state.sender = stored;
         return stored;
       }
-    } catch (_) { /* localStorage may throw in private mode */ }
+    } catch (_) { /* sessionStorage may throw in private mode */ }
     const fresh = generateSenderId() + '_' + Date.now().toString(36);
     state.sender = fresh;
-    try { localStorage.setItem('ailang_cog_sender', fresh); } catch (_) {}
+    try { sessionStorage.setItem('ailang_cog_sender', fresh); } catch (_) {}
     return fresh;
   }
 
