@@ -300,6 +300,12 @@
       state.clock = 0;
       state.nextMsgId = 0;
       if (state.root) state.root.innerHTML = '';
+      // CRITICAL: also reset CanonicalDOM internal state — otherwise
+      // regionParentHash retains entries across the reset and the next
+      // _addPanel sees a stale parent-hash, breaking replay-determinism.
+      // Re-create the instance to drop nodesById + regionParentHash
+      // + re-inject the canonical style block.
+      if (state.root) state.canonical = new global.CanonicalDOM(state.root);
     },
   };
 })(typeof window !== 'undefined' ? window : globalThis);
