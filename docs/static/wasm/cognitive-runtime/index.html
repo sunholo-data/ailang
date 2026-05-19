@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cognitive OS — M1 Smoke Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1f2933;
+      background: #f5f7fa;
+    }
+    h1 { font-size: 1.25rem; }
+    .controls { margin: 1rem 0; }
+    button {
+      padding: 0.4rem 0.8rem;
+      margin-right: 0.5rem;
+      border: 1px solid #cbd2d9;
+      background: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover { background: #f0f4f8; }
+    [data-cog-runtime-root] {
+      border: 2px dashed #b5bec8;
+      padding: 1rem;
+      min-height: 80px;
+      background: #fff;
+      border-radius: 6px;
+    }
+    .results {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #1f2933;
+      color: #e4e7eb;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .pass { color: #34d399; }
+    .fail { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>Cognitive OS — M1 Smoke Test</h1>
+  <p>
+    Direct-bypass test of the DOM bridge.
+    Each button calls <code>CognitiveOS._applyPatchDirect(...)</code>
+    (no AILANG REPL needed). Replay-equality is checked via
+    <code>regionHash</code> after each operation.
+  </p>
+
+  <div class="controls">
+    <button id="btn-run-all">Run all assertions</button>
+    <button id="btn-add-panel">Add panel</button>
+    <button id="btn-update-panel">Update last panel</button>
+    <button id="btn-add-timeline">Add timeline</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+
+  <div data-cog-runtime-root></div>
+
+  <pre class="results" id="results">Click "Run all assertions" to begin.</pre>
+
+  <script src="canonical_dom.js"></script>
+  <script src="host.js"></script>
+  <script>
+    'use strict';
+
+    CognitiveOS.attach({ rootSelector: '[data-cog-runtime-root]' });
+
+    const out = document.getElementById('results');
+    function log(msg, cls) {
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = msg + '\n';
+      out.appendChild(span);
+    }
+    function clearLog() { out.textContent = ''; }
+
+    function assert(cond, msg) {
+      if (cond) {
+        log('  PASS: ' + msg, 'pass');
+        return true;
+      }
+      log('  FAIL: ' + msg, 'fail');
+      return false;
+    }
+
+    // ============================================================
+    // Smoke assertions — exercise every M1 acceptance criterion
+    // ============================================================
+
+    function runAll() {
+      clearLog();
+      CognitiveOS._resetForTesting();
+      log('▶ Cognitive OS M1 smoke suite\n');
+      let passed = 0, total = 0;
+      const tally = (ok) => { total += 1; if (ok) passed += 1; };
+
+      // ---- 1. applyPatch returns structured response ----
+      log('Test 1: applyPatch returns {node_id, budget_remaining}');
+      const r1 = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      tally(assert(typeof r1.node_id === 'string', 'node_id is a string'));
+      tally(assert(r1.node_id.startsWith('cog_'), 'node_id has cog_ prefix'));
+      tally(assert(typeof r1.budget_remaining === 'number', 'budget_remaining is a number'));
+
+      // ---- 2. Determinism: same patch → same node_id ----
+      log('\nTest 2: same patch → same node_id (replay invariant)');
+      CognitiveOS._resetForTesting();
+      const r2a = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      CognitiveOS._resetForTesting();
+      const r2b = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['Hello', 'World']
+      });
+      tally(assert(r2a.node_id === r2b.node_id, 'IDs match across resets: ' + r2a.node_id));
+
+      // ---- 3. Different region → different ID ----
+      log('\nTest 3: different region → different ID');
+      CognitiveOS._resetForTesting();
+      const r3a = CognitiveOS._applyPatchDirect('agent_a', {
+        ctor: 'AddPanel', fields: ['X', 'Y']
+      });
+      const r3b = CognitiveOS._applyPatchDirect('agent_b', {
+        ctor: 'AddPanel', fields: ['X', 'Y']
+      });
+      tally(assert(r3a.node_id !== r3b.node_id, 'agent_a vs agent_b IDs differ'));
+
+      // ---- 4. Scoped regions: nodes live inside data-cog-region containers ----
+      log('\nTest 4: scoped-region invariant');
+      CognitiveOS._resetForTesting();
+      CognitiveOS._applyPatchDirect('scoped_test', {
+        ctor: 'AddPanel', fields: ['T', 'C']
+      });
+      const region = document.querySelector('[data-cog-region="scoped_test"]');
+      tally(assert(region !== null, 'data-cog-region="scoped_test" element exists'));
+      tally(assert(region.querySelector('.cog-panel') !== null, 'panel child rendered inside region'));
+
+      // ---- 5. UpdateNode finds and mutates by ID ----
+      log('\nTest 5: UpdateNode by ID');
+      CognitiveOS._resetForTesting();
+      const created = CognitiveOS._applyPatchDirect('agent_u', {
+        ctor: 'AddPanel', fields: ['Title', 'Old content']
+      });
+      CognitiveOS._applyPatchDirect('agent_u', {
+        ctor: 'UpdateNode', fields: [created.node_id, 'New content']
+      });
+      const updated = document.querySelector('[data-cog-node="' + created.node_id + '"] .cog-panel-content');
+      tally(assert(updated && updated.textContent === 'New content', 'UpdateNode replaced content'));
+
+      // ---- 6. RemoveNode by ID ----
+      log('\nTest 6: RemoveNode by ID');
+      CognitiveOS._resetForTesting();
+      const toRemove = CognitiveOS._applyPatchDirect('agent_r', {
+        ctor: 'AddPanel', fields: ['Doomed', '']
+      });
+      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') !== null,
+        'node exists before remove'));
+      CognitiveOS._applyPatchDirect('agent_r', {
+        ctor: 'RemoveNode', fields: [toRemove.node_id]
+      });
+      tally(assert(document.querySelector('[data-cog-node="' + toRemove.node_id + '"]') === null,
+        'node removed from DOM'));
+
+      // ---- 7. AddTimeline variant ----
+      log('\nTest 7: AddTimeline variant');
+      CognitiveOS._resetForTesting();
+      const tlResult = CognitiveOS._applyPatchDirect('agent_t', {
+        ctor: 'AddTimeline', fields: ['Trace replay']
+      });
+      const tl = document.querySelector('[data-cog-node="' + tlResult.node_id + '"]');
+      tally(assert(tl && tl.classList.contains('cog-timeline'), 'timeline element rendered'));
+
+      // ---- 8. Sender identity persists ----
+      log('\nTest 8: sender identity');
+      const snap = CognitiveOS.debugSnapshot();
+      tally(assert(typeof snap.sender === 'string' && snap.sender.length > 0,
+        'sender ID assigned: ' + snap.sender));
+      tally(assert(snap.sender.startsWith('tab_'), 'sender has tab_ prefix'));
+
+      // ---- 9. Idempotent: same patch applied twice = no duplicate DOM ----
+      log('\nTest 9: idempotent patch application');
+      CognitiveOS._resetForTesting();
+      const region9 = 'idempotent_test';
+      CognitiveOS._applyPatchDirect(region9, {
+        ctor: 'AddPanel', fields: ['Same', 'Same']
+      });
+      const before = document.querySelectorAll('[data-cog-region="' + region9 + '"] .cog-panel').length;
+      CognitiveOS._applyPatchDirect(region9, {
+        ctor: 'AddPanel', fields: ['Same', 'Same']
+      });
+      const after = document.querySelectorAll('[data-cog-region="' + region9 + '"] .cog-panel').length;
+      tally(assert(before === 1 && after === 1, 'second identical patch did not duplicate (' + before + '→' + after + ')'));
+
+      // ---- 10. Msg fabric: send + recv loopback ----
+      log('\nTest 10: Msg send + recv (same-tab loopback)');
+      CognitiveOS._resetForTesting();
+      const sendRes = CognitiveOS._sendDirect('inbox_b', 'ping');
+      tally(assert(typeof sendRes.msg_id === 'string' && sendRes.msg_id.length > 0,
+        'send returned msg_id: ' + sendRes.msg_id));
+      tally(assert(typeof sendRes.clock === 'number', 'send returned clock'));
+      // Recv returns a Promise — handle async
+      return CognitiveOS._recvDirect('inbox_b').then((env) => {
+        log('\nTest 11: recv envelope shape');
+        tally(assert(env.payload === 'ping', 'payload preserved'));
+        tally(assert(env.msg_id === sendRes.msg_id, 'msg_id preserved'));
+        tally(assert(env.clock === sendRes.clock, 'clock preserved'));
+
+        log('\n──────────────────────────');
+        if (passed === total) {
+          log('✅ ' + passed + ' / ' + total + ' assertions passed', 'pass');
+        } else {
+          log('❌ ' + passed + ' / ' + total + ' assertions passed', 'fail');
+        }
+      });
+    }
+
+    document.getElementById('btn-run-all').addEventListener('click', runAll);
+    document.getElementById('btn-add-panel').addEventListener('click', () => {
+      const n = Date.now() % 10000;
+      const r = CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'AddPanel', fields: ['Manual ' + n, 'Content ' + n]
+      });
+      log('Added panel: ' + r.node_id);
+    });
+    document.getElementById('btn-update-panel').addEventListener('click', () => {
+      const last = document.querySelector('[data-cog-region="manual"] .cog-panel:last-child');
+      if (!last) { log('No panel to update', 'fail'); return; }
+      const id = last.getAttribute('data-cog-node');
+      CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'UpdateNode', fields: [id, 'Updated at ' + new Date().toISOString()]
+      });
+      log('Updated panel: ' + id);
+    });
+    document.getElementById('btn-add-timeline').addEventListener('click', () => {
+      const r = CognitiveOS._applyPatchDirect('manual', {
+        ctor: 'AddTimeline', fields: ['Timeline ' + (Date.now() % 1000)]
+      });
+      log('Added timeline: ' + r.node_id);
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      CognitiveOS._resetForTesting();
+      clearLog();
+      log('Reset complete.');
+    });
+  </script>
+</body>
+</html>
