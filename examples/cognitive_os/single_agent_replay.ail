@@ -1,0 +1,47 @@
+-- Cognitive OS demo: single-agent replayable execution.
+--
+-- Exercises the M-COG-RUNTIME M1 + M2 agent surface end-to-end:
+--   - DOM patches via std/dom (browser-only — gracefully degrades)
+--   - Messaging via std/cognition (works native + WASM via Transport)
+--   - Result-returning variants for clean error handling
+--
+-- In a browser tab with a configured DOM handler, this would mutate the
+-- page. With a NativeMsgHandler over LocalWorker, sendMsg / recvMsg
+-- exchange real envelopes through the in-process transport. The full
+-- cognitive event log captures everything for replay (M3 scheduler).
+--
+-- Design: design_docs/planned/v0_21_0/m-cog-runtime.md
+
+module examples/cognitive_os/single_agent_replay
+
+import std/dom (DOMPatch, AddPanel, applyPatchResult)
+import std/cognition (sendMsgResult, recvMsgResult)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- Render a structured heatmap panel for the agent's region.
+-- Returns the assigned node_id on success or an error code.
+export func renderHeatmap(region: string, title: string, svg: string) -> string ! {DOM} = {
+  match applyPatchResult(region, AddPanel(title, svg)) {
+    Ok(r)  => "rendered:${r.node_id}",
+    Err(e) => "dom_failed:${e.code}"
+  }
+}
+
+-- Dispatch a structured payload to a peer agent's mailbox.
+-- Returns the handler-assigned msg_id (or error code).
+export func relay(to: string, payload: string) -> string ! {Msg} = {
+  match sendMsgResult(to, payload) {
+    Ok(r)  => "sent:${r.msg_id}",
+    Err(e) => "send_failed:${e.code}"
+  }
+}
+
+-- Pull the next message from a mailbox (blocking on real transports,
+-- typed error from stub when empty).
+export func consume(mailbox: string) -> string ! {Msg} = {
+  match recvMsgResult(mailbox) {
+    Ok(m)  => "from:${m.from}:${m.payload}",
+    Err(e) => "recv_failed:${e.code}"
+  }
+}
