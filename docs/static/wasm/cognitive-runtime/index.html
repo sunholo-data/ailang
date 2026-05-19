@@ -66,6 +66,18 @@
 
   <div data-cog-runtime-root></div>
 
+  <h2 style="font-size: 1rem; margin-top: 2rem;">IndexedDB event log (M3)</h2>
+  <p style="font-size: 0.9rem;">
+    Opt-in cognitive event log. Once enabled, every <code>applyPatch</code> / <code>send</code> / <code>recv</code> writes a structured event to IndexedDB. Survives reloads. The "Reload tab" workflow is the M3 replay-determinism story.
+  </p>
+  <div class="controls">
+    <button id="btn-enable-eventlog">Enable IndexedDB sink</button>
+    <button id="btn-eventlog-count">Show event count</button>
+    <button id="btn-eventlog-show-all">Show all events (canonical order)</button>
+    <button id="btn-eventlog-export">Export JSONL</button>
+    <button id="btn-eventlog-clear">Clear event log</button>
+  </div>
+
   <h2 style="font-size: 1rem; margin-top: 2rem;">Cross-tab BroadcastChannel test (M2)</h2>
   <p style="font-size: 0.9rem;">
     Open this page in a <strong>second browser tab</strong> on the same origin.
@@ -83,6 +95,7 @@
   <pre class="results" id="results">Click "Run all assertions" to begin.</pre>
 
   <script src="canonical_dom.js"></script>
+  <script src="event_log_indexeddb.js"></script>
   <script src="host.js"></script>
   <script>
     'use strict';
@@ -316,6 +329,91 @@
       log('Sender ID: ' + snap.sender);
       log('Lamport clock: ' + snap.clock);
       log('Open mailboxes: [' + snap.mailboxes.join(', ') + ']');
+    });
+
+    // ============================================================
+    // M3: IndexedDB event log wiring
+    // ============================================================
+
+    let eventLog = null;
+
+    document.getElementById('btn-enable-eventlog').addEventListener('click', async () => {
+      try {
+        // Re-attach with withEventLog enabled. Reset first to drop the
+        // M1/M2-default attach state.
+        CognitiveOS._resetForTesting();
+        const r = CognitiveOS.attach({
+          rootSelector: '[data-cog-runtime-root]',
+          withEventLog: true,
+          dbName: 'ailang_cog_smoke_v1',
+        });
+        if (r.eventLogReady) {
+          await r.eventLogReady;
+          eventLog = r.eventLog;
+          log('✅ IndexedDB sink ready (db: ailang_cog_smoke_v1)', 'pass');
+          log('   Every subsequent applyPatch / send / recv writes an event.');
+          log('   Try clicking "Add panel" and "Send greeting" a few times, then "Show event count".');
+        } else {
+          log('FAIL: eventLogReady not returned by attach', 'fail');
+        }
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-count').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const n = await eventLog.count();
+        log('Event count: ' + n);
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-show-all').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const events = await eventLog.queryCanonicalOrder();
+        log('Events in canonical (clock, sender) order:');
+        events.forEach((e, i) => {
+          const variant = e.region ? ' region=' + e.region + ' patch=' + e.patch_type :
+                          e.to ? ' to=' + e.to + ' msg=' + e.msg_id :
+                          e.from ? ' from=' + e.from + ' msg=' + e.msg_id : '';
+          log('  [' + i + '] ' + e.kind + ' clock=' + e.clock + ' sender=' + e.sender + variant);
+        });
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-export').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        const blob = await eventLog.exportJSONL();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cognitive-events-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        log('✅ Exported ' + blob.size + ' bytes of JSONL', 'pass');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
+    });
+
+    document.getElementById('btn-eventlog-clear').addEventListener('click', async () => {
+      if (!eventLog) { log('Enable the sink first.', 'fail'); return; }
+      try {
+        await eventLog.clear();
+        log('✅ Event log cleared', 'pass');
+      } catch (e) {
+        log('FAIL: ' + e.message, 'fail');
+      }
     });
   </script>
 </body>

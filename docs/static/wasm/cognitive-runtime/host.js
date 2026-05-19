@@ -52,7 +52,24 @@
     canonical: null,            // CanonicalDOM instance (set in attach())
     clock: 0,                   // local Lamport-like counter for Sends without a Go-side stamp
     nextMsgId: 0,               // monotonic counter for envelope IDs
+    eventLog: null,             // CognitiveEventLog instance (M3, opt-in via attach({withEventLog:true}))
   };
+
+  // emitEvent fires-and-forgets to the event log if one is configured.
+  // The log's emit returns a Promise, but callers don't await — IndexedDB
+  // writes happen in the background while the agent keeps running.
+  // Persistence ordering is preserved by the internal writeChain in
+  // event_log_indexeddb.js (single Promise chain serializes all puts).
+  function emitEvent(ev) {
+    if (state.eventLog) {
+      state.eventLog.emit(ev).catch(function (e) {
+        // Log silently to console — never throw into the caller path.
+        if (global.console && global.console.warn) {
+          global.console.warn('[CognitiveOS] event-log emit failed:', e.message);
+        }
+      });
+    }
+  }
 
   // ========================================================================
   // Sender identity — nanoid-like; persists in localStorage per origin
@@ -144,8 +161,19 @@
     if (!patch || typeof patch !== 'object') {
       throw new Error('CognitiveOS.applyPatch: patch must be an object, got ' + typeof patch);
     }
+    state.clock += 1;
     const region = ensureRegion(regionId);
     const result = state.canonical.applyPatch(region, regionId, patch);
+    // Emit PatchApplied event for the cognitive event log
+    emitEvent({
+      kind: 'PatchApplied',
+      clock: state.clock,
+      sender: resolveSender(),
+      ts_ms: Date.now(),
+      region: regionId,
+      patch_type: patch.ctor,
+      node_id: result.nodeId,
+    });
     return {
       node_id: result.nodeId,
       budget_remaining: -1, // unbounded in M1; M4 wires budget enforcement
@@ -213,6 +241,16 @@
       clock: state.clock,
     };
     state.sentEnvelopes.set(env.msg_id, env);
+    // MessageSent event for the cognitive log
+    emitEvent({
+      kind: 'MessageSent',
+      clock: env.clock,
+      sender: sender,
+      ts_ms: Date.now(),
+      to: env.to,
+      msg_id: env.msg_id,
+      payload_hash: '', // M3 ships without payload hashing; M-COG-MESH may add it
+    });
     // Same-tab delivery (loopback) so single-tab demos work without a peer
     enqueueDelivery(env);
     // M2: BroadcastChannel cross-tab delivery. Per spec, BroadcastChannel
@@ -235,16 +273,35 @@
     // arrivals show up even if no Send has happened yet in this tab.
     ensureBroadcastChannel(mailboxName);
 
+    // Helper to emit MessageReceived event on successful pull
+    function emitReceivedFor(env) {
+      // Happens-before clock advance: max(local, remote) + 1
+      if (typeof env.clock === 'number' && env.clock >= state.clock) {
+        state.clock = env.clock + 1;
+      } else {
+        state.clock += 1;
+      }
+      emitEvent({
+        kind: 'MessageReceived',
+        clock: state.clock,
+        sender: resolveSender(),
+        ts_ms: Date.now(),
+        from: env.from,
+        msg_id: env.msg_id,
+      });
+    }
+
     const arr = mailboxes.get(mailboxName) || [];
     if (arr.length > 0) {
       const env = arr.shift();
       mailboxes.set(mailboxName, arr);
+      emitReceivedFor(env);
       return Promise.resolve(env);
     }
     // Block via Promise — the WASM side awaits this via awaitJSResult.
     return new Promise(function (resolve) {
       const list = mailboxWaiters.get(mailboxName) || [];
-      list.push(resolve);
+      list.push(function (env) { emitReceivedFor(env); resolve(env); });
       mailboxWaiters.set(mailboxName, list);
     });
   }
@@ -265,6 +322,19 @@
     }
     state.canonical = new global.CanonicalDOM(state.root);
     resolveSender();
+
+    // M3 opt-in: enable the IndexedDB-backed cognitive event log. Returns
+    // a Promise from attach() when enabled so the page can await DB-ready
+    // before issuing any patch/send calls. When disabled (the M1/M2
+    // default), attach is synchronous.
+    let eventLogPromise = null;
+    if (opts.withEventLog) {
+      if (!global.CognitiveEventLog) {
+        throw new Error('CognitiveOS.attach: withEventLog requested but event_log_indexeddb.js not loaded');
+      }
+      state.eventLog = new global.CognitiveEventLog({ dbName: opts.dbName });
+      eventLogPromise = state.eventLog.open();
+    }
 
     // Register the 4 WASM-side bridges. Each global accepts a callback
     // matching the WasmDOMHandler / WasmMsgHandler shape in
@@ -297,6 +367,12 @@
     return {
       sender: state.sender,
       root: state.root,
+      // Promise that resolves when the IndexedDB sink is open + ready.
+      // null when withEventLog is false.
+      eventLogReady: eventLogPromise,
+      // Direct accessor for the sink — pages may want to call
+      // .queryCanonicalOrder(), .exportJSONL(), .clear(), etc.
+      eventLog: state.eventLog,
     };
   }
 
