@@ -605,6 +605,17 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 
 // inferCore performs type inference on Core expressions
 func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) (typedast.TypedNode, *TypeEnv, error) {
+	// M-WASM-TYPECHECK-LIMITS: depth-budget guard. No-op on native; on WASM
+	// this aborts with a structured WasmTypeCheckerDepthExceededError when
+	// recursion exceeds wasmInferDepthBudget — preventing the silent
+	// browser-freeze failure mode (see design_docs/planned/v0_22_0/
+	// m-wasm-typecheck-limits.md). The native stub in
+	// typechecker_wasm_depth_native.go compiles to nothing.
+	if err := tc.wasmDepthEnter(ctx); err != nil {
+		return nil, ctx.env, err
+	}
+	defer tc.wasmDepthExit(ctx)
+
 	var typedNode typedast.TypedNode
 	var env *TypeEnv
 	var err error

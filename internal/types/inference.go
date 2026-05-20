@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 )
@@ -17,6 +18,16 @@ type InferenceContext struct {
 	TypeInfo             TypeInfo          // Maps Surface AST expressions to their inferred types (principal types)
 	expectedType         *Type             // Expected type from context (e.g., function return type in tail position)
 	debugSink            TypeDebugSink     // M-DX11: Debug sink for provenance tracking
+	// M-WASM-TYPECHECK-LIMITS (v0.22.x): wall-clock deadline for inferCore.
+	// On CLI this is unused (helpers in typechecker_wasm_depth_native.go are
+	// no-ops). On WASM the helpers in typechecker_wasm_depth_wasm.go set this
+	// on the first inferCore entry and check it on every subsequent entry —
+	// when exceeded we emit a structured WasmTypeCheckerBudgetExceededError
+	// instead of letting the browser hang silently for 80+ seconds before
+	// the JS engine throws stack overflow. Catches both true stack overflow
+	// and pathologically slow analysis (e.g. quadratic isTaggedUnion).
+	wasmDeadline  time.Time
+	currentModule string // populated by callers for inclusion in the budget-exceeded error
 }
 
 // TypeConstraint represents a constraint to be solved

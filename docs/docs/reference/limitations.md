@@ -47,6 +47,87 @@ Named `func` recursion is also supported by `ailang verify` via bounded unrollin
 
 ---
 
+### WASM Type-Checker Depth Limit (By Design, WASM-only)
+
+**Status**: WASM-specific constraint with structured error
+**Since**: v0.22.x
+**Affects**: AILANG modules compiled to WebAssembly (browser demos using `wasm/ailang.wasm`). **CLI is unaffected.**
+
+The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox). Modules with deeply-recursive type structure exceed it. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
+
+**Example failure**:
+
+```
+loadModule cognitive_commons/services/citizen failed:
+WASM type-checker depth budget exceeded (5000 frames) in module
+"cognitive_commons/services/citizen".
+
+This module's type structure recurses too deeply for the WASM host stack.
+The same source likely works on the AILANG CLI — this limit is specific
+to browser execution.
+```
+
+**Common triggers**:
+1. Triple-nested `match` patterns (match inside match inside match)
+2. Multiple back-to-back matches on the same tagged-union value with field access:
+   ```ailang
+   -- Each line is a separate match on the same Result — the type-checker
+   -- repeats tagged-union analysis on `s` three times.
+   let x = match r { Ok(s) => s.x, Err(_) => 0.0 };
+   let y = match r { Ok(s) => s.y, Err(_) => 0.0 };
+   let z = match r { Ok(s) => s.z, Err(_) => 0.0 };
+   ```
+3. Long chains of intra-package imports with many destructured constructors
+
+**Workarounds** (in order of simplicity):
+
+1. **Flatten nested matches** into sequential `let`-bindings:
+   ```ailang
+   -- Before: triple-nested
+   match decode(raw) {
+     Err(e) => Err(e),
+     Ok(j) => match getString(j, "error") {
+       Some(p) => Err(p),
+       None => match getString(j, "text") { ... }
+     }
+   }
+
+   -- After: flat
+   match decode(raw) {
+     Err(e) => Err(e),
+     Ok(j) => {
+       let err = optional_string(j, "error");
+       if length(err) > 0 then Err(err)
+       else match getString(j, "text") { ... }
+     }
+   }
+   ```
+
+2. **Extract a helper** that does one match and returns a record:
+   ```ailang
+   pure func unpack(r: Result[Score, string]) -> { has: bool, x: float, y: float } =
+     match r {
+       Ok(s)  => { has: true,  x: s.x, y: s.y },
+       Err(_) => { has: false, x: 0.0, y: 0.0 }
+     }
+   -- Now `unpack(r)` returns everything at once; one match instead of three.
+   ```
+
+3. **Split the function** into smaller top-level functions — each gets its own type-check pass.
+
+**Why This Exists**:
+1. **Host-stack limit** — Go compiled to WebAssembly shares the host JavaScript engine's call stack, which has a fixed limit (~10K frames in Node/Chromium). Native Go has dynamically-growable per-goroutine stacks; WASM does not.
+2. **Silent failure mode otherwise** — Before this limit, the browser would freeze for 80–120 seconds before the JS engine threw `Maximum call stack size exceeded`. The structured error fires immediately with actionable workarounds instead.
+3. **Workarounds are idiomatic** — Helper extraction and flat matches are the AILANG style anyway; the cliff catches patterns that are also harder to read.
+
+**History**: First hit 2026-05-20 by `cognitive_commons/services/citizen.ail` in the demos repo. The half-day diagnostic trail (silent freeze, no console error, DevTools locked) led to the limit being added so future demo authors get a clear error in seconds instead of an opaque hang. Full postmortem: [demos/debug-notes/wasm-citizen-stack-overflow.md](https://github.com/sunholo-data/ailang-demos/blob/main/debug-notes/wasm-citizen-stack-overflow.md).
+
+**Headless smoke test**: [demos/scripts/wasm-loadmodule-harness.js](https://github.com/sunholo-data/ailang-demos/blob/main/scripts/wasm-loadmodule-harness.js) runs the actual WASM in Node and exits with code 4 when this limit fires (vs 0 for clean modules). CI-friendly.
+
+**Future improvement**: Converting the type-checker to iterative work-stack passes would remove the limit entirely. Tracked in [M-WASM-TYPECHECK-ITERATIVE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/deferred/m-wasm-typecheck-iterative.md) (deferred — high-risk refactor for a low-frequency cliff).
+
+---
+
 ### Duplicate Record Types with Identical Fields
 
 **Status**: Known limitation with workarounds

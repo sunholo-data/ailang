@@ -109,6 +109,17 @@ func (u *Unifier) expandAlias(t Type) Type {
 
 // Unify attempts to unify two types, returning an updated substitution
 func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
+	// M-WASM-TYPECHECK-LIMITS: wall-clock budget guard. No-op on native;
+	// on WASM this aborts with a structured WasmTypeCheckerBudgetExceededError
+	// when the loadModule call has exceeded its time budget (set by
+	// BeginWasmTypeCheck in the WASM bridge). Placed here because Unify is
+	// the hot recursive path that hung the browser on citizen.ail in
+	// cognitive_commons; inferCore-only guard missed it. See
+	// design_docs/planned/v0_22_0/m-wasm-typecheck-limits.md.
+	if err := checkWasmBudget(); err != nil {
+		return nil, err
+	}
+
 	// Depth check to catch infinite recursion
 	u.depth++
 	defer func() { u.depth-- }()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/repl"
+	"github.com/sunholo-data/ailang/internal/types"
 	"github.com/sunholo-data/ailang/std"
 )
 
@@ -281,8 +282,17 @@ func loadModule(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Load the module (includes panic recovery)
+	// M-WASM-TYPECHECK-LIMITS: bound the type-check by wall-clock. WASM hosts
+	// cap the call stack at ~10-15K frames, and AILANG's recursive
+	// type-checker / unifier can hang the main thread for 80+ seconds on
+	// pathological module shapes (first observed in cognitive_commons'
+	// citizen.ail, May 2026). The budget set here is checked at each Unify()
+	// recursive call; on breach, we return a structured error pointing the
+	// user at workarounds instead of letting the JS engine eventually throw
+	// "Maximum call stack size exceeded" 80s later.
+	types.BeginWasmTypeCheck(name)
 	exports, err := replInstance.LoadModule(name, code)
+	types.EndWasmTypeCheck()
 	if err != nil {
 		return map[string]interface{}{
 			"success": false,

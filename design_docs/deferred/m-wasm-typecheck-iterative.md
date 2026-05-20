@@ -1,8 +1,9 @@
 # M-WASM-TYPECHECK-ITERATIVE — Make the type-checker iterative so WASM-compiled AILANG can load realistic modules
 
-**Status**: Planned — P1 (blocks any non-trivial browser demo that uses tagged-union pattern matching + record-field access in the same function)
-**Target**: v1.1.0 (could backport to v0.21.x if a P0 demo regresses; see *Workarounds* below)
-**Priority**: P1 — silent main-thread freeze in browser demos. CLI is unaffected so it's invisible to CI without dedicated WASM smoke testing.
+**Status**: **DEFERRED** (2026-05-20) — superseded by [M-WASM-TYPECHECK-LIMITS](../planned/v0_22_0/m-wasm-typecheck-limits.md) for the quick-errors path.
+**Why deferred**: 7 days HIGH risk to the type-checker hot path that every AILANG program runs through, versus exactly one demo (cognitive_commons/citizen.ail) that hit the cliff with a working workaround. The limits doc covers the user-visible pain at 1/10th the risk. Re-evaluate when: (a) a second module hits the cliff with no reasonable workaround, (b) the type-checker grows enough that the cliff becomes frequent, or (c) v2.x window opens with bandwidth for high-risk refactors.
+**Original target**: v1.1.0 — Planned P1
+**Current priority**: P3 — long-term improvement, not blocking
 **Estimated**: 5–7 days (~1500 LOC) — see *Implementation* below for milestone breakdown.
 **Dependencies**: M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (May 2026, in v0.20.x) — that's the change that pushed the recursion past the WASM stack limit for realistic module shapes. Fix is to refactor the analyses introduced/amplified there, not to revert.
 **Source**: Discovered 2026-05-20 while porting the Cognitive Commons demo to AILANG. Full diagnostic trail: [debug-notes/wasm-citizen-stack-overflow.md](../../../../demos/debug-notes/wasm-citizen-stack-overflow.md) in the sunholo-data/ailang-demos repo.
