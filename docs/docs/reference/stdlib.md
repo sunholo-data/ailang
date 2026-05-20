@@ -96,6 +96,13 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/extension` | Conventions and helpers for packages that plug into a host runtime (workdir requirements, etc.) | `FS` |
 | `std/smoke` | Pre-publish smoke-gate helpers: `dispatchAllTools`, `dispatchTool`, `okSuite` for v0.19.0+ canonical smoke suites | `IO` |
 
+## Cognitive OS (Browser substrate)
+
+| Module | Purpose | Capability |
+|---|---|---|
+| `std/dom` | Canonical DOM patches for replayable UI mutations (`AddPanel`, `ApplyPatch`, etc.) | `DOM` |
+| `std/cognition` | Lamport-clocked Msg fabric (`sendMsgResult`, `recvMsg`) + event-log sinks | `Msg`, `Cog` |
+
 ## Tracing & Debug
 
 | Module | Purpose | Capability |
