@@ -142,6 +142,37 @@ Six sub-demos showcasing AILANG in an ecommerce analytics context:
 
 ---
 
+## Substrate smoke tests
+
+These are **technical demos** that live in this repo (rather than the polished demos hub at sunholo.com). They exercise individual AILANG substrate primitives end-to-end in the browser — useful for verifying the WASM runtime, BYO-key AI bridge, and Cognitive OS effects (`!: {DOM, Msg, Cog}`) work as expected, but not designed for general use. Deployed at `ailang.sunholo.com/demos/...` alongside the docs site.
+
+### Cognitive OS — M1 Smoke Test
+
+**[Try it](/demos/cognitive-os-runtime/)** | `!: {DOM, Msg, Cog}`, event log, byte-identical replay
+
+20-assertion smoke suite for the [M-COG-RUNTIME](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented/v0_21_0) substrate. Add panel / update / timeline / reset buttons drive the canonical DOM patch dispatcher directly; capture+verify checks byte-equality across IndexedDB replay; cross-tab BroadcastChannel test confirms the Msg fabric carries Lamport-stamped envelopes between tabs.
+
+**Substrate features exercised:**
+- <Icon name="code" inline /> `CognitiveOS._applyPatchDirect` (DOM effect via canonical patches with content-hashed nodeIDs)
+- <Icon name="box" inline /> IndexedDB-persisted cognitive event log with canonical (clock, sender) replay order
+- <Icon name="shield" inline /> Byte-identical reconstruction verified via FNV-1a content hashing
+- Cross-tab Msg fabric over `BroadcastChannel` Web API
+
+The richer, user-facing Cognitive Commons demo (4 personas, sentiment-driven manifesto, multi-tab debating society) builds on this substrate and is deploying soon at [www.sunholo.com/ailang-demos/cognitive-commons](https://www.sunholo.com/ailang-demos/).
+
+### BYO-Key AI Step
+
+**[Try it](/demos/wasm-step-byo-key/)** | `!: AI`, `ai.step` / `stepWithCache` / `stepWithStream`
+
+The three `std/ai` step variants — single-shot, system-prompt caching, streaming — driven directly from the browser. Paste your own Anthropic/OpenRouter/Gemini key (stored in localStorage only); the WASM-resident AILANG module fetches the provider through a JS-injected handler. Demonstrates the BYO-key pattern that other browser demos in this repo build on.
+
+**Substrate features exercised:**
+- <Icon name="bot" inline /> `std/ai.step` with three caching/streaming shapes
+- <Icon name="box" inline /> AILANG modules loaded into the WASM REPL at runtime via `repl.loadModule`
+- BYO-key router: AILANG → JS handler → provider `fetch`
+
+---
+
 ## Feature-to-Demo Matrix
 
 | AILANG Feature | Best Demo |
