@@ -18,14 +18,13 @@ import (
 
 	// Register executors via init()
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
-	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 )
 
 // MultiExecutorConfig extends AgentBenchmarkConfig with executor selection
 type MultiExecutorConfig struct {
 	AgentBenchmarkConfig
 
-	// ExecutorName specifies which executor to use (e.g., "claude", "gemini")
+	// ExecutorName specifies which executor to use (e.g., "claude", "codex")
 	// If empty, uses the model's agent_cli from models.yml
 	ExecutorName string
 

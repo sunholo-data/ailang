@@ -19,13 +19,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
-	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // coordinatorExecuteJob is the entry point for Cloud Run Jobs.
 // It reads task configuration from environment variables, executes the task
-// using an AI executor (Claude or Gemini), and publishes completion to Pub/Sub.
+// using an AI executor (Claude — Gemini CLI was retired in v0.22.0
+// per M-MANAGED-AGENTS), and publishes completion to Pub/Sub.
 //
 // RELIABILITY: This function guarantees a completion message is always published.
 // A defer guard with recover() catches panics and early exits. For failures before

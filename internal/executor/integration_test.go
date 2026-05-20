@@ -11,10 +11,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	// Register executors via init()
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
-	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
+	_ "github.com/sunholo-data/ailang/internal/executor/codex"
 )
 
-func TestGeminiExecutorIntegration(t *testing.T) {
+func TestDefaultExecutorIntegration(t *testing.T) {
 	factory := executor.GlobalFactory()
 
 	// List available executors
@@ -22,76 +22,34 @@ func TestGeminiExecutorIntegration(t *testing.T) {
 	t.Logf("Available executors: %v", available)
 
 	if len(available) < 2 {
-		t.Errorf("Expected at least 2 executors (claude, gemini), got %d", len(available))
+		t.Errorf("Expected at least 2 executors (claude, codex), got %d", len(available))
 	}
 
-	// Get the default executor (should be Gemini)
+	// Get the default executor (claude after Gemini CLI retirement in v0.22.0)
 	defaultExec, err := factory.GetDefault()
 	if err != nil {
 		t.Fatalf("Failed to get default executor: %v", err)
 	}
 
-	if defaultExec.Name() != "gemini" {
-		t.Errorf("Expected default executor 'gemini', got '%s'", defaultExec.Name())
+	if defaultExec.Name() != "claude" {
+		t.Errorf("Expected default executor 'claude', got '%s'", defaultExec.Name())
 	}
 	t.Logf("Default executor: %s", defaultExec.Name())
 
-	// Check AILANG_EXECUTOR env var
-	os.Setenv("AILANG_EXECUTOR", "claude")
+	// Check AILANG_EXECUTOR env var override
+	os.Setenv("AILANG_EXECUTOR", "codex")
 	defer os.Unsetenv("AILANG_EXECUTOR")
 
-	claudeExec, err := factory.GetDefault()
+	codexExec, err := factory.GetDefault()
 	if err != nil {
-		t.Fatalf("Failed to get claude executor via env: %v", err)
+		t.Fatalf("Failed to get codex executor via env: %v", err)
 	}
 
-	if claudeExec.Name() != "claude" {
-		t.Errorf("Expected executor 'claude' with env var, got '%s'", claudeExec.Name())
+	if codexExec.Name() != "codex" {
+		t.Errorf("Expected executor 'codex' with env var, got '%s'", codexExec.Name())
 	}
 
 	os.Unsetenv("AILANG_EXECUTOR")
-}
-
-func TestGeminiCostModel(t *testing.T) {
-	factory := executor.GlobalFactory()
-	geminiExec, err := factory.GetExecutor("gemini")
-	if err != nil {
-		t.Fatalf("Failed to get gemini executor: %v", err)
-	}
-
-	costModel := geminiExec.CostModel()
-
-	// Gemini 3 Flash pricing: $0.50/$3.00 per 1M
-	if costModel.InputTokenCost != 0.0005 {
-		t.Errorf("Expected input cost 0.0005, got %f", costModel.InputTokenCost)
-	}
-	if costModel.OutputTokenCost != 0.003 {
-		t.Errorf("Expected output cost 0.003, got %f", costModel.OutputTokenCost)
-	}
-
-	t.Logf("Gemini cost model: $%.4f/1K input, $%.4f/1K output",
-		costModel.InputTokenCost, costModel.OutputTokenCost)
-}
-
-func TestGeminiHealthCheck(t *testing.T) {
-	// This test checks if gemini CLI is installed
-	// It's expected to fail if gemini is not installed
-	factory := executor.GlobalFactory()
-	geminiExec, err := factory.GetExecutor("gemini")
-	if err != nil {
-		t.Fatalf("Failed to get gemini executor: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = geminiExec.HealthCheck(ctx)
-	if err != nil {
-		t.Logf("Gemini health check failed (expected if CLI not installed): %v", err)
-		t.Skip("Gemini CLI not installed - skipping health check")
-	}
-
-	t.Log("Gemini health check passed - CLI is available")
 }
 
 func TestClaudeHealthCheck(t *testing.T) {
@@ -137,8 +95,8 @@ func TestFactoryConcurrentGetExecutor(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 
-			// Alternate between claude and gemini
-			name := "gemini"
+			// Alternate between claude and codex (Gemini CLI retired in v0.22.0)
+			name := "codex"
 			if index%2 == 0 {
 				name = "claude"
 			}
@@ -168,8 +126,8 @@ func TestFactoryConcurrentGetExecutor(t *testing.T) {
 	if executorNames["claude"] != 5 {
 		t.Errorf("Expected 5 claude calls, got %d", executorNames["claude"])
 	}
-	if executorNames["gemini"] != 5 {
-		t.Errorf("Expected 5 gemini calls, got %d", executorNames["gemini"])
+	if executorNames["codex"] != 5 {
+		t.Errorf("Expected 5 codex calls, got %d", executorNames["codex"])
 	}
 }
 

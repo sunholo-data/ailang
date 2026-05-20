@@ -316,7 +316,7 @@ func ResolveModelName(name string) (apiName, provider string, err error) {
 }
 
 // GetExecutorForModel returns the appropriate executor for a model
-// Returns the executor name (e.g., "claude", "gemini") and the model name to use
+// Returns the executor name (e.g., "claude", "codex", "managed_agents") and the model name to use
 func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, modelName string, err error) {
 	model, err := c.GetModel(name)
 	if err != nil {
@@ -328,6 +328,19 @@ func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, mo
 	}
 
 	executorName = *model.AgentCLI
+
+	// M-MANAGED-AGENTS (v0.22.0): Gemini CLI was retired. Reject any model config
+	// still requesting agent_cli: "gemini" with a clear next-step message.
+	if executorName == "gemini" {
+		return "", "", fmt.Errorf(
+			"model %q has agent_cli: \"gemini\", but Gemini CLI was retired in AILANG v0.22.0 "+
+				"(Google deprecates gemini-cli on 2026-06-18). "+
+				"For gemini-3-5-flash agent-mode, use agent_cli: \"managed_agents\" (Vertex AI Managed Agents API via ADC). "+
+				"Older Gemini models (2.5, 3, 3.1) lose agent-mode coverage; use standard-mode (direct Vertex generateContent) instead. "+
+				"See design_docs/implemented/v0_22_0/m-antigravity-cli-migration.md for context.",
+			name,
+		)
+	}
 
 	if model.AgentModelName != nil && *model.AgentModelName != "" {
 		modelName = *model.AgentModelName

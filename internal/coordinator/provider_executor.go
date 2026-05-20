@@ -9,7 +9,6 @@ import (
 	// Import to trigger init() registration for all executor packages
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/codex"
-	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 	_ "github.com/sunholo-data/ailang/internal/executor/motoko"
 	_ "github.com/sunholo-data/ailang/internal/executor/opencode"
 	_ "github.com/sunholo-data/ailang/internal/executor/pi"
@@ -17,11 +16,13 @@ import (
 
 // ExecutorProvider wraps any executor.Executor as a coordinator Provider.
 // This is the unified provider for all CLI-based agentic executors (Claude Code,
-// Gemini CLI, Codex, etc.). Adding a new executor only requires creating the
+// Codex, opencode, motoko, pi). Adding a new executor only requires creating the
 // executor package with an init() registration — no coordinator changes needed.
+// Gemini CLI was retired in v0.22.0 (M-MANAGED-AGENTS); the managed_agents
+// executor will replace it for gemini-3-5-flash agent-mode.
 type ExecutorProvider struct {
 	exec         executor.Executor
-	executorName string // "claude", "gemini", "codex", etc.
+	executorName string // "claude", "codex", "motoko", "opencode", "pi"
 }
 
 // NewExecutorProvider creates an ExecutorProvider for the named executor.

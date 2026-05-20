@@ -81,11 +81,12 @@ func TestFactoryListAvailable(t *testing.T) {
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.DefaultExecutor != "gemini" {
-		t.Errorf("expected default executor 'gemini', got '%s'", cfg.DefaultExecutor)
+	// Gemini CLI was retired in v0.22.0 (M-MANAGED-AGENTS); claude is the new default.
+	if cfg.DefaultExecutor != "claude" {
+		t.Errorf("expected default executor 'claude', got '%s'", cfg.DefaultExecutor)
 	}
-	if cfg.GeminiModel != "gemini-3-flash-preview" {
-		t.Errorf("expected gemini model 'gemini-3-flash-preview', got '%s'", cfg.GeminiModel)
+	if cfg.ClaudeModel != "haiku" {
+		t.Errorf("expected claude model 'haiku', got '%s'", cfg.ClaudeModel)
 	}
 }
 

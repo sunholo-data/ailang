@@ -28,10 +28,8 @@ type Config struct {
 	ClaudeTools      []string // Allowed tools for Claude
 	ClaudePermission string   // Permission mode (bypassPermissions, etc.)
 
-	// Gemini configuration
-	GeminiPath  string // Path to gemini CLI binary
-	GeminiModel string // Default Gemini model
-	GeminiTools []string
+	// Gemini CLI config retired in v0.22.0 (M-MANAGED-AGENTS).
+	// Use the managed_agents executor for gemini-3-5-flash agent-mode.
 
 	// Codex configuration
 	CodexPath  string // Path to codex CLI binary
@@ -58,14 +56,11 @@ type Config struct {
 // DefaultConfig returns a config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultExecutor:  "gemini", // Gemini 3 Flash is the default
+		DefaultExecutor:  "claude", // Gemini CLI retired in v0.22.0 (M-MANAGED-AGENTS); claude is the safe default
 		ClaudePath:       "claude",
 		ClaudeModel:      "haiku",
 		ClaudeTools:      []string{"Bash", "Read", "Write", "Edit", "Grep", "Glob"},
 		ClaudePermission: "bypassPermissions",
-		GeminiPath:       "gemini",
-		GeminiModel:      "gemini-3-flash-preview",
-		GeminiTools:      []string{},
 		CodexPath:        "codex",
 		CodexModel:       "gpt-5-codex",
 		OpenCodePath:     "opencode",
