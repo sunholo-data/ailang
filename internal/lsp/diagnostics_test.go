@@ -257,6 +257,15 @@ func TestDidSaveRepublishes(t *testing.T) {
 		t.Fatalf("baseline expected 0 diagnostics, got %d", len(first.Diagnostics))
 	}
 
+	// Clear the prior (empty) publish from the sink FIRST so we can detect
+	// the new one. Critical ordering: if we deleted AFTER didSave, on slow
+	// I/O hosts (Windows GitHub Actions runners) the server can race ahead
+	// and publish before the delete — the delete then wipes the new publish
+	// and sink.wait blocks forever. Pre-clearing closes that race.
+	sink.mu.Lock()
+	delete(sink.byURI, docURI)
+	sink.mu.Unlock()
+
 	// Simulate the user editing then saving: rewrite the file on disk to
 	// the type-error text BEFORE sending didSave (the LSP `didSave`
 	// notification is sent AFTER the editor has flushed to disk).
@@ -269,11 +278,6 @@ func TestDidSaveRepublishes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("didSave: %v", err)
 	}
-
-	// Wait for the *new* publish — clear the old one first by deleting from sink.
-	sink.mu.Lock()
-	delete(sink.byURI, docURI)
-	sink.mu.Unlock()
 
 	second, ok := sink.wait(docURI, diagWaitTimeout())
 	if !ok {
