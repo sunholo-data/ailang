@@ -17,60 +17,81 @@ func mkAgentResult(id, lang, model, executor string, stdoutOk bool, cost float64
 	}
 }
 
-// TestBuildHarnessAggregates verifies harness grouping, success rate, and language breakdown.
-// Uses Executor field directly (as harness key) since GlobalModelsConfig is nil in unit tests.
+// TestBuildHarnessAggregates verifies harness grouping by the Executor field (the historical
+// record of which harness produced each row), success rate, and per-language breakdown.
+//
+// Per the implementation comment in export_json_executors.go, buildHarnessAggregates prefers
+// r.Executor over cfg.GetAgentCLI to preserve the historical attribution: rows tagged with
+// a retired harness (e.g. gemini-cli) must keep that attribution rather than silently
+// re-bucketing under whatever the current ModelConfig says.
 func TestBuildHarnessAggregates(t *testing.T) {
 	results := []*BenchmarkResult{
-		// claude harness — 2 runs, 1 success
+		// claude harness — 2 ailang runs, 1 success
 		mkAgentResult("fizzbuzz", "ailang", "claude-sonnet-4-6", "claude", true, 0.012, 45000),
 		mkAgentResult("sort_list", "ailang", "claude-sonnet-4-6", "claude", false, 0.008, 60000),
-		// opencode harness — 1 run, 1 success
+		// opencode harness — 1 ailang success, 1 python success
 		mkAgentResult("fizzbuzz", "ailang", "opencode-haiku", "opencode", true, 0.004, 80000),
-		// opencode python run
 		mkAgentResult("fizzbuzz", "python", "opencode-haiku", "opencode", true, 0.003, 75000),
 	}
 
-	// GlobalModelsConfig is nil in unit tests — harness comes from Executor field via fallback.
-	// Temporarily monkey-patch GetAgentCLI by pointing Executor correctly (already done above).
-	// buildHarnessAggregates uses GlobalModelsConfig for GetAgentCLI; when nil it falls to "unknown".
-	// To avoid depending on embedded YAML in tests, we verify with Executor-based grouping indirectly
-	// by confirming the "unknown" key is not present when all results have non-empty Executor.
-	//
-	// The actual grouping path (cfg.GetAgentCLI) is tested by integration with real eval-report runs.
-	// Here we just verify the aggregation math is correct when harnesses resolve to the Executor field.
-
-	// Patch: buildHarnessAggregates uses cfg.GetAgentCLI; with nil cfg it groups everything as "unknown".
-	// We verify nil-cfg graceful degradation: no panic, single "unknown" bucket.
 	harnessMap := buildHarnessAggregates(results, nil)
-	if len(harnessMap) == 0 {
-		t.Fatal("expected at least one harness entry, got empty map")
+	if len(harnessMap) != 2 {
+		t.Fatalf("expected 2 harness keys (claude, opencode), got %d: %v", len(harnessMap), keys(harnessMap))
 	}
 
-	// With nil GlobalModelsConfig all results map to "unknown"
+	// claude harness: 2 runs, 1 success (0.5 success rate), ailang only
+	claudeRaw, ok := harnessMap["claude"]
+	if !ok {
+		t.Fatalf("expected 'claude' harness key, got keys: %v", keys(harnessMap))
+	}
+	claude := claudeRaw.(map[string]interface{})
+	if runs, _ := claude["total_runs"].(int); runs != 2 {
+		t.Errorf("claude total_runs: want 2, got %v", claude["total_runs"])
+	}
+	if sr, _ := claude["success_rate"].(float64); sr < 0.49 || sr > 0.51 {
+		t.Errorf("claude success_rate: want ~0.5, got %v", sr)
+	}
+	claudeLangs := claude["languages"].(map[string]interface{})
+	if _, ok := claudeLangs["ailang"]; !ok {
+		t.Error("expected 'ailang' in claude harness language breakdown")
+	}
+
+	// opencode harness: 2 runs, 2 successes (1.0 success rate), ailang + python
+	opencodeRaw, ok := harnessMap["opencode"]
+	if !ok {
+		t.Fatalf("expected 'opencode' harness key, got keys: %v", keys(harnessMap))
+	}
+	opencode := opencodeRaw.(map[string]interface{})
+	if runs, _ := opencode["total_runs"].(int); runs != 2 {
+		t.Errorf("opencode total_runs: want 2, got %v", opencode["total_runs"])
+	}
+	if sr, _ := opencode["success_rate"].(float64); sr < 0.99 || sr > 1.01 {
+		t.Errorf("opencode success_rate: want ~1.0, got %v", sr)
+	}
+	opencodeLangs := opencode["languages"].(map[string]interface{})
+	if _, ok := opencodeLangs["ailang"]; !ok {
+		t.Error("expected 'ailang' in opencode harness language breakdown")
+	}
+	if _, ok := opencodeLangs["python"]; !ok {
+		t.Error("expected 'python' in opencode harness language breakdown")
+	}
+}
+
+// TestBuildHarnessAggregatesUnknownFallback verifies that when r.Executor is empty AND
+// GlobalModelsConfig is nil, results fall back to the "unknown" bucket without panic.
+func TestBuildHarnessAggregatesUnknownFallback(t *testing.T) {
+	results := []*BenchmarkResult{
+		mkAgentResult("fizzbuzz", "ailang", "some-model", "", true, 0.01, 50000),
+		mkAgentResult("sort", "ailang", "some-model", "", false, 0.01, 50000),
+	}
+	harnessMap := buildHarnessAggregates(results, nil)
 	unknownRaw, ok := harnessMap["unknown"]
 	if !ok {
-		t.Fatalf("expected 'unknown' harness key when GlobalModelsConfig is nil, got keys: %v", keys(harnessMap))
+		t.Fatalf("expected 'unknown' fallback bucket when Executor is empty and cfg is nil, got keys: %v", keys(harnessMap))
 	}
-	unknown, ok := unknownRaw.(map[string]interface{})
-	if !ok {
-		t.Fatal("harness entry is not map[string]interface{}")
-	}
-	if runs, _ := unknown["total_runs"].(int); runs != 4 {
-		t.Errorf("total_runs: want 4, got %v", unknown["total_runs"])
-	}
-	// 3 successes out of 4
-	if sr, _ := unknown["success_rate"].(float64); sr < 0.74 || sr > 0.76 {
-		t.Errorf("success_rate: want ~0.75, got %v", sr)
-	}
-	langs, ok := unknown["languages"].(map[string]interface{})
-	if !ok {
-		t.Fatal("languages not a map")
-	}
-	if _, hasAilang := langs["ailang"]; !hasAilang {
-		t.Error("expected 'ailang' in harness language breakdown")
-	}
-	if _, hasPython := langs["python"]; !hasPython {
-		t.Error("expected 'python' in harness language breakdown")
+	unknown := unknownRaw.(map[string]interface{})
+	if runs, _ := unknown["total_runs"].(int); runs != 2 {
+		t.Errorf("unknown total_runs: want 2, got %v", unknown["total_runs"])
 	}
 }
 
