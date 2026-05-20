@@ -9,15 +9,22 @@ supported harness for `ailang eval-suite --agent`.
 | Harness | CLI tool | Models in `models.yml` | Install |
 |---------|----------|------------------------|---------|
 | **claude** | Claude Code (`claude`) | `claude-sonnet-4-6`, `claude-haiku-4-5` | `npm install -g @anthropic-ai/claude-code` |
-| **gemini** | Gemini CLI (`gemini`) | `gemini-3-flash`, `gemini-3-1-pro` | `npm install -g @google/generative-ai-cli` |
+| **managed_agents** | (HTTP API, no CLI) | `gemini-3-5-flash` | `gcloud auth application-default login` |
 | **codex** | OpenAI Codex CLI (`codex`) | `gpt5-4`, `gpt5-1-instant` | `npm install -g @openai/codex` |
 | **opencode** | opencode (`opencode`) | `opencode-haiku`, `opencode-sonnet-4-6`, `opencode-gemini-3-flash` | `npm install -g opencode-ai` |
+
+> **Note (v0.22.0, M-MANAGED-AGENTS):** The legacy `gemini` CLI executor was
+> retired. Google deprecates Gemini CLI on 2026-06-18 and v0.42 has a stale
+> model allowlist (no `gemini-3-5-flash`). Replaced by the `managed_agents`
+> executor, which calls the Vertex AI Managed Agents API directly via ADC.
+> Older Gemini models (2.5, 3, 3.1) lose agent-mode coverage but keep
+> standard-mode via direct Vertex `generateContent`.
 
 ## Quick Check
 
 ```bash
 claude --version
-gemini --version
+gcloud auth application-default print-access-token   # for managed_agents
 codex --version
 opencode --version
 ```
@@ -40,30 +47,70 @@ echo "Write hello world to solution.py" | claude --print \
 The `--permission-mode bypassPermissions` flag is what the executor uses to auto-approve
 file edits. If you see JSON events with `"type":"tool_use"` the harness is working.
 
-## Gemini CLI (`gemini`)
+## Managed Agents API (`managed_agents`)
 
-The Gemini CLI is a Node.js package distributed via npm. It is also installed by
-`@google-labs/gemini-cli`.
+The Managed Agents executor calls the Vertex AI Managed Agents endpoint
+(`aiplatform.googleapis.com/v1beta1/.../interactions`) directly via HTTP using
+Application Default Credentials. There is no local CLI — the agent runs in a
+Google-hosted Linux sandbox per interaction, with full tool execution + multi-turn
+state managed server-side.
 
-```bash
-npm install -g @google/generative-ai-cli
-# OR: npm install -g @google-labs/gemini-cli
-export GEMINI_API_KEY=AIza...
-gemini --version
-```
-
-Verify:
+### Setup
 
 ```bash
-echo "Write hello world to solution.py" | gemini -p - --yolo --output-format stream-json
+# 1. Authenticate via ADC (same flow as direct Vertex generateContent calls)
+gcloud auth application-default login
+
+# 2. Set the default project (or set Task.GCPProject per-call via models.yml)
+gcloud config set project ailang-dev
+
+# 3. First call to a fresh project provisions the service (HTTP 400
+#    "Provisioning is in progress" for ~3 min, then ready). The executor's
+#    error message includes this hint.
 ```
 
-The `--yolo` flag auto-approves all tool calls. Events with `"type":"tool_result"` confirm
-agentic file operations are working.
+### Verify
 
-> **Note:** The Gemini CLI binary may be installed under an NVM node version. If
-> `gemini` is not in PATH, add your NVM node bin dir:
-> `export PATH="$HOME/.nvm/versions/node/$(node --version)/bin:$PATH"`
+```bash
+ACCESS_TOKEN=$(gcloud auth application-default print-access-token)
+curl -sN -X POST \
+  "https://aiplatform.googleapis.com/v1beta1/projects/ailang-dev/locations/global/interactions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Api-Revision: 2026-05-20" \
+  -d '{
+    "stream": true, "background": true, "store": true,
+    "agent": "antigravity-preview-05-2026",
+    "environment": {"type": "remote"},
+    "input": [{"type":"user_input","content":[{"type":"text","text":"reply PONG"}]}]
+  }'
+```
+
+Successful output is an SSE stream ending with
+`event: interaction.completed` followed by `data: [DONE]`.
+
+### Cross-environment file bridge
+
+Because the agent runs in a remote sandbox, file edits the agent makes do NOT
+touch the local workspace. The eval harness handles this by:
+
+1. Appending an instruction to the system prompt that tells the agent to dump
+   its complete solution as a fenced code block at the end of its response
+2. Extracting that fenced block from `Result.Output` and writing it to
+   `<workspace>/benchmark/solution.ail` after the run
+
+This is automatic — handled by `eval_harness/managed_agents_bridge.go` for any
+executor that advertises `executor.CapRemoteSandbox`. Other backend callers
+that don't need file bridging (e.g. plain reasoning queries) get a
+policy-free executor.
+
+### Limits
+
+- **No multi-turn yet.** Each Execute() provisions a fresh sandbox.
+- **Region locked to `global`.** No regional Vertex endpoints for this API yet.
+- **`Api-Revision: 2026-05-20` header pinned** in the executor — guards
+  against schema drift. Bump when Google publishes a new revision.
+- **Cost: $1.50/$9.00 per 1M** (Vertex gemini-3.5-flash pricing).
 
 ## OpenAI Codex CLI (`codex`)
 

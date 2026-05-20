@@ -24,18 +24,31 @@ ailang coordinator pending                   # Review pending approvals
 
 **Config**: `~/.ailang/config.yaml` | **Cloud mode**: Pub/Sub + Cloud Run (v0.9.0+)
 
-## Adding a New CLI-Subprocess Executor
+## Adding a New Executor
 
-Claude, Gemini, Codex, and future CLI-subprocess executors (opencode, aider, cline)
-all follow a single uniform contract. If a new executor package conforms, it is
-auto-discovered by both the coordinator and eval harness with **zero changes to
-either** — only a one-line blank import in `internal/coordinator/provider_executor.go`
-and an `agent_cli` string in `internal/eval_harness/models.yml`.
+Claude, Codex, motoko, opencode, pi (CLI-subprocess), and managed_agents
+(HTTP/SSE — Vertex AI Managed Agents API) all follow a single uniform
+contract. If a new executor package conforms, it is auto-discovered by both
+the coordinator and eval harness with **zero changes to either** — only a
+one-line blank import in `internal/coordinator/provider_executor.go` and an
+`agent_cli` string in `internal/eval_harness/models.yml`.
 
 **Full contract:** [`docs/internal/EXECUTOR_SHAPE.md`](../../docs/internal/EXECUTOR_SHAPE.md)
 
 Four required elements: package layout, required symbols (`Register()` + `init()`),
 coordinator wiring (blank import), and `models.yml` wiring (`agent_cli: "<name>"`).
+
+> **Note (v0.22.0, M-MANAGED-AGENTS):** Gemini CLI was retired. `agent_cli:
+> "gemini"` is rejected at config load with a clear next-step error pointing
+> at `managed_agents` (Vertex AI Managed Agents API via ADC). Direct Vertex
+> `generateContent` for standard-mode (single-shot) gemini calls is
+> unaffected — that goes through `internal/ai/gemini`, not via an executor.
+>
+> For executors that run the agent in an isolated sandbox without shared
+> filesystem access (currently only `managed_agents`), advertise
+> `executor.CapRemoteSandbox` in `Capabilities()`. The eval harness
+> recognises this flag and uses `internal/eval_harness/managed_agents_bridge.go`
+> to bridge solution files via the agent's text response.
 
 ## Collaboration Hub Server
 
