@@ -9,6 +9,7 @@ import (
 	// Import to trigger init() registration for all executor packages
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/codex"
+	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 	_ "github.com/sunholo-data/ailang/internal/executor/motoko"
 	_ "github.com/sunholo-data/ailang/internal/executor/opencode"
 	_ "github.com/sunholo-data/ailang/internal/executor/pi"

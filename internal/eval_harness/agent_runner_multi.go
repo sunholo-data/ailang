@@ -18,6 +18,7 @@ import (
 
 	// Register executors via init()
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 )
 
 // MultiExecutorConfig extends AgentBenchmarkConfig with executor selection

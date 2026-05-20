@@ -19,6 +19,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 

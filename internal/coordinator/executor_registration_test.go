@@ -9,7 +9,7 @@ import "testing"
 // Note: Gemini CLI was retired in v0.22.0 (M-MANAGED-AGENTS) and is no longer
 // expected in this set.
 func TestExecutorRegistration_AutoDiscovery(t *testing.T) {
-	for _, name := range []string{"claude", "codex", "opencode", "motoko", "pi"} {
+	for _, name := range []string{"claude", "codex", "opencode", "motoko", "pi", "managed_agents"} {
 		t.Run(name, func(t *testing.T) {
 			p, err := NewExecutorProvider(name)
 			if err != nil {
