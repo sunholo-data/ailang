@@ -610,6 +610,8 @@ models:
     provider: "google"
     description: "Gemini 3.5 Flash - strongest agentic/coding Flash model, beats 3.1 Pro on Terminal-Bench"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    agent_cli: "managed_agents"                        # Vertex Managed Agents API via ADC (M-MANAGED-AGENTS, v0.22.0)
+    agent_model_name: "antigravity-preview-05-2026"   # Public Antigravity agent name (server-side runs gemini-3.5-flash)
     gcp_project: "ailang-dev"
     gcp_location: "global"
     max_output_tokens: 65536   # 64K max output (model spec), 65536 = next power-of-two ceiling
@@ -629,8 +631,10 @@ models:
       Pricing: $1.50/$9.00 per 1M tokens. Cached input: $0.15 per 1M.
       Has adaptive reasoning (separate thoughtsTokenCount in usage metadata).
       Available on Vertex AI global endpoint and AI Studio.
-      Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
-      Agent eval support: ✅ Fully supported via Gemini CLI.
+      Requires gcloud auth (uses Vertex AI Managed Agents API via ADC).
+      Agent eval support (M-MANAGED-AGENTS, v0.22.0): ✅ via internal/executor/managed_agents/
+      — POST aiplatform.googleapis.com/v1beta1/.../interactions with
+      Api-Revision: 2026-05-20 header. Server-side sandbox + multi-turn state.
 
   # =============================================================================
   # OPENCODE HARNESS MODELS

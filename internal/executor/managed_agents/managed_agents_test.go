@@ -95,6 +95,14 @@ func TestExecuteWithFixture(t *testing.T) {
 		t.Errorf("Output missing PONG: %q", res.Output)
 	}
 
+	// 2b. NumTurns mapped from step.start event count.
+	// PONG fixture had a single model_output step → NumTurns == 1.
+	// (Real benchmark runs produce many steps; agent harness gates
+	// agent-mode results on NumTurns > 1 OR ToolCallCount > 0.)
+	if res.NumTurns != 1 {
+		t.Errorf("NumTurns=%d, want 1 (PONG fixture has one step)", res.NumTurns)
+	}
+
 	// 3. Token usage from interaction.completed event
 	if res.InputTokens != 6560 {
 		t.Errorf("InputTokens=%d, want 6560", res.InputTokens)
@@ -249,8 +257,11 @@ func TestRequestBodyShape(t *testing.T) {
 	if body.Agent != defaultAgent {
 		t.Errorf("Agent=%q, want %q", body.Agent, defaultAgent)
 	}
+	// SystemInstruction is passed through verbatim — the executor is
+	// policy-free per CapRemoteSandbox design (any bridging is the caller's
+	// responsibility, e.g. eval_harness/managed_agents_bridge.go).
 	if body.SystemInstruction != "Be brief." {
-		t.Errorf("SystemInstruction=%q, want %q", body.SystemInstruction, "Be brief.")
+		t.Errorf("SystemInstruction=%q, want %q (executor should not modify caller's prompt)", body.SystemInstruction, "Be brief.")
 	}
 	if len(body.Input) != 1 || len(body.Input[0].Content) != 1 {
 		t.Fatalf("Input shape unexpected: %+v", body.Input)

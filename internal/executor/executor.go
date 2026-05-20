@@ -146,6 +146,20 @@ const (
 	CapGitHubIntegration Capability = "github_integration"
 	CapLocalWorkspace    Capability = "local_workspace"
 	CapStructuredOutput  Capability = "structured_output"
+
+	// CapRemoteSandbox means the executor runs the agent in an isolated
+	// environment that does NOT share the caller's filesystem (e.g.
+	// Vertex Managed Agents API runs the agent in a Google-hosted Linux
+	// sandbox). Callers that need to receive file artifacts from the agent
+	// must either:
+	//   (a) Provide an upload/download channel out-of-band (e.g. GCS), or
+	//   (b) Instruct the agent to emit final artifacts in its text response
+	//       and parse them from Result.Output.
+	// The eval harness handles this by appending a "dump code as fenced
+	// block" instruction to the system prompt and extracting from Output
+	// after the run. Other backend callers can ignore this capability if
+	// they don't need file bridging.
+	CapRemoteSandbox Capability = "remote_sandbox"
 )
 
 // EventHandler receives streaming events during execution

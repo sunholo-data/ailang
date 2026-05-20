@@ -52,10 +52,19 @@ func New(cfg *executor.Config) (*Executor, error) {
 func (e *Executor) Name() string { return "managed_agents" }
 
 // Capabilities advertises supported features.
+//
+// CapRemoteSandbox is the load-bearing flag: the Managed Agents API runs the
+// agent in a Google-hosted Linux sandbox, so the agent's file edits do NOT
+// touch the caller's filesystem. Callers that need to receive file artifacts
+// (e.g. the eval harness reading solution.ail) must arrange their own bridge
+// — typically by instructing the agent to dump artifacts in its text
+// response and parsing them from Result.Output. See the eval harness's
+// managed_agents_bridge.go for that bridge.
 func (e *Executor) Capabilities() []executor.Capability {
 	return []executor.Capability{
 		executor.CapStreaming,
 		executor.CapSessionResume, // Multi-turn via interaction.id + environment_id
+		executor.CapRemoteSandbox, // Sandbox runs server-side; no shared filesystem with caller
 	}
 }
 
@@ -142,6 +151,15 @@ func (e *Executor) ExecuteStreaming(
 
 	// Build the interaction body. We do a fresh sandbox every call here — see
 	// the design doc M2.5 for the multi-turn / sandbox-reuse follow-up.
+	//
+	// Note on cross-environment file bridging: the agent runs in a Google-
+	// hosted sandbox (CapRemoteSandbox), so any file edits the agent makes
+	// don't touch the caller's filesystem. This is intentional for backend
+	// callers that just want chat/reasoning responses. Callers that NEED
+	// file artifacts (e.g. the eval harness reading solution.ail) are
+	// expected to (a) instruct the agent to dump artifacts in its text
+	// response via task.SystemPrompt, and (b) parse them from Result.Output
+	// after the call returns. The executor itself stays policy-free.
 	envRaw := json.RawMessage(`{"type":"remote"}`)
 	body := &interactionRequest{
 		Stream:      true,
@@ -201,10 +219,22 @@ func (e *Executor) ExecuteStreaming(
 	duration := time.Since(start)
 
 	// Compose the Result.
+	//
+	// NumTurns maps to the number of agent steps the server-side harness ran.
+	// Each step.start event is one agentic iteration (model_output, tool_call,
+	// tool_result, etc.). A trivial "say PONG" probe produces exactly 1 step;
+	// a real benchmark with file edits + code execution produces many. The
+	// eval harness rejects results with NumTurns <= 1 AND ToolCallCount == 0
+	// as "0-shot generation, not agent mode" — so accurate step counting is
+	// load-bearing for ever passing agent-mode gates.
+	turns := state.StepCount
+	if turns < 1 {
+		turns = 1
+	}
 	res := &executor.Result{
 		Output:                   state.Text.String(),
 		DurationMS:               int(duration.Milliseconds()),
-		NumTurns:                 1, // Each Execute() call is one turn from the harness perspective
+		NumTurns:                 turns,
 		SessionID:                state.InteractionID,
 		InputTokens:              state.Usage.TotalInputTokens,
 		OutputTokens:             state.Usage.TotalOutputTokens + state.Usage.TotalThoughtTokens,
@@ -222,7 +252,9 @@ func (e *Executor) ExecuteStreaming(
 	})
 
 	// Stash multi-turn handles + unknown events into ProviderData for the
-	// eval harness / future multi-turn integration.
+	// eval harness / future multi-turn integration. The eval harness uses
+	// the CapRemoteSandbox capability + agent's text Output to bridge files
+	// across to the local workspace (see eval_harness/managed_agents_bridge.go).
 	pd := map[string]any{
 		"managed_agents_interaction_id":       state.InteractionID,
 		"managed_agents_environment_id":       state.EnvironmentID,
