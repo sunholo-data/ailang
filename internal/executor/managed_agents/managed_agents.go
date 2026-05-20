@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -265,6 +266,37 @@ func (e *Executor) ExecuteStreaming(
 	if len(state.UnknownEvents) > 0 {
 		pd["managed_agents_unknown_events"] = state.UnknownEvents
 	}
+
+	// Post-hoc cost-budget check. The Managed Agents API only reports
+	// cumulative usage in the terminal interaction.completed event — step
+	// events carry no token counts — so mid-stream kill-on-cost is
+	// IMPOSSIBLE for this executor. We compare actual cost against
+	// task.Budget.MaxUSD here and surface an overrun via:
+	//   - Result.CostKilledAt    (the diagnostic field other executors use)
+	//   - ProviderData["managed_agents_cost_over_budget"]  (loud + structured)
+	//   - stderr warning            (visible in eval-suite output)
+	// We DO NOT flip Success to false — per user requirement, useful
+	// over-budget results are kept and flagged, not discarded.
+	if task.Budget != nil && task.Budget.MaxUSD > 0 && res.CostUSD > task.Budget.MaxUSD {
+		overrun := res.CostUSD - task.Budget.MaxUSD
+		overrunPct := (overrun / task.Budget.MaxUSD) * 100
+		res.CostKilledAt = res.CostUSD
+		pd["managed_agents_cost_over_budget"] = map[string]any{
+			"actual_usd":  res.CostUSD,
+			"budget_usd":  task.Budget.MaxUSD,
+			"overrun_usd": overrun,
+			"overrun_pct": overrunPct,
+			"note":        "Managed Agents API only reports cumulative usage in interaction.completed (no step-level token counts), so mid-stream kill-on-cost is impossible. Cost gate is post-hoc reporting only.",
+		}
+		// Loud stderr warning so eval-suite operators see the overrun.
+		fmt.Fprintf(os.Stderr,
+			"⚠️  managed_agents: COST OVER BUDGET — actual $%.4f vs budget $%.4f (overrun $%.4f, +%.0f%%). "+
+				"Result kept (success=%v) but flagged in ProviderData.managed_agents_cost_over_budget. "+
+				"To prevent overruns: bump models.yml::budgets.max_cost_usd or lower budgets.hard_timeout_secs.\n",
+			res.CostUSD, task.Budget.MaxUSD, overrun, overrunPct, state.Status == "completed",
+		)
+	}
+
 	res.ProviderData = pd
 
 	// Determine Success + FinishReason.

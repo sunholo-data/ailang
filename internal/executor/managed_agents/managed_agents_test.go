@@ -144,6 +144,118 @@ func TestExecuteWithFixture(t *testing.T) {
 	}
 }
 
+// TestExecuteWithFixture_OverBudget verifies the post-hoc cost-budget
+// behaviour: when the API-reported usage's cost exceeds task.Budget.MaxUSD,
+// the executor flags the overrun without discarding the result.
+//
+// Architectural rationale: the Vertex Managed Agents API only reports
+// cumulative usage in interaction.completed (no token counts in step
+// events), so mid-stream kill-on-cost is IMPOSSIBLE for this executor.
+// Per user requirement: keep useful results, just warn loudly.
+func TestExecuteWithFixture_OverBudget(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/sse_pong.txt")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	exec := &Executor{
+		agent:    defaultAgent,
+		project:  "ailang-dev",
+		location: defaultLocation,
+		httpClient: &stubHTTP{
+			resp: &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(fixture)),
+				Header:     make(http.Header),
+			},
+		},
+		tokens:         stubToken,
+		timeoutSeconds: 30,
+	}
+
+	// PONG fixture cost is ~$0.017. Set a tiny $0.005 budget to force overrun.
+	const tinyBudget = 0.005
+	task := &executor.Task{
+		ID:         "test-over-budget",
+		Directive:  "say PONG",
+		GCPProject: "ailang-dev",
+		Budget:     executor.NewCostBudget(tinyBudget, 0.0015, 0.009),
+	}
+
+	res, err := exec.Execute(context.Background(), task)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	// Result is kept (not discarded) — Success follows the API's status.
+	if !res.Success {
+		t.Errorf("Success=false on over-budget run; expected true (PONG fixture has status=completed; over-budget is a flag, not a failure). Error=%q", res.Error)
+	}
+
+	// CostKilledAt is populated for telemetry / aggregation pipelines.
+	if res.CostKilledAt <= 0 {
+		t.Errorf("CostKilledAt=%v, want >0 on over-budget run", res.CostKilledAt)
+	}
+	if res.CostKilledAt != res.CostUSD {
+		t.Errorf("CostKilledAt=%v should match CostUSD=%v (post-hoc, no mid-stream kill)", res.CostKilledAt, res.CostUSD)
+	}
+
+	// ProviderData surfaces the structured overrun.
+	pd, ok := res.ProviderData["managed_agents_cost_over_budget"].(map[string]any)
+	if !ok {
+		t.Fatal("ProviderData.managed_agents_cost_over_budget missing or wrong type")
+	}
+	if pd["budget_usd"] != tinyBudget {
+		t.Errorf("ProviderData budget_usd=%v, want %v", pd["budget_usd"], tinyBudget)
+	}
+	if pd["actual_usd"] != res.CostUSD {
+		t.Errorf("ProviderData actual_usd=%v, want %v", pd["actual_usd"], res.CostUSD)
+	}
+}
+
+// TestExecuteWithFixture_UnderBudget confirms the opposite: when the run
+// stays under budget, CostKilledAt remains 0 and no overrun flag fires.
+func TestExecuteWithFixture_UnderBudget(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/sse_pong.txt")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	exec := &Executor{
+		agent:    defaultAgent,
+		project:  "ailang-dev",
+		location: defaultLocation,
+		httpClient: &stubHTTP{
+			resp: &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(fixture)),
+				Header:     make(http.Header),
+			},
+		},
+		tokens:         stubToken,
+		timeoutSeconds: 30,
+	}
+
+	// Generous $1.00 budget — PONG fixture costs ~$0.017, well under.
+	task := &executor.Task{
+		ID:         "test-under-budget",
+		Directive:  "say PONG",
+		GCPProject: "ailang-dev",
+		Budget:     executor.NewCostBudget(1.00, 0.0015, 0.009),
+	}
+
+	res, err := exec.Execute(context.Background(), task)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if res.CostKilledAt != 0 {
+		t.Errorf("CostKilledAt=%v, want 0 on under-budget run", res.CostKilledAt)
+	}
+	if _, present := res.ProviderData["managed_agents_cost_over_budget"]; present {
+		t.Error("ProviderData should NOT contain managed_agents_cost_over_budget on under-budget run")
+	}
+}
+
 // TestCapabilities sanity-checks the advertised capabilities.
 func TestCapabilities(t *testing.T) {
 	exec, _ := New(&executor.Config{})

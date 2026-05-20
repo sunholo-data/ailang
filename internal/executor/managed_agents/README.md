@@ -126,6 +126,19 @@ doesn't distinguish reasoning from candidate tokens.
 
 ## Limits and known gaps
 
+- **Cost budget is post-hoc, not mid-stream.** The Managed Agents API only
+  reports cumulative usage in the terminal `interaction.completed` event
+  (step events carry no token counts), so mid-stream kill-on-cost is
+  IMPOSSIBLE for this executor. The executor compares actual final cost
+  against `task.Budget.MaxUSD` AFTER the run and surfaces overruns via:
+  - `Result.CostKilledAt` (for telemetry aggregation)
+  - `Result.ProviderData["managed_agents_cost_over_budget"]` (structured)
+  - Loud stderr warning visible in `ailang eval-suite` output
+  Per design: useful over-budget results are KEPT and flagged, not
+  discarded. `Result.Success` follows the API's `interaction.completed.status`.
+  To prevent overruns: tighten `models.yml::budgets.hard_timeout_secs` (the
+  wall-clock safety net is the only live kill switch).
+
 - **No multi-turn yet.** Each Execute() call provisions a fresh sandbox.
   Multi-turn carry-over via `interaction.id` + `environment_id` is captured
   in `ProviderData` but the harness side doesn't wire those into follow-up
