@@ -1,0 +1,36 @@
+id: intent_annotated_solver
+description: "Prompt includes @intent annotation to test Pact's hypothesis that intent annotations improve LLM pass rate"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Pact's intent annotations (`@intent("compute median")`) on every
+# function. The hypothesis: explicit intent in agent-readable form improves
+# LLM pass rate. Simplified to standard shape: the prompt itself includes an
+# intent annotation; the implicit comparison is against any of our existing
+# unannotated algorithmic benchmarks. If pass rate is meaningfully higher on
+# this benchmark than on similar-difficulty unannotated ones, Pact's
+# hypothesis is locally supported.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that solves the problem below.
+
+  @intent("Compute the median of an unsorted list of integers; on even-length
+  lists return the lower of the two middle values to keep the result an integer.
+  The function should be total and never raise.")
+
+  Implementation requirements:
+  1. Define a function `median(xs)` that takes a list of integers and returns
+     the median per the intent above.
+  2. Call it on [7, 2, 5, 1, 9, 4, 8] and print the result.
+  3. Call it on [10, 20, 30, 40] and print the result.
+
+  Print one integer per line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  5
+  20
+tier: core
+tags: [algorithmic, intent_annotation, sorting]

@@ -1,0 +1,30 @@
+id: parallel_map_reduce
+description: "Generic higher-order map_reduce combinator applied to two distinct (f, g) pairs (AILANG-strength: parametric polymorphism over HOFs)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Tests AILANG's parametric polymorphism over higher-order functions. The LLM
+# must define a single `map_reduce` combinator with a polymorphic signature
+# and apply it to two different (map_fn, reduce_fn, init) tuples. This
+# exercises the type system's ability to handle higher-kinded use cases.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Defines a generic higher-order function `map_reduce(xs, map_fn, reduce_fn, init)`
+     that maps `map_fn` over `xs`, then folds the result using `reduce_fn` starting
+     from `init`.
+  2. Uses `map_reduce` TWICE with the same combinator but different functions:
+     - Apply to [1, 2, 3, 4, 5]: map by squaring (x -> x*x), reduce by sum, init 0.
+       Expected result: 1+4+9+16+25 = 55.
+     - Apply to [1, 2, 3, 4, 5]: map by doubling (x -> x*2), reduce by product, init 1.
+       Expected result: 2*4*6*8*10 = 3840.
+  3. Prints both results, one per line, in the order above.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  55
+  3840
+tier: core
+tags: [functional, higher_order, polymorphism]

@@ -1,0 +1,30 @@
+id: typed_stream_pipeline
+description: "Composed pipeline: filter → map → fold with type-checked stage transitions (Plumbing hypothesis: typed pipelines catch wiring errors)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Plumbing's typed streaming pipelines with static well-formedness.
+# Standard-shape simplification: build a multi-stage data transformation as a
+# pipeline of function compositions. AILANG's type system catches wiring errors
+# at the type level. The LLM must produce code that composes correctly.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that processes the list [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  through a three-stage pipeline:
+
+  Stage 1 — filter: keep only even numbers
+  Stage 2 — map: square each kept value
+  Stage 3 — fold: sum all squared values
+
+  Each stage should be a separately-named function, and the pipeline should be
+  expressed as the composition of those functions (not inlined into one loop).
+
+  Print the final sum on one line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  220
+tier: core
+tags: [functional, data_transform, pipeline]

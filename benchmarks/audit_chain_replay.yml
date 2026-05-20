@@ -1,0 +1,35 @@
+id: audit_chain_replay
+description: "Bit-identical output across two runs of the same deterministic computation (Boruna hypothesis: replayability + audit chains)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Boruna's hash-chained tamper-evident audit logs. Tests AILANG's
+# A2 axiom (replayability): a pure deterministic computation must produce
+# identical output on every run, no time/random/env leaks.
+# Standard-shape simplification: the program emits its result line twice to
+# stdout, simulating two replayed runs. If the lines differ on a single run,
+# something is wrong; in any future audit-chain-aware harness, the lines could
+# be compared across actual replays.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "low"
+task_prompt: |
+  Write a program in <LANG> that computes a deterministic value from a fixed
+  input — specifically, the sum of the first 20 Fibonacci numbers (F(1)=1, F(2)=1)
+  — and prints that value on TWO consecutive lines.
+
+  The two lines must be byte-identical: same value, same formatting. The two
+  lines simulate the "original run" and the "replayed run" of an audit chain.
+
+  Implementation:
+  1. Define `fib_sum(n)` returning the sum of the first n Fibonacci numbers.
+  2. Compute `result = fib_sum(20)`.
+  3. Print `result` on one line.
+  4. Print `result` again on the next line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  17710
+  17710
+tier: core
+tags: [recursion, determinism, replayability]

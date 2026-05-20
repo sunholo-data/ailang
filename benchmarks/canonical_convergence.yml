@@ -1,0 +1,35 @@
+id: canonical_convergence
+description: "Produce the canonical idiom for a problem (Zero hypothesis: one canonical form helps LLMs converge)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Zero's "one canonical form" design principle. Standard-shape
+# simplification: rather than running N=20 generations and measuring
+# semantic-equivalence ratio (which requires harness changes), the prompt
+# explicitly demands canonical idioms. We then check that the LLM produces
+# code that runs and gives the right result — not whether the *exact* form
+# matches a reference. The convergence aspect is implicitly tested by repeat
+# eval runs in the dashboard.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "low"
+task_prompt: |
+  Write a program in <LANG> that, given a list of integers, returns the count
+  of values that are positive AND even.
+
+  Use the most idiomatic / canonical form for your language:
+  - Prefer higher-order functions (filter, map, fold) over imperative loops where idiomatic.
+  - Prefer pattern matching over chained if-else where idiomatic.
+  - Avoid mutable state where the language idiom prefers immutability.
+
+  Implementation:
+  1. Define `count_pos_even(xs)` per the above.
+  2. Call it on [1, 2, 3, 4, -5, -6, 8, 0, 10] and print the result.
+
+  Print one integer.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  4
+tier: smoke
+tags: [functional, idiom, canonical_form]

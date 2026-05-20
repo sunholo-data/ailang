@@ -1,0 +1,31 @@
+id: dense_operator_program
+description: "Operator-heavy program: bitwise shifts, boolean ops, comparisons (NERD hypothesis: ambiguous operators hurt LLM tokenization)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by NERD's claim that LLM tokenizers misparse operator-dense code
+# (<<, >>, &&, ==, !=, etc.) and that English keywords would be more reliable.
+# This is a DIRECT REFUTATION TEST: if AILANG and Python achieve pass-rate
+# parity on operator-heavy code, the tokenizer-ambiguity hypothesis is
+# overstated.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "low"
+task_prompt: |
+  Write a program in <LANG> that computes and prints the following values, one per line:
+
+  1. (5 << 3) + (16 >> 2)     -- left-shift 5 by 3, right-shift 16 by 2, then sum
+  2. (12 & 10) | (4 ^ 6)      -- bitwise AND, OR, XOR composition
+  3. The number of integers in [1..20] where (n != 0) && ((n % 3 == 0) || (n % 5 == 0))
+  4. ((100 == 100) && (50 < 75)) -- print "true" or "false"
+
+  Output one value per line, in order, with no labels.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  44
+  10
+  9
+  true
+tier: smoke
+tags: [algorithmic, bitwise, operators]

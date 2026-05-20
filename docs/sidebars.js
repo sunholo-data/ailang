@@ -63,6 +63,8 @@ const sidebars = {
       items: [
         'guides/ailang-vs-agents',
         'guides/zero-comparison',
+        'guides/three-camps-comparison',
+        'guides/three-camps-self-audit',
         'guides/agent-integration',
         {
           type: 'category',

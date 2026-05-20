@@ -1,0 +1,32 @@
+id: explicit_dataflow_ssa
+description: "Heavy single-assignment let-chain dataflow (Magpie hypothesis: SSA-shaped code is easier to reason about)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Magpie's claim that surfacing SSA form as user syntax makes
+# code easier for LLMs to reason about. Simplified to standard shape: write
+# a multi-step calculation as a chain of explicit single-assignment let
+# bindings, no variable reuse, each step named.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "low"
+task_prompt: |
+  Write a program in <LANG> that computes the Body Mass Index (BMI) classification
+  for a person who is 1.75m tall and weighs 70kg.
+
+  Express the calculation as an explicit chain of single-assignment bindings:
+  - bind `height_m = 1.75`
+  - bind `weight_kg = 70`
+  - bind `height_squared = height_m * height_m`
+  - bind `bmi_raw = weight_kg / height_squared`
+  - bind `bmi_rounded` to bmi_raw rounded to 1 decimal place
+  - bind `category` to "Underweight", "Normal", "Overweight", or "Obese" using:
+      < 18.5 = Underweight, < 25 = Normal, < 30 = Overweight, else = Obese
+  - Do NOT reuse any binding name.
+  - Print exactly: BMI=<bmi_rounded> Category=<category>
+
+  Output only the code, no explanations.
+expected_stdout: |
+  BMI=22.9 Category=Normal
+tier: core
+tags: [functional, let_binding, dataflow]

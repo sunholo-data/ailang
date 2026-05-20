@@ -1,0 +1,28 @@
+id: ai_effect_summarize
+description: "Use std/ai (call) for unstructured text-to-text completion (AILANG-strength: AI as a first-class typed effect)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# AILANG's biggest unique capability — std/ai as a first-class effect — is
+# CURRENTLY UNBENCHMARKED. This benchmark exercises the simplest form:
+# string -> string completion via `call()`.
+#
+# VISION TIER — requires real AI provider configured; opt-in via --tier vision.
+# Self-audit talk-week run notes this benchmark as "type-check passes;
+# execution deferred to mainline eval with real provider."
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["AI", "IO"]
+difficulty: "easy"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in AILANG that:
+  1. Imports std/ai (call) and std/io (println).
+  2. Defines a function `summarize(text: string) -> string ! {AI}` that calls
+     `call("Summarize in one sentence: " ++ text)` and returns the result.
+  3. In `main`, calls `summarize("AILANG is a deterministic programming language designed for autonomous AI code synthesis.")`.
+  4. Prints the summary on a single line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  <any non-empty single line from the AI provider>
+tier: vision
+tags: [ai_effect, effects_io]

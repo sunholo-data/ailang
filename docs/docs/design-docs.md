@@ -8,6 +8,24 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.22.0
+
+- [M-MANAGED-AGENTS: Retire Gemini CLI, Adopt Vertex Managed Agents API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-antigravity-cli-migration.md)
+- [Sprint Plan: M-MANAGED-AGENTS — Retire Gemini CLI, Adopt Vertex Managed Agents API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-managed-agents-sprint-plan.md)
+- [M-MATCH-ADT-XCHECK-REGRESSION — Foreign-constructor patterns silently accepted again](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-match-adt-xcheck-regression.md)
+- [Sprint Plan — M-SCHEME-IMPORT-PRESERVE-ADT-HEAD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-scheme-import-preserve-adt-head-sprint-plan.md)
+- [M-SCHEME-IMPORT-PRESERVE-ADT-HEAD — Imported function schemes lose ADT head constructors](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-scheme-import-preserve-adt-head.md)
+
+## v0.21.0
+
+- [Sprint Plan: M-COG-RUNTIME](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_21_0/m-cog-runtime-sprint-plan.md)
+- [M-COG-RUNTIME: Cognition Runtime — Effects, Fabric, Event Log, Scheduler, DOM Replay](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_21_0/m-cog-runtime.md)
+
+## v0.20.1
+
+- [Sprint Plan: M-EXT-AUTHOR-DX (v0.20.1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_1/m-ext-author-dx-sprint-plan.md)
+- [M-EXT-AUTHOR-DX: Close the motoko_ext author-loop gaps](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_1/m-ext-author-dx.md)
+
 ## v0.20.0
 
 - [M-AILANG-LSP-FOR-AI Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_20_0/m-ailang-lsp-for-ai-sprint-plan.md)
@@ -1075,4 +1093,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 768 design documents across 99 versions.*
+*Generated at build time. 777 design documents across 102 versions.*

@@ -1,0 +1,28 @@
+id: ast_patch_roundtrip
+description: "Structural data manipulation via JSON decode → mutate → encode (X07 hypothesis: structural edits beat free-text edits)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by X07's claim that LLM codegen is more reliable when generating
+# structural diffs (RFC 6902 patches) rather than free text. We test the
+# closest standard-shape proxy: can the LLM produce a program that decodes
+# structured input, mutates a field, and re-encodes it correctly?
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Starts with a JSON object containing fields {"name": "alice", "age": 30, "role": "engineer"}
+  2. Decodes it (or constructs it in your language's native form)
+  3. Updates the "age" field to 31
+  4. Updates the "role" field to "senior engineer"
+  5. Re-encodes it as JSON
+  6. Prints the result on a single line
+
+  The output must be a single line of valid JSON with exactly these three fields.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  {"name": "alice", "age": 31, "role": "senior engineer"}
+tier: core
+tags: [data_transform, records, structural_edit]

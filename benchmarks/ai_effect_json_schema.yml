@@ -1,0 +1,31 @@
+id: ai_effect_json_schema
+description: "Use std/ai (callJson) for schema-enforced structured output (AILANG-strength: typed AI calls with JSON schema)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Tests the structured-output flavor of std/ai: callJson with a schema. This
+# is the most agent-relevant form of the AI effect — the LLM must produce
+# JSON conforming to a declared schema, which the provider validates before
+# returning.
+#
+# VISION TIER — requires real AI provider configured with structured-output
+# capability; opt-in via --tier vision.
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["AI", "IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in AILANG that:
+  1. Imports std/ai (callJson) and std/io (println).
+  2. Defines a function `extract_person(text: string) -> string ! {AI}` that
+     calls `callJson(text, "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}")`
+     and returns the JSON string.
+  3. In `main`, calls `extract_person("Alice is a 30-year-old engineer.")`.
+  4. Prints the returned JSON on a single line.
+
+  The output must be valid JSON containing at least the keys "name" and "age".
+
+  Output only the code, no explanations.
+expected_stdout: |
+  <valid JSON with "name" and "age" keys, e.g. {"name":"Alice","age":30}>
+tier: vision
+tags: [ai_effect, structured_output, effects_io]

@@ -1,0 +1,31 @@
+id: decision_block_capture
+description: "Implementation + structured rationale on the same task (Aver hypothesis: ADRs-in-code improve auditability)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Aver's decision blocks (architectural decision records embedded
+# in the code alongside the implementation). Simplified to standard shape:
+# the LLM must produce BOTH a working implementation AND a line of structured
+# rationale marked with a CHOICE: prefix. Tests whether agents can be
+# prompted to emit auditable choices, not just code.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Implements a function to find the maximum value in a list of integers.
+  2. Calls the function on the list [3, 7, 2, 8, 5, 1, 9, 4] and prints the result.
+  3. After the numeric result, prints a SINGLE additional line starting with the
+     literal prefix "CHOICE: " (uppercase, colon, space) that gives a one-sentence
+     justification for the algorithmic approach you chose (e.g., "CHOICE: single
+     linear pass for O(n) time and O(1) space" or "CHOICE: recursion to match
+     the inductive structure").
+
+  Both lines must appear in order: the number first, then the CHOICE line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  9
+  CHOICE: single linear pass for O(n) time and O(1) space
+tier: core
+tags: [structured_output, decision_capture, algorithmic]

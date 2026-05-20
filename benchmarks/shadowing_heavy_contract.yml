@@ -1,0 +1,31 @@
+id: shadowing_heavy_contract
+description: "Multiple nested scopes shadowing the same identifier name (Vera hypothesis: named refs break under shadowing)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Vera's design choice to use De Bruijn slot references instead
+# of named identifiers, arguing that names produce LLM-confusable shadowing.
+# This test: AILANG's HM type inference should resolve shadowed names
+# correctly without confusion. If the LLM produces code that compiles and
+# returns the right value, Vera's claim is locally refuted.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "low"
+task_prompt: |
+  Write a program in <LANG> that defines a function `transform(x)` where the
+  identifier `x` is shadowed multiple times in nested scopes. Specifically:
+
+  1. The outer function parameter is named `x` (integer).
+  2. Inside, define a local binding also named `x` set to `x * 2` (shadows the parameter).
+  3. Inside that, in a deeper scope (e.g. a nested let, lambda, or block), define
+     another `x` set to `x + 5` (shadows the previous).
+  4. Return the innermost `x`.
+
+  Then call `transform(10)` and `transform(3)` and print the results, one per line.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  25
+  11
+tier: core
+tags: [type_safety, shadowing, functional]

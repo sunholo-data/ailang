@@ -1,0 +1,30 @@
+id: multi_agent_handoff
+description: "Agent uses std/ai to delegate a subtask, composes the result (Pel/Marsha hypothesis: agent coordination as language primitive)"
+# GAP BENCHMARK — from M-THREE-CAMPS-LANGUAGE-SURVEY.
+# Inspired by Pel and Marsha — both reframe LLM codegen as agent coordination.
+# AILANG's `std/ai` makes this expressible WITHOUT external wrapping: the AI
+# call is a typed effect in the same expression language as everything else.
+# This benchmark tests whether the LLM can produce code that uses `std/ai`
+# correctly to delegate a subtask.
+#
+# VISION TIER — requires real AI provider configured; opt-in via --tier vision.
+# Self-audit talk-week run uses a stub provider; mainline eval should run with
+# a cheap model.
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["AI", "IO"]
+difficulty: "hard"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in AILANG that:
+  1. Imports std/ai (call) for the AI effect.
+  2. Defines a function `delegate_summary(topic: string) -> string ! {AI}` that
+     calls `call("Write a one-sentence summary of: " ++ topic)` and returns the result.
+  3. In `main`, calls `delegate_summary("the French Revolution")` and prints the
+     result on a single line, prefixed with "Summary: ".
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Summary: <any non-empty content from the AI provider>
+tier: vision
+tags: [ai_effect, effects_io, orchestration]

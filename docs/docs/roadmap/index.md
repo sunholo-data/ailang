@@ -31,13 +31,29 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.22.0
+
+- [M-COG-MEMORY: Semantic Memory — `!: SharedMem` + `!: SemanticSearch`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-memory.md)
+- [M-COG-MESH: Distributed Cognitive Mesh — Collaborative Demo + Distributed Transports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-mesh.md)
+- [M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-lambda-open-record-pattern.md)
+- [M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-match-xcheck-error-quality.md)
+- [Sprint Plan — M-PATTERN-AND-INVOCATION-REPAIR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-pattern-and-invocation-repair-sprint-plan.md)
+- [M-TERMINAL-BENCH: Terminal-Bench Cloud Evaluation (AILANG vs Python)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-terminal-bench-cloud-eval.md)
+- [M-THREE-CAMPS-LANGUAGE-SURVEY: Gap Analysis Across 16 AI-Designed Languages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-language-survey.md)
+- [M-THREE-CAMPS Sprint Plan (Gap-Analysis-First)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-sprint-plan.md)
+- [M-ZERO-ARG-INVOCATION-SURFACES — Unify zero-arg export invocation across all surfaces](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-zero-arg-invocation-surfaces.md)
+
 ## Planned for v0.21.0
 
 - [M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-check-strict-fallbacks.md)
+- [Sprint Plan: M-COG-RUNTIME-BROWSER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser-sprint-plan.md)
+- [M-COG-RUNTIME-BROWSER: Cognitive OS Browser Substrate](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser.md)
 - [M-EFFECT-HANDLERS: User-Definable Effect Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-effect-handlers.md)
 - [M-EVAL-AGENT-PYTHON-STDIO-WIRING — Python agent-mode runner drops `cli_args` and `stdin` from benchmark spec](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md)
+- [M-MOTOKO-CLOUD-MIGRATION: Replace `claude -p` OAuth Executors with motoko + OpenRouter in Production](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-motoko-cloud-migration.md)
 - [M-SERVEAPI-GET-QUERY-SHADOW — GET query args silently shadowed by zero-value padding](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-serveapi-get-query-shadow.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-stdlib-html-streaming.md)
+- [M-WASM-REFLECTIVE-RUNTIME: Cognitive OS (Umbrella)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-wasm-reflective-runtime.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-zero-language-learnings.md)
 
 ## Planned for v0.19.0
@@ -175,4 +191,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 116 planned features across 12 upcoming versions.*
+*Generated at build time. 129 planned features across 13 upcoming versions.*
