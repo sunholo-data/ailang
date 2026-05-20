@@ -253,6 +253,22 @@ func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 //   - The result value from executing the function
 //   - An error if execution fails
 func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, error) {
+	// M-ZERO-ARG-SURFACES (v0.22.0): zero-arg exports (`export func f() -> T`)
+	// compile to a single implicit unit param named "_" (parser convention in
+	// internal/parser/parser_func.go). External callers (apiserver, WASM
+	// ailangCall, bytecode entrypoint) pass zero args; inject UnitValue here so
+	// every surface inherits the behavior. Mirrors and replaces the apiserver
+	// retry-on-error (commits 8cc21027, 4075a402) and the REPL/WASM InvokeExport
+	// workaround, both of which can now be deleted.
+	//
+	// Name-based detection ("_" param) rather than IsZeroArgExport flag plumbing
+	// keeps the change shallow. A user-written `\_. body` lambda matched against
+	// a zero-arg call gets a harmless UnitValue bound to `_` — semantically a
+	// no-op since `_` is by convention an ignored binding.
+	if isZeroArgUnitInjection(fn, args) {
+		args = []Value{&UnitValue{}}
+	}
+
 	// M-DOCPARSE-DX M1: Auto-curry support for CallFunction
 	if len(args) > len(fn.Params) {
 		return e.applyFunction(fn, args)

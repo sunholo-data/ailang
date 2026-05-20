@@ -312,10 +312,26 @@ type FunctionValue struct {
 	EffectMinBudgets map[string]int  // Budget min limits per effect (from @min annotation, M-DX25 M4)
 	Preconditions    []*ContractSpec // requires blocks (M-VERIFY-CONTRACTS)
 	Postconditions   []*ContractSpec // ensures blocks (M-VERIFY-CONTRACTS)
+
+	// IsZeroArgExport marks functions that have a single implicit unit parameter
+	// injected by the parser for `export func name() -> T` syntax (M-ZERO-ARG /
+	// S-CALL0). External callers (apiserver, WASM ailangCall, bytecode entrypoint)
+	// pass zero args; CallFunction injects a UnitValue automatically when this
+	// flag is set. See design_docs/planned/v0_22_0/m-zero-arg-invocation-surfaces.md.
+	IsZeroArgExport bool
 }
 
 func (f *FunctionValue) Type() string   { return "function" }
 func (f *FunctionValue) String() string { return "<function>" }
+
+// isZeroArgUnitInjection reports whether the call needs an implicit unit
+// argument. Returns true when the caller passed no arguments and the function
+// has the parser's zero-arg-export shape (single param named "_") -- see
+// internal/parser/parser_func.go for the parser's injection convention. Used by
+// CoreEvaluator.CallFunction (M-ZERO-ARG-SURFACES, v0.22.0).
+func isZeroArgUnitInjection(fn *FunctionValue, args []Value) bool {
+	return len(args) == 0 && len(fn.Params) == 1 && fn.Params[0] == "_"
+}
 
 // BuiltinFunction represents a built-in function
 type BuiltinFunction struct {

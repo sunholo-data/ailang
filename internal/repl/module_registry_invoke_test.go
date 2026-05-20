@@ -543,3 +543,49 @@ export func getValueOrError(s: string) -> string {
 	}
 	t.Logf("getValueOrError('invalid json') = %v (%T)", result2, result2)
 }
+
+// TestInvokeExportZeroArg is a regression test for the WASM ailangCall bug
+// reported by sunholo-demos/cognitive_commons (msg_20260520_105856_e3b99ca6):
+// 0-arg exports (which internally compile to a single unit param) used to be
+// returned as unevaluated FunctionValues because the apply loop was gated on
+// `len(remaining) > 0`. Fix: when args is empty and Params has length 1,
+// inject a UnitValue and invoke once. Mirrors the apiserver fix.
+func TestInvokeExportZeroArg(t *testing.T) {
+	reg := NewModuleRegistry()
+
+	code := `module test_zero_arg
+
+export pure func greet() -> string { "hi" }
+
+export pure func answer() -> int { 42 }
+`
+	if _, err := reg.LoadModule("test_zero_arg", code); err != nil {
+		t.Fatalf("Failed to load test_zero_arg: %v", err)
+	}
+
+	// String-returning 0-arg
+	result, err := reg.InvokeExport("test_zero_arg", "greet", []eval.Value{})
+	if err != nil {
+		t.Fatalf("InvokeExport greet failed: %v", err)
+	}
+	strVal, ok := result.(*eval.StringValue)
+	if !ok {
+		t.Fatalf("greet() returned %T, expected *StringValue (the bug: returned the FunctionValue itself)", result)
+	}
+	if strVal.Value != "hi" {
+		t.Fatalf("greet() = %q, want %q", strVal.Value, "hi")
+	}
+
+	// Int-returning 0-arg
+	result2, err := reg.InvokeExport("test_zero_arg", "answer", []eval.Value{})
+	if err != nil {
+		t.Fatalf("InvokeExport answer failed: %v", err)
+	}
+	intVal, ok := result2.(*eval.IntValue)
+	if !ok {
+		t.Fatalf("answer() returned %T, expected *IntValue", result2)
+	}
+	if intVal.Value != 42 {
+		t.Fatalf("answer() = %d, want 42", intVal.Value)
+	}
+}

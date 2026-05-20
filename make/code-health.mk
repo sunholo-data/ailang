@@ -78,6 +78,28 @@ lint: prepare-embed ## Run linter (bug detectors only)
 		fi
 	@echo "$(GREEN)$(CHECKMARK) Lint complete (no bugs detected)$(RESET)"
 
+# Guard against reintroducing surface-local zero-arg workarounds.
+# M-ZERO-ARG-SURFACES (v0.22.0) lifted the unit-injection into
+# internal/eval/eval_evaluator.go:CallFunction. Surface packages (apiserver, repl,
+# runtime) MUST NOT carry their own retry-on-error or local injection. If this
+# guard fires, the systemic fix has been bypassed — find the offending workaround
+# and route the call through CallFunction instead.
+check-no-zero-arg-workarounds: ## Forbid surface-local zero-arg unit-injection workarounds
+	@echo "Checking for surface-local zero-arg workarounds..."
+	@FOUND=0; \
+	for dir in internal/apiserver internal/repl internal/runtime; do \
+		if grep -rn "expects 1 arguments, got 0" $$dir 2>/dev/null; then \
+			echo "$(RED)$(CROSS) $$dir contains a zero-arg workaround — use eval.CallFunction instead$(RESET)"; \
+			FOUND=1; \
+		fi; \
+	done; \
+	if [ $$FOUND -eq 1 ]; then \
+		echo "$(YELLOW)$(WARNING) See design_docs/planned/v0_22_0/m-zero-arg-invocation-surfaces.md$(RESET)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)$(CHECKMARK) No surface-local zero-arg workarounds found$(RESET)"; \
+	fi
+
 # File size checks (AI-friendly codebase)
 check-file-sizes: ## Check for files >800 lines (CI gate)
 	@echo "Checking for files >800 lines..."

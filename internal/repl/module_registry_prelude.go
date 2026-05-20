@@ -77,6 +77,19 @@ func (mr *ModuleRegistry) InvokeExport(moduleName, funcName string, args []eval.
 	// Apply arguments, handling both multi-param and curried functions.
 	// Multi-param: func f(a, b) compiled with Params=["a","b"] -- needs all args at once.
 	// Curried: func f(a)(b) compiled as nested lambdas -- apply one at a time.
+	//
+	// Zero-arg exports (`export func f() -> T`) compile with a single implicit
+	// unit param. CallFunction handles the unit injection centrally (see
+	// M-ZERO-ARG-SURFACES in internal/eval/eval_evaluator.go), so we just call
+	// it once with the empty args slice and let it do the right thing.
+	if len(args) == 0 {
+		result, err := evaluator.CallFunction(fn, args)
+		if err != nil {
+			return nil, fmt.Errorf("error invoking %s.%s: %w", moduleName, funcName, err)
+		}
+		return result, nil
+	}
+
 	var result eval.Value = fn
 	remaining := args
 	for len(remaining) > 0 {

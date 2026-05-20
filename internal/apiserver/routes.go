@@ -465,14 +465,6 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		log.Printf("[CONCURRENCY] engine.Call returned %s/%s (goroutine %d, err=%v, %dms)", modulePath, funcName, goroutineID(), callErr, elapsed)
 	}
 
-	// Fix: zero-arg functions in AILANG internally compile to take a unit parameter.
-	// If the call fails with "expects 1 arguments, got 0", retry with a unit arg.
-	if callErr != nil && len(args) == 0 && strings.Contains(callErr.Error(), "expects 1 arguments, got 0") {
-		start = time.Now()
-		result, callErr = s.engine.Call(modulePath, funcName, nil)
-		elapsed = time.Since(start).Milliseconds()
-	}
-
 	if callErr != nil {
 		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
 		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
