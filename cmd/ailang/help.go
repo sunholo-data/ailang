@@ -112,6 +112,7 @@ func printHelp() {
 	fmt.Printf("  %s                     List available stdlib modules\n", cyan("docs --list"))
 	fmt.Printf("  %s               Show stdlib module documentation\n", cyan("docs <module>"))
 	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
+	fmt.Printf("  %s          Check ADC for Vertex Managed Agents API\n", cyan("doctor managed_agents"))
 	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
 	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))
 	fmt.Printf("  %s    Install syntax highlighting (vscode, vim, neovim)\n", cyan("editor install <editor>"))

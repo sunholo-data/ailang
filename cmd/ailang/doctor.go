@@ -1,27 +1,38 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/executor"
+	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 )
 
-// runDoctor implements `ailang doctor builtins` command
+// runDoctor implements `ailang doctor <subcommand>` commands.
 func runDoctor() {
 	subcommand := ""
 	if flag.NArg() >= 2 {
 		subcommand = flag.Arg(1)
 	}
 
-	if subcommand != "builtins" {
-		fmt.Println("Usage: ailang doctor builtins")
+	switch subcommand {
+	case "builtins":
+		// fall through to existing builtins-validation logic below
+	case "managed_agents", "managed-agents":
+		runDoctorManagedAgents()
+		return
+	default:
+		fmt.Println("Usage: ailang doctor <subcommand>")
 		fmt.Println()
 		fmt.Println("Available subcommands:")
-		fmt.Println("  builtins    Validate the builtin function registry")
+		fmt.Println("  builtins         Validate the builtin function registry")
+		fmt.Println("  managed_agents   Check ADC for the Vertex AI Managed Agents API")
 		os.Exit(1)
 	}
 
@@ -621,4 +632,83 @@ func runBuiltinsCheckMigration() {
 	if !report.IsClean {
 		os.Exit(1)
 	}
+}
+
+// runDoctorManagedAgents verifies the Vertex AI Managed Agents API is
+// reachable via Application Default Credentials. It does NOT make a real
+// interaction call (that would cost money and provision a sandbox) — it
+// asks the executor's HealthCheck to validate the ADC token source.
+//
+// Output is plain text by default, JSON when --format=json is passed.
+func runDoctorManagedAgents() {
+	jsonOutput := false
+	for _, arg := range flag.Args()[2:] {
+		if arg == "--format=json" || arg == "-format=json" {
+			jsonOutput = true
+		}
+	}
+
+	type doctorResult struct {
+		OK          bool   `json:"ok"`
+		Subcommand  string `json:"subcommand"`
+		Executor    string `json:"executor"`
+		Detail      string `json:"detail"`
+		ErrorString string `json:"error,omitempty"`
+	}
+
+	emit := func(r doctorResult) {
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetEscapeHTML(false)
+			_ = enc.Encode(r)
+			return
+		}
+		if r.OK {
+			fmt.Printf("✅ %s: %s\n", r.Executor, r.Detail)
+		} else {
+			fmt.Printf("❌ %s: %s\n", r.Executor, r.Detail)
+			if r.ErrorString != "" {
+				fmt.Printf("   %s\n", r.ErrorString)
+			}
+			fmt.Println()
+			fmt.Println("Likely fixes:")
+			fmt.Println("  1. Run: gcloud auth application-default login")
+			fmt.Println("  2. Verify: gcloud auth application-default print-access-token")
+			fmt.Println("  3. Ensure GOOGLE_CLOUD_PROJECT is set (or use a models.yml entry with gcp_project)")
+		}
+	}
+
+	factory := executor.GlobalFactory()
+	exec, err := factory.GetExecutor("managed_agents")
+	if err != nil {
+		emit(doctorResult{
+			OK:          false,
+			Subcommand:  "managed_agents",
+			Executor:    "managed_agents",
+			Detail:      "executor not registered in factory",
+			ErrorString: err.Error(),
+		})
+		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := exec.HealthCheck(ctx); err != nil {
+		emit(doctorResult{
+			OK:          false,
+			Subcommand:  "managed_agents",
+			Executor:    exec.Name(),
+			Detail:      "ADC health check failed",
+			ErrorString: err.Error(),
+		})
+		os.Exit(1)
+	}
+
+	emit(doctorResult{
+		OK:         true,
+		Subcommand: "managed_agents",
+		Executor:   exec.Name(),
+		Detail:     "ADC token acquired; ready for Vertex Managed Agents API calls",
+	})
 }
