@@ -1,6 +1,6 @@
 # M-MANAGED-AGENTS: Retire Gemini CLI, Adopt Vertex Managed Agents API
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.22.0
 **Priority**: P0 (Blocker) — Gemini CLI stops serving individual-tier requests on **2026-06-18**
 **Estimated**: 3-4 days
