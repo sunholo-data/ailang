@@ -122,6 +122,8 @@ to browser execution.
 
 **History**: First hit 2026-05-20 by `cognitive_commons/services/citizen.ail` in the demos repo. The half-day diagnostic trail (silent freeze, no console error, DevTools locked) led to the limit being added so future demo authors get a clear error in seconds instead of an opaque hang. Full postmortem: [demos/debug-notes/wasm-citizen-stack-overflow.md](https://github.com/sunholo-data/ailang-demos/blob/main/debug-notes/wasm-citizen-stack-overflow.md).
 
+**Prevention guide**: Run `ailang prompt | grep -A 50 "WASM-Friendly Patterns"` for concrete before/after examples of the five compounding patterns to avoid in WASM-targeted modules. The patterns also produce more idiomatic AILANG even for CLI-only code — the workarounds (flatten matches, extract unpack helpers, qualified imports, single-effect functions, let-bind intermediate records) are good style regardless of target.
+
 **Headless smoke test**: [demos/scripts/wasm-loadmodule-harness.js](https://github.com/sunholo-data/ailang-demos/blob/main/scripts/wasm-loadmodule-harness.js) runs the actual WASM in Node and exits with code 4 when this limit fires (vs 0 for clean modules). CI-friendly.
 
 **Future improvement**: Converting the type-checker to iterative work-stack passes would remove the limit entirely. Tracked in [M-WASM-TYPECHECK-ITERATIVE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/deferred/m-wasm-typecheck-iterative.md) (deferred — high-risk refactor for a low-frequency cliff).

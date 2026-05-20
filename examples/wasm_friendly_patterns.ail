@@ -1,0 +1,127 @@
+-- examples/wasm_friendly_patterns.ail
+--
+-- Worked-example refactor showing the five WASM-friendly patterns from
+-- `ailang prompt | grep -A 50 "WASM-Friendly Patterns"` applied side-by-side.
+--
+-- Each pattern below has a `bad_*` and a `good_*` version. Both produce
+-- the same result, both pass `ailang check` and `ailang run` on the CLI,
+-- but only the `good_*` versions are reliable when the module is loaded
+-- via wasm/ailang.wasm in a browser demo (M-WASM-TYPECHECK-LIMITS, v0.22.x).
+--
+-- The `bad_*` versions also have CLI value as anti-examples for code
+-- reviewers — they all compile, but they're less readable and harder to
+-- maintain than the flattened equivalents.
+--
+-- Reference: docs/docs/reference/limitations.md "WASM Type-Checker Depth Limit"
+
+module examples/wasm_friendly_patterns
+
+import std/json (Json, decode, getString)
+import std/option (Some, None)
+import std/result (Result, Ok, Err)
+import std/string (length)
+
+-- A small ADT to stand in for cognitive_commons' Result[JudgeScore, string].
+export type Score = { x: float, y: float }
+
+-- ============================================================================
+-- Pattern 1: Triple-nested match → flatten with helpers + sequential lets
+-- ============================================================================
+
+-- BAD: three matches stacked inside each other (~80s WASM hang at scale)
+export func bad_parse(raw: string) -> Result[string, string] = {
+  match decode(raw) {
+    Err(e) => Err("parse: ${e}"),
+    Ok(j)  => match getString(j, "error") {
+      Some(err) => Err("provider: ${err}"),
+      None      => match getString(j, "text") {
+        None     => Err("missing text"),
+        Some(tv) => Ok(tv)
+      }
+    }
+  }
+}
+
+-- GOOD: extract a helper for "optional string with default", flatten the
+-- error-vs-text fork into a single if. Same answer, faster type-check,
+-- easier to extend.
+pure func optional_string(j: Json, key: string) -> string =
+  match getString(j, key) {
+    Some(s) => s,
+    None    => ""
+  }
+
+export func good_parse(raw: string) -> Result[string, string] = {
+  match decode(raw) {
+    Err(e) => Err("parse: ${e}"),
+    Ok(j)  => {
+      let err = optional_string(j, "error");
+      if length(err) > 0
+        then Err("provider: ${err}")
+        else match getString(j, "text") {
+          None     => Err("missing text"),
+          Some(tv) => Ok(tv)
+        }
+    }
+  }
+}
+
+-- ============================================================================
+-- Pattern 2: Repeated matches on same tagged-union → unpack helper
+-- ============================================================================
+
+-- BAD: three matches on the same Result, each `s.x`/`s.y` re-runs the
+-- tagged-union receiver analysis introduced by M-TYPECHECK-NO-AUTO-UNWRAP.
+export pure func bad_unpack_score(r: Result[Score, string]) -> (bool, float, float) = {
+  let has = match r { Ok(_) => true,  Err(_) => false };
+  let x   = match r { Ok(s) => s.x,   Err(_) => 0.0 };
+  let y   = match r { Ok(s) => s.y,   Err(_) => 0.0 };
+  (has, x, y)
+}
+
+-- GOOD: one match into a record. Downstream reads are plain record
+-- field-access, no tagged-union analysis.
+pure func unpack_score(r: Result[Score, string]) -> {has: bool, x: float, y: float} =
+  match r {
+    Ok(s)  => {has: true,  x: s.x, y: s.y},
+    Err(_) => {has: false, x: 0.0, y: 0.0}
+  }
+
+export pure func good_unpack_score(r: Result[Score, string]) -> (bool, float, float) = {
+  let u = unpack_score(r);
+  (u.has, u.x, u.y)
+}
+
+-- ============================================================================
+-- Pattern 5: Deep record-field access in tight expressions
+-- ============================================================================
+
+-- BAD: `.sentiment.x` four times inside string interpolation
+export pure func bad_format(st: Score, target: Score) -> string =
+  "x=${show(st.x)}, y=${show(st.y)}, tx=${show(target.x)}, ty=${show(target.y)}"
+
+-- GOOD: let-bind intermediate record once. Easier to read AND lighter on
+-- the WASM substitution chain.
+export pure func good_format(st: Score, target: Score) -> string = {
+  let s = st;
+  let t = target;
+  "x=${show(s.x)}, y=${show(s.y)}, tx=${show(t.x)}, ty=${show(t.y)}"
+}
+
+-- ============================================================================
+-- Patterns 3 (heavy intra-package imports) and 4 (multi-effect annotations)
+-- are demonstrated at module-level — by keeping THIS file's import list
+-- short (only what's used) and avoiding effect annotations on functions
+-- that don't need them, we naturally avoid both.
+-- ============================================================================
+
+export func main() -> () ! {IO} = {
+  println("WASM-friendly patterns — all five demonstrated.");
+  match good_parse("{\"text\": \"hello\"}") {
+    Ok(t)  => println("good_parse text: ${t}"),
+    Err(e) => println("good_parse err: ${e}")
+  };
+  let u = unpack_score(Ok({x: 0.5, y: -0.3}));
+  println("unpack_score: has=${show(u.has)} x=${show(u.x)} y=${show(u.y)}");
+  println(good_format({x: 1.0, y: 2.0}, {x: -1.0, y: 0.0}))
+}
