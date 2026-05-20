@@ -1,6 +1,6 @@
 # M-MATCH-ADT-XCHECK-REGRESSION — Foreign-constructor patterns silently accepted again
 
-**Status**: Planned — P0
+**Status**: IMPLEMENTED via [m-scheme-import-preserve-adt-head.md](m-scheme-import-preserve-adt-head.md) (2026-05-20, v0.22.0). Root cause was upstream scheme corruption, not a pattern-check gap. Fixing the schemes restored the existing M-MATCH-ADT-XCHECK fast-path's ability to fire for function-call scrutinees. New regression tests live in `internal/pipeline/match_foreign_constructor_function_call_test.go`.
 **Target**: v0.22.0 (hotfix candidate)
 **Priority**: P0 — silent runtime panics that pass `ailang check` + CI. Same bug class M-MATCH-ADT-XCHECK was supposed to close. Active production exposure (cognitive_commons, motoko_ext_*).
 **Estimated**: ~1-2 days (root-cause + tightening the existing check; ~200 LOC + tests)

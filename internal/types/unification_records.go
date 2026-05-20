@@ -116,6 +116,19 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
+	// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): TRecord ~ TRecord2 bridge.
+	// Pre-v0.22.0 this case never arose because typechecker_functions.go
+	// discarded the unification substitution, so record-typed values were
+	// left as polymorphic TVars at generalization boundaries. With the
+	// substitution now correctly applied, concrete TRecord and TRecord2
+	// values can meet at expression boundaries (e.g. list-concat of two
+	// [Record] values arriving from different module surfaces). Convert
+	// TRecord2 to TRecord and retry unification through the field-by-field
+	// path above. The conversion helper at TRecord2ToTRecord:443 is the
+	// canonical bridge.
+	if t2Rec2, ok := t2.(*TRecord2); ok {
+		return u.Unify(t1, TRecord2ToTRecord(t2Rec2), sub)
+	}
 	// M-CROSS-MODULE-RECORD-UNIFICATION: Handle TCon by expanding alias
 	// This occurs when a nested record field type is imported from another module
 	// and hasn't been expanded yet (e.g., position: SystemPos where SystemPos is TCon)

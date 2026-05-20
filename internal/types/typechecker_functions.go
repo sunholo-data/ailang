@@ -152,10 +152,22 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	valueType := getType(valueNode)
 	valueEffects := getEffectRow(valueNode)
 
-	// Get unsolved constraints from current context
-	_, unsolvedConstraints, err := ctx.SolveConstraints()
+	// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): solve constraints AND
+	// apply the returned substitution to valueType before defaulting +
+	// generalization. Without this, free TVars that have been bound by
+	// unification (e.g. the return-type variable of a function whose body
+	// pattern-matched against Option) leak into the generalized scheme as
+	// `forall α. ... -> α`, corrupting the exported function signature and
+	// silently breaking downstream pattern-match cross-checks. See the
+	// design doc m-scheme-import-preserve-adt-head.md and bug report
+	// msg_20260520_111521_44c38751.
+	sub, unsolvedConstraints, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, ctx.env, err
+	}
+	if len(sub) > 0 {
+		valueType = ApplySubstitution(sub, valueType)
+		valueNode = tc.applySubstitutionToTyped(sub, valueNode)
 	}
 
 	// Apply defaulting at this generalization boundary
@@ -260,9 +272,20 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	}
 
 	// CRITICAL: Apply defaulting ONCE for the entire SCC after solving mutual block
-	_, unsolvedConstraints, err := ctx.SolveConstraints()
+	//
+	// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): apply the unification
+	// substitution to every binding's valueType and typed node before
+	// defaulting + generalization. See sibling fix in inferLet above and
+	// the design doc m-scheme-import-preserve-adt-head.md for context.
+	sub, unsolvedConstraints, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, oldEnv, err
+	}
+	if len(sub) > 0 {
+		for i := range letrec.Bindings {
+			allValueTypes[i] = ApplySubstitution(sub, allValueTypes[i])
+			allValueNodes[i] = tc.applySubstitutionToTyped(sub, allValueNodes[i])
+		}
 	}
 
 	// Apply defaulting to the entire mutual block (once per SCC)
@@ -293,10 +316,19 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
 
-		// Get remaining non-ground constraints after defaulting
-		_, remainingConstraints, err := ctx.SolveConstraints()
+		// Get remaining non-ground constraints after defaulting.
+		// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): re-solving here can
+		// produce additional bindings (e.g. from defaulting substitutions
+		// flowing through downstream constraints). Apply the resulting
+		// substitution to valueType before generalize so the scheme reflects
+		// the final unified type, not a pre-defaulting snapshot.
+		reSub, remainingConstraints, err := ctx.SolveConstraints()
 		if err != nil {
 			return nil, oldEnv, err
+		}
+		if len(reSub) > 0 {
+			valueType = ApplySubstitution(reSub, valueType)
+			valueNode = tc.applySubstitutionToTyped(reSub, valueNode)
 		}
 
 		nonGroundConstraints := []ClassConstraint{}

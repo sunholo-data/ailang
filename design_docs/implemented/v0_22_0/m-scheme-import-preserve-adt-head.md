@@ -1,9 +1,9 @@
 # M-SCHEME-IMPORT-PRESERVE-ADT-HEAD — Imported function schemes lose ADT head constructors
 
-**Status**: Planned — P0
-**Target**: v0.22.0 or v0.23.0 (depends on depth of fix)
+**Status**: IMPLEMENTED (2026-05-20, v0.22.0)
+**Target**: v0.22.0
 **Priority**: P0 — root cause of M-MATCH-ADT-XCHECK regression and likely many silent type bugs
-**Estimated**: 2-4 days (investigation-heavy; possible interface-format change)
+**Actual**: ~1 day. ~280 LOC across `internal/types/typechecker_functions.go` (3 substitution-apply sites), `internal/types/unification_records.go` (TRecord↔TRecord2 bridge), 4 new regression tests in `internal/pipeline/match_foreign_constructor_function_call_test.go`. Also closes [m-match-adt-xcheck-regression.md](m-match-adt-xcheck-regression.md) as side-effect (no separate fix needed; pattern-check code was sound, just couldn't see concrete scrutinee types).
 **Dependencies**: None
 **Source**: Investigation 2026-05-20 while attempting to fix [m-match-adt-xcheck-regression.md](m-match-adt-xcheck-regression.md). Spawning doc.
 
