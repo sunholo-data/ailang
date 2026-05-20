@@ -1,7 +1,10 @@
 -- examples/wasm_friendly_patterns.ail
 --
 -- Worked-example refactor showing the five WASM-friendly patterns from
--- `ailang prompt | grep -A 50 "WASM-Friendly Patterns"` applied side-by-side.
+-- `ailang devtools-prompt | grep -A 80 "WASM-Friendly Patterns"` applied
+-- side-by-side. (The full guide lives in the devtools/toolchain prompt
+-- because it's a runtime-target concern, not a syntax concern. The
+-- language syntax prompt at `ailang prompt` has a cross-reference.)
 --
 -- Each pattern below has a `bad_*` and a `good_*` version. Both produce
 -- the same result, both pass `ailang check` and `ailang run` on the CLI,
