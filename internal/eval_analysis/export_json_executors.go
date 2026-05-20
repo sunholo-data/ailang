@@ -208,9 +208,18 @@ type harnessTotals struct {
 	tiers      map[string]map[string]*executorLangTotals // tier -> lang -> totals
 }
 
-// buildHarnessAggregates groups agent results by their harness (agent_cli field
-// from ModelConfig) and returns a map ready for DashboardJSON.Harnesses.
-// Results with no matching ModelConfig entry are grouped under "unknown".
+// buildHarnessAggregates groups agent results by their harness and returns a
+// map ready for DashboardJSON.Harnesses. Results with no harness signal are
+// grouped under "unknown".
+//
+// Harness resolution prefers the per-result executor field (historical
+// attribution — what harness actually produced this row) over the current
+// ModelConfig agent_cli (which represents present-day routing and can drift
+// when a harness is retired). E.g. M-MANAGED-AGENTS (v0.22.0) retired Gemini
+// CLI by stripping agent_cli:"gemini" from older models — without this
+// preference, 46 historical gemini-cli rows would silently re-attribute to
+// "unknown" on the next dashboard regen.
+//
 // benchmarkTier maps benchmark ID -> tier name (smoke/core/stretch); pass nil to skip tier breakdown.
 func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[string]string) map[string]interface{} {
 	cfg := eval_harness.GlobalModelsConfig
@@ -218,7 +227,13 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 
 	for _, r := range agentResults {
 		harness := "unknown"
-		if cfg != nil {
+		// 1. Trust the per-result executor field first — it's the historical
+		//    record of what harness actually ran.
+		if r.Executor != "" {
+			harness = r.Executor
+		} else if cfg != nil {
+			// 2. Fall back to current ModelConfig only when the result file
+			//    doesn't carry the executor field (older result schemas).
 			if cli, err := cfg.GetAgentCLI(r.Model); err == nil && cli != "" {
 				harness = cli
 			}
@@ -281,11 +296,12 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 	}
 
 	harnessDisplayNames := map[string]string{
-		"claude":   "Claude Code CLI",
-		"gemini":   "Gemini CLI",
-		"opencode": "opencode CLI",
-		"codex":    "Codex CLI",
-		"motoko":   "motoko_agent",
+		"claude":         "Claude Code CLI",
+		"gemini":         "Gemini CLI (retired v0.22.0)",
+		"opencode":       "opencode CLI",
+		"codex":          "Codex CLI",
+		"motoko":         "motoko_agent",
+		"managed_agents": "Vertex Managed Agents API",
 	}
 
 	result := make(map[string]interface{}, len(perHarness))
