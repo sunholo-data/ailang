@@ -86,7 +86,7 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 
 	// If no Z3 error found (or verify not active), fall back to standard error categorization
 	if hint == nil {
-		errCode, hint = CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr)
+		errCode, hint = CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr, r.runner.Language())
 		repairStderr = firstResult.RunResult.Stderr
 	}
 

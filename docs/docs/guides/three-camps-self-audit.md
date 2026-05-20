@@ -26,12 +26,16 @@ The 3 vision-tier benchmarks deferred from this run are `multi_agent_handoff`, `
 
 ## Aggregate Results
 
-| Language | Pass Rate | One-shot | Self-repair pass | Fail |
-|----------|-----------|----------|-------------------|------|
-| AILANG | **8/11 (73%)** | 5 | 3 | 3 |
-| Python | **10/11 (91%)** | 9 | 1 | 1 |
+| Language | Pass Rate (initial run) | After harness-bug fix | One-shot | Self-repair pass | Fail |
+|----------|-------------------------|-----------------------|----------|-------------------|------|
+| AILANG | 8/11 (73%) | unchanged | 5 | 3 | 3 |
+| Python | 10/11 (91%) | **11/11 (100%)** on the affected benchmark | 9 | 1 | 1 (since fixed) |
 
 "One-shot" = passed without using the self-repair retry. "Self-repair pass" = first attempt produced a compile error but the LLM corrected it on retry (~2× token cost).
+
+:::note Harness bug discovered mid-sprint
+The initial run flagged the Python `ast_patch_roundtrip` solution as `WRONG_LANG`. Inspection showed the Python code was perfectly valid Python — but `CategorizeErrorWithCode` was applying its `WRONG_LANG` regex (which matches `def `, `import json`, `class `, `function `, etc.) regardless of target language. Those patterns are *idiomatic* in Python/JS/Go/Java, so any valid Python solution containing `import json` was falsely flagged. The fix [gates the WRONG_LANG/IMPERATIVE patterns on `language == "ailang"`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/errors.go) and adds regression tests covering Python/JS/Go code. The single rerun confirms Python now scores correctly; full re-baseline left for the next mainline eval cycle.
+:::
 
 ## The Hypothesis Map
 
@@ -50,7 +54,7 @@ For each gap benchmark, the table below records:
 | `typed_stream_pipeline` | ✅ | ✅ | **Plumbing**: typed streaming pipelines catch wiring errors | **Neutral.** Both pass on a 3-stage filter→map→fold pipeline. Static well-formedness is verified by AILANG's type system at compile time. |
 | `parallel_independent_subtasks` | ✅ (after self-repair) | ✅ | **Quasar**: explicit independence exposes parallelism | **Neutral.** Structural independence is achievable in both. AILANG self-repair needed, suggesting the prompt-to-AILANG path has friction. |
 | `parallel_map_reduce` | ✅ | ✅ | AILANG-strength: HOF polymorphism | **Confirmed.** AILANG handles polymorphic map_reduce one-shot. |
-| `ast_patch_roundtrip` | ❌ logic | ❌ WRONG_LANG | **X07**: structural diffs beat free text | **Both fail — but for different reasons.** AILANG fails on output formatting; Python fails because the LLM wrote AILANG syntax even when asked for Python (eval-environment contamination). X07's hypothesis isn't testable from these results without a structural-edit variant. |
+| `ast_patch_roundtrip` | ❌ logic | ✅ (after fix) | **X07**: structural diffs beat free text | **AILANG fails on output formatting; Python passes.** The original Python "fail" was a harness false-positive (see note above). X07's structural-diff hypothesis still isn't testable from this benchmark without a structural-edit variant. |
 | `audit_chain_replay` | ❌ PAR_001 | ✅ | **Boruna**: replayability + audit chains | **AILANG syntax gap surfaced.** The LLM produced AILANG that the parser rejected (`PAR_001`) even after self-repair. Filed as follow-up issue. |
 | `decision_block_capture` | ❌ PAR_001 | ✅ | **Aver**: structured rationale alongside implementation | **AILANG syntax gap surfaced.** Same `PAR_001` pattern. The "implementation + structured side-channel" pattern is hard to express in AILANG idiom. Filed as follow-up. |
 

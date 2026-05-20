@@ -340,7 +340,10 @@ x = x + 1;  // Assignment`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotCode, gotHint := CategorizeErrorWithCode(tt.code, tt.stderr)
+			// All existing test cases assume target language is AILANG (WRONG_LANG
+			// and IMPERATIVE checks are AILANG-specific — see CategorizeErrorWithCode
+			// doc comment).
+			gotCode, gotHint := CategorizeErrorWithCode(tt.code, tt.stderr, "ailang")
 
 			if gotCode != tt.wantCode {
 				t.Errorf("CategorizeErrorWithCode() code = %v, want %v", gotCode, tt.wantCode)
@@ -366,5 +369,86 @@ x = x + 1;  // Assignment`,
 				}
 			}
 		})
+	}
+}
+
+// TestCategorizeErrorWithCode_NonAilangLanguagesNotFlaggedAsWrongLang verifies that
+// the WRONG_LANG/IMPERATIVE pattern checks (which match `def `, `import json`,
+// `while (`, etc.) do NOT fire when the target language is not "ailang". This
+// was a real bug: valid Python code with `import json` was misclassified as
+// WRONG_LANG in the three-camps self-audit (ast_patch_roundtrip benchmark).
+func TestCategorizeErrorWithCode_NonAilangLanguagesNotFlaggedAsWrongLang(t *testing.T) {
+	cases := []struct {
+		name     string
+		language string
+		code     string
+		stderr   string
+	}{
+		{
+			name:     "python: import json + def is valid Python, not WRONG_LANG",
+			language: "python",
+			code: `import json
+def main():
+    print(json.dumps({"name": "alice"}))`,
+			stderr: "",
+		},
+		{
+			name:     "python: class definitions are valid Python, not WRONG_LANG",
+			language: "python",
+			code: `class Foo:
+    pass
+def main(): pass`,
+			stderr: "",
+		},
+		{
+			name:     "javascript: function/var/const are valid JS, not WRONG_LANG",
+			language: "javascript",
+			code:     `const x = 10; function main() { var y = x; return y; }`,
+			stderr:   "",
+		},
+		{
+			name:     "go: for loops are valid Go, not IMPERATIVE",
+			language: "go",
+			code: `package main
+import "fmt"
+func main() { for i := 0; i < 10; i++ { fmt.Println(i) } }`,
+			stderr: "",
+		},
+		{
+			name:     "python: while loops are valid Python, not IMPERATIVE",
+			language: "python",
+			code: `def main():
+    x = 0
+    while x < 10:
+        x = x + 1`,
+			stderr: "",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCode, gotHint := CategorizeErrorWithCode(tt.code, tt.stderr, tt.language)
+			if gotCode == WRONG_LANG {
+				t.Errorf("expected no WRONG_LANG for language=%s, got code=%v hint=%v", tt.language, gotCode, gotHint)
+			}
+			if gotCode == IMPERATIVE {
+				t.Errorf("expected no IMPERATIVE for language=%s, got code=%v hint=%v", tt.language, gotCode, gotHint)
+			}
+		})
+	}
+}
+
+// TestCategorizeErrorWithCode_AilangStillCatchesWrongLanguage verifies the
+// AILANG-target path is unaffected by the language-gating fix.
+func TestCategorizeErrorWithCode_AilangStillCatchesWrongLanguage(t *testing.T) {
+	pythonCode := `def main():
+    import json
+    print("hello")`
+	gotCode, gotHint := CategorizeErrorWithCode(pythonCode, "PAR_NO_PREFIX_PARSE", "ailang")
+	if gotCode != WRONG_LANG {
+		t.Errorf("expected WRONG_LANG for ailang target with Python code, got %v", gotCode)
+	}
+	if gotHint == nil {
+		t.Errorf("expected non-nil hint for WRONG_LANG")
 	}
 }

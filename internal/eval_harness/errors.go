@@ -141,19 +141,31 @@ func CategorizeErrorCode(stderr string) (ErrCode, *RepairHint) {
 
 // CategorizeErrorWithCode analyzes both generated code and stderr to detect
 // AI usability issues like wrong language or imperative syntax.
-// Checks code patterns first (WRONG_LANG, IMPERATIVE), then stderr patterns.
-func CategorizeErrorWithCode(code, stderr string) (ErrCode, *RepairHint) {
-	// First, check for wrong language patterns in the code itself
-	// This catches cases where the AI generated Python/JS/etc before even trying to compile
-	for _, rule := range Rules {
-		if rule.Code == WRONG_LANG || rule.Code == IMPERATIVE {
-			if rule.Re.MatchString(code) {
-				return rule.Code, &rule.Hint
+//
+// The WRONG_LANG and IMPERATIVE pattern checks are AILANG-specific: their
+// regexes match patterns like `def `, `import json`, `while (`, `for (`
+// which are perfectly normal in Python/Go/JS source code. Applying them to
+// non-AILANG languages produces false WRONG_LANG/IMPERATIVE categorizations
+// on valid code. Callers that don't know the language can use the legacy
+// 2-arg path (preserved as CategorizeErrorWithCodeLegacy for the few in-tree
+// call sites that don't have language context).
+func CategorizeErrorWithCode(code, stderr, language string) (ErrCode, *RepairHint) {
+	if language == "ailang" {
+		// AILANG-specific: catch the case where the LLM generated Python/JS/etc
+		// before even trying to compile, or wrote imperative code.
+		for _, rule := range Rules {
+			if rule.Code == WRONG_LANG || rule.Code == IMPERATIVE {
+				if rule.Re.MatchString(code) {
+					return rule.Code, &rule.Hint
+				}
 			}
 		}
 	}
 
-	// Then check stderr for all error patterns (including parse errors from wrong syntax)
+	// For non-AILANG languages, fall through to stderr-only categorization.
+	// Language-specific code validators (e.g. ValidatePythonCode for the
+	// inverse "Python eval got AILANG code" case) are the right pattern here
+	// and can be added per language as needed.
 	return CategorizeErrorCode(stderr)
 }
 

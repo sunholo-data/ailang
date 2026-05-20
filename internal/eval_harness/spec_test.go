@@ -319,21 +319,21 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 		tierCounts[spec.Tier]++
 	}
 
-	// Sanity check: tier distribution targets shifted after M5 added
-	// polymorphic_ord_defaulting (stretch) and typed_refusal (vision).
-	// Post-M5 centers: 15/21/11/6 (total 53). Tolerance ±2 kept so future
-	// benchmark adds trigger the drift check instead of silently bloating.
-	if smoke := tierCounts["smoke"]; smoke < 13 || smoke > 17 {
-		t.Errorf("smoke count = %d, want 15±2", smoke)
+	// Sanity check: tier distribution targets re-centered after M-THREE-CAMPS
+	// added 14 gap benchmarks (3 smoke, 8 core, 0 stretch, 3 vision).
+	// Post-M-THREE-CAMPS centers: 18/29/11/9 (total 67). Tolerance ±3 kept so
+	// future benchmark adds trigger the drift check instead of silently bloating.
+	if smoke := tierCounts["smoke"]; smoke < 15 || smoke > 21 {
+		t.Errorf("smoke count = %d, want 18±3", smoke)
 	}
-	if core := tierCounts["core"]; core < 19 || core > 23 {
-		t.Errorf("core count = %d, want 21±2", core)
+	if core := tierCounts["core"]; core < 26 || core > 34 {
+		t.Errorf("core count = %d, want 29±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 9 || stretch > 13 {
-		t.Errorf("stretch count = %d, want 11±2", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 8 || stretch > 14 {
+		t.Errorf("stretch count = %d, want 11±3", stretch)
 	}
-	if vision := tierCounts["vision"]; vision < 4 || vision > 8 {
-		t.Errorf("vision count = %d, want 6±2", vision)
+	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
+		t.Errorf("vision count = %d, want 9±3", vision)
 	}
 	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d (total %d)",
 		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["vision"],
