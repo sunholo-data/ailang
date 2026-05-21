@@ -6,7 +6,7 @@ description: "Operator-heavy program: bitwise shifts, boolean ops, comparisons (
 # This is a DIRECT REFUTATION TEST: if AILANG and Python achieve pass-rate
 # parity on operator-heavy code, the tokenizer-ambiguity hypothesis is
 # overstated.
-languages: ["python", "ailang", "moonbit"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

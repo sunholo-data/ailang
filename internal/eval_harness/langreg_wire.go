@@ -58,4 +58,11 @@ func init() {
 		}
 		return NewMoonbitRunner()
 	})
+
+	langreg.SetAverRunnerFactory(func(spec interface{}) interface{} {
+		if bs, ok := spec.(*BenchmarkSpec); ok {
+			return NewAverRunnerWithSpec(bs)
+		}
+		return NewAverRunner()
+	})
 }

@@ -156,11 +156,17 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 			taskDescription = s.Prompt
 		}
 	} else {
-		// For other languages (e.g. Python): use language guidelines as base,
-		// and the benchmark's prompt field as the task description.
-		// This mirrors the AILANG path: base_prompt + "## Task" + task.
+		// For other languages: use the FULL teaching prompt as base (same shape
+		// as AILANG), and the benchmark's prompt field as the task description.
+		//
+		// Before 2026-05-21, this path only used the short DefaultPrompt() — which
+		// silently worked for Python/MoonBit (LLM has training data) but broke
+		// completely for peer languages outside the model's training set (Aver,
+		// Vera, etc.). The harness must deliver the full teaching prompt for
+		// every language uniformly, since "the LLM has prior knowledge of X"
+		// is the variable being measured, not a precondition we can rely on.
 
-		// Load language-specific prompt file if available
+		// 1. Explicit PromptFiles override (per-language file path on the spec).
 		if s.PromptFiles != nil {
 			if promptFile, ok := s.PromptFiles[lang]; ok {
 				data, err := os.ReadFile(promptFile)
@@ -170,7 +176,20 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 			}
 		}
 
-		// If no language-specific prompt file, use default guidelines
+		// 2. Load full teaching prompt via the language registry (the same path
+		//    AILANG uses via getDefaultPrompt("ailang") -> langreg ->
+		//    LoadSyntaxRef -> prompts/<lang>.md).
+		if basePrompt == "" {
+			if l, err := langreg.Get(lang); err == nil {
+				content, _, refErr := l.LoadSyntaxRef("")
+				if refErr == nil && content != "" {
+					basePrompt = content
+				}
+			}
+		}
+
+		// 3. Final fallback: short DefaultPrompt() (~30 tokens). Last resort
+		//    only — every supported language should reach step 2.
 		if basePrompt == "" {
 			basePrompt = getDefaultPrompt(lang)
 		}

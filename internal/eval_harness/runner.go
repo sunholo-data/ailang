@@ -763,6 +763,123 @@ func (r *MoonbitRunner) Run(code string, timeout time.Duration) (*RunResult, err
 	}
 }
 
+// AverRunner executes Aver code via `aver run <file>.av`.
+// Aver's `aver` CLI accepts a single .av file directly; entry point is `main`.
+type AverRunner struct {
+	spec *BenchmarkSpec
+}
+
+// NewAverRunner creates a new Aver runner.
+func NewAverRunner() *AverRunner { return &AverRunner{} }
+
+// NewAverRunnerWithSpec creates a new Aver runner with benchmark spec.
+func NewAverRunnerWithSpec(spec *BenchmarkSpec) *AverRunner { return &AverRunner{spec: spec} }
+
+// Language returns "aver".
+func (r *AverRunner) Language() string { return "aver" }
+
+// Run executes Aver code via `aver run`.
+func (r *AverRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
+	tmpDir, err := os.MkdirTemp("", "eval_av_*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(tmpDir, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
+	tmpFile := filepath.Join(tmpDir, "solution.av")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write code: %w", err)
+	}
+
+	cmdArgs := []string{tmpFile}
+	if r.spec != nil && len(r.spec.CliArgs) > 0 {
+		cmdArgs = append(cmdArgs, "--")
+		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
+	}
+
+	start := time.Now()
+	cmd, err := newAverCommand(cmdArgs...)
+	if err != nil {
+		return &RunResult{
+			Stderr:    err.Error(),
+			ExitCode:  -1,
+			Duration:  time.Since(start),
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+	cmd.Dir = tmpDir
+
+	if r.spec != nil && r.spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(r.spec.Stdin)
+	}
+
+	SetProcessGroup(cmd)
+
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Start(); err != nil {
+		return &RunResult{
+			Stderr:    err.Error(),
+			ExitCode:  -1,
+			Duration:  time.Since(start),
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case <-time.After(timeout):
+		_ = KillProcessGroup(cmd.Process.Pid)
+		<-done
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    "execution timed out",
+			ExitCode:  -1,
+			Duration:  timeout,
+			CompileOk: true,
+			RuntimeOk: false,
+			TimedOut:  true,
+		}, nil
+	case err := <-done:
+		duration := time.Since(start)
+		exitCode := 0
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			} else {
+				exitCode = -1
+			}
+		}
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    stderr.String(),
+			ExitCode:  exitCode,
+			Duration:  duration,
+			CompileOk: exitCode == 0 || !strings.Contains(stderr.String(), "error["),
+			RuntimeOk: exitCode == 0,
+		}, nil
+	}
+}
+
 // runSubprocess is a shared helper for JSRunner and GoRunner.
 // It starts cmd with the given args, wires stdin/stdout/stderr, and enforces timeout.
 func runSubprocess(binary string, args []string, workDir string, spec *BenchmarkSpec, timeout time.Duration, langLabel string) (*RunResult, error) {

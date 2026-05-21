@@ -572,6 +572,19 @@
       ],
       "notes": "Closest ML-family peer to AILANG in the three-camps survey (verification camp via constrained sampling, MoonBitlang ICSE 2024). Targets apples-to-apples FP comparison on smoke + selected gap benchmarks. Built single-file `moon run` runner (no project scaffold needed)."
     },
+    "aver": {
+      "file": "prompts/aver.md",
+      "hash": "190bf4244a00bb0605d41ac01d4de415a6131a3a961aa6bca1689b23bc4d521d",
+      "description": "Aver language teaching prompt for eval harness (M-THREE-CAMPS Verification-camp peer)",
+      "created": "2026-05-21",
+      "tags": [
+        "control",
+        "aver",
+        "three-camps",
+        "verification"
+      ],
+      "notes": "Verification-camp peer with verify blocks, decision blocks (ADRs in code), Lean 4 proof export. Indentation-based, match-only branching, namespaced constructors. Installed via `cargo install aver-lang` (aver-lang 0.21.0 verified). Single-file `aver run` mode."
+    },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
       "hash": "4d7fa33e283ec87ce7de18d030735a7ce1e6b067f9ed45ca90860b98743a0825",

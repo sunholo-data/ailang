@@ -1,0 +1,57 @@
+You are solving an Aver benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Requirements
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
+- Read {{SOLUTION_PATH}} file first so you know the template to write to
+- If your solution is impossible due to Aver language limitations - stop and report
+
+## Verification Steps (REQUIRED!)
+
+**You MUST verify your solution before finishing:**
+
+1. **Run your solution:**
+   ```
+   aver run solution.av
+   ```
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**
+
+## Available Tools
+
+You have access to the standard Aver toolchain:
+- **Run code:** `aver run solution.av` (this is exactly what the grader invokes)
+- **Single-file mode** — no project scaffold required
+
+## Critical Aver Syntax Reminders
+
+- File extension is `.av` (NOT `.aver`)
+- Entry point is `fn main() -> Unit` with INDENTED body (NO braces)
+- Effects must be declared: `! [Console.print]` after the signature, before the body
+- Use `Console.print("...")` for output (NOT `println`)
+- String interpolation: `"value: {x}"` (single braces, NO backslash)
+- Constructors are namespaced: `Result.Ok(v)`, `Option.Some(v)`, `Option.None`
+- No `if`/`else` — use `match` only
+- The last expression in a function body is its return value
+
+Good luck!

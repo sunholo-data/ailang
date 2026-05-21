@@ -1,6 +1,6 @@
 id: fizzbuzz
 description: "Classic FizzBuzz problem (control flow)"
-languages: ["python", "ailang", "javascript", "go", "moonbit"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "easy"
