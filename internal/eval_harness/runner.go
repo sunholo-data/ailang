@@ -640,6 +640,129 @@ func (r *GoRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
 	return runSubprocess(goPath, cmdArgs, tmpDir, r.spec, timeout, "Go")
 }
 
+// MoonbitRunner executes MoonBit code via `moon run <file>.mbt`.
+// MoonBit's `moon` CLI accepts a single .mbt file directly without requiring
+// a full project scaffold (moon.mod.json / moon.pkg) — this is the path the
+// eval harness uses for single-file solutions.
+type MoonbitRunner struct {
+	spec *BenchmarkSpec
+}
+
+// NewMoonbitRunner creates a new MoonBit runner.
+func NewMoonbitRunner() *MoonbitRunner { return &MoonbitRunner{} }
+
+// NewMoonbitRunnerWithSpec creates a new MoonBit runner with benchmark spec.
+func NewMoonbitRunnerWithSpec(spec *BenchmarkSpec) *MoonbitRunner { return &MoonbitRunner{spec: spec} }
+
+// Language returns "moonbit".
+func (r *MoonbitRunner) Language() string { return "moonbit" }
+
+// Run executes MoonBit code via `moon run`.
+func (r *MoonbitRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
+	tmpDir, err := os.MkdirTemp("", "eval_mbt_*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(tmpDir, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
+	tmpFile := filepath.Join(tmpDir, "solution.mbt")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write code: %w", err)
+	}
+
+	cmdArgs := []string{tmpFile}
+	if r.spec != nil {
+		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
+	}
+
+	start := time.Now()
+	cmd, err := newMoonbitCommand(cmdArgs...)
+	if err != nil {
+		return &RunResult{
+			Stderr:    err.Error(),
+			ExitCode:  -1,
+			Duration:  time.Since(start),
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+	cmd.Dir = tmpDir
+
+	if r.spec != nil && r.spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(r.spec.Stdin)
+	}
+
+	SetProcessGroup(cmd)
+
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Start(); err != nil {
+		return &RunResult{
+			Stderr:    err.Error(),
+			ExitCode:  -1,
+			Duration:  time.Since(start),
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case <-time.After(timeout):
+		_ = KillProcessGroup(cmd.Process.Pid)
+		<-done
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    "execution timed out",
+			ExitCode:  -1,
+			Duration:  timeout,
+			CompileOk: true,
+			RuntimeOk: false,
+			TimedOut:  true,
+		}, nil
+	case err := <-done:
+		duration := time.Since(start)
+		exitCode := 0
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			} else {
+				exitCode = -1
+			}
+		}
+		// `moon run` handles compile+execute in one step. We can't trivially
+		// distinguish compile errors from runtime errors without parsing stderr,
+		// so we mark CompileOk=true when the process exits with a recognised
+		// status; downstream error categorisation in errors.go classifies the
+		// failure mode from stderr patterns.
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    stderr.String(),
+			ExitCode:  exitCode,
+			Duration:  duration,
+			CompileOk: exitCode == 0 || !strings.Contains(stderr.String(), "error:"),
+			RuntimeOk: exitCode == 0,
+		}, nil
+	}
+}
+
 // runSubprocess is a shared helper for JSRunner and GoRunner.
 // It starts cmd with the given args, wires stdin/stdout/stderr, and enforces timeout.
 func runSubprocess(binary string, args []string, workDir string, spec *BenchmarkSpec, timeout time.Duration, langLabel string) (*RunResult, error) {

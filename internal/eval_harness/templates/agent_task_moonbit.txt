@@ -1,0 +1,58 @@
+You are solving a MoonBit benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Requirements
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
+- Read {{SOLUTION_PATH}} file first so you know the template to write to
+- If your solution is impossible due to MoonBit language limitations - stop and report
+
+## Verification Steps (REQUIRED!)
+
+**You MUST verify your solution before finishing:**
+
+1. **Run your solution:**
+   ```
+   moon run solution.mbt
+   ```
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**
+
+## Available Tools
+
+You have access to the standard MoonBit toolchain:
+- **Run code:** `moon run solution.mbt` (this is exactly what the grader invokes)
+- **Single-file mode** — no project scaffold (moon.mod.json / moon.pkg) required
+
+## Tips
+
+- File extension is `.mbt`
+- Entry point is `fn main { ... }` (no parens after `main`, no return type annotation)
+- Use `println(...)` for output (auto-appends newline; available without import)
+- Use `print(...)` for output without trailing newline
+- MoonBit has type inference, ADTs (`enum`), pattern matching (`match`), generics, traits
+- String interpolation: `"Hello \{name}"` (note the backslash escape)
+- Arrays: `[1, 2, 3]`; lists: `@list.from_array([1, 2, 3])`; maps: `{ "k": "v" }`
+- Do NOT use external packages — only the MoonBit core library (`@core`)
+- Show types and trait impls for custom output with `derive(Show)` and `println` on a value
+
+Good luck!

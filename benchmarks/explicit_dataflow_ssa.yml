@@ -5,7 +5,7 @@ description: "Heavy single-assignment let-chain dataflow (Magpie hypothesis: SSA
 # code easier for LLMs to reason about. Simplified to standard shape: write
 # a multi-step calculation as a chain of explicit single-assignment let
 # bindings, no variable reuse, each step named.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

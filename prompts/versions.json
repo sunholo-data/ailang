@@ -560,6 +560,18 @@
       ],
       "notes": "Used for JavaScript vs AILANG baseline comparison in multi-language evals"
     },
+    "moonbit": {
+      "file": "prompts/moonbit.md",
+      "hash": "01a694214518e723146a2f080e365c51ed2dc3641fa88eed5a8d1f3fd305890d",
+      "description": "MoonBit language teaching prompt for eval harness (M-THREE-CAMPS peer-language bring-up)",
+      "created": "2026-05-21",
+      "tags": [
+        "control",
+        "moonbit",
+        "three-camps"
+      ],
+      "notes": "Closest ML-family peer to AILANG in the three-camps survey (verification camp via constrained sampling, MoonBitlang ICSE 2024). Targets apples-to-apples FP comparison on smoke + selected gap benchmarks. Built single-file `moon run` runner (no project scaffold needed)."
+    },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
       "hash": "4d7fa33e283ec87ce7de18d030735a7ce1e6b067f9ed45ca90860b98743a0825",

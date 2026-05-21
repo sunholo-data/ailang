@@ -5,7 +5,7 @@ description: "Generic higher-order map_reduce combinator applied to two distinct
 # must define a single `map_reduce` combinator with a polymorphic signature
 # and apply it to two different (map_fn, reduce_fn, init) tuples. This
 # exercises the type system's ability to handle higher-kinded use cases.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

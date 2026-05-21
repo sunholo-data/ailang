@@ -1,6 +1,6 @@
 id: adt_option
 description: "Option/Maybe monad operations (algebraic data types)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

@@ -51,4 +51,11 @@ func init() {
 		}
 		return NewGoRunner()
 	})
+
+	langreg.SetMoonbitRunnerFactory(func(spec interface{}) interface{} {
+		if bs, ok := spec.(*BenchmarkSpec); ok {
+			return NewMoonbitRunnerWithSpec(bs)
+		}
+		return NewMoonbitRunner()
+	})
 }

@@ -1,6 +1,6 @@
 id: balanced_parens
 description: "Check if parentheses are balanced (parsing + recursion)"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
