@@ -6,7 +6,7 @@ description: "Implementation + structured rationale on the same task (Aver hypot
 # the LLM must produce BOTH a working implementation AND a line of structured
 # rationale marked with a CHOICE: prefix. Tests whether agents can be
 # prompted to emit auditable choices, not just code.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

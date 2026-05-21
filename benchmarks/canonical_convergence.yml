@@ -8,7 +8,7 @@ description: "Produce the canonical idiom for a problem (Zero hypothesis: one ca
 # code that runs and gives the right result — not whether the *exact* form
 # matches a reference. The convergence aspect is implicitly tested by repeat
 # eval runs in the dashboard.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "easy"

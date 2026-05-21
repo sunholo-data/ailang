@@ -1,6 +1,6 @@
 id: higher_order_functions
 description: "Compose, map, filter, currying, partial application"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

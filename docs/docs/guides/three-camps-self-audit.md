@@ -91,21 +91,48 @@ A subtle finding: **3 of AILANG's 8 passes needed self-repair** (vs 1 of Python'
 - Closing the self-repair-rate gap is a concrete agenda item: identify the patterns that need retries and add them to the teaching prompt.
 - The eval-harness self-repair feature is doing what it should — catching one-shot mistakes — but every retry is a sign of a teaching-prompt gap.
 
-## Cross-Language Peer Comparison (updated 2026-05-21)
+## Cross-Language Peer Comparison (updated 2026-05-21, expanded run)
 
-Three peer languages were attempted: MoonBit (ML-family verification-camp), Vera (Z3-direct verification peer), and Aver (Lean-variant verification peer). The same 8 benchmarks were used across all peers: 5 smoke (fizzbuzz, gcd_lcm, recursion_fibonacci, balanced_parens, adt_option) and 3 gap (dense_operator_program, explicit_dataflow_ssa, parallel_map_reduce).
+Three peer languages were attempted: MoonBit (ML-family verification-camp), Vera (Z3-direct verification peer), and Aver (Lean-variant verification peer). Two evaluation rounds were run:
 
-### Final 4-language scoreboard (claude-haiku-4-5, 8 benchmarks)
+1. **Initial 8-benchmark probe** to validate the wiring (5 smoke + 3 gap from M-THREE-CAMPS gap analysis).
+2. **Expanded 49-benchmark run** on the full smoke+core tier — the credible scoreboard.
 
-| Language | Pass Rate | Note |
-|----------|-----------|------|
-| **AILANG** | **8/8 (100%)** | Full teaching prompt (always was, per harness design) |
-| Python | 7/8 (87.5%) | Baseline; fails `parallel_map_reduce` |
-| MoonBit | 5/8 (62.5%) | With teaching prompt sourced from this work — **regressed vs no-prompt run** |
-| **Vera** | **N/A (toolchain blocked)** | Install fails on macOS arm64 + Apple Clang 15 (z3-solver==4.16.0 source build); [aallan/vera#691](https://github.com/aallan/vera/issues/691) filed |
-| Aver | 0/8 (0%) | Verification-camp design constraints (no lambdas, no HOFs, no bitwise ops) bind on this benchmark set |
+### Final 4-language scoreboard (claude-haiku-4-5, smoke+core tier)
 
-### Per-benchmark detail
+Two views of the data are useful:
+
+**(a) Full smoke+core tier (49 benchmarks)** — AILANG and Python opted into every benchmark; MoonBit/Aver opted into 33 of 49 (the language-agnostic subset; contract/effect benchmarks excluded since they test AILANG-specific verification machinery):
+
+| Language | Run on | Passed | Rate |
+|----------|--------|--------|------|
+| **AILANG** | 49 | **35** | **71.4%** |
+| **Python** | 49 | **35** | **71.4%** |
+| MoonBit | 33 | 25 | 75.7% |
+| Aver | 33 | 10 | 30.3% |
+| Vera | 0 | N/A | install-blocked → [aallan/vera#691](https://github.com/aallan/vera/issues/691) |
+
+**(b) Apples-to-apples on the 33 shared benchmarks** (same task for all four):
+
+| Language | Passed | Rate |
+|----------|--------|------|
+| MoonBit | 25/33 | **75.7%** |
+| Python | 25/33 | **75.7%** |
+| AILANG | 24/33 | 72.7% |
+| Aver | 10/33 | 30.3% |
+
+**(c) AILANG-strength subset (16 contract + effect + AILANG-shape benchmarks, MoonBit/Aver not applicable):**
+
+| Language | Passed | Rate |
+|----------|--------|------|
+| **AILANG** | 11/16 | **68.7%** |
+| Python | 10/16 | 62.5% |
+
+On the apples-to-apples 33: MoonBit/Python tie at top, AILANG within 3pp. On the AILANG-strength 16 (contracts, effect-row tests, etc.): AILANG edges Python by 6pp. **Overall on the full 49: AILANG and Python are dead-tied at 71.4%** — a much more honest picture than the initial 8-benchmark probe suggested (where AILANG hit 100%).
+
+### Per-benchmark detail (initial 8-benchmark probe — kept for reference)
+
+The smaller 8-benchmark probe was where AILANG hit 100% and the harness bugs were discovered. The expanded 49-benchmark run is the credible scoreboard.
 
 | Benchmark | AILANG | Python | MoonBit | Aver |
 |-----------|--------|--------|---------|------|

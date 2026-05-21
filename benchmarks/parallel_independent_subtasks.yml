@@ -7,7 +7,7 @@ description: "Three structurally-independent computations aggregated at the end 
 # the kind of structural independence that a future optimizer could exploit.
 # Standard-shape simplification: three separately-defined computations on the
 # same input, results aggregated; no actual parallel execution required.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

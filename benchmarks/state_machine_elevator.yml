@@ -1,6 +1,6 @@
 id: state_machine_elevator
 description: "State machine with ADTs, exhaustive pattern matching, and state threading"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

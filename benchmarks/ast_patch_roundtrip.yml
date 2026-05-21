@@ -5,7 +5,7 @@ description: "Structural data manipulation via JSON decode → mutate → encode
 # structural diffs (RFC 6902 patches) rather than free text. We test the
 # closest standard-shape proxy: can the LLM produce a program that decodes
 # structured input, mutates a field, and re-encodes it correctly?
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

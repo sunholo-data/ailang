@@ -1,6 +1,6 @@
 id: explicit_state_threading
 description: "Explicit state threading vs implicit global state (Vision Problem 1)"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

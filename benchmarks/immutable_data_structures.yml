@@ -1,6 +1,6 @@
 id: immutable_data_structures
 description: "Immutable data structures vs mutable state (predictable updates)"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

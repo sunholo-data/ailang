@@ -1,6 +1,6 @@
 id: record_update
 description: "Record update syntax {r | field: value}"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

@@ -8,7 +8,7 @@ description: "Bit-identical output across two runs of the same deterministic com
 # stdout, simulating two replayed runs. If the lines differ on a single run,
 # something is wrong; in any future audit-chain-aware harness, the lines could
 # be compared across actual replays.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "easy"

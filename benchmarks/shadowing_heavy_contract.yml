@@ -6,7 +6,7 @@ description: "Multiple nested scopes shadowing the same identifier name (Vera hy
 # This test: AILANG's HM type inference should resolve shadowed names
 # correctly without confusion. If the LLM produces code that compiles and
 # returns the right value, Vera's claim is locally refuted.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

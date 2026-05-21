@@ -1,6 +1,6 @@
 id: graph_bfs
 description: "Breadth-first search on a graph (queue simulation + visited tracking)"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

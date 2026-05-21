@@ -8,7 +8,7 @@ description: "Prompt includes @intent annotation to test Pact's hypothesis that 
 # unannotated algorithmic benchmarks. If pass rate is meaningfully higher on
 # this benchmark than on similar-difficulty unannotated ones, Pact's
 # hypothesis is locally supported.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
