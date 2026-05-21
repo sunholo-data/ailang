@@ -1,0 +1,31 @@
+id: programbench_probe_wc_l
+description: "ProgramBench gap probe: `wc -l` clone — count newline-terminated lines in a file given as argv[1]"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS", "Env"]
+difficulty: "easy"
+expected_gain: "diagnostic"
+timeout: 30
+prompt: |
+  Write a program in <LANG> that behaves like `wc -l` for a single file.
+
+  **Requirements**:
+
+  1. Read a filename from argv[1] (the first user-supplied argument; not the program name).
+  2. Count the number of lines in the file. A "line" is a newline-terminated sequence; the count equals the number of '\n' characters in the file.
+  3. Print the count followed by a single newline. Do NOT print the filename. Do NOT print leading/trailing spaces.
+  4. If argv[1] is missing, exit with a non-zero status.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  4
+input_files:
+  data.txt: |
+    alpha
+    beta
+    gamma
+    delta
+cli_args:
+  - "data.txt"
+tier: experimental
+tags: [programbench_probe, effects_io, argv, fs_read, line_counting]

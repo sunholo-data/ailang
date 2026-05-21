@@ -1,0 +1,30 @@
+id: programbench_probe_seq
+description: "ProgramBench gap probe: `seq A B` clone — print integers from A to B inclusive, one per line"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "Env"]
+difficulty: "easy"
+expected_gain: "diagnostic"
+timeout: 30
+prompt: |
+  Write a program in <LANG> that behaves like `seq A B`.
+
+  **Requirements**:
+
+  1. Read two integers, A and B, from argv[1] and argv[2].
+  2. Print the integers from A to B inclusive, one per line, in ascending order.
+  3. If A > B, print nothing (exit 0).
+  4. If argv[1] or argv[2] is missing or not a valid integer, exit with a non-zero status.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  3
+  4
+  5
+  6
+  7
+cli_args:
+  - "3"
+  - "7"
+tier: experimental
+tags: [programbench_probe, effects_io, argv, int_parsing, loops]

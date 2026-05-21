@@ -1,0 +1,35 @@
+id: programbench_probe_cat
+description: "ProgramBench gap probe: minimal `cat` clone — read files from argv, write contents to stdout in order"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS", "Env"]
+difficulty: "medium"
+expected_gain: "diagnostic"
+timeout: 30
+prompt: |
+  Write a program in <LANG> that behaves like a minimal `cat` utility.
+
+  **Requirements**:
+
+  1. Read one or more filenames from command-line arguments.
+  2. For each filename in argv order, read its contents and write them to stdout.
+  3. Do NOT add extra newlines between files. Do NOT print filenames.
+  4. If a file does not exist, exit with a non-zero status. (You may print an error to stderr or just exit non-zero.)
+  5. If no arguments are given, exit 0 with no output (do NOT read stdin for this probe).
+
+  Output only the code, no explanations.
+expected_stdout: |
+  hello
+  world
+  goodbye
+input_files:
+  a.txt: |
+    hello
+    world
+  b.txt: |
+    goodbye
+cli_args:
+  - "a.txt"
+  - "b.txt"
+tier: experimental
+tags: [programbench_probe, effects_io, argv, fs_read]
