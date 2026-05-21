@@ -60,3 +60,10 @@ export pure func concatList(xs: [bytes]) -> bytes { _bytes_concat_list(xs) }
 -- Useful for building binary headers (WAV, PNG)
 -- Example: fromInts([0x52, 0x49, 0x46, 0x46]) returns bytes for "RIFF"
 export pure func fromInts(xs: [int]) -> bytes { _bytes_from_ints(xs) }
+
+-- Get the byte value at the given index (0-255), or None if out of bounds.
+-- Inverse of fromInts. For UTF-8 strings, returns the raw byte at that
+-- position — NOT the Unicode codepoint.
+-- Example: byteAt(fromString("A"), 0) returns Some(65) (ASCII 'A')
+-- Example: byteAt(fromString("hello"), 4) returns Some(111) (ASCII 'o')
+export pure func byteAt(b: bytes, i: int) -> Option[int] { _bytes_byte_at(b, i) }
