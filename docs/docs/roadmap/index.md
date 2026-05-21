@@ -41,6 +41,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TERMINAL-BENCH: Terminal-Bench Cloud Evaluation (AILANG vs Python)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-terminal-bench-cloud-eval.md)
 - [M-THREE-CAMPS-LANGUAGE-SURVEY: Gap Analysis Across 16 AI-Designed Languages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-language-survey.md)
 - [M-THREE-CAMPS Sprint Plan (Gap-Analysis-First)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-sprint-plan.md)
+- [M-WASM-TYPECHECK-LIMITS — depth-budget guard + clear error for WASM type-checker overflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-wasm-typecheck-limits.md)
 - [M-ZERO-ARG-INVOCATION-SURFACES — Unify zero-arg export invocation across all surfaces](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-zero-arg-invocation-surfaces.md)
 
 ## Planned for v0.21.0
@@ -191,4 +192,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 129 planned features across 13 upcoming versions.*
+*Generated at build time. 130 planned features across 13 upcoming versions.*

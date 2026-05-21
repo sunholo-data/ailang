@@ -7,6 +7,7 @@ class AilangREPL {
   constructor() {
     this.ready = false;
     this.onReadyCallbacks = [];
+    this._pendingHandlers = {};  // Accumulator for 3-arg setEffectHandler calls
   }
 
   /**
@@ -146,13 +147,9 @@ class AilangREPL {
            line.trim().endsWith('=');
   }
 
-  // ============================================
-  // Module Loading API (v0.7.2+)
-  // ============================================
-
   /**
-   * Load an AILANG module into the registry
-   * @param {string} name - Module name (e.g., "math", "invoice_processor")
+   * Load an AILANG module into the registry (v0.7.2+)
+   * @param {string} name - Module name (e.g., 'math', 'invoice_processor')
    * @param {string} code - AILANG source code
    * @returns {{success: boolean, exports?: string[], error?: string}}
    */
@@ -164,12 +161,12 @@ class AilangREPL {
     try {
       return window.ailangLoadModule(name, code);
     } catch (err) {
-      return { success: false, error: `Internal error: ${err.message}` };
+      return { success: false, error: err.message };
     }
   }
 
   /**
-   * List all loaded modules
+   * List all loaded modules (v0.7.2+)
    * @returns {string[]} Array of module names
    */
   listModules() {
@@ -180,31 +177,16 @@ class AilangREPL {
     try {
       return window.ailangListModules() || [];
     } catch (err) {
-      console.error('Failed to list modules:', err);
       return [];
     }
   }
 
   /**
-   * Import a module's exports into the REPL environment
-   * @param {string} moduleName - Name of the loaded module
+   * Import a module's exports into the REPL environment (v0.7.2+)
+   * @param {string} moduleName - Name of a loaded module
    * @returns {string} Import result message
    */
   importModule(moduleName) {
-    return this.command(`:import ${moduleName}`);
-  }
-
-  /**
-   * Call a function from a loaded module
-   * This is a convenience method that:
-   * 1. Imports the module if not already imported
-   * 2. Evaluates the function call
-   * @param {string} moduleName - Module containing the function
-   * @param {string} funcName - Function to call
-   * @param {...any} args - Arguments to pass (will be converted to AILANG syntax)
-   * @returns {string} Result of the function call
-   */
-  call(moduleName, funcName, ...args) {
     if (!this.ready) {
       return 'Error: REPL not initialized';
     }
@@ -212,30 +194,163 @@ class AilangREPL {
     // Check if module is loaded
     const modules = this.listModules();
     if (!modules.includes(moduleName)) {
-      return `Error: module ${moduleName} not loaded (use loadModule first)`;
+      return `Error: module '${moduleName}' not loaded (use loadModule first)`;
     }
 
-    // Import the module to make exports available
-    this.importModule(moduleName);
-
-    // Build the function call expression
-    // Convert JS args to AILANG syntax
-    const ailangArgs = args.map(arg => {
-      if (typeof arg === 'string') return `"${arg}"`;
-      if (typeof arg === 'number') return String(arg);
-      if (typeof arg === 'boolean') return arg ? 'true' : 'false';
-      if (Array.isArray(arg)) return `[${arg.map(a => typeof a === 'string' ? `"${a}"` : String(a)).join(', ')}]`;
-      return String(arg);
-    });
-
-    // Apply arguments one at a time (curried)
-    let expr = funcName;
-    for (const arg of ailangArgs) {
-      expr = `(${expr})(${arg})`;
-    }
-
-    return this.eval(expr);
+    // Use REPL's :import command
+    return this.eval(`:import ${moduleName}`);
   }
+
+  /**
+   * Call a function from a loaded module (v0.7.2+)
+   * Uses native ailangCall for direct function invocation.
+   * @param {string} moduleName - Module containing the function
+   * @param {string} funcName - Function to call
+   * @param {...any} args - Arguments (numbers, strings, booleans)
+   * @returns {{success: boolean, result?: string, error?: string}}
+   */
+  call(moduleName, funcName, ...args) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      // Use native ailangCall which handles type conversion
+      return window.ailangCall(moduleName, funcName, ...args);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ── Effect Handlers (v0.7.2+) ──────────────────────────────────
+
+  /**
+   * Register JS function(s) as effect handler(s) (v0.7.2+)
+   *
+   * Supports two calling conventions:
+   *   2-arg: setEffectHandler('Stream', { connect: fn, send: fn, ... })
+   *   3-arg: setEffectHandler('Stream', 'connect', fn)
+   *
+   * The 3-arg form accumulates handlers per capability and registers them
+   * as a single object on each call, so multiple 3-arg calls build up the
+   * full handler set. Auto-grants the capability.
+   *
+   * @param {string} capability - Effect capability (e.g., 'IO', 'Net', 'Stream')
+   * @param {string|Object} operationOrHandlers - Operation name (3-arg) or handlers object (2-arg)
+   * @param {Function} [handler] - JS callback for 3-arg form
+   * @returns {{success: boolean, error?: string}}
+   */
+  setEffectHandler(capability, operationOrHandlers, handler) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      if (typeof operationOrHandlers === 'object' && operationOrHandlers !== null) {
+        // 2-arg form: setEffectHandler('Stream', { connect: fn, send: fn })
+        return window.ailangSetEffectHandler(capability, operationOrHandlers);
+      }
+      // 3-arg form: setEffectHandler('Stream', 'connect', fn)
+      if (!this._pendingHandlers[capability]) {
+        this._pendingHandlers[capability] = {};
+      }
+      this._pendingHandlers[capability][operationOrHandlers] = handler;
+      return window.ailangSetEffectHandler(capability, this._pendingHandlers[capability]);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Register a JS function as the AI completion handler (v0.7.2+)
+   * @param {Function} handler - JS callback: (prompt) => response string
+   * @returns {{success: boolean, error?: string}}
+   */
+  setAIHandler(handler) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangSetAIHandler(handler);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Grant an effect capability to the REPL environment (v0.7.2+)
+   * @param {string} capability - Capability to grant (e.g., 'IO', 'AI', 'Net')
+   * @returns {{success: boolean, error?: string}}
+   */
+  grantCapability(capability) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangGrantCapability(capability);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ── Async Methods (v0.7.2+) ────────────────────────────────────
+
+  /**
+   * Evaluate an expression asynchronously (v0.7.2+)
+   * Required when the expression triggers effect handlers that return Promises.
+   * @param {string} input - AILANG code to evaluate
+   * @returns {Promise<string>} Result or error message
+   */
+  async evalAsync(input) {
+    if (!this.ready) {
+      throw new Error('REPL not initialized');
+    }
+
+    return window.ailangEvalAsync(input);
+  }
+
+  /**
+   * Call a module function asynchronously (v0.7.2+)
+   * Required when the function triggers effect handlers that return Promises.
+   * @param {string} moduleName - Module containing the function
+   * @param {string} funcName - Function to call
+   * @param {...any} args - Arguments (numbers, strings, booleans)
+   * @returns {Promise<{success: boolean, result?: string, error?: string}>}
+   */
+  async callAsync(moduleName, funcName, ...args) {
+    if (!this.ready) {
+      throw new Error('REPL not initialized');
+    }
+
+    return window.ailangCallAsync(moduleName, funcName, ...args);
+  }
+
+  // ── ADT Constructors (v0.8.2+ Phase 2) ──────────────────────────
+
+  /**
+   * Build an ADT value for returning from JS effect handlers.
+   * Uses the {_ctor, _fields} convention recognized by jsToAILANGValue.
+   * @param {string} ctor - Constructor name (e.g., "Ok", "Err", "StreamConn")
+   * @param {...*} fields - Constructor fields (primitives, nested adt() calls, or null)
+   * @returns {{_ctor: string, _fields: Array}}
+   * @example
+   *   AilangREPL.adt("Ok", AilangREPL.adt("StreamConn", 1))
+   *   // → {_ctor: "Ok", _fields: [{_ctor: "StreamConn", _fields: [1]}]}
+   */
+  static adt(ctor, ...fields) {
+    return { _ctor: ctor, _fields: fields };
+  }
+
+  /** Convenience: Ok(value) ADT */
+  static streamOk(val) { return AilangREPL.adt("Ok", val ?? null); }
+
+  /** Convenience: Err(StreamErrorKind(msg)) ADT */
+  static streamErr(kind, msg) { return AilangREPL.adt("Err", AilangREPL.adt(kind, msg)); }
+
+  /** Convenience: StreamConn(id) ADT */
+  static streamConn(id) { return AilangREPL.adt("StreamConn", id); }
 }
 
 // Make available globally (priority for browser usage)
