@@ -165,6 +165,23 @@ AILANG's design addresses challenges identified in LLM code generation research.
 
 **See**: [Why AILANG?](/docs/why-ailang#research-validation-long-context-code-synthesis) for detailed analysis and figures from this research.
 
+### Code as Agent Harness
+
+AILANG is a concrete instance of the "code-as-harness" paradigm at the language level. This survey provides the taxonomic vocabulary for AILANG's architectural choices.
+
+> **Ning, X., Tieu, K., Fu, D., Wei, T., Li, Z., et al.** (2026). Code as Agent Harness: Toward Executable, Verifiable, and Stateful Agent Systems.
+> arXiv: [2605.18747](https://arxiv.org/abs/2605.18747) · PDF: [ning-2026-code-as-agent-harness.pdf](/references/ning-2026-code-as-agent-harness.pdf)
+
+**Key contributions**: A three-layer taxonomy of agent infrastructure — Harness Interface (reasoning, acting, environment modeling), Harness Mechanisms (planning, memory, tool use, PEV loops), and Scaling Systems (multi-agent coordination). Identifies "deep telemetry as optimization substrate" (Agentic Harness Engineering) and "execution-based convergence" as the most principled stopping criteria for agent systems.
+
+**AILANG alignment**: Several AILANG design decisions are independently validated by this survey:
+- AILANG's row-polymorphic effect rows are the formal version of "NormCode data isolation" (cited in robotics section) — no surveyed system achieves this at the language level
+- AILANG's OTEL trace tiers (`standard`/`deep`) are the direct implementation of what the paper calls AHE "deep telemetry as optimization substrate"
+- AILANG's [three-camps architecture](/docs/guides/three-camps-self-audit) maps onto the paper's taxonomy: eval-only (code-for-reasoning), Motoko agentic (code-for-acting), Claude agentic (code-for-environment/repository-level harness)
+- The coordinator's SQLite chain store + explicit message-passing is ahead of most surveyed MAS, which rely on implicit/file-only shared state
+
+**Notable finding**: QualityFlow demonstrates LLM-simulated execution achieves 98%+ precision predicting real test outcomes — informing AILANG's eval tier routing strategy.
+
 ---
 
 ## Functional Programming Foundations

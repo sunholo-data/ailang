@@ -45,6 +45,7 @@ This folder contains PDFs of academic papers cited in AILANG's documentation.
 | File | Citation |
 |------|----------|
 | `qiu-2025-locobench.pdf` | Qiu et al. (2025). LoCoBench: A Benchmark for Long-Context LLMs in Complex Software Engineering. arXiv:2509.09614 |
+| `ning-2026-code-as-agent-harness.pdf` | Ning, Xuying et al. (2026). Code as Agent Harness: Toward Executable, Verifiable, and Stateful Agent Systems. arXiv:2605.18747 |
 
 ## Sources
 
