@@ -562,7 +562,7 @@
     },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
-      "hash": "58a8694930acf51c0846a10faee84d383e4191b2484f9feeca102ebaefdb6b85",
+      "hash": "a218d6543b044bc8718da21685153baac719c4b2a4ab8292b228d6020bda535d",
       "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example, OpenRouter model strings, parameterised effects (M-EFFECT-REFINEMENT Phase 1) + AI modes (M-AI-EFFECT-MODES) + raw deflate/zlib primitives (M-STD-DEFLATE-ZLIB)",
       "created": "2026-04-30",
       "tags": [

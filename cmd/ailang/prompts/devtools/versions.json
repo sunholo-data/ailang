@@ -3,7 +3,7 @@
   "versions": {
     "v0.8.0": {
       "file": "prompts/devtools/v0.8.0.md",
-      "hash": "635f81898ca586788d35cb3828399c5cbb1c898a648b44cb1299afa784312aac",
+      "hash": "e7dc05006ce18c6ecf49713bd040bd2407938ca3c021b73242df6a317ec1db0c",
       "description": "Comprehensive dev tools reference covering 18 sections: run/test (all flags), debug, static contract verification (ailang verify with Z3), replay, training export, AI self-improvement with traces, chains, coordinator (15 subcommands), messaging (full), eval (6 commands), stdlib, telemetry/observatory (11 subcommands), dashboard/server, web/API, exec, compilation/advanced, AI provider config, WebAssembly",
       "created": "2026-02-11",
       "tags": [

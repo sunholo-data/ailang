@@ -1,10 +1,12 @@
 -- examples/wasm_friendly_patterns.ail
 --
--- Worked-example refactor showing the five WASM-friendly patterns from
--- `ailang devtools-prompt | grep -A 80 "WASM-Friendly Patterns"` applied
--- side-by-side. (The full guide lives in the devtools/toolchain prompt
--- because it's a runtime-target concern, not a syntax concern. The
--- language syntax prompt at `ailang prompt` has a cross-reference.)
+-- Worked-example refactor showing the five idiomatic-AILANG patterns
+-- side-by-side as bad_*/good_* pairs. Full guide:
+--   ailang prompt | grep -B 1 -A 200 "Idiomatic AILANG: Pure Core"
+-- The patterns are general style (pure core, single-effect leaves,
+-- destructure-once, flat matches) — not WASM-specific. The WASM
+-- budget guard (v0.22.x+) is just the toolchain-side enforcement.
+-- Toolchain-side notes live at `ailang devtools-prompt § WASM Type-Checker Budget`.
 --
 -- Each pattern below has a `bad_*` and a `good_*` version. Both produce
 -- the same result, both pass `ailang check` and `ailang run` on the CLI,
