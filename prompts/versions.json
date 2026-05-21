@@ -587,8 +587,8 @@
     },
     "v0.16.0": {
       "file": "prompts/v0.16.0.md",
-      "hash": "7b96f5d7b3ca5b1af6b3fa90ca09ad475379d6cd1e4dc54db82e9eaa2e0c53ee",
-      "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example, OpenRouter model strings, parameterised effects (M-EFFECT-REFINEMENT Phase 1) + AI modes (M-AI-EFFECT-MODES) + raw deflate/zlib primitives (M-STD-DEFLATE-ZLIB) + byteAt/fromInts in std/bytes (M-BYTES-TOINTS-BYTEAT)",
+      "hash": "c776557b48ff85d0e9f25cee067ca6ad689f33b67593f437ca118e8f4fc5c132",
+      "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example, OpenRouter model strings, parameterised effects (M-EFFECT-REFINEMENT Phase 1) + AI modes (M-AI-EFFECT-MODES) + raw deflate/zlib primitives (M-STD-DEFLATE-ZLIB) + byteAt/fromInts in std/bytes (M-BYTES-TOINTS-BYTEAT) + letrec-needs-block-body wrong/right example (M-VERA-BENCH AILANG findings)",
       "created": "2026-04-30",
       "tags": [
         "production",
