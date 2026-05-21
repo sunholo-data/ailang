@@ -152,6 +152,39 @@ This is the same class of issue as the WRONG_LANG categorisation bug discovered 
 - **Aver:** [`prompts/aver.md`](https://github.com/sunholo-data/ailang/blob/dev/prompts/aver.md), [`internal/eval_harness/aver.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/aver.go). Prompt sourced from authoritative docs: [docs/language.md](https://github.com/jasisz/aver/blob/main/docs/language.md), [docs/pushback.md](https://github.com/jasisz/aver/blob/main/docs/pushback.md), [examples/core/](https://github.com/jasisz/aver/tree/main/examples/core).
 - **Vera:** install blocked; runner not yet built.
 
+## Peer-Fit Assessment for the Remaining Survey Languages
+
+After AILANG + Python + MoonBit + Aver + (blocked) Vera, the obvious next question is: which of the remaining 12 surveyed languages would slot into this benchmark suite cleanly? A quick fit assessment of each:
+
+| Language | Camp | Toolchain | Benchmark fit | Why |
+|----------|------|-----------|---------------|-----|
+| Magpie | Syntactic | `cargo install` (29 crates) + LLVM | ✅ Best syntactic-camp test | Literally surfaces SSA IR as user syntax — directly tests the camp's hypothesis. High install cost (~30 min). |
+| Pact | Verification | Single binary | ❌ Not fit | HTTP-route DSL, not general-purpose. Every example uses `route GET/POST` blocks; no CLI-program mode. |
+| Laze | Syntactic | Python+C | ⚠️ Same as Zero | C-family systems language: `u8/i64`, `ptr`, syscalls. FP-shaped benchmarks would hit the same design-mismatch as Aver. Also: Laze was authored by Claude Opus 4.7 — meta-recursive. |
+| Zero | Verification | `curl install` | ⚠️ Same as Laze | C-family systems language. Different design philosophy from our benchmarks; would mirror Aver's "design constraints bind" finding. |
+| X07 | Syntactic | github releases | ⚠️ Different paradigm | LLM outputs JSON ASTs, not text source. Breaks the harness's stdout-from-source assumption. |
+| NERD | Syntactic | direct binary | ❌ Not fit | Specialized for LLM/MCP orchestration ONLY (`llm claude "prompt"`, `mcp tools "url"`). Can't write FizzBuzz. |
+| Marsha | Orchestration | github | ❌ Not fit | English-to-Python compiler; running it would just measure Python. |
+| Raskell | Verification | pip | ⚠️ Haskell prior | Built on Haskell — model has Haskell training data. Would replicate the MoonBit confound (prior > prompt). |
+| Boruna | Orchestration | github (master) | ⚠️ Specialized | Capability-gated workflow DSL. Probably not fit for general computation benchmarks. |
+| Pel | Orchestration | arXiv only | ❌ No toolchain | Research paper; no public compiler. |
+| Plumbing | Orchestration | research blog | ❌ No toolchain | Same. |
+| Quasar | Orchestration | UPenn arXiv | ❌ No toolchain | Same — and even if shipped, it transpiles to Python, mirroring Marsha's confound. |
+| Prove | Verification | EXCLUDED | ❌ License-forbidden | License explicitly forbids use as AI training data. |
+
+### What this assessment itself reveals
+
+The 16 surveyed "AI-native languages" sub-divide far less cleanly than the camp grouping implies:
+
+- **~5 are general-purpose FP languages** that can be fairly compared on a shared benchmark suite: AILANG, MoonBit, Aver, Vera, Raskell.
+- **~3 are C-family / systems languages** with different design philosophies: Zero, Laze, Magpie (sort of). Comparing them against FP benchmarks is the Aver-style "wrong yardstick" problem.
+- **~3 are domain DSLs**: Pact (HTTP APIs), NERD (LLM orchestration), Marsha (compile English to Python).
+- **~1 uses a different output paradigm**: X07 (JSON ASTs).
+- **~3 are research-stage** with no public toolchain: Pel, Plumbing, Quasar.
+- **1 is opt-out**: Prove.
+
+This sub-division is itself a useful contribution to the field's self-understanding. **The Negroni-Venture-Studios survey is the right starting catalog, but the camps are not directly commensurable** — Pact and AILANG are "in the same camp" but solving completely different problems. A future version of this comparison would benefit from a separate axis for "what application domain is this language for".
+
 ## Limitations of This Run
 
 This is **one model, one date, one run per benchmark, no multi-model variance, no N=20 convergence measurement**. It's a starting point, not a conclusion. Stronger results would come from:
