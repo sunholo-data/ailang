@@ -2,7 +2,7 @@ id: contract_bst_validate
 description: "BST insert, search, and validation — ADT recursion with structural invariants"
 difficulty: hard
 category: data_structure
-languages: ["ailang", "python"]
+languages: ["ailang", "python", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 

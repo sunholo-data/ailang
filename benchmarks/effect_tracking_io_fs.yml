@@ -1,6 +1,6 @@
 id: effect_tracking_io_fs
 description: "Explicit effect tracking: IO and FS effects in function signatures"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "hard"

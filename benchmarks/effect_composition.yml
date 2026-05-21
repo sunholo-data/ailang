@@ -1,6 +1,6 @@
 id: effect_composition
 description: "Effect composition and propagation in function signatures"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "hard"

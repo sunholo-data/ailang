@@ -29,11 +29,18 @@ AILANG is a pure functional programming language designed for AI-assisted develo
 Key features:
 
 - <Icon name="zap" inline /> **Pure Functional Core**: Deterministic evaluation, referentially transparent
-- <Icon name="target" inline /> **Algebraic Effects**: Side effects declared in types (`! {IO, FS, Net}`)—constrains what code *can* do
+- <Icon name="target" inline /> **Algebraic Effects**: Side effects declared in types (`! {IO, FS, Net, AI}`)—constrains what code *can* do
+- <Icon name="bot" inline /> **AI as a Typed Effect**: `std/ai (call, callJson)` makes the AI itself a typed citizen of the program — not an external wrapper around it
+- <Icon name="brain" inline /> **Z3-Verified Contracts**: `requires` / `ensures` blocks proven mathematically via SMT, not just tested
 - <Icon name="code" inline /> **Structured Traces**: Effect calls logged with typed inputs/outputs for debugging
 - <Icon name="brain" inline /> **Pattern Matching**: ADTs with exhaustiveness checking catch invalid states at compile time
+- <Icon name="rocket" inline /> **Coordinator + Multi-Agent Tooling**: Eval harness, agent messaging, MCP server, chain telemetry — AILANG ships the loop *around* the code, not just the code itself
 - <Icon name="rocket" inline /> **Inline Tests**: Machine-readable specs that travel with code
 - <Icon name="bot" inline /> **Go Codegen**: Compile to native performance with full type safety
+
+<div className="callout-box">
+  <Icon name="info" inline /> **Where AILANG fits in the AI-native-language field:** AILANG is a member of both the *Verification* camp (Z3 contracts + effect rows) and the *Orchestration* camp (`std/ai` as a typed effect, coordinator, MCP). See the [Three Camps Comparison](/docs/guides/three-camps-comparison) for how AILANG positions against 16 surveyed AI-native languages.
+</div>
 
 ## Quick Example
 

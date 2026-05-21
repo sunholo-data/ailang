@@ -1,6 +1,6 @@
 id: csv_to_json_converter
 description: "Parse CSV file and convert to JSON with validation"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "medium"

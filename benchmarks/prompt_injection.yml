@@ -2,7 +2,7 @@ id: prompt_injection
 description: "Prompt-injection scenario from Meijer's Guardians paper — does the type system catch unsafe email-forwarding code?"
 difficulty: hard
 category: security
-languages: ["ailang", "python"]
+languages: ["ailang", "python", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["Declassify"]
 

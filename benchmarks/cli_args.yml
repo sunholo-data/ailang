@@ -1,6 +1,6 @@
 id: cli_args
 description: "Read file from CLI argument, process, write result (IO + FS)"
-languages: ["python", "ailang", "javascript", "go"]
+languages: ["python", "ailang", "javascript", "go", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO", "FS", "Env"]
 difficulty: "hard"

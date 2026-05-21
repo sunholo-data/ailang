@@ -1,6 +1,6 @@
 id: inline_tests
 description: "Write function with inline tests annotation (v0.4.7 feature)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

@@ -5,7 +5,7 @@ description: "Composed pipeline: filter → map → fold with type-checked stage
 # Standard-shape simplification: build a multi-stage data transformation as a
 # pipeline of function compositions. AILANG's type system catches wiring errors
 # at the type level. The LLM must produce code that composes correctly.
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

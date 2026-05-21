@@ -1,6 +1,6 @@
 id: type_safe_record_access
 description: "Static type safety vs runtime crashes (Vision Problem 3)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

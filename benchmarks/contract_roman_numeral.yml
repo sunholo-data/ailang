@@ -2,7 +2,7 @@ id: contract_roman_numeral
 description: "Roman numeral conversion — int->roman->int roundtrip with subtractive notation and consistency proof"
 difficulty: hard
 category: multi_constraint
-languages: ["ailang", "python"]
+languages: ["ailang", "python", "moonbit", "aver"]
 entrypoint: "main"
 caps: ["IO"]
 
