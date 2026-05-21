@@ -27,6 +27,7 @@ _array_make : (int, a) -> Array[a]
 _array_set : (Array[a], int, a) -> Array[a]
 _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
+_bytes_byte_at : (bytes, int) -> Option[int]
 _bytes_concat : (bytes, bytes) -> bytes
 _bytes_concat_list : list[bytes] -> bytes
 _bytes_filename : bytes -> string

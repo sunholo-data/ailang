@@ -158,9 +158,10 @@ func (r *RegistryResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, er
 
 // RegisteredModule represents a compiled and evaluated AILANG module.
 type RegisteredModule struct {
-	Name    string             // Module name (e.g., "invoice_processor")
-	Source  string             // Original source code
-	Exports map[string]*Export // Exported functions and values
+	Name        string                // Module name (e.g., "invoice_processor")
+	Source      string                // Original source code
+	Exports     map[string]*Export    // Exported functions and values
+	TypeAliases map[string]types.Type // Type aliases declared in this module (for cross-module signature resolution)
 }
 
 // Export represents a single exported function or value from a module.

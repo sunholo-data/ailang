@@ -1,0 +1,132 @@
+-- Cognitive Commons — pure consensus logic.
+--
+-- Two responsibilities, both effect-free:
+--
+--   1. SENTIMENT TRACKING — each utterance shifts the commons' (x, y)
+--      sentiment via EWMA (alpha=0.25) toward either a judge-provided score
+--      or the speaker's persona target.
+--   2. EDIT-LOCK on the working statement — only the persona currently
+--      closest to the sentiment dot may replace the rolling consensus draft.
+--      Non-leaders' proposed edits are dropped.
+--
+-- Replay determinism: deterministic given the event history.
+
+module cognitive_commons/services/consensus
+
+import cognitive_commons/types/personas (Persona, Point, target, label, all_personas, Visionary, Skeptic, Synthesizer, Archivist)
+import std/result (Result, Ok, Err)
+import std/string (length)
+
+-- The full state of the commons.
+export type CommonsState = {
+  sentiment: Point,
+  consensus_text: string,
+  consensus_editor: string,    -- persona-label of the last accepted editor; "" if none
+  consensus_clock: int,        -- Lamport clock at the time of last accepted edit
+  utterance_count: int
+}
+
+-- Initial state: dot at origin, empty working statement.
+export pure func initial_state() -> CommonsState = {
+  sentiment: { x: 0.0, y: 0.0 },
+  consensus_text: "",
+  consensus_editor: "",
+  consensus_clock: 0,
+  utterance_count: 0
+}
+
+-- EWMA weight per utterance — how strongly each speaker pulls the dot.
+export pure func ewma_alpha() -> float = 0.25
+
+-- applyUtterance — shift the sentiment dot by EWMA toward either the
+-- judge-provided score (if present) or the speaker's persona anchor.
+export pure func applyUtterance(
+  st: CommonsState,
+  speaker: Persona,
+  has_score: bool,
+  score_x: float,
+  score_y: float
+) -> CommonsState = {
+  let attractor = if has_score then { x: score_x, y: score_y } else target(speaker);
+  let alpha = ewma_alpha();
+  let nx = st.sentiment.x * (1.0 - alpha) + attractor.x * alpha;
+  let ny = st.sentiment.y * (1.0 - alpha) + attractor.y * alpha;
+  {
+    sentiment: { x: nx, y: ny },
+    consensus_text: st.consensus_text,
+    consensus_editor: st.consensus_editor,
+    consensus_clock: st.consensus_clock,
+    utterance_count: st.utterance_count + 1
+  }
+}
+
+-- distance — squared Euclidean (sqrt is unnecessary for ordering).
+export pure func distance(a: Point, b: Point) -> float = {
+  let dx = a.x - b.x;
+  let dy = a.y - b.y;
+  dx * dx + dy * dy
+}
+
+-- currentLeader — the persona whose target is nearest to the commons
+-- sentiment. Uses squared distance.
+export pure func currentLeader(st: CommonsState) -> Persona = {
+  let dv = distance(st.sentiment, target(Visionary));
+  let ds = distance(st.sentiment, target(Skeptic));
+  let dy_ = distance(st.sentiment, target(Synthesizer));
+  let da = distance(st.sentiment, target(Archivist));
+  let best_vs = if dv <= ds then Visionary else Skeptic;
+  let best_d_vs = if dv <= ds then dv else ds;
+  let best_vsy = if best_d_vs <= dy_ then best_vs else Synthesizer;
+  let best_d_vsy = if best_d_vs <= dy_ then best_d_vs else dy_;
+  if best_d_vsy <= da then best_vsy else Archivist
+}
+
+-- Squared distance from the dot to the leader's corner (for display
+-- the JS layer can sqrt for Euclidean).
+export pure func leaderGap(st: CommonsState) -> float =
+  distance(st.sentiment, target(currentLeader(st)))
+
+-- applyManifestoEdit — the edit-lock gate.
+--
+-- The proposed edit is accepted ONLY if the proposer matches the persona
+-- currently leading. Returns the new state plus a tag.
+export type EditOutcome = Accepted | RejectedNotLeader | RejectedTooShort
+
+export pure func applyManifestoEdit(
+  st: CommonsState,
+  proposer: Persona,
+  proposed_text: string,
+  clock: int
+) -> { state: CommonsState, outcome: EditOutcome } = {
+  if length(proposed_text) < 40 then {
+    state: st,
+    outcome: RejectedTooShort
+  } else {
+    let leader = currentLeader(st);
+    if label(proposer) != label(leader) then {
+      state: st,
+      outcome: RejectedNotLeader
+    } else {
+      {
+        state: {
+          sentiment: st.sentiment,
+          consensus_text: proposed_text,
+          consensus_editor: label(proposer),
+          consensus_clock: clock,
+          utterance_count: st.utterance_count
+        },
+        outcome: Accepted
+      }
+    }
+  }
+}
+
+-- Topic change invalidates the consensus; sentiment + utterance_count
+-- survive (they track total speech, not topic-relative state).
+export pure func resetConsensus(st: CommonsState) -> CommonsState = {
+  sentiment: st.sentiment,
+  consensus_text: "",
+  consensus_editor: "",
+  consensus_clock: 0,
+  utterance_count: st.utterance_count
+}

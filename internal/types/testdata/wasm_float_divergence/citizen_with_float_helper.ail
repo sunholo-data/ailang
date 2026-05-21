@@ -1,0 +1,222 @@
+-- Cognitive Commons — citizen behaviour.
+--
+-- The "main loop" of a single tab. Each tab is one citizen with one
+-- persona. The compose function is invoked by the JS shell on a cadence
+-- (or via the "Speak now" button). It:
+--
+--   1. Reads the current commons state (topic, sentiment, working statement)
+--   2. Calls the AI to author a stanza + (if leading) an edit to the statement
+--   3. Calls the judge to score the stanza on the (x, y) sentiment plane
+--   4. Applies the score to local sentiment + decides if the manifesto
+--      edit can land (edit-lock check is in consensus.ail)
+--   5. Renders the chronicle panel via !: DOM and broadcasts to peer
+--      tabs via !: Msg
+--
+-- IMPORTANT — this file was restructured 2026-05-21 to apply the 5
+-- WASM-Friendly Patterns from `ailang devtools-prompt` § "WASM-Friendly
+-- Patterns". The previous shape (triple-nested match in compose, three
+-- back-to-back matches on score_result in speak, fat import list) hung
+-- the WASM type-checker for 80+ seconds before the v0.22.x budget guard
+-- shipped. The patterns below preserve identical behaviour while
+-- staying inside the 2-second WASM budget.
+--   - Pattern 1: flatten triple-nested match → sequential lets + helper
+--   - Pattern 2: collapse three matches on Result[JudgeScore, _] → one unpack
+--   - Pattern 3: trim consensus import to only used symbols
+--   - Pattern 4: speak() already orchestrates (no change needed)
+--   - Pattern 5: let-bind st.sentiment and proposer_target once
+-- See demos/debug-notes/wasm-citizen-stack-overflow.md for the full
+-- diagnostic trail that led to this refactor.
+
+module cognitive_commons/services/citizen
+
+import std/ai (callJson)
+import std/json (Json, decode, getString)
+import std/dom (AddPanel, applyPatchResult)
+import std/cognition (sendMsgResult)
+import std/result (Result, Ok, Err)
+import std/option (Some, None)
+import std/string (length)
+
+-- Pattern 3: trim. Drop leaderGap, EditOutcome, Accepted, RejectedNotLeader
+-- (all imported in the previous version but never used). Drop DOMPatch
+-- and println for the same reason.
+import cognitive_commons/types/personas (Persona, label, target, axis_definitions)
+import cognitive_commons/services/consensus
+  ( CommonsState
+  , applyUtterance
+  , applyManifestoEdit
+  , currentLeader
+  , RejectedTooShort
+  )
+import cognitive_commons/services/persuasion (JudgeScore, judgeUtterance)
+
+-- Trigger for M-WASM-TYPECHECK-FLOAT-DIVERGENCE: adding any float-typed
+-- helper to citizen.ail causes commons_browser.ail to fail to type-check
+-- in the WASM module-loading path with "float vs int" at jnum(sx).
+pure func gap_force(gap: float) -> string =
+  if gap > 0.5 then "high" else "low"
+
+-- The shape the citizen LLM is expected to return.
+export type AuthorReply = {
+  text: string,        -- one declarative sentence, 12-26 words
+  glyph: string,       -- SVG path-d ornament; may be ""
+  manifesto: string    -- proposed working-statement edit; ignored if not leading
+}
+
+-- Pattern 1 helper: extract one optional-string-with-default match into
+-- a tiny pure function. Avoids the original's triple-nested match by
+-- letting compose() call this once per field at the same nesting level.
+pure func optional_string(j: Json, key: string) -> string =
+  match getString(j, key) {
+    Some(s) => s,
+    None    => ""
+  }
+
+-- Build the system prompt for the author call. The user can override the
+-- persona-specific portion via the JS UI; this function only assembles
+-- the topic-anchor + edit-lock status that wraps it.
+export pure func compose_system_prompt(
+  persona_prompt: string,
+  topic: string,
+  st: CommonsState,
+  proposer: Persona
+) -> string = {
+  let topic_line = if length(topic) > 0
+    then "\n\n--- CURRENT DEBATE ---\nThe topic right now is: \"${topic}\"."
+    else "";
+  let leader_label = label(currentLeader(st));
+  let proposer_label = label(proposer);
+  let lock_status = if leader_label == proposer_label
+    then "\nEDIT LOCK STATUS: ✓ You ARE currently leading the commons. YOUR manifesto edit WILL replace the working statement."
+    else "\nEDIT LOCK STATUS: ✗ You are NOT leading — ${leader_label} is. Your manifesto field will be discarded. Focus your stanza on shifting sentiment to take over editing.";
+  "${persona_prompt}${topic_line}${lock_status}"
+}
+
+-- Build the user-message prompt.
+-- Pattern 5: let-bind st.sentiment and proposer_target once at the top.
+--
+-- 2026-05-21 status: TWO attempts to restore the JS-prototype's
+-- conversation dynamics (address-by-name, react-to-last-move, force-by-
+-- gap) both broke the WASM type-checker with a spurious "float vs int"
+-- error in commons_browser.ail at jnum(sx) — even though the CLI passes
+-- both files cleanly and the helpers had explicit float type signatures.
+-- The minimal repro: adding ANY float-returning helper to citizen.ail
+-- (gap_force(gap: float) -> string) makes commons_browser fail to
+-- type-check on WASM. Could be a real WASM-type-checker bug around
+-- float-literal defaulting in records, OR something subtle about how
+-- exporting more identifiers from citizen.ail affects commons_browser's
+-- import resolution under the WASM budget.
+--
+-- Reverted both attempts; left this TODO so the next session can either:
+--   (a) file an upstream type-checker bug (citizen.ail + commons_browser
+--       MWE attached) and add the helpers once fixed
+--   (b) move the prompt-richness logic JS-side instead — buildUserPrompt
+--       in index.html already has it; the JS could compose the full
+--       prompt and pass it whole to AILANG's compose() via a new
+--       `full_prompt` parameter, sidestepping the AILANG-side helpers.
+-- Option (b) is the pragmatic next step.
+export pure func compose_user_prompt(
+  topic: string,
+  recent_dialogue: string,
+  proposer: Persona,
+  st: CommonsState
+) -> string = {
+  let leader_label = label(currentLeader(st));
+  let topic_block = if length(topic) > 0
+    then "TOPIC OF DEBATE: \"${topic}\"\nEverything below is in service of arguing THIS topic. Stay on topic.\n\n"
+    else "";
+  let manifesto_block = if length(st.consensus_text) > 0
+    then "\nTHE COMMONS' CURRENT WORKING STATEMENT (locked to ${leader_label}):\n\"\"\"\n${st.consensus_text}\n\"\"\""
+    else "\nTHE COMMONS' CURRENT WORKING STATEMENT: (empty — the first leader gets to draft it)";
+  let proposer_label = label(proposer);
+  let s = st.sentiment;
+  let t = target(proposer);
+  let axes = axis_definitions();
+  "${topic_block}${recent_dialogue}\n${manifesto_block}\n\nYOUR ROLE: ${proposer_label}.\n${axes}\nCommons sentiment: x=${show(s.x)}, y=${show(s.y)}.\nYour preferred sentiment: x=${show(t.x)}, y=${show(t.y)}.\n\nReply ONLY with strict JSON, no markdown fences:\n{\n  \"text\": \"<one declarative sentence, 12-26 words>\",\n  \"glyph\": \"<SVG path-d in -12..+12 range; M L A Q Z commands only>\",\n  \"manifesto\": \"<ONLY IF leading: 100-200 word edit of the working statement; otherwise empty string>\"\n}"
+}
+
+-- JSON schema for the author response (used where the provider supports it).
+export pure func author_schema() -> string =
+  "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":20,\"maxLength\":400},\"glyph\":{\"type\":\"string\",\"maxLength\":400},\"manifesto\":{\"type\":\"string\",\"maxLength\":2400}},\"required\":[\"text\"],\"additionalProperties\":false}"
+
+-- compose — issue the author LLM call.
+--
+-- Pattern 1: flatten the triple-nested match. The previous shape was
+--   match decode { Err => ..., Ok(j) => match getString("error") { ... =>
+--   match getString("text") { ... => Ok(...) }}}
+-- which hangs the WASM type-checker. Now: one outer match, then
+-- if/match on the error field, then one match on text. optional_string
+-- helper handles glyph/manifesto without another nested match.
+export func compose(
+  persona_prompt: string,
+  topic: string,
+  recent_dialogue: string,
+  proposer: Persona,
+  st: CommonsState
+) -> Result[AuthorReply, string] ! {AI} = {
+  let sys = compose_system_prompt(persona_prompt, topic, st, proposer);
+  let usr = compose_user_prompt(topic, recent_dialogue, proposer, st);
+  let schema = author_schema();
+  let full_prompt = "${sys}\n\n---\n\n${usr}";
+  let raw = callJson(full_prompt, schema);
+  match decode(raw) {
+    Err(e) => Err("compose JSON parse failed: ${e}"),
+    Ok(j) => {
+      let provider_err = optional_string(j, "error");
+      if length(provider_err) > 0
+        then Err("AI provider: ${provider_err}")
+        else match getString(j, "text") {
+          None     => Err("compose JSON missing 'text'"),
+          Some(tv) => Ok({
+            text: tv,
+            glyph: optional_string(j, "glyph"),
+            manifesto: optional_string(j, "manifesto")
+          })
+        }
+    }
+  }
+}
+
+-- Pattern 2 helper: collapse three matches on Result[JudgeScore, _]
+-- into one. The previous shape had `Ok(_) => true/false` then `Ok(s) => s.x`
+-- then `Ok(s) => s.y` as three separate matches — each `s.x` triggered
+-- a fresh tagged-union receiver analysis, compounding type-check cost.
+-- One match into a flat record, then read fields downstream.
+pure func unpack_score(r: Result[JudgeScore, string]) -> {has: bool, x: float, y: float} =
+  match r {
+    Ok(s)  => {has: true,  x: s.x, y: s.y},
+    Err(_) => {has: false, x: 0.0, y: 0.0}
+  }
+
+-- speak — full turn for one citizen. Orchestrates compose + judge +
+-- sentiment update + edit-lock check + DOM patch + Msg broadcast.
+--
+-- Pattern 4: this is already the orchestration shape — heavy work is in
+-- compose() (single AI effect) and judgeUtterance() (single AI effect).
+-- speak() itself just sequences them.
+export func speak(
+  st: CommonsState,
+  proposer: Persona,
+  persona_prompt: string,
+  topic: string,
+  recent_dialogue: string,
+  clock: int,
+  region: string
+) -> Result[CommonsState, string] ! {AI, DOM, Msg} = {
+  match compose(persona_prompt, topic, recent_dialogue, proposer, st) {
+    Err(e) => Err(e),
+    Ok(reply) => {
+      let score = unpack_score(judgeUtterance(topic, proposer, reply.text));
+      let st1 = applyUtterance(st, proposer, score.has, score.x, score.y);
+      let edit_result = if length(reply.manifesto) >= 40
+        then applyManifestoEdit(st1, proposer, reply.manifesto, clock)
+        else { state: st1, outcome: RejectedTooShort };
+      let st2 = edit_result.state;
+      let proposer_label = label(proposer);
+      let panel_title = "${proposer_label} · clk ${show(clock)}";
+      let _patch_result = applyPatchResult(region, AddPanel(panel_title, reply.text));
+      let _send_result = sendMsgResult("commons", reply.text);
+      Ok(st2)
+    }
+  }
+}

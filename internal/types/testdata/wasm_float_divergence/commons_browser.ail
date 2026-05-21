@@ -1,0 +1,209 @@
+-- Cognitive Commons — browser adapter.
+--
+-- Thin entry-point module for the WASM REPL: takes JSON strings in,
+-- returns JSON strings out. This shields the JS shell from AILANG's
+-- internal value representation (especially Result[CommonsState, string]
+-- and the printed-ADT format coming through ailang-repl's call return).
+--
+-- Mirrors the docparse_browser.ail pattern: original CLI modules stay
+-- the source of truth; this file only marshals between JS and AILANG.
+
+module cognitive_commons/services/commons_browser
+
+import std/json (encode, decode, jo, kv, js, jb, jnum, getString, getNumber, getObject, asString, asNumber)
+import std/string (length)
+import std/math (intToFloat)
+import std/result (Result, Ok, Err)
+import std/option (Some, None, getOrElse)
+
+import cognitive_commons/types/personas
+  (Persona, label, parse as parsePersona, default_prompt, Visionary)
+import cognitive_commons/services/consensus
+  ( CommonsState
+  , currentLeader
+  , leaderGap
+  , applyUtterance
+  , applyManifestoEdit
+  , Accepted
+  , RejectedNotLeader
+  , RejectedTooShort
+  )
+import cognitive_commons/services/citizen (compose)
+import cognitive_commons/services/persuasion (judgeUtterance)
+
+-- ── helpers ─────────────────────────────────────────────────────
+
+pure func stateToJson(st: CommonsState) -> Json = jo([
+  kv("sentiment", jo([
+    kv("x", jnum(st.sentiment.x)),
+    kv("y", jnum(st.sentiment.y))
+  ])),
+  kv("consensus_text", js(st.consensus_text)),
+  kv("consensus_editor", js(st.consensus_editor)),
+  kv("consensus_clock", jnum(intToFloat(st.consensus_clock))),
+  kv("utterance_count", jnum(intToFloat(st.utterance_count))),
+  kv("leader", js(label(currentLeader(st)))),
+  kv("leader_gap", jnum(leaderGap(st)))
+])
+
+-- Parse a number JSON field, defaulting to 0.0 if missing/wrong type.
+-- Note: getNumber/getString/getObject return Option, NOT Result —
+-- so the constructors are Some/None, not Ok/Err. AILANG's pattern
+-- checker doesn't catch this mismatch; unknown ctors are silently
+-- accepted and fail at runtime as "no pattern matched".
+pure func numField(obj: Json, key: string) -> float =
+  match getNumber(obj, key) {
+    Some(f) => f,
+    None => 0.0
+  }
+
+pure func intField(obj: Json, key: string) -> int =
+  match getNumber(obj, key) {
+    Some(f) => floatToInt(f),
+    None => 0
+  }
+
+pure func strField(obj: Json, key: string) -> string =
+  match getString(obj, key) {
+    Some(s) => s,
+    None => ""
+  }
+
+-- Reconstruct CommonsState from a JSON object. Missing fields default
+-- to the initial state's values.
+pure func parseState(obj: Json) -> CommonsState = {
+  let sentiment_obj = match getObject(obj, "sentiment") {
+    Some(s) => s,
+    None => obj
+  };
+  {
+    sentiment: { x: numField(sentiment_obj, "x"), y: numField(sentiment_obj, "y") },
+    consensus_text: strField(obj, "consensus_text"),
+    consensus_editor: strField(obj, "consensus_editor"),
+    consensus_clock: intField(obj, "consensus_clock"),
+    utterance_count: intField(obj, "utterance_count")
+  }
+}
+
+-- ── public WASM entry points ─────────────────────────────────────
+
+-- Diagnostic helper: round-trip a string through AILANG to confirm
+-- the JS↔WASM boundary preserves bytes exactly. The string is decoded
+-- as JSON and re-encoded; if the bytes drift, this is where it shows.
+export func echoJson(input: string) -> string = {
+  match decode(input) {
+    Err(e) => encode(jo([
+      kv("ok", jb(false)),
+      kv("error", js("decode failed: ${e}")),
+      kv("received_len", jnum(intToFloat(length(input)))),
+      kv("received_head", js(input))
+    ])),
+    Ok(j) => encode(jo([
+      kv("ok", jb(true)),
+      kv("received_len", jnum(intToFloat(length(input)))),
+      kv("roundtrip", js(encode(j)))
+    ]))
+  }
+}
+
+-- Default persona prompt as JSON-safe string.
+export func defaultPromptFor(persona_name: string) -> string = {
+  match parsePersona(persona_name) {
+    Err(e) => e,
+    Ok(p) => default_prompt(p)
+  }
+}
+
+-- Return an initial state as a JSON string. JS uses this as the seed
+-- before the first speak() call.
+export func initialStateJson() -> string =
+  encode(stateToJson({
+    sentiment: { x: 0.0, y: 0.0 },
+    consensus_text: "",
+    consensus_editor: "",
+    consensus_clock: 0,
+    utterance_count: 0
+  }))
+
+-- speakJson — JSON-in / JSON-out orchestrator.
+--
+-- Inlines compose + judge + state updates so we can return the utterance
+-- text (not just the resulting state, which is all citizen.speak gives
+-- back). JS uses the utterance to render the chronicle directly — the
+-- !{DOM} effect path is reserved for future cross-tab replay scenarios.
+--
+-- Inputs (all JS-friendly strings/ints):
+--   state_json        — JSON string from a prior speakJson call (or initialStateJson)
+--   persona_name      — "Visionary" | "Skeptic" | "Synthesizer" | "Archivist"
+--   persona_prompt    — system prompt (UI-editable; pass defaultPromptFor(name) if blank)
+--   topic             — the debate topic
+--   recent_dialogue   — last N stanzas, formatted as text (JS owns this buffer)
+--   clock             — Lamport-ish clock from JS (Date.now() works fine)
+--   region            — DOM region label, retained for future Msg use
+--
+-- Returns JSON shaped as:
+--   { "ok": true, "speaker": "Visionary",
+--     "utterance": "...", "glyph": "...",
+--     "manifesto_outcome": "Accepted" | "RejectedNotLeader" | "RejectedTooShort",
+--     "judge_ok": true, "score": {"x":..,"y":..},
+--     "state": {<stateJson>} }
+--   { "ok": false, "error": "<message>" }
+export func speakJson(
+  state_json: string,
+  persona_name: string,
+  persona_prompt: string,
+  topic: string,
+  recent_dialogue: string,
+  clock: int,
+  region: string
+) -> string ! {AI} = {
+  let _region = region;  -- retained for parity with future !{DOM,Msg} flows
+  match parsePersona(persona_name) {
+    Err(e) => encode(jo([kv("ok", jb(false)), kv("error", js("bad persona: ${e}"))])),
+    Ok(p) => match decode(state_json) {
+      Err(e) => encode(jo([kv("ok", jb(false)), kv("error", js("state JSON parse: ${e}"))])),
+      Ok(st_json) => {
+        let st_in = parseState(st_json);
+        match compose(persona_prompt, topic, recent_dialogue, p, st_in) {
+          Err(e) => encode(jo([kv("ok", jb(false)), kv("error", js(e))])),
+          Ok(reply) => {
+            -- Note: we'd PREFER the unpack-once-into-record pattern here
+            -- (cleaner + matches citizen.speak), but the unpack_judge_score
+            -- helper was reverted 2026-05-21 — the WASM type-checker hit
+            -- a spurious "float vs int" error at jnum(score.x) even though
+            -- the helper's return type explicitly declares float fields.
+            -- The inline three-match shape below stays close to the
+            -- existing original and passes both CLI + WASM. To re-attempt
+            -- the helper-record refactor, add a type-ascription or rewrite
+            -- the Err arm's record literal to avoid the apparent literal-
+            -- default inference quirk in the WASM type-checker.
+            let score_result = judgeUtterance(topic, p, reply.text);
+            let has_score = match score_result { Ok(_) => true, Err(_) => false };
+            let sx = match score_result { Ok(s) => s.x, Err(_) => 0.0 };
+            let sy = match score_result { Ok(s) => s.y, Err(_) => 0.0 };
+            let st1 = applyUtterance(st_in, p, has_score, sx, sy);
+            let edit = if length(reply.manifesto) >= 40
+              then applyManifestoEdit(st1, p, reply.manifesto, clock)
+              else { state: st1, outcome: RejectedTooShort };
+            let st2 = edit.state;
+            let outcome_label = match edit.outcome {
+              Accepted          => "Accepted",
+              RejectedNotLeader => "RejectedNotLeader",
+              RejectedTooShort  => "RejectedTooShort"
+            };
+            encode(jo([
+              kv("ok", jb(true)),
+              kv("speaker",  js(label(p))),
+              kv("utterance", js(reply.text)),
+              kv("glyph",    js(reply.glyph)),
+              kv("manifesto_outcome", js(outcome_label)),
+              kv("judge_ok", jb(has_score)),
+              kv("score", jo([kv("x", jnum(sx)), kv("y", jnum(sy))])),
+              kv("state", stateToJson(st2))
+            ]))
+          }
+        }
+      }
+    }
+  }
+}

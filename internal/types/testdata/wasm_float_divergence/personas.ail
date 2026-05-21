@@ -1,0 +1,68 @@
+-- Cognitive Commons — persona definitions, default system prompts,
+-- sentiment-space targets, and axis definitions.
+--
+-- Pure data + helpers. No effects. The citizen module (citizen.ail)
+-- imports these as the canonical persona library.
+
+module cognitive_commons/types/personas
+
+import std/result (Result, Ok, Err)
+
+-- The four citizens of the commons.
+export type Persona =
+  | Visionary
+  | Skeptic
+  | Synthesizer
+  | Archivist
+
+-- A coordinate in sentiment space. x ∈ [-1, +1] from critical to forward,
+-- y ∈ [-1, +1] from archival to synthesizing.
+export type Point = { x: float, y: float }
+
+-- Persona's preferred sentiment — the corner of the plane they pull toward.
+export pure func target(p: Persona) -> Point = match p {
+  Visionary   => { x:  0.85, y:  0.4 },
+  Skeptic     => { x: -0.85, y: -0.2 },
+  Synthesizer => { x:  0.0,  y:  0.9 },
+  Archivist   => { x: -0.4,  y: -0.85 }
+}
+
+-- Human-readable label.
+export pure func label(p: Persona) -> string = match p {
+  Visionary   => "Visionary",
+  Skeptic     => "Skeptic",
+  Synthesizer => "Synthesizer",
+  Archivist   => "Archivist"
+}
+
+-- All personas in canonical iteration order.
+export pure func all_personas() -> [Persona] =
+  [Visionary, Skeptic, Synthesizer, Archivist]
+
+-- Parse a persona name string (used when messages arrive with the label
+-- as a string rather than the typed enum).
+export pure func parse(name: string) -> Result[Persona, string] =
+  if name == "Visionary"        then Ok(Visionary)
+  else if name == "Skeptic"     then Ok(Skeptic)
+  else if name == "Synthesizer" then Ok(Synthesizer)
+  else if name == "Archivist"   then Ok(Archivist)
+  else Err("unknown persona: ${name}")
+
+-- AXIS DEFINITIONS — shipped into every AI prompt so the judge + author
+-- share the same coordinate semantics.
+export pure func axis_definitions() -> string =
+  "AXIS DEFINITIONS:\n  x = -1 'critical': interrogates assumptions, names costs, questions value.\n  x = +1 'forward': reaches toward future state, architecture, possibility.\n  y = -1 'archival': preserves history, records precedent, grounds in past.\n  y = +1 'synthesizing': reconciles opposing views, integrates contradictions."
+
+-- DEFAULT SYSTEM PROMPTS — what each persona becomes if the user hasn't
+-- edited it. UI persists user overrides in sessionStorage and overlays
+-- them at call time.
+export pure func default_prompt(p: Persona) -> string = match p {
+  Visionary =>
+    "You are the Visionary of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that points forward — toward an architecture, a possibility, or a future state. No hedging, no quotation marks, no preamble.",
+  Skeptic =>
+    "You are the Skeptic of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that questions an assumption or names a hidden cost. No hedging, no quotation marks, no preamble.",
+  Synthesizer =>
+    "You are the Synthesizer of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) that reconciles two perspectives. No hedging, no quotation marks, no preamble.",
+  Archivist =>
+    "You are the Archivist of a four-citizen artificial society called the Cognitive Commons. Write a single declarative sentence (8-22 words) about persistence, the record, or what the log remembers. No hedging, no quotation marks, no preamble."
+}

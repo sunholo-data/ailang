@@ -1,0 +1,68 @@
+-- Cognitive Commons — persuasion judge.
+--
+-- A small, separate LLM call that scores each utterance on the (x, y)
+-- sentiment plane. Output is a deterministic record. Designed to be
+-- cheap: <60 output tokens, structured JSON.
+--
+-- The judge has NO context of prior dialogue or the speaker's persona
+-- label — only the utterance text. The score reflects the TEXT, not
+-- the speaker's label.
+
+module cognitive_commons/services/persuasion
+
+import std/ai (callJson)
+import std/json (decode, getNumber, getString)
+import std/result (Result, Ok, Err)
+import std/option (Some, None)
+import std/string (length)
+import cognitive_commons/types/personas (Persona, label, axis_definitions)
+
+-- The judge's verdict on a single utterance. Both fields ∈ [-1, +1].
+export type JudgeScore = { x: float, y: float }
+
+-- JSON schema enforced server-side where supported.
+export pure func judge_schema() -> string =
+  "{\"type\":\"object\",\"properties\":{\"x\":{\"type\":\"number\",\"minimum\":-1,\"maximum\":1},\"y\":{\"type\":\"number\",\"minimum\":-1,\"maximum\":1}},\"required\":[\"x\",\"y\"],\"additionalProperties\":false}"
+
+-- Build the user-message prompt for the judge.
+export pure func judge_prompt(topic: string, speaker: Persona, utterance: string) -> string = {
+  let topic_line = if length(topic) > 0 then "TOPIC OF DEBATE: ${topic}\n" else "";
+  let speaker_label = label(speaker);
+  let axes = axis_definitions();
+  "${topic_line}${axes}\nSpeaker positioned as: ${speaker_label}.\nUtterance: \"${utterance}\"\nScore honestly — a Visionary can write something critical, and vice versa. The score reflects the TEXT, not the speaker's label.\nReply ONLY with strict JSON: {\"x\": <number>, \"y\": <number>}"
+}
+
+-- Clamp into [-1, +1].
+pure func clamp(v: float) -> float =
+  if v < -1.0 then -1.0
+  else if v > 1.0 then 1.0
+  else v
+
+-- judgeUtterance — issue the judge LLM call, parse + clamp.
+--
+-- callJson returns a plain string (NOT Result). Errors surface via the
+-- effect runtime if the AI handler throws; if it returns an error-shaped
+-- JSON string instead, decode() succeeds but the field lookup fails and
+-- we report it that way.
+export func judgeUtterance(
+  topic: string,
+  speaker: Persona,
+  utterance: string
+) -> Result[JudgeScore, string] ! {AI} = {
+  let prompt = judge_prompt(topic, speaker, utterance);
+  let schema = judge_schema();
+  let raw = callJson(prompt, schema);
+  match decode(raw) {
+    Err(e) => Err("judge JSON parse failed: ${e}"),
+    Ok(j) => match getString(j, "error") {
+      Some(provider_err) => Err("AI provider: ${provider_err}"),
+      None => match getNumber(j, "x") {
+      None => Err("judge JSON missing 'x' field"),
+      Some(xv) => match getNumber(j, "y") {
+        None => Err("judge JSON missing 'y' field"),
+        Some(yv) => Ok({ x: clamp(xv), y: clamp(yv) })
+      }
+      }
+    }
+  }
+}

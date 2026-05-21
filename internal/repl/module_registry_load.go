@@ -50,6 +50,18 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 			ctor.FieldTypes,
 		)
 	}
+	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Register type aliases from previously
+	// loaded modules so signatures like `st: CommonsState` resolve to the
+	// underlying record type when `CommonsState` is declared in an imported
+	// module. Without this, the elaborator/type-checker treats the alias as
+	// unknown and infers an open record from usage, producing free type
+	// variables that leak across modules. Mirrors pipeline_module_compile.go
+	// lines 201-205 (CLI path).
+	for _, mod := range mr.modules {
+		for aliasName, target := range mod.TypeAliases {
+			elaborator.RegisterTypeAlias(aliasName, target)
+		}
+	}
 	mr.mu.RUnlock()
 
 	// CRITICAL: Handle module aliases for qualified access (e.g., cache.get)
@@ -274,6 +286,34 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	for name, target := range elabAliases {
 		typeChecker.RegisterTypeAlias(name, target)
 	}
+	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Also register type aliases from
+	// previously loaded modules on the type-checker. The elaborator received
+	// them above (so signatures resolve in the AST); the type-checker needs
+	// them too so unification can expand the alias when comparing types.
+	// Mirrors pipeline_module_compile.go lines 201-205 (CLI path).
+	mr.mu.RLock()
+	for _, mod := range mr.modules {
+		for aliasName, target := range mod.TypeAliases {
+			if _, alreadyLocal := elabAliases[aliasName]; alreadyLocal {
+				continue // local definition wins over imported
+			}
+			typeChecker.RegisterTypeAlias(aliasName, target)
+		}
+	}
+	mr.mu.RUnlock()
+
+	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Propagate parameter and return type
+	// annotations from the elaborator so declared signatures like
+	// `func f(x: Point) -> float` actually constrain inference. Without this,
+	// the type-checker infers parameter types from usage and produces overly
+	// polymorphic schemes whose free type variables leak across modules.
+	// Mirrors pipeline_module_compile.go lines 207-219 (CLI path).
+	if paramAnnots := elaborator.GetParamTypeAnnotations(); len(paramAnnots) > 0 {
+		typeChecker.SetParamTypeAnnotations(paramAnnots)
+	}
+	if returnAnnots := elaborator.GetReturnTypeAnnotations(); len(returnAnnots) > 0 {
+		typeChecker.SetReturnTypeAnnotations(returnAnnots)
+	}
 
 	// CRITICAL: Add exported function types from previously loaded modules
 	// Without this, function imports like "import std/list (map)" fail because
@@ -463,10 +503,19 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 
 	// Register module and cache its constructors for future imports
 	mr.mu.Lock()
+	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: snapshot the elaborator's local type
+	// aliases so future modules importing from this one can resolve declared
+	// signatures (e.g. `st: CommonsState`). Without this snapshot the alias
+	// vanishes after LoadModule returns.
+	localAliases := make(map[string]types.Type, len(elabAliases))
+	for k, v := range elabAliases {
+		localAliases[k] = v
+	}
 	mr.modules[name] = &RegisteredModule{
-		Name:    name,
-		Source:  sourceCode,
-		Exports: exports,
+		Name:        name,
+		Source:      sourceCode,
+		Exports:     exports,
+		TypeAliases: localAliases,
 	}
 	// Cache constructors from this module for future import resolution
 	for ctorName, ctorInfo := range elabCtors {
