@@ -597,9 +597,21 @@
         "m-taint-types"
       ],
       "notes": "Adds Phase 1+2 IFC label syntax to the AILANG teaching prompt. Includes the inbox-injection worked example and the DECLASS rule. AI modes section added in M-AI-EFFECT-MODES (v0.15.0)."
+    },
+    "v0.16.1": {
+      "file": "prompts/v0.16.1.md",
+      "hash": "bc3b71f70222fbf5d4430d213ee2503ca6de80ad283fbd11f5cbe4cfee762c37",
+      "description": "v0.16.0 + stdlib coverage backfill (M-PROMPT-STDLIB-COVERAGE): list set-ops + min/max family, string words/splitAny/charCode/foldChars, full math trig + exp/log10 + PI/E constants, bytes concatList, Option helpers (getOrElse/isSome/isNone/map/flatMap/filter), Result helpers (isOk/isErr/unwrap/map/mapErr/flatMap), new std/clock + std/datetime + std/crypto + std/array primitive sections, io.writeBytes + env.hasEnv in effects table, Clock row added to effects table",
+      "created": "2026-05-21",
+      "tags": [
+        "production",
+        "latest",
+        "stdlib-coverage"
+      ],
+      "notes": "Additive patch over v0.16.0 (no syntax changes). Closes ~50 stdlib documentation gaps surfaced by M-VERA-BENCH audit. Worst pre-fix offenders: std/clock (0/2 documented), std/datetime (1/22), std/math trig family (0/10), std/option helpers (3/6), std/result helpers (2/6). Token budget impact: ~600 extra tokens. Same hash discipline as prior versions."
     }
   },
-  "active": "v0.16.0",
+  "active": "v0.16.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
