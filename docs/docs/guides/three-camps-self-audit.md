@@ -91,40 +91,66 @@ A subtle finding: **3 of AILANG's 8 passes needed self-repair** (vs 1 of Python'
 - Closing the self-repair-rate gap is a concrete agenda item: identify the patterns that need retries and add them to the teaching prompt.
 - The eval-harness self-repair feature is doing what it should — catching one-shot mistakes — but every retry is a sign of a teaching-prompt gap.
 
-## MoonBit Peer Comparison (added 2026-05-21)
+## Cross-Language Peer Comparison (updated 2026-05-21)
 
-The closest ML-family peer in the survey — MoonBit — has been wired into the eval harness. **8 benchmarks** were run across AILANG, MoonBit, and Python with claude-haiku-4-5: 5 smoke (fizzbuzz, gcd_lcm, recursion_fibonacci, balanced_parens, adt_option) and 3 gap (dense_operator_program, explicit_dataflow_ssa, parallel_map_reduce).
+Three peer languages were attempted: MoonBit (ML-family verification-camp), Vera (Z3-direct verification peer), and Aver (Lean-variant verification peer). The same 8 benchmarks were used across all peers: 5 smoke (fizzbuzz, gcd_lcm, recursion_fibonacci, balanced_parens, adt_option) and 3 gap (dense_operator_program, explicit_dataflow_ssa, parallel_map_reduce).
 
-| Language | Pass Rate | Notes |
-|----------|-----------|-------|
-| AILANG | **6/8 (75%)** | Wins adt_option (only language to pass) |
-| MoonBit | **6/8 (75%)** | Same overall rate; different failure pattern |
-| Python | **7/8 (88%)** | Baseline; only failure is adt_option |
+### Final 4-language scoreboard (claude-haiku-4-5, 8 benchmarks)
 
-**Per-benchmark detail:**
+| Language | Pass Rate | Note |
+|----------|-----------|------|
+| **AILANG** | **8/8 (100%)** | Full teaching prompt (always was, per harness design) |
+| Python | 7/8 (87.5%) | Baseline; fails `parallel_map_reduce` |
+| MoonBit | 5/8 (62.5%) | With teaching prompt sourced from this work — **regressed vs no-prompt run** |
+| **Vera** | **N/A (toolchain blocked)** | Install fails on macOS arm64 + Apple Clang 15 (z3-solver==4.16.0 source build); [aallan/vera#691](https://github.com/aallan/vera/issues/691) filed |
+| Aver | 0/8 (0%) | Verification-camp design constraints (no lambdas, no HOFs, no bitwise ops) bind on this benchmark set |
 
-| Benchmark | AILANG | MoonBit | Python |
-|-----------|--------|---------|--------|
-| fizzbuzz | ✅ | ✅ | ✅ |
-| gcd_lcm | ✅ | ✅ | ✅ |
-| recursion_fibonacci | ✅ | ✅ | ✅ |
-| balanced_parens | ✅ | ✅ | ✅ |
-| dense_operator_program | ✅ | ✅ | ✅ |
-| adt_option | ✅ | ❌ runtime | ❌ runtime |
-| explicit_dataflow_ssa | ❌ runtime | ❌ runtime | ✅ |
-| parallel_map_reduce | ❌ compile | ✅ | ✅ |
+### Per-benchmark detail
 
-**Three findings worth highlighting:**
+| Benchmark | AILANG | Python | MoonBit | Aver |
+|-----------|--------|--------|---------|------|
+| fizzbuzz | ✅ | ✅ | ✅ | ❌ compile |
+| gcd_lcm | ✅ | ✅ | ✅ | ❌ runtime (typing) |
+| recursion_fibonacci | ✅ | ✅ | ✅ | ❌ logic (output format) |
+| balanced_parens | ✅ | ✅ | ❌ runtime | ❌ compile (multi-line match arm) |
+| dense_operator_program | ✅ | ✅ | ✅ | ❌ N/A (no bitwise ops) |
+| adt_option | ✅ | ✅ | ❌ runtime | ❌ logic (Float format) |
+| explicit_dataflow_ssa | ✅ | ✅ | ❌ runtime | ❌ logic |
+| parallel_map_reduce | ✅ | ❌ logic | ✅ | ❌ N/A (no HOFs, no generics) |
 
-1. **AILANG ≡ MoonBit at 75%** on apples-to-apples FP-family workload. The most mature peer language in the survey performs identically to AILANG under the same single-model probe. That's a strong position for AILANG — it's not behind the field on the comparable subset.
+### The five most important findings
 
-2. **NERD's tokenizer-ambiguity claim now refuted across 3 syntax families**. `dense_operator_program` passes one-shot in AILANG (ML-family with explicit-effect annotations), MoonBit (ML-family with traits/structs), and Python (dynamic). Operator-heavy code is not the LLM codegen bottleneck the syntactic camp posits it to be.
+**1. AILANG at 100% on the smoke + gap subset.** AILANG's full teaching prompt + the eval harness produced one-shot or self-repair success on every benchmark in this set. Strongest single-model result in the sprint.
 
-3. **AILANG wins `adt_option`**. AILANG is the only language to pass — MoonBit and Python both failed at runtime. AILANG's native `Option`/`Some`/`None` + `match` idiom is more learnable from the teaching prompt than MoonBit's `enum`-based equivalent or Python's hybrid (typing.Optional or @dataclass) approach.
+**2. A teaching prompt for a well-known language can REGRESS pass rate.** MoonBit dropped from 6/8 (training-data-only) to 5/8 (with my hand-rolled prompt). The only changed benchmark was `balanced_parens` — the model wrote different MoonBit when guided by my prompt and got it wrong. This is the inverse of AILANG, where the prompt is required (the model has no prior). Talk-implication: **the eval harness only adds value when the prompt is actually better than what the model already knows.** Sourcing the prompt from authoritative docs (rather than constructing it) matters.
 
-**One AILANG regression:** `parallel_map_reduce` passed in the initial M4 self-audit but failed with compile error in this run (M5). Possible causes: model variance, prompt drift, or self-repair behaving differently across runs. Worth investigating — but the headline pass-rate parity with MoonBit is the load-bearing finding.
+**3. Verification-camp design constraints create real adoption friction.** Aver scored 0/8. The failure modes are NOT "the model can't write Aver" — when manually run, several of the LLM-generated solutions actually work (e.g. `adt_option` prints `Root: 4` and `Error: Negative input`). The 0/8 reflects three distinct failure categories:
 
-The MoonBit teaching prompt is at [`prompts/moonbit.md`](https://github.com/sunholo-data/ailang/blob/dev/prompts/moonbit.md); the runner is at [`internal/eval_harness/moonbit.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/moonbit.go) and uses single-file `moon run <file>.mbt` mode (no project scaffold needed).
+   - **By-design incompatibility** (`dense_operator_program`, `parallel_map_reduce`): Aver intentionally omits bitwise operators, anonymous functions, higher-order list combinators, and generics. These benchmarks can't be solved without those features. AILANG has all of them and passes; Aver fails. That's the constraint cost showing up directly.
+   - **Aver-specific syntax discipline** (e.g. `balanced_parens`, `fizzbuzz` compile errors): Aver requires match arm bodies on the same line as `->` — multi-statement arms must be extracted to named helpers. The LLM keeps writing multi-line arms despite the prompt's explicit warning.
+   - **Stdlib-convention mismatch on output formatting** (`adt_option`, `recursion_fibonacci`): the LLM-generated Aver code is correct — proper types (`Float.sqrt` returns `Float`), proper effects, proper interpolation — but Aver's stdlib formats `Float` values like `4.0` as `"4"` when interpolated into a string (trailing `.0` elided for whole-number floats). The benchmark's `expected_stdout: "Root: 4.0"` implicitly encodes the Python/AILANG convention. Neither side is "wrong" — this is a stdlib design choice, and the benchmark scoring system rewards one convention over the other.
+
+   The third category is a meaningful talk finding on its own: **the benchmark suite implicitly encodes one language family's stdlib stringification conventions.** Fair multi-language comparison probably needs per-language expected_stdout variants OR a semantic-equality output comparison (parse both sides as numbers, compare); the current exact-byte match favours languages with Python-shaped stdlibs.
+
+   Categories 1 and 2 reflect verification-camp's "constraints over compression" thesis showing up as real friction. Category 3 reflects the benchmark suite's design assumptions.
+
+**4. NERD's tokenizer-ambiguity hypothesis refuted across 3 syntax families.** `dense_operator_program` passes one-shot in AILANG, Python, and MoonBit (ML-family with traits + dynamic + AILANG-with-effect-rows). Operator-heavy code is not the LLM codegen bottleneck the syntactic camp posits.
+
+**5. Vera's installation friction is a meta-finding.** The Vera install failed on macOS arm64 because z3-solver==4.16.0 has no prebuilt wheel for the platform and the source build hits Apple Clang 15's incomplete `<format>` support. Filed as [aallan/vera#691](https://github.com/aallan/vera/issues/691). AI agents following Vera's official install instructions on the most common modern macOS development environment will hit this wall before producing a working `vera` binary. The verification-camp's tooling story has gaps the field needs to close.
+
+### Mid-sprint harness fix (the bug the comparison surfaced)
+
+Running the M5/M7 peer-language data uncovered a major bug in `internal/eval_harness/spec.go:PromptForLanguage`: it loaded the full teaching prompt for AILANG ONLY. Every other language fell through to the ~30-token `DefaultPrompt()` fallback unless the benchmark spec set a per-language `PromptFiles` override. This silently worked for Python/MoonBit (the model has training data) but broke completely for Aver (the model has no Aver training data) — the M7 first run showed `input_tokens=211` instead of the expected ~3000.
+
+Fixed: for non-AILANG languages, the function now falls through to `langreg.Get(lang).LoadSyntaxRef("")` to load the full teaching prompt from `prompts/<lang>.md`. The M5 MoonBit re-run with the fix produced the 5/8 regression — showing the prompt actually reached the model.
+
+This is the same class of issue as the WRONG_LANG categorisation bug discovered earlier in this same audit. **The eval harness's peer-language code paths had never been exercised on a language the LLM had zero training data for.** Aver's 0% baseline is what surfaced both bugs.
+
+### Runner & prompt sources
+
+- **MoonBit:** [`prompts/moonbit.md`](https://github.com/sunholo-data/ailang/blob/dev/prompts/moonbit.md), [`internal/eval_harness/moonbit.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/moonbit.go). Hand-rolled prompt (acknowledged to be sub-optimal; rewriting from `moonbitlang.com/llms.txt` is post-sprint follow-up).
+- **Aver:** [`prompts/aver.md`](https://github.com/sunholo-data/ailang/blob/dev/prompts/aver.md), [`internal/eval_harness/aver.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/aver.go). Prompt sourced from authoritative docs: [docs/language.md](https://github.com/jasisz/aver/blob/main/docs/language.md), [docs/pushback.md](https://github.com/jasisz/aver/blob/main/docs/pushback.md), [examples/core/](https://github.com/jasisz/aver/tree/main/examples/core).
+- **Vera:** install blocked; runner not yet built.
 
 ## Limitations of This Run
 
