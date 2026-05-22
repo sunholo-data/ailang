@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -62,9 +63,13 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	core := filterBenchmarksByTier(all, []string{"core"})
 	stretch := filterBenchmarksByTier(all, []string{"stretch"})
 	vision := filterBenchmarksByTier(all, []string{"vision"})
+	experimental := filterBenchmarksByTier(all, []string{"experimental"})
 
 	// Sum must equal total (each benchmark has exactly one tier).
-	if got := len(smoke) + len(core) + len(stretch) + len(vision); got != len(all) {
+	// "experimental" tier added 2026-05-22 for diagnostic probes (probes
+	// measure gaps, don't score capability) — included in the sum invariant
+	// but NOT in the distribution drift detector below.
+	if got := len(smoke) + len(core) + len(stretch) + len(vision) + len(experimental); got != len(all) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
@@ -72,7 +77,8 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// Prior baseline (post-M5): 15/21/11/6. Bumped when CI red on dev caught
 	// new benchmarks added since the original baseline. Refresh again when
 	// drift outgrows the ±3 envelope (don't widen tolerance — bump the
-	// target counts to match reality).
+	// target counts to match reality). Experimental tier is intentionally
+	// excluded — probe count grows independently.
 	checkTierCount(t, "smoke", len(smoke), 17, 3)
 	checkTierCount(t, "core", len(core), 32, 3)
 	checkTierCount(t, "stretch", len(stretch), 11, 3)
@@ -126,17 +132,35 @@ func TestParseMatrixFlags(t *testing.T) {
 }
 
 // TestLoadBenchmarkTags loads the real benchmark directory and asserts
-// every benchmark has 1-3 tags (invariant already enforced by
-// TestAllBenchmarksHaveTierAndTags in eval_harness; this is the CLI-side
-// smoke that the primitive sees them too).
+// every benchmark has 1-3 tags for standard tiers, 1-5 for experimental
+// (invariant already enforced by TestAllBenchmarksHaveTierAndTags in
+// eval_harness; this is the CLI-side smoke that the primitive sees them too).
 func TestLoadBenchmarkTags(t *testing.T) {
 	tags := eval_analysis.LoadBenchmarkTags("../../benchmarks")
 	if len(tags) == 0 {
 		t.Skip("no benchmarks found at ../../benchmarks")
 	}
+	// Build a tier index alongside the tag map so we can apply the
+	// per-tier cap (standard: 1-3; experimental: 1-5).
+	specPaths, err := filepath.Glob("../../benchmarks/*.yml")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	tiers := map[string]string{}
+	for _, p := range specPaths {
+		spec, err := eval_harness.LoadSpec(p)
+		if err != nil {
+			continue
+		}
+		tiers[spec.ID] = spec.Tier
+	}
 	for id, ts := range tags {
-		if len(ts) < 1 || len(ts) > 3 {
-			t.Errorf("benchmark %s: %d tags (want 1-3)", id, len(ts))
+		maxTags := 3
+		if tiers[id] == "experimental" {
+			maxTags = 5
+		}
+		if len(ts) < 1 || len(ts) > maxTags {
+			t.Errorf("benchmark %s: %d tags (want 1-%d for tier %q)", id, len(ts), maxTags, tiers[id])
 		}
 	}
 }

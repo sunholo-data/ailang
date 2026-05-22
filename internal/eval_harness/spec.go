@@ -36,13 +36,16 @@ type BenchmarkSpec struct {
 	InputFiles map[string]string `yaml:"input_files,omitempty"` // Files to create in workspace: {filename: content}
 
 	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
-	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision. Missing defaults to "core".
+	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision|experimental. Missing defaults to "core".
 	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.
 }
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.
 // Tier structure is defined in design_docs/planned/v0_13_0/m-benchmark-suite-tiers.md.
-var ValidTiers = []string{"smoke", "core", "stretch", "vision"}
+// "experimental" is reserved for diagnostic-purpose probes (expected_gain: "diagnostic")
+// that measure language gaps rather than score language capability — they are excluded
+// from the smoke/core/stretch/vision distribution targets.
+var ValidTiers = []string{"smoke", "core", "stretch", "vision", "experimental"}
 
 // ValidTagTaxonomy lists the 12-tag taxonomy for BenchmarkSpec.Tags.
 // Tag definitions are in design_docs/planned/v0_13_0/m-eval-category-analysis.md §Component 1.
@@ -111,8 +114,17 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 	} else if !isValidTier(spec.Tier) {
 		return nil, fmt.Errorf("spec %q: invalid tier %q (must be one of %v)", spec.ID, spec.Tier, ValidTiers)
 	}
-	if len(spec.Tags) > 3 {
-		return nil, fmt.Errorf("spec %q: too many tags (%d); max 3 per benchmark", spec.ID, len(spec.Tags))
+	// Tag-count cap: standard benchmarks limited to 1-3 canonical taxonomy tags.
+	// Experimental-tier diagnostic probes are exempt — they carry extra meta-tags
+	// (e.g. "programbench_probe", "argv", "fs_read") that aren't in the canonical
+	// 12-tag taxonomy but identify probe semantics. Cap is loosened to 5 for these,
+	// still bounded to prevent unbounded tag sprawl.
+	maxTags := 3
+	if spec.Tier == "experimental" {
+		maxTags = 5
+	}
+	if len(spec.Tags) > maxTags {
+		return nil, fmt.Errorf("spec %q: too many tags (%d); max %d per benchmark", spec.ID, len(spec.Tags), maxTags)
 	}
 	for _, tag := range spec.Tags {
 		if !isKnownTag(tag) {

@@ -247,7 +247,8 @@ tags: [a, b, c, d]
 
 func TestValidTiers_EnumMembers(t *testing.T) {
 	// Every tier in ValidTiers should be accepted; unknown should be rejected.
-	want := map[string]bool{"smoke": true, "core": true, "stretch": true, "vision": true}
+	// "experimental" reserved for diagnostic probes — see spec.go ValidTiers comment.
+	want := map[string]bool{"smoke": true, "core": true, "stretch": true, "vision": true, "experimental": true}
 	if len(ValidTiers) != len(want) {
 		t.Errorf("ValidTiers has %d entries, want %d", len(ValidTiers), len(want))
 	}
@@ -313,8 +314,14 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 		if len(spec.Tags) == 0 {
 			t.Errorf("%s: no tags (every benchmark must have 1-3 tags from taxonomy)", base)
 		}
-		if len(spec.Tags) > 3 {
-			t.Errorf("%s: %d tags (max 3)", base, len(spec.Tags))
+		// Tag count cap: standard tiers are 1-3 canonical taxonomy tags;
+		// experimental probes are permitted up to 5 (see spec.go LoadSpec).
+		maxTags := 3
+		if spec.Tier == "experimental" {
+			maxTags = 5
+		}
+		if len(spec.Tags) > maxTags {
+			t.Errorf("%s: %d tags (max %d for tier %q)", base, len(spec.Tags), maxTags, spec.Tier)
 		}
 		tierCounts[spec.Tier]++
 	}
@@ -323,6 +330,10 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// added 14 gap benchmarks (3 smoke, 8 core, 0 stretch, 3 vision).
 	// Post-M-THREE-CAMPS centers: 18/29/11/9 (total 67). Tolerance ±3 kept so
 	// future benchmark adds trigger the drift check instead of silently bloating.
+	// "experimental" tier (diagnostic probes) is intentionally excluded from
+	// the distribution drift check — probes measure language gaps, not score
+	// capability, so their count growth is independent of the smoke/core/stretch/vision
+	// budget.
 	if smoke := tierCounts["smoke"]; smoke < 15 || smoke > 21 {
 		t.Errorf("smoke count = %d, want 18±3", smoke)
 	}
@@ -335,7 +346,7 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)
 	}
-	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d (total %d)",
+	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d experimental=%d (total %d)",
 		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["vision"],
-		benchCount)
+		tierCounts["experimental"], benchCount)
 }
