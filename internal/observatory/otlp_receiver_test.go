@@ -148,6 +148,10 @@ func TestValidateTaskHierarchy_ValidReferences(t *testing.T) {
 }
 
 // TestValidateTaskHierarchy_InvalidReferences tests validation with non-existent references.
+//
+// M-EVAL-LOCAL-OBSERVABILITY: validateTaskHierarchy now actively SANITIZES (clears)
+// missing FK references rather than just logging warnings. The INSERT downstream
+// must not fail on FOREIGN KEY constraint. This is the M1 acceptance test.
 func TestValidateTaskHierarchy_InvalidReferences(t *testing.T) {
 	backend := newTestBackend(t)
 	receiver := NewOTLPReceiver(backend)
@@ -160,11 +164,65 @@ func TestValidateTaskHierarchy_InvalidReferences(t *testing.T) {
 		AgentAssignmentID: "aa_nonexistent",
 	}
 
-	// Validate - should log warnings but not fail
+	// Validate - should clear the missing FK references AND not fail
 	receiver.validateTaskHierarchy(ctx, span)
 
-	// If we get here without panic, the test passes
-	// In production, warnings would be logged
+	// M-EVAL-LOCAL-OBSERVABILITY M1: missing FKs MUST be cleared so the
+	// downstream CreateSpan INSERT doesn't fail with FOREIGN KEY constraint.
+	if span.TaskID != "" {
+		t.Errorf("expected TaskID to be cleared (was missing), got %q", span.TaskID)
+	}
+	if span.AgentAssignmentID != "" {
+		t.Errorf("expected AgentAssignmentID to be cleared (was missing), got %q", span.AgentAssignmentID)
+	}
+}
+
+// TestCreateSpan_MissingTaskID_StoresWithNull is the M1 acceptance test for
+// M-EVAL-LOCAL-OBSERVABILITY. Before the fix, spans referencing a non-existent
+// task_id triggered FOREIGN KEY constraint failures and were dropped entirely
+// (zero spans landed in observatory.db during eval-suite runs). After the fix,
+// validateTaskHierarchy clears the missing FK reference so the INSERT succeeds
+// with task_id=NULL and the span is retained for live monitoring.
+func TestCreateSpan_MissingTaskID_StoresWithNull(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+	ctx := context.Background()
+
+	// Build a realistic span like the ones eval-suite emits via opencode:
+	// has a task_id attribute but no corresponding row in the tasks table.
+	endTime := time.Now().Add(60 * time.Second)
+	span := &Span{
+		ID:        "span-eval-fizzbuzz",
+		TraceID:   "trace-eval-1779462644097116000",
+		Name:      "opencode.execute",
+		Kind:      SpanKindInternal,
+		Status:    SpanStatusUnset,
+		StartTime: time.Now(),
+		EndTime:   &endTime,
+		TaskID:    "eval-1779462644097116000", // never inserted in tasks table
+	}
+
+	// Sanitize (M1 fix)
+	receiver.validateTaskHierarchy(ctx, span)
+
+	// INSERT must succeed (no FK error)
+	if err := backend.CreateSpan(ctx, span); err != nil {
+		t.Fatalf("expected CreateSpan to succeed after sanitization, got error: %v", err)
+	}
+
+	// Span must be retrievable
+	stored, err := backend.GetSpan(ctx, span.ID)
+	if err != nil {
+		t.Fatalf("expected to find stored span, got error: %v", err)
+	}
+	if stored == nil {
+		t.Fatalf("expected stored span to exist, got nil")
+	}
+
+	// task_id must be NULL (empty) since the parent task did not exist
+	if stored.TaskID != "" {
+		t.Errorf("expected stored.TaskID to be empty (parent missing → NULL), got %q", stored.TaskID)
+	}
 }
 
 // TestExtractTaskIDFromCwd tests task ID extraction from worktree paths.

@@ -106,22 +106,43 @@ func (r *OTLPReceiver) shouldFilterSpan(name string, resourceAttrs map[string]an
 	return false
 }
 
-// validateTaskHierarchy validates that task_id and assignment_id references exist.
-// Logs warnings if they don't - spans are still stored but with a warning.
+// validateTaskHierarchy validates that task_id and assignment_id references
+// exist, and CLEARS them if they don't.
+//
+// M-EVAL-LOCAL-OBSERVABILITY (v0.22.0): Previously this only logged warnings
+// and let the INSERT downstream fail on FOREIGN KEY constraint, which dropped
+// ALL spans for eval-suite-driven runs (eval-suite generates task_id attributes
+// like "eval-<timestamp>" without inserting parent rows in the tasks table).
+//
+// Now: when a referenced task or assignment is missing, the field is set to ""
+// (which downstream code translates to SQL NULL via the interface{} pattern).
+// The span is still stored — just with a NULL parent reference — so live
+// monitoring can see it. This is the right model: eval-suite tasks are
+// ephemeral; coordinator tasks are durable; both should produce queryable
+// spans regardless of whether the parent row exists.
+//
+// Cleared FK references mean:
+//   - Aggregation updates (UpdateTaskAggregates / UpdateAgentAssignmentAggregates)
+//     short-circuit gracefully because they already check for empty IDs.
+//   - GetTaskHierarchy / GetTaskSpanSummary queries don't return this span
+//     under a particular task — correct, because it has no task parent.
+//   - The span is still queryable by trace_id, name, span_id, etc.
 func (r *OTLPReceiver) validateTaskHierarchy(ctx context.Context, span *Span) {
-	// Validate task_id if present
+	// Validate task_id if present; clear if parent missing
 	if span.TaskID != "" {
 		task, err := r.backend.GetTask(ctx, span.TaskID)
 		if err != nil || task == nil {
-			fmt.Printf("observatory: WARNING: span %s has task_id=%s but task not found\n", span.ID, span.TaskID)
+			fmt.Printf("observatory: span %s has task_id=%s but task not found — storing with task_id=NULL\n", span.ID, span.TaskID)
+			span.TaskID = ""
 		}
 	}
 
-	// Validate assignment_id if present
+	// Validate assignment_id if present; clear if parent missing
 	if span.AgentAssignmentID != "" {
 		assignment, err := r.backend.GetAgentAssignment(ctx, span.AgentAssignmentID)
 		if err != nil || assignment == nil {
-			fmt.Printf("observatory: WARNING: span %s has assignment_id=%s but assignment not found\n", span.ID, span.AgentAssignmentID)
+			fmt.Printf("observatory: span %s has assignment_id=%s but assignment not found — storing with assignment_id=NULL\n", span.ID, span.AgentAssignmentID)
+			span.AgentAssignmentID = ""
 		}
 	}
 }
