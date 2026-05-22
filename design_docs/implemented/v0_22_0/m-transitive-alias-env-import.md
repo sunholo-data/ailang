@@ -1,11 +1,12 @@
 # M-TRANSITIVE-ALIAS-ENV-IMPORT — propagate transitively-imported type aliases into the unifier's aliasEnv
 
-**Status**: Planned — P0
-**Target**: v0.21.x patch / v0.22.0
-**Priority**: P0 — blocks `motoko_agent` PR #28 and silently breaks any package that splits record-type aliases across multiple modules
-**Estimated**: < 1 day (~30 LOC + regression test)
-**Risk**: LOW — additive: the fix only widens the alias-env, never narrows it; collisions resolved by existing local-wins precedence
-**Source**: 2026-05-22 `motoko_agent` bug report (`msg_20260522_170317_f850eba4`). Repro reproduces locally on `v0.21.0-4-gdf2ed8de-dirty`.
+**Status**: Implemented — shipped in commit `8e3d2d30` on `dev` (2026-05-22)
+**Target**: v0.22.0 (committed to `dev`; first release including this fix tbd)
+**Priority**: P0 — unblocks `motoko_agent` PR #28 and prevents silent breakage of every package that splits record-type aliases across multiple modules
+**Estimated / Actual**: < 1 day estimated; ~4 hours actual (~167 LOC test + 15 LOC implementation + 33 LOC changelog)
+**Risk**: LOW (confirmed) — additive: the fix only widens the alias-env, never narrows it; collisions resolved by existing local-wins precedence; regression test verified to fail on pre-fix HEAD with exact original error
+**Source**: 2026-05-22 `motoko_agent` bug report (`msg_20260522_170317_f850eba4`). Repro reproduced locally on `v0.21.0-4-gdf2ed8de-dirty`.
+**Evaluation**: PASS at 94/110 (85%) — see `.ailang/state/evaluations/eval_M-TRANSITIVE-ALIAS-ENV-IMPORT_round_1.json`.
 **Related**:
 - Surfaced by: [`3325d39f`](../../../) (M-SCHEME-IMPORT-PRESERVE-ADT-HEAD, 2026-05-20) — tightened generalization, exposed pre-existing gap masked by leaky TVars
 - WASM-side analog: `ad84b68d` (M-WASM-TYPECHECK-FLOAT-DIVERGENCE — propagated imported aliases in `repl/module_registry`)

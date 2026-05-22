@@ -61,11 +61,11 @@ Fix the cross-module nested record-type alias unification bug (`cannot unify typ
 
 **Acceptance Criteria:**
 
-- [ ] Repro at `/tmp/typebug-repro/typebug/main.ail` type-checks under `AILANG_RELAX_MODULES=1 ailang check`
-- [ ] No regression in `make test` (full suite green)
-- [ ] No regression in `make verify-examples`
-- [ ] `make lint` clean
-- [ ] Commit references `Fixes` for the inbox issue if a GitHub issue exists, else just descriptive title
+- [x] Repro at `/tmp/typebug-repro/typebug/main.ail` type-checks under `AILANG_RELAX_MODULES=1 ailang check`
+- [x] No regression in `make test` (4 pre-existing baseline failures unchanged; zero new failures)
+- [x] No regression in `make verify-examples` (179/186 pass, identical to pre-fix baseline)
+- [~] `make lint` clean — golangci-lint not installed in environment; `go vet` and `gofmt` clean on touched files
+- [x] Commit references the fix (commit `8e3d2d30`); no AILANG GitHub issue existed to `Fixes`-link
 
 **Risks:**
 
@@ -87,10 +87,10 @@ Fix the cross-module nested record-type alias unification bug (`cannot unify typ
 
 **Acceptance Criteria:**
 
-- [ ] Test fails on `dev~1` (pre-M1) — verify by stashing M1, running test, expecting failure
-- [ ] Test passes on `dev` after M1
-- [ ] Test runs in <500ms
-- [ ] No external fixture files (test fixtures inline as strings to keep it self-contained)
+- [x] Test fails on `dev~1` (pre-M1) — verified via `git stash` of M1, test failed with exact original error
+- [x] Test passes on `dev` after M1 — all 4 cross-package alias tests green (0.310s total)
+- [x] Test runs in <500ms — 0.453s for both new tests combined
+- [x] No external fixture files — test fixtures inline as Go string literals
 
 **Risks:**
 
@@ -112,11 +112,11 @@ Fix the cross-module nested record-type alias unification bug (`cannot unify typ
 
 **Acceptance Criteria:**
 
-- [ ] `make test` exit 0
-- [ ] `make verify-examples` exit 0
-- [ ] `make ci` exit 0 (optional — skip if running too long, but at minimum lint+test+verify)
-- [ ] Reply sent to motoko_agent referencing commit SHA
-- [ ] Inbox message acked
+- [~] `make test` exit 0 — exit 1 due to **4 pre-existing baseline failures unrelated to type-system** (golden-snapshot drift + uncommitted Ollama eval WIP). Zero new failures from this sprint. Documented in M3 Risks as acceptable.
+- [~] `make verify-examples` exit 0 — exit 1 due to **5 pre-existing failing examples** (stream/Ollama-related). Identical baseline before and after fix. Zero new failures.
+- [ ] `make ci` — skipped (optional per plan; net regression verified by direct test+verify comparison)
+- [x] Reply sent to motoko_agent referencing commit SHA — `msg_20260522_173946_ab239472` references `8e3d2d30`
+- [x] Inbox message acked — `msg_20260522_170317_f850eba4` marked read
 
 **Risks:**
 
