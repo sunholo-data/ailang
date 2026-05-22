@@ -45,6 +45,5 @@ allow:
   - id: GO-2025-3557
     reason: Ollama upstream unpatched; tracked via Dependabot.
     expires: 2026-07-31
-  - id: GO-2025-3548
-    reason: Ollama upstream unpatched; tracked via Dependabot.
-    expires: 2026-07-31
+  # GO-2025-3548 removed 2026-05-22 — flagged as stale by govulncheck-filter
+  # (upstream Ollama fix landed; no longer reachable via current deps).
