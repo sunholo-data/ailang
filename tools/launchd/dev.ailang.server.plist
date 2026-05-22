@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  M-EVAL-LOCAL-OBSERVABILITY M4: launchd plist for ailang server.
+
+  Runs `ailang serve` at boot so the local OTLP receiver is always
+  available for the 24/7 eval rotation. Without this, observability
+  is only available when the user manually runs `make services-start`.
+
+  Installation (per-user, no sudo needed):
+
+    cp tools/launchd/dev.ailang.server.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.server.plist
+
+  Verify:
+
+    launchctl list | grep dev.ailang.server
+    curl -s http://localhost:1957/health
+
+  Stop / unload:
+
+    launchctl unload ~/Library/LaunchAgents/dev.ailang.server.plist
+
+  This file is checked into the repo so the rig setup is reproducible.
+  After copying to LaunchAgents, edit if your $HOME or $GOPATH differ.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>exec "$HOME/go/bin/ailang" serve</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-server-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-server-launchd.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/voightkampff</string>
+
+    <!-- Don't restart faster than every 10 seconds if it keeps crashing -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
