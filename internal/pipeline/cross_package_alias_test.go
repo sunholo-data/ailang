@@ -276,3 +276,193 @@ export func main() -> int {
 		t.Fatal("Expected compiled modules, got none")
 	}
 }
+
+// TestCrossModuleNestedRecordAlias is the regression test for
+// M-TRANSITIVE-ALIAS-ENV-IMPORT.
+//
+// Scenario from the motoko_agent bug report (msg_20260522_170317_f850eba4):
+//
+//	Package A: defines `type Inner = { name: string }`
+//	Package B: imports Inner from A, exports `type Outer = { items: [Inner] }`
+//	           plus `build() -> Outer` and `use_outer(o: Outer) -> int`
+//	Package C: imports only build + use_outer from B, calls `use_outer(build())`
+//
+// Pre-fix the call-site unification fails with
+//
+//	cannot unify type constructor Inner with *types.TRecord
+//
+// because C's Unifier.aliasEnv lacks `Inner` (B's iface only carries `Outer`,
+// and C never directly imports A). Post-fix `resolveModuleImports` walks the
+// linker's full closure of loaded ifaces, so `Inner` reaches C's aliasEnv and
+// `expandAlias(TCon("Inner"))` resolves correctly.
+//
+// This is distinct from TestTransitiveTypeAliasPropagation above: that test
+// sidesteps the bug by having package B inline the structural record type
+// in its signatures. This test forces B to use A's alias nominally,
+// exercising the exact failure mode the bug describes.
+func TestCrossModuleNestedRecordAlias(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "ailang-nested-alias-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pkgA := filepath.Join(tempDir, "pkg_a")
+	pkgB := filepath.Join(tempDir, "pkg_b")
+	if err := os.MkdirAll(pkgA, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pkgB, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Package A declares the leaf alias.
+	pkgAContent := `module pkg_a/types
+
+export type Inner = { name: string }
+`
+	if err := os.WriteFile(filepath.Join(pkgA, "types.ail"), []byte(pkgAContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Package B imports Inner and nests it inside its own exported record alias.
+	pkgBContent := `module pkg_b/lib
+
+import pkg_a/types (Inner)
+
+export type Outer = { items: [Inner] }
+
+export pure func build() -> Outer {
+    { items: [{name: "a"}, {name: "b"}] }
+}
+
+export pure func use_outer(o: Outer) -> int {
+    match o.items {
+        [] => 0,
+        _ :: _ => 1
+    }
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgB, "lib.ail"), []byte(pkgBContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Package C imports B's functions but NOT pkg_a/types — yet Inner must
+	// still be reachable to the unifier through B's transitive iface.
+	mainContent := `module main
+
+import pkg_b/lib (build, use_outer)
+
+export func main() -> int {
+    let v = build();
+    use_outer(v)
+}
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "main.ail"), []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalDir, err2 := os.Getwd()
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(originalDir)
+
+	src := Source{Filename: "main.ail"}
+	cfg := Config{Mode: ModeCheck}
+	result, compileErr := Run(cfg, src)
+	if compileErr != nil {
+		t.Fatalf("Cross-module nested record alias failed to type-check: %v", compileErr)
+	}
+	if len(result.Modules) == 0 {
+		t.Fatal("Expected compiled modules, got none")
+	}
+}
+
+// TestCrossModuleAliasCollisionPrecedence verifies that when two modules
+// export same-named aliases with different bodies, the direct-import
+// precedence wins for the importer.
+//
+// Pre-existing behavior (preserved by M-TRANSITIVE-ALIAS-ENV-IMPORT's
+// first-wins guard): direct-import aliases populate first; the transitive
+// closure pass only fills gaps. Local aliases beat both.
+func TestCrossModuleAliasCollisionPrecedence(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "ailang-alias-collision-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pkgA := filepath.Join(tempDir, "pkg_a")
+	pkgB := filepath.Join(tempDir, "pkg_b")
+	if err := os.MkdirAll(pkgA, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pkgB, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// pkg_a.Status has a `code` field of type int.
+	pkgAContent := `module pkg_a/status
+
+export type Status = { code: int }
+
+export pure func ok() -> Status {
+    { code: 200 }
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgA, "status.ail"), []byte(pkgAContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// pkg_b.Status has a `text` field of type string — incompatible with pkg_a.Status.
+	// Plus a helper function so main has something else to import from pkg_b.
+	pkgBContent := `module pkg_b/status
+
+export type Status = { text: string }
+
+export pure func describe(s: Status) -> string {
+    s.text
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgB, "status.ail"), []byte(pkgBContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// main directly imports Status from pkg_a only. Importing pkg_b's
+	// `describe` function pulls pkg_b's iface into the linker's loaded set
+	// — but main's direct import of pkg_a.Status must win (first-wins
+	// guard) so `ok()` typechecks against pkg_a.Status, not pkg_b.Status.
+	mainContent := `module main
+
+import pkg_a/status (Status, ok)
+import pkg_b/status (describe)
+
+export func main() -> int {
+    let s = ok();
+    s.code
+}
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "main.ail"), []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalDir, err2 := os.Getwd()
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(originalDir)
+
+	src := Source{Filename: "main.ail"}
+	cfg := Config{Mode: ModeCheck}
+	_, compileErr := Run(cfg, src)
+	if compileErr != nil {
+		t.Fatalf("Alias-collision precedence broke direct-import resolution: %v", compileErr)
+	}
+}

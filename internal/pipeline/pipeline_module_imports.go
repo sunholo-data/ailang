@@ -94,6 +94,30 @@ func resolveModuleImports(
 		}
 	}
 
+	// M-TRANSITIVE-ALIAS-ENV-IMPORT: pull aliases from every loaded module's
+	// iface, not just direct deps. Required when module A declares `type Inner`,
+	// module B imports Inner and re-uses it inside its own exported types
+	// (e.g. `Outer = {items: [Inner]}`), and module C imports B but not A —
+	// C's unifier needs A's alias to expand TCon("Inner") → TRecord during
+	// cross-module function-call unification.
+	//
+	// The first-wins guard preserves precedence: direct-import aliases populated
+	// above run first; this loop only fills in transitively-reachable gaps.
+	// Symmetric to ad84b68d (WASM path); see m-transitive-alias-env-import.md.
+	for modPath, modIface := range modLinker.GetLoadedModules() {
+		if modPath == "$builtin" || modIface == nil {
+			continue
+		}
+		for aliasName, aliasTarget := range modIface.TypeAliases {
+			if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
+				imports.ImportedTypeAliases[aliasName] = aliasTarget
+				if cfg.TraceDefaulting {
+					fmt.Printf("  Transitive type alias %s -> %s (from %s)\n", aliasName, aliasTarget, modPath)
+				}
+			}
+		}
+	}
+
 	return imports
 }
 
