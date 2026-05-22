@@ -187,14 +187,21 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if maxCost := cfg.ResolvedMaxCostUSD(); maxCost > 0 {
 				task.Budget = executor.NewCostBudget(maxCost, cfg.Pricing.InputPer1K, cfg.Pricing.OutputPer1K)
 			}
-			// Per-benchmark spec.Timeout (e.g. csv_to_json's 180s override) wins.
-			// Otherwise per-model budgets:hard_timeout_secs takes precedence over
-			// the CLI agent-timeout default (typically 60s) — the whole point of
-			// this milestone is that wall-clock is a safety net, not a cost proxy.
-			if spec.Timeout == 0 {
-				if hardSecs := cfg.ResolvedHardTimeoutSecs(); hardSecs > 0 {
-					task.Timeout = time.Duration(hardSecs) * time.Second
-				}
+			// M-EVAL-LOCAL-OLLAMA (v0.22.0): take the MAX of spec.Timeout and
+			// model.HardTimeoutSecs rather than letting spec.Timeout veto. The
+			// benchmark spec timeout is cloud-tuned (Sonnet 4.6 speeds); local
+			// Ollama models need their own slower budget to apply. For cloud
+			// models with cost budgets, the wall-clock bump is a no-op because
+			// cost trips first; for local models (pricing=0, no cost gate) this
+			// is the only gate, so it must reflect the model's actual speed.
+			specT := spec.Timeout
+			hardSecs := cfg.ResolvedHardTimeoutSecs()
+			effective := specT
+			if hardSecs > effective {
+				effective = hardSecs
+			}
+			if effective > 0 {
+				task.Timeout = time.Duration(effective) * time.Second
 			}
 		}
 	}

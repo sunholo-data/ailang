@@ -32,8 +32,15 @@ type providerAdapter struct {
 const defaultMaxTokens = 4096
 
 // newProviderAdapter creates a provider adapter for the given model.
-func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
-	providerType := ai.GuessProvider(model)
+// If explicitProvider is non-empty, it overrides name-based inference — this
+// honors the provider field set in models.yml (the source of truth) so that
+// api_name strings without provider-identifying prefixes (e.g. "gemma4:26b",
+// "codellama:7b") still route correctly.
+func newProviderAdapter(model string, apiKey string, explicitProvider ai.ProviderType) (*providerAdapter, error) {
+	providerType := explicitProvider
+	if providerType == "" {
+		providerType = ai.GuessProvider(model)
+	}
 
 	var provider ai.Provider
 	switch providerType {

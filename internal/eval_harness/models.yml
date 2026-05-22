@@ -1036,24 +1036,31 @@ models:
       Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
 
   opencode-gemma4-26b:
-    api_name: "gemma4:26b-a4b-it-q4_K_M"
+    api_name: "gemma4:26b"
     provider: "ollama"
-    description: "Gemma 4 26B MoE (3.8B active params) via opencode+Ollama — eval-grade local model"
+    description: "Gemma 4 26B (Q4_K_M, dense, 17GB) via opencode+Ollama — eval-grade local model"
     env_var: ""
     agent_cli: "opencode"
-    agent_model_name: "ollama/gemma4:26b-a4b-it-q4_K_M"
+    agent_model_name: "ollama/gemma4:26b"
     max_output_tokens: 8192
-    ttft_timeout: 480
-    generation_timeout: 180
+    ttft_timeout: 900            # bumped 480→900: p=4 prefill contention; 5/17 smoke timeouts at 480
+    generation_timeout: 1200     # bumped 600→1200: opencode per-session hard cap
+    budgets:
+      # Local model: cost is $0 (no cost gate). hard_timeout_secs is the only
+      # wall-clock cap. After M-EVAL-LOCAL-OLLAMA fix, this takes precedence
+      # over benchmark-spec timeouts (which are cloud-tuned, too tight for local).
+      hard_timeout_secs: 2400    # bumped 1800→2400: smoke tier showed 3 benchmarks hit 30min cap at p=4
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
     notes: |
-      Gemma 4 26B MoE via Ollama — 25.2B total params, only 3.8B active per token.
-      18GB Q4_K_M — fits Macs with ≥32GB RAM. Significantly better coding quality than E4B.
+      Gemma 4 26B (25.8B params, Q4_K_M dense, 17GB) via Ollama.
+      Fits Macs with ≥32GB RAM. 262k context, vision + tools + thinking capabilities.
       Primary benchmark model for open-source / offline agent eval.
-      Pull: ollama pull gemma4:26b-a4b-it-q4_K_M
+      Pull: ollama pull gemma4:26b
       Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
+      NOTE 2026-05-22: api_name updated from "gemma4:26b-a4b-it-q4_K_M" (MoE variant)
+      to "gemma4:26b" (dense Q4_K_M) — the default Ollama-library tag.
 
   # =============================================================================
   # OpenRouter-routed OS via opencode harness (M-AI-EFFECT-MODES, May 2026)
@@ -1316,6 +1323,25 @@ models:
       Google's Gemma 3 12B model with multimodal capabilities.
       General purpose, not specialized for document extraction.
       Requires: ollama pull gemma3:12b
+
+  ollama-gemma4-26b:
+    api_name: "gemma4:26b"
+    provider: "ollama"
+    description: "Google Gemma 4 26B (Q4_K_M, thinking mode) - direct Ollama smoke target"
+    env_var: ""
+    max_output_tokens: 8192
+    ttft_timeout: 480
+    generation_timeout: 180
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Gemma 4 26B (25.8B params, Q4_K_M, 17GB) via direct Ollama provider — NOT the opencode harness.
+      Runs against http://localhost:11434 using the AILANG-native Ollama client.
+      Tools + thinking + vision capabilities; 262k context.
+      Use this entry for single-shot eval comparisons against opencode-gemma4-26b
+      to isolate harness overhead from raw model capability.
+      Pull: ollama pull gemma4:26b
 
   ollama-granite3-2-vision:
     api_name: "granite3.2-vision:latest"
@@ -1661,6 +1687,7 @@ local_models:
   - "ollama-deepseek-coder"     # DeepSeek Coder 6.7B
   - "ollama-qwen-coder"         # Qwen 2.5 Coder 7B
   - "ollama-llama3-2"           # Llama 3.2 3B (fast)
+  - "ollama-gemma4-26b"         # Gemma 4 26B (Q4_K_M) — direct Ollama, 32GB+ Mac
   - "ollama-granite3-2-vision"  # IBM Granite 3.2 Vision (document OCR)
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 

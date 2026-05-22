@@ -33,8 +33,9 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 		return nil, err
 	}
 
-	// Create unified provider adapter
-	adapter, err := newProviderAdapter(apiName, apiKey)
+	// Create unified provider adapter. Pass the explicit provider from models.yml
+	// so api_names without provider-identifying prefixes (e.g. "gemma4:26b") route correctly.
+	adapter, err := newProviderAdapter(apiName, apiKey, ai.ProviderFromString(provider))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
