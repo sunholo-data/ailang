@@ -199,11 +199,11 @@ Ollama: gemma4:26b  (VRAM 25.76 GB)
 ```
 
 The `⚠ stuck?` indicator fires when the most recent span for a stage is
->300s old AND status is still `running`. Local thinking models can spend
+`>300s` old AND status is still `running`. Local thinking models can spend
 minutes in pure reasoning before emitting visible output — see if `Ollama:`
 header still shows the model with non-zero VRAM and check `ollama runner`
-CPU% (`ps aux | grep "ollama runner"`). If runner CPU is >20%, the model is
-generating; if <1%, it really is stuck.
+CPU% (`ps aux | grep "ollama runner"`). If runner CPU is `>20%`, the model is
+generating; if `<1%`, it really is stuck.
 
 ## Troubleshooting
 
@@ -223,7 +223,7 @@ generating; if <1%, it really is stuck.
   observed prefill needing ~12 min for some benchmarks. Bump
   `opencode-gemma4-26b.ttft_timeout` in models.yml.
 
-**Symptom: high token thrashing (>1M tokens for a simple benchmark)**
+**Symptom: high token thrashing (`>1M` tokens for a simple benchmark)**
 
 - Try raising `-parallel` from 2 to 4. The reduced per-request token rate
   acts as a "think before emitting" governor that suppresses runaway loops.
