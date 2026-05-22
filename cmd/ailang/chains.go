@@ -26,6 +26,7 @@ func chainsCommand() {
 		fmt.Println("Subcommands:")
 		fmt.Println("  list      List execution chains")
 		fmt.Println("  active    List currently active chains")
+		fmt.Println("  live      Single-page refreshing view of an in-flight chain (M-EVAL-LOCAL-OBSERVABILITY)")
 		fmt.Println("  view      View a chain with all stages")
 		fmt.Println("  tree      ASCII tree view of chain hierarchy")
 		fmt.Println("  stats     Cost and token aggregation")
@@ -72,6 +73,8 @@ func chainsCommand() {
 		chainsStatsCommand()
 	case "active":
 		chainsActiveCommand()
+	case "live":
+		chainsLiveCommand()
 	case "diff":
 		chainsDiffCommand()
 	case "find":
