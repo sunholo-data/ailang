@@ -1,6 +1,6 @@
 # M-EVAL-LOCAL-OBSERVABILITY — Reliable local eval observability
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.22.0
 **Priority**: P1 — Blocks the 24/7 local eval rotation from being trustworthy
 **Estimated**: 2–3 days
