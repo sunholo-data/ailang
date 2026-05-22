@@ -1,6 +1,6 @@
 # M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP — Wire chain_id/stage_id into eval-suite OTEL resource attrs
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.22.0
 **Priority**: P2 — Polish for M-EVAL-LOCAL-OBSERVABILITY
 **Estimated**: 30 minutes, ~15 LOC
