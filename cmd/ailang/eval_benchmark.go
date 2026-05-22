@@ -56,12 +56,16 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 	// Agent mode: Use Claude Code headless evaluation
 	if agentConfig != nil {
-		// M-EVAL-CHAINS: Create chain stage for this benchmark
+		// M-EVAL-CHAINS: Create chain stage for this benchmark.
+		// M-EVAL-LOCAL-OBSERVABILITY M2: include benchmark id in agent_id so
+		// `ailang chains view` can distinguish 4 concurrent eval-agent stages
+		// (without this, all 4 stages show as "eval-agent [running]" — useless
+		// for live monitoring on local Ollama where each stage takes 10-25 min).
 		var stageID string
 		if evalChain != nil {
 			stage, err := evalChain.Store.CreateStage(ctx, &observatory.StageCreateRequest{
 				ChainID: evalChain.ChainID,
-				AgentID: "eval-agent",
+				AgentID: "eval-agent:" + benchmarkID,
 			})
 			if err == nil {
 				stageID = stage.ID
@@ -351,11 +355,12 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	}
 
 	// Standard mode: Create chain stage for this benchmark
+	// M-EVAL-LOCAL-OBSERVABILITY M2: include benchmark id in agent_id (see comment above)
 	var stageID string
 	if evalChain != nil {
 		stage, err := evalChain.Store.CreateStage(ctx, &observatory.StageCreateRequest{
 			ChainID: evalChain.ChainID,
-			AgentID: "eval-standard",
+			AgentID: "eval-standard:" + benchmarkID,
 		})
 		if err == nil {
 			stageID = stage.ID
