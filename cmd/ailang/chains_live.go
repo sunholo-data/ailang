@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -186,6 +187,11 @@ func renderLiveChain(w io.Writer, backend observatory.Backend, ctx context.Conte
 
 // lastSpanForStage returns the timestamp of the most recent span for a stage,
 // or zero time if none exists.
+//
+// Implementation note: MAX() over a TIMESTAMP column returns the raw string
+// value (the SQLite driver doesn't apply timestamp conversion to aggregate
+// output), so we Scan into a *string and parse manually. NULL → empty string
+// → zero time (rendered as "(no spans yet)").
 func lastSpanForStage(backend observatory.Backend, ctx context.Context, chainID, stageID string) time.Time {
 	if stageID == "" {
 		return time.Time{}
@@ -195,15 +201,35 @@ func lastSpanForStage(backend observatory.Backend, ctx context.Context, chainID,
 		return time.Time{}
 	}
 	db := sqliteBackend.Store().DB()
-	var t time.Time
-	err := db.QueryRowContext(ctx,
-		`SELECT MAX(COALESCE(end_time, start_time)) FROM spans WHERE stage_id = ?`, stageID).Scan(&t)
-	if err != nil {
-		// Fallback: spans may not have stage_id populated. Try by chain_id+name heuristic.
-		_ = db.QueryRowContext(ctx,
-			`SELECT MAX(COALESCE(end_time, start_time)) FROM spans WHERE chain_id = ?`, chainID).Scan(&t)
+	queryMaxTime := func(query string, arg string) time.Time {
+		var raw sql.NullString
+		if err := db.QueryRowContext(ctx, query, arg).Scan(&raw); err != nil {
+			return time.Time{}
+		}
+		if !raw.Valid || raw.String == "" {
+			return time.Time{}
+		}
+		// SQLite stores timestamps as RFC3339Nano with timezone offset.
+		// Try a couple of common formats — the M-EVAL-LOCAL-OBSERVABILITY
+		// pipeline writes "2026-05-22 21:25:31.927687417+02:00".
+		for _, layout := range []string{
+			"2006-01-02 15:04:05.999999999-07:00",
+			"2006-01-02 15:04:05.999999999Z07:00",
+			time.RFC3339Nano,
+			time.RFC3339,
+		} {
+			if t, err := time.Parse(layout, raw.String); err == nil {
+				return t
+			}
+		}
+		return time.Time{}
 	}
-	return t
+
+	if t := queryMaxTime(`SELECT MAX(COALESCE(end_time, start_time)) FROM spans WHERE stage_id = ?`, stageID); !t.IsZero() {
+		return t
+	}
+	// Fallback: spans may not have stage_id populated (pre-FOLLOWUP chains).
+	return queryMaxTime(`SELECT MAX(COALESCE(end_time, start_time)) FROM spans WHERE chain_id = ?`, chainID)
 }
 
 // ollamaCurrent returns the name + VRAM (GB) of the currently-loaded Ollama
