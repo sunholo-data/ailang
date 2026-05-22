@@ -1,0 +1,35 @@
+// Save this at ~/.config/opencode/opencode.jsonc
+// Edit the "models" map as you add more local models.
+// JSONC format: comments allowed, trailing commas OK.
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama Local",
+      "options": { "baseURL": "http://localhost:11434/v1" },
+      "models": {
+        // Current baseline
+        "gemma4:26b":      { "name": "Gemma 4 26B (local)" },
+
+        // Add new models here as you pull them:
+        // "qwen2.5-coder:32b": { "name": "Qwen 2.5 Coder 32B (local)" },
+        // "qwen3:32b":         { "name": "Qwen3 32B (local)" },
+        // "phi4-reasoning:14b": { "name": "Phi-4 Reasoning 14B (local)" },
+        // "deepseek-coder-v2:16b": { "name": "DeepSeek Coder v2 16B (local)" }
+      }
+    }
+  }
+}
+
+// Verify with: opencode models | grep ollama
+// Expected output (one line per registered model):
+//   ollama/gemma4:26b
+//   ollama/qwen2.5-coder:32b  (if added)
+//   ...
+
+// Troubleshooting:
+// - If opencode doesn't see the model, restart opencode-ai (npm package may cache config)
+// - If "Model not found" at run time, verify ollama has it: ollama list
+// - The /v1 baseURL suffix is required (OpenAI-compatible API surface)
