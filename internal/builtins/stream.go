@@ -15,6 +15,7 @@ func init() {
 	registerStreamConnect()
 	registerStreamSSEConnect()
 	registerStreamSSEPost()
+	registerStreamNDJSONPost()
 	registerStreamSend()
 	registerStreamTransmitBinary()
 	registerStreamOnEvent()
@@ -484,6 +485,74 @@ func makeStreamSSEPostType() types.Type {
 		T.String(),         // url
 		T.String(),         // body
 		streamConfigType(), // config record with headers
+	).Returns(
+		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
+	).Effects("Stream")
+}
+
+// registerStreamNDJSONPost registers the _stream_ndjson_post builtin.
+//
+// Same shape as _stream_sse_post but for newline-delimited JSON streams (one
+// JSON object per line). Used by APIs like Ollama that don't use SSE framing.
+// No `Accept: text/event-stream` is sent and no response Content-Type is
+// enforced — choosing this builtin is the caller's explicit opt-in to NDJSON
+// parsing. Each non-empty response line is delivered as a single SSEData event
+// carrying the raw JSON in its data field.
+func registerStreamNDJSONPost() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_ndjson_post",
+		NumArgs: 3,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamNDJSONPostType,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "ndjson_post", args)
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Open a streaming HTTP POST that returns newline-delimited JSON (NDJSON)",
+			LongDesc: `Sends an HTTP POST request with a JSON body and reads the response as a
+newline-delimited JSON stream — one complete JSON object per line. This is
+the streaming format used by Ollama (and some other local-LLM servers) instead
+of the SSE framing that Anthropic/OpenAI/Gemini use.
+
+Each non-empty response line is delivered to handlers as an SSEData event,
+with the raw JSON line as the data string. Use std/json.decode on the data
+field to recover the per-chunk record.
+
+The connection shares onEvent/runEventLoop/disconnect with WebSocket and SSE
+connections. Custom headers are supported via the config parameter; the
+default Content-Type for the request body is application/json. The response
+Content-Type is not validated — callers have opted into NDJSON by choosing
+this builtin.`,
+			Params: []ParamDoc{
+				{Name: "url", Description: "Endpoint URL"},
+				{Name: "body", Description: "Request body (typically JSON)"},
+				{Name: "config", Description: "Configuration record with optional headers list"},
+			},
+			Returns:   "Result[StreamConn, StreamErrorKind]",
+			Since:     "v0.22.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "ndjson", "post", "ai", "ollama"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_ndjson_post: %v", err))
+	}
+}
+
+// makeStreamNDJSONPostType builds the type signature for _stream_ndjson_post.
+// Same shape as _stream_sse_post; deliberately kept as a separate function
+// for readability and to leave room for future divergence (e.g. exposing the
+// observed Content-Type back to AILANG).
+func makeStreamNDJSONPostType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.String(),
+		T.String(),
+		streamConfigType(),
 	).Returns(
 		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")

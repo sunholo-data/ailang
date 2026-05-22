@@ -7,6 +7,7 @@
 --   import std/stream (connect, transmit, onEvent, runEventLoop, disconnect)
 --   import std/stream (transmitBinary)                         -- binary data (bytes)
 --   import std/stream (sseConnect, ssePost, withSSE)           -- SSE connections
+--   import std/stream (ndjsonPost)                              -- NDJSON streams (Ollama, etc.)
 --   import std/stream (StreamEvent, Message, Closed, StreamError, SSEData)
 --
 -- Multi-source (v0.9.0):
@@ -225,6 +226,21 @@ export func sseConnect(url: string, config: {headers: [{name: string, value: str
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
 export func ssePost(url: string, body: string, config: {headers: [{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_sse_post(url, body, config)
+}
+
+-- Open a streaming HTTP POST that returns newline-delimited JSON (NDJSON).
+-- This is the streaming format used by Ollama (and other local-LLM servers)
+-- instead of SSE. Each non-empty response line is delivered as one SSEData
+-- event whose data string is the raw JSON; decode it on the AILANG side with
+-- std/json.decode to recover per-chunk fields like {response, done, ...}.
+-- url: HTTP endpoint URL
+-- body: request body (typically JSON)
+-- config: record with headers list
+-- Unlike ssePost, the response Content-Type is not validated — choosing this
+-- function is the caller's explicit opt-in to NDJSON parsing.
+-- Returns Ok(StreamConn(id)) or Err(StreamErrorKind).
+export func ndjsonPost(url: string, body: string, config: {headers: [{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+  _stream_ndjson_post(url, body, config)
 }
 
 -- High-level SSE lifecycle: connect, register handler, run event loop, disconnect.
