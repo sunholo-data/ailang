@@ -120,6 +120,17 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			ConfigKey:            model, // original models.yml key for per-model timeout lookup
 		}
 
+		// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: thread chain_id/stage_id through
+		// so the opencode subprocess receives them as OTEL_RESOURCE_ATTRIBUTES.
+		// This is what makes `ailang chains live` show real "X s ago" last-span
+		// ages instead of "(no spans yet)" for active chains.
+		if evalChain != nil {
+			multiConfig.ChainID = evalChain.ChainID
+		}
+		if stageID != "" {
+			multiConfig.StageID = stageID
+		}
+
 		// M-EVAL-CHAINS: Structured tool/chat capture (executor-aware)
 		// Claude: skip streaming capture (gives {} inputs due to input_json_delta protocol)
 		//   → post-execution JSONL import provides complete data (see below)

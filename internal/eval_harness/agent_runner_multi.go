@@ -41,6 +41,34 @@ type MultiExecutorConfig struct {
 	// Used for ObservatoryWriter to capture structured tool calls during streaming.
 	// When nil, only the debug handler is used (no behavior change).
 	ExtraHandler executor.EventHandler
+
+	// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: chain_id and stage_id are populated by
+	// cmd/ailang/eval_benchmark.go from the active execution chain. They flow into
+	// executor.Task.Metadata which BuildResourceAttributes converts into
+	// OTEL_RESOURCE_ATTRIBUTES. Without these, spans emitted by the opencode
+	// subprocess can't be linked back to their stage in `ailang chains live`.
+	// Empty strings are skipped (coordinator path uses Task.Metadata directly).
+	ChainID string
+	StageID string
+}
+
+// buildChainMetadata builds the executor.Task.Metadata map from the chain/stage
+// IDs threaded through MultiExecutorConfig. Empty IDs are omitted (so coordinator-
+// driven tasks that populate Task.Metadata directly are not affected).
+//
+// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: the returned map flows into
+// BuildResourceAttributes which converts it to OTEL_RESOURCE_ATTRIBUTES.
+// Always returns a non-nil map (even if both inputs are empty) so callers
+// can append vendor-specific keys later without nil-checking.
+func buildChainMetadata(chainID, stageID string) map[string]string {
+	m := make(map[string]string, 2)
+	if chainID != "" {
+		m["chain_id"] = chainID
+	}
+	if stageID != "" {
+		m["stage_id"] = stageID
+	}
+	return m
 }
 
 // RunAgentBenchmarkWithExecutor runs a benchmark using the specified executor
@@ -151,7 +179,14 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		systemPrompt += managedAgentsBridgeInstruction
 	}
 
-	// Build task for executor
+	// Build task for executor.
+	//
+	// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: populate Metadata with chain_id and
+	// stage_id when the caller provided them. executor.BuildEnvironment converts
+	// these into OTEL_RESOURCE_ATTRIBUTES so the opencode subprocess emits
+	// spans tagged with ailang.chain_id / ailang.stage_id — which is what makes
+	// `ailang chains live` per-stage join precise (without this, spans land
+	// in observatory.db but with NULL chain_id/stage_id).
 	task := &executor.Task{
 		ID:           fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
 		Directive:    taskPrompt,
@@ -159,6 +194,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Workspace:    workspace,
 		Timeout:      time.Duration(timeoutSeconds) * time.Second,
 		Model:        modelName,
+		Metadata:     buildChainMetadata(config.ChainID, config.StageID),
 	}
 
 	// Apply per-model TTFT / generation timeouts from models.yml

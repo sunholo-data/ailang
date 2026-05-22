@@ -108,3 +108,49 @@ func TestRunPythonSolution_NoSpecInputsIsBenign(t *testing.T) {
 			spec.ExpectedOut, result.Stdout, result.Stderr)
 	}
 }
+
+// TestBuildChainMetadata_PopulatesBothWhenSet covers the M-EVAL-LOCAL-OBSERVABILITY
+// FOLLOWUP wiring: when MultiExecutorConfig.ChainID and StageID are both set,
+// the resulting Task.Metadata must include both keys with the expected values
+// so executor.BuildEnvironment can convert them into OTEL_RESOURCE_ATTRIBUTES.
+func TestBuildChainMetadata_PopulatesBothWhenSet(t *testing.T) {
+	m := buildChainMetadata("chain-test-abc", "stage-test-xyz")
+	if got, want := m["chain_id"], "chain-test-abc"; got != want {
+		t.Errorf("chain_id = %q, want %q", got, want)
+	}
+	if got, want := m["stage_id"], "stage-test-xyz"; got != want {
+		t.Errorf("stage_id = %q, want %q", got, want)
+	}
+	if len(m) != 2 {
+		t.Errorf("expected 2 keys, got %d: %v", len(m), m)
+	}
+}
+
+// TestBuildChainMetadata_OmitsEmpty verifies that empty IDs are NOT inserted
+// as empty-string values (would otherwise pollute resource attrs with
+// "ailang.chain_id=" which downstream code would have to filter).
+func TestBuildChainMetadata_OmitsEmpty(t *testing.T) {
+	cases := []struct {
+		name             string
+		chainID, stageID string
+		wantLen          int
+		wantKey          string
+	}{
+		{"both empty (coordinator path)", "", "", 0, ""},
+		{"only chain", "chain-only", "", 1, "chain_id"},
+		{"only stage", "", "stage-only", 1, "stage_id"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := buildChainMetadata(tc.chainID, tc.stageID)
+			if len(m) != tc.wantLen {
+				t.Errorf("len = %d, want %d (map: %v)", len(m), tc.wantLen, m)
+			}
+			if tc.wantKey != "" {
+				if _, ok := m[tc.wantKey]; !ok {
+					t.Errorf("expected key %q to be set", tc.wantKey)
+				}
+			}
+		})
+	}
+}
