@@ -248,7 +248,7 @@ mid-run**
 
 ## Related
 
-- [M-EVAL-LOCAL-OLLAMA design doc](/design_docs/planned/m-eval-local-ollama.md)
-- [M-EVAL-LOCAL-OBSERVABILITY design doc](/design_docs/planned/v0_22_0/m-eval-local-observability.md)
+- [M-EVAL-LOCAL-OLLAMA design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-eval-local-ollama.md)
+- [M-EVAL-LOCAL-OBSERVABILITY design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability.md)
 - [model-configuration.md](./model-configuration.md) — cloud OS models via OpenRouter
 - [Ollama library](https://ollama.com/library) — full model catalog
