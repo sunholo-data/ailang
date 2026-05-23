@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  M-EVAL-OS-LONGITUDINAL M0: hardened ollama serve via launchd.
+
+  Why this exists: the user-facing Ollama.app (Electron) is the wrong service
+  model for a 24/7 eval rig. It runs as a desktop app with a UI, has
+  auto-updaters that can restart it without warning, and macOS treats it as
+  a background app eligible for cleanup. On 2026-05-23 at 02:02:45 the
+  Ollama.app silently died mid-eval, taking ollama serve with it and
+  invalidating a 2h 15m N=3 trial run.
+
+  This plist runs `ollama serve` directly (no Electron UI) with:
+    - KeepAlive=true: auto-restart on any non-zero exit
+    - RunAtLoad=true: start at boot
+    - Tuned env vars: keep model resident (24h), 4-way parallel, 64-slot queue
+    - Log paths: capture stdout/stderr for post-mortem
+    - ThrottleInterval=10: avoid restart loops if it crashes fast
+
+  Installation:
+    1. Quit Ollama.app from the menu bar (so it doesn't fight launchd)
+    2. Disable "Open at login" in Ollama.app settings
+    3. cp tools/launchd/dev.ollama.serve.plist ~/Library/LaunchAgents/
+    4. launchctl load ~/Library/LaunchAgents/dev.ollama.serve.plist
+    5. Verify: curl -s http://localhost:11434/api/tags
+    6. Optional: check status with `launchctl list | grep dev.ollama.serve`
+
+  Stop / unload:
+    launchctl unload ~/Library/LaunchAgents/dev.ollama.serve.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ollama.serve</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/Ollama.app/Contents/Resources/ollama</string>
+        <string>serve</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ollama-serve-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ollama-serve-launchd.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- Keep models resident in memory for 24 hours after last use.
+             Default is 5min — too aggressive for an eval rotation. -->
+        <key>OLLAMA_KEEP_ALIVE</key>
+        <string>24h</string>
+
+        <!-- One model resident at a time (gemma4:26b uses 25.7 GB on M4 Max). -->
+        <key>OLLAMA_MAX_LOADED_MODELS</key>
+        <string>1</string>
+
+        <!-- Up to 4 concurrent requests against the loaded model. -->
+        <key>OLLAMA_NUM_PARALLEL</key>
+        <string>4</string>
+
+        <!-- Bounded backpressure: eval-suite shouldn't queue more than this. -->
+        <key>OLLAMA_MAX_QUEUE</key>
+        <string>64</string>
+
+        <!-- Bind localhost only (security). -->
+        <key>OLLAMA_HOST</key>
+        <string>127.0.0.1:11434</string>
+
+        <!-- Standard macOS PATH so subprocesses can find tools. -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/voightkampff</string>
+</dict>
+</plist>
