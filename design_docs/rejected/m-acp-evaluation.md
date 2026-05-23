@@ -1,13 +1,14 @@
 # Agent Client Protocol (ACP) Evaluation for AILANG
 
 **Feature Name:** ACP Integration Assessment
-**Status:** Planned
+**Status:** Rejected (re-confirmed 2026-05-23)
 **Created:** 2026-02-03
-**Updated:** 2026-02-03
-**Target:** v0.7.0
+**Updated:** 2026-05-23 — added May 2026 reassessment
+**Target:** N/A (not adopted)
 **Priority:** P2 (Low - investigative only)
 **Estimated:** 0 days (evaluation only)
 **Dependencies:** None
+**Related (downstream):** [motoko_agent ACP integration](https://github.com/arniwesth/motoko_agent/blob/main/design_docs/planned/m-motoko-acp-integration.md) — the case is much stronger one layer up, where motoko_agent is an agent harness rather than a language.
 
 ## Problem Statement
 
@@ -267,3 +268,63 @@ No implementation timeline as recommendation is not to adopt.
 **Alternative:** Enhance current architecture with modular parsers and config-driven registration
 
 **Review Date:** 2026-08-01 (6 months) to reassess if ACP has matured
+
+---
+
+## 2026-05-23 Reassessment (early review)
+
+Triggered by a question about whether AILANG could standardize its *agent monitoring* layer on ACP. Re-confirming rejection, but updating context.
+
+### What changed since Feb 2026
+
+| Signal | Then | Now (2026-05-23) | Direction |
+|---|---|---|---|
+| Wire-protocol version | "Under active development" | **Stable v1** | ✅ matured |
+| Crate release | — | v0.13.3 (released 2026-05-22) | active dev |
+| Agents in registry | ~10 | **25+** (incl. GitHub Copilot CLI, Codex, Qwen, OpenCode, Auggie, Factory Droid, Mistral Vibe) | ✅ broader |
+| Editor support | Zed only | **Zed + JetBrains + marimo + Eclipse prototype + Toad** | ✅ broader |
+| ACP Registry | Not yet | Live since Jan 2026 (https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json) | ✅ usable |
+| Repository activity | New | 3.2k stars, 1,419 commits, 45 releases | active |
+
+The three weakest pillars of the Feb 2026 rejection — *insufficient value*, *protocol immaturity*, *feature gaps* — have all weakened.
+
+### What still holds — the monitoring distinction
+
+The trigger question was: *"can we standardize agent monitoring on ACP?"* The answer is **no, and the framing is wrong**:
+
+ACP is an **editor ↔ agent integration protocol** (two-party, JSON-RPC over stdio for local, HTTP/WebSocket WIP for remote). It defines:
+
+- Session lifecycle: `session/list`, `session/resume`, `session/close`, `session/prompt`, `session/cancel`
+- Streaming notifications during a turn (`session/update`):
+  - `plan`, `agent_message_chunk`, `tool_call`, `tool_call_update`
+- Tool-use approval: `session/request_permission`
+- Stop reasons: `end_turn`, `max_tokens`, `max_turn_requests`, `refusal`, `cancelled`
+
+It does **NOT** define:
+
+- A third-party observer role (no way for an external monitor to attach to a running session — `ailang chains live` couldn't be implemented as an ACP observer)
+- Token-usage telemetry in the wire format
+- Cost tracking
+- Cross-session correlation / task hierarchy / `parent_task_id`
+- Stable remote transport (HTTP/WebSocket explicitly marked WIP)
+
+AILANG's monitoring stack — OTEL spans → otelcol → `observatory.db` consumed by `ailang chains live` — is already on the right standard for monitoring. OTEL is the vendor-neutral telemetry protocol with native support for spans, traces, attributes, and observer fan-out. OpenCode (which we use in the local-Ollama eval harness) happens to also be an ACP agent, but we're consuming its **OTEL spans** (the right layer for monitoring), not its **ACP messages** (the right layer for *driving* it interactively).
+
+**Rolling AILANG monitoring on ACP would be a downgrade**, not a consolidation: we'd lose the third-party observer role, lose token/cost telemetry primitives, lose the OTEL span correlation that already powers chains/dashboard, and gain nothing — because ACP doesn't address this layer.
+
+### What's the right framing then
+
+Two separate concerns, which the Feb 2026 doc already implicitly conflated:
+
+1. **Monitoring concern** (the trigger for this reassessment): **stay on OTEL.** ACP is wrong layer.
+2. **Executor integration concern** (what the Feb 2026 doc actually evaluated): the case has strengthened, but the ~5,000 LOC migration cost and architectural-mismatch concerns from Feb 2026 still hold. The right move at the 2026-08-01 review is to scope a *minimal* single-agent ACP adapter (likely OpenCode, since it's already in our path) parallel to the existing JSONL path — not a full executor rewrite. Validate the value at small cost before committing.
+
+### Where ACP fits naturally — not here, one layer up
+
+The trigger for this reassessment surfaced a key insight: **motoko_agent** (the agent harness built on AILANG, in [arniwesth/motoko_agent](https://github.com/arniwesth/motoko_agent)) is a much more natural home for ACP than AILANG itself. Motoko IS an agent — making it an ACP-compatible agent would let it plug into Zed, JetBrains, marimo, and the rest of the ACP ecosystem for free. AILANG is a *language* used to build agents; the protocol that connects editors to agents is the wrong abstraction layer for it.
+
+A planned design doc lives in motoko's repo: see `arniwesth/motoko_agent/design_docs/planned/m-motoko-acp-integration.md`.
+
+### Re-confirmed decision
+
+**Still rejected for AILANG.** The Aug 2026 review point remains for re-examining the executor-integration concern (a separate question from monitoring). If that review concludes positively, the minimal-adapter approach is the recommended first move — not a full migration.
