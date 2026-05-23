@@ -222,6 +222,10 @@ func main() {
 		// M-EVAL-OS-LONGITUDINAL Phase 4: failure-feedback candidate triage
 		runEvalTrend()
 
+	case "eval-publish":
+		// M-EVAL-OS-LONGITUDINAL Phase 5: per-release Docusaurus publication
+		runEvalPublish()
+
 	case "eval-chains":
 		evalChainsCommand()
 
