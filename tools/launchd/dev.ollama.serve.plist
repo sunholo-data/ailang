@@ -74,20 +74,40 @@
 
     <key>EnvironmentVariables</key>
     <dict>
-        <!-- Keep models resident in memory for 24 hours after last use.
-             Default is 5min — too aggressive for an eval rotation. -->
+        <!-- Never unload the model: prefix-cache hits across trials in a
+             rotation depend on the model staying resident with KV state.
+             Default (5min) and even 24h caused trial 1 in a fresh batch to
+             pay the full 17 GB reload + 110k-token prefill. -1 = forever. -->
         <key>OLLAMA_KEEP_ALIVE</key>
-        <string>24h</string>
+        <string>-1</string>
 
-        <!-- One model resident at a time (gemma4:26b uses 25.7 GB on M4 Max). -->
+        <!-- One model resident at a time (gemma4:26b uses ~17 GB weights;
+             with q8_0 KV cache it's ~29 GB total). -->
         <key>OLLAMA_MAX_LOADED_MODELS</key>
         <string>1</string>
 
-        <!-- Up to 4 concurrent requests against the loaded model. -->
+        <!-- ONE concurrent request. Why not more: ollama pre-allocates KV cache
+             at full context length per slot. With our 110k-token opencode prompts,
+             4 slots × ~6 GB KV = 25 GB, and the single integrated GPU can't
+             actually parallelise prefill of multiple long prompts — 2026-05-23
+             empirically: NUM_PARALLEL=4 caused every concurrent request to hit
+             the 15-min TTFT timeout. See design_docs/planned/v0_23_0/m-eval-os-longitudinal.md
+             + Ollama FAQ: "Required RAM scales by NUM_PARALLEL × CONTEXT_LENGTH". -->
         <key>OLLAMA_NUM_PARALLEL</key>
-        <string>4</string>
+        <string>1</string>
 
-        <!-- Bounded backpressure: eval-suite shouldn't queue more than this. -->
+        <!-- Quantize the KV cache to int8. Cuts KV memory roughly in half
+             (~12 GB instead of ~25 GB at 110k context) for ~5% gen-token
+             slowdown on Metal. REQUIRES OLLAMA_FLASH_ATTENTION=1 or it
+             silently falls back to fp16. -->
+        <key>OLLAMA_KV_CACHE_TYPE</key>
+        <string>q8_0</string>
+
+        <!-- Required for quantized KV cache to actually take effect. -->
+        <key>OLLAMA_FLASH_ATTENTION</key>
+        <string>1</string>
+
+        <!-- Bounded backpressure: harness shouldn't queue more than this. -->
         <key>OLLAMA_MAX_QUEUE</key>
         <string>64</string>
 

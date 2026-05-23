@@ -28,6 +28,34 @@ A second, separately verified observation: the agent **doesn't use the discovery
 
 **Primary**: Make the rig usable for *any* local model size we expect to host (gemma4:26b today, 70B+ tomorrow) at the cost ceiling of one model load + warm prefix cache, not N × full prefill.
 
+**Strategic framing (added 2026-05-23 after user feedback)**: This experiment isn't a one-shot A/B — its real purpose is to **map the threshold between model-capability tiers and prompt-strategy regimes**. Different prompt strategies will work at different model intelligence levels. The longitudinal eval rig exists precisely to characterize where those boundaries are.
+
+**The strategy axis** (refined after confirming opencode supports remote MCP servers via [`opencode.jsonc → mcp`](https://opencode.ai/docs/mcp-servers)):
+
+| ID | Seed prompt | Discovery path | Notes |
+|---|---|---|---|
+| **S0** | 13KB embedded reference (v0.9.0) | None used in practice | Current baseline. Empirically: agents only invoke `ailang run`, never the discovery CLI |
+| **S1** | ~500 token slim seed pointing at CLI tools | Agent shells out to `ailang docs`, `ailang examples search`, `ailang check --json`, `ailang verify --json` | Text outputs; agent must parse prose |
+| **S2** | ~500 token slim seed pointing at MCP tools | Native MCP tool calls via `mcp.ailang.sunholo.com` (wired into `~/.config/opencode/opencode.jsonc`): `ailang.prompt_get`, `ailang.stdlib_search`, `ailang.examples_for_concept`, `ailang.limitations_list`, `ailang.effects_catalog` | Structured JSON returns — strictly superior to S1 for parsing |
+| **S3** | Same slim seed | Both MCP (primary) + CLI shell-out (fallback if MCP unreachable) | Robustness — covers the case where mcp.ailang.sunholo.com is down |
+
+**The model-capability matrix** to populate over future rotations:
+
+|  | S0 embedded (13KB) | S1 slim + CLI (~500 tok) | S2 slim + MCP (~500 tok) | S3 slim + both (~500 tok) |
+|---|---|---|---|---|
+| Strong cloud (claude-sonnet-4.6) | already 90%+ | TBD | TBD | TBD |
+| 30B+ local (qwen3-coder:30b) | TBD | TBD | TBD | TBD |
+| 26B local (gemma4:26b) | currently 0/17 | **A/B candidate** | **A/B candidate** | TBD |
+| 4–8B local (gemma3:4b) | TBD | likely 0 | likely 0 | TBD |
+
+Each cell becomes a published per-release leaderboard delta. The boundary contour — "at what intelligence level does each strategy stop being viable?" — becomes a citable piece of empirical AI/language-design data we can publish.
+
+This shifts the v0.23.0 immediate goal from "pick the best prompt" to "establish a measurement methodology for prompt-vs-model threshold mapping, and gather the first cells of data". The threshold map is the long-term artifact.
+
+Cells fill in over future rotations. Each cell is a published per-release leaderboard delta. The boundary contour — "at what intelligence level does each strategy stop being viable?" — becomes a citable piece of empirical AI/language-design data we can publish.
+
+This shifts the v0.23.0 immediate goal from "pick the best prompt" to "establish a measurement methodology for prompt-vs-model threshold mapping, and gather the first cell of data". The threshold map is the long-term artifact.
+
 **Success metrics** (to measure in the A/B experiment):
 
 | Metric | Current (v0.9.0 embedded reference) | Target (slim seed + discovery) |

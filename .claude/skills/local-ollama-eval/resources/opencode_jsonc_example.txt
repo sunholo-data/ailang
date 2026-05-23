@@ -20,6 +20,26 @@
         // "deepseek-coder-v2:16b": { "name": "DeepSeek Coder v2 16B (local)" }
       }
     }
+  },
+
+  // AILANG remote MCP server (added 2026-05-23). Gives the agent first-class
+  // access to version-locked AILANG knowledge via structured MCP tools
+  // (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept,
+  // ailang.limitations_list, ailang.effects_catalog, etc.) instead of
+  // shelling out to local CLI commands. Returns structured JSON — much
+  // better than parsing prose `ailang docs` output for the iterative
+  // check/run/fix loop. Version-locks to the user's CLI version.
+  //
+  // If unreachable, opencode logs the error and continues; the agent can
+  // still shell out to `ailang docs` etc. as a fallback.
+  //
+  // See: design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md
+  "mcp": {
+    "ailang-docs": {
+      "type": "remote",
+      "url": "https://mcp.ailang.sunholo.com/mcp/",
+      "enabled": true
+    }
   }
 }
 

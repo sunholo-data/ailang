@@ -31,12 +31,31 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
 # Verify rig is ready
 .claude/skills/local-ollama-eval/scripts/verify_setup.sh
 
-# Run smoke tier on gemma4:26b at p=2 (recommended default)
+# Pre-warm the rig (saves 40-90s on the first benchmark trial — see "Warmup" below)
+.claude/skills/local-ollama-eval/scripts/warmup_rig.sh
+
+# Run smoke tier on gemma4:26b
 .claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
 
 # Watch progress in another terminal/turn
 .claude/skills/local-ollama-eval/scripts/watch_active.sh
 ```
+
+### Warmup (avoiding the 40-90s first-call tax)
+
+The first opencode invocation against a freshly-loaded ollama model pays a
+big one-time cost: ollama prefills the ~100k-token opencode framework prompt
+into KV cache. Observed 2026-05-23: **42-90s** for that first call, then
+subsequent calls within the same KV-cache window are ~5x faster.
+
+If a rotation kicks off cold, every benchmark's trial-1 pays this tax
+separately. Worse: under load with concurrent agent loops fighting for the
+NUM_PARALLEL=1 ollama queue, this can balloon to 4-15 minutes per first call.
+
+`warmup_rig.sh` solves this by doing ONE throwaway opencode call with the
+standard framework prompt, plus an MCP initialize ping to wake the Cloud Run
+endpoint. After warmup, real benchmark trials hit warm cache from the first
+call. Always run it before a rotation starts.
 
 ### Single-benchmark test
 
