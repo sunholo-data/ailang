@@ -218,6 +218,10 @@ func main() {
 	case "eval-suite":
 		runEvalSuite()
 
+	case "eval-trend":
+		// M-EVAL-OS-LONGITUDINAL Phase 4: failure-feedback candidate triage
+		runEvalTrend()
+
 	case "eval-chains":
 		evalChainsCommand()
 
