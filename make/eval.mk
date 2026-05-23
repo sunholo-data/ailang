@@ -41,9 +41,14 @@ eval-smoke: build ## Fast tier (15 benchmarks, dev models) — target <90s warm 
 	@# silent-fallback guard in eval_suite.go). Auto-inject both here so the
 	@# canonical `make eval-smoke MODELS=opencode-<x>` invocation just works
 	@# without the user having to know about the agent-mode flag dance.
-	@if echo "$(MODELS)" | grep -qE "opencode-" && ! echo "$(EXTRA)" | grep -q -- "-agent\b"; then \
+	@#
+	@# Detect whether `-agent` is already in EXTRA by surrounding with spaces
+	@# and looking for ` -agent ` literally. The naive `-agent\b` regex falsely
+	@# matched `-agent-parallel` / `-agent-timeout` (because `\b` triggers at
+	@# the `t-` boundary), causing the auto-injection to silently skip.
+	@if echo "$(MODELS)" | grep -qE "opencode-" && ! echo " $(EXTRA) " | grep -q -- " -agent "; then \
 		SMOKE_LIST=$$(grep -l '^tier: smoke' benchmarks/*.yml 2>/dev/null | xargs -n1 basename | sed 's/\.yml//' | sort | paste -sd ',' -); \
-		echo "  Auto-enabling agent mode for opencode-* model (use -agent in EXTRA to override the auto-injection)."; \
+		echo "  Auto-enabling agent mode for opencode-* model (pass '-agent' in EXTRA to opt out of auto-injection)."; \
 		echo "  Auto-benchmarks: $$SMOKE_LIST"; \
 		$(BUILD_DIR)/$(BINARY) eval-suite -agent -benchmarks $$SMOKE_LIST $(if $(MODELS),-models $(MODELS)) $(EXTRA); \
 	else \
