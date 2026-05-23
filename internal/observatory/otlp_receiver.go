@@ -89,6 +89,30 @@ func DefaultSpanFilterConfig() *SpanFilterConfig {
 			// Service-scoped: server polling
 			{Type: "exact", Pattern: "messages.list", Service: "ailang-server"},
 			{Type: "exact", Pattern: "messages.count", Service: "ailang-server"},
+
+			// M-EVAL-OS-LONGITUDINAL hotfix (2026-05-23): opencode emits
+			// thousands of low-value internal spans per eval session via
+			// @effect/opentelemetry. Observed counts after ~12 hours of eval:
+			//   Plugin.trigger 7330, Config.get 4182, SyncEvent.run 3630,
+			//   FileSystem.readJson 2220, Auth.all 2055, Session.updatePart 1922,
+			//   SessionProcessor.readToolCall 1769, SessionStatus.set 1707, etc.
+			// These ballooned observatory.db-wal to 5.4 GB and degraded the
+			// entire eval rig. Keep the spans that actually inform analysis
+			// (LLM.run, opencode.execute, opencode.step); drop the rest.
+			{Type: "exact", Pattern: "Plugin.trigger", Service: "opencode"},
+			{Type: "prefix", Pattern: "Config.", Service: "opencode"},
+			{Type: "exact", Pattern: "SyncEvent.run", Service: "opencode"},
+			{Type: "prefix", Pattern: "FileSystem.", Service: "opencode"},
+			{Type: "prefix", Pattern: "Auth.", Service: "opencode"},
+			{Type: "prefix", Pattern: "Session.", Service: "opencode"},
+			{Type: "prefix", Pattern: "SessionStatus.", Service: "opencode"},
+			{Type: "prefix", Pattern: "SessionProcessor.", Service: "opencode"},
+			{Type: "prefix", Pattern: "Env.", Service: "opencode"},
+			{Type: "exact", Pattern: "Truncate.cleanup", Service: "opencode"},
+			{Type: "exact", Pattern: "LLMRequestPrep.prepare", Service: "opencode"},
+			{Type: "exact", Pattern: "Provider.getModel", Service: "opencode"},
+			// LLM.run, opencode.execute, opencode.step are the useful ones —
+			// NOT denied; they carry the signal we want to analyze.
 		},
 	}
 }

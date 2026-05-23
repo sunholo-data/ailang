@@ -72,6 +72,60 @@ func TestShouldFilterSpan(t *testing.T) {
 			spanName:     "/api/coordinator/events",
 			shouldFilter: true,
 		},
+
+		// M-EVAL-OS-LONGITUDINAL hotfix coverage: opencode internal spans.
+		// These had been flooding observatory.db at ~33:1 noise:signal ratio,
+		// ballooning the WAL to 5.4 GB after ~12 hours of eval. Default deny
+		// covers the high-volume offenders; the useful ones (LLM.run,
+		// opencode.execute, opencode.step) stay.
+		{
+			name:          "opencode Plugin.trigger filtered",
+			spanName:      "Plugin.trigger",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  true,
+		},
+		{
+			name:          "opencode Config.get filtered",
+			spanName:      "Config.get",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  true,
+		},
+		{
+			name:          "opencode FileSystem.readJson filtered",
+			spanName:      "FileSystem.readJson",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  true,
+		},
+		{
+			name:          "opencode Session.updatePart filtered",
+			spanName:      "Session.updatePart",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  true,
+		},
+		{
+			name:          "opencode LLM.run KEPT (analytic signal)",
+			spanName:      "LLM.run",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  false,
+		},
+		{
+			name:          "opencode opencode.execute KEPT (analytic signal)",
+			spanName:      "opencode.execute",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  false,
+		},
+		{
+			name:          "opencode opencode.step KEPT (analytic signal)",
+			spanName:      "opencode.step",
+			resourceAttrs: map[string]any{"service.name": "opencode"},
+			shouldFilter:  false,
+		},
+		{
+			name:          "non-opencode FileSystem span NOT filtered (service-scoped)",
+			spanName:      "FileSystem.readJson",
+			resourceAttrs: map[string]any{"service.name": "ailang-server"},
+			shouldFilter:  false,
+		},
 	}
 
 	for _, tt := range tests {

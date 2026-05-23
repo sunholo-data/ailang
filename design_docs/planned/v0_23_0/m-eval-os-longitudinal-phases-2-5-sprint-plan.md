@@ -46,6 +46,36 @@ Realistic: this sprint completes in 4–5 working days if focused, with the doc 
 
 ## Milestones
 
+### M0 — Infrastructure reliability (~120 LOC, 0.5 day) **NEW, P0**
+
+Added after a 2h 15m overnight run was fully invalidated by observatory.db-wal ballooning to 5.4 GB + Ollama service dying. Without this milestone shipping first, the rotation is not trustworthy enough to absorb Phases 2–5.
+
+**Three concrete reliability fixes:**
+
+1. **Opencode noise filter** (hotfix already shipped as part of this milestone): default `SpanFilterConfig.DenyPatterns` extended to cover the high-volume opencode internal spans (`Plugin.trigger`, `Config.*`, `SyncEvent.run`, `FileSystem.*`, `Auth.*`, `Session.*`, `SessionStatus.*`, `SessionProcessor.*`, `Env.*`, `Truncate.cleanup`, `LLMRequestPrep.prepare`, `Provider.getModel`). Measured 33:1 noise:signal ratio in the May 23 db. Useful spans (`LLM.run`, `opencode.execute`, `opencode.step`) deliberately kept. ✓ Shipped.
+
+2. **WAL maintenance hook**: when observatory.db-wal exceeds a configurable threshold (default 1 GB), the receiver triggers `PRAGMA wal_checkpoint(TRUNCATE)` instead of just printing a warning. Currently the warning fires and tells the user to manually clean up; that's not 24/7 viable.
+
+3. **Pre-run rig health check**: the `local-ollama-eval` skill's `verify_setup.sh` script already exists but isn't invoked before `make eval-smoke`. Add a `make eval-smoke-checked` target (or invoke `verify_setup.sh` from the existing target) that aborts early if ollama isn't responding. Catches the "Ollama died overnight" failure mode in <5 seconds instead of burning 2+ hours.
+
+**Files**:
+- `internal/observatory/otlp_receiver.go` (+25): opencode noise patterns in DefaultSpanFilterConfig [✓ shipped]
+- `internal/observatory/otlp_receiver_filter_test.go` (+50): regression coverage for opencode patterns [✓ shipped]
+- `internal/observatory/wal_maintenance.go` **NEW** (+60): periodic WAL size check + auto-checkpoint when threshold exceeded
+- `internal/observatory/wal_maintenance_test.go` **NEW** (+40): synthetic WAL-size detection test
+- `make/eval.mk` (+5) **OR** `Makefile` (+5): wire verify_setup.sh as a precondition for eval-smoke
+
+**Acceptance criteria**:
+- After ~12 hours of continuous eval rotation, observatory.db-wal stays under 1 GB (was 5.4 GB pre-fix)
+- `make eval-smoke MODELS=opencode-gemma4-26b ...` aborts within 5 seconds with a clear error if ollama is not responding
+- `go test ./internal/observatory/...` all pass including new opencode-filter coverage [✓ shipped]
+- Manual verification: a degraded rig (ollama stopped) triggers fast-fail with actionable message instead of 2h+ TTFT timeouts
+
+**Dependencies**: None
+**Risk**: Low — the filter is already shipped; WAL maintenance is wrapping an existing SQLite pragma; pre-run check is wiring an existing script
+
+---
+
 ### M1 — Phase 3: N-trial release smoke flag (~100 LOC, 1 day)
 
 The unlock for everything else. Add `--trials N` to `ailang eval-suite -agent` so each benchmark runs N times in a single invocation, and the output directory gains a `summary.json` aggregating pass-rate + token distribution per benchmark.
@@ -141,12 +171,13 @@ New `ailang eval-trend candidates` subcommand that consumes Phase 3 `summary.jso
 
 | Day | Work | Cumulative LOC shipped |
 |-----|------|------------------------|
-| Day 1 | M1: `--trials N` + summary.json + tests + commit | ~100 |
-| Day 2 | M2 part 1: `eval_baselines` table + Welford helper + tests | ~250 |
-| Day 3 | M2 part 2: integrate into opencode executor + integration test + commit | ~370 |
-| Day 4 | M3: `eval-trend candidates` command + skill wire-up + commit | ~440 |
-| Day 5 | M4 part 1: `eval-publish` aggregator + Markdown emitter + tests | ~590 |
-| Day 6 | M4 part 2: docusaurus integration + seed-data backfill + commit + final smoke verification | ~700 |
+| Day 0 (half-day) | M0: WAL maintenance + pre-run health check + commit (opencode filter already shipped) | ~120 |
+| Day 1 | M1: `--trials N` + summary.json + tests + commit | ~220 |
+| Day 2 | M2 part 1: `eval_baselines` table + Welford helper + tests | ~370 |
+| Day 3 | M2 part 2: integrate into opencode executor + integration test + commit | ~490 |
+| Day 4 | M3: `eval-trend candidates` command + skill wire-up + commit | ~560 |
+| Day 5 | M4 part 1: `eval-publish` aggregator + Markdown emitter + tests | ~710 |
+| Day 6 | M4 part 2: docusaurus integration + seed-data backfill + commit + final smoke verification | ~820 |
 
 Buffer day: catch-up if M2 numerical-stability work bites.
 
