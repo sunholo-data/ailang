@@ -147,9 +147,18 @@ Output columns:
 
 The `ailang chains live` view automatically marks stages with `⚠ stuck?` when the last span is >300s old AND status is still `running`.
 
-## Recommended Configuration (verified empirically)
+## Recommended Configuration (data-driven, 2026-05-23 investigation)
 
-These are the settings that produced the best stability/throughput trade-off on M4 Max + 128 GB during the M-EVAL-LOCAL-OLLAMA investigation:
+> **Read this section before changing anything.** Prior versions of this skill recommended `OLLAMA_NUM_PARALLEL=4` and `-parallel 2`. That was guess-driven and turned out to be wrong for 100k+ token prompts. The settings below are derived from observed VRAM allocation, ollama documented behavior, and chains-DB measurements. See [`resources/prompt_strategy_findings.md`](resources/prompt_strategy_findings.md) for the full analysis.
+
+### Why most "concurrency" tuning was wrong
+
+The opencode CLI adds ~100k tokens of framework prompt (tool descriptions, permission system, session protocol) to every request. Our AILANG teaching prompt is only ~3k of the 109k input-tokens observed per trial. Two consequences:
+
+1. **`OLLAMA_NUM_PARALLEL>1` pre-allocates KV cache for *every* slot at the full context length.** 4 slots × 110k-token KV cache ≈ 25 GB. With 17 GB weights this matches the observed 43 GB VRAM allocation. The Ollama FAQ confirms: *"Required RAM will scale by `OLLAMA_NUM_PARALLEL` × `OLLAMA_CONTEXT_LENGTH`."* ([source](https://docs.ollama.com/faq))
+2. **The single integrated GPU cannot parallelise prefill of multiple 110k-token prompts.** The 15-min TTFT timeouts we kept hitting were scheduler starvation, not OOM — slots all compete for the same compute.
+
+The single biggest win is **prefix caching across trials**: the 100k+ opencode framework prefix is identical between trials, so if ollama keeps the model resident and the cache hot, the second trial onward can skip the bulk of prefill.
 
 ### `internal/eval_harness/models.yml` per-Ollama-model entry
 
@@ -160,7 +169,7 @@ opencode-gemma4-26b:
   agent_cli: "opencode"
   agent_model_name: "ollama/gemma4:26b"
   max_output_tokens: 8192
-  ttft_timeout: 900            # 15 min — p=2 prefill budget; bump higher for p=4
+  ttft_timeout: 600            # 10 min — at NUM_PARALLEL=1 a cold 110k-token prefill takes ~90s; warm is ~5s. 10 min covers cold + headroom
   generation_timeout: 1200     # 20 min — opencode per-session hard cap
   budgets:
     hard_timeout_secs: 2400    # 40 min — wall-clock safety net (only gate for $0 models)
@@ -169,22 +178,47 @@ opencode-gemma4-26b:
     output_per_1k: 0.0
 ```
 
-### Ollama env vars (set via `launchctl setenv`)
+### Ollama env vars (set via `launchctl setenv` then restart ollama)
 
 ```
-OLLAMA_MAX_LOADED_MODELS=1  # one model resident at a time on M4 Max
-OLLAMA_NUM_PARALLEL=4       # up to 4 concurrent requests on same model
-OLLAMA_MAX_QUEUE=64         # back-pressure when eval queue gets ahead
+OLLAMA_MAX_LOADED_MODELS=1     # only one model resident at a time
+OLLAMA_NUM_PARALLEL=1          # 100k+ token prompts make >1 KV-cache-thrash. Hard-coded floor.
+OLLAMA_KEEP_ALIVE=-1           # never unload model between trials — prefix-cache hits depend on this
+OLLAMA_KV_CACHE_TYPE=q8_0      # halves KV memory footprint (~25 GB → ~12 GB) for ~5% gen slowdown on Metal
+OLLAMA_FLASH_ATTENTION=1       # required for quantized KV (q8_0 silently falls back to fp16 without this)
+OLLAMA_MAX_QUEUE=64            # back-pressure if eval queue gets ahead
 ```
+
+VRAM math under these settings: 17 GB weights + ~12 GB q8 KV cache = **~29 GB allocated**, leaving ~99 GB free for the OS + future larger models.
 
 ### CLI flags for `make eval-smoke`
 
 | Setting | Recommended | Why |
 |---|---|---|
-| `-parallel 2` | default | Best stability; p=4 thrashes some benchmarks (token rate too high) |
-| `-agent-timeout 2400` | always | Matches `hard_timeout_secs` budget |
+| `-agent-parallel 1` | **mandatory** | Match server. Oversubscribing puts requests behind a 15-min TTFT cliff |
+| `-agent-timeout 1200` | default | Matches per-session cap; bump only if a benchmark is known to need more |
 | `-langs ailang` | always | Local rig is for OS-model AILANG eval, not multi-lang |
 | `-output eval_results/rotation/<date>/<time>_<model>_<tier>/` | recommended | Time-series-queryable structure |
+
+> **Throughput expectation under these settings**: ~90-120s per benchmark on first cold trial, ~30-60s on subsequent trials within the same rotation (prefix cache hits). For 17 benchmarks × 3 trials = 51 trials sequentially, expect ~1.5-2 h wall clock — slower than the broken `-parallel 4` rotation that *completed in 40 min* by failing 100% of runs, but actually produces data.
+
+## Prompt strategy (why we don't progressively disclose)
+
+The 109k-token prefill cost looks like it should be addressable by progressive context disclosure — start with a tiny seed, let the agent pull in syntax via `ailang prompt`, `ailang docs std/X`, `ailang examples search`. This was tried and **deliberately abandoned**:
+
+| Mechanism | Status | Why disabled |
+|---|---|---|
+| μRAG `PreToolUse` injection on `.ail` files | **DISABLED** ([ADR-002](../../../design_docs/decisions/ADR-002-pretooluse-microrag-disabled.md), 2026-04-27) | Embedding cosine averages over tokens — generic words like `import`/`module`/`! {IO}` dominate the vector, and a 1-char anti-pattern can't surface a relevant chunk |
+| `ailang prompt` / `ailang docs` self-discovery | Encouraged in agent prompt | **Not used in practice** — the [v0.8.2 prompt notes](../../../cmd/ailang/prompts/agent/versions.json) record "0/63 agents use runtime discovery". The 13KB prompt embeds the stdlib reference directly because that observation was overwhelming |
+| AILANG MCP server (`mcp.ailang.sunholo.com`) | Active for [Claude Code / Cursor / Continue](../../../docs/docs/guides/agent-mcp.md) | **Not used by opencode** — opencode doesn't run our MCP server as a tool source. The eval rig's agent path goes through opencode subprocess, never touches the MCP |
+| PostToolUse `micro-rag lint-builtin` | Active | Surface "first use of a builtin" reminders. Tight scope, works fine |
+
+The honest reading: the bulk of the 109k tokens are **opencode's own framework prompt**, not ours (we contribute ~3k). Shrinking our 3k buys little. The leverage is in:
+1. Setting `OLLAMA_KEEP_ALIVE=-1` so the opencode framework prefix stays cached across trials
+2. Setting `OLLAMA_NUM_PARALLEL=1` so we don't pre-allocate per-slot KV caches we never use
+3. Accepting that the cold-start of trial-1 in a rotation is expensive; trials 2+ are cheap
+
+If progressive disclosure becomes worth revisiting, the best fit per ADR-002 is a `UserPromptSubmit` hook (intent-bearing natural-language query) — not a content-similarity retrieval hook on file edits.
 
 ## Interpreting Results
 
