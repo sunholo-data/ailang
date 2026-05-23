@@ -335,6 +335,7 @@ A proper `ailang eval-rotation` daemon (sketch in the M-EVAL-LOCAL-OLLAMA design
 
 ## Resources
 
+- **Operations runbook (READ FIRST when adding a new model)**: [`resources/rig_operations_runbook.md`](resources/rig_operations_runbook.md) — consolidated lessons from the 2026-05-22/23 debugging sessions. Covers the four configuration surfaces (Modelfile, opencode.jsonc, models.yml, ollama plist), 8 hard-won lessons (PATH symlink, options.name trap, sampling collapse, bash denylist, etc.), the diagnostic flowchart, and a pre-flight checklist before any long rotation.
 - **Candidate models list**: [`resources/candidate_models.md`](resources/candidate_models.md) — what to pull next
 - **opencode config sample**: [`resources/opencode_jsonc_example.txt`](resources/opencode_jsonc_example.txt)
 - **Troubleshooting**: [`resources/troubleshooting.md`](resources/troubleshooting.md)
