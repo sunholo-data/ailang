@@ -1,6 +1,16 @@
 {
   "schema_version": "1.0",
   "versions": {
+    "v0.10.0-slim": {
+      "file": "prompts/agent/v0.10.0-slim.md",
+      "hash": "824d1edd22c63d284c9b803ea23d0cfc7981eab0cbce8c67933195d9ddeda435",
+      "description": "Slim seed prompt (~1.4k tokens): minimal context that directs the agent to load the full reference dynamically via AILANG MCP tools (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept, etc.) or local CLI fallback (`ailang prompt --kind agent`, `ailang docs`, `ailang examples`). Counterpart to v0.16.x's ~20k-token embedded reference. EXPERIMENTAL — only use via -prompt-version flag, NOT active.",
+      "created": "2026-05-23",
+      "tags": [
+        "experimental"
+      ],
+      "notes": "Implements strategy S2 from design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md. File path points at prompts/agent/v0.10.0-slim.md since the slim prompt is logically an agent-coding seed even though the eval-suite -prompt-version flag reads this top-level registry. Goal: characterize where the model-capability threshold for self-discovery sits — does gemma4:26b improve, stay flat, or get worse when told to dynamically load AILANG context vs reading it from an embedded reference? Compare A=embedded (v0.16.1) vs B=slim (v0.10.0-slim) on the same smoke tier."
+    },
     "v0.3.0-baseline": {
       "file": "prompts/v0.3.0.md",
       "hash": "e36ab2dfbdb985095a74302386c3681b426698d59a04513deb894eaf7f689663",
