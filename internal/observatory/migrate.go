@@ -55,6 +55,27 @@ func Migrate(db *sql.DB) error {
 		return fmt.Errorf("failed to create trace_summaries table: %w", err)
 	}
 
+	// eval_baselines: per-(model, benchmark) rolling mean+stddev of total
+	// tokens on PASS outcomes. Used by M-EVAL-OS-LONGITUDINAL Phase 2
+	// adaptive thrash-abort thresholds. Welford's online algorithm; m2_tokens
+	// is the sum-of-squared-deviations accumulator (kept on disk so we don't
+	// have to replay history to extend the baseline).
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS eval_baselines (
+			model_id      TEXT NOT NULL,
+			benchmark_id  TEXT NOT NULL,
+			n_pass_trials INTEGER NOT NULL DEFAULT 0,
+			mean_tokens   REAL    NOT NULL DEFAULT 0,
+			stddev_tokens REAL    NOT NULL DEFAULT 0,
+			m2_tokens     REAL    NOT NULL DEFAULT 0,
+			last_updated  TIMESTAMP NOT NULL,
+			PRIMARY KEY (model_id, benchmark_id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create eval_baselines table: %w", err)
+	}
+
 	return nil
 }
 

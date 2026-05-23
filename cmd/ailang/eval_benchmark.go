@@ -131,6 +131,26 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			multiConfig.StageID = stageID
 		}
 
+		// M-EVAL-OS-LONGITUDINAL Phase 2: adaptive token-budget override.
+		// If the eval-suite was invoked with --max-tokens-per-bench N (and we
+		// have observatory access), look up the per-(model, benchmark) rolling
+		// baseline. When N>=5 passing samples exist, replace the fixed N with
+		// the adaptive `mean + 2σ` threshold. During bootstrap (n<5) the fixed
+		// flag value is preserved, so behavior matches Phase 1 until enough
+		// data accumulates. Best-effort: any DB error keeps the fixed budget.
+		if multiConfig.AgentBenchmarkConfig.MaxTokensPerBench > 0 && evalChain != nil && evalChain.Store != nil {
+			if baseline, blErr := observatory.GetEvalBaseline(ctx, evalChain.Store.DB(), model, spec.ID); blErr == nil {
+				adaptive := observatory.ComputeAdaptiveThreshold(
+					baseline,
+					observatory.AdaptiveThresholdSigmas,
+					multiConfig.AgentBenchmarkConfig.MaxTokensPerBench,
+				)
+				if adaptive > 0 && adaptive != multiConfig.AgentBenchmarkConfig.MaxTokensPerBench {
+					multiConfig.AgentBenchmarkConfig.MaxTokensPerBench = adaptive
+				}
+			}
+		}
+
 		// M-EVAL-CHAINS: Structured tool/chat capture (executor-aware)
 		// Claude: skip streaming capture (gives {} inputs due to input_json_delta protocol)
 		//   → post-execution JSONL import provides complete data (see below)
@@ -274,6 +294,20 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			benchSpan.RecordError(err)
 			benchSpan.SetStatus(codes.Error, "failed to save result")
 			return false, fmt.Errorf("failed to save result: %w", err)
+		}
+
+		// M-EVAL-OS-LONGITUDINAL Phase 2: extend the rolling token-budget
+		// baseline ONLY on PASS outcomes (where the token count is a valid
+		// "this is how much work it took to succeed" sample). Failures are
+		// excluded — a thrashing run's 2M tokens would skew the baseline up
+		// and disable the very abort it's meant to inform. Best-effort: DB
+		// errors don't affect the result reported to the caller.
+		if metrics.CompileOk && metrics.RuntimeOk && metrics.StdoutOk &&
+			evalChain != nil && evalChain.Store != nil && metrics.TotalTokens > 0 {
+			if upErr := observatory.UpdatePassedTrial(ctx, evalChain.Store.DB(), model, spec.ID, metrics.TotalTokens); upErr != nil {
+				// Non-fatal — log and continue.
+				fmt.Fprintf(os.Stderr, "warning: failed to update eval baseline for %s/%s: %v\n", model, spec.ID, upErr)
+			}
 		}
 
 		// M-EVAL-CHAINS: Store assessment in chain stage
