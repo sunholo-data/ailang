@@ -142,3 +142,25 @@ gh api '/notifications?all=true&participating=false'
 ### 5. `latestReviews` truncation
 
 `gh pr view --json latestReviews` and the equivalent GraphQL field return only the most recent submission per (author, state) pair. To audit the full review history use `gh api repos/{owner}/{repo}/pulls/N/reviews`.
+
+### 6. **MUST `--paginate` the reviews endpoint** (the bug that bit us)
+
+`gh api repos/.../pulls/N/reviews` without `--paginate` returns **only the first 30 reviews**. On a PR with many inline-comment-induced review rows (each `gh api -X POST .../pulls/N/comments` creates a new COMMENTED review entry under your login), the substantive 14KB CHANGES_REQUESTED body can land on **page 2** and be invisible.
+
+Empirical example: `aallan/vera-bench` PR #70 had ~30 `state=COMMENTED` rows from inline-reply postings on page 1, with the substantive @aallan 14,953-char deep-read review on page 2. Querying without `--paginate` made me think I'd read the latest formal review when I'd actually only seen the older one.
+
+**Always:**
+
+```bash
+gh api repos/{o}/{r}/pulls/{n}/reviews --paginate --jq '...'
+```
+
+If you suspect a substantive review you haven't read, sort by body length:
+
+```bash
+gh api repos/{o}/{r}/pulls/{n}/reviews --paginate \
+  --jq '.[] | "\(.submitted_at) \(.user.login) state=\(.state) body_len=\(.body | length)"' \
+  | sort -t= -k2 -nr | head -10
+```
+
+Any row with `body_len > 500` is likely a substantive review you should read in full.

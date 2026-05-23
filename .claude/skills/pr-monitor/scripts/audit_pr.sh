@@ -54,11 +54,15 @@ $GH api "repos/${REPO}/pulls/${PR}/comments?per_page=100" --paginate \
   2>/dev/null || echo "  (none)"
 echo ""
 
-echo "─── formal reviews (last 5, ALL states) ───"
+echo "─── formal reviews (last 10, ALL states; substantive bodies highlighted) ───"
 echo "  NOTE: CHANGES_REQUESTED / APPROVED bodies live HERE, not in comments endpoints."
+echo "  --paginate is REQUIRED — default page-1 cap misses formal reviews on busy PRs."
 $GH api "repos/${REPO}/pulls/${PR}/reviews?per_page=100" --paginate \
-  --jq '. | sort_by(.submitted_at) | .[-5:] | .[] | "  [\(.submitted_at)] \(.user.login) state=\(.state): \(.body[:120] | gsub("\n";" "))"' \
+  --jq '. | sort_by(.submitted_at) | .[-10:] | .[] | "  [\(.submitted_at)] \(.user.login) state=\(.state) body_len=\(.body | length): \(.body[:120] | gsub("\n";" "))"' \
   2>/dev/null || echo "  (none)"
+echo ""
+echo "  ⚠️  Any row with body_len > 500 above is likely a substantive review you should read in full:"
+echo "      gh api repos/${REPO}/pulls/${PR}/reviews --paginate --jq '.[] | select(.submitted_at == \"<timestamp>\") | .body'"
 echo ""
 
 # 3) Unresolved review threads — what the user needs to act on
