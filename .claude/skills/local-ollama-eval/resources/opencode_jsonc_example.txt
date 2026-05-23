@@ -22,6 +22,38 @@
     }
   },
 
+  // Bash command denylist (added 2026-05-23). Deny rules apply EVEN with
+  // --dangerously-skip-permissions, making this the right safety net for
+  // unattended eval runs. Catches pathological filesystem-search loops
+  // (gemma4:26b empirically: `find / -name ailang`, `ls -R /` thrashing
+  // when it couldn't locate the ailang binary).
+  //
+  // Wildcard gotcha: opencode uses simple glob matching. `"ls -R /": "deny"`
+  // matches the literal but NOT `ls -R / | grep ailang` (a pipeline).
+  // Trailing `*` catches pipelines.
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "find / *": "deny",
+      "find /System*": "deny",
+      "find /usr*": "deny",
+      "find /Library*": "deny",
+      "find /Applications*": "deny",
+      "find /Volumes*": "deny",
+      "find /private*": "deny",
+      "find /opt*": "deny",
+      "find /etc*": "deny",
+      "find /var*": "deny",
+      "ls -R /*": "deny",
+      "ls -lR /*": "deny",
+      "ls -Rl /*": "deny",
+      "grep -r /*": "deny",
+      "grep -R /*": "deny",
+      "rm -rf /*": "deny",
+      "sudo *": "deny"
+    }
+  },
+
   // AILANG remote MCP server (added 2026-05-23). Gives the agent first-class
   // access to version-locked AILANG knowledge via structured MCP tools
   // (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept,

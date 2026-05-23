@@ -105,6 +105,50 @@ cp tools/launchd/dev.ailang.server.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/dev.ailang.server.plist
 ```
 
+### CRITICAL: opencode child-shell PATH (2026-05-23 incident)
+
+opencode launches bash tools with a sanitized PATH (`~/.local/bin:/usr/local/bin:/...:/opt/homebrew/bin`) that does NOT include `~/go/bin`. The `ailang` binary installed by `make install` lives there, so without intervention the bash tool will fail with `command not found: ailang`.
+
+When `ailang` isn't visible to the bash tool, models (especially gemma4:26b) fall into pathological filesystem search loops (`find / -name ailang`, `ls -R /`) that hang opencode for many minutes. Empirically this was the dominant failure mode for the rig.
+
+**Fix is a one-time symlink**:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sf "$(which ailang)" ~/.local/bin/ailang
+```
+
+Verify it works from opencode's perspective:
+
+```bash
+opencode run --format json --dangerously-skip-permissions \
+  --model "ollama/gemma4:26b-ailang" "Run: ailang --version. Output DONE."
+```
+
+The bash output should show the actual ailang version, not "command not found".
+
+### opencode permission denylist (defence-in-depth)
+
+In `~/.config/opencode/opencode.jsonc`, add a `permission.bash` block that denies pathological commands. Even with `--dangerously-skip-permissions`, deny rules still apply — they're the right backstop:
+
+```jsonc
+"permission": {
+  "bash": {
+    "*": "allow",
+    "find / *": "deny",
+    "find /System*": "deny", "find /usr*": "deny", "find /Library*": "deny",
+    "find /Applications*": "deny", "find /Volumes*": "deny",
+    "find /private*": "deny", "find /opt*": "deny",
+    "find /etc*": "deny", "find /var*": "deny",
+    "ls -R /*": "deny", "ls -lR /*": "deny", "ls -Rl /*": "deny",
+    "grep -r /*": "deny", "grep -R /*": "deny",
+    "rm -rf /*": "deny", "sudo *": "deny"
+  }
+}
+```
+
+**Wildcard gotcha**: opencode's pattern matching uses simple glob. `"ls -R /": "deny"` matches the literal command but NOT `ls -R / | grep ailang` (a pipeline). You need the trailing `*` in `"ls -R /*"` to catch pipelines. Verified by an actual near-miss where the pipeline form snuck through.
+
 ## Canonical Commands
 
 ### Smoke tier (17 benchmarks)
