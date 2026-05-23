@@ -105,20 +105,13 @@ cp tools/launchd/dev.ailang.server.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/dev.ailang.server.plist
 ```
 
-### CRITICAL: opencode child-shell PATH (2026-05-23 incident)
+### opencode child-shell PATH (auto-handled by `make install`)
 
-opencode launches bash tools with a sanitized PATH (`~/.local/bin:/usr/local/bin:/...:/opt/homebrew/bin`) that does NOT include `~/go/bin`. The `ailang` binary installed by `make install` lives there, so without intervention the bash tool will fail with `command not found: ailang`.
+opencode launches bash tools with a sanitized PATH (`~/.local/bin:/usr/local/bin:/...:/opt/homebrew/bin`) that does NOT include `~/go/bin`, where `go install` deposits the binary. Without intervention the bash tool fails with `command not found: ailang`, and models (especially gemma4:26b) fall into pathological filesystem search loops (`find / -name ailang`, `ls -R /`) trying to locate it — empirically the dominant failure mode of the rig.
 
-When `ailang` isn't visible to the bash tool, models (especially gemma4:26b) fall into pathological filesystem search loops (`find / -name ailang`, `ls -R /`) that hang opencode for many minutes. Empirically this was the dominant failure mode for the rig.
+**Fix is automatic as of 2026-05-23**: `make install` and `make quick-install` now both symlink the binary into `~/.local/bin/ailang` after the `go install`. Nothing manual to do; the symlink is recreated on every install.
 
-**Fix is a one-time symlink**:
-
-```bash
-mkdir -p ~/.local/bin
-ln -sf "$(which ailang)" ~/.local/bin/ailang
-```
-
-Verify it works from opencode's perspective:
+Verify after install:
 
 ```bash
 opencode run --format json --dangerously-skip-permissions \

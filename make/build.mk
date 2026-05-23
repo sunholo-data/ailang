@@ -21,10 +21,19 @@ build: prepare-embed ## Build the ailang binary to bin/
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
 
-install: prepare-embed ## Install ailang to GOPATH/bin (with version info)
+install: prepare-embed ## Install ailang to GOPATH/bin + ~/.local/bin symlink (opencode-compat)
 	@echo "Installing $(BINARY)..."
 	@go install $(LDFLAGS) ./cmd/ailang
 	@echo "$(GREEN)$(CHECKMARK) Installed to $$(go env GOPATH)/bin/$(BINARY)$(RESET)"
+	@# Symlink into ~/.local/bin for tools like opencode that use a sanitized
+	@# child-shell PATH (it doesn't include $$GOPATH/bin). Without this, the
+	@# bash tool in opencode sessions fails with "command not found: ailang"
+	@# and models fall into pathological filesystem-search loops trying to
+	@# locate the binary. See 2026-05-23 incident in
+	@# .claude/skills/local-ollama-eval/SKILL.md.
+	@mkdir -p ~/.local/bin
+	@ln -sf "$$(go env GOPATH)/bin/$(BINARY)" ~/.local/bin/$(BINARY)
+	@echo "$(GREEN)$(CHECKMARK) Symlinked to ~/.local/bin/$(BINARY) (for opencode-compat)$(RESET)"
 	@echo ""
 	@if echo "$$PATH" | grep -q "$$(go env GOPATH)/bin"; then \
 		echo "$(GREEN)$(CHECKMARK) Your PATH is correctly configured$(RESET)"; \
@@ -36,9 +45,11 @@ install: prepare-embed ## Install ailang to GOPATH/bin (with version info)
 		echo "  export PATH=\"$$(go env GOPATH)/bin:\$$PATH\""; \
 	fi
 
-quick-install: prepare-embed ## Quick install with version info
+quick-install: prepare-embed ## Quick install (GOPATH/bin + ~/.local/bin symlink)
 	@go install $(LDFLAGS) ./cmd/ailang
-	@echo "$(GREEN)$(CHECKMARK) ailang updated in $$(go env GOPATH)/bin$(RESET)"
+	@mkdir -p ~/.local/bin
+	@ln -sf "$$(go env GOPATH)/bin/$(BINARY)" ~/.local/bin/$(BINARY)
+	@echo "$(GREEN)$(CHECKMARK) ailang updated in $$(go env GOPATH)/bin (+ ~/.local/bin symlink)$(RESET)"
 
 microrag-mcp-build: ## Build the μRAG MCP server (cmd/ailang-microrag-mcp)
 	@echo "Building ailang-microrag-mcp..."
