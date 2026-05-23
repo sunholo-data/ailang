@@ -41,6 +41,7 @@ type Job struct {
 	Benchmark string
 	Language  string
 	Condition string // Experimental condition: "baseline", "contract", "z3_guided", "full", or "" for legacy
+	Trial     int    // M-EVAL-OS-LONGITUDINAL Phase 3: 1 = default single-trial; 2+ when --trials N > 1
 }
 
 // EvalChainContext holds observatory chain state for agent eval runs.
@@ -123,6 +124,7 @@ func runEvalSuite() {
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
+	numTrials := fs.Int("trials", 1, "Number of trials per (benchmark, model, language) combination. M-EVAL-OS-LONGITUDINAL Phase 3: N>=3 produces a per-benchmark pass-rate distribution in summary.json. Default 1 preserves single-trial behaviour.")
 
 	// Contract verification flags (M-CONTRACT-EVAL)
 	benchmarkDir := fs.String("benchmark-dir", "", "Directory containing benchmark YAML files (default: benchmarks/ in CWD)")
@@ -269,9 +271,14 @@ func runEvalSuite() {
 	// --dry-run: enumerate planned runs and exit before any execution.
 	// Used by M-EXEC-EXPAND to verify agent_suite expands correctly.
 	if *dryRun {
-		fmt.Printf("Dry-run: %d model(s) x %d benchmark(s) x %d language(s) = %d planned runs\n",
-			len(modelList), len(benchmarkList), len(langList),
-			len(modelList)*len(benchmarkList)*len(langList))
+		// M-EVAL-OS-LONGITUDINAL Phase 3: include trial dimension in count.
+		trials := *numTrials
+		if trials < 1 {
+			trials = 1
+		}
+		fmt.Printf("Dry-run: %d model(s) x %d benchmark(s) x %d language(s) x %d trial(s) = %d planned runs\n",
+			len(modelList), len(benchmarkList), len(langList), trials,
+			len(modelList)*len(benchmarkList)*len(langList)*trials)
 		fmt.Printf("Models:     %s\n", strings.Join(modelList, ", "))
 		fmt.Printf("Benchmarks: %s\n", strings.Join(benchmarkList, ", "))
 		fmt.Printf("Languages:  %s\n", strings.Join(langList, ", "))
@@ -444,58 +451,73 @@ func runEvalSuite() {
 	// instead of 10 calls to the same provider.
 	var jobs []Job
 	skippedCount := 0
-	for _, condition := range conditionList {
-		for _, lang := range langList {
-			// For each benchmark, create jobs for all models (round-robin)
-			for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
-				for _, model := range modelList {
-					benchmark := benchmarkList[benchIdx]
-					job := Job{
-						Model:     model,
-						Benchmark: benchmark,
-						Language:  lang,
-						Condition: condition,
-					}
-
-					// Check if result already exists (if resuming)
-					if *skipExisting {
-						// Result filename format: benchmarkID_lang_model_timestamp.json
-						// Check in appropriate subdirectory based on eval mode and condition
-						var patterns []string
-						modeDir := "standard"
-						if *agent {
-							modeDir = "agent"
+	// M-EVAL-OS-LONGITUDINAL Phase 3: outer trial loop. Default --trials 1
+	// generates the same single-job-per-(model,benchmark,lang,condition) tuple
+	// as before. --trials N > 1 produces N independent invocations per tuple,
+	// each writing its own result JSON with a "trial" field for downstream
+	// aggregation by SummarizeRotation.
+	trialsToRun := *numTrials
+	if trialsToRun < 1 {
+		trialsToRun = 1
+	}
+	if trialsToRun > 1 {
+		fmt.Printf("📊 N-trial mode: %d trials per (model, benchmark, language)\n", trialsToRun)
+	}
+	for trial := 1; trial <= trialsToRun; trial++ {
+		for _, condition := range conditionList {
+			for _, lang := range langList {
+				// For each benchmark, create jobs for all models (round-robin)
+				for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
+					for _, model := range modelList {
+						benchmark := benchmarkList[benchIdx]
+						job := Job{
+							Model:     model,
+							Benchmark: benchmark,
+							Language:  lang,
+							Condition: condition,
+							Trial:     trial,
 						}
-						if condition != "" {
-							// With conditions: check mode/condition/ subdirectory
-							patterns = append(patterns, filepath.Join(*outputDir, modeDir, condition, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
-						} else {
-							// Legacy: check mode/ subdirectory
-							patterns = append(patterns, filepath.Join(*outputDir, modeDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
-						}
-						// Also check root directory for legacy results
-						patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
 
-						foundExisting := false
-						for _, pattern := range patterns {
-							matches, _ := filepath.Glob(pattern)
-							if len(matches) > 0 {
-								foundExisting = true
-								break
+						// Check if result already exists (if resuming)
+						if *skipExisting {
+							// Result filename format: benchmarkID_lang_model_timestamp.json
+							// Check in appropriate subdirectory based on eval mode and condition
+							var patterns []string
+							modeDir := "standard"
+							if *agent {
+								modeDir = "agent"
+							}
+							if condition != "" {
+								// With conditions: check mode/condition/ subdirectory
+								patterns = append(patterns, filepath.Join(*outputDir, modeDir, condition, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+							} else {
+								// Legacy: check mode/ subdirectory
+								patterns = append(patterns, filepath.Join(*outputDir, modeDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+							}
+							// Also check root directory for legacy results
+							patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+
+							foundExisting := false
+							for _, pattern := range patterns {
+								matches, _ := filepath.Glob(pattern)
+								if len(matches) > 0 {
+									foundExisting = true
+									break
+								}
+							}
+
+							if foundExisting {
+								skippedCount++
+								continue // Skip this job
 							}
 						}
 
-						if foundExisting {
-							skippedCount++
-							continue // Skip this job
-						}
+						jobs = append(jobs, job)
 					}
-
-					jobs = append(jobs, job)
 				}
 			}
 		}
-	}
+	} // close trial loop (M-EVAL-OS-LONGITUDINAL Phase 3)
 
 	if *skipExisting && skippedCount > 0 {
 		fmt.Printf("Skipped %d existing results\n", skippedCount)
@@ -701,6 +723,18 @@ func runEvalSuite() {
 	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, totalRuns, float64(successCount)/float64(totalRuns)*100)
 	fmt.Printf("Failed:  %d/%d\n", failCount, totalRuns)
 	fmt.Println()
+
+	// M-EVAL-OS-LONGITUDINAL Phase 3: write summary.json that aggregates
+	// per-(benchmark, model, lang, condition) pass rate and token distribution
+	// across trials. Required for Phase 4 candidates command + Phase 5
+	// publication. Best-effort — log on error but don't fail the suite.
+	if rs, err := eval_harness.SummarizeRotation(*outputDir); err != nil {
+		fmt.Printf("Note: failed to write summary.json: %v\n", err)
+	} else if trialsToRun > 1 {
+		fmt.Printf("Summary: aggregated %d result files into %s/summary.json\n",
+			rs.TotalResultFiles, *outputDir)
+	}
+
 	fmt.Println("Results:")
 	fmt.Printf("  - JSON: %s/*.json\n", *outputDir)
 	fmt.Println()

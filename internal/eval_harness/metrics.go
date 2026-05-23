@@ -87,6 +87,13 @@ type RunMetrics struct {
 	// from agent runners on max-turns exit ("step_exhausted"). Empty when
 	// the executor didn't surface a finish signal. Used by CategorizeAgentError.
 	FinishReason string `json:"finish_reason,omitempty"`
+
+	// Trial number for N-trial release smoke (M-EVAL-OS-LONGITUDINAL Phase 3, v0.23.0).
+	// 1 = first trial (default, single-trial mode). 2+ = subsequent trials when
+	// --trials N > 1. Used by SummarizeRotation to group multi-trial outcomes
+	// into a per-benchmark pass_rate / token-distribution summary.json.
+	// Zero is treated as 1 (backward compat with pre-Phase-3 result files).
+	Trial int `json:"trial,omitempty"`
 }
 
 // EvalMode constants
@@ -193,15 +200,21 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Generate filename: <id>_<lang>_<model>_<timestamp>.json
-	// Sanitize model name: replace colons with underscores (Windows compatibility)
+	// Generate filename: <id>[_trialN]_<lang>_<model>_<timestamp>.json
+	// Sanitize model name: replace colons with underscores (Windows compatibility).
+	// Trial > 1 (M-EVAL-OS-LONGITUDINAL Phase 3) injects "_trialN" between the
+	// benchmark id and the language. Trial == 0 or 1 keeps the legacy filename
+	// shape so existing aggregation tools (eval-summary, eval-matrix) work
+	// unchanged on single-trial runs.
 	sanitizedModel := strings.ReplaceAll(m.Model, ":", "_")
-	filename := fmt.Sprintf("%s_%s_%s_%d.json",
-		m.ID,
-		m.Lang,
-		sanitizedModel,
-		m.Timestamp.Unix(),
-	)
+	var filename string
+	if m.Trial > 1 {
+		filename = fmt.Sprintf("%s_trial%d_%s_%s_%d.json",
+			m.ID, m.Trial, m.Lang, sanitizedModel, m.Timestamp.Unix())
+	} else {
+		filename = fmt.Sprintf("%s_%s_%s_%d.json",
+			m.ID, m.Lang, sanitizedModel, m.Timestamp.Unix())
+	}
 	path := filepath.Join(targetDir, filename)
 
 	// Marshal to JSON

@@ -84,7 +84,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 				cyan(j.Benchmark), green(j.Model), j.Language, condLabel)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, j.Trial, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,

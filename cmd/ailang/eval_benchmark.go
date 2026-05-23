@@ -20,7 +20,7 @@ import (
 
 // runSingleBenchmark executes a single benchmark configuration
 // condition is the experimental condition name ("baseline", "contract", "z3_guided", "full", or "" for legacy)
-func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) (bool, error) {
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, trial int, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) (bool, error) {
 	// Start span for this benchmark
 	// Include benchmark ID in span name for easy identification in trace viewers
 	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
@@ -174,6 +174,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				Caps:           spec.Caps,
 				EvalMode:       eval_harness.EvalModeAgent,
 				Condition:      condition,
+				Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
 			}
 			_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 
@@ -252,6 +253,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 			// Executor finish signal (M-EVAL-SWEET-SPOT, v0.19.0)
 			FinishReason: result.FinishReason,
+
+			// Trial number (M-EVAL-OS-LONGITUDINAL Phase 3)
+			Trial: trial,
 		}
 
 		// Append transcript to stderr for backward compatibility with existing tools
@@ -494,6 +498,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			EvalMode:       eval_harness.EvalModeStandard,
 			PromptVersion:  actualPromptVersion,
 			Condition:      condition,
+			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
 		}
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 
@@ -515,8 +520,11 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		return false, fmt.Errorf("benchmark execution failed: %w", err)
 	}
 
-	// Tag metrics with experimental condition
+	// Tag metrics with experimental condition + trial number (M-EVAL-OS-LONGITUDINAL Phase 3).
+	// metrics comes from repairRunner.Run which doesn't know about trials —
+	// we own this annotation here.
 	metrics.Condition = condition
+	metrics.Trial = trial
 
 	if err := logger.Log(metrics); err != nil {
 		benchSpan.RecordError(err)
