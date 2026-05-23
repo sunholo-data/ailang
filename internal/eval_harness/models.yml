@@ -1038,7 +1038,7 @@ models:
   opencode-gemma4-26b:
     api_name: "gemma4:26b"
     provider: "ollama"
-    description: "Gemma 4 26B (Q4_K_M, dense, 17GB) via opencode+Ollama — eval-grade local model"
+    description: "Gemma 4 26B (Q4_K_M, dense, 17GB) via opencode+Ollama — DEFAULT SAMPLING (Google's temp=1.0). Kept for A/B baseline only; production rotations should use opencode-gemma4-26b-ailang below."
     env_var: ""
     agent_cli: "opencode"
     agent_model_name: "ollama/gemma4:26b"
@@ -1054,13 +1054,56 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     notes: |
-      Gemma 4 26B (25.8B params, Q4_K_M dense, 17GB) via Ollama.
-      Fits Macs with ≥32GB RAM. 262k context, vision + tools + thinking capabilities.
-      Primary benchmark model for open-source / offline agent eval.
+      Gemma 4 26B (25.8B params, Q4_K_M dense, 17GB) via Ollama with Google's
+      DEFAULT sampling parameters (temperature=1.0, no repetition penalty).
+      Empirically demonstrated 2026-05-23 to fall into token-collapse loops
+      under agentic tool-call workloads (32k-token argument repetition incident,
+      upstream bug: github.com/google-deepmind/gemma#622).
+      Kept as the baseline for A/B comparison ONLY. For production rotations
+      use opencode-gemma4-26b-ailang (below) which pairs a tuned Modelfile
+      with opencode sampling options.
       Pull: ollama pull gemma4:26b
       Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
-      NOTE 2026-05-22: api_name updated from "gemma4:26b-a4b-it-q4_K_M" (MoE variant)
-      to "gemma4:26b" (dense Q4_K_M) — the default Ollama-library tag.
+
+  opencode-gemma4-26b-ailang:
+    api_name: "gemma4:26b-ailang"
+    provider: "ollama"
+    description: "Gemma 4 26B with AILANG-tuned sampling (Modelfile + opencode options) — production rotation model as of 2026-05-23"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/gemma4:26b-ailang"
+    max_output_tokens: 4096      # belt-and-suspenders cap; primary cap is num_predict in the Modelfile
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 2400
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Variant of gemma4:26b with sampling parameters tuned for agentic AILANG
+      code generation, derived from the 2026-05-23 sampling-collapse incident.
+
+      Modelfile (tools/ollama/gemma4-26b-ailang.modelfile) bakes in ollama-native
+      params that do NOT pass through /v1/chat/completions:
+        top_k=64 (Google official)
+        repeat_penalty=1.1 (community consensus for agentic tool-calls;
+                            kept ≤1.1 since >1.1 hurts code per smcleod.net guide)
+        repeat_last_n=256
+        min_p=0.05 (Unsloth-recommended safety floor)
+        num_predict=4096 (hard cap on single-generation output)
+
+      opencode.jsonc model options (must travel via OpenAI-compatible names):
+        temperature=0.5 (Gemma 4 agentic-loop middle ground; Google official is
+                         1.0 but the 26b MoE has documented collapse issues at 1.0)
+        top_p=0.95 (Google official)
+        frequency_penalty=0.3 (OpenAI-compat counterpart of repeat_penalty)
+        max_tokens=4096
+
+      Build the variant: ollama create gemma4:26b-ailang -f tools/ollama/gemma4-26b-ailang.modelfile
+      Verify config: opencode.jsonc must have provider.ollama.options.name="Ollama"
+                     (sst/opencode#971 — options silently dropped without this)
+      A/B against opencode-gemma4-26b (default sampling) to quantify the improvement.
 
   # =============================================================================
   # OpenRouter-routed OS via opencode harness (M-AI-EFFECT-MODES, May 2026)

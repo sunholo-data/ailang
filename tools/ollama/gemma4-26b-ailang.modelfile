@@ -1,0 +1,40 @@
+# Gemma 4 26B — AILANG-eval-tuned variant
+#
+# Why this variant exists: Google's default Gemma 4 sampling params
+# (temperature=1.0, no repetition penalty) cause occasional token-collapse
+# loops in agentic tool-call scenarios. Empirically observed 2026-05-23:
+# gemma4:26b emitted the string `v_h_y_f_d_` 32,000 times in a single
+# write-tool filePath argument, burning 9 minutes of GPU time. See the
+# upstream bug at https://github.com/google-deepmind/gemma/issues/622
+# ("Gemma 4 token repetition collapse … affects 31b Dense and 26b MoE").
+#
+# The OpenAI-compatible /v1/chat/completions endpoint does NOT pass through
+# `top_k`, `repeat_penalty`, `min_p`, `num_predict` (per Ollama OpenAI
+# compatibility docs). They MUST be set in a Modelfile to actually take
+# effect. The opencode.jsonc sets the OpenAI-compat names (temperature,
+# top_p, frequency_penalty, max_tokens) which DO pass through.
+#
+# Build:    ollama create gemma4:26b-ailang -f tools/ollama/gemma4-26b-ailang.modelfile
+# Verify:   ollama show gemma4:26b-ailang --modelfile
+# Use:      reference as `gemma4:26b-ailang` in opencode + models.yml
+
+FROM gemma4:26b
+
+# Google official top-k for Gemma 4 (Ollama gemma4:26b params blob).
+PARAMETER top_k 64
+
+# Community consensus value for agentic tool-call loops with Gemma 3/4
+# (mychen76/gemma3_cline_roocode_qat ModelFile, Ollama issue #15502 mitigation).
+# Kept at 1.1, NOT higher, because smcleod.net 2025-04 LLM sampling guide
+# notes >1.1 hurts code because variable names should legitimately repeat.
+PARAMETER repeat_penalty 1.1
+PARAMETER repeat_last_n 256
+
+# Safety-floor under top_p. Unsloth's Gemma run guide notes min_p=0.01
+# "works well"; we use 0.05 as a slightly stricter floor for agentic loops.
+PARAMETER min_p 0.05
+
+# Cap any single generation at 4096 tokens. The repetition-collapse incident
+# emitted 32,000 tokens in one tool argument. Even with sampling fixes,
+# this is a hard belt-and-suspenders backstop.
+PARAMETER num_predict 4096
