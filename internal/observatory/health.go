@@ -48,6 +48,22 @@ func CheckHealth(dbPath string) {
 
 	totalMB := sizeMB + walMB
 
+	// M-EVAL-OS-LONGITUDINAL M0: opportunistic WAL checkpoint before the
+	// existing size-based branches. Non-destructive — merges committed WAL
+	// pages into the main DB. If the WAL alone is bloated (the failure mode
+	// observed 2026-05-23: 5.4 GB WAL while main DB stayed at 444 KB), this
+	// reclaims space without touching row data. Refresh local size readings
+	// after the checkpoint so the size-based branches below see the truth.
+	if _, _, didCheckpoint := MaybeCheckpointWAL(dbPath); didCheckpoint {
+		if walInfo, err := os.Stat(dbPath + "-wal"); err == nil {
+			walMB = walInfo.Size() / (1024 * 1024)
+		}
+		if info2, err := os.Stat(dbPath); err == nil {
+			sizeMB = info2.Size() / (1024 * 1024)
+		}
+		totalMB = sizeMB + walMB
+	}
+
 	switch {
 	case totalMB > 2048:
 		log.Printf("Observatory: %dMB (DB=%dMB WAL=%dMB) — DB exceeds 2GB threshold.",

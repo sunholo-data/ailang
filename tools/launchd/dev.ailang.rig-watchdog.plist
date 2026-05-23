@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  M-EVAL-OS-LONGITUDINAL M0: rig watchdog (the actual reliability backstop).
+
+  Why this exists: macOS launchd's KeepAlive directive does NOT reliably
+  respawn jobs after SIGKILL in the gui/<uid> agent context (verified on
+  macOS 26.x Tahoe, 2026-05-23). The dev.ollama.serve.plist and
+  dev.ailang.server.plist both fail to auto-restart despite using the
+  documented KeepAlive dict form.
+
+  This watchdog polls every 60 seconds, checks whether ollama serve and
+  the ailang OTLP receiver are reachable, and kickstarts them if not.
+  It does NOT replace the KeepAlive in those plists (which still helps
+  in some crash modes); it backstops the cases where KeepAlive fails.
+
+  The watchdog script itself lives at tools/launchd/rig-watchdog.sh.
+  Cheap polling (~10ms per check, just curl --max-time 2).
+
+  Installation:
+    cp tools/launchd/dev.ailang.rig-watchdog.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.rig-watchdog.plist
+    launchctl kickstart gui/$UID/dev.ailang.rig-watchdog
+
+  Logs: /tmp/ailang-rig-watchdog.log (each restart event logged with timestamp)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.rig-watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>exec "$HOME/dev/sunholo-data/ailang/tools/launchd/rig-watchdog.sh"</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-rig-watchdog.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-rig-watchdog.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

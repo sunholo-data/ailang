@@ -23,6 +23,19 @@ eval-suite: build ## Run full benchmark suite (all models, parallel)
 # MODELS=... overrides the default model set; pass --full flags via EXTRA.
 eval-smoke: build ## Fast tier (15 benchmarks, dev models) — target <90s warm cache
 	@echo "Running SMOKE tier (dev models)..."
+	@# M-EVAL-OS-LONGITUDINAL M0: fast-fail if the local-Ollama rig is degraded
+	@# (ollama down, observatory server down, model missing) before burning
+	@# benchmark wall-clock on guaranteed timeouts. Skip the check when not
+	@# running against an opencode-* local-Ollama model.
+	@if echo "$(MODELS)" | grep -qE "opencode-(gemma4|qwen2\.5-coder|qwen3|phi4|gemma3|mistral-small|nemotron|granite-code|starcoder2|deepseek-coder)"; then \
+		if [ -x .claude/skills/local-ollama-eval/scripts/verify_setup.sh ]; then \
+			.claude/skills/local-ollama-eval/scripts/verify_setup.sh || { \
+				echo ""; \
+				echo "✗ Rig precondition failed. Fix issues above before running eval."; \
+				exit 1; \
+			}; \
+		fi; \
+	fi
 	@$(BUILD_DIR)/$(BINARY) eval-suite -tier smoke $(if $(MODELS),-models $(MODELS)) $(EXTRA)
 
 eval-core: build ## Core tier (~20 benchmarks, dev models)

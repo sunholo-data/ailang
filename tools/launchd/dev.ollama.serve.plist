@@ -42,8 +42,26 @@
     <key>RunAtLoad</key>
     <true/>
 
+    <!-- KeepAlive caveat: on macOS 26.x (Tahoe) gui/<uid> agents, neither
+         the boolean <true/> form NOR the dict form reliably auto-restart
+         after SIGKILL. Verified 2026-05-23: a kill -9 of the ollama serve
+         process leaves the launchd job in "pended nondemand spawn = semaphore"
+         state and never respawns within 30+ seconds. This is a known macOS
+         launchd limitation in user-agent context.
+         The dict form is still preferable for clarity of intent and may help
+         in some crash modes (graceful exit with non-zero status).
+         For TRUE reliability, see the watchdog approach in
+         tools/launchd/dev.ailang.rig-watchdog.plist (StartInterval polling
+         that restarts dead services). RunAtLoad still works — the plist
+         brings ollama up at user login regardless of KeepAlive.
+    -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
 
     <key>ThrottleInterval</key>
     <integer>10</integer>
