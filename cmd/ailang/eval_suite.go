@@ -120,7 +120,12 @@ func runEvalSuite() {
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
 	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
-	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
+	// NOTE: `-agent-parallel` was historically wired here but never actually
+	// governed dispatch concurrency. The real semaphore is `-parallel` (see
+	// runBenchmarksParallel). The dead flag was a recurring source of confusion
+	// (eg. 2026-05-22 and 2026-05-23 rotations where users passed `-agent-parallel 1`
+	// expecting serial execution and got 10x oversubscription instead). Removed
+	// here; the AgentBenchmarkConfig.MaxConcurrent field is likewise removed.
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
@@ -575,7 +580,9 @@ func runEvalSuite() {
 		} else {
 			fmt.Printf("  - Agent CLI model: per-model lookup from models.yml\n")
 		}
-		fmt.Printf("  - Parallel sessions: %d\n", *agentMaxConcurrent)
+		// Dispatch parallelism is governed by -parallel (the runBenchmarksParallel
+		// semaphore). Print THAT value so the banner doesn't mislead the user.
+		fmt.Printf("  - Dispatch parallelism: %d (-parallel flag)\n", *maxConcurrent)
 		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
 		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
 		fmt.Println()
@@ -615,7 +622,6 @@ func runEvalSuite() {
 		}
 
 		agentConfig = &eval_harness.AgentBenchmarkConfig{
-			MaxConcurrent:      *agentMaxConcurrent,
 			MaxTokensPerBench:  *maxTokensPerBench,
 			RequestsPerSecond:  *agentRequestsPerSecond,
 			TimeoutSeconds:     *agentTimeout,

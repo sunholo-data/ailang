@@ -214,10 +214,12 @@ VRAM math under these settings: 17 GB weights + ~12 GB q8 KV cache = **~29 GB al
 
 | Setting | Recommended | Why |
 |---|---|---|
-| `-agent-parallel 1` | **mandatory** | Match server. Oversubscribing puts requests behind a 15-min TTFT cliff |
+| `-parallel 1` | **mandatory** | The dispatch semaphore. Default is 10 — if you forget this, the harness spawns 10 concurrent opencode agent loops that all pile into ollama's NUM_PARALLEL=1 queue, and TTFT cascades past the 15-min timeout. **Do NOT confuse with `-agent-parallel` (different knob, doesn't govern dispatch)** |
 | `-agent-timeout 1200` | default | Matches per-session cap; bump only if a benchmark is known to need more |
 | `-langs ailang` | always | Local rig is for OS-model AILANG eval, not multi-lang |
 | `-output eval_results/rotation/<date>/<time>_<model>_<tier>/` | recommended | Time-series-queryable structure |
+
+> **Flag confusion warning (logged 2026-05-23)**: eval-suite has two parallelism flags. `-parallel` (default 10) is the dispatch semaphore — this is what controls "how many benchmarks run at once". `-agent-parallel` (default 10) is config internal to the agent runner, NOT used for dispatch. The status banner that says `Parallel sessions: N` confusingly prints the `-agent-parallel` value, not the `-parallel` value that actually matters. ALWAYS look for the line that says `Parallel: N concurrent` (singular) in the suite header — that one is the real dispatch limit.
 
 > **Throughput expectation under these settings**: ~90-120s per benchmark on first cold trial, ~30-60s on subsequent trials within the same rotation (prefix cache hits). For 17 benchmarks × 3 trials = 51 trials sequentially, expect ~1.5-2 h wall clock — slower than the broken `-parallel 4` rotation that *completed in 40 min* by failing 100% of runs, but actually produces data.
 

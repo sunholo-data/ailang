@@ -17,7 +17,11 @@ import (
 
 // AgentBenchmarkConfig configures agent-based evaluation
 type AgentBenchmarkConfig struct {
-	MaxConcurrent      int           // Max parallel Claude sessions
+	// NOTE: MaxConcurrent (formerly the -agent-parallel flag) was removed
+	// 2026-05-23. It was never actually read for dispatch control; the real
+	// semaphore is the -parallel flag handled in cmd/ailang/eval_parallel.go.
+	// Keeping the field caused recurring user confusion (passing -agent-parallel 1
+	// expecting serial execution and getting -parallel=10 oversubscription).
 	RequestsPerSecond  int           // API rate limit
 	TimeoutSeconds     int           // Timeout per benchmark
 	WorkspaceDir       string        // Base workspace directory
@@ -41,7 +45,6 @@ type AgentBenchmarkConfig struct {
 // DefaultAgentConfig returns sensible defaults
 func DefaultAgentConfig() AgentBenchmarkConfig {
 	return AgentBenchmarkConfig{
-		MaxConcurrent:     10,
 		RequestsPerSecond: 1, // Conservative for API quotas
 		TimeoutSeconds:    300,
 		WorkspaceDir:      "/tmp/ailang_eval",

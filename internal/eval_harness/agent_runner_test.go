@@ -10,9 +10,8 @@ import (
 func TestDefaultAgentConfig(t *testing.T) {
 	config := DefaultAgentConfig()
 
-	if config.MaxConcurrent != 10 {
-		t.Errorf("Expected MaxConcurrent=10, got %d", config.MaxConcurrent)
-	}
+	// MaxConcurrent removed 2026-05-23 — was dead code that caused user confusion.
+	// The real dispatch semaphore is the -parallel flag, handled in eval_parallel.go.
 	if config.RequestsPerSecond != 1 {
 		t.Errorf("Expected RequestsPerSecond=1, got %d", config.RequestsPerSecond)
 	}
