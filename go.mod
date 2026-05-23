@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/kms v1.29.0
 	cloud.google.com/go/pubsub v1.50.2
 	cloud.google.com/go/run v1.19.0
-	cloud.google.com/go/storage v1.62.1
+	cloud.google.com/go/storage v1.62.2
 	cloud.google.com/go/trace v1.14.0
 	firebase.google.com/go/v4 v4.19.0
 	github.com/BurntSushi/toml v1.6.0
@@ -15,11 +15,11 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/go-cmp v0.7.0
-	github.com/google/jsonschema-go v0.4.2
+	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/modelcontextprotocol/go-sdk v1.5.0
 	github.com/ollama/ollama v0.21.2
 	github.com/peterh/liner v1.2.2
