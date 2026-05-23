@@ -3,7 +3,7 @@
   "versions": {
     "v0.10.0-slim": {
       "file": "prompts/agent/v0.10.0-slim.md",
-      "hash": "824d1edd22c63d284c9b803ea23d0cfc7981eab0cbce8c67933195d9ddeda435",
+      "hash": "44ddc06610328fcc7afc9be30a9b8079e8e0240afd5a7863bbe204477b0daf50",
       "description": "Slim seed prompt (~1.4k tokens): minimal context that directs the agent to load the full reference dynamically via AILANG MCP tools (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept, etc.) or local CLI fallback (`ailang prompt --kind agent`, `ailang docs`, `ailang examples`). Counterpart to v0.16.x's ~20k-token embedded reference. EXPERIMENTAL — only use via -prompt-version flag, NOT active.",
       "created": "2026-05-23",
       "tags": [
