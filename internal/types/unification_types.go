@@ -73,11 +73,15 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify function type with %T", t2)
+	return nil, fmt.Errorf("cannot unify function type with %s", t2.String())
 }
 
 // unifyLists unifies two list types
 // DX-17: Handles both TList and TApp("list", ...) representations
+//
+// 2026-05-24 (M-AILANG-ERROR-QUALITY): error messages now use t.String()
+// instead of %T so the agent sees AILANG-level type names like [string]
+// instead of Go internals like *types.TList.
 func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution, error) {
 	// Check if t2 is also a list (TList or TApp("list", ...))
 	if elem, ok := AsList(t2); ok {
@@ -94,9 +98,9 @@ func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution
 			return nil, fmt.Errorf("type mismatch: cannot use list where string expected")
 		}
 		// Other TCon cases fail as before
-		return nil, fmt.Errorf("cannot unify list type with %T", t2)
+		return nil, fmt.Errorf("cannot unify list type %s with %s", t1.String(), t2.String())
 	}
-	return nil, fmt.Errorf("cannot unify list type with %T", t2)
+	return nil, fmt.Errorf("cannot unify list type %s with %s", t1.String(), t2.String())
 }
 
 // unifyArrays unifies two array types
@@ -115,7 +119,7 @@ func (u *Unifier) unifyArrays(t1 *TArray, t2 Type, sub Substitution) (Substituti
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify array type with %T", t2)
+	return nil, fmt.Errorf("cannot unify array type %s with %s", t1.String(), t2.String())
 }
 
 // unifyMaps unifies two map types
@@ -141,7 +145,7 @@ func (u *Unifier) unifyMaps(t1 *TMap, t2 Type, sub Substitution) (Substitution, 
 	if t2Var, ok := t2.(*TVar2); ok {
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify map type with %T", t2)
+	return nil, fmt.Errorf("cannot unify map type %s with %s", t1.String(), t2.String())
 }
 
 // unifyTuples unifies two tuple types
@@ -163,7 +167,7 @@ func (u *Unifier) unifyTuples(t1 *TTuple, t2 Type, sub Substitution) (Substituti
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify tuple type with %T", t2)
+	return nil, fmt.Errorf("cannot unify tuple type %s with %s", t1.String(), t2.String())
 }
 
 // unifyTypeApps unifies two type applications
@@ -243,7 +247,7 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 	if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 		return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 	}
-	return nil, fmt.Errorf("cannot unify type application with %T", t2)
+	return nil, fmt.Errorf("cannot unify type application %s with %s", t1.String(), t2.String())
 }
 
 // decomposeApp decomposes a type application into (head constructor, args)
