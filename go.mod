@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/pubsub v1.50.2
 	cloud.google.com/go/run v1.19.0
 	cloud.google.com/go/storage v1.62.2
-	cloud.google.com/go/trace v1.14.0
+	cloud.google.com/go/trace v1.16.0
 	firebase.google.com/go/v4 v4.19.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.32.0
