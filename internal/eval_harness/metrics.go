@@ -114,6 +114,7 @@ const (
 	ErrorCategoryRateLimit      = "rate_limit"      // 429 — transient, distinct from monthly cap
 	ErrorCategoryCostKilled     = "cost_killed"     // Eval-side $ budget exceeded (motoko cost_exhausted, future executor caps)
 	ErrorCategoryStepExhausted  = "step_exhausted"  // Agent ran out of turns / step budget without success
+	ErrorCategoryThrashAborted  = "thrash_aborted"  // M-EVAL-OS-LONGITUDINAL Phase 1: cumulative tokens exceeded MaxTokensPerBench (free $0 models)
 )
 
 // CategorizeError determines the error category based on execution results

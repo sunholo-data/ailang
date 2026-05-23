@@ -173,3 +173,38 @@ func TestErrorCategoryConstants_StableValues(t *testing.T) {
 		}
 	}
 }
+
+// TestCategorizeAgentError_ThrashAborted covers the M-EVAL-OS-LONGITUDINAL
+// Phase 1 wiring: when the opencode executor kills a thrashing subprocess
+// because cumulative tokens exceeded Task.MaxTokensPerBench, the error
+// must categorize to ErrorCategoryThrashAborted whether the signal arrives
+// as finish_reason or as a substring of the error message.
+func TestCategorizeAgentError_ThrashAborted(t *testing.T) {
+	cases := []struct {
+		name         string
+		err          error
+		finishReason string
+		want         string
+	}{
+		{
+			name:         "finish_reason thrash_aborted",
+			err:          errors.New("opencode exited with error: signal: killed"),
+			finishReason: "thrash_aborted",
+			want:         ErrorCategoryThrashAborted,
+		},
+		{
+			name:         "error string contains 'thrash abort' (opencode kill path)",
+			err:          errors.New("thrash abort: cumulative tokens 600000 exceeded MaxTokensPerBench=500000 — opencode exited with error: signal: killed"),
+			finishReason: "",
+			want:         ErrorCategoryThrashAborted,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := CategorizeAgentError(tc.err, tc.finishReason)
+			if got != tc.want {
+				t.Errorf("CategorizeAgentError() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

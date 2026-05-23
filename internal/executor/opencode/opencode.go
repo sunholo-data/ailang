@@ -213,6 +213,12 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var firstStreamEventAt time.Time
 	var costKilled bool
 
+	// M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for $0 local models.
+	// When cumulative input+output tokens exceed task.MaxTokensPerBench, we
+	// kill the subprocess and surface a thrash_aborted error category.
+	var thrashKilled bool
+	var thrashKilledAtTokens int
+
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
@@ -311,6 +317,20 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					}
 				}
 
+				// M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection on cumulative
+				// tokens. Local Ollama models have $0 cost so the cost-budget
+				// path never trips — this is the only safety net against runaway
+				// 2.88M-token thrashing observed in fizzbuzz.
+				if task.MaxTokensPerBench > 0 && !thrashKilled {
+					if inputTokens+outputTokens > task.MaxTokensPerBench {
+						thrashKilled = true
+						thrashKilledAtTokens = inputTokens + outputTokens
+						fmt.Fprintf(os.Stderr, "[OPENCODE] thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d\n",
+							thrashKilledAtTokens, task.MaxTokensPerBench)
+						_ = cmd.Process.Kill()
+					}
+				}
+
 				if stepSpan != nil {
 					stepSpan.SetAttributes(
 						attribute.Int("opencode.input_tokens", ev.Part.Tokens.Input),
@@ -348,6 +368,10 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				if costKilled {
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 				}
+				if thrashKilled {
+					errMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d — %s",
+						thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
+				}
 				return &executor.Result{
 					Success:        success,
 					Output:         transcriptBuf.String(),
@@ -361,6 +385,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					SessionID:      lastSessionID,
 					ProviderData:   opencodeProviderData(rawEvents),
 					CostKilledAt:   task.Budget.KilledAt(),
+					ThrashKilledAt: thrashKilledAtTokens,
 					FirstAttemptMs: firstAttemptMs,
 					SuccessAtMs:    -1,
 					TokensPerSec:   tokensPerSec,
@@ -369,7 +394,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 
 			output := transcriptBuf.String()
 			success := output != "" || toolCallCount > 0
-			if costKilled {
+			if costKilled || thrashKilled {
 				success = false
 			}
 
@@ -386,6 +411,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				SessionID:      lastSessionID,
 				ProviderData:   opencodeProviderData(rawEvents),
 				CostKilledAt:   task.Budget.KilledAt(),
+				ThrashKilledAt: thrashKilledAtTokens,
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 				TokensPerSec:   tokensPerSec,

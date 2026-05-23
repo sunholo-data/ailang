@@ -30,6 +30,14 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryStepExhausted
 	case "timeout":
 		return ErrorCategoryTimeout
+	case "thrash_aborted":
+		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
+	}
+
+	// Fallback: detect by error-message substring when finish_reason wasn't
+	// plumbed through (e.g. opencode executor reports the kill via Error string).
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "thrash abort") {
+		return ErrorCategoryThrashAborted
 	}
 
 	if err == nil {

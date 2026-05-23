@@ -29,6 +29,13 @@ type AgentBenchmarkConfig struct {
 	AgentPromptContent string        // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
 	Condition          EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
 	MicroragMode       MicroragMode  // μRAG subprocess env mode (M-BRAIN-MICRORAG): on/off/auto
+
+	// MaxTokensPerBench (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0): hard
+	// token-budget ceiling per benchmark for thrash detection on $0 local
+	// models. 0 = unlimited (legacy behaviour). Plumbs through to
+	// executor.Task.MaxTokensPerBench. Set via the -max-tokens-per-bench CLI
+	// flag in cmd/ailang/eval_suite.go.
+	MaxTokensPerBench int
 }
 
 // DefaultAgentConfig returns sensible defaults

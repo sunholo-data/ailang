@@ -74,6 +74,15 @@ type Task struct {
 	// Result.CostKilledAt > 0 if the budget is exceeded mid-stream.
 	// Nil = legacy behaviour (wall-clock-only).
 	Budget *CostBudget
+
+	// MaxTokensPerBench (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0): hard token
+	// ceiling per benchmark for thrash detection on free (pricing=0) local
+	// models. When cumulative input+output tokens exceed this value mid-stream,
+	// executors must terminate the subprocess and set Result.ThrashKilledAt to
+	// the observed token count. 0 = unlimited (legacy behaviour). Distinct
+	// from Budget (cost-based) because local Ollama runs have $0 cost and
+	// would never trigger cost-based abort regardless of how much they thrash.
+	MaxTokensPerBench int
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.
@@ -118,6 +127,11 @@ type Result struct {
 	FirstAttemptMs int64   // ms from task start to first solution submission (-1 = never)
 	SuccessAtMs    int64   // ms from task start to first passing solution (-1 = never)
 	TokensPerSec   float64 // OutputTokens / generation_seconds (0 if duration not measured)
+
+	// Thrash abort metric (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0).
+	// > 0 if execution stopped because cumulative tokens exceeded Task.MaxTokensPerBench.
+	// 0 means either the limit wasn't reached or no limit was set.
+	ThrashKilledAt int
 
 	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) is the structured executor
 	// stop signal: "stop" (normal completion), "cost_exhausted" (motoko cost

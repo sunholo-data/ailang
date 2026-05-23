@@ -188,13 +188,14 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// `ailang chains live` per-stage join precise (without this, spans land
 	// in observatory.db but with NULL chain_id/stage_id).
 	task := &executor.Task{
-		ID:           fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
-		Directive:    taskPrompt,
-		SystemPrompt: systemPrompt,
-		Workspace:    workspace,
-		Timeout:      time.Duration(timeoutSeconds) * time.Second,
-		Model:        modelName,
-		Metadata:     buildChainMetadata(config.ChainID, config.StageID),
+		ID:                fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
+		Directive:         taskPrompt,
+		SystemPrompt:      systemPrompt,
+		Workspace:         workspace,
+		Timeout:           time.Duration(timeoutSeconds) * time.Second,
+		Model:             modelName,
+		Metadata:          buildChainMetadata(config.ChainID, config.StageID),
+		MaxTokensPerBench: config.MaxTokensPerBench, // M-EVAL-OS-LONGITUDINAL Phase 1
 	}
 
 	// Apply per-model TTFT / generation timeouts from models.yml

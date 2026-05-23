@@ -122,6 +122,7 @@ func runEvalSuite() {
 	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
+	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
 
 	// Contract verification flags (M-CONTRACT-EVAL)
 	benchmarkDir := fs.String("benchmark-dir", "", "Directory containing benchmark YAML files (default: benchmarks/ in CWD)")
@@ -566,6 +567,7 @@ func runEvalSuite() {
 
 		agentConfig = &eval_harness.AgentBenchmarkConfig{
 			MaxConcurrent:      *agentMaxConcurrent,
+			MaxTokensPerBench:  *maxTokensPerBench,
 			RequestsPerSecond:  *agentRequestsPerSecond,
 			TimeoutSeconds:     *agentTimeout,
 			WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),

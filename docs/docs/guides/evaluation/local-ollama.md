@@ -18,13 +18,13 @@ milestones (v0.22.0).
 After one-time setup (below), the rotation runs via:
 
 ```bash
-# Smoke tier (17 benchmarks, ~80 min wall, requires ~75 GB memory headroom)
+# Smoke tier (17 benchmarks, ~110 min wall at p=2, requires ~50 GB memory headroom)
 make eval-smoke \
   MODELS=opencode-gemma4-26b \
   EXTRA='-agent -langs ailang \
     -benchmarks fizzbuzz,adt_option,balanced_parens,binary_tree_sum,canonical_convergence,canonical_normalization,dense_operator_program,explicit_state_threading,gcd_lcm,immutable_data_structures,inline_tests,nested_records,numeric_modulo,record_update,records_book,recursion_fibonacci,type_safe_record_access \
     -output eval_results/rotation/$(date +%Y-%m-%d)/$(date +%H%M)_gemma4-26b_smoke \
-    -parallel 4 \
+    -parallel 2 \
     -agent-timeout 2400'
 
 # Watch progress live
@@ -126,17 +126,28 @@ runs still complete but you get no live monitoring.**
 ## How parallelism behaves on M4 Max
 
 128 GB unified memory + 40 GPU cores; gemma4:26b uses 25.76 GB of unified
-memory. Empirical measurements (2026-05-22):
+memory. Empirical measurements (2026-05-22 small-N, then 2026-05-23
+17-benchmark head-to-head):
 
-| `-parallel N` | Per-benchmark wall | Aggregate (4 benchmarks) | Note |
-|---|---|---|---|
-| 1 (serial) | 4–7 min (variance dominates) | ~22 min (extrapolated) | Baseline |
-| 2 | ~7 min | ~7m30s | Best wall-clock, sometimes thrashes a benchmark to ~7K tokens |
-| 4 | ~15 min | ~24m39s | Slower per-bench but **stabler** — token rate throttled to ~110 tok/s prevents thrash |
-| 8+ | not tested | (queues in Ollama) | Won't beat 4 unless `OLLAMA_NUM_PARALLEL` is raised |
+| `-parallel N` | Per-bench wall | 17-bench wall | 17-bench pass | Note |
+|---|---|---|---|---|
+| 1 (serial) | 4–7 min (variance dominates) | not measured | n/a | Baseline; estimated ~3h |
+| **2** | ~7 min | **1h 49m** | **13/17 = 76.5%** ✅ | **Recommended default** |
+| 4 | ~15 min | 1h 39m | 10/17 = 58.8% | Slightly faster wall, but loses 2 benchmarks to TTFT timeouts under prefill contention |
+| 8+ | not tested | — | — | Won't beat 4 unless `OLLAMA_NUM_PARALLEL` is raised |
 
-`-parallel 4` is the **recommended default** for the 24/7 rotation. The
-per-benchmark slowdown is more than offset by improved stability.
+**`-parallel 2` is the recommended default** for the 24/7 rotation. Earlier
+small-N (1–2 benchmarks) suggested p=4 might help stability via token-rate
+throttling, but the 17-benchmark head-to-head on 2026-05-23 shows p=4's
+TTFT contention loses 2 benchmarks (`fizzbuzz`, `inline_tests`) before they
+emit a single token — outweighing any anti-thrash benefit. p=2 wins +17.6
+percentage points on pass rate at +10 minutes wall clock.
+
+> **Variance warning** — single-trial pass rates swing 5–7 benchmarks across
+> consecutive runs of the same model on the same seed. For trustworthy
+> assessment use N≥3 trials. See
+> [M-EVAL-OS-LONGITUDINAL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-os-longitudinal.md)
+> for the `--trials N` flag design.
 
 ## Per-model config in `models.yml`
 
