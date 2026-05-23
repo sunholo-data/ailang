@@ -36,7 +36,19 @@ eval-smoke: build ## Fast tier (15 benchmarks, dev models) — target <90s warm 
 			}; \
 		fi; \
 	fi
-	@$(BUILD_DIR)/$(BINARY) eval-suite -tier smoke $(if $(MODELS),-models $(MODELS)) $(EXTRA)
+	@# When MODELS contains an opencode-* (agent-CLI) model, eval-suite would
+	@# reject the run unless -agent + -benchmarks are passed (post-2026-05-23
+	@# silent-fallback guard in eval_suite.go). Auto-inject both here so the
+	@# canonical `make eval-smoke MODELS=opencode-<x>` invocation just works
+	@# without the user having to know about the agent-mode flag dance.
+	@if echo "$(MODELS)" | grep -qE "opencode-" && ! echo "$(EXTRA)" | grep -q -- "-agent\b"; then \
+		SMOKE_LIST=$$(grep -l '^tier: smoke' benchmarks/*.yml 2>/dev/null | xargs -n1 basename | sed 's/\.yml//' | sort | paste -sd ',' -); \
+		echo "  Auto-enabling agent mode for opencode-* model (use -agent in EXTRA to override the auto-injection)."; \
+		echo "  Auto-benchmarks: $$SMOKE_LIST"; \
+		$(BUILD_DIR)/$(BINARY) eval-suite -agent -benchmarks $$SMOKE_LIST $(if $(MODELS),-models $(MODELS)) $(EXTRA); \
+	else \
+		$(BUILD_DIR)/$(BINARY) eval-suite -tier smoke $(if $(MODELS),-models $(MODELS)) $(EXTRA); \
+	fi
 
 eval-core: build ## Core tier (~20 benchmarks, dev models)
 	@echo "Running CORE tier (dev models)..."

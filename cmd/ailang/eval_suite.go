@@ -215,6 +215,33 @@ func runEvalSuite() {
 			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
 		}
 	}
+	// SAFETY: when any requested model has agent_cli set, running it in standard
+	// (direct-API) mode is meaningless — the agent_cli marker means the model is
+	// only usable via a CLI subprocess (opencode, claude, codex, motoko, etc.).
+	// Without this guard, the standard-mode path silently degrades (zero tokens,
+	// fast junk output) and a whole rotation can run without ever calling the
+	// real model. See the 2026-05-23 incident where 102 trials looked complete
+	// but had total_tokens=0 because -agent was omitted. Fail loudly instead.
+	if !*agent && eval_harness.GlobalModelsConfig != nil {
+		var agentOnlyModels []string
+		for _, m := range modelList {
+			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) {
+				cli, _ := eval_harness.GlobalModelsConfig.GetAgentCLI(m)
+				agentOnlyModels = append(agentOnlyModels, fmt.Sprintf("%s (agent_cli: %q)", m, cli))
+			}
+		}
+		if len(agentOnlyModels) > 0 {
+			fmt.Fprintf(os.Stderr, "Error: model(s) require agent mode but -agent was not passed:\n")
+			for _, m := range agentOnlyModels {
+				fmt.Fprintf(os.Stderr, "  - %s\n", m)
+			}
+			fmt.Fprintf(os.Stderr, "\nThese models are only usable via their agent CLI; standard-mode runs would silently produce empty/garbage results.\n")
+			fmt.Fprintf(os.Stderr, "Re-run with -agent and -benchmarks <list>, e.g.:\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite -agent -benchmarks fizzbuzz,adt_option -models %s\n", modelList[0])
+			os.Exit(1)
+		}
+	}
+
 	var benchmarkList []string
 	if *benchmarks == "" {
 		// SAFETY: Agent mode requires explicit benchmark list to prevent accidental large runs
