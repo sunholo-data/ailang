@@ -29,7 +29,7 @@
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.52.0",
     "@vitejs/plugin-react": "^4.2.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.4.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.5.0",
