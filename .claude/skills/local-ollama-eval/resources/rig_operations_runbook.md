@@ -358,3 +358,31 @@ MoE (low active params → fast decode) combined with MLA (low KV per context to
 6. **Slot into leaderboard**: with M-EVAL-RATING-EFFICIENCY (planned), 8 trials at the rating band suffice to slot into ELO rankings.
 
 This workflow turns "should we run this model?" into a $0.50-$2 OpenRouter API call before any local commitment.
+
+### Vetted candidates ready for OpenRouter baseline (2026-05-24 research)
+
+Models confirmed to satisfy the hardware-fit envelope AND available on both OpenRouter + ollama (so they can flow through the full cloud-baseline → local-rig pipeline):
+
+| Priority | Model | OR slug | Ollama tag | Why this slot |
+|---|---|---|---|---|
+| 1 | **Qwen3-Coder-Next** (80B/3B MoE, 26.7x sparsity, Gated DeltaNet) | `qwen/qwen3-coder-next` | `qwen3-coder-next` | Highest sparsity = ~360 tok/s ceiling on our bandwidth. Coding-tuned. 256k ctx. If it passes smoke = the new local floor |
+| 2 | **Nemotron-3-Nano** (31.6B/3.6B MoE, **Mamba-2 + GQA + MoE** hybrid) | `nvidia/nemotron-3-nano` (free tier) | `nemotron-3-super` family page | Unique arch — Mamba layers compress KV cache, ideal for opencode's 100k prefill. 1M ctx. Free OR tier means trivially cheap baseline |
+| 3 | **gpt-oss-120b** (117B/5.1B MoE, native MXFP4) | `openai/gpt-oss-120b` (incl. `:free`) | `gpt-oss:120b` (Ollama supports MXFP4) | Strongest general ceiling. Native MXFP4 → no double-quant loss. **Caveat**: documented MLX prefill instability ([mlx-lm #432](https://github.com/ml-explore/mlx-lm/issues/432)); pin to Ollama not MLX |
+| Alt | **Qwen3-Coder-30B-A3B-Instruct** (30.5B/3.3B MoE, GQA 32/4) | `qwen/qwen3-coder-30b-a3b-instruct` | `qwen3-coder:30b` | Drop-in replacement for gemma4:26b — same memory class, ~6x faster decode (3.3B active vs 26B). Best "always-on" worker pick |
+| Alt | **Devstral 2 (123B dense)** | `mistralai/devstral-2512` | `devstral` (v1.1 confirmed; v2 not yet verified) | Purpose-built agentic coder. Dense → predictable, no MoE routing risk. Tight on 96 GB — needs `iogpu.wired_limit_mb=115000` |
+| Floor | **Granite 4.1** (8B / 32B dense, GQA) | `ibm/granite-4` family | `granite4.1` | Lower ceiling but extremely predictable. Useful as a control/floor model. Cheap baseline |
+
+### Don't bother locally (cloud-only)
+
+- **Qwen3-Coder 480B/35B** — 35B active blows the ≤25B bandwidth budget; at Q4 ~17 GB active → only ~32 tok/s ceiling (slower than what we have)
+- **Step-3.5 Flash 196B/11B** — no confirmed ollama tag; treat as OpenRouter-only until a GGUF/MLX conversion appears
+
+### Three-model OpenRouter baseline plan (do this first)
+
+Trial these in priority order via OpenRouter to find the new local floor:
+
+1. `qwen/qwen3-coder-next` — the speed champion if it can code AILANG
+2. `nvidia/nemotron-3-nano` — the architecture champion for our context length (free tier)
+3. `openai/gpt-oss-120b` — the capability champion in the MoE-on-our-hardware class
+
+Each cloud rotation = ~$1-5 in OR credits, ~1-2 h wall, gives the "best case" pass rate. If a model clears the threshold, pull to ollama and run the AILANG-tuned variant for the local rig.
