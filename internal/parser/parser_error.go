@@ -185,6 +185,29 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 		return
 	}
 
+	// Detect `|` in expression context — common confusion with bitwise OR.
+	// M-AILANG-ERROR-QUALITY 2026-05-24 (iter 4): empirically observed that
+	// LLM agents (especially gemma4:26b on dense_operator_program) write
+	// `a | b` expecting bitwise OR, then thrash for 17+ turns. AILANG's `|`
+	// is reserved for pattern alternatives in `match` only.
+	if t == lexer.PIPE {
+		err := NewSuggestionError(
+			"PAR016",
+			p.curPos(),
+			p.curToken,
+			"'|' is reserved for pattern alternatives in `match`, not a binary operator",
+			[]string{
+				"AILANG bitwise operators: & (AND), ^ (XOR), ~ (NOT), << (left shift), >> (right shift)",
+				"AILANG has NO bitwise OR token — use De Morgan's law: ~(~a & ~b) computes (a | b)",
+				"For logical OR on booleans: use ||",
+				"For pattern alternatives: use inside a `match` arm, e.g. match x { 1 | 2 => ... }",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		)
+		p.errors = append(p.errors, err)
+		return
+	}
+
 	// Enhanced context-aware hints for common delimiter issues
 	if t == lexer.RBRACE || t == lexer.RPAREN || t == lexer.RBRACKET {
 		fix = "Check for unmatched delimiters or missing expression"
