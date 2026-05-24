@@ -287,3 +287,74 @@ When you add a new model to the rig, you must touch all four configuration surfa
 - **gemma4:26b doesn't converge on fizzbuzz** within a 5-min single-trial budget. Code is structurally close (recursive, uses map, has the right shape) but has small API errors each iteration. Model-capability ceiling. Try qwen3-coder:30b for direct comparison.
 - **Per-turn latency variance is real**. A "cold" session with a fresh framework prefix prefill is ~30-90s; a "warm" session with cache hits is sub-second. The first benchmark of a rotation pays the cold cost.
 - **opencode session-end is not always clean**. Sessions that hit token limits or agent iteration caps may not exit immediately. The `agent-timeout` wall-clock cap is the final safety net.
+
+## Hardware fit analysis (added 2026-05-24)
+
+The rig is a 128 GB Apple M4 Max Mac Studio. The single integrated 40-core GPU runs models serially (verified empirically; NUM_PARALLEL>1 thrashes). The constraint that matters for selecting a model is **memory bandwidth (~546 GB/s)**, not memory size.
+
+### The decode-throughput formula
+
+```
+decode_tok_per_s ≈ memory_bandwidth / (active_params × bytes_per_param)
+```
+
+For Q4 quants (~0.5 bytes/param effective with K_M tuning):
+
+| Model | Active params | Active Q4 size | Theoretical tok/s | Observed |
+|---|---|---|---|---|
+| gemma4:26b (dense) | 26B | 17 GB | 32 | 60-67 |
+| qwen3-coder:30b (dense) | 30B | 18 GB | 30 | (expected) 50-60 |
+| qwen3:72b (dense) | 72B | 36 GB | 15 | (expected) 25-35 |
+| Mixtral 8x22B (MoE) | 39B active / 141B total | 20 GB active / 75 GB total | 27 | 45-55 |
+| Qwen3 235B/22B MoE | 22B active / 235B total | 12 GB active / 118 GB total | 45 | 70-80 |
+
+**Active params, not total**, drives decode speed. An MoE that fits in 128 GB but activates only 22B per token is **faster than a dense 30B**.
+
+### Memory-budget axes (three things sharing 128 GB)
+
+1. **Model weights** — `total_params × bytes/param` (Q4 ≈ 0.5)
+2. **KV cache** — `ctx × layers × kv_heads × head_dim × 2 × bytes_per_value`
+   - q8 KV cache (our config) ≈ 1 byte/value, halves vs FP16
+   - GQA shrinks kv_heads vs full MHA (~4-8x smaller KV)
+   - MLA (DeepSeek-style) is ~10x smaller still
+3. **Activations + workspace** — typically 5-15 GB during inference
+
+For your typical agentic session (~36k context, gemma4:26b GQA + q8 KV): ~17 GB weights + ~3.7 GB KV = ~21 GB total (matches observed).
+
+At max 262k context on gemma4:26b: KV alone ~26 GB at q8 → total ~43 GB (still fits comfortably).
+
+### Decision matrix when picking a new model
+
+| Metric | What it tells you | Good fit if... |
+|---|---|---|
+| Active params × bytes/param | Decode bandwidth cost | < 25 GB → ≥30 tok/s |
+| Total params × bytes/param | Memory footprint | < 90 GB safe; < 115 GB with wired-limit bump |
+| Architecture (MHA / GQA / MLA) | KV cache density at agentic context lengths | GQA preferred, MLA ideal |
+| Active / total ratio (MoE only) | Capacity per byte of bandwidth | Lower = more capability per tok/s |
+| Max context length | Long-context headroom | ≥ 128k for opencode-style agentic work |
+| Quantization quality (Q4_K_M / Q5_K_M / Q6_K) | Capability per byte | Q4_K_M is the standard sweet spot |
+| Tool-following baseline | Does it actually call `ailang check`/`run`? | Run 1 benchmark via OpenRouter to baseline before downloading |
+
+### Model classes ranked by fit
+
+| Tier | Best candidates | Why |
+|---|---|---|
+| **Current sweet spot** | gemma4:26b, qwen3-coder:30b, glm-5:30b | 17-20 GB Q4, GQA, ~50-60 tok/s |
+| **Bigger but viable** | qwen3:72b | 36 GB Q4, ~30 tok/s, GQA — 2x slower per trial |
+| **MoE candidates** | Qwen3 MoE (22B active / 235B total), older Mixtral 8x22B | Use most of 128 GB, decode faster than 70B dense |
+| **Long-context specialist** | DeepSeek-Coder-V3 family (MLA) | KV cache 10x smaller — opencode sessions much cheaper |
+
+### The architecture worth watching: MoE + MLA
+
+MoE (low active params → fast decode) combined with MLA (low KV per context token → fits long sessions cheaply) is the design that maximizes both axes on bandwidth-constrained hardware. DeepSeek's recent models, Qwen3 MoE family, and Apple's own MLX-tuned MoEs are in this space.
+
+### Recommended workflow when adding a new model
+
+1. **Cloud baseline first**: trial via OpenRouter (existing `opencode-or-*` entries in `models.yml`). Establishes a "best case" pass rate at cloud-grade sampling, no local-rig variables.
+2. **Hardware fit check**: total + active params + KV/token cost vs the 128 GB budget. Skip if it won't fit (don't waste a download).
+3. **Pull to ollama**: `ollama pull <tag>` — only after cloud baseline justifies it.
+4. **Make AILANG variant**: `ollama create <tag>-ailang -f tools/ollama/...modelfile` with sampling tune (repeat_penalty 1.1, min_p 0.05, num_predict 4096, top_k 64).
+5. **Sanity check**: single-fizzbuzz trial via the harness, confirm rig agrees with cloud baseline.
+6. **Slot into leaderboard**: with M-EVAL-RATING-EFFICIENCY (planned), 8 trials at the rating band suffice to slot into ELO rankings.
+
+This workflow turns "should we run this model?" into a $0.50-$2 OpenRouter API call before any local commitment.
