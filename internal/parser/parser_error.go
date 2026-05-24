@@ -185,6 +185,33 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 		return
 	}
 
+	// Detect `;` outside block context — typical confusion: LLM writes
+	// `pure func f() = let x = a; rest` (semicolon after `=`). AILANG only
+	// allows `;` inside `{ ... }` block bodies; expression-body functions
+	// chain with `let .. in ..`. The parser at this point doesn't have full
+	// context, but `;` is NEVER valid as the start of an expression, so the
+	// hint is always safe.
+	// M-AILANG-ERROR-QUALITY 2026-05-24 (iter 5): canonical_convergence
+	// benchmark caused this 3 times in Iter 1 baseline.
+	if t == lexer.SEMICOLON {
+		err := NewSuggestionError(
+			"PAR017",
+			p.curPos(),
+			p.curToken,
+			"';' is only valid inside `{ ... }` block bodies, not in expression-body functions",
+			[]string{
+				"For expression-body functions, use `let .. in ..` chains (no `;`):",
+				"    pure func f() -> int = let x = 1 in let y = 2 in x + y",
+				"For block-body functions, wrap the body in `{ }` (uses `;`):",
+				"    pure func f() -> int = { let x = 1; let y = 2; x + y }",
+				"Pick ONE style per function — never mix `;` and `in`.",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		)
+		p.errors = append(p.errors, err)
+		return
+	}
+
 	// Detect `|` in expression context — common confusion with bitwise OR.
 	// M-AILANG-ERROR-QUALITY 2026-05-24 (iter 4): empirically observed that
 	// LLM agents (especially gemma4:26b on dense_operator_program) write
