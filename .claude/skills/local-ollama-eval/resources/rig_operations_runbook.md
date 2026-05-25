@@ -5,6 +5,40 @@ findings that are currently scattered across commits + design docs + chat
 history into one document you can hand to a new person (or your future
 self) for onboarding a new model.
 
+## Registering the rig as a worker (v0.24.0+ M-COORD-MULTI-HOST-WORKERS)
+
+The rig can be addressed from anywhere via tag-routed messages once the coordinator daemon is installed as a launchd LaunchAgent with advertised worker tags. One-time setup:
+
+```bash
+# 1. Prereqs: gcloud + ADC + project (one-time per host)
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project ailang-multivac-dev
+gcloud auth application-default set-quota-project ailang-multivac-dev
+
+# 2. Install the launchd LaunchAgent — survives reboots
+make coord-install \
+    TAGS="ollama:gemma4-26b-ailang,gpu:m4-max-40core,local-models" \
+    HOST_ID="studio.eval-rig"
+
+# 3. Add the YAML block the installer prints to your ~/.ailang/config.yaml
+$EDITOR ~/.ailang/config.yaml
+
+# 4. Verify
+launchctl list | grep dev.ailang.coordinator
+ailang coordinator workers list
+```
+
+From anywhere, send tag-routed work via the HTTP API:
+
+```bash
+curl -X POST <coordinator-host>/api/messages \
+    -H "Content-Type: application/json" \
+    -d '{"inbox":"eval-rig","title":"smoke n=3","requires":["ollama:gemma4-26b-ailang"]}'
+```
+
+Only workers advertising tags that satisfy `requires` will claim. Full guide: [docs/docs/guides/coordinator-workers.md](../../../../docs/docs/guides/coordinator-workers.md).
+
 ## TL;DR setup checklist (new model, e.g. qwen3-coder:30b)
 
 ```bash

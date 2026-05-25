@@ -18,11 +18,29 @@ make services-start                          # Start server + coordinator
 ailang coordinator status                    # Check if running
 ailang messages send coordinator "Fix bug"   # Delegate a task
 ailang coordinator pending                   # Review pending approvals
+ailang coordinator workers list              # Show all workers (bare-metal + Cloud Run) — v0.24.0
 ```
 
 **Agent workflow:** GitHub Issue → design-doc-creator → [Approval] → sprint-planner → [Approval] → sprint-executor → [Approval] → Merged
 
-**Config**: `~/.ailang/config.yaml` | **Cloud mode**: Pub/Sub + Cloud Run (v0.9.0+)
+**Config**: `~/.ailang/config.yaml` | **Cloud mode**: Pub/Sub + Cloud Run (v0.9.0+) | **Multi-host workers**: tag-routed via `worker_tags` (v0.24.0+, M-COORD-MULTI-HOST-WORKERS)
+
+## Multi-Host Workers (v0.24.0+)
+
+Bare-metal hosts (e.g., the Mac Studio eval rig) can advertise tags so the same Pub/Sub topic carries tag-routed messages: a task tagged `requires: ollama:gemma4-26b-ailang` is claimed only by a worker advertising that tag. Set up via:
+
+```bash
+# On the worker host:
+make coord-install TAGS="ollama:gemma4-26b-ailang,gpu:m4-max" HOST_ID="studio.eval-rig"
+
+# Add the YAML block the installer prints to the agent in ~/.ailang/config.yaml.
+```
+
+Send tag-routed messages via HTTP `POST /api/messages` with a `requires: ["..."]` array (the CLI `messages send` does not yet support `--requires` — uses SQLite-only path).
+
+**Important terminology**: `worker_tags` are routing attributes for the coordinator; they are NOT AILANG's `--caps IO,FS` effect-system capabilities. Don't conflate the two.
+
+Full guide: [docs/docs/guides/coordinator-workers.md](../../docs/docs/guides/coordinator-workers.md).
 
 ## Adding a New Executor
 
