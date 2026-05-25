@@ -1,6 +1,6 @@
 # M-COORD-MULTI-HOST-WORKERS: Bare-metal Host Workers in the Coordinator System
 
-**Status**: Planned
+**Status**: Implemented (v0.24.0, 2026-05-25)
 **Target**: v0.24.0
 **Priority**: P1 (Medium — operational reliability + multiplies the rig's value)
 **Estimated**: 3-4 days
