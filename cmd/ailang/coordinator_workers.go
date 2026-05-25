@@ -149,12 +149,11 @@ type workerRow struct {
 }
 
 func loadBareMetalRows(maxAge time.Duration) ([]workerRow, error) {
-	// For v0.24.0 the in-process heartbeat store is not addressable from the
-	// CLI binary unless the user is on the same host as the daemon AND the
-	// daemon writes heartbeats to a shared backend. Returning an empty list
-	// here is correct for the in-memory case. The shape lets a future
-	// Firestore-backed implementation drop in without changing the CLI.
-	store := coordinator.NewMemoryHeartbeatStore()
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): read from the on-host JSON file
+	// the daemon writes (~/.ailang/state/worker_heartbeats.json by default).
+	// This gives same-host cross-process visibility. Cross-host visibility
+	// will land via FirestoreHeartbeatStore in v0.25, using the same interface.
+	store := coordinator.NewFileHeartbeatStore(coordinator.DefaultHeartbeatPath(""))
 	hbs, err := store.List(context.Background(), maxAge)
 	if err != nil {
 		return nil, err
@@ -287,9 +286,9 @@ func workersPing(args []string) error {
 		return fmt.Errorf("usage: ailang coordinator workers ping <host_id>")
 	}
 	host := args[0]
-	// Resolve via the heartbeat store first so users get a useful error if
-	// the host doesn't exist.
-	store := coordinator.NewMemoryHeartbeatStore()
+	// Resolve via the on-host heartbeat file so users get a useful error if
+	// the host doesn't exist (or hasn't heartbeated recently).
+	store := coordinator.NewFileHeartbeatStore(coordinator.DefaultHeartbeatPath(""))
 	hbs, err := store.List(context.Background(), 5*time.Minute)
 	if err != nil {
 		return fmt.Errorf("failed to query heartbeat store: %w", err)

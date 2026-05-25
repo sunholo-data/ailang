@@ -116,8 +116,22 @@ func (w *HeartbeatWriter) Start(ctx context.Context) {
 	go func() {
 		defer close(w.done)
 
-		// Initial heartbeat without waiting a full tick — makes the host
-		// visible in `workers list` immediately after the daemon starts.
+		// Brief delay before the first heartbeat. The daemon's Start() calls
+		// us BEFORE Run() populates the agent registry, so an immediate write
+		// would advertise an empty tag set / hostname fallback. Waiting one
+		// short tick gives Run() time to register agents from config, so the
+		// first heartbeat already carries the correct host_id + tags.
+		// Floor: 500ms for production (60s interval) but never more than
+		// half the interval — keeps fast-tick tests responsive.
+		initialDelay := 500 * time.Millisecond
+		if half := w.interval / 2; half < initialDelay {
+			initialDelay = half
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(initialDelay):
+		}
 		w.writeOnce(ctx)
 
 		ticker := time.NewTicker(w.interval)

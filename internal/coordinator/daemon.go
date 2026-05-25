@@ -238,11 +238,10 @@ func (d *Daemon) Start() error {
 }
 
 // startHeartbeat launches the worker-heartbeat writer if a HeartbeatStore is
-// configured (M-COORD-MULTI-HOST-WORKERS, v0.24.0). The daemon's tags and
-// host_id come from the FIRST agent in the config that advertises them — for
-// the typical single-agent-per-host case this is the eval-rig agent. If no
-// agent advertises tags, the daemon emits empty-tag heartbeats which still
-// register the host's existence in `workers list`.
+// configured (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Tags + host_id are read
+// LAZILY at each Snapshot() — the agent registry may be empty when this
+// runs (Start calls us BEFORE Run populates the registry), so we re-read on
+// every tick. First non-empty WorkerHostID / WorkerTags across agents wins.
 func (d *Daemon) startHeartbeat() {
 	if d.heartbeatStore == nil {
 		return
@@ -251,14 +250,27 @@ func (d *Daemon) startHeartbeat() {
 	if interval == 0 {
 		interval = 60 * time.Second
 	}
-	// Pick a representative agent for hostID + tags. First non-empty wins;
-	// callers that want a different agent can rearrange agents in config.
+	source := &daemonHeartbeatSource{daemon: d}
+	d.heartbeatWriter = NewHeartbeatWriter(d.heartbeatStore, source, interval, d.logger)
+	d.heartbeatWriter.Start(d.ctx)
+	d.logger.Printf("Heartbeat writer started: interval=%s (tags resolved lazily from agent registry)", interval)
+}
+
+// daemonHeartbeatSource adapts a Daemon to the HeartbeatSource interface.
+// Snapshot is called per-tick by the writer, so it re-reads the agent
+// registry each time — important because the registry is populated AFTER
+// startHeartbeat() runs (during Run's init phase).
+type daemonHeartbeatSource struct {
+	daemon *Daemon
+}
+
+func (s *daemonHeartbeatSource) Snapshot() WorkerHeartbeat {
 	var hostID string
 	var tags []string
-	if d.agentRegistry != nil {
-		for _, a := range d.agentRegistry.ListAgents() {
+	if s.daemon.agentRegistry != nil {
+		for _, a := range s.daemon.agentRegistry.ListAgents() {
 			if hostID == "" && a.WorkerHostID != "" {
-				hostID = ResolveHostID(a.WorkerHostID)
+				hostID = a.WorkerHostID
 			}
 			if len(tags) == 0 && len(a.WorkerTags) > 0 {
 				tags = append([]string{}, a.WorkerTags...)
@@ -268,27 +280,11 @@ func (d *Daemon) startHeartbeat() {
 			}
 		}
 	}
-	if hostID == "" {
-		hostID = ResolveHostID("")
-	}
-	source := &daemonHeartbeatSource{daemon: d, hostID: hostID, tags: tags}
-	d.heartbeatWriter = NewHeartbeatWriter(d.heartbeatStore, source, interval, d.logger)
-	d.heartbeatWriter.Start(d.ctx)
-	d.logger.Printf("Heartbeat writer started: host=%s tags=%v interval=%s", hostID, tags, interval)
-}
-
-// daemonHeartbeatSource adapts a Daemon to the HeartbeatSource interface.
-type daemonHeartbeatSource struct {
-	daemon *Daemon
-	hostID string
-	tags   []string
-}
-
-func (s *daemonHeartbeatSource) Snapshot() WorkerHeartbeat {
+	hostID = ResolveHostID(hostID)
 	uptime := time.Since(s.daemon.startedAt).Seconds()
 	return WorkerHeartbeat{
-		HostID:      s.hostID,
-		Tags:        append([]string{}, s.tags...),
+		HostID:      hostID,
+		Tags:        tags,
 		ActiveTasks: 0, // active task tracking is a follow-up — see Future Work in design doc
 		LastSeen:    time.Now(),
 		Version:     "v0.24.0",

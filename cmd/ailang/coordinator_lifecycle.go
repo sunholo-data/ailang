@@ -89,6 +89,15 @@ func coordinatorStart(args []string) error {
 		return nil
 	}
 
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): install a file-backed HeartbeatStore
+	// at ~/.ailang/state/worker_heartbeats.json so the daemon's heartbeats are
+	// visible to a separate `workers list` CLI process on the same host.
+	// Cross-host visibility (Firestore-backed) is the v0.25 roadmap item —
+	// drops into the same HeartbeatStore interface without changing this wiring.
+	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(
+		coordinator.DefaultHeartbeatPath(cfg.StateDir),
+	))
+
 	// Pre-set cloud backends if configured (AILANG_STORAGE=gcp|hybrid)
 	storageMode := storage.GetMode()
 	if storageMode != storage.ModeLocal {

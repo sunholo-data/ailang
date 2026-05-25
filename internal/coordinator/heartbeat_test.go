@@ -209,3 +209,72 @@ func (f *fakeHeartbeatSource) Snapshot() WorkerHeartbeat {
 func newSilentHBLogger() *log.Logger {
 	return log.New(io.Discard, "", 0)
 }
+
+func TestHeartbeatWriter_LazySnapshot_PicksUpLateAgent(t *testing.T) {
+	// Reproduces the M3-wiring bug discovered during integration testing:
+	// daemon's startHeartbeat runs BEFORE Run() populates the agent
+	// registry. The source MUST re-snapshot at each tick so tags become
+	// visible once agents are registered.
+	store := NewMemoryHeartbeatStore()
+	src := &mutableSource{initial: WorkerHeartbeat{HostID: "before", LastSeen: time.Now()}}
+	w := NewHeartbeatWriter(store, src, 30*time.Millisecond, newSilentHBLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	w.Start(ctx)
+
+	// Wait for the initial write to land.
+	time.Sleep(20 * time.Millisecond)
+
+	// Simulate "agent registry just got populated" by changing the source's
+	// returned value mid-flight.
+	src.set(WorkerHeartbeat{
+		HostID:   "studio.eval-rig",
+		Tags:     []string{"ollama:gemma4-26b-ailang"},
+		LastSeen: time.Now(),
+		Type:     "bare-metal",
+	})
+
+	// Wait for at least one more tick at the 30ms interval.
+	time.Sleep(80 * time.Millisecond)
+	cancel()
+	w.Wait()
+
+	listed, _ := store.List(context.Background(), time.Hour)
+	if len(listed) == 0 {
+		t.Fatal("no heartbeats written; lazy snapshot path is broken")
+	}
+	// Last write wins (same HostID overwrite) — but here we changed HostID
+	// AND wrote both, so 2 entries should be present.
+	foundStudio := false
+	for _, hb := range listed {
+		if hb.HostID == "studio.eval-rig" && len(hb.Tags) > 0 {
+			foundStudio = true
+			break
+		}
+	}
+	if !foundStudio {
+		t.Errorf("expected studio.eval-rig heartbeat with tags after late agent registration; got %v", listed)
+	}
+}
+
+// mutableSource lets the test swap the snapshot value mid-flight to simulate
+// the agent registry being populated after the writer has already started.
+type mutableSource struct {
+	mu      sync.Mutex
+	initial WorkerHeartbeat
+	current *WorkerHeartbeat
+}
+
+func (s *mutableSource) Snapshot() WorkerHeartbeat {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.current != nil {
+		return *s.current
+	}
+	return s.initial
+}
+
+func (s *mutableSource) set(hb WorkerHeartbeat) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.current = &hb
+}
