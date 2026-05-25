@@ -173,6 +173,19 @@ type AgentConfig struct {
 	// Used for package agents that operate on a specific package within a monorepo.
 	// Example: "packages/auth" for a package agent in the ailang-packages monorepo.
 	Subdirectory string `yaml:"subdirectory" json:"subdirectory,omitempty"`
+
+	// WorkerTags advertise what this agent on this host can serve, used by
+	// the Pub/Sub adapter for tag-subset routing (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+	// Examples: "ollama:gemma4-26b-ailang", "gpu:m4-max-40core", "local-models".
+	// Empty (default) = match-all (no routing constraint, original behavior).
+	// NOT to be confused with `--caps` (AILANG effect-system capabilities).
+	WorkerTags []string `yaml:"worker_tags" json:"worker_tags,omitempty"`
+
+	// WorkerHostID identifies which physical/virtual host this agent runs on
+	// for capability-aware dispatch (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+	// Empty (default) = os.Hostname(). Set explicitly for tests or to override
+	// the inferred name (e.g. "studio.eval-rig" instead of "Voights-Mac-Studio.local").
+	WorkerHostID string `yaml:"worker_host_id" json:"worker_host_id,omitempty"`
 }
 
 // PluginsConfig specifies third-party plugins to install for an agent.
