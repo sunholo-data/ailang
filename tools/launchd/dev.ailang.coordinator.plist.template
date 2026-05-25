@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  M-COORD-MULTI-HOST-WORKERS (v0.24.0): launchd plist template for the
+  AILANG coordinator daemon.
+
+  This is a TEMPLATE — use tools/launchd/install_coordinator.sh to render
+  it with your $HOME / project paths, then load it.
+
+  Tokens replaced by the installer:
+    @USER_HOME@           — e.g. /Users/voightkampff
+    @AILANG_BIN@          — e.g. /Users/voightkampff/go/bin/ailang
+    @AILANG_CLOUD_PROJECT@ — e.g. ailang-multivac-dev
+    @PATH_PREFIX@         — e.g. /Users/voightkampff/go/bin:/opt/homebrew/bin:...
+
+  Direct manual install (NOT recommended; prefer the installer):
+
+    sed -e "s|@USER_HOME@|$HOME|g" \
+        -e "s|@AILANG_BIN@|$HOME/go/bin/ailang|g" \
+        -e "s|@AILANG_CLOUD_PROJECT@|ailang-multivac-dev|g" \
+        -e "s|@PATH_PREFIX@|$HOME/go/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin|g" \
+        tools/launchd/dev.ailang.coordinator.plist.template \
+      > ~/Library/LaunchAgents/dev.ailang.coordinator.plist
+    launchctl load ~/Library/LaunchAgents/dev.ailang.coordinator.plist
+
+  Verify after install:
+
+    launchctl list | grep dev.ailang.coordinator
+    ailang coordinator status
+
+  Stop / unload:
+
+    launchctl unload ~/Library/LaunchAgents/dev.ailang.coordinator.plist
+
+  Worker-tag advertisement happens via the agents in ~/.ailang/config.yaml
+  (worker_tags + worker_host_id per agent). The daemon picks them up from
+  the first agent that advertises tags; rearrange agents to control choice.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.coordinator</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>exec "@AILANG_BIN@" coordinator start</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart if the daemon exits unexpectedly. Tight enough to recover
+         from transient failures, loose enough to avoid crash loops on
+         deterministic startup errors (paired with ThrottleInterval). -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-coordinator-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-coordinator-launchd.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>@USER_HOME@</string>
+
+    <!-- Throttle to one launch every 10s — prevents tight crash loops while
+         still allowing normal restarts after transient failures. -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>@PATH_PREFIX@</string>
+        <!-- M-COORD-MULTI-HOST-WORKERS: AILANG_CLOUD_PROJECT tells the
+             coordinator which GCP project owns its Pub/Sub topics + Firestore.
+             Should match the gcloud config: `gcloud config get-value project`. -->
+        <key>AILANG_CLOUD_PROJECT</key>
+        <string>@AILANG_CLOUD_PROJECT@</string>
+    </dict>
+</dict>
+</plist>

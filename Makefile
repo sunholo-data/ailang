@@ -79,6 +79,7 @@ include make/examples.mk
 include make/code-health.mk
 include make/claude.mk
 include make/ci.mk
+include make/coord.mk
 
 # =============================================================================
 # HELP SYSTEM
