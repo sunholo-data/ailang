@@ -6,6 +6,10 @@
 **Estimated**: 3-4 days
 **Dependencies**: M-PUBSUB-MESSAGING (v0.9.0, implemented), M-CLOUD-DISPATCH (v0.9.0, implemented), M-EVAL-LOCAL-OLLAMA (v0.24.0, planned — provides the first concrete worker host)
 
+**Terminology note**: This design uses **"worker tags"** (`worker_tags` config, `--requires` flag) — NOT "capabilities". The word *capability* is already overloaded in AILANG: `--caps IO,FS,Net` declares effect-system capabilities for running an AILANG program. "Worker tags" is the routing-attribute concept here. Don't reuse the term.
+
+**Re-uses the existing coordinator daemon**: this is NOT a new daemon. The Studio runs the same `ailang coordinator start` binary the laptop does. The only difference is the `worker_tags` block in `~/.ailang/config.yaml`, which advertises what this host can serve. Zero new processes, zero new transports.
+
 ## Axiom Compliance
 
 **Canonical reference:** [Design Axioms](/docs/references/axioms)
@@ -23,8 +27,8 @@
 | A7: Machines First | +2 | Machines can dispatch tasks to specific hardware without a human-in-the-loop |
 | A8: Minimal Syntax | 0 | No new syntax |
 | A9: Cost Visibility | +1 | Workers report active_tasks + uptime; per-task cost attribution flows through existing chains infrastructure |
-| A10: Composability | +1 | Composes with existing executors (claude, codex, opencode, motoko, managed_agents); capability tags compose with existing inbox routing |
-| A11: Structured Failure | +1 | "No worker available" is a typed parked-message outcome, not an unhandled error; capability mismatch observable |
+| A10: Composability | +1 | Composes with existing executors (claude, codex, opencode, motoko, managed_agents); worker tags compose with existing inbox routing |
+| A11: Structured Failure | +1 | "No worker available" is a typed parked-message outcome, not an unhandled error; tag mismatch observable |
 | A12: System Boundary | +1 | Worker boundary explicit via hostname + capability list; Pub/Sub crossings authenticated and logged |
 
 **Net Score: +9** → **Decision: ✅ Proceed to implementation**
@@ -67,7 +71,7 @@ None of these compose with the messages system. If your laptop is in another bui
 **Pain points:**
 
 1. **No way to direct work at a specific host** from anywhere. `ailang messages send eval-suite "..."` from the laptop reaches the laptop's coordinator, not the Studio's.
-2. **No capability-aware dispatch**. Even if both the laptop and Studio subscribed to the same inbox, there's no logic that says "this task needs `ollama:gemma4-26b`, route to the host that advertises it."
+2. **No tag-aware dispatch**. Even if both the laptop and Studio subscribed to the same inbox, there's no logic that says "this task needs `ollama:gemma4-26b`, route to the host that advertises it."
 3. **No health visibility**. On 2026-05-24 we discovered Tailscale had been down for 38 hours because we had no heartbeat between the Studio and the rest of the system. A worker registry with `last_seen` would have caught it in minutes.
 4. **No durability on restart**. The Studio's coordinator daemon doesn't survive reboots — we just lived through this when macOS Tahoe 26.5 force-installed and killed everything.
 5. **No way for cloud Pub/Sub push to reach the Studio**. The Studio sits behind Tailscale with no public HTTPS endpoint — push subscriptions don't work; pull-only is the practical mode.
@@ -81,33 +85,33 @@ None of these compose with the messages system. If your laptop is in another bui
 
 ## Goals
 
-**Primary Goal:** Make the Mac Studio (and other bare-metal hosts) **first-class workers in the coordinator + Pub/Sub system** — addressable by capability tags, with heartbeat-based health, surviving reboots, and reachable from anywhere via Pub/Sub pull subscription.
+**Primary Goal:** Make the Mac Studio (and other bare-metal hosts) **first-class workers in the coordinator + Pub/Sub system** — addressable by worker tags, with heartbeat-based health, surviving reboots, and reachable from anywhere via Pub/Sub pull subscription.
 
 **Success Metrics:**
 
 - From the laptop, in another building: `ailang messages send eval-rig "run smoke n=3"` lands on the Studio's coordinator within 5 seconds, executes there using local Ollama, and writes results back to Firestore where the laptop can see them
-- `ailang coordinator workers list` shows all registered hosts with their capabilities, last heartbeat, and current task count
+- `ailang coordinator workers list` shows all registered hosts (bare-metal + Cloud Run) with their tags, last heartbeat, and current task count
 - Studio's coordinator survives reboots (launchd plist), Tailscale outages (Pub/Sub pull continues working as long as Studio has any internet path), and macOS auto-updates
-- Capability-aware routing: a task tagged `requires:ollama:gemma4-26b-ailang` is automatically dispatched to whichever worker advertises that capability; if none, the task is parked with a clear "no worker available" message rather than failing silently
+- Tag-aware routing: a task tagged `requires:ollama:gemma4-26b-ailang` is automatically dispatched to whichever worker advertises that tag; if none, the task is parked with a clear "no worker available" message rather than failing silently
 - Zero net new transport — uses existing Pub/Sub + Firestore infrastructure
 
 ## High-Impact Decisions
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| Worker identity scheme: hostname-based (`studio.eval-rig`), UUID-based (`worker-7a3c...`), or capability-tag-only (`eval-rig@any-host`) | Affects message routing API, debuggability, and how multiple Studios are handled | human | design | high |
-| Where capability tags are declared: per-agent in `~/.ailang/config.yaml`, in a new top-level `worker:` block, or autodetected (e.g. `ollama list` populates `ollama:*` tags) | Affects user ergonomics + drift risk | human | design | med |
+| Worker identity scheme: hostname-based (`studio.eval-rig`), UUID-based (`worker-7a3c...`), or tag-only (`eval-rig@any-host`) | Affects message routing API, debuggability, and how multiple Studios are handled | human | design | high |
+| Where worker tags are declared: per-agent in `~/.ailang/config.yaml`, in a new top-level `worker:` block, or autodetected (e.g. `ollama list` populates `ollama:*` tags) | Affects user ergonomics + drift risk | human | design | med |
 | Pub/Sub subscription topology: one subscription per host vs one per agent (workers compete from a shared queue) vs hybrid | Affects fan-out vs targeting semantics; biggest architectural choice | human | design | high |
-| What happens when a routed-by-capability task has no available worker — park, error, or fall back to a cloud worker | Affects user-visible behavior on cold mornings | human | design | low |
+| What happens when a routed-by-tag task has no available worker — park, error, or fall back to a cloud worker | Affects user-visible behavior on cold mornings | human | design | low |
 | Whether to bind worker identity to the Tailscale node identity | Tailscale-bound = simpler auth, but couples worker identity to a third-party service we just had issues with | human | design | med |
 
 ### Design Freeze
 
 Before implementation begins, these must be resolved:
 
-- [ ] **Identity scheme**: recommend **hostname-based** (`studio.eval-rig`, `laptop.coordinator`, `cloud.cloud-run`) — debuggable, stable, composes with capability tags. UUIDs are over-engineered for ≤5 hosts foreseeable.
+- [ ] **Identity scheme**: recommend **hostname-based** (`studio.eval-rig`, `laptop.coordinator`, `cloud.cloud-run`) — debuggable, stable, composes with worker tags. UUIDs are over-engineered for ≤5 hosts foreseeable.
 - [ ] **Capability tags location**: recommend **per-agent in `~/.ailang/config.yaml`** with optional autodetect for `ollama:*` tags (run `ollama list` at coordinator start). Drift visible via heartbeats reporting current tags.
-- [ ] **Subscription topology**: recommend **one subscription per `(host, agent_inbox)` pair**, with messages tagged by required capability set. Routes hit the host whose advertised capabilities ⊇ required set. Single message claimed by exactly one worker via Pub/Sub ack.
+- [ ] **Subscription topology**: recommend **one subscription per `(host, agent_inbox)` pair**, with messages tagged by required tag set. Routes hit the host whose advertised tags ⊇ required set. Single message claimed by exactly one worker via Pub/Sub ack.
 - [ ] **No-worker-available behavior**: recommend **park with explicit message** (not error, not auto-fallback). Cloud-fallback is a v0.25 follow-up.
 - [ ] **Tailscale binding**: recommend **independent** — worker identity is `hostname + config-file UUID`, signed via existing M-CLOUD-ENDPOINT-AUTH JWT flow. Tailscale becomes one of several possible reach-the-Studio transports, not the auth mechanism.
 
@@ -115,7 +119,7 @@ Before implementation begins, these must be resolved:
 
 ### Overview
 
-Extend `AgentConfig` in [internal/coordinator/agent_registry.go](internal/coordinator/agent_registry.go) with a small set of fields for worker identity + capabilities. Extend the Pub/Sub adapter to subscribe to capability-filtered subscriptions (using existing attribute filtering). Add a heartbeat mechanism that writes to Firestore. Add a small `ailang coordinator workers` CLI surface. Wire a launchd plist for Studio-style hosts.
+Extend `AgentConfig` in [internal/coordinator/agent_registry.go](internal/coordinator/agent_registry.go) with a small set of fields for worker identity + tags. Extend the Pub/Sub adapter to subscribe to tag-filtered subscriptions (using existing attribute filtering). Add a heartbeat mechanism that writes to Firestore. Add a small `ailang coordinator workers` CLI surface (that ALSO surfaces existing Cloud Run Job workers — see below). Wire a launchd plist for Studio-style hosts.
 
 **No new transport, no new database, no new agent CLI.** Builds entirely on M-PUBSUB-MESSAGING primitives.
 
@@ -162,34 +166,41 @@ Extend `AgentConfig` in [internal/coordinator/agent_registry.go](internal/coordi
                        └────────────────────────────┘
 ```
 
-The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This design adds: laptop → Pub/Sub → bare-metal workers, with capability-filtered subscriptions doing the routing.
+The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This design adds: laptop → Pub/Sub → bare-metal workers, with tag-filtered subscriptions doing the routing.
 
 ### Components
 
 1. **Extended `AgentConfig`** ([internal/coordinator/agent_registry.go:100](internal/coordinator/agent_registry.go#L100)):
-   - New field `WorkerCapabilities []string yaml:"worker_capabilities"` — what this agent can serve
+   - New field `WorkerTags []string yaml:"worker_tags"` — what this agent can serve
    - New field `WorkerHostID string yaml:"worker_host_id"` — defaults to `os.Hostname()`; explicit override for tests
    - The existing `Capabilities []string` (documentation-only) is left untouched for backwards compat
-   - Defaults: empty `WorkerCapabilities` ⇒ matches any message (current behavior); empty `WorkerHostID` ⇒ uses hostname
+   - Defaults: empty `WorkerTags` ⇒ matches any message (current behavior); empty `WorkerHostID` ⇒ uses hostname
 
-2. **Capability matcher** (new file `internal/coordinator/capability_matcher.go`):
+2. **Tag matcher** (new file `internal/coordinator/tag_matcher.go`):
    - Pure function `Matches(required []string, advertised []string) bool` — set-inclusion with glob support for tag families (e.g., `ollama:*` advertised matches `ollama:gemma4-26b-ailang` required)
    - Used by the Pub/Sub adapter to filter incoming messages
 
 3. **Pub/Sub subscription filter** (extends [internal/coordinator/pubsub_adapter.go](internal/coordinator/pubsub_adapter.go)):
    - Subscription created with attribute filter: `inbox = "X"` (coarse, server-side)
-   - Client-side filter: `Matches(message.requires, agent.advertised_capabilities)` before ack
+   - Client-side filter: `Matches(message.requires, agent.advertised_tags)` before ack
    - Non-matching messages: NACK so Pub/Sub redelivers to another worker
    - Reuses existing M-PUBSUB subscription primitives — same attribute filtering model already documented for `agent_id` / `workspace` / `provider`
 
 4. **Heartbeat writer** (new goroutine wired in [daemon.go](internal/coordinator/daemon.go)):
-   - Every 60s, writes `{host_id, capabilities, active_tasks, last_seen, version, uptime}` to Firestore collection `worker_heartbeats`
+   - Every 60s, writes `{host_id, tags, active_tasks, last_seen, version, uptime}` to Firestore collection `worker_heartbeats`
    - TTL: 5 min — workers that don't heartbeat for 5 min are considered offline
 
 5. **`ailang coordinator workers` CLI** (new subcommand in `cmd/ailang/coordinator_workers.go`):
-   - `workers list` — shows all known workers, capabilities, last heartbeat
-   - `workers tag <host_id> <add|remove> <tag>` — runtime capability mutation (writes to overlay, doesn't touch source config)
+   - `workers list` — **unified view** showing:
+     - Live bare-metal workers (laptop, Studio, …) from the `worker_heartbeats` Firestore collection
+     - Cloud Run Job workers (ephemeral, per-task) from the existing Firestore `tasks` collection — surfaces "what ran where in the last 7 days" without needing to drop down to `ailang coordinator list` + cross-reference
+     - Each row has: host_id, type (bare-metal | cloud-run), tags, last_seen, active_tasks, total_tasks_this_week, alive/expired
+   - `workers list --type cloud-run --since 7d` — filter to just see Cloud Run job history
+   - `workers list --type bare-metal` — just live hosts
+   - `workers tag <host_id> <add|remove> <tag>` — runtime tag mutation for bare-metal workers (writes to overlay, doesn't touch source config); rejected for Cloud Run rows
    - `workers ping <host_id>` — sends a `system:heartbeat`-tagged no-op task and reports round-trip latency
+
+   **Why unified**: today a user has to run `ailang coordinator list --status completed` + cross-reference task `executor` field + manually figure out "did this run on the laptop or in Cloud Run?". The unified `workers list` makes the where-did-X-run question a one-liner.
 
 6. **launchd plist template** (`tools/coord/dev.ailang.coordinator.plist.template`):
    - `KeepAlive` on the coordinator daemon
@@ -198,29 +209,33 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 
 ### Implementation Plan
 
-**Phase 1: Worker identity + capabilities in config** (~4 hours)
-- [ ] Add `WorkerCapabilities`, `WorkerHostID` to `AgentConfig` struct
+**Phase 1: Worker identity + tags in config** (~4 hours)
+- [ ] Add `WorkerTags`, `WorkerHostID` to `AgentConfig` struct
 - [ ] Backwards-compatible defaults (empty = match-all / hostname)
-- [ ] Unit tests for capability matcher (set inclusion + glob)
+- [ ] Unit tests for tag matcher (set inclusion + glob)
 - [ ] Update `agent_config_test.go` with examples
 
 **Phase 2: Pub/Sub subscription filter** (~6 hours)
-- [ ] Extend `PubSubInboxAdapter` to accept `(host_id, capabilities)` at construction
-- [ ] Server-side filter: `inbox = "X"`; client-side: capability subset check
-- [ ] Ack messages only AFTER capability match; mismatch = nack
+- [ ] Extend `PubSubInboxAdapter` to accept `(host_id, tags)` at construction
+- [ ] Server-side filter: `inbox = "X"`; client-side: tag subset check
+- [ ] Ack messages only AFTER tag match; mismatch = nack
 - [ ] Integration test: two mock workers, single task, exactly one claims
 
-**Phase 3: Heartbeat + `workers` CLI** (~6 hours)
+**Phase 3: Heartbeat + unified `workers` CLI** (~6 hours)
 - [ ] Heartbeat goroutine writing to `worker_heartbeats` Firestore collection
-- [ ] `ailang coordinator workers list` reads the collection
-- [ ] `ailang coordinator workers ping` round-trip probe via `system:heartbeat` capability
-- [ ] (Deferred to follow-up PR: a "Workers" panel in the Collaboration Hub)
+- [ ] `ailang coordinator workers list` reads:
+  - `worker_heartbeats` (live bare-metal hosts)
+  - Existing `tasks` collection (Cloud Run Job history, grouped by executor)
+  - Aggregates into unified view with type=bare-metal|cloud-run
+- [ ] `--type` and `--since` filter flags
+- [ ] `ailang coordinator workers ping` round-trip probe via `system:heartbeat` tag
+- [ ] (Deferred to follow-up PR: a "Workers" panel in the Collaboration Hub UI)
 
 **Phase 4: launchd persistence + Studio onboarding** (~4 hours)
 - [ ] `tools/coord/dev.ailang.coordinator.plist.template`
 - [ ] `tools/coord/install_daemon.sh` — generates plist with user paths, loads it
 - [ ] Updates to the M-EVAL-LOCAL-OLLAMA runbook for the new onboarding path
-- [ ] End-to-end test: install daemon on Studio, register `ollama:gemma4-26b-ailang` capability, send smoke task from laptop, verify Studio executes
+- [ ] End-to-end test: install daemon on Studio, register `ollama:gemma4-26b-ailang` tag, send smoke task from laptop, verify Studio executes
 
 **Phase 5: Documentation + acceptance** (~2 hours)
 - [ ] `docs/docs/guides/coordinator-workers.md` — concept guide
@@ -230,8 +245,8 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 ### Files to Modify/Create
 
 **New files:**
-- `internal/coordinator/capability_matcher.go` — pure capability matching (~80 LOC)
-- `internal/coordinator/capability_matcher_test.go` — unit tests (~120 LOC)
+- `internal/coordinator/tag_matcher.go` — pure tag matching (~80 LOC)
+- `internal/coordinator/tag_matcher_test.go` — unit tests (~120 LOC)
 - `internal/coordinator/heartbeat.go` — heartbeat writer goroutine (~120 LOC)
 - `internal/coordinator/heartbeat_test.go` — (~80 LOC)
 - `cmd/ailang/coordinator_workers.go` — `workers` subcommand (~150 LOC)
@@ -241,7 +256,7 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 
 **Modified files:**
 - `internal/coordinator/agent_registry.go` — extend AgentConfig (~10 LOC)
-- `internal/coordinator/pubsub_adapter.go` — capability-aware subscription + ack (~80 LOC)
+- `internal/coordinator/pubsub_adapter.go` — tag-aware subscription + ack (~80 LOC)
 - `internal/coordinator/daemon.go` — heartbeat goroutine wiring (~20 LOC)
 - `cmd/ailang/coordinator.go` — register `workers` subcommand (~10 LOC)
 - `docs/docs/guides/coordinator.md` — link to new workers guide (~5 LOC)
@@ -261,11 +276,11 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 # On the Studio, one-time setup:
 cd ~/dev/sunholo/ailang
 tools/coord/install_daemon.sh \
-  --capabilities "ollama:gemma4-26b-ailang,gpu:m4-max-40core,local-models"
+  --tags "ollama:gemma4-26b-ailang,gpu:m4-max-40core,local-models"
 
 # What it does:
 #  - generates ~/Library/LaunchAgents/dev.ailang.coordinator.plist
-#  - writes the worker_capabilities block into ~/.ailang/config.yaml
+#  - writes the worker_tags block into ~/.ailang/config.yaml
 #  - launches the daemon with launchctl load
 #  - emits a heartbeat to Firestore
 
@@ -276,7 +291,7 @@ ailang coordinator workers list
 # laptop.dev        code, research, docs                                       2s ago       1
 ```
 
-### Example 2: Sending a capability-routed task
+### Example 2: Sending a tag-routed task
 
 ```bash
 # From the laptop, no Tailscale needed (uses Pub/Sub):
@@ -293,6 +308,28 @@ ailang messages send eval-rig \
 #  5. Laptop's `ailang messages list --inbox eval-rig` shows the completion
 ```
 
+### Example 2b: GitHub-issue-driven path (already mostly works today)
+
+The existing GitHub sync flow already imports issues to message inboxes via `ailang messages import-github`. **Once tag-routing is in place, the Studio becomes reachable from any contributor without giving them tailnet access**:
+
+```
+1. Contributor opens a GitHub issue:
+   Title: "Run smoke on iter6 config"
+   Labels: agent:eval-rig, requires:ollama:gemma4-26b-ailang
+
+2. GitHub sync (coordinator's poller) imports it to the `eval-rig` inbox
+   with the labels mapped to message attributes:
+     inbox: eval-rig
+     requires: ollama:gemma4-26b-ailang
+
+3. Pub/Sub routes per the tag filter — Studio's coordinator claims it.
+
+4. Studio executes; result posts back to the GitHub issue via the existing
+   `messages reply` integration.
+```
+
+The mechanics for steps 2 and 4 are already implemented (M-COORD-GITHUB-AUTO-ROUTING, M-PUBSUB). The missing piece is just the label → `requires` attribute mapping in the importer (~30 LOC) and the tag-routed subscription itself (this milestone). It's the simplest possible "delegate to the Studio rig" UX for an external contributor: they file an issue, the rig runs the work, results land in the same issue.
+
 ### Example 3: Health visibility (the lesson from 2026-05-22..24)
 
 ```bash
@@ -300,19 +337,32 @@ ailang coordinator workers list --json
 # [
 #   {
 #     "host_id": "studio.eval-rig",
-#     "capabilities": ["ollama:gemma4-26b-ailang", "gpu:m4-max-40core", "local-models"],
+#     "type": "bare-metal",
+#     "tags": ["ollama:gemma4-26b-ailang", "gpu:m4-max-40core", "local-models"],
 #     "last_seen": "2026-05-24T13:42:01Z",
 #     "active_tasks": 1,
+#     "total_tasks_7d": 51,
 #     "version": "0.24.0",
 #     "uptime_secs": 7283,
 #     "alive": true
 #   },
 #   {
 #     "host_id": "laptop.dev",
-#     "capabilities": ["code", "research", "docs"],
+#     "type": "bare-metal",
+#     "tags": ["code", "research", "docs"],
 #     "last_seen": "2026-05-22T13:55:00Z",
 #     "alive": false,
 #     "reason": "no heartbeat for 38h7m"
+#   },
+#   {
+#     "host_id": "cloud-run.agent-default",
+#     "type": "cloud-run",
+#     "tags": ["code", "research", "docs", "claude"],
+#     "last_seen": "2026-05-24T13:30:12Z",
+#     "active_tasks": 0,
+#     "total_tasks_7d": 23,
+#     "alive": true,
+#     "note": "ephemeral — spawned per task"
 #   }
 # ]
 ```
@@ -321,10 +371,10 @@ This is the alert path that would have caught the Friday 2026-05-22 Tailscale ou
 
 ## Success Criteria
 
-- [ ] `AgentConfig` accepts `worker_capabilities` and `worker_host_id` fields; defaults are backwards-compatible
-- [ ] Capability matcher unit tests cover: exact match, glob match (`ollama:*`), subset (advertised ⊇ required), no-match
-- [ ] `PubSubInboxAdapter` filters messages by capability subset; non-matching messages are nack'd
-- [ ] Integration test: two mock workers with different capabilities, single task with `requires`, exactly one claims it
+- [ ] `AgentConfig` accepts `worker_tags` and `worker_host_id` fields; defaults are backwards-compatible
+- [ ] Tag matcher unit tests cover: exact match, glob match (`ollama:*`), subset (advertised ⊇ required), no-match
+- [ ] `PubSubInboxAdapter` filters messages by tag subset; non-matching messages are nack'd
+- [ ] Integration test: two mock workers with different tags, single task with `requires`, exactly one claims it
 - [ ] `ailang coordinator workers list` shows all known workers with heartbeat data
 - [ ] `ailang coordinator workers ping <host>` does a round-trip and reports latency
 - [ ] launchd plist + install script: Studio's coordinator survives `sudo reboot`
@@ -338,12 +388,12 @@ This is the alert path that would have caught the Friday 2026-05-22 Tailscale ou
 ## Testing Strategy
 
 **Unit tests:**
-- `capability_matcher_test.go` — exact, glob, subset, empty, malformed inputs
+- `tag_matcher_test.go` — exact, glob, subset, empty, malformed inputs
 - `heartbeat_test.go` — heartbeat writes, TTL expiration, missing-host handling
 - `agent_config_test.go` — defaults, backwards compat
 
 **Integration tests:**
-- `pubsub_adapter_capability_filter_test.go` — two mock workers, capability-routed message claims exactly once
+- `pubsub_adapter_tag_filter_test.go` — two mock workers, tag-routed message claims exactly once
 - End-to-end test using Firestore emulator: heartbeat write + read via `workers list`
 
 **Manual testing:**
@@ -357,7 +407,7 @@ The following are intentionally left open for the implementer:
 
 - **Whether to surface workers in the Collaboration Hub UI** — out of scope for this milestone; v0.25 follow-up
 - **How to handle worker auth secrets** — for now use the existing M-CLOUD-ENDPOINT-AUTH JWT flow; per-worker keys are a v0.25 hardening task — agent may choose
-- **Whether to add automatic capability fallback** (e.g., if no worker has `ollama:gemma4-26b-ailang` but one has `ollama:gemma4-*`, accept the match) — agent may design but defer until we see real need
+- **Whether to add automatic tag fallback** (e.g., if no worker has `ollama:gemma4-26b-ailang` but one has `ollama:gemma4-*`, accept the match) — agent may design but defer until we see real need
 - **Whether `workers tag` mutates `~/.ailang/config.yaml` directly or writes to a separate runtime overlay** — agent may choose; recommendation is overlay (config remains source of truth, runtime tags visible separately)
 - **Pub/Sub subscription provisioning** — auto-provision on `coordinator start` vs require explicit setup; agent may choose
 
@@ -365,7 +415,7 @@ The following are intentionally left open for the implementer:
 
 **Not attempted in this feature:**
 - **Cross-machine session continuity** (resuming a Claude Code session on a different host) — sessions remain host-local
-- **Worker load balancing across multiple identically-capable hosts** — if you have two Studios with the same capabilities, both will see the message and the first to ack wins. Fair distribution is a v0.25 problem
+- **Worker load balancing across multiple identically-tagged hosts** — if you have two Studios with the same tags, both will see the message and the first to ack wins. Fair distribution is a v0.25 problem
 - **Tailscale-based mesh discovery** — workers are configured explicitly, not auto-discovered. Auto-discovery is future hardening
 - **GPU sharding within a single host** — one ollama instance per host; no concurrent model serving on the same GPU
 - **Authentication/authorization beyond what M-CLOUD-ENDPOINT-AUTH already provides** — same JWT, same trust model
@@ -374,7 +424,7 @@ The following are intentionally left open for the implementer:
 ## Timeline
 
 **Day 1** (~4h):
-- Phase 1 (config + capabilities)
+- Phase 1 (config + tags)
 
 **Day 2** (~6h):
 - Phase 2 (Pub/Sub subscription filter)
@@ -404,7 +454,7 @@ The following are intentionally left open for the implementer:
 
 **Not applicable.** This work touches `internal/coordinator/`, `cmd/ailang/coordinator*.go`, and new files under `tools/coord/`. No changes to `internal/parser/`, `internal/lexer/`, `internal/ast/`, `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/codegen/`, `internal/eval/`, `internal/vm/`, `internal/effects/`, or `cmd/ailang/exec.go`. No language-semantic surface touched.
 
-The only "conflict surface" inside the coordinator is the message routing logic: routing-by-inbox-name continues to work unchanged; capability filters are additive. Agents with no `worker_capabilities` set behave exactly as today (match-everything).
+The only "conflict surface" inside the coordinator is the message routing logic: routing-by-inbox-name continues to work unchanged; tag filters are additive. Agents with no `worker_tags` set behave exactly as today (match-everything).
 
 ## Related Documents
 
@@ -412,7 +462,7 @@ The only "conflict surface" inside the coordinator is the message routing logic:
 - [m-pubsub-messaging.md](../../implemented/v0_9_0/m-pubsub-messaging.md) — Pub/Sub transport layer. **Required reading.** This design extends its attribute-filter model.
 - [m-cloud-dispatch.md](../../implemented/v0_9_0/m-cloud-dispatch.md) — Cloud Run Job dispatch. Workers here are local-execution analogues of the same pattern.
 - [m-cloud-endpoint-auth.md](../../implemented/v0_9_0/m-cloud-endpoint-auth.md) — JWT auth flow used by workers.
-- [M-AGENT-PROTOCOL.md](../../implemented/v0_5_0/M-AGENT-PROTOCOL.md) — Original messages system; capability tags extend its routing semantics.
+- [M-AGENT-PROTOCOL.md](../../implemented/v0_5_0/M-AGENT-PROTOCOL.md) — Original messages system; worker tags extend its routing semantics.
 - [m-cloud-eval-workers.md](../v0_13_0/m-cloud-eval-workers.md) — Earlier related design (Cloud-Run-specific eval workers); this doc generalizes the worker concept beyond Cloud Run.
 
 **Companion v0.24.0 work:**
@@ -434,11 +484,11 @@ The only "conflict surface" inside the coordinator is the message routing logic:
 
 ## Future Work
 
-- **Cloud-fallback routing**: if no bare-metal worker matches required capabilities, fall back to Cloud Run with appropriate executor variant
+- **Cloud-fallback routing**: if no bare-metal worker matches required tags, fall back to Cloud Run with appropriate executor variant
 - **Worker auto-discovery via Tailscale tags** — workers tagged `ailang-worker` in Tailscale ACLs auto-register
 - **Capability negotiation**: workers report richer hardware metrics (memory headroom, current GPU utilization) so dispatch picks the best, not just any, matching worker
 - **Cross-host session continuity**: resume a long-running Claude Code session on a different host
-- **Worker pool fairness**: when two workers have identical capabilities, distribute tasks fairly via round-robin or load-aware
+- **Worker pool fairness**: when two workers have identical tags, distribute tasks fairly via round-robin or load-aware
 - **Per-task budget enforcement**: workers enforce per-task wall-clock and cost ceilings advertised at message-send time
 - **A "Workers" panel in the Collaboration Hub UI** — same data as `workers list`, but real-time
 
