@@ -123,6 +123,27 @@ type Daemon struct {
 	// API key cache for external user auth (M-CLOUD-DUAL-AUTH)
 	apiKeyCache  *APIKeyCache
 	kmsEncrypter *KMSEncrypter
+
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): heartbeat machinery.
+	// Optional — nil heartbeatStore means no heartbeats are emitted (legacy
+	// single-host setups). When wired, the daemon advertises its presence
+	// every heartbeatInterval (default 60s) so `workers list` can see it.
+	heartbeatStore    HeartbeatStore
+	heartbeatWriter   *HeartbeatWriter
+	heartbeatInterval time.Duration
+}
+
+// SetHeartbeatStore installs the worker-heartbeat backend. Call between
+// NewDaemon() and Start() (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Default
+// interval is 60s; override via SetHeartbeatInterval.
+func (d *Daemon) SetHeartbeatStore(store HeartbeatStore) {
+	d.heartbeatStore = store
+}
+
+// SetHeartbeatInterval overrides the default 60s heartbeat write cadence.
+// Tests use shorter intervals; production should keep the default.
+func (d *Daemon) SetHeartbeatInterval(interval time.Duration) {
+	d.heartbeatInterval = interval
 }
 
 // SetStores pre-sets the task store, messaging store, and observatory backend.
@@ -198,6 +219,10 @@ func (d *Daemon) Start() error {
 	d.startedAt = time.Now()
 	d.logger.Printf("Daemon starting (PID: %d)", os.Getpid())
 
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): start heartbeat writer if a store
+	// is configured. Without a store, this is a no-op (legacy single-host).
+	d.startHeartbeat()
+
 	// Set up signal handling
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -210,6 +235,66 @@ func (d *Daemon) Start() error {
 
 	// Run main loop
 	return d.Run()
+}
+
+// startHeartbeat launches the worker-heartbeat writer if a HeartbeatStore is
+// configured (M-COORD-MULTI-HOST-WORKERS, v0.24.0). The daemon's tags and
+// host_id come from the FIRST agent in the config that advertises them — for
+// the typical single-agent-per-host case this is the eval-rig agent. If no
+// agent advertises tags, the daemon emits empty-tag heartbeats which still
+// register the host's existence in `workers list`.
+func (d *Daemon) startHeartbeat() {
+	if d.heartbeatStore == nil {
+		return
+	}
+	interval := d.heartbeatInterval
+	if interval == 0 {
+		interval = 60 * time.Second
+	}
+	// Pick a representative agent for hostID + tags. First non-empty wins;
+	// callers that want a different agent can rearrange agents in config.
+	var hostID string
+	var tags []string
+	if d.agentRegistry != nil {
+		for _, a := range d.agentRegistry.ListAgents() {
+			if hostID == "" && a.WorkerHostID != "" {
+				hostID = ResolveHostID(a.WorkerHostID)
+			}
+			if len(tags) == 0 && len(a.WorkerTags) > 0 {
+				tags = append([]string{}, a.WorkerTags...)
+			}
+			if hostID != "" && len(tags) > 0 {
+				break
+			}
+		}
+	}
+	if hostID == "" {
+		hostID = ResolveHostID("")
+	}
+	source := &daemonHeartbeatSource{daemon: d, hostID: hostID, tags: tags}
+	d.heartbeatWriter = NewHeartbeatWriter(d.heartbeatStore, source, interval, d.logger)
+	d.heartbeatWriter.Start(d.ctx)
+	d.logger.Printf("Heartbeat writer started: host=%s tags=%v interval=%s", hostID, tags, interval)
+}
+
+// daemonHeartbeatSource adapts a Daemon to the HeartbeatSource interface.
+type daemonHeartbeatSource struct {
+	daemon *Daemon
+	hostID string
+	tags   []string
+}
+
+func (s *daemonHeartbeatSource) Snapshot() WorkerHeartbeat {
+	uptime := time.Since(s.daemon.startedAt).Seconds()
+	return WorkerHeartbeat{
+		HostID:      s.hostID,
+		Tags:        append([]string{}, s.tags...),
+		ActiveTasks: 0, // active task tracking is a follow-up — see Future Work in design doc
+		LastSeen:    time.Now(),
+		Version:     "v0.24.0",
+		UptimeSecs:  int64(uptime),
+		Type:        "bare-metal",
+	}
 }
 
 // Run is the main daemon loop
