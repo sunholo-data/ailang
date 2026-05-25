@@ -87,6 +87,70 @@ func TestAttributesFromMap(t *testing.T) {
 	}
 }
 
+func TestAttributesFromMap_RequiresParsing(t *testing.T) {
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): the `requires` attribute is
+	// encoded as a comma-separated string; AttributesFromMap must split
+	// it back into the typed Requires slice, trimming whitespace and
+	// dropping empties.
+	cases := []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{"absent", "", nil},
+		{"whitespace only", "   ", nil},
+		{"single tag", "ollama:gemma4-26b-ailang", []string{"ollama:gemma4-26b-ailang"}},
+		{"two tags", "ollama:gemma4-26b-ailang,gpu:m4-max", []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"}},
+		{"spaces around commas", " ollama:* , gpu:m4-max ", []string{"ollama:*", "gpu:m4-max"}},
+		{"trailing empty entry", "ollama:gemma4-26b-ailang,", []string{"ollama:gemma4-26b-ailang"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := map[string]string{"inbox": "eval-rig"}
+			if tc.raw != "" {
+				m["requires"] = tc.raw
+			}
+			got := AttributesFromMap(m).Requires
+			if len(got) != len(tc.want) {
+				t.Fatalf("Requires len = %d, want %d (got=%v want=%v)", len(got), len(tc.want), got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("Requires[%d] = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestToMap_RequiresEncoding(t *testing.T) {
+	// Empty Requires → no `requires` key in map. Non-empty → comma-joined.
+	t.Run("empty", func(t *testing.T) {
+		m := MessageAttributes{Inbox: "x"}.ToMap()
+		if _, ok := m["requires"]; ok {
+			t.Errorf("empty Requires should not emit `requires` key; map=%v", m)
+		}
+	})
+	t.Run("single", func(t *testing.T) {
+		m := MessageAttributes{Inbox: "x", Requires: []string{"ollama:gemma4-26b-ailang"}}.ToMap()
+		if got := m["requires"]; got != "ollama:gemma4-26b-ailang" {
+			t.Errorf("requires = %q, want ollama:gemma4-26b-ailang", got)
+		}
+	})
+	t.Run("multiple", func(t *testing.T) {
+		m := MessageAttributes{Inbox: "x", Requires: []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"}}.ToMap()
+		if got := m["requires"]; got != "ollama:gemma4-26b-ailang,gpu:m4-max" {
+			t.Errorf("requires = %q, want ollama:gemma4-26b-ailang,gpu:m4-max", got)
+		}
+	})
+	t.Run("filters empty entries", func(t *testing.T) {
+		m := MessageAttributes{Inbox: "x", Requires: []string{"", "ollama:gemma4-26b-ailang", ""}}.ToMap()
+		if got := m["requires"]; got != "ollama:gemma4-26b-ailang" {
+			t.Errorf("requires = %q, want ollama:gemma4-26b-ailang (empty entries should be filtered)", got)
+		}
+	})
+}
+
 func TestAttributesRoundTrip(t *testing.T) {
 	original := MessageAttributes{
 		Inbox:       "sprint-executor",
@@ -94,14 +158,36 @@ func TestAttributesRoundTrip(t *testing.T) {
 		FromAgent:   "sprint-planner",
 		Category:    "bug",
 		MessageType: "notification",
+		// M-COORD-MULTI-HOST-WORKERS (v0.24.0): exercise Requires round-trip
+		// through ToMap + AttributesFromMap.
+		Requires: []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"},
 	}
 
 	m := original.ToMap()
 	restored := AttributesFromMap(m)
 
-	if restored != original {
+	if !attributesEqual(original, restored) {
 		t.Errorf("roundtrip failed:\n  original: %+v\n  restored: %+v", original, restored)
 	}
+}
+
+// attributesEqual compares MessageAttributes deeply (struct contains a slice,
+// so we can't use the == operator).
+func attributesEqual(a, b MessageAttributes) bool {
+	if a.Inbox != b.Inbox || a.Workspace != b.Workspace ||
+		a.FromAgent != b.FromAgent || a.Category != b.Category ||
+		a.MessageType != b.MessageType || a.Source != b.Source {
+		return false
+	}
+	if len(a.Requires) != len(b.Requires) {
+		return false
+	}
+	for i := range a.Requires {
+		if a.Requires[i] != b.Requires[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTopicConstants(t *testing.T) {

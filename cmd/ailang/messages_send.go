@@ -37,6 +37,14 @@ func runMessagesSend(args []string) {
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
 	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
+	// M-COORD-MULTI-HOST-WORKERS note: the worker-tag routing (`requires`)
+	// flows via HTTP POST /api/messages, which carries it through to Pub/Sub
+	// attributes (see internal/coordinator/daemon_http.go). The CLI `send`
+	// command writes to SQLite and is intentionally NOT extended with
+	// --requires until the InboxMessage schema gains a column. For tag-routed
+	// dispatch today, use `curl -X POST /api/messages -d '{..., "requires": [...]}'`
+	// against the coordinator's HTTP server.
+
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
 	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user"})

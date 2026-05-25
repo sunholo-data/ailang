@@ -1,5 +1,7 @@
 package pubsub
 
+import "strings"
+
 // DefaultTopicPrefix is the default prefix for all AILANG Pub/Sub topics.
 const DefaultTopicPrefix = "ailang"
 
@@ -85,6 +87,13 @@ type MessageAttributes struct {
 	// feedback ("messages" or empty). Set by the publisher; the receiving
 	// adapter copies it through to Message.Source for downstream guards.
 	Source string
+
+	// Requires lists worker tags this message must be routed to a worker
+	// advertising (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Encoded as a
+	// comma-separated string in the Pub/Sub `requires` attribute. Empty =
+	// no constraint (any worker subscribed to the inbox may claim).
+	// Examples: "ollama:gemma4-26b-ailang", "gpu:m4-max,local-models".
+	Requires []string
 }
 
 // ToMap converts attributes to map[string]string for Pub/Sub message publishing.
@@ -109,12 +118,18 @@ func (a MessageAttributes) ToMap() map[string]string {
 	if a.Source != "" {
 		m["source"] = a.Source
 	}
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): encode worker tag requirements
+	// as comma-separated `requires` attribute. Empty values dropped to keep
+	// the on-the-wire encoding clean.
+	if reqs := nonEmptyTags(a.Requires); len(reqs) > 0 {
+		m["requires"] = strings.Join(reqs, ",")
+	}
 	return m
 }
 
 // AttributesFromMap creates MessageAttributes from a Pub/Sub message attributes map.
 func AttributesFromMap(m map[string]string) MessageAttributes {
-	return MessageAttributes{
+	attrs := MessageAttributes{
 		Inbox:       m["inbox"],
 		Workspace:   m["workspace"],
 		FromAgent:   m["from_agent"],
@@ -122,4 +137,26 @@ func AttributesFromMap(m map[string]string) MessageAttributes {
 		MessageType: m["message_type"],
 		Source:      m["source"],
 	}
+	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): parse comma-separated `requires`
+	// attribute back into the structured field, trimming whitespace and
+	// dropping empty entries.
+	if raw := strings.TrimSpace(m["requires"]); raw != "" {
+		for _, p := range strings.Split(raw, ",") {
+			if t := strings.TrimSpace(p); t != "" {
+				attrs.Requires = append(attrs.Requires, t)
+			}
+		}
+	}
+	return attrs
+}
+
+// nonEmptyTags filters out empty strings while preserving order.
+func nonEmptyTags(xs []string) []string {
+	out := make([]string, 0, len(xs))
+	for _, x := range xs {
+		if x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }

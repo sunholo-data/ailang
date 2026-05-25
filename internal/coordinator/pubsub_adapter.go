@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,12 @@ import (
 // PubSubInboxAdapter buffers incoming message notifications for the coordinator.
 // Messages arrive either via pull subscription (Start) or push HTTP endpoint
 // (HandleNotification). ListUnread() drains the buffer.
+//
+// M-COORD-MULTI-HOST-WORKERS (v0.24.0): adapters can advertise worker tags so
+// the same Pub/Sub topic can carry tag-routed messages claimed only by hosts
+// whose advertised tags ⊇ the message's required tag set. Call SetWorkerTags
+// after construction to opt in; adapters without tags advertised reject
+// any message that has a non-empty `requires` attribute.
 type PubSubInboxAdapter struct {
 	subscriber *pubsub.Subscriber
 	msgStore   messaging.MessageStore // For fetching full message content from Firestore
@@ -25,6 +32,11 @@ type PubSubInboxAdapter struct {
 	mu       sync.Mutex
 	buffered []*Message
 	running  bool
+
+	// M-COORD-MULTI-HOST-WORKERS v0.24.0: worker identity + advertised tags
+	// used for tag-subset filtering of incoming messages. Read protected by mu.
+	hostID         string
+	advertisedTags []string
 }
 
 // NewPubSubInboxAdapter creates an adapter for receiving message notifications.
@@ -41,10 +53,80 @@ func NewPubSubInboxAdapter(subscriber *pubsub.Subscriber, subName, inbox string,
 	}
 }
 
+// SetWorkerTags advertises this adapter's host identity and tag set for
+// tag-routed message filtering (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+// Safe to call after construction and before Start(). Empty tags = match-all
+// for legacy single-host setups; non-empty tags reject messages whose
+// `requires` attribute names tags this adapter does not advertise.
+func (a *PubSubInboxAdapter) SetWorkerTags(hostID string, tags []string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.hostID = hostID
+	// Copy to avoid sharing the caller's slice.
+	a.advertisedTags = append([]string{}, tags...)
+}
+
+// parseRequiresAttr parses the comma-separated `requires` Pub/Sub attribute
+// into a clean tag list (trimmed, empty entries dropped). An empty / missing
+// attribute returns nil — interpreted by the caller as "no constraint".
+func parseRequiresAttr(attrs map[string]string) []string {
+	raw, ok := attrs["requires"]
+	if !ok {
+		return nil
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// shouldClaim returns true iff this adapter should process and ack the
+// notification, given the message's required tag set. An empty `required`
+// list ALWAYS returns true (no constraint). Otherwise, this adapter's
+// advertised tags must satisfy the requirement (set inclusion + glob).
+func (a *PubSubInboxAdapter) shouldClaim(required []string) bool {
+	if len(required) == 0 {
+		return true
+	}
+	a.mu.Lock()
+	advertised := a.advertisedTags
+	a.mu.Unlock()
+	return TagMatches(required, advertised)
+}
+
 // HandleNotification processes a message notification from either pull subscription
 // or push HTTP endpoint. It decodes the notification, fetches full content from
 // Firestore, and buffers the message for ListUnread().
+//
+// M-COORD-MULTI-HOST-WORKERS (v0.24.0): if the message's `requires` attribute
+// names tags this adapter does not advertise, the function returns a non-nil
+// error WITHOUT fetching from the message store. Pub/Sub's redelivery
+// semantics treat that error as a NACK, leaving the message available for
+// another worker. Error string contains "tag filter" for observability.
 func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]string) error {
+	// Tag-routing pre-flight: reject (nack) BEFORE any Firestore fetch if the
+	// message's `requires` set is not satisfied by our advertised tags.
+	if required := parseRequiresAttr(attrs); len(required) > 0 {
+		if !a.shouldClaim(required) {
+			a.mu.Lock()
+			hostID := a.hostID
+			adv := a.advertisedTags
+			a.mu.Unlock()
+			a.logger.Printf("PubSubInboxAdapter: tag filter rejected message: required=%v, advertised=%v, host=%s",
+				required, adv, hostID)
+			return fmt.Errorf("tag filter: requires=%v not satisfied by advertised=%v", required, adv)
+		}
+	}
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade messages now embed the full
 	// envelope in the data field. Try that decode first; fall back to the
 	// legacy notification-only decode if the data isn't an envelope. This
