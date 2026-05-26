@@ -78,9 +78,9 @@ motoko has an autonomous bash tool (no per-call approval prompt by default — t
 
 ## Pinned motoko revision
 
-This adapter is tested against motoko_agent commit `ada0ae9` on branch `feature/v021-effect-row-migration` (sunholo-voight-kampff fork, PR pending against arniwesth/motoko_agent main). The schema v1 contract this adapter depends on shipped in commits `0c006be` (initial) + `84fa449` (cache token closure). Subsequent work that brought motoko_agent up on AILANG v0.21+: `29a1fed` (ai_compat → std/ai.stepWithStream), `e960592` (bump 12 ext deps), `3b72542` (jnum/intToFloat), `8834a47` (regen lock), `ada0ae9` (effect-row workarounds).
+This adapter is tested against motoko_agent commit `f7b26c8` on branch `feature/v021-effect-row-migration` (sunholo-voight-kampff fork, PR pending against arniwesth/motoko_agent main). The schema v1 contract this adapter depends on shipped in commits `0c006be` (initial) + `84fa449` (cache token closure). Subsequent work that brought motoko_agent up on AILANG v0.21+ → v0.22+: `29a1fed` (ai_compat → std/ai.stepWithStream), `e960592` (bump 12 ext deps), `3b72542` (jnum/intToFloat), `8834a47` (regen lock), `ada0ae9` (effect-row workarounds), `f7b26c8` (ai_compat 0.2.1 + compose 0.2.4 dep bumps after registry republish).
 
-**AILANG version floor: v0.21.1+** (the iface bug fix M-IFACE-NESTED-EFFECTS is required to type-check `agent_loop_v2.ail`'s call to `dispatch_step` when `dispatch_step` is imported from another module). Older AILANG will see `dispatch_step`'s on_chunk parameter as `(StreamChunk) -> ()` (closed empty effect) due to the nested-function-type effect-row stripping bug, and fail at "incompatible closed rows".
+**AILANG version floor: v0.22.0+** (the iface bug fix M-IFACE-NESTED-EFFECTS is required to type-check `agent_loop_v2.ail`'s call to `dispatch_step` when `dispatch_step` is imported from another module). Older AILANG will see `dispatch_step`'s on_chunk parameter as `(StreamChunk) -> ()` (closed empty effect) due to the nested-function-type effect-row stripping bug, and fail at "incompatible closed rows".
 
 Verified date: 2026-05-26 on macOS Tahoe 26.5 (Studio eval rig). `make build` exits 0; full eval-smoke run deferred to a workstation with `OPENROUTER_API_KEY` in env.
 

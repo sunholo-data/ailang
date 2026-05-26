@@ -1,7 +1,7 @@
 # Sprint Plan: M-MOTOKO-AILANG-RECONCILE
 
 **Design doc**: [m-motoko-ailang-reconcile.md](m-motoko-ailang-reconcile.md)
-**Target**: v0.24.x (operational follow-up; no AILANG core changes)
+**Target**: v0.22.0 (operational follow-up; no AILANG core changes)
 **Status**: Approved by user (2026-05-26) following the diagnostic session that identified the exact gap
 **Estimated**: 2-3 hours (mostly code work in motoko_agent; mechanical bumps in ailang-packages)
 **Risk level**: Medium-Low (real code change in load-bearing `callStreamResult`, but the new API has a near-equivalent shape; rollback is `git revert`)

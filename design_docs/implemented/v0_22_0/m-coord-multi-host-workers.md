@@ -1,10 +1,10 @@
 # M-COORD-MULTI-HOST-WORKERS: Bare-metal Host Workers in the Coordinator System
 
-**Status**: Implemented (v0.24.0, 2026-05-25)
-**Target**: v0.24.0
+**Status**: Implemented (v0.22.0, 2026-05-25)
+**Target**: v0.22.0
 **Priority**: P1 (Medium — operational reliability + multiplies the rig's value)
 **Estimated**: 3-4 days
-**Dependencies**: M-PUBSUB-MESSAGING (v0.9.0, implemented), M-CLOUD-DISPATCH (v0.9.0, implemented), M-EVAL-LOCAL-OLLAMA (v0.24.0, planned — provides the first concrete worker host)
+**Dependencies**: M-PUBSUB-MESSAGING (v0.9.0, implemented), M-CLOUD-DISPATCH (v0.9.0, implemented), M-EVAL-LOCAL-OLLAMA (v0.22.0, planned — provides the first concrete worker host)
 
 **Terminology note**: This design uses **"worker tags"** (`worker_tags` config, `--requires` flag) — NOT "capabilities". The word *capability* is already overloaded in AILANG: `--caps IO,FS,Net` declares effect-system capabilities for running an AILANG program. "Worker tags" is the routing-attribute concept here. Don't reuse the term.
 
@@ -239,7 +239,7 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 
 **Phase 5: Documentation + acceptance** (~2 hours)
 - [ ] `docs/docs/guides/coordinator-workers.md` — concept guide
-- [ ] CHANGELOG.md entry under v0.24.0
+- [ ] CHANGELOG.md entry under v0.22.0
 - [ ] Update `.claude/rules/coordinator.md` with the new patterns
 
 ### Files to Modify/Create
@@ -260,7 +260,7 @@ The arrows from M-PUBSUB (existing): laptop → Pub/Sub → cloud workers. This 
 - `internal/coordinator/daemon.go` — heartbeat goroutine wiring (~20 LOC)
 - `cmd/ailang/coordinator.go` — register `workers` subcommand (~10 LOC)
 - `docs/docs/guides/coordinator.md` — link to new workers guide (~5 LOC)
-- `CHANGELOG.md` — v0.24.0 entry (~10 LOC)
+- `CHANGELOG.md` — v0.22.0 entry (~10 LOC)
 - `.claude/rules/coordinator.md` — pattern documentation (~15 LOC)
 - `.claude/skills/local-ollama-eval/resources/rig_operations_runbook.md` — onboarding addendum (~30 LOC)
 
@@ -465,7 +465,7 @@ The only "conflict surface" inside the coordinator is the message routing logic:
 - [M-AGENT-PROTOCOL.md](../../implemented/v0_5_0/M-AGENT-PROTOCOL.md) — Original messages system; worker tags extend its routing semantics.
 - [m-cloud-eval-workers.md](../v0_13_0/m-cloud-eval-workers.md) — Earlier related design (Cloud-Run-specific eval workers); this doc generalizes the worker concept beyond Cloud Run.
 
-**Companion v0.24.0 work:**
+**Companion v0.22.0 work:**
 - [m-eval-local-ollama.md](m-eval-local-ollama.md) — Operational reliability for Studio's local Ollama setup. This doc adds the *control plane*; that doc handles the *data plane* of the rig.
 - [m-eval-openrouter-baseline-rotation.md](m-eval-openrouter-baseline-rotation.md) — Once workers are real, OR baselines can be routed to whichever worker is cheapest/fastest.
 - [m-eval-rating-efficiency.md](m-eval-rating-efficiency.md) — ELO scoring; cross-worker comparison becomes trivial when both run identical task payloads from the same queue.

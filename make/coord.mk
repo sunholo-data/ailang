@@ -1,4 +1,4 @@
-# M-COORD-MULTI-HOST-WORKERS (v0.24.0): coordinator-daemon install/uninstall
+# M-COORD-MULTI-HOST-WORKERS (v0.22.0): coordinator-daemon install/uninstall
 # targets that wrap tools/launchd/install_coordinator.sh.
 #
 # Usage:

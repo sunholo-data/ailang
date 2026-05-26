@@ -17,7 +17,7 @@ import (
 // Messages arrive either via pull subscription (Start) or push HTTP endpoint
 // (HandleNotification). ListUnread() drains the buffer.
 //
-// M-COORD-MULTI-HOST-WORKERS (v0.24.0): adapters can advertise worker tags so
+// M-COORD-MULTI-HOST-WORKERS (v0.22.0): adapters can advertise worker tags so
 // the same Pub/Sub topic can carry tag-routed messages claimed only by hosts
 // whose advertised tags ⊇ the message's required tag set. Call SetWorkerTags
 // after construction to opt in; adapters without tags advertised reject
@@ -33,7 +33,7 @@ type PubSubInboxAdapter struct {
 	buffered []*Message
 	running  bool
 
-	// M-COORD-MULTI-HOST-WORKERS v0.24.0: worker identity + advertised tags
+	// M-COORD-MULTI-HOST-WORKERS v0.22.0: worker identity + advertised tags
 	// used for tag-subset filtering of incoming messages. Read protected by mu.
 	hostID         string
 	advertisedTags []string
@@ -54,7 +54,7 @@ func NewPubSubInboxAdapter(subscriber *pubsub.Subscriber, subName, inbox string,
 }
 
 // SetWorkerTags advertises this adapter's host identity and tag set for
-// tag-routed message filtering (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+// tag-routed message filtering (M-COORD-MULTI-HOST-WORKERS, v0.22.0).
 // Safe to call after construction and before Start(). Empty tags = match-all
 // for legacy single-host setups; non-empty tags reject messages whose
 // `requires` attribute names tags this adapter does not advertise.
@@ -107,7 +107,7 @@ func (a *PubSubInboxAdapter) shouldClaim(required []string) bool {
 // or push HTTP endpoint. It decodes the notification, fetches full content from
 // Firestore, and buffers the message for ListUnread().
 //
-// M-COORD-MULTI-HOST-WORKERS (v0.24.0): if the message's `requires` attribute
+// M-COORD-MULTI-HOST-WORKERS (v0.22.0): if the message's `requires` attribute
 // names tags this adapter does not advertise, the function returns a non-nil
 // error WITHOUT fetching from the message store. Pub/Sub's redelivery
 // semantics treat that error as a NACK, leaving the message available for

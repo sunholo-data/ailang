@@ -1,7 +1,7 @@
 # M-MOTOKO-V021-EFFECT-ROW-MIGRATION: Finish motoko_agent's AILANG v0.21+ migration
 
 **Status**: IMPLEMENTED
-**Target**: v0.24.x (operational follow-up; no AILANG core changes)
+**Target**: v0.22.0 (operational follow-up; no AILANG core changes)
 **Priority**: P1 (Medium — blocks `agent:motoko` graduation from aspirational to verified; no production users impacted today, but the loop with M-COORD-MULTI-HOST-WORKERS won't close until this lands)
 **Estimated**: 2-4 hours (depends on whether the fix is a type annotation or a deeper refactor in `dispatch_step`)
 **Dependencies**: [M-MOTOKO-AILANG-RECONCILE](m-motoko-ailang-reconcile.md) (parent migration that fixed ai_compat) — already implemented and registry-published 2026-05-26.
@@ -172,7 +172,7 @@ M-MOTOKO-V021-EFFECT-ROW-MIGRATION (this sprint):
 - [ ] Update `docs/docs/guides/coordinator-workers.md`: drop the "aspirational" caveat on `agent:motoko`
 - [ ] Update `internal/executor/motoko/README.md` (in this AILANG repo): pin the supported motoko revision (commit SHA from the merged motoko_agent PR) + AILANG version floor (v0.21.0+)
 - [ ] Update `.claude/skills/local-ollama-eval/resources/rig_operations_runbook.md` if it has any reference to motoko status
-- [ ] CHANGELOG entry under v0.24.x
+- [ ] CHANGELOG entry under v0.22.0
 
 ### Files to Modify/Create
 
@@ -276,10 +276,10 @@ curl -X POST <coordinator-host>/api/messages -d '{
 ## Related Documents
 
 **Direct parent (now implemented):**
-- [m-motoko-ailang-reconcile.md](m-motoko-ailang-reconcile.md) (planned) / `design_docs/implemented/v0_24_0/m-motoko-ailang-reconcile.md` — fixed ai_compat. This sprint finishes what that sprint left as scope discovery.
+- [m-motoko-ailang-reconcile.md](m-motoko-ailang-reconcile.md) (planned) / `design_docs/implemented/v0_22_0/m-motoko-ailang-reconcile.md` — fixed ai_compat. This sprint finishes what that sprint left as scope discovery.
 
 **Operational ecosystem:**
-- [m-coord-multi-host-workers.md](../implemented/v0_24_0/m-coord-multi-host-workers.md) — introduced the `agent:motoko` worker tag whose graduation depends on this sprint
+- [m-coord-multi-host-workers.md](../implemented/v0_22_0/m-coord-multi-host-workers.md) — introduced the `agent:motoko` worker tag whose graduation depends on this sprint
 - [m-motoko-executor-adapter.md](v0_18_0/m-motoko-executor-adapter.md) — original motoko CLI executor in this AILANG repo
 
 **Cross-repo state:**

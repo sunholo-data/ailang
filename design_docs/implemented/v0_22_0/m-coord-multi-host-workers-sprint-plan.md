@@ -1,7 +1,7 @@
 # Sprint Plan: M-COORD-MULTI-HOST-WORKERS
 
 **Design doc**: [m-coord-multi-host-workers.md](m-coord-multi-host-workers.md)
-**Target**: v0.24.0
+**Target**: v0.22.0
 **Status**: Approved by user (Design Freeze items confirmed 2026-05-25)
 **Estimated**: 22 hours / 3-4 days
 **Risk level**: Medium (touches Pub/Sub adapter — production message path)
@@ -158,7 +158,7 @@ Plus a pure tag matcher in new file `internal/coordinator/tag_matcher.go`:
    - Three worked examples (Studio onboarding, tag-routed task, health visibility)
    - Migration note: existing single-host setups unaffected (no `worker_tags` = match-all)
 
-2. **CHANGELOG entry** under v0.24.0
+2. **CHANGELOG entry** under v0.22.0
 
 3. **Updates to .claude/rules/coordinator.md** — new patterns
 
@@ -268,8 +268,8 @@ Combining acceptance criteria from M1-M5:
 
 After this sprint is complete, the final commit should include:
 - `Fixes` references to any GitHub issues this work closes
-- Updated CHANGELOG.md under v0.24.0
-- Design doc moved from `design_docs/planned/v0_24_0/` to `design_docs/implemented/v0_24_x/`
+- Updated CHANGELOG.md under v0.22.0
+- Design doc moved from `design_docs/planned/v0_22_0/` to `design_docs/implemented/v0_24_x/`
 
 ---
 

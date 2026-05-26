@@ -1,14 +1,14 @@
 # M-MOTOKO-AILANG-RECONCILE: Restore working motoko_agent build on current AILANG
 
-**Status**: Implemented (v0.24.x; registry publish pending user — 2026-05-26)
-**Target**: v0.24.x (small) or v0.25.0 (full migration)
+**Status**: Implemented (v0.22.0; registry publish pending user — 2026-05-26)
+**Target**: v0.22.0 (small) or v0.25.0 (full migration)
 **Priority**: P2 (Medium-Low — `agent:motoko` worker tag advertised but unfulfillable until this lands)
 **Estimated**: 2-4 hours (best case: just find + merge an existing PR; worst case: write a migration shim)
-**Dependencies**: None blocking; complements [M-COORD-MULTI-HOST-WORKERS](../implemented/v0_24_0/m-coord-multi-host-workers.md) which advertises the tag.
+**Dependencies**: None blocking; complements [M-COORD-MULTI-HOST-WORKERS](../implemented/v0_22_0/m-coord-multi-host-workers.md) which advertises the tag.
 
 ## Problem Statement
 
-The Mac Studio rig advertises `agent:motoko` as a worker tag (per M-COORD-MULTI-HOST-WORKERS, v0.24.0), but `make build` on the user's motoko_agent clone fails against the current AILANG v0.21.0:
+The Mac Studio rig advertises `agent:motoko` as a worker tag (per M-COORD-MULTI-HOST-WORKERS, v0.22.0), but `make build` on the user's motoko_agent clone fails against the current AILANG v0.21.0:
 
 ```
 ✗ compaction_ai       Error: failed to load std/ai/streaming: stdlib module not found
@@ -247,7 +247,7 @@ curl -X POST <coordinator>/api/messages -d '{
 ## Related Documents
 
 **Implemented (this completes a known gap from):**
-- [m-coord-multi-host-workers.md](../implemented/v0_24_0/m-coord-multi-host-workers.md) — introduced the `agent:motoko` worker tag
+- [m-coord-multi-host-workers.md](../implemented/v0_22_0/m-coord-multi-host-workers.md) — introduced the `agent:motoko` worker tag
 
 **Implemented (motoko foundation):**
 - [m-motoko-executor-adapter.md](v0_18_0/m-motoko-executor-adapter.md) — original motoko CLI executor adapter (v0.18.0)
@@ -302,7 +302,7 @@ Path B (motoko-side migration) has zero conflict surface in this AILANG repo —
 ## References
 
 - [Design Axioms](/docs/references/axioms)
-- [M-COORD-MULTI-HOST-WORKERS](../implemented/v0_24_0/m-coord-multi-host-workers.md) — sets up the `agent:motoko` tag
+- [M-COORD-MULTI-HOST-WORKERS](../implemented/v0_22_0/m-coord-multi-host-workers.md) — sets up the `agent:motoko` tag
 - [M-MOTOKO-EXECUTOR-ADAPTER](v0_18_0/m-motoko-executor-adapter.md) — original adapter (v0.18.0)
 - Commit `a594347` in motoko_agent (`fix(migrate): emit thinking_stream_* events from ai_compat shim`) — current ai_compat.ail state
 - AILANG v0.15.x `std/ai/streaming` (M-AI-STREAMING-HELPER) — the historical API motoko depends on

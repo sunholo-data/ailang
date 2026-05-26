@@ -5,7 +5,7 @@ title: Coordinator Workers (Multi-Host)
 
 # Coordinator Workers: Multi-Host Routing
 
-**Status:** v0.24.0 (M-COORD-MULTI-HOST-WORKERS)
+**Status:** v0.22.0 (M-COORD-MULTI-HOST-WORKERS)
 **Audience:** developers running an AILANG coordinator on a bare-metal host (e.g. a Mac Studio rig) AND on the team's cloud setup.
 
 This guide covers the **worker-tag routing** layer that lets the same Pub/Sub topic carry messages to specific hardware (e.g. "this task needs `ollama:gemma4-26b-ailang`, route to the Studio"). It builds on the existing M-PUBSUB-MESSAGING and M-CLOUD-DISPATCH foundation — there is no new transport.
@@ -140,7 +140,7 @@ ailang coordinator workers list --json
 #     "tags": ["ollama:gemma4-26b-ailang", "gpu:m4-max-40core", "local-models"],
 #     "last_seen": "2026-05-24T13:42:01Z",
 #     "active_tasks": 1,
-#     "version": "v0.24.0",
+#     "version": "v0.22.0",
 #     "uptime_secs": 7283,
 #     "alive": true
 #   },

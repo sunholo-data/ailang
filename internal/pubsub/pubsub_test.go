@@ -88,7 +88,7 @@ func TestAttributesFromMap(t *testing.T) {
 }
 
 func TestAttributesFromMap_RequiresParsing(t *testing.T) {
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): the `requires` attribute is
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): the `requires` attribute is
 	// encoded as a comma-separated string; AttributesFromMap must split
 	// it back into the typed Requires slice, trimming whitespace and
 	// dropping empties.
@@ -158,7 +158,7 @@ func TestAttributesRoundTrip(t *testing.T) {
 		FromAgent:   "sprint-planner",
 		Category:    "bug",
 		MessageType: "notification",
-		// M-COORD-MULTI-HOST-WORKERS (v0.24.0): exercise Requires round-trip
+		// M-COORD-MULTI-HOST-WORKERS (v0.22.0): exercise Requires round-trip
 		// through ToMap + AttributesFromMap.
 		Requires: []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"},
 	}

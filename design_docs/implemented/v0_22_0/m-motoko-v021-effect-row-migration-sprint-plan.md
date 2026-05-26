@@ -1,7 +1,7 @@
 # Sprint Plan: M-MOTOKO-V021-EFFECT-ROW-MIGRATION
 
 **Design doc**: [m-motoko-v021-effect-row-migration.md](m-motoko-v021-effect-row-migration.md)
-**Target**: v0.24.x (operational follow-up; no AILANG core changes)
+**Target**: v0.22.0 (operational follow-up; no AILANG core changes)
 **Status**: Approved by user (2026-05-26) — direct follow-on from M-MOTOKO-AILANG-RECONCILE's M4 discovery
 **Estimated**: 2-3 hours (1-line annotation best case; small refactor worst case)
 **Risk level**: Low (well-isolated to one file in motoko_agent; reverts cleanly)
@@ -149,7 +149,7 @@ Strict sequential — each milestone gates the next. If Step 0 reveals it's an A
 - [ ] PR-ready URL surfaced in the sprint summary for the user to open in their browser
 - [ ] AILANG repo's coordinator-workers docs no longer call `agent:motoko` aspirational
 - [ ] `internal/executor/motoko/README.md` pins the verified motoko commit + AILANG version floor
-- [ ] Sprint design doc + plan moved from `planned/v0_24_0/` to `implemented/v0_24_0/`
+- [ ] Sprint design doc + plan moved from `planned/v0_22_0/` to `implemented/v0_22_0/`
 
 ## Out of scope
 

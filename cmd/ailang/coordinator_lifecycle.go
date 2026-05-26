@@ -89,7 +89,7 @@ func coordinatorStart(args []string) error {
 		return nil
 	}
 
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): install a file-backed HeartbeatStore
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): install a file-backed HeartbeatStore
 	// at ~/.ailang/state/worker_heartbeats.json so the daemon's heartbeats are
 	// visible to a separate `workers list` CLI process on the same host.
 	// Cross-host visibility (Firestore-backed) is the v0.25 roadmap item —

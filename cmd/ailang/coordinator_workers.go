@@ -14,7 +14,7 @@ import (
 )
 
 // coordinatorWorkers dispatches `ailang coordinator workers <subcommand>`
-// (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+// (M-COORD-MULTI-HOST-WORKERS, v0.22.0).
 func coordinatorWorkers(args []string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
 		printWorkersHelp()
@@ -104,7 +104,7 @@ func workersList(args []string) error {
 	rows := []workerRow{}
 
 	// Bare-metal hosts: from the heartbeat store. The CLI doesn't have direct
-	// access to whatever HeartbeatStore the running daemon uses. For v0.24.0
+	// access to whatever HeartbeatStore the running daemon uses. For v0.22.0
 	// we expose the in-memory store; the live data lives across the wire and
 	// will be picked up once the Firestore-backed implementation is wired
 	// (see M-COORD-MULTI-HOST-WORKERS Future Work). When no live data is
@@ -149,7 +149,7 @@ type workerRow struct {
 }
 
 func loadBareMetalRows(maxAge time.Duration) ([]workerRow, error) {
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): read from the on-host JSON file
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): read from the on-host JSON file
 	// the daemon writes (~/.ailang/state/worker_heartbeats.json by default).
 	// This gives same-host cross-process visibility. Cross-host visibility
 	// will land via FirestoreHeartbeatStore in v0.25, using the same interface.

@@ -338,7 +338,7 @@ type postMessageRequest struct {
 	// Stored in memory cache only (10min TTL), NEVER persisted to Firestore.
 	AnthropicAPIKey string `json:"anthropic_api_key,omitempty"`
 
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): list of worker tags this message
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): list of worker tags this message
 	// requires. Routed to a worker whose advertised tags ⊇ this set. Empty
 	// (default) = no routing constraint (any subscribed worker may claim).
 	// Examples: ["ollama:gemma4-26b-ailang"], ["gpu:m4-max", "local-models"].
@@ -437,7 +437,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			FromAgent:   req.From,
 			Category:    req.Category,
 			MessageType: req.MessageType,
-			// M-COORD-MULTI-HOST-WORKERS (v0.24.0): propagate worker tag
+			// M-COORD-MULTI-HOST-WORKERS (v0.22.0): propagate worker tag
 			// requirements so PubSubInboxAdapter can do tag-subset filtering.
 			Requires: req.Requires,
 		}

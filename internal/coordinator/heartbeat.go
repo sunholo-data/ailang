@@ -10,7 +10,7 @@ import (
 
 // WorkerHeartbeat is the per-host status record written periodically by the
 // coordinator daemon and surfaced by `ailang coordinator workers list`
-// (M-COORD-MULTI-HOST-WORKERS, v0.24.0).
+// (M-COORD-MULTI-HOST-WORKERS, v0.22.0).
 type WorkerHeartbeat struct {
 	HostID      string    `json:"host_id"`
 	Tags        []string  `json:"tags,omitempty"`

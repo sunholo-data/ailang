@@ -124,7 +124,7 @@ type Daemon struct {
 	apiKeyCache  *APIKeyCache
 	kmsEncrypter *KMSEncrypter
 
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): heartbeat machinery.
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): heartbeat machinery.
 	// Optional — nil heartbeatStore means no heartbeats are emitted (legacy
 	// single-host setups). When wired, the daemon advertises its presence
 	// every heartbeatInterval (default 60s) so `workers list` can see it.
@@ -134,7 +134,7 @@ type Daemon struct {
 }
 
 // SetHeartbeatStore installs the worker-heartbeat backend. Call between
-// NewDaemon() and Start() (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Default
+// NewDaemon() and Start() (M-COORD-MULTI-HOST-WORKERS, v0.22.0). Default
 // interval is 60s; override via SetHeartbeatInterval.
 func (d *Daemon) SetHeartbeatStore(store HeartbeatStore) {
 	d.heartbeatStore = store
@@ -219,7 +219,7 @@ func (d *Daemon) Start() error {
 	d.startedAt = time.Now()
 	d.logger.Printf("Daemon starting (PID: %d)", os.Getpid())
 
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): start heartbeat writer if a store
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): start heartbeat writer if a store
 	// is configured. Without a store, this is a no-op (legacy single-host).
 	d.startHeartbeat()
 
@@ -238,7 +238,7 @@ func (d *Daemon) Start() error {
 }
 
 // startHeartbeat launches the worker-heartbeat writer if a HeartbeatStore is
-// configured (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Tags + host_id are read
+// configured (M-COORD-MULTI-HOST-WORKERS, v0.22.0). Tags + host_id are read
 // LAZILY at each Snapshot() — the agent registry may be empty when this
 // runs (Start calls us BEFORE Run populates the registry), so we re-read on
 // every tick. First non-empty WorkerHostID / WorkerTags across agents wins.
@@ -287,7 +287,7 @@ func (s *daemonHeartbeatSource) Snapshot() WorkerHeartbeat {
 		Tags:        tags,
 		ActiveTasks: 0, // active task tracking is a follow-up — see Future Work in design doc
 		LastSeen:    time.Now(),
-		Version:     "v0.24.0",
+		Version:     "v0.22.0",
 		UptimeSecs:  int64(uptime),
 		Type:        "bare-metal",
 	}

@@ -89,7 +89,7 @@ type MessageAttributes struct {
 	Source string
 
 	// Requires lists worker tags this message must be routed to a worker
-	// advertising (M-COORD-MULTI-HOST-WORKERS, v0.24.0). Encoded as a
+	// advertising (M-COORD-MULTI-HOST-WORKERS, v0.22.0). Encoded as a
 	// comma-separated string in the Pub/Sub `requires` attribute. Empty =
 	// no constraint (any worker subscribed to the inbox may claim).
 	// Examples: "ollama:gemma4-26b-ailang", "gpu:m4-max,local-models".
@@ -118,7 +118,7 @@ func (a MessageAttributes) ToMap() map[string]string {
 	if a.Source != "" {
 		m["source"] = a.Source
 	}
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): encode worker tag requirements
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): encode worker tag requirements
 	// as comma-separated `requires` attribute. Empty values dropped to keep
 	// the on-the-wire encoding clean.
 	if reqs := nonEmptyTags(a.Requires); len(reqs) > 0 {
@@ -137,7 +137,7 @@ func AttributesFromMap(m map[string]string) MessageAttributes {
 		MessageType: m["message_type"],
 		Source:      m["source"],
 	}
-	// M-COORD-MULTI-HOST-WORKERS (v0.24.0): parse comma-separated `requires`
+	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): parse comma-separated `requires`
 	// attribute back into the structured field, trimming whitespace and
 	// dropping empty entries.
 	if raw := strings.TrimSpace(m["requires"]); raw != "" {

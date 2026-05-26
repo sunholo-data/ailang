@@ -18,7 +18,7 @@ func TestWorkerHeartbeat_Fields(t *testing.T) {
 		Tags:        []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"},
 		ActiveTasks: 1,
 		LastSeen:    time.Now(),
-		Version:     "v0.24.0",
+		Version:     "v0.22.0",
 		UptimeSecs:  3600,
 		Type:        "bare-metal",
 	}
@@ -39,7 +39,7 @@ func TestMemoryHeartbeatStore_PutAndList(t *testing.T) {
 		Tags:        []string{"ollama:gemma4-26b-ailang"},
 		ActiveTasks: 0,
 		LastSeen:    now,
-		Version:     "v0.24.0",
+		Version:     "v0.22.0",
 		UptimeSecs:  100,
 		Type:        "bare-metal",
 	}
