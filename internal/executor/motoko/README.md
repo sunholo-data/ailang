@@ -76,9 +76,15 @@ motoko has an autonomous bash tool (no per-call approval prompt by default — t
 - **Local mode**: motoko runs in a per-task tmpdir under the developer's user account. It can touch anything the developer can. Treat eval workspaces as untrusted: don't run against a workspace containing secrets or production data.
 - **Cloud mode** (Cloud Run Job, M4 of this sprint): per-Job ephemeral container with VPC egress allowlist + secret bindings limited to OpenRouter + OpenAI + Gemini keys. The cost-control rule (no ANTHROPIC_API_KEY) is itself a trust-boundary mitigation — a runaway agent can't burn unbudgeted Anthropic spend.
 
-## Pinned motoko commit
+## Pinned motoko revision
 
-This adapter is tested against motoko_agent commit `84fa449` (PR #6 head). The schema v1 contract this adapter depends on shipped in commits `0c006be` (initial) + `84fa449` (cache token closure). When upgrading the pinned commit:
+This adapter is tested against motoko_agent commit `ada0ae9` on branch `feature/v021-effect-row-migration` (sunholo-voight-kampff fork, PR pending against arniwesth/motoko_agent main). The schema v1 contract this adapter depends on shipped in commits `0c006be` (initial) + `84fa449` (cache token closure). Subsequent work that brought motoko_agent up on AILANG v0.21+: `29a1fed` (ai_compat → std/ai.stepWithStream), `e960592` (bump 12 ext deps), `3b72542` (jnum/intToFloat), `8834a47` (regen lock), `ada0ae9` (effect-row workarounds).
+
+**AILANG version floor: v0.21.1+** (the iface bug fix M-IFACE-NESTED-EFFECTS is required to type-check `agent_loop_v2.ail`'s call to `dispatch_step` when `dispatch_step` is imported from another module). Older AILANG will see `dispatch_step`'s on_chunk parameter as `(StreamChunk) -> ()` (closed empty effect) due to the nested-function-type effect-row stripping bug, and fail at "incompatible closed rows".
+
+Verified date: 2026-05-26 on macOS Tahoe 26.5 (Studio eval rig). `make build` exits 0; full eval-smoke run deferred to a workstation with `OPENROUTER_API_KEY` in env.
+
+When upgrading the pinned commit:
 
 1. Re-capture the snapshot fixtures (`testdata/session_*.jsonl`) from a fresh motoko run.
 2. Run `go test ./internal/executor/motoko/ -count=20` (catches map-iteration nondeterminism in `ProviderData`).
