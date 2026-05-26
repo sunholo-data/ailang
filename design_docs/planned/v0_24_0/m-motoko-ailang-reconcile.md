@@ -23,9 +23,22 @@ Diagnosis from the 2026-05-25 evening session:
 - Current AILANG v0.21.0 exposes `std/ai` (no `/streaming` suffix) with exports `openaiCompatStream` / `anthropicStream` — NOT `callStream`.
 - The motoko clone on disk (`~/dev/arniwesth/motoko_agent`) is on branch `docs/acp-integration-proposal`; the most recent ai_compat.ail commit is `a594347 fix(migrate): emit thinking_stream_* events from ai_compat shim`. No subsequent migration to v0.16+ AILANG API on this branch.
 
-**The user reports** (verbatim from session): "we have created a PR where motoko works with our latest AILANG — we updated AILANG to support the work we were doing on Motoko."
+**2026-05-26 investigation update**: a second look identified the exact gap. The user's understanding ("the PRs are merged") was *partially* correct — `ailang-packages` did republish 12 newer extension versions (motoko_ext_abi 2.2.0, motoko_ext_compaction_ai 0.2.0, etc.) — but the migration is incomplete on **two** sides:
 
-That PR/branch was not surfaced by the agent during the session (greps across `main`, `fork/main`, `fork/ailang-v0.15.0-migration`, `fork/ailang-rpc-loop-full-migration-plan`, `fork/ailang-tool-loop-migration`, `origin/AILANG_v015_Migration`, `fork/motoko-bisect-gap1` did not return a variant of `ai_compat.ail` with a non-`std/ai/streaming` import). The right combination exists somewhere — this milestone locates it and pins it down.
+```
+motoko_agent/ailang.toml (still pins old versions — needs bump)
+   │
+   ├─ motoko_ext_compaction_ai@0.1.5 → fixed by bumping to 0.2.0
+   ├─ motoko_ext_compose@0.2.1 → bumped 0.2.2 exists BUT STILL DEPENDS ON
+   │       motoko_ext_ai_compat@0.1.0 ◄── BROKEN, no newer version published
+   │           └─ imports std/ai/streaming (removed in v0.21.0)
+   │
+   └─ motoko_ext_ai_compat@0.1.0 (direct dep) — same as above
+```
+
+And `motoko_agent/src/core/ai_compat.ail` (the master copy of the ai_compat code, synced into the published package) is also unmigrated — still imports `std/ai/streaming (callStream)`. Two consumers depend on it: `agent_loop_v2.ail` and `tool_dispatch_adapter.ail`.
+
+**The actual three-part fix is now concrete** (see Implementation Plan below).
 
 **Current State:**
 - Studio's coordinator daemon advertises `agent:motoko` (worker_tags in `~/.ailang/config.yaml`)
