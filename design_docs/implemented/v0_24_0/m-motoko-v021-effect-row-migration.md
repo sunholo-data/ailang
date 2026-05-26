@@ -1,6 +1,6 @@
 # M-MOTOKO-V021-EFFECT-ROW-MIGRATION: Finish motoko_agent's AILANG v0.21+ migration
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.24.x (operational follow-up; no AILANG core changes)
 **Priority**: P1 (Medium — blocks `agent:motoko` graduation from aspirational to verified; no production users impacted today, but the loop with M-COORD-MULTI-HOST-WORKERS won't close until this lands)
 **Estimated**: 2-4 hours (depends on whether the fix is a type annotation or a deeper refactor in `dispatch_step`)
