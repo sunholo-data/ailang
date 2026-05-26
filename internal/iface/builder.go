@@ -142,6 +142,15 @@ func extractLabel(t ast.Type) types.Label {
 // applyLabelsFromAST takes a typechecker-produced TFunc2 (with labels stripped)
 // and the original AST FuncDecl, and re-wraps each param/return position with
 // the label that appeared in the surface syntax. Non-function types pass through.
+//
+// M-IFACE-NESTED-EFFECTS (v0.21.x bug fix): also re-applies the effect row to
+// function-typed parameters. The type checker erases nested function-type
+// effect rows during unification (only the outer function's effect row is
+// preserved in the inferred scheme). Without restoration, callers see a
+// `(...) -> () ! {}` parameter signature and get "incompatible closed rows"
+// when they pass a lambda whose body has any effects (e.g. `! {IO}`).
+// Discovered during M-MOTOKO-V021-EFFECT-ROW-MIGRATION while migrating
+// motoko_agent to AILANG v0.21+.
 func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
 	fn, ok := t.(*types.TFunc2)
 	if !ok {
@@ -156,16 +165,73 @@ func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
 		if l := extractLabel(p.Type); l != types.LabelBottom() {
 			newParams[i] = types.WithLabel(newParams[i], l)
 		}
+		newParams[i] = restoreNestedEffectRow(newParams[i], p.Type)
 	}
 	newRet := fn.Return
 	if fd.ReturnType != nil {
 		if l := extractLabel(fd.ReturnType); l != types.LabelBottom() {
 			newRet = types.WithLabel(newRet, l)
 		}
+		newRet = restoreNestedEffectRow(newRet, fd.ReturnType)
 	}
 	return &types.TFunc2{
 		Params:    newParams,
 		EffectRow: fn.EffectRow,
+		Return:    newRet,
+	}
+}
+
+// restoreNestedEffectRow walks a typechecker-produced type and re-applies
+// effect rows from the AST onto any nested *types.TFunc2 whose corresponding
+// AST node is an *ast.FuncType with a non-empty effect annotation. This
+// repairs the v0.21+ regression where unification erased nested function-type
+// effect rows.
+//
+// Only restores from the AST when the AST explicitly annotated effects;
+// otherwise the typechecker's row is left alone. This keeps row-polymorphic
+// callback types (declared without `! {...}`) intact.
+func restoreNestedEffectRow(typed types.Type, astT ast.Type) types.Type {
+	astFunc, ok := astT.(*ast.FuncType)
+	if !ok {
+		return typed
+	}
+	typedFunc, ok := typed.(*types.TFunc2)
+	if !ok {
+		return typed
+	}
+	// Recurse into the nested function's params and return first.
+	newParams := make([]types.Type, len(typedFunc.Params))
+	for i, p := range typedFunc.Params {
+		if i < len(astFunc.Params) {
+			newParams[i] = restoreNestedEffectRow(p, astFunc.Params[i])
+		} else {
+			newParams[i] = p
+		}
+	}
+	newRet := typedFunc.Return
+	if astFunc.Return != nil {
+		newRet = restoreNestedEffectRow(newRet, astFunc.Return)
+	}
+	effectRow := typedFunc.EffectRow
+	if len(astFunc.Effects) > 0 {
+		labels := make(map[string]types.Type)
+		var tail *types.RowVar
+		for _, e := range astFunc.Effects {
+			if e.IsRowVar {
+				tail = &types.RowVar{Name: e.Name, Kind: types.EffectRow}
+			} else {
+				labels[e.Name] = types.TUnit
+			}
+		}
+		effectRow = &types.Row{
+			Kind:   types.EffectRow,
+			Labels: labels,
+			Tail:   tail,
+		}
+	}
+	return &types.TFunc2{
+		Params:    newParams,
+		EffectRow: effectRow,
 		Return:    newRet,
 	}
 }

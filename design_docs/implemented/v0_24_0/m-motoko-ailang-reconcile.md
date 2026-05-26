@@ -1,6 +1,6 @@
 # M-MOTOKO-AILANG-RECONCILE: Restore working motoko_agent build on current AILANG
 
-**Status**: Planned
+**Status**: Implemented (v0.24.x; registry publish pending user — 2026-05-26)
 **Target**: v0.24.x (small) or v0.25.0 (full migration)
 **Priority**: P2 (Medium-Low — `agent:motoko` worker tag advertised but unfulfillable until this lands)
 **Estimated**: 2-4 hours (best case: just find + merge an existing PR; worst case: write a migration shim)
