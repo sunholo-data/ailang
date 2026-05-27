@@ -147,6 +147,30 @@ steps:
           .
     waitFor: ['build-agent']
 
+  # M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): build the motoko executor image
+  # so tag-routed `requires:["agent:motoko"]` messages have a cloud Job to
+  # dispatch to. Mirrors build-agent-go: registry-cached buildx, FROMs
+  # agent-base (Dockerfile.agent-motoko inherits the AILANG runtime + bash).
+  # The corresponding Cloud Run Job definition lives in ailang-multivac
+  # (terraform/cloud_run_jobs.tf) — see docker/agent-motoko-multivac-prs.md.
+  - id: build-agent-motoko
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-motoko:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-motoko:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-motoko:latest" \
+          -f docker/Dockerfile.agent-motoko \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
   # Push coordinator (buildpacks doesn't push automatically like buildx --push).
   - id: push-coordinator
     name: gcr.io/cloud-builders/docker
@@ -195,4 +219,4 @@ steps:
           --quiet
 
         echo "Deploy complete."
-    waitFor: ['push-coordinator', 'build-agent-go', 'build-dashboard', 'build-mcp']
+    waitFor: ['push-coordinator', 'build-agent-go', 'build-agent-motoko', 'build-dashboard', 'build-mcp']
