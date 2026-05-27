@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
@@ -37,17 +42,18 @@ func runMessagesSend(args []string) {
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
 	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
-	// M-COORD-MULTI-HOST-WORKERS note: the worker-tag routing (`requires`)
-	// flows via HTTP POST /api/messages, which carries it through to Pub/Sub
-	// attributes (see internal/coordinator/daemon_http.go). The CLI `send`
-	// command writes to SQLite and is intentionally NOT extended with
-	// --requires until the InboxMessage schema gains a column. For tag-routed
-	// dispatch today, use `curl -X POST /api/messages -d '{..., "requires": [...]}'`
-	// against the coordinator's HTTP server.
+	// M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): --requires N1,N2 routes the
+	// message through the daemon's HTTP /api/messages endpoint, which carries
+	// the tags to Pub/Sub attributes for tag-subset filtering by workers.
+	// Requires the local daemon to be running with its HTTP listener bound
+	// (the M1 plist+installer changes default PORT=8765). Without --requires,
+	// `messages send` keeps its existing SQLite-only behavior, unchanged from
+	// v0.22.0.
+	requires := fs.String("requires", "", "Comma-separated worker tags this message requires (e.g., agent:motoko,ollama:gemma4). Routes via HTTP /api/messages → Pub/Sub.")
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user", "requires"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -99,6 +105,20 @@ func runMessagesSend(args []string) {
 	// For bug reports, auto-append binary version and MD5 for reproducibility
 	if category == messaging.CategoryBug {
 		payload = appendBinaryInfo(payload)
+	}
+
+	// M-COORD-TAG-ROUTING-LASTMILE: --requires routes via HTTP /api/messages
+	// so the daemon can attach Pub/Sub attributes for tag-subset filtering.
+	// This short-circuits the SQLite-only path because the HTTP endpoint
+	// stores the message + publishes the notification in one step.
+	if strings.TrimSpace(*requires) != "" {
+		tags := splitAndTrim(*requires, ",")
+		if err := sendViaHTTP(inbox, msgTitle, payload, *from, category, *repo, tags); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Message sent to '%s' with requires=%v (via HTTP /api/messages)\n", green("✓"), inbox, tags)
+		return
 	}
 
 	msg := &messaging.InboxMessage{
@@ -216,6 +236,83 @@ func runMessagesSend(args []string) {
 			fmt.Printf("%s GitHub issue #%d created\n", green("✓"), issueNum)
 		}
 	}
+}
+
+// sendViaHTTP POSTs a tag-routed message to the local coordinator daemon's
+// /api/messages endpoint. The daemon stores the message and publishes a
+// Pub/Sub notification with the requires tags as attributes, enabling
+// tag-subset filtering by workers (M-COORD-MULTI-HOST-WORKERS v0.22.0).
+//
+// Returns an error with a clear next-step hint if the daemon HTTP listener
+// isn't reachable — common cause: the launchd plist was installed before
+// M-COORD-TAG-ROUTING-LASTMILE shipped, so PORT isn't set. The fix is
+// `make coord-install --port 8765`.
+func sendViaHTTP(inbox, title, content, from, category, repo string, requires []string) error {
+	port := discoverCoordinatorHTTPPort()
+	if port == "" {
+		return fmt.Errorf("--requires needs the daemon's HTTP listener but no PORT is configured.\n  Fix: make coord-install   (or set AILANG_COORD_HTTP_PORT)")
+	}
+	if !probeCoordinatorHTTP(port) {
+		return fmt.Errorf("--requires needs the daemon's HTTP listener but http://127.0.0.1:%s/health is unreachable.\n  Check: ailang coordinator status, then `make coord-install` or `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.ailang.coordinator.plist`", port)
+	}
+
+	body := map[string]interface{}{
+		"inbox":   inbox,
+		"title":   title,
+		"content": content,
+		"from":    from,
+	}
+	if category != "" {
+		body["category"] = category
+	}
+	if repo != "" {
+		body["github_repo"] = repo
+	}
+	if len(requires) > 0 {
+		body["requires"] = requires
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("encoding HTTP body: %w", err)
+	}
+
+	url := fmt.Sprintf("http://127.0.0.1:%s/api/messages", port)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("building HTTP request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if key := os.Getenv("COORDINATOR_API_KEY"); key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("POST %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("POST %s returned %d: %s", url, resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
+// splitAndTrim splits s by sep and trims whitespace from each element,
+// dropping empty elements. Used for parsing comma-separated CLI flag values
+// like --requires "agent:motoko, ollama:gemma4".
+func splitAndTrim(s, sep string) []string {
+	parts := strings.Split(s, sep)
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func runMessagesReply(args []string) {
