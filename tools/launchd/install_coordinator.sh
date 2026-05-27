@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# M-COORD-MULTI-HOST-WORKERS (v0.24.0): install the AILANG coordinator
+# M-COORD-MULTI-HOST-WORKERS (v0.22.0): install the AILANG coordinator
 # daemon as a launchd LaunchAgent on macOS.
+# M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): adds --port flag to control the
+# daemon's HTTP listener port (default 8765).
 #
 # Idempotent: re-running on an already-installed host is a no-op that
 # reports "already installed" and exits 0.
@@ -9,6 +11,7 @@
 #   tools/launchd/install_coordinator.sh                         # default config
 #   tools/launchd/install_coordinator.sh --tags ollama:gemma4-26b-ailang,gpu:m4-max
 #   tools/launchd/install_coordinator.sh --host-id studio.eval-rig --tags ollama:gemma4-26b-ailang
+#   tools/launchd/install_coordinator.sh --port 9000             # custom HTTP port (default 8765)
 #   tools/launchd/install_coordinator.sh --dry-run               # show planned changes
 #   tools/launchd/install_coordinator.sh --uninstall             # remove daemon
 #   tools/launchd/install_coordinator.sh --help
@@ -16,6 +19,7 @@
 # Environment overrides (rarely needed):
 #   AILANG_BIN              path to ailang binary (default: $HOME/go/bin/ailang)
 #   AILANG_CLOUD_PROJECT    GCP project for Pub/Sub (default: from gcloud config)
+#   AILANG_COORD_HTTP_PORT  override default HTTP port 8765 (or pass --port)
 
 set -euo pipefail
 
@@ -35,6 +39,7 @@ AILANG_BIN="${AILANG_BIN:-$HOME/go/bin/ailang}"
 PATH_PREFIX="$HOME/go/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 HOST_ID=""
 TAGS=""
+HTTP_PORT="${AILANG_COORD_HTTP_PORT:-8765}"
 DRY_RUN=0
 UNINSTALL=0
 
@@ -49,6 +54,8 @@ while [[ $# -gt 0 ]]; do
             HOST_ID="$2"; shift 2 ;;
         --cloud-project)
             CLOUD_PROJECT="$2"; shift 2 ;;
+        --port)
+            HTTP_PORT="$2"; shift 2 ;;
         --dry-run)
             DRY_RUN=1; shift ;;
         --uninstall)
@@ -61,6 +68,12 @@ while [[ $# -gt 0 ]]; do
             echo "Unknown arg: $1 (use --help)" >&2; exit 2 ;;
     esac
 done
+
+# Validate port is a number in the unprivileged range
+if ! [[ "$HTTP_PORT" =~ ^[0-9]+$ ]] || (( HTTP_PORT < 1024 || HTTP_PORT > 65535 )); then
+    echo "Invalid --port value: $HTTP_PORT (expected unprivileged port 1024-65535)" >&2
+    exit 2
+fi
 
 # ───────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -108,6 +121,7 @@ render_plist() {
         -e "s|@USER_HOME@|$HOME|g" \
         -e "s|@AILANG_BIN@|$AILANG_BIN|g" \
         -e "s|@AILANG_CLOUD_PROJECT@|$CLOUD_PROJECT|g" \
+        -e "s|@HTTP_PORT@|$HTTP_PORT|g" \
         -e "s|@PATH_PREFIX@|$PATH_PREFIX|g" \
         "$TEMPLATE"
 }
@@ -168,6 +182,7 @@ log "ailang binary:   $AILANG_BIN"
 log "host_id:         ${HOST_ID:-<hostname auto>}"
 log "tags:            ${TAGS:-<none>}"
 log "cloud project:   $CLOUD_PROJECT"
+log "HTTP port:       $HTTP_PORT (curl http://127.0.0.1:$HTTP_PORT/health)"
 log "plist target:    $PLIST_DEST"
 log "config file:     $CONFIG_FILE"
 [[ "$DRY_RUN" -eq 1 ]] && log "MODE:            DRY RUN (no changes will be made)"
@@ -263,6 +278,7 @@ echo
 echo "Verify with:"
 echo "  launchctl list | grep $LABEL"
 echo "  ailang coordinator status"
+echo "  curl -s http://127.0.0.1:$HTTP_PORT/health    # should return {\"status\":\"ok\"}"
 echo "  tail -f /tmp/ailang-coordinator-launchd.log"
 echo
 ok "Install complete"

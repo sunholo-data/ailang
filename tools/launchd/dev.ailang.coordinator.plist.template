@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  M-COORD-MULTI-HOST-WORKERS (v0.24.0): launchd plist template for the
+  M-COORD-MULTI-HOST-WORKERS (v0.22.0): launchd plist template for the
   AILANG coordinator daemon.
+  M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): adds PORT env var so the
+  daemon exposes its HTTP listener (/api/messages, /health, /status).
 
   This is a TEMPLATE — use tools/launchd/install_coordinator.sh to render
   it with your $HOME / project paths, then load it.
@@ -11,6 +13,7 @@
     @USER_HOME@           — e.g. /Users/voightkampff
     @AILANG_BIN@          — e.g. /Users/voightkampff/go/bin/ailang
     @AILANG_CLOUD_PROJECT@ — e.g. ailang-multivac-dev
+    @HTTP_PORT@           — e.g. 8765 (override via install_coordinator.sh --port N)
     @PATH_PREFIX@         — e.g. /Users/voightkampff/go/bin:/opt/homebrew/bin:...
 
   Direct manual install (NOT recommended; prefer the installer):
@@ -83,6 +86,13 @@
              Should match the gcloud config: `gcloud config get-value project`. -->
         <key>AILANG_CLOUD_PROJECT</key>
         <string>@AILANG_CLOUD_PROJECT@</string>
+        <!-- M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): PORT activates the
+             daemon's HTTP listener at http://127.0.0.1:$PORT. Without it,
+             /api/messages and /health are unreachable and tag-routed sends
+             fail silently. Default 8765; override via
+             `install_coordinator.sh --port N`. -->
+        <key>PORT</key>
+        <string>@HTTP_PORT@</string>
     </dict>
 </dict>
 </plist>

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -336,6 +338,17 @@ func printCoordinatorStatusOutput(status *coordinator.Status) {
 		if status.Uptime != "" {
 			fmt.Printf("  Uptime:     %s\n", status.Uptime)
 		}
+		// M-COORD-TAG-ROUTING-LASTMILE: probe the HTTP listener so users can
+		// see at a glance whether tag-routed POST /api/messages is reachable.
+		if port := discoverCoordinatorHTTPPort(); port != "" {
+			if probeCoordinatorHTTP(port) {
+				fmt.Printf("  HTTP:       %s http://127.0.0.1:%s\n", green("✓"), port)
+			} else {
+				fmt.Printf("  HTTP:       %s port %s configured but /health unreachable\n", red("✗"), port)
+			}
+		} else {
+			fmt.Printf("  HTTP:       %s no PORT configured (re-run `make coord-install` to enable /api/messages)\n", yellow("—"))
+		}
 	} else {
 		fmt.Printf("  State:      %s %s\n", "⏹", red("stopped"))
 	}
@@ -361,6 +374,51 @@ func printCoordinatorStatusOutput(status *coordinator.Status) {
 	if status.TotalTokens > 0 {
 		fmt.Printf("  Tokens:     %d\n", status.TotalTokens)
 	}
+}
+
+// discoverCoordinatorHTTPPort returns the PORT the daemon was started with,
+// reading (in order): AILANG_COORD_HTTP_PORT env var, then PORT env var, then
+// the rendered launchd plist (~/Library/LaunchAgents/dev.ailang.coordinator.plist).
+// Returns "" if none of those declare a port — the daemon is then running
+// without an HTTP listener, which means tag-routed `POST /api/messages` is
+// unreachable. M-COORD-TAG-ROUTING-LASTMILE.
+func discoverCoordinatorHTTPPort() string {
+	if p := os.Getenv("AILANG_COORD_HTTP_PORT"); p != "" {
+		return p
+	}
+	if p := os.Getenv("PORT"); p != "" {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	plistPath := filepath.Join(home, "Library", "LaunchAgents", "dev.ailang.coordinator.plist")
+	data, err := os.ReadFile(plistPath)
+	if err != nil {
+		return ""
+	}
+	// Match the PORT entry in the EnvironmentVariables dict. The plist is
+	// XML, but a single regexp is enough for this single-purpose probe —
+	// pulling in a plist parser for one key would be overkill.
+	re := regexp.MustCompile(`<key>PORT</key>\s*<string>([^<]+)</string>`)
+	m := re.FindSubmatch(data)
+	if len(m) == 2 {
+		return string(m[1])
+	}
+	return ""
+}
+
+// probeCoordinatorHTTP returns true if GET http://127.0.0.1:<port>/health
+// responds with 200 within 500ms. M-COORD-TAG-ROUTING-LASTMILE.
+func probeCoordinatorHTTP(port string) bool {
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s/health", port))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 func printCoordinatorStartHelp() {
