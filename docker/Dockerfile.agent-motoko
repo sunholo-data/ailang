@@ -18,6 +18,16 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 # motoko-ext-* extension packages).
 USER root
 
+# Re-declare after FROM so the value is in scope for the ENV bake at the
+# bottom of this stage — ARGs declared before FROM don't survive into the
+# build stage, which would otherwise bake an empty MOTOKO_COMMIT.
+ARG MOTOKO_COMMIT
+
+# unzip is required by the bun installer to extract its release archive.
+# agent-base ships only ca-certificates/git/curl/gnupg, so add it here.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Bun runtime (motoko's TUI wrapper requires bun >= 1.0).
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
