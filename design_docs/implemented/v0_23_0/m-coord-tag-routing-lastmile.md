@@ -1,6 +1,6 @@
 # M-COORD-TAG-ROUTING-LASTMILE: Close the last-mile gaps preventing tag-routed dispatch
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.23.0
 **Priority**: P1 (Medium) — M-COORD-MULTI-HOST-WORKERS v0.22.0 shipped the routing machinery but a real user can't yet send a tag-routed message end-to-end without curling JSON
 **Estimated**: 1-2 days (3 small, decoupled gap closures + a Cloud Run Job + verification matrix)
