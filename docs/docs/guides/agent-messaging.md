@@ -181,7 +181,27 @@ ailang messages send INBOX "Fix parser bug" --title "Bug" \
   --envelope-code internal/parser/parser.go
 ailang messages send INBOX "Fix bug" --title "Bug" \
   --envelope-context "reviewing ast type switches"
+
+# Tag-routed sends (v0.23.0+, M-COORD-TAG-ROUTING-LASTMILE)
+# The --requires flag stamps worker tags on the message; the daemon
+# publishes to Pub/Sub with those tags as attributes. Subscriptions
+# whose worker_tags ⊇ requires claim it; others NACK and stay idle.
+ailang messages send eval-rig "Run motoko fizzbuzz smoke" \
+  --requires agent:motoko \
+  --from $(hostname) \
+  --title "tag-routed motoko smoke"
+
+# Multiple tags (set intersection — worker must advertise ALL of them):
+ailang messages send eval-rig "Run on the GPU-equipped Mac with local Ollama" \
+  --requires "gpu:m4-max-40core,ollama:gemma4-26b-ailang" \
+  --from laptop.dev \
+  --title "GPU+Ollama only"
 ```
+
+**Prerequisites for `--requires`** (M-COORD-TAG-ROUTING-LASTMILE):
+- Local daemon must have its HTTP listener bound (`ailang coordinator status` must show `HTTP: ✓ ...`). v0.23.0+ plists do this by default; if your install pre-dates that, run `make coord-install` once.
+- At least one worker must advertise the required tag set in `~/.ailang/config.yaml` `worker_tags`. See the [coordinator-workers guide](coordinator-workers.md) for setup.
+- Without `--requires`, behavior is unchanged from v0.22.0 — the SQLite-only fire-and-forget path is the default for inbox-addressed messages.
 
 ### Reply to GitHub Issues
 

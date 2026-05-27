@@ -108,24 +108,71 @@ ailang coordinator status
 
 ### Example 2: Sending a tag-routed task from elsewhere
 
+**v0.23.0 (M-COORD-TAG-ROUTING-LASTMILE)** added the `--requires` CLI flag, so you no longer need to hand-roll `curl POST` to send tag-routed messages. The CLI handles the HTTP plumbing.
+
 ```bash
-# From the laptop, no Tailscale needed (Pub/Sub is the transport):
-curl -X POST https://your-cloud-coordinator.example.com/api/messages \
+# From the Studio shell (sender = receiver):
+ailang messages send eval-rig "smoke n=3 on iter6 config" \
+    --requires ollama:gemma4-26b-ailang \
+    --from $(hostname) \
+    --title "Run the smoke tier with the current PAR016+PAR017 compiler"
+
+# From a laptop hitting the cloud coordinator:
+AILANG_COORDINATOR_URL=https://your-cloud-coordinator.example.com \
+COORDINATOR_API_KEY=$(gcloud secrets versions access latest \
+    --secret=ailang-coordinator-api-key) \
+ailang messages send eval-rig "smoke n=3 on iter6 config" \
+    --requires ollama:gemma4-26b-ailang \
+    --from laptop.dev
+
+# Either way: the daemon's POST /api/messages stamps the `requires` tags
+# as Pub/Sub attributes. The Studio's coordinator subscription matches the
+# tag set, claims the message, executes via local Ollama, posts the
+# completion back to Firestore + Pub/Sub. Other workers see the requires
+# attribute, fail the match check, NACK, and stay idle.
+```
+
+The raw curl form still works and is the right tool for non-AILANG callers:
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/messages \
     -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $AILANG_API_KEY" \
     -d '{
       "inbox": "eval-rig",
       "from": "laptop.dev",
-      "title": "smoke n=3 on iter6 config",
-      "content": "Run the smoke tier with the current PAR016+PAR017 compiler",
+      "title": "smoke n=3",
+      "content": "Run the smoke tier",
       "requires": ["ollama:gemma4-26b-ailang"]
     }'
-
-# The Studio's coordinator subscription matches the `requires` tag set,
-# claims the message, executes via local Ollama, posts the completion
-# back to Firestore + Pub/Sub. Other workers see the requires attribute,
-# fail the match check, NACK, and stay idle.
 ```
+
+#### HTTP endpoint configuration
+
+v0.23.0 also moves the local daemon's HTTP listener from "opt-in via manual `PORT` env" to "on by default":
+
+| Where | How |
+|---|---|
+| Default port | `8765` (binds 127.0.0.1) |
+| Override at install time | `make coord-install PORT=9000` (or `tools/launchd/install_coordinator.sh --port 9000`) |
+| Override at runtime | `AILANG_COORD_HTTP_PORT` or `PORT` env var (env wins over the plist) |
+| Check it's up | `curl -s http://127.0.0.1:8765/health` → `{"status":"ok"}` |
+| Or via CLI | `ailang coordinator status` shows `HTTP: ✓ http://127.0.0.1:8765` |
+
+If you've installed the daemon before v0.23.0, the plist won't have `PORT` set and `--requires` will fail with an actionable error. Fix: `make coord-install` (idempotent — re-renders the plist with the new defaults).
+
+#### Available routes
+
+| Route | Auth | What |
+|---|---|---|
+| `GET /health` | open | Liveness probe, returns `{"status":"ok"}` |
+| `POST /api/messages` | Bearer when `COORDINATOR_API_KEY` set; open otherwise | Submit a message; accepts `requires: [...]` for tag-routing |
+| `GET /status` | Bearer | Daemon status JSON (mirror of `ailang coordinator status --json`) |
+| `GET /pending` | Bearer | Tasks awaiting approval |
+| `GET /chains/active` | Bearer | Currently-running chains |
+| `POST /pubsub/push` | (cloud mode only) | Pub/Sub push receiver |
+| `POST /github/webhook` | (cloud mode only) | GitHub webhook receiver |
+
+The Bearer auth middleware is permissive on local-mode installs (no `COORDINATOR_API_KEY` env var) and strict on cloud deployments (Cloud Run secret-bound). Don't expose port 8765 publicly without setting `COORDINATOR_API_KEY`.
 
 ### Example 3: Health visibility — the lesson from 2026-05-22
 
