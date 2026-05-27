@@ -170,6 +170,9 @@ steps:
           --push \
           .
     waitFor: ['build-agent-base']
+    # motoko is an optional/experimental agent — a broken build here must NOT
+    # fail the whole pipeline or block deploying the core services below.
+    allowFailure: true
 
   # Push coordinator (buildpacks doesn't push automatically like buildx --push).
   - id: push-coordinator
@@ -219,4 +222,7 @@ steps:
           --quiet
 
         echo "Deploy complete."
-    waitFor: ['push-coordinator', 'build-agent-go', 'build-agent-motoko', 'build-dashboard', 'build-mcp']
+    # Core deploy must not wait on optional agent images (motoko). It deploys
+    # coordinator/dashboard/mcp + the default+go agent jobs; the motoko job is
+    # managed separately by the multivac Terraform pipeline.
+    waitFor: ['push-coordinator', 'build-agent-go', 'build-dashboard', 'build-mcp']

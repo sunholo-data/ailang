@@ -46,8 +46,11 @@ RUN mkdir -p /opt/motoko_agent && cd /opt/motoko_agent \
     && git fetch --depth=1 origin ${MOTOKO_COMMIT} \
     && git checkout FETCH_HEAD
 
-# Install bun deps (TUI runtime + tool dispatcher harness).
-RUN cd /opt/motoko_agent && bun install --frozen-lockfile || bun install
+# Install bun deps for the TUI. The package.json lives in src/tui (the repo
+# root is an AILANG project — ailang.toml/lock — with no root package.json),
+# and run-agent.sh execs the TS source (src/tui/src/index.ts) directly via
+# bun, so no tsc `build` step is needed — bun runs TypeScript natively.
+RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
 
 # Install motoko-ext-* packages from the AILANG package registry. The pinned
 # commit's ailang.toml lists the version pins; ailang lock + install resolves
