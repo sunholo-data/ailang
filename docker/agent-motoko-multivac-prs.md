@@ -233,6 +233,67 @@ gcloud secrets versions add ailang-openrouter-api-key \
 
 **Deferral rationale**: motoko on cloud is OS-model focused (gemma-4-26b, glm-5, deepseek-v4-flash), which the per-Job `budgets: max_cost_usd: 0.30` cap (from `motoko-or-gemma-4-26b`'s models.yml entry) already bounds. PROD motoko dispatch isn't blocking anyone today; the eval-rig Studio handles the workload via bare-metal claim. Cost analysis on dev throughput → decision to enable prod is a follow-up.
 
+## Session handoff — Dockerfile.agent-motoko cascade discoveries (2026-05-27)
+
+Attempted to fire the README's documented `gcloud builds submit` against `multivac-deploy → ailang-multivac-dev` 5 times during M-COORD-TAG-ROUTING-LASTMILE sprint execution. Each retry surfaced exactly one more pre-existing bug in the `Dockerfile.agent-motoko` build chain. The image has clearly **never been built successfully in cloud** — every retry layer-walks to a new failure point.
+
+### Bugs discovered + fix status as of last checkpoint
+
+| # | Symptom | Location | Fix landed | Commit |
+|---|---|---|---|---|
+| 1 | `INVALID_ARGUMENT: key "_DOCPARSE_REPO" not matched` | `ailang-multivac/cloudbuild-images.yaml` substitutions block | ✅ | `ailang-multivac/3b57f8d` (this session) |
+| 2 | `INVALID_ARGUMENT: key "_IMAGE_TAG" not matched` | same | ✅ | same commit |
+| 3 | `error: unzip is required to install bun` | `ailang/docker/Dockerfile.agent-motoko` layer [2/6] | ✅ | `ailang/cbdc1880` (parallel session) |
+| 4 | `error: pathspec '84fa449' did not match any file(s) known to git` | layer [4/7] — `--depth=50` clone too shallow (commit is 90 commits behind main HEAD on sunholo-data/motoko_agent) | ✅ | `ailang/594fe886` — switched to `git fetch --depth=1 origin <SHA>` (parallel session) |
+| 5 | `Bun could not find a package.json file to install from` | layer [5/7] — `RUN cd /opt/motoko_agent && bun install`. motoko's `package.json` is at `src/tui/package.json`, not the repo root. | ❌ Not fixed | — |
+
+### Diagnostic for bug #5
+
+`motoko_agent` is a bun TUI wrapper, not a bun-native repo. Its package.json + lockfile + bun source all live in `src/tui/`. Verify locally:
+
+```bash
+ls ~/dev/arniwesth/motoko_agent/                  # no package.json at root
+ls ~/dev/arniwesth/motoko_agent/src/tui/package.json   # exists here
+```
+
+### Suggested fix for bug #5
+
+`Dockerfile.agent-motoko` around line 50:
+
+```dockerfile
+# WRONG (current):
+RUN cd /opt/motoko_agent && bun install --frozen-lockfile || bun install
+
+# RIGHT:
+RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
+```
+
+After bun install also need a `bun run build` to produce `src/tui/dist/`. Check whether the Dockerfile chains that or if `motoko` (the wrapper script) auto-builds on first run. Locally we saw `bun run build` outputs `src/tui/dist/*.js` — those need to be present in the image OR the `run-agent.sh` wrapper needs to build on first call.
+
+### After bug #5: likely bugs #6+
+
+Predicted remaining issues based on observed cascade pattern:
+
+1. **`motoko` CLI not on PATH inside the container.** Locally we created `~/go/bin/motoko` as a wrapper that exec's `scripts/run-agent.sh`. The Dockerfile probably uses a symlink (we saw the comment in the original Docker file: `ln -s /opt/motoko_agent/scripts/run-agent.sh /usr/local/bin/motoko`). But run-agent.sh now `cd $PROJECT_ROOT` before exec — only because of [motoko_agent commit 258a039](https://github.com/arniwesth/motoko_agent/commit/258a039) which is on the `feature/v021-effect-row-migration` branch, NOT on `sunholo-data/motoko_agent` main. The Dockerfile's pinned `MOTOKO_COMMIT=84fa449` is on a PR-deleted branch (per the comment) and predates 258a039 — so the cloud image won't have the cd-fix and will hang from foreign CWDs (same hang we saw locally).
+2. **AILANG version mismatch.** Image bakes the AILANG binary from the `clone-ailang` step (dev branch), which is currently v0.22.0+. Motoko_agent 84fa449 was last verified against AILANG v0.21.x. The v0.21 → v0.22 effect-row migration work (M-MOTOKO-V021-EFFECT-ROW-MIGRATION) isn't on `sunholo-data/motoko_agent` main yet — so the image will build motoko_agent against an incompatible AILANG, and `ailang check src/core/*.ail` will fail at runtime if the executor runs it.
+
+### Recommendation for the parallel session
+
+The motoko cloud-image build needs a coordinated reset, not piecewise fixes:
+
+1. **Update the pinned MOTOKO_COMMIT** in `Dockerfile.agent-motoko` to point at a commit on `sunholo-data/motoko_agent` main that has the v0.21+ migration work. This requires merging the work into `sunholo-data/motoko_agent` first (currently it's only on `arniwesth/motoko_agent`'s `feature/v021-effect-row-migration` branch via the open PR #33).
+2. **Fix all 4 known Dockerfile bugs in one PR** (bun cwd, motoko symlink fix verification, AILANG-version compatibility check, plus the unzip and fetch-by-SHA fixes that already landed).
+3. **Add a smoke step to cloudbuild-images.yaml** that runs `motoko --version` inside the built image — surfaces the cascade bugs at CI time, not at the next bored operator's retry attempt.
+4. **Verify locally first** with `docker build -f docker/Dockerfile.agent-motoko --build-arg PROJECT=ailang-multivac-dev -t motoko-test .` then `docker run --rm motoko-test motoko --version`. Iterate locally until clean, THEN trigger the cloud build.
+
+The ailang-multivac side (PR #1 cloudbuild step, PR #2 Terraform Job, PR #2-addendum coordinator config) is shipped on `ailang-multivac/dev` at commit `876a3fe`. Those land cleanly once the image is reachable.
+
+### Unrelated ops finding (not blocking this PR set)
+
+The Cloud Build **auto-deploy trigger** for `ailang-multivac/dev` pushes has been dormant since `2025-03-13`. `multivac-deploy` project shows 0 triggers visible to this account (likely IAM scope issue or trigger was deleted). Last build there was a FAILURE 14 months ago. README documents the auto-deploy pattern but it isn't running. Separate ops investigation needed — possibly tied to the same Dockerfile rot above (if the trigger fired but always failed at agent-motoko, it might have been paused).
+
+---
+
 ## Acceptance gate (v0.23.0 update)
 
 - [ ] **PR #0 (operational)**: Cloud `ailang-coordinator` image timestamp shows post-v0.22.0 deploy (current image is 2026-04-28, must be updated)
