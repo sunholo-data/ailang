@@ -10,7 +10,7 @@
 # Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=84fa449
+ARG MOTOKO_COMMIT=84fa44935be1e28bde25b1294e2f15dd214e5658
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -33,13 +33,18 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Clone motoko_agent at the pinned commit (84fa449 = PR #6 head with schema-v1
-# instrumentation per M-MOTOKO-EVAL-INSTRUMENTATION). Bumping this requires
-# also bumping the pinned commit in the in-repo adapter README and recapturing
-# the testdata/ fixtures.
-RUN git clone --depth=50 https://github.com/sunholo-data/motoko_agent.git /opt/motoko_agent \
-    && cd /opt/motoko_agent \
-    && git checkout ${MOTOKO_COMMIT}
+# Check out motoko_agent at the pinned commit (schema-v1 instrumentation per
+# M-MOTOKO-EVAL-INSTRUMENTATION). This SHA is NOT reachable from any current
+# branch tip — its PR branch was deleted and main has since moved on — so a
+# branch clone can't see it. GitHub still serves the object by SHA, so we
+# init + fetch the exact commit directly (verified: fetch-by-SHA works while
+# clone-then-checkout does not). Bumping this pin requires also bumping it in
+# the in-repo adapter README and recapturing the testdata/ fixtures.
+RUN mkdir -p /opt/motoko_agent && cd /opt/motoko_agent \
+    && git init -q \
+    && git remote add origin https://github.com/sunholo-data/motoko_agent.git \
+    && git fetch --depth=1 origin ${MOTOKO_COMMIT} \
+    && git checkout FETCH_HEAD
 
 # Install bun deps (TUI runtime + tool dispatcher harness).
 RUN cd /opt/motoko_agent && bun install --frozen-lockfile || bun install
