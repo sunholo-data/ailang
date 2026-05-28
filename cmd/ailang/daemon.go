@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -110,15 +111,25 @@ func daemonRun(args []string) error {
 		return fmt.Errorf("storage backends: %w", err)
 	}
 
+	// Build the channel registry: macOS desktop (local best-effort) plus any
+	// env-gated remote channels (Discord if AILANG_DISCORD_WEBHOOK_URL is set).
+	// The daemon fans out over all of them; remote channels are authoritative
+	// for ack, the local one is best-effort. With no remote channel configured,
+	// this degrades to today's macOS-only behaviour.
+	reg := notify.NewRegistry()
+	_ = reg.Register(notify.MacOSChannel{})
+	notify.RegisterChannels(reg, log.Default())
+
 	d := daemon.New(
 		cfg,
 		pubsubAdapter{sub: pubsub.NewSubscriber(psClient)},
 		storeFetcher{store: backends.Messaging},
-		notify.Notify,
+		reg.FanOut(log.Default()),
 	)
 
-	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s dry_run=%t\n",
-		envOrDefault(*envFlag, fc.Env, "prod"), project, cfg.EventsSub, cfg.MessagesSub, cfg.DryRun)
+	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s dry_run=%t channels=%v\n",
+		envOrDefault(*envFlag, fc.Env, "prod"), project, cfg.EventsSub, cfg.MessagesSub, cfg.DryRun,
+		reg.Names())
 
 	return d.Run(ctx)
 }

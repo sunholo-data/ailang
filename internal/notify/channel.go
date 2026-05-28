@@ -24,6 +24,22 @@ type Channel interface {
 	Send(ctx context.Context, n Notification) error
 }
 
+// LocalChannel is implemented by channels whose delivery is best-effort and
+// local (desktop notifications). The fan-out fires them but does NOT count their
+// success toward an ack and does NOT retry on their failure — because a local
+// notifier can report success merely by queueing a banner the (absent) user
+// never sees. Remote/push channels (Discord, etc.) do not implement this and are
+// treated as authoritative: an ack requires every remote channel to succeed.
+type LocalChannel interface {
+	IsLocal() bool
+}
+
+// isLocal reports whether ch declared itself best-effort/local.
+func isLocal(ch Channel) bool {
+	lc, ok := ch.(LocalChannel)
+	return ok && lc.IsLocal()
+}
+
 // MacOSChannel adapts the existing macOS Notify path to the Channel interface,
 // so the long-standing local-desktop notifier is just another registered
 // channel alongside Discord et al.
@@ -36,3 +52,8 @@ func (MacOSChannel) Name() string { return "macos" }
 // non-Darwin hosts or when no notifier binary is present — callers may treat
 // that as a soft degradation rather than a hard failure.
 func (MacOSChannel) Send(_ context.Context, n Notification) error { return Notify(n) }
+
+// IsLocal marks macOS as a best-effort local channel: it reports success as soon
+// as a banner is queued (even if the user is away), so it must not gate acks or
+// trigger retries. Its per-task/per-inbox Group coalesces any duplicate banners.
+func (MacOSChannel) IsLocal() bool { return true }

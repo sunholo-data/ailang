@@ -172,13 +172,14 @@ Three phases, each independently shippable, that **connect existing parts** rath
 - [ ] `hold` path: surface ambiguous clusters in the dashboard triage view / `user` inbox — deferred (currently no-op; holds stay visible in the intake inbox)
 - [x] Integration test: synthetic bug message → router → design-doc-creator inbox (real SQLite store)
 
-**Phase M2: Central notification bus** (~1 week)
-- [ ] Define channel registry config schema in `~/.ailang/config.yaml` (`notifications.channels: [{transport, filter}]`)
-- [ ] Implement Notification Dispatcher in the coordinator daemon: subscribe to `ailang-events`, match events to channel filters, fan out via `registry.Get(name).Send(intent)`, dead-letter on failure
-- [ ] Re-express existing surfaces (Claude Code hook, dashboard, GitHub) as registered channels routed through the dispatcher
-- [ ] Test: event published → matched channels notified, unmatched skipped, failure → dead-letter
+**Phase M2: Central notification bus** (~1 week) — **mostly shipped (M-NOTIFY-FANOUT, v0.24.0)**
+> **Discovery:** the dispatcher already existed as `internal/daemon` (a laptop-side daemon wired in `cmd/ailang/daemon.go`), *not* the coordinator daemon. It subscribes to the `events`/`messages` Pub/Sub subs, maps task `pending_approval`/`completed`/`failed` + inbox messages → notifications, dedups, excludes, and nacks-on-failure. Step 3 generalized its single macOS notifier into a multi-channel fan-out.
+- [x] Fan-out dispatcher: `internal/daemon` now delivers over a `notify.Registry` (macOS + env-gated Discord) via `SendAll` — local best-effort, remote authoritative
+- [x] Reliable retry: `dedup.forget` on nack paths so a failed remote send is actually redelivered (was eaten by the pre-fire dedup)
+- [ ] Per-channel event filters / `notifications.channels` config (`[{transport, filter}]`) — deferred; today all relevant events fan out to all registered channels (the exclude-substring filter still applies)
+- [ ] Explicit `ailang-dead-letter` routing on total failure — deferred to Step 4 (Pub/Sub nack/redelivery is the current safety net)
 
-> Channel transports (Discord/Google Chat/email) are implemented in the companion milestone [m-notify-channels-framework.md](m-notify-channels-framework.md). M2 here depends only on the `Channel.Send` seam; it can ship with the existing surfaces and gain push channels as the framework lands.
+> Channel transports (Discord today; Google Chat/email later) live in the companion milestone [m-notify-channels-framework.md](m-notify-channels-framework.md). The dispatcher depends only on the `Channel.Send` seam.
 
 **Phase M3: Open up routing** (~1 week)
 - [ ] Add packages/publish system as an intake source (cascade `upgrade-available` → triage where appropriate)

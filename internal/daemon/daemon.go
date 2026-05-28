@@ -122,13 +122,18 @@ func (d *Daemon) handleTaskEvent(_ context.Context, data []byte, _ map[string]st
 	if !fire {
 		return nil
 	}
-	if d.taskDedup.seen(taskDedupKey(t.TaskID, t.Status)) {
+	key := taskDedupKey(t.TaskID, t.Status)
+	if d.taskDedup.seen(key) {
 		return nil
 	}
 	if shouldExclude(n, d.cfg.Excludes) {
 		return nil
 	}
-	return d.fire(n)
+	if err := d.fire(n); err != nil {
+		d.taskDedup.forget(key) // nack: let redelivery retry instead of being deduped
+		return err
+	}
+	return nil
 }
 
 func (d *Daemon) handleMessageEvent(ctx context.Context, data []byte, _ map[string]string) error {
@@ -137,15 +142,18 @@ func (d *Daemon) handleMessageEvent(ctx context.Context, data []byte, _ map[stri
 		d.log.Printf("daemon: malformed message event: %v", err)
 		return nil
 	}
-	if d.msgDedup.seen(messageDedupKey(m.MessageID)) {
+	key := messageDedupKey(m.MessageID)
+	if d.msgDedup.seen(key) {
 		return nil
 	}
 	full, err := d.fetcher.Fetch(ctx, m.MessageID)
 	if err != nil {
+		d.msgDedup.forget(key) // nack: let redelivery retry the fetch
 		return fmt.Errorf("fetch message %s: %w", m.MessageID, err)
 	}
 	if full == nil {
 		// Notification arrived before Firestore replication; nack to retry.
+		d.msgDedup.forget(key)
 		return fmt.Errorf("message %s not yet visible", m.MessageID)
 	}
 	n, fire := messageNotification(full)
@@ -155,7 +163,11 @@ func (d *Daemon) handleMessageEvent(ctx context.Context, data []byte, _ map[stri
 	if shouldExclude(n, d.cfg.Excludes) {
 		return nil
 	}
-	return d.fire(n)
+	if err := d.fire(n); err != nil {
+		d.msgDedup.forget(key) // nack: let redelivery retry delivery
+		return err
+	}
+	return nil
 }
 
 // fire invokes the notifier (or logs in dry-run). Returning an error causes

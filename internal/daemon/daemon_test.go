@@ -225,6 +225,56 @@ func TestDaemon_AckOnlyAfterNotifySuccess(t *testing.T) {
 	}
 }
 
+// flakyNotifier fails its first failCalls invocations, then succeeds.
+type flakyNotifier struct {
+	mu        sync.Mutex
+	failCalls int
+	n         int
+	out       []notify.Notification
+}
+
+func (f *flakyNotifier) notify(n notify.Notification) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.n++
+	if f.n <= f.failCalls {
+		return errors.New("transient")
+	}
+	f.out = append(f.out, n)
+	return nil
+}
+
+func TestDaemon_NackedEventRetriesAfterForget(t *testing.T) {
+	// A delivery whose notify fails must be forgotten from the dedup window so a
+	// Pub/Sub redelivery actually re-fires instead of being suppressed.
+	sub := newFakeSubscriber()
+	fetch := &fakeFetcher{}
+	fl := &flakyNotifier{failCalls: 1}
+	d := New(Config{
+		EventsSub: "events-laptop", MessagesSub: "messages-laptop",
+		TaskWindow: 60 * time.Second, MsgWindow: 5 * time.Minute,
+	}, sub, fetch, fl.notify)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = d.Run(ctx) }()
+	time.Sleep(20 * time.Millisecond)
+
+	data := taskCompletionJSON(t, pubsub.TaskCompletion{TaskID: "t1", AgentID: "x", Status: "completed"})
+
+	// First delivery fails -> nack (error) and the dedup key is forgotten.
+	if err := sub.deliver(t, "events-laptop", data, nil); err == nil {
+		t.Fatal("expected nack on first (failing) delivery")
+	}
+	// Redelivery must NOT be deduped — it re-fires and succeeds.
+	if err := sub.deliver(t, "events-laptop", data, nil); err != nil {
+		t.Fatalf("redelivery should succeed, got %v", err)
+	}
+	if got := len(fl.out); got != 1 {
+		t.Fatalf("expected exactly 1 successful notification after retry, got %d", got)
+	}
+}
+
 func TestDaemon_ExcludesMatchedNotificationsSkipped(t *testing.T) {
 	sub := newFakeSubscriber()
 	fetch := &fakeFetcher{}

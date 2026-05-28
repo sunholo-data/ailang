@@ -1,7 +1,9 @@
 package notify
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 )
@@ -59,4 +61,75 @@ func (r *Registry) Names() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// SendAll delivers n to every registered channel, then decides ack vs retry by
+// the "local best-effort, remote authoritative" policy:
+//
+//   - Local channels (macOS desktop) are fired but never gate the ack and never
+//     trigger a retry — they can report success by merely queueing a banner the
+//     absent user never sees.
+//   - Remote channels (Discord, etc.) are authoritative: the ack requires EVERY
+//     remote channel to succeed. If any remote channel fails, SendAll returns an
+//     error so the daemon nacks and Pub/Sub redelivers (re-firing remotes; the
+//     local channel's per-task Group coalesces its repeat banner).
+//   - If there are no remote channels at all, SendAll falls back to local
+//     best-effort: nil if at least one local channel delivered (today's macOS
+//     behaviour), else the last local error.
+//
+// Per-channel failures are logged regardless.
+func (r *Registry) SendAll(ctx context.Context, n Notification, logger *log.Logger) error {
+	names := r.Names()
+	if len(names) == 0 {
+		return nil
+	}
+
+	var remoteTotal, remoteOK int
+	localDelivered := false
+	var lastRemoteErr, lastLocalErr error
+
+	for _, name := range names {
+		ch, err := r.Get(name)
+		if err != nil {
+			continue
+		}
+		sendErr := ch.Send(ctx, n)
+		if isLocal(ch) {
+			if sendErr != nil {
+				lastLocalErr = sendErr
+				logf(logger, "notify: local channel %q send failed: %v", name, sendErr)
+			} else {
+				localDelivered = true
+			}
+			continue
+		}
+		// Remote/authoritative channel.
+		remoteTotal++
+		if sendErr != nil {
+			lastRemoteErr = sendErr
+			logf(logger, "notify: remote channel %q send failed: %v", name, sendErr)
+		} else {
+			remoteOK++
+		}
+	}
+
+	if remoteTotal > 0 {
+		if remoteOK == remoteTotal {
+			return nil
+		}
+		return lastRemoteErr
+	}
+	// No remote channels: fall back to local best-effort.
+	if localDelivered {
+		return nil
+	}
+	return lastLocalErr
+}
+
+// FanOut adapts the registry to the daemon's notifier shape
+// (func(Notification) error), delivering to every channel via SendAll.
+func (r *Registry) FanOut(logger *log.Logger) func(Notification) error {
+	return func(n Notification) error {
+		return r.SendAll(context.Background(), n, logger)
+	}
 }

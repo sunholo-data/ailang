@@ -41,6 +41,16 @@ func (d *dedup) seen(key string) bool {
 	return false
 }
 
+// forget drops a previously recorded key so a later delivery of the same event
+// is not suppressed. Handlers call this on nack paths (delivery failed, message
+// not yet visible) so Pub/Sub redelivery actually re-attempts instead of being
+// eaten by the dedup window.
+func (d *dedup) forget(key string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.hits, key)
+}
+
 // sweep removes entries older than the dedup window. Call periodically.
 func (d *dedup) sweep() {
 	d.mu.Lock()
