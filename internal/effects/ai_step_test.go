@@ -162,6 +162,81 @@ func TestAICallJsonResult_HappyPath(t *testing.T) {
 }
 
 // ============================================================================
+// callJsonSimpleResult (M-DOCPARSE-RESILIENCE-FIXES) — no-schema Result variant
+// ============================================================================
+
+func TestAICallJsonSimpleResult_HappyPath_ReturnsOk(t *testing.T) {
+	// callJsonSimple routes through CallJson(input, "") — fakeStepHandler
+	// returns callJsonResp regardless of schema, so this exercises the Ok path.
+	h := &fakeStepHandler{callJsonResp: `[1,2,3]`}
+	ctx := &EffContext{AI: NewAIContext(h)}
+
+	out, err := aiCallJsonSimpleResult(ctx, []eval.Value{&eval.StringValue{Value: "give me json"}})
+	if err != nil {
+		t.Fatalf("unexpected Go error: %v", err)
+	}
+	tagged := out.(*eval.TaggedValue)
+	if tagged.CtorName != "Ok" {
+		t.Fatalf("expected Ok, got %s", tagged.CtorName)
+	}
+	if got := tagged.Fields[0].(*eval.StringValue).Value; got != `[1,2,3]` {
+		t.Errorf("Ok payload = %q, want \"[1,2,3]\"", got)
+	}
+}
+
+func TestAICallJsonSimpleResult_HandlerError_ReturnsErr(t *testing.T) {
+	h := &fakeStepHandler{callJsonErr: errors.New("Internal error encountered")}
+	ctx := &EffContext{AI: NewAIContext(h)}
+
+	out, err := aiCallJsonSimpleResult(ctx, []eval.Value{&eval.StringValue{Value: "hi"}})
+	if err != nil {
+		t.Fatalf("aiCallJsonSimpleResult should not surface Go error; got %v", err)
+	}
+	tagged := out.(*eval.TaggedValue)
+	if tagged.CtorName != "Err" {
+		t.Fatalf("expected Err, got %s", tagged.CtorName)
+	}
+	rec := tagged.Fields[0].(*eval.RecordValue)
+	if code := rec.Fields["code"].(*eval.StringValue).Value; code == "" {
+		t.Error("AIError.code is empty")
+	}
+}
+
+func TestAICallJsonSimpleResult_TypedAIErrorPassesThrough(t *testing.T) {
+	// A transient failure classified as retryable must pass through with
+	// retryable=true — this is the whole point of the variant (docparse retry).
+	original := ai.NewAIError(ai.CodeTimeout, "500 Internal error encountered", true)
+	h := &fakeStepHandler{callJsonErr: original}
+	ctx := &EffContext{AI: NewAIContext(h)}
+
+	out, _ := aiCallJsonSimpleResult(ctx, []eval.Value{&eval.StringValue{Value: "hi"}})
+	rec := out.(*eval.TaggedValue).Fields[0].(*eval.RecordValue)
+	if got := rec.Fields["code"].(*eval.StringValue).Value; got != ai.CodeTimeout {
+		t.Errorf("code = %q, want %q (verbatim pass-through)", got, ai.CodeTimeout)
+	}
+	if !rec.Fields["retryable"].(*eval.BoolValue).Value {
+		t.Error("retryable = false, want true (transient 5xx) — retry path would be broken")
+	}
+}
+
+func TestAICallJsonSimpleResult_NilHandler_ReturnsErr(t *testing.T) {
+	ctx := &EffContext{AI: NewAIContext(nil)}
+
+	out, err := aiCallJsonSimpleResult(ctx, []eval.Value{&eval.StringValue{Value: "hi"}})
+	if err != nil {
+		t.Fatalf("nil handler should produce typed Err, not Go error; got %v", err)
+	}
+	tagged := out.(*eval.TaggedValue)
+	if tagged.CtorName != "Err" {
+		t.Fatalf("expected Err, got %s", tagged.CtorName)
+	}
+	rec := tagged.Fields[0].(*eval.RecordValue)
+	if code := rec.Fields["code"].(*eval.StringValue).Value; code != ai.CodeProviderNotFound {
+		t.Errorf("code = %q, want %q", code, ai.CodeProviderNotFound)
+	}
+}
+
+// ============================================================================
 // aiStep
 // ============================================================================
 

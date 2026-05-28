@@ -17,6 +17,8 @@ func init() {
 	// M-AI-TOOL-LOOP (v0.17.0) — Result-returning + multi-turn variants
 	registerAICallResult()
 	registerAICallJsonResult()
+	// M-DOCPARSE-RESILIENCE-FIXES (v0.23.0) — no-schema Result variant
+	registerAICallJsonSimpleResult()
 	registerAIStep()
 	// M-AI-PROMPT-CACHING (v0.18.4) — opt-in prompt-cache hints
 	registerAIStepWithCache()

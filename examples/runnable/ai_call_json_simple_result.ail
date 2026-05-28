@@ -1,0 +1,34 @@
+-- Example: callJsonSimpleResult — Result-returning no-schema JSON AI call
+-- (M-DOCPARSE-RESILIENCE-FIXES, v0.23.0)
+--
+-- Demonstrates the retry-vs-surface pattern that the bare callJsonSimple
+-- cannot express: a transient provider 5xx returns Err(AIError{retryable})
+-- instead of crashing the host, so the caller can branch on it.
+--
+-- Usage:
+--   ailang run --caps AI --entry main examples/runnable/ai_call_json_simple_result.ail
+--
+-- With no AI handler configured, callJsonSimpleResult returns
+-- Err(AIError{code: "ProviderNotFound"}) rather than crashing — which this
+-- example prints, demonstrating the typed-error path end to end.
+
+module examples/runnable/ai_call_json_simple_result
+
+import std/ai (callJsonSimpleResult, AIError)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- Attempt a no-schema JSON extraction. On a retryable error, a real caller
+-- would back off and retry; here we just report the decision the typed
+-- error enables.
+export func main() -> () ! {AI, IO} {
+  match callJsonSimpleResult("Return the list [1,2,3] as JSON") {
+    Ok(jsonStr) =>
+      println("extracted JSON: ${jsonStr}"),
+    Err(e) =>
+      if e.retryable then
+        println("transient error (${e.code}) — caller would retry: ${e.message}")
+      else
+        println("permanent error (${e.code}) — surface to user: ${e.message}")
+  }
+}

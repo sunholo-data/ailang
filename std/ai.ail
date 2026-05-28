@@ -169,6 +169,15 @@ export func callJsonResult(input: string, schema: string)
   -> Result[string, AIError] ! {AI} =
   _ai_call_json_result(input, schema)
 
+-- callJsonSimpleResult: Result-returning variant of callJsonSimple.
+-- Same no-schema raw-JSON-string output, but typed errors via Err(AIError).
+-- Prefer this over callJsonSimple on the high-volume extraction path so a
+-- transient provider 5xx returns a catchable Err(AIError{retryable}) instead
+-- of crashing the host with an uncaught {AI} effect error.
+export func callJsonSimpleResult(input: string)
+  -> Result[string, AIError] ! {AI} =
+  _ai_call_json_simple_result(input)
+
 -- ============================================================================
 -- Multi-turn / tool-aware step
 -- ============================================================================

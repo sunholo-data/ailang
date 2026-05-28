@@ -199,6 +199,56 @@ func aiCallJsonResultImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 }
 
 // ============================================================================
+// _ai_call_json_simple_result: Result-returning variant of _ai_call_json_simple
+// ============================================================================
+
+func registerAICallJsonSimpleResult() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_call_json_simple_result",
+		NumArgs: 1, // input: string  (no schema, unlike _ai_call_json_result)
+		Effect:  "AI",
+		Type:    makeAICallResultType, // (string) -> Result[string, AIError] ! {AI} — same shape as _ai_call_result
+		Impl:    aiCallJsonSimpleResultImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Call the AI oracle requesting JSON (no schema), returning Result[string, AIError]",
+			LongDesc: `Result-returning variant of _ai_call_json_simple. Same no-schema raw-JSON
+output as the legacy callJsonSimple, but typed errors flow back as
+Err(AIError record) instead of crashing the host with a Go error.
+
+Exists separately from _ai_call_json_result because callJsonSimple is the
+no-schema path that high-volume extractors must use (callJson has a known
+large-response corruption bug). Without this Result variant, a transient
+provider 5xx on the extraction path escaped as an uncaught {AI} effect
+error; this surfaces it as a catchable Err(AIError{retryable}).`,
+			Params: []ParamDoc{
+				{Name: "input", Description: "Prompt string"},
+			},
+			Returns: "Result[string, AIError]",
+			SeeAlso: []string{
+				"_ai_call_json_simple",
+				"_ai_call_json_result",
+				"std/ai.callJsonSimpleResult",
+			},
+			Since:     "v0.23.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"ai", "result", "typed-errors", "json"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_call_json_simple_result builtin: " + err.Error())
+	}
+}
+
+func aiCallJsonSimpleResultImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "callJsonSimpleResult", args)
+}
+
+// ============================================================================
 // _ai_step: multi-turn / tool-aware completion
 // ============================================================================
 

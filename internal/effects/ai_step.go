@@ -48,6 +48,7 @@ func classifyOpError(err error) *ai.AIError {
 func init() {
 	RegisterOp("AI", "callResult", aiCallResult)
 	RegisterOp("AI", "callJsonResult", aiCallJsonResult)
+	RegisterOp("AI", "callJsonSimpleResult", aiCallJsonSimpleResult)
 	RegisterOp("AI", "step", aiStep)
 	RegisterOp("AI", "stepWithCache", aiStepWithCache)
 	RegisterOp("AI", "stepWithStream", aiStepWithStream)
@@ -130,6 +131,47 @@ func aiCallJsonResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	ctx.RecordAIEffect("callJsonResult",
 		[]string{truncateForTrace(input.Value), truncateForTrace(schema.Value)},
+		truncateForTrace(output),
+		ctx.AI.LastRoutingMetadata(),
+	)
+	return makeOkStringResult(output), nil
+}
+
+// ============================================================================
+// aiCallJsonSimpleResult — Result-returning AI.callJsonSimple
+// ============================================================================
+
+// aiCallJsonSimpleResult implements AI.callJsonSimpleResult(input: string)
+// -> Result[string, AIError]. The no-schema sibling of aiCallJsonResult:
+// same raw-JSON-string output as the legacy callJsonSimple (which is
+// CallJson with an empty schema), but transient provider failures return
+// Err(AIError{retryable}) instead of crashing the host. M-DOCPARSE-RESILIENCE-FIXES.
+func aiCallJsonSimpleResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJsonSimpleResult: expected 1 argument, got %d", len(args))
+	}
+	input, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJsonSimpleResult: expected string input, got %T", args[0])
+	}
+	if ctx.AI == nil {
+		return makeAIErrorResultRecord(ai.NewAIError(ai.CodeProviderNotFound, ErrNoAIHandler.Error(), false)), nil
+	}
+
+	// callJsonSimple == CallJson with empty schema (no schema enforcement).
+	output, err := ctx.AI.CallJson(input.Value, "")
+	if err != nil {
+		aiErr := classifyOpError(err)
+		ctx.RecordAIEffect("callJsonSimpleResult",
+			[]string{truncateForTrace(input.Value)},
+			fmt.Sprintf(errResultPrefix, aiErr.Code),
+			ctx.AI.LastRoutingMetadata(),
+		)
+		return makeAIErrorResultRecord(aiErr), nil
+	}
+
+	ctx.RecordAIEffect("callJsonSimpleResult",
+		[]string{truncateForTrace(input.Value)},
 		truncateForTrace(output),
 		ctx.AI.LastRoutingMetadata(),
 	)

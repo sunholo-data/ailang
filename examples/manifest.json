@@ -142,7 +142,7 @@
         "tests",
         "future"
       ],
-      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
+      "description": "\u26a0\ufe0f VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
       "requires": [
         "func",
         "tests",
@@ -170,7 +170,7 @@
         "concurrency",
         "future"
       ],
-      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
+      "description": "\u26a0\ufe0f VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
       "requires": [
         "channels",
         "spawn",
@@ -188,7 +188,7 @@
         "effects",
         "future"
       ],
-      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
+      "description": "\u26a0\ufe0f VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
       "requires": [
         "quasiquotes",
         "http-effects",
@@ -205,7 +205,7 @@
         "introspection",
         "future"
       ],
-      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
+      "description": "\u26a0\ufe0f VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
       "requires": [
         "effects",
         "introspection",
@@ -271,7 +271,19 @@
         "cache",
         "tool-use"
       ],
-      "description": "Demonstrates std/ai.stepWithCache — opt-in prompt caching across providers (M-AI-PROMPT-CACHING v0.18.4)"
+      "description": "Demonstrates std/ai.stepWithCache \u2014 opt-in prompt caching across providers (M-AI-PROMPT-CACHING v0.18.4)"
+    },
+    {
+      "path": "runnable/ai_call_json_simple_result.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "result",
+        "typed-errors",
+        "json"
+      ],
+      "description": "Demonstrates std/ai.callJsonSimpleResult \u2014 Result-returning no-schema JSON call with retryable typed errors (M-DOCPARSE-RESILIENCE-FIXES v0.23.0)"
     },
     {
       "path": "runnable/ai_stream_openai.ail",
@@ -296,7 +308,7 @@
         "config-driven",
         "accumulator"
       ],
-      "description": "AI token streaming via std/ai/streaming.callStream — synchronous accumulator returning Result[string, AIError]"
+      "description": "AI token streaming via std/ai/streaming.callStream \u2014 synchronous accumulator returning Result[string, AIError]"
     },
     {
       "path": "runnable/ai_streaming.ail",
@@ -310,7 +322,7 @@
         "cache",
         "typed"
       ],
-      "description": "Demonstrates std/ai.stepWithStream — typed-StepResult streaming with per-chunk callback (M-AI-STEP-STREAMING v0.18.7)"
+      "description": "Demonstrates std/ai.stepWithStream \u2014 typed-StepResult streaming with per-chunk callback (M-AI-STEP-STREAMING v0.18.7)"
     },
     {
       "path": "array_adt.ail",
@@ -731,7 +743,7 @@
         "cons",
         "expression"
       ],
-      "description": "Cons (::) in expression position — building lists by prepending"
+      "description": "Cons (::) in expression position \u2014 building lists by prepending"
     },
     {
       "path": "list_pattern_cons.ail",
@@ -1118,7 +1130,7 @@
         "charCode",
         "benchmark"
       ],
-      "description": "FNV-1a hash function using bitwise XOR, charCode, and foldChars — demonstrates character-level string processing and deterministic hashing"
+      "description": "FNV-1a hash function using bitwise XOR, charCode, and foldChars \u2014 demonstrates character-level string processing and deterministic hashing"
     },
     {
       "path": "test_cli_io.ail",
@@ -1297,7 +1309,7 @@
         "complex",
         "business-rules"
       ],
-      "description": "Complex insurance pricing with 768 code paths — Z3 catches subtle discount overflow"
+      "description": "Complex insurance pricing with 768 code paths \u2014 Z3 catches subtle discount overflow"
     },
     {
       "path": "runnable/contracts/scoring.ail",
@@ -1309,7 +1321,7 @@
         "complex",
         "scoring"
       ],
-      "description": "Multi-factor scoring system — Z3 finds score exceeds 100 in specific enum combination"
+      "description": "Multi-factor scoring system \u2014 Z3 finds score exceeds 100 in specific enum combination"
     },
     {
       "path": "runnable/contracts/cross_function.ail",
@@ -1321,7 +1333,7 @@
         "cross-function-calls",
         "transitive"
       ],
-      "description": "Cross-function verification — Z3 inlines callee definitions to verify 3-level call chains"
+      "description": "Cross-function verification \u2014 Z3 inlines callee definitions to verify 3-level call chains"
     },
     {
       "path": "runnable/contracts/record_verify.ail",
@@ -1335,7 +1347,7 @@
         "cross-function-calls",
         "record-construction"
       ],
-      "description": "Record contract verification — Z3 proves properties about record field access, construction, cross-function calls with records, and counterexample generation"
+      "description": "Record contract verification \u2014 Z3 proves properties about record field access, construction, cross-function calls with records, and counterexample generation"
     },
     {
       "path": "runnable/contracts/string_verify.ail",
@@ -1347,7 +1359,7 @@
         "strings",
         "z3-string-theory"
       ],
-      "description": "String contract verification — Z3 proves properties about string concatenation, equality, and prefix operations"
+      "description": "String contract verification \u2014 Z3 proves properties about string concatenation, equality, and prefix operations"
     },
     {
       "path": "runnable/contracts/list_verify.ail",
@@ -1359,7 +1371,7 @@
         "lists",
         "z3-sequence-theory"
       ],
-      "description": "List contract verification — Z3 proves properties about list length, head, nth, cons using sequence theory"
+      "description": "List contract verification \u2014 Z3 proves properties about list length, head, nth, cons using sequence theory"
     },
     {
       "path": "runnable/contracts/showcase.ail",
@@ -1375,7 +1387,7 @@
         "cross-function-calls",
         "showcase"
       ],
-      "description": "Comprehensive verification showcase — combines enums, records, strings, lists, and cross-function calls in one file"
+      "description": "Comprehensive verification showcase \u2014 combines enums, records, strings, lists, and cross-function calls in one file"
     },
     {
       "path": "runnable/contracts/invoice.ail",
@@ -1392,7 +1404,7 @@
         "business-logic",
         "billing"
       ],
-      "description": "Provably correct invoice processing — Z3 verifies billing invariants across 5 tiers x 5 tax regions x promo codes x line items. Catches volume pricing bug."
+      "description": "Provably correct invoice processing \u2014 Z3 verifies billing invariants across 5 tiers x 5 tax regions x promo codes x line items. Catches volume pricing bug."
     },
     {
       "path": "hello_world.ail",
@@ -1695,7 +1707,7 @@
         "nested-records",
         "field-access"
       ],
-      "description": "Nested record contract verification — Z3 proves properties about nested record field access (o.pos.x) with dependency-ordered type declarations"
+      "description": "Nested record contract verification \u2014 Z3 proves properties about nested record field access (o.pos.x) with dependency-ordered type declarations"
     },
     {
       "path": "runnable/contracts/record_pattern_verify.ail",
@@ -1708,7 +1720,7 @@
         "pattern-matching",
         "record-patterns"
       ],
-      "description": "Record pattern matching in contracts — Z3 verifies match expressions that destructure records into field bindings"
+      "description": "Record pattern matching in contracts \u2014 Z3 verifies match expressions that destructure records into field bindings"
     },
     {
       "path": "expected_fail/contracts/list_recursive_verify.ail",
@@ -1722,7 +1734,7 @@
         "list-extract",
         "z3-sequence-theory"
       ],
-      "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract"
+      "description": "Recursive list operation contracts \u2014 Z3 proves containment and extraction properties using seq.contains and seq.extract"
     },
     {
       "path": "expected_fail/contracts/per_function_depth_verify.ail",
@@ -1735,7 +1747,7 @@
         "verify-attribute",
         "per-function-depth"
       ],
-      "description": "Per-function recursion depth — @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
+      "description": "Per-function recursion depth \u2014 @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
     },
     {
       "path": "expected_fail/contracts/hof_verify.ail",
@@ -1750,7 +1762,7 @@
         "filter",
         "lambda"
       ],
-      "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
+      "description": "Higher-order function verification \u2014 Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
     },
     {
       "path": "expected_fail/contracts/quantifier_verify.ail",
@@ -1763,7 +1775,7 @@
         "forall",
         "bounded-quantifiers"
       ],
-      "description": "Bounded quantifier verification — forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
+      "description": "Bounded quantifier verification \u2014 forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
     },
     {
       "path": "runnable/map_basic.ail",
