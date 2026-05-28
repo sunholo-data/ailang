@@ -35,11 +35,23 @@ notification daemon uses as an output router.
 ### Enabling Discord
 
 1. In your Discord server: **Channel → Settings → Integrations → Webhooks → New Webhook**, copy the URL.
-2. Export it where the coordinator/daemon runs (treat it as a secret — anyone with the URL can post):
+2. Provide the URL where the daemon runs (treat it as a secret — anyone with the URL can post). The daemon resolves it from the env var first, then the macOS login Keychain:
+
+   **macOS (recommended — Keychain, no plaintext on disk):**
+   ```bash
+   security add-generic-password -U -A -a "$USER" -s ailang-discord-webhook -w 'https://discord.com/api/webhooks/…'
+   ```
+   The daemon runs as a user LaunchAgent and reads it via
+   `security find-generic-password -s ailang-discord-webhook -w`. Update the
+   value any time by re-running the command (the `-U` flag overwrites).
+
+   **Or via env var** (any host; takes precedence over the Keychain):
    ```bash
    export AILANG_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/…"
    ```
-3. The channel registers automatically on next start. Unset → not registered.
+3. The channel registers automatically on next daemon start. Neither source set → not registered (macOS-only).
+
+> **Live check:** `AILANG_DISCORD_WEBHOOK_URL='…' go test ./internal/notify/ -run TestDiscordLive -count=1 -v` sends a real test message through the production path.
 
 ## Adding a new channel (~1–2h)
 
