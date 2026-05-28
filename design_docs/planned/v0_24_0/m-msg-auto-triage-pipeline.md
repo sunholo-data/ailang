@@ -164,13 +164,13 @@ Three phases, each independently shippable, that **connect existing parts** rath
 
 ### Implementation Plan
 
-**Phase M1: Auto-triage → auto-draft** (~1.5 weeks)
-- [ ] Define promotion criteria config (`coordinator.triage`) — intake inboxes, category allow-list, confidence threshold, hold/drop routing
-- [ ] Implement Triage Router: invoke existing `triage` clustering, apply Promotion Classifier, `forward` promotions to `design-doc-creator` inbox (reuse `ailang messages forward`)
-- [ ] Wire trigger: debounced schedule (e.g., coordinator tick) over per-message to allow clustering of related reports
-- [ ] Ensure headless `design-doc-creator` run produces a `design-approved`-able GitHub issue + `DESIGN_DOC_PATH` marker (the skill already emits this marker)
-- [ ] `hold` path: surface ambiguous clusters in the dashboard triage view / `user` inbox
-- [ ] Integration test: synthetic bug message → router → design-doc-creator inbox → (mocked agent) → pending_approval
+**Phase M1: Auto-triage → auto-draft** (~1.5 weeks) — **shipped (M-MSG-TRIAGE-ROUTER, v0.24.0)**
+- [x] Define promotion criteria config (`coordinator.triage`) — intake inboxes, category allow-list, threshold, defaults
+- [x] Implement Triage Router: classify (promote/hold/drop) + `forward` promotions to `design-doc-creator` inbox (reuses `ForwardInboxMessage`)
+- [x] Wire trigger: debounced coordinator tick (`pollLoop`, default 120s), opt-in via `coordinator.triage.enabled`
+- [ ] Ensure headless `design-doc-creator` run produces a `design-approved`-able GitHub issue + `DESIGN_DOC_PATH` marker (the skill already emits this marker) — relies on existing coordinator agent runner; verify end-to-end with the router enabled
+- [ ] `hold` path: surface ambiguous clusters in the dashboard triage view / `user` inbox — deferred (currently no-op; holds stay visible in the intake inbox)
+- [x] Integration test: synthetic bug message → router → design-doc-creator inbox (real SQLite store)
 
 **Phase M2: Central notification bus** (~1 week)
 - [ ] Define channel registry config schema in `~/.ailang/config.yaml` (`notifications.channels: [{transport, filter}]`)
