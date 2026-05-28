@@ -4,21 +4,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
-// Triage subcommand: cluster unread messages by envelope similarity
-
-type triageCluster struct {
-	Label    string                   `json:"label"`
-	Slot     string                   `json:"slot"`
-	Count    int                      `json:"count"`
-	Messages []messaging.InboxMessage `json:"messages"`
-}
+// Triage subcommand: cluster unread messages by envelope similarity.
+// Clustering itself lives in internal/messaging (ClusterMessages) so the
+// coordinator's triage router can reuse it.
 
 func runMessagesTriage(args []string) {
 	fs := flag.NewFlagSet("messages triage", flag.ExitOnError)
@@ -95,7 +89,7 @@ func runMessagesTriage(args []string) {
 	}
 
 	// Greedy threshold-based clustering
-	clusters := clusterMessages(withSlot, *clusterBy, *threshold)
+	clusters := messaging.ClusterMessages(withSlot, *clusterBy, *threshold)
 
 	// Sort clusters by size (largest first)
 	sort.Slice(clusters, func(i, j int) bool {
@@ -115,7 +109,7 @@ func runMessagesTriage(args []string) {
 		}
 	}
 	if len(uncategorized) > 0 {
-		clusters = append(clusters, triageCluster{
+		clusters = append(clusters, messaging.Cluster{
 			Label:    "Uncategorized (no envelope)",
 			Slot:     *clusterBy,
 			Count:    len(uncategorized),
@@ -146,69 +140,4 @@ func runMessagesTriage(args []string) {
 	}
 
 	printSearchFooter("SQLite", "triage:"+*clusterBy, len(messages), *threshold)
-}
-
-// clusterMessages performs greedy threshold-based clustering on messages
-// using the specified envelope slot.
-func clusterMessages(messages []messaging.InboxMessage, slot string, threshold float64) []triageCluster {
-	assigned := make([]bool, len(messages))
-	var clusters []triageCluster
-
-	for i := 0; i < len(messages); i++ {
-		if assigned[i] {
-			continue
-		}
-		assigned[i] = true
-
-		vec := messages[i].Envelope.Get(slot)
-		if vec == nil {
-			continue
-		}
-
-		cluster := triageCluster{
-			Label:    messages[i].Title,
-			Slot:     slot,
-			Count:    1,
-			Messages: []messaging.InboxMessage{messages[i]},
-		}
-
-		// Find similar messages
-		for j := i + 1; j < len(messages); j++ {
-			if assigned[j] {
-				continue
-			}
-			other := messages[j].Envelope.Get(slot)
-			if other == nil {
-				continue
-			}
-			sim := cosineSimilarity(vec.Vector, other.Vector)
-			if sim >= threshold {
-				assigned[j] = true
-				cluster.Messages = append(cluster.Messages, messages[j])
-				cluster.Count++
-			}
-		}
-
-		clusters = append(clusters, cluster)
-	}
-
-	return clusters
-}
-
-// cosineSimilarity computes the cosine similarity between two vectors.
-func cosineSimilarity(a, b []float32) float64 {
-	if len(a) != len(b) || len(a) == 0 {
-		return 0
-	}
-	var dot, normA, normB float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-	denom := math.Sqrt(normA) * math.Sqrt(normB)
-	if denom == 0 {
-		return 0
-	}
-	return dot / denom
 }
