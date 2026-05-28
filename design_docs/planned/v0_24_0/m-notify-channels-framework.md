@@ -132,14 +132,14 @@ The inbound half (webhook verify → parse → "reply-to-approve") is explicitly
 
 ### Implementation Plan
 
-**Phase 1: Framework + first webhook channel** (~1 week)
-- [ ] `Channel` interface + `Notification` struct (`internal/notify/channel.go`)
-- [ ] `Registry` ported from Aitana (`internal/notify/registry.go`) — register/get/names, same-instance idempotency, different-instance error
-- [ ] `chunk.go` per-transport length splitter
-- [ ] Webhook adapter (Discord or Google Chat) — `Send` = authenticated POST + chunk
-- [ ] Env-gated registration (`register.go`) — not registered if secret unset
-- [ ] Smoke contract test enrolling the channel (valid → ok, missing secret → not registered)
-- [ ] Unit tests: send happy path (mock HTTP), chunking, error → typed error
+**Phase 1: Framework + first webhook channel** (~1 week) — **shipped (M-NOTIFY-CHANNELS, v0.24.0)**
+- [x] `Channel` interface (`internal/notify/channel.go`). **Note:** reuses the *existing* `internal/notify.Notification` (the macOS notifier's type) rather than a new struct — discovered an `internal/notify` package + `internal/daemon` dispatcher already exist; macOS is now a `Channel` (`MacOSChannel`)
+- [x] `Registry` ported from Aitana (`internal/notify/registry.go`) — register/get/names, same-instance idempotency, different-instance error
+- [x] `chunk.go` per-transport length splitter (rune-safe)
+- [x] Webhook adapter: **Discord** (`internal/notify/discord.go`) — `Send` = authenticated POST + chunk
+- [x] Env-gated registration (`register.go`) — Discord registered only if `AILANG_DISCORD_WEBHOOK_URL` set
+- [x] Smoke contract test enrolling the channel (`smoke_test.go`: missing secret → not registered)
+- [x] Unit tests: send happy path (mock HTTP), chunking, non-2xx + transport error → typed error
 
 **Phase 2: Second channel + dead-letter integration** (~0.5 week)
 - [ ] Add a second channel (whichever of Discord/Google Chat wasn't v1) to prove the framework generalizes
