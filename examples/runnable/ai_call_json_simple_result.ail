@@ -5,8 +5,9 @@
 -- cannot express: a transient provider 5xx returns Err(AIError{retryable})
 -- instead of crashing the host, so the caller can branch on it.
 --
--- Usage:
---   ailang run --caps AI --entry main examples/runnable/ai_call_json_simple_result.ail
+-- Usage (needs IO too — main prints its result via println):
+--   ailang run --caps AI,IO --entry main examples/runnable/ai_call_json_simple_result.ail
+--   ailang run --caps AI,IO --ai-stub --entry main examples/runnable/ai_call_json_simple_result.ail  # Ok path
 --
 -- With no AI handler configured, callJsonSimpleResult returns
 -- Err(AIError{code: "ProviderNotFound"}) rather than crashing — which this
