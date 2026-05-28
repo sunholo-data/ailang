@@ -1,6 +1,6 @@
 # M-MCP-UNIT-PARAM-BINDING: Reject omitted MCP tool params instead of binding Unit
 
-**Status**: Planned
+**Status**: Implemented (v0.23.0, 2026-05-28; commit f2253d88). @route path audited → confirmed-safe (type-aware zero-pad, not nil→Unit); regression guard added.
 **Target**: v0.23.0
 **Priority**: P1 (Medium-High) — breaks the documented first-run agent auth flow for any MCP tool with a guard on an omittable param; observed in prod on docparse MCP skill
 **Estimated**: 0.5 day (~40 LOC + tests; the fix is localized to one dispatch function)

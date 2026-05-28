@@ -1,6 +1,6 @@
 # M-AI-CALL-JSON-SIMPLE-RESULT: Result-returning variant of callJsonSimple
 
-**Status**: Planned
+**Status**: Implemented (v0.23.0, 2026-05-28; commit 64f441cd)
 **Target**: v0.23.0
 **Priority**: P1 (Medium-High) — blocks docparse's prod AI-resilience work; transient provider 5xx on the highest-volume extraction path currently escapes as a bare HTTP 500
 **Estimated**: 0.5 day (~60 LOC + tests; near-mechanical mirror of the existing `callJsonResult`)

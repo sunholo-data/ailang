@@ -5,7 +5,7 @@
 - [m-mcp-unit-param-binding.md](m-mcp-unit-param-binding.md) (M2)
 
 **Target**: v0.23.0
-**Status**: Approved by user (2026-05-28)
+**Status**: Completed (v0.23.0, 2026-05-28) — M1 64f441cd, M2 f2253d88, M3 finalize. All 3 milestones passes:true.
 **Estimated**: ~1 day (~100 LOC impl + ~65 LOC tests + docs)
 **Risk level**: Low (both localized, mirror existing patterns, no parser/type changes)
 
