@@ -1,10 +1,78 @@
 package coordinator
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
+
+// fakeTriageStore is a minimal in-memory triageStore for tickOnce tests.
+type fakeTriageStore struct {
+	byInbox  map[string][]messaging.InboxMessage
+	forwards map[string]string // message ID -> destination inbox
+}
+
+func newFakeTriageStore() *fakeTriageStore {
+	return &fakeTriageStore{
+		byInbox:  map[string][]messaging.InboxMessage{},
+		forwards: map[string]string{},
+	}
+}
+
+func (f *fakeTriageStore) ListInboxMessages(opts messaging.InboxListOptions) ([]messaging.InboxMessage, error) {
+	var out []messaging.InboxMessage
+	for _, m := range f.byInbox[opts.Inbox] {
+		if _, forwarded := f.forwards[m.ID]; forwarded {
+			continue // already moved to another inbox
+		}
+		if opts.Collapsed && m.DupOf != "" {
+			continue // store hides duplicates when Collapsed
+		}
+		out = append(out, m)
+	}
+	return out, nil
+}
+
+func (f *fakeTriageStore) ForwardInboxMessage(id, toInbox string) error {
+	f.forwards[id] = toInbox
+	return nil
+}
+
+func TestTriageRouterTickOnce(t *testing.T) {
+	store := newFakeTriageStore()
+	store.byInbox["user"] = []messaging.InboxMessage{
+		{ID: "b1", Category: "bug", FromAgent: "cli", Title: "real bug"},
+		{ID: "g1", Category: "general", FromAgent: "cli", Title: "vague note"},
+		{ID: "bd1", Category: "bug", FromAgent: "cli", Title: "dup bug", DupOf: "b1"},
+		{ID: "n1", Category: "general", FromAgent: "eval-suite", Title: "eval run done"},
+	}
+
+	cfg := TriageConfig{IntakeInboxes: []string{"user"}} // rest defaulted via normalized()
+	router := NewTriageRouter(store, cfg, nil)
+
+	promoted := router.tickOnce(context.Background())
+	if promoted != 1 {
+		t.Fatalf("expected 1 promotion, got %d", promoted)
+	}
+	if store.forwards["b1"] != "design-doc-creator" {
+		t.Errorf("bug b1 should be forwarded to design-doc-creator, got %q", store.forwards["b1"])
+	}
+	if _, ok := store.forwards["g1"]; ok {
+		t.Error("general g1 should be held, not forwarded")
+	}
+	if _, ok := store.forwards["bd1"]; ok {
+		t.Error("duplicate bd1 should be hidden by Collapsed, not forwarded")
+	}
+	if _, ok := store.forwards["n1"]; ok {
+		t.Error("eval-suite noise n1 should be dropped, not forwarded")
+	}
+
+	// Idempotency: a second tick promotes nothing (b1 already left the inbox).
+	if again := router.tickOnce(context.Background()); again != 0 {
+		t.Fatalf("expected 0 promotions on second tick, got %d", again)
+	}
+}
 
 func TestClassify(t *testing.T) {
 	cfg := TriageConfig{}.normalized() // defaults: promote {bug,feature}, noise {eval-suite}

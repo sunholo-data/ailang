@@ -92,6 +92,9 @@ type Daemon struct {
 	approvalWatcher *ApprovalWatcher
 	taskChain       *TaskChain
 
+	// Auto-triage router (M-MSG-TRIAGE-ROUTER). Opt-in via coordinator.triage.
+	triageRouter *TriageRouter
+
 	// Event broadcasting for real-time updates
 	eventBroadcaster EventBroadcaster
 
@@ -376,6 +379,18 @@ func (d *Daemon) Run() error {
 			}
 		} else if d.config.DevMode {
 			d.logger.Println("Dev mode: approval watcher disabled")
+		}
+
+		// Start auto-triage router (M-MSG-TRIAGE-ROUTER). Opt-in: requires
+		// coordinator.triage.enabled. Runs locally on the always-on coordinator.
+		if d.coordConfig != nil && d.coordConfig.Triage != nil && d.coordConfig.Triage.Enabled &&
+			d.msgStore != nil && !d.config.DevMode {
+			d.triageRouter = NewTriageRouter(d.msgStore, *d.coordConfig.Triage, d.logger)
+			if err := d.triageRouter.Start(d.ctx); err != nil {
+				d.logger.Printf("Warning: Failed to start triage router: %v", err)
+			} else {
+				d.logger.Println("Auto-triage router started")
+			}
 		}
 	} else {
 		d.logger.Println("Cloud mode: GitHub polling disabled (using webhook delivery)")

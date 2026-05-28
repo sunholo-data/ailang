@@ -1,6 +1,12 @@
 package coordinator
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"sync"
+	"time"
+
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -113,4 +119,127 @@ func stringInSlice(xs []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// triageStore is the narrow slice of messaging.MessageStore the router needs.
+// Depending on this (rather than the full interface) keeps the router testable
+// with a tiny fake. messaging.MessageStore satisfies it.
+type triageStore interface {
+	ListInboxMessages(opts messaging.InboxListOptions) ([]messaging.InboxMessage, error)
+	ForwardInboxMessage(id string, toInbox string) error
+}
+
+// TriageRouter periodically triages unread intake-inbox messages and forwards
+// promotable ones (clear bug/feature reports) to the design-doc-creator inbox.
+// Its lifecycle mirrors ApprovalWatcher (Start/Stop + a ticker pollLoop with an
+// initial run). It is opt-in via coordinator.triage.enabled.
+type TriageRouter struct {
+	store  triageStore
+	cfg    TriageConfig
+	logger *log.Logger
+
+	mu      sync.Mutex
+	running bool
+	stopCh  chan struct{}
+}
+
+// NewTriageRouter builds a router from a (narrow) store, config, and logger.
+// The config is normalized so all fields have sane defaults.
+func NewTriageRouter(store triageStore, cfg TriageConfig, logger *log.Logger) *TriageRouter {
+	return &TriageRouter{
+		store:  store,
+		cfg:    cfg.normalized(),
+		logger: logger,
+		stopCh: make(chan struct{}),
+	}
+}
+
+// Start begins the polling loop. Returns an error if already running.
+func (r *TriageRouter) Start(ctx context.Context) error {
+	r.mu.Lock()
+	if r.running {
+		r.mu.Unlock()
+		return fmt.Errorf("triage router already running")
+	}
+	r.running = true
+	r.stopCh = make(chan struct{})
+	r.mu.Unlock()
+
+	r.logf("[TriageRouter] starting (interval=%ds, intake=%v, promote=%s)",
+		r.cfg.PollIntervalSecs, r.cfg.IntakeInboxes, r.cfg.PromoteInbox)
+	go r.pollLoop(ctx)
+	return nil
+}
+
+// Stop halts the polling loop.
+func (r *TriageRouter) Stop() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.running {
+		close(r.stopCh)
+		r.running = false
+	}
+}
+
+func (r *TriageRouter) pollLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Duration(r.cfg.PollIntervalSecs) * time.Second)
+	defer ticker.Stop()
+
+	r.tickOnce(ctx) // initial run
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.stopCh:
+			return
+		case <-ticker.C:
+			r.tickOnce(ctx)
+		}
+	}
+}
+
+// tickOnce runs one triage pass over every intake inbox and forwards promotions
+// to the promote inbox. It returns the number of messages promoted (used by
+// tests and logging). Held/dropped messages are left in place — "drop = archive"
+// and "hold = surface in dashboard" are deferred enhancements.
+//
+// Idempotency is free: a forwarded message's to_inbox changes, so it no longer
+// appears in the next intake listing.
+func (r *TriageRouter) tickOnce(ctx context.Context) int {
+	promoted := 0
+	for _, inbox := range r.cfg.IntakeInboxes {
+		if ctx.Err() != nil {
+			return promoted
+		}
+		msgs, err := r.store.ListInboxMessages(messaging.InboxListOptions{
+			Inbox:      inbox,
+			UnreadOnly: true,
+			Collapsed:  true, // duplicates (dup_of set) are hidden by the store
+			Limit:      200,
+		})
+		if err != nil {
+			r.logf("[TriageRouter] list %q failed: %v", inbox, err)
+			continue
+		}
+		for _, msg := range msgs {
+			if classify(msg, r.cfg) != DecisionPromote {
+				continue
+			}
+			if err := r.store.ForwardInboxMessage(msg.ID, r.cfg.PromoteInbox); err != nil {
+				r.logf("[TriageRouter] forward %s failed: %v", msg.ID, err)
+				continue
+			}
+			promoted++
+			r.logf("[TriageRouter] promoted %s [%s] %q -> %s",
+				msg.ID, msg.Category, msg.Title, r.cfg.PromoteInbox)
+		}
+	}
+	return promoted
+}
+
+func (r *TriageRouter) logf(format string, args ...interface{}) {
+	if r.logger != nil {
+		r.logger.Printf(format, args...)
+	}
 }

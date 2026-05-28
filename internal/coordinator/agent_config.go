@@ -38,6 +38,11 @@ type CoordinatorConfig struct {
 	// DevMode disables stale task detector and approval watcher to reduce
 	// Firestore reads during local development. (M-COST1)
 	DevMode bool `yaml:"dev_mode" json:"dev_mode,omitempty"`
+
+	// Triage configures the auto-triage router that promotes inbound
+	// bug/feature messages to the design-doc-creator inbox
+	// (M-MSG-TRIAGE-ROUTER). Opt-in: nil or Enabled=false means off.
+	Triage *TriageConfig `yaml:"triage" json:"triage,omitempty"`
 }
 
 // GitHubSyncConfig configures automatic GitHub issue import.
