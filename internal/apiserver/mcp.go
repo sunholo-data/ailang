@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo-data/ailang/internal/apiserver/schema"
@@ -198,10 +199,29 @@ func (ms *MCPServer) makeToolHandler(modulePath, funcName string, paramNames []s
 					}
 				}
 				// If no "args" key and we have param names, resolve named params.
+				//
+				// M-MCP-UNIT-PARAM-BINDING: a declared param the client omits
+				// (absent key) or sends as JSON null must NOT bind to nil — the
+				// engine converts nil to Unit and the AILANG function then
+				// crashes deep in stdlib (e.g. _str_len: expected String, got
+				// Unit) before any guard can run. Type-agnostic: an omitted int
+				// param would crash the same way. Reject with a structured error
+				// naming the missing params in declaration order (deterministic).
 				if len(args) == 0 && len(paramNames) > 0 {
+					var missing []string
 					args = make([]any, len(paramNames))
 					for i, name := range paramNames {
-						args[i] = argMap[name]
+						v, present := argMap[name]
+						if !present || v == nil {
+							missing = append(missing, name)
+							continue
+						}
+						args[i] = v
+					}
+					if len(missing) > 0 {
+						return mcpError(fmt.Sprintf(
+							"missing required parameter(s): %s", strings.Join(missing, ", "),
+						)), nil
 					}
 				}
 			}

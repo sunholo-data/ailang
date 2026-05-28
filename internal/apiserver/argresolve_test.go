@@ -302,3 +302,52 @@ func TestParseArgsWithNamesEx_SourceLabels(t *testing.T) {
 		}
 	})
 }
+
+// TestRouteParamOmission_ZeroPadsNotNil is the @route-path counterpart to the
+// MCP omit-rejection tests (M-MCP-UNIT-PARAM-BINDING / M-DOCPARSE-RESILIENCE-FIXES
+// M2). It documents the AUDIT outcome: the @route dispatcher does NOT share the
+// MCP nil→Unit crash because parseNamedArgs/parseArgsWithNamesEx pad an omitted
+// typed param with zeroValueForType (""/0/false/[]/{}), never a bare nil. The
+// AILANG function therefore receives a well-typed zero and can validate its own
+// input — the deliberate v0.21.0 design (m-serveapi-get-query-shadow.md) — so it
+// keeps that behavior rather than adopting MCP's hard pre-call rejection.
+//
+// If a future change makes the @route path bind omitted typed params to nil,
+// this test fails and the divergence must be revisited.
+func TestRouteParamOmission_ZeroPadsNotNil(t *testing.T) {
+	cases := []struct {
+		typeName string
+		want     interface{}
+	}{
+		{"string", ""},
+		{"int", float64(0)},
+		{"float", float64(0)},
+		{"bool", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.typeName+" omitted param zero-pads", func(t *testing.T) {
+			// Body supplies "present" but omits "missing"; both declared.
+			body := []byte(`{"present":"x"}`)
+			args, src, err := parseArgsWithNamesEx(body,
+				[]string{"present", "missing"},
+				[]string{"string", tc.typeName})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if src != ArgSourceReal {
+				t.Fatalf("source = %v, want Real (one key matched)", src)
+			}
+			if len(args) != 2 {
+				t.Fatalf("want 2 args, got %d", len(args))
+			}
+			if args[1] == nil {
+				t.Fatalf("omitted %s param bound to nil → would become Unit and crash; "+
+					"@route audit invariant violated", tc.typeName)
+			}
+			if !reflect.DeepEqual(args[1], tc.want) {
+				t.Errorf("omitted %s param = %#v, want zero value %#v",
+					tc.typeName, args[1], tc.want)
+			}
+		})
+	}
+}
