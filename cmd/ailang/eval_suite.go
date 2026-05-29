@@ -26,31 +26,6 @@ import (
 // evalTracer is the OpenTelemetry tracer for eval harness instrumentation.
 var evalTracer = otel.Tracer("ailang.eval")
 
-// SuiteResult captures the result of a single benchmark run in the suite
-type SuiteResult struct {
-	BenchmarkID string
-	Language    string
-	Model       string
-	Success     bool
-	Error       error
-}
-
-// Job represents a single benchmark task
-type Job struct {
-	Model     string
-	Benchmark string
-	Language  string
-	Condition string // Experimental condition: "baseline", "contract", "z3_guided", "full", or "" for legacy
-	Trial     int    // M-EVAL-OS-LONGITUDINAL Phase 3: 1 = default single-trial; 2+ when --trials N > 1
-}
-
-// EvalChainContext holds observatory chain state for agent eval runs.
-// When non-nil, benchmark results are stored as chain stages in observatory.db.
-type EvalChainContext struct {
-	Store   *observatory.Store
-	ChainID string
-}
-
 func runEvalSuite() {
 	ctx := context.Background()
 
@@ -726,167 +701,16 @@ func runEvalSuite() {
 	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain)
 	duration := time.Since(startTime)
 
-	// Summary
-	successCount := 0
-	failCount := 0
-	for _, r := range results {
-		if r.Success {
-			successCount++
-		} else {
-			failCount++
-		}
-	}
-
-	// Record suite results on span
-	suiteSpan.SetAttributes(
-		attribute.Int("eval.success_count", successCount),
-		attribute.Int("eval.fail_count", failCount),
-		attribute.Int64("eval.duration_ms", duration.Milliseconds()),
-		attribute.Float64("eval.success_rate", float64(successCount)/float64(totalRuns)*100),
-	)
-	if failCount > 0 {
-		suiteSpan.SetStatus(codes.Error, fmt.Sprintf("%d/%d benchmarks failed", failCount, totalRuns))
-	} else {
-		suiteSpan.SetStatus(codes.Ok, "all benchmarks passed")
-	}
-
-	fmt.Println()
-	fmt.Printf("%s Benchmark suite complete!\n", green("✓"))
-	fmt.Printf("Duration: %s\n", duration.Round(time.Second))
-	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, totalRuns, float64(successCount)/float64(totalRuns)*100)
-	fmt.Printf("Failed:  %d/%d\n", failCount, totalRuns)
-	fmt.Println()
-
-	// M-EVAL-OS-LONGITUDINAL Phase 3: write summary.json that aggregates
-	// per-(benchmark, model, lang, condition) pass rate and token distribution
-	// across trials. Required for Phase 4 candidates command + Phase 5
-	// publication. Best-effort — log on error but don't fail the suite.
-	if rs, err := eval_harness.SummarizeRotation(*outputDir); err != nil {
-		fmt.Printf("Note: failed to write summary.json: %v\n", err)
-	} else if trialsToRun > 1 {
-		fmt.Printf("Summary: aggregated %d result files into %s/summary.json\n",
-			rs.TotalResultFiles, *outputDir)
-	}
-
-	fmt.Println("Results:")
-	fmt.Printf("  - JSON: %s/*.json\n", *outputDir)
-	fmt.Println()
-	fmt.Println("Next steps:")
-	fmt.Printf("  ailang eval-summary %s\n", *outputDir)
-	fmt.Printf("  ailang eval-matrix %s v0.3.0\n", *outputDir)
-
-	// Create "Suite Completed" message for event queue visibility
-	if evalStore != nil {
-		status := "completed"
-		if failCount > 0 {
-			status = "partial"
-		}
-
-		completePayload := map[string]interface{}{
-			"task_id":      taskID,
-			"success":      successCount,
-			"failed":       failCount,
-			"total":        totalRuns,
-			"duration_sec": duration.Seconds(),
-			"success_rate": float64(successCount) / float64(totalRuns) * 100,
-		}
-		payloadBytes, _ := json.Marshal(completePayload)
-
-		completeMsg := &messaging.InboxMessage{
-			FromAgent:     "eval-suite",
-			ToInbox:       "controlplane",
-			MessageType:   messaging.InboxTypeNotification,
-			Title:         fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, totalRuns, float64(successCount)/float64(totalRuns)*100),
-			Payload:       string(payloadBytes),
-			Category:      "eval",
-			CorrelationID: taskID,
-		}
-		if err := evalStore.InsertInboxMessageWithContext(ctx, completeMsg); err == nil {
-			// Broadcast to dashboard via HTTP (non-blocking)
-			go broadcastEvalEvent(completeMsg)
-			// Emit span so event appears in ExecHierarchy (Milestone 12)
-			emitEventSpan(ctx, "suite_completed", taskID, completeMsg)
-		}
-	}
-
-	// Update task status to completed
-	completeEvalTask(taskID, failCount == 0)
-
-	// M-EVAL-CHAINS: Finalize chain status and roll up metrics from stages
-	if evalChain != nil {
-		// Use "partial" status if mixed results, "completed" if all pass, "failed" if all fail
-		status := observatory.ChainStatusCompleted
-		if failCount > 0 && successCount > 0 {
-			status = observatory.ChainStatusCompleted // Mixed — still "completed" (assessment has details)
-		} else if failCount > 0 {
-			status = observatory.ChainStatusFailed
-		}
-		if err := evalChain.Store.UpdateChainStatus(ctx, evalChain.ChainID, status); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to update eval chain status: %v\n", err)
-		}
-
-		// Roll up cost/tokens/turns from stages to chain
-		stages, stageErr := evalChain.Store.GetChainStages(ctx, evalChain.ChainID, observatory.ChainReadOptions{})
-		if stageErr == nil {
-			var totalCost float64
-			var totalTokens, totalTurns int
-			for _, st := range stages {
-				totalCost += st.Cost
-				totalTokens += st.TokensIn + st.TokensOut
-				totalTurns += st.Turns
-			}
-			_ = evalChain.Store.UpdateChainMetrics(ctx, evalChain.ChainID, totalCost, totalTokens, totalTurns)
-		}
-
-		fmt.Printf("  Chain: ailang chains view %s\n", evalChain.ChainID[:8])
-	}
-}
-
-// expandModelSuite resolves a --models argument. If the value is a single
-// token matching a known suite name (e.g. "agent_suite", "benchmark_suite",
-// "extended_suite", "dev_models"), it expands to the composite from
-// models.yml. Otherwise the value is split on commas and trimmed.
-func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
-	trimmed := strings.TrimSpace(value)
-	if cfg != nil && !strings.Contains(trimmed, ",") {
-		switch trimmed {
-		case "agent_suite":
-			if len(cfg.AgentSuite) > 0 {
-				return cfg.AgentSuite
-			}
-		case "benchmark_suite":
-			if len(cfg.BenchmarkSuite) > 0 {
-				return cfg.BenchmarkSuite
-			}
-		case "extended_suite":
-			if len(cfg.ExtendedSuite) > 0 {
-				return cfg.ExtendedSuite
-			}
-		case "dev_models":
-			if len(cfg.DevModels) > 0 {
-				return cfg.DevModels
-			}
-		case "ollama_suite":
-			if len(cfg.OllamaSuite) > 0 {
-				return cfg.OllamaSuite
-			}
-		case "harness_suite":
-			if len(cfg.HarnessSuite) > 0 {
-				return cfg.HarnessSuite
-			}
-		case "lang_harness_suite":
-			if len(cfg.LangHarnessSuite) > 0 {
-				return cfg.LangHarnessSuite
-			}
-		}
-	}
-
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if t := strings.TrimSpace(p); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
+	finalizeSuiteRun(suiteSummaryParams{
+		ctx:         ctx,
+		results:     results,
+		outputDir:   *outputDir,
+		totalRuns:   totalRuns,
+		trialsToRun: trialsToRun,
+		taskID:      taskID,
+		evalStore:   evalStore,
+		evalChain:   evalChain,
+		suiteSpan:   suiteSpan,
+		duration:    duration,
+	})
 }
