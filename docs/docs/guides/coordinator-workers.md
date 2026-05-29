@@ -275,5 +275,5 @@ For the contracts and code paths underneath this guide:
 
 - [coordinator.md](coordinator.md) — coordinator daemon basics
 - [coordinator-setup.md](coordinator-setup.md) — setting up the coordinator for external projects
-- [design_docs/planned/v0_24_0/m-coord-multi-host-workers.md](../../../design_docs/planned/v0_24_0/m-coord-multi-host-workers.md) — the design doc this implements
-- [design_docs/planned/v0_24_0/m-eval-local-ollama.md](../../../design_docs/planned/v0_24_0/m-eval-local-ollama.md) — operational reliability for the Studio's eval rig (companion milestone)
+- [m-coord-multi-host-workers.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-coord-multi-host-workers.md) — the design doc this implements
+- [m-eval-local-ollama.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-local-ollama.md) — operational reliability for the Studio's eval rig (companion milestone)

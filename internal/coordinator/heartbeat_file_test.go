@@ -123,8 +123,11 @@ func TestFileHeartbeatStore_CrossProcessVisibility(t *testing.T) {
 }
 
 func TestDefaultHeartbeatPath(t *testing.T) {
-	if got := DefaultHeartbeatPath("/tmp/state"); got != "/tmp/state/worker_heartbeats.json" {
-		t.Errorf("DefaultHeartbeatPath = %q, want /tmp/state/worker_heartbeats.json", got)
+	// Expected path is platform-aware: DefaultHeartbeatPath uses filepath.Join,
+	// which yields OS-specific separators (e.g. \tmp\state\... on Windows).
+	want := filepath.Join("/tmp/state", "worker_heartbeats.json")
+	if got := DefaultHeartbeatPath("/tmp/state"); got != want {
+		t.Errorf("DefaultHeartbeatPath = %q, want %q", got, want)
 	}
 	// Empty stateDir falls back to ~/.ailang/state — just verify suffix.
 	got := DefaultHeartbeatPath("")

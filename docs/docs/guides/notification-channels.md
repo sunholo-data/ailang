@@ -9,7 +9,7 @@ notification daemon uses as an output router.
 > **Status (v0.24.0):** outbound-only. The macOS desktop notifier and a Discord
 > webhook channel ship today. Inbound ("reply *approve* to apply the
 > `design-approved` label") is a planned follow-up. See
-> [m-notify-channels-framework](../../../design_docs/planned/v0_24_0/m-notify-channels-framework.md).
+> [m-notify-channels-framework](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-framework.md).
 
 ## Concepts
 
@@ -98,5 +98,5 @@ Mirror `internal/notify/discord.go`:
 
 Which events reach which channels is decided by the notification daemon
 (`internal/daemon`) and its per-channel filters — see
-[m-msg-auto-triage-pipeline](../../../design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md).
+[m-msg-auto-triage-pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md).
 A channel never decides *whether* to fire; it only knows *how* to deliver.
