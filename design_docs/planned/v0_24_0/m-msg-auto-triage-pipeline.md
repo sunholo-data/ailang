@@ -164,7 +164,7 @@ Three phases, each independently shippable, that **connect existing parts** rath
 
 ### Implementation Plan
 
-**Phase M1: Auto-triage → auto-draft** (~1.5 weeks) — **shipped (M-MSG-TRIAGE-ROUTER, v0.24.0)**
+**Phase M1: Auto-triage → auto-draft** (~1.5 weeks) — **shipped (M-MSG-TRIAGE-ROUTER, v0.23.0)**
 - [x] Define promotion criteria config (`coordinator.triage`) — intake inboxes, category allow-list, threshold, defaults
 - [x] Implement Triage Router: classify (promote/hold/drop) + `forward` promotions to `design-doc-creator` inbox (reuses `ForwardInboxMessage`)
 - [x] Wire trigger: debounced coordinator tick (`pollLoop`, default 120s), opt-in via `coordinator.triage.enabled`
@@ -172,7 +172,7 @@ Three phases, each independently shippable, that **connect existing parts** rath
 - [ ] `hold` path: surface ambiguous clusters in the dashboard triage view / `user` inbox — deferred (currently no-op; holds stay visible in the intake inbox)
 - [x] Integration test: synthetic bug message → router → design-doc-creator inbox (real SQLite store)
 
-**Phase M2: Central notification bus** (~1 week) — **mostly shipped (M-NOTIFY-FANOUT, v0.24.0)**
+**Phase M2: Central notification bus** (~1 week) — **mostly shipped (M-NOTIFY-FANOUT, v0.23.0)**
 > **Discovery:** the dispatcher already existed as `internal/daemon` (a laptop-side daemon wired in `cmd/ailang/daemon.go`), *not* the coordinator daemon. It subscribes to the `events`/`messages` Pub/Sub subs, maps task `pending_approval`/`completed`/`failed` + inbox messages → notifications, dedups, excludes, and nacks-on-failure. Step 3 generalized its single macOS notifier into a multi-channel fan-out.
 - [x] Fan-out dispatcher: `internal/daemon` now delivers over a `notify.Registry` (macOS + env-gated Discord) via `SendAll` — local best-effort, remote authoritative
 - [x] Reliable retry: `dedup.forget` on nack paths so a failed remote send is actually redelivered (was eaten by the pre-fire dedup)

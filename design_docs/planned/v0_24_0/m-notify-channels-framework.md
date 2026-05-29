@@ -132,7 +132,7 @@ The inbound half (webhook verify → parse → "reply-to-approve") is explicitly
 
 ### Implementation Plan
 
-**Phase 1: Framework + first webhook channel** (~1 week) — **shipped (M-NOTIFY-CHANNELS, v0.24.0)**
+**Phase 1: Framework + first webhook channel** (~1 week) — **shipped (M-NOTIFY-CHANNELS, v0.23.0)**
 - [x] `Channel` interface (`internal/notify/channel.go`). **Note:** reuses the *existing* `internal/notify.Notification` (the macOS notifier's type) rather than a new struct — discovered an `internal/notify` package + `internal/daemon` dispatcher already exist; macOS is now a `Channel` (`MacOSChannel`)
 - [x] `Registry` ported from Aitana (`internal/notify/registry.go`) — register/get/names, same-instance idempotency, different-instance error
 - [x] `chunk.go` per-transport length splitter (rune-safe)
