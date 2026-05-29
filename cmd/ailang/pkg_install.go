@@ -41,7 +41,14 @@ func pkgInstallCommand(args []string) error {
 	// Validate name format early
 	nameParts := strings.SplitN(name, "/", 2)
 	if len(nameParts) != 2 {
-		return fmt.Errorf("invalid package name: %q (must be vendor/name)", name)
+		if looksLikeToolchainVersion(name) {
+			tag := name
+			if !strings.HasPrefix(tag, "v") {
+				tag = "v" + tag
+			}
+			return fmt.Errorf("%q looks like an AILANG toolchain version, but `ailang install` installs registry packages (vendor/name), not the AILANG toolchain itself.\n\nTo install the AILANG toolchain at %s:\n  go install github.com/sunholo-data/ailang/cmd/ailang@%s\n  (or download a binary: https://github.com/sunholo-data/ailang/releases/tag/%s)\n\nTo install a package: ailang install sunholo/auth", name, tag, tag, tag)
+		}
+		return fmt.Errorf("invalid package name: %q (must be vendor/name)\nExample: ailang install sunholo/auth", name)
 	}
 
 	client := pkg.NewRegistryClient()
@@ -129,4 +136,21 @@ func pkgInstallCommand(args []string) error {
 	fmt.Println("Then run: ailang lock")
 
 	return nil
+}
+
+// looksLikeToolchainVersion reports whether s resembles an AILANG version
+// string (e.g. "v0.22.0", "0.23.0", "v1") rather than a vendor/name package
+// spec. Used so `ailang install v0.23.0` returns an actionable "use go install"
+// error instead of the opaque "invalid package name".
+func looksLikeToolchainVersion(s string) bool {
+	s = strings.TrimPrefix(s, "v")
+	if s == "" || s[0] < '0' || s[0] > '9' {
+		return false
+	}
+	for _, r := range s {
+		if (r < '0' || r > '9') && r != '.' {
+			return false
+		}
+	}
+	return true
 }
