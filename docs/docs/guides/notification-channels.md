@@ -96,7 +96,56 @@ Mirror `internal/notify/discord.go`:
 
 ## Routing
 
-Which events reach which channels is decided by the notification daemon
-(`internal/daemon`) and its per-channel filters — see
-[m-msg-auto-triage-pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md).
-A channel never decides *whether* to fire; it only knows *how* to deliver.
+The daemon stamps every `Notification` with an `EventType` (`pending_approval`,
+`completed`, `failed`, `public-feedback`, `message`) and the fan-out asks each
+channel whether it accepts the type. The macOS channel implements no filter and
+takes everything (passive desktop feed); Discord ships with a curated allow-list
+so the phone only buzzes for things that need your attention.
+
+### Default Discord filter
+
+```
+DefaultDiscordEventTypes = ["pending_approval", "failed", "public-feedback"]
+```
+
+So out of the box: ⏳ approval-needed, ❌ task-failed, and 🌐 external-feedback
+ping the phone. ✅ task-done and routine ✉️ inbox messages do **not** — they
+still land on macOS.
+
+### Overriding the filter
+
+```go
+// All-quiet remote (still register the channel for visibility, but no pings):
+discord.SetEventTypes([]string{})
+
+// Pager-grade: only the truly urgent
+discord.SetEventTypes([]string{"failed"})
+
+// Inverse — accept everything (revert to firehose):
+discord.SetEventTypes(nil)
+```
+
+A channel that implements `EventFilter` and rejects an event is **skipped** by
+the fan-out — it does not count toward the remote-authoritative ack quota and
+does not trigger a retry. So filtering doesn't break the "ack if any remote
+delivered" policy: if all remote channels filter out the event, the daemon
+falls back to local-best-effort and acks on macOS success.
+
+## Dead-lettering persistent failures
+
+`internal/notify/registry.go::SendAll` returns an error when every accepting
+remote channel fails. The daemon nacks → Pub/Sub redelivers. To prevent infinite
+retry on a permanently-broken channel (e.g. a revoked Discord webhook), configure
+**subscription-level dead-lettering** on `ailang-{env}-messages-laptop` and
+`ailang-{env}-events-laptop`, routing to the existing `ailang-{env}-dead-letter`
+topic after N attempts:
+
+```bash
+gcloud pubsub subscriptions update ailang-dev-messages-laptop \
+  --project=ailang-multivac-dev \
+  --dead-letter-topic=ailang-dev-dead-letter \
+  --max-delivery-attempts=5
+```
+
+(Same for `ailang-dev-events-laptop`.) Pub/Sub does the routing for us — no
+in-daemon dead-letter publishing code is needed.

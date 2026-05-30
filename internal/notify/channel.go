@@ -40,6 +40,28 @@ func isLocal(ch Channel) bool {
 	return ok && lc.IsLocal()
 }
 
+// EventFilter is implemented by channels that want to opt out of certain event
+// types — e.g. Discord declines `completed` task events to keep phone pings to
+// "needs my attention" only, while macOS continues to receive everything as a
+// passive desktop feed. A channel without this method (or whose Accepts returns
+// true) is treated as "accepts every event type".
+//
+// The fan-out treats a filtered-out send as a SKIP, not a failure: it does not
+// count toward the remote-authoritative ack quota and does not trigger a retry.
+type EventFilter interface {
+	Accepts(eventType string) bool
+}
+
+// channelAccepts returns true if ch wants n delivered. Channels without
+// EventFilter implicitly accept everything.
+func channelAccepts(ch Channel, n Notification) bool {
+	f, ok := ch.(EventFilter)
+	if !ok {
+		return true
+	}
+	return f.Accepts(n.EventType)
+}
+
 // MacOSChannel adapts the existing macOS Notify path to the Channel interface,
 // so the long-standing local-desktop notifier is just another registered
 // channel alongside Discord et al.

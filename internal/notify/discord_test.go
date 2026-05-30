@@ -89,6 +89,43 @@ func TestDiscordSendTransportErrors(t *testing.T) {
 	}
 }
 
+func TestDiscordDefaultEventTypes(t *testing.T) {
+	ch := NewDiscordChannel("https://discord.test/webhook")
+	// The "needs attention now" trio fires by default.
+	for _, et := range []string{"pending_approval", "failed", "public-feedback"} {
+		if !ch.Accepts(et) {
+			t.Errorf("default Discord must accept %q", et)
+		}
+	}
+	// Routine and generic types do NOT (this is the phone-noise win).
+	for _, et := range []string{"completed", "message", ""} {
+		if ch.Accepts(et) {
+			t.Errorf("default Discord must NOT accept %q (would re-introduce phone noise)", et)
+		}
+	}
+}
+
+func TestDiscordSetEventTypesNilAcceptsAll(t *testing.T) {
+	ch := NewDiscordChannel("https://discord.test/webhook")
+	ch.SetEventTypes(nil)
+	for _, et := range []string{"pending_approval", "failed", "public-feedback", "completed", "message", "anything"} {
+		if !ch.Accepts(et) {
+			t.Errorf("nil allow-list must accept %q", et)
+		}
+	}
+}
+
+func TestDiscordSetEventTypesCustom(t *testing.T) {
+	ch := NewDiscordChannel("https://discord.test/webhook")
+	ch.SetEventTypes([]string{"failed"})
+	if !ch.Accepts("failed") {
+		t.Error("custom allow-list should accept failed")
+	}
+	if ch.Accepts("pending_approval") {
+		t.Error("custom allow-list should reject pending_approval after override")
+	}
+}
+
 func TestChunkMessage(t *testing.T) {
 	if got := chunkMessage("short", 2000); len(got) != 1 || got[0] != "short" {
 		t.Fatalf("short string should be one chunk, got %v", got)

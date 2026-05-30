@@ -93,6 +93,12 @@ func (r *Registry) SendAll(ctx context.Context, n Notification, logger *log.Logg
 		if err != nil {
 			continue
 		}
+		// Per-channel filter: if the channel opts out of this event type, skip
+		// it entirely — neither counts toward the remote ack quota nor triggers
+		// a retry. A channel without EventFilter accepts everything.
+		if !channelAccepts(ch, n) {
+			continue
+		}
 		sendErr := ch.Send(ctx, n)
 		if isLocal(ch) {
 			if sendErr != nil {

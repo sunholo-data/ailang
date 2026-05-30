@@ -22,12 +22,13 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 	switch t.Status {
 	case "pending_approval":
 		return notify.Notification{
-			Title:    "⏳ Approval needed",
-			Subtitle: t.AgentID,
-			Body:     fmt.Sprintf("%s: %s", t.AgentID, t.TaskID),
-			Sound:    "Glass",
-			Group:    taskGroupPrefix + t.TaskID,
-			URL:      taskURL(t.TaskID),
+			Title:     "⏳ Approval needed",
+			Subtitle:  t.AgentID,
+			Body:      fmt.Sprintf("%s: %s", t.AgentID, t.TaskID),
+			Sound:     "Glass",
+			Group:     taskGroupPrefix + t.TaskID,
+			URL:       taskURL(t.TaskID),
+			EventType: "pending_approval",
 		}, true
 	case "completed":
 		body := fmt.Sprintf("%s: task %s", t.AgentID, t.TaskID)
@@ -35,12 +36,13 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 			body += fmt.Sprintf(" (%d turns, $%.4f)", t.NumTurns, t.CostUSD)
 		}
 		return notify.Notification{
-			Title:    "✅ Task done",
-			Subtitle: t.AgentID,
-			Body:     body,
-			Sound:    "Ping",
-			Group:    taskGroupPrefix + t.TaskID,
-			URL:      taskURL(t.TaskID),
+			Title:     "✅ Task done",
+			Subtitle:  t.AgentID,
+			Body:      body,
+			Sound:     "Ping",
+			Group:     taskGroupPrefix + t.TaskID,
+			URL:       taskURL(t.TaskID),
+			EventType: "completed",
 		}, true
 	case "failed":
 		body := fmt.Sprintf("%s: %s", t.AgentID, t.TaskID)
@@ -48,12 +50,13 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 			body += " — " + t.ErrorMsg
 		}
 		return notify.Notification{
-			Title:    "❌ Task failed",
-			Subtitle: t.AgentID,
-			Body:     truncate(body, messageBodyMax),
-			Sound:    "Basso",
-			Group:    taskGroupPrefix + t.TaskID,
-			URL:      taskURL(t.TaskID),
+			Title:     "❌ Task failed",
+			Subtitle:  t.AgentID,
+			Body:      truncate(body, messageBodyMax),
+			Sound:     "Basso",
+			Group:     taskGroupPrefix + t.TaskID,
+			URL:       taskURL(t.TaskID),
+			EventType: "failed",
 		}, true
 	default:
 		return notify.Notification{}, false
@@ -68,21 +71,23 @@ func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) 
 	}
 	if m.ToInbox == "public-feedback" {
 		return notify.Notification{
-			Title:    "🌐 External feedback",
-			Subtitle: m.FromAgent,
-			Body:     truncate(fmt.Sprintf("[%s] %s", m.ToInbox, m.Title), messageBodyMax),
-			Sound:    "Pop",
-			Group:    "ailang-public-feedback",
-			URL:      inboxURL(m.ToInbox),
+			Title:     "🌐 External feedback",
+			Subtitle:  m.FromAgent,
+			Body:      truncate(fmt.Sprintf("[%s] %s", m.ToInbox, m.Title), messageBodyMax),
+			Sound:     "Pop",
+			Group:     "ailang-public-feedback",
+			URL:       inboxURL(m.ToInbox),
+			EventType: "public-feedback",
 		}, true
 	}
 	return notify.Notification{
-		Title:    "✉️  Message from " + m.FromAgent,
-		Subtitle: m.ToInbox,
-		Body:     truncate(fmt.Sprintf("%s — %s", m.Title, m.Payload), messageBodyMax),
-		Sound:    "Pop",
-		Group:    "ailang-msg-" + m.ToInbox,
-		URL:      inboxURL(m.ToInbox),
+		Title:     "✉️  Message from " + m.FromAgent,
+		Subtitle:  m.ToInbox,
+		Body:      truncate(fmt.Sprintf("%s — %s", m.Title, m.Payload), messageBodyMax),
+		Sound:     "Pop",
+		Group:     "ailang-msg-" + m.ToInbox,
+		URL:       inboxURL(m.ToInbox),
+		EventType: "message",
 	}, true
 }
 

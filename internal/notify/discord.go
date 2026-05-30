@@ -13,6 +13,13 @@ import (
 // discordContentLimit is Discord's per-message character cap for webhook content.
 const discordContentLimit = 2000
 
+// DefaultDiscordEventTypes is the curated "needs human attention now" allow-list
+// applied to a freshly-constructed DiscordChannel: approval requests, failures,
+// and external feedback ping the phone; routine `completed` task events and
+// generic inbox messages do not (they still land on macOS as a passive feed).
+// Override with SetEventTypes (nil/empty means "accept everything").
+var DefaultDiscordEventTypes = []string{"pending_approval", "failed", "public-feedback"}
+
 // httpDoer is the slice of *http.Client the Discord channel needs; tests
 // substitute a fake so no network is required.
 type httpDoer interface {
@@ -25,15 +32,39 @@ type httpDoer interface {
 type DiscordChannel struct {
 	webhookURL string
 	http       httpDoer
+	eventTypes []string // empty = accept everything; populated -> only these
 }
 
-// NewDiscordChannel builds a Discord channel for the given incoming-webhook URL.
+// NewDiscordChannel builds a Discord channel for the given incoming-webhook URL,
+// pre-populated with DefaultDiscordEventTypes.
 func NewDiscordChannel(webhookURL string) *DiscordChannel {
-	return &DiscordChannel{webhookURL: webhookURL, http: http.DefaultClient}
+	return &DiscordChannel{
+		webhookURL: webhookURL,
+		http:       http.DefaultClient,
+		eventTypes: append([]string{}, DefaultDiscordEventTypes...),
+	}
 }
 
 // Name implements Channel.
 func (c *DiscordChannel) Name() string { return "discord" }
+
+// SetEventTypes overrides the allow-list. Pass nil/empty to accept every event.
+func (c *DiscordChannel) SetEventTypes(types []string) {
+	c.eventTypes = types
+}
+
+// Accepts implements EventFilter — empty allow-list accepts everything.
+func (c *DiscordChannel) Accepts(eventType string) bool {
+	if len(c.eventTypes) == 0 {
+		return true
+	}
+	for _, t := range c.eventTypes {
+		if t == eventType {
+			return true
+		}
+	}
+	return false
+}
 
 // Send renders n and POSTs it to the webhook, chunked at Discord's 2000-char
 // limit. A transport error or any non-2xx response yields a typed error so the

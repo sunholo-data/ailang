@@ -25,14 +25,16 @@ var ErrNotifierUnavailable = errors.New("notify: no notification binary availabl
 
 // Notification is a single notification payload. Sound and Group are optional;
 // URL is honored only on the terminal-notifier path (osascript has no
-// click-action equivalent).
+// click-action equivalent). EventType is opaque to the macOS renderer but is
+// read by Registry.SendAll to filter per channel (see EventFilter).
 type Notification struct {
-	Title    string
-	Subtitle string
-	Body     string
-	Sound    string // default "Glass" if empty
-	Group    string // collapses repeat notifications when shared
-	URL      string // click-action; opens URL when notification is clicked (terminal-notifier only)
+	Title     string
+	Subtitle  string
+	Body      string
+	Sound     string // default "Glass" if empty
+	Group     string // collapses repeat notifications when shared
+	URL       string // click-action; opens URL when notification is clicked (terminal-notifier only)
+	EventType string // e.g. "pending_approval", "completed", "failed", "public-feedback", "message"
 }
 
 // runner abstracts exec.LookPath + Cmd.Run so tests can substitute a fake.
