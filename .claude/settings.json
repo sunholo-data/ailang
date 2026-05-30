@@ -58,12 +58,18 @@
       "Bash(gsutil ls *)",
       "Bash(gsutil cat *)",
       "Bash(gcloud firestore *)",
-      "Bash(awk '{print \" result files so far:\", $1}')"
-    ],
-    "additionalDirectories": [
-      "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
-      "/Users/mark/dev/sunholo/ai-coding-lang-bench",
-      "/Users/mark/dev/sunholo/ailang-parse"
+      "Bash(awk '{print \" result files so far:\", $1}')",
+      "Read(//Users/voightkampff/dev/aitana-labs/aitana-skills/docs/integrations/**)",
+      "Bash(.claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-notify-channels-framework *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(.claude/skills/sprint-planner/scripts/analyze_velocity.sh *)",
+      "Bash(.claude/skills/sprint-planner/scripts/create_sprint_json.sh *)",
+      "Bash(go test *)",
+      "Bash(gofmt *)",
+      "Bash(golangci-lint run *)",
+      "Bash(go build *)"
     ]
   },
   "hooks": {
@@ -173,11 +179,6 @@
     "Stop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/session_end_speak.sh",
-            "timeout": 15
-          },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
