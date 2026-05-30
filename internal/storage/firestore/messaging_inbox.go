@@ -23,6 +23,17 @@ func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg 
 	if msg.ID == "" {
 		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
 	}
+	// MessageID is the stable business identifier used by the Pub/Sub publisher
+	// (MessageNotification.MessageID) and by the daemon's downstream fetch. For
+	// the Firestore backend the doc ID is the only lookup key (GetInboxMessage
+	// uses s.client.Doc(...)), so MessageID must equal ID. The SQLite backend
+	// uses a separate "msg_..." format and looks up by `id OR message_id`; we
+	// can't do that in Firestore without a second index. Without this, every
+	// CLI send published `{"message_id":""}` and the daemon's GetInboxMessage("")
+	// silently failed — no notification ever fired.
+	if msg.MessageID == "" {
+		msg.MessageID = msg.ID
+	}
 	if msg.Status == "" {
 		msg.Status = "unread"
 	}

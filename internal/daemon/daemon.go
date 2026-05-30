@@ -133,6 +133,7 @@ func (d *Daemon) handleTaskEvent(_ context.Context, data []byte, _ map[string]st
 		d.taskDedup.forget(key) // nack: let redelivery retry instead of being deduped
 		return err
 	}
+	d.log.Printf("daemon: delivered task event %s/%s -> %q", t.TaskID, t.Status, n.Title)
 	return nil
 }
 
@@ -167,6 +168,7 @@ func (d *Daemon) handleMessageEvent(ctx context.Context, data []byte, _ map[stri
 		d.msgDedup.forget(key) // nack: let redelivery retry delivery
 		return err
 	}
+	d.log.Printf("daemon: delivered message %s [from=%s, inbox=%s] -> %q", m.MessageID, full.FromAgent, full.ToInbox, n.Title)
 	return nil
 }
 
