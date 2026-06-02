@@ -55,20 +55,51 @@ if [[ "${AILANG_NIGHTLY_EVAL_DRY_RUN:-0}" == "1" ]]; then
     exit 0
 fi
 
-# Run the eval (--trials 2 for regression confidence; serial to avoid GPU contention)
-ailang eval-suite --agent \
-    --models opencode-qwen3-5-35b-a3b-mxfp8 \
-    --benchmarks "$SMOKE" \
-    --langs ailang \
-    --output "$RESULTS_DIR" \
-    --parallel 1 \
-    --trials 2 >> "$LOG" 2>&1
+# Run the eval in A/B mode: microRAG ON then OFF, same smoke set.
+# Results land in separate subdirs so analysis can diff them.
+# A/B is weekly (Mondays) to avoid doubling the nightly wall-clock every day.
+# On non-Monday nights: microRAG=on only (regression guard, no comparison overhead).
+DAY_OF_WEEK=$(date +%u)  # 1=Mon … 7=Sun
+RUN_AB=0
+[[ "${AILANG_FORCE_AB:-0}" == "1" ]] && RUN_AB=1
+[[ "$DAY_OF_WEEK" == "1" ]] && RUN_AB=1
 
-PASS=$(grep -oE '[0-9]+/[0-9]+ passed' "$LOG" 2>/dev/null | tail -1 | cut -d/ -f1 || echo "?")
-TOTAL=$(grep -oE '[0-9]+/[0-9]+ passed' "$LOG" 2>/dev/null | tail -1 | cut -d/ -f2 | cut -d' ' -f1 || echo "?")
-RATE=$(grep -oE '\([0-9.]+%\)' "$LOG" 2>/dev/null | tail -1 | tr -d '()' || echo "?%")
+run_eval() {
+    local mode="$1" outdir="$2"
+    log "running smoke: microrag=${mode} → ${outdir}"
+    ailang eval-suite --agent \
+        --models opencode-qwen3-5-35b-a3b-mxfp8 \
+        --benchmarks "$SMOKE" \
+        --langs ailang \
+        --microrag "$mode" \
+        --output "$outdir" \
+        --parallel 1 \
+        --trials 2 >> "$LOG" 2>&1
+}
 
-log "result: ${PASS}/${TOTAL} (${RATE})"
+run_eval "on"  "${RESULTS_DIR}_rag_on"
+
+if [[ "$RUN_AB" == "1" ]]; then
+    log "Monday A/B run: also running microrag=off"
+    run_eval "off" "${RESULTS_DIR}_rag_off"
+
+    # Compare
+    PASS_ON=$(grep -oE '[0-9]+/[0-9]+ passed' "${RESULTS_DIR}_rag_on"/../*.log 2>/dev/null | tail -1 | cut -d/ -f1 || \
+              python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_on/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
+    PASS_OFF=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_off/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
+    log "A/B result: microrag_on=${PASS_ON} microrag_off=${PASS_OFF}"
+    ailang messages send controlplane \
+        "Weekly μRAG A/B (${DATE}): on=${PASS_ON}/17  off=${PASS_OFF}/17. Delta=$(( ${PASS_ON:-0} - ${PASS_OFF:-0} 2>/dev/null || echo "?")) benchmarks. Results: ${RESULTS_DIR}_rag_on vs ${RESULTS_DIR}_rag_off" \
+        --title "μRAG A/B result (${DATE})" --from "nightly-eval" 2>/dev/null || true
+fi
+
+# Use the rag_on results for regression detection (canonical arm)
+RESULTS_AGENT="${RESULTS_DIR}_rag_on/agent"
+export RESULTS_AGENT
+PASS=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_AGENT}/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(f'{p}/{len(r)}')" 2>/dev/null || echo "?/?")
+RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_AGENT}/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); n=len(r); print(f'{100*p//n if n else 0}%')" 2>/dev/null || echo "?%")
+
+log "regression check result: ${PASS} (${RATE})"
 
 # Feed failures to design-doc-creator inbox if ≥2 consecutive trials failed
 # (i.e., passes=0 in the deduplicated latest results)
@@ -76,9 +107,10 @@ FAILURES=$(python3 - <<'PY'
 import json, glob, os
 from collections import defaultdict
 
-# Load newest result per benchmark (trials mode may have multiple files)
+# Load newest result per benchmark from the rag_on (canonical) arm
+results_agent = os.environ.get("RESULTS_AGENT", "")
 latest = {}
-for f in glob.glob("${RESULTS_DIR}/agent/*.json".replace("${RESULTS_DIR}", os.environ.get("RESULTS_DIR",""))):
+for f in glob.glob(f"{results_agent}/*.json"):
     key = os.path.basename(f).rsplit("_", 1)[0]
     ts  = int(os.path.basename(f).rsplit("_", 1)[1][:-5])
     if key not in latest or ts > latest[key][0]:
