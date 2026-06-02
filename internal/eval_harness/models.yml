@@ -993,6 +993,33 @@ models:
       per token. Mid-tier price; tests the "cheap MoE catches up given
       budget" hypothesis directly against the dense Gemma 4 27B above.
 
+  motoko-or-qwen3-5-35b-a3b:
+    api_name: "qwen/qwen3.5-35b-a3b-20260224"
+    provider: "openrouter"
+    description: "Qwen 3.5 35B-A3B MoE via motoko_agent — low-active-param sweet-spot probe (local-rig candidate)"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    agent_model_name: "openrouter/qwen/qwen3.5-35b-a3b-20260224"
+    model_family: "qwen-3-5"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00014   # $0.14 per 1M (verified OpenRouter API 2026-06-02)
+      output_per_1k: 0.001    # $1.00 per 1M (verified OpenRouter API 2026-06-02)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-06-02. Apache-2.0 MoE — 35B total, ~3B active per token
+      (~12x sparsity). Direct peer to motoko-or-gemma-4-26b for the
+      "low-active-param MoE" thesis. Primary candidate for the 128GB M4 Max
+      local Ollama rig (est. 55-70 tok/s when pulled at MLX Q4; ~19.5 GB);
+      validating via OpenRouter first before committing a multi-GB local pull.
+      Exact id + pricing verified against the live OpenRouter models API on
+      2026-06-02. Newer qwen/qwen3.6-35b-a3b-20260415 exists at the same
+      price as a fast-follow head-to-head. Smoke gate: fizzbuzz, adt_option,
+      csv_to_json_converter (csv_to_json is the high-signal gate; OS models
+      via motoko historically need the per-benchmark timeout bumped).
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
