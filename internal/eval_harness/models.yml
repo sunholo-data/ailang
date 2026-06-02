@@ -1014,19 +1014,19 @@ models:
       "low-active-param MoE" thesis. Primary candidate for the 128GB M4 Max
       local Ollama rig (est. 55-70 tok/s when pulled at MLX Q4; ~19.5 GB);
       validating via OpenRouter first before committing a multi-GB local pull.
-      SMOKE 2026-06-02 (agent mode): 2/3 — fizzbuzz ✅, adt_option ✅,
-      csv_to_json_converter ❌ (motoko "v2 loop: step budget exhausted", NOT a
-      capability/WRONG_LANG failure). IDENTICAL result + failure mode to the
-      motoko-or-gemma-4-26b baseline → validated near-miss, same rotation
-      status as gemma. The csv_to_json failure is the motoko agent step-budget
-      cap, shared across OS-via-motoko models; bumping the v2 step budget (or
-      benchmark timeout) is the lever to convert these 2/3s to 3/3. $0.64 total
-      smoke spend (both models). Exact id + pricing verified against the live
+      VALIDATED — smoke gate PASSED CLEAN. Canonical `--tier smoke` (17
+      benchmarks, agent mode via OpenRouter, 2026-06-02): QWEN 3.5 = 17/17,
+      beating the motoko-or-gemma-4-26b baseline (14/17 — gemma missed
+      dense_operator_program/runtime, explicit_state_threading/compile, and
+      balanced_parens/step-budget). Qwen passed every fundamental including the
+      ones gemma failed → legitimate baseline-replacement candidate, not just a
+      near-miss. (An earlier 2/3 result was an artifact of a mis-calibrated
+      hand-typed gate that wrongly included core-tier csv_to_json; the real
+      tier:smoke gate excludes it.) $1.82 total OpenRouter spend for the
+      34-run head-to-head. Exact id + pricing verified against the live
       OpenRouter models API on 2026-06-02. Newer qwen/qwen3.6-35b-a3b-20260415
-      exists at the same
-      price as a fast-follow head-to-head. Smoke gate: fizzbuzz, adt_option,
-      csv_to_json_converter (csv_to_json is the high-signal gate; OS models
-      via motoko historically need the per-benchmark timeout bumped).
+      exists at the same price as a fast-follow head-to-head. Next: pull
+      locally (MLX Q4) and re-run serial on the rig to confirm tok/s + parity.
 
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
