@@ -124,11 +124,15 @@ func (e *MotokoExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // JSONL file as it grows (M2 will add the streaming goroutine; M1 ships with
 // post-completion parse only).
 func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	effectiveProfile := e.profile
+	if p := task.Metadata["motoko_profile"]; p != "" {
+		effectiveProfile = p
+	}
 	ctx, span := telemetry.StartSpan(ctx, motokoTracer, "motoko.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "motoko"),
 			attribute.String("executor.model", e.getModel(task)),
-			attribute.String("executor.profile", e.profile),
+			attribute.String("executor.profile", effectiveProfile),
 			attribute.String("task.workspace", task.Workspace),
 			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
 		),
@@ -166,7 +170,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] Command: %s <directive>\n", e.motokoPath)
 		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] Workspace: %s\n", task.Workspace)
 		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] Model:     %s\n", e.getModel(task))
-		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] Profile:   %s\n", e.profile)
+		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] Profile:   %s\n", effectiveProfile)
 		fmt.Fprintf(os.Stderr, "[DEBUG_MOTOKO] SessionID: %s\n", sessionID)
 	}
 
@@ -198,7 +202,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// motoko-specific env vars — see motoko_agent docs for semantics.
 	env = append(env,
 		"MODEL="+e.getModel(task),
-		"MOTOKO_CONFIG="+e.profile,
+		"MOTOKO_CONFIG="+effectiveProfile,
 		"MOTOKO_SESSION_ID="+sessionID,
 		"AILANG_CACHE_DIR="+taskCacheDir,
 		// M-MOTOKO-EVAL-HARNESS-HARDENING follow-up (2026-05-08): force

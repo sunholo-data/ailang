@@ -26,6 +26,7 @@ type ModelConfig struct {
 	ModelFamily              string  `yaml:"model_family"`       // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
 	GCPProject               string  `yaml:"gcp_project"`        // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
 	GCPLocation              string  `yaml:"gcp_location"`       // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
+	MotokoProfile            string  `yaml:"motoko_profile"`     // Override MOTOKO_CONFIG profile (default: "dogfood"); used when agent_cli is "motoko"
 	Pricing                  Pricing `yaml:"pricing"`
 	Budgets                  Budgets `yaml:"budgets"` // M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cost-aware budget overrides
 	Notes                    string  `yaml:"notes"`

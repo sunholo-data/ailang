@@ -1028,6 +1028,32 @@ models:
       exists at the same price as a fast-follow head-to-head. Next: pull
       locally (MLX Q4) and re-run serial on the rig to confirm tok/s + parity.
 
+
+  motoko-local-qwen3-5-35b-a3b-mxfp8:
+    api_name: "qwen3.5:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B (mxfp8) via motoko_agent on local Ollama — zero-cost agent eval on M4 Max rig"
+    env_var: ""                                        # No API key — local inference
+    agent_cli: "motoko"
+    motoko_profile: "ollama"                           # Routes to .motoko/config/ollama/config.json
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    model_family: "qwen-3-5"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Qwen 3.5 35B-A3B (mxfp8) via motoko_agent on the local Ollama rig
+      (M-MOTOKO-LOCAL-OLLAMA, v0.24.0). Ollama exposes OpenAI-compat API
+      at localhost:11434/v1; motoko profile "ollama" points there with
+      enable_thinking=false (Ollama does not forward chat_template_kwargs).
+      Pairs with opencode-local-qwen3-5 and motoko-or-qwen3-5-35b-a3b to
+      isolate the motoko harness lift at zero marginal cost.
+      Not in ollama_suite until smoke gate passes.
+      Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"

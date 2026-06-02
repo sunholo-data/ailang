@@ -217,6 +217,12 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if cfg.GCPLocation != "" {
 				task.GCPLocation = cfg.GCPLocation
 			}
+			if cfg.MotokoProfile != "" {
+				if task.Metadata == nil {
+					task.Metadata = make(map[string]string)
+				}
+				task.Metadata["motoko_profile"] = cfg.MotokoProfile
+			}
 			// M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): populate Task.Budget
 			// from the resolved per-model cost ceiling. Wall-clock Timeout
 			// is bumped to the budgets:hard_timeout_secs default (600s) to
