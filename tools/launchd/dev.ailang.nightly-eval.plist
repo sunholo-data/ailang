@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  dev.ailang.nightly-eval.plist — nightly regression-guard smoke run.
+
+  Runs the 17-benchmark smoke tier against the local Qwen 3.5 mxfp8 model
+  at 03:00 daily. Persistent failures are filed to the design-doc-creator
+  inbox; a summary goes to controlplane. The flywheel:
+
+    eval fails → ailang message → triage-router → design-doc-creator
+    → (approval) → sprint-planner → sprint-executor → prompt/stdlib fix
+    → release → reindex μRAG → next nightly passes ✓
+
+  Installation (one-time):
+    cp tools/launchd/dev.ailang.nightly-eval.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist
+
+  Test dry-run (no eval, just checks plist wiring):
+    AILANG_NIGHTLY_EVAL_DRY_RUN=1 launchctl kickstart gui/$UID/dev.ailang.nightly-eval
+
+  Logs: /tmp/ailang-nightly-eval.log
+
+  Dependencies:
+    - ollama serve (guarded by rig-watchdog)
+    - qwen3.5:35b-a3b-mxfp8 pulled (ollama list)
+    - ailang binary at /Users/voightkampff/go/bin/ailang
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.nightly-eval</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/nightly-eval.sh</string>
+    </array>
+
+    <!-- Run at 03:00 daily (rig is idle, ollama unloaded, GPU free) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/voightkampff/go/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/voightkampff</string>
+        <!-- Inherit OPENROUTER_API_KEY from ~/.config/ailang/secrets.env via the script -->
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/voightkampff/dev/sunholo-data/ailang</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-nightly-eval.stdout</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-nightly-eval.stderr</string>
+
+    <!-- Do NOT keep-alive — this is a scheduled one-shot, not a daemon -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
