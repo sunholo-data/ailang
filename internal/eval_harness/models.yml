@@ -1140,6 +1140,67 @@ models:
                      (sst/opencode#971 — options silently dropped without this)
       A/B against opencode-gemma4-26b (default sampling) to quantify the improvement.
 
+  opencode-qwen3-5-35b-a3b-mxfp8:
+    api_name: "qwen3.5:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B MoE (MXFP8 8-bit, 38GB) via opencode+Ollama — LOCAL, ACCURACY-FIRST default for the M4 Max rig. 8-bit recovers code-gen quality the 4-bit nvfp4 loses; ~85 tok/s (only ~3B active)."
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    model_family: "qwen-3-5"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 2400
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Added 2026-06-02. 8-bit MLX-native (MXFP8) quant of qwen3.5:35b-a3b.
+      Accuracy-first choice for the overnight rig: the 4-bit nvfp4 sibling
+      dropped to 12/17 local smoke (4 compile_errors — quantization tax),
+      while OpenRouter high-precision scored 17/17. CONFIRMED 2026-06-02:
+      mxfp8 local smoke = 17/17 (100%) — recovered ALL 5 benchmarks nvfp4
+      lost, matching cloud accuracy. ACCURACY-FIRST LOCAL DEFAULT. Decode ~85 tok/s (measured) — faster than gemma4
+      (75) despite higher precision, because only ~3B params are active per
+      token. Pull: ollama pull qwen3.5:35b-a3b-mxfp8. Requires opencode ollama
+      provider block entry (added 2026-06-02).
+
+  opencode-qwen3-5-35b-a3b:
+    api_name: "qwen3.5:35b-a3b-nvfp4"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B MoE (Q4, ~24GB) via opencode+Ollama — LOCAL on the M4 Max rig. Local peer to opencode-gemma4-26b; OpenRouter twin (motoko-or-qwen3-5-35b-a3b) scored 17/17 on tier:smoke."
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-nvfp4"
+    model_family: "qwen-3-5"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      # Local model: $0 cost, wall-clock is the only cap.
+      hard_timeout_secs: 2400
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Added 2026-06-02. Qwen 3.5 35B-A3B MoE — 35B total, ~3B active per token
+      (~12x sparsity), Apache 2.0. Local Ollama (0.24, MLX backend) on the
+      128GB M4 Max Studio. Pulled as qwen3.5:35b-a3b (24GB, general instruct —
+      NOT the -coding variant, to match the OpenRouter-validated twin). The
+      OpenRouter twin motoko-or-qwen3-5-35b-a3b scored 17/17 on tier:smoke
+      (beating gemma4 14/17) on 2026-06-02. This local entry confirms tok/s on
+      the rig and AILANG parity vs the cloud run. NOTE: cross-harness confound —
+      OpenRouter twin ran via motoko; this runs via opencode. MLX-native quant
+      LOCAL SMOKE 2026-06-02: nvfp4 = 12/17 (4 compile_errors — 4-bit
+      quantization tax). Fastest decode (110 tok/s) but lossy; the mxfp8
+      sibling (opencode-qwen3-5-35b-a3b-mxfp8) is the accuracy-first default
+      at 17/17 + 85 tok/s. Keep nvfp4 only as a fast-mode option. Lower active
+      params than gemma4:26b (~3B vs ~3.8B) → expected faster decode on the
+      bandwidth-bound rig. Pull: ollama pull qwen3.5:35b-a3b. Requires ollama
+      serve + opencode ollama provider block.
+
   # =============================================================================
   # OpenRouter-routed OS via opencode harness (M-AI-EFFECT-MODES, May 2026)
   #
