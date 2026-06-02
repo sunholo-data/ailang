@@ -1014,8 +1014,16 @@ models:
       "low-active-param MoE" thesis. Primary candidate for the 128GB M4 Max
       local Ollama rig (est. 55-70 tok/s when pulled at MLX Q4; ~19.5 GB);
       validating via OpenRouter first before committing a multi-GB local pull.
-      Exact id + pricing verified against the live OpenRouter models API on
-      2026-06-02. Newer qwen/qwen3.6-35b-a3b-20260415 exists at the same
+      SMOKE 2026-06-02 (agent mode): 2/3 — fizzbuzz ✅, adt_option ✅,
+      csv_to_json_converter ❌ (motoko "v2 loop: step budget exhausted", NOT a
+      capability/WRONG_LANG failure). IDENTICAL result + failure mode to the
+      motoko-or-gemma-4-26b baseline → validated near-miss, same rotation
+      status as gemma. The csv_to_json failure is the motoko agent step-budget
+      cap, shared across OS-via-motoko models; bumping the v2 step budget (or
+      benchmark timeout) is the lever to convert these 2/3s to 3/3. $0.64 total
+      smoke spend (both models). Exact id + pricing verified against the live
+      OpenRouter models API on 2026-06-02. Newer qwen/qwen3.6-35b-a3b-20260415
+      exists at the same
       price as a fast-follow head-to-head. Smoke gate: fizzbuzz, adt_option,
       csv_to_json_converter (csv_to_json is the high-signal gate; OS models
       via motoko historically need the per-benchmark timeout bumped).
