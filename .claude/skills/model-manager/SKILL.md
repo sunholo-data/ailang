@@ -231,43 +231,66 @@ scripts/run_test_benchmark.sh <model-name>
 **Rule of thumb (project-wide):**
 > **Rule out adding a model to our eval suite if it can't pass ALL the smoke tests.**
 
-A "smoke test" is a small set (typically 3 benchmarks) that established proprietary
-frontier models (claude-sonnet-4-6, gpt5-mini) pass cleanly. If those pass and a
-candidate model fails any of them, the candidate doesn't enter the eval rotation —
-the failure is on the model, not the harness or the benchmark.
+The smoke test is the **canonical `smoke` tier** — benchmarks tagged `tier: smoke`
+in their YAML spec, selected with `--tier smoke` (NOT a hand-typed `--benchmarks`
+list). These are the fundamental "can it speak AILANG at all" tests that the
+established frontier tier passes cleanly. If a candidate fails them, the failure is
+on the model, not the harness or the benchmark.
 
-**Standard smoke set (May 2026):**
-- `fizzbuzz` — control-flow + simple I/O
-- `adt_option` — AILANG ADT pattern matching (language-specific)
-- `csv_to_json_converter` — string parsing + records (medium complexity)
+**The smoke tier is the source of truth — do NOT hardcode a benchmark list.**
+Run `ailang eval-suite --tier smoke --dry-run` to see the current set (17 as of
+2026-06). It includes fizzbuzz, adt_option, gcd_lcm, nested_records, record_update,
+recursion_fibonacci, type_safe_record_access, balanced_parens, etc. — all fundamental.
 
-**Run smoke against a candidate:**
+> **⚠️ csv_to_json_converter is `tier: core`, NOT `tier: smoke`.** An earlier
+> version of this skill hardcoded `fizzbuzz,adt_option,csv_to_json_converter` as
+> "the smoke set." That was wrong: csv_to_json is a **core-tier discriminator** that
+> the *majority of frontier models fail* in standard mode (gpt5 base, gemini-3-pro,
+> gemini-3-flash, sonnet-4-5, gpt5-mini all FAIL it; only the top tier —
+> opus-4-6/4-7, sonnet-4-6, gemini-3-1-pro, gpt5-2-codex/gpt5-4 — pass). Gating OS
+> models on csv_to_json means "be top-3-tier or be cut," which unfairly excludes
+> viable models. Keep csv_to_json in `--tier core` runs for **ranking**, never as
+> an include/exclude gate. (Empirically verified against eval baselines 2026-06-02.)
+
+**Run smoke against a candidate (canonical tier):**
+
+Standard mode accepts `--tier smoke` directly. **Agent mode requires an explicit
+`--benchmarks` list** (deliberate cost guardrail), so derive it from the `tier:`
+tags — never hardcode (the list drifts):
+
 ```bash
-ailang eval-suite \
-  --models <candidate>,claude-sonnet-4-6 \
-  --benchmarks fizzbuzz,adt_option,csv_to_json_converter \
-  --langs ailang \
-  --output /tmp/smoke_<candidate> \
-  --parallel 2
+# Derive the smoke set from the tier tags (works for both modes, stays in sync)
+SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml | xargs -n1 basename | sed 's/\.yml$//' | paste -sd, -)
 
-# Tabulate pass/fail
-for f in /tmp/smoke_<candidate>/standard/*.json; do
+# Standard mode:
+ailang eval-suite --models <candidate>,claude-sonnet-4-6 --tier smoke \
+  --langs ailang --output /tmp/smoke_<candidate> --parallel 2
+
+# Agent mode (must pass the derived list explicitly):
+ailang eval-suite --agent --models <candidate>,claude-sonnet-4-6 \
+  --benchmarks "$SMOKE" --langs ailang --output /tmp/smoke_<candidate> --parallel 2
+
+# Tabulate pass/fail (agent mode → results land under /agent, standard → /standard)
+for f in /tmp/smoke_<candidate>/*/*.json; do
   name=$(basename "$f" .json | sed 's/_[0-9]*$//')
-  jq -r --arg name "$name" '"\($name)\t\(if .compile_ok and .runtime_ok and .stdout_ok then "PASS" else "FAIL" end)\t\(.err_code // "—")"' "$f"
+  jq -r --arg name "$name" '"\($name)\t\(if .compile_ok and .runtime_ok and .stdout_ok then "PASS" else "FAIL" end)\t\(.err_code // .error_category // "—")"' "$f"
 done | column -ts $'\t'
 ```
 
-**Decision tree:**
-1. **claude-sonnet-4-6 fails any benchmark** — smoke set is broken; fix the
-   benchmark before evaluating candidates.
-2. **Candidate fails all 3** — CUT. Do not add to models.yml. Note the failure
-   types in the cut commit message (WRONG_LANG, syntax, runtime, wrong-output)
-   for future reference.
-3. **Candidate fails 1 of 3 (2/3 pass)** — NEAR-MISS. Optionally keep with a
-   "near-miss" comment block in models.yml (see precedent: `or-gemma-4-26b`,
-   `or-qwen3-coder-flash`). Re-run periodically; if it starts passing all 3,
-   that's a signal stdlib/prompt has improved.
-4. **Candidate passes all 3** — proceed to step 6 (Document) and add to
+**Decision tree** (N = number of benchmarks in the smoke tier, currently 17):
+1. **claude-sonnet-4-6 fails any smoke-tier benchmark** — smoke tier is broken;
+   fix the benchmark (or its `tier:` tag) before evaluating candidates.
+2. **Candidate fails most of the tier** — CUT. Do not add to models.yml. Note the
+   failure types in the cut commit message (WRONG_LANG, syntax, runtime,
+   wrong-output) for future reference.
+3. **Candidate fails 1–2 (near-clean)** — NEAR-MISS. Optionally keep with a
+   "near-miss" comment block in models.yml (precedent: `motoko-or-gemma-4-26b`,
+   `motoko-or-qwen3-5-35b-a3b`). Re-run periodically; if it starts passing the
+   tier clean, that's a signal stdlib/prompt has improved. Note: agent-mode
+   failures with `error_category: api_error` + "step budget exhausted" are a
+   **harness step-budget cap, not a model gap** — don't count them as capability
+   failures (bump the motoko v2 step budget instead).
+4. **Candidate passes the tier clean** — proceed to step 6 (Document) and add to
    models.yml normally.
 
 **Failure-mode taxonomy** (worth capturing in the cut commit message):
@@ -328,12 +351,16 @@ Key takeaways for the model-manager workflow:
    (2/3) on AILANG smoke. The Pro reasoning/long-output overhead can hurt
    simple-task accuracy. Test both tiers when available.
 
-3. **csv_to_json_converter is the gating benchmark.** Of the 27 benchmark
-   runs (9 models × 3), csv_to_json was the single most-failed test — only
-   GLM 5 passed it among OS candidates. v0.14.2 baseline confirms:
-   gpt5-4-mini and gemini-3-1-pro also fail csv_to_json, while
-   claude-sonnet-4-6, claude-opus-4-7, gpt5-5, gemini-3-flash all pass.
-   Use csv_to_json as the highest-signal smoke when running a quick test.
+3. **csv_to_json_converter is a `core`-tier DISCRIMINATOR, not a smoke gate.**
+   Of the 27 benchmark runs (9 models × 3), csv_to_json was the single most-failed
+   test — only GLM 5 passed it among OS candidates. ⚠️ **CORRECTION (2026-06-02):**
+   this is exactly why it must NOT gate inclusion — it's failed by the *majority of
+   frontier models* (gpt5 base, gemini-3-pro, gemini-3-flash, sonnet-4-5, gpt5-mini
+   all FAIL; only opus-4-6/4-7, sonnet-4-6, gemini-3-1-pro, gpt5-2-codex/gpt5-4
+   pass). It lives in `tier: core`, not `tier: smoke`. Use it as a high-signal
+   **ranking/discriminator** metric in `--tier core` runs and as a language-
+   improvement tracker — never as an OS-model include/exclude gate. The gate is
+   `--tier smoke`.
 
 4. **GLM 5 is genuinely cost-competitive frontier OS.** $0.60/$2.08 per 1M
    tokens, ~5–7× cheaper than Claude Sonnet 4.6 on input. Worth standing

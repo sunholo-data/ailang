@@ -23,13 +23,25 @@ fi
 MODEL="$1"
 shift
 
-# Default smoke set if no explicit benchmarks given.
-DEFAULT_SMOKE="fizzbuzz,adt_option,balanced_parens,binary_tree_sum,canonical_convergence,canonical_normalization,dense_operator_program,explicit_state_threading,gcd_lcm,immutable_data_structures,inline_tests,nested_records,numeric_modulo,record_update,records_book,recursion_fibonacci,type_safe_record_access"
+# Default smoke set: DERIVED from the canonical `tier: smoke` tags in the
+# benchmark specs (not hardcoded — a hardcoded list silently drifts when the
+# tier membership changes). Agent mode requires an explicit --benchmarks list,
+# so we expand the tier here. NOTE: csv_to_json_converter is tier:core (a
+# frontier discriminator), so it is correctly NOT in this set.
+BENCH_DIR="${BENCH_DIR:-benchmarks}"
+DEFAULT_SMOKE=$(grep -l 'tier: smoke' "$BENCH_DIR"/*.yml 2>/dev/null \
+  | xargs -n1 basename | sed 's/\.yml$//' | sort | paste -sd, -)
 
 if [[ $# -ge 1 && -n "$1" ]]; then
   BENCHMARKS="$1"
 else
   BENCHMARKS="$DEFAULT_SMOKE"
+fi
+
+if [[ -z "$BENCHMARKS" ]]; then
+  echo "✗ Could not derive smoke set from '$BENCH_DIR'/*.yml (no 'tier: smoke' tags found)."
+  echo "  Run from the repo root, or set BENCH_DIR=/path/to/benchmarks."
+  exit 1
 fi
 
 # Sanity: warn if OTLP env not set (live monitoring won't work).
