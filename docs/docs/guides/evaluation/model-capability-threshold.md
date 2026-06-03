@@ -134,6 +134,42 @@ The chart to watch over releases:
 - y-axis: AILANG score − Python score (positive = AILANG wins)
 - The crossover x-intercept is ATT. Track it declining over versions.
 
+## Frontier Model Failures — What Blocks the Last 15%?
+
+Even the best models (Claude Opus 4.7, GPT-5.2-Codex, Claude Sonnet 4.6) fail ~8–9 AILANG benchmarks in standard mode. Analysing *what* they fail on reveals two distinct failure classes:
+
+### Class 1: Language gaps (compile_error) — fixable
+
+These fail in multiple frontier models with `compile_error`, meaning the model generated syntactically or type-invalid AILANG. The spec is clear but the model generated something AILANG rejects:
+
+| Benchmark | Models failing | Pattern |
+|---|---|---|
+| `log_file_analyzer` | 9/9 frontier models | Complex string parsing — model invents methods not in std/string |
+| `multi_module_imports` | 4 models (all compile) | Module path resolution idioms |
+| `polymorphic_ord_defaulting` | 5 models | Polymorphic comparisons — model uses wrong syntax |
+| `contract_roman_numeral` | 5 models (80% compile) | Contract annotation syntax |
+| `type_unify` | 4 models (100% compile) | Type-level unification patterns |
+| `config_file_parser` | 3 models (100% compile) | Match arm syntax (the guard-clause gap) |
+| `pipeline`, `run_length_encode`, `red_black_tree` | 2–5 models | Various compile patterns |
+
+**These are fixable.** Each is a prompt/stdlib improvement in the design doc queue.
+
+### Class 2: Capability ceiling (logic_error) — harder
+
+These fail with correct AILANG syntax but wrong output — the model understood the language but got the algorithm wrong. Notably, `contract_rle_roundtrip` fails as **logic_error in all three top frontier models simultaneously** — this is the single confirmed hard capability ceiling in v0.23.0.
+
+Other shared logic failures: `contract_sorted_merge`, `lambda_calc`, `contract_matrix_determinant`, `binary_tree_sum`. These require either model improvements or new AILANG stdlib primitives that make the task expressible more naturally.
+
+### Breakeven projections
+
+| Tier | Current AILANG% | After fixing compile gaps | Hard ceiling |
+|---|---|---|---|
+| Frontier (Claude Opus 4.7) | 84% | **~88%** | ~90% (4 logic-error benchmarks) |
+| Mid-strong (Claude Haiku 4.5) | 75% | **~83%** | — |
+| Mid-tier CPR (Qwen 3.5 local) | 64% CPR | **~82% CPR** | — |
+
+The frontier ceiling of ~88–90% represents tasks genuinely difficult to express in any typed functional language at this model tier. Pushing past it requires either the ecosystem growing (more AILANG in training data), new stdlib primitives, or models improving on structured reasoning tasks generally.
+
 ## Implications for AILANG's Design Goals
 
 **Short term:** The 3 most common failure categories for mid-tier models are already documented as prompt improvements:
@@ -149,9 +185,33 @@ Fixing these 3 gaps is expected to push a model like Qwen 3.5 (currently 59% AIL
 
 ---
 
+## The right KPI to optimise: Conditional Pass Rate (CPR)
+
+The raw AILANG score is misleading for tracking progress — it conflates model capability with language accessibility. A better metric is:
+
+**CPR = P(AILANG passes | Python passes)**
+> "When the model can solve a task in Python, what % can it also solve in AILANG?"
+
+This strips out model capability and asks only: *does AILANG impose extra friction vs Python?*
+
+**Empirical values (Qwen 3.5 mxfp8, core tier, agent mode, v0.23.0):**
+- CPR = **64.3%** — 18 of 28 Python-solvable tasks also pass in AILANG
+- 10 blockers where Python works but AILANG fails: **5 compile_errors** (fixable) + 4 logic + 1 timeout
+- Projected CPR after fixing 5 language gaps: **~82%**
+
+**The optimisation target:** CPR → 100% for mid-tier models. This means: every task a Qwen/Haiku-class model can do in Python, it can also do in AILANG. That's the "AILANG as natural as Python" milestone.
+
+| Milestone | CPR target | What achieves it |
+|---|---|---|
+| Today (v0.23.0) | 64% | Baseline |
+| Fix all compile_error gaps | ~82% | Prompt + stdlib improvements |
+| Reach Python parity | 100% | Full prompt coverage + ecosystem growth |
+
+**Important note on saturation:** the raw delta (AILANG%−Python%) has r=0.92 correlation with the AILANG score level itself — it's mostly a ceiling-effect artefact. Never use raw delta as a KPI; use CPR or the AILANG/Python ratio instead (r=0.59 with SWE-bench Verified, much more stable).
+
 ## Monitoring
 
-The nightly eval rotation (running on the M4 Max Studio at 03:00) tracks this threshold over time. Each Monday it runs the smoke tier with both `--microrag on` and `--microrag off` for the A/B comparison. Results broadcast to the `controlplane` inbox.
+The nightly eval rotation (running on the M4 Max Studio at 03:00) tracks the smoke tier continuously. Each Monday it runs `--microrag on` and `--microrag off` for an A/B comparison (current A/B result: microRAG +4 benchmarks on the smoke tier — 34/34 vs 30/34). Results broadcast to the `controlplane` inbox.
 
 To check current standing:
 ```bash
