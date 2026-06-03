@@ -890,45 +890,26 @@ models:
       "does motoko hurt or help when the model is already strong?"
       Requires: motoko CLI + OPENROUTER_API_KEY.
 
-  # ── z-ai GLM new generations (June 2026) ─────────────────────────────────
-  # GLM-4.5 is the new flagship: replaces GLM-5 in the z-ai lineup,
-  # stronger on coding, cheaper. GLM-4.5-Air is the cost-optimised variant.
-  # GLM-4.6 and 4.7 sit between 4.5 and 5 in the version sequence.
-  # All verified on OpenRouter 2026-06-08; smoke gate PENDING for each.
-  motoko-glm-4-5:
-    api_name: "z-ai/glm-4.5"
+  # GLM-5.1 (Apr 2026) is the newest z-ai model — released after GLM-5 (Feb 2026)
+  # Note: z-ai versioning is non-linear: 5.1 > 5 > 4.7 > 4.6 > 4.5 by date
+  motoko-glm-5-1:
+    api_name: "z-ai/glm-5.1"
     provider: "openrouter"
-    description: "GLM-4.5 — z-ai's new flagship OS model (June 2026), replaces GLM-5 on coding bench"
+    description: "GLM-5.1 — newest z-ai model (Apr 2026), successor to GLM-5"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
-    agent_model_name: "openrouter/z-ai/glm-4.5"
+    agent_model_name: "openrouter/z-ai/glm-5.1"
+    model_family: "glm-5"
     max_output_tokens: 32768
     pricing:
-      input_per_1k: 0.00060
-      output_per_1k: 0.0022
+      input_per_1k: 0.00098   # $0.98 per 1M
+      output_per_1k: 0.00392  # ~$3.92 per 1M (estimated at 4x input)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
     notes: |
-      GLM-4.5, z-ai's June 2026 flagship. 131k context. Smoke gate PENDING.
-
-  motoko-glm-4-5-air:
-    api_name: "z-ai/glm-4.5-air"
-    provider: "openrouter"
-    description: "GLM-4.5-Air — cost-optimised GLM-4.5 variant ($0.13/M in)"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    agent_model_name: "openrouter/z-ai/glm-4.5-air"
-    max_output_tokens: 32768
-    pricing:
-      input_per_1k: 0.00013
-      output_per_1k: 0.0009
-    budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 3600
-    notes: |
-      GLM-4.5-Air, cheap variant (~5x cheaper than GLM-4.5). 131k context.
-      Also available as :free tier. Smoke gate PENDING.
+      GLM-5.1, released 2026-04-07 — newest in the z-ai GLM family.
+      202k context. Smoke gate PENDING.
 
   motoko-glm-5:
     api_name: "z-ai/glm-5"
@@ -1025,47 +1006,6 @@ models:
       iteration (~90-180s on csv_to_json under opencode); motoko harness
       may surface the same pattern with different finish_reason signals.
 
-  motoko-kimi-k2-5:
-    api_name: "moonshotai/kimi-k2.5"
-    provider: "openrouter"
-    description: "Kimi K2.5 via motoko — newer generation than K2.6, 262k context"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    agent_model_name: "openrouter/moonshotai/kimi-k2.5"
-    model_family: "kimi"
-    max_output_tokens: 32768
-    pricing:
-      input_per_1k: 0.00040
-      output_per_1k: 0.0019
-    budgets:
-      max_cost_usd: 0.50
-      hard_timeout_secs: 3600
-    notes: |
-      Kimi K2.5, June 2026. 262k context. Slightly cheaper than K2.6.
-      Smoke gate PENDING. Compare against kimi-k2-6 to see if generation
-      improved on AILANG tasks.
-
-  # ── DeepSeek new generations (June 2026) ──────────────────────────────
-  motoko-deepseek-v3-2:
-    api_name: "deepseek/deepseek-v3.2"
-    provider: "openrouter"
-    description: "DeepSeek V3.2 — newer V3 iteration, very cheap ($0.23/M in)"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    agent_model_name: "openrouter/deepseek/deepseek-v3.2"
-    model_family: "deepseek"
-    max_output_tokens: 32768
-    pricing:
-      input_per_1k: 0.00023
-      output_per_1k: 0.0003
-    budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 3600
-    notes: |
-      DeepSeek V3.2, June 2026. 131k context. $0.23/$0.30 per 1M — cheaper
-      than V4 Flash. Smoke gate PENDING.
-
-  # ── MiniMax new generation (June 2026) ────────────────────────────────
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
