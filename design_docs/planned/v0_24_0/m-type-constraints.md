@@ -45,58 +45,88 @@ In AILANG, models write:
 func top3[a: Ord](xs: list[a]) -> list[a] = ...
 ```
 
-AILANG type parameters use `[T]` but do **not** support constraint syntax. The `[a: Ord]` form produces:
+AILANG type parameters use `[T]` but the constraint *annotation* `[a: Ord]` is not
+written explicitly — it produces:
 ```
 PAR_UNEXPECTED_TOKEN at benchmark/solution.ail:14:12: expected ], got :
 Suggestion: Add ']' to close type parameters
 ```
 
-**Evidence from eval (June 2026):**
-- `polymorphic_ord_defaulting` fails in **5 frontier models** (40% compile_error)
-- Affects every model family (Claude, GPT-5.2-Codex, Gemini) — universal false assumption
+> **⚠️ CRITICAL CORRECTION (2026-06-03, after reading `docs/references/index.md`):**
+> **AILANG HAS typeclasses** — it "implements type class elaboration via dictionary
+> passing for overloaded operations" (Wadler/Blott style). The comparison operators
+> `>`, `<`, `<=`, `>=`, `==` are already polymorphic via dictionaries. **The constraint
+> is INFERRED automatically — you do not write it.** An earlier draft of this doc wrongly
+> claimed AILANG lacks typeclasses and recommended an explicit-comparator workaround.
+> That was wrong (caught by reading prior art). The real fix is simpler: **drop the
+> `: Ord` annotation and use `>`/`<`/`compare` directly.** AILANG infers Ord from usage.
 
-**Concrete failing code** (from `gemini-3-flash`, April 2026):
+**VERIFIED (2026-06-03):**
 ```ailang
--- ❌ PARSE ERROR:
-func top3[a: Ord](xs: list[a]) -> list[a] =
-  take(3, sortBy(\a. \b. compare(a, b), xs))
+-- ✅ THIS COMPILES AND RUNS (Ord inferred from `>`):
+pure func mymax[a](x: a, y: a) -> a = if x > y then x else y
+-- mymax(3, 7) → 7    mymax("apple", "banana") → "banana"
+```
+
+**Evidence from eval:**
+- `polymorphic_ord_defaulting` failures (recent: only ~1% of compile failures — this is a
+  LOW-frequency gap; see RECENT-VERIFIED banner). Models add a `: Ord` annotation that AILANG
+  doesn't need.
+
+**Concrete failing code** (from `gemini-3-flash`):
+```ailang
+-- ❌ What models write (unnecessary constraint annotation → parse error):
+func top3[a: Ord](xs: list[a]) -> list[a] = ...
+
+-- ✅ Correct: just drop the constraint — AILANG infers it
+func top3[a](xs: list[a]) -> list[a] = take(3, sortBy(\x. \y. compare(x, y), xs))
 ```
 
 ---
 
 ## Goals
 
-**Primary goal:** Models know how to write polymorphic ordered functions in AILANG using the explicit-comparator pattern, without type constraint syntax.
+**Primary goal:** Models know to write `[a]` (not `[a: Ord]`) and let AILANG infer typeclass
+constraints from operator/`compare` usage.
 
 **Success metrics:**
-- `polymorphic_ord_defaulting` compile_error rate drops from 5/5 to ≤1/5 in frontier models
-- No model generates `[a: Ord]` or `[T: Comparable]` syntax after prompt update
+- `polymorphic_ord_defaulting` compile_error rate drops to ≤1/5 in frontier models
+- No model generates `[a: Ord]` / `[T: Comparable]` syntax after prompt update
 
 ---
 
 ## Solution Design
 
-### Phase 1: Prompt — the "explicit comparator" pattern
+### Phase 1: Prompt — "constraints are inferred, don't annotate them"
 
-AILANG's idiomatic approach is to **pass the comparator as an explicit function parameter**. This is more explicit (A1), more type-safe (A4), and expressible today:
+AILANG infers typeclass constraints (Ord, Num, Eq, Show) from usage via dictionary passing.
+Models just write the bare type parameter and use the overloaded operators:
 
 ```ailang
--- ❌ WRONG: Type constraints not supported
-func top3[a: Ord](xs: list[a]) -> list[a] =
-  take(3, sortBy(\x. \y. compare(x, y), xs))
+-- ❌ WRONG: don't annotate the constraint — AILANG has no [a: Ord] syntax
+func top3[a: Ord](xs: list[a]) -> list[a] = ...
 
--- ✅ CORRECT: Concrete type + explicit comparator
-pure func top3Ints(xs: list[int]) -> list[int] =
-  take(3, sortBy(\a. \b. a - b, xs))
+-- ✅ CORRECT: bare type param; Ord is INFERRED from `>` / compare()
+pure func mymax[a](x: a, y: a) -> a = if x > y then x else y
 
--- ✅ CORRECT: Pass cmp as a parameter for flexibility
-pure func top3With(xs: list[int], cmp: (int, int) -> int) -> list[int] =
-  take(3, sortBy(cmp, xs))
-
--- Usage:
-top3With(myList, \a. \b. a - b)   -- ascending
-top3With(myList, \a. \b. b - a)   -- descending
+-- ✅ CORRECT: polymorphic sort — constraint inferred from compare()
+pure func sorted[a](xs: list[a]) -> list[a] = sortBy(\x. \y. compare(x, y), xs)
 ```
+
+**Teaching prompt addition** (under "Common Mistakes"):
+```
+| `func f[a: Ord](xs: list[a])`  | Don't annotate constraints — AILANG INFERS them via |
+|                                  | dictionary passing. Write `func f[a](xs: list[a])` and |
+|                                  | use `>`/`<`/`compare` directly; Ord/Num/Eq are inferred. |
+```
+
+### Phase 2 (only if a real gap remains): explicit constraint syntax
+
+If users genuinely need to *constrain* a type parameter that isn't constrained by usage
+(rare), explicit `forall a. Ord a => ...` syntax could be added. But given constraints are
+inferred today, this is likely unnecessary. **Do NOT pursue the explicit-comparator
+workaround the earlier draft proposed — it's verbose and unnecessary given AILANG's
+dictionary-passing inference.**
 
 **Teaching prompt addition** (under "Common Mistakes"):
 ```
