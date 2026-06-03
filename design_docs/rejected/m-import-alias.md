@@ -1,3 +1,18 @@
+# M-IMPORT-ALIAS (REJECTED): Import aliases already exist
+
+**Status:** REJECTED (2026-06-03)
+**Reason:** Core claim false — import aliases ALREADY work in AILANG (`import M as L`
+  and `import M (f as g)` both compile; verified via `ailang check`). The proposed
+  feature does not need building. The "6% recent failures" frequency was also a
+  detection-heuristic false positive: 0 of 16 flagged failures actually fail on aliases.
+**Target:** N/A (not adopted)
+**Priority:** N/A
+**Estimated:** 0 days
+**Process note:** This doc was hand-written without the verification step (`ailang check`)
+  that the design-doc-creator workflow requires. The verification, done belatedly, retracted it.
+
+---
+
 # M-IMPORT-ALIAS: Import aliases — ALREADY SUPPORTED (doc retracted)
 
 **Status**: RETRACTED — original claim was false (verified 2026-06-03)

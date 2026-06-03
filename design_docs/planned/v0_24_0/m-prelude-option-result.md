@@ -34,6 +34,33 @@
 
 ---
 
+## Prior Art (verified 2026-06-03, design-doc-creator workflow)
+
+**The prelude mechanism is deliberate and its philosophy explicitly endorses this change.**
+`internal/pipeline/prelude.go` documents:
+
+> *"AI-First Design Philosophy: Minimize syntactic entropy — teach the compiler to carry
+> context so the AI doesn't have to. The prelude removes boilerplate (e.g.
+> `import std/io (println)`) while preserving AILANG's core principle: effects remain
+> explicit in type signatures."*
+
+So extending the prelude to remove the `import std/option` boilerplate is a **direct
+continuation of the stated design intent**, not a contradiction of a "keep it minimal"
+decision. Git history confirms it's an intentional 2-phase mechanism (commit 8ded3a60
+"Phase 2: Entry-module prelude implementation"), not a hack.
+
+**⚠️ The important nuance (caught by reading the prelude source):** the prelude has only
+ever injected `println` — a **function** binding. `Option`/`Result` are **types +
+data constructors**, a category the prelude has never carried. This doc therefore proposes
+the FIRST type/constructor injection into the prelude. That is a genuine new capability,
+not a copy of the println path — the implementation plan below reflects that (constructor
+registry + match-pattern resolution, not just a type-env binding). This raised the estimate
+and is the main implementation risk.
+
+**Verified claim (`ailang check`, 2026-06-03):** `Option`/`Some`/`None` and `Result`/`Ok`/`Err`
+DO require explicit import today — `pure func f(x:int) -> Option[int] = if x>0 then Some(x) else None`
+fails with `undefined variable: Some` without `import std/option`. The problem is real.
+
 ## Problem Statement
 
 Models write correct AILANG that uses `Option`, `Some`, `None`, `Result`, `Ok`, `Err`
