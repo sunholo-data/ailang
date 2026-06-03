@@ -1,5 +1,7 @@
 # M-PROMPT-LOG-FILE-ANALYZER: String ops pipeline example (split→filter→map→join)
 
+> **📊 RECENT-VERIFIED: dot-notation only 2% of recent failures. log_file_analyzer is multi-causal (++ + alias + parse); no single fix.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
+
 **Status**: Planned
 **Target**: v0.24.0
 

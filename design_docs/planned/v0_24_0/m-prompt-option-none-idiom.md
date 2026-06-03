@@ -1,5 +1,7 @@
 # Prompt Gap: Option/None Requires Explicit Import
 
+> **📊 RECENT-VERIFIED: 6% of recent compile failures (15/230). Current.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
+
 **Status**: Planned
 **Target**: v0.24.0
 **Priority**: P2 (Low)

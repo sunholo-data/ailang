@@ -1,5 +1,7 @@
 # M-IMPORT-ALIAS: Import alias syntax (`import X as Y`) — prohibition + workaround
 
+> **📊 RECENT-VERIFIED: 6% of recent compile failures (16/230). Real but moderate; multi-causal with ++ on log_file_analyzer.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
+
 **Status**: Planned
 **Target**: v0.24.0
 **Priority**: P1 (High)
@@ -58,7 +60,7 @@ import std/list (map, filter, length as listLen, foldl, sortBy, any)
 **Primary goal:** Eliminate import-alias parse errors across all models, recovering ~2–3 benchmark failures per model tier.
 
 **Success metrics:**
-- `log_file_analyzer` compile_error rate drops from 9/9 to ≤2/9 frontier models
+- log_file_analyzer compile_error rate improves (note: multi-causal — alias is one of ++, alias, parse; expect partial recovery)
 - No model generates `import X as Y` syntax after prompt update
 - CPR (Conditional Pass Rate) improves by ≥2 percentage points for mid-tier models
 

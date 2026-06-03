@@ -1,5 +1,7 @@
 # M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks
 
+> **📊 RECENT-VERIFIED: 10% of recent (Apr-Jun26) compile failures — 2nd highest current cause.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
+
 **Status**: Planned
 **Target**: v0.24.0
 **Priority**: P2 (Medium)

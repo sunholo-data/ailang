@@ -1,8 +1,10 @@
 # M-TYPE-CONSTRAINTS: Type parameter constraints (`[a: Ord]`) — explicit-comparator workaround
 
+> **📊 RECENT-VERIFIED: only 1% of recent compile failures (3/230). Lower than first thought — stale-inflated by older runs.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
+
 **Status**: Planned
 **Target**: v0.24.0
-**Priority**: P1 (High)
+**Priority**: P3 (Low) — see recent-data banner above
 **Estimated**: 0.5 day (prompt only) + separate large feature doc if implementing syntax
 **Dependencies**: None
 
