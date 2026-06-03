@@ -191,6 +191,7 @@ const sidebars = {
             'guides/evaluation/eval-loop',
             'guides/evaluation/go-implementation',
             'guides/evaluation/baseline-tests',
+            'guides/evaluation/model-capability-threshold',
             'guides/evaluation/migration-guide',
           ],
         },
