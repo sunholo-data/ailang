@@ -12,16 +12,22 @@
 
 **Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Axiom | Score | Rationale |
-|---|---|---|
-| A1 Explicit over implicit | +1 | Making the absence explicit is better than silent failure |
-| A3 Fail loudly | +1 | Currently fails with cryptic PAR_UNEXPECTED_TOKEN; clear prohibition helps |
-| A4 Type-safe by default | 0 | Not affected |
-| A7 AI-friendly | +2 | Directly reduces compile failures in 9/9 frontier models |
-| A2 Composable | 0 | Not affected |
-| A5 Deterministic | 0 | Not affected |
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | No determinism impact |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Clear import errors aid local verification |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Reduces a recurring compile-failure class for AI codegen |
+| A8: Minimal Syntax | 0 | Phase 1 adds no syntax (prompt only) |
+| A9: Cost Visibility | 0 | No resource-cost changes |
+| A10: Composability | 0 | No composition change |
+| A11: Structured Failure | +1 | Replaces cryptic PAR error path with clear guidance |
+| A12: System Boundary | 0 | No boundary changes |
 
-**Net score: +4** ✅ (hard axioms A1/A3/A4/A7 all pass)
+**Net Score: +4** → **Decision: Proceed** (no −1 on A1/A3/A4/A7)
 
 ---
 

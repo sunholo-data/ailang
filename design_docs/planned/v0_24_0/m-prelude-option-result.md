@@ -13,15 +13,24 @@
 
 ## Axiom Compliance
 
-| Axiom | Score | Rationale |
-|---|---|---|
-| A1 Explicit over implicit | 0 | Constructors stay explicit; only the import ceremony is removed |
-| A3 Effect Legibility | +1 | Option/Result are pure types — no effect hiding |
-| A4 Explicit Authority | 0 | No capability change |
-| A7 AI-friendly (Machines First) | +2 | Removes the single most common "forgot the import" failure class |
-| A8 Minimal Syntax | +1 | Less boilerplate for the most-used types |
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-**Net score: +4** ✅ (no hard-axiom violations)
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | No determinism impact (pure types) |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | +1 | Option/Result are pure — no effect hiding; effects stay in signatures |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | No verification change; types resolve as before |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Removes the most common 'forgot the import' failure for AI codegen |
+| A8: Minimal Syntax | +1 | Less boilerplate for the most-used types; no new syntax |
+| A9: Cost Visibility | 0 | No resource-cost changes |
+| A10: Composability | +1 | Option/Result compose with all existing stdlib that returns them |
+| A11: Structured Failure | +1 | Makes Result (the structured-failure type) frictionless to use |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** → **Decision: Proceed** (no −1 on A1/A3/A4/A7)
 
 ---
 

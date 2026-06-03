@@ -10,14 +10,24 @@
 
 ## Axiom Compliance
 
-| Axiom | Score | Rationale |
-|---|---|---|
-| A1 Explicit over implicit | +1 | Explicit comparator parameter is more explicit than implicit typeclass dispatch |
-| A3 Fail loudly | +1 | Prompt fix prevents silent compile failures |
-| A4 Type-safe by default | +1 | Explicit comparator is actually more type-safe (can have effects) |
-| A7 AI-friendly | +2 | Removes compile failures in 5 frontier models on polymorphic_ord_defaulting |
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-**Net score: +5** ✅
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | No determinism impact |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | No verification change (prompt-only Phase 1) |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Removes a typeclass-syntax compile-failure pattern for AI |
+| A8: Minimal Syntax | 0 | No new syntax (explicit-comparator uses existing syntax) |
+| A9: Cost Visibility | 0 | No resource-cost changes |
+| A10: Composability | +1 | Explicit comparators compose better than implicit dispatch |
+| A11: Structured Failure | 0 | No error-handling change |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +3** → **Decision: Proceed** (no −1 on A1/A3/A4/A7)
 
 ---
 

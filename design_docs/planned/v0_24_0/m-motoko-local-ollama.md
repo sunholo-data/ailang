@@ -6,6 +6,28 @@
 **Estimated**: 0.5 day (~20 lines of JSON + 5 lines in models.yml)
 **Dependencies**: M-EVAL-LOCAL-OLLAMA (local Ollama rig operational), Qwen 3.5 35B-A3B validated at 17/17 on tier:smoke (commit `f842e842`)
 
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | Eval determinism unchanged (config/routing only) |
+| A2: Replayability | +1 | Local runs are traceable same as cloud; cheaper to replay |
+| A3: Effect Legibility | 0 | No effect-system change |
+| A4: Explicit Authority | 0 | No capability change |
+| A5: Bounded Verification | 0 | No verification change |
+| A6: Safe Concurrency | 0 | Single-GPU serial (no new concurrency) |
+| A7: Machines First | +2 | Enables zero-cost local agent evals + cross-harness (opencode vs motoko) comparison |
+| A8: Minimal Syntax | 0 | No syntax change (JSON config + models.yml) |
+| A9: Cost Visibility | +1 | Removes OpenRouter spend for motoko evals ($0 local) |
+| A10: Composability | 0 | No composition change |
+| A11: Structured Failure | 0 | No error-handling change |
+| A12: System Boundary | +1 | Makes the AI-provider boundary (cloud vs local) explicit in config |
+
+**Net Score: +5** → **Decision: Proceed** (no −1 on A1/A3/A4/A7)
+
 ## Problem Statement
 
 Every motoko eval run today routes through OpenRouter (profile `dogfood` → `openrouter/...`). The local Ollama rig already runs Qwen 3.5 35B-A3B at mxfp8 and has proven it can drive the opencode harness — but motoko has never been wired to it.

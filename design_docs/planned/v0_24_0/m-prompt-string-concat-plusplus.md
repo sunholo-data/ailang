@@ -32,13 +32,24 @@
 
 ## Axiom Compliance
 
-| Axiom | Score | Rationale |
-|---|---|---|
-| A3 Fail loudly | +1 | Reduces the most common silent-assumption failure |
-| A7 AI-friendly | +2 | Single highest-leverage AI-teachability fix in the project |
-| A1 Explicit over implicit | +1 | Salient teaching of the list-only `++` rule |
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-**Net score: +4** ✅
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | No determinism impact |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | No verification change |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Salience improvement targets the historically-largest AI compile-failure |
+| A8: Minimal Syntax | 0 | No syntax change (++ stays list-only) |
+| A9: Cost Visibility | 0 | No resource-cost changes |
+| A10: Composability | 0 | No composition change |
+| A11: Structured Failure | +1 | Option B improves the ++-on-string error message (fix-it suggestion) |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +3** → **Decision: Proceed** (no −1 on A1/A3/A4/A7)
 
 ---
 

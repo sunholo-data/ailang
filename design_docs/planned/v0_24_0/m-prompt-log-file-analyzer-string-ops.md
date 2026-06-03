@@ -53,20 +53,21 @@ Every feature must align with AILANG's 12 Design Axioms. Score each axiom and ve
 
 | Axiom | Score | Justification |
 |-------|-------|---------------|
-| A1: Determinism | [+1/0/−1] | [e.g., "Enables reproducible traces"] |
-| A2: Replayability | [+1/0/−1] | [e.g., "No impact on traces"] |
-| A3: Effect Legibility | [+1/0/−1] | [e.g., "Makes IO effects explicit"] |
-| A4: Explicit Authority | [+1/0/−1] | [e.g., "Enforces capability constraints"] |
-| A5: Bounded Verification | [+1/0/−1] | [e.g., "Enables local type checks"] |
-| A6: Safe Concurrency | [+1/0/−1] | [e.g., "No concurrency changes"] |
-| A7: Machines First | [+1/0/−1] | [e.g., "Reduces AI token cost"] |
-| A8: Minimal Syntax | [+1/0/−1] | [e.g., "No new syntax required"] |
-| A9: Cost Visibility | [+1/0/−1] | [e.g., "Resource costs remain visible"] |
-| A10: Composability | [+1/0/−1] | [e.g., "Composes with existing effects"] |
-| A11: Structured Failure | [+1/0/−1] | [e.g., "Errors remain typed"] |
-| A12: System Boundary | [+1/0/−1] | [e.g., "Boundary crossings explicit"] |
+| A1: Determinism | 0 | No determinism impact |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | No verification change |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Teaches function-call string ops, reducing dot-method compile failures |
+| A8: Minimal Syntax | 0 | No syntax change (prompt only) |
+| A9: Cost Visibility | 0 | No resource-cost changes |
+| A10: Composability | +1 | split→filter→map→join pipeline composes cleanly |
+| A11: Structured Failure | 0 | No error-handling change |
+| A12: System Boundary | 0 | No boundary changes |
 
-**Net Score: [Total]** → **Decision: [Move forward / Reject / Redesign]**
+**Net Score: +3** → **Decision: Proceed** (P3 — low recent frequency; ship with other prompt updates)
+
 
 ### Hard Violation Check
 
