@@ -43,6 +43,36 @@ Weaker models fall back to Python idioms even when instructed otherwise, produci
 
 ---
 
+## Regression Analysis
+
+We ran Pearson correlation between AILANG performance and two external benchmarks across 14 models (June 2026):
+
+| Relationship | r | Interpretation |
+|---|---|---|
+| AILANG% ~ SWE-bench Verified | **0.70** | Moderate positive |
+| AILANG-vs-Python Δ ~ SWE-bench Verified | **0.60** | Moderate positive |
+| AILANG% ~ SWE-bench Pro | **0.46** | Weak |
+| AILANG-vs-Python Δ ~ SWE-bench Pro | **−0.03** | No correlation |
+
+**The surprising finding:** AILANG correlates *more strongly* with SWE-bench Verified (the contaminated benchmark) than with SWE-bench Pro (the cleaner one). This is counterintuitive but explainable: the contamination in SWE-bench Verified is correlated with the specific capability AILANG measures — spec-following and generalisation to novel typed language patterns. Models that memorised SWE-bench gold patches are generally also the same models that carefully read system prompts and follow unfamiliar type systems.
+
+**More importantly:** the AILANG-vs-Python delta (the ATT signal) correlates r=0.60 with SWE-bench Verified but r=−0.03 with SWE-bench Pro — essentially zero. This means **no current external benchmark cleanly predicts whether a model will match Python on AILANG**. AILANG evals are capturing something the benchmarks miss.
+
+### What AILANG evals actually measure (that benchmarks don't)
+
+The outlier analysis reveals two distinct failure modes:
+
+**Models that underperform on AILANG vs SWE expectations** (SWE-bench score overstates AILANG capability):
+- `gpt5-1` (−15 pts): likely SWE-bench contamination without genuine spec-following
+- `gemini-3-pro` (−21 pts): reliability/context limits at agentic depth
+- `gpt5-mini` (−20 pts): insufficient capacity for novel language reasoning
+
+**Models that overperform on AILANG vs SWE expectations** (AILANG reveals capability SWE misses):
+- `gemini-2-5-flash` (+24 pts), `gemini-2-5-pro` (+18 pts): Google's smaller models read the teaching prompt carefully and generalise well — SWE-bench undervalues this because SWE tasks reward tool-use scaffolding more than spec comprehension
+- `claude-sonnet-4-5` (+15 pts): strong spec-follower despite being a slightly older model
+
+The ATT is therefore best expressed in AILANG-score terms directly, not via external benchmark proxies.
+
 ## The Correlation with External Benchmarks
 
 *(SWE-bench Verified scores fetched June 2026 from llm-stats.com, benchlm.ai, and vendor pages — see sources)*
@@ -66,13 +96,15 @@ Weaker models fall back to Python idioms even when instructed otherwise, produci
 
 > ⚠️ **Important caveat:** SWE-bench Verified scores above ~77% are flagged for potential training-data contamination (OpenAI's internal audit found frontier models reproducing gold patches verbatim; SWE-bench Pro is the more reliable benchmark at the frontier). AILANG scores are measured on our eval harness (standard mode, v0.23.0).
 
-The headline correlation holds — but **SWE-bench Verified is not the clean predictor it first appears**:
+The headline correlation holds (r=0.70 with SWE-bench Verified) but no external benchmark cleanly separates the AILANG≥Python from Python-wins tier. Key anomalies:
 
-- Gemini 3.1 Pro scores 80.6% SWE-bench Verified but only 66% AILANG, putting it in "Python wins" territory. SWE-bench contamination likely explains the gap.
-- Models with *genuine* SWE-bench capability (Claude Opus, GPT-5.2-Codex, Gemini 2.5) show the pattern cleanly.
-- A better predictor than the raw SWE-bench number may be **SWE-bench Pro** (harder, less contaminated) — once scores on that benchmark are widely available, the ATT will be expressible more precisely.
+- **Gemini 3.1 Pro**: 80.6% SWE-Verified, 54.2% SWE-Pro, but **66% AILANG / Python wins**. The SWE-Verified score is likely inflated (contamination + scaffolding effects); SWE-Pro's 54.2% better reflects its actual novel-language capability.
+- **GPT-5.1**: 76.3% SWE-Verified but only 59% AILANG. Similar pattern.
+- **Gemini 2.5 Flash**: 54% SWE-Verified but **75% AILANG / +8pts vs Python**. Google's flash models are exceptional at prompt-following; SWE-bench undervalues this.
 
-**Working estimate for ATT: ~55% SWE-bench Verified (uncontaminated) or ~60% AILANG eval score itself.** The AILANG score is actually the cleanest proxy for "will this model handle AILANG as well as Python" — because AILANG evals have no training-data contamination by construction.
+**Working ATT estimate: AILANG score ≥ 70% = model will likely match or beat Python.** External benchmarks are useful pre-screening (don't bother testing a model under 50% SWE-bench Verified) but the AILANG score itself is the ground truth — it has no contamination by construction, since almost no AILANG code exists in any model's training data.
+
+> As AILANG becomes more widely adopted and training data accumulates, this contamination advantage will erode — but by then, AILANG will have entered enough codebases that models will have been trained on real usage, which is a better outcome anyway.
 
 ---
 
