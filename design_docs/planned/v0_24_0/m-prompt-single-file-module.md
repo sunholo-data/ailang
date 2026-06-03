@@ -1,254 +1,225 @@
-# M-PROMPT-SINGLE-FILE-MODULE: Clarify one module per file for eval benchmarks
+# M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks
 
 **Status**: Planned
 **Target**: v0.24.0
-
-## Summary
-
-Models write multiple `module benchmark/X` declarations in a single file because they
-model a multi-file project structure. AILANG requires exactly one module per file.
-In the eval harness there is ONE solution file (`benchmark/solution`). Fix: add a
-prominent single-sentence callout to the teaching prompt.
-
-**Evidence:** `multi_module_imports` benchmark fails in 4/4 models that attempt it
-with 100% compile_error (`PAR_NO_PREFIX_PARSE: unexpected token in expression: module`).
-
-**Status**: Planned
-**Target**: v0.24.0
-**Priority**: [P0/P1/P2 - High/Medium/Low]
-**Estimated**: [Time estimate, e.g., 2 days]
-**Dependencies**: [None or list other features]
-
-## Axiom Compliance
-
-**Canonical reference:** [Design Axioms](/docs/references/axioms)
-
-Every feature must align with AILANG's 12 Design Axioms. Score each axiom and verify no hard violations.
-
-### Axiom Scoring
-
-| Axiom | Score | Justification |
-|-------|-------|---------------|
-| A1: Determinism | [+1/0/−1] | [e.g., "Enables reproducible traces"] |
-| A2: Replayability | [+1/0/−1] | [e.g., "No impact on traces"] |
-| A3: Effect Legibility | [+1/0/−1] | [e.g., "Makes IO effects explicit"] |
-| A4: Explicit Authority | [+1/0/−1] | [e.g., "Enforces capability constraints"] |
-| A5: Bounded Verification | [+1/0/−1] | [e.g., "Enables local type checks"] |
-| A6: Safe Concurrency | [+1/0/−1] | [e.g., "No concurrency changes"] |
-| A7: Machines First | [+1/0/−1] | [e.g., "Reduces AI token cost"] |
-| A8: Minimal Syntax | [+1/0/−1] | [e.g., "No new syntax required"] |
-| A9: Cost Visibility | [+1/0/−1] | [e.g., "Resource costs remain visible"] |
-| A10: Composability | [+1/0/−1] | [e.g., "Composes with existing effects"] |
-| A11: Structured Failure | [+1/0/−1] | [e.g., "Errors remain typed"] |
-| A12: System Boundary | [+1/0/−1] | [e.g., "Boundary crossings explicit"] |
-
-**Net Score: [Total]** → **Decision: [Move forward / Reject / Redesign]**
-
-### Hard Violation Check
-
-**These axioms cannot have −1 scores (automatic rejection):**
-
-- [ ] A1 (Determinism): No implicit nondeterminism introduced
-- [ ] A3 (Effects): No hidden side effects
-- [ ] A4 (Authority): No ambient access granted
-- [ ] A7 (Machines First): Not optimizing for human convenience over machine analysis
-
-### Decision Thresholds
-
-| Net Score | Decision |
-|-----------|----------|
-| ≥ +2 | ✅ Proceed to implementation |
-| 0 to +1 | ⚠️ Needs stronger justification |
-| < 0 | ❌ Reject or redesign |
-| Any −1 on A1/A3/A4/A7 | ❌ Automatic rejection |
+**Priority**: P2 (Medium)
+**Estimated**: 0.5 day (prompt update + eval verification)
+**Dependencies**: None
 
 ## Problem Statement
 
-[What problem does this solve? Why is it needed?]
+For the `multi_module_imports` benchmark, models write multiple `module benchmark/X`
+declarations in a single `.ail` file. AILANG requires exactly one module declaration per file.
+The eval harness provides exactly one solution file. Models produce multiple module declarations
+because they are accustomed to multi-file project layouts from Python, JavaScript, and Go, and they
+try to simulate that structure inside the single allowed file.
 
 **Current State:**
-- [Describe current pain points]
-- [Include metrics if available]
+- `multi_module_imports` benchmark fails in 4/4 models that attempt it with 100% compile_error.
+- Error: `PAR_NO_PREFIX_PARSE: unexpected token in expression: module` on every second `module`
+  declaration.
+- No teaching prompt explains the one-module-per-file rule or the correct workaround.
+- Models write code like:
+  ```ailang
+  module benchmark/math_utils
+  func add(x: int, y: int) -> int = x + y
+
+  module benchmark/string_utils     -- ❌ second module declaration = parse error
+  func concat(a: string, b: string) -> string = a ++ b
+  ```
 
 **Impact:**
-- [Who is affected?]
-- [How significant is the problem?]
+- **Affected benchmarks**: `multi_module_imports`, and any benchmark requiring multiple logical
+  "modules" expressed in one file.
+- **Severity**: Hard compile failure (blocker).
+- **Frequency**: Affects all models equally — it's a universal assumption about multi-file projects,
+  not a capability gap.
 
 ## Goals
 
-**Primary Goal:** [Main objective in one sentence]
+**Primary Goal:** Eliminate multi-module-declaration compile errors by adding a prominent callout to
+the teaching prompt explaining the single-file constraint and the correct workaround.
 
 **Success Metrics:**
-- [Measurable outcome 1]
-- [Measurable outcome 2]
-- [Measurable outcome 3]
+- Zero `PAR_NO_PREFIX_PARSE: unexpected token ... module` errors in the next eval rotation.
+- `multi_module_imports` benchmark shows ≥50% improvement in compile success rate.
+- Models generate a single `module benchmark/solution` declaration with all types and functions
+  co-located in one module.
 
 ## High-Impact Decisions
 
-<!-- What choices are being made? Not "what we're building" (that's Solution Design) but
-     "what we're deciding." Chosen By: human = needs approval, agent = implementer decides,
-     compiler = language semantics decide. Deadline: design = before coding, compile = before
-     shipping, runtime = may remain flexible. Change Cost: high = architectural ripple,
-     med = multi-file, low = localized. Aim for 3-7 rows. -->
-
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| [Decision 1] | [Why it matters] | [human/agent/compiler] | [design/compile/runtime] | [high/med/low] |
-| [Decision 2] | [Why it matters] | [human/agent/compiler] | [design/compile/runtime] | [high/med/low] |
+| Callout placement in prompt (early vs. "Common Mistakes" table) | Affects model attention; early placement has higher recall | agent | implementation | low |
+| Whether to show namespace-prefix convention as workaround | Without a workaround, models may guess incorrectly | agent | implementation | low |
+| Whether to rename benchmark module from `benchmark/solution` hint | A consistent module name hint reduces errors further | human | design | low |
 
 ### Design Freeze
 
-<!-- Every "high" change-cost decision above must appear here as a checkbox.
-     Unchecked items = sprint-executor should PAUSE for human input. -->
-
-Before implementation begins, these must be resolved:
-
-- [ ] [Decision that must be made before coding]
-- [ ] [Decision that must be made before coding]
+No high-change-cost decisions — all are low. No design freeze items required.
 
 ## Solution Design
 
 ### Overview
 
-[High-level description of the solution]
+Add a prominent single-sentence rule to the AILANG teaching prompt:
 
-### Architecture
+> Benchmark solutions are always a SINGLE FILE with ONE module declaration
+> (`module benchmark/solution`). Never write multiple module declarations.
+> To simulate multiple logical modules, define types and functions in the same module,
+> using naming prefixes (e.g. `math_add`, `string_concat`) to namespace them.
 
-[Describe the technical approach]
-
-**Components:**
-1. **Component 1**: [Description]
-2. **Component 2**: [Description]
-3. **Component 3**: [Description]
+Also add an example showing the before/after to make the rule concrete.
 
 ### Implementation Plan
 
-**Phase 1: [Name]** (~X hours)
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+**Phase 1: Locate prompt injection points** (~30 minutes)
+- [ ] Find all teaching prompt / eval system prompt files
+- [ ] Confirm which are injected before `multi_module_imports` benchmark runs
 
-**Phase 2: [Name]** (~X hours)
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+**Phase 2: Write and insert callout** (~1 hour)
+- [ ] Draft the rule text and before/after example
+- [ ] Insert into "Common Mistakes" table AND as a standalone callout block
+- [ ] Verify the example code compiles with `ailang check`
 
-**Phase 3: [Name]** (~X hours)
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+**Phase 3: Eval verification** (~2 hours)
+- [ ] Re-run `multi_module_imports` benchmark
+- [ ] Confirm zero `PAR_NO_PREFIX_PARSE: ... module` errors
 
 ### Files to Modify/Create
 
-**New files:**
-- `path/to/new_file.go` - [Purpose, ~XXX LOC]
-
 **Modified files:**
-- `path/to/existing_file.go` - [Changes needed, ~XXX LOC]
+- Teaching/eval prompt file(s) (paths TBD after Phase 1 survey) (+15 LOC)
 
 ## Examples
 
-### Example 1: [Use Case]
+### What models currently generate (compile error)
 
-**Before:**
-```
-[Code or workflow before the change]
+```ailang
+-- ❌ WRONG: Two module declarations in one file — parse error on line 5
+module benchmark/math_utils
+
+pure func add(x: int, y: int) -> int = x + y
+
+module benchmark/string_utils          -- PAR_NO_PREFIX_PARSE here
+
+pure func concat(a: string, b: string) -> string = a ++ b
 ```
 
-**After:**
-```
-[Code or workflow after the change]
+### Correct single-module layout
+
+```ailang
+-- ✅ CORRECT: One module declaration, all code in the same module
+module benchmark/solution
+
+-- "math_utils" functions live here, namespaced by name prefix
+pure func math_add(x: int, y: int) -> int = x + y
+pure func math_mul(x: int, y: int) -> int = x * y
+
+-- "string_utils" functions live here, namespaced by name prefix
+pure func string_concat(a: string, b: string) -> string = a ++ b
+pure func string_upper(s: string) -> string = to_upper(s)
 ```
 
-### Example 2: [Use Case]
+### Callout text to add to prompt
 
-[Additional examples as needed]
+```
+WARNING: ONE module per file. Benchmark solutions are a SINGLE FILE.
+
+The module declaration must be: `module benchmark/solution`
+Never write a second `module` keyword. If you need "multiple modules",
+define all types and functions in the same module and use naming
+prefixes to group them (e.g. `math_add`, `string_concat`).
+```
 
 ## Success Criteria
 
-- [ ] Criterion 1 (with acceptance test)
-- [ ] Criterion 2 (with acceptance test)
-- [ ] Criterion 3 (with acceptance test)
+- [ ] Teaching prompt contains the one-module-per-file rule with a before/after example
+- [ ] The "correct" example compiles with `ailang check`
+- [ ] Zero `PAR_NO_PREFIX_PARSE: ... module` errors in next eval run on `multi_module_imports`
 - [ ] All tests passing
 - [ ] Documentation updated
-- [ ] Examples added
 
 ## Testing Strategy
 
-**Unit tests:**
-- [What to test]
+**Compile verification:**
+- `ailang check` on the "correct" example in the prompt — must pass
 
-**Integration tests:**
-- [What to test]
+**Eval verification:**
+- Re-run `multi_module_imports` after prompt update
+- Inspect model outputs: confirm single module declaration in generated files
 
 **Manual testing:**
-- [What to verify manually]
+- Read the updated prompt section and verify clarity
 
 ## Deferred Decisions
 
-<!-- NOT the same as Non-Goals. Non-Goals = "we won't do X."
-     Deferred Decisions = "we WILL do X but haven't decided HOW yet."
-     This tells agents where they have latitude. Always say who may resolve. -->
-
-The following are intentionally left open for the implementer:
-
-- [Decision 1] — [who may resolve, e.g., "agent may choose"]
-- [Decision 2] — [who may resolve]
+- Exact prefix convention recommendation — agent may choose
+- Whether to add this rule to a "hard rules" box vs. the "Common Mistakes" table — agent may choose
+- Whether all benchmarks should standardise on `benchmark/solution` as the module name — human at review
 
 ## Non-Goals
 
-**Not attempted in this feature:**
-- [Thing 1] - [Why out of scope]
-- [Thing 2] - [Why out of scope]
+- Adding multi-file support to the eval harness — out of scope for this doc; separate feature
+- Changing the AILANG one-module-per-file rule — this is correct language design, not a bug
 
 ## Timeline
 
-**Week 1** (X hours):
-- Phase 1 implementation
+- Day 1 (half day): Locate prompts, draft rule + example, verify, run eval
 
-**Week 2** (X hours):
-- Phase 2 implementation
-- Testing
-
-**Week 3** (X hours):
-- Phase 3 implementation
-- Documentation
-- Release
-
-**Total: ~X hours across Y weeks**
+**Total: ~0.5 days**
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
-|------|--------|-----------|
-| [Risk 1] | [High/Med/Low] | [How to address] |
-| [Risk 2] | [High/Med/Low] | [How to address] |
+|------|--------|------------|
+| Model ignores callout and still writes two modules | Medium | Place rule in both the "Common Mistakes" table AND a standalone WARNING block |
+| Naming-prefix workaround confuses models further | Low | Keep the example minimal; use obvious prefixes |
+| Different eval benchmarks use a different module name convention | Low | Check all benchmark module names during Phase 1 and standardise if needed |
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | No impact on determinism |
+| A2: Replayability | 0 | No impact on traces |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Single-module files are easier to typecheck and verify |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +2 | Directly eliminates 100% compile-error rate on this benchmark |
+| A8: Minimal Syntax | +1 | Teaches models to use existing syntax correctly; no new syntax needed |
+| A9: Cost Visibility | 0 | No resource changes |
+| A10: Composability | 0 | No change to composition rules |
+| A11: Structured Failure | +1 | Replaces opaque parse error with a pre-empted, explained constraint |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): No implicit nondeterminism introduced
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Teaching single-file convention benefits machine generation directly
 
 ## Related Documents
 
-<!-- Auto-populated by Ollama neural search on "prompt single file module" -->
-
-**Implemented (may inform design):**
-- [design_docs/implemented/v0_9_11/m-dx-app-package-adoption.md](design_docs/implemented/v0_9_11/m-dx-app-package-adoption.md) (1.00)
-- [design_docs/implemented/v0_7_4/m-stdlib-gaps.md](design_docs/implemented/v0_7_4/m-stdlib-gaps.md) (0.95)
-- [design_docs/implemented/v0_5_10/m-cross-module-record-unification.md](design_docs/implemented/v0_5_10/m-cross-module-record-unification.md) (0.90)
-
-**Planned (check for overlap):**
-- [design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md](design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md) (1.00)
-- [design_docs/planned/m-pkg-inflight.md](design_docs/planned/m-pkg-inflight.md) (0.95)
-- [design_docs/planned/v1_0_0/m-perf4-bytecode-interpreter.md](design_docs/planned/v1_0_0/m-perf4-bytecode-interpreter.md) (0.90)
+- `design_docs/planned/v0_24_0/m-import-alias.md` — companion P1 prompt-gap fix (import aliases)
+- `design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md` — related prompt structure work
 
 ## References
 
-- [Design Axioms](/docs/references/axioms) - The 12 non-negotiable principles
-- [Philosophical Foundations](/docs/references/philosophical-foundations) - Block-universe determinism
-- [Design Lineage](/docs/references/design-lineage) - What we adopted/rejected and why
-- [Link to related design docs]
-- [Link to issues or discussions]
+- **Failing benchmark**: `benchmarks/multi_module_imports/`
+- **Axiom reference**: [Design Axioms](/docs/references/axioms)
 
 ## Future Work
 
-[Features that build on this but are out of scope for now]
+- Consider making the eval harness explicitly reject second `module` declarations with a
+  user-facing error that says "benchmark solutions must have exactly one module declaration"
+  rather than a generic parse error — separate improvement ticket
 
 ---
 
