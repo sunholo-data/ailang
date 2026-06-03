@@ -1,10 +1,34 @@
-# M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — #1 compile failure cause
+# M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — LARGELY SOLVED, monitor only
 
-**Status**: Planned
-**Target**: v0.24.0
-**Priority**: P0 (Highest — single largest compile-failure cause across ALL models)
-**Estimated**: 1 day (prompt salience redesign + eval verification)
+**Status**: Planned (⚠️ DEMOTED — the 46% figure was a stale-data artifact)
+**Target**: v0.24.0 (monitor; no urgent action)
+**Priority**: P3 (LOWERED from P0 — already mostly fixed in modern AILANG)
+**Estimated**: 0 days active work; nightly-eval monitoring only
 **Dependencies**: None
+
+> **⚠️ CORRECTION (2026-06-03):** The original "46% of ALL compile failures" figure
+> that justified P0 was a **stale-data artifact**. Breaking the same data down by date:
+>
+> | Period | `++`-string compile-fail rate |
+> |---|---|
+> | All-time aggregate | 46% (misleading) |
+> | Apr–May 2026 | 27% |
+> | May 2026 alone | **8%** |
+> | Freshest local Qwen run (v0.23.0) | **1/8 (12%)** |
+>
+> The `++`→list-only migration (v0.13.0, M-CONCAT-DISAMBIG) plus the existing prompt
+> teaching have **already trained the reflex down**. The 46% was dominated by a year of
+> old baselines (Oct 2025–early 2026) from before the prompt caught up. In modern runs
+> `++` is no longer a dominant cause. Additionally, removing `++`-for-strings was a large,
+> deliberate, beneficial effort (it disambiguated list-concat from string-concat across the
+> whole language) — **this doc does NOT propose reversing that**. Reversing it would require
+> serious analysis (Opus-level review of the original M-CONCAT-DISAMBIG tradeoffs) and is
+> explicitly out of scope.
+>
+> **Action: none beyond monitoring.** The nightly eval already tracks compile-error
+> categories; if the `++` rate ticks back up after a prompt-version change, revisit. Do not
+> spend a sprint on a solved problem. The genuinely-current gaps are import-alias,
+> type-constraints, match-guard, option-none, and split-list (those docs remain P1/P2).
 
 ## Axiom Compliance
 
