@@ -8,8 +8,10 @@
 ## Summary
 
 `log_file_analyzer` is the **single highest-impact benchmark** — fails in 9/9 frontier
-models. Primary cause: import aliases (see m-import-alias.md). Secondary cause after
-that fix: models use Python dot-notation string ops (`.split()`, `.contains()`,
+models. ⚠️ CORRECTED (2026-06-03): the original 'primary cause: import aliases' claim was
+DISPROVEN by verification — import aliases compile fine (see m-import-alias.md
+retraction). The actual causes of log_file_analyzer failures are `++` string-concat
+(largely solved) and Python dot-notation string ops (`.split()`, `.contains()`,
 `.trim()`) instead of AILANG's function-call style.
 
 **Evidence (from actual generated code):**
