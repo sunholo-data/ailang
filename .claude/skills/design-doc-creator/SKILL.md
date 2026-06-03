@@ -193,11 +193,55 @@ Bug reported: [SolarPlanet] return type panics
 ```
 
 **Analysis Checklist (do BEFORE writing design doc):**
+- [ ] **VERIFIED every "AILANG does/doesn't support X" claim with `ailang check` (HARD GATE — see below)**
 - [ ] Is this a one-off or part of a pattern?
 - [ ] Search codebase for similar code paths
 - [ ] Check if other types/cases have the same gap
 - [ ] Look at git history - has this area been patched repeatedly?
+- [ ] If citing eval data: segmented by recent date + confirmed the cited construct is the ACTUAL cause
 - [ ] Design fix to cover ALL cases, not just the reported one
+
+**⚠️ CRITICAL: Verify Every Language Claim Before Asserting It (HARD GATE)**
+
+**Any statement of the form "AILANG does / does not support X" MUST be verified with a live
+`ailang check` before it goes in the doc.** This is not optional. A design doc that
+mischaracterizes the language sends the implementer to build something that already exists,
+reject something that's fine, or fix a non-problem.
+
+**The check takes 10 seconds:**
+```bash
+tmp=$(mktemp -d)
+cat > $tmp/claim.ail <<'EOF'
+module test/claim
+-- the exact construct you're claiming is (un)supported
+import std/list as L
+export func main() -> () ! {} = ()
+EOF
+ailang check $tmp/claim.ail   # COMPILES = supported; PAR_/type error = not
+rm -rf $tmp
+```
+
+**Required in the doc:** every "supported"/"unsupported" claim must carry either
+(a) an `ailang check` result/transcript, or (b) a citation to a reference page or implemented
+design doc. Unverified assertions are treated as unproven and the doc cannot proceed to sprint.
+
+**Also verify the FREQUENCY claim** if the doc cites eval data ("fails in N models", "X% of
+failures"): segment by recent date (not all-time aggregate — old baselines mix in pre-fix
+runs), and confirm the cited construct is the ACTUAL cause of the failure, not a co-occurring
+line. A regex that flags `as <word>` in an import is NOT proof the import is the cause.
+
+**Case study (2026-06-03, this exact failure):** Two hand-written eval-gap docs asserted
+language limitations without running `ailang check`:
+- `m-type-constraints` claimed "AILANG has no typeclasses, use explicit comparators." FALSE —
+  AILANG infers Ord/Num via dictionary passing; `mymax[a](x:a,y:a)=if x>y then x else y` runs on
+  int AND string. The doc would have built an unnecessary feature.
+- `m-import-alias` claimed "AILANG has no import aliases, implement them." FALSE — `import M as L`
+  and `import M (f as g)` both compile. The cited "6% of failures" was a detection-heuristic
+  false positive: 0 of 16 flagged failures actually failed on an alias. Doc was REJECTED.
+
+Both errors were a 10-second `ailang check` away from being caught. The neural related-doc
+search (below) is passive context; THIS gate is the active check. Do not skip it by
+hand-writing content over the scaffold — fill the scaffold, and verify as you fill.
 
 **⚠️ CRITICAL: Conflict Surface Analysis (REQUIRED for parser/typechecker/codegen changes)**
 
