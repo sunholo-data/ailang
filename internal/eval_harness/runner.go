@@ -344,6 +344,13 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		args = append(args, "--caps", strings.Join(r.caps, ","))
 	}
 
+	// M-EVAL-NETWORK-MOCK-FIXTURE: benchmarks that hit the local HTTP mock need
+	// plain http:// and loopback enabled (both blocked by default — https-only +
+	// SSRF protection). The mock binds 127.0.0.1 on an ephemeral port.
+	if r.spec != nil && r.spec.NetAllowLocalhost {
+		args = append(args, "--net-allow-http", "--net-allow-localhost")
+	}
+
 	// Add relative path to solution file from workspace
 	args = append(args, "benchmark/solution.ail")
 

@@ -51,6 +51,21 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		return false, err
 	}
 
+	// M-EVAL-NETWORK-MOCK-FIXTURE: if the benchmark's prompt references the mock-URL
+	// token, start a local deterministic HTTP mock for THIS run and substitute the
+	// token with the live server URL. This replaces non-deterministic external calls
+	// (e.g. httpbin.org returning intermittent 503s) with a reproducible, offline,
+	// concurrency-safe local server. The server binds an ephemeral port (one per run,
+	// never shared) and is torn down when this benchmark finishes — including agent-
+	// mode repair iterations, which all run while the server is up. spec is a per-job
+	// pointer from LoadSpec, so mutating TaskPrompt here is local to this run.
+	if eval_harness.PromptUsesHTTPMock(spec.TaskPrompt) {
+		mock := eval_harness.StartHTTPMock()
+		defer mock.Close()
+		spec.TaskPrompt = strings.ReplaceAll(spec.TaskPrompt, eval_harness.MockHTTPURLToken, mock.URL)
+		benchSpan.SetAttributes(attribute.String("benchmark.mock_http_url", mock.URL))
+	}
+
 	// Resolve experimental condition (controls prompt content and verification)
 	cond := eval_harness.ResolveCondition(condition, evalVerifyFlag, evalDevtoolsPromptFlag)
 

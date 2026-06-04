@@ -1,6 +1,6 @@
 # M-EVAL-NETWORK-MOCK-FIXTURE: Deterministic local HTTP mock for network benchmarks
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.24.0
 **Priority**: P1 (High — a non-deterministic benchmark corrupts every eval run and the public leaderboard)
 **Estimated**: 1 day

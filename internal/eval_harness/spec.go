@@ -35,6 +35,12 @@ type BenchmarkSpec struct {
 	CliArgs    []string          `yaml:"cli_args,omitempty"`    // CLI arguments to pass after the script
 	InputFiles map[string]string `yaml:"input_files,omitempty"` // Files to create in workspace: {filename: content}
 
+	// M-EVAL-NETWORK-MOCK-FIXTURE: when true, the harness runs the solution with
+	// --net-allow-http and --net-allow-localhost so generated code can reach the
+	// local deterministic HTTP mock (see httpmock.go). Required because AILANG's Net
+	// effect blocks plain http:// and loopback (SSRF protection) by default.
+	NetAllowLocalhost bool `yaml:"net_allow_localhost,omitempty"`
+
 	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
 	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision|experimental. Missing defaults to "core".
 	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.

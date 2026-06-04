@@ -5,9 +5,14 @@ entrypoint: "main"
 caps: ["Net", "IO"]
 difficulty: "hard"
 expected_gain: "high"
+# M-EVAL-NETWORK-MOCK-FIXTURE: the {{MOCK_HTTP_URL}} token in task_prompt is replaced
+# at runtime with a local deterministic HTTP mock (127.0.0.1, ephemeral port). The
+# generated solution needs plain-http + loopback enabled to reach it (AILANG's Net
+# effect blocks both by default: https-only + SSRF protection).
+net_allow_localhost: true
 task_prompt: |
   Write a program in <LANG> that:
-  1. Makes an HTTP POST request to https://httpbin.org/post
+  1. Makes an HTTP POST request to {{MOCK_HTTP_URL}}
   2. Includes custom headers: "X-Test-Header: value123" and "Content-Type: application/json"
   3. Sends a JSON body: {"message":"Hello from <LANG>","count":42}
   4. Prints ONLY the response status code (e.g., "200" or "201")
