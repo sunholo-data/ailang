@@ -630,7 +630,7 @@ them on the Studio rig, these must be installed and authenticated:
 |---|---|---|---|
 | `opencode` | `npm i -g opencode-ai` | `OPENROUTER_API_KEY` | OS models (glm/minimax/deepseek) — **reliable** |
 | `claude` | `npm i -g @anthropic-ai/claude-code` | logged-in Claude | sonnet anchor — ⚠️ can hang on long runs |
-| `codex` | `npm i -g @openai/codex` | `OPENAI_API_KEY` | gpt5-4-mini |
+| `codex` | `npm i -g @openai/codex` | one-time: `printenv OPENAI_API_KEY \| codex login --with-api-key` (env var alone gives 401 — codex defaults to ChatGPT-OAuth) | gpt5-4-mini |
 | `managed_agents` | (none — Vertex API) | `gcloud auth application-default login` | gemini agent (no gemini CLI executor exists) |
 | `pi` | `npm i -g @mariozechner/pi-coding-agent` | per-provider | optional minimal harness |
 | `motoko` | `go install …/motoko` | `OPENROUTER_API_KEY` | ⚠️ currently hangs — removed from agent_suite |
