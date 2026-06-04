@@ -1604,60 +1604,13 @@ models:
   # Pricing here is set to 0 because cost varies per resolved model and is
   # reported back by OpenRouter on each request (see ai.Response.CostUSD).
 
-  or-claude-sonnet-4-5:
-    api_name: "anthropic/claude-sonnet-4.5"
-    provider: "openrouter"
-    description: "Claude Sonnet 4.5 via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    pricing:
-      input_per_1k: 0.0
-      output_per_1k: 0.0
-    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
-
-  or-gpt5:
-    api_name: "openai/gpt-5"
-    provider: "openrouter"
-    description: "GPT-5 via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    pricing:
-      input_per_1k: 0.0
-      output_per_1k: 0.0
-    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
-
-  or-gpt5-mini:
-    api_name: "openai/gpt-5-mini"
-    provider: "openrouter"
-    description: "GPT-5 mini via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    pricing:
-      input_per_1k: 0.0
-      output_per_1k: 0.0
-    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
-
-  or-gemini-2-5-pro:
-    api_name: "google/gemini-2.5-pro"
-    provider: "openrouter"
-    description: "Gemini 2.5 Pro via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    pricing:
-      input_per_1k: 0.0
-      output_per_1k: 0.0
-    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
-
-  or-gemini-2-5-flash:
-    api_name: "google/gemini-2.5-flash"
-    provider: "openrouter"
-    description: "Gemini 2.5 Flash via OpenRouter"
-    env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
-    pricing:
-      input_per_1k: 0.0
-      output_per_1k: 0.0
-    notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
+  # Legacy frontier or-* entries removed (v0.23.0): or-claude-sonnet-4-5,
+  # or-gpt5, or-gpt5-mini, or-gemini-2-5-pro, or-gemini-2-5-flash.
+  # Per the OpenRouter rule, frontier Google/Anthropic/OpenAI models must use
+  # their native provider (anthropic/openai/google), not be routed through
+  # OpenRouter. Use claude-sonnet-4-6, gpt5-5, gemini-3-1-pro, etc. instead.
+  # OpenRouter is reserved for models with no native API (z-ai/GLM, MiniMax,
+  # DeepSeek, Kimi, Qwen, Gemma).
 
   # or-llama-3-3-70b removed: Llama 3.3 70B is superseded by Llama 4 family
   # (which the SOTA-OS spread below also drops in favour of Qwen3/Gemma 4/
@@ -1768,6 +1721,40 @@ models:
     notes: |
       Standard-eval companion to opencode-or-minimax-m2-7. Cheapest OS PASS
       model in the spread ($0.30/$1.20 per 1M).
+
+  or-glm-5-1:
+    api_name: "z-ai/glm-5.1"
+    provider: "openrouter"
+    description: "GLM-5.1 via OpenRouter (standard mode) — newest z-ai, successor to GLM-5"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "glm-5"
+    pricing:
+      input_per_1k: 0.00098  # $0.98 per 1M
+      output_per_1k: 0.00308 # $3.08 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Standard-mode companion to motoko-glm-5-1. Direct version-over-version
+      comparison against or-glm-5. Added 2026-06-04.
+
+  or-minimax-m3:
+    api_name: "minimax/minimax-m3"
+    provider: "openrouter"
+    description: "MiniMax M3 via OpenRouter (standard mode) — newest MiniMax, 1M ctx"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "minimax-m3"
+    pricing:
+      input_per_1k: 0.0003   # $0.30 per 1M
+      output_per_1k: 0.0012  # $1.20 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Standard-mode companion to motoko-minimax-m3. Direct version-over-version
+      comparison against or-minimax-m2-7. Added 2026-06-04.
 
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"

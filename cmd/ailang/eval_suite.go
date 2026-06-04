@@ -195,17 +195,18 @@ func runEvalSuite() {
 			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
 		}
 	}
-	// SAFETY: when any requested model has agent_cli set, running it in standard
-	// (direct-API) mode is meaningless — the agent_cli marker means the model is
-	// only usable via a CLI subprocess (opencode, claude, codex, motoko, etc.).
-	// Without this guard, the standard-mode path silently degrades (zero tokens,
-	// fast junk output) and a whole rotation can run without ever calling the
-	// real model. See the 2026-05-23 incident where 102 trials looked complete
-	// but had total_tokens=0 because -agent was omitted. Fail loudly instead.
+	// SAFETY: block standard (direct-API) mode only for models that are GENUINELY
+	// agent-only — i.e. have an agent_cli AND no cloud standard path (provider is
+	// local/CLI-bound, e.g. ollama). Without this guard those degrade silently to
+	// junk (the 2026-05-23 incident: 102 trials, total_tokens=0, provider=ollama).
+	// Cloud models (anthropic/openai/google/openrouter) that ALSO have an agent_cli
+	// — Claude, GPT, Gemini — are dual-mode and run standard natively; they must
+	// NOT be blocked (they have hundreds of standard-mode runs across baselines).
 	if !*agent && eval_harness.GlobalModelsConfig != nil {
 		var agentOnlyModels []string
 		for _, m := range modelList {
-			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) {
+			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) &&
+				!eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
 				cli, _ := eval_harness.GlobalModelsConfig.GetAgentCLI(m)
 				agentOnlyModels = append(agentOnlyModels, fmt.Sprintf("%s (agent_cli: %q)", m, cli))
 			}

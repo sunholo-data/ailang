@@ -170,15 +170,23 @@ is now there for the replay engine to consume when implemented.
 Any model OpenRouter exposes is callable via the
 `openrouter/<vendor>/<model>` form (e.g. `openrouter/anthropic/claude-sonnet-4.5`).
 
-The eval harness pre-registers ten representative models in
+The eval harness pre-registers a set of representative models in
 [`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/models.yml)
-under the `or-*` prefix:
+under the `or-*` prefix.
 
-- `or-claude-sonnet-4-5` — `anthropic/claude-sonnet-4.5` (frontier)
-- `or-gpt5` / `or-gpt5-mini` — `openai/gpt-5` / `openai/gpt-5-mini`
-- `or-gemini-2-5-pro` / `or-gemini-2-5-flash` — Google's tiers
-- `or-llama-3-3-70b` — `meta-llama/llama-3.3-70b-instruct` (open weights)
-- `or-deepseek-chat`, `or-mistral-large`, `or-qwen-2-5-72b` — long-tail
+**OpenRouter is reserved for models with no native API** (z-ai/GLM,
+MiniMax, DeepSeek, Kimi, Qwen, Gemma). Frontier Google/Anthropic/OpenAI
+models must use their native provider — use `claude-sonnet-4-6`,
+`gpt5-5`, `gemini-3-1-pro` (etc.), **not** an `or-` route. The legacy
+frontier `or-` entries (`or-claude-sonnet-4-5`, `or-gpt5`,
+`or-gpt5-mini`, `or-gemini-2-5-pro`, `or-gemini-2-5-flash`) are
+deprecated and being removed for this reason — do not use them.
+
+Representative open-model `or-*` entries include:
+
+- `or-glm-5` / `or-glm-5-1`, `or-minimax-m2-7` / `or-minimax-m3` — z-ai / MiniMax
+- `or-deepseek-v3`, `or-qwen-2-5-72b`, `or-gemma-4-26b` — open weights
+- `or-mistral-large` — proprietary, but no native API in the harness
 - `or-auto` — `openrouter/auto` (OpenRouter picks for you)
 
 Adding new entries is YAML-only; no Go code changes are required to

@@ -208,6 +208,27 @@ func (c *ModelsConfig) SupportsAgentEval(name string) bool {
 	return model.AgentCLI != nil && *model.AgentCLI != ""
 }
 
+// SupportsStandardEval returns true if the model can be evaluated in standard
+// (direct-API) mode. A model is standard-capable when its provider is a cloud
+// HTTP provider the standard runner can reach (anthropic, openai, google,
+// openrouter). Local/CLI-bound providers (ollama) are NOT standard-capable in
+// practice: running them via the direct-API path silently degrades to junk
+// (the 2026-05-23 incident: provider=ollama, total_tokens=0). A model can have
+// an agent_cli AND still be standard-capable — Claude/GPT/Gemini have both paths.
+func (c *ModelsConfig) SupportsStandardEval(name string) bool {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return false
+	}
+	switch model.Provider {
+	case "anthropic", "openai", "google", "gemini", "vertex", "openrouter":
+		return true
+	default:
+		// ollama (local) and unknown providers are agent-only in practice.
+		return false
+	}
+}
+
 // GetAgentCLI returns the agent CLI command for a model (e.g., "claude")
 func (c *ModelsConfig) GetAgentCLI(name string) (string, error) {
 	model, err := c.GetModel(name)
