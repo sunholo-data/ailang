@@ -334,6 +334,50 @@ If the indexer fails (e.g. "could not resolve active prompt version"),
 **do not skip this step** — investigate and fix before the release is
 considered complete. The post-release skill will re-verify.
 
+### 7.6. Refresh the public MCP docs server / prod services (REQUIRED)
+
+The remote MCP docs server (`mcp.ailang.sunholo.com`) bakes a **per-version docs +
+versions snapshot at image-build time** (from `std/VERSION` via
+`tools/build-snapshot`). It is a *separate deployment* from the CLI release —
+`release.yml` only builds CLI binaries and does **nothing** to the MCP. If you skip
+this step, the public MCP keeps serving the **previous** version and agents get
+`unknown_version` for the new release (this silently happened across v0.20–v0.24;
+prod was frozen at 0.19.1 for ~3 weeks).
+
+**Environments:**
+- **dev** (`ailang-dev-mcp`) — auto-rebuilt+redeployed by the `ailang-core-dev`
+  Cloud Build trigger on every `dev` push. No action needed.
+- **test** (`ailang-test-mcp`) — auto-rebuilt+redeployed by the `ailang-core-test-release`
+  trigger on every `v*` tag (file-based on `cloudbuild-dev.yaml`; was a stale inline
+  config that failed on `Dockerfile.agent`'s `${PROJECT}` until v0.24.0).
+- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — **manual gate** (`promote-to-prod`).
+  Run the build+deploy explicitly after the tag is published:
+
+```bash
+# Build core ailang images from the released source AND redeploy prod Cloud Run
+# (coordinator/dashboard/mcp + agent jobs). Uses the maintained, env-parameterized
+# cloudbuild-dev.yaml — NOT the docparse-coupled cloudbuild-images.yaml.
+SA="projects/ailang-multivac-deploy/serviceAccounts/sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com"
+gcloud builds submit --project=ailang-multivac-deploy \
+  --config=cloudbuild-dev.yaml \
+  --service-account="$SA" \
+  --default-buckets-behavior=REGIONAL_USER_OWNED_BUCKET \
+  --substitutions=_TARGET_PROJECT=ailang-multivac,_REGION=europe-west1,_PREFIX=ailang \
+  .
+```
+
+**Acceptance check (the one BlackMage's agents rely on):**
+```bash
+curl -s -X POST -H "Content-Type: application/json" -d '{}' \
+  https://mcp.ailang.sunholo.com/api/mcp/ailang_versions | python3 -c \
+  "import sys,json; d=json.load(sys.stdin)['result']; print('latest:', d['latest'])"
+# Must print the version you just released.
+```
+
+If `latest` is stale, the prod build/deploy didn't run or didn't roll the revision
+(`:latest` tag moves don't auto-roll Cloud Run — `cloudbuild-dev.yaml`'s
+`deploy-services` step force-rolls via `gcloud run services update`).
+
 ### 8. Collect and Close Related Issues
 
 **Find issues that can be closed with this release:**
