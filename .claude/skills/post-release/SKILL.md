@@ -641,7 +641,9 @@ Secret Manager). OpenRouter is the manual key. Gemini uses Vertex ADC, not the A
 
 Verify everything resolves before a release run:
 ```bash
-for c in opencode claude codex gemini pi motoko; do which $c >/dev/null && echo "✓ $c" || echo "✗ $c"; done
+for c in opencode claude codex pi motoko; do which $c >/dev/null && echo "✓ $c" || echo "✗ $c"; done
+# Note: NO gemini CLI — the @google/gemini-cli is deprecated/unused. Google agent mode
+# goes through managed_agents (Vertex API via `gcloud auth application-default login`).
 ailang eval-suite --agent --models agent_suite --benchmarks fizzbuzz --langs ailang --dry-run  # all should route, none "<none>"
 ```
 
