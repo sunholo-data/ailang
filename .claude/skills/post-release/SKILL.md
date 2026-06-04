@@ -84,11 +84,13 @@ Expected time: ~30-60 minutes
 
 **What it does:**
 - **Step 1**: Standard eval (0-shot + self-repair)
-  - Uses `extended_suite` (--full, 6 models): **gpt5-5** (Apr 2026 flagship), gpt5-4-mini, claude-opus-4-7, claude-sonnet-4-6, gemini-3-1-pro, gemini-3-flash
+  - Uses `extended_suite` (--full, 10 models): **gpt5-5**, gpt5-4-mini, **claude-opus-4-8** (Jun 2026 flagship), claude-sonnet-4-6, **gemini-3-1-pro**, gemini-3-flash, **or-glm-5-1**, **or-minimax-m3**, **or-deepseek-v4-flash**, **or-deepseek-v4-pro** (modern OS refreshed 2026-06-04)
   - Or `dev_models` (default): gpt5-4-mini, claude-haiku-4-5, gemini-3-flash
   - Both AILANG and Python; all benchmarks in selected tier(s)
-- **Step 2**: Agent eval — flagship models × AILANG+Python
-  - `agent_suite` (4 cost-tuned models): claude-sonnet-4-6 (longitudinal anchor), gemini-3-flash, gpt5-4-mini, **opencode-sonnet-4-6** (cross-harness pair)
+  - **Cloud-vs-OS note**: in standard mode the best OS model (glm-5.1, 90% de-flaked) MATCHES the best cloud model (gemini-3-1-pro, 90%) at ~½ the cost; minimax-m3 (87%, $0.30/1M) ties opus/gpt5-5 (87%, $5/1M) at ~1/16 the cost.
+- **Step 2**: Agent eval — flagship + modern OS × AILANG+Python
+  - `agent_suite` (7 models, one per harness + modern OS): claude-sonnet-4-6 (claude CLI, longitudinal anchor), gemini-3-5-flash (managed_agents/Vertex — Google agent path; expensive ~88 turns), gpt5-4-mini (codex CLI), opencode-or-glm-5-1, opencode-or-minimax-m3, opencode-or-deepseek-v4-flash, opencode-or-deepseek-v4-pro (opencode — reliable OS harness; deepseek-v4-pro is the agent champion at 97%)
+  - **motoko-* removed 2026-06-04**: the AILANG-native motoko/bun harness hangs on the rig (0 completions, orphans subprocesses). Pending agent-harness-instability diagnosis; re-add when reliable.
   - **Tier system** (v0.14.0+): `smoke` (15), `core` (22), `stretch` (11), `vision` (6)
   - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
@@ -618,6 +620,30 @@ See [`resources/post_release_checklist.md`](resources/post_release_checklist.md)
 - GitHub release published with all binaries
 - `ailang` binary installed (for eval baseline)
 - Node.js/npm installed (for dashboard, optional)
+
+### Agent CLIs + API keys (for the agent baseline on this rig)
+
+The agent baseline (`agent_suite`) routes each model to a CLI harness. To run all of
+them on the Studio rig, these must be installed and authenticated:
+
+| Harness (`agent_cli`) | Install | Auth | Used by |
+|---|---|---|---|
+| `opencode` | `npm i -g opencode-ai` | `OPENROUTER_API_KEY` | OS models (glm/minimax/deepseek) — **reliable** |
+| `claude` | `npm i -g @anthropic-ai/claude-code` | logged-in Claude | sonnet anchor — ⚠️ can hang on long runs |
+| `codex` | `npm i -g @openai/codex` | `OPENAI_API_KEY` | gpt5-4-mini |
+| `managed_agents` | (none — Vertex API) | `gcloud auth application-default login` | gemini agent (no gemini CLI executor exists) |
+| `pi` | `npm i -g @mariozechner/pi-coding-agent` | per-provider | optional minimal harness |
+| `motoko` | `go install …/motoko` | `OPENROUTER_API_KEY` | ⚠️ currently hangs — removed from agent_suite |
+
+**API keys** live in `~/.config/ailang/secrets.env` (sourced from `~/.zshenv`). Pull the
+cloud-managed ones with `~/.config/ailang/pull-secrets.sh` (Anthropic/OpenAI/Google from
+Secret Manager). OpenRouter is the manual key. Gemini uses Vertex ADC, not the API key.
+
+Verify everything resolves before a release run:
+```bash
+for c in opencode claude codex gemini pi motoko; do which $c >/dev/null && echo "✓ $c" || echo "✗ $c"; done
+ailang eval-suite --agent --models agent_suite --benchmarks fizzbuzz --langs ailang --dry-run  # all should route, none "<none>"
+```
 
 ## Common Issues
 
