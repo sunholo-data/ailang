@@ -31,8 +31,18 @@ func GenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, synta
 		template = string(templateBytes)
 	}
 
-	// Replace placeholders
-	template = strings.ReplaceAll(template, "{{CAPS}}", strings.Join(spec.Caps, ","))
+	// Replace placeholders.
+	// M-EVAL-NETWORK-MOCK-FIXTURE: for benchmarks that hit the local HTTP mock, the
+	// agent's own `ailang run --caps {{CAPS}} solution.ail` invocations must also
+	// enable plain-http + loopback (the {{CAPS}} token sits immediately before
+	// ` solution.ail`, so appending the flags here yields a valid command line).
+	// Without this the agent's in-loop verification of api_call_json fails forever
+	// (loopback blocked) and the run stalls.
+	capsValue := strings.Join(spec.Caps, ",")
+	if spec.NetAllowLocalhost {
+		capsValue += " --net-allow-http --net-allow-localhost"
+	}
+	template = strings.ReplaceAll(template, "{{CAPS}}", capsValue)
 	template = strings.ReplaceAll(template, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	template = strings.ReplaceAll(template, "{{PYTHON_VERSION}}", DetectedPythonVersion())
 
