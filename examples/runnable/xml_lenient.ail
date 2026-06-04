@@ -1,0 +1,33 @@
+-- xml_lenient.ail — lenient XML parsing (M-STDLIB-XML-LENIENT)
+--
+-- Real-world XML from non-reference generators (Office content.xml, HTML5,
+-- invoicing tools) often contains a bare/unescaped '&'. Go's strict XML parser
+-- rejects the whole document. `parseLenient` repairs the bare '&' first so the
+-- document parses. `parse` (strict) is unchanged and still rejects it.
+
+module examples/runnable/xml_lenient
+
+import std/xml (parse, parseLenient, sanitizeXml, getText)
+import std/io (println)
+
+export func main() -> () {
+  let dirty = "<r><p>Apex Consulting & Partners</p></r>";
+
+  -- Strict parse rejects the bare '&'
+  let strict = match parse(dirty) {
+    Ok(_) => "strict: unexpected Ok",
+    Err(_) => "strict: rejected (as expected)"
+  };
+  println(strict);
+
+  -- Lenient parse recovers the document
+  match parseLenient(dirty) {
+    Ok(doc) => println("lenient: ${getText(doc)}"),
+    Err(msg) => println("lenient error: ${msg}")
+  };
+
+  -- sanitizeXml is exposed for streaming parsers that sanitize before their
+  -- own parse call (parseFold / parseElements).
+  let raw = "R&D a=1&b=2 &amp; &#123;";
+  println("sanitized: ${sanitizeXml(raw)}")
+}

@@ -271,6 +271,7 @@ _xml_parseElements : (string, string, int) -> Result[list[XmlNode], string]
 _xml_parseFold : (string, string, a, (a, XmlNode) -> a) -> Result[a, string]
 _xml_parseFoldStep : (string, string, a, (a, XmlNode) -> FoldStep[a]) -> Result[a, string]
 _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
+_xml_sanitize : string -> string
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
 _zip_createArchive : (string, list[{content: string, name: string}]) -> Result[(), string] ! {FS}

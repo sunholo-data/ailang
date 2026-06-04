@@ -8,12 +8,16 @@
 -- Security: 256 depth limit, 50MB input size limit.
 --
 -- Usage:
---   import std/xml (parse, parseFold, findAll, findFirst, getText, getAttr, getChildren, getTag,
+--   import std/xml (parse, parseLenient, sanitizeXml, parseFold, findAll, findFirst,
+--                   getText, getAttr, getChildren, getTag,
 --                   serialize, escapeXml, xmlElement, xmlText, xmlComment)
 --   match parse("<root><item id='1'>Hello</item></root>") {
 --     Ok(doc) => println(getText(doc)),
 --     Err(msg) => println(msg)
 --   }
+--
+-- Real-world (malformed) XML with a bare '&' — use parseLenient:
+--   match parseLenient("<r><p>Apex Consulting & Partners</p></r>") { ... }
 
 module std/xml
 
@@ -41,6 +45,19 @@ export type NodeKind =
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML
 export pure func parse(xml: string) -> Result[XmlNode, string] = _xml_parse(xml)
+
+-- M-STDLIB-XML-LENIENT: lenient parsing for real-world (malformed) XML.
+--
+-- Repair common well-formedness offenders so a strict parser accepts the input.
+-- Currently: escapes a bare '&' that does not begin a valid entity reference
+-- (&amp; &#123; &#xAB; &name; are left intact). Pure, single-pass, idempotent.
+-- Strict callers should keep using `parse`; this is opt-in (no silent fallback).
+export pure func sanitizeXml(xml: string) -> string = _xml_sanitize(xml)
+
+-- Lenient parse: sanitizeXml(xml) then parse. For real-world XML from
+-- non-reference generators (Office content.xml, HTML5) that emit an unescaped
+-- '&'. Returns Ok(XmlNode) or Err(message).
+export pure func parseLenient(xml: string) -> Result[XmlNode, string] = parse(sanitizeXml(xml))
 
 -- Find all descendant elements matching tag name
 -- Searches recursively through the tree
