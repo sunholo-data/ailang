@@ -37,6 +37,9 @@ steps:
       - -c
       - |
         cd /workspace
+        # tests/golden/codegen shells out to the `ailang` binary — put it on PATH
+        # before `make test` (locally it's already installed; the container is bare).
+        go build -o /usr/local/bin/ailang ./cmd/ailang
         make test
     waitFor: ['-']
 
