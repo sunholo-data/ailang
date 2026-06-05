@@ -344,19 +344,25 @@ this step, the public MCP keeps serving the **previous** version and agents get
 `unknown_version` for the new release (this silently happened across v0.20–v0.24;
 prod was frozen at 0.19.1 for ~3 weeks).
 
-**Environments:**
-- **dev** (`ailang-dev-mcp`) — auto-rebuilt+redeployed by the `ailang-core-dev`
-  Cloud Build trigger on every `dev` push. No action needed.
-- **test** (`ailang-test-mcp`) — auto-rebuilt+redeployed by the `ailang-core-test-release`
-  trigger on every `v*` tag (file-based on `cloudbuild-dev.yaml`; was a stale inline
-  config that failed on `Dockerfile.agent`'s `${PROJECT}` until v0.24.0).
-- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — **manual gate** (`promote-to-prod`).
-  Run the build+deploy explicitly after the tag is published:
+**This is now automatic and gated** (M-RELEASE-GATE, v0.25.0+): pushing the `v*` tag fires
+the `ailang-core-release` Cloud Build trigger → `cloudbuild-release.yaml`:
+`build → deploy test → SMOKE GATE → (only on pass) crane copy test→prod → deploy prod`.
+The smoke gate requires the **test** MCP to serve the released version, so **`std/VERSION`
+must equal the tag** (the gate fails the release otherwise — this is intentional: it catches
+tagging without bumping `std/VERSION`).
+
+**Per-environment:**
+- **dev** (`ailang-dev-mcp`) — `ailang-core-dev` trigger on every `dev` push. No action.
+- **test** (`ailang-test-mcp`) — deployed as step 2 of the gated release pipeline on each `v*`
+  tag. (The standalone `ailang-core-test-release` trigger is **disabled** — superseded.)
+- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — deployed as the final step, **only if
+  the smoke gate passes**. No manual step in the happy path.
+
+**Break-glass (gate/pipeline broken, need prod NOW):** build+deploy prod directly with the
+maintained `cloudbuild-dev.yaml` (core images only — NOT the docparse-coupled
+`cloudbuild-images.yaml`):
 
 ```bash
-# Build core ailang images from the released source AND redeploy prod Cloud Run
-# (coordinator/dashboard/mcp + agent jobs). Uses the maintained, env-parameterized
-# cloudbuild-dev.yaml — NOT the docparse-coupled cloudbuild-images.yaml.
 SA="projects/ailang-multivac-deploy/serviceAccounts/sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com"
 gcloud builds submit --project=ailang-multivac-deploy \
   --config=cloudbuild-dev.yaml \
