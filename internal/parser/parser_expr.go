@@ -99,6 +99,22 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	}
 	let.Name = p.curToken.Literal
 
+	// Detect `let rec name = ...` (ML/Haskell style) — AILANG uses `letrec name = ...`
+	if let.Name == "rec" && p.peekTokenIs(lexer.IDENT) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR018",
+			p.curPos(),
+			p.curToken,
+			"'let rec' is not valid AILANG syntax (ML/Haskell pattern detected)",
+			[]string{
+				fmt.Sprintf("Use: letrec %s = ... in ...", p.peekToken.Literal),
+				"AILANG uses 'letrec' (one word) for recursive bindings",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
+
 	// Optional type annotation
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken()
@@ -184,6 +200,22 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 
 	p.nextToken()
 	match.Expr = p.parseExpression(LOWEST)
+
+	// Detect `match x with p =>` (ML/Haskell/OCaml syntax) — AILANG uses `match x { p => ... }`
+	if p.peekTokenIs(lexer.WITH) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR019",
+			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+			p.peekToken,
+			"'match ... with' is not valid AILANG syntax (ML/Haskell pattern detected)",
+			[]string{
+				"Use: match expr { pattern => body, ... }",
+				"AILANG uses braces for match arms, not 'with'",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
 
 	p.expectPeek(lexer.LBRACE)
 	p.traceDelimiterOpen(delimCtxMatch)

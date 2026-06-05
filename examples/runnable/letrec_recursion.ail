@@ -1,22 +1,20 @@
 -- letrec_recursion.ail
--- Demonstrates letrec keyword for recursive lambdas (v0.3.5)
--- NOTE: letrec with single recursive call has a known bug (Bool::lt error)
---       Using double recursive call pattern (like Fibonacci) as workaround
+-- Demonstrates letrec keyword for recursive lambdas
 module examples/runnable/letrec_recursion
 
 import std/io (println)
 
 export func main() -> () ! {IO} {
   {
-    println("=== Letrec Recursive Lambdas (v0.3.5) ===");
+    println("=== Letrec Recursive Lambdas ===");
 
-    -- Fibonacci using letrec (double recursive call works)
+    -- Single recursive call (factorial)
+    let fact = letrec factorial = \n. if n < 2 then 1 else n * factorial(n - 1) in factorial(5);
+    println("factorial(5) = ${show(fact)}");
+
+    -- Double recursive call (fibonacci)
     let fib_result = letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10);
     println("Fibonacci(10) = ${show(fib_result)}");
-
-    -- Double-call pattern works around single-call bug
-    let double_sum = letrec sum = \n. if n < 2 then n else sum(n - 1) + sum(n - 1) in sum(5);
-    println("Double sum(5) = ${show(double_sum)}");
 
     ()
   }
