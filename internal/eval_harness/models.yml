@@ -1251,6 +1251,29 @@ models:
       token. Pull: ollama pull qwen3.5:35b-a3b-mxfp8. Requires opencode ollama
       provider block entry (added 2026-06-02).
 
+  # pi harness variant of the local Qwen — for cross-harness local comparison
+  # (opencode vs pi vs eventually motoko on the same model). Added 2026-06-05.
+  pi-qwen3-5-35b-a3b-mxfp8:
+    api_name: "qwen3.5:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness comparison vs opencode"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    model_family: "qwen-3-5"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 2400
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      pi-harness sibling of opencode-qwen3-5-35b-a3b-mxfp8. Added 2026-06-05 to
+      measure harness-induced delta on the same local model (pi minimal harness
+      vs opencode multi-turn). Free/local. Requires pi configured for ollama.
+
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
     provider: "ollama"
