@@ -486,7 +486,7 @@ if [[ -n "$LANG_HARNESS" ]]; then
         --models "$LANG_HARNESS_MODELS" \
         --benchmarks "$LANG_HARNESS_BENCHMARKS" \
         --langs "$LANG_HARNESS_LANGS" \
-        --agent-parallel 2 \
+        --parallel 2 \
         --output "$RESULTS_DIR"
     kill $MONITOR_PID 2>/dev/null || true
 
