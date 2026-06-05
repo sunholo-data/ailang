@@ -26,22 +26,33 @@ options:
   machineType: E2_HIGHCPU_8
 
 steps:
-  # ── (0) Unit tests — gates the PROD roll (M-RELEASE-GATE) ──────
-  # Runs in parallel with the image builds. `promote-images` waitFor's this, so
-  # a unit-test failure leaves prod on the last known-good revision (test env may
-  # still deploy — harmless). Mirrors `make test` (prepare-embed + filtered go test).
-  - id: unit-tests
-    name: golang:1.25
+  # ── (0) CI gate — require dev CI green for this commit (M-RELEASE-GATE) ──
+  # Do NOT re-run the suite here (re-running in the deploy path is flaky). Instead
+  # require the authoritative `CI` workflow (ci.yml, job `test`) to have concluded
+  # `success` for the tagged commit. Polls up to ~15 min. `promote-images` waitFor's
+  # this, so a red/absent CI leaves prod on the last known-good revision.
+  - id: ci-gate
+    name: gcr.io/cloud-builders/gcloud
     entrypoint: bash
     args:
       - -c
       - |
-        cd /workspace
-        # Hermetic unit-test gate: ./internal/... is pure Go (no binary/wasm/env
-        # deps), so it runs reliably in the bare container and still catches logic
-        # regressions (e.g. the stale eval-suite test). Full `make test` (golden
-        # binary-integration + examples) stays in pre-release checks and dev CI.
-        go test ./internal/...
+        set -e
+        TOKEN=$$(gcloud secrets versions access latest --secret=${_PROD_PREFIX}-github-token --project=$_PROD_PROJECT)
+        SHA="$COMMIT_SHA"
+        API="https://api.github.com/repos/sunholo-data/ailang/commits/$$SHA/check-runs?per_page=100"
+        echo "CI gate: requiring workflow 'CI' (job 'test') == success for $$SHA"
+        for i in $$(seq 1 60); do
+          RESP=$$(curl -fsS -H "Authorization: Bearer $$TOKEN" -H "Accept: application/vnd.github+json" "$$API")
+          VERDICT=$$(echo "$$RESP" | python3 -c "import sys,json; rs=[r for r in json.load(sys.stdin).get('check_runs',[]) if r.get('name')=='test']; print('pending' if not rs or rs[0].get('status')!='completed' else ('success' if rs[0].get('conclusion')=='success' else 'failed'))")
+          echo "  [$$i] CI: $$VERDICT"
+          case "$$VERDICT" in
+            success) echo "CI GREEN — proceeding"; exit 0 ;;
+            failed)  echo "CI FAILED for $$SHA — aborting release (prod untouched)"; exit 1 ;;
+            *)       sleep 15 ;;
+          esac
+        done
+        echo "CI did not complete in ~15min — aborting (fail-closed)"; exit 1
     waitFor: ['-']
 
   # ── (1) Build core images → TEST registry ──────────────────────
@@ -219,8 +230,8 @@ steps:
           crane copy "$$T/$$img:latest" "$$P/$$img:latest"
         done
         echo "Image promotion complete."
-    # Prod promotes only if BOTH the smoke gate AND unit tests pass.
-    waitFor: ['smoke-gate', 'unit-tests']
+    # Prod promotes only if BOTH the smoke gate AND the CI gate pass.
+    waitFor: ['smoke-gate', 'ci-gate']
 
   # ── (5) Deploy PROD ────────────────────────────────────────────
   - id: deploy-prod

@@ -35,12 +35,21 @@ v* tag pushed
 ```
 
 **Two gates protect prod** (both must pass before `promote-images`):
-- **Unit tests** (`go test ./internal/...`, step 0) — hermetic (no binary/wasm/env deps, runs
-  reliably in the bare gate container) and catches logic/unit regressions. Added after a stale
-  eval test (`TestMotokoModelsInAgentSuite`) reached `dev` red and would have sailed through a
-  smoke-only gate. Full `make test` (golden binary-integration + examples) stays in pre-release
-  checks + dev CI.
-- **Smoke gate** (step 3) — catches deploy/runtime/version-serving problems the unit tests can't.
+- **CI gate** (step 0) — requires the authoritative `CI` workflow (`ci.yml`, job `test`:
+  `go test ./...` + parser/coverage/golden/import checks, with the `ailang` binary installed) to
+  have concluded `success` for the tagged commit. Polls the GitHub check-runs API up to ~15 min;
+  red or absent CI → fail-closed. **We do NOT re-run the suite inside the deploy pipeline** —
+  that proved flaky (empty `$TAG_NAME`, missing `ailang` binary, a timing-sensitive 10s-timeout
+  test all failed the deploy on env issues, never code regressions). Requiring the existing CI
+  result is authoritative and flake-free in the deploy path.
+- **Smoke gate** (step 3) — catches deploy/runtime/version-serving problems CI can't (image
+  actually deployed, MCP serves the released version, services healthy).
+
+**Root-cause companion fix:** `ci.yml` now also runs `make check-file-sizes` (it previously
+ran tests but not the size gate, which let `parser_expr.go` exceed 800 lines onto `dev`). The
+remaining gap — `dev` accepts direct pushes with no merge gate, so a red CI doesn't block the
+push — needs **branch protection** (require CI green before merge); that's a GitHub repo setting,
+tracked as a manual follow-up.
 
 Steps 1–2 reuse `cloudbuild-dev.yaml`'s proven build+deploy logic (already passes
 `--build-arg PROJECT`). Steps 4–5 reuse `cloudbuild-promote.yaml`'s `crane copy` + deploy

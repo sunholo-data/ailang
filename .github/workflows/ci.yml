@@ -50,6 +50,9 @@ jobs:
     - name: Run parser tests
       run: make test-parser
 
+    - name: Check file sizes (>800 lines)
+      run: make check-file-sizes
+
     - name: Check coverage gate (M-P2)
       run: make test-coverage-gate
 
