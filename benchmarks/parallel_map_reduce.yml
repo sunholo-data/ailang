@@ -26,5 +26,5 @@ task_prompt: |
 expected_stdout: |
   55
   3840
-tier: core
+tier: smoke
 tags: [functional, higher_order, polymorphism]

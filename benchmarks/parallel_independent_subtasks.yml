@@ -33,5 +33,5 @@ expected_stdout: |
   sum_of_squares=385
   sum_of_cubes=3025
   product=3628800
-tier: core
+tier: smoke
 tags: [functional, independent_subtasks, algorithmic]

@@ -26,5 +26,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   220
-tier: core
+tier: smoke
 tags: [functional, data_transform, pipeline]

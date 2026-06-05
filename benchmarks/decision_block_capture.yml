@@ -27,5 +27,5 @@ task_prompt: |
 expected_stdout: |
   9
   CHOICE: single linear pass for O(n) time and O(1) space
-tier: core
+tier: stretch
 tags: [structured_output, decision_capture, algorithmic]

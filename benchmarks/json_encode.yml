@@ -20,5 +20,5 @@ prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   {"name":"Gadget","price":149,"inStock":true,"tags":["electronics","sale","featured"],"dimensions":{"width":10,"height":5,"depth":3}}
-tier: core
+tier: smoke
 tags: [data_transform, string_algo]
