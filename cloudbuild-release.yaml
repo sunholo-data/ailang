@@ -26,6 +26,20 @@ options:
   machineType: E2_HIGHCPU_8
 
 steps:
+  # ── (0) Unit tests — gates the PROD roll (M-RELEASE-GATE) ──────
+  # Runs in parallel with the image builds. `promote-images` waitFor's this, so
+  # a unit-test failure leaves prod on the last known-good revision (test env may
+  # still deploy — harmless). Mirrors `make test` (prepare-embed + filtered go test).
+  - id: unit-tests
+    name: golang:1.25
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cd /workspace
+        make test
+    waitFor: ['-']
+
   # ── (1) Build core images → TEST registry ──────────────────────
   - id: setup-buildx
     name: gcr.io/cloud-builders/docker
@@ -201,7 +215,8 @@ steps:
           crane copy "$$T/$$img:latest" "$$P/$$img:latest"
         done
         echo "Image promotion complete."
-    waitFor: ['smoke-gate']
+    # Prod promotes only if BOTH the smoke gate AND unit tests pass.
+    waitFor: ['smoke-gate', 'unit-tests']
 
   # ── (5) Deploy PROD ────────────────────────────────────────────
   - id: deploy-prod

@@ -48,37 +48,8 @@ func TestMotokoModelsResolve(t *testing.T) {
 	}
 }
 
-// TestMotokoModelsInAgentSuite verifies the motoko entries that are members of
-// agent_suite — without this, `ailang eval-suite --models agent_suite` would
-// silently exclude motoko from the threshold-measurement experiment that is
-// the strategic point of the M-MOTOKO-EXECUTOR-ADAPTER sprint.
-//
-// motoko-claude-sonnet-4-6 was intentionally removed from agent_suite on
-// 2026-05-16 (v0.20.0 post-release): sonnet-4-6 is already the longitudinal
-// anchor via its native claude-code harness slot, and the cross-harness
-// duplicate inflated cost without adding signal. It is still defined in
-// models.yml (TestMotokoModelsResolve covers that) and is available via
-// harness_suite (--cross-harness) for explicit pairing runs.
-func TestMotokoModelsInAgentSuite(t *testing.T) {
-	cfg, err := LoadModelsConfig("models.yml")
-	if err != nil {
-		t.Fatalf("LoadModelsConfig: %v", err)
-	}
-
-	suite := cfg.GetAgentSuite()
-	suiteSet := make(map[string]bool, len(suite))
-	for _, name := range suite {
-		suiteSet[name] = true
-	}
-
-	wanted := []string{
-		"motoko-claude-haiku-4-5",
-		"motoko-glm-5",
-		"motoko-gemma-4",
-	}
-	for _, name := range wanted {
-		if !suiteSet[name] {
-			t.Errorf("agent_suite missing %q", name)
-		}
-	}
-}
+// NOTE: TestMotokoModelsInAgentSuite was removed 2026-06-05. The motoko-* entries
+// were intentionally pulled from agent_suite in commit 3f52e61c ("the motoko/bun
+// harness isn't reliable yet"); the test still asserted their presence and so
+// contradicted the deliberate change. Motoko model resolution is covered by
+// TestMotokoModelsResolve above; cross-harness membership lives in harness_suite.

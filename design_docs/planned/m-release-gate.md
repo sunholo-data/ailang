@@ -25,13 +25,20 @@ a file-based trigger on the ailang repo can read it) that runs **sequentially**:
 ```
 v* tag pushed
    │
+   ├─(0) UNIT TESTS (make test)  ← runs in parallel; gates the prod roll
    ├─(1) build core images from the released source  → push to TEST registry (:latest + :${TAG})
    ├─(2) deploy TEST  (gcloud run update test services + jobs)
-   ├─(3) SMOKE GATE against test  ← the new safety
+   ├─(3) SMOKE GATE against test  ← service-health + version safety
    │        fail → STOP. prod untouched.
-   ├─(4) promote images test→prod (crane copy)         ← only if gate passed
+   ├─(4) promote images test→prod (crane copy)         ← only if SMOKE GATE *and* UNIT TESTS passed
    └─(5) deploy PROD  (gcloud run update prod services + jobs)
 ```
+
+**Two gates protect prod** (both must pass before `promote-images`):
+- **Unit tests** (`make test`, step 0) — catches logic/unit regressions. Added after a stale
+  eval test (`TestMotokoModelsInAgentSuite`) reached `dev` red and would have sailed through a
+  smoke-only gate.
+- **Smoke gate** (step 3) — catches deploy/runtime/version-serving problems the unit tests can't.
 
 Steps 1–2 reuse `cloudbuild-dev.yaml`'s proven build+deploy logic (already passes
 `--build-arg PROJECT`). Steps 4–5 reuse `cloudbuild-promote.yaml`'s `crane copy` + deploy
