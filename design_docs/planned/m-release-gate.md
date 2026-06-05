@@ -1,9 +1,49 @@
 ## M-RELEASE-GATE: Gated release pipeline — tag → test → smoke gate → prod
 
-**Status**: PROPOSED (awaiting approval to create the prod trigger)
+**Status**: IMPLEMENTED — gate live & **fail-closed proven**; **green pass→prod path PENDING validation on the next real release (v0.25.0)**.
 **Target**: v0.25.0
-**Priority**: P1 — prod (public `mcp.ailang.sunholo.com` + coordinator) currently updates only via a manual, forgettable step; releases v0.20–v0.24 silently never reached prod.
+**Priority**: P1 — prod (public `mcp.ailang.sunholo.com` + coordinator) had silently frozen at 0.19.1 for ~3 weeks (v0.20–v0.24 never reached prod).
 **Owner**: release-manager
+
+---
+
+## ⚠️ REVISIT ON NEXT RELEASE (v0.25.0) — validation checklist
+
+The gate is built and has **proven it fails closed** (it blocked prod 4× on real env/version
+problems and never let a bad build through). The **green path** (gate passes → prod actually
+rolls) has **not yet succeeded** — the three earlier attempts failed on gate-environment bugs
+that are now fixed, and we stopped cutting tags rather than churn more CLI releases. So on the
+**next real release**, verify the happy path end-to-end:
+
+- [ ] Push the `v0.25.0` tag. The `ailang-core-release` Cloud Build runs (project
+      `ailang-multivac-deploy`, region `europe-west3`).
+- [ ] **CI gate (step 0)** finds the tagged commit's `CI` workflow (`ci.yml` job `test`) green
+      and proceeds (polls GitHub check-runs; secret `ailang-github-token`). Watch for it actually
+      detecting `success` — this codepath has never run live.
+- [ ] **Smoke gate (step 3)** passes: test MCP `latest == 0.25.0`, `docs_search` answers it,
+      coordinator/dashboard `/health` 200.
+- [ ] **promote-images + deploy-prod run** (they only run if both gates pass — never exercised yet).
+- [ ] `curl -s -X POST -d '{}' https://mcp.ailang.sunholo.com/api/mcp/ailang_versions` →
+      `result.latest == 0.25.0` **without** a manual break-glass.
+- [ ] If the CI gate's GitHub-API poll misbehaves (auth/secret/timing), fall back to the
+      break-glass in release-manager skill §7.6 and fix the gate.
+
+**Known follow-up (not done):** `dev` has **no branch protection** — CI runs on push but doesn't
+block direct pushes, so red commits still land (this caused the stale-test + oversized-file
+incidents this session). Add a GitHub repo rule requiring the `CI` check green before merge to
+`dev`/`main`. This is a repo *setting*, not a code change.
+
+---
+
+## Current state snapshot (2026-06-05)
+
+- prod = **0.24.2** everywhere (restored via a one-time user-authorized break-glass after the
+  gated deploy was blocked by gate-env bugs). GitHub latest = v0.24.2.
+- v0.24.1 = CLI-only release (binaries published; its gated deploy failed, so prod skipped it).
+- Triggers: `ailang-core-release` (gated, live) · `ailang-core-test-release` (disabled) ·
+  `ailang-core-dev` (dev env, unchanged) · `promote-to-prod` (manual break-glass, kept).
+- Gate design FINAL: **CI-green required (not test-rerun) + smoke gate**. `ci.yml` now also runs
+  `make check-file-sizes`.
 
 ## Problem
 
