@@ -42,16 +42,22 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 			failCount++
 		}
 	}
+	// actualRuns is the real denominator: counts actual results, not the
+	// pre-trial estimate stored in p.totalRuns (which omits trialsToRun).
+	actualRuns := successCount + failCount
+	if actualRuns == 0 {
+		actualRuns = 1 // guard against divide-by-zero on empty result set
+	}
 
 	// Record suite results on span
 	p.suiteSpan.SetAttributes(
 		attribute.Int("eval.success_count", successCount),
 		attribute.Int("eval.fail_count", failCount),
 		attribute.Int64("eval.duration_ms", p.duration.Milliseconds()),
-		attribute.Float64("eval.success_rate", float64(successCount)/float64(p.totalRuns)*100),
+		attribute.Float64("eval.success_rate", float64(successCount)/float64(actualRuns)*100),
 	)
 	if failCount > 0 {
-		p.suiteSpan.SetStatus(codes.Error, fmt.Sprintf("%d/%d benchmarks failed", failCount, p.totalRuns))
+		p.suiteSpan.SetStatus(codes.Error, fmt.Sprintf("%d/%d runs failed", failCount, actualRuns))
 	} else {
 		p.suiteSpan.SetStatus(codes.Ok, "all benchmarks passed")
 	}
@@ -59,8 +65,8 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 	fmt.Println()
 	fmt.Printf("%s Benchmark suite complete!\n", green("✓"))
 	fmt.Printf("Duration: %s\n", p.duration.Round(time.Second))
-	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, p.totalRuns, float64(successCount)/float64(p.totalRuns)*100)
-	fmt.Printf("Failed:  %d/%d\n", failCount, p.totalRuns)
+	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, actualRuns, float64(successCount)/float64(actualRuns)*100)
+	fmt.Printf("Failed:  %d/%d\n", failCount, actualRuns)
 	fmt.Println()
 
 	// M-EVAL-OS-LONGITUDINAL Phase 3: write summary.json that aggregates
@@ -92,9 +98,9 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 			"task_id":      p.taskID,
 			"success":      successCount,
 			"failed":       failCount,
-			"total":        p.totalRuns,
+			"total":        actualRuns,
 			"duration_sec": p.duration.Seconds(),
-			"success_rate": float64(successCount) / float64(p.totalRuns) * 100,
+			"success_rate": float64(successCount) / float64(actualRuns) * 100,
 		}
 		payloadBytes, _ := json.Marshal(completePayload)
 
@@ -102,7 +108,7 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 			FromAgent:     "eval-suite",
 			ToInbox:       "controlplane",
 			MessageType:   messaging.InboxTypeNotification,
-			Title:         fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, p.totalRuns, float64(successCount)/float64(p.totalRuns)*100),
+			Title:         fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, actualRuns, float64(successCount)/float64(actualRuns)*100),
 			Payload:       string(payloadBytes),
 			Category:      "eval",
 			CorrelationID: p.taskID,

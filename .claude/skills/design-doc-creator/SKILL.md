@@ -287,27 +287,34 @@ The design doc MUST include a **Conflict Surface** section (see [resources/desig
 .claude/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name
 ```
 
-**4. Read Related Docs Found by Search**
+**4. Duplicate / Coverage Gate (MANDATORY — do this before creating the file)**
 
-**IMPORTANT:** Before filling in the template, read the top 2-3 related docs found by the search. This ensures your design:
-- Builds on existing patterns and conventions
-- Avoids duplicating work already done
-- References relevant prior art
-- Identifies potential conflicts early
+**Before creating any doc, read the top matches from the search and apply this gate:**
 
-```bash
-# The script outputs related docs like:
-# Implemented docs matching "feature name":
-#   [Neural - semantic matching]
-#   1. design_docs/implemented/v0_6_0/similar-feature.md (0.45)
-#   2. design_docs/implemented/v0_5_0/related-work.md (0.38)
+| Similarity score | Action |
+|---|---|
+| ≥ 0.75 (neural) on a planned doc | **REJECT** — the topic is already queued. Reply with the path and explain what's already covered. Do NOT create a new doc. |
+| ≥ 0.65 (neural) on an implemented doc | **REJECT** — already shipped. Reply with the path + version it shipped in. Do NOT create a new doc. |
+| 0.45–0.65 on any doc | **Warn** — read the doc, confirm your topic is genuinely distinct before proceeding. Note the distinction explicitly in the "Related Documents" section. |
+| < 0.45 | Proceed normally. |
 
-# READ these docs before proceeding:
-# - Look at their structure and patterns
-# - Note any design decisions that apply
-# - Check for overlap with your feature
-# - Reference them in your "Related Documents" section
+**Rejection reply format (use this when rejecting):**
 ```
+⛔ Duplicate / Already Covered
+
+This topic is already addressed in:
+  [doc title](path/to/doc.md) — [planned v0.X.Y / implemented in vX.Y.Z]
+
+Key overlap: <one sentence on what the existing doc covers that would duplicate this request>
+
+If your request is genuinely distinct, please clarify how it differs from the above.
+```
+
+**Read related docs found by search** before proceeding (non-rejected cases):
+- Look at their structure and patterns
+- Note any design decisions that apply
+- Check for overlap with your feature
+- Reference them in your "Related Documents" section
 
 **What to look for in related docs:**
 - Architecture patterns used
