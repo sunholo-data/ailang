@@ -37,10 +37,11 @@ steps:
       - -c
       - |
         cd /workspace
-        # tests/golden/codegen shells out to the `ailang` binary — put it on PATH
-        # before `make test` (locally it's already installed; the container is bare).
-        go build -o /usr/local/bin/ailang ./cmd/ailang
-        make test
+        # Hermetic unit-test gate: ./internal/... is pure Go (no binary/wasm/env
+        # deps), so it runs reliably in the bare container and still catches logic
+        # regressions (e.g. the stale eval-suite test). Full `make test` (golden
+        # binary-integration + examples) stays in pre-release checks and dev CI.
+        go test ./internal/...
     waitFor: ['-']
 
   # ── (1) Build core images → TEST registry ──────────────────────

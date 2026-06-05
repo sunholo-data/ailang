@@ -35,9 +35,11 @@ v* tag pushed
 ```
 
 **Two gates protect prod** (both must pass before `promote-images`):
-- **Unit tests** (`make test`, step 0) — catches logic/unit regressions. Added after a stale
+- **Unit tests** (`go test ./internal/...`, step 0) — hermetic (no binary/wasm/env deps, runs
+  reliably in the bare gate container) and catches logic/unit regressions. Added after a stale
   eval test (`TestMotokoModelsInAgentSuite`) reached `dev` red and would have sailed through a
-  smoke-only gate.
+  smoke-only gate. Full `make test` (golden binary-integration + examples) stays in pre-release
+  checks + dev CI.
 - **Smoke gate** (step 3) — catches deploy/runtime/version-serving problems the unit tests can't.
 
 Steps 1–2 reuse `cloudbuild-dev.yaml`'s proven build+deploy logic (already passes
