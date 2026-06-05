@@ -201,6 +201,9 @@ if [[ $# -eq 0 ]]; then
     echo "  --lang-harness      Add Step 3: 4-language sweep using lang_harness_suite" >&2
     echo "                      (cheapest model per harness × ailang,python,js,go × core)" >&2
     echo "                      Feeds the Agent Harness Explorer language/harness data" >&2
+    echo "  --skip-existing     Pass --skip-existing to eval-suite (resume an interrupted run)" >&2
+    echo "  --agent-only        Skip Step 1 (standard); run only the agent step. Implies" >&2
+    echo "                      --skip-existing. Use when the standard baseline is already done." >&2
     exit 1
 fi
 
@@ -210,11 +213,22 @@ FULL_FLAG=""
 TIER_FLAG="$DEFAULT_TIER"
 CROSS_HARNESS=""
 LANG_HARNESS=""
+SKIP_EXISTING=""   # when set, pass --skip-existing to eval-suite (resume runs)
+AGENT_ONLY=""      # when set, skip the standard step entirely
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --full)
             FULL_FLAG="FULL=true"
+            shift
+            ;;
+        --skip-existing)
+            SKIP_EXISTING="--skip-existing"
+            shift
+            ;;
+        --agent-only)
+            AGENT_ONLY="true"
+            SKIP_EXISTING="--skip-existing"
             shift
             ;;
         --tier)
@@ -269,23 +283,28 @@ else
 fi
 echo
 
-# Step 1: Run standard eval baseline
-echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
-# Expected file count for standard eval: benchmarks × models × langs (2)
-if [[ -n "$FULL_FLAG" ]]; then
-    EXPECTED_STANDARD=$((BENCHMARK_COUNT * 6 * 2))   # ~6 extended models
+# Step 1: Run standard eval baseline (skipped entirely with --agent-only)
+if [[ -n "$AGENT_ONLY" ]]; then
+    echo "=== Step 1/2: Standard Eval — SKIPPED (--agent-only) ==="
+    EXPECTED_STANDARD=0
 else
-    EXPECTED_STANDARD=$((BENCHMARK_COUNT * 3 * 2))   # 3 dev models
-fi
+    echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
+    # Expected file count for standard eval: benchmarks × models × langs (2)
+    if [[ -n "$FULL_FLAG" ]]; then
+        EXPECTED_STANDARD=$((BENCHMARK_COUNT * 6 * 2))   # ~6 extended models
+    else
+        EXPECTED_STANDARD=$((BENCHMARK_COUNT * 3 * 2))   # 3 dev models
+    fi
 
-monitor_progress "$RESULTS_DIR" "$EXPECTED_STANDARD" "Standard" &
-MONITOR_PID=$!
-if [[ -n "$FULL_FLAG" ]]; then
-    TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
-else
-    TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
+    monitor_progress "$RESULTS_DIR" "$EXPECTED_STANDARD" "Standard" &
+    MONITOR_PID=$!
+    if [[ -n "$FULL_FLAG" ]]; then
+        TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
+    else
+        TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
+    fi
+    kill $MONITOR_PID 2>/dev/null || true
 fi
-kill $MONITOR_PID 2>/dev/null || true
 
 # Step 2: Run agent eval on tier-selected benchmarks
 echo
@@ -365,6 +384,7 @@ ailang eval-suite --agent \
     --benchmarks "$AGENT_BENCHMARKS_CSV" \
     --langs "$AGENT_LANGS" \
     --agent-parallel 2 \
+    ${SKIP_EXISTING} \
     --output "$RESULTS_DIR"
 kill $MONITOR_PID 2>/dev/null || true
 
