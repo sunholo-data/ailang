@@ -1,0 +1,215 @@
+# Cloud Build — Gated release pipeline (M-RELEASE-GATE).
+#
+# Triggered by an ailang `v*` tag (trigger: ailang-core-release, file-based).
+# Sequence: build → deploy TEST → SMOKE GATE → (only on pass) promote+deploy PROD.
+#
+#   v* tag
+#     (1) build core images from the released source → push TEST registry (:latest + :TAG)
+#     (2) deploy TEST services + jobs
+#     (3) SMOKE GATE against test — fail here leaves PROD on the last known-good revision
+#     (4) crane copy images TEST → PROD registry        [waitFor: smoke-gate]
+#     (5) deploy PROD services + jobs                    [waitFor: promote-images]
+#
+# Build steps mirror cloudbuild-dev.yaml (which correctly passes --build-arg PROJECT).
+# Promote steps mirror cloudbuild-promote.yaml (crane copy + gcloud run update).
+# Does NOT touch docparse/billing/website-builder (separate repos/pipelines).
+
+substitutions:
+  _REGION: europe-west1
+  _TEST_PROJECT: ailang-multivac-test
+  _TEST_PREFIX: ailang-test
+  _PROD_PROJECT: ailang-multivac
+  _PROD_PREFIX: ailang
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+  # ── (1) Build core images → TEST registry ──────────────────────
+  - id: setup-buildx
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker buildx create --name ci --driver docker-container --use
+        docker buildx inspect --bootstrap
+    waitFor: ['-']
+
+  - id: build-coordinator
+    name: gcr.io/k8s-skaffold/pack
+    entrypoint: pack
+    args:
+      - build
+      - ${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang/coordinator:latest
+      - --builder=gcr.io/buildpacks/builder:latest
+      - --lifecycle-image=buildpacksio/lifecycle:0.20.4
+      - --path=/workspace
+      - --env=GOOGLE_BUILDABLE=./cmd/ailang/
+      - --env=GOOGLE_GOLDFLAGS=-s -w
+      - --env=GOOGLE_CLEAR_SOURCE=true
+      - --env=CGO_ENABLED=0
+    waitFor: ['-']
+
+  - id: push-coordinator
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang/coordinator:latest']
+    waitFor: ['build-coordinator']
+
+  - id: build-dashboard
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/dashboard:cache" \
+          --cache-to   "type=registry,ref=$$AR/dashboard:cache,mode=max" \
+          -t "$$AR/dashboard:latest" -t "$$AR/dashboard:$TAG_NAME" \
+          -f docker/Dockerfile.dashboard --push .
+    waitFor: ['setup-buildx']
+
+  - id: build-mcp
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/mcp:cache" \
+          --cache-to   "type=registry,ref=$$AR/mcp:cache,mode=max" \
+          -t "$$AR/mcp:latest" -t "$$AR/mcp:$TAG_NAME" \
+          -f docker/Dockerfile.mcp --push .
+    waitFor: ['setup-buildx']
+
+  - id: build-agent-base
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-base:cache,mode=max" \
+          -t "$$AR/agent-base:latest" \
+          -f docker/Dockerfile.agent-base --push .
+    waitFor: ['setup-buildx']
+
+  - id: build-agent
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent:latest" -t "$$AR/agent:$TAG_NAME" \
+          -f docker/Dockerfile.agent --push .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-go:cache,mode=max" \
+          --build-arg PROJECT=$_TEST_PROJECT \
+          -t "$$AR/agent-go:latest" -t "$$AR/agent-go:$TAG_NAME" \
+          -f docker/Dockerfile.agent-go --push .
+    waitFor: ['build-agent']
+
+  # ── (2) Deploy TEST ────────────────────────────────────────────
+  - id: deploy-test
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
+        gcloud run services update ${_TEST_PREFIX}-coordinator --region ${_REGION} --project $_TEST_PROJECT --image $$AR/coordinator:latest --quiet
+        gcloud run services update ${_TEST_PREFIX}-dashboard   --region ${_REGION} --project $_TEST_PROJECT --image $$AR/dashboard:latest   --quiet
+        gcloud run services update ${_TEST_PREFIX}-mcp         --region ${_REGION} --project $_TEST_PROJECT --image $$AR/mcp:latest         --quiet
+        gcloud run jobs update ${_TEST_PREFIX}-agent-executor    --region ${_REGION} --project $_TEST_PROJECT --image $$AR/agent:latest    --quiet
+        gcloud run jobs update ${_TEST_PREFIX}-agent-executor-go --region ${_REGION} --project $_TEST_PROJECT --image $$AR/agent-go:latest --quiet
+        echo "TEST deploy complete."
+    waitFor: ['push-coordinator', 'build-dashboard', 'build-mcp', 'build-agent-go']
+
+  # ── (3) SMOKE GATE (fail here => prod untouched) ───────────────
+  - id: smoke-gate
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        VER="${TAG_NAME#v}"
+        url() { gcloud run services describe "$$1" --region ${_REGION} --project $_TEST_PROJECT --format='value(status.url)'; }
+        MCP=$$(url ${_TEST_PREFIX}-mcp)
+        COORD=$$(url ${_TEST_PREFIX}-coordinator)
+        DASH=$$(url ${_TEST_PREFIX}-dashboard)
+
+        echo "GATE 1/4: MCP serves $$VER"
+        LATEST=$$(curl -fsS -m 20 -X POST -H 'Content-Type: application/json' -d '{}' "$$MCP/api/mcp/ailang_versions" \
+          | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['latest'])")
+        echo "  test MCP latest=$$LATEST (want $$VER)"
+        [ "$$LATEST" = "$$VER" ] || { echo "GATE FAIL: MCP latest mismatch"; exit 1; }
+
+        echo "GATE 2/4: MCP docs_search answers $$VER (not unknown_version)"
+        BODY=$$(curl -fsS -m 20 -X POST -H 'Content-Type: application/json' \
+          -d "{\"forVersion\":\"$$VER\",\"query\":\"module\"}" "$$MCP/api/mcp/docs_search")
+        echo "$$BODY" | grep -q unknown_version && { echo "GATE FAIL: docs_search unknown_version"; exit 1; }
+        echo "  ok"
+
+        echo "GATE 3/4: coordinator /health"
+        curl -fsS -m 20 "$$COORD/health" >/dev/null || { echo "GATE FAIL: coordinator unhealthy"; exit 1; }
+
+        echo "GATE 4/4: dashboard /health"
+        curl -fsS -m 20 "$$DASH/health" >/dev/null || { echo "GATE FAIL: dashboard unhealthy"; exit 1; }
+
+        echo "SMOKE GATE PASSED — promoting to prod."
+    waitFor: ['deploy-test']
+
+  # ── (4) Promote images TEST → PROD (crane copy) ────────────────
+  - id: promote-images
+    name: gcr.io/go-containerregistry/crane:debug
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        T=${_REGION}-docker.pkg.dev/${_TEST_PROJECT}/ailang
+        P=${_REGION}-docker.pkg.dev/${_PROD_PROJECT}/ailang
+        for img in coordinator dashboard mcp agent agent-go; do
+          echo "crane copy $$T/$$img:latest → $$P/$$img:latest"
+          crane copy "$$T/$$img:latest" "$$P/$$img:latest"
+        done
+        echo "Image promotion complete."
+    waitFor: ['smoke-gate']
+
+  # ── (5) Deploy PROD ────────────────────────────────────────────
+  - id: deploy-prod
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_PROD_PROJECT/ailang
+        gcloud run services update ${_PROD_PREFIX}-coordinator --region ${_REGION} --project $_PROD_PROJECT --image $$AR/coordinator:latest --quiet
+        gcloud run services update ${_PROD_PREFIX}-dashboard   --region ${_REGION} --project $_PROD_PROJECT --image $$AR/dashboard:latest   --quiet
+        gcloud run services update ${_PROD_PREFIX}-mcp         --region ${_REGION} --project $_PROD_PROJECT --image $$AR/mcp:latest         --quiet
+        gcloud run jobs update ${_PROD_PREFIX}-agent-executor    --region ${_REGION} --project $_PROD_PROJECT --image $$AR/agent:latest    --quiet
+        gcloud run jobs update ${_PROD_PREFIX}-agent-executor-go --region ${_REGION} --project $_PROD_PROJECT --image $$AR/agent-go:latest --quiet
+        echo "PROD deploy complete."
+    waitFor: ['promote-images']
