@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -466,13 +468,37 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 // CompareOutput checks if actual output matches expected output
 func CompareOutput(expected, actual string) bool {
-	// Normalize whitespace
+	// Normalize outer whitespace.
 	expected = strings.TrimSpace(expected)
 	actual = strings.TrimSpace(actual)
 
-	// For now, do exact string comparison
-	// Could be enhanced with fuzzy matching or line-by-line comparison
-	return expected == actual
+	// Fast path: exact match (preserves all prior behaviour).
+	if expected == actual {
+		return true
+	}
+
+	// JSON-aware comparison: if BOTH sides parse as valid JSON, compare their
+	// canonical (parsed) forms. This makes formatting-only differences pass —
+	// e.g. AILANG's compact `{"a":1}` vs Python's spaced `{"a": 1}`, or
+	// integer-vs-float (json.Unmarshal maps all numbers to float64). It is SAFE
+	// because it only triggers when both outputs are valid JSON, so it cannot
+	// let non-JSON near-misses (e.g. "1 2" vs "12") through, and it leaves
+	// formatted-text benchmarks (tables, key:value lines) on the exact path.
+	// (M-EVAL-JSON-COMPARE: surfaced by v0.24.1 analysis — 9/10 whitespace-only
+	// AILANG "failures" were correct JSON output failing byte-exact match.)
+	return jsonEqual(expected, actual)
+}
+
+// jsonEqual reports whether a and b both parse as JSON and are deeply equal.
+func jsonEqual(a, b string) bool {
+	var va, vb interface{}
+	if json.Unmarshal([]byte(a), &va) != nil {
+		return false
+	}
+	if json.Unmarshal([]byte(b), &vb) != nil {
+		return false
+	}
+	return reflect.DeepEqual(va, vb)
 }
 
 // GetRunner returns a LanguageRunner for the specified language

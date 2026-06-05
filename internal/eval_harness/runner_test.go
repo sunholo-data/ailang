@@ -92,6 +92,15 @@ func TestCompareOutput(t *testing.T) {
 		{"mismatch", "hello", "goodbye", false},
 		{"empty", "", "", true},
 		{"multiline match", "line1\nline2", "line1\nline2", true},
+		// JSON-aware comparison (M-EVAL-JSON-COMPARE): formatting-only JSON diffs pass.
+		{"json compact vs spaced", `{"a": 1, "b": 2}`, `{"a":1,"b":2}`, true},
+		{"json int vs float", `{"age": 31}`, `{"age": 31.0}`, true},
+		{"json key order", `{"a": 1, "b": 2}`, `{"b": 2, "a": 1}`, true},
+		{"json array spacing", `[1, 2, 3]`, `[1,2,3]`, true},
+		{"json semantically different", `{"a": 1}`, `{"a": 2}`, false},
+		// SAFETY: non-JSON near-misses must STILL fail (no whitespace blanket-strip).
+		{"non-json digits not equal", "12", "1 2", false},
+		{"non-json text spacing differs", "a b c", "abc", false},
 	}
 
 	for _, tt := range tests {
