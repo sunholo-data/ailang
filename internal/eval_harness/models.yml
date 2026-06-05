@@ -1952,12 +1952,14 @@ dev_models:
 # participate in agent-mode runs; the rest are skipped cleanly.
 # Cost: ~$1-2 per full benchmark run (depends on task complexity)
 agent_suite:
-  - "claude-sonnet-4-6"     # agent_cli: "claude"          — longitudinal anchor (claude CLI)
-  - "gemini-3-5-flash"      # agent_cli: "managed_agents"  — Google agent path is Vertex Managed
-                            #   Agents (ADC), NOT a gemini CLI (no gemini executor exists). Note:
-                            #   managed_agents is expensive (~88 turns/bench). Was incorrectly
-                            #   "gemini-3-flash" (no agent_cli → unrunnable). Fixed 2026-06-04.
-  - "gpt5-4-mini"           # agent_cli: "codex"           — OpenAI cheap (codex CLI)
+  - "claude-sonnet-4-6"     # agent_cli: "claude"          — longitudinal anchor (claude CLI), ~$0.20/bench
+  # gemini-3-5-flash (managed_agents/Vertex) REMOVED from the routine suite 2026-06-05:
+  #   it costs ~$3.02/benchmark (88-turn loop) — ~$130/run for ailang alone, more than
+  #   every other model COMBINED. There is no affordable Google agent path (no gemini CLI
+  #   executor; managed_agents is inherently expensive). Run it opt-in only if Google
+  #   agent data is specifically needed:
+  #     ailang eval-suite --agent --models gemini-3-5-flash --benchmarks <small set> ...
+  - "gpt5-4-mini"           # agent_cli: "codex"           — OpenAI cheap (codex CLI), ~$0.11/bench
   # opencode-sonnet-4-6 and motoko-claude-sonnet-4-6 removed (2026-05-16, v0.20.0
   # post-release): sonnet-4-6 is already the longitudinal anchor via its native
   # claude-code harness slot above; the cross-harness duplicates inflated cost
