@@ -139,12 +139,12 @@ if [[ -n "$FAILURES" ]]; then
     COUNT=$(echo "$FAILURES" | wc -l | tr -d ' ')
     log "persistent failures (${COUNT}): $FAILURES"
 
-    # Send one message per failure to design-doc-creator intake
-    # (triage-router will route categorized bug reports through the approval chain)
+    # File per-failure detail messages to controlplane (human review).
+    # NOT to design-doc-creator — triage decides later whether to promote.
     while IFS= read -r failure; do
         BENCH=$(echo "$failure" | cut -d' ' -f1)
         CATS=$(echo "$failure" | grep -oE '\[.*\]' || echo "[unknown]")
-        ailang messages send design-doc-creator \
+        ailang messages send controlplane \
             "Nightly eval regression: benchmark '${BENCH}' failed both trials on ${DATE}.
 Error category: ${CATS}
 Model: opencode-qwen3-5-35b-a3b-mxfp8 (local, tier:smoke)
@@ -155,17 +155,28 @@ it is a known language gap worth documenting." \
             --title "Nightly regression: ${BENCH} (${DATE})" \
             --from "nightly-eval" \
             --type "bug" 2>/dev/null || true
-        log "  filed: ${BENCH}"
+        log "  filed to controlplane: ${BENCH}"
     done <<< "$FAILURES"
+
+    # Broadcast failure summary via Pub/Sub → daemon → Discord (one ping, not N).
+    # public-feedback inbox is the EventType that Discord's filter accepts.
+    AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac-dev \
+    ailang messages send public-feedback \
+        "Nightly eval: ${COUNT} persistent failure(s) on ${DATE}.
+Benchmarks: $(echo "$FAILURES" | cut -d' ' -f1 | tr '\n' ' ')
+Model: opencode-qwen3-5-35b-a3b-mxfp8 | Tier: smoke
+Details filed to controlplane inbox." \
+        --title "Nightly eval: ${COUNT} failure(s) (${DATE})" \
+        --from "nightly-eval" 2>/dev/null || true
 else
     log "no persistent failures — all smoke benchmarks passing"
 fi
 
-# Broadcast summary to controlplane inbox
+# Broadcast summary to controlplane inbox (local, no Discord ping on success)
 ailang messages send controlplane \
     "Nightly eval complete: ${PASS}/${TOTAL} (${RATE}) on ${DATE}.
 Model: opencode-qwen3-5-35b-a3b-mxfp8 | Tier: smoke | Trials: 2
-$([ -n "$FAILURES" ] && echo "Persistent failures filed to design-doc-creator: $(echo $FAILURES | tr '\n' ', ')" || echo "All benchmarks passing.")" \
+$([ -n "$FAILURES" ] && echo "Persistent failures: $(echo $FAILURES | tr '\n' ', ')" || echo "All benchmarks passing.")" \
     --title "Nightly eval: ${PASS}/${TOTAL} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
 
