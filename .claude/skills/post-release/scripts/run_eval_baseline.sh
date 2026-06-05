@@ -383,7 +383,7 @@ ailang eval-suite --agent \
     --models "$AGENT_MODELS" \
     --benchmarks "$AGENT_BENCHMARKS_CSV" \
     --langs "$AGENT_LANGS" \
-    --agent-parallel 2 \
+    --parallel 2 \
     ${SKIP_EXISTING} \
     --output "$RESULTS_DIR"
 kill $MONITOR_PID 2>/dev/null || true
