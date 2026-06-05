@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - '!v*-*'  # ignore pre-release tags (e.g. v0.24.1-rc1) — no CLI release/binaries for those
 
 # Least-privilege default. Only `create-release` escalates to
 # `contents: write` (publish release) + `id-token: write` (cosign).

@@ -155,7 +155,12 @@ steps:
       - -c
       - |
         set -e
-        VER="${TAG_NAME#v}"
+        # NOTE: $TAG_NAME is substituted by Cloud Build; strip the leading "v" in
+        # BASH (not CB) — use $$ so CB leaves ${TAG#v} for the shell. A bare
+        # ${TAG_NAME#v} is eaten by CB's substitution pass and yields "".
+        TAG="$TAG_NAME"
+        VER="$${TAG#v}"
+        echo "TAG_NAME=$TAG_NAME  VER=$$VER"
         url() { gcloud run services describe "$$1" --region ${_REGION} --project $_TEST_PROJECT --format='value(status.url)'; }
         MCP=$$(url ${_TEST_PREFIX}-mcp)
         COORD=$$(url ${_TEST_PREFIX}-coordinator)
