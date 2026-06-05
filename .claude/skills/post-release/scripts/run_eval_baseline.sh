@@ -30,6 +30,11 @@ get_ollama_models() {
                | grep -oE '"ollama/[^"]+"' | tr -d '"')
         [[ -n "$name" ]] && echo "$name"
     done
+    # ALWAYS return 0: under `set -e`, the loop's last `[[ ... ]] && echo` returns 1
+    # when the final model isn't ollama-backed (the common case for cloud/OS suites),
+    # which would otherwise kill the whole script at the setup_ollama_models call and
+    # silently skip the entire agent step. (Fixed 2026-06-05.)
+    return 0
 }
 
 # Pin an Ollama model in memory for the duration of the eval run.
