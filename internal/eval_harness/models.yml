@@ -1251,34 +1251,35 @@ models:
       token. Pull: ollama pull qwen3.5:35b-a3b-mxfp8. Requires opencode ollama
       provider block entry (added 2026-06-02).
 
-  # pi harness Qwen — via OpenRouter (NOT local). Verified 2026-06-05: pi is a
-  # CLOUD-ONLY harness — its providers are anthropic/openai/openrouter (+ azure/
-  # deepseek/groq/etc. by API key); it has NO ollama provider and no generic
-  # OpenAI-base-URL override (only AZURE_OPENAI_BASE_URL). So pi CANNOT run the
-  # local ollama model. It can run the same Qwen 3.5 35B-A3B via OpenRouter, which
-  # is what this entry does — a pi data point for cross-harness comparison, but
-  # cloud (costs OR credits), not the free local rig. For LOCAL cross-harness use
-  # opencode (works) + motoko (when its hang is fixed).
-  pi-or-qwen3-5-35b-a3b:
-    api_name: "qwen/qwen3.5-35b-a3b"
-    provider: "openrouter"
-    description: "Qwen 3.5 35B-A3B via pi+OpenRouter — pi is cloud-only (no ollama); cross-harness data point"
-    env_var: "OPENROUTER_API_KEY"
+  # pi harness LOCAL Qwen — for cross-harness LOCAL comparison vs opencode (and
+  # eventually motoko). pi DOES run local ollama, via a one-time config in
+  # ~/.pi/agent/models.json registering an "ollama" provider at the local
+  # OpenAI-compatible endpoint (http://localhost:11434/v1, api: openai-completions).
+  # Without that file pi errors "model not found" — it's not a built-in provider.
+  # See tools/setup/pi-ollama-models.json for the canonical config. Added 2026-06-05.
+  pi-qwen3-5-35b-a3b-mxfp8:
+    api_name: "qwen3.5:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness comparison vs opencode (requires ~/.pi/agent/models.json ollama provider)"
+    env_var: ""
     agent_cli: "pi"
-    agent_model_name: "openrouter/qwen/qwen3.5-35b-a3b"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
     model_family: "qwen-3-5"
     max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
     budgets:
-      max_cost_usd: 0.30
-      hard_timeout_secs: 600
+      hard_timeout_secs: 2400
     pricing:
-      input_per_1k: 0.0004
-      output_per_1k: 0.0016
+      input_per_1k: 0.0
+      output_per_1k: 0.0
     notes: |
-      pi-harness Qwen via OpenRouter. pi cannot reach local ollama (cloud-only
-      harness, verified 2026-06-05). Use for pi-vs-opencode harness comparison on
-      the SAME underlying model — note pi here is cloud, opencode-qwen is local,
-      so the comparison confounds harness with local/cloud. Added 2026-06-05.
+      pi-harness sibling of opencode-qwen3-5-35b-a3b-mxfp8 — LOCAL, free. Measures
+      harness-induced delta (pi minimal harness vs opencode multi-turn) on the SAME
+      local model. Requires the one-time ~/.pi/agent/models.json ollama provider
+      block (pi has no built-in ollama; it speaks the OpenAI-completions API to the
+      local endpoint). Verified 2026-06-05: pi --list-models shows the local qwen,
+      probe resolves it. Added 2026-06-05.
 
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
