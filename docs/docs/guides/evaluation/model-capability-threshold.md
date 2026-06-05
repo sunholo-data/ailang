@@ -173,9 +173,9 @@ The frontier ceiling of ~88–90% represents tasks genuinely difficult to expres
 ## Implications for AILANG's Design Goals
 
 **Short term:** The 3 most common failure categories for mid-tier models are already documented as prompt improvements:
-- `None`/`Some` without `import std/option` → [m-prompt-option-none-idiom](../../../../design_docs/planned/v0_24_0/m-prompt-option-none-idiom.md)
-- Match guard syntax (`when` clauses) → [m-prompt-match-guard-syntax](../../../../design_docs/planned/v0_24_0/m-prompt-match-guard-syntax.md)
-- `split()` returning `list[string]` → [m-prompt-split-list-operations](../../../../design_docs/planned/v0_24_0/m-prompt-split-list-operations.md)
+- `None`/`Some` without `import std/option` → [m-prompt-option-none-idiom](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-option-none-idiom.md)
+- Match guard syntax (`when` clauses) → [m-prompt-match-guard-syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-match-guard-syntax.md)
+- `split()` returning `list[string]` → [m-prompt-split-list-operations](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-split-list-operations.md)
 
 Fixing these 3 gaps is expected to push a model like Qwen 3.5 (currently 59% AILANG) to ~73% — potentially crossing the frontier threshold into "AILANG ≥ Python" territory.
 
