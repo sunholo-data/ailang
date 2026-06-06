@@ -8,13 +8,44 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.24.0
+
+- [M-EVAL-NETWORK-MOCK-FIXTURE: Deterministic local HTTP mock for network benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-eval-network-mock-fixture.md)
+
+## v0.23.x
+
+- [Weekend Iteration Report — Iter 6 N=3 Variance Addendum (2026-05-24)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_x/weekend-iteration-report-2026-05-23-addendum.md)
+- [Weekend Autonomous Iteration Report — 2026-05-23 / 24](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_x/weekend-iteration-report-2026-05-23.md)
+
+## v0.23.0
+
+- [M-AI-CALL-JSON-SIMPLE-RESULT: Result-returning variant of callJsonSimple](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_0/m-ai-call-json-simple-result.md)
+- [Sprint Plan: M-COORD-TAG-ROUTING-LASTMILE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_0/m-coord-tag-routing-lastmile-sprint-plan.md)
+- [M-COORD-TAG-ROUTING-LASTMILE: Close the last-mile gaps preventing tag-routed dispatch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_0/m-coord-tag-routing-lastmile.md)
+- [Sprint Plan: M-DOCPARSE-RESILIENCE-FIXES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_0/m-docparse-resilience-fixes-sprint-plan.md)
+- [M-MCP-UNIT-PARAM-BINDING: Reject omitted MCP tool params instead of binding Unit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_23_0/m-mcp-unit-param-binding.md)
+
 ## v0.22.0
 
 - [M-MANAGED-AGENTS: Retire Gemini CLI, Adopt Vertex Managed Agents API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-antigravity-cli-migration.md)
+- [Sprint Plan: M-COORD-MULTI-HOST-WORKERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-coord-multi-host-workers-sprint-plan.md)
+- [M-COORD-MULTI-HOST-WORKERS: Bare-metal Host Workers in the Coordinator System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-coord-multi-host-workers.md)
+- [M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability-followup-sprint-plan.md)
+- [M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP — Wire chain_id/stage_id into eval-suite OTEL resource attrs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability-followup.md)
+- [M-EVAL-LOCAL-OBSERVABILITY — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability-sprint-plan.md)
+- [M-EVAL-LOCAL-OBSERVABILITY — Reliable local eval observability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-eval-local-observability.md)
 - [Sprint Plan: M-MANAGED-AGENTS — Retire Gemini CLI, Adopt Vertex Managed Agents API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-managed-agents-sprint-plan.md)
 - [M-MATCH-ADT-XCHECK-REGRESSION — Foreign-constructor patterns silently accepted again](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-match-adt-xcheck-regression.md)
+- [Sprint Plan: M-MOTOKO-AILANG-RECONCILE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-motoko-ailang-reconcile-sprint-plan.md)
+- [M-MOTOKO-AILANG-RECONCILE: Restore working motoko_agent build on current AILANG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-motoko-ailang-reconcile.md)
+- [Sprint Plan: M-MOTOKO-V021-EFFECT-ROW-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-motoko-v021-effect-row-migration-sprint-plan.md)
+- [M-MOTOKO-V021-EFFECT-ROW-MIGRATION: Finish motoko_agent's AILANG v0.21+ migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-motoko-v021-effect-row-migration.md)
 - [Sprint Plan — M-SCHEME-IMPORT-PRESERVE-ADT-HEAD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-scheme-import-preserve-adt-head-sprint-plan.md)
 - [M-SCHEME-IMPORT-PRESERVE-ADT-HEAD — Imported function schemes lose ADT head constructors](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-scheme-import-preserve-adt-head.md)
+- [Sprint Plan: M-TRANSITIVE-ALIAS-ENV-IMPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-transitive-alias-env-import-sprint-plan.md)
+- [M-TRANSITIVE-ALIAS-ENV-IMPORT — propagate transitively-imported type aliases into the unifier's aliasEnv](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-transitive-alias-env-import.md)
+- [Sprint Plan: M-WASM-TYPECHECK-FLOAT-DIVERGENCE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-wasm-typecheck-float-divergence-sprint-plan.md)
+- [M-WASM-TYPECHECK-FLOAT-DIVERGENCE — native CLI accepts code that WASM type-checker rejects with "float vs int"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_22_0/m-wasm-typecheck-float-divergence.md)
 
 ## v0.21.0
 
@@ -1093,4 +1124,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 777 design documents across 102 versions.*
+*Generated at build time. 799 design documents across 105 versions.*
