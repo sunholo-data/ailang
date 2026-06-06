@@ -326,19 +326,25 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 		tierCounts[spec.Tier]++
 	}
 
-	// Sanity check: tier distribution targets re-centered after M-THREE-CAMPS
-	// added 14 gap benchmarks (3 smoke, 8 core, 0 stretch, 3 vision).
-	// Post-M-THREE-CAMPS centers: 18/29/11/9 (total 67). Tolerance ±3 kept so
-	// future benchmark adds trigger the drift check instead of silently bloating.
-	// "experimental" tier (diagnostic probes) is intentionally excluded from
-	// the distribution drift check — probes measure language gaps, not score
-	// capability, so their count growth is independent of the smoke/core/stretch/vision
-	// budget.
-	if smoke := tierCounts["smoke"]; smoke < 15 || smoke > 21 {
-		t.Errorf("smoke count = %d, want 18±3", smoke)
+	// Sanity check: tier distribution drift check. The check exists to flag
+	// distribution changes for conscious review, not to forbid them — when a
+	// shift is intentional, re-center here (as M-THREE-CAMPS did when it added
+	// 14 gap benchmarks).
+	//
+	// Re-centered 2026-06-06: 6 benchmarks were intentionally promoted into the
+	// smoke tier (the set the local-ollama nightly runs) — parallel_map_reduce,
+	// parallel_independent_subtasks, json_encode, fold_reduce,
+	// typed_stream_pipeline (core → smoke) and json_parse (stretch → smoke).
+	// That moved smoke 17 → 23 and core 31 → 26. New centers: 23/26/11/9
+	// (budgeted total 69; "experimental" diagnostic probes are excluded — they
+	// measure language gaps, not score capability, so their growth is independent
+	// of the smoke/core/stretch/vision budget). Tolerance ±3 kept so future
+	// drift still trips this check.
+	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
+		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
-	if core := tierCounts["core"]; core < 26 || core > 34 {
-		t.Errorf("core count = %d, want 29±3", core)
+	if core := tierCounts["core"]; core < 23 || core > 29 {
+		t.Errorf("core count = %d, want 26±3", core)
 	}
 	if stretch := tierCounts["stretch"]; stretch < 8 || stretch > 14 {
 		t.Errorf("stretch count = %d, want 11±3", stretch)
