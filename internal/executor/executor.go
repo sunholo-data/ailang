@@ -35,10 +35,22 @@ type Executor interface {
 
 // Task represents a coding task to execute
 type Task struct {
-	ID           string            // Unique task identifier
-	ParentTaskID string            // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
-	Directive    string            // The instruction/prompt
-	SystemPrompt string            // Optional system-level context
+	ID           string // Unique task identifier
+	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
+	Directive    string // The instruction/prompt
+	SystemPrompt string // Optional system-level context
+
+	// PersistentSystemPrompt asks the executor to deliver SystemPrompt via a
+	// persistent system-prompt channel (re-applied to the model every turn)
+	// rather than concatenating it into the first user message. A large teaching
+	// prompt concatenated into turn 1 ages out of attention over a long agent
+	// loop (16-54 turns), causing the model to drift back to its training-corpus
+	// defaults. opencode honors this by writing SystemPrompt to <Workspace>/AGENTS.md,
+	// which opencode auto-loads into the system context on every turn. Executors
+	// without a persistent channel ignore this flag. Set by the eval harness; the
+	// coordinator leaves it false so opencode keeps auto-loading the repo's CLAUDE.md.
+	PersistentSystemPrompt bool
+
 	Workspace    string            // Working directory (local path)
 	Timeout      time.Duration     // Hard ceiling execution timeout
 	IdleTimeout  time.Duration     // Kill if no events for this long after first event (0 = use default 3m)

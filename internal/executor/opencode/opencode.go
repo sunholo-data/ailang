@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -98,7 +99,25 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 
 	directive := task.Directive
 	if task.SystemPrompt != "" {
-		directive = task.SystemPrompt + "\n\n" + task.Directive
+		if task.PersistentSystemPrompt && task.Workspace != "" {
+			// Deliver the system prompt as a PERSISTENT instruction: opencode
+			// auto-loads AGENTS.md from the working directory into the system
+			// context on every turn (https://opencode.ai/docs/rules/). This keeps
+			// a large teaching prompt in attention across a long agent loop,
+			// instead of burying it in a one-shot turn-1 user message that ages
+			// out and lets the model drift back to its training-corpus dialect.
+			// The directive then carries ONLY the task. No silent fallback: if we
+			// cannot persist the prompt, fail loudly rather than run the model
+			// without its language knowledge.
+			agentsPath := filepath.Join(task.Workspace, "AGENTS.md")
+			if err := os.WriteFile(agentsPath, []byte(task.SystemPrompt), 0o644); err != nil {
+				return nil, fmt.Errorf("opencode: write persistent system prompt to %s: %w", agentsPath, err)
+			}
+		} else {
+			// Default: concatenate into the first user message. The coordinator
+			// uses this path so opencode keeps auto-loading the repo's CLAUDE.md.
+			directive = task.SystemPrompt + "\n\n" + task.Directive
+		}
 	}
 
 	// opencode CLI run subcommand with JSON streaming.

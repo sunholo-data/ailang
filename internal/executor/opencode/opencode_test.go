@@ -17,6 +17,107 @@ import (
 
 const skipWindows = "mock binary tests use /bin/sh; skipping on windows"
 
+// writeCapturingOpenCode writes a fake opencode that, on `run`, records the
+// final positional arg (the message) to <cwd>/captured_msg and a copy of any
+// AGENTS.md found in cwd to <cwd>/captured_agents (or "NONE"), then emits a
+// minimal valid event stream. Lets tests assert how SystemPrompt was delivered.
+func writeCapturingOpenCode(t *testing.T, dir string) string {
+	t.Helper()
+	script := filepath.Join(dir, "opencode")
+	body := `#!/bin/sh
+case "$1" in
+  run)
+    for a in "$@"; do last="$a"; done
+    printf '%s' "$last" > "$PWD/captured_msg"
+    if [ -f "$PWD/AGENTS.md" ]; then cp "$PWD/AGENTS.md" "$PWD/captured_agents"; else printf 'NONE' > "$PWD/captured_agents"; fi
+    printf '%s\n' '{"type":"step_start","sessionID":"ses_t","part":{"id":"p1","messageID":"m1","sessionID":"ses_t","type":"step-start"}}'
+    printf '%s\n' '{"type":"step_finish","sessionID":"ses_t","part":{"id":"p2","reason":"stop","messageID":"m1","sessionID":"ses_t","type":"step-finish","tokens":{"total":10,"input":1,"output":9,"reasoning":0,"cache":{"write":0,"read":0}},"cost":0.0}}'
+    exit 0 ;;
+  --version) echo "1.15.7"; exit 0 ;;
+  *) exit 0 ;;
+esac
+`
+	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+		t.Fatalf("writeCapturingOpenCode: %v", err)
+	}
+	return script
+}
+
+func TestExecuteStreaming_PersistentSystemPrompt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
+	const sysPrompt = "TEACHING-PROMPT-SENTINEL: AILANG rules go here."
+	const directive = "Solve the benchmark task."
+
+	cases := []struct {
+		name       string
+		persistent bool
+		wantAgents string // expected captured_agents content
+		wantMsg    string // expected captured_msg content
+	}{
+		{
+			name:       "persistent_writes_AGENTS_md_and_message_is_task_only",
+			persistent: true,
+			wantAgents: sysPrompt,
+			wantMsg:    directive,
+		},
+		{
+			name:       "default_no_AGENTS_md_message_is_concatenated",
+			persistent: false,
+			wantAgents: "NONE",
+			wantMsg:    sysPrompt + "\n\n" + directive,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			_ = writeCapturingOpenCode(t, dir)
+			e, err := New(&executor.Config{
+				OpenCodePath:   filepath.Join(dir, "opencode"),
+				OpenCodeModel:  "ollama/qwen3.5:35b-a3b-mxfp8",
+				TimeoutSeconds: 10,
+			})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			task := &executor.Task{
+				ID:                     "test-persist",
+				Directive:              directive,
+				SystemPrompt:           sysPrompt,
+				PersistentSystemPrompt: tc.persistent,
+				Workspace:              dir,
+				Timeout:                10 * time.Second,
+			}
+			if _, err := e.ExecuteStreaming(context.Background(), task, &executor.NoOpEventHandler{}); err != nil {
+				t.Fatalf("ExecuteStreaming: %v", err)
+			}
+
+			gotAgents, err := os.ReadFile(filepath.Join(dir, "captured_agents"))
+			if err != nil {
+				t.Fatalf("read captured_agents: %v", err)
+			}
+			if string(gotAgents) != tc.wantAgents {
+				t.Errorf("AGENTS.md content:\n  got  %q\n  want %q", gotAgents, tc.wantAgents)
+			}
+
+			gotMsg, err := os.ReadFile(filepath.Join(dir, "captured_msg"))
+			if err != nil {
+				t.Fatalf("read captured_msg: %v", err)
+			}
+			if string(gotMsg) != tc.wantMsg {
+				t.Errorf("opencode message arg:\n  got  %q\n  want %q", gotMsg, tc.wantMsg)
+			}
+
+			// Persistent mode must NOT also bury the prompt in the message.
+			if tc.persistent && strings.Contains(string(gotMsg), sysPrompt) {
+				t.Errorf("persistent mode leaked SystemPrompt into the user message: %q", gotMsg)
+			}
+		})
+	}
+}
+
 func TestNewOpenCodeExecutor(t *testing.T) {
 	cfg := executor.DefaultConfig()
 	e, err := New(cfg)
