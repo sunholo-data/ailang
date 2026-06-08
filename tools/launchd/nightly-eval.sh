@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # nightly-eval.sh — nightly regression-guard smoke run on the local rig.
 #
-# Runs the canonical smoke tier (tier: smoke, 17 benchmarks) against the
-# accuracy-first local Qwen model (opencode-qwen3-5-35b-a3b-mxfp8).
-# Feeds persistent failures to the design-doc-creator inbox via the
-# triage-router (m-msg-triage-router) so regressions become design docs
-# automatically.
+# Runs the canonical smoke tier (every `tier: smoke` benchmark, derived
+# dynamically) against the accuracy-first local Qwen model
+# (opencode-qwen3-5-35b-a3b-mxfp8). Persistent failures are filed to the
+# controlplane inbox for human triage.
+#
+# Reproducibility (M-EVAL-NIGHTLY-REPRO): the eval is built and run from an
+# isolated git worktree pinned to committed origin/dev — never the live working
+# tree or a stray installed binary — so the binary, benchmarks, and prompt card
+# all come from one named commit. The run aborts loudly if it can't produce a
+# clean build from committed code.
 #
 # Called by dev.ailang.nightly-eval.plist at 03:00 daily.
 #
@@ -37,6 +42,58 @@ if ! curl -s --max-time 3 http://localhost:11434/api/version >/dev/null 2>&1; th
     exit 0
 fi
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Reproducible build (M-EVAL-NIGHTLY-REPRO): run from an ISOLATED checkout pinned
+# to the committed dev HEAD — never the live working tree or a stray installed
+# binary. This guarantees the binary, benchmarks, AND prompts/agent/dialect-traps
+# card all come from one known commit, and that we can name that commit in every
+# result. Fail LOUDLY (skip with an alert) rather than silently evaluate
+# uncommitted or stale code.
+BUILD_REF="${AILANG_NIGHTLY_REF:-origin/dev}"
+WT="$HOME/.ailang-nightly/worktree"
+
+fail() {  # $*: reason — alert controlplane, then abort (no eval runs)
+    log "FATAL: $*"
+    ailang messages send controlplane \
+        "Nightly eval ABORTED (${DATE}): $*. No eval ran — code provenance could not be guaranteed." \
+        --title "Nightly eval aborted (${DATE})" --from "nightly-eval" 2>/dev/null || true
+    exit 1
+}
+
+log "syncing build worktree to ${BUILD_REF}"
+git -C "$REPO" fetch --quiet origin || fail "git fetch origin failed"
+TARGET=$(git -C "$REPO" rev-parse "$BUILD_REF") || fail "cannot resolve ${BUILD_REF}"
+SHORT=$(git -C "$REPO" rev-parse --short "$TARGET")
+
+# Refresh (or create) the dedicated build worktree at the pinned commit. The
+# worktree is a throwaway build dir with no user work, separate from $REPO, so
+# this never touches in-progress dev changes. --force overwrites only tracked
+# files; gitignored build output (bin/) persists and is rebuilt below.
+git -C "$REPO" worktree prune
+if git -C "$REPO" worktree list --porcelain | grep -qx "worktree $WT"; then
+    git -C "$WT" checkout --quiet --detach --force "$TARGET" || fail "worktree checkout ${SHORT} failed"
+else
+    mkdir -p "$(dirname "$WT")"
+    git -C "$REPO" worktree add --quiet --detach --force "$WT" "$TARGET" || fail "worktree add ${SHORT} failed"
+fi
+
+log "building ailang @ ${SHORT} in worktree"
+make -C "$WT" build >>"$LOG" 2>&1 || fail "make build @ ${SHORT} failed"
+BIN="$WT/bin/ailang"
+[[ -x "$BIN" ]] || fail "built binary missing at $BIN"
+
+# Run from the worktree so benchmarks/, the dialect-traps card, and FindAILANG's
+# './bin/ailang' fallback all resolve to the pinned commit; put the pinned binary
+# first on PATH so FindAILANG's bare 'ailang' lookup hits it too (not ~/go/bin).
+cd "$WT"
+export PATH="$WT/bin:$PATH"
+
+BUILD_VERSION=$("$BIN" --version 2>/dev/null | head -1)
+case "$BUILD_VERSION" in
+    *-dirty|"") fail "built binary not clean (${BUILD_VERSION:-<none>}) — worktree dirty at ${SHORT}" ;;
+esac
+log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
+
 # Derive smoke benchmarks from tier tags (stays in sync automatically)
 SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml 2>/dev/null \
     | xargs -n1 basename | sed 's/\.yml$//' | sort | paste -sd, -)
@@ -67,7 +124,7 @@ RUN_AB=0
 run_eval() {
     local mode="$1" outdir="$2"
     log "running smoke: microrag=${mode} → ${outdir}"
-    ailang eval-suite --agent \
+    "$BIN" eval-suite --agent \
         --models opencode-qwen3-5-35b-a3b-mxfp8 \
         --benchmarks "$SMOKE" \
         --langs ailang \
@@ -194,6 +251,7 @@ fi
 # Broadcast summary to controlplane inbox (local, no Discord ping on success)
 ailang messages send controlplane \
     "Nightly eval complete: ${PASS}/${TOTAL} (${RATE}) on ${DATE}.
+Build: ${BUILD_VERSION} (committed ${SHORT})
 Model: opencode-qwen3-5-35b-a3b-mxfp8 | Tier: smoke | Trials: 2
 $([ -n "$FAILURES" ] && echo "Persistent failures: $(echo $FAILURES | tr '\n' ', ')" || echo "All benchmarks passing.")" \
     --title "Nightly eval: ${PASS}/${TOTAL} (${DATE})" \
