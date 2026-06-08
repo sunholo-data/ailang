@@ -68,6 +68,21 @@ Before implementation begins, these must be resolved:
 - [ ] Confirm the root cause locus (unifier constraint-drop vs list-literal elaboration vs `List[T]`/`[T]` mismatch) via a failing unit test in `internal/types`.
 - [ ] Confirm the intentional-incompatibility is acceptable (audit `make verify-examples` + recent eval corpora for any program that relied on the hole).
 
+## Prior Attempts & Why This Is Hard (recurring architectural debt)
+
+This is **not** a fresh bug — three prior sprints hit the same wall and deferred the deep fix. Anyone picking this up MUST read this first to avoid a fourth re-tread.
+
+- **DX-17** (v0.6, implemented): normalized the `TList` vs `TApp("list")` split (`[T]` → `TApp("list", T)`). Left **capital `List[T]`** unaddressed — that's why `AsList` (`helpers.go:120`) is lowercase-only, the lead for our `List[Json]`-from-`Option` variant.
+- **numeric_coercion** (`design_docs/implemented/v0_3/20251013_numeric_coercion.md`): shipped scalar numeric defaulting but **explicitly deferred "❌ Array/List coercions"** — our exact gap, parked since v0.3.
+- **M-TYPECHECK-NO-AUTO-UNWRAP-RESULT** (`design_docs/implemented/v0_20_0/`): the closest precedent. It needed to reject `let r = f(); r.field` where `r` is still a `TVar` at infer time. Its own words: *"the constraint solver substitutes the receiver TVar … rather than rejecting the unification, losing the type information from CoreTI before any post-pass can verify it."* It **shipped only the partial gate** (cases concrete at infer time) and **deferred the deep fix — which never landed** (`internal/pipeline/tagged_union_field_access_test.go` is still `t.Skip`'d). It enumerated three options, none implemented:
+  1. **Stricter constraint solver** — reject the unsound chain at solve time (~300 LOC, real regression risk to programs relying on permissive unification).
+  2. **Parallel source-type map** — record the pre-unification type separately (~80 LOC, parallel infra).
+  3. **Hook the constraint solver** — detect the `α ~ X` then `α ~ Y` chain at solve time (~200 LOC).
+
+**The unifying root cause:** AILANG emits soundness-relevant facts at *infer* time, but the types are still `TVar`s until the solver runs; permissive unification then resolves the violation away before any pass validates it. Our case is one instance: the literal's `Num[α1]` is orphaned and defaults to `int` (full trace in the sprint plan).
+
+**Systemic-fix opportunity (per CLAUDE.md "audit before patching"):** rather than a fourth point-patch, the durable fix is likely a **post-inference soundness pass** that, after the solver runs and `applySubstitutionToTyped` resolves types, re-validates the typed AST — catching orphaned class constraints (`Num[string]`), element-type mismatches, AND the still-open tagged-union `.field` case in one mechanism (finally unskipping `tagged_union_field_access_test.go`). That is a larger, deliberate architectural sprint than the 1–2-day point fix scoped below. The choice **narrow point-patch vs unified post-inference pass** is the load-bearing decision for this sprint.
+
 ## Solution Design
 
 ### Overview
@@ -210,6 +225,11 @@ Error: type error at solution.ail:18:38:
 - [M-EVAL-PROMPT-DELIVERY](../../implemented/v0_24_0/m-eval-prompt-delivery.md) — surfaced `json_parse` as the persistent local-model gap whose runtime failure this doc traces to a typing hole.
 - [M-TYPE-CONSTRAINTS](./m-type-constraints.md) — adjacent type-system item (P3, recent-data-downgraded); distinct topic (explicit `Ord` comparators, not list-element soundness).
 - [m-type-v2-migration-sprint-plan](../v1_0_0/m-type-v2-migration-sprint-plan.md) — long-horizon type-system rewrite that may subsume this; this doc is the v0.24.0 near-term fix.
+
+**Prior attempts at the same root cause (READ FIRST — see "Prior Attempts" section):**
+- [M-TYPECHECK-NO-AUTO-UNWRAP-RESULT](../../implemented/v0_20_0/m-typecheck-no-auto-unwrap-result.md) — same "soundness check vs TVar-still-unresolved" wall; shipped partial, deferred the deep fix (never landed). Its 3 options apply here verbatim.
+- [numeric_coercion](../../implemented/v0_3/20251013_numeric_coercion.md) — explicitly deferred "Array/List coercions" (our gap).
+- DX-17 series (v0.6, `changelogs/v0.6-coordinator.md`) — `TList`/`TApp("list")` normalization; left capital `List[T]` (the `AsList` lead).
 
 ## References
 
