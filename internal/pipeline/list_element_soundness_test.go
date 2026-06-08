@@ -173,6 +173,73 @@ export func main() -> () ! {IO} { let r = match get() { Ok(n) => n + 1, Err(_) =
 	}
 }
 
+// TestListElementSoundness_CompoundField pins round 3 — CLOSED. A constructor
+// whose field EMBEDS the type param in a compound type ([a], (a,a), Option[a])
+// with an annotated scrutinee previously leaked: the factory-scheme builder only
+// remapped a field that was a BARE type var, so a compound field kept the
+// declared param name (disconnected from the result var), and a destructured
+// value escaped its concrete type. Fix: BuildConstructorFactoryScheme substitutes
+// the param->result-var mapping across the ENTIRE field type.
+func TestListElementSoundness_CompoundField(t *testing.T) {
+	cases := []struct{ name, src string }{
+		{"list field: Bag[int] contents into [string]", `module test
+type Bag[a] = Bag([a])
+pure func needStrs(xs: [string]) -> string = "ok"
+export func passthru(b: Bag[int]) -> () ! {IO} { match b { Bag(xs) => { let _ = needStrs(xs); () } } }
+export func main() -> () ! {IO} = passthru(Bag([1, 2, 3]))
+`},
+		{"tuple field: Box[int]((a,a)) first elem used as string", `module test
+type Box[a] = Box((a, a))
+pure func needStr(s: string) -> string = "ok"
+export func main() -> () ! {IO} { match Box((1, 2)) { Box(p) => match p { (x, y) => { let _ = needStr(x); () } } } }
+`},
+		{"Option field: Holder[int](Option[a]) inner used as string", `module test
+import std/option (Option, Some, None)
+type Holder[a] = Hold(Option[a])
+pure func needStr(s: string) -> string = "ok"
+export func bad(h: Holder[int]) -> () ! {IO} { match h { Hold(o) => match o { Some(x) => { let _ = needStr(x); () }, None => () } } }
+export func main() -> () ! {IO} = bad(Hold(Some(1)))
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkListSoundnessSource(t, tc.src)
+			if err == nil {
+				t.Fatalf("SOUNDNESS HOLE: compound-field value misused should be rejected")
+			}
+			if strings.Contains(err.Error(), "*types.") || strings.Contains(err.Error(), "tagged value") {
+				t.Errorf("error leaks Go internals / is a runtime message: %s", err.Error())
+			}
+		})
+	}
+}
+
+// TestListElementSoundness_CompoundField_NoOvertighten guards that compound-field
+// remapping does not force wrong concreteness: valid uses and genuine polymorphism
+// must still compile.
+func TestListElementSoundness_CompoundField_NoOvertighten(t *testing.T) {
+	cases := []struct{ name, src string }{
+		{"Bag[int] contents used as [int]", `module test
+type Bag[a] = Bag([a])
+pure func useInts(xs: [int]) -> int = 0
+export func ok(b: Bag[int]) -> int { match b { Bag(xs) => useInts(xs) } }
+export func main() -> () ! {IO} { let _ = ok(Bag([1, 2, 3])); () }
+`},
+		{"polymorphic unbox keeps the param", `module test
+type Box[a] = Box([a])
+export func unbox(b: Box[a]) -> [a] { match b { Box(xs) => xs } }
+export func main() -> () ! {IO} { let _ = unbox(Box([1, 2, 3])); () }
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := checkListSoundnessSource(t, tc.src); err != nil {
+				t.Errorf("expected this valid program to compile, got: %v", err)
+			}
+		})
+	}
+}
+
 // TestListElementSoundness_MustAccept guards the neighbouring sound cases so the
 // fix does not over-tighten (empty list, numeric defaulting, nesting, typed).
 func TestListElementSoundness_MustAccept(t *testing.T) {
