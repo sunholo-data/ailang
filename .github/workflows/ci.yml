@@ -27,7 +27,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
         cache: true
 
     # uv pins the Python runtime for eval-harness tests (and the weekly eval
@@ -205,7 +205,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
@@ -261,7 +261,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
         cache: true
     
     - name: Build binary
@@ -305,7 +305,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
         cache: true
 
     - name: Check code formatting
@@ -331,7 +331,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
 
     - name: Install govulncheck
       run: go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -356,7 +356,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.10'
+        go-version: '1.25.11'
 
     - name: Go Dependency Submission
       uses: actions/go-dependency-submission@v2.0.3
