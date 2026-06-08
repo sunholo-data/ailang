@@ -101,35 +101,54 @@ RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('$
 
 log "regression check result: ${PASS} (${RATE})"
 
-# Feed failures to design-doc-creator inbox if ≥2 consecutive trials failed
-# (i.e., passes=0 in the deduplicated latest results)
+# Identify *persistent* failures: a benchmark whose EVERY trial failed.
+# A benchmark that passed at least one of its trials is flaky-but-recovered,
+# not a regression, and must NOT generate an alert.
+#
+# Result files are named  <bench>[_trialN]_<lang>_<model>_<ts>.json
+# (trial 1 has no _trialN infix; trial 2 is "_trial2", etc.). Both trials must
+# collapse to the same benchmark id, otherwise each trial looks like its own
+# single-trial benchmark and any one failing trial trips all(not ok). That bug
+# is why flaky 1/2 benchmarks were filed as "failed both trials" regressions.
 FAILURES=$(python3 - <<'PY'
-import json, glob, os
+import json, glob, os, re
 from collections import defaultdict
 
-# Load newest result per benchmark from the rag_on (canonical) arm
+# Failures in these categories are infra/transport noise (e.g. the executor
+# hung mid-generation), NOT language/prompt/stdlib regressions. They surface in
+# the overall pass count + suite log; don't escalate them as regression bugs.
+INFRA_CATEGORIES = {"api_error", "timeout", "executor_error"}
+
 results_agent = os.environ.get("RESULTS_AGENT", "")
+
+# Keep the newest file per (benchmark, trial-slot) so re-runs dedupe while BOTH
+# trials are retained. The trial slot is everything before "_<lang>_<model>_<ts>".
 latest = {}
 for f in glob.glob(f"{results_agent}/*.json"):
-    key = os.path.basename(f).rsplit("_", 1)[0]
-    ts  = int(os.path.basename(f).rsplit("_", 1)[1][:-5])
-    if key not in latest or ts > latest[key][0]:
-        latest[key] = (ts, f)
+    base = os.path.basename(f)
+    try: ts = int(base.rsplit("_", 1)[1][:-5])
+    except (IndexError, ValueError): continue
+    slot = base.rsplit("_", 1)[0]
+    if slot not in latest or ts > latest[slot][0]:
+        latest[slot] = (ts, f)
 
-# Collect benchmarks that failed in all trials
+# Group trials under their benchmark id by stripping the _trialN infix.
 trials = defaultdict(list)
-for key,(ts,f) in latest.items():
+for slot,(ts,f) in latest.items():
     try: d = json.load(open(f))
     except: continue
-    bench = key.split("_ailang_")[0]
+    bench = re.sub(r"_trial\d+$", "", slot.split("_ailang_")[0])
     ok = d.get("compile_ok") and d.get("runtime_ok") and d.get("stdout_ok")
     trials[bench].append((ok, d.get("error_category") or "—"))
 
+# Persistent failure = ≥2 trials seen, every trial failed, and at least one
+# failure is a real (non-infra) category. A single passing trial clears it.
 persistent = []
 for bench, results in trials.items():
-    if all(not ok for ok,_ in results):
-        cats = list({c for _,c in results})
-        persistent.append(f"{bench} [{','.join(cats)}]")
+    if len(results) >= 2 and all(not ok for ok,_ in results):
+        cats = {c for _,c in results}
+        if cats - INFRA_CATEGORIES:
+            persistent.append(f"{bench} [{','.join(sorted(cats))}]")
 print("\n".join(sorted(persistent)))
 PY
 RESULTS_DIR="$RESULTS_DIR"
