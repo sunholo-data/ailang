@@ -92,28 +92,84 @@ export pure func main() -> string {
 	}
 }
 
-// TestListElementSoundness_KnownGap_OptionExtraction documents the remaining
-// open case after the C3 fix (Scheme.Instantiate constraint-survival + let-
-// annotation enforcement). A value extracted from a POLYMORPHIC constructor
-// returned by a function — `match getObject():Option[Json] { Some(name) => ... }`
-// — still loses its concrete element type through generalization, so the
-// json_parse shape (`[name]` into `[string]`) is not yet rejected. Directly
-// constructed values (`[Red]`, `Wrap(n)`) and numeric literals ARE caught.
-// This is the deeper sibling of the same generalization-decoupling root cause;
-// unskip when round 2 (pattern-bind-through-polymorphic-return) lands.
-func TestListElementSoundness_KnownGap_OptionExtraction(t *testing.T) {
-	t.Skip("M-TYPE-LIST-SOUND round 2: Option-extracted value decouples through generalization (json_parse's exact shape); not yet closed")
-	src := `module test
+// TestListElementSoundness_ConstructorPatternBind pins round 2 — CLOSED.
+//
+// Root cause: in checkPattern (internal/types/typechecker_patterns.go) the
+// ConstructorPattern arg loop bound each pattern variable to an orphaned fresh
+// type var, never tied to the constructor's field type or the scrutinee's
+// resolved type arg. So a destructured value — `Some(b)` from `Option[Box]`, or
+// even `Wrap(n)` from a monomorphic local ADT — lost its concrete type, and
+// `[b]` unified freely with `[string]`. This is the json_parse shape (getObject
+// returns Option[Json]). Fix: instantiate the constructor's factory scheme
+// (`$adt.make_<T>_<C>`) so field/result type-param vars are shared, constrain
+// `scrutinee ~ result`, and bind each arg to the real field type.
+func TestListElementSoundness_ConstructorPatternBind(t *testing.T) {
+	cases := []struct {
+		name, src string
+	}{
+		{"imported Option[Box] extracted into [string] (json_parse shape)", `module test
 import std/option (Option, Some, None)
 type Box = Wrap(int)
 pure func needStrs(xs: [string]) -> string = "ok"
 pure func getBox() -> Option[Box] = Some(Wrap(1))
-export func main() -> () ! {IO} {
-  match getBox() { Some(b) => { let _ = needStrs([b]); () }, None => () }
+export func main() -> () ! {IO} { match getBox() { Some(b) => { let _ = needStrs([b]); () }, None => () } }
+`},
+		{"monomorphic local ADT destructured directly", `module test
+type Box = Wrap(int)
+pure func needStrs(xs: [string]) -> string = "ok"
+export func main() -> () ! {IO} { match Wrap(1) { Wrap(n) => { let _ = needStrs([n]); () } } }
+`},
+		{"multi-param Result Ok-extraction into [string]", `module test
+import std/result (Result, Ok, Err)
+pure func needStrs(xs: [string]) -> string = "ok"
+pure func get() -> Result[int, string] = Ok(1)
+export func main() -> () ! {IO} { match get() { Ok(n) => { let _ = needStrs([n]); () }, Err(_) => () } }
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkListSoundnessSource(t, tc.src)
+			if err == nil {
+				t.Fatalf("SOUNDNESS HOLE: destructured non-string value into [string] should be rejected")
+			}
+			if strings.Contains(err.Error(), "*types.") || strings.Contains(err.Error(), "tagged value") {
+				t.Errorf("error leaks Go internals / is a runtime message: %s", err.Error())
+			}
+		})
+	}
 }
-`
-	if err := checkListSoundnessSource(t, src); err == nil {
-		t.Fatalf("KNOWN GAP: Option-extracted Box into [string] should be rejected")
+
+// TestListElementSoundness_ConstructorPatternBind_NoOvertighten guards that the
+// round-2 fix links arg<->field type WITHOUT forcing wrong concreteness: a value
+// extracted from a polymorphic constructor and used at its genuine type must
+// still compile.
+func TestListElementSoundness_ConstructorPatternBind_NoOvertighten(t *testing.T) {
+	cases := []struct {
+		name, src string
+	}{
+		{"polymorphic Option resolved to int, used as int", `module test
+import std/option (Option, Some, None)
+pure func ident(o: Option[int]) -> Option[int] = o
+export func main() -> () ! {IO} { let r = match ident(Some(7)) { Some(x) => x + 1, None => 0 }; let _ = r; () }
+`},
+		{"extracted string used correctly in [string]", `module test
+import std/option (Option, Some, None)
+pure func needStrs(xs: [string]) -> string = "ok"
+pure func getS() -> Option[string] = Some("hi")
+export func main() -> () ! {IO} { match getS() { Some(s) => { let _ = needStrs([s]); () }, None => () } }
+`},
+		{"Result Ok value used at its real type", `module test
+import std/result (Result, Ok, Err)
+pure func get() -> Result[int, string] = Ok(5)
+export func main() -> () ! {IO} { let r = match get() { Ok(n) => n + 1, Err(_) => 0 }; let _ = r; () }
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := checkListSoundnessSource(t, tc.src); err != nil {
+				t.Errorf("expected this valid program to compile, got: %v", err)
+			}
+		})
 	}
 }
 
