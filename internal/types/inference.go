@@ -28,6 +28,17 @@ type InferenceContext struct {
 	// and pathologically slow analysis (e.g. quadratic isTaggedUnion).
 	wasmDeadline  time.Time
 	currentModule string // populated by callers for inclusion in the budget-exceeded error
+	// baseEnvFreeVars is a snapshot of the free type variables of the
+	// environment at the START of this declaration's inference (the module /
+	// REPL / contract env). Used by generalizeWithConstraints to apply the HM
+	// generalization side-condition PRECISELY: only type vars introduced by
+	// binders *inside* this declaration (e.g. an enclosing lambda's parameter)
+	// must be withheld from generalization, NOT the spurious "free" rigid
+	// type-parameter names (a, b, k, v, …) that other module bindings leak into
+	// the shared env. The set of vars to withhold is therefore
+	// freeVars(currentEnv) \ baseEnvFreeVars. nil => restriction disabled
+	// (legacy generalize-everything behavior). See M-TYPE-LIST-SOUND round 3.
+	baseEnvFreeVars map[string]bool
 }
 
 // TypeConstraint represents a constraint to be solved

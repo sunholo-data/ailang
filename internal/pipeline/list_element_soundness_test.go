@@ -284,3 +284,97 @@ export pure func main() -> int = needNested([[1], [2, 3]])
 		})
 	}
 }
+
+// TestListElementSoundness_WrapperListLiteral pins round 3's NO-constructor hole.
+//
+// This is the leak the constructor-pattern fixes (rounds 1-2) do NOT cover — it
+// reproduces with no constructor pattern at all (the original report used
+// `concat([b])` / `join(", ", [b])`, but it is not join-specific). CLOSED here.
+//
+// Root cause (found 2026-06-08): a non-atomic argument like the list literal
+// `[b]` in a wrapper `func f(b) { needStrs([b]) }` is ANF-lifted to
+// `let $tmp = [b] in needStrs($tmp)`. `[b]` has element type α — the enclosing
+// param `b`'s type — and α is bound by the enclosing lambda. inferLet
+// over-generalized `$tmp : [α]` to `∀α. [α]`; re-instantiating it at the use
+// site minted a FRESH element var, severing the link back to `b`, so `b` itself
+// was never constrained and `f` over-generalized to `∀α. α -> string`, dropping
+// the [string] obligation of join/concat/++/needStr callees. `f(5)` then crashed
+// at runtime in _str_join. Fix: generalizeWithConstraints withholds vars
+// introduced by binders inside the decl (freeVars(currentEnv) \ baseEnvFreeVars),
+// keeping `$tmp` monomorphic so the use-site element constraint flows back to `b`.
+func TestListElementSoundness_WrapperListLiteral(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{
+			// THE hole: unannotated wrapper param, list-literal arg, int call.
+			name: "wrapper over [string] fn with [b], called with int",
+			src: `module test
+pure func needStrs(xs: [string]) -> string = "ok"
+func f(b) -> string { needStrs([b]) }
+export func main() -> string { let n: int = 5; f(n) }
+`,
+		},
+		{
+			// The same f accepted at BOTH int and string proves it over-generalized.
+			name: "same wrapper called with both int and string",
+			src: `module test
+pure func needStrs(xs: [string]) -> string = "ok"
+func f(b) -> string { needStrs([b]) }
+export func main() -> string { let n: int = 5; let _ = f(n); f("ok") }
+`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkListSoundnessSource(t, tc.src)
+			if err == nil {
+				t.Fatalf("SOUNDNESS HOLE: expected a compile-time type error (int element vs [string]), got none")
+			}
+			if strings.Contains(err.Error(), "*types.") || strings.Contains(err.Error(), "tagged value") {
+				t.Errorf("error leaks Go internals / is a runtime message: %s", err.Error())
+			}
+		})
+	}
+}
+
+// TestListElementSoundness_WrapperListLiteral_NoOvertighten guards that the
+// round-3 generalization fix does not break genuine polymorphism. The fix only
+// withholds vars bound by an enclosing binder *inside the declaration*; a
+// top-level binding still generalizes over its own type vars, so a wrapper used
+// at the correct element type compiles, and a wrapper that is itself
+// polymorphic in `a` stays polymorphic across distinct call-site types.
+func TestListElementSoundness_WrapperListLiteral_NoOvertighten(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "wrapper over [string] fn used at string",
+			src: `module test
+pure func needStrs(xs: [string]) -> string = "ok"
+func f(b) -> string { needStrs([b]) }
+export func main() -> string { f("hi") }
+`,
+		},
+		{
+			// g is polymorphic in its own type param; the inner ANF temp `[x]`
+			// stays monomorphic, but g still generalizes at its top-level decl,
+			// so g(1) and g("x") both type-check.
+			name: "polymorphic wrapper builds list of its own type param",
+			src: `module test
+pure func len2[a](xs: [a]) -> int = 0
+func g[a](x: a) -> int { len2([x]) }
+export func main() -> int { g(1) + g("x") }
+`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := checkListSoundnessSource(t, tc.src); err != nil {
+				t.Errorf("expected this valid program to compile, got: %v", err)
+			}
+		})
+	}
+}

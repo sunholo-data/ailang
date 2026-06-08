@@ -207,7 +207,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints)
+		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars)
 	} else {
 		binding = defaultedType
 	}
@@ -353,8 +353,11 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			}
 		}
 
-		// Generalize for recursion
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints)
+		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
+		// the recursive bindings' own fresh vars live only in newEnv, so they
+		// remain generalizable, while any enclosing lambda params (free in
+		// oldEnv but not in the decl's base env) are correctly withheld.
+		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars)
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
@@ -398,16 +401,52 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	}, finalEnv, nil
 }
 
-// generalizeWithConstraints creates a type scheme with explicit constraints
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint) *Scheme {
-	// Find free type variables in type but not in environment
+// generalizeWithConstraints creates a type scheme with explicit constraints,
+// applying the Hindley-Milner generalization side-condition precisely.
+//
+// M-TYPE-LIST-SOUND round 3: a type variable must NOT be generalized if it is
+// bound by an enclosing binder *inside the current declaration* (e.g. an
+// enclosing lambda's parameter). Generalizing such a var is unsound. The bug it
+// caused: a non-atomic argument such as the list literal `[b]` inside a wrapper
+// `func f(b) { g([b]) }` is ANF-lifted to `let $tmp = [b] in g($tmp)`. `[b]` has
+// element type α (the enclosing param `b`'s type). Generalizing `$tmp : [α]` to
+// `∀α. [α]` and re-instantiating it at the use site mints a FRESH element var,
+// severing the link back to `b` — so `b` itself never gets constrained and `f`
+// over-generalizes to `∀α. α -> string`, dropping the `[string]` element
+// obligation of join/concat/++/needStr-style callees.
+//
+// The vars to withhold are exactly freeVars(currentEnv) \ baseEnvFreeVars,
+// where baseEnvFreeVars is the snapshot of the *declaration's* base env taken
+// in InferWithConstraints. The subtraction is essential: AILANG's shared module
+// env carries spurious "free" rigid type-parameter names (a, b, k, v, …) leaked
+// from other bindings' schemes; those must STILL be generalizable by the binding
+// that owns them (otherwise `map`'s own `a` fails to generalize and downstream
+// uses hit occurs-check cycles). For a top-level decl currentEnv == baseEnv, so
+// nothing is withheld and full generalization is preserved. baseEnvFreeVars==nil
+// disables the restriction entirely (legacy generalize-everything behavior).
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool) *Scheme {
+	// Find free type variables in the type being generalized.
 	typeFreeVars := make(map[string]bool)
 	collectFreeVars(typ, typeFreeVars)
 
-	// For now, simplified generalization
-	// In a full implementation, would check against environment free vars
+	// Compute the vars introduced by binders inside this declaration:
+	// free in the current env but NOT in the declaration's base env.
+	var withhold map[string]bool
+	if baseEnvFreeVars != nil && currentEnv != nil {
+		withhold = make(map[string]bool)
+		for v := range currentEnv.FreeTypeVars() {
+			if !baseEnvFreeVars[v] {
+				withhold[v] = true
+			}
+		}
+	}
+
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
+		if withhold[v] {
+			// Bound by an enclosing binder in this decl — not generalizable.
+			continue
+		}
 		generalizedTypeVars = append(generalizedTypeVars, v)
 	}
 

@@ -390,6 +390,11 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
+		// M-TYPE-LIST-SOUND round 3: snapshot the decl's base-env free vars so
+		// generalization withholds ONLY vars introduced by binders inside this
+		// decl (enclosing lambda params), not the module env's leaked rigid
+		// type-parameter names (a, b, k, v, …).
+		baseEnvFreeVars: env.FreeTypeVars(),
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
@@ -517,6 +522,8 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	ctx.env = env
 	ctx.freshCounter = tc.inferFreshCounter // M-TVAR-COLLISION-FIX: Use persistent counter
 	ctx.SetDebugSink(tc.DebugSink)          // M-DX11: Wire provenance tracking
+	// M-TYPE-LIST-SOUND round 3: see InferWithConstraints for rationale.
+	ctx.baseEnvFreeVars = env.FreeTypeVars()
 
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)
