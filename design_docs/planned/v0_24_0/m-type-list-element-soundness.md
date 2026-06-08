@@ -85,44 +85,44 @@ This is **not** a fresh bug — three prior sprints hit the same wall and deferr
 
 ## Solution Design
 
+**Chosen approach (2026-06-08): unified post-inference soundness pass.** Per the Prior Attempts analysis, a fourth point-patch at infer/unify time fights the same losing battle (the type is still a `TVar`; permissive unification resolves the violation away). Instead we add a single validation pass that runs *after* the constraint solver and substitution, when types are concrete — closing the list-element hole, the numeric/list-coercion gap, AND the still-open tagged-union `.field` case in one mechanism.
+
 ### Overview
 
-Make list-element unification **total**: when a list type `[α]` (or `List[α]`) is unified with `[τ]`, the element types must unify *and any deferred constraints on `α` must be re-validated against `τ`*. The numeric case leaks because `α`'s `Num α` constraint is silently dropped when `α := string`; the Json case leaks because the element unification is apparently skipped for the `List[T]`-from-`Option` shape.
+After `InferWithConstraints` calls `tc.applySubstitutionToTyped(sub, typedNode)` (`typechecker_core.go:~439`), the typed AST carries **resolved** types (TVars substituted / defaulted). Add `tc.validatePostInferenceSoundness(typedNode)` immediately after, walking the typed AST (cycle-safe per `internal/types/traverse`) and enforcing structural invariants that cannot be checked at infer time:
+
+1. **List/Array element homogeneity** — for each `TypedList`/`TypedArray`, every element's resolved type must unify with the node's resolved element type. Catches `[42]:[string]` (`int` vs `string`) and `[Json]→[string]` directly, *regardless of the orphaned-constraint subtlety* (the trace bug) — we compare resolved types, not constraint vars.
+2. **Tagged-union field access** — for each `TypedRecordAccess`, the receiver's resolved type must not be a tagged union (reuse `isTaggedUnion` from M-TYPECHECK-NO-AUTO-UNWRAP-RESULT). Catches the `let r = f(); r.field` shape that v0.20.0 deferred → unskips `tagged_union_field_access_test.go`.
+3. Extensible: future structural invariants slot into the same walk.
+
+Errors are AILANG-level and span-anchored (the typed node carries its `Span`). This is the "post-inference walk applying substitutions" that the v0.20.0 doc named as the real fix but never built.
 
 ### Architecture
 
-**Root-cause surface (to be confirmed in Phase 1):**
-1. **`internal/types/unify.go`** — list/constructor unification: does `unify([α], [τ])` recurse into element types AND propagate/re-check `α`'s constraint set when `α` is bound to `τ`? The scalar path does (TEST E); the list path apparently doesn't (the `Num` constraint is dropped).
-2. **List-literal elaboration** (`internal/elaborate/`) — how a list literal's element type is assigned and whether its element constraints are attached to the right tyvar before the literal flows into a typed position.
-3. **`List[T]` vs `[T]` sugar** (`internal/types`, parser/elaborate desugaring) — whether `Option[List[Json]]` (from `asArray`/`getObject`) and `[string]` (consumer) reduce to the same constructor before unification. If not, that is a distinct soundness leak in the same family.
+- **Hook point:** `internal/types/typechecker_core.go`, in `InferWithConstraints`, right after `applySubstitutionToTyped`. Gate behind a strict default with an escape hatch (`AILANG_ALLOW_UNSOUND=1`) for one release to de-risk ecosystem migration (mirrors v0.20.0's `--allow-unsafe-field-access`).
+- **New file:** `internal/types/soundness_postpass.go` — `validatePostInferenceSoundness(node) error` + per-invariant checkers. Uses `traverse.Walk` (cycle-safe; type-system rule).
+- **Resolved-type access:** the typed AST nodes already store their resolved `Type` post-substitution; the checker reads those (no re-inference). For element homogeneity it unifies element resolved-type vs list resolved-element-type using the existing `Unifier` in a throwaway substitution (check-only, discard result).
+- **Why this dodges the wall:** the prior attempts failed at *infer* time when types were `TVar`s. Here, after substitution+defaulting, a list that ended up `[string]` with an `int` element is a concrete, detectable mismatch.
 
 ### Implementation Plan
 
-**Phase 1: Localize (~0.5d)**
-- [ ] Add failing unit tests in `internal/types` reproducing (1), (2), (3) at the type-checker level (no runtime).
-- [ ] Determine which of the three loci above drops the check; write the test that pins it.
+**Phase 1: Localize + spec (DONE)**
+- [x] Failing compile-time tests + must-accept guardrails (`internal/pipeline/list_element_soundness_test.go`).
+- [x] Trace-confirmed root cause + prior-attempts analysis (sprint plan + this doc).
 
-**Phase 2: Fix (~0.5d)**
-- [ ] Make list-element unification recurse + re-validate constraints (so `Num[string]` fails like the scalar path).
-- [ ] If implicated, normalize `List[T]` and `[T]` to one representation before unification.
-- [ ] Ensure the emitted error is AILANG-level and anchored to the element (`cannot unify Json vs string at <file:line:col>`), not a Go-internal leak.
+**Phase 2: Post-inference pass skeleton + list invariant (~1d)**
+- [ ] `soundness_postpass.go` with the cycle-safe walk + the list/array element-homogeneity checker.
+- [ ] Wire it into `InferWithConstraints` after `applySubstitutionToTyped`, behind the `AILANG_ALLOW_UNSOUND` escape hatch (default strict).
+- [ ] Unskip `MustReject` (list cases); keep `MustAccept` green.
 
-**Phase 3: Lock it down (~0.5d)**
-- [ ] Add the six "sound neighbour" cases as regression fixtures (they must keep passing).
-- [ ] Add the three holes as must-reject fixtures.
-- [ ] `make verify-examples`; audit/fix any example that relied on the hole.
+**Phase 3: Tagged-union invariant (~0.5d)**
+- [ ] Add the `TypedRecordAccess` / `isTaggedUnion` checker to the same pass.
+- [ ] Unskip `internal/pipeline/tagged_union_field_access_test.go` (the v0.20.0 deferred case).
 
-### Files to Modify/Create
-
-**Modified files:**
-- `internal/types/unify.go` — total list-element unification + constraint re-check (~30–80 LOC)
-- `internal/elaborate/*.go` — list-literal element-type/constraint attachment, if Phase 1 points here (~0–40 LOC)
-- `internal/types/*_test.go` — soundness fixtures (must-reject + must-accept) (~120 LOC)
-
-**Possibly:**
-- `internal/types` / parser desugar — `List[T]`↔`[T]` normalization if it's a second leak.
-
-Does **not** touch runtime/codegen/eval/stdlib semantics — this only tightens the type checker.
+**Phase 4: Audit sweep + rollout (~1d)**
+- [ ] `make verify-examples`; fix/annotate any example that relied on a hole.
+- [ ] Run the smoke tier on the rig — confirm `json_parse` (and similar) now fail at *compile* time, recoverable.
+- [ ] Full `internal/types` + `internal/pipeline` + `cmd/ailang` suites; CHANGELOG + LIMITATIONS update; document the escape hatch + its removal target.
 
 ## Examples
 
