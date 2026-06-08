@@ -151,12 +151,20 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 
 		if len(innerBindings) == 0 {
 			// No nested lets - simple case
-			return &core.Let{
+			node := &core.Let{
 				CoreNode: e.makeNode(let.Position()),
 				Name:     let.Name,
 				Value:    flattenedValue,
 				Body:     body,
-			}, nil
+			}
+			// M-TYPE-LIST-ELEMENT-SOUNDNESS: preserve the let's type annotation so
+			// `let xs: [string] = [42]` is actually type-checked (was dropped here).
+			if let.Type != nil {
+				if annot := e.astTypeToInternalType(let.Type); annot != nil {
+					e.letTypeAnnots[node.ID()] = annot
+				}
+			}
+			return node, nil
 		}
 
 		// Build flattened structure: inner bindings outermost, user binding innermost
@@ -166,6 +174,13 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			Name:     let.Name,
 			Value:    flattenedValue,
 			Body:     body,
+		}
+		// M-TYPE-LIST-ELEMENT-SOUNDNESS: the annotation belongs to the binding of
+		// let.Name, which is this inner `result` node.
+		if let.Type != nil {
+			if annot := e.astTypeToInternalType(let.Type); annot != nil {
+				e.letTypeAnnots[result.ID()] = annot
+			}
 		}
 
 		// Wrap with inner bindings in reverse order (innermost binding becomes outermost let)
@@ -256,12 +271,20 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 				return nil, err
 			}
 
-			result = &core.Let{
+			letNode := &core.Let{
 				CoreNode: e.makeNode(letExpr.Position()),
 				Name:     letExpr.Name, // Use the actual let name, not _block_N
 				Value:    value,
 				Body:     result, // Thread through to next expression
 			}
+			// M-TYPE-LIST-ELEMENT-SOUNDNESS: preserve the statement-let's type
+			// annotation (e.g. `let xs: [string] = [42];`) so it is type-checked.
+			if letExpr.Type != nil {
+				if annot := e.astTypeToInternalType(letExpr.Type); annot != nil {
+					e.letTypeAnnots[letNode.ID()] = annot
+				}
+			}
+			result = letNode
 		} else {
 			// Regular expression: normalize and bind to a wildcard
 			value, err := e.normalize(expr)

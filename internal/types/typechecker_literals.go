@@ -75,7 +75,23 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 			}
 		}
 
-		monotype = scheme.Instantiate(ctx.freshType)
+		var instConstraints []Constraint
+		monotype, instConstraints = scheme.InstantiateWithConstraints(ctx.freshType)
+
+		// M-TYPE-LIST-ELEMENT-SOUNDNESS: re-emit the scheme's class constraints
+		// as fresh wanted constraints on the instantiated type variables. Without
+		// this, a let-bound `[42]` generalized to `forall a. Num a => [a]` loses
+		// its `Num` obligation at the use site, so unifying `[a'] ~ [string]`
+		// silently accepts `needStrs([42])` (the soundness hole). Re-emitting
+		// `Num a'` lets the normal ground-constraint resolver reject `Num[string]`.
+		for _, c := range instConstraints {
+			ctx.addConstraint(ClassConstraint{
+				Class:  c.Class,
+				Type:   c.Type,
+				Path:   []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())},
+				NodeID: v.ID(),
+			})
+		}
 
 		// Record instantiation after it happens
 		if tc.trackInstantiations {

@@ -83,6 +83,9 @@ type CoreTypeChecker struct {
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
 	paramTypeAnnots map[uint64][]Type
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations from elaboration
+	// Maps core.Let NodeID -> annotated type so `let xs: [string] = [42]` is checked
+	letTypeAnnots map[uint64]Type
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -203,6 +206,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
 	}
 }
@@ -228,6 +232,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
 	}
 }
@@ -356,6 +361,13 @@ func (tc *CoreTypeChecker) SetParamTypeAnnotations(annots map[uint64][]Type) {
 // M-FIX-FLOAT-OP: This ensures PI() -> float ACTUALLY constrains inference to return float
 func (tc *CoreTypeChecker) SetReturnTypeAnnotations(annots map[uint64]Type) {
 	tc.returnTypeAnnots = annots
+}
+
+// SetLetTypeAnnotations sets let-binding type annotations from elaboration
+// M-TYPE-LIST-ELEMENT-SOUNDNESS: ensures `let xs: [string] = [42]` is type-checked
+// instead of having its annotation silently dropped during elaboration.
+func (tc *CoreTypeChecker) SetLetTypeAnnotations(annots map[uint64]Type) {
+	tc.letTypeAnnots = annots
 }
 
 // InferWithConstraints infers type with constraints for a Core expression

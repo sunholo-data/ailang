@@ -152,6 +152,21 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	valueType := getType(valueNode)
 	valueEffects := getEffectRow(valueNode)
 
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: if this let carries a type annotation
+	// (`let xs: [string] = ...`), unify the inferred value type with the
+	// annotation BEFORE solving/defaulting/generalization. Previously the
+	// annotation was dropped during elaboration, so `let xs: [string] = [42]`
+	// type-checked: the int element's `Num` constraint never met `string`.
+	// Emitting `valueType ~ annot` makes the element-level unification happen
+	// and the resulting ground `Num[string]` is rejected by constraint solving.
+	if annot, ok := tc.letTypeAnnots[let.ID()]; ok && annot != nil {
+		ctx.addConstraint(TypeEq{
+			Left:  valueType,
+			Right: annot,
+			Path:  []string{fmt.Sprintf("let annotation %s at %v", let.Name, let.Span())},
+		})
+	}
+
 	// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): solve constraints AND
 	// apply the returned substitution to valueType before defaulting +
 	// generalization. Without this, free TVars that have been bound by

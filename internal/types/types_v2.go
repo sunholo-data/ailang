@@ -514,6 +514,23 @@ func (qs *QualifiedScheme) String() string {
 
 // Instantiate creates a fresh instance of the type scheme
 func (s *Scheme) Instantiate(fresh func(Kind) Type) Type {
+	typ, _ := s.InstantiateWithConstraints(fresh)
+	return typ
+}
+
+// InstantiateWithConstraints creates a fresh instance of the type scheme AND
+// returns the scheme's class constraints rewritten under the same fresh-variable
+// substitution.
+//
+// M-TYPE-LIST-ELEMENT-SOUNDNESS: plain Instantiate dropped s.Constraints on the
+// floor. That is the soundness hole behind `needStrs([42])`: a let-bound `[42]`
+// generalizes to `forall a. Num a => [a]`, but the use site instantiated only
+// the *type* `[a']`, never re-emitting `Num a'`. After `[a'] ~ [string]` fixed
+// a':=string there was no surviving `Num` constraint, so `Num[string]` was never
+// checked. Re-emitting the instantiated constraints as fresh wanted constraints
+// at the use site lets the normal ground-constraint resolver reject `Num[string]`,
+// exactly as the scalar `needStr(42)` path already does.
+func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Constraint) {
 	subs := make(map[string]Type)
 
 	// Fresh type variables
@@ -528,7 +545,18 @@ func (s *Scheme) Instantiate(fresh func(Kind) Type) Type {
 		subs[v] = fresh(EffectRow)
 	}
 
-	return s.Type.Substitute(subs)
+	if len(s.Constraints) == 0 {
+		return s.Type.Substitute(subs), nil
+	}
+
+	instConstraints := make([]Constraint, len(s.Constraints))
+	for i, c := range s.Constraints {
+		instConstraints[i] = Constraint{
+			Class: c.Class,
+			Type:  c.Type.Substitute(subs),
+		}
+	}
+	return s.Type.Substitute(subs), instConstraints
 }
 
 // Helper functions

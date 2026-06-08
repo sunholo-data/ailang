@@ -32,6 +32,11 @@ type Elaborator struct {
 	// M-FIX-FLOAT-OP: Return type annotations from function declarations
 	// Maps Lambda NodeID -> return type (ensures PI() -> float is actually float)
 	returnTypeAnnots map[uint64]types.Type
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations.
+	// Maps the resulting core.Let NodeID -> the annotated type, so that
+	// `let xs: [string] = [42]` actually constrains inference (otherwise the
+	// annotation was silently dropped and the int element leaked through).
+	letTypeAnnots map[uint64]types.Type
 	// M-CAPABILITY-BUDGETS: Full effect annotations with budgets
 	// Maps Lambda NodeID -> full effect annotations (preserves @limit=N through elaboration)
 	effectAnnotsFull map[uint64][]ast.EffectAnnotation
@@ -66,6 +71,7 @@ func NewElaborator() *Elaborator {
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
+		letTypeAnnots:    make(map[uint64]types.Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		derivedEqTypes:   make(map[string]bool),         // M-DX19: Initialize derived Eq types
 	}
 }
@@ -88,6 +94,7 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
+		letTypeAnnots:    make(map[uint64]types.Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		derivedEqTypes:   make(map[string]bool),         // M-DX19: Initialize derived Eq types
 	}
 }
@@ -203,6 +210,13 @@ func (e *Elaborator) GetParamTypeAnnotations() map[uint64][]types.Type {
 // M-FIX-FLOAT-OP: Used to ensure PI() -> float actually returns float
 func (e *Elaborator) GetReturnTypeAnnotations() map[uint64]types.Type {
 	return e.returnTypeAnnots
+}
+
+// GetLetTypeAnnotations returns all let-binding type annotations (Let NodeID -> annotated type)
+// M-TYPE-LIST-ELEMENT-SOUNDNESS: Used so `let xs: [string] = [42]` is actually
+// checked instead of having its annotation silently dropped during elaboration.
+func (e *Elaborator) GetLetTypeAnnotations() map[uint64]types.Type {
+	return e.letTypeAnnots
 }
 
 // GetDerivedEqTypes returns all types that have `deriving (Eq)` clause

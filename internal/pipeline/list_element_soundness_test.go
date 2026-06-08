@@ -43,23 +43,18 @@ func checkListSoundnessSource(t *testing.T, src string) error {
 	return runErr
 }
 
-// TestListElementSoundness_MustReject is the failing test that pins the hole.
+// TestListElementSoundness_MustReject pins the hole — now CLOSED by the C3 fix.
 //
-// M1 localization (2026-06-08): these FAIL today (the hole reproduces at
-// compile-time). Confirmed surface:
-//   - The pipeline uses internal/types.CoreTypeChecker (NOT the ast.List/ctx.Infer
-//     path). The fix lives in the Core checker's class-constraint resolution.
-//   - unifyLists (internal/types/unification_types.go:85) DOES recurse into
-//     element types, so the leak is upstream: a numeric literal's `Num` constraint
-//     is not re-checked after the list-element tyvar is unified to a concrete
-//     non-numeric type (`Num[string]` should fail like the scalar/cons paths do).
-//   - For the List[Json]-from-Option variant, AsList (helpers.go:120) is
-//     case-sensitive and only matches lowercase "list", not capital "List".
-//
-// Skipped (not failed) so CI stays green until M2 lands; unskip in the M2 fix
-// commit. The MustAccept guardrails below run as active regression protection.
+// Root cause (found 2026-06-08): Scheme.Instantiate silently dropped the
+// scheme's class constraints, so a let-bound `[42]` generalized to
+// `forall a. Num a => [a]` lost its `Num` obligation at the use site — unifying
+// `[a'] ~ [string]` accepted `needStrs([42])`. Fix: InstantiateWithConstraints
+// re-emits the freshened constraints, so the existing ground-constraint resolver
+// rejects `Num[string]` (same path the scalar `needStr(42)` already used). The
+// annotated case exposed a second bug: `let x: T` annotations were dropped during
+// elaboration entirely (`let x: int = "hello"` compiled) — now enforced via a
+// recorded annotation + `valueType ~ annot` in inferLet. Both subcases now pass.
 func TestListElementSoundness_MustReject(t *testing.T) {
-	t.Skip("M-TYPE-LIST-SOUND M2: known type-soundness hole; unskip when the Core-checker constraint fix lands")
 	cases := []struct {
 		name string
 		src  string
@@ -94,6 +89,31 @@ export pure func main() -> string {
 				t.Errorf("error leaks Go internals / is a runtime message: %s", err.Error())
 			}
 		})
+	}
+}
+
+// TestListElementSoundness_KnownGap_OptionExtraction documents the remaining
+// open case after the C3 fix (Scheme.Instantiate constraint-survival + let-
+// annotation enforcement). A value extracted from a POLYMORPHIC constructor
+// returned by a function — `match getObject():Option[Json] { Some(name) => ... }`
+// — still loses its concrete element type through generalization, so the
+// json_parse shape (`[name]` into `[string]`) is not yet rejected. Directly
+// constructed values (`[Red]`, `Wrap(n)`) and numeric literals ARE caught.
+// This is the deeper sibling of the same generalization-decoupling root cause;
+// unskip when round 2 (pattern-bind-through-polymorphic-return) lands.
+func TestListElementSoundness_KnownGap_OptionExtraction(t *testing.T) {
+	t.Skip("M-TYPE-LIST-SOUND round 2: Option-extracted value decouples through generalization (json_parse's exact shape); not yet closed")
+	src := `module test
+import std/option (Option, Some, None)
+type Box = Wrap(int)
+pure func needStrs(xs: [string]) -> string = "ok"
+pure func getBox() -> Option[Box] = Some(Wrap(1))
+export func main() -> () ! {IO} {
+  match getBox() { Some(b) => { let _ = needStrs([b]); () }, None => () }
+}
+`
+	if err := checkListSoundnessSource(t, src); err == nil {
+		t.Fatalf("KNOWN GAP: Option-extracted Box into [string] should be rejected")
 	}
 }
 

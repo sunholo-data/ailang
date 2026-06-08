@@ -218,6 +218,13 @@ func typeCheckAndLowerModule(
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
 	}
 
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: Pass let-binding type annotations to type checker
+	// so `let xs: [string] = [42]` is actually type-checked (was dropped before).
+	letAnnots := elaborator.GetLetTypeAnnotations()
+	if len(letAnnots) > 0 {
+		typeChecker.SetLetTypeAnnotations(letAnnots)
+	}
+
 	// M-CAPABILITY-BUDGETS: Pass full effect annotations with budgets to type checker
 	// This preserves @limit=N budget annotations from function declarations through elaboration
 	effectAnnotsFull := elaborator.GetEffectAnnotationsFull()
