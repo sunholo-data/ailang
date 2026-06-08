@@ -35,4 +35,21 @@ Apply the minimal fix at the localized site (constraint propagation on list-elem
 ## Conflict-surface guardrails (must-accept — these MUST keep compiling)
 `[] : [string]` · `[1,2,3] : [int]` (numeric default) · `map(\x.x+1,[1,2,3])` · `[[1],[2,3]] : [[int]]` · `["a","b"] : [string]`
 
+## M2 root cause — trace-confirmed (2026-06-08)
+
+Instrumented `InferWithConstraints` (temporary, reverted) and traced `wantStrings([99])` where `wantStrings : [string] -> string`. Raw constraints for `main`:
+```
+Class  Num[α1]                                   <- the literal 99
+TypeEq list[string] -> string ~ [α2] -> α3       <- inferApp: funcType ~ ([argElem] -> result)
+TypeEq α3 ~ string
+=> sub: α2 -> string, α3 -> string ;  unsolved: Num[α1]   (α1 NEVER bound)
+```
+**The literal's `Num`-carrying var (`α1`) is orphaned from the list-element var (`α2`) that gets unified to `string`.** So `Num[α1]` defaults to `int` harmlessly and the `int`-elem-vs-`string`-target mismatch is never checked. (In the must-accept `[1,2,3]:[int]` case the same orphan defaults to `int`, which matches the target — so no harm. That's why only the `[string]`/`[Json]` direction leaks.)
+
+- `inferApp` (`typechecker_functions.go:417`) builds the param constraint from `getType(argNode)` — correct.
+- `inferLit` (`typechecker_literals.go:14`) sets the literal's node type AND `Num` to the same `tv` — correct.
+- `inferList` (`typechecker_data.go:203`) returns `TList{Element: getType(firstElem)}` — *should* be `[α1]`, but the app constraint shows `[α2]`. So a **freshening/copy decouples the list element var from the literal's constrained var** between `inferList` and `inferApp`. **Exact site not yet pinned** (next pass: add a trace in `inferList` printing the returned element type vs `getType(firstElem)`, and check `getType`/`TypedList` construction for a copy/normalize).
+
+**Fix shape (once the site is pinned):** ensure the list-literal element type IS the literal's constrained var (or add a `TypeEq` linking them) so `[α1] ~ [string]` binds `α1:=string` → `Num[string]` → "No instance" at compile time. Then unskip `MustReject`, keep `MustAccept` green, run `make verify-examples` + full `internal/types`/`pipeline`/`cmd` suites, add CHANGELOG.
+
 ## Done = green tests + green examples + the 3 repros reject at compile time + CHANGELOG.
