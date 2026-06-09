@@ -60,6 +60,10 @@ func Migrate(db *sql.DB) error {
 	// adaptive thrash-abort thresholds. Welford's online algorithm; m2_tokens
 	// is the sum-of-squared-deviations accumulator (kept on disk so we don't
 	// have to replay history to extend the baseline).
+	//
+	// NOTE: This Migrate() entry only reaches FRESH databases (version 0). For
+	// DBs already past v1, the v15 migration in migrate_v8.go backfills it —
+	// keep the two in sync.
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS eval_baselines (
 			model_id      TEXT NOT NULL,
@@ -465,9 +469,9 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 7
 	}
 
-	// Migrations v8-v14 are in migrate_v8.go
-	if currentVersion < 14 {
-		currentVersion, err = migrateV8ToV14(db, currentVersion)
+	// Migrations v8-v15 are in migrate_v8.go
+	if currentVersion < 15 {
+		currentVersion, err = migrateV8ToV15(db, currentVersion)
 		if err != nil {
 			return currentVersion, err
 		}
@@ -506,6 +510,7 @@ func ValidateSchema(db *sql.DB) error {
 		"execution_chains",
 		"chain_stages",
 		"trace_summaries",
+		"eval_baselines",
 	}
 
 	for _, table := range expectedTables {
