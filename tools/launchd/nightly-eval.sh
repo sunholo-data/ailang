@@ -102,9 +102,13 @@ log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
 #
 # Agent mode REQUIRES an explicit --benchmarks list (it refuses to auto-discover),
 # so we derive the union of smoke + explicit-core + default-core by filename stem.
-# default-core = a .yml with no `tier:` field (the loader defaults it to "core");
-# a plain `grep 'tier: core'` would miss those (e.g. events), so match them with
-# grep -L on the tier-field pattern.
+# A "benchmark" is a .yml with an `id:` field; default-core = has id: but no
+# `tier:` field (the loader defaults missing tier to "core"). The id: guard
+# excludes non-benchmark meta-files such as events.yml (the dashboard
+# suite-change log) — which the Go discoverBenchmarks/isBenchmarkMetaFile also
+# skip. Without it the eval-suite tries to "run" events.yml, LoadSpec rejects it
+# ("missing required field: id"), and it produces zero results — a phantom gap
+# that wasted two trial slots in the first smoke+core run.
 MODEL="opencode-qwen3-5-35b-a3b-mxfp8"
 BENCH_TIERS="smoke,core"   # display label for alerts/log
 # Must match observatory.DefaultDatabasePath() — the same DB the eval-suite
@@ -114,7 +118,9 @@ OBSERVATORY_DB="$HOME/.ailang/state/observatory.db"
 BENCH_LIST=$( {
     grep -lE '^[[:space:]]*tier:[[:space:]]*smoke' benchmarks/*.yml
     grep -lE '^[[:space:]]*tier:[[:space:]]*core'  benchmarks/*.yml
-    grep -LE '^[[:space:]]*tier:[[:space:]]*[a-z]' benchmarks/*.yml
+    # default-core: a real benchmark (has id:) with no tier: field
+    comm -12 <(grep -lE '^[[:space:]]*id:' benchmarks/*.yml | sort) \
+             <(grep -LE '^[[:space:]]*tier:[[:space:]]*[a-z]' benchmarks/*.yml | sort)
   } 2>/dev/null | xargs -n1 basename | sed 's/\.yml$//' | sort -u | paste -sd, - )
 TIER_COUNT=$(echo "$BENCH_LIST" | tr ',' '\n' | grep -c .)
 if [[ -z "$BENCH_LIST" || "$TIER_COUNT" -eq 0 ]]; then
