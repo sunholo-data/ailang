@@ -441,6 +441,30 @@ models:
       API name uses no date suffix: "claude-opus-4-6" (not dated variant).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
+  # Anthropic Claude Fable 5 (released June 9, 2026)
+  claude-fable-5:
+    api_name: "claude-fable-5"
+    provider: "anthropic"
+    description: "Claude Fable 5 - most capable widely released model (Mythos-class, June 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "fable"  # Pass to --agent-model flag
+    max_output_tokens: 128000  # 128K max output (higher than Sonnet/Haiku's 64K)
+    pricing:
+      input_per_1k: 0.010   # $10 per million = $0.010 per 1K
+      output_per_1k: 0.050  # $50 per million = $0.050 per 1K
+    notes: |
+      Anthropic's most capable widely released model (June 9, 2026).
+      Built on Mythos technology — Mythos-class capabilities made publicly available.
+      Adaptive thinking always on; no extended thinking.
+      1M token context window, 128K max output tokens.
+      Pricing: $10/$50 per 1M (2× input, 2× output vs Opus 4.7/4.8).
+      Cached input: $1/M (90% discount). Batch API: 50% off.
+      Uses Opus 4.7+ tokenizer: same text produces ~30% more tokens vs pre-4.7 models.
+      30-day data retention required for safety monitoring.
+      Available on Claude API, Bedrock, Vertex AI, Microsoft Foundry.
+      Agent eval support: ✅ API access verified 2026-06-09. Smoke gate PENDING.
+
   claude-opus-4-8:
     api_name: "claude-opus-4-8"
     provider: "anthropic"
@@ -458,6 +482,7 @@ models:
       Same per-token pricing as Opus 4.7 ($5/$25 per 1M).
       1000k context. Verified on OpenRouter 2026-06-08.
       Smoke gate: PENDING — run before adding to rotation.
+      Tier below claude-fable-5 ($5/$25 vs $10/$50 per 1M).
 
   claude-opus-4-7:
     api_name: "claude-opus-4-7"
@@ -2017,6 +2042,7 @@ local_models:
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
+# - claude-fable-5    # Opt-in only (~$7/smoke, ~$16/core) — run smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
 # - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
