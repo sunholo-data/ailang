@@ -285,6 +285,25 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 				}
 			}
 			result = letNode
+		} else if letrecExpr, ok := expr.(*ast.LetRec); ok && letrecExpr.Body == nil {
+			// Statement-form letrec inside a block (`letrec f = ...; <rest>`):
+			// thread the recursive binding into the continuation so the bound
+			// name is in scope for the rest of the block AND recursively in its
+			// own value. Previously this fell through to the wildcard branch
+			// below — the letrec was bound to a discarded `_block_N` and its name
+			// dropped, so any later use (and the recursive self-call) hit
+			// "undefined variable". That broke block-form letrec entirely,
+			// including the teaching prompt's own canonical example. inferLetRec
+			// already scopes the binding correctly; the gap was purely here.
+			value, err := e.normalize(letrecExpr.Value)
+			if err != nil {
+				return nil, err
+			}
+			result = &core.LetRec{
+				CoreNode: e.makeNode(letrecExpr.Position()),
+				Bindings: []core.RecBinding{{Name: letrecExpr.Name, Value: value}},
+				Body:     result, // Thread through to next expression
+			}
 		} else {
 			// Regular expression: normalize and bind to a wildcard
 			value, err := e.normalize(expr)

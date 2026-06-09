@@ -1,5 +1,14 @@
 -- letrec_recursion.ail
--- Demonstrates letrec keyword for recursive lambdas
+-- Demonstrates the `letrec` keyword for recursive lambdas, in BOTH forms:
+--   (1) expression form:  let x = letrec f = ... in f(...)
+--   (2) statement form:   letrec f = ...;   <later use of f in the same block>
+--
+-- Form (2) — a bare statement-form `letrec` inside a block, which is the form
+-- the teaching prompt shows — regressed silently: normalizeBlock had no case
+-- for it, so the binding was dropped (bound to a discarded wildcard) and `f`
+-- was "undefined variable" at any later use. The pre-existing version of this
+-- example only covered form (1), which always worked, so CI never caught it.
+-- This now guards both forms (M-LETREC-BLOCK-SCOPE).
 module examples/runnable/letrec_recursion
 
 import std/io (println)
@@ -8,14 +17,21 @@ export func main() -> () ! {IO} {
   {
     println("=== Letrec Recursive Lambdas ===");
 
-    -- Single recursive call (factorial)
+    -- (1) Expression form (letrec ... in ...) — always worked
     let fact = letrec factorial = \n. if n < 2 then 1 else n * factorial(n - 1) in factorial(5);
     println("factorial(5) = ${show(fact)}");
 
-    -- Double recursive call (fibonacci)
     let fib_result = letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10);
     println("Fibonacci(10) = ${show(fib_result)}");
 
-    ()
+    -- (2) Statement form — bare `letrec f = ...;` then use f later in the block.
+    -- Curried (two lambdas) with an accumulator, the shape that broke hardest.
+    letrec sumTo = \i. \acc. if i <= 0 then acc else sumTo(i - 1)(acc + i);
+    println("sumTo(10) = ${show(sumTo(10)(0))}");
+
+    -- A plain let statement after a letrec must still thread through correctly.
+    let n = 7;
+    letrec countdown = \k. if k <= 0 then 0 else countdown(k - 1);
+    println("countdown(${show(n)}) = ${show(countdown(n))}")
   }
 }
