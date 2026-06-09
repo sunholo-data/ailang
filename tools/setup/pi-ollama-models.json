@@ -1,0 +1,14 @@
+{
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "models": [
+        { "id": "qwen3.5:35b-a3b-mxfp8" },
+        { "id": "qwen3.5:35b-a3b" },
+        { "id": "gemma4:26b" }
+      ]
+    }
+  }
+}

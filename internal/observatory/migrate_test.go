@@ -1,6 +1,7 @@
 package observatory
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -64,7 +65,7 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrateWithVersion failed: %v", err)
 	}
-	// Current schema version is 14:
+	// Current schema version is 15:
 	// v1=base, v2=parent_task_id, v3=sessions, v4=remove unused tables,
 	// v5=metrics+cache tokens, v6=chat_messages (M-CHAT-HISTORY-DB),
 	// v7=execution_chains (M-CHAINS-SIMPLIFY),
@@ -75,7 +76,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	// v12=trace_summaries table (M-PERF-OBSERVATORY)
 	// v13=dashboard performance indexes (M-PERF-OBSERVATORY)
 	// v14=trace_summaries workspace column (M-PERF-OBSERVATORY)
-	expectedVersion := 14
+	// v15=eval_baselines table backfill (M-EVAL-OS-LONGITUDINAL Phase 2)
+	expectedVersion := 15
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
@@ -85,9 +87,82 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second MigrateWithVersion failed: %v", err)
 	}
-	if version != 14 {
-		t.Errorf("expected version 14 on second call, got %d", version)
+	if version != 15 {
+		t.Errorf("expected version 15 on second call, got %d", version)
 	}
+}
+
+// TestMigrateWithVersion_V15BackfillsEvalBaselines reproduces the exact live-DB
+// bug: eval_baselines lived only in the base Migrate() schema, which never
+// re-runs for DBs past v1. Every existing observatory.db (recorded at v14)
+// silently lacked the table, so the eval-suite logged "no such table:
+// eval_baselines" on every passing trial and recorded no baselines. The v15
+// migration must backfill the table on a DB already capped at v14.
+func TestMigrateWithVersion_V15BackfillsEvalBaselines(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open in-memory database: %v", err)
+	}
+	defer db.Close()
+
+	// Reconstruct the broken live-DB state: a database an OLD binary migrated to
+	// v14 — eval_baselines absent, schema_version capped at 14 (no v15 row).
+	if _, err := MigrateWithVersion(db); err != nil {
+		t.Fatalf("initial MigrateWithVersion failed: %v", err)
+	}
+	if _, err := db.Exec("DROP TABLE eval_baselines"); err != nil {
+		t.Fatalf("failed to drop eval_baselines to simulate old DB: %v", err)
+	}
+	if _, err := db.Exec("DELETE FROM schema_version WHERE version >= 15"); err != nil {
+		t.Fatalf("failed to roll schema_version back to 14: %v", err)
+	}
+
+	// Precondition: matches the live DB exactly — v14, no eval_baselines.
+	if v := maxSchemaVersion(t, db); v != 14 {
+		t.Fatalf("precondition: expected version 14, got %d", v)
+	}
+	if tableExists(t, db, "eval_baselines") {
+		t.Fatal("precondition: eval_baselines should be absent before the v15 migration")
+	}
+
+	// The fix: re-running migrations must detect v14 < 15 and create the table.
+	version, err := MigrateWithVersion(db)
+	if err != nil {
+		t.Fatalf("v15 MigrateWithVersion failed: %v", err)
+	}
+	if version != 15 {
+		t.Errorf("expected version 15 after backfill, got %d", version)
+	}
+	if !tableExists(t, db, "eval_baselines") {
+		t.Error("eval_baselines table should exist after the v15 migration")
+	}
+
+	// The eval write path must now succeed against the backfilled table.
+	if err := UpdatePassedTrial(context.Background(), db, "test-model", "test-bench", 1234); err != nil {
+		t.Errorf("UpdatePassedTrial failed against backfilled table: %v", err)
+	}
+}
+
+func maxSchemaVersion(t *testing.T, db *sql.DB) int {
+	t.Helper()
+	var v int
+	if err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM schema_version").Scan(&v); err != nil {
+		t.Fatalf("read schema_version: %v", err)
+	}
+	return v
+}
+
+func tableExists(t *testing.T, db *sql.DB, name string) bool {
+	t.Helper()
+	var got string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", name).Scan(&got)
+	if err == sql.ErrNoRows {
+		return false
+	}
+	if err != nil {
+		t.Fatalf("check table %s: %v", name, err)
+	}
+	return got == name
 }
 
 func TestValidateSchema_MissingTables(t *testing.T) {

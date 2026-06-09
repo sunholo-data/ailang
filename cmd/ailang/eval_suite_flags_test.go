@@ -73,14 +73,18 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution drift detector. Last refreshed 2026-05-20: 17/32/11/9 ±3.
-	// Prior baseline (post-M5): 15/21/11/6. Bumped when CI red on dev caught
-	// new benchmarks added since the original baseline. Refresh again when
-	// drift outgrows the ±3 envelope (don't widen tolerance — bump the
-	// target counts to match reality). Experimental tier is intentionally
-	// excluded — probe count grows independently.
-	checkTierCount(t, "smoke", len(smoke), 17, 3)
-	checkTierCount(t, "core", len(core), 32, 3)
+	// Distribution drift detector. Refreshed 2026-06-08: 6 benchmarks were
+	// intentionally promoted into the smoke tier (the local-ollama nightly set) —
+	// parallel_map_reduce, parallel_independent_subtasks, json_encode, fold_reduce,
+	// typed_stream_pipeline (core→smoke) and json_parse (stretch→smoke) — moving
+	// smoke 17→23 and core 32→26. Prior baselines: 17/32/11/9 (2026-05-20),
+	// 15/21/11/6 (post-M5). Kept in sync with the sibling check in
+	// internal/eval_harness/spec_test.go. Refresh again when drift outgrows the
+	// ±3 envelope (don't widen tolerance — bump the target counts to match
+	// reality). Experimental tier is intentionally excluded — probe count grows
+	// independently.
+	checkTierCount(t, "smoke", len(smoke), 23, 3)
+	checkTierCount(t, "core", len(core), 26, 3)
 	checkTierCount(t, "stretch", len(stretch), 11, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 

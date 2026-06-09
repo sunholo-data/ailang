@@ -183,83 +183,19 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		}
 
 		// Build $adt.make_TypeName_CtorName factory type
-		factoryName := fmt.Sprintf("make_%s_%s", typeName, ctorName)
-		factoryKey := fmt.Sprintf("$adt.%s", factoryName)
+		factoryKey := fmt.Sprintf("$adt.make_%s_%s", typeName, ctorName)
 
-		// Build type variables for polymorphic constructors
-		var typeVars []string
-		var adtTypeVars []types.Type
-		for i := 0; i < typeParamCount; i++ {
-			varName := fmt.Sprintf("t%d", i)
-			typeVars = append(typeVars, varName)
-			adtTypeVars = append(adtTypeVars, &types.TVar2{Name: varName, Kind: types.Star})
-		}
-
-		// Build map of type param names to type vars
-		typeParamToVar := make(map[string]types.Type)
-		for i, paramName := range typeParamNames {
-			if i < len(adtTypeVars) {
-				typeParamToVar[paramName] = adtTypeVars[i]
-			}
-		}
-
-		// Build parameter types for the factory function
-		var paramTypes []types.Type
-		for i := 0; i < arity; i++ {
-			var fieldType types.Type
-			if i < len(fieldTypes) && fieldTypes[i] != nil {
-				ft := fieldTypes[i]
-				// Check if field type is a type variable that matches a type parameter
-				if tvar, ok := ft.(*types.TVar2); ok {
-					if mappedVar, found := typeParamToVar[tvar.Name]; found {
-						fieldType = mappedVar
-					} else {
-						varName := fmt.Sprintf("a%d", i)
-						typeVars = append(typeVars, varName)
-						fieldType = &types.TVar2{Name: varName, Kind: types.Star}
-					}
-				} else {
-					// Concrete type - use directly
-					fieldType = ft
-				}
-			} else if i < typeParamCount {
-				fieldType = adtTypeVars[i]
-			} else {
-				varName := fmt.Sprintf("a%d", i)
-				typeVars = append(typeVars, varName)
-				fieldType = &types.TVar2{Name: varName, Kind: types.Star}
-			}
-			paramTypes = append(paramTypes, fieldType)
-		}
-
-		// Build result type: TApp(TypeName, [t0, t1, ...]) for polymorphic, TCon for non-polymorphic
-		var resultType types.Type
-		if typeParamCount > 0 {
-			resultType = &types.TApp{
-				Constructor: &types.TCon{Name: typeName},
-				Args:        adtTypeVars,
-			}
-		} else {
-			resultType = &types.TCon{Name: typeName}
-		}
-
-		// Build factory function type
-		var factoryType types.Type
-		if arity == 0 {
-			factoryType = resultType
-		} else {
-			factoryType = &types.TFunc2{
-				Params:    paramTypes,
-				EffectRow: nil, // Constructors are pure
-				Return:    resultType,
-			}
-		}
-
-		// Register with type checker
-		typeChecker.SetGlobalType(factoryKey, &types.Scheme{
-			TypeVars: typeVars,
-			Type:     factoryType,
-		})
+		// M-POLY-ADT / M-TAPP-FIX / M-TYPE-LIST-SOUND round 3: build the factory
+		// scheme via the shared helper, which remaps declared param vars to the
+		// ADT's result-type vars (t0, t1, ...) across the ENTIRE field type so
+		// compound fields ([a], (a,a), Option[a]) stay tied to the result type.
+		typeChecker.SetGlobalType(factoryKey, types.BuildConstructorFactoryScheme(
+			typeName,
+			arity,
+			typeParamCount,
+			typeParamNames,
+			fieldTypes,
+		))
 	}
 
 	// Register $adt factory types for IMPORTED constructors (from previously loaded modules)

@@ -1,10 +1,26 @@
 # M-MOTOKO-LOCAL-OLLAMA: Motoko Agent Loop Against Local Ollama on the Eval Rig
 
-**Status**: Planned
+**Status**: Implemented (config/wiring) — ⚠️ **convergence gap split out to a follow-on**
 **Target**: v0.24.0
 **Priority**: P1 — unlocks zero-cost agent evals on the M4 Max rig; currently all motoko runs burn OpenRouter credits
 **Estimated**: 0.5 day (~20 lines of JSON + 5 lines in models.yml)
 **Dependencies**: M-EVAL-LOCAL-OLLAMA (local Ollama rig operational), Qwen 3.5 35B-A3B validated at 17/17 on tier:smoke (commit `f842e842`)
+
+> **⚠️ Implementation note (2026-06-05): the config shipped, but the premise was wrong.**
+> All three pieces this doc describes were built — the `ollama` motoko profile
+> (`.motoko/config/ollama/config.json`), the `motoko-local-qwen3-5-35b-a3b-mxfp8`
+> entry in `models.yml`, and the executor wiring (`MotokoProfile` / `MOTOKO_CONFIG`).
+> But this doc's headline claim — *"the gap is purely configuration"* — proved
+> **false**. With the config in place, motoko **runs but never terminates**: it
+> generates correct AILANG, then loops on its own output until the step budget
+> kills it (e.g. a 3,242-line session log for `nested_records`), producing **zero
+> completions** and orphaned `bun` subprocesses.
+>
+> The **"Key Risk: Tool-Call Compatibility"** section below predicted exactly this.
+> That risk is now the actual blocker and is tracked as a dedicated diagnosis-then-fix
+> doc: **[M-MOTOKO-OLLAMA-LOOP-CONVERGENCE](../../planned/v0_24_0/m-motoko-ollama-loop-convergence.md)**.
+> Acceptance Criteria 1–2 below (smoke ≥10/17) are **NOT met** and move to that doc;
+> Criteria 3–4 (no API key, config in place) **are** met.
 
 
 ## Axiom Compliance

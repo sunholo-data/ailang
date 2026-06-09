@@ -31,10 +31,52 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.24.0
+
+- [M-AILANG-ERROR-QUALITY: Error Messages as the Lever for Small-Model Success](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-ailang-error-quality-for-llm-iteration.md)
+- [M-EVAL-FINETUNING-DATA-PIPELINE: Capture-to-QLoRA on the Local Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-finetuning-data-pipeline.md)
+- [M-EVAL-LOCAL-OLLAMA: Production-Grade Local Ollama Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-local-ollama.md)
+- [M-EVAL-OPENROUTER-BASELINE-ROTATION: Cloud Baseline Three Candidate Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-openrouter-baseline-rotation.md)
+- [M-EVAL-RATING-EFFICIENCY: ELO-Style Benchmark Difficulty + Targeted Reruns + Tier Saturation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-rating-efficiency.md)
+- [M-MOTOKO-LOCAL-OLLAMA: Motoko Agent Loop Against Local Ollama on the Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-motoko-local-ollama.md)
+- [M-MSG-AUTO-TRIAGE-PIPELINE: Autonomous Inbound Triage + Central Notification Bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md)
+- [Sprint Plan: M-MSG-TRIAGE-ROUTER (Build Order Step 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-triage-router-sprint-plan.md)
+- [M-NOTIFY-CHANNELS-FRAMEWORK: Outbound Notification Channels (Adapter Framework)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-framework.md)
+- [Sprint Plan: M-NOTIFY-CHANNELS (Build Order Step 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-sprint-plan.md)
+- [M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prelude-option-result.md)
+- [M-PROMPT-RUN-LENGTH-PATTERNS: Concise Recursive Solutions to Prevent Token-Limit Truncation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-concise-recursive-solutions.md)
+- [M-PROMPT-LOG-FILE-ANALYZER: String ops pipeline example (split→filter→map→join)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-log-file-analyzer-string-ops.md)
+- [Prompt Gap: Match Expression Guard Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-match-guard-syntax.md)
+- [M-PROMPT-NESTED-ADT-PATTERNS: Clarify Nested ADT Match Support and Prevent Over-Verbose Balance Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-nested-adt-patterns.md)
+- [Prompt Gap: Option/None Requires Explicit Import](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-option-none-idiom.md)
+- [M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-single-file-module.md)
+- [Prompt Gap: Split Returns List, Not String](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-split-list-operations.md)
+- [M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — LARGELY SOLVED, monitor only](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-string-concat-plusplus.md)
+- [M-TYPE-CONSTRAINTS: Type parameter constraints (`[a: Ord]`) — explicit-comparator workaround](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-constraints.md)
+
+## Planned for v0.23.0
+
+- [EVAL CANDIDATE — `dense_operator_program` persistent failure analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/eval-candidate-dense-operator-program.md)
+- [M-BYTES-TOINTS-BYTEAT: Add byte-to-int extraction primitives to std/bytes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-bytes-toints-byteAt.md)
+- [M-EVAL-METRICS-TAXONOMY: Beyond Pass/Fail — Metrics for Continuous LLM Eval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-metrics-taxonomy.md)
+- [M-EVAL-OS-LONGITUDINAL Phases 2–5 — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-os-longitudinal-phases-2-5-sprint-plan.md)
+- [M-EVAL-OS-LONGITUDINAL — Longitudinal OS-model eval as language-design feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-os-longitudinal.md)
+- [M-EVAL-SLIM-PROMPT-SELF-DISCOVERY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md)
+- [M-HARNESS-DSL: AILANG as Self-Hosting Coordinator Specification Language](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-harness-dsl.md)
+- [M-HARNESS-STATE: Shared Harness Substrate with Belief-State Synchronization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-harness-state.md)
+- [M-ORACLE-ADEQUACY: Convergence Oracles and Evidence Bundles for the Eval Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-oracle-adequacy.md)
+- [M-PERMISSION-MODEL: Typed Permission Tiers for the Coordinator via Effect Rows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-permission-model.md)
+- [M-PROGRAMBENCH-GAP-PROBE: Probe AILANG against ProgramBench-style "rebuild a CLI from spec" tasks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-programbench-gap-probe.md)
+- [M-PROMPT-STDLIB-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-prompt-stdlib-coverage.md)
+- [M-TRACE-FEEDBACK: Execution-Trace Feedback Loop for Harness Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-trace-feedback.md)
+- [M-VERA-BENCH-INTEGRATION: Add AILANG as a target language in VeraBench](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-vera-bench-integration.md)
+- [M-VERA-BENCH-INTEGRATION Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-vera-bench-sprint-plan.md)
+
 ## Planned for v0.22.0
 
 - [M-COG-MEMORY: Semantic Memory — `!: SharedMem` + `!: SemanticSearch`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-memory.md)
 - [M-COG-MESH: Distributed Cognitive Mesh — Collaborative Demo + Distributed Transports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-mesh.md)
+- [M-EFFECT-ROW-POLY-PARAMS — Effect-row polymorphism on higher-order arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-effect-row-poly-params.md)
 - [M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-lambda-open-record-pattern.md)
 - [M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-match-xcheck-error-quality.md)
 - [Sprint Plan — M-PATTERN-AND-INVOCATION-REPAIR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-pattern-and-invocation-repair-sprint-plan.md)
@@ -192,4 +234,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 130 planned features across 13 upcoming versions.*
+*Generated at build time. 166 planned features across 15 upcoming versions.*

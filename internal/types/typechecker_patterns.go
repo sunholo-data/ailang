@@ -199,15 +199,44 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			}
 		}
 
-		// Recursively check nested patterns
-		// We need to know the field types of this constructor
-		// For now, create fresh type variables for each field
+		// M-TYPE-LIST-SOUND round 2: link each constructor-pattern argument to the
+		// constructor's ACTUAL field type (and the scrutinee to the constructor's
+		// result type) by instantiating the registered factory scheme. Previously
+		// each arg bound to an orphaned fresh var with no tie to the constructor or
+		// scrutinee, so a destructured value — e.g. `Some(b)` from `Option[Box]` —
+		// lost its concrete type and `[b]` unified freely with `[string]` (a
+		// soundness hole; crashed at runtime in _str_join). The factory scheme
+		// `$adt.make_<T>_<C>` shares its field and result type-parameter vars, so a
+		// single Instantiate ties them together: unifying `scrutType ~ result`
+		// resolves the shared vars and propagates the real field types into the
+		// pattern bindings. Polymorphic scrutinees keep their param vars (no
+		// over-tightening); if no factory scheme is registered we fall through to
+		// the old fresh-var behaviour (no worse than before).
+		var ctorFieldTypes []Type
+		if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+			factoryKey := fmt.Sprintf("$adt.make_%s_%s", adtTypeName, p.Name)
+			if scheme, ok := tc.globalTypes[factoryKey]; ok {
+				if fn, ok := scheme.Instantiate(ctx.freshType).(*TFunc2); ok {
+					ctorFieldTypes = fn.Params
+					ctx.addConstraint(TypeEq{
+						Left:  scrutType,
+						Right: fn.Return,
+						Path:  []string{fmt.Sprintf("constructor pattern %s result", p.Name)},
+					})
+				}
+			}
+		}
+
 		bindings := make(map[string]Type)
 		typedArgs := make([]typedast.TypedPattern, len(p.Args))
 
 		for i, argPat := range p.Args {
-			// Create fresh type variable for each argument
+			// Field type from the constructor's factory scheme (above); falls back
+			// to a fresh var only when the scheme is unavailable.
 			argType := ctx.freshTypeVar()
+			if i < len(ctorFieldTypes) {
+				argType = ctorFieldTypes[i]
+			}
 			argBindings, typedArg, err := tc.checkPattern(argPat, argType, ctx)
 			if err != nil {
 				return nil, nil, err

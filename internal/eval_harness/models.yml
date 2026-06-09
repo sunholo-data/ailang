@@ -1276,6 +1276,36 @@ models:
       token. Pull: ollama pull qwen3.5:35b-a3b-mxfp8. Requires opencode ollama
       provider block entry (added 2026-06-02).
 
+  # pi harness LOCAL Qwen — for cross-harness LOCAL comparison vs opencode (and
+  # eventually motoko). pi DOES run local ollama, via a one-time config in
+  # ~/.pi/agent/models.json registering an "ollama" provider at the local
+  # OpenAI-compatible endpoint (http://localhost:11434/v1, api: openai-completions).
+  # Without that file pi errors "model not found" — it's not a built-in provider.
+  # See tools/setup/pi-ollama-models.json for the canonical config. Added 2026-06-05.
+  pi-qwen3-5-35b-a3b-mxfp8:
+    api_name: "qwen3.5:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.5 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness comparison vs opencode (requires ~/.pi/agent/models.json ollama provider)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    model_family: "qwen-3-5"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 2400
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      pi-harness sibling of opencode-qwen3-5-35b-a3b-mxfp8 — LOCAL, free. Measures
+      harness-induced delta (pi minimal harness vs opencode multi-turn) on the SAME
+      local model. Requires the one-time ~/.pi/agent/models.json ollama provider
+      block (pi has no built-in ollama; it speaks the OpenAI-completions API to the
+      local endpoint). Verified 2026-06-05: pi --list-models shows the local qwen,
+      probe resolves it. Added 2026-06-05.
+
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
     provider: "ollama"

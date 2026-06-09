@@ -83,6 +83,9 @@ type CoreTypeChecker struct {
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
 	paramTypeAnnots map[uint64][]Type
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations from elaboration
+	// Maps core.Let NodeID -> annotated type so `let xs: [string] = [42]` is checked
+	letTypeAnnots map[uint64]Type
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -203,6 +206,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
 	}
 }
@@ -228,6 +232,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
 		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
 	}
 }
@@ -358,6 +363,13 @@ func (tc *CoreTypeChecker) SetReturnTypeAnnotations(annots map[uint64]Type) {
 	tc.returnTypeAnnots = annots
 }
 
+// SetLetTypeAnnotations sets let-binding type annotations from elaboration
+// M-TYPE-LIST-ELEMENT-SOUNDNESS: ensures `let xs: [string] = [42]` is type-checked
+// instead of having its annotation silently dropped during elaboration.
+func (tc *CoreTypeChecker) SetLetTypeAnnotations(annots map[uint64]Type) {
+	tc.letTypeAnnots = annots
+}
+
 // InferWithConstraints infers type with constraints for a Core expression
 // Returns: typed expression, updated env, qualified type, constraints, error
 func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
@@ -378,6 +390,11 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
+		// M-TYPE-LIST-SOUND round 3: snapshot the decl's base-env free vars so
+		// generalization withholds ONLY vars introduced by binders inside this
+		// decl (enclosing lambda params), not the module env's leaked rigid
+		// type-parameter names (a, b, k, v, …).
+		baseEnvFreeVars: env.FreeTypeVars(),
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
@@ -505,6 +522,8 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	ctx.env = env
 	ctx.freshCounter = tc.inferFreshCounter // M-TVAR-COLLISION-FIX: Use persistent counter
 	ctx.SetDebugSink(tc.DebugSink)          // M-DX11: Wire provenance tracking
+	// M-TYPE-LIST-SOUND round 3: see InferWithConstraints for rationale.
+	ctx.baseEnvFreeVars = env.FreeTypeVars()
 
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)

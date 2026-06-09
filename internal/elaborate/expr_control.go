@@ -151,12 +151,20 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 
 		if len(innerBindings) == 0 {
 			// No nested lets - simple case
-			return &core.Let{
+			node := &core.Let{
 				CoreNode: e.makeNode(let.Position()),
 				Name:     let.Name,
 				Value:    flattenedValue,
 				Body:     body,
-			}, nil
+			}
+			// M-TYPE-LIST-ELEMENT-SOUNDNESS: preserve the let's type annotation so
+			// `let xs: [string] = [42]` is actually type-checked (was dropped here).
+			if let.Type != nil {
+				if annot := e.astTypeToInternalType(let.Type); annot != nil {
+					e.letTypeAnnots[node.ID()] = annot
+				}
+			}
+			return node, nil
 		}
 
 		// Build flattened structure: inner bindings outermost, user binding innermost
@@ -166,6 +174,13 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			Name:     let.Name,
 			Value:    flattenedValue,
 			Body:     body,
+		}
+		// M-TYPE-LIST-ELEMENT-SOUNDNESS: the annotation belongs to the binding of
+		// let.Name, which is this inner `result` node.
+		if let.Type != nil {
+			if annot := e.astTypeToInternalType(let.Type); annot != nil {
+				e.letTypeAnnots[result.ID()] = annot
+			}
 		}
 
 		// Wrap with inner bindings in reverse order (innermost binding becomes outermost let)
@@ -256,10 +271,37 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 				return nil, err
 			}
 
-			result = &core.Let{
+			letNode := &core.Let{
 				CoreNode: e.makeNode(letExpr.Position()),
 				Name:     letExpr.Name, // Use the actual let name, not _block_N
 				Value:    value,
+				Body:     result, // Thread through to next expression
+			}
+			// M-TYPE-LIST-ELEMENT-SOUNDNESS: preserve the statement-let's type
+			// annotation (e.g. `let xs: [string] = [42];`) so it is type-checked.
+			if letExpr.Type != nil {
+				if annot := e.astTypeToInternalType(letExpr.Type); annot != nil {
+					e.letTypeAnnots[letNode.ID()] = annot
+				}
+			}
+			result = letNode
+		} else if letrecExpr, ok := expr.(*ast.LetRec); ok && letrecExpr.Body == nil {
+			// Statement-form letrec inside a block (`letrec f = ...; <rest>`):
+			// thread the recursive binding into the continuation so the bound
+			// name is in scope for the rest of the block AND recursively in its
+			// own value. Previously this fell through to the wildcard branch
+			// below — the letrec was bound to a discarded `_block_N` and its name
+			// dropped, so any later use (and the recursive self-call) hit
+			// "undefined variable". That broke block-form letrec entirely,
+			// including the teaching prompt's own canonical example. inferLetRec
+			// already scopes the binding correctly; the gap was purely here.
+			value, err := e.normalize(letrecExpr.Value)
+			if err != nil {
+				return nil, err
+			}
+			result = &core.LetRec{
+				CoreNode: e.makeNode(letrecExpr.Position()),
+				Bindings: []core.RecBinding{{Name: letrecExpr.Name, Value: value}},
 				Body:     result, // Thread through to next expression
 			}
 		} else {

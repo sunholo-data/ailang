@@ -91,14 +91,14 @@ Expected time: ~30-60 minutes
 - **Step 2**: Agent eval — flagship + modern OS × AILANG+Python
   - `agent_suite` (7 models, one per harness + modern OS): claude-sonnet-4-6 (claude CLI, longitudinal anchor), gemini-3-5-flash (managed_agents/Vertex — Google agent path; expensive ~88 turns), gpt5-4-mini (codex CLI), opencode-or-glm-5-1, opencode-or-minimax-m3, opencode-or-deepseek-v4-flash, opencode-or-deepseek-v4-pro (opencode — reliable OS harness; deepseek-v4-pro is the agent champion at 97%)
   - **motoko-* removed 2026-06-04**: the AILANG-native motoko/bun harness hangs on the rig (0 completions, orphans subprocesses). Pending agent-harness-instability diagnosis; re-add when reliable.
-  - **Tier system** (v0.14.0+): `smoke` (15), `core` (22), `stretch` (11), `vision` (6)
+  - **Tier system** (v0.14.0+): `smoke` (23), `core` (26), `stretch` (11), `vision` (9) — counts as of 2026-06 (excludes `events.yml`, a non-benchmark dashboard meta-file)
   - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
   - Feeds the ailang-vs-python comparison story in the Model Leaderboard page
 - **Step 3** (--lang-harness): Language × Harness sweep — cheapest models × 4 languages
   - `lang_harness_suite`: claude-haiku-4-5, gemini-3-flash, gpt5-4-mini, opencode-haiku
   - All 4 languages: ailang, python, javascript, go
-  - **Tier: `core` only** (22 benchmarks) — stretch is skipped here even if `--tier core,stretch` was set globally
+  - **Tier: `core` only** (26 benchmarks) — stretch is skipped here even if `--tier core,stretch` was set globally
   - Note: 4 core benchmarks are AILANG/Python-only (`contract_bst_validate`, `contract_roman_numeral`, `effect_composition`, `effect_tracking_io_fs`) and auto-skip on JS/Go runs
   - Feeds the **Agent Harness Explorer** language spread and cross-harness comparison data
   - Cost: ~$7 extra
@@ -293,16 +293,16 @@ If release doesn't exist, run `release-manager` skill first.
 This runs all 7 production models (`extended_suite`) with both AILANG and Python.
 
 **Tier scope for releases:**
-- Default (release): `--tier core,stretch` — 33 benchmarks (22 core + 11 stretch)
-- Dev/fast mode: `--tier core` — 22 benchmarks (Core is the headline metric)
-- Full audit: `--tier smoke,core,stretch` — 48 benchmarks (include smoke for sanity)
+- Default (release): `--tier core,stretch` — 37 benchmarks (26 core + 11 stretch)
+- Dev/fast mode: `--tier core` — 26 benchmarks (Core is the headline metric)
+- Full audit: `--tier smoke,core,stretch` — 60 benchmarks (include smoke for sanity)
 - `vision` benchmarks are research-grade and excluded by default — opt in explicitly
   with `--tier vision` if you want to publish those numbers.
 
 Override tier via the script's `--tier` flag (see `run_eval_baseline.sh --help`). If
 unsure, the default is tuned to produce a release-ready baseline in ~30–60 minutes.
 
-**Cost & time** (default tier `core,stretch` = 33 benchmarks):
+**Cost & time** (default tier `core,stretch` = 37 benchmarks):
 | Mode | Cost | Time | Use for |
 |---|---|---|---|
 | `--full` | ~$16 | ~30-40 min | Standard release |

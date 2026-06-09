@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # nightly-eval.sh — nightly regression-guard smoke run on the local rig.
 #
-# Runs the canonical smoke tier (tier: smoke, 17 benchmarks) against the
-# accuracy-first local Qwen model (opencode-qwen3-5-35b-a3b-mxfp8).
-# Feeds persistent failures to the design-doc-creator inbox via the
-# triage-router (m-msg-triage-router) so regressions become design docs
-# automatically.
+# Runs the smoke + core tiers (every `tier: smoke` / `tier: core` benchmark,
+# default-core included) against the accuracy-first local Qwen model
+# (opencode-qwen3-5-35b-a3b-mxfp8). Regressions — benchmarks with a passing
+# baseline that now fail every trial — alert via Discord; never-passed
+# benchmarks are filed to the controlplane inbox as known gaps for the
+# gap-finder (no Discord). See eval_baselines gating below.
+#
+# Reproducibility (M-EVAL-NIGHTLY-REPRO): the eval is built and run from an
+# isolated git worktree pinned to committed origin/dev — never the live working
+# tree or a stray installed binary — so the binary, benchmarks, and prompt card
+# all come from one named commit. The run aborts loudly if it can't produce a
+# clean build from committed code.
 #
 # Called by dev.ailang.nightly-eval.plist at 03:00 daily.
 #
@@ -37,16 +44,91 @@ if ! curl -s --max-time 3 http://localhost:11434/api/version >/dev/null 2>&1; th
     exit 0
 fi
 
-# Derive smoke benchmarks from tier tags (stays in sync automatically)
-SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml 2>/dev/null \
-    | xargs -n1 basename | sed 's/\.yml$//' | sort | paste -sd, -)
+# ─────────────────────────────────────────────────────────────────────────────
+# Reproducible build (M-EVAL-NIGHTLY-REPRO): run from an ISOLATED checkout pinned
+# to the committed dev HEAD — never the live working tree or a stray installed
+# binary. This guarantees the binary, benchmarks, AND prompts/agent/dialect-traps
+# card all come from one known commit, and that we can name that commit in every
+# result. Fail LOUDLY (skip with an alert) rather than silently evaluate
+# uncommitted or stale code.
+BUILD_REF="${AILANG_NIGHTLY_REF:-origin/dev}"
+WT="$HOME/.ailang-nightly/worktree"
 
-if [[ -z "$SMOKE" ]]; then
-    log "ERROR: could not derive smoke set — no tier:smoke benchmarks found"
+fail() {  # $*: reason — alert controlplane, then abort (no eval runs)
+    log "FATAL: $*"
+    ailang messages send controlplane \
+        "Nightly eval ABORTED (${DATE}): $*. No eval ran — code provenance could not be guaranteed." \
+        --title "Nightly eval aborted (${DATE})" --from "nightly-eval" 2>/dev/null || true
+    exit 1
+}
+
+log "syncing build worktree to ${BUILD_REF}"
+git -C "$REPO" fetch --quiet origin || fail "git fetch origin failed"
+TARGET=$(git -C "$REPO" rev-parse "$BUILD_REF") || fail "cannot resolve ${BUILD_REF}"
+SHORT=$(git -C "$REPO" rev-parse --short "$TARGET")
+
+# Refresh (or create) the dedicated build worktree at the pinned commit. The
+# worktree is a throwaway build dir with no user work, separate from $REPO, so
+# this never touches in-progress dev changes. --force overwrites only tracked
+# files; gitignored build output (bin/) persists and is rebuilt below.
+git -C "$REPO" worktree prune
+if git -C "$REPO" worktree list --porcelain | grep -qx "worktree $WT"; then
+    git -C "$WT" checkout --quiet --detach --force "$TARGET" || fail "worktree checkout ${SHORT} failed"
+else
+    mkdir -p "$(dirname "$WT")"
+    git -C "$REPO" worktree add --quiet --detach --force "$WT" "$TARGET" || fail "worktree add ${SHORT} failed"
+fi
+
+log "building ailang @ ${SHORT} in worktree"
+make -C "$WT" build >>"$LOG" 2>&1 || fail "make build @ ${SHORT} failed"
+BIN="$WT/bin/ailang"
+[[ -x "$BIN" ]] || fail "built binary missing at $BIN"
+
+# Run from the worktree so benchmarks/, the dialect-traps card, and FindAILANG's
+# './bin/ailang' fallback all resolve to the pinned commit; put the pinned binary
+# first on PATH so FindAILANG's bare 'ailang' lookup hits it too (not ~/go/bin).
+cd "$WT"
+export PATH="$WT/bin:$PATH"
+
+BUILD_VERSION=$("$BIN" --version 2>/dev/null | head -1)
+case "$BUILD_VERSION" in
+    *-dirty|"") fail "built binary not clean (${BUILD_VERSION:-<none>}) — worktree dirty at ${SHORT}" ;;
+esac
+log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
+
+# Benchmark scope: smoke + core tiers (M-EVAL-LOCAL-OLLAMA tier expansion).
+# smoke = the regression guard (model reliably passes); core = the capability
+# frontier (harder; the local model fails some it has never passed).
+#
+# Agent mode REQUIRES an explicit --benchmarks list (it refuses to auto-discover),
+# so we derive the union of smoke + explicit-core + default-core by filename stem.
+# A "benchmark" is a .yml with an `id:` field; default-core = has id: but no
+# `tier:` field (the loader defaults missing tier to "core"). The id: guard
+# excludes non-benchmark meta-files such as events.yml (the dashboard
+# suite-change log) — which the Go discoverBenchmarks/isBenchmarkMetaFile also
+# skip. Without it the eval-suite tries to "run" events.yml, LoadSpec rejects it
+# ("missing required field: id"), and it produces zero results — a phantom gap
+# that wasted two trial slots in the first smoke+core run.
+MODEL="opencode-qwen3-5-35b-a3b-mxfp8"
+BENCH_TIERS="smoke,core"   # display label for alerts/log
+# Must match observatory.DefaultDatabasePath() — the same DB the eval-suite
+# writes pass baselines to, queried below to gate regression alerts.
+OBSERVATORY_DB="$HOME/.ailang/state/observatory.db"
+
+BENCH_LIST=$( {
+    grep -lE '^[[:space:]]*tier:[[:space:]]*smoke' benchmarks/*.yml
+    grep -lE '^[[:space:]]*tier:[[:space:]]*core'  benchmarks/*.yml
+    # default-core: a real benchmark (has id:) with no tier: field
+    comm -12 <(grep -lE '^[[:space:]]*id:' benchmarks/*.yml | sort) \
+             <(grep -LE '^[[:space:]]*tier:[[:space:]]*[a-z]' benchmarks/*.yml | sort)
+  } 2>/dev/null | xargs -n1 basename | sed 's/\.yml$//' | sort -u | paste -sd, - )
+TIER_COUNT=$(echo "$BENCH_LIST" | tr ',' '\n' | grep -c .)
+if [[ -z "$BENCH_LIST" || "$TIER_COUNT" -eq 0 ]]; then
+    log "ERROR: could not derive smoke+core benchmark set from benchmarks/*.yml"
     exit 1
 fi
 
-log "smoke tier: $(echo $SMOKE | tr ',' '\n' | wc -l | tr -d ' ') benchmarks"
+log "tiers: ${BENCH_TIERS} (${TIER_COUNT} benchmarks)"
 log "output: $RESULTS_DIR"
 
 # Dry-run mode for testing the plist without spending GPU time
@@ -67,9 +149,9 @@ RUN_AB=0
 run_eval() {
     local mode="$1" outdir="$2"
     log "running smoke: microrag=${mode} → ${outdir}"
-    ailang eval-suite --agent \
-        --models opencode-qwen3-5-35b-a3b-mxfp8 \
-        --benchmarks "$SMOKE" \
+    "$BIN" eval-suite --agent \
+        --models "$MODEL" \
+        --benchmarks "$BENCH_LIST" \
         --langs ailang \
         --microrag "$mode" \
         --output "$outdir" \
@@ -88,8 +170,13 @@ if [[ "$RUN_AB" == "1" ]]; then
               python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_on/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
     PASS_OFF=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_off/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
     log "A/B result: microrag_on=${PASS_ON} microrag_off=${PASS_OFF}"
+    if [[ "${PASS_ON:-x}" =~ ^[0-9]+$ && "${PASS_OFF:-x}" =~ ^[0-9]+$ ]]; then
+        DELTA=$(( PASS_ON - PASS_OFF ))
+    else
+        DELTA="?"
+    fi
     ailang messages send controlplane \
-        "Weekly μRAG A/B (${DATE}): on=${PASS_ON}/17  off=${PASS_OFF}/17. Delta=$(( ${PASS_ON:-0} - ${PASS_OFF:-0} 2>/dev/null || echo "?")) benchmarks. Results: ${RESULTS_DIR}_rag_on vs ${RESULTS_DIR}_rag_off" \
+        "Weekly μRAG A/B (${DATE}): on=${PASS_ON}/${TIER_COUNT}  off=${PASS_OFF}/${TIER_COUNT}. Delta=${DELTA} benchmarks. Results: ${RESULTS_DIR}_rag_on vs ${RESULTS_DIR}_rag_off" \
         --title "μRAG A/B result (${DATE})" --from "nightly-eval" 2>/dev/null || true
 fi
 
@@ -101,83 +188,145 @@ RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('$
 
 log "regression check result: ${PASS} (${RATE})"
 
-# Feed failures to design-doc-creator inbox if ≥2 consecutive trials failed
-# (i.e., passes=0 in the deduplicated latest results)
-FAILURES=$(python3 - <<'PY'
-import json, glob, os
+# Classify *persistent* failures (a benchmark whose EVERY trial failed, with at
+# least one non-infra error category) into REGRESSIONS vs known GAPS using the
+# eval_baselines table:
+#   - REGRESSION: the benchmark has a passing baseline (n_pass_trials>=1) — it
+#     passed before and now fails every trial. A real regression → Discord alert.
+#   - GAP: no passing baseline — the local model has never passed it. A known
+#     capability gap (expected as the core tier comes into scope), filed quietly
+#     for the gap-finder. NO Discord.
+# A benchmark that passed at least one trial tonight is flaky-but-recovered and
+# is not flagged at all.
+#
+# Result files are named  <bench>[_trialN]_<lang>_<model>_<ts>.json (trial 1 has
+# no _trialN infix). Both trials must collapse to the same benchmark id, else
+# each trial looks like its own single-trial benchmark.
+CLASSIFIED=$(RESULTS_AGENT="$RESULTS_AGENT" OBSERVATORY_DB="$OBSERVATORY_DB" MODEL_ID="$MODEL" python3 - <<'PY'
+import json, glob, os, re, sqlite3
 from collections import defaultdict
 
-# Load newest result per benchmark from the rag_on (canonical) arm
+# Infra/transport noise (executor hung, API error, timeout) — not a
+# language/prompt/stdlib regression. Surfaces in the pass count + log; never
+# escalated as a bug or gap.
+INFRA_CATEGORIES = {"api_error", "timeout", "executor_error"}
+
 results_agent = os.environ.get("RESULTS_AGENT", "")
+obs_db        = os.environ.get("OBSERVATORY_DB", "")
+model_id      = os.environ.get("MODEL_ID", "")
+
+# Keep the newest file per (benchmark, trial-slot) so re-runs dedupe while BOTH
+# trials are retained. The trial slot is everything before "_<lang>_<model>_<ts>".
 latest = {}
 for f in glob.glob(f"{results_agent}/*.json"):
-    key = os.path.basename(f).rsplit("_", 1)[0]
-    ts  = int(os.path.basename(f).rsplit("_", 1)[1][:-5])
-    if key not in latest or ts > latest[key][0]:
-        latest[key] = (ts, f)
+    base = os.path.basename(f)
+    try: ts = int(base.rsplit("_", 1)[1][:-5])
+    except (IndexError, ValueError): continue
+    slot = base.rsplit("_", 1)[0]
+    if slot not in latest or ts > latest[slot][0]:
+        latest[slot] = (ts, f)
 
-# Collect benchmarks that failed in all trials
+# Group trials under their benchmark id by stripping the _trialN infix.
 trials = defaultdict(list)
-for key,(ts,f) in latest.items():
+for slot,(ts,f) in latest.items():
     try: d = json.load(open(f))
     except: continue
-    bench = key.split("_ailang_")[0]
+    bench = re.sub(r"_trial\d+$", "", slot.split("_ailang_")[0])
     ok = d.get("compile_ok") and d.get("runtime_ok") and d.get("stdout_ok")
     trials[bench].append((ok, d.get("error_category") or "—"))
 
+# Persistent failure = >=2 trials seen, every trial failed, >=1 real category.
 persistent = []
 for bench, results in trials.items():
-    if all(not ok for ok,_ in results):
-        cats = list({c for _,c in results})
-        persistent.append(f"{bench} [{','.join(cats)}]")
-print("\n".join(sorted(persistent)))
+    if len(results) >= 2 and all(not ok for ok,_ in results):
+        cats = {c for _,c in results}
+        if cats - INFRA_CATEGORIES:
+            persistent.append((bench, sorted(cats)))
+
+# Gate on the passing-baseline table. Unknown (DB missing/unreadable) fails SAFE
+# to REGRESSION so a real regression is never silently downgraded to a gap.
+def has_passing_baseline(bench):
+    if not obs_db or not model_id or not os.path.exists(obs_db):
+        return None
+    try:
+        con = sqlite3.connect(f"file:{obs_db}?mode=ro", uri=True)
+        row = con.execute(
+            "SELECT n_pass_trials FROM eval_baselines WHERE model_id=? AND benchmark_id=?",
+            (model_id, bench)).fetchone()
+        con.close()
+        return bool(row) and (row[0] or 0) >= 1
+    except Exception:
+        return None
+
+for bench, cats in sorted(persistent):
+    cls = "GAP" if has_passing_baseline(bench) is False else "REGRESSION"
+    print(f"{cls}\t{bench}\t[{','.join(cats)}]")
 PY
-RESULTS_DIR="$RESULTS_DIR"
-)
+) || true
 
-if [[ -n "$FAILURES" ]]; then
-    COUNT=$(echo "$FAILURES" | wc -l | tr -d ' ')
-    log "persistent failures (${COUNT}): $FAILURES"
+REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2" "$3}' | sed '/^[[:space:]]*$/d')
+GAPS=$(echo "$CLASSIFIED"        | awk -F'\t' '$1=="GAP"{print $2" "$3}'        | sed '/^[[:space:]]*$/d')
 
-    # File per-failure detail messages to controlplane (human review).
-    # NOT to design-doc-creator — triage decides later whether to promote.
+if [[ -n "$REGRESSIONS" ]]; then
+    RCOUNT=$(echo "$REGRESSIONS" | wc -l | tr -d ' ')
+    log "REGRESSIONS (${RCOUNT}): $(echo "$REGRESSIONS" | tr '\n' '; ')"
+
+    # File per-regression detail to controlplane (human review).
     while IFS= read -r failure; do
+        [[ -z "$failure" ]] && continue
         BENCH=$(echo "$failure" | cut -d' ' -f1)
         CATS=$(echo "$failure" | grep -oE '\[.*\]' || echo "[unknown]")
         ailang messages send controlplane \
-            "Nightly eval regression: benchmark '${BENCH}' failed both trials on ${DATE}.
+            "Nightly eval REGRESSION: benchmark '${BENCH}' has a passing baseline but failed BOTH trials on ${DATE}.
 Error category: ${CATS}
-Model: opencode-qwen3-5-35b-a3b-mxfp8 (local, tier:smoke)
+Model: ${MODEL} (local, tiers:${BENCH_TIERS})
 Results: ${RESULTS_DIR}
-This may indicate a prompt gap, stdlib regression, or model-capability boundary.
-If it passed in a previous nightly run, this is a regression. If it has never passed,
-it is a known language gap worth documenting." \
+It passed before, so this is a genuine regression — not a known gap. Investigate." \
             --title "Nightly regression: ${BENCH} (${DATE})" \
             --from "nightly-eval" \
             --type "bug" 2>/dev/null || true
-        log "  filed to controlplane: ${BENCH}"
-    done <<< "$FAILURES"
+        log "  filed regression to controlplane: ${BENCH}"
+    done <<< "$REGRESSIONS"
 
-    # Broadcast failure summary via Pub/Sub → daemon → Discord (one ping, not N).
-    # public-feedback inbox is the EventType that Discord's filter accepts.
+    # ONE Discord ping for regressions only (Pub/Sub → daemon → Discord).
+    # public-feedback is the EventType Discord's filter accepts.
     AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac-dev \
     ailang messages send public-feedback \
-        "Nightly eval: ${COUNT} persistent failure(s) on ${DATE}.
-Benchmarks: $(echo "$FAILURES" | cut -d' ' -f1 | tr '\n' ' ')
-Model: opencode-qwen3-5-35b-a3b-mxfp8 | Tier: smoke
+        "Nightly eval: ${RCOUNT} REGRESSION(s) on ${DATE} — benchmarks that previously passed now fail.
+Benchmarks: $(echo "$REGRESSIONS" | cut -d' ' -f1 | tr '\n' ' ')
+Model: ${MODEL} | Tiers: ${BENCH_TIERS}
 Details filed to controlplane inbox." \
-        --title "Nightly eval: ${COUNT} failure(s) (${DATE})" \
+        --title "Nightly eval: ${RCOUNT} regression(s) (${DATE})" \
         --from "nightly-eval" 2>/dev/null || true
 else
-    log "no persistent failures — all smoke benchmarks passing"
+    log "no regressions — no benchmark with a passing baseline failed tonight"
 fi
 
-# Broadcast summary to controlplane inbox (local, no Discord ping on success)
+# Known gaps: never-passed benchmarks that failed again. Expected as the core
+# tier comes into scope. Filed once to controlplane for the gap-finder; NO Discord.
+if [[ -n "$GAPS" ]]; then
+    GCOUNT=$(echo "$GAPS" | wc -l | tr -d ' ')
+    log "known gaps (${GCOUNT}, no Discord): $(echo "$GAPS" | tr '\n' '; ')"
+    ailang messages send controlplane \
+        "Nightly eval: ${GCOUNT} known capability gap(s) on ${DATE} (never-passed benchmarks — no regression alert).
+Benchmarks: $(echo "$GAPS" | cut -d' ' -f1 | tr '\n' ' ')
+Model: ${MODEL} | Tiers: ${BENCH_TIERS}
+No passing baseline → candidates for the eval gap-finder / language work, not regressions." \
+        --title "Nightly eval: ${GCOUNT} known gap(s) (${DATE})" \
+        --from "nightly-eval" \
+        --type "note" 2>/dev/null || true
+fi
+
+# Broadcast overall summary to controlplane inbox (local, no Discord on success).
+# PASS already carries the "<passed>/<total>" fraction.
+REG_NAMES=$( [[ -n "$REGRESSIONS" ]] && echo "$REGRESSIONS" | cut -d' ' -f1 | tr '\n' ' ' || echo "none" )
+GAP_NAMES=$( [[ -n "$GAPS" ]] && echo "$GAPS" | cut -d' ' -f1 | tr '\n' ' ' || echo "none" )
 ailang messages send controlplane \
-    "Nightly eval complete: ${PASS}/${TOTAL} (${RATE}) on ${DATE}.
-Model: opencode-qwen3-5-35b-a3b-mxfp8 | Tier: smoke | Trials: 2
-$([ -n "$FAILURES" ] && echo "Persistent failures: $(echo $FAILURES | tr '\n' ', ')" || echo "All benchmarks passing.")" \
-    --title "Nightly eval: ${PASS}/${TOTAL} (${DATE})" \
+    "Nightly eval complete: ${PASS} (${RATE}) on ${DATE}.
+Build: ${BUILD_VERSION} (committed ${SHORT})
+Model: ${MODEL} | Tiers: ${BENCH_TIERS} | Trials: 2
+Regressions: ${REG_NAMES}| Known gaps: ${GAP_NAMES}" \
+    --title "Nightly eval: ${PASS} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
 
 log "=== nightly eval done ==="

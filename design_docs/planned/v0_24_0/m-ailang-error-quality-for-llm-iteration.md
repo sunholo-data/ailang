@@ -260,6 +260,15 @@ Touches:
 
 Does NOT touch runtime, codegen, harness, or stdlib semantics — pure error-message reporting.
 
+> **Cross-reference (added 2026-06-08):** some *runtime* errors that look like an error-quality
+> problem are actually **type-soundness holes** — the program should have been rejected at compile
+> time, so the fix is a real type-check, not a better runtime message. The canonical example is
+> `_str_join: expected string, got tagged value` from `json_parse`: a `Json`/`[int]` value reaches
+> a `[string]` position because list-element unification drops the element-type check. That belongs
+> to [M-TYPE-LIST-ELEMENT-SOUNDNESS](./m-type-list-element-soundness.md), not this doc. Rule of
+> thumb: if a better *message* would still leave an invalid program running, it's a soundness bug,
+> not an error-quality bug.
+
 The Conflict Surface analysis (per CLAUDE.md guidance for parser/type changes):
 
 | Existing construct | Still works after this change? |

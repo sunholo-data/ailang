@@ -30,100 +30,20 @@ func buildConstructorFactoryTypes(
 	externalTypes map[string]*types.Scheme,
 ) {
 	for ctorName, ctorInfo := range constructors {
-		factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorName)
-		factoryKey := fmt.Sprintf("$adt.%s", factoryName)
+		factoryKey := fmt.Sprintf("$adt.make_%s_%s", ctorInfo.TypeName, ctorName)
 
-		// Build factory type: a0 -> a1 -> ... -> TypeName[t0, t1, ...]
-		// Use TVar2 (new type system) for type variables with Star kind
-		var typeVars []string
-		var paramTypes []types.Type
-
-		// M-TAPP-FIX: First create type vars for ADT type parameters
-		// These will be used in the result type: TApp(TypeName, [t0, t1, ...])
-		var adtTypeVars []types.Type
-		for i := 0; i < ctorInfo.TypeParamCount; i++ {
-			varName := fmt.Sprintf("t%d", i)
-			typeVars = append(typeVars, varName)
-			adtTypeVars = append(adtTypeVars, &types.TVar2{Name: varName, Kind: types.Star})
-		}
-
-		// M-POLY-ADT: Use actual field types instead of assuming positional match
-		// This fixes the bug where Err(string) in Result[a] was incorrectly typed as forall a. a -> Result[a]
-		// Build a map of type param names to their ADT type vars (t0, t1, ...)
-		typeParamToVar := make(map[string]types.Type)
-		for i, name := range ctorInfo.TypeParamNames {
-			if i < len(adtTypeVars) {
-				typeParamToVar[name] = adtTypeVars[i]
-			}
-		}
-
-		for i := 0; i < ctorInfo.Arity; i++ {
-			var fieldType types.Type
-			if i < len(ctorInfo.InternalFieldTypes) && ctorInfo.InternalFieldTypes[i] != nil {
-				// M-POLY-ADT: We have the actual field type from elaboration
-				ft := ctorInfo.InternalFieldTypes[i]
-				// Check if field type is a type variable that matches a type parameter
-				if tvar, ok := ft.(*types.TVar2); ok {
-					if mappedVar, found := typeParamToVar[tvar.Name]; found {
-						// This field type IS a type parameter (e.g., 'a' in Ok(a))
-						// Use the corresponding ADT type var (t0, t1, ...)
-						fieldType = mappedVar
-					} else {
-						// Unknown type var - create fresh type var
-						varName := fmt.Sprintf("a%d", i)
-						typeVars = append(typeVars, varName)
-						fieldType = &types.TVar2{Name: varName, Kind: types.Star}
-					}
-				} else {
-					// Concrete type (e.g., 'string' in Err(string))
-					// Use it directly - this is the key fix!
-					fieldType = ft
-				}
-			} else if i < ctorInfo.TypeParamCount {
-				// Fallback: no field types available, use old behavior
-				fieldType = adtTypeVars[i]
-			} else {
-				// Create additional type var for extra fields
-				varName := fmt.Sprintf("a%d", i)
-				typeVars = append(typeVars, varName)
-				fieldType = &types.TVar2{Name: varName, Kind: types.Star}
-			}
-			paramTypes = append(paramTypes, fieldType)
-		}
-
-		// M-TAPP-FIX: Build correct result type
-		// For parameterized ADTs, use TApp(TCon(TypeName), [type vars])
-		// For non-parameterized ADTs, use plain TCon
-		var resultType types.Type
-		if ctorInfo.TypeParamCount > 0 {
-			resultType = &types.TApp{
-				Constructor: &types.TCon{Name: ctorInfo.TypeName},
-				Args:        adtTypeVars,
-			}
-		} else {
-			resultType = &types.TCon{Name: ctorInfo.TypeName}
-		}
-
-		var factoryType types.Type
-		if ctorInfo.Arity == 0 {
-			// Nullary constructor: just the result type
-			factoryType = resultType
-		} else {
-			// Constructor with fields
-			// Use TFunc2 (new type system) for compatibility with unification
-			factoryType = &types.TFunc2{
-				Params:    paramTypes,
-				EffectRow: nil, // Pure constructor
-				Return:    resultType,
-			}
-		}
-
-		// Add to external types with Scheme wrapper
-		// TypeVars allows polymorphism over field types
-		externalTypes[factoryKey] = &types.Scheme{
-			TypeVars: typeVars,
-			Type:     factoryType,
-		}
+		// M-POLY-ADT / M-TAPP-FIX / M-TYPE-LIST-SOUND round 3: build the factory
+		// scheme via the shared helper, which remaps declared param vars to the
+		// ADT's result-type vars (t0, t1, ...) across the ENTIRE field type. This
+		// keeps compound fields ([a], (a,a), Option[a]) tied to the result type
+		// instead of leaking an orphaned free var that unified with anything.
+		externalTypes[factoryKey] = types.BuildConstructorFactoryScheme(
+			ctorInfo.TypeName,
+			ctorInfo.Arity,
+			ctorInfo.TypeParamCount,
+			ctorInfo.TypeParamNames,
+			ctorInfo.InternalFieldTypes,
+		)
 	}
 }
 
@@ -216,6 +136,13 @@ func typeCheckAndLowerModule(
 	returnAnnots := elaborator.GetReturnTypeAnnotations()
 	if len(returnAnnots) > 0 {
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
+	}
+
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: Pass let-binding type annotations to type checker
+	// so `let xs: [string] = [42]` is actually type-checked (was dropped before).
+	letAnnots := elaborator.GetLetTypeAnnotations()
+	if len(letAnnots) > 0 {
+		typeChecker.SetLetTypeAnnotations(letAnnots)
 	}
 
 	// M-CAPABILITY-BUDGETS: Pass full effect annotations with budgets to type checker

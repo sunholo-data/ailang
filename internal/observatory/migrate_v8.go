@@ -1,4 +1,4 @@
-// Package observatory provides database migrations v8-v14 for the observatory schema.
+// Package observatory provides database migrations v8-v15 for the observatory schema.
 package observatory
 
 import (
@@ -6,9 +6,9 @@ import (
 	"fmt"
 )
 
-// migrateV8ToV14 runs migrations from v8 to v14.
-// Called from MigrateWithVersion when currentVersion < 8.
-func migrateV8ToV14(db *sql.DB, currentVersion int) (int, error) {
+// migrateV8ToV15 runs migrations from v8 to v15.
+// Called from MigrateWithVersion when currentVersion < 15.
+func migrateV8ToV15(db *sql.DB, currentVersion int) (int, error) {
 	var err error
 
 	// Migration v8: Add correlation columns to sessions table (M-DETERMINISTIC-CHAT-LINKING)
@@ -314,6 +314,42 @@ func migrateV8ToV14(db *sql.DB, currentVersion int) (int, error) {
 			return currentVersion, fmt.Errorf("failed to record version 14: %w", err)
 		}
 		currentVersion = 14
+	}
+
+	// Migration v15: Create eval_baselines table for adaptive token-budget
+	// baselines (M-EVAL-OS-LONGITUDINAL Phase 2).
+	//
+	// Bug fix: eval_baselines was originally added ONLY to the base Migrate()
+	// schema. MigrateWithVersion runs Migrate() exactly once (currentVersion < 1),
+	// so every observatory.db already past v1 — i.e. every existing DB, now at
+	// v14 — never received the table. The eval-suite then logged "no such table:
+	// eval_baselines" on every passing trial and silently recorded no baselines.
+	// This versioned step backfills the table on existing DBs (mirrors how
+	// trace_summaries got a v12 migration alongside its base-schema entry). The
+	// CREATE is IF NOT EXISTS, so fresh DBs that already got it from Migrate()
+	// are a harmless no-op.
+	if currentVersion < 15 {
+		_, err = db.Exec(`
+			CREATE TABLE IF NOT EXISTS eval_baselines (
+				model_id      TEXT NOT NULL,
+				benchmark_id  TEXT NOT NULL,
+				n_pass_trials INTEGER NOT NULL DEFAULT 0,
+				mean_tokens   REAL    NOT NULL DEFAULT 0,
+				stddev_tokens REAL    NOT NULL DEFAULT 0,
+				m2_tokens     REAL    NOT NULL DEFAULT 0,
+				last_updated  TIMESTAMP NOT NULL,
+				PRIMARY KEY (model_id, benchmark_id)
+			)
+		`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create eval_baselines table: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (15)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 15: %w", err)
+		}
+		currentVersion = 15
 	}
 
 	return currentVersion, nil

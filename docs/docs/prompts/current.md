@@ -1,13 +1,13 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.0) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.1) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.0.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.1.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.0.md -->
-<!-- Active Version: v0.16.0 -->
+<!-- Source: prompts/v0.16.1.md -->
+<!-- Active Version: v0.16.1 -->
 
 # AILANG v0.16.0 - AI Teaching Prompt (with IFC Labels)
 
@@ -318,6 +318,28 @@ letrec isOdd = \n. if n == 0 then false else isEven(n - 1);
 println(show(isEven(4)))  -- true
 ```
 
+**IMPORTANT — `letrec` requires a `{...}` block body, NOT a `= expression` body:**
+
+```ailang
+-- ❌ WRONG: letrec doesn't work with `= ...` body (parse error)
+export func is_even(n: int) -> bool =
+  letrec is_odd = \m. if m == 0 then false else is_even(m - 1);
+  if n == 0 then true else is_odd(n - 1)
+
+-- ✅ RIGHT: use `{ ... }` block; the `;` separates statements
+export func is_even(n: int) -> bool {
+  letrec is_odd = \m. if m == 0 then false else is_even(m - 1);
+  if n == 0 then true else is_odd(n - 1)
+}
+
+-- ✅ BEST: use top-level mutually-recursive `func` declarations
+func is_odd(n: int) -> bool =
+  if n == 0 then false else is_even(n - 1)
+
+export func is_even(n: int) -> bool =
+  if n == 0 then true else is_odd(n - 1)
+```
+
 ## Type Annotations for Higher-Order Functions
 
 **Annotate function types with parentheses around arrow types:**
@@ -463,10 +485,11 @@ export func main() -> () ! {IO} { println("hi") }
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
-| `IO` | `print`, `println`, `readLine`, `exit` | `std/io` (print is builtin) |
+| `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
 | `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
-| `Env` | `getArgs`, `getEnv`, `getEnvOr` | `std/env` |
+| `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
+| `Clock` | `now`, `sleep` | `std/clock` |
 | `AI` | `call`, `callJson`, `callJsonSimple` | `std/ai` |
 | `Debug` | `log`, `check` | `std/debug` |
 | `Process` | `exec` | `std/process` |
@@ -606,6 +629,11 @@ import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_get
 - `findIndex(p, xs) -> Option[int]` - Find index of first matching element
 - `flatMap(f, xs)` - Apply f to each element, flatten results (pure)
 - `zipWith(f, xs, ys)` - Combine two lists element-wise with function f
+- `dedup(xs)` - Remove consecutive duplicates (preserves first occurrence)
+- `union(xs, ys)`, `intersect(xs, ys)`, `difference(xs, ys)` - Set ops on lists
+- `maximumInt(xs) -> Option[int]`, `minimumInt(xs) -> Option[int]` - Typed min/max (None on empty)
+- `maximumFloat(xs) -> Option[float]`, `minimumFloat(xs) -> Option[float]` - Float variants
+- `maximumString(xs) -> Option[string]`, `minimumString(xs) -> Option[string]` - String variants (lex order)
 
 **Effectful list combinators** (v0.7.3) — use these instead of hand-rolling recursive traversals:
 - `mapE(f, xs)` - Effectful map: apply effectful function to each element
@@ -650,12 +678,20 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `floatToStr(f) -> string` - Convert float to string (prefer `show` for simple cases)
 - `join(delim, xs) -> string` - Join list of strings with delimiter
 - `repeat(s, n) -> string` - Repeat string n times
+- `words(s) -> [string]` - Split by any whitespace run (handles tabs/newlines)
+- `splitAny(s, delims: [string]) -> [string]` - Split by any of multiple delimiter strings
+- `charCode(c: string) -> int` - Unicode codepoint of a single-char string (use with `chars(s)`)
+- `foldChars(f, acc, s) -> a` - Fold over each character of a string
 
 **Math functions** (std/math):
 - `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
 - `intToFloat(x) -> float` - Convert int to float
 - `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
 - `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
+- `sin(x)`, `cos(x)`, `tan(x)` - Trigonometric (radians)
+- `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` - Inverse trig
+- `exp(x)`, `log(x)`, `log10(x)` - Exponential and logarithm (natural + base-10)
+- `PI() -> float`, `E() -> float` - Constants (note: CALL them with `()` — they're nullary functions, not bindings)
 
 **Bytes functions** (std/bytes) — pure binary data operations:
 - `fromString(s) -> bytes` - UTF-8 encode string to bytes
@@ -664,6 +700,11 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `fromBase64(s) -> Option[bytes]` - Base64 decode (None if invalid)
 - `length(b) -> int` - Byte length
 - `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
+- `fromInts(xs: [int]) -> bytes` - Construct bytes from list of integers (0-255)
+- `byteAt(b, i) -> Option[int]` - Get byte value (0-255) at index, or None if out of bounds. Use for ASCII char codes: `byteAt(fromString("A"), 0) == Some(65)`
+- `concat(a, b) -> bytes` - Concatenate two byte slices
+- `concatList(xs: [bytes]) -> bytes` - Concatenate a list of byte slices (single allocation)
+- `fromBase64URL(s) -> Option[bytes]` - Base64url decode (JWT-style, no padding)
 
 **Streaming functions** (std/stream) — requires `--caps Stream`:
 
@@ -792,6 +833,26 @@ pure func validateAge(age: int) -> Option[int] =
   if age >= 0 && age <= 150 then Some(age) else None
 ```
 
+**Option helper functions** (std/option) — prefer these over re-pattern-matching:
+- `isSome(opt) -> bool`, `isNone(opt) -> bool` - Discriminators
+- `getOrElse(opt, default) -> a` - Unwrap with fallback (most common idiom!)
+- `map(f, opt) -> Option[b]` - Apply function inside Some, pass through None
+- `flatMap(f, opt) -> Option[b]` - Chain Option-returning functions
+- `filter(pred, opt) -> Option[a]` - Drop to None if predicate fails
+
+```ailang
+import std/option (Option, Some, None, getOrElse, isSome, map)
+import std/string (stringToInt)
+
+-- Idiomatic: getOrElse instead of pattern match
+let n = getOrElse(stringToInt("42"), 0);              -- 42
+let bad = getOrElse(stringToInt("oops"), -1);          -- -1
+
+-- map: transform the value inside Some
+let doubled = map(\x. x * 2, Some(21));                -- Some(42)
+let stillNone = map(\x. x * 2, None);                  -- None
+```
+
 ## Error Handling with Result Type
 
 Use the polymorphic `Result[a]` type for error handling:
@@ -836,6 +897,13 @@ export func main() -> () ! {IO} {
 }
 ```
 
+**Result helper functions** (std/result) — note: `std/result.Result` has TWO type parameters (`Result[a, e]`). The simplified `Result[a] = Ok(a) | Err(string)` examples above use a locally-defined ADT. For the stdlib version, import `Result, Ok, Err` from `std/result` and use:
+- `isOk(r) -> bool`, `isErr(r) -> bool` - Discriminators
+- `unwrap(r) -> a` - Extract Ok value (panics on Err — use only after isOk check)
+- `map(f, r) -> Result[b, e]` - Apply function to Ok value
+- `mapErr(f, r) -> Result[a, e2]` - Apply function to Err value
+- `flatMap(f, r) -> Result[b, e]` - Chain Result-returning functions
+
 **Polymorphic ADTs with mixed field types:**
 ```ailang
 -- Ok(a) uses the type parameter, Err(string) uses a concrete type
@@ -868,6 +936,67 @@ export func main() -> () ! {IO} {
   println(show(r))
 }
 ```
+
+## Time and Dates (std/clock, std/datetime)
+
+**std/clock** — current time + sleep, requires `--caps Clock`:
+- `now() -> int ! {Clock}` - Current Unix timestamp (seconds since epoch)
+- `sleep(ms: int) -> () ! {Clock}` - Sleep for N milliseconds
+
+```ailang
+import std/clock (now, sleep)
+import std/io (println)
+
+export func main() -> () ! {Clock, IO} {
+  let t = now();
+  println("timestamp: ${show(t)}");
+  sleep(500)  -- pause 0.5s
+}
+```
+
+**std/datetime** — pure date arithmetic on Unix timestamps (int seconds). Pure (no effect needed):
+- Accessors: `year(ts)`, `month(ts)`, `day(ts)`, `weekday(ts)`, `hour(ts)`, `minute(ts)`, `second(ts)` — all return `int`
+- Arithmetic: `addDays(ts, n)`, `addMonths(ts, n)`, `addYears(ts, n)`, `diffDays(a, b)` — all return `int`
+- Boundaries: `startOfDay(ts)`, `startOfWeek(ts)`, `startOfMonth(ts)` — return `int`
+- Construction: `makeDate(y, m, d) -> int`, `makeDateTime(y, m, d, h, mi, s) -> int`
+- Formatting: `formatISODate(ts) -> string`, `formatRFC3339(ts) -> string`, `formatMonthShort(ts)`, `formatWeekdayFull(ts)`
+- Parsing: `parseISODate(s) -> Option[int]`, `parseRFC3339(s) -> Option[int]`
+
+```ailang
+import std/clock (now)
+import std/datetime (formatRFC3339, year, addDays, makeDate)
+import std/io (println)
+
+export func main() -> () ! {Clock, IO} {
+  let t = now();
+  println(formatRFC3339(t));                       -- e.g. "2026-05-21T12:00:00Z"
+  println("year: ${show(year(t))}");
+  println(formatRFC3339(addDays(t, 7)))             -- one week from now
+}
+```
+
+## Hashing & Crypto (std/crypto)
+
+Pure hashing primitives (no capability needed):
+- `sha256Hex(s: string) -> string` - SHA-256 hash, hex-encoded
+- `sha256Bytes(b: bytes) -> string` - SHA-256 of raw bytes, hex-encoded
+- `hmacSha256(message, key) -> string` - HMAC-SHA-256, hex-encoded
+- `constantTimeEqual(a, b) -> bool` - Timing-safe string comparison
+
+```ailang
+import std/crypto (sha256Hex, hmacSha256)
+
+let h = sha256Hex("hello");                          -- 64-char hex digest
+let mac = hmacSha256("payload", "secret-key");        -- HMAC hex
+```
+
+## Arrays — Construction Primitives (std/array)
+
+In addition to `get`/`set`/`length` already covered above:
+- `empty() -> Array[a]` - Empty array
+- `make(size: int, default: a) -> Array[a]` - Fixed-size array initialized to `default`
+- `append(arr, val) -> Array[a]` - Return new array with `val` appended
+- `unsafeGet(arr, idx) -> a` - Get without bounds check (panics on OOB) — use `getOpt` for safety
 
 ## Character Processing
 

@@ -188,14 +188,22 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// `ailang chains live` per-stage join precise (without this, spans land
 	// in observatory.db but with NULL chain_id/stage_id).
 	task := &executor.Task{
-		ID:                fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
-		Directive:         taskPrompt,
-		SystemPrompt:      systemPrompt,
-		Workspace:         workspace,
-		Timeout:           time.Duration(timeoutSeconds) * time.Second,
-		Model:             modelName,
-		Metadata:          buildChainMetadata(config.ChainID, config.StageID),
-		MaxTokensPerBench: config.MaxTokensPerBench, // M-EVAL-OS-LONGITUDINAL Phase 1
+		ID:           fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
+		Directive:    maybePrependTrapsCard(taskPrompt),
+		SystemPrompt: systemPrompt,
+		// Teaching-prompt delivery (M-EVAL-OPENCODE-SYSTEM-PROMPT). The
+		// 2026-06-06 delivery experiment found turn-1 concatenation + a small
+		// front-loaded traps card beats re-injecting the full prompt every turn
+		// via AGENTS.md ("MOVE", which bloated context and scored 1/6 vs 3/6).
+		// So persistence now defaults OFF; set AILANG_EVAL_PERSIST_PROMPT=1 to
+		// re-enable (opencode → AGENTS.md; executors without a persistent
+		// channel ignore it).
+		PersistentSystemPrompt: persistentSystemPromptEnabled(),
+		Workspace:              workspace,
+		Timeout:                time.Duration(timeoutSeconds) * time.Second,
+		Model:                  modelName,
+		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
+		MaxTokensPerBench:      config.MaxTokensPerBench, // M-EVAL-OS-LONGITUDINAL Phase 1
 	}
 
 	// Apply per-model TTFT / generation timeouts from models.yml
@@ -577,3 +585,55 @@ func (h *ttftEventHandler) OnToolUse(string, string)    { h.record() }
 func (h *ttftEventHandler) OnToolResult(string, string) {}
 func (h *ttftEventHandler) OnTurnEnd(int)               {}
 func (h *ttftEventHandler) OnError(error)               {}
+
+// trapsCardDefaultPath is the built-in location of the dialect-traps card,
+// loaded relative to the eval working directory (repo root) — the same
+// convention agent_prompt.txt uses. A package var (not const) so tests can
+// redirect it at a temp file.
+var trapsCardDefaultPath = "prompts/agent/dialect-traps.md"
+
+// maybePrependTrapsCard front-loads the compact "dialect traps" card into the
+// turn-1 task message — a tiny, un-buryable reminder of the highest-frequency
+// rule violations, distilled from the 14-failure analysis.
+//
+// Default ON. The 2026-06-06 prompt-delivery experiment (local qwen3.5, n=2)
+// showed the card sharply cuts flailing (symbolic_diff 1/2→2/2, 880k→246k
+// tokens) by front-loading the import/syntax rules the model otherwise misses.
+// It loads trapsCardDefaultPath unless AILANG_EVAL_TRAPS_CARD overrides the
+// path; set AILANG_EVAL_TRAPS_CARD=off (or 0/false/no/none) to disable. If the
+// card file is unreadable the directive is returned unchanged — this is an
+// additive salience aid, not a data-integrity path.
+func maybePrependTrapsCard(directive string) string {
+	path := strings.TrimSpace(os.Getenv("AILANG_EVAL_TRAPS_CARD"))
+	switch strings.ToLower(path) {
+	case "off", "0", "false", "no", "none":
+		return directive // explicitly disabled
+	case "":
+		path = trapsCardDefaultPath // default on
+	}
+	card, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[eval] traps card unreadable (%s): %v — continuing without card\n", path, err)
+		return directive
+	}
+	return strings.TrimRight(string(card), "\n") + "\n\n---\n\n" + directive
+}
+
+// persistentSystemPromptEnabled reports whether the FULL teaching prompt should
+// be delivered via a persistent system-prompt channel (opencode AGENTS.md),
+// re-injected every turn, instead of concatenated once into the first user
+// message.
+//
+// Defaults to FALSE. The 2026-06-05/06 prompt-delivery experiment (local
+// qwen3.5, n=2) showed re-injecting the full ~22k prompt every turn ("MOVE")
+// was the WORST delivery — 1/6 vs 3/6 for turn-1 concatenation — because it
+// bloated the context (up to 39 turns / 2.4M tokens) and the model lost the
+// signal. Set AILANG_EVAL_PERSIST_PROMPT=1/true/on to re-enable for A/B testing.
+func persistentSystemPromptEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("AILANG_EVAL_PERSIST_PROMPT"))) {
+	case "1", "true", "on", "yes":
+		return true
+	default:
+		return false
+	}
+}
