@@ -406,6 +406,17 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		exprs = append(exprs, p.parseExpression(LOWEST))
 	}
 
+	// M-AILANG-ERROR-QUALITY (PAR020): if the next token instead begins a new
+	// statement (let / if / match / identifier), the block is missing a ';'
+	// between statements — the mirror of PAR017's "extra ';' in =-body". This is
+	// the #1 unactionable thrash-causer on small models: config_file_parser burned
+	// 66 agent turns on a bare "expected }, got if". Give the concrete fix instead.
+	if !p.peekTokenIs(lexer.RBRACE) && p.peekStartsBlockStatement() {
+		p.errors = append(p.errors, p.missingBlockSemicolonError())
+		p.traceDelimiterStack()
+		return nil
+	}
+
 	// Expect closing brace
 	if !p.expectPeek(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected '}' to close function body at %s", p.peekToken.Position()))
@@ -426,6 +437,40 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		Exprs: exprs,
 		Pos:   startPos,
 	}
+}
+
+// peekStartsBlockStatement reports whether the peek token unambiguously begins a
+// new block statement (let / letrec / if / match / identifier). Used to detect a
+// missing ';' separator between block statements (PAR020). Kept to high-signal
+// statement-starters so the hint is precise — literals/operators are excluded
+// because they're more likely a mid-expression parse error than a dropped ';'.
+func (p *Parser) peekStartsBlockStatement() bool {
+	switch p.peekToken.Type {
+	case lexer.LET, lexer.LETREC, lexer.IF, lexer.MATCH, lexer.IDENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// missingBlockSemicolonError builds the PAR020 actionable error for a missing
+// ';' between block statements (the mirror of PAR017's "extra ';' in =-body").
+// Used by both the block-expression parser and the function-declaration
+// block-body parser. Points at the offending (peek) token.
+func (p *Parser) missingBlockSemicolonError() *ParserError {
+	return NewSuggestionError(
+		"PAR020",
+		ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+		p.peekToken,
+		fmt.Sprintf("missing ';' between block statements (found `%s` where `;` or `}` was expected)", p.peekToken.Literal),
+		[]string{
+			"Statements inside a `{ }` block are separated by `;`:",
+			"    { let x = e1; let y = e2; result }",
+			"Add a `;` after the previous statement, before this one.",
+			"The block's LAST expression is the return value — no `;` after it.",
+		},
+		"https://ailang.sunholo.com/docs/reference/language-syntax",
+	)
 }
 
 // parseRecordLiteralContent / parseRecordUpdateContent moved to parser_record.go

@@ -199,6 +199,14 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 		// Parse body as a block (semicolon-separated expressions)
 		fn.Body = p.parseFunctionBody()
+		// M-AILANG-ERROR-QUALITY (PAR020): a statement-starting token here means
+		// the block is missing a ';' separator (mirror of PAR017's extra ';').
+		// This is the #1 unactionable thrash-causer on small models —
+		// config_file_parser burned 66 agent turns on a bare "expected }, got if".
+		if !p.peekTokenIs(lexer.RBRACE) && p.peekStartsBlockStatement() {
+			p.errors = append(p.errors, p.missingBlockSemicolonError())
+			return nil
+		}
 		if !p.expectPeek(lexer.RBRACE) {
 			return nil
 		}

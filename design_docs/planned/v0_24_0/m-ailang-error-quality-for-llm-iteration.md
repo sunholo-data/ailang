@@ -54,9 +54,31 @@ Two observations sharpen the priority:
    a never-passing benchmark has no baseline, so it thrashes unbounded (the 66-turn case).
 
 Interim mitigation already shipped: the dialect-traps card's trap #2 was sharpened to name the
-exact `func f() = let x = e; rest` reflex and give both fixes (brace block / `let … in`). The
-remaining lever — making `PAR017` itself recovery-actionable (suggest the two concrete rewrites
-inline) — is in scope for this sprint.
+exact `func f() = let x = e; rest` reflex and give both fixes (brace block / `let … in`).
+
+### Shipped 2026-06-10 — PAR020 (the missing-`;` mirror)
+
+Investigating the corpus showed the real *unactionable* thrash-causer is **not** PAR017 (which a
+prior iteration already made fully actionable — both fixes + docs link inline) but its **mirror**:
+a *missing* `;` between block statements. The model writes a `{ }` block body and drops the `;`:
+
+```
+pure func f() -> int {
+  let n = length(s)        // ← no ';'
+  if n > 0 then 1 else 0
+}
+```
+
+The parser emitted a bare `PAR_UNEXPECTED_TOKEN: expected }, got if` — zero recovery signal;
+`config_file_parser` burned **66 agent turns** on exactly this. Fixed: when a block body / block
+expression is followed by a statement-starting token (`let`/`letrec`/`if`/`match`/identifier)
+instead of `;` or `}`, the parser now emits **`PAR020`** — "missing ';' between block statements"
+with the concrete two-line fix and a docs link — on both the function-declaration body path
+(`parser_func.go`) and the block-expression path (`parser_expr.go`). Guarded by
+`TestPAR020_MissingBlockSemicolon` (fires on the pattern; no false-positive on valid or
+single-expression blocks). PAR017 (extra `;`) + PAR020 (missing `;`) now bookend the whole `;`
+confusion family — **~32% of qwen failures**. Next-attempt recovery rate is measurable on the
+nightly's same-rotation re-run.
 
 ## Methodology
 
