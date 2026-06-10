@@ -20,6 +20,44 @@ The rotation's data is unambiguous when read against the right metric. `first_at
 
 The pattern is consistent: **when errors are actionable, the agent converges quickly. When errors are unactionable, the agent burns iterations on the same wrong guess.**
 
+## 2026-06-10 re-validation — local-qwen smoke+core corpus (fresh data)
+
+The thesis above was re-confirmed against a larger, current corpus: **334 qwen3.5-35B-A3B
+agent trials** (6 nightly runs + the first core baseline), **44 failures**, classified by
+exact error signature:
+
+| Signature | % of failures | Note |
+|-----------|--------------:|------|
+| `;` in expression-body (PAR017) | **20.5%** | #1 — the `func f() = let x = e; rest` reflex |
+| logic error (wrong output) | 15.9% | not error-message-fixable |
+| block vs expr-body `{}` confusion | 11.4% | same family as PAR017 |
+| infra (timeout/api) | 11.4% | not a language signal |
+| stray `:` token | 4.5% | same family |
+| `match … with` (PAR019) | 2.3% | already rare — the traps card works for it |
+| `++` for string concat | 0% | solved; was 46% on big models |
+
+**~36% of all qwen failures are a single family: expression-body (`= expr`) vs block-body
+(`{ stmts }`) / statement-separator confusion**, dominated by the `func f() = let x = e; rest`
+anti-pattern. This is the highest-leverage small-model target — and it is **not a content
+gap**: the dialect-traps card (M-EVAL-PROMPT-DELIVERY) already states "no `;` in `=`-body
+functions", and the parser already emits a specific `PAR017` ("not in expression-body
+functions"). The model violates it anyway and then **fails to recover** — `config_file_parser`
+thrashed **66 agent turns** on exactly this. That is this sprint's thesis in one data point:
+content + a decent error are not enough for a small model; the error must be *actionable enough
+to drive the next edit*.
+
+Two observations sharpen the priority:
+1. The big-model frequency banners on the sibling `m-prompt-*` docs ("0% / rare in recent runs")
+   are measured against models that brute-force past these. The qwen corpus we run *continuously*
+   shows PAR017/block-body is still the #1 failure — so error-message work here is strict upside.
+2. The adaptive thrash-abort (M-EVAL-OS-LONGITUDINAL, `eval_baselines`) cannot bound this class:
+   a never-passing benchmark has no baseline, so it thrashes unbounded (the 66-turn case).
+
+Interim mitigation already shipped: the dialect-traps card's trap #2 was sharpened to name the
+exact `func f() = let x = e; rest` reflex and give both fixes (brace block / `let … in`). The
+remaining lever — making `PAR017` itself recovery-actionable (suggest the two concrete rewrites
+inline) — is in scope for this sprint.
+
 ## Methodology
 
 For each of the 3 failures, we extract:

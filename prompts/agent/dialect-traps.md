@@ -8,9 +8,13 @@ obey these. They are the exact mistakes that break AILANG solutions:
    `nth(xs, 0)` (returns `Option`) or pattern-match `match xs { [x, ...rest] => ... }`.
    `import std/list (nth, head)`.
 
-2. **No `;` in `=`-body functions.** `func f() -> T = <expr>` is a SINGLE expression.
-   For multiple steps use a **brace block**:
-   `func f() -> T { let a = ...; let b = ...; result }`. `;` is valid ONLY inside `{ }`.
+2. **`=`-body holds ONE expression — no `let x = ...;` after `=`.** The reflex
+   `func f() -> T = let x = e; rest` is the single most common failure here. Fix it
+   one of two ways:
+   - **brace block** (drop the `=`): `func f() -> T { let x = e; rest }` — `;` is legal here
+   - **let-in** (keep the `=`): `func f() -> T = let x = e in rest`
+   `;` is valid ONLY inside `{ }`. For recursion use a named top-level `func` (there is
+   no top-level `let rec`).
 
 3. **`match x { Pat => expr, ... }`** — NOT `match x with` (that's Haskell/OCaml).
    Arms use `=>` and are separated by **commas**.
