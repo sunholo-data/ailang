@@ -1,2 +1,2 @@
-export const STABLE_RELEASE = 'v0.24.2';
+export const STABLE_RELEASE = 'v0.25.0';
 export const ACTIVE_PROMPT = 'v0.16.1';
