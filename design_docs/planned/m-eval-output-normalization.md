@@ -1,6 +1,6 @@
 # M-EVAL-OUTPUT-NORMALIZE: Boolean-case + numeric-format grading parity (sibling of M-EVAL-JSON-COMPARE)
 
-**Status**: Planned
+**Status**: Implemented (on dev — ships v0.26.0). `CompareOutput` normalized-equality branch + tests landed; `tools/eval-regrade` built; v0.25.0 baseline re-graded (44 recoveries).
 **Target**: v0.26.0 (rule) + re-grade of the v0.25.0 baseline
 **Priority**: P1 (High — a grader artifact depresses every model's Python score and distorts the public AILANG-vs-Python story)
 **Estimated**: 0.5–1 day (mirror the M-EVAL-JSON-COMPARE pattern + adversarial verification)

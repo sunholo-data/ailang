@@ -113,6 +113,48 @@ func TestCompareOutput(t *testing.T) {
 	}
 }
 
+// TestCompareOutput_Normalization covers M-EVAL-OUTPUT-NORMALIZE: boolean-case,
+// numeric-format, and structural-spacing parity (the non-JSON path), plus the
+// safety negatives that MUST still fail (wrong value/structure, verbosity).
+func TestCompareOutput_Normalization(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected string
+		actual   string
+		want     bool
+	}{
+		// Boolean case (the dominant artifact: Python True/False vs true/false).
+		{"bool true single", "true", "True", true},
+		{"bool false single", "false", "False", true},
+		{"bool multiline", "3\ntrue\nfalse\ntrue", "3\nTrue\nFalse\nTrue", true},
+		{"bool inline mixed", "ok=true count=3", "ok=True count=3", true},
+		// Numeric format (trailing zeros / integer-vs-float) on non-JSON lines.
+		{"float trailing zero", "apple: 7.5", "apple: 7.50", true},
+		{"float to int", "total: 16", "total: 16.0", true},
+		{"determinant line", "-14\n-306\n1\ntrue\ntrue", "-14\n-306\n1\nTrue\nTrue", true},
+		// Structural spacing on a non-JSON line (JSON arrays go via jsonEqual).
+		{"list spacing non-json", "x=[1, 2, 3]", "x=[1,2,3]", true},
+		// AILANG side is a no-op (already lowercase / canonical).
+		{"ailang lowercase unchanged", "true\nfalse", "true\nfalse", true},
+
+		// SAFETY — must still FAIL:
+		{"bool value differs", "true", "False", false},                  // true != false
+		{"numeric value differs", "7.5", "7.6", false},                  // real wrong number
+		{"verbosity extra line", "220", "evens: x\n220", false},         // extra labelled line
+		{"missing line", "a\nb", "a", false},                            // dropped output
+		{"label prefix differs", "[1, 2, 3]", "list: [1, 2, 3]", false}, // chatty prefix
+		{"set vs list", "out: [1,2,3]", "out: {1,2,3}", false},          // set != list (not equated)
+		{"wrong value", "5", "6", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CompareOutput(tt.expected, tt.actual); got != tt.want {
+				t.Errorf("CompareOutput(%q, %q) = %v, want %v", tt.expected, tt.actual, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestAILANGRunnerValidation tests that the validation re-run works correctly
 // for agent mode. This was a bug (Feb 2026): the validation runner created its
 // workspace outside /tmp/, so module path auto-relaxation didn't apply, causing

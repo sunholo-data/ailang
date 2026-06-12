@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -486,7 +488,17 @@ func CompareOutput(expected, actual string) bool {
 	// formatted-text benchmarks (tables, key:value lines) on the exact path.
 	// (M-EVAL-JSON-COMPARE: surfaced by v0.24.1 analysis — 9/10 whitespace-only
 	// AILANG "failures" were correct JSON output failing byte-exact match.)
-	return jsonEqual(expected, actual)
+	if jsonEqual(expected, actual) {
+		return true
+	}
+
+	// Normalized-equality: canonicalize output-convention formatting that differs
+	// by language idiom but not by content — boolean case (Python `True` vs `true`),
+	// numeric format (`7.50`==`7.5`, `16.0`==`16`), and structural spacing
+	// (`[1, 2, 3]`==`[1,2,3]`). Runs only after the exact and JSON paths fail.
+	// (M-EVAL-OUTPUT-NORMALIZE: v0.25.0 analysis — 32/83 Python stdout failures
+	// across all models were pure True/False-vs-true/false casing.)
+	return normalizedEqual(expected, actual)
 }
 
 // jsonEqual reports whether a and b both parse as JSON and are deeply equal.
@@ -499,6 +511,58 @@ func jsonEqual(a, b string) bool {
 		return false
 	}
 	return reflect.DeepEqual(va, vb)
+}
+
+// Output-normalization regexes (compiled once). See normalizeLine.
+var (
+	reBoolTrue   = regexp.MustCompile(`\bTrue\b`)
+	reBoolFalse  = regexp.MustCompile(`\bFalse\b`)
+	reDecimal    = regexp.MustCompile(`-?\d+\.\d+`)
+	rePunctSpace = regexp.MustCompile(`\s*([,\[\](){}:])\s*`)
+)
+
+// normalizedEqual reports whether expected and actual match after canonicalizing
+// formatting that differs by output convention but not by content. It is SAFE BY
+// CONSTRUCTION: comparison is line-by-line, so a different line count (verbose or
+// missing output) still fails; and the per-line transforms are content-preserving,
+// so a wrong value or wrong structure (e.g. a Python set `{1,2}` vs list `[1,2]`)
+// still fails. It can only turn a fail into a pass when the normalized forms are
+// exactly equal — never a pass into a fail. (M-EVAL-OUTPUT-NORMALIZE.)
+func normalizedEqual(expected, actual string) bool {
+	el := strings.Split(expected, "\n")
+	al := strings.Split(actual, "\n")
+	if len(el) != len(al) {
+		return false
+	}
+	for i := range el {
+		if normalizeLine(el[i]) != normalizeLine(al[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// normalizeLine canonicalizes one output line: boolean case-fold, decimal
+// trailing-zero/integer-float canonicalization, and whitespace removal adjacent
+// to structural punctuation ( , [ ] ( ) { } : ). Spaces NOT adjacent to those
+// characters are preserved, so "1 2" never collapses to "12".
+func normalizeLine(s string) string {
+	s = reBoolTrue.ReplaceAllString(s, "true")
+	s = reBoolFalse.ReplaceAllString(s, "false")
+	s = reDecimal.ReplaceAllStringFunc(s, canonDecimal)
+	s = rePunctSpace.ReplaceAllString(s, "$1")
+	return strings.TrimSpace(s)
+}
+
+// canonDecimal collapses a decimal literal to its shortest round-tripping form:
+// "7.50"->"7.5", "16.0"->"16", "3.14"->"3.14". Non-parseable input is returned
+// unchanged.
+func canonDecimal(s string) string {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return s
+	}
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
 // GetRunner returns a LanguageRunner for the specified language
