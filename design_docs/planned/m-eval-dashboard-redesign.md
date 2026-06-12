@@ -53,6 +53,17 @@ Top-level gains a `grading: { version, regradedAt }` stamp so the page can label
 
 `tools/eval-elo` must emit JSON (not just the table) so `update_dashboard.sh`/`eval-report` can merge `elo`/`eloBand`/model-elo into `latest.json`. Couples to **M-EVAL-RATING-EFFICIENCY part 2** (ratings persistence): the dashboard reads persisted ratings rather than recomputing. Saturation + graderFlag come from the curation audit (`audit_saturation.sh` + the M-EVAL-OUTPUT-NORMALIZE re-grade leftovers).
 
+## Language coverage (decided 2026-06-12)
+The **cloud-model dashboard is AILANG + Python only**. Multi-language comparison
+(JavaScript, Go via the lang-harness) moves to the **OSS on-device models** (local
+Ollama rig) — see [[ailang-eval-language-split]]. So a 2-language cloud `latest.json`
+(e.g. v0.25.0 standard+agent) is correct, NOT a regression vs the older 4-language
+v0.24.1. The redesign should: present cloud **AILANG-vs-Python** as the headline, and
+surface the **multi-language** story as a separate section sourced from the local-rig
+baseline (not the cloud run). The v0.25.0 publish is held for this sprint (it republishes
+anyway); publishing once here — with the ELO/regrade/saturation fields and the corrected
+AILANG/Python numbers — avoids a double update.
+
 ## Non-goals
 - No visual framework change (stay in the existing Docusaurus/React component set).
 - Not a history rewrite — `history` keeps raw past versions; the regraded stamp marks v0.25.0+ as regraded.
