@@ -273,9 +273,9 @@ fi
 echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "Mode: FULL (extended model suite)"
-    echo "Expected cost: ~\$0.50-1.00"
-    echo "Expected time: ~15-20 minutes"
+    echo "Mode: FULL (extended_suite, 11 models incl. claude-fable-5, + agent_suite)"
+    echo "Expected cost: ~\$30-60 (fable ~\$16 on core,stretch; agent step adds ~\$10-20)"
+    echo "Expected time: ~45-90 minutes"
 else
     echo "Mode: DEV (3 dev models)"
     echo "Expected cost: ~\$0.10-0.20"

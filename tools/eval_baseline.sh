@@ -61,7 +61,7 @@ BASELINE_DIR="eval_results/baselines/${VERSION}"
 if [ -n "$MODELS" ]; then
   MODEL_DESC="$MODELS (custom)"
 elif [ "$FULL_SUITE" = "true" ]; then
-  MODEL_DESC="All 6 models: gpt5-4, gpt5-4-mini, claude-opus-4-7, claude-sonnet-4-6, gemini-3-1-pro, gemini-3-flash (--full)"
+  MODEL_DESC="extended_suite (--full): all production models incl. claude-fable-5 — exact list in internal/eval_harness/models.yml"
 else
   MODEL_DESC="Dev models: gpt5-4-mini, claude-haiku-4-5, gemini-3-flash (default)"
 fi
