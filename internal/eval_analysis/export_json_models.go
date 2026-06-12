@@ -365,7 +365,10 @@ func buildModelsJS(
 					entry["provider_type"] = providerType
 				}
 			}
-			modelsJS[modelName] = entry
+			// Agent-only models belong in agentModels ONLY. Adding them to the
+			// standard `models` map put them on the Model Leaderboard with empty
+			// standard data — the phantom-zero rows. Standard and agent must stay
+			// split: `models` = ran standard, `agentModels` = agent.
 			agentModelsJS[modelName] = entry
 		}
 	}
