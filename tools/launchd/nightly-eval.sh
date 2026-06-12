@@ -115,6 +115,16 @@ BENCH_TIERS="smoke,core"   # display label for alerts/log
 # writes pass baselines to, queried below to gate regression alerts.
 OBSERVATORY_DB="$HOME/.ailang/state/observatory.db"
 
+# Thrash ceiling per benchmark (M-EVAL-OS-LONGITUDINAL). When eval_baselines has
+# >=5 passing samples for a (model, benchmark), the eval-suite uses an adaptive
+# mean+2σ token threshold; otherwise this fixed value is the hard ceiling. Set
+# ABOVE the heaviest legitimate passing trial observed (~3.66M tokens) so a
+# slow-but-correct run is never converted into a false thrash-abort, while still
+# bounding runaways: graph_bfs hit 6.7M–8.3M tokens on a single trial with no cap,
+# adding ~an hour to the night. A 1M cap was A/B-validated 2026-06-11 (bounded an
+# 8.3M-token runaway); 4M is the looser nightly ceiling that protects legit passes.
+MAX_TOKENS_PER_BENCH=4000000
+
 BENCH_LIST=$( {
     grep -lE '^[[:space:]]*tier:[[:space:]]*smoke' benchmarks/*.yml
     grep -lE '^[[:space:]]*tier:[[:space:]]*core'  benchmarks/*.yml
@@ -156,7 +166,8 @@ run_eval() {
         --microrag "$mode" \
         --output "$outdir" \
         --parallel 1 \
-        --trials 2 >> "$LOG" 2>&1
+        --trials 2 \
+        --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
 }
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
