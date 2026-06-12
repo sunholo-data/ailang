@@ -156,6 +156,18 @@ Two **independent, backward-compatible** relaxations. Existing `;`-delimited cod
 
 5. **What deliberately changes (intentional incompatibilities)?** Forms that previously errored (`PAR017`, `PAR020` for newline-separated blocks) now parse. No previously-*valid* program changes meaning. `ailang fmt` output for affected files changes to the new canonical form (a formatting-only diff).
 
+### Verified empirically (2026-06-12, clean dev binary v0.24.2-47-g66cc6629)
+
+The load-bearing safety assumptions were checked with live `ailang run`/`check`, not asserted:
+
+- **No juxtaposition application.** `let g = \x. x+1; g 5` → `PAR_UNEXPECTED_TOKEN: expected }, got INT`. Application is `f(args)` via an **infix `LPAREN`** (`parser.go:118 registerInfix(LPAREN, parseCallExpression)`), never `f x`. Therefore `expr⏎IDENT` can **never** be a continuation — it is unambiguously two statements. This is the single assumption R2's IDENT-trigger depends on. *(Honesty note: an earlier run against a stale A/B binary falsely showed `g 5` compiling; a clean rebuild settled it — always verify against a clean build.)*
+- **Decl keywords are not expression-starts.** `let x = export` / `type` / `import` all → `PAR_`. Safe R1 hard boundaries.
+- **Funclits survive R1.** `map(func(x) -> int { x*2 }, xs)` and `map(\x. x*2, xs)` inside an `=` body both compile; `func (` ≠ `func IDENT`.
+- **Operator line-continuation is preserved.** `= 1⏎+ 2` and `let x = 1 +⏎2` both compile — operators are not in `peekStartsBlockStatement`, so R2 never splits them.
+- **Precedent — the parser is *already* newline-aware.** `internal/parser/gap2_regression_test.go` (`TestGAP2_NewlineLPAREN`) shows `expr⏎(next)` is deliberately **not** parsed as a call — the infix loop already breaks on a newline-before-`LPAREN`. R2 is therefore an *extension* of an established mechanism, not a new invariant.
+
+**Net of verification:** R1 is provably narrow — it activates only on the `;`-in-`=`-body form that hard-errors today, so it cannot change the meaning of any currently-compiling program. R2 is safe on every collision axis tested **and** extends an existing rule, but newline-significance is the class of change where a missed edge case hides (the GAP2 bug itself was one). **Phasing decision: ship R1 first; ship R2 only after its merge gate — the corpus AST-diff fuzz pass below — passes, not on the strength of these hand-picked tests.**
+
 > **Cautionary precedent:** M-TAINT-TYPES (v0.14.3) added `T{not LABEL}` with a 2-token lookahead that proved insufficient vs `func … -> bool { not f(x) }`, causing ~14 mis-parses in the motoko fork. R1's `func IDENT` vs `func (` disambiguation is exactly such a lookahead; Phase 1 must include the funclit-in-`=`-body fixture and a fuzz pass over `benchmarks/*.ail` + `examples/runnable/*.ail` to confirm no existing program re-parses differently.
 
 ## Examples
