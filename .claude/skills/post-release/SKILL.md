@@ -92,6 +92,7 @@ Expected time: ~30-60 minutes
   - `agent_suite` (7 models, one per harness + modern OS): claude-sonnet-4-6 (claude CLI, longitudinal anchor), gemini-3-5-flash (managed_agents/Vertex — Google agent path; expensive ~88 turns), gpt5-4-mini (codex CLI), opencode-or-glm-5-1, opencode-or-minimax-m3, opencode-or-deepseek-v4-flash, opencode-or-deepseek-v4-pro (opencode — reliable OS harness; deepseek-v4-pro is the agent champion at 97%)
   - **motoko-* removed 2026-06-04**: the AILANG-native motoko/bun harness hangs on the rig (0 completions, orphans subprocesses). Pending agent-harness-instability diagnosis; re-add when reliable.
   - **Tier system** (v0.14.0+): `smoke` (23), `core` (26), `stretch` (11), `vision` (9) — counts as of 2026-06 (excludes `events.yml`, a non-benchmark dashboard meta-file)
+  - **🚫 Never run `smoke` for cloud models.** Smoke is the cheap/fast sanity tier for the *local OS-model iteration loop* (the nightly rig, Ollama, de-flaking). Cloud/API models (Anthropic, OpenAI, Google, OpenRouter) go **straight to `core,stretch`** — smoke would just spend API budget re-confirming saturated benchmarks every model already passes, with zero added signal. The only time smoke joins a cloud run is an explicit `--tier smoke,core,stretch` full audit.
   - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
   - Feeds the ailang-vs-python comparison story in the Model Leaderboard page
@@ -293,9 +294,9 @@ If release doesn't exist, run `release-manager` skill first.
 This runs all 7 production models (`extended_suite`) with both AILANG and Python.
 
 **Tier scope for releases:**
-- Default (release): `--tier core,stretch` — 37 benchmarks (26 core + 11 stretch)
+- Default (release): `--tier core,stretch` — 37 benchmarks (26 core + 11 stretch). **This is the tier for every cloud/API model — never smoke.** Smoke is the local OS-model iteration tier only (see the 🚫 note above); a cloud model added to a release baseline (e.g. a new Anthropic/OpenAI/Google model) goes straight to `core,stretch`.
 - Dev/fast mode: `--tier core` — 26 benchmarks (Core is the headline metric)
-- Full audit: `--tier smoke,core,stretch` — 60 benchmarks (include smoke for sanity)
+- Full audit: `--tier smoke,core,stretch` — 60 benchmarks; only add smoke when you deliberately want the local sanity tier in the sweep, not for routine cloud baselines
 - `vision` benchmarks are research-grade and excluded by default — opt in explicitly
   with `--tier vision` if you want to publish those numbers.
 
