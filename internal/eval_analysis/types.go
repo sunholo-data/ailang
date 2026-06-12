@@ -351,6 +351,13 @@ type DashboardJSON struct {
 	// the global block carries the cross-model views (per-benchmark champions,
 	// the slow threshold the report was computed with).
 	SweetSpotGlobal map[string]interface{} `json:"sweet_spot_global,omitempty"`
+	// M-EVAL-DASHBOARD-REDESIGN: per-mode ELO ratings (model capability + benchmark
+	// difficulty bands + saturation), derived from this run's results. Keyed by mode
+	// ("standard"|"agent"). Powers the ELO leaderboard + difficulty-banded explorer.
+	Ratings map[string]interface{} `json:"ratings,omitempty"`
+	// Grading provenance stamp (M-EVAL-OUTPUT-NORMALIZE): tells the page these
+	// numbers are regraded (boolean-case + numeric parity).
+	Grading map[string]interface{} `json:"grading,omitempty"`
 }
 
 // HistoryEntry represents a single version's data in the history array
