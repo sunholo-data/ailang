@@ -4,6 +4,8 @@ sidebar_position: 6
 description: Open-source / locally-hosted model evals — cross-language (incl. JS & Go), cross-harness, and longitudinal trends, run continuously on a local rig at zero server cost.
 ---
 
+import OSLocalLeaderboard from '@site/src/components/OSLocalLeaderboard';
+
 # OS / Local-model leaderboard
 
 Pass-rate and trend data for the **open-source, locally-hosted models** that AILANG's eval rig
@@ -48,7 +50,9 @@ directories get populated.
 
 ## Current data
 
-> **Refreshing.** The historical v0.23.0 snapshots were retired during the benchmark-docs
-> consolidation. New local-rig rotations (cross-language + cross-harness, longitudinal) will be
-> published here as they complete. Until then, the cloud AILANG-vs-Python leaderboards are on the
-> [Model Leaderboard](/docs/benchmarks/performance) and [ELO Ratings](/docs/benchmarks/elo) pages.
+<OSLocalLeaderboard />
+
+The historical v0.23.0 snapshots were retired during the benchmark-docs consolidation; the table
+above populates from the latest published local-rig rotation (`/benchmarks/os/latest.json`). Until
+the next rotation publishes, the cloud AILANG-vs-Python leaderboards are on the
+[Model Leaderboard](/docs/benchmarks/performance) and [ELO Ratings](/docs/benchmarks/elo) pages.
