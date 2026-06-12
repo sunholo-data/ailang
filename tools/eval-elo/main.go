@@ -11,6 +11,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -19,16 +21,22 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/observatory"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
 	mode := "standard"
-	var dir string
+	var dir, persist string
 	for i := 0; i < len(os.Args[1:]); i++ {
 		a := os.Args[1+i]
 		switch {
 		case a == "--mode" && i+1 < len(os.Args[1:]):
 			mode = os.Args[1+i+1]
+			i++
+		case a == "--persist" && i+1 < len(os.Args[1:]):
+			persist = os.Args[1+i+1]
 			i++
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "unknown flag %q\n", a)
@@ -38,7 +46,7 @@ func main() {
 		}
 	}
 	if dir == "" {
-		fmt.Fprintln(os.Stderr, "usage: eval-elo <baseline_dir> [--mode standard|agent|all]")
+		fmt.Fprintln(os.Stderr, "usage: eval-elo <baseline_dir> [--mode standard|agent|all] [--persist <observatory.db>]")
 		os.Exit(2)
 	}
 
@@ -112,5 +120,29 @@ func main() {
 	fmt.Printf("\nModel capability (ELO):\n")
 	for _, x := range models {
 		fmt.Printf("  %6.0f  %s\n", x.r, x.k)
+	}
+
+	if persist != "" {
+		modelTrials := map[string]int{}
+		benchTrials := map[string]int{}
+		for _, t := range trials {
+			modelTrials[t.Model]++
+			benchTrials[t.Bench]++
+		}
+		db, err := sql.Open("sqlite3", persist)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "open %s: %v\n", persist, err)
+			os.Exit(1)
+		}
+		defer func() { _ = db.Close() }()
+		if _, err := observatory.MigrateWithVersion(db); err != nil {
+			fmt.Fprintf(os.Stderr, "migrate %s: %v\n", persist, err)
+			os.Exit(1)
+		}
+		if err := observatory.SaveRatings(context.Background(), db, mRat, bRat, modelTrials, benchTrials); err != nil {
+			fmt.Fprintf(os.Stderr, "persist ratings: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("\npersisted %d model + %d benchmark ratings → %s\n", len(mRat), len(bRat), persist)
 	}
 }
