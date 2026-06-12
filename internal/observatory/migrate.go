@@ -83,34 +83,9 @@ func Migrate(db *sql.DB) error {
 	// ELO rating tables (M-EVAL-RATING-EFFICIENCY part 2). Like eval_baselines,
 	// this Migrate() entry only reaches FRESH databases; the v16 migration in
 	// migrate_v16.go backfills DBs already past v1 — keep the two in sync.
-	for _, stmt := range []string{
-		`CREATE TABLE IF NOT EXISTS benchmark_ratings (
-			benchmark_id TEXT PRIMARY KEY,
-			rating       REAL NOT NULL DEFAULT 1500.0,
-			n_trials     INTEGER NOT NULL DEFAULT 0,
-			last_updated TIMESTAMP NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS model_ratings (
-			model_id     TEXT PRIMARY KEY,
-			rating       REAL NOT NULL DEFAULT 1500.0,
-			n_trials     INTEGER NOT NULL DEFAULT 0,
-			k_factor     INTEGER NOT NULL DEFAULT 32,
-			last_updated TIMESTAMP NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS trial_history (
-			trial_id     TEXT PRIMARY KEY,
-			benchmark_id TEXT NOT NULL,
-			model_id     TEXT NOT NULL,
-			outcome      INTEGER NOT NULL,
-			prompt_version  TEXT,
-			compiler_version TEXT,
-			benchmark_rating_before REAL,
-			model_rating_before     REAL,
-			benchmark_rating_after  REAL,
-			model_rating_after      REAL,
-			recorded_at  TIMESTAMP NOT NULL
-		)`,
-	} {
+	// Ratings are MODE-SEPARATED (standard vs agent are different difficulty
+	// regimes — agent mode saturates), so `mode` is part of the primary key.
+	for _, stmt := range ratingTableDDL {
 		if _, err = db.Exec(stmt); err != nil {
 			return fmt.Errorf("failed to create rating table: %w", err)
 		}

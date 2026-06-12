@@ -1,13 +1,14 @@
 // Command eval-elo derives ELO-style difficulty ratings for benchmarks and a
 // capability rating for models from an eval baseline, by treating each trial as
 // a game: a PASS is a win for the model against the benchmark. The rating math
-// lives in internal/eval_harness (FitFromTrials/Band); this tool just loads a
-// baseline and renders the result (M-EVAL-RATING-EFFICIENCY).
+// lives in internal/eval_harness (FitFromTrials/Band); this tool loads a baseline,
+// renders the result, and optionally persists to observatory.db.
 //
-//	go run ./tools/eval-elo <baseline_dir> [--mode standard|agent|all]
+// Ratings are MODE-SEPARATED: standard and agent are different difficulty regimes
+// (agent saturates), so each mode is fitted and stored independently. --mode all
+// processes both.
 //
-// Difficulty bands (ELO): <1300 Trivial, 1300-1500 Easy, 1500-1700 Moderate,
-// 1700-1900 Hard, >1900 Very hard.
+//	go run ./tools/eval-elo <baseline_dir> [--mode standard|agent|all] [--persist <observatory.db>]
 package main
 
 import (
@@ -50,42 +51,78 @@ func main() {
 		os.Exit(2)
 	}
 
-	var trials []eval_harness.Trial
+	// Bucket trials by the mode segment of their path (standard|agent).
+	byMode := map[string][]eval_harness.Trial{}
 	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".json") {
 			return nil
 		}
-		if mode != "all" && !strings.Contains(p, string(os.PathSeparator)+mode+string(os.PathSeparator)) {
+		sep := string(os.PathSeparator)
+		var m string
+		switch {
+		case strings.Contains(p, sep+"standard"+sep):
+			m = "standard"
+		case strings.Contains(p, sep+"agent"+sep):
+			m = "agent"
+		default:
 			return nil
 		}
 		raw, e := os.ReadFile(p)
 		if e != nil {
 			return nil
 		}
-		var m map[string]any
-		if json.Unmarshal(raw, &m) != nil {
+		var rec map[string]any
+		if json.Unmarshal(raw, &rec) != nil {
 			return nil
 		}
-		co, ok1 := m["compile_ok"].(bool)
-		ro, ok2 := m["runtime_ok"].(bool)
-		so, ok3 := m["stdout_ok"].(bool)
-		b, _ := m["id"].(string)
-		mod, _ := m["model"].(string)
+		co, ok1 := rec["compile_ok"].(bool)
+		ro, ok2 := rec["runtime_ok"].(bool)
+		so, ok3 := rec["stdout_ok"].(bool)
+		b, _ := rec["id"].(string)
+		mod, _ := rec["model"].(string)
 		if !(ok1 && ok2 && ok3) || b == "" || mod == "" {
 			return nil
 		}
-		trials = append(trials, eval_harness.Trial{Model: mod, Bench: b, Pass: co && ro && so})
+		byMode[m] = append(byMode[m], eval_harness.Trial{Model: mod, Bench: b, Pass: co && ro && so})
 		return nil
 	})
-	if len(trials) == 0 {
-		fmt.Fprintf(os.Stderr, "no %s trials found in %s\n", mode, dir)
-		os.Exit(1)
+
+	modes := []string{mode}
+	if mode == "all" {
+		modes = []string{"standard", "agent"}
 	}
 
+	var db *sql.DB
+	if persist != "" {
+		var err error
+		db, err = sql.Open("sqlite3", persist)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "open %s: %v\n", persist, err)
+			os.Exit(1)
+		}
+		defer func() { _ = db.Close() }()
+		if _, err := observatory.MigrateWithVersion(db); err != nil {
+			fmt.Fprintf(os.Stderr, "migrate %s: %v\n", persist, err)
+			os.Exit(1)
+		}
+	}
+
+	for _, mo := range modes {
+		trials := byMode[mo]
+		if len(trials) == 0 {
+			fmt.Fprintf(os.Stderr, "no %s trials found in %s\n", mo, dir)
+			continue
+		}
+		renderAndMaybePersist(mo, trials, db, persist)
+	}
+}
+
+func renderAndMaybePersist(mode string, trials []eval_harness.Trial, db *sql.DB, persist string) {
 	mRat, bRat := eval_harness.FitFromTrials(trials)
 
-	// pass-rate per benchmark for context
 	bp := map[string][2]int{}
+	modelTrials := map[string]int{}
+	benchTrials := map[string]int{}
 	for _, t := range trials {
 		v := bp[t.Bench]
 		v[1]++
@@ -93,6 +130,8 @@ func main() {
 			v[0]++
 		}
 		bp[t.Bench] = v
+		modelTrials[t.Model]++
+		benchTrials[t.Bench]++
 	}
 
 	type kv struct {
@@ -103,9 +142,9 @@ func main() {
 	for b, r := range bRat {
 		benches = append(benches, kv{b, r})
 	}
-	sort.Slice(benches, func(i, j int) bool { return benches[i].r > benches[j].r }) // hardest first
+	sort.Slice(benches, func(i, j int) bool { return benches[i].r > benches[j].r })
 
-	fmt.Printf("ELO difficulty — %s mode, %d trials, %d benchmarks, %d models\n\n", mode, len(trials), len(bRat), len(mRat))
+	fmt.Printf("=== ELO difficulty — %s mode, %d trials, %d benchmarks, %d models ===\n", mode, len(trials), len(bRat), len(mRat))
 	fmt.Printf("%-32s %6s  %-9s %s\n", "benchmark", "ELO", "band", "pass")
 	for _, x := range benches {
 		v := bp[x.k]
@@ -117,32 +156,17 @@ func main() {
 		models = append(models, kv{m, r})
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i].r > models[j].r })
-	fmt.Printf("\nModel capability (ELO):\n")
+	fmt.Printf("\nModel capability (%s ELO):\n", mode)
 	for _, x := range models {
 		fmt.Printf("  %6.0f  %s\n", x.r, x.k)
 	}
+	fmt.Println()
 
-	if persist != "" {
-		modelTrials := map[string]int{}
-		benchTrials := map[string]int{}
-		for _, t := range trials {
-			modelTrials[t.Model]++
-			benchTrials[t.Bench]++
-		}
-		db, err := sql.Open("sqlite3", persist)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "open %s: %v\n", persist, err)
+	if db != nil {
+		if err := observatory.SaveRatings(context.Background(), db, mode, mRat, bRat, modelTrials, benchTrials); err != nil {
+			fmt.Fprintf(os.Stderr, "persist %s ratings: %v\n", mode, err)
 			os.Exit(1)
 		}
-		defer func() { _ = db.Close() }()
-		if _, err := observatory.MigrateWithVersion(db); err != nil {
-			fmt.Fprintf(os.Stderr, "migrate %s: %v\n", persist, err)
-			os.Exit(1)
-		}
-		if err := observatory.SaveRatings(context.Background(), db, mRat, bRat, modelTrials, benchTrials); err != nil {
-			fmt.Fprintf(os.Stderr, "persist ratings: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Printf("\npersisted %d model + %d benchmark ratings → %s\n", len(mRat), len(bRat), persist)
+		fmt.Printf("persisted %d model + %d benchmark %s ratings → %s\n\n", len(mRat), len(bRat), mode, persist)
 	}
 }

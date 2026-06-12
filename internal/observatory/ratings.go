@@ -13,26 +13,31 @@ import (
 	"time"
 )
 
-// BenchmarkRating is one row of benchmark_ratings (rating = derived difficulty).
+// BenchmarkRating is one row of benchmark_ratings (rating = derived difficulty,
+// per mode).
 type BenchmarkRating struct {
 	BenchmarkID string
+	Mode        string
 	Rating      float64
 	NTrials     int
 	LastUpdated time.Time
 }
 
-// ModelRating is one row of model_ratings (rating = capability).
+// ModelRating is one row of model_ratings (rating = capability, per mode).
 type ModelRating struct {
 	ModelID     string
+	Mode        string
 	Rating      float64
 	NTrials     int
 	KFactor     int
 	LastUpdated time.Time
 }
 
-// SaveRatings upserts a full set of fitted model and benchmark ratings in one
-// transaction. trialCounts (id -> N) is optional context; pass nil to record 0.
-func SaveRatings(ctx context.Context, db *sql.DB, modelRatings, benchRatings map[string]float64, modelTrials, benchTrials map[string]int) error {
+// SaveRatings upserts a full set of fitted model and benchmark ratings for ONE
+// mode ('standard'|'agent') in a single transaction. Ratings are mode-separated
+// because standard and agent are different difficulty regimes; callers fit and
+// persist each mode independently. trial maps (id -> N) are optional (nil → 0).
+func SaveRatings(ctx context.Context, db *sql.DB, mode string, modelRatings, benchRatings map[string]float64, modelTrials, benchTrials map[string]int) error {
 	now := time.Now()
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -42,32 +47,32 @@ func SaveRatings(ctx context.Context, db *sql.DB, modelRatings, benchRatings map
 
 	for id, r := range benchRatings {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO benchmark_ratings (benchmark_id, rating, n_trials, last_updated)
-			VALUES (?, ?, ?, ?)
-			ON CONFLICT(benchmark_id) DO UPDATE SET
+			INSERT INTO benchmark_ratings (benchmark_id, mode, rating, n_trials, last_updated)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(benchmark_id, mode) DO UPDATE SET
 				rating = excluded.rating, n_trials = excluded.n_trials, last_updated = excluded.last_updated
-		`, id, r, benchTrials[id], now); err != nil {
-			return fmt.Errorf("upsert benchmark rating %s: %w", id, err)
+		`, id, mode, r, benchTrials[id], now); err != nil {
+			return fmt.Errorf("upsert benchmark rating %s/%s: %w", id, mode, err)
 		}
 	}
 	for id, r := range modelRatings {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO model_ratings (model_id, rating, n_trials, last_updated)
-			VALUES (?, ?, ?, ?)
-			ON CONFLICT(model_id) DO UPDATE SET
+			INSERT INTO model_ratings (model_id, mode, rating, n_trials, last_updated)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(model_id, mode) DO UPDATE SET
 				rating = excluded.rating, n_trials = excluded.n_trials, last_updated = excluded.last_updated
-		`, id, r, modelTrials[id], now); err != nil {
-			return fmt.Errorf("upsert model rating %s: %w", id, err)
+		`, id, mode, r, modelTrials[id], now); err != nil {
+			return fmt.Errorf("upsert model rating %s/%s: %w", id, mode, err)
 		}
 	}
 	return tx.Commit()
 }
 
-// LoadBenchmarkRatings returns all benchmark ratings, hardest first.
-func LoadBenchmarkRatings(ctx context.Context, db *sql.DB) ([]BenchmarkRating, error) {
+// LoadBenchmarkRatings returns benchmark ratings for a mode, hardest first.
+func LoadBenchmarkRatings(ctx context.Context, db *sql.DB, mode string) ([]BenchmarkRating, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT benchmark_id, rating, n_trials, last_updated
-		FROM benchmark_ratings ORDER BY rating DESC, benchmark_id`)
+		SELECT benchmark_id, mode, rating, n_trials, last_updated
+		FROM benchmark_ratings WHERE mode = ? ORDER BY rating DESC, benchmark_id`, mode)
 	if err != nil {
 		return nil, fmt.Errorf("query benchmark_ratings: %w", err)
 	}
@@ -75,7 +80,7 @@ func LoadBenchmarkRatings(ctx context.Context, db *sql.DB) ([]BenchmarkRating, e
 	var out []BenchmarkRating
 	for rows.Next() {
 		var b BenchmarkRating
-		if err := rows.Scan(&b.BenchmarkID, &b.Rating, &b.NTrials, &b.LastUpdated); err != nil {
+		if err := rows.Scan(&b.BenchmarkID, &b.Mode, &b.Rating, &b.NTrials, &b.LastUpdated); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -83,11 +88,11 @@ func LoadBenchmarkRatings(ctx context.Context, db *sql.DB) ([]BenchmarkRating, e
 	return out, rows.Err()
 }
 
-// LoadModelRatings returns all model ratings, strongest first.
-func LoadModelRatings(ctx context.Context, db *sql.DB) ([]ModelRating, error) {
+// LoadModelRatings returns model ratings for a mode, strongest first.
+func LoadModelRatings(ctx context.Context, db *sql.DB, mode string) ([]ModelRating, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT model_id, rating, n_trials, k_factor, last_updated
-		FROM model_ratings ORDER BY rating DESC, model_id`)
+		SELECT model_id, mode, rating, n_trials, k_factor, last_updated
+		FROM model_ratings WHERE mode = ? ORDER BY rating DESC, model_id`, mode)
 	if err != nil {
 		return nil, fmt.Errorf("query model_ratings: %w", err)
 	}
@@ -95,7 +100,7 @@ func LoadModelRatings(ctx context.Context, db *sql.DB) ([]ModelRating, error) {
 	var out []ModelRating
 	for rows.Next() {
 		var m ModelRating
-		if err := rows.Scan(&m.ModelID, &m.Rating, &m.NTrials, &m.KFactor, &m.LastUpdated); err != nil {
+		if err := rows.Scan(&m.ModelID, &m.Mode, &m.Rating, &m.NTrials, &m.KFactor, &m.LastUpdated); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
