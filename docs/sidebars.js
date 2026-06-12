@@ -219,6 +219,11 @@ const sidebars = {
             },
             {
               type: 'doc',
+              id: 'benchmarks/elo',
+              label: 'ELO Ratings & Difficulty',
+            },
+            {
+              type: 'doc',
               id: 'benchmarks/value',
               label: 'Value Score',
             },
