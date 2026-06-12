@@ -66,19 +66,30 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 		return results[i].Timestamp.After(results[j].Timestamp)
 	})
 
-	// Deduplicate: keep only the latest result per (model, benchmark_id, lang, seed).
+	// Deduplicate: keep only the latest result per (model, benchmark_id, lang, seed, mode).
 	// This ensures re-runs (e.g. debug runs followed by a clean eval suite run) don't
 	// pollute aggregate stats — only the most-recent attempt for each slot is kept.
+	// Mode MUST be part of the key: a model run in BOTH standard and agent suites
+	// (e.g. claude-sonnet-4-6, gpt5-4-mini) has a legitimately-distinct result per
+	// mode for the same (benchmark, lang, seed); without mode in the key one of them
+	// is silently dropped, removing the model from that mode's leaderboard.
 	type dedupKey struct {
 		Model string
 		ID    string
 		Lang  string
 		Seed  int64
+		Mode  string
+	}
+	mode := func(r *BenchmarkResult) string {
+		if r.EvalMode == "agent" {
+			return "agent"
+		}
+		return "standard" // empty/legacy eval_mode == standard
 	}
 	seen := make(map[dedupKey]struct{}, len(results))
 	deduped := results[:0]
 	for _, r := range results { // already newest-first, so first seen = latest
-		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed}
+		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed, Mode: mode(r)}
 		if _, exists := seen[k]; !exists {
 			seen[k] = struct{}{}
 			deduped = append(deduped, r)
