@@ -81,6 +81,8 @@ func runEvalSuite() {
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|vision). Empty = all tiers. Applied after benchmark discovery.")
+	byConfidence := fs.String("benchmarks-by-confidence", "", "Select the most informative (non-saturated) benchmarks for the run mode from a ratings DB instead of --benchmarks/--tier. Pass a db path, or 'auto' for ~/.ailang/state/observatory.db (M-EVAL-RATING-EFFICIENCY).")
+	maxBenchmarks := fs.Int("max-benchmarks", 0, "Cap on benchmarks selected by --benchmarks-by-confidence (0 = no cap)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
@@ -224,7 +226,26 @@ func runEvalSuite() {
 	}
 
 	var benchmarkList []string
-	if *benchmarks == "" {
+	if *byConfidence != "" {
+		// Confidence-based selection from a ratings DB (M-EVAL-RATING-EFFICIENCY M3):
+		// the harness picks the benchmarks worth running, so it satisfies agent mode's
+		// explicit-list requirement too.
+		dbPath := *byConfidence
+		if dbPath == "auto" {
+			dbPath = defaultObservatoryDB()
+		}
+		evalMode := "standard"
+		if *agent {
+			evalMode = "agent"
+		}
+		sel, err := selectBenchmarksByConfidence(dbPath, evalMode, *maxBenchmarks)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: --benchmarks-by-confidence: %v\n", err)
+			os.Exit(1)
+		}
+		benchmarkList = sel
+		fmt.Fprintf(os.Stderr, "Selected %d %s benchmarks by confidence from %s\n", len(sel), evalMode, dbPath)
+	} else if *benchmarks == "" {
 		// SAFETY: Agent mode requires explicit benchmark list to prevent accidental large runs
 		if *agent {
 			fmt.Fprintf(os.Stderr, "Error: --agent mode requires explicit --benchmarks list\n")

@@ -33,6 +33,8 @@ func runEvalTrend() {
 	switch action {
 	case "candidates":
 		runEvalTrendCandidates()
+	case "tier-saturation":
+		runEvalTrendSaturation()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown eval-trend action: %s\n\n", action)
 		printEvalTrendUsage()
@@ -44,13 +46,15 @@ func printEvalTrendUsage() {
 	fmt.Println("Usage: ailang eval-trend <action> [options]")
 	fmt.Println()
 	fmt.Println("Actions:")
-	fmt.Println("  candidates   Surface persistent-failure (benchmark, error_category) tuples")
-	fmt.Println("               from N-trial rotation summary.json data.")
+	fmt.Println("  candidates       Surface persistent-failure (benchmark, error_category) tuples")
+	fmt.Println("                   from N-trial rotation summary.json data.")
+	fmt.Println("  tier-saturation  Per-mode ELO saturation report (demotion candidates +")
+	fmt.Println("                   recommendation) from the ratings DB.")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang eval-trend candidates --rotation eval_results/rotation/2026-05-23")
-	fmt.Println("  ailang eval-trend candidates --rotation eval_results/rotation/2026-05-23 --min-fail 2 --min-trials 3")
 	fmt.Println("  ailang eval-trend candidates --rotation eval_results/rotation/2026-05-23 --json")
+	fmt.Println("  ailang eval-trend tier-saturation --db ~/.ailang/state/observatory.db")
 }
 
 // PersistentFailureCandidate is one row of the candidates output. The shape

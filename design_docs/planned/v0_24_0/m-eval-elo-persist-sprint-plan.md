@@ -24,8 +24,14 @@ New selection mode in `cmd/ailang/eval_suite.go`: load ratings, rank benchmarks 
 - **Acceptance:** on the v0.25.0 ratings, `--dry-run --max-benchmarks 5` surfaces the discriminating set (contract_*, run_length_encode, explicit_dataflow_ssa) and excludes the 9 Trivial; flag-parsing tests.
 
 ### M4 — saturation report + `latest.json` ELO emit (≈170 LOC)
-`ailang eval-trend tier-saturation` renders the saturation report (saturated / discriminating / unattempted per tier + recommendation). `eval-publish`/`update_dashboard` emit per-benchmark `elo`/`eloBand`/`saturated` and per-model `elo` into `latest.json` — the bridge that unblocks M-EVAL-DASHBOARD-REDESIGN.
-- **Acceptance:** report runs on v0.25.0 and flags the 9 saturated; regenerated `latest.json` validates with the new fields present; `graderFlag` set for `contract_sorted_merge`/`decision_block_capture`.
+`ailang eval-trend tier-saturation` renders the saturation report (saturated / discriminating per mode + recommendation). `eval-publish`/`update_dashboard` emit per-benchmark `elo`/`eloBand`/`saturated` and per-model `elo` into `latest.json` — the bridge that unblocks M-EVAL-DASHBOARD-REDESIGN.
+- **Acceptance:** report runs on v0.25.0 and flags the saturated set; regenerated `latest.json` validates with the new fields present; `graderFlag` set for `contract_sorted_merge`/`decision_block_capture`.
+
+## Status (2026-06-12)
+- **M1 ✅ DONE** — `ratings` package + tests; `tools/eval-elo` refactored onto it.
+- **M2 ✅ DONE** — observatory store + v16 migration + `--persist`; later **mode-separated** (standard/agent in the PK).
+- **M3 ✅ DONE** — `eval-suite --benchmarks-by-confidence` selects the discriminating set (verified: picks the contract_*/dataflow benchmarks, excludes the 9 Trivial). Unit + dry-run tested.
+- **M4 PARTIAL** — `eval-trend tier-saturation` ✅ DONE (per-mode report: standard 24% / agent 68% saturated). The **`latest.json` ELO emit is moved to the M-EVAL-DASHBOARD-REDESIGN sprint** (phase 1 of that doc is exactly "emit ELO/regrade/saturation into `latest.json`") so the schema lands with the React consumers, not split across two sprints.
 
 ## Out of scope (follow-on)
 - The React/website work itself = **M-EVAL-DASHBOARD-REDESIGN** sprint (starts once M4 emits the fields).
