@@ -463,7 +463,10 @@ models:
       Uses Opus 4.7+ tokenizer: same text produces ~30% more tokens vs pre-4.7 models.
       30-day data retention required for safety monitoring.
       Available on Claude API, Bedrock, Vertex AI, Microsoft Foundry.
-      Agent eval support: ✅ API access verified 2026-06-09. Smoke gate PENDING.
+      Eval policy: STANDARD eval only — in extended_suite (release baseline, core,stretch).
+      NOT in agent_suite (agent multi-turn loops are cost-prohibitive at $10/$50 per 1M).
+      No smoke tier (smoke is the local OS-model iteration loop; cloud models run core,stretch).
+      API access verified 2026-06-09.
 
   claude-opus-4-8:
     api_name: "claude-opus-4-8"
@@ -1976,14 +1979,17 @@ benchmark_suite:
   - "claude-opus-4-8"  # Anthropic flagship (Jun 2026) — was opus-4-7
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
 
-# Extended suite - flagship frontier + modern open-source (10 models)
+# Extended suite - flagship frontier + modern open-source (11 models)
 # Use for: Release baselines, comprehensive comparisons, cloud-vs-OS cost/quality.
-# Cost: ~$3-6 per full benchmark run
+# Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
+# Standard mode only — cloud models never run the smoke tier (smoke is the local
+# OS-model iteration loop); release baselines run core,stretch.
 # OS roster refreshed 2026-06-04: glm-5→glm-5.1, minimax-m2.7→m3, +deepseek-v4
 # flash/pro (both 75% std / 100% agent-smoke; the May 0/3 cut was harness-immaturity).
 extended_suite:
   - "gpt5-5"            # OpenAI flagship (Apr 2026)
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
+  - "claude-fable-5"    # Anthropic most-capable (Jun 2026, Mythos-class, $10/$50 per 1M) — standard eval only, NEVER agent_suite
   - "claude-opus-4-8"   # Anthropic flagship (Jun 2026) — was opus-4-7
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"    # Google flagship (Feb 2026)
@@ -2072,7 +2078,7 @@ local_models:
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
-# - claude-fable-5    # Opt-in only (~$7/smoke, ~$16/core) — run smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
+# - claude-fable-5    # IN extended_suite (standard release baseline, core,stretch ~$16). Standard mode only — never agent_suite (cost), never smoke (cloud).
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
 # - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
