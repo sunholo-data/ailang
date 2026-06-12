@@ -201,29 +201,26 @@ const sidebars = {
         {
           type: 'category',
           label: 'Benchmarks Dashboard',
+          link: { type: 'doc', id: 'benchmarks/overview' },
           items: [
-            { type: 'doc', id: 'benchmarks/explorer', label: 'Agent Harness Explorer' },
+            {
+              type: 'category',
+              label: 'Cloud frontier (AILANG + Python)',
+              items: [
+                { type: 'doc', id: 'benchmarks/performance', label: 'Model Leaderboard' },
+                { type: 'doc', id: 'benchmarks/elo', label: 'ELO Ratings & Difficulty' },
+                { type: 'doc', id: 'benchmarks/value', label: 'Value Score' },
+              ],
+            },
+            {
+              type: 'category',
+              label: 'OS / Local models',
+              items: [
+                { type: 'doc', id: 'benchmarks/os-model-leaderboard', label: 'OS / Local Leaderboard' },
+                { type: 'doc', id: 'benchmarks/explorer', label: 'Agent Harness Explorer' },
+              ],
+            },
             'benchmarks/gallery',
-            {
-              type: 'doc',
-              id: 'benchmarks/performance',
-              label: 'Model Leaderboard',
-            },
-            {
-              type: 'doc',
-              id: 'benchmarks/elo',
-              label: 'ELO Ratings & Difficulty',
-            },
-            {
-              type: 'doc',
-              id: 'benchmarks/value',
-              label: 'Value Score',
-            },
-            {
-              type: 'doc',
-              id: 'benchmarks/os-model-leaderboard',
-              label: 'OS / Local Models',
-            },
             'benchmarks/codebase-stats',
           ],
         },
