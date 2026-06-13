@@ -37,25 +37,39 @@ function formatModelName(name) {
  *   - efficiency.median_time_to_success_ms → speed factor
  *   - reliability for adjusted (api-error-excluded) pass rate when available
  */
-export default function ValueScoreTable({ models }) {
+export default function ValueScoreTable({ models, mode = 'standard' }) {
   const [weighting, setWeighting] = useState(2); // N
   const [sortBy, setSortBy] = useState('score');
   const [sortDir, setSortDir] = useState('desc');
+  const isAgent = mode === 'agent';
 
   const rows = useMemo(() => {
     const data = [];
     for (const [name, stats] of Object.entries(models || {})) {
       const agg = stats.aggregates || {};
-      const eff = stats.efficiency || {};
-      const totalRuns = agg.totalRuns || stats.totalRuns || 0;
-      const passRate = agg.finalSuccess ?? stats.agentStats?.successRate ?? 0;
-      const totalCost = agg.totalCostUSD || stats.agentStats?.avgCost * totalRuns || 0;
+      const as = stats.agentStats || null;
+      // Per-mode fields — never blend standard and agent (standard 0-shot vs agent multi-turn).
+      const eff = (isAgent ? stats.efficiencyAgent : stats.efficiencyStandard) || {};
+
+      let passRate;
+      let totalRuns;
+      let totalCost;
+      if (isAgent) {
+        if (!as || !as.runs) continue;
+        totalRuns = as.runs;
+        passRate = as.successRate ?? 0;
+        totalCost = (as.avgCost || 0) * totalRuns;
+      } else {
+        totalRuns = agg.totalRuns || stats.totalRuns || 0;
+        passRate = agg.finalSuccess ?? 0;
+        totalCost = agg.totalCostUSD || 0;
+      }
       const successes = passRate * totalRuns;
       const costPerSuccess = successes > 0 ? totalCost / successes : null;
       const ttsMs = eff.median_time_to_success_ms || 0;
       const ttsSec = ttsMs / 1000;
 
-      if (totalRuns < 10 || costPerSuccess == null) continue; // skip low-sample models
+      if (totalRuns < 10 || passRate <= 0 || costPerSuccess == null) continue; // skip low-sample models
 
       const timeFactor = 1 + ttsSec / 60; // 1-min baseline; lower is better
       data.push({
@@ -91,7 +105,7 @@ export default function ValueScoreTable({ models }) {
       return ((a[sortBy] ?? 0) - (b[sortBy] ?? 0)) * dir;
     });
     return sorted;
-  }, [models, weighting, sortBy, sortDir]);
+  }, [models, weighting, sortBy, sortDir, isAgent]);
 
   const handleSort = (col) => {
     if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');

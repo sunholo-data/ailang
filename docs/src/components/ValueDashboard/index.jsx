@@ -85,9 +85,10 @@ export default function ValueDashboard() {
       </div>
 
       <div className={dashboardStyles.section}>
-        <ValueScoreTable models={standardModels} />
+        <ValueScoreTable models={view} mode={mode} />
         <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-500)' }}>
-          Value Score table reflects <strong>standard</strong> eval (agent-mode scoring is a follow-up).
+          Value Score reflects the selected <strong>{isAgent ? 'agent' : 'standard'}</strong> mode
+          (toggle above).
         </p>
       </div>
 
