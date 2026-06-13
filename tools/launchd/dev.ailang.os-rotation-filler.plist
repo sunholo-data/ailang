@@ -11,7 +11,9 @@
     OS_FILLER_CHUNK           benchmarks per cycle (default 3)
     OS_FILLER_TIMEOUT         wall budget per chunk (default 1500s)
     OS_FILLER_BLACKOUT_START  / OS_FILLER_BLACKOUT_END  (default 04:00-07:00)
-    OS_FILLER_MODEL / OS_FILLER_LANGS
+    OS_FILLER_MODELS         comma list (default opencode-qwen3 + pi-qwen3 —
+                             the cross-harness pair on the same local model)
+    OS_FILLER_LANGS          ailang,python,javascript,go
 
   Installation (on the rig):
     cp tools/launchd/dev.ailang.os-rotation-filler.plist ~/Library/LaunchAgents/

@@ -17,7 +17,12 @@ source "$(dirname "$0")/rig-lock.sh"
 LOG=/tmp/ailang-os-filler.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-MODEL="${OS_FILLER_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8}"
+# Cross-harness pair on the SAME local qwen: opencode (multi-turn) vs pi (minimal).
+# Both are free/local via Ollama; run serially (--parallel 1 below) so they never
+# contend for the single GPU. This is what fills the opencode-vs-pi harness column
+# on the OS/Local leaderboard. Override with OS_FILLER_MODELS=a,b (e.g. add gemma).
+# (OS_FILLER_MODEL kept as a single-model back-compat alias if MODELS is unset.)
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8,pi-qwen3-5-35b-a3b-mxfp8}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
@@ -76,7 +81,7 @@ log "cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
 
 # 6. Run the chunk — serial (single-GPU), accumulating via --skip-existing.
 mkdir -p "$ROLL"
-ailang eval-suite --agent --models "$MODEL" --benchmarks "$PICK" --langs "$LANGS" \
+ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
   --parallel 1 --microrag on --trials 3 --skip-existing --timeout "$CHUNK_TIMEOUT" \
   --output "$ROLL" >>"$LOG" 2>&1 || log "chunk had failures (continuing)"
 
