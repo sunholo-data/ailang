@@ -622,7 +622,9 @@ func TestHealthCheck_SucceedsWhenBinaryRespondsToVersion(t *testing.T) {
 		t.Fatalf("write script: %v", err)
 	}
 	exec, _ := New(&executor.Config{CodexPath: scriptPath})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Generous: the fake-binary exec only needs ms, but CI runners under load have
+	// blown the old 3s deadline (test-windows flake). A real hang still trips go test.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := exec.HealthCheck(ctx); err != nil {
 		t.Errorf("expected HealthCheck to succeed, got %v", err)

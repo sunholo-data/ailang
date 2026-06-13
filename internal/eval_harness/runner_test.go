@@ -191,7 +191,7 @@ export func main() -> () ! {IO} {
 
 	// Use short timeout — trivial programs should compile+run in <2s
 	runner := NewAILANGRunnerWithTask(t.Context(), "", spec.Caps, "", spec)
-	runResult, err := runner.Run(code, 3*time.Second)
+	runResult, err := runner.Run(code, 30*time.Second) // generous: avoids load-induced false timeouts on CI (test-windows flake)
 	if err != nil {
 		t.Fatalf("runner error: %v", err)
 	}
@@ -230,7 +230,7 @@ export func main() -> () ! {IO} {
 
 	// Use short timeout — trivial programs should compile+run in <2s
 	runner := NewAILANGRunnerWithTask(t.Context(), "", spec.Caps, "", spec)
-	runResult, err := runner.Run(code, 3*time.Second)
+	runResult, err := runner.Run(code, 30*time.Second) // generous: avoids load-induced false timeouts on CI (test-windows flake)
 	if err != nil {
 		t.Fatalf("runner error: %v", err)
 	}
