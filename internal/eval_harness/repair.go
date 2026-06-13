@@ -122,11 +122,21 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 	metrics.RepairOk = repairResult.CompileOk && repairResult.RuntimeOk && repairResult.StdoutOk
 
 	if metrics.RepairOk {
-		// Repair succeeded - update metrics to reflect successful run
+		// Repair succeeded - update metrics to reflect the REPAIRED run.
 		metrics.Code = repairResult.Code
 		metrics.CompileOk = true
 		metrics.RuntimeOk = true
 		metrics.StdoutOk = true
+		// Store the repaired attempt's actual output + clear the error so the
+		// PERSISTED stdout matches the graded result. Without this, the first
+		// (failed) attempt's stdout was stored alongside a passing stdout_ok — a
+		// data-integrity bug surfaced by the M-EVAL-OUTPUT-NORMALIZE re-grade
+		// (a verbose first attempt looked like a "stored pass with wrong stdout").
+		if repairResult.RunResult != nil {
+			metrics.Stdout = repairResult.RunResult.Stdout
+			metrics.Stderr = repairResult.RunResult.Stderr
+		}
+		metrics.ErrorCategory = "none"
 		// Add repair tokens to totals
 		metrics.InputTokens += repairResult.InputTokens
 		metrics.OutputTokens += repairResult.OutputTokens
