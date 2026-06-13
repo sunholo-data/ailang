@@ -91,8 +91,11 @@ ailang messages send controlplane \
 # it's safe regardless of other working-tree state.
 if ailang eval-publish "$DATE" --rotation "$RESULTS_DIR" \
         --os-json docs/static/benchmarks/os/latest.json >>"$LOG" 2>&1; then
-    if ! git diff --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
-        git add docs/static/benchmarks/os/latest.json
+    # Stage first, THEN check the staged diff — `git diff --quiet -- <file>` ignores
+    # untracked files, so the first publish (file not yet in git) would silently skip
+    # the commit. `git add` + --cached detects both new and modified files.
+    git add docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
+    if ! git diff --cached --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
         git commit -q -m "data(os): refresh OS/Local leaderboard from lang eval $DATE" \
             -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
         # Auto-push is opt-in (safe default): set OS_FILLER_PUSH=1 to publish.

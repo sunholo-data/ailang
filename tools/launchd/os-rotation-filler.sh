@@ -85,8 +85,12 @@ ailang eval-suite --agent --models "$MODEL" --benchmarks "$PICK" --langs "$LANGS
 #    wrap to keep deploy churn to ~1/pass. Push uses autostash-rebase for safety.
 if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
       --os-json docs/static/benchmarks/os/latest.json >>"$LOG" 2>&1; then
-  if ! git diff --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
-    git add docs/static/benchmarks/os/latest.json
+  # Stage first, THEN check the staged diff — `git diff --quiet -- <file>` ignores
+  # untracked files, so on the first cycle (file not yet in git) it would silently
+  # skip the commit and the dashboard would never publish. `git add` + --cached
+  # detects both new and modified files.
+  git add docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
+  if ! git diff --cached --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
     git commit -q -m "data(os): incremental OS/Local rotation (offset $OFFSET)" \
       -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
     if [ "$AUTOPUSH" = "1" ]; then
