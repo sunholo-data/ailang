@@ -605,13 +605,24 @@
       "created": "2026-05-21",
       "tags": [
         "production",
-        "latest",
         "stdlib-coverage"
       ],
       "notes": "Additive patch over v0.16.0 (no syntax changes). Closes ~50 stdlib documentation gaps surfaced by M-VERA-BENCH audit. Worst pre-fix offenders: std/clock (0/2 documented), std/datetime (1/22), std/math trig family (0/10), std/option helpers (3/6), std/result helpers (2/6). Token budget impact: ~600 extra tokens. Same hash discipline as prior versions."
+    },
+    "v0.16.2": {
+      "file": "prompts/v0.16.2.md",
+      "hash": "af2c02b9a7066d93af1019a08701e4377a8383ff77889b882c583eb1c4bd3822",
+      "description": "v0.16.1 + Output Discipline section (stdout compared byte-for-byte: no labels/prefixes/status lines; print only the requested value). Targets verbosity false-negatives where a correct answer is wrapped in commentary (e.g. \"Result: 40\", \"Types unify!\").",
+      "created": "2026-06-13",
+      "tags": [
+        "production",
+        "latest",
+        "output-discipline"
+      ],
+      "notes": "Active from v0.26.0 benchmark cycle. Additive patch over v0.16.1 (no syntax changes): adds an Output Discipline section instructing exact byte-for-byte stdout (no labels/prefixes/status lines). Validated by A/B on claude-opus-4-8 standard (14/24 -> 19/24; type_unify 1/3->3/3, mini_interpreter 2/3->3/3, csv_to_json 0/3->2/3; zero control regressions). Removes a verbosity grading tax that disproportionately hit frontier models. Full multi-model re-baseline deferred to the next release."
     }
   },
-  "active": "v0.16.1",
+  "active": "v0.16.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

@@ -1,16 +1,6 @@
 {
   "schema_version": "1.0",
   "versions": {
-    "v0.10.0-slim": {
-      "file": "prompts/agent/v0.10.0-slim.md",
-      "hash": "44ddc06610328fcc7afc9be30a9b8079e8e0240afd5a7863bbe204477b0daf50",
-      "description": "Slim seed prompt (~1.4k tokens): minimal context that directs the agent to load the full reference dynamically via AILANG MCP tools (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept, etc.) or local CLI fallback (`ailang prompt --kind agent`, `ailang docs`, `ailang examples`). Counterpart to v0.16.x's ~20k-token embedded reference. EXPERIMENTAL — only use via -prompt-version flag, NOT active.",
-      "created": "2026-05-23",
-      "tags": [
-        "experimental"
-      ],
-      "notes": "Implements strategy S2 from design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md. File path points at prompts/agent/v0.10.0-slim.md since the slim prompt is logically an agent-coding seed even though the eval-suite -prompt-version flag reads this top-level registry. Goal: characterize where the model-capability threshold for self-discovery sits — does gemma4:26b improve, stay flat, or get worse when told to dynamically load AILANG context vs reading it from an embedded reference? Compare A=embedded (v0.16.1) vs B=slim (v0.10.0-slim) on the same smoke tier."
-    },
     "v0.3.0-baseline": {
       "file": "prompts/v0.3.0.md",
       "hash": "e36ab2dfbdb985095a74302386c3681b426698d59a04513deb894eaf7f689663",
@@ -94,7 +84,7 @@
         "latest",
         "vision-aligned"
       ],
-      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%→70%, State 0%→60%, Canonical 0%→70%. Expected: 36.5%→70% AILANG success."
+      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%\u219270%, State 0%\u219260%, Canonical 0%\u219270%. Expected: 36.5%\u219270% AILANG success."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -171,7 +161,7 @@
         "latest",
         "optimized"
       ],
-      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189→5058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
+      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189\u21925058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
     },
     "v0.3.20": {
       "file": "prompts/v0.3.20.md",
@@ -183,7 +173,7 @@
         "testing",
         "broken"
       ],
-      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% → 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
+      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% \u2192 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
     },
     "v0.3.21": {
       "file": "prompts/v0.3.21.md",
@@ -195,7 +185,7 @@
         "testing",
         "hotfix"
       ],
-      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% → 40.0%+"
+      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% \u2192 40.0%+"
     },
     "v0.3.22": {
       "file": "prompts/v0.3.22.md",
@@ -207,7 +197,7 @@
         "latest",
         "m-eval-http-fix"
       ],
-      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 → line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
+      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 \u2192 line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
     },
     "v0.3.23": {
       "file": "prompts/v0.3.23.md",
@@ -360,7 +350,7 @@
         "production",
         "optimized"
       ],
-      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (❌ WRONG / ✅ RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
+      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (\u274c WRONG / \u2705 RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
     },
     "v0.5.11": {
       "file": "prompts/v0.5.11.md",
@@ -437,14 +427,14 @@
     "v0.7.0": {
       "file": "prompts/v0.7.0.md",
       "hash": "8c31bbd4ebf260d6f7609ebe507b840193b30622ace13ed35d1ba4881207af01",
-      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2→v0.7.0 eval",
+      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2\u2192v0.7.0 eval",
       "created": "2026-01-22",
       "tags": [
         "production",
         "latest",
         "gap-analysis"
       ],
-      "notes": "Gap analysis integration from v0.6.2→v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
+      "notes": "Gap analysis integration from v0.6.2\u2192v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
     },
     "v0.7.3": {
       "file": "prompts/v0.7.3.md",
@@ -615,23 +605,24 @@
       "created": "2026-05-21",
       "tags": [
         "production",
-        "latest",
         "stdlib-coverage"
       ],
       "notes": "Additive patch over v0.16.0 (no syntax changes). Closes ~50 stdlib documentation gaps surfaced by M-VERA-BENCH audit. Worst pre-fix offenders: std/clock (0/2 documented), std/datetime (1/22), std/math trig family (0/10), std/option helpers (3/6), std/result helpers (2/6). Token budget impact: ~600 extra tokens. Same hash discipline as prior versions."
     },
-    "v0.10.0-slim-v2": {
-      "file": "prompts/agent/v0.10.0-slim-v2.md",
-      "hash": "8416e3366896e278d1075086ff1ef0cff04789120222bd4f0bb960ac4a556d0a",
-      "description": "v0.10.0-slim + anti-pattern hints derived from Iter 1 baseline N=3 failure data (// comments, let-chain mixing, missing | bitwise OR, list pattern syntax, letrec body wrap). Experimental Iter 2 prompt.",
-      "created": "2026-05-23",
+    "v0.16.2": {
+      "file": "prompts/v0.16.2.md",
+      "hash": "af2c02b9a7066d93af1019a08701e4377a8383ff77889b882c583eb1c4bd3822",
+      "description": "v0.16.1 + Output Discipline section (stdout compared byte-for-byte: no labels/prefixes/status lines; print only the requested value). Targets verbosity false-negatives where a correct answer is wrapped in commentary (e.g. \"Result: 40\", \"Types unify!\").",
+      "created": "2026-06-13",
       "tags": [
-        "experimental"
+        "production",
+        "latest",
+        "output-discipline"
       ],
-      "notes": "Builds on v0.10.0-slim with a Common AILANG-specific mistakes section listing the 5 anti-patterns empirically observed in gemma4:26b-ailang Iter 1 N=3 baseline (13 failures across 51 trials). Each anti-pattern shows the correct AILANG and the exact error AILANG emits if you make it. A/B target vs v0.10.0-slim on same smoke tier."
+      "notes": "Active from v0.26.0 benchmark cycle. Additive patch over v0.16.1 (no syntax changes): adds an Output Discipline section instructing exact byte-for-byte stdout (no labels/prefixes/status lines). Validated by A/B on claude-opus-4-8 standard (14/24 -> 19/24; type_unify 1/3->3/3, mini_interpreter 2/3->3/3, csv_to_json 0/3->2/3; zero control regressions). Removes a verbosity grading tax that disproportionately hit frontier models. Full multi-model re-baseline deferred to the next release."
     }
   },
-  "active": "v0.16.1",
+  "active": "v0.16.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
