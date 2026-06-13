@@ -89,12 +89,13 @@ if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
     git add docs/static/benchmarks/os/latest.json
     git commit -q -m "data(os): incremental OS/Local rotation (offset $OFFSET)" \
       -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
-    if [ "$AUTOPUSH" = "1" ] && [ "$WRAPPED" -eq 1 ]; then
+    if [ "$AUTOPUSH" = "1" ]; then
+      # Publish every cycle that adds data so the dashboard fills incrementally.
       git pull --rebase --autostash origin dev >>"$LOG" 2>&1 || true
-      git push origin dev >>"$LOG" 2>&1 && log "full pass complete — published + pushed" \
-        || log "push failed (retry next wrap)"
+      git push origin dev >>"$LOG" 2>&1 && log "published + pushed (cycle; wrapped=$WRAPPED)" \
+        || log "push failed (retry next cycle)"
     else
-      log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish; wrapped=$WRAPPED)"
+      log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish)"
     fi
   fi
 fi
