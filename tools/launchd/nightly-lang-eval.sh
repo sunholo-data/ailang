@@ -95,8 +95,14 @@ if ailang eval-publish "$DATE" --rotation "$RESULTS_DIR" \
         git add docs/static/benchmarks/os/latest.json
         git commit -q -m "data(os): refresh OS/Local leaderboard from lang eval $DATE" \
             -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
-        git push origin dev >>"$LOG" 2>&1 && log "published OS/Local JSON + pushed" \
-            || log "OS/Local JSON committed; push failed (retry next run)"
+        # Auto-push is opt-in (safe default): set OS_FILLER_PUSH=1 to publish.
+        if [ "${OS_FILLER_PUSH:-0}" = "1" ]; then
+            git pull --rebase --autostash origin dev >>"$LOG" 2>&1 || true
+            git push origin dev >>"$LOG" 2>&1 && log "published OS/Local JSON + pushed" \
+                || log "OS/Local JSON committed; push failed (retry next run)"
+        else
+            log "OS/Local JSON committed locally (auto-push OFF — set OS_FILLER_PUSH=1)"
+        fi
     else
         log "OS/Local JSON unchanged — nothing to publish"
     fi

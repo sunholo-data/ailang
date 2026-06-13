@@ -25,6 +25,8 @@ ROLL="eval_results/rotation/os-rolling"        # accumulating rotation dir
 CURSOR="$HOME/.ailang/state/os-filler-cursor"
 BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eval + model reloads
 BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
+AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
+                                  # set OS_FILLER_PUSH=1 to autonomously push -> docs deploy.
 
 # 1. Blackout window — stay clear of the scheduled nightly jobs.
 if rig_in_blackout "$BLACKOUT_START" "$BLACKOUT_END"; then
@@ -87,12 +89,12 @@ if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
     git add docs/static/benchmarks/os/latest.json
     git commit -q -m "data(os): incremental OS/Local rotation (offset $OFFSET)" \
       -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
-    if [ "$WRAPPED" -eq 1 ]; then
+    if [ "$AUTOPUSH" = "1" ] && [ "$WRAPPED" -eq 1 ]; then
       git pull --rebase --autostash origin dev >>"$LOG" 2>&1 || true
       git push origin dev >>"$LOG" 2>&1 && log "full pass complete — published + pushed" \
         || log "push failed (retry next wrap)"
     else
-      log "committed locally; push deferred to next full-pass wrap"
+      log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish; wrapped=$WRAPPED)"
     fi
   fi
 fi
