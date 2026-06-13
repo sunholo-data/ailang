@@ -13,9 +13,6 @@ import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
 import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
-import SpeedRadar from './SpeedRadar';
-import DollarsPerPassTable from './DollarsPerPassTable';
-import BenchmarkChampionsTable from './BenchmarkChampionsTable';
 import FailureCategoryBars from './FailureCategoryBars';
 // Cost-vs-speed Pareto frontier moved to /docs/benchmarks/value
 // (ValueDashboard) — see CostSpeedFrontier import there.
@@ -188,9 +185,6 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
   const { aggregates, models, benchmarks, version, totalRuns, history, languages, tiers, events, tags } = data;
   // M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): top-level sweet-spot
   // block populated by Go exporter. Missing on pre-v0.19.0 dashboards —
-  // components gate-check and render a "regenerate" hint when absent.
-  const sweetSpotGlobal = data.sweet_spot_global;
-
   // Use AILANG-specific metrics for the dashboard
   const ailangStats = languages?.ailang || aggregates;
   const pythonStats = languages?.python;
@@ -447,33 +441,18 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         <RadarCharts data={data} />
       </div>
 
-      {/* Speed Radar (M-EVAL-COST-AND-SPEED-BUDGETS M4) — sits next to the
-          existing cost radar in ModelRadarComparison so the two efficiency
-          radars are visually paired on the page. */}
+      {/* De-cluttered: cost/speed/economics moved to the dedicated Value page,
+          which is split by mode (standard 0-shot speed vs agent multi-turn speed
+          are very different and must not be blended). Avoids duplicate, mode-mixed
+          sections on the Model Leaderboard. */}
       {models && Object.keys(models).length > 0 && (
         <div className={styles.section}>
-          <h3>Speed Comparison</h3>
+          <h3>Cost &amp; Speed</h3>
           <p className={styles.sectionSubtitle}>
-            Median wall-clock time to a passing run, per model. Outlier-clipped at 5× median.
+            Cost-per-success, speed (time-to-success), the Pareto frontier, and the weighted Value
+            Score now live on the dedicated <a href="/docs/benchmarks/value">Value Score</a> page —
+            <strong> split by Standard vs Agent</strong> mode.
           </p>
-          <SpeedRadar models={models} />
-        </div>
-      )}
-
-      {/* M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0): $/pass economics
-          + per-benchmark champions. These ride on the pre-computed
-          sweet_spot block in latest.json. */}
-      {models && Object.keys(models).length > 0 && (
-        <div className={styles.section}>
-          <h3>$/Pass Economics + Per-Benchmark Champions</h3>
-          <p className={styles.sectionSubtitle}>
-            Headline cost-per-success comparison. Pareto-frontier badge marks
-            models for which no alternative is both cheaper AND faster.
-          </p>
-          <DollarsPerPassTable models={models} />
-          {sweetSpotGlobal && (
-            <BenchmarkChampionsTable sweetSpotGlobal={sweetSpotGlobal} />
-          )}
         </div>
       )}
 
