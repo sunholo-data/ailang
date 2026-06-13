@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  M-EVAL-OS-CONTINUOUS-ROTATION: incremental background OS cross-language/harness
+  eval. Fires every 45 min; each fire runs ONE small, time-boxed chunk of the
+  4-language sweep on idle rig time and yields immediately (shared rig.lock) if a
+  nightly / lang-eval is running. Refreshes the OS/Local dashboard JSON once per
+  full pass. Zero cloud cost (local Ollama).
+
+  Tunables via EnvironmentVariables below:
+    OS_FILLER_CHUNK           benchmarks per cycle (default 3)
+    OS_FILLER_TIMEOUT         wall budget per chunk (default 1500s)
+    OS_FILLER_BLACKOUT_START  / OS_FILLER_BLACKOUT_END  (default 04:00-07:00)
+    OS_FILLER_MODEL / OS_FILLER_LANGS
+
+  Installation (on the rig):
+    cp tools/launchd/dev.ailang.os-rotation-filler.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.os-rotation-filler.plist
+    launchctl kickstart gui/$UID/dev.ailang.os-rotation-filler   # optional first run
+
+  Logs: /tmp/ailang-os-filler.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.os-rotation-filler</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>exec "$HOME/dev/sunholo-data/ailang/tools/launchd/os-rotation-filler.sh"</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StartInterval</key>
+    <integer>2700</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-os-filler.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-os-filler.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

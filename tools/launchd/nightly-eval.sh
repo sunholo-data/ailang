@@ -34,6 +34,13 @@ DATE=$(date +%Y-%m-%d)
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 
+# Shared rig mutex (M-EVAL-OS-CONTINUOUS-ROTATION): the nightly is the priority
+# job — wait for any in-flight rig work, then hold the lock for the whole run so
+# the background os-rotation-filler never overlaps it.
+# shellcheck source=tools/launchd/rig-lock.sh
+source "$(dirname "$0")/rig-lock.sh"
+rig_lock_acquire wait
+
 log "=== nightly eval started (${DATE}) ==="
 
 # Ensure ollama is running (rig-watchdog usually handles this, but be safe)

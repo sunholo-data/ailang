@@ -17,6 +17,8 @@ set -uo pipefail   # NOT -e: a single benchmark failure must not abort the sweep
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO" || exit 1
+# shellcheck source=tools/launchd/rig-lock.sh
+source "$(dirname "$0")/rig-lock.sh"
 LOG=/tmp/ailang-nightly-lang-eval.log
 DATE=$(date +%Y%m%d)
 RESULTS_DIR="/tmp/lang_eval_${DATE}"
@@ -48,6 +50,10 @@ if [[ "$N" -eq 0 ]]; then
     exit 1
 fi
 
+log "acquiring rig lock (waits for any nightly-eval / os-rotation-filler to finish)…"
+rig_lock_acquire wait
+log "rig lock acquired"
+
 log "=== Weekly LANGUAGE eval ==="
 log "model: $MODEL   langs: $LANGS   benchmarks: $N   output: $RESULTS_DIR"
 
@@ -76,7 +82,26 @@ done
 log "RESULT: $SUMMARY"
 
 ailang messages send controlplane \
-    "Weekly language eval ($DATE): $MODEL — $SUMMARY (set=$N benchmarks, $LANGS). Dir: $RESULTS_DIR. Run update_dashboard.sh to publish." \
+    "Weekly language eval ($DATE): $MODEL — $SUMMARY (set=$N benchmarks, $LANGS). Dir: $RESULTS_DIR." \
     --title "Weekly language eval: $SUMMARY" --from "lang-eval" 2>/dev/null || true
+
+# Publish to the OS/Local dashboard (M-EVAL-OS-CONTINUOUS-ROTATION): emit the
+# static JSON the OSLocalLeaderboard component reads, then commit+push just that
+# file so the docusaurus deploy refreshes the page. Scoped to the single file so
+# it's safe regardless of other working-tree state.
+if ailang eval-publish "$DATE" --rotation "$RESULTS_DIR" \
+        --os-json docs/static/benchmarks/os/latest.json >>"$LOG" 2>&1; then
+    if ! git diff --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
+        git add docs/static/benchmarks/os/latest.json
+        git commit -q -m "data(os): refresh OS/Local leaderboard from lang eval $DATE" \
+            -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
+        git push origin dev >>"$LOG" 2>&1 && log "published OS/Local JSON + pushed" \
+            || log "OS/Local JSON committed; push failed (retry next run)"
+    else
+        log "OS/Local JSON unchanged — nothing to publish"
+    fi
+else
+    log "eval-publish failed — see $LOG"
+fi
 
 log "done"
