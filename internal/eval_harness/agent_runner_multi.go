@@ -129,6 +129,12 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Executor: %s, Model: %s\n", executorName, modelName)
 	}
 
+	// Seed benchmark input files so the agent can actually run/test its solution
+	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
+	if err := seedInputFiles(workspace, spec); err != nil {
+		return nil, err
+	}
+
 	// Create solution file placeholder
 	var solutionPath string
 	var placeholder string
@@ -378,6 +384,30 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 }
 
 // validateSolution checks if the solution is correct
+// seedInputFiles writes spec.InputFiles into the agent workspace root, mirroring
+// the layout the standard runners use (runner.go:138/320). Without this, an agent
+// working on a benchmark that reads a data file (e.g. cli_args reads numbers.txt)
+// cannot test its own solution — the file does not exist in its workspace — so it
+// submits blind and the task looks far harder in agent mode than in standard mode.
+// Files land at the workspace root, which is the agent's cwd AND the cwd the
+// AILANG/Python validators run from, so relative reads resolve identically during
+// the agent's iteration and during grading.
+func seedInputFiles(workspace string, spec *BenchmarkSpec) error {
+	if spec == nil {
+		return nil
+	}
+	for name, content := range spec.InputFiles {
+		fpath := filepath.Join(workspace, name)
+		if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+			return fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+		}
+		if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write input file %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
 func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, language, solutionPath string) ValidationResult {
 	if !result.Success {
 		return ValidationResult{
@@ -436,6 +466,16 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 // design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md for the
 // full context (v0.20.0 cli_args + pipeline benchmarks exposed this).
 func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResult {
+	// Run from the solution's directory and seed input files there so relative
+	// cli_args / input_files (e.g. cli_args reads numbers.txt) resolve the same
+	// way they do for the agent and the standard runner. newPythonCommand sets no
+	// cwd, so without cmd.Dir the args would resolve against the harness process
+	// cwd (the repo root) and a correct solution would fail validation.
+	workDir := filepath.Dir(solutionPath)
+	if err := seedInputFiles(workDir, spec); err != nil {
+		return ValidationResult{Stderr: err.Error()}
+	}
+
 	// newPythonCommand is variadic — pass solution path + spec's CLI args
 	// in the same slice so they all land after `uv run --python 3.12 --`.
 	args := append([]string{solutionPath}, spec.CliArgs...)
@@ -448,6 +488,7 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 			Stderr:    uvErr.Error(),
 		}
 	}
+	cmd.Dir = workDir
 	if spec.Stdin != "" {
 		cmd.Stdin = strings.NewReader(spec.Stdin)
 	}

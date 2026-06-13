@@ -181,6 +181,12 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
 	}
 
+	// Seed benchmark input files so the agent can actually run/test its solution
+	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
+	if err := seedInputFiles(workspace, spec); err != nil {
+		return nil, err
+	}
+
 	// Create placeholder solution file that Claude will overwrite
 	// For AILANG: Create benchmark/ subdirectory and pre-populate with correct module declaration
 	// For Python: Create solution.py in workspace root
