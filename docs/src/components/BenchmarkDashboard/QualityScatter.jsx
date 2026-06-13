@@ -154,26 +154,48 @@ function paretoFrontier(points) {
  *   xMetric   — 'cost' | 'speed'
  *   minRuns   — filter models with fewer total runs (default 10)
  */
-export default function QualityScatter({ models, xMetric = 'cost', minRuns = 10 }) {
+export default function QualityScatter({ models, xMetric = 'cost', mode = 'standard', minRuns = 10 }) {
   const isCost = xMetric === 'cost';
+  const isAgent = mode === 'agent';
 
   const points = [];
   for (const [name, stats] of Object.entries(models || {})) {
     const agg = stats.aggregates || {};
-    const eff = stats.efficiency || {};
-    const totalRuns = agg.totalRuns || stats.totalRuns || 0;
-    const passRate = agg.finalSuccess ?? stats.agentStats?.successRate ?? 0;
-    if (totalRuns < minRuns || passRate <= 0) continue;
+    const as = stats.agentStats || null;
+    // Per-mode speed (standard 0-shot is ~ms; agent multi-turn is ~seconds) — never blend.
+    const eff = (isAgent ? stats.efficiencyAgent : stats.efficiencyStandard) || {};
 
+    let passRate;
+    let totalRuns;
     let x = 0;
-    if (isCost) {
-      const totalCost = agg.totalCostUSD || (stats.agentStats?.avgCost || 0) * totalRuns || 0;
-      const successes = passRate * totalRuns;
-      x = successes > 0 ? totalCost / successes : 0;
+    if (isAgent) {
+      // AGENT mode: only agent fields; skip models that didn't run agent.
+      if (!as || !as.runs) continue;
+      totalRuns = as.runs;
+      passRate = as.successRate ?? 0;
+      if (passRate <= 0) continue;
+      if (isCost) {
+        const totalCost = (as.avgCost || 0) * totalRuns;
+        const successes = passRate * totalRuns;
+        x = successes > 0 ? totalCost / successes : 0;
+      } else {
+        x = (eff.median_time_to_success_ms || 0) / 1000;
+      }
     } else {
-      x = (eff.median_time_to_success_ms || 0) / 1000;
+      // STANDARD mode: only standard fields; skip models that didn't run standard.
+      // No fallback to agent — that was the standard/agent mixing bug.
+      passRate = agg.finalSuccess ?? 0;
+      totalRuns = agg.totalRuns || stats.totalRuns || 0;
+      if (passRate <= 0) continue;
+      if (isCost) {
+        const totalCost = agg.totalCostUSD || 0;
+        const successes = passRate * totalRuns;
+        x = successes > 0 ? totalCost / successes : 0;
+      } else {
+        x = (eff.median_time_to_success_ms || 0) / 1000;
+      }
     }
-    if (x <= 0) continue;
+    if (totalRuns < minRuns || passRate <= 0 || x <= 0) continue;
 
     const harness = harnessFor(stats);
     points.push({

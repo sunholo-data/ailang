@@ -84,7 +84,7 @@ func buildModelsJS(
 		s.totalCost += r.CostUSD
 	}
 
-	// --- Per-model efficiency (standard + agent, all languages) ---
+	// --- Per-model efficiency (blended, all modes — kept for back-compat) ---
 	resultsByModel := make(map[string][]*BenchmarkResult)
 	for _, r := range results {
 		resultsByModel[r.Model] = append(resultsByModel[r.Model], r)
@@ -92,6 +92,29 @@ func buildModelsJS(
 	modelEfficiency := make(map[string]EfficiencyAggregates)
 	for modelName, modelResults := range resultsByModel {
 		modelEfficiency[modelName] = ComputeEfficiency(modelResults)
+	}
+
+	// Per-MODE efficiency so the value/speed plots can split standard vs agent
+	// (M-EVAL-BENCHMARK-UI-CONSOLIDATION) — blended efficiency mixes the two for
+	// dual-mode models, which is wrong for a "pass-rate vs speed" view.
+	modelEfficiencyStd := make(map[string]EfficiencyAggregates)
+	modelEfficiencyAgent := make(map[string]EfficiencyAggregates)
+	{
+		stdByModel := make(map[string][]*BenchmarkResult)
+		agtByModel := make(map[string][]*BenchmarkResult)
+		for _, r := range results {
+			if r.EvalMode == "agent" {
+				agtByModel[r.Model] = append(agtByModel[r.Model], r)
+			} else {
+				stdByModel[r.Model] = append(stdByModel[r.Model], r)
+			}
+		}
+		for m, rs := range stdByModel {
+			modelEfficiencyStd[m] = ComputeEfficiency(rs)
+		}
+		for m, rs := range agtByModel {
+			modelEfficiencyAgent[m] = ComputeEfficiency(rs)
+		}
 	}
 
 	// --- Sweet-spot report (pooled) ---
@@ -237,6 +260,12 @@ func buildModelsJS(
 		if eff, ok := modelEfficiency[name]; ok {
 			modelData["efficiency"] = eff
 		}
+		if eff, ok := modelEfficiencyStd[name]; ok {
+			modelData["efficiencyStandard"] = eff
+		}
+		if eff, ok := modelEfficiencyAgent[name]; ok {
+			modelData["efficiencyAgent"] = eff
+		}
 		if ssRows, ok := sweetSpotByModel[name]; ok && len(ssRows) > 0 {
 			modelData["sweet_spot"] = renderSweetSpotRow(ssRows[0])
 			if len(ssRows) > 1 {
@@ -299,6 +328,9 @@ func buildModelsJS(
 			}
 			if eff, ok := modelEfficiency[modelName]; ok {
 				entry["efficiency"] = eff
+			}
+			if eff, ok := modelEfficiencyAgent[modelName]; ok {
+				entry["efficiencyAgent"] = eff
 			}
 			if ssRows, ok := sweetSpotByModel[modelName]; ok && len(ssRows) > 0 {
 				entry["sweet_spot"] = renderSweetSpotRow(ssRows[0])

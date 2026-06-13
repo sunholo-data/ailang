@@ -17,6 +17,7 @@ import dashboardStyles from '@site/src/components/BenchmarkDashboard/styles.modu
 export default function ValueDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [mode, setMode] = useState('standard');
 
   useEffect(() => {
     fetch('/benchmarks/latest.json')
@@ -34,32 +35,60 @@ export default function ValueDashboard() {
   if (error) return <div className={dashboardStyles.error}>Error: {error}</div>;
   if (!data) return <div className={dashboardStyles.loading}>Loading benchmark data...</div>;
 
-  const models = data.models || {};
+  const standardModels = data.models || {};
+  // Agent set = agent-only models + dual-mode models (those that also ran agent).
+  const agentModels = {
+    ...(data.agentModels || {}),
+    ...Object.fromEntries(
+      Object.entries(standardModels).filter(([, m]) => m.agentStats && m.agentStats.runs)
+    ),
+  };
+  const isAgent = mode === 'agent';
+  const view = isAgent ? agentModels : standardModels;
+
+  const tab = (m) => ({
+    padding: '4px 14px', cursor: 'pointer', borderRadius: 6, fontWeight: 600,
+    border: '1px solid var(--ifm-color-emphasis-300)',
+    background: m === mode ? 'var(--ifm-color-primary)' : 'transparent',
+    color: m === mode ? '#fff' : 'var(--ifm-color-emphasis-800)',
+  });
 
   return (
     <div>
-      <div className={dashboardStyles.section}>
-        <h2>Pass Rate vs Cost</h2>
-        <p className={dashboardStyles.sectionSubtitle}>
-          Industry-standard "score vs cost" plot. NW corner = best value (cheap + accurate).
-          The dashed green line is the <strong>Pareto frontier</strong> — models on it are non-dominated
-          (no other model is both cheaper AND higher pass-rate). Color codes the agent harness.
-        </p>
-        <QualityScatter models={models} xMetric="cost" />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+        <button style={tab('standard')} onClick={() => setMode('standard')}>Standard</button>
+        <button style={tab('agent')} onClick={() => setMode('agent')}>Agent</button>
+        <span style={{ fontSize: '0.85em', color: 'var(--ifm-color-emphasis-600)' }}>
+          {isAgent
+            ? 'Agent mode — multi-turn agentic CLI (slower, higher cost/turns).'
+            : 'Standard mode — 0-shot + self-repair via API (sub-second).'}
+        </span>
       </div>
 
       <div className={dashboardStyles.section}>
-        <h2>Pass Rate vs Speed</h2>
+        <h2>Pass Rate vs Cost <small>({isAgent ? 'agent' : 'standard'})</small></h2>
         <p className={dashboardStyles.sectionSubtitle}>
-          Score vs median time-to-success. NW corner = fastest accurate models.
-          Useful for picking interactive (low latency) vs batch (high throughput) workloads.
-          Speed metric is post-v0.15.1 — older baselines fall back to total duration.
+          "Score vs cost" plot. NW corner = best value (cheap + accurate). The dashed green line is
+          the <strong>Pareto frontier</strong> — models on it are non-dominated. Color codes the harness.
         </p>
-        <QualityScatter models={models} xMetric="speed" />
+        <QualityScatter models={view} xMetric="cost" mode={mode} />
       </div>
 
       <div className={dashboardStyles.section}>
-        <ValueScoreTable models={models} />
+        <h2>Pass Rate vs Speed <small>({isAgent ? 'agent' : 'standard'})</small></h2>
+        <p className={dashboardStyles.sectionSubtitle}>
+          Score vs median time-to-success, <strong>split by mode</strong> — standard 0-shot is
+          sub-second; agent multi-turn loops are seconds, so they are never blended. NW corner =
+          fastest accurate models.
+        </p>
+        <QualityScatter models={view} xMetric="speed" mode={mode} />
+      </div>
+
+      <div className={dashboardStyles.section}>
+        <ValueScoreTable models={standardModels} />
+        <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-500)' }}>
+          Value Score table reflects <strong>standard</strong> eval (agent-mode scoring is a follow-up).
+        </p>
       </div>
 
       <div className={dashboardStyles.section}>
