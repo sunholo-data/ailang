@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -35,7 +36,11 @@ func runEvalPublish() {
 	prevTag := fs.String("prev-tag", "",
 		"Previous release tag (e.g. v0.22.0). Used in trend-delta column header. Required when --prev is set.")
 	outputDir := fs.String("output-dir", "docs/docs/reference/os-model-leaderboard",
-		"Output directory for the generated Docusaurus page.")
+		"Output directory for the (legacy) Docusaurus markdown page. Only used with --markdown.")
+	osJSON := fs.String("os-json", "docs/static/benchmarks/os/latest.json",
+		"Path to write the OS/Local leaderboard JSON the dashboard reads (model x harness x language). Empty to skip.")
+	emitMarkdown := fs.Bool("markdown", false,
+		"Also emit the legacy per-release markdown snapshot (retired from the site; off by default).")
 	minPpDelta := fs.Float64("min-delta-pp", 10.0,
 		"Minimum percentage-point pass-rate delta required for a benchmark to appear in the trend table.")
 
@@ -87,24 +92,122 @@ func runEvalPublish() {
 		}
 	}
 
-	markdown := renderReleasePage(releaseTag, *prevTag, current, previous, *minPpDelta)
-
-	if err := os.MkdirAll(*outputDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating output dir: %v\n", err)
-		os.Exit(1)
+	// Primary output: the OS/Local leaderboard JSON the dashboard reads
+	// (M-EVAL-BENCHMARK-UI-CONSOLIDATION). Aggregates the (benchmark, model, lang)
+	// summaries into model x harness rows with per-language pass rates.
+	if *osJSON != "" {
+		data, err := buildOSLeaderboardJSON(releaseTag, current)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error building OS JSON: %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.MkdirAll(filepath.Dir(*osJSON), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating OS JSON dir: %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.WriteFile(*osJSON, data, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing OS JSON: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Published %s OS/Local leaderboard JSON to %s\n", releaseTag, *osJSON)
 	}
-	outPath := filepath.Join(*outputDir, releaseTag+".md")
-	if err := os.WriteFile(outPath, []byte(markdown), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing page: %v\n", err)
-		os.Exit(1)
+
+	// Legacy markdown snapshot (retired from the site) — opt-in only.
+	if *emitMarkdown {
+		markdown := renderReleasePage(releaseTag, *prevTag, current, previous, *minPpDelta)
+		if err := os.MkdirAll(*outputDir, 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating output dir: %v\n", err)
+			os.Exit(1)
+		}
+		outPath := filepath.Join(*outputDir, releaseTag+".md")
+		if err := os.WriteFile(outPath, []byte(markdown), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing page: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ (legacy) markdown page → %s\n", outPath)
 	}
 
-	fmt.Printf("✓ Published %s leaderboard to %s\n", releaseTag, outPath)
 	fmt.Printf("  Benchmarks: %d\n", uniqueBenchmarkCount(current))
 	fmt.Printf("  Models: %d\n", uniqueModelCount(current))
 	if previous != nil {
 		fmt.Printf("  Trend deltas computed against %s (>=%.1fpp threshold)\n", *prevTag, *minPpDelta)
 	}
+}
+
+// buildOSLeaderboardJSON aggregates the (benchmark, model, lang) summaries into
+// the OS/Local leaderboard schema the dashboard reads: model × harness rows with
+// per-language pass rates (M-EVAL-BENCHMARK-UI-CONSOLIDATION). Harness is resolved
+// from models.yml (agent_cli), falling back to a name prefix.
+func buildOSLeaderboardJSON(releaseTag string, current map[string]eval_harness.BenchmarkSummary) ([]byte, error) {
+	type acc struct{ passed, trials int }
+	perModelLang := map[string]map[string]*acc{}
+	langsSet := map[string]bool{}
+	maxTrials := 0
+	for _, s := range current {
+		if perModelLang[s.Model] == nil {
+			perModelLang[s.Model] = map[string]*acc{}
+		}
+		a := perModelLang[s.Model][s.Lang]
+		if a == nil {
+			a = &acc{}
+			perModelLang[s.Model][s.Lang] = a
+		}
+		a.passed += s.Passed
+		a.trials += s.Trials
+		langsSet[s.Lang] = true
+		if s.Trials > maxTrials {
+			maxTrials = s.Trials
+		}
+	}
+
+	langs := make([]string, 0, len(langsSet))
+	for l := range langsSet {
+		langs = append(langs, l)
+	}
+	sort.Strings(langs)
+
+	harnessOf := func(model string) string {
+		if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+			if mc, ok := cfg.Models[model]; ok && mc.AgentCLI != nil && *mc.AgentCLI != "" {
+				return *mc.AgentCLI
+			}
+		}
+		for _, h := range []string{"opencode", "claude", "codex", "pi", "motoko"} {
+			if strings.HasPrefix(model, h) {
+				return h
+			}
+		}
+		return "local"
+	}
+
+	models := make([]string, 0, len(perModelLang))
+	for m := range perModelLang {
+		models = append(models, m)
+	}
+	sort.Strings(models)
+
+	rows := make([]map[string]interface{}, 0, len(models))
+	for _, m := range models {
+		langMap := map[string]float64{}
+		for l, a := range perModelLang[m] {
+			if a.trials > 0 {
+				langMap[l] = float64(a.passed) / float64(a.trials)
+			}
+		}
+		rows = append(rows, map[string]interface{}{
+			"model":   m,
+			"harness": harnessOf(m),
+			"lang":    langMap,
+		})
+	}
+
+	return json.MarshalIndent(map[string]interface{}{
+		"version":   releaseTag,
+		"generated": time.Now().Format("2006-01-02"),
+		"trials":    maxTrials,
+		"languages": langs,
+		"rows":      rows,
+	}, "", "  ")
 }
 
 // summaryKey indexes a benchmark summary by the (benchmark, model, lang)
