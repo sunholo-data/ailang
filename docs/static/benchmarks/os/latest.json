@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-13",
+  "generated": "2026-06-14",
   "languages": [
     "ailang",
     "go",
@@ -10,10 +10,10 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.6349206349206349,
-        "go": 0.8888888888888888,
-        "javascript": 0.9047619047619048,
-        "python": 0.9365079365079365
+        "ailang": 0.625,
+        "go": 0.9027777777777778,
+        "javascript": 0.9166666666666666,
+        "python": 0.9444444444444444
       },
       "model": "opencode-qwen3-5-35b-a3b-mxfp8"
     },
@@ -21,7 +21,7 @@
       "harness": "pi",
       "lang": {
         "ailang": 0.7777777777777778,
-        "go": 0.8888888888888888,
+        "go": 0.9166666666666666,
         "javascript": 1,
         "python": 1
       },
@@ -29,5 +29,5 @@
     }
   ],
   "trials": 3,
-  "version": "rolling-20260613"
+  "version": "rolling-20260614"
 }
