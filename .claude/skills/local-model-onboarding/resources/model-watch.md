@@ -81,6 +81,18 @@ Laguna, Nemotron-Cascade) — that's exactly what our OpenRouter screen + rig
 rotation is for. The Qwen3.6 upgrade is the only one with a hard external number
 beating the incumbent today.
 
+### Screen results — OpenRouter, 2026-06-14 (core tier, standard, 3 trials)
+
+| Model | AILANG | Python | Cost | Outcome |
+|---|---|---|---|---|
+| **qwen3.6-35b-a3b** | **83%** (65/78) | 85% | $0.38 | **WINNER → onboard to rig** |
+| laguna-xs.2 | 62% (49/78) | 84% | $0.00 | keep as free OR ref; weaker on AILANG |
+| glm-4.7-flash | 46% (36/78) | 74% | $0.14 | dropped — AILANG too low |
+
+Qwen3.6 shows AILANG≈Python parity (strong-model signature); the other two have a
+large AILANG-vs-Python gap. Decision: onboard `qwen3.6:35b-a3b` (pull → fit-check
+→ opencode+pi pair → smoke → rotation). Total screen cost ~$0.53, no downloads.
+
 ### ☁️ CLOUD track — OpenRouter screen / ceiling refs (too big for the rig)
 
 | Model | Size | Evidence | Status |
