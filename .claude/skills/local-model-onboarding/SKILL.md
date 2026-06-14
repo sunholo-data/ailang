@@ -147,9 +147,19 @@ share a `model_family` so the Explorer pairs them.
     pricing: { input_per_1k: 0.0, output_per_1k: 0.0 }
 ```
 
-**pi prerequisite:** pi has no built-in ollama provider — it needs the model
-listed in `~/.pi/agent/models.json` (canonical copy:
-`tools/setup/pi-ollama-models.json`). Add the new tag's `id` there too.
+**Both harnesses need the model in their OWN config too** — models.yml routing
+is not enough. This bites silently: the harness produces **empty output / 0%**
+(model-not-found) while the model is fine (the other harness passes). Register in
+both:
+- **opencode** — add an entry under the `ollama` provider's `models` block in
+  `~/.config/opencode/opencode.jsonc` (mirror an existing qwen entry: name +
+  temperature/top_p/max_tokens). Verify: `opencode models | grep <tag>`.
+- **pi** — pi has no built-in ollama provider; add the tag's `id` to
+  `~/.pi/agent/models.json` (canonical copy: `tools/setup/pi-ollama-models.json`).
+  Verify: a one-benchmark `pi-<id>` run returns non-empty output.
+
+If one harness smoke-fails with empty stdout while the other passes, this missing
+registration is almost always why.
 
 **hard_timeout_secs: 600** — local models hang on some hard benchmarks; the
 2400s default burns 40 min per hang. 600s is the standard local backstop.

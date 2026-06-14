@@ -22,7 +22,7 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # contend for the single GPU. This is what fills the opencode-vs-pi harness column
 # on the OS/Local leaderboard. Override with OS_FILLER_MODELS=a,b (e.g. add gemma).
 # (OS_FILLER_MODEL kept as a single-model back-compat alias if MODELS is unset.)
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8,pi-qwen3-5-35b-a3b-mxfp8}}"
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8,pi-qwen3-5-35b-a3b-mxfp8,opencode-qwen3-6-35b-a3b-mxfp8,pi-qwen3-6-35b-a3b-mxfp8}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
