@@ -73,3 +73,22 @@ func newAverCommand(args ...string) (*exec.Cmd, error) {
 	argv := append([]string{"run"}, args...)
 	return exec.Command(aver, argv...), nil
 }
+
+// newAverCheckCommand builds `aver check <file>.av`.
+//
+// `aver check` runs static analysis and emits structured diagnostics — named
+// error categories (`error[type-error]`), `repair:` hints, and source-line
+// excerpts — to stdout, designed for LLM iteration loops. That is far more
+// useful as retry feedback than `aver run`'s terse one-line stderr.
+//
+// Note: `aver check` is STRICTER than `aver run` — it requires a `module`
+// declaration that `run` does not. So it is used only to ENRICH diagnostics on
+// the failure path, never as the pass/fail gate (which would regress runnable
+// but module-less solutions). See sunholo-data/ailang#241.
+func newAverCheckCommand(file string) (*exec.Cmd, error) {
+	aver, err := resolveAver()
+	if err != nil {
+		return nil, err
+	}
+	return exec.Command(aver, "check", file), nil
+}

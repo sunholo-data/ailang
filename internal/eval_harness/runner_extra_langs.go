@@ -358,14 +358,75 @@ func (r *AverRunner) Run(code string, timeout time.Duration) (*RunResult, error)
 				exitCode = -1
 			}
 		}
+		stderrText := stderr.String()
+		// `aver run` reports compile-class failures (parse/type errors, undeclared
+		// effects, non-exhaustive matches) as a terse one-line `error[...]` on stderr.
+		compileErr := strings.Contains(stderrText, "error[")
+		// On a compile-class failure, re-run via `aver check` and surface its
+		// structured diagnostics (named categories, `repair:` hints, source
+		// excerpts) instead — far better retry feedback for the LLM. `aver run`
+		// stays authoritative for pass/fail: `aver check` additionally requires a
+		// `module` declaration that `run` does not, so gating on it would fail
+		// runnable solutions. We only enrich the message, never change the verdict.
+		// See sunholo-data/ailang#241.
+		if exitCode != 0 && compileErr {
+			if diag := averCheckDiagnostics(tmpFile, tmpDir, timeout); diag != "" {
+				stderrText = diag
+			}
+		}
 		return &RunResult{
 			Stdout:    stdout.String(),
-			Stderr:    stderr.String(),
+			Stderr:    stderrText,
 			ExitCode:  exitCode,
 			Duration:  duration,
-			CompileOk: exitCode == 0 || !strings.Contains(stderr.String(), "error["),
+			CompileOk: exitCode == 0 || !compileErr,
 			RuntimeOk: exitCode == 0,
 		}, nil
+	}
+}
+
+// averCheckDiagnostics runs `aver check <file>` and returns its rich diagnostic
+// text (named error categories, `repair:` hints, source-line excerpts), which
+// Aver writes to stdout. It is best-effort feedback enrichment for the LLM retry
+// loop — any harness-level failure (binary missing, timeout, start error) yields
+// "" so the caller falls back to the original `aver run` output. It never
+// influences the pass/fail verdict. See sunholo-data/ailang#241.
+func averCheckDiagnostics(file, workDir string, timeout time.Duration) string {
+	cmd, err := newAverCheckCommand(file)
+	if err != nil {
+		return ""
+	}
+	cmd.Dir = workDir
+	SetProcessGroup(cmd)
+
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Start(); err != nil {
+		return ""
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case <-time.After(timeout):
+		_ = KillProcessGroup(cmd.Process.Pid)
+		<-done
+		return ""
+	case <-done:
+		// `aver check` writes diagnostics to stdout; stderr is usually empty but
+		// we append it for safety.
+		diag := strings.TrimSpace(stdout.String())
+		if e := strings.TrimSpace(stderr.String()); e != "" {
+			if diag != "" {
+				diag += "\n"
+			}
+			diag += e
+		}
+		return diag
 	}
 }
 
