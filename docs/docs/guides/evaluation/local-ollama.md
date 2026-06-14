@@ -133,20 +133,22 @@ runs still complete but you get no live monitoring.**
 128 GB unified memory + 40 GPU cores, ~546 GB/s memory bandwidth; gemma4:26b
 uses 25.76 GB of unified memory.
 
-**Use `--parallel 1`. This is the rule, not a default.** Token generation on
-Apple Silicon is **memory-bandwidth-bound, not compute-bound** — every
-concurrent request shares the same ~546 GB/s, so running 2+ streams slows *all*
-of them and pushes slow benchmarks past their TTFT timeout before they emit a
-token. All three rig jobs (`nightly-eval.sh`, `nightly-lang-eval.sh`,
-`os-rotation-filler.sh`) hard-code `--parallel 1`. **Do not raise it.**
+**Use `--parallel 1` — the established operational default.** Token generation on
+Apple Silicon is **memory-bandwidth-bound, not compute-bound**; concurrent
+requests share the same ~546 GB/s, and on a single-GPU box an Ollama model reload
+mid-run can silently kill a stream. Both bite hard in a *multi-model* rotation,
+so all three rig jobs (`nightly-eval.sh`, `nightly-lang-eval.sh`,
+`os-rotation-filler.sh`) hard-code `--parallel 1`.
 
-> **History (superseded).** An earlier 17-benchmark head-to-head (2026-05-23) on
-> a *single* small model (`gemma4:26b`, 25.76 GB) found p=2 beat p=4 and briefly
-> recommended p=2. That conclusion did **not** hold under sustained 24/7,
-> multi-model load with larger models (e.g. `qwen3.5:35b-a3b`): concurrent
-> streams thrash unified-memory bandwidth, costing throughput and dropping
-> benchmarks to TTFT timeouts. The settled finding — and the production config —
-> is **p=1**. If you see a `-parallel 2` recommendation anywhere, it is stale.
+> **Evidence status (be honest).** There is **no recorded p=1-vs-p=2
+> head-to-head.** The only measured parallelism data is a 2026-05-23 run on a
+> *single small* model (`gemma4:26b`) comparing **p=2 vs p=4** — which favored p=2
+> over p=4, a different question entirely. So p=1 is the safe operational default
+> for the multi-model rotation (single GPU + model-reload safety), **not** a
+> benchmarked optimum. The earlier "p=2 recommended" wording in this guide
+> overstated that p2-vs-p4 result — treat it as stale. **Before raising
+> parallelism, run the actual head-to-head**: the same smoke set at p=1 vs p=2,
+> comparing wall-clock, pass rate, and TTFT-timeout count.
 
 > **Variance warning** — single-trial pass rates swing 5–7 benchmarks across
 > consecutive runs of the same model on the same seed. For trustworthy
