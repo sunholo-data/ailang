@@ -69,6 +69,13 @@ pulled model's real resident VRAM).
 ## Workflow
 
 ### 1. Select a candidate (shape gate + generation check)
+
+**Do not pick from memory — fetch live.** The assistant's training is months
+stale and model names mislead. Use [`resources/model-watch.md`](resources/model-watch.md):
+it lists the canonical sources to fetch (Ollama library, OpenRouter, Aider +
+SWE-bench leaderboards, HF trending, our own OS leaderboard) and a dated
+candidate shortlist. Refresh that file's table first, then choose from it.
+
 Find a recent coding/agentic model that matches the shape rule.
 
 **Verify the generation by RELEASE DATE, not the name** — Qwen naming is a trap:
