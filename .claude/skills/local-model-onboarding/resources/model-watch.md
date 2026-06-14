@@ -93,6 +93,18 @@ Qwen3.6 shows AILANG≈Python parity (strong-model signature); the other two hav
 large AILANG-vs-Python gap. Decision: onboard `qwen3.6:35b-a3b` (pull → fit-check
 → opencode+pi pair → smoke → rotation). Total screen cost ~$0.53, no downloads.
 
+### ⏳ Pending action — retire qwen3.5 once qwen3.6 is confirmed
+
+The rotation currently runs BOTH the qwen3.5 and qwen3.6 opencode+pi pairs (4
+models/cycle, ~2–4h cycles) to get a live generational comparison. **Retire the
+qwen3.5 pair** (`opencode-qwen3-5-35b-a3b-mxfp8`, `pi-qwen3-5-35b-a3b-mxfp8`) from
+`OS_FILLER_MODELS` in `tools/launchd/os-rotation-filler.sh` **once confirmed** =
+after ≥1 full rotation pass where, on AILANG agent mode, `opencode-qwen3.6 ≥
+opencode-qwen3.5` AND `pi-qwen3.6 ≥ pi-qwen3.5` (check the OS/Local leaderboard or
+`docs/static/benchmarks/os/latest.json`). That drops the cycle back to 2 models.
+If 3.6 somehow underperforms, keep 3.5 and investigate the quant. (User agreed
+2026-06-14.)
+
 ### ☁️ CLOUD track — OpenRouter screen / ceiling refs (too big for the rig)
 
 | Model | Size | Evidence | Status |
