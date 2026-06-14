@@ -404,18 +404,29 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 		if result.Success {
 			benchSpan.SetStatus(codes.Ok, "benchmark passed")
-		} else {
-			// Add error summary for failed benchmarks
-			if result.Stderr != "" {
-				benchSpan.SetAttributes(
-					attribute.String("error.summary", telemetry.Truncate(result.Stderr, 200)),
-					attribute.String("error.category", telemetry.CategorizeError(errors.New(result.Stderr))),
-				)
-			}
-			benchSpan.SetStatus(codes.Error, "benchmark failed")
+			return true, nil
 		}
 
-		return result.Success, nil
+		// Add error summary for failed benchmarks
+		if result.Stderr != "" {
+			benchSpan.SetAttributes(
+				attribute.String("error.summary", telemetry.Truncate(result.Stderr, 200)),
+				attribute.String("error.category", telemetry.CategorizeError(errors.New(result.Stderr))),
+			)
+		}
+		benchSpan.SetStatus(codes.Error, "benchmark failed")
+
+		// Return a descriptive (non-infra) error so the suite log surfaces the
+		// reason instead of "<nil>" — mirrors standard mode below. The caller
+		// treats any success=false as a failure regardless of the error value.
+		switch {
+		case !metrics.CompileOk:
+			return false, fmt.Errorf("compilation failed (%s)", metrics.ErrorCategory)
+		case !metrics.RuntimeOk:
+			return false, fmt.Errorf("runtime error (%s)", metrics.ErrorCategory)
+		default:
+			return false, fmt.Errorf("output mismatch (%s)", metrics.ErrorCategory)
+		}
 	}
 
 	// Standard mode: Create chain stage for this benchmark
