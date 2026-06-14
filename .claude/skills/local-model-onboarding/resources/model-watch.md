@@ -8,22 +8,31 @@
 
 ## Canonical sources (fetch these, in this order)
 
+> The source list is **user-curated** — the assistant is too stale to know which
+> external boards are still maintained. Confirm with the user before trusting a
+> ranking source. **Dropped: Aider polyglot leaderboard (unmaintained as of
+> 2026-06).** Do not re-add it.
+
+**Availability (high confidence — what can actually run / be screened):**
 1. **Ollama library** — https://ollama.com/library
    Ground truth for what's *pullable on-device*, with sizes/quants. If it's not
    here (or on HF in GGUF/MLX), it can't run on the rig.
 2. **OpenRouter models** — https://openrouter.ai/models
    What can be *quality-screened* via OR before pulling, with pricing. Filter by
    "newest". Many models land here before/without an Ollama build.
-3. **Aider polyglot leaderboard** — https://aider.chat/docs/leaderboards/
-   Coding-specific, includes open-weight models with $/task. (Note: has its own
-   refresh lag — cross-check dates.)
-4. **SWE-bench (Verified / Pro)** — https://www.swebench.com/
-   Agentic coding ground truth. Good for separating "coder" tuning from base.
-5. **Hugging Face trending** — https://huggingface.co/models?pipeline_tag=text-generation&sort=trending
+3. **Hugging Face trending** — https://huggingface.co/models?pipeline_tag=text-generation&sort=trending
    Earliest signal of brand-new releases.
-6. **The rig's own OS leaderboard** — `docs/static/benchmarks/os/latest.json`
-   The only source that measures AILANG specifically. Beats any external board
-   for *our* question.
+
+**Quality / ranking (CONFIRM still maintained before relying on — boards rot):**
+4. **SWE-bench (Verified / Pro)** — https://www.swebench.com/  *(confirm maintained)*
+   Agentic coding ground truth. Good for separating "coder" tuning from base.
+5. **LMArena** — https://lmarena.ai/leaderboard  *(confirm maintained; has a coding category)*
+6. _(open slot — ask the user which coding/agentic leaderboard they currently trust)_
+
+**Ours (always valid — the only board that measures AILANG):**
+7. **The rig's own OS leaderboard** — `docs/static/benchmarks/os/latest.json`
+   Beats any external board for *our* question. The OpenRouter quality-screen
+   (skill step 2) is how a new candidate earns a row here.
 
 ## The two gates every candidate must pass
 
