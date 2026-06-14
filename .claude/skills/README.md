@@ -157,6 +157,16 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Resources**: provider_endpoints.md, pricing_guide.md
 - **Use for**: Adding GPT-5.1, Gemini 3 Pro, and other new models to benchmarks
 
+**[local-model-onboarding/](local-model-onboarding/)** - Onboard a new on-device model to the Mac Studio eval rig
+- Hardware size/shape feasibility gate (128 GB M4 Max, MoE small-active, p=1 bandwidth rule)
+- OpenRouter quality pre-screen before spending rig time
+- ollama pull + real resident-VRAM verdict
+- opencode + pi cross-harness registration in models.yml (shared model_family)
+- Wire into the continuous OS rotation (os-rotation-filler)
+- **Scripts**: check_model_fit.sh (sizing verdict, estimate or measure)
+- **Use for**: "is this model the right size for the rig?", trying a new local coding model
+- **Complements**: model-manager (models.yml mechanics) + local-ollama-eval (running on the rig)
+
 **[headless-runner/](headless-runner/)** - Run Claude Code in headless/programmatic mode
 - Execute Claude from scripts, CI/CD pipelines, and autonomous agents
 - Full access to project configuration (skills, agents, commands)

@@ -18,13 +18,13 @@ milestones (v0.22.0).
 After one-time setup (below), the rotation runs via:
 
 ```bash
-# Smoke tier (17 benchmarks, ~110 min wall at p=2, requires ~50 GB memory headroom)
+# Smoke tier (17 benchmarks, serial — see "How parallelism behaves on M4 Max" below)
 make eval-smoke \
   MODELS=opencode-gemma4-26b \
   EXTRA='-agent -langs ailang \
     -benchmarks fizzbuzz,adt_option,balanced_parens,binary_tree_sum,canonical_convergence,canonical_normalization,dense_operator_program,explicit_state_threading,gcd_lcm,immutable_data_structures,inline_tests,nested_records,numeric_modulo,record_update,records_book,recursion_fibonacci,type_safe_record_access \
     -output eval_results/rotation/$(date +%Y-%m-%d)/$(date +%H%M)_gemma4-26b_smoke \
-    -parallel 2 \
+    -parallel 1 \
     -agent-timeout 2400'
 
 # Watch progress live
@@ -91,11 +91,16 @@ Verify with `opencode models | grep ollama` — should print `ollama/gemma4:26b`
 ```bash
 # Set in your shell init or via launchctl setenv if running Ollama.app
 launchctl setenv OLLAMA_MAX_LOADED_MODELS 1   # one model resident at a time
-launchctl setenv OLLAMA_NUM_PARALLEL 4        # 4 concurrent requests/model
+launchctl setenv OLLAMA_NUM_PARALLEL 1        # serialize requests (bandwidth-bound box)
 launchctl setenv OLLAMA_MAX_QUEUE 64          # back-pressure threshold
 ```
 
 Restart Ollama for these to take effect.
+
+`OLLAMA_NUM_PARALLEL 1` matches the harness `--parallel 1` rule (see
+"How parallelism behaves on M4 Max" below) — the box is memory-bandwidth-bound,
+so concurrent requests only thrash. It also **saves VRAM**: Ollama pre-allocates
+KV cache for `NUM_PARALLEL` slots, so 1 slot keeps the resident footprint minimal.
 
 ### 5. Start the AILANG observability server
 
@@ -125,23 +130,23 @@ runs still complete but you get no live monitoring.**
 
 ## How parallelism behaves on M4 Max
 
-128 GB unified memory + 40 GPU cores; gemma4:26b uses 25.76 GB of unified
-memory. Empirical measurements (2026-05-22 small-N, then 2026-05-23
-17-benchmark head-to-head):
+128 GB unified memory + 40 GPU cores, ~546 GB/s memory bandwidth; gemma4:26b
+uses 25.76 GB of unified memory.
 
-| `-parallel N` | Per-bench wall | 17-bench wall | 17-bench pass | Note |
-|---|---|---|---|---|
-| 1 (serial) | 4–7 min (variance dominates) | not measured | n/a | Baseline; estimated ~3h |
-| **2** | ~7 min | **1h 49m** | **13/17 = 76.5%** ✅ | **Recommended default** |
-| 4 | ~15 min | 1h 39m | 10/17 = 58.8% | Slightly faster wall, but loses 2 benchmarks to TTFT timeouts under prefill contention |
-| 8+ | not tested | — | — | Won't beat 4 unless `OLLAMA_NUM_PARALLEL` is raised |
+**Use `--parallel 1`. This is the rule, not a default.** Token generation on
+Apple Silicon is **memory-bandwidth-bound, not compute-bound** — every
+concurrent request shares the same ~546 GB/s, so running 2+ streams slows *all*
+of them and pushes slow benchmarks past their TTFT timeout before they emit a
+token. All three rig jobs (`nightly-eval.sh`, `nightly-lang-eval.sh`,
+`os-rotation-filler.sh`) hard-code `--parallel 1`. **Do not raise it.**
 
-**`-parallel 2` is the recommended default** for the 24/7 rotation. Earlier
-small-N (1–2 benchmarks) suggested p=4 might help stability via token-rate
-throttling, but the 17-benchmark head-to-head on 2026-05-23 shows p=4's
-TTFT contention loses 2 benchmarks (`fizzbuzz`, `inline_tests`) before they
-emit a single token — outweighing any anti-thrash benefit. p=2 wins +17.6
-percentage points on pass rate at +10 minutes wall clock.
+> **History (superseded).** An earlier 17-benchmark head-to-head (2026-05-23) on
+> a *single* small model (`gemma4:26b`, 25.76 GB) found p=2 beat p=4 and briefly
+> recommended p=2. That conclusion did **not** hold under sustained 24/7,
+> multi-model load with larger models (e.g. `qwen3.5:35b-a3b`): concurrent
+> streams thrash unified-memory bandwidth, costing throughput and dropping
+> benchmarks to TTFT timeouts. The settled finding — and the production config —
+> is **p=1**. If you see a `-parallel 2` recommendation anywhere, it is stale.
 
 > **Variance warning** — single-trial pass rates swing 5–7 benchmarks across
 > consecutive runs of the same model on the same seed. For trustworthy
