@@ -204,7 +204,15 @@ function ModelLanguageSpread({ models, data, allLangs }) {
               padding: '10px 14px', minWidth: 220, flex: '1 1 220px', maxWidth: 300,
               background: 'var(--ifm-background-color)',
             }}>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 2 }}>{modelShort(m)}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 2 }}>
+                {modelShort(m)}
+                {md?.source === 'local' && (
+                  <span title="On-device model (local Ollama, $0) — from the continuous OS rotation"
+                        style={{ marginLeft: 6, fontSize: '0.62rem', fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: 'rgba(99,102,241,0.15)', color: '#6366f1', verticalAlign: 'middle' }}>
+                    on-device
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-500)', marginBottom: 10 }}>{harness}</div>
               {allLangs.map(l => {
                 const ld = md?.languages?.[l];
@@ -354,6 +362,66 @@ function CrossHarnessTable({ data, allLangs }) {
   );
 }
 
+// Strip the harness prefix to get the cross-harness family key, so the same
+// on-device model run through opencode vs pi groups together in Section B.
+function osFamilyKey(model) {
+  return model
+    .replace(/^opencode-or-/, '')
+    .replace(/^opencode-/, '')
+    .replace(/^pi-/, '')
+    .replace(/^motoko-/, '');
+}
+
+// Union the continuous OS/Local rotation (os/latest.json) into the baseline
+// agent data. The rotation publishes aggregate agent pass rates per
+// (model, harness, language) for on-device models, which never appear in the
+// release baseline (latest.json) — so without this the Explorer shows only
+// cloud harnesses. Merging here (rather than at publish time) keeps the local
+// rows live with every rotation cycle instead of freezing them to the release
+// cadence. Additive and guarded: a missing/!malformed os file is a no-op.
+function mergeOSData(data, os) {
+  if (!os || !Array.isArray(os.rows)) return data;
+  data.models = data.models || {};
+  data.harnesses = data.harnesses || {};
+  for (const row of os.rows) {
+    const { model, harness, lang } = row || {};
+    if (!model || !harness || !lang) continue;
+
+    // 1. Model entry — drives the model×language heatmap, the language-spread
+    //    cards, and (via model_family) the cross-harness table.
+    const m = data.models[model] || {};
+    m.agent_cli = harness;
+    m.model_family = m.model_family || osFamilyKey(model);
+    m.agentStats = m.agentStats || { apiErrorRate: 0, apiErrors: 0 };
+    m.source = 'local';
+    m.languages = m.languages || {};
+    for (const [l, rate] of Object.entries(lang)) {
+      m.languages[l] = { ...(m.languages[l] || {}), agentSuccessRate: rate };
+    }
+    data.models[model] = m;
+
+    // 2. Harness entry (harness×language table). Append the model. Only
+    //    synthesize aggregates for harnesses the baseline lacks (e.g. pi) so we
+    //    never overwrite backend-computed cloud aggregates (e.g. opencode).
+    const h = data.harnesses[harness] || { models: [], languages: {}, source: 'local' };
+    h.models = h.models || [];
+    if (!h.models.includes(model)) h.models.push(model);
+    if (h.source === 'local') {
+      for (const l of LANG_ORDER) {
+        const rates = h.models
+          .map(mm => data.models[mm]?.languages?.[l]?.agentSuccessRate)
+          .filter(v => v != null);
+        if (rates.length) {
+          h.languages[l] = { successRate: rates.reduce((s, v) => s + v, 0) / rates.length };
+        }
+      }
+      h.avg_cost_usd = 0; // on-device = free
+    }
+    data.harnesses[harness] = h;
+  }
+  return data;
+}
+
 export default function BenchmarkExplorer() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -362,9 +430,13 @@ export default function BenchmarkExplorer() {
   const [activeTier, setActiveTier] = useState(null);
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
-      .then(r => r.json())
-      .then(setData)
+    // Baseline (cloud, release/nightly) + live OS/Local rotation, unioned.
+    // The OS file is optional: if it's missing, fall back to baseline only.
+    Promise.all([
+      fetch('/benchmarks/latest.json').then(r => r.json()),
+      fetch('/benchmarks/os/latest.json').then(r => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+      .then(([base, os]) => setData(mergeOSData(base, os)))
       .catch(e => setError(e.message));
   }, []);
 
