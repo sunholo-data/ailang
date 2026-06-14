@@ -72,9 +72,11 @@ pulled model's real resident VRAM).
 
 **Do not pick from memory — fetch live.** The assistant's training is months
 stale and model names mislead. Use [`resources/model-watch.md`](resources/model-watch.md):
-it lists the canonical sources to fetch (Ollama library, OpenRouter, Aider +
-SWE-bench leaderboards, HF trending, our own OS leaderboard) and a dated
-candidate shortlist. Refresh that file's table first, then choose from it.
+it lists the canonical sources to fetch (Ollama library, OpenRouter, HF trending,
+maintained ranking boards, and our own OS leaderboard) and a dated candidate
+shortlist. Refresh that file's table first, then choose from it. The source list
+is user-curated — confirm ranking boards are still maintained (Aider was dropped
+2026-06 as unmaintained).
 
 Find a recent coding/agentic model that matches the shape rule.
 
