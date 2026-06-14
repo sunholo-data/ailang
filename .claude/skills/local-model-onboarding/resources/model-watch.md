@@ -100,6 +100,14 @@ value this scan surfaces is the **local track**.
 > A3B) → slower on this box. `Qwen 3.7-Max` is API-only. Always check release
 > date + MoE-vs-dense, not the name.
 
+> **Screen availability (checked 2026-06-14 via OpenRouter API):** screenable on
+> OR *with a matching on-device build* = Qwen3.6-35B-A3B (`qwen/qwen3.6-35b-a3b`),
+> GLM-4.7-Flash (`z-ai/glm-4.7-flash`), Laguna-XS.2 (`poolside/laguna-xs.2:free`).
+> **NOT screenable:** Devstral-Small-2 — OR only hosts `mistralai/devstral-2512`
+> which is the **123B** Devstral 2 (too big for the rig), not the 24B Small-2;
+> and Nemotron-Cascade-2 is not on OR at all. Those two can only be evaluated by a
+> *direct local pull* (no OR pre-screen possible) — decide pull-or-drop per case.
+
 > **Data caveat:** TB2.0 numbers via the llm-stats aggregator, SWE via search
 > summaries — directionally reliable (3.6 > 3.5 same-shape is consistent), but
 > re-confirm exact figures on tbench.ai / swebench.com before committing.

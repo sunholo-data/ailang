@@ -1918,6 +1918,58 @@ models:
       Standard-mode companion to motoko-minimax-m3. Direct version-over-version
       comparison against or-minimax-m2-7. Added 2026-06-04.
 
+  or-qwen3-6-35b-a3b:
+    api_name: "qwen/qwen3.6-35b-a3b"
+    provider: "openrouter"
+    description: "Qwen3.6 35B-A3B via OpenRouter (standard mode) — OSS screen for on-device upgrade candidate (TB2.0 0.515 vs rig incumbent qwen3.5-35b-a3b 0.405)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "qwen3-6-35b-a3b"
+    pricing:
+      input_per_1k: 0.00015   # $0.15 per 1M
+      output_per_1k: 0.00100  # $1.00 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      local-model-onboarding screen (2026-06-14): OpenRouter quality screen for the
+      on-device upgrade candidate qwen3.6:35b-a3b. If it clears the bar, pull to the
+      rig and register the opencode-/pi- cross-harness pair.
+
+  or-glm-4-7-flash:
+    api_name: "z-ai/glm-4.7-flash"
+    provider: "openrouter"
+    description: "GLM-4.7-Flash via OpenRouter (standard mode) — OSS screen, 30B-class on-device candidate"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "glm-4-7-flash"
+    pricing:
+      input_per_1k: 0.00006   # $0.06 per 1M
+      output_per_1k: 0.00040  # $0.40 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      local-model-onboarding screen (2026-06-14): OpenRouter quality screen for
+      on-device candidate glm-4.7-flash (z-ai, 30B class). Pull if it clears the bar.
+
+  or-laguna-xs-2:
+    api_name: "poolside/laguna-xs.2:free"
+    provider: "openrouter"
+    description: "Poolside Laguna XS.2 (free) via OpenRouter (standard mode) — OSS screen, 33B/3B MoE agentic-coding on-device candidate"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "laguna-xs-2"
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      local-model-onboarding screen (2026-06-14): OpenRouter FREE-tier quality screen
+      for on-device candidate laguna-xs.2 (poolside, 33B/3B MoE, agentic-coding).
+
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
