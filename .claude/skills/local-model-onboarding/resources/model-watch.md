@@ -62,22 +62,47 @@ what the opencode-vs-pi-vs-OR comparison in the Explorer measures.
 
 ## Candidate shortlist — scanned 2026-06-14 (re-verify before pulling)
 
-On-device-feasible (the ones worth actually testing on the rig):
+Incumbent on the rig: **`qwen3.5:35b-a3b`** — scores **0.405** on Terminal-Bench 2.0.
 
-| Candidate | Shape | ~Disk | Status vs incumbent | Notes |
-|---|---|---|---|---|
-| **Qwen 3.6 35B-A3B** | MoE 35B / 3B | ~24 GB | **Newer** (Apr 2026) than qwen3.5 | Same shape, one gen up — the natural incumbent upgrade |
-| **Devstral Small 2** | ~24B coder | ~24 GB | Different lineage (Mistral) | 68% SWE-bench Verified, Apache-2.0; diversifies beyond Qwen |
-| **Gemma 4 31B** | MoE | ~20 GB | Sibling of the 26b we run | 256K ctx, Apache-2.0; compare vs our gemma4:26b |
+### 🖥 LOCAL track — on-device candidates (worth pulling/screening)
 
-Out of scope for on-device (keep as **OpenRouter** ceiling references only — too
-big to run on the rig): **GLM-5.1**, **DeepSeek-V4-Pro**, **Kimi K2.6**,
-**MiniMax-m3**, **MiMo-V2.5-Pro** (1T/42B-active). These are the frontier-OS
-comparison anchors, not rotation members.
+| Candidate | Shape | ~Disk | Evidence | Ollama | Priority |
+|---|---|---|---|---|---|
+| **Qwen3.6-35B-A3B** | MoE 35B/3B | ~24 GB | **TB2.0 0.515 vs incumbent 0.405 (+11)**; Apr 2026 | yes (1wk) | **#1 — proven upgrade, same shape** |
+| **GLM-4.7-Flash** | ~30B class | ~18–20 GB | "strongest in 30B class"; new (1wk); diff lineage | yes (1wk) | #2 — screen it (verify MoE/active) |
+| **Laguna-XS.2** | MoE 33B/3B | ~20 GB | "agentic coding + long-horizon"; new (1mo) | yes (1mo) | #3 — right shape, needs our screen |
+| **Nemotron-Cascade-2** | MoE 30B/3B | ~18 GB | reasoning+agentic; NVIDIA (2mo) | yes (2mo) | #3 — right shape, needs our screen |
+| **Devstral-Small-2** | dense 24B coder | ~24 GB | 68% SWE-bench Verified; Apache-2.0 (Mistral) | yes | #4 — lineage diversity; dense (slower) |
+| Qwen3.6-27B | dense 27B | ~17 GB | 77.2% SWE-bench but **dense** → slower here | yes | low (dense penalty on this box) |
+| Granite4.1-30B | 30B | ~18 GB | IBM; RAG/tool-use focus | yes | low (not coding-led) |
+
+Notes: external coding scores are thin for the new MoE entrants (GLM-4.7-Flash,
+Laguna, Nemotron-Cascade) — that's exactly what our OpenRouter screen + rig
+rotation is for. The Qwen3.6 upgrade is the only one with a hard external number
+beating the incumbent today.
+
+### ☁️ CLOUD track — OpenRouter screen / ceiling refs (too big for the rig)
+
+| Model | Size | Evidence | Status |
+|---|---|---|---|
+| DeepSeek-V4-Pro-Max | 1.6T | SWE-bench Verified **80.6%** (top OSS) | already `or-deepseek-v4-pro` |
+| MiniMax M3 | — | SWE 80.5% | already `or-minimax-m3` |
+| GLM-5.1 | 744B | TB2.0 **0.690** (top OSS) | already `or-glm-5-1` |
+| DeepSeek-V4-Flash-Max | 284B | TB2.0 0.569 | already `or-deepseek-v4-flash` |
+| Qwen3.7-Max | — | SWE 80.4% (API-only/proprietary) | optional add |
+
+The cloud ceiling is already well-covered by the existing `or-*` suite; the new
+value this scan surfaces is the **local track**.
 
 > **Naming traps seen so far:** `Qwen3-Coder-30B-A3B` = Qwen3.0 coder (2025),
-> *older* than qwen3.5 despite the "Coder" label. `Qwen 3.6-27B` is newer but
-> **dense** (no A3B) → slower on this box. `Qwen 3.7-Max` is API-only.
+> *older* than `qwen3.5` despite the "Coder" label (and TB2.0 0.375 on the 480B
+> coder — coder-line is not winning). `Qwen 3.6-27B` is newer but **dense** (no
+> A3B) → slower on this box. `Qwen 3.7-Max` is API-only. Always check release
+> date + MoE-vs-dense, not the name.
+
+> **Data caveat:** TB2.0 numbers via the llm-stats aggregator, SWE via search
+> summaries — directionally reliable (3.6 > 3.5 same-shape is consistent), but
+> re-confirm exact figures on tbench.ai / swebench.com before committing.
 
 ## Refresh cadence
 
