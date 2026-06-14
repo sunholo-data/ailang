@@ -1,98 +1,113 @@
 # Aver Teaching Prompt
 
-Authoritative sources for this prompt:
-- [docs/language.md](https://github.com/jasisz/aver/blob/main/docs/language.md) (official language reference)
-- [docs/pushback.md](https://github.com/jasisz/aver/blob/main/docs/pushback.md) (common AI-codegen mistakes)
-- [examples/core/](https://github.com/jasisz/aver/tree/main/examples/core) (canonical example programs)
+> **Source of truth:** Everything below the `---` is the upstream curated guide from
+> [`averlang.dev/llms.txt`](https://averlang.dev/llms.txt) (Aver 0.21.x), embedded verbatim so
+> this prompt stays faithful to the authoritative spec rather than a hand-rolled paraphrase.
+> See [sunholo-data/ailang#240](https://github.com/sunholo-data/ailang/issues/240). To refresh:
+> `curl https://averlang.dev/llms.txt > prompts/aver.md` (then re-prepend this benchmark header
+> and copy to `cmd/ailang/prompts/aver.md`).
 
-You are writing Aver code for a benchmark. The grader runs your file with `aver run solution.av`.
+## Benchmark harness context (read this first)
 
----
+You are writing Aver code for a single-file benchmark.
 
-## What Aver Is (and Is NOT)
-
-Aver borrows functional discipline — immutability, purity, pattern matching, recursion — but **deliberately omits** much of the abstraction machinery of modern FP. The constraints are the point.
-
-**Aver does NOT have:**
-- `if`/`else`. Use `match` on booleans: `match cond { true -> ...; false -> ... }`.
-- Anonymous functions / lambdas. Define a named top-level `fn` and pass its name.
-- Higher-order list functions (`map`, `filter`, `fold` in the std lib are intentionally absent). Use **explicit recursion** + pattern matching.
-- Mutation. All bindings are immutable.
-- Loops (no `while`/`for`). Use recursion.
-- Bitwise operators (`&`, `|`, `^`, `<<`, `>>`, `~`). Not in the language.
-- Implicit type promotion. `1 + 1.0` is a type error. Use `Float.fromInt(1) + 1.0`.
-- `%` operator. Use `Int.mod(a, b)` as a function call.
-- Generics. Container types like `List<T>`, `Result<T,E>` are built-in, but you cannot declare your own generic functions.
-- Closures. `Fn(A) -> B` parameters exist only for callbacks; not a general composition tool.
-- Null. Use `Option.Some(v)` / `Option.None`.
-- Exceptions. Use `Result.Ok(v)` / `Result.Err(e)`.
-
-**Aver DOES have:**
-- Algebraic types (`type` for sums, `record` for products)
-- Pattern matching as the only branching construct
-- Effects in the signature: `! [Console.print, Disk.readText]`
-- Named, namespaced constructors: `Result.Ok`, `Option.Some`, `Shape.Circle`
-- String interpolation: `"text {expr}"`
-- `verify` blocks for inline test cases
-- `decision` blocks for architectural decision records embedded in code
+- The grader writes your code to `solution.av` and runs it with `aver run solution.av`.
+- The entry point is `fn main()`, which returns `Unit` or `Result<Unit, String>`.
+- Program output is whatever you print to stdout via `Console.print`. `Console.print` takes
+  `String` only — interpolate (`"{x}"`) or stringify compound values first.
+- You do **not** need `verify` blocks to pass a benchmark task unless the task explicitly asks
+  for them — a correct `main` is sufficient. (They are idiomatic Aver and never wrong to add.)
+- The file extension is `.av`.
 
 ---
 
-## File Structure
+# Aver
 
-A typical Aver file uses a `module` declaration. For minimal single-file solutions, the body can be just `fn main()` — but `module` + `effects` declarations help the type checker.
+> Aver is a statically typed language optimized for a world where code is cheap to generate and expensive to trust. The optimization target is the reviewer, not the generator.
+
+- Website: [averlang.dev](https://averlang.dev)
+- Playground: [averlang.dev/playground](https://averlang.dev/playground/)
+- GitHub: [jasisz/aver](https://github.com/jasisz/aver)
+- crates.io: [aver-lang](https://crates.io/crates/aver-lang)
+- License: MIT
+- Written in: Rust
+- Backends: bytecode VM, Rust codegen, WASM, Lean 4 proof export, Dafny verification
+
+## Before you write Aver
+
+If you only remember one section, make it this one:
+
+- Files end with `.av`, not `.aver`
+- Each file starts with exactly one `module <Name>` declaration
+- Module metadata uses `intent =` and `exposes [...]`
+- Bindings are `name = expr` or `name: Type = expr` — no `let`, `val`, or `var`
+- Constructors are always qualified: `Result.Ok`, `Result.Err`, `Option.Some`, `Option.None`
+- There is no `if` / `else`; use `match`
+- **Match arm bodies must start on the same line as `->` — this is the most common error.** For complex logic, extract a helper function
+- Functions do not have type parameters — write `fn sum(xs: List<Int>) -> Int`, not `fn sum<T>(xs: List<T>) -> T`
+- Effects are explicit: `! [Console.print]`, `! [Http.get]`
+- Pure functions get colocated `verify` blocks
+- Classified effectful fns (Random, Disk, Http, Tcp one-shot, Time, Console.readLine, Terminal non-modal, all output) get `verify fn trace` with `given` stubs; unclassified ambient / session / modal flows go through record/replay
+- Parse integers with `Int.fromString`, which returns `Result<Int, String>`
+- `Console.readLine()` returns `Result<String, String>`, not plain `String`
+
+## Minimal correct file
 
 ```aver
 module Hello
-    intent =
-        "Demonstrates basic Aver syntax."
-    effects [Console]
+    intent = "Tiny intro module."
+    exposes [greet, main]
+    effects [Console.print]
+
+fn greet(name: String) -> String
+    ? "Builds a greeting."
+    "Hello, {name}!"
+
+verify greet
+    greet("Aver") => "Hello, Aver!"
 
 fn main() -> Unit
+    ? "Entry point."
     ! [Console.print]
-    Console.print("Hello")
+    Console.print(greet("world"))
 ```
 
-- File extension is **`.av`**
-- Function bodies use **indentation** (no braces)
-- The last expression in a body is the return value
+This shows the core pattern:
 
----
+- a pure function
+- a `verify` block directly below it
+- an effectful `main`
+- a module-level `effects [...]` boundary that names every effect any function in the module uses (since 0.13)
 
-## Output
+
+## Core syntax
+
+### Functions
 
 ```aver
-Console.print("hello")          // prints to stdout, adds newline in CLI mode
+fn name(param: Type) -> ReturnType
+    ? "What this function does."
+      "Optional continuation line."
+    ! [Console.print, Disk.readText]
+    x = expr
+    expr
 ```
 
-**Console.print takes `String` ONLY.** Converting other types is the caller's job — use string interpolation:
+Rules:
+- indentation-only function bodies — no braces, no `end`
+- last expression is the return value, no `return` keyword
+- all functions are top-level; no closures, lambdas, or anonymous fns
+- top-level fns of the right shape can be passed where `Fn(...)` is expected
+- `main` returns `Unit` or `Result<Unit, String>`
 
-```aver
-Console.print("Value: {n}")            // OK — interpolation converts {n}
-Console.print(n)                       // ❌ TYPE ERROR if n is not String
-Console.print("{42}")                  // OK — interpolation
-Console.print("{1 + 2}")               // OK — expressions allowed
-Console.print("{showListInt(xs)}")     // OK — calls user-defined formatter
-```
+`?` descriptions:
+- start with `? "..."` on the line after signature
+- continuation lines are more string literals at deeper indent
+- `aver check` warns when non-`main` functions omit the description
 
-Required effect: `! [Console.print]`.
+### Bindings
 
----
-
-## Types
-
-| Category | Types |
-|----------|-------|
-| Primitive | `Int`, `Float`, `String`, `Bool`, `Unit` |
-| Compound | `Result<T,E>`, `Option<T>`, `List<T>`, `Vector<T>`, `Map<K,V>`, `(A, B, ...)`, `Fn(A) -> B`, `Fn(A) -> B ! [Effect]` |
-| User-defined sum | `type Shape` with variants `Shape.Circle(Float)`, `Shape.Rect(Float, Float)` |
-| User-defined product | `record User` with field declarations |
-
-There is **no Set type** — use `Map<T, Unit>`.
-
----
-
-## Bindings (Immutable)
+All bindings are immutable. No `let`, `val`, or `var`.
 
 ```aver
 name = "Alice"
@@ -100,238 +115,329 @@ age: Int = 30
 xs: List<Int> = []
 ```
 
-Empty list literal without a type annotation is a type error. Duplicate bindings in the same scope are a type error.
+### Types
 
----
+Primitives: `Int`, `Float`, `String`, `Bool`, `Unit`
 
-## Match (the ONLY Branching Construct)
+Compound:
+- `Result<T, E>`, `Option<T>`, `List<T>`, `Vector<T>`, `Map<K, V>`
+- tuples: type is `Tuple<A, B, ...>` (2+ elements). Value literal and pattern are both paren: `(a, b)`. The type spelling and the value spelling are deliberately different.
+- function types: `Fn(A) -> B`, `Fn(A) -> B ! [Console.print]`
 
-There is no `if`/`else`. Use `match` on a boolean for binary conditions, on values for n-way dispatch.
+Notes:
+- top-level named functions can be passed where `Fn(...)` is expected
+- there are no lambdas and no closures
+- no implicit type promotion; use `Float.fromInt(n)` / `Int.fromFloat(f)`
 
-```aver
-fn parity(n: Int) -> String
-    match Int.mod(n, 2)
-        0 -> "even"
-        _ -> "odd"
+### User-defined types
 
-fn classify(c: Float) -> String
-    match c <= 0.0
-        true  -> "freezing"
-        false -> match c < 20.0
-            true  -> "cold"
-            false -> "warm"
-```
-
-**Match arm body MUST be on the same line as `->`.** If you need multi-line logic, extract to a named function:
+Sum types:
 
 ```aver
-// ❌ WRONG — multi-line match arm body
-match xs
-    [] -> 0
-    _ ->
-        h = head(xs)
-        h + sum(tail(xs))
-
-// ✅ RIGHT — extract or inline
-match xs
-    [] -> 0
-    [h, ..t] -> h + sum(t)
+type Shape
+    Circle(Float)
+    Rect(Float, Float)
+    Point
 ```
 
-Patterns:
+Records:
+
+```aver
+record User
+    name: String
+    age: Int
+```
+
+Rules:
+- constructors are qualified: `Shape.Circle(5.0)`, `Result.Ok(1)`, `Option.None`
+- records use named fields: `User(name = "A", age = 1)`
+- field access: `u.name`, `u.age`
+- record update: `User.update(u, age = 31)`
+- record positional pattern destructuring is not supported
+
+### Match
 
 ```aver
 match value
-    42 -> "exact"                          // literal
-    _ -> "anything"                        // wildcard
-    x -> "bound to {x}"                    // identifier binding
-    [] -> "empty list"                     // empty list
-    [h, ..t] -> "head {h}"                 // list cons
-    Result.Ok(v) -> "ok: {v}"              // constructor (qualified!)
-    Result.Err(e) -> "err: {e}"
-    (a, b) -> "pair: {a}, {b}"             // tuple destructuring
+    Result.Ok(v) -> String.fromInt(v)
+    Result.Err(e) -> e
 ```
 
-Constructor patterns are **always** qualified: `Result.Ok`, `Option.None`, `Shape.Circle`. No bare `Ok` / `Err` / `Some` / `None`.
+Rules:
+- `match` is the only branching construct (no `if` / `else`)
+- **arm bodies must start on the same line as `->`** — multi-line bodies are a parse error; extract a helper function instead
+- no colon after the subject
+- no guards
+- list patterns: `[]` and `[head, ..tail]` (the `..` rest must be named)
+- tuple patterns: `(a, b)`
+- constructor patterns always qualified: `Result.Ok`, `Option.None`, `Shape.Circle`
+- boolean branching: `match x > 0` with `true ->` / `false ->`
+- nested match in match arms is supported
 
----
+### Effects
 
-## Functions
+Effects are exact method-level names:
 
 ```aver
-fn add(a: Int, b: Int) -> Int
-    ? "Adds two integers."
-    a + b
-
-fn greet(name: String) -> Unit
-    ? "Prints a greeting."
-    ! [Console.print]
-    Console.print("Hello, {name}")
-
-fn safeDiv(a: Int, b: Int) -> Result<Int, String>
-    match b
-        0 -> Result.Err("division by zero")
-        _ -> Result.Ok(a / b)
+! [Http.get, Disk.readText, Console.print]
 ```
 
-- `? "..."` — optional prose description (part of signature)
-- `! [Effect]` — effect declaration, required if function uses any effect
-- Function bodies use indentation
-- The last expression is the return value
-- Functions are top-level (no nested fn, no lambdas)
+Rules:
+- namespace shorthand `! [Disk]` covers all `Disk.*` effects
+- `aver check` suggests narrowing when shorthand could be more specific
+- effects propagate: callers must declare all effects of their callees
+- no `effects X = [...]` aliases
+- pure code stays pure; orchestration declares only the concrete effects it uses
 
----
+### Modules
 
-## Recursion (Required for Iteration)
+```aver
+module Billing
+    intent =
+        "Billing application core."
+        "Exports only the public entrypoints."
+    exposes [charge, refund]
+    depends [Core.Types, Infra.Store]
+    effects [Console.print, Disk]
+```
 
-Aver has no loops and no `List.map`/`filter`/`fold`. Iterate with recursion + pattern matching.
+Rules:
+- `module` must be the first top-level item in file-based programs
+- `intent` may be inline or multiline; formatter prefers multiline for multiline text
+- `depends [...]` and `exposes [...]` are explicit
+- opaque types: `exposes opaque [Discount]` — visible in signatures but cannot be constructed or destructured from outside
+- `effects [...]` declares the module's effect surface. Every function's `! [Effect]` must be covered: a method-level entry like `Disk.readText` admits only that method, a namespace entry like `Disk` admits any `Disk.*` method. Underdeclared = type error; overdeclared = warning. A module with functions but no `effects [...]` triggers a warning to add the boundary (use `effects []` for a pure module).
+
+### Verify blocks
+
+Regular verify:
+
+```aver
+verify add
+    add(1, 2) => 3
+```
+
+Law verify (finite universal checks):
+
+```aver
+verify add law commutative
+    given a: Int = -2..2
+    given b: Int = [-1, 0, 1]
+    add(a, b) => add(b, a)
+```
+
+Rules:
+- `verify` checks executable examples only
+- law verify expands cartesian product of `given` domains (capped at 10,000 cases)
+- `given x: T = [...]` describes the world / domain to test (values, or stubs for classified effects). `aver proof` quantifies universally over every value/stub — `given <Effect>` does **not** pin the law to one stub
+- `when <pred>` is an explicit precondition on the law; cases where it's false are skipped (in runtime, proof, and `--hostile`). Use it to scope a law to assumed worlds (`when clock(BranchPath.Root, 1) > clock(BranchPath.Root, 0)`)
+- `aver check` expects pure, non-trivial, non-`main` functions to carry a `verify` block
+- plain `verify fn` on a fn with a generative effect (Random, Http, Time.now, etc.) warns — the case RHS is compared against a freshly-produced value and flaps. Use `verify fn law …` with `given` stubs or `verify fn trace` instead
+- unclassified ambient state, persistent protocols, terminal modes, and server callbacks should use record/replay
+- `aver audit --hostile` (or `aver verify --hostile`) layers adversarial worlds on top of every `verify <fn> law` block: typed `given`s get type-boundary values; classified effects get hostile profiles. Failures use slug `verify-hostile-mismatch`. Repair: `when <pred>` to scope the law, downgrade `law` → cases-form if it's stub-specific, or fix the impl. See `docs/oracle.md` for profile/boundary tables.
+
+#### Oracle verify-trace (effectful functions)
+
+Classified effectful fns get formal proof export via `verify <fn> trace`. Stubs bind oracles at verify time so the fn produces deterministic values and the trace can be asserted about.
+
+```aver
+fn roll() -> Int
+    ? "roll a d6."
+    ! [Random.int]
+    Random.int(1, 6)
+
+verify roll trace
+    given rnd: Random.int = [highDie]
+    rolled = roll()
+    rolled.result => 6
+    rolled.trace.length() => 1
+    rolled.trace.contains(Random.int) => true
+
+fn highDie(path: BranchPath, k: Int, lo: Int, hi: Int) -> Int
+    ? "stub oracle: always max."
+    hi
+```
+
+Rules:
+- `given name: Effect.method = [stubFn, ...]` binds a stub for the classified effect. Multi-value list expands cartesian with cases; one `given` per effect — duplicates are rejected
+- Stub signature for generative effects (`Random.*`, `Http.*`, `Disk.*`, `Tcp.send/.ping`, `Console.readLine`, `Terminal.readKey`, `Time.now/.unixMs`): `(path: BranchPath, k: Int, args...) -> ReturnType`
+- Stub signature for snapshot effects (`Args.get`, `Env.get`): `(args...) -> ReturnType` — no path/counter prefix
+- Output-only effects (`Console.print/.error/.warn`, `Time.sleep`, `Terminal.clear/.moveTo/.print/.hideCursor/.showCursor/.flush`) don't need stubs; they append to the trace directly
+- `BranchPath.Root` is a nullary value constructor — no parens, PascalCase. `BranchPath.child(parent, idx)` and `BranchPath.parse(str)` are the constructors for nested paths
+- Case LHS projections:
+  - `fn(args).result` — return value
+  - `fn(args).trace` — full trace as a `Trace` record
+  - `fn(args).trace.length()` — Int, event count
+  - `fn(args).trace.event(k)` — `Option<EffectEvent>` at 0-based index
+  - `fn(args).trace.contains(Effect.method)` — Bool, method-only predicate (ignores args)
+  - `fn(args).trace.contains(Effect.method("arg"))` — Bool, exact event-literal match
+  - `fn(args).trace.group(N).branch(idx).*` — tree-nav into `!`/`?!` independent products (0-based N, idx)
+- Local bindings with `name = expr` go between `given` clauses and case assertions; they're substituted into every case (so each case still runs its own fresh `fn()` invocation)
+- Every generative/gen+output effect the fn uses must have a `given` stub under `trace`; missing stubs are rejected with a pointer at the fix
+- Unclassified effects (`Env.set`, `Tcp.connect/writeLine/readLine/close`, `Terminal.enableRawMode/setColor/resetColor/size`, `HttpServer.listen`) are rejected by `verify trace` — use record/replay for those
+
+### Decision blocks
+
+```aver
+decision UseResultNotExceptions
+    date = "2024-01-15"
+    reason =
+        "Exceptions hide in signatures."
+        "Result forces explicit handling."
+    chosen = "Result"
+    rejected = ["Exceptions", "Nullable"]
+    impacts = [safeDivide, safeRoot]
+    author = "team"
+```
+
+Rules:
+- first-class syntax, not comments or markdown
+- `chosen`, `rejected`, `impacts` may reference symbols or quoted labels
+- exported through `aver context --decisions-only`
+
+### Operators
+
+- Arithmetic: `+`, `-`, `*` (operands must match types). `/` is **Float-only** — integer division is the `Int.div(a, b) : Result<Int, String>` function, not an operator (see gotchas below)
+- Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- Error propagation: `expr?` (unwraps `Result.Ok`, propagates `Result.Err`). **Result-only** — does not work on `Option`. For `Option`, use `Option.withDefault(opt, fallback)` or pattern-match.
+- Independence: `(a, b)!` (parallel), `(a, b)?!` (parallel + Result unwrap)
+- String interpolation: `"Hello, {name}!"`
+
+**These operators do NOT exist** — do not use them:
+
+- no integer `/` — integer division is partial (it can divide by zero, and overflow on `i64::MIN / -1`), so use `Int.div(a, b)` which returns `Result<Int, String>`. Euclidean (flooring), the exact partner of `Int.mod`: `Int.div(-7, 2) = Result.Ok(-4)` and `Int.div(a,b)*b + Int.mod(a,b) == a` for every sign. `b == 0` returns `Result.Err("division by zero")`. The `/` operator stays total and works on `Float`
+- no `%` (modulo) — use `Int.mod(a, b)` which returns `Result<Int, String>`. Euclidean modulo: result is always in `[0, |b|)`. `Int.mod(-7, 3) = Result.Ok(2)`, not `-1`. `b == 0` returns `Result.Err("division by zero")`
+- no `&&`, `||` (boolean and/or) — use `Bool.and(a, b)`, `Bool.or(a, b)`, or nested `match`
+- no `!` (boolean not) as prefix — use `Bool.not(x)`
+- no `+=`, `-=`, `++`, `--` (mutation operators)
+- no bitwise operators
+
+### Recursion
+
+There are no loops. Use recursion and pattern matching. Tail-call optimization is automatic.
 
 ```aver
 fn sum(xs: List<Int>) -> Int
     match xs
         [] -> 0
         [h, ..t] -> h + sum(t)
+```
 
-fn length(xs: List<Int>) -> Int
-    match xs
-        [] -> 0
-        [_, ..t] -> 1 + length(t)
+### Builtins and namespaces
 
-fn doubleAll(xs: List<Int>) -> List<Int>
+Use namespaced builtins only.
+
+Common pure namespaces:
+- `Int`, `Float`, `String`, `List`, `Vector`, `Map`, `Bool`, `Char`, `Byte`, `Result`, `Option`
+
+Key `String` API:
+- `String.len`, `String.contains`, `String.startsWith`, `String.endsWith`
+- `String.toUpper`, `String.toLower`, `String.trim`
+- `String.join`, `String.split`, `String.chars` — concat is the `+` operator
+- `Int.fromString : String -> Result<Int, String>`, `String.fromInt : Int -> String`
+- `Float.fromString`, `String.fromFloat`, `String.fromBool` — convention: `<targetTyp>.from<source>`
+- string interpolation: `"Hello, {name}!"` is the idiomatic way to render values into text; reserve `String.fromInt` etc. for explicit data conversion (e.g. building keys: `"user:" + String.fromInt(id)`)
+
+Key `List` API (small, recursion-first):
+- `List.len`, `List.prepend`, `List.concat`, `List.reverse`, `List.contains`, `List.zip`, `List.take`, `List.drop`, `List.fromVector`
+- No `List.map`, `List.filter`, `List.fold` — write with recursion
+- empty list literal: `[]`
+
+Key `Vector` API (O(1) indexed access):
+- `Vector.new(n, default)`, `Vector.get(v, i) -> Option<T>`, `Vector.set(v, i, val) -> Option<Vector<T>>`
+- `Vector.fromList(l)` — conversion in the other direction lives on `List`
+
+Key `Map` API:
+- empty map literal: `{}` (type from context); non-empty: `{a => 1, b => 2}`. There is no `Map.empty()` builtin.
+- `Map.fromList(pairs)`, `Map.get(m, k) -> Option<V>`, `Map.set(m, k, v)`, `Map.has(m, k)`, `Map.remove(m, k)`, `Map.keys(m)`, `Map.values(m)`, `Map.entries(m)`, `Map.len(m)`
+
+Effectful namespaces:
+- `Console`: print, error, warn, readLine — **`print`/`error`/`warn` take `String`**, not arbitrary values. Stringify at the call site: interpolation `"{x}"` for primitives, a per-type render fn (`fn show(r: Result<T, E>) -> String`) for compound shapes.
+- `Http`: get, post, put, patch, delete, head
+- `Disk`: readText, writeText, appendText, exists, delete, deleteDir, listDir, makeDir
+- `Tcp`: connect, writeLine, readLine, close, send, ping
+- `Terminal`: enableRawMode, readKey, setCursor, print, clear, size — `Terminal.print` and `Terminal.setColor` also take `String`.
+- `Time`: now, unixMs, sleep
+- `Env`: get, set
+- `Args`: get
+- `HttpServer`: listen, listenWith
+
+### Common patterns
+
+Recursive list processing (filter):
+```aver
+fn collectPositive(xs: List<Int>) -> List<Int>
     match xs
         [] -> []
-        [h, ..t] -> List.prepend(h * 2, doubleAll(t))
+        [h, ..t] -> match h > 0
+            true  -> List.prepend(h, collectPositive(t))
+            false -> collectPositive(t)
 ```
 
-Built-in `List.*` functions you CAN use (from examples):
-`List.len`, `List.prepend`, `List.take`, `List.drop`, `List.concat`, `List.reverse`, `List.contains`.
-
-There is no `List.map`, `List.filter`, or `List.fold` — Aver's stdlib intentionally omits them.
-
----
-
-## Records
-
+Error propagation chain:
 ```aver
-record User
-    name: String
-    age: Int
-
-fn main() -> Unit
-    ! [Console.print]
-    u = User(name = "Alice", age = 30)
-    Console.print("Name: {u.name}, Age: {u.age}")
-    older = User.update(u, age = 31)
-    Console.print("Updated: {older.age}")
+fn parseAndDivide(a: String, b: String) -> Result<Int, String>
+    x = Int.fromString(a)?
+    y = Int.fromString(b)?
+    safeDivide(x, y)?
 ```
 
-Records use **named arguments** in construction. Variants use **positional** arguments.
-
----
-
-## Sum Types
-
+Map lookup:
 ```aver
-type Shape
-  Circle(Float)
-  Rect(Float, Float)
-  Point
-
-fn area(s: Shape) -> Float
-    match s
-        Shape.Circle(r) -> r * r * 3.14159
-        Shape.Rect(w, h) -> w * h
-        Shape.Point -> 0.0
+match Map.get(ages, "alice")
+    Option.Some(age) -> "Alice is {age}"
+    Option.None -> "Unknown"
 ```
 
-Constructors are namespaced (`Shape.Circle`). Zero-arg constructors are bare singletons (`Shape.Point`, `Option.None`).
+### Common mistakes to avoid
 
----
+1. Writing `.aver` files instead of `.av`
+2. `if`/`else` — use `match`
+3. `val`/`var`/`let` — just `name = expr`
+4. Bare `Ok(x)` — must be `Result.Ok(x)`
+5. `String.toInt(s)` — not a thing; use `Int.fromString(s)` which returns `Result<Int, String>`
+6. Assuming `Console.readLine()` returns `String` — it returns `Result<String, String>`
+7. Writing `=` instead of `=>` in verify cases — separator is always `=>`
+8. Using `..` without a name in list patterns — write `[h, ..t]`, not `[h, ..]`
+9. Missing `!` effect declaration — compiler errors
+10. Closures/lambdas — not supported; use named top-level functions
+11. Mutable variables — not supported, all bindings are immutable
+12. `List.map`/`List.filter`/`List.fold` — not built-in; write with recursion
+13. Pipe `|>` — not supported
+14. Positional record destructuring in match — bind record, use field access
+15. Multi-line match arms — body must follow `->` on the same line; extract complex logic into a named function
+16. `BranchPath.Root()` / `BranchPath.root()` — it's a nullary value constructor, no parens: just `BranchPath.Root`
+17. Two `given` for the same effect — rejected. Use a multi-value domain `given rnd: Random.int = [stubA, stubB]` for varied samples
+18. Plain `verify fn` on a fn with generative effects — you get a lint warning, use `verify fn law …` with `given` stubs or `verify fn trace` instead
+19. `()` as a Unit value literal — there is no `()` literal. Write `Unit`. Diagnostics render the value as `()`, but in source the only spelling is `Unit` (matches `Map<T, Unit>` set semantics, `Unit` field annotations, etc.). `Console.print(...)` returning Unit is implicit — you almost never write the literal directly
+20. `expr?` on an `Option<T>` — `?` is Result-only. For `Option`, use `Option.withDefault(opt, fallback)`, or `match opt { Option.Some(v) -> … ; Option.None -> … }`. `Vector.get` and `Map.get` return `Option`, so neither composes with `?` directly — wrap the value first
+21. `(A, B)` as a tuple type — type position uses `Tuple<A, B>` exclusively. Tuple **value** literals stay paren: `(1, 2)`, `[(1, 2), (3, 4)]`, `Result.Ok((a, b))`. Tuple **patterns** stay paren: `match p { (a, b) -> … }`. The type and the value spelling are deliberately different so grep-for-type and grep-for-value don't collide
 
-## Operators
+### Style
 
-- Arithmetic: `+ - * /` — operands MUST match types. No implicit promotion.
-- Comparison: `== != < > <= >=`
-- Modulo: `Int.mod(a, b)` — NOT `%`
-- Float math: `Float.fromInt(n)`, `Int.fromFloat(f)`, `Float.abs`, etc.
-- String concat: use interpolation: `"{a}{b}"`
-- Error propagation: `expr?` unwraps `Result.Ok`, propagates `Result.Err`
+Prefer:
+- explicit domain types (records, sum types)
+- short, concrete `? "..."` descriptions
+- exact method effects
+- qualified constructors everywhere
+- straightforward orchestration over clever higher-order helpers
+- `verify` blocks on all pure non-trivial functions
+- `decision` blocks for non-obvious architectural choices
 
-**NO bitwise operators.** `&`, `|`, `^`, `<<`, `>>`, `~` are syntax errors.
+Avoid:
+- broad effect declarations when specific ones suffice
+- hiding domain flow behind unnecessary abstraction
+- functions longer than ~30 lines; split into named helpers
 
----
+## Further reading
 
-## String Interpolation
-
-Single braces, no backslash:
-
-```aver
-greeting = "Hello, {name}! Age = {age}"
-result = "sum = {sum(xs)}, len = {List.len(xs)}"
-```
-
-NOT `${name}`, NOT `\{name}`. Just `{name}`.
-
----
-
-## Effects
-
-Every effectful function MUST declare its effects on the line after the signature:
-
-```aver
-fn process(path: String) -> Unit
-    ! [Disk.readText, Console.print]
-    content = Disk.readText(path)?
-    Console.print(content)
-```
-
-Common effects: `Console.print`, `Console.error`, `Disk.readText`, `Disk.writeText`, `Random.int`, `Random.float`, `Time.unixMs`, `Args.get`.
-
-Namespace shorthand: `! [Console]` covers all `Console.*`.
-
----
-
-## Verify Blocks (Optional but Idiomatic)
-
-```aver
-fn add(a: Int, b: Int) -> Int
-    a + b
-
-verify add
-    add(0, 0) => 0
-    add(2, 3) => 5
-```
-
-Run with `aver verify file.av`. For benchmarks that just print to stdout, you do NOT need verify blocks — just write `main`.
-
----
-
-## Decision Blocks
-
-```aver
-decision UseLinearScan
-    date = "2026-05-21"
-    reason =
-        "Single linear pass for O(n) time and O(1) space."
-    chosen = "LinearScan"
-```
-
-First-class top-level syntax for architectural decision records.
-
----
-
-## Critical Reminders
-
-1. **No `if`/`else`** — use `match cond { true -> ...; false -> ... }`.
-2. **No lambdas / anonymous functions** — define a named top-level `fn`.
-3. **No bitwise operators** — they don't exist.
-4. **No higher-order map/filter/fold** — use explicit recursion.
-5. **Match arm bodies on the same line as `->`** — extract complex logic to functions.
-6. **`Console.print` takes String** — interpolate to convert: `Console.print("{value}")`.
-7. **Constructors always namespaced** — `Result.Ok` not `Ok`, `Option.None` not `None`.
-8. **String interpolation is `{expr}`** — single braces, no backslash.
-9. **Modulo is `Int.mod(a, b)`** — `%` is a syntax error.
-10. **No implicit numeric promotion** — use `Float.fromInt` / `Int.fromFloat`.
-11. **File extension is `.av`**.
-
-Run with `aver run solution.av`.
+- [Language Guide](https://github.com/jasisz/aver/blob/main/docs/language.md) — full surface-language reference
+- [Services (stdlib)](https://github.com/jasisz/aver/blob/main/docs/services.md) — every namespace and its API
+- [Constructors](https://github.com/jasisz/aver/blob/main/docs/constructors.md) — constructor routing rules
+- [Common Pushback](https://github.com/jasisz/aver/blob/main/docs/pushback.md) — questions, objections, honest answers
+- [Independence (`?!`)](https://github.com/jasisz/aver/blob/main/docs/independence.md) — parallel products
+- [Oracle](https://github.com/jasisz/aver/blob/main/docs/oracle.md) — `verify <fn> trace`, `given` stubs, `--hostile`
+- [Lean proofs](https://github.com/jasisz/aver/blob/main/docs/lean.md) — verify blocks to Lean 4
+- [Dafny verification](https://github.com/jasisz/aver/blob/main/docs/dafny.md) — verify laws to Dafny / Z3
+- [WASM backend](https://github.com/jasisz/aver/blob/main/docs/wasm.md) — browser compilation
+- [Toolchain reference (`llms-full.txt`)](https://averlang.dev/llms-full.txt) — `aver run`, `verify`, `audit`, `format`, `context`, `compile`, `proof`, `replay`
