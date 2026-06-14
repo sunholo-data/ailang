@@ -254,7 +254,12 @@ function CrossHarnessTable({ data, allLangs }) {
     if (!families[fam]) families[fam] = [];
     families[fam].push({ id, ...m });
   }
-  const crossHarness = Object.entries(families).filter(([, ms]) => ms.length > 1);
+  // "Different Harness" means exactly that: only show families whose variants
+  // span more than one harness (agent_cli). A family with two variants on the
+  // SAME harness (e.g. deepseek-v4 flash vs pro, both opencode — different model
+  // sizes, not harnesses) is not a cross-harness comparison and would mislead.
+  const crossHarness = Object.entries(families)
+    .filter(([, ms]) => new Set(ms.map(m => m.agent_cli)).size > 1);
   if (crossHarness.length === 0) return null;
 
   // Check if any model has non-trivial API error rates
@@ -380,6 +385,18 @@ function osFamilyKey(model) {
 // rows live with every rotation cycle instead of freezing them to the release
 // cadence. Additive and guarded: a missing/!malformed os file is a no-op.
 function mergeOSData(data, os) {
+  // Agent-only models (e.g. modern OS models on opencode: deepseek-v4, glm-5.1,
+  // minimax-m3) live in a separate `agentModels` map — deliberately kept out of
+  // `models` so the *standard* dashboard doesn't render phantom 0% rows for
+  // models that have no 0-shot runs. The *agent* Explorer wants them, so fold
+  // them into the working models map. Without this, opencode shows "4 models"
+  // but zero breakout rows (the harness lists the IDs, but they're absent from
+  // `models`), and they miss the heatmap + cross-harness table entirely.
+  // Disjoint in practice; let `models` win on any overlap to be safe.
+  if (data && data.agentModels) {
+    data.models = { ...data.agentModels, ...(data.models || {}) };
+  }
+
   if (!os || !Array.isArray(os.rows)) return data;
   data.models = data.models || {};
   data.harnesses = data.harnesses || {};
