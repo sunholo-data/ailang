@@ -32,13 +32,19 @@ bandwidth.** One box, shared by every eval job via a mkdir mutex (rig lock).
 Token generation on Apple Silicon is **memory-bandwidth-bound, not
 compute-bound**. Two consequences drive every decision in this skill:
 
-1. **`--parallel 1`, always.** Concurrent requests share the same ~546 GB/s
-   bandwidth; running 2+ slows *every* stream and pushes slow benchmarks past
-   their TTFT timeout. A 2026 head-to-head settled this: **p=1 is the rule** for
-   the 24/7 rotation. All three rig jobs (`nightly-eval.sh`,
-   `nightly-lang-eval.sh`, `os-rotation-filler.sh`) hard-code `--parallel 1`.
-   **Never raise it.** (An older version of `local-ollama.md` recommended p=2 —
-   that is obsolete; do not reintroduce it.)
+1. **`--parallel 1` is the established default.** All three rig jobs
+   (`nightly-eval.sh`, `nightly-lang-eval.sh`, `os-rotation-filler.sh`) hard-code
+   it. The documented rationale (`tools/launchd/rig-lock.sh`) is operational: the
+   box is a single GPU / bandwidth-bound, concurrent streams thrash the ~546 GB/s
+   bus, and an Ollama model reload mid-run silently kills a stream — all of which
+   bite hard in a *multi-model* rotation. **Evidence caveat (verify before
+   changing):** there is **no recorded p=1-vs-p=2 head-to-head**. The only
+   measured parallelism data is a p=2-vs-p=4 run on a *single small* model
+   (gemma4:26b) that favored p=2 over p=4 — a different question. So treat p=1 as
+   the safe operational default, not a benchmarked optimum. If you want to raise
+   it, run the head-to-head first (smoke set, p=1 vs p=2, compare wall-clock,
+   pass rate, and TTFT-timeout count) — don't just trust the old p=2 note in
+   `local-ollama.md`.
 
 2. **Prefer MoE with a small *active* parameter count.** Total params live
    cheaply in unified memory (quality); only the active params compute per token
@@ -62,12 +68,27 @@ pulled model's real resident VRAM).
 
 ## Workflow
 
-### 1. Select a candidate (shape gate)
-Find a recent coding/agentic model that matches the shape rule. Good 2026
-families: Qwen3-Coder-*-A3B, Qwen 3.6 35B-A3B, Qwen3-Coder-Next (80B-A3B),
-Devstral Small, Gemma 4 26B. Skip the giant frontier-OS models (GLM-5.1,
-DeepSeek-V4-Pro, Kimi, MiniMax-m3) — those stay as **OpenRouter** ceiling
-references; they don't fit on-device.
+### 1. Select a candidate (shape gate + generation check)
+
+**Do not pick from memory — fetch live.** The assistant's training is months
+stale and model names mislead. Use [`resources/model-watch.md`](resources/model-watch.md):
+it lists the canonical sources to fetch (Ollama library, OpenRouter, Aider +
+SWE-bench leaderboards, HF trending, our own OS leaderboard) and a dated
+candidate shortlist. Refresh that file's table first, then choose from it.
+
+Find a recent coding/agentic model that matches the shape rule.
+
+**Verify the generation by RELEASE DATE, not the name** — Qwen naming is a trap:
+`Qwen3-Coder-30B-A3B` is the *Qwen3.0* coder (2025) and is **older** than the
+rig's incumbent `qwen3.5:35b-a3b` (Qwen 3.5, Feb 2026), despite the higher-looking
+"Coder" label. As of mid-2026 the genuinely newer *same-shape* upgrade is
+**Qwen 3.6 35B-A3B** (Apr 2026, MoE). `Qwen 3.6-27B` is newer but **dense** (no
+A3B) → slower on this bandwidth-bound box. `Qwen 3.7-Max` is API-only (not
+on-device). Always web-check the release date and confirm it actually beats the
+incumbent on the axis you care about before pulling.
+
+Skip the giant frontier-OS models (GLM-5.1, DeepSeek-V4-Pro, Kimi, MiniMax-m3) —
+those stay as **OpenRouter** ceiling references; they don't fit on-device.
 
 ```bash
 # Fit/shape verdict BEFORE spending rig time (estimate from the published size):
