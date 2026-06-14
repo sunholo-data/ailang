@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-14",
+  "generated": "2026-06-15",
   "languages": [
     "ailang",
     "go",
@@ -18,16 +18,36 @@
       "model": "opencode-qwen3-5-35b-a3b-mxfp8"
     },
     {
+      "harness": "opencode",
+      "lang": {
+        "ailang": 0.5555555555555556,
+        "go": 0.7777777777777778,
+        "javascript": 0.8888888888888888,
+        "python": 1
+      },
+      "model": "opencode-qwen3-6-35b-a3b-mxfp8"
+    },
+    {
       "harness": "pi",
       "lang": {
-        "ailang": 0.8444444444444444,
-        "go": 0.9333333333333333,
-        "javascript": 0.9777777777777777,
-        "python": 0.9444444444444444
+        "ailang": 0.8080808080808081,
+        "go": 0.9191919191919192,
+        "javascript": 0.9696969696969697,
+        "python": 0.9494949494949495
       },
       "model": "pi-qwen3-5-35b-a3b-mxfp8"
+    },
+    {
+      "harness": "pi",
+      "lang": {
+        "ailang": 0.8888888888888888,
+        "go": 0.7777777777777778,
+        "javascript": 1,
+        "python": 1
+      },
+      "model": "pi-qwen3-6-35b-a3b-mxfp8"
     }
   ],
   "trials": 3,
-  "version": "rolling-20260614"
+  "version": "rolling-20260615"
 }
