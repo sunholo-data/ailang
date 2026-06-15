@@ -93,17 +93,15 @@ Qwen3.6 shows AILANG≈Python parity (strong-model signature); the other two hav
 large AILANG-vs-Python gap. Decision: onboard `qwen3.6:35b-a3b` (pull → fit-check
 → opencode+pi pair → smoke → rotation). Total screen cost ~$0.53, no downloads.
 
-### ⏳ Pending action — retire qwen3.5 once qwen3.6 is confirmed
+### ✅ DONE — qwen3.5 retired from rotation (2026-06-15)
 
-The rotation currently runs BOTH the qwen3.5 and qwen3.6 opencode+pi pairs (4
-models/cycle, ~2–4h cycles) to get a live generational comparison. **Retire the
-qwen3.5 pair** (`opencode-qwen3-5-35b-a3b-mxfp8`, `pi-qwen3-5-35b-a3b-mxfp8`) from
-`OS_FILLER_MODELS` in `tools/launchd/os-rotation-filler.sh` **once confirmed** =
-after ≥1 full rotation pass where, on AILANG agent mode, `opencode-qwen3.6 ≥
-opencode-qwen3.5` AND `pi-qwen3.6 ≥ pi-qwen3.5` (check the OS/Local leaderboard or
-`docs/static/benchmarks/os/latest.json`). That drops the cycle back to 2 models.
-If 3.6 somehow underperforms, keep 3.5 and investigate the quant. (User agreed
-2026-06-14.)
+Rotation is now **qwen3.6-only** (opencode + pi). Retired the qwen3.5 pair early
+(before its own re-pass) because: (a) keeping 4 models halved qwen3.6's throughput
+and added ~100 min/cycle of qwen3.5 hangs, and (b) qwen3.5 already has a complete
+39/39 banked pass, so the generational comparison is preserved as **qwen3.6-fresh
+vs qwen3.5-banked** — no need to re-run 3.5. Early fair-set read: +33pp for 3.6
+(AILANG, both harnesses). Re-add the 3.5 pair to `OS_FILLER_MODELS` only if a
+regression re-check is ever needed.
 
 ### ☁️ CLOUD track — OpenRouter screen / ceiling refs (too big for the rig)
 
