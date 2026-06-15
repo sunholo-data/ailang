@@ -1140,6 +1140,31 @@ models:
       Not in ollama_suite until smoke gate passes.
       Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
 
+  motoko-local-qwen3-6-35b-a3b-mxfp8:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on local Ollama — zero-cost agent eval; same tag as pi/opencode rotation"
+    env_var: ""                                        # No API key — local inference
+    agent_cli: "motoko"
+    motoko_profile: "ollama"                           # Lean profile: [compaction_ai, context_mode]. MODEL env overrides the profile's config model.
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"  # slash form; GuessProvider accepts both. MODEL env > profile config model (index.ts:580).
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on the local Ollama rig.
+      Migrates motoko onto the SAME model tag as the pi/opencode rotation
+      (qwen3.5 retired from rotation in 18e7fd00) so all three harnesses are
+      directly comparable. Reuses the lean "ollama" profile; vary motoko_profile
+      to study how richer tool/extension sets (ailang_docs, microrag, omnigraph)
+      affect a local model's AILANG pass rate — that is a separate model×profile
+      matrix, not yet wired into a suite.
+      Requires: Ollama running on localhost:11434, qwen3.6:35b-a3b-mxfp8 pulled.
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
