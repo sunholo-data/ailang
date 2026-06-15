@@ -1122,7 +1122,7 @@ models:
     env_var: ""                                        # No API key — local inference
     agent_cli: "motoko"
     motoko_profile: "ollama"                           # Routes to .motoko/config/ollama/config.json
-    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"  # slash form, consistent with pi/opencode; GuessProvider accepts both
     model_family: "qwen-3-5"
     max_output_tokens: 32768
     pricing:

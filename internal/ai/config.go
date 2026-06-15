@@ -45,8 +45,14 @@ type ModelConfig struct {
 func GuessProvider(modelName string) ProviderType {
 	lower := strings.ToLower(modelName)
 
-	// Check for explicit ollama: prefix first (highest priority)
-	if strings.HasPrefix(lower, "ollama:") {
+	// Check for an explicit ollama prefix first (highest priority). Both the
+	// "ollama:" and "ollama/" forms route to the local Ollama provider — the
+	// slash form must be matched HERE, before the generic "vendor/model" →
+	// OpenRouter check below, otherwise "ollama/qwen3.5:..." falls through to
+	// "cannot determine provider". (Ollama is local; OpenRouter never hosts an
+	// "ollama/..." model, so claiming both prefixes is unambiguous.) The
+	// provider's bareModel() strips whichever prefix before hitting the API.
+	if strings.HasPrefix(lower, "ollama:") || strings.HasPrefix(lower, "ollama/") {
 		return ProviderOllama
 	}
 

@@ -140,9 +140,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		options["temperature"] = req.Temperature
 	}
 
-	// Build chat request
+	// Build chat request (strip any "ollama:"/"ollama/" routing prefix — Ollama
+	// rejects the prefixed form as an invalid model name).
 	chatReq := &ollamaapi.ChatRequest{
-		Model:    req.Model,
+		Model:    bareModel(req.Model),
 		Messages: messages,
 		Options:  options,
 	}
