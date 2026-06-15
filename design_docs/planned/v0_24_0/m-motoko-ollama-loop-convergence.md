@@ -1,6 +1,6 @@
 # M-MOTOKO-OLLAMA-LOOP-CONVERGENCE: Make the Motoko Agent Loop Terminate Against Local Ollama
 
-**Status**: Planned
+**Status**: Implemented (v0.25.x) — see **RESOLUTION** below
 **Target**: v0.24.x
 **Priority**: P1 — the config wiring shipped ([M-MOTOKO-LOCAL-OLLAMA](../../implemented/v0_24_0/m-motoko-local-ollama.md)) but motoko still produces **zero completions** on the rig; this is the blocker that doc's premise missed
 **Estimated**: 1.5–2 days (diagnosis-first; fix scope depends on Phase 2 finding)
@@ -16,6 +16,65 @@
 - Across the session's runs: **0/N completions**, with orphaned `bun` subprocesses left behind after each killed run.
 
 That predecessor's **"Key Risk: Tool-Call Compatibility"** section called this exact failure mode in advance (thinking-token bleed, Ollama tool-call format, agent loop not converging). This doc promotes that risk from a footnote to the primary problem and turns it into a diagnosis-then-fix plan.
+
+## RESOLUTION (2026-06-15)
+
+**Fixed and validated end-to-end.** The fizzbuzz benchmark now passes 1/1 in
+agent mode against `motoko-local-qwen3-5-35b-a3b-mxfp8` (local Ollama, $0),
+**14 turns / 13 tool calls**, stdout exact-match, clean idiomatic AILANG output
+(`export func main() -> () ! {IO}`, `letrec`, `show`/`println`). The loop
+converges; no step-budget hang.
+
+### The ranked hypotheses below were WRONG
+
+The loop did not hang on a *completion-signal mismatch* (H1), thinking-token
+bleed (H2), tool-call malformation (H3), or edit livelock (H4). The model
+"generated a valid solution but kept looping" because **its tool calls were
+never executed at all** — so its file-writes never landed, the verifier never
+saw a passing solution, and the loop correctly kept retrying until the step
+budget. The fix was not in motoko's loop logic; it was a chain of provider-side
+and infra blockers, fixed in this order (each unblocked the next):
+
+1. **Executor: `--headless` missing** → motoko launched the interactive TUI
+   and hung. Fixed in `internal/executor/motoko/motoko.go` (commit 46884c46).
+2. **Executor: `ENV_PORT=0` ephemeral vs static `cfg.url :8080`** → backend
+   unreachable. Pinned `ENV_PORT=8080` (same commit). Orphaned env-servers on
+   :8080 must be reaped before each run (operational note, not a code fix).
+3. **Provider routing: `ollama/` prefix unrecognized** → `GuessProvider`
+   matched `ollama:` but not `ollama/`, so the slash form fell through to the
+   generic `vendor/model` → OpenRouter check and then "cannot determine
+   provider". Fixed: `GuessProvider` now claims BOTH prefixes
+   (`internal/ai/config.go`). motoko's *shipped* config (`ollama/qwen3.5:…`)
+   works unchanged.
+4. **Tool calling hard-rejected** → `internal/ai/ollama/step.go` still carried
+   the M-AI-TOOL-LOOP (v0.17.0) "tool calling not supported" stub. Replaced
+   with a full native implementation (advertise `req.Tools` → `ollamaapi.Tools`,
+   native `tool` role + `tool_call_id`, thread assistant `ToolCalls`, parse
+   `resp.Message.ToolCalls`, `FinishReason="tool_calls"`). **This is the fix
+   that actually closed the loop** — once tools executed, motoko converged.
+5. **`400 invalid model name`** → the routing prefix wasn't stripped before the
+   Ollama API call. Added `bareModel()` (strips `ollama:`/`ollama/`, preserves
+   the model's own `:tag`), applied to the Step and Generate paths.
+
+### Key correction to the architecture model
+
+The integration fix is **purely AILANG-side** (`internal/ai/ollama/` +
+`internal/ai/config.go`). The `motoko` binary is a thin shim →
+`scripts/run-agent.sh` → the **system `ailang` binary on PATH**; there is no
+vendored ailang build inside motoko_agent. So a clean motoko install gets the
+working integration the moment its `ailang` is ≥ the release carrying this fix —
+**no motoko_agent source change is required for the ollama-native path.** PR #39
+(`reenable_local_models`) on the fork is an *orthogonal* contribution for the
+OpenAI-compatible local-endpoint path (it only strips `openrouter/`/`openai/`
+prefixes and adds `OPENAI_BASE_URL` precedence); it does not touch the
+`ollama/` path and is not needed for ollama-native convergence.
+
+### Methodology note
+
+The hang was diagnosed by running `motoko --headless` **directly** (not through
+the eval harness, which buried every failure as a generic "terminated without
+emitting run_summary"). Each direct run surfaced the next concrete stderr error.
+The harness should surface motoko stderr on non-convergence — tracked separately.
 
 ## Axiom Compliance
 
