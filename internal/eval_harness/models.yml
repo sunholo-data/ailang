@@ -1800,8 +1800,8 @@ models:
       API verified accessible 2026-06-16 (resolved as kimi-k2.7-code-20260612).
       Pricing ~identical to K2.6 ($0.75/$3.50 vs $0.74/$3.49 per MTok).
       K2.6 predecessor was NEAR-MISS (2/3 smoke via opencode). K2.7's coding
-      specialization may clear the csv_to_json gap that blocked K2.6.
-      Smoke gate: PENDING — run: ailang eval-suite --agent --models opencode-or-kimi-k2-7-code --benchmarks "$SMOKE" --langs ailang
+      specialization closed the gap completely.
+      Smoke gate: PASSED 23/23 (100%) agent mode 2026-06-16. Added to agent_suite.
 
   or-kimi-k2-7-code:
     api_name: "moonshotai/kimi-k2.7-code"
@@ -1818,7 +1818,7 @@ models:
       hard_timeout_secs: 600
     notes: |
       Standard-mode companion to opencode-or-kimi-k2-7-code.
-      Smoke gate: PENDING — run alongside opencode variant to compare modes.
+      Smoke gate: PASSED 21/23 (91%) standard mode 2026-06-16. Added to extended_suite.
 
   # =============================================================================
   # LOCAL MODELS (via Ollama)
@@ -2235,6 +2235,7 @@ extended_suite:
   - "gemini-3-1-pro"    # Google flagship (Feb 2026)
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
   - "or-glm-5-1"        # z.ai GLM-5.1 — best OS on standard AILANG (91%/de-flaked 90%)
+  - "or-kimi-k2-7-code" # Kimi K2.7 Code — 91% std, 100% agent smoke 2026-06-16, $0.75/$3.50/M
   - "or-minimax-m3"     # MiniMax M3 — 87% std, $0.30/1M (ties opus/gpt5 at 1/16 cost)
   - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — 75% std, agent champion (97%)
@@ -2274,6 +2275,7 @@ agent_suite:
   - "opencode-or-minimax-m3"     # opencode — MiniMax M3, 90% agent at $0.30/1M
   - "opencode-or-deepseek-v4-flash" # opencode — DeepSeek V4 Flash, 87% agent at $0.10/1M (best value)
   - "opencode-or-deepseek-v4-pro"   # opencode — DeepSeek V4 Pro, 97% agent (agent champion)
+  - "opencode-or-kimi-k2-7-code"    # opencode — Kimi K2.7 Code, 23/23 (100%) agent smoke 2026-06-16
   # motoko-* entries (AILANG-native harness) REMOVED 2026-06-04: the motoko/bun
   # agent hangs on the Studio rig (0 completions across multiple runs, orphans
   # subprocesses on kill). Pending the agent-harness-instability diagnosis — re-add
@@ -2326,8 +2328,7 @@ local_models:
 
 # Available but not in default suites (run with --models flag):
 # - claude-fable-5              # Opt-in only (~$7/smoke, ~$16/core) — smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
-# - opencode-or-kimi-k2-7-code # Smoke gate PENDING (agent) — SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml | xargs -n1 basename | sed 's/\.yml$//' | paste -sd, -) && ailang eval-suite --agent --models opencode-or-kimi-k2-7-code --benchmarks "$SMOKE" --langs ailang
-# - or-kimi-k2-7-code           # Smoke gate PENDING (standard) — ailang eval-suite --models or-kimi-k2-7-code --tier smoke --langs ailang
+
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
 # - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
