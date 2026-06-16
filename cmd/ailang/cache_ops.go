@@ -12,6 +12,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/embedprefix"
 )
 
 func runCacheSearch(args []string) {
@@ -60,7 +61,7 @@ func runCacheSearch(args []string) {
 			fmt.Fprintln(os.Stderr, "Error: --cosine requires an embedder. Set AILANG_EMBED_PROVIDER.")
 			os.Exit(1)
 		}
-		queryEmb, err := embedder.Embed(query)
+		queryEmb, err := embedprefix.EmbedWithRole(embedder, embedprefix.RoleQuery, query)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error computing query embedding: %v\n", err)
 			os.Exit(1)
@@ -76,7 +77,7 @@ func runCacheSearch(args []string) {
 		var queryEmb []float32
 		embedder := createEmbedder()
 		if embedder != nil {
-			if emb, err := embedder.Embed(query); err == nil {
+			if emb, err := embedprefix.EmbedWithRole(embedder, embedprefix.RoleQuery, query); err == nil {
 				queryEmb = emb
 			}
 		}

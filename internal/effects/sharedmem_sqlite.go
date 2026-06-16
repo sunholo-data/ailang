@@ -13,6 +13,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/embedprefix"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -329,9 +331,11 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 		f.Value = []byte(f.Content)
 	}
 
-	// Auto-embed: if we have an embedder, content, and no existing embedding
+	// Auto-embed: if we have an embedder, content, and no existing embedding.
+	// Corpus content is a DOCUMENT — prefix it for the embedder's retrieval task
+	// (EmbeddingGemma/nomic) so it shares a vector space with prefixed queries.
 	if c.embedder != nil && f.Content != "" && len(f.Embedding) == 0 {
-		if emb, err := c.embedder.Embed(f.Content); err == nil && len(emb) > 0 {
+		if emb, err := embedprefix.EmbedWithRole(c.embedder, embedprefix.RoleDocument, f.Content); err == nil && len(emb) > 0 {
 			f.Embedding = emb
 			f.EmbeddingDim = len(emb)
 			f.EmbedModel = c.embedder.ModelName()
@@ -685,7 +689,8 @@ func (c *SQLiteSharedCache) BackfillEmbeddings(namespace string) (int, int) {
 
 	var processed, errCount int
 	for _, p := range items {
-		emb, err := c.embedder.Embed(p.content)
+		// Backfill is corpus content → DOCUMENT role (same as the upsert path).
+		emb, err := embedprefix.EmbedWithRole(c.embedder, embedprefix.RoleDocument, p.content)
 		if err != nil || len(emb) == 0 {
 			errCount++
 			continue
