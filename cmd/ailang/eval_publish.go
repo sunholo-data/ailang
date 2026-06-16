@@ -96,7 +96,7 @@ func runEvalPublish() {
 	// (M-EVAL-BENCHMARK-UI-CONSOLIDATION). Aggregates the (benchmark, model, lang)
 	// summaries into model x harness rows with per-language pass rates.
 	if *osJSON != "" {
-		data, err := buildOSLeaderboardJSON(releaseTag, current)
+		data, err := buildOSLeaderboardJSON(releaseTag, readAilangVersion(), current)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error building OS JSON: %v\n", err)
 			os.Exit(1)
@@ -138,7 +138,7 @@ func runEvalPublish() {
 // the OS/Local leaderboard schema the dashboard reads: model × harness rows with
 // per-language pass rates (M-EVAL-BENCHMARK-UI-CONSOLIDATION). Harness is resolved
 // from models.yml (agent_cli), falling back to a name prefix.
-func buildOSLeaderboardJSON(releaseTag string, current map[string]eval_harness.BenchmarkSummary) ([]byte, error) {
+func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string]eval_harness.BenchmarkSummary) ([]byte, error) {
 	type acc struct{ passed, trials int }
 	perModelLang := map[string]map[string]*acc{}
 	langsSet := map[string]bool{}
@@ -202,12 +202,27 @@ func buildOSLeaderboardJSON(releaseTag string, current map[string]eval_harness.B
 	}
 
 	return json.MarshalIndent(map[string]interface{}{
-		"version":   releaseTag,
-		"generated": time.Now().Format("2006-01-02"),
-		"trials":    maxTrials,
-		"languages": langs,
-		"rows":      rows,
+		"version":        releaseTag,                       // rotation label (date)
+		"ailang_version": ailangVersion,                    // AILANG release under test (std/VERSION)
+		"generated":      time.Now().Format("2006-01-02"),
+		"trials":         maxTrials,
+		"languages":      langs,
+		"rows":           rows,
 	}, "", "  ")
+}
+
+// readAilangVersion returns the AILANG language version under test, read from
+// std/VERSION (the canonical source) relative to the working directory. The
+// rotation and post-release flow both run from the repo root. Returns "" if the
+// file is unreadable — callers treat that as "unknown version" rather than
+// fabricating one (the version tags the longitudinal trend, so a wrong value
+// would be worse than an empty one).
+func readAilangVersion() string {
+	b, err := os.ReadFile("std/VERSION")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // summaryKey indexes a benchmark summary by the (benchmark, model, lang)

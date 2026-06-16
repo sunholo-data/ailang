@@ -360,6 +360,31 @@ git commit -m "Update benchmark dashboard for vX.X.X"
 git push
 ```
 
+### 3a. Snapshot Local-Rig Longitudinal (M-EVAL-OS-LONGITUDINAL)
+
+The **local Ollama rig** (opencode + pi + motoko on local qwen, via the
+os-rotation-filler) measures whether each AILANG release moves the needle for
+local models. Archive this release's local numbers into the version-trend history
+so the website can chart version-over-version evolution:
+
+```bash
+# Snapshot the rig's current numbers as this release, AND reset the active-model
+# accumulator so the rotation re-measures fresh against the NEXT release.
+# (Retired models — anything not matching ACTIVE_PATTERN, default qwen3-6 — stay
+# frozen at their last version.)
+tools/os-release-snapshot.sh vX.X.X --reset
+
+git add docs/static/benchmarks/os/history.json docs/static/benchmarks/os/latest.json
+git commit -m "Snapshot local-rig OS leaderboard for vX.X.X (longitudinal)"
+git push
+```
+
+This appends a `vX.X.X` entry to `docs/static/benchmarks/os/history.json` (deduped
+by version) and clears the active-model rolling files. The website's
+local-rig trend chart reads `os/history.json`; the live table still reads
+`os/latest.json`. Run **without** `--reset` if you only want to refresh a version's
+numbers while they're still filling (safe, idempotent).
+
 ### 4. Update Axiom Scorecard
 
 **Review and update the axiom scorecard:**
