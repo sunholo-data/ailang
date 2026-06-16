@@ -1165,6 +1165,72 @@ models:
       matrix, not yet wired into a suite.
       Requires: Ollama running on localhost:11434, qwen3.6:35b-a3b-mxfp8 pulled.
 
+  motoko-local-qwen3-6-docs:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_docs profile (+ailang_docs) — does AILANG-doc tooling lift a local model?"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_docs"                      # ollama base + ailang_docs extension (local, $0)
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm: ollama lean baseline + the ailang_docs extension only.
+      Tests whether feeding a local model AILANG docs raises its pass rate above
+      the lean ollama profile. Network-free; compaction auto-skips (context_limit
+      0 for local model). Profile lives in motoko_agent .motoko/config/ollama_docs.
+
+  motoko-local-qwen3-6-microrag:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_microrag profile (+ailang_docs+microrag) — RAG-augmented local agent"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_microrag"                  # ollama base + ailang_docs + microrag (local μRAG, $0)
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm: ollama base + ailang_docs + microrag (local μRAG over
+      the indexed ailang-syntax/builtins/examples corpora). Tests whether RAG
+      retrieval lifts a local model's AILANG pass rate. Network-free/$0 (μRAG is
+      local). Profile lives in motoko_agent .motoko/config/ollama_microrag.
+
+  motoko-local-qwen3-6-dp7:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, ollama_dp7 profile — DP7 pre-finalize 'ailang check' gate ON (AILANG-native verification)"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_dp7"                       # ollama lean + DP7 verifier gate enabled (verification.command='ailang check ...')
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm testing motoko's DP7 pre-finalize verifier gate
+      (M-MOTOKO-DP7-VERIFIER-GATE): before emitting `done`, motoko runs
+      `ailang check benchmark/solution.ail` and REJECTS done on type errors,
+      feeding them back so the model must fix. This is an AILANG-native gate
+      pi/opencode cannot replicate — top hypothesis for lifting local-model
+      pass rate. DP7 is opt-in + off in every other profile (verification:{}).
+      Profile lives in motoko_agent .motoko/config/ollama_dp7. Network-free/$0.
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
@@ -2179,6 +2245,13 @@ lang_harness_suite:
 ollama_suite:
   - "opencode-gemma4-e4b"   # Gemma 4 E4B — 16GB laptop, relaxed TTFT (300s)
   - "opencode-gemma4-26b"   # Gemma 4 26B — 32GB Mac, relaxed TTFT (480s)
+  # motoko AILANG-native harness on local Ollama — RE-ADDED 2026-06-15 after the
+  # ollama-loop-convergence fix (was 0-completions/removed 2026-06-04). Validated
+  # qwen3.6 fizzbuzz 1/1 + 15/15 profile matrix, $0. Lean profile is the canonical
+  # local motoko entry; profile A/B variants (-docs/-microrag/-dp7) run explicitly,
+  # not in the routine suite. Pairs with pi/opencode on the SAME qwen3.6 tag for
+  # the harness-controlled comparison (see m-motoko-self-improvement-loop).
+  - "motoko-local-qwen3-6-35b-a3b-mxfp8"   # motoko (AILANG-native) — lean ollama profile
 
 harness_suite:
   - "claude-sonnet-4-6"        # Sonnet via Claude Code CLI
