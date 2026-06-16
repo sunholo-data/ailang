@@ -1560,6 +1560,34 @@ models:
       AILANG at 91%, de-flaked ~90%). Enables glm-5 vs glm-5.1 AND standard vs
       agent comparison on the newest z-ai model.
 
+  # GLM-5.2 (released 2026-06-16) — newest z-ai model, evaluated as a REPLACEMENT
+  # for GLM-5.1 and REJECTED (standard-mode core regression — see or-glm-5-2 notes).
+  # Reasoning model (always-thinking, like Kimi K2.7); 1M context (5x GLM-5.1's 203k).
+  # Pricing UP vs 5.1: $1.40/$4.40 per 1M (vs $0.98/$3.08) — ~43% more, plus reasoning
+  # tokens count as output, so effective cost is higher still. Kept as opt-in only.
+  opencode-or-glm-5-2:
+    api_name: "z-ai/glm-5.2"
+    provider: "openrouter"
+    description: "GLM-5.2 (z.ai, newest 2026-06-16) via opencode+OpenRouter — replacement candidate for GLM-5.1"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/z-ai/glm-5.2"
+    model_family: "glm-5"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0014   # $1.40 per 1M
+      output_per_1k: 0.0044  # $4.40 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Agent-mode companion to standard or-glm-5-2. Was a candidate to replace
+      GLM-5.1 in extended_suite/agent_suite — REJECTED on standard-mode core
+      (GLM-5.2 20/26 vs GLM-5.1 26/26; see or-glm-5-2 notes). Reasoning model,
+      1M context. Agent-mode comparison on the Studio rig NOT run — standard-mode
+      core regression is decisive; only re-evaluate if a future GLM-5.2 revision
+      closes the core gap. Kept as opt-in only; not in any suite.
+
   opencode-or-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
@@ -2083,6 +2111,37 @@ models:
     notes: |
       Standard-mode companion to motoko-glm-5-1. Direct version-over-version
       comparison against or-glm-5. Added 2026-06-04.
+
+  or-glm-5-2:
+    api_name: "z-ai/glm-5.2"
+    provider: "openrouter"
+    description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replacement candidate for GLM-5.1"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 32768
+    model_family: "glm-5"
+    pricing:
+      input_per_1k: 0.0014   # $1.40 per 1M
+      output_per_1k: 0.0044  # $4.40 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Standard-mode companion to opencode-or-glm-5-2. Candidate to replace
+      or-glm-5-1 in extended_suite. Reasoning model (always-thinking), 1M
+      context. API verified 2026-06-16 (resolves z-ai/glm-5.2-20260616).
+      Pricing UP ~43% vs GLM-5.1 ($1.40/$4.40 vs $0.98/$3.08 per 1M).
+      Smoke (floor) 2026-06-16: PASSED 22/23, tied GLM-5.1 (smoke is saturated,
+      so a tie is expected and carries no ranking info).
+      CORE (discriminator) 2026-06-16 (AILANG, N=1, 26 benchmarks): GLM-5.2 20/26
+      vs GLM-5.1 26/26 (perfect, > sonnet-4-6 23/26). GLM-5.2 REGRESSES vs 5.1 — fails 6
+      core benchmarks 5.1 passes (config_file_parser, effect_composition,
+      explicit_dataflow_ssa, graph_bfs, merge_sort, tree_transformation_pipeline);
+      5 are genuine compile_errors (malformed AILANG, low output tokens → not
+      truncation), 1 logic_error. Cost $0.977 vs GLM-5.1 $0.655 (~+49%).
+      VERDICT: DO NOT replace GLM-5.1 with GLM-5.2 — worse on core AND more
+      expensive. Standard-mode regression is decisive (6-benchmark gap, N=1
+      sufficient). Kept as opt-in only; not promoted to any suite.
+      Re-run: ailang eval-suite --models or-glm-5-2,or-glm-5-1,claude-sonnet-4-6 --tier core --langs ailang
 
   or-minimax-m3:
     api_name: "minimax/minimax-m3"

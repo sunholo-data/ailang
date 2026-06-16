@@ -238,8 +238,9 @@ established frontier tier passes cleanly. If a candidate fails them, the failure
 on the model, not the harness or the benchmark.
 
 **The smoke tier is the source of truth — do NOT hardcode a benchmark list.**
-Run `ailang eval-suite --tier smoke --dry-run` to see the current set (17 as of
-2026-06). It includes fizzbuzz, adt_option, gcd_lcm, nested_records, record_update,
+Run `ailang eval-suite --tier smoke --dry-run` to see the current set (23 as of
+2026-06-16, up from 17 — it grows, so always derive it, never trust this number).
+It includes fizzbuzz, adt_option, gcd_lcm, nested_records, record_update,
 recursion_fibonacci, type_safe_record_access, balanced_parens, etc. — all fundamental.
 
 > **⚠️ csv_to_json_converter is `tier: core`, NOT `tier: smoke`.** An earlier
@@ -277,7 +278,7 @@ for f in /tmp/smoke_<candidate>/*/*.json; do
 done | column -ts $'\t'
 ```
 
-**Decision tree** (N = number of benchmarks in the smoke tier, currently 17):
+**Decision tree** (N = number of benchmarks in the smoke tier, 23 as of 2026-06-16 — derive it, don't assume):
 1. **claude-sonnet-4-6 fails any smoke-tier benchmark** — smoke tier is broken;
    fix the benchmark (or its `tier:` tag) before evaluating candidates.
 2. **Candidate fails most of the tier** — CUT. Do not add to models.yml. Note the
@@ -290,8 +291,10 @@ done | column -ts $'\t'
    failures with `error_category: api_error` + "step budget exhausted" are a
    **harness step-budget cap, not a model gap** — don't count them as capability
    failures (bump the motoko v2 step budget instead).
-4. **Candidate passes the tier clean** — proceed to step 6 (Document) and add to
-   models.yml normally.
+4. **Candidate passes the tier clean** — it has cleared the FLOOR, nothing more.
+   Smoke qualifies a model; it does NOT rank it (see step 5.5). Add the opt-in
+   models.yml entry now (gate PASSED, promotion PENDING), then go to step 5.5 to
+   decide whether it actually earns a suite slot / replaces an incumbent.
 
 **Failure-mode taxonomy** (worth capturing in the cut commit message):
 
@@ -397,6 +400,49 @@ Key takeaways for the model-manager workflow:
    - `WRONG_LANG` — model produced Python/JS/etc. instead of AILANG.
      Genuine prompt-following gap.
    - `runtime_error` — compiled but crashed. Logic bug in generation.
+
+### 5.5 Smoke is a FLOOR, not a RANKING — use `--tier core` to decide add/replace (HARD RULE)
+
+> **Passing smoke is necessary but NOT sufficient. Smoke says "this model can
+> speak AILANG at all"; it does NOT say "this model is good enough to add" or
+> "this model beats the incumbent." Those are RANKING questions, and smoke is
+> saturated — every frontier-class model scores ~the same on it. Never make an
+> add/keep/replace decision on smoke numbers. Make it on `--tier core`.**
+
+Why: the smoke tier is deliberately fundamental ("can it speak AILANG"), so any
+viable model passes ~all of it. A smoke **tie is the expected outcome**, not a
+signal — it carries zero ranking information. The discriminator is the **core
+tier** (`--tier core`, ~26 benchmarks incl. `csv_to_json_converter`, the
+contract/state-machine tests) where frontier models genuinely spread.
+
+**Decision flow once a candidate PASSES smoke:**
+1. **New vendor/family, no incumbent** — run `--tier core` head-to-head vs the
+   `claude-sonnet-4-6` anchor to size where it lands. Add to suites if it earns it.
+2. **Replacing or competing with an incumbent** (e.g. GLM-5.2 vs GLM-5.1) — run
+   `--tier core` for **candidate + incumbent + anchor in ONE command**, `--langs
+   ailang`. **Only promote/replace if the candidate matches-or-beats the incumbent
+   on core.** A core tie at higher cost → keep the incumbent. A clear core win →
+   the cost bump may be justified.
+3. **Close call on N=1** — core is ~26 single-shot runs; OS-model variance is real.
+   If candidate and incumbent are within 1–2 benchmarks, escalate to N≥3 trials
+   before deciding (don't flip an incumbent on a 1-benchmark N=1 delta).
+
+```bash
+# The discriminating run — candidate vs incumbent vs anchor, core tier, one command:
+ailang eval-suite --models <candidate>,<incumbent>,claude-sonnet-4-6 \
+  --tier core --langs ailang --output /tmp/core_<candidate> --parallel 4
+```
+
+> **⚠️ Anti-pattern (2026-06-16, GLM-5.2 vs GLM-5.1):** GLM-5.2 (newest z-ai,
+> reasoning model, 1M ctx, +43% price) cleared standard smoke at **22/23 — an
+> exact tie with GLM-5.1** (both failed only `dense_operator_program`, which the
+> `claude-sonnet-4-6` anchor ALSO failed → a benchmark/harness issue, not a model
+> gap). The first-pass conclusion was *"tie at +43% cost → keep GLM-5.1."* **That
+> was WRONG.** A smoke tie is meaningless because smoke is saturated — it proves
+> only that GLM-5.2 cleared the floor and QUALIFIES. The replacement decision had
+> to be made on `--tier core`, where the two versions can actually separate. Rule:
+> when a candidate ties the incumbent on smoke, that's your cue to run core, NOT
+> your answer.
 
 ### 6. Document the Model
 
