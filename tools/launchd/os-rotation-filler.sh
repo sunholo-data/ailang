@@ -11,6 +11,19 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO" || exit 1
+
+# The launchd plist PATH is restricted (no ~/go/bin), so go-installed CLIs like
+# the `motoko` shim aren't found by the eval executors' exec.LookPath — the motoko
+# arm health-checks fail with "motoko CLI not found". ailang survives via its
+# ~/.local/bin symlink; ensure ~/go/bin is also on PATH so motoko (and any other
+# go-installed tool) resolves for eval-suite and the executors it spawns.
+export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
+
+# Load API keys (OPENROUTER_API_KEY, etc.) — the motoko executor's pre-flight
+# health check requires OPENROUTER_API_KEY even for the local ollama profile, and
+# the non-login launchd env doesn't have it. secrets.env uses `export KEY=...`.
+[ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
+
 # shellcheck source=tools/launchd/rig-lock.sh
 source "$(dirname "$0")/rig-lock.sh"
 
