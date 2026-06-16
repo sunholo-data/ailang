@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-15",
+  "generated": "2026-06-16",
   "languages": [
     "ailang",
     "go",
@@ -7,6 +7,16 @@
     "python"
   ],
   "rows": [
+    {
+      "harness": "motoko",
+      "lang": {
+        "ailang": 0,
+        "go": 0,
+        "javascript": 0,
+        "python": 0
+      },
+      "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
+    },
     {
       "harness": "opencode",
       "lang": {
@@ -20,10 +30,10 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.8888888888888888,
-        "go": 0.9111111111111111,
-        "javascript": 0.9777777777777777,
-        "python": 1
+        "ailang": 0.8333333333333334,
+        "go": 0.9272727272727272,
+        "javascript": 0.9473684210526315,
+        "python": 0.9508196721311475
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8"
     },
@@ -40,14 +50,14 @@
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.9555555555555556,
-        "go": 0.9333333333333333,
-        "javascript": 0.9777777777777777,
-        "python": 1
+        "ailang": 0.967741935483871,
+        "go": 0.9285714285714286,
+        "javascript": 0.9636363636363636,
+        "python": 0.9836065573770492
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8"
     }
   ],
   "trials": 3,
-  "version": "rolling-20260615"
+  "version": "rolling-20260616"
 }
