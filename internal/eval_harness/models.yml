@@ -1636,6 +1636,54 @@ models:
       not just timeout). Cleared the easy benchmarks but couldn't solve
       csv_to_json's parsing+JSON-shape requirements via agent iteration.
       v0.19.0: timeout bumped to 3600s — re-test under cost-only gating.
+      Superseded by kimi-k2-7-code for new runs (Jun 2026).
+
+  # Kimi K2.7 Code (released June 12, 2026) — coding-focused successor to K2.6
+  # 1T param MoE, 32B active, 384 experts, 256K context, always-thinking mode.
+  # Pricing nearly identical to K2.6 ($0.75/$3.50 vs $0.74/$3.49 per MTok).
+  # K2.6 was a NEAR-MISS (2/3 standard smoke); K2.7 Code is coding-specialized
+  # so higher chance of passing. Smoke gate PENDING — run before adding to suites.
+  opencode-or-kimi-k2-7-code:
+    api_name: "moonshotai/kimi-k2.7-code"
+    provider: "openrouter"
+    description: "Kimi K2.7 Code via opencode+OpenRouter — coding-focused K2.6 successor, smoke gate PENDING"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/moonshotai/kimi-k2.7-code"
+    model_family: "kimi"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00075   # $0.75 per 1M
+      output_per_1k: 0.0035   # $3.50 per 1M
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Kimi K2.7 Code (June 12, 2026) — Moonshot AI's coding-focused model.
+      1T param MoE (32B active, 384 experts), 256K context window.
+      Always operates in thinking mode (no extended_thinking flag needed).
+      API verified accessible 2026-06-16 (resolved as kimi-k2.7-code-20260612).
+      Pricing ~identical to K2.6 ($0.75/$3.50 vs $0.74/$3.49 per MTok).
+      K2.6 predecessor was NEAR-MISS (2/3 smoke via opencode). K2.7's coding
+      specialization may clear the csv_to_json gap that blocked K2.6.
+      Smoke gate: PENDING — run: ailang eval-suite --agent --models opencode-or-kimi-k2-7-code --benchmarks "$SMOKE" --langs ailang
+
+  or-kimi-k2-7-code:
+    api_name: "moonshotai/kimi-k2.7-code"
+    provider: "openrouter"
+    description: "Kimi K2.7 Code via OpenRouter standard mode — companion to opencode-or-kimi-k2-7-code"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "kimi"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.00075   # $0.75 per 1M
+      output_per_1k: 0.0035   # $3.50 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Standard-mode companion to opencode-or-kimi-k2-7-code.
+      Smoke gate: PENDING — run alongside opencode variant to compare modes.
 
   # =============================================================================
   # LOCAL MODELS (via Ollama)
@@ -2135,7 +2183,9 @@ local_models:
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
-# - claude-fable-5    # IN extended_suite (standard release baseline, core,stretch ~$16). Standard mode only — never agent_suite (cost), never smoke (cloud).
+# - claude-fable-5              # Opt-in only (~$7/smoke, ~$16/core) — smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
+# - opencode-or-kimi-k2-7-code # Smoke gate PENDING (agent) — SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml | xargs -n1 basename | sed 's/\.yml$//' | paste -sd, -) && ailang eval-suite --agent --models opencode-or-kimi-k2-7-code --benchmarks "$SMOKE" --langs ailang
+# - or-kimi-k2-7-code           # Smoke gate PENDING (standard) — ailang eval-suite --models or-kimi-k2-7-code --tier smoke --langs ailang
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
 # - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
