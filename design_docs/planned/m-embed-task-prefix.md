@@ -126,3 +126,20 @@ and apply `RoleDocument` inside the BrainStore embed call.
 - Google EmbeddingGemma model card: https://ai.google.dev/gemma/docs/embeddinggemma/model_card
 - Predecessor finding: [[microrag-needs-nomic-embed]]
 - Eval-rig embedder config: `~/.ailang/config.yaml` (embeddings.ollama.model)
+
+## RESULT (2026-06-16) — embedder bake-off
+
+3-arm bake-off (`tools/embedder-ab.sh`, opencode-qwen3-5, core×2 trials, $0) on the
+prefixed corpus settled both the prefix fix AND the embedder choice:
+
+| arm | pass | vs off |
+|---|---|---|
+| microRAG OFF (baseline) | 76.9% (40/52) | — |
+| microRAG ON + **embeddinggemma** | **80.8%** (42/52) | **+3.9pp** ✅ |
+| microRAG ON + nomic-embed-text | 67.3% (35/52) | −9.6pp ❌ |
+
+**Conclusions:** (1) μRAG works — +3.9pp with the right embedder (vs −3pp on the
+broken corpus). (2) Embedder choice is decisive: embeddinggemma helps, nomic hurts.
+(3) The single-query retrieval probe was misleading; the eval is ground truth.
+embeddinggemma set as the μRAG embedder (config.yaml). **Follow-up:** make
+embeddinggemma the repo default (embedder.go:60) — now data-justified.
