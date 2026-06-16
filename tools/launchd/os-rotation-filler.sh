@@ -17,12 +17,21 @@ source "$(dirname "$0")/rig-lock.sh"
 LOG=/tmp/ailang-os-filler.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-# Cross-harness pair on the SAME local qwen: opencode (multi-turn) vs pi (minimal).
-# Both are free/local via Ollama; run serially (--parallel 1 below) so they never
-# contend for the single GPU. This is what fills the opencode-vs-pi harness column
-# on the OS/Local leaderboard. Override with OS_FILLER_MODELS=a,b (e.g. add gemma).
-# (OS_FILLER_MODEL kept as a single-model back-compat alias if MODELS is unset.)
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-5-35b-a3b-mxfp8,pi-qwen3-5-35b-a3b-mxfp8}}"
+# Cross-harness TRIO on the SAME local qwen3.6: opencode (multi-turn) vs pi
+# (minimal) vs motoko (AILANG-native). All three drive the ONE loaded qwen3.6
+# model, so adding motoko adds runs but no extra VRAM pressure. Run serially
+# (--parallel 1 below) so they never contend for the single GPU. This fills the
+# harness-comparison columns on the OS/Local leaderboard — the motoko-vs-pi-vs-
+# opencode KPI (see m-motoko-self-improvement-loop). Override with
+# OS_FILLER_MODELS=a,b. (OS_FILLER_MODEL kept as single-model back-compat alias.)
+# motoko ADDED 2026-06-16 after the ollama-loop-convergence fix (lean profile;
+# validated 88.5% core single-trial — the rotation gives it 3-trial comparable
+# numbers vs pi 95.6% / opencode 88.9%).
+# qwen3.5 retired 2026-06-15: it already has a full 39/39 banked pass, and keeping
+# it here halved qwen3.6's throughput + added ~100min/cycle of hangs. Now qwen3.6-only
+# (the upgrade); compare qwen3.6-fresh vs qwen3.5-banked. Re-add the 3.5 pair to
+# OS_FILLER_MODELS if a regression check is ever needed.
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-6-35b-a3b-mxfp8,pi-qwen3-6-35b-a3b-mxfp8,motoko-local-qwen3-6-35b-a3b-mxfp8}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk

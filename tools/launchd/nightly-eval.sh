@@ -192,6 +192,41 @@ if [[ "$RUN_AB" == "1" ]]; then
     ailang messages send controlplane \
         "Weekly μRAG A/B (${DATE}): on=${PASS_ON}/${TIER_COUNT}  off=${PASS_OFF}/${TIER_COUNT}. Delta=${DELTA} benchmarks. Results: ${RESULTS_DIR}_rag_on vs ${RESULTS_DIR}_rag_off" \
         --title "μRAG A/B result (${DATE})" --from "nightly-eval" 2>/dev/null || true
+
+    # Persist the weekly A/B so deltas ACCUMULATE into a committed, trend-able
+    # history. The controlplane message above is ephemeral and /tmp is cleared on
+    # reboot, so without this we run the A/B but never learn from it. Weekly
+    # cadence ⇒ ~1 commit/week (negligible churn — no extra machine time, just a
+    # one-line append). Write to the MAIN repo working tree ($REPO), NOT the
+    # detached build worktree we cd'd into. Best-effort: a git failure never
+    # touches the eval result.
+    HIST="$REPO/docs/static/benchmarks/microrag_ab.jsonl"
+    ON_TOTAL=$(ls "${RESULTS_DIR}_rag_on"/agent/*.json 2>/dev/null | wc -l | tr -d ' ')
+    OFF_TOTAL=$(ls "${RESULTS_DIR}_rag_off"/agent/*.json 2>/dev/null | wc -l | tr -d ' ')
+    REC=$(python3 -c "
+import json
+on_p,on_t=${PASS_ON:-0},${ON_TOTAL:-0}; off_p,off_t=${PASS_OFF:-0},${OFF_TOTAL:-0}
+print(json.dumps({
+  'date':'${DATE}','model':'${MODEL}','lang':'ailang','trials':2,
+  'on_pass':on_p,'on_total':on_t,'off_pass':off_p,'off_total':off_t,
+  'on_rate':round(on_p/on_t,4) if on_t else None,
+  'off_rate':round(off_p/off_t,4) if off_t else None,
+  'delta_pp':round(100*(on_p/on_t-off_p/off_t),1) if on_t and off_t else None}))" 2>/dev/null)
+    if [[ -n "$REC" ]]; then
+        echo "$REC" >> "$HIST"
+        log "μRAG A/B persisted -> docs/static/benchmarks/microrag_ab.jsonl"
+        if git -C "$REPO" add "$HIST" 2>>"$LOG" && ! git -C "$REPO" diff --cached --quiet -- "$HIST" 2>/dev/null; then
+            git -C "$REPO" commit -q \
+                -m "data(microrag): weekly A/B ${DATE} (on=${PASS_ON}/${ON_TOTAL} off=${PASS_OFF}/${OFF_TOTAL})" \
+                -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
+            if [ "${OS_FILLER_PUSH:-0}" = "1" ]; then
+                git -C "$REPO" pull --rebase --autostash --quiet origin dev >>"$LOG" 2>&1 || true
+                git -C "$REPO" push --quiet origin dev >>"$LOG" 2>&1 && log "μRAG A/B history pushed" || log "μRAG A/B push failed (committed locally)"
+            else
+                log "μRAG A/B history committed locally (push off)"
+            fi
+        fi
+    fi
 fi
 
 # Use the rag_on results for regression detection (canonical arm)

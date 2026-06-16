@@ -1122,7 +1122,7 @@ models:
     env_var: ""                                        # No API key — local inference
     agent_cli: "motoko"
     motoko_profile: "ollama"                           # Routes to .motoko/config/ollama/config.json
-    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"
+    agent_model_name: "ollama/qwen3.5:35b-a3b-mxfp8"  # slash form, consistent with pi/opencode; GuessProvider accepts both
     model_family: "qwen-3-5"
     max_output_tokens: 32768
     pricing:
@@ -1139,6 +1139,97 @@ models:
       isolate the motoko harness lift at zero marginal cost.
       Not in ollama_suite until smoke gate passes.
       Requires: Ollama running on localhost:11434, model pulled, motoko CLI.
+
+  motoko-local-qwen3-6-35b-a3b-mxfp8:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on local Ollama — zero-cost agent eval; same tag as pi/opencode rotation"
+    env_var: ""                                        # No API key — local inference
+    agent_cli: "motoko"
+    motoko_profile: "ollama"                           # Lean profile: [compaction_ai, context_mode]. MODEL env overrides the profile's config model.
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"  # slash form; GuessProvider accepts both. MODEL env > profile config model (index.ts:580).
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on the local Ollama rig.
+      Migrates motoko onto the SAME model tag as the pi/opencode rotation
+      (qwen3.5 retired from rotation in 18e7fd00) so all three harnesses are
+      directly comparable. Reuses the lean "ollama" profile; vary motoko_profile
+      to study how richer tool/extension sets (ailang_docs, microrag, omnigraph)
+      affect a local model's AILANG pass rate — that is a separate model×profile
+      matrix, not yet wired into a suite.
+      Requires: Ollama running on localhost:11434, qwen3.6:35b-a3b-mxfp8 pulled.
+
+  motoko-local-qwen3-6-docs:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_docs profile (+ailang_docs) — does AILANG-doc tooling lift a local model?"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_docs"                      # ollama base + ailang_docs extension (local, $0)
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm: ollama lean baseline + the ailang_docs extension only.
+      Tests whether feeding a local model AILANG docs raises its pass rate above
+      the lean ollama profile. Network-free; compaction auto-skips (context_limit
+      0 for local model). Profile lives in motoko_agent .motoko/config/ollama_docs.
+
+  motoko-local-qwen3-6-microrag:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_microrag profile (+ailang_docs+microrag) — RAG-augmented local agent"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_microrag"                  # ollama base + ailang_docs + microrag (local μRAG, $0)
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm: ollama base + ailang_docs + microrag (local μRAG over
+      the indexed ailang-syntax/builtins/examples corpora). Tests whether RAG
+      retrieval lifts a local model's AILANG pass rate. Network-free/$0 (μRAG is
+      local). Profile lives in motoko_agent .motoko/config/ollama_microrag.
+
+  motoko-local-qwen3-6-dp7:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko_agent, ollama_dp7 profile — DP7 pre-finalize 'ailang check' gate ON (AILANG-native verification)"
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_dp7"                       # ollama lean + DP7 verifier gate enabled (verification.command='ailang check ...')
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 3600
+    notes: |
+      Profile-matrix arm testing motoko's DP7 pre-finalize verifier gate
+      (M-MOTOKO-DP7-VERIFIER-GATE): before emitting `done`, motoko runs
+      `ailang check benchmark/solution.ail` and REJECTS done on type errors,
+      feeding them back so the model must fix. This is an AILANG-native gate
+      pi/opencode cannot replicate — top hypothesis for lifting local-model
+      pass rate. DP7 is opt-in + off in every other profile (verification:{}).
+      Profile lives in motoko_agent .motoko/config/ollama_dp7. Network-free/$0.
 
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
@@ -1313,6 +1404,50 @@ models:
       block (pi has no built-in ollama; it speaks the OpenAI-completions API to the
       local endpoint). Verified 2026-06-05: pi --list-models shows the local qwen,
       probe resolves it. Added 2026-06-05.
+
+  opencode-qwen3-6-35b-a3b-mxfp8:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B MoE (MXFP8 8-bit, 38GB) via opencode+Ollama — LOCAL. Onboarded 2026-06-14 as the qwen3.5 successor; OR screen AILANG 83%, TB2.0 0.515 vs incumbent 0.405. ~3B active."
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      local-model-onboarding (2026-06-14): successor to opencode-qwen3-5-35b-a3b-mxfp8.
+      OpenRouter screen (core tier, standard) AILANG 83% / Python 85%, beating the
+      qwen3.5 incumbent; Terminal-Bench 2.0 0.515 vs 0.405. Same MXFP8 quant + 35B/3B
+      shape as the incumbent for a clean generational comparison. hard_timeout 600s.
+
+  pi-qwen3-6-35b-a3b-mxfp8:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness sibling of opencode-qwen3-6-35b-a3b-mxfp8 (requires ~/.pi/agent/models.json ollama provider)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 8192
+    ttft_timeout: 900
+    generation_timeout: 1200
+    budgets:
+      hard_timeout_secs: 600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      pi-harness sibling of opencode-qwen3-6-35b-a3b-mxfp8 — LOCAL, free. Cross-harness
+      delta (pi minimal vs opencode multi-turn) on the same local model. Requires the
+      qwen3.6:35b-a3b-mxfp8 tag in the ~/.pi/agent/models.json ollama provider block.
+      Added 2026-06-14.
 
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
@@ -2158,6 +2293,13 @@ lang_harness_suite:
 ollama_suite:
   - "opencode-gemma4-e4b"   # Gemma 4 E4B — 16GB laptop, relaxed TTFT (300s)
   - "opencode-gemma4-26b"   # Gemma 4 26B — 32GB Mac, relaxed TTFT (480s)
+  # motoko AILANG-native harness on local Ollama — RE-ADDED 2026-06-15 after the
+  # ollama-loop-convergence fix (was 0-completions/removed 2026-06-04). Validated
+  # qwen3.6 fizzbuzz 1/1 + 15/15 profile matrix, $0. Lean profile is the canonical
+  # local motoko entry; profile A/B variants (-docs/-microrag/-dp7) run explicitly,
+  # not in the routine suite. Pairs with pi/opencode on the SAME qwen3.6 tag for
+  # the harness-controlled comparison (see m-motoko-self-improvement-loop).
+  - "motoko-local-qwen3-6-35b-a3b-mxfp8"   # motoko (AILANG-native) — lean ollama profile
 
 harness_suite:
   - "claude-sonnet-4-6"        # Sonnet via Claude Code CLI

@@ -3,6 +3,7 @@ package ollama
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	ollamaapi "github.com/ollama/ollama/api"
@@ -10,35 +11,45 @@ import (
 )
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
-// M-AI-TOOL-LOOP (v0.17.0). Ollama's local /api/chat endpoint does NOT
-// uniformly support tool calling across the model catalogue (some models
-// support it via Modelfile templating, most don't), so v1 of this adapter
-// rejects tool requests with a typed error and otherwise routes the
-// conversation through Ollama's chat endpoint.
+// M-AI-TOOL-LOOP (v0.17.0). Ollama's /api/chat endpoint now supports native
+// tool/function calling for models that advertise it (e.g. Qwen, Llama 3.1+),
+// so this adapter translates req.Tools into Ollama's tool schema, threads tool
+// calls + tool results through the conversation, and parses tool_calls back out
+// of the response. This is what lets AILANG-native agents (e.g. motoko_agent)
+// run a real tool loop against a local Ollama model at $0.
 //
 // Behaviour:
-//   - len(req.Tools) > 0   → AIError{Code: ToolsNotSupported, Retryable: false}
-//   - req.Messages empty   → delegate to Generate (legacy single-shot path)
-//   - req.Messages present → multi-turn chat (no tool dispatch)
+//   - no Messages AND no Tools → delegate to Generate (legacy single-shot path)
+//   - otherwise               → multi-turn chat, tools advertised when present
+//   - response carries ToolCalls + FinishReason="tool_calls" when the model
+//     decides to call a tool; otherwise FinishReason="stop".
 //
-// Multi-turn responses always have FinishReason="stop" and ToolCalls=nil.
-func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if len(req.Tools) > 0 {
-		return nil, ai.NewAIError(ai.CodeToolsNotSupported,
-			"ollama: tool calling not supported (set req.Tools=nil to fall through to chat)", false)
+// Note: a model whose Modelfile template lacks tool support will simply never
+// emit tool_calls (it answers in prose). Ollama returns an error only for a
+// malformed request, which we surface via ClassifyError.
+// bareModel strips the AILANG provider-routing prefix ("ollama:" or "ollama/")
+// from a model string so the Ollama API receives the raw model tag — e.g.
+// "ollama:qwen3.5:35b-a3b-mxfp8" → "qwen3.5:35b-a3b-mxfp8". GuessProvider uses
+// the prefix to ROUTE to this provider, but Ollama's /api/chat rejects the
+// prefixed form as "invalid model name". Only the first segment is stripped, so
+// the model's own ":tag" (e.g. ":35b-a3b-mxfp8") is preserved.
+func bareModel(m string) string {
+	if i := strings.IndexAny(m, ":/"); i > 0 && strings.EqualFold(m[:i], "ollama") {
+		return m[i+1:]
 	}
+	return m
+}
 
-	// Single-shot path: no Messages → fall back to existing Generate.
-	if len(req.Messages) == 0 {
+func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Single-shot path: no Messages and no Tools → fall back to Generate.
+	if len(req.Messages) == 0 && len(req.Tools) == 0 {
 		return c.Generate(ctx, req)
 	}
 
-	// Multi-turn chat: translate req.Messages → ollamaapi.Message[].
+	// Translate req.Messages → ollamaapi.Message[], threading tool calls/results.
 	messages := make([]ollamaapi.Message, 0, len(req.Messages)+1)
 
-	// If req.SystemPrompt is set AND no system-role message in req.Messages,
-	// prepend the system prompt. If req.Messages already has a system role,
-	// don't double up — req.Messages wins.
+	// Prepend req.SystemPrompt unless req.Messages already carries a system role.
 	hasSystemMsg := false
 	for _, m := range req.Messages {
 		if m.Role == "system" {
@@ -47,28 +58,30 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		}
 	}
 	if req.SystemPrompt != "" && !hasSystemMsg {
-		messages = append(messages, ollamaapi.Message{
-			Role:    "system",
-			Content: req.SystemPrompt,
-		})
+		messages = append(messages, ollamaapi.Message{Role: "system", Content: req.SystemPrompt})
 	}
 
 	for _, m := range req.Messages {
-		role := m.Role
-		// Ollama recognizes user / assistant / system / tool. Map "tool"
-		// (which carries a ToolCallID) to a user message with a tool-result
-		// prefix, since Ollama doesn't have native tool-result semantics.
-		if role == "tool" {
-			messages = append(messages, ollamaapi.Message{
-				Role:    "user",
-				Content: "[tool result] " + m.Content,
-			})
-			continue
+		om := ollamaapi.Message{Role: m.Role, Content: m.Content}
+		// Tool-result message: Ollama has a native "tool" role with tool_call_id.
+		if m.Role == "tool" {
+			om.ToolCallID = m.ToolCallID
 		}
-		messages = append(messages, ollamaapi.Message{
-			Role:    role,
-			Content: m.Content,
-		})
+		// Assistant message that issued tool calls: re-attach them so the model
+		// sees its own prior calls in the running conversation.
+		if len(m.ToolCalls) > 0 {
+			om.ToolCalls = make([]ollamaapi.ToolCall, 0, len(m.ToolCalls))
+			for _, tc := range m.ToolCalls {
+				oc := ollamaapi.ToolCall{Function: ollamaapi.ToolCallFunction{Name: tc.Name}}
+				if tc.Arguments != "" {
+					// Best-effort: Ollama wants structured args; a parse failure
+					// just yields empty args rather than dropping the whole call.
+					_ = json.Unmarshal([]byte(tc.Arguments), &oc.Function.Arguments)
+				}
+				om.ToolCalls = append(om.ToolCalls, oc)
+			}
+		}
+		messages = append(messages, om)
 	}
 
 	options := map[string]interface{}{
@@ -85,7 +98,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	}
 
 	chatReq := &ollamaapi.ChatRequest{
-		Model:    req.Model,
+		Model:    bareModel(req.Model),
 		Messages: messages,
 		Options:  options,
 	}
@@ -97,19 +110,50 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		}
 	}
 
+	// Advertise tools: translate each ai.ToolSchema → ollamaapi.Tool. The
+	// ToolSchema.Parameters is a JSON-Schema string; unmarshal it into Ollama's
+	// structured parameter type.
+	if len(req.Tools) > 0 {
+		tools := make(ollamaapi.Tools, 0, len(req.Tools))
+		for _, t := range req.Tools {
+			fn := ollamaapi.ToolFunction{Name: t.Name, Description: t.Description}
+			if t.Parameters != "" {
+				if err := json.Unmarshal([]byte(t.Parameters), &fn.Parameters); err != nil {
+					return nil, ai.NewAIError(ai.CodeToolsNotSupported,
+						fmt.Sprintf("ollama: invalid JSON-Schema parameters for tool %q: %v", t.Name, err), false)
+				}
+			}
+			tools = append(tools, ollamaapi.Tool{Type: "function", Function: fn})
+		}
+		chatReq.Tools = tools
+	}
+
 	var response strings.Builder
+	var toolCalls []ai.ToolCall
 	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
 		response.WriteString(resp.Message.Content)
+		// Tool calls arrive in the message (possibly across streamed chunks).
+		for _, tc := range resp.Message.ToolCalls {
+			toolCalls = append(toolCalls, ai.ToolCall{
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments.String(),
+			})
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, ai.ClassifyError(err)
 	}
 
+	finish := "stop"
+	if len(toolCalls) > 0 {
+		finish = "tool_calls"
+	}
 	return &ai.Response{
 		Text:         response.String(),
 		Model:        req.Model,
-		FinishReason: "stop",
+		FinishReason: finish,
+		ToolCalls:    toolCalls,
 		// Ollama doesn't report tokens uniformly across versions; leave at 0.
 		InputTokens:  0,
 		OutputTokens: 0,

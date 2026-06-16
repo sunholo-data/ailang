@@ -33,7 +33,8 @@ func TestGuessProvider_OpenRouter(t *testing.T) {
 		{"plain claude", "claude-sonnet-4-5", ProviderAnthropic},
 		{"plain gpt", "gpt-5-mini", ProviderOpenAI},
 		{"plain gemini", "gemini-2-5-flash", ProviderGoogle},
-		{"ollama prefix", "ollama:llama3", ProviderOllama},
+		{"ollama colon prefix", "ollama:llama3", ProviderOllama},
+		{"ollama slash prefix", "ollama/qwen3.5:35b-a3b-mxfp8", ProviderOllama},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

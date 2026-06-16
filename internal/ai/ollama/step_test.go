@@ -10,30 +10,52 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai"
 )
 
-// TestStep_ToolsRejected verifies the tools_not_supported boundary —
-// the contract Ollama promised at M1 stub time.
-func TestStep_ToolsRejected(t *testing.T) {
-	c, err := NewClient()
+// TestStep_ToolsAdvertisedAndParsed verifies the native tool-calling path:
+// req.Tools are translated into Ollama's tool schema in the request, and
+// tool_calls in the response are parsed back into ai.Response.ToolCalls with
+// FinishReason="tool_calls". (Ollama's /api/chat supports tools now; the old
+// "tools_not_supported" rejection is gone.)
+func TestStep_ToolsAdvertisedAndParsed(t *testing.T) {
+	var capturedBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, 16384)
+		n, _ := r.Body.Read(buf)
+		capturedBody = string(buf[:n])
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"write_file","arguments":{"path":"x.ail","content":"hi"}}}]},"done":true}` + "\n"))
+	}))
+	defer srv.Close()
+
+	t.Setenv("OLLAMA_HOST", srv.URL)
+	c, err := NewClient(WithEndpoint(srv.URL))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	req := &ai.Request{
-		Model: "llama3.2",
-		Tools: []ai.ToolSchema{{Name: "noop", Description: "n/a", Parameters: "{}"}},
+	resp, stepErr := c.Step(context.Background(), &ai.Request{
+		Model:    "qwen3.5",
+		Messages: []ai.Message{{Role: "user", Content: "write x.ail"}},
+		Tools: []ai.ToolSchema{{
+			Name:        "write_file",
+			Description: "write a file",
+			Parameters:  `{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}`,
+		}},
+	})
+	if stepErr != nil {
+		t.Fatalf("Step: %v", stepErr)
 	}
-	_, stepErr := c.Step(context.Background(), req)
-	if stepErr == nil {
-		t.Fatal("Step with tools returned nil error; expected ToolsNotSupported")
+	// Tools advertised in the request body.
+	if !contains(capturedBody, `"tools"`) || !contains(capturedBody, "write_file") {
+		t.Errorf("request missing advertised tools; got: %s", capturedBody)
 	}
-	var aiErr *ai.AIError
-	if !errors.As(stepErr, &aiErr) {
-		t.Fatalf("error not *AIError: %T %v", stepErr, stepErr)
+	// Tool call parsed from the response.
+	if resp.FinishReason != "tool_calls" {
+		t.Errorf("FinishReason = %q, want tool_calls", resp.FinishReason)
 	}
-	if aiErr.Code != ai.CodeToolsNotSupported {
-		t.Errorf("Code = %q, want %q", aiErr.Code, ai.CodeToolsNotSupported)
+	if len(resp.ToolCalls) != 1 || resp.ToolCalls[0].Name != "write_file" {
+		t.Fatalf("ToolCalls = %+v, want one write_file call", resp.ToolCalls)
 	}
-	if aiErr.Retryable {
-		t.Error("Retryable should be false")
+	if !contains(resp.ToolCalls[0].Arguments, "x.ail") {
+		t.Errorf("tool call args missing path; got: %s", resp.ToolCalls[0].Arguments)
 	}
 }
 
@@ -190,11 +212,11 @@ func TestStep_SystemPromptNotDuplicated(t *testing.T) {
 	}
 }
 
-// TestStep_ToolRoleMessageFlattenedToUser verifies the Role="tool"
-// degradation path: Ollama doesn't grok tool-role messages, so we
-// flatten them to user messages with a "[tool result]" prefix so the
-// model still sees the content.
-func TestStep_ToolRoleMessageFlattenedToUser(t *testing.T) {
+// TestStep_ToolRoleMessageNative verifies that a Role="tool" message is passed
+// through to Ollama's NATIVE tool role with its tool_call_id intact (Ollama's
+// /api/chat supports tool-result messages now), rather than being flattened to
+// a user message.
+func TestStep_ToolRoleMessageNative(t *testing.T) {
 	var capturedBody string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 8192)
@@ -221,13 +243,15 @@ func TestStep_ToolRoleMessageFlattenedToUser(t *testing.T) {
 	if stepErr != nil {
 		t.Fatalf("Step: %v", stepErr)
 	}
-	// Tool-role content should land as a user message with "[tool result]" prefix.
-	if !contains(capturedBody, "[tool result] hello world") {
-		t.Errorf("captured body missing flattened tool result; got: %s", capturedBody)
+	// Tool-result content goes through with the native tool role + tool_call_id.
+	if !contains(capturedBody, "hello world") {
+		t.Errorf("captured body missing tool result content; got: %s", capturedBody)
 	}
-	// The role should be "user" not "tool" (Ollama doesn't recognize "tool").
-	if contains(capturedBody, `"role":"tool"`) {
-		t.Errorf("captured body should not have role=tool; got: %s", capturedBody)
+	if !contains(capturedBody, `"role":"tool"`) {
+		t.Errorf("captured body should use native role=tool; got: %s", capturedBody)
+	}
+	if !contains(capturedBody, `"tool_call_id":"call_1"`) {
+		t.Errorf("captured body missing tool_call_id; got: %s", capturedBody)
 	}
 }
 
