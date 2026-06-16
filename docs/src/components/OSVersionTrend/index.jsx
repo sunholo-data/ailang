@@ -33,7 +33,10 @@ export default function OSVersionTrend() {
   const [lang, setLang] = useState('ailang');
 
   useEffect(() => {
-    fetch('/benchmarks/os/history.json')
+    // Cache-bust: history.json is small and updates per-release, but it ships with
+    // max-age=600, so a browser that cached an early/transitional copy would show
+    // stale (or empty) rows for 10 min. A per-load query param forces fresh data.
+    fetch(`/benchmarks/os/history.json?v=${Date.now()}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then((h) => setHistory(Array.isArray(h) ? h : []))
       .catch(() => setHistory([]));
