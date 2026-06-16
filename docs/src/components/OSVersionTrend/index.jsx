@@ -25,7 +25,7 @@ function heat(r) {
 }
 
 function shortModel(m) {
-  return m.replace(/^motoko-local-/, '').replace(/^(opencode|pi|motoko)-/, '');
+  return (m || '').replace(/^motoko-local-/, '').replace(/^(opencode|pi|motoko)-/, '');
 }
 
 export default function OSVersionTrend() {
@@ -56,6 +56,7 @@ export default function OSVersionTrend() {
   const seriesMap = new Map();
   ordered.forEach((entry) =>
     (entry.rows || []).forEach((r) => {
+      if (!r || !r.model || !r.harness) return; // skip malformed rows defensively
       if (!seriesMap.has(keyOf(r))) seriesMap.set(keyOf(r), { model: r.model, harness: r.harness });
     }),
   );
