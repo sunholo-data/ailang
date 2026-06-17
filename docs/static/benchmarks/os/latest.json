@@ -1,6 +1,6 @@
 {
   "ailang_version": "v0.25.0",
-  "generated": "2026-06-16",
+  "generated": "2026-06-17",
   "languages": [
     "ailang",
     "go",
@@ -11,10 +11,10 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0,
-        "go": 0,
-        "javascript": 0,
-        "python": 0
+        "ailang": 0.4,
+        "go": 0.9,
+        "javascript": 0.9,
+        "python": 0.6363636363636364
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
     },
@@ -31,10 +31,10 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.8076923076923077,
-        "go": 0.9452054794520548,
-        "javascript": 0.9466666666666667,
-        "python": 0.9367088607594937
+        "ailang": 0.7931034482758621,
+        "go": 0.9512195121951219,
+        "javascript": 0.9523809523809523,
+        "python": 0.9204545454545454
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8"
     },
@@ -51,14 +51,14 @@
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.9625,
-        "go": 0.9324324324324325,
-        "javascript": 0.958904109589041,
-        "python": 0.9873417721518988
+        "ailang": 0.9550561797752809,
+        "go": 0.9397590361445783,
+        "javascript": 0.9634146341463414,
+        "python": 0.9886363636363636
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8"
     }
   ],
   "trials": 3,
-  "version": "rolling-20260616"
+  "version": "rolling-20260617"
 }
