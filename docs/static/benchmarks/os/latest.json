@@ -11,10 +11,10 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.7777777777777778,
-        "go": 0.9444444444444444,
-        "javascript": 0.8333333333333334,
-        "python": 1
+        "ailang": 0.7407407407407407,
+        "go": 0.9629629629629629,
+        "javascript": 0.8888888888888888,
+        "python": 0.96
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
     },
