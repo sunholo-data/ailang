@@ -42,9 +42,14 @@ inspiration and the 96% bar. Key learnings (mine the source under
    transcript — **next cycle: read the failing runs' transcripts** and determine which:
    (a) `WriteFile` to the wrong path / isolation mismatch → AILANG fix; (b) non-write call
    then quit, or genuine stub → motoko prompt/loop PR. Fix the side the data points to.
-2. **[motoko PR] Prompt / loop: compel write-and-iterate** on small local models — STRONG
-   candidate (pi passes the same benchmarks at 9–41 turns; motoko quits at ~2). Pursue once
-   #1's transcripts confirm the model under-engages rather than mis-writing the path.
+2. **[AILANG] Request-param engagement (temperature / thinking)** — the pi-faithful lever.
+   Diagnosis (2026-06-17): failures = qwen non-deterministically emits prose / 0 tool calls;
+   pi has NO loop magic (ends on no-tool-call too) and sends a vanilla /v1 body — its edge is
+   the model *engaging*. qwen3.6's ollama default is **temperature 1.0** (high variance) and
+   we don't gate qwen's thinking; pi does. **Next: A/B temperature ~0.2–0.3 on the agentic
+   ollama path** (few-line change, commit to dev) on the 6 benchmarks. The "compel-write loop
+   guard" (M-MOTOKO-COMPEL-WRITE) was built + A/B'd + **reverted** (guard fired 0/18, one
+   regression) — parked in favour of this.
 3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary`
    (seen under ollama contention) + the `step budget exhausted` tail. Lower priority — the
    lock + /v1 timeout removed the contention trigger; revisit if it recurs un-contended.

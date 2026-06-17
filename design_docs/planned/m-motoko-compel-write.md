@@ -1,6 +1,9 @@
 # M-MOTOKO-COMPEL-WRITE: Compel Reliable Solution-Writing in Motoko
 
-**Status**: Planned (implementing; gated on A/B)
+**Status**: REVERTED 2026-06-17 — A/B net +16pp but the loop guard fired 0/18 (non-functional),
+`config_file_parser` regressed 3/3→0/3, and pi has no loop guard anyway. Re-scoped to a
+request-param (temperature/thinking) approach — see the analysis log's 2026-06-17 A/B entry.
+Kept as the record of why the "compel" approach was set aside in favour of "coax".
 **Target**: v0.25.x (AILANG side) + draft PR to `arniwesth/motoko_agent` (motoko side)
 **Mission item**: #2 — close the motoko-vs-pi AILANG gap (79% → ~88%+)
 

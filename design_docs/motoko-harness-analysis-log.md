@@ -265,3 +265,45 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   the metric.
 - **Prior-action status:** closes mission item #1 (observability → diagnosis). Promotes
   mission item #2 (motoko prompt/loop PR) to active with a concrete, evidence-backed target.
+
+---
+
+### 2026-06-17 — M-MOTOKO-COMPEL-WRITE A/B → REVERTED (guard non-functional; pi has no loop magic)
+
+- **Built 3 changes** (loop guard in `agent_loop_v2.ail` + WriteFile tool-desc + AILANG-side
+  `MOTOKO_REQUIRE_WRITE` env & directive imperative), `.ail` type-checked, smoke-passed
+  graph_bfs. A/B: 6 failing benchmarks ×3 trials, before vs after, lock-respecting.
+- **A/B result:** before pass **9/18 (50%)** / write 10/18 → after pass **12/18 (66%)** /
+  write 12/18. Net +16pp — BUT:
+  - **The loop guard fired 0/18 times.** The lift came entirely from the prompt/tool-desc
+    "coax", not the guard ("compel").
+  - **`config_file_parser` REGRESSED 3/3 → 0/3**, all `api_error` "1 turn, 0 tool calls"
+    (pure prose). The verbose directive plausibly pushed qwen into reasoning-prose with no
+    tool call on every trial.
+  - The guard *should* have fired on those exact 0-tool-call cases and didn't — so it is
+    **non-functional** (env not reaching the `.ail` loop via `bun→ailang`, OR the prose path
+    exits before the `NoDecision` branch I guarded). Unvalidated + a regression → **reverted
+    to known-good** (both repos restored, binary reinstalled, `MOTOKO_REQUIRE_WRITE` gone).
+- **pi reverse-engineering (the real finding):** pi's `agent-loop.js` ALSO ends on a
+  no-tool-call turn (the follow-up queue is empty in non-interactive `-p` mode) — there is
+  **no "turns don't end" mechanism**. pi's request (`openai-completions.js:buildParams`) is a
+  vanilla `/v1` streaming chat-completions with `tools`, **no forced `tool_choice`**, no magic
+  temperature. So pi's edge is purely that its qwen *engages* (keeps calling tools), not the
+  harness. The loop guard was therefore NOT "what pi does" — confirmed.
+- **Two concrete leads for the engagement gap (the right direction):**
+  1. **Sampling.** qwen3.6's ollama default is **`temperature 1.0`** (+ top_p 0.95,
+     presence_penalty 1.5) — high variance, matching the non-deterministic 0-tool-call/prose
+     failures. Our `/v1` path doesn't lower it. **Lowering temperature (~0.2–0.3) for the
+     agentic path** is the cleanest first experiment.
+  2. **Thinking mode.** pi explicitly gates qwen thinking (`enable_thinking` /
+     `chat_template_kwargs`); our path does NOT manage it at all. qwen reasoning-in-prose
+     would emit no tool call.
+- **Lever classification:** AILANG-INTEGRATION (request params: temperature/thinking) — NOT a
+  loop guard. The guard is parked (would need env-propagation + correct insertion + to be
+  re-justified vs the param fix).
+- **Next action (morning, user to steer coax-vs-compel):** A/B **temperature 0.2–0.3** on the
+  agentic ollama path (a few-line, pi-faithful change) on the same 6 benchmarks; if it lifts
+  engagement, that's the upstream-clean fix. Then revisit prompt nudges (drop the verbose
+  directive that regressed config_file_parser).
+- **Prior-action status:** M-MOTOKO-COMPEL-WRITE reverted; mission item #2 re-scoped from
+  "loop guard" to "request-param engagement (temperature/thinking), pi-faithful."
