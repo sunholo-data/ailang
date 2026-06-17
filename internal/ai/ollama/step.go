@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
@@ -44,6 +46,22 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// Single-shot path: no Messages and no Tools → fall back to Generate.
 	if len(req.Messages) == 0 && len(req.Tools) == 0 {
 		return c.Generate(ctx, req)
+	}
+
+	// Tool-calling path: route through Ollama's OpenAI-compatible /v1 endpoint
+	// (M-OLLAMA-V1-TOOLCALLING). Small local models (e.g. qwen3.x) reliably emit
+	// `tool_calls` over /v1/chat/completions — Ollama's compat layer normalizes
+	// the model's tool-call output — but frequently emit ZERO native tool calls
+	// over /api/chat, which silently degrades AILANG-native agents (motoko) to
+	// non-agentic 0-shot. pi/opencode (the 96%/79% reference harnesses) both drive
+	// Ollama via /v1 for exactly this reason. Reuse AILANG's OpenAI provider
+	// pointed at the Ollama host's /v1 (dummy key; Ollama ignores auth). Set
+	// AILANG_OLLAMA_NATIVE_TOOLS=1 to force the legacy native /api/chat tool path.
+	if len(req.Tools) > 0 && os.Getenv("AILANG_OLLAMA_NATIVE_TOOLS") != "1" {
+		v1 := openai.NewClient("ollama", openai.WithBaseURL(strings.TrimRight(c.endpoint, "/")+"/v1"))
+		r2 := *req
+		r2.Model = bareModel(req.Model)
+		return v1.Step(ctx, &r2)
 	}
 
 	// Translate req.Messages → ollamaapi.Message[], threading tool calls/results.

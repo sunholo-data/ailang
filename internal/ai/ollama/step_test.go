@@ -10,12 +10,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai"
 )
 
-// TestStep_ToolsAdvertisedAndParsed verifies the native tool-calling path:
-// req.Tools are translated into Ollama's tool schema in the request, and
-// tool_calls in the response are parsed back into ai.Response.ToolCalls with
-// FinishReason="tool_calls". (Ollama's /api/chat supports tools now; the old
-// "tools_not_supported" rejection is gone.)
-func TestStep_ToolsAdvertisedAndParsed(t *testing.T) {
+// TestStep_ToolsAdvertisedAndParsed_Native verifies the legacy NATIVE /api/chat
+// tool-calling path (opt-in via AILANG_OLLAMA_NATIVE_TOOLS=1): req.Tools are
+// translated into Ollama's tool schema in the request, and tool_calls in the
+// response are parsed back into ai.Response.ToolCalls with FinishReason="tool_calls".
+// (Default tool path is now /v1 — see TestStep_ToolsViaOpenAICompat.)
+func TestStep_ToolsAdvertisedAndParsed_Native(t *testing.T) {
+	t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "1") // force the native /api/chat tool path
 	var capturedBody string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 16384)
@@ -48,6 +49,70 @@ func TestStep_ToolsAdvertisedAndParsed(t *testing.T) {
 		t.Errorf("request missing advertised tools; got: %s", capturedBody)
 	}
 	// Tool call parsed from the response.
+	if resp.FinishReason != "tool_calls" {
+		t.Errorf("FinishReason = %q, want tool_calls", resp.FinishReason)
+	}
+	if len(resp.ToolCalls) != 1 || resp.ToolCalls[0].Name != "write_file" {
+		t.Fatalf("ToolCalls = %+v, want one write_file call", resp.ToolCalls)
+	}
+	if !contains(resp.ToolCalls[0].Arguments, "x.ail") {
+		t.Errorf("tool call args missing path; got: %s", resp.ToolCalls[0].Arguments)
+	}
+}
+
+// TestStep_ToolsViaOpenAICompat verifies the DEFAULT tool-calling path
+// (M-OLLAMA-V1-TOOLCALLING): when req.Tools is present and
+// AILANG_OLLAMA_NATIVE_TOOLS is unset, Step delegates to Ollama's
+// OpenAI-compatible /v1/chat/completions endpoint (the path pi/opencode use,
+// where qwen3.x reliably emits tool_calls) rather than native /api/chat. The
+// request must hit /v1/chat/completions with tools advertised, the model name
+// must be stripped of the ollama: prefix, and OpenAI-format tool_calls in the
+// response must be parsed back into ai.Response.ToolCalls.
+func TestStep_ToolsViaOpenAICompat(t *testing.T) {
+	// Ensure the native opt-out is OFF so we exercise the default /v1 path.
+	t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "")
+	var capturedPath, capturedBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		buf := make([]byte, 16384)
+		n, _ := r.Body.Read(buf)
+		capturedBody = string(buf[:n])
+		w.Header().Set("Content-Type", "application/json")
+		// OpenAI-format (non-streaming) chat completion carrying a tool call.
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-1","object":"chat.completion","model":"qwen3.6","choices":[{"index":0,"message":{"role":"assistant","content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"write_file","arguments":"{\"path\":\"x.ail\",\"content\":\"hi\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+	}))
+	defer srv.Close()
+
+	t.Setenv("OLLAMA_HOST", srv.URL)
+	c, err := NewClient(WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	resp, stepErr := c.Step(context.Background(), &ai.Request{
+		Model:    "ollama:qwen3.6",
+		Messages: []ai.Message{{Role: "user", Content: "write x.ail"}},
+		Tools: []ai.ToolSchema{{
+			Name:        "write_file",
+			Description: "write a file",
+			Parameters:  `{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}`,
+		}},
+	})
+	if stepErr != nil {
+		t.Fatalf("Step: %v", stepErr)
+	}
+	// Delegated to the OpenAI-compat endpoint, not native /api/chat.
+	if capturedPath != "/v1/chat/completions" {
+		t.Errorf("request path = %q, want /v1/chat/completions (native path used?)", capturedPath)
+	}
+	// Tools advertised in the OpenAI request body.
+	if !contains(capturedBody, `"tools"`) || !contains(capturedBody, "write_file") {
+		t.Errorf("request missing advertised tools; got: %s", capturedBody)
+	}
+	// Model prefix stripped for the API (qwen3.6, not ollama:qwen3.6).
+	if !contains(capturedBody, `"model":"qwen3.6"`) || contains(capturedBody, "ollama:qwen3.6") {
+		t.Errorf("model not de-prefixed for /v1; got: %s", capturedBody)
+	}
+	// OpenAI-format tool_calls parsed back out.
 	if resp.FinishReason != "tool_calls" {
 		t.Errorf("FinishReason = %q, want tool_calls", resp.FinishReason)
 	}

@@ -64,3 +64,27 @@ over the OpenAI-compat `/v1/chat/completions` endpoint (like pi/opencode), inste
 native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
 (b) route `ollama/…` models through AILANG's OpenAI provider with baseURL
 `localhost:11434/v1`. This is the first design-doc→sprint→execute item for the mission.
+
+---
+
+### 2026-06-17 — FIX LANDED: M-OLLAMA-V1-TOOLCALLING (mission item #2)
+
+- **Action:** implemented approach (b) — in `internal/ai/ollama/step.go`, when `req.Tools`
+  is present, delegate to an `openai.Client` pointed at `<ollama-host>/v1` (dummy key;
+  ollama ignores auth), reusing AILANG's battle-tested OpenAI tool path. Gated by
+  `AILANG_OLLAMA_NATIVE_TOOLS=1` (opt-in fallback to the old native `/api/chat` path for
+  A/B). ~6 LOC + 2 tests (`TestStep_ToolsViaOpenAICompat` default path,
+  `TestStep_ToolsAdvertisedAndParsed_Native` opt-in path). No import cycle.
+- **Live result (chain `c6409fd7`):** motoko-local-qwen3-6 on fizzbuzz/AILANG →
+  **4 turns, 3 tool calls**, compile ✓ runtime ✓ stdout ✓, **1/1 pass**. Directly
+  reverses the baseline failure signature ("1 turn, 0 tool calls, 0 code"). The 0-tool-calls
+  root cause is closed: qwen3.6 emits tool calls reliably over `/v1`.
+- **Lever classification (confirmed):** AILANG-INTEGRATION — fixed in AILANG glue, no
+  language/prompt/model change needed to recover agentic behaviour.
+- **Prior-action status:** closes the #1 fix item from the 2026-06-17 entry (route ollama
+  tool-calling over `/v1`). Expect the rotation AILANG number to climb from 26% as
+  coverage fills — **re-measure on the next OS rotation** to quantify the lift across the
+  full benchmark set (single-benchmark proof here; rotation gives the aggregate).
+- **Next action:** observe the next rotation's motoko AILANG %; if still gapped vs pi 96%,
+  the residual is mission items #3 (tolerant parse — likely now unnecessary) / #4 (prompt)
+  / #5 (convergence). Lands as: **commit to `dev`** (AILANG glue, per routing rule).
