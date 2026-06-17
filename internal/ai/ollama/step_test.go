@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -121,6 +122,72 @@ func TestStep_ToolsViaOpenAICompat(t *testing.T) {
 	}
 	if !contains(resp.ToolCalls[0].Arguments, "x.ail") {
 		t.Errorf("tool call args missing path; got: %s", resp.ToolCalls[0].Arguments)
+	}
+}
+
+// TestStep_ToolsViaOpenAICompat_TimesOut verifies that a STALLED /v1 server
+// (model reload under GPU contention stalling an open connection) makes Step
+// fail fast instead of hanging forever. The /v1 delegation path is non-streaming,
+// so without a client timeout io.ReadAll blocks indefinitely — this regression
+// hung a live motoko run for ~2h. AILANG_OLLAMA_HTTP_TIMEOUT_SEC bounds it.
+func TestStep_ToolsViaOpenAICompat_TimesOut(t *testing.T) {
+	t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "")
+	t.Setenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC", "1") // tiny cap for the test
+
+	releaseHang := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush() // send headers, then stall the body forever (simulates a wedged stream)
+		}
+		<-releaseHang
+	}))
+	// Defers run LIFO: close(releaseHang) first (unblocks the handler), THEN
+	// srv.Close() (which waits for the now-unblocked handler goroutine). The
+	// reverse order would deadlock Close() against the still-stalled handler.
+	defer srv.Close()
+	defer close(releaseHang)
+
+	t.Setenv("OLLAMA_HOST", srv.URL)
+	c, err := NewClient(WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, stepErr := c.Step(context.Background(), &ai.Request{
+			Model:    "ollama:qwen3.6",
+			Messages: []ai.Message{{Role: "user", Content: "hi"}},
+			Tools:    []ai.ToolSchema{{Name: "write_file", Description: "w", Parameters: `{"type":"object"}`}},
+		})
+		done <- stepErr
+	}()
+
+	select {
+	case stepErr := <-done:
+		if stepErr == nil {
+			t.Fatal("expected a timeout error from the stalled /v1 server, got nil")
+		}
+		// Good: bounded failure rather than an infinite hang.
+	case <-time.After(10 * time.Second):
+		t.Fatal("Step did not return within 10s — the 1s HTTP timeout is not being applied (infinite-hang regression)")
+	}
+}
+
+// TestOllamaV1Timeout verifies the env-configurable timeout helper.
+func TestOllamaV1Timeout(t *testing.T) {
+	t.Setenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC", "")
+	if got := ollamaV1Timeout(); got != defaultOllamaV1TimeoutSec*time.Second {
+		t.Errorf("default = %v, want %v", got, defaultOllamaV1TimeoutSec*time.Second)
+	}
+	t.Setenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC", "45")
+	if got := ollamaV1Timeout(); got != 45*time.Second {
+		t.Errorf("override = %v, want 45s", got)
+	}
+	t.Setenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC", "0")
+	if got := ollamaV1Timeout(); got != 0 {
+		t.Errorf("disabled = %v, want 0", got)
 	}
 }
 

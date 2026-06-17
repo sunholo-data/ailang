@@ -4,13 +4,37 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
+
+// defaultOllamaV1TimeoutSec bounds a single /v1 tool-calling HTTP call. Generous
+// enough for a cold 35B model load + one tool-loop turn, but finite so a stalled
+// stream (model reload under GPU contention) fails fast instead of hanging
+// forever. Override with AILANG_OLLAMA_HTTP_TIMEOUT_SEC ("0" disables the cap).
+const defaultOllamaV1TimeoutSec = 300
+
+// ollamaV1Timeout returns the HTTP client timeout for the /v1 delegation path.
+// AILANG_OLLAMA_HTTP_TIMEOUT_SEC overrides the default; "0" (or negative) means
+// no timeout (restores the legacy unbounded behaviour for debugging).
+func ollamaV1Timeout() time.Duration {
+	if v := os.Getenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			if n <= 0 {
+				return 0
+			}
+			return time.Duration(n) * time.Second
+		}
+	}
+	return defaultOllamaV1TimeoutSec * time.Second
+}
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). Ollama's /api/chat endpoint now supports native
@@ -58,7 +82,19 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// pointed at the Ollama host's /v1 (dummy key; Ollama ignores auth). Set
 	// AILANG_OLLAMA_NATIVE_TOOLS=1 to force the legacy native /api/chat tool path.
 	if len(req.Tools) > 0 && os.Getenv("AILANG_OLLAMA_NATIVE_TOOLS") != "1" {
-		v1 := openai.NewClient("ollama", openai.WithBaseURL(strings.TrimRight(c.endpoint, "/")+"/v1"))
+		// CRITICAL: bound the call with an HTTP timeout. The /v1 Step path is
+		// non-streaming (io.ReadAll of the full body) and openai.NewClient
+		// defaults to http.DefaultClient (Timeout: 0). On a single shared local
+		// GPU, a concurrent request makes ollama reload the model mid-request,
+		// which stalls the open connection — with no timeout the read blocks
+		// FOREVER (observed: a motoko run hung 1h54m while ollama sat idle). The
+		// native /api/chat path streams chunk-by-chunk so it surfaces a dropped
+		// stream quickly; the /v1 path does not, so we MUST cap it ourselves.
+		// Override the ceiling with AILANG_OLLAMA_HTTP_TIMEOUT_SEC (0 disables).
+		v1 := openai.NewClient("ollama",
+			openai.WithBaseURL(strings.TrimRight(c.endpoint, "/")+"/v1"),
+			openai.WithHTTPClient(&http.Client{Timeout: ollamaV1Timeout()}),
+		)
 		r2 := *req
 		r2.Model = bareModel(req.Model)
 		return v1.Step(ctx, &r2)
