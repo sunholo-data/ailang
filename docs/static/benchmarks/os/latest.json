@@ -11,9 +11,9 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 1,
-        "go": 1,
-        "javascript": 0.7777777777777778,
+        "ailang": 0.7777777777777778,
+        "go": 0.9444444444444444,
+        "javascript": 0.8333333333333334,
         "python": 1
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
