@@ -44,3 +44,23 @@ a repeatable method, codify into a `motoko-analyzer` skill.
   2. From that, root-cause the 0-tool-calls: (a) malformed/Hermes-XML tool calls → add tolerant parsing in `internal/ai/ollama/step.go`; (b) tools not advertised / prompt too weak → strengthen tool advertisement + motoko's prompt to compel tool use on small models.
   3. Re-measure on the rotation; expect AILANG to jump if 0-tool-calls is fixed (10/14 failures).
 - **Prior-action status:** closes the "is the integration working?" question (it runs, but tool-calling is unreliable) and the PATH/key harness fix (done; 1 residual CLI-not-found failure pre-fix). Supersedes the assumption that motoko's low AILANG = model can't write AILANG (it mostly never gets to write any).
+
+#### Root cause CONFIRMED via pi's source (the reference harness)
+pi = `@mariozechner/pi-coding-agent` → `@mariozechner/pi-ai`. pi-ai has **no native
+ollama provider** — it drives local ollama through the **OpenAI-compatible
+`/v1/chat/completions`** endpoint (`openai-completions` provider, baseURL
+`localhost:11434/v1`), using OpenAI-style `tools`/`tool_calls`. qwen3.6 emits tool
+calls reliably over `/v1` (ollama's compat layer normalizes the model's tool-call
+format) → pi 96%.
+
+motoko routes through AILANG `internal/ai/ollama`, which uses ollama's **native
+`/api/chat`** Tools API (`github.com/ollama/ollama/api`). qwen3.6 does not reliably
+emit *native* tool calls over `/api/chat` → 0 tool calls → 26%. (Ironic: motoko's
+own `.motoko/config/ollama/config.json` already sets `openai_base_url:
+localhost:11434/v1`, but the AILANG ollama provider ignores it and uses native.)
+
+**Concrete fix (highest-value next work item):** make AILANG drive ollama tool-calling
+over the OpenAI-compat `/v1/chat/completions` endpoint (like pi/opencode), instead of
+native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
+(b) route `ollama/…` models through AILANG's OpenAI provider with baseURL
+`localhost:11434/v1`. This is the first design-doc→sprint→execute item for the mission.
