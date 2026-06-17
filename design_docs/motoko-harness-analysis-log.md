@@ -307,3 +307,26 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   directive that regressed config_file_parser).
 - **Prior-action status:** M-MOTOKO-COMPEL-WRITE reverted; mission item #2 re-scoped from
   "loop guard" to "request-param engagement (temperature/thinking), pi-faithful."
+
+---
+
+### 2026-06-17 — M-OLLAMA-TEMPERATURE-KNOB landed (code; A/B is the GPU follow-up)
+
+- **Action:** added an opt-in `AILANG_OLLAMA_TEMPERATURE` knob to `internal/ai/ollama`
+  (`resolveOllamaTemperature`): applies a temperature on BOTH the `/v1` delegation and the
+  native `/api/chat` path. Precedence req.Temperature>0 > env > unset. **Off by default** —
+  env unset ⇒ byte-for-byte today's request (no rotation behaviour change on commit).
+- **Why:** the pi-faithful lever from the prior diagnosis — qwen3.6's ollama default is
+  `temperature 1.0` (high variance), a likely cause of the non-deterministic 0-tool-call/prose
+  failures; pi sends a vanilla /v1 body so its edge is the model engaging. Lowering temperature
+  is the cleanest first experiment, far less invasive than the reverted loop guard.
+- **Verified (no GPU):** `go test ./internal/ai/...` green incl. new tests
+  (`TestResolveOllamaTemperature` precedence; `TestStep_ToolsViaOpenAICompat_TemperatureEnv`
+  — env 0.2 ⇒ `"temperature":0.2` in the /v1 body; unset ⇒ absent). Build + vet clean.
+- **Lever classification:** AILANG-INTEGRATION (request params).
+- **Next action (GPU, separate run):** A/B the 6 flaky benchmarks with
+  `AILANG_OLLAMA_TEMPERATURE` unset (control) vs `0.2`/`0.3` (treatment, wired via the motoko
+  executor env), lock-respecting. If engagement/pass lifts, consider making a low temperature
+  the default for the agentic path; else investigate thinking-mode (lead #2).
+- **Prior-action status:** delivers the code half of mission item #2; the empirical A/B is the
+  only remaining step (deliberately deferred — this was a no-GPU downtime cycle).

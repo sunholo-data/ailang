@@ -46,10 +46,14 @@ inspiration and the 96% bar. Key learnings (mine the source under
    Diagnosis (2026-06-17): failures = qwen non-deterministically emits prose / 0 tool calls;
    pi has NO loop magic (ends on no-tool-call too) and sends a vanilla /v1 body — its edge is
    the model *engaging*. qwen3.6's ollama default is **temperature 1.0** (high variance) and
-   we don't gate qwen's thinking; pi does. **Next: A/B temperature ~0.2–0.3 on the agentic
-   ollama path** (few-line change, commit to dev) on the 6 benchmarks. The "compel-write loop
-   guard" (M-MOTOKO-COMPEL-WRITE) was built + A/B'd + **reverted** (guard fired 0/18, one
-   regression) — parked in favour of this.
+   we don't gate qwen's thinking; pi does.
+   - **[CODE LANDED] M-OLLAMA-TEMPERATURE-KNOB** — `AILANG_OLLAMA_TEMPERATURE` env knob
+     (off by default) on the `/v1` + native ollama paths, with tests. Commit on `dev`.
+   - **[NEXT — needs GPU] A/B** temperature unset vs 0.2/0.3 on the 6 flaky benchmarks
+     (wire the env via the motoko executor for the treatment arm). If it lifts engagement,
+     make a low temperature the default; else investigate thinking-mode (`enable_thinking`).
+   The "compel-write loop guard" (M-MOTOKO-COMPEL-WRITE) was built + A/B'd + **reverted**
+   (guard fired 0/18, one regression) — parked in favour of this.
 3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary`
    (seen under ollama contention) + the `step budget exhausted` tail. Lower priority — the
    lock + /v1 timeout removed the contention trigger; revisit if it recurs un-contended.

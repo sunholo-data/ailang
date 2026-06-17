@@ -36,6 +36,31 @@ func ollamaV1Timeout() time.Duration {
 	return defaultOllamaV1TimeoutSec * time.Second
 }
 
+// resolveOllamaTemperature picks the sampling temperature for the agentic ollama
+// path (M-OLLAMA-TEMPERATURE-KNOB). Precedence:
+//  1. an explicit reqTemp > 0 (caller's choice always wins);
+//  2. AILANG_OLLAMA_TEMPERATURE, if set to a parseable value > 0;
+//  3. 0 — meaning "don't send a temperature; let ollama use the model default"
+//     (today's behaviour; qwen3.x defaults to 1.0).
+//
+// The knob exists because qwen3.x's 1.0 default is high-variance and a likely
+// cause of non-deterministic 0-tool-call/prose turns under motoko. Off by
+// default so it changes nothing until an A/B opts in. A value of exactly 0 via
+// the env is treated as "unset" (downstream temperature fields are omitempty, so
+// 0 can't be transmitted distinctly anyway) — use a small positive value for
+// near-greedy decoding.
+func resolveOllamaTemperature(reqTemp float64) float64 {
+	if reqTemp > 0 {
+		return reqTemp
+	}
+	if v := os.Getenv("AILANG_OLLAMA_TEMPERATURE"); v != "" {
+		if t, err := strconv.ParseFloat(v, 64); err == nil && t > 0 {
+			return t
+		}
+	}
+	return 0
+}
+
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). Ollama's /api/chat endpoint now supports native
 // tool/function calling for models that advertise it (e.g. Qwen, Llama 3.1+),
@@ -97,6 +122,11 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		)
 		r2 := *req
 		r2.Model = bareModel(req.Model)
+		// M-OLLAMA-TEMPERATURE-KNOB: qwen3.x's ollama default is temperature 1.0
+		// (high variance) — a likely cause of non-deterministic 0-tool-call/prose
+		// turns under motoko. Allow an opt-in lower temperature via
+		// AILANG_OLLAMA_TEMPERATURE (off by default; req.Temperature still wins).
+		r2.Temperature = resolveOllamaTemperature(req.Temperature)
 		return v1.Step(ctx, &r2)
 	}
 
@@ -147,8 +177,10 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	} else {
 		options["num_predict"] = 4096
 	}
-	if req.Temperature > 0 {
-		options["temperature"] = req.Temperature
+	// M-OLLAMA-TEMPERATURE-KNOB: same opt-in override as the /v1 path above, so
+	// the native /api/chat tool path is consistent. Off by default.
+	if t := resolveOllamaTemperature(req.Temperature); t > 0 {
+		options["temperature"] = t
 	}
 
 	chatReq := &ollamaapi.ChatRequest{

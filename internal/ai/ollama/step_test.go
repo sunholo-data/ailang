@@ -191,6 +191,61 @@ func TestOllamaV1Timeout(t *testing.T) {
 	}
 }
 
+// TestResolveOllamaTemperature verifies the precedence: req>0 wins, then the
+// env, then unset (0). (M-OLLAMA-TEMPERATURE-KNOB)
+func TestResolveOllamaTemperature(t *testing.T) {
+	t.Setenv("AILANG_OLLAMA_TEMPERATURE", "")
+	if got := resolveOllamaTemperature(0); got != 0 {
+		t.Errorf("unset env + req 0 = %v, want 0", got)
+	}
+	if got := resolveOllamaTemperature(0.7); got != 0.7 {
+		t.Errorf("req 0.7 = %v, want 0.7 (req wins)", got)
+	}
+	t.Setenv("AILANG_OLLAMA_TEMPERATURE", "0.2")
+	if got := resolveOllamaTemperature(0); got != 0.2 {
+		t.Errorf("env 0.2 + req 0 = %v, want 0.2", got)
+	}
+	if got := resolveOllamaTemperature(0.9); got != 0.9 {
+		t.Errorf("req 0.9 must override env = %v, want 0.9", got)
+	}
+	t.Setenv("AILANG_OLLAMA_TEMPERATURE", "garbage")
+	if got := resolveOllamaTemperature(0); got != 0 {
+		t.Errorf("unparseable env = %v, want 0 (ignored)", got)
+	}
+}
+
+// TestStep_ToolsViaOpenAICompat_TemperatureEnv verifies the env knob reaches the
+// /v1 request body, and that it's absent by default (today's behaviour).
+func TestStep_ToolsViaOpenAICompat_TemperatureEnv(t *testing.T) {
+	run := func(envVal string) string {
+		t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "")
+		t.Setenv("AILANG_OLLAMA_TEMPERATURE", envVal)
+		var body string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			buf := make([]byte, 16384)
+			n, _ := r.Body.Read(buf)
+			body = string(buf[:n])
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"x","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`))
+		}))
+		defer srv.Close()
+		t.Setenv("OLLAMA_HOST", srv.URL)
+		c, _ := NewClient(WithEndpoint(srv.URL))
+		_, _ = c.Step(context.Background(), &ai.Request{
+			Model:    "ollama:qwen3.6",
+			Messages: []ai.Message{{Role: "user", Content: "hi"}},
+			Tools:    []ai.ToolSchema{{Name: "w", Description: "w", Parameters: `{"type":"object"}`}},
+		})
+		return body
+	}
+	if b := run("0.2"); !contains(b, `"temperature":0.2`) {
+		t.Errorf("env 0.2 not in /v1 body; got: %s", b)
+	}
+	if b := run(""); contains(b, `"temperature"`) {
+		t.Errorf("temperature must be absent by default; got: %s", b)
+	}
+}
+
 // TestStep_NoMessages_DelegatesToGenerate verifies the legacy
 // single-shot path: when req.Messages is empty, Step routes to
 // Generate via the same ollama chat endpoint.
