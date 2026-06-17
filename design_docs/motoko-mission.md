@@ -39,18 +39,20 @@ inspiration and the 96% bar. Key learnings (mine the source under
 1. **[AILANG] Observability: retain motoko session JSONL on eval failure.** Failing
    runs drop the raw model response (turns/finish null, code empty). Capture it so we
    can see qwen's actual tool-call output. *Unblocks everything below.*
-2. **[AILANG] ollama tool-calling over `/v1` (like pi).** Root cause of the 26%:
-   native `/api/chat` → qwen emits 0 native tool calls. Route `ollama/…` tool-calling
-   through OpenAI-compat `/v1/chat/completions`. Expected to fix ~71% of failures.
-3. **[AILANG, dep on #1] Tolerant tool-call parsing** in `internal/ai/ollama/step.go`
-   for qwen's Hermes/XML `<function>` blocks, IF #2 doesn't fully fix it.
-4. **[motoko PR] Prompt: compel tool use** on small local models (SYSTEM.md / a
-   `motoko_ext_*`), if the model still under-uses tools after #2.
-5. **[AILANG] Convergence**: the `step budget exhausted` tail.
+2. **[motoko PR] Prompt: compel tool use** on small local models (SYSTEM.md / a
+   `motoko_ext_*`), if the model still under-uses tools after the /v1 fix (#2 below).
+3. **[AILANG] Convergence**: the `step budget exhausted` tail.
+4. **[AILANG, only if needed] Tolerant tool-call parsing** in `internal/ai/ollama/step.go`
+   for qwen's Hermes/XML `<function>` blocks — likely unnecessary now that /v1 normalizes
+   tool calls; keep parked unless a rotation shows residual 0-tool-call runs.
 
 ## Done / superseded
 - motoko ollama integration enabled + PATH/key rotation fix (this repo, landed).
 - First failure analysis → root cause = AILANG-INTEGRATION (tool-calling), not language.
+- **#2 ollama tool-calling over `/v1` (M-OLLAMA-V1-TOOLCALLING) — LANDED on `dev`
+  (41c52ffe, 2026-06-17).** Root cause of the 26% closed: native `/api/chat` → 0 tool
+  calls; now delegates to OpenAI-compat `/v1`. Live fizzbuzz: 4 turns / 3 tool calls /
+  pass vs 0-tool-calls baseline. Re-measure aggregate on next OS rotation.
 
 ## Skill
 When the analysis log has ~3+ entries and the cycle is repeatable, codify a
