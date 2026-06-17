@@ -11,10 +11,10 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.7777777777777778,
-        "go": 0.9814814814814815,
-        "javascript": 0.9444444444444444,
-        "python": 0.9807692307692307
+        "ailang": 0.746031746031746,
+        "go": 0.9682539682539683,
+        "javascript": 0.9365079365079365,
+        "python": 0.9836065573770492
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
     },
@@ -31,10 +31,10 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.8,
-        "go": 0.94,
-        "javascript": 0.9411764705882353,
-        "python": 0.9339622641509434
+        "ailang": 0.8018018018018018,
+        "go": 0.9433962264150944,
+        "javascript": 0.9444444444444444,
+        "python": 0.9357798165137615
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8"
     },
@@ -51,14 +51,14 @@
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.9626168224299065,
-        "go": 0.9504950495049505,
-        "javascript": 0.96,
-        "python": 0.9811320754716981
+        "ailang": 0.9545454545454546,
+        "go": 0.9519230769230769,
+        "javascript": 0.963302752293578,
+        "python": 0.981651376146789
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8"
     }
   ],
-  "trials": 3,
+  "trials": 4,
   "version": "rolling-20260617"
 }
