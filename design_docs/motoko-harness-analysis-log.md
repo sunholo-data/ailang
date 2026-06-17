@@ -227,3 +227,41 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   stub-failure class. Next cycle (after the rotation produces transcripts): read what the
   failing runs' single tool call actually did, then fix the real root cause (path/isolation
   vs loop/prompt) on the correct side per the routing rule.
+
+---
+
+### 2026-06-17 — ROOT CAUSE PROVEN via transcripts (targeted diagnostic, 6 benchmarks ×2 trials)
+
+- **Method:** lock-respecting targeted run (the new rig-lock waited out the rotation, then
+  acquired — no contention) of the 6 failing AILANG benchmarks ×2 trials with the
+  transcript-retaining binary. 12 runs; transcripts attached.
+- **Result — 100% correlation between `WriteFile` and pass:**
+
+  | outcome | n | turns | WriteFile? | what the model did |
+  |---|---|---|---|---|
+  | PASS | 8 | 3–21 | **YES** (1–7×) | wrote solution, iterated → passed |
+  | FAIL (logic_error) | 1 | 3 | **no** | `BashExec(mkdir)` + `ReadFile(stub)`, then stopped — never wrote |
+  | api_error | 3 | None | **no** | 0 tool calls — pure prose, non-agentic gate rejects |
+
+- **Root cause (PROVEN, not inferred):** qwen3.6 under motoko **non-deterministically fails
+  to write the solution file.** Two failure shapes, same cause — under-engagement:
+  (A) explores (mkdir/read) but never `WriteFile` then stops (`finish=stop`, leaves the
+  seeded placeholder → logic_error); (B) emits 0 tool calls / prose (→ harness non-agentic
+  gate → api_error). The *same* benchmarks pass on other trials with 3–21 turns and
+  WriteFile. So it is NOT wrong-path/isolation (passing runs use identical temp paths and
+  write fine), NOT an AILANG capture bug, NOT model-capability (when it writes, logic is
+  correct). It is **reliability of agentic engagement** — pi drives the same model to
+  write+iterate reliably (88%); motoko does not (79%).
+- **Lever classification:** **PROMPT** (primary) — motoko's system/loop must compel "use
+  tools; WriteFile your solution before finishing; iterate against the expected output."
+  Secondary harness angle: motoko could refuse to finalize while `solution.ail` is still
+  the placeholder (a loop "definition-of-done" check). DP7 won't help (an empty/stub module
+  passes `ailang check`).
+- **Routing:** lands as a **draft PR to `arniwesth/motoko_agent`** (`.ail` core / SYSTEM
+  prompt / loop) via the `sunholo-voight-kampff` fork — verified locally first.
+- **Discipline win:** this is the same conclusion ("prompt/loop") I reached two cycles ago
+  by a turn-count *hunch* and the user rightly rejected — now established by the
+  WriteFile↔pass correlation in the transcripts. The deciding evidence was the artifact, not
+  the metric.
+- **Prior-action status:** closes mission item #1 (observability → diagnosis). Promotes
+  mission item #2 (motoko prompt/loop PR) to active with a concrete, evidence-backed target.
