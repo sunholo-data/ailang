@@ -73,6 +73,9 @@ func TestStageToResult(t *testing.T) {
 	if result.AgentTurns != 4 {
 		t.Errorf("expected 4 agent turns, got %d", result.AgentTurns)
 	}
+	if result.AgentToolCalls != 7 {
+		t.Errorf("expected 7 agent tool calls, got %d", result.AgentToolCalls)
+	}
 	if result.EvalMode != "agent" {
 		t.Errorf("expected eval mode agent, got %s", result.EvalMode)
 	}

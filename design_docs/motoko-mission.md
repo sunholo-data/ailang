@@ -36,13 +36,14 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-1. **[AILANG] Observability: retain motoko session JSONL on eval failure.** Failing
-   runs drop the raw model response (turns/finish null, code empty). Capture it so we
-   can see qwen's actual tool-call output. *Unblocks everything below.*
+1. **[AILANG] Convergence / robustness**: motoko can exit with
+   `finish_reason=tool_calls and no run_summary` (observed under ollama contention,
+   2026-06-17) and has a `step budget exhausted` tail — both yield api_error with null
+   metrics. Make motoko emit a run_summary (and the harness capture partial metrics) when
+   the model's last action is a trailing tool call or it hits the step cap.
 2. **[motoko PR] Prompt: compel tool use** on small local models (SYSTEM.md / a
-   `motoko_ext_*`), if the model still under-uses tools after the /v1 fix (#2 below).
-3. **[AILANG] Convergence**: the `step budget exhausted` tail.
-4. **[AILANG, only if needed] Tolerant tool-call parsing** in `internal/ai/ollama/step.go`
+   `motoko_ext_*`), if a rotation shows the model still under-using tools after the /v1 fix.
+3. **[AILANG, only if needed] Tolerant tool-call parsing** in `internal/ai/ollama/step.go`
    for qwen's Hermes/XML `<function>` blocks — likely unnecessary now that /v1 normalizes
    tool calls; keep parked unless a rotation shows residual 0-tool-call runs.
 

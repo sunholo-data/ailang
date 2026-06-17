@@ -169,7 +169,8 @@ func stageToResult(stage *observatory.ChainStage) *BenchmarkResult {
 		DurationMs:   stage.DurationMs,
 
 		// Agent metrics
-		EvalMode:   a.EvalMode,
-		AgentTurns: stage.Turns,
+		EvalMode:       a.EvalMode,
+		AgentTurns:     stage.Turns,
+		AgentToolCalls: stage.ToolCalls,
 	}
 }

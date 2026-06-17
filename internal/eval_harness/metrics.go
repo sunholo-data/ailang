@@ -59,6 +59,7 @@ type RunMetrics struct {
 
 	// Agent mode KPIs (M-EVAL-AGENT)
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
+	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (agent mode only; validates agentic behavior — the "0 tool calls" signal)
 	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
 	EvalMode        string `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
 

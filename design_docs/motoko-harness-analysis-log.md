@@ -88,3 +88,66 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
 - **Next action:** observe the next rotation's motoko AILANG %; if still gapped vs pi 96%,
   the residual is mission items #3 (tolerant parse — likely now unnecessary) / #4 (prompt)
   / #5 (convergence). Lands as: **commit to `dev`** (AILANG glue, per routing rule).
+
+---
+
+### 2026-06-17 — POST-FIX rotation (os-rolling, qwen3.6) — AGGREGATE LIFT CONFIRMED
+
+- **Data source:** 20 fresh motoko runs in `os-rolling` after the /v1 fix (mtime > 07:45),
+  vs the archived pre-fix baseline in `_prefix-baseline-motoko-20260617/` (79 runs).
+- **Headline:** motoko AILANG **5/5 = 100%** post-fix (vs **5/19 = 26%** pre-fix). Other
+  langs: Go 6/6, JS 5/6, Py 3/3. Partial sample (rotation still filling) but the AILANG
+  jump is unambiguous and matches the single-benchmark proof.
+- **Failure taxonomy (post-fix, 1 failure / 20):** the lone failure is JS `api_call_json`
+  → `runtime_error` "JavaScript execution timed out" at **6 turns** (model wrote a hanging
+  http server). This is **MODEL-CAPABILITY / logic**, NOT the harness 0-tool-calls bug.
+  AILANG runs now show healthy multi-turn loops (3–8 turns, finish_reason=stop, code
+  written, compile/runtime/stdout ✓).
+- **Root cause status:** the AILANG-INTEGRATION 0-tool-calls failure mode (10/14 of the
+  original failures) is **eliminated**. The failure class has shifted from "never wrote
+  code" to "wrote code that's logically wrong" — a fundamentally healthier regime, and the
+  one pi/opencode also live in.
+- **Lever classification:** prior dominant lever (AILANG-INTEGRATION) **closed**. New
+  residual lever = **MODEL-CAPABILITY** (qwen3.6 logic errors) — not fixable by us short of
+  a stronger model or better teaching/prompt.
+- **Observability gap found (this cycle's pick):** the per-run JSON shows
+  `agent_tool_calls = None` even though the agent made tool calls — the chain DB has the
+  count (`chains view`: "3 tool calls") but `RunMetrics` has **no field** to receive
+  `executor.Result.ToolCallCount`, so it's dropped at `cmd/ailang/eval_benchmark.go:278`.
+  Tool-call count is THE signature metric of this whole investigation ("0 tool calls") yet
+  it's invisible in the rolling data. → backlog item #1 (observability), scoped below.
+- **Prior-action status:** **closes mission item #2** (/v1 tool-calling) — aggregate lift
+  confirmed, not just the single fizzbuzz. Pre-fix baseline preserved for the before/after.
+- **Next action:** surface `agent_tool_calls` end-to-end (M-MOTOKO-OBS-TOOLCALLS) so the
+  next analysis can quantify tool-use directly from rolling JSON without chain queries.
+
+---
+
+### 2026-06-17 — FIX LANDED: M-MOTOKO-OBS-TOOLCALLS (mission item #1, observability)
+
+- **Action:** wired `executor.Result.ToolCallCount` → `RunMetrics.AgentToolCalls`
+  (`json:"agent_tool_calls,omitempty"`) end-to-end: `internal/eval_harness/metrics.go`
+  (new field) + `cmd/ailang/eval_benchmark.go:279` (file writer) +
+  `internal/eval_analysis/types.go` (analysis `RunMetrics` + `ResultJSON` export struct +
+  converter) + `internal/eval_analysis/loader_chains.go` (chain loader maps `stage.ToolCalls`).
+  ~6 field/assignment lines across 4 files. Value was already captured at every hop except
+  the per-run JSON, where it was silently dropped. Standard-mode rows unaffected (omitempty).
+- **Tests:** `TestRunMetrics_AgentToolCalls` (serialize/round-trip/omitempty) +
+  extended `TestStageToResult` (asserts `stage.ToolCalls:7 → AgentToolCalls==7`, the real
+  chain-loader path). `go test ./internal/eval_harness/... ./internal/eval_analysis/...` green.
+- **Live file-writer confirmation:** deferred to the next OS rotation tick (which uses the
+  freshly-installed binary) to avoid starving the *currently-running* rotation's ollama —
+  manual motoko runs while the rotation is mid-flight produced GPU-contention failures (see
+  edge case below). The file-writer hop is a 1-line assignment adjacent to the proven-working
+  `AgentTurns` mapping, reading the verified-populated `result.ToolCallCount`.
+- **Observed edge case (logged, NOT this item):** under concurrent ollama load, motoko can
+  exit with `finish_reason=tool_calls and no run_summary` (api_error, turns/code null) — the
+  model's final action was a tool call but motoko terminated without emitting a run_summary.
+  This is a motoko **convergence/robustness** gap (mission backlog: convergence / parsing),
+  surfaces only under contention, and is distinct from the closed 0-tool-calls bug. Flag for
+  a future cycle if the next rotation shows it outside contention.
+- **Lever classification:** AILANG-INTEGRATION (eval-rig observability plumbing).
+- **Prior-action status:** **closes mission item #1** (retain motoko tool-call observability).
+  The literal "session JSONL on failure" concern is largely moot post-/v1 (failing runs now
+  retain code/turns/finish_reason/stderr); the one genuinely-dropped signal — the tool-call
+  **count** — is now surfaced per-run. Backlog reprioritized: convergence robustness rises.

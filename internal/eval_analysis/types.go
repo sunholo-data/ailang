@@ -46,6 +46,7 @@ type BenchmarkResult struct {
 	EvalMode        string `json:"eval_mode,omitempty"`        // "standard" or "agent"
 	Condition       string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
+	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (validates agentic behavior)
 	AgentTranscript string `json:"agent_transcript,omitempty"` // Full session log
 
 	// Reproducibility
@@ -225,9 +226,10 @@ type SummaryEntry struct {
 	Timestamp      string  `json:"timestamp"`
 	Stderr         string  `json:"stderr,omitempty"`
 	// Agent evaluation fields (M-EVAL-AGENT)
-	EvalMode   string `json:"eval_mode,omitempty"`   // "standard" or "agent"
-	Condition  string `json:"condition,omitempty"`   // Experimental condition: "baseline", "agent_prompt", etc.
-	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
+	EvalMode       string `json:"eval_mode,omitempty"`        // "standard" or "agent"
+	Condition      string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
+	AgentTurns     int    `json:"agent_turns,omitempty"`      // Number of conversation turns
+	AgentToolCalls int    `json:"agent_tool_calls,omitempty"` // Tool invocations (validates agentic behavior)
 }
 
 // TierLanguageStats holds per-language aggregate metrics for one tier.
@@ -428,6 +430,7 @@ func (r *BenchmarkResult) ToSummaryEntry() *SummaryEntry {
 		EvalMode:       r.EvalMode,
 		Condition:      r.Condition,
 		AgentTurns:     r.AgentTurns,
+		AgentToolCalls: r.AgentToolCalls,
 	}
 }
 

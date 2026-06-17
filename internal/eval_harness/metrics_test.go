@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -97,6 +98,36 @@ func TestMetricsLogger(t *testing.T) {
 
 	if loaded.OutputTokens != 50 {
 		t.Errorf("Expected output tokens 50, got %d", loaded.OutputTokens)
+	}
+}
+
+// TestRunMetrics_AgentToolCalls verifies the agent_tool_calls field
+// (M-MOTOKO-OBS-TOOLCALLS) round-trips through JSON for agent rows and is
+// omitted for standard rows (omitempty). Tool-call count is the signal that
+// distinguishes agentic runs (>0) from the degenerate "0 tool calls" failure.
+func TestRunMetrics_AgentToolCalls(t *testing.T) {
+	// Agent row with tool calls: field is serialized and reloads intact.
+	agent := &RunMetrics{ID: "agent_run", EvalMode: EvalModeAgent, AgentTurns: 4, AgentToolCalls: 3}
+	data, err := json.Marshal(agent)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if !strings.Contains(string(data), `"agent_tool_calls":3`) {
+		t.Errorf("agent_tool_calls not serialized; got: %s", data)
+	}
+	var reloaded RunMetrics
+	if err := json.Unmarshal(data, &reloaded); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if reloaded.AgentToolCalls != 3 {
+		t.Errorf("AgentToolCalls = %d, want 3", reloaded.AgentToolCalls)
+	}
+
+	// Standard row (no tool calls): omitempty drops the field entirely.
+	std := &RunMetrics{ID: "std_run", EvalMode: EvalModeStandard}
+	sdata, _ := json.Marshal(std)
+	if strings.Contains(string(sdata), "agent_tool_calls") {
+		t.Errorf("agent_tool_calls should be omitted for standard rows; got: %s", sdata)
 	}
 }
 
