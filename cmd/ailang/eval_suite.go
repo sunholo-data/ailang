@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -93,6 +94,7 @@ func runEvalSuite() {
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
+	noRigLock := fs.Bool("no-rig-lock", false, "Skip the shared rig lock. The rig is a single GPU; by default eval-suite refuses to start if another rig job (nightly/lang-eval/rotation) holds the lock, to prevent thrash/model-reload hangs. Use only on an isolated box.")
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
@@ -129,6 +131,32 @@ func runEvalSuite() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Shared rig lock (M-RIG-LOCK-ENFORCE): the rig is a single GPU. Two eval
+	// jobs hitting ollama concurrently thrash and can trigger a model reload that
+	// stalls a stream — which has hung runs for hours. Refuse to start if another
+	// rig job (nightly/lang-eval/rotation, or another eval-suite) holds the lock,
+	// surfacing the conflict immediately instead of relying on anyone to source
+	// rig-lock.sh. --dry-run touches no GPU, so it skips the lock. The launchd
+	// wrapper already holds the lock and exports AILANG_RIG_LOCK_HELD=1, which
+	// riglock.Acquire honours so it never deadlocks against its own parent.
+	if !*dryRun && !*noRigLock {
+		acquired, release, lockErr := riglock.Acquire(riglock.NoWait)
+		if lockErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: rig lock unavailable (%v) — proceeding without it\n", lockErr)
+		} else if !acquired {
+			holder := riglock.Holder()
+			if holder == "" {
+				holder = "another rig job"
+			}
+			fmt.Fprintf(os.Stderr, "Error: the rig is busy — %s holds the rig lock.\n", holder)
+			fmt.Fprintf(os.Stderr, "       The rig is a single GPU; running concurrently thrashes ollama and can hang.\n")
+			fmt.Fprintf(os.Stderr, "       Wait for it to finish, or pass --no-rig-lock to override (isolated box only).\n")
+			os.Exit(1)
+		} else {
+			defer release()
+		}
 	}
 
 	// Set package-level eval config from flags (M-CONTRACT-EVAL)

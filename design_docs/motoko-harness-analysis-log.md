@@ -151,3 +151,40 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   The literal "session JSONL on failure" concern is largely moot post-/v1 (failing runs now
   retain code/turns/finish_reason/stderr); the one genuinely-dropped signal — the tool-call
   **count** — is now surfaced per-run. Backlog reprioritized: convergence robustness rises.
+
+---
+
+### 2026-06-17 — INCIDENT + FIX: /v1 contention hang & rig-lock enforcement
+
+- **Incident:** the OS rotation wedged for ~2h. A motoko run hung 1h54m with the bun
+  subprocess + `ailang run --ai ollama` alive but **ollama idle (0 models loaded)**. Killing
+  the subprocess tree unstuck the parent rotation.
+- **Root cause (two faults, confirmed):**
+  1. **The `/v1` switch made it possible.** The hung run used the new OpenAI-compat `/v1`
+     default (no `AILANG_OLLAMA_NATIVE_TOOLS=1` anywhere). The `/v1` delegation built its
+     client with `http.DefaultClient` (**Timeout: 0**) and uses the **non-streaming** Step
+     path (`io.ReadAll`). On the single shared GPU, a concurrent request triggered an ollama
+     model reload that stalled the open connection → the read blocked **forever**. The native
+     `/api/chat` path streams chunk-by-chunk, so it surfaces a dropped stream quickly — which
+     is why the user recalled "lots of hangs before we moved to ollama endpoints." Their
+     hypothesis was correct.
+  2. **The contention was unguarded.** The shell `rig-lock.sh` existed but was opt-in; an
+     ad-hoc `ailang eval-suite` (mine, verifying the obs change) took no lock and collided
+     with the rotation.
+- **Fixes (both AILANG → `dev`):**
+  - **`/v1` HTTP timeout** (commit `63fc63e0`): bound the delegation client with
+    `http.Client{Timeout: ollamaV1Timeout()}` (default 300s, `AILANG_OLLAMA_HTTP_TIMEOUT_SEC`
+    override; `0` disables). A stalled stream now fails fast. Tests:
+    `TestStep_ToolsViaOpenAICompat_TimesOut`, `TestOllamaV1Timeout`.
+  - **Native rig-lock in `eval-suite`** (M-RIG-LOCK-ENFORCE): new `internal/riglock` (Go
+    port of `rig-lock.sh`, same dir/staleness); `eval-suite` acquires NoWait and **fails fast
+    with the holder identity** if the rig is busy. `--dry-run`/`--no-rig-lock` bypass;
+    `rig-lock.sh` exports `AILANG_RIG_LOCK_HELD=1` so launchd wrappers don't double-lock.
+    Verified live: held lock → `exit 1` "rig is busy — PID … holds the rig lock".
+- **Lever classification:** AILANG-INTEGRATION (ollama HTTP robustness) + HARNESS-ERROR
+  (missing mutual exclusion on the shared GPU).
+- **Lesson enshrined:** the safety must live **in the command we already run**, not in a
+  script to remember — the user's explicit requirement. Manual rig runs now surface a
+  conflict immediately; the timeout is defense-in-depth if contention ever slips through.
+- **Prior-action status:** hardens mission item #2 (/v1) which introduced the hang surface;
+  no revert needed (the /v1 win — AILANG 26%→100% — stands, now bounded + serialized).

@@ -31,8 +31,12 @@ rig_lock_acquire() {
     sleep 30
   done
   echo "$$ $(date -u +%FT%TZ)" > "$RIG_LOCK_DIR/holder" 2>/dev/null || true
+  # Tell descendant `ailang eval-suite` processes that an ancestor already holds
+  # the rig lock, so its native riglock.Acquire (internal/riglock) is a no-op and
+  # does not deadlock against this wrapper's lock. Must match riglock.EnvHeld.
+  export AILANG_RIG_LOCK_HELD=1
   # shellcheck disable=SC2064
-  trap "rm -rf '$RIG_LOCK_DIR'" EXIT
+  trap "rm -rf '$RIG_LOCK_DIR'; unset AILANG_RIG_LOCK_HELD" EXIT
   return 0
 }
 
