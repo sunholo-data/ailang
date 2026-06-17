@@ -210,6 +210,39 @@ func findJSONLInDir(logDir, sessionID string) (string, error) {
 	return jsonls[0].path, nil
 }
 
+// summarizeToolCall renders one motoko native tool call as a compact, bounded
+// one-liner for the retained transcript: "<tool> <args>" with args truncated.
+// For a write_file call this surfaces the destination path and a content
+// preview — the signal we need to tell "wrote to the wrong path" from "made a
+// non-write call and stopped". Robust to unknown arg shapes (dumps raw JSON).
+func summarizeToolCall(raw json.RawMessage) string {
+	var tc struct {
+		Tool      string          `json:"tool"`
+		Arguments json.RawMessage `json:"arguments"`
+	}
+	if err := json.Unmarshal(raw, &tc); err != nil {
+		return truncateForTranscript(string(raw), 300)
+	}
+	name := tc.Tool
+	if name == "" {
+		name = "(unknown)"
+	}
+	if len(tc.Arguments) == 0 {
+		return name
+	}
+	return name + " " + truncateForTranscript(string(tc.Arguments), 400)
+}
+
+// truncateForTranscript bounds a transcript fragment, collapsing newlines so
+// each tool call stays on one line, and appends a byte count when truncated.
+func truncateForTranscript(s string, max int) string {
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	if len(s) <= max {
+		return s
+	}
+	return fmt.Sprintf("%s…(+%d bytes)", s[:max], len(s)-max)
+}
+
 // parseSessionJSONL reads a motoko session JSONL file and folds its events
 // into an executor.Result. The terminal `run_summary` event is the
 // authoritative source for totals when present; otherwise the parser sums
@@ -247,6 +280,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		motokoCommit       string
 		motokoModel        string
 		dp7RejectionsCount int
+		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
 	)
 
 	scanner := bufio.NewScanner(f)
@@ -294,9 +328,25 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 		case "native_tool_calls":
 			numToolCalls += len(ev.NativeToolCalls)
+			// Retain a compact, bounded summary of WHAT each tool call did
+			// (tool name + truncated args — crucially the write path/content).
+			// The parser previously counted tool calls but discarded their
+			// content, which made it impossible to diagnose runs that made a
+			// tool call yet left solution.ail as the placeholder. See
+			// design_docs/motoko-harness-analysis-log.md (2026-06-17).
+			for _, tc := range ev.NativeToolCalls {
+				transcript.WriteString("tool_call: ")
+				transcript.WriteString(summarizeToolCall(tc))
+				transcript.WriteByte('\n')
+			}
 
 		case "done":
 			lastDoneOutput = ev.Output
+			if ev.Output != "" {
+				transcript.WriteString("done: ")
+				transcript.WriteString(truncateForTranscript(ev.Output, 300))
+				transcript.WriteByte('\n')
+			}
 
 		case "dp7_verifier_rejected":
 			dp7RejectionsCount++
@@ -402,6 +452,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 	// Always populated (regardless of run_summary presence).
 	res.ToolCallCount = numToolCalls
+	res.Transcript = transcript.String()
 	res.Output = lastDoneOutput
 	if lastDoneOutput == "" && lastFinishReason != "" {
 		res.Output = "(motoko terminated with finish_reason=" + lastFinishReason + ")"

@@ -36,24 +36,36 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-1. **[AILANG] Convergence / robustness**: motoko can exit with
-   `finish_reason=tool_calls and no run_summary` (observed under ollama contention,
-   2026-06-17) and has a `step budget exhausted` tail — both yield api_error with null
-   metrics. Make motoko emit a run_summary (and the harness capture partial metrics) when
-   the model's last action is a trailing tool call or it hits the step cap.
-2. **[motoko PR] Prompt: compel tool use** on small local models (SYSTEM.md / a
-   `motoko_ext_*`), if a rotation shows the model still under-using tools after the /v1 fix.
-3. **[AILANG, only if needed] Tolerant tool-call parsing** in `internal/ai/ollama/step.go`
-   for qwen's Hermes/XML `<function>` blocks — likely unnecessary now that /v1 normalizes
-   tool calls; keep parked unless a rotation shows residual 0-tool-call runs.
+1. **[AILANG, BLOCKED ON DATA → unblocks next cycle] Root-cause the stub failures.** 9/10
+   AILANG failures submit the seeded `solution.ail` placeholder (1 tool call, no solution
+   written, finish=stop). M-MOTOKO-OBS-TRANSCRIPT (landed) now retains the tool-call
+   transcript — **next cycle: read the failing runs' transcripts** and determine which:
+   (a) `WriteFile` to the wrong path / isolation mismatch → AILANG fix; (b) non-write call
+   then quit, or genuine stub → motoko prompt/loop PR. Fix the side the data points to.
+2. **[motoko PR] Prompt / loop: compel write-and-iterate** on small local models — STRONG
+   candidate (pi passes the same benchmarks at 9–41 turns; motoko quits at ~2). Pursue once
+   #1's transcripts confirm the model under-engages rather than mis-writing the path.
+3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary`
+   (seen under ollama contention) + the `step budget exhausted` tail. Lower priority — the
+   lock + /v1 timeout removed the contention trigger; revisit if it recurs un-contended.
+4. **[AILANG, only if needed] Tolerant tool-call parsing** for qwen Hermes/XML blocks —
+   likely moot post-/v1; parked.
 
 ## Done / superseded
 - motoko ollama integration enabled + PATH/key rotation fix (this repo, landed).
 - First failure analysis → root cause = AILANG-INTEGRATION (tool-calling), not language.
 - **#2 ollama tool-calling over `/v1` (M-OLLAMA-V1-TOOLCALLING) — LANDED on `dev`
   (41c52ffe, 2026-06-17).** Root cause of the 26% closed: native `/api/chat` → 0 tool
-  calls; now delegates to OpenAI-compat `/v1`. Live fizzbuzz: 4 turns / 3 tool calls /
-  pass vs 0-tool-calls baseline. Re-measure aggregate on next OS rotation.
+  calls; now delegates to OpenAI-compat `/v1`. Aggregate confirmed: **AILANG 26%→79%**,
+  motoko now BEATS opencode (72%) on AILANG, approaching pi (88%). Zero 0-tool-call runs.
+- **`agent_tool_calls` surfaced in result JSON (M-MOTOKO-OBS-TOOLCALLS) — LANDED (e92bc4ba).**
+- **/v1 HTTP timeout (63fc63e0) + native rig-lock in eval-suite (8a18e4e7) — LANDED.**
+  Fixed a ~2h rig hang: /v1 (non-streaming, no timeout) stalled on a GPU-contention model
+  reload; lock prevents concurrent rig jobs (fail-fast). The user's hypothesis — /v1 vs
+  native endpoints caused the historical hangs — was correct.
+- **Tool-call transcript retained (M-MOTOKO-OBS-TRANSCRIPT) — LANDED.** Parser kept counting
+  tool calls but discarding content; now retains tool name + write path/content into
+  `agent_transcript`. Unblocks root-causing the stub failures (backlog #1).
 
 ## Skill
 When the analysis log has ~3+ entries and the cycle is repeatable, codify a

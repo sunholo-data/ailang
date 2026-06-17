@@ -188,3 +188,42 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   conflict immediately; the timeout is defense-in-depth if contention ever slips through.
 - **Prior-action status:** hardens mission item #2 (/v1) which introduced the hang surface;
   no revert needed (the /v1 win — AILANG 26%→100% — stands, now bounded + serialized).
+
+---
+
+### 2026-06-17 — STUB-FAILURE DIAGNOSIS + OBSERVABILITY FIX (M-MOTOKO-OBS-TRANSCRIPT)
+
+- **Data:** 209 new-binary motoko runs. AILANG 38/48 (79%) — now **beats opencode (72%)**,
+  approaching pi (88%). Go 98% / JS 96% / Py 98%. **Zero 0-tool-call runs** (the /v1 fix's
+  failure mode stays closed).
+- **Investigated the residual gap (user challenge: "is it definitely the prompt?"). It is
+  NOT.** Initial read ("motoko under-iterates, fix the prompt") was a turn-count correlation,
+  not proof. Digging into the actual submitted code:
+  - **9 of 10 AILANG failures submit the byte-identical 112-char placeholder** (the seeded
+    `solution.ail` stub, `// TODO: Add your solution code below`), all at turns=2/tools=1/
+    finish=stop. 5 *different* problems can't yield the identical stub by chance.
+  - Mechanism: the eval seeds `${ws}/benchmark/solution.ail` with that placeholder
+    (`agent_runner_multi.go:138-168`) and reads it back (`:330`). `code`=placeholder ⟹
+    motoko made 1 tool call and **never wrote a valid solution**, then stopped. Passing runs
+    DO capture real code (avg 5.1 turns) → not a blanket capture bug; these runs truly
+    produced nothing. pi passes the *same* benchmarks by grinding **9–41 turns**.
+  - **Could not determine the precise cause** (wrong write path? non-write call then quit?
+    silent write fail?) because the executor parsed the session JSONL, counted tool calls,
+    and **discarded their content**; the workspace JSONL is deleted post-run.
+    `agent_transcript=None` for motoko AND pi.
+- **Fix (mission item #1, observability — M-MOTOKO-OBS-TRANSCRIPT):** `parser.go` now
+  accumulates a compact transcript (tool name + truncated write path/content per call + the
+  `done` output) into `res.Transcript` → flows to `agent_transcript` in the result JSON. The
+  data was already decoded; it was just thrown away. Verified output:
+  `tool_call: WriteFile {"path":"f.ail","content":"export func answer()…"}`. Bounded
+  (400-char arg cap + 1 MB field cap); test `TestParseSessionJSONL_Success` asserts content.
+- **Lever classification:** HARNESS-ERROR (observability gap). Root cause of the *failures*
+  still TBD — that's the point: we now retain the data to determine it next cycle.
+- **Lesson enshrined:** "we need enough information always" — do NOT attribute a root cause
+  from a metric correlation (turn counts) when the deciding evidence (the transcript /
+  submitted artifact) is unexamined. The submitted `code` being the placeholder, not the
+  turn count, was the real signal.
+- **Prior-action status:** closes the *observability* half of mission item #1 for the
+  stub-failure class. Next cycle (after the rotation produces transcripts): read what the
+  failing runs' single tool call actually did, then fix the real root cause (path/isolation
+  vs loop/prompt) on the correct side per the routing rule.

@@ -3,6 +3,7 @@ package motoko
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -48,6 +49,17 @@ func TestParseSessionJSONL_Success(t *testing.T) {
 	}
 	if res.ToolCallCount != 1 {
 		t.Errorf("ToolCallCount = %d, want 1", res.ToolCallCount)
+	}
+	// M-MOTOKO-OBS-TRANSCRIPT: the retained transcript must surface WHAT the
+	// tool call did — tool name + the write path/content — so failing runs that
+	// leave solution.ail as the placeholder are diagnosable.
+	if res.Transcript == "" {
+		t.Fatal("Transcript is empty; want the tool call captured")
+	}
+	for _, want := range []string{"tool_call:", "WriteFile", "f.ail", "answer"} {
+		if !strings.Contains(res.Transcript, want) {
+			t.Errorf("Transcript missing %q; got:\n%s", want, res.Transcript)
+		}
 	}
 	if res.SessionID != "session_test-success" {
 		t.Errorf("SessionID = %q, want session_test-success", res.SessionID)
