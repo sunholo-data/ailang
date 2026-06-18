@@ -667,3 +667,42 @@ natural next combined test: persistence + `AILANG_MOTOKO_SYSTEM_ROLE=1` together
 
 **Prior-action status:** closes backlog #1 (a: root cause proven; b: fix implemented, proven,
 A/B net-positive). Next cycle: PR review + rotation-scale A/B + the persistence×system-role combo.
+
+## 2026-06-18 — SOURCE-GROUNDED CORRECTION: pi has NO persistence; the gap is context-engagement
+
+Mined pi's actual loop (`@mariozechner/pi-agent-core/dist/agent-loop.js`, `runLoop`) instead of
+inferring from behavior. **pi STOPS the instant the model emits zero tool calls** — the inner loop
+is `while (hasMoreToolCalls || pendingMessages.length > 0)`; a turn with no toolCall sets
+`hasMoreToolCalls=false`, and in headless eval there are no steering/follow-up messages → it ends.
+**No re-prompt, no nudge, no persistence. Identical to motoko's stop condition.**
+
+**This overturns the working hypothesis.** pi's ~33-turn grind is NOT a loop feature — the qwen3.6
+model *under pi's context* naturally keeps emitting tool calls; motoko's ~2-turn stop is the same
+model *under motoko's context* disengaging early. **The differentiator is context-driven engagement,
+not loop persistence.**
+
+Consequence: **M-MOTOKO-PERSIST-NUDGE (#47) is a DIVERGENT band-aid, not a pi port** — it adds a
+force-continue mechanism pi does not have. It tested +3/18 (real, keep it, default-off), but it is
+NOT "how pi wins" and should not be sold as such.
+
+Source-level rule-outs (pi system prompt + tool schemas, from captures + source):
+- pi system prompt is **lean (~2.5 KB), concise, tool-focused**; NO "persist/keep going" directive;
+  notably says **"Be concise in your responses"** (discourages the prose-dump that causes motoko's
+  Mode-A 0-tool-call disengagement).
+- pi tools = 4 lean (read/bash/edit/write); motoko = 6 (adds RunTests, Search). Descriptions
+  comparable — not a glaring differentiator.
+
+**Reframed investigation (pi-faithful, context-engagement):**
+1. **Prompt leanness / "be concise"**: motoko sends a huge AILANG teaching prompt (89 KB system or
+   folded); pi sends 2.5 KB. Hypothesis: dense teaching pushes a 35B model toward "emit a final
+   answer" (prose) rather than iterating with tools. Test a lean, action-oriented, "be concise"
+   motoko system framing.
+2. **Tool-RESULT / error feedback format** (NOT yet compared): what the model sees after each tool
+   call is the loop's fuel. Compare pi's vs motoko's result/error envelopes — noisy/confusing
+   results would cause early disengagement. Next capture target.
+3. Sampling note: motoko request showed `temperature: 0`; re-confirm pi's and whether it matters.
+
+**Prior-action status:** corrects the mission's mental model via source (the user's "are our
+optimizations based off pi source?" — answer was NO; now grounded). Persistence nudge stays as a
+divergent local aid; the real lever is context/prompt engagement. Next cycle: lean-prompt A/B +
+tool-result feedback capture, both pi-faithful.
