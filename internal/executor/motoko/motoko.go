@@ -184,7 +184,23 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// until A/B-validated.
 	directive := task.Directive
 	var systemPromptPath string
-	if task.SystemPrompt != "" {
+	// M-MOTOKO-AGENT-SYSTEM-PROMPT (exploratory): the diff vs pi is that motoko enters
+	// eval with an EMPTY system role while pi/opencode carry a lean AGENTIC coding prompt
+	// (the AILANG teaching is the same for all and lives in the user message — controlled
+	// variable). When AILANG_MOTOKO_AGENT_SYSTEM_FILE points to a file, use ITS content as
+	// the system-role prompt (a lean agentic prompt, NOT the teaching) and keep the teaching
+	// in the user message. This isolates exactly one variable: empty vs lean-agentic system.
+	if agentSys := os.Getenv("AILANG_MOTOKO_AGENT_SYSTEM_FILE"); agentSys != "" && task.Workspace != "" {
+		if content, rerr := os.ReadFile(agentSys); rerr == nil && len(content) > 0 {
+			if p, werr := writeMotokoSystemPrompt(task.Workspace, string(content)); werr == nil {
+				systemPromptPath = p
+				defer func() { _ = os.Remove(p) }()
+			}
+		}
+		if task.SystemPrompt != "" {
+			directive = task.SystemPrompt + "\n\n" + task.Directive // teaching stays in the user message
+		}
+	} else if task.SystemPrompt != "" {
 		if os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") == "1" && task.Workspace != "" {
 			if p, werr := writeMotokoSystemPrompt(task.Workspace, task.SystemPrompt); werr == nil {
 				systemPromptPath = p
