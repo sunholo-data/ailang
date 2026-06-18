@@ -1,6 +1,6 @@
 {
   "ailang_version": "v0.25.0",
-  "generated": "2026-06-17",
+  "generated": "2026-06-18",
   "languages": [
     "ailang",
     "go",
@@ -11,10 +11,10 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.7654320987654321,
-        "go": 0.9753086419753086,
-        "javascript": 0.9506172839506173,
-        "python": 0.9746835443037974
+        "ailang": 0.7555555555555555,
+        "go": 0.9777777777777777,
+        "javascript": 0.9555555555555556,
+        "python": 0.9772727272727273
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
     },
@@ -60,5 +60,5 @@
     }
   ],
   "trials": 4,
-  "version": "rolling-20260617"
+  "version": "rolling-20260618"
 }
