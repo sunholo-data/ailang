@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -77,6 +78,57 @@ func resolveOllamaTemperature(reqTemp float64) float64 {
 	return 0
 }
 
+// logOllamaRequest appends the logical request to AILANG_OLLAMA_LOG_REQUESTS (a
+// JSONL file) when that env is set. Best-effort: any error is silently ignored
+// (observability must never affect the call). Captures system prompt + messages
+// + tools + sampling — enough to diff what a harness sends to the model.
+// ollamaLogRequestPath resolves where to dump requests. AILANG_OLLAMA_LOG_REQUESTS
+// wins; otherwise a sentinel file at $HOME/.ailang/state/ollama-log-requests whose
+// CONTENTS are the dump path. The sentinel exists because some harnesses (motoko's
+// bun→ailang process chain) do NOT propagate our custom env to the ailang runtime
+// that makes the AI call — but HOME always propagates, so a HOME-relative sentinel
+// reaches them. Empty result = logging off.
+func ollamaLogRequestPath() string {
+	if p := os.Getenv("AILANG_OLLAMA_LOG_REQUESTS"); p != "" {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	b, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ollama-log-requests"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func logOllamaRequest(req *ai.Request) {
+	path := ollamaLogRequestPath()
+	if path == "" {
+		return
+	}
+	rec := map[string]any{
+		"ts":            time.Now().UTC().Format(time.RFC3339Nano),
+		"model":         req.Model,
+		"system_prompt": req.SystemPrompt,
+		"messages":      req.Messages,
+		"tools":         req.Tools,
+		"temperature":   req.Temperature,
+		"max_tokens":    req.MaxTokens,
+	}
+	b, err := json.Marshal(rec)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	_, _ = f.Write(append(b, '\n'))
+}
+
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). Ollama's /api/chat endpoint now supports native
 // tool/function calling for models that advertise it (e.g. Qwen, Llama 3.1+),
@@ -108,6 +160,14 @@ func bareModel(m string) string {
 }
 
 func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Request observability (M-OLLAMA-LOG-REQUESTS): when AILANG_OLLAMA_LOG_REQUESTS
+	// is set, append the exact logical request (model, system prompt, messages,
+	// tools, sampling) to that JSONL file BEFORE sending. Endpoint-independent —
+	// fires regardless of how the call is routed — so it captures harnesses (e.g.
+	// motoko) whose ollama endpoint we cannot redirect for an external tap. This
+	// is how we diff what each harness actually sends to the model.
+	logOllamaRequest(req)
+
 	// Bound the whole call (native /api/chat has no client timeout — see
 	// ollamaCallContext). Covers the /v1 delegation and Generate fallback too.
 	ctx, cancel := ollamaCallContext(ctx)
