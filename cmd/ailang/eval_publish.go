@@ -202,8 +202,8 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 	}
 
 	return json.MarshalIndent(map[string]interface{}{
-		"version":        releaseTag,                       // rotation label (date)
-		"ailang_version": ailangVersion,                    // AILANG release under test (std/VERSION)
+		"version":        releaseTag,    // rotation label (date)
+		"ailang_version": ailangVersion, // AILANG release under test (std/VERSION)
 		"generated":      time.Now().Format("2006-01-02"),
 		"trials":         maxTrials,
 		"languages":      langs,
