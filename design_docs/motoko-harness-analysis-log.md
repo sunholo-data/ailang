@@ -506,3 +506,47 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   diagnosable not guessed; (2) re-measure the output-delivery override on the rotation.
 - **Prior-action status:** acts on the request-diff finding; the system-prompt-override path is
   closed (made it worse); the output-delivery prompt fix is the landed, principled improvement.
+
+## 2026-06-18 — 3-way request capture: motoko vs pi vs opencode (json_parse/ailang, qwen3.6)
+
+Captured the actual outbound request each harness sends to the SAME model on the SAME
+benchmark — motoko via the request-dump (`AILANG_OLLAMA_LOG_REQUESTS`), pi + opencode via
+`tools/ollama-tap` (:11435→:11434, since they bypass `internal/ai/ollama` and drive `/v1`
+directly). Picked each harness's main coding request (most tools + largest payload).
+
+| harness | system role | AILANG teaching lives in | tools | threading |
+|---|---|---|---|---|
+| **motoko** (system-role ON) | **89,754 ch — the AILANG teaching prompt** | system role | **6** (ReadFile/WriteFile/EditFile/BashExec/RunTests/Search) | system→user→(asst/tool)×N |
+| **pi** | 2,458 ch — generic "expert coding assistant in pi" | user msg (98,319 ch) | **4** (read/bash/edit/write) | identical |
+| **opencode** | 10,050 ch — generic "you are opencode" | user msg (94,854 ch) | **33** (23 `ailang-docs_*` MCP + bash/edit/glob/grep/read/skill/task/todowrite/webfetch/write) | identical |
+
+**Findings (back up our decisions):**
+- **Chat-history threading is IDENTICAL across all three** — system → user(task) → alternating
+  `assistant(tool_calls)`/`tool(result)` with matching ids. The motoko↔pi↔opencode gap is **NOT**
+  history handling. (Resolves the "I suspect chat history may not be working" hypothesis: it works,
+  and equivalently, in all three.)
+- **All three deliver the AILANG teaching content** — the difference is ROLE. motoko (with
+  M-MOTOKO-SYSTEM-ROLE) is the only one that puts it in the SYSTEM role; pi/opencode bury the
+  equivalent ~95–98 KB in the first USER message. NOTE: the *historical* motoko default (legacy
+  fold) ALSO put teaching in the user message — so system-role is a NEW improvement on top, not the
+  reason motoko historically beat opencode.
+- **Tool surface is the standout differentiator.** opencode exposes **33** tools (23 of them the
+  `ailang-docs` MCP server configured in `~/.config/opencode/opencode.jsonc`) vs motoko's **6** and
+  pi's **4**. opencode's transcript is full of tiny `tool(24)`/`tool(26)` results (todowrite, empty
+  MCP lookups) — low-value churn. A 35B local model with a 33-tool schema spends turns *looking
+  things up / bookkeeping* instead of writing code. This is the most defensible explanation for
+  "opencode grinds 21 turns but still trails motoko 83% vs 75%": **lean, task-focused toolset >
+  broad tool surface for a small local model.** pi is leanest (4) but lacks AILANG-native execution.
+- **Single-trial outcomes this capture:** motoko PASS (29 turns), opencode PASS (20 turns), pi alarm
+  at 37 turns (compile_error — still grinding at the 200s cap, consistent with pi's high-iteration
+  profile).
+
+**Lever classification:** HARNESS-DESIGN (tool surface) + PROMPT (system-role placement). Decisions
+backed: (1) keep motoko's toolset lean — do NOT bolt the ailang-docs MCP onto motoko; (2) the
+M-MOTOKO-SYSTEM-ROLE change (teaching → system role) is principled and matches no-harness-does-better
+evidence; verify + A/B before default-on.
+
+**Prior-action status:** M-MOTOKO-SYSTEM-ROLE delivered + verified (system msg 0→89,754 ch in the
+system role, user 94,168→4,406, json_parse PASS @ 29 turns). Capture confirms it lands as a real
+system-role message, not folded. Follow-up: motoko-side `--system-prompt` flag PR so external
+harnesses inject the system prompt cleanly (removes AILANG's `.motoko_system.md` workaround).
