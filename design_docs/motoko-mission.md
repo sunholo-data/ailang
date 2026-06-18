@@ -36,29 +36,34 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-1. **[AILANG, BLOCKED ON DATA → unblocks next cycle] Root-cause the stub failures.** 9/10
-   AILANG failures submit the seeded `solution.ail` placeholder (1 tool call, no solution
-   written, finish=stop). M-MOTOKO-OBS-TRANSCRIPT (landed) now retains the tool-call
-   transcript — **next cycle: read the failing runs' transcripts** and determine which:
-   (a) `WriteFile` to the wrong path / isolation mismatch → AILANG fix; (b) non-write call
-   then quit, or genuine stub → motoko prompt/loop PR. Fix the side the data points to.
-2. **[AILANG] Request-param engagement (temperature / thinking)** — the pi-faithful lever.
-   Diagnosis (2026-06-17): failures = qwen non-deterministically emits prose / 0 tool calls;
-   pi has NO loop magic (ends on no-tool-call too) and sends a vanilla /v1 body — its edge is
-   the model *engaging*. qwen3.6's ollama default is **temperature 1.0** (high variance) and
-   we don't gate qwen's thinking; pi does.
-   - **[CODE LANDED] M-OLLAMA-TEMPERATURE-KNOB** — `AILANG_OLLAMA_TEMPERATURE` env knob
-     (off by default) on the `/v1` + native ollama paths, with tests. Commit on `dev`.
-   - **[NEXT — needs GPU] A/B** temperature unset vs 0.2/0.3 on the 6 flaky benchmarks
-     (wire the env via the motoko executor for the treatment arm). If it lifts engagement,
-     make a low temperature the default; else investigate thinking-mode (`enable_thinking`).
-   The "compel-write loop guard" (M-MOTOKO-COMPEL-WRITE) was built + A/B'd + **reverted**
-   (guard fired 0/18, one regression) — parked in favour of this.
-3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary`
-   (seen under ollama contention) + the `step budget exhausted` tail. Lower priority — the
-   lock + /v1 timeout removed the contention trigger; revisit if it recurs un-contended.
-4. **[AILANG, only if needed] Tolerant tool-call parsing** for qwen Hermes/XML blocks —
-   likely moot post-/v1; parked.
+1. **[motoko PR + GPU] Iteration persistence — THE gap.** Quantified 2026-06-18: on FAILURES
+   motoko gives up at median **2** turns (max 9) while pi grinds median **33** (max 164) on the
+   SAME model; motoko's model stops emitting tool calls after ~2 turns and motoko finalizes.
+   Not a budget cap (passes reach 49 turns), not prompt (sub-dominant, A/B'd), not temperature
+   (equal). Two GPU-bound steps:
+   - **(a) Root cause** — capture a fresh failing motoko run's FULL turn-by-turn via the
+     request-dump (`AILANG_OLLAMA_LOG_REQUESTS`/sentinel, built) + transcript, to see *why* the
+     model disengages at turn 2 (gives up in prose? hits an unhelpful tool error? thinks it's
+     done?). One lock-respecting GPU run.
+   - **(b) Fix** — a motoko-side loop-persistence change: don't finalize on an early apparent-stop
+     while the solution clearly isn't working; re-prompt / keep iterating (bounded). Draft PR to
+     `arniwesth/motoko_agent`, A/B-validated on the rig. (The earlier "write a file" guard
+     M-MOTOKO-COMPEL-WRITE was the wrong shape — this is about *persistence*, not just *writing*.)
+2. **[AILANG, needs GPU] Temperature A/B** — `AILANG_OLLAMA_TEMPERATURE` knob landed (off by
+   default). A/B unset vs 0.2/0.3 on the 6 flaky benchmarks; if it lifts engagement, make a low
+   temperature the default; else investigate qwen thinking-mode. Lower priority than #1 (the
+   request-diff showed pi runs the same 1.0 default, so temperature isn't the pi gap — but lower
+   variance may still reduce motoko's flakiness).
+3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary` +
+   `step budget exhausted` tail. Lower priority — the lock + /v1 timeout removed the contention
+   trigger; revisit if it recurs un-contended.
+
+## Resolved / ruled out (this investigation arc)
+- **Prompt** is sub-dominant: agent-mode output-delivery override landed (+11pp, `2cbaf85a`,
+  motoko 76%→83%); copying pi's full system prompt only added +1/18 (A/B) → NOT the gap.
+- **Temperature** ruled out as the pi differentiator (pi runs qwen at the same 1.0 default).
+- **Loop guards** (compel-write / definition-of-done) built + reverted (fired 0/18 or regressed).
+- **Tolerant Hermes/XML parsing** — moot post-/v1; dropped.
 
 ## Done / superseded
 - motoko ollama integration enabled + PATH/key rotation fix (this repo, landed).

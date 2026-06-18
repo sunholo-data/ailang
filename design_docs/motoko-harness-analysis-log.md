@@ -442,6 +442,39 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
 
 ---
 
+### 2026-06-18 — ITERATION-DEPTH GAP QUANTIFIED (rolling data, no GPU) + motoko 83%
+
+- **Fresh rotation analysis** (existing rolling data, turn distributions per harness on AILANG):
+
+  | harness | AILANG | turns on PASS (median/max) | turns on FAIL (median/max) |
+  |---|---|---|---|
+  | **motoko** | **83%** | 4 / 49 | **2 / 9** |
+  | **pi** | 92% | 7 / 121 | **33 / 164** |
+  | opencode | 75% | 6 / 49 | 21 / 92 |
+
+- **The gap is iteration depth, now measured:** on FAILURES, **motoko gives up at a median of 2
+  turns (never past 9); pi grinds a median of 33 (up to 164).** Same model. motoko *can* iterate
+  (passes reach 49 turns) — so it is NOT a hard step-budget/timeout cap (a cap would bound passes
+  too); on hard problems motoko's model **stops emitting tool calls after ~2 turns** and motoko
+  finalizes, whereas pi's model keeps trying. Recent failing-run transcripts confirm the shape:
+  1–2 exploratory calls (often no WriteFile), then stop → stub/logic_error.
+- **Also: motoko AILANG is now 83%** (was 76% pre-output-delivery) — the agent-mode output-delivery
+  override (`2cbaf85a`) is helping at scale. pi 92%, opencode 75%; motoko now between them.
+- **Lever classification:** **HARNESS (agent loop / iteration persistence)** — confirmed. NOT
+  prompt (sub-dominant, tested), NOT temperature (equal), NOT a harness timeout cap.
+- **BLOCKED ON GPU (honest):** both remaining steps need the rig — (1) root cause: capture a fresh
+  failing motoko run's FULL turn-by-turn (request-dump per Step is built; needs one GPU run) to see
+  *why* the model disengages at turn 2; (2) the fix: a motoko-side loop-persistence change
+  (keep iterating / re-prompt instead of finalizing on an early apparent-stop) — a motoko PR that
+  must be A/B-validated on the rig. Observability (transcript + request-dump) and the measurement
+  (`avgTurnsFailure` per executor/lang, export_json_executors.go) are already in place.
+- **Prior-action status:** advances the 2026-06-18 redirect (gap = the loop) from a hypothesis to a
+  quantified fact. No new code this cycle (no-GPU): the frontier's next steps are GPU-bound and the
+  enabling observability/metrics already exist — recording + backlog refresh per the mission's
+  "blocked → note and stop" rule rather than a manufactured change.
+
+---
+
 ### 2026-06-18 — Two prompt experiments: system-prompt override FAILED; agent-mode output-delivery LANDED
 
 - **Experiment 1 — pi-style agentic system prompt via `--system-prompt` (FAILED, reverted).**
