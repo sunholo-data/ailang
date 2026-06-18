@@ -481,8 +481,45 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 		systemPrompt = systemPrompt + "\n\n" + config.DevtoolsPrompt
 	}
 
+	// Agent-mode output delivery (M-AGENT-PROMPT-MODE): the AILANG/Python teaching
+	// prompt carries a STANDARD-mode (0-shot) instruction — "Output raw code only
+	// — no prose" — that tells the model its RESPONSE should BE the code. In AGENT
+	// mode the model must instead WRITE the code to the solution file with a tool.
+	// Sent verbatim, that 0-shot framing makes weaker local models emit code as
+	// prose (0 tool calls, no file written) — the dominant motoko failure mode
+	// (request-diff 2026-06-18: pi runs the same qwen reliably only because its own
+	// agentic system prompt overrides this). This appends an explicit agent-mode
+	// override so the "raw code, no prose" guidance is understood as describing the
+	// FILE CONTENTS, not the chat reply. A/B (motoko, 6 flaky benchmarks ×3,
+	// 2026-06-18): +11pp pass/WriteFile (44%→55%), no regression — principled +
+	// non-harmful, so ON by default for agent mode. Opt OUT with
+	// AILANG_AGENT_OUTPUT_DELIVERY=0 (e.g. for a clean A/B control arm).
+	if os.Getenv("AILANG_AGENT_OUTPUT_DELIVERY") != "0" {
+		systemPrompt = systemPrompt + agentModeOutputDelivery
+	}
+
 	return systemPrompt, taskPrompt, versionUsed, nil
 }
+
+// agentModeOutputDelivery clarifies, for AGENT-mode runs, that the teaching
+// prompt's "output raw code only / no prose" instruction describes the file
+// CONTENTS, not the chat reply — the model must use its file-write tool. See
+// M-AGENT-PROMPT-MODE and the 2026-06-18 request-diff analysis-log entry.
+const agentModeOutputDelivery = `
+
+---
+
+## Output delivery (AGENT MODE)
+
+You are an autonomous coding agent with file-editing tools. Deliver your solution
+by **writing it to the solution file using your file-write tool** (e.g. write /
+WriteFile / edit), then running it to verify it works.
+
+Any instruction above to "output raw code only / no prose / no markdown fences"
+describes the **contents of the solution file** — it does NOT mean reply with the
+code in chat. Do not paste the solution in your message; you MUST call the
+file-write tool to create the file. You are done only once the file is written and
+runs correctly.`
 
 // getToolAwareGuidance returns general guidance about using AILANG contracts
 // and Z3 verification as a debugging tool. This does NOT include any

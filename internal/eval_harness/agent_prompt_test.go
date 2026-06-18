@@ -373,6 +373,25 @@ func TestLanguagePlaceholderReplacement(t *testing.T) {
 	if !strings.Contains(taskPromptAILANG, "Write a program in AILANG") {
 		t.Error("AILANG task prompt doesn't contain 'Write a program in AILANG'")
 	}
+
+	// M-AGENT-PROMPT-MODE: the agent-mode output-delivery override is ON by
+	// default for agent runs; opt OUT with AILANG_AGENT_OUTPUT_DELIVERY=0.
+	t.Setenv("AILANG_AGENT_OUTPUT_DELIVERY", "0")
+	sysOff, _, _, err := GenerateAgentPromptsWithSystemPrompt(spec, config, "ailang", "", "benchmark/solution.ail")
+	if err != nil {
+		t.Fatalf("gen (delivery off): %v", err)
+	}
+	if strings.Contains(sysOff, "Output delivery (AGENT MODE)") {
+		t.Error("agent-mode override present when AILANG_AGENT_OUTPUT_DELIVERY=0")
+	}
+	t.Setenv("AILANG_AGENT_OUTPUT_DELIVERY", "") // unset → default ON
+	sysOn, _, _, err := GenerateAgentPromptsWithSystemPrompt(spec, config, "ailang", "", "benchmark/solution.ail")
+	if err != nil {
+		t.Fatalf("gen (delivery default): %v", err)
+	}
+	if !strings.Contains(sysOn, "Output delivery (AGENT MODE)") || !strings.Contains(sysOn, "file-write tool") {
+		t.Error("agent-mode override missing by default (should be ON)")
+	}
 }
 
 // TestSystemPromptLanguageSeparation verifies Python gets Python prompt, AILANG gets AILANG prompt

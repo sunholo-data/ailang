@@ -408,3 +408,37 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   system prompt for motoko. Expect engagement (WriteFile rate) to rise toward pi's.
 - **Prior-action status:** answers the standing question "why does motoko vary vs pi on the same
   model + benchmarks." Supersedes the temperature lead (ruled equal) and the reverted loop guard.
+
+---
+
+### 2026-06-18 — Two prompt experiments: system-prompt override FAILED; agent-mode output-delivery LANDED
+
+- **Experiment 1 — pi-style agentic system prompt via `--system-prompt` (FAILED, reverted).**
+  Hypothesis: motoko has no agentic system prompt (inferred from `config.ail` `system_prompt:""`).
+  Passed a pi-style prompt via the executor's `--system-prompt`. A/B (6×3): **55%→0%** pass/
+  WriteFile — every after-run "1 turn, 0 tool calls". The override REPLACED motoko's default
+  system prompt (built by `dispatch_build_system_prompt` extensions, rpc.ail) with an inferior
+  one → my source-inference ("motoko sends no system prompt") was **wrong**; the extensions build
+  a working one. Reverted (uncommitted, gated off — rotation never affected). Lesson: stop
+  guessing at motoko's prompt blind — I still cannot capture motoko's live request (the tap
+  missed it; `BuildEnvironment` DOES pass `os.Environ()`/`OLLAMA_HOST`, so it's a deeper routing
+  quirk, not env propagation). Motoko-request observability is the real blocker for prompt work.
+- **Experiment 2 — agent-mode output-delivery override (LANDED).** Fix at the correct layer
+  (user's direction): the AILANG teaching prompt's 0-shot "Output raw code only — no prose" line
+  is wrong for AGENT mode. `GenerateAgentPromptsWithSystemPrompt` is agent-only, so append an
+  override clarifying that "raw code, no prose" = FILE CONTENTS, not the chat reply; use the
+  file-write tool. A/B (6×3): **44%→55%** pass/WriteFile (+11pp), **no regression** (json_transform
+  0→1, lambda_calc 1→2; rest unchanged; graph_bfs still 0/3). Modest + noisy (2/18) but principled
+  and non-harmful → **ON by default** for agent mode (opt out `AILANG_AGENT_OUTPUT_DELIVERY=0`).
+  Doesn't touch motoko's machinery (just adds text to the AILANG-generated prompt all harnesses
+  get) so it can't break motoko's tool setup. Lands on `dev`; rotation validates at scale.
+- **Lever classification:** PROMPT (agent-mode output discipline). Honest scope: this is a real
+  but partial fix — the non-determinism persists (graph_bfs 0/3) and the prompt conflict is only
+  one factor. Closing the full gap to pi likely needs (a) motoko-request observability, then (b)
+  understanding motoko's default system prompt vs pi's, and possibly the fuller prompt refactor
+  (generic teaching reference + separate standard/agent output-discipline preambles).
+- **Next action:** (1) build motoko-request observability — make the executor route motoko's
+  ollama calls through a tap, or add an `internal/ai/ollama` request-dump, so prompt changes are
+  diagnosable not guessed; (2) re-measure the output-delivery override on the rotation.
+- **Prior-action status:** acts on the request-diff finding; the system-prompt-override path is
+  closed (made it worse); the output-delivery prompt fix is the landed, principled improvement.
