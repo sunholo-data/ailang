@@ -1,8 +1,15 @@
 # M-MOTOKO-AGENT-SYSTEM-PROMPT — give motoko a lean agentic system prompt
 
-**Status**: Planned
+**Status**: Tested — NULL at scale (do not productionize as-is). See analysis log 2026-06-18.
 **Target**: v0.25.0
 **Priority**: P0 (mission-critical — the motoko↔pi gap on local AILANG)
+
+> **RESULT (2026-06-18):** Proper A/B (core tier 26, n=2, both arms fresh) = empty **75%** vs
+> lean-agentic-system **77%** (+1/52, noise). The 6-flaky smoke (+14pp) did NOT generalize — it
+> was a biased hard-case subset. Disengagement IS the dominant failure mode (8/10 failures are
+> 0-tool-call), but the lean prompt only partially/noisily fixes it (3 improved, 2 regressions on
+> previously-passing benchmarks). Success criteria NOT met → keep the knob, do NOT productionize.
+> Next: tool-result/error feedback diff; measure pi-on-core for the true gap.
 **Estimated**: 1 day (A/B validate) + a motoko_agent PR to productionize
 **Dependencies**: None (delivery knob reuses the existing `writeMotokoSystemPrompt`/`SYSTEM_MD` path)
 
