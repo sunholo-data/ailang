@@ -36,15 +36,20 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-1. **[LANDED as PR — iteration persistence, THE gap].** Root cause PROVEN (2026-06-18) from A/B
-   transcripts: two disengagement modes — Mode A (`1 turn, 0 tool calls`, prose answer) and Mode B
-   (`2 turns, 1 inspect call then stop`), both finalizing at `agent_loop_v2.ail` NoDecision while
-   pi grinds ~33. Fix implemented + A/B-validated: **M-MOTOKO-PERSIST-NUDGE** — a bounded built-in
-   nudge at NoDecision (no WriteFile yet + budget remains → re-prompt + recurse), gated by
-   `MOTOKO_PERSIST_RETRIES` (default off). A/B (6 flaky ×3): **11/18 → 14/18 (+3, 61%→78%)**, 4
-   improved / 1 noise-regression; mechanism proven (1 nudge → 17 tool calls). **Draft PR:
-   arniwesth/motoko_agent#47.** Next: rotation-scale A/B + the persistence×system-role combo
-   (system-role raises engagement; persistence converts it).
+1. **[THE gap, precisely located 2026-06-18 — DISENGAGEMENT, needs GPU to fix].** Rotation-scale
+   failure-mode segmentation (`tools/eval_failure_modes.py`): the motoko↔pi gap (+26pp) is
+   **entirely disengagement** — motoko fails with ≤2 tool calls (prose / one inspect call) **29%**
+   of runs vs pi's **3%**; grind-wrong (engaged-but-incorrect) is ~1% for both, NOT the gap.
+   **7 always-disengage benchmarks** (3/3 fail, 0 tool calls): csv_to_json_converter,
+   log_file_analyzer, graph_bfs, polymorphic_ord_defaulting, run_length_encode, symbolic_diff,
+   config_file_parser. **Next (GPU):** request-dump the FIRST turn of those 7 to see WHY qwen emits
+   0 tool calls (tool schema not seen? task framing? result format?), then a targeted fix A/B'd by
+   the **disengage-rate delta** (not just pass rate). Prior fixes touched the symptom not the 29%:
+   - *Ruled out — M-MOTOKO-PERSIST-NUDGE* (PR arniwesth/motoko_agent#47): forces continuation AFTER
+     disengagement; +3/18 on a biased subset; pi has no such mechanism. Kept default-off; divergent.
+   - *Ruled out — M-MOTOKO-AGENT-SYSTEM-PROMPT*: lean agentic system prompt, proper core-tier A/B =
+     **+1/52 (null)**; the 6-flaky smoke (+14pp) did NOT generalize. Knob kept, not productionized.
+   - *Ruled out — system-role delivery* (teaching → system slot): A/B −2/18.
 2. **[AILANG, needs GPU] Temperature A/B** — `AILANG_OLLAMA_TEMPERATURE` knob landed (off by
    default). A/B unset vs 0.2/0.3 on the 6 flaky benchmarks; if it lifts engagement, make a low
    temperature the default; else investigate qwen thinking-mode. Lower priority than #1 (the

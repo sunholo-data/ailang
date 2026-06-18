@@ -747,3 +747,44 @@ prompt MIGHT net positive, but that risks a prompt-tuning rabbit hole; (b) the s
 diff to examine next is the **tool-RESULT / error feedback format** (pi vs motoko — not yet
 compared), since disengagement persists even with an agentic prompt; (c) measure pi-on-core for the
 true gap, and segment the gap by tier (the real gap is on harder benchmarks). USER to steer.
+
+## 2026-06-18 (cycle 2, NON-GPU) — Failure-mode observability: the motoko↔pi gap IS disengagement
+
+Mission cycle on fresh rotation data (`eval_results/rotation/os-rolling`, summary updated 20:53).
+The top backlog items are GPU-bound (blocked this downtime run), so did the prescribed UNBLOCKING
+observability item: built `tools/eval_failure_modes.py` (tested, `--self-test` passes) to segment
+agent failures by MODE — existing tooling only groups by `error_category`, which hides the split
+that matters:
+- **DISENGAGE** — fail with ≤2 tool calls (prose / one inspect call; no real solution attempt).
+- **GRIND_WRONG** — fail with >2 tool calls (engaged, iterated, but incorrect).
+
+**Finding (qwen3.6, AILANG agent, rotation):**
+
+| harness | N | pass | disengage | grind_wrong |
+|---|---|---|---|---|
+| motoko | 117 | 69% | **29%** | 1% |
+| pi | 113 | 95% | **3%** | 0% |
+| opencode | 114 | 80% | 18% | 1% |
+
+**motoko↔pi gap = +26pp pass, and it is ENTIRELY disengagement (+26pp disengage, +1pp
+grind_wrong).** This confirms the diagnosis at full rotation scale (not the biased 6-flaky subset)
+and quantifies it: motoko's problem is NOT correctness (grind_wrong ~1% for both) — it is that
+qwen3.6 under motoko answers in prose / stops after one tool call 29% of the time, vs 3% under pi.
+
+**Always-disengage benchmarks (3/3 fail, 0 pass, ≤2 tool calls)** — the precise targets for the
+next fix cycle: csv_to_json_converter, log_file_analyzer, graph_bfs, polymorphic_ord_defaulting,
+run_length_encode, symbolic_diff, config_file_parser.
+
+**Why the prior two fixes under-delivered (now explained by this number):**
+- M-MOTOKO-AGENT-SYSTEM-PROMPT A/B was run on the CORE tier (motoko already 75% there) — but the
+  29% disengagement is spread across the FULL set incl. harder benchmarks; core under-samples it.
+- M-MOTOKO-PERSIST-NUDGE forces continuation AFTER disengagement; but the cleaner win is to stop
+  the model disengaging in the FIRST place. Both touched the symptom, not the 29%.
+
+**Lever classification:** OBSERVABILITY (unblocks). **Tool:** `tools/eval_failure_modes.py`
+(reusable; building block toward the future `motoko-analyzer` skill).
+
+**Prior-action status / next:** gap is now precisely located = disengagement (29% vs 3%). Next
+(GPU) cycle: target the 7 always-disengage benchmarks; capture their first-turn requests via the
+request-dump to see WHY qwen emits 0 tool calls there (tool schema not seen? task framing? result
+format?), then a targeted fix + A/B measured by the disengage-rate delta (not just pass rate).
