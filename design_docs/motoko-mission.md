@@ -59,6 +59,14 @@ inspiration and the 96% bar. Key learnings (mine the source under
    trigger; revisit if it recurs un-contended.
 
 ## Resolved / ruled out (this investigation arc)
+- **System-role delivery** (M-MOTOKO-SYSTEM-ROLE, `7a0caf7a`): A/B off-vs-on (6 flaky ×3, 2026-06-18)
+  = 10/18 → 8/18 (net −2, within noise) → **KEEP GATED, not default-on.** Retained as a lever: it
+  lifts the FLOOR (config_file_parser/graph_bfs 0→1) and raises iteration depth (turns up across the
+  board) — re-test combined with iteration-persistence (#1), not standalone. Clean injection
+  mechanism shipped: motoko `--system-prompt` flag PR (arniwesth/motoko_agent#46, GPU-verified).
+- **3-way capture** (motoko/pi/opencode, `f92df86b`): threading IDENTICAL across all three (chat
+  history ruled out). Differentiator = TOOL SURFACE — opencode 33 tools (23 ailang-docs MCP) vs
+  motoko 6 / pi 4 → keep motoko lean. Backs the "why motoko beats opencode" decision.
 - **Prompt** is sub-dominant: agent-mode output-delivery override landed (+11pp, `2cbaf85a`,
   motoko 76%→83%); copying pi's full system prompt only added +1/18 (A/B) → NOT the gap.
 - **Temperature** ruled out as the pi differentiator (pi runs qwen at the same 1.0 default).
