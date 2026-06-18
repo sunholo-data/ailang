@@ -411,6 +411,37 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
 
 ---
 
+### 2026-06-18 — "Copy pi's system prompt" tested → system prompt is NOT the dominant factor
+
+- **Built motoko-request observability** (`internal/ai/ollama` request-dump, env OR `$HOME`-sentinel
+  gated — committed `0bac6116`) because the external tap couldn't capture motoko (its bun→ailang
+  chain doesn't propagate our custom env; `HOME` does). CONFIRMED motoko sends an **empty system
+  message** vs pi's agentic one (request saved: `eval_results/motoko-request-json_parse.jsonl`).
+- **Untangled motoko's system-prompt delivery** (two dead ends, both verified via the dump):
+  `--system-prompt` is **ignored in headless** (motoko reads `SYSTEM_MD` env, `config.ts`), and
+  `SYSTEM_MD` must point **inside the workspace** (`index.ts::systemPromptForWorkspace` rejects
+  `..`/abs-outside). Correct delivery = file in workspace + `SYSTEM_MD`. Verified the dump then
+  showed motoko's system message = pi's adapted prompt (756 chars), tools intact, smoke PASS.
+- **A/B (6 flaky benchmarks ×3): empty system 10/18 (55%) → pi-adapted system 11/18 (61%).**
+  Marginal (+1/18, one regression config_file_parser), NOT pi's ~88%. **Hypothesis "copy pi's
+  system prompt → similar performance" is FALSE.** The system prompt is the biggest *request-level*
+  difference but NOT the dominant *performance* factor.
+- **Conclusion / redirect:** the gap is the **agent loop / iteration depth**, not the prompt — pi
+  takes 9–41 turns self-correcting on these benchmarks; motoko engages but stops sooner (often
+  compiling-but-wrong). That "run → see failure → fix → re-run until it passes" loop quality is
+  the higher-leverage target, now measurable with the request/turn captures.
+- **Landed/kept:** request-dump observability (`0bac6116`). **Reverted:** the SYSTEM_MD executor
+  injection (marginal + hacky). **Earlier this session, kept:** agent-mode output-delivery override
+  (+11pp, `2cbaf85a`). **Filed:** motoko draft PR (arniwesth/motoko_agent#45) documenting the
+  empty-system-prompt + SYSTEM_MD/headless friction + the "system prompt ≠ the gap" finding.
+- **Lever classification:** PROMPT confirmed sub-dominant; next lever = **HARNESS (agent loop /
+  iteration)** — likely a motoko-side change (loop persistence / verify-and-retry), or an
+  AILANG-side observation of pi's loop to mirror.
+- **Next action:** capture motoko's FULL turn sequence vs pi's on a shared failing benchmark
+  (now possible) and characterize the iteration-depth difference; that's the real gap.
+
+---
+
 ### 2026-06-18 — Two prompt experiments: system-prompt override FAILED; agent-mode output-delivery LANDED
 
 - **Experiment 1 — pi-style agentic system prompt via `--system-prompt` (FAILED, reverted).**
