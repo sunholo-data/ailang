@@ -334,7 +334,11 @@ jobs:
         go-version: '1.25.11'
 
     - name: Install govulncheck
-      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      # Pinned (was @latest): govulncheck v1.4.0 started crashing on `./...`
+      # (full goroutine dump → exit 2), failing the gate with no code change —
+      # @latest makes a CI gate non-reproducible. v1.3.0 is the prior stable.
+      # Bump deliberately after confirming a newer release is healthy.
+      run: go install golang.org/x/vuln/cmd/govulncheck@v1.3.0
 
     - name: Build filter
       run: go build -o ./bin/govulncheck-filter ./tools/govulncheck-filter
