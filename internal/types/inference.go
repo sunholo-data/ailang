@@ -26,8 +26,8 @@ type InferenceContext struct {
 	// instead of letting the browser hang silently for 80+ seconds before
 	// the JS engine throws stack overflow. Catches both true stack overflow
 	// and pathologically slow analysis (e.g. quadratic isTaggedUnion).
-	wasmDeadline  time.Time
-	currentModule string // populated by callers for inclusion in the budget-exceeded error
+	wasmDeadline  time.Time //nolint:unused // WASM type-checker wall-clock budget (M-WASM-TYPECHECK-LIMITS); guard not yet wired in all paths
+	currentModule string    //nolint:unused // populated by callers for inclusion in the budget-exceeded error
 	// baseEnvFreeVars is a snapshot of the free type variables of the
 	// environment at the START of this declaration's inference (the module /
 	// REPL / contract env). Used by generalizeWithConstraints to apply the HM

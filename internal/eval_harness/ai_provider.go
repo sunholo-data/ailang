@@ -81,7 +81,11 @@ func newProviderAdapter(model string, apiKey string, explicitProvider ai.Provide
 	}, nil
 }
 
-// setAttribution sets OpenRouter app-attribution overrides.
+// setAttribution sets OpenRouter app-attribution overrides. Retained for the
+// app-attribution-override feature (cc726339); the caller that wires it is not
+// yet in place, so it is intentionally unused for now.
+//
+//nolint:unused // setter awaiting its caller (attribution-override feature)
 func (p *providerAdapter) setAttribution(attr *ai.Attribution) {
 	p.attribution = attr
 }

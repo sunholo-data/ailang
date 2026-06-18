@@ -122,6 +122,8 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 //
 // We reassemble these by tracking the most recent "event:" line until we
 // hit a "data:" line, then dispatch on (eventType, dataJSON).
+//
+//nolint:unused // SSE event shape retained alongside the streaming parser
 type sseEvent struct {
 	eventType string
 	data      string
