@@ -550,3 +550,43 @@ evidence; verify + A/B before default-on.
 system role, user 94,168→4,406, json_parse PASS @ 29 turns). Capture confirms it lands as a real
 system-role message, not folded. Follow-up: motoko-side `--system-prompt` flag PR so external
 harnesses inject the system prompt cleanly (removes AILANG's `.motoko_system.md` workaround).
+
+## 2026-06-18 — A/B: AILANG_MOTOKO_SYSTEM_ROLE off vs on (6 flaky ×3) → KEEP GATED, not default-on
+
+Tested whether delivering motoko's system prompt in the **system role** (`=1`) vs the
+legacy **fold-into-user** default (unset) lifts pass rate. motoko-local-qwen3.6, single
+lock hold, `--parallel 1 --trials 3` on json_parse, json_transform, config_file_parser,
+lambda_calc, graph_bfs, cli_args.
+
+| benchmark | off (fold) | on (system-role) | off turns | on turns |
+|---|---|---|---|---|
+| cli_args | 3/3 | 3/3 | 12.3 | 16.0 |
+| config_file_parser | 0/3 | **1/3** | 6.0 | **17.5** |
+| graph_bfs | 0/3 | **1/3** | 0.0 | 3.0 |
+| json_parse | 3/3 | **2/3** | 8.7 | 10.0 |
+| json_transform | 2/3 | **1/3** | 5.3 | 10.0 |
+| lambda_calc | 2/3 | **0/3** | 3.7 | 2.0 |
+| **TOTAL** | **10/18 (56%)** | **8/18 (44%)** | | |
+
+**Verdict: do NOT default-on; keep `AILANG_MOTOKO_SYSTEM_ROLE` gated (opt-in).** Net **−2/18,
+well within n=3 noise** — no basis to flip the default.
+
+**But two signals worth keeping:**
+- **System-role helps the FLOOR**: the two benchmarks that never passed under fold
+  (config_file_parser, graph_bfs) both went **0→1/3**. It hurt the mid-tier
+  (json_parse 3→2, json_transform 2→1, lambda_calc 2→0).
+- **System-role lifts iteration depth**: turn counts rose across the board (config_file_parser
+  6.0→17.5, json_parse 8.7→10.0, json_transform 5.3→10.0). The model ENGAGES MORE when the
+  teaching is in the system role — directionally aligned with backlog #1 (iteration persistence).
+  The extra grinding didn't convert to net passes here, but the harder benchmarks (which need
+  more turns) benefited. This suggests system-role may pay off **combined with** a loop-persistence
+  change rather than alone.
+
+**Lever classification:** PROMPT (role placement). Ruled out as a standalone default; retained as
+a gated lever and a co-factor to re-test alongside iteration-persistence (backlog #1). The flag and
+the motoko `--system-prompt` PR (arniwesth/motoko_agent#46) stay — they're the clean injection
+mechanism regardless of the default.
+
+**Prior-action status:** closes the M-MOTOKO-SYSTEM-ROLE A/B. Decision: stays opt-in. Next mission
+cycle returns to backlog #1 (iteration-persistence root cause), now with the added hypothesis that
+system-role + persistence should be tested together (system-role already raises engagement).
