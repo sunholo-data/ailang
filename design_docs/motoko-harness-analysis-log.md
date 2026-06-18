@@ -706,3 +706,44 @@ Source-level rule-outs (pi system prompt + tool schemas, from captures + source)
 optimizations based off pi source?" — answer was NO; now grounded). Persistence nudge stays as a
 divergent local aid; the real lever is context/prompt engagement. Next cycle: lean-prompt A/B +
 tool-result feedback capture, both pi-faithful.
+
+## 2026-06-18 — M-MOTOKO-AGENT-SYSTEM-PROMPT: proper A/B = NULL at scale (+1/52). Smoke did not generalize.
+
+Design doc: design_docs/planned/v0_25_0/m-motoko-agent-system-prompt.md. Hypothesis: motoko's
+EMPTY system role (vs pi/opencode's lean agentic prompt) causes the Mode-A prose disengagement;
+giving motoko a lean agentic system prompt (teaching stays in user) should lift pass rate.
+Delivery: AILANG_MOTOKO_AGENT_SYSTEM_FILE knob (motoko.go, c90f4a2a).
+
+**Exploratory smoke (6 flaky ×2):** 9/12 (75%) vs empty-base 11/18 (61%), tool calls 6–17. Looked
+strong → justified the proper A/B.
+
+**Proper A/B (core tier 26, n=2, BOTH arms fresh, one run):**
+- empty 39/52 (75%) vs agentsys 40/52 (77%) = **+1/52 — NOISE.**
+- improved: explicit_dataflow_ssa, higher_order_functions, json_transform (all disengagers on empty)
+- regressed: audit_chain_replay (2/2→1/2), merge_sort (2/2→1/2) — both were passing
+- **The 6-flaky smoke did NOT generalize.** It was a biased subset (the hardest, most-disengaged
+  benchmarks with the most headroom). On the broader core tier the lean prompt is net-neutral.
+
+**Failure-mode segmentation (empty baseline, the useful by-product):** 8 of 10 failing benchmarks
+are DISENGAGE (0–2.5 tool calls): state_machine_vending, higher_order_functions, csv_to_json_converter,
+explicit_dataflow_ssa, graph_bfs, json_transform, ast_patch_roundtrip, contract_roman_numeral. Only
+2 are grind-but-wrong: prompt_injection (8 TC), config_file_parser (18 TC). So disengagement IS the
+dominant failure mode even on core — but the lean system prompt only PARTIALLY fixes it (converts
+some disengagers, misses others, and adds variance to passers). Net wash.
+
+**Decision (per the design doc's success criteria — NOT met):** do NOT productionize the agentic
+prompt as a win. Keep the AILANG_MOTOKO_AGENT_SYSTEM_FILE knob (harmless experimental tool). Record
+NULL. Note: core-tier empty baseline (75%) is much higher than the rotation AILANG-agent aggregate
+(63%) — the motoko↔pi gap concentrates on HARDER tiers (stretch/vision), not core. A fresh pi-on-core
+number was not captured (head-to-head pi arm was killed); measuring it is a gap.
+
+**Lever classification:** PROMPT (system-role framing) — REAL but PARTIAL & NOISY; not the clean
+mission lever. **Honest correction of my own smoke-driven overclaim** (caught by running the full
+controlled set per the discipline rule [[motoko-investigation-discipline]]).
+
+**Next (per design doc Non-Goals → "move to the next diff"):** (a) the 2 regressions suggest the
+prompt wording disrupts passers (e.g. "keep going until it compiles" → over-editing) — a refined
+prompt MIGHT net positive, but that risks a prompt-tuning rabbit hole; (b) the structurally cleaner
+diff to examine next is the **tool-RESULT / error feedback format** (pi vs motoko — not yet
+compared), since disengagement persists even with an agentic prompt; (c) measure pi-on-core for the
+true gap, and segment the gap by tier (the real gap is on harder benchmarks). USER to steer.
