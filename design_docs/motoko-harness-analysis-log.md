@@ -590,3 +590,39 @@ mechanism regardless of the default.
 **Prior-action status:** closes the M-MOTOKO-SYSTEM-ROLE A/B. Decision: stays opt-in. Next mission
 cycle returns to backlog #1 (iteration-persistence root cause), now with the added hypothesis that
 system-role + persistence should be tested together (system-role already raises engagement).
+
+## 2026-06-18 — Backlog #1 ROOT CAUSE (proven from A/B transcripts) + fix design
+
+Mined the failing runs from the system-role A/B (transcripts retained via M-MOTOKO-OBS-TRANSCRIPT).
+The disengagement has **two shapes**, both = "model stops emitting tool calls early, motoko finalizes":
+
+- **Mode A — `1 turn, 0 tool calls`** (`api_error` "non-agentic result"): the model answers in
+  PROSE/code in the chat reply and never calls WriteFile. motoko finalizes immediately. Dominant on
+  graph_bfs (off 3/3 trials). The AILANG executor's non-agentic guard catches it post-hoc.
+- **Mode B — `2 turns, 1 tool call`** (`logic_error`): the model makes ONE inspect call then stops
+  WITHOUT writing. Proven transcript (lambda_calc on trial2): a single
+  `BashExec {"cmd":"cat …/solution.ail || echo FILE_NOT_FOUND"}` — it checks for a solution, sees
+  none, and **stops**. motoko finalizes. No WriteFile ever happens.
+
+**Where motoko finalizes** (`src/core/agent_loop_v2.ail`, ~L1042–1110): when
+`finish_reason != "tool_calls"`, the loop tries (1) hybrid-bash extraction (only fires on a fenced
+shell block), then (2) `dispatch_solver_candidate`, which has three outcomes —
+`Accept`→done, **`ContinueWithFeedback(fb)`→inject user msg + recurse**, `NoDecision`→done. The
+persistence mechanism **already exists** (`ContinueWithFeedback`), but in the **ollama eval profile
+no extension returns it**, so prose-without-write falls to `NoDecision → emit done` → premature
+finalize. THAT is the gap (not a missing mechanism — a missing trigger).
+
+**Fix design (backlog #1b — motoko_agent PR):** a bounded, built-in persistence nudge at the
+`NoDecision` boundary (flag-gated, e.g. `MOTOKO_PERSIST_RETRIES=N`, default 0 = off so it's opt-in
+for A/B). When the model stops with `finish_reason != tool_calls` AND no solution has been written
+this session AND retries remain: inject a user-role nudge ("You stopped without writing a solution —
+use WriteFile to save your AILANG implementation to <path>, then continue.") and recurse, decrementing
+the retry budget. Requires threading two new bits through `loop_v2`: a `wrote_solution: bool` (set
+when a WriteFile tool dispatch succeeds) and a `persist_left: int`. Distinct from the reverted
+M-MOTOKO-COMPEL-WRITE (a hard one-shot guard that fired 0/18) — this keeps the loop ALIVE with a
+nudge, bounded. A/B-validate on the same 6 flaky benchmarks; the system-role-A/B signal (system-role
+already raises turn counts) suggests testing persistence WITH `AILANG_MOTOKO_SYSTEM_ROLE=1`.
+
+**Prior-action status:** advances #1a (root cause) from "quantified" to "proven with transcripts +
+exact finalize site identified". Scopes #1b precisely. Next: implement the bounded persistence nudge
+on a motoko_agent branch, build, A/B (GPU).
