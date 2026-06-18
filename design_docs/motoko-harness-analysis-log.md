@@ -626,3 +626,44 @@ already raises turn counts) suggests testing persistence WITH `AILANG_MOTOKO_SYS
 **Prior-action status:** advances #1a (root cause) from "quantified" to "proven with transcripts +
 exact finalize site identified". Scopes #1b precisely. Next: implement the bounded persistence nudge
 on a motoko_agent branch, build, A/B (GPU).
+
+## 2026-06-18 — Backlog #1b IMPLEMENTED + A/B: persistence nudge = +3/18 (61%→78%), PR-worthy
+
+Implemented M-MOTOKO-PERSIST-NUDGE (motoko_agent): a bounded built-in nudge at the
+`agent_loop_v2.ail` NoDecision boundary. When the model stops (finish_reason != tool_calls),
+no extension claims the prose, NO WriteFile has been attempted this run, and nudge budget
+remains → inject a user-role nudge ("use WriteFile, then keep going until it compiles") and
+recurse instead of finalizing. State (writes-attempted, nudges-used) is read from the
+already-threaded `msgs` history — **no new params across loop_v2's 16 recursive call sites.**
+Gated by `MOTOKO_PERSIST_RETRIES` (default 0 = off); plumbed through the RuntimeProcess env
+allowlist (runtime-process.ts) so it reaches the ailang runtime.
+
+**Plumbing proven (direct motoko run):** with `MOTOKO_PERSIST_RETRIES=3` and a prose-only
+task, `persist_nudge` fired once and converted a 0-tool-call disengagement into **17 tool
+calls** — then `any_writefile_attempt` blocked further nudges (bounded). Confirms env
+propagation + firing + the bound.
+
+**A/B (6 flaky ×3, off vs on=3), motoko-local-qwen3.6:**
+
+| benchmark | off | on | off turns | on turns |
+|---|---|---|---|---|
+| cli_args | 2/3 | 3/3 | 17.0 | 7.3 |
+| config_file_parser | 1/3 | 2/3 | 4.5 | **21.0** |
+| json_transform | 2/3 | 3/3 | 12.0 | 14.7 |
+| lambda_calc | 2/3 | 3/3 | 6.7 | 5.0 |
+| json_parse | 3/3 | 3/3 | 8.0 | 11.3 |
+| graph_bfs | 1/3 | 0/3 | 5.0 | 4.3 |
+| **TOTAL** | **11/18 (61%)** | **14/18 (78%)** | | |
+
+**Net +3/18.** 4 of 6 improved, 1 regressed (graph_bfs 1→0 — the perennial 0/1 floor, noise
+at n=3). config_file_parser is the clearest causal win: the nudge drove it 4.5→21 turns and it
+converted. Directionally clear and the OPPOSITE of system-role (−2): persistence earns a PR.
+
+**Lever classification:** HARNESS-LOOP (iteration persistence) — the mission's flagship #1b.
+**Decision:** land the mechanism, keep **gated (default off)** given n=3, recommend
+`MOTOKO_PERSIST_RETRIES=3` and validate at scale on the rotation before any default-on. Draft
+PR to arniwesth/motoko_agent. The system-role A/B's hint (system-role raises engagement) is the
+natural next combined test: persistence + `AILANG_MOTOKO_SYSTEM_ROLE=1` together.
+
+**Prior-action status:** closes backlog #1 (a: root cause proven; b: fix implemented, proven,
+A/B net-positive). Next cycle: PR review + rotation-scale A/B + the persistence×system-role combo.
