@@ -362,3 +362,49 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
 - **Next action:** (GPU) capture motoko vs pi requests for one benchmark via `ollama-tap` and
   diff the system prompt + tool schemas — the last unequal variable, and the actual answer to
   "why does motoko vary vs pi on the same model."
+
+---
+
+### 2026-06-18 — REQUEST DIFF: the pi-vs-motoko gap is the SYSTEM PROMPT (strong evidence)
+
+- **Method:** captured pi's exact `/v1/chat/completions` request via `ollama-tap` on json_parse
+  (`eval_results/pi-request-json_parse.jsonl`). motoko's tap capture failed (its executor doesn't
+  propagate `OLLAMA_HOST`/config to the bun→ailang subprocess — went direct to :11434), so
+  motoko's side is read from source (config.ail).
+- **The diff:**
+  - **pi sends a directive agentic SYSTEM prompt** (2460 chars, system role): *"You are an
+    expert coding assistant operating inside pi… You help users by reading files, executing
+    commands, editing code, and **writing new files**. Available tools: read/bash/edit/write.
+    Guidelines: …"* — then the AILANG teaching prompt as the USER message. 4 tools
+    (read/bash/edit/write).
+  - **motoko sends NO system prompt** — `config.ail:164` `system_prompt: ""` (default); the
+    AILANG teaching prompt is folded into the user message (the executor passes
+    `SystemPrompt+"\n\n"+Directive` as one positional task arg). 6 tools (ReadFile/WriteFile/
+    EditFile/BashExec/RunTests/Search).
+  - Both: qwen3.6, stream, temperature unset (=1.0), no tool_choice — sampling confirmed equal.
+- **SMOKING GUN:** the shared AILANG teaching prompt ("v0.16.2 … with Output Discipline") literally
+  says **"Output raw AILANG code only — no markdown fences, no prose, no JSON wrappers. The first
+  line must be `module ...`"** — a **0-shot** instruction that tells the model to EMIT CODE AS
+  TEXT, not use tools. In AGENT mode this actively discourages tool use.
+- **Mechanism (highly likely root cause):** motoko gives qwen the "output raw code, no prose"
+  instruction with NO agentic system prompt to override it → qwen often complies by emitting code
+  as prose → **0 tool calls → no WriteFile → no solution → fail** (exactly the observed failure
+  mode). pi prepends its agentic "you are a coding assistant; use read/bash/edit/write to write
+  files" SYSTEM prompt, which overrides the 0-shot framing → qwen uses the write tool reliably
+  (88%). This also explains: the non-determinism (qwen sometimes ignores "output raw code"); why
+  the verbose write-imperative I appended REGRESSED config_file_parser (it piled more conflicting
+  instruction into the USER message instead of establishing agentic SYSTEM framing); and why
+  temperature isn't the cause (equal).
+- **Lever classification:** **PROMPT** — (a) the AILANG AGENT-mode prompt should NOT carry the
+  0-shot "output raw code only / no prose" instruction (it belongs to standard mode); (b) motoko
+  needs a pi-style agentic system prompt. Both AILANG-side (the prompt is AILANG-generated; the
+  motoko system prompt can be set via the eval/executor).
+- **Confidence:** strong but not yet airtight — confirmed pi's request live + motoko's missing
+  system prompt from source; NOT yet captured motoko's live request+response (env propagation
+  blocked the tap). Confirmation step: log motoko's outbound request (small `internal/ai/ollama`
+  debug knob, or make the executor propagate OLLAMA_HOST) and verify the response is prose.
+- **Next action (the actual fix, pi-faithful):** A/B an **agent-mode prompt that says "use the
+  write tool to write your solution" instead of "output raw code only"** + a concise agentic
+  system prompt for motoko. Expect engagement (WriteFile rate) to rise toward pi's.
+- **Prior-action status:** answers the standing question "why does motoko vary vs pi on the same
+  model + benchmarks." Supersedes the temperature lead (ruled equal) and the reverted loop guard.
