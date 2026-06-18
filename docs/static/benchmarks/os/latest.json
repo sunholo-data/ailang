@@ -14,7 +14,7 @@
         "ailang": 0.6923076923076923,
         "go": 0.9316239316239316,
         "javascript": 0.9487179487179487,
-        "python": 0.9478260869565217
+        "python": 0.9504132231404959
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
     },
@@ -59,6 +59,6 @@
       "model": "pi-qwen3-6-35b-a3b-mxfp8"
     }
   ],
-  "trials": 4,
+  "trials": 5,
   "version": "rolling-20260618"
 }
