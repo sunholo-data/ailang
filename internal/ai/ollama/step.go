@@ -49,6 +49,22 @@ func ollamaV1Timeout() time.Duration {
 // the env is treated as "unset" (downstream temperature fields are omitempty, so
 // 0 can't be transmitted distinctly anyway) — use a small positive value for
 // near-greedy decoding.
+// ollamaCallContext bounds a single ollama call with a deadline so a stalled
+// stream cannot hang the process forever. The native /api/chat path streams via
+// c.client.Chat with NO client timeout — if ollama goes idle and produces no
+// data and no error (e.g. a model-reload deadlock, or the env-server RPC wedges),
+// the read blocks indefinitely (observed: a 7h motoko hang with ollama idle, NOT
+// caught by the /v1 http timeout which only guards the /v1 delegation). This adds
+// a per-call ctx deadline covering BOTH paths + Generate. Uses the same
+// AILANG_OLLAMA_HTTP_TIMEOUT_SEC budget (default 300s; 0 disables). The returned
+// cancel MUST be deferred by the caller.
+func ollamaCallContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if d := ollamaV1Timeout(); d > 0 {
+		return context.WithTimeout(ctx, d)
+	}
+	return ctx, func() {}
+}
+
 func resolveOllamaTemperature(reqTemp float64) float64 {
 	if reqTemp > 0 {
 		return reqTemp
@@ -92,6 +108,11 @@ func bareModel(m string) string {
 }
 
 func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Bound the whole call (native /api/chat has no client timeout — see
+	// ollamaCallContext). Covers the /v1 delegation and Generate fallback too.
+	ctx, cancel := ollamaCallContext(ctx)
+	defer cancel()
+
 	// Single-shot path: no Messages and no Tools → fall back to Generate.
 	if len(req.Messages) == 0 && len(req.Tools) == 0 {
 		return c.Generate(ctx, req)
@@ -229,6 +250,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	})
 	if err != nil {
 		return nil, ai.ClassifyError(err)
+	}
+	// The ollama client can swallow a ctx deadline/cancel mid-stream and return
+	// nil (treating a cut stream as end-of-stream). Surface the deadline
+	// explicitly so a stalled native stream becomes a timeout error, not a
+	// silent empty success (the 7h-hang class).
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, ai.ClassifyError(ctxErr)
 	}
 
 	finish := "stop"

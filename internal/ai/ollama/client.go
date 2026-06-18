@@ -87,6 +87,12 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 // Generate implements ai.Provider.
 // It uses Ollama's Chat API for instruction following.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Bound the call so a stalled native /api/chat stream can't hang forever
+	// (M-OLLAMA-NATIVE-TIMEOUT; mirrors Step). No-op when called via Step, which
+	// already applied the deadline.
+	ctx, cancel := ollamaCallContext(ctx)
+	defer cancel()
+
 	if req.Routing != nil && req.Routing.HasRouting() {
 		return nil, ai.NewProviderError("ollama", 0,
 			"this provider does not support AIRoutingPolicy; use openrouter instead",
@@ -171,6 +177,13 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, ai.NewProviderError("ollama", 0, err.Error(), err)
+	}
+	// Surface a swallowed ctx deadline/cancel (stalled native stream) explicitly —
+	// see the matching guard in Step (M-OLLAMA-NATIVE-TIMEOUT).
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		span.RecordError(ctxErr)
+		span.SetStatus(codes.Error, ctxErr.Error())
+		return nil, ai.NewProviderError("ollama", 0, ctxErr.Error(), ctxErr)
 	}
 
 	// Note: Ollama doesn't report tokens the same way, so we leave them at 0

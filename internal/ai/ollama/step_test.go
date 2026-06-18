@@ -246,6 +246,51 @@ func TestStep_ToolsViaOpenAICompat_TemperatureEnv(t *testing.T) {
 	}
 }
 
+// TestStep_NativePath_TimesOut verifies that a STALLED native /api/chat stream
+// (ollama idle, producing no data and no error) makes Step fail fast via the
+// context deadline instead of hanging forever — the native path has no client
+// timeout of its own (this is the 7h-motoko-hang class the /v1 timeout missed).
+func TestStep_NativePath_TimesOut(t *testing.T) {
+	t.Setenv("AILANG_OLLAMA_NATIVE_TOOLS", "1") // force native /api/chat
+	t.Setenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC", "1")
+
+	releaseHang := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush() // headers only, then stall the stream forever
+		}
+		<-releaseHang
+	}))
+	defer srv.Close()
+	defer close(releaseHang)
+
+	t.Setenv("OLLAMA_HOST", srv.URL)
+	c, err := NewClient(WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, stepErr := c.Step(context.Background(), &ai.Request{
+			Model:    "qwen3.6",
+			Messages: []ai.Message{{Role: "user", Content: "hi"}},
+			Tools:    []ai.ToolSchema{{Name: "w", Description: "w", Parameters: `{"type":"object"}`}},
+		})
+		done <- stepErr
+	}()
+
+	select {
+	case stepErr := <-done:
+		if stepErr == nil {
+			t.Fatal("expected a deadline error from the stalled native stream, got nil")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Step did not return within 10s — the native-path context deadline is not applied (hang regression)")
+	}
+}
+
 // TestStep_NoMessages_DelegatesToGenerate verifies the legacy
 // single-shot path: when req.Messages is empty, Step routes to
 // Generate via the same ollama chat endpoint.
