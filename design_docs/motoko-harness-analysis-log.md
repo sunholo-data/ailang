@@ -330,3 +330,35 @@ native `/api/chat`. Either (a) add a `/v1` tool path to `internal/ai/ollama`, or
   the default for the agentic path; else investigate thinking-mode (lead #2).
 - **Prior-action status:** delivers the code half of mission item #2; the empirical A/B is the
   only remaining step (deliberately deferred — this was a no-GPU downtime cycle).
+
+---
+
+### 2026-06-18 — Native-path hang fixed; request-capture tooling added; temperature ruled OUT as the pi-gap cause
+
+- **Recurring hang (FIXED):** a motoko run hung **~7h** with ollama idle (rig wasted the night;
+  cleared by killing the subprocess tree). Root cause: the native `/api/chat` path streams via
+  `c.client.Chat` with **no client timeout** — the `/v1` http timeout (63fc63e0) only guards the
+  `/v1` delegation. Fix (`772704cb`): `ollamaCallContext()` adds a per-call context deadline
+  (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC`, default 300s) at Step + Generate; plus an explicit
+  `ctx.Err()` check after `Chat` (the ollama client can swallow a ctx cancel mid-stream and
+  return nil). Test `TestStep_NativePath_TimesOut`. **Caveat:** the hung process held motoko's
+  bun **env-server** socket (:8080) — if hangs persist, the next suspect is the bun↔ailang RPC
+  (motoko-side), not the ollama provider.
+- **Temperature RULED OUT as the pi-vs-motoko differentiator:** pi-coding-agent sets **no**
+  default temperature, so pi runs qwen at the SAME ollama default (1.0) we do. The
+  M-OLLAMA-TEMPERATURE-KNOB A/B is still worth running (lowering temp may reduce motoko's
+  flakiness) but it is NOT why pi is more reliable. The pi gap's cause remains **unisolated** —
+  narrowed to the only remaining unequal variables: **system prompt + tool schemas + message
+  formatting** (and possibly thinking-mode).
+- **Observability gap closed for the diff:** we did NOT capture the exact outbound request from
+  any harness (`internal/ai/ollama` logs none; OTEL keeps only a 100-char prompt preview; the
+  motoko JSONL logs responses not requests; pi/opencode go direct). Added **`tools/ollama-tap`**
+  — a transparent logging reverse-proxy that records every request body (system prompt +
+  messages + tool schemas + params), tagged by `?harness=`, for ALL harnesses uniformly
+  (they all POST to ollama's HTTP API). Smoke-verified. **This is the enabler for the real
+  "why": run motoko vs pi on the same benchmark through the tap, then diff the captured requests.**
+- **Lever classification:** HARNESS-ERROR (the hang) + AILANG-INTEGRATION (timeout) +
+  observability tooling (the tap).
+- **Next action:** (GPU) capture motoko vs pi requests for one benchmark via `ollama-tap` and
+  diff the system prompt + tool schemas — the last unequal variable, and the actual answer to
+  "why does motoko vary vs pi on the same model."
