@@ -57,6 +57,22 @@ import (
 
 var motokoTracer = telemetry.Tracer("executor.motoko")
 
+// writeMotokoSystemPrompt writes the system prompt to a file INSIDE the workspace
+// and returns its absolute path (M-MOTOKO-SYSTEM-ROLE). motoko's headless host
+// reads the system prompt from SYSTEM_MD and (index.ts systemPromptForWorkspace)
+// REJECTS any path outside the workdir — so the file must live under the
+// workspace, not /tmp. Returns "" if workspace is empty.
+func writeMotokoSystemPrompt(workspace, content string) (string, error) {
+	if workspace == "" {
+		return "", fmt.Errorf("no workspace for system prompt")
+	}
+	p := filepath.Join(workspace, ".motoko_system.md")
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
 // MotokoExecutor executes tasks using the motoko_agent CLI.
 type MotokoExecutor struct {
 	motokoPath     string
@@ -155,9 +171,30 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	sessionID := "session_" + ourTaskID
 	span.SetAttributes(attribute.String("motoko.session_id", sessionID))
 
+	// System-prompt delivery (M-MOTOKO-SYSTEM-ROLE). Historically the AILANG-
+	// generated system prompt (task.SystemPrompt — teaching content + agent-mode
+	// output-delivery override) was concatenated into the positional task arg, so
+	// motoko sent an EMPTY system-role message (confirmed by the request-dump,
+	// 2026-06-18) while pi sends a real agentic system message. motoko's headless
+	// host reads its system prompt from SYSTEM_MD (a file path that must live
+	// INSIDE the workspace). When AILANG_MOTOKO_SYSTEM_ROLE=1, deliver
+	// task.SystemPrompt there as a proper system-role message and pass only
+	// task.Directive as the task (no user-message duplication). Default (unset)
+	// keeps the legacy fold-into-directive behaviour so the rotation is unchanged
+	// until A/B-validated.
 	directive := task.Directive
+	var systemPromptPath string
 	if task.SystemPrompt != "" {
-		directive = task.SystemPrompt + "\n\n" + task.Directive
+		if os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") == "1" && task.Workspace != "" {
+			if p, werr := writeMotokoSystemPrompt(task.Workspace, task.SystemPrompt); werr == nil {
+				systemPromptPath = p
+				defer func() { _ = os.Remove(p) }()
+			} else {
+				directive = task.SystemPrompt + "\n\n" + task.Directive // fallback on write error
+			}
+		} else {
+			directive = task.SystemPrompt + "\n\n" + task.Directive // legacy default
+		}
 	}
 
 	// motoko CLI: positional task argument; env vars carry the rest.
@@ -213,6 +250,9 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"MOTOKO_CONFIG="+effectiveProfile,
 		"MOTOKO_SESSION_ID="+sessionID,
 		"AILANG_CACHE_DIR="+taskCacheDir,
+		// M-MOTOKO-SYSTEM-ROLE: when set, motoko reads its system-role message
+		// from this file (must be inside the workspace). Empty string is a no-op.
+		"SYSTEM_MD="+systemPromptPath,
 		// ENV_PORT must match the port motoko's backend.ail connects to. On the
 		// feat/ollama-local-profile branch the AILANG core dials the STATIC
 		// cfg.url (:8080 in the ollama/dogfood profiles), so an ephemeral bind
