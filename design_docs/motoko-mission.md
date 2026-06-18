@@ -36,19 +36,15 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-1. **[motoko PR + GPU] Iteration persistence — THE gap.** Quantified 2026-06-18: on FAILURES
-   motoko gives up at median **2** turns (max 9) while pi grinds median **33** (max 164) on the
-   SAME model; motoko's model stops emitting tool calls after ~2 turns and motoko finalizes.
-   Not a budget cap (passes reach 49 turns), not prompt (sub-dominant, A/B'd), not temperature
-   (equal). Two GPU-bound steps:
-   - **(a) Root cause** — capture a fresh failing motoko run's FULL turn-by-turn via the
-     request-dump (`AILANG_OLLAMA_LOG_REQUESTS`/sentinel, built) + transcript, to see *why* the
-     model disengages at turn 2 (gives up in prose? hits an unhelpful tool error? thinks it's
-     done?). One lock-respecting GPU run.
-   - **(b) Fix** — a motoko-side loop-persistence change: don't finalize on an early apparent-stop
-     while the solution clearly isn't working; re-prompt / keep iterating (bounded). Draft PR to
-     `arniwesth/motoko_agent`, A/B-validated on the rig. (The earlier "write a file" guard
-     M-MOTOKO-COMPEL-WRITE was the wrong shape — this is about *persistence*, not just *writing*.)
+1. **[LANDED as PR — iteration persistence, THE gap].** Root cause PROVEN (2026-06-18) from A/B
+   transcripts: two disengagement modes — Mode A (`1 turn, 0 tool calls`, prose answer) and Mode B
+   (`2 turns, 1 inspect call then stop`), both finalizing at `agent_loop_v2.ail` NoDecision while
+   pi grinds ~33. Fix implemented + A/B-validated: **M-MOTOKO-PERSIST-NUDGE** — a bounded built-in
+   nudge at NoDecision (no WriteFile yet + budget remains → re-prompt + recurse), gated by
+   `MOTOKO_PERSIST_RETRIES` (default off). A/B (6 flaky ×3): **11/18 → 14/18 (+3, 61%→78%)**, 4
+   improved / 1 noise-regression; mechanism proven (1 nudge → 17 tool calls). **Draft PR:
+   arniwesth/motoko_agent#47.** Next: rotation-scale A/B + the persistence×system-role combo
+   (system-role raises engagement; persistence converts it).
 2. **[AILANG, needs GPU] Temperature A/B** — `AILANG_OLLAMA_TEMPERATURE` knob landed (off by
    default). A/B unset vs 0.2/0.3 on the 6 flaky benchmarks; if it lifts engagement, make a low
    temperature the default; else investigate qwen thinking-mode. Lower priority than #1 (the
