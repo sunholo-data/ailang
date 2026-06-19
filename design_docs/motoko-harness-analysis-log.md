@@ -788,3 +788,39 @@ run_length_encode, symbolic_diff, config_file_parser.
 (GPU) cycle: target the 7 always-disengage benchmarks; capture their first-turn requests via the
 request-dump to see WHY qwen emits 0 tool calls there (tool schema not seen? task framing? result
 format?), then a targeted fix + A/B measured by the disengage-rate delta (not just pass rate).
+
+## 2026-06-19 — Why model I/O isn't in `ailang chains` (real gap) + a captured temp=0 vs 1.0 diff
+
+**User question: should the model in/out be in the chains CLI — is its absence a gap? YES.**
+Investigated observatory.db (`~/.ailang/state/observatory.db`):
+- `ailang chains` is architected for the **COORDINATOR agent pipeline** — `chain_stages` rows are
+  high-level stages (design-doc-creator → sprint-planner → execute) with agent_id/provider/status/
+  approval/cost. There is **no column for per-turn model request/response text**. Eval runs DO create
+  a chain (`eval_suite:…/agent`) but it shows STAGES=0 / $0.00 — the conversation isn't recorded.
+- Per-model-call detail is meant to live in OTEL **spans**. AILANG's providers ARE instrumented
+  (`internal/ai/ollama/client.go` emits `ollama.generate`; all providers similar). BUT the `spans`
+  table is **EMPTY (0 rows)** — those spans don't reach observatory.db in the eval context.
+- **Why empty:** (a) agent model calls run in the harness **SUBPROCESS** (motoko/pi/codex/opencode);
+  subprocess spans don't export back to the parent's observatory.db (the documented TRACEPARENT/
+  subprocess boundary). (b) external CLIs (pi/codex/opencode) never touch AILANG's instrumented
+  path at all → invisible by design; only a network tap sees them.
+- **That's exactly why the file-based request-dump exists.** This run FIXED it to also log the
+  RESPONSE (text + tool_calls + finish_reason) — and fixed a follow-up bug where the response log
+  was on the native path while motoko always delegates to /v1 (`5d6fa7f8b`). Dump now = full IN+OUT.
+- **Proper fix (backlog):** persist model-call spans (with req/resp) to observatory.db tagged with
+  the eval chain_id, at least for the in-process + motoko paths → `ailang chains view <id>` would
+  show the conversation instead of the file-dump hack.
+
+**Captured IN diff (graph_bfs, the smoking-gun comparison the user asked for):**
+- **motoko**: system **0 chars** (empty), 6 tools, **temperature 0**.
+- **pi** (engaged: pass, 3 tool calls, 1530-char solution): system **2458 chars** (agentic), 4 tools,
+  **temperature None → ollama default 1.0**.
+Two concrete input differences: empty-vs-agentic system (system-prompt A/B was null, so not the
+whole story) AND **temperature 0 vs 1.0**. This CONTRADICTS the stale backlog #2 assumption ("pi runs
+the same 1.0 default") — the request data shows motoko runs qwen GREEDY (temp 0), pi at 1.0. Greedy
+decoding plausibly drives the confident-prose / 0-tool-call disengagement. Untested as the cause;
+warrants a temperature A/B measured by **disengage-rate delta** (now that we have the tool).
+
+**Prior-action status / next:** dump now captures OUT (re-run a graph_bfs capture to see motoko's
+actual prose). Two live leads for the next GPU cycle, both from the captured request: temp 0→default,
+and (re-confirm) system framing. Record the chains→spans persistence as an observability backlog item.
