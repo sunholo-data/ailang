@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -268,11 +269,16 @@ type ChatStepChoice struct {
 	FinishReason string              `json:"finish_reason"`
 }
 
-// ChatStepRespMessage is the assistant message inside a choice.
+// ChatStepRespMessage is the assistant message inside a choice. Reasoning models
+// over OpenAI-compat return their thinking in `reasoning` (Ollama) or
+// `reasoning_content` (DashScope/DeepSeek) — both captured here so it is not
+// silently dropped (Qwen-Agent#789).
 type ChatStepRespMessage struct {
-	Role      string             `json:"role"`
-	Content   json.RawMessage    `json:"content"`
-	ToolCalls []ChatStepToolCall `json:"tool_calls,omitempty"`
+	Role             string             `json:"role"`
+	Content          json.RawMessage    `json:"content"`
+	ToolCalls        []ChatStepToolCall `json:"tool_calls,omitempty"`
+	Reasoning        string             `json:"reasoning,omitempty"`
+	ReasoningContent string             `json:"reasoning_content,omitempty"`
 }
 
 // ChatStepUsage is the token-usage block.
@@ -501,6 +507,14 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 		}
 	}
 
+	// Reasoning models (Qwen3/DeepSeek over OpenAI-compat) return their thinking in
+	// `reasoning` (Ollama) or `reasoning_content` (DashScope/DeepSeek). Capture it —
+	// dropping it silently loses content (Qwen-Agent#789).
+	reasoning := choice.Message.ReasoningContent
+	if reasoning == "" {
+		reasoning = choice.Message.Reasoning
+	}
+
 	var toolCalls []ai.ToolCall
 	for _, tc := range choice.Message.ToolCalls {
 		// Pass the arguments string through verbatim. Function.Arguments is a
@@ -519,6 +533,19 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 		})
 	}
 
+	// Recovery: when the model emitted NO native tool_calls but wrote a Hermes-style
+	// <tool_call>{...}</tool_call> block inside its text or reasoning (which Ollama's
+	// /v1 sometimes fails to lift into the tool_calls field for Qwen3 thinking
+	// models), parse it out so the agent loop sees the action instead of finalizing
+	// the turn as a no-op (the "0 tool calls / disengagement" failure mode).
+	finish := MapChatFinishReason(choice.FinishReason)
+	if len(toolCalls) == 0 {
+		if recovered := extractHermesToolCalls(text + "\n" + reasoning); len(recovered) > 0 {
+			toolCalls = recovered
+			finish = "tool_calls"
+		}
+	}
+
 	model := raw.Model
 	if model == "" {
 		model = requestedModel
@@ -530,14 +557,54 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 	}
 	return &ai.Response{
 		Text:                 text,
+		Reasoning:            reasoning,
 		InputTokens:          raw.Usage.PromptTokens,
 		OutputTokens:         raw.Usage.CompletionTokens,
 		TotalTokens:          raw.Usage.TotalTokens,
 		CacheReadInputTokens: cacheRead,
 		Model:                model,
 		ToolCalls:            toolCalls,
-		FinishReason:         MapChatFinishReason(choice.FinishReason),
+		FinishReason:         finish,
 	}, nil
+}
+
+// hermesToolCallRe matches Hermes-style tool calls, e.g.
+//
+//	<tool_call>{"name":"WriteFile","arguments":{"path":"x.ail","content":"..."}}</tool_call>
+//
+// Non-greedy on the inner group so it stops at the FIRST </tool_call> (the inner
+// JSON may itself contain braces, so we rely on the closing tag, not brace
+// balancing).
+var hermesToolCallRe = regexp.MustCompile(`(?s)<tool_call>\s*(.*?)\s*</tool_call>`)
+
+// extractHermesToolCalls recovers tool calls a model emitted as Hermes-style
+// <tool_call>{...}</tool_call> blocks inside its text/reasoning, which Ollama's
+// /v1 sometimes fails to lift into the native tool_calls field (Qwen3 thinking
+// models). Returns nil when there are none or all blocks fail to parse.
+func extractHermesToolCalls(s string) []ai.ToolCall {
+	if !strings.Contains(s, "<tool_call>") {
+		return nil
+	}
+	var out []ai.ToolCall
+	for i, m := range hermesToolCallRe.FindAllStringSubmatch(s, -1) {
+		var parsed struct {
+			Name      string          `json:"name"`
+			Arguments json.RawMessage `json:"arguments"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(m[1])), &parsed); err != nil || parsed.Name == "" {
+			continue
+		}
+		args := strings.TrimSpace(string(parsed.Arguments))
+		if args == "" || args == "null" {
+			args = "{}"
+		}
+		out = append(out, ai.ToolCall{
+			ID:        fmt.Sprintf("hermes_%d", i),
+			Name:      parsed.Name,
+			Arguments: args,
+		})
+	}
+	return out
 }
 
 // MapChatFinishReason converts the OpenAI Chat Completions finish_reason

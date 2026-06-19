@@ -235,6 +235,13 @@ type Response struct {
 	// Text is the generated text content
 	Text string
 
+	// Reasoning is the model's thinking/reasoning, surfaced separately from Text.
+	// Reasoning models over OpenAI-compat (Qwen3 via Ollama, DeepSeek, etc.) return
+	// this in a `reasoning` (Ollama) or `reasoning_content` (DashScope/DeepSeek)
+	// field. Capturing it prevents the silent-loss bug (Qwen-Agent#789) and lets us
+	// recover a tool call the model emitted inside its reasoning.
+	Reasoning string
+
 	// ImageData contains raw image bytes (PNG/JPEG) when the response includes an image.
 	// Nil for text-only responses.
 	ImageData []byte
