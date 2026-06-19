@@ -55,6 +55,7 @@ var Registry = map[string]map[string]EffOp{
 	"Debug":   {},
 	"Stream":  {},
 	"Process": {},
+	"Secret":  {},
 }
 
 // Call invokes an effect operation
