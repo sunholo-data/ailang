@@ -890,3 +890,27 @@ AILANG default bump vs motoko-side per-request max_tokens (motoko's config has n
 persistence/parsing were all ruled out by the wire. Confirms the value of the "clean house" wire
 observability the user pushed for. **Next:** raw-replay confirm (motoko request + max_tokens=16384 →
 does qwen finish?), then raise max_tokens + A/B by disengage-rate.
+
+## 2026-06-19 — FIX LANDED + VALIDATED: max_tokens floor (16384) eliminates truncation disengagement
+
+resolveOllamaMaxTokens (internal/ai/ollama/step.go, fac848054): floor reqMax→16384 on the /v1 path
+(env AILANG_OLLAMA_MAX_TOKENS overrides for the per-model registry value). Confirmed via raw replay
+first (motoko's exact request, max_tokens 4096→32768 = engage 3/3, reasoning up to 50k chars).
+
+**Signal (7 always-disengage benchmarks ×2, with fix):**
+- pass **3/14 (21%) → 11/14 (79%)**; rotation baseline was ~0%.
+- disengaged-turn per-call finish_reason: **11 `length` → 0 `length`** (truncation eliminated), 12 `stop`.
+- tool-call engagement 8–33/benchmark (was the disengagement floor). Only log_file_analyzer still
+  fails (0/2) but now ENGAGED (19 tool calls) = grind-wrong (correctness), not disengage.
+
+**Lever:** INFERENCE-CONFIG (token budget). The registry already declared max_output_tokens=32768;
+the bug was it never reached motoko (motoko's std/ai default = 4096). The floor makes the model's
+strength take effect AILANG-side (no motoko PR needed); per-model precision via the env is the follow-up.
+
+**Follow-ups:** (1) plumb the registry's per-model max_output_tokens to motoko via
+AILANG_OLLAMA_MAX_TOKENS (Task field → motoko.go env → motoko RuntimeProcess allowlist PR) for exact
+values; (2) re-measure the FULL rotation gap (motoko ~63% vs pi 96%) now that the dominant disengagement
+mode is fixed — expect a large jump; (3) the residual genuine-stop disengagement (12 turns) + grind-wrong
+(log_file_analyzer) are the next, smaller levers. **Prior-action status:** the mission's #1 gap
+(disengagement) has its first material fix. Process: this cycle followed the motoko-analyzer gates
+(observe→diff→cheap-confirm→build→validate) end-to-end and they worked.
