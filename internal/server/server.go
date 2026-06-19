@@ -81,6 +81,7 @@ import (
 	"time"
 
 	firebase "firebase.google.com/go/v4"
+	"github.com/sunholo-data/ailang/internal/approvaltoken"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -133,6 +134,12 @@ type Server struct {
 
 	// Coordinator approval store for approval workflow
 	approvalStore CoordinatorApprovalStore
+
+	// Secret-approval token auth (M-SECRET-EFFECT). When set, the approve/reject
+	// endpoints accept a signed single-use ?token= (used by the iPhone ntfy
+	// action buttons) as an alternative to dashboard/IAM auth. nil = disabled.
+	secretTokenSigner *approvaltoken.Signer
+	secretTokenGuard  *approvaltoken.SingleUseGuard
 
 	// Coordinator task event store for historical replay
 	taskEventStore CoordinatorTaskEventStore

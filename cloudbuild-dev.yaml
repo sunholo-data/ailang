@@ -70,6 +70,22 @@ steps:
           .
     waitFor: ['setup-buildx']
 
+  # Build ntfy approvals-push image (M-SECRET-EFFECT). Thin wrapper over the
+  # upstream ntfy image; build context is repo root for the Dockerfile only.
+  - id: build-ntfy
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          -t "$$AR/ntfy:latest" \
+          -f docker/Dockerfile.ntfy \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+
   # Build MCP server image with registry cache (parallel with dashboard +
   # agent chain). Build context is the ailang repo root because
   # Dockerfile.mcp expects to bake in /srv/snapshot, /srv/mcp_tools,
@@ -208,6 +224,16 @@ steps:
           --region ${_REGION} --project $_TARGET_PROJECT \
           --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/mcp:latest \
           --quiet
+
+        # ntfy approvals-push service (M-SECRET-EFFECT). The service must be
+        # created once manually (it needs --min-instances=1 + NTFY_* runtime
+        # config + an auth token); this update is best-effort until then so the
+        # core pipeline never blocks on it.
+        echo "Redeploying ntfy (best-effort until one-time create)..."
+        gcloud run services update ${_PREFIX}-ntfy \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/ntfy:latest \
+          --quiet || echo "  ntfy service not yet created — run the one-time 'gcloud run deploy ${_PREFIX}-ntfy --min-instances=1' (see docker/Dockerfile.ntfy)"
 
         echo "Updating agent executor job (default)..."
         gcloud run jobs update ${_PREFIX}-agent-executor \

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sort"
@@ -268,12 +269,23 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body for review notes
+	// Secret-approval token auth (M-SECRET-EFFECT): the iPhone ntfy action
+	// buttons authenticate with a signed single-use ?token= rather than IAM.
+	// If a token is present (and token auth is enabled) it must be valid for
+	// this exact approval+action; a present-but-invalid token is rejected
+	// rather than falling through to another auth path.
+	if handled, ok := s.checkSecretApprovalToken(r, approvalID, action); handled && !ok {
+		http.Error(w, "Invalid or expired approval token", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse request body for review notes. The body is optional — ntfy action
+	// buttons POST with no body — so an empty body (io.EOF) is not an error.
 	var body struct {
 		Notes     string `json:"notes"`
 		Permanent bool   `json:"permanent"` // If true, permanent rejection (no retry)
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}

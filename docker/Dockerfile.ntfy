@@ -1,0 +1,22 @@
+# ntfy push server for the AILANG approvals channel (M-SECRET-EFFECT, v0.26.0).
+#
+# Deployed as the Cloud Run service `${PREFIX}-ntfy` in ailang-multivac*, it
+# receives approval pushes from the coordinator and forwards them to the
+# operator's iPhone (via the ntfy iOS app) with Approve/Deny action buttons.
+#
+# Deploy with --min-instances=1 (no scale-to-zero) so it stays reachable, and
+# set the runtime config below at deploy time (NOT baked into the image):
+#   NTFY_BASE_URL          public https URL of this service
+#   NTFY_UPSTREAM_BASE_URL https://ntfy.sh   (iOS APNs instant-delivery relay)
+#   NTFY_AUTH_FILE / NTFY_AUTH_DEFAULT_ACCESS  to lock the topic down
+#   NTFY_ENABLE_LOGIN=true and an auth token consumed by NtfyChannel
+FROM binwiederhier/ntfy:latest
+
+# Cloud Run routes to container port 8080 by default; ntfy must listen there.
+ENV NTFY_LISTEN_HTTP=:8080
+# Approvals are ephemeral — a short cache is plenty (no Cloud SQL needed).
+ENV NTFY_CACHE_DURATION=12h
+
+EXPOSE 8080
+ENTRYPOINT ["ntfy"]
+CMD ["serve"]
