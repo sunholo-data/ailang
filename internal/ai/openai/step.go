@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -15,6 +17,51 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// aiHTTPLogPath resolves where to append the raw AI HTTP wire log, from
+// AILANG_AI_HTTP_LOG, else the $HOME/.ailang/state/ai-http-log sentinel file
+// (the sentinel path propagates to subprocesses where custom env vars do NOT —
+// e.g. motoko's bun→ailang chain — which is why the env alone wasn't enough to
+// see what motoko actually sends). Empty string = logging off.
+func aiHTTPLogPath() string {
+	if p := strings.TrimSpace(os.Getenv("AILANG_AI_HTTP_LOG")); p != "" {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ai-http-log"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// logAIWire appends the EXACT bytes sent and received for one chat-completions
+// HTTP call. This is the authoritative "what did we actually put on the wire"
+// record — captured at the http.Client boundary, after request serialization and
+// before response parsing, so it reflects reality even when our struct-level dump
+// or a network tap can't reach the process.
+func logAIWire(url string, reqBody, respBody []byte) {
+	path := aiHTTPLogPath()
+	if path == "" {
+		return
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	for _, rec := range []map[string]any{
+		{"kind": "http_request", "url": url, "body": string(reqBody)},
+		{"kind": "http_response", "url": url, "body": string(respBody)},
+	} {
+		if b, mErr := json.Marshal(rec); mErr == nil {
+			_, _ = f.Write(append(b, '\n'))
+		}
+	}
+}
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). It translates req.Messages + req.Tools into
@@ -100,6 +147,10 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		recordStepError(span, e)
 		return nil, e
 	}
+
+	// Authoritative wire capture: exact request + response bytes (off unless the
+	// AILANG_AI_HTTP_LOG env / ai-http-log sentinel is set).
+	logAIWire(c.baseURL+"/chat/completions", jsonBody, body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		e := classifyChatHTTPError("openai", resp.StatusCode, body)
