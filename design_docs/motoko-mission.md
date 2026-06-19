@@ -36,6 +36,19 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
+0. **[AILANG dev — TOP, leading candidate] Read qwen's `reasoning` field (generic openai-compat fix).**
+   Wire capture (HTTP-wire logger, `c1f87275e`) proved qwen3.6/ollama returns a `reasoning` field
+   (10k+ chars) that AILANG's `ParseChatStepResponse` DROPS (reads only content+tool_calls). All 3
+   reference harnesses read it (pi, qwen-code, Qwen-Agent); **Qwen-Agent#789 is our exact bug**, fixed
+   with a 2-line GENERIC fallback (`reasoning_content` || `reasoning`) — NOT per-model. Fix:
+   (a) capture a DISENGAGED benchmark on the wire to confirm the answer/tool-call is stuck in
+   `reasoning` (causation not yet proven — a captured graph_bfs run ENGAGED+passed, so the rotation's
+   always-disengage list may be stale); (b) add generic reasoning-field read in `internal/ai/openai`
+   (+ openrouter); A/B by disengage-rate. Generic, dev-side, keeps core simple.
+0b. **[eval rig — user priority] Add `qwen-code` (QwenLM/qwen-code) as an eval-suite harness arm.**
+   qwen's own coding agent (OpenAI-compat/ollama, CLI like opencode/pi → fits the executor contract).
+   A qwen-tuned reference on the SAME benchmarks — directly measures the motoko↔well-tuned-harness delta.
+
 1. **[THE gap, precisely located 2026-06-18 — DISENGAGEMENT, needs GPU to fix].** Rotation-scale
    failure-mode segmentation (`tools/eval_failure_modes.py`): the motoko↔pi gap (+26pp) is
    **entirely disengagement** — motoko fails with ≤2 tool calls (prose / one inspect call) **29%**

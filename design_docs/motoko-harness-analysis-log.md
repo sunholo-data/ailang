@@ -824,3 +824,37 @@ warrants a temperature A/B measured by **disengage-rate delta** (now that we hav
 **Prior-action status / next:** dump now captures OUT (re-run a graph_bfs capture to see motoko's
 actual prose). Two live leads for the next GPU cycle, both from the captured request: temp 0→default,
 and (re-confirm) system framing. Record the chains→spans persistence as an observability backlog item.
+
+## 2026-06-19 — THE DELTA (source-grounded): better harnesses read qwen's `reasoning` field; AILANG drops it
+
+Wire capture (new HTTP-wire logger, c1f87275e) proved qwen3.6 over ollama /v1 returns a `reasoning`
+field (10k+ chars/turn) that AILANG's `ParseChatStepResponse` discards (reads only content +
+tool_calls). Cross-checked against the three reference harnesses + Qwen's own:
+
+| harness | reasoning-field handling |
+|---|---|
+| pi (`pi-ai/openai-completions`) | GENERIC: tries `reasoning_content`/`reasoning`/`reasoning_text`, first non-empty |
+| qwen-code / Qwen-Agent | GENERIC: `reasoning_content or reasoning` (fixed in Qwen-Agent#789) |
+| AILANG/motoko | NONE — dropped |
+
+**Qwen-Agent #789 IS our exact bug:** "Ollama streaming chunks use `reasoning` field not
+`reasoning_content` — thinking content silently lost with Qwen3." Fix is a 2-line GENERIC fallback,
+not a qwen branch — confirms the fix belongs in AILANG's generic openai-compat core, not per-model
+branches/extensions. AILANG already avoids the streaming XML-tool-call breakage (qwen-code#176,
+lmstudio#1071) by using NON-streaming /v1 — the wire capture confirmed it gets proper native
+`tool_calls` when qwen tool-calls. So AILANG's gap is specifically the dropped `reasoning` field.
+
+**Causation status (honest):** the captured graph_bfs run ENGAGED + PASSED (6 tool calls; reasoning
+dropped but the tool call came through the native field) — so the rotation's "graph_bfs always
+disengages" is likely STALE vs the current binary, and dropping reasoning does NOT always disengage.
+The dropped-reasoning is a CONFIRMED latent gap; not yet proven to CAUSE the 0-tool-call cases.
+Next: capture disengaging benchmarks on the wire to check whether the tool call / answer is stuck in
+`reasoning` (-> AILANG sees 0 tool_calls). Then implement the generic reasoning-field read + A/B.
+
+**Sources:** pi-ai openai-completions provider (local); Qwen-Agent#789; qwen-code#176, #2402;
+lmstudio#1071; ollama#15288; vLLM#39056; pi-mono#1205.
+
+**TODO (user, push priority): add `qwen-code` (QwenLM/qwen-code CLI) as an eval-suite harness arm**
+— qwen's own coding agent, OpenAI-compat/ollama capable, CLI like opencode/pi (fits the executor
+contract: download, wire `agent_cli: "qwen-code"`). Gives a qwen-tuned reference data point next to
+pi/opencode/motoko on the SAME benchmarks — directly measures the motoko↔well-tuned-harness delta.
