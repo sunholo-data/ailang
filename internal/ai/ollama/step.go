@@ -104,11 +104,8 @@ func ollamaLogRequestPath() string {
 }
 
 func logOllamaRequest(req *ai.Request) {
-	path := ollamaLogRequestPath()
-	if path == "" {
-		return
-	}
 	rec := map[string]any{
+		"kind":          "request",
 		"ts":            time.Now().UTC().Format(time.RFC3339Nano),
 		"model":         req.Model,
 		"system_prompt": req.SystemPrompt,
@@ -116,6 +113,36 @@ func logOllamaRequest(req *ai.Request) {
 		"tools":         req.Tools,
 		"temperature":   req.Temperature,
 		"max_tokens":    req.MaxTokens,
+	}
+	appendOllamaLog(rec)
+}
+
+// logOllamaResponse records what the model actually emitted (prose text +
+// tool-call names + finish_reason), paired with the preceding request record.
+// Without this the dump only showed the INPUT; for diagnosing disengagement we
+// need to see the OUTPUT — e.g. a 0-tool-call "stop" with prose text is the
+// model answering instead of writing a solution.
+func logOllamaResponse(resp *ai.Response) {
+	if resp == nil {
+		return
+	}
+	names := make([]string, 0, len(resp.ToolCalls))
+	for _, tc := range resp.ToolCalls {
+		names = append(names, tc.Name)
+	}
+	appendOllamaLog(map[string]any{
+		"kind":          "response",
+		"ts":            time.Now().UTC().Format(time.RFC3339Nano),
+		"finish_reason": resp.FinishReason,
+		"tool_calls":    names,
+		"text":          resp.Text,
+	})
+}
+
+func appendOllamaLog(rec map[string]any) {
+	path := ollamaLogRequestPath()
+	if path == "" {
+		return
 	}
 	b, err := json.Marshal(rec)
 	if err != nil {
@@ -323,7 +350,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if len(toolCalls) > 0 {
 		finish = "tool_calls"
 	}
-	return &ai.Response{
+	out := &ai.Response{
 		Text:         response.String(),
 		Model:        req.Model,
 		FinishReason: finish,
@@ -332,5 +359,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		InputTokens:  0,
 		OutputTokens: 0,
 		TotalTokens:  0,
-	}, nil
+	}
+	logOllamaResponse(out)
+	return out, nil
 }
