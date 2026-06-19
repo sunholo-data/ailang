@@ -1093,3 +1093,39 @@ partly pi's own timeout artifact. **There is no clean next harness lever to desi
 DEFENSIBLE "motoko is the best/equal harness for AILANG" claim, the right next step is a MULTI-TRIAL
 (x3) head-to-head for confidence intervals — a measurement, not a code change. Separately, the 3
 length-truncs stay until motoko PR #48 merges upstream (out of our hands).
+
+## 2026-06-19 (eve) — PR #48 was NOT actually blocked + clean trials=3 h2h LAUNCHED
+
+**Correction to the entry above ("blocked on upstream merge, out of our hands"): FALSE.** The PR #48
+allowlist fix existed locally as an UNCOMMITTED working-tree edit to `runtime-process.ts` (+ compiled
+into the gitignored `dist/`), so the running motoko already forwarded `AILANG_OLLAMA_MAX_TOKENS` — but
+it was one `git checkout` from vanishing, and was never committed to the branch the rig runs. The
+AILANG side was ALSO not actually propagating: `agent_runner_multi.go:213` populated MaxOutputTokens
+via `modelMaxOutputTokens(modelName)` (display name = not a registry key → GetModel miss → 0).
+
+**Both halves now committed & verified end-to-end (this is what unblocks the floor):**
+- AILANG `b52c11c49`: override line-213's 0 with the `ConfigKey` lookup (same key TTFT uses) in the
+  per-model block → `task.MaxOutputTokens = cfg.MaxOutputTokens` (32768 for the rig model).
+- motoko `91e46f1` (rig branch `feat/local-eval-profiles`, backport of PR #48): allowlist
+  `AILANG_OLLAMA_MAX_TOKENS` past the childEnv scrub.
+- Full chain confirmed by source: models.yml 32768 → agent_runner_multi (ConfigKey) →
+  motoko.go:296 (env) → runtime-process allowlist → ai/ollama/step.go:98 (per-model max_tokens). The
+  prior h2h's "all 432 requests = 16384, NEVER 32768" cause is now fixed on BOTH sides locally.
+- Rebuilt/reinstalled ailang (binary `5878c2204`; the rotation that produced the 69% rolling number
+  ran on `94a1a23-dirty`, pre-propagation → that data is stale/contaminated, disregard for post-fix).
+
+**Gate 1 (OBSERVE, stale rolling os-rolling) — PRE-FIX, for reference only:**
+`motoko 81/117 (69%) disengage 34 (29%) grind 2 | pi 108/113 (95%) | opencode 92/114 (80%)`. Gap is
+still all disengagement (+26pp) because the window predates the propagation fix being live.
+
+**Action taken (the measurement the prior entry called for):** launched clean trials=3 head-to-head,
+motoko + pi, ailang, all 39 four-language benchmarks (234 runs, `--parallel 1 --microrag on`), FRESH
+output dir `eval_results/rotation/postfix-h2h-20260619` (uncontaminated). Only difference vs the 69%
+baseline = the now-live 32768 propagation. ETA ~4–6h. opencode omitted (motoko-side fix doesn't move
+it; its ~80% ailang is the stable reference).
+
+**Lever class:** not a new lever — VALIDATION + unblocking a fix the prior cycle wrongly deemed stuck.
+**Ruled-out ledger (unchanged):** sampling (RULED OUT), step-budget (RULED OUT), persistence/system-
+role (RULED OUT). **Next (on completion):** re-segment on fresh data; confirm wire max_tokens=32768 &
+length-truncs→0; classify each residual fail as motoko-specific lever vs shared qwen-on-AILANG gap;
+if motoko within CI of pi, declare the core objective MET and write it up. RESULTS PENDING.
