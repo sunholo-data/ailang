@@ -1010,3 +1010,9 @@ off-the-shelf qwen3.6). Two inference-time findings DO transfer (PDF: design_doc
 shows the residual (genuine-stop vs grind-wrong), the two candidate harness levers are (a) sampling
 alignment (temp 1.0/top_p 0.95 — VibeThinker-backed) and (b) thinking-control ONLY if residual is
 over-thinking — but VibeThinker argues AGAINST capping for long-reasoners, so (a) is favoured.
+
+  - **LaTeX-source-confirmed (arXiv e-print, neurips_2026.tex)**: "vLLM… temperature 1.0, top-p=0.95,
+    [top-k −1]… [no] length cap beyond the model's maximum generation length." Truncation quote:
+    "high-truncation early stage weakens the model's long-thinking capability… difficult to fully
+    recover. Therefore… a single 64K long-context window, reducing… truncation." (docparse is a
+    separate sunholo cloud pipeline, not installed locally — arXiv LaTeX source was the cleaner parse.)
