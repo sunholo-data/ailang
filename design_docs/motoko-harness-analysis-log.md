@@ -958,3 +958,27 @@ that the observe→diff→cheap-confirm→build→validate loop (now the motoko-
 will show it as post-fix data accumulates); (2) attack the residual genuine-stop + grind-wrong;
 (3) qwen-code reference harness. **Prior-action status:** mission #1 (disengagement) substantially
 closed on core; the truncation fix (fac848054 + per-model 006a679a6 + motoko PR #48) is the win.
+
+## 2026-06-19 — RESEARCH (Arni): little-coder (itayinbarr/little-coder) — small-on-device-model levers
+
+pi-based harness tuned for SMALL models (9.7B–35B) — motoko's exact regime. Claims a 9.7B Qwen
+goes 19%→45% on Aider Polyglot with the scaffolding (proves harness > raw model for small models =
+the whole motoko thesis). Its small-model techniques mapped to motoko's status:
+
+| little-coder technique | what it does | motoko status / lever |
+|---|---|---|
+| **thinking-budget ext** | caps reasoning tokens/turn + **retry with thinking OFF** | **MISSING & high-value.** qwen3.6 reasons 14k–50k chars; we raised max_tokens (gives room) — the COMPLEMENT is to CAP/disable thinking. motoko's `enable_thinking:false` is DROPPED before /v1 (wire-proven) → it can't even turn thinking off today. **Prime residual-gap lever.** |
+| **output-parser ext** | repairs malformed tool calls (bare JSON, XML frags) | We built hermes-recovery (`79714e3d5`); fired 0× on qwen3.6/ollama (native tool_calls work there) — but little-coder confirms it matters on other models/benches. Keep. |
+| **skill-inject (per-turn tool selection: error>recency>intent)** | surface only RELEVANT tools, not the full set | Aligns with our "lean toolset" finding (motoko 6 vs opencode 33). Dynamic per-turn selection is a further step — possible lever for grind-wrong. |
+| **read-guard** | trims big files to first 30 lines + "search instead" | Context efficiency — relevant to grind-wrong (model burns context reading huge files). |
+| **per-model temperature profiles** (9B vs 35B, per-bench) | model-specific sampling | Matches "default to model strengths". We have AILANG_OLLAMA_TEMPERATURE (off). |
+| **explicit context window (-c 16384)** + constrained decoding (llama.cpp `--jinja`) | native tool parsing via chat template | Validates our 16384 + the /v1 native-tool path. |
+
+**Takeaway for the residual gap:** after the truncation fix (give thinking room), the next lever is
+the OPPOSITE knob little-coder leans on — **control/cap thinking** for the small model: (1) actually
+forward a thinking-disable/budget param to ollama /v1 (motoko's enable_thinking:false is currently
+dropped — fix that path), (2) optionally cap reasoning + retry-thinking-off on a stalled turn. This
+targets the residual genuine-stop disengagement (model thinks itself "done") + grind-wrong (over-
+speculation). Implementation differs (little-coder=llama.cpp `--jinja`; motoko=ollama `/v1`
+`think:false`/`chat_template_kwargs`) but the principle transfers. **Decide after the full head-to-head
+shows where the residual concentrates.**
