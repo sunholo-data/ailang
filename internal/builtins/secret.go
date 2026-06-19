@@ -26,7 +26,13 @@ func registerSecret() {
 	}
 	typ := func() types.Type {
 		T := types.NewBuilder()
-		return T.Func(T.String()).Returns(T.String()).Effects("Secret")
+		// Return type carries the <secret> IFC label so the value can be tracked
+		// by M-TAINT-TYPES. NOTE: label *enforcement* (sink/declassify checks)
+		// is not yet wired into the type checker (M-TAINT-TYPES Phase 2); the
+		// label propagates and is observable, and Z3 contracts provide today's
+		// leak guarantee. See design_docs/.../m-secret-effect-remote-approval.md.
+		secretString := types.WithLabel(T.String(), types.LabelConst("secret"))
+		return T.Func(T.String()).Returns(secretString).Effects("Secret")
 	}
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module: "std/secret", Name: "_secret_read", NumArgs: 1, IsPure: false, Effect: "Secret", Type: typ, Impl: impl,
