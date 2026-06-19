@@ -858,3 +858,35 @@ lmstudio#1071; ollama#15288; vLLM#39056; pi-mono#1205.
 — qwen's own coding agent, OpenAI-compat/ollama capable, CLI like opencode/pi (fits the executor
 contract: download, wire `agent_cli: "qwen-code"`). Gives a qwen-tuned reference data point next to
 pi/opencode/motoko on the SAME benchmarks — directly measures the motoko↔well-tuned-harness delta.
+
+## 2026-06-19 — ROOT CAUSE FOUND (wire-proven): disengagement = TRUNCATION (max_tokens 4096 vs reasoning ~4k tokens)
+
+The HTTP-wire logger (c1f87275e) + reasoning capture (79714e3d5) finally made the disengaged
+turns visible — and the cause is NOT prompt/temperature/persistence/reasoning-parsing/hermes. It is:
+
+**qwen3.6 is a heavy reasoner; its thinking blows the max_tokens budget, truncating BEFORE the
+tool call.** Signal run (7 disengaging benchmarks ×2, with the fix + wire log):
+- 14 disengaged (0-native-tool-call) turns: **11 = `finish_reason=length` (TRUNCATED)**, 3 = stop.
+- **Of 14 native-0-toolcall turns, 0 had a `<tool_call>` in reasoning** → the hermes-recovery fix
+  is a no-op here; the reasoning-parsing hypothesis is REFUTED for motoko's disengagement.
+- Disengaged-turn reasoning length: **median 13,872 / max 16,155 chars (~4k+ tokens of thinking)**.
+- The model writes the whole solution INSIDE its reasoning ("Now let me write this to the file"
+  at the END of 14k chars) then gets cut off.
+
+**The delta, wire-proven:** motoko sends **`max_tokens=4096`**; pi sends **`max_completion_tokens=16384`**.
+qwen's reasoning alone exceeds 4096 → `finish=length` → no tool call → "disengaged". pi gives room
+(16384) AND reads the reasoning. AILANG default is `internal/ai/handler.go:95 maxTokens:4096`.
+
+**Second broken link:** motoko's ollama profile sets `ai_options_json:{"enable_thinking":false}` to
+disable thinking, but the wire request has only `[max_tokens,messages,model,tools]` — **enable_thinking
+is DROPPED, never forwarded to /v1.** So motoko's thinking-disable attempt is a no-op; qwen thinks freely.
+
+**Fix (pi-faithful, high confidence):** raise the agent/ollama `max_tokens` to ≥16384 (matches pi;
+give qwen room to think AND emit the tool call — we now also capture the reasoning). Optionally ALSO
+forward a real thinking-disable param to /v1 (separate, harder — ollama /v1 quirk). Routing TBD:
+AILANG default bump vs motoko-side per-request max_tokens (motoko's config has no max_tokens knob today).
+
+**Lever classification:** INFERENCE-CONFIG (token budget) — the actual gap, after prompt/temp/
+persistence/parsing were all ruled out by the wire. Confirms the value of the "clean house" wire
+observability the user pushed for. **Next:** raw-replay confirm (motoko request + max_tokens=16384 →
+does qwen finish?), then raise max_tokens + A/B by disengage-rate.

@@ -36,15 +36,16 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-0. **[AILANG dev — TOP, leading candidate] Read qwen's `reasoning` field (generic openai-compat fix).**
-   Wire capture (HTTP-wire logger, `c1f87275e`) proved qwen3.6/ollama returns a `reasoning` field
-   (10k+ chars) that AILANG's `ParseChatStepResponse` DROPS (reads only content+tool_calls). All 3
-   reference harnesses read it (pi, qwen-code, Qwen-Agent); **Qwen-Agent#789 is our exact bug**, fixed
-   with a 2-line GENERIC fallback (`reasoning_content` || `reasoning`) — NOT per-model. Fix:
-   (a) capture a DISENGAGED benchmark on the wire to confirm the answer/tool-call is stuck in
-   `reasoning` (causation not yet proven — a captured graph_bfs run ENGAGED+passed, so the rotation's
-   always-disengage list may be stale); (b) add generic reasoning-field read in `internal/ai/openai`
-   (+ openrouter); A/B by disengage-rate. Generic, dev-side, keeps core simple.
+0. **[TOP — ROOT CAUSE FOUND 2026-06-19: TRUNCATION. Raise max_tokens.]** Wire-proven: motoko's
+   disengagement = qwen3.6 thinks ~4k+ tokens (median 13.9k chars reasoning) and **`finish_reason=length`
+   truncates at `max_tokens=4096` BEFORE the tool call** (11/14 disengaged turns = length). pi sends
+   `max_completion_tokens=16384`. **Fix: raise the agent/ollama max_tokens to ≥16384** (pi-faithful;
+   AILANG default is `internal/ai/handler.go:95`). Also: motoko's `enable_thinking:false` is DROPPED
+   before /v1 (never forwarded) — optional second fix (forward a real thinking-disable param). Reasoning-
+   parsing/hermes hypothesis REFUTED (0 tool calls found in reasoning); reasoning-CAPTURE done anyway
+   (79714e3d5, c1f87275e) — it's the observability that found this. Next: raw-replay confirm
+   (max_tokens=16384 → qwen finishes?), then raise + A/B by disengage-rate. Routing: AILANG default vs
+   motoko per-request max_tokens (motoko has no max_tokens config knob today).
 0b. **[eval rig — user priority] Add `qwen-code` (QwenLM/qwen-code) as an eval-suite harness arm.**
    qwen's own coding agent (OpenAI-compat/ollama, CLI like opencode/pi → fits the executor contract).
    A qwen-tuned reference on the SAME benchmarks — directly measures the motoko↔well-tuned-harness delta.
