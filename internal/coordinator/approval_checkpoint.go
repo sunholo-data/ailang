@@ -17,6 +17,7 @@ const (
 	ApprovalTypeExecute ApprovalType = "execute" // Request to execute a destructive operation
 	ApprovalTypeCost    ApprovalType = "cost"    // Cost threshold exceeded
 	ApprovalTypeHandoff ApprovalType = "handoff" // Request to hand off work to another agent
+	ApprovalTypeSecret  ApprovalType = "secret"  // Request to resolve a secret reference (M-SECRET-EFFECT)
 )
 
 // ApprovalStatus represents the state of an approval request
@@ -51,6 +52,13 @@ type ApprovalRequest struct {
 	TargetAgentID string `json:"target_agent_id,omitempty"` // Agent to hand off to
 	SessionID     string `json:"session_id,omitempty"`      // Claude Code/Gemini CLI session for continuity
 	HandoffData   string `json:"handoff_data,omitempty"`    // Additional context for handoff
+
+	// Secret-specific fields (used when Type == ApprovalTypeSecret, M-SECRET-EFFECT).
+	// SecretRef is the op:// reference (safe to store/display); the resolved
+	// VALUE is never part of an approval request.
+	SecretRef     string `json:"secret_ref,omitempty"`     // op:// reference being requested
+	SecretPurpose string `json:"secret_purpose,omitempty"` // human-readable intent
+	AgentID       string `json:"agent_id,omitempty"`       // agent requesting the secret
 }
 
 // ApprovalCallback is called when an approval is resolved

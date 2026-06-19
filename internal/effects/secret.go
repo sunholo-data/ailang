@@ -8,9 +8,22 @@ import (
 	"github.com/sunholo-data/ailang/internal/secrets"
 )
 
+// redactedSecretMarker replaces a resolved secret value anywhere it would
+// otherwise be rendered (traces, audit events). See effects.Call.
+const redactedSecretMarker = "«secret»"
+
 // init registers Secret effect operations.
 func init() {
 	RegisterOp("Secret", "read", secretRead)
+}
+
+// SecretAuditEvent records one secret-access decision for the audit trail. It
+// deliberately carries the reference and outcome but NEVER the resolved value.
+type SecretAuditEvent struct {
+	Ref      string // the op:// reference requested (safe to log)
+	Purpose  string // human-readable intent shown at the approval surface
+	Decision string // "approved", "denied", "resolved", or "unavailable"
+	Err      string // redacted error detail when Decision is denied/unavailable
 }
 
 // SecretContext holds the state for the Secret effect: a backend resolver that
@@ -28,6 +41,17 @@ type SecretContext struct {
 	// allow resolution or an error to deny it. The runtime injects this (M3) so
 	// the effects package need not import the coordinator. nil = no gate.
 	Approver SecretApprover
+
+	// Audit, if set, receives one event per access decision. The value is never
+	// included. nil = no audit sink.
+	Audit func(SecretAuditEvent)
+}
+
+// emitAudit sends an event to the audit sink if one is configured.
+func (sc *SecretContext) emitAudit(ev SecretAuditEvent) {
+	if sc != nil && sc.Audit != nil {
+		sc.Audit(ev)
+	}
 }
 
 // SecretApprover gates secret resolution behind a (possibly remote, possibly
@@ -68,17 +92,21 @@ func secretRead(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	// Approval gate (M3): block on a human decision before any value is read.
+	purpose := ref.Value // defaults to the ref until callers supply richer intent
 	if ctx.Secret.Approver != nil {
-		// Purpose defaults to the ref until callers supply richer intent.
-		if err := ctx.Secret.Approver.Approve(goctx, ref.Value, ref.Value); err != nil {
+		if err := ctx.Secret.Approver.Approve(goctx, ref.Value, purpose); err != nil {
+			ctx.Secret.emitAudit(SecretAuditEvent{Ref: ref.Value, Purpose: purpose, Decision: "denied", Err: err.Error()})
 			return nil, fmt.Errorf("E_SECRET_DENIED: %w", err)
 		}
+		ctx.Secret.emitAudit(SecretAuditEvent{Ref: ref.Value, Purpose: purpose, Decision: "approved"})
 	}
 
 	val, err := ctx.Secret.Resolver.Read(goctx, ref.Value)
 	if err != nil {
 		// err carries the ref (safe) but never the value.
+		ctx.Secret.emitAudit(SecretAuditEvent{Ref: ref.Value, Purpose: purpose, Decision: "unavailable", Err: err.Error()})
 		return nil, fmt.Errorf("E_SECRET_UNAVAILABLE: %w", err)
 	}
+	ctx.Secret.emitAudit(SecretAuditEvent{Ref: ref.Value, Purpose: purpose, Decision: "resolved"})
 	return &eval.StringValue{Value: val}, nil
 }
