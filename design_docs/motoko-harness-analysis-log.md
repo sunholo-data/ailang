@@ -935,3 +935,26 @@ childEnv (same gotcha as MOTOKO_REPO / persist) — without it the env is scrubb
 PR #48 + a quick wire check; the 16384 floor guarantees correctness meanwhile. **Prior-action status:**
 completes the truncation fix's per-model precision. **Next:** when fresh post-fix rotation data exists,
 re-run Gate 1 to measure the full motoko↔pi gap (expect a large drop in the 29% disengage).
+
+## 2026-06-19 — UPLIFT MEASURED: truncation fix takes motoko core 75% → 92% (gap to pi 21pp → 4pp)
+
+Fresh motoko core-tier ×2 with the live 16384 floor, vs the pre-fix core ×2 baseline (system-prompt
+A/B empty arm, same set + n, old 4096 binary):
+
+| | pass | disengage (≤2 tool calls) | finish=length |
+|---|---|---|---|
+| pre-fix (max_tokens 4096) | 39/52 (75%) | 10 | — |
+| **post-fix (16384 floor)** | **48/52 (92%)** | **3** | **0** |
+| pi (bar) | ~96% | — | — |
+
+**+17pp pass on the BROAD core tier (not the cherry-picked 7), disengage 10→3, zero truncation**
+(50 disengaged turns across the run, all genuine `stop`). Gap to pi on core: **21pp → 4pp**. The
+single max_tokens floor fix did this — confirms truncation was the dominant disengagement cause and
+that the observe→diff→cheap-confirm→build→validate loop (now the motoko-analyzer skill) works.
+
+**Residual (small):** 3 disengage runs are genuine-stop (model decided done) + a few grind-wrong
+(engaged-but-incorrect, e.g. log_file_analyzer) — correctness/prompt levers, a different playbook.
+**Next:** (1) full-agent-set re-measure (motoko was 63% there incl. harder benchmarks — the rotation
+will show it as post-fix data accumulates); (2) attack the residual genuine-stop + grind-wrong;
+(3) qwen-code reference harness. **Prior-action status:** mission #1 (disengagement) substantially
+closed on core; the truncation fix (fac848054 + per-model 006a679a6 + motoko PR #48) is the win.

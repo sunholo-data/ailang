@@ -2,7 +2,7 @@
 
 **Type:** Long-running mission (advanced in downtime, e.g. while evals run)
 **North star:** the AILANG-native harness (motoko) should match or beat the generic
-harnesses (pi 96%, opencode 79%) on local-AILANG synthesis. Today motoko = 26% AILANG.
+harnesses (pi 96%, opencode 79%) on local-AILANG synthesis. Today motoko core = 92% (post truncation-fix 2026-06-19, gap to pi 96% now ~4pp; was 26% at mission start).
 See [[motoko-strategic-goal]].
 
 ## How the mission runs (each cycle)
