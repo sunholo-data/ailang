@@ -36,7 +36,11 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
-0. **[TOP — ROOT CAUSE FOUND 2026-06-19: TRUNCATION. Raise max_tokens.]** Wire-proven: motoko's
+0. **[LANDED 2026-06-19 — TRUNCATION fixed.]** max_tokens floor 16384 (fac848054): disengaging
+   benchmarks **21%→79%**, finish=length 11→0. Per-model precision plumbed (006a679a6 + motoko PR #48:
+   registry max_output_tokens→motoko via AILANG_OLLAMA_MAX_TOKENS). NEXT (blocked on fresh rotation
+   data): re-run Gate 1 to measure the full gap drop. Original finding below:
+   **[ROOT CAUSE: TRUNCATION.]** Wire-proven: motoko's
    disengagement = qwen3.6 thinks ~4k+ tokens (median 13.9k chars reasoning) and **`finish_reason=length`
    truncates at `max_tokens=4096` BEFORE the tool call** (11/14 disengaged turns = length). pi sends
    `max_completion_tokens=16384`. **Fix: raise the agent/ollama max_tokens to ≥16384** (pi-faithful;

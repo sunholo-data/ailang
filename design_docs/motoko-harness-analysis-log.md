@@ -914,3 +914,24 @@ mode is fixed — expect a large jump; (3) the residual genuine-stop disengageme
 (log_file_analyzer) are the next, smaller levers. **Prior-action status:** the mission's #1 gap
 (disengagement) has its first material fix. Process: this cycle followed the motoko-analyzer gates
 (observe→diff→cheap-confirm→build→validate) end-to-end and they worked.
+
+## 2026-06-19 (cycle, NON-GPU) — M-OLLAMA-PER-MODEL-MAX-TOKENS: registry value flows to motoko
+
+Followed the motoko-analyzer gates. Gate 1 (segment.sh) on the rotation still shows the PRE-fix
+29% disengage — rotation has 0 post-fix motoko runs yet (fix installed ~07:30, last rotation write
+07:24), so the full re-measure is BLOCKED on fresh data (accumulates as the rotation runs the new
+binary). Top item #0 (truncation) is LANDED (fac848054, 21%→79%). Did the unblocking follow-up: make
+the registry's declared `max_output_tokens` flow to motoko (principled — the floor is a fallback, not
+the value).
+
+**Change (AILANG `dev`, 006a679a6):** `executor.Task.MaxOutputTokens`; `agent_runner_multi` sets it
+from `GlobalModelsConfig.GetModel(model).MaxOutputTokens`; `motoko.go` forwards `AILANG_OLLAMA_MAX_TOKENS`
+(read by `resolveOllamaMaxTokens`, override > 16384 floor). Unit-tested (`TestModelMaxOutputTokens`).
+**motoko DRAFT PR (arniwesth/motoko_agent#48):** allowlist `AILANG_OLLAMA_MAX_TOKENS` in `RuntimeProcess`
+childEnv (same gotcha as MOTOKO_REPO / persist) — without it the env is scrubbed and the floor applies.
+
+**Lever:** INFERENCE-CONFIG (per-model budget). Design doc: planned/v0_25_0/m-ollama-per-model-max-tokens.md.
+**Verified:** AILANG side build+test+vet clean, binary installed. End-to-end (motoko wire = 32768) pending
+PR #48 + a quick wire check; the 16384 floor guarantees correctness meanwhile. **Prior-action status:**
+completes the truncation fix's per-model precision. **Next:** when fresh post-fix rotation data exists,
+re-run Gate 1 to measure the full motoko↔pi gap (expect a large drop in the 29% disengage).
