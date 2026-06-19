@@ -235,7 +235,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		// turns under motoko. Allow an opt-in lower temperature via
 		// AILANG_OLLAMA_TEMPERATURE (off by default; req.Temperature still wins).
 		r2.Temperature = resolveOllamaTemperature(req.Temperature)
-		return v1.Step(ctx, &r2)
+		// Tool-calling (motoko's path) ALWAYS delegates here, so response logging
+		// must wrap this return — not just the native path below.
+		resp, err := v1.Step(ctx, &r2)
+		if err == nil {
+			logOllamaResponse(resp)
+		}
+		return resp, err
 	}
 
 	// Translate req.Messages → ollamaapi.Message[], threading tool calls/results.
