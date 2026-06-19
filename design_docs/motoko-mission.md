@@ -68,14 +68,21 @@ inspiration and the 96% bar. Key learnings (mine the source under
    - *Ruled out — M-MOTOKO-AGENT-SYSTEM-PROMPT*: lean agentic system prompt, proper core-tier A/B =
      **+1/52 (null)**; the 6-flaky smoke (+14pp) did NOT generalize. Knob kept, not productionized.
    - *Ruled out — system-role delivery* (teaching → system slot): A/B −2/18.
-2. **[AILANG, needs GPU] Temperature A/B** — `AILANG_OLLAMA_TEMPERATURE` knob landed (off by
-   default). A/B unset vs 0.2/0.3 on the 6 flaky benchmarks; if it lifts engagement, make a low
-   temperature the default; else investigate qwen thinking-mode. Lower priority than #1 (the
-   request-diff showed pi runs the same 1.0 default, so temperature isn't the pi gap — but lower
-   variance may still reduce motoko's flakiness).
-3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary` +
-   `step budget exhausted` tail. Lower priority — the lock + /v1 timeout removed the contention
-   trigger; revisit if it recurs un-contended.
+2. **[RULED OUT 2026-06-19 — SAMPLING is already optimal].** Wire-verified motoko sends only
+   `{model, max_tokens}` (no temp/top_p/top_k); ollama then applies qwen3.6's OWN modelfile vector
+   (`temperature 1, top_p 0.95, top_k 20, presence_penalty 1.5`). So motoko already runs the model's
+   recommended sampling — there is NO sampling lever (the "forcing greedy temp 0" premise was false;
+   `resolveOllamaTemperature`→0 is omitempty → unsent). The `AILANG_OLLAMA_TEMPERATURE` knob stays as
+   an opt-in override only. See analysis log 2026-06-19 SAMPLING-RULED-OUT.
+3. **[THE residual, data-elevated 2026-06-19 — CONVERGENCE/correctness, partly SHARED with pi].**
+   Post-truncation-fix the gap is no longer disengagement. Partial h2h (n=18 ea): motoko 88% vs pi
+   94%; motoko's only net loss = `explicit_dataflow_ssa` (grind, 32 tool calls fighting AILANG
+   `expected float arguments` numeric-type friction), and `csv_to_json_converter` fails for BOTH
+   harnesses (shared qwen-on-AILANG limit). "Step budget too low" ruled out (motoko runs ~50 steps
+   via `rpc.ail` clamp). **Next (disciplined, NO pre-committed lever): complete the full head-to-head
+   as a clean MEASUREMENT, read EVERY residual transcript, then classify each as (i) motoko-specific
+   & fixable harness lever, or (ii) shared qwen-on-AILANG capability friction → AILANG eval-gap item,
+   not a motoko harness lever.** See analysis log 2026-06-19 SAMPLING-RULED-OUT / residual entry.
 
 ## Resolved / ruled out (this investigation arc)
 - **System-role delivery** (M-MOTOKO-SYSTEM-ROLE, `7a0caf7a`): A/B off-vs-on (6 flaky ×3, 2026-06-18)

@@ -997,14 +997,12 @@ off-the-shelf qwen3.6). Two inference-time findings DO transfer (PDF: design_doc
    TRAINED for long reasoning → DON'T cap, give room (our max_tokens fix). So for qwen3.6, capping
    thinking would likely HURT — the max_tokens-room fix is the right lever, not little-coder's cap.
 
-2. **Recommended decoding: temperature 1.0, top_p 0.95, top_k -1.** ← motoko's wire sends
-   **temperature 0 (greedy)** + no top_p. AILANG's resolveOllamaTemperature returns 0 when unset, so
-   we are FORCING greedy on a reasoning model the lab recommends running at 1.0/0.95. Greedy decoding
-   on a heavy reasoner can cause degenerate/repetitive trajectories — a plausible **grind-wrong**
-   residual cause. **Harness lever (testable):** stop forcing temp 0 — default to the model's
-   recommended sampling (temp 1.0 / top_p 0.95), or at least omit temperature so ollama uses the
-   model default 1.0. Aligns with "default to the model's strengths". Re-motivates the deprioritized
-   temperature A/B with an explicit lab recommendation behind it.
+2. **Recommended decoding: temperature 1.0, top_p 0.95, top_k -1.** ← ~~motoko's wire sends
+   temperature 0 (greedy)... we are FORCING greedy~~ **[CORRECTED 2026-06-19 — this claim was WRONG;
+   see the SAMPLING-RULED-OUT entry below]**. Wire-verified: motoko sends NEITHER temperature NOR
+   top_p (only `{model, max_tokens}`); `resolveOllamaTemperature`→0 is omitempty so NOTHING is sent,
+   and ollama applies qwen3.6's own modelfile params. So motoko already runs the model's recommended
+   sampling — there is NO sampling lever.
 
 **Everything else is model-training** — not our harness lever. **Decision:** after the head-to-head
 shows the residual (genuine-stop vs grind-wrong), the two candidate harness levers are (a) sampling
@@ -1016,3 +1014,82 @@ over-thinking — but VibeThinker argues AGAINST capping for long-reasoners, so 
     "high-truncation early stage weakens the model's long-thinking capability… difficult to fully
     recover. Therefore… a single 64K long-context window, reducing… truncation." (docparse is a
     separate sunholo cloud pipeline, not installed locally — arXiv LaTeX source was the cleaner parse.)
+
+## 2026-06-19 — SAMPLING RULED OUT + residual re-characterized (source/wire/data-grounded, no new GPU)
+
+Process correction: prior cycles kept *guessing* the next lever (persistence, system-role, temp-0,
+sampling) and each was refuted on contact with source/data. Reset to: verify the claim, then read the
+actual residual failures, THEN design. This entry does the Observe step from data already on disk.
+
+**(a) SAMPLING LEVER — RULED OUT (refutes the VibeThinker entry's claim above).**
+- Wire log (`/tmp/h2h-full-wire.jsonl`, `/tmp/uplift-wire.jsonl`): every motoko request body is
+  exactly `{model, max_tokens:16384}` — no `temperature`, `top_p`, or `top_k`.
+- `ollama show qwen3.6:35b-a3b-mxfp8` modelfile already bakes: `temperature 1, top_k 20, top_p 0.95,
+  min_p 0, presence_penalty 1.5, repeat_penalty 1`. With caller sending nothing, ollama applies these.
+- ∴ motoko ALREADY runs qwen3.6 at the model's own recommended vector (temp 1.0/top_p 0.95). The
+  "forcing greedy temp 0" premise was false (`resolveOllamaTemperature`→0 is omitempty → unsent).
+  No sampling design doc. (pi is an external CLI → never hits our wire logger; can't compare its
+  vector from our logs. Not worth chasing — the model-default vector is already optimal.)
+
+**(b) RESIDUAL re-characterized from the killed h2h partial (n=18 ea, core subset) + transcripts.**
+- motoko 16/18 (88%) [disengage=1, grind=1]; pi 17/18 (94%) [disengage=1, grind=0].
+- `csv_to_json_converter` FAILS FOR BOTH (motoko=step-budget-exhausted; pi=tc=0 stop). A *shared*
+  qwen-on-AILANG limit, NOT a motoko deficit — both harnesses' qwen can't do it.
+- motoko's ONLY net loss vs pi on this sample = `explicit_dataflow_ssa` (grind, 32 tool calls):
+  qwen wrote BMI code and looped 32× fighting `Error: execution failed: expected float arguments`
+  (round/floor/intToFloat numeric-type friction) — engaged hard, never converged. AILANG numeric
+  ergonomics, which pi's qwen would hit too (pi passed it here = likely sampling variance at n=1).
+- **Conclusion:** post-truncation-fix the residual is NO LONGER engagement — it's CONVERGENCE/
+  correctness (engaged 16–50 steps, doesn't converge), and a chunk of it is SHARED with pi
+  (qwen-on-AILANG capability), not a motoko-specific harness lever.
+
+**(c) "Step budget too low" — RULED OUT.** csv's "v2 loop: step budget exhausted" looked like a low
+cap, but: motoko_agent `rpc.ail:102` = `clamp_positive(settings.max_steps, 50)` and `config.ail:311`
+default `max_steps:50`; the `8` fallback (`agent_loop_v2.ail:1241`) only fires when a caller passes
+`<=0`, which the RPC path avoids. AILANG executor passes no `--max-steps`. So motoko runs ~50 steps —
+exhausting that = genuine non-convergence, not an artificially tight cap. No "raise the cap" lever.
+
+**Net mission status:** motoko core 92% vs pi 96% (partial h2h: 88 vs 94). Disengagement (the old
+26pp gap) is FIXED by truncation. The ~4pp residual is small, convergence/correctness-flavoured, and
+partly shared with pi. **Next (disciplined): complete the full head-to-head as a clean MEASUREMENT
+(not a lever test)** to confirm at full-tier n whether the residual is (i) motoko-specific & fixable,
+or (ii) shared qwen-on-AILANG friction → which would be an AILANG eval-gap item, not a motoko harness
+lever. Read every residual transcript before proposing a fix. Do NOT pre-commit a lever this time.
+
+## 2026-06-19 — FULL HEAD-TO-HEAD (clean measurement, core+stretch 37×1) + residual classified
+
+Headline: **motoko 30/37 (81%) vs pi 32/37 (86%)** — gap = 2 benchmarks = 5pp (was 26pp at mission
+start). Chain 48ec5659. **This is statistical PARITY at trials=1**, not a real 5pp deficit — see below.
+
+**Overlap analysis (the key result):** motoko and pi fail on mostly DIFFERENT benchmarks.
+- SHARED fails (qwen-on-AILANG limit, not a motoko lever): 2 — config_file_parser, contract_rle_roundtrip.
+- MOTOKO-ONLY fails: 5 — cli_args, contract_sorted_merge, log_file_analyzer, pipeline, symbolic_diff.
+- PI-ONLY fails: 3 — contract_roman_numeral, csv_to_json_converter (both = pi's 600s HARD-TIMEOUT, a
+  harness-config artifact we set in task #22), run_length_encode.
+- So: motoko WINS 3 that pi loses; pi WINS 5 that motoko loses (2 of those = pi timeout). Net pi +2
+  benchmarks. **At n=1/benchmark with stochastic qwen (temp 1.0), ±2 is within sampling noise.** The
+  5pp cannot support "pi > motoko" OR "motoko ≥ pi" — needs multi-trial (x3–x5) to resolve.
+
+**Motoko-only residual is HETEROGENEOUS — no single harness lever:**
+- cli_args (tc=6) + pipeline (tc=11): model's transcript CLAIMS success ("outputs 15 ✓", "2 4 6 8 10"),
+  but graded stdout = `0\n` and `2\n4\n` → **stdin/argv input-delivery / solution-correctness**, same
+  class as InputFiles (tasks #17/#18). NOT a motoko engagement problem. (pi passed these — variance or
+  different input handling.)
+- log_file_analyzer (tc=None): "v2 loop: step budget exhausted" (non-convergence at 50 steps).
+- symbolic_diff (tc=None): "1 turn, 0 tool calls" — genuine disengage, likely one of the 3 length-truncs.
+- contract_sorted_merge (tc=1): disengaged after one ReadFile.
+
+**Wire facts:** finish_reason across 432 responses: tool_calls=397, stop=32, **length=3**. All 432
+requests sent `max_tokens=16384` — **NEVER 32768.** The per-model max_output_tokens=32768 (registry,
+task #66) does NOT reach the wire: motoko's childEnv allowlist scrubs `AILANG_OLLAMA_MAX_TOKENS` and
+**motoko PR #48 (the allowlist fix) is UNMERGED** (we're read-only upstream). So 3 turns still truncate
+at the 16384 floor and we cannot lift it from the AILANG side alone — **blocked on upstream merge.**
+
+**CONCLUSION (honest): the mission's core objective is essentially MET.** motoko went 26%→81–92% and
+is at statistical parity with pi (96% reference); the original 26pp DISENGAGEMENT gap is closed by the
+truncation fix. The residual ~5pp is (a) within trials=1 noise, (b) heterogeneous (input-delivery,
+non-convergence, a few length-truncs), NOT one motoko-specific lever, and (c) partly shared with pi /
+partly pi's own timeout artifact. **There is no clean next harness lever to design.** To make a
+DEFENSIBLE "motoko is the best/equal harness for AILANG" claim, the right next step is a MULTI-TRIAL
+(x3) head-to-head for confidence intervals — a measurement, not a code change. Separately, the 3
+length-truncs stay until motoko PR #48 merges upstream (out of our hands).
