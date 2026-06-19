@@ -982,3 +982,31 @@ targets the residual genuine-stop disengagement (model thinks itself "done") + g
 speculation). Implementation differs (little-coder=llama.cpp `--jinja`; motoko=ollama `/v1`
 `think:false`/`chat_template_kwargs`) but the principle transfers. **Decide after the full head-to-head
 shows where the residual concentrates.**
+
+## 2026-06-19 — RESEARCH: VibeThinker-3B (arXiv 2606.16140) — harness-liftable bits (honest: ~2 of 11)
+
+WeiboAI fine-tune of Qwen2.5-Coder-3B. The shared 11-point pipeline is ALL post-TRAINING (data
+synth, 2-stage SFT, MGPO/RLVR, self-distillation, instruct-RL) — NOT liftable for motoko (we run an
+off-the-shelf qwen3.6). Two inference-time findings DO transfer (PDF: design_docs/research/, gitignored):
+
+1. **"We do NOT impose an additional output length cap beyond the model's maximum generation length."**
+   + their #7 finding: "high-truncation early stage weakens the model's long-thinking capability and
+   biases the policy toward incomplete / overly shortened reasoning." → STRONG external validation of
+   our truncation fix (don't truncate a long-reasoning model). RESOLVES the little-coder tension:
+   little-coder CAPS thinking (good for models NOT trained for long reasoning); VibeThinker/qwen are
+   TRAINED for long reasoning → DON'T cap, give room (our max_tokens fix). So for qwen3.6, capping
+   thinking would likely HURT — the max_tokens-room fix is the right lever, not little-coder's cap.
+
+2. **Recommended decoding: temperature 1.0, top_p 0.95, top_k -1.** ← motoko's wire sends
+   **temperature 0 (greedy)** + no top_p. AILANG's resolveOllamaTemperature returns 0 when unset, so
+   we are FORCING greedy on a reasoning model the lab recommends running at 1.0/0.95. Greedy decoding
+   on a heavy reasoner can cause degenerate/repetitive trajectories — a plausible **grind-wrong**
+   residual cause. **Harness lever (testable):** stop forcing temp 0 — default to the model's
+   recommended sampling (temp 1.0 / top_p 0.95), or at least omit temperature so ollama uses the
+   model default 1.0. Aligns with "default to the model's strengths". Re-motivates the deprioritized
+   temperature A/B with an explicit lab recommendation behind it.
+
+**Everything else is model-training** — not our harness lever. **Decision:** after the head-to-head
+shows the residual (genuine-stop vs grind-wrong), the two candidate harness levers are (a) sampling
+alignment (temp 1.0/top_p 0.95 — VibeThinker-backed) and (b) thinking-control ONLY if residual is
+over-thinking — but VibeThinker argues AGAINST capping for long-reasoners, so (a) is favoured.

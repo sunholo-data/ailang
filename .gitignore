@@ -103,3 +103,4 @@ code-harness-skills/
 .DS_Store
 smoke-motoko
 /tmp
+design_docs/research/*.pdf
