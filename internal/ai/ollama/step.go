@@ -78,6 +78,34 @@ func resolveOllamaTemperature(reqTemp float64) float64 {
 	return 0
 }
 
+// defaultOllamaMaxTokens is the FLOOR output budget for the agentic ollama path.
+// qwen3.x are heavy reasoners: they emit thousands of tokens of <think> BEFORE the
+// tool call, so a small budget truncates (finish_reason=length) before the call is
+// produced — which the agent loop then sees as a 0-tool-call no-op. That is the
+// dominant motoko disengagement (wire-proven 2026-06-19: median ~13.9k chars of
+// reasoning, motoko sent max_tokens=4096, pi sends 16384). 16384 fits the observed
+// reasoning (~12.5k tokens) plus the call, and matches pi.
+const defaultOllamaMaxTokens = 16384
+
+// resolveOllamaMaxTokens picks the output-token budget for the agentic ollama path.
+// Precedence:
+//  1. AILANG_OLLAMA_MAX_TOKENS, if a parseable value > 0 (per-model override — the
+//     eval adapter can forward the model's declared max_output_tokens here);
+//  2. the caller's reqMax when it already meets the floor;
+//  3. the floor (defaultOllamaMaxTokens) — so an unset/small default (e.g. motoko's
+//     std/ai 4096) can't truncate a reasoning model mid-thought.
+func resolveOllamaMaxTokens(reqMax int) int {
+	if v := os.Getenv("AILANG_OLLAMA_MAX_TOKENS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	if reqMax >= defaultOllamaMaxTokens {
+		return reqMax
+	}
+	return defaultOllamaMaxTokens
+}
+
 // logOllamaRequest appends the logical request to AILANG_OLLAMA_LOG_REQUESTS (a
 // JSONL file) when that env is set. Best-effort: any error is silently ignored
 // (observability must never affect the call). Captures system prompt + messages
@@ -235,6 +263,9 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		// turns under motoko. Allow an opt-in lower temperature via
 		// AILANG_OLLAMA_TEMPERATURE (off by default; req.Temperature still wins).
 		r2.Temperature = resolveOllamaTemperature(req.Temperature)
+		// Reasoning models truncate (finish=length -> 0 tool calls) when the budget
+		// is too small for their <think> output. Floor it (M-OLLAMA-MAX-TOKENS-FLOOR).
+		r2.MaxTokens = resolveOllamaMaxTokens(req.MaxTokens)
 		// Tool-calling (motoko's path) ALWAYS delegates here, so response logging
 		// must wrap this return — not just the native path below.
 		resp, err := v1.Step(ctx, &r2)
