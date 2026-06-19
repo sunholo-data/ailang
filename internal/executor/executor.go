@@ -95,6 +95,14 @@ type Task struct {
 	// from Budget (cost-based) because local Ollama runs have $0 cost and
 	// would never trigger cost-based abort regardless of how much they thrash.
 	MaxTokensPerBench int
+
+	// MaxOutputTokens (M-OLLAMA-PER-MODEL-MAX-TOKENS) is the PER-REQUEST output
+	// budget from the model registry's max_output_tokens — the model's declared
+	// strength. 0 = unset (use the harness/provider default). Executors that drive
+	// a separate runtime (e.g. motoko's ollama path) forward this so a reasoning
+	// model isn't truncated mid-<think> by a small default. Distinct from
+	// MaxTokensPerBench (a cumulative thrash ceiling).
+	MaxOutputTokens int
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.

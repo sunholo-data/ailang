@@ -209,7 +209,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Timeout:                time.Duration(timeoutSeconds) * time.Second,
 		Model:                  modelName,
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
-		MaxTokensPerBench:      config.MaxTokensPerBench, // M-EVAL-OS-LONGITUDINAL Phase 1
+		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
+		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
 	}
 
 	// Apply per-model TTFT / generation timeouts from models.yml
@@ -677,4 +678,18 @@ func persistentSystemPromptEnabled() bool {
 	default:
 		return false
 	}
+}
+
+// modelMaxOutputTokens returns the registry's declared max_output_tokens for a
+// model (its per-request output strength), or 0 if unknown. Forwarded on the Task
+// to executors that drive a separate runtime so a reasoning model isn't truncated
+// mid-<think> by a small default (M-OLLAMA-PER-MODEL-MAX-TOKENS).
+func modelMaxOutputTokens(modelName string) int {
+	if GlobalModelsConfig == nil {
+		return 0
+	}
+	if m, err := GlobalModelsConfig.GetModel(modelName); err == nil {
+		return m.MaxOutputTokens
+	}
+	return 0
 }

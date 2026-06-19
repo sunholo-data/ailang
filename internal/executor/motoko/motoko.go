@@ -286,6 +286,15 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if task.Workspace != "" {
 		env = append(env, "WORKDIR="+task.Workspace)
 	}
+	// M-OLLAMA-PER-MODEL-MAX-TOKENS: forward the model's declared output budget
+	// (models.yml max_output_tokens) so motoko's ollama /v1 request uses the model's
+	// strength instead of std/ai's 4096 default — qwen3.6 reasons ~4k+ tokens and
+	// truncates (finish=length) before the tool call at 4096. resolveOllamaMaxTokens
+	// reads this env (override > floor). Needs the var in motoko's RuntimeProcess
+	// env allowlist (motoko_agent PR); the 16384 floor covers it until then.
+	if task.MaxOutputTokens > 0 {
+		env = append(env, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
+	}
 	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
 	// from Task.Budget (sourced from models.yml by the eval harness) so
 	// motoko's cost_warning + cost_exhausted thresholds fire and run_summary
