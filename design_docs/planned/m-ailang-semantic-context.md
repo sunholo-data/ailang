@@ -19,6 +19,19 @@ Reading both loops' source + a real motoko transcript (`csv_to_json_converter`, 
 
 > **Pending cheap-confirm (Gate 2):** a `wire_diag.sh` capture on a thrash benchmark to verify `[elided …]` markers appear in the per-turn request *just before* each re-read. The source + transcript evidence is strong; this nails causation before the threshold A/B.
 
+## Observability first: compaction telemetry (the leading indicator)
+
+We have been *inferring* compaction because it is currently **invisible to our metrics**, and the durable fix is to measure it. Two gaps:
+- The structural elision that drives the thrash — `compact_step` (`compaction.ail:127`) — is a `pure` function that **emits no event**; it fires silently at 70/85/95% usage.
+- The events motoko *does* emit (`compaction_extension`, `compaction_exhausted`, `agent_loop_v2.ail:925/942`) are **dropped by the harness parser** — `internal/executor/motoko/parser.go:302` has no `compaction_*` case.
+
+**Three-part instrument (do this before any threshold change):**
+1. **Emit structural compaction (motoko, fork).** Have `compact_step` *return* its compaction metadata (level, bytes elided, turns affected) and let the caller — `agent_loop_v2` (which holds `session_id`) — emit a `compaction_structural` event. Keeps `compact_step` pure; the effect stays in the loop.
+2. **Capture it (AILANG, this repo).** Add `compaction_*` cases to `parser.go` and surface per-run fields in the result JSON: `compaction_count`, `first_compaction_step`, `compaction_level_max`. (Same pattern as the existing `agent_turns`/`finish_reason` capture.)
+3. **Aggregate (this repo).** A `segment.sh`-style **compaction-fire-rate** report per (harness, benchmark) — expect it to correlate with turns-to-success and inversely with pass rate.
+
+**Why this is the right metric:** it is a *leading indicator* (compaction fires before the thrash inflates turns and before pass-rate degrades), and it is the **A/B success criterion** for the near-term fixes — pi's effective structural-compaction rate is ~0, so "match pi" is operationally "drive motoko's compaction-fire-rate toward 0 on the core tier." Per mission discipline (observe → diff → build), this telemetry is the cheap, continuous observe step that the one-off wire capture only samples.
+
 ## Near-term: match pi (motoko-side, draft PR to the fork)
 
 Three small, independently A/B-able changes. Each "surfaces only what's needed" the way pi does — *syntactic* token reduction:
@@ -60,10 +73,10 @@ Smaller **and** more actionable. This alone likely closes the `Num[string]` resi
 
 ## Recommended sequencing
 
-1. **Now:** near-term pi-match (#1–#3) — fork PR + turns-to-success A/B. Gets motoko to pi-level efficiency.
-2. **Cheap-confirm first:** the pending `wire_diag` elision capture (validates #2's premise).
-3. **Then:** R1 (distilled diagnostics) — smallest AILANG-native win, closes a concrete residual, sets the `--format=agent` precedent.
-4. **Then:** R3/R4 (semantic + effect diffs) and R6 (the typed projection layer) as the capstone, once R1's pattern is proven.
+1. **Observe first:** compaction telemetry (3-part instrument above) + a one-off `wire_diag` elision capture to confirm causation. The telemetry is the durable leading indicator and the A/B success metric.
+2. **Near-term pi-match** (#1–#3) — fork PR, A/B by **turns-to-success and compaction-fire-rate** (target → ~0, pi's rate). Gets motoko to pi-level efficiency.
+3. **R1** (distilled diagnostics) — smallest AILANG-native win, closes a concrete residual, sets the `--format=agent` precedent.
+4. **R3/R4** (semantic + effect diffs) and **R6** (the typed projection layer) as the capstone, once R1's pattern is proven.
 
 ## Risks / open questions
 
