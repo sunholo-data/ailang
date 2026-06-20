@@ -1161,6 +1161,28 @@ fire-rate 0)**. **Sprint = Branch B** (thrash is NOT compaction-caused): def-of-
 tool-result truncation, R1b (structured errors), R7a (SimHash dedup of re-reads), context_limit_for
 for ollama (measurement-gated). "Raise compaction threshold" near-term fix is MOOT.
 
+## 2026-06-20 — Branch-B sprint cycle 1 (residual located → 3 fixes landed + DP7 A/B)
+
+**Residual precisely located (h2h transcripts).** motoko worse than pi on EXACTLY 2 benchmarks:
+balanced_parens (2/3) + run_length_encode (1/3) — **both `compile_error/stop`** (qwen finalized with
+non-typechecking code: AILANG `Num[string]` friction). Other 6 imperfect = SHARED with pi (timeouts /
+qwen-on-AILANG limits), not motoko levers. Thrash = full-rewrites (59) > re-reads (23).
+
+**Landed (this repo, dev):**
+1. **R1b actionable instance hints** (`instances.go`): Num[string] → "use ++ to concatenate, or
+   stringToInt to convert"; Fractional/Ord/Eq tailored; numeric types keep import hint. Improves the
+   default+agent error the model sees on the exact residual failure class.
+2. **stdlib version-noise fix** (`stdlib_resolver.go`): base-semver compare — kills the spurious
+   "stdlib version mismatch" warning that polluted **291** run stderrs (model BashExec context).
+3. (cycle 0) compaction telemetry A1/A2/A3 + R1 renderer.
+
+**Running:** DP7 post-fix A/B (`dp7-postfix-ab-20260620`, 66 runs) — does the `ailang check` finalize
+gate fix the 2 compile-error-finalizes now that truncation is gone? (pre-fix it was net-neutral). On
+completion: productionize / lean-gate / rule out.
+
+**Next R1b-extension candidates (os-rolling, 125 fails):** 36× parse errors (PARxxx), undefined-var
+hallucinations (concat/Some/fst/subtract/float → "did you mean / import" hints).
+
 ## 2026-06-20 — log_file_analyzer ruled OUT as a percentage-ambiguity distortion
 
 **Hypothesis under test (from residual analysis):** `log_file_analyzer` was distorting the
