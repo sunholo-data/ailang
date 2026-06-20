@@ -1183,6 +1183,26 @@ completion: productionize / lean-gate / rule out.
 **Next R1b-extension candidates (os-rolling, 125 fails):** 36× parse errors (PARxxx), undefined-var
 hallucinations (concat/Some/fst/subtract/float → "did you mean / import" hints).
 
+## 2026-06-20 — DP7 def-of-done gate RULED OUT (post-fix A/B) → no pass-rate lever left
+
+A/B `ollama` (no gate) vs `ollama_dp7` (`ailang check` finalize gate), post-fix, 11 benches ×3 ×2
+(`dp7-postfix-ab-20260620`): base **25/33 (76%)** vs dp7 **26/33 (79%)** — **+1, within n=3 noise**;
+median turns 8→7. The gate **did NOT fix the target residual** (`run_length_encode` 1/3 → 1/3); it
+traded benchmarks (fixed json_parse 2→3, red_black_tree 1→2; broke type_unify 3→2). Same net-neutral
+shape as pre-fix. (One run, log_file_analyzer-dp7, ground to the 1500s timeout — the gate amplifies
+grind on already-thrashy benches, though median is unaffected.) **Ruled out: blunt finalize compile-
+gate.** Ruled-out ledger += def-of-done gate.
+
+**STRATEGIC CONCLUSION:** both candidate pass-rate levers are now ruled out — **compaction** (refuted:
+disabled for qwen) and the **def-of-done gate** (noise). So motoko's residual on the single-file suite
+is **genuine qwen-on-AILANG capability + variance, not a fixable harness gap.** motoko is at parity
+(h2h 90.6% ≥ pi 88.9%) with no clean pass-rate lever remaining → on the current benchmarks, the core
+objective is MET. **The real headroom is EFFICIENCY + PROJECT-SCALE**, per the AILANG-native harness
+north-star ([planned/m-ailang-native-harness.md](planned/m-ailang-native-harness.md)): semantic
+tools (edit/read/grep over meaning), measured first by the semantic-edit experiment (rewrite-thrash on
+the current suite), then the project-eval falsification test (pi vs motoko on multi-file projects).
+R1b + version-noise fix now live on the rig (binary `46d5405d2`).
+
 ## 2026-06-20 — log_file_analyzer ruled OUT as a percentage-ambiguity distortion
 
 **Hypothesis under test (from residual analysis):** `log_file_analyzer` was distorting the
