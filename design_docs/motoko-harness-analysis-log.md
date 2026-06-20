@@ -1508,3 +1508,35 @@ release evals unfairly — worth hardening.
 `os-rolling-stale-eval-data` saved so this isn't re-litigated. Did NOT merge the fresh staleness-check
 results into os-rolling (avoid corrupting the banked rotation/dashboard data) — the full refresh is the
 release broad eval; staleness-check-20260620 stands as the post-fix truth for these 8.
+
+## 2026-06-20 23:48 — cron fire (rig BUSY): non-rig P0 docparse build diagnosis
+
+Rig busy (staleness-check 84112 still running — the earlier monitor summarized 12/16 prematurely on a
+transient kill -0 miss; final tally pending). Not blackout (blackout 04:00–07:00). Per rules → non-rig
+work: advanced P0 (docx_parser golden capture). Findings:
+- docparse `ailang lock` now resolves cleanly (post the earlier dup-key revert); `ailang_parse@0.20.2`
+  cached + locked. Build of `./bin/docparse` fails NOT on packages but on a type error in the API layer:
+  `docparse_api/services/api_keys.ail:718` (string vs NetError) — unrelated to document parsing.
+- The cached `ailang_parse` pkg's full `docparse/main.ail` needs further deps (`sunholo/gemini_files`)
+  for its AI parsers — too heavy for golden capture.
+- CLEAN PATH (scoped, next focused session): a minimal driver project that imports ONLY
+  `docparse/services/docx_parser (parseDocx)` + Block formatter, deps = ailang_parse docx subtree
+  (zip_extract, std/xml/zip), run on `docparse/data/examples/demo_report.docx` → capture golden blocks →
+  stub docx_parser → reimplement-to-pass-golden A/B (motoko vs pi). Not a cron-fire-sized task.
+
+**Continuity for next fire:** rig-dependent work is queued — (1) finalize the staleness-check verdict when
+84112 exits (red_black_tree/log_file_analyzer step-budget residual); (2) P1.5 step-budget A/B (cheapest);
+(3) P1 best-of-N rig validation (motoko-bestof). When rig frees + not blackout, run P1.5 first (cheapest).
+Non-rig alt: build the minimal docx_parser driver for P0.
+
+**Driver attempt (this fire):** built /tmp/docxdrv (ailang.toml dep ailang_parse@0.20.2 + driver importing
+parseDocx). Lock now pulls the full tree (gemini_files, logging, ailang_parse). Snag: importing
+`pkg/sunholo/ailang_parse/docparse/services/docx_parser` fails "module ... not exported by package" —
+EVEN THOUGH the pkg source ailang.toml [exports] lists `docparse/services/docx_parser` (line 16). =>
+published-manifest skew in cached 0.20.2 (source exports ≠ published artifact exports). Deeper P0 options
+for the focused session: (1) check the cached 0.20.2 manifest/iface for actual exports + use a version
+that exports docx_parser, or publish a fixed build; (2) OR run the package's PUBLIC parse entry (docparse/
+main, now that gemini_files locks) on demo_report.docx; (3) OR do the reimplement task IN the ailang_parse
+package source directly (agent edits the internal docx_parser.ail + the pkg's own tests grade it) — this
+sidesteps the export issue entirely and is probably the cleanest instrument shape. P0 remains a
+focused-session task; not cron-sized.
