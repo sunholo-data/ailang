@@ -1,0 +1,12 @@
+module eval_projects/list_stats/nums
+
+-- Sum a list of ints via recursion (AILANG has no loops).
+export pure func sumList(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    x :: rest => x + sumList(rest)
+  }
+
+-- TODO (the task): implement `avg(xs: [int]) -> int`, the integer mean (sum / count),
+-- and export it. AILANG has no for/while loops — count the elements with recursion,
+-- the same shape as sumList above.

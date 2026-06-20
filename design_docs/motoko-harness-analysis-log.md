@@ -1263,3 +1263,40 @@ floor convention + the `988ec33` regression so prompt/expected can't silently dr
   hits (`gcd_lcm`, `dense_operator_program`) are the modulo operator in prompts. No systemic fragility.
 - Prior-action status: corrects the residual-analysis note that implicated log_file_analyzer's
   percentage; redirects it to the disengagement bucket already being averaged out by the trials=3 h2h.
+
+## 2026-06-20 — #9 PROJECT-EVAL HARNESS PROVEN LIVE ON THE RIG (motoko + pi both PASS calc_bugfix) — need harder fixtures
+
+**Cycle:** First end-to-end project-eval run on the rig. The full #9 pipeline (copy baseline workspace
+→ run a real harness on the project task → grade build + acceptance) executed live with qwen, for BOTH
+motoko and pi — not stubs.
+
+**Setup:** `eval_projects/calc_bugfix` (multi-module ops.ail + main.ail, locked). BUG: `sub(a,b)=a+b`.
+Task: "fix sub so main prints 7." Invocation — motoko: `MODEL=ollama/qwen3.6:35b-a3b-mxfp8
+MOTOKO_CONFIG=ollama WORKDIR=<ws> AILANG_OLLAMA_MAX_TOKENS=32768 run-agent.sh "<task>"`; pi:
+`cd <ws> && pi --mode json --model ollama/qwen3.6:35b-a3b-mxfp8 --no-session -p "<task>"`. Grade:
+`projecteval.GradeProject` (check --package + run --quiet, stdout==7).
+
+**Result:** motoko **PASS** (fixed `sub→a-b`, builds, prints 7); pi **PASS** (identical). Tie.
+
+**Finding:** The harness works end-to-end on the rig — both run, edit the real multi-file workspace,
+grade correctly. But **calc_bugfix is too easy to discriminate** (a one-line sign flip; both nail it).
+It validates the RIG + pipeline, not relative harness strength.
+
+**Ruled-out ledger:** "project-eval can't run live" — REFUTED (ran, both harnesses, graded). "calc_bugfix
+discriminates motoko vs pi" — REFUTED (both PASS).
+
+**Lever:** N/A (instrument validation). The falsification test now needs DISCRIMINATING fixtures:
+multi-module feature-add / cross-file coordination, AILANG-specific reasoning (effects, typeclasses,
+recursion-no-loops), and LARGE-context tasks (where context_mode `on_tool_handle` + compaction matter).
+One trivial task ≠ a falsification suite.
+
+**Context_mode finding (this cycle):** motoko's `context_mode` ext wraps mksglu/context-mode (shell-exec
+to its CLI). It was loaded in every eval but INERT: (1) CLI wasn't installed → SpawnFailed→Delegate;
+(2) model never called its CtxExecute/CtxBatchExecute tools (0× across all runs); (3) prompt-injection
+hardcoded "" in v0.2.3. Installed the CLI (`npm i -g context-mode`). KEY: motoko's ABI has
+`on_tool_handle` (intercept any tool call) — context_mode wires it but only handles its own Ctx* tools
+(Delegates BashExec). The automatic mode = wire `on_tool_handle` to route BashExec output through
+context-mode transparently. Belongs in the project-eval (large outputs), not single-file. Upstream-worthy.
+
+**Next:** build ≥1 discriminating fixture, re-run both harnesses; then the context_mode `on_tool_handle`
+transparent-compression arm on a large-output project task.
