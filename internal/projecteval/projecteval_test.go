@@ -1,0 +1,54 @@
+package projecteval
+
+import "testing"
+
+func runnerReturning(out string) CheckRunner {
+	return func(string) (string, error) { return out, nil }
+}
+
+func TestParseCheck(t *testing.T) {
+	cases := []struct {
+		out          string
+		wantP, wantF int
+		wantOK       bool
+	}{
+		{"✗ 2 files checked: 1 passed, 1 failed", 1, 1, true},
+		{"✓ 3 files checked: 3 passed, 0 failed", 3, 0, true},
+		{"✓ No errors found!", 0, 0, false},
+	}
+	for _, c := range cases {
+		p, f, ok := parseCheck(c.out)
+		if p != c.wantP || f != c.wantF || ok != c.wantOK {
+			t.Errorf("parseCheck(%q) = (%d,%d,%v), want (%d,%d,%v)", c.out, p, f, ok, c.wantP, c.wantF, c.wantOK)
+		}
+	}
+}
+
+func TestGradeBuild(t *testing.T) {
+	// Clean multi-module build (zero failures) → BuildOk.
+	if r := GradeBuild("x", runnerReturning("✓ 3 files checked: 3 passed, 0 failed")); !r.BuildOk || r.Passed != 3 {
+		t.Errorf("clean build: %+v, want BuildOk && Passed=3", r)
+	}
+	// One module failing → not BuildOk (don't trust exit code — parse the summary).
+	if r := GradeBuild("x", runnerReturning("✗ 2 files checked: 1 passed, 1 failed")); r.BuildOk {
+		t.Errorf("failing build graded BuildOk: %+v", r)
+	}
+	// Single-file "No errors" path (no summary line) → BuildOk.
+	if r := GradeBuild("x", runnerReturning("→ Type checking...\n✓ No errors found!")); !r.BuildOk {
+		t.Errorf("single-file clean build not BuildOk: %+v", r)
+	}
+}
+
+func TestGradeProject_AcceptanceGatedOnBuild(t *testing.T) {
+	// Build fails → acceptance must NOT run (AcceptOk stays false).
+	called := false
+	r := GradeProject("x", runnerReturning("✗ 1 passed, 1 failed"), func(string) bool { called = true; return true })
+	if r.BuildOk || r.AcceptOk || called {
+		t.Errorf("acceptance ran despite failing build: %+v called=%v", r, called)
+	}
+	// Build ok → acceptance runs and is recorded.
+	r = GradeProject("x", runnerReturning("✓ 2 passed, 0 failed"), func(string) bool { return true })
+	if !r.BuildOk || !r.AcceptOk {
+		t.Errorf("build-ok project: %+v, want BuildOk && AcceptOk", r)
+	}
+}
