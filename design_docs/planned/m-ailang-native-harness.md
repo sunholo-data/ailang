@@ -196,6 +196,36 @@ Near-term pi-match (tool-result truncation, echo-writes) still lands first as th
 the *strategic* differentiator is this exact-semantic stack, which a general harness structurally
 cannot copy.
 
+## Capstone: type-safe self-extension (the harness modifies its own source)
+
+**Grounding (confirmed):** motoko is composed from ~13 **published, versioned, hash-verified** AILANG
+extension packages (`ailang.toml [dependencies]`: `sunholo/motoko_ext_abi@2.2.0`,
+`motoko_ext_compaction_ai`, `motoko_ext_microrag`, …), each conforming to the **typed extension ABI**
+`motoko_ext_abi` (`ExtensionHooks`, `PreStepDecision`, `FinalizeDecision`, `ToolPolicyDecision`) and
+declaring its effects, loaded via `import pkg/…/register (register_with_config)`. So motoko's behavior
+is typed, versioned, hot-loadable plugins.
+
+That makes **type-safe self-modification** possible: the harness writes a *new extension package* and
+adopts it through five gates that already exist —
+| Layer | Mechanism (exists) | Prevents |
+|---|---|---|
+| Structural | type-checks against `ExtensionHooks` (`ailang check`) | malformed / non-conforming edits |
+| Authority | effect rows + enforced effect ceiling | privilege escalation (authority widening) |
+| Provenance | hash-verified versioned package + `ailang.toml` | unauditable / irreversible changes (rollback = pin prior) |
+| Behavioral | **eval-gate**: A/B the new extension on the suite | type-correct-but-*worse* edits |
+| Verification | contracts prove invariants | silent invariant breakage |
+
+Loop: **write typed extension → `ailang check` (conformance + effect ceiling) → eval-A/B vs baseline
+→ adopt only on a measured win → publish as a versioned package → hot-load.** The type system bounds
+the *blast radius*; eval-gating bounds the *quality*. Self-modifying code → self-improving, auditable,
+reversible package. Recursion closes: motoko writes AILANG, *is* AILANG, so it can safely write motoko,
+gated by its own eval harness. A self-proposed extension is just another profile to A/B — the mission's
+measurement *is* the adoption gate.
+
+**Discipline:** (1) **type-safe ≠ better** — the eval-gate is mandatory, not optional, or it drifts.
+(2) Capstone, not next lever (v1.x+); don't let it distract from cheap near-term wins. (3) The effect
+ceiling (what authority a self-written extension may request) is safety-critical config — guard it.
+
 ## Open questions / risks
 
 - **Model adoption:** semantic edits + typed search are new tool shapes the model must use well.
