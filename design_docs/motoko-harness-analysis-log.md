@@ -1323,3 +1323,32 @@ tested in the DISCRIMINATING regime**, which is one of two:
 Regime (B) is the most thesis-aligned (context-minimization north star) AND exercises the just-installed
 context_mode. **Next: build a large-codebase fixture from a real AILANG project, with a task requiring
 navigation, and A/B motoko (with the context_mode on_tool_handle arm) vs pi.**
+
+### Follow-up 2 (same day) — validators (25-module navigation) ALSO ties; the n=1 efficiency edge was NOISE
+
+Built `eval_projects/validators` (27 modules; `ruleNN(x)=x>=NN`, but rule17 uses `>`; bug UNNAMED so the
+agent must navigate ~25 files; builds clean, baseline 24, fix 25). Ran both harnesses on the rig:
+
+- **Pass:** motoko PASS + pi PASS (both find rule17, fix it, print 25). Tie again.
+- **Efficiency (the interesting axis):** motoko trial1 = 5 tool calls / 6 steps; pi = 12 tool execs / 12
+  turns. Looked like a 2× motoko edge — BUT replication refuted it: **motoko trials = 5, 12, 12 calls**
+  (trials 2&3 both 12). Trial1 was a lucky low draw; motoko's typical ≈ pi's 12. **No efficiency edge.**
+
+**Ruled-out ledger (critical):** "motoko is ~2× more tool-call-efficient than pi on navigation" —
+REFUTED by replication (5,12,12 vs pi 12; the 5 was variance). Reinforces the standing discipline:
+never trust n=1 on a stochastic (temp>0) harness.
+
+**Consolidated finding across ALL project tasks tried (calc_bugfix, list_stats, validators):
+motoko ≈ pi on both pass-rate AND tool-call efficiency.** The harness thesis (AILANG-native motoko
+BEATS pi) is UNSUPPORTED in every project regime tested so far — they tie everywhere, consistent with
+the single-file ~90% parity.
+
+**Where a STRUCTURAL (non-noise) motoko edge could still exist:** the LARGE-OUTPUT regime WITH the
+context_mode `on_tool_handle` transparent-compression arm wired — because that is a capability pi does
+NOT have in this setup (pi dumps full tool output into context; motoko-with-on_tool_handle would return
+compressed/indexed output). validators does NOT test this (one-line modules → tiny grep/read output →
+nothing to compress; motoko already navigates fine with native Search). **The real thesis test = a
+fixture with LARGE tool outputs (big files / verbose multi-error build logs / large command output) +
+the on_tool_handle arm.** That is the one lever that could move motoko from tie to win. Everything else
+tested = parity. **Next: (1) wire context_mode on_tool_handle to compress BashExec output (motoko fork);
+(2) build a large-OUTPUT fixture; (3) A/B with vs without the arm (token cost is the metric, not pass).**
