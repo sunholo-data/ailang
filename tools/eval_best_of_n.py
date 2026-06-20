@@ -8,14 +8,16 @@ from any trials=N rotation, NO new GPU:
 
   * pass@1            — mean per-trial pass rate (the single-shot number we usually report).
   * best-of-N CEILING — fraction of benchmarks with >=1 passing trial (a PERFECT selector = the grader).
-  * best-of-N REALISTIC — what a typecheck+run selector (NO reference output) actually recovers:
-      a residual benchmark is RECOVERED if it has a pass AND all its failures are selector-CATCHABLE
-      (compile_error / api_error / runtime_error / timeout — `ailang check`/run drops them). A failure
-      that typechecks+runs but is wrong (logic_error) is UNCATCHABLE without a reference (needs
-      contracts/tests) → that benchmark is RISKY (the selector might keep a wrong-but-running candidate).
+  * best-of-N EXACT   — the reference-free typecheck+run selector, computed from the RECORDED flags
+      (select by runtime_ok/compile_ok, grade by the real stdout_ok — no re-running, no proxy). A
+      `selector miss` is a benchmark where the selector picked a runs-but-WRONG candidate over a
+      correct one (a logic_error that typechecks+runs) — exactly the case contracts/tests would catch.
 
-The gap between ceiling and realistic = the value of stronger verification (contracts/tests), which is
-exactly what the project-eval tier provides.
+Granularity: this measures TASK-LEVEL best-of-N (N independent whole-solution attempts → verify each
+→ pick), because the verifier needs a complete program. That is the validated, simplest, parallel
+form. Finalization-level (regenerate from one converged context) is cheaper but correlated; step/file
+beam-search is deferred. The gap between ceiling and exact = the value of stronger verification
+(contracts/tests), which the project-eval tier provides.
 
 Usage:
   tools/eval_best_of_n.py [results_dir] [--lang ailang] [--model-substr qwen3-6]

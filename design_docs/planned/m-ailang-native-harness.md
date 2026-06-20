@@ -79,6 +79,15 @@ machine-convenience beats human-convenience for AI-written code.** Text→AST is
    analysis-log 2026-06-20. **It is LOCAL-rig testable now (sequential N samples, $0)** — the cloud/`n`
    angle below is only a *latency* optimization, not a feasibility gate. Next build: realize it in
    motoko's loop (generate N → `ailang check`/run select → submit survivor).
+   **Granularity (when to trial variations):** the verifier needs a COMPLETE program (`ailang check`
+   + run), so best-of-N is **task/solution-level, not per-file/step** — trial at the "I think I'm done"
+   point (generate N complete candidates → verify → submit best). Per-step would hit the
+   partial-program-doesn't-verify wall and degenerate into beam search (deferred). Three levels by
+   cost/validation: **task-level independent** (= the validated 97.4%; N whole-solution attempts;
+   simplest, parallel → START) > **finalization-level** (regenerate from one converged context —
+   cheaper but correlated samples, less diverse, unvalidated) > **step/file beam-search** (complex,
+   defer). Single-file benches: task=file. Multi-file projects: milestone/whole-project level, not
+   per-file. Cost: task-level is N× the whole task (N× sequential locally / N× cost,1× latency cloud).
    **Latency note (cloud):** true *parallel* generation is a **cloud** lever —
    locally it's one GPU, so N requests serialize (no latency win, model-memory thrash risk). And the
    core idea = *fan out N runs (parallel) → verify each (`ailang check`/run) → keep survivor*, which is
