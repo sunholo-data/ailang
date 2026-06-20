@@ -1129,3 +1129,69 @@ it; its ~80% ailang is the stable reference).
 role (RULED OUT). **Next (on completion):** re-segment on fresh data; confirm wire max_tokens=32768 &
 length-truncs→0; classify each residual fail as motoko-specific lever vs shared qwen-on-AILANG gap;
 if motoko within CI of pi, declare the core objective MET and write it up. RESULTS PENDING.
+
+## 2026-06-20 — h2h DONE (motoko ≥ pi) + COMPACTION HYPOTHESIS REFUTED by telemetry
+
+**Clean trials=3 h2h complete (234 runs, ailang):** motoko **106/117 (90.6%)** vs pi 104/117 (88.9%),
+**length-truncs=0**. eval-report per-bench view: motoko 92.3% vs pi 87.2%. Core objective MET — motoko
+at parity / slightly ahead of pi on local AILANG, disengagement+truncation gaps closed.
+
+**COMPACTION-THRASH HYPOTHESIS — RULED OUT (the big one).** Built compaction telemetry (A1 motoko
+`compaction_structural` emit; A2 harness capture → `compaction_count`/`first_compaction_step`/
+`compaction_level_max`; A3 fire-rate report) to test the "verbose tool results → 70% compaction elides
+the model's own writes → re-reads/rewrites" hypothesis. Smoke on 3 thrashers (csv_to_json 8 turns,
+symbolic_diff 19, log_file_analyzer FAILED step-budget) → **compaction_count = 0 on ALL THREE.**
+Root cause (source-confirmed, `context_usage.ail`): **`context_limit_for("ollama/qwen3.6:35b-a3b-mxfp8")
+= 0`** — there is NO ollama/qwen case in `context_limit_base` (only claude/openai/google/deepseek/grok),
+so it falls to `else 0`; `usage_percent`→0 when limit==0; `compact_step` is therefore ALWAYS the
+`else Ok(msgs)` no-op, and A1's `pct>=70` emit guard is never true. motoko's own comment: "For unknown
+models (context_limit_for returns 0), compaction is skipped entirely — fail open." **So compaction
+NEVER fires for qwen3.6 — the elision-erases-writes story is impossible.** The earlier source-only
+hypothesis (read `compaction.ail` in isolation) missed that qwen is an unknown model. Telemetry +
+source check refuted it before any threshold-tuning fix was built. **Observability itself VALIDATED:**
+A2 unit-tested, A1 emit logic correct (correctly silent), A3 reports the true 0.
+
+**NEW finding (inverts the concern):** motoko treats qwen3.6 as unknown → **never manages its context**
+→ sends full un-elided history every turn. Short runs fine; long runs risk **ollama-side silent
+context overflow** (different failure than hypothesized). Candidate lever: add `ollama/qwen3.6` + real
+`num_ctx` to `context_limit_for` — but help-vs-hurt depends on qwen's window vs run lengths (measure).
+
+**Ruled-out ledger:** sampling, step-budget, persistence/system-role, **+ COMPACTION (qwen: disabled,
+fire-rate 0)**. **Sprint = Branch B** (thrash is NOT compaction-caused): def-of-done/echo-writes gate,
+tool-result truncation, R1b (structured errors), R7a (SimHash dedup of re-reads), context_limit_for
+for ollama (measurement-gated). "Raise compaction threshold" near-term fix is MOOT.
+
+## 2026-06-20 — log_file_analyzer ruled OUT as a percentage-ambiguity distortion
+
+**Hypothesis under test (from residual analysis):** `log_file_analyzer` was distorting the
+motoko-vs-pi gap via a fragile floor-truncated percentage in `expected_stdout` (`1/6=16.66 -> 16`)
+that exact-match grading turns into a ~50% coin-flip when a model rounds to `17`. **Verdict: FALSE
+for the current benchmark.** Evidence (414 historical `log_file_analyzer` result JSONs):
+
+- **The percentage knife-edge is REAL but DORMANT.** It was a genuine prompt/expected *contradiction*
+  introduced in `988ec33` (prompt → "round down" but expected left at `17%`) and FIXED in `f6250052b`
+  (v0.14.1, expected `17→16`). Current state is internally consistent: prompt says floor, expected = 16.
+- **All 67 historical near-miss FAILURES are `exp=17 / got=16`** — the OPPOSITE direction from the
+  hypothesis. They penalized the careful instruction-followers (opus/sonnet/gpt5) that *obeyed* "round
+  down" while the expected was a stale `17`. Zero `exp=16 / got=17` failures exist.
+- **Under the current (expected=16) benchmark: 101/124 pass; 0 of the 23 fails are percentage
+  near-misses** (they're compile/api/logic/runtime/timeout).
+- **qwen3.6 local (pi/motoko/opencode): 62/74 pass; all 12 fails are EMPTY stdout**
+  (api_error/timeout/compile/logic). **Zero qwen outputs ever emitted `17%`.** In the clean
+  `postfix-h2h-20260619` run, log_file_analyzer = motoko 1/3, pi 2/3, every fail empty-output.
+- `CompareOutput` confirmed to have **no numeric tolerance** on integer percentages (17 vs 16 = hard fail).
+
+**Conclusion:** log_file_analyzer's instability on qwen3.6 is the *known disengagement/truncation
+residual* (the same class as the InputFiles / cli_args / pipeline tasks), NOT percentage ambiguity. The
+percentage is not distorting the motoko-vs-pi gap. **No expected-output change made** (would churn
+comparability to fix a non-firing bug). Applied a low-risk HARDENING instead: clarified the muddled
+"use integer division, round down" prompt phrasing to an explicit `floor(count*100/total)` + worked
+example (16 not 17), and added a **CONVENTION-PIN comment** above `expected_stdout` documenting the
+floor convention + the `988ec33` regression so prompt/expected can't silently drift again.
+
+- Lever classification: **PROMPT** (clarity + regression guard); the residual qwen failures remain
+  **MODEL-CAPABILITY / HARNESS disengagement**, unchanged by this.
+- Audit (sibling benchmarks): only `log_file_analyzer` bakes in `(NN%)` percentages; the other two `%`
+  hits (`gcd_lcm`, `dense_operator_program`) are the modulo operator in prompts. No systemic fragility.
+- Prior-action status: corrects the residual-analysis note that implicated log_file_analyzer's
+  percentage; redirects it to the disengagement bucket already being averaged out by the trials=3 h2h.

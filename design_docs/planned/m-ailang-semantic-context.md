@@ -16,8 +16,16 @@
   format; `--json` unchanged. **R1b follow-up:** type-checker errors are not yet structured
   `ailerrors.Report` values, so the renderer distills the embedded `at file:line:col:` location
   heuristically — Report-ifying them gives native Code/Span/Fix.Suggestion (real fix hints, no regex).
-- **Pending rig window:** A1 dist rebuild + draft PR; near-term pi-match (#1–#3); first
-  compaction-fire-rate measurement on a fresh run.
+- **COMPACTION HYPOTHESIS REFUTED (2026-06-20).** The telemetry's first job was to test the
+  "70% compaction elides the model's own writes → thrash" story below — and it **killed it.**
+  `context_limit_for("ollama/qwen3.6:…")=0` (no ollama/qwen case), so `usage_percent`→0 and
+  `compact_step` is *always* a no-op: **compaction never fires for qwen3.6** (fire-rate measured 0).
+  So the "Vicious cycle" in the Problem section does NOT apply to the rig model, and near-term fix
+  #2 ("raise compaction threshold") is **moot**. The thrash (re-reads/rewrites) has a different,
+  not-yet-confirmed cause. NEW angle: motoko never manages qwen's context (treats it as unknown) →
+  long runs risk *ollama-side* overflow. See analysis-log 2026-06-20. **Sprint = Branch B:**
+  def-of-done/echo-writes gate, tool-result truncation, R1b, R7a (dedup), context_limit_for-for-ollama.
+- **Pending rig window:** first telemetry-on rotation (confirms fire-rate≈0 at scale) + Branch-B sprint.
 
 ## Problem (evidence-backed, 2026-06-19/20)
 
