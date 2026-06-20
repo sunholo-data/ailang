@@ -1,0 +1,4 @@
+module eval_projects/validators/rule24
+
+-- Accepts values at or above the threshold 24.
+export pure func rule24(x: int) -> bool = x >= 24

@@ -1,0 +1,4 @@
+module eval_projects/validators/rule11
+
+-- Accepts values at or above the threshold 11.
+export pure func rule11(x: int) -> bool = x >= 11

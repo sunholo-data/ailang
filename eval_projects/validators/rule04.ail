@@ -1,0 +1,4 @@
+module eval_projects/validators/rule04
+
+-- Accepts values at or above the threshold 4.
+export pure func rule04(x: int) -> bool = x >= 4

@@ -1,0 +1,44 @@
+[package]
+name = "eval_projects/validators"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = [
+  "eval_projects/validators/util",
+  "eval_projects/validators/main",
+  "eval_projects/validators/rule00",
+  "eval_projects/validators/rule01",
+  "eval_projects/validators/rule02",
+  "eval_projects/validators/rule03",
+  "eval_projects/validators/rule04",
+  "eval_projects/validators/rule05",
+  "eval_projects/validators/rule06",
+  "eval_projects/validators/rule07",
+  "eval_projects/validators/rule08",
+  "eval_projects/validators/rule09",
+  "eval_projects/validators/rule10",
+  "eval_projects/validators/rule11",
+  "eval_projects/validators/rule12",
+  "eval_projects/validators/rule13",
+  "eval_projects/validators/rule14",
+  "eval_projects/validators/rule15",
+  "eval_projects/validators/rule16",
+  "eval_projects/validators/rule17",
+  "eval_projects/validators/rule18",
+  "eval_projects/validators/rule19",
+  "eval_projects/validators/rule20",
+  "eval_projects/validators/rule21",
+  "eval_projects/validators/rule22",
+  "eval_projects/validators/rule23",
+  "eval_projects/validators/rule24",
+]
+
+[effects]
+max = ["IO"]
+
+[stability]
+level = "experimental"
+
+[metadata]
+ai_summary = "Project-eval fixture (#9 large-context): one of 25 rule modules has an off-by-one bug; find and fix it."

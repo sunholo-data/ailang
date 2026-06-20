@@ -1,0 +1,4 @@
+module eval_projects/validators/rule05
+
+-- Accepts values at or above the threshold 5.
+export pure func rule05(x: int) -> bool = x >= 5

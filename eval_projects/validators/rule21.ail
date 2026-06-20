@@ -1,0 +1,4 @@
+module eval_projects/validators/rule21
+
+-- Accepts values at or above the threshold 21.
+export pure func rule21(x: int) -> bool = x >= 21

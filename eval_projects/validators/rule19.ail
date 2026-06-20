@@ -1,0 +1,4 @@
+module eval_projects/validators/rule19
+
+-- Accepts values at or above the threshold 19.
+export pure func rule19(x: int) -> bool = x >= 19

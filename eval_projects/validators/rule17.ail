@@ -1,0 +1,4 @@
+module eval_projects/validators/rule17
+
+-- Accepts values at or above the threshold 17.
+export pure func rule17(x: int) -> bool = x > 17

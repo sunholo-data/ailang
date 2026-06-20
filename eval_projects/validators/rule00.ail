@@ -1,0 +1,4 @@
+module eval_projects/validators/rule00
+
+-- Accepts values at or above the threshold 0.
+export pure func rule00(x: int) -> bool = x >= 0

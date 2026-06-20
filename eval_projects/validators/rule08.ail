@@ -1,0 +1,4 @@
+module eval_projects/validators/rule08
+
+-- Accepts values at or above the threshold 8.
+export pure func rule08(x: int) -> bool = x >= 8

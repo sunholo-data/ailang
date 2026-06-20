@@ -1,0 +1,4 @@
+module eval_projects/validators/rule06
+
+-- Accepts values at or above the threshold 6.
+export pure func rule06(x: int) -> bool = x >= 6

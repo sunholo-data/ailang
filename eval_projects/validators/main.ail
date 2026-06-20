@@ -1,0 +1,60 @@
+module eval_projects/validators/main
+
+import std/io (println)
+import ./util (countTrue)
+ import ./rule00 (rule00)
+ import ./rule01 (rule01)
+ import ./rule02 (rule02)
+ import ./rule03 (rule03)
+ import ./rule04 (rule04)
+ import ./rule05 (rule05)
+ import ./rule06 (rule06)
+ import ./rule07 (rule07)
+ import ./rule08 (rule08)
+ import ./rule09 (rule09)
+ import ./rule10 (rule10)
+ import ./rule11 (rule11)
+ import ./rule12 (rule12)
+ import ./rule13 (rule13)
+ import ./rule14 (rule14)
+ import ./rule15 (rule15)
+ import ./rule16 (rule16)
+ import ./rule17 (rule17)
+ import ./rule18 (rule18)
+ import ./rule19 (rule19)
+ import ./rule20 (rule20)
+ import ./rule21 (rule21)
+ import ./rule22 (rule22)
+ import ./rule23 (rule23)
+ import ./rule24 (rule24)
+
+export func main() -> () ! {IO} {
+  let results = [
+    rule00(0),
+    rule01(1),
+    rule02(2),
+    rule03(3),
+    rule04(4),
+    rule05(5),
+    rule06(6),
+    rule07(7),
+    rule08(8),
+    rule09(9),
+    rule10(10),
+    rule11(11),
+    rule12(12),
+    rule13(13),
+    rule14(14),
+    rule15(15),
+    rule16(16),
+    rule17(17),
+    rule18(18),
+    rule19(19),
+    rule20(20),
+    rule21(21),
+    rule22(22),
+    rule23(23),
+    rule24(24)
+  ];
+  println(show(countTrue(results)))
+}

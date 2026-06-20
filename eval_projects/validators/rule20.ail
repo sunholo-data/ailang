@@ -1,0 +1,4 @@
+module eval_projects/validators/rule20
+
+-- Accepts values at or above the threshold 20.
+export pure func rule20(x: int) -> bool = x >= 20
