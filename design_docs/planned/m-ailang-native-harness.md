@@ -250,6 +250,28 @@ measurement *is* the adoption gate.
 (2) Capstone, not next lever (v1.x+); don't let it distract from cheap near-term wins. (3) The effect
 ceiling (what authority a self-written extension may request) is safety-critical config — guard it.
 
+## Language/compiler changes this unlocks (in-scope this mission, via design docs)
+
+Building the semantic-edit core (`internal/astedit`, span-anchored decl-replace) surfaced concrete
+language changes worth making. Discipline: ship the *experiment-grade* version now, run the A/B, and
+**earn each language investment with the result** (don't build the cathedral before the lever proves out).
+
+1. **Edit-grade parser spans (modest, broadly useful — first to earn).** Today `FuncDecl.Pos`/`Span`
+   carry line/col but **`Offset` is 0** (lexer doesn't track byte offsets) and `Span.Start` begins at
+   `func`, **excluding a leading `export`/`pure` modifier** (and preceding-line annotations). `astedit`
+   currently works around this (line:col→offset + splice from line-start) — fine for simple top-level
+   decls, fragile on annotations/multi-modifier/unicode. **Fix:** lexer populates `Pos.Offset`; parser
+   records the **full-declaration span** (modifiers + annotations → closing brace). Benefits not just
+   semantic edits but **LSP, SID, formatting, refactoring** — a small compiler change with wide payoff.
+2. **Faithful AST↔source round-trip formatter / `ailang fmt` (bigger — earn after #1).** AILANG has
+   AST `String()` methods but no round-trip-faithful printer. A real formatter unlocks **richer
+   sub-declaration edits** (edit an expression/signature, not just replace a whole decl) and is a
+   standard language tool AILANG lacks (gofmt/rustfmt analog) with independent value. Hard part:
+   preserving comments/whitespace. Gate the build on the semantic-edit A/B showing decl-level edits help.
+
+These are mission backlog items (design-doc'd), not blockers: the experiment-grade `astedit` runs the
+A/B today; #1 makes it production-grade; #2 widens the edit vocabulary.
+
 ## Open questions / risks
 
 - **Model adoption:** semantic edits + typed search are new tool shapes the model must use well.
