@@ -196,6 +196,30 @@ Near-term pi-match (tool-result truncation, echo-writes) still lands first as th
 the *strategic* differentiator is this exact-semantic stack, which a general harness structurally
 cannot copy.
 
+## Measurement frontier: project-scale eval (the falsification test)
+
+Single-file benchmarks show motoko ≈ pi *precisely because* the AILANG-native advantage is irrelevant
+at 30 lines (the whole file fits one read). The semantic tools only pay off on **multi-file projects**
+— so a project-scale eval is both the test bed for them AND the first arena where motoko should pull
+*ahead* of pi. **This is the falsification test for the whole north-star:** if motoko+semantic-tools
+does not beat pi+text on real projects, the thesis is wrong (or the model can't exploit the tools) —
+the most valuable negative result we could get, and a reason to build the measurement before the stack.
+
+**Grading (what makes projects gradable — AILANG-specific):** `ailang check --package` (build/typecheck,
+exact) + a provided **acceptance test suite** (behavior) + **contracts**/Z3 (proof, where the spec has
+invariants) + **iface comparison** (required interface exposed). Plus existing efficiency metrics
+(tokens/turns) and new ones (build-pass, test-pass, spec-conformance, adoption of semantic tools).
+
+**Sources, by tractability:** (1) **modify-existing** on the demos repo / a curated multi-module AILANG
+project — "add feature / fix bug", graded by existing-tests-still-pass + new-acceptance-test; exercises
+read-relevant / grep-structured / impact; **start here.** (2) **docparse** (real AILANG app, cloud
+pipeline — access/setup needed) for "extend a real system". (3) **build-from-scratch** — the "ultimate
+A/B": same spec to pi and motoko, compare complete projects; purest but needs per-spec acceptance suites.
+
+**Sequencing:** semantic-edit on the current single-file suite (now, cheap) → **build the project-eval
+harness** (modify-existing on demos; a real eval-harness extension, its own mission task) → the
+**pi-vs-motoko complete-project A/B** (the north-star's falsification test).
+
 ## Capstone: type-safe self-extension (the harness modifies its own source)
 
 **Grounding (confirmed):** motoko is composed from ~13 **published, versioned, hash-verified** AILANG
