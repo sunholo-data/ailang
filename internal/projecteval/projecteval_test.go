@@ -3,6 +3,7 @@ package projecteval
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -79,6 +80,37 @@ func TestGradeProject_RealFixture(t *testing.T) {
 	}
 	if r.AcceptOk {
 		t.Errorf("buggy baseline should FAIL acceptance (prints 13, expected 7): %+v", r)
+	}
+}
+
+// TestRunProjectEval_StubHarness validates the full orchestration (copy baseline → run harness →
+// grade) with stub harnesses, no rig: a harness that FIXES the bug → build+accept pass; a no-op
+// harness → baseline (build ok, accept fail). The real motoko/pi harness plugs in for the rig run.
+func TestRunProjectEval_StubHarness(t *testing.T) {
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not on PATH")
+	}
+	if _, err := os.Stat("../../eval_projects/calc_bugfix/ailang.lock"); err != nil {
+		t.Skip("fixture not locked")
+	}
+	task := ProjectTask{
+		Dir:        "../../eval_projects/calc_bugfix",
+		Prompt:     "Fix the sub bug so main prints 7.",
+		Check:      AilangCheckRunner("", 0),
+		Acceptance: StdoutAcceptance(AcceptanceSpec{EntryFile: "main.ail", Expected: "7"}),
+	}
+	fixedOps := "module eval_projects/calc_bugfix/ops\n\nexport pure func add(a: int, b: int) -> int = a + b\nexport pure func sub(a: int, b: int) -> int = a - b\n"
+
+	// Harness that correctly fixes the bug → build + acceptance pass.
+	fix := func(ws, _ string) error { return os.WriteFile(filepath.Join(ws, "ops.ail"), []byte(fixedOps), 0o644) }
+	if r, err := RunProjectEval(task, fix); err != nil || !r.BuildOk || !r.AcceptOk {
+		t.Errorf("fix harness: %+v err=%v, want BuildOk && AcceptOk", r, err)
+	}
+
+	// No-op harness → baseline unchanged → builds but acceptance fails (prints 13).
+	noop := func(_, _ string) error { return nil }
+	if r, err := RunProjectEval(task, noop); err != nil || !r.BuildOk || r.AcceptOk {
+		t.Errorf("noop harness (baseline): %+v err=%v, want BuildOk && !AcceptOk", r, err)
 	}
 }
 

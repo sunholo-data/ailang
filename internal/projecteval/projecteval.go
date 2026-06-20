@@ -13,7 +13,10 @@ package projecteval
 
 import (
 	"context"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -84,6 +87,74 @@ func GradeProject(dir string, run CheckRunner, acceptance func(dir string) bool)
 	return r
 }
 
+// ProjectTask is one project-eval case: a baseline project, the task instruction, and the
+// build + acceptance graders.
+type ProjectTask struct {
+	Dir        string                // baseline project dir (the fixture)
+	Prompt     string                // task instruction (e.g. from TASK.md)
+	Check      CheckRunner           // build grader (defaults to AilangCheckRunner)
+	Acceptance func(dir string) bool // behaviour grader
+}
+
+// Harness runs an agent on a project WORKSPACE with a task prompt, editing files in place.
+// Injectable: a stub for tests; the real impl shells the motoko/pi executor (the rig step).
+type Harness func(workspace, prompt string) error
+
+// RunProjectEval copies the baseline to a fresh temp workspace, runs the harness on it, then grades
+// the workspace (build + acceptance). Copying isolates the run so the fixture is never mutated and
+// every trial starts from the same baseline — the project analogue of the single-file eval flow.
+func RunProjectEval(task ProjectTask, h Harness) (Result, error) {
+	ws, err := copyProject(task.Dir)
+	if err != nil {
+		return Result{}, err
+	}
+	defer os.RemoveAll(ws)
+	if err := h(ws, task.Prompt); err != nil {
+		return Result{}, err
+	}
+	check := task.Check
+	if check == nil {
+		check = AilangCheckRunner("", 0)
+	}
+	return GradeProject(ws, check, task.Acceptance), nil
+}
+
+// copyProject recursively copies a project dir into a fresh temp dir (modules, ailang.toml, lock).
+func copyProject(src string) (string, error) {
+	dst, err := os.MkdirTemp("", "projecteval-*")
+	if err != nil {
+		return "", err
+	}
+	walkErr := filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		info, _ := d.Info()
+		mode := os.FileMode(0o644)
+		if info != nil {
+			mode = info.Mode()
+		}
+		return os.WriteFile(target, data, mode)
+	})
+	if walkErr != nil {
+		_ = os.RemoveAll(dst)
+		return "", walkErr
+	}
+	return dst, nil
+}
+
 // AcceptanceSpec configures running a project's entrypoint and comparing its stdout.
 type AcceptanceSpec struct {
 	Bin       string        // ailang binary (default "ailang")
@@ -117,7 +188,8 @@ func StdoutAcceptance(spec AcceptanceSpec) func(dir string) bool {
 	return func(dir string) bool {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, bin, "run", "--entry", entry, "--caps", caps, "--relax-modules", spec.EntryFile)
+		// --quiet suppresses the "✓ Running …" status line so stdout is the program's output only.
+		cmd := exec.CommandContext(ctx, bin, "run", "--entry", entry, "--caps", caps, "--relax-modules", "--quiet", spec.EntryFile)
 		cmd.Dir = dir
 		out, err := cmd.Output() // stdout only (status/warnings go to stderr)
 		if err != nil {
