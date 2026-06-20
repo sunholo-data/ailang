@@ -59,7 +59,18 @@ machine-convenience beats human-convenience for AI-written code.** Text→AST is
    Models excel at type→term; humans find hole-driven dev awkward. Offer typed holes; checker verifies.
 2. **Distributional generation + verification** — the model *is* a distribution (calibrated
    alternatives/logprobs); we force single-shot text. Let it emit N candidates; use the
-   **type checker / contracts as the selector** (model proposes, AILANG disposes).
+   **type checker / contracts as the selector** (model proposes, AILANG disposes). *Not* generic
+   best-of-N (reward-model / majority-vote, heuristic) — an **EXACT** selector: generate 5 → `ailang
+   check` each (drop non-typechecking) → run each (drop wrong-output / contract-violations) → keep a
+   survivor. The model's distribution filtered by the compiler's exact verdict — turns qwen's
+   stochasticity from a *liability* (e.g. `run_length_encode` 1/3) into an *asset* (sample more, the
+   compiler picks the correct one). **API reality (verified 2026-06-20):** single-call multi-candidate
+   = OpenAI `n` (input charged once), Gemini `candidateCount`; **Anthropic has no `n`** (parallel
+   calls); **ollama IGNORES `n` — tested, returns 1** → on the local rig this is **N samples** ($0
+   local cost, but N× latency on one GPU). Our stack is single-candidate today (reads `choices[0]`,
+   `std/ai` returns one StepResult) → needs an N-sample path + a candidate-list `std/ai` variant +
+   the `ailang check`/run selector. Caveats: N× latency; diminishing returns (best-of-5 ≫ 1, 50 ≈ 10);
+   only helps at temp>0 (qwen=1.0 ✓).
 3. **Self-verification before emit** — the model pre-checks an edit against the types it already knows,
    as a cheap filter before the expensive run.
 
