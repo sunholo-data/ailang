@@ -13,6 +13,15 @@ harnesses (Claude Code, Cursor) must run every step over **text**, because they 
 language. AILANG controls the language, so motoko can run every step over **semantics** — querying
 the compiler's exact knowledge instead of approximating it.
 
+**The axis (refined, 2026-06-20 second-agent synthesis):** not grep-vs-embeddings but
+**text retrieval → semantic retrieval → proof-carrying retrieval.** The third tier is the genuinely
+unique one: AILANG has contracts (Z3), effect/authority ceilings, and deterministic traces, so
+retrieval can carry **obligations** (what must hold), not just types. Most languages cannot aspire to
+this tier at all. **Two-stage, not either/or:** embeddings remain useful as the *coarse pointer* for
+fuzzy intent ("where's the PDF chunking?"); once candidate regions are found, switch to **exact
+structure** (which functions produce `Block[]`, which effects, which contracts protect it). Fuzzy
+locate → exact verify.
+
 The "Claude Code grep beat Cursor semantic-search" result is real but its conclusion is *specific to
 language-agnostic harnesses*. The principle underneath it is **give the model the best ground truth
 with the least noise** — for which grep (exact text) beats embeddings (fuzzy similarity). But grep
@@ -41,6 +50,39 @@ already does — deterministically, not learned.
 | **Verify / feedback** | run, parse stderr | typed + effect check, exact; actionable distilled errors | `ailang check`, R1/R1b ✅ |
 | **Debug** | print, re-run | **deterministic trace** → the exact evaluation step that diverged | `AILANG_TRACE` ✅; trace-diff ⬜ |
 | **Dedup / memory** | embeddings / SimHash | **structural identity** (alpha-equivalence) — exact, no vectors | AST compare ⬜; Brain (fuzzy) ✅ |
+
+## Proof-carrying additions (second-agent synthesis — sharper than the table above)
+
+These three escalate the table's "exact" column from *typed* to *proof-relevant*, using AILANG
+structure no general harness has:
+
+- **Obligation discovery (beats "run all tests").** On an edit, the harness reports the exact re-proof
+  set: *"You changed `F` → 3 downstream typechecks, 1 effect ceiling, 2 contracts, 4 golden traces, 1
+  API schema hash."* This is the verify-side of editing — the minimal set of obligations a change
+  disturbed, derived from the type/effect/contract/trace graphs. Stronger and cheaper than a blanket
+  test rerun.
+- **Trace-equivalence as the test primitive.** Cache execution **witnesses** (input hash, effect
+  *envelope*, trace hash, output hash, contract result); evaluate a patch by trace equivalence rather
+  than textual rerun. *Precise caveat:* AILANG is deterministic **given fixed effect results** —
+  AI/IO/Net outputs are the non-deterministic boundary, so equivalence compares the pure skeleton +
+  effect *signature/envelope*, not the raw effect outputs. Not naive `trace_hash ==`.
+- **AILANG-native indexes, grep as fallback.** symbol / type / effect / contract / trace / capability
+  / semantic-hash / normal-form. Grep stays (Claude Code lesson) but as the *fallback*, not the core
+  memory. **Earn-its-place gate:** each index must beat grep+model on precision AND simplicity before
+  the next is built — type/effect indexes are exact+cheap (build); normal-form/semantic-hash are
+  exotic+uncertain (defer until a measured win). Don't build the cathedral.
+
+**Product surface (the primitive):** `harness.query { goal, scope } → SemanticSlice { symbols, types,
+effects, contracts, traces, risks, candidate_edit_points }`, returning primary edit points + relevant
+invariants + required checks. *Adoption caveat:* a rich query API only helps if the model wields it —
+local models may do worse with it than with 3 simple tools. Offer alongside grep, measure adoption,
+don't force.
+
+**Scope honesty (the two timelines):** obligation/contract/trace queries shine on **contract-rich,
+long-lived AILANG codebases** — that is the *AILANG-as-AI-coding-platform* north-star. The current
+motoko-on-benchmarks residual (small, ~contract-free synthesis tasks where motoko is already at pi
+parity) is a *different, nearer* problem. Build the cheap exact-semantic wins (iface context, semantic
+edits) for the near-term; the proof-carrying stack is the strategic moat, staged and measured.
 
 ## Highest-leverage unlock: semantic edits
 
