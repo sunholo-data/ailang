@@ -1,6 +1,10 @@
 package projecteval
 
-import "testing"
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
 
 func runnerReturning(out string) CheckRunner {
 	return func(string) (string, error) { return out, nil }
@@ -14,6 +18,7 @@ func TestParseCheck(t *testing.T) {
 	}{
 		{"✗ 2 files checked: 1 passed, 1 failed", 1, 1, true},
 		{"✓ 3 files checked: 3 passed, 0 failed", 3, 0, true},
+		{"✓ 2 files checked, all passed!", 2, 0, true}, // REAL clean multi-file format
 		{"✓ No errors found!", 0, 0, false},
 	}
 	for _, c := range cases {
@@ -36,6 +41,23 @@ func TestGradeBuild(t *testing.T) {
 	// Single-file "No errors" path (no summary line) → BuildOk.
 	if r := GradeBuild("x", runnerReturning("→ Type checking...\n✓ No errors found!")); !r.BuildOk {
 		t.Errorf("single-file clean build not BuildOk: %+v", r)
+	}
+}
+
+// TestGradeBuild_RealPackage validates the grader end-to-end against the installed compiler on a
+// real locked multi-module package — catching format drift (the clean summary is "all passed!", not
+// "0 failed"). Skips if ailang isn't on PATH or the example/lock is absent.
+func TestGradeBuild_RealPackage(t *testing.T) {
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not on PATH")
+	}
+	dir := "../../examples/intra_package_imports"
+	if _, err := os.Stat(dir + "/ailang.lock"); err != nil {
+		t.Skip("example package not locked (run `ailang lock` in it)")
+	}
+	r := GradeBuild(dir, AilangCheckRunner("", 0))
+	if !r.BuildOk || r.Passed < 2 {
+		t.Errorf("real locked package: %+v, want BuildOk && Passed>=2", r)
 	}
 }
 

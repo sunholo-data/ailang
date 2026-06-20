@@ -33,23 +33,35 @@ type Result struct {
 // Injectable so grading logic is unit-testable without invoking the compiler.
 type CheckRunner func(dir string) (string, error)
 
-var passFailRe = regexp.MustCompile(`(\d+)\s+passed,\s+(\d+)\s+failed`)
+// Real `ailang check --package` summary formats (verified 2026-06-20 against a locked package):
+//
+//	failure: "✗ 2 files checked: 1 passed, 1 failed"
+//	clean:   "✓ 2 files checked, all passed!"
+//	single:  "✓ No errors found!"
+var (
+	passFailRe  = regexp.MustCompile(`(\d+)\s+passed,\s+(\d+)\s+failed`)
+	allPassedRe = regexp.MustCompile(`(\d+)\s+files?\s+checked,\s+all passed`)
+)
 
-// parseCheck extracts (passed, failed) from `ailang check --package` output. ok=false when
-// no summary line is present (single-file "✓ No errors found!" path).
+// parseCheck extracts (passed, failed) from a `ailang check --package` summary. ok=false when
+// no recognised summary is present (caller falls back to clean/single-file detection).
 func parseCheck(out string) (passed, failed int, ok bool) {
-	m := passFailRe.FindStringSubmatch(out)
-	if m == nil {
-		return 0, 0, false
+	if m := passFailRe.FindStringSubmatch(out); m != nil {
+		passed, _ = strconv.Atoi(m[1])
+		failed, _ = strconv.Atoi(m[2])
+		return passed, failed, true
 	}
-	passed, _ = strconv.Atoi(m[1])
-	failed, _ = strconv.Atoi(m[2])
-	return passed, failed, true
+	if m := allPassedRe.FindStringSubmatch(out); m != nil {
+		passed, _ = strconv.Atoi(m[1])
+		return passed, 0, true
+	}
+	return 0, 0, false
 }
 
 // GradeBuild grades the build dimension. Build is OK iff the summary reports zero failures
-// (and at least one module passed), OR — when there's no summary — the clean "No errors"
-// signal is present. We parse output rather than trust the exit code (unreliable for --package).
+// (and at least one module passed), OR — when there's no package summary — the clean
+// single-file "No errors found" signal is present. We parse output rather than trust the exit
+// code (unreliable for --package).
 func GradeBuild(dir string, run CheckRunner) Result {
 	out, _ := run(dir)
 	if passed, failed, ok := parseCheck(out); ok {
@@ -83,7 +95,12 @@ func AilangCheckRunner(bin string, timeout time.Duration) CheckRunner {
 	return func(dir string) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
-		out, err := exec.CommandContext(ctx, bin, "check", "--package", dir).CombinedOutput()
+		// `check --package` is CWD-sensitive: intra-package import + lock resolution needs to run
+		// FROM the project dir (verified 2026-06-20), so set cmd.Dir and check "." rather than
+		// passing the dir as a path argument.
+		cmd := exec.CommandContext(ctx, bin, "check", "--package", ".")
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
 }
