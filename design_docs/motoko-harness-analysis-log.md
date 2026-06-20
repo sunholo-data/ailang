@@ -1484,3 +1484,27 @@ opencode 80.7% / 84.6%. Taken at face value pi DOMINATES motoko by 26pp — cont
 fresh runs they tank motoko's eval unfairly; investigate motoko's API reliability on the next rig run.
 (2) Best-of-N's value is unassessable on stale data; needs the fresh run. (3) Don't repeat the parity
 claim without broad post-fix data.
+
+## 2026-06-20 — STALENESS CONFIRMED + genuine residual identified (fresh post-fix re-run of the 8 hard-fails)
+
+Ran a FRESH post-fix re-run (motoko-local-qwen3-6, trials=2, fresh output dir, no --skip-existing) of the
+8 os-rolling "hard-fails" → `eval_results/rotation/staleness-check-20260620`. Verdict:
+- **6/8 were purely STALE** — now PASS post-fix: config_file_parser (1/2), csv_to_json_converter (pass),
+  graph_bfs (pass), polymorphic_ord_defaulting (2/2), run_length_encode (pass), symbolic_diff (2/2). All
+  were 0% in the frozen pre-fix data. The tell: turn counts 7–31 now vs the stale 2-turn disengagements —
+  the truncation fix lets motoko ENGAGE. Confirms the stale broad 69%/83% badly understated motoko.
+- **2 are the GENUINE residual** (not stale): `log_file_analyzer` (0/2) and `red_black_tree` (0/2, no result
+  written) failed with **"v2 loop: step budget exhausted"** (max_steps=50 — engaged but couldn't finish)
+  and ollama **"context deadline exceeded"** (API timeout under load). Real difficulty + infra, NOT the
+  broad disengagement the fix cured.
+
+**Refined residual (the actual lever now):** on the hardest benchmarks motoko ENGAGES but (a) exhausts the
+50-step budget before finishing, and (b) hits ollama API timeouts. This is a different lever than
+best-of-N or disengagement: candidate levers = raise max_steps for hard tasks / better step-efficiency /
+API timeout+retry robustness. The api_error/timeout flakiness (also seen in fresh trials) could dent
+release evals unfairly — worth hardening.
+
+**Data hygiene:** `tools/eval_best_of_n.py` now flags stale data + excludes api_error non-attempts; memory
+`os-rolling-stale-eval-data` saved so this isn't re-litigated. Did NOT merge the fresh staleness-check
+results into os-rolling (avoid corrupting the banked rotation/dashboard data) — the full refresh is the
+release broad eval; staleness-check-20260620 stands as the post-fix truth for these 8.
