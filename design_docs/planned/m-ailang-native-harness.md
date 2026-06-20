@@ -84,6 +84,49 @@ motoko-on-benchmarks residual (small, ~contract-free synthesis tasks where motok
 parity) is a *different, nearer* problem. Build the cheap exact-semantic wins (iface context, semantic
 edits) for the near-term; the proof-carrying stack is the strategic moat, staged and measured.
 
+## Tools: same surface, divergent substrate
+
+Design rule (from the grep lesson + adoption risk): the agent-loop tool **surface** stays identical
+across languages so the model's behavior transfers; the **result** becomes semantic for `.ail`. The
+harness routes by file type — `.ail` → semantic backend, else → text backend. **Enrich existing
+tools' results first; add new tools (type-search, obligation-query) only when they measurably beat
+the enriched ones.** R1/R1b already proved the template: the `run`/`check` tool's *results* are now
+AILANG-semantic (distilled typed errors) with no surface change.
+
+| Tool (same name) | General language (text) | AILANG (semantic backend) |
+|---|---|---|
+| read | raw text | + iface view (sigs+effects); type-at-point |
+| search | grep | grep fallback + exact typed queries (by-type, find-refs, effect/contract) |
+| edit | text patch / full rewrite | + semantic AST edit — no rewrite |
+| write | write bytes | + immediate typecheck / iface-delta feedback |
+| run | stdout/stderr | `ailang run` → distilled typed errors (R1/R1b ✅) + deterministic trace |
+| test | pass/fail rerun | trace-equivalence witnesses; obligation discovery |
+
+Where this lives — **it's all AILANG (no fork/FFI boundary).** motoko_agent is itself an AILANG
+package (`ailang.toml`; `compaction.ail` is `module src/core/compaction` that `import std/ai`,
+`std/string`, … directly). So the semantic-harness capabilities are **AILANG stdlib modules** (a new
+`std/iface`-summary / `std/semantic` alongside the existing `std/ai.runTools`, `std/sem`), and
+motoko's `.ail` packages **import them like any AILANG program** — a stdlib capability + a package
+dependency, not a cross-language bridge. "Language-level capability any agent inherits" is therefore
+literal: it's stdlib. And motoko being AILANG means this work **dogfoods the language** — the flagship
+AILANG application validating AILANG for real agentic code. (Compiler internals — `internal/iface`,
+`internal/ast`, `AILANG_TRACE` — back the stdlib surface that `.ail` calls.)
+
+## Semantic compaction (the collapse stage — distinct from assembly)
+
+Context handling has two stages and the vision improves BOTH; the routes above cover **assembly**
+(iface projection = what to *include*). This route covers **compaction** (what to *collapse when over
+budget*), which currently lives in motoko's `compaction.ail` as lossy text-elision (`elide_content`
+truncates a tool_result to 80 chars). Replace that with **collapse-to-meaning**: a read → its iface,
+a run → trace-hash + output + effect envelope, an edit → its obligation set. "Compression is
+intelligence" applied to the compaction package — controlled collapse of program meaning, not prose.
+
+Caveats: (1) **moot for qwen today** — motoko's compaction never fires (`context_limit_for(qwen)=0`,
+fire-rate 0, see analysis-log 2026-06-20), so this is gated on first re-enabling compaction (the
+`context_limit_for`-for-ollama fix, measurement-gated — and re-confirm it helps before tuning).
+(2) The collapse summaries come from the compiler, so the **capability is AILANG-side** (`std/ai` /
+`internal/`), consumed by `compaction.ail` (fork). Same language-level-capability pattern.
+
 ## Highest-leverage unlock: semantic edits
 
 Measured thrash (2026-06-20 h2h): **59 full-rewrites** — qwen rewriting whole files because text
