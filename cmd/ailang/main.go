@@ -200,6 +200,9 @@ func main() {
 		}
 		outputInterface(flag.Arg(1))
 
+	case "select-best":
+		runSelectBest()
+
 	case "export-training":
 		exportTraining()
 
