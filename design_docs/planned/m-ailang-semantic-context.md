@@ -5,6 +5,20 @@
 **Mission item**: motoko-mission residual — *convergence efficiency* (pi ~5 turns vs motoko 15–50 on the same model)
 **Estimated**: near-term ~1 day (motoko config/TS, fork PR + A/B); routes = multi-cycle, scoped per route below
 
+## Progress (2026-06-20)
+
+- **Observability LANDED.** Compaction telemetry instrument complete: A1 (motoko emits
+  `compaction_structural`, fork `6bd9fa1`, type-checks; dist rebuild + PR pending rig), A2 (harness
+  captures `compaction_count`/`first_compaction_step`/`compaction_level_max` into result JSON, this
+  repo), A3 (`compaction_rate.sh` / `eval_compaction_rate.py` fire-rate report). Compaction is no
+  longer invisible.
+- **R1 LANDED (renderer).** `ailang check --format=agent` ships the compact one-line diagnostic
+  format; `--json` unchanged. **R1b follow-up:** type-checker errors are not yet structured
+  `ailerrors.Report` values, so the renderer distills the embedded `at file:line:col:` location
+  heuristically — Report-ifying them gives native Code/Span/Fix.Suggestion (real fix hints, no regex).
+- **Pending rig window:** A1 dist rebuild + draft PR; near-term pi-match (#1–#3); first
+  compaction-fire-rate measurement on a fresh run.
+
 ## Problem (evidence-backed, 2026-06-19/20)
 
 On local qwen3.6, after the truncation fix closed the disengagement gap, motoko reaches **statistical parity with pi on pass rate** (88.9% vs 90.4%) but is **3–10× less convergence-efficient**: pi solves in a **median of 5 turns** (562 runs; only 2 exceed 50), while motoko takes **15–50** — passing runs at 11–42 turns, failing runs hitting the 50-step `step budget exhausted`.
