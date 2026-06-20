@@ -63,10 +63,17 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 	}
 
 	fmt.Println()
-	fmt.Printf("%s Benchmark suite complete!\n", green("✓"))
-	fmt.Printf("Duration: %s\n", p.duration.Round(time.Second))
-	fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, actualRuns, float64(successCount)/float64(actualRuns)*100)
-	fmt.Printf("Failed:  %d/%d\n", failCount, actualRuns)
+	if successCount+failCount == 0 {
+		// No jobs executed (e.g. --skip-existing skipped every already-banked combo).
+		// Not a failure — say so plainly instead of "Success: 0/1 (0.0%)".
+		fmt.Printf("%s No new jobs — all combinations already banked (nothing to run)\n", green("✓"))
+		fmt.Printf("Duration: %s\n", p.duration.Round(time.Second))
+	} else {
+		fmt.Printf("%s Benchmark suite complete!\n", green("✓"))
+		fmt.Printf("Duration: %s\n", p.duration.Round(time.Second))
+		fmt.Printf("Success: %d/%d (%.1f%%)\n", successCount, actualRuns, float64(successCount)/float64(actualRuns)*100)
+		fmt.Printf("Failed:  %d/%d\n", failCount, actualRuns)
+	}
 	fmt.Println()
 
 	// M-EVAL-OS-LONGITUDINAL Phase 3: write summary.json that aggregates
@@ -87,20 +94,45 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 	fmt.Printf("  ailang eval-summary %s\n", p.outputDir)
 	fmt.Printf("  ailang eval-matrix %s v0.3.0\n", p.outputDir)
 
-	// Create "Suite Completed" message for event queue visibility
+	// Create "Suite Completed" message for event queue visibility.
 	if p.evalStore != nil {
-		status := "completed"
-		if failCount > 0 {
-			status = "partial"
-		}
-
-		completePayload := map[string]interface{}{
-			"task_id":      p.taskID,
-			"success":      successCount,
-			"failed":       failCount,
-			"total":        actualRuns,
-			"duration_sec": p.duration.Seconds(),
-			"success_rate": float64(successCount) / float64(actualRuns) * 100,
+		// ranCount is the REAL number of jobs that executed (successCount+failCount),
+		// distinct from actualRuns which is clamped to 1 above for div-by-zero safety.
+		// A run where ranCount==0 means NO jobs actually executed — e.g. a rolling
+		// rotation chunk run with --skip-existing where every (model,benchmark,lang,
+		// trial) combo was already banked. That is NOT a failure ("nothing new to do"),
+		// but reporting it as "0/1 passed (0.0%)" produced false-alarm 0%-pass
+		// notifications flooding the controlplane inbox. Emit a distinct, non-alarming
+		// "no-op" status for that case instead.
+		ranCount := successCount + failCount
+		var status, title string
+		var completePayload map[string]interface{}
+		if ranCount == 0 {
+			status = "no-op"
+			title = "Eval Suite: no new jobs (all skipped — already banked)"
+			completePayload = map[string]interface{}{
+				"task_id":      p.taskID,
+				"status":       status,
+				"success":      0,
+				"failed":       0,
+				"total":        0,
+				"skipped":      true,
+				"duration_sec": p.duration.Seconds(),
+			}
+		} else {
+			status = "completed"
+			if failCount > 0 {
+				status = "partial"
+			}
+			title = fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, ranCount, float64(successCount)/float64(ranCount)*100)
+			completePayload = map[string]interface{}{
+				"task_id":      p.taskID,
+				"success":      successCount,
+				"failed":       failCount,
+				"total":        ranCount,
+				"duration_sec": p.duration.Seconds(),
+				"success_rate": float64(successCount) / float64(ranCount) * 100,
+			}
 		}
 		payloadBytes, _ := json.Marshal(completePayload)
 
@@ -108,7 +140,7 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 			FromAgent:     "eval-suite",
 			ToInbox:       "controlplane",
 			MessageType:   messaging.InboxTypeNotification,
-			Title:         fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, actualRuns, float64(successCount)/float64(actualRuns)*100),
+			Title:         title,
 			Payload:       string(payloadBytes),
 			Category:      "eval",
 			CorrelationID: p.taskID,
