@@ -290,6 +290,11 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			// Executor finish signal (M-EVAL-SWEET-SPOT, v0.19.0)
 			FinishReason: result.FinishReason,
 
+			// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT, v0.26.0)
+			CompactionCount:     result.CompactionCount,
+			CompactionFirstStep: result.CompactionFirstStep,
+			CompactionMaxLevel:  result.CompactionMaxLevel,
+
 			// Trial number (M-EVAL-OS-LONGITUDINAL Phase 3)
 			Trial: trial,
 		}

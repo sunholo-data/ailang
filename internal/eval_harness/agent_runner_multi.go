@@ -390,6 +390,11 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		// M-EVAL-SWEET-SPOT (v0.19.0): pass through the executor finish signal
 		// so cmd/ailang/eval_benchmark.go can promote it via CategorizeAgentError.
 		FinishReason: result.FinishReason,
+
+		// M-AILANG-SEMANTIC-CONTEXT (v0.26.0): context-compaction telemetry.
+		CompactionCount:     result.CompactionCount,
+		CompactionFirstStep: result.CompactionFirstStep,
+		CompactionMaxLevel:  result.CompactionMaxLevel,
 	}, nil
 }
 

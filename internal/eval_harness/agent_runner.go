@@ -109,6 +109,12 @@ type AgentBenchmarkResult struct {
 	// executor.Result.FinishReason. Drives typed error_category classification
 	// via CategorizeAgentError.
 	FinishReason string `json:"finish_reason,omitempty"`
+
+	// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT, v0.26.0) — passed
+	// through from executor.Result. Leading indicator of convergence thrash.
+	CompactionCount     int `json:"compaction_count,omitempty"`
+	CompactionFirstStep int `json:"first_compaction_step,omitempty"`
+	CompactionMaxLevel  int `json:"compaction_level_max,omitempty"`
 }
 
 // TokenUsage captures detailed token metrics

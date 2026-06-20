@@ -75,6 +75,10 @@ type motokoEvent struct {
 	Threshold     string `json:"threshold,omitempty"`
 	CapMillicents *int   `json:"cap_millicents,omitempty"`
 
+	// compaction_structural — the per-step elision level/threshold (e.g. 70/85/95).
+	// compaction_extension / compaction_exhausted carry no level; Step is shared.
+	Level *int `json:"level,omitempty"`
+
 	// NativeToolCalls is populated by parseSessionLine from ToolCallsRaw
 	// when ev.Type == "native_tool_calls" (where the field is an array).
 	// Not json-tagged — set by the parser, not the decoder.
@@ -281,6 +285,13 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		motokoModel        string
 		dp7RejectionsCount int
 		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
+
+		// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT). Counts every
+		// compaction event (structural elision, extension, exhausted) as a
+		// leading indicator of convergence thrash.
+		compactionCount     int
+		compactionFirstStep int // 0 = none; first compaction event's step
+		compactionMaxLevel  int // highest structural level seen (0 = none)
 	)
 
 	scanner := bufio.NewScanner(f)
@@ -350,6 +361,18 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 		case "dp7_verifier_rejected":
 			dp7RejectionsCount++
+
+		case "compaction_structural", "compaction_extension", "compaction_exhausted":
+			// M-AILANG-SEMANTIC-CONTEXT: every context-compaction event is a
+			// thrash signal. compaction_structural carries a level; the other
+			// two do not. Step is shared (may be absent on older streams).
+			compactionCount++
+			if compactionFirstStep == 0 && ev.Step != nil && *ev.Step > 0 {
+				compactionFirstStep = *ev.Step
+			}
+			if ev.Level != nil && *ev.Level > compactionMaxLevel {
+				compactionMaxLevel = *ev.Level
+			}
 
 		case "error":
 			gotErrorEvent = true
@@ -452,6 +475,9 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 	// Always populated (regardless of run_summary presence).
 	res.ToolCallCount = numToolCalls
+	res.CompactionCount = compactionCount
+	res.CompactionFirstStep = compactionFirstStep
+	res.CompactionMaxLevel = compactionMaxLevel
 	res.Transcript = transcript.String()
 	res.Output = lastDoneOutput
 	if lastDoneOutput == "" && lastFinishReason != "" {
