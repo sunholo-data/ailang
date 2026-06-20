@@ -299,12 +299,26 @@ func (r *StdlibResolver) checkStdlibVersion(stdlibRoot string) error {
 	}
 
 	version := strings.TrimSpace(string(content))
-	if version != r.expectedVersion {
+	// Compare BASE semver only — a dev/CI binary built from a release tag carries a
+	// git-describe suffix (e.g. "v0.25.0-177-g5878c2204-dirty"), but the v0.25.0 stdlib
+	// IS the correct stdlib for it. Without this, every dev/eval-rig run emitted a spurious
+	// "stdlib version mismatch" warning into stderr — 291 runs in the 2026-06-20 rotation —
+	// polluting the model's BashExec context. Real mismatches (different base) still warn.
+	if baseVersion(version) != baseVersion(r.expectedVersion) {
 		return fmt.Errorf("stdlib version mismatch: expected %s, found %s at %s",
 			r.expectedVersion, version, stdlibRoot)
 	}
 
 	return nil
+}
+
+// baseVersion strips a git-describe dev suffix ("-<n>-g<hash>[-dirty]") from a version
+// string, leaving the base semver. Compatibility is determined by the base release only.
+func baseVersion(v string) string {
+	if i := strings.IndexByte(v, '-'); i >= 0 {
+		return v[:i]
+	}
+	return v
 }
 
 // errWithSearchTrace returns a detailed error with search trace
