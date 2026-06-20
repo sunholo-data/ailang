@@ -36,6 +36,15 @@ inspiration and the 96% bar. Key learnings (mine the source under
 
 ## Backlog (prioritized — top = next)
 
+**[NEXT — 2026-06-20] CONVERGENCE EFFICIENCY (context hygiene).** Truncation + disengagement are
+fixed; motoko is at pass-rate parity with pi (88.9% vs 90.4%) but **3–10× less efficient** (pi median
+5 turns vs motoko 15–50). Source+transcript root cause: motoko's **verbose tool results + 70%
+auto-compaction erase the model's own writes**, forcing re-reads/rewrites (vicious cycle). Plan in
+[`planned/m-ailang-semantic-context.md`](planned/m-ailang-semantic-context.md): near-term = match pi
+(truncate tool results, raise compaction floor, echo writes; fork PR, A/B by turns-to-success), then
+AILANG-native semantic-context routes (distilled diagnostics, type/effect-directed surfacing, AST
+diffs, trace distillation, typed projection layer). Pending cheap-confirm: `wire_diag` elision capture.
+
 0. **[LANDED 2026-06-19 — TRUNCATION fixed.]** max_tokens floor 16384 (fac848054): disengaging
    benchmarks **21%→79%**, finish=length 11→0. Per-model precision plumbed (006a679a6 + motoko PR #48:
    registry max_output_tokens→motoko via AILANG_OLLAMA_MAX_TOKENS). NEXT (blocked on fresh rotation
