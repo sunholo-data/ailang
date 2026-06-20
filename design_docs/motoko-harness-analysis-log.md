@@ -1300,3 +1300,26 @@ context-mode transparently. Belongs in the project-eval (large outputs), not sin
 
 **Next:** build ≥1 discriminating fixture, re-run both harnesses; then the context_mode `on_tool_handle`
 transparent-compression arm on a large-output project task.
+
+### Follow-up (same day) — list_stats ALSO ties → parity holds at the easy end; need the DISCRIMINATING regime
+
+Built `eval_projects/list_stats` (feature-add: implement recursive integer-mean `avg` across modules;
+baseline build-fails IMP010, reference prints 30). Ran both harnesses on the rig:
+- motoko **PASS** — added recursive `lenList` + `avg = sumList(xs)/n`, builds, prints 30.
+- pi **PASS** — `avg = sumList(xs)/countElements(xs)`, builds, prints 30.
+
+**Finding: motoko ≈ pi on small, well-specified AILANG tasks (both PASS calc_bugfix AND list_stats).**
+This is consistent with the single-file ~90% parity (motoko 90.6% ≥ pi 88.9%). Harness differences do
+NOT show up in the single-shot-solvable regime — qwen + either harness handles recursion/modules/
+division/feature-add fine. **The falsification thesis (does AILANG-native motoko BEAT pi?) can only be
+tested in the DISCRIMINATING regime**, which is one of two:
+  (A) **hard-fail regime** — tasks qwen FAILS single-shot (advanced idioms: effect handlers, typeclass
+      instances, row-poly records), so success depends on the harness's error-recovery / in-loop
+      verification (DP7) / best-of-N. Tests the verification levers.
+  (B) **large-context regime** — a real larger AILANG codebase (the demos repo / docparse output) where
+      the model must NAVIGATE many files before editing, so success depends on context management
+      (context_mode `on_tool_handle`, compaction, grep/semantic retrieval). Tests the context thesis.
+
+Regime (B) is the most thesis-aligned (context-minimization north star) AND exercises the just-installed
+context_mode. **Next: build a large-codebase fixture from a real AILANG project, with a task requiring
+navigation, and A/B motoko (with the context_mode on_tool_handle arm) vs pi.**
