@@ -1540,3 +1540,22 @@ main, now that gemini_files locks) on demo_report.docx; (3) OR do the reimplemen
 package source directly (agent edits the internal docx_parser.ail + the pkg's own tests grade it) — this
 sidesteps the export issue entirely and is probably the cleanest instrument shape. P0 remains a
 focused-session task; not cron-sized.
+
+## 2026-06-21 00:53 — cron fire (rig FREE): staleness FINAL verdict + launched fresh broad post-fix baseline
+
+Staleness-check completed (16/16). FINAL: **7/8 formerly-hard-fail benchmarks now pass ≥1 post-fix**
+(graph_bfs 2/2, polymorphic_ord_defaulting 2/2, run_length_encode 2/2, symbolic_diff 2/2,
+config_file_parser 1/2, csv_to_json_converter 1/2, red_black_tree 1/2 — even the "genuine" one passes
+once). Only log_file_analyzer is 0/2. The residual failures are **timeout/api_error (infra/slowness)**,
+NOT capability: the stale broad 69% was almost entirely contamination. P1.5 (step-budget) is now lower
+value — the residual is wall-clock timeout on 1-2 slow benchmarks, not the 50-step ceiling per se.
+
+**Launched the central open question — true broad POST-FIX motoko number** (rig free, night window before
+04:00 blackout): `eval_results/rotation/postfix-broad-20260621`, motoko-local-qwen3-6 ONLY, smoke+core
+(49 benchmarks) × trials=2, fresh dir (no --skip-existing), 900s timeout. PID 91132. This is the clean
+broad post-fix baseline we've been missing (os-rolling is stale). A monitor will summarize pass@1 +
+best-of-N via the now-staleness-aware eval_best_of_n.py when it lands (~2.5-4h; may cross blackout —
+acceptable, motoko-only to a fresh dir, os-filler is --skip-existing no-op).
+
+**Next fire:** read the broad result → the true motoko-vs-(banked-pi) gap; then decide P1 best-of-N
+integration vs P0 docx_parser (reimplement-in-package shape) accordingly.
