@@ -127,6 +127,40 @@ fire-rate 0, see analysis-log 2026-06-20), so this is gated on first re-enabling
 (2) The collapse summaries come from the compiler, so the **capability is AILANG-side** (`std/ai` /
 `internal/`), consumed by `compaction.ail` (fork). Same language-level-capability pattern.
 
+## How we test these (the mission's measurement framework fits)
+
+The eval harness *is* the test bed; the A/B mechanism already exists as the **motoko profile system**
+(the 2026-06-20 DP7 A/B — `ollama` vs `ollama_dp7` — is exactly this shape). A new tool = a new
+profile (e.g. `ollama_semantic_edit`), A/B'd vs base on the same benchmarks.
+
+- **Metric = efficiency, not pass-rate** (motoko is already at pi parity): turns-to-success,
+  tokens-per-run, and the **rewrite-rate / re-read counts** (mined from transcripts). All captured.
+- **Adoption check:** confirm the model actually *called* the new tool (transcript) — a good tool the
+  model ignores shows no A/B gain.
+
+**Testability per tool:**
+- **Semantic edit — testable NOW** on the current single-file suite (the 59-rewrite thrash is on
+  single files). Highest-leverage *and* most measurable on what we have → first experiment:
+  `ollama_semantic_edit` profile, A/B by rewrite-rate + turns + tokens + adoption.
+- **Navigation tools (read-relevant / grep-structured / impact)** — need a **multi-file /
+  codebase-navigation benchmark tier**; our ~30-line single-file tasks are too small to show
+  context-selection value (the whole file *is* the context). Adding that tier is itself a mission task.
+- **check/verify gate** — already under test (DP7 A/B).
+
+## Tool surface (prioritized — enrich existing, add new sparingly)
+
+Enrich the 4 the model already calls; add `check`+`impact` only as they earn it; defer the exotic.
+
+| Tool | Enrichment | Priority |
+|---|---|---|
+| read | semantic slice (iface / fn-at-symbol / type-at-point) | needs multi-file bench |
+| edit | AST / semantic edit | **first experiment (testable now)** |
+| grep | structured query (by-type/effect, find-refs) | needs multi-file bench |
+| run | distilled typed errors + trace | ✅ done (R1/R1b) |
+| check | typed+effect+contract gate (def-of-done) | under test (DP7) |
+| impact | obligation discovery (what an edit re-proves) | needs multi-file bench |
+| *(defer)* | effects/authority query, trace-debug, outline, canonicalize | later |
+
 ## Highest-leverage unlock: semantic edits
 
 Measured thrash (2026-06-20 h2h): **59 full-rewrites** — qwen rewriting whole files because text
