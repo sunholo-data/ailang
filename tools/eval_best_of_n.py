@@ -41,9 +41,17 @@ def harness_of(model):
     return None
 
 
+# The 2026-06-19 per-model max_output_tokens (truncation) fix is a known capability
+# milestone: motoko results banked BEFORE it understate current performance (pre-fix
+# disengagement/truncation). Data entirely older than this is flagged STALE so a reader
+# (or future agent) doesn't mistake frozen --skip-existing results for a live regression.
+TRUNCATION_FIX_DATE = "2026-06-19"
+
+
 def collect(results_dir, lang, model_substr):
     # harness -> bench -> list of (compile_ok, runtime_ok, stdout_ok)
     data = collections.defaultdict(lambda: collections.defaultdict(list))
+    meta = {"excluded_api_error": 0, "dates": []}
     for path in glob.glob(os.path.join(results_dir, "*.json")):
         try:
             d = json.load(open(path))
@@ -59,10 +67,19 @@ def collect(results_dir, lang, model_substr):
         h = harness_of(model)
         if not h:
             continue
+        # Exclude infrastructure non-attempts: an api_error that produced no output is NOT a
+        # capability failure. Counting it as a fail tanks pass-rate and manufactures false
+        # "regressions" (the os-rolling stale-data trap). Track + report the exclusions.
+        if d.get("error_category") == "api_error" and not d.get("stdout_ok"):
+            meta["excluded_api_error"] += 1
+            continue
+        ts = (d.get("timestamp") or d.get("created_at") or "")[:10]
+        if ts:
+            meta["dates"].append(ts)
         data[h][d.get("id")].append(
             (bool(d.get("compile_ok")), bool(d.get("runtime_ok")), bool(d.get("stdout_ok")))
         )
-    return data
+    return data, meta
 
 
 def _sel_score(c):
@@ -106,10 +123,17 @@ def main():
     a = ap.parse_args()
     if not os.path.isdir(a.results_dir):
         sys.exit(f"results dir not found: {a.results_dir}")
-    data = collect(a.results_dir, a.lang, a.model_substr)
+    data, meta = collect(a.results_dir, a.lang, a.model_substr)
     if not data:
         sys.exit("no matching agent results (check --lang / --model-substr)")
+    dates = sorted(meta["dates"])
+    date_range = f"{dates[0]}..{dates[-1]}" if dates else "unknown"
     print(f"# {a.results_dir}  lang={a.lang} model~={a.model_substr}  (best-of-N analysis)")
+    print(f"# data dates: {date_range}   (excluded {meta['excluded_api_error']} api_error/no-output infra non-attempts)")
+    if dates and dates[-1] < TRUNCATION_FIX_DATE:
+        print(f"# ⚠ STALE DATA: every result predates the {TRUNCATION_FIX_DATE} truncation fix — these numbers")
+        print(f"#   UNDERSTATE current motoko (frozen pre-fix --skip-existing results). NOT a live regression;")
+        print(f"#   needs a fresh broad run. Do not report this as 'things aren't working'.")
     print(f"{'harness':9} {'pass@1':>8} {'bo-N ceiling':>13} {'bo-N EXACT(check+run)':>22} {'hard-fails':>11}")
     order = [h for h in ("motoko", "pi", "opencode") if h in data] + [h for h in sorted(data) if h not in ("motoko", "pi", "opencode")]
     for h in order:
