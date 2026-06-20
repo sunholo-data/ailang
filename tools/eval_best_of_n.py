@@ -29,10 +29,6 @@ import json
 import os
 import sys
 
-# Failures a typecheck+run selector can detect WITHOUT the reference output.
-CATCHABLE = {"compile_error", "api_error", "runtime_error", "timeout"}
-
-
 def harness_of(model):
     if "motoko" in model:
         return "motoko"
@@ -44,7 +40,7 @@ def harness_of(model):
 
 
 def collect(results_dir, lang, model_substr):
-    # harness -> bench -> list of (ok, error_category)
+    # harness -> bench -> list of (compile_ok, runtime_ok, stdout_ok)
     data = collections.defaultdict(lambda: collections.defaultdict(list))
     for path in glob.glob(os.path.join(results_dir, "*.json")):
         try:
@@ -61,35 +57,38 @@ def collect(results_dir, lang, model_substr):
         h = harness_of(model)
         if not h:
             continue
-        data[h][d.get("id")].append((bool(d.get("stdout_ok")), d.get("error_category")))
+        data[h][d.get("id")].append(
+            (bool(d.get("compile_ok")), bool(d.get("runtime_ok")), bool(d.get("stdout_ok")))
+        )
     return data
 
 
+def _sel_score(c):
+    # selector rank: runs(2) > typechecks-only(1) > neither(0)
+    compile_ok, runtime_ok, _ = c
+    return 2 if runtime_ok else (1 if compile_ok else 0)
+
+
 def analyze(benches):
+    """EXACT best-of-N: pick by the recorded compile_ok/runtime_ok (the reference-free selector),
+    grade by the recorded stdout_ok (the real grader). No re-running, no proxy."""
     trials_total = sum(len(v) for v in benches.values())
-    trials_pass = sum(sum(ok for ok, _ in v) for v in benches.values())
+    trials_pass = sum(sum(1 for c in v if c[2]) for v in benches.values())
     nb = len(benches)
-    ceiling = sum(1 for v in benches.values() if any(ok for ok, _ in v))
-    hard_fail = sorted(b for b, v in benches.items() if not any(ok for ok, _ in v))
-    # realistic: recovered if has a pass AND all failures are selector-catchable
-    recovered = risky = 0
-    risky_benches = []
+    ceiling = sum(1 for v in benches.values() if any(c[2] for c in v))
+    hard_fail = sorted(b for b, v in benches.items() if not any(c[2] for c in v))
+    bo_pass = 0
+    selector_miss = []  # selector picked runs-but-wrong over an existing correct candidate
     for b, v in benches.items():
-        passes = [1 for ok, _ in v if ok]
-        fails = [c for ok, c in v if not ok]
-        if not fails:
-            recovered += 1
-            continue
-        if passes and set(fails).issubset(CATCHABLE):
-            recovered += 1
-        elif passes:
-            risky += 1
-            risky_benches.append(b)
-        # else: hard fail (no pass) — not recoverable by any selector
+        best = max(range(len(v)), key=lambda i: (_sel_score(v[i]), -i))
+        if v[best][2]:
+            bo_pass += 1
+        elif any(c[2] for c in v):
+            selector_miss.append(b)
     return {
         "nb": nb, "trials_total": trials_total, "trials_pass": trials_pass,
         "ceiling": ceiling, "hard_fail": hard_fail,
-        "recovered": recovered, "risky": risky, "risky_benches": risky_benches,
+        "bo_exact": bo_pass, "selector_miss": selector_miss,
     }
 
 
@@ -109,18 +108,18 @@ def main():
     if not data:
         sys.exit("no matching agent results (check --lang / --model-substr)")
     print(f"# {a.results_dir}  lang={a.lang} model~={a.model_substr}  (best-of-N analysis)")
-    print(f"{'harness':9} {'pass@1':>8} {'best-of-N ceiling':>18} {'realistic(check+run)':>21} {'hard-fails':>11}")
+    print(f"{'harness':9} {'pass@1':>8} {'bo-N ceiling':>13} {'bo-N EXACT(check+run)':>22} {'hard-fails':>11}")
     order = [h for h in ("motoko", "pi", "opencode") if h in data] + [h for h in sorted(data) if h not in ("motoko", "pi", "opencode")]
     for h in order:
         r = analyze(data[h])
         print(f"{h:9} {pct(r['trials_pass'], r['trials_total']):>8} "
-              f"{pct(r['ceiling'], r['nb']):>18} "
-              f"{pct(r['recovered'], r['nb']):>21} "
+              f"{pct(r['ceiling'], r['nb']):>13} "
+              f"{pct(r['bo_exact'], r['nb']):>22} "
               f"{len(r['hard_fail']):>11}")
         if r["hard_fail"]:
-            print(f"            hard-fails (best-of-N can't fix): {r['hard_fail']}")
-        if r["risky_benches"]:
-            print(f"            risky (logic_error — needs contracts/tests): {r['risky_benches']}")
+            print(f"            hard-fails (no candidate passes; best-of-N can't fix): {r['hard_fail']}")
+        if r["selector_miss"]:
+            print(f"            selector miss (runs-but-wrong picked over a correct one; needs contracts/tests): {r['selector_miss']}")
 
 
 if __name__ == "__main__":
