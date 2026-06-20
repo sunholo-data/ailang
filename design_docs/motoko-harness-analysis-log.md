@@ -1352,3 +1352,83 @@ fixture with LARGE tool outputs (big files / verbose multi-error build logs / la
 the on_tool_handle arm.** That is the one lever that could move motoko from tie to win. Everything else
 tested = parity. **Next: (1) wire context_mode on_tool_handle to compress BashExec output (motoko fork);
 (2) build a large-OUTPUT fixture; (3) A/B with vs without the arm (token cost is the metric, not pass).**
+
+## 2026-06-20 — HARD tasks discriminate (first motoko>pi signal); pivot to AILANG hard tasks; instrument = reimplement-to-pass-tests on real codebases
+
+**Prioritization corrected (user feedback: rank by IMPACT, not recency):** P0 real hard/long instrument
+→ P1 best-of-N (validated +6.8pp) → P2 context_mode on_tool_handle → defer semantic-edit/R1b. The toy
+fixtures (calc_bugfix/list_stats/validators) are RETIRED — a ≤6-line task gives a harness no room to
+differ, so they tie by construction.
+
+**Instrument adopted:** `motoko_explore` (tiered SPEC + deterministic `seed/verify.sh` + runner). Loop
+validated end-to-end on THIS machine (adapted paths + ollama/qwen). Fixed two real macOS portability
+bugs in its csv-to-jsonl verifier (BSD `mktemp` trailing-X; bare `pytest`→`uvx pytest`) — upstream-worthy.
+
+**FIRST HARD-TASK SIGNAL (csv-to-jsonl, Python, n=1 — striking but unreplicated):**
+- motoko: **6/7** — perfect implementation (all 6 functional edge cases incl. empty-vs-`""` trap), but
+  SKIPPED the test-writing requirement (empty `tests/__init__.py`). 25 tool calls, 26 steps, ~3 min,
+  terminal=done.
+- pi: **looped ~29 min** (18k log lines, still streaming) and had to be KILLED. Did not converge.
+- **Finding:** unlike every toy task (which tied), a HARD task discriminated — motoko CONVERGES, pi
+  GRINDS. This is the first motoko>pi signal in the project regime. Caveats: n=1, Python (not AILANG),
+  needs replication. But it validates the thesis that hard/long tasks are where harness differences live.
+
+**Pivot to AILANG (user: "we are looking for AILANG tests for discrimination"):** existing single-file
+AILANG benchmarks (`expression_evaluator`, `red_black_tree`, `state_machine_*`, ~50 in benchmarks/)
+already tie at ~90% — too short. A single-file `ailang-expr-eval` I built is redundant with those
+(building it surfaced real AILANG traps though: `Ok`/`Err` need `import std/result`; `++` is lists-only,
+strings use `"${}"`). The gap = LONG, MULTI-MODULE, LARGE-CONTEXT AILANG.
+
+**Instrument design chosen (user: docx_parser / large-context axis):** "reimplement a deleted module to
+pass HELD-OUT tests" on a REAL AILANG codebase. Substrate = `ailang-demos` (252 .ail, 43k lines) /
+`docparse`. Best candidate: `docx_parser.ail` (530 lines; deps Block ADT + zip_extract + std/xml = large
+context). Verification: capture GOLDEN output by running intact docparse on `data/examples/demo_report.docx`,
+stub docx_parser, grade reimplementation against golden. **Build friction hit:** docparse needs its
+`sunholo/ailang_parse@0.20.2` pkg vendoring/lock resolved to run (my `ailang install` added a duplicate
+toml key → reverted). Getting docparse to build → capture golden is the next focused step.
+
+**Ruled-out ledger:** toy/short tasks discriminate — REFUTED (all tie). HARD tasks discriminate —
+SUPPORTED (csv n=1: motoko converged, pi looped). AILANG single-file benchmarks are a fresh instrument —
+REFUTED (they already exist + tie).
+
+**Next:** (1) get docparse building (resolve pkg/lock) → capture golden from demo_report.docx; (2) stub
+docx_parser + held-out golden verifier; (3) motoko vs pi reimplement-to-pass-golden (large-context AILANG
+discrimination — the real falsification test); (4) replicate the csv converge-vs-loop signal. Also flag:
+nightly eval-suite firing broken runs (0/1 passed, duration ~5e-7s, total_jobs:0).
+
+## 2026-06-20 — eval-suite false-alarm FIXED; best-of-N (P1) design LOCKED; autonomous cron set
+
+**Eval-suite "broken" — diagnosed + fixed + deployed.** Not actually failing: `os-rotation-filler.sh`
+runs rolling chunks with `--skip-existing`; ~2300 banked results in os-rolling → most chunks skip every
+combo → 0 jobs → finalize's div-by-zero guard (actualRuns clamps 1) reported "0/1 passed (0.0%)", a
+false alarm flooding controlplane. Fix (committed + `make quick-install`'d): `cmd/ailang/eval_suite_finalize.go`
+emits status="no-op" / "no new jobs (all skipped — already banked)" when ranCount==0, instead of a false
+0%-pass. Real runs unchanged. The rotation idling at full coverage is EXPECTED (nothing new to run); a
+release/new benchmark/new trials is what spurs fresh eval data.
+
+**Best-of-N (P1) — LOCKED design (the validated +6.8pp top lever, structural advantage pi lacks):**
+- Realize as a motoko extension hooking `on_solver_candidate` (ABI `FinalizeDecision` = Accept |
+  ContinueWithFeedback | NoDecision; `dispatch_solver_candidate` in src/core/ext/runtime.ail merges all
+  hooks' decisions). When the model emits a final answer, the ext runs `ailang check` + `ailang run` on
+  the candidate solution in cwd (via std/process exec, as context_mode does). REFERENCE-FREE run-based
+  criterion (matches eval_best_of_n.py: select by runtime_ok, not stdout_ok — agent has no expected
+  output at run time). On compile error / runtime crash → ContinueWithFeedback(distilled error, reuse
+  R1 `--format=agent`); else NoDecision. Cap retries (e.g. 2-3) via a SharedMem counter so it can't loop
+  past budget.
+- Distinct from DP7: DP7's `semi_formal_verifier_mode` is BUDGET allocation only (rpc.ail default_budget_plan
+  splits solver/verifier) — it does NOT exec a verifier. DP7 check-only A/B'd as noise; the data lever is
+  RUN-based, so the increment is real (catch runtime/crash that check misses; stdout_ok grading needs it).
+- Build steps: (1) new ext package `sunholo/motoko_ext_verify_finalize` (ailang.toml + register.ail +
+  on_solver_candidate impl + exec wrapper) OR core logic gated by a config flag; (2) register in the
+  ollama profile's extensions.order; (3) `ailang lock`; (4) smoke: a benchmark where qwen's first answer
+  crashes → confirm ContinueWithFeedback fires + a later candidate passes; (5) rig A/B: ollama profile
+  with vs without the ext on the core tier — measure stdout_ok delta (target the +6.8pp). DRAFT PR to
+  arniwesth/motoko_agent. Fork branch: feat/local-eval-profiles.
+
+**Autonomous cron set** (CronCreate ca74f182, every 2h at :23, session-only): self-spurs mission
+continuation per the impact-ordered tasks + this discipline, so the build proceeds without per-hour
+check-ins. Caveat: reported session-only (dies on Claude restart) despite durable=true — for
+cross-restart persistence a launchd job (dev.ailang.motoko-analyzer style) is needed.
+
+**Next (cron + me):** execute the verify_finalize ext build steps 1-5 above (P1). It is the improvement
+that, on release, the now-clean eval-suite will measure.
