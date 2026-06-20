@@ -30,6 +30,47 @@ language, the right tool is neither: it is **exact semantic queries**, which are
 embeddings* (no vector store, no threshold, no model) **and** exact — the rare "more powerful AND
 simpler", which is precisely when an assumption should be revisited.
 
+## Generative principle: machine-convenience over human-convenience
+
+The deepest framing of the whole mission, and the engine for *generating* the next experiments:
+**our tooling optimizes for human convenience on axes the model doesn't care about, and ignores
+machine-convenience on axes where the model is strong.** Text editors, formatting, syntax sugar,
+file/navigation metaphors — all are human affordances. The question that drives the harness forward is:
+*which of the model's latent strengths does human-shaped tooling under-serve?*
+
+**The constraint that keeps this honest (or it fails).** The model's latent knowledge is
+**human-code-shaped** — trained on billions of lines of *human* text code, not alien machine formats.
+So the failure mode is inventing a "machine-native" representation the model has never seen
+(out-of-distribution → *worse*, the grep lesson again). Wins are NOT alien formats. They are: **exploit
+the structured knowledge the model already has, while stripping the human-convenience affordances that
+are pure noise to it.** AST-as-text-spans threads this — text the model knows, scoped semantically.
+
+**The inversion (sharpest insight):** the features that are *inconvenient for humans* are often
+*convenient for machines*, and we've optimized the wrong direction. Humans hate explicit
+effects/contracts/type-annotations (boilerplate) — but the model already knows what effects code should
+have, annotating is trivial for it, and they make its downstream job easier (proof-carrying). Humans
+need formatting/whitespace/sugar to read — the model tokenizes past it as noise; canonical forms are
+machine-convenient. Humans need file/navigation metaphors (limited working memory) — a chunking
+artifact. **AILANG's whole bet — explicit, deterministic, structured, no sugar — is the wager that
+machine-convenience beats human-convenience for AI-written code.** Text→AST is one slice of it.
+
+**Under-exploited latent capabilities (candidate affordances → future experiments):**
+1. **Type-directed synthesis / typed holes** — "fill the hole of type `Result[Row, ParseError]`."
+   Models excel at type→term; humans find hole-driven dev awkward. Offer typed holes; checker verifies.
+2. **Distributional generation + verification** — the model *is* a distribution (calibrated
+   alternatives/logprobs); we force single-shot text. Let it emit N candidates; use the
+   **type checker / contracts as the selector** (model proposes, AILANG disposes).
+3. **Self-verification before emit** — the model pre-checks an edit against the types it already knows,
+   as a cheap filter before the expensive run.
+
+**The method — harness as the discovery instrument.** Latent knowledge is invisible; you cannot know
+a priori which capability is real. The only way to find it is to **offer the affordance and measure
+whether the model uses it better than the human-shaped default.** So every machine-convenient affordance
+(AST edit, typed hole, candidate-generation) is a *probe*, and the A/B *is* the discovery mechanism.
+motoko is therefore not just the best-AILANG-harness candidate — it is the **measurement apparatus for
+discovering which machine-convenient affordances unlock latent model knowledge.** Semantic-edit is
+probe #1; typed-holes and candidate-generation are the queued probes.
+
 ## Compression is intelligence → the iface is lossless compression
 
 The model's context window is a scarce channel; the harness's job is the **minimal sufficient
