@@ -71,6 +71,14 @@ machine-convenience beats human-convenience for AI-written code.** Text→AST is
    `std/ai` returns one StepResult) → needs an N-sample path + a candidate-list `std/ai` variant +
    the `ailang check`/run selector. Caveats: N× latency; diminishing returns (best-of-5 ≫ 1, 50 ≈ 10);
    only helps at temp>0 (qwen=1.0 ✓).
+   **ROADMAP status (worth-if-time, cloud-only):** true *parallel* generation is a **cloud** lever —
+   locally it's one GPU, so N requests serialize (no latency win, model-memory thrash risk). And the
+   core idea = *fan out N runs (parallel) → verify each (`ailang check`/run) → keep survivor*, which is
+   architecturally **the parallel-agent-fanout we can already do** — so the only genuinely-new piece is
+   the **exact selector** (cheap); API-level `n` (OpenAI/Gemini) is just a cost optimization on top
+   (input charged once). Build = a `--candidates N` flag (env `AILANG_AI_CANDIDATES`) gated to providers
+   that support `n` / parallel calls + the selector; prototype via parallel cloud runs, no API-`n`
+   needed. Deprioritized vs probe #1 (semantic-edit) and the project-eval harness.
 3. **Self-verification before emit** — the model pre-checks an edit against the types it already knows,
    as a cheap filter before the expensive run.
 
