@@ -71,7 +71,15 @@ machine-convenience beats human-convenience for AI-written code.** Text→AST is
    `std/ai` returns one StepResult) → needs an N-sample path + a candidate-list `std/ai` variant +
    the `ailang check`/run selector. Caveats: N× latency; diminishing returns (best-of-5 ≫ 1, 50 ≈ 10);
    only helps at temp>0 (qwen=1.0 ✓).
-   **ROADMAP status (worth-if-time, cloud-only):** true *parallel* generation is a **cloud** lever —
+   **PROMOTED TO TOP LEVER (validated free, 2026-06-20):** zero-cost analysis of the trials=3 h2h shows
+   best-of-3 ceiling = **motoko 100% (no hard fails) vs pi 97.4%**, and the REALISTIC typecheck+run
+   selector recovers **7/8 residual benchmarks → motoko ~97%** (only `pipeline`/logic_error needs
+   contracts). motoko realizes its ceiling (exact selector); pi can't → fair best-of-3 ≈ **motoko
+   97–100% vs pi 89–91%, +7–9pp structural**. This is the AILANG-native pass-rate advantage. See
+   analysis-log 2026-06-20. **It is LOCAL-rig testable now (sequential N samples, $0)** — the cloud/`n`
+   angle below is only a *latency* optimization, not a feasibility gate. Next build: realize it in
+   motoko's loop (generate N → `ailang check`/run select → submit survivor).
+   **Latency note (cloud):** true *parallel* generation is a **cloud** lever —
    locally it's one GPU, so N requests serialize (no latency win, model-memory thrash risk). And the
    core idea = *fan out N runs (parallel) → verify each (`ailang check`/run) → keep survivor*, which is
    architecturally **the parallel-agent-fanout we can already do** — so the only genuinely-new piece is

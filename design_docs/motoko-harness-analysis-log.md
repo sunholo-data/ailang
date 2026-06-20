@@ -1203,6 +1203,32 @@ tools (edit/read/grep over meaning), measured first by the semantic-edit experim
 the current suite), then the project-eval falsification test (pi vs motoko on multi-file projects).
 R1b + version-noise fix now live on the rig (binary `46d5405d2`).
 
+## 2026-06-20 — BEST-OF-N + EXACT SELECTOR is the top pass-rate lever (validated FREE from h2h data)
+
+Reverses the "no pass-rate lever left" conclusion above. Zero-cost analysis of the existing trials=3
+h2h (no new GPU):
+- **pass@1 (per-trial): motoko 90.6%, pi 88.9%.**
+- **best-of-3, perfect selector (ceiling): motoko 39/39 = 100%, pi 38/39 = 97.4%** (pi hard-fails
+  config_file_parser 0/3; **motoko has NO hard fails — every benchmark passes ≥1/3**). The residual
+  is entirely RECOVERABLE VARIANCE, not a capability wall.
+- **best-of-3, REALISTIC selector (typecheck+run, no reference output): motoko ~97%.** 7 of 8 residual
+  benchmarks have only selector-catchable failures (compile_error/api_error/timeout → `ailang check`
+  + run drops them, keeps the pass): balanced_parens, run_length_encode, polymorphic_ord_defaulting,
+  symbolic_diff, red_black_tree, log_file_analyzer, type_unify. Only `pipeline` is RISKY (a logic_error
+  candidate typechecks+runs but is wrong → needs contracts/tests to discriminate, which the project-eval
+  has).
+
+**Why this is THE AILANG-native lever (motoko beats pi):** motoko REALIZES its ceiling because it has
+an exact in-loop selector (`ailang check` + run + contracts pick the verified-correct candidate);
+pi has none → with N samples it submits a guess (~pass@1) and still hard-fails config_file_parser.
+Fair best-of-3: **motoko ~97–100% vs pi ~89–91% → +7–9pp, structural, uncopyable by a general harness.**
+qwen's stochasticity flips from the *cause* of the residual to the *cure*.
+
+**Priority correction:** probe #3 (distributional gen + exact select) is the TOP lever, not a
+deprioritized cloud-roadmap item — LOCAL-rig testable (sequential N samples, $0; "cloud/parallel" was
+only about latency). Next build: realize it in motoko's loop (generate N → `ailang check`/run select →
+submit survivor) and confirm the live gain. Ruled-out ledger unchanged; this is a NEW confirmed lever.
+
 ## 2026-06-20 — log_file_analyzer ruled OUT as a percentage-ambiguity distortion
 
 **Hypothesis under test (from residual analysis):** `log_file_analyzer` was distorting the
