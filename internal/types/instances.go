@@ -61,8 +61,36 @@ func (env *InstanceEnv) Lookup(class string, typ Type) (*ClassInstance, error) {
 	return nil, &MissingInstanceError{
 		Class: class,
 		Type:  typ,
-		Hint:  "Import std/prelude or define instance",
+		Hint:  actionableInstanceHint(class, typ),
 	}
+}
+
+// actionableInstanceHint returns an AILANG-specific, fix-oriented hint for a missing
+// type-class instance — the exact friction small models hit (applying arithmetic to a
+// string → Num[string], int division → Fractional[int], etc.). M-AILANG-SEMANTIC-CONTEXT
+// R1b: the diagnostic should tell the agent how to FIX it, not just that it's wrong, so
+// it can recover from the message alone instead of grinding (the residual failure class).
+func actionableInstanceHint(class string, typ Type) string {
+	ts := typ.String()
+	switch class {
+	case "Num":
+		switch ts {
+		case "int", "float":
+			// The type IS numeric — the instance is simply not in scope.
+			return "Import std/prelude or define instance"
+		case "string":
+			return "Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number."
+		default:
+			return fmt.Sprintf("Arithmetic operators (+, -, *, /) need a Num type; %s is not numeric. Convert it (e.g. stringToInt, intToFloat) or use ++ to concatenate strings.", ts)
+		}
+	case "Fractional":
+		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)
+	case "Ord":
+		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Import std/prelude, or compare a supported type (int, float, string).", ts)
+	case "Eq":
+		return fmt.Sprintf("Equality (==, !=) needs an Eq instance; %s has none. Import std/prelude, or derive/define one.", ts)
+	}
+	return "Import std/prelude or define instance"
 }
 
 // DefaultFor returns the default type for a class (for numeric literal defaulting)
