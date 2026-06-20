@@ -1432,3 +1432,23 @@ cross-restart persistence a launchd job (dev.ailang.motoko-analyzer style) is ne
 
 **Next (cron + me):** execute the verify_finalize ext build steps 1-5 above (P1). It is the improvement
 that, on release, the now-clean eval-suite will measure.
+
+## 2026-06-20 — P1 REDIRECT: best-of-N can't be a motoko extension (ExtCtx lacks caps/entry); home is orchestration
+
+**Finding (build-blocking, important):** the `on_solver_candidate` extension path canNOT realize the
+run-based best-of-N lever. `ExtCtx` (ailang-packages motoko-ext-abi/types.ail:62) carries task/step/model/
+cwd/workdir/budget/history but **no capabilities and no entrypoint**. So an extension can `ailang check` a
+candidate (needs neither) but cannot `ailang run` it (needs --caps + --entry). Check-only == DP7, which
+already A/B'd as NOISE. The validated +6.8pp lever is RUN-based (select by runtime_ok), so the extension
+form collapses to the known-noise case. REFUTED: "best-of-N as a motoko on_solver_candidate extension."
+
+**Redirect:** best-of-N belongs in the ORCHESTRATION layer where caps+entry are known — i.e. exactly where
+`ailang select-best --caps --entry` operates. Two deployable forms:
+  (a) deployment wrapper `motoko-bestof`: run motoko N× (each in its own workspace) → `ailang select-best`
+      over the N solution files → emit the winner. Real shippable improvement (single call = verified-best
+      of N). N× rig cost. The eval can point a model at this wrapper so a release eval shows the lift.
+  (b) harness aggregation mode: the eval already runs trials=N + records compile_ok/runtime_ok/stdout_ok;
+      add a best-of-N selection at grade time (pick the trial that compiles+runs, grade its stdout) so every
+      rotation/release reports best-of-N alongside pass@1. This is eval_best_of_n.py promoted live.
+Building (a) now (the deployable improvement); (b) is a cheap follow-up that makes the lift visible on
+every release. Both validate on the rig (N real motoko runs).
