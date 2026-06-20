@@ -1,0 +1,19 @@
+[package]
+name = "eval_projects/calc_bugfix"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = [
+  "eval_projects/calc_bugfix/ops",
+  "eval_projects/calc_bugfix/main",
+]
+
+[effects]
+max = ["IO"]
+
+[stability]
+level = "experimental"
+
+[metadata]
+ai_summary = "Project-eval fixture: multi-module calc with a logic bug to fix (#9)."

@@ -61,6 +61,27 @@ func TestGradeBuild_RealPackage(t *testing.T) {
 	}
 }
 
+// TestGradeProject_RealFixture grades the calc_bugfix fixture end-to-end: it BUILDS (the bug is a
+// logic error, not a type error) but FAILS acceptance (sub=a+b prints 13, expected 7). Validates
+// the full build+behaviour pipeline on a real multi-module project. Skips if ailang/fixture absent.
+func TestGradeProject_RealFixture(t *testing.T) {
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not on PATH")
+	}
+	dir := "../../eval_projects/calc_bugfix"
+	if _, err := os.Stat(dir + "/ailang.lock"); err != nil {
+		t.Skip("fixture not locked")
+	}
+	accept := StdoutAcceptance(AcceptanceSpec{EntryFile: "main.ail", Expected: "7"})
+	r := GradeProject(dir, AilangCheckRunner("", 0), accept)
+	if !r.BuildOk {
+		t.Errorf("fixture should BUILD (logic bug, not type error): %+v", r)
+	}
+	if r.AcceptOk {
+		t.Errorf("buggy baseline should FAIL acceptance (prints 13, expected 7): %+v", r)
+	}
+}
+
 func TestGradeProject_AcceptanceGatedOnBuild(t *testing.T) {
 	// Build fails → acceptance must NOT run (AcceptOk stays false).
 	called := false

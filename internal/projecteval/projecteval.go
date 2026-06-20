@@ -84,6 +84,49 @@ func GradeProject(dir string, run CheckRunner, acceptance func(dir string) bool)
 	return r
 }
 
+// AcceptanceSpec configures running a project's entrypoint and comparing its stdout.
+type AcceptanceSpec struct {
+	Bin       string        // ailang binary (default "ailang")
+	EntryFile string        // entrypoint file, relative to the project dir (e.g. "main.ail")
+	Entry     string        // entrypoint function (default "main")
+	Caps      string        // capabilities (default "IO")
+	Expected  string        // expected stdout (trimmed compare)
+	Timeout   time.Duration // run budget (default 30s)
+}
+
+// StdoutAcceptance returns an acceptance func that runs the project entrypoint (from the project
+// dir, with --relax-modules so a package module path doesn't block single-file run) and reports
+// whether trimmed stdout matches Expected. The behaviour dimension of project grading.
+func StdoutAcceptance(spec AcceptanceSpec) func(dir string) bool {
+	bin := spec.Bin
+	if bin == "" {
+		bin = "ailang"
+	}
+	entry := spec.Entry
+	if entry == "" {
+		entry = "main"
+	}
+	caps := spec.Caps
+	if caps == "" {
+		caps = "IO"
+	}
+	timeout := spec.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	return func(dir string) bool {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, bin, "run", "--entry", entry, "--caps", caps, "--relax-modules", spec.EntryFile)
+		cmd.Dir = dir
+		out, err := cmd.Output() // stdout only (status/warnings go to stderr)
+		if err != nil {
+			return false
+		}
+		return strings.TrimSpace(string(out)) == strings.TrimSpace(spec.Expected)
+	}
+}
+
 // AilangCheckRunner returns a CheckRunner that shells `ailang check --package <dir>`.
 func AilangCheckRunner(bin string, timeout time.Duration) CheckRunner {
 	if bin == "" {
