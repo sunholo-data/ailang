@@ -1452,3 +1452,35 @@ form collapses to the known-noise case. REFUTED: "best-of-N as a motoko on_solve
       rotation/release reports best-of-N alongside pass@1. This is eval_best_of_n.py promoted live.
 Building (a) now (the deployable improvement); (b) is a cheap follow-up that makes the lift visible on
 every release. Both validate on the rig (N real motoko runs).
+
+## 2026-06-20 — CORRECTION: no clean broad post-fix motoko-vs-pi comparison exists; os-rolling is STALE + api-contaminated
+
+**Ran best-of-N on the full banked os-rolling (the BROAD set, per discipline). Result is alarming AND
+misleading:** motoko pass@1 69.2% / bo-N EXACT 76.9% / 8 hard-fails; pi 95.6% / 100% / 0 hard-fails;
+opencode 80.7% / 84.6%. Taken at face value pi DOMINATES motoko by 26pp — contradicting the postfix-h2h
+"90.6% ≥ pi 88.9%" I reported as parity.
+
+**Why the contradiction — verified, do not trust the 69%:**
+1. ALL motoko qwen3-6 os-rolling results are **06-17 (340) / 06-18 (132)** — i.e. BEFORE the 06-19
+   truncation fix + the postfix-h2h. `--skip-existing` freezes them; they are never refreshed.
+2. The 8 motoko "hard-fails" are mostly NOT real capability failures: **4 are `api_error` with 0 output
+   tokens** (csv_to_json_converter, polymorphic_ord_defaulting, run_length_encode, symbolic_diff =
+   infra/API failures during that rotation); **3 are 2-turn `logic_error` disengagements**
+   (config_file_parser, graph_bfs, log_file_analyzer = the truncation/disengage mode the 06-19 fix
+   targets); **only red_black_tree (compile_error, 7 turns) is a genuine engaged failure.** best-of-N
+   can't fix the api_errors (every trial errored) — they drag the bo-N number down artificially.
+
+**Honest state of the mission (corrected):**
+- The broad os-rolling motoko number (69%) is STALE (pre-fix) + contaminated (4 api_error benchmarks).
+  DO NOT use it to assess current motoko or best-of-N.
+- The postfix-h2h (90.6%, 0 truncation) is the truer recent motoko number but is a SUBSET — per discipline,
+  don't over-generalize it either (it ran motoko higher AND pi lower than broad, suggesting subset bias).
+- pi at 95.6% broad / 88.9% subset — pi is strong; the broad pi number is sobering.
+- **CONCLUSION: there is NO clean, broad, POST-FIX motoko-vs-pi comparison.** The true gap is unknown.
+  This is exactly why a release → fresh broad eval is needed (the user's plan) — it clears the stale
+  --skip-existing contamination. Until then, claims of parity OR of a 26pp deficit are both unsupported.
+
+**Actions:** (1) the api_errors (4 benchmarks, 0-token, 06-17/18) are an infra signal — if they recur on
+fresh runs they tank motoko's eval unfairly; investigate motoko's API reliability on the next rig run.
+(2) Best-of-N's value is unassessable on stale data; needs the fresh run. (3) Don't repeat the parity
+claim without broad post-fix data.
