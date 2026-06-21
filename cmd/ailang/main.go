@@ -203,6 +203,9 @@ func main() {
 	case "select-best":
 		runSelectBest()
 
+	case "ast-edit":
+		runAstEdit()
+
 	case "export-training":
 		exportTraining()
 

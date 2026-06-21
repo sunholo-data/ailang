@@ -1,0 +1,31 @@
+-- STUB: docparse/services/docx_parser (P0 large-context reimplement instrument).
+-- The real ~544-line parser has been removed. Reimplement every export so the
+-- document parser reproduces the correct Block output on all DOCX fixtures.
+-- These stubs typecheck + run (so the package builds) but return empty output,
+-- so they FAIL every golden until correctly reimplemented.
+module docparse/services/docx_parser
+
+import std/xml (XmlNode)
+import docparse/types/document (Block, DocMetadata, emptyMetadata)
+import docparse/services/zip_extract (readDocxContent)
+
+-- helper: perform the declared FS read so the {FS} effect row is satisfied,
+-- then discard it (stub produces no blocks).
+func _touch(filepath: string) -> () ! {FS} {
+  let _ = readDocxContent(filepath) in ()
+}
+
+export func parseDocx(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxMetadata(filepath: string) -> DocMetadata ! {FS} { let _ = _touch(filepath) in emptyMetadata() }
+export func parseDocxImages(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxHeaders(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxFooters(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxFootnotes(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxEndnotes(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+export func parseDocxComments(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+
+export pure func parseSectionXml(xml: string) -> [Block] = []
+export pure func hasContent(blocks: [Block]) -> bool = false
+export pure func extractBodyBlocks(root: XmlNode) -> [Block] = []
+export pure func extractMetadata(root: XmlNode) -> DocMetadata = emptyMetadata()
+export pure func getMetaField(root: XmlNode, tagName: string) -> string = ""
