@@ -1702,3 +1702,31 @@ clean local-only; deferred.) Result next fire → first harder-tier discriminati
 **Pushed** to origin (sprint/m-secret-effect, gh=sunholo-voight-kampff). Note: the public dashboard
 (docs/static/benchmarks/latest.json) is regenerated from os-rolling by the filler; surfacing these
 broad/cloud numbers there needs an explicit eval-report/publish step (not just a git push).
+
+## 2026-06-21 ★ STRETCH VERDICT: motoko BEATS pi on the harder tier (best-of-N 100% vs 90.9%)
+
+Full stretch h2h (`stretch-h2h-20260621`, 11 stretch benchmarks × 2 trials, motoko-local-qwen3-6 vs
+pi-qwen3-6, 44 results):
+
+| harness | pass@1 | best-of-N (run) | hard-fails |
+|---|---|---|---|
+| motoko | 86.4% | **100.0%** | **0** |
+| pi | 86.4% | 90.9% | 1 |
+
+**First place motoko EXCEEDS pi.** pass@1 dead-even (86.4%), but motoko's best-of-N = 100% vs pi 90.9%
+(~9pp). Driver: pi **hard-fails `polymorphic_ord_defaulting` (0/2)** — motoko 2/2. That's an AILANG-specific
+construct (polymorphic Ord defaulting via dictionary passing) pi's model can't reliably produce; motoko's
+distribution always covers it → best-of-N reaches 100% where pi caps at 90.9%. Per-bench at pass@1 is
+MIXED (motoko leads polymorphic_ord_defaulting + contract_rle_roundtrip; pi leads log_file_analyzer,
+run_length_encode, type_unify) — so the edge is COVERAGE (best-of-N: motoko has a passing trial on EVERY
+stretch task, 0 hard-fails), not single-shot.
+
+NOTE: R1's contract-tier did NOT fire here — the bo-N used the plain run selector, and there were no
+runs-but-WRONG contract cases in this run (the contract_* benchmarks: motoko 6/6, pi 5/6, no logic-error
+selector-miss). So the stretch edge is hard-fail coverage, not the contract moat. R1 stays valid for the
+selector-miss case (the head-to-head `pipeline`), just not the lever HERE.
+
+**Caveat + action (discipline):** n=2 trials; the 9pp edge hinges on pi's polymorphic_ord_defaulting 0/2.
+REPLICATING that exact benchmark (motoko + pi, trials=6, `poly-ord-replicate-20260621`) to confirm pi's
+hard-fail is stable (real AILANG moat) vs n=2 variance. If pi stays 0/N → confirmed beyond-pi edge on the
+harder tier. Stretch DISCRIMINATES (unlike saturated smoke+core) — the right instrument for "beyond pi".
