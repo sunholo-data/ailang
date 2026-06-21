@@ -1777,3 +1777,22 @@ session `session_docx_motoko_20260621-211434`, ws=/tmp/docx-motoko-20260621-2114
 **Gaps for next fire:** (1) pi harness NOT wired in run.sh ("TODO — exit 2") — needed for the actual
 head-to-head; wire it (NOT while PID 42832 runs — bash re-reads the script file). (2) If single motoko run is
 borderline, best-of-N (the validated lever) on this task is the real test. **Status:** motoko run IN FLIGHT.
+
+---
+
+## 2026-06-21 (cont) — P0 run 1 ERRORED on ollama timeout (a real large-context finding) + fix + re-launch
+
+**Run 1 (session ...211434) did NOT measure capability — it crashed at step 14:**
+`[error] Post "http://localhost:11434/v1/chat/completions": context deadline exceeded`. Stub was UNTOUCHED
+(31 lines) → the 0/17 is a crash artifact, not "motoko fails large-context". Cause: `internal/ai/ollama/
+step.go` caps a single /v1 call at **300s** (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC`, default 300); after 14 steps
+of dependency reads the accumulated prompt made one qwen3.6 request exceed 5 min on the local GPU.
+
+**This IS the P0 signal, just upstream of the grade:** motoko carries the full uncompressed context forward,
+so requests bloat until they time out — precisely the failure mode **P2 (on_tool_handle / context-mode
+compression)** targets. The large-context instrument is doing its job: it exposes a context-management limit
+the saturated single-file set never could. Connects P0 → P2.
+
+**Fix:** `run.sh` now sets `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` (was unset → 300s default). Re-launched
+(session ...214700, PID 44061). **Next fire:** read the re-run grade. If it completes → first true
+large-context data point. If it slows/bloats further → quantifies the P2 compression opportunity.
