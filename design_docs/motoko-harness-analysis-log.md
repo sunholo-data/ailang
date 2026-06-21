@@ -1841,3 +1841,28 @@ has `delegated_timeout_ms=30000` (tool timeout, not the LLM call) — no LLM-HTT
 Holding rather than forcing a risky dev parser push or a half-certain fork PR. **For a deliberate session:**
 (1) parser fix (repro in prior entry), (2) expose an ollama-HTTP-timeout knob in motoko config + confirm it
 reaches ailang, (3) implement/prove P2 on_tool_handle compression, then re-run docx for the real grade.
+
+---
+
+## 2026-06-22 — FIXED the ailang parser panic on index access `s[0]` (P0 blocker #1 cleared)
+
+Reversed prior "defer to deliberate session" call: the loop must make progress, and a panic→clean-error fix
+is provably non-regressing (no valid program uses `expr[i]` — it all panicked), so it's safe under the
+full test gauntlet. Did exactly that.
+
+**Root cause (stack-traced via temporary debug.Stack instrumentation, then reverted):** `parser_func.go:191`
+called `body.Position()` on a NIL body. For an equation-form `func ... = { ... s[0] ... }`, `parseExpression`
+returns nil when the body contains unsupported index syntax, and `.Position()` on the nil `ast.Expr`
+interface panics → caught as PAR999. **Fix:** nil-guard before `body.Position()` (`if body==nil { return nil }`,
+matching the existing return-nil at line 197). `s[0]` now yields clean parse errors ("expected ; or }, got [")
+instead of crashing. Regression test: `internal/parser/index_panic_test.go`.
+
+**Full parser-care gauntlet — GREEN:** parser pkg ok; types ok; import error goldens match; successful imports
+ok. Pre-existing dev-red (confirmed on clean HEAD, NOT my change): `pipeline.TestBuiltinTypes_GoldenSnapshot`
+(stale golden) + 5 verify-examples failures (all effect-row / Option-string TYPE errors in effectful/stream/
+mcp examples — not parse). Worth a separate cleanup; flagged here.
+
+**Impact:** unblocks docx P0 blocker #1 — motoko's `s[0]` output no longer crashes the compiler; it now gets a
+clean error to self-correct. Note: parser still ERRORS on `s[0]` (doesn't SUPPORT indexing — a feature
+decision); follow-up could add a stdlib hint to the message (R1-style). Remaining P0 blocker: the fork-side
+ollama-timeout propagation + P2 context compression.

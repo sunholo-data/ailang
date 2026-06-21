@@ -185,6 +185,12 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		p.nextToken() // move past ASSIGN to start of expression
 
 		body := p.parseExpression(LOWEST)
+		if body == nil {
+			// parseExpression already recorded the underlying error (e.g. an
+			// unsupported construct such as index access `x[i]` in the body);
+			// don't nil-deref on .Position(). Matches the return nil below.
+			return nil
+		}
 		// Wrap single expression in a block for uniform handling
 		fn.Body = &ast.Block{
 			Exprs: []ast.Expr{body},
