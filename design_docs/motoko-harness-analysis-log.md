@@ -1657,3 +1657,21 @@ motoko actually diverge. Everything cheaper is now saturated.
 = P0 large-context (ailang-parse repo-source reimplement instrument — a focused-session build). The cheap
 levers (truncation fix, best-of-N reporting) are banked and proven. Recommend: surface this to the user
 (parity achieved) + treat P0 as the next deliberate (non-cron) investment.
+
+## 2026-06-21 09:42 — cron fire: P0 large-context instrument BUILT (docx_reimplement, repo-source path WORKS)
+
+The repo-source path unblocks P0 (the published-pkg route was dead). Cloned sunholo-data/ailang-parse
+(full source: docx_parser.ail editable in-place + 17 real DOCX fixtures in data/test_files/ + runnable
+`docparse/main.ail`). GATE PASSED: `ailang run docparse/main.ail <fixture.docx>` builds + runs
+deterministically (e.g. tables.docx → 8 blocks, 3 tables; no volatile output). Built the instrument
+`eval_projects/docx_reimplement/` (committed): golden/ = captured deterministic output (content blocks +
+summary) for all 17 fixtures; verify.sh <repo-dir> diffs a candidate vs golden; SPEC.md = the reimplement
+task. VALIDATED: 17/17 pass against the intact repo; a broken parser DIFFERS (discriminates).
+
+**Next (focused / rig):** (1) STUB CALIBRATION — design how much of docx_parser.ail (~530 lines) to
+stub. Risk both ways: too much → both harnesses fail (no signal, like stretch tier); too little → both
+pass. Target the "one harness does better" zone (stub the core extraction, keep signatures+imports). This
+needs care = the focused-session work, not cron. (2) RIG head-to-head: copy ailang-parse → workspace,
+apply stub, run motoko vs pi on the reimplement task, grade with verify.sh → the FIRST large-context
+discrimination data point (the only thing the saturated standard set can't give). Core goal stays MET
+(parity); this is the "go beyond / prove strictly best" frontier.
