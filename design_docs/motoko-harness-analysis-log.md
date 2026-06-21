@@ -1620,3 +1620,13 @@ between "meets target" and "provably beats pi on identical fresh data"; (2) P0 l
 (repo-source path) as the "go beyond the standard set" research; (3) executor-level best-of-N is redundant
 with the rotation metric (eval runs trials → rollup selects) — deprioritized. Next non-blackout fire:
 run the fresh pi broad baseline (49 benches, trials=2) → compare to motoko 96.9%.
+
+## 2026-06-21 06:53 — cron fire: LAUNCHED the airtight pi head-to-head (deferred past blackout)
+
+Blackout ends 07:00 (was 06:53). Launched a background job (waits out blackout → fresh pi broad run on
+the SAME 49 smoke+core benches, trials=2, fresh dir `postfix-broad-pi-20260621`, no --skip-existing →
+auto-summary via the staleness-aware eval_best_of_n.py). This is the airtight identical-data head-to-head:
+pi-fresh vs motoko-fresh (96.9% pass@1 / 100% best-of-N, postfix-broad-20260621). Result in ~3h → records
+the mission's closing verdict (does motoko ≥ pi on fresh identical data?). Rig will be busy with it; next
+fire reads the result. If motoko ≥ pi confirmed → core goal provably met; mission shifts to the P0
+large-context frontier (repo-source path) as optional "go beyond" research.
