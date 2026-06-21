@@ -6,12 +6,17 @@ harnesses (pi 96%, opencode 79%) on local-AILANG synthesis.
 
 **STATUS 2026-06-21 — CORE GOAL MET (standard set).** Fresh broad post-fix baseline
 (`eval_results/rotation/postfix-broad-20260621`, 49 smoke+core benches × 2 trials, clean dir):
-motoko **pass@1 = 96.9% / best-of-N EXACT = 100% / 0 hard-fails** — meets the 96% bar and is ≥ pi's
-banked 95.6%. Trajectory: ~26% (mission start) → 92% (postfix-h2h subset) → **96.9% broad** (the stale
-69% in os-rolling was pre-fix `--skip-existing` contamination, now tool-flagged). Best-of-N shipped as a
-first-class rotation metric (every release reports it). **Remaining:** (1) fresh pi broad run for the
-AIRTIGHT identical-data head-to-head (next non-blackout rig window); (2) large-context frontier (P0,
-docx_parser repo-source path) = "go *beyond* the standard set". See [[motoko-strategic-goal]] +
+motoko **pass@1 = 96.9% / best-of-N EXACT = 100% / 0 hard-fails**. **AIRTIGHT head-to-head confirmed
+2026-06-21** (fresh pi on the SAME 49 benches × 2 trials, `postfix-broad-pi-20260621`): **pi = 96.9%
+pass@1 / 98% best-of-N** → **motoko = pi at pass@1 (PARITY), motoko slightly ahead on best-of-N (100% vs
+98%, within noise = 1 benchmark)**. Trajectory: ~26% (mission start) → **96.9% (parity with pi)**, driven
+by the truncation fix; best-of-N shipped as a first-class rotation metric. **Core goal "match or beat pi"
+= MET.**
+
+**The standard set is now SATURATED** (both harnesses 100% best-of-N ceiling, 0 hard-fails) — it can no
+longer discriminate "best vs equal." **Remaining (optional, "best not just equal"):** the large-context
+frontier (P0, ailang-parse repo-source reimplement instrument) where pi and motoko actually diverge — a
+deliberate focused-session build, not a cron task. See [[motoko-strategic-goal]] +
 the [analysis log](motoko-harness-analysis-log.md).
 
 ## How the mission runs (each cycle)

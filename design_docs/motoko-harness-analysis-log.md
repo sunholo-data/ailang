@@ -1630,3 +1630,30 @@ pi-fresh vs motoko-fresh (96.9% pass@1 / 100% best-of-N, postfix-broad-20260621)
 the mission's closing verdict (does motoko ≥ pi on fresh identical data?). Rig will be busy with it; next
 fire reads the result. If motoko ≥ pi confirmed → core goal provably met; mission shifts to the P0
 large-context frontier (repo-source path) as optional "go beyond" research.
+
+## 2026-06-21 ★★ CLOSING VERDICT: motoko = pi (airtight fresh head-to-head) — core goal MET
+
+Fresh pi broad run (`postfix-broad-pi-20260621`, SAME 49 smoke+core benches × 2 trials, fresh dir, 0
+api_error exclusions) vs the fresh motoko baseline (postfix-broad-20260621):
+
+| harness | pass@1 | bo-N EXACT | bo-N ceiling | hard-fails |
+|---|---|---|---|---|
+| motoko  | **96.9%** | **100.0%** | 100% | 0 |
+| pi      | **96.9%** | 98.0% | 100% | 0 |
+
+**Verdict: DEAD-EVEN at pass@1 (96.9% = 96.9%); motoko edges pi on best-of-N (100% vs 98%).** pi's only
+gap is 1 selector miss (`pipeline` — a runs-but-wrong candidate the reference-free check+run selector
+can't reject; needs contracts/tests). motoko: 0 selector misses. The 2pp edge = 1 benchmark → within
+noise (n=2 trials, single run). **Honest claim: motoko has reached PARITY with pi** (the 96% bar), with
+a marginal best-of-N advantage. Mission core goal ("match or beat pi") = **MET**. Trajectory: 26% (start)
+→ 96.9% (parity with pi), driven by the truncation fix; best-of-N keeps both at ~100% ceiling.
+
+**Key implication — the standard set is SATURATED:** both harnesses hit 100% best-of-N ceiling + 0
+hard-fails. This set can no longer DISCRIMINATE "best vs equal." To prove motoko is the BEST (beyond
+parity), the only path is the HARDER frontier (P0 large-context / beyond-standard tasks) where pi and
+motoko actually diverge. Everything cheaper is now saturated.
+
+**Mission status:** core goal MET (parity at 96.9%). Remaining is optional "best, not just equal" research
+= P0 large-context (ailang-parse repo-source reimplement instrument — a focused-session build). The cheap
+levers (truncation fix, best-of-N reporting) are banked and proven. Recommend: surface this to the user
+(parity achieved) + treat P0 as the next deliberate (non-cron) investment.
