@@ -1,0 +1,60 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/docx-shapes.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 11 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/docx-shapes.docx
+Title:    
+Author:   
+Blocks:   11
+Headings: 0
+Tables:   0
+Images:   0
+Sections: 8
+Changes:  0
+========================
+
+--- Content Blocks ---
+[text:Normal] Paragraph with single <inline-image> within.
+[textbox]
+[text:FrameContents] <inline-image>
+[textbox]
+[text:FrameContents] <inline-image>
+[text:Normal] Paragraph with <inline-image1> and <inline-image2> within.
+[textbox]
+[text:FrameContents] <inline-image1>
+[textbox]
+[text:FrameContents] <inline-image1>
+[textbox]
+[text:FrameContents] <inline-image2>
+[textbox]
+[text:FrameContents] <inline-image2>
+[text:Normal] <floating-shape>Paragraph with floating shape attached.
+[textbox]
+[text:FrameContents] <floating-shape>
+[textbox]
+[text:FrameContents] <floating-shape>
+
+
+=== AILANG Parse Complete ===

@@ -1,0 +1,49 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/tables.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 8 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/tables.docx
+Title:    
+Author:   Jesse Rosenthal
+Blocks:   8
+Headings: 1
+Tables:   3
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[h2] A table, with and without a header row
+[text:Normal] 
+[table] 3 rows, 4 cols
+[text:Normal] 
+[table] 1 rows, 2 cols
+[text:Normal] 
+[table] 1 rows, 2 cols
+[text:Normal] 
+
+
+=== AILANG Parse Complete ===

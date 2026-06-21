@@ -1,0 +1,50 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/docx-hdrftr.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 1 content blocks.
+
+Extracting headers/footers...
+Found 1 headers, 1 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/docx-hdrftr.docx
+Title:    
+Author:   Bernhard Schaefer
+Blocks:   3
+Headings: 0
+Tables:   0
+Images:   0
+Sections: 2
+Changes:  0
+========================
+
+--- Content Blocks ---
+[header]
+[text:Normal] First header para
+[table] 0 rows, 2 cols
+[text:Header] Last header para
+[text:Normal] Main document
+[footer]
+[text:Normal] para1
+[table] 2 rows, 9 cols (merged:2 spanned:2)
+[text:Header] para2
+
+
+=== AILANG Parse Complete ===

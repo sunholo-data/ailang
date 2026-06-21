@@ -1,0 +1,46 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/nested_sdt.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 5 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/nested_sdt.docx
+Title:    
+Author:   Jesse Rosenthal
+Blocks:   5
+Headings: 0
+Tables:   0
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[text:Normal] Test Paragraph1
+[text:Normal] 
+[text:Normal] Test Paragraph2
+[text:Normal] 
+[text:Normal] Test Paragraph3
+
+
+=== AILANG Parse Complete ===
