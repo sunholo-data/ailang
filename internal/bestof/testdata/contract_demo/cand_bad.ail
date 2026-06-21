@@ -1,0 +1,13 @@
+-- Runs cleanly but VIOLATES its ensures contract (compute(3) = -97, ensures result > 0).
+-- The plain check+run selector keeps it (it "runs"); the contract tier must reject it.
+module test/cand
+import std/io (println)
+
+export func compute(x: int) -> int ! {}
+ensures { result > 0 }
+= x - 100
+
+export func main() -> () ! {IO} {
+  let r = compute(3);
+  if r > 0 then println("positive") else println("non-positive")
+}

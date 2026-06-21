@@ -33,7 +33,7 @@ func runSelectBest() {
 		os.Exit(1)
 	}
 
-	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout, VerifyContracts: *verifyContracts}
+	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout, VerifyContracts: *verifyContracts, RelaxModules: true}
 	best, verdicts := bestof.SelectBest(files, v)
 	for i, vd := range verdicts {
 		status := "neither"

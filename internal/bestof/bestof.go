@@ -78,6 +78,8 @@ type AilangVerifier struct {
 	Caps            string        // capabilities, e.g. "IO,FS" (default "IO")
 	Timeout         time.Duration // per-candidate wall budget (default 30s)
 	VerifyContracts bool          // also run `--verify-contracts` → ContractsPass (the AILANG-native moat)
+	RelaxModules    bool          // pass `--relax-modules`. Best-of-N candidates are ephemeral temp files whose
+	// `module` declaration won't match the temp path; without this EVERY candidate fails MOD010 (spurious "neither").
 }
 
 func (a AilangVerifier) bin() string {
@@ -108,13 +110,23 @@ func (a AilangVerifier) timeout() time.Duration {
 	return 30 * time.Second
 }
 
+// cmd builds candidate-verification args, injecting --relax-modules (right after the
+// subcommand) when RelaxModules is set so ephemeral temp candidates don't fail MOD010.
+func (a AilangVerifier) cmd(sub string, rest ...string) []string {
+	args := []string{sub}
+	if a.RelaxModules {
+		args = append(args, "--relax-modules")
+	}
+	return append(args, rest...)
+}
+
 // Verify runs `ailang check` then (if it typechecks) `ailang run` on the candidate.
 func (a AilangVerifier) Verify(path string) Verdict {
-	out, err := a.runCmd(a.bin(), "check", path)
+	out, err := a.runCmd(a.bin(), a.cmd("check", path)...)
 	if err != nil {
 		return Verdict{TypeChecks: false, Detail: snippet(out)}
 	}
-	runOut, runErr := a.runCmd(a.bin(), "run", "--entry", a.entry(), "--caps", a.caps(), path)
+	runOut, runErr := a.runCmd(a.bin(), a.cmd("run", "--entry", a.entry(), "--caps", a.caps(), path)...)
 	if runErr != nil {
 		return Verdict{TypeChecks: true, Runs: false, Detail: snippet(runOut)}
 	}
@@ -124,7 +136,7 @@ func (a AilangVerifier) Verify(path string) Verdict {
 		// ensures/requires contract is runs-but-WRONG. --verify-contracts exits non-zero on
 		// violation, so cErr==nil means contracts held. This is the edge pi lacks (no typed
 		// verifier). Tasks with no contracts pass trivially → ContractsPass=true for all.
-		cOut, cErr := a.runCmd(a.bin(), "run", "--entry", a.entry(), "--caps", a.caps(), "--verify-contracts", path)
+		cOut, cErr := a.runCmd(a.bin(), a.cmd("run", "--entry", a.entry(), "--caps", a.caps(), "--verify-contracts", path)...)
 		if cErr == nil {
 			v.ContractsPass = true
 		} else {

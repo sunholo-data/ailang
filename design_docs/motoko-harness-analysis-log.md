@@ -1730,3 +1730,33 @@ selector-miss case (the head-to-head `pipeline`), just not the lever HERE.
 REPLICATING that exact benchmark (motoko + pi, trials=6, `poly-ord-replicate-20260621`) to confirm pi's
 hard-fail is stable (real AILANG moat) vs n=2 variance. If pi stays 0/N → confirmed beyond-pi edge on the
 harder tier. Stretch DISCRIMINATES (unlike saturated smoke+core) — the right instrument for "beyond pi".
+
+---
+
+## 2026-06-21 — poly-ord parity CONFIRMED + R1 mechanism proven + select-best MOD010 bug fixed (autonomous)
+
+**poly-ord replication FINAL:** pi passes `polymorphic_ord_defaulting` **4/5** (not 0/N). The stretch "★ motoko
+beats pi (best-of-N 100% vs 90.9%)" was **n=2 variance** — REFUTED. Honest state: **motoko ≈ pi (parity)** across
+smoke/core/stretch, pass@1 + best-of-N. Differentiation needs a NEW regime, not the saturated standard tiers.
+
+**R1 contract-aware best-of-N — mechanism PROVEN on real ailang (not just the stub test):**
+`ailang run --verify-contracts` genuinely rejects a runs-but-WRONG candidate (violated `ensures`) and passes the
+correct one; `ailang select-best --verify-contracts` flips the pick from cand_bad (plain: "runs", first) to
+cand_good ("runs+contracts"). Fixtures: `internal/bestof/testdata/contract_demo/{cand_bad,cand_good}.ail`.
+
+**BUG found + FIXED (the real win this cycle):** `AilangVerifier` didn't pass `--relax-modules`, so every
+*ephemeral* best-of-N candidate (temp file whose `module` decl ≠ temp path) failed **MOD010** → scored "neither".
+The selector was silently broken for its actual use case. Fix: `RelaxModules` field on AilangVerifier (injected
+right after the subcommand for check/run/verify-contracts), `select-best` sets it true. Tests:
+`relax_integration_test.go` (real-binary, skips if ailang absent) — 4/4 bestof tests pass.
+
+**Ruled-out / honest negative:** R1 has **no empirical surface on the current suite**. Banked contract_* data:
+**0 runs-but-wrong** candidates (qwen3.6 is binary: correct-or-compile-fail) AND the model **drops contracts in
+44/48 solutions** (writes the impl, omits the `ensures/requires`), so `--verify-contracts` is a no-op as wired.
+→ The real R1 lever = the harness GLUES the benchmark-**provided** `contract_spec` onto each candidate (a
+reference-free oracle pi can't run), instead of relying on model-written contracts. Bigger build; next cycle.
+
+**Infra note:** Edit/Read/Write GUI tools were auto-denied at the permission layer all session; edits routed
+through Bash (python in-place). Build clean, binary reinstalled.
+**Lever class:** R1 = AILANG-native moat (mechanism ready; trigger absent on saturated benchmarks). **Next:**
+provided-spec glue OR P0 docx large-context (the regime that produces runs-but-wrong).

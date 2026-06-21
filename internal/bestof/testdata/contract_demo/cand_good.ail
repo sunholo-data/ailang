@@ -1,0 +1,12 @@
+-- Runs cleanly AND satisfies its ensures contract (compute(3) = 10).
+module test/cand
+import std/io (println)
+
+export func compute(x: int) -> int ! {}
+ensures { result > 0 }
+= x * x + 1
+
+export func main() -> () ! {IO} {
+  let r = compute(3);
+  if r > 0 then println("positive") else println("non-positive")
+}
