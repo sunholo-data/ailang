@@ -35,6 +35,19 @@ type Notification struct {
 	Group     string // collapses repeat notifications when shared
 	URL       string // click-action; opens URL when notification is clicked (terminal-notifier only)
 	EventType string // e.g. "pending_approval", "completed", "failed", "public-feedback", "message"
+
+	// Actions are optional, actionable buttons (e.g. Approve/Deny) rendered by
+	// channels that support them (ntfy). Channels that don't (macOS, Discord)
+	// ignore this field. Each action's URL should already embed any auth token.
+	Actions []NotificationAction
+}
+
+// NotificationAction is an actionable button on a notification: a labelled
+// HTTP request fired when the user taps it (e.g. POST to an approval endpoint).
+type NotificationAction struct {
+	Label  string // button text, e.g. "Approve"
+	URL    string // request target (must already include any auth token)
+	Method string // HTTP method, e.g. "POST" (defaults to "POST" if empty)
 }
 
 // runner abstracts exec.LookPath + Cmd.Run so tests can substitute a fake.

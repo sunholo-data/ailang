@@ -1,0 +1,6 @@
+module eval_projects/calc_bugfix/main
+
+import std/io (println)
+import ./ops (sub)
+
+export func main() -> () ! {IO} { println(show(sub(10, 3))) }

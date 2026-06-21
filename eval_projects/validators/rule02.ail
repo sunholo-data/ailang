@@ -1,0 +1,4 @@
+module eval_projects/validators/rule02
+
+-- Accepts values at or above the threshold 2.
+export pure func rule02(x: int) -> bool = x >= 2

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -204,6 +205,29 @@ func TestDefaulting(t *testing.T) {
 	// Test no default
 	if def := env.DefaultFor("Unknown"); def != nil {
 		t.Errorf("Default for Unknown should be nil, got %v", def)
+	}
+}
+
+func TestActionableInstanceHint(t *testing.T) {
+	cases := []struct {
+		class string
+		typ   Type
+		want  string
+	}{
+		// Numeric type, missing instance → import (not "convert")
+		{"Num", TInt, "Import std/prelude or define instance"},
+		{"Num", TFloat, "Import std/prelude or define instance"},
+		// Non-numeric type → actionable conversion advice (the residual failure class)
+		{"Num", TString, "Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number."},
+	}
+	for _, c := range cases {
+		if got := actionableInstanceHint(c.class, c.typ); got != c.want {
+			t.Errorf("actionableInstanceHint(%s, %s):\n got:  %q\n want: %q", c.class, c.typ, got, c.want)
+		}
+	}
+	// Fractional on int should mention intToFloat (don't pin the whole string).
+	if h := actionableInstanceHint("Fractional", TInt); !strings.Contains(h, "intToFloat") {
+		t.Errorf("Fractional[int] hint should mention intToFloat, got %q", h)
 	}
 }
 

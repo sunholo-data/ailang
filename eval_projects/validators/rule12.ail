@@ -1,0 +1,4 @@
+module eval_projects/validators/rule12
+
+-- Accepts values at or above the threshold 12.
+export pure func rule12(x: int) -> bool = x >= 12

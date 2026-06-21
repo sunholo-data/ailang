@@ -1,0 +1,8 @@
+{
+  "ailang_version": "v0.25.0-197-g46d5405d2-dirty",
+  "generated_at": "2026-06-20T16:31:42.682802Z",
+  "generator": "ailang lock v0.25.0-197-g46d5405d2-dirty",
+  "packages": [],
+  "schema": "ailang.lock/v1",
+  "schema_version": "1.0.0"
+}

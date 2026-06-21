@@ -131,6 +131,28 @@ func TestParseSessionJSONL_DP7Rejected(t *testing.T) {
 	}
 }
 
+// TestParseSessionJSONL_Compaction verifies context-compaction telemetry capture
+// (M-AILANG-SEMANTIC-CONTEXT): count all compaction events, record the first
+// compaction step and the highest structural level seen.
+func TestParseSessionJSONL_Compaction(t *testing.T) {
+	res, err := parseSessionJSONL("testdata/session_compaction.jsonl")
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if !res.Success {
+		t.Errorf("Success = false, want true (finish_reason=stop)")
+	}
+	if res.CompactionCount != 3 {
+		t.Errorf("CompactionCount = %d, want 3 (2 structural + 1 extension)", res.CompactionCount)
+	}
+	if res.CompactionFirstStep != 2 {
+		t.Errorf("CompactionFirstStep = %d, want 2 (first compaction_structural at step 2)", res.CompactionFirstStep)
+	}
+	if res.CompactionMaxLevel != 85 {
+		t.Errorf("CompactionMaxLevel = %d, want 85 (max of levels 70, 85)", res.CompactionMaxLevel)
+	}
+}
+
 // TestParseSessionJSONL_NoSummaryCrash verifies the crash-mid-run case:
 // no run_summary event → fall back to summed per-step totals + Success=false.
 func TestParseSessionJSONL_NoSummaryCrash(t *testing.T) {

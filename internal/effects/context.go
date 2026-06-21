@@ -33,6 +33,7 @@ type EffContext struct {
 	SharedMem      *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
+	Secret         *SecretContext        // Secret effect state (M-SECRET-EFFECT, v0.26.0)
 	Stream         *StreamContext        // Stream effect state (M-STREAM-BIDI)
 	Process        *ProcessContext       // Process effect state (M-PROCESS)
 	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
@@ -194,8 +195,9 @@ func NewEffContext(args []string) *EffContext {
 	ctx := &EffContext{
 		Caps:         make(map[string]Capability),
 		Env:          loadEffEnv(),
-		Clock:        NewClockContext(), // Initialize monotonic time anchor
-		Net:          NewNetContext(),   // Initialize secure network defaults
+		Clock:        NewClockContext(),  // Initialize monotonic time anchor
+		Net:          NewNetContext(),    // Initialize secure network defaults
+		Secret:       NewSecretContext(), // Initialize Secret resolver (1Password CLI)
 		EnvSnapshot:  captureEnvSnapshot(),
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 		Args:         args,

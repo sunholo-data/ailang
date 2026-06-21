@@ -1,0 +1,4 @@
+module eval_projects/validators/rule22
+
+-- Accepts values at or above the threshold 22.
+export pure func rule22(x: int) -> bool = x >= 22

@@ -32,6 +32,14 @@ type BenchmarkSummary struct {
 	Passed      int     `json:"passed"`
 	PassRate    float64 `json:"pass_rate"`
 
+	// Best-of-N (M-AILANG-NATIVE-HARNESS P1, validated 96.9%→100% on postfix-broad-20260621).
+	// AnyPass = the best-of-N ceiling (>=1 trial passed). BestOfNPass = the reference-free EXACT
+	// selector outcome (pick the trial that runs > typechecks > neither, then check its stdout_ok) —
+	// what `ailang select-best` / a deployed motoko-bestof would actually achieve. For benchmarks with
+	// only flaky failures (the common post-fix case), BestOfNPass recovers the pass that pass@1 misses.
+	AnyPass     bool `json:"any_pass"`
+	BestOfNPass bool `json:"best_of_n_pass"`
+
 	// Token distribution split by outcome. Failing runs often thrash to
 	// much higher token counts than passing ones; reporting them separately
 	// makes that signal visible.
@@ -47,12 +55,50 @@ type BenchmarkSummary struct {
 	ThrashAborts int `json:"thrash_aborts,omitempty"`
 }
 
+// ModelRollupStats is the per-model headline rollup: pass@1 vs best-of-N across all of a model's benchmarks.
+// This surfaces the validated best-of-N lift (96.9%→100% on the standard set) on EVERY rotation/release
+// instead of only via the manual tools/eval_best_of_n.py.
+type ModelRollupStats struct {
+	Benchmarks     int     `json:"benchmarks"`
+	Trials         int     `json:"trials"`
+	PassAt1        float64 `json:"pass_at_1"`         // passing trials / total trials
+	BestOfNExact   float64 `json:"best_of_n_exact"`   // benchmarks the EXACT selector passes / benchmarks
+	BestOfNCeiling float64 `json:"best_of_n_ceiling"` // benchmarks with >=1 pass / benchmarks
+}
+
 // RotationSummary is the top-level summary.json shape for an eval-suite run.
 type RotationSummary struct {
-	OutputDir        string             `json:"output_dir"`
-	TotalResultFiles int                `json:"total_result_files"`
-	TrialsPerBench   int                `json:"trials_per_benchmark"` // max trial number seen
-	BenchmarkSummary []BenchmarkSummary `json:"benchmarks"`
+	OutputDir        string                 `json:"output_dir"`
+	TotalResultFiles int                    `json:"total_result_files"`
+	TrialsPerBench   int                    `json:"trials_per_benchmark"` // max trial number seen
+	ModelRollup      map[string]*ModelRollupStats `json:"model_rollup,omitempty"`
+	BenchmarkSummary []BenchmarkSummary     `json:"benchmarks"`
+}
+
+// bestOfNExact applies the reference-free exact selector to a (benchmark,model) tuple's trials:
+// rank runs(2) > typechecks(1) > neither(0), pick the best (ties keep first), and report whether the
+// picked trial passed (stdout_ok). Mirrors `ailang select-best` and tools/eval_best_of_n.py. Also
+// returns anyPass = the ceiling (>=1 trial passed).
+func bestOfNExact(trials []*RunMetrics) (selectedPass bool, anyPass bool) {
+	best, bestScore := -1, -1
+	for i, m := range trials {
+		score := 0
+		if m.RuntimeOk {
+			score = 2
+		} else if m.CompileOk {
+			score = 1
+		}
+		if score > bestScore {
+			bestScore, best = score, i
+		}
+		if m.StdoutOk {
+			anyPass = true
+		}
+	}
+	if best >= 0 && trials[best].StdoutOk {
+		selectedPass = true
+	}
+	return selectedPass, anyPass
 }
 
 // SummarizeRotation walks outputDir/{standard,agent}/[<condition>/]*.json,
@@ -165,6 +211,7 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 				failTokens = append(failTokens, m.TotalTokens)
 			}
 		}
+		bestPass, anyPass := bestOfNExact(g.Trials)
 		s := BenchmarkSummary{
 			BenchmarkID:     key.Benchmark,
 			Model:           key.Model,
@@ -173,6 +220,8 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 			Trials:          len(g.Trials),
 			Passed:          passed,
 			PassRate:        float64(passed) / float64(len(g.Trials)),
+			AnyPass:         anyPass,
+			BestOfNPass:     bestPass,
 			ErrorCategories: g.ErrorCats,
 			ThrashAborts:    g.ThrashAborts,
 		}
@@ -204,10 +253,49 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 		return a.Condition < b.Condition
 	})
 
+	// Per-model rollup: pass@1 (trial-mean) vs best-of-N (EXACT selector) vs ceiling, across the
+	// model's benchmarks. Makes the validated best-of-N lift visible on every rotation/release.
+	type rollupAccum struct {
+		benches, trials, passTrials, bestOfN, ceiling int
+	}
+	racc := map[string]*rollupAccum{}
+	for _, s := range summaries {
+		r := racc[s.Model]
+		if r == nil {
+			r = &rollupAccum{}
+			racc[s.Model] = r
+		}
+		r.benches++
+		r.trials += s.Trials
+		r.passTrials += s.Passed
+		if s.BestOfNPass {
+			r.bestOfN++
+		}
+		if s.AnyPass {
+			r.ceiling++
+		}
+	}
+	rollup := map[string]*ModelRollupStats{}
+	for model, r := range racc {
+		ms := &ModelRollupStats{Benchmarks: r.benches, Trials: r.trials}
+		if r.trials > 0 {
+			ms.PassAt1 = float64(r.passTrials) / float64(r.trials)
+		}
+		if r.benches > 0 {
+			ms.BestOfNExact = float64(r.bestOfN) / float64(r.benches)
+			ms.BestOfNCeiling = float64(r.ceiling) / float64(r.benches)
+		}
+		rollup[model] = ms
+	}
+	if len(rollup) == 0 {
+		rollup = nil
+	}
+
 	rs := &RotationSummary{
 		OutputDir:        outputDir,
 		TotalResultFiles: totalFiles,
 		TrialsPerBench:   maxTrialSeen,
+		ModelRollup:      rollup,
 		BenchmarkSummary: summaries,
 	}
 

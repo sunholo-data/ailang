@@ -1,0 +1,51 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/sample.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 10 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/sample.docx
+Title:    DocParse Test Document
+Author:   AILANG Demo
+Blocks:   10
+Headings: 4
+Tables:   1
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[h1] Introduction
+[text:Normal] This is a test document for the AILANG DocParse demo. It contains headings, paragraphs, lists, and a table.
+[h2] Features
+[list] 1 items
+[list] 1 items
+[list] 1 items
+[h2] Sample Data Table
+[table] 3 rows, 3 cols
+[h1] Conclusion
+[text:Normal] AILANG provides type-safe, contract-verified document parsing with bounded AI costs. Pattern matching on XML trees is elegant compared to imperative DOM traversal.
+
+
+=== AILANG Parse Complete ===

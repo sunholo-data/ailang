@@ -1,0 +1,49 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/image_vml.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 3 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 1 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 1 embedded images.
+
+Images: 1 (pass 'describe' arg for AI descriptions)
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/image_vml.docx
+Title:    Fictitious Transactions
+Author:   Online2PDF.com
+Blocks:   5
+Headings: 1
+Tables:   0
+Images:   1
+Sections: 1
+Changes:  0
+========================
+
+--- Content Blocks ---
+[h1] VML Image
+[text:TextBody] It should follow below:
+[text:TextBody] 
+[footer]
+[text:Normal] 1
+[textbox]
+[text:Footer] 1
+[image:image/jpeg] 
+
+
+=== AILANG Parse Complete ===

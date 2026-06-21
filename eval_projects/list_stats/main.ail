@@ -1,0 +1,6 @@
+module eval_projects/list_stats/main
+
+import std/io (println)
+import ./nums (avg)
+
+export func main() -> () ! {IO} { println(show(avg([10, 20, 30, 40, 50]))) }

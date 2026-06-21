@@ -1,0 +1,4 @@
+module eval_projects/validators/rule07
+
+-- Accepts values at or above the threshold 7.
+export pure func rule07(x: int) -> bool = x >= 7

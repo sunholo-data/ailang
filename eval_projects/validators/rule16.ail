@@ -1,0 +1,4 @@
+module eval_projects/validators/rule16
+
+-- Accepts values at or above the threshold 16.
+export pure func rule16(x: int) -> bool = x >= 16

@@ -226,6 +226,15 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if cfg.GenerationTimeoutSeconds > 0 {
 				task.IdleTimeout = time.Duration(cfg.GenerationTimeoutSeconds) * time.Second
 			}
+			// M-OLLAMA-PER-MODEL-MAX-TOKENS (fix 2026-06-19): resolve
+			// max_output_tokens via the SAME registry key as TTFT (lookupKey =
+			// ConfigKey) rather than `modelName` (the agent display name, e.g.
+			// "ollama/qwen3.6:..."), which is NOT a registry key — GetModel(modelName)
+			// missed → returned 0, so the per-model 32768 budget never reached
+			// motoko and the wire stayed at the 16384 floor.
+			if cfg.MaxOutputTokens > 0 {
+				task.MaxOutputTokens = cfg.MaxOutputTokens
+			}
 			if cfg.GCPProject != "" {
 				task.GCPProject = cfg.GCPProject
 			}
@@ -381,6 +390,11 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		// M-EVAL-SWEET-SPOT (v0.19.0): pass through the executor finish signal
 		// so cmd/ailang/eval_benchmark.go can promote it via CategorizeAgentError.
 		FinishReason: result.FinishReason,
+
+		// M-AILANG-SEMANTIC-CONTEXT (v0.26.0): context-compaction telemetry.
+		CompactionCount:     result.CompactionCount,
+		CompactionFirstStep: result.CompactionFirstStep,
+		CompactionMaxLevel:  result.CompactionMaxLevel,
 	}, nil
 }
 

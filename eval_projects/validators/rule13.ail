@@ -1,0 +1,4 @@
+module eval_projects/validators/rule13
+
+-- Accepts values at or above the threshold 13.
+export pure func rule13(x: int) -> bool = x >= 13

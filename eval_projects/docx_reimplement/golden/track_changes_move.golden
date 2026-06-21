@@ -1,0 +1,52 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/track_changes_move.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 11 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 0 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/track_changes_move.docx
+Title:    
+Author:   Jesse Rosenthal
+Blocks:   11
+Headings: 0
+Tables:   0
+Images:   0
+Sections: 0
+Changes:  2
+========================
+
+--- Content Blocks ---
+[text:Normal] Here is some text.
+[text:Normal] 
+[text:Normal] Here is the text to be moved.
+[move-to:Jesse Rosenthal] Here is the text to be moved.
+[text:Normal] 
+[text:Normal] Here is some more text.
+[text:Normal] 
+[text:Normal] 
+[move-from:Jesse Rosenthal] Here is the text to be moved.
+[text:Normal] 
+[text:Normal] 
+
+
+=== AILANG Parse Complete ===

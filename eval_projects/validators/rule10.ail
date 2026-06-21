@@ -1,0 +1,4 @@
+module eval_projects/validators/rule10
+
+-- Accepts values at or above the threshold 10.
+export pure func rule10(x: int) -> bool = x >= 10

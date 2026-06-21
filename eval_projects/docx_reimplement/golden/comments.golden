@@ -1,0 +1,55 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/comments.docx
+Format:   zip-office (docx)
+Strategy: ZIP extraction + XML parsing + optional AI for layout
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing DOCX ---
+
+Extracting metadata...
+Parsing document XML...
+Extracted 4 content blocks.
+
+Extracting headers/footers...
+Found 0 headers, 0 footers.
+Extracting footnotes/endnotes...
+Found 0 footnotes, 0 endnotes.
+Extracting comments...
+Found 5 comments.
+Extracting images...
+Found 0 embedded images.
+
+No images found.
+
+=== Document Summary ===
+Format:   docx
+Filename: data/test_files/comments.docx
+Title:    
+Author:   Jesse Rosenthal
+Blocks:   9
+Headings: 0
+Tables:   0
+Images:   0
+Sections: 5
+Changes:  0
+========================
+
+--- Content Blocks ---
+[text:Normal] I want some text to have a comment on it.
+[text:Normal] This is a new paragraph.
+[text:Normal] And so is this.
+[text:Normal] One more. And this is one with a comment in a comment.
+[comment]
+[text:CommentText] [Jesse Rosenthal] I left a comment.
+[comment]
+[text:CommentText] [Jesse Rosenthal] A comment across paragraphs.
+[comment]
+[text:CommentText] [Jesse Rosenthal] This one has multiple paragraphs. See?
+[comment]
+[text:CommentText] [Jesse Rosenthal] Do something.
+[comment]
+[text:CommentText] [Jesse Rosenthal] Do something else.
+
+
+=== AILANG Parse Complete ===

@@ -935,3 +935,798 @@ childEnv (same gotcha as MOTOKO_REPO / persist) — without it the env is scrubb
 PR #48 + a quick wire check; the 16384 floor guarantees correctness meanwhile. **Prior-action status:**
 completes the truncation fix's per-model precision. **Next:** when fresh post-fix rotation data exists,
 re-run Gate 1 to measure the full motoko↔pi gap (expect a large drop in the 29% disengage).
+
+## 2026-06-19 — UPLIFT MEASURED: truncation fix takes motoko core 75% → 92% (gap to pi 21pp → 4pp)
+
+Fresh motoko core-tier ×2 with the live 16384 floor, vs the pre-fix core ×2 baseline (system-prompt
+A/B empty arm, same set + n, old 4096 binary):
+
+| | pass | disengage (≤2 tool calls) | finish=length |
+|---|---|---|---|
+| pre-fix (max_tokens 4096) | 39/52 (75%) | 10 | — |
+| **post-fix (16384 floor)** | **48/52 (92%)** | **3** | **0** |
+| pi (bar) | ~96% | — | — |
+
+**+17pp pass on the BROAD core tier (not the cherry-picked 7), disengage 10→3, zero truncation**
+(50 disengaged turns across the run, all genuine `stop`). Gap to pi on core: **21pp → 4pp**. The
+single max_tokens floor fix did this — confirms truncation was the dominant disengagement cause and
+that the observe→diff→cheap-confirm→build→validate loop (now the motoko-analyzer skill) works.
+
+**Residual (small):** 3 disengage runs are genuine-stop (model decided done) + a few grind-wrong
+(engaged-but-incorrect, e.g. log_file_analyzer) — correctness/prompt levers, a different playbook.
+**Next:** (1) full-agent-set re-measure (motoko was 63% there incl. harder benchmarks — the rotation
+will show it as post-fix data accumulates); (2) attack the residual genuine-stop + grind-wrong;
+(3) qwen-code reference harness. **Prior-action status:** mission #1 (disengagement) substantially
+closed on core; the truncation fix (fac848054 + per-model 006a679a6 + motoko PR #48) is the win.
+
+## 2026-06-19 — RESEARCH (Arni): little-coder (itayinbarr/little-coder) — small-on-device-model levers
+
+pi-based harness tuned for SMALL models (9.7B–35B) — motoko's exact regime. Claims a 9.7B Qwen
+goes 19%→45% on Aider Polyglot with the scaffolding (proves harness > raw model for small models =
+the whole motoko thesis). Its small-model techniques mapped to motoko's status:
+
+| little-coder technique | what it does | motoko status / lever |
+|---|---|---|
+| **thinking-budget ext** | caps reasoning tokens/turn + **retry with thinking OFF** | **MISSING & high-value.** qwen3.6 reasons 14k–50k chars; we raised max_tokens (gives room) — the COMPLEMENT is to CAP/disable thinking. motoko's `enable_thinking:false` is DROPPED before /v1 (wire-proven) → it can't even turn thinking off today. **Prime residual-gap lever.** |
+| **output-parser ext** | repairs malformed tool calls (bare JSON, XML frags) | We built hermes-recovery (`79714e3d5`); fired 0× on qwen3.6/ollama (native tool_calls work there) — but little-coder confirms it matters on other models/benches. Keep. |
+| **skill-inject (per-turn tool selection: error>recency>intent)** | surface only RELEVANT tools, not the full set | Aligns with our "lean toolset" finding (motoko 6 vs opencode 33). Dynamic per-turn selection is a further step — possible lever for grind-wrong. |
+| **read-guard** | trims big files to first 30 lines + "search instead" | Context efficiency — relevant to grind-wrong (model burns context reading huge files). |
+| **per-model temperature profiles** (9B vs 35B, per-bench) | model-specific sampling | Matches "default to model strengths". We have AILANG_OLLAMA_TEMPERATURE (off). |
+| **explicit context window (-c 16384)** + constrained decoding (llama.cpp `--jinja`) | native tool parsing via chat template | Validates our 16384 + the /v1 native-tool path. |
+
+**Takeaway for the residual gap:** after the truncation fix (give thinking room), the next lever is
+the OPPOSITE knob little-coder leans on — **control/cap thinking** for the small model: (1) actually
+forward a thinking-disable/budget param to ollama /v1 (motoko's enable_thinking:false is currently
+dropped — fix that path), (2) optionally cap reasoning + retry-thinking-off on a stalled turn. This
+targets the residual genuine-stop disengagement (model thinks itself "done") + grind-wrong (over-
+speculation). Implementation differs (little-coder=llama.cpp `--jinja`; motoko=ollama `/v1`
+`think:false`/`chat_template_kwargs`) but the principle transfers. **Decide after the full head-to-head
+shows where the residual concentrates.**
+
+## 2026-06-19 — RESEARCH: VibeThinker-3B (arXiv 2606.16140) — harness-liftable bits (honest: ~2 of 11)
+
+WeiboAI fine-tune of Qwen2.5-Coder-3B. The shared 11-point pipeline is ALL post-TRAINING (data
+synth, 2-stage SFT, MGPO/RLVR, self-distillation, instruct-RL) — NOT liftable for motoko (we run an
+off-the-shelf qwen3.6). Two inference-time findings DO transfer (PDF: design_docs/research/, gitignored):
+
+1. **"We do NOT impose an additional output length cap beyond the model's maximum generation length."**
+   + their #7 finding: "high-truncation early stage weakens the model's long-thinking capability and
+   biases the policy toward incomplete / overly shortened reasoning." → STRONG external validation of
+   our truncation fix (don't truncate a long-reasoning model). RESOLVES the little-coder tension:
+   little-coder CAPS thinking (good for models NOT trained for long reasoning); VibeThinker/qwen are
+   TRAINED for long reasoning → DON'T cap, give room (our max_tokens fix). So for qwen3.6, capping
+   thinking would likely HURT — the max_tokens-room fix is the right lever, not little-coder's cap.
+
+2. **Recommended decoding: temperature 1.0, top_p 0.95, top_k -1.** ← ~~motoko's wire sends
+   temperature 0 (greedy)... we are FORCING greedy~~ **[CORRECTED 2026-06-19 — this claim was WRONG;
+   see the SAMPLING-RULED-OUT entry below]**. Wire-verified: motoko sends NEITHER temperature NOR
+   top_p (only `{model, max_tokens}`); `resolveOllamaTemperature`→0 is omitempty so NOTHING is sent,
+   and ollama applies qwen3.6's own modelfile params. So motoko already runs the model's recommended
+   sampling — there is NO sampling lever.
+
+**Everything else is model-training** — not our harness lever. **Decision:** after the head-to-head
+shows the residual (genuine-stop vs grind-wrong), the two candidate harness levers are (a) sampling
+alignment (temp 1.0/top_p 0.95 — VibeThinker-backed) and (b) thinking-control ONLY if residual is
+over-thinking — but VibeThinker argues AGAINST capping for long-reasoners, so (a) is favoured.
+
+  - **LaTeX-source-confirmed (arXiv e-print, neurips_2026.tex)**: "vLLM… temperature 1.0, top-p=0.95,
+    [top-k −1]… [no] length cap beyond the model's maximum generation length." Truncation quote:
+    "high-truncation early stage weakens the model's long-thinking capability… difficult to fully
+    recover. Therefore… a single 64K long-context window, reducing… truncation." (docparse is a
+    separate sunholo cloud pipeline, not installed locally — arXiv LaTeX source was the cleaner parse.)
+
+## 2026-06-19 — SAMPLING RULED OUT + residual re-characterized (source/wire/data-grounded, no new GPU)
+
+Process correction: prior cycles kept *guessing* the next lever (persistence, system-role, temp-0,
+sampling) and each was refuted on contact with source/data. Reset to: verify the claim, then read the
+actual residual failures, THEN design. This entry does the Observe step from data already on disk.
+
+**(a) SAMPLING LEVER — RULED OUT (refutes the VibeThinker entry's claim above).**
+- Wire log (`/tmp/h2h-full-wire.jsonl`, `/tmp/uplift-wire.jsonl`): every motoko request body is
+  exactly `{model, max_tokens:16384}` — no `temperature`, `top_p`, or `top_k`.
+- `ollama show qwen3.6:35b-a3b-mxfp8` modelfile already bakes: `temperature 1, top_k 20, top_p 0.95,
+  min_p 0, presence_penalty 1.5, repeat_penalty 1`. With caller sending nothing, ollama applies these.
+- ∴ motoko ALREADY runs qwen3.6 at the model's own recommended vector (temp 1.0/top_p 0.95). The
+  "forcing greedy temp 0" premise was false (`resolveOllamaTemperature`→0 is omitempty → unsent).
+  No sampling design doc. (pi is an external CLI → never hits our wire logger; can't compare its
+  vector from our logs. Not worth chasing — the model-default vector is already optimal.)
+
+**(b) RESIDUAL re-characterized from the killed h2h partial (n=18 ea, core subset) + transcripts.**
+- motoko 16/18 (88%) [disengage=1, grind=1]; pi 17/18 (94%) [disengage=1, grind=0].
+- `csv_to_json_converter` FAILS FOR BOTH (motoko=step-budget-exhausted; pi=tc=0 stop). A *shared*
+  qwen-on-AILANG limit, NOT a motoko deficit — both harnesses' qwen can't do it.
+- motoko's ONLY net loss vs pi on this sample = `explicit_dataflow_ssa` (grind, 32 tool calls):
+  qwen wrote BMI code and looped 32× fighting `Error: execution failed: expected float arguments`
+  (round/floor/intToFloat numeric-type friction) — engaged hard, never converged. AILANG numeric
+  ergonomics, which pi's qwen would hit too (pi passed it here = likely sampling variance at n=1).
+- **Conclusion:** post-truncation-fix the residual is NO LONGER engagement — it's CONVERGENCE/
+  correctness (engaged 16–50 steps, doesn't converge), and a chunk of it is SHARED with pi
+  (qwen-on-AILANG capability), not a motoko-specific harness lever.
+
+**(c) "Step budget too low" — RULED OUT.** csv's "v2 loop: step budget exhausted" looked like a low
+cap, but: motoko_agent `rpc.ail:102` = `clamp_positive(settings.max_steps, 50)` and `config.ail:311`
+default `max_steps:50`; the `8` fallback (`agent_loop_v2.ail:1241`) only fires when a caller passes
+`<=0`, which the RPC path avoids. AILANG executor passes no `--max-steps`. So motoko runs ~50 steps —
+exhausting that = genuine non-convergence, not an artificially tight cap. No "raise the cap" lever.
+
+**Net mission status:** motoko core 92% vs pi 96% (partial h2h: 88 vs 94). Disengagement (the old
+26pp gap) is FIXED by truncation. The ~4pp residual is small, convergence/correctness-flavoured, and
+partly shared with pi. **Next (disciplined): complete the full head-to-head as a clean MEASUREMENT
+(not a lever test)** to confirm at full-tier n whether the residual is (i) motoko-specific & fixable,
+or (ii) shared qwen-on-AILANG friction → which would be an AILANG eval-gap item, not a motoko harness
+lever. Read every residual transcript before proposing a fix. Do NOT pre-commit a lever this time.
+
+## 2026-06-19 — FULL HEAD-TO-HEAD (clean measurement, core+stretch 37×1) + residual classified
+
+Headline: **motoko 30/37 (81%) vs pi 32/37 (86%)** — gap = 2 benchmarks = 5pp (was 26pp at mission
+start). Chain 48ec5659. **This is statistical PARITY at trials=1**, not a real 5pp deficit — see below.
+
+**Overlap analysis (the key result):** motoko and pi fail on mostly DIFFERENT benchmarks.
+- SHARED fails (qwen-on-AILANG limit, not a motoko lever): 2 — config_file_parser, contract_rle_roundtrip.
+- MOTOKO-ONLY fails: 5 — cli_args, contract_sorted_merge, log_file_analyzer, pipeline, symbolic_diff.
+- PI-ONLY fails: 3 — contract_roman_numeral, csv_to_json_converter (both = pi's 600s HARD-TIMEOUT, a
+  harness-config artifact we set in task #22), run_length_encode.
+- So: motoko WINS 3 that pi loses; pi WINS 5 that motoko loses (2 of those = pi timeout). Net pi +2
+  benchmarks. **At n=1/benchmark with stochastic qwen (temp 1.0), ±2 is within sampling noise.** The
+  5pp cannot support "pi > motoko" OR "motoko ≥ pi" — needs multi-trial (x3–x5) to resolve.
+
+**Motoko-only residual is HETEROGENEOUS — no single harness lever:**
+- cli_args (tc=6) + pipeline (tc=11): model's transcript CLAIMS success ("outputs 15 ✓", "2 4 6 8 10"),
+  but graded stdout = `0\n` and `2\n4\n` → **stdin/argv input-delivery / solution-correctness**, same
+  class as InputFiles (tasks #17/#18). NOT a motoko engagement problem. (pi passed these — variance or
+  different input handling.)
+- log_file_analyzer (tc=None): "v2 loop: step budget exhausted" (non-convergence at 50 steps).
+- symbolic_diff (tc=None): "1 turn, 0 tool calls" — genuine disengage, likely one of the 3 length-truncs.
+- contract_sorted_merge (tc=1): disengaged after one ReadFile.
+
+**Wire facts:** finish_reason across 432 responses: tool_calls=397, stop=32, **length=3**. All 432
+requests sent `max_tokens=16384` — **NEVER 32768.** The per-model max_output_tokens=32768 (registry,
+task #66) does NOT reach the wire: motoko's childEnv allowlist scrubs `AILANG_OLLAMA_MAX_TOKENS` and
+**motoko PR #48 (the allowlist fix) is UNMERGED** (we're read-only upstream). So 3 turns still truncate
+at the 16384 floor and we cannot lift it from the AILANG side alone — **blocked on upstream merge.**
+
+**CONCLUSION (honest): the mission's core objective is essentially MET.** motoko went 26%→81–92% and
+is at statistical parity with pi (96% reference); the original 26pp DISENGAGEMENT gap is closed by the
+truncation fix. The residual ~5pp is (a) within trials=1 noise, (b) heterogeneous (input-delivery,
+non-convergence, a few length-truncs), NOT one motoko-specific lever, and (c) partly shared with pi /
+partly pi's own timeout artifact. **There is no clean next harness lever to design.** To make a
+DEFENSIBLE "motoko is the best/equal harness for AILANG" claim, the right next step is a MULTI-TRIAL
+(x3) head-to-head for confidence intervals — a measurement, not a code change. Separately, the 3
+length-truncs stay until motoko PR #48 merges upstream (out of our hands).
+
+## 2026-06-19 (eve) — PR #48 was NOT actually blocked + clean trials=3 h2h LAUNCHED
+
+**Correction to the entry above ("blocked on upstream merge, out of our hands"): FALSE.** The PR #48
+allowlist fix existed locally as an UNCOMMITTED working-tree edit to `runtime-process.ts` (+ compiled
+into the gitignored `dist/`), so the running motoko already forwarded `AILANG_OLLAMA_MAX_TOKENS` — but
+it was one `git checkout` from vanishing, and was never committed to the branch the rig runs. The
+AILANG side was ALSO not actually propagating: `agent_runner_multi.go:213` populated MaxOutputTokens
+via `modelMaxOutputTokens(modelName)` (display name = not a registry key → GetModel miss → 0).
+
+**Both halves now committed & verified end-to-end (this is what unblocks the floor):**
+- AILANG `b52c11c49`: override line-213's 0 with the `ConfigKey` lookup (same key TTFT uses) in the
+  per-model block → `task.MaxOutputTokens = cfg.MaxOutputTokens` (32768 for the rig model).
+- motoko `91e46f1` (rig branch `feat/local-eval-profiles`, backport of PR #48): allowlist
+  `AILANG_OLLAMA_MAX_TOKENS` past the childEnv scrub.
+- Full chain confirmed by source: models.yml 32768 → agent_runner_multi (ConfigKey) →
+  motoko.go:296 (env) → runtime-process allowlist → ai/ollama/step.go:98 (per-model max_tokens). The
+  prior h2h's "all 432 requests = 16384, NEVER 32768" cause is now fixed on BOTH sides locally.
+- Rebuilt/reinstalled ailang (binary `5878c2204`; the rotation that produced the 69% rolling number
+  ran on `94a1a23-dirty`, pre-propagation → that data is stale/contaminated, disregard for post-fix).
+
+**Gate 1 (OBSERVE, stale rolling os-rolling) — PRE-FIX, for reference only:**
+`motoko 81/117 (69%) disengage 34 (29%) grind 2 | pi 108/113 (95%) | opencode 92/114 (80%)`. Gap is
+still all disengagement (+26pp) because the window predates the propagation fix being live.
+
+**Action taken (the measurement the prior entry called for):** launched clean trials=3 head-to-head,
+motoko + pi, ailang, all 39 four-language benchmarks (234 runs, `--parallel 1 --microrag on`), FRESH
+output dir `eval_results/rotation/postfix-h2h-20260619` (uncontaminated). Only difference vs the 69%
+baseline = the now-live 32768 propagation. ETA ~4–6h. opencode omitted (motoko-side fix doesn't move
+it; its ~80% ailang is the stable reference).
+
+**Lever class:** not a new lever — VALIDATION + unblocking a fix the prior cycle wrongly deemed stuck.
+**Ruled-out ledger (unchanged):** sampling (RULED OUT), step-budget (RULED OUT), persistence/system-
+role (RULED OUT). **Next (on completion):** re-segment on fresh data; confirm wire max_tokens=32768 &
+length-truncs→0; classify each residual fail as motoko-specific lever vs shared qwen-on-AILANG gap;
+if motoko within CI of pi, declare the core objective MET and write it up. RESULTS PENDING.
+
+## 2026-06-20 — h2h DONE (motoko ≥ pi) + COMPACTION HYPOTHESIS REFUTED by telemetry
+
+**Clean trials=3 h2h complete (234 runs, ailang):** motoko **106/117 (90.6%)** vs pi 104/117 (88.9%),
+**length-truncs=0**. eval-report per-bench view: motoko 92.3% vs pi 87.2%. Core objective MET — motoko
+at parity / slightly ahead of pi on local AILANG, disengagement+truncation gaps closed.
+
+**COMPACTION-THRASH HYPOTHESIS — RULED OUT (the big one).** Built compaction telemetry (A1 motoko
+`compaction_structural` emit; A2 harness capture → `compaction_count`/`first_compaction_step`/
+`compaction_level_max`; A3 fire-rate report) to test the "verbose tool results → 70% compaction elides
+the model's own writes → re-reads/rewrites" hypothesis. Smoke on 3 thrashers (csv_to_json 8 turns,
+symbolic_diff 19, log_file_analyzer FAILED step-budget) → **compaction_count = 0 on ALL THREE.**
+Root cause (source-confirmed, `context_usage.ail`): **`context_limit_for("ollama/qwen3.6:35b-a3b-mxfp8")
+= 0`** — there is NO ollama/qwen case in `context_limit_base` (only claude/openai/google/deepseek/grok),
+so it falls to `else 0`; `usage_percent`→0 when limit==0; `compact_step` is therefore ALWAYS the
+`else Ok(msgs)` no-op, and A1's `pct>=70` emit guard is never true. motoko's own comment: "For unknown
+models (context_limit_for returns 0), compaction is skipped entirely — fail open." **So compaction
+NEVER fires for qwen3.6 — the elision-erases-writes story is impossible.** The earlier source-only
+hypothesis (read `compaction.ail` in isolation) missed that qwen is an unknown model. Telemetry +
+source check refuted it before any threshold-tuning fix was built. **Observability itself VALIDATED:**
+A2 unit-tested, A1 emit logic correct (correctly silent), A3 reports the true 0.
+
+**NEW finding (inverts the concern):** motoko treats qwen3.6 as unknown → **never manages its context**
+→ sends full un-elided history every turn. Short runs fine; long runs risk **ollama-side silent
+context overflow** (different failure than hypothesized). Candidate lever: add `ollama/qwen3.6` + real
+`num_ctx` to `context_limit_for` — but help-vs-hurt depends on qwen's window vs run lengths (measure).
+
+**Ruled-out ledger:** sampling, step-budget, persistence/system-role, **+ COMPACTION (qwen: disabled,
+fire-rate 0)**. **Sprint = Branch B** (thrash is NOT compaction-caused): def-of-done/echo-writes gate,
+tool-result truncation, R1b (structured errors), R7a (SimHash dedup of re-reads), context_limit_for
+for ollama (measurement-gated). "Raise compaction threshold" near-term fix is MOOT.
+
+## 2026-06-20 — Branch-B sprint cycle 1 (residual located → 3 fixes landed + DP7 A/B)
+
+**Residual precisely located (h2h transcripts).** motoko worse than pi on EXACTLY 2 benchmarks:
+balanced_parens (2/3) + run_length_encode (1/3) — **both `compile_error/stop`** (qwen finalized with
+non-typechecking code: AILANG `Num[string]` friction). Other 6 imperfect = SHARED with pi (timeouts /
+qwen-on-AILANG limits), not motoko levers. Thrash = full-rewrites (59) > re-reads (23).
+
+**Landed (this repo, dev):**
+1. **R1b actionable instance hints** (`instances.go`): Num[string] → "use ++ to concatenate, or
+   stringToInt to convert"; Fractional/Ord/Eq tailored; numeric types keep import hint. Improves the
+   default+agent error the model sees on the exact residual failure class.
+2. **stdlib version-noise fix** (`stdlib_resolver.go`): base-semver compare — kills the spurious
+   "stdlib version mismatch" warning that polluted **291** run stderrs (model BashExec context).
+3. (cycle 0) compaction telemetry A1/A2/A3 + R1 renderer.
+
+**Running:** DP7 post-fix A/B (`dp7-postfix-ab-20260620`, 66 runs) — does the `ailang check` finalize
+gate fix the 2 compile-error-finalizes now that truncation is gone? (pre-fix it was net-neutral). On
+completion: productionize / lean-gate / rule out.
+
+**Next R1b-extension candidates (os-rolling, 125 fails):** 36× parse errors (PARxxx), undefined-var
+hallucinations (concat/Some/fst/subtract/float → "did you mean / import" hints).
+
+## 2026-06-20 — DP7 def-of-done gate RULED OUT (post-fix A/B) → no pass-rate lever left
+
+A/B `ollama` (no gate) vs `ollama_dp7` (`ailang check` finalize gate), post-fix, 11 benches ×3 ×2
+(`dp7-postfix-ab-20260620`): base **25/33 (76%)** vs dp7 **26/33 (79%)** — **+1, within n=3 noise**;
+median turns 8→7. The gate **did NOT fix the target residual** (`run_length_encode` 1/3 → 1/3); it
+traded benchmarks (fixed json_parse 2→3, red_black_tree 1→2; broke type_unify 3→2). Same net-neutral
+shape as pre-fix. (One run, log_file_analyzer-dp7, ground to the 1500s timeout — the gate amplifies
+grind on already-thrashy benches, though median is unaffected.) **Ruled out: blunt finalize compile-
+gate.** Ruled-out ledger += def-of-done gate.
+
+**STRATEGIC CONCLUSION:** both candidate pass-rate levers are now ruled out — **compaction** (refuted:
+disabled for qwen) and the **def-of-done gate** (noise). So motoko's residual on the single-file suite
+is **genuine qwen-on-AILANG capability + variance, not a fixable harness gap.** motoko is at parity
+(h2h 90.6% ≥ pi 88.9%) with no clean pass-rate lever remaining → on the current benchmarks, the core
+objective is MET. **The real headroom is EFFICIENCY + PROJECT-SCALE**, per the AILANG-native harness
+north-star ([planned/m-ailang-native-harness.md](planned/m-ailang-native-harness.md)): semantic
+tools (edit/read/grep over meaning), measured first by the semantic-edit experiment (rewrite-thrash on
+the current suite), then the project-eval falsification test (pi vs motoko on multi-file projects).
+R1b + version-noise fix now live on the rig (binary `46d5405d2`).
+
+## 2026-06-20 — BEST-OF-N + EXACT SELECTOR is the top pass-rate lever (validated FREE from h2h data)
+
+Reverses the "no pass-rate lever left" conclusion above. Zero-cost analysis of the existing trials=3
+h2h (no new GPU):
+- **pass@1 (per-trial): motoko 90.6%, pi 88.9%.**
+- **best-of-3, perfect selector (ceiling): motoko 39/39 = 100%, pi 38/39 = 97.4%** (pi hard-fails
+  config_file_parser 0/3; **motoko has NO hard fails — every benchmark passes ≥1/3**). The residual
+  is entirely RECOVERABLE VARIANCE, not a capability wall.
+- **best-of-3, REALISTIC selector (typecheck+run, no reference output): motoko ~97%.** 7 of 8 residual
+  benchmarks have only selector-catchable failures (compile_error/api_error/timeout → `ailang check`
+  + run drops them, keeps the pass): balanced_parens, run_length_encode, polymorphic_ord_defaulting,
+  symbolic_diff, red_black_tree, log_file_analyzer, type_unify. Only `pipeline` is RISKY (a logic_error
+  candidate typechecks+runs but is wrong → needs contracts/tests to discriminate, which the project-eval
+  has).
+
+**Why this is THE AILANG-native lever (motoko beats pi):** motoko REALIZES its ceiling because it has
+an exact in-loop selector (`ailang check` + run + contracts pick the verified-correct candidate);
+pi has none → with N samples it submits a guess (~pass@1) and still hard-fails config_file_parser.
+Fair best-of-3: **motoko ~97–100% vs pi ~89–91% → +7–9pp, structural, uncopyable by a general harness.**
+qwen's stochasticity flips from the *cause* of the residual to the *cure*.
+
+**Priority correction:** probe #3 (distributional gen + exact select) is the TOP lever, not a
+deprioritized cloud-roadmap item — LOCAL-rig testable (sequential N samples, $0; "cloud/parallel" was
+only about latency). Next build: realize it in motoko's loop (generate N → `ailang check`/run select →
+submit survivor) and confirm the live gain. Ruled-out ledger unchanged; this is a NEW confirmed lever.
+
+## 2026-06-20 — log_file_analyzer ruled OUT as a percentage-ambiguity distortion
+
+**Hypothesis under test (from residual analysis):** `log_file_analyzer` was distorting the
+motoko-vs-pi gap via a fragile floor-truncated percentage in `expected_stdout` (`1/6=16.66 -> 16`)
+that exact-match grading turns into a ~50% coin-flip when a model rounds to `17`. **Verdict: FALSE
+for the current benchmark.** Evidence (414 historical `log_file_analyzer` result JSONs):
+
+- **The percentage knife-edge is REAL but DORMANT.** It was a genuine prompt/expected *contradiction*
+  introduced in `988ec33` (prompt → "round down" but expected left at `17%`) and FIXED in `f6250052b`
+  (v0.14.1, expected `17→16`). Current state is internally consistent: prompt says floor, expected = 16.
+- **All 67 historical near-miss FAILURES are `exp=17 / got=16`** — the OPPOSITE direction from the
+  hypothesis. They penalized the careful instruction-followers (opus/sonnet/gpt5) that *obeyed* "round
+  down" while the expected was a stale `17`. Zero `exp=16 / got=17` failures exist.
+- **Under the current (expected=16) benchmark: 101/124 pass; 0 of the 23 fails are percentage
+  near-misses** (they're compile/api/logic/runtime/timeout).
+- **qwen3.6 local (pi/motoko/opencode): 62/74 pass; all 12 fails are EMPTY stdout**
+  (api_error/timeout/compile/logic). **Zero qwen outputs ever emitted `17%`.** In the clean
+  `postfix-h2h-20260619` run, log_file_analyzer = motoko 1/3, pi 2/3, every fail empty-output.
+- `CompareOutput` confirmed to have **no numeric tolerance** on integer percentages (17 vs 16 = hard fail).
+
+**Conclusion:** log_file_analyzer's instability on qwen3.6 is the *known disengagement/truncation
+residual* (the same class as the InputFiles / cli_args / pipeline tasks), NOT percentage ambiguity. The
+percentage is not distorting the motoko-vs-pi gap. **No expected-output change made** (would churn
+comparability to fix a non-firing bug). Applied a low-risk HARDENING instead: clarified the muddled
+"use integer division, round down" prompt phrasing to an explicit `floor(count*100/total)` + worked
+example (16 not 17), and added a **CONVENTION-PIN comment** above `expected_stdout` documenting the
+floor convention + the `988ec33` regression so prompt/expected can't silently drift again.
+
+- Lever classification: **PROMPT** (clarity + regression guard); the residual qwen failures remain
+  **MODEL-CAPABILITY / HARNESS disengagement**, unchanged by this.
+- Audit (sibling benchmarks): only `log_file_analyzer` bakes in `(NN%)` percentages; the other two `%`
+  hits (`gcd_lcm`, `dense_operator_program`) are the modulo operator in prompts. No systemic fragility.
+- Prior-action status: corrects the residual-analysis note that implicated log_file_analyzer's
+  percentage; redirects it to the disengagement bucket already being averaged out by the trials=3 h2h.
+
+## 2026-06-20 — #9 PROJECT-EVAL HARNESS PROVEN LIVE ON THE RIG (motoko + pi both PASS calc_bugfix) — need harder fixtures
+
+**Cycle:** First end-to-end project-eval run on the rig. The full #9 pipeline (copy baseline workspace
+→ run a real harness on the project task → grade build + acceptance) executed live with qwen, for BOTH
+motoko and pi — not stubs.
+
+**Setup:** `eval_projects/calc_bugfix` (multi-module ops.ail + main.ail, locked). BUG: `sub(a,b)=a+b`.
+Task: "fix sub so main prints 7." Invocation — motoko: `MODEL=ollama/qwen3.6:35b-a3b-mxfp8
+MOTOKO_CONFIG=ollama WORKDIR=<ws> AILANG_OLLAMA_MAX_TOKENS=32768 run-agent.sh "<task>"`; pi:
+`cd <ws> && pi --mode json --model ollama/qwen3.6:35b-a3b-mxfp8 --no-session -p "<task>"`. Grade:
+`projecteval.GradeProject` (check --package + run --quiet, stdout==7).
+
+**Result:** motoko **PASS** (fixed `sub→a-b`, builds, prints 7); pi **PASS** (identical). Tie.
+
+**Finding:** The harness works end-to-end on the rig — both run, edit the real multi-file workspace,
+grade correctly. But **calc_bugfix is too easy to discriminate** (a one-line sign flip; both nail it).
+It validates the RIG + pipeline, not relative harness strength.
+
+**Ruled-out ledger:** "project-eval can't run live" — REFUTED (ran, both harnesses, graded). "calc_bugfix
+discriminates motoko vs pi" — REFUTED (both PASS).
+
+**Lever:** N/A (instrument validation). The falsification test now needs DISCRIMINATING fixtures:
+multi-module feature-add / cross-file coordination, AILANG-specific reasoning (effects, typeclasses,
+recursion-no-loops), and LARGE-context tasks (where context_mode `on_tool_handle` + compaction matter).
+One trivial task ≠ a falsification suite.
+
+**Context_mode finding (this cycle):** motoko's `context_mode` ext wraps mksglu/context-mode (shell-exec
+to its CLI). It was loaded in every eval but INERT: (1) CLI wasn't installed → SpawnFailed→Delegate;
+(2) model never called its CtxExecute/CtxBatchExecute tools (0× across all runs); (3) prompt-injection
+hardcoded "" in v0.2.3. Installed the CLI (`npm i -g context-mode`). KEY: motoko's ABI has
+`on_tool_handle` (intercept any tool call) — context_mode wires it but only handles its own Ctx* tools
+(Delegates BashExec). The automatic mode = wire `on_tool_handle` to route BashExec output through
+context-mode transparently. Belongs in the project-eval (large outputs), not single-file. Upstream-worthy.
+
+**Next:** build ≥1 discriminating fixture, re-run both harnesses; then the context_mode `on_tool_handle`
+transparent-compression arm on a large-output project task.
+
+### Follow-up (same day) — list_stats ALSO ties → parity holds at the easy end; need the DISCRIMINATING regime
+
+Built `eval_projects/list_stats` (feature-add: implement recursive integer-mean `avg` across modules;
+baseline build-fails IMP010, reference prints 30). Ran both harnesses on the rig:
+- motoko **PASS** — added recursive `lenList` + `avg = sumList(xs)/n`, builds, prints 30.
+- pi **PASS** — `avg = sumList(xs)/countElements(xs)`, builds, prints 30.
+
+**Finding: motoko ≈ pi on small, well-specified AILANG tasks (both PASS calc_bugfix AND list_stats).**
+This is consistent with the single-file ~90% parity (motoko 90.6% ≥ pi 88.9%). Harness differences do
+NOT show up in the single-shot-solvable regime — qwen + either harness handles recursion/modules/
+division/feature-add fine. **The falsification thesis (does AILANG-native motoko BEAT pi?) can only be
+tested in the DISCRIMINATING regime**, which is one of two:
+  (A) **hard-fail regime** — tasks qwen FAILS single-shot (advanced idioms: effect handlers, typeclass
+      instances, row-poly records), so success depends on the harness's error-recovery / in-loop
+      verification (DP7) / best-of-N. Tests the verification levers.
+  (B) **large-context regime** — a real larger AILANG codebase (the demos repo / docparse output) where
+      the model must NAVIGATE many files before editing, so success depends on context management
+      (context_mode `on_tool_handle`, compaction, grep/semantic retrieval). Tests the context thesis.
+
+Regime (B) is the most thesis-aligned (context-minimization north star) AND exercises the just-installed
+context_mode. **Next: build a large-codebase fixture from a real AILANG project, with a task requiring
+navigation, and A/B motoko (with the context_mode on_tool_handle arm) vs pi.**
+
+### Follow-up 2 (same day) — validators (25-module navigation) ALSO ties; the n=1 efficiency edge was NOISE
+
+Built `eval_projects/validators` (27 modules; `ruleNN(x)=x>=NN`, but rule17 uses `>`; bug UNNAMED so the
+agent must navigate ~25 files; builds clean, baseline 24, fix 25). Ran both harnesses on the rig:
+
+- **Pass:** motoko PASS + pi PASS (both find rule17, fix it, print 25). Tie again.
+- **Efficiency (the interesting axis):** motoko trial1 = 5 tool calls / 6 steps; pi = 12 tool execs / 12
+  turns. Looked like a 2× motoko edge — BUT replication refuted it: **motoko trials = 5, 12, 12 calls**
+  (trials 2&3 both 12). Trial1 was a lucky low draw; motoko's typical ≈ pi's 12. **No efficiency edge.**
+
+**Ruled-out ledger (critical):** "motoko is ~2× more tool-call-efficient than pi on navigation" —
+REFUTED by replication (5,12,12 vs pi 12; the 5 was variance). Reinforces the standing discipline:
+never trust n=1 on a stochastic (temp>0) harness.
+
+**Consolidated finding across ALL project tasks tried (calc_bugfix, list_stats, validators):
+motoko ≈ pi on both pass-rate AND tool-call efficiency.** The harness thesis (AILANG-native motoko
+BEATS pi) is UNSUPPORTED in every project regime tested so far — they tie everywhere, consistent with
+the single-file ~90% parity.
+
+**Where a STRUCTURAL (non-noise) motoko edge could still exist:** the LARGE-OUTPUT regime WITH the
+context_mode `on_tool_handle` transparent-compression arm wired — because that is a capability pi does
+NOT have in this setup (pi dumps full tool output into context; motoko-with-on_tool_handle would return
+compressed/indexed output). validators does NOT test this (one-line modules → tiny grep/read output →
+nothing to compress; motoko already navigates fine with native Search). **The real thesis test = a
+fixture with LARGE tool outputs (big files / verbose multi-error build logs / large command output) +
+the on_tool_handle arm.** That is the one lever that could move motoko from tie to win. Everything else
+tested = parity. **Next: (1) wire context_mode on_tool_handle to compress BashExec output (motoko fork);
+(2) build a large-OUTPUT fixture; (3) A/B with vs without the arm (token cost is the metric, not pass).**
+
+## 2026-06-20 — HARD tasks discriminate (first motoko>pi signal); pivot to AILANG hard tasks; instrument = reimplement-to-pass-tests on real codebases
+
+**Prioritization corrected (user feedback: rank by IMPACT, not recency):** P0 real hard/long instrument
+→ P1 best-of-N (validated +6.8pp) → P2 context_mode on_tool_handle → defer semantic-edit/R1b. The toy
+fixtures (calc_bugfix/list_stats/validators) are RETIRED — a ≤6-line task gives a harness no room to
+differ, so they tie by construction.
+
+**Instrument adopted:** `motoko_explore` (tiered SPEC + deterministic `seed/verify.sh` + runner). Loop
+validated end-to-end on THIS machine (adapted paths + ollama/qwen). Fixed two real macOS portability
+bugs in its csv-to-jsonl verifier (BSD `mktemp` trailing-X; bare `pytest`→`uvx pytest`) — upstream-worthy.
+
+**FIRST HARD-TASK SIGNAL (csv-to-jsonl, Python, n=1 — striking but unreplicated):**
+- motoko: **6/7** — perfect implementation (all 6 functional edge cases incl. empty-vs-`""` trap), but
+  SKIPPED the test-writing requirement (empty `tests/__init__.py`). 25 tool calls, 26 steps, ~3 min,
+  terminal=done.
+- pi: **looped ~29 min** (18k log lines, still streaming) and had to be KILLED. Did not converge.
+- **Finding:** unlike every toy task (which tied), a HARD task discriminated — motoko CONVERGES, pi
+  GRINDS. This is the first motoko>pi signal in the project regime. Caveats: n=1, Python (not AILANG),
+  needs replication. But it validates the thesis that hard/long tasks are where harness differences live.
+
+**Pivot to AILANG (user: "we are looking for AILANG tests for discrimination"):** existing single-file
+AILANG benchmarks (`expression_evaluator`, `red_black_tree`, `state_machine_*`, ~50 in benchmarks/)
+already tie at ~90% — too short. A single-file `ailang-expr-eval` I built is redundant with those
+(building it surfaced real AILANG traps though: `Ok`/`Err` need `import std/result`; `++` is lists-only,
+strings use `"${}"`). The gap = LONG, MULTI-MODULE, LARGE-CONTEXT AILANG.
+
+**Instrument design chosen (user: docx_parser / large-context axis):** "reimplement a deleted module to
+pass HELD-OUT tests" on a REAL AILANG codebase. Substrate = `ailang-demos` (252 .ail, 43k lines) /
+`docparse`. Best candidate: `docx_parser.ail` (530 lines; deps Block ADT + zip_extract + std/xml = large
+context). Verification: capture GOLDEN output by running intact docparse on `data/examples/demo_report.docx`,
+stub docx_parser, grade reimplementation against golden. **Build friction hit:** docparse needs its
+`sunholo/ailang_parse@0.20.2` pkg vendoring/lock resolved to run (my `ailang install` added a duplicate
+toml key → reverted). Getting docparse to build → capture golden is the next focused step.
+
+**Ruled-out ledger:** toy/short tasks discriminate — REFUTED (all tie). HARD tasks discriminate —
+SUPPORTED (csv n=1: motoko converged, pi looped). AILANG single-file benchmarks are a fresh instrument —
+REFUTED (they already exist + tie).
+
+**Next:** (1) get docparse building (resolve pkg/lock) → capture golden from demo_report.docx; (2) stub
+docx_parser + held-out golden verifier; (3) motoko vs pi reimplement-to-pass-golden (large-context AILANG
+discrimination — the real falsification test); (4) replicate the csv converge-vs-loop signal. Also flag:
+nightly eval-suite firing broken runs (0/1 passed, duration ~5e-7s, total_jobs:0).
+
+## 2026-06-20 — eval-suite false-alarm FIXED; best-of-N (P1) design LOCKED; autonomous cron set
+
+**Eval-suite "broken" — diagnosed + fixed + deployed.** Not actually failing: `os-rotation-filler.sh`
+runs rolling chunks with `--skip-existing`; ~2300 banked results in os-rolling → most chunks skip every
+combo → 0 jobs → finalize's div-by-zero guard (actualRuns clamps 1) reported "0/1 passed (0.0%)", a
+false alarm flooding controlplane. Fix (committed + `make quick-install`'d): `cmd/ailang/eval_suite_finalize.go`
+emits status="no-op" / "no new jobs (all skipped — already banked)" when ranCount==0, instead of a false
+0%-pass. Real runs unchanged. The rotation idling at full coverage is EXPECTED (nothing new to run); a
+release/new benchmark/new trials is what spurs fresh eval data.
+
+**Best-of-N (P1) — LOCKED design (the validated +6.8pp top lever, structural advantage pi lacks):**
+- Realize as a motoko extension hooking `on_solver_candidate` (ABI `FinalizeDecision` = Accept |
+  ContinueWithFeedback | NoDecision; `dispatch_solver_candidate` in src/core/ext/runtime.ail merges all
+  hooks' decisions). When the model emits a final answer, the ext runs `ailang check` + `ailang run` on
+  the candidate solution in cwd (via std/process exec, as context_mode does). REFERENCE-FREE run-based
+  criterion (matches eval_best_of_n.py: select by runtime_ok, not stdout_ok — agent has no expected
+  output at run time). On compile error / runtime crash → ContinueWithFeedback(distilled error, reuse
+  R1 `--format=agent`); else NoDecision. Cap retries (e.g. 2-3) via a SharedMem counter so it can't loop
+  past budget.
+- Distinct from DP7: DP7's `semi_formal_verifier_mode` is BUDGET allocation only (rpc.ail default_budget_plan
+  splits solver/verifier) — it does NOT exec a verifier. DP7 check-only A/B'd as noise; the data lever is
+  RUN-based, so the increment is real (catch runtime/crash that check misses; stdout_ok grading needs it).
+- Build steps: (1) new ext package `sunholo/motoko_ext_verify_finalize` (ailang.toml + register.ail +
+  on_solver_candidate impl + exec wrapper) OR core logic gated by a config flag; (2) register in the
+  ollama profile's extensions.order; (3) `ailang lock`; (4) smoke: a benchmark where qwen's first answer
+  crashes → confirm ContinueWithFeedback fires + a later candidate passes; (5) rig A/B: ollama profile
+  with vs without the ext on the core tier — measure stdout_ok delta (target the +6.8pp). DRAFT PR to
+  arniwesth/motoko_agent. Fork branch: feat/local-eval-profiles.
+
+**Autonomous cron set** (CronCreate ca74f182, every 2h at :23, session-only): self-spurs mission
+continuation per the impact-ordered tasks + this discipline, so the build proceeds without per-hour
+check-ins. Caveat: reported session-only (dies on Claude restart) despite durable=true — for
+cross-restart persistence a launchd job (dev.ailang.motoko-analyzer style) is needed.
+
+**Next (cron + me):** execute the verify_finalize ext build steps 1-5 above (P1). It is the improvement
+that, on release, the now-clean eval-suite will measure.
+
+## 2026-06-20 — P1 REDIRECT: best-of-N can't be a motoko extension (ExtCtx lacks caps/entry); home is orchestration
+
+**Finding (build-blocking, important):** the `on_solver_candidate` extension path canNOT realize the
+run-based best-of-N lever. `ExtCtx` (ailang-packages motoko-ext-abi/types.ail:62) carries task/step/model/
+cwd/workdir/budget/history but **no capabilities and no entrypoint**. So an extension can `ailang check` a
+candidate (needs neither) but cannot `ailang run` it (needs --caps + --entry). Check-only == DP7, which
+already A/B'd as NOISE. The validated +6.8pp lever is RUN-based (select by runtime_ok), so the extension
+form collapses to the known-noise case. REFUTED: "best-of-N as a motoko on_solver_candidate extension."
+
+**Redirect:** best-of-N belongs in the ORCHESTRATION layer where caps+entry are known — i.e. exactly where
+`ailang select-best --caps --entry` operates. Two deployable forms:
+  (a) deployment wrapper `motoko-bestof`: run motoko N× (each in its own workspace) → `ailang select-best`
+      over the N solution files → emit the winner. Real shippable improvement (single call = verified-best
+      of N). N× rig cost. The eval can point a model at this wrapper so a release eval shows the lift.
+  (b) harness aggregation mode: the eval already runs trials=N + records compile_ok/runtime_ok/stdout_ok;
+      add a best-of-N selection at grade time (pick the trial that compiles+runs, grade its stdout) so every
+      rotation/release reports best-of-N alongside pass@1. This is eval_best_of_n.py promoted live.
+Building (a) now (the deployable improvement); (b) is a cheap follow-up that makes the lift visible on
+every release. Both validate on the rig (N real motoko runs).
+
+## 2026-06-20 — CORRECTION: no clean broad post-fix motoko-vs-pi comparison exists; os-rolling is STALE + api-contaminated
+
+**Ran best-of-N on the full banked os-rolling (the BROAD set, per discipline). Result is alarming AND
+misleading:** motoko pass@1 69.2% / bo-N EXACT 76.9% / 8 hard-fails; pi 95.6% / 100% / 0 hard-fails;
+opencode 80.7% / 84.6%. Taken at face value pi DOMINATES motoko by 26pp — contradicting the postfix-h2h
+"90.6% ≥ pi 88.9%" I reported as parity.
+
+**Why the contradiction — verified, do not trust the 69%:**
+1. ALL motoko qwen3-6 os-rolling results are **06-17 (340) / 06-18 (132)** — i.e. BEFORE the 06-19
+   truncation fix + the postfix-h2h. `--skip-existing` freezes them; they are never refreshed.
+2. The 8 motoko "hard-fails" are mostly NOT real capability failures: **4 are `api_error` with 0 output
+   tokens** (csv_to_json_converter, polymorphic_ord_defaulting, run_length_encode, symbolic_diff =
+   infra/API failures during that rotation); **3 are 2-turn `logic_error` disengagements**
+   (config_file_parser, graph_bfs, log_file_analyzer = the truncation/disengage mode the 06-19 fix
+   targets); **only red_black_tree (compile_error, 7 turns) is a genuine engaged failure.** best-of-N
+   can't fix the api_errors (every trial errored) — they drag the bo-N number down artificially.
+
+**Honest state of the mission (corrected):**
+- The broad os-rolling motoko number (69%) is STALE (pre-fix) + contaminated (4 api_error benchmarks).
+  DO NOT use it to assess current motoko or best-of-N.
+- The postfix-h2h (90.6%, 0 truncation) is the truer recent motoko number but is a SUBSET — per discipline,
+  don't over-generalize it either (it ran motoko higher AND pi lower than broad, suggesting subset bias).
+- pi at 95.6% broad / 88.9% subset — pi is strong; the broad pi number is sobering.
+- **CONCLUSION: there is NO clean, broad, POST-FIX motoko-vs-pi comparison.** The true gap is unknown.
+  This is exactly why a release → fresh broad eval is needed (the user's plan) — it clears the stale
+  --skip-existing contamination. Until then, claims of parity OR of a 26pp deficit are both unsupported.
+
+**Actions:** (1) the api_errors (4 benchmarks, 0-token, 06-17/18) are an infra signal — if they recur on
+fresh runs they tank motoko's eval unfairly; investigate motoko's API reliability on the next rig run.
+(2) Best-of-N's value is unassessable on stale data; needs the fresh run. (3) Don't repeat the parity
+claim without broad post-fix data.
+
+## 2026-06-20 — STALENESS CONFIRMED + genuine residual identified (fresh post-fix re-run of the 8 hard-fails)
+
+Ran a FRESH post-fix re-run (motoko-local-qwen3-6, trials=2, fresh output dir, no --skip-existing) of the
+8 os-rolling "hard-fails" → `eval_results/rotation/staleness-check-20260620`. Verdict:
+- **6/8 were purely STALE** — now PASS post-fix: config_file_parser (1/2), csv_to_json_converter (pass),
+  graph_bfs (pass), polymorphic_ord_defaulting (2/2), run_length_encode (pass), symbolic_diff (2/2). All
+  were 0% in the frozen pre-fix data. The tell: turn counts 7–31 now vs the stale 2-turn disengagements —
+  the truncation fix lets motoko ENGAGE. Confirms the stale broad 69%/83% badly understated motoko.
+- **2 are the GENUINE residual** (not stale): `log_file_analyzer` (0/2) and `red_black_tree` (0/2, no result
+  written) failed with **"v2 loop: step budget exhausted"** (max_steps=50 — engaged but couldn't finish)
+  and ollama **"context deadline exceeded"** (API timeout under load). Real difficulty + infra, NOT the
+  broad disengagement the fix cured.
+
+**Refined residual (the actual lever now):** on the hardest benchmarks motoko ENGAGES but (a) exhausts the
+50-step budget before finishing, and (b) hits ollama API timeouts. This is a different lever than
+best-of-N or disengagement: candidate levers = raise max_steps for hard tasks / better step-efficiency /
+API timeout+retry robustness. The api_error/timeout flakiness (also seen in fresh trials) could dent
+release evals unfairly — worth hardening.
+
+**Data hygiene:** `tools/eval_best_of_n.py` now flags stale data + excludes api_error non-attempts; memory
+`os-rolling-stale-eval-data` saved so this isn't re-litigated. Did NOT merge the fresh staleness-check
+results into os-rolling (avoid corrupting the banked rotation/dashboard data) — the full refresh is the
+release broad eval; staleness-check-20260620 stands as the post-fix truth for these 8.
+
+## 2026-06-20 23:48 — cron fire (rig BUSY): non-rig P0 docparse build diagnosis
+
+Rig busy (staleness-check 84112 still running — the earlier monitor summarized 12/16 prematurely on a
+transient kill -0 miss; final tally pending). Not blackout (blackout 04:00–07:00). Per rules → non-rig
+work: advanced P0 (docx_parser golden capture). Findings:
+- docparse `ailang lock` now resolves cleanly (post the earlier dup-key revert); `ailang_parse@0.20.2`
+  cached + locked. Build of `./bin/docparse` fails NOT on packages but on a type error in the API layer:
+  `docparse_api/services/api_keys.ail:718` (string vs NetError) — unrelated to document parsing.
+- The cached `ailang_parse` pkg's full `docparse/main.ail` needs further deps (`sunholo/gemini_files`)
+  for its AI parsers — too heavy for golden capture.
+- CLEAN PATH (scoped, next focused session): a minimal driver project that imports ONLY
+  `docparse/services/docx_parser (parseDocx)` + Block formatter, deps = ailang_parse docx subtree
+  (zip_extract, std/xml/zip), run on `docparse/data/examples/demo_report.docx` → capture golden blocks →
+  stub docx_parser → reimplement-to-pass-golden A/B (motoko vs pi). Not a cron-fire-sized task.
+
+**Continuity for next fire:** rig-dependent work is queued — (1) finalize the staleness-check verdict when
+84112 exits (red_black_tree/log_file_analyzer step-budget residual); (2) P1.5 step-budget A/B (cheapest);
+(3) P1 best-of-N rig validation (motoko-bestof). When rig frees + not blackout, run P1.5 first (cheapest).
+Non-rig alt: build the minimal docx_parser driver for P0.
+
+**Driver attempt (this fire):** built /tmp/docxdrv (ailang.toml dep ailang_parse@0.20.2 + driver importing
+parseDocx). Lock now pulls the full tree (gemini_files, logging, ailang_parse). Snag: importing
+`pkg/sunholo/ailang_parse/docparse/services/docx_parser` fails "module ... not exported by package" —
+EVEN THOUGH the pkg source ailang.toml [exports] lists `docparse/services/docx_parser` (line 16). =>
+published-manifest skew in cached 0.20.2 (source exports ≠ published artifact exports). Deeper P0 options
+for the focused session: (1) check the cached 0.20.2 manifest/iface for actual exports + use a version
+that exports docx_parser, or publish a fixed build; (2) OR run the package's PUBLIC parse entry (docparse/
+main, now that gemini_files locks) on demo_report.docx; (3) OR do the reimplement task IN the ailang_parse
+package source directly (agent edits the internal docx_parser.ail + the pkg's own tests grade it) — this
+sidesteps the export issue entirely and is probably the cleanest instrument shape. P0 remains a
+focused-session task; not cron-sized.
+
+## 2026-06-21 00:53 — cron fire (rig FREE): staleness FINAL verdict + launched fresh broad post-fix baseline
+
+Staleness-check completed (16/16). FINAL: **7/8 formerly-hard-fail benchmarks now pass ≥1 post-fix**
+(graph_bfs 2/2, polymorphic_ord_defaulting 2/2, run_length_encode 2/2, symbolic_diff 2/2,
+config_file_parser 1/2, csv_to_json_converter 1/2, red_black_tree 1/2 — even the "genuine" one passes
+once). Only log_file_analyzer is 0/2. The residual failures are **timeout/api_error (infra/slowness)**,
+NOT capability: the stale broad 69% was almost entirely contamination. P1.5 (step-budget) is now lower
+value — the residual is wall-clock timeout on 1-2 slow benchmarks, not the 50-step ceiling per se.
+
+**Launched the central open question — true broad POST-FIX motoko number** (rig free, night window before
+04:00 blackout): `eval_results/rotation/postfix-broad-20260621`, motoko-local-qwen3-6 ONLY, smoke+core
+(49 benchmarks) × trials=2, fresh dir (no --skip-existing), 900s timeout. PID 91132. This is the clean
+broad post-fix baseline we've been missing (os-rolling is stale). A monitor will summarize pass@1 +
+best-of-N via the now-staleness-aware eval_best_of_n.py when it lands (~2.5-4h; may cross blackout —
+acceptable, motoko-only to a fresh dir, os-filler is --skip-existing no-op).
+
+**Next fire:** read the broad result → the true motoko-vs-(banked-pi) gap; then decide P1 best-of-N
+integration vs P0 docx_parser (reimplement-in-package shape) accordingly.
+
+## 2026-06-21 — ★ DECISIVE: fresh broad post-fix motoko = 96.9% pass@1, best-of-N EXACT = 100%, 0 hard-fails
+
+`postfix-broad-20260621` (49 smoke+core benchmarks × 2 trials, motoko-local-qwen3-6, fresh dir, no
+--skip-existing) — the clean broad post-fix baseline we'd been missing:
+- **pass@1 = 96.9%** (trial-mean 95.9%); **bo-N ceiling 100%; bo-N EXACT (check+run selector) = 100%;
+  HARD-FAILS = 0.** all-pass(both trials)=91.8%. The few trial failures are ALL flaky:
+  {runtime_error:1, api_error:1, timeout:2} — zero capability hard-fails.
+
+**What this settles:**
+1. The truncation fix's broad effect is now CONFIRMED on fresh data: motoko 75%(pre) → **96.9%(post)**
+   broad — not just the postfix-h2h subset. The stale 69% is fully buried.
+2. **motoko MEETS the 96% target** and is at/above pi's banked 95.6%. (Caveat: pi number is from the
+   stale os-rolling; a fresh pi run would make the head-to-head airtight — worth a future fire. But
+   motoko 96.9% fresh ≥ pi 95.6% banked is strong.)
+3. **best-of-N (P1) is now PROVEN as the closer on fresh broad data: 96.9% → 100%.** 0 hard-fails means
+   every benchmark has a passing trial, so the exact typecheck+run selector always finds it. Every
+   remaining failure is flaky (runtime/api/timeout) — precisely what best-of-N selects around. Deploying
+   `motoko-bestof` (run N → select-best) → ~100% on this set. This is THE improvement to ship.
+
+**Re-rank:** P1 best-of-N deployment is the clear, proven win (96.9→100%). P0 docx_parser (large-context
+discrimination) is now about "can motoko go BEYOND the standard set" — still valuable but no longer the
+gap-closer (the standard-set gap is closed). P1.5 step-budget is moot (0 hard-fails; residual is flaky
+timeouts best-of-N handles). **Next: deploy best-of-N (eval-integrate motoko-bestof so a release run
+shows ~100%) + a fresh pi broad run for the airtight head-to-head.**
+
+## 2026-06-21 03:xx — cron fire: best-of-N shipped as a first-class rotation metric (P1 deploy, reporting form)
+
+Rig was idle but near blackout → non-rig P1 work. Promoted best-of-N from the manual tools/eval_best_of_n.py
+into `SummarizeRotation` (internal/eval_harness/rotation_summary.go): every rotation/release summary.json
+now carries per-benchmark `any_pass` + `best_of_n_pass` (reference-free EXACT selector: runs>typechecks>
+neither, ties keep first — mirrors `ailang select-best`) and a per-model `model_rollup` {pass_at_1,
+best_of_n_exact, best_of_n_ceiling}. Unit-tested (synthetic) + validated against the real broad baseline:
+Go rollup reproduces the .py exactly — motoko **pass@1=0.959, best_of_n_exact=1.000, ceiling=1.000**
+(49 benches, 98 trials). So the proven 96.9%→100% lift is now visible on EVERY release automatically.
+Committed (my files only; left concurrent uncommitted log_file_analyzer.yml/latest.json/ollama-tap alone).
+
+**Remaining P1 (next fires):** (a) executor-level deploy — make the eval's motoko executor (which DOES
+know caps+entry) optionally run N candidates → select-best → submit the winner, so motoko-as-run is the
+best-of-N solution (the metric above reports it from trials; this makes a single deployed invocation
+achieve it). (b) fresh pi broad run for the airtight head-to-head (os-filler is gradually refreshing pi
+via --skip-existing; a clean fresh pi run closes the caveat). Both rig-dependent → next free non-blackout
+window. Task list: #12 (step-budget) closed moot; #10 (best-of-N) is the active deploy.
+
+## 2026-06-21 04:53 — cron fire (BLACKOUT): P0 published-pkg route REFUTED; mission core goal met → consolidate
+
+Blackout (04:00-07:00) → non-rig. Cheap-confirmed the last P0 unblock: ailang_parse **0.20.3 also does
+NOT export docx_parser** (same as 0.20.2) — the published artifacts keep docx_parser internal (only the
+top-level parse API + types are importable; source ailang.toml [exports] ≠ published manifest). REFUTED:
+"capture docx golden via a driver importing the published package." P0 via this codebase now requires the
+ailang-parse REPO SOURCE (clone + stub the internal docx_parser.ail + run the repo's own tests) — a
+focused-session task; cheap cron routes exhausted across 3 fires. Deprioritize P0 unless a focused
+session tackles the repo-source path.
+
+**Mission core-goal status: MET.** motoko post-fix = 96.9% pass@1 / best-of-N EXACT 100% / 0 hard-fails on
+the broad standard set (≥ pi banked 95.6%); best-of-N shipped as a first-class rotation metric. Remaining:
+(1) fresh pi broad run for the AIRTIGHT head-to-head (rig; next non-blackout window) — the only thing
+between "meets target" and "provably beats pi on identical fresh data"; (2) P0 large-context frontier
+(repo-source path) as the "go beyond the standard set" research; (3) executor-level best-of-N is redundant
+with the rotation metric (eval runs trials → rollup selects) — deprioritized. Next non-blackout fire:
+run the fresh pi broad baseline (49 benches, trials=2) → compare to motoko 96.9%.
+
+## 2026-06-21 06:53 — cron fire: LAUNCHED the airtight pi head-to-head (deferred past blackout)
+
+Blackout ends 07:00 (was 06:53). Launched a background job (waits out blackout → fresh pi broad run on
+the SAME 49 smoke+core benches, trials=2, fresh dir `postfix-broad-pi-20260621`, no --skip-existing →
+auto-summary via the staleness-aware eval_best_of_n.py). This is the airtight identical-data head-to-head:
+pi-fresh vs motoko-fresh (96.9% pass@1 / 100% best-of-N, postfix-broad-20260621). Result in ~3h → records
+the mission's closing verdict (does motoko ≥ pi on fresh identical data?). Rig will be busy with it; next
+fire reads the result. If motoko ≥ pi confirmed → core goal provably met; mission shifts to the P0
+large-context frontier (repo-source path) as optional "go beyond" research.
+
+## 2026-06-21 ★★ CLOSING VERDICT: motoko = pi (airtight fresh head-to-head) — core goal MET
+
+Fresh pi broad run (`postfix-broad-pi-20260621`, SAME 49 smoke+core benches × 2 trials, fresh dir, 0
+api_error exclusions) vs the fresh motoko baseline (postfix-broad-20260621):
+
+| harness | pass@1 | bo-N EXACT | bo-N ceiling | hard-fails |
+|---|---|---|---|---|
+| motoko  | **96.9%** | **100.0%** | 100% | 0 |
+| pi      | **96.9%** | 98.0% | 100% | 0 |
+
+**Verdict: DEAD-EVEN at pass@1 (96.9% = 96.9%); motoko edges pi on best-of-N (100% vs 98%).** pi's only
+gap is 1 selector miss (`pipeline` — a runs-but-wrong candidate the reference-free check+run selector
+can't reject; needs contracts/tests). motoko: 0 selector misses. The 2pp edge = 1 benchmark → within
+noise (n=2 trials, single run). **Honest claim: motoko has reached PARITY with pi** (the 96% bar), with
+a marginal best-of-N advantage. Mission core goal ("match or beat pi") = **MET**. Trajectory: 26% (start)
+→ 96.9% (parity with pi), driven by the truncation fix; best-of-N keeps both at ~100% ceiling.
+
+**Key implication — the standard set is SATURATED:** both harnesses hit 100% best-of-N ceiling + 0
+hard-fails. This set can no longer DISCRIMINATE "best vs equal." To prove motoko is the BEST (beyond
+parity), the only path is the HARDER frontier (P0 large-context / beyond-standard tasks) where pi and
+motoko actually diverge. Everything cheaper is now saturated.
+
+**Mission status:** core goal MET (parity at 96.9%). Remaining is optional "best, not just equal" research
+= P0 large-context (ailang-parse repo-source reimplement instrument — a focused-session build). The cheap
+levers (truncation fix, best-of-N reporting) are banked and proven. Recommend: surface this to the user
+(parity achieved) + treat P0 as the next deliberate (non-cron) investment.
+
+## 2026-06-21 09:42 — cron fire: P0 large-context instrument BUILT (docx_reimplement, repo-source path WORKS)
+
+The repo-source path unblocks P0 (the published-pkg route was dead). Cloned sunholo-data/ailang-parse
+(full source: docx_parser.ail editable in-place + 17 real DOCX fixtures in data/test_files/ + runnable
+`docparse/main.ail`). GATE PASSED: `ailang run docparse/main.ail <fixture.docx>` builds + runs
+deterministically (e.g. tables.docx → 8 blocks, 3 tables; no volatile output). Built the instrument
+`eval_projects/docx_reimplement/` (committed): golden/ = captured deterministic output (content blocks +
+summary) for all 17 fixtures; verify.sh <repo-dir> diffs a candidate vs golden; SPEC.md = the reimplement
+task. VALIDATED: 17/17 pass against the intact repo; a broken parser DIFFERS (discriminates).
+
+**Next (focused / rig):** (1) STUB CALIBRATION — design how much of docx_parser.ail (~530 lines) to
+stub. Risk both ways: too much → both harnesses fail (no signal, like stretch tier); too little → both
+pass. Target the "one harness does better" zone (stub the core extraction, keep signatures+imports). This
+needs care = the focused-session work, not cron. (2) RIG head-to-head: copy ailang-parse → workspace,
+apply stub, run motoko vs pi on the reimplement task, grade with verify.sh → the FIRST large-context
+discrimination data point (the only thing the saturated standard set can't give). Core goal stays MET
+(parity); this is the "go beyond / prove strictly best" frontier.
+
+## 2026-06-21 — CLOUD COMPARISON ("motoko gets there for free") + stretch h2h launched
+
+**The "free" story, airtight on the 26 overlapping AILANG agent benchmarks** (motoko postfix-broad ∩
+claude-sonnet-4-6 v0.25.0 baseline):
+
+| harness | pass@1 | best-of-N | $/bench | mean turns |
+|---|---|---|---|---|
+| claude-sonnet-4-6 (cloud frontier) | 100% | 100% | **$0.1633** | 4.5 |
+| motoko local qwen3.6 | 92.3% | **100%** | **$0.0000** | 6.4 |
+
+**motoko reaches the SAME 100% (with best-of-N) as cloud-frontier sonnet-4-6, at $0 vs $0.16/benchmark,
+just slower (6.4 vs 4.5 turns — ~40% more).** Across a 49-bench suite: ~$8/run (sonnet) vs $0 (motoko).
+gpt5-4-mini in the same baseline = 75.7% / $0.21 (motoko beats it outright). This is the value prop: local
+qwen + motoko's AILANG-native best-of-N matches cloud-frontier AILANG synthesis quality at ZERO marginal
+cost. (Caveats: cloud baseline = sonnet-4-6 + gpt5-4-mini only in v0.25.0 ailang-agent; 26-bench overlap;
+motoko pass@1 92.3% on this harder overlap vs 96.9% on the full 49 — best-of-N closes it to 100% either way.)
+
+**Stretch h2h launched** (rig, PID 13990, `stretch-h2h-20260621`): motoko + pi on the 11 stretch benchmarks
+(the harder tier above smoke+core: contract_matrix_determinant, mini_interpreter, symbolic_diff, type_unify,
+expression_evaluator, …), trials=2. The smoke+core set is saturated (both 100% best-of-N); stretch is where
+motoko/pi may diverge. (Vision tier = AILANG-strength std/ai tasks needing a RUNTIME AI provider — not
+clean local-only; deferred.) Result next fire → first harder-tier discrimination.
+
+**Pushed** to origin (sprint/m-secret-effect, gh=sunholo-voight-kampff). Note: the public dashboard
+(docs/static/benchmarks/latest.json) is regenerated from os-rolling by the filler; surfacing these
+broad/cloud numbers there needs an explicit eval-report/publish step (not just a git push).
+
+## 2026-06-21 ★ STRETCH VERDICT: motoko BEATS pi on the harder tier (best-of-N 100% vs 90.9%)
+
+Full stretch h2h (`stretch-h2h-20260621`, 11 stretch benchmarks × 2 trials, motoko-local-qwen3-6 vs
+pi-qwen3-6, 44 results):
+
+| harness | pass@1 | best-of-N (run) | hard-fails |
+|---|---|---|---|
+| motoko | 86.4% | **100.0%** | **0** |
+| pi | 86.4% | 90.9% | 1 |
+
+**First place motoko EXCEEDS pi.** pass@1 dead-even (86.4%), but motoko's best-of-N = 100% vs pi 90.9%
+(~9pp). Driver: pi **hard-fails `polymorphic_ord_defaulting` (0/2)** — motoko 2/2. That's an AILANG-specific
+construct (polymorphic Ord defaulting via dictionary passing) pi's model can't reliably produce; motoko's
+distribution always covers it → best-of-N reaches 100% where pi caps at 90.9%. Per-bench at pass@1 is
+MIXED (motoko leads polymorphic_ord_defaulting + contract_rle_roundtrip; pi leads log_file_analyzer,
+run_length_encode, type_unify) — so the edge is COVERAGE (best-of-N: motoko has a passing trial on EVERY
+stretch task, 0 hard-fails), not single-shot.
+
+NOTE: R1's contract-tier did NOT fire here — the bo-N used the plain run selector, and there were no
+runs-but-WRONG contract cases in this run (the contract_* benchmarks: motoko 6/6, pi 5/6, no logic-error
+selector-miss). So the stretch edge is hard-fail coverage, not the contract moat. R1 stays valid for the
+selector-miss case (the head-to-head `pipeline`), just not the lever HERE.
+
+**Caveat + action (discipline):** n=2 trials; the 9pp edge hinges on pi's polymorphic_ord_defaulting 0/2.
+REPLICATING that exact benchmark (motoko + pi, trials=6, `poly-ord-replicate-20260621`) to confirm pi's
+hard-fail is stable (real AILANG moat) vs n=2 variance. If pi stays 0/N → confirmed beyond-pi edge on the
+harder tier. Stretch DISCRIMINATES (unlike saturated smoke+core) — the right instrument for "beyond pi".

@@ -63,6 +63,13 @@ type RunMetrics struct {
 	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
 	EvalMode        string `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
 
+	// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT, v0.26.0). Leading
+	// indicator of convergence thrash — the agent loop compacting (and so erasing)
+	// its own working memory mid-run, forcing re-reads/rewrites. All zero = none.
+	CompactionCount     int `json:"compaction_count,omitempty"`      // Total context-compaction events
+	CompactionFirstStep int `json:"first_compaction_step,omitempty"` // Step of first compaction (0 = none)
+	CompactionMaxLevel  int `json:"compaction_level_max,omitempty"`  // Highest structural compaction level (0 = none)
+
 	// Experimental condition (M-CONTRACT-EVAL conditions dimension)
 	Condition string `json:"condition,omitempty"` // Experimental condition: "baseline", "contract", "z3_guided", "full"
 

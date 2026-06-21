@@ -2,8 +2,52 @@
 
 **Type:** Long-running mission (advanced in downtime, e.g. while evals run)
 **North star:** the AILANG-native harness (motoko) should match or beat the generic
-harnesses (pi 96%, opencode 79%) on local-AILANG synthesis. Today motoko = 26% AILANG.
-See [[motoko-strategic-goal]].
+harnesses (pi 96%, opencode 79%) on local-AILANG synthesis.
+
+**STATUS 2026-06-21 — CORE GOAL MET (standard set).** Fresh broad post-fix baseline
+(`eval_results/rotation/postfix-broad-20260621`, 49 smoke+core benches × 2 trials, clean dir):
+motoko **pass@1 = 96.9% / best-of-N EXACT = 100% / 0 hard-fails**. **AIRTIGHT head-to-head confirmed
+2026-06-21** (fresh pi on the SAME 49 benches × 2 trials, `postfix-broad-pi-20260621`): **pi = 96.9%
+pass@1 / 98% best-of-N** → **motoko = pi at pass@1 (PARITY), motoko slightly ahead on best-of-N (100% vs
+98%, within noise = 1 benchmark)**. Trajectory: ~26% (mission start) → **96.9% (parity with pi)**, driven
+by the truncation fix; best-of-N shipped as a first-class rotation metric. **Core goal "match or beat pi"
+= MET.**
+
+**The standard set is now SATURATED** (both harnesses 100% best-of-N ceiling, 0 hard-fails) — it can no
+longer discriminate "best vs equal." **Remaining (optional, "best not just equal"):** the large-context
+frontier (P0, ailang-parse repo-source reimplement instrument) where pi and motoko actually diverge — a
+deliberate focused-session build, not a cron task. See [[motoko-strategic-goal]] +
+the [analysis log](motoko-harness-analysis-log.md).
+
+## Roadmap: BEYOND parity (2026-06-21) — exploit what pi structurally can't do
+
+The standard set is saturated (motoko = pi). Beating pi requires AILANG-native structural advantages a
+generic harness has no access to. Priorities (mine):
+
+- **R1 (TOP — build now) — Contract-aware best-of-N selector.** Extend the best-of-N selector (select-best
+  / the rotation rollup) to reject runs-but-WRONG candidates via AILANG **contracts** (`ailang run
+  --verify-contracts`, or Z3 `ailang verify`). pi has no typed verifier → it keeps selector-misses (the
+  head-to-head `pipeline` case: pi picked runs-but-wrong; motoko 0 misses). The `contract_*` stretch
+  benchmarks are the proving ground. **Lever class: AILANG-native MOAT.** Small build (Go/eval-harness).
+
+- **R2 — Real-codebase "evolving codebase" eval (design-doc → sprint → motoko-execute → compare-reference).**
+  The realistic instrument that replaces saturated synthetic benchmarks (the user's idea). **TARGET = real
+  codebases WRITTEN IN AILANG, NOT the ailang-core repo's design_docs/ (those are the Go COMPILER — wrong
+  substrate).** Use: `ailang-parse` (docx/office parsing), `ailang-demos` (ecommerce/BigQuery/budgets),
+  `docparse`, `motoko_agent` (`src/core/*.ail`). Pipeline: take a feature/design-doc from one of THESE
+  AILANG projects (reference AILANG implementation exists) → sprint-plan → motoko executes on the pre-feature
+  copy → grade vs the reference (its AILANG tests + diff: "did motoko match or BEAT the human solution?").
+  docx-reimplement (ailang-parse) is the first instance — already AILANG-source. Tests ALL differentiators
+  on real evolving-AILANG-codebase work.
+
+- **R3 — Cross-model + cross-language generality study.** Once motoko is optimal on-device: motoko vs pi/
+  opencode on BIG openrouter models (gpt5, opus, gemini-3) + across langs (ailang/python/js/go). Q: (a) do
+  motoko's gains hold with strong models (model-independent harness win)? (b) AILANG-specific or general?
+  **Generality split:** best-of-N (check+run) is LANGUAGE-GENERAL (any compiler+runtime) = portable edge;
+  contracts (R1) are AILANG-SPECIFIC = the moat. This positions motoko: portable advantage vs substrate moat.
+
+Sequence: R1 (lever, now) → R2 (instrument, measures R1 + context_mode on real work) → R3 (positioning).
+docx-reimplement = R2's first instance + the context_mode/large-context proving ground.
 
 ## How the mission runs (each cycle)
 
@@ -35,6 +79,15 @@ inspiration and the 96% bar. Key learnings (mine the source under
   provider) — the reason its tool-calling is reliable on qwen.
 
 ## Backlog (prioritized — top = next)
+
+**[NEXT — 2026-06-20] CONVERGENCE EFFICIENCY (context hygiene).** Truncation + disengagement are
+fixed; motoko is at pass-rate parity with pi (88.9% vs 90.4%) but **3–10× less efficient** (pi median
+5 turns vs motoko 15–50). Source+transcript root cause: motoko's **verbose tool results + 70%
+auto-compaction erase the model's own writes**, forcing re-reads/rewrites (vicious cycle). Plan in
+[`planned/m-ailang-semantic-context.md`](planned/m-ailang-semantic-context.md): near-term = match pi
+(truncate tool results, raise compaction floor, echo writes; fork PR, A/B by turns-to-success), then
+AILANG-native semantic-context routes (distilled diagnostics, type/effect-directed surfacing, AST
+diffs, trace distillation, typed projection layer). Pending cheap-confirm: `wire_diag` elision capture.
 
 0. **[LANDED 2026-06-19 — TRUNCATION fixed.]** max_tokens floor 16384 (fac848054): disengaging
    benchmarks **21%→79%**, finish=length 11→0. Per-model precision plumbed (006a679a6 + motoko PR #48:
@@ -68,14 +121,21 @@ inspiration and the 96% bar. Key learnings (mine the source under
    - *Ruled out — M-MOTOKO-AGENT-SYSTEM-PROMPT*: lean agentic system prompt, proper core-tier A/B =
      **+1/52 (null)**; the 6-flaky smoke (+14pp) did NOT generalize. Knob kept, not productionized.
    - *Ruled out — system-role delivery* (teaching → system slot): A/B −2/18.
-2. **[AILANG, needs GPU] Temperature A/B** — `AILANG_OLLAMA_TEMPERATURE` knob landed (off by
-   default). A/B unset vs 0.2/0.3 on the 6 flaky benchmarks; if it lifts engagement, make a low
-   temperature the default; else investigate qwen thinking-mode. Lower priority than #1 (the
-   request-diff showed pi runs the same 1.0 default, so temperature isn't the pi gap — but lower
-   variance may still reduce motoko's flakiness).
-3. **[AILANG] Convergence / robustness**: `finish_reason=tool_calls and no run_summary` +
-   `step budget exhausted` tail. Lower priority — the lock + /v1 timeout removed the contention
-   trigger; revisit if it recurs un-contended.
+2. **[RULED OUT 2026-06-19 — SAMPLING is already optimal].** Wire-verified motoko sends only
+   `{model, max_tokens}` (no temp/top_p/top_k); ollama then applies qwen3.6's OWN modelfile vector
+   (`temperature 1, top_p 0.95, top_k 20, presence_penalty 1.5`). So motoko already runs the model's
+   recommended sampling — there is NO sampling lever (the "forcing greedy temp 0" premise was false;
+   `resolveOllamaTemperature`→0 is omitempty → unsent). The `AILANG_OLLAMA_TEMPERATURE` knob stays as
+   an opt-in override only. See analysis log 2026-06-19 SAMPLING-RULED-OUT.
+3. **[THE residual, data-elevated 2026-06-19 — CONVERGENCE/correctness, partly SHARED with pi].**
+   Post-truncation-fix the gap is no longer disengagement. Partial h2h (n=18 ea): motoko 88% vs pi
+   94%; motoko's only net loss = `explicit_dataflow_ssa` (grind, 32 tool calls fighting AILANG
+   `expected float arguments` numeric-type friction), and `csv_to_json_converter` fails for BOTH
+   harnesses (shared qwen-on-AILANG limit). "Step budget too low" ruled out (motoko runs ~50 steps
+   via `rpc.ail` clamp). **Next (disciplined, NO pre-committed lever): complete the full head-to-head
+   as a clean MEASUREMENT, read EVERY residual transcript, then classify each as (i) motoko-specific
+   & fixable harness lever, or (ii) shared qwen-on-AILANG capability friction → AILANG eval-gap item,
+   not a motoko harness lever.** See analysis log 2026-06-19 SAMPLING-RULED-OUT / residual entry.
 
 ## Resolved / ruled out (this investigation arc)
 - **System-role delivery** (M-MOTOKO-SYSTEM-ROLE, `7a0caf7a`): A/B off-vs-on (6 flaky ×3, 2026-06-18)

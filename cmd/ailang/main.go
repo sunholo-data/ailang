@@ -150,10 +150,18 @@ func main() {
 		timeoutCheck := checkFS.String("timeout", "", "Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
 		debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
 		jsonCheck := checkFS.Bool("json", false, "Output errors in JSON format (for AI/machine consumption)")
+		formatCheck := checkFS.String("format", "human", "Output format: human, json, or agent (compact one-line diagnostics for AI agent context)")
 		quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 		packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
 
 		_ = checkFS.Parse(flag.Args()[1:])
+
+		// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
+		// back-compat alias for --format=json. Both json and agent are "machine"
+		// formats that reuse the structured-error path; agent is the compact,
+		// token-lean one-line rendering for AI agent loops.
+		checkAgentFormat = (*formatCheck == "agent")
+		machineFormat := *jsonCheck || *formatCheck == "json" || *formatCheck == "agent"
 
 		// --package mode: check a package directory using ailang.toml
 		if *packageCheck {
@@ -161,7 +169,7 @@ func main() {
 			if checkFS.NArg() >= 1 {
 				dir = checkFS.Arg(0)
 			}
-			checkPackageWithContext(dir, *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, *jsonCheck, *quietCheck)
+			checkPackageWithContext(dir, *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
 			return
 		}
 
@@ -175,13 +183,14 @@ func main() {
 			fmt.Println("  --timeout <dur>    Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
 			fmt.Println("  --debug-compile    Show compilation phase timing breakdown")
 			fmt.Println("  --json             Output errors in JSON format")
+			fmt.Println("  --format <fmt>     Output format: human (default), json, or agent (compact one-line diagnostics)")
 			fmt.Println("  --quiet            Suppress progress lines, only output errors")
 			fmt.Println("  --package          Check entire package (reads ailang.toml)")
 			fmt.Println()
 			fmt.Println("If a directory is given, all .ail files are checked recursively.")
 			os.Exit(1)
 		}
-		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, *jsonCheck, *quietCheck)
+		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
 
 	case "iface":
 		if flag.NArg() < 2 {
@@ -190,6 +199,9 @@ func main() {
 			os.Exit(1)
 		}
 		outputInterface(flag.Arg(1))
+
+	case "select-best":
+		runSelectBest()
 
 	case "export-training":
 		exportTraining()

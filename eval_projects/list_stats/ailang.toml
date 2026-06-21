@@ -1,0 +1,19 @@
+[package]
+name = "eval_projects/list_stats"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = [
+  "eval_projects/list_stats/nums",
+  "eval_projects/list_stats/main",
+]
+
+[effects]
+max = ["IO"]
+
+[stability]
+level = "experimental"
+
+[metadata]
+ai_summary = "Project-eval fixture: implement avg (recursive integer mean) across modules (#9, discriminating)."

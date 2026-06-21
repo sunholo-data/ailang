@@ -153,6 +153,15 @@ type Result struct {
 	// 0 means either the limit wasn't reached or no limit was set.
 	ThrashKilledAt int
 
+	// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT, v0.26.0).
+	// Populated by agent executors that compact their context mid-run (motoko
+	// today). A high compaction rate is a leading indicator of convergence
+	// thrash — the loop erasing its own working memory and re-doing work.
+	// All zero = no compaction fired (or executor doesn't compact).
+	CompactionCount     int // Number of context-compaction events of any kind
+	CompactionFirstStep int // Step index of the first compaction event (0 = none)
+	CompactionMaxLevel  int // Highest structural compaction level/threshold seen (0 = none)
+
 	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) is the structured executor
 	// stop signal: "stop" (normal completion), "cost_exhausted" (motoko cost
 	// cap), "step_exhausted" (agent ran out of turns), "timeout", "error",

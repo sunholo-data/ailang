@@ -1,0 +1,6 @@
+module eval_projects/calc_bugfix/ops
+
+export pure func add(a: int, b: int) -> int = a + b
+
+-- BUG: subtraction is implemented as addition. The task is to fix this.
+export pure func sub(a: int, b: int) -> int = a + b

@@ -342,6 +342,7 @@ func IsKnownEffect(name string) bool {
 		"DOM":         true, // v0.21.x: Cognitive OS — structured DOM patches (M-COG-RUNTIME)
 		"Msg":         true, // v0.21.x: Cognitive OS — runtime messaging fabric (M-COG-RUNTIME)
 		"Cog":         true, // v0.21.x: Cognitive OS — drain pump for Subscribe callbacks (M-COG-RUNTIME-BROWSER)
+		"Secret":      true, // v0.26.0: Gated secret resolution (op:// refs) with remote approval (M-SECRET-EFFECT)
 	}
 	return knownEffects[name]
 }

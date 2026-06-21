@@ -1,0 +1,8 @@
+module eval_projects/validators/util
+
+-- Count the true values in a list (recursion; AILANG has no loops).
+export pure func countTrue(bs: [bool]) -> int =
+  match bs {
+    [] => 0,
+    b :: rest => (if b then 1 else 0) + countTrue(rest)
+  }

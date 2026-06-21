@@ -1,0 +1,4 @@
+module eval_projects/validators/rule09
+
+-- Accepts values at or above the threshold 9.
+export pure func rule09(x: int) -> bool = x >= 9

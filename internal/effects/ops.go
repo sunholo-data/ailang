@@ -55,6 +55,7 @@ var Registry = map[string]map[string]EffOp{
 	"Debug":   {},
 	"Stream":  {},
 	"Process": {},
+	"Secret":  {},
 }
 
 // Call invokes an effect operation
@@ -117,6 +118,11 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 		resultStr := ""
 		if result != nil {
 			resultStr = result.String()
+		}
+		// M-SECRET-EFFECT: a resolved secret value must never enter the trace.
+		// The arguments (the op:// reference) are safe; the result is the value.
+		if effectName == "Secret" {
+			resultStr = redactedSecretMarker
 		}
 		ctx.Trace.RecordEffect(effectName, opName, argStrs, resultStr)
 

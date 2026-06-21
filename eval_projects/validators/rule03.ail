@@ -1,0 +1,4 @@
+module eval_projects/validators/rule03
+
+-- Accepts values at or above the threshold 3.
+export pure func rule03(x: int) -> bool = x >= 3

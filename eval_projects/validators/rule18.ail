@@ -1,0 +1,4 @@
+module eval_projects/validators/rule18
+
+-- Accepts values at or above the threshold 18.
+export pure func rule18(x: int) -> bool = x >= 18

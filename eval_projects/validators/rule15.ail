@@ -1,0 +1,4 @@
+module eval_projects/validators/rule15
+
+-- Accepts values at or above the threshold 15.
+export pure func rule15(x: int) -> bool = x >= 15

@@ -1,0 +1,4 @@
+module eval_projects/validators/rule23
+
+-- Accepts values at or above the threshold 23.
+export pure func rule23(x: int) -> bool = x >= 23
