@@ -20,14 +20,22 @@ import (
 
 // Verdict records how a candidate fared under the verifier.
 type Verdict struct {
-	TypeChecks bool   // passed `ailang check`
-	Runs       bool   // executed without error (implies TypeChecks)
-	Detail     string // first error snippet, if any
+	TypeChecks    bool   // passed `ailang check`
+	Runs          bool   // executed without error (implies TypeChecks)
+	ContractsPass bool   // passed `ailang run --verify-contracts` (only set when VerifyContracts on)
+	Detail        string // first error snippet, if any
 }
 
-// score ranks a verdict: runs(2) > typechecks-only(1) > neither(0).
+// score ranks a verdict: contracts-pass+runs(3) > runs(2) > typechecks-only(1) > neither(0).
+// The contract tier (3) is the AILANG-native edge a general harness can't reach: a candidate
+// that compiles+runs but VIOLATES a declared ensures/requires contract (runs-but-WRONG) is
+// ranked BELOW one that also satisfies its contracts — catching the logic_error/selector-miss
+// cases the plain check+run selector keeps. When VerifyContracts is off (or the task ships no
+// contracts), ContractsPass stays false for all candidates → identical to the old runs(2) tier.
 func (v Verdict) score() int {
 	switch {
+	case v.Runs && v.ContractsPass:
+		return 3
 	case v.Runs:
 		return 2
 	case v.TypeChecks:
@@ -65,10 +73,11 @@ func SelectBest(paths []string, v Verifier) (int, []Verdict) {
 
 // AilangVerifier is the real, reference-free selector: `ailang check` then `ailang run`.
 type AilangVerifier struct {
-	Bin     string        // ailang binary (default "ailang")
-	Entry   string        // entrypoint (default "main")
-	Caps    string        // capabilities, e.g. "IO,FS" (default "IO")
-	Timeout time.Duration // per-candidate wall budget (default 30s)
+	Bin             string        // ailang binary (default "ailang")
+	Entry           string        // entrypoint (default "main")
+	Caps            string        // capabilities, e.g. "IO,FS" (default "IO")
+	Timeout         time.Duration // per-candidate wall budget (default 30s)
+	VerifyContracts bool          // also run `--verify-contracts` → ContractsPass (the AILANG-native moat)
 }
 
 func (a AilangVerifier) bin() string {
@@ -109,7 +118,20 @@ func (a AilangVerifier) Verify(path string) Verdict {
 	if runErr != nil {
 		return Verdict{TypeChecks: true, Runs: false, Detail: snippet(runOut)}
 	}
-	return Verdict{TypeChecks: true, Runs: true}
+	v := Verdict{TypeChecks: true, Runs: true}
+	if a.VerifyContracts {
+		// Stronger reference-free check: a candidate that runs but VIOLATES a declared
+		// ensures/requires contract is runs-but-WRONG. --verify-contracts exits non-zero on
+		// violation, so cErr==nil means contracts held. This is the edge pi lacks (no typed
+		// verifier). Tasks with no contracts pass trivially → ContractsPass=true for all.
+		cOut, cErr := a.runCmd(a.bin(), "run", "--entry", a.entry(), "--caps", a.caps(), "--verify-contracts", path)
+		if cErr == nil {
+			v.ContractsPass = true
+		} else {
+			v.Detail = "contract: " + snippet(cOut)
+		}
+	}
+	return v
 }
 
 func (a AilangVerifier) runCmd(name string, args ...string) (string, error) {

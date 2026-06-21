@@ -31,11 +31,14 @@ generic harness has no access to. Priorities (mine):
   benchmarks are the proving ground. **Lever class: AILANG-native MOAT.** Small build (Go/eval-harness).
 
 - **R2 — Real-codebase "evolving codebase" eval (design-doc → sprint → motoko-execute → compare-reference).**
-  The realistic instrument that replaces saturated synthetic benchmarks (the user's idea). Pipeline: pick an
-  IMPLEMENTED AILANG design doc (806 in `design_docs/implemented/`, each with a reference solution) →
-  design-doc-creator/sprint-planner → motoko executes on the pre-feature codebase → grade vs the reference
-  (its tests + diff: "did motoko match or BEAT the human solution?"). docx-reimplement (P0) is the first
-  instance. Tests ALL differentiators on real evolving-codebase work. Skills: design-doc-creator + sprint-*.
+  The realistic instrument that replaces saturated synthetic benchmarks (the user's idea). **TARGET = real
+  codebases WRITTEN IN AILANG, NOT the ailang-core repo's design_docs/ (those are the Go COMPILER — wrong
+  substrate).** Use: `ailang-parse` (docx/office parsing), `ailang-demos` (ecommerce/BigQuery/budgets),
+  `docparse`, `motoko_agent` (`src/core/*.ail`). Pipeline: take a feature/design-doc from one of THESE
+  AILANG projects (reference AILANG implementation exists) → sprint-plan → motoko executes on the pre-feature
+  copy → grade vs the reference (its AILANG tests + diff: "did motoko match or BEAT the human solution?").
+  docx-reimplement (ailang-parse) is the first instance — already AILANG-source. Tests ALL differentiators
+  on real evolving-AILANG-codebase work.
 
 - **R3 — Cross-model + cross-language generality study.** Once motoko is optimal on-device: motoko vs pi/
   opencode on BIG openrouter models (gpt5, opus, gemini-3) + across langs (ailang/python/js/go). Q: (a) do

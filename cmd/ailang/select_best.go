@@ -22,6 +22,7 @@ func runSelectBest() {
 	caps := fs.String("caps", "IO", "Capabilities for running candidates (e.g. IO,FS)")
 	entry := fs.String("entry", "main", "Entrypoint function")
 	timeout := fs.Duration("timeout", 30*time.Second, "Per-candidate verify timeout")
+	verifyContracts := fs.Bool("verify-contracts", false, "Also check ensures/requires contracts (rejects runs-but-wrong; the AILANG-native edge)")
 	_ = fs.Parse(flag.Args()[1:])
 
 	files := fs.Args()
@@ -32,11 +33,13 @@ func runSelectBest() {
 		os.Exit(1)
 	}
 
-	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout}
+	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout, VerifyContracts: *verifyContracts}
 	best, verdicts := bestof.SelectBest(files, v)
 	for i, vd := range verdicts {
 		status := "neither"
-		if vd.Runs {
+		if vd.Runs && vd.ContractsPass {
+			status = "runs+contracts"
+		} else if vd.Runs {
 			status = "runs"
 		} else if vd.TypeChecks {
 			status = "typechecks"
