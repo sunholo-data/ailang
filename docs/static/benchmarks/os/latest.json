@@ -1,6 +1,6 @@
 {
   "ailang_version": "v0.25.0",
-  "generated": "2026-06-19",
+  "generated": "2026-06-21",
   "languages": [
     "ailang",
     "go",
@@ -11,7 +11,7 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.6923076923076923,
+        "ailang": 0.9416666666666667,
         "go": 0.9316239316239316,
         "javascript": 0.9487179487179487,
         "python": 0.9504132231404959
@@ -51,7 +51,7 @@
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.9557522123893806,
+        "ailang": 0.95,
         "go": 0.9557522123893806,
         "javascript": 0.9661016949152542,
         "python": 0.9821428571428571
@@ -60,5 +60,5 @@
     }
   ],
   "trials": 5,
-  "version": "rolling-20260619"
+  "version": "rolling-refresh-20260621"
 }
