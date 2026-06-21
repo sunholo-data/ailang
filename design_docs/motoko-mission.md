@@ -19,6 +19,33 @@ frontier (P0, ailang-parse repo-source reimplement instrument) where pi and moto
 deliberate focused-session build, not a cron task. See [[motoko-strategic-goal]] +
 the [analysis log](motoko-harness-analysis-log.md).
 
+## Roadmap: BEYOND parity (2026-06-21) — exploit what pi structurally can't do
+
+The standard set is saturated (motoko = pi). Beating pi requires AILANG-native structural advantages a
+generic harness has no access to. Priorities (mine):
+
+- **R1 (TOP — build now) — Contract-aware best-of-N selector.** Extend the best-of-N selector (select-best
+  / the rotation rollup) to reject runs-but-WRONG candidates via AILANG **contracts** (`ailang run
+  --verify-contracts`, or Z3 `ailang verify`). pi has no typed verifier → it keeps selector-misses (the
+  head-to-head `pipeline` case: pi picked runs-but-wrong; motoko 0 misses). The `contract_*` stretch
+  benchmarks are the proving ground. **Lever class: AILANG-native MOAT.** Small build (Go/eval-harness).
+
+- **R2 — Real-codebase "evolving codebase" eval (design-doc → sprint → motoko-execute → compare-reference).**
+  The realistic instrument that replaces saturated synthetic benchmarks (the user's idea). Pipeline: pick an
+  IMPLEMENTED AILANG design doc (806 in `design_docs/implemented/`, each with a reference solution) →
+  design-doc-creator/sprint-planner → motoko executes on the pre-feature codebase → grade vs the reference
+  (its tests + diff: "did motoko match or BEAT the human solution?"). docx-reimplement (P0) is the first
+  instance. Tests ALL differentiators on real evolving-codebase work. Skills: design-doc-creator + sprint-*.
+
+- **R3 — Cross-model + cross-language generality study.** Once motoko is optimal on-device: motoko vs pi/
+  opencode on BIG openrouter models (gpt5, opus, gemini-3) + across langs (ailang/python/js/go). Q: (a) do
+  motoko's gains hold with strong models (model-independent harness win)? (b) AILANG-specific or general?
+  **Generality split:** best-of-N (check+run) is LANGUAGE-GENERAL (any compiler+runtime) = portable edge;
+  contracts (R1) are AILANG-SPECIFIC = the moat. This positions motoko: portable advantage vs substrate moat.
+
+Sequence: R1 (lever, now) → R2 (instrument, measures R1 + context_mode on real work) → R3 (positioning).
+docx-reimplement = R2's first instance + the context_mode/large-context proving ground.
+
 ## How the mission runs (each cycle)
 
 A cycle picks up **one** item and runs the full record-keeping flow:
