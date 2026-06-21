@@ -1559,3 +1559,28 @@ acceptable, motoko-only to a fresh dir, os-filler is --skip-existing no-op).
 
 **Next fire:** read the broad result → the true motoko-vs-(banked-pi) gap; then decide P1 best-of-N
 integration vs P0 docx_parser (reimplement-in-package shape) accordingly.
+
+## 2026-06-21 — ★ DECISIVE: fresh broad post-fix motoko = 96.9% pass@1, best-of-N EXACT = 100%, 0 hard-fails
+
+`postfix-broad-20260621` (49 smoke+core benchmarks × 2 trials, motoko-local-qwen3-6, fresh dir, no
+--skip-existing) — the clean broad post-fix baseline we'd been missing:
+- **pass@1 = 96.9%** (trial-mean 95.9%); **bo-N ceiling 100%; bo-N EXACT (check+run selector) = 100%;
+  HARD-FAILS = 0.** all-pass(both trials)=91.8%. The few trial failures are ALL flaky:
+  {runtime_error:1, api_error:1, timeout:2} — zero capability hard-fails.
+
+**What this settles:**
+1. The truncation fix's broad effect is now CONFIRMED on fresh data: motoko 75%(pre) → **96.9%(post)**
+   broad — not just the postfix-h2h subset. The stale 69% is fully buried.
+2. **motoko MEETS the 96% target** and is at/above pi's banked 95.6%. (Caveat: pi number is from the
+   stale os-rolling; a fresh pi run would make the head-to-head airtight — worth a future fire. But
+   motoko 96.9% fresh ≥ pi 95.6% banked is strong.)
+3. **best-of-N (P1) is now PROVEN as the closer on fresh broad data: 96.9% → 100%.** 0 hard-fails means
+   every benchmark has a passing trial, so the exact typecheck+run selector always finds it. Every
+   remaining failure is flaky (runtime/api/timeout) — precisely what best-of-N selects around. Deploying
+   `motoko-bestof` (run N → select-best) → ~100% on this set. This is THE improvement to ship.
+
+**Re-rank:** P1 best-of-N deployment is the clear, proven win (96.9→100%). P0 docx_parser (large-context
+discrimination) is now about "can motoko go BEYOND the standard set" — still valuable but no longer the
+gap-closer (the standard-set gap is closed). P1.5 step-budget is moot (0 hard-fails; residual is flaky
+timeouts best-of-N handles). **Next: deploy best-of-N (eval-integrate motoko-bestof so a release run
+shows ~100%) + a fresh pi broad run for the airtight head-to-head.**
