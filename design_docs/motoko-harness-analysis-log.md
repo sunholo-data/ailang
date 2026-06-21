@@ -1602,3 +1602,21 @@ best-of-N solution (the metric above reports it from trials; this makes a single
 achieve it). (b) fresh pi broad run for the airtight head-to-head (os-filler is gradually refreshing pi
 via --skip-existing; a clean fresh pi run closes the caveat). Both rig-dependent → next free non-blackout
 window. Task list: #12 (step-budget) closed moot; #10 (best-of-N) is the active deploy.
+
+## 2026-06-21 04:53 — cron fire (BLACKOUT): P0 published-pkg route REFUTED; mission core goal met → consolidate
+
+Blackout (04:00-07:00) → non-rig. Cheap-confirmed the last P0 unblock: ailang_parse **0.20.3 also does
+NOT export docx_parser** (same as 0.20.2) — the published artifacts keep docx_parser internal (only the
+top-level parse API + types are importable; source ailang.toml [exports] ≠ published manifest). REFUTED:
+"capture docx golden via a driver importing the published package." P0 via this codebase now requires the
+ailang-parse REPO SOURCE (clone + stub the internal docx_parser.ail + run the repo's own tests) — a
+focused-session task; cheap cron routes exhausted across 3 fires. Deprioritize P0 unless a focused
+session tackles the repo-source path.
+
+**Mission core-goal status: MET.** motoko post-fix = 96.9% pass@1 / best-of-N EXACT 100% / 0 hard-fails on
+the broad standard set (≥ pi banked 95.6%); best-of-N shipped as a first-class rotation metric. Remaining:
+(1) fresh pi broad run for the AIRTIGHT head-to-head (rig; next non-blackout window) — the only thing
+between "meets target" and "provably beats pi on identical fresh data"; (2) P0 large-context frontier
+(repo-source path) as the "go beyond the standard set" research; (3) executor-level best-of-N is redundant
+with the rotation metric (eval runs trials → rollup selects) — deprioritized. Next non-blackout fire:
+run the fresh pi broad baseline (49 benches, trials=2) → compare to motoko 96.9%.
