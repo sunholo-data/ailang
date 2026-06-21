@@ -1796,3 +1796,29 @@ the saturated single-file set never could. Connects P0 → P2.
 **Fix:** `run.sh` now sets `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` (was unset → 300s default). Re-launched
 (session ...214700, PID 44061). **Next fire:** read the re-run grade. If it completes → first true
 large-context data point. If it slows/bloats further → quantifies the P2 compression opportunity.
+
+---
+
+## 2026-06-21 (cont) — P0 run 2: motoko IS large-context-capable; blocked by timeout-propagation + an ailang parser panic
+
+**Positive:** run 2 (session ...214700) engaged **27 steps** and wrote a **full 526-line reimplementation**
+(from the 31-line stub). motoko handles large-context tasks — it reads the deps and produces a real attempt.
+The earlier "0/17" is NOT a capability verdict.
+
+**Why 0/17 (two compounding causes):**
+1. **ailang PARSER PANIC on `s[0]`** — motoko's output uses string indexing; `ailang check` dies with
+   `PAR999: parser panic: nil pointer dereference`. Minimal repro: `func f(s:string)->int!{}={let c=s[0];0}`.
+   Root cause: `internal/parser` registers `LBRACKET` only as a PREFIX (list literals); there is NO infix for
+   `expr[i]`, so index access hits an unhandled path and nil-derefs instead of erroring. Impact is LOW
+   (2/1177 banked ailang results = 0.2%; the 15% "index syntax" is mostly `List[int]` type annotations), so
+   it's a robustness bug, not an eval-wide tanker — but it blocks string-parsing tasks like docx. FLAGGED for
+   a deliberate parser fix (parser changes need the full test-imports/verify-examples gauntlet — not rushed).
+2. **`context deadline exceeded` at step 27** — both runs died on the 300s ollama /v1 timeout. The
+   `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` set in run.sh did NOT take effect (timing: 31min/27 steps ⇒ step 27
+   hit ~300s). Env isn't reaching the ailang subprocess through motoko/bun (system ailang v0.25.0-243 HAS the
+   knob; propagation is the gap). This is the actual blocker for a clean P0 grade + compounds the P2
+   context-bloat signal (uncompressed context → slow requests → timeout).
+
+**Status:** P0 head-to-head BLOCKED pending (a) timeout propagation through motoko (fork-side), (b) parser
+panic fix (flagged). NOT re-launching GPU — would just re-hit 300s. pi harness still unwired. Next deliberate
+session, not autonomous churn.
