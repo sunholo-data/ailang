@@ -1675,3 +1675,30 @@ needs care = the focused-session work, not cron. (2) RIG head-to-head: copy aila
 apply stub, run motoko vs pi on the reimplement task, grade with verify.sh → the FIRST large-context
 discrimination data point (the only thing the saturated standard set can't give). Core goal stays MET
 (parity); this is the "go beyond / prove strictly best" frontier.
+
+## 2026-06-21 — CLOUD COMPARISON ("motoko gets there for free") + stretch h2h launched
+
+**The "free" story, airtight on the 26 overlapping AILANG agent benchmarks** (motoko postfix-broad ∩
+claude-sonnet-4-6 v0.25.0 baseline):
+
+| harness | pass@1 | best-of-N | $/bench | mean turns |
+|---|---|---|---|---|
+| claude-sonnet-4-6 (cloud frontier) | 100% | 100% | **$0.1633** | 4.5 |
+| motoko local qwen3.6 | 92.3% | **100%** | **$0.0000** | 6.4 |
+
+**motoko reaches the SAME 100% (with best-of-N) as cloud-frontier sonnet-4-6, at $0 vs $0.16/benchmark,
+just slower (6.4 vs 4.5 turns — ~40% more).** Across a 49-bench suite: ~$8/run (sonnet) vs $0 (motoko).
+gpt5-4-mini in the same baseline = 75.7% / $0.21 (motoko beats it outright). This is the value prop: local
+qwen + motoko's AILANG-native best-of-N matches cloud-frontier AILANG synthesis quality at ZERO marginal
+cost. (Caveats: cloud baseline = sonnet-4-6 + gpt5-4-mini only in v0.25.0 ailang-agent; 26-bench overlap;
+motoko pass@1 92.3% on this harder overlap vs 96.9% on the full 49 — best-of-N closes it to 100% either way.)
+
+**Stretch h2h launched** (rig, PID 13990, `stretch-h2h-20260621`): motoko + pi on the 11 stretch benchmarks
+(the harder tier above smoke+core: contract_matrix_determinant, mini_interpreter, symbolic_diff, type_unify,
+expression_evaluator, …), trials=2. The smoke+core set is saturated (both 100% best-of-N); stretch is where
+motoko/pi may diverge. (Vision tier = AILANG-strength std/ai tasks needing a RUNTIME AI provider — not
+clean local-only; deferred.) Result next fire → first harder-tier discrimination.
+
+**Pushed** to origin (sprint/m-secret-effect, gh=sunholo-voight-kampff). Note: the public dashboard
+(docs/static/benchmarks/latest.json) is regenerated from os-rolling by the filler; surfacing these
+broad/cloud numbers there needs an explicit eval-report/publish step (not just a git push).
