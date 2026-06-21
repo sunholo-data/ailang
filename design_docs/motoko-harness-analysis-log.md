@@ -1822,3 +1822,22 @@ The earlier "0/17" is NOT a capability verdict.
 **Status:** P0 head-to-head BLOCKED pending (a) timeout propagation through motoko (fork-side), (b) parser
 panic fix (flagged). NOT re-launching GPU — would just re-hit 300s. pi harness still unwired. Next deliberate
 session, not autonomous churn.
+
+---
+
+## 2026-06-21 (cont) — timeout blocker localized to fork-side; P0 differentiator work now needs deliberate sessions
+
+Localized the P0 timeout non-propagation: motoko runs under `bun` (`run-agent.sh: exec bun`), which spawns
+ailang for the `.ail` loop + `std/ai`→ollama (the Go 300s timeout). The ollama profile
+`.motoko/config/ollama/config.json` is **tracked in the fork** (config edit = fork PR) and the
+`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` env isn't reaching the ailang subprocess through bun's spawn. Config template
+has `delegated_timeout_ms=30000` (tool timeout, not the LLM call) — no LLM-HTTP-timeout knob exposed.
+
+**Conclusion — both remaining P0 differentiator levers are out of clean autonomous-night scope:**
+- ailang `s[0]` parser panic → deliberate ailang/parser fix (needs test-imports + verify-examples gauntlet).
+- timeout propagation + the deeper context-bloat (P2) → motoko-fork changes (DRAFT PR), and P2 (context_mode
+  compression) is the *structural* fix since a bigger timeout only delays the bloat-driven timeout.
+
+Holding rather than forcing a risky dev parser push or a half-certain fork PR. **For a deliberate session:**
+(1) parser fix (repro in prior entry), (2) expose an ollama-HTTP-timeout knob in motoko config + confirm it
+reaches ailang, (3) implement/prove P2 on_tool_handle compression, then re-run docx for the real grade.
