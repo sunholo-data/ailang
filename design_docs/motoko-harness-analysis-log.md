@@ -1760,3 +1760,20 @@ reference-free oracle pi can't run), instead of relying on model-written contrac
 through Bash (python in-place). Build clean, binary reinstalled.
 **Lever class:** R1 = AILANG-native moat (mechanism ready; trigger absent on saturated benchmarks). **Next:**
 provided-spec glue OR P0 docx large-context (the regime that produces runs-but-wrong).
+
+---
+
+## 2026-06-21 (cont) — P0 docx_reimplement CALIBRATED + motoko head-to-head launched (autonomous)
+
+**Instrument calibrated — VALID discriminator:** original ailang-parse → **17/17** vs golden (golden valid);
+stubbed docx_parser.ail → **0/17** AND the stub typechecks (68 files pass) → model starts from a
+compiling-but-empty baseline (fair). Perfect 17→0 separation. This is the large-context regime the saturated
+single-file set lacks (530-line XML tree-walk, must read Block ADT + zip_extract + std/xml across the package).
+
+**Launched motoko run (rig free, 21:14 Sun, pre-blackout):** `run.sh motoko ollama/qwen3.6:35b-a3b-mxfp8`,
+session `session_docx_motoko_20260621-211434`, ws=/tmp/docx-motoko-20260621-211434, grade →
+/tmp/docx-motoko-launch.out. First data point: can qwen3.6+motoko reimplement the full parser? (X/17).
+
+**Gaps for next fire:** (1) pi harness NOT wired in run.sh ("TODO — exit 2") — needed for the actual
+head-to-head; wire it (NOT while PID 42832 runs — bash re-reads the script file). (2) If single motoko run is
+borderline, best-of-N (the validated lever) on this task is the real test. **Status:** motoko run IN FLIGHT.
