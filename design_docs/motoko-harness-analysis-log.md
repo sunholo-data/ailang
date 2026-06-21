@@ -1584,3 +1584,21 @@ discrimination) is now about "can motoko go BEYOND the standard set" — still v
 gap-closer (the standard-set gap is closed). P1.5 step-budget is moot (0 hard-fails; residual is flaky
 timeouts best-of-N handles). **Next: deploy best-of-N (eval-integrate motoko-bestof so a release run
 shows ~100%) + a fresh pi broad run for the airtight head-to-head.**
+
+## 2026-06-21 03:xx — cron fire: best-of-N shipped as a first-class rotation metric (P1 deploy, reporting form)
+
+Rig was idle but near blackout → non-rig P1 work. Promoted best-of-N from the manual tools/eval_best_of_n.py
+into `SummarizeRotation` (internal/eval_harness/rotation_summary.go): every rotation/release summary.json
+now carries per-benchmark `any_pass` + `best_of_n_pass` (reference-free EXACT selector: runs>typechecks>
+neither, ties keep first — mirrors `ailang select-best`) and a per-model `model_rollup` {pass_at_1,
+best_of_n_exact, best_of_n_ceiling}. Unit-tested (synthetic) + validated against the real broad baseline:
+Go rollup reproduces the .py exactly — motoko **pass@1=0.959, best_of_n_exact=1.000, ceiling=1.000**
+(49 benches, 98 trials). So the proven 96.9%→100% lift is now visible on EVERY release automatically.
+Committed (my files only; left concurrent uncommitted log_file_analyzer.yml/latest.json/ollama-tap alone).
+
+**Remaining P1 (next fires):** (a) executor-level deploy — make the eval's motoko executor (which DOES
+know caps+entry) optionally run N candidates → select-best → submit the winner, so motoko-as-run is the
+best-of-N solution (the metric above reports it from trials; this makes a single deployed invocation
+achieve it). (b) fresh pi broad run for the airtight head-to-head (os-filler is gradually refreshing pi
+via --skip-existing; a clean fresh pi run closes the caveat). Both rig-dependent → next free non-blackout
+window. Task list: #12 (step-budget) closed moot; #10 (best-of-N) is the active deploy.
