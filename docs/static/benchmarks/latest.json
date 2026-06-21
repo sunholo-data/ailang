@@ -1,6 +1,6 @@
 {
   "version": "v0.25.0",
-  "timestamp": "2026-06-13T08:54:30+02:00",
+  "timestamp": "2026-06-21T14:50:17+02:00",
   "totalRuns": 814,
   "aggregates": {
     "agentBenchmarks": [
@@ -10340,7 +10340,7 @@
         "data_transform",
         "effects_io"
       ],
-      "taskPrompt": "Analyze a log file and compute statistics.\n\n**Requirements**:\n\n1. Create a log file named \"app.log\" with these exact 6 lines:\n   ```\n   2024-10-29 10:00:00 INFO User logged in: alice\n   2024-10-29 10:01:15 ERROR Database connection failed\n   2024-10-29 10:02:30 INFO User logged in: bob\n   2024-10-29 10:03:45 WARNING High memory usage: 85%\n   2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n   2024-10-29 10:06:15 INFO User logged out: alice\n   ```\n\n2. Parse and analyze the log:\n   - Each line format: \"{date} {time} {LEVEL} {message}\"\n   - Count entries by level (INFO, ERROR, WARNING)\n   - Calculate percentage for each level (use integer division, round down)\n   - Extract unique usernames mentioned after colons (alice, bob)\n\n3. Print results in this exact format:\n   ```\n   Total log entries: 6\n   INFO: 3 (50%)\n   ERROR: 2 (33%)\n   WARNING: 1 (16%)\n   Unique users: alice, bob\n   ```\n\nNote: Users should be printed in alphabetical order, comma-separated.\n",
+      "taskPrompt": "Analyze a log file and compute statistics.\n\n**Requirements**:\n\n1. Create a log file named \"app.log\" with these exact 6 lines:\n   ```\n   2024-10-29 10:00:00 INFO User logged in: alice\n   2024-10-29 10:01:15 ERROR Database connection failed\n   2024-10-29 10:02:30 INFO User logged in: bob\n   2024-10-29 10:03:45 WARNING High memory usage: 85%\n   2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n   2024-10-29 10:06:15 INFO User logged out: alice\n   ```\n\n2. Parse and analyze the log:\n   - Each line format: \"{date} {time} {LEVEL} {message}\"\n   - Count entries by level (INFO, ERROR, WARNING)\n   - Calculate each level's percentage as floor(count * 100 / total): integer\n     division that truncates toward zero — do NOT round to nearest. For example,\n     WARNING is 1 of 6 = 16.66%, which truncates to 16 (NOT rounded up to 17).\n   - Extract unique usernames mentioned after colons (alice, bob)\n\n3. Print results in this exact format:\n   ```\n   Total log entries: 6\n   INFO: 3 (50%)\n   ERROR: 2 (33%)\n   WARNING: 1 (16%)\n   Unique users: alice, bob\n   ```\n\nNote: Users should be printed in alphabetical order, comma-separated.\n",
       "tier": "stretch",
       "totalRuns": 22
     },
@@ -12014,7 +12014,7 @@
   "history": [
     {
       "version": "v0.25.0",
-      "timestamp": "2026-06-13T08:54:28+02:00",
+      "timestamp": "2026-06-21T14:50:15+02:00",
       "successRate": 0.8538083538083538,
       "totalRuns": 814,
       "successCount": 695,
@@ -25499,14 +25499,14 @@
         {
           "band": "Hard",
           "elo": 1814.9,
-          "id": "log_file_analyzer",
+          "id": "error_handling",
           "passRate": 91.7,
           "saturated": false
         },
         {
           "band": "Hard",
           "elo": 1814.9,
-          "id": "error_handling",
+          "id": "log_file_analyzer",
           "passRate": 91.7,
           "saturated": false
         },
@@ -25604,14 +25604,14 @@
         {
           "band": "Trivial",
           "elo": 1107.1,
-          "id": "intent_annotated_solver",
+          "id": "merge_sort",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 1107.1,
-          "id": "merge_sort",
+          "id": "intent_annotated_solver",
           "passRate": 100,
           "saturated": true
         },
