@@ -2327,3 +2327,26 @@ a from-scratch reimpl. FIX under test: add EditDecl + a "large-file editing rule
 file → drift; fix decls individually with EditDecl) to SYSTEM.md, and activate SYSTEM.md for the ollama
 profile. Hypothesis: a top-level system directive steers qwen where the tool description alone didn't.
 Re-running docx with steering (max_steps held at 50 for clean attribution).
+
+---
+
+## 2026-06-22 — docx CONVERGENCE #2 (SYSTEM.md steering) → 0/17; binding constraint = CONTEXT OVERFLOW (→ P2)
+
+Re-ran with EditDecl steering in SYSTEM.md (activated for the ollama profile). Result: 0/17 again, but the
+steering REFUTED the hypothesis + surfaced the real bottleneck:
+- **qwen STILL used 0 EditDecl** (histogram: 28 BashExec, 15 ReadFile, 1 WriteFile). A top-level system
+  directive did NOT flip its behavior — it WriteFile'd once (840-line file, parse errors) then BashExec-
+  thrashed (28x: ailang check + reads) trying to fix.
+- **NEW failure = CONTEXT OVERFLOW:** died step 24 with "input length (291469 tokens) exceeds the model's
+  maximum context length (262144)". Not step-budget, not timeout — the conversation accumulated too much
+  (tool outputs + 530-line dep reads + the 840-line file) and blew the 256k window.
+
+**Revised diagnosis:** docx's binding constraint is CONTEXT, not editing strategy. The compaction_ai +
+context_mode extensions ARE loaded but did NOT keep it under 262k → compaction isn't keeping up (likely
+triggers too late / doesn't compress BashExec+ReadFile outputs enough). This is EXACTLY task #11 / P2
+(context_mode on_tool_handle transparent BashExec compression). The frontier (docx) needs the CONTEXT lever
+first; EditDecl is necessary but not sufficient and qwen won't self-select it.
+
+Ruled out this cycle: (a) "EditDecl steering via SYSTEM.md flips qwen" — FALSE (still 0 calls); (b) "EditDecl
++ #65 cracks docx" — FALSE (context overflow is the wall). Validated: #65 timeout (both runs, 0 deadline
+deaths). Next lever: P2 context compression (compaction headroom + BashExec/ReadFile output compression).
