@@ -80,6 +80,49 @@ docx-reimplement = R2's first instance + the context_mode/large-context proving 
 3. Root lever for prefill size = **P2 context-compression** (a bigger timeout can't shrink the prompt). Sequence: #65 (unblock now) → streaming-idle-timeout (robust) → P2 (root).
 4. Write-side efficiency = **EditDecl/ast-edit** ([`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)) — replace one decl by parsed span instead of re-emitting the whole file (docx had motoko write 526 lines). Shrinks WRITES (per-turn prompt growth); P2 shrinks READS. AILANG-native; pi's line-edit tools can't. P3, trigger now met.
 
+## AILANG AST/type advantages — examined + prioritized (2026-06-22)
+
+The "beat pi" thesis rests on structural advantages a generic harness on an UNTYPED language cannot access.
+AILANG hands the harness a real typed AST (HM types, effect rows, `requires/ensures` contracts, span-based
+stable IDs) plus two verifiers (`ailang check`, `ailang verify`/Z3). Audit of what we exploit vs the gap:
+
+**EXPLOITED (shipped):**
+- Type + effect checking (`ailang check`) as a best-of-N tier — HM inference + effect-row checking.
+- Runtime contract checking (`ailang run --verify-contracts`) — rejects runs-but-WRONG candidates (R1).
+- **Z3 SMT static verification (`ailang verify`) as the TOP selector tier (2026-06-22, `select-best
+  --verify-z3`)** — PROVES a contract for ALL inputs (or returns a counterexample), vs one runtime input.
+  (Had been dormant — z3 wasn't installed on the rig.)
+- Provided-contract injection (`astedit.InjectContract` → `select-best --contract-spec`) — verify against the
+  benchmark's contract the model omits (44/48 drop it).
+- AST-anchored decl LOCATION for edits (`ailang ast-edit replace` parses to find the exact decl span).
+
+**UNEXPLOITED — the opportunity (ranked; HIGH/MED/LOW):**
+1. **[HIGH — in flight] Z3-verify everywhere it pays.** Wire the `--verify-z3` tier into the eval-rotation
+   best-of-N, and auto-couple `--contract-spec` + `--verify-z3` (inject the provided spec, then Z3-PROVE it —
+   not just runtime-check). Strongest reference-free signal; pi has no equivalent. Tier built; integration +
+   a harder contract benchmark that elicits prove-vs-counterexample divergence remain.
+2. **[HIGH — data-backed] EditDecl (AST-span decl-replace) in motoko's edit loop** (= existing P3, elevated).
+   motoko whole-file-writes (727-line monolith → AILANG syntax drift `\x.`); editing ONE decl at a time via
+   `ailang ast-edit replace` shrinks the surface → less drift. Design done (`m-motoko-editdecl-astedit.md`);
+   CLI exists; fork wiring pending. The docx 0/17 directly justifies it.
+3. **[MED] Type/effect-aware edit validation.** astedit holds the full typed AST (ReturnType, Effects) but
+   uses only the span; validate that an edit preserves the signature + effect row (reject silent pure->effectful
+   drift) — catches wrong edits at edit-time, not post-hoc.
+4. **[MED] Type-directed context** (= existing P2 context_mode, reframed). Feed the typed AST / a projection
+   (signatures, effect rows, contracts, type-directed slices) instead of raw file text → smaller, more legible
+   context. The STRUCTURAL answer to the context-bloat that timed out docx (vs the blunt timeout bump).
+5. **[LOW] SID-anchored edits.** FuncDecl carries a span-based SID (stable structural id); anchor edits by SID
+   (rename/duplicate-name robust) vs the current name-match. Marginal until rename/collision thrash appears.
+6. **[LOW] Typed AST-diff surfacing between turns** (compaction-resistant re-grounding) — blocked on the
+   faithful AST<->source formatter (backlog), so lowest until that lands.
+
+**Rationale / sequence:** #1 and #2 are the two HIGH levers, both data-backed by the docx 0/17 (under-testing
+-> stronger verification/gates = #1; syntax-drift -> smaller AST-scoped edits = #2). Sequence:
+**#1 (extend the shipped Z3 tier) -> #2 (EditDecl, kills the monolith-write drift) -> #4 (type-directed
+context) -> #3 -> #5/#6.** The honest framing from the 2026-06-22 review: the EDITOR is still text-splice
+(only decl LOCATION is AST-aware); the deep AILANG advantage lives in the VERIFIER (now incl Z3) and in
+type-directed context — that is where the moat compounds.
+
 ## How the mission runs (each cycle)
 
 A cycle picks up **one** item and runs the full record-keeping flow:

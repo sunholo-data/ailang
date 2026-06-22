@@ -2083,3 +2083,15 @@ not found" → the static verifier has been dormant. Installed z3 4.16.0 (brew).
 Tested: unit (4>3 ranking) + real-Z3 end-to-end (provable `x+1>x` verifies, violable `x-1>x`
 counterexample-rejected, selector flips to the proven candidate). Composes with `--contract-spec` (inject the
 provided spec → Z3-PROVE it). Degrades gracefully if z3 absent (Verifies stays false → no-op).
+
+---
+
+## 2026-06-22 — roadmap: AILANG AST/type advantages examined + prioritized
+
+Added a dedicated roadmap section (motoko-mission.md) auditing AILANG-native AST/type advantages a generic
+harness can't access: EXPLOITED (type+effect check, runtime contracts, the new Z3-verify tier, contract
+injection, AST decl-location) vs UNEXPLOITED, ranked: #1 Z3-verify integration (HIGH, in flight), #2 EditDecl
+AST-span edits (HIGH, =P3, kills monolith-write syntax drift), #3 type/effect-aware edit validation (MED),
+#4 type-directed context (MED, =P2 reframed), #5 SID-anchored edits (LOW), #6 typed AST-diff surfacing (LOW,
+blocked on formatter). Honest framing: the EDITOR is still text-splice (only decl LOCATION is AST-aware); the
+moat lives in the VERIFIER (now incl Z3) + type-directed context.
