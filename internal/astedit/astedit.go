@@ -82,3 +82,68 @@ func lineColToOffset(src string, line, col int) (int, bool) {
 	}
 	return off, true
 }
+
+// InjectContract splices contract clauses (e.g. "requires { x >= 0 }\nensures { result > 0 }")
+// into the top-level function declName, between the signature and the body — exactly where a
+// hand-written contract sits (after `-> T ! {E}`, before the `=` of an equation-form body or
+// the `{` of a block-form body). This is the R1 moat primitive: a best-of-N selector can inject
+// a benchmark-PROVIDED spec the model omitted, then `ailang run --verify-contracts` becomes a
+// reference-free oracle that rejects runs-but-WRONG candidates — something a general harness on
+// an untyped language can't do. Returns an error if the decl or its body can't be located. The
+// caller MUST re-run `ailang check` on the result (this does not validate semantics).
+func InjectContract(src, filename, declName, contractText string) (string, error) {
+	fn := FindFunc(src, filename, declName)
+	if fn == nil {
+		return "", fmt.Errorf("InjectContract: function %q not found in %s", declName, filename)
+	}
+	if fn.Body == nil {
+		return "", fmt.Errorf("InjectContract: function %q has no body (extern?)", declName)
+	}
+	declOff, ok := lineColToOffset(src, fn.Pos.Line, fn.Pos.Column)
+	if !ok {
+		return "", fmt.Errorf("InjectContract: could not resolve decl offset for %q", declName)
+	}
+	bp := fn.Body.Position()
+	bodyOff, ok := lineColToOffset(src, bp.Line, bp.Column)
+	if !ok || bodyOff <= declOff {
+		return "", fmt.Errorf("InjectContract: could not resolve body offset for %q", declName)
+	}
+	// Locate the body delimiter — `=` (equation form) or the body-opening `{` (block form) — by
+	// scanning the signature at bracket depth 0. We skip params `(...)`, type brackets `[...]`,
+	// and the effects brace `! {...}` (a `{` immediately preceded by `!`). Body.Position() is
+	// unreliable here (it points at the body expression / a binop operator / the block's first
+	// inner expr, not at the delimiter), so we cannot derive the delimiter from it.
+	insertOff := -1
+	depth := 0
+	var prevNonWS byte
+	for off := declOff; off < bodyOff; off++ {
+		c := src[off]
+		switch c {
+		case '(', '[':
+			depth++
+		case ')', ']':
+			depth--
+		case '{':
+			if depth == 0 && prevNonWS != '!' {
+				insertOff = off
+			}
+			depth++
+		case '}':
+			depth--
+		case '=':
+			if depth == 0 && off+1 < len(src) && src[off+1] != '=' {
+				insertOff = off
+			}
+		}
+		if insertOff >= 0 {
+			break
+		}
+		if c > ' ' {
+			prevNonWS = c
+		}
+	}
+	if insertOff < 0 {
+		return "", fmt.Errorf("InjectContract: could not locate body delimiter for %q (record-type returns unsupported)", declName)
+	}
+	return src[:insertOff] + contractText + "\n" + src[insertOff:], nil
+}

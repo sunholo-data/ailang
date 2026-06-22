@@ -1951,3 +1951,22 @@ isn't in this build or didn't enforce on this task.
 - **teaching/R1 diagnostics**: the `\x.`→`\x ->` drift is a fixable syntax-fidelity gap (prompt emphasis +
   actionable error surfacing). This is a qwen-on-AILANG friction (would hit ANY harness), not motoko-specific.
 **Next:** best-of-N over docx (does a compiling candidate appear in N=3-5?), and/or compile-gate A/B.
+
+---
+
+## 2026-06-22 (cont) — R1 contract-glue STARTED: astedit.InjectContract primitive (the moat foundation)
+
+User-directed: begin the R1 moat (contract-aware best-of-N via the benchmark-PROVIDED spec). Built
+`astedit.InjectContract(src, filename, declName, contractText)` — splices a contract (requires/ensures) into
+a candidate's function between the signature and body. Handles equation (`=`) AND block (`{`) forms via a
+depth-aware signature scan that skips params `(...)`, type brackets, and the effects brace `! {...}`.
+Key finding: `Body.Position()` is too imprecise for this (it points at the body expression / a binop operator
+/ the block's first inner expr, NOT the delimiter) — same edit-grade-spans gap astedit already documents; the
+depth-scan works around it. Unit-tested: equation form, block form, not-found (3/3 pass; full astedit suite
+green). Limitation: record-type returns (`-> {..}`) unsupported (brace ambiguity).
+
+**Why it's the moat:** the model drops the provided contracts in 44/48 contract_* solutions, so
+`--verify-contracts` is a no-op as-is. Injecting the PROVIDED spec makes it a reference-free oracle that
+rejects runs-but-wrong candidates — something pi (untyped harness) can't run. **Next increments:** (1) wire
+`select-best --contract-spec <file>` (inject spec into each candidate → --verify-contracts → select the
+satisfier); (2) prove end-to-end on a contract_* benchmark with a runs-but-wrong candidate.
