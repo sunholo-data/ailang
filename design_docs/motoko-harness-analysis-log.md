@@ -2164,3 +2164,23 @@ compile=True, err=none).
 concurrency, the actual footgun. Also removed the last stale `--agent-parallel 1` invocation
 (`tools/ollama_eval.sh` — the flag itself was already removed; `--parallel 0` there already serializes).
 The footgun (dead -agent-parallel + raw --parallel=10 default) can no longer recur.
+
+---
+
+## 2026-06-22 — Z3-lift MEASURED on contract_leap_year (unblocked) — correctness-assurance moat demonstrated
+
+Re-ran with --parallel 1 → 8 clean candidates. Outcome: 7 PASS + 1 rt-fail, and **all 8 implement the full
+%100/%400 rule** (NONE took the y%4 shortcut). → **NO pass-rate Z3-lift**: qwen3.6 is saturated even on the
+notorious-bug task; the divergence hypothesis is refuted (qwen too capable on small/medium tasks to emit a
+runs-but-wrong-contract candidate). This is the disciplined MEASURED confirmation of the earlier reassessment.
+
+**BUT the correctness-assurance moat is DEMONSTRATED on real qwen output:** R1-glue+Z3 proves all 8 correct
+for ALL years — 6/8 DROPPED the provided contract (same ~75% as docx), so we inject it then Z3-prove; the 2
+that kept it verify their own. Proving correctness beyond the 7 tested years is exactly what pi/untyped
+harnesses can't do. **Bug found + fixed via the real candidates:** InjectContract duplicated an EXISTING
+contract → parse fail ("neither"); now skips injection when a contract is present (verifies the candidate's
+own). Regression test added; all 8 → z3-verified after the fix.
+
+**Lever #1 conclusion:** Z3/R1-glue = a CORRECTNESS-ASSURANCE differentiator (real, pi-impossible,
+demonstrated), NOT a pass-rate lift on the saturated regime. The pass-rate "beat pi" goal needs the
+large-context regime where qwen actually errs → lever #2 (EditDecl, turnkey-spec'd).

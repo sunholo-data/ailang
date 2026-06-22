@@ -12,6 +12,7 @@ package astedit
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
@@ -144,6 +145,12 @@ func InjectContract(src, filename, declName, contractText string) (string, error
 	}
 	if insertOff < 0 {
 		return "", fmt.Errorf("InjectContract: could not locate body delimiter for %q (record-type returns unsupported)", declName)
+	}
+	// Don't duplicate: if the decl already carries a contract (requires/ensures sits between its
+	// signature and body, i.e. before insertOff), leave the source unchanged so the candidate's
+	// OWN contract is verified directly — injecting a second clause makes the decl fail to parse.
+	if strings.Contains(src[declOff:insertOff], "ensures") || strings.Contains(src[declOff:insertOff], "requires") {
+		return src, nil
 	}
 	return src[:insertOff] + contractText + "\n" + src[insertOff:], nil
 }

@@ -58,3 +58,19 @@ func TestInjectContract_NotFound(t *testing.T) {
 		t.Error("expected error for missing function, got nil")
 	}
 }
+
+// TestInjectContract_SkipsExistingContract: a candidate that ALREADY carries a contract must be left
+// unchanged (injecting a second clause would duplicate it and break parsing).
+func TestInjectContract_SkipsExistingContract(t *testing.T) {
+	src := "module test/inj\nexport func f(x: int) -> int ! {} ensures { result > 0 } = x + 1\n"
+	out, err := InjectContract(src, "inj.ail", "f", "ensures { result > x }")
+	if err != nil {
+		t.Fatalf("InjectContract: %v", err)
+	}
+	if out != src {
+		t.Errorf("expected source unchanged when a contract is already present, got:\n%s", out)
+	}
+	if !reparseClean(t, out) {
+		t.Fatal("unchanged source must still parse")
+	}
+}
