@@ -2247,3 +2247,25 @@ full-rewrite-wins regime. Complementary to hashline (the better sub-decl line-ed
 Replied on PR #66 positioning this + offered to un-break hashline. NEXT: validate EditDecl in the LOCAL
 motoko build (smoke + A/B vs WriteFile on a multi-decl file), then strategic choice — ship EditDecl (works
 now) and/or fix hashline (general, Arni's design intent).
+
+---
+
+## 2026-06-22 — LOCAL VALIDATION of #65 + #66 (caught a real EditDecl bug)
+
+Built a local integration (worktree off feat/local-eval-profiles + cherry-picked #65 + re-applied #66's
+EditDecl edits; run-agent.sh runs the TS source via bun so NO build needed; node_modules symlinked).
+
+**#66 EditDecl — bug found + fixed (pushed 817456e):** the handler passed `--relax-modules` to
+`ailang ast-edit replace`, which does NOT define that flag → exec exit 2 → EditDecl silently no-op'd
+(type-check can't catch a bad CLI flag; my earlier ast-edit smoke didn't use the flag, so it missed it).
+Deterministic handler test (`run_edit_decl` on a 3-decl file, no LLM/GPU): pre-fix file untouched; post-fix
+`middle` replaced, `first`/`last` byte-preserved, result type-checks. → EditDecl runtime glue now VALIDATED
+end-to-end.
+
+**#65 timeout — code-confirmed:** one allowlist line in runtime-process.ts, identical to the already-merged
+MAX_TOKENS pattern (#48); the ollama profile routes /v1 (which the timeout governs). Low runtime risk.
+
+**Undraft status:** #65 ready (code-validated). #66 tool now works; remaining gate = the multi-decl A/B vs
+WriteFile (does qwen DISCOVER+USE EditDecl, and does it cut drift) — needs a rig run on the integration
+build (mk-integration worktree is staged for it). Note the profile has `edit_mode:"hashline"` (broken per
+Arni) → EditDecl is the working alternative to test against.
