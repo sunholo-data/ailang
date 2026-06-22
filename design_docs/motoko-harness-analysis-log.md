@@ -1923,3 +1923,31 @@ User flagged two open items: AST editing + the docx large-context benchmark. Sta
   CLI. Trialing = a cross-layer fork feature (TS dispatcher EditDecl branch + .ail tool registry/types/adapter
   + prompt + GPU trial). Scoped + designed: [`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)
   (P3, trigger now met — docx showed motoko writing a 526-line file). EditDecl shrinks WRITES; P2 shrinks READS.
+
+---
+
+## 2026-06-22 — FIRST real docx large-context grade: 0/17 (timeout fixed; gaps = AILANG syntax fidelity + under-testing)
+
+Timeout fix VALIDATED end-to-end: motoko ran **48 steps to completion** (no "context deadline exceeded"; prior
+runs died at 14/27 on the 300s cap) and wrote a **727-line** reimplementation. So this 0/17 is a genuine
+capability result, NOT a crash artifact.
+
+**Why 0/17 — the package does not COMPILE (parse errors in motoko's output):**
+1. `\ep. <body>` — qwen used a **Haskell-style lambda** (`\x. e`) instead of AILANG's `\x -> e` (line 42).
+2. `match`-arm `=>` error (line 720: "expected => got true").
+The standard single-file benchmarks (short) pass, but over a **727-line generation qwen's AILANG syntax
+fidelity degrades** — it drifts to Haskell-isms. This is the discriminating signal the P0 instrument exists for.
+
+**Compounding harness gap — UNDER-TESTING:** only **3 verify-ish tool calls in 48 steps**. The task prompt
+explicitly required `ailang check --package`, but motoko submitted largely-untested code despite 40+ steps of
+spare budget — so it never caught its own parse errors. The "definition-of-done compile gate" (DP7) either
+isn't in this build or didn't enforce on this task.
+
+**Levers this points to (now data-backed):**
+- **best-of-N + EXACT selector** (P1, built): N attempts, reject the non-compiling ones → a compiling candidate
+  likely exists across samples. Directly rescues this class.
+- **compile-gate-before-done**: force `ailang check --package` green before "done" (motoko had the budget).
+- **EditDecl/ast-edit** (P3 doc): smaller per-edit surface → less syntax drift than a 727-line monolith write.
+- **teaching/R1 diagnostics**: the `\x.`→`\x ->` drift is a fixable syntax-fidelity gap (prompt emphasis +
+  actionable error surfacing). This is a qwen-on-AILANG friction (would hit ANY harness), not motoko-specific.
+**Next:** best-of-N over docx (does a compiling candidate appear in N=3-5?), and/or compile-gate A/B.
