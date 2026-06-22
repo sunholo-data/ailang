@@ -2046,3 +2046,23 @@ mission roadmap (motoko-mission.md STATUS block):
 -before-done (DP7 didn't fire), EditDecl (smaller edits), R1 syntax-fidelity/contract diagnostics. Continuing
 solo from here. Next: best-of-N over docx (does a compiling candidate appear in N=3-5?) OR re-verify/enforce
 the DP7 compile-gate (cheaper harness lever).
+
+---
+
+## 2026-06-22 — DP7 compile-gate root cause (why under-testing wasn't caught) + fix plan
+
+The docx 0/17's under-testing failure (motoko submitted 727 lines with 3 checks, never caught its `\x.` parse
+errors) is because DP7 was OFF. `run_dp7_verifier` (agent_loop_v2.ail:843) runs `verification.command` (default
+`make check_core`) only if `verification.enabled` — but (a) `verification.enabled` DEFAULTS FALSE
+(config.ail:477), (b) the docx workspace (ailang-parse copy) has no `check_core` target so even if enabled,
+`make check_core` → is_missing_infrastructure → Approve (fail-open), and (c) there is NO env-var mapping for
+verification.enabled/command (config.ts maps only verification.semi_formal). So DP7 couldn't be turned on
+per-run. The gate logic is sound: a present-but-FAILING check → Reject with "does not type-check, fix all
+errors: <errors>" (agent_loop_v2.ail:849-869).
+
+**Fix (fork DRAFT PR + run.sh):** add config.ts env mappings `MOTOKO_VERIFICATION_ENABLED` (boolTo01) +
+`MOTOKO_VERIFICATION_COMMAND` (mirroring the existing verification.semi_formal mapping); run.sh sets
+`MOTOKO_VERIFICATION_ENABLED=1` + `MOTOKO_VERIFICATION_COMMAND="ailang check --package . --relax-modules"`.
+Then DP7 gates docx on a real package check → forces motoko to fix parse errors (the `\x.` drift) before
+"done", using its 40+ spare steps. Directly targets the under-testing failure. Validation: rig docx run with
+the fix (does motoko self-correct the drift from the gate's error feedback, or loop?).
