@@ -42,6 +42,19 @@ const (
 	// time with a prescriptive `match { Ok(x) => ..., Err(e) => ... }`
 	// template, forcing the consumer to author both arms.
 	RecordAccessOnTaggedUnionError TypeErrorKind = "record_access_on_tagged_union"
+
+	// SinkRefinementError (M-SECRET-EFFECT / M-TAINT-TYPES, v0.26.0) fires when
+	// a value whose information-flow label is forbidden by a parameter's
+	// {not ℓ} refinement reaches that sink — e.g. a <secret> value passed to a
+	// string{not secret} logging or network parameter without an intervening
+	// ! {Declassify} step. Enforced by CheckModuleIFC (ifc_check.go).
+	SinkRefinementError TypeErrorKind = "sink_refinement"
+
+	// DeclassifyRequiredError (M-SECRET-EFFECT / M-TAINT-TYPES, v0.26.0) fires
+	// when a function declares an explicit return label that hides taint actually
+	// present in its body (label laundering) without declaring ! {Declassify}.
+	// Enforced by CheckModuleIFC (ifc_check.go).
+	DeclassifyRequiredError TypeErrorKind = "declassify_required"
 )
 
 // TypeCheckError represents a detailed type checking error

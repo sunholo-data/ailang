@@ -325,12 +325,41 @@ Output: `5 functions: 3 verified, 2 violations` — the `<email>` label
 flows from the lib's record field into the app's parameter type and on
 to the violating sink.
 
-## Limitations (v0.16.0)
+## Static enforcement (v0.26.0)
 
-- **Phase 1 enforcement only.** Sink violations and DECLASS rule
-  violations are caught by Z3 contracts today, not by structural type
-  errors. Phase 2+ work will lift label checking into the elaborator
-  so violations surface as compile errors before Z3 runs.
+As of v0.26.0 (M-SECRET-EFFECT), sink and declassification violations are
+caught as **compile-time type errors** by `CheckModuleIFC`, before Z3 runs:
+
+- **Sink refinement.** A value labelled `<ℓ>` that reaches a `T{not ℓ}`
+  parameter is rejected:
+
+  ```
+  $ ailang check examples/runnable/secrets/leak_attempt.ail
+  Error: ... information-flow violation: value labelled <secret> reaches
+  parameter "body" which forbids it (string{not secret})
+    Suggestion: declassify the value through a function declaring
+    ! {Declassify} before passing it to a {not secret} sink
+  ```
+
+- **Declassification (no laundering).** A function that declares an explicit
+  return label cleaner than the taint its body actually carries — hiding a
+  `<secret>` behind a `<clean>` return, say — is rejected unless it declares
+  `! {Declassify}`.
+
+The check is a self-contained surface-AST analysis: it propagates source
+labels (explicit `<ℓ>` annotations and the `secret()` builtin) through
+`let`/`match`/record/call within a module and never injects labelled types
+into codegen, so there is no runtime cost and no impact on inference. See the
+worked pair `examples/runnable/secrets/{gated_secret,leak_attempt}.ail`.
+
+## Limitations (v0.26.0)
+
+- **Sink enforcement is intraprocedural.** A labelled value reaching a
+  `{not ℓ}` sink in the same module's call graph is caught; context-sensitive
+  flow through *unannotated* parameters and **cross-module** sinks still rely
+  on Z3 contracts and are deferred to M-TAINT-TYPES Phase 2. Annotate a
+  forwarding function's parameter (`x: T<ℓ>` / `x: T{not ℓ}`) to propagate the
+  constraint across the boundary.
 - **Label aliases are not yet expanded.** `export type EmailBody = string<email>`
   parses, but the type checker treats `EmailBody` as a nominal type
   rather than an alias for `string<email>`. Use record types with
