@@ -2269,3 +2269,27 @@ MAX_TOKENS pattern (#48); the ollama profile routes /v1 (which the timeout gover
 WriteFile (does qwen DISCOVER+USE EditDecl, and does it cut drift) — needs a rig run on the integration
 build (mk-integration worktree is staged for it). Note the profile has `edit_mode:"hashline"` (broken per
 Arni) → EditDecl is the working alternative to test against.
+
+---
+
+## 2026-06-22 — EditDecl LIVE rig validation + A/B (qwen3.5 on ollama, integration build)
+
+Ran the integration build (feat/local-eval-profiles + #65 + fixed #66) headless on the ollama profile.
+**EditDecl works END-TO-END:** run ed1 — qwen DISCOVERED+chose EditDecl → triple x*2→x*3, 24 other decls
+byte-preserved, compiles + runs PASS, 3 steps.
+
+**A/B (n=2, 77-line file):** EditDecl-available {ed1: EditDecl, 3 steps; ed2: EditFile, 2 steps};
+baseline-no-EditDecl {wf1: EditFile+verify-thrash, 9 steps; wf2: EditFile, 5 steps}. ALL 4 → PASS.
+Findings (disciplined, n=2): (1) EditDecl validated working + selectable; (2) the Native EditFile {old,new}
+ALSO fixes it fine on small files — "hashline broken" is likely the DELEGATED ohMyPi path, not Native
+EditFile; (3) NO clean small-file advantage: steps noisy (2-9), tool choice non-deterministic (qwen picked
+EditDecl 1/2 when available). CONSISTENT with the harness-problem post — exact-edit/full-rewrite is fine
+<~400 lines; EditDecl's edge is the LARGE-file regime.
+
+**Bug caught earlier this session + fixed (817456e):** handler passed `--relax-modules` to ast-edit (not a
+valid flag) → silent no-op. Now validated working.
+
+**Undraft call:** #66 tool validated working + non-regressing; pass-rate advantage UNPROVEN on small files →
+needs the docx large-file convergence before claiming the lever. Follow-on: a prompts.ail rule to steer
+EditDecl for whole-decl edits in large files (qwen doesn't consistently prefer it). Integration build staged
+at mk-integration for the docx run.
