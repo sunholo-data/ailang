@@ -198,6 +198,15 @@ func typeCheckAndLowerModule(
 		return nil, fmt.Errorf("type error in %s: %w", modID, err)
 	}
 
+	// M-SECRET-EFFECT (M5): static information-flow-control enforcement.
+	// A <secret> (or any <label>) value reaching a {not label} sink without an
+	// intervening ! {Declassify} step is a compile-time error. This is a
+	// self-contained surface-AST analysis (CheckModuleIFC) that reads only
+	// unit.Surface and never injects TLabelled types into CoreTI/codegen.
+	if ifcErrs := types.CheckModuleIFC(unit.Surface); len(ifcErrs) > 0 {
+		return nil, fmt.Errorf("type error in %s: %w", modID, ifcErrs[0])
+	}
+
 	// Fill operator methods (resolve operators to type class methods)
 	// This populates the Method field in resolved constraints before lowering
 	for _, decl := range unit.Core.Decls {

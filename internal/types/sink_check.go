@@ -27,13 +27,21 @@ func CheckSinkRefinement(argType Type, refinement *ast.RefinementExpr) *SinkErro
 	if refinement == nil {
 		return nil
 	}
-	argLabel := LabelOf(argType)
-	forbidden := LabelConst(refinement.NotLabel)
-	// EvalNot(L, ℓ) = true means L does NOT subsume ℓ → safe to pass the sink
+	return CheckSinkLabel(LabelOf(argType), refinement.NotLabel)
+}
+
+// CheckSinkLabel is the label-level core of the sink check: it reports a
+// *SinkError when a value carrying argLabel reaches a {not notLabel} sink, or
+// nil when the flow is permitted. CheckModuleIFC (ifc_check.go) calls this
+// directly during its surface-AST walk; CheckSinkRefinement wraps it for the
+// type-level entry point.
+func CheckSinkLabel(argLabel Label, notLabel string) *SinkError {
+	forbidden := LabelConst(notLabel)
+	// EvalNot(L, ℓ) = true means L does NOT subsume ℓ → safe to pass the sink.
 	if EvalNot(argLabel, forbidden) {
 		return nil
 	}
-	return &SinkError{ArgLabel: argLabel, SinkLabel: refinement.NotLabel}
+	return &SinkError{ArgLabel: argLabel, SinkLabel: notLabel}
 }
 
 // DeclassError is returned when a function changes a value's label without
