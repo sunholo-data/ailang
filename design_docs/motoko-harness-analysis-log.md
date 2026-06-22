@@ -2202,3 +2202,25 @@ This is the pass-rate lever for the large-context regime: the docx 727-line mono
 DRAFT pending smoke (motoko EditDecl on a multi-decl file → only the named decl changes) + a rig A/B (edit
 tokens + pass-rate vs the WriteFile baseline). Follow-ons: dedicated EditDeclResult variant; prompts.ail
 tool-selection rule.
+
+---
+
+## 2026-06-22 — EditDecl foundation VALIDATED (non-rig) + CONVERGENCE POINT reached
+
+Smoke-validated EditDecl's core mechanism non-rig: `ailang ast-edit replace --file <f> --decl middle --new
+<t> --in-place` on a 3-decl file → only `middle` replaced, `first`/`last` byte-preserved, result type-checks.
+(astedit package already unit-tests ReplaceDecl preservation + not-found; EditDecl wraps this validated CLI +
+type-checks → its behavior is sound.)
+
+**Both data-backed HIGH levers are now BUILT + their foundations validated:**
+- #1 Z3-verify / R1-glue — built, deployed, MEASURED → correctness-assurance moat (pi-impossible), not a
+  pass-rate lift on the saturated regime.
+- #2 EditDecl — DRAFT PR motoko_agent#66, core type-checks, mechanism smoke-validated → the pass-rate lever
+  for the large-context regime.
+
+**Convergence point — remaining work is GATED (deployed-motoko + rig; a deliberate validation session):**
+(a) merge the fork PRs into a built motoko — #65 (/v1 timeout) + #66 (EditDecl); (b) EditDecl end-to-end
+smoke (motoko actually invoking EditDecl on a multi-decl file) + rig A/B (edit-tokens + pass-rate vs the
+WriteFile baseline); (c) the docx convergence grade — re-run docx with ALL levers in (parser fix + timeout +
+EditDecl + best-of-N) for the real large-context number. Autonomous fires can't merge upstream PRs or hold
+the GPU for a clean A/B; this is the natural hand-off to a focused session.
