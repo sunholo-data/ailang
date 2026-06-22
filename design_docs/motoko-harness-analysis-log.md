@@ -2066,3 +2066,20 @@ errors: <errors>" (agent_loop_v2.ail:849-869).
 Then DP7 gates docx on a real package check → forces motoko to fix parse errors (the `\x.` drift) before
 "done", using its 40+ spare steps. Directly targets the under-testing failure. Validation: rig docx run with
 the fix (does motoko self-correct the drift from the gate's error feedback, or loop?).
+
+---
+
+## 2026-06-22 — Z3-verify SELECTOR TIER shipped (deepest AST moat) + Z3 was dormant on the rig
+
+User's "haven't we got ailang AST advantages?" surfaced that the astedit EDIT is text-splice (only the
+LOCATION is AST-aware), but the real moat is the VERIFIER — and the deepest one, `ailang verify` (Z3 SMT),
+was UNUSED. Cheap-confirm caught WHY: **Z3 was not installed on the rig** → `ailang verify` errored "Z3 solver
+not found" → the static verifier has been dormant. Installed z3 4.16.0 (brew).
+
+**Built the Z3 tier** (dev, not fork): `Verdict.Verifies` + `score()` z3-verified+runs(4) > contracts+runs(3)
+> runs(2) > typechecks(1) > neither(0); `AilangVerifier.VerifyZ3` runs `ailang verify`; `select-best
+--verify-z3`. Z3 PROVES contracts for ALL inputs (or returns a counterexample) — strictly stronger than
+`--verify-contracts` (single runtime input); a generic harness on an untyped language has no equivalent.
+Tested: unit (4>3 ranking) + real-Z3 end-to-end (provable `x+1>x` verifies, violable `x-1>x`
+counterexample-rejected, selector flips to the proven candidate). Composes with `--contract-spec` (inject the
+provided spec → Z3-PROVE it). Degrades gracefully if z3 absent (Verifies stays false → no-op).

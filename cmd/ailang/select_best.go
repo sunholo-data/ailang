@@ -26,6 +26,7 @@ func runSelectBest() {
 	entry := fs.String("entry", "main", "Entrypoint function")
 	timeout := fs.Duration("timeout", 30*time.Second, "Per-candidate verify timeout")
 	verifyContracts := fs.Bool("verify-contracts", false, "Also check ensures/requires contracts (rejects runs-but-wrong; the AILANG-native edge)")
+	verifyZ3 := fs.Bool("verify-z3", false, "Also run `ailang verify` (Z3 SMT): statically PROVES contracts for ALL inputs; ranked above runtime contracts (needs z3 installed)")
 	contractSpec := fs.String("contract-spec", "", "Path to a contract spec (requires/ensures clauses) INJECTED into each candidate before verifying (R1 moat). Implies --verify-contracts.")
 	contractFunc := fs.String("contract-func", "", "Function name to inject --contract-spec into (required with --contract-spec)")
 	_ = fs.Parse(flag.Args()[1:])
@@ -76,11 +77,13 @@ func runSelectBest() {
 		}
 	}
 
-	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout, VerifyContracts: *verifyContracts, RelaxModules: true}
+	v := bestof.AilangVerifier{Caps: *caps, Entry: *entry, Timeout: *timeout, VerifyContracts: *verifyContracts, VerifyZ3: *verifyZ3, RelaxModules: true}
 	best, verdicts := bestof.SelectBest(files, v)
 	for i, vd := range verdicts {
 		status := "neither"
-		if vd.Runs && vd.ContractsPass {
+		if vd.Runs && vd.Verifies {
+			status = "z3-verified"
+		} else if vd.Runs && vd.ContractsPass {
 			status = "runs+contracts"
 		} else if vd.Runs {
 			status = "runs"

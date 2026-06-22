@@ -23,10 +23,11 @@ type Verdict struct {
 	TypeChecks    bool   // passed `ailang check`
 	Runs          bool   // executed without error (implies TypeChecks)
 	ContractsPass bool   // passed `ailang run --verify-contracts` (only set when VerifyContracts on)
+	Verifies      bool   // passed `ailang verify` (Z3 SMT static proof of contracts; only set when VerifyZ3 on)
 	Detail        string // first error snippet, if any
 }
 
-// score ranks a verdict: contracts-pass+runs(3) > runs(2) > typechecks-only(1) > neither(0).
+// score ranks a verdict: z3-verified+runs(4) > contracts-pass+runs(3) > runs(2) > typechecks-only(1) > neither(0).
 // The contract tier (3) is the AILANG-native edge a general harness can't reach: a candidate
 // that compiles+runs but VIOLATES a declared ensures/requires contract (runs-but-WRONG) is
 // ranked BELOW one that also satisfies its contracts — catching the logic_error/selector-miss
@@ -34,6 +35,8 @@ type Verdict struct {
 // contracts), ContractsPass stays false for all candidates → identical to the old runs(2) tier.
 func (v Verdict) score() int {
 	switch {
+	case v.Runs && v.Verifies:
+		return 4
 	case v.Runs && v.ContractsPass:
 		return 3
 	case v.Runs:
@@ -78,6 +81,7 @@ type AilangVerifier struct {
 	Caps            string        // capabilities, e.g. "IO,FS" (default "IO")
 	Timeout         time.Duration // per-candidate wall budget (default 30s)
 	VerifyContracts bool          // also run `--verify-contracts` → ContractsPass (the AILANG-native moat)
+	VerifyZ3        bool          // also run `ailang verify` (Z3 SMT) → Verifies (PROVES contracts for ALL inputs; deepest moat)
 	RelaxModules    bool          // pass `--relax-modules`. Best-of-N candidates are ephemeral temp files whose
 	// `module` declaration won't match the temp path; without this EVERY candidate fails MOD010 (spurious "neither").
 }
@@ -141,6 +145,18 @@ func (a AilangVerifier) Verify(path string) Verdict {
 			v.ContractsPass = true
 		} else {
 			v.Detail = "contract: " + snippet(cOut)
+		}
+	}
+	if a.VerifyZ3 {
+		// Deepest reference-free check: `ailang verify` (Z3 SMT) PROVES the declared contracts hold for
+		// ALL inputs (or returns a counterexample) — strictly stronger than single-input runtime
+		// --verify-contracts. Exit 0 = statically verified (or no contracts -> trivially). Degrades
+		// gracefully (Verifies stays false) if Z3 is absent or a counterexample exists. pi has no equivalent.
+		vOut, vErr := a.runCmd(a.bin(), a.cmd("verify", path)...)
+		if vErr == nil {
+			v.Verifies = true
+		} else if v.Detail == "" {
+			v.Detail = "verify: " + snippet(vOut)
 		}
 	}
 	return v
