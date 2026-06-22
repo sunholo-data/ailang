@@ -1,6 +1,6 @@
 # M-MOTOKO-EDITDECL-ASTEDIT: AST-span decl-replace tool for motoko (kill large-file rewrite-thrash)
 
-**Status**: Planned (trigger met — see Problem)
+**Status**: DRAFT PR (arniwesth/motoko_agent#66) — core type-checks; smoke + rig A/B pending
 **Target**: v0.26.0
 **Priority**: P3 → elevated (docx P0 surfaced the rewrite-thrash this addresses)
 **Estimated**: 3–5 days (cross-layer: motoko TS + .ail core; ailang CLI already exists)

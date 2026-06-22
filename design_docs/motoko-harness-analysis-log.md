@@ -2184,3 +2184,21 @@ own). Regression test added; all 8 → z3-verified after the fix.
 **Lever #1 conclusion:** Z3/R1-glue = a CORRECTNESS-ASSURANCE differentiator (real, pi-impossible,
 demonstrated), NOT a pass-rate lift on the saturated regime. The pass-rate "beat pi" goal needs the
 large-context regime where qwen actually errs → lever #2 (EditDecl, turnkey-spec'd).
+
+---
+
+## 2026-06-22 — EditDecl BUILT (lever #2) → DRAFT PR motoko_agent#66
+
+Executed the turnkey spec. EditDecl is `.ail`-only (no TS): `tool_catalog.ail` (edit_decl_schema + tools()),
+`tool_runtime.ail` (Native routing in backend_for/_v2, dispatch branch, `run_edit_decl` handler that stages
+new_body + runs `ailang ast-edit replace --file <f> --decl <d> --new <tmp> --in-place --relax-modules`,
+mirroring run_write_file). Reuses WriteFileResult/ToolErrorResult → NO new variant → no match-ripple (the key
+scope win). Core type-check passes per-file (`ailang check src/core/tool_{runtime,catalog}.ail` → "No errors").
+Note: `make check_core` env-fails on its `verify_extensions` dependency (looks for ext packages at a
+/workspaces devcontainer path absent on this rig) — unrelated to EditDecl.
+
+This is the pass-rate lever for the large-context regime: the docx 727-line monolith write drifts (Haskell
+`\x.`); EditDecl bounds each edit to one decl → smaller surface → less drift + far fewer output tokens.
+DRAFT pending smoke (motoko EditDecl on a multi-decl file → only the named decl changes) + a rig A/B (edit
+tokens + pass-rate vs the WriteFile baseline). Follow-ons: dedicated EditDeclResult variant; prompts.ail
+tool-selection rule.
