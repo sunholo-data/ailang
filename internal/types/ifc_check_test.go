@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -57,6 +58,22 @@ func leak() -> string ! {} { logIt(getSecret()) }`
 	errs := types.CheckModuleIFC(parseIFC(t, src))
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+}
+
+// TestIFC_BlockStatementLet_Caught: a block-statement let (`{ let s = ...; sink(s) }`,
+// no `in`) scopes the binding over the rest of the block — taint must survive it.
+func TestIFC_BlockStatementLet_Caught(t *testing.T) {
+	src := `module test/block
+func getSecret() -> string<secret> ! {} { "x" }
+func logIt(msg: string{not secret}) -> string ! {} { msg }
+func leak() -> string ! {} {
+  let s = getSecret();
+  logIt(s)
+}`
+	errs := types.CheckModuleIFC(parseIFC(t, src))
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation through a block-statement let, got %d: %v", len(errs), errs)
 	}
 }
 
@@ -172,6 +189,33 @@ func main() -> int ! {} { add(1, 2) }`
 	errs := types.CheckModuleIFC(parseIFC(t, src))
 	if len(errs) != 0 {
 		t.Fatalf("expected 0 violations for an unlabelled module, got %d: %v", len(errs), errs)
+	}
+}
+
+// TestSecretExamples_IFC validates the shipped M-SECRET-EFFECT example files:
+// gated_secret.ail must be IFC-clean and leak_attempt.ail must be rejected.
+// These examples are skipped by verify-examples (they need op/approval to run),
+// so this is their CI coverage.
+func TestSecretExamples_IFC(t *testing.T) {
+	cases := []struct {
+		path     string
+		wantErrs int
+	}{
+		{"../../examples/runnable/secrets/gated_secret.ail", 0},
+		{"../../examples/runnable/secrets/leak_attempt.ail", 1},
+	}
+	for _, tc := range cases {
+		src, err := os.ReadFile(tc.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", tc.path, err)
+		}
+		errs := types.CheckModuleIFC(parseIFC(t, string(src)))
+		if len(errs) != tc.wantErrs {
+			t.Errorf("%s: expected %d IFC violation(s), got %d: %v", tc.path, tc.wantErrs, len(errs), errs)
+		}
+		if tc.wantErrs == 1 && len(errs) == 1 && errs[0].Kind != types.SinkRefinementError {
+			t.Errorf("%s: expected SinkRefinementError, got %q", tc.path, errs[0].Kind)
+		}
 	}
 }
 

@@ -171,9 +171,28 @@ func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
 	case *ast.LetRec:
 		return c.labelOf(e.Body, extendEnv(env, e.Name, c.labelOf(e.Value, env)))
 	case *ast.Block:
+		// A block { s1; s2; ...; result } scopes a block-statement let (a Let or
+		// LetRec parsed without `in`, so its Body is nil) over the remainder of
+		// the block. Elaboration turns this into nested Core lets, so the surface
+		// walk must thread the binding into the environment for later statements.
 		last := LabelBottom()
+		cur := env
 		for _, sub := range e.Exprs {
-			last = c.labelOf(sub, env)
+			switch s := sub.(type) {
+			case *ast.Let:
+				if s.Body == nil {
+					cur = extendEnv(cur, s.Name, c.labelOf(s.Value, cur))
+					last = LabelBottom()
+					continue
+				}
+			case *ast.LetRec:
+				if s.Body == nil {
+					cur = extendEnv(cur, s.Name, c.labelOf(s.Value, cur))
+					last = LabelBottom()
+					continue
+				}
+			}
+			last = c.labelOf(sub, cur)
 		}
 		return last
 	case *ast.If:
