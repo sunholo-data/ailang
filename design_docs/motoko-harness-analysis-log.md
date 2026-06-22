@@ -2315,3 +2315,15 @@ Diagnostics:
 
 Next: add a prompts.ail rule (large existing file → EditDecl per decl, not WriteFile whole-file) + consider
 raising max_steps for this tier → re-run docx. Ruled-out: "EditDecl alone fixes docx" — FALSE without steering.
+
+---
+
+## 2026-06-22 — docx #1 ROOT CAUSE deepened: ollama profile loads NO system prompt; SYSTEM.md lacks EditDecl
+
+Why EditDecl went unused: the ollama profile sets `system_prompt:""` → rpc.ail loads raw_system="" → NO base
+system prompt at all. And SYSTEM.md (the base prompt, when loaded) doesn't even list EditDecl (predates it).
+So qwen's ONLY EditDecl signal was the tool-schema description — insufficient to flip its WriteFile habit on
+a from-scratch reimpl. FIX under test: add EditDecl + a "large-file editing rule" (don't WriteFile a >100-line
+file → drift; fix decls individually with EditDecl) to SYSTEM.md, and activate SYSTEM.md for the ollama
+profile. Hypothesis: a top-level system directive steers qwen where the tool description alone didn't.
+Re-running docx with steering (max_steps held at 50 for clean attribution).
