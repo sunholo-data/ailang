@@ -1970,3 +1970,21 @@ green). Limitation: record-type returns (`-> {..}`) unsupported (brace ambiguity
 rejects runs-but-wrong candidates — something pi (untyped harness) can't run. **Next increments:** (1) wire
 `select-best --contract-spec <file>` (inject spec into each candidate → --verify-contracts → select the
 satisfier); (2) prove end-to-end on a contract_* benchmark with a runs-but-wrong candidate.
+
+---
+
+## 2026-06-22 (cont) — R1 contract-glue MVP COMPLETE + proven end-to-end (the moat works)
+
+Wired `select-best --contract-spec <file> --contract-func <name>`: injects the PROVIDED spec into each
+candidate (astedit.InjectContract) → forces --verify-contracts → selects the satisfier; reports/returns the
+ORIGINAL candidate path (verifies against injected temp copies). End-to-end PROVEN: two contract-LESS
+candidates, inject provided `ensures { result > 0 }` into `compute`; the runs-but-WRONG one (compute(3)=-97)
+scores "runs" and is rejected, the correct one (compute(3)=10) scores "runs+contracts" and is SELECTED — the
+plain selector would've kept the first (wrong) one. Committed integration test
+`inject_verify_integration_test.go` (real-binary, skip if absent); 4/4 astedit tests pass.
+
+**The moat realized:** motoko can verify N candidates against the benchmark-PROVIDED contract the model
+omitted (44/48 drop it) — a reference-free oracle pi (untyped harness) structurally can't run. **Next:** prove
+on real contract_* benchmarks — generate N qwen candidates, apply each benchmark's contract_spec via
+--contract-spec, measure whether the contract tier lifts selection vs plain runs (needs rig + a benchmark
+where qwen emits a runs-but-wrong candidate). Then eval-harness integration.
