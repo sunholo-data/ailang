@@ -1988,3 +1988,23 @@ omitted (44/48 drop it) — a reference-free oracle pi (untyped harness) structu
 on real contract_* benchmarks — generate N qwen candidates, apply each benchmark's contract_spec via
 --contract-spec, measure whether the contract tier lifts selection vs plain runs (needs rig + a benchmark
 where qwen emits a runs-but-wrong candidate). Then eval-harness integration.
+
+---
+
+## 2026-06-22 (cont) — SYNC with concurrent session + coordination + R1-glue state/next
+
+Two Claude sessions were on this mission uncoordinated. Synced via git/ledger (no shared context across
+sessions — only git/ledger/TaskList/messages). The OTHER session: owns docx/P0 — got the first real grade
+0/17 (48 steps, NO timeout; failures = qwen emits `\x.` Haskell-lambda vs AILANG `\x ->` syntax drift +
+under-testing 3 checks/48 steps) and applied the /v1 timeout fix to the rig motoko build
+(runtime-process.ts:357). We BOTH independently did that timeout fix — my upstream DRAFT PR #65 is the same
+fix (keep: it upstreams into future motoko). Sent coordination msg to `motoko` inbox: **docx/P0 + EditDecl/P3
+= other session; R1-glue = me.** Stopped my redundant docx run-3 (was n=2 replication).
+
+**R1-glue state:** MVP done + proven end-to-end (astedit.InjectContract + select-best --contract-spec,
+554644550). **Next increment + its gate:** the real benchmark `contract_spec` is MULTIPLE *body-less* function
+signatures carrying contracts (contract_matrix_determinant: det2/det3 plain; minor3 `requires`;
+identityDet/zeroRowDet `ensures`). So consuming it needs (a) multi-function contract extraction from a
+body-less spec (not directly parser-loadable → text-extract per signature), and (b) a HARDER contract task —
+current contract_* are saturated (0 runs-but-wrong in banked data) so R1-glue has no LIFT to show there. Path:
+multi-func spec injection + a discriminating hard-contract benchmark that elicits runs-but-wrong-vs-contract.
