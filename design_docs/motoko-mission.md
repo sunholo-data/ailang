@@ -53,6 +53,7 @@ docx-reimplement = R2's first instance + the context_mode/large-context proving 
 1. ailang parser PANIC on `s[0]` index access → **FIXED on dev** (dbc8bf391; nil-guard + regression test).
 2. ollama `/v1` TOTAL timeout aborts legitimately-long requests ("context deadline exceeded", killed docx at steps 14 & 27). Band-aid: raise total to 1800s (motoko_agent#65). **Robust fix designed:** [`planned/m-ollama-v1-streaming-idle-timeout.md`](planned/m-ollama-v1-streaming-idle-timeout.md) — stream `/v1` + idle/inter-chunk deadline (tolerates long generation, still catches hangs). P1, v0.26.0.
 3. Root lever for prefill size = **P2 context-compression** (a bigger timeout can't shrink the prompt). Sequence: #65 (unblock now) → streaming-idle-timeout (robust) → P2 (root).
+4. Write-side efficiency = **EditDecl/ast-edit** ([`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)) — replace one decl by parsed span instead of re-emitting the whole file (docx had motoko write 526 lines). Shrinks WRITES (per-turn prompt growth); P2 shrinks READS. AILANG-native; pi's line-edit tools can't. P3, trigger now met.
 
 ## How the mission runs (each cycle)
 

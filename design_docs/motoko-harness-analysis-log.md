@@ -1908,3 +1908,18 @@ IDLE/inter-chunk deadline + a separate time-to-first-token window (prefill is to
 generation while still catching hangs — which was the original purpose of the 300s cap (63fc63e0, a ~2h
 GPU-contention hang). Inserted into mission roadmap as a large-context infra prerequisite. Sequence:
 motoko_agent#65 (band-aid, unblock now) → streaming-idle-timeout (robust) → P2 compression (root: prefill size).
+
+---
+
+## 2026-06-22 (cont) — docx benchmark RUNNING with timeout fix (validated past step 14) + EditDecl design doc
+
+User flagged two open items: AST editing + the docx large-context benchmark. Status + action:
+- **docx benchmark:** applied the /v1 timeout fix to the rig's motoko build (feat/local-eval-profiles
+  runtime-process.ts + tsc rebuild) and launched (session ...090051). It is now progressing **past step 14/20+
+  with NO "context deadline exceeded"** — the timeout fix is validated in practice (prior runs died at 300s).
+  First real X/17 large-context grade incoming.
+- **AST editing:** `ailang ast-edit replace` CLI verified working (replace decl by span, rest byte-preserved).
+  NOT trialed in motoko — motoko edit modes are hashline/replace/auto only; no astedit, nothing shells to the
+  CLI. Trialing = a cross-layer fork feature (TS dispatcher EditDecl branch + .ail tool registry/types/adapter
+  + prompt + GPU trial). Scoped + designed: [`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)
+  (P3, trigger now met — docx showed motoko writing a 526-line file). EditDecl shrinks WRITES; P2 shrinks READS.
