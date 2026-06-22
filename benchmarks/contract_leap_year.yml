@@ -1,0 +1,49 @@
+id: contract_leap_year
+description: "Gregorian leap-year + days-in-month — the classic %4/%100/%400 subtle-bug trap; contract pins the exact rule so Z3 catches the y%4==0 shortcut"
+difficulty: hard
+category: algorithmic
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Gregorian leap year: divisible by 4, EXCEPT centuries unless divisible by 400.
+  -- The notorious bug is `y % 4 == 0` alone (wrong for 1900, 2100, 100, ...).
+  export pure func isLeapYear(y: int) -> bool
+    ensures { result == (((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0)) }
+
+  export pure func daysInMonth(m: int, y: int) -> int
+    requires { m >= 1, m <= 12 }
+    ensures { result >= 28, result <= 31 }
+
+z3_hints: |
+  isLeapYear's contract pins the EXACT Gregorian rule. A candidate that returns `y % 4 == 0` passes
+  for most years but Z3 finds a counterexample (e.g. y=100): 100%4==0 (buggy says leap), but
+  100%100==0 and 100%400!=0, so the correct rule says NOT leap. daysInMonth(2,y) is 29 iff
+  isLeapYear(y) else 28; 30 for Apr/Jun/Sep/Nov; 31 otherwise.
+
+task_prompt: |
+  Implement the Gregorian leap-year rule and days-in-month, matching the contract signatures above.
+  A year is a leap year if divisible by 4, EXCEPT century years (divisible by 100) which are leap
+  only if ALSO divisible by 400.
+
+  Print (one per line):
+    isLeapYear(1900)
+    isLeapYear(2000)
+    isLeapYear(2024)
+    isLeapYear(2023)
+    daysInMonth(2, 2000)
+    daysInMonth(2, 1900)
+    daysInMonth(4, 2023)
+
+expected_stdout: |
+  false
+  true
+  true
+  false
+  29
+  28
+  30
+
+tier: stretch
+tags: [contracts, algorithmic, edge-cases]

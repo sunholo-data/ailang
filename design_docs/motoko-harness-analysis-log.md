@@ -2108,3 +2108,22 @@ provably-correct `x+1` → "z3-verified" (4) → SELECTED. Runtime contracts (an
 cannot distinguish observably-correct-on-one-input from provably-correct. This is lever #1 at its strongest.
 Next #1 sub-pieces: wire --verify-z3 into the eval-rotation best-of-N rollup; find/author a hard contract
 benchmark where qwen actually emits a runtime-passing-but-unprovable candidate (to show real lift).
+
+---
+
+## 2026-06-22 — authored contract_leap_year (hard Z3-discriminator) + honest reassessment of Z3 eval-lift
+
+Built `benchmarks/contract_leap_year.yml`. The saturated contract_* are aced by qwen3.6 (0 runs-but-wrong in
+banked data — small algorithmic tasks are saturated), so this targets a NOTORIOUS subtle bug (Gregorian
+leap-year %4/%100/%400) more likely to elicit a runs-but-WRONG candidate. **Validated: discriminates at BOTH
+levels** — reference solution → exact expected_stdout AND `ailang verify` VERIFIED; the classic `y%4==0`
+shortcut → Z3 REJECTED ("VIOLATION isLeapYear / Counterexample") AND fails stdout(1900).
+
+**Honest reassessment of the Z3 moat's eval value:** it's NOT primarily a pass-rate lift on small benchmarks
+(qwen is saturated there; and where stdout already tests the edge, stdout catches the bug without Z3). Its
+real value is two-fold: (i) **correctness assurance** — proves correctness for ALL inputs, catching bugs the
+finite stdout tests miss (pi/untyped harnesses can't); (ii) **best-of-N SELECTION lift** — when qwen emits a
+buggy-but-running candidate alongside a correct one, the Z3 tier picks the provably-correct one vs plain
+best-of-N's first-that-runs. The leap-year task is designed to create that divergence. **Rig follow-on:**
+N qwen samples on contract_leap_year → does it produce divergent (buggy+correct) candidates → measure
+Z3-selector lift over plain best-of-N (the real-lift test the saturated benchmarks can't give).
