@@ -2224,3 +2224,26 @@ smoke (motoko actually invoking EditDecl on a multi-decl file) + rig A/B (edit-t
 WriteFile baseline); (c) the docx convergence grade — re-run docx with ALL levers in (parser fix + timeout +
 EditDecl + best-of-N) for the real large-context number. Autonomous fires can't merge upstream PRs or hold
 the GPU for a clean A/B; this is the natural hand-off to a focused session.
+
+---
+
+## 2026-06-22 — HARNESS-PROBLEM REFRAME (Arni feedback on PR #66 + can.ac "The Harness Problem")
+
+Arni's PR #66 comment + the blog (https://blog.can.ac/2026/02/12/the-harness-problem/) reframe the docx
+failure. CONFIRMED from source: motoko's Native EditFile is exact `{old,new}` search/replace
+(`match_strategy:"exact"`, types.ail:63) — the fragile format the blog flags ("String to replace not
+found"); the robust hashline (ohMyPi) tools are NON-FUNCTIONAL (per Arni) → the only large-file fallback is
+WriteFile full-rewrite, which the blog pegs as winning only <400 lines → THE docx 727-line failure
+(full-rewrite → AILANG syntax drift → won't compile). This is a HARNESS (expression) gap, not a model gap.
+
+The blog's core data: edit-tool FORMAT is a first-order lever (GPT-4 26%→59%, Grok 6.7%→68.3% from format
+ALONE, holding the model fixed) — bigger than most levers chased here. Robust = decouple semantic intent
+from exact-string reproduction; provide a STABLE VERIFIABLE IDENTIFIER so the model never reproduces a
+string it must recall.
+
+EditDecl is the AILANG-native answer to that property: the **declaration name** is the stable identifier
+(no `old`-string reproduction; stable under line shifts), whole-decl rewrite sits in the <400-line
+full-rewrite-wins regime. Complementary to hashline (the better sub-decl line-edit tool, once un-broken).
+Replied on PR #66 positioning this + offered to un-break hashline. NEXT: validate EditDecl in the LOCAL
+motoko build (smoke + A/B vs WriteFile on a multi-decl file), then strategic choice — ship EditDecl (works
+now) and/or fix hashline (general, Arni's design intent).
