@@ -10,7 +10,7 @@ SRC=/Users/voightkampff/dev/sunholo-data/ailang-parse
 STAMP=$(date +%Y%m%d-%H%M%S)
 WS="/tmp/docx-${HARNESS}-${STAMP}"
 SESSION="session_docx_${HARNESS}_${STAMP}"
-MOTOKO_REPO=/Users/voightkampff/dev/arniwesth/motoko_agent
+MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
 
 echo "[run.sh] harness=$HARNESS model=$MODEL ws=$WS session=$SESSION"
 cp -R "$SRC" "$WS"
