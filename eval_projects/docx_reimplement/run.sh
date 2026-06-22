@@ -34,6 +34,18 @@ and make the output reproduce the document's real content. The whole package mus
   ailang check --package .
 EOF
 
+# Coordinate with the shared single-GPU rig (nightly / os-rotation-filler / eval-suite). Without
+# this, a concurrent job's process-hygiene `pkill -f 'bun.*src/tui'` kills this run mid-task
+# (observed: docx run 3 died at step 7 when an eval-suite started). rig_lock_acquire waits for
+# the rig; the lock auto-releases on EXIT.
+if [ -f "$HERE/../../tools/launchd/rig-lock.sh" ]; then
+  # shellcheck source=/dev/null
+  source "$HERE/../../tools/launchd/rig-lock.sh"
+  echo "[run.sh] acquiring rig lock (waits for any nightly/filler/eval-suite to finish)…"
+  rig_lock_acquire wait
+  echo "[run.sh] rig lock acquired"
+fi
+
 # port / process hygiene (fixed ENV_PORT=8080 → serial only)
 pkill -9 -f 'bun.*src/tui' 2>/dev/null; sleep 1
 

@@ -2008,3 +2008,22 @@ identityDet/zeroRowDet `ensures`). So consuming it needs (a) multi-function cont
 body-less spec (not directly parser-loadable → text-extract per signature), and (b) a HARDER contract task —
 current contract_* are saturated (0 runs-but-wrong in banked data) so R1-glue has no LIFT to show there. Path:
 multi-func spec injection + a discriminating hard-contract benchmark that elicits runs-but-wrong-vs-contract.
+
+---
+
+## 2026-06-22 (cont) — docx run 3 killed by rig contention; FIXED run.sh to take the rig lock
+
+Run 3 (parser-fixed motoko, free rig) died at **step 7 mid-BashExec** — NOT a timeout, NOT a motoko failure,
+0 PAR999 panics (parser fix holding). Cause: a concurrent **eval-suite started 8 min in** (msg 95841877) and
+its broad `pkill -f 'bun.*src/tui'` (port hygiene) killed this run's bun. The docx instrument never acquired
+the rig lock, so it had no protection. Also discovered: the real rig lock is `$HOME/.ailang/state/rig.lock.d`
+(mkdir-based, in tools/launchd/rig-lock.sh) — NOT `eval_results/.rig.lock`, so ALL prior "lock free" checks
+this session were meaningless (wrong path).
+
+**Fix:** `run.sh` now sources `rig-lock.sh` + `rig_lock_acquire wait` before launching motoko (auto-released
+on EXIT). Concurrent rig jobs now serialize instead of killing each other.
+
+**P0 grade still gated on BOTH:** (1) rig-lock fix [DONE — runs are now reliable], (2) PR motoko_agent#65
+[timeout — NOT deployed; can't merge upstream (Arni's repo), needs a local motoko-with-fix build]. A run with
+the lock but without #65 would reliably hit the 300s timeout. Next: build motoko from the #65 fork branch +
+clean docx run (lock + parser-fix + timeout-fix all in).
