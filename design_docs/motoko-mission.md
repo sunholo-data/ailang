@@ -49,6 +49,11 @@ generic harness has no access to. Priorities (mine):
 Sequence: R1 (lever, now) → R2 (instrument, measures R1 + context_mode on real work) → R3 (positioning).
 docx-reimplement = R2's first instance + the context_mode/large-context proving ground.
 
+**Large-context infra prerequisites (surfaced by docx-reimplement, 2026-06-22) — clear these for a clean P0/R2 grade:**
+1. ailang parser PANIC on `s[0]` index access → **FIXED on dev** (dbc8bf391; nil-guard + regression test).
+2. ollama `/v1` TOTAL timeout aborts legitimately-long requests ("context deadline exceeded", killed docx at steps 14 & 27). Band-aid: raise total to 1800s (motoko_agent#65). **Robust fix designed:** [`planned/m-ollama-v1-streaming-idle-timeout.md`](planned/m-ollama-v1-streaming-idle-timeout.md) — stream `/v1` + idle/inter-chunk deadline (tolerates long generation, still catches hangs). P1, v0.26.0.
+3. Root lever for prefill size = **P2 context-compression** (a bigger timeout can't shrink the prompt). Sequence: #65 (unblock now) → streaming-idle-timeout (robust) → P2 (root).
+
 ## How the mission runs (each cycle)
 
 A cycle picks up **one** item and runs the full record-keeping flow:

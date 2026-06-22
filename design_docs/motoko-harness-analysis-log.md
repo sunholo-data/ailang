@@ -1895,3 +1895,16 @@ large-context re-run is pending post-blackout GPU (rig in 04:00-07:00 window whe
 **P0 status:** blocker #1 (parser s[0] panic) FIXED on dev; blocker #2 (timeout) fix proposed (PR #65).
 Next: once #65 builds locally, re-run docx for the real X/17 grade. P2 context-compression remains the
 deeper structural lever (a bigger timeout only delays the bloat-driven slowdown).
+
+---
+
+## 2026-06-22 (cont) — design doc: robust /v1 streaming + idle-timeout (supersedes the #65 band-aid)
+
+User asked to formalize the streaming-vs-blocking insight. Created
+[`planned/m-ollama-v1-streaming-idle-timeout.md`](planned/m-ollama-v1-streaming-idle-timeout.md) (P1, v0.26.0,
+axiom net +4). Core: the `/v1` tool-calling path is non-streaming (io.ReadAll) so it can only use a TOTAL
+deadline; stream it (SSE + tool-call delta reassembly, reusing the native path's logic) and switch to an
+IDLE/inter-chunk deadline + a separate time-to-first-token window (prefill is token-less). Tolerates long
+generation while still catching hangs — which was the original purpose of the 300s cap (63fc63e0, a ~2h
+GPU-contention hang). Inserted into mission roadmap as a large-context infra prerequisite. Sequence:
+motoko_agent#65 (band-aid, unblock now) → streaming-idle-timeout (robust) → P2 compression (root: prefill size).
