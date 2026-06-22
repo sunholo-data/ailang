@@ -2293,3 +2293,25 @@ valid flag) → silent no-op. Now validated working.
 needs the docx large-file convergence before claiming the lever. Follow-on: a prompts.ail rule to steer
 EditDecl for whole-decl edits in large files (qwen doesn't consistently prefer it). Integration build staged
 at mk-integration for the docx run.
+
+---
+
+## 2026-06-22 — docx CONVERGENCE #1 (integration build: EditDecl + #65, qwen3.6) → 0/17, KEY DIAGNOSTIC
+
+Ran the docx_reimplement P0 instrument on the integration build (mk-integration). Result: 0/17 fixtures,
+**step budget exhausted at 50** (not a timeout death). Tool histogram across 50 steps: 38 ReadFile, 19
+BashExec, 10 WriteFile, **0 EditDecl, 0 EditFile**.
+
+Diagnostics:
+1. **#65 (timeout) VALIDATED on large-context:** 0 "context deadline exceeded" (the prior baseline died at
+   steps 14 & 27 on the 300s timeout). The fix lets the run survive — real win.
+2. **EditDecl NOT USED (0 calls):** qwen defaulted to WriteFile (full-rewrite). The 494-line result it
+   produced has PARSE ERRORS (syntax drift) → 0/17. This is the harness-problem failure, reconfirmed: the
+   tool is built + works (validated earlier) but the model won't SELECT it on its own.
+3. **The missing piece is PROMPT STEERING.** Building EditDecl isn't enough; the harness must steer the
+   model away from full-file WriteFile (drift) toward decl-scoped EditDecl on large existing files. This is
+   the prompts.ail tool-selection rule follow-on — now ON the critical path, not optional.
+4. max_steps:50 also likely too low for a 530-line / 13-export reimpl (it thrashed: read→write→check→reread).
+
+Next: add a prompts.ail rule (large existing file → EditDecl per decl, not WriteFile whole-file) + consider
+raising max_steps for this tier → re-run docx. Ruled-out: "EditDecl alone fixes docx" — FALSE without steering.
