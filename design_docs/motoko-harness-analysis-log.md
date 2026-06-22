@@ -2095,3 +2095,16 @@ AST-span edits (HIGH, =P3, kills monolith-write syntax drift), #3 type/effect-aw
 #4 type-directed context (MED, =P2 reframed), #5 SID-anchored edits (LOW), #6 typed AST-diff surfacing (LOW,
 blocked on formatter). Honest framing: the EDITOR is still text-splice (only decl LOCATION is AST-aware); the
 moat lives in the VERIFIER (now incl Z3) + type-directed context.
+
+---
+
+## 2026-06-22 — Z3 moat DEEPEST form proven (lever #1): inject provided spec + Z3-prove
+
+Composed `--contract-spec` (inject the benchmark's provided contract the model omitted) + `--verify-z3`
+(Z3-PROVE it). Decisive end-to-end demo + regression test (`TestZ3CatchesRuntimePassingButUnprovable`): a
+candidate `compute(x) = if x==3 then 5 else x-1` PASSES the runtime contract on the executed input (x=3 →
+5>3) → "runs+contracts" (3), but Z3 finds the counterexample (x≠3 → x-1 not > x) → NOT verified; the
+provably-correct `x+1` → "z3-verified" (4) → SELECTED. Runtime contracts (and any untyped harness / pi)
+cannot distinguish observably-correct-on-one-input from provably-correct. This is lever #1 at its strongest.
+Next #1 sub-pieces: wire --verify-z3 into the eval-rotation best-of-N rollup; find/author a hard contract
+benchmark where qwen actually emits a runtime-passing-but-unprovable candidate (to show real lift).
