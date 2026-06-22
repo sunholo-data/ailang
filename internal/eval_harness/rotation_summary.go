@@ -68,11 +68,11 @@ type ModelRollupStats struct {
 
 // RotationSummary is the top-level summary.json shape for an eval-suite run.
 type RotationSummary struct {
-	OutputDir        string                 `json:"output_dir"`
-	TotalResultFiles int                    `json:"total_result_files"`
-	TrialsPerBench   int                    `json:"trials_per_benchmark"` // max trial number seen
+	OutputDir        string                       `json:"output_dir"`
+	TotalResultFiles int                          `json:"total_result_files"`
+	TrialsPerBench   int                          `json:"trials_per_benchmark"` // max trial number seen
 	ModelRollup      map[string]*ModelRollupStats `json:"model_rollup,omitempty"`
-	BenchmarkSummary []BenchmarkSummary     `json:"benchmarks"`
+	BenchmarkSummary []BenchmarkSummary           `json:"benchmarks"`
 }
 
 // bestOfNExact applies the reference-free exact selector to a (benchmark,model) tuple's trials:

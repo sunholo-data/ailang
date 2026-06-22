@@ -34,7 +34,13 @@ func TestVerify_TamperedSignatureRejected(t *testing.T) {
 	s := newTestSigner(t)
 	tok, _ := s.Mint("approval-1", "approve", time.Hour)
 	// Flip a character.
-	bad := tok[:len(tok)-1] + flip(tok[len(tok)-1])
+	// Tamper a char in the MIDDLE of the token, not the last char: the token is
+	// base64.RawURLEncoding, whose trailing char carries only a few significant bits, so
+	// flipping it can decode to the SAME bytes (no tamper detected) — which made this test
+	// flaky (it depends on the random nonce). A middle char encodes full bits, so flipping it
+	// reliably changes the decoded signature.
+	i := len(tok) / 2
+	bad := tok[:i] + flip(tok[i]) + tok[i+1:]
 	_, err := s.Verify(bad)
 	if err == nil {
 		t.Fatal("expected error for tampered token")
