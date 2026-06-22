@@ -2027,3 +2027,22 @@ on EXIT). Concurrent rig jobs now serialize instead of killing each other.
 [timeout — NOT deployed; can't merge upstream (Arni's repo), needs a local motoko-with-fix build]. A run with
 the lock but without #65 would reliably hit the 300s timeout. Next: build motoko from the #65 fork branch +
 clean docx run (lock + parser-fix + timeout-fix all in).
+
+---
+
+## 2026-06-22 — SESSION CONSOLIDATION (this session is the survivor; sibling merged)
+
+User resolved the two-desynced-session bug: keep THIS session, kill the other. Both shared one working
+tree/repo (commits already interleaved on dev — nothing lost). Merged the sibling's substantive work into the
+mission roadmap (motoko-mission.md STATUS block):
+- **P0 docx GRADED 0/17** (sibling, 417db52f8): timeout fix validated (48 steps, no deadline); failure =
+  qwen AILANG syntax drift on 727-line gen (`\x.` Haskell lambda vs `\x ->`, bad match arm) + under-testing
+  (3 checks/48 steps). The discriminating signal P0 was built for.
+- Sibling also: deployed /v1 timeout fix (runtime-process.ts:357, == my PR #65), EditDecl/P3 design doc,
+  CI fix (gofmt + approvaltoken).
+- Mine: parser s[0] fix, PR #65, R1-glue MVP, rig-lock in docx run.sh, streaming-idle-timeout design doc.
+
+**Re-prioritized levers (data-backed by the grade):** best-of-N (TOP — reject non-compiling), compile-gate
+-before-done (DP7 didn't fire), EditDecl (smaller edits), R1 syntax-fidelity/contract diagnostics. Continuing
+solo from here. Next: best-of-N over docx (does a compiling candidate appear in N=3-5?) OR re-verify/enforce
+the DP7 compile-gate (cheaper harness lever).

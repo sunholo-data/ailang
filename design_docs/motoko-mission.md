@@ -19,6 +19,31 @@ frontier (P0, ailang-parse repo-source reimplement instrument) where pi and moto
 deliberate focused-session build, not a cron task. See [[motoko-strategic-goal]] +
 the [analysis log](motoko-harness-analysis-log.md).
 
+**STATUS 2026-06-22 — P0 LARGE-CONTEXT GRADED (the frontier moved; two desynced sessions merged here).**
+First real `docx_reimplement` grade (727-line parser reimplement): motoko **0/17**, but the **timeout fix is
+VALIDATED** — 48 steps to completion, no "context deadline exceeded" (prior runs died at 14/27 on the 300s
+cap). So 0/17 is a genuine capability result, and the failure is exactly the discriminating signal P0 exists
+for: **on a 727-line generation qwen's AILANG syntax fidelity DRIFTS** (emits Haskell `\x.` lambda instead of
+`\x ->`; bad `match` arm) → the package won't COMPILE. Compounded by **under-testing** (only 3 `ailang check`
+calls in 48 steps despite 40+ spare → it never caught its own parse errors). The short standard benchmarks
+hide this; the large-context instrument surfaces it.
+
+**Re-prioritized "beat pi" levers (now DATA-BACKED, not speculative) — the path to a passing large-context grade:**
+1. **best-of-N + EXACT selector (P1, BUILT):** N attempts, reject non-compiling → a syntactically-clean
+   candidate likely appears across samples. Directly rescues the syntax-drift class. **TOP lever — try first.**
+2. **compile-gate-before-done (DP7):** force `ailang check --package` green before "done" (motoko had 40+
+   spare steps). DP7 either isn't in this rig build or didn't fire on this task — re-verify/enforce.
+3. **EditDecl / ast-edit (P3, [`planned/m-motoko-editdecl-astedit.md`](planned/m-motoko-editdecl-astedit.md)):**
+   smaller per-edit surface → less drift than a 727-line monolith write.
+4. **R1 syntax-fidelity diagnostics + R1-glue contract verification:** surface `\x.`→`\x ->` as an
+   actionable error; verify candidates against provided contracts. The `\x.` drift is qwen-on-AILANG friction
+   (hits ANY harness) = an AILANG eval-gap, NOT motoko-specific.
+
+**Infra cleared (both sessions): /v1 timeout fix deployed (runtime-process.ts:357) + upstream DRAFT PR #65;
+parser `s[0]` panic FIXED on dev (dbc8bf391); CI green (gofmt + approvaltoken). R1-glue MVP done
+(astedit.InjectContract + `select-best --contract-spec`); next gate = multi-function body-less `contract_spec`
+extraction + a HARDER contract benchmark (current contract_* are saturated, 0 runs-but-wrong → no lift to show).**
+
 ## Roadmap: BEYOND parity (2026-06-21) — exploit what pi structurally can't do
 
 The standard set is saturated (motoko = pi). Beating pi requires AILANG-native structural advantages a
