@@ -109,3 +109,32 @@ function in a 500-line file costs ~one decl of output, not the whole file.
 - [m-ollama-v1-streaming-idle-timeout](m-ollama-v1-streaming-idle-timeout.md) — sibling large-context lever (timeout); EditDecl shrinks WRITES, that shrinks the per-turn prompt growth, easing the same timeout pressure.
 - P2 (context_mode compression) — shrinks READS/context; EditDecl shrinks WRITES. Complementary halves of large-context efficiency.
 - `ailang ast-edit` CLI (51eff8c92, internal/astedit) — the engine this tool drives.
+
+---
+
+## Implementation spec (turnkey — researched 2026-06-22, .ail-only; build in a focused session)
+
+The whole tool system is `.ail` (no TS layer): `tool_catalog.ail` (model-facing schema), `types.ail`
+(variants/results), `tool_runtime.ail` (dispatch + handlers). EditDecl is 3 files + compile-check.
+
+**Design-freeze RESOLVED:**
+- Schema fields: `{ path, decl, new_body }`.
+- Availability: **always-on tool** (coexists with EditFile/WriteFile); selection steered by the prompt rule, not an EditMode gate.
+- Prompt rule (prompts.ail): "EditDecl to replace a whole top-level declaration by name in an existing file (cheapest for large files); EditFile for small intra-decl substring edits; WriteFile for new files / small full rewrites."
+
+**1. `types.ail`** — add to the `Tool` variant (after `EditFile`):
+`| EditDecl({ id: string, path: string, decl: string, new_body: string })`
+and to `ToolResultItem`: `| EditDeclResult({ id: string, path: string, decl: string, diff: string, message: string })`.
+
+**2. `tool_catalog.ail`** — add `edit_decl_schema()` (mirror `write_file_schema`):
+name "EditDecl", parameters `{path, decl, new_body}` all required; description per the prompt rule. Add it to the `tools()` list.
+
+**3. `tool_runtime.ail`**:
+- Add `"EditDecl"` to the FS-tool routing predicates (the `call.tool == "ReadFile" || ...` lists at ~144 and ~996).
+- Dispatch branch (after the `EditFile` branch ~173): parse `{path, decl, new_body}` from the Json args (mirror EditFile's arg parsing) → `run_edit_decl(call.id, path, decl, new_body, workdir)`.
+- Handler `run_edit_decl(id, path, decl, new_body, workdir) -> ToolResultItem ! {FS, Process}`, mirroring `run_write_file` (line ~588): `validate_path_common` → derive `resolved` (copy run_write_file's resolution) → stage `new_body` to `${resolved}.editdecl.new` via `writeFileResult` → `exec("ailang", ["ast-edit","replace","--file",resolved,"--decl",decl,"--new",tmp,"--in-place","--relax-modules"])` → exitCode==0 ⇒ `EditDeclResult{...}` (diff="(replaced decl ${decl})", message=stdout); else `ToolErrorResult` ("decl not found?" + stderr). `exec`/`ProcessExecReq`/`run_process_result` patterns at lines 106/377/873.
+- `tool_dispatch_adapter.ail`: add an EditDeclResult arm to the trace-render match (mirror WriteFile's, ~86) so traces show "EditDecl decl=X".
+
+**Validation plan:** (a) `ailang check --package` on `src/core` (compile); (b) smoke: motoko run on a 2-decl file replacing one decl → confirm only that decl changed (rest byte-preserved); (c) rig A/B on docx or a synthetic large-file edit task → median edit tokens ≥3× lower, no pass-rate regression. Then upstream as the EditDecl PR.
+
+**Risk note:** the handler must exactly match motoko's `resolved`-path derivation + `exec` result type + Json arg-getters — get those from the live `run_write_file`/`parse_exec_from_args` before writing, and compile-check after each file. Not crammed into an autonomous fire for that reason.
