@@ -2127,3 +2127,23 @@ buggy-but-running candidate alongside a correct one, the Z3 tier picks the prova
 best-of-N's first-that-runs. The leap-year task is designed to create that divergence. **Rig follow-on:**
 N qwen samples on contract_leap_year → does it produce divergent (buggy+correct) candidates → measure
 Z3-selector lift over plain best-of-N (the real-lift test the saturated benchmarks can't give).
+
+---
+
+## 2026-06-22 — Z3-lift measurement BLOCKED by agent-mode eval infra (NOT a Z3/qwen result)
+
+Ran 8 motoko/qwen3.6 samples on contract_leap_year to measure real Z3-selector lift → ALL 8 codelen=0.
+Diagnosis (post-hoc; workspace auto-cleaned so unrecoverable): a MIX of (a) motoko crashes ("terminated
+without emitting run_summary") and (b) one session (fc2f6aad) that ran 42 steps doing 10×WriteFile +
+29×BashExec (iterating write→`ailang check`→fix) but wrote solution.ail to INCONSISTENT/nested paths
+(`benchmark/solution.ail`, `solution.ail`, a double-nested abs path, `solution_test.ail`, `.x`) then finished
+`done` with empty output → eval captured codelen=0. So motoko DID work; the final solution just wasn't where
+the harness read it. **NOT a Z3 result, NOT a qwen-capability result — an agent-mode eval-capture/stability
+issue.** Existing contract benchmarks capture fine (contract_sorted_merge 8 banked passes), so it's specific
+to this run; pinning it needs a re-run with workspace cleanup DISABLED + live inspection (rig).
+
+**Z3 moat status unchanged:** proven (mechanism + the runtime-passing-but-Z3-rejected demo + the
+contract_leap_year Z3-discrimination at the file level). The "real qwen eval-lift number" is deferred — blocked
+by the above AND expected-narrow (qwen3.6 is saturated on small tasks: 0 runs-but-wrong in banked contract_*).
+**Pivot:** lever #2 (EditDecl) addresses the docx syntax-drift directly and doesn't depend on this infra.
+Flagged: agent-mode capture path-confusion on contract_leap_year (separate from the Z3 work).
