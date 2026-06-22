@@ -114,7 +114,6 @@ trap teardown EXIT
 
 echo "=== Running eval-suite ==="
 ailang eval-suite --agent \
-    --agent-parallel 1 \
     --parallel 0 \
     --agent-timeout 300 \
     "$@"

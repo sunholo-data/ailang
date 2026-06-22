@@ -253,6 +253,22 @@ func runEvalSuite() {
 		}
 	}
 
+	// SAFETY (M-RIG single-GPU): agent runs on agent-only / local models (ollama-backed, e.g. qwen)
+	// MUST be serial. The rig is ONE GPU; concurrent trials thrash ollama and crash motoko (each
+	// produces a 0-byte JSONL -> "terminated without emitting run_summary"). --parallel defaults to
+	// 10, so a raw `eval-suite --agent` silently oversubscribes. Clamp to 1 here. Recurring footgun:
+	// the dead -agent-parallel flag, the 2026-05-22/23 rotations, and the 2026-06-22 contract_leap_year
+	// run that lost 7/8 trials to GPU contention. (Override with an isolated box only.)
+	if *agent && *maxConcurrent > 1 && eval_harness.GlobalModelsConfig != nil {
+		for _, m := range modelList {
+			if eval_harness.GlobalModelsConfig.SupportsAgentEval(m) && !eval_harness.GlobalModelsConfig.SupportsStandardEval(m) {
+				fmt.Fprintf(os.Stderr, "\u26a0 Local/agent-only model on the single-GPU rig \u2014 forcing --parallel 1 (was %d) to avoid ollama thrash + motoko crashes.\n", *maxConcurrent)
+				*maxConcurrent = 1
+				break
+			}
+		}
+	}
+
 	var benchmarkList []string
 	if *byConfidence != "" {
 		// Confidence-based selection from a ratings DB (M-EVAL-RATING-EFFICIENCY M3):

@@ -2147,3 +2147,20 @@ contract_leap_year Z3-discrimination at the file level). The "real qwen eval-lif
 by the above AND expected-narrow (qwen3.6 is saturated on small tasks: 0 runs-but-wrong in banked contract_*).
 **Pivot:** lever #2 (EditDecl) addresses the docx syntax-drift directly and doesn't depend on this infra.
 Flagged: agent-mode capture path-confusion on contract_leap_year (separate from the Z3 work).
+
+---
+
+## 2026-06-22 — contract_leap_year codelen=0 ROOT CAUSE + systemic fix (NOT a capture regression)
+
+The 8/8 codelen=0 was NOT an agent-capture regression — recent os-rolling agent runs are 236 clean (3d).
+Cause: my raw `eval-suite --agent` omitted `--parallel 1`, so `--parallel` defaulted to **10** → 8 motoko
+trials ran CONCURRENTLY on the single GPU → 7/8 crashed (0-byte JSONL → "terminated without emitting
+run_summary"), 1 thrashed. Confirmed: re-run with `--parallel 1` captures cleanly (trial 1: codelen=650,
+compile=True, err=none).
+
+**Systemic fix (the missing safeguard):** `cmd/ailang/eval_suite.go` now AUTO-CLAMPS `--parallel` to 1 when
+`--agent` + any agent-only/local model (ollama-backed), with a warning — verified (`--parallel 8 -dry-run` →
+"forcing --parallel 1 (was 8)"). The rig-lock only guarded cross-JOB concurrency; this guards within-job trial
+concurrency, the actual footgun. Also removed the last stale `--agent-parallel 1` invocation
+(`tools/ollama_eval.sh` — the flag itself was already removed; `--parallel 0` there already serializes).
+The footgun (dead -agent-parallel + raw --parallel=10 default) can no longer recur.
