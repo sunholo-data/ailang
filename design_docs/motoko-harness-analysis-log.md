@@ -2350,3 +2350,17 @@ first; EditDecl is necessary but not sufficient and qwen won't self-select it.
 Ruled out this cycle: (a) "EditDecl steering via SYSTEM.md flips qwen" — FALSE (still 0 calls); (b) "EditDecl
 + #65 cracks docx" — FALSE (context overflow is the wall). Validated: #65 timeout (both runs, 0 deadline
 deaths). Next lever: P2 context compression (compaction headroom + BashExec/ReadFile output compression).
+
+---
+
+## 2026-06-22 — ROOT CAUSE of docx context overflow: compaction SILENTLY SKIPPED for ollama models
+
+context_limit_base (src/core/context_usage.ail) has NO ollama/ or qwen entry → context_limit_for(
+"ollama/qwen3.6:35b-a3b-mxfp8") falls through to `else 0`. compaction.ail: "context_limit_for returns 0 →
+compaction skipped." So **compaction never fired on the local-qwen motoko runs** — latent on the saturated
+small-benchmark set (context never grew), FATAL on docx (291k > 262k overflow at step 24, convergence #2).
+
+FIX: added `startsWith(model, "ollama/qwen3") -> 262144` to context_limit_base (+ contract test). Now
+context_limit_for returns 262144 → compaction_ai fires at threshold_pct=75% (~196k) → keeps under the 256k
+window. This enables compaction for ALL local-qwen motoko runs (a latent harness bug, not just docx).
+Applied to mk-integration; re-running docx (convergence #3) to test. If it helps → fork DRAFT PR.
