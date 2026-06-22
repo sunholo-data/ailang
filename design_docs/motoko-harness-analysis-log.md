@@ -1876,3 +1876,22 @@ Found while running the parser-fix gauntlet: `pipeline.TestBuiltinTypes_GoldenSn
 builtin `_secret_read : string -> string<secret> ! {Secret}` but the golden wasn't regenerated. Not a
 regression. Regenerated via UPDATE_GOLDEN=1; only that one line changed; pipeline package now green. Unblocks
 dev CI for all mission eval work.
+
+---
+
+## 2026-06-22 (cont) — P0 timeout blocker #2 FIXED (fork-side) → DRAFT PR motoko_agent#65
+
+Localized + fixed the timeout non-propagation. Root cause (static, precedent-confirmed — no GPU needed):
+`spawnRuntimeProcess()` in motoko `src/tui/src/runtime-process.ts` builds an EXPLICIT env allowlist for the
+spawned ailang child; it forwards `AILANG_OLLAMA_MAX_TOKENS` (line 350, why the truncation fix worked) but
+DROPS `AILANG_OLLAMA_HTTP_TIMEOUT_SEC` → ailang always used its 300s default → large-context runs aborted
+("context deadline exceeded", steps 14 & 27). Fix: forward the var mirroring the proven MAX_TOKENS line.
+ailang reads it correctly (step.go wires context+client — confirmed prior fire).
+
+DRAFT PR: https://github.com/arniwesth/motoko_agent/pull/65 (from fork sunholo-voight-kampff, branch
+fix/forward-ollama-http-timeout). Marked draft: propagation is precedent-proven but the end-to-end
+large-context re-run is pending post-blackout GPU (rig in 04:00-07:00 window when prepared).
+
+**P0 status:** blocker #1 (parser s[0] panic) FIXED on dev; blocker #2 (timeout) fix proposed (PR #65).
+Next: once #65 builds locally, re-run docx for the real X/17 grade. P2 context-compression remains the
+deeper structural lever (a bigger timeout only delays the bloat-driven slowdown).
