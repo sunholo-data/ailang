@@ -181,6 +181,7 @@ _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}
 _rand_seed : int -> () ! {Rand}
+_secret_read : string -> string<secret> ! {Secret}
 _sharedindex_delete : (string, string) -> () ! {SharedIndex}
 _sharedindex_entry_count : string -> int ! {SharedIndex}
 _sharedindex_find_by_embedding : (string, list[float], int, int, bool) -> list[{key: string, score: float, timestamp: int, version: int}] ! {SharedIndex}

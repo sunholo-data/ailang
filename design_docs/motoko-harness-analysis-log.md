@@ -1866,3 +1866,13 @@ mcp examples — not parse). Worth a separate cleanup; flagged here.
 clean error to self-correct. Note: parser still ERRORS on `s[0]` (doesn't SUPPORT indexing — a feature
 decision); follow-up could add a stdlib hint to the message (R1-style). Remaining P0 blocker: the fork-side
 ollama-timeout propagation + P2 context compression.
+
+---
+
+## 2026-06-22 (cont) — fixed dev-red CI: stale builtin-types golden (secret() sprint added _secret_read)
+
+Found while running the parser-fix gauntlet: `pipeline.TestBuiltinTypes_GoldenSnapshot` failed on clean HEAD
+(dev CI red). Diagnosed: purely additive + intentional — the secret() sprint (M2/M5, merged to dev) added
+builtin `_secret_read : string -> string<secret> ! {Secret}` but the golden wasn't regenerated. Not a
+regression. Regenerated via UPDATE_GOLDEN=1; only that one line changed; pipeline package now green. Unblocks
+dev CI for all mission eval work.
