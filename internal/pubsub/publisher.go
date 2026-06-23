@@ -226,6 +226,29 @@ func (p *Publisher) PublishEvent(ctx context.Context, eventJSON []byte, eventTyp
 	return nil
 }
 
+// PublishApproval publishes a secret-approval push request to the approvals
+// topic (M-SECRET-REMOTE-APPROVAL-WIRING). notificationJSON is a marshalled
+// notify.Notification (built dashboard-side with signed Approve/Deny action
+// URLs); it carries the reference, purpose, and agent — never a resolved value.
+// The kind="approval" attribute lets the coordinator's /pubsub/push handler
+// route it to the ntfy bridge.
+func (p *Publisher) PublishApproval(ctx context.Context, approvalID, approvalType, agentID string, notificationJSON []byte) error {
+	result := p.topic(TopicApprovals).Publish(ctx, &gpubsub.Message{
+		Data: notificationJSON,
+		Attributes: map[string]string{
+			"kind":          "approval",
+			"approval_id":   approvalID,
+			"approval_type": approvalType,
+			"agent_id":      agentID,
+		},
+		OrderingKey: approvalID,
+	})
+	if _, err := result.Get(ctx); err != nil {
+		return fmt.Errorf("publish approval (id=%s): %w", approvalID, err)
+	}
+	return nil
+}
+
 // Stop flushes all pending messages and releases topic resources.
 func (p *Publisher) Stop() {
 	p.mu.Lock()

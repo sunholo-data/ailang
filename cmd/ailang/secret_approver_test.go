@@ -26,12 +26,24 @@ func TestAttachCloudSecretApprover_LocalMode_NoApprover(t *testing.T) {
 	}
 }
 
+func TestAttachCloudSecretApprover_ApprovalURLPrimary(t *testing.T) {
+	t.Setenv("AILANG_STORAGE", "gcp")
+	t.Setenv("AILANG_APPROVAL_URL", "https://dash.example")
+	t.Setenv("AILANG_COORDINATOR_URL", "")
+	ctx := effects.NewEffContext(nil)
+	attachCloudSecretApprover(ctx)
+	if ctx.Secret == nil || ctx.Secret.Approver == nil {
+		t.Fatal("expected approver attached via AILANG_APPROVAL_URL")
+	}
+}
+
 func TestAttachCloudSecretApprover_GcpButNoURL_NoApprover(t *testing.T) {
 	t.Setenv("AILANG_STORAGE", "gcp")
+	t.Setenv("AILANG_APPROVAL_URL", "")
 	t.Setenv("AILANG_COORDINATOR_URL", "")
 	ctx := effects.NewEffContext(nil)
 	attachCloudSecretApprover(ctx)
 	if ctx.Secret != nil && ctx.Secret.Approver != nil {
-		t.Fatal("expected NO approver when no coordinator URL is configured")
+		t.Fatal("expected NO approver when no approval URL is configured")
 	}
 }

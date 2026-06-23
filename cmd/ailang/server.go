@@ -208,6 +208,14 @@ func serverCommand(args []string) error {
 				subName := pubsub.SubEventsDashboard
 				serverOpts = append(serverOpts, server.WithPubSubEvents(psSub, subName))
 				defer psSub.Stop()
+
+				// M-SECRET-REMOTE-APPROVAL-WIRING: a publisher on the same client
+				// drives the secret-approval ntfy push (kind=approval → coordinator
+				// bridge → ntfy → phone).
+				approvalPub := pubsub.NewPublisher(psClient)
+				serverOpts = append(serverOpts, server.WithApprovalPublisher(approvalPub))
+				defer approvalPub.Stop()
+
 				defer psClient.Close()
 				log.Printf("Pub/Sub event streaming: subscription=%s-%s", topicPrefix, subName)
 			}

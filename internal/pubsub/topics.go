@@ -13,6 +13,7 @@ const (
 	TopicEvents      = "events"      // Real-time dashboard/laptop event streaming
 	TopicDeadLetter  = "dead-letter" // Failed message sink
 	TopicCascade     = "cascade"     // Authoritative package cascade triggers (M-PKG-AUTONOMOUS-CASCADE-SAFE M2)
+	TopicApprovals   = "approvals"   // Secret-approval push requests → ntfy (M-SECRET-REMOTE-APPROVAL-WIRING)
 )
 
 // SourceCascade is the value for the "source" message attribute on

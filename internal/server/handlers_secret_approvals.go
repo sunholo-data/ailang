@@ -4,11 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
+
+// secretApprovalTokenTTL bounds how long an Approve/Deny action token is valid.
+// Slightly longer than the executor's default 5-minute poll deadline so the
+// token never expires before the request itself times out.
+const secretApprovalTokenTTL = 10 * time.Minute
+
+// ApprovalPublisher publishes a secret-approval notification to the approvals
+// topic. *pubsub.Publisher satisfies it structurally; it is injected in cloud
+// mode so this package need not import internal/pubsub.
+type ApprovalPublisher interface {
+	PublishApproval(ctx context.Context, approvalID, approvalType, agentID string, notificationJSON []byte) error
+}
+
+// SetApprovalPublisher wires the approvals-topic publisher (cloud mode only).
+func (s *Server) SetApprovalPublisher(p ApprovalPublisher) { s.approvalPublisher = p }
 
 // handlers_secret_approvals.go — the coordinator-side intake/status/resolve for
 // secret approvals (M-SECRET-REMOTE-APPROVAL-WIRING M2).
@@ -127,13 +144,47 @@ func (s *Server) resolveSecretApproval(w http.ResponseWriter, r *http.Request, r
 	return true
 }
 
-// publishSecretApprovalRequested is the seam where a kind=approval Pub/Sub event
-// will be published to drive the iPhone ntfy push. It is intentionally a no-op
-// until the dedicated ${prefix}-approvals topic + publisher land in M3, so
-// intake works today (the executor polls for the decision) without it.
-func (s *Server) publishSecretApprovalRequested(_ context.Context, _ *coordinator.ApprovalRequestRecord) {
-	// M3: publish {kind:"approval", approval_id, approval_type:"secret"} plus the
-	// BuildSecretApprovalNotification payload to the ${prefix}-approvals topic.
+// publishSecretApprovalRequested builds the value-free approval notification
+// (with signed Approve/Deny action URLs) and publishes it to the approvals
+// topic, where the coordinator's /pubsub/push bridge forwards it to ntfy.
+//
+// It is best-effort: with no publisher (not cloud mode), no signer (token auth
+// off), or no AILANG_APPROVAL_BASE_URL, it no-ops — the executor still learns
+// the decision by polling, the phone push is simply skipped.
+func (s *Server) publishSecretApprovalRequested(ctx context.Context, rec *coordinator.ApprovalRequestRecord) {
+	if s.approvalPublisher == nil || s.secretTokenSigner == nil {
+		return
+	}
+	baseURL := os.Getenv("AILANG_APPROVAL_BASE_URL")
+	if baseURL == "" {
+		log.Printf("secret approval: AILANG_APPROVAL_BASE_URL unset — skipping push for %s", rec.ID)
+		return
+	}
+
+	var sc secretApprovalContext
+	_ = json.Unmarshal([]byte(rec.ContextJSON), &sc)
+
+	notif, err := coordinator.BuildSecretApprovalNotification(
+		&coordinator.ApprovalRequest{
+			ID:            rec.ID,
+			Type:          coordinator.ApprovalTypeSecret,
+			SecretRef:     sc.Ref,
+			SecretPurpose: sc.Purpose,
+			AgentID:       sc.Agent,
+		},
+		baseURL, s.secretTokenSigner, secretApprovalTokenTTL,
+	)
+	if err != nil {
+		log.Printf("secret approval: build notification for %s failed: %v", rec.ID, err)
+		return
+	}
+	payload, err := json.Marshal(notif)
+	if err != nil {
+		return
+	}
+	if err := s.approvalPublisher.PublishApproval(ctx, rec.ID, rec.Type, sc.Agent, payload); err != nil {
+		log.Printf("secret approval: publish for %s failed: %v", rec.ID, err)
+	}
 }
 
 func writeJSONStatus(w http.ResponseWriter, code int, v any) {

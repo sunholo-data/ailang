@@ -9,8 +9,62 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/approvaltoken"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
+
+type mockApprovalPublisher struct {
+	called                            bool
+	approvalID, approvalType, agentID string
+	payload                           []byte
+}
+
+func (m *mockApprovalPublisher) PublishApproval(_ context.Context, approvalID, approvalType, agentID string, notificationJSON []byte) error {
+	m.called = true
+	m.approvalID, m.approvalType, m.agentID, m.payload = approvalID, approvalType, agentID, notificationJSON
+	return nil
+}
+
+// TestPublishSecretApprovalRequested_BuildsValueFreePush: intake publishes a
+// notification that references the secret and carries signed Approve/Deny action
+// URLs — but never a resolved value.
+func TestPublishSecretApprovalRequested_BuildsValueFreePush(t *testing.T) {
+	t.Setenv("AILANG_APPROVAL_BASE_URL", "https://dash.example")
+	signer, err := approvaltoken.NewSigner([]byte("test-signing-key-0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := &mockApprovalPublisher{}
+	s := &Server{}
+	s.SetSecretApprovalAuth(signer)
+	s.SetApprovalPublisher(pub)
+
+	ctxJSON, _ := json.Marshal(secretApprovalContext{Ref: "op://Prod/stripe/key", Purpose: "charge", Agent: "agent-x"})
+	rec := &coordinator.ApprovalRequestRecord{ID: "secret-9", Type: "secret", ContextJSON: string(ctxJSON)}
+
+	s.publishSecretApprovalRequested(context.Background(), rec)
+
+	if !pub.called {
+		t.Fatal("expected PublishApproval to be called")
+	}
+	if pub.approvalID != "secret-9" || pub.approvalType != "secret" || pub.agentID != "agent-x" {
+		t.Errorf("unexpected attrs: id=%s type=%s agent=%s", pub.approvalID, pub.approvalType, pub.agentID)
+	}
+	body := string(pub.payload)
+	if !strings.Contains(body, "op://Prod/stripe/key") {
+		t.Errorf("notification should reference the secret: %s", body)
+	}
+	if !strings.Contains(body, "/approve?token=") || !strings.Contains(body, "/reject?token=") {
+		t.Errorf("notification should carry signed Approve/Deny action URLs: %s", body)
+	}
+}
+
+// TestPublishSecretApprovalRequested_NoopWithoutConfig: with no publisher/signer/
+// base URL, the push is skipped without panicking (the executor still polls).
+func TestPublishSecretApprovalRequested_NoopWithoutConfig(t *testing.T) {
+	s := &Server{}
+	s.publishSecretApprovalRequested(context.Background(), &coordinator.ApprovalRequestRecord{ID: "x", Type: "secret"})
+}
 
 func newSecretApprovalServer() (*Server, *MockApprovalStore) {
 	store := NewMockApprovalStore()

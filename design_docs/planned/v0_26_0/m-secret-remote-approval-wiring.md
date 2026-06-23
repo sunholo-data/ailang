@@ -109,7 +109,52 @@ The parent design doc's Deployment section states "There is **no Terraform**; in
 - **M1 — DONE** (`ailang` repo): `internal/secrets/cloud_approver.go` (`CloudSecretApprover` — POST `/api/approvals` + bounded poll, value-free, fail-closed) + `cmd/ailang/secret_approver.go` wiring (`attachCloudSecretApprover` in `grantCapabilities`, cloud-mode env-gated). 9 unit tests + verified end-to-end through the binary against a fake coordinator + fake `op`. Local CLI unchanged (un-gated).
 - **M2 — DONE** (`ailang` repo): coordinator-side intake/status/resolve for secret approvals — `internal/server/handlers_secret_approvals.go` (`POST /api/approvals` intake → pending Type=="secret" record with value-free `ContextJSON`; `GET /api/approvals/{id}` status; `resolveSecretApproval` resolves directly, bypassing the task merge/handoff path) + `CoordinatorApprovalStore.CreateApprovalRequest` (both SQLite + Firestore stores already implement it) + signed-token auth enabled at startup via `AILANG_APPROVAL_SIGNING_KEY` (`cmd/ailang/server.go`). 5 handler tests incl. a guard that non-secret approvals are untouched. Status-vocabulary aligned (`rejected`/`timeout`) between M1 and M2. The `kind=approval` Pub/Sub publish is a documented seam (`publishSecretApprovalRequested`) deferred to M3, where the dedicated `${prefix}-approvals` topic is created.
 - **M3 (Terraform) — DONE** (`ailang-multivac` repo, commits `6e3fcd4`, `01baefb`): `terraform/cloud_run_ntfy.tf` — `${prefix}-ntfy` Cloud Run service (scale-to-zero by default via `ntfy_min_instances=0`, matching the other services; delivery is push-driven so cold start is fine — set 1 for guaranteed iOS fetch-back delivery; public, `NTFY_*` + APNs upstream, auth token from Secret Manager), dedicated `${prefix}-approvals` topic (publish restricted to the coordinator SA) + `${prefix}-approvals-push-sub` push subscription → coordinator `/pubsub/push` (retry + dead-letter), `${prefix}-ntfy-auth-token` secret, SA + IAM, `ntfy_url` output. All behind `var.enable_secret_approvals` (+ bootstrap guard), no `prevent_destroy` (toggles cleanly). Enabled in dev tfvars. Mirrors `cloud_run_mcp.tf` / `pubsub_cascade.tf`. NOTE: no local terraform/docker available, so validate with `make plan ENV=dev` / CI (`hashicorp/terraform:1.7`) before apply.
-- **Remaining code (M3.5 / M4) — pending**: implement `publishSecretApprovalRequested` (publish `kind=approval` to the `${prefix}-approvals` topic on intake) + a coordinator `/pubsub/push` branch that forwards approval events to the ntfy service. Then M4 operator runbook. These are gated on the topic existing (terraform apply, a human step), so they land alongside the deploy.
+- **M3.5 (publish/consume bridge) — DONE** (`ailang` repo): publish side — `pubsub.TopicApprovals` + `Publisher.PublishApproval` (attr `kind=approval`), `server.ApprovalPublisher` interface + `WithApprovalPublisher`, real `publishSecretApprovalRequested` (builds the value-free notification with signed action URLs + publishes; best-effort), wired in `cmd/ailang/server.go`. Consume side — `daemon_http.go` `kind=approval` branch → `handlePushApproval` → `notify.NtfyChannel.Send` (env-configured, no-op without ntfy env). Executor URL corrected to `AILANG_APPROVAL_URL` (|| `AILANG_COORDINATOR_URL`) — `/api/approvals` is on the dashboard, not the coordinator. Tests: publish builder (value-free + signed URLs), consume forward to a fake ntfy + non-config no-op, executor env gating. End-to-end still gated on the deploy.
+- **M4 operator runbook — DONE** (`docs/docs/guides/secret-approvals.md`).
+
+## M3.5 — Publish/consume bridge (topology-resolved)
+
+Investigation surfaced a topology fact the earlier plan glossed: **`/api/approvals`
+runs on the `${prefix}-dashboard` service** (`internal/server.Server`), while
+**`/pubsub/push` runs on the `${prefix}-coordinator` daemon**
+(`internal/coordinator`). They are *different* Cloud Run services. So the bridge
+splits across them:
+
+**Publish side (dashboard, `internal/server` + `internal/pubsub`):**
+- `internal/pubsub/topics.go`: add `TopicApprovals = "approvals"` (resolves to
+  `${prefix}-approvals`, matching the Terraform topic).
+- `internal/pubsub/publisher.go`: add `PublishApproval(ctx, approvalID, approvalType, agentID, notificationJSON)` setting attribute `kind="approval"`.
+- `internal/server`: a small `ApprovalPublisher` interface + `SetApprovalPublisher`
+  (so the handler is testable with a mock; `*pubsub.Publisher` satisfies it).
+- `publishSecretApprovalRequested` (today a no-op): build the notification with
+  `BuildSecretApprovalNotification(req, baseURL, s.secretTokenSigner, ttl)` —
+  the signer already lives on the dashboard — and publish its JSON to the
+  approvals topic. `baseURL` = `AILANG_APPROVAL_BASE_URL` (the dashboard's own
+  public URL, used for the Approve/Deny action links). Best-effort: no-op when no
+  publisher or signer is configured.
+- `cmd/ailang/server.go`: construct a `*pubsub.Publisher` from the cloud pubsub
+  client and `SetApprovalPublisher` it.
+
+**Consume side (coordinator, `internal/coordinator/daemon_http.go`):**
+- In `handlePushMessage`, branch on `attrs["kind"] == "approval"` → `handlePushApproval`.
+- `handlePushApproval` deserialises the `notify.Notification` and sends it via the
+  existing `notify.NtfyChannel` (`internal/notify/ntfy.go`), configured from env:
+  `AILANG_NTFY_SERVER_URL`, `AILANG_NTFY_TOPIC`, `AILANG_NTFY_AUTH_TOKEN`. No-op
+  (ack + log) when ntfy env is absent.
+
+**Executor URL correction:** the M1 `CloudSecretApprover` must POST to the service
+that serves `/api/approvals` — the **dashboard**, not the coordinator. The env is
+renamed `AILANG_APPROVAL_URL` (falls back to `AILANG_COORDINATOR_URL` for
+compatibility); the runbook is updated accordingly.
+
+**Config (env) summary:** dashboard — `AILANG_APPROVAL_SIGNING_KEY` (have),
+`AILANG_APPROVAL_BASE_URL` (new); coordinator — `AILANG_NTFY_SERVER_URL`,
+`AILANG_NTFY_TOPIC`, `AILANG_NTFY_AUTH_TOKEN` (new); executor — `AILANG_APPROVAL_URL`.
+
+**Tests:** `PublishApproval` attribute shape; `publishSecretApprovalRequested`
+builds + publishes via a mock `ApprovalPublisher` (value-free); `handlePushApproval`
+forwards a `kind=approval` push to a fake ntfy HTTP server and skips non-approval
+messages. End-to-end remains gated on the deploy (human).
 
 ## Success criteria
 - [ ] A cloud-run secret task blocks on `secret()` until phone approval; approve → resolves, deny/timeout → `E_SECRET_DENIED`

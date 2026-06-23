@@ -141,6 +141,11 @@ type Server struct {
 	secretTokenSigner *approvaltoken.Signer
 	secretTokenGuard  *approvaltoken.SingleUseGuard
 
+	// approvalPublisher publishes secret-approval notifications to the approvals
+	// topic for the ntfy push bridge (M-SECRET-REMOTE-APPROVAL-WIRING). nil =
+	// no push (local mode); the executor still learns the decision by polling.
+	approvalPublisher ApprovalPublisher
+
 	// Coordinator task event store for historical replay
 	taskEventStore CoordinatorTaskEventStore
 
@@ -276,6 +281,14 @@ func WithPubSubEvents(subscriber *pubsub.Subscriber, subName string) ServerOptio
 	return func(s *Server) {
 		s.pubsubSubscriber = subscriber
 		s.pubsubEventSubName = subName
+	}
+}
+
+// WithApprovalPublisher wires the approvals-topic publisher used by the secret
+// approval ntfy push bridge (M-SECRET-REMOTE-APPROVAL-WIRING).
+func WithApprovalPublisher(pub ApprovalPublisher) ServerOption {
+	return func(s *Server) {
+		s.approvalPublisher = pub
 	}
 }
 

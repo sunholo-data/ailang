@@ -24,17 +24,16 @@ requesting agent.
 | Networked approver — executor blocks, polls the coordinator | ✅ shipped (M1) |
 | Coordinator intake/status/resolve + signed-token auth | ✅ shipped (M2) |
 | ntfy Cloud Run service + approvals topic/subscription (Terraform) | ✅ shipped (M3, `ailang-multivac`) |
-| **`kind=approval` publish + coordinator→ntfy bridge** | ⏳ **pending** |
+| `kind=approval` publish + coordinator→ntfy bridge | ✅ shipped (M3.5) |
 | This runbook | ✅ you're reading it |
 
-:::warning Not yet end-to-end
-The **publish/consume bridge is not wired yet** — when a `secret()` blocks, the
-coordinator does not yet publish the approval event to the ntfy service. Until
-that lands, a gated `secret()` in the cloud will block and **time out** (fail
-closed) rather than reaching your phone. The deploy + phone steps below are the
-target setup; do them in parallel, but the phone won't light up until the bridge
-ships. Track it in
-[m-secret-remote-approval-wiring.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-remote-approval-wiring.md).
+:::info Code-complete — deploy-gated
+The full code path is now built (executor → dashboard intake → publish →
+coordinator bridge → ntfy → phone, and back). What remains is **deploying it**:
+`terraform apply`, building the ntfy image, setting the secrets/env below, and
+subscribing your phone. Until then a gated `secret()` in the cloud blocks and
+**times out** (fail closed). Everything is testable locally without the deploy
+(see the demo at the end).
 :::
 
 ## Architecture
@@ -91,16 +90,20 @@ guaranteed iOS fetch-back delivery (ntfy holds the message in memory).
 
 ### Coordinator and executor configuration
 
+`/api/approvals` is served by the **dashboard** service; `/pubsub/push` (the ntfy
+bridge) by the **coordinator**. So the env splits across three places:
+
 | Env var | Where | Purpose |
 |---------|-------|---------|
-| `AILANG_APPROVAL_SIGNING_KEY` | coordinator | HMAC key enabling signed single-use token auth on approve/reject (so the phone buttons work without IAM) |
+| `AILANG_APPROVAL_SIGNING_KEY` | **dashboard** | HMAC key enabling signed single-use token auth on approve/reject (mints the phone-button tokens) |
+| `AILANG_APPROVAL_BASE_URL` | **dashboard** | the dashboard's own public URL — used to build the Approve/Deny action links |
+| `AILANG_NTFY_SERVER_URL` | **coordinator** | the ntfy service URL (`terraform output ntfy_url`) |
+| `AILANG_NTFY_TOPIC` | **coordinator** | the ntfy topic your phone subscribes to (e.g. `ailang-approvals`) |
+| `AILANG_NTFY_AUTH_TOKEN` | **coordinator** | the `ailang-dev-ntfy-auth-token` value (so the bridge can publish) |
 | `AILANG_STORAGE=gcp` | executor | selects cloud mode |
-| `AILANG_COORDINATOR_URL` | executor | the coordinator base URL the approver POSTs to |
+| `AILANG_APPROVAL_URL` | executor | the **dashboard** base URL the approver POSTs to (falls back to `AILANG_COORDINATOR_URL`) |
 | `AILANG_AGENT_ID` / `AILANG_TASK_ID` | executor | label the approval request (optional) |
 | `AILANG_APPROVAL_TOKEN` | executor | optional bearer token on the intake POST |
-
-Set the same `AILANG_APPROVAL_SIGNING_KEY` value the ntfy action-button tokens
-are minted with.
 
 ## Phone setup
 
@@ -119,8 +122,8 @@ are minted with.
 Once the bridge ships and the deploy is done:
 
 ```bash
-# A gated secret task running in cloud mode:
-AILANG_STORAGE=gcp AILANG_COORDINATOR_URL=<coordinator-url> \
+# A gated secret task running in cloud mode (point at the dashboard URL):
+AILANG_STORAGE=gcp AILANG_APPROVAL_URL=<dashboard-url> \
   ailang run --caps Secret,IO --entry main yourtask.ail
 ```
 
