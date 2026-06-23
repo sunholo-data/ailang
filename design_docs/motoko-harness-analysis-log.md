@@ -2663,3 +2663,23 @@ target the two reasons docx-guided failed: premature-stop (#19) + the `\x.` drif
 (docx_persist) — does the guided model now keep acting (no premature finish_reason=stop) and write COMPILING
 AILANG? If the model honors the directive → cheap win. If it ignores it → the deterministic core-loop nudge
 (NoDecision-None continuation-intent check, step_budget-bounded) is the justified next build.
+
+---
+
+## 2026-06-23 — docx with CORRECT agent-eval setup: prompt-persistence INSUFFICIENT, #19 deterministic nudge justified
+
+Fixed run.sh to the real agent-eval prompt setup (lean agent prompt + ailang teaching prompt as
+syntax_reference.md in the workspace; agent_prompt.go pattern) — first representative docx run. Result:
+- Model wrote 717 lines (vs 31 stub), 11 WriteFile, 66 BashExec (heavy ailang-check iteration), 3 ReadInterface.
+  It is engaged + actively fixing syntax via check-iterate. 0/17: parse error at the end (`expected =>` — a
+  match/lambda arm), still drifting on edge-case AILANG syntax.
+- finish_reason=stop at step 65 (budget 100) — **#19 premature-stop STILL fires DESPITE the persistence
+  directive in the agent prompt.** The prompt-level fix is NOT enough; the v2 loop terminates on a no-tool-call
+  turn regardless. → the DETERMINISTIC core-loop nudge (NoDecision/None continuation-intent check,
+  step-budget-bounded) is now JUSTIFIED by evidence.
+- Model never read syntax_reference.md (0 mentions) — ignored the pointer; relies on check-iterate for syntax.
+  Secondary lever: getting the syntax to the model (auto-inject on check-failure / inline cheat-sheet) would
+  cut the error-churn, but #19 (let it iterate to convergence) is primary — it was mid-fix when cut off.
+
+NEXT (justified): build the #19 deterministic loop nudge. Secondary: reduce syntax-drift churn (the model
+makes+fixes many AILANG syntax errors; fewer would converge faster).
