@@ -2364,3 +2364,25 @@ FIX: added `startsWith(model, "ollama/qwen3") -> 262144` to context_limit_base (
 context_limit_for returns 262144 → compaction_ai fires at threshold_pct=75% (~196k) → keeps under the 256k
 window. This enables compaction for ALL local-qwen motoko runs (a latent harness bug, not just docx).
 Applied to mk-integration; re-running docx (convergence #3) to test. If it helps → fork DRAFT PR.
+
+---
+
+## 2026-06-23 — docx CONVERGENCE #3: compaction fix WORKED, but NEW bug — BashExec has no timeout (find / hung 7h)
+
+Convergence #3 (compaction fix + steering). The compaction fix WORKED: NO context overflow (reached step 4
+cleanly where #2 was already overflowing). But the run HUNG for ~7h at step 4 and had to be killed.
+
+Cause: qwen ran `BashExec: find / -name "xml.ail"` (and find / for typeclasses.ail, a-lang) to locate stdlib
+modules. A filesystem-wide `find /` on the Mac hangs (slow paths; head -10 doesn't kill find promptly), and
+**native BashExec has NO TIMEOUT** → the hung find froze the entire agent indefinitely + held the rig lock.
+Multiple hung find processes accumulated across the run.
+
+TWO latent harness bugs found this session, both invisible on the saturated small set, fatal on large-context:
+1. compaction skipped for ollama models (FIXED — context_limit table) — validated working in #3 (no overflow).
+2. **BashExec has no wall-clock timeout** → a hanging/long command (find /, or any blocker) freezes the agent
+   (NEW). delegated_timeout_ms=30000 covers DELEGATED tools only; native BashExec is unbounded.
+
+docx is blocked on HARNESS ROBUSTNESS, not EditDecl. Next fixes: (a) BashExec wall-clock timeout (note: macOS
+has no `timeout` — needs an in-harness deadline on the Process exec, or kill-after-N); (b) a prompt rule:
+"stdlib modules are imported by name (import std/xml), never located via filesystem search — never run find /".
+Then re-run docx. The compaction fix is validated → ready for a fork DRAFT PR.
