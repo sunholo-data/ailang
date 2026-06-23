@@ -2892,3 +2892,13 @@ once (worked); DP7 gate fired once. Grade 0/17 (parse errors + overflow; no conv
 fix, then re-run to validate the match/if-else cheat-sheet + measure PAR_ rate again.
 
 <!-- NEXT FIRE: fix context overflow (compaction not bounding input to <262144; see above). Then re-run docx to validate the match/if-else cheat-sheet. Lambda fix already validated. -->
+
+## 2026-06-24 — overflow fix: compaction reserves 75k output headroom; docx re-run validating
+Diagnosed the step-84 overflow: assistant turns are SMALL (median 159, max 7238 tokens — refutes the 64K-cap-
+bloat theory). The real cause: usage_percent measured estimate/context_limit against the FULL window, so the
+70/85/95% tiers fired only as input neared the hard limit, never reserving output room — and input alone hit
+263259 > 262144. FIX (fork): usage_percent now measures against (limit - 75000), so compaction keeps input
+~<185k with a big buffer (covers the 65536 output cap + margin). Small rotation contexts stay 0% (no impact);
+only large-context tasks compact earlier. Type-checks. VALIDATE: docx re-run (bokj2wdtx) tests overflow fix +
+the match/if-else cheat-sheet together. Early-check pinned to the new session (fixed the prior stale-read bug):
+reports whether it passes step 84 without overflow + the PAR_ rate.
