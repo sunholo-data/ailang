@@ -89,6 +89,7 @@ var skippedExamples = map[string]string{
 	"examples/runnable/contracts/cross_module_functions_lib.ail": "library module (no main) — imported by cross_module_functions.ail; not a standalone runnable",
 	"examples/runnable/secrets/gated_secret.ail":                 "M-SECRET-EFFECT: needs the Secret capability + 1Password op CLI + a human approval to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/leak_attempt.ail":                 "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
+	"examples/runnable/secrets/secret_demo.ail":                  "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 }
 
 // ailangBinary returns the path to a pre-built ailang binary.

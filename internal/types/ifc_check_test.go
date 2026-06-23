@@ -203,6 +203,7 @@ func TestSecretExamples_IFC(t *testing.T) {
 	}{
 		{"../../examples/runnable/secrets/gated_secret.ail", 0},
 		{"../../examples/runnable/secrets/leak_attempt.ail", 1},
+		{"../../examples/runnable/secrets/secret_demo.ail", 0},
 	}
 	for _, tc := range cases {
 		src, err := os.ReadFile(tc.path)
