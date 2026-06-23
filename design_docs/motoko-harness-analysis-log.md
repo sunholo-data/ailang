@@ -2850,3 +2850,17 @@ replacing reads). (3) step budget (100 may be low for a 463-line from-scratch pa
 SESSION (all validated): process-hang, output cap (#17), system-prompt load (#18), agent-eval prompt setup,
 truncation-continue (#13), and the type-check definition-of-done — docx now fails for a DIFFERENT, higher-level
 reason than every prior run.
+
+## 2026-06-23 — diagnostic: the wall is AILANG PARSE-syntax proficiency (->/=> confusion), reference unused
+Error-progression analysis of docx_dp7: 860 parser-error mentions, 468 distinct states, ALL PAR_* (parse
+errors) — ZERO type errors. The model can't produce PARSEABLE AILANG at scale; errors are ->/=> confusion
+(lambda-arrow vs match-arm-arrow) marching line-by-line (103,104,106,...). ~1 parse error per line in a
+463-line file -> can't converge in 100 steps. syntax_reference.md read 0 times (guidance unused).
+
+So the binding constraint is AILANG-syntax PROFICIENCY, not type logic. DECISIVE EXPERIMENT to separate
+harness-improvable from model-ceiling: put a CONCISE AILANG syntax cheat-sheet (the drift points: lambda
+`\x -> e`, match arms `p => e`, block `{let x=a; e}` vs expr `let x=a in e`, effects, NO Haskell `=>` in
+expr position) IN the agent prompt (the model ignores the workspace syntax_reference.md, so in-context is the
+only delivery that reaches it) -> re-run -> does the PAR_ rate drop sharply? If yes: harness-improvable (syntax
+delivery). If still ~1/line: near qwen3.6's AILANG-syntax ceiling -> lever becomes best-of-N / stronger model.
+Do NOT conclude model-bound until this experiment runs (every prior such call this session was a harness bug).
