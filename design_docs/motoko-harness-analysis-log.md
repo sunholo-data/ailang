@@ -2801,3 +2801,20 @@ raise the default cap to ~65536 (qwen-code's ceiling; input was only 63K so 64K 
 making truncation rare. NEXT: raise the cap to 64K (simple, reference-aligned) and consider retry-higher-discard
 as the proper recovery; keep #13 continue as the last-resort backstop. pi-style thinkingLevel control is N/A
 unless the ollama /v1 path exposes a reasoning-effort knob for qwen3.6.
+
+## 2026-06-23 — ARCHITECTURE: AILANG definition-of-done MUST be a type-check (user insight)
+
+User: "If AILANG, shouldn't the default be a type check? It didn't type check before completion." Correct, and
+it exposes the real gap behind the docx prose-stop-with-broken-code: the DP7 finalize gate (run_dp7_verifier)
+defaults to enabled=FALSE + command="make check_core" — a project-BUILD target the AILANG workspaces don't have
+(make: no rule -> is_missing_infrastructure -> fail-open Approve). So the agent could declare "done" with code
+that doesn't type-check — the exact failure AILANG's design exists to prevent. The 717-line and 101-line runs
+both ended with a non-compiling parser (=> drift) the gate never caught.
+
+FIX: for AILANG the definition-of-done should BE a type-check, on by default. Set the ollama (AILANG) profile
+verification = { enabled: true, command: "ailang check ." }. `ailang check .` type-checks the whole project
+(68 files in docx), exit!=0 on any error, ZERO infra-noise (won't false-Approve). Verified it Rejects the
+broken parser (exit 1, PAR_NO_PREFIX caught). Now dp7_gate emits dp7_verifier_rejected + "fix all errors before
+declaring done" -> the model must continue until the project type-checks. Reverted the check_core Makefile
+workaround. Broader principle for the fork PR: AILANG profiles should DEFAULT the definition-of-done to
+`ailang check`, not opt-in (currently config.ail default is make check_core/disabled).
