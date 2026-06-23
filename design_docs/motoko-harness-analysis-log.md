@@ -2760,3 +2760,12 @@ the #19 prose-heuristic (length is unambiguous) and fixes THIS run's killer. The
 a FAIR verdict. Also revisit AILANG_OLLAMA_MAX_TOKENS=32768 (a single thinking turn hit it exactly — the
 "don't-cap qwen reasoning" research note applies), but continuation-on-truncation is the robust fix vs raising
 the cap (which just delays the cliff).
+
+## 2026-06-23 — BUILD: continue-on-truncation (#13) + fair AST-route retest launched
+
+Built the #13 fix in the v2 loop (NoIntercept branch): finish_reason=="length" now re-prompts to continue
+(bounded by step_budget) instead of ending the run. Gated MOTOKO_CONTINUE_ON_TRUNCATION (default on). Type-checks.
+Re-launching docx with AST route ON (it induced the runaway-thinking truncation last time, so it both tests the
+truncation fix — expect "truncated_continue" events + the run surviving past the cap — AND gives the AST route a
+FAIR verdict now that a truncation no longer kills the run). Watch: truncated_continue events, finish state
+(not length-at-end), convergence (compiling parser?), AST markers.
