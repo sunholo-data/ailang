@@ -99,11 +99,15 @@ Mirrors existing conventions (`${var.prefix}-…`, `google_cloud_run_v2_service`
 ## Correction to parent doc
 The parent design doc's Deployment section states "There is **no Terraform**; infra is managed imperatively via Cloud Build." This is **stale** — `ailang-multivac/terraform/` is a full Terraform setup (`cloud_run.tf`, `pubsub.tf`, `secrets.tf`, `iam.tf`, per-env `tfvars`, GCS backend). This milestone adds the ntfy infra as Terraform, not ad-hoc `gcloud`. The parent doc should be annotated accordingly when this lands.
 
-## Open decisions (for review)
-1. **Topic:** reuse `${prefix}-messages` with `kind=approval` filter, or a dedicated `${prefix}-approvals` topic? (Dedicated = cleaner isolation + own retry/dead-letter; one more resource.)
-2. **Executor ↔ decision channel:** poll coordinator HTTP vs. read Firestore `approvals` collection directly (the collection already exists). Firestore read avoids a coordinator round-trip but couples the executor to the DB.
-3. **Default approval deadline** for a blocked `secret()` (propose 5 min, then `E_SECRET_DENIED`).
-4. **Env to start:** dev only first (recommended), then test/prod.
+## Resolved decisions (2026-06-23)
+1. **Topic:** a **dedicated `${prefix}-approvals` topic** (own retry/dead-letter; clean isolation for a security feature).
+2. **Executor ↔ decision channel:** **poll the coordinator over HTTP** (`GET /api/approvals/{id}`) — keeps the executor decoupled from Firestore. *(Implemented in M1: `CloudSecretApprover`.)*
+3. **Default approval deadline:** 5 min, then `E_SECRET_DENIED` (fail-closed). *(Implemented in M1, overridable via option.)*
+4. **Env to start:** **dev only**, gated behind `var.enable_secret_approvals`; test/prod later.
+
+## Milestone status
+- **M1 — DONE** (`ailang` repo): `internal/secrets/cloud_approver.go` (`CloudSecretApprover` — POST `/api/approvals` + bounded poll, value-free, fail-closed) + `cmd/ailang/secret_approver.go` wiring (`attachCloudSecretApprover` in `grantCapabilities`, cloud-mode env-gated). 9 unit tests + verified end-to-end through the binary against a fake coordinator + fake `op`. Local CLI unchanged (un-gated).
+- M2–M4: pending.
 
 ## Success criteria
 - [ ] A cloud-run secret task blocks on `secret()` until phone approval; approve → resolves, deny/timeout → `E_SECRET_DENIED`
