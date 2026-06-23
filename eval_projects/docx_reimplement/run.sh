@@ -52,7 +52,7 @@ pkill -9 -f 'bun.*src/tui' 2>/dev/null; sleep 1
 case "$HARNESS" in
   motoko)
     env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-dummy}" \
-        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 \
+        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$MOTOKO_REPO/SYSTEM.md" \
         ENV_PORT=8080 AILANG_OLLAMA_MAX_TOKENS=32768 AILANG_OLLAMA_HTTP_TIMEOUT_SEC="${AILANG_OLLAMA_HTTP_TIMEOUT_SEC:-1800}" MOTOKO_SESSION_ID="$SESSION" \
         "$MOTOKO_REPO/scripts/run-agent.sh" --headless "$TASK" > "/tmp/${SESSION}.out" 2>&1
     ;;
