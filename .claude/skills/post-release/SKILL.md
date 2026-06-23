@@ -278,6 +278,31 @@ gh release view vX.X.X
 
 If release doesn't exist, run `release-manager` skill first.
 
+### 1a. Refresh Codebase Statistics (REQUIRED — commit, don't rely on CI)
+
+The `docs/static/codebase_stats.json` file drives the [Codebase Statistics](https://ailang.sunholo.com/docs/benchmarks/codebase-stats) page (LOC/token/commit growth chart).
+
+**⚠️ The deploy workflow regenerates this file at build time but does NOT commit it back** — it only bakes the result into the Pages artifact. The generator (`generate_codebase_stats.sh`) appends **only the version it runs on** to the committed history. So if a release is not captured + committed here, that version is **permanently skipped** from the history chart, producing visible gaps (e.g. the 0.14.1 → 0.25.0 jump that skipped every 0.15–0.24 graduation). **You must run + commit this every release.**
+
+```bash
+# Generate stats for THIS release and append to the committed history
+AILANG_VERSION=vX.X.X bash tools/generate_codebase_stats.sh
+
+# Sanity check: current == this release, and the new entry is in history
+jq -r '.current.version, (.history[-1].version)' docs/static/codebase_stats.json
+
+# Commit (CI will NOT do this for you)
+git add docs/static/codebase_stats.json
+git commit -m "data(stats): codebase statistics for vX.X.X"
+git push
+```
+
+- [ ] `codebase_stats.json` `current` shows vX.X.X
+- [ ] `history` includes a vX.X.X entry (no gap vs. previous release)
+- [ ] Change is **committed and pushed** (not just regenerated locally)
+
+> Backfilling a missed gap: check out each missed tag in a throwaway `git worktree`, run the same counting logic, and merge the entries into `history` sorted by version. See the v0.15→0.24 backfill (June 2026) for the pattern.
+
 ### 2. Run Eval Baseline
 
 **🚨 CRITICAL: ALWAYS use --full for releases!**
