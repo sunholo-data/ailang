@@ -2536,3 +2536,15 @@ Sequence: [1 DONE] ailang iface --compact. [2] motoko ReadInterface tool (fork D
 prompt nudge ("ReadInterface deps to learn how to use them; ReadFile bodies only for the file you edit").
 [3] multi-dep A/B (interface-reads vs full-reads -> context consumed + overflow + pass-rate) — the docx-class
 test EditDecl couldn't pass. Follow-on: record-return types render <*types.TRecord> (type-string formatter).
+
+---
+
+## 2026-06-23 — ReadInterface tool BUILT + validated (step 2); A/B launched
+
+Built motoko ReadInterface tool in mk-integration (tool_catalog read_interface_schema + tool_runtime
+dispatch/routing/run_read_interface execing `ailang iface --compact <resolved>`, reuses ReadFileResult).
+Type-checks. Deterministic test: run_read_interface on a temp module returns ReadFileResult with the compact
+iface content — works end-to-end (no exec-arg bug, unlike EditDecl's --relax-modules). Undrafted PRs #65
+(timeout) + #70 (compaction) — validated/ready; #66 EditDecl stays draft (needs longer-project testing).
+A/B launched: zip_extract-using task, A=ReadInterface+nudge vs B=ReadFile-only, measure dep-read tool +
+compile + context. Fork DRAFT PR for ReadInterface = next.
