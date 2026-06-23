@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -69,6 +70,11 @@ type Daemon struct {
 	cancel    context.CancelFunc
 	startedAt time.Time
 	tasksRun  int
+
+	// approvalDedup suppresses duplicate Pub/Sub push deliveries of secret
+	// approvals (at-least-once). Lazily initialised on first push.
+	approvalDedup     *approvalDedup
+	approvalDedupOnce sync.Once
 
 	// Task processing components
 	msgStore         messaging.MessageStore

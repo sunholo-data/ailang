@@ -204,7 +204,7 @@ func (d *Daemon) handlePushMessage(w http.ResponseWriter, r *http.Request) {
 	// M-SECRET-REMOTE-APPROVAL-WIRING: approval push events are forwarded to the
 	// ntfy service (→ operator's phone), not the task inbox.
 	if attrs["kind"] == "approval" {
-		if err := d.handlePushApproval(r.Context(), data, attrs); err != nil {
+		if err := d.handlePushApproval(r.Context(), msgID, data, attrs); err != nil {
 			d.logger.Printf("Push /pubsub/push: approval forward error for %s: %v", msgID, err)
 			w.WriteHeader(http.StatusInternalServerError) // Nack → Pub/Sub retries.
 			return
