@@ -46,3 +46,19 @@ func BuildSecretApprovalNotification(req *ApprovalRequest, baseURL string, signe
 		},
 	}, nil
 }
+
+// BuildSecretApprovalResolvedNotification renders the value-free confirmation
+// push sent AFTER a secret approval is decided. ntfy action buttons can't show
+// their own outcome, so this follow-up tells the operator the decision landed.
+// It carries no action buttons. decision is "approved" or "rejected".
+func BuildSecretApprovalResolvedNotification(ref, decision string) notify.Notification {
+	emoji, word := "✅", "Approved"
+	if decision == "rejected" {
+		emoji, word = "❌", "Denied"
+	}
+	return notify.Notification{
+		Title:     fmt.Sprintf("%s %s: %s", emoji, word, ref),
+		Body:      fmt.Sprintf("Secret request %s.", word),
+		EventType: "pending_approval", // accepted by NtfyChannel's event filter
+	}
+}

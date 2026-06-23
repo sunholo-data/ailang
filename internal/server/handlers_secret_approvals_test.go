@@ -162,6 +162,57 @@ func TestSecretApprovalApprove_ResolvesWithoutTaskPath(t *testing.T) {
 	}
 }
 
+// TestSecretApprovalTerminalLock_NoReflip: once a secret approval is resolved,
+// tapping the other button (a different token) must NOT flip the decision —
+// the audit record is immutable. Returns 409 and leaves the status unchanged.
+func TestSecretApprovalTerminalLock_NoReflip(t *testing.T) {
+	s, store := newSecretApprovalServer()
+	store.approvals["secret-3"] = &coordinator.ApprovalRequestRecord{
+		ID: "secret-3", Type: "secret", Status: "approved", ResolvedBy: "operator",
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/approvals/secret-3/reject", nil)
+	w := httptest.NewRecorder()
+	s.handleApproval(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict re-resolving a decided approval, got %d (%s)", w.Code, w.Body.String())
+	}
+	if got := store.approvals["secret-3"].Status; got != "approved" {
+		t.Fatalf("status must stay approved (not flip to rejected), got %q", got)
+	}
+}
+
+// TestSecretApprovalConfirmationPush: resolving a secret approval sends a
+// value-free "secret-resolved" confirmation push so the operator sees the
+// decision landed (ntfy buttons can't reflect their own outcome).
+func TestSecretApprovalConfirmationPush(t *testing.T) {
+	s, store := newSecretApprovalServer()
+	pub := &mockApprovalPublisher{}
+	s.SetApprovalPublisher(pub)
+	ctxJSON, _ := json.Marshal(secretApprovalContext{Ref: "op://Prod/k", Purpose: "x", Agent: "a"})
+	store.approvals["secret-4"] = &coordinator.ApprovalRequestRecord{
+		ID: "secret-4", Type: "secret", Status: "pending", ContextJSON: string(ctxJSON),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/approvals/secret-4/approve", nil)
+	w := httptest.NewRecorder()
+	s.handleApproval(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", w.Code, w.Body.String())
+	}
+	if store.approvals["secret-4"].Status != "approved" {
+		t.Fatalf("expected approved, got %q", store.approvals["secret-4"].Status)
+	}
+	if !pub.called || pub.approvalType != "secret-resolved" {
+		t.Fatalf("expected a 'secret-resolved' confirmation publish, got called=%v type=%q", pub.called, pub.approvalType)
+	}
+	if !strings.Contains(string(pub.payload), "Approved") || strings.Contains(string(pub.payload), "op://Prod/k") == false {
+		t.Errorf("confirmation should say Approved + the ref: %s", pub.payload)
+	}
+}
+
 // TestResolveSecretApproval_IgnoresNonSecret guards the live task-approval path:
 // resolveSecretApproval must decline anything that is not a secret request so it
 // falls through to ProcessApprovalRequest unchanged.

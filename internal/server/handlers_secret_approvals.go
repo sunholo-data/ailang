@@ -129,6 +129,20 @@ func (s *Server) resolveSecretApproval(w http.ResponseWriter, r *http.Request, r
 	if rec == nil || rec.Type != "secret" {
 		return false
 	}
+	// Terminal-state lock: a secret approval resolves exactly once. The Approve
+	// and Deny buttons carry different single-use tokens, so without this a
+	// second tap (the *other* button) would flip an already-decided request —
+	// corrupting the audit record. Reject resolution of a non-pending request.
+	// (Read-then-write isn't atomic, but human taps are seconds apart and the
+	// per-token single-use guard serialises same-button retries.)
+	if rec.Status != "" && rec.Status != "pending" {
+		writeJSONStatus(w, http.StatusConflict, map[string]string{
+			"status":      "already_resolved",
+			"resolution":  rec.Status,
+			"resolved_by": rec.ResolvedBy,
+		})
+		return true
+	}
 	status := "approved"
 	if action == "reject" {
 		status = "rejected"
@@ -140,8 +154,28 @@ func (s *Server) resolveSecretApproval(w http.ResponseWriter, r *http.Request, r
 		http.Error(w, fmt.Sprintf("could not %s: %v", action, err), http.StatusInternalServerError)
 		return true
 	}
+	// Confirmation push: ntfy action buttons can't reflect their own outcome, so
+	// send a follow-up so the operator sees the decision landed.
+	s.publishSecretApprovalResolved(r.Context(), rec, status)
 	writeJSONStatus(w, http.StatusOK, map[string]string{"status": "success", "action": action})
 	return true
+}
+
+// publishSecretApprovalResolved sends the value-free confirmation push after a
+// secret approval is decided. Best-effort: no publisher → no-op.
+func (s *Server) publishSecretApprovalResolved(ctx context.Context, rec *coordinator.ApprovalRequestRecord, decision string) {
+	if s.approvalPublisher == nil {
+		return
+	}
+	var sc secretApprovalContext
+	_ = json.Unmarshal([]byte(rec.ContextJSON), &sc)
+	payload, err := json.Marshal(coordinator.BuildSecretApprovalResolvedNotification(sc.Ref, decision))
+	if err != nil {
+		return
+	}
+	if err := s.approvalPublisher.PublishApproval(ctx, rec.ID, "secret-resolved", sc.Agent, payload); err != nil {
+		log.Printf("secret approval: confirmation publish for %s failed: %v", rec.ID, err)
+	}
 }
 
 // publishSecretApprovalRequested builds the value-free approval notification
