@@ -2890,3 +2890,5 @@ dies ~84 again). Options: (a) compaction target = limit - output_budget - margin
 that #13 handles truncation (the 64K bump's purpose is largely subsumed by #13). #13 truncation-continue fired
 once (worked); DP7 gate fired once. Grade 0/17 (parse errors + overflow; no convergence). NEXT FIRE: overflow
 fix, then re-run to validate the match/if-else cheat-sheet + measure PAR_ rate again.
+
+<!-- NEXT FIRE: fix context overflow (compaction not bounding input to <262144; see above). Then re-run docx to validate the match/if-else cheat-sheet. Lambda fix already validated. -->
