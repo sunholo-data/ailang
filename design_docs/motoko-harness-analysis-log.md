@@ -2717,3 +2717,23 @@ ALLOWLIST (line 301), not a process.env spread — so MOTOKO_AST_AUTOREAD/READ_F
 handler. Fix: add both vars to the allowlist (TS runs from source, no build). Killed the no-op, relaunched.
 Lesson: env-gated .ail behavior must be added to the childEnv allowlist; checking the trace for the marker
 (not just that the run finished) caught it before a wasted 40-min completion.
+
+## 2026-06-23 — AST auto-route READ: NEGATIVE result (interface-default derails template-mimic tasks)
+
+Route fired correctly (deps odt_parser/zip_extract/document -> compact interface; target docx_parser.ail +
+main.ail kept full). But the eval verdict is TEMPLATE, not API:
+- Model hit BashExec `cat` 12x to pull the dependency BODIES it wanted — fighting the interface-default.
+- 0 productive writes: parser still the 31-line STUB; disengaged at step 26 (finish=stop). vs 717 lines
+  written WITHOUT the route (prior agent-eval run). Read-context dropped (7 ReadFile vs 68) but worthless —
+  the model wrote nothing.
+
+RULED OUT: auto-REPLACING .ail dep reads with the compact interface by default is NET NEGATIVE for
+from-scratch reimplement tasks where the model mimics sibling implementations. The 12x/8x dep re-reads LOOKED
+like waste but were NOT the binding constraint (the model tolerated them + wrote 717 lines). Forcing interfaces
+denied the impl templates and derailed the model into a cat-ing spiral.
+LESSON: ReadInterface is a win as a model CHOICE (it used it 7x for APIs when it wanted them), not as a forced
+default. Don't auto-replace reads (denies info). [n=1 but strong mechanistic signal: 12 cat-fallbacks + 0
+writes + early disengage; feature stays GATED OFF, not shipped.]
+NEXT: pivot to AST-QUERY (#16, Arni-endorsed) — ADDITIVE (TypeAt/FindCallers/GoToDef add query power) without
+denying reads. Possible salvage for auto-read: first-read FULL (template), re-read INTERFACE (needs state) —
+deferred (re-read waste isn't the binding constraint, so low priority).
