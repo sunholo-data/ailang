@@ -2591,3 +2591,26 @@ FIX (same class as the BashExec hang + truncated-response crash): cap tool-resul
 context (~8-16KB head+tail + "[truncated N bytes]" note) in motoko run_process_result + run_read_file (a
 binary .docx ReadFile would also blow it — line-range doesn't bound bytes). Then RE-RUN docx to finally test
 real capability. Compaction should also degrade (truncate a huge current result), not hard-stop — secondary.
+
+---
+
+## 2026-06-23 — output cap VALIDATED (context wall fixed); docx revealed 2 MORE harness bugs (NOT model-bound)
+
+Cap (#17) applied (cap_context on BashExec/RunTests stdout + ReadFile content, 16KB head+tail+note; Search
+left intact). Re-ran docx WITH the cap: biggest tool result 1.76MB→18.8KB, compaction_exhausted 0 (was the
+arm-A killer), overflow 0, ran to step 40 (vs arm-A death at 21). THE CONTEXT WALL IS FIXED. ✓
+
+But docx still 0/17 — parser still the 31-line stub, 0 writes (36 ReadFile, 31 BashExec). Investigated (NOT
+assumed): run_summary `finish_reason="stop"` + the model's LAST thinking was "Now I have a thorough
+understanding... let me study more then BUILD THE COMPLETE PARSER" with final cmds still examining docx XML.
+So the model was MID-WORK, intending to build — it emitted a planning turn with no tool call → the v2 loop
+treated "no tool call" as done → terminated. AND a warning: "system prompt file not found at 'SYSTEM.md';
+running without a system prompt" → the run had NO agentic system prompt (the profile's relative
+system_prompt path doesn't resolve under the run.sh cwd; my ReadInterface nudge never loaded either — the
+A/B's 2/2 adoption was from the TOOL SCHEMA, not the nudge).
+
+TWO new harness bugs (docx is harness-bound, definitively NOT model-bound — every wall has been harness):
+(a) SYSTEM.md not loaded → unguided model (fix: absolute system_prompt path / SYSTEM_MD env in run.sh).
+(b) finish_reason=stop on a no-tool-call planning turn → premature termination; the persistence-nudge
+(PR #47) did not catch it (likely because no system prompt loaded). The agent should keep going when the
+task is incomplete and it just narrated a plan.
