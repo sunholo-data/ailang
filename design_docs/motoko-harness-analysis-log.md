@@ -2498,3 +2498,25 @@ the winner RUNS and prints the primes correctly. Orchestration + select + deploy
 (complements the stub select+deploy validation). All 3 candidates passed this run (moderate task → no
 discrimination needed; discrimination proven by the stub + the +6.8pp analyzer). best-of-N deployment is
 DONE + validated; remaining = eval-integrate (executor MOTOKO_BESTOF_N path, follow-on).
+
+---
+
+## 2026-06-23 — EditDecl value A/B (#14): NEUTRAL — EditDecl is NOT a pass-rate lever for qwen3.6
+
+Large-file fix-phase test: 370-line file, f60 = multi-line wrong-threshold bug (needs a decl rewrite, not a
+1-char edit). N=3 × 2 conditions:
+- A (EditDecl ON):  3/3 pass, 3/3 compile; qwen used EditDecl 1/3, EditFile 2/3.
+- B (EditDecl OFF): 3/3 pass, 3/3 compile; EditFile 3/3.
+
+NO WriteFile-drift in EITHER condition — qwen never re-emitted the 370-line file; it used targeted EditFile
+{old,new} for the multi-line fix and it WORKED. So EditDecl's premise (avoid full-file rewrite drift) doesn't
+materialize for qwen3.6: the fix-phase is handled cleanly by EditFile (qwen reproduces old-strings accurately
+enough on a large file — the harness-problem fragility from the blog doesn't bite this model), and EditDecl
+can't help from-scratch writes (docx: WriteFile-drift, EditDecl N/A).
+
+VERDICT (across 77-line A/B [neutral] + docx [0 EditDecl usage] + this 370-line fix A/B [neutral]): EditDecl
+WORKS (validated end-to-end) but does NOT improve pass-rate for qwen3.6. Its only demonstrated value is
+correctness-ASSURANCE (Z3 + R1-glue, prior session — proving a dropped contract holds), not pass-rate. A
+weaker model (where EditFile string-match fails more) might show value, but qwen3.6 doesn't need it.
+RECOMMENDATION: keep PR #66 draft; do not claim a pass-rate lever. The week's real wins are the harness
+robustness fixes (hang, overflow, timeout). best-of-N (P1) remains the validated pass-rate lever.
