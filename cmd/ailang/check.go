@@ -566,7 +566,7 @@ func printPhaseTimings(timings map[string]int64) {
 	}
 }
 
-func outputInterface(modulePath string) {
+func outputInterface(modulePath string, compact bool) {
 	// Read the file
 	filename := modulePath
 	if !strings.HasSuffix(filename, ".ail") {
@@ -617,7 +617,54 @@ func outputInterface(modulePath string) {
 		os.Exit(1)
 	}
 
+	if compact {
+		printCompactInterface(jsonBytes)
+		return
+	}
 	fmt.Println(string(jsonBytes))
+}
+
+// printCompactInterface renders a module interface as dense one-line-per-export signatures — the
+// AILANG-native typed view for agent context: ~85-90% smaller than the source while carrying the ADT
+// constructors plus every function's type AND effect row. Lets an agent learn how to USE a dependency
+// without reading its implementation (the docx large-context wall was reading dep bodies for signatures).
+func compactInterface(jsonBytes []byte) (string, error) {
+	var iface struct {
+		Module string `json:"module"`
+		Types  []struct {
+			Name  string   `json:"name"`
+			Ctors []string `json:"ctors"`
+		} `json:"types"`
+		Funcs []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"funcs"`
+	}
+	if err := json.Unmarshal(jsonBytes, &iface); err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "module %s\n", iface.Module)
+	for _, t := range iface.Types {
+		if len(t.Ctors) > 0 {
+			fmt.Fprintf(&b, "type %s = %s\n", t.Name, strings.Join(t.Ctors, " | "))
+		} else {
+			fmt.Fprintf(&b, "type %s\n", t.Name)
+		}
+	}
+	for _, f := range iface.Funcs {
+		fmt.Fprintf(&b, "%s : %s\n", f.Name, f.Type)
+	}
+	return b.String(), nil
+}
+
+func printCompactInterface(jsonBytes []byte) {
+	out, err := compactInterface(jsonBytes)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: compact render failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	fmt.Print(out)
 }
 
 // exportTraining is defined in export_training.go

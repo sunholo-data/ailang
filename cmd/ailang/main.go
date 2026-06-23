@@ -193,12 +193,15 @@ func main() {
 		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
 
 	case "iface":
-		if flag.NArg() < 2 {
+		ifaceFS := flag.NewFlagSet("iface", flag.ExitOnError)
+		ifaceCompact := ifaceFS.Bool("compact", false, "Compact one-line-per-export signatures (dense typed-interface view for agent context)")
+		_ = ifaceFS.Parse(flag.Args()[1:])
+		if ifaceFS.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%s: missing module argument\n", red("Error"))
-			fmt.Println("Usage: ailang iface <module>")
+			fmt.Println("Usage: ailang iface [--compact] <module>")
 			os.Exit(1)
 		}
-		outputInterface(flag.Arg(1))
+		outputInterface(ifaceFS.Arg(0), *ifaceCompact)
 
 	case "select-best":
 		runSelectBest()
