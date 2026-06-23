@@ -53,6 +53,7 @@ const sidebars = {
         'guides/streaming',
         'guides/contracts',
         'guides/ifc-labels',
+        'guides/secret-approvals',
         'reference/no-loops',
       ],
     },
