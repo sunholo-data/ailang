@@ -14,10 +14,10 @@ supported harness for `ailang eval-suite --agent`.
 | **opencode** | opencode (`opencode`) | `opencode-haiku`, `opencode-sonnet-4-6`, `opencode-gemini-3-flash` | `npm install -g opencode-ai` |
 
 > **Note (v0.22.0, M-MANAGED-AGENTS):** The legacy `gemini` CLI executor was
-> retired. Google deprecates Gemini CLI on 2026-06-18 and v0.42 has a stale
-> model allowlist (no `gemini-3-5-flash`). Replaced by the `managed_agents`
-> executor, which calls the Vertex AI Managed Agents API directly via ADC.
-> Older Gemini models (2.5, 3, 3.1) lose agent-mode coverage but keep
+> retired. Google shut off Gemini CLI for free/Pro/Ultra tiers on 2026-06-18.
+> It was replaced by the `managed_agents` executor, which calls the Vertex AI
+> Managed Agents API (the Antigravity `antigravity-preview` agent) directly via
+> ADC. Older Gemini models (2.5, 3, 3.1) lose agent-mode coverage but keep
 > standard-mode via direct Vertex `generateContent`.
 
 ## Quick Check
@@ -237,9 +237,13 @@ ailang eval-suite --agent --models harness_suite \
 `harness_suite` expands to:
 - `claude-sonnet-4-6` → claude harness
 - `opencode-sonnet-4-6` → opencode harness (Anthropic backend)
-- `gemini-3-flash` → gemini harness
 - `opencode-gemini-3-flash` → opencode harness (Google Vertex backend)
 - `gpt5-4` → codex harness
+
+> Gemini-family models have no CLI-subprocess harness since v0.22.0. For Google
+> agent data, run `gemini-3-5-flash` opt-in via the `managed_agents` executor
+> (see above); the Vertex backend is also reachable through opencode
+> (`opencode-gemini-3-flash`).
 
 This gives Δ delta comparison between same-model, different-harness pairs (Sonnet via
 claude vs opencode; Flash via gemini vs opencode). Results appear in
@@ -259,10 +263,6 @@ Run the verify command for that harness above and check the raw event output.
 **Codex: "openai: 401 Unauthorized"**
 
 `OPENAI_API_KEY` is not set or expired. Check `echo $OPENAI_API_KEY`.
-
-**Gemini: binary not in PATH**
-
-NVM issue. Add the node bin dir to PATH: see the Gemini section above.
 
 **opencode-gemini: "ProviderModelNotFoundError"**
 

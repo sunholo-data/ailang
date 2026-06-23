@@ -4,8 +4,9 @@ import styles from './styles.module.css';
 
 const TIER_ORDER = ['core', 'stretch', 'vision', 'smoke'];
 const TIER_LABELS = { core: 'Core', stretch: 'Stretch', vision: 'Vision', smoke: 'Smoke' };
-const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI', opencode: 'opencode', pi: 'Pi' };
-const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'opencode', 'pi'];
+// `gemini` rows are historical (Gemini CLI executor retired v0.22.0); do not relabel them.
+const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI (retired)', managed_agents: 'Managed Agents', opencode: 'opencode', pi: 'Pi' };
+const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'managed_agents', 'opencode', 'pi'];
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 

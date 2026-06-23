@@ -45,7 +45,7 @@ messages.id (UUID) ------------------> tasks.message_id
 | `agent_assignment_id` | `aa_<16-char-hash>` | `aa_f1e2d3c4b5a69870` | SHA256(task+agent+time) |
 | `span_id` | 16-char hex | `0f9632b58df815e4` | OTEL SDK |
 | `trace_id` | 32-char hex | `0ebf5e64bb654fcc1d19256b59f05ae3` | OTEL SDK |
-| `session.id` | UUID | `4df60536-caed-4e2f-af2c-e386c361f4e7` | Claude Code/Gemini CLI |
+| `session.id` | UUID | `4df60536-caed-4e2f-af2c-e386c361f4e7` | Claude Code |
 | `chain_id` | UUID | `e9c7501d-3f6e-48cd-8900-27a2b91d5345` | Observatory (execution_chains table) |
 | `stage_id` | UUID | `a1b2c3d4-5678-9abc-def0-123456789abc` | Observatory (chain_stages table) |
 

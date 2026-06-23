@@ -1,6 +1,6 @@
 # Coordinator Daemon
 
-The AILANG Coordinator is an always-on daemon that automatically processes incoming tasks using AI agents (Claude Code or Gemini CLI) with human-in-the-loop approval workflows.
+The AILANG Coordinator is an always-on daemon that automatically processes incoming tasks using AI agents (currently Claude Code) with human-in-the-loop approval workflows.
 
 ## Overview
 
@@ -39,7 +39,7 @@ Agents are configured in `~/.ailang/config.yaml`. Each agent has an inbox, works
 # ~/.ailang/config.yaml
 
 coordinator:
-  default_provider: claude  # "claude" or "gemini"
+  default_provider: claude  # "claude" (the Gemini CLI provider was retired in v0.22.0)
 
   agents:
     # Design Doc Creator - reads GitHub issues, creates design docs
@@ -884,7 +884,7 @@ flowchart TB
 
         Watcher["Watcher<br/>(per inbox)"]
         Analyzer["Analyzer<br/>(classify)"]
-        Executor["Task Executor<br/>(Claude/Gemini CLI)"]
+        Executor["Task Executor<br/>(Claude Code)"]
         Messages[("Messages<br/>SQLite")]
         Worktree["Worktree Manager<br/>(per agent workspace)"]
         Approval["Approval Checkpoint<br/>pending → review → merge/reject"]
@@ -945,8 +945,12 @@ Tasks are routed to providers based on agent configuration:
 | Provider | CLI Tool | Best For |
 |----------|----------|----------|
 | `claude` | Claude Code CLI | Code editing, complex tasks |
-| `gemini` | Gemini CLI | Research, documentation |
 | `script` | Shell (v0.6.4+) | Deterministic workflows, evals, data pipelines |
+
+> The `gemini` provider (Gemini CLI) was retired in v0.22.0 when Google
+> deprecated Gemini CLI. Gemini-family **agent evals** now run through the
+> Managed Agents API inside the eval harness ([harness setup](./evaluation/harness-setup.md#managed-agents-api-managed_agents)),
+> not the coordinator.
 
 ## Storage
 
@@ -972,7 +976,7 @@ Tasks are routed to providers based on agent configuration:
 | `status` | pending, running, pending_approval, completed, rejected, failed |
 | `provider` | AI provider used |
 | `worktree_path` | Path to git worktree |
-| `session_id` | Claude Code / Gemini CLI session ID |
+| `session_id` | Claude Code session ID |
 | `cost` | Execution cost in USD |
 | `tokens_used` | Total tokens consumed |
 
@@ -982,7 +986,7 @@ The coordinator streams task execution events to the Collaboration Hub dashboard
 
 ### Event Flow
 
-1. **Daemon executes task** - Claude Code or Gemini CLI runs
+1. **Daemon executes task** - Claude Code runs
 2. **Events generated** - Status changes, tool calls, output, metrics
 3. **HTTP broadcaster** - POSTs to `http://127.0.0.1:1957/api/coordinator/events`
 4. **Server receives** - Converts to WebSocket format
@@ -1373,7 +1377,6 @@ tail -100 ~/.ailang/logs/coordinator.log
 
 # Verify providers are available
 which claude  # Claude Code CLI
-which gemini  # Gemini CLI
 ```
 
 ### Approvals Not Showing

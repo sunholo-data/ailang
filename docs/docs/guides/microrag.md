@@ -51,7 +51,7 @@ ls ~/.ailang/hooks/microrag_*.sh
 # microrag_lint.sh       PostToolUse(Edit|Write|MultiEdit)
 ```
 
-**Fresh installs** (`gemini extensions install …` or `/plugin install ailang@…` —
+**Fresh installs** (`codex plugin add …` or `/plugin install ailang@…` —
 no source repo on disk):
 
 ```bash
@@ -188,7 +188,7 @@ corpus has the answer but the model didn't apply it).
 `ailang-builtins` namespaces using **only the resources bundled in the
 binary** — no source repo, no `awk`/`python3`/`find`, no network (unless
 embedding). It's the entry point for users who installed via the Claude
-Code plugin or Gemini CLI extension and don't have `ailang/` cloned
+Code plugin or Codex CLI and don't have `ailang/` cloned
 locally.
 
 ```bash
@@ -264,7 +264,7 @@ ailang micro-rag init >/dev/null 2>&1 || true
 ailang micro-rag bootstrap --scope user --no-embed 2>/dev/null | tail -3
 ```
 
-after the binary lands. So `gemini extensions install sunholo-data/ailang_bootstrap`
+after the binary lands. So `codex plugin add sunholo-data/ailang_bootstrap`
 or `/plugin install ailang@sunholo-data/ailang_bootstrap` ends with a
 populated brain corpus and a working μRAG out of the box. Re-run with
 `--no-embed` removed once Ollama is available to upgrade the corpus to

@@ -26,7 +26,7 @@ This page shows results from three complementary evaluation approaches:
 |------|--------------|--------|
 | **Standard API (0-shot)** | Direct model API call — does the model produce correct code on the first attempt? | `zeroShotSuccess` |
 | **Self-repair** | One additional attempt after failure — does error feedback help? | `finalSuccess` |
-| **Agent mode** | Agentic CLI (Claude Code / Gemini CLI / opencode / Codex) with multi-turn iteration — real-world developer workflow | `agentSuccessRate` |
+| **Agent mode** | Agentic harness (Claude Code / opencode / Codex / Managed Agents) with multi-turn iteration — real-world developer workflow | `agentSuccessRate` |
 
 Agent mode results are also shown in the [Benchmark Explorer](/docs/benchmarks/explorer) broken down by language and harness.
 

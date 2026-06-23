@@ -141,7 +141,7 @@ flowchart TB
         Watcher["Message Watcher"]
         Executor["Task Executor"]
         Worktrees["Git Worktrees"]
-        AI["Claude Code /<br/>Gemini CLI"]
+        AI["Claude Code"]
     end
 
     Browser -->|"WebSocket + REST"| Server
