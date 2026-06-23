@@ -2520,3 +2520,19 @@ correctness-ASSURANCE (Z3 + R1-glue, prior session — proving a dropped contrac
 weaker model (where EditFile string-match fails more) might show value, but qwen3.6 doesn't need it.
 RECOMMENDATION: keep PR #66 draft; do not claim a pass-rate lever. The week's real wins are the harness
 robustness fixes (hang, overflow, timeout). best-of-N (P1) remains the validated pass-rate lever.
+
+---
+
+## 2026-06-23 — typed-interface READ lever (step 1): `ailang iface --compact` BUILT
+
+The user + I reframed the AILANG advantage from EDIT (EditDecl A/B was neutral) to READ/CONTEXT: the docx
+wall was the model reading dep BODIES to learn signatures (38 ReadFile -> 262k overflow). AILANG can return a
+typed interface instead. Built `ailang iface --compact`: one line per export (ADT ctors + func sigs WITH
+effect rows), ~85-90% smaller than source (validated: document.ail 227->28, zip_extract 280->20 lines).
+Backward-compat preserved (no flag -> JSON). Unit-tested (compactInterface). This is unfakeable by an untyped
+harness (you can't emit `(string)->[string]!{FS}` for a Python file without type+effect inference).
+
+Sequence: [1 DONE] ailang iface --compact. [2] motoko ReadInterface tool (fork DRAFT PR) wrapping it + a
+prompt nudge ("ReadInterface deps to learn how to use them; ReadFile bodies only for the file you edit").
+[3] multi-dep A/B (interface-reads vs full-reads -> context consumed + overflow + pass-rate) — the docx-class
+test EditDecl couldn't pass. Follow-on: record-return types render <*types.TRecord> (type-string formatter).
