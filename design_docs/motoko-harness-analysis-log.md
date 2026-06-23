@@ -2875,3 +2875,18 @@ substantially harness-caused, NOT (only) model-ceiling. Fixed: replaced with a v
 (lambda `\x.`, match `=>`, `->` only in types, block vs expr bodies, no return/loops). VALIDATE: re-run docx,
 expect the PAR_ rate to drop sharply if this was the dominant cause. Lesson: VERIFY every syntax claim with
 ailang check before putting it in any prompt/guidance — a wrong cheat-sheet is worse than none.
+
+## 2026-06-23 — lambda fix VALIDATED; PAR_ -25%; next drift = match/if-else; NEW BLOCKER = context overflow
+Full analysis of docx_lambda (corrected \x. lambda). HEADLINE: lambda fix WORKS — model wrote 317 \x. dot-
+lambdas, lambda-arrow drift GONE, PAR_ 548/84 steps (6.5/step) vs prior 860/100 (8.6/step) = ~25% lower. The
+wrong-lambda guidance was a real, self-inflicted cause (harness-improvable confirmed for the lambda layer).
+REMAINING parse-drift (verified next targets, now in the cheat-sheet): match constructor-patterns need PARENS
+(Some(x) not `Some x`) [want => 146], if ALWAYS needs else [want else 50], bracket balance [want }/) 98].
+NEW BLOCKER: run ended finish=error at step 84 — input 263259 tokens > 262144 max context. The fixed 64K cap
+bump lets a single reasoning turn jump the context past the window before compaction reacts; compaction is NOT
+reserving output headroom (input ALONE exceeded the full window). MUST fix before the next docx run (else it
+dies ~84 again). Options: (a) compaction target = limit - output_budget - margin; (b) qwen-code adaptive cap
+(start low, escalate on truncation — #13 already provides the escalation trigger); (c) lower the fixed cap now
+that #13 handles truncation (the 64K bump's purpose is largely subsumed by #13). #13 truncation-continue fired
+once (worked); DP7 gate fired once. Grade 0/17 (parse errors + overflow; no convergence). NEXT FIRE: overflow
+fix, then re-run to validate the match/if-else cheat-sheet + measure PAR_ rate again.
