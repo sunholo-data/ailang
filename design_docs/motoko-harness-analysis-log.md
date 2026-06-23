@@ -2444,3 +2444,27 @@ Disciplined next test (don't conclude "model-bound" on an untested budget): #6 =
 completes 13/13 + compiles → docx is budget-bound (harness-tunable lever). If still incomplete/thrash →
 then it's efficiency/correctness-bound. This is the decisive docx test of this push; if #6 fails, STOP
 grinding docx (the harness robustness IS the durable win) and pivot to best-of-N (P1) on contested regimes.
+
+---
+
+## 2026-06-23 — docx #6 (max_steps=100) INCONCLUSIVE + docx investigation SYNTHESIS / PIVOT
+
+#6 crashed at step 15: "XML syntax error on line 1696: unexpected EOF" — the LLM stream errored
+(stream_end status=errored), parser still the 31-line stub. A huge step-15 response (~1696 lines, likely
+truncated at AILANG_OLLAMA_MAX_TOKENS=32768 mid-content) that motoko's response parsing choked on. A NEW
+large-output fragility, source TBD — noted for a separate fire, NOT chased here. The max_steps=100 budget
+hypothesis was never reached (crashed first).
+
+**SYNTHESIS across 6 docx convergence runs — the instrument served its purpose:**
+- It surfaced + validated THREE real, systemic harness bugs, all now FIXED: BashExec hang (→ cmd.WaitDelay,
+  dev), ollama compaction-skip (→ context_limit, PR #70), /v1 timeout (→ #65). These generalize to every
+  local motoko run — the durable mission win this week.
+- docx PASS itself is NOT a clean harness lever: each run hit a DIFFERENT wall — #1 WriteFile-drift,
+  #4 disengage (my bad steering), #5 step+thrash bound (7/13 exports), #6 truncated-response crash. It is
+  model-capability + large-output-fragility bound, not harness-tunable by a single knob.
+
+**PIVOT (pre-stated: if #6 doesn't cleanly complete, stop grinding docx).** Bank the harness wins; stop the
+docx grind. Open items parked, not chased: (a) the #6 truncated-response XML crash; (b) the BashExec
+debug-thrash (R1 typed diagnostics / P2 compression); (c) EditDecl-for-fixes prompt. Next mission focus:
+consolidate the harness PRs (#65/#66/#70 + WaitDelay) and the validated contested-regime lever — best-of-N
+(P1, +6.8pp). docx remains a useful regression instrument but not the active frontier.
