@@ -51,6 +51,11 @@ func NewMockApprovalStore() *MockApprovalStore {
 	}
 }
 
+func (m *MockApprovalStore) CreateApprovalRequest(ctx context.Context, req *coordinator.ApprovalRequestRecord) error {
+	m.approvals[req.ID] = req
+	return nil
+}
+
 func (m *MockApprovalStore) GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error) {
 	return m.approvals[id], nil
 }

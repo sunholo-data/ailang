@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/approvaltoken"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
@@ -250,6 +251,18 @@ func serverCommand(args []string) error {
 			defer coordStore.Close()
 		}
 		log.Printf("Coordinator DB: %s", coordDbPath)
+	}
+
+	// M-SECRET-REMOTE-APPROVAL-WIRING: enable signed single-use token auth on the
+	// secret approve/reject endpoints when a signing key is configured, so the
+	// iPhone ntfy action buttons can POST without Google IAM.
+	if keyStr := os.Getenv("AILANG_APPROVAL_SIGNING_KEY"); keyStr != "" {
+		if signer, err := approvaltoken.NewSigner([]byte(keyStr)); err == nil {
+			srv.SetSecretApprovalAuth(signer)
+			log.Printf("Secret approval token auth enabled")
+		} else {
+			log.Printf("WARNING: invalid AILANG_APPROVAL_SIGNING_KEY: %v", err)
+		}
 	}
 
 	log.Printf("AILANG Observatory & Collaboration Hub (v%s)", Version)

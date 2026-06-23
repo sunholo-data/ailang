@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
@@ -108,6 +109,12 @@ type ApprovalsResponse struct {
 // GET /api/approvals?status=all - Get all approvals sorted by time (merged history)
 // Now uses coordinator store instead of messaging store
 func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
+	// POST /api/approvals — secret-approval intake from a CloudSecretApprover
+	// (M-SECRET-REMOTE-APPROVAL-WIRING). GET continues to list approvals.
+	if r.Method == http.MethodPost {
+		s.handleSecretApprovalIntake(w, r)
+		return
+	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -246,13 +253,26 @@ func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
 // POST /api/approvals/{id}/approve - Approve an approval request
 // POST /api/approvals/{id}/reject - Reject an approval request
 func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
+	// Extract approval ID and action from path
+	path := r.URL.Path[len("/api/approvals/"):]
+
+	// GET /api/approvals/{id} — status poll for a single approval
+	// (M-SECRET-REMOTE-APPROVAL-WIRING; used by CloudSecretApprover). A bare id
+	// with no trailing /action is a status query.
+	if r.Method == http.MethodGet {
+		if path != "" && !strings.Contains(path, "/") {
+			s.handleSecretApprovalStatus(w, r, path)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Extract approval ID and action from path
-	path := r.URL.Path[len("/api/approvals/"):]
 	var approvalID, action string
 
 	// Parse path: {id}/approve or {id}/reject
@@ -291,6 +311,16 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+
+	// Secret approvals resolve directly via the store, WITHOUT the task
+	// merge/handoff machinery (ProcessApprovalRequest) — there is no worktree or
+	// PR behind a secret request (M-SECRET-REMOTE-APPROVAL-WIRING).
+	if s.approvalStore != nil {
+		if rec, err := s.approvalStore.GetApprovalRequest(ctx, approvalID); err == nil && rec != nil && rec.Type == "secret" {
+			s.resolveSecretApproval(w, r, rec, action, "operator")
+			return
+		}
+	}
 
 	// Use coordinator store with unified processor if available
 	if s.approvalStore != nil && s.coordStoreRaw != nil {

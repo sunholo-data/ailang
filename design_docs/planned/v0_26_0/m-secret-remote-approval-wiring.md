@@ -107,7 +107,8 @@ The parent design doc's Deployment section states "There is **no Terraform**; in
 
 ## Milestone status
 - **M1 — DONE** (`ailang` repo): `internal/secrets/cloud_approver.go` (`CloudSecretApprover` — POST `/api/approvals` + bounded poll, value-free, fail-closed) + `cmd/ailang/secret_approver.go` wiring (`attachCloudSecretApprover` in `grantCapabilities`, cloud-mode env-gated). 9 unit tests + verified end-to-end through the binary against a fake coordinator + fake `op`. Local CLI unchanged (un-gated).
-- M2–M4: pending.
+- **M2 — DONE** (`ailang` repo): coordinator-side intake/status/resolve for secret approvals — `internal/server/handlers_secret_approvals.go` (`POST /api/approvals` intake → pending Type=="secret" record with value-free `ContextJSON`; `GET /api/approvals/{id}` status; `resolveSecretApproval` resolves directly, bypassing the task merge/handoff path) + `CoordinatorApprovalStore.CreateApprovalRequest` (both SQLite + Firestore stores already implement it) + signed-token auth enabled at startup via `AILANG_APPROVAL_SIGNING_KEY` (`cmd/ailang/server.go`). 5 handler tests incl. a guard that non-secret approvals are untouched. Status-vocabulary aligned (`rejected`/`timeout`) between M1 and M2. The `kind=approval` Pub/Sub publish is a documented seam (`publishSecretApprovalRequested`) deferred to M3, where the dedicated `${prefix}-approvals` topic is created.
+- M3 (Terraform) — pending. M4 (runbook) — pending.
 
 ## Success criteria
 - [ ] A cloud-run secret task blocks on `secret()` until phone approval; approve → resolves, deny/timeout → `E_SECRET_DENIED`

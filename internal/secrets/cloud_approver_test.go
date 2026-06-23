@@ -92,7 +92,8 @@ func TestCloudApprover_Approved(t *testing.T) {
 }
 
 func TestCloudApprover_Denied(t *testing.T) {
-	fc := &fakeCoordinator{decideAfter: 0, decision: "denied", reason: "not now"}
+	// The coordinator store resolves to "rejected" (not "denied").
+	fc := &fakeCoordinator{decideAfter: 0, decision: "rejected", reason: "not now"}
 	srv := httptest.NewServer(fc.handler())
 	defer srv.Close()
 
@@ -100,8 +101,8 @@ func TestCloudApprover_Denied(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected denial error, got nil")
 	}
-	if !strings.Contains(err.Error(), "denied") {
-		t.Errorf("error should mention denial: %v", err)
+	if !strings.Contains(err.Error(), "rejected") {
+		t.Errorf("error should reflect the rejected status: %v", err)
 	}
 }
 

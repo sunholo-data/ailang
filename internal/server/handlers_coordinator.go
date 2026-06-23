@@ -16,6 +16,10 @@ import (
 
 // CoordinatorApprovalStore provides approval request operations
 type CoordinatorApprovalStore interface {
+	// CreateApprovalRequest persists a new pending request. Used by the secret
+	// approval intake (M-SECRET-REMOTE-APPROVAL-WIRING). Both the SQLite and
+	// Firestore coordinator stores already implement this.
+	CreateApprovalRequest(ctx context.Context, req *coordinator.ApprovalRequestRecord) error
 	GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error)
 	ListPendingApprovals(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error)
 	ListResolvedApprovals(ctx context.Context, limit int) ([]*coordinator.ApprovalRequestRecord, error)

@@ -130,11 +130,13 @@ func (a *CloudSecretApprover) Approve(ctx context.Context, ref, purpose string) 
 			switch status {
 			case "approved":
 				return nil
-			case "denied":
+			case "denied", "rejected", "timeout":
+				// The coordinator store resolves to "rejected"/"timeout"; accept
+				// "denied" too for forward-compatibility. All are fail-closed.
 				if reason == "" {
 					reason = "denied by operator"
 				}
-				return fmt.Errorf("secret approval denied for %s: %s", ref, reason)
+				return fmt.Errorf("secret approval %s for %s: %s", status, ref, reason)
 				// any other status (e.g. "pending") falls through to wait
 			}
 		}
