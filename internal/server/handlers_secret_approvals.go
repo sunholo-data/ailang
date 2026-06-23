@@ -201,6 +201,7 @@ func (s *Server) publishSecretApprovalRequested(ctx context.Context, rec *coordi
 	notif, err := coordinator.BuildSecretApprovalNotification(
 		&coordinator.ApprovalRequest{
 			ID:            rec.ID,
+			TaskID:        rec.TaskID,
 			Type:          coordinator.ApprovalTypeSecret,
 			SecretRef:     sc.Ref,
 			SecretPurpose: sc.Purpose,

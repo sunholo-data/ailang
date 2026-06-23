@@ -15,6 +15,7 @@ func TestBuildSecretApprovalNotification(t *testing.T) {
 	}
 	req := &ApprovalRequest{
 		ID:            "appr-123",
+		TaskID:        "task-42",
 		Type:          ApprovalTypeSecret,
 		SecretRef:     "op://Prod/stripe/api-key",
 		SecretPurpose: "charge a card",
@@ -27,8 +28,18 @@ func TestBuildSecretApprovalNotification(t *testing.T) {
 	if n.EventType != "pending_approval" {
 		t.Fatalf("EventType = %q", n.EventType)
 	}
-	if !strings.Contains(n.Body, "op://Prod/stripe/api-key") || !strings.Contains(n.Body, "charge a card") {
-		t.Fatalf("body missing ref/purpose: %q", n.Body)
+	// Richer body: who, what, why, which task, and the decision window.
+	for _, want := range []string{"Requested by: agent-x", "op://Prod/stripe/api-key", "Purpose: charge a card", "Task: task-42", "Decide within"} {
+		if !strings.Contains(n.Body, want) {
+			t.Fatalf("body missing %q: %q", want, n.Body)
+		}
+	}
+
+	// When purpose defaults to the ref, don't render a redundant Purpose line.
+	plain := &ApprovalRequest{ID: "a", Type: ApprovalTypeSecret, SecretRef: "op://V/i/f", SecretPurpose: "op://V/i/f", AgentID: "a"}
+	pn, _ := BuildSecretApprovalNotification(plain, "https://c", signer, time.Hour)
+	if strings.Contains(pn.Body, "Purpose:") {
+		t.Errorf("should omit Purpose when it equals the ref: %q", pn.Body)
 	}
 	if len(n.Actions) != 2 {
 		t.Fatalf("want 2 actions, got %d", len(n.Actions))

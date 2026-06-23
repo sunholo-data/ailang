@@ -3,6 +3,7 @@ package coordinator
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
@@ -31,14 +32,28 @@ func BuildSecretApprovalNotification(req *ApprovalRequest, baseURL string, signe
 	}
 
 	base := fmt.Sprintf("%s/api/approvals/%s", baseURL, url.PathEscape(req.ID))
-	body := fmt.Sprintf("Agent %s requests %s", req.AgentID, req.SecretRef)
-	if req.SecretPurpose != "" {
-		body += " — " + req.SecretPurpose
+
+	// Multi-line body so the operator sees who/what/why/which-task at a glance.
+	agent := req.AgentID
+	if agent == "" {
+		agent = "An agent"
 	}
+	lines := []string{
+		fmt.Sprintf("Requested by: %s", agent),
+		fmt.Sprintf("Secret: %s", req.SecretRef),
+	}
+	// Only show a purpose when it adds information (it defaults to the ref).
+	if req.SecretPurpose != "" && req.SecretPurpose != req.SecretRef {
+		lines = append(lines, fmt.Sprintf("Purpose: %s", req.SecretPurpose))
+	}
+	if req.TaskID != "" {
+		lines = append(lines, fmt.Sprintf("Task: %s", req.TaskID))
+	}
+	lines = append(lines, fmt.Sprintf("Decide within %s.", ttl.Round(time.Minute)))
 
 	return notify.Notification{
-		Title:     fmt.Sprintf("Secret requested: %s", req.SecretRef),
-		Body:      body,
+		Title:     fmt.Sprintf("Approve secret: %s", req.SecretRef),
+		Body:      strings.Join(lines, "\n"),
 		EventType: "pending_approval",
 		Actions: []notify.NotificationAction{
 			{Label: "Approve", URL: base + "/approve?token=" + url.QueryEscape(approveTok), Method: "POST"},
