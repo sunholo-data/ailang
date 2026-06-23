@@ -2628,3 +2628,23 @@ during the ReadInterface A/B (to "load the nudge") — that BROKE the env overri
 never loaded; its 2/2 ReadInterface adoption was the tool schema, not the nudge). FIX: revert the profile
 system_prompt to "" → applyConfigObject skips it → run.sh's absolute SYSTEM_MD survives → loads. Re-launching
 docx guided+capped with the corrected config.
+
+---
+
+## 2026-06-23 — docx GUIDED+CAPPED (#18 fix): model writes ALL exports; #19 premature-stop is the wall
+
+First docx run with cap (#17) + system prompt (#18) both working. The guided model WROTE the full parser:
+555 lines (vs 31 stub), 14 exports, 0 still-stubbed, 3 WriteFile (vs 0 in EVERY unguided run). It is NOT
+incapable — it attempted the whole task. 0/17 because:
+1. AILANG syntax DRIFT — `\x.` Haskell-style lambda (line 41) instead of AILANG `\x ->` → won't compile.
+   The model KNEW ("previous attempts failing due to syntax issues... let me write the complete CORRECT
+   implementation") and was iterating from ODT parser examples.
+2. #19 premature-stop STILL bites — finish_reason=stop at step 35 (budget 100), ended mid-sentence "Let me
+   write the complete, correct implementation:". The loop terminated right as it was about to fix the
+   syntax. PR #47 (bounded persistence nudge) did NOT fire.
+
+Pattern holds: every harness fix unblocks more (cap→ran longer; guided→writes all exports; the model now
+ITERATES on its own syntax errors but gets cut off). NEXT: fix #19 (persistence — investigate why PR #47
+didn't fire; nudge "continue, the task isn't done" when finish_reason=stop + the target file doesn't
+compile). Then the model can iterate to convergence. The residual syntax drift (`\x.`) is addressable too
+(R1 typed diagnostics already exist; + a one-line AILANG-lambda nudge in SYSTEM.md).
