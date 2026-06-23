@@ -98,8 +98,8 @@ bridge) by the **coordinator**. So the env splits across three places:
 | `AILANG_APPROVAL_SIGNING_KEY` | **dashboard** | HMAC key enabling signed single-use token auth on approve/reject (mints the phone-button tokens) |
 | `AILANG_APPROVAL_BASE_URL` | **dashboard** | the dashboard's own public URL — used to build the Approve/Deny action links |
 | `AILANG_NTFY_SERVER_URL` | **coordinator** | the ntfy service URL (`terraform output ntfy_url`) |
-| `AILANG_NTFY_TOPIC` | **coordinator** | the ntfy topic your phone subscribes to (e.g. `ailang-approvals`) |
-| `AILANG_NTFY_AUTH_TOKEN` | **coordinator** | the `ailang-dev-ntfy-auth-token` value (so the bridge can publish) |
+| `AILANG_NTFY_TOPIC` | **coordinator** | the ntfy topic your phone subscribes to (`secret-approvals`) |
+| `AILANG_NTFY_AUTH_TOKEN` | **coordinator** | _omit in dev_ (anonymous ntfy); set only with a real ntfy auth file in prod |
 | `AILANG_STORAGE=gcp` | executor | selects cloud mode |
 | `AILANG_APPROVAL_URL` | executor | the **dashboard** base URL the approver POSTs to (falls back to `AILANG_COORDINATOR_URL`) |
 | `AILANG_AGENT_ID` / `AILANG_TASK_ID` | executor | label the approval request (optional) |
@@ -110,9 +110,12 @@ bridge) by the **coordinator**. So the env splits across three places:
 1. Install the **ntfy app** (links above).
 2. In the app → **Add subscription** → set the server to your ntfy URL
    (from `terraform output ntfy_url`, or a custom domain) and the topic name.
-3. Because the server runs `NTFY_AUTH_DEFAULT_ACCESS=deny-all`, add the access
-   token (the `ailang-dev-ntfy-auth-token` value) in the app's settings for
-   that server so it can subscribe.
+3. **No token needed (dev).** The dev ntfy runs `NTFY_AUTH_DEFAULT_ACCESS=read-write`,
+   so just subscribe to the topic — leave the auth fields blank. Security in dev
+   rests on the unguessable topic + the value-free notification + the HMAC-signed
+   Approve/Deny action (`approval-signing-key`), not on ntfy auth. **Prod
+   hardening** (a persistent ntfy auth file + per-user tokens) is a follow-up;
+   the `ailang-dev-ntfy-auth-token` secret is reserved for it.
 4. For instant iOS delivery, the server's `NTFY_UPSTREAM_BASE_URL` (default
    `https://ntfy.sh`) relays an APNs wakeup ping — only a ping, never the
    payload.
