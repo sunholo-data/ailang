@@ -2902,3 +2902,24 @@ bloat theory). The real cause: usage_percent measured estimate/context_limit aga
 only large-context tasks compact earlier. Type-checks. VALIDATE: docx re-run (bokj2wdtx) tests overflow fix +
 the match/if-else cheat-sheet together. Early-check pinned to the new session (fixed the prior stale-read bug):
 reports whether it passes step 84 without overflow + the PAR_ rate.
+
+## 2026-06-24 — overflow fix HOLDS (peak 58K, 0 overflow); but #19 premature prose-stop is now the sharp blocker
+docx re-run (overflow fix + match/if-else cheat-sheet). Per-turn-first:
+- OVERFLOW FIX WORKS: 0 context-overflow errors, peak input 58173 (vs prior 261077). Headroom reserve held.
+  (NOT stress-tested — context stayed small because the run died early; see below.)
+- summary=stop at step 36. Model did 35 tool_call turns (exploring: ReadFile/BashExec) + 0 WriteFile — wrote
+  NOTHING. Parser still the 31-line stub. Prose-stopped mid-exploration: "Now let me check what std/string
+  functions are available:" — clear continuation intent, loop ended anyway.
+- dp7_gate APPROVED the untouched stub (it type-checks) -> "done" with 0 implementation. 0/17.
+- Cheat-sheet validation INCONCLUSIVE (0 writes -> the 0 PAR_ is trivial, not a syntax win).
+
+BINDING CONSTRAINT = #19 premature prose-stop, sharp: the v2 loop ends on a prose-only `stop` turn even when
+the model signals it's mid-work. #13 only handles `length` (truncation), not `stop`. Secondary: dp7_gate
+(type-check) passes an untouched stub — necessary but not sufficient; with #19 fixed the model would implement
+then the gate re-checks, so #19 is the real fix.
+
+NEXT FIRE (clear, evidence-backed): #19 deterministic continuation-intent nudge in the NoDecision branch (next
+to the #13 length-continue) — detect intent phrases ("let me", "now i", "i'll", "next", "going to") in the
+prose -> inject a "continue, call a tool" nudge + recurse, bounded by step_budget, gated MOTOKO_CONTINUE_ON_INTENT
+(default on). Unblocks BOTH docx progress AND stress-validating the overflow fix (a longer run reaches a large
+context). Then re-run to finally validate the match/if-else cheat-sheet (needs the model to actually write).
