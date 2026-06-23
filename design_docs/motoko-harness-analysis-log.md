@@ -2825,3 +2825,28 @@ Per user ("default only if it's an .ail file obviously"): run_dp7_verifier now d
 `ailang check .` while non-AILANG projects fall back to the configured build/test command (make check_core
 etc.). Reverted the profile command hardcode; the harness auto-picks. Type-checks clean. In-flight docx_dp7
 (b98ct6jqp) used the equivalent profile command, so its result still validates the gate.
+
+## 2026-06-23 — DP7 type-check gate VALIDATED; binding constraint shifts to AILANG-syntax thrash
+
+docx_dp7 (type-check definition-of-done + 64K cap + AST route + #13). Per-turn-first:
+- summary=max_steps (100) — NOT premature-stop, NOT truncation (truncated_continue=0). Model worked all 100 steps.
+- dp7_verifier_rejected=3: the gate FIRED 3x — each time the model tried to declare done, `ailang check .`
+  caught the non-type-checking parser and bounced it back to fix. The agent CANNOT declare done with broken
+  code now. The user's insight, working.
+- 463 lines written (vs 31 stub), ReadFile 37, BashExec 255 (heavy check-iterate), WriteFile 15. Hit the step
+  budget (100) STILL not type-checking — a nested match/block-closing error ("verify match/block properly
+  closed; simplify nested constructs").
+
+SHIFT: binding constraint moved from harness bugs (false-done / truncation / premature-stop — ALL fixed this
+session) to the MODEL thrashing on AILANG syntax (nested match/blocks) without converging in budget. 255
+BashExec = an inefficient syntax-FIX loop (fix one error, break another). Honest open question (do NOT conclude
+model-bound prematurely — every prior such call this session was a harness bug): is this harness-improvable
+(better diagnostics / syntax delivery) or near qwen3.6's ceiling for a type-checking 463-line AILANG parser?
+
+NEXT levers for the syntax-thrash: (1) R1 diagnostic ACTIONABILITY for match/block errors (#7 — deferred as
+marginal, but THIS is the error class it'd help; revisit). (2) Get AILANG syntax to the model DURING the fix
+loop (syntax_reference it never reads; maybe inject the relevant rule on a syntax-error rather than auto-
+replacing reads). (3) step budget (100 may be low for a 463-line from-scratch parser). HARNESS WINS THIS
+SESSION (all validated): process-hang, output cap (#17), system-prompt load (#18), agent-eval prompt setup,
+truncation-continue (#13), and the type-check definition-of-done — docx now fails for a DIFFERENT, higher-level
+reason than every prior run.
