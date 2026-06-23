@@ -2614,3 +2614,17 @@ TWO new harness bugs (docx is harness-bound, definitively NOT model-bound — ev
 (b) finish_reason=stop on a no-tool-call planning turn → premature termination; the persistence-nudge
 (PR #47) did not catch it (likely because no system prompt loaded). The agent should keep going when the
 task is incomplete and it just narrated a plan.
+
+---
+
+## 2026-06-23 — #18 root cause: config-file value OVERWRITES the SYSTEM_MD env (my A/B broke it)
+
+First fix (run.sh exports SYSTEM_MD=$MOTOKO_REPO/SYSTEM.md absolute) FAILED — warning still said path
+'SYSTEM.md' (relative). Read config.ts:301-307: applyConfigObject pushes each config-file value INTO
+process.env (process.env[entry.env] = config value), skipping only when the value is ""/undefined. So the
+ollama profile's explicit system_prompt:"SYSTEM.md" OVERWROTE my run.sh SYSTEM_MD=absolute with the relative
+path → resolved against WORKDIR → not found. ROOT: I set the ollama profile system_prompt to "SYSTEM.md"
+during the ReadInterface A/B (to "load the nudge") — that BROKE the env override (and means the A/B's nudge
+never loaded; its 2/2 ReadInterface adoption was the tool schema, not the nudge). FIX: revert the profile
+system_prompt to "" → applyConfigObject skips it → run.sh's absolute SYSTEM_MD survives → loads. Re-launching
+docx guided+capped with the corrected config.
