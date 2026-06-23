@@ -2567,3 +2567,27 @@ CAVEAT: n=2, small single-dep task — firm with a larger multi-dep task + more 
 positive (vs EditDecl-neutral) and matches Arni's experience ("querying the AST really helps"). GREENLIGHT
 task #16 (query surface: TypeAt / GoToDef / FindCallers / structural). Also: arm A querying std/string +
 std/stdio is exactly the desired AST-query behavior. Next: ReadInterface fork DRAFT PR + the query surface.
+
+---
+
+## 2026-06-23 — CORRECTION: docx was NOT "model-bound" — every failure was a HARNESS issue (root-caused)
+
+User pushed back on the "model-bound" + "compaction blowup" hand-waving. Investigated properly. docx-A
+(ReadInterface ON) failure root cause, from the JSONL (not assumed): the model ran
+`BashExec: ailang check --package . 2>&1 | grep -A5 docx_parser` to check its WIP. The broken parser emitted
+a **1.76 MB compile-error cascade**; BashExec passed the FULL stdout into the conversation (~3.6 MB with JSON
+dup). AILANG MaxOutput=10MB (process_context.go:29) — far too high to "fit a context" — and motoko's
+run_process_result does NOT truncate tool stdout to a context budget. That single CURRENT tool result =
+~3x the 262k window → compaction (which can only elide OLD tool results, never the current one;
+compaction.ail) hit 172% → HARD STOP (reason 3).
+
+**HONEST CORRECTION — "model-bound" was unfounded.** Every docx run failed on a HARNESS issue BEFORE the
+model's capability was tested: #4 disengage (my bad prompt steering), #5 7/13 exports (step budget 50, and
+it was making progress), #6 crash (truncated-response XML bug #13), A (1.76MB unbounded tool output →
+compaction hard-stop). We have NEVER had a clean run. I over-concluded; the data shows harness-bound, not
+model-bound.
+
+FIX (same class as the BashExec hang + truncated-response crash): cap tool-result content entering the
+context (~8-16KB head+tail + "[truncated N bytes]" note) in motoko run_process_result + run_read_file (a
+binary .docx ReadFile would also blow it — line-range doesn't bound bytes). Then RE-RUN docx to finally test
+real capability. Compaction should also degrade (truncate a huge current result), not hard-stop — secondary.
