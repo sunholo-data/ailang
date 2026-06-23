@@ -2737,3 +2737,26 @@ writes + early disengage; feature stays GATED OFF, not shipped.]
 NEXT: pivot to AST-QUERY (#16, Arni-endorsed) — ADDITIVE (TypeAt/FindCallers/GoToDef add query power) without
 denying reads. Possible salvage for auto-read: first-read FULL (template), re-read INTERFACE (needs state) —
 deferred (re-read waste isn't the binding constraint, so low priority).
+
+## 2026-06-23 — CORRECTION: the AST auto-route "negative" was ANOTHER harness failure (truncation), NOT the route
+
+RETRACT the prior "AST auto-route is NET NEGATIVE" entry. Close trace read (prompted by the user: "be sure
+it's not another harness failure") shows the docx_astread2 disengagement was a TRUNCATION, not route-derailment:
+- Turn 26 (final): type="thinking", output_tokens=32768 (EXACT cap), finish_reason=length (TRUNCATED),
+  tool_calls=0, empty text. qwen ran away in a 32k-token reasoning trace, hit the ceiling mid-thought, emitted
+  nothing actionable, and the harness ENDED the run (turn had no tool_calls -> treated as done). Turns 1-25
+  were ALL tool_calls — the model was working the whole time, NOT giving up for lack of templates.
+- run_summary said finish=stop (summary-level HIDES per-turn truncation — the Gate-1 warning, again).
+- The route's value is UNTESTED (no fair completion). 12 cat-fallbacks show the model wanted dep bodies, but
+  that's not a verdict — the run died on truncation before producing/failing the parser.
+
+PATTERN: docx keeps dying on the loop ENDING while the model still works — this run #13 (length truncation at
+26), prior 717-line run #19 (prose stop at 65). Different modes, same class: the v2 loop ends on any
+non-tool_calls turn, INCLUDING a truncated one.
+
+NEXT (clean, unambiguous, now justified by evidence): handle finish_reason=="length" in the v2 loop — it means
+TRUNCATED, not done. Re-prompt/continue (bounded by step budget) instead of emitting done. This is cleaner than
+the #19 prose-heuristic (length is unambiguous) and fixes THIS run's killer. Then re-run the AST auto-route for
+a FAIR verdict. Also revisit AILANG_OLLAMA_MAX_TOKENS=32768 (a single thinking turn hit it exactly — the
+"don't-cap qwen reasoning" research note applies), but continuation-on-truncation is the robust fix vs raising
+the cap (which just delays the cliff).
