@@ -27,7 +27,7 @@ MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
 echo "[run.sh] harness=$HARNESS model=$MODEL ws=$WS session=$SESSION"
 cp -R "$SRC" "$WS"
 cp "$HERE/stub_docx_parser.ail" "$WS/docparse/services/docx_parser.ail"
-ailang prompt > "$WS/syntax_reference.md" 2>/dev/null   # AILANG teaching prompt as a workspace file (agent-eval pattern)
+ailang prompt > "$WS/syntax_reference.md" 2>/dev/null
 
 read -r -d '' TASK <<'EOF'
 The file docparse/services/docx_parser.ail has been stubbed: all 13 exported functions currently return empty values. Reimplement it FULLY so the document parser correctly converts DOCX XML into the Block ADT.
