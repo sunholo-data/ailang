@@ -8,12 +8,18 @@ MODEL="${2:-ollama/qwen3.6:35b-a3b-mxfp8}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/Users/voightkampff/dev/sunholo-data/ailang-parse
 STAMP=$(date +%Y%m%d-%H%M%S)
-# AILANG guidance: the docx run.sh bypasses the eval harness's teaching-prompt injection, so feed the model
-# the canonical AILANG teaching prompt (the same source the standard eval uses) as its system prompt. Append
-# a generic persistence directive (don't narrate-and-stop). Without this the model writes Haskell-ish AILANG.
-TEACH="/tmp/ailang_teaching_${STAMP}.md"
-ailang prompt > "$TEACH" 2>/dev/null
-printf '\n## Persistence (agent behavior)\nNever end your turn by only describing what you will do next. If the task is not finished, CALL A TOOL this turn (write/edit the file, then run ailang check). Keep working until the code compiles and runs; give a final answer only when the task is complete.\n' >> "$TEACH"
+# AILANG guidance — REPLICATE THE AGENT-EVAL SETUP (motoko runs via agent eval, NOT standard eval): the agent
+# system prompt is a LEAN coding prompt, and the full AILANG teaching prompt is written to syntax_reference.md
+# IN THE WORKSPACE for the model to read on demand (see internal/eval_harness/agent_prompt.go). run.sh had
+# bypassed this, leaving the model with no AILANG syntax -> \x. drift.
+AGENTMD="/tmp/ailang_agent_prompt_${STAMP}.md"
+cat > "$AGENTMD" <<'AGENTPROMPT'
+You are an autonomous coding agent working in an AILANG project. AILANG is a pure functional language with Hindley-Milner type inference and algebraic effects — it is NOT Python and NOT Haskell.
+
+CRITICAL — read the syntax reference first: the workspace root contains `syntax_reference.md`, the complete AILANG syntax/teaching reference. READ it before writing any AILANG code, and consult it whenever unsure (e.g. lambdas are `\x -> e`, effect rows like `! {IO, FS}`, module declarations, and block `{ let x = a; expr }` vs expression `let x = a in expr` bodies). Do NOT guess AILANG syntax from other languages.
+
+Persistence: never end your turn by only describing what you will do next. Call a tool every turn to make progress (write/edit a file, then run `ailang check`). Keep going until the code compiles and runs; give a final answer only when the task is fully complete.
+AGENTPROMPT
 WS="/tmp/docx-${HARNESS}-${STAMP}"
 SESSION="session_docx_${HARNESS}_${STAMP}"
 MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
@@ -21,6 +27,7 @@ MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
 echo "[run.sh] harness=$HARNESS model=$MODEL ws=$WS session=$SESSION"
 cp -R "$SRC" "$WS"
 cp "$HERE/stub_docx_parser.ail" "$WS/docparse/services/docx_parser.ail"
+ailang prompt > "$WS/syntax_reference.md" 2>/dev/null   # AILANG teaching prompt as a workspace file (agent-eval pattern)
 
 read -r -d '' TASK <<'EOF'
 The file docparse/services/docx_parser.ail has been stubbed: all 13 exported functions currently return empty values. Reimplement it FULLY so the document parser correctly converts DOCX XML into the Block ADT.
@@ -58,7 +65,7 @@ pkill -9 -f 'bun.*src/tui' 2>/dev/null; sleep 1
 case "$HARNESS" in
   motoko)
     env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-dummy}" \
-        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$TEACH" \
+        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$AGENTMD" \
         ENV_PORT=8080 AILANG_OLLAMA_MAX_TOKENS=32768 AILANG_OLLAMA_HTTP_TIMEOUT_SEC="${AILANG_OLLAMA_HTTP_TIMEOUT_SEC:-1800}" MOTOKO_SESSION_ID="$SESSION" \
         "$MOTOKO_REPO/scripts/run-agent.sh" --headless "$TASK" > "/tmp/${SESSION}.out" 2>&1
     ;;
