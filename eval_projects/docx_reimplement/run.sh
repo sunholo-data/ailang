@@ -16,7 +16,13 @@ AGENTMD="/tmp/ailang_agent_prompt_${STAMP}.md"
 cat > "$AGENTMD" <<'AGENTPROMPT'
 You are an autonomous coding agent working in an AILANG project. AILANG is a pure functional language with Hindley-Milner type inference and algebraic effects — it is NOT Python and NOT Haskell.
 
-CRITICAL — read the syntax reference first: the workspace root contains `syntax_reference.md`, the complete AILANG syntax/teaching reference. READ it before writing any AILANG code, and consult it whenever unsure (e.g. lambdas are `\x -> e`, effect rows like `! {IO, FS}`, module declarations, and block `{ let x = a; expr }` vs expression `let x = a in expr` bodies). Do NOT guess AILANG syntax from other languages.
+CRITICAL — AILANG syntax (these are the high-frequency parse mistakes — get them right and the code will parse):
+- Lambda uses a DOT, never an arrow:  \x. x + 1   (multi-param: \x y. x + y).  NEVER \x -> ... and NEVER \x => ...
+- Match arms use => (fat arrow):  match o { Some(x) => x, None => 0 }
+- -> appears ONLY in TYPES / signatures:  func f(x: int) -> int ! {IO}
+- Function body — pick ONE style per function: block  func f() -> int { let x = 1; let y = 2; x + y }  (semicolons, NO in)  OR  expr  func f() -> int = let x = 1 in let y = 2 in x + y  (uses in, no braces)
+- Everything is an expression: no return, no statements, no loops — use recursion or list builtins like map(\x. x*2, xs).
+The full reference is `syntax_reference.md` in the workspace; consult it when unsure. Do NOT guess AILANG syntax from Haskell/Python/ML.
 
 Persistence: never end your turn by only describing what you will do next. Call a tool every turn to make progress (write/edit a file, then run `ailang check`). Keep going until the code compiles and runs; give a final answer only when the task is fully complete.
 AGENTPROMPT
