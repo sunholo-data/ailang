@@ -33,7 +33,7 @@ func TestSecretRead_AuditEmittedWithoutValue(t *testing.T) {
 	var events []SecretAuditEvent
 	ctx.Secret.Audit = func(ev SecretAuditEvent) { events = append(events, ev) }
 
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestSecretRead_TraceRedactsValue(t *testing.T) {
 	ctx := newSecretTestCtx(r)
 	ctx.Trace = trace.NewCollector()
 
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -75,12 +75,16 @@ func NewSecretContext() *SecretContext {
 // <secret> so the type system forbids it from reaching {not secret} sinks, and
 // M3 redacts it from traces.
 func secretRead(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("E_SECRET_TYPE_ERROR: read: expected 1 argument, got %d", len(args))
+	if len(args) != 2 {
+		return nil, fmt.Errorf("E_SECRET_TYPE_ERROR: read: expected 2 arguments (ref, purpose), got %d", len(args))
 	}
 	ref, ok := args[0].(*eval.StringValue)
 	if !ok {
 		return nil, fmt.Errorf("E_SECRET_TYPE_ERROR: read: expected String reference, got %T", args[0])
+	}
+	purposeArg, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_SECRET_TYPE_ERROR: read: expected String purpose, got %T", args[1])
 	}
 	if ctx.Secret == nil || ctx.Secret.Resolver == nil {
 		return nil, fmt.Errorf("E_SECRET_NO_RESOLVER: no secret resolver configured for the Secret effect")
@@ -92,7 +96,11 @@ func secretRead(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	// Approval gate (M3): block on a human decision before any value is read.
-	purpose := ref.Value // defaults to the ref until callers supply richer intent
+	// The purpose is the human-readable reason shown in the approval request.
+	purpose := purposeArg.Value
+	if purpose == "" {
+		purpose = ref.Value // empty purpose falls back to the ref
+	}
 	if ctx.Secret.Approver != nil {
 		if err := ctx.Secret.Approver.Approve(goctx, ref.Value, purpose); err != nil {
 			ctx.Secret.emitAudit(SecretAuditEvent{Ref: ref.Value, Purpose: purpose, Decision: "denied", Err: err.Error()})

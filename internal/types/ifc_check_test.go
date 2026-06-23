@@ -159,7 +159,7 @@ func TestIFC_SecretBuiltinSource_Caught(t *testing.T) {
 	src := `module test/builtin
 import std/secret (secret)
 func logIt(msg: string{not secret}) -> string ! {} { msg }
-func leak() -> string ! {Secret} { logIt(secret("op://Prod/k/v")) }`
+func leak() -> string ! {Secret} { logIt(secret("op://Prod/k/v", "leak it")) }`
 	errs := types.CheckModuleIFC(parseIFC(t, src))
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 violation from the secret() builtin source, got %d: %v", len(errs), errs)
@@ -172,7 +172,7 @@ func leak() -> string ! {Secret} { logIt(secret("op://Prod/k/v")) }`
 func TestIFC_LocalWrapperSource_Caught(t *testing.T) {
 	src := `module test/wrap
 import std/secret (secret)
-func fetch() -> string ! {Secret} { secret("op://k") }
+func fetch() -> string ! {Secret} { secret("op://k", "fetch it") }
 func logIt(msg: string{not secret}) -> string ! {} { msg }
 func leak() -> string ! {Secret} { logIt(fetch()) }`
 	errs := types.CheckModuleIFC(parseIFC(t, src))

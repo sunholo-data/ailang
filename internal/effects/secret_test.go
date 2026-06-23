@@ -36,7 +36,7 @@ func newSecretTestCtx(r *fakeResolver) *EffContext {
 func TestSecretRead_Success(t *testing.T) {
 	r := &fakeResolver{value: "s3cr3t"}
 	ctx := newSecretTestCtx(r)
-	got, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	got, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err != nil {
 		t.Fatalf("Call returned error: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestSecretRead_CapabilityDenied(t *testing.T) {
 	r := &fakeResolver{value: "s3cr3t"}
 	ctx := NewEffContext(nil) // no Secret capability granted
 	ctx.Secret = &SecretContext{Resolver: r}
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err == nil {
 		t.Fatal("expected capability error, got nil")
 	}
@@ -68,7 +68,7 @@ func TestSecretRead_CapabilityDenied(t *testing.T) {
 func TestSecretRead_ResolverFailure(t *testing.T) {
 	r := &fakeResolver{err: errors.New("op: item not found")}
 	ctx := newSecretTestCtx(r)
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err == nil {
 		t.Fatal("expected error from resolver failure")
 	}
@@ -81,7 +81,7 @@ func TestSecretRead_ApproverDenies(t *testing.T) {
 	r := &fakeResolver{value: "s3cr3t"}
 	ctx := newSecretTestCtx(r)
 	ctx.Secret.Approver = denyApprover{}
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err == nil {
 		t.Fatal("expected denial error")
 	}
@@ -97,7 +97,7 @@ func TestSecretRead_ApproverAllowsThenResolves(t *testing.T) {
 	r := &fakeResolver{value: "s3cr3t"}
 	ctx := newSecretTestCtx(r)
 	ctx.Secret.Approver = allowApprover{}
-	got, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}})
+	got, err := Call(ctx, "Secret", "read", []eval.Value{&eval.StringValue{Value: "op://Prod/stripe/api-key"}, &eval.StringValue{Value: "test purpose"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestSecretRead_ApproverAllowsThenResolves(t *testing.T) {
 
 func TestSecretRead_WrongArgType(t *testing.T) {
 	ctx := newSecretTestCtx(&fakeResolver{value: "x"})
-	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.IntValue{Value: 7}})
+	_, err := Call(ctx, "Secret", "read", []eval.Value{&eval.IntValue{Value: 7}, &eval.StringValue{Value: "p"}})
 	if err == nil || !strings.Contains(err.Error(), "E_SECRET_TYPE_ERROR") {
 		t.Fatalf("error = %v, want E_SECRET_TYPE_ERROR", err)
 	}

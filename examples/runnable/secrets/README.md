@@ -28,8 +28,10 @@ installed and signed in, or `OP_SERVICE_ACCOUNT_TOKEN` set) to hit a real vault.
 
 ## How it works
 
-- `secret("op://Vault/Item/field")` returns `string<secret>` and requires the
-  `Secret` capability (`--caps Secret`). With no capability, the run is denied.
+- `secret("op://Vault/Item/field", "why you need it")` returns `string<secret>`
+  and requires the `Secret` capability (`--caps Secret`). The second argument is
+  the human-readable **purpose** shown in the approval request on your phone.
+  With no capability, the run is denied.
 - Resolution shells `op read --no-newline <ref>`. If `op` is missing or fails,
   the call errors `E_SECRET_UNAVAILABLE` — there is **no silent fallback** to a
   blank/placeholder credential.
