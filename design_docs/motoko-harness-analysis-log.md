@@ -2427,3 +2427,20 @@ Net read across 4 runs: harness is now robust (hang/overflow/timeout fixed). doc
 bound, not harness-bound: #1 WriteFile-drift (494 lines, won't compile), #4 disengage (0 writes). Re-running
 #5 (rule removed, EditDecl present but not pushed) for a fair read on whether qwen3.6 can do a 530-line
 reimpl with a clean robust harness. Hypothesis: it drifts (model ceiling), not a harness gap.
+
+---
+
+## 2026-06-23 — docx #5 (steering reverted): model ENGAGES — 7/13 exports, step+thrash bound (NOT pure model-wall)
+
+Removing the harmful Large-file rule RESTORED engagement. #5: 6 WriteFile + 1 EditFile, parser 386 lines
+(vs 31 stub), **7 of 13 exports implemented** (6 still stubbed). But **59 BashExec** (debug grind) → step
+budget exhausted at 50 → incomplete → 0/17. NO overflow (compaction held), NO hang (WaitDelay), watchdog
+never fired. So docx is NOT a pure model-capability wall — with a robust harness, qwen3.6 makes real partial
+progress. Binding constraints now: (a) step budget (50 too few for 530-line/13-export), (b) BashExec debug
+thrash (59 — inefficient grind; R1 typed-diagnostics / P2 compression would help), (c) the correctness bar
+(17 fixtures need a CORRECT parser, a higher bar than compiling).
+
+Disciplined next test (don't conclude "model-bound" on an untested budget): #6 = max_steps 50→100. If it
+completes 13/13 + compiles → docx is budget-bound (harness-tunable lever). If still incomplete/thrash →
+then it's efficiency/correctness-bound. This is the decisive docx test of this push; if #6 fails, STOP
+grinding docx (the harness robustness IS the durable win) and pivot to best-of-N (P1) on contested regimes.
