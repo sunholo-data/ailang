@@ -2468,3 +2468,22 @@ docx grind. Open items parked, not chased: (a) the #6 truncated-response XML cra
 debug-thrash (R1 typed diagnostics / P2 compression); (c) EditDecl-for-fixes prompt. Next mission focus:
 consolidate the harness PRs (#65/#66/#70 + WaitDelay) and the validated contested-regime lever — best-of-N
 (P1, +6.8pp). docx remains a useful regression instrument but not the active frontier.
+
+---
+
+## 2026-06-23 — best-of-N (P1) pivot: wrapper select+deploy VALIDATED (stub); eval-integrate scoped
+
+Resumed P1 (best-of-N in motoko's loop). tools/motoko-bestof.sh already exists — the documented deployment:
+run motoko N× in isolated workspace copies → `ailang select-best` (run-based, reference-free) → deploy the
+winner to WORKDIR. (A wrapper, not an extension, because on_solver_candidate ExtCtx lacks caps/entry → an
+extension can only `ailang check` == DP7 == A/B'd noise; the +6.8pp lever is RUN-based.)
+
+CHEAP-CONFIRM (non-rig, stub path): seeded 3 candidates — cand_1 broken (neither), cand_2/cand_3 run — and
+the wrapper correctly selected cand_2 (earliest that runs) over the broken one and the tie, and deployed it.
+Select+deploy logic VALIDATED.
+
+Eval-integrate surface mapped: the motoko executor (internal/executor/motoko/motoko.go:224) runs ONE
+`motoko --headless` and parses ONE session JSONL (by MOTOKO_SESSION_ID). Wiring best-of-N in means: run the
+wrapper (N sessions), then parse the WINNER's session for metrics + grade WORKDIR/solution.ail. Non-trivial
+(session selection) — a scoped executor change for a follow-on fire. Next: validate the wrapper with REAL
+motoko runs (orchestration end-to-end), then build the executor MOTOKO_BESTOF_N path.
