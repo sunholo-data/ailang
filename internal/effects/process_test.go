@@ -424,7 +424,6 @@ func (f writerFunc) Write(p []byte) (int, error) {
 	return f(p)
 }
 
-
 // TestProcessExec_WaitDelay_OrphanGrandchildNoHang is the regression for the 2026-06-22 motoko
 // BashExec 7h hang: a `find / | head` pipeline whose orphaned `find` outlived the SIGKILLed bash
 // and held the stdout pipe open, so cmd.Run() blocked forever despite the 30s timeout. Here bash

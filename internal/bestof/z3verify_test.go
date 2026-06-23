@@ -76,7 +76,7 @@ func TestZ3CatchesRuntimePassingButUnprovable(t *testing.T) {
 		}
 		return p
 	}
-	provable := write("provable.ail", "x + 1")                                 // x+1>x for all x
+	provable := write("provable.ail", "x + 1")                              // x+1>x for all x
 	runtimeOnly := write("runtime_only.ail", "if x == 3 then 5 else x - 1") // passes on x=3, Z3 counterexample for x!=3
 	v := AilangVerifier{Bin: bin, Caps: "IO", VerifyContracts: true, VerifyZ3: true, RelaxModules: true}
 
