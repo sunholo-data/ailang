@@ -2708,3 +2708,12 @@ VALIDATE: docx_astread launched (target+main full, deps->interface). Metric: con
 convergence (does it write compiling AILANG with far less read context?). EditDecl still 0-adoption on docx
 (from-scratch reimplement isn't its fit — a large-file FIX task is). NEXT after result: if positive, this is a
 default-on harness win; if templates needed, refine (serve iface + a body-on-first-read). Then AST-QUERY (#16).
+
+## 2026-06-23 — AST auto-route: env-propagation no-op caught (Gate-3 discipline paid off)
+
+First docx_astread run was a NO-OP: 0 [AST auto-read] markers, document.ail returned 6500 chars full-source
+(not the 27-line interface). Root cause: runtime-process.ts builds the ailang subprocess env as an explicit
+ALLOWLIST (line 301), not a process.env spread — so MOTOKO_AST_AUTOREAD/READ_FULL never reached the .ail
+handler. Fix: add both vars to the allowlist (TS runs from source, no build). Killed the no-op, relaunched.
+Lesson: env-gated .ail behavior must be added to the childEnv allowlist; checking the trace for the marker
+(not just that the run finished) caught it before a wasted 40-min completion.
