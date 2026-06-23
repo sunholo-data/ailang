@@ -2769,3 +2769,35 @@ Re-launching docx with AST route ON (it induced the runaway-thinking truncation 
 truncation fix — expect "truncated_continue" events + the run surviving past the cap — AND gives the AST route a
 FAIR verdict now that a truncation no longer kills the run). Watch: truncated_continue events, finish state
 (not length-at-end), convergence (compiling parser?), AST markers.
+
+## 2026-06-23 — RESEARCH: how reference harnesses handle thinking-budget / output truncation (finish_reason=length)
+
+Prompted by "how do other harnesses deal with thinking budgets truncating?" Sourced from pi (local source +
+CHANGELOG), qwen-code (the model's OWN harness; GitHub docs + issues), and general SDK practice.
+
+1. qwen-code (MOST relevant — qwen's own CLI) — ADAPTIVE RETRY-WITH-HIGHER-BUDGET:
+   - When max_tokens is unset, starts at a DEFAULT 8K output cap. On finish_reason=length (truncated), it
+     AUTOMATICALLY RETRIES the turn at 64K, DISCARDING the truncated partial and replacing it with the full
+     retry. Transparent; rare (<1%, since 99% of responses <5K). Override: QWEN_CODE_MAX_OUTPUT_TOKENS or
+     samplingParams.max_tokens. (qwen-code issues #4964 "recover from previous truncation", #2358 "max_tokens
+     not auto-detected for non-Qwen models -> truncation".)
+   - => Don't FIX-CAP; escalate on truncation. Discard the truncated partial (it's wasted reasoning).
+
+2. pi — CONTROL THE THINKING BUDGET UPFRONT (thinkingLevel off/low/medium/high per model; maps to the API
+   reasoning-effort knob), preventing runaway reasoning rather than recovering after. Plus per-model minimum
+   thinking budgets (e.g. Gemini 512-token floor) and Ollama context-overflow recovery on explicit
+   "prompt too long" errors. pi PREVENTS; qwen-code RECOVERS.
+
+3. Ollama caveat (NousResearch/hermes-agent #10711): Ollama can mislabel a TRUNCATED response as
+   finish_reason=STOP (not length), silently dropping output. Our provider DID capture length per-turn, but
+   the run_summary rolled it up to "stop" — same trap one layer up.
+
+IMPLICATION for motoko: our run.sh FIX-CAPS at AILANG_OLLAMA_MAX_TOKENS=32768, BELOW qwen-code's 64K escalation
+ceiling — and qwen3.6 reasoning ran straight into it (turn 26 = exactly 32768). My #13 fix (append "continue"
++ recurse at the SAME cap) is a reasonable backstop but SUBOPTIMAL vs the reference: it (a) keeps a 32K-token
+truncated thinking block in context (bloat), and (b) re-runs at the same cap (can re-truncate). The
+qwen-code-aligned fix is better: on length, RETRY at a higher budget and DISCARD the partial; OR simplest —
+raise the default cap to ~65536 (qwen-code's ceiling; input was only 63K so 64K out fits the 262K window),
+making truncation rare. NEXT: raise the cap to 64K (simple, reference-aligned) and consider retry-higher-discard
+as the proper recovery; keep #13 continue as the last-resort backstop. pi-style thinkingLevel control is N/A
+unless the ollama /v1 path exposes a reasoning-effort knob for qwen3.6.
