@@ -8,6 +8,12 @@ MODEL="${2:-ollama/qwen3.6:35b-a3b-mxfp8}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC=/Users/voightkampff/dev/sunholo-data/ailang-parse
 STAMP=$(date +%Y%m%d-%H%M%S)
+# AILANG guidance: the docx run.sh bypasses the eval harness's teaching-prompt injection, so feed the model
+# the canonical AILANG teaching prompt (the same source the standard eval uses) as its system prompt. Append
+# a generic persistence directive (don't narrate-and-stop). Without this the model writes Haskell-ish AILANG.
+TEACH="/tmp/ailang_teaching_${STAMP}.md"
+ailang prompt > "$TEACH" 2>/dev/null
+printf '\n## Persistence (agent behavior)\nNever end your turn by only describing what you will do next. If the task is not finished, CALL A TOOL this turn (write/edit the file, then run ailang check). Keep working until the code compiles and runs; give a final answer only when the task is complete.\n' >> "$TEACH"
 WS="/tmp/docx-${HARNESS}-${STAMP}"
 SESSION="session_docx_${HARNESS}_${STAMP}"
 MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
@@ -52,7 +58,7 @@ pkill -9 -f 'bun.*src/tui' 2>/dev/null; sleep 1
 case "$HARNESS" in
   motoko)
     env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-dummy}" \
-        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$MOTOKO_REPO/SYSTEM.md" \
+        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$TEACH" \
         ENV_PORT=8080 AILANG_OLLAMA_MAX_TOKENS=32768 AILANG_OLLAMA_HTTP_TIMEOUT_SEC="${AILANG_OLLAMA_HTTP_TIMEOUT_SEC:-1800}" MOTOKO_SESSION_ID="$SESSION" \
         "$MOTOKO_REPO/scripts/run-agent.sh" --headless "$TASK" > "/tmp/${SESSION}.out" 2>&1
     ;;
