@@ -2864,3 +2864,14 @@ expr position) IN the agent prompt (the model ignores the workspace syntax_refer
 only delivery that reaches it) -> re-run -> does the PAR_ rate drop sharply? If yes: harness-improvable (syntax
 delivery). If still ~1/line: near qwen3.6's AILANG-syntax ceiling -> lever becomes best-of-N / stronger model.
 Do NOT conclude model-bound until this experiment runs (every prior such call this session was a harness bug).
+
+## 2026-06-23 — ROOT CAUSE of the parse-error storm: agent prompt taught the WRONG lambda syntax
+The decisive experiment (concrete syntax cheat-sheet) immediately caught a bigger bug via the verify-claims
+gate: AILANG lambda is `\x. body` (DOT) — verified (`\x. x+1` parses; `\x -> x+1` = PAR_NO_PREFIX_PARSE) and
+the teaching prompt agrees (map(\x. x*2, xs)). But the docx agent prompt's note said "lambdas are `\x -> e`"
+— WRONG, and I had introduced it earlier this session by mislabeling `\x.` as "Haskell drift" and "correcting"
+it backwards. So the harness was actively FEEDING the model wrong lambda syntax -> the ~1 PAR_/line storm was
+substantially harness-caused, NOT (only) model-ceiling. Fixed: replaced with a verified concrete cheat-sheet
+(lambda `\x.`, match `=>`, `->` only in types, block vs expr bodies, no return/loops). VALIDATE: re-run docx,
+expect the PAR_ rate to drop sharply if this was the dominant cause. Lesson: VERIFY every syntax claim with
+ailang check before putting it in any prompt/guidance — a wrong cheat-sheet is worse than none.
