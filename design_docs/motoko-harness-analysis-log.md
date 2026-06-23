@@ -2487,3 +2487,14 @@ Eval-integrate surface mapped: the motoko executor (internal/executor/motoko/mot
 wrapper (N sessions), then parse the WINNER's session for metrics + grade WORKDIR/solution.ail. Non-trivial
 (session selection) — a scoped executor change for a follow-on fire. Next: validate the wrapper with REAL
 motoko runs (orchestration end-to-end), then build the executor MOTOKO_BESTOF_N path.
+
+---
+
+## 2026-06-23 — best-of-N (P1) VALIDATED end-to-end (real rig run)
+
+Real N=3 motoko-bestof run (qwen3.6, ollama, rig-locked + watchdog): wrapper generated 3 live candidates →
+`ailang select-best --caps IO --entry main` picked a running winner → deployed to WORKDIR/solution.ail →
+the winner RUNS and prints the primes correctly. Orchestration + select + deploy + winner-runs all validated
+(complements the stub select+deploy validation). All 3 candidates passed this run (moderate task → no
+discrimination needed; discrimination proven by the stub + the +6.8pp analyzer). best-of-N deployment is
+DONE + validated; remaining = eval-integrate (executor MOTOKO_BESTOF_N path, follow-on).
