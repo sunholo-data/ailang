@@ -158,7 +158,7 @@ export default function AgentRadar({ data }) {
       <div className={styles.agentNotes}>
         <p><strong>What is Agent Evaluation?</strong></p>
         <p>
-          Agent eval uses AI coding agents (Claude Code, Gemini CLI) in headless mode for multi-turn
+          Agent eval uses AI coding agents (Claude Code, Codex, opencode, Managed Agents) in headless mode for multi-turn
           iterative problem solving. Unlike standard 0-shot evaluation, agents can explore, debug, and
           refine solutions over multiple turns.
         </p>

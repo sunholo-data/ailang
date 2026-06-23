@@ -9,7 +9,8 @@ import React, { useState, useEffect } from 'react';
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
-const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex', pi: 'Pi', motoko: 'motoko_agent' };
+// `gemini` rows are historical (Gemini CLI executor retired v0.22.0); do not relabel them.
+const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI (retired)', managed_agents: 'Managed Agents', opencode: 'opencode', codex: 'Codex', pi: 'Pi', motoko: 'motoko_agent' };
 
 function pct(v) {
   return v == null ? '—' : `${Math.round(v * 100)}%`;

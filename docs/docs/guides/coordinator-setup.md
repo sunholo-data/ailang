@@ -4,7 +4,7 @@ This guide explains how to configure the AILANG coordinator to manage agents for
 
 ## Overview
 
-The coordinator daemon watches message inboxes and executes tasks using AI agents (Claude Code or Gemini CLI). Each agent is configured with:
+The coordinator daemon watches message inboxes and executes tasks using AI agents (currently Claude Code). Each agent is configured with:
 
 - **Workspace**: The repository where the agent operates
 - **Inbox**: Message queue the agent monitors

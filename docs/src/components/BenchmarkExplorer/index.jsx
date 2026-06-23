@@ -4,7 +4,9 @@ import styles from './styles.module.css';
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_SHORT = { ailang: 'AILANG', python: 'Python', javascript: 'JS', go: 'Go' };
 const LANG_COLOR = { ailang: '#6366f1', python: '#eab308', javascript: '#f97316', go: '#06b6d4' };
-const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex', pi: 'Pi', motoko: 'motoko_agent' };
+// `gemini` rows are historical (Gemini CLI executor retired v0.22.0); do not relabel them.
+// `managed_agents` is the Antigravity successor (Vertex Managed Agents API).
+const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI (retired)', managed_agents: 'Managed Agents', opencode: 'opencode', codex: 'Codex', pi: 'Pi', motoko: 'motoko_agent' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
 function pct(v) {

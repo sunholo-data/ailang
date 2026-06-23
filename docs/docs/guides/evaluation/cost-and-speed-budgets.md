@@ -17,13 +17,13 @@ Meanwhile expensive models (`opencode-sonnet-4-6` at ~$0.20/call × multi-turn =
 
 ## How it works
 
-Each `*executor.Task` carries a `*CostBudget` (nullable). The 5 executors (claude/opencode/gemini/codex/pi) call `budget.Add(input, output)` at their natural token-tally event point:
+Each `*executor.Task` carries a `*CostBudget` (nullable). The 5 executors (claude/opencode/managed_agents/codex/pi) call `budget.Add(input, output)` at their natural token-tally event point:
 
 | Executor | Hook event |
 |----------|-----------|
 | claude   | stream-json `usage` event |
 | opencode | stream-json `tool_result` / `step_finish` event |
-| gemini   | post-hoc at `result` event (no incremental usage from Gemini CLI) |
+| managed_agents | post-hoc at `interaction.completed` (Managed Agents reports usage only at completion — no incremental tally) |
 | codex    | turn boundary |
 | pi       | per-turn `message_end` event |
 

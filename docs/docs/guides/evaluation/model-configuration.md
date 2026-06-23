@@ -175,15 +175,16 @@ make eval-suite
 
 ### For Multi-Harness Cross-Comparison (v0.15.0+)
 
-`agent_suite` routes the same benchmarks through all four supported CLI-subprocess
-harnesses — Claude Code, Gemini CLI, Codex, and opencode — using the executor
-factory. One command, four harnesses, identical result schema:
+`agent_suite` routes the same benchmarks through the supported CLI-subprocess
+harnesses — Claude Code, Codex, and opencode — using the executor factory. One
+command, identical result schema. (Gemini-family agent evals run through the
+hosted [Managed Agents API](./harness-setup.md#managed-agents-api-managed_agents)
+— it has no local CLI and is opt-in rather than part of the routine suite.)
 
 ```bash
 # Preview routing without running (--dry-run):
 ailang eval-suite --models agent_suite --benchmarks fizzbuzz --dry-run
 # claude-sonnet-4-6  → claude executor
-# gemini-3-flash     → gemini executor
 # gpt5-4             → codex executor
 # opencode-haiku     → opencode executor
 
@@ -199,7 +200,7 @@ ailang eval-suite --models agent_suite --benchmarks fizzbuzz --microrag=off
 | Harness | Install | Auth |
 |---------|---------|------|
 | claude | `npm i -g @anthropic-ai/claude-code` | `ANTHROPIC_API_KEY` |
-| gemini | `npm i -g @google/gemini-cli` | ADC (`gcloud auth application-default login`) |
+| managed_agents | (HTTP API, no CLI) | ADC (`gcloud auth application-default login`) |
 | codex | `npm i -g @openai/codex` | `OPENAI_API_KEY` |
 | opencode | `npm i -g opencode-ai` | `ANTHROPIC_API_KEY` (or provider-specific key) |
 

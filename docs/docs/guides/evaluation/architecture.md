@@ -67,7 +67,7 @@ Location: `internal/eval_analysis/` + `internal/eval_harness/` + `cmd/ailang/`
 - `--parallel N`: Concurrent API calls (default: 5)
 - `--self-repair`: Enable self-repair on errors
 - `--output DIR`: Output directory (default: eval_results)
-- `--agent`: Run in agent mode (agentic coding via Claude/Gemini CLI)
+- `--agent`: Run in agent mode (agentic coding via Claude Code, Codex, opencode, or the hosted Managed Agents API)
 
 **Examples:**
 ```bash
@@ -77,8 +77,8 @@ ailang eval-suite
 # Full validation (expensive)
 ailang eval-suite --full
 
-# Agent mode (agentic coding - uses Claude Code / Gemini CLI)
-ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash
+# Agent mode (agentic coding - uses Claude Code, Codex, opencode, or Managed Agents)
+ailang eval-suite --agent --models claude-haiku-4-5,gemini-3-5-flash
 
 # Custom subset
 ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
@@ -251,7 +251,7 @@ execution_chains (source_type = "eval_suite")
 ├── chain_stage 1: fizzbuzz / claude-haiku / ailang
 │   ├── eval_assessment: { compile_ok, runtime_ok, stdout_ok, ... }
 │   ├── cost, tokens, turns, tool_calls
-│   └── chat_messages (Claude) or session_tools (Gemini)
+│   └── chat_messages (Claude) or session_tools (streaming executors)
 │
 ├── chain_stage 2: fizzbuzz / gemini-flash / python
 │   └── ...
@@ -263,7 +263,7 @@ execution_chains (source_type = "eval_suite")
 | Executor | Data Source | Table | Quality |
 |----------|------------|-------|---------|
 | **Claude** | Post-execution JSONL disk import | `chat_messages` | Full tool inputs/outputs, thinking |
-| **Gemini** | Real-time streaming | `session_tools` | Full tool inputs/outputs |
+| **Gemini** (retired v0.22.0) | Real-time streaming | `session_tools` | Historical only — the Gemini CLI executor was removed; `session_tools` retains its past runs |
 
 ## File Organization
 
@@ -292,7 +292,7 @@ cmd/ailang/
   eval_benchmark.go               # Per-benchmark execution + chain stage management
   eval_tools.go                   # eval-report, eval-compare, eval-chains commands
   eval_parallel.go                # Parallel benchmark runner
-  observatory_writer.go           # Streaming tool capture (Gemini)
+  observatory_writer.go           # Streaming tool capture
   main.go                         # Command routing
 
 Makefile                          # Convenience targets

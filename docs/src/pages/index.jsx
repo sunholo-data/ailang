@@ -346,7 +346,7 @@ export func main() -> () ! {IO} =
 function QuickStartSection() {
   const [copiedInstall, setCopiedInstall] = React.useState(false);
   const [copiedClaude, setCopiedClaude] = React.useState(false);
-  const [copiedGemini, setCopiedGemini] = React.useState(false);
+  const [copiedCodex, setCopiedCodex] = React.useState(false);
 
   const copyToClipboard = (text, setCopied) => {
     navigator.clipboard.writeText(text);
@@ -402,15 +402,15 @@ function QuickStartSection() {
           <div className="quickstart-card">
             <div className="quickstart-card-header">
               <Terminal size={24} />
-              <span>Gemini CLI</span>
+              <span>Codex CLI</span>
             </div>
             <div className="quickstart-code">
-              <pre>gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git</pre>
+              <pre>codex plugin add https://github.com/sunholo-data/ailang_bootstrap</pre>
               <button
                 className="quickstart-copy"
-                onClick={() => copyToClipboard('gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git', setCopiedGemini)}
+                onClick={() => copyToClipboard('codex plugin add https://github.com/sunholo-data/ailang_bootstrap', setCopiedCodex)}
               >
-                {copiedGemini ? <Check size={16} /> : <Copy size={16} />}
+                {copiedCodex ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
           </div>
@@ -1229,7 +1229,7 @@ function WorkflowSection() {
       n: '1',
       icon: Bot,
       title: 'Agent writes .ail',
-      desc: 'Plug AILANG into Claude Code, Gemini CLI, or any agent that follows the teaching prompt.',
+      desc: 'Plug AILANG into Claude Code, Codex, or any agent that follows the teaching prompt.',
     },
     {
       n: '2',

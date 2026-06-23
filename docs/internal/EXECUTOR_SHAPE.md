@@ -1,7 +1,9 @@
 # CLI-Subprocess Executor Shape
 
 This is the uniform contract every CLI-subprocess executor in AILANG follows
-(claude, gemini, codex, opencode, and future additions like pi, aider, cline).
+(claude, codex, opencode, pi, motoko). Note the `managed_agents` executor is
+HTTP/SSE, not a CLI subprocess, so it follows the executor interface but not the
+stdout-parsing parts of this contract — see `internal/executor/managed_agents/`.
 
 The contract has **two pillars**:
 
@@ -64,7 +66,6 @@ Close() error
 
 **Canonical references:**
 - `internal/executor/claude/claude.go:764-773` — `Register()` + `init()` pattern
-- `internal/executor/gemini/gemini.go` — same pattern for Gemini CLI
 - `internal/executor/codex/codex.go:541-548` — same pattern for Codex CLI
 - `internal/executor/opencode/opencode.go:592-601` — same pattern for opencode CLI
 - `internal/executor/pi/pi.go` — same pattern for pi CLI (multi-provider, no Go toolchain)
@@ -93,7 +94,7 @@ Add **exactly one line** to [`internal/coordinator/provider_executor.go`](../../
 import (
     _ "github.com/sunholo-data/ailang/internal/executor/claude"
     _ "github.com/sunholo-data/ailang/internal/executor/codex"   // <-- add
-    _ "github.com/sunholo-data/ailang/internal/executor/gemini"
+    _ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 )
 ```
 
@@ -187,7 +188,7 @@ this contract is designed to prevent. Updating both is non-negotiable.
 In [`ailang-multivac/terraform/cloud_run_jobs.tf`](https://github.com/sunholo-data/ailang-multivac),
 add Cloud Run Job container blocks referencing
 `${local.image_base}/agent-<name>:${var.agent_image_tag}`. Match the existing
-pattern used by `agent-opencode` / `agent-codex` / `agent-gemini`:
+pattern used by `agent-opencode` / `agent-codex` / `agent-pi`:
 resource limits, service account, VPC connector, env, secret bindings.
 
 ### 8. Secret Bindings
@@ -253,7 +254,6 @@ Per-executor summary:
 | Executor | Env var | Device flow | Notes |
 |---|---|---|---|
 | `claude` | `ANTHROPIC_API_KEY` | `claude login --device-auth` (Claude Pro) | Claude Code uses OAuth for subscription billing |
-| `gemini` | ADC (`GOOGLE_APPLICATION_CREDENTIALS`) | `gcloud auth login --no-browser` | Vertex AI ADC; device flow via gcloud |
 | `codex` | `OPENAI_API_KEY` | `codex login --device-auth` | ChatGPT Plus session OR API key; device flow for headless |
 | `opencode` | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / ADC | provider-dependent | opencode Zen subscription optional; direct provider keys work |
 
