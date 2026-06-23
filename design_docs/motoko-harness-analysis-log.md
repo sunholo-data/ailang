@@ -2548,3 +2548,22 @@ iface content — works end-to-end (no exec-arg bug, unlike EditDecl's --relax-m
 (timeout) + #70 (compaction) — validated/ready; #66 EditDecl stays draft (needs longer-project testing).
 A/B launched: zip_extract-using task, A=ReadInterface+nudge vs B=ReadFile-only, measure dep-read tool +
 compile + context. Fork DRAFT PR for ReadInterface = next.
+
+---
+
+## 2026-06-23 — ReadInterface A/B (n=2, zip_extract task): POSITIVE (adoption + context win realized)
+
+A = ReadInterface ON + nudge; B = ReadFile only.
+- **ADOPTION: qwen used ReadInterface 2/2 in arm A** (even queried std/string + std/stdio interfaces) — it
+  reaches for the query tool when nudged, UNLIKE EditDecl (1/3). The nudge works.
+- **CONTEXT WIN REALIZED + AMPLIFIED:** arm A read zip_extract ONCE via the interface (~870B). Arm B
+  (ReadFile-only) **re-read the full 280-line zip_extract 2-3x** (~17-25KB) — the model re-reads full files
+  to re-find signatures, so the dense interface (read once) is ~20-30x less dep-context than the static 10x.
+- **CORRECTNESS PRESERVED:** A's dep usage was correct in BOTH trials. A1's compile failure was an UNRELATED
+  AILANG let-block syntax error (PAR017: ';' in an expression-body fn; multi-`let` written wrong) — NOT a
+  dep-usage error. So ReadInterface did not hurt correctness; the A 1/2 vs B 2/2 is syntax noise, not the lever.
+
+CAVEAT: n=2, small single-dep task — firm with a larger multi-dep task + more n. But the signal is clearly
+positive (vs EditDecl-neutral) and matches Arni's experience ("querying the AST really helps"). GREENLIGHT
+task #16 (query surface: TypeAt / GoToDef / FindCallers / structural). Also: arm A querying std/string +
+std/stdio is exactly the desired AST-query behavior. Next: ReadInterface fork DRAFT PR + the query surface.
