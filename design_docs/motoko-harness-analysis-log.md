@@ -2406,3 +2406,24 @@ terminate the orphan immediately (WaitDelay already unblocks + SIGPIPEs it).
 
 Process lesson recorded separately: NEVER background a long rig run relying only on the completion
 notification — a hang never completes, never notifies. Use a wall-clock cap + a fallback check.
+
+---
+
+## 2026-06-23 — docx CONVERGENCE #4: HARNESS FIXES VALIDATED; steering caused disengagement (my error)
+
+#4 = all harness fixes (BashExec WaitDelay + compaction + #65) + the SYSTEM.md EditDecl steering. Result:
+ran CLEANLY to [done] in 16 steps — **NO hang** (find / gone; WaitDelay works), **NO overflow** (compaction
+works), NO deadline (#65), watchdog never fired. The 3 harness bugs are FIXED + validated end-to-end — the
+session's real win.
+
+BUT 0/17 and the parser is STILL THE 31-LINE STUB. Histogram: 17 ReadFile, 5 BashExec, 3 Search, 1 RunTests,
+**0 WriteFile / 0 EditFile / 0 EditDecl** → motoko DISENGAGED (explored, then quit without writing anything).
+Cause: my SYSTEM.md "Large-file rule: do NOT rewrite >100-line files with WriteFile → use EditDecl"
+SUPPRESSED the necessary initial full-file implementation write, and the model did NOT substitute EditDecl
+(which replaces an EXISTING decl, not a from-scratch impl) → paralysis → premature done. The steering was
+wrong-headed: EditDecl is a FIX tool, not an implementation tool. CORRECTION: removed the rule.
+
+Net read across 4 runs: harness is now robust (hang/overflow/timeout fixed). docx PASS is MODEL-BEHAVIOR-
+bound, not harness-bound: #1 WriteFile-drift (494 lines, won't compile), #4 disengage (0 writes). Re-running
+#5 (rule removed, EditDecl present but not pushed) for a fair read on whether qwen3.6 can do a 530-line
+reimpl with a clean robust harness. Hypothesis: it drifts (model ceiling), not a harness gap.
