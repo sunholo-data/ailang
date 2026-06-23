@@ -2386,3 +2386,23 @@ docx is blocked on HARNESS ROBUSTNESS, not EditDecl. Next fixes: (a) BashExec wa
 has no `timeout` — needs an in-harness deadline on the Process exec, or kill-after-N); (b) a prompt rule:
 "stdlib modules are imported by name (import std/xml), never located via filesystem search — never run find /".
 Then re-run docx. The compaction fix is validated → ready for a fork DRAFT PR.
+
+---
+
+## 2026-06-23 — FIXED the BashExec hang (systemic, dev) — cmd.WaitDelay
+
+Root cause of the 7h overnight hang (and the un-fixed 2026-05-09 one the code only added DEBUG_PROCESS
+tracing for): internal/effects/process.go runs exec via CommandContext (30s timeout) but set NO
+cmd.WaitDelay and no process-group kill. When the timeout SIGKILLs the direct child (bash), an orphaned
+grandchild (`find /` in `find / | head` that hadn't produced output yet) keeps the stdout pipe open →
+cmd.Run()'s io-copy goroutine blocks FOREVER → the 30s timeout is meaningless.
+
+Fix: `cmd.WaitDelay = 5 * time.Second` (Go 1.20+). After the process exits or the context fires, Go
+force-closes the I/O pipes → cmd.Run returns a Timeout error → the orphan gets SIGPIPE on next write.
+Regression test (orphaned `sleep 60` holding the stdout pipe) returns ~5s instead of ~60s; existing process
+tests green; ailang reinstalled so motoko's runtime is protected. SYSTEMIC — every exec caller benefits.
+This is the fix that prevents another silent overnight. Optional follow-on: Setpgid + group-kill to
+terminate the orphan immediately (WaitDelay already unblocks + SIGPIPEs it).
+
+Process lesson recorded separately: NEVER background a long rig run relying only on the completion
+notification — a hang never completes, never notifies. Use a wall-clock cap + a fallback check.
