@@ -5,6 +5,7 @@ package effects
 import (
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -421,4 +422,34 @@ type writerFunc func([]byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) {
 	return f(p)
+}
+
+
+// TestProcessExec_WaitDelay_OrphanGrandchildNoHang is the regression for the 2026-06-22 motoko
+// BashExec 7h hang: a `find / | head` pipeline whose orphaned `find` outlived the SIGKILLed bash
+// and held the stdout pipe open, so cmd.Run() blocked forever despite the 30s timeout. Here bash
+// backgrounds `sleep 60` (which inherits + holds the stdout pipe) then exits immediately. Without
+// cmd.WaitDelay, cmd.Run() blocks ~60s waiting for the pipe to close; with it, Go force-closes the
+// pipe after WaitDelay and the call returns promptly.
+func TestProcessExec_WaitDelay_OrphanGrandchildNoHang(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash test requires unix")
+	}
+	if testing.Short() {
+		t.Skip("WaitDelay timing test (~5s)")
+	}
+	ctx := newProcessCtx()
+	args := []eval.Value{
+		&eval.StringValue{Value: "bash"},
+		&eval.ListValue{Elements: []eval.Value{
+			&eval.StringValue{Value: "-c"},
+			&eval.StringValue{Value: "sleep 60 & echo hi"},
+		}},
+	}
+	start := time.Now()
+	_, _ = Call(ctx, "Process", "exec", args)
+	elapsed := time.Since(start)
+	if elapsed > 20*time.Second {
+		t.Fatalf("exec hung %v on an orphaned grandchild holding the stdout pipe — cmd.WaitDelay not effective (want <20s, would be ~60s unfixed)", elapsed)
+	}
 }

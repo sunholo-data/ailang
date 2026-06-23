@@ -122,6 +122,13 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	cmd := exec.CommandContext(execCtx, resolvedPath, cmdArgs...)
 
+	// WaitDelay bounds how long cmd.Run() blocks on the I/O pipes after the process exits or the
+	// context fires. Without it, an orphaned grandchild (e.g. `find /` in a `find / | head` pipeline
+	// that outlives the SIGKILLed bash) keeps the stdout pipe open and cmd.Run() hangs FOREVER despite
+	// the timeout — the 2026-06-22 motoko BashExec 7h hang. After WaitDelay, Go force-closes the pipes
+	// (cmd.Run returns Timeout) and the orphan gets SIGPIPE on its next write.
+	cmd.WaitDelay = 5 * time.Second
+
 	// Set working directory from sandbox if configured
 	if ctx.Env.Sandbox != "" {
 		cmd.Dir = ctx.Env.Sandbox
