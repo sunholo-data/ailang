@@ -2818,3 +2818,10 @@ broken parser (exit 1, PAR_NO_PREFIX caught). Now dp7_gate emits dp7_verifier_re
 declaring done" -> the model must continue until the project type-checks. Reverted the check_core Makefile
 workaround. Broader principle for the fork PR: AILANG profiles should DEFAULT the definition-of-done to
 `ailang check`, not opt-in (currently config.ail default is make check_core/disabled).
+
+## 2026-06-23 — refine: type-check definition-of-done is .ail-CONDITIONAL (don't ailang-check non-AILANG)
+Per user ("default only if it's an .ail file obviously"): run_dp7_verifier now detects an AILANG project
+(workspace_has_ail = find . -name '*.ail') and, when verification is enabled, gates .ail projects with
+`ailang check .` while non-AILANG projects fall back to the configured build/test command (make check_core
+etc.). Reverted the profile command hardcode; the harness auto-picks. Type-checks clean. In-flight docx_dp7
+(b98ct6jqp) used the equivalent profile command, so its result still validates the gate.
