@@ -2,7 +2,7 @@
 sidebar_position: 7
 title: Codebase Statistics
 description: Track AILANG codebase growth and AI-assisted development metrics
-last_updated: 2025-12-29
+last_updated: 2026-06-23
 ---
 
 import CodebaseStats from '@site/src/components/CodebaseStats';
@@ -19,8 +19,8 @@ Track the growth of the AILANG codebase over time. These metrics demonstrate the
 
 The AILANG project consists of multiple components:
 
-- **Go Production Code**: The compiler, runtime, type system, and CLI
-- **Go Test Code**: Comprehensive test suites with ~60% test-to-production ratio
+- **Go Production Code**: The compiler, bytecode VM, runtime, type system, and CLI
+- **Go Test Code**: Comprehensive test suites with a ~68% test-to-production ratio
 - **AILANG Examples**: Working examples and standard library
 - **TypeScript/React**: Documentation website and Collaboration Hub UI
 - **Shell Scripts**: Build automation, CI/CD, and development tools
@@ -32,28 +32,41 @@ The token count estimates how much context an AI model would need to "understand
 This is calculated at ~4 characters per token (typical for code).
 
 **Why this matters:**
-- Modern AI models have context windows of 128K-200K tokens
-- The AILANG codebase (~4M tokens) requires strategic context management
+- Modern AI models have context windows of 200K–1M tokens
+- The AILANG codebase (~10M tokens) requires strategic context management
 - This is why we use design docs, skills, and focused prompts
 
 ### AI-Assisted Development
 
 AILANG is developed with Claude Code, demonstrating:
 
-1. **Rapid iteration**: 1,400+ commits in a few months
-2. **Comprehensive documentation**: Design-first approach with 160K+ lines of design docs
-3. **High test coverage**: Automated testing ensures reliability
+1. **Rapid iteration**: 3,400+ commits across the project's lifetime
+2. **Comprehensive documentation**: Design-first approach with 370K+ lines of design docs
+3. **High test coverage**: ~200K lines of Go tests (~68% of production code)
 4. **Sustainable pace**: AI assistance enables consistent progress
 
 ## Historical Tracking
 
-The timeline chart shows codebase growth across versions. Each data point is captured automatically during CI/CD builds.
+The timeline chart shows codebase growth across versions. Each minor "graduation" is captured at its release tag, with the latest release tracked as the current snapshot.
 
 **What drives growth:**
 - **v0.3.x**: Core language features (types, effects, modules)
 - **v0.4.x**: Monomorphization and polymorphism
-- **v0.5.x**: AI evaluation framework (M-EVAL-LOOP)
-- **v0.6.x**: Developer experience and tooling
+- **v0.5.x**: AI providers, eval harness & search (M-EVAL-LOOP)
+- **v0.6.x**: Coordinator daemon & autonomous agents
+- **v0.7.x**: Observatory, chains & eval dashboard
+- **v0.8.x**: Cloud features & advanced coordinator
+- **v0.9.x**: Cloud integration & Pub/Sub messaging
+- **v0.10.x**: Bytecode VM & runtime
+- **v0.11.x–v0.12.x**: Bytecode fixes, three-tier OTEL tracing, new stdlib (`gzip`/`tar`), XLSX performance wins
+- **v0.13.x–v0.14.x**: Concat disambiguation, eval-suite prep
+- **v0.15.x–v0.17.x**: AI token-streaming helper, stdlib growth (`deflate`/`zlib`), external-consumer DX
+- **v0.18.x–v0.19.x**: Motoko executor adapter & eval-harness hardening, intra-package imports, FS sandbox diagnostics
+- **v0.20.x**: AILANG ships an LSP (`ailang lsp`) with VS Code install and contract verification
+- **v0.21.x**: 100% run_correct on VeraBench with Claude Haiku 4.5; AILANG an official VeraBench target
+- **v0.22.x**: Retired Gemini CLI, adopted Vertex Managed Agents API
+- **v0.23.x–v0.24.x**: Multi-channel notification fan-out, lenient real-world XML parsing
+- **v0.25.x**: Security toolchain bump (Go 1.25.11)
 
 ## Methodology
 

@@ -28,25 +28,28 @@ bin/ailang eval-suite --full --langs python,ailang --parallel 5 \
 - [ ] Results include both AILANG and Python
 - [ ] All models run successfully
 
-## 2. Verify Codebase Statistics
+## 2. Refresh Codebase Statistics (REQUIRED — CI does NOT commit this)
 
-The release workflow auto-commits updated stats to `docs/static/codebase_stats.json`.
-Verify it ran, or generate manually:
+⚠️ The deploy workflow regenerates `docs/static/codebase_stats.json` at build time but
+**only bakes it into the Pages artifact — it never commits the file back**. The generator
+appends only the version it runs on, so any release not committed here is permanently
+skipped from the growth chart's history (this caused the 0.14.1 → 0.25.0 gap). Generate
+AND commit every release:
 
 ```bash
-# Check if stats were auto-updated by CI
-git pull
-cat docs/static/codebase_stats.json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Current:', d['current']['version'])"
-
-# If stale, generate manually:
+# Generate stats for THIS release and append to committed history
 AILANG_VERSION=vX.X.X bash tools/generate_codebase_stats.sh
+
+# Verify, then commit (CI will NOT do this for you)
+jq -r '.current.version, (.history[-1].version)' docs/static/codebase_stats.json
 git add docs/static/codebase_stats.json
-git commit -m "Update codebase statistics for vX.X.X"
+git commit -m "data(stats): codebase statistics for vX.X.X"
 git push
 ```
 
 - [ ] `codebase_stats.json` shows vX.X.X as current
-- [ ] History includes vX.X.X entry
+- [ ] History includes vX.X.X entry (no gap vs. previous release)
+- [ ] Committed and pushed
 
 ## 3. Update Website Dashboard
 
