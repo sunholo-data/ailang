@@ -2648,3 +2648,18 @@ ITERATES on its own syntax errors but gets cut off). NEXT: fix #19 (persistence 
 didn't fire; nudge "continue, the task isn't done" when finish_reason=stop + the target file doesn't
 compile). Then the model can iterate to convergence. The residual syntax drift (`\x.`) is addressable too
 (R1 typed diagnostics already exist; + a one-line AILANG-lambda nudge in SYSTEM.md).
+
+---
+
+## 2026-06-23 — #19 cheap-confirm first: SYSTEM.md persistence + lambda directives (before risky core-loop change)
+
+The v2 loop DELIBERATELY stops on a prose-only turn (agent_loop_v2.ail:817 "no continuation-intent
+heuristic needed"; the NoDecision/None branch emits done on the model's prose). PR #47's nudge is not in
+this path. The deterministic fix is a continuation-intent check in that branch (nudge+recurse instead of
+done) — but that's a risky CORE-loop change. Per observe→cheap-confirm→build, testing the cheaper lever
+first (now that #18 makes SYSTEM.md actually load): a persistence directive ("never narrate-and-stop; call a
+tool to act; keep going until complete+compiling") + a lambda-syntax note ("\x ->" not Haskell "\x."). These
+target the two reasons docx-guided failed: premature-stop (#19) + the `\x.` drift. Re-running docx
+(docx_persist) — does the guided model now keep acting (no premature finish_reason=stop) and write COMPILING
+AILANG? If the model honors the directive → cheap win. If it ignores it → the deterministic core-loop nudge
+(NoDecision-None continuation-intent check, step_budget-bounded) is the justified next build.
