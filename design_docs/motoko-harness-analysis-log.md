@@ -2683,3 +2683,28 @@ syntax_reference.md in the workspace; agent_prompt.go pattern) — first represe
 
 NEXT (justified): build the #19 deterministic loop nudge. Secondary: reduce syntax-drift churn (the model
 makes+fixes many AILANG syntax errors; fewer would converge faster).
+
+---
+
+## 2026-06-23 — AST auto-route READ (the fruitful AST-read thread): build + cheap-confirm
+
+Pivoted back to the AST read/edit/query thread (ReadInterface was the "huge win"). OBSERVE on the agent-eval
+docx trace showed the real opportunity: ReadFile 68x vs ReadInterface 7x, and the model RE-READS sibling
+modules as FULL files — html_parser 12x, odt_parser 8x, document 6x, zip_extract 6x — when it only needs
+their API. It under-adopts the AST read and over-pulls full source.
+
+BUILD (fork, integration/editdecl-timeout): gated AST auto-route in run_read_file (tool_runtime.ail). When
+MOTOKO_AST_AUTOREAD is set, ReadFile on a *dependency* .ail returns its compact AST interface
+(ailang iface --compact) instead of full source; paths matching MOTOKO_AST_READ_FULL (edit target) keep full
+source; iface failure falls back to a full read; note tells the model to `cat` for the impl on demand. Env read
+via the Process effect already in the handler's row (no Env signature changes). Type-checks clean.
+
+CHEAP-CONFIRM (Gate 3, no GPU): iface --compact works on ALL the over-read deps and the win is large —
+html_parser 700->3 lines (~233x), odt_parser 320->6, document 227->27, zip_extract 280->19; output is clean
+signatures (the API), not noise. Open question the full run answers: were the 12x/8x re-reads for the API
+(interface suffices = big win) or as impl TEMPLATES (3 signatures give nothing to copy; model must `cat`)?
+
+VALIDATE: docx_astread launched (target+main full, deps->interface). Metric: context/read reduction +
+convergence (does it write compiling AILANG with far less read context?). EditDecl still 0-adoption on docx
+(from-scratch reimplement isn't its fit — a large-file FIX task is). NEXT after result: if positive, this is a
+default-on harness win; if templates needed, refine (serve iface + a body-on-first-read). Then AST-QUERY (#16).
