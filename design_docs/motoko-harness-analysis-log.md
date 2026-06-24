@@ -3003,3 +3003,14 @@ PLATEAU: high-impact levers DONE (bo-N goal met+deployed; harness-bug layer clea
 (user push), the docx-variance frontier (diminishing / possibly model-bound), and deferred P2/P3/P4. Next-fire
 options if rig free post-07:00: a FRESH broad rotation to confirm the harness fixes + bo-N hold 96%+ on live
 (not stale) data; else non-rig = AST-query toolset (#16) or docx structural-guidance variance test.
+
+## 2026-06-24 05:3x — OVERNIGHT plan (user away till morning)
+Goal met (bo-N 97.4%, deployed). Overnight substantive work = docx best-of-N demonstration: bestof.sh 6
+launched (b0tryos1q) — blackout-aware (waits to 07:00), runs docx up to 6x with the incremental-writing nudge,
+verify.sh each, STOPS at first 17/17. Demonstrates the proven best-of-N lever captures qwen3.6's high-variance
+syntax adherence (base ~1/3 -> bo-6 ~91%). Summary -> /tmp/docx_bestof_summary.txt; notifies on completion.
+ON COMPLETION (morning): record best_of_n_pass + #runs-to-pass; if PASS -> docx is solvable-via-bo-N (frontier
+closed pragmatically); if 0/6 -> base rate lower than 1/3 OR the incremental nudge didn't help -> structural-
+syntax is a deeper model limit. Interim fires: rig is HELD by bestof -> non-rig only. STILL BLOCKED ON USER:
+push the ~15 fork commits (integration/editdecl-timeout, clean+type-checks) + open DRAFT PR to
+arniwesth/motoko_agent (gh auth login --insecure-storage first; headless can't push).
