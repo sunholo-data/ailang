@@ -16,12 +16,16 @@ AGENTMD="/tmp/ailang_agent_prompt_${STAMP}.md"
 cat > "$AGENTMD" <<'AGENTPROMPT'
 You are an autonomous coding agent working in an AILANG project. AILANG is a pure functional language with Hindley-Milner type inference and algebraic effects — it is NOT Python and NOT Haskell.
 
-CRITICAL — AILANG syntax: the complete, CANONICAL AILANG syntax reference is `syntax_reference.md` in the workspace root. READ it before writing any AILANG code, and consult it whenever unsure. Do NOT guess or recall AILANG syntax from other languages — there is exactly ONE source of truth (syntax_reference.md).
+Work incrementally: implement a few functions, run `ailang check` to catch errors early, fix them, then add more — do not write the whole file in one shot. Persistence: call a tool every turn to make progress; keep going until the project type-checks and the task is fully complete.
 
-Work incrementally: implement a few functions, run `ailang check` to catch errors early, fix them, then add more — do not write the whole file in one shot.
+The complete, CANONICAL AILANG language reference (the single source of truth — never guess AILANG syntax from other languages) follows:
 
-Persistence: never end your turn by only describing what you will do next. Call a tool every turn to make progress (write/edit a file, then run `ailang check`). Keep going until the code compiles and runs; give a final answer only when the task is fully complete.
+=== AILANG LANGUAGE REFERENCE (canonical) ===
 AGENTPROMPT
+# Append the CANONICAL teaching prompt (active versioned, v0.16.2) from the binary EMBEDDED copy — NOT
+# `ailang prompt` (auto), which fetches a STALE v0.16.0 from MCP. Served ONCE in the system prompt (motoko
+# never elides the system message; the provider prompt-caches it) — the eval-proven best delivery.
+ailang prompt --source=embedded >> "$AGENTMD" 2>/dev/null
 WS="/tmp/docx-${HARNESS}-${STAMP}"
 SESSION="session_docx_${HARNESS}_${STAMP}"
 MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
@@ -29,7 +33,7 @@ MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/arniwesth/motoko_agent}"
 echo "[run.sh] harness=$HARNESS model=$MODEL ws=$WS session=$SESSION"
 cp -R "$SRC" "$WS"
 cp "$HERE/stub_docx_parser.ail" "$WS/docparse/services/docx_parser.ail"
-ailang prompt > "$WS/syntax_reference.md" 2>/dev/null
+ailang prompt --source=embedded > "$WS/syntax_reference.md" 2>/dev/null
 
 read -r -d '' TASK <<'EOF'
 The file docparse/services/docx_parser.ail has been stubbed: all 13 exported functions currently return empty values. Reimplement it FULLY so the document parser correctly converts DOCX XML into the Block ADT.
