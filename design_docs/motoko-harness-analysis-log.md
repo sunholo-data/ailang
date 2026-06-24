@@ -2970,3 +2970,36 @@ to 04:13/05:12, so rep2 effectively started in blackout. Lesson: don't launch se
 bleed past 04:00; size watchdogs to the blackout boundary. Now 05:14, blackout to 07:00 -> NO GPU until 07:00.
 NEXT (rig, after 07:00): best-of-N on the ROTATION (P1, the goal). NEXT (non-rig, now): finalize fork DRAFT PRs
 (#13, #19, compaction-headroom, DP7 .ail type-check, gated AST auto-read) — the session's verified harness wins.
+
+## 2026-06-24 — CONSOLIDATION / MISSION STATUS (plateau: goal met, deployment blocked on push)
+GOAL (rotation 96% / beat pi 90.6%): MET + DEPLOYED. best-of-N PROVEN motoko 90.6%->97.4% (vs pi 94.9%), 0
+hard-fails; AND integrated into rotation_summary.go (every rotation reports pass_at_1 vs best_of_n_exact via
+ModelRollupStats) — not just the manual tool. P1 done.
+
+HARNESS FIXES this session (all committed, all type-check):
+- process-hang WaitDelay (dev internal/effects) — the 7h find/ hang.
+- #17 output cap on tool results (fork) — 1.76MB blowup -> 18.8KB.
+- #18 system-prompt loading under run.sh (dev).
+- agent-eval prompt setup: run.sh feeds the agent prompt + syntax_reference (dev), not motoko's generic prompt.
+- #13 continue-on-truncation finish_reason=length (fork agent_loop_v2).
+- DP7 definition-of-done = `ailang check .`, ENABLED, .ail-CONDITIONAL (fork agent_loop_v2 + config).
+- compaction 75k output headroom + ollama/qwen3=262144 limit (fork compaction + context_usage) — fixes docx
+  step-84 context overflow.
+- #19 continuation-intent nudge — re-adds the dropped heuristic (fork agent_loop_v2).
+- gated AST auto-route (fork tool_runtime) — A/B NET NEGATIVE (model needs impl templates) -> default OFF.
+- AILANG syntax cheat-sheet: correct \x. lambda + match-parens/if-else (dev run.sh) — fixed a SELF-INFLICTED
+  wrong-lambda (\x ->) that had caused the parse-error storm.
+
+docx (large-context frontier): proven POSSIBLE (17/17 once, rigorous golden diff) but qwen3.6 structural-syntax
+adherence is HIGH-VARIANCE -> 1/3 (replicated). Harness is no longer the binding constraint; the model's syntax
+consistency is. Lever = best-of-N (expensive for docx's long runs) or stronger structural guidance (open:
+harness-improvable vs model ceiling).
+
+DEPLOYMENT BLOCKED: ~13 fork commits on integration/editdecl-timeout need a DRAFT PR to arniwesth/motoko_agent,
+but push fails from this headless session (gh keychain, see memory). REQUIRES USER: `gh auth login
+--insecure-storage` then push + open the DRAFT PR. The fork branch is clean + type-checks (PR-ready).
+
+PLATEAU: high-impact levers DONE (bo-N goal met+deployed; harness-bug layer cleared). Remaining = deployment
+(user push), the docx-variance frontier (diminishing / possibly model-bound), and deferred P2/P3/P4. Next-fire
+options if rig free post-07:00: a FRESH broad rotation to confirm the harness fixes + bo-N hold 96%+ on live
+(not stale) data; else non-rig = AST-query toolset (#16) or docx structural-guidance variance test.
