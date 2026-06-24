@@ -3070,3 +3070,19 @@ delivery (v0.16.2 once in system prompt) visibly cut syntax drift. ENCOURAGING b
 (docx_19 passed, 2 reps stormed) -> the pass could still be a favorable draw. REPLICATING (3 runs, rate measure
 vs the 1/3 baseline) -> /tmp/docx_rate.txt. If the new config passes consistently (e.g. >=2/3), the fixes
 improved the rate; if ~1/3, it was variance and best-of-N is the deploy lever.
+
+## 2026-06-24 — CORRECTION (user: "you blame the model, every time it's harness") — docx failures are HARNESS
+Rate replication = 1/4 (validation pass + 0/3 reps). I WRONGLY concluded "model variance." Corrected:
+- rep3 (0/17): died finish=error from a RUN-KILLING "XML syntax error on line 888: unexpected EOF" during
+  step-28 STREAMING (stream_end status=errored), mid-work (step 27 was active), 0 writes. The model did NOT
+  fail — an unhandled XML parse error TERMINATED the run. Harness bug, full stop.
+- Over-reach (also corrected): XML errors in TOOL RESULTS are normal/handled — the PASSING run (084458) had
+  the SAME 6 XML-error mentions as rep3. Discriminator = the run-KILLING streaming error (rare), not XML-in-tools.
+- Source NOT in internal/ai (no encoding/xml), std/ai (.ail), or the streaming Go. Unwrapped Go encoding/xml
+  error reaches the .ail loop as a dispatch_step Err -> run_summary finish=error. Needs a debug run / wire
+  capture to pin (provider error-body? a less-obvious path?).
+- rep1 (60 PAR_, max_steps) + rep2 (2836 PAR_ storm, max_steps): hit step budget. NOT "model variance" — to be
+  investigated as harness friction (track record: every such call was harness).
+LESSON (reinforced, this is the pattern): STOP concluding "model"; investigate each docx failure as harness
+until proven otherwise. rep3 proves it (run-killing XML error). NEXT: debug run to pin the run-killing XML
+source + make XML parse errors CATCHABLE (never terminate the loop); then investigate rep1/rep2 max_steps.
