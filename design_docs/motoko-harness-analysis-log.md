@@ -2934,3 +2934,14 @@ drop is exactly why docx stopped at step 36 mid-exploration ("Now let me check..
 VALIDATE: docx_19 (bwtwfjjjz) launched — tests #19 + the overflow fix UNDER STRESS (a longer run reaches a
 large context) + the match/if-else cheat-sheet (needs the model to actually write). Early-check (grep -c bug
 fixed, session-pinned): does continuation_nudge fire + does the model now write (vs 0) + progress past step 36?
+
+## 2026-06-24 — *** docx 0/17 -> 17/17 *** (n=1, verified by golden diff; REPLICATING)
+docx_19 (all harness fixes in place): summary=stop at step 22, model wrote a 480-line parser, 3 WriteFile,
+PAR_=0, 0 overflow, peak input 49K, dp7_rejected=0 — and **verify.sh: 17 passed, 0 failed** (rigorous
+deterministic golden diff over 17 real DOCX fixtures). Re-verified independently from the artifact: project
+type-checks (68 files), 17/17. FIRST full docx pass after a session of 0/17.
+What changed (vs the 0/17 runs): the cheat-sheet (correct \x. lambda + match-parens/if-else) let the model
+write CLEAN parseable AILANG (0 PAR_) and converge FAST (22 steps) instead of grinding the parse-error storm.
+The #19 nudge did NOT fire this run (continuation_nudge=0 — the model didn't get stuck), and the overflow fix
+held but wasn't stressed (49K). So the productivity lever was the SYNTAX cheat-sheet; #19/overflow/DP7/cap are
+robustness that compounded. CAVEAT: n=1, qwen temp>0 — REPLICATING (2 fresh runs) before declaring docx solved.
