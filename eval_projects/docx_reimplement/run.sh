@@ -21,6 +21,7 @@ CRITICAL — AILANG syntax (these are the high-frequency parse mistakes — get 
 - Match: arms use => and constructor patterns need PARENS:  match o { Some(x) => x, None => 0 }   (NOT `Some x =>`; arms comma-separated; wrap arms in { }).
 - `if` is an EXPRESSION and ALWAYS needs `else`:  if c then a else b   (chain: else if c2 then ...). Simple branches need no braces.
 - Keep { } ( ) [ ] balanced — in a large file one missing close-bracket cascades into many parse errors.
+- Work INCREMENTALLY: implement a few functions, run ailang check to catch errors early, fix them, THEN add more. Do not write the whole file in one shot — one structural slip (stray brace, missing else, mixed body style) cascades into many parse errors.
 - -> appears ONLY in TYPES / signatures:  func f(x: int) -> int ! {IO}
 - Function body — pick ONE style per function: block  func f() -> int { let x = 1; let y = 2; x + y }  (semicolons, NO in)  OR  expr  func f() -> int = let x = 1 in let y = 2 in x + y  (uses in, no braces)
 - Everything is an expression: no return, no statements, no loops — use recursion or list builtins like map(\x. x*2, xs).
