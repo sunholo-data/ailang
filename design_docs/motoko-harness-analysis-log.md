@@ -2945,3 +2945,5 @@ write CLEAN parseable AILANG (0 PAR_) and converge FAST (22 steps) instead of gr
 The #19 nudge did NOT fire this run (continuation_nudge=0 — the model didn't get stuck), and the overflow fix
 held but wasn't stressed (49K). So the productivity lever was the SYNTAX cheat-sheet; #19/overflow/DP7/cap are
 robustness that compounded. CAVEAT: n=1, qwen temp>0 — REPLICATING (2 fresh runs) before declaring docx solved.
+
+<!-- IN FLIGHT: 2 docx replications running (detached, /tmp/docx_rep_summary.txt). Confirm docx 17/17 replicates (n=3) or was variance. If 2/2 pass -> docx SOLVED for qwen3.6; the syntax cheat-sheet + harness fixes compound. Then: port the cheat-sheet into the proper layer (ailang prompt / syntax_reference the model reads) for the ROTATION too, and the fork DRAFT PRs (#13 truncation-continue, #19 nudge, compaction headroom, AST auto-route gated, DP7 .ail type-check). -->
