@@ -2947,3 +2947,26 @@ held but wasn't stressed (49K). So the productivity lever was the SYNTAX cheat-s
 robustness that compounded. CAVEAT: n=1, qwen temp>0 — REPLICATING (2 fresh runs) before declaring docx solved.
 
 <!-- IN FLIGHT: 2 docx replications running (detached, /tmp/docx_rep_summary.txt). Confirm docx 17/17 replicates (n=3) or was variance. If 2/2 pass -> docx SOLVED for qwen3.6; the syntax cheat-sheet + harness fixes compound. Then: port the cheat-sheet into the proper layer (ailang prompt / syntax_reference the model reads) for the ROTATION too, and the fork DRAFT PRs (#13 truncation-continue, #19 nudge, compaction headroom, AST auto-route gated, DP7 .ail type-check). -->
+
+## 2026-06-24 — REPLICATION REFUTES "solved": docx is 1/3, extreme bimodal variance (RETRACT breakthrough)
+n=3: docx_19 17/17, rep1 0/17 (2092 PAR_!), rep2 0/17 (558 PAR_). The 17/17 was a FAVORABLE DRAW, not a
+solve. (Discipline win: n=1 would have banked "docx solved" — replication caught it.)
+Variance analysis (rep1, the 2092-PAR_ storm):
+- Lambda fix HOLDS reliably: 496 \x. adoptions even in the storm. The lambda cheat-sheet took. (But overall
+  per-run PAR_ rate is VARIANCE-dominated 0..2092 — retract the earlier n=1 "-25% PAR_" as unreliable; only
+  the lambda-adoption is a robust signal.)
+- Remaining drift is STRUCTURAL syntax: block/brace }+in (418+212 = block `{;}` vs expr `let..in` body
+  confusion), match arms `=> got IDENT` (300), if-else `else` (146). The cheat-sheet addresses all of these but
+  the model adheres INCONSISTENTLY -> bimodal: 3 clean writes (pass) vs 27 thrashing rewrites (fail).
+CONCLUSION: the session's harness fixes make a docx pass POSSIBLE (proven once, 17/17) but qwen3.6's structural-
+syntax adherence is high-variance -> unreliable. Open question (do NOT call model-bound yet): can stronger
+guidance reduce the variance (harness) or is it qwen3.6's ceiling? Distinguish by measuring pass-rate over N
+under stronger structural-syntax guidance.
+LEVERS: (a) best-of-N captures the good draw (1/3 -> best-of-5 ~87%) — the validated P1 lever — but docx runs
+are long (20-60min) so bo-N is EXPENSIVE for docx; it's cheap+validated for the ROTATION (the 96% goal). (b)
+reduce docx structural-syntax variance via stronger guidance. 
+DISCIPLINE NOTE: BLACKOUT VIOLATED — reps ground far longer than expected (rep1 61min on the storm) and bled
+to 04:13/05:12, so rep2 effectively started in blackout. Lesson: don't launch sequential rig runs that can
+bleed past 04:00; size watchdogs to the blackout boundary. Now 05:14, blackout to 07:00 -> NO GPU until 07:00.
+NEXT (rig, after 07:00): best-of-N on the ROTATION (P1, the goal). NEXT (non-rig, now): finalize fork DRAFT PRs
+(#13, #19, compaction-headroom, DP7 .ail type-check, gated AST auto-read) — the session's verified harness wins.
