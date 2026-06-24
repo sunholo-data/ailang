@@ -3045,3 +3045,19 @@ the turn (the model produced nothing), bounded by step_budget, BEFORE dp7. Unamb
 HELD for user confirm (core-loop change; user steering + reverted the prior #19 attempt). The 3 harness-
 correctness fixes remain pending the user's decisions: this empty-response retry, prompt-serving (--source=
 embedded once in system prompt; A/B/C on the stale CLI), length estimate (count tool_calls / provider input_tokens).
+
+## 2026-06-24 — PROCEED WITH FIXES (user-authorized): all 3 harness-correctness fixes implemented + validating
+User said "proceed with fixes." Implemented + type-checked + committed:
+- #1 (fork agent_loop_v2): empty-response RETRY — a non-tool_calls turn with empty content is degenerate (model
+  produced nothing); re-issue instead of letting dp7_gate pass it as done. Gated MOTOKO_RETRY_EMPTY (default on).
+  Replaces the reverted intent-phrase heuristic (empty is unambiguous). Root cause replicated n>1.
+- #3 (fork compaction): estimate_tokens_messages now counts tool_calls (name+arguments) — WriteFile/EditFile
+  carry the full file in arguments, re-sent every turn; counting only content undercounted -> overflow. Root
+  fix behind the 75k headroom.
+- #2 (dev cmd/ailang/prompt.go): default 'ailang prompt' --source=embedded (was auto -> stale MCP cache served
+  v0.16.0 vs embedded/canonical v0.16.2). Takes effect on next make install; eval harness uses versions.json so
+  unaffected. docx run.sh already uses --source=embedded explicitly.
+VALIDATE: docx_fixes (bgk7qv9x0) launched — MOTOKO_REPO=mk-integration (has #1+#3) + canonical v0.16.2 system
+prompt. Watch: empty_response_retry events (#1 firing), 0 context-overflow (#3+headroom), convergence. n=1 will
+be directional only (docx variance) — replicate before claiming. The 3 fixes are the user's harness-correctness
+frontier (canonical prompt delivery + respect length + uncaught errors).
