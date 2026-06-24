@@ -1,17 +1,24 @@
-# MISSION: Make Motoko Competitive on Local AILANG
+# MISSION: Make Motoko the Best AILANG-Specific Code Harness
 
 **Type:** Long-running mission (advanced in downtime, e.g. while evals run)
-**North star:** the AILANG-native harness (motoko) should match or beat the generic
-harnesses (pi 96%, opencode 79%) on local-AILANG synthesis.
+**North star:** motoko should be the BEST harness for writing AILANG specifically — exploiting structural
+advantages a generic harness on an untyped language cannot (typed-interface reads, AST edits/queries, effect
+rows, contracts + Z3 verification, exact best-of-N selection), with robust large-context AILANG synthesis and
+CORRECT, consistent delivery of the canonical AILANG teaching prompt into every session.
 
-**STATUS 2026-06-21 — CORE GOAL MET (standard set).** Fresh broad post-fix baseline
-(`eval_results/rotation/postfix-broad-20260621`, 49 smoke+core benches × 2 trials, clean dir):
-motoko **pass@1 = 96.9% / best-of-N EXACT = 100% / 0 hard-fails**. **AIRTIGHT head-to-head confirmed
-2026-06-21** (fresh pi on the SAME 49 benches × 2 trials, `postfix-broad-pi-20260621`): **pi = 96.9%
-pass@1 / 98% best-of-N** → **motoko = pi at pass@1 (PARITY), motoko slightly ahead on best-of-N (100% vs
-98%, within noise = 1 benchmark)**. Trajectory: ~26% (mission start) → **96.9% (parity with pi)**, driven
-by the truncation fix; best-of-N shipped as a first-class rotation metric. **Core goal "match or beat pi"
-= MET.**
+**MILESTONE ACHIEVED (2026-06-21), NOT THE GOAL:** "match or beat pi" is DONE — motoko = pi at pass@1 (parity)
++ ahead on best-of-N; best-of-N shipped as a first-class rotation metric. Do NOT re-derive "beat pi" as the
+goal or declare victory on it again — that bar is behind us.
+
+**CURRENT GOAL = best AILANG-specific harness. The frontier is HARNESS CORRECTNESS + AILANG-native power:**
+1. CANONICAL PROMPT DELIVERY — the versioned teaching prompt (prompts/versions.json / `ailang prompt`) must be
+   inserted into EVERY motoko session consistently (persistent system prompt, like all other evals). The
+   recurring system-prompt failure. NEVER duplicate or approximate it with ad-hoc cheat-sheets — one source.
+2. RESPECT CONTEXT LENGTH — compaction must use the model's real token accounting (provider input_tokens /
+   count tool_calls, not a content-only estimate) so sessions never overflow the model window.
+3. UNCAUGHT HARNESS ERRORS — premature stops / disengagement are HARNESS bugs (swallowed errors), NOT model
+   capacity. Every such case this arc was a harness bug. Find the error; do not band-aid with heuristics.
+4. AILANG-NATIVE POWER — AST edits/queries, typed-interface reads, contracts+Z3, exact best-of-N: the moat.
 
 **The standard set is now SATURATED** (both harnesses 100% best-of-N ceiling, 0 hard-fails) — it can no
 longer discriminate "best vs equal." **Remaining (optional, "best not just equal"):** the large-context
