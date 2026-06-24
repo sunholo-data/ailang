@@ -2923,3 +2923,14 @@ to the #13 length-continue) — detect intent phrases ("let me", "now i", "i'll"
 prose -> inject a "continue, call a tool" nudge + recurse, bounded by step_budget, gated MOTOKO_CONTINUE_ON_INTENT
 (default on). Unblocks BOTH docx progress AND stress-validating the overflow fix (a longer run reaches a large
 context). Then re-run to finally validate the match/if-else cheat-sheet (needs the model to actually write).
+
+## 2026-06-24 — BUILD #19 continuation-intent nudge (re-adds the heuristic the typed loop dropped)
+Implemented in agent_loop_v2 NoDecision branch (next to the #13 length-continue): on a prose-only `stop` turn
+whose text signals intent to keep working (continuation_intent: "let me"/"now i"/"i'll"/"i will"/"next i"/
+"then i"/"going to"/"i need to"), inject a "continue, call a tool" nudge + recurse instead of ending. Bounded
+by step_budget; gated MOTOKO_CONTINUE_ON_INTENT (default on). The old text-based loop HAD an
+indicates_continuation_intent heuristic; the typed v2 loop dropped it ("prose-only unambiguously stops") — that
+drop is exactly why docx stopped at step 36 mid-exploration ("Now let me check..."). Type-checks clean.
+VALIDATE: docx_19 (bwtwfjjjz) launched — tests #19 + the overflow fix UNDER STRESS (a longer run reaches a
+large context) + the match/if-else cheat-sheet (needs the model to actually write). Early-check (grep -c bug
+fixed, session-pinned): does continuation_nudge fire + does the model now write (vs 0) + progress past step 36?
