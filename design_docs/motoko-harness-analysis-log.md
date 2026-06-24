@@ -3014,3 +3014,20 @@ closed pragmatically); if 0/6 -> base rate lower than 1/3 OR the incremental nud
 syntax is a deeper model limit. Interim fires: rig is HELD by bestof -> non-rig only. STILL BLOCKED ON USER:
 push the ~15 fork commits (integration/editdecl-timeout, clean+type-checks) + open DRAFT PR to
 arniwesth/motoko_agent (gh auth login --insecure-storage first; headless can't push).
+
+## 2026-06-24 (autonomous) — #19 ROOT CAUSE: loop treats an EMPTY response as "done" (uncaught harness error)
+Read-only trace analysis of the premature-stop run (session 005827, stopped step 36, 0 writes). Conclusive:
+- step 34: model emits preamble + 2 tool calls (finish=tool_calls) — working normally.
+- step 35: model emits 45 output_tokens but content='' , 0 tool_calls, finish=stop. The loop's NoDecision ->
+  dp7_gate path sees a non-tool_calls turn, the stub type-checks, so it emits "done".
+DIAGNOSIS (confirms user: harness error, NOT model capacity): the model glitched — produced 45 reasoning
+tokens then an EMPTY final turn (a qwen/ollama reasoning-model quirk where the turn ends after <think> with no
+content/tool-call). The harness mis-read this DEGENERATE empty response (finish=stop + content='' + 0 tool_calls)
+as a valid completion. A real "done" has a final answer; an empty stop is the model producing nothing.
+CORRECT FIX (NOT the reverted intent-phrase heuristic): in the v2 loop, detect a degenerate turn
+(finish != tool_calls AND content is empty/whitespace AND 0 tool_calls) -> RE-ISSUE the turn (the model
+produced nothing actionable), bounded by step_budget, instead of treating it as done. This is unambiguous (an
+empty response is never a valid completion) — no prose heuristic needed. HELD for user confirm (core-loop
+change; user is steering + reverted the prior #19 attempt). Also still pending user: prompt-serving fix
+(ailang prompt --source=embedded, once, system prompt — A/B/C on the CLI), and the length estimate counting
+tool_calls / using provider input_tokens.
