@@ -3031,3 +3031,17 @@ empty response is never a valid completion) — no prose heuristic needed. HELD 
 change; user is steering + reverted the prior #19 attempt). Also still pending user: prompt-serving fix
 (ailang prompt --source=embedded, once, system prompt — A/B/C on the CLI), and the length estimate counting
 tool_calls / using provider input_tokens.
+
+## 2026-06-24 (autonomous) — #19 root cause REPLICATED (n>1) + mechanism precise
+Read-only scan of 6 recent docx runs for the degenerate empty-response pattern (finish=stop, content empty,
+0 tool_calls, output_tokens>0): present in 4/6 runs, 1-3x each (220155 had 3; 005827/031149/225214 had 1).
+So the empty/degenerate turn is a RECURRING harness phenomenon, not a one-off. Mechanism (precise):
+- an empty turn is FATAL only when the project TYPE-CHECKS at that moment — dp7_gate passes the degenerate
+  turn -> "done". 005827 (stop@36): the stub was unmodified (type-checks) -> premature done, 0 writes.
+- when the code does NOT type-check, dp7 rejects -> loop continues (220155: 3 empty-stops, still reached
+  max_steps). So dp7 accidentally masks it sometimes, but not when the target is an as-yet-untouched stub.
+=> Confirms the FIX: never treat finish!=tool_calls + empty content + 0 tool_calls as a done-candidate; RETRY
+the turn (the model produced nothing), bounded by step_budget, BEFORE dp7. Unambiguous, no heuristic. Still
+HELD for user confirm (core-loop change; user steering + reverted the prior #19 attempt). The 3 harness-
+correctness fixes remain pending the user's decisions: this empty-response retry, prompt-serving (--source=
+embedded once in system prompt; A/B/C on the stale CLI), length estimate (count tool_calls / provider input_tokens).
