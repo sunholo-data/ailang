@@ -20,7 +20,7 @@ func runPrompt() {
 	infoFlag := promptFS.Bool("info", false, "Show metadata for specified version")
 	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact version (~15KB vs ~49KB)")
 	versionActiveFlag := promptFS.Bool("version-active", false, "Print the active prompt version (machine-parseable)")
-	sourceFlag := promptFS.String("source", "auto", "Where to load the prompt from: auto|mcp|embedded (default auto). Use embedded for reproducible eval runs.")
+	sourceFlag := promptFS.String("source", "embedded", "Where to load the prompt from: auto|mcp|embedded (default embedded — current via build, reproducible). auto/mcp fetch the remote MCP copy, which can lag the embedded active version.")
 	helpFlag := promptFS.Bool("help", false, "Show help for prompt command")
 
 	_ = promptFS.Parse(flag.Args()[1:])
