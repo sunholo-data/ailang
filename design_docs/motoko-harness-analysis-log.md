@@ -3061,3 +3061,12 @@ VALIDATE: docx_fixes (bgk7qv9x0) launched — MOTOKO_REPO=mk-integration (has #1
 prompt. Watch: empty_response_retry events (#1 firing), 0 context-overflow (#3+headroom), convergence. n=1 will
 be directional only (docx variance) — replicate before claiming. The 3 fixes are the user's harness-correctness
 frontier (canonical prompt delivery + respect length + uncaught errors).
+
+## 2026-06-24 — fixes VALIDATION run PASSED 17/17 (n=1, new config); replicating for the rate
+docx_fixes (084458): all 3 fixes + canonical v0.16.2 prompt. summary=stop@50, 17/17, parser 544 lines type-
+checks. Fix instrumentation clean: empty_response_retry=0, overflow=0, truncated_continue=0, peak_input 79231
+(<<262144). PAR_=80/50 steps = 1.6/step — far below the prior storms (6.5-8.6/step) -> the canonical-prompt
+delivery (v0.16.2 once in system prompt) visibly cut syntax drift. ENCOURAGING but n=1; docx historically 1/3
+(docx_19 passed, 2 reps stormed) -> the pass could still be a favorable draw. REPLICATING (3 runs, rate measure
+vs the 1/3 baseline) -> /tmp/docx_rate.txt. If the new config passes consistently (e.g. >=2/3), the fixes
+improved the rate; if ~1/3, it was variance and best-of-N is the deploy lever.
