@@ -1,0 +1,8 @@
+[package]
+name = "eval_projects/stats_probe"
+version = "0.1.0"
+edition = "1"
+[exports]
+modules = ["eval_projects/stats_probe/nums", "eval_projects/stats_probe/main"]
+[effects]
+max = ["IO"]

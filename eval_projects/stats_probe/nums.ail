@@ -1,0 +1,14 @@
+module eval_projects/stats_probe/nums
+
+-- Sum a list of ints via recursion (AILANG has no loops). REFERENCE PATTERN — copy this shape.
+export pure func sumList(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    x :: rest => x + sumList(rest)
+  }
+
+-- TODO (the task): implement and EXPORT these four, all by recursion like sumList:
+--   countList(xs: [int]) -> int        -- number of elements
+--   avg(xs: [int]) -> int              -- integer mean = sumList / countList
+--   maxList(xs: [int]) -> int          -- largest element (assume non-empty)
+--   sumSquares(xs: [int]) -> int       -- sum of x*x over the list

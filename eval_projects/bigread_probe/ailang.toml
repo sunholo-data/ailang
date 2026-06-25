@@ -1,0 +1,8 @@
+[package]
+name = "eval_projects/bigread_probe"
+version = "0.1.0"
+edition = "1"
+[exports]
+modules = ["eval_projects/bigread_probe/solution", "eval_projects/bigread_probe/main"]
+[effects]
+max = ["IO"]

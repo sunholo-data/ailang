@@ -1,0 +1,4 @@
+module eval_projects/bigread_probe/main
+import std/io (println)
+import ./solution (answer)
+export func main() -> () ! {IO} { println(show(answer())) }

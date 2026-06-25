@@ -1,0 +1,4 @@
+module eval_projects/bigread_probe/solution
+
+-- TODO (the task): implement and EXPORT `answer() -> int` returning the magic number
+-- found in bigdata.txt.

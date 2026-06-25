@@ -1,0 +1,9 @@
+module eval_projects/stats_probe/main
+
+import std/io (println)
+import ./nums (avg, maxList, sumSquares)
+
+export func main() -> () ! {IO} {
+  let xs = [10, 20, 30, 40, 50];
+  println("${show(avg(xs))} ${show(maxList(xs))} ${show(sumSquares(xs))}")
+}
