@@ -371,7 +371,7 @@ func (p *Parser) literalKind() ast.LiteralKind {
 func (p *Parser) literalValue() interface{} {
 	switch p.curToken.Type {
 	case lexer.INT:
-		v, _ := strconv.ParseInt(p.curToken.Literal, 10, 64)
+		v, _ := parseIntLiteralValue(p.curToken.Literal)
 		return v
 	case lexer.FLOAT:
 		v, _ := strconv.ParseFloat(p.curToken.Literal, 64)

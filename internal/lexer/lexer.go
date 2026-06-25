@@ -511,6 +511,34 @@ func (l *Lexer) readNumber() (string, bool) {
 	position := l.position
 	isFloat := false
 
+	// Hex (0x), binary (0b), octal (0o) integer literals. Read the radix digits
+	// and return early — these are always integers (no float/exponent suffix).
+	if l.ch == '0' {
+		switch l.peekChar() {
+		case 'x', 'X':
+			l.readChar() // consume '0'
+			l.readChar() // consume radix marker
+			for isHexDigit(l.ch) {
+				l.readChar()
+			}
+			return l.input[position:l.position], false
+		case 'b', 'B':
+			l.readChar()
+			l.readChar()
+			for l.ch == '0' || l.ch == '1' {
+				l.readChar()
+			}
+			return l.input[position:l.position], false
+		case 'o', 'O':
+			l.readChar()
+			l.readChar()
+			for l.ch >= '0' && l.ch <= '7' {
+				l.readChar()
+			}
+			return l.input[position:l.position], false
+		}
+	}
+
 	for isDigit(l.ch) {
 		l.readChar()
 	}
@@ -704,6 +732,11 @@ func isLetter(ch rune) bool {
 
 func isDigit(ch rune) bool {
 	return unicode.IsDigit(ch)
+}
+
+// isHexDigit reports whether ch is a hexadecimal digit (0-9, a-f, A-F).
+func isHexDigit(ch rune) bool {
+	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
 }
 
 // Error represents a lexer error

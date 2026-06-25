@@ -1,0 +1,27 @@
+-- examples/integer_literals.ail
+-- Hexadecimal, binary, and octal integer literals.
+--
+-- AILANG integer literals accept radix prefixes in addition to plain decimal:
+--   0x / 0X  hexadecimal   (0xFF   = 255)
+--   0b / 0B  binary        (0b1010 = 10)
+--   0o / 0O  octal         (0o755  = 493)
+-- A leading zero on a plain decimal (e.g. 0123) stays decimal, never octal.
+--
+-- Run:
+--   ailang run --caps IO --entry main examples/integer_literals.ail
+
+module examples/integer_literals
+
+import std/io (println)
+
+export func main() -> () ! {IO} =
+  let red = 0xFF in        -- 255
+  let flags = 0b1010 in    -- 10
+  let perms = 0o755 in     -- 493
+  let pua = 0xE000 in      -- 57344: start of the Unicode private-use area
+  {
+    println("hex 0xFF   = ${show(red)}");
+    println("bin 0b1010 = ${show(flags)}");
+    println("oct 0o755  = ${show(perms)}");
+    println("pua 0xE000 = ${show(pua)}")
+  }

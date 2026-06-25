@@ -17,8 +17,21 @@ func (p *Parser) parseIdentifier() ast.Expr {
 	}
 }
 
+// parseIntLiteralValue converts an integer-literal token to int64. Hex (0x),
+// binary (0b), and octal (0o) prefixes use Go's base-0 auto-detection; everything
+// else stays base 10 so leading-zero decimals are NOT reinterpreted as octal.
+func parseIntLiteralValue(s string) (int64, error) {
+	if len(s) >= 2 && s[0] == '0' {
+		switch s[1] {
+		case 'x', 'X', 'b', 'B', 'o', 'O':
+			return strconv.ParseInt(s, 0, 64)
+		}
+	}
+	return strconv.ParseInt(s, 10, 64)
+}
+
 func (p *Parser) parseIntegerLiteral() ast.Expr {
-	value, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
+	value, err := parseIntLiteralValue(p.curToken.Literal)
 	if err != nil {
 		p.errors = append(p.errors, fmt.Errorf("could not parse %q as integer", p.curToken.Literal))
 		return nil

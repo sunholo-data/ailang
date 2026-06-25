@@ -4,6 +4,36 @@ import (
 	"testing"
 )
 
+func TestHexBinOctalLiterals(t *testing.T) {
+	// Radix integer literals (0x/0b/0o) lex as single INT tokens, preserving the prefix in
+	// the literal so the parser can base-detect. Leading-zero decimals stay decimal.
+	input := `0xE000 0xff 0XaB 0b1010 0B11 0o17 0O7 0 42 0123`
+	tests := []struct {
+		expectedType    TokenType
+		expectedLiteral string
+	}{
+		{INT, "0xE000"},
+		{INT, "0xff"},
+		{INT, "0XaB"},
+		{INT, "0b1010"},
+		{INT, "0B11"},
+		{INT, "0o17"},
+		{INT, "0O7"},
+		{INT, "0"},
+		{INT, "42"},
+		{INT, "0123"},
+		{EOF, ""},
+	}
+	l := New(input, "test.ail")
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType || tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d]: expected %v %q, got %v %q",
+				i, tt.expectedType, tt.expectedLiteral, tok.Type, tok.Literal)
+		}
+	}
+}
+
 func TestNextToken(t *testing.T) {
 	input := `let x = 5 + 10
 pure func add(a: int, b: int) -> int {
