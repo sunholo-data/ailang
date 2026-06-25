@@ -52,6 +52,7 @@ func chainsCommand() {
 		fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
 		fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
 		fmt.Println("  ailang chains health                # System-wide validation")
+		fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
 		fmt.Println()
 		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
 		os.Exit(1)
@@ -83,6 +84,8 @@ func chainsCommand() {
 		chainsChatCommand()
 	case "journey":
 		chainsJourneyCommand()
+	case "import-motoko":
+		chainsImportMotokoCommand()
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)
