@@ -1,6 +1,6 @@
 # M-IFACE-COMPACT-ADT-FIELDS: Compact Interface Carries ADT Constructor Fields
 
-**Status**: Planned
+**Status**: Implemented (v0.25.1, 2026-06-26)
 **Target**: v0.25.1
 **Priority**: P1 (defeats a shipped feature — AST iface-compaction — for ADT-heavy agent tasks)
 **Estimated**: 1 day
