@@ -1,0 +1,608 @@
+id: docx_reimplement
+description: Reimplement the stubbed AILANG DOCX parser (parseDocx -> Block ADT) in a multi-file workspace; graded on the parsed-block output of a real .docx fixture (base64-seeded).
+languages:
+- ailang
+entrypoint: main
+caps:
+- IO
+- FS
+difficulty: hard
+expected_gain: high
+tier: stretch
+tags:
+- adt_pattern_match
+- data_transform
+task_prompt: 'The exported function `parseDocx` in docparse/services/docx_parser.ail is STUBBED (returns []). Reimplement it so it converts a DOCX document into the Block ADT. Study docparse/services/zip_extract (readDocxContent unzips the .docx and returns the document XML), docparse/types/document (the Block constructors), and std/xml (parse/findAll/getText/getAttr). main.ail decodes the base64 .docx, calls parseDocx, and prints one tag per block; the package must typecheck and main''s output must match exactly. Run: ailang run --entry main --caps IO,FS main.ail'
+agent_env:
+  MOTOKO_AST_AUTOREAD: '1'
+  MOTOKO_AST_READ_FULL: docx_parser.ail:main.ail
+input_files:
+  docparse/types/document.ail: |
+    module docparse/types/document
+
+    -- Core document content model for AILANG Parse
+    -- Represents the universal output of parsing any document format.
+    -- All parsers (docx, pptx, xlsx) produce [Block] lists.
+
+    import std/string (length, join)
+    import std/list (filter, length as listLength)
+
+    -- A table cell with merge span info
+    -- colSpan: number of columns this cell spans (1 = normal)
+    -- rowSpan: number of rows this cell spans (1 = normal)
+    -- merged: true if this is a continuation cell (content lives in the span origin)
+    -- scope: "row" | "col" | "rowgroup" | "colgroup" | "" — populated by HTML
+    --        parser for <th scope=…>. Empty for normal data cells.
+    export type TableCell = {
+      text: string,
+      colSpan: int,
+      rowSpan: int,
+      merged: bool,
+      scope: string
+    }
+
+    -- A content block extracted from a document
+    --
+    -- LinkBlock represents an HTML anchor with href. Generators that don't
+    -- preserve link semantics (DOCX/PPTX paragraph writers, plain-text
+    -- renderers) treat it as a TextBlock with the anchor's visible text.
+    export type Block = TextBlock({text: string, style: string, level: int})
+                      | TableBlock({rows: [[TableCell]], headers: [TableCell], caption: string})
+                      | ImageBlock({data: string, description: string, mime: string, width: int, height: int, srcset: string, title: string, loading: string})
+                      | AudioBlock({data: string, transcription: string, mime: string})
+                      | VideoBlock({data: string, description: string, mime: string})
+                      | ListBlock({items: [string], ordered: bool})
+                      | HeadingBlock({text: string, level: int})
+                      | SectionBlock({kind: string, blocks: [Block]})
+                      | ChangeBlock({changeType: string, author: string, date: string, text: string})
+                      | LinkBlock({text: string, href: string, title: string})
+
+    -- Document metadata from core.xml / app.xml
+    export type DocMetadata = {
+      title: string,
+      author: string,
+      created: string,
+      modified: string,
+      pageCount: int
+    }
+
+    -- Full parsed document
+    export type ParsedDocument = {
+      format: string,
+      filename: string,
+      metadata: DocMetadata,
+      blocks: [Block]
+    }
+
+    -- Extraction result with quality info
+    export type ExtractionResult = {
+      document: ParsedDocument,
+      warnings: [string],
+      aiCallsUsed: int
+    }
+
+    -- Helpers for working with blocks
+
+    export pure func blockText(block: Block) -> string =
+      match block {
+        TextBlock(b) => b.text,
+        TableBlock(_) => "[table]",
+        ImageBlock(b) => "[image: ${b.description}]",
+        AudioBlock(b) => "[audio: ${b.transcription}]",
+        VideoBlock(b) => "[video: ${b.description}]",
+        ListBlock(b) => join(", ", b.items),
+        HeadingBlock(b) => b.text,
+        SectionBlock(b) => "[${b.kind}]",
+        ChangeBlock(b) => "[${b.changeType} by ${b.author}] ${b.text}",
+        LinkBlock(b) => "${b.text} <${b.href}>"
+      }
+
+    export pure func isHeading(block: Block) -> bool =
+      match block {
+        HeadingBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isTable(block: Block) -> bool =
+      match block {
+        TableBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isImage(block: Block) -> bool =
+      match block {
+        ImageBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isSection(block: Block) -> bool =
+      match block {
+        SectionBlock(_) => true,
+        _ => false
+      }
+
+    export pure func filterSections(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isSection, blocks)
+    }
+
+    export pure func countBlocks(blocks: [Block]) -> int
+      ensures { result >= 0 }
+    {
+      listLength(blocks)
+    }
+
+    export pure func filterHeadings(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isHeading, blocks)
+    }
+
+    export pure func filterTables(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isTable, blocks)
+    }
+
+    export pure func filterImages(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isImage, blocks)
+    }
+
+    export pure func isChange(block: Block) -> bool =
+      match block {
+        ChangeBlock(_) => true,
+        _ => false
+      }
+
+    export pure func filterChanges(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isChange, blocks)
+    }
+
+    -- Create a simple (non-merged) table cell
+    export pure func simpleCell(text: string) -> TableCell
+      ensures { result.colSpan == 1 && result.rowSpan == 1 && result.merged == false }
+    {
+      {text: text, colSpan: 1, rowSpan: 1, merged: false, scope: ""}
+    }
+
+    -- Create a header cell with HTML5 scope (row | col | rowgroup | colgroup)
+    -- Used by html_parser when extracting <th scope=…>. Other parsers can
+    -- continue using simpleCell.
+    export pure func scopedCell(text: string, scope: string) -> TableCell
+      ensures { result.colSpan == 1 && result.rowSpan == 1 && result.merged == false }
+    {
+      {text: text, colSpan: 1, rowSpan: 1, merged: false, scope: scope}
+    }
+
+    -- Create a merged continuation cell (empty, spanned from another cell)
+    export pure func mergedCell() -> TableCell
+      ensures { result.merged && length(result.text) == 0 }
+    {
+      {text: "", colSpan: 1, rowSpan: 1, merged: true, scope: ""}
+    }
+
+    -- Create a cell with column span
+    export pure func spanCell(text: string, cs: int) -> TableCell
+      ensures { result.colSpan == cs && result.merged == false }
+    {
+      {text: text, colSpan: cs, rowSpan: 1, merged: false, scope: ""}
+    }
+
+    -- Construct a TableBlock with no caption (most non-HTML parsers).
+    -- HTML parser uses mkTableFull when <caption> is present.
+    export pure func mkTable(rows: [[TableCell]], headers: [TableCell]) -> Block =
+      TableBlock({rows: rows, headers: headers, caption: ""})
+
+    -- Construct a TableBlock with a caption (HTML <caption> element).
+    export pure func mkTableFull(rows: [[TableCell]], headers: [TableCell], caption: string) -> Block =
+      TableBlock({rows: rows, headers: headers, caption: caption})
+
+    -- Get text from a table cell
+    export pure func cellText(cell: TableCell) -> string = cell.text
+
+    -- Construct an ImageBlock with default values for the extended HTML
+    -- attributes (width, height, srcset, title, loading). Most parsers
+    -- (DOCX/PPTX/ODT/EPUB/Markdown/TeX/AI) don't have these attributes to
+    -- extract, so this helper avoids forcing every constructor site to
+    -- pass empty strings / zeros.
+    export pure func mkImage(data: string, description: string, mime: string) -> Block =
+      ImageBlock({
+        data: data,
+        description: description,
+        mime: mime,
+        width: 0,
+        height: 0,
+        srcset: "",
+        title: "",
+        loading: ""
+      })
+
+    -- Construct an ImageBlock with all HTML5 image attributes populated.
+    -- Used by html_parser when extracting <img> tags and <picture>/<source>
+    -- elements. Pass 0 / empty string for any attribute that wasn't present.
+    export pure func mkImageFull(data: string, description: string, mime: string,
+                                  width: int, height: int, srcset: string,
+                                  title: string, loading: string) -> Block =
+      ImageBlock({
+        data: data,
+        description: description,
+        mime: mime,
+        width: width,
+        height: height,
+        srcset: srcset,
+        title: title,
+        loading: loading
+      })
+
+    -- Create an empty metadata record
+    export pure func emptyMetadata() -> DocMetadata
+      ensures { length(result.title) == 0 && result.pageCount == 0 }
+    {
+      {title: "", author: "", created: "", modified: "", pageCount: 0}
+    }
+  docparse/services/zip_extract.ail: |
+    module docparse/services/zip_extract
+
+    import std/zip (listEntries, readEntry, readEntryBytes)
+    import std/string (contains, length, endsWith, startsWith)
+    import std/result (Ok, Err)
+    import docparse/types/document (Block, ImageBlock, SectionBlock, mkImage)
+
+    -- ZIP extraction layer for Office documents
+    -- DOCX, PPTX, XLSX are all ZIP archives containing XML parts.
+    --
+    -- DOCX structure:
+    --   word/document.xml    - main content (paragraphs, runs, tables)
+    --   word/styles.xml      - style definitions
+    --   word/media/          - embedded images
+    --   docProps/core.xml    - metadata (title, author, dates)
+    --   docProps/app.xml     - app metadata (pages, words count)
+    --   [Content_Types].xml  - MIME type registry
+    --   word/_rels/document.xml.rels - relationships (image refs)
+
+    -- List all entries in an Office ZIP file
+    export func listOfficeEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => entries,
+        Err(_) => []
+      }
+    }
+
+    -- Read the main document XML from a DOCX
+    export func readDocxContent(path: string) -> string ! {FS} {
+      match readEntry(path, "word/document.xml") {
+        Ok(content) => content,
+        Err(e) => ""
+      }
+    }
+
+    -- Read the styles XML from a DOCX
+    export func readDocxStyles(path: string) -> string ! {FS} {
+      match readEntry(path, "word/styles.xml") {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Read the core properties (metadata) from an Office file
+    export func readCoreProperties(path: string) -> string ! {FS} {
+      match readEntry(path, "docProps/core.xml") {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Read the app properties (page count, etc.)
+    export func readAppProperties(path: string) -> string ! {FS} {
+      match readEntry(path, "docProps/app.xml") {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Read the relationships file (maps rId -> target for images etc.)
+    export func readDocxRelationships(path: string) -> string ! {FS} {
+      match readEntry(path, "word/_rels/document.xml.rels") {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Read an embedded image as base64
+    export func readEmbeddedImage(path: string, imageName: string) -> string ! {FS} {
+      match readEntryBytes(path, "word/media/${imageName}") {
+        Ok(data) => data,
+        Err(_) => ""
+      }
+    }
+
+    -- Read a ZIP entry by name, returning empty string on failure
+    export func readZipEntry(path: string, entryName: string) -> string ! {FS} {
+      match readEntry(path, entryName) {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Find all header XML entries in the ZIP
+    export func findHeaderEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterByPrefix(entries, "word/header"),
+        Err(_) => []
+      }
+    }
+
+    -- Find all footer XML entries in the ZIP
+    export func findFooterEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterByPrefix(entries, "word/footer"),
+        Err(_) => []
+      }
+    }
+
+    -- Read the comments XML from a DOCX
+    export func readComments(path: string) -> string ! {FS} {
+      match readEntry(path, "word/comments.xml") {
+        Ok(content) => content,
+        Err(_) => ""
+      }
+    }
+
+    -- Find footnotes.xml if present
+    export func findFootnoteEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterByPrefix(entries, "word/footnotes"),
+        Err(_) => []
+      }
+    }
+
+    -- Find endnotes.xml if present
+    export func findEndnoteEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterByPrefix(entries, "word/endnotes"),
+        Err(_) => []
+      }
+    }
+
+    -- Filter entries that start with a given prefix
+    pure func filterByPrefix(entries: [string], prefix: string) -> [string] =
+      match entries {
+        [] => [],
+        e :: rest =>
+          if startsWith(e, prefix)
+          then e :: filterByPrefix(rest, prefix)
+          else filterByPrefix(rest, prefix)
+      }
+
+    -- Find all slide entries in a PPTX ZIP (ppt/slides/slide*.xml)
+    export func findSlideEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterSlides(entries),
+        Err(_) => []
+      }
+    }
+
+    -- Filter entries to find slide XMLs (exclude _rels)
+    pure func filterSlides(entries: [string]) -> [string] =
+      match entries {
+        [] => [],
+        e :: rest =>
+          if isSlideEntry(e)
+          then e :: filterSlides(rest)
+          else filterSlides(rest)
+      }
+
+    -- Check if an entry is a slide XML
+    pure func isSlideEntry(entry: string) -> bool {
+      startsWith(entry, "ppt/slides/slide") &&
+      endsWith(entry, ".xml")
+    }
+
+    -- Find all worksheet entries in an XLSX ZIP (xl/worksheets/sheet*.xml)
+    export func findSheetEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterSheets(entries),
+        Err(_) => []
+      }
+    }
+
+    -- Filter entries to find worksheet XMLs
+    pure func filterSheets(entries: [string]) -> [string] =
+      match entries {
+        [] => [],
+        e :: rest =>
+          if isSheetEntry(e)
+          then e :: filterSheets(rest)
+          else filterSheets(rest)
+      }
+
+    -- Check if an entry is a worksheet XML
+    pure func isSheetEntry(entry: string) -> bool {
+      startsWith(entry, "xl/worksheets/sheet") &&
+      endsWith(entry, ".xml")
+    }
+
+    -- Read a binary ZIP entry by full path (format-agnostic image reading)
+    export func readImageEntry(path: string, entryPath: string) -> string ! {FS} {
+      match readEntryBytes(path, entryPath) {
+        Ok(data) => data,
+        Err(_) => ""
+      }
+    }
+
+    -- Find all media entries in the ZIP
+    export func findMediaEntries(path: string) -> [string] ! {FS} {
+      match listEntries(path) {
+        Ok(entries) => filterMedia(entries),
+        Err(_) => []
+      }
+    }
+
+    -- Filter entries to only media files
+    pure func filterMedia(entries: [string]) -> [string] =
+      match entries {
+        [] => [],
+        e :: rest =>
+          if isMediaEntry(e)
+          then e :: filterMedia(rest)
+          else filterMedia(rest)
+      }
+
+    -- Check if a ZIP entry is a media file
+    pure func isMediaEntry(entry: string) -> bool {
+      contains(entry, "word/media/") ||
+      contains(entry, "ppt/media/") ||
+      contains(entry, "xl/media/")
+    }
+
+    -- Determine the MIME type from a media filename.
+    -- Contract: result is a non-empty MIME string. The `ensures` form is omitted
+    -- because of ailang-core issue #236 (v0.19.2 property-test generator bug for
+    -- pure + string -> string + ensures).
+    export pure func mediaMimeType(filename: string) -> string
+      tests [
+        ("image1.png", "image/png"),
+        ("image2.jpg", "image/jpeg"),
+        ("image3.jpeg", "image/jpeg"),
+        ("image4.gif", "image/gif"),
+        ("image5.bmp", "image/bmp"),
+        ("image6.tiff", "image/tiff"),
+        ("image7.emf", "image/emf"),
+        ("image8.wmf", "image/wmf"),
+        ("unknown.xyz", "application/octet-stream")
+      ]
+    {
+      if endsWith(filename, ".png") then "image/png"
+      else if endsWith(filename, ".jpg") then "image/jpeg"
+      else if endsWith(filename, ".jpeg") then "image/jpeg"
+      else if endsWith(filename, ".gif") then "image/gif"
+      else if endsWith(filename, ".bmp") then "image/bmp"
+      else if endsWith(filename, ".tiff") then "image/tiff"
+      else if endsWith(filename, ".emf") then "image/emf"
+      else if endsWith(filename, ".wmf") then "image/wmf"
+      else "application/octet-stream"
+    }
+
+    -- Resolve image references in blocks to binary data from a ZIP file.
+    -- Walks blocks recursively (including SectionBlock children).
+    -- For each ImageBlock whose data looks like a ZIP path, reads the binary.
+    export func resolveBlockImages(zipPath: string, blocks: [Block]) -> [Block] ! {FS} =
+      match blocks {
+        [] => [],
+        b :: rest => {
+          let resolved = zipResolveOneBlock(zipPath, b);
+          let moreResolved = resolveBlockImages(zipPath, rest);
+          resolved :: moreResolved
+        }
+      }
+
+    -- Resolve a single block's image reference
+    func zipResolveOneBlock(zipPath: string, b: Block) -> Block ! {FS} =
+      match b {
+        ImageBlock(img) =>
+          if zipIsZipPath(img.data) then {
+            let imageData = readImageEntry(zipPath, img.data);
+            let mime = if length(imageData) > 0 then mediaMimeType(img.data) else img.mime;
+            mkImage(imageData, img.description, mime)
+          } else b,
+        SectionBlock(s) => {
+          let resolvedInner = resolveBlockImages(zipPath, s.blocks);
+          SectionBlock({kind: s.kind, blocks: resolvedInner})
+        },
+        _ => b
+      }
+
+    -- Check if data looks like a ZIP-internal path (not base64, not URL, not empty)
+    pure func zipIsZipPath(data: string) -> bool {
+      length(data) > 0 &&
+      length(data) < 500 &&
+      startsWith(data, "http://") == false &&
+      startsWith(data, "https://") == false &&
+      startsWith(data, "data:") == false &&
+      (contains(data, "/") || contains(data, "."))
+    }
+  docparse/services/docx_parser.ail: |
+    -- STUB: docparse/services/docx_parser (P0 large-context reimplement instrument).
+    -- The real ~544-line parser has been removed. Reimplement every export so the
+    -- document parser reproduces the correct Block output on all DOCX fixtures.
+    -- These stubs typecheck + run (so the package builds) but return empty output,
+    -- so they FAIL every golden until correctly reimplemented.
+    module docparse/services/docx_parser
+
+    import std/xml (XmlNode)
+    import docparse/types/document (Block, DocMetadata, emptyMetadata)
+    import docparse/services/zip_extract (readDocxContent)
+
+    -- helper: perform the declared FS read so the {FS} effect row is satisfied,
+    -- then discard it (stub produces no blocks).
+    func _touch(filepath: string) -> () ! {FS} {
+      let _ = readDocxContent(filepath) in ()
+    }
+
+    export func parseDocx(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxMetadata(filepath: string) -> DocMetadata ! {FS} { let _ = _touch(filepath) in emptyMetadata() }
+    export func parseDocxImages(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxHeaders(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxFooters(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxFootnotes(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxEndnotes(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+    export func parseDocxComments(filepath: string) -> [Block] ! {FS} { let _ = _touch(filepath) in [] }
+
+    export pure func parseSectionXml(xml: string) -> [Block] = []
+    export pure func hasContent(blocks: [Block]) -> bool = false
+    export pure func extractBodyBlocks(root: XmlNode) -> [Block] = []
+    export pure func extractMetadata(root: XmlNode) -> DocMetadata = emptyMetadata()
+    export pure func getMetaField(root: XmlNode, tagName: string) -> string = ""
+  main.ail: |
+    module main
+    import std/io (println)
+    import std/fs (readFile, writeFileBytes)
+    import std/bytes (fromBase64)
+    import std/string (intToStr)
+    import std/list (length as listLength)
+    import std/option (Some, None)
+    import docparse/types/document (Block, TextBlock, HeadingBlock, ListBlock, TableBlock)
+    import docparse/services/docx_parser (parseDocx)
+
+    pure func tagBlock(b: Block) -> string =
+      match b {
+        HeadingBlock({text: t, level: l}) => "H${intToStr(l)}|${t}",
+        TextBlock({text: t, style: _, level: _}) => "P|${t}",
+        ListBlock({items: xs, ordered: _}) => "L${intToStr(listLength(xs))}",
+        TableBlock({rows: rs, headers: _, caption: _}) => "T${intToStr(listLength(rs))}",
+        _ => "X"
+      }
+
+    func printBlocks(bs: [Block]) -> () ! {IO} =
+      match bs { [] => (), b :: rest => { let _ = println(tagBlock(b)); printBlocks(rest) } }
+
+    export func main() -> () ! {IO, FS} {
+      let b64 = readFile("doc_b64.txt");
+      match fromBase64(b64) {
+        Some(bytes) => {
+          let _ = writeFileBytes("sample.docx", bytes);
+          let blocks = parseDocx("sample.docx");
+          let _ = println(intToStr(listLength(blocks)));
+          printBlocks(blocks)
+        },
+        None => println("decode-failed")
+      }
+    }
+  doc_b64.txt: UEsDBBQAAAAAAPGVSFzT44oSLQIAAC0CAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz4KPFR5cGVzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L2NvbnRlbnQtdHlwZXMiPgogIDxEZWZhdWx0IEV4dGVuc2lvbj0icmVscyIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3ZuZC5vcGVueG1sZm9ybWF0cy1wYWNrYWdlLnJlbGF0aW9uc2hpcHMreG1sIi8+CiAgPERlZmF1bHQgRXh0ZW5zaW9uPSJ4bWwiIENvbnRlbnRUeXBlPSJhcHBsaWNhdGlvbi94bWwiLz4KICA8T3ZlcnJpZGUgUGFydE5hbWU9Ii93b3JkL2RvY3VtZW50LnhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3ZuZC5vcGVueG1sZm9ybWF0cy1vZmZpY2Vkb2N1bWVudC53b3JkcHJvY2Vzc2luZ21sLmRvY3VtZW50Lm1haW4reG1sIi8+CiAgPE92ZXJyaWRlIFBhcnROYW1lPSIvZG9jUHJvcHMvY29yZS54bWwiIENvbnRlbnRUeXBlPSJhcHBsaWNhdGlvbi92bmQub3BlbnhtbGZvcm1hdHMtcGFja2FnZS5jb3JlLXByb3BlcnRpZXMreG1sIi8+CjwvVHlwZXM+UEsDBBQAAAAAAPGVSFwV9vYawgEAAMIBAAALAAAAX3JlbHMvLnJlbHM8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+CjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPgogIDxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz4KICA8UmVsYXRpb25zaGlwIElkPSJySWQyIiBUeXBlPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMvbWV0YWRhdGEvY29yZS1wcm9wZXJ0aWVzIiBUYXJnZXQ9ImRvY1Byb3BzL2NvcmUueG1sIi8+CjwvUmVsYXRpb25zaGlwcz5QSwMEFAAAAAAA8ZVIXIwOhdCdAAAAnQAAABwAAAB3b3JkL19yZWxzL2RvY3VtZW50LnhtbC5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8UmVsYXRpb25zaGlwcyB4bWxucz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3BhY2thZ2UvMjAwNi9yZWxhdGlvbnNoaXBzIj4KPC9SZWxhdGlvbnNoaXBzPlBLAwQUAAAAAADxlUhcVaR60WgJAABoCQAAEQAAAHdvcmQvZG9jdW1lbnQueG1sPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8dzpkb2N1bWVudCB4bWxuczp3PSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvd29yZHByb2Nlc3NpbmdtbC8yMDA2L21haW4iPgogIDx3OmJvZHk+CiAgICA8dzpwPgogICAgICA8dzpwUHI+PHc6cFN0eWxlIHc6dmFsPSJIZWFkaW5nMSIvPjwvdzpwUHI+CiAgICAgIDx3OnI+PHc6dD5JbnRyb2R1Y3Rpb248L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6cD4KICAgICAgPHc6cj48dzp0PlRoaXMgaXMgYSB0ZXN0IGRvY3VtZW50IGZvciB0aGUgQUlMQU5HIERvY1BhcnNlIGRlbW8uIDwvdzp0PjwvdzpyPgogICAgICA8dzpyPjx3OnQ+SXQgY29udGFpbnMgaGVhZGluZ3MsIHBhcmFncmFwaHMsIGxpc3RzLCBhbmQgYSB0YWJsZS48L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6cD4KICAgICAgPHc6cFByPjx3OnBTdHlsZSB3OnZhbD0iSGVhZGluZzIiLz48L3c6cFByPgogICAgICA8dzpyPjx3OnQ+RmVhdHVyZXM8L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6cD4KICAgICAgPHc6cFByPjx3Om51bVByPjx3Omlsdmwgdzp2YWw9IjAiLz48dzpudW1JZCB3OnZhbD0iMSIvPjwvdzpudW1Qcj48L3c6cFByPgogICAgICA8dzpyPjx3OnQ+UHVyZSBmdW5jdGlvbmFsIFhNTCBwYXJzaW5nPC93OnQ+PC93OnI+CiAgICA8L3c6cD4KICAgIDx3OnA+CiAgICAgIDx3OnBQcj48dzpudW1Qcj48dzppbHZsIHc6dmFsPSIwIi8+PHc6bnVtSWQgdzp2YWw9IjEiLz48L3c6bnVtUHI+PC93OnBQcj4KICAgICAgPHc6cj48dzp0PkFJLWF1Z21lbnRlZCBsYXlvdXQgdW5kZXJzdGFuZGluZzwvdzp0PjwvdzpyPgogICAgPC93OnA+CiAgICA8dzpwPgogICAgICA8dzpwUHI+PHc6bnVtUHI+PHc6aWx2bCB3OnZhbD0iMCIvPjx3Om51bUlkIHc6dmFsPSIxIi8+PC93Om51bVByPjwvdzpwUHI+CiAgICAgIDx3OnI+PHc6dD5Cb3VuZGVkIGNvc3RzIHZpYSBjYXBhYmlsaXR5IGJ1ZGdldHM8L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6cD4KICAgICAgPHc6cFByPjx3OnBTdHlsZSB3OnZhbD0iSGVhZGluZzIiLz48L3c6cFByPgogICAgICA8dzpyPjx3OnQ+U2FtcGxlIERhdGEgVGFibGU8L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6dGJsPgogICAgICA8dzp0cj4KICAgICAgICA8dzp0Yz48dzpwPjx3OnI+PHc6dD5Gb3JtYXQ8L3c6dD48L3c6cj48L3c6cD48L3c6dGM+CiAgICAgICAgPHc6dGM+PHc6cD48dzpyPjx3OnQ+RXh0ZW5zaW9uPC93OnQ+PC93OnI+PC93OnA+PC93OnRjPgogICAgICAgIDx3OnRjPjx3OnA+PHc6cj48dzp0PlN0YXR1czwvdzp0PjwvdzpyPjwvdzpwPjwvdzp0Yz4KICAgICAgPC93OnRyPgogICAgICA8dzp0cj4KICAgICAgICA8dzp0Yz48dzpwPjx3OnI+PHc6dD5Xb3JkPC93OnQ+PC93OnI+PC93OnA+PC93OnRjPgogICAgICAgIDx3OnRjPjx3OnA+PHc6cj48dzp0Pi5kb2N4PC93OnQ+PC93OnI+PC93OnA+PC93OnRjPgogICAgICAgIDx3OnRjPjx3OnA+PHc6cj48dzp0PlN1cHBvcnRlZDwvdzp0PjwvdzpyPjwvdzpwPjwvdzp0Yz4KICAgICAgPC93OnRyPgogICAgICA8dzp0cj4KICAgICAgICA8dzp0Yz48dzpwPjx3OnI+PHc6dD5Qb3dlclBvaW50PC93OnQ+PC93OnI+PC93OnA+PC93OnRjPgogICAgICAgIDx3OnRjPjx3OnA+PHc6cj48dzp0Pi5wcHR4PC93OnQ+PC93OnI+PC93OnA+PC93OnRjPgogICAgICAgIDx3OnRjPjx3OnA+PHc6cj48dzp0PlBsYW5uZWQ8L3c6dD48L3c6cj48L3c6cD48L3c6dGM+CiAgICAgIDwvdzp0cj4KICAgICAgPHc6dHI+CiAgICAgICAgPHc6dGM+PHc6cD48dzpyPjx3OnQ+RXhjZWw8L3c6dD48L3c6cj48L3c6cD48L3c6dGM+CiAgICAgICAgPHc6dGM+PHc6cD48dzpyPjx3OnQ+Lnhsc3g8L3c6dD48L3c6cj48L3c6cD48L3c6dGM+CiAgICAgICAgPHc6dGM+PHc6cD48dzpyPjx3OnQ+UGxhbm5lZDwvdzp0PjwvdzpyPjwvdzpwPjwvdzp0Yz4KICAgICAgPC93OnRyPgogICAgPC93OnRibD4KICAgIDx3OnA+CiAgICAgIDx3OnBQcj48dzpwU3R5bGUgdzp2YWw9IkhlYWRpbmcxIi8+PC93OnBQcj4KICAgICAgPHc6cj48dzp0PkNvbmNsdXNpb248L3c6dD48L3c6cj4KICAgIDwvdzpwPgogICAgPHc6cD4KICAgICAgPHc6cj48dzp0PkFJTEFORyBwcm92aWRlcyB0eXBlLXNhZmUsIGNvbnRyYWN0LXZlcmlmaWVkIGRvY3VtZW50IHBhcnNpbmcgd2l0aCBib3VuZGVkIEFJIGNvc3RzLiA8L3c6dD48L3c6cj4KICAgICAgPHc6cj48dzp0PlBhdHRlcm4gbWF0Y2hpbmcgb24gWE1MIHRyZWVzIGlzIGVsZWdhbnQgY29tcGFyZWQgdG8gaW1wZXJhdGl2ZSBET00gdHJhdmVyc2FsLjwvdzp0PjwvdzpyPgogICAgPC93OnA+CiAgPC93OmJvZHk+Cjwvdzpkb2N1bWVudD5QSwMEFAAAAAAA8ZVIXNaO/K3YAQAA2AEAABEAAABkb2NQcm9wcy9jb3JlLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz4KPGNwOmNvcmVQcm9wZXJ0aWVzIHhtbG5zOmNwPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L21ldGFkYXRhL2NvcmUtcHJvcGVydGllcyIKICB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iCiAgeG1sbnM6ZGN0ZXJtcz0iaHR0cDovL3B1cmwub3JnL2RjL3Rlcm1zLyI+CiAgPGRjOnRpdGxlPkRvY1BhcnNlIFRlc3QgRG9jdW1lbnQ8L2RjOnRpdGxlPgogIDxkYzpjcmVhdG9yPkFJTEFORyBEZW1vPC9kYzpjcmVhdG9yPgogIDxkY3Rlcm1zOmNyZWF0ZWQ+MjAyNi0wMi0wOFQwMDowMDowMFo8L2RjdGVybXM6Y3JlYXRlZD4KICA8ZGN0ZXJtczptb2RpZmllZD4yMDI2LTAyLTA4VDEyOjAwOjAwWjwvZGN0ZXJtczptb2RpZmllZD4KPC9jcDpjb3JlUHJvcGVydGllcz5QSwECFAMUAAAAAADxlUhc0+OKEi0CAAAtAgAAEwAAAAAAAAAAAAAAgAEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUAxQAAAAAAPGVSFwV9vYawgEAAMIBAAALAAAAAAAAAAAAAACAAV4CAABfcmVscy8ucmVsc1BLAQIUAxQAAAAAAPGVSFyMDoXQnQAAAJ0AAAAcAAAAAAAAAAAAAACAAUkEAAB3b3JkL19yZWxzL2RvY3VtZW50LnhtbC5yZWxzUEsBAhQDFAAAAAAA8ZVIXFWketFoCQAAaAkAABEAAAAAAAAAAAAAAIABIAUAAHdvcmQvZG9jdW1lbnQueG1sUEsBAhQDFAAAAAAA8ZVIXNaO/K3YAQAA2AEAABEAAAAAAAAAAAAAAIABtw4AAGRvY1Byb3BzL2NvcmUueG1sUEsFBgAAAAAFAAUAQgEAAL4QAAAAAA==
+expected_stdout: |
+  10
+  H1|Introduction
+  P|This is a test document for the AILANG DocParse demo. It contains headings, paragraphs, lists, and a table.
+  H2|Features
+  L1
+  L1
+  L1
+  H2|Sample Data Table
+  T3
+  H1|Conclusion
+  P|AILANG provides type-safe, contract-verified document parsing with bounded AI costs. Pattern matching on XML trees is elegant compared to imperative DOM traversal.
