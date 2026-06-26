@@ -3323,3 +3323,38 @@ Opened 4 focused PRs from validated work (cherry-picked onto origin/main, type-c
     belongs in the extension pkg, not this repo.
 Draft/real split rationale: REAL only for the unambiguous fix; DRAFT for anything changing shared behavior (arniwesth is
 a hands-on maintainer per the #66 thread). Worktree mk-prwork holds the 4 branches; mk-pr68 removed.
+
+## 2026-06-26 — Compaction QUALITY: 3 root-cause fixes (design doc + harness research)
+Compaction FIRES reliably now (validated: 26-30 AI-summarizations, context bounded) but the model still
+didn't converge on docx. Peeled back THREE more harness root causes (discipline held: every "it's the model"
+was the harness):
+
+1. **Summaries were lossy + MISLEADING.** Old prompt = "summarize in 2-3 sentences" → produced "the task is now
+   at a finalized state, ready for compilation" when the run had FAILED. Fixed: structured schema (Progress
+   Done/In-progress/Blocked, Current errors, Key decisions, Next action) + "never claim completion" + pin task
+   (ctx.task). Cheap-confirmed dramatic (honest "none verified yet" vs "finalized").
+2. **19/30 summaries came back EMPTY** — extension lacked `/no_think`; qwen3.6 burns its token budget "thinking"
+   at large inputs and returns nothing → model lost context ~2/3 of rounds. Fixed: append /no_think (inert for
+   non-qwen). Confirmed: large-input replay returns structured content.
+3. **The system message (AILANG reference, msgs[0]) was being SUMMARIZED AWAY** (USER'S hypothesis, confirmed).
+   rpc.ail seeds `[{role:system, AILANG-ref}, {role:user, task}, ...]`; compaction rebuilt as [task,summary]++recent,
+   DROPPING msgs[0]. Smoking gun: notes show "53% -> 1%" — the ~15-20K-token reference can't be present at 1%. So
+   after step ~30 the model coded AILANG with NO syntax reference → delimiter/lambda drift. Fixed: extension now
+   splits off a leading role=system msg, never summarizes it, re-prepends it (Claude Code's "pin the system prompt").
+
+All 3 fixes in ailang-packages/packages/motoko-ext-compaction-ai (uncommitted, type-check). Cache holds them for the
+scheduled run. NOT model capability — confirmed lambda+nested-let/match is VALID AILANG; the error was a stray `}`
+delimiter in a 698-line file written WITHOUT the reference.
+
+DESIGN DOC: design_docs/planned/m-motoko-compaction-quality.md — full harness comparison (Claude Code 9-section,
+pi running-state UPDATE-merge, Codex/OpenCode pins, Cursor recovery-hatch) + the architecture: HOST owns WHEN
+(trigger/urgency), EXTENSIONS own HOW (pluggable strategies: ai-structured / structural-elision / semantic-dedup /
+rag / compression), CONFIG selects+composes (the cascade = summarize-last). Current = pre-refactor (one ai-structured
+strategy + host's separate compact_step_actual = the two-decider misalignment). 
+
+INCORPORATED lessons: pin system+task+recent verbatim, structured summary, honest-state, log/audit, recovery-hatch
+(via chains import-motoko). QUEUED: UPDATE-merge running-state (kill prose decay), deterministic file-tracking from
+tool_calls, current-file verbatim (#8), the cascade (Phase-2 host-trigger refactor).
+
+NEXT: docx re-run scheduled 07:05 (detached, all 3 fixes) → watchdog auto-diagnoses /tmp/docx_phase1c_diag.txt.
+Validation targets: empty-summaries→0, post-compaction usage stays ~8-12% (system kept, not 1%), convergence/less drift.

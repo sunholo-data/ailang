@@ -24,7 +24,9 @@ task_prompt: |
   2. Parse and analyze the log:
      - Each line format: "{date} {time} {LEVEL} {message}"
      - Count entries by level (INFO, ERROR, WARNING)
-     - Calculate percentage for each level (use integer division, round down)
+     - Calculate each level's percentage as floor(count * 100 / total): integer
+       division that truncates toward zero — do NOT round to nearest. For example,
+       WARNING is 1 of 6 = 16.66%, which truncates to 16 (NOT rounded up to 17).
      - Extract unique usernames mentioned after colons (alice, bob)
 
   3. Print results in this exact format:
@@ -39,6 +41,14 @@ task_prompt: |
   Note: Users should be printed in alphabetical order, comma-separated.
 
 
+# CONVENTION PIN — percentages use FLOOR/truncation, not rounding:
+#   floor(3*100/6)=50, floor(2*100/6)=33, floor(1*100/6)=16  (1/6=16.66 -> 16, NOT 17)
+# The task_prompt above and this expected block MUST stay in sync. History: commit
+# 988ec33 changed the prompt to "round down" but left expected at 17%, so models that
+# correctly floored to 16 were graded against a stale 17% expected -> ~67 false-failures
+# (all exp=17/got=16) across several versions until f6250052b (v0.14.1) flipped 17->16.
+# Grading is exact-match (CompareOutput has NO numeric tolerance on integer percentages),
+# so any future drift between prompt convention and this value re-introduces false fails.
 expected_stdout: |
   Total log entries: 6
   INFO: 3 (50%)

@@ -46,4 +46,4 @@ expected_stdout: |
   30
 
 tier: stretch
-tags: [contracts, algorithmic, edge-cases]
+tags: [contracts, algorithmic]
