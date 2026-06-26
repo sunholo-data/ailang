@@ -35,6 +35,13 @@ type BenchmarkSpec struct {
 	CliArgs    []string          `yaml:"cli_args,omitempty"`    // CLI arguments to pass after the script
 	InputFiles map[string]string `yaml:"input_files,omitempty"` // Files to create in workspace: {filename: content}
 
+	// AgentEnv: extra env vars exported to the agent CLI subprocess (agent mode only).
+	// Lets a multi-file/reimplement benchmark drive harness features the standard
+	// single-file suite doesn't use — e.g. MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL
+	// (serve dependency modules as compact interfaces) and SYSTEM_MD (point at a seeded
+	// reference file). Values support ${WORKSPACE} expansion to the agent's workspace root.
+	AgentEnv map[string]string `yaml:"agent_env,omitempty"`
+
 	// M-EVAL-NETWORK-MOCK-FIXTURE: when true, the harness runs the solution with
 	// --net-allow-http and --net-allow-localhost so generated code can reach the
 	// local deterministic HTTP mock (see httpmock.go). Required because AILANG's Net
