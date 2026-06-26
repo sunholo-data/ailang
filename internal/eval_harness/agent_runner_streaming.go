@@ -65,6 +65,15 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	env = append(env, fmt.Sprintf("PWD=%s", workspace)) // Make workspace the "project" directory
 	// Apply μRAG mode (M-BRAIN-MICRORAG): force AILANG_MICRORAG_ENABLED for A/B comparison.
 	env = config.MicroragMode.ApplyToEnv(env)
+	// AgentEnv (M-EVAL-REIMPLEMENT-BENCH): per-benchmark env exported to the agent CLI —
+	// e.g. MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL so a multi-file reimplement benchmark
+	// gets dependency modules as compact interfaces. ${WORKSPACE} → the agent workspace root.
+	// Harness-specific keys are ignored by agents that don't read them (claude/opencode/etc.).
+	if spec != nil {
+		for k, v := range spec.AgentEnv {
+			env = append(env, fmt.Sprintf("%s=%s", k, strings.ReplaceAll(v, "${WORKSPACE}", workspace)))
+		}
+	}
 	cmd.Env = env
 
 	// Claude's stream-json output goes to stdout
