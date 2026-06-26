@@ -34,6 +34,10 @@ echo "[run.sh] harness=$HARNESS model=$MODEL ws=$WS session=$SESSION"
 cp -R "$SRC" "$WS"
 cp "$HERE/stub_docx_parser.ail" "$WS/docparse/services/docx_parser.ail"
 ailang prompt --source=embedded > "$WS/syntax_reference.md" 2>/dev/null
+# The AILANG runtime is FS-sandboxed to the workspace (AILANG_FS_SANDBOX=$WS), so the
+# system prompt file MUST live inside $WS — an external /tmp path is silently unreadable
+# (observed via system_prompt_built: source=env:SYSTEM_MD but chars=0 + SYSTEM PROMPT EMPTY).
+cp "$AGENTMD" "$WS/.agent_system_prompt.md"
 
 read -r -d '' TASK <<'EOF'
 The file docparse/services/docx_parser.ail has been stubbed: all 13 exported functions currently return empty values. Reimplement it FULLY so the document parser correctly converts DOCX XML into the Block ADT.
@@ -71,7 +75,7 @@ pkill -9 -f 'bun.*src/tui' 2>/dev/null; sleep 1
 case "$HARNESS" in
   motoko)
     env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-dummy}" \
-        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$AGENTMD" \
+        WORKDIR="$WS" MODEL="$MODEL" MOTOKO_CONFIG=ollama MOTOKO_HEADLESS=1 SYSTEM_MD="$WS/.agent_system_prompt.md" \
         MOTOKO_AST_AUTOREAD=1 MOTOKO_AST_READ_FULL="docx_parser.ail:main.ail" \
         ENV_PORT=8080 AILANG_OLLAMA_MAX_TOKENS=65536 AILANG_OLLAMA_HTTP_TIMEOUT_SEC="${AILANG_OLLAMA_HTTP_TIMEOUT_SEC:-1800}" MOTOKO_SESSION_ID="$SESSION" \
         "$MOTOKO_REPO/scripts/run-agent.sh" --headless "$TASK" > "/tmp/${SESSION}.out" 2>&1
