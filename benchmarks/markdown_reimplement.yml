@@ -1,0 +1,597 @@
+id: markdown_reimplement
+description: Reimplement the stubbed AILANG markdown parser (parseMarkdown -> Block ADT) in a multi-file workspace; graded on the parsed-block output of a fixture.
+languages:
+- ailang
+entrypoint: main
+caps:
+- IO
+- FS
+difficulty: hard
+expected_gain: high
+tier: stretch
+tags:
+- adt_pattern_match
+- data_transform
+task_prompt: 'The exported function `parseMarkdown` in docparse/services/markdown_parser.ail is STUBBED (returns []). Reimplement it so it converts Markdown into the Block ADT. The helpers in the SAME file are implemented — use them: emptyParseState(), mdProcessLine(state,line), flushState(state). Shape: split into lines, fold mdProcessLine from emptyParseState(), then flush. Study docparse/types/document for the Block constructors. main.ail parses input.md and prints one tag per block; the package must typecheck and main''s output must match exactly. Run: ailang run --entry main --caps IO,FS main.ail'
+agent_env:
+  MOTOKO_AST_AUTOREAD: '1'
+  MOTOKO_AST_READ_FULL: markdown_parser.ail:main.ail
+input_files:
+  docparse/types/document.ail: |
+    module docparse/types/document
+
+    -- Core document content model for AILANG Parse
+    -- Represents the universal output of parsing any document format.
+    -- All parsers (docx, pptx, xlsx) produce [Block] lists.
+
+    import std/string (length, join)
+    import std/list (filter, length as listLength)
+
+    -- A table cell with merge span info
+    -- colSpan: number of columns this cell spans (1 = normal)
+    -- rowSpan: number of rows this cell spans (1 = normal)
+    -- merged: true if this is a continuation cell (content lives in the span origin)
+    -- scope: "row" | "col" | "rowgroup" | "colgroup" | "" — populated by HTML
+    --        parser for <th scope=…>. Empty for normal data cells.
+    export type TableCell = {
+      text: string,
+      colSpan: int,
+      rowSpan: int,
+      merged: bool,
+      scope: string
+    }
+
+    -- A content block extracted from a document
+    --
+    -- LinkBlock represents an HTML anchor with href. Generators that don't
+    -- preserve link semantics (DOCX/PPTX paragraph writers, plain-text
+    -- renderers) treat it as a TextBlock with the anchor's visible text.
+    export type Block = TextBlock({text: string, style: string, level: int})
+                      | TableBlock({rows: [[TableCell]], headers: [TableCell], caption: string})
+                      | ImageBlock({data: string, description: string, mime: string, width: int, height: int, srcset: string, title: string, loading: string})
+                      | AudioBlock({data: string, transcription: string, mime: string})
+                      | VideoBlock({data: string, description: string, mime: string})
+                      | ListBlock({items: [string], ordered: bool})
+                      | HeadingBlock({text: string, level: int})
+                      | SectionBlock({kind: string, blocks: [Block]})
+                      | ChangeBlock({changeType: string, author: string, date: string, text: string})
+                      | LinkBlock({text: string, href: string, title: string})
+
+    -- Document metadata from core.xml / app.xml
+    export type DocMetadata = {
+      title: string,
+      author: string,
+      created: string,
+      modified: string,
+      pageCount: int
+    }
+
+    -- Full parsed document
+    export type ParsedDocument = {
+      format: string,
+      filename: string,
+      metadata: DocMetadata,
+      blocks: [Block]
+    }
+
+    -- Extraction result with quality info
+    export type ExtractionResult = {
+      document: ParsedDocument,
+      warnings: [string],
+      aiCallsUsed: int
+    }
+
+    -- Helpers for working with blocks
+
+    export pure func blockText(block: Block) -> string =
+      match block {
+        TextBlock(b) => b.text,
+        TableBlock(_) => "[table]",
+        ImageBlock(b) => "[image: ${b.description}]",
+        AudioBlock(b) => "[audio: ${b.transcription}]",
+        VideoBlock(b) => "[video: ${b.description}]",
+        ListBlock(b) => join(", ", b.items),
+        HeadingBlock(b) => b.text,
+        SectionBlock(b) => "[${b.kind}]",
+        ChangeBlock(b) => "[${b.changeType} by ${b.author}] ${b.text}",
+        LinkBlock(b) => "${b.text} <${b.href}>"
+      }
+
+    export pure func isHeading(block: Block) -> bool =
+      match block {
+        HeadingBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isTable(block: Block) -> bool =
+      match block {
+        TableBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isImage(block: Block) -> bool =
+      match block {
+        ImageBlock(_) => true,
+        _ => false
+      }
+
+    export pure func isSection(block: Block) -> bool =
+      match block {
+        SectionBlock(_) => true,
+        _ => false
+      }
+
+    export pure func filterSections(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isSection, blocks)
+    }
+
+    export pure func countBlocks(blocks: [Block]) -> int
+      ensures { result >= 0 }
+    {
+      listLength(blocks)
+    }
+
+    export pure func filterHeadings(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isHeading, blocks)
+    }
+
+    export pure func filterTables(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isTable, blocks)
+    }
+
+    export pure func filterImages(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isImage, blocks)
+    }
+
+    export pure func isChange(block: Block) -> bool =
+      match block {
+        ChangeBlock(_) => true,
+        _ => false
+      }
+
+    export pure func filterChanges(blocks: [Block]) -> [Block]
+      ensures { listLength(result) <= listLength(blocks) }
+    {
+      filter(isChange, blocks)
+    }
+
+    -- Create a simple (non-merged) table cell
+    export pure func simpleCell(text: string) -> TableCell
+      ensures { result.colSpan == 1 && result.rowSpan == 1 && result.merged == false }
+    {
+      {text: text, colSpan: 1, rowSpan: 1, merged: false, scope: ""}
+    }
+
+    -- Create a header cell with HTML5 scope (row | col | rowgroup | colgroup)
+    -- Used by html_parser when extracting <th scope=…>. Other parsers can
+    -- continue using simpleCell.
+    export pure func scopedCell(text: string, scope: string) -> TableCell
+      ensures { result.colSpan == 1 && result.rowSpan == 1 && result.merged == false }
+    {
+      {text: text, colSpan: 1, rowSpan: 1, merged: false, scope: scope}
+    }
+
+    -- Create a merged continuation cell (empty, spanned from another cell)
+    export pure func mergedCell() -> TableCell
+      ensures { result.merged && length(result.text) == 0 }
+    {
+      {text: "", colSpan: 1, rowSpan: 1, merged: true, scope: ""}
+    }
+
+    -- Create a cell with column span
+    export pure func spanCell(text: string, cs: int) -> TableCell
+      ensures { result.colSpan == cs && result.merged == false }
+    {
+      {text: text, colSpan: cs, rowSpan: 1, merged: false, scope: ""}
+    }
+
+    -- Construct a TableBlock with no caption (most non-HTML parsers).
+    -- HTML parser uses mkTableFull when <caption> is present.
+    export pure func mkTable(rows: [[TableCell]], headers: [TableCell]) -> Block =
+      TableBlock({rows: rows, headers: headers, caption: ""})
+
+    -- Construct a TableBlock with a caption (HTML <caption> element).
+    export pure func mkTableFull(rows: [[TableCell]], headers: [TableCell], caption: string) -> Block =
+      TableBlock({rows: rows, headers: headers, caption: caption})
+
+    -- Get text from a table cell
+    export pure func cellText(cell: TableCell) -> string = cell.text
+
+    -- Construct an ImageBlock with default values for the extended HTML
+    -- attributes (width, height, srcset, title, loading). Most parsers
+    -- (DOCX/PPTX/ODT/EPUB/Markdown/TeX/AI) don't have these attributes to
+    -- extract, so this helper avoids forcing every constructor site to
+    -- pass empty strings / zeros.
+    export pure func mkImage(data: string, description: string, mime: string) -> Block =
+      ImageBlock({
+        data: data,
+        description: description,
+        mime: mime,
+        width: 0,
+        height: 0,
+        srcset: "",
+        title: "",
+        loading: ""
+      })
+
+    -- Construct an ImageBlock with all HTML5 image attributes populated.
+    -- Used by html_parser when extracting <img> tags and <picture>/<source>
+    -- elements. Pass 0 / empty string for any attribute that wasn't present.
+    export pure func mkImageFull(data: string, description: string, mime: string,
+                                  width: int, height: int, srcset: string,
+                                  title: string, loading: string) -> Block =
+      ImageBlock({
+        data: data,
+        description: description,
+        mime: mime,
+        width: width,
+        height: height,
+        srcset: srcset,
+        title: title,
+        loading: loading
+      })
+
+    -- Create an empty metadata record
+    export pure func emptyMetadata() -> DocMetadata
+      ensures { length(result.title) == 0 && result.pageCount == 0 }
+    {
+      {title: "", author: "", created: "", modified: "", pageCount: 0}
+    }
+  docparse/services/markdown_parser.ail: |
+    module docparse/services/markdown_parser
+
+    import std/string (split, trim, length, startsWith, substring, find, contains, charAt)
+    import std/list (map, filter, foldl, concat, reverse, length as listLength)
+    import std/option (Some, None)
+    import docparse/types/document (Block, HeadingBlock, TextBlock, ListBlock, TableBlock, TableCell, simpleCell, mkTable)
+
+    -- Markdown Parser — converts Markdown text to Block ADT.
+    -- Pure AILANG implementation, no external dependencies.
+    --
+    -- Supports:
+    --   - Headings (# through ######)
+    --   - Paragraphs (text blocks separated by blank lines)
+    --   - Unordered lists (- or * prefix)
+    --   - Ordered lists (1. 2. etc prefix)
+    --   - Simple tables (| col | col | format)
+    --
+    -- Does NOT handle (yet):
+    --   - Code blocks (``` fenced)
+    --   - Inline formatting (bold, italic, links)
+    --   - Blockquotes (>)
+    --   - Images (![alt](url))
+    --
+    -- Usage:
+    --   let blocks = parseMarkdown(content)
+
+    -- Parse markdown content into Block ADT
+    -- Contract: empty content produces no blocks
+    export pure func parseMarkdown(content: string) -> [Block]
+      ensures { length(content) == 0 || listLength(result) >= 0 }
+    {
+      -- STUB (markdown_reimplement P1 task): reimplement this so it converts Markdown
+      -- `content` into [Block]. The helpers below (emptyParseState, mdProcessLine,
+      -- flushState) are already implemented — split into lines, fold mdProcessLine over
+      -- them from emptyParseState(), then flush.
+      []
+    }
+
+    -- Internal parse state tracks accumulated lines for multi-line blocks
+    type MdParseState = {
+      blocks: [Block],       -- accumulated blocks (in reverse order)
+      listItems: [string],   -- accumulated list items
+      listOrdered: bool,     -- is current list ordered?
+      tableRows: [[string]], -- accumulated table rows (in reverse)
+      textLines: [string]    -- accumulated paragraph lines
+    }
+
+    -- Contract: empty state has no accumulated content
+    pure func emptyParseState() -> MdParseState
+      ensures {
+        listLength(result.blocks) == 0 &&
+        listLength(result.listItems) == 0 &&
+        listLength(result.tableRows) == 0 &&
+        listLength(result.textLines) == 0
+      }
+    = {
+      blocks: [],
+      listItems: [],
+      listOrdered: false,
+      tableRows: [],
+      textLines: []
+    }
+
+    -- Process a single line, updating parse state
+    pure func mdProcessLine(state: MdParseState, line: string) -> MdParseState {
+      let trimmedLine = trim(line);
+
+      -- Blank line: flush current paragraph/list
+      if length(trimmedLine) == 0 then flushToState(state)
+
+      -- Heading: # through ######
+      else if startsWith(trimmedLine, "######") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 6, length(trimmedLine))), level: 6}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      else if startsWith(trimmedLine, "#####") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 5, length(trimmedLine))), level: 5}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      else if startsWith(trimmedLine, "####") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 4, length(trimmedLine))), level: 4}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      else if startsWith(trimmedLine, "###") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 3, length(trimmedLine))), level: 3}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      else if startsWith(trimmedLine, "##") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 2, length(trimmedLine))), level: 2}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      else if startsWith(trimmedLine, "#") then
+        let s = flushToState(state) in
+        { blocks: HeadingBlock({text: trim(substring(trimmedLine, 1, length(trimmedLine))), level: 1}) :: s.blocks,
+          listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+      -- Unordered list item: - or *
+      else if startsWith(trimmedLine, "- ") || startsWith(trimmedLine, "* ") then
+        let s = flushText(flushTable(state)) in
+        let item = trim(substring(trimmedLine, 2, length(trimmedLine))) in
+        { blocks: s.blocks, listItems: concat(s.listItems, [item]),
+          listOrdered: false, tableRows: [], textLines: [] }
+
+      -- Ordered list item: starts with digit followed by ". "
+      else if mdIsOrderedListItem(trimmedLine) then
+        let s = flushText(flushTable(state)) in
+        let item = mdExtractOrderedItem(trimmedLine) in
+        { blocks: s.blocks, listItems: concat(s.listItems, [item]),
+          listOrdered: true, tableRows: [], textLines: [] }
+
+      -- Table row: starts and ends with |
+      else if startsWith(trimmedLine, "|") then
+        -- Skip separator rows (| --- | --- |)
+        if mdIsTableSeparator(trimmedLine) then state
+        else
+          let s = flushText(flushList(state)) in
+          let cells = mdParseTableRow(trimmedLine) in
+          { blocks: s.blocks, listItems: [], listOrdered: false,
+            tableRows: concat(s.tableRows, [cells]), textLines: [] }
+
+      -- Regular text line: accumulate for paragraph
+      else
+        let s = flushList(flushTable(state)) in
+        { blocks: s.blocks, listItems: [], listOrdered: false,
+          tableRows: [], textLines: concat(s.textLines, [trimmedLine]) }
+    }
+
+    -- Flush all accumulated state into blocks
+    pure func flushState(state: MdParseState) -> [Block] {
+      let s = flushToState(state);
+      s.blocks
+    }
+
+    -- Flush accumulated text, list, and table into state
+    pure func flushToState(state: MdParseState) -> MdParseState {
+      flushText(flushList(flushTable(state)))
+    }
+
+    -- Flush accumulated text lines into a TextBlock
+    -- Contract: text lines are always cleared after flush
+    pure func flushText(state: MdParseState) -> MdParseState
+      ensures { listLength(result.textLines) == 0 }
+    {
+      if listLength(state.textLines) == 0 then state
+      else {
+        let text = mdJoinLines(state.textLines);
+        { blocks: TextBlock({text: text, style: "normal", level: 0}) :: state.blocks,
+          listItems: [], listOrdered: state.listOrdered,
+          tableRows: state.tableRows, textLines: [] }
+      }
+    }
+
+    -- Flush accumulated list items into a ListBlock
+    -- Contract: list items are always cleared after flush
+    pure func flushList(state: MdParseState) -> MdParseState
+      ensures { listLength(result.listItems) == 0 }
+    {
+      if listLength(state.listItems) == 0 then state
+      else {
+        { blocks: ListBlock({items: state.listItems, ordered: state.listOrdered}) :: state.blocks,
+          listItems: [], listOrdered: false,
+          tableRows: state.tableRows, textLines: state.textLines }
+      }
+    }
+
+    -- Flush accumulated table rows into a TableBlock
+    -- Contract: table rows are always cleared after flush
+    pure func flushTable(state: MdParseState) -> MdParseState
+      ensures { listLength(result.tableRows) == 0 }
+    {
+      if listLength(state.tableRows) == 0 then state
+      else {
+        match state.tableRows {
+          [] => state,
+          headerCells :: dataRows => {
+            let headerRow = map(simpleCell, headerCells);
+            let bodyRows = map(\row. map(simpleCell, row), dataRows);
+            { blocks: mkTable(bodyRows, headerRow) :: state.blocks,
+              listItems: state.listItems, listOrdered: state.listOrdered,
+              tableRows: [], textLines: state.textLines }
+          }
+        }
+      }
+    }
+
+    -- Join text lines with spaces (paragraph reconstruction)
+    -- Contract: non-empty input produces non-empty output
+    pure func mdJoinLines(lines: [string]) -> string
+      ensures { listLength(lines) == 0 || length(result) > 0 }
+    {
+      foldl(mdAppendLine, "", lines)
+    }
+
+    -- Helper for foldl: append a line with space separator
+    pure func mdAppendLine(acc: string, line: string) -> string
+      ensures { length(result) >= length(line) }
+    =
+      if length(acc) == 0 then line else "${acc} ${line}"
+
+    -- Check if a line is an ordered list item (starts with "N. ")
+    pure func mdIsOrderedListItem(line: string) -> bool {
+      let dotPos = find(line, ". ");
+      if dotPos > 0 then
+        let prefix = substring(line, 0, dotPos) in
+        mdAllDigits(trim(prefix))
+      else false
+    }
+
+    -- Check if all characters in a string are digits
+    -- Contract: empty string is never all digits
+    pure func mdAllDigits(s: string) -> bool
+      ensures { length(s) == 0 || result == true || result == false }
+    {
+      if length(s) == 0 then false
+      else mdAllDigitsFrom(s, 0)
+    }
+
+    -- Check digits from index i using charAt (avoids substring allocation)
+    pure func mdAllDigitsFrom(s: string, i: int) -> bool =
+      if i >= length(s) then true
+      else mdIsDigit(charAt(s, i)) && mdAllDigitsFrom(s, i + 1)
+
+    -- Check if a single character is a digit
+    -- Contract: only returns true for single-char strings
+    pure func mdIsDigit(c: string) -> bool
+      ensures { result == false || length(c) == 1 }
+    =
+      c == "0" || c == "1" || c == "2" || c == "3" || c == "4" ||
+      c == "5" || c == "6" || c == "7" || c == "8" || c == "9"
+
+    -- Extract the text after "N. " from an ordered list item
+    -- Contract: result is never longer than input (we're extracting a suffix)
+    pure func mdExtractOrderedItem(line: string) -> string
+      ensures { length(result) <= length(line) }
+    {
+      let dotPos = find(line, ". ");
+      if dotPos >= 0 then trim(substring(line, dotPos + 2, length(line)))
+      else line
+    }
+
+    -- Check if a table row is a separator (e.g., | --- | --- |)
+    pure func mdIsTableSeparator(line: string) -> bool {
+      -- Separator rows contain mostly dashes, pipes, colons, and spaces
+      contains(line, "---") || contains(line, "- -")
+    }
+
+    -- Parse a table row "| cell | cell | cell |" into a list of cell strings
+    -- Contract: a table row always produces at least one cell
+    pure func mdParseTableRow(line: string) -> [string]
+      ensures { listLength(result) >= 1 }
+    {
+      let cells = split(line, "|");
+      -- split on | gives empty first and last elements, plus the cells
+      let trimmed = map(trim, cells);
+      filter(\c. length(c) > 0, trimmed)
+    }
+  main.ail: |
+    module main
+
+    import std/io (println)
+    import std/fs (readFile)
+    import std/string (intToStr)
+    import std/list (length as listLength)
+    import docparse/types/document (Block, TextBlock, HeadingBlock, ListBlock, TableBlock)
+    import docparse/services/markdown_parser (parseMarkdown)
+
+    -- A deterministic one-line tag per block, so a wrong parse yields wrong output.
+    pure func tagBlock(b: Block) -> string =
+      match b {
+        HeadingBlock({text: t, level: l}) => "H${intToStr(l)}|${t}",
+        TextBlock({text: t, style: _, level: _}) => "P|${t}",
+        ListBlock({items: xs, ordered: _}) => "L${intToStr(listLength(xs))}",
+        TableBlock({rows: rs, headers: _, caption: _}) => "T${intToStr(listLength(rs))}",
+        _ => "?"
+      }
+
+    func printBlocks(bs: [Block]) -> () ! {IO} =
+      match bs {
+        [] => (),
+        b :: rest => { let _ = println(tagBlock(b)); printBlocks(rest) }
+      }
+
+    export func main() -> () ! {IO, FS} {
+      let content = readFile("input.md");
+      let blocks = parseMarkdown(content);
+      let _ = println(intToStr(listLength(blocks)));
+      printBlocks(blocks)
+    }
+  input.md: |
+    # DocParse Test Document
+
+    ## Introduction
+
+    This is a test markdown document for verifying the AILANG markdown parser.
+    It contains several different block types.
+
+    ## Features
+
+    ### Headings
+
+    The parser supports headings from level 1 through level 6.
+
+    ### Lists
+
+    Here are some unordered items:
+
+    - First item
+    - Second item
+    - Third item
+
+    And ordered items:
+
+    1. Step one
+    2. Step two
+    3. Step three
+
+    ### Tables
+
+    | Format | Parser | Status |
+    | ------ | ------ | ------ |
+    | CSV | csv_parser.ail | Done |
+    | Markdown | markdown_parser.ail | Done |
+    | HTML | html_parser.ail | Planned |
+
+    ## Conclusion
+
+    DocParse supports multiple formats with pure AILANG parsers.
+expected_stdout: |
+  15
+  H1|DocParse Test Document
+  H2|Introduction
+  P|This is a test markdown document for verifying the AILANG markdown parser. It contains several different block types.
+  H2|Features
+  H3|Headings
+  P|The parser supports headings from level 1 through level 6.
+  H3|Lists
+  P|Here are some unordered items:
+  L3
+  P|And ordered items:
+  L3
+  H3|Tables
+  T3
+  H2|Conclusion
+  P|DocParse supports multiple formats with pure AILANG parsers.
