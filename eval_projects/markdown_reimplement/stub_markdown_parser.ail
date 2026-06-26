@@ -1,0 +1,261 @@
+module docparse/services/markdown_parser
+
+import std/string (split, trim, length, startsWith, substring, find, contains, charAt)
+import std/list (map, filter, foldl, concat, reverse, length as listLength)
+import std/option (Some, None)
+import docparse/types/document (Block, HeadingBlock, TextBlock, ListBlock, TableBlock, TableCell, simpleCell, mkTable)
+
+-- Markdown Parser — converts Markdown text to Block ADT.
+-- Pure AILANG implementation, no external dependencies.
+--
+-- Supports:
+--   - Headings (# through ######)
+--   - Paragraphs (text blocks separated by blank lines)
+--   - Unordered lists (- or * prefix)
+--   - Ordered lists (1. 2. etc prefix)
+--   - Simple tables (| col | col | format)
+--
+-- Does NOT handle (yet):
+--   - Code blocks (``` fenced)
+--   - Inline formatting (bold, italic, links)
+--   - Blockquotes (>)
+--   - Images (![alt](url))
+--
+-- Usage:
+--   let blocks = parseMarkdown(content)
+
+-- Parse markdown content into Block ADT
+-- Contract: empty content produces no blocks
+export pure func parseMarkdown(content: string) -> [Block]
+  ensures { length(content) == 0 || listLength(result) >= 0 }
+{
+  -- STUB (markdown_reimplement P1 task): reimplement this so it converts Markdown
+  -- `content` into [Block]. The helpers below (emptyParseState, mdProcessLine,
+  -- flushState) are already implemented — split into lines, fold mdProcessLine over
+  -- them from emptyParseState(), then flush.
+  []
+}
+
+-- Internal parse state tracks accumulated lines for multi-line blocks
+type MdParseState = {
+  blocks: [Block],       -- accumulated blocks (in reverse order)
+  listItems: [string],   -- accumulated list items
+  listOrdered: bool,     -- is current list ordered?
+  tableRows: [[string]], -- accumulated table rows (in reverse)
+  textLines: [string]    -- accumulated paragraph lines
+}
+
+-- Contract: empty state has no accumulated content
+pure func emptyParseState() -> MdParseState
+  ensures {
+    listLength(result.blocks) == 0 &&
+    listLength(result.listItems) == 0 &&
+    listLength(result.tableRows) == 0 &&
+    listLength(result.textLines) == 0
+  }
+= {
+  blocks: [],
+  listItems: [],
+  listOrdered: false,
+  tableRows: [],
+  textLines: []
+}
+
+-- Process a single line, updating parse state
+pure func mdProcessLine(state: MdParseState, line: string) -> MdParseState {
+  let trimmedLine = trim(line);
+
+  -- Blank line: flush current paragraph/list
+  if length(trimmedLine) == 0 then flushToState(state)
+
+  -- Heading: # through ######
+  else if startsWith(trimmedLine, "######") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 6, length(trimmedLine))), level: 6}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  else if startsWith(trimmedLine, "#####") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 5, length(trimmedLine))), level: 5}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  else if startsWith(trimmedLine, "####") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 4, length(trimmedLine))), level: 4}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  else if startsWith(trimmedLine, "###") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 3, length(trimmedLine))), level: 3}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  else if startsWith(trimmedLine, "##") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 2, length(trimmedLine))), level: 2}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  else if startsWith(trimmedLine, "#") then
+    let s = flushToState(state) in
+    { blocks: HeadingBlock({text: trim(substring(trimmedLine, 1, length(trimmedLine))), level: 1}) :: s.blocks,
+      listItems: [], listOrdered: false, tableRows: [], textLines: [] }
+
+  -- Unordered list item: - or *
+  else if startsWith(trimmedLine, "- ") || startsWith(trimmedLine, "* ") then
+    let s = flushText(flushTable(state)) in
+    let item = trim(substring(trimmedLine, 2, length(trimmedLine))) in
+    { blocks: s.blocks, listItems: concat(s.listItems, [item]),
+      listOrdered: false, tableRows: [], textLines: [] }
+
+  -- Ordered list item: starts with digit followed by ". "
+  else if mdIsOrderedListItem(trimmedLine) then
+    let s = flushText(flushTable(state)) in
+    let item = mdExtractOrderedItem(trimmedLine) in
+    { blocks: s.blocks, listItems: concat(s.listItems, [item]),
+      listOrdered: true, tableRows: [], textLines: [] }
+
+  -- Table row: starts and ends with |
+  else if startsWith(trimmedLine, "|") then
+    -- Skip separator rows (| --- | --- |)
+    if mdIsTableSeparator(trimmedLine) then state
+    else
+      let s = flushText(flushList(state)) in
+      let cells = mdParseTableRow(trimmedLine) in
+      { blocks: s.blocks, listItems: [], listOrdered: false,
+        tableRows: concat(s.tableRows, [cells]), textLines: [] }
+
+  -- Regular text line: accumulate for paragraph
+  else
+    let s = flushList(flushTable(state)) in
+    { blocks: s.blocks, listItems: [], listOrdered: false,
+      tableRows: [], textLines: concat(s.textLines, [trimmedLine]) }
+}
+
+-- Flush all accumulated state into blocks
+pure func flushState(state: MdParseState) -> [Block] {
+  let s = flushToState(state);
+  s.blocks
+}
+
+-- Flush accumulated text, list, and table into state
+pure func flushToState(state: MdParseState) -> MdParseState {
+  flushText(flushList(flushTable(state)))
+}
+
+-- Flush accumulated text lines into a TextBlock
+-- Contract: text lines are always cleared after flush
+pure func flushText(state: MdParseState) -> MdParseState
+  ensures { listLength(result.textLines) == 0 }
+{
+  if listLength(state.textLines) == 0 then state
+  else {
+    let text = mdJoinLines(state.textLines);
+    { blocks: TextBlock({text: text, style: "normal", level: 0}) :: state.blocks,
+      listItems: [], listOrdered: state.listOrdered,
+      tableRows: state.tableRows, textLines: [] }
+  }
+}
+
+-- Flush accumulated list items into a ListBlock
+-- Contract: list items are always cleared after flush
+pure func flushList(state: MdParseState) -> MdParseState
+  ensures { listLength(result.listItems) == 0 }
+{
+  if listLength(state.listItems) == 0 then state
+  else {
+    { blocks: ListBlock({items: state.listItems, ordered: state.listOrdered}) :: state.blocks,
+      listItems: [], listOrdered: false,
+      tableRows: state.tableRows, textLines: state.textLines }
+  }
+}
+
+-- Flush accumulated table rows into a TableBlock
+-- Contract: table rows are always cleared after flush
+pure func flushTable(state: MdParseState) -> MdParseState
+  ensures { listLength(result.tableRows) == 0 }
+{
+  if listLength(state.tableRows) == 0 then state
+  else {
+    match state.tableRows {
+      [] => state,
+      headerCells :: dataRows => {
+        let headerRow = map(simpleCell, headerCells);
+        let bodyRows = map(\row. map(simpleCell, row), dataRows);
+        { blocks: mkTable(bodyRows, headerRow) :: state.blocks,
+          listItems: state.listItems, listOrdered: state.listOrdered,
+          tableRows: [], textLines: state.textLines }
+      }
+    }
+  }
+}
+
+-- Join text lines with spaces (paragraph reconstruction)
+-- Contract: non-empty input produces non-empty output
+pure func mdJoinLines(lines: [string]) -> string
+  ensures { listLength(lines) == 0 || length(result) > 0 }
+{
+  foldl(mdAppendLine, "", lines)
+}
+
+-- Helper for foldl: append a line with space separator
+pure func mdAppendLine(acc: string, line: string) -> string
+  ensures { length(result) >= length(line) }
+=
+  if length(acc) == 0 then line else "${acc} ${line}"
+
+-- Check if a line is an ordered list item (starts with "N. ")
+pure func mdIsOrderedListItem(line: string) -> bool {
+  let dotPos = find(line, ". ");
+  if dotPos > 0 then
+    let prefix = substring(line, 0, dotPos) in
+    mdAllDigits(trim(prefix))
+  else false
+}
+
+-- Check if all characters in a string are digits
+-- Contract: empty string is never all digits
+pure func mdAllDigits(s: string) -> bool
+  ensures { length(s) == 0 || result == true || result == false }
+{
+  if length(s) == 0 then false
+  else mdAllDigitsFrom(s, 0)
+}
+
+-- Check digits from index i using charAt (avoids substring allocation)
+pure func mdAllDigitsFrom(s: string, i: int) -> bool =
+  if i >= length(s) then true
+  else mdIsDigit(charAt(s, i)) && mdAllDigitsFrom(s, i + 1)
+
+-- Check if a single character is a digit
+-- Contract: only returns true for single-char strings
+pure func mdIsDigit(c: string) -> bool
+  ensures { result == false || length(c) == 1 }
+=
+  c == "0" || c == "1" || c == "2" || c == "3" || c == "4" ||
+  c == "5" || c == "6" || c == "7" || c == "8" || c == "9"
+
+-- Extract the text after "N. " from an ordered list item
+-- Contract: result is never longer than input (we're extracting a suffix)
+pure func mdExtractOrderedItem(line: string) -> string
+  ensures { length(result) <= length(line) }
+{
+  let dotPos = find(line, ". ");
+  if dotPos >= 0 then trim(substring(line, dotPos + 2, length(line)))
+  else line
+}
+
+-- Check if a table row is a separator (e.g., | --- | --- |)
+pure func mdIsTableSeparator(line: string) -> bool {
+  -- Separator rows contain mostly dashes, pipes, colons, and spaces
+  contains(line, "---") || contains(line, "- -")
+}
+
+-- Parse a table row "| cell | cell | cell |" into a list of cell strings
+-- Contract: a table row always produces at least one cell
+pure func mdParseTableRow(line: string) -> [string]
+  ensures { listLength(result) >= 1 }
+{
+  let cells = split(line, "|");
+  -- split on | gives empty first and last elements, plus the cells
+  let trimmed = map(trim, cells);
+  filter(\c. length(c) > 0, trimmed)
+}

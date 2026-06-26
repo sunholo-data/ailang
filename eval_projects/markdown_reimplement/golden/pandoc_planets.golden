@@ -1,0 +1,39 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/pandoc_planets.md
+Format:   markdown (md)
+Strategy: Markdown structure parsing (pure AILANG)
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing Markdown (pure AILANG) ---
+
+Parsing 4049 chars of markdown...
+Extracted 10 blocks.
+
+=== Document Summary ===
+Format:   markdown
+Filename: data/test_files/pandoc_planets.md
+Title:    
+Author:   
+Blocks:   10
+Headings: 0
+Tables:   4
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[text:normal] +------------------+---------+------------+----------+-----------+----------+---------+-----------+-------------+--------+--------------+
+[table] 2 rows, 10 cols
+[text:normal] +:=======:+:======:+=========+===========:+=========:+==========:+=========:+========:+==========:+============:+=======:+==============+
+[table] 5 rows, 11 cols
+[text:normal] +---------+--------+---------+------------+----------+-----------+----------+---------+-----------+-------------+--------+--------------+
+[table] 5 rows, 12 cols
+[text:normal] +---------+--------+---------+------------+----------+-----------+----------+---------+-----------+-------------+--------+--------------+
+[table] 2 rows, 11 cols
+[text:normal] +------------------+---------+------------+----------+-----------+----------+---------+-----------+-------------+--------+--------------+
+[text:normal] : Data about the planets of our solar system.
+
+
+=== AILANG Parse Complete ===

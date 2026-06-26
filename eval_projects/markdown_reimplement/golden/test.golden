@@ -1,0 +1,44 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/test.md
+Format:   markdown (md)
+Strategy: Markdown structure parsing (pure AILANG)
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing Markdown (pure AILANG) ---
+
+Parsing 650 chars of markdown...
+Extracted 15 blocks.
+
+=== Document Summary ===
+Format:   markdown
+Filename: data/test_files/test.md
+Title:    
+Author:   
+Blocks:   15
+Headings: 7
+Tables:   1
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[h1] DocParse Test Document
+[h2] Introduction
+[text:normal] This is a test markdown document for verifying the AILANG markdown parser. It contains several different block types.
+[h2] Features
+[h3] Headings
+[text:normal] The parser supports headings from level 1 through level 6.
+[h3] Lists
+[text:normal] Here are some unordered items:
+[list] 3 items
+[text:normal] And ordered items:
+[list] 3 items
+[h3] Tables
+[table] 3 rows, 3 cols
+[h2] Conclusion
+[text:normal] DocParse supports multiple formats with pure AILANG parsers.
+
+
+=== AILANG Parse Complete ===

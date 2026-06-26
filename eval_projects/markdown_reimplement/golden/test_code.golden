@@ -1,0 +1,42 @@
+=== AILANG Parse: Universal Document Parsing ===
+
+File:     data/test_files/test_code.md
+Format:   markdown (md)
+Strategy: Markdown structure parsing (pure AILANG)
+AI:       disabled (pass 'describe' or 'summarize' arg to enable)
+
+--- Parsing Markdown (pure AILANG) ---
+
+Parsing 792 chars of markdown...
+Extracted 13 blocks.
+
+=== Document Summary ===
+Format:   markdown
+Filename: data/test_files/test_code.md
+Title:    
+Author:   
+Blocks:   13
+Headings: 7
+Tables:   1
+Images:   0
+Sections: 0
+Changes:  0
+========================
+
+--- Content Blocks ---
+[h1] Code Examples
+[h2] Python
+[text:normal] ```python def fibonacci(n): if n <= 1: return n return fibonacci(n-1) + fibonacci(n-2) ```
+[h2] JavaScript
+[text:normal] ```javascript const greet = (name) => `Hello, ${name}!`; console.log(greet("World")); ```
+[h2] Blockquote with attribution
+[text:normal] > The best way to predict the future is to invent it. > > — Alan Kay
+[h2] Nested Lists
+[list] 10 items
+[h2] Table
+[table] 4 rows, 3 cols
+[h2] Inline code
+[text:normal] Use `pip install ailang` to install. The `--caps` flag sets capabilities.
+
+
+=== AILANG Parse Complete ===
