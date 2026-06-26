@@ -249,7 +249,8 @@ type ConstructorInfo struct {
 	TypeName       string
 	CtorName       string
 	Arity          int
-	TypeParamCount int // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	TypeParamCount int          // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	FieldTypes     []types.Type // M-IFACE-COMPACT-ADT-FIELDS: field types so the compact iface can render Ctor({...})
 }
 
 // BuildInterface extracts the typed interface from a Core program

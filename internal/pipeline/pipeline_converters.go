@@ -47,7 +47,8 @@ func convertToIfaceConstructors(pipeCtors map[string]*ConstructorInfo) map[strin
 			TypeName:       pipeCtor.TypeName,
 			CtorName:       pipeCtor.CtorName,
 			Arity:          pipeCtor.Arity,
-			TypeParamCount: pipeCtor.TypeParamCount, // M-TAPP-FIX: Propagate type param count
+			TypeParamCount: pipeCtor.TypeParamCount,     // M-TAPP-FIX: Propagate type param count
+			FieldTypes:     pipeCtor.InternalFieldTypes, // M-IFACE-COMPACT-ADT-FIELDS: carry field types into the iface
 		}
 	}
 	return ifaceCtors
