@@ -59,6 +59,14 @@ type Task struct {
 	Model        string            // Model to use (provider-specific)
 	Metadata     map[string]string // Provider-specific options
 
+	// ExtraEnv are additional environment variables exported to the agent
+	// subprocess, merged into the executor's process env by BuildEnvironment.
+	// The eval harness sets these from a benchmark's `agent_env` (e.g.
+	// MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL) so multi-file reimplement
+	// benchmarks receive dependency modules as compact interfaces. Applies
+	// uniformly across every executor (the uniform executor contract).
+	ExtraEnv map[string]string
+
 	// Effort level (Claude Code 2.1.47+: "low", "medium", "high")
 	Effort string
 

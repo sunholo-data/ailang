@@ -255,3 +255,33 @@ func TestRemoveEnvVar_NotPresent(t *testing.T) {
 		t.Errorf("RemoveEnvVar on missing key: got %d entries, want 2", len(result))
 	}
 }
+
+// TestBuildEnvironment_ExtraEnv guards the M-EVAL-REIMPLEMENT-BENCH regression:
+// a benchmark's agent_env (carried on Task.ExtraEnv) must reach the executor
+// subprocess env. The original injection lived in the dead RunHeadlessSessionStreaming
+// path, so MOTOKO_AST_AUTOREAD silently never reached executor agents (motoko/opencode/pi)
+// and the AST-autoread / iface-compaction feature stayed off.
+func TestBuildEnvironment_ExtraEnv(t *testing.T) {
+	task := &Task{
+		Workspace: t.TempDir(),
+		ExtraEnv: map[string]string{
+			"MOTOKO_AST_AUTOREAD":  "1",
+			"MOTOKO_AST_READ_FULL": "docx_parser.ail:main.ail",
+		},
+	}
+	env := BuildEnvironment(EnvironmentOptions{Task: task})
+
+	for k, v := range task.ExtraEnv {
+		needle := k + "=" + v
+		found := false
+		for _, e := range env {
+			if e == needle {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("BuildEnvironment did not export ExtraEnv %q=%q to the executor env", k, v)
+		}
+	}
+}

@@ -91,6 +91,15 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 		env = append(env, fmt.Sprintf("PWD=%s", opts.Task.Workspace))
 	}
 
+	// Merge per-task extra env (eval harness benchmark agent_env, e.g.
+	// MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL). Appended last so a benchmark
+	// can intentionally override an inherited value. Applies to every executor.
+	if opts.Task != nil {
+		for k, v := range opts.Task.ExtraEnv {
+			env = append(env, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
 	// Inject W3C trace context for distributed tracing
 	// This enables ailang run commands spawned by the executor to link back to this trace
 	if opts.Context != nil {
