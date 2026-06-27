@@ -634,6 +634,7 @@ func compactInterface(jsonBytes []byte) (string, error) {
 		Types  []struct {
 			Name  string   `json:"name"`
 			Ctors []string `json:"ctors"`
+			Alias string   `json:"alias"`
 		} `json:"types"`
 		Funcs []struct {
 			Name string `json:"name"`
@@ -646,9 +647,12 @@ func compactInterface(jsonBytes []byte) (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "module %s\n", iface.Module)
 	for _, t := range iface.Types {
-		if len(t.Ctors) > 0 {
+		switch {
+		case len(t.Ctors) > 0:
 			fmt.Fprintf(&b, "type %s = %s\n", t.Name, strings.Join(t.Ctors, " | "))
-		} else {
+		case t.Alias != "": // M-IFACE-RECORD-FIELDS: show record fields, not a bare name
+			fmt.Fprintf(&b, "type %s = %s\n", t.Name, t.Alias)
+		default:
 			fmt.Fprintf(&b, "type %s\n", t.Name)
 		}
 	}

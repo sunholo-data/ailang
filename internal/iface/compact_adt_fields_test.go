@@ -41,6 +41,21 @@ func TestRenderConstructor_Positional(t *testing.T) {
 	}
 }
 
+// M-IFACE-RECORD-FIELDS: a record type alias must render its fields, so an agent can build/
+// destructure it from the compact iface instead of cat-ing the source.
+func TestRenderTypeAlias_Record(t *testing.T) {
+	rec := &types.TRecord{Fields: map[string]types.Type{
+		"colSpan": &types.TCon{Name: "int"},
+		"merged":  &types.TCon{Name: "bool"},
+		"text":    &types.TCon{Name: "string"},
+	}}
+	got := renderTypeAlias(rec)
+	want := "{colSpan: int, merged: bool, text: string}"
+	if got != want {
+		t.Errorf("renderTypeAlias got %q, want %q", got, want)
+	}
+}
+
 func TestFormatTypeCanonical_RecordNoLeak(t *testing.T) {
 	rec := &types.TRecord{Fields: map[string]types.Type{"x": &types.TCon{Name: "float"}}}
 	got := formatTypeCanonical(rec, identCanon())

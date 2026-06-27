@@ -22,6 +22,11 @@ type TypeJSON struct {
 	Name   string   `json:"name"`
 	Params []string `json:"params,omitempty"`
 	Ctors  []string `json:"ctors,omitempty"`
+	// Alias is the rendered underlying structure of a type alias — chiefly record types
+	// (`{label: type, ...}`). M-IFACE-RECORD-FIELDS: without this, `type TableCell = {...}`
+	// rendered as a bare `type TableCell`, so an agent couldn't build/destructure the record
+	// from the compact iface and fell back to cat-ing the full source.
+	Alias string `json:"alias,omitempty"`
 }
 
 // FuncJSON represents an exported function in normalized form
@@ -81,6 +86,12 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Ctors:  typeToCtors[name], // Already sorted
 		}
 
+		// M-IFACE-RECORD-FIELDS: a record/type alias has no constructors; render its underlying
+		// structure (e.g. `{text: string, colSpan: int, ...}`) so the iface shows the fields.
+		if alias, ok := i.TypeAliases[name]; ok && len(typeJSON.Ctors) == 0 {
+			typeJSON.Alias = renderTypeAlias(alias)
+		}
+
 		result.Types = append(result.Types, typeJSON)
 	}
 
@@ -137,6 +148,24 @@ func renderConstructor(name string, fieldTypes []types.Type) string {
 		parts[i] = formatTypeCanonical(ft, getCanonName)
 	}
 	return name + "(" + strings.Join(parts, ", ") + ")"
+}
+
+// renderTypeAlias renders a type alias's underlying structure (chiefly a record `{text: string,
+// colSpan: int, ...}`) with canonical type-variable names, so the compact iface exposes record
+// fields instead of a bare `type Name`. M-IFACE-RECORD-FIELDS.
+func renderTypeAlias(target types.Type) string {
+	varMap := make(map[string]string)
+	varCounter := 0
+	getCanonName := func(original string) string {
+		if canon, ok := varMap[original]; ok {
+			return canon
+		}
+		canon := string(rune('a' + varCounter))
+		varMap[original] = canon
+		varCounter++
+		return canon
+	}
+	return formatTypeCanonical(target, getCanonName)
 }
 
 // canonicalizeType converts a Scheme to canonical string form
