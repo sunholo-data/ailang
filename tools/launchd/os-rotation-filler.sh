@@ -75,6 +75,11 @@ log "rig lock acquired (filler)"
 #    so word-splitting into an array is bash-3.2 safe.
 # shellcheck disable=SC2207
 BENCHES=( $(for f in benchmarks/*.yml; do
+  # M-EVAL-RELIABLE-GRADING: ailang-only reimplement benchmarks (grade_entrypoint marker) join
+  # the rotation alongside the 4-language set. Checked FIRST because their block-list languages
+  # ('languages:\n- ailang') wouldn't pass the single-line 4-language grep below. eval-suite skips
+  # unsupported langs per benchmark (SupportsLanguage), so --langs with all 4 runs only ailang.
+  if grep -qE '^grade_entrypoint:' "$f"; then basename "$f" .yml; continue; fi
   L=$(grep -E '^languages:' "$f" 2>/dev/null)
   echo "$L" | grep -q ailang || continue
   echo "$L" | grep -q python || continue
@@ -103,8 +108,13 @@ log "cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
 
 # 6. Run the chunk — serial (single-GPU), accumulating via --skip-existing.
 mkdir -p "$ROLL"
+# Reimplement benchmarks (M-EVAL-RELIABLE-GRADING) are long agentic tasks (docx ~50min on
+# motoko-local): a single trial + a wider wall budget so a reimplement chunk doesn't always
+# time out before the slow benchmark banks. --skip-existing still banks each model over cycles.
+TRIALS=3; TMO="$CHUNK_TIMEOUT"
+case "$PICK" in *reimplement*) TRIALS=1; TMO="5400s";; esac
 ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
-  --parallel 1 --microrag on --trials 3 --skip-existing --timeout "$CHUNK_TIMEOUT" \
+  --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --timeout "$TMO" \
   --output "$ROLL" >>"$LOG" 2>&1 || log "chunk had failures (continuing)"
 
 # 7. Regenerate the OS/Local JSON from the cumulative rolling rotation; commit the
