@@ -496,8 +496,15 @@ func (p *Parser) missingBlockSemicolonError() *ParserError {
 // (M-RELEASE-GATE follow-up: keep parser_expr.go under the 800-line limit).
 
 func (p *Parser) parsePureLambda() ast.Expr {
-	// We're already at 'func' token after 'pure'
-	lambda := p.parseLambda().(*ast.Lambda)
+	// We're already at 'func' token after 'pure'.
+	// parseLambda returns a nil ast.Expr on a malformed lambda (having already
+	// recorded the real parse error). Guard the assertion so a bad `pure func ...`
+	// surfaces that clean error instead of a PAR999 panic the agent can't act on.
+	// M-AGENT-STUCK-FIXES M1: this assertion looped a benchmark agent for 87 steps.
+	lambda, ok := p.parseLambda().(*ast.Lambda)
+	if !ok {
+		return nil
+	}
 	// Mark as pure somehow
 	return lambda
 }
