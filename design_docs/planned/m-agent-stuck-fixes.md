@@ -19,15 +19,18 @@ These are distinct from the AILANG **dialect** errors in the same files (`;` in 
 
 ## Milestones
 
-### M1 — Parser never panics on `pure func` (PAR999 → clean error)
+### M1 — Parser never panics on `pure func` (PAR999 → clean error) ✅ DONE (commit 2dd9ccd54)
 - Guard the `.(*ast.Lambda)` assertion in `parsePureLambda`: when `parseLambda` returns nil (it has already recorded the real parse error), return nil instead of asserting.
 - Systemic audit done: `grep -rnE 'p\.parse[A-Za-z]+\(\)\.\(\*ast\.' internal/parser` → **one** site. No siblings.
 - Regression test: malformed `pure func` variants → a normal PAR error, never PAR999 / "parser panic".
 - **Acceptance:** `ailang check` on any malformed `pure func` emits a real parse error, never a panic.
 
-### M2 — IMP010 for auto-imported builtins → "it's auto-imported; remove the import"
-- When IMP010 fires for a symbol that is an auto-imported builtin (`show`, `print`, …), append: "`show` is auto-imported — remove it from the import list."
-- **Acceptance:** `import std/string (show)` → IMP010 with the auto-import hint.
+### M2 — Smarter IMP010 (auto-import + wrong-module hint) ✅ DONE
+- Two-pronged hint, appended to the **Message** (the CLI renders only `CODE: Message`; `Fix.Suggestion` is not shown in text mode, so a hint placed only there never reaches the agent):
+  1. auto-imported builtin (`show`) → "`show` is a builtin available in every module; remove it from the import list".
+  2. wrong source module → "`println` is exported by std/io; import it from there, not 'std/string'" (via `stdlibindex`).
+- **Systemic:** there are **two** IMP010 producers (loader fires first, then linker) with identical messages. Shared via a new leaf `internal/importhint` package both call — not patched in one place. Verified empirically that only `show` is auto-available by bare name; a genuinely-unknown symbol gets no misleading hint.
+- **Acceptance:** all three cases confirmed on the built binary; `internal/importhint` unit tests green.
 
 ## Verification
 - **Deterministic:** reproduce each trigger → confirm the new message (no panic; helpful hint).

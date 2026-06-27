@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/importhint"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
 	"github.com/sunholo-data/ailang/std"
@@ -448,11 +449,22 @@ func newIMP010Loader(symbol, modID string, available []string, span *ast.Span) *
 	copy(sortedAvailable, available)
 	sort.Strings(sortedAvailable)
 
+	// The CLI renders only "CODE: Message", so the actionable hint must live in Message to reach
+	// an agent reading `ailang check` output. Same hint as the linker path. M-AGENT-STUCK-FIXES M2.
+	hint := importhint.IMP010(symbol, modID)
+	suggestion := fmt.Sprintf("Check exports in %s. Available: %s",
+		modID, strings.Join(sortedAvailable[:min(3, len(sortedAvailable))], ", "))
+	confidence := 0.85
+	if hint != "" {
+		suggestion = strings.TrimPrefix(hint, " — ")
+		confidence = 0.95
+	}
+
 	return &errors.Report{
 		Schema:  "ailang.error/v1",
 		Code:    "IMP010",
 		Phase:   "loader",
-		Message: fmt.Sprintf("symbol '%s' not exported by '%s'", symbol, modID),
+		Message: fmt.Sprintf("symbol '%s' not exported by '%s'%s", symbol, modID, hint),
 		Span:    span,
 		Data: map[string]any{
 			"available_exports": sortedAvailable,
@@ -460,9 +472,8 @@ func newIMP010Loader(symbol, modID string, available []string, span *ast.Span) *
 			"symbol":            symbol,
 		},
 		Fix: &errors.Fix{
-			Suggestion: fmt.Sprintf("Check exports in %s. Available: %s",
-				modID, strings.Join(sortedAvailable[:min(3, len(sortedAvailable))], ", ")),
-			Confidence: 0.85,
+			Suggestion: suggestion,
+			Confidence: confidence,
 		},
 	}
 }

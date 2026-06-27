@@ -3,9 +3,11 @@ package link
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/importhint"
 )
 
 // newIMP010 creates an error report for missing export
@@ -20,11 +22,21 @@ func newIMP010(symbol, modID string, available, trace []string, span *ast.Span) 
 	copy(sortedTrace, trace)
 	sort.Strings(sortedTrace)
 
+	// The CLI renders only "CODE: Message" (Fix.Suggestion is not shown in text mode), so the
+	// actionable hint must live in Message to reach an agent reading `ailang check` output.
+	hint := importhint.IMP010(symbol, modID)
+	suggestion := fmt.Sprintf("Check exports in %s or import an existing symbol", modID)
+	confidence := 0.85
+	if hint != "" {
+		suggestion = strings.TrimPrefix(hint, " — ")
+		confidence = 0.95
+	}
+
 	return &errors.Report{
 		Schema:  "ailang.error/v1",
 		Code:    "IMP010",
 		Phase:   "link",
-		Message: fmt.Sprintf("symbol '%s' not exported by '%s'", symbol, modID),
+		Message: fmt.Sprintf("symbol '%s' not exported by '%s'%s", symbol, modID, hint),
 		Span:    span,
 		Data: map[string]any{
 			"available_exports": sortedAvailable,
@@ -33,8 +45,8 @@ func newIMP010(symbol, modID string, available, trace []string, span *ast.Span) 
 			"symbol":            symbol,
 		},
 		Fix: &errors.Fix{
-			Suggestion: fmt.Sprintf("Check exports in %s or import an existing symbol", modID),
-			Confidence: 0.85,
+			Suggestion: suggestion,
+			Confidence: confidence,
 		},
 	}
 }
