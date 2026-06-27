@@ -3,6 +3,9 @@ description: Reimplement the stubbed AILANG markdown parser (parseMarkdown -> Bl
 languages:
 - ailang
 entrypoint: main
+grade_entrypoint: main.ail
+solution_files:
+- docparse/services/markdown_parser.ail
 caps:
 - IO
 - FS

@@ -42,6 +42,17 @@ type BenchmarkSpec struct {
 	// reference file). Values support ${WORKSPACE} expansion to the agent's workspace root.
 	AgentEnv map[string]string `yaml:"agent_env,omitempty"`
 
+	// M-EVAL-RELIABLE-GRADING: workspace grading for multi-file reimplement benchmarks.
+	// When GradeEntrypoint is set (agent mode, ailang), the harness grades the agent's
+	// PRESERVED workspace by running this probe file (e.g. "main.ail") against the modules
+	// the agent implemented — instead of re-stubbing a fresh workspace and running solution.ail
+	// in isolation (which discards the agent's implementation). SolutionFiles are the file(s)
+	// the agent implements (e.g. the stubbed parser); they keep the agent's version at grade
+	// time while every other input_file is re-seeded to its canonical form (so the probe and
+	// fixed deps can't be tampered with). Unset → legacy single-file solution.ail grading.
+	GradeEntrypoint string   `yaml:"grade_entrypoint,omitempty"`
+	SolutionFiles   []string `yaml:"solution_files,omitempty"`
+
 	// M-EVAL-NETWORK-MOCK-FIXTURE: when true, the harness runs the solution with
 	// --net-allow-http and --net-allow-localhost so generated code can reach the
 	// local deterministic HTTP mock (see httpmock.go). Required because AILANG's Net

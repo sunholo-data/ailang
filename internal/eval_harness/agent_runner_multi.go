@@ -4,9 +4,11 @@
 package eval_harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -445,6 +447,14 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 		}
 	}
 
+	// M-EVAL-RELIABLE-GRADING: multi-file reimplement benchmarks grade a harness-owned probe
+	// against the agent's PRESERVED workspace (with the modules it implemented), instead of
+	// re-stubbing a fresh workspace and running solution.ail in isolation — which discards the
+	// agent's implementation and only passes if it ignored the task and inlined everything.
+	if language == "ailang" && spec.GradeEntrypoint != "" {
+		return gradeInWorkspace(spec, workspace)
+	}
+
 	// Check if solution file exists
 	solutionContent, err := os.ReadFile(solutionPath)
 	if err != nil || len(solutionContent) == 0 {
@@ -560,6 +570,72 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 		StdoutOk:  stdoutOk,
 		Stdout:    runResult.Stdout,
 		Stderr:    runResult.Stderr,
+	}
+}
+
+// gradeInWorkspace (M-EVAL-RELIABLE-GRADING) grades a multi-file benchmark by running the
+// harness-owned probe (spec.GradeEntrypoint) against the modules the agent implemented in its
+// PRESERVED workspace. Every input_file EXCEPT spec.SolutionFiles is re-seeded to its canonical
+// form first, so the probe and fixed dependencies are tamper-proof while the agent's target
+// implementation is the thing actually measured. This replaces the legacy path that re-stubbed a
+// fresh workspace and ran solution.ail in isolation — discarding the agent's implementation.
+func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
+	keep := make(map[string]bool, len(spec.SolutionFiles))
+	for _, f := range spec.SolutionFiles {
+		keep[f] = true
+	}
+	// Restore canonical probe + fixed deps; preserve the agent's solution_files.
+	for name, content := range spec.InputFiles {
+		if keep[name] {
+			continue
+		}
+		fpath := filepath.Join(workspace, name)
+		if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+			return ValidationResult{Stderr: fmt.Sprintf("[harness_setup] grade: mkdir %s: %v", name, err)}
+		}
+		if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+			return ValidationResult{Stderr: fmt.Sprintf("[harness_setup] grade: seed %s: %v", name, err)}
+		}
+	}
+
+	// Run the probe from the agent's workspace, mirroring the legacy runner's flags.
+	ailangBin := os.Getenv("AILANG_BIN")
+	if ailangBin == "" {
+		ailangBin = "ailang" // PATH
+	}
+	cwd, _ := os.Getwd()
+	args := []string{"run", "--entry", "main", "--quiet", "--relax-modules",
+		"--stdlib-path", filepath.Join(cwd, "std")}
+	if len(spec.Caps) > 0 {
+		args = append(args, "--caps", strings.Join(spec.Caps, ","))
+	}
+	args = append(args, spec.GradeEntrypoint)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ailangBin, args...)
+	cmd.Dir = workspace
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	runErr := cmd.Run()
+	stdout, stderr := outBuf.String(), errBuf.String()
+
+	// Classify. The probe is harness-owned and always valid, so a failure here is attributable to
+	// the model (a compile error in its module, or wrong output) — never a missing-entrypoint
+	// artifact, which was the legacy path's flaw.
+	runtimeOk := runErr == nil
+	combined := stdout + "\n" + stderr
+	compileOk := !strings.Contains(combined, "type error") &&
+		!strings.Contains(combined, "parse error") &&
+		!strings.Contains(combined, "entrypoint 'main' not found")
+	stdoutOk := runtimeOk && CompareOutput(spec.ExpectedOut, stdout)
+	return ValidationResult{
+		CompileOk: compileOk,
+		RuntimeOk: runtimeOk,
+		StdoutOk:  stdoutOk,
+		Stdout:    stdout,
+		Stderr:    stderr,
 	}
 }
 
