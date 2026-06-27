@@ -57,6 +57,8 @@ def run_counts(path):
                         c['check-PASS'] += 1
                 elif 'ailang docs' in cmd:
                     c['docs-lookup'] += 1
+                elif '<<' in cmd or re.search(r'\s>>?\s*\S', cmd):
+                    c['bash-write'] += 1  # `cat > f << EOF` / redirects are WRITES, not exploration
                 elif any(x in cmd for x in ('find ', 'ls ', 'cat ', 'grep', 'head', 'tail', 'wc ')):
                     c['explore'] += 1
                 else:
