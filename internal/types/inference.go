@@ -139,7 +139,7 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 	case *ast.Identifier:
 		typ, err := ctx.env.Lookup(e.Name)
 		if err != nil {
-			return nil, nil, fmt.Errorf("undefined variable: %s", e.Name)
+			return nil, nil, fmt.Errorf("undefined variable: %s%s", e.Name, importHint(e.Name))
 		}
 		// Instantiate if it's a scheme
 		if scheme, ok := typ.(*Scheme); ok {

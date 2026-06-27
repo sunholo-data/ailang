@@ -59,7 +59,7 @@ func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*type
 func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typedast.TypedVar, *TypeEnv, error) {
 	typ, err := ctx.env.Lookup(v.Name)
 	if err != nil {
-		return nil, ctx.env, fmt.Errorf("undefined variable: %s at %s", v.Name, v.Span())
+		return nil, ctx.env, fmt.Errorf("undefined variable: %s at %s%s", v.Name, v.Span(), importHint(v.Name))
 	}
 
 	// Instantiate if it's a scheme
