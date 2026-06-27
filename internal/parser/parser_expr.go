@@ -263,7 +263,26 @@ func (p *Parser) parseCase() *ast.Case {
 		c.Guard = p.parseExpression(LOWEST)
 	}
 
-	p.expectPeek(lexer.FARROW)
+	// Match arms separate pattern and body with `=>`, not `->` (which is for type
+	// signatures / lambdas). A `->` here is a common dialect slip (M-AGENT-ERGONOMICS):
+	// emit a precise fix and recover by treating it as the arrow so the rest of the match
+	// still parses (one clear error instead of a cascade).
+	if p.peekTokenIs(lexer.ARROW) {
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR_MATCH_ARROW",
+			ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File},
+			p.peekToken,
+			"match arms use '=>' between pattern and body, not '->'",
+			[]string{
+				"Replace '->' with '=>': pattern => body",
+				"'->' is for type signatures, e.g. (x: int) -> int",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		p.nextToken() // recover: consume '->' as if it were the arrow
+	} else {
+		p.expectPeek(lexer.FARROW)
+	}
 	p.nextToken()
 
 	// Handle match arm bodies:
