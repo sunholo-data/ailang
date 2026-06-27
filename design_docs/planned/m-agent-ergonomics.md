@@ -102,6 +102,31 @@ benchmark is the instrument; this doc is the first smoothing pass.
   literal win, which was "accept what every language writes," not "accept a second AILANG dialect").
 
 ---
+
+## The loop, codified (run this every iteration)
+
+The point of the loop is to reach *mechanism-level* analysis on every study, not only when someone
+remembers to grep. The standardized steps, with the exact commands:
+
+1. **Measure** — N-run study on the rig (free local tokens absorb agentic path variance):
+   `ailang eval-suite --agent --models <m> --benchmarks <b> --langs ailang --trials 5 ...`
+2. **Aggregate friction** — `tools/aggregate_run_friction.py <session…>` → mean ± CV per category.
+   High-mean **low-CV** = reliable friction to target; high-CV = noise, never act on one run.
+3. **Deep-analyze every stuck run** — `tools/analyze_stuck.py <logdir>` auto-finds the `max_steps`
+   sessions and, per repeated error, prints a DOSSIER: the full untruncated error **plus the model's
+   own edits across each failed attempt**, ending in the invariant it never changed (the blind spot)
+   and a fix-question. This bakes in the two drill-downs that used to be manual (the exact error, and
+   "what did it try each time"). Example output: *"10 distinct attempts, every one keeps `show` …
+   what error message makes it remove it?"* → became M-AGENT-STUCK-FIXES M2.
+4. **Fix the rough edge** — design doc → execute → **deterministic** verify (reproduce the trigger,
+   confirm the new message; never rely on the noisy agentic metric to prove a deterministic fix).
+5. **Re-measure** — post-fix N-run; the targeted entry should vanish from `analyze_stuck.py`'s
+   repeated-error set, and the aggregate `max_steps` rate / step count should move if it was load-bearing.
+
+Tools: `tools/analyze_stuck.py` (where + why it's stuck), `tools/aggregate_run_friction.py` (signal vs
+noise across N), `tools/analyze_run_steps.py` (diff two single runs in detail).
+
+---
 **Document created**: 2026-06-27
 
 DESIGN_DOC_PATH: design_docs/planned/m-agent-ergonomics.md
