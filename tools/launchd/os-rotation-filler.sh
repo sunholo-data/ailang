@@ -113,8 +113,11 @@ mkdir -p "$ROLL"
 # time out before the slow benchmark banks. --skip-existing still banks each model over cycles.
 TRIALS=3; TMO="$CHUNK_TIMEOUT"
 case "$PICK" in *reimplement*) TRIALS=1; TMO="5400s";; esac
+# --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new build/release
+# re-evals from scratch and history accumulates per release (instead of --skip-existing freezing the
+# pre-release numbers forever). --skip-existing still accumulates the chunked sweep WITHIN a version.
 ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
-  --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --timeout "$TMO" \
+  --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --bank-by-version --timeout "$TMO" \
   --output "$ROLL" >>"$LOG" 2>&1 || log "chunk had failures (continuing)"
 
 # 7. Regenerate the OS/Local JSON from the cumulative rolling rotation; commit the

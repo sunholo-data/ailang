@@ -19,6 +19,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/version"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -93,6 +94,7 @@ func runEvalSuite() {
 	noSelfRepair := fs.Bool("no-self-repair", false, "Disable self-repair (run without error correction)")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
+	bankByVersion := fs.Bool("bank-by-version", false, "Namespace the output dir by the AILANG build version (eval_results/.../<version>/). A new build re-evals from scratch and history accumulates per release; with --skip-existing the rotation banks per-version (M-EVAL-VERSION-BANKING)")
 	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
 	noRigLock := fs.Bool("no-rig-lock", false, "Skip the shared rig lock. The rig is a single GPU; by default eval-suite refuses to start if another rig job (nightly/lang-eval/rotation) holds the lock, to prevent thrash/model-reload hangs. Use only on an isolated box.")
 
@@ -131,6 +133,20 @@ func runEvalSuite() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// M-EVAL-VERSION-BANKING: namespace the output dir by the AILANG build version BEFORE any use of
+	// *outputDir (cleanResults, the --skip-existing glob, the metrics writer, the rotation summarizer
+	// all read it downstream), so the whole pipeline is version-consistent. A new build -> empty
+	// <version>/ dir -> re-evals from scratch; history accumulates one banked set per build/release.
+	if *bankByVersion {
+		ver := version.Version
+		if ver == "" {
+			ver = "unknown"
+		}
+		ver = strings.ReplaceAll(ver, "/", "-") // defensive: keep it a single path segment
+		*outputDir = filepath.Join(*outputDir, ver)
+		fmt.Printf("%s Version-banking: output → %s\n", cyan("→"), *outputDir)
 	}
 
 	// Shared rig lock (M-RIG-LOCK-ENFORCE): the rig is a single GPU. Two eval
