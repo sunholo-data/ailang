@@ -1,5 +1,13 @@
 # Claude Instructions for AILANG Development
 
+## North Star — [design_docs/PROGRAM.md](design_docs/PROGRAM.md)
+
+This work runs as one program: a **self-specializing harness**. The motoko core is **minimal and frozen**;
+every improvement is routed to exactly one lane — an **AILANG fix**, a **motoko extension**, or (rarely) a
+**core-floor fix** that re-freezes. We discover friction by running benchmarks through the data-led loop,
+then route it. **Default bias: if it can be an extension, it is an extension — not a core change.** The
+living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) lives in PROGRAM.md.
+
 ## Session Start Routine
 
 **At the start of EVERY session, check for agent messages.**
