@@ -240,16 +240,19 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// agent runs (docx) mid-step-3. e.timeoutSeconds is only a floor; the 3h ceiling is the
 	// hung-run backstop so cmd.Run() can never block forever.
 	runTimeout := task.Timeout
-	// Neither e.timeoutSeconds (factory default 300s) nor the --agent-timeout default (60s) is a
-	// reliable per-run budget, so an implausibly-short value is treated as "unset": fall back to a
-	// generous 3h hang-backstop rather than killing a normal (slow) agent run mid-step. The
-	// rig-wedge fix's job is to bound a genuine HANG, not to enforce a tight budget; a real
-	// explicit budget (e.g. --agent-timeout 7200 for docx) is >= the floor and is respected.
+	// task.Timeout is the runner's per-run budget = MAX(benchmark spec.Timeout, model
+	// hard_timeout_secs) (agent_runner_multi.go) — for a local $0 model it is the ONLY gate.
+	// An implausibly-short value (e.g. an unset spec leaving the 60s/300s defaults) is treated
+	// as "unset" and falls back to a generous 3h hang-backstop, so this fix bounds a genuine
+	// HANG without killing a normal slow run mid-step. A real budget (>= the floor) is respected.
 	if runTimeout < 5*time.Minute {
 		runTimeout = 3 * time.Hour
 	}
 	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
 	defer cancelRun()
+	// Observability: the effective wall-clock bound was invisible and cost a multi-run diagnosis
+	// (a too-short bound silently killed long agent runs mid-step). Always surface it on stderr.
+	fmt.Fprintf(os.Stderr, "[motoko] run wall-clock bound: %s (task.Timeout=%s)\n", runTimeout, task.Timeout)
 	cmd := exec.CommandContext(runCtx, e.motokoPath, "--headless", directive)
 	setProcessGroup(cmd) // own process group so the env-server child dies with it
 	cmd.Cancel = func() error {

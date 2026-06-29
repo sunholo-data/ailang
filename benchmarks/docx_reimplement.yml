@@ -12,6 +12,11 @@ caps:
 difficulty: hard
 expected_gain: high
 tier: stretch
+# Long multi-file reimplement: on a slow local model (qwen3.6) it needs >1h to reach a clean
+# end (it hit ~step 84/120 at the 1h mark). task.Timeout = MAX(spec.Timeout, model.hard_timeout_secs),
+# so this 3h budget lets max_steps/done be the limiter rather than the model's 1h hard cap.
+# (Cloud models are gated by cost first, so this wall-clock bump is a no-op for them.)
+timeout: 10800
 tags:
 - adt_pattern_match
 - data_transform
