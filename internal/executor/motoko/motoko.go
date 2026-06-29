@@ -234,9 +234,19 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	//      too (a bare Process.Kill leaves it orphaned on 8080).
 	// Proper upstream fix is an ephemeral env-server port (see ENV_PORT note above).
 	e.clearStalePort8080()
-	runTimeout := time.Duration(e.timeoutSeconds) * time.Second
-	if runTimeout <= 0 {
-		runTimeout = 3 * time.Hour // hard ceiling: a run must never be unbounded
+	// Bound by the PER-TASK agent budget (task.Timeout = --agent-timeout / benchmark
+	// spec.Timeout, set per-run by the eval runner). NOT e.timeoutSeconds: that is the
+	// executor factory default (300s) and is NOT updated per-run, so using it killed long
+	// agent runs (docx) mid-step-3. e.timeoutSeconds is only a floor; the 3h ceiling is the
+	// hung-run backstop so cmd.Run() can never block forever.
+	runTimeout := task.Timeout
+	// Neither e.timeoutSeconds (factory default 300s) nor the --agent-timeout default (60s) is a
+	// reliable per-run budget, so an implausibly-short value is treated as "unset": fall back to a
+	// generous 3h hang-backstop rather than killing a normal (slow) agent run mid-step. The
+	// rig-wedge fix's job is to bound a genuine HANG, not to enforce a tight budget; a real
+	// explicit budget (e.g. --agent-timeout 7200 for docx) is >= the floor and is respected.
+	if runTimeout < 5*time.Minute {
+		runTimeout = 3 * time.Hour
 	}
 	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
 	defer cancelRun()
