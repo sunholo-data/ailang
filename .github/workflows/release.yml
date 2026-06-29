@@ -160,6 +160,11 @@ jobs:
             goarch: amd64
             binary_name: ailang
             artifact_name: linux.x64.ailang
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            binary_name: ailang
+            artifact_name: linux.arm64.ailang
           - os: macos-latest
             goos: darwin
             goarch: amd64
@@ -368,8 +373,12 @@ jobs:
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/darwin.arm64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '' >> changelog.md
-        echo '# Linux' >> changelog.md
+        echo '# Linux (x86_64)' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.x64.ailang.tar.gz | tar -xz' >> changelog.md
+        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo '' >> changelog.md
+        echo '# Linux (aarch64 / arm64)' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.arm64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '```' >> changelog.md
         echo '' >> changelog.md
