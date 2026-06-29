@@ -43,6 +43,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -221,7 +222,33 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// run_summary" + step-budget hang. The motoko_agent feat/ollama-local-profile
 	// branch made headless opt-in (it was implicit at f7b26c8, the commit this
 	// adapter was first validated against). See M-MOTOKO-OLLAMA-LOOP-CONVERGENCE.
-	cmd := exec.CommandContext(ctx, e.motokoPath, "--headless", directive)
+	// M-MOTOKO-RIG-WEDGE-FIX (2026-06-29): make a hung motoko impossible to wedge
+	// the rig. Before this, the main run used the incoming ctx (no per-benchmark
+	// deadline) with a bare cmd.Run(), so a hung subprocess blocked cmd.Run()
+	// FOREVER — which also hung the eval-suite goroutine waiting on it. A hung
+	// trial's env-server then squatted the fixed ENV_PORT=8080 for 10h, silently
+	// crashing every later spawn with "no run_summary". Defense in depth:
+	//   1) clear any orphaned env-server still holding 8080 before we spawn;
+	//   2) wrap the run in a hard timeout so cmd.Run() can NEVER block forever;
+	//   3) Setpgid + a group-kill Cancel so the timeout reaps the env-server child
+	//      too (a bare Process.Kill leaves it orphaned on 8080).
+	// Proper upstream fix is an ephemeral env-server port (see ENV_PORT note above).
+	e.clearStalePort8080()
+	runTimeout := time.Duration(e.timeoutSeconds) * time.Second
+	if runTimeout <= 0 {
+		runTimeout = 3 * time.Hour // hard ceiling: a run must never be unbounded
+	}
+	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
+	defer cancelRun()
+	cmd := exec.CommandContext(runCtx, e.motokoPath, "--headless", directive)
+	setProcessGroup(cmd) // own process group so the env-server child dies with it
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			_ = killProcessGroup(cmd.Process.Pid)
+		}
+		return nil
+	}
+	cmd.WaitDelay = 10 * time.Second // let the group-kill land before Wait returns
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -559,6 +586,39 @@ func (e *MotokoExecutor) warnIfStaleBunProcesses() {
 		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: %d stale bun process(es) hold ports in motoko's range (18080-18099): PIDs %s\n",
 			len(bunPids), strings.Join(pids, ", "))
 		fmt.Fprintf(os.Stderr, "[motoko/healthcheck]          These can cause parallel motoko spawns to hit EADDRINUSE. Cleanup: pkill -9 -f 'bun.*src/tui'\n")
+	}
+}
+
+// clearStalePort8080 kills any orphaned motoko host (bun running src/tui) still
+// LISTENing on the FIXED env-server port 8080 before we spawn. The eval adapter
+// pins ENV_PORT=8080 and the rig runs --parallel 1, so a holder at spawn time is
+// never a legitimate concurrent run — it is an orphan from a crashed/SIGKILLed
+// prior run. Left in place it makes THIS run silently crash with "no run_summary"
+// (the 10h rig-wedge of 2026-06-29). Best-effort: if lsof/ps are absent (Windows)
+// or nothing holds 8080, this is a no-op. It only kills a confirmed motoko host —
+// an unrelated service on 8080 is warned about, never killed.
+func (e *MotokoExecutor) clearStalePort8080() {
+	out, err := exec.Command("lsof", "-nP", "-iTCP:8080", "-sTCP:LISTEN", "-t").Output()
+	if err != nil || len(out) == 0 {
+		return
+	}
+	for _, pidStr := range strings.Fields(string(out)) {
+		pid, perr := strconv.Atoi(pidStr)
+		if perr != nil {
+			continue
+		}
+		desc := ""
+		if cmdOut, cerr := exec.Command("ps", "-o", "command=", "-p", pidStr).Output(); cerr == nil {
+			desc = strings.TrimSpace(string(cmdOut))
+		}
+		if !strings.Contains(desc, "bun") || !strings.Contains(desc, "src/tui") {
+			fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: port 8080 held by non-motoko PID %d (%s) — not killing; this run may fail to bind its env-server\n", pid, desc)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] LOUD: killing STALE motoko env-server PID %d squatting port 8080 (orphan from a crashed/hung run; would otherwise crash this run with 'no run_summary')\n", pid)
+		if kerr := killProcessGroup(pid); kerr != nil {
+			_ = killProcess(pid)
+		}
 	}
 }
 
