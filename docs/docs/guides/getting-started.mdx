@@ -317,6 +317,10 @@ Run it:
 ailang run --caps IO examples/runnable/values_basic.ail
 ```
 
+:::tip Building strings: `++` is list-only
+`++` concatenates **lists**, not strings (since v0.13.0). To build strings, use interpolation `"${a}${b}"`, or `concat` / `join` / `repeat` from `std/string`. Writing `"a" ++ "b"` is a type error — the message points you to these alternatives, but it's worth knowing up front.
+:::
+
 ### Lambda Expressions
 
 <CodeBlock language="typescript" title="examples/docs/lambdas_full.ail">
@@ -327,6 +331,10 @@ Run it:
 ```bash
 ailang run --caps IO examples/docs/lambdas_full.ail
 ```
+
+:::info `pure func` vs `func` — purity is machine-checked
+Declare a function `pure func` when it has no side effects, and `func` when it performs effects (IO, FS, Clock, …). This is enforced at compile time: a `pure func` that tries to `print` won't compile, and an effectful function must declare its effects in its signature (`-> () ! {IO}`). Unlike "pure" as a comment in other languages, AILANG's purity is a contract the type system verifies. See the [Effects reference](/docs/reference/effects) for the full capability list and which stdlib modules need which caps.
+:::
 
 ### Using the REPL
 
