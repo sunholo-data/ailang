@@ -24,6 +24,9 @@ task_prompt: 'The exported function `parseDocx` in docparse/services/docx_parser
 agent_env:
   MOTOKO_AST_AUTOREAD: '1'
   MOTOKO_AST_READ_FULL: docx_parser.ail:main.ail
+  # Converged docx runs finish <60 steps; cap here so a LOOPING run fails fast at step 60
+  # (finish_reason=max_steps = "did not converge / broken to fix") instead of slogging to 120.
+  MOTOKO_MAX_STEPS: '60'
 input_files:
   docparse/types/document.ail: |
     module docparse/types/document
