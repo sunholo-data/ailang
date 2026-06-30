@@ -32,8 +32,16 @@ case "$SET_ARG" in
   *)        BENCHES="$SET_ARG" ;;
 esac
 
+# Coordinate with the os-rotation filler via the shared rig-lock instead of fighting it:
+# acquire WAIT -> block until the current os-rolling chunk releases, then HOLD the lock so the
+# next 45-min filler tick defers to us (it acquires nowait and skips). Auto-released on EXIT.
+# shellcheck source=/dev/null
+source "$(dirname "$0")/launchd/rig-lock.sh"
+echo "== waiting for the rig (rig-lock; os-rolling chunk must finish — may be a while) =="
+rig_lock_acquire wait
+# Zombie guard: lock free but :8080 still held = a hung motoko (the port-8080-zombie failure mode).
 if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "ERROR: :8080 is busy — the rig is in use. Wait for it to free, then re-run." >&2
+  echo "ERROR: rig-lock acquired but :8080 still held (zombie motoko). Clear it, then re-run." >&2
   exit 1
 fi
 
