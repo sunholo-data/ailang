@@ -91,8 +91,9 @@ func (p *Parser) parseInterpolatedString() ast.Expr {
 	}
 
 	for p.peekTokenIs(lexer.INTERP_START) {
-		p.nextToken() // consume STRING_PART → INTERP_START
-		p.nextToken() // move past INTERP_START to start of expression
+		p.nextToken()           // consume STRING_PART → INTERP_START
+		interpPos := p.curPos() // position of the `${` marker
+		p.nextToken()           // move past INTERP_START to start of expression
 
 		expr := p.parseExpression(LOWEST)
 		if expr == nil {
@@ -102,10 +103,16 @@ func (p *Parser) parseInterpolatedString() ast.Expr {
 		// Wrap in show(expr). The Show class dispatches to the right instance
 		// at elaboration time (show_Int, show_String≡id, etc.), so string-typed
 		// expressions incur no runtime cost beyond the dictionary lookup.
+		//
+		// The synthesized `show` identifier carries the `${` position, NOT the
+		// inner expression's — otherwise it collides with the user's own
+		// identifier (e.g. `${basicReplace()}` would put `show` and
+		// `basicReplace` at the same line:col), which breaks LSP cursor→symbol
+		// resolution and the position-fidelity probe.
 		showCall := &ast.FuncCall{
-			Func: &ast.Identifier{Name: "show", Pos: expr.Position()},
+			Func: &ast.Identifier{Name: "show", Pos: interpPos},
 			Args: []ast.Expr{expr},
-			Pos:  expr.Position(),
+			Pos:  interpPos,
 		}
 		parts = append(parts, showCall)
 
