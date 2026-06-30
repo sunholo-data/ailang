@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,12 +26,44 @@ import (
 	"golang.org/x/term"
 )
 
-// isStdoutTTY reports whether stdout is connected to a terminal. Used to
-// decide whether to enable the M-PERF6B 64KB stdout buffer (terminal: yes,
-// pipe: no — see comment at the buffer construction site for context).
+// isStdoutTTY reports whether stdout is connected to a terminal. Used to decide
+// whether to line-buffer stdout (terminal: yes, pipe: no — see the buffer
+// construction site for context).
 func isStdoutTTY() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
+
+// lineBufferedWriter buffers stdout but flushes whenever a newline is written
+// (line buffering). This gives real-time terminal rendering for the common
+// per-line render — a println appears immediately — while still coalescing the
+// many small Fprint calls that compose a single line. Partial-line output
+// (progress bars / game frames using "\r") is flushed via the IO.flush() effect.
+// Replaces the prior unconditional 64KB full-buffer on a TTY (M-TERMINAL-IO),
+// which only updated the screen once the buffer filled.
+type lineBufferedWriter struct {
+	w *bufio.Writer
+}
+
+func newLineBufferedWriter(w io.Writer) *lineBufferedWriter {
+	return &lineBufferedWriter{w: bufio.NewWriterSize(w, 64*1024)}
+}
+
+func (lw *lineBufferedWriter) Write(p []byte) (int, error) {
+	n, err := lw.w.Write(p)
+	if err != nil {
+		return n, err
+	}
+	if bytes.IndexByte(p, '\n') >= 0 {
+		if ferr := lw.w.Flush(); ferr != nil {
+			return n, ferr
+		}
+	}
+	return n, nil
+}
+
+// Flush writes any buffered bytes to the underlying writer. Satisfies the
+// interface used by EffContext.FlushIO() and the exit-time flush.
+func (lw *lineBufferedWriter) Flush() error { return lw.w.Flush() }
 
 func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingValues routingFlagValues, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool, orReferer string, orTitle string, orCategories string) {
 	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
@@ -121,9 +156,12 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		statusOut = os.Stderr
 	}
 
-	// Check file extension
+	// Check file extension. `.ail` is the one canonical extension — the module
+	// resolver only ever appends `.ail`, so a non-.ail file (e.g. `.ailang`) also
+	// fails to import/resolve. Name the file and the fix so the failure is obvious.
 	if !strings.HasSuffix(filename, ".ail") {
-		fmt.Fprintf(os.Stderr, "%s: file must have .ail extension\n", yellow("Warning"))
+		fmt.Fprintf(os.Stderr, "%s: AILANG source files must use the .ail extension (got %q). Rename it to %s.ail — module resolution requires .ail.\n",
+			yellow("Warning"), filename, strings.TrimSuffix(filename, filepath.Ext(filename)))
 	}
 
 	// Type check
@@ -323,7 +361,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			// every agent turn produced 0 visible events at the TUI because all
 			// thinking_stream_*, thinking_delta, session_start, etc. JSON lines
 			// stayed buffered. See https://github.com/arniwesth/motoko_agent/pull/3
-			stdoutBuf := bufio.NewWriterSize(os.Stdout, 64*1024) // 64KB buffer
+			// M-TERMINAL-IO: On a TTY, line-buffer stdout (flush on each newline)
+			// so per-line / per-frame renders appear in real time — games,
+			// progress bars, dashboards. Partial-line output (\r without \n) is
+			// flushed explicitly via the IO.flush() effect.
+			stdoutBuf := newLineBufferedWriter(os.Stdout)
 			if isStdoutTTY() {
 				effCtx.IOWriter = stdoutBuf
 			} else {

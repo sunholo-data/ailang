@@ -268,6 +268,24 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 
 ---
 
+### Interactive stdin / Keyboard Input
+
+**Status**: Partial — line input works; real-time/raw keyboard input does not ([#231](https://github.com/sunholo-data/ailang/issues/231))
+
+`std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
+presses Enter. That covers prompt-and-read, REPL-style input.
+
+What is **not** yet supported is non-blocking or raw-mode keyboard input — reading
+individual keypresses without Enter, polling whether input is available, or cancelling a
+blocked read. So real-time interactive programs (e.g. a keyboard-controlled game) are not
+yet possible; design around it with a self-driving loop or line-at-a-time input. Tracked in
+[#231](https://github.com/sunholo-data/ailang/issues/231).
+
+For real-time *output* (games, progress bars, dashboards), see `flush()` and the C-style
+string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.ail`.
+
+---
+
 ## Recently Resolved
 
 These limitations existed in earlier versions and are now fully resolved.

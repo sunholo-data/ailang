@@ -27,8 +27,8 @@ pure func firstNonRepeat(s: string) -> Option[string] {
 }
 
 export func main() -> () ! {IO} {
-  let show_result = \r. match r { Some(c) => "\"" ++ c ++ "\"", None => "null" };
-  println("stress → " ++ show_result(firstNonRepeat("stress")));
-  println("aabbcc → " ++ show_result(firstNonRepeat("aabbcc")));
-  println("programming → " ++ show_result(firstNonRepeat("programming")))
+  let show_result = \r. match r { Some(c) => "\"${c}\"", None => "null" };
+  println("stress → ${show_result(firstNonRepeat("stress"))}");
+  println("aabbcc → ${show_result(firstNonRepeat("aabbcc"))}");
+  println("programming → ${show_result(firstNonRepeat("programming"))}")
 }

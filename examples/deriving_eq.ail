@@ -37,8 +37,8 @@ let neqTest: bool =
 -- Main function for testing
 export func main() -> () ! {IO} {
   let _ = _io_println("Testing deriving (Eq)...") in
-  let _ = _io_println("Color test: " ++ show(colorTest)) in
-  let _ = _io_println("Shape test: " ++ show(shapeTest)) in
-  let _ = _io_println("Neq test: " ++ show(neqTest)) in
+  let _ = _io_println("Color test: ${show(colorTest)}") in
+  let _ = _io_println("Shape test: ${show(shapeTest)}") in
+  let _ = _io_println("Neq test: ${show(neqTest)}") in
   ()
 }

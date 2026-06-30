@@ -22,8 +22,8 @@ import std/option (Option, Some, None)
 -- =============================================================================
 func showParseResult(label: string, result: Option[int]) -> () ! {IO} =
   match result {
-    Some(ts) => println(label ++ ": Some(" ++ formatISODate(ts) ++ ")"),
-    None => println(label ++ ": None (parse failed)")
+    Some(ts) => println("${label}: Some(${formatISODate(ts)})"),
+    None => println("${label}: None (parse failed)")
   }
 
 -- =============================================================================
@@ -35,15 +35,15 @@ export func main() -> () ! {IO, Clock} {
 
   -- Get current time (requires Clock capability)
   let ts = now();
-  println("Current timestamp: " ++ formatRFC3339(ts));
+  println("Current timestamp: ${formatRFC3339(ts)}");
   println("");
 
   -- Date extraction (all pure, no effects)
   println("--- Date Extraction ---");
-  println("Year: " ++ intToStr(year(ts)));
-  println("Month: " ++ intToStr(month(ts)) ++ " (" ++ formatMonthShort(ts) ++ ")");
-  println("Day: " ++ intToStr(day(ts)));
-  println("Weekday: " ++ intToStr(weekday(ts)) ++ " (" ++ formatWeekdayFull(ts) ++ ")");
+  println("Year: ${intToStr(year(ts))}");
+  println("Month: ${intToStr(month(ts))} (${formatMonthShort(ts)})");
+  println("Day: ${intToStr(day(ts))}");
+  println("Weekday: ${intToStr(weekday(ts))} (${formatWeekdayFull(ts)})");
   println("");
 
   -- Date arithmetic (pure)
@@ -51,24 +51,24 @@ export func main() -> () ! {IO, Clock} {
   let tomorrow = addDays(ts, 1);
   let nextWeek = addDays(ts, 7);
   let nextMonth = addMonths(ts, 1);
-  println("Tomorrow: " ++ formatISODate(tomorrow));
-  println("Next week: " ++ formatISODate(nextWeek));
-  println("Next month: " ++ formatISODate(nextMonth));
+  println("Tomorrow: ${formatISODate(tomorrow)}");
+  println("Next week: ${formatISODate(nextWeek)}");
+  println("Next month: ${formatISODate(nextMonth)}");
   println("");
 
   -- Date boundaries (pure)
   println("--- Date Boundaries ---");
-  println("Start of day: " ++ formatRFC3339(startOfDay(ts)));
-  println("Start of week (Monday): " ++ formatISODate(startOfWeek(ts)));
-  println("Start of month: " ++ formatISODate(startOfMonth(ts)));
+  println("Start of day: ${formatRFC3339(startOfDay(ts))}");
+  println("Start of week (Monday): ${formatISODate(startOfWeek(ts))}");
+  println("Start of month: ${formatISODate(startOfMonth(ts))}");
   println("");
 
   -- Date construction (pure)
   println("--- Date Construction ---");
   let christmas = makeDate(2024, 12, 25);
-  println("Christmas 2024: " ++ formatISODate(christmas) ++ " (" ++ formatWeekdayFull(christmas) ++ ")");
+  println("Christmas 2024: ${formatISODate(christmas)} (${formatWeekdayFull(christmas)})");
   let daysUntil = diffDays(christmas, startOfDay(ts));
-  println("Days until Christmas: " ++ intToStr(daysUntil));
+  println("Days until Christmas: ${intToStr(daysUntil)}");
   println("");
 
   -- Date parsing (pure, returns Option)

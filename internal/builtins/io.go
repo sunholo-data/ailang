@@ -185,4 +185,90 @@ func registerIO() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _io_writeBytes: %v", err))
 	}
+
+	// _io_flush — flush buffered stdout (for partial-line / real-time output)
+	implFlush := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		// Zero-arg builtin: takes unit as its single argument (S-CALL0 convention).
+		if len(args) != 1 {
+			panic("internal invariant violation: _io_flush expects exactly 1 argument (unit)")
+		}
+		if _, ok := args[0].(*eval.UnitValue); !ok {
+			panic("internal invariant violation: _io_flush expected unit argument")
+		}
+		return effects.Call(ctx, "IO", "flush", nil)
+	}
+	typeFlush := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.Unit()).Returns(T.Unit()).Effects("IO") // () -> () means (()) -> ()
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_flush", NumArgs: 1, IsPure: false, Effect: "IO", Type: typeFlush, Impl: implFlush,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Flush buffered stdout to the terminal",
+			LongDesc:    "On a TTY, stdout is line-buffered (flushed on newline). flush() forces pending partial-line output (progress bars, spinners, game frames using \\r) to appear immediately. No-op on piped/unbuffered stdout.",
+			Returns:     "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_io_print("\rLoading 42%"); _io_flush()`, Description: "Show a progress line with no trailing newline"},
+			},
+			SeeAlso:   []string{"_io_print", "_io_println"},
+			Since:     "v0.27.0",
+			Stability: StabilityStable,
+			Tags:      []string{"io", "flush", "output", "terminal", "realtime"},
+			Category:  "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_flush: %v", err))
+	}
+
+	// _io_printErr — write to stderr without newline (unbuffered)
+	implPrintErr := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "IO", "printErr", args)
+	}
+	typePrintErr := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Unit()).Effects("IO")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_printErr", NumArgs: 1, IsPure: false, Effect: "IO", Type: typePrintErr, Impl: implPrintErr,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Write a string to stderr without newline (unbuffered)",
+			Returns:     "Unit (no return value)",
+			SeeAlso:     []string{"_io_eprintln", "_io_print"},
+			Since:       "v0.27.0",
+			Stability:   StabilityStable,
+			Tags:        []string{"io", "stderr", "error", "output"},
+			Category:    "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_printErr: %v", err))
+	}
+
+	// _io_eprintln — write to stderr with newline (unbuffered)
+	implEprintln := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "IO", "eprintln", args)
+	}
+	typeEprintln := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Unit()).Effects("IO")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_eprintln", NumArgs: 1, IsPure: false, Effect: "IO", Type: typeEprintln, Impl: implEprintln,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Write a string to stderr with newline (unbuffered)",
+			Returns:     "Unit (no return value)",
+			SeeAlso:     []string{"_io_printErr", "_io_println"},
+			Since:       "v0.27.0",
+			Stability:   StabilityStable,
+			Tags:        []string{"io", "stderr", "error", "output"},
+			Category:    "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_eprintln: %v", err))
+	}
 }

@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -220,6 +221,90 @@ func TestStringEscapes(t *testing.T) {
 	}
 	if tok3.Literal != "quote\"inside\"" {
 		t.Fatalf("expected %q, got %q", "quote\"inside\"", tok3.Literal)
+	}
+}
+
+// TestHexAndUnicodeEscapes covers the C-style escapes added in M-TERMINAL-IO:
+// \xHH, \u{...}, \e (ESC), \0 (NUL). These unblock real-time terminal output
+// (ANSI sequences) without importing std/bytes.
+func TestHexAndUnicodeEscapes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"hex ESC", `"\x1b[0m"`, "\x1b[0m"},
+		{"hex uppercase", `"\x1B"`, "\x1b"},
+		{"hex bell", `"\x07"`, "\x07"},
+		{"esc alias", `"\e[1m"`, "\x1b[1m"},
+		{"nul", `"\0"`, "\x00"},
+		{"unicode bmp", `"\u{263A}"`, "☺"},
+		{"unicode astral snake", `"\u{1F40D}"`, "\U0001F40D"},
+		{"unicode 1 digit", `"\u{9}"`, "\t"},
+		{"mixed with text and known escapes", `"a\tb\x1bc\u{41}"`, "a\tb\x1bcA"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input, "test.ail")
+			tok := l.NextToken()
+			if tok.Type != STRING {
+				t.Fatalf("expected STRING, got %q (literal %q)", tok.Type, tok.Literal)
+			}
+			if tok.Literal != tt.want {
+				t.Fatalf("input %s: expected %q, got %q", tt.input, tt.want, tok.Literal)
+			}
+		})
+	}
+}
+
+// TestMalformedEscapesAreIllegal verifies unknown/malformed escapes produce an
+// ILLEGAL token carrying a helpful message — NEVER a silent passthrough.
+func TestMalformedEscapesAreIllegal(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantMsg string // substring expected in the ILLEGAL token literal
+	}{
+		{"hex too short", `"\x1"`, "2 hex digits"},
+		{"hex non-hex", `"\xZZ"`, "2 hex digits"},
+		{"unicode empty", `"\u{}"`, "at least one hex digit"},
+		{"unicode no brace", `"\u41"`, "{HEX}"},
+		{"unicode too big", `"\u{110000}"`, "not a valid Unicode"},
+		{"unicode too many", `"\u{1234567}"`, "at most 6 hex digits"},
+		{"octal", `"\033"`, "octal escapes are not supported"},
+		{"unknown letter", `"\q"`, "unknown escape sequence"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input, "test.ail")
+			tok := l.NextToken()
+			if tok.Type != ILLEGAL {
+				t.Fatalf("input %s: expected ILLEGAL, got %q (literal %q)", tt.input, tok.Type, tok.Literal)
+			}
+			if !strings.Contains(tok.Literal, tt.wantMsg) {
+				t.Fatalf("input %s: expected message containing %q, got %q", tt.input, tt.wantMsg, tok.Literal)
+			}
+		})
+	}
+}
+
+// TestCharLiteralEscapes verifies the shared escape decoder works in char literals too.
+func TestCharLiteralEscapes(t *testing.T) {
+	cases := map[string]string{
+		`'\x1b'`:   "\x1b",
+		`'\e'`:     "\x1b",
+		`'\n'`:     "\n",
+		`'\u{41}'`: "A",
+	}
+	for input, want := range cases {
+		l := New(input, "test.ail")
+		tok := l.NextToken()
+		if tok.Type != CHAR {
+			t.Fatalf("input %s: expected CHAR, got %q (literal %q)", input, tok.Type, tok.Literal)
+		}
+		if tok.Literal != want {
+			t.Fatalf("input %s: expected %q, got %q", input, want, tok.Literal)
+		}
 	}
 }
 

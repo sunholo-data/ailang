@@ -1,0 +1,20 @@
+-- list_safe_indexing.ail - Safe list indexing helpers (v0.27.0+)
+-- Demonstrates nth_or / head_or / last_or: total versions of nth/head/last that
+-- return a caller-supplied default instead of Option, removing the Some/None
+-- unwrap boilerplate at every indexing call site while staying crash-free.
+
+module examples/runnable/list_safe_indexing
+
+import std/io (println)
+import std/list (nth_or, head_or, last_or)
+
+export func main() -> () ! {IO} {
+  let xs = [10, 20, 30];
+  -- In bounds → the element; out of bounds / negative → the default.
+  println("nth_or(xs, 1)   = ${show(nth_or(xs, 1, 0))}");      -- 20
+  println("nth_or(xs, 9)   = ${show(nth_or(xs, 9, 0))}");      -- 0 (default)
+  println("nth_or(xs, -1)  = ${show(nth_or(xs, -1, 0))}");     -- 0 (default)
+  println("head_or(xs)     = ${show(head_or(xs, 0))}");        -- 10
+  println("head_or([])     = ${show(head_or([], 0))}");        -- 0 (default)
+  println("last_or(xs)     = ${show(last_or(xs, 0))}")         -- 30
+}

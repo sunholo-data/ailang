@@ -1,0 +1,40 @@
+-- progress_bar.ail — real-time terminal output (M-TERMINAL-IO)
+--
+-- Demonstrates the two fixes that unblock live terminal rendering:
+--   * \x1b ANSI escapes in string literals (green via \x1b[92m)
+--   * flush() for partial-line "\r" output that has no trailing newline
+--
+-- Runs under --caps IO,Clock — no FS, no /dev/tty hack required.
+-- Run: ailang run --caps IO,Clock --entry main examples/progress_bar.ail
+module examples/progress_bar
+
+import std/io (print, println, flush)
+import std/clock (sleep)
+import std/string (repeat)
+
+-- A 20-cell bar: `filled` blocks + `empty` dots.
+export pure func bar(pct: int) -> string {
+  let filled = pct / 5;
+  let empty = 20 - filled;
+  "${repeat("█", filled)}${repeat("·", empty)}"
+}
+
+-- Render one frame in place (\r returns to column 0; flush() shows it now).
+export func render(pct: int) -> () ! {IO} {
+  print("\r\x1b[92m[${bar(pct)}]\x1b[0m ${show(pct)}%");
+  flush()
+}
+
+export func loop(pct: int) -> () ! {IO, Clock} {
+  if pct > 100 then ()
+  else {
+    render(pct);
+    sleep(50);
+    loop(pct + 10)
+  }
+}
+
+export func main() -> () ! {IO, Clock} {
+  loop(0);
+  println("")
+}

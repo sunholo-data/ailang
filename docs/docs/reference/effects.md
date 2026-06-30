@@ -402,6 +402,29 @@ Error: Function 'main' requires capability IO but it was not granted.
 Use --caps IO to grant this capability.
 ```
 
+### Capabilities required by stdlib module
+
+Reach for a stdlib module and you inherit its capability requirement — declare it in
+your function's effect row and grant it with `--caps`. Plan your `--caps` set up front,
+especially for capability-constrained (auditable/sandboxed) programs:
+
+| stdlib module | Capability | Notes |
+|---------------|-----------|-------|
+| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `printErr`/`eprintln` |
+| `std/fs` | `FS` | file read/write |
+| `std/clock` | `Clock` | `now`, `sleep` (use a seed for deterministic time) |
+| `std/datetime` | `Clock` | `now()` is effectful; formatting/arithmetic are pure |
+| `std/net` | `Net` | HTTP; also needs `--net-allow-*` flags |
+| `std/rand` | `Rand` | `rand_int`, `rand_float`, `rand_bool`, `rand_seed`, `uuid4` |
+| `std/env` | `Env` | environment variables (with an allowlist) |
+| `std/process` | `Process` | spawn external commands |
+| `std/ai` | `AI` | model calls |
+| `std/list`, `std/string`, `std/option`, `std/result`, `std/map`, `std/bytes`, … | _(none)_ | pure — usable from `pure func`, no `--caps` |
+
+If you must stay within a fixed capability set (e.g. `--caps IO,Clock`) and a module needs
+more, reach for a pure alternative: e.g. a hand-rolled PRNG instead of `std/rand` (which
+requires `Rand`).
+
 ## Capability Budgets
 
 You can limit how many times a function can perform an effect using **capability budgets**:

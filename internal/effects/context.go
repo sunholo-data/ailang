@@ -604,6 +604,17 @@ func (ctx *EffContext) GetIOWriter() io.Writer {
 	return os.Stdout
 }
 
+// FlushIO flushes any buffered IO output to the underlying writer. It is a no-op
+// for unbuffered writers (e.g. piped stdout, or os.Stdout directly). Used by the
+// IO.flush() effect so partial-line terminal output (progress bars, game frames)
+// reaches the screen without waiting for a newline.
+func (ctx *EffContext) FlushIO() error {
+	if f, ok := ctx.GetIOWriter().(interface{ Flush() error }); ok {
+		return f.Flush()
+	}
+	return nil
+}
+
 // GetIOReader returns a persistent buffered reader for IO effect input.
 // Returns a bufio.Reader wrapping IOReader (or os.Stdin if not overridden).
 // The reader is lazily initialized and reused across calls, so buffered data

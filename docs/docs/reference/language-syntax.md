@@ -46,6 +46,25 @@ Run with:
 ailang run --caps IO,FS --entry main examples/math.ail
 ```
 
+### Module-Level Bindings ✅
+
+Besides functions, a module can declare top-level `let` bindings — constants shared
+across the module's functions. Both the annotated and inferred forms work (module-level
+`let` scoping has been supported since v0.5.0):
+
+```typescript
+module examples/config
+
+let maxRetries : int = 3        -- with type annotation
+let greeting = "hello"           -- inferred; may reference earlier bindings
+
+export func banner() -> string = "${greeting} (retries=${show(maxRetries)})"
+```
+
+This is distinct from the expression form `let x = e in body`, which binds only within a
+single expression. A top-level `let name = expr` is in scope for every declaration in the
+module — use it for shared constants instead of zero-argument functions.
+
 ### Function Declarations ✅
 
 ```typescript

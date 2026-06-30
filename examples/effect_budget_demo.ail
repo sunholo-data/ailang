@@ -36,16 +36,16 @@ export func logAlerts(alerts: [AlertStatus]) -> () ! {IO @limit=3} {
   let critical = filter(\a. a.level == "critical" || a.level == "exceeded", alerts);
   match critical {
     [] => (),
-    [a1] => println("Alert: " ++ a1.message),
+    [a1] => println("Alert: ${a1.message}"),
     [a1, a2] => {
-      println("Alert 1: " ++ a1.message);
-      println("Alert 2: " ++ a2.message)
+      println("Alert 1: ${a1.message}");
+      println("Alert 2: ${a2.message}")
     },
     [a1, a2, a3, ..._] => {
       -- Even with many alerts, we only use 3 IO calls
-      println("Alert 1: " ++ a1.message);
-      println("Alert 2: " ++ a2.message);
-      println("Multiple alerts (" ++ intToStr(length(critical)) ++ " total)")
+      println("Alert 1: ${a1.message}");
+      println("Alert 2: ${a2.message}");
+      println("Multiple alerts (${intToStr(length(critical))} total)")
     }
   }
 }
@@ -58,12 +58,12 @@ export func fetchWithRateLimit(urls: [string]) -> [string] ! {IO @limit=5} {
   -- For demo purposes, just log what we would fetch
   match urls {
     [] => [],
-    [u1] => { println("Would fetch: " ++ u1); [u1] },
-    [u1, u2] => { println("Would fetch: " ++ u1); println("Would fetch: " ++ u2); [u1, u2] },
+    [u1] => { println("Would fetch: ${u1}"); [u1] },
+    [u1, u2] => { println("Would fetch: ${u1}"); println("Would fetch: ${u2}"); [u1, u2] },
     [u1, u2, u3, ..._] => {
-      println("Would fetch: " ++ u1);
-      println("Would fetch: " ++ u2);
-      println("Rate limited - skipping remaining " ++ intToStr(length(urls) - 2) ++ " URLs");
+      println("Would fetch: ${u1}");
+      println("Would fetch: ${u2}");
+      println("Rate limited - skipping remaining ${intToStr(length(urls) - 2)} URLs");
       [u1, u2]
     }
   }
@@ -74,7 +74,7 @@ export func fetchWithRateLimit(urls: [string]) -> [string] ! {IO @limit=5} {
 -- If the code path skips logging, a runtime error occurs (budget underrun)
 export func logAuditTrail(action: string, success: bool) -> () ! {IO @min=1 @limit=2} {
   -- Always log the action (satisfies @min=1)
-  println("AUDIT: " ++ action);
+  println("AUDIT: ${action}");
   -- Optionally log failure details (within @limit=2)
   if not success then
     println("  Status: FAILED")
@@ -87,9 +87,9 @@ export func logAuditTrail(action: string, success: bool) -> () ! {IO @min=1 @lim
 export func verifiedFetch(url: string) -> string ! {IO @min=1 @limit=3} {
   -- The @min=1 ensures this function actually performs IO
   -- If we returned a cached value without IO, it would fail
-  println("Fetching: " ++ url);
+  println("Fetching: ${url}");
   println("Response: <simulated data>");
-  "data from " ++ url
+  "data from ${url}"
 }
 
 -- Entry point for demo
@@ -115,6 +115,6 @@ export func main() -> () ! {IO} {
   println("");
   println("4. Verified fetch with IO @min=1 @limit=3:");
   let data = verifiedFetch("https://api.example.com/data");
-  println("Got: " ++ data);
+  println("Got: ${data}");
   ()
 }

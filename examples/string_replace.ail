@@ -33,10 +33,10 @@ pure func chainReplace(s: string) -> string =
   replace(step2, "  ", " ")
 
 export func main() -> () ! {IO} {
-  println("replace basic:    " ++ basicReplace());
-  println("replace all:      " ++ replaceAll());
-  println("delete substr:    " ++ deleteSubstring());
-  println("UTF-8 replace:    " ++ utf8Replace());
-  println("UTF-8 find+sub:   " ++ utf8FindSubstring());
-  println("chain replace:    " ++ chainReplace("hello\tworld\n\nfoo  bar"))
+  println("replace basic:    ${basicReplace()}");
+  println("replace all:      ${replaceAll()}");
+  println("delete substr:    ${deleteSubstring()}");
+  println("UTF-8 replace:    ${utf8Replace()}");
+  println("UTF-8 find+sub:   ${utf8FindSubstring()}");
+  println("chain replace:    ${chainReplace("hello\tworld\n\nfoo  bar")}")
 }

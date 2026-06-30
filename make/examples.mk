@@ -2,7 +2,7 @@
 # EXAMPLE VERIFICATION TARGETS
 # =============================================================================
 
-.PHONY: verify-examples verify-examples-all verify-examples-trace verify-cli-examples examples-status
+.PHONY: verify-examples verify-examples-toplevel verify-examples-all verify-examples-trace verify-cli-examples examples-status
 .PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib
 .PHONY: compile-examples-go
 
@@ -12,6 +12,14 @@ verify-examples: build ## Verify examples in examples/runnable/ (CI mode)
 	@go run ./scripts/verify_examples.go --parallel 8 --json > examples_report.json 2>&1 || true
 	@go run ./scripts/verify_examples.go --parallel 8 --markdown > examples_status.md 2>&1 || true
 	@if [ -f examples_status.md ]; then cat examples_status.md; fi
+
+# Gate the TOP-LEVEL examples/*.ail directory, which verify-examples (above)
+# does NOT cover — it only checks examples/runnable/. That gap let 8 examples
+# ship using `++` on strings (list-only since v0.13.0) plus 2 missing imports,
+# none caught by CI. Every top-level example must type-check; runnable ones must
+# run; AI/network + known-bug examples are skipped WITH a logged reason.
+verify-examples-toplevel: build ## Gate top-level examples/*.ail (type-check all + run runnable)
+	@./tools/verify_examples.sh
 
 verify-examples-all: build ## Verify ALL examples with threshold gate (60%)
 	@echo "Verifying all examples with threshold gate..."

@@ -21,6 +21,20 @@ export func readLine() -> string ! {IO} = _io_readLine()
 -- Example: ailang run ... | afplay -f LEI16 -r 24000 -c 1 -
 export func writeBytes(data: bytes) -> () ! {IO} = _io_writeBytes(data)
 
+-- flush: Force buffered stdout to the terminal NOW.
+-- On a TTY, stdout is line-buffered (flushed on each newline), so flush() is only
+-- needed for partial-line output — progress bars, spinners, and game frames that
+-- use "\r" without a trailing newline. No-op on piped stdout.
+-- Example: print("\rWorking ${pct}%"); flush()
+export func flush() -> () ! {IO} = _io_flush()
+
+-- printErr: Write to stderr without a newline (unbuffered).
+-- Useful for progress/diagnostics that should not pollute a piped stdout.
+export func printErr(s: string) -> () ! {IO} = _io_printErr(s)
+
+-- eprintln: Write to stderr with a newline (unbuffered).
+export func eprintln(s: string) -> () ! {IO} = _io_eprintln(s)
+
 -- exit: Terminate process with explicit exit code
 -- Code after exit() is unreachable. OS typically takes code & 0xFF.
 export func exit(code: int) -> () ! {IO} = _io_exit(code)

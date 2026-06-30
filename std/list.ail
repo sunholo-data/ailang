@@ -133,6 +133,30 @@ export pure func last[a](xs: [a]) -> Option[a] {
   else Some(_list_nth(xs, len - 1))
 }
 
+-- nth_or: Element at index, or a default if negative/out-of-bounds.
+-- Removes the Some/None unwrap boilerplate at every indexing call site while
+-- keeping the safety of nth (never crashes on a bad index).
+-- Example: nth_or([10, 20, 30], 1, 0) == 20 ; nth_or([10], 5, 0) == 0
+export pure func nth_or[a](xs: [a], idx: int, default: a) -> a {
+  match nth(xs, idx) {
+    Some(v) => v,
+    None => default
+  }
+}
+
+-- head_or: First element, or a default if the list is empty.
+-- Example: head_or([1, 2], 0) == 1 ; head_or([], 0) == 0
+export pure func head_or[a](xs: [a], default: a) -> a = nth_or(xs, 0, default)
+
+-- last_or: Last element, or a default if the list is empty.
+-- Example: last_or([1, 2, 3], 0) == 3 ; last_or([], 0) == 0
+export pure func last_or[a](xs: [a], default: a) -> a {
+  match last(xs) {
+    Some(v) => v,
+    None => default
+  }
+}
+
 -- ============================================================================
 -- Predicates (v0.6.5) - Element searching
 -- ============================================================================

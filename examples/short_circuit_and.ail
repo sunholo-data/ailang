@@ -23,7 +23,7 @@ export func main() -> () ! {IO} = {
   let r1 = guarded("abc", 1);
   -- i=1, s[0] == "x": LHS true, RHS true. Expected: true.
   let r2 = guarded("xbc", 1);
-  println("guarded(\"abc\", 0) = " ++ (if r0 then "true" else "false"));
-  println("guarded(\"abc\", 1) = " ++ (if r1 then "true" else "false"));
-  println("guarded(\"xbc\", 1) = " ++ (if r2 then "true" else "false"))
+  println("guarded(\"abc\", 0) = ${if r0 then "true" else "false"}");
+  println("guarded(\"abc\", 1) = ${if r1 then "true" else "false"}");
+  println("guarded(\"xbc\", 1) = ${if r2 then "true" else "false"}")
 }

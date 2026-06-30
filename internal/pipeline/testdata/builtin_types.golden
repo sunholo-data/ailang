@@ -107,8 +107,11 @@ _has_header : (a, string) -> bool
 _html_parse : string -> Result[XmlNode, string]
 _html_parseFragment : string -> Result[list[XmlNode], string]
 _int_to_float : int -> float
+_io_eprintln : string -> () ! {IO}
 _io_exit : int -> () ! {IO}
+_io_flush : () -> () ! {IO}
 _io_print : string -> () ! {IO}
+_io_printErr : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _io_writeBytes : bytes -> () ! {IO}

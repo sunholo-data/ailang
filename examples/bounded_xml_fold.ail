@@ -15,7 +15,7 @@ export func main() -> () ! {IO} = {
   let xml = "<root><row>A</row><row>B</row><row>C</row></root>";
   let r = parseFoldStep(xml, "row", 0, \count _node. if count + 1 >= 2 then Stop(count + 1) else Continue(count + 1));
   match r {
-    Ok(n) => println("visited " ++ show(n) ++ " rows before Stop"),
-    Err(msg) => println("error: " ++ msg)
+    Ok(n) => println("visited ${show(n)} rows before Stop"),
+    Err(msg) => println("error: ${msg}")
   }
 }

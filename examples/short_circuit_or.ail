@@ -18,7 +18,7 @@ export func main() -> () ! {IO} = {
   let r0 = emptyOrStartsWithX("");      -- LHS true, RHS skipped → true
   let r1 = emptyOrStartsWithX("xyz");   -- LHS false, RHS evaluated → true
   let r2 = emptyOrStartsWithX("abc");   -- LHS false, RHS evaluated → false
-  println("emptyOrStartsWithX(\"\") = " ++ (if r0 then "true" else "false"));
-  println("emptyOrStartsWithX(\"xyz\") = " ++ (if r1 then "true" else "false"));
-  println("emptyOrStartsWithX(\"abc\") = " ++ (if r2 then "true" else "false"))
+  println("emptyOrStartsWithX(\"\") = ${if r0 then "true" else "false"}");
+  println("emptyOrStartsWithX(\"xyz\") = ${if r1 then "true" else "false"}");
+  println("emptyOrStartsWithX(\"abc\") = ${if r2 then "true" else "false"}")
 }

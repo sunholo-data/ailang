@@ -3,6 +3,7 @@ package effects
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -15,6 +16,9 @@ func init() {
 	RegisterOp("IO", "readLine", ioReadLine)
 	RegisterOp("IO", "writeBytes", ioWriteBytes)
 	RegisterOp("IO", "exit", ioExit)
+	RegisterOp("IO", "flush", ioFlush)
+	RegisterOp("IO", "printErr", ioPrintErr)
+	RegisterOp("IO", "eprintln", ioEprintln)
 }
 
 // ioPrint implements IO.print(s: String) -> ()
@@ -172,5 +176,57 @@ func ioWriteBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("writeBytes: %w", err)
 	}
 
+	return &eval.UnitValue{}, nil
+}
+
+// ioFlush implements IO.flush() -> ()
+//
+// Flushes any buffered stdout to the terminal. On a TTY, stdout is line-buffered
+// (flushed on each newline), so flush() is only needed for partial-line output —
+// progress bars, spinners, and game frames that use `\r` without a trailing
+// newline. On piped stdout (unbuffered) it is a harmless no-op.
+//
+// Example AILANG code:
+//
+//	print("\rWorking... 42%"); flush()  -- appears immediately, no newline needed
+func ioFlush(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 0 {
+		return nil, fmt.Errorf("flush: expected 0 arguments, got %d", len(args))
+	}
+	if err := ctx.FlushIO(); err != nil {
+		return nil, fmt.Errorf("flush: %w", err)
+	}
+	return &eval.UnitValue{}, nil
+}
+
+// ioPrintErr implements IO.printErr(s: String) -> ()
+//
+// Writes a string to stderr without a trailing newline. stderr is unbuffered, so
+// output appears immediately — useful for progress/diagnostics that should not be
+// captured when stdout is piped to a consumer.
+func ioPrintErr(_ *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("printErr: expected 1 argument, got %d", len(args))
+	}
+	str, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("printErr: expected String, got %T", args[0])
+	}
+	fmt.Fprint(os.Stderr, str.Value)
+	return &eval.UnitValue{}, nil
+}
+
+// ioEprintln implements IO.eprintln(s: String) -> ()
+//
+// Writes a string to stderr with a trailing newline (unbuffered).
+func ioEprintln(_ *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("eprintln: expected 1 argument, got %d", len(args))
+	}
+	str, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("eprintln: expected String, got %T", args[0])
+	}
+	fmt.Fprintln(os.Stderr, str.Value)
 	return &eval.UnitValue{}, nil
 }

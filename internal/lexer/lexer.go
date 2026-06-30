@@ -255,8 +255,14 @@ func (l *Lexer) NextToken() Token {
 		// the token queue and returns the first of those tokens.
 		return l.readStringOrInterp(line, column)
 	case '\'':
-		tok.Type = CHAR
-		tok.Literal = l.readCharLiteral()
+		lit, errMsg := l.readCharLiteral()
+		if errMsg != "" {
+			tok.Type = ILLEGAL
+			tok.Literal = errMsg
+		} else {
+			tok.Type = CHAR
+			tok.Literal = lit
+		}
 		tok.Line = line
 		tok.Column = column
 		tok.File = l.file
@@ -339,23 +345,15 @@ func (l *Lexer) readStringOrInterp(line, column int) Token {
 	for l.ch != '"' && l.ch != 0 {
 		if l.ch == '\\' {
 			l.readChar()
-			switch l.ch {
-			case 'n':
-				segment.WriteRune('\n')
-			case 't':
-				segment.WriteRune('\t')
-			case 'r':
-				segment.WriteRune('\r')
-			case '\\':
-				segment.WriteRune('\\')
-			case '"':
-				segment.WriteRune('"')
-			case '$':
-				// `\$` → literal `$`. Subsequent `{` is not interpreted as interpolation.
-				segment.WriteRune('$')
-			default:
-				segment.WriteRune(l.ch)
+			r, ok, msg := l.readEscape()
+			if !ok {
+				// Malformed escape — surface a positioned ILLEGAL token rather than
+				// silently dropping the backslash (No Silent Fallbacks). Consume the
+				// rest of the literal so the lexer resumes cleanly (no cascade).
+				l.skipRestOfString()
+				return NewToken(ILLEGAL, msg, line, column, l.file)
 			}
+			segment.WriteRune(r)
 			l.readChar()
 			continue
 		}
@@ -464,27 +462,20 @@ func (l *Lexer) readInterpolationExpr() (src string, line, column int, ok bool) 
 	return "", line, column, false
 }
 
-// readChar reads a character literal
-func (l *Lexer) readCharLiteral() string {
+// readCharLiteral reads a character literal. It returns the decoded literal and,
+// on a malformed escape, a non-empty error message (the caller emits ILLEGAL).
+func (l *Lexer) readCharLiteral() (string, string) {
 	var out strings.Builder
 	l.readChar() // skip opening quote
 
 	if l.ch == '\\' {
 		l.readChar()
-		switch l.ch {
-		case 'n':
-			out.WriteRune('\n')
-		case 't':
-			out.WriteRune('\t')
-		case 'r':
-			out.WriteRune('\r')
-		case '\\':
-			out.WriteRune('\\')
-		case '\'':
-			out.WriteRune('\'')
-		default:
-			out.WriteRune(l.ch)
+		r, ok, msg := l.readEscape()
+		if !ok {
+			l.skipRestOfChar()
+			return "", msg
 		}
+		out.WriteRune(r)
 	} else {
 		out.WriteRune(l.ch)
 	}
@@ -494,7 +485,138 @@ func (l *Lexer) readCharLiteral() string {
 		l.readChar() // skip closing quote
 	}
 
-	return out.String()
+	return out.String(), ""
+}
+
+// skipRestOfString consumes input up to and including the closing `"` (or EOF)
+// after a malformed escape, so the lexer resumes on the next real token rather
+// than re-lexing the remainder of the string literal as garbage.
+func (l *Lexer) skipRestOfString() {
+	for l.ch != '"' && l.ch != 0 {
+		if l.ch == '\\' {
+			l.readChar() // skip the escaped char so `\"` doesn't end the string early
+		}
+		l.readChar()
+	}
+	if l.ch == '"' {
+		l.readChar()
+	}
+}
+
+// skipRestOfChar consumes input up to and including the closing `'` (or EOF)
+// after a malformed escape in a character literal.
+func (l *Lexer) skipRestOfChar() {
+	for l.ch != '\'' && l.ch != 0 {
+		l.readChar()
+	}
+	if l.ch == '\'' {
+		l.readChar()
+	}
+}
+
+// readEscape decodes the escape sequence introduced by the current rune: l.ch is
+// the character immediately after the backslash. On success it returns the decoded
+// rune and leaves l.ch on the LAST character of the escape, so the caller advances
+// exactly once (l.readChar()) to move past it. On a malformed escape it returns
+// ok=false and a human-readable message; the caller surfaces it as an ILLEGAL
+// token — unknown escapes are NEVER silently passed through.
+//
+// Supported: \n \t \r \\ \" \' \$ \e(ESC) \0(NUL) \xHH(2 hex) \u{H..H}(1-6 hex).
+// Hex/unicode escapes are Unicode code points, so strings stay valid UTF-8; raw
+// bytes >0x7F are the job of std/bytes.fromInts. Octal (\012) is unsupported.
+func (l *Lexer) readEscape() (rune, bool, string) {
+	switch l.ch {
+	case 'n':
+		return '\n', true, ""
+	case 't':
+		return '\t', true, ""
+	case 'r':
+		return '\r', true, ""
+	case '\\':
+		return '\\', true, ""
+	case '"':
+		return '"', true, ""
+	case '\'':
+		return '\'', true, ""
+	case '$':
+		// `\$` → literal `$` (suppresses interpolation of a following `{`).
+		return '$', true, ""
+	case 'e':
+		// Convenience alias for ESC (0x1B) — the dominant terminal use case.
+		return '\x1b', true, ""
+	case '0':
+		// `\0` → NUL. A following octal digit signals an attempted octal escape,
+		// which is unsupported — flag it loudly rather than emitting NUL + digits.
+		if d := l.peekChar(); d >= '0' && d <= '7' {
+			return 0, false, `octal escapes are not supported; use \xHH or \u{...}`
+		}
+		return 0, true, ""
+	case 'x':
+		return l.readHexEscape(2)
+	case 'u':
+		return l.readBracedUnicodeEscape()
+	default:
+		if l.ch >= '1' && l.ch <= '9' {
+			return 0, false, `octal escapes are not supported; use \xHH or \u{...}`
+		}
+		return 0, false, fmt.Sprintf("unknown escape sequence: \\%c", l.ch)
+	}
+}
+
+// readHexEscape consumes exactly n hex digits following `\x` (l.ch is currently
+// 'x') and leaves l.ch on the final hex digit.
+func (l *Lexer) readHexEscape(n int) (rune, bool, string) {
+	var v rune
+	for i := 0; i < n; i++ {
+		if !isHexDigit(l.peekChar()) {
+			return 0, false, fmt.Sprintf(`\x requires exactly %d hex digits (e.g. \x1b)`, n)
+		}
+		l.readChar()
+		v = v*16 + hexValue(l.ch)
+	}
+	return v, true, ""
+}
+
+// readBracedUnicodeEscape consumes `\u{H..H}` (l.ch is currently 'u') and leaves
+// l.ch on the closing `}`.
+func (l *Lexer) readBracedUnicodeEscape() (rune, bool, string) {
+	if l.peekChar() != '{' {
+		return 0, false, `\u must be followed by {HEX}, e.g. \u{1F40D}`
+	}
+	l.readChar() // consume '{' (l.ch == '{')
+	var v rune
+	count := 0
+	for isHexDigit(l.peekChar()) {
+		l.readChar()
+		v = v*16 + hexValue(l.ch)
+		count++
+		if count > 6 {
+			return 0, false, `\u{...} accepts at most 6 hex digits`
+		}
+	}
+	if count == 0 {
+		return 0, false, `\u{} requires at least one hex digit`
+	}
+	if l.peekChar() != '}' {
+		return 0, false, `unterminated \u{...} escape (expected '}')`
+	}
+	l.readChar() // consume '}' (l.ch == '}', last char of the escape)
+	if v > unicode.MaxRune || (v >= 0xD800 && v <= 0xDFFF) {
+		return 0, false, fmt.Sprintf(`\u{%X} is not a valid Unicode code point`, v)
+	}
+	return v, true, ""
+}
+
+// hexValue returns the numeric value of a hex digit (assumes isHexDigit(ch)).
+func hexValue(ch rune) rune {
+	switch {
+	case ch >= '0' && ch <= '9':
+		return ch - '0'
+	case ch >= 'a' && ch <= 'f':
+		return ch - 'a' + 10
+	default: // 'A'..'F'
+		return ch - 'A' + 10
+	}
 }
 
 // readIdentifier reads an identifier

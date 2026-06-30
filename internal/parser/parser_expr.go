@@ -23,6 +23,16 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 	}
 	p.lastExprPos = startPos
 
+	// An ILLEGAL token carries a lexer diagnostic in its literal (e.g. a malformed
+	// string escape). Surface that message directly and consume the token so the
+	// parser doesn't cascade into spurious follow-on errors.
+	if p.curToken.Type == lexer.ILLEGAL {
+		p.report("PAR_ILLEGAL_TOKEN", p.curToken.Literal,
+			"Fix the invalid token (e.g. a malformed string escape).")
+		p.nextToken()
+		return nil
+	}
+
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
