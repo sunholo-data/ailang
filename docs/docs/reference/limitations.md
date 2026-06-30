@@ -270,16 +270,23 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 
 ### Interactive stdin / Keyboard Input
 
-**Status**: Partial — line input works; real-time/raw keyboard input does not ([#231](https://github.com/sunholo-data/ailang/issues/231))
+**Status**: Line input works; two narrower gaps remain (see the three rows below).
 
 `std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
-presses Enter. That covers prompt-and-read, REPL-style input.
+presses Enter — covering prompt-and-read and REPL-style input. `std/stream.asyncReadStdinLines`
+additionally provides a **concurrent, non-blocking line source** for `selectEvents` dispatch.
+So "no stdin" is a myth: line-oriented input is fully supported today.
 
-What is **not** yet supported is non-blocking or raw-mode keyboard input — reading
-individual keypresses without Enter, polling whether input is available, or cancelling a
-blocked read. So real-time interactive programs (e.g. a keyboard-controlled game) are not
-yet possible; design around it with a self-driving loop or line-at-a-time input. Tracked in
-[#231](https://github.com/sunholo-data/ailang/issues/231).
+Two distinct things are *not* yet supported — keep them separate, they route differently:
+
+| Need | Status | Tracking |
+|---|---|---|
+| **Line input** (`readLine`, `asyncReadStdinLines`) | ✅ Supported | — |
+| **Abort a long-running `std/ai.step()`** mid-call via stdin/signal | ❌ In progress | [#231](https://github.com/sunholo-data/ailang/issues/231) → `m-agent-step-cancellation` (extension + small fix) |
+| **Raw-mode single keypress** (no Enter/echo) for human-controlled games | ❌ By design — not in core | non-deterministic, unavailable in WASM, no agentic use case; would be a host/extension capability if ever needed |
+
+For a keyboard-controlled game today, design around it with a self-driving loop or
+line-at-a-time (`readLine`) input.
 
 For real-time *output* (games, progress bars, dashboards), see `flush()` and the C-style
 string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.ail`.
