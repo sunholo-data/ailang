@@ -130,6 +130,7 @@ def analyze(path, deep=True):
     evs = load(path)
     res = results_index(evs)
     seq = []       # (step, action, detail)
+    runs = []      # steps where the model actually RAN the program (ailang run, not just check)
     fails = []     # (step, norm, full_out)
     for o in evs:
         if o.get('type') != 'native_tool_calls':
@@ -142,6 +143,8 @@ def analyze(path, deep=True):
                 out = str(res.get(c.get('id'), {}).get('stdout', '')) + str(res.get(c.get('id'), {}).get('stderr', ''))
                 failed = 'Error' in out and 'No errors' not in out
                 if 'ailang run' in cmd or 'ailang check' in cmd:
+                    if 'ailang run' in cmd:
+                        runs.append(s)
                     if failed:
                         nm = norm_err(out)
                         fails.append((s, nm, out))
@@ -181,11 +184,33 @@ def analyze(path, deep=True):
     for s, a, d in seq[-16:]:
         print(f"  {s:3} {a:11} {d}")
 
+    # failure MODE: compile-stuck (never/barely compiles, parse/type churn) vs
+    # behavioral/finalize-stuck (compiles early, then spins writing without re-running
+    # the program or finalizing). These need OPPOSITE fixes, so name them explicitly.
+    first_pass = min([s for s, a, _ in seq if a == 'check-pass'], default=None)
+    n_fails = len(fails)
+    span = (maxstep - first_pass) if first_pass is not None else 0
+    runs_after = len([s for s in runs if first_pass is not None and s > first_pass])
+    writes_after = len([s for s, a, _ in seq
+                        if a in ('WriteFile', 'EditFile', 'write') and first_pass is not None and s > first_pass])
+    if first_pass is None:
+        mode = "COMPILE-STUCK (never got a clean compile)"
+    elif n_fails >= 5:
+        mode = f"COMPILE-STUCK (first compile @{first_pass}, but {n_fails} failed checks — parse/type churn)"
+    elif span >= 40:
+        pct = int(100 * first_pass / max(maxstep, 1))
+        mode = (f"BEHAVIORAL/FINALIZE-STUCK (compiled @{first_pass} ~{pct}% in, then {span} steps: "
+                f"{writes_after} writes but only {runs_after} program-runs -> writing blind / never finalized)")
+    else:
+        mode = "MIXED / short stall"
+    print(f"\nMODE: {mode}")
+
     if deep and rep:
         writes = model_writes(evs)
         print("\nWHY IT COULDN'T FIX IT (per repeated error):")
         for _nm, occ in rep:
             dossier(occ, writes)
+    return mode
 
 
 def is_maxsteps(path):
@@ -212,8 +237,14 @@ def main():
     if not paths:
         print(__doc__)
         sys.exit(1)
-    for p in paths:
-        analyze(p)
+    from collections import Counter
+    modes = [analyze(p) for p in paths]
+    if len(paths) > 1:
+        cat = Counter(m.split(' (')[0] for m in modes if m)
+        print("\n" + "=" * 60)
+        print(f"SUMMARY across {len(paths)} max_steps sessions (failure mode histogram):")
+        for k, v in cat.most_common():
+            print(f"  {v:>3}  {k}")
 
 
 if __name__ == '__main__':
