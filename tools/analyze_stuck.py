@@ -3,6 +3,9 @@
 
 The loop's deep-analysis step (M-AGENT-ERGONOMICS). For each max_steps session it surfaces:
   1. REPEATED errors — the same (path/line-normalized) check failure the model never fixed.
+     Counts BOTH explicit `ailang check`/`run` calls AND the per-edit `typecheck` field the
+     edit tools attach to every write (ail_typecheck_after_edit) — that auto-check is the
+     model's PRIMARY signal, so ignoring it mislabels compile-stuck runs as finalize-stuck.
   2. The PROGRESS WALL — last passing check / last write vs where the run actually ended.
   3. The TAIL — the last actions (the edit<->check-fail or re-explore loop).
   4. A DOSSIER per repeated error — the full UNTRUNCATED error PLUS the model's own edits across
@@ -33,15 +36,27 @@ def results_index(evs):
 
 
 def norm_err(out):
-    for l in out.split('\n'):
-        if 'Error' in l and 'No errors' not in l:
-            e = l.strip()
-            e = re.sub(r'/\S+?\.ail', 'F', e)
-            e = re.sub(r':\d+:\d+', '', e)
-            e = re.sub(r'\(decl \d+\)', '(decl N)', e)
-            e = re.sub(r'/var/folders/\S+', '', e)
-            return e[:130]
-    return out.strip()[:100]
+    lines = out.split('\n')
+    # Prefer a CODED diagnostic (PAR_*/TC_*/IMP*/LDR*/TYP*/ELB*) over the bare "Error:" line.
+    # For a package load the first "Error:" line is a constant header ("module loading error:
+    # failed to load F: parse errors in F:") that hides the real cause — keying on it would
+    # collapse every distinct parse error into one bucket. Skip WARNING lines (e.g. MOD010
+    # temp-path noise) so they never become the "subject".
+    coded = next((l for l in lines
+                  if re.search(r'\b(PAR|TC|IMP|LDR|MOD|TYP|ELB)[_A-Z0-9]*\b', l)
+                  and 'WARNING' not in l), None)
+    pick = coded or next((l for l in lines if 'Error' in l and 'No errors' not in l), None)
+    if pick is None:
+        return out.strip()[:100]
+    e = pick.strip()
+    # Temp path shows up two ways: as a real path (`at /var/folders/…`) and as a derived module
+    # NAME with no leading slash (`type error in var/folders/…/docx_parser`). Strip both, plus the
+    # macOS `/private` prefix — otherwise the same error fails to group by its differing tail.
+    e = re.sub(r'/?(?:private/)?var/folders/[^\s:]+', 'F', e)
+    e = re.sub(r'/\S+?\.ail', 'F', e)
+    e = re.sub(r':\d+:\d+', '', e)
+    e = re.sub(r'\(decl \d+\)', '(decl N)', e)
+    return e[:130]
 
 
 def err_lines(out):
@@ -161,6 +176,33 @@ def analyze(path, deep=True):
             elif t == 'ReadFile':
                 seq.append((s, 'read', str(a.get('path', '')).split('/')[-1]))
 
+    # M-AGENT-ERGONOMICS: the model's PRIMARY check signal is NOT an explicit `ailang check`
+    # bash call — it's the per-edit `typecheck` field the edit tools attach to every WriteFile/
+    # EditFile/EditDecl result (ail_typecheck_after_edit runs `ailang check` on the written file).
+    # Counting only explicit bash checks made compile-stuck runs look finalize-stuck (e.g. a run
+    # with 47 FAILING per-edit checks read as "1 check, writing blind"). Fold them in as real
+    # checks. NOTE: typecheck is a CHECK, not a program RUN — it does not touch `runs`, so the
+    # "writes-but-never-runs-the-program" finalize signal stays honest.
+    for o in evs:
+        if o.get('type') != 'native_tool_results':
+            continue
+        s = o.get('step')
+        for r in o.get('results', []):
+            pl = r.get('payload', {})
+            if not isinstance(pl, dict) or pl.get('tool') not in ('WriteFile', 'EditFile', 'EditDecl'):
+                continue
+            tc = str(pl.get('typecheck', '') or '')
+            if 'OK - file type-checks' in tc:
+                seq.append((s, 'check-pass', ''))
+            elif 'FAILED' in tc:
+                nm = norm_err(tc)
+                fails.append((s, nm, tc))
+                seq.append((s, 'CHECK-FAIL', nm[:58]))
+
+    # seq was built in two passes (tool-calls, then edit-result typechecks); restore step order
+    # so the TAIL reflects what actually happened last.
+    seq.sort(key=lambda x: x[0] if isinstance(x[0], int) else 10**9)
+
     rs = [o for o in evs if o.get('type') == 'run_summary']
     maxstep = max([o.get('step', 0) for o in evs] + [0])
     fr = rs[0].get('finish_reason') if rs else '?'
@@ -193,7 +235,11 @@ def analyze(path, deep=True):
     runs_after = len([s for s in runs if first_pass is not None and s > first_pass])
     writes_after = len([s for s, a, _ in seq
                         if a in ('WriteFile', 'EditFile', 'write') and first_pass is not None and s > first_pass])
-    if first_pass is None:
+    if fr != 'max_steps':
+        # MODE answers "why is THIS max_steps run stuck?" — N/A for a run that finished cleanly
+        # (finish=stop) or errored out. Failed checks along the way are normal healthy iteration.
+        mode = f"NOT-STUCK (finish_reason={fr}; {n_fails} failed checks en route, last pass @{last_pass})"
+    elif first_pass is None:
         mode = "COMPILE-STUCK (never got a clean compile)"
     elif n_fails >= 5:
         mode = f"COMPILE-STUCK (first compile @{first_pass}, but {n_fails} failed checks — parse/type churn)"
