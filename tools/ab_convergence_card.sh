@@ -26,9 +26,21 @@ case "$SET_ARG" in
   *)    BENCHES="$SET_ARG" ;;
 esac
 
-# Guard: never collide with a run in progress (the :8080 zombie/contention failure mode).
+# Coordinate with the os-rotation filler via the shared rig-lock: acquire WAIT so we block until
+# the current chunk releases, then HOLD it so the next filler tick defers (it acquires nowait +
+# skips). Any :8080 listener while we hold the lock is an orphan — clear it. Auto-released on EXIT.
+# shellcheck source=/dev/null
+source "$(dirname "$0")/launchd/rig-lock.sh"
+echo "== waiting for the rig (rig-lock; current os-rolling chunk must finish — may be a while) =="
+rig_lock_acquire wait
+for _ in 1 2 3 4 5 6; do lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 10; done
 if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "ERROR: :8080 is busy — the rig is in use. Wait for it to free, then re-run." >&2
+  echo "== :8080 still held after 60s — clearing orphaned listener(s) (we hold the rig-lock) =="
+  for pid in $(lsof -ti :8080 2>/dev/null); do kill "$pid" 2>/dev/null; done
+  sleep 5
+fi
+if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "ERROR: :8080 still held after clear attempt — needs a manual kill, then re-run." >&2
   exit 1
 fi
 
