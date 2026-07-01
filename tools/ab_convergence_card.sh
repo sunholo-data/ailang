@@ -33,6 +33,14 @@ esac
 source "$(dirname "$0")/launchd/rig-lock.sh"
 echo "== waiting for the rig (rig-lock; current os-rolling chunk must finish — may be a while) =="
 rig_lock_acquire wait
+# HARD SAFETY (learned the hard way): the rig-lock's 6h stale-steal can JUMP a WEDGED os-rolling
+# chunk that's still alive -> both fight over :8080 -> every run api_errors at 0ms. So never
+# proceed while ANOTHER eval-suite is alive; wait it out. (Our own eval-suite hasn't started yet
+# here, so any match is someone else's — a wedge that needs a manual kill.)
+while pgrep -f "ailang eval-suite" >/dev/null 2>&1; do
+  echo "== another eval-suite is alive (likely a WEDGED chunk) — waiting to avoid a collision; kill it to proceed =="
+  sleep 60
+done
 for _ in 1 2 3 4 5 6; do lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 10; done
 if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "== :8080 still held after 60s — clearing orphaned listener(s) (we hold the rig-lock) =="
