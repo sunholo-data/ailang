@@ -93,3 +93,21 @@ func Modules(name string) []string {
 	sort.Strings(mods)
 	return mods
 }
+
+// SymbolsOf returns the symbols exported by the given std module (e.g. "std/io"),
+// sorted; empty if none. The inverse of Modules — used by import-hint "did you
+// mean" to suggest a close-named export (e.g. flushStdout -> flush).
+func SymbolsOf(module string) []string {
+	once.Do(build)
+	var out []string
+	for sym, mods := range idx {
+		for _, m := range mods {
+			if m == module {
+				out = append(out, sym)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}

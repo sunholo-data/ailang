@@ -93,6 +93,31 @@ export func isOdd(n: int) -> bool {
 }
 ```
 
+#### Two body styles — the rule (read this once)
+
+A function body is written in **exactly one** of two styles. Mixing them is a parse error
+(`PAR017: ';' is only valid inside { ... } block bodies`):
+
+| Style | Shape | `=`? | `;` between statements? |
+|-------|-------|------|--------------------------|
+| **Block body** | `func f(...) -> T { s1; s2; result }` | **No `=`** | Yes — statements separated by `;`, last expression is the return value |
+| **Expression body** | `func f(...) -> T = expr` | **`=` required** | No — it is a *single* expression (use `let … in …` to sequence) |
+
+```typescript
+-- Block body: multiple statements, braces, NO '='
+export func render() -> () ! {IO} {
+  print("frame");
+  println(" done")
+}
+
+-- Expression body: single expression, '=' REQUIRED, no ';'
+export pure func clamp(n: int) -> int = if n < 0 then 0 else n
+```
+
+The trap: writing `= {` (an `=` *and* a brace) then using `;` inside. Pick one — if you need
+multiple statements, use a **block body** (`{ … }` with no `=`). If it is one expression, use
+`= expr`.
+
 ### ✅ Inline Tests (v0.4.5+)
 ```typescript
 -- Inline tests for pure functions

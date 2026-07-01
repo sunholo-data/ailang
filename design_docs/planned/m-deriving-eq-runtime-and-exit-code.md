@@ -7,6 +7,7 @@
 **Dependencies**: None.
 
 **Found during**: M-SNAKE-FEEDBACK (building `verify-examples-toplevel`). Verified on v0.26.2.
+**Independently confirmed**: Felix / Snake Showdown team via `submit_feedback` (ticket `fb_cef305f96ccc24ae`, v0.27.0) — reports deriving `(Eq)` on user ADTs "fails at runtime inside **lambda closures**", which is a useful narrowing of the repro (the missing-dictionary error surfaces when the derived instance is used inside a closure). Contact: kevin.faurholt@gmail.com.
 
 ---
 

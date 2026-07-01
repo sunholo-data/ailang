@@ -14,4 +14,7 @@ func init() {
 	// IMP010 "not exported by" link/loader errors -> auto-import / wrong-module hint
 	// (M-AGENT-STUCK-FIXES M2). importhint is shared by both IMP010 producers.
 	importhint.Locator = stdlibindex.Modules
+	// ...and a close-named-export suggestion when the symbol exists nowhere
+	// (e.g. flushStdout -> flush) — one canonical name, rescued via the error.
+	importhint.SymbolsOf = stdlibindex.SymbolsOf
 }
