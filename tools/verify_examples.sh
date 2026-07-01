@@ -37,7 +37,6 @@ run_skip_reason() {
   case "$1" in
     ai_modes)              echo "needs AI capability + live API key (network)";;
     ai_openrouter_routing) echo "needs AI capability + OpenRouter key (network)";;
-    deriving_eq)           echo "KNOWN BUG: auto-derived Eq dict missing at runtime (prelude::Eq::Color::eq) — M-DX19 follow-up";;
     effect_budget_demo)    echo "KNOWN BUG: IO @limit is cumulative across the call chain, not per-function — budget-scoping follow-up";;
     *)                     echo "";;
   esac

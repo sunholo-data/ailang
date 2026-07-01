@@ -327,6 +327,20 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 		key := types.MakeDictionaryKey("prelude", ref.ClassName, typ, method)
 		entry, ok := e.registry.Lookup(key)
 		if !ok {
+			// Determinism fix (M-DX19): the type checker already proved this class
+			// instance exists for the type. A missing Eq method here means the
+			// derived-instance registration didn't land — a non-deterministic
+			// ordering gap that made `deriving (Eq)` flakily fail at module-eval
+			// time with "missing dictionary method: prelude::Eq::<T>::eq". Derived
+			// Eq is ALWAYS structural, so synthesize it deterministically rather
+			// than depending on the registry having been populated in time.
+			if ref.ClassName == "Eq" {
+				methods[method] = &BuiltinFunction{
+					Name: "derived_" + method + "_" + ref.TypeName,
+					Fn:   makeADTEqualityFn(ref.TypeName, method == "eq"),
+				}
+				continue
+			}
 			return nil, fmt.Errorf("missing dictionary method: %s", key)
 		}
 

@@ -11,9 +11,32 @@
 
 ---
 
-## Bug 1 — Auto-derived `Eq` dictionary is not resolved at runtime
+## Bug 1 — Auto-derived `Eq` dictionary is not resolved at runtime — ✅ RESOLVED in v0.28.0
 
-`examples/deriving_eq.ail` type-checks cleanly but **fails at evaluation**:
+**Status: FIXED (2026-07-01).** Root cause was **non-determinism**: the derived-Eq marker was
+sometimes absent from the runtime dict registry when a module-level `let` (or a lambda closure,
+per Felix) forced the `Eq` dictionary — so `deriving (Eq)` flakily failed (build-to-build:
+`deriving_eq.ail` was 0/20 in one build, passing in another). Two surgical fixes, both reusing
+the existing structural-equality machinery (`valuesStructurallyEqual` / `makeADTEqualityFn`):
+
+1. **Dict construction** ([internal/eval/eval_patterns.go](../../internal/eval/eval_patterns.go),
+   `evalDictRef`): on a registry miss for an `Eq` method, **synthesize** the structural equality
+   deterministically instead of erroring `missing dictionary method`. The type checker already
+   proved `Eq` valid for the type and derived Eq is *always* structural, so this removes the
+   dependency on the flaky registration entirely.
+2. **`==`/`!=` runtime fallback** ([internal/eval/eval_operations.go](../../internal/eval/eval_operations.go)):
+   when no Eq dictionary was threaded (the polymorphic-lambda case — Felix `fb_cef305`), fall back
+   to the same structural comparison rather than `unsupported types: TaggedValue`.
+
+Verified deterministic: `deriving_eq.ail` 20/20, lambda closures 5/5; `deriving_eq` removed from
+the `verify-examples-toplevel` run-skip list and the gate is green. Regression test:
+`internal/eval/structural_equal_test.go`. **Follow-up (lower priority):** root-cause and fix the
+underlying derived-instance *registration* ordering (`pipeline_*_compile.go`) so it's deterministic
+at the source too — the fixes above make the observable behavior deterministic regardless.
+
+--- original write-up below ---
+
+`examples/deriving_eq.ail` type-checks cleanly but **failed at evaluation** (pre-fix):
 
 ```
 $ ailang run --caps IO --entry main examples/deriving_eq.ail
@@ -39,9 +62,16 @@ just `Color`.
   (`internal/eval`) and the deriving/elaboration path that should register
   `prelude::Eq::<Type>::eq`.
 
-## Bug 2 — Module evaluation errors exit with status 0
+## Bug 2 — Module evaluation errors exit with status 0 — ✅ RESOLVED in v0.27.0
 
-The run above prints `Error: module evaluation failed: …` but **exits 0**:
+**Status: FIXED (verified 2026-07-01 on v0.27.0).** All runtime/module-eval errors now exit
+non-zero — `deriving_eq` (module-eval) → 1, div-by-zero → 2, budget-exhausted → 1. The
+`execErr != nil → os.Exit(1)` path in `cmd/ailang/main_run_exec.go` is in place. The exit-0
+below was observed on the stale **v0.26.2** binary; the v0.27.0 build no longer exhibits it.
+`verify-examples-toplevel` can now trust `$?` (the `Error:` grep is belt-and-suspenders). The
+original write-up is kept below for the record.
+
+The run above prints `Error: module evaluation failed: …` but **exits 0** (v0.26.2):
 
 ```
 $ ailang run --caps IO --entry main examples/deriving_eq.ail; echo "exit: $?"

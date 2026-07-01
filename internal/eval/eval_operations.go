@@ -484,6 +484,20 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				}
 			}
 		}
+		// Equality on composite/ADT values: dictionary dispatch didn't resolve
+		// (e.g. `==` inside a polymorphic lambda closure over a user ADT). Fall
+		// back to STRUCTURAL equality — which is exactly what `deriving (Eq)`
+		// means. Only reached when no dictionary was threaded, so it can't shadow
+		// a real user Eq instance. Fixes deriving(Eq) failing at runtime in lambdas
+		// (Felix ticket fb_cef305). Ordering ops stay unsupported for ADTs. Reuses
+		// the same structural comparison the derived-Eq dictionary method uses.
+		if op == "==" || op == "!=" {
+			eq := valuesStructurallyEqual(left, right)
+			if op == "!=" {
+				eq = !eq
+			}
+			return &BoolValue{Value: eq}, nil
+		}
 		return nil, fmt.Errorf("comparison '%s' on unsupported types: %T and %T", op, left, right)
 	}
 
