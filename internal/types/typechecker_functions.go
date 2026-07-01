@@ -502,10 +502,21 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Return:    resultType,
 	}
 
+	// The Path is only rendered when this constraint FAILS to unify, so we can
+	// unconditionally attach a name-collision note: if the callee is a bare name
+	// exported by more than one stdlib module (e.g. `length` in std/list AND
+	// std/string), surface it on failure — turning the opaque "cannot unify
+	// list[a] with string" into an actionable alias hint (Felix fb_942b7f).
+	appPath := []string{"function application at " + app.Span().String()}
+	if name, from := coreCalleeName(app.Func); name != "" {
+		if h := collisionHint(name, from); h != "" {
+			appPath = append(appPath, h)
+		}
+	}
 	ctx.addConstraint(TypeEq{
 		Left:  getType(funcNode),
 		Right: expectedFuncType,
-		Path:  []string{"function application at " + app.Span().String()},
+		Path:  appPath,
 	})
 
 	// CRITICAL FIX: Application effects come from:
@@ -526,6 +537,19 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Func: funcNode,
 		Args: argNodes,
 	}, ctx.env, nil
+}
+
+// coreCalleeName returns the bare name of an applied callee and the module it
+// resolved from ("" if unknown), or ("","") when the callee is not a variable
+// reference. Used to drive the stdlib name-collision hint on a failing application.
+func coreCalleeName(fn core.CoreExpr) (name, from string) {
+	switch v := fn.(type) {
+	case *core.Var:
+		return v.Name, ""
+	case *core.VarGlobal:
+		return v.Ref.Name, v.Ref.Module
+	}
+	return "", ""
 }
 
 // inferIf infers type of conditional

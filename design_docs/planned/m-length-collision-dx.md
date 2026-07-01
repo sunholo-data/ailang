@@ -1,6 +1,17 @@
 ## M-LENGTH-COLLISION-DX: confusing type error when `length` (std/list) is called on a string
 
-**Status**: PLANNED (DX bug)
+**Status**: ✅ IMPLEMENTED (2026-07-01, v0.28.0). When an application fails to unify and the
+callee is a bare name exported by >1 stdlib module (e.g. `length` in std/list, std/string,
+std/array, std/bytes), the error now carries a name-collision note + alias hint:
+`note: 'length' is also exported by std/array, std/bytes, std/string — … import it with an
+alias, e.g. 'import std/array (length as lengthAlt)'`. The note lives in the application
+constraint's `Path`, so it surfaces ONLY on failure (invisible on correct use — verified
+`length([1,2,3])` is unaffected). Impl: `collisionHint` in `internal/types/import_hint.go` +
+`coreCalleeName` wiring in `internal/types/typechecker_functions.go`; test in
+`import_hint_test.go`. Kept as a *hint* (not a rename), per the reporter's preferred option 2.
+
+--- original ---
+**Status (orig)**: PLANNED (DX bug)
 **Target**: v0.28.0
 **Priority**: P2 (Medium — ~5 min cold-start friction per the reporter; hits anyone importing both std/list and std/string)
 **Estimated**: 0.5–1 day
