@@ -39,9 +39,18 @@ esac
 source "$(dirname "$0")/launchd/rig-lock.sh"
 echo "== waiting for the rig (rig-lock; os-rolling chunk must finish — may be a while) =="
 rig_lock_acquire wait
-# Zombie guard: lock free but :8080 still held = a hung motoko (the port-8080-zombie failure mode).
+# We now HOLD the rig-lock, so any motoko env-server still on :8080 is a leftover/zombie — no
+# lock-holding run can coexist. Give a just-finished chunk up to 60s to release the port; if it's
+# still held it's an orphan (the port-8080-zombie failure mode), so clear it ourselves (this is the
+# detached daemon acting, NOT an agent-gated kill). Bail only if it survives the clear.
+for _ in 1 2 3 4 5 6; do lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 10; done
 if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "ERROR: rig-lock acquired but :8080 still held (zombie motoko). Clear it, then re-run." >&2
+  echo "== :8080 still held after 60s — clearing orphaned listener(s) (we hold the rig-lock) =="
+  for pid in $(lsof -ti :8080 2>/dev/null); do kill "$pid" 2>/dev/null; done
+  sleep 5
+fi
+if lsof -i :8080 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "ERROR: :8080 still held after clear attempt — needs a manual kill, then re-run." >&2
   exit 1
 fi
 
