@@ -20,7 +20,7 @@ export func main() -> () ! {IO} {
 3. **Pick ONE function-body style per function and stick to it:**
    - **Block body** `func f() ! {IO} { let x = a; let y = b; finalExpr }` — semicolons between lets, NO `in`
    - **Expression body** `func f() ! {IO} = let x = a in let y = b in finalExpr` — `in` keyword, NO semicolons
-   - **Common error**: `func f() = let x = a; ...` is a parse error (`unexpected token: ;`). Either wrap the body in `{ }` and use semicolons, or use `let .. in ..` chains.
+   - **The `= {` trap**: `func f() = { a; b }` mixes both styles. `=` means expression body (no `;`); for multiple statements DROP the `=` → `func f() { a; b }`. (Error: `PAR017: ';' is only valid inside { } block bodies`.)
 4. No loops — use recursion
 5. **Output raw AILANG code only** — no markdown fences (`` ``` ``), no prose, no JSON wrappers. The first line must be `module ...`.
 
@@ -41,6 +41,17 @@ print("A"); print("B")      -- Output: AB
 ```
 
 **Use `println` for most output.** Use `print` ONLY when building output on one line.
+
+**Real-time terminal output (games, progress bars, TUIs), v0.27.0+:** on a TTY, stdout is
+line-buffered — `println` shows at once, but partial-line output (`\r` with no newline) needs
+an explicit `flush()`. C-style escapes `\xHH` / `\u{..}` / `\e` / `\0` work in string literals.
+
+```ailang
+import std/io (print, flush)
+print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
+flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
+```
+Runs under `--caps IO,Clock` — no `FS`. `printErr`/`eprintln` (std/io) write to stderr (unbuffered).
 
 ## Output Discipline (stdout is compared byte-for-byte)
 
