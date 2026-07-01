@@ -39,6 +39,54 @@ if ! curl --max-time 2 -s http://localhost:1957/health | grep -q healthy 2>/dev/
     fi
 fi
 
+# ── WEDGE KILLER (M-RIG-WATCHDOG-WEDGE, 2026-07-01) ──────────────────────────────────
+# The checks above only verify SERVICE availability (ollama/OTLP). They let a 9h-wedged
+# os-rotation chunk sit, blocking every experiment (the rig-flakiness that ate days). Kill a
+# rotation chunk — an `ailang eval-suite` spawned by os-rotation-filler — that is EITHER past a
+# hard wall-clock OR alive-but-STALLED (no session-log write ⇒ no step-progress; distinguishes a
+# wedge from a legitimately-slow docx run). Only FILLER-parented chunks are ever touched, so
+# manual runs and the A/B daemons (ab_*.sh parents) are never killed. Also reap orphaned :8080
+# env-servers (the port-8080-zombie that crashes the next run with "no run_summary").
+LOGDIR="$HOME/dev/mk-ast/.motoko/logfile"
+HARD_SECS=$(( ${RIG_WATCHDOG_HARD_HOURS:-8} * 3600 ))
+SOFT_SECS=$(( ${RIG_WATCHDOG_SOFT_HOURS:-2} * 3600 ))
+STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-30}
+
+etime_secs() {  # parse `ps etime` ([[DD-]HH:]MM:SS) → elapsed seconds
+    local et="$1" days=0 hms; hms="$et"
+    case "$et" in *-*) days="${et%%-*}"; hms="${et#*-}";; esac
+    local h=0 m s IFS=:; set -- $hms
+    if [ $# -eq 3 ]; then h=$1; m=$2; s=$3; else h=0; m=$1; s=$2; fi
+    echo $(( days*86400 + 10#$h*3600 + 10#$m*60 + 10#$s ))
+}
+
+newest=$(ls -t "$LOGDIR"/session_*.jsonl 2>/dev/null | head -1)
+stall_min=999; [ -n "$newest" ] && stall_min=$(( ( $(date +%s) - $(stat -f %m "$newest") ) / 60 ))
+
+for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
+    ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    pcmd=$(ps -o command= -p "$ppid" 2>/dev/null)
+    case "$pcmd" in *os-rotation-filler*) ;; *) continue ;; esac   # ONLY rotation chunks
+    secs=$(etime_secs "$pid")
+    reason=""
+    if [ "$secs" -gt "$HARD_SECS" ]; then reason="hard-max (${secs}s alive)"
+    elif [ "$secs" -gt "$SOFT_SECS" ] && [ "$stall_min" -gt "$STALL_MIN" ]; then
+        reason="no-progress (${stall_min}m since last session write, ${secs}s alive)"; fi
+    if [ -n "$reason" ]; then
+        pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
+        echo "${TIMESTAMP} [WATCHDOG] WEDGED rotation chunk pid $pid — $reason — killing pgroup $pgid"
+        { [ -n "$pgid" ] && kill -TERM "-$pgid"; } 2>/dev/null || kill -TERM "$pid" 2>/dev/null
+    fi
+done
+
+for zp in $(lsof -ti :8080 2>/dev/null); do
+    zpp=$(ps -o ppid= -p "$zp" 2>/dev/null | tr -d ' ')
+    if [ -z "$zpp" ] || [ "$zpp" = "1" ] || ! ps -p "$zpp" >/dev/null 2>&1; then
+        echo "${TIMESTAMP} [WATCHDOG] orphaned :8080 listener pid $zp (parent ${zpp:-gone}) — killing"
+        kill -TERM "$zp" 2>/dev/null
+    fi
+done
+
 # Exit 0 always — the next tick will re-check. Non-zero exit would make
 # launchd consider the watchdog itself broken.
 exit 0
