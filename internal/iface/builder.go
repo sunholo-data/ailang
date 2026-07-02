@@ -387,6 +387,20 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 							// DEBUG: fmt.Printf("DEBUG: Added type alias %s -> %s\n", typeDecl.Name, internalType)
 						}
 
+						// M-XMOD-ALIAS: Add type alias for NON-record targets
+						// (e.g. `type Row = Json`, `type UserId = int`, `type Handler = (Req) -> Resp`)
+						// so they expand across module boundaries too. Mirrors the elaborator's
+						// *ast.TypeAlias handling (elaborate/file_funcs.go), which is why these
+						// aliases already work WITHIN a module but not across imports pre-fix.
+						// Record aliases are covered above via *ast.RecordType; sum types and
+						// nominal newtypes (`type Gen = Gen(int)`) are *ast.AlgebraicType and are
+						// intentionally NOT matched here, so they stay nominal.
+						if aliasType, ok := typeDecl.Definition.(*ast.TypeAlias); ok {
+							if internalType := astTypeToInternalType(aliasType.Target); internalType != nil {
+								iface.AddTypeAlias(typeDecl.Name, internalType)
+							}
+						}
+
 						// Extract constructors from algebraic types with ACTUAL field types
 						// This fixes the type pollution bug where placeholder TVar2s were shared
 						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
