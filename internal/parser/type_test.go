@@ -654,3 +654,54 @@ func TestDerivingEqErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestParseTupleAndFuncTypeAliases (M-PARSER-ALIAS-TARGETS) pins the AST shape for
+// tuple- and function-type alias targets, and guards that the pre-existing alias
+// forms (named, list) still parse to their expected nodes.
+func TestParseTupleAndFuncTypeAliases(t *testing.T) {
+	input := `module test
+
+type Pair    = (int, string)
+type Pred    = (int) -> bool
+type UserId  = int
+type Names   = [string]
+`
+	p := New(lexer.New(input, "test://unit"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			t.Errorf("parse error: %v", e)
+		}
+		t.Fatalf("unexpected parse errors")
+	}
+
+	defs := map[string]ast.TypeDef{}
+	for _, decl := range file.Decls {
+		if td, ok := decl.(*ast.TypeDecl); ok {
+			defs[td.Name] = td.Definition
+		}
+	}
+
+	// Tuple target
+	pair, ok := defs["Pair"].(*ast.TypeAlias)
+	require.True(t, ok, "Pair should be a *ast.TypeAlias, got %T", defs["Pair"])
+	tup, ok := pair.Target.(*ast.TupleType)
+	require.True(t, ok, "Pair target should be *ast.TupleType, got %T", pair.Target)
+	assert.Len(t, tup.Elements, 2)
+
+	// Function target
+	pred, ok := defs["Pred"].(*ast.TypeAlias)
+	require.True(t, ok, "Pred should be a *ast.TypeAlias, got %T", defs["Pred"])
+	fn, ok := pred.Target.(*ast.FuncType)
+	require.True(t, ok, "Pred target should be *ast.FuncType, got %T", pred.Target)
+	assert.Len(t, fn.Params, 1)
+
+	// Regression-surface: pre-existing alias forms unchanged.
+	uid, ok := defs["UserId"].(*ast.TypeAlias)
+	require.True(t, ok, "UserId should still be a *ast.TypeAlias, got %T", defs["UserId"])
+	_, ok = uid.Target.(*ast.SimpleType)
+	assert.True(t, ok, "UserId target should be *ast.SimpleType, got %T", uid.Target)
+
+	_, ok = defs["Names"].(*ast.TypeAlias)
+	require.True(t, ok, "Names ([string]) should still be a *ast.TypeAlias, got %T", defs["Names"])
+}

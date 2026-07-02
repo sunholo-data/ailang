@@ -103,6 +103,20 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 		}
 	}
 
+	// M-PARSER-ALIAS-TARGETS: tuple/function type alias — target begins with '('.
+	//   type Pair = (int, string)      → TypeAlias{Target: *ast.TupleType}
+	//   type Pred = (int) -> bool      → TypeAlias{Target: *ast.FuncType}
+	// `parseType()` already handles both forms in signature position. Nothing valid
+	// begins an alias target with '(' otherwise (sum constructors start with an
+	// IDENT, e.g. `Circle(int)`), so this cannot shadow an existing construct.
+	if p.curTokenIs(lexer.LPAREN) {
+		typeExpr := p.parseType()
+		return &ast.TypeAlias{
+			Target: typeExpr,
+			Pos:    p.curPos(),
+		}
+	}
+
 	// For IDENT tokens, we need to disambiguate:
 	// - type Color = Red | Green  → sum type
 	// - type Names = [string]     → already handled above

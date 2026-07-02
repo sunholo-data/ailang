@@ -1,7 +1,7 @@
 ## M-PARSER-ALIAS-TARGETS: parse tuple- and function-type aliases (`type Pair = (a, b)`, `type Handler = (Req) -> Resp`)
 
-**Status**: PLANNED
-**Target**: tbd (patch-level)
+**Status**: IMPLEMENTED (on `dev`, 2026-07-02; first release: v0.28.1 tbd)
+**Target**: v0.28.1 (patch-level)
 **Priority**: P3 (Low–Medium — function-type aliases (`type Handler = (Req) -> Resp`) are an idiomatic readability win; workaround is to inline the type in each signature. Tuple aliases similar.)
 **Estimated**: ~0.5 day (one parser dispatch case + tests)
 **Dependencies**: None.
@@ -88,3 +88,16 @@ is untouched.
 ## Out of scope
 
 - Parameterized aliases (`type Pair[a] = (a, a)`) — separate `M-XMOD-ALIAS-POLY` concern.
+
+---
+
+## Implementation Report (2026-07-02, on `dev`)
+
+Added the `LPAREN → parseType()` branch to `parseTypeDeclBody`
+([internal/parser/parser_type_decl.go](../../internal/parser/parser_type_decl.go)), exactly as proposed
+(~8 LOC). Tuple/function targets lower via the existing `astTypeToInternalType` `TupleType`/`FuncType`
+cases and cross module boundaries for free through M-XMOD-ALIAS — verified end-to-end.
+
+**Tests:** `TestParseTupleAndFuncTypeAliases` (parser, pins AST node shape + guards named/list forms) and
+`TestXModAlias_TupleAndFuncAliasTargets` (pipeline, cross-module use). Both red before the fix
+(`PAR_TYPE_BODY_EXPECTED`), green after. Full parser package + type-system sweep green.

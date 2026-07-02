@@ -1,7 +1,7 @@
 ## M-XMOD-ALIAS-CHAIN: transitively expand chained type aliases (`type B = A`, `A = Json`)
 
-**Status**: PLANNED
-**Target**: tbd (patch-level; low priority)
+**Status**: IMPLEMENTED (on `dev`, 2026-07-02; first release: v0.28.1 tbd)
+**Target**: v0.28.1 (patch-level)
 **Priority**: P3 (Low — real correctness gap, but low frequency: aliasing an alias is uncommon. Has an obvious workalike: alias directly to the base type.)
 **Estimated**: ~0.5 day (fixpoint loop + cycle guard in one function + tests)
 **Dependencies**: None.
@@ -91,3 +91,17 @@ graceful mismatch). Existing M-XMOD-ALIAS + M-TYPE-ALIAS + record-update tests m
 ## Out of scope
 
 - Parameterized alias chains (`type Pair[a] = (a, a)`) — blocked on parameterized-alias support generally.
+
+---
+
+## Implementation Report (2026-07-02, on `dev`)
+
+Rewrote `expandAlias` ([internal/types/unification_core.go](../../internal/types/unification_core.go)) as
+the proposed fixpoint loop with a `seen`-set cycle guard. The record-`TypeName` branch is unchanged (a
+record is terminal). ~20 LOC net.
+
+**Tests:** `TestXModAlias_ChainedAlias` (non-record chain `Ref→Id→int`, flipped from the prior
+known-limitation characterization test), `TestXModAlias_ChainedRecordAlias` (`U2→Usage→{…}` with field
+access), and `TestXModAlias_CyclicAliasTerminates` (`type A = A` returns rather than hangs — guarded by the
+go-test timeout). All red before the fix, green after; XMod pack deterministic ×20; full type-system sweep
+(types/iface/pipeline/elaborate/parser) green.

@@ -119,17 +119,36 @@ export func main() -> int { 0 }
 	}
 }
 
-// TestXModAlias_ChainedAlias_KnownLimitation is a characterization test.
-//
-// A chained non-record alias (Ref -> Id -> int) does NOT expand transitively —
-// but this is a PRE-EXISTING limitation of the unifier's expandAlias, NOT
-// introduced by M-XMOD-ALIAS: the identical `Ref = Id = int` chain fails the same
-// way within a SINGLE module (verified manually). M-XMOD-ALIAS only guarantees
-// cross-module parity with within-module behavior for SINGLE-level aliases, which
-// is exactly what the other fixtures lock. If a future change teaches expandAlias
-// to chain, this test will start passing and should be flipped to an assertion of
-// success (tracked as the M-XMOD-ALIAS-CHAIN follow-up).
-func TestXModAlias_ChainedAlias_KnownLimitation(t *testing.T) {
+// TestXModAlias_TupleAndFuncAliasTargets (M-PARSER-ALIAS-TARGETS): tuple- and
+// function-type aliases must parse in alias-target position and — composing with
+// M-XMOD-ALIAS — cross module boundaries. Pre-fix these do not PARSE
+// (parseTypeDeclBody had no LPAREN case).
+func TestXModAlias_TupleAndFuncAliasTargets(t *testing.T) {
+	files := map[string]string{
+		"pkg_a/types.ail": `module pkg_a/types
+
+export type Pair = (int, string)
+export type Pred = (int) -> bool
+`,
+		"main.ail": `module main
+
+import pkg_a/types (Pair, Pred)
+
+export func usePair(p: (int, string)) -> Pair { p }
+export func usePred(f: (int) -> bool) -> Pred { f }
+
+export func main() -> int { 0 }
+`,
+	}
+	if err := checkModules(t, files); err != nil {
+		t.Fatalf("tuple/function alias targets failed: %v", err)
+	}
+}
+
+// TestXModAlias_ChainedAlias (M-XMOD-ALIAS-CHAIN): a chained alias Ref -> Id -> int
+// expands transitively. `expandAlias` iterates to a fixpoint, so `[int]` unifies
+// with `[Ref]` cross-module.
+func TestXModAlias_ChainedAlias(t *testing.T) {
 	files := map[string]string{
 		"pkg_a/types.ail": `module pkg_a/types
 
@@ -146,15 +165,58 @@ export func mk(xs: [int]) -> Box { { items: xs } }
 export func main() -> int { let b = mk([1, 2]); 0 }
 `,
 	}
-	err := checkModules(t, files)
-	if err == nil {
-		t.Fatal("chained non-record alias now type-checks — expandAlias learned to chain; " +
-			"flip this test to assert success and close the M-XMOD-ALIAS-CHAIN follow-up")
+	if err := checkModules(t, files); err != nil {
+		t.Fatalf("chained non-record alias failed to type-check: %v", err)
 	}
-	// Parity check: same failure shape as the documented single-module limitation.
-	if !strings.Contains(err.Error(), "Id") {
-		t.Fatalf("expected the pre-existing chained-alias mismatch mentioning Id, got: %v", err)
+}
+
+// TestXModAlias_ChainedRecordAlias: a chain ending in a record (U2 -> Usage -> {…})
+// resolves and preserves structural access cross-module.
+func TestXModAlias_ChainedRecordAlias(t *testing.T) {
+	files := map[string]string{
+		"pkg_a/types.ail": `module pkg_a/types
+
+export type Usage = { count: int }
+export type U2    = Usage
+
+export pure func zero() -> U2 { { count: 0 } }
+`,
+		"main.ail": `module main
+
+import pkg_a/types (U2, zero)
+
+export func total(u: U2) -> int { u.count }
+
+export func main() -> int { total(zero()) }
+`,
 	}
+	if err := checkModules(t, files); err != nil {
+		t.Fatalf("chained record alias failed to type-check: %v", err)
+	}
+}
+
+// TestXModAlias_CyclicAliasTerminates: a self-referential alias `type A = A` must
+// not hang the unifier (cycle guard in expandAlias). It should fail gracefully as a
+// type error, not loop forever. The test's own timeout would catch a hang.
+func TestXModAlias_CyclicAliasTerminates(t *testing.T) {
+	files := map[string]string{
+		"pkg_a/types.ail": `module pkg_a/types
+
+export type A = A
+export type Box = { item: A }
+`,
+		"main.ail": `module main
+
+import pkg_a/types (Box)
+
+export func mk(x: int) -> Box { { item: x } }
+
+export func main() -> int { 0 }
+`,
+	}
+	// We don't assert on the exact outcome — only that checkModules RETURNS
+	// (no infinite loop). A hang would fail the test via the go test timeout.
+	_ = checkModules(t, files)
 }
 
 // --- Negative / non-regression fixtures -------------------------------------

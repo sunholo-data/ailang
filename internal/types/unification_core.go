@@ -89,22 +89,41 @@ func (u *Unifier) expandAlias(t Type) Type {
 	if u.aliasEnv == nil {
 		return t
 	}
-	if con, ok := t.(*TCon); ok {
-		if target, exists := u.aliasEnv[con.Name]; exists {
-			// M-CROSS-MODULE: If target is a TRecord, set its TypeName
-			// This preserves the nominal type identity through unification
-			if rec, ok := target.(*TRecord); ok && rec.TypeName == "" {
-				// Create a copy with the type name set
-				return &TRecord{
-					Fields:   rec.Fields,
-					Row:      rec.Row,
-					TypeName: con.Name,
-				}
-			}
-			return target
+	// M-XMOD-ALIAS-CHAIN: iterate to a fixpoint so chained aliases resolve
+	// (`type Ref = Id; type Id = int` → Ref expands through Id to int). The
+	// `seen` set guards against self/mutual cycles (`type A = A`) so a bad
+	// alias declaration can't spin the unifier forever — we stop and return
+	// the last TCon, letting unification report a normal mismatch.
+	var seen map[string]bool
+	for {
+		con, ok := t.(*TCon)
+		if !ok {
+			return t
 		}
+		target, exists := u.aliasEnv[con.Name]
+		if !exists {
+			return t
+		}
+		if seen[con.Name] {
+			return t // cycle detected — stop expanding
+		}
+		if seen == nil {
+			seen = make(map[string]bool)
+		}
+		seen[con.Name] = true
+
+		// M-CROSS-MODULE: If target is a TRecord, set its TypeName so the
+		// nominal type identity is preserved through unification. A record is
+		// terminal — no further alias to chase.
+		if rec, ok := target.(*TRecord); ok && rec.TypeName == "" {
+			return &TRecord{
+				Fields:   rec.Fields,
+				Row:      rec.Row,
+				TypeName: con.Name,
+			}
+		}
+		t = target // keep expanding if target is itself an alias TCon
 	}
-	return t
 }
 
 // Unify attempts to unify two types, returning an updated substitution
