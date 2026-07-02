@@ -38,6 +38,16 @@ func TestCategorizeAgentError(t *testing.T) {
 			want:         ErrorCategoryStepExhausted,
 		},
 		{
+			// M-RIG-RELIABILITY M2: the motoko v2 loop reports step exhaustion ONLY
+			// as an error string with an EMPTY finish_reason (this exact string was
+			// pulled from a failing docx result JSON). It MUST classify as
+			// step_exhausted, not api_error — the run happened, it just hit the cap.
+			name:         "step budget exhausted error string, empty finish_reason",
+			err:          errors.New(`executor "motoko" failed for model "ollama/qwen3.6:35b-a3b-mxfp8": v2 loop: step budget exhausted`),
+			finishReason: "",
+			want:         ErrorCategoryStepExhausted,
+		},
+		{
 			name:         "finish_reason timeout",
 			err:          nil,
 			finishReason: "timeout",

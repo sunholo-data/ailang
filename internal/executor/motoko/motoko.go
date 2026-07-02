@@ -178,11 +178,18 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// motoko sent an EMPTY system-role message (confirmed by the request-dump,
 	// 2026-06-18) while pi sends a real agentic system message. motoko's headless
 	// host reads its system prompt from SYSTEM_MD (a file path that must live
-	// INSIDE the workspace). When AILANG_MOTOKO_SYSTEM_ROLE=1, deliver
-	// task.SystemPrompt there as a proper system-role message and pass only
-	// task.Directive as the task (no user-message duplication). Default (unset)
-	// keeps the legacy fold-into-directive behaviour so the rotation is unchanged
-	// until A/B-validated.
+	// INSIDE the workspace). By DEFAULT we deliver task.SystemPrompt there as a
+	// proper system-role message and pass only task.Directive as the task (no
+	// user-message duplication). Opt out with AILANG_MOTOKO_SYSTEM_ROLE=0 to fall
+	// back to the legacy fold-into-directive behaviour.
+	//
+	// Default-on (was gated behind =1, never set for rig runs → system_md 'unset'
+	// in every session log): the AILANG teaching folded into the user message is
+	// COMPACTED AWAY on long runs (docx = 60 steps), so the model loses the syntax
+	// mid-run and step-budget-exhausts. The system role is persistent across
+	// compaction. The prior "keep gated, net -2/18" A/B (2026-06-18) is invalid —
+	// it predates the SYSTEM_MD delivery wiring, so its "on" arm never actually
+	// delivered the prompt. (M-RIG-RELIABILITY: teaching-in-system-role)
 	directive := task.Directive
 	var systemPromptPath string
 	// M-MOTOKO-AGENT-SYSTEM-PROMPT (exploratory): the diff vs pi is that motoko enters
@@ -202,7 +209,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			directive = task.SystemPrompt + "\n\n" + task.Directive // teaching stays in the user message
 		}
 	} else if task.SystemPrompt != "" {
-		if os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") == "1" && task.Workspace != "" {
+		if os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") != "0" && task.Workspace != "" {
 			if p, werr := writeMotokoSystemPrompt(task.Workspace, task.SystemPrompt); werr == nil {
 				systemPromptPath = p
 				defer func() { _ = os.Remove(p) }()
@@ -210,7 +217,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				directive = task.SystemPrompt + "\n\n" + task.Directive // fallback on write error
 			}
 		} else {
-			directive = task.SystemPrompt + "\n\n" + task.Directive // legacy default
+			directive = task.SystemPrompt + "\n\n" + task.Directive // opt-out (=0) or no workspace
 		}
 	}
 

@@ -52,6 +52,24 @@ func CategorizeAgentError(err error, finishReason string) string {
 
 	msg := strings.ToLower(err.Error())
 
+	// Step/turn budget exhaustion. The motoko v2 loop reports this ONLY as an
+	// error string ("v2 loop: step budget exhausted") with an EMPTY finish_reason,
+	// so the finishReason switch above never fires. Without this, a REAL completed
+	// max_steps run (the run happened — hundreds of steps, full session JSONL)
+	// mis-recorded as api_error 0ms and the docx frontier benchmark was
+	// unmeasurable. Checked before quota/rate/timeout so the specific cause wins.
+	// (M-RIG-RELIABILITY M2)
+	if containsAny(msg,
+		"step budget exhausted",
+		"step_exhausted",
+		"step budget",
+		"max_steps",
+		"max steps",
+		"turn budget exhausted",
+	) {
+		return ErrorCategoryStepExhausted
+	}
+
 	// Quota exhaustion — provider account/key cap. Distinct from a transient
 	// 429: a quota kill says nothing about model capability and should be
 	// excluded from capability scoring (see ShouldExcludeFromCapability).
