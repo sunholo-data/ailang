@@ -52,22 +52,38 @@ HARD_SECS=$(( ${RIG_WATCHDOG_HARD_HOURS:-8} * 3600 ))
 SOFT_SECS=$(( ${RIG_WATCHDOG_SOFT_HOURS:-2} * 3600 ))
 STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-30}
 
-etime_secs() {  # parse `ps etime` ([[DD-]HH:]MM:SS) → elapsed seconds
-    local et="$1" days=0 hms; hms="$et"
-    case "$et" in *-*) days="${et%%-*}"; hms="${et#*-}";; esac
-    local h=0 m s IFS=:; set -- $hms
-    if [ $# -eq 3 ]; then h=$1; m=$2; s=$3; else h=0; m=$1; s=$2; fi
-    echo $(( days*86400 + 10#$h*3600 + 10#$m*60 + 10#$s ))
+etime_secs() {  # PID → elapsed seconds (0 on any miss). Takes the pid and reads `ps etime`
+    # ITSELF — the caller passes $pid, so a version that parsed $1 as an etime string was
+    # actually parsing the pid (a colonless number) as seconds. Robust under `set -u`: a pid
+    # can die between pgrep and ps (empty etime), and a fresh process shows "MM:SS" (2 fields)
+    # not "HH:MM:SS" — dereferencing $2/$3 unguarded aborted the whole watchdog in the
+    # command-substitution subshell, so it NEVER reached the kill.
+    local et days=0 hms h=0 m=0 s=0
+    et=$(ps -o etime= -p "${1:-}" 2>/dev/null | tr -d ' ')
+    [ -n "$et" ] || { echo 0; return; }
+    case "$et" in *-*) days="${et%%-*}"; hms="${et#*-}";; *) hms="$et";; esac
+    local IFS=:
+    # shellcheck disable=SC2086
+    set -- $hms
+    if   [ "$#" -eq 3 ]; then h="${1:-0}"; m="${2:-0}"; s="${3:-0}"
+    elif [ "$#" -eq 2 ]; then h=0;         m="${1:-0}"; s="${2:-0}"
+    else                      h=0; m=0;    s="${1:-0}"; fi
+    echo $(( days*86400 + 10#${h:-0}*3600 + 10#${m:-0}*60 + 10#${s:-0} ))
 }
 
 newest=$(ls -t "$LOGDIR"/session_*.jsonl 2>/dev/null | head -1)
-stall_min=999; [ -n "$newest" ] && stall_min=$(( ( $(date +%s) - $(stat -f %m "$newest") ) / 60 ))
+stall_min=999
+if [ -n "$newest" ]; then
+    mtime=$(stat -f %m "$newest" 2>/dev/null)
+    case "$mtime" in ''|*[!0-9]*) ;; *) stall_min=$(( ( $(date +%s) - mtime ) / 60 ));; esac
+fi
 
 for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
     ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
     pcmd=$(ps -o command= -p "$ppid" 2>/dev/null)
     case "$pcmd" in *os-rotation-filler*) ;; *) continue ;; esac   # ONLY rotation chunks
     secs=$(etime_secs "$pid")
+    case "$secs" in ''|*[!0-9]*) secs=0;; esac   # never let a bad parse crash the compare
     reason=""
     if [ "$secs" -gt "$HARD_SECS" ]; then reason="hard-max (${secs}s alive)"
     elif [ "$secs" -gt "$SOFT_SECS" ] && [ "$stall_min" -gt "$STALL_MIN" ]; then
