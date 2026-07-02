@@ -28,6 +28,16 @@ func TestCategorizeAgentError(t *testing.T) {
 			want:         ErrorCategoryStepExhausted,
 		},
 		{
+			// M-RIG-RELIABILITY M2: the motoko executor passes "max_steps" through
+			// verbatim (with a "motoko terminated with finish_reason=max_steps" error).
+			// This is a real completed run that hit the step cap — it MUST classify as
+			// step_exhausted, not api_error (the bug that made docx unmeasurable).
+			name:         "finish_reason max_steps (motoko vocabulary)",
+			err:          errors.New("motoko terminated with finish_reason=max_steps"),
+			finishReason: "max_steps",
+			want:         ErrorCategoryStepExhausted,
+		},
+		{
 			name:         "finish_reason timeout",
 			err:          nil,
 			finishReason: "timeout",

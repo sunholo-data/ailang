@@ -26,7 +26,12 @@ func CategorizeAgentError(err error, finishReason string) string {
 	switch finishReason {
 	case "cost_exhausted":
 		return ErrorCategoryCostKilled
-	case "step_exhausted":
+	// The motoko executor passes its run_summary finish_reason through verbatim
+	// ("max_steps"), while agent runners emit "step_exhausted" — alias both. Without
+	// "max_steps" here, a REAL max_steps docx run (hundreds of steps) fell through to
+	// api_error (err==nil below), so every docx run mis-recorded as api_error 0ms and the
+	// frontier benchmark was unmeasurable. (M-RIG-RELIABILITY M2)
+	case "step_exhausted", "max_steps", "max_turns":
 		return ErrorCategoryStepExhausted
 	case "timeout":
 		return ErrorCategoryTimeout
