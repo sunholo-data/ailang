@@ -44,6 +44,14 @@ jobs:
     - name: Build binaries
       run: make install
 
+    - name: Consumer regression guardrail (M-RIG-RELIABILITY)
+      # Fail the PR if an AILANG change breaks real-world consumer .ail code (the escape/
+      # parser/type/effect constructs the motoko harness relies on). The v0.27.0 \uXXXX
+      # lexer break stalled the rig ~35h with zero CI signal — this is that missing gate.
+      # (Cloud CI has no motoko fork/model, so it checks the vendored corpus; the rig also
+      # checks the real motoko core via MOTOKO_REPO.)
+      run: tools/ci/motoko_smoke.sh
+
     - name: Run tests with timeout (M-DX11)
       run: go test -timeout 60s ./...
 

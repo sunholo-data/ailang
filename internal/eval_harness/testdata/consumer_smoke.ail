@@ -1,0 +1,30 @@
+module ci/consumer_smoke
+
+-- CONSUMER REGRESSION CORPUS (M-RIG-RELIABILITY / M1).
+-- Real-world AILANG constructs that external consumers (the motoko harness core) rely on.
+-- If an AILANG change breaks any of these, CI fails HERE at PR time — instead of silently
+-- bricking the rig for hours. Add a construct whenever a breaking change is found in the wild.
+
+import std/string (length)
+
+-- v0.27.0 regression (M-LEXER-U4-COMPAT): the 4-hex JS/JSON \uXXXX escape. This exact line
+-- (an em-dash) stopped parsing under v0.27.0 and stalled every motoko run for ~35h.
+export func em_dash() -> string ! {} = "output truncated \u2014 narrow the range"
+export func braced_unicode() -> string ! {} = "unicode snake \u{1F40D}"
+export func hex_and_ansi() -> string ! {} = "\x1b[0m reset\ttab"
+export func interp(n: int) -> string ! {} = "count=${show(n)}"
+
+-- ADT + record-payload constructor + match (parser/type/effect coverage)
+export type Block = Para(string) | Table({ rows: int })
+
+export func render(b: Block) -> string ! {} =
+  match b {
+    Para(s) => s,
+    Table(t) => "table rows=${show(t.rows)}"
+  }
+
+export func main() -> () ! {IO} {
+  println(em_dash());
+  println(braced_unicode());
+  println(render(Table({ rows: 3 })))
+}
