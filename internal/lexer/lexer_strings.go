@@ -251,7 +251,16 @@ func (l *Lexer) readEscape() (rune, bool, string) {
 	case 'x':
 		return l.readHexEscape(2)
 	case 'u':
-		return l.readBracedUnicodeEscape()
+		// Two forms: braced `\u{H..H}` (1-6 hex) and the fixed JS/JSON-style
+		// `\uXXXX` (exactly 4 hex). v0.27.0's escape rework accepted ONLY the
+		// braced form and hard-errored on `\uXXXX` (PAR_ILLEGAL_TOKEN) — a
+		// breaking change that silently broke existing code (e.g. `—` for
+		// the em-dash in the motoko harness core), so the file no longer parsed.
+		// Accept both, matching JS/JSON/Rust. (M-LEXER-U4-COMPAT, 2026-07-02)
+		if l.peekChar() == '{' {
+			return l.readBracedUnicodeEscape()
+		}
+		return l.readHexEscape(4)
 	default:
 		if l.ch >= '1' && l.ch <= '9' {
 			return 0, false, `octal escapes are not supported; use \xHH or \u{...}`
@@ -263,10 +272,11 @@ func (l *Lexer) readEscape() (rune, bool, string) {
 // readHexEscape consumes exactly n hex digits following `\x` (l.ch is currently
 // 'x') and leaves l.ch on the final hex digit.
 func (l *Lexer) readHexEscape(n int) (rune, bool, string) {
+	kind := l.ch // the escape letter ('x' or 'u') — keep the message accurate for both
 	var v rune
 	for i := 0; i < n; i++ {
 		if !isHexDigit(l.peekChar()) {
-			return 0, false, fmt.Sprintf(`\x requires exactly %d hex digits (e.g. \x1b)`, n)
+			return 0, false, fmt.Sprintf(`\%c requires exactly %d hex digits`, kind, n)
 		}
 		l.readChar()
 		v = v*16 + hexValue(l.ch)

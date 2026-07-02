@@ -242,6 +242,13 @@ func TestHexAndUnicodeEscapes(t *testing.T) {
 		{"unicode astral snake", `"\u{1F40D}"`, "\U0001F40D"},
 		{"unicode 1 digit", `"\u{9}"`, "\t"},
 		{"mixed with text and known escapes", `"a\tb\x1bc\u{41}"`, "a\tb\x1bcA"},
+		// M-LEXER-U4-COMPAT: the fixed 4-hex JS/JSON form `\uXXXX` must ALSO work.
+		// v0.27.0 accepted only `\u{...}` and hard-errored on `\uXXXX`, silently
+		// breaking existing code — the regression that stalled every motoko run.
+		{"unicode fixed4 emdash (motoko regression)", `"\u2014"`, "\u2014"},
+		{"unicode fixed4 ascii", `"\u0041"`, "A"},
+		{"unicode fixed4 in context", `"a\u2014b"`, "a\u2014b"},
+		{"both forms in one string", `"\u2014\u{2014}"`, "\u2014\u2014"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -268,7 +275,7 @@ func TestMalformedEscapesAreIllegal(t *testing.T) {
 		{"hex too short", `"\x1"`, "2 hex digits"},
 		{"hex non-hex", `"\xZZ"`, "2 hex digits"},
 		{"unicode empty", `"\u{}"`, "at least one hex digit"},
-		{"unicode no brace", `"\u41"`, "{HEX}"},
+		{"unicode 4hex too short", `"\u41"`, "4 hex digits"},
 		{"unicode too big", `"\u{110000}"`, "not a valid Unicode"},
 		{"unicode too many", `"\u{1234567}"`, "at most 6 hex digits"},
 		{"octal", `"\033"`, "octal escapes are not supported"},
