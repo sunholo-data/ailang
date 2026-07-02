@@ -133,6 +133,9 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	if !jsonFlag && !quietFlag {
 		fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
 		fmt.Printf("%s Effect checking...\n", cyan("→"))
+		// Surface toolchain/lockfile skew before the pipeline runs, so a resulting
+		// type error (e.g. string vs NetError) sits directly below its likely cause.
+		warnToolchainSkew(filename)
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
@@ -586,6 +589,9 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 
 	if !jsonFlag && !quietFlag {
 		fmt.Printf("%s Checking %d .ail files in %s...\n\n", cyan("→"), len(files), dir)
+		// Once per directory check: warn if this project's lock was cut by a
+		// different ailang release than the running binary (toolchain skew).
+		warnToolchainSkew(dir)
 	}
 
 	// Track results

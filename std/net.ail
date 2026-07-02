@@ -6,6 +6,12 @@ module std/net
 import std/result (Result)
 
 -- Network error types
+--
+-- Migration note (httpRequest Err changed from `string` to `NetError` in v0.25.0):
+-- to turn an error into a string (e.g. to build a JSON error payload), use `show(e)` —
+-- it renders any NetError variant, so `js(e)` becomes `js(show(e))`:
+--     Err(e) => encode(jo([kv("error", js(show(e)))]))
+-- To branch on the cause instead, match the variants (see the httpRequest example below).
 export type NetError =
   | Transport(string)      -- DNS, timeout, TLS, connection errors
   | DisallowedHost(string) -- Domain not in allowlist
@@ -116,11 +122,11 @@ export func httpPost(url: string, body: string) -> string ! {Net} =
 -- Example:
 --   let headers = [{name: "Authorization", value: "Bearer token"}];
 --   match httpRequest("POST", url, headers, body) {
---     Ok(resp) -> if resp.ok then resp.body else "Error: " ++ show(resp.status),
---     Err(Transport(msg)) -> "Network error: " ++ msg,
---     Err(DisallowedHost(host)) -> "Blocked: " ++ host,
---     Err(InvalidHeader(hdr)) -> "Bad header: " ++ hdr,
---     Err(BodyTooLarge(size)) -> "Too large: " ++ size
+--     Ok(resp) -> if resp.ok then resp.body else "Error: ${show(resp.status)}",
+--     Err(Transport(msg)) -> "Network error: ${msg}",
+--     Err(DisallowedHost(host)) -> "Blocked: ${host}",
+--     Err(InvalidHeader(hdr)) -> "Bad header: ${hdr}",
+--     Err(BodyTooLarge(size)) -> "Too large: ${size}"
 --   }
 --
 -- IMPORTANT: Ok(resp) captures the FULL HttpResponse record.
