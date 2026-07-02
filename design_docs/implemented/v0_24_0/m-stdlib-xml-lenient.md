@@ -1,7 +1,7 @@
 ## M-STDLIB-XML-LENIENT: `std/xml` — Lenient Parsing for Real-World (Malformed) XML
 
-**Status**: IMPLEMENTED (on `dev`, pending release)
-**Target**: v0.24.0 (tentative)
+**Status**: IMPLEMENTED — shipped in v0.24.0 (2026-06-04)
+**Target**: v0.24.0
 **Priority**: P1 (High — blocking sunholo/ailang-parse on real production documents)
 **Estimated**: 1 day
 **Dependencies**: None. Additive to existing `std/xml`; `XmlNode` ADT unchanged.
