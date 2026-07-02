@@ -284,6 +284,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		motokoCommit       string
 		motokoModel        string
 		dp7RejectionsCount int
+		systemMDState      string          // 'set'/'unset' from runtime_config_resolved (M-RIG-RELIABILITY)
 		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
 
 		// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT). Counts every
@@ -357,6 +358,20 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 				transcript.WriteString("done: ")
 				transcript.WriteString(truncateForTranscript(ev.Output, 300))
 				transcript.WriteByte('\n')
+			}
+
+		case "runtime_config_resolved":
+			// End-to-end signal for the recurring "AILANG system prompt never
+			// reached the model" bug (M-RIG-RELIABILITY). motoko reports
+			// system_md as 'set' (a system-role prompt was delivered via
+			// SYSTEM_MD) or 'unset' (it was not). Read from raw — it's a plain
+			// string field on this event. The executor asserts on this after
+			// parsing so ANY layer regression (default flag, env-forward,
+			// path rejection) fails loudly instead of silently recurring.
+			if raw != nil {
+				if s, ok := raw["system_md"].(string); ok {
+					systemMDState = s
+				}
 			}
 
 		case "dp7_verifier_rejected":
@@ -436,6 +451,12 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanner: %w", err)
 	}
+
+	// End-to-end system-prompt delivery signal (M-RIG-RELIABILITY). The executor
+	// asserts on this: if it wrote a SYSTEM_MD file (intended delivery) but this
+	// is not "set", the AILANG teaching never reached the model — the recurring
+	// bug. Empty means the session predates the runtime_config_resolved event.
+	res.ProviderData["system_md"] = systemMDState
 
 	// If run_summary is missing, fall back to summed totals + infer success
 	// from the last thinking event's finish_reason. M-MOTOKO-EVAL-HARNESS-

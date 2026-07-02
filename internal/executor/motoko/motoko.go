@@ -58,6 +58,18 @@ import (
 
 var motokoTracer = telemetry.Tracer("executor.motoko")
 
+// systemPromptViaSystemRole reports whether the AILANG system prompt should be
+// delivered as a persistent system-role message (written to SYSTEM_MD) rather
+// than folded into the user directive (where context compaction strips it on
+// long runs). Default ON; opt out with AILANG_MOTOKO_SYSTEM_ROLE=0.
+//
+// This is the call-site the delivery bug kept regressing at. A unit test pins
+// the DEFAULT (unset → true) so reverting it back to gated fails CI, per the
+// "guard the call-site, not the helper" lesson (M-RIG-RELIABILITY).
+func systemPromptViaSystemRole() bool {
+	return os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") != "0"
+}
+
 // writeMotokoSystemPrompt writes the system prompt to a file INSIDE the workspace
 // and returns its absolute path (M-MOTOKO-SYSTEM-ROLE). motoko's headless host
 // reads the system prompt from SYSTEM_MD and (index.ts systemPromptForWorkspace)
@@ -209,7 +221,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			directive = task.SystemPrompt + "\n\n" + task.Directive // teaching stays in the user message
 		}
 	} else if task.SystemPrompt != "" {
-		if os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") != "0" && task.Workspace != "" {
+		if systemPromptViaSystemRole() && task.Workspace != "" {
 			if p, werr := writeMotokoSystemPrompt(task.Workspace, task.SystemPrompt); werr == nil {
 				systemPromptPath = p
 				defer func() { _ = os.Remove(p) }()
@@ -434,6 +446,28 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
+	}
+
+	// END-TO-END SYSTEM-PROMPT DELIVERY GUARD (M-RIG-RELIABILITY). This bug has
+	// recurred 7×, each time in a DIFFERENT layer (default flag, env-forward
+	// scrub, path rejection) with the IDENTICAL symptom: the AILANG teaching
+	// never reaches the model → dialect confusion → step-budget exhaustion. No
+	// per-layer fix stops it; only asserting the OUTCOME does. If we wrote a
+	// SYSTEM_MD file (intended delivery) but the session reports system_md !=
+	// "set", delivery failed — FAIL LOUDLY (CLAUDE.md: NO SILENT FALLBACKS) so
+	// the next regression is caught in the run output, not days later by luck.
+	if systemPromptPath != "" {
+		sysMD, _ := result.ProviderData["system_md"].(string)
+		if sysMD != "set" {
+			msg := fmt.Sprintf("SYSTEM PROMPT NOT DELIVERED: wrote SYSTEM_MD=%s but session reports system_md=%q "+
+				"(expected \"set\"). The AILANG teaching did not reach the model — recurring delivery regression.",
+				systemPromptPath, sysMD)
+			fmt.Fprintf(os.Stderr, "[motoko] ⚠️  %s\n", msg)
+			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", false))
+			result.ProviderData["system_prompt_delivery_error"] = msg
+		} else {
+			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", true))
+		}
 	}
 
 	// run_summary may carry its own duration_ms (from motoko's internal
