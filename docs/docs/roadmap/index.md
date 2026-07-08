@@ -57,16 +57,11 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EVAL-REGRESSION-DETECTOR-CONTRACT: Specify trial grouping, flaky-vs-persistent classification, and infra-noise policy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-regression-detector-contract.md)
 - [M-EVAL-STREAM-HEALTH-RETRY: Mid-stream death detection + fast retry for the streaming executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-stream-health-retry.md)
 - [M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prelude-option-result.md)
-- [M-PROMPT-RUN-LENGTH-PATTERNS: Concise Recursive Solutions to Prevent Token-Limit Truncation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-concise-recursive-solutions.md)
 - [M-PROMPT-LOG-FILE-ANALYZER: String ops pipeline example (split→filter→map→join)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-log-file-analyzer-string-ops.md)
-- [Prompt Gap: Match Expression Guard Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-match-guard-syntax.md)
-- [M-PROMPT-NESTED-ADT-PATTERNS: Clarify Nested ADT Match Support and Prevent Over-Verbose Balance Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-nested-adt-patterns.md)
 - [Prompt Gap: Option/None Requires Explicit Import](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-option-none-idiom.md)
 - [M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-single-file-module.md)
 - [Prompt Gap: Split Returns List, Not String](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-split-list-operations.md)
-- [M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — LARGELY SOLVED, monitor only](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-string-concat-plusplus.md)
 - [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-syntax-ai-forgiving.md)
-- [M-TYPE-CONSTRAINTS: Type parameter constraints (`[a: Ord]`) — explicit-comparator workaround](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-constraints.md)
 
 ## Planned for v0.23.0
 
@@ -80,8 +75,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.22.0
 
-- [M-COG-MEMORY: Semantic Memory — `!: SharedMem` + `!: SemanticSearch`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-memory.md)
-- [M-COG-MESH: Distributed Cognitive Mesh — Collaborative Demo + Distributed Transports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-cog-mesh.md)
 - [M-EFFECT-ROW-POLY-PARAMS — Effect-row polymorphism on higher-order arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-effect-row-poly-params.md)
 - [M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-lambda-open-record-pattern.md)
 - [M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-match-xcheck-error-quality.md)
@@ -93,8 +86,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-check-strict-fallbacks.md)
 - [M-EFFECT-HANDLERS: User-Definable Effect Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-effect-handlers.md)
-- [M-EVAL-AGENT-PYTHON-STDIO-WIRING — Python agent-mode runner drops `cli_args` and `stdin` from benchmark spec](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md)
-- [M-MOTOKO-CLOUD-MIGRATION: Replace `claude -p` OAuth Executors with motoko + OpenRouter in Production](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-motoko-cloud-migration.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-stdlib-html-streaming.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-zero-language-learnings.md)
 
@@ -103,8 +94,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md)
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
-- [M-WASM-AI-STEP-VIA-MESSAGES: WASM `ai.step` mediated by the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md)
-- [M-WASM-CLOUD-MESSAGES: AILANG-WASM browser participates in the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-cloud-messages.md)
 
 ## Planned for v0.18.0
 
@@ -210,4 +199,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 142 planned features across 15 upcoming versions.*
+*Generated at build time. 131 planned features across 15 upcoming versions.*
