@@ -437,17 +437,17 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (inform design):**
-- [m-dx11-type-provenance.md](../../implemented/v0_6_0/m-dx11-type-provenance.md) - Different provenance (types vs code) but similar concept
-- [artifact_discovery.go](../../../internal/coordinator/artifact_discovery.go) - Existing git diff usage
+- [m-dx11-type-provenance.md](../implemented/v0_6_0/m-dx11-type-provenance.md) - Different provenance (types vs code) but similar concept
+- [artifact_discovery.go](../../internal/coordinator/artifact_discovery.go) - Existing git diff usage
 
 **Planned (check for overlap):**
-- [m-trace-bridge-sprint-plan.md](../v0_7_1/m-trace-bridge-sprint-plan.md) - Trace infrastructure we build on
+- [m-trace-bridge-sprint-plan.md](v0_7_1/m-trace-bridge-sprint-plan.md) - Trace infrastructure we build on
 
 ## References
 
 - [Agent Trace Specification](https://agent-trace.dev) - The standard we export to
 - [Design Axioms](/docs/references/axioms) - The 12 non-negotiable principles
-- [CLAUDE.md ID Relationships](../../../CLAUDE.md#-id-relationships-across-databases) - Database schema docs
+- [CLAUDE.md ID Relationships](../../CLAUDE.md#-id-relationships-across-databases) - Database schema docs
 
 ## Future Work
 

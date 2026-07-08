@@ -540,14 +540,14 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (foundations this builds on):**
-- [m-pkg-package-system.md](../../implemented/v0_9_5/m-pkg-package-system.md) — Core package system
-- [m-pkg-registry.md](../../implemented/v0_9_7/m-pkg-registry.md) — GCS-backed registry with content/interface hashing
-- [m-pkg-msg-package-messaging-graph.md](../../implemented/v0_9_9/m-pkg-msg-package-messaging-graph.md) — Package messaging system
-- [m-pkg-resolver-direct-wins.md](../../implemented/v0_9_11/m-pkg-resolver-direct-wins.md) — Strict conflict detection
+- [m-pkg-package-system.md](../implemented/v0_9_5/m-pkg-package-system.md) — Core package system
+- [m-pkg-registry.md](../implemented/v0_9_7/m-pkg-registry.md) — GCS-backed registry with content/interface hashing
+- [m-pkg-msg-package-messaging-graph.md](../implemented/v0_9_9/m-pkg-msg-package-messaging-graph.md) — Package messaging system
+- [m-pkg-resolver-direct-wins.md](../implemented/v0_9_11/m-pkg-resolver-direct-wins.md) — Strict conflict detection
 
 **Planned (direct dependencies/overlap):**
-- [m-pkg-upgrade-chain-tooling.md](../v0_10_0/m-pkg-upgrade-chain-tooling.md) — Upgrade graph model + CLI (Phase 1 prerequisite)
-- [m-pkg-autonomous-updates.md](../v0_10_0/m-pkg-autonomous-updates.md) — Message-driven autonomous updates (Phase 4 prerequisite)
+- [m-pkg-upgrade-chain-tooling.md](v0_10_0/m-pkg-upgrade-chain-tooling.md) — Upgrade graph model + CLI (Phase 1 prerequisite)
+- [m-pkg-autonomous-updates.md](v0_10_0/m-pkg-autonomous-updates.md) — Message-driven autonomous updates (Phase 4 prerequisite)
 
 ## References
 

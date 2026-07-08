@@ -688,7 +688,7 @@ context_files:
 
 ### AILANG Internal
 
-- **M-EVAL Infrastructure**: [docs/docs/guides/evaluation/](../../../docs/docs/guides/evaluation/)
+- **M-EVAL Infrastructure**: [docs/docs/guides/evaluation/](../../docs/docs/guides/evaluation/)
 - **Agent Evaluation**: `internal/eval_harness/agent_runner.go`
 - **Existing Benchmarks**: `benchmarks/` (47 single-file benchmarks)
 

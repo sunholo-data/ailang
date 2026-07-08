@@ -481,10 +481,10 @@ ailang messages send copilot-github "Implement semantic caching for embeddings" 
 
 ## Related Documents
 
-- [M-EXEC-CLAUDE: Claude Code CLI Executor](../../implemented/v0_6_0/m-exec-claude-sprint-plan.md) - Executor foundation
-- [M-EXEC-GEMINI: Gemini CLI Executor](../../implemented/v0_6_1/m-exec-gemini-sprint-plan.md) - Alternative executor pattern
-- [M-COORDINATOR: Task Delegation Framework](../../implemented/v0_6_2/m-coordinator-sprint-plan.md) - Agent coordination
-- [Executor Architecture Overview](../../../docs/docs/guides/executor.md) - Interface specification
+- [M-EXEC-CLAUDE: Claude Code CLI Executor](../implemented/v0_6_0/m-exec-claude-sprint-plan.md) - Executor foundation
+- [M-EXEC-GEMINI: Gemini CLI Executor](../implemented/v0_6_1/m-exec-gemini-sprint-plan.md) - Alternative executor pattern
+- [M-COORDINATOR: Task Delegation Framework](../implemented/v0_6_2/m-coordinator-sprint-plan.md) - Agent coordination
+- [Executor Architecture Overview](../../docs/docs/guides/executor.md) - Interface specification
 
 ---
 

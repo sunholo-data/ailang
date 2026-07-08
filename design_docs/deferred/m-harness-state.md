@@ -259,8 +259,8 @@ chain_id: abc123
 
 - **Ning et al. (2026).** Code as Agent Harness. arXiv:[2605.18747](https://arxiv.org/abs/2605.18747) — §3 "implicit/file-only shared state is the central gap"; SyncMind formal shared substrate ($S_k$ ground truth vs. $B_k$ belief state); "topology complexity is a symptom of implicit state"
 - [Design Axioms](/docs/references/axioms)
-- [Database Architecture Guide](../../../docs/docs/guides/database-architecture.md)
-- [Coordinator Guide](../../../docs/docs/guides/coordinator.md)
+- [Database Architecture Guide](../../docs/docs/guides/database-architecture.md)
+- [Coordinator Guide](../../docs/docs/guides/coordinator.md)
 
 ## Future Work
 

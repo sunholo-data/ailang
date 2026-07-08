@@ -330,8 +330,8 @@ import { Icons } from '../common/Icons';
 - MetricsCard.module.css - Good example of CSS modules
 
 **Project guidelines:**
-- [CLAUDE.md](../../../CLAUDE.md) - File size targets (200-500 lines ideal, 800+ critical)
-- [.claude/skills/codebase-organizer/](../../../.claude/skills/codebase-organizer/) - Refactoring patterns
+- [CLAUDE.md](../../CLAUDE.md) - File size targets (200-500 lines ideal, 800+ critical)
+- [.claude/skills/codebase-organizer/](../../.claude/skills/codebase-organizer/) - Refactoring patterns
 
 ## References
 

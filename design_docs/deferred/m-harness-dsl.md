@@ -335,8 +335,8 @@ export workflow sprint : [Stage] =
 
 - **Ning et al. (2026).** Code as Agent Harness. arXiv:[2605.18747](https://arxiv.org/abs/2605.18747) — §4 "Natural-Language Agent Harnesses (NLAH)"; "orchestration as a runtime interpretation problem"; PLAN.md / Implement.md as "executable harness specifications"
 - [Design Axioms](/docs/references/axioms)
-- [Coordinator Guide](../../../docs/docs/guides/coordinator.md)
-- [Three-Camps Architecture](../../../docs/docs/guides/three-camps-self-audit.md)
+- [Coordinator Guide](../../docs/docs/guides/coordinator.md)
+- [Three-Camps Architecture](../../docs/docs/guides/three-camps-self-audit.md)
 
 ## Future Work
 

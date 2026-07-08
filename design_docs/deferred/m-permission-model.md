@@ -280,8 +280,8 @@ ERROR: PermissionDenied
 
 - **Ning et al. (2026).** Code as Agent Harness. arXiv:[2605.18747](https://arxiv.org/abs/2605.18747) — §PEV "multi-tier permission model"; "permissions depend on tool identity, arguments, environment state, data sensitivity, and expected side effects"
 - [Design Axioms](/docs/references/axioms)
-- [Three-Camps Architecture](../../../docs/docs/guides/three-camps-self-audit.md)
-- [Coordinator Guide](../../../docs/docs/guides/coordinator.md)
+- [Three-Camps Architecture](../../docs/docs/guides/three-camps-self-audit.md)
+- [Coordinator Guide](../../docs/docs/guides/coordinator.md)
 
 ## Future Work
 

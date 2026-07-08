@@ -331,4 +331,4 @@ type TaskStage string
 
 - [M-GENERIC-PIPELINE Design Doc](m-generic-pipeline.md)
 - [M-CLOUD-INFRA Design Doc](m-cloud-infra.md) (depends on this sprint)
-- [M-COORD-STABLE](../../implemented/v0_6_2/m-coord-stable.md) - Coordinator architecture
+- [M-COORD-STABLE](../implemented/v0_6_2/m-coord-stable.md) - Coordinator architecture

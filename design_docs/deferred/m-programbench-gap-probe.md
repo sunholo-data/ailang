@@ -50,7 +50,7 @@ This follows the gap-analysis-first rule from prior language-comparison work: le
   - Recommendation: continue to full integration, or shelve
 
 ### OUT of scope (explicit non-goals)
-- Running the actual ProgramBench harness (`uvx programbench`) — that requires a compiled AILANG binary target, which AILANG doesn't have yet ([project_codegen_strategic_decision](../../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/project_codegen_strategic_decision.md): evaluator-first + bytecode VM, no native binary emission).
+- Running the actual ProgramBench harness (`uvx programbench`) — that requires a compiled AILANG binary target, which AILANG doesn't have yet ([project_codegen_strategic_decision](../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/project_codegen_strategic_decision.md): evaluator-first + bytecode VM, no native binary emission).
 - Anywhere near the full 200-task set
 - Fuzzing-based test generation (we hand-pick ~10 test cases per task)
 - Submitting to the ProgramBench leaderboard
@@ -128,9 +128,9 @@ Start with #1, #2, #5, #6 (lowest risk); add stretch tasks if those pass.
 
 ## Out-of-band considerations
 
-- **Don't strip quota failures from results** (per [feedback_gemini_quota_in_benchmarks](../../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/feedback_gemini_quota_in_benchmarks.md)) — they're valid signal about operational reality.
+- **Don't strip quota failures from results** (per [feedback_gemini_quota_in_benchmarks](../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/feedback_gemini_quota_in_benchmarks.md)) — they're valid signal about operational reality.
 - **Hold model + executor constant across AILANG and Python arms** so any gap is attributable to the language, not the harness.
-- **WRONG_LANG categorization** already exists in the harness ([reference_harness_wrong_lang_gating](../../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/reference_harness_wrong_lang_gating.md)) — agents that emit Python when asked for AILANG should already be filtered.
+- **WRONG_LANG categorization** already exists in the harness ([reference_harness_wrong_lang_gating](../../../.claude/projects/-Users-mark-dev-sunholo-ailang/memory/reference_harness_wrong_lang_gating.md)) — agents that emit Python when asked for AILANG should already be filtered.
 
 ---
 

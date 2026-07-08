@@ -41,11 +41,11 @@
 ## Problem Statement
 
 **Current State:**
-- Every benchmark in [benchmarks/](../../../benchmarks) declares `languages: ["python", "ailang"]` — no JavaScript, Go, or other mainstream language coverage.
-- Only two agent harnesses are wired: Claude ([internal/executor/claude/](../../../internal/executor/claude/)) and Gemini ([internal/executor/gemini/](../../../internal/executor/gemini/)). Codex format analysis exists in [internal/executor/codex_compat_test.go](../../../internal/executor/codex_compat_test.go) but no executor. Opencode and openbench are not integrated.
-- Ollama is wired (including `ollama-gemma3` in [internal/eval_harness/models.yml:479-490](../../../internal/eval_harness/models.yml)), but there is no `ollama-gemma4` entry, no documented path for exercising any Ollama model against the eval harness, and open-source model evaluations happen ad hoc.
+- Every benchmark in [benchmarks/](../../benchmarks) declares `languages: ["python", "ailang"]` — no JavaScript, Go, or other mainstream language coverage.
+- Only two agent harnesses are wired: Claude ([internal/executor/claude/](../../internal/executor/claude/)) and Gemini ([internal/executor/gemini/](../../internal/executor/gemini/)). Codex format analysis exists in [internal/executor/codex_compat_test.go](../../internal/executor/codex_compat_test.go) but no executor. Opencode and openbench are not integrated.
+- Ollama is wired (including `ollama-gemma3` in [internal/eval_harness/models.yml:479-490](../../internal/eval_harness/models.yml)), but there is no `ollama-gemma4` entry, no documented path for exercising any Ollama model against the eval harness, and open-source model evaluations happen ad hoc.
 - The chosen primary open-source target is **Gemma 4** (via `ollama pull gemma4:<size>`) because it is the newest generation with strongest reported coding capability; Gemma 3 is the on-disk fallback until Gemma 4 is pulled locally.
-- Language dispatch lives in ~10 `switch lang` sites across [agent_prompt.go](../../../internal/eval_harness/agent_prompt.go), [agent_runner.go:514](../../../internal/eval_harness/agent_runner.go), [runner.go:489](../../../internal/eval_harness/runner.go), and [spec.go:126](../../../internal/eval_harness/spec.go). Each new language currently multiplies the dispatch surface.
+- Language dispatch lives in ~10 `switch lang` sites across [agent_prompt.go](../../internal/eval_harness/agent_prompt.go), [agent_runner.go:514](../../internal/eval_harness/agent_runner.go), [runner.go:489](../../internal/eval_harness/runner.go), and [spec.go:126](../../internal/eval_harness/spec.go). Each new language currently multiplies the dispatch surface.
 
 **Impact:**
 - Cross-language comparisons are limited to Python, which understates AILANG's positioning against the languages most AI-generated code actually targets.
@@ -53,7 +53,7 @@
 - Open-source model coverage is fragmented — we can't run frequent, low-cost regression sweeps against Gemma/DeepSeek/Llama to track their capability trajectory.
 - Adding even one more language without refactoring the dispatch surface means ~10 edits across files, raising the cost of every future language addition.
 
-**This doc is distinct from [M-EVAL-XLANG](../v0_11_0/m-eval-cross-language-benchmark.md):** that doc proposes joining *external* third-party benchmark suites (AutoCodeBench, leetgptsolver). This doc extends the *internal* eval bench so we own the dimensions we care about (harness × language × model × benchmark).
+**This doc is distinct from [M-EVAL-XLANG](v0_11_0/m-eval-cross-language-benchmark.md):** that doc proposes joining *external* third-party benchmark suites (AutoCodeBench, leetgptsolver). This doc extends the *internal* eval bench so we own the dimensions we care about (harness × language × model × benchmark).
 
 ---
 
@@ -74,7 +74,7 @@
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
 | Introduce a `langreg` language registry before adding JS/Go | Without it, every new language multiplies dispatch edits across ~10 sites; with it, each language is one file | human | design | high |
-| Codex shipped before opencode | Codex format already analyzed ([codex_compat_test.go](../../../internal/executor/codex_compat_test.go)); opencode needs a research spike | human | design | med |
+| Codex shipped before opencode | Codex format already analyzed ([codex_compat_test.go](../../internal/executor/codex_compat_test.go)); opencode needs a research spike | human | design | med |
 | Gemma 4 is the primary open-source model target | Newest generation; user explicitly chose it over Gemma 3 for initial coverage | human | design | low |
 | Gemma / openbench local-dev only (no CI cadence) | Keeps CI cost predictable; avoids flakiness from local Ollama availability in CI | human | design | low |
 | Reference solutions limited to 10 benchmarks for starter JS/Go | Full port of 50+ benchmarks would be weeks of solution-writing; 10 gives representative coverage | human | design | med |
@@ -104,7 +104,7 @@ Four sequenced sprints. Track A (harnesses) and Track B (languages) are independ
 
 1. **Language Registry** (`internal/eval_harness/langreg/`) — new package. A `Language` interface with concrete implementations for each supported language. Replaces every `switch lang` site in the eval harness.
 
-2. **New Harness Executors** (`internal/executor/codex/`, `internal/executor/opencode/`) — new packages mirroring [`internal/executor/gemini/gemini.go`](../../../internal/executor/gemini/gemini.go). **Both are CLI-subprocess executors** (not direct-API integrations): Codex uses the `codex` CLI, opencode uses the `opencode` CLI, matching the Claude/Gemini pattern so all four harnesses share one uniform executor shape. Each implements the 7-method [`executor.Executor`](../../../internal/executor/executor.go) interface and self-registers via `init()` → `GlobalFactory().Register(name, ...)` per the pattern in [claude.go:771-773](../../../internal/executor/claude/claude.go).
+2. **New Harness Executors** (`internal/executor/codex/`, `internal/executor/opencode/`) — new packages mirroring [`internal/executor/gemini/gemini.go`](../../internal/executor/gemini/gemini.go). **Both are CLI-subprocess executors** (not direct-API integrations): Codex uses the `codex` CLI, opencode uses the `opencode` CLI, matching the Claude/Gemini pattern so all four harnesses share one uniform executor shape. Each implements the 7-method [`executor.Executor`](../../internal/executor/executor.go) interface and self-registers via `init()` → `GlobalFactory().Register(name, ...)` per the pattern in [claude.go:771-773](../../internal/executor/claude/claude.go).
 
 3. **Reference Solutions** (`examples/reference/<bench>/main.{js,go}`) — one pair per starter benchmark, used by the test harness to verify JS/Go runs produce correct output.
 
@@ -115,7 +115,7 @@ Four sequenced sprints. Track A (harnesses) and Track B (languages) are independ
 **Sprint 1: M-EVAL-LANGREG** (~1 week)
 - [ ] Define `langreg.Language` interface in `internal/eval_harness/langreg/langreg.go`.
 - [ ] Implement `python.go` and `ailang.go` concretes with parity to current behavior.
-- [ ] Replace `switch lang` in [agent_prompt.go](../../../internal/eval_harness/agent_prompt.go) (5 sites), [agent_runner.go:514](../../../internal/eval_harness/agent_runner.go), [runner.go:489](../../../internal/eval_harness/runner.go), [spec.go:126](../../../internal/eval_harness/spec.go).
+- [ ] Replace `switch lang` in [agent_prompt.go](../../internal/eval_harness/agent_prompt.go) (5 sites), [agent_runner.go:514](../../internal/eval_harness/agent_runner.go), [runner.go:489](../../internal/eval_harness/runner.go), [spec.go:126](../../internal/eval_harness/spec.go).
 - [ ] Unit tests for `langreg.Get` lookups and interface contract.
 - [ ] Verify no behavioral regression: `make ci` passes and all existing eval benchmarks produce identical output bytes.
 
@@ -128,10 +128,10 @@ Four sequenced sprints. Track A (harnesses) and Track B (languages) are independ
 
 **Sprint 3: M-EVAL-CODEX** (~1 week)
 - [ ] Create `internal/executor/codex/codex.go` as a **`codex` CLI subprocess executor** — same shape as `internal/executor/gemini/gemini.go` and `internal/executor/claude/claude.go`. Spawns `codex` with the right flags, pipes stdin/stdout, parses streaming NDJSON. **Not** a direct-API integration.
-- [ ] Port NDJSON parser from blueprint in [codex_compat_test.go](../../../internal/executor/codex_compat_test.go) (events are `{"type":"message","text":...}`).
+- [ ] Port NDJSON parser from blueprint in [codex_compat_test.go](../../internal/executor/codex_compat_test.go) (events are `{"type":"message","text":...}`).
 - [ ] Register via `init()` → `GlobalFactory().Register("codex", ...)`.
 - [ ] Determine correct `codex` CLI invocation flags (auth, model selection, JSON output, permission bypass equivalent to Claude's `--dangerously-skip-permissions`). Document in the executor README.
-- [ ] Add `codex-*` entries to [internal/eval_harness/models.yml](../../../internal/eval_harness/models.yml) with `agent_cli: "codex"` (mirrors the `agent_cli: "claude"` / `agent_cli: "gemini"` pattern).
+- [ ] Add `codex-*` entries to [internal/eval_harness/models.yml](../../internal/eval_harness/models.yml) with `agent_cli: "codex"` (mirrors the `agent_cli: "claude"` / `agent_cli: "gemini"` pattern).
 - [ ] Add `agent_suite` to models.yml (line 521-574 region) containing claude + gemini + codex.
 - [ ] Add `codex --version` to executor `HealthCheck` and CI toolchain presence checks (same pattern as the `node`/`go` checks added in Sprint 2).
 - [ ] E2E test: `ailang eval-suite --models codex-<model> --benchmarks fizzbuzz` captures metrics in the same schema as Claude.
@@ -140,7 +140,7 @@ Four sequenced sprints. Track A (harnesses) and Track B (languages) are independ
 - [ ] Research spike (~1 day): document opencode's stream format (produce `opencode_compat_test.go` matching the codex-compat precedent); confirm which `openbench` we're targeting (likely `openbench-ai/openbench`).
 - [ ] Create `internal/executor/opencode/opencode.go`.
 - [ ] Create `internal/eval_harness/openbench/adapter.go` — maps one benchmark task to openbench format, invokes openbench, parses results into `RunMetrics`.
-- [ ] Add `ollama-gemma4` entry to [internal/eval_harness/models.yml](../../../internal/eval_harness/models.yml) mirroring the `ollama-gemma3` block (lines 479-490). Pin `api_name` to the chosen Gemma 4 tag (e.g., `gemma4:12b`); `pricing.input_per_1k: 0.0`, `pricing.output_per_1k: 0.0`.
+- [ ] Add `ollama-gemma4` entry to [internal/eval_harness/models.yml](../../internal/eval_harness/models.yml) mirroring the `ollama-gemma3` block (lines 479-490). Pin `api_name` to the chosen Gemma 4 tag (e.g., `gemma4:12b`); `pricing.input_per_1k: 0.0`, `pricing.output_per_1k: 0.0`.
 - [ ] Document local-dev workflow for Gemma 4 (`ollama serve && ollama pull gemma4:<tag> && ailang eval-suite --models ollama-gemma4 --benchmarks fizzbuzz`); include a note that `ollama-gemma3` remains available as the on-disk fallback.
 
 ### Files to Modify/Create
@@ -160,12 +160,12 @@ Four sequenced sprints. Track A (harnesses) and Track B (languages) are independ
 - `examples/reference/<bench>/main.go` × 10 — Go reference solutions
 
 **Modified files:**
-- [internal/eval_harness/agent_prompt.go](../../../internal/eval_harness/agent_prompt.go) — remove 5 `switch lang` sites, delegate to `langreg` (net −80 LOC)
-- [internal/eval_harness/agent_runner.go](../../../internal/eval_harness/agent_runner.go) line 514 — delegate to `langreg` (net −20 LOC)
-- [internal/eval_harness/runner.go](../../../internal/eval_harness/runner.go) line 489 — delegate to `langreg` (net −20 LOC)
-- [internal/eval_harness/spec.go](../../../internal/eval_harness/spec.go) line 126 — delegate to `langreg` (net −20 LOC)
-- [internal/eval_harness/models.yml](../../../internal/eval_harness/models.yml) — add `codex-*` entries, add `agent_suite`, add `ollama-gemma4` entry mirroring lines 479-490 (~65 LOC)
-- 10 benchmark YAMLs in [benchmarks/](../../../benchmarks) — extend `languages:` arrays (~10 × 1 LOC)
+- [internal/eval_harness/agent_prompt.go](../../internal/eval_harness/agent_prompt.go) — remove 5 `switch lang` sites, delegate to `langreg` (net −80 LOC)
+- [internal/eval_harness/agent_runner.go](../../internal/eval_harness/agent_runner.go) line 514 — delegate to `langreg` (net −20 LOC)
+- [internal/eval_harness/runner.go](../../internal/eval_harness/runner.go) line 489 — delegate to `langreg` (net −20 LOC)
+- [internal/eval_harness/spec.go](../../internal/eval_harness/spec.go) line 126 — delegate to `langreg` (net −20 LOC)
+- [internal/eval_harness/models.yml](../../internal/eval_harness/models.yml) — add `codex-*` entries, add `agent_suite`, add `ollama-gemma4` entry mirroring lines 479-490 (~65 LOC)
+- 10 benchmark YAMLs in [benchmarks/](../../benchmarks) — extend `languages:` arrays (~10 × 1 LOC)
 
 ---
 
@@ -252,7 +252,7 @@ That's it. No other files change.
 
 **Unit tests:**
 - `langreg_test.go`: contract tests — every registered language correctly implements the interface; `Get` returns the right impl; unknown language returns an error.
-- Codex executor: NDJSON parser test cases based on [codex_compat_test.go](../../../internal/executor/codex_compat_test.go) fixtures.
+- Codex executor: NDJSON parser test cases based on [codex_compat_test.go](../../internal/executor/codex_compat_test.go) fixtures.
 
 **Integration tests:**
 - Before/after snapshot: run the current eval suite against a small benchmark set; snapshot output; confirm no drift after the langreg refactor.
@@ -283,7 +283,7 @@ The following are intentionally left open for the implementer:
 - **TypeScript, Rust, Java, or other additional languages** — the registry makes these easy to add later, but they are out of scope here.
 - **A new benchmark runner UI** — existing `ailang eval-suite` CLI is sufficient.
 - **Replacing the eval harness with openbench** — openbench is an adapter, not a replacement.
-- **External third-party benchmark integration** — covered by [M-EVAL-XLANG](../v0_11_0/m-eval-cross-language-benchmark.md), not here.
+- **External third-party benchmark integration** — covered by [M-EVAL-XLANG](v0_11_0/m-eval-cross-language-benchmark.md), not here.
 
 ## Timeline
 
@@ -322,21 +322,21 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (may inform design):**
-- [design_docs/implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md](../../implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md) — agent queue / orchestration patterns (0.43)
-- [design_docs/implemented/v0_7_0/m-script-invoke.md](../../implemented/v0_7_0/m-script-invoke.md) — script invocation patterns (0.42)
+- [design_docs/implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md](../implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md) — agent queue / orchestration patterns (0.43)
+- [design_docs/implemented/v0_7_0/m-script-invoke.md](../implemented/v0_7_0/m-script-invoke.md) — script invocation patterns (0.42)
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_11_0/m-eval-cross-language-benchmark.md](../v0_11_0/m-eval-cross-language-benchmark.md) — **complementary**, not overlapping: that doc is about *external* benchmarks (AutoCodeBench, leetgptsolver); this doc is about extending the *internal* eval bench.
-- [design_docs/planned/v0_11_0/m-eval-category-analysis.md](../v0_11_0/m-eval-category-analysis.md) — eval result categorization (0.49)
-- [design_docs/planned/v0_11_0/m-cloud-eval-workers.md](../v0_11_0/m-cloud-eval-workers.md) — distributed eval execution (0.44)
+- [design_docs/planned/v0_11_0/m-eval-cross-language-benchmark.md](v0_11_0/m-eval-cross-language-benchmark.md) — **complementary**, not overlapping: that doc is about *external* benchmarks (AutoCodeBench, leetgptsolver); this doc is about extending the *internal* eval bench.
+- [design_docs/planned/v0_11_0/m-eval-category-analysis.md](v0_11_0/m-eval-category-analysis.md) — eval result categorization (0.49)
+- [design_docs/planned/v0_11_0/m-cloud-eval-workers.md](v0_11_0/m-cloud-eval-workers.md) — distributed eval execution (0.44)
 
 ## References
 
 - [Design Axioms](/docs/references/axioms) — The 12 non-negotiable principles
 - [Philosophical Foundations](/docs/references/philosophical-foundations) — Block-universe determinism
-- [internal/executor/codex_compat_test.go](../../../internal/executor/codex_compat_test.go) — Codex event format analysis (blueprint for M-EVAL-CODEX parser)
-- [internal/executor/executor.go](../../../internal/executor/executor.go) — Executor interface contract
-- [internal/eval_harness/models.yml](../../../internal/eval_harness/models.yml) — Model configuration (lines 479-490 for `ollama-gemma3`, 521-574 for suites)
+- [internal/executor/codex_compat_test.go](../../internal/executor/codex_compat_test.go) — Codex event format analysis (blueprint for M-EVAL-CODEX parser)
+- [internal/executor/executor.go](../../internal/executor/executor.go) — Executor interface contract
+- [internal/eval_harness/models.yml](../../internal/eval_harness/models.yml) — Model configuration (lines 479-490 for `ollama-gemma3`, 521-574 for suites)
 - [ai-coding-lang-bench](https://github.com/mame/ai-coding-lang-bench) — External Ruby benchmark for comparison; already covers 15 languages with Claude only
 
 ## Future Work
@@ -347,7 +347,7 @@ The following are intentionally left open for the implementer:
 - Build a `free_suite` and nightly CI job if Gemma 4 (or newer local models) prove reliable enough under repeated runs.
 - Add additional open-source models to the registry once Gemma 4 is validated: DeepSeek Coder, Qwen Coder, Llama 3 variants — the path is one-line `models.yml` additions.
 - Cross-harness comparison reports: "benchmark X on Claude vs Gemini vs Codex side-by-side."
-- Integrate findings back into [M-EVAL-XLANG](../v0_11_0/m-eval-cross-language-benchmark.md) — once we have internal JS/Go numbers, we can compare directly with AutoCodeBench results for the same languages.
+- Integrate findings back into [M-EVAL-XLANG](v0_11_0/m-eval-cross-language-benchmark.md) — once we have internal JS/Go numbers, we can compare directly with AutoCodeBench results for the same languages.
 
 ---
 

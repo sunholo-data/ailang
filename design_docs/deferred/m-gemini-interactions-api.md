@@ -319,8 +319,8 @@ gemini-3-agentic:       # Future agentic model
 
 - [Gemini Interactions API Docs](https://ai.google.dev/gemini-api/docs/interactions)
 - [M-OPENAI-RESPONSES-API design doc](./m-openai-responses-api-sprint.md) - Parallel feature
-- [Current api_google.go](../../../internal/eval_harness/api_google.go)
-- [models.yml](../../../internal/eval_harness/models.yml)
+- [Current api_google.go](../../internal/eval_harness/api_google.go)
+- [models.yml](../../internal/eval_harness/models.yml)
 
 ## Future Work
 

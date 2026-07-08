@@ -5,7 +5,7 @@
 **Priority**: P1 (High) — Strategic external benchmark validation
 **Estimated**: 4-6 weeks (phased)
 **Dependencies**:
-- Multivac Cloud Run Jobs infrastructure (deployed, see [ailang-multivac/terraform/cloud_run_jobs.tf](../../../../ailang-multivac/terraform/cloud_run_jobs.tf))
+- Multivac Cloud Run Jobs infrastructure (deployed, see [ailang-multivac/terraform/cloud_run_jobs.tf](../../../ailang-multivac/terraform/cloud_run_jobs.tf))
 - `internal/eval_harness/` agent-based evaluation (complete)
 - Motoko/Claude executor abstraction (complete, v0.18+)
 - AILANG runtime + caps (complete)
@@ -84,7 +84,7 @@ Tasks span: filesystem recovery, log analysis, service debugging, program buildi
 
 - AILANG evals run against **our own benchmark set** (47 single-file tasks plus cross-language matrix)
 - No third-party validation: when AILANG outperforms Python on our benchmarks, skeptics can argue the benchmarks are tuned to AILANG's strengths
-- Cross-language matrix exists ([eval-lang-jsgo](../../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)) but is still our taxonomy
+- Cross-language matrix exists ([eval-lang-jsgo](../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)) but is still our taxonomy
 - No leaderboard presence for AILANG anywhere — no public datapoint a skeptic can grep for
 
 ### Impact
@@ -407,20 +407,20 @@ The closest internal contract surface is `internal/eval_harness/`:
 ## Related Documents
 
 **Implemented (informs design):**
-- [design_docs/implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md](../../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md) — cross-language matrix pattern; this doc extends the pattern to a third-party benchmark.
-- [design_docs/implemented/v0_15_0/m-ollama-local-eval-sprint-plan.md](../../implemented/v0_15_0/m-ollama-local-eval-sprint-plan.md) — local eval; complemented by cloud-side execution here.
+- [design_docs/implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md](../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md) — cross-language matrix pattern; this doc extends the pattern to a third-party benchmark.
+- [design_docs/implemented/v0_15_0/m-ollama-local-eval-sprint-plan.md](../implemented/v0_15_0/m-ollama-local-eval-sprint-plan.md) — local eval; complemented by cloud-side execution here.
 
 **Planned (relevant adjacencies):**
-- [design_docs/planned/v0_13_0/m-locobench-long-context-benchmark.md](../v0_13_0/m-locobench-long-context-benchmark.md) — same AILANG-vs-Python integration pattern, different upstream benchmark (LoCoBench is long-context SWE, TB is agentic terminal). Shares schema and dispatch infrastructure.
-- [design_docs/planned/v0_13_0/m-cloud-eval-workers.md](../v0_13_0/m-cloud-eval-workers.md) — distributed cloud eval workers; this doc reuses the same Cloud Run Jobs substrate.
-- [design_docs/planned/v0_17_0/m-bench-motoko-executor.md](../v0_17_0/m-bench-motoko-executor.md) — benchmark Motoko executor; TB will be runnable under either claude or motoko executor.
+- [design_docs/planned/v0_13_0/m-locobench-long-context-benchmark.md](v0_13_0/m-locobench-long-context-benchmark.md) — same AILANG-vs-Python integration pattern, different upstream benchmark (LoCoBench is long-context SWE, TB is agentic terminal). Shares schema and dispatch infrastructure.
+- [design_docs/planned/v0_13_0/m-cloud-eval-workers.md](v0_13_0/m-cloud-eval-workers.md) — distributed cloud eval workers; this doc reuses the same Cloud Run Jobs substrate.
+- [design_docs/planned/v0_17_0/m-bench-motoko-executor.md](v0_17_0/m-bench-motoko-executor.md) — benchmark Motoko executor; TB will be runnable under either claude or motoko executor.
 
 ## References
 
 - [Design Axioms](/docs/references/axioms) — 12 non-negotiable principles
 - [Terminal-Bench upstream](https://www.tbench.ai/) — benchmark home + leaderboard
-- [Multivac Cloud Run Jobs config](../../../../ailang-multivac/terraform/cloud_run_jobs.tf) — existing job-per-task infrastructure
-- [`ailang prompt`](../../../prompts/) — canonical AILANG syntax used in AILANG-arm preamble
+- [Multivac Cloud Run Jobs config](../../../ailang-multivac/terraform/cloud_run_jobs.tf) — existing job-per-task infrastructure
+- [`ailang prompt`](../../prompts/) — canonical AILANG syntax used in AILANG-arm preamble
 
 ## Future Work
 

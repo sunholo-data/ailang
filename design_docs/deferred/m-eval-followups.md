@@ -325,11 +325,11 @@ No syntactic position is extended, no parser disambiguation rule changes, no AST
 <!-- Auto-populated by Ollama neural search on "eval followups" -->
 
 **Implemented (may inform design):**
-- [design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md](../../implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — direct predecessor; introduced cost-budget infrastructure this milestone consumes
-- [design_docs/implemented/v0_8_0/m-eval-loop.md](../../implemented/v0_8_0/m-eval-loop.md) — original eval-harness design; M1 audits its agent-tool-call layer
+- [design_docs/implemented/v0_15_1/m-eval-cost-and-speed-budgets.md](../implemented/v0_15_1/m-eval-cost-and-speed-budgets.md) — direct predecessor; introduced cost-budget infrastructure this milestone consumes
+- [design_docs/implemented/v0_8_0/m-eval-loop.md](../implemented/v0_8_0/m-eval-loop.md) — original eval-harness design; M1 audits its agent-tool-call layer
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_15_0/m-eval-trust-signals.md](../../planned/v0_15_0/m-eval-trust-signals.md) — adjacent eval-harness improvements
+- [design_docs/planned/v0_15_0/m-eval-trust-signals.md](../planned/v0_15_0/m-eval-trust-signals.md) — adjacent eval-harness improvements
 - v0.16.0 cost-budget tier-aware defaults — future work, gated on v0.15.2 data
 
 ## References
@@ -337,7 +337,7 @@ No syntactic position is extended, no parser disambiguation rule changes, no AST
 - [Design Axioms](/docs/references/axioms) — The 12 non-negotiable principles
 - [Cost-and-Speed Budgets guide](/docs/guides/evaluation/cost-and-speed-budgets) — predecessor work
 - v0.15.1 baseline retro analysis (this session, captured in CHANGELOG entry)
-- [.claude/skills/model-manager/SKILL.md](../../../.claude/skills/model-manager/SKILL.md) — Smoke-Test Gate methodology
+- [.claude/skills/model-manager/SKILL.md](../../.claude/skills/model-manager/SKILL.md) — Smoke-Test Gate methodology
 
 ## Future Work
 

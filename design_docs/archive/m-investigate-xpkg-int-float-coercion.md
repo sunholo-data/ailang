@@ -159,7 +159,7 @@ If the bug recurs, run with `DEBUG_EVAL_APP=1` to capture the full resolution tr
 
 ## Related
 
-- [m-string-conversion.md](../../implemented/v0_5_10/m-string-conversion.md) — intToStr/floatToStr
+- [m-string-conversion.md](../implemented/v0_5_10/m-string-conversion.md) — intToStr/floatToStr
 - [m-dx-json-bool-coercion.md](m-dx-json-bool-coercion.md) — Similar JSON type issue
 - M-DX-XPKG-RESOLVE (v0.9.11) — Prior cross-package fix (different root cause)
 

@@ -304,8 +304,8 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (the foundation this builds on):**
-- [design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md](../../implemented/v0_7_0/m-eval-ollama-local-models.md) — Unified Ollama provider in `internal/ai/`. Touched the provider layer; this milestone covers the operational/rig layer above it.
-- [design_docs/implemented/v0_23_x/weekend-iteration-report-2026-05-23.md](../../implemented/v0_23_x/weekend-iteration-report-2026-05-23.md) — The longitudinal weekend report this design is the operational follow-up to.
+- [design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md](../implemented/v0_7_0/m-eval-ollama-local-models.md) — Unified Ollama provider in `internal/ai/`. Touched the provider layer; this milestone covers the operational/rig layer above it.
+- [design_docs/implemented/v0_23_x/weekend-iteration-report-2026-05-23.md](../implemented/v0_23_x/weekend-iteration-report-2026-05-23.md) — The longitudinal weekend report this design is the operational follow-up to.
 
 **Planned (companion work):**
 - [m-eval-rating-efficiency.md](m-eval-rating-efficiency.md) — ELO ratings + selective reruns + tier saturation. Complementary: that doc makes evals *informative*; this doc makes them *operationally clean*.
