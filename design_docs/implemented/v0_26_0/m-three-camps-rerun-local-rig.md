@@ -1,6 +1,6 @@
 # M-THREE-CAMPS Re-run — Fair Cross-Language Benchmark on the Local Rig
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.0) — eval re-run completed (Aver harness fixes 0fcae605)
 **Target**: v0.25.1 (methodology / eval run — no language changes)
 **Priority**: P1 (Medium) — corrects a public, unfair scoreboard; not blocking a release
 **Estimated**: ~1 day of rig wall-clock + ~2h analysis/writeup (mostly unattended)
@@ -43,7 +43,7 @@
 
 ## Problem Statement
 
-The public [Three Camps self-audit scoreboard](../../docs/docs/guides/three-camps-self-audit.md) ranks four
+The public [Three Camps self-audit scoreboard](../../../docs/docs/guides/three-camps-self-audit.md) ranks four
 languages on 49 smoke+core benchmarks (single model `claude-haiku-4-5`, run **2026-05-21**):
 
 | Language | Pass rate |
@@ -264,8 +264,8 @@ failure is reported, not pre-filtered — matching the original M8 methodology.
 ## Related Documents
 
 **Implemented (inform design):**
-- [m-eval-cross-language-benchmark.md](../implemented/v0_11_0/m-eval-cross-language-benchmark.md) — original multi-language harness this run reuses
-- [m-eval-lang-jsgo-sprint-plan.md](../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md) — adding JS/Go runners (same runner pattern as Aver/MoonBit)
+- [m-eval-cross-language-benchmark.md](../../implemented/v0_11_0/m-eval-cross-language-benchmark.md) — original multi-language harness this run reuses
+- [m-eval-lang-jsgo-sprint-plan.md](../../implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md) — adding JS/Go runners (same runner pattern as Aver/MoonBit)
 
 **Planned (related):**
 - [m-eval-local-ollama.md](m-eval-local-ollama.md) — the local Ollama rig workflow this doc operationalizes (`-parallel 1`, warmup, variance)
@@ -276,7 +276,7 @@ failure is reported, not pre-filtered — matching the original M8 methodology.
 
 - [Design Axioms](/docs/references/axioms)
 - Aver harness fixes: [#240](https://github.com/sunholo-data/ailang/issues/240) (prompt), [#241](https://github.com/sunholo-data/ailang/issues/241) (`aver check` diagnostics), [#242](https://github.com/sunholo-data/ailang/issues/242) (agentlanguages.dev listing) — commit `0fcae605`
-- [Three Camps self-audit page](../../docs/docs/guides/three-camps-self-audit.md) — the scoreboard being re-run
+- [Three Camps self-audit page](../../../docs/docs/guides/three-camps-self-audit.md) — the scoreboard being re-run
 - `local-ollama-eval` skill — operational checklist for the rig run
 
 ## Future Work

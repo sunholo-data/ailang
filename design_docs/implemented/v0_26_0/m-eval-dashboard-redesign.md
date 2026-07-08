@@ -1,6 +1,6 @@
 # M-EVAL-DASHBOARD-REDESIGN: Surface ELO ratings, difficulty bands, and regraded scores on the website
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.0) — ELO ratings + difficulty page shipped (phase 1+2)
 **Target**: v0.26.0
 **Priority**: P2 (the new data is the point — without a display it stays in tools/ output)
 **Estimated**: 2–3 days (schema + pipeline 1d; React components 1–2d)

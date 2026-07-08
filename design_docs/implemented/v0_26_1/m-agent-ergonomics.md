@@ -1,6 +1,6 @@
 # M-AGENT-ERGONOMICS: One-Cycle Self-Correction for AILANG Agents
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.1) — analyze_stuck.py per-error dossier + batch mode
 **Target**: v0.27.0
 **Priority**: P1 (the dominant cost in agentic AILANG benchmarks is the model fighting the dialect, not the algorithm)
 **Estimated**: ~3-4 days (4 milestones)

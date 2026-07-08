@@ -15,6 +15,7 @@ func TestNullaryConstructorPattern(t *testing.T) {
 		constructors map[string]*ConstructorInfo
 		identName    string
 		wantType     string // "ConstructorPattern" or "VarPattern"
+		wantErr      bool   // bare non-nullary constructor is an error
 	}{
 		{
 			name: "nullary constructor Red",
@@ -65,13 +66,29 @@ func TestNullaryConstructorPattern(t *testing.T) {
 			wantType:  "VarPattern",
 		},
 		{
-			name: "non-nullary constructor Some (arity=1)",
+			name: "non-nullary constructor Some (arity=1) is an error, not a silent catch-all",
 			constructors: map[string]*ConstructorInfo{
 				"Some": {TypeName: "Option", CtorName: "Some", Arity: 1},
 				"None": {TypeName: "Option", CtorName: "None", Arity: 0},
 			},
-			identName: "Some", // Arity=1, so treated as variable in bare identifier context
-			wantType:  "VarPattern",
+			identName: "Some", // bare Some previously became a VarPattern matching everything
+			wantErr:   true,
+		},
+		{
+			// #323: None from std/option when the constructor is NOT in scope
+			// (e.g. only `import std/list (nth)`) must still be a constructor
+			// pattern — previously it became a VarPattern that matched Some
+			// values too, so None-first matches always took the None arm.
+			name:         "unresolved uppercase identifier is a nullary constructor pattern (#323)",
+			constructors: map[string]*ConstructorInfo{},
+			identName:    "None",
+			wantType:     "ConstructorPattern",
+		},
+		{
+			name:         "unresolved lowercase identifier stays a variable pattern",
+			constructors: map[string]*ConstructorInfo{},
+			identName:    "banana",
+			wantType:     "VarPattern",
 		},
 	}
 
@@ -86,6 +103,12 @@ func TestNullaryConstructorPattern(t *testing.T) {
 
 			// Elaborate pattern
 			corePat, err := e.elaboratePattern(pat)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("elaboratePattern succeeded, want error for bare non-nullary constructor")
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("elaboratePattern failed: %v", err)
 			}

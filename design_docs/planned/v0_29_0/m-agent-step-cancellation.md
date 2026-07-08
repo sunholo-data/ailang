@@ -34,13 +34,13 @@ Three distinct stdin stories were being conflated. Keeping them separate is half
 
 - `std/io.readLine() -> string ! {IO}` — blocking line read. Works; verified.
 - `std/stream.asyncReadStdinLines(name, priority) -> StreamSource ! {Stream}`
-  ([std/stream.ail:151](../../std/stream.ail#L151)) — a **concurrent, non-blocking** stdin line source
+  ([std/stream.ail:151](../../../std/stream.ail#L151)) — a **concurrent, non-blocking** stdin line source
   meant for `selectEvents` multi-source dispatch. **The "watch stdin while something else runs"
   primitive is already here.** No new input plumbing is needed.
 
 ## The actual gap
 
-`std/ai.step(model, messages, tools)` ([std/ai.ail:191](../../std/ai.ail#L191)) takes no cancellation
+`std/ai.step(model, messages, tools)` ([std/ai.ail:191](../../../std/ai.ail#L191)) takes no cancellation
 handle, and `_ai_step` issues a blocking HTTP request with no `context.Context` wired through. So even
 with `asyncReadStdinLines` telling you "abort arrived," you have nothing to cancel the in-flight call
 with. SIGKILL is the only lever, and it skips the graceful `run_summary` event.

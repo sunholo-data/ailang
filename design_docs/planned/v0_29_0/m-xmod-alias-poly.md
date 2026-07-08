@@ -41,13 +41,13 @@ never instantiated to `{ items: [int] }`, and the type parameter `a` is never bo
 
 Alias expansion is **nullary-only** at every layer:
 
-1. **`RegisterTypeAlias`** ([elaborate/core.go](../../internal/elaborate/core.go)) stores the alias body as a
+1. **`RegisterTypeAlias`** ([elaborate/core.go](../../../internal/elaborate/core.go)) stores the alias body as a
    monotype with the type parameters left as *free* `TVar`s — there is no record of the parameter list, so
    there is nothing to bind arguments to.
-2. **`expandAlias`** ([types/unification_core.go](../../internal/types/unification_core.go)) only matches a
+2. **`expandAlias`** ([types/unification_core.go](../../../internal/types/unification_core.go)) only matches a
    bare `*TCon` (`aliasEnv[con.Name]`). An **applied** alias is a `*TApp` whose *constructor* is the alias
    `TCon` — that shape is never looked up or instantiated.
-3. **The interface builder** ([iface/builder.go](../../internal/iface/builder.go)) registers the alias
+3. **The interface builder** ([iface/builder.go](../../../internal/iface/builder.go)) registers the alias
    target via `AddTypeAlias(name, astTypeToInternalType(target))` with no parameter binding, so even a
    correct expander couldn't recover `a`'s position cross-module.
 

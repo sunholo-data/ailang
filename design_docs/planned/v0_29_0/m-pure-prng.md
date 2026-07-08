@@ -14,7 +14,7 @@
 ## Verdict: VALID extension — fills a real hole between "no randomness" and "the `Rand` capability"
 
 Today AILANG has exactly one source of randomness: `std/rand`, which is **effectful** (`! {Rand}`)
-and backed by **hidden global seed state** ([std/rand.ail:13](../../std/rand.ail#L13)). That is the
+and backed by **hidden global seed state** ([std/rand.ail:13](../../../std/rand.ail#L13)). That is the
 right design for "I just want a random number and I don't care about reproducibility." But it leaves
 two real gaps the Snake benchmark hit:
 
@@ -104,7 +104,7 @@ let (fy, g2) = int_range(g1, 0, 19)         -- food y, threaded gen
 
 This is the fact that decides the implementation, so it's called out loudly. AILANG `int` is Go `int`
 = **64-bit signed**, and `shiftRight` lowers to Go's `>>`, which is **arithmetic (sign-extending)** for
-signed values ([internal/builtins/math_bitwise.go:45](../../internal/builtins/math_bitwise.go#L45)).
+signed values ([internal/builtins/math_bitwise.go:45](../../../internal/builtins/math_bitwise.go#L45)).
 Two's-complement `+` and `*` wrap mod 2⁶⁴ exactly as a textbook 64-bit PRNG wants — but every modern
 mixer (SplitMix64, PCG, xoshiro) does `z ^ (z >>> k)` with a **logical** right shift. On a value with
 the high bit set, AILANG's `>>` sign-extends and corrupts the mix.

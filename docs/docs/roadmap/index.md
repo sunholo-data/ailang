@@ -27,9 +27,26 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EU-COMPLIANCE-EFFECTS: Regulatory Trigger Effects for Agentic Systems](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-eu-compliance-effects.md)
 - [M-FORALL-PROPERTIES: Direct-Core Evaluation for `properties [forall(...) => ...]` Blocks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-forall-properties-direct-core-eval.md)
 - [M-PERF4: Bytecode Interpreter (Stretch Goal)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-perf4-bytecode-interpreter.md)
+- [M-PKG-INFLIGHT: Package-in-Flight Tracking for Registry Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-pkg-inflight.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
+
+## Planned for v0.29.0
+
+- [m agent step cancellation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-agent-step-cancellation.md)
+- [M-AILANG-SEMANTIC-CONTEXT: Typed, Semantic Context Minimization for the Agent Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-ailang-semantic-context.md)
+- [M-ANTHROPIC-SANDBOX: Anthropic Self-Hosted Sandbox Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-anthropic-sandbox.md)
+- [M-APPLE-CONTAINER-LOCAL-EVAL-SANDBOX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-apple-container-local-eval-sandbox.md)
+- [m budget scoping bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-budget-scoping-bug.md)
+- [M-EVAL-BENCHMARK-UI-CONSOLIDATION: A coherent benchmark/dashboard information architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-benchmark-ui-consolidation.md)
+- [M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-frontier-tier.md)
+- [M-EVAL-RIG-RELIABILITY — post-mortem + remediation plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-rig-reliability.md)
+- [M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT: Stream the ollama /v1 tool-calling path with an idle timeout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-ollama-v1-streaming-idle-timeout.md)
+- [m pure prng](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pure-prng.md)
+- [Sprint Plan: M-RIG-RELIABILITY — make the rig catch breaks + measure docx](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-rig-reliability-sprint-plan.md)
+- [m verify stdlib stale path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-verify-stdlib-stale-path.md)
+- [m xmod alias poly](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-xmod-alias-poly.md)
 
 ## Planned for v0.26.0
 
@@ -258,4 +275,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 181 planned features across 18 upcoming versions.*
+*Generated at build time. 195 planned features across 19 upcoming versions.*

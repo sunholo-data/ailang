@@ -1,6 +1,6 @@
 # M-EVAL-OS-LONGITUDINAL: Per-Release Local-Model Eval Trend
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.0) — per-release local-model eval trend
 **Target**: v0.25.x
 **Priority**: P1 — answers the core question "does each AILANG release move the needle for local models?"
 **Estimated**: ~250 LOC across 3 milestones; ~1 day

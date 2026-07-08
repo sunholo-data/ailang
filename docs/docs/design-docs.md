@@ -29,6 +29,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.26.1
 
+- [M-AGENT-ERGONOMICS: One-Cycle Self-Correction for AILANG Agents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-agent-ergonomics.md)
 - [M-AGENT-STUCK-FIXES: deterministic fixes for the errors that loop the agent](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-agent-stuck-fixes.md)
 - [M-EVAL-REIMPLEMENT-BENCH: Multi-file Reimplement Tasks as Tracked Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-eval-reimplement-bench.md)
 - [M-EVAL-RELIABLE-GRADING: Grade the Model's Actual Workspace, Not an Isolated File](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-eval-reliable-grading.md)
@@ -38,8 +39,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-EMBED-TASK-PREFIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix-sprint-plan.md)
 - [M-EMBED-TASK-PREFIX: Model- and Role-Aware Embedding Task Prefixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix.md)
+- [M-EVAL-DASHBOARD-REDESIGN: Surface ELO ratings, difficulty bands, and regraded scores on the website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-dashboard-redesign.md)
+- [M-EVAL-OS-CONTINUOUS-ROTATION: Background, incremental OS cross-language/harness evals between releases](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-os-continuous-rotation.md)
+- [M-EVAL-OS-LONGITUDINAL: Per-Release Local-Model Eval Trend](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-os-longitudinal.md)
 - [M-EVAL-OUTPUT-NORMALIZE: Boolean-case + numeric-format grading parity (sibling of M-EVAL-JSON-COMPARE)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-output-normalization.md)
 - [M-OLLAMA-TEMPERATURE-KNOB: Configurable Temperature on the Agentic Ollama Path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-ollama-temperature-knob.md)
+- [M-THREE-CAMPS Re-run — Fair Cross-Language Benchmark on the Local Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-three-camps-rerun-local-rig.md)
 
 ## v0.25.1
 
@@ -1178,4 +1183,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 829 design documents across 113 versions.*
+*Generated at build time. 834 design documents across 113 versions.*

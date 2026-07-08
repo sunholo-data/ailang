@@ -13,7 +13,7 @@
 ## Verdict: the implementation contradicts the annotation's documented intent
 
 A function annotated `! {IO @limit=3}` is documented to mean "this function may perform at
-most 3 IO operations" — [docs/docs/reference/effects.md](../../docs/docs/reference/effects.md)
+most 3 IO operations" — [docs/docs/reference/effects.md](../../../docs/docs/reference/effects.md)
 and the `effect_budget_demo.ail` comments both say so. The implementation instead enforces a
 **cumulative** budget over the whole dynamic call chain: a callee's `@limit` is charged the
 IO already spent by its callers. A function that makes only 2 of its own IO calls fails if
@@ -59,10 +59,10 @@ skipped-with-reason in `verify-examples-toplevel`.)
 
 ## Investigation pointers
 
-- Budget composition note: "[for nested scopes] limits are summed" — [internal/effects/budget.go:293](../../internal/effects/budget.go#L293).
-- `EnterFunction` attribution — [internal/effects/budget.go:399](../../internal/effects/budget.go#L399).
-- Budget context preserved across scopes — [internal/effects/context.go:348](../../internal/effects/context.go#L348) (`BudgetReport` shared).
-- Existing tests encode "physical: N" cumulative numbers — [internal/effects/budget_test.go:255](../../internal/effects/budget_test.go) — so a fix must reconcile these (they may have been written to the buggy behavior).
+- Budget composition note: "[for nested scopes] limits are summed" — [internal/effects/budget.go:293](../../../internal/effects/budget.go#L293).
+- `EnterFunction` attribution — [internal/effects/budget.go:399](../../../internal/effects/budget.go#L399).
+- Budget context preserved across scopes — [internal/effects/context.go:348](../../../internal/effects/context.go#L348) (`BudgetReport` shared).
+- Existing tests encode "physical: N" cumulative numbers — [internal/effects/budget_test.go:255](../../../internal/effects/budget_test.go) — so a fix must reconcile these (they may have been written to the buggy behavior).
 
 ## Proposed direction (decision required)
 

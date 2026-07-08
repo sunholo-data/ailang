@@ -1,6 +1,6 @@
 # M-EVAL-OS-CONTINUOUS-ROTATION: Background, incremental OS cross-language/harness evals between releases
 
-**Status**: Planned (proposal)
+**Status**: ✅ Implemented (v0.26.0) — continuous OS cross-language/harness rotation
 **Target**: v0.26.0
 **Priority**: P1 (fills the OS/Local leaderboard — cross-language + harness + longitudinal — continuously, at zero cloud cost)
 **Dependencies**: `eval-publish --os-json` (done — emits the dashboard JSON), `eval-suite --benchmarks-by-confidence` + `ratings.db` (done — ELO selective rerun), the local rig (`dev.ollama.serve`, `dev.ailang.rig-watchdog`, `nightly-eval.sh`, `nightly-lang-eval.sh`), [[ailang-eval-language-split]], M-EVAL-STREAM-HEALTH-RETRY (idle/stream-death retry).

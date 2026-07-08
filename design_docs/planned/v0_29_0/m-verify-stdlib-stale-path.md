@@ -20,7 +20,7 @@ Error: cannot read file 'stdlib/std/io.ail': open stdlib/std/io.ail: no such fil
 ```
 
 The stdlib moved to `std/` (repo root) long ago — "as of v0.3.20, stdlib files are in std/"
-([internal/pipeline/stdlib_canary_test.go:22](../../internal/pipeline/stdlib_canary_test.go#L22)).
+([internal/pipeline/stdlib_canary_test.go:22](../../../internal/pipeline/stdlib_canary_test.go#L22)).
 `stdlib/std/` does not exist. So `make verify-stdlib` fails for **everyone**, not because an
 interface changed but because it can't find any module. The golden files in `.stdlib-golden/`
 (`io`, `list`, `option`, `result`, `string`) were frozen against the old layout and are now

@@ -227,8 +227,8 @@ func NewContainerRunner() (*ContainerRunner, error) {
 ## Related Documents
 
 **Implemented (patterns this builds on):**
-- [design_docs/implemented/v0_5_6/m-eval-process-guardrails.md](../implemented/v0_5_6/m-eval-process-guardrails.md) — existing eval process isolation patterns
-- [design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md](../implemented/v0_7_0/m-eval-ollama-local-models.md) — precedent for local-only eval infra
+- [design_docs/implemented/v0_5_6/m-eval-process-guardrails.md](../../implemented/v0_5_6/m-eval-process-guardrails.md) — existing eval process isolation patterns
+- [design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md](../../implemented/v0_7_0/m-eval-ollama-local-models.md) — precedent for local-only eval infra
 
 **Planned (check for overlap):**
 - [design_docs/planned/m-eval-local-ollama.md](m-eval-local-ollama.md) — local Ollama eval (different concern; no overlap)
