@@ -82,9 +82,9 @@ and from where saturated tasks are trivially easy:
 > `cps_transform` (canonical-form ambiguity risk — needs a pinned fresh-variable discipline),
 > `register_allocator_linear`, `typeclass_dispatch_chain`, `effect_txn_rollback`'s contract-graded
 > variant. **Frontier-failure validation (each must fail ≥1 frontier model) happens in the next
-> rotation.** ⚠️ Blocker found during verification: imported `std/list.nth` silently returns `None`
-> inside recursive functions (see [Unreleased] changelog) — fix before the rotation or VM/indexing
-> tasks will fail for the wrong reason on AILANG.
+> rotation.** The blocker found during verification (unimported nullary constructor patterns
+> silently matching everything, #323 — initially misdiagnosed as an nth/recursion bug) is **fixed**:
+> uppercase identifiers in pattern position now always elaborate as constructor patterns.
 
 ## Candidate benchmarks (sketches — to be authored + validated)
 

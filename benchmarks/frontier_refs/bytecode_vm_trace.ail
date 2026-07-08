@@ -1,24 +1,15 @@
 module benchmark/solution
 
 import std/io (println)
-import std/list (reverse)
+import std/list (nth, reverse)
 
 type Instr = Push(int) | Add | Sub | Mul | Dup | Over | Swap | Pop
            | Jmp(int) | Jmpz(int) | Jmpgt(int) | Halt
 
-type Fetch = Found(Instr) | Missing
-
-func at(xs: [Instr], i: int) -> Fetch {
-  match xs {
-    [] => Missing,
-    h :: t => if i == 0 then Found(h) else at(t, i - 1)
-  }
-}
-
 func exec(prog: [Instr], pc: int, stack: [int], steps: int) -> {stack: [int], steps: int} {
-  match at(prog, pc) {
-    Missing => ({ stack: stack, steps: steps }),
-    Found(instr) =>
+  match nth(prog, pc) {
+    None => ({ stack: stack, steps: steps }),
+    Some(instr) =>
       match instr {
         Halt => ({ stack: stack, steps: steps + 1 }),
         Push(k) => exec(prog, pc + 1, k :: stack, steps + 1),

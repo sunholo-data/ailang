@@ -331,23 +331,23 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// shift is intentional, re-center here (as M-THREE-CAMPS did when it added
 	// 14 gap benchmarks).
 	//
-	// Re-centered 2026-06-06: 6 benchmarks were intentionally promoted into the
-	// smoke tier (the set the local-ollama nightly runs) — parallel_map_reduce,
-	// parallel_independent_subtasks, json_encode, fold_reduce,
-	// typed_stream_pipeline (core → smoke) and json_parse (stretch → smoke).
-	// That moved smoke 17 → 23 and core 31 → 26. New centers: 23/26/11/9
-	// (budgeted total 69; "experimental" diagnostic probes are excluded — they
-	// measure language gaps, not score capability, so their growth is independent
-	// of the smoke/core/stretch/vision budget). Tolerance ±3 kept so future
-	// drift still trips this check.
+	// Re-centered 2026-07-08: 8 frontier-class benchmarks added to stretch
+	// (M-EVAL-FRONTIER-TIER authoring phase — see design doc), moving stretch
+	// 14 → 22; they re-tier to `frontier` when that tier value lands.
+	// Prior re-center 2026-06-06: 6 benchmarks promoted into smoke (the
+	// local-ollama nightly set), moving smoke 17 → 23 and core 31 → 26.
+	// Centers now 23/26/22/9 ("experimental" diagnostic probes are excluded —
+	// they measure language gaps, not score capability, so their growth is
+	// independent of the smoke/core/stretch/vision budget). Tolerance ±3 kept
+	// so future drift still trips this check.
 	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
 		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
 	if core := tierCounts["core"]; core < 23 || core > 29 {
 		t.Errorf("core count = %d, want 26±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 8 || stretch > 14 {
-		t.Errorf("stretch count = %d, want 11±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 19 || stretch > 25 {
+		t.Errorf("stretch count = %d, want 22±3", stretch)
 	}
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)

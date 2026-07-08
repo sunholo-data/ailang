@@ -1,0 +1,25 @@
+-- Pattern matching on ADT constructors works WITHOUT importing them:
+-- an uppercase identifier in pattern position is always a constructor
+-- reference (constructors are UpperCamelCase by language rule), never a
+-- variable binding. Lowercase identifiers bind variables as usual.
+--
+-- Regression example for #323: before v0.28.1, an unimported `None` in
+-- pattern position silently became a catch-all variable pattern, so a
+-- None-first match swallowed Some values too — the walk below returned 0.
+module examples/option_pattern_import_free
+
+import std/io (println)
+import std/list (nth)
+-- NOTE: deliberately NOT importing std/option (Some, None)
+
+func count(xs: [int], pc: int, steps: int) -> int {
+  match nth(xs, pc) {
+    None => steps,
+    Some(v) => count(xs, pc + 1, steps + 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  -- prints 3: None only matches the out-of-bounds miss at index 3
+  println(show(count([7, 8, 9], 0, 0)))
+}

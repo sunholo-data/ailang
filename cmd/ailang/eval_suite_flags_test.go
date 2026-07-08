@@ -73,19 +73,20 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution drift detector. Refreshed 2026-06-08: 6 benchmarks were
-	// intentionally promoted into the smoke tier (the local-ollama nightly set) —
-	// parallel_map_reduce, parallel_independent_subtasks, json_encode, fold_reduce,
-	// typed_stream_pipeline (core→smoke) and json_parse (stretch→smoke) — moving
-	// smoke 17→23 and core 32→26. Prior baselines: 17/32/11/9 (2026-05-20),
-	// 15/21/11/6 (post-M5). Kept in sync with the sibling check in
+	// Distribution drift detector. Refreshed 2026-07-08: 8 frontier-class
+	// benchmarks were added to stretch (M-EVAL-FRONTIER-TIER authoring phase:
+	// ssa_constant_fold, bytecode_vm_trace, lfu_cache_trace, parse_prec_climb,
+	// effect_txn_rollback, glob_match_spec, dep_resolver_backtrack,
+	// stream_lcg_topk) — moving stretch 14→22. They re-tier to `frontier` when
+	// that tier lands. Prior baselines: 23/26/11/9 (2026-06-08), 17/32/11/9
+	// (2026-05-20), 15/21/11/6 (post-M5). Kept in sync with the sibling check in
 	// internal/eval_harness/spec_test.go. Refresh again when drift outgrows the
 	// ±3 envelope (don't widen tolerance — bump the target counts to match
 	// reality). Experimental tier is intentionally excluded — probe count grows
 	// independently.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 26, 3)
-	checkTierCount(t, "stretch", len(stretch), 11, 3)
+	checkTierCount(t, "stretch", len(stretch), 22, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

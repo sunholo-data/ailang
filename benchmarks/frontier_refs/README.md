@@ -37,9 +37,11 @@ before touching the YAML files.
 - `stream_lcg_topk` uses N=2000 deliberately: the AILANG reference runs ~2s;
   N=5000 ran ~13s, too close to the harness's 30s budget for less-optimal
   model solutions (would fail on perf, not logic — guardrail violation).
-- `bytecode_vm_trace.ail` uses a local `at` fetch helper instead of
-  `std/list.nth` because imported `nth` silently returns `None` in recursive
-  functions — see issue #323. Fix that before the rotation.
+- `bytecode_vm_trace.ail` deliberately matches `nth`'s Option with the `None`
+  arm FIRST and without importing `std/option` — the exact shape that used to
+  silently take the None arm for every value (#323, fixed: an uppercase
+  identifier in pattern position now always elaborates as a constructor
+  pattern). Keep it that way; it doubles as an end-to-end regression check.
 - The AILANG solutions dodge known parser footguns (nested `match` in arms is
   parenthesized; record updates `{r | f: v}` are parenthesized after `then`).
   Models won't know to do this — which is part of what the AILANG side of the
