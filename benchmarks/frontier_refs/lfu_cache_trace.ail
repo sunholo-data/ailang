@@ -1,0 +1,120 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (sortBy, map, filter, length, foldl)
+import std/string (join)
+
+type Op = Get(int) | Put(int, int)
+
+type Entry = Entry({k: int, v: int, c: int, u: int})
+
+type Lookup = Hit(int) | Miss
+
+func lookup(cache: [{k: int, v: int, c: int, u: int}], key: int) -> Lookup {
+  match cache {
+    [] => Miss,
+    e :: rest => if e.k == key then Hit(e.v) else lookup(rest, key)
+  }
+}
+
+func touchGet(cache: [{k: int, v: int, c: int, u: int}], key: int, tick: int) -> [{k: int, v: int, c: int, u: int}] {
+  match cache {
+    [] => [],
+    e :: rest =>
+      if e.k == key
+      then ({ e | c: e.c + 1, u: tick }) :: rest
+      else e :: touchGet(rest, key, tick)
+  }
+}
+
+func putUpdate(cache: [{k: int, v: int, c: int, u: int}], key: int, val: int, tick: int) -> [{k: int, v: int, c: int, u: int}] {
+  match cache {
+    [] => [],
+    e :: rest =>
+      if e.k == key
+      then ({ e | v: val, c: e.c + 1, u: tick }) :: rest
+      else e :: putUpdate(rest, key, val, tick)
+  }
+}
+
+-- victim: smallest count; tie -> smallest last-use tick
+func victimKey(cache: [{k: int, v: int, c: int, u: int}]) -> int {
+  match cache {
+    [] => -1,
+    e :: rest => victimGo(rest, e)
+  }
+}
+
+func victimGo(cache: [{k: int, v: int, c: int, u: int}], best: {k: int, v: int, c: int, u: int}) -> int {
+  match cache {
+    [] => best.k,
+    e :: rest =>
+      if e.c < best.c || (e.c == best.c && e.u < best.u)
+      then victimGo(rest, e)
+      else victimGo(rest, best)
+  }
+}
+
+func dropKey(cache: [{k: int, v: int, c: int, u: int}], key: int) -> [{k: int, v: int, c: int, u: int}] {
+  filter(func(e: {k: int, v: int, c: int, u: int}) -> bool { e.k != key }, cache)
+}
+
+func runOps(ops: [Op], cache: [{k: int, v: int, c: int, u: int}], tick: int) -> [{k: int, v: int, c: int, u: int}] ! {IO} {
+  match ops {
+    [] => cache,
+    op :: rest =>
+      match op {
+        Get(key) => {
+          match lookup(cache, key) {
+            Hit(v) => {
+              println(show(v));
+              runOps(rest, touchGet(cache, key, tick), tick + 1)
+            },
+            Miss => {
+              println("-1");
+              runOps(rest, cache, tick + 1)
+            }
+          }
+        },
+        Put(key, val) => {
+          match lookup(cache, key) {
+            Hit(_) => runOps(rest, putUpdate(cache, key, val, tick), tick + 1),
+            Miss => {
+              let evicted = if length(cache) == 3 then dropKey(cache, victimKey(cache)) else cache;
+              runOps(rest, ({ k: key, v: val, c: 1, u: tick }) :: evicted, tick + 1)
+            }
+          }
+        }
+      }
+  }
+}
+
+func cmpKey(a: {k: int, v: int, c: int, u: int}, b: {k: int, v: int, c: int, u: int}) -> int = a.k - b.k
+
+export func main() -> () ! {IO} {
+  let ops = [
+    Put(1, 10), Put(2, 20), Put(3, 30),
+    Get(1),
+    Put(4, 40),
+    Put(5, 50),
+    Get(3),
+    Get(4),
+    Get(5),
+    Get(1),
+    Put(4, 44),
+    Put(6, 60),
+    Get(5),
+    Get(6),
+    Get(6),
+    Put(7, 70),
+    Get(1),
+    Get(4),
+    Put(8, 80),
+    Get(7)
+  ];
+  let fin = runOps(ops, [], 1);
+  let sorted = sortBy(cmpKey, fin);
+  let parts = map(func(e: {k: int, v: int, c: int, u: int}) -> string { "${show(e.k)}=${show(e.v)}" }, sorted);
+  let joined = join(",", parts);
+  println("cache: ${joined}")
+}

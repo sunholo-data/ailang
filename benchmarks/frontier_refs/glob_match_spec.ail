@@ -1,0 +1,101 @@
+module benchmark/solution
+
+import std/io (println)
+import std/string (chars)
+
+-- Character class: list of (lo, hi) pairs; single char c is (c, c)
+
+func inClass(pairs: [(string, string)], c: string) -> bool {
+  match pairs {
+    [] => false,
+    p :: rest => match p {
+      (lo, hi) => if lo <= c && c <= hi then true else inClass(rest, c)
+    }
+  }
+}
+
+-- parse class body after '[': returns (pairs, negated, rest-of-pattern)
+func parseClass(cs: [string]) -> ([(string, string)], bool, [string]) {
+  match cs {
+    [] => ([], false, []),
+    c :: rest =>
+      if c == "!" then (match collectClass(rest, []) {
+        (pairs, rem) => (pairs, true, rem)
+      })
+      else (match collectClass(cs, []) {
+        (pairs, rem) => (pairs, false, rem)
+      })
+  }
+}
+
+func collectClass(cs: [string], acc: [(string, string)]) -> ([(string, string)], [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest =>
+      if c == "]" then (acc, rest)
+      else (match rest {
+        d :: e :: rest2 =>
+          if d == "-" && e != "]"
+          then collectClass(rest2, (c, e) :: acc)
+          else collectClass(rest, (c, c) :: acc),
+        _ => collectClass(rest, (c, c) :: acc)
+      })
+  }
+}
+
+func matches(p: [string], s: [string]) -> bool {
+  match p {
+    [] => (match s { [] => true, _ => false }),
+    pc :: pt =>
+      if pc == "*" then
+        (if matches(pt, s) then true
+         else (match s {
+           [] => false,
+           sc :: st => if sc == "/" then false else matches(p, st)
+         }))
+      else if pc == "?" then
+        (match s {
+          [] => false,
+          sc :: st => sc != "/" && matches(pt, st)
+        })
+      else if pc == "[" then
+        (match parseClass(pt) {
+          (pairs, neg, prest) => (match s {
+            [] => false,
+            sc :: st => {
+              let hit = inClass(pairs, sc);
+              let ok = if neg then (hit == false) && sc != "/" else hit;
+              ok && matches(prest, st)
+            }
+          })
+        })
+      else
+        (match s {
+          [] => false,
+          sc :: st => sc == pc && matches(pt, st)
+        })
+  }
+}
+
+func check(pat: string, str: string) -> () ! {IO} {
+  if matches(chars(pat), chars(str)) then println("1") else println("0")
+}
+
+export func main() -> () ! {IO} {
+  check("*.txt", "notes.txt");
+  check("*.txt", "dir/notes.txt");
+  check("a*b*c", "axbxbc");
+  check("a*b*c", "axbxbd");
+  check("?at", "cat");
+  check("?at", "/at");
+  check("[a-c]at", "bat");
+  check("[!a-c]at", "bat");
+  check("[!a-c]at", "rat");
+  check("[!/]x", "/x");
+  check("a[/]b", "a/b");
+  check("*", "");
+  check("*x*", "xx");
+  check("*ab", "aab");
+  check("a?c*", "abc");
+  check("*/", "abc/")
+}

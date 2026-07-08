@@ -1,0 +1,67 @@
+module benchmark/solution
+
+import std/io (println)
+
+type Op = Dep(string, int) | Wd(string, int) | Save | Commit | Restore
+
+type St = St({alice: int, bob: int, snaps: [(int, int)], fails: int})
+
+func getBal(s: {alice: int, bob: int, snaps: [(int, int)], fails: int}, acct: string) -> int {
+  if acct == "alice" then s.alice else s.bob
+}
+
+func apply(s: {alice: int, bob: int, snaps: [(int, int)], fails: int}, op: Op) -> {alice: int, bob: int, snaps: [(int, int)], fails: int} {
+  match op {
+    Dep(acct, amt) =>
+      if acct == "alice" then ({ s | alice: s.alice + amt }) else ({ s | bob: s.bob + amt }),
+    Wd(acct, amt) =>
+      if getBal(s, acct) >= amt then {
+        if acct == "alice" then ({ s | alice: s.alice - amt }) else ({ s | bob: s.bob - amt })
+      } else {
+        match s.snaps {
+          snap :: rest => match snap { (sa, sb) => ({ alice: sa, bob: sb, snaps: rest, fails: s.fails + 1 }) },
+          [] => ({ s | fails: s.fails + 1 })
+        }
+      },
+    Save => ({ s | snaps: (s.alice, s.bob) :: s.snaps }),
+    Commit =>
+      match s.snaps {
+        _ :: rest => ({ s | snaps: rest }),
+        [] => ({ s | fails: s.fails + 1 })
+      },
+    Restore =>
+      match s.snaps {
+        snap :: rest => match snap { (sa, sb) => ({ alice: sa, bob: sb, snaps: rest, fails: s.fails }) },
+        [] => ({ s | fails: s.fails + 1 })
+      }
+  }
+}
+
+func runOps(s: {alice: int, bob: int, snaps: [(int, int)], fails: int}, ops: [Op]) -> {alice: int, bob: int, snaps: [(int, int)], fails: int} {
+  match ops {
+    [] => s,
+    op :: rest => runOps(apply(s, op), rest)
+  }
+}
+
+export func main() -> () ! {IO} {
+  let ops = [
+    Save,
+    Dep("alice", 30),
+    Save,
+    Wd("bob", 80),
+    Wd("alice", 90),
+    Save,
+    Wd("alice", 50),
+    Dep("bob", 25),
+    Commit,
+    Restore,
+    Wd("bob", 75),
+    Commit,
+    Dep("alice", 5)
+  ];
+  let fin = runOps({ alice: 100, bob: 50, snaps: [], fails: 0 }, ops);
+  println("alice=${show(fin.alice)}");
+  println("bob=${show(fin.bob)}");
+  println("failures=${show(fin.fails)}")
+}

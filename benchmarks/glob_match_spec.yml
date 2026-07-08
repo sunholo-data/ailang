@@ -1,0 +1,67 @@
+id: glob_match_spec
+description: "Path-aware glob matcher: * and ? never cross '/', negated classes exclude '/' — deviates from fnmatch/regex priors"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 6: spec compliance vs priors).
+# Python's fnmatch gives the WRONG answer on 2 of these 16 cases ('*' crossing
+# '/'), so reaching for the stdlib fails; the spec must be implemented.
+# Requires correct backtracking for '*' (a*b*c vs axbxbc).
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo, recursion]
+task_prompt: |
+  Write a program in <LANG> that implements a path-aware glob matcher with
+  EXACTLY these semantics (do not use a library matcher — several rules below
+  intentionally differ from common libraries):
+
+  - `*`  matches zero or more characters, but NEVER matches `/`.
+  - `?`  matches exactly one character, but NEVER matches `/`.
+  - `[abc]` matches one character in the set; `[a-c]` ranges are inclusive;
+    a set may mix singles and ranges. A set matches `/` only if `/` is
+    explicitly listed.
+  - `[!...]` (leading `!`) matches one character NOT in the set — but still
+    never matches `/`.
+  - Every other character matches itself literally.
+  - The whole pattern must match the whole string (anchored at both ends).
+  - Patterns are guaranteed well-formed; `]` never appears inside a set.
+
+  Evaluate these (pattern, string) pairs in order, printing 1 if the pattern
+  matches the string and 0 otherwise, one per line:
+
+     1. pattern *.txt      string notes.txt
+     2. pattern *.txt      string dir/notes.txt
+     3. pattern a*b*c      string axbxbc
+     4. pattern a*b*c      string axbxbd
+     5. pattern ?at        string cat
+     6. pattern ?at        string /at
+     7. pattern [a-c]at    string bat
+     8. pattern [!a-c]at   string bat
+     9. pattern [!a-c]at   string rat
+    10. pattern [!/]x      string /x
+    11. pattern a[/]b      string a/b
+    12. pattern *          string (empty string)
+    13. pattern *x*        string xx
+    14. pattern *ab        string aab
+    15. pattern a?c*       string abc
+    16. pattern */         string abc/
+
+  Output only the code, no explanations.
+expected_stdout: |
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  1
+  1
+  1
+  1
+  1

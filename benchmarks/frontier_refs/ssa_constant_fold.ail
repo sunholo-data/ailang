@@ -1,0 +1,220 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (reverse, foldl)
+
+-- Source operand: variable name or int literal
+type Opd = V(string) | L(int)
+-- Source instruction right-hand sides
+type Def = DIn | DOp(Opd, string, Opd)
+-- Simplification table cell
+type Cell = CConst(int) | CCopy(string) | COpq
+-- Kept (irreducible) instructions
+type Kept = KIn(string) | KOp(string, Opd, string, Opd)
+-- Resolved operand after substitution
+type Res = RName(string) | RLit(int)
+
+func assocGet(xs: [(string, int)], key: string) -> int {
+  match xs {
+    [] => -1,
+    p :: rest => match p { (k, v) => if k == key then v else assocGet(rest, key) }
+  }
+}
+
+func assocSet(xs: [(string, int)], key: string, v: int) -> [(string, int)] {
+  match xs {
+    [] => [(key, v)],
+    p :: rest => match p { (k, old) => if k == key then (key, v) :: rest else p :: assocSet(rest, key, v) }
+  }
+}
+
+func cellGet(xs: [(string, Cell)], key: string) -> Cell {
+  match xs {
+    [] => COpq,
+    p :: rest => match p { (k, c) => if k == key then c else cellGet(rest, key) }
+  }
+}
+
+func ssaName(v: string, n: int) -> string = "${v}.${show(n)}"
+
+-- Pass 1: SSA-rename. Returns instructions in order with SSA names.
+func renameOpd(vers: [(string, int)], o: Opd) -> Opd {
+  match o {
+    L(k) => L(k),
+    V(name) => V(ssaName(name, assocGet(vers, name)))
+  }
+}
+
+func ssaPass(prog: [(string, Def)], vers: [(string, int)], acc: [(string, Def)]) -> [(string, Def)] {
+  match prog {
+    [] => reverse(acc),
+    p :: rest => match p {
+      (dest, def) => {
+        let rdef = match def {
+          DIn => DIn,
+          DOp(a, op, b) => DOp(renameOpd(vers, a), op, renameOpd(vers, b))
+        };
+        let n = assocGet(vers, dest) + 1;
+        let vers2 = assocSet(vers, dest, n);
+        ssaPass(rest, vers2, (ssaName(dest, n), rdef) :: acc)
+      }
+    }
+  }
+}
+
+-- Pass 2: forward simplification
+func resolve(table: [(string, Cell)], o: Opd) -> Res {
+  match o {
+    L(k) => RLit(k),
+    V(name) => match cellGet(table, name) {
+      CConst(k) => RLit(k),
+      CCopy(w) => resolve(table, V(w)),
+      COpq => RName(name)
+    }
+  }
+}
+
+func resToOpd(r: Res) -> Opd {
+  match r {
+    RLit(k) => L(k),
+    RName(n) => V(n)
+  }
+}
+
+func applyOp(op: string, a: int, b: int) -> int {
+  if op == "+" then a + b
+  else if op == "-" then a - b
+  else a * b
+}
+
+func simplify(instrs: [(string, Def)], table: [(string, Cell)], kept: [Kept]) -> ([Kept], [(string, Cell)]) {
+  match instrs {
+    [] => (reverse(kept), table),
+    p :: rest => match p {
+      (name, def) => match def {
+        DIn => simplify(rest, (name, COpq) :: table, KIn(name) :: kept),
+        DOp(a0, op, b0) => {
+          let ra = resolve(table, a0);
+          let rb = resolve(table, b0);
+          match ra {
+            RLit(x) => match rb {
+              RLit(y) => simplify(rest, (name, CConst(applyOp(op, x, y))) :: table, kept),
+              RName(bn) =>
+                if op == "*" && x == 0 then simplify(rest, (name, CConst(0)) :: table, kept)
+                else if op == "*" && x == 1 then simplify(rest, (name, CCopy(bn)) :: table, kept)
+                else if op == "+" && x == 0 then simplify(rest, (name, CCopy(bn)) :: table, kept)
+                else simplify(rest, (name, COpq) :: table, KOp(name, L(x), op, V(bn)) :: kept)
+            },
+            RName(an) => match rb {
+              RLit(y) =>
+                if op == "*" && y == 0 then simplify(rest, (name, CConst(0)) :: table, kept)
+                else if op == "*" && y == 1 then simplify(rest, (name, CCopy(an)) :: table, kept)
+                else if (op == "+" || op == "-") && y == 0 then simplify(rest, (name, CCopy(an)) :: table, kept)
+                else simplify(rest, (name, COpq) :: table, KOp(name, V(an), op, L(y)) :: kept),
+              RName(bn) =>
+                if op == "-" && an == bn then simplify(rest, (name, CConst(0)) :: table, kept)
+                else simplify(rest, (name, COpq) :: table, KOp(name, V(an), op, V(bn)) :: kept)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+func keptName(k: Kept) -> string {
+  match k {
+    KIn(n) => n,
+    KOp(n, _, _, _) => n
+  }
+}
+
+func opdRefs(o: Opd) -> [string] {
+  match o {
+    V(n) => [n],
+    L(_) => []
+  }
+}
+
+func keptRefs(k: Kept) -> [string] {
+  match k {
+    KIn(_) => [],
+    KOp(_, a, _, b) => opdRefs(a) ++ opdRefs(b)
+  }
+}
+
+func member(xs: [string], x: string) -> bool {
+  match xs {
+    [] => false,
+    h :: t => if h == x then true else member(t, x)
+  }
+}
+
+-- Pass 3: DCE. Walk kept list in reverse, keep if live.
+func dce(keptRev: [Kept], live: [string], acc: [Kept]) -> [Kept] {
+  match keptRev {
+    [] => acc,
+    k :: rest =>
+      if member(live, keptName(k))
+      then dce(rest, keptRefs(k) ++ live, k :: acc)
+      else dce(rest, live, acc)
+  }
+}
+
+func opdText(o: Opd) -> string {
+  match o {
+    V(n) => n,
+    L(k) => show(k)
+  }
+}
+
+func keptText(k: Kept) -> string {
+  match k {
+    KIn(n) => "${n} = input",
+    KOp(n, a, op, b) => {
+      let at = opdText(a);
+      let bt = opdText(b);
+      "${n} = ${at} ${op} ${bt}"
+    }
+  }
+}
+
+func printAll(xs: [Kept]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    k :: rest => { println(keptText(k)); printAll(rest) }
+  }
+}
+
+export func main() -> () ! {IO} {
+  let prog = [
+    ("n", DIn),
+    ("m", DIn),
+    ("a", DOp(L(7), "+", L(0))),
+    ("a", DOp(V("a"), "-", L(7))),
+    ("c", DOp(V("n"), "*", V("a"))),
+    ("n", DOp(V("n"), "+", V("c"))),
+    ("q", DOp(V("m"), "*", L(3))),
+    ("e", DOp(V("n"), "*", L(7))),
+    ("f", DOp(V("e"), "-", V("e"))),
+    ("e", DOp(V("e"), "+", V("f"))),
+    ("r", DOp(V("e"), "*", L(1)))
+  ];
+  let ssa = ssaPass(prog, [], []);
+  match simplify(ssa, [], []) {
+    (kept, table) => {
+      let retRes = resolve(table, V("r.0"));
+      let retText = match retRes {
+        RLit(k) => show(k),
+        RName(n) => n
+      };
+      let live = match retRes {
+        RLit(_) => [],
+        RName(n) => [n]
+      };
+      let alive = dce(reverse(kept), live, []);
+      printAll(alive);
+      println("return ${retText}")
+    }
+  }
+}

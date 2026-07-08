@@ -1,0 +1,117 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (reverse)
+import std/string (chars, contains)
+
+type Tok = TNum(string) | TSym(string)
+
+func isDigit(c: string) -> bool = contains("0123456789", c)
+
+func digits(cs: [string], acc: string) -> (string, [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest => if isDigit(c) then digits(rest, "${acc}${c}") else (acc, cs)
+  }
+}
+
+func tokenize(cs: [string], acc: [Tok]) -> [Tok] {
+  match cs {
+    [] => reverse(acc),
+    c :: rest =>
+      if isDigit(c)
+      then (match digits(rest, c) { (numstr, rem) => tokenize(rem, TNum(numstr) :: acc) })
+      else tokenize(rest, TSym(c) :: acc)
+  }
+}
+
+func precOf(s: string) -> int {
+  if s == "+" || s == "-" then 1
+  else if s == "*" || s == "/" then 2
+  else if s == "^" then 4
+  else 0
+}
+
+func parseExpr(toks: [Tok], minPrec: int) -> (string, [Tok]) {
+  match parseUnary(toks) {
+    (lhs, rest) => climb(lhs, rest, minPrec)
+  }
+}
+
+func climb(lhs: string, toks: [Tok], minPrec: int) -> (string, [Tok]) {
+  match toks {
+    [] => (lhs, []),
+    t :: rest => (match t {
+      TNum(_) => (lhs, toks),
+      TSym(op) => {
+        let p = precOf(op);
+        if p == 0 || p < minPrec then (lhs, toks)
+        else {
+          let nextMin = if op == "^" then 4 else p + 1;
+          match parseExpr(rest, nextMin) {
+            (rhs, rem) => climb("(${lhs}${op}${rhs})", rem, minPrec)
+          }
+        }
+      }
+    })
+  }
+}
+
+func parseUnary(toks: [Tok]) -> (string, [Tok]) {
+  match toks {
+    [] => ("", []),
+    t :: rest => (match t {
+      TNum(_) => parseAtom(toks),
+      TSym(s) =>
+        if s == "-" then
+          (match parseExpr(rest, 4) {
+            (e, rem) => ("(-${e})", rem)
+          })
+        else parseAtom(toks)
+    })
+  }
+}
+
+func parseAtom(toks: [Tok]) -> (string, [Tok]) {
+  match toks {
+    [] => ("", []),
+    t :: rest => (match t {
+      TNum(s) => (s, rest),
+      TSym(s) =>
+        if s == "(" then
+          (match parseExpr(rest, 1) {
+            (e, rem) => (match rem {
+              _ :: rem2 => (e, rem2),
+              [] => (e, [])
+            })
+          })
+        else ("?", rest)
+    })
+  }
+}
+
+func parseLine(s: string) -> string {
+  match parseExpr(tokenize(chars(s), []), 1) {
+    (e, _) => e
+  }
+}
+
+func printAll(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(parseLine(s)); printAll(rest) }
+  }
+}
+
+export func main() -> () ! {IO} {
+  printAll([
+    "-2^2",
+    "2^3^2",
+    "8-4-2",
+    "2^-3*4",
+    "--5+1",
+    "-2^-2^3",
+    "(1+2)*-3",
+    "100-10*-2^2"
+  ])
+}

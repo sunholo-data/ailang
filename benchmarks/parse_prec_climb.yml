@@ -1,0 +1,55 @@
+id: parse_prec_climb
+description: "Expression parser where unary minus binds tighter than * but looser than ^ — the math convention most hand-rolled Pratt parsers get wrong"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axes 3+6: non-structural recursion +
+# spec compliance against priors). The discriminating rule: -2^2 must parse as
+# -(2^2), not (-2)^2, while -2*3 is (-2)*3. Right-assoc ^ with unary operands
+# in the exponent (-2^-2^3) compounds it. Output is pure structure (no
+# arithmetic), so failures are parsing logic only.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo, recursion, adt_pattern_match]
+task_prompt: |
+  Write a program in <LANG> that parses each input expression below and prints
+  its fully parenthesized form, one per line, showing the structure your parser
+  assigned. Do NOT evaluate anything.
+
+  Token grammar: non-negative multi-digit integers, the operators + - * / ^,
+  parentheses ( ), and unary minus. Inputs contain no whitespace.
+
+  Precedence and associativity (follow exactly):
+    level 1: binary + and -   (left-associative)
+    level 2: binary * and /   (left-associative)
+    level 3: unary minus      (binds tighter than * and /, but LOOSER than ^,
+             so -2^2 parses as -(2^2) while -2*3 parses as (-2)*3;
+             unary minus may appear directly as an exponent: 2^-3)
+    level 4: binary ^         (RIGHT-associative: 2^3^2 is 2^(3^2))
+
+  Output format: every binary operation prints as (LEFT<op>RIGHT) and every
+  unary minus prints as (-OPERAND), with no spaces. Integer atoms print as
+  themselves. Parentheses in the input determine structure but are NOT
+  reproduced in the output (the output shows only the derived structure).
+
+  Input expressions (in order):
+    -2^2
+    2^3^2
+    8-4-2
+    2^-3*4
+    --5+1
+    -2^-2^3
+    (1+2)*-3
+    100-10*-2^2
+
+  Output only the code, no explanations.
+expected_stdout: |
+  (-(2^2))
+  (2^(3^2))
+  ((8-4)-2)
+  ((2^(-3))*4)
+  ((-(-5))+1)
+  (-(2^(-(2^3))))
+  ((1+2)*(-3))
+  (100-(10*(-(2^2))))

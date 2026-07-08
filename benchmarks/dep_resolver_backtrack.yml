@@ -1,0 +1,65 @@
+id: dep_resolver_backtrack
+description: "Version-constraint resolver where the greedy highest-version path dead-ends — requires genuine chronological backtracking"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axes 2+3: search with invariants).
+# Universe A is constructed so greedy highest-first (lib=3 -> core=3) conflicts
+# with util's requirement (core<=1); only backtracking into the EARLIER lib
+# choice finds the solution lib=2, core=1. A greedy resolver reports conflict —
+# validated divergent. Universe B tests the honest-conflict path.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, recursion, error_handling]
+task_prompt: |
+  Write a program in <LANG> that implements a package dependency resolver with
+  backtracking, then runs it on the two package universes below (represent them
+  as data in your code).
+
+  A universe lists packages; each (package, version) has a list of
+  requirements (depName, lo, hi) meaning: depName must be assigned a version v
+  with lo <= v <= hi.
+
+  Resolution algorithm (follow exactly):
+  - Start with the assignment {app=1} and a worklist containing app 1's
+    requirements in their listed order.
+  - Take the FIRST requirement from the worklist:
+    * If its package already has an assigned version: the requirement is
+      satisfied if that version is in range — continue with the rest of the
+      worklist; otherwise this branch FAILS.
+    * If unassigned: try each available version of that package that lies in
+      range, HIGHEST first. For each candidate, assign it, PREPEND that
+      version's own requirements to the front of the remaining worklist, and
+      recurse. If a candidate's branch fails, undo it and try the next lower
+      candidate. If all candidates fail, this branch FAILS (triggering
+      backtracking into earlier choices).
+  - Succeed when the worklist is empty.
+
+  Universe A — resolve app 1:
+    app 1  requires: lib [1..3], util [3..3]
+    lib 3  requires: core [3..3]
+    lib 2  requires: core [1..2]
+    lib 1  requires: (nothing)
+    util 3 requires: core [1..1]
+    core 3, core 2, core 1: (nothing)
+
+  Universe B — resolve app 1:
+    app 1  requires: x [1..1], y [1..1]
+    x 1    requires: core [1..1]
+    y 1    requires: core [2..2]
+    core 2, core 1: (nothing)
+
+  For each universe in order: if resolution succeeds, print the line
+  "resolved" followed by every assignment as "name=version", one per line,
+  sorted by package name ascending. If it fails, print the single line
+  "conflict".
+
+  Output only the code, no explanations.
+expected_stdout: |
+  resolved
+  app=1
+  core=1
+  lib=2
+  util=3
+  conflict

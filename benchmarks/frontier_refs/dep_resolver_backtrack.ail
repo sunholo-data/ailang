@@ -1,0 +1,119 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (filter, map, sortBy)
+import std/string (compare)
+
+-- Universe entry: (name, version, deps) ; dep = (name, lo, hi)
+type Sol = Found2([(string, int)]) | NoSol
+
+func assigned(assign: [(string, int)], name: string) -> int {
+  match assign {
+    [] => -1,
+    p :: rest => match p { (n, v) => if n == name then v else assigned(rest, name) }
+  }
+}
+
+func versionsOf(universe: [(string, int, [(string, int, int)])], name: string) -> [int] {
+  match universe {
+    [] => [],
+    e :: rest => match e {
+      (n, v, _) =>
+        if n == name then v :: versionsOf(rest, name)
+        else versionsOf(rest, name)
+    }
+  }
+}
+
+func depsOf(universe: [(string, int, [(string, int, int)])], name: string, ver: int) -> [(string, int, int)] {
+  match universe {
+    [] => [],
+    e :: rest => match e {
+      (n, v, ds) =>
+        if n == name && v == ver then ds
+        else depsOf(rest, name, ver)
+    }
+  }
+}
+
+func inRange(v: int, lo: int, hi: int) -> bool = v >= lo && v <= hi
+
+func go(universe: [(string, int, [(string, int, int)])], assign: [(string, int)], worklist: [(string, int, int)]) -> Sol {
+  match worklist {
+    [] => Found2(assign),
+    req :: rest => match req {
+      (name, lo, hi) => {
+        let cur = assigned(assign, name);
+        if cur >= 0 then {
+          if inRange(cur, lo, hi) then go(universe, assign, rest) else NoSol
+        } else {
+          let cands = filter(func(v: int) -> bool { v >= lo && v <= hi }, versionsOf(universe, name));
+          tryVersions(universe, assign, name, cands, rest)
+        }
+      }
+    }
+  }
+}
+
+func tryVersions(universe: [(string, int, [(string, int, int)])], assign: [(string, int)], name: string, cands: [int], rest: [(string, int, int)]) -> Sol {
+  match cands {
+    [] => NoSol,
+    v :: more => (match go(universe, (name, v) :: assign, depsOf(universe, name, v) ++ rest) {
+      Found2(sol) => Found2(sol),
+      NoSol => tryVersions(universe, assign, name, more, rest)
+    })
+  }
+}
+
+func cmpByName(a: (string, int), b: (string, int)) -> int {
+  match a {
+    (an, _) => match b {
+      (bn, _) => compare(an, bn)
+    }
+  }
+}
+
+func pairText(p: (string, int)) -> string {
+  match p {
+    (n, v) => "${n}=${show(v)}"
+  }
+}
+
+func printAll(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(s); printAll(rest) }
+  }
+}
+
+func report(universe: [(string, int, [(string, int, int)])]) -> () ! {IO} {
+  match go(universe, [("app", 1)], depsOf(universe, "app", 1)) {
+    NoSol => println("conflict"),
+    Found2(sol) => {
+      println("resolved");
+      printAll(map(pairText, sortBy(cmpByName, sol)))
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  let universeA = [
+    ("app", 1, [("lib", 1, 3), ("util", 3, 3)]),
+    ("lib", 3, [("core", 3, 3)]),
+    ("lib", 2, [("core", 1, 2)]),
+    ("lib", 1, []),
+    ("util", 3, [("core", 1, 1)]),
+    ("core", 3, []),
+    ("core", 2, []),
+    ("core", 1, [])
+  ];
+  let universeB = [
+    ("app", 1, [("x", 1, 1), ("y", 1, 1)]),
+    ("x", 1, [("core", 1, 1)]),
+    ("y", 1, [("core", 2, 2)]),
+    ("core", 2, []),
+    ("core", 1, [])
+  ];
+  report(universeA);
+  report(universeB)
+}

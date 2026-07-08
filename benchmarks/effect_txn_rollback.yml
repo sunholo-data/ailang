@@ -1,0 +1,59 @@
+id: effect_txn_rollback
+description: "Checkpointed account ledger: failed withdrawals restore AND consume the latest snapshot; empty-stack commit/restore are counted failures"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 4: State+Error composition).
+# Validated divergent-wrong variants: restoring without popping the snapshot,
+# and not counting empty-stack commit/restore as failures, both produce
+# different final states. AILANG-favoring: explicit state threading + Result
+# discipline is the native idiom.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+tier: stretch
+tags: [state_machine, error_handling]
+task_prompt: |
+  Write a program in <LANG> that processes a sequence of ledger operations over
+  two accounts, alice and bob, starting at alice=100, bob=50. There is also a
+  stack of snapshots (checkpoints), initially empty, and a failure counter,
+  initially 0. Represent the operations as data in your code.
+
+  Operations (follow these semantics exactly; execution always continues to the
+  next operation):
+  - dep ACCT AMT: add AMT to ACCT. Never fails.
+  - wd ACCT AMT: if ACCT's balance >= AMT, subtract AMT. Otherwise the
+    operation FAILS: increment the failure counter, and if the snapshot stack
+    is non-empty, restore ALL balances from the most recent snapshot AND REMOVE
+    that snapshot from the stack. If the stack is empty, balances are unchanged.
+  - save: push a snapshot of all current balances onto the stack.
+  - commit: remove the most recent snapshot without restoring it. If the stack
+    is empty, this FAILS: increment the failure counter; nothing else changes.
+  - restore: restore all balances from the most recent snapshot and remove it
+    from the stack. If the stack is empty, this FAILS: increment the failure
+    counter; nothing else changes.
+
+  Operation sequence:
+    save
+    dep alice 30
+    save
+    wd bob 80
+    wd alice 90
+    save
+    wd alice 50
+    dep bob 25
+    commit
+    restore
+    wd bob 75
+    commit
+    dep alice 5
+
+  After processing every operation, print exactly three lines:
+    alice=<balance>
+    bob=<balance>
+    failures=<count>
+
+  Output only the code, no explanations.
+expected_stdout: |
+  alice=45
+  bob=0
+  failures=4

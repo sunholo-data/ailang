@@ -69,6 +69,23 @@ and from where saturated tasks are trivially easy:
 7. **Large-input scaling / precision** — tasks where a naive O(n²) or float-naive solution
    produces wrong output at the tested size.
 
+> **✅ AUTHORING UPDATE (2026-07-08, Claude Fable 5):** The first **8 benchmarks are authored,
+> reference-verified, and merged** as `tier: stretch` (the `frontier` tier value doesn't exist in
+> `ValidTiers` yet — when it lands, re-tier these): `ssa_constant_fold`, `bytecode_vm_trace`
+> (= `bytecode_vm_stepper` sketch), `lfu_cache_trace`, `parse_prec_climb`, `effect_txn_rollback`,
+> `glob_match_spec` (= `instruction_injection_guard`-adjacent spec-compliance axis),
+> `dep_resolver_backtrack`, `stream_lcg_topk` (= `streaming_topk_large`, N=2000 to stay inside the
+> 30s AILANG budget). Method per the guardrails: every `expected_stdout` computed by a Python
+> reference impl AND reproduced exactly by a hand-run AILANG solution; each design validated by
+> checking that plausible-wrong implementations (3 LFU bugs, greedy resolver, fnmatch delegation,
+> peek-instead-of-pop rollback) produce DIFFERENT output. Remaining from the sketch list:
+> `cps_transform` (canonical-form ambiguity risk — needs a pinned fresh-variable discipline),
+> `register_allocator_linear`, `typeclass_dispatch_chain`, `effect_txn_rollback`'s contract-graded
+> variant. **Frontier-failure validation (each must fail ≥1 frontier model) happens in the next
+> rotation.** ⚠️ Blocker found during verification: imported `std/list.nth` silently returns `None`
+> inside recursive functions (see [Unreleased] changelog) — fix before the rotation or VM/indexing
+> tasks will fail for the wrong reason on AILANG.
+
 ## Candidate benchmarks (sketches — to be authored + validated)
 
 | id (proposed) | axis | why it should defeat the frontier |

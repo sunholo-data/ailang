@@ -1,0 +1,35 @@
+id: stream_lcg_topk
+description: "Deterministic PRNG stream + top-k + checksum — exact modular arithmetic and 1-indexing over 2000 generated values"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 7: scaling/precision).
+# All three output lines shift if the model includes x_0, stops at x_1999, or
+# implements the LCG modulus incorrectly. Values exceed 32 bits when summed —
+# tests 64-bit integer discipline. N=2000 keeps the AILANG reference solution
+# ~2s, well inside the 30s execution budget.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, functional]
+task_prompt: |
+  Write a program in <LANG> that generates a deterministic pseudo-random stream
+  and reports statistics over it.
+
+  Generator (Lehmer LCG):
+    x[n+1] = (48271 * x[n]) mod 2147483647
+    x[0] = 20260708
+
+  Consider exactly the values x[1] through x[2000] inclusive (x[0] is the seed
+  and is NOT part of the stream).
+
+  Print exactly three lines:
+    1. x[2000]
+    2. the sum of the 10 largest values in the stream
+    3. the sum of ALL 2000 stream values, modulo 1000000007
+
+  Output only the code, no explanations.
+expected_stdout: |
+  110246075
+  21399054563
+  903902855

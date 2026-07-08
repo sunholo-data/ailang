@@ -1,0 +1,74 @@
+id: ssa_constant_fold
+description: "Multi-pass IR optimizer: SSA renaming + constant folding + algebraic identities + copy propagation + dead code elimination"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 1: multi-stage dataflow).
+# Difficulty is composition: five pinned passes where an early subtle error
+# (wrong SSA numbering, wrong identity rule, missed copy chain) only surfaces
+# in the final 3-line output. Validated: reference solutions in Python and
+# AILANG produce identical output; plausible-wrong variants diverge.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, data_transform, string_algo]
+task_prompt: |
+  Write a program in <LANG> that optimizes the following straight-line program.
+  Represent the program as data in your code (do not parse text):
+
+      n = input
+      m = input
+      a = 7
+      a = a - 7
+      c = n * a
+      n = n + c
+      q = m * 3
+      e = n * 7
+      f = e - e
+      e = e + f
+      r = e * 1
+      return r
+
+  Each instruction assigns a variable from either the opaque marker `input`,
+  an integer literal, or a binary operation (`+`, `-`, `*`) whose operands are
+  variable references or integer literals. Apply these passes IN THIS ORDER:
+
+  PASS 1 — SSA renaming: the k-th assignment (0-indexed, counted per variable)
+  to variable v defines the name "v.k". Every operand reference resolves to the
+  most recent definition of that variable at that point.
+
+  PASS 2 — forward simplification, processing instructions in order. Maintain a
+  table mapping each SSA name to one of: Const(k), Copy(other SSA name), or
+  Opaque. For each instruction:
+    a. Substitute operands first: an operand naming a Const becomes the integer;
+       an operand naming a Copy becomes the copy's source (follow chains until a
+       non-copy name).
+    b. Then classify, using the first matching rule:
+       - `v = input`                     -> Opaque (instruction is KEPT)
+       - `v = <literal>`                 -> Const (instruction deleted)
+       - both operands are literals      -> compute; Const (deleted)
+       - `x - x` (same SSA name twice)   -> Const 0 (deleted)
+       - `x * 0` or `0 * x`              -> Const 0 (deleted)
+       - `x * 1` or `1 * x`              -> Copy(x) (deleted)
+       - `x + 0` or `0 + x`              -> Copy(x) (deleted)
+       - `x - 0`                         -> Copy(x) (deleted)
+       - anything else                   -> Opaque; instruction is KEPT with its
+         substituted operands.
+  For `return r`: substitute the same way (an integer if Const, otherwise the
+  copy-chased SSA name).
+
+  PASS 3 — dead code elimination: keep only KEPT instructions whose defined name
+  is transitively referenced from the return operand. Preserve original order.
+
+  Print the surviving instructions one per line in exactly this format
+  ("name = operand op operand", single spaces, literals printed as integers),
+  followed by the return line:
+
+      name.k = <operand> <op> <operand>
+      return <operand>
+
+  Output only the code, no explanations.
+expected_stdout: |
+  n.0 = input
+  e.0 = n.0 * 7
+  return e.0

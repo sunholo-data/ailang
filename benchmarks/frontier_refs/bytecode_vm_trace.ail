@@ -1,0 +1,77 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (reverse)
+
+type Instr = Push(int) | Add | Sub | Mul | Dup | Over | Swap | Pop
+           | Jmp(int) | Jmpz(int) | Jmpgt(int) | Halt
+
+type Fetch = Found(Instr) | Missing
+
+func at(xs: [Instr], i: int) -> Fetch {
+  match xs {
+    [] => Missing,
+    h :: t => if i == 0 then Found(h) else at(t, i - 1)
+  }
+}
+
+func exec(prog: [Instr], pc: int, stack: [int], steps: int) -> {stack: [int], steps: int} {
+  match at(prog, pc) {
+    Missing => ({ stack: stack, steps: steps }),
+    Found(instr) =>
+      match instr {
+        Halt => ({ stack: stack, steps: steps + 1 }),
+        Push(k) => exec(prog, pc + 1, k :: stack, steps + 1),
+        Add => (match stack { b :: a :: rest => exec(prog, pc + 1, (a + b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Sub => (match stack { b :: a :: rest => exec(prog, pc + 1, (a - b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Mul => (match stack { b :: a :: rest => exec(prog, pc + 1, (a * b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Dup => (match stack { t :: rest => exec(prog, pc + 1, t :: t :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Over => (match stack { b :: a :: rest => exec(prog, pc + 1, a :: b :: a :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Swap => (match stack { b :: a :: rest => exec(prog, pc + 1, a :: b :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Pop => (match stack { _ :: rest => exec(prog, pc + 1, rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Jmp(d) => exec(prog, pc + d, stack, steps + 1),
+        Jmpz(d) => (match stack {
+          v :: rest => if v == 0 then exec(prog, pc + d, rest, steps + 1) else exec(prog, pc + 1, rest, steps + 1),
+          _ => ({ stack: stack, steps: steps })
+        }),
+        Jmpgt(d) => (match stack {
+          b :: a :: rest => if a > b then exec(prog, pc + d, rest, steps + 1) else exec(prog, pc + 1, rest, steps + 1),
+          _ => ({ stack: stack, steps: steps })
+        })
+      }
+  }
+}
+
+func printAll(xs: [int]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    v :: rest => { println(show(v)); printAll(rest) }
+  }
+}
+
+export func main() -> () ! {IO} {
+  let prog = [
+    Push(252),
+    Push(105),
+    Over,
+    Over,
+    Sub,
+    Jmpz(12),
+    Over,
+    Over,
+    Jmpgt(4),
+    Over,
+    Sub,
+    Jmp(-9),
+    Swap,
+    Over,
+    Sub,
+    Swap,
+    Jmp(-14),
+    Pop,
+    Halt
+  ];
+  let res = exec(prog, 0, [], 0);
+  printAll(reverse(res.stack));
+  println("steps: ${show(res.steps)}")
+}
