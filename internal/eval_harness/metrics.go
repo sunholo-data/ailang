@@ -125,6 +125,10 @@ const (
 	// Generated source violated the benchmark's source_constraints (checked
 	// before execution — the code never ran). Constrained-construction class.
 	ErrorCategoryConstraint = "constraint_violation"
+	// The model's API-level safety layer declined the prompt (e.g. Anthropic
+	// stop_reason "refusal", empty content, HTTP 200). Distinct from
+	// api_error: the infrastructure worked; the model would not answer.
+	ErrorCategoryRefused = "refused"
 
 	// Typed failure categories (M-EVAL-SWEET-SPOT, v0.19.0). Replace blanket
 	// api_error attribution where the cause is actually identifiable. The

@@ -70,6 +70,15 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryStepExhausted
 	}
 
+	// API-level model refusal (Anthropic stop_reason "refusal"): a model
+	// behavior, not an infrastructure failure. Kept out of api_error so
+	// capability scoring can see "declined to answer" distinctly. First
+	// observed: Fable 5's safety layer deterministically refusing benign
+	// constrained-construction eval prompts in short contexts (wave-2 probe).
+	if containsAny(msg, "stop_reason=refusal") {
+		return ErrorCategoryRefused
+	}
+
 	// Quota exhaustion — provider account/key cap. Distinct from a transient
 	// 429: a quota kill says nothing about model capability and should be
 	// excluded from capability scoring (see ShouldExcludeFromCapability).
@@ -122,4 +131,14 @@ func containsAny(s string, needles ...string) bool {
 		}
 	}
 	return false
+}
+
+// CategorizeStandardAPIError classifies a standard-mode (0-shot) generation
+// failure. Refusals are model behavior and get their own bucket; everything
+// else stays the api_error catch-all.
+func CategorizeStandardAPIError(err error) string {
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "stop_reason=refusal") {
+		return ErrorCategoryRefused
+	}
+	return ErrorCategoryAPI
 }

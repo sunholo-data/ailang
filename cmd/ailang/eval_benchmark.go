@@ -544,9 +544,11 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 	metrics, err := repairRunner.Run(ctx, prompt)
 	if err != nil {
-		// API error - save result with api_error category for observability
+		// Generation failed — classify (refusal is model behavior, not
+		// infrastructure) and save for observability.
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "benchmark execution failed")
+		stdErrCategory := eval_harness.CategorizeStandardAPIError(err)
 
 		apiErrorMetrics := &eval_harness.RunMetrics{
 			ID:             spec.ID,
@@ -556,7 +558,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			CompileOk:      false,
 			RuntimeOk:      false,
 			StdoutOk:       false,
-			ErrorCategory:  eval_harness.ErrorCategoryAPI,
+			ErrorCategory:  stdErrCategory,
 			Stderr:         fmt.Sprintf("API Error: %v", err),
 			ExpectedStdout: spec.ExpectedOut,
 			Timestamp:      time.Now(),
@@ -576,7 +578,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				Language:      lang,
 				Condition:     condition,
 				EvalMode:      "standard",
-				ErrorCategory: string(eval_harness.ErrorCategoryAPI),
+				ErrorCategory: stdErrCategory,
 				Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
 			}
 			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
