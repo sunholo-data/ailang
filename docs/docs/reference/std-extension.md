@@ -140,4 +140,4 @@ The `requireWorkdirFile` + empty-`provided_tools` pattern fixes all three.
 - [M-EXT-PORTABILITY-GATE design doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_19_0/m-ext-portability-gate.md) — the v0.19.0 sprint that introduced this helper alongside the pre-publish smoke gate and `std/package.assetPath`.
 - [`std/package.assetPath`](./std-package) — companion helper for assets that ship inside the package itself rather than living in the consumer's workdir.
 - [`std/smoke.dispatchAllTools`](https://github.com/sunholo-data/ailang/blob/main/std/smoke.ail) — the canonical `_smoke.ail` helper that exercises every advertised tool to catch tool-dispatch-time crashes.
-- [v0.19.0 / v0.19.1 changelog entries](https://github.com/sunholo-data/ailang/blob/main/changelogs/v0.10-current.md) — full release notes including the M-EXT-PORTABILITY-GATE chain.
+- [v0.19.0 / v0.19.1 changelog entries](https://github.com/sunholo-data/ailang/blob/main/changelogs/v0.18-current.md) — full release notes including the M-EXT-PORTABILITY-GATE chain.

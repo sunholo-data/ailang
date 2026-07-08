@@ -396,7 +396,7 @@ RegisterEffectBuiltin(BuiltinSpec{
 - `internal/effects/` (effect-row algebra changes)
 - `cmd/ailang/exec.go` and other compilation entry points
 
-**Purpose**: Force the author to enumerate, at design time, what existing valid programs could break. Catches the "we didn't think about that interaction" regressions before they ship — see [M-PARSER-REFINEMENT-LOOKAHEAD](../../../changelogs/v0.10-current.md) for the case study where M-TAINT-TYPES added `T{not LABEL}` syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. Cost a real consumer (motoko_agent fork) ~14 mis-parses.
+**Purpose**: Force the author to enumerate, at design time, what existing valid programs could break. Catches the "we didn't think about that interaction" regressions before they ship — see [M-PARSER-REFINEMENT-LOOKAHEAD](../../../changelogs/v0.10-v0.17-bytecode-vm.md) for the case study where M-TAINT-TYPES added `T{not LABEL}` syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. Cost a real consumer (motoko_agent fork) ~14 mis-parses.
 
 **Required content**:
 

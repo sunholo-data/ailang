@@ -256,7 +256,7 @@ The design doc MUST include a **Conflict Surface** section (see [resources/desig
 
 **Why this is required**: most language regressions come from "I didn't realize X also uses this position." The author is the only one who can credibly enumerate the conflict surface. Reviewers can sanity-check but can't generate the list.
 
-**Concrete case study**: M-TAINT-TYPES (v0.14.3) added `T{not LABEL}` refinement syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. The 2-token-lookahead disambiguation was insufficient. The motoko_agent fork (still on v0.13.0) hit ~14 mis-parses when migrating to v0.15.x. Caught months after release. See [M-PARSER-REFINEMENT-LOOKAHEAD changelog entry](../../../changelogs/v0.10-current.md) for the fix.
+**Concrete case study**: M-TAINT-TYPES (v0.14.3) added `T{not LABEL}` refinement syntax without enumerating that `func ... -> bool { not f(x) }` already used the same `{ not <ident>` prefix in function bodies. The 2-token-lookahead disambiguation was insufficient. The motoko_agent fork (still on v0.13.0) hit ~14 mis-parses when migrating to v0.15.x. Caught months after release. See [M-PARSER-REFINEMENT-LOOKAHEAD changelog entry](../../../changelogs/v0.10-v0.17-bytecode-vm.md) for the fix.
 
 **The honest answer is almost never "no conflicts"**: if the section says that for a parser/typechecker change, the author hasn't looked hard enough.
 

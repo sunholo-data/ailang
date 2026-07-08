@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-For the latest version, see [changelogs/v0.10-current.md](changelogs/v0.10-current.md).
+For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-current.md).
 
 ## Changelog Archives
 
@@ -8,7 +8,8 @@ The full changelog has been split into themed files for searchability and readab
 
 | File | Versions | Theme |
 |------|----------|-------|
-| [v0.10-current.md](changelogs/v0.10-current.md) | v0.10.0+ | Bytecode VM & Runtime |
+| [v0.18-current.md](changelogs/v0.18-current.md) | v0.18.0+ | Eval Harness, Extensions & Agent Loop |
+| [v0.10-v0.17-bytecode-vm.md](changelogs/v0.10-v0.17-bytecode-vm.md) | v0.10.0–v0.17.0 | Bytecode VM & Runtime |
 | [v0.9-cloud-pubsub.md](changelogs/v0.9-cloud-pubsub.md) | v0.9.0–v0.9.12 | Cloud Integration & Pub/Sub |
 | [v0.8-cloud-features.md](changelogs/v0.8-cloud-features.md) | v0.8.0–v0.8.1.1 | Cloud Features & Advanced Coordinator |
 | [v0.7-observatory.md](changelogs/v0.7-observatory.md) | v0.7.0–v0.7.3 | Observatory, Chains & Dashboard |
