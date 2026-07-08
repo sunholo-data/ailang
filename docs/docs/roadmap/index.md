@@ -48,39 +48,14 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [m verify stdlib stale path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-verify-stdlib-stale-path.md)
 - [m xmod alias poly](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-xmod-alias-poly.md)
 
-## Planned for v0.26.0
-
-- [M-SECRET-EFFECT: Gated `Secret` Effect with 1Password-Backed Remote Human Approval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-effect-remote-approval.md)
-- [M-SECRET-EFFECT — Sprint Plan (Phase 1 + 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-effect-sprint-plan.md)
-- [M-SECRET-REMOTE-APPROVAL-WIRING — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-remote-approval-wiring-sprint-plan.md)
-- [M-SECRET-REMOTE-APPROVAL-WIRING: Make Push-to-Phone Secret Approval Operational](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-remote-approval-wiring.md)
-
-## Planned for v0.25.1
-
-- [M-WEBSITE-ANTIGRAVITY-DOCS-SYNC: Retire Gemini CLI from the Website, Document Managed Agents (Antigravity)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_1/m-website-antigravity-docs-sync.md)
-
-## Planned for v0.25.0
-
-- [M-MOTOKO-AGENT-SYSTEM-PROMPT — give motoko a lean agentic system prompt](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-motoko-agent-system-prompt.md)
-- [M-MOTOKO-FAILURE-MODE-OBSERVABILITY — segment agent failures by mode (disengage vs grind-wrong)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-motoko-failure-mode-observability.md)
-- [M-OLLAMA-PER-MODEL-MAX-TOKENS — flow the registry's declared max_output_tokens to motoko](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-ollama-per-model-max-tokens.md)
-
 ## Planned for v0.24.0
 
-- [M-AILANG-ERROR-QUALITY: Error Messages as the Lever for Small-Model Success](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-ailang-error-quality-for-llm-iteration.md)
 - [Sprint Plan — M-EVAL-BENCHMARK-UI-CONSOLIDATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-benchmark-ui-consolidation-sprint-plan.md)
-- [Sprint Plan — M-EVAL-ELO-PERSIST (M-EVAL-RATING-EFFICIENCY part 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-elo-persist-sprint-plan.md)
 - [M-EVAL-FINETUNING-DATA-PIPELINE: Capture-to-QLoRA on the Local Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-finetuning-data-pipeline.md)
 - [M-EVAL-LOCAL-OLLAMA: Production-Grade Local Ollama Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-local-ollama.md)
 - [M-EVAL-OPENROUTER-BASELINE-ROTATION: Cloud Baseline Three Candidate Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-openrouter-baseline-rotation.md)
-- [M-EVAL-RATING-EFFICIENCY: ELO-Style Benchmark Difficulty + Targeted Reruns + Tier Saturation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-rating-efficiency.md)
 - [M-EVAL-REGRESSION-DETECTOR-CONTRACT: Specify trial grouping, flaky-vs-persistent classification, and infra-noise policy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-regression-detector-contract.md)
 - [M-EVAL-STREAM-HEALTH-RETRY: Mid-stream death detection + fast retry for the streaming executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-stream-health-retry.md)
-- [M-MOTOKO-OLLAMA-LOOP-CONVERGENCE: Make the Motoko Agent Loop Terminate Against Local Ollama](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-motoko-ollama-loop-convergence.md)
-- [M-MSG-AUTO-TRIAGE-PIPELINE: Autonomous Inbound Triage + Central Notification Bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md)
-- [Sprint Plan: M-MSG-TRIAGE-ROUTER (Build Order Step 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-triage-router-sprint-plan.md)
-- [M-NOTIFY-CHANNELS-FRAMEWORK: Outbound Notification Channels (Adapter Framework)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-framework.md)
-- [Sprint Plan: M-NOTIFY-CHANNELS (Build Order Step 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-sprint-plan.md)
 - [M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prelude-option-result.md)
 - [M-PROMPT-RUN-LENGTH-PATTERNS: Concise Recursive Solutions to Prevent Token-Limit Truncation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-concise-recursive-solutions.md)
 - [M-PROMPT-LOG-FILE-ANALYZER: String ops pipeline example (split→filter→map→join)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-log-file-analyzer-string-ops.md)
@@ -92,26 +67,16 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — LARGELY SOLVED, monitor only](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-string-concat-plusplus.md)
 - [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-syntax-ai-forgiving.md)
 - [M-TYPE-CONSTRAINTS: Type parameter constraints (`[a: Ord]`) — explicit-comparator workaround](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-constraints.md)
-- [Sprint Plan: M-TYPE-LIST-ELEMENT-SOUNDNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-list-element-soundness-sprint-plan.md)
-- [M-TYPE-LIST-ELEMENT-SOUNDNESS: List-Literal Element Types Escape the Type Checker](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-list-element-soundness.md)
 
 ## Planned for v0.23.0
 
-- [EVAL CANDIDATE — `dense_operator_program` persistent failure analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/eval-candidate-dense-operator-program.md)
-- [M-BYTES-TOINTS-BYTEAT: Add byte-to-int extraction primitives to std/bytes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-bytes-toints-byteAt.md)
-- [M-EVAL-METRICS-TAXONOMY: Beyond Pass/Fail — Metrics for Continuous LLM Eval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-metrics-taxonomy.md)
-- [M-EVAL-OS-LONGITUDINAL Phases 2–5 — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-os-longitudinal-phases-2-5-sprint-plan.md)
-- [M-EVAL-OS-LONGITUDINAL — Longitudinal OS-model eval as language-design feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-os-longitudinal.md)
 - [M-EVAL-SLIM-PROMPT-SELF-DISCOVERY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md)
 - [M-HARNESS-DSL: AILANG as Self-Hosting Coordinator Specification Language](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-harness-dsl.md)
 - [M-HARNESS-STATE: Shared Harness Substrate with Belief-State Synchronization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-harness-state.md)
 - [M-ORACLE-ADEQUACY: Convergence Oracles and Evidence Bundles for the Eval Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-oracle-adequacy.md)
 - [M-PERMISSION-MODEL: Typed Permission Tiers for the Coordinator via Effect Rows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-permission-model.md)
 - [M-PROGRAMBENCH-GAP-PROBE: Probe AILANG against ProgramBench-style "rebuild a CLI from spec" tasks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-programbench-gap-probe.md)
-- [M-PROMPT-STDLIB-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-prompt-stdlib-coverage.md)
 - [M-TRACE-FEEDBACK: Execution-Trace Feedback Loop for Harness Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-trace-feedback.md)
-- [M-VERA-BENCH-INTEGRATION: Add AILANG as a target language in VeraBench](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-vera-bench-integration.md)
-- [M-VERA-BENCH-INTEGRATION Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_23_0/m-vera-bench-sprint-plan.md)
 
 ## Planned for v0.22.0
 
@@ -122,54 +87,33 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-match-xcheck-error-quality.md)
 - [Sprint Plan — M-PATTERN-AND-INVOCATION-REPAIR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-pattern-and-invocation-repair-sprint-plan.md)
 - [M-TERMINAL-BENCH: Terminal-Bench Cloud Evaluation (AILANG vs Python)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-terminal-bench-cloud-eval.md)
-- [M-THREE-CAMPS-LANGUAGE-SURVEY: Gap Analysis Across 16 AI-Designed Languages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-language-survey.md)
-- [M-THREE-CAMPS Sprint Plan (Gap-Analysis-First)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-three-camps-sprint-plan.md)
 - [M-WASM-TYPECHECK-LIMITS — depth-budget guard + clear error for WASM type-checker overflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-wasm-typecheck-limits.md)
-- [M-ZERO-ARG-INVOCATION-SURFACES — Unify zero-arg export invocation across all surfaces](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_22_0/m-zero-arg-invocation-surfaces.md)
 
 ## Planned for v0.21.0
 
 - [M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-check-strict-fallbacks.md)
-- [Sprint Plan: M-COG-RUNTIME-BROWSER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser-sprint-plan.md)
-- [M-COG-RUNTIME-BROWSER: Cognitive OS Browser Substrate](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-cog-runtime-browser.md)
 - [M-EFFECT-HANDLERS: User-Definable Effect Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-effect-handlers.md)
 - [M-EVAL-AGENT-PYTHON-STDIO-WIRING — Python agent-mode runner drops `cli_args` and `stdin` from benchmark spec](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-eval-agent-python-stdio-wiring.md)
 - [M-MOTOKO-CLOUD-MIGRATION: Replace `claude -p` OAuth Executors with motoko + OpenRouter in Production](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-motoko-cloud-migration.md)
-- [M-SERVEAPI-GET-QUERY-SHADOW — GET query args silently shadowed by zero-value padding](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-serveapi-get-query-shadow.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-stdlib-html-streaming.md)
-- [M-WASM-REFLECTIVE-RUNTIME: Cognitive OS (Umbrella)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-wasm-reflective-runtime.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_21_0/m-zero-language-learnings.md)
 
 ## Planned for v0.19.0
 
-- [M-BENCHMARK-DATA-INTEGRITY: Benchmark Dashboard Data Integrity Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-benchmark-data-integrity.md)
 - [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-coordinator-inbox-wildcards.md)
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-motoko-ext-per-task.md)
 - [M-WASM-AI-STEP-VIA-MESSAGES: WASM `ai.step` mediated by the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-ai-step-via-messages.md)
 - [M-WASM-CLOUD-MESSAGES: AILANG-WASM browser participates in the cloud message bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_19_0/m-wasm-cloud-messages.md)
 
-## Planned for v0.18.9
-
-- [M-PROCESS-PGID-CLEANUP: kill process group on Process effect timeout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_9/m-process-pgid-cleanup.md)
-
 ## Planned for v0.18.0
 
-- [Sprint Plan: M-MOTOKO-EXECUTOR-ADAPTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-motoko-executor-adapter-sprint-plan.md)
-- [M-MOTOKO-EXECUTOR-ADAPTER: motoko_agent as a CLI-Subprocess Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-motoko-executor-adapter.md)
-- [Sprint Plan: M-PKG-AUTO-UPDATE-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-pkg-auto-update-dx-sprint-plan.md)
 - [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_18_0/m-serve-api-live-tool-registry.md)
 
 ## Planned for v0.17.0
 
 - [M-AGENT-LOOP-ARCHITECTURE: Where Should the Multi-Turn Agent Loop Live?](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-agent-loop-architecture.md)
-- [M-AI-OPENAI-LOCAL-ENDPOINT-RELAX — Allow empty OPENAI_API_KEY when OPENAI_BASE_URL is custom](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-openai-local-endpoint-relax.md)
 - [M-AI-REASONING-EFFORT — Cross-Provider Request-Side Reasoning Control](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-reasoning-effort.md)
-- [M-AI-STREAMING-HELPER Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper-sprint-plan.md)
-- [M-AI-STREAMING-HELPER: AI Token Streaming Helper + Cross-Domain Discovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-ai-streaming-helper.md)
-- [M-BENCH-MOTOKO: Motoko Agent as a Benchmark Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-bench-motoko-executor.md)
-- [M-EXTERNAL-CONSUMER-DX Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx-sprint-plan.md)
-- [M-EXTERNAL-CONSUMER-DX: Diagnostics & Artifacts for External AILANG Projects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-external-consumer-dx.md)
 
 ## Planned for v0.16.0
 
@@ -182,8 +126,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.15.0
 
-- [M-AI-PROVIDER-CONFIG: Config-Driven AI Providers via Package Manifests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ai-provider-config.md)
-- [M-BENCHMARK-SECTION: Multi-Page Benchmark Section for AILANG Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-benchmark-section-redesign.md)
 - [M-CASCADE-OBSERVABILITY: Surface Cascade AI Conversation History](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-cascade-observability.md)
 - [M-EVAL-GAP-FIXES: Eval-discovered AILANG and harness improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-gap-fixes.md)
 - [M-EVAL-RESULTS-FOLDER-STRUCTURE: Model-First Eval Results Layout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-results-folder-structure.md)
@@ -203,17 +145,13 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-ARCH3: Task Classification Consolidation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch3-task-classification.md)
 - [M-ARCH4: Executor Stream Processor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch4-executor-stream-processor.md)
 - [M-ARCH5: Error Handling Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch5-error-handling-strategy.md)
-- [M-BUG-LETREC-SINGLE-CALL: Letrec with Single Recursive Call Fails](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-bug-letrec-single-call.md)
 - [M-BYTECODE-VM-PARITY-BUGS — Remaining VM/Eval Divergences](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-bytecode-vm-parity-bugs.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-call-sugar-optional.md)
 - [M-CLOUD-EVAL: Distributed Cloud Evaluation Workers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-cloud-eval-workers.md)
 - [M-CLOUD-OBSERVATORY: Observatory Firestore Backend for Cloud Run](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-cloud-observatory.md)
 - [M-CONCURRENCY-LEVERAGE: Leverage Fork() Across All Execution Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concurrency-leverage.md)
-- [Sprint Plan: M-COORD-CODEX (Codex Executor for Coordinator + Evals)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-coord-codex-executor-sprint-plan.md)
-- [M-COORD-CODEX: Codex Executor for Coordinator + Evals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-coord-codex-executor.md)
 - [M-COORD-THINKING: Extended Thinking Levels for Coordinator Skills](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-coord-thinking-levels.md)
 - [M-COPILOT-CLI: GitHub Copilot CLI Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-copilot-cli-integration.md)
-- [M-CRYPTORAND: Cryptographic Randomness as a First-Class Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-cryptorand.md)
 - [M-D4: Design-Doc-Driven Development (D4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-d4-design-doc-driven-development.md)
 - [M-DASHBOARD-PUBSUB-EVENTS: Dashboard Pub/Sub Event Subscriber](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dashboard-pubsub-events.md)
 - [Dashboard Simplification - Remaining Work (v0.7.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dashboard-simplification.md)
@@ -225,14 +163,11 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-record-cons-pattern.md)
 - [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-split-argument-warning.md)
 - [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-tapp-trecord-unification.md)
-- [Inline Tests Documentation & Examples (M-DX23)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx23-inline-tests-documentation.md)
-- [M-DX26: Property Test "Empty Program" Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx26-property-test-empty-program.md)
 - [M-DX27: GitHub Repository Search Fallback for `ailang docs search`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx27-docs-search-github-fallback.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
 - [Sprint Plan: M-EVAL-BOUNDED-PIPELINE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-bounded-pipeline-sprint-plan.md)
 - [M-EVAL-BOUNDED-PIPELINE: Fused Bounded Combinators + Memory Ceiling](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-bounded-pipeline.md)
 - [M-EVAL-EXPAND: Expanding the AILANG Eval Bench (Harnesses, Languages, Open-Source Models)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-expand-harnesses-languages.md)
-- [M-EVAL-LAZY-PIPELINE: Lazy List Pipelines to Fix OOM on Large Documents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-lazy-pipeline.md)
 - [M-EXEC-HIERARCHY-REFACTOR: Executive Hierarchy Graph Visualization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-exec-hierarchy-refactor.md)
 - [Sprint Plan: M-FILE-HANDLING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-file-handling-improvements-sprint-plan.md)
 - [M-FILE-HANDLING: fileData/fileUri Support & serve-api POST Param Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-file-handling-improvements.md)
@@ -275,4 +210,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 195 planned features across 19 upcoming versions.*
+*Generated at build time. 142 planned features across 15 upcoming versions.*
