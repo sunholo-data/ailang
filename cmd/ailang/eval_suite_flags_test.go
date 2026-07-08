@@ -73,11 +73,12 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution drift detector. Refreshed 2026-07-08: 8 frontier-class
-	// benchmarks were added to stretch (M-EVAL-FRONTIER-TIER authoring phase:
-	// ssa_constant_fold, bytecode_vm_trace, lfu_cache_trace, parse_prec_climb,
-	// effect_txn_rollback, glob_match_spec, dep_resolver_backtrack,
-	// stream_lcg_topk) — moving stretch 14→22. They re-tier to `frontier` when
+	// Distribution drift detector. Refreshed 2026-07-08 (second pass): +4
+	// constrained-construction / insight-forced benchmarks (emit_exact_bytes,
+	// digitless_constants, commonmark_emphasis, binary_strings_1e18) after the
+	// sonnet probe showed the first 8 sat at the top of stretch — stretch
+	// 22→26. Earlier same day: 8 frontier-class benchmarks (M-EVAL-FRONTIER-TIER
+	// authoring phase) moved stretch 14→22; they re-tier to `frontier` when
 	// that tier lands. Prior baselines: 23/26/11/9 (2026-06-08), 17/32/11/9
 	// (2026-05-20), 15/21/11/6 (post-M5). Kept in sync with the sibling check in
 	// internal/eval_harness/spec_test.go. Refresh again when drift outgrows the
@@ -86,7 +87,7 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// independently.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 26, 3)
-	checkTierCount(t, "stretch", len(stretch), 22, 3)
+	checkTierCount(t, "stretch", len(stretch), 26, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

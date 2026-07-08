@@ -1,0 +1,95 @@
+id: commonmark_emphasis
+description: "'*'-emphasis with flanking rules and the rule of three — superficial Markdown knowledge actively misleads; only faithful spec implementation survives"
+# FRONTIER-CLASS, adversarial-priors family. The full delimiter-stack
+# algorithm below matches the CommonMark reference implementation (every
+# expected output cross-validated against cmark), but the test vectors are
+# NOVEL strings — spec-example recall does not help, and the intuitive
+# greedy matcher gets several wrong (rule of 3, dual-length runs, stacked
+# nesting order). Both reference solutions produce byte-identical output.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo, algorithmic]
+task_prompt: |
+  Implement EXACTLY the following inline-emphasis algorithm for the character
+  '*' and print the rendered form of each input line, one output line per
+  input, using <em> and <strong> tags. Follow this specification, not your
+  prior knowledge of Markdown — several details differ from naive matchers.
+
+  Definitions (inputs are single lines of printable ASCII, no tabs):
+  - A DELIMITER RUN is a maximal sequence of consecutive '*' characters.
+  - Whitespace means the space character. The positions before the first
+    character and after the last character of a line count as whitespace.
+  - Punctuation means any of: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+  - A run is LEFT-FLANKING if (a) the character after the run is not
+    whitespace, AND (b) either the character after the run is not
+    punctuation, OR the character before the run is whitespace or
+    punctuation.
+  - A run is RIGHT-FLANKING if (a) the character before the run is not
+    whitespace, AND (b) either the character before the run is not
+    punctuation, OR the character after the run is whitespace or punctuation.
+  - A run CAN OPEN emphasis if it is left-flanking; it CAN CLOSE emphasis if
+    it is right-flanking.
+
+  Matching procedure. Keep the runs in a list, in order; each run tracks its
+  ORIGINAL length and its REMAINING (unconsumed) star count. Scan a cursor
+  over the list starting at the first run:
+  1. If the run at the cursor cannot close or has no stars remaining, advance
+     the cursor by one.
+  2. Otherwise it is the CLOSER. Search backward from the run immediately
+     before it for the nearest OPENER: a run with stars remaining that can
+     open and is not blocked by the RULE OF THREE: if the closer can also
+     open or the opener can also close, and the sum of their ORIGINAL lengths
+     is a multiple of 3, they cannot match — unless both original lengths are
+     themselves multiples of 3.
+  3. If no opener is found: if the closer cannot open, remove it from the
+     list (its stars stay as literal text) and keep the cursor at the same
+     list position; otherwise advance the cursor by one.
+  4. If an opener is found: when both opener and closer have at least 2 stars
+     remaining the match is STRONG and consumes 2 stars from each; otherwise
+     it is EMPHASIS and consumes 1 star from each. Record the match. Remove
+     every run strictly between opener and closer from the list; also remove
+     the opener and/or the closer if their remaining count reached zero.
+     Leave the cursor on the closer if it still has stars remaining (it may
+     close again); if the closer was removed, the cursor stays at that list
+     position (now occupied by the next run).
+  5. Repeat until the cursor passes the end of the list. All stars never
+     consumed by a match are literal '*' characters in the output.
+
+  Rendering: each match wraps the text between its opener and closer in
+  <strong>...</strong> (2-star match) or <em>...</em> (1-star match). When
+  one run participates in several matches, a later match wraps OUTSIDE the
+  earlier ones. Leftover literal stars of a run are emitted after the run's
+  closing tags and before its opening tags.
+
+  Input lines (process in order):
+    *wind mill*
+    a * lantern glow*
+    **tide**pool
+    ***quartz***
+    **quiet*
+    *ember**
+    *sky**lark**dawn*
+    *moss**fern*
+    ***husk*kernel**
+    **pearl**shell**
+    *a*b*c*
+    escape**not*done
+
+  Output only the code, no explanations.
+expected_stdout: |
+  <em>wind mill</em>
+  a * lantern glow*
+  <strong>tide</strong>pool
+  <em><strong>quartz</strong></em>
+  *<em>quiet</em>
+  <em>ember</em>*
+  <em>sky<strong>lark</strong>dawn</em>
+  <em>moss**fern</em>
+  <strong><em>husk</em>kernel</strong>
+  <strong>pearl</strong>shell**
+  <em>a</em>b<em>c</em>
+  escape**not*done

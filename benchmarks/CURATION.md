@@ -96,6 +96,28 @@ whose `tier` is outside the enum or whose `tags` are empty, >3, or unknown. CI
 runs this validation on every benchmark at startup, so a malformed YAML fails
 the eval-suite command immediately.
 
+### Source constraints (constrained-construction benchmarks)
+
+`source_constraints` grades the program TEXT itself, before execution —
+unlocking benchmarks whose difficulty cannot be delegated to the program
+(byte-precise self-accounting, lexically-constrained construction):
+
+```yaml
+source_constraints:
+  exact_bytes: 256              # normalized source must be exactly N bytes
+  # max_bytes: 400              # or: at most N bytes (mutually exclusive)
+  # banned_chars: "0123456789"  # none of these characters anywhere
+  # banned_substrings: ["**"]   # none of these substrings anywhere
+```
+
+Normalization: CRLF/CR → LF, then ALL trailing newlines stripped
+(`NormalizeSource` in `internal/eval_harness/source_constraints.go`). A
+violation fails the run with `error_category: constraint_violation`; the code
+is never executed. The violation message (with exact byte deltas / offending
+lines) is fed to the one-shot self-repair attempt. The constraint MUST be
+stated verbatim in `task_prompt` — models are graded only against rules they
+were told. Standard (0-shot) mode only for now; agent mode ignores them.
+
 ### Sizing rule for scale-sensitive benchmarks
 
 The harness kills a run at **30s** (`eval-suite --timeout` default), and the

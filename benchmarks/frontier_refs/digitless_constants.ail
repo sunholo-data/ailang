@@ -1,0 +1,18 @@
+module benchmark/solution
+
+import std/io (println)
+import std/string (length)
+
+func p(b: int, e: int) -> int {
+  if e == length("") then length("x") else b * p(b, e - length("x"))
+}
+
+export func main() -> () ! {IO} {
+  let one = length("x");
+  let two = one + one;
+  let seven = two + two + two + one;
+  let ten = seven + two + one;
+  println(show(p(ten, seven + two) + seven));
+  println(show(p(seven, seven)));
+  println(show(p(ten, two + one) + seven * p(ten, two) + two * ten + ten - one))
+}

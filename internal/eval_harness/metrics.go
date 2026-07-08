@@ -33,6 +33,10 @@ type RunMetrics struct {
 	Timestamp      time.Time `json:"timestamp"`
 	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
+	// Source-constraint violations (constrained-construction benchmarks).
+	// Non-empty means the code was rejected BEFORE execution.
+	ConstraintViolations []string `json:"constraint_violations,omitempty"`
+
 	// Self-repair metrics (M-EVAL-LOOP)
 	FirstAttemptOk  bool   `json:"first_attempt_ok"`            // Did first attempt succeed?
 	RepairUsed      bool   `json:"repair_used"`                 // Did we attempt a repair?
@@ -118,6 +122,9 @@ const (
 	ErrorCategoryLogic   = "logic_error"
 	ErrorCategoryAPI     = "api_error"    // API call failed — fallback when no more specific cause is known
 	ErrorCategoryVerify  = "verify_error" // Contract verification failed (M-CONTRACT-EVAL)
+	// Generated source violated the benchmark's source_constraints (checked
+	// before execution — the code never ran). Constrained-construction class.
+	ErrorCategoryConstraint = "constraint_violation"
 
 	// Typed failure categories (M-EVAL-SWEET-SPOT, v0.19.0). Replace blanket
 	// api_error attribution where the cause is actually identifiable. The

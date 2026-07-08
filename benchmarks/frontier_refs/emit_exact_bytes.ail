@@ -1,0 +1,8 @@
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("bytes=256")
+}
+-- xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

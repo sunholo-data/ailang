@@ -331,7 +331,11 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// shift is intentional, re-center here (as M-THREE-CAMPS did when it added
 	// 14 gap benchmarks).
 	//
-	// Re-centered 2026-07-08: 8 frontier-class benchmarks added to stretch
+	// Re-centered 2026-07-08 (second pass): +4 constrained-construction /
+	// insight-forced benchmarks (emit_exact_bytes, digitless_constants,
+	// commonmark_emphasis, binary_strings_1e18) after the sonnet probe showed
+	// the first 8 sat at the top of stretch; stretch 22 → 26.
+	// Earlier same day: 8 frontier-class benchmarks added to stretch
 	// (M-EVAL-FRONTIER-TIER authoring phase — see design doc), moving stretch
 	// 14 → 22; they re-tier to `frontier` when that tier value lands.
 	// Prior re-center 2026-06-06: 6 benchmarks promoted into smoke (the
@@ -346,8 +350,8 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	if core := tierCounts["core"]; core < 23 || core > 29 {
 		t.Errorf("core count = %d, want 26±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 19 || stretch > 25 {
-		t.Errorf("stretch count = %d, want 22±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 23 || stretch > 29 {
+		t.Errorf("stretch count = %d, want 26±3", stretch)
 	}
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)

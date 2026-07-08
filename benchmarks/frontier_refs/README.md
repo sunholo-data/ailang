@@ -1,9 +1,17 @@
 # Frontier benchmark reference solutions
 
-Verification artifacts for the 8 frontier-class stretch benchmarks authored for
-[M-EVAL-FRONTIER-TIER](../../design_docs/planned/m-eval-frontier-tier.md)
-(2026-07-08, Claude Fable 5). **These are NOT shipped to models** — they exist so
+Verification artifacts for the frontier-class stretch benchmarks authored for
+[M-EVAL-FRONTIER-TIER](../../design_docs/planned/v0_29_0/m-eval-frontier-tier.md)
+(2026-07-08, Claude Fable 5; wave 2 added after the sonnet probe showed wave 1
+sat at the top of stretch). **These are NOT shipped to models** — they exist so
 `expected_stdout` values can be re-derived and re-audited instead of trusted.
+
+Wave 2 (delegation-proof difficulty — the model must count/construct/derive at
+generation time): `emit_exact_bytes`, `digitless_constants` (both graded via
+`source_constraints`), `commonmark_emphasis` (every expected output
+cross-validated against the `cmark` reference binary on NOVEL vectors),
+`binary_strings_1e18` (n=10^18 makes O(n) DP impossible in-budget in BOTH
+languages; refs run <1s via the O(log n) route).
 
 Each benchmark has:
 

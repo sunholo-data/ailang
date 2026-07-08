@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -84,6 +85,18 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		}
 	}
 
+	// Constraint violations carry their own precise repair feedback (byte
+	// deltas, offending lines) — route them to the repair attempt directly.
+	if hint == nil && len(firstResult.ConstraintViolations) > 0 {
+		errCode = CONSTRAINT_VIOLATION
+		hint = &RepairHint{
+			Title: "Generated source violates the benchmark's source constraints",
+			Why:   "This benchmark grades the program TEXT itself; the code was rejected before execution.",
+			How:   "Adjust the source to satisfy every constraint listed in the error, then re-check byte counts and banned characters over the ENTIRE source including comments and identifiers.",
+		}
+		repairStderr = firstResult.RunResult.Stderr
+	}
+
 	// If no Z3 error found (or verify not active), fall back to standard error categorization
 	if hint == nil {
 		errCode, hint = CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr, r.runner.Language())
@@ -148,13 +161,14 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 
 // attemptResult contains results from a single attempt
 type attemptResult struct {
-	Code         string
-	InputTokens  int
-	OutputTokens int
-	RunResult    *RunResult
-	CompileOk    bool
-	RuntimeOk    bool
-	StdoutOk     bool
+	Code                 string
+	InputTokens          int
+	OutputTokens         int
+	RunResult            *RunResult
+	CompileOk            bool
+	RuntimeOk            bool
+	StdoutOk             bool
+	ConstraintViolations []string // non-empty: source rejected before execution
 }
 
 // runSingleAttempt executes one code generation + execution cycle
@@ -163,6 +177,25 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 	genResult, err := r.agent.GenerateCode(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("code generation failed: %w", err)
+	}
+
+	// Source-constraint gate (constrained-construction benchmarks): the
+	// constraint is on the program TEXT, so it's checked before execution and
+	// a violation fails the attempt regardless of what the code would print.
+	if r.spec.SourceConstraints != nil {
+		if violations := r.spec.SourceConstraints.Check(genResult.Code); len(violations) > 0 {
+			stderrMsg := "SOURCE CONSTRAINT VIOLATION (code was not executed):\n- " + strings.Join(violations, "\n- ")
+			return &attemptResult{
+				Code:                 genResult.Code,
+				InputTokens:          genResult.InputTokens,
+				OutputTokens:         genResult.OutputTokens,
+				RunResult:            &RunResult{Stderr: stderrMsg},
+				CompileOk:            false,
+				RuntimeOk:            false,
+				StdoutOk:             false,
+				ConstraintViolations: violations,
+			}, nil
+		}
 	}
 
 	// Execute generated code
@@ -201,6 +234,10 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.ExecuteMs = result.RunResult.ExecuteTime.Milliseconds()
 
 	metrics.ErrorCategory = CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+	if len(result.ConstraintViolations) > 0 {
+		metrics.ErrorCategory = ErrorCategoryConstraint
+		metrics.ConstraintViolations = result.ConstraintViolations
+	}
 	metrics.Stdout = result.RunResult.Stdout
 	metrics.Stderr = result.RunResult.Stderr
 	metrics.ExpectedStdout = r.spec.ExpectedOut

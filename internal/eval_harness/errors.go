@@ -33,6 +33,9 @@ const (
 
 	// Contract verification errors (M-CONTRACT-EVAL)
 	VERIFY_COUNTEREXAMPLE ErrCode = "VERIFY_COUNTEREXAMPLE" // Z3 found counterexample
+
+	// Source-constraint violations (constrained-construction benchmarks)
+	CONSTRAINT_VIOLATION ErrCode = "CONSTRAINT_VIOLATION" // Generated source violates source_constraints
 )
 
 // RepairHint provides actionable guidance for fixing an error

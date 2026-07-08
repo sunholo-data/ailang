@@ -1,0 +1,32 @@
+id: binary_strings_1e18
+description: "Count binary strings of astronomical length avoiding a pattern — linear-time DP is physically impossible, forcing the logarithmic insight"
+# FRONTIER-CLASS, insight-forced-by-budget family. n = 10^18 makes any O(n)
+# dynamic program impossible inside the 30s execution budget IN EITHER
+# LANGUAGE (deliberately: the budget penalizes the naive algorithm, not the
+# slower runtime). The model must derive the 3-state automaton for avoiding
+# "101" AND implement O(log n) matrix exponentiation with modular arithmetic.
+# No technique hints in prompt or benchmark id. Reference solutions run in
+# well under 1s in both languages. Second n is structureless (a first draft
+# used n = 10^9+7, where Frobenius gives f(p) = f(1) = 2 — avoided).
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, recursion]
+task_prompt: |
+  Count the binary strings (each character is '0' or '1') of length n that
+  contain NO occurrence of the substring "101", modulo 1000000007.
+
+  Write a program in <LANG> that prints exactly two lines:
+    1. the count for n = 1000000000000000000
+    2. the count for n = 987654321987654321
+
+  The grader kills any program after 30 seconds; your solution must finish
+  well within that limit.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  786584466
+  402439174
