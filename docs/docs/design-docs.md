@@ -8,9 +8,63 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.28.1
+
+- [Sprint Plan: M-XMOD-ALIAS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_1/m-cross-module-type-alias-sprint-plan.md)
+- [m cross module type alias](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_1/m-cross-module-type-alias.md)
+- [m parser alias targets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_1/m-parser-alias-targets.md)
+- [m xmod alias chain](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_1/m-xmod-alias-chain.md)
+
+## v0.28.0
+
+- [m deriving eq runtime and exit code](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_0/m-deriving-eq-runtime-and-exit-code.md)
+- [m length collision dx](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_0/m-length-collision-dx.md)
+
+## v0.27.0
+
+- [AILANG v0.26.1 — Programmatic Gap Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_27_0/ailang-felix-gap-analysis-1.md)
+- [m onboarding ergonomics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_27_0/m-onboarding-ergonomics.md)
+- [Sprint Plan: M-SNAKE-FEEDBACK — Terminal I/O + Onboarding fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_27_0/m-snake-feedback-sprint-plan.md)
+- [m terminal io](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_27_0/m-terminal-io.md)
+
+## v0.26.1
+
+- [M-AGENT-STUCK-FIXES: deterministic fixes for the errors that loop the agent](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-agent-stuck-fixes.md)
+- [M-EVAL-REIMPLEMENT-BENCH: Multi-file Reimplement Tasks as Tracked Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-eval-reimplement-bench.md)
+- [M-EVAL-RELIABLE-GRADING: Grade the Model's Actual Workspace, Not an Isolated File](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-eval-reliable-grading.md)
+- [M-EVAL-VERSION-BANKING: per-release eval banking so the loop can see its own progress](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_1/m-eval-version-banking.md)
+
+## v0.26.0
+
+- [Sprint Plan: M-EMBED-TASK-PREFIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix-sprint-plan.md)
+- [M-EMBED-TASK-PREFIX: Model- and Role-Aware Embedding Task Prefixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix.md)
+- [M-EVAL-OUTPUT-NORMALIZE: Boolean-case + numeric-format grading parity (sibling of M-EVAL-JSON-COMPARE)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-output-normalization.md)
+- [M-OLLAMA-TEMPERATURE-KNOB: Configurable Temperature on the Agentic Ollama Path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-ollama-temperature-knob.md)
+
+## v0.25.1
+
+- [Sprint Plan: M-IFACE-COMPACT-ADT-FIELDS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_1/m-iface-compact-adt-fields-sprint-plan.md)
+- [M-IFACE-COMPACT-ADT-FIELDS: Compact Interface Carries ADT Constructor Fields](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_1/m-iface-compact-adt-fields.md)
+
+## v0.25.0
+
+- [M-MOTOKO-OBS-TOOLCALLS: Surface `agent_tool_calls` in Eval Result JSON](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_0/m-motoko-obs-toolcalls.md)
+- [M-MOTOKO-OBS-TRANSCRIPT: Retain Motoko Tool-Call Transcript](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_0/m-motoko-obs-transcript.md)
+- [M-OLLAMA-V1-TOOLCALLING: Route Ollama Tool-Calling via OpenAI-Compat /v1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_0/m-ollama-v1-toolcalling.md)
+- [M-RIG-LOCK-ENFORCE: Enforce the Rig Lock in `ailang eval-suite`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_25_0/m-rig-lock-enforce.md)
+
+## v0.24.1
+
+- [m release gate](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_1/m-release-gate.md)
+
 ## v0.24.0
 
 - [M-EVAL-NETWORK-MOCK-FIXTURE: Deterministic local HTTP mock for network benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-eval-network-mock-fixture.md)
+- [M-EVAL-PROMPT-DELIVERY: How to Deliver the Teaching Prompt to Local-Model Agents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-eval-prompt-delivery.md)
+- [M-LETREC-BLOCK-SCOPE — Block-form `letrec` dropped its binding](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-letrec-block-scope.md)
+- [M-MOTOKO-LOCAL-OLLAMA: Motoko Agent Loop Against Local Ollama on the Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-motoko-local-ollama.md)
+- [M-STDLIB-XML-LENIENT — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-stdlib-xml-lenient-sprint-plan.md)
+- [m stdlib xml lenient](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_24_0/m-stdlib-xml-lenient.md)
 
 ## v0.23.x
 
@@ -1124,4 +1178,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 799 design documents across 105 versions.*
+*Generated at build time. 829 design documents across 113 versions.*

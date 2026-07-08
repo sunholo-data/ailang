@@ -1,6 +1,6 @@
 # M-EVAL-RELIABLE-GRADING: Grade the Model's Actual Workspace, Not an Isolated File
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.1)
 **Target**: v0.26.x
 **Priority**: P0 (the eval score is currently unreliable for multi-file benchmarks — it measures the wrong thing)
 **Estimated**: ~1 day

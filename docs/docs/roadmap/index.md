@@ -31,14 +31,35 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.26.0
+
+- [M-SECRET-EFFECT: Gated `Secret` Effect with 1Password-Backed Remote Human Approval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-effect-remote-approval.md)
+- [M-SECRET-EFFECT — Sprint Plan (Phase 1 + 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-effect-sprint-plan.md)
+- [M-SECRET-REMOTE-APPROVAL-WIRING — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-remote-approval-wiring-sprint-plan.md)
+- [M-SECRET-REMOTE-APPROVAL-WIRING: Make Push-to-Phone Secret Approval Operational](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_26_0/m-secret-remote-approval-wiring.md)
+
+## Planned for v0.25.1
+
+- [M-WEBSITE-ANTIGRAVITY-DOCS-SYNC: Retire Gemini CLI from the Website, Document Managed Agents (Antigravity)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_1/m-website-antigravity-docs-sync.md)
+
+## Planned for v0.25.0
+
+- [M-MOTOKO-AGENT-SYSTEM-PROMPT — give motoko a lean agentic system prompt](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-motoko-agent-system-prompt.md)
+- [M-MOTOKO-FAILURE-MODE-OBSERVABILITY — segment agent failures by mode (disengage vs grind-wrong)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-motoko-failure-mode-observability.md)
+- [M-OLLAMA-PER-MODEL-MAX-TOKENS — flow the registry's declared max_output_tokens to motoko](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_25_0/m-ollama-per-model-max-tokens.md)
+
 ## Planned for v0.24.0
 
 - [M-AILANG-ERROR-QUALITY: Error Messages as the Lever for Small-Model Success](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-ailang-error-quality-for-llm-iteration.md)
+- [Sprint Plan — M-EVAL-BENCHMARK-UI-CONSOLIDATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-benchmark-ui-consolidation-sprint-plan.md)
+- [Sprint Plan — M-EVAL-ELO-PERSIST (M-EVAL-RATING-EFFICIENCY part 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-elo-persist-sprint-plan.md)
 - [M-EVAL-FINETUNING-DATA-PIPELINE: Capture-to-QLoRA on the Local Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-finetuning-data-pipeline.md)
 - [M-EVAL-LOCAL-OLLAMA: Production-Grade Local Ollama Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-local-ollama.md)
 - [M-EVAL-OPENROUTER-BASELINE-ROTATION: Cloud Baseline Three Candidate Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-openrouter-baseline-rotation.md)
 - [M-EVAL-RATING-EFFICIENCY: ELO-Style Benchmark Difficulty + Targeted Reruns + Tier Saturation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-rating-efficiency.md)
-- [M-MOTOKO-LOCAL-OLLAMA: Motoko Agent Loop Against Local Ollama on the Eval Rig](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-motoko-local-ollama.md)
+- [M-EVAL-REGRESSION-DETECTOR-CONTRACT: Specify trial grouping, flaky-vs-persistent classification, and infra-noise policy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-regression-detector-contract.md)
+- [M-EVAL-STREAM-HEALTH-RETRY: Mid-stream death detection + fast retry for the streaming executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-eval-stream-health-retry.md)
+- [M-MOTOKO-OLLAMA-LOOP-CONVERGENCE: Make the Motoko Agent Loop Terminate Against Local Ollama](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-motoko-ollama-loop-convergence.md)
 - [M-MSG-AUTO-TRIAGE-PIPELINE: Autonomous Inbound Triage + Central Notification Bus](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md)
 - [Sprint Plan: M-MSG-TRIAGE-ROUTER (Build Order Step 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-msg-triage-router-sprint-plan.md)
 - [M-NOTIFY-CHANNELS-FRAMEWORK: Outbound Notification Channels (Adapter Framework)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-notify-channels-framework.md)
@@ -52,7 +73,10 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-single-file-module.md)
 - [Prompt Gap: Split Returns List, Not String](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-split-list-operations.md)
 - [M-PROMPT-STRING-CONCAT-PLUSPLUS: The `++` string-concat reflex — LARGELY SOLVED, monitor only](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-prompt-string-concat-plusplus.md)
+- [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-syntax-ai-forgiving.md)
 - [M-TYPE-CONSTRAINTS: Type parameter constraints (`[a: Ord]`) — explicit-comparator workaround](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-constraints.md)
+- [Sprint Plan: M-TYPE-LIST-ELEMENT-SOUNDNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-list-element-soundness-sprint-plan.md)
+- [M-TYPE-LIST-ELEMENT-SOUNDNESS: List-Literal Element Types Escape the Type Checker](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_24_0/m-type-list-element-soundness.md)
 
 ## Planned for v0.23.0
 
@@ -234,4 +258,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 166 planned features across 15 upcoming versions.*
+*Generated at build time. 181 planned features across 18 upcoming versions.*

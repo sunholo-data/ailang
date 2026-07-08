@@ -1,6 +1,6 @@
 # M-OLLAMA-TEMPERATURE-KNOB: Configurable Temperature on the Agentic Ollama Path
 
-**Status**: Planned (code landing; A/B is the GPU follow-up)
+**Status**: ✅ Implemented (v0.26.0) — temperature knob code landed; A/B is the GPU follow-up
 **Target**: v0.25.x
 **Mission item**: #2 (request-param engagement) — the pi-faithful lever
 **Estimated**: ~25 LOC + tests; <0.5 day (no GPU for the code part)
@@ -55,5 +55,5 @@ us from landing an unvalidated behaviour change (the lesson from the reverted gu
 - Changing the default temperature (stays unset until the A/B justifies it).
 
 ## References
-- Diagnosis + pi reverse-engineering: [motoko-harness-analysis-log.md](../motoko-harness-analysis-log.md) (2026-06-17 entries)
+- Diagnosis + pi reverse-engineering: [motoko-harness-analysis-log.md](../../motoko-harness-analysis-log.md) (2026-06-17 entries)
 - qwen3.6 ollama params: `temperature 1.0, top_p 0.95, presence_penalty 1.5` (api/show).

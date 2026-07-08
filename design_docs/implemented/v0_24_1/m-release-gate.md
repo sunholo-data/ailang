@@ -1,6 +1,6 @@
 ## M-RELEASE-GATE: Gated release pipeline — tag → test → smoke gate → prod
 
-**Status**: IMPLEMENTED — gate live & **fail-closed proven**; **green pass→prod path PENDING validation on the next real release (v0.25.0)**.
+**Status**: ✅ Implemented (v0.24.1; validated on v0.25.0) — gated release pipeline live
 **Target**: v0.25.0
 **Priority**: P1 — prod (public `mcp.ailang.sunholo.com` + coordinator) had silently frozen at 0.19.1 for ~3 weeks (v0.20–v0.24 never reached prod).
 **Owner**: release-manager

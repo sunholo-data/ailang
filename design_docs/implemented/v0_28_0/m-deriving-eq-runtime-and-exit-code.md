@@ -1,6 +1,6 @@
 ## M-DERIVING-EQ-RUNTIME: Auto-derived `Eq` dictionary missing at runtime + module-eval errors exit 0
 
-**Status**: PLANNED (two related bugs)
+**Status**: ✅ Implemented (v0.28.0) — Bug2 exit-code (v0.27.0) + Bug1 Eq-runtime (v0.28.0) both fixed
 **Target**: v0.27.x
 **Priority**: P1 (the exit-0 bug is high — it lets runtime failures pass naïve gates); P2 (the Eq-dict bug)
 **Estimated**: 1–2 days (two independent fixes)
@@ -19,12 +19,12 @@ per Felix) forced the `Eq` dictionary — so `deriving (Eq)` flakily failed (bui
 `deriving_eq.ail` was 0/20 in one build, passing in another). Two surgical fixes, both reusing
 the existing structural-equality machinery (`valuesStructurallyEqual` / `makeADTEqualityFn`):
 
-1. **Dict construction** ([internal/eval/eval_patterns.go](../../internal/eval/eval_patterns.go),
+1. **Dict construction** ([internal/eval/eval_patterns.go](../../../internal/eval/eval_patterns.go),
    `evalDictRef`): on a registry miss for an `Eq` method, **synthesize** the structural equality
    deterministically instead of erroring `missing dictionary method`. The type checker already
    proved `Eq` valid for the type and derived Eq is *always* structural, so this removes the
    dependency on the flaky registration entirely.
-2. **`==`/`!=` runtime fallback** ([internal/eval/eval_operations.go](../../internal/eval/eval_operations.go)):
+2. **`==`/`!=` runtime fallback** ([internal/eval/eval_operations.go](../../../internal/eval/eval_operations.go)):
    when no Eq dictionary was threaded (the polymorphic-lambda case — Felix `fb_cef305`), fall back
    to the same structural comparison rather than `unsupported types: TaggedValue`.
 
@@ -45,7 +45,7 @@ Error: module evaluation failed: failed to evaluate let colorTest in module
 examples/deriving_eq: missing dictionary method: prelude::Eq::Color::eq
 ```
 
-`Color` is an ADT with auto-derived `Eq` (M-DX19, [commit bb3b3a83](../../examples/deriving_eq.ail)).
+`Color` is an ADT with auto-derived `Eq` (M-DX19, [commit bb3b3a83](../../../examples/deriving_eq.ail)).
 The type checker accepts `colorTest = (Red == Red)` and friends, but the runtime has no
 `prelude::Eq::Color::eq` dictionary entry — the derived instance is type-checked but never
 materialized (or not registered under the name the evaluator looks up). So `deriving (Eq)`
@@ -89,7 +89,7 @@ This is likely separate from Bug 1 (it would mask *any* eval error, not just der
 share a root with the budget-exhaustion path, which also surfaces as a printed error.
 
 ### Pointers
-- `executeModuleEntrypoint` error handling — [cmd/ailang/main_run_exec.go](../../cmd/ailang/main_run_exec.go)
+- `executeModuleEntrypoint` error handling — [cmd/ailang/main_run_exec.go](../../../cmd/ailang/main_run_exec.go)
   (the `execErr != nil` branch flushes + `os.Exit(1)` for *some* paths; module-eval errors
   appear to print and fall through to a 0 exit). Trace which error path prints
   `module evaluation failed` and why it doesn't reach `os.Exit(1)`.

@@ -1,6 +1,6 @@
 # M-EVAL-VERSION-BANKING: per-release eval banking so the loop can see its own progress
 
-**Status:** In Progress (2026-06-28). Lane: **AILANG-side harness change** (per [PROGRAM.md](../PROGRAM.md) — the loop must be able to measure movement across releases).
+**Status:** ✅ Implemented (v0.26.1) — `--bank-by-version` shipped. Lane: AILANG-side harness change.
 
 ## Problem
 

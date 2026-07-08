@@ -1,6 +1,6 @@
 # M-EMBED-TASK-PREFIX: Model- and Role-Aware Embedding Task Prefixes
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.0)
 **Target**: v0.25.x
 **Priority**: P1 — μRAG retrieval quality is silently degraded; this is the likely real unlock for whether μRAG helps eval pass rates
 **Estimated**: ~150–250 LOC + tests; 0.5–1 day

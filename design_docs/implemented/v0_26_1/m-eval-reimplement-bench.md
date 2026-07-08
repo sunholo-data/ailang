@@ -1,6 +1,6 @@
 # M-EVAL-REIMPLEMENT-BENCH: Multi-file Reimplement Tasks as Tracked Benchmarks
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.26.1)
 **Target**: v0.26.x
 **Priority**: P1 (the only instrument that surfaces the long-context harness fixes on the dashboard)
 **Estimated**: ~1 day

@@ -1,6 +1,6 @@
 # M-AGENT-STUCK-FIXES: deterministic fixes for the errors that loop the agent
 
-**Status:** In Progress (2026-06-27)
+**Status:** ✅ Implemented (v0.26.1) — M1 (PAR999) + M2 (IMP010 auto-import) shipped
 **Owner:** agent-ergonomics loop
 **Parent:** [M-AGENT-ERGONOMICS](m-agent-ergonomics.md) — "one suggestion engine, three surfaces"
 
