@@ -90,6 +90,21 @@ engine" — that demonstrates every AILANG moat in one coherent, runnable artifa
 - [ ] Mark confirms contracts-as-code as the R6 flagship (vs another orchestration candidate)
 - [ ] Mark picks v1 scope: engine+Z3+docs only, or including the AI-extraction demo
 
+## Routing (decided 2026-07-09)
+
+**Extension, not core — and the package now exists.** Per PROGRAM.md's default
+bias, the reusable engine shipped as
+[`sunholo/deontic` 0.1.0](https://github.com/sunholo-data/ailang-packages/tree/main/packages/deontic)
+(ailang-packages, sprint M-DEONTIC-PKG): pure event fold, 6/6 Z3-VERIFIED
+settlement functions, ground-truth demo byte-identical to the wave-5
+benchmark output. Core/stdlib gets NOTHING from this vertical — that absence
+is the flagship's central claim ("v0.28.0 already does all of this").
+Individual primitive gaps discovered later (decimal money, date types) route
+as normal AILANG-fix lane items with their own docs. The docs-site flagship
+(this doc's Solution Design) should now IMPORT the package rather than carry
+its own engine copy — one source of truth, and the example doubles as
+package documentation.
+
 ## Solution Design
 
 ### Overview
