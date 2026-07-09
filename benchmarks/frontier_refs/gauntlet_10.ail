@@ -685,7 +685,7 @@ func s7Gen(n: int, x: int, acc: [int]) -> [int] {
 func s7Cmp(a: int, b: int) -> int = b - a
 
 func s7Go() -> () ! {IO} {
-  let vals = s7Gen(2000, 20260709, []);
+  let vals = s7Gen(800, 20260709, []);
   -- vals is reversed (x_2000 first)
   match vals {
     last :: _ => println(show(last)),

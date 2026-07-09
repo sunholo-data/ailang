@@ -197,7 +197,7 @@ emit(f"return {rres}")
 
 # ---- Section 7: LCG (multiplier 16807, seed 20260709, N=2000) ----
 x=20260709; vals=[]
-for _ in range(2000):
+for _ in range(800):
     x=(16807*x)%2147483647; vals.append(x)
 emit(vals[-1]); emit(sum(sorted(vals)[-10:])); emit(sum(vals)%1000000007)
 

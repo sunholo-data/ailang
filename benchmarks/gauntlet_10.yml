@@ -25,7 +25,8 @@ task_prompt: |
   Write ONE program in <LANG> that solves ALL TEN parts below and prints their
   outputs in order (part 1 first, then part 2, ... no separators, no headers,
   no blank lines between parts). Every line must be exact. A single wrong line
-  anywhere fails the whole task.
+  anywhere fails the whole task. The whole program is killed after 30 seconds —
+  budget your algorithms and implementation efficiency accordingly.
   
   PART 1 — stack machine. Implement a stack VM with instructions:
   PUSH k (push integer); SUB (pop b=top, pop a, push a-b); DUP (duplicate top);
@@ -80,11 +81,24 @@ task_prompt: |
   matches one character NOT in the set but still never matches /; other
   characters are literal; whole pattern must match the whole string; patterns
   are well-formed, ] never appears inside a set. Do not use a library matcher.
-  Print 1 or 0 per pair, one per line:
-    *.log/server.log   *.log/var/server.log   x*y*z/xayaybz   x*y*z/xayayb
-    ?og/dog   ?og//og   [d-f]og/dog   [!d-f]og/dog   [!d-f]og/hog   [!/]a//a
-    b[/]c/b/c   */(empty string)   *q*/qq   *cd/ccd   d?f*/def   *//xyz/
-  (each entry is pattern/string; the string of entry 12 is empty)
+  Evaluate these (pattern, string) pairs in order, printing 1 if the pattern
+  matches the string and 0 otherwise, one per line:
+     1. pattern *.log      string server.log
+     2. pattern *.log      string var/server.log
+     3. pattern x*y*z      string xayaybz
+     4. pattern x*y*z      string xayayb
+     5. pattern ?og        string dog
+     6. pattern ?og        string /og
+     7. pattern [d-f]og    string dog
+     8. pattern [!d-f]og   string dog
+     9. pattern [!d-f]og   string hog
+    10. pattern [!/]a      string /a
+    11. pattern b[/]c      string b/c
+    12. pattern *          string (empty string)
+    13. pattern *q*        string qq
+    14. pattern *cd        string ccd
+    15. pattern d?f*       string def
+    16. pattern */         string xyz/
   
   PART 6 — IR optimizer. Take this straight-line program (represent as data):
     k = input
@@ -115,8 +129,8 @@ task_prompt: |
   "return <operand>".
   
   PART 7 — PRNG stream. x[n+1] = (16807 * x[n]) mod 2147483647, x[0] = 20260709.
-  Consider exactly x[1] through x[2000]. Print three lines: x[2000]; the sum of
-  the 10 largest values; the sum of all 2000 values modulo 1000000007.
+  Consider exactly x[1] through x[800]. Print three lines: x[800]; the sum of
+  the 10 largest values; the sum of all 800 values modulo 1000000007.
   
   PART 8 — pattern-avoiding count. Count binary strings (characters 0/1) of
   length n containing NO occurrence of the substring "0110", modulo 1000000007.
@@ -217,9 +231,9 @@ expected_stdout: |
   k.0 = input
   e.0 = k.0 * 9
   return e.0
-  1019962920
-  21448033109
-  189095872
+  1659071550
+  21320742632
+  249827106
   23418687
   394248546
   <em>river stone</em>
