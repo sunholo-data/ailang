@@ -507,11 +507,6 @@ func PrintAILANGSource(expr ast.Expr) string {
 	}
 }
 
-// extractLambdaParams extracts parameter names from a Core Lambda
-func extractLambdaParams(lambda *core.Lambda) []string {
-	return lambda.Params
-}
-
 // injectADTConstructors injects ADT constructor bindings into the evaluator
 func (e *Executor) injectADTConstructors(evaluator *eval.CoreEvaluator) {
 	if e.sourceFile == nil {
@@ -573,69 +568,155 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 		return
 	}
 
-	// PASS 1: Collect pending bindings (lambdas) and inject non-lambda values
-	type PendingLambdaBinding struct {
-		name       string
-		lambda     *core.Lambda
-		modulePath string // used for module-qualified env key to prevent alias collision
-	}
-	var pendingLambdas []PendingLambdaBinding
+	// PASS 1: Inject Let (non-recursive) lambdas and wire LetRec groups with proper
+	// self-referential environments.
+	//
+	// PROBLEM: Naively injecting every lambda with Env=env causes two bugs:
+	//
+	// (a) Name collision: both std/list and std/string export "concat" (different arity).
+	//     The last writer wins for env["concat"], so whichever module is processed last
+	//     (random map iteration order) becomes "concat", corrupting cross-module calls.
+	//
+	// (b) Broken self-recursion: std/list.concat body contains Var{concat} (recursive
+	//     call to itself).  If env["concat"] was overwritten by std/string.concat (1-param),
+	//     the recursive call uses the wrong function → "expects 1 arguments, got 2".
+	//
+	// FIX:
+	//   - For LetRec groups (self/mutual recursion), set up a recEnv child per group
+	//     using IndirectValue cells, exactly like evalCoreLetRec does.  The closures
+	//     capture recEnv so Var{name} within the group resolves back to the cell.
+	//   - Only bind the QUALIFIED key in the outer env (e.g. "pkg/std/list.concat") —
+	//     NOT the bare name.  This prevents collisions between modules.
+	//   - After ALL modules are processed, resolve VarGlobal re-exports into bare names
+	//     in a final pass so engine.ail's `let concat = VarGlobal{pkg/std/list,concat}`
+	//     correctly sets env["concat"] = 2-param FunctionValue.
 
-	for modulePath, mod := range e.modules {
-		if mod.Core == nil {
+	type DeferredVarGlobal struct {
+		name string
+		ref  *core.VarGlobal
+	}
+	var deferredVarGlobals []DeferredVarGlobal
+
+	// Use a deterministic module order: sort module paths so results are reproducible
+	// regardless of Go's random map iteration order.
+	sortedPaths := make([]string, 0, len(e.modules))
+	for modPath := range e.modules {
+		sortedPaths = append(sortedPaths, modPath)
+	}
+	// Sort: shorter paths (std/*) before longer (pkg/sunholo/...) for stable dependency order
+	sortStrings(sortedPaths)
+
+	for _, modulePath := range sortedPaths {
+		mod := e.modules[modulePath]
+		if mod == nil || mod.Core == nil {
 			continue
 		}
 
-		// Process each declaration in the module
 		for _, decl := range mod.Core.Decls {
 			switch d := decl.(type) {
 			case *core.Let:
-				// For pure functions, the value is a Lambda - queue it for Pass 2
 				if lambda, ok := d.Value.(*core.Lambda); ok {
-					pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-						name:       d.Name,
-						lambda:     lambda,
-						modulePath: modulePath,
-					})
-				} else if _, ok := d.Value.(*core.VarGlobal); ok {
-					// This is a re-export of another module's function
-					// We need to evaluate it to get the actual function value
-					val, err := evaluator.Eval(d.Value)
-					if err == nil && val != nil {
-						env.Set(d.Name, val)
+					// Non-recursive function: create closure with the outer env
+					// and bind ONLY under the qualified key.  The bare name will
+					// be resolved via VarGlobal re-exports or the qualified lookup.
+					funcVal := &eval.FunctionValue{
+						Params: lambda.Params,
+						Body:   lambda.Body,
+						Env:    env,
+						Typed:  true,
 					}
+					// Qualified key (never collides with same-named functions from
+					// other modules because module paths are unique).
+					if modulePath != "" {
+						env.Set(modulePath+"."+d.Name, funcVal)
+					}
+					// Bare name: set unconditionally.  For Let (non-recursive)
+					// lambdas there is no self-reference issue; the only concern is
+					// ordering, which is now deterministic (sorted paths above).
+					env.Set(d.Name, funcVal)
+				} else if vg, ok := d.Value.(*core.VarGlobal); ok {
+					// Re-export of another module's function: defer until all
+					// lambdas are wired so the qualified key is already in env.
+					deferredVarGlobals = append(deferredVarGlobals, DeferredVarGlobal{
+						name: d.Name,
+						ref:  vg,
+					})
 				}
 
 			case *core.LetRec:
-				// For recursive bindings, queue the lambdas for Pass 2
+				// Mutual/self-recursive group: use IndirectValue cells so Var
+				// references within the group resolve to the correct version of
+				// each function — not whatever happened to be last in env.
+				//
+				// Algorithm mirrors evalCoreLetRec phases 1-2.5:
+				//   Phase A: allocate cells in recEnv
+				//   Phase B: build FunctionValues that capture recEnv
+				//   Phase C: fill cells; register qualified keys in outer env;
+				//             also set bare names for non-conflicting functions
+				recEnv := env.NewChildEnvironment()
+				cells := make(map[string]*eval.RefCell, len(d.Bindings))
+
+				// Phase A
 				for _, binding := range d.Bindings {
-					if lambda, ok := binding.Value.(*core.Lambda); ok {
-						pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-							name:       binding.Name,
-							lambda:     lambda,
-							modulePath: modulePath,
-						})
+					cell := &eval.RefCell{}
+					cells[binding.Name] = cell
+					recEnv.Set(binding.Name, &eval.IndirectValue{Cell: cell})
+				}
+
+				// Phase B+C
+				for _, binding := range d.Bindings {
+					lambda, ok := binding.Value.(*core.Lambda)
+					if !ok {
+						continue
 					}
+					funcVal := &eval.FunctionValue{
+						Params: lambda.Params,
+						Body:   lambda.Body,
+						Env:    recEnv, // captures the group's own env for self-ref
+						Typed:  true,
+					}
+					// Fill the indirect cell so in-group Var{name} resolves correctly
+					cells[binding.Name].Val = funcVal
+					cells[binding.Name].Init = true
+
+					// Register under qualified key in outer env (for CombinedResolver)
+					if modulePath != "" {
+						env.Set(modulePath+"."+binding.Name, funcVal)
+					}
+					// Also expose the actual FunctionValue (not IndirectValue) under
+					// bare name in the outer env, so EvalCoreProgram and cross-module
+					// callers that look up bare names find the correct version.
+					// This is safe: recEnv's self-reference via IndirectValue is still
+					// intact regardless of what env["name"] holds.
+					env.Set(binding.Name, funcVal)
 				}
 			}
 		}
 	}
 
-	// PASS 2: Now create FunctionValues with the fully-populated environment
-	// This ensures all function dependencies can be resolved from env.
-	// Also bind under a module-qualified key ("std/string.length") so that
-	// CombinedResolver can distinguish same-named functions from different modules
-	// (e.g. std/string.length vs std/list.length imported with an alias).
-	for _, pending := range pendingLambdas {
-		funcVal := &eval.FunctionValue{
-			Params: extractLambdaParams(pending.lambda),
-			Body:   pending.lambda.Body,
-			Env:    env, // Capture the fully-populated environment
-			Typed:  true,
+	// PASS 2: Resolve deferred VarGlobal re-exports now that all lambdas (including
+	// qualified keys) are in env.  For example, engine.ail's
+	//   let concat = VarGlobal{pkg/std/list, concat}
+	// resolves to the 2-param FunctionValue after env["pkg/std/list.concat"] is set.
+	// This overwrites any bare-name "concat" set above, so engine functions that
+	// reference Var{concat} get the correct (2-param) version.
+	for _, dv := range deferredVarGlobals {
+		val, err := evaluator.Eval(dv.ref)
+		if err == nil && val != nil {
+			env.Set(dv.name, val)
 		}
-		env.Set(pending.name, funcVal)
-		if pending.modulePath != "" {
-			env.Set(pending.modulePath+"."+pending.name, funcVal)
+	}
+}
+
+// sortStrings sorts a slice of strings in-place (ascending lexicographic order).
+func sortStrings(ss []string) {
+	for i := 1; i < len(ss); i++ {
+		key := ss[i]
+		j := i - 1
+		for j >= 0 && ss[j] > key {
+			ss[j+1] = ss[j]
+			j--
 		}
+		ss[j+1] = key
 	}
 }
