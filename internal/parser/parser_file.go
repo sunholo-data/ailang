@@ -358,6 +358,45 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 	return imp
 }
 
+// reportMisplacedImport emits PAR_IMPORT_PLACEMENT for an `import` encountered at
+// declaration level (i.e. after a non-import top-level declaration has been
+// parsed). See #325: the message states the placement rule and carries the
+// concrete fix, replacing the old opaque PAR_NO_PREFIX_PARSE cascade for this
+// token. It then consumes the whole import statement so parsing can continue
+// cleanly — exactly one placement error per misplaced import, and no cascading
+// no-prefix-parse errors.
+//
+// Design choice (documented in m-diagnostic-coverage): one placement error per
+// misplaced import (not a single collapsed error), so each offending line is
+// pointed at individually — matching how models read per-line compiler output.
+func (p *Parser) reportMisplacedImport() ast.Node {
+	err := NewSuggestionError(
+		"PAR_IMPORT_PLACEMENT",
+		p.curPos(),
+		p.curToken,
+		"imports must appear immediately after the module declaration",
+		[]string{
+			"move this import above the first type/func declaration",
+		},
+		"https://ailang.sunholo.com/docs/guides/module_execution",
+	)
+	p.errors = append(p.errors, err)
+
+	// Consume the whole import statement using the existing import parser, but
+	// discard any errors it emits internally — we've already reported the one
+	// diagnostic that matters, and we don't want the placement error to turn into
+	// a cascade of import-internal complaints. parseImportDecl leaves the cursor
+	// AT the last token of the import (parser convention), so the ParseFile loop's
+	// nextToken() advances correctly to the following declaration.
+	errCountBefore := len(p.errors)
+	_ = p.parseImportDecl()
+	if len(p.errors) > errCountBefore {
+		p.errors = p.errors[:errCountBefore]
+	}
+
+	return nil
+}
+
 // parseExportList parses a standalone export list: export { name1, name2 }
 func (p *Parser) parseExportList() []string {
 	var exports []string

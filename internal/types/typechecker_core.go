@@ -105,6 +105,13 @@ type CoreTypeChecker struct {
 	// — early gates in inferRecordAccess can't catch it because the
 	// receiver type isn't resolved yet at constraint-emission time.
 	deferredFieldAccesses []deferredFieldAccess
+	// moduleFuncNames is the set of module-level function names declared in the
+	// current module (populated from the surface AST before the decl loop). Used
+	// ONLY by inferVar to enrich the "undefined variable: X" message when X is a
+	// genuine module-level function that the resolver failed to bind in a given
+	// syntactic position — the interim truth-telling diagnostic for #327
+	// (record-update-local-resolution). Retired when the real fix ships.
+	moduleFuncNames map[string]bool
 }
 
 // deferredFieldAccess records a single `expr.field` site for post-
@@ -273,6 +280,14 @@ func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
 		tc.globalTypes = make(map[string]*Scheme)
 	}
 	tc.globalTypes[key] = scheme
+}
+
+// SetModuleFuncNames records the module-level function names of the current
+// module. Consumed ONLY by inferVar's undefined-variable diagnostic to detect
+// the #327 shape (a local function that resolves as "undefined variable" in a
+// record-update field). Interim; retired when the real resolution fix ships.
+func (tc *CoreTypeChecker) SetModuleFuncNames(names map[string]bool) {
+	tc.moduleFuncNames = names
 }
 
 // SetConstructorTypes sets the constructor → ADT type mappings.
