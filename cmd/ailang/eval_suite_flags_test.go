@@ -73,7 +73,9 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution drift detector. Refreshed 2026-07-08 (second pass): +4
+	// Distribution drift detector. Refreshed 2026-07-09: waves 3-5 added
+	// quine, emit_exact_bytes_varied, gauntlet_10, legal_obligation_engine —
+	// stretch 26->30. Prior refresh 2026-07-08 (second pass): +4
 	// constrained-construction / insight-forced benchmarks (emit_exact_bytes,
 	// digitless_constants, commonmark_emphasis, binary_strings_1e18) after the
 	// sonnet probe showed the first 8 sat at the top of stretch — stretch
@@ -87,7 +89,7 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// independently.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 26, 3)
-	checkTierCount(t, "stretch", len(stretch), 26, 3)
+	checkTierCount(t, "stretch", len(stretch), 30, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

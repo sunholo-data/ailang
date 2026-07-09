@@ -1,0 +1,239 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (concat)
+import std/string (substring, length)
+
+-- Deontic contract engine: milestones, notice/cure, waiver, FM, amendment,
+-- termination cascade. State threaded through event processing.
+
+type Ev = Deliver(int, string)
+        | Pay(int, string)
+        | AmendPrice(int, string, int)
+        | ForceMajeure(int, int, int)
+        | Notice(int, string)
+        | Waive(int, string)
+        | Terminate(int, string)
+
+type Term = NoTerm | TermAt(int, string)
+
+func aGet(xs: [(string, int)], k: string) -> int {
+  match xs {
+    [] => -1,
+    p :: rest => match p { (n, v) => if n == k then v else aGet(rest, k) }
+  }
+}
+
+func aSet(xs: [(string, int)], k: string, v: int) -> [(string, int)] {
+  match xs {
+    [] => [(k, v)],
+    p :: rest => match p { (n, old) => if n == k then (k, v) :: rest else p :: aSet(rest, k, v) }
+  }
+}
+
+func hasStr(xs: [string], k: string) -> bool {
+  match xs {
+    [] => false,
+    h :: t => if h == k then true else hasStr(t, k)
+  }
+}
+
+func maxI(a: int, b: int) -> int = if a > b then a else b
+func minI(a: int, b: int) -> int = if a < b then a else b
+
+func penPerDay() -> int = 200
+func penCap() -> int = 4000
+func payWithin() -> int = 10
+func cureDays() -> int = 15
+func ratePct() -> int = 1
+func period() -> int = 10
+
+-- cured: for "payment" breaches paid day exists and <= notice+cure; delivery likewise
+func isCured(what: string, m: string, delivered: [(string, int)], paid: [(string, int)], nday: int) -> bool {
+  let d = if what == "payment" then aGet(paid, m) else aGet(delivered, m);
+  d >= 0 && d <= nday + cureDays()
+}
+
+func splitBid(bid: string) -> (string, string) {
+  -- bids are "Mx-what": milestone is first 2 chars, what is the rest after '-'
+  match bid {
+    _ => (takeN(bid, 2), dropN(bid, 3))
+  }
+}
+
+func takeN(s: string, n: int) -> string = substring(s, 0, n)
+func dropN(s: string, n: int) -> string = substring(s, n, length(s))
+
+func findGrounds(notices: [(string, int)], waived: [string], delivered: [(string, int)], paid: [(string, int)], day: int) -> Term {
+  match notices {
+    [] => NoTerm,
+    p :: rest => match p {
+      (bid, nday) =>
+        if hasStr(waived, bid) then findGrounds(rest, waived, delivered, paid, day)
+        else {
+          match splitBid(bid) {
+            (m, what) =>
+              if (isCured(what, m, delivered, paid, nday) == false) && day > nday + cureDays()
+              then TermAt(day, bid)
+              else findGrounds(rest, waived, delivered, paid, day)
+          }
+        }
+    }
+  }
+}
+
+type St = St({dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term})
+
+func extendFm(dls: [(string, int)], delivered: [(string, int)], d1: int, d2: int) -> [(string, int)] {
+  match dls {
+    [] => [],
+    p :: rest => match p {
+      (m, dl) => {
+        let span = d2 - d1 + 1;
+        let ndl = if dl >= d1 && dl <= d2 && aGet(delivered, m) < 0 then dl + span else dl;
+        (m, ndl) :: extendFm(rest, delivered, d1, d2)
+      }
+    }
+  }
+}
+
+func applyEv(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term}, ev: Ev) -> {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term} {
+  match ev {
+    Deliver(day, m) => ({ s | delivered: aSet(s.delivered, m, day) }),
+    Pay(day, m) => ({ s | paid: aSet(s.paid, m, day) }),
+    AmendPrice(_, m, p) => ({ s | prs: aSet(s.prs, m, p) }),
+    ForceMajeure(_, d1, d2) => ({ s | dls: extendFm(s.dls, s.delivered, d1, d2) }),
+    Notice(day, bid) => ({ s | notices: concat(s.notices, [(bid, day)]) }),
+    Waive(_, bid) => ({ s | waived: concat(s.waived, [bid]) }),
+    Terminate(day, _) => (match findGrounds(s.notices, s.waived, s.delivered, s.paid, day) {
+      NoTerm => s,
+      TermAt(d, g) => ({ s | term: TermAt(d, g) })
+    })
+  }
+}
+
+func runEvs(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term}, evs: [Ev]) -> {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term} {
+  match evs {
+    [] => s,
+    e :: rest => runEvs(applyEv(s, e), rest)
+  }
+}
+
+-- breach resolution line for a milestone+what, or "" if none
+func breachLine(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term}, m: string, what: string) -> string {
+  let bid = "${m}-${what}";
+  if hasStr(s.waived, bid) then "${m} ${what} breach: WAIVED"
+  else {
+    let nday = aGet(s.notices, bid);
+    if nday < 0 then ""
+    else if isCured(what, m, s.delivered, s.paid, nday) then "${m} ${what} breach: CURED"
+    else "${m} ${what} breach: UNCURED"
+  }
+}
+
+func printIf(line: string) -> () ! {IO} {
+  if line == "" then () else println(line)
+}
+
+func termDay(t: Term) -> int {
+  match t { NoTerm => -1, TermAt(d, _) => d }
+}
+
+-- returns (vendorOwes, clientOwes) contribution for milestone m, printing its lines
+func doMilestone(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term}, m: string) -> (int, int) ! {IO} {
+  let dl = aGet(s.dls, m);
+  let price = aGet(s.prs, m);
+  let dDay = aGet(s.delivered, m);
+  let tday = termDay(s.term);
+  if dDay >= 0 then {
+    let late = maxI(0, dDay - dl);
+    let pen0 = minI(penPerDay() * late, penCap());
+    let pen = if hasStr(s.waived, "${m}-delivery") then 0 else pen0;
+    println("${m} delivery: DELIVERED day=${show(dDay)} late=${show(late)} penalty=${show(pen)}");
+    let due = dDay + payWithin();
+    let pDay = aGet(s.paid, m);
+    if pDay >= 0 then {
+      let lateP = maxI(0, pDay - due);
+      let periods = lateP / period();
+      let interest = price * ratePct() * periods / 100;
+      println("${m} payment: PAID day=${show(pDay)} late=${show(lateP)} interest=${show(interest)}");
+      printIf(breachLine(s, m, "delivery"));
+      printIf(breachLine(s, m, "payment"));
+      let owed = if hasStr(s.waived, "${m}-payment") then 0 else interest;
+      (pen, owed)
+    } else {
+      if tday >= 0 then {
+        println("${m} payment: CANCELLED");
+        printIf(breachLine(s, m, "delivery"));
+        printIf(breachLine(s, m, "payment"));
+        (pen, 0)
+      } else {
+        printIf(breachLine(s, m, "delivery"));
+        printIf(breachLine(s, m, "payment"));
+        (pen, 0)
+      }
+    }
+  } else {
+    if tday >= 0 then {
+      let lateDays = (tday - 1) - dl;
+      let pen0 = minI(penPerDay() * lateDays, penCap());
+      let pen = if hasStr(s.waived, "${m}-delivery") then 0 else pen0;
+      println("${m} delivery: CANCELLED late_days=${show(lateDays)} penalty=${show(pen)}");
+      println("${m} payment: CANCELLED");
+      printIf(breachLine(s, m, "delivery"));
+      printIf(breachLine(s, m, "payment"));
+      (pen, 0)
+    } else {
+      (0, 0)
+    }
+  }
+}
+
+func printEff(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(string, int)], paid: [(string, int)], notices: [(string, int)], waived: [string], term: Term}, m: string) -> () ! {IO} {
+  let dl = aGet(s.dls, m);
+  let pr = aGet(s.prs, m);
+  println("${m} effective: deadline=${show(dl)} price=${show(pr)}")
+}
+
+export func main() -> () ! {IO} {
+  let evs = [
+    Deliver(8, "M1"),
+    AmendPrice(30, "M2", 22000),
+    ForceMajeure(35, 38, 44),
+    Pay(41, "M1"),
+    Waive(45, "M1-payment"),
+    Deliver(50, "M2"),
+    Notice(61, "M2-payment"),
+    Pay(74, "M2"),
+    Notice(80, "M3-delivery"),
+    Terminate(96, "Client")
+  ];
+  let s0 = {
+    dls: [("M1", 10), ("M2", 40), ("M3", 70)],
+    prs: [("M1", 10000), ("M2", 20000), ("M3", 15000)],
+    delivered: [], paid: [], notices: [], waived: [], term: NoTerm
+  };
+  let s = runEvs(s0, evs);
+  printEff(s, "M1");
+  printEff(s, "M2");
+  printEff(s, "M3");
+  match doMilestone(s, "M1") {
+    (v1, c1) => match doMilestone(s, "M2") {
+      (v2, c2) => match doMilestone(s, "M3") {
+        (v3, c3) => {
+          match s.term {
+            TermAt(d, g) => println("termination: day=${show(d)} by=Client grounds=${g}"),
+            NoTerm => ()
+          };
+          let vo = v1 + v2 + v3;
+          let co = c1 + c2 + c3;
+          println("vendor_owes=${show(vo)}");
+          println("client_owes=${show(co)}");
+          if vo > co then println("net: Vendor pays Client ${show(vo - co)}")
+          else if co > vo then println("net: Client pays Vendor ${show(co - vo)}")
+          else println("net: settled")
+        }
+      }
+    }
+  }
+}
