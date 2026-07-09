@@ -1,0 +1,242 @@
+id: gauntlet_10
+description: "Ten hard sections, one program, 67 exact output lines — sustained flawless emission; a single slip anywhere fails everything"
+# FRONTIER-CLASS, conjunction family (M-EVAL-FRONTIER-TIER wave 4). Waves 2-3
+# established that no single trap defeats a frontier model at temp-0 with
+# adaptive thinking: computation is delegated, self-reference is routed
+# through quine machinery, specs are followed. The remaining pass@1 failure
+# mode is CONJUNCTION: sustaining ~97-99% per-section reliability across ten
+# independent hard sections multiplies to a real failure probability at the
+# frontier while staying near-zero for mid-tier models (0.5^10). Every
+# section is an isomorphic re-parameterization of an already-validated
+# benchmark (fresh constants everywhere; divergence-trap structure preserved
+# by relabeling): vm trace, LFU cache, txn ledger, precedence parser, glob,
+# SSA fold, LCG stream, pattern-avoiding count (new automaton: "0110"),
+# CommonMark '*' emphasis (fresh vectors re-validated against cmark), and
+# backtracking resolver. Both reference solutions produce all 67 lines
+# byte-identically; AILANG ref runs in ~2.8s.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, state_machine, string_algo]
+task_prompt: |
+  Write ONE program in <LANG> that solves ALL TEN parts below and prints their
+  outputs in order (part 1 first, then part 2, ... no separators, no headers,
+  no blank lines between parts). Every line must be exact. A single wrong line
+  anywhere fails the whole task.
+  
+  PART 1 — stack machine. Implement a stack VM with instructions:
+  PUSH k (push integer); SUB (pop b=top, pop a, push a-b); DUP (duplicate top);
+  OVER (push copy of second-from-top); SWAP (exchange top two); POP (discard
+  top); JMP d / JMPZ d / JMPGT d (jumps: d is relative to the index of THIS
+  instruction; JMPZ pops v and jumps if v == 0; JMPGT pops b then a and jumps
+  if a > b; otherwise fall through to the next instruction); HALT (stop).
+  Every executed instruction counts toward a step counter, including HALT and
+  jumps taken or not. Start at index 0. Program:
+    0: PUSH 462   1: PUSH 198   2: OVER   3: OVER   4: SUB   5: JMPZ 12
+    6: OVER   7: OVER   8: JMPGT 4   9: OVER   10: SUB   11: JMP -9
+    12: SWAP   13: OVER   14: SUB   15: SWAP   16: JMP -14   17: POP   18: HALT
+  After HALT print each remaining stack value bottom to top, one per line, then
+  a line exactly: steps: N
+  
+  PART 2 — LFU cache, capacity 3, integer keys/values. Operations are
+  timestamped 1,2,3,... in order. get k: print the value (or -1 if absent);
+  a hit increments the key's use-count and sets its last-used time. put k v on
+  an existing key updates the value, increments use-count, sets last-used time
+  (an update counts as a use). put of a NEW key when full first evicts the key
+  with the smallest use-count, ties broken by least-recently-USED; then inserts
+  with use-count 1. Eviction considers only keys already in the cache.
+  Operations: put 11 17, put 12 27, put 13 37, get 11, put 14 47, put 15 57,
+  get 13, get 14, get 15, get 11, put 14 51, put 16 67, get 15, get 16, get 16,
+  put 17 77, get 11, get 14, put 18 87, get 17.
+  After all operations print one line: cache: k1=v1,k2=v2,k3=v3 (keys ascending).
+  
+  PART 3 — checkpointed ledger. Accounts carol=200, dave=100; empty snapshot
+  stack; failure counter 0. Operations execute in order and always continue:
+  dep A X adds X to A. wd A X subtracts if balance >= X, otherwise it FAILS:
+  increment failures and, if the snapshot stack is non-empty, restore all
+  balances from the most recent snapshot AND REMOVE it. save pushes a snapshot
+  of all balances. commit removes the most recent snapshot without restoring
+  (empty stack: FAILS, count it, nothing else changes). restore restores from
+  the most recent snapshot and removes it (empty stack: FAILS, count it).
+  Sequence: save, dep carol 60, save, wd dave 160, wd carol 180, save,
+  wd carol 100, dep dave 50, commit, restore, wd dave 150, commit, dep carol 10.
+  Print three lines: carol=<n>  dave=<n>  failures=<n>
+  
+  PART 4 — expression parser. Tokens: multi-digit non-negative integers, + - */
+  ^ ( ) and unary minus; inputs contain no whitespace. Precedence: + - level 1
+  (left-assoc); * / level 2 (left-assoc); unary minus level 3 (tighter than */
+  but LOOSER than ^, so -3^2 parses as -(3^2) while -3*2 is (-3)*2; unary minus
+  may appear as an exponent: 3^-2); ^ level 4 (RIGHT-assoc). Print each input's
+  fully parenthesized form (binary: (L<op>R), unary: (-X), no spaces; source
+  parentheses are not reproduced):
+    -3^2   2^2^3   9-2-3   3^-2*5   --7+2   -5^-2^2   (2+3)*-4   200-20*-3^2
+  
+  PART 5 — glob matcher. * matches zero or more characters but NEVER /;
+  ? matches exactly one character but never /; [abc] one character from the
+  set, [d-f] inclusive ranges, a set matches / only if / is listed; [!...]
+  matches one character NOT in the set but still never matches /; other
+  characters are literal; whole pattern must match the whole string; patterns
+  are well-formed, ] never appears inside a set. Do not use a library matcher.
+  Print 1 or 0 per pair, one per line:
+    *.log/server.log   *.log/var/server.log   x*y*z/xayaybz   x*y*z/xayayb
+    ?og/dog   ?og//og   [d-f]og/dog   [!d-f]og/dog   [!d-f]og/hog   [!/]a//a
+    b[/]c/b/c   */(empty string)   *q*/qq   *cd/ccd   d?f*/def   *//xyz/
+  (each entry is pattern/string; the string of entry 12 is empty)
+  
+  PART 6 — IR optimizer. Take this straight-line program (represent as data):
+    k = input
+    w = input
+    a = 9
+    a = a - 9
+    c = k * a
+    k = k + c
+    q = w * 4
+    e = k * 9
+    f = e - e
+    e = e + f
+    r = e * 1
+    return r
+  Apply in order: (1) SSA renaming — the i-th assignment (0-indexed, counted
+  per variable) to v defines v.i; uses refer to the most recent definition.
+  (2) Forward simplification in instruction order, keeping a table mapping each
+  SSA name to Const(k), Copy(name) or Opaque: first substitute operands (Const
+  -> the integer; Copy -> its source, following chains); then classify with the
+  first matching rule: v = input -> Opaque (KEPT); v = literal -> Const
+  (deleted); both operands literal -> compute, Const (deleted); x - x with the
+  same SSA name -> Const 0; x * 0 / 0 * x -> Const 0; x * 1 / 1 * x -> Copy(x);
+  x + 0 / 0 + x -> Copy(x); x - 0 -> Copy(x); anything else -> Opaque, KEPT
+  with substituted operands. For return: substitute the same way. (3) Dead code
+  elimination: keep only KEPT instructions transitively referenced from the
+  return operand, in original order. Print surviving instructions as
+  "name.i = operand op operand" (single spaces, literals as integers), then
+  "return <operand>".
+  
+  PART 7 — PRNG stream. x[n+1] = (16807 * x[n]) mod 2147483647, x[0] = 20260709.
+  Consider exactly x[1] through x[2000]. Print three lines: x[2000]; the sum of
+  the 10 largest values; the sum of all 2000 values modulo 1000000007.
+  
+  PART 8 — pattern-avoiding count. Count binary strings (characters 0/1) of
+  length n containing NO occurrence of the substring "0110", modulo 1000000007.
+  Print the count for n = 1000000000000000000, then for n = 987654321987654321.
+  The whole program is killed after 30 seconds — choose your algorithm
+  accordingly.
+  
+  PART 9 — '*' emphasis rendering. A delimiter run is a maximal sequence of
+  consecutive '*'. Whitespace means space; positions before the first and after
+  the last character count as whitespace. Punctuation is any of
+  !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ . A run is LEFT-FLANKING if (a) the next
+  character is not whitespace AND (b) the next character is not punctuation OR
+  the previous character is whitespace/punctuation; RIGHT-FLANKING mirrors this
+  (previous character not whitespace; previous not punctuation OR next is
+  whitespace/punctuation). A run can OPEN if left-flanking, CLOSE if
+  right-flanking. Matching: keep runs in a list in order, each with ORIGINAL
+  length and REMAINING stars; scan a cursor from the first run: (1) if the run
+  at the cursor cannot close or has no stars left, advance; (2) otherwise it is
+  the CLOSER — search backward from the previous run for the nearest OPENER
+  (stars remaining, can open, not blocked by the RULE OF THREE: if the closer
+  can also open or the opener can also close, and the sum of their ORIGINAL
+  lengths is a multiple of 3, they cannot match unless both original lengths
+  are multiples of 3); (3) no opener found: if the closer cannot open, remove
+  it from the list (stars stay literal) and keep the cursor at this position,
+  else advance; (4) opener found: if both have >= 2 stars remaining the match
+  is STRONG (consumes 2 from each) else EMPHASIS (consumes 1 from each); record
+  it; remove all runs strictly between them; remove opener/closer if their
+  remaining count is zero; leave the cursor on the closer if it still has stars,
+  else the cursor stays at that position; (5) repeat to the end; unconsumed
+  stars are literal. Rendering: each match wraps the text between opener and
+  closer in <strong> (2-star) or <em> (1-star); a later match on the same run
+  wraps OUTSIDE earlier ones; leftover literal stars are emitted after a run's
+  closing tags and before its opening tags. Render each input, one line each:
+    *river stone*   b * candle dim*   **dune**crest   ***basalt***   **murmur*
+    *cinder**   *fen**reed**mist*   *loam**peat*   ***crag*ledge**
+    **flint**spark**   *p*q*r*   twist**knot*loop
+  
+  PART 10 — dependency resolver with backtracking. A universe lists package
+  versions; each (package, version) has requirements (dep, lo, hi) meaning dep
+  must get a version v with lo <= v <= hi. Resolution: start with {app=11} and
+  app 11's requirements as the worklist, in order. Take the FIRST requirement:
+  if its package is assigned, it must be in range (else this branch FAILS);
+  if unassigned, try each available version in range HIGHEST first — assign it,
+  PREPEND that version's requirements to the worklist, recurse; on failure undo
+  and try the next lower version; all candidates failing fails the branch
+  (backtracking into earlier choices). Succeed when the worklist is empty.
+  Universe A (resolve app 11): app 11 requires lib [11..13], util [13..13];
+  lib 13 requires core [13..13]; lib 12 requires core [11..12]; lib 11 requires
+  nothing; util 13 requires core [11..11]; core 13, core 12, core 11: nothing.
+  Universe B (resolve app 11): app 11 requires x [11..11], y [11..11];
+  x 11 requires core [11..11]; y 11 requires core [12..12]; core 12, core 11.
+  For each universe in order: on success print "resolved" then every assignment
+  as name=version sorted by name ascending; on failure print "conflict".
+  
+  Output only the code, no explanations.
+expected_stdout: |
+  66
+  steps: 52
+  17
+  -1
+  47
+  57
+  17
+  -1
+  67
+  67
+  -1
+  51
+  -1
+  cache: 14=51,16=67,18=87
+  carol=90
+  dave=0
+  failures=4
+  (-(3^2))
+  (2^(2^3))
+  ((9-2)-3)
+  ((3^(-2))*5)
+  ((-(-7))+2)
+  (-(5^(-(2^2))))
+  ((2+3)*(-4))
+  (200-(20*(-(3^2))))
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  0
+  1
+  1
+  1
+  1
+  1
+  1
+  k.0 = input
+  e.0 = k.0 * 9
+  return e.0
+  1019962920
+  21448033109
+  189095872
+  23418687
+  394248546
+  <em>river stone</em>
+  b * candle dim*
+  <strong>dune</strong>crest
+  <em><strong>basalt</strong></em>
+  *<em>murmur</em>
+  <em>cinder</em>*
+  <em>fen<strong>reed</strong>mist</em>
+  <em>loam**peat</em>
+  <strong><em>crag</em>ledge</strong>
+  <strong>flint</strong>spark**
+  <em>p</em>q<em>r</em>
+  twist**knot*loop
+  resolved
+  app=11
+  core=11
+  lib=12
+  util=13
+  conflict

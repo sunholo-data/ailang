@@ -1,0 +1,1127 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (nth, reverse, length, take, drop, concat, filter, map, sortBy, foldl)
+import std/string (chars, contains, join, compare, find, substring)
+
+type Instr = Push(int) | Add | Sub | Mul | Dup | Over | Swap | Pop
+           | Jmp(int) | Jmpz(int) | Jmpgt(int) | Halt
+
+func s1Exec(prog: [Instr], pc: int, stack: [int], steps: int) -> {stack: [int], steps: int} {
+  match nth(prog, pc) {
+    None => ({ stack: stack, steps: steps }),
+    Some(instr) =>
+      match instr {
+        Halt => ({ stack: stack, steps: steps + 1 }),
+        Push(k) => s1Exec(prog, pc + 1, k :: stack, steps + 1),
+        Add => (match stack { b :: a :: rest => s1Exec(prog, pc + 1, (a + b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Sub => (match stack { b :: a :: rest => s1Exec(prog, pc + 1, (a - b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Mul => (match stack { b :: a :: rest => s1Exec(prog, pc + 1, (a * b) :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Dup => (match stack { t :: rest => s1Exec(prog, pc + 1, t :: t :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Over => (match stack { b :: a :: rest => s1Exec(prog, pc + 1, a :: b :: a :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Swap => (match stack { b :: a :: rest => s1Exec(prog, pc + 1, a :: b :: rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Pop => (match stack { _ :: rest => s1Exec(prog, pc + 1, rest, steps + 1), _ => ({ stack: stack, steps: steps }) }),
+        Jmp(d) => s1Exec(prog, pc + d, stack, steps + 1),
+        Jmpz(d) => (match stack {
+          v :: rest => if v == 0 then s1Exec(prog, pc + d, rest, steps + 1) else s1Exec(prog, pc + 1, rest, steps + 1),
+          _ => ({ stack: stack, steps: steps })
+        }),
+        Jmpgt(d) => (match stack {
+          b :: a :: rest => if a > b then s1Exec(prog, pc + d, rest, steps + 1) else s1Exec(prog, pc + 1, rest, steps + 1),
+          _ => ({ stack: stack, steps: steps })
+        })
+      }
+  }
+}
+
+func s1Print(xs: [int]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    v :: rest => { println(show(v)); s1Print(rest) }
+  }
+}
+
+func s1Run() -> () ! {IO} {
+  let prog = [
+    Push(462),
+    Push(198),
+    Over,
+    Over,
+    Sub,
+    Jmpz(12),
+    Over,
+    Over,
+    Jmpgt(4),
+    Over,
+    Sub,
+    Jmp(-9),
+    Swap,
+    Over,
+    Sub,
+    Swap,
+    Jmp(-14),
+    Pop,
+    Halt
+  ];
+  let res = s1Exec(prog, 0, [], 0);
+  s1Print(reverse(res.stack));
+  println("steps: ${show(res.steps)}")
+}
+
+type CacheOp = Get(int) | Put(int, int)
+
+type S2Entry = S2Entry({k: int, v: int, c: int, u: int})
+
+type S2Lookup = Hit(int) | Miss
+
+func s2Lookup(cache: [{k: int, v: int, c: int, u: int}], key: int) -> S2Lookup {
+  match cache {
+    [] => Miss,
+    e :: rest => if e.k == key then Hit(e.v) else s2Lookup(rest, key)
+  }
+}
+
+func s2Touch(cache: [{k: int, v: int, c: int, u: int}], key: int, tick: int) -> [{k: int, v: int, c: int, u: int}] {
+  match cache {
+    [] => [],
+    e :: rest =>
+      if e.k == key
+      then ({ e | c: e.c + 1, u: tick }) :: rest
+      else e :: s2Touch(rest, key, tick)
+  }
+}
+
+func s2Update(cache: [{k: int, v: int, c: int, u: int}], key: int, val: int, tick: int) -> [{k: int, v: int, c: int, u: int}] {
+  match cache {
+    [] => [],
+    e :: rest =>
+      if e.k == key
+      then ({ e | v: val, c: e.c + 1, u: tick }) :: rest
+      else e :: s2Update(rest, key, val, tick)
+  }
+}
+
+-- victim: smallest count; tie -> smallest last-use tick
+func s2Victim(cache: [{k: int, v: int, c: int, u: int}]) -> int {
+  match cache {
+    [] => -1,
+    e :: rest => s2VictimGo(rest, e)
+  }
+}
+
+func s2VictimGo(cache: [{k: int, v: int, c: int, u: int}], best: {k: int, v: int, c: int, u: int}) -> int {
+  match cache {
+    [] => best.k,
+    e :: rest =>
+      if e.c < best.c || (e.c == best.c && e.u < best.u)
+      then s2VictimGo(rest, e)
+      else s2VictimGo(rest, best)
+  }
+}
+
+func s2Drop(cache: [{k: int, v: int, c: int, u: int}], key: int) -> [{k: int, v: int, c: int, u: int}] {
+  filter(func(e: {k: int, v: int, c: int, u: int}) -> bool { e.k != key }, cache)
+}
+
+func s2Run(ops: [CacheOp], cache: [{k: int, v: int, c: int, u: int}], tick: int) -> [{k: int, v: int, c: int, u: int}] ! {IO} {
+  match ops {
+    [] => cache,
+    op :: rest =>
+      match op {
+        Get(key) => {
+          match s2Lookup(cache, key) {
+            Hit(v) => {
+              println(show(v));
+              s2Run(rest, s2Touch(cache, key, tick), tick + 1)
+            },
+            Miss => {
+              println("-1");
+              s2Run(rest, cache, tick + 1)
+            }
+          }
+        },
+        Put(key, val) => {
+          match s2Lookup(cache, key) {
+            Hit(_) => s2Run(rest, s2Update(cache, key, val, tick), tick + 1),
+            Miss => {
+              let evicted = if length(cache) == 3 then s2Drop(cache, s2Victim(cache)) else cache;
+              s2Run(rest, ({ k: key, v: val, c: 1, u: tick }) :: evicted, tick + 1)
+            }
+          }
+        }
+      }
+  }
+}
+
+func s2CmpKey(a: {k: int, v: int, c: int, u: int}, b: {k: int, v: int, c: int, u: int}) -> int = a.k - b.k
+
+func s2Go() -> () ! {IO} {
+  let ops = [
+    Put(11, 17), Put(12, 27), Put(13, 37),
+    Get(11),
+    Put(14, 47),
+    Put(15, 57),
+    Get(13),
+    Get(14),
+    Get(15),
+    Get(11),
+    Put(14, 51),
+    Put(16, 67),
+    Get(15),
+    Get(16),
+    Get(16),
+    Put(17, 77),
+    Get(11),
+    Get(14),
+    Put(18, 87),
+    Get(17)
+  ];
+  let fin = s2Run(ops, [], 1);
+  let sorted = sortBy(s2CmpKey, fin);
+  let parts = map(func(e: {k: int, v: int, c: int, u: int}) -> string { "${show(e.k)}=${show(e.v)}" }, sorted);
+  let joined = join(",", parts);
+  println("cache: ${joined}")
+}
+
+type LedgerOp = Dep(string, int) | Wd(string, int) | Save | Commit | Restore
+
+type S3St = St({carol: int, dave: int, snaps: [(int, int)], fails: int})
+
+func s3Bal(s: {carol: int, dave: int, snaps: [(int, int)], fails: int}, acct: string) -> int {
+  if acct == "carol" then s.carol else s.dave
+}
+
+func s3Apply(s: {carol: int, dave: int, snaps: [(int, int)], fails: int}, op: LedgerOp) -> {carol: int, dave: int, snaps: [(int, int)], fails: int} {
+  match op {
+    Dep(acct, amt) =>
+      if acct == "carol" then ({ s | carol: s.carol + amt }) else ({ s | dave: s.dave + amt }),
+    Wd(acct, amt) =>
+      if s3Bal(s, acct) >= amt then {
+        if acct == "carol" then ({ s | carol: s.carol - amt }) else ({ s | dave: s.dave - amt })
+      } else {
+        match s.snaps {
+          snap :: rest => match snap { (sa, sb) => ({ carol: sa, dave: sb, snaps: rest, fails: s.fails + 1 }) },
+          [] => ({ s | fails: s.fails + 1 })
+        }
+      },
+    Save => ({ s | snaps: (s.carol, s.dave) :: s.snaps }),
+    Commit =>
+      match s.snaps {
+        _ :: rest => ({ s | snaps: rest }),
+        [] => ({ s | fails: s.fails + 1 })
+      },
+    Restore =>
+      match s.snaps {
+        snap :: rest => match snap { (sa, sb) => ({ carol: sa, dave: sb, snaps: rest, fails: s.fails }) },
+        [] => ({ s | fails: s.fails + 1 })
+      }
+  }
+}
+
+func s3Run(s: {carol: int, dave: int, snaps: [(int, int)], fails: int}, ops: [LedgerOp]) -> {carol: int, dave: int, snaps: [(int, int)], fails: int} {
+  match ops {
+    [] => s,
+    op :: rest => s3Run(s3Apply(s, op), rest)
+  }
+}
+
+func s3Go() -> () ! {IO} {
+  let ops = [
+    Save,
+    Dep("carol", 60),
+    Save,
+    Wd("dave", 160),
+    Wd("carol", 180),
+    Save,
+    Wd("carol", 100),
+    Dep("dave", 50),
+    Commit,
+    Restore,
+    Wd("dave", 150),
+    Commit,
+    Dep("carol", 10)
+  ];
+  let fin = s3Run({ carol: 200, dave: 100, snaps: [], fails: 0 }, ops);
+  println("carol=${show(fin.carol)}");
+  println("dave=${show(fin.dave)}");
+  println("failures=${show(fin.fails)}")
+}
+
+type S4Tok = S4Num(string) | S4Sym(string)
+
+func s4IsDigit(c: string) -> bool = contains("0123456789", c)
+
+func s4Digits(cs: [string], acc: string) -> (string, [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest => if s4IsDigit(c) then s4Digits(rest, "${acc}${c}") else (acc, cs)
+  }
+}
+
+func s4Tok(cs: [string], acc: [S4Tok]) -> [S4Tok] {
+  match cs {
+    [] => reverse(acc),
+    c :: rest =>
+      if s4IsDigit(c)
+      then (match s4Digits(rest, c) { (numstr, rem) => s4Tok(rem, S4Num(numstr) :: acc) })
+      else s4Tok(rest, S4Sym(c) :: acc)
+  }
+}
+
+func s4Prec(s: string) -> int {
+  if s == "+" || s == "-" then 1
+  else if s == "*" || s == "/" then 2
+  else if s == "^" then 4
+  else 0
+}
+
+func s4Expr(toks: [S4Tok], minPrec: int) -> (string, [S4Tok]) {
+  match s4Unary(toks) {
+    (lhs, rest) => s4Climb(lhs, rest, minPrec)
+  }
+}
+
+func s4Climb(lhs: string, toks: [S4Tok], minPrec: int) -> (string, [S4Tok]) {
+  match toks {
+    [] => (lhs, []),
+    t :: rest => (match t {
+      S4Num(_) => (lhs, toks),
+      S4Sym(op) => {
+        let p = s4Prec(op);
+        if p == 0 || p < minPrec then (lhs, toks)
+        else {
+          let nextMin = if op == "^" then 4 else p + 1;
+          match s4Expr(rest, nextMin) {
+            (rhs, rem) => s4Climb("(${lhs}${op}${rhs})", rem, minPrec)
+          }
+        }
+      }
+    })
+  }
+}
+
+func s4Unary(toks: [S4Tok]) -> (string, [S4Tok]) {
+  match toks {
+    [] => ("", []),
+    t :: rest => (match t {
+      S4Num(_) => s4Atom(toks),
+      S4Sym(s) =>
+        if s == "-" then
+          (match s4Expr(rest, 4) {
+            (e, rem) => ("(-${e})", rem)
+          })
+        else s4Atom(toks)
+    })
+  }
+}
+
+func s4Atom(toks: [S4Tok]) -> (string, [S4Tok]) {
+  match toks {
+    [] => ("", []),
+    t :: rest => (match t {
+      S4Num(s) => (s, rest),
+      S4Sym(s) =>
+        if s == "(" then
+          (match s4Expr(rest, 1) {
+            (e, rem) => (match rem {
+              _ :: rem2 => (e, rem2),
+              [] => (e, [])
+            })
+          })
+        else ("?", rest)
+    })
+  }
+}
+
+func s4Line(s: string) -> string {
+  match s4Expr(s4Tok(chars(s), []), 1) {
+    (e, _) => e
+  }
+}
+
+func s4Print(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(s4Line(s)); s4Print(rest) }
+  }
+}
+
+func s4Go() -> () ! {IO} {
+  s4Print([
+    "-3^2",
+    "2^2^3",
+    "9-2-3",
+    "3^-2*5",
+    "--7+2",
+    "-5^-2^2",
+    "(2+3)*-4",
+    "200-20*-3^2"
+  ])
+}
+
+-- Character class: list of (lo, hi) pairs; single char c is (c, c)
+
+func s5InClass(pairs: [(string, string)], c: string) -> bool {
+  match pairs {
+    [] => false,
+    p :: rest => match p {
+      (lo, hi) => if lo <= c && c <= hi then true else s5InClass(rest, c)
+    }
+  }
+}
+
+-- parse class body after '[': returns (pairs, negated, rest-of-pattern)
+func s5PClass(cs: [string]) -> ([(string, string)], bool, [string]) {
+  match cs {
+    [] => ([], false, []),
+    c :: rest =>
+      if c == "!" then (match s5Collect(rest, []) {
+        (pairs, rem) => (pairs, true, rem)
+      })
+      else (match s5Collect(cs, []) {
+        (pairs, rem) => (pairs, false, rem)
+      })
+  }
+}
+
+func s5Collect(cs: [string], acc: [(string, string)]) -> ([(string, string)], [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest =>
+      if c == "]" then (acc, rest)
+      else (match rest {
+        d :: e :: rest2 =>
+          if d == "-" && e != "]"
+          then s5Collect(rest2, (c, e) :: acc)
+          else s5Collect(rest, (c, c) :: acc),
+        _ => s5Collect(rest, (c, c) :: acc)
+      })
+  }
+}
+
+func s5Match(p: [string], s: [string]) -> bool {
+  match p {
+    [] => (match s { [] => true, _ => false }),
+    pc :: pt =>
+      if pc == "*" then
+        (if s5Match(pt, s) then true
+         else (match s {
+           [] => false,
+           sc :: st => if sc == "/" then false else s5Match(p, st)
+         }))
+      else if pc == "?" then
+        (match s {
+          [] => false,
+          sc :: st => sc != "/" && s5Match(pt, st)
+        })
+      else if pc == "[" then
+        (match s5PClass(pt) {
+          (pairs, neg, prest) => (match s {
+            [] => false,
+            sc :: st => {
+              let hit = s5InClass(pairs, sc);
+              let ok = if neg then (hit == false) && sc != "/" else hit;
+              ok && s5Match(prest, st)
+            }
+          })
+        })
+      else
+        (match s {
+          [] => false,
+          sc :: st => sc == pc && s5Match(pt, st)
+        })
+  }
+}
+
+func s5Check(pat: string, str: string) -> () ! {IO} {
+  if s5Match(chars(pat), chars(str)) then println("1") else println("0")
+}
+
+func s5Go() -> () ! {IO} {
+  s5Check("*.log", "server.log");
+  s5Check("*.log", "var/server.log");
+  s5Check("x*y*z", "xayaybz");
+  s5Check("x*y*z", "xayayb");
+  s5Check("?og", "dog");
+  s5Check("?og", "/og");
+  s5Check("[d-f]og", "dog");
+  s5Check("[!d-f]og", "dog");
+  s5Check("[!d-f]og", "hog");
+  s5Check("[!/]a", "/a");
+  s5Check("b[/]c", "b/c");
+  s5Check("*", "");
+  s5Check("*q*", "qq");
+  s5Check("*cd", "ccd");
+  s5Check("d?f*", "def");
+  s5Check("*/", "xyz/")
+}
+
+-- Source operand: variable name or int literal
+type S6Opd = V(string) | L(int)
+-- Source instruction right-hand sides
+type S6Def = DIn | DOp(S6Opd, string, S6Opd)
+-- Simplification table cell
+type S6Cell = CConst(int) | CCopy(string) | COpq
+-- S6Kept (irreducible) instructions
+type S6Kept = KIn(string) | KOp(string, S6Opd, string, S6Opd)
+-- Resolved operand after substitution
+type S6Res = RName(string) | RLit(int)
+
+func s6AGet(xs: [(string, int)], key: string) -> int {
+  match xs {
+    [] => -1,
+    p :: rest => match p { (k, v) => if k == key then v else s6AGet(rest, key) }
+  }
+}
+
+func s6ASet(xs: [(string, int)], key: string, v: int) -> [(string, int)] {
+  match xs {
+    [] => [(key, v)],
+    p :: rest => match p { (k, old) => if k == key then (key, v) :: rest else p :: s6ASet(rest, key, v) }
+  }
+}
+
+func s6CGet(xs: [(string, S6Cell)], key: string) -> S6Cell {
+  match xs {
+    [] => COpq,
+    p :: rest => match p { (k, c) => if k == key then c else s6CGet(rest, key) }
+  }
+}
+
+func s6Name(v: string, n: int) -> string = "${v}.${show(n)}"
+
+-- Pass 1: SSA-rename. Returns instructions in order with SSA names.
+func s6ROpd(vers: [(string, int)], o: S6Opd) -> S6Opd {
+  match o {
+    L(k) => L(k),
+    V(name) => V(s6Name(name, s6AGet(vers, name)))
+  }
+}
+
+func s6Pass(prog: [(string, S6Def)], vers: [(string, int)], acc: [(string, S6Def)]) -> [(string, S6Def)] {
+  match prog {
+    [] => reverse(acc),
+    p :: rest => match p {
+      (dest, def) => {
+        let rdef = match def {
+          DIn => DIn,
+          DOp(a, op, b) => DOp(s6ROpd(vers, a), op, s6ROpd(vers, b))
+        };
+        let n = s6AGet(vers, dest) + 1;
+        let vers2 = s6ASet(vers, dest, n);
+        s6Pass(rest, vers2, (s6Name(dest, n), rdef) :: acc)
+      }
+    }
+  }
+}
+
+-- Pass 2: forward simplification
+func s6Resolve(table: [(string, S6Cell)], o: S6Opd) -> S6Res {
+  match o {
+    L(k) => RLit(k),
+    V(name) => match s6CGet(table, name) {
+      CConst(k) => RLit(k),
+      CCopy(w) => s6Resolve(table, V(w)),
+      COpq => RName(name)
+    }
+  }
+}
+
+func s6RTO(r: S6Res) -> S6Opd {
+  match r {
+    RLit(k) => L(k),
+    RName(n) => V(n)
+  }
+}
+
+func s6ApplyOp(op: string, a: int, b: int) -> int {
+  if op == "+" then a + b
+  else if op == "-" then a - b
+  else a * b
+}
+
+func s6Simplify(instrs: [(string, S6Def)], table: [(string, S6Cell)], kept: [S6Kept]) -> ([S6Kept], [(string, S6Cell)]) {
+  match instrs {
+    [] => (reverse(kept), table),
+    p :: rest => match p {
+      (name, def) => match def {
+        DIn => s6Simplify(rest, (name, COpq) :: table, KIn(name) :: kept),
+        DOp(a0, op, b0) => {
+          let ra = s6Resolve(table, a0);
+          let rb = s6Resolve(table, b0);
+          match ra {
+            RLit(x) => match rb {
+              RLit(y) => s6Simplify(rest, (name, CConst(s6ApplyOp(op, x, y))) :: table, kept),
+              RName(bn) =>
+                if op == "*" && x == 0 then s6Simplify(rest, (name, CConst(0)) :: table, kept)
+                else if op == "*" && x == 1 then s6Simplify(rest, (name, CCopy(bn)) :: table, kept)
+                else if op == "+" && x == 0 then s6Simplify(rest, (name, CCopy(bn)) :: table, kept)
+                else s6Simplify(rest, (name, COpq) :: table, KOp(name, L(x), op, V(bn)) :: kept)
+            },
+            RName(an) => match rb {
+              RLit(y) =>
+                if op == "*" && y == 0 then s6Simplify(rest, (name, CConst(0)) :: table, kept)
+                else if op == "*" && y == 1 then s6Simplify(rest, (name, CCopy(an)) :: table, kept)
+                else if (op == "+" || op == "-") && y == 0 then s6Simplify(rest, (name, CCopy(an)) :: table, kept)
+                else s6Simplify(rest, (name, COpq) :: table, KOp(name, V(an), op, L(y)) :: kept),
+              RName(bn) =>
+                if op == "-" && an == bn then s6Simplify(rest, (name, CConst(0)) :: table, kept)
+                else s6Simplify(rest, (name, COpq) :: table, KOp(name, V(an), op, V(bn)) :: kept)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+func s6KName(k: S6Kept) -> string {
+  match k {
+    KIn(n) => n,
+    KOp(n, _, _, _) => n
+  }
+}
+
+func s6ORefs(o: S6Opd) -> [string] {
+  match o {
+    V(n) => [n],
+    L(_) => []
+  }
+}
+
+func s6KRefs(k: S6Kept) -> [string] {
+  match k {
+    KIn(_) => [],
+    KOp(_, a, _, b) => s6ORefs(a) ++ s6ORefs(b)
+  }
+}
+
+func s6Member(xs: [string], x: string) -> bool {
+  match xs {
+    [] => false,
+    h :: t => if h == x then true else s6Member(t, x)
+  }
+}
+
+-- Pass 3: DCE. Walk kept list in reverse, keep if live.
+func s6Dce(keptRev: [S6Kept], live: [string], acc: [S6Kept]) -> [S6Kept] {
+  match keptRev {
+    [] => acc,
+    k :: rest =>
+      if s6Member(live, s6KName(k))
+      then s6Dce(rest, s6KRefs(k) ++ live, k :: acc)
+      else s6Dce(rest, live, acc)
+  }
+}
+
+func s6OText(o: S6Opd) -> string {
+  match o {
+    V(n) => n,
+    L(k) => show(k)
+  }
+}
+
+func s6KText(k: S6Kept) -> string {
+  match k {
+    KIn(n) => "${n} = input",
+    KOp(n, a, op, b) => {
+      let at = s6OText(a);
+      let bt = s6OText(b);
+      "${n} = ${at} ${op} ${bt}"
+    }
+  }
+}
+
+func s6Print(xs: [S6Kept]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    k :: rest => { println(s6KText(k)); s6Print(rest) }
+  }
+}
+
+func s6Go() -> () ! {IO} {
+  let prog = [
+    ("k", DIn),
+    ("w", DIn),
+    ("a", DOp(L(9), "+", L(0))),
+    ("a", DOp(V("a"), "-", L(9))),
+    ("c", DOp(V("k"), "*", V("a"))),
+    ("k", DOp(V("k"), "+", V("c"))),
+    ("q", DOp(V("w"), "*", L(4))),
+    ("e", DOp(V("k"), "*", L(9))),
+    ("f", DOp(V("e"), "-", V("e"))),
+    ("e", DOp(V("e"), "+", V("f"))),
+    ("r", DOp(V("e"), "*", L(1)))
+  ];
+  let ssa = s6Pass(prog, [], []);
+  match s6Simplify(ssa, [], []) {
+    (kept, table) => {
+      let retRes = s6Resolve(table, V("r.0"));
+      let retText = match retRes {
+        RLit(k) => show(k),
+        RName(n) => n
+      };
+      let live = match retRes {
+        RLit(_) => [],
+        RName(n) => [n]
+      };
+      let alive = s6Dce(reverse(kept), live, []);
+      s6Print(alive);
+      println("return ${retText}")
+    }
+  }
+}
+
+-- LCG: x_{n+1} = (16807 * x_n) mod 2147483647, x_0 = 20260709
+-- Build list of x_1..x_2000
+func s7Gen(n: int, x: int, acc: [int]) -> [int] {
+  if n == 0 then acc
+  else {
+    let nx = mod_Int(16807 * x, 2147483647);
+    s7Gen(n - 1, nx, nx :: acc)
+  }
+}
+
+func s7Cmp(a: int, b: int) -> int = b - a
+
+func s7Go() -> () ! {IO} {
+  let vals = s7Gen(2000, 20260709, []);
+  -- vals is reversed (x_2000 first)
+  match vals {
+    last :: _ => println(show(last)),
+    [] => println("empty")
+  };
+  let sorted = sortBy(s7Cmp, vals);
+  let top10 = take(10, sorted);
+  let topSum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, top10);
+  println(show(topSum));
+  let total = foldl(func(acc: int, x: int) -> int { acc + x }, 0, vals);
+  println(show(mod_Int(total, 1000000007)))
+}
+
+-- S8: binary strings avoiding "0110", 4x4 matrix power mod 1e9+7
+func s8Md() -> int = 1000000007
+
+func s8NthI(xs: [int], i: int) -> int {
+  match nth(xs, i) { None => 0, Some(v) => v }
+}
+
+func s8NthR(xs: [[int]], i: int) -> [int] {
+  match nth(xs, i) { None => [], Some(r) => r }
+}
+
+func s8Dot(row: [int], b: [[int]], j: int) -> int {
+  mod_Int(
+    s8NthI(row, 0) * s8NthI(s8NthR(b, 0), j) +
+    s8NthI(row, 1) * s8NthI(s8NthR(b, 1), j) +
+    s8NthI(row, 2) * s8NthI(s8NthR(b, 2), j) +
+    s8NthI(row, 3) * s8NthI(s8NthR(b, 3), j), s8Md())
+}
+
+func s8RowMul(row: [int], b: [[int]]) -> [int] {
+  [s8Dot(row, b, 0), s8Dot(row, b, 1), s8Dot(row, b, 2), s8Dot(row, b, 3)]
+}
+
+func s8Mul(a: [[int]], b: [[int]]) -> [[int]] {
+  [s8RowMul(s8NthR(a, 0), b), s8RowMul(s8NthR(a, 1), b), s8RowMul(s8NthR(a, 2), b), s8RowMul(s8NthR(a, 3), b)]
+}
+
+func s8Id() -> [[int]] = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+
+func s8M() -> [[int]] = [[1, 1, 0, 0], [0, 1, 1, 0], [0, 1, 0, 1], [1, 0, 0, 0]]
+
+func s8Pow(m: [[int]], e: int) -> [[int]] {
+  if e == 0 then s8Id()
+  else {
+    let half = s8Pow(m, e / 2);
+    let sq = s8Mul(half, half);
+    if mod_Int(e, 2) == 1 then s8Mul(sq, m) else sq
+  }
+}
+
+func s8Count(n: int) -> int {
+  let p = s8Pow(s8M(), n);
+  let r0 = s8NthR(p, 0);
+  mod_Int(s8NthI(r0, 0) + s8NthI(r0, 1) + s8NthI(r0, 2) + s8NthI(r0, 3), s8Md())
+}
+
+func s8Go() -> () ! {IO} {
+  println(show(s8Count(1000000000000000000)));
+  println(show(s8Count(987654321987654321)))
+}
+
+-- '*'-only CommonMark emphasis: delimiter runs, flanking, rule of 3,
+-- delimiter-stack matching, then s9Render with <em>/<strong>.
+
+type S9Node = S9Text(string) | S9Run(int)
+
+-- S9Delim: node index, remaining count, original length, can open, can close
+type S9Delim = S9Delim({idx: int, cnt: int, orig: int, op: bool, cl: bool})
+
+func s9IsPunct(c: string) -> bool = contains("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", c)
+
+func s9JoinChars(cs: [string]) -> string {
+  match cs {
+    [] => "",
+    c :: rest => "${c}${s9JoinChars(rest)}"
+  }
+}
+
+-- tokenize chars into S9Text/S9Run nodes
+func s9Tok(cs: [string], acc: [S9Node]) -> [S9Node] {
+  match cs {
+    [] => reverse(acc),
+    c :: _ =>
+      if c == "*" then (match s9SpanStar(cs, 0) {
+        (n, rest) => s9Tok(rest, S9Run(n) :: acc)
+      })
+      else (match s9SpanText(cs, []) {
+        (txt, rest) => s9Tok(rest, S9Text(s9JoinChars(reverse(txt))) :: acc)
+      })
+  }
+}
+
+func s9SpanStar(cs: [string], n: int) -> (int, [string]) {
+  match cs {
+    [] => (n, []),
+    c :: rest => if c == "*" then s9SpanStar(rest, n + 1) else (n, cs)
+  }
+}
+
+func s9SpanText(cs: [string], acc: [string]) -> ([string], [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest => if c == "*" then (acc, cs) else s9SpanText(rest, c :: acc)
+  }
+}
+
+func s9NodeLen(n: S9Node) -> int {
+  match n {
+    S9Text(s) => s9ListLen(chars(s)),
+    S9Run(k) => k
+  }
+}
+
+func s9ListLen(xs: [string]) -> int {
+  match xs {
+    [] => 0,
+    _ :: rest => 1 + s9ListLen(rest)
+  }
+}
+
+func s9CharAt(s: [string], i: int) -> string {
+  if i < 0 then " "
+  else (match nth(s, i) {
+    None => " ",
+    Some(c) => c
+  })
+}
+
+-- build delimiter list with flanking flags
+func s9MkDelims(nodes: [S9Node], allChars: [string], idx: int, pos: int, acc: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}]) -> [{idx: int, cnt: int, orig: int, op: bool, cl: bool}] {
+  match nodes {
+    [] => reverse(acc),
+    n :: rest => {
+      let len = s9NodeLen(n);
+      match n {
+        S9Text(_) => s9MkDelims(rest, allChars, idx + 1, pos + len, acc),
+        S9Run(k) => {
+          let before = s9CharAt(allChars, pos - 1);
+          let after = s9CharAt(allChars, pos + k);
+          let wsB = before == " ";
+          let wsA = after == " ";
+          let pB = s9IsPunct(before);
+          let pA = s9IsPunct(after);
+          let leftF = (wsA == false) && ((pA == false) || wsB || pB);
+          let rightF = (wsB == false) && ((pB == false) || wsA || pA);
+          s9MkDelims(rest, allChars, idx + 1, pos + len, ({ idx: idx, cnt: k, orig: k, op: leftF, cl: rightF }) :: acc)
+        }
+      }
+    }
+  }
+}
+
+func s9Rule3(o: {idx: int, cnt: int, orig: int, op: bool, cl: bool}, c: {idx: int, cnt: int, orig: int, op: bool, cl: bool}) -> bool {
+  (o.cl || c.op) && mod_Int(o.orig + c.orig, 3) == 0 && ((mod_Int(o.orig, 3) == 0 && mod_Int(c.orig, 3) == 0) == false)
+}
+
+func s9FindOp(delims: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], k: int, closer: {idx: int, cnt: int, orig: int, op: bool, cl: bool}) -> int {
+  if k < 0 then -1
+  else (match nth(delims, k) {
+    None => -1,
+    Some(o) =>
+      if o.cnt > 0 && o.op && (s9Rule3(o, closer) == false) then k
+      else s9FindOp(delims, k - 1, closer)
+  })
+}
+
+func s9RemoveAt(xs: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], i: int) -> [{idx: int, cnt: int, orig: int, op: bool, cl: bool}] {
+  concat(take(i, xs), drop(i + 1, xs))
+}
+
+func s9Process(delims: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], i: int, matches: [(int, int, int)]) -> [(int, int, int)] {
+  if i >= length(delims) then matches
+  else (match nth(delims, i) {
+    None => matches,
+    Some(closer) =>
+      if (closer.cl && closer.cnt > 0) == false then s9Process(delims, i + 1, matches)
+      else {
+        let j = s9FindOp(delims, i - 1, closer);
+        if j < 0 then {
+          if closer.op == false
+          then s9Process(s9RemoveAt(delims, i), i, matches)
+          else s9Process(delims, i + 1, matches)
+        } else (match nth(delims, j) {
+          None => matches,
+          Some(opener) => {
+            let use = if opener.cnt >= 2 && closer.cnt >= 2 then 2 else 1;
+            let nOp = { opener | cnt: opener.cnt - use };
+            let nCl = { closer | cnt: closer.cnt - use };
+            let pre = take(j, delims);
+            let post = drop(i + 1, delims);
+            let keepOp = if nOp.cnt > 0 then [nOp] else [];
+            let keepCl = if nCl.cnt > 0 then [nCl] else [];
+            let newList = concat(concat(pre, keepOp), concat(keepCl, post));
+            let newI = length(pre) + length(keepOp);
+            s9Process(newList, newI, concat(matches, [(opener.idx, closer.idx, use)]))
+          }
+        })
+      }
+  })
+}
+
+func s9TagFor(use: int) -> string = if use == 2 then "strong" else "em"
+
+func s9Opens(matches: [(int, int, int)], idx: int) -> [string] {
+  match matches {
+    [] => [],
+    m :: rest => (match m {
+      (o, _, u) =>
+        if o == idx then s9TagFor(u) :: s9Opens(rest, idx)
+        else s9Opens(rest, idx)
+    })
+  }
+}
+
+func s9Closes(matches: [(int, int, int)], idx: int) -> [string] {
+  match matches {
+    [] => [],
+    m :: rest => (match m {
+      (_, c, u) =>
+        if c == idx then s9TagFor(u) :: s9Closes(rest, idx)
+        else s9Closes(rest, idx)
+    })
+  }
+}
+
+func s9Consumed(matches: [(int, int, int)], idx: int) -> int {
+  match matches {
+    [] => 0,
+    m :: rest => (match m {
+      (o, c, u) => {
+        let here = if o == idx then u else 0;
+        let here2 = if c == idx then u else 0;
+        here + here2 + s9Consumed(rest, idx)
+      }
+    })
+  }
+}
+
+func s9Stars(n: int) -> string = if n <= 0 then "" else "*${s9Stars(n - 1)}"
+
+func s9OpenTags(tags: [string]) -> string {
+  -- outermost first = reverse match order
+  match reverse(tags) {
+    [] => "",
+    _ => s9OpenGo(reverse(tags))
+  }
+}
+
+func s9OpenGo(tags: [string]) -> string {
+  match tags {
+    [] => "",
+    t :: rest => "<${t}>${s9OpenGo(rest)}"
+  }
+}
+
+func s9CloseTags(tags: [string]) -> string {
+  match tags {
+    [] => "",
+    t :: rest => "</${t}>${s9CloseTags(rest)}"
+  }
+}
+
+func s9Render(nodes: [S9Node], matches: [(int, int, int)], idx: int) -> string {
+  match nodes {
+    [] => "",
+    n :: rest => {
+      let piece = match n {
+        S9Text(s) => s,
+        S9Run(k) => {
+          let leftover = k - s9Consumed(matches, idx);
+          "${s9CloseTags(s9Closes(matches, idx))}${s9Stars(leftover)}${s9OpenTags(s9Opens(matches, idx))}"
+        }
+      };
+      "${piece}${s9Render(rest, matches, idx + 1)}"
+    }
+  }
+}
+
+func s9Emph(s: string) -> string {
+  let cs = chars(s);
+  let nodes = s9Tok(cs, []);
+  let delims = s9MkDelims(nodes, cs, 0, 0, []);
+  let matches = s9Process(delims, 0, []);
+  s9Render(nodes, matches, 0)
+}
+
+func s9RunAll(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(s9Emph(s)); s9RunAll(rest) }
+  }
+}
+
+func s9Go() -> () ! {IO} {
+  s9RunAll([
+    "*river stone*",
+    "b * candle dim*",
+    "**dune**crest",
+    "***basalt***",
+    "**murmur*",
+    "*cinder**",
+    "*fen**reed**mist*",
+    "*loam**peat*",
+    "***crag*ledge**",
+    "**flint**spark**",
+    "*p*q*r*",
+    "twist**knot*loop"
+  ])
+}
+
+-- Universe entry: (name, version, deps) ; dep = (name, lo, hi)
+type S10Sol = Found2([(string, int)]) | NoSol
+
+func s10Assigned(assign: [(string, int)], name: string) -> int {
+  match assign {
+    [] => -1,
+    p :: rest => match p { (n, v) => if n == name then v else s10Assigned(rest, name) }
+  }
+}
+
+func s10Versions(universe: [(string, int, [(string, int, int)])], name: string) -> [int] {
+  match universe {
+    [] => [],
+    e :: rest => match e {
+      (n, v, _) =>
+        if n == name then v :: s10Versions(rest, name)
+        else s10Versions(rest, name)
+    }
+  }
+}
+
+func s10Deps(universe: [(string, int, [(string, int, int)])], name: string, ver: int) -> [(string, int, int)] {
+  match universe {
+    [] => [],
+    e :: rest => match e {
+      (n, v, ds) =>
+        if n == name && v == ver then ds
+        else s10Deps(rest, name, ver)
+    }
+  }
+}
+
+func s10InRange(v: int, lo: int, hi: int) -> bool = v >= lo && v <= hi
+
+func s10Search(universe: [(string, int, [(string, int, int)])], assign: [(string, int)], worklist: [(string, int, int)]) -> S10Sol {
+  match worklist {
+    [] => Found2(assign),
+    req :: rest => match req {
+      (name, lo, hi) => {
+        let cur = s10Assigned(assign, name);
+        if cur >= 0 then {
+          if s10InRange(cur, lo, hi) then s10Search(universe, assign, rest) else NoSol
+        } else {
+          let cands = filter(func(v: int) -> bool { v >= lo && v <= hi }, s10Versions(universe, name));
+          s10Try(universe, assign, name, cands, rest)
+        }
+      }
+    }
+  }
+}
+
+func s10Try(universe: [(string, int, [(string, int, int)])], assign: [(string, int)], name: string, cands: [int], rest: [(string, int, int)]) -> S10Sol {
+  match cands {
+    [] => NoSol,
+    v :: more => (match s10Search(universe, (name, v) :: assign, s10Deps(universe, name, v) ++ rest) {
+      Found2(sol) => Found2(sol),
+      NoSol => s10Try(universe, assign, name, more, rest)
+    })
+  }
+}
+
+func s10Cmp(a: (string, int), b: (string, int)) -> int {
+  match a {
+    (an, _) => match b {
+      (bn, _) => compare(an, bn)
+    }
+  }
+}
+
+func s10Pair(p: (string, int)) -> string {
+  match p {
+    (n, v) => "${n}=${show(v)}"
+  }
+}
+
+func s10Print(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(s); s10Print(rest) }
+  }
+}
+
+func s10Report(universe: [(string, int, [(string, int, int)])]) -> () ! {IO} {
+  match s10Search(universe, [("app", 11)], s10Deps(universe, "app", 11)) {
+    NoSol => println("conflict"),
+    Found2(sol) => {
+      println("resolved");
+      s10Print(map(s10Pair, sortBy(s10Cmp, sol)))
+    }
+  }
+}
+
+func s10Go() -> () ! {IO} {
+  let universeA = [
+    ("app", 11, [("lib", 11, 13), ("util", 13, 13)]),
+    ("lib", 13, [("core", 13, 13)]),
+    ("lib", 12, [("core", 11, 12)]),
+    ("lib", 11, []),
+    ("util", 13, [("core", 11, 11)]),
+    ("core", 13, []),
+    ("core", 12, []),
+    ("core", 11, [])
+  ];
+  let universeB = [
+    ("app", 11, [("x", 11, 11), ("y", 11, 11)]),
+    ("x", 11, [("core", 11, 11)]),
+    ("y", 11, [("core", 12, 12)]),
+    ("core", 12, []),
+    ("core", 11, [])
+  ];
+  s10Report(universeA);
+  s10Report(universeB)
+}
+
+export func main() -> () ! {IO} {
+  s1Run();
+  s2Go();
+  s3Go();
+  s4Go();
+  s5Go();
+  s6Go();
+  s7Go();
+  s8Go();
+  s9Go();
+  s10Go()
+}
