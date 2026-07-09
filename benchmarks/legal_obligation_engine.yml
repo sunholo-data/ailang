@@ -48,8 +48,11 @@ task_prompt: |
     breach is CURED if the principal is paid in full on any day <= notice
     day + 15 (accrued interest is still owed). A delivery breach is CURED by
     delivering within the same window.
-  - WAIVER event names a breach: a waived breach is fully forgiven — its
-    penalty or interest is NOT owed, and it can never justify termination.
+  - WAIVER event names a breach: a waived breach is forgiven — its penalty
+    or interest is EXCLUDED from the final owed sums (vendor_owes /
+    client_owes), and it can never justify termination. Waiver does NOT
+    change the per-line report: delivery and payment lines always print the
+    ACCRUED penalty/interest as computed by the rules above.
   - TERMINATE event (by Client) on day T is VALID only if there exists a
     noticed breach that is not cured, not waived, and whose cure window has
     expired (T > notice day + 15). The grounds are the FIRST such breach in
@@ -81,9 +84,11 @@ task_prompt: |
      - delivery line: "<M> delivery: DELIVERED day=<d> late=<n> penalty=<p>"
        for delivered milestones, or
        "<M> delivery: CANCELLED late_days=<n> penalty=<p>" if cancelled by
-       termination. A waived delivery breach would print penalty=0.
+       termination. <p> is always the ACCRUED penalty (waiver does not
+       change it; waiver only removes it from vendor_owes).
      - payment line: "<M> payment: PAID day=<d> late=<n> interest=<i>" or
-       "<M> payment: CANCELLED".
+       "<M> payment: CANCELLED". <i> is always the ACCRUED interest (waiver
+       does not change it; waiver only removes it from client_owes).
      - breach resolution lines, ONLY for breaches that were noticed or
        waived (delivery breach line before payment breach line):
        "<M> <what> breach: WAIVED" / "... CURED" / "... UNCURED"

@@ -76,8 +76,8 @@ def run(variant="ref"):
             d = delivered[m]
             late = max(0, d - dl)
             pen = min(PEN_PER_DAY * late, PEN_CAP)
-            if f"{m}-delivery" in waived and variant != "waiver_no_forgive": pen = 0
-            vendor_owes += pen
+            if not (f"{m}-delivery" in waived and variant != "waiver_no_forgive"):
+                vendor_owes += pen
             out.append(f"{m} delivery: DELIVERED day={d} late={late} penalty={pen}")
             # payment
             due = d + PAY_WITHIN
@@ -99,8 +99,8 @@ def run(variant="ref"):
             if term_day:
                 late_days = (term_day - 1) - dl
                 pen = min(PEN_PER_DAY * late_days, PEN_CAP) if variant != "no_cap" else PEN_PER_DAY * late_days
-                if f"{m}-delivery" in waived and variant != "waiver_no_forgive": pen = 0
-                vendor_owes += pen
+                if not (f"{m}-delivery" in waived and variant != "waiver_no_forgive"):
+                    vendor_owes += pen
                 out.append(f"{m} delivery: CANCELLED late_days={late_days} penalty={pen}")
                 out.append(f"{m} payment: CANCELLED")
         # breach resolution lines (only noticed or waived)

@@ -149,7 +149,7 @@ func doMilestone(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(st
     let late = maxI(0, dDay - dl);
     let pen0 = minI(penPerDay() * late, penCap());
     let pen = if hasStr(s.waived, "${m}-delivery") then 0 else pen0;
-    println("${m} delivery: DELIVERED day=${show(dDay)} late=${show(late)} penalty=${show(pen)}");
+    println("${m} delivery: DELIVERED day=${show(dDay)} late=${show(late)} penalty=${show(pen0)}");
     let due = dDay + payWithin();
     let pDay = aGet(s.paid, m);
     if pDay >= 0 then {
@@ -178,7 +178,7 @@ func doMilestone(s: {dls: [(string, int)], prs: [(string, int)], delivered: [(st
       let lateDays = (tday - 1) - dl;
       let pen0 = minI(penPerDay() * lateDays, penCap());
       let pen = if hasStr(s.waived, "${m}-delivery") then 0 else pen0;
-      println("${m} delivery: CANCELLED late_days=${show(lateDays)} penalty=${show(pen)}");
+      println("${m} delivery: CANCELLED late_days=${show(lateDays)} penalty=${show(pen0)}");
       println("${m} payment: CANCELLED");
       printIf(breachLine(s, m, "delivery"));
       printIf(breachLine(s, m, "payment"));
