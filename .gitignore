@@ -8,7 +8,9 @@
 *.so
 *.dylib
 *.wasm
-wasm
+# root-level stray build artifact (go build -o wasm ./cmd/wasm); the bare
+# pattern used to shadow the cmd/wasm SOURCE dir and forced -f adds
+/wasm
 
 # Test binary, built with `go test -c`
 *.test
