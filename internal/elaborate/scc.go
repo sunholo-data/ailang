@@ -2,6 +2,9 @@
 package elaborate
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/sunholo-data/ailang/internal/ast"
 )
 
@@ -130,13 +133,35 @@ func BuildCallGraph(funcs []*FuncSig, symbols map[string]*FuncSig, imports map[s
 	return graph
 }
 
-// findReferences finds all identifier references in an expression
+// findReferences finds all identifier references in an expression.
+//
+// This drives intra-module call-graph construction (BuildCallGraph), which
+// feeds SCC ordering, which the core type checker relies on for decl order
+// (typechecker_core.go CheckCoreProgram threads the env strictly forward). A
+// module-local function is only put in scope before its callers when an edge
+// exists; a missing edge lets Tarjan emit the callee AFTER the caller, so the
+// caller fails with a FALSE "undefined variable" for a function that exists.
+//
+// Therefore this traversal MUST be EXHAUSTIVE over every expression position:
+// a local reference hiding in any un-visited sub-expression silently drops its
+// call-graph edge and reintroduces the #327 bug family ("resolution diverges
+// by syntactic position"). When a new *ast.Expr variant is added, add its case
+// here; DEBUG_STRICT surfaces omissions loudly instead of dropping edges.
 func findReferences(expr ast.Expr) []string {
 	var refs []string
 
 	switch ex := expr.(type) {
+	case nil:
+		// Optional sub-expressions (e.g. an absent match guard) are nil.
+
 	case *ast.Identifier:
 		refs = append(refs, ex.Name)
+
+	case *ast.Literal:
+		// Leaf: no references.
+
+	case *ast.Error:
+		// Parse-error placeholder: no references.
 
 	case *ast.BinaryOp:
 		refs = append(refs, findReferences(ex.Left)...)
@@ -181,6 +206,11 @@ func findReferences(expr ast.Expr) []string {
 			refs = append(refs, findReferences(elem)...)
 		}
 
+	case *ast.Array:
+		for _, elem := range ex.Elements {
+			refs = append(refs, findReferences(elem)...)
+		}
+
 	case *ast.Record:
 		for _, field := range ex.Fields {
 			refs = append(refs, findReferences(field.Value)...)
@@ -189,9 +219,23 @@ func findReferences(expr ast.Expr) []string {
 	case *ast.RecordAccess:
 		refs = append(refs, findReferences(ex.Record)...)
 
+	case *ast.RecordUpdate:
+		// {base | f: e, ...} — the base AND every updated field's value are
+		// expression positions. Omitting these was the #327 root cause: a local
+		// function called only inside `{ s | f: localFn(...) }` produced no
+		// call-graph edge and mis-ordered as "undefined variable".
+		refs = append(refs, findReferences(ex.Base)...)
+		for _, field := range ex.Fields {
+			refs = append(refs, findReferences(field.Value)...)
+		}
+
 	case *ast.Match:
 		refs = append(refs, findReferences(ex.Expr)...)
 		for _, c := range ex.Cases {
+			// Guard expressions are real expression positions too — a local
+			// function called only in a `_ if localFn(...) =>` guard must still
+			// produce an edge (same family as the record-update case).
+			refs = append(refs, findReferences(c.Guard)...)
 			refs = append(refs, findReferences(c.Body)...)
 		}
 
@@ -204,6 +248,15 @@ func findReferences(expr ast.Expr) []string {
 		// Blocks can contain function references in any expression
 		for _, expr := range ex.Exprs {
 			refs = append(refs, findReferences(expr)...)
+		}
+
+	default:
+		// A new *ast.Expr variant was added without a case here. Dropping it
+		// silently would reintroduce the #327 bug family for that position, so
+		// fail loudly under DEBUG_STRICT rather than fabricate an empty edge set.
+		if os.Getenv("DEBUG_STRICT") != "" {
+			panic(fmt.Sprintf("findReferences: unhandled ast.Expr variant %T — "+
+				"add a case (missing edges cause false 'undefined variable', see #327)", expr))
 		}
 	}
 
