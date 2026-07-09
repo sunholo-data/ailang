@@ -580,3 +580,54 @@ func TestDecodeJSON_AlternativeTypeNames(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeJSONUntyped(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want string // via Value.String() shape checks below
+	}{
+		{"integral number to int", `42`, "int"},
+		{"fractional to float", `4.5`, "float"},
+		{"string", `"hi"`, "string"},
+		{"bool", `true`, "bool"},
+		{"null to unit", `null`, "unit"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, err := DecodeJSONUntyped(tt.json)
+			if err != nil {
+				t.Fatalf("DecodeJSONUntyped(%q): %v", tt.json, err)
+			}
+			if v.Type() != tt.want {
+				t.Errorf("type = %q, want %q", v.Type(), tt.want)
+			}
+		})
+	}
+}
+
+func TestDecodeJSONUntyped_Structured(t *testing.T) {
+	// nested: list of records with mixed fields (the deontic wire shape)
+	v, err := DecodeJSONUntyped(`[{"kind":"deliver","day":170,"ref":"COD","amt":0,"hi":0}]`)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	list, ok := v.(*eval.ListValue)
+	if !ok || len(list.Elements) != 1 {
+		t.Fatalf("want 1-element list, got %T", v)
+	}
+	rec, ok := list.Elements[0].(*eval.RecordValue)
+	if !ok {
+		t.Fatalf("want record element, got %T", list.Elements[0])
+	}
+	if s, ok := rec.Fields["kind"].(*eval.StringValue); !ok || s.Value != "deliver" {
+		t.Errorf("kind = %v", rec.Fields["kind"])
+	}
+	if n, ok := rec.Fields["day"].(*eval.IntValue); !ok || n.Value != 170 {
+		t.Errorf("day = %v", rec.Fields["day"])
+	}
+
+	if _, err := DecodeJSONUntyped(`{bad json`); err == nil {
+		t.Error("malformed JSON must error")
+	}
+}

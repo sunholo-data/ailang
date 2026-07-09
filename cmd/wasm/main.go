@@ -10,6 +10,7 @@ import (
 	"syscall/js"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/runtime/argdecode"
 	"github.com/sunholo-data/ailang/internal/repl"
 	"github.com/sunholo-data/ailang/internal/types"
 	"github.com/sunholo-data/ailang/std"
@@ -380,6 +381,20 @@ func callExport(this js.Value, args []js.Value) interface{} {
 			ailangVal = &eval.StringValue{Value: arg.String()}
 		case js.TypeBoolean:
 			ailangVal = &eval.BoolValue{Value: arg.Bool()}
+		case js.TypeObject:
+			// Structured arguments (arrays, records): round-trip through JSON
+			// and decode with the SAME package serve-api uses, so both hosts
+			// share one tested decoder. AILANG records are structural — the
+			// resulting values unify directly at application time.
+			jsonStr := js.Global().Get("JSON").Call("stringify", arg).String()
+			decoded, err := argdecode.DecodeJSONUntyped(jsonStr)
+			if err != nil {
+				return map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("argument %d: %v", i-1, err),
+				}
+			}
+			ailangVal = decoded
 		default:
 			return map[string]interface{}{
 				"success": false,
