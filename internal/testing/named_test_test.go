@@ -12,6 +12,8 @@ package testing
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -307,6 +309,133 @@ func TestSuiteResult_SuccessWithAllowSkips(t *testing.T) {
 	if !sr.SuccessAllowingSkips() {
 		t.Error("SuccessAllowingSkips() must be true for all-skipped suite")
 	}
+}
+
+// ─── Package-mode fixture test (mirrors engine_test.ail shapes) ──────────────
+
+// TestRunner_PackageMode_NamedTests exercises the --package execution path
+// with named test blocks whose bodies use let-chains, tuple-pattern match,
+// string interpolation, and intra-package relative imports (./sibling).
+// This is the acceptance test mandated by the M1_NAMED_TESTS design doc.
+func TestRunner_PackageMode_NamedTests(t *testing.T) {
+	// Build an in-process mini-package in a temp directory so the test runs
+	// without touching the filesystem permanently.
+	dir := t.TempDir()
+
+	// ── ailang.toml ─────────────────────────────────────────────────────────
+	toml := `[package]
+name = "testvendor/mypkg"
+version = "0.1.0"
+edition = "1"
+ailang = ">=0.28.0"
+
+[exports]
+modules = ["testvendor/mypkg/math"]
+`
+	if err := os.WriteFile(filepath.Join(dir, "ailang.toml"), []byte(toml), 0644); err != nil {
+		t.Fatalf("write ailang.toml: %v", err)
+	}
+
+	// ── ailang.lock ─────────────────────────────────────────────────────────
+	lock := `{
+  "ailang_version": "v0.28.0",
+  "generated_at": "2026-07-09T00:00:00Z",
+  "generator": "ailang lock",
+  "packages": [],
+  "schema": "ailang.lock/v1",
+  "schema_version": "1.0.0"
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "ailang.lock"), []byte(lock), 0644); err != nil {
+		t.Fatalf("write ailang.lock: %v", err)
+	}
+
+	// ── math.ail — a pure-functions module (the sibling being imported) ─────
+	math := `module testvendor/mypkg/math
+
+export pure func add(a: int, b: int) -> int = a + b
+
+export pure func mul(a: int, b: int) -> int = a * b
+`
+	if err := os.WriteFile(filepath.Join(dir, "math.ail"), []byte(math), 0644); err != nil {
+		t.Fatalf("write math.ail: %v", err)
+	}
+
+	// ── math_test.ail — named test blocks exercising the target shapes ───────
+	// Bodies use:
+	//   • let-chains (mirrors engine_test.ail tests 2-5)
+	//   • string interpolation "${...}"
+	//   • tuple-pattern match
+	// Pure helper functions in the test file call the imported functions,
+	// mirroring the engine_test.ail pattern (test bodies call helpers defined
+	// in the same file that use the imports).
+	mathTest := `module testvendor/mypkg/math_test
+
+import ./math (add, mul)
+
+pure func sumAndProduct(a: int, b: int) -> (int, int) = (add(a, b), mul(a, b))
+
+pure func labelResult(a: int, b: int) -> string {
+  let s = add(a, b);
+  "sum=${s}"
+}
+
+test "add simple" {
+  add(2, 3) == 5
+}
+
+test "let-chain with arithmetic" {
+  let x = add(10, 5);
+  let y = add(x, 2);
+  y == 17
+}
+
+test "tuple-pattern match" {
+  match sumAndProduct(3, 4) { (s, p) => s == 7 && p == 12 }
+}
+
+test "string interpolation" {
+  let n = add(6, 7);
+  "value=${n}" == "value=13"
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "math_test.ail"), []byte(mathTest), 0644); err != nil {
+		t.Fatalf("write math_test.ail: %v", err)
+	}
+
+	// ── Parse and run the test file via RunTestsFromFile ────────────────────
+	src, err := os.ReadFile(filepath.Join(dir, "math_test.ail"))
+	if err != nil {
+		t.Fatalf("read math_test.ail: %v", err)
+	}
+	l := lexer.New(string(src), filepath.Join(dir, "math_test.ail"))
+	p := parser.New(l)
+	file := p.ParseFile()
+	if errs := p.Errors(); len(errs) > 0 {
+		t.Fatalf("parse errors: %v", errs)
+	}
+
+	result, err := RunTestsFromFile(filepath.Join(dir, "math_test.ail"), file)
+	if err != nil {
+		t.Fatalf("RunTestsFromFile: %v", err)
+	}
+
+	if result.TotalTests == 0 {
+		t.Fatal("no tests discovered in package-mode fixture")
+	}
+
+	for _, tr := range result.Tests {
+		if tr.Status != StatusPass {
+			t.Errorf("package-mode named test %q: status=%s error=%s", tr.Name, tr.Status, tr.Error)
+		}
+	}
+
+	if result.FailedTests > 0 {
+		t.Errorf("package-mode fixture: %d tests failed (expected 0)", result.FailedTests)
+	}
+
+	t.Logf("package-mode fixture: %d passed, %d failed, %d skipped",
+		result.PassedTests, result.FailedTests, result.SkippedTests)
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────

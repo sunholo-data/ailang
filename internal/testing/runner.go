@@ -176,7 +176,18 @@ func (r *Runner) runNamedTest(testCase TestCase, start time.Time) TestResult {
 
 	// Evaluate the body expressions via the module-scope elaboration path.
 	// EvaluateNamedTestBodyExprs returns the value of the last expression.
-	val, err := r.executor.EvaluateNamedTestBodyExprs(testCase.Body)
+	// recover() ensures a panic in the printer or evaluator fails THIS test
+	// instead of crashing the whole runner (defence-in-depth).
+	var val eval.Value
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("internal panic evaluating named test body: %v", r)
+			}
+		}()
+		val, err = r.executor.EvaluateNamedTestBodyExprs(testCase.Body)
+	}()
 	if err != nil {
 		result.Status = StatusFail
 		result.Error = err.Error()

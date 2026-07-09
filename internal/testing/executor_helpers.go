@@ -266,6 +266,58 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
+// FoldBodyExprs collapses a slice of AST expressions — as produced by parsing a
+// named test block where semicolons separate statements — into a single nested
+// expression.  The parser emits standalone `let x = val` nodes (Body == nil)
+// for each binding; this function re-chains them:
+//
+//	[let x = val, let y = ..., finalExpr]
+//	  → let x = val in (let y = ... in finalExpr)
+//
+// Non-let expressions that are not the last item are dropped (they were
+// evaluated for side-effects in the original source, which is meaningless for
+// pure bodies, so stripping them is safe).
+func FoldBodyExprs(exprs []ast.Expr) ast.Expr {
+	if len(exprs) == 0 {
+		return nil
+	}
+	// Walk in reverse, threading each let-binding around the accumulated tail.
+	result := exprs[len(exprs)-1]
+	for i := len(exprs) - 2; i >= 0; i-- {
+		switch e := exprs[i].(type) {
+		case *ast.Let:
+			// Clone to avoid mutating the parser's AST in place.
+			result = &ast.Let{
+				Name:  e.Name,
+				Type:  e.Type,
+				Value: e.Value,
+				Body:  result,
+				Pos:   e.Pos,
+			}
+		case *ast.LetRec:
+			result = &ast.LetRec{
+				Name:  e.Name,
+				Type:  e.Type,
+				Value: e.Value,
+				Body:  result,
+				Pos:   e.Pos,
+			}
+		default:
+			// Side-effect expression before the final value — wrap in a let_ binding.
+			// AILANG has no sequencing operator, so we emit "let _ = expr in rest".
+			// This is the closest approximation; pure bodies shouldn't have real side
+			// effects anyway, so semantics are preserved.
+			result = &ast.Let{
+				Name:  "_seq",
+				Value: exprs[i],
+				Body:  result,
+				Pos:   exprs[i].Position(),
+			}
+		}
+	}
+	return result
+}
+
 // PrintAILANGSource converts an AST expression to valid AILANG source text.
 //
 // This is needed because ast.FuncCall.String() uses prefix notation
@@ -273,14 +325,51 @@ func findSubstring(s, substr string) bool {
 // are re-elaborated through the pipeline from source text, so we need
 // proper AILANG syntax rather than the debug representation from String().
 //
-// Only the expression forms that commonly appear in named test bodies are
-// handled here. Unknown forms fall back to String() — if that breaks the
-// pipeline, the test will FAIL with a parse error (which is correct behaviour:
-// the test has an unrepresentable body, not a silent false-green).
+// All known ast.Expr variants are handled.  An unknown variant returns a
+// descriptive error string that will cause the pipeline to fail with a
+// parse error — surfaced as a test FAIL, never a crash.
+//
+// IMPORTANT: always call with a non-nil expr; the nil guard at the top
+// returns a safe fallback so recursive callers (e.g. Let.Body == nil) never
+// dereference a nil interface.
 func PrintAILANGSource(expr ast.Expr) string {
+	if expr == nil {
+		return "<nil-expr>"
+	}
 	switch e := expr.(type) {
 	case *ast.Literal:
-		return e.String() // bool, int, float, string, unit all have correct String()
+		// UnitLit: Literal.String() returns "<nil>" via fmt.Sprintf("%v", nil).
+		// We need "()" which is the AILANG unit literal syntax.
+		if e.Kind == ast.UnitLit {
+			return "()"
+		}
+		// StringLit: Literal.String() only escapes \ and " but not \n, \t, \r.
+		// Re-escape control characters so the round-tripped source parses correctly.
+		if e.Kind == ast.StringLit {
+			if s, ok := e.Value.(string); ok {
+				var buf strings.Builder
+				buf.WriteByte('"')
+				for _, ch := range s {
+					switch ch {
+					case '\\':
+						buf.WriteString(`\\`)
+					case '"':
+						buf.WriteString(`\"`)
+					case '\n':
+						buf.WriteString(`\n`)
+					case '\t':
+						buf.WriteString(`\t`)
+					case '\r':
+						buf.WriteString(`\r`)
+					default:
+						buf.WriteRune(ch)
+					}
+				}
+				buf.WriteByte('"')
+				return buf.String()
+			}
+		}
+		return e.String() // bool, int, float all have correct String()
 	case *ast.Identifier:
 		return e.Name
 	case *ast.BinaryOp:
@@ -290,13 +379,20 @@ func PrintAILANGSource(expr ast.Expr) string {
 		return fmt.Sprintf("(%s %s)", e.Op, PrintAILANGSource(e.Expr))
 	case *ast.FuncCall:
 		// Produce "f(arg1, arg2)" — the standard AILANG call syntax.
+		// Special case: f(()) — a call with a single unit literal — should print
+		// as f() because that is how zero-arg functions are called in AILANG source.
+		funcStr := PrintAILANGSource(e.Func)
+		if len(e.Args) == 0 {
+			return funcStr + "()"
+		}
+		if len(e.Args) == 1 {
+			if lit, ok := e.Args[0].(*ast.Literal); ok && lit.Kind == ast.UnitLit {
+				return funcStr + "()"
+			}
+		}
 		args := make([]string, len(e.Args))
 		for i, a := range e.Args {
 			args[i] = PrintAILANGSource(a)
-		}
-		funcStr := PrintAILANGSource(e.Func)
-		if len(args) == 0 {
-			return funcStr + "()"
 		}
 		return fmt.Sprintf("%s(%s)", funcStr, strings.Join(args, ", "))
 	case *ast.Tuple:
@@ -311,17 +407,103 @@ func PrintAILANGSource(expr ast.Expr) string {
 			elems[i] = PrintAILANGSource(el)
 		}
 		return "[" + strings.Join(elems, ", ") + "]"
+	case *ast.Array:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "#[" + strings.Join(elems, ", ") + "]"
 	case *ast.If:
 		return fmt.Sprintf("if %s then %s else %s",
 			PrintAILANGSource(e.Condition),
 			PrintAILANGSource(e.Then),
 			PrintAILANGSource(e.Else))
 	case *ast.Let:
-		return fmt.Sprintf("let %s = %s in %s",
+		if e.Body == nil {
+			// Standalone let-binding (no 'in'): emit as "let name = val" — callers
+			// that need a complete expression should use FoldBodyExprs first.
+			return fmt.Sprintf("let %s = %s", e.Name, PrintAILANGSource(e.Value))
+		}
+		return fmt.Sprintf("let %s = %s in\n%s",
 			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	case *ast.LetRec:
+		if e.Body == nil {
+			return fmt.Sprintf("letrec %s = %s", e.Name, PrintAILANGSource(e.Value))
+		}
+		return fmt.Sprintf("letrec %s = %s in\n%s",
+			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	case *ast.Match:
+		cases := make([]string, len(e.Cases))
+		for i, c := range e.Cases {
+			if c.Guard != nil {
+				cases[i] = fmt.Sprintf("%s if %s => %s",
+					c.Pattern, PrintAILANGSource(c.Guard), PrintAILANGSource(c.Body))
+			} else {
+				cases[i] = fmt.Sprintf("%s => %s", c.Pattern, PrintAILANGSource(c.Body))
+			}
+		}
+		return fmt.Sprintf("match %s { %s }", PrintAILANGSource(e.Expr), strings.Join(cases, ", "))
+	case *ast.Block:
+		parts := make([]string, len(e.Exprs))
+		for i, ex := range e.Exprs {
+			parts[i] = PrintAILANGSource(ex)
+		}
+		return "{ " + strings.Join(parts, "; ") + " }"
+	case *ast.Record:
+		fields := make([]string, len(e.Fields))
+		for i, f := range e.Fields {
+			fields[i] = fmt.Sprintf("%s: %s", f.Name, PrintAILANGSource(f.Value))
+		}
+		return "{ " + strings.Join(fields, ", ") + " }"
+	case *ast.RecordAccess:
+		return fmt.Sprintf("%s.%s", PrintAILANGSource(e.Record), e.Field)
+	case *ast.RecordUpdate:
+		fields := make([]string, len(e.Fields))
+		for i, f := range e.Fields {
+			fields[i] = fmt.Sprintf("%s: %s", f.Name, PrintAILANGSource(f.Value))
+		}
+		return fmt.Sprintf("{ %s | %s }", PrintAILANGSource(e.Base), strings.Join(fields, ", "))
+	case *ast.Lambda:
+		params := make([]string, len(e.Params))
+		for i, p := range e.Params {
+			if p.Type != nil {
+				params[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
+			} else {
+				params[i] = p.Name
+			}
+		}
+		return fmt.Sprintf("\\%s. %s", strings.Join(params, " "), PrintAILANGSource(e.Body))
+	case *ast.FuncLit:
+		params := make([]string, len(e.Params))
+		for i, p := range e.Params {
+			if p.Type != nil {
+				params[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
+			} else {
+				params[i] = p.Name
+			}
+		}
+		retStr := ""
+		if e.ReturnType != nil {
+			retStr = fmt.Sprintf(" -> %s", e.ReturnType)
+		}
+		return fmt.Sprintf("func(%s)%s { %s }", strings.Join(params, ", "), retStr, PrintAILANGSource(e.Body))
+	case *ast.Error:
+		return fmt.Sprintf("<printer-error: unrepresentable *ast.Error node: %s>", e.Msg)
+	case *ast.AssertStmt:
+		return fmt.Sprintf("assert %s", PrintAILANGSource(e.Condition))
+	case *ast.Send:
+		return fmt.Sprintf("%s <- %s", PrintAILANGSource(e.Channel), PrintAILANGSource(e.Value))
+	case *ast.Recv:
+		return fmt.Sprintf("<- %s", PrintAILANGSource(e.Channel))
+	case *ast.ForallExpr:
+		return fmt.Sprintf("forall %s: %s..%s => %s",
+			e.Var, PrintAILANGSource(e.Lo), PrintAILANGSource(e.Hi), PrintAILANGSource(e.Body))
+	case *ast.QuasiQuote:
+		return e.String()
 	default:
-		// Fall back to String() for any other form.
-		return expr.String()
+		// Unknown variant: return a descriptive error string.
+		// The pipeline will fail with a parse error (test FAIL), not a process crash.
+		return fmt.Sprintf("<printer-error: unhandled ast.Expr type %T>", expr)
 	}
 }
 

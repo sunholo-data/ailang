@@ -199,52 +199,90 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		// If read fails, baseSource stays empty — we'll wrap in a synthetic module below.
 	}
 
-	// Append each body expression's source text.
+	// Fold body expressions into a single nested expression.
+	// Named test blocks use semicolons to separate bindings (let x = ...; let y = ...)
+	// which the parser emits as separate ast.Let nodes with Body==nil.  We must
+	// chain them before printing so we produce valid AILANG ("let x = ... in ...").
+	folded := FoldBodyExprs(bodyExprs)
+	if folded == nil {
+		return nil, fmt.Errorf("named test block: FoldBodyExprs returned nil")
+	}
+
+	// Append the folded body expression.
 	// Use PrintAILANGSource (not expr.String()) because String() uses prefix
 	// notation for FuncCall which is not valid AILANG syntax.
+	//
+	// IMPORTANT: The top-level expression must NOT be an *ast.Let node.
+	// ElaborateFile skips top-level *ast.Let statements (they are treated as
+	// module-level let bindings that wrap functions, not free expressions).
+	// Wrapping in a block "{ expr }" makes it an *ast.Block at the top level,
+	// which is elaborated as a regular expression and evaluates correctly.
 	var sb strings.Builder
 	sb.WriteString(baseSource)
 	sb.WriteString("\n")
-	for _, expr := range bodyExprs {
-		sb.WriteString(PrintAILANGSource(expr))
-		sb.WriteString("\n")
-	}
+	sb.WriteString("{ ")
+	sb.WriteString(PrintAILANGSource(folded))
+	sb.WriteString(" }")
+	sb.WriteString("\n")
 	combinedSource := sb.String()
 
-	// Determine the pipeline filename. The module loader requires either:
-	//   (a) a file with an explicit module declaration on disk, or
-	//   (b) a temp file with a synthetic module header.
-	// We always write to a temp file to avoid mutating the original.
+	// Determine the pipeline filename.  The temp file MUST live in the same
+	// directory as the original source so that relative imports ("./types",
+	// "./engine") and the package manifest (ailang.toml / ailang.lock) can be
+	// found by the module loader.  A random temp dir would break any package
+	// that uses intra-package sibling imports.
 	var pipelineFilename string
 	{
-		tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temp dir: %w", err)
-		}
-		defer os.RemoveAll(tmpDir)
-
 		var baseName string
+		var sourceDir string
 		if e.modulePath != "" {
 			baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
+			sourceDir = filepath.Dir(e.modulePath)
 		} else {
 			baseName = "body"
+			// No source path available — fall back to OS temp dir (will fail for
+			// packages with relative imports, but that is the correct behaviour
+			// for standalone test snippets that have no module path).
+			var err error
+			sourceDir, err = os.MkdirTemp("", "ailang-namedtest-*")
+			if err != nil {
+				return nil, fmt.Errorf("failed to create temp dir: %w", err)
+			}
+			defer os.RemoveAll(sourceDir)
 		}
-		tmpFile := filepath.Join(tmpDir, baseName+".ail")
+
+		// Create a uniquely-named temp file in the same directory.
+		// Use os.CreateTemp so the name does not collide with existing files.
+		tmpFile, err := os.CreateTemp(sourceDir, "_namedtest_body_*.ail")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp file in %s: %w", sourceDir, err)
+		}
+		pipelineFilename = tmpFile.Name()
+		tmpFile.Close() // Close before os.WriteFile reopens it
+		defer os.Remove(pipelineFilename)
 
 		if !hasModule {
 			// No module declaration — prepend a synthetic one.
 			combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
 		}
 
-		if err := os.WriteFile(tmpFile, []byte(combinedSource), 0644); err != nil {
+		if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0644); err != nil {
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
-		pipelineFilename = tmpFile
+	}
+
+	// Derive the package directory from the source file path so the pipeline's
+	// package resolver finds ailang.toml/ailang.lock next to the source file
+	// (not in the process CWD, which differs when running `go test`).
+	pkgDir := ""
+	if e.modulePath != "" {
+		pkgDir = filepath.Dir(e.modulePath)
 	}
 
 	cfg := pipeline.Config{
 		Mode:         pipeline.ModeEval,
 		RelaxModules: true,
+		PackageDir:   pkgDir,
 	}
 	pipelineSrc := pipeline.Source{
 		Code:     combinedSource,
@@ -429,7 +467,11 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
 }
 
-// stripNonPureFunctions removes functions with effects from source code.
+// stripNonPureFunctions removes functions with effects and test/property
+// declaration blocks from source code.  Test blocks (test "name" { ... }) are
+// stripped because they are already collected into TestCase.Body and would
+// otherwise be re-elaborated as duplicate Core declarations — causing
+// evaluation of the wrong expression or type conflicts in EvalCoreProgram.
 func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
 	var nonPureFunctions []string
 	for _, f := range file.Funcs {
@@ -438,15 +480,71 @@ func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
 		}
 	}
 
-	lines := []string{}
-	for _, line := range splitLines(source) {
-		skip := false
-		for _, funcName := range nonPureFunctions {
-			if containsPattern(line, "export func "+funcName) || containsPattern(line, "func "+funcName) {
-				skip = true
-				break
+	// Collect line ranges occupied by test/property declarations.
+	// We use a brace-depth counter to find the closing } of each block.
+	type lineRange struct{ start, end int }
+	var skipRanges []lineRange
+
+	sourceLines := splitLines(source)
+	for _, decl := range file.Decls {
+		var startLine int
+		switch d := decl.(type) {
+		case *ast.TestDecl:
+			startLine = d.Pos.Line
+		case *ast.PropertyDecl:
+			startLine = d.Pos.Line
+		default:
+			continue
+		}
+
+		// Find the closing brace by scanning from startLine.
+		depth := 0
+		endLine := startLine
+		for i := startLine - 1; i < len(sourceLines); i++ {
+			for _, ch := range sourceLines[i] {
+				if ch == '{' {
+					depth++
+				} else if ch == '}' {
+					depth--
+					if depth == 0 {
+						endLine = i + 1 // 1-based
+						goto foundEnd
+					}
+				}
 			}
 		}
+	foundEnd:
+		skipRanges = append(skipRanges, lineRange{startLine, endLine})
+	}
+
+	inSkipRange := func(lineNum int) bool {
+		for _, r := range skipRanges {
+			if lineNum >= r.start && lineNum <= r.end {
+				return true
+			}
+		}
+		return false
+	}
+
+	lines := []string{}
+	for i, line := range sourceLines {
+		lineNum := i + 1 // 1-based
+		skip := false
+
+		// Skip lines inside test/property declaration blocks.
+		if inSkipRange(lineNum) {
+			skip = true
+		}
+
+		if !skip {
+			for _, funcName := range nonPureFunctions {
+				if containsPattern(line, "export func "+funcName) || containsPattern(line, "func "+funcName) {
+					skip = true
+					break
+				}
+			}
+		}
+
 		if !skip {
 			lines = append(lines, line)
 		}
