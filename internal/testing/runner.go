@@ -139,12 +139,67 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 		// All tests passed
 		result.Status = StatusPass
 	} else {
-		// Non-inline tests (test "name" { ... } blocks)
-		// For now, skip these - they're less common
-		result.Status = StatusSkip
-		result.Error = "Named test blocks not yet implemented"
+		// Named test blocks: test "name" { <expr> }
+		// Each expression in the body must evaluate to bool true.
+		// false → FAIL; runtime error → FAIL with error text.
+		result = r.runNamedTest(testCase, start)
 	}
 
+	result.Duration = time.Since(start)
+	return result
+}
+
+// runNamedTest executes a named test block: test "name" { <expr> }
+//
+// Reuses the module-scope evaluation path (EvaluateExpression) from the
+// inline-test core-evaluation machinery (v0.4.7). The body is treated as a
+// sequence of expressions; the LAST expression must evaluate to bool true for
+// the test to pass. Earlier expressions are evaluated for side-effects only
+// (they are discarded — named test bodies are pure by contract).
+//
+// Pass contract: final expression evaluates to *eval.BoolValue{true}.
+// false      → StatusFail, error = "expected true, got false"
+// non-bool   → StatusFail, error = "expected bool result, got <T>"
+// eval error → StatusFail, error = <error text>
+func (r *Runner) runNamedTest(testCase TestCase, start time.Time) TestResult {
+	result := TestResult{
+		Name:     testCase.Name,
+		Location: testCase.Location.String(),
+	}
+
+	if len(testCase.Body) == 0 {
+		result.Status = StatusFail
+		result.Error = "named test block has empty body"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Evaluate the body expressions via the module-scope elaboration path.
+	// EvaluateNamedTestBodyExprs returns the value of the last expression.
+	val, err := r.executor.EvaluateNamedTestBodyExprs(testCase.Body)
+	if err != nil {
+		result.Status = StatusFail
+		result.Error = err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Pass contract: last expression must evaluate to bool true.
+	boolVal, ok := val.(*eval.BoolValue)
+	if !ok {
+		result.Status = StatusFail
+		result.Error = fmt.Sprintf("expected bool result, got %T", val)
+		result.Duration = time.Since(start)
+		return result
+	}
+	if !boolVal.Value {
+		result.Status = StatusFail
+		result.Error = "expected true, got false"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	result.Status = StatusPass
 	result.Duration = time.Since(start)
 	return result
 }

@@ -92,9 +92,23 @@ func (sr *SuiteResult) AddPropertyResult(result PropertyResult) {
 	}
 }
 
-// Success returns true if all tests passed.
+// Success returns true if tests ran and none failed.
+// An all-skipped suite (run==0, skipped>0) is NOT success — it exits non-zero.
 func (sr *SuiteResult) Success() bool {
-	return sr.FailedTests == 0 && sr.TotalTests > 0
+	ran := sr.PassedTests + sr.FailedTests
+	return ran > 0 && sr.FailedTests == 0
+}
+
+// AllSkipped returns true when every recorded test was skipped and at least
+// one test was collected. This is the "NO TESTS RAN" sentinel.
+func (sr *SuiteResult) AllSkipped() bool {
+	return sr.SkippedTests > 0 && sr.PassedTests == 0 && sr.FailedTests == 0
+}
+
+// SuccessAllowingSkips returns true when there are no failures, even if all
+// tests were skipped. Used when --allow-skips is passed.
+func (sr *SuiteResult) SuccessAllowingSkips() bool {
+	return sr.FailedTests == 0
 }
 
 // Summary returns a human-readable summary of the results.

@@ -144,11 +144,15 @@ func (r *Reporter) reportTestHuman(test TestResult) {
 
 	fmt.Fprintln(r.writer)
 
-	// Show error details if test failed
-	if test.Status == StatusFail && test.Error != "" {
+	// Show error/reason for failed and skipped tests
+	if (test.Status == StatusFail || test.Status == StatusSkip) && test.Error != "" {
 		errorLines := strings.Split(test.Error, "\n")
+		lineColor := colorRed
+		if test.Status == StatusSkip {
+			lineColor = colorYellow
+		}
 		for _, line := range errorLines {
-			fmt.Fprintf(r.writer, "      %s\n", r.color(colorRed, line))
+			fmt.Fprintf(r.writer, "      %s\n", r.color(lineColor, line))
 		}
 	}
 
@@ -197,11 +201,18 @@ func (r *Reporter) reportPropertyHuman(prop PropertyResult) {
 func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 	fmt.Fprintf(r.writer, "%s\n", strings.Repeat("─", 50))
 
-	if result.Success() {
+	switch {
+	case result.AllSkipped():
+		// run==0, skipped>0: nothing actually executed — this is a hard failure
+		fmt.Fprintf(r.writer, "%s %s\n",
+			r.color(colorYellow, "⚠"),
+			r.color(colorBold, fmt.Sprintf("NO TESTS RAN (%d skipped)", result.SkippedTests)))
+	case result.Success():
+		// ran>0 && failed==0 (may include skips)
 		fmt.Fprintf(r.writer, "%s %s\n",
 			r.color(colorGreen, "✓"),
 			r.color(colorBold, "All tests passed!"))
-	} else {
+	default:
 		fmt.Fprintf(r.writer, "%s %s\n",
 			r.color(colorRed, "✗"),
 			r.color(colorBold, "Some tests failed"))
