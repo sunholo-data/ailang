@@ -13,6 +13,16 @@ cross-validated against the `cmark` reference binary on NOVEL vectors),
 `binary_strings_1e18` (n=10^18 makes O(n) DP impossible in-budget in BOTH
 languages; refs run <1s via the O(log n) route).
 
+Wave 3 (self-reference — designed frontier logic-error traps, exploiting the
+iterative-authoring vs one-shot asymmetry): `quine` (graded `grading: quine`:
+stdout must equal the submitted source; the AILANG ref was built by scripted
+fixpoint construction — run `python3`-style iteration is exactly what one-shot
+models don't get) and `emit_exact_bytes_varied` (512 exact bytes, no 3+ char
+runs — uniform-padding tricks banned, so the byte-count must be done over
+varied text). NOTE: the `quine` refs are verified by running them and
+diffing stdout against their own file content, not against a YAML
+expected_stdout (a quine has none).
+
 Each benchmark has:
 
 - `<id>.py` — the Python reference that **computed** the benchmark's

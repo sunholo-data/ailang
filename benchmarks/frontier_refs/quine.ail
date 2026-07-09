@@ -1,0 +1,32 @@
+module benchmark/solution
+
+import std/io (println)
+import std/string (chars, join, find, substring, length)
+
+func bs() -> string = "\\"
+
+func qt() -> string = "\""
+
+func nl() -> string = "\n"
+
+func e1(c: string) -> string {
+  if c == bs() then join("", [bs(), bs()])
+  else if c == qt() then join("", [bs(), qt()])
+  else if c == nl() then join("", [bs(), "n"])
+  else c
+}
+
+func esc(cs: [string]) -> string {
+  match cs {
+    [] => "",
+    c :: rest => join("", [e1(c), esc(rest)])
+  }
+}
+
+export func main() -> () ! {IO} {
+  let s = "module benchmark/solution\n\nimport std/io (println)\nimport std/string (chars, join, find, substring, length)\n\nfunc bs() -> string = \"\\\\\"\n\nfunc qt() -> string = \"\\\"\"\n\nfunc nl() -> string = \"\\n\"\n\nfunc e1(c: string) -> string {\n  if c == bs() then join(\"\", [bs(), bs()])\n  else if c == qt() then join(\"\", [bs(), qt()])\n  else if c == nl() then join(\"\", [bs(), \"n\"])\n  else c\n}\n\nfunc esc(cs: [string]) -> string {\n  match cs {\n    [] => \"\",\n    c :: rest => join(\"\", [e1(c), esc(rest)])\n  }\n}\n\nexport func main() -> () ! {IO} {\n  let s = ~;\n  let i = find(s, \"~\");\n  let pre = substring(s, 0, i);\n  let post = substring(s, i + 1, length(s));\n  println(join(\"\", [pre, qt(), esc(chars(s)), qt(), post]))\n}";
+  let i = find(s, "~");
+  let pre = substring(s, 0, i);
+  let post = substring(s, i + 1, length(s));
+  println(join("", [pre, qt(), esc(chars(s)), qt(), post]))
+}

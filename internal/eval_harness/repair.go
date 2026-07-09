@@ -204,8 +204,14 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 		return nil, fmt.Errorf("code execution failed: %w", err)
 	}
 
-	// Check if output matches expected
-	stdoutOk := CompareOutput(r.spec.ExpectedOut, runResult.Stdout)
+	// Check if output matches expected. Quine grading compares stdout against
+	// the submitted source itself — the only deterministic grader for a quine.
+	var stdoutOk bool
+	if r.spec.Grading == "quine" {
+		stdoutOk = NormalizeSource(runResult.Stdout) == NormalizeSource(genResult.Code)
+	} else {
+		stdoutOk = CompareOutput(r.spec.ExpectedOut, runResult.Stdout)
+	}
 
 	return &attemptResult{
 		Code:         genResult.Code,

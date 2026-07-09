@@ -66,6 +66,12 @@ type BenchmarkSpec struct {
 	// Optional source-level constraints checked BEFORE execution (standard mode).
 	// Unlocks constrained-construction benchmarks — see source_constraints.go.
 	SourceConstraints *SourceConstraints `yaml:"source_constraints,omitempty"`
+
+	// Grading mode. "" (default) compares stdout against expected_stdout.
+	// "quine": stdout must equal the SUBMITTED SOURCE itself (both sides
+	// normalized: LF endings, trailing newlines stripped) — no fixed
+	// expected_stdout can grade a quine. Standard (0-shot) mode only.
+	Grading string `yaml:"grading,omitempty"`
 }
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.
@@ -169,6 +175,10 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		if err := spec.SourceConstraints.Validate(); err != nil {
 			return nil, fmt.Errorf("spec %q: %w", spec.ID, err)
 		}
+	}
+
+	if spec.Grading != "" && spec.Grading != "quine" {
+		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty or \"quine\")", spec.ID, spec.Grading)
 	}
 
 	return &spec, nil

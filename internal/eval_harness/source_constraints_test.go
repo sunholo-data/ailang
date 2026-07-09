@@ -120,3 +120,34 @@ func TestSourceConstraintsValidate(t *testing.T) {
 		t.Errorf("valid banned_chars rejected: %v", err)
 	}
 }
+
+func TestSourceConstraintsMinBytesAndCharRun(t *testing.T) {
+	sc := SourceConstraints{MinBytes: 10}
+	if v := sc.Check("short"); len(v) != 1 || !strings.Contains(v[0], "5 short") {
+		t.Errorf("min_bytes violation not reported: %v", v)
+	}
+	if v := sc.Check("exactly10!"); len(v) != 0 {
+		t.Errorf("min_bytes false positive: %v", v)
+	}
+
+	run := SourceConstraints{MaxCharRun: 2}
+	if v := run.Check("ab--cd"); len(v) != 0 {
+		t.Errorf("run of 2 must pass: %v", v)
+	}
+	if v := run.Check("ab---cd"); len(v) != 1 || !strings.Contains(v[0], "3+ times") {
+		t.Errorf("run of 3 must fail: %v", v)
+	}
+	if v := run.Check("aa\naa"); len(v) != 0 {
+		t.Errorf("runs broken by newline must pass: %v", v)
+	}
+
+	if err := (&SourceConstraints{ExactBytes: 10, MinBytes: 5}).Validate(); err == nil {
+		t.Error("exact_bytes + min_bytes must be rejected")
+	}
+	if err := (&SourceConstraints{MinBytes: 20, MaxBytes: 10}).Validate(); err == nil {
+		t.Error("min > max must be rejected")
+	}
+	if err := (&SourceConstraints{ExactBytes: 512, MaxCharRun: 2}).Validate(); err != nil {
+		t.Errorf("exact_bytes + max_char_run must be valid: %v", err)
+	}
+}

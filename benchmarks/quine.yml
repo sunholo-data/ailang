@@ -1,0 +1,36 @@
+id: quine
+description: "Self-reproducing program graded stdout==source — fixed-point escaping reasoning with zero AILANG priors; file-read cheats banned"
+# FRONTIER-CLASS, self-reference family (grading: quine). A quine cannot be
+# graded by fixed expected_stdout — the grader compares stdout against the
+# SUBMITTED source (both normalized). Python quines are memorized training
+# data; the AILANG side has no priors and demands exact fixed-point reasoning
+# about the language's escaping/interpolation semantics with no test run —
+# the designed frontier logic-error trap (authored via iterative fixpoint
+# construction; one-shot models get no execution loop). min_bytes blocks the
+# degenerate empty program; banned substrings block read-own-file cheats
+# (AILANG additionally has no FS capability granted).
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo, recursion]
+grading: quine
+source_constraints:
+  min_bytes: 80
+  banned_substrings: ["__file__", "inspect", "argv", "open"]
+task_prompt: |
+  Write a quine in <LANG>: a program whose standard output is EXACTLY its own
+  source code. The grader compares your program's stdout against the source
+  you submitted, after normalizing both sides (line endings converted to LF,
+  trailing newlines stripped). Byte-for-byte equality is required.
+
+  Rules, enforced by scanning your submitted source before it runs:
+  - It must not read any file or use runtime introspection. The substrings
+    __file__, inspect, argv and open are banned anywhere in your source.
+  - Your source must be at least 80 bytes long.
+
+  Construct the output purely from data inside the program.
+
+  Output only the code, no explanations.
