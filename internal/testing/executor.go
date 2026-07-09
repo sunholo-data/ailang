@@ -166,6 +166,130 @@ func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.V
 	return result, nil
 }
 
+// EvaluateNamedTestBodyExprs evaluates the body expressions of a named test block.
+//
+// This is the execution path for `test "name" { <exprs> }` blocks.
+// It reuses the module-scope elaboration approach from the inline-test harness (v0.4.7):
+//
+//  1. Reads the source file, strips non-pure functions, appends the body expressions
+//     (using their AST string representations) to the source text.
+//  2. Runs the combined source through the full pipeline (including OpLowering) to
+//     produce a Core program where the body expressions are the final decls.
+//  3. Evaluates the Core program with EvalCoreProgram (returns last value).
+//
+// This ensures arithmetic operators (via OpLowering) and all module-scope bindings
+// work correctly — exactly the same pipeline path used by inline-test evaluation.
+//
+// Returns the final evaluated value so the caller can check the bool pass/fail contract.
+func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value, error) {
+	if len(bodyExprs) == 0 {
+		return nil, fmt.Errorf("named test block has no body expressions")
+	}
+
+	// Build source: stripped file content + body expressions appended.
+	// Try to read the source file; fall back to empty if unavailable (unit tests with fake paths).
+	var baseSource string
+	var hasModule bool
+	if e.sourceFile != nil {
+		hasModule = e.sourceFile.Module != nil
+		src, err := os.ReadFile(e.modulePath)
+		if err == nil {
+			baseSource = e.stripNonPureFunctions(string(src), e.sourceFile)
+		}
+		// If read fails, baseSource stays empty — we'll wrap in a synthetic module below.
+	}
+
+	// Append each body expression's source text.
+	// Use PrintAILANGSource (not expr.String()) because String() uses prefix
+	// notation for FuncCall which is not valid AILANG syntax.
+	var sb strings.Builder
+	sb.WriteString(baseSource)
+	sb.WriteString("\n")
+	for _, expr := range bodyExprs {
+		sb.WriteString(PrintAILANGSource(expr))
+		sb.WriteString("\n")
+	}
+	combinedSource := sb.String()
+
+	// Determine the pipeline filename. The module loader requires either:
+	//   (a) a file with an explicit module declaration on disk, or
+	//   (b) a temp file with a synthetic module header.
+	// We always write to a temp file to avoid mutating the original.
+	var pipelineFilename string
+	{
+		tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp dir: %w", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		var baseName string
+		if e.modulePath != "" {
+			baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
+		} else {
+			baseName = "body"
+		}
+		tmpFile := filepath.Join(tmpDir, baseName+".ail")
+
+		if !hasModule {
+			// No module declaration — prepend a synthetic one.
+			combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
+		}
+
+		if err := os.WriteFile(tmpFile, []byte(combinedSource), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write temp file: %w", err)
+		}
+		pipelineFilename = tmpFile
+	}
+
+	cfg := pipeline.Config{
+		Mode:         pipeline.ModeEval,
+		RelaxModules: true,
+	}
+	pipelineSrc := pipeline.Source{
+		Code:     combinedSource,
+		Filename: pipelineFilename,
+		IsREPL:   false,
+	}
+
+	pipelineResult, err := pipeline.Run(cfg, pipelineSrc)
+	if err != nil {
+		return nil, fmt.Errorf("pipeline error: %w", err)
+	}
+
+	if pipelineResult.Artifacts.Core == nil {
+		return nil, fmt.Errorf("pipeline produced no Core program")
+	}
+
+	coreProg := pipelineResult.Artifacts.Core
+	if len(coreProg.Decls) == 0 {
+		return nil, fmt.Errorf("Core program has no declarations")
+	}
+
+	// Cache modules for future use.
+	e.modules = pipelineResult.Modules
+
+	// Evaluate all decls; EvalCoreProgram returns the last value.
+	// This ensures function bindings are in scope when the body expression is evaluated.
+	evaluator := eval.NewCoreEvaluator()
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	env := evaluator.Env()
+	e.injectModuleBindings(evaluator, env)
+	resolver := &CombinedResolver{
+		Builtins: builtinRegistry,
+		Env:      env,
+		Modules:  e.modules,
+	}
+	evaluator.SetGlobalResolver(resolver)
+	e.injectADTConstructors(evaluator)
+
+	val, err := evaluator.EvalCoreProgram(coreProg)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation error: %w", err)
+	}
+	return val, nil
+}
+
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
 // This is the PREFERRED method for inline tests (fixes scoping issues in EvaluateExpression).
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {

@@ -266,6 +266,65 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
+// PrintAILANGSource converts an AST expression to valid AILANG source text.
+//
+// This is needed because ast.FuncCall.String() uses prefix notation
+// "(f arg1 arg2)" which is not valid AILANG syntax.  Named test bodies
+// are re-elaborated through the pipeline from source text, so we need
+// proper AILANG syntax rather than the debug representation from String().
+//
+// Only the expression forms that commonly appear in named test bodies are
+// handled here. Unknown forms fall back to String() — if that breaks the
+// pipeline, the test will FAIL with a parse error (which is correct behaviour:
+// the test has an unrepresentable body, not a silent false-green).
+func PrintAILANGSource(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Literal:
+		return e.String() // bool, int, float, string, unit all have correct String()
+	case *ast.Identifier:
+		return e.Name
+	case *ast.BinaryOp:
+		return fmt.Sprintf("(%s %s %s)",
+			PrintAILANGSource(e.Left), e.Op, PrintAILANGSource(e.Right))
+	case *ast.UnaryOp:
+		return fmt.Sprintf("(%s %s)", e.Op, PrintAILANGSource(e.Expr))
+	case *ast.FuncCall:
+		// Produce "f(arg1, arg2)" — the standard AILANG call syntax.
+		args := make([]string, len(e.Args))
+		for i, a := range e.Args {
+			args[i] = PrintAILANGSource(a)
+		}
+		funcStr := PrintAILANGSource(e.Func)
+		if len(args) == 0 {
+			return funcStr + "()"
+		}
+		return fmt.Sprintf("%s(%s)", funcStr, strings.Join(args, ", "))
+	case *ast.Tuple:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "(" + strings.Join(elems, ", ") + ")"
+	case *ast.List:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "[" + strings.Join(elems, ", ") + "]"
+	case *ast.If:
+		return fmt.Sprintf("if %s then %s else %s",
+			PrintAILANGSource(e.Condition),
+			PrintAILANGSource(e.Then),
+			PrintAILANGSource(e.Else))
+	case *ast.Let:
+		return fmt.Sprintf("let %s = %s in %s",
+			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	default:
+		// Fall back to String() for any other form.
+		return expr.String()
+	}
+}
+
 // extractLambdaParams extracts parameter names from a Core Lambda
 func extractLambdaParams(lambda *core.Lambda) []string {
 	return lambda.Params

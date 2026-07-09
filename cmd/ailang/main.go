@@ -114,6 +114,7 @@ func main() {
 		formatFlag := testFlags.String("format", "human", "Output format: human or json")
 		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
 		packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
+		allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
 		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
 		_ = testFlags.Parse(flag.Args()[1:]) // Parse errors handled by flags package
@@ -129,9 +130,9 @@ func main() {
 		}
 
 		if *packageFlag {
-			runPackageTests(path, *formatFlag, !*noColorFlag)
+			runPackageTests(path, *formatFlag, !*noColorFlag, *allowSkipsFlag)
 		} else {
-			runTestsV2(path, *formatFlag, !*noColorFlag)
+			runTestsV2(path, *formatFlag, !*noColorFlag, *allowSkipsFlag)
 		}
 
 	case "watch":
