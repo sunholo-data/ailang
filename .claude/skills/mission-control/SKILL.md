@@ -78,6 +78,17 @@ said Planned for a month). If already done → the iteration's deliverable is th
    M-TYPEENV-SUB "open P0" was already fixed; only un-skipping revealed it.
 3. **Exit codes through pipes lie**: `cmd | tail; echo $?` reports tail's status. Use direct
    invocation or PIPESTATUS.
+4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
+   frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
+   the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
+   into a worktree made a later "main-tree" check read the WORKTREE's `.git` and report the
+   merge cleared when it wasn't). Rules: (a) Bash cwd persists across calls — before trusting
+   any main-tree git check, re-confirm `pwd` or use absolute paths; (b) re-run `git status` at
+   the moment of use, not from memory — a clean tree at preflight proves nothing an hour later;
+   (c) if `MERGE_HEAD` exists (a sibling's in-progress merge), do NOT commit in the main tree —
+   your commit would complete THEIR merge; integrate via a worktree branch + PR with
+   `gh pr merge --auto` instead (worked cleanly: PR #336); (d) a `-dirty` version suffix on a
+   rebuilt binary means the tree changed under you — rebuild inside the isolated worktree.
 
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
