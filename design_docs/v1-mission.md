@@ -8,7 +8,13 @@ rather than ad-hoc sessions.
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (skill fix / process fix / backlog item).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
-runs ONE iteration. The launchd job `dev.ailang.mission-control` fires it nightly.
+runs ONE iteration. **Scheduling (since 2026-07-10): the Claude Code scheduled task
+`v1-mission-nightly`** (22:00 daily, managed in the app's Scheduled sidebar) — it runs inside
+Claude Code with the subscription OAuth, so the billing question never arises. Runs while the
+app is open (this rig's daemon is always on; a missed slot fires on next launch). The launchd
+path (`tools/launchd/mission-control.sh` + plist) is the UNLOADED fallback — if ever re-armed
+it hard-requires `CLAUDE_CODE_OAUTH_TOKEN` (billing guard) since headless CLI outside the app
+cannot use the Keychain OAuth.
 **Log**: [v1-mission-log.md](v1-mission-log.md) — append-only, one entry per iteration.
 **Human-facing reporting**: GitHub issue
 [#329](https://github.com/sunholo-data/ailang/issues/329) — every iteration posts its morning
@@ -16,6 +22,18 @@ report there as a comment (Mark follows by email via issue subscription, no Clau
 needed); driver crashes post there too.
 
 ---
+
+## STATUS 2026-07-10 (13:30) — SCHEDULING MOVED INTO CLAUDE CODE; BILLING INCIDENT CLOSED
+
+The first kickstarted headless run billed ~13 min of API credits (`ANTHROPIC_API_KEY` leaked
+from secrets.env into `claude -p`; killed rc=143). Two fixes: (1) the launchd driver gained a
+billing guard (strips API keys, refuses without a subscription token) and was then (2)
+**superseded as primary by the Claude Code scheduled task `v1-mission-nightly`** — runs inside
+the app on the session OAuth, no token handling at all. The killed run's unreviewed plan
+artifacts for m-feedback-triage-gate were deleted (produced in 13 min, no Opus routing
+verified, no controller review) — tonight replans through the proper loop. Friction recorded:
+the headless controller reached Gate 3 planning without evidence it honored the model routing —
+watch for this in tonight's #329 report.
 
 ## STATUS 2026-07-10 (evening) — ITERATION 1 COMPLETE: FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED
 
