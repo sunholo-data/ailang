@@ -42,7 +42,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
@@ -53,7 +53,7 @@ jobs:
     # `uv run --python <PinnedPythonVersion>` and fails loudly if uv is missing
     # (see internal/eval_harness/python.go). Must match ci.yml.
     - name: Set up uv
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
 
     - name: Get dependencies
       run: go mod download
