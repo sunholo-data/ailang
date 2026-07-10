@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-FEEDBACK-GATE-CLOUD-ADAPTER",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-07-10T00:00:00Z",
   "planned_by": "claude-opus-4-8",
   "design_doc": "design_docs/planned/v0_29_0/m-feedback-gate-cloud-adapter.md",
@@ -47,10 +47,10 @@
         "go test ./internal/storage/firestore/... green with NO GCP creds / no emulator (only pure functions exercised)",
         "No import of internal/coordinator; internal/feedbackgate imported only for interface types"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-10T17:15:00Z",
+      "completed": "2026-07-10T17:25:00Z",
+      "notes": "Commit ee516e5c5. feedbackgate_stores.go (226 LOC) + _test.go (218 LOC). trimAndCount + appendCapped pure functions table-tested (empty/1h-edge/24h-edge/cross-day/saturation-cap/out-of-order); compile-time interface assertions present; go test ./internal/storage/firestore/... green, lint 0 issues, no import cycle. Saturation cap = 64 (chosen: ample headroom over MaxDispatchPerDay=10, bounds doc size). Half-open 24h window (now-24h KEPT) documented + tested."
     },
     {
       "id": "M2_COORDINATOR_WIRING",
@@ -64,10 +64,10 @@
         "Startup log names all three stages",
         "make build, make lint, go test ./internal/coordinator/... ./internal/storage/firestore/... green in-worktree, no credentials"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-10T17:25:00Z",
+      "completed": "2026-07-10T17:45:00Z",
+      "notes": "Commit 8201b4205. daemon.go +23 (fields + SetFeedbackGateDeps), feedback_gate_wiring.go +67 (enableFeedbackGate call-site + 3 stage-name helpers), daemon_tasks_init.go delegates to enableFeedbackGate, classifier.go +9 (HasProvider accessor for log naming only), coordinator_lifecycle.go +42 (cloud construction block), feedback_gate_deps_test.go 197 LOC. Tests: deps reach Decide (cooldown+provider both consulted); nil-deps rules-only unchanged; no-key fail-closed files heuristic-flagged input; stage-naming. DECISION: fresh Firestore client in the CLI (not threading Backends, which exposes interface-typed stores not the raw client; one-time startup cost, planner-accepted). make build + lint + go test green, no credentials."
     },
     {
       "id": "M3_ROLLOUT_DOCS_HANDOFF",
@@ -80,10 +80,10 @@
         "CHANGELOG updated",
         "Design doc M1/M2/M3 checkboxes flipped"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-10T17:45:00Z",
+      "completed": "2026-07-10T18:05:00Z",
+      "notes": "Commit f7654aae7. coordinator.md: 'Feedback Cost & Abuse Gate' section (DRY-RUN-first runbook, env table, two startup-log shapes, ops handoff). implemented/m-feedback-triage-gate.md: 'Follow-up: Cloud adapter' section w/ terraform handoff (TTL on expires_at for feedback_gate_cooldown/_budget + ANTHROPIC_API_KEY secret) — NO sibling-repo files touched. CHANGELOG v0.18-current [Unreleased] entry. Planned design doc: M1/M2/M3 + success checkboxes flipped, Status->Implemented, Example 2 log text aligned. make build + make lint green (0 issues)."
     }
   ]
 }
