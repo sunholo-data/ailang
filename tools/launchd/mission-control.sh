@@ -78,6 +78,8 @@ if [ "$RC" -ne 0 ]; then
   ailang messages send controlplane \
     "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
     --title "Mission iteration FAILED (rc=$RC)" --from mission-control 2>/dev/null
+  gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+    --body "⚠️ Nightly mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; next scheduled run will retry." 2>/dev/null
 else
   log "iteration complete (rc=0)"
   # The skill itself sends the substantive morning report (Gate 5).

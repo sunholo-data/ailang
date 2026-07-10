@@ -95,9 +95,13 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
    - **process fix** — edit the mission doc (guardrails/ordering/routing policy per its rules).
    - **backlog** — new design doc via design-doc-creator, or re-prioritize the queue.
 2. Routing-policy change? Only with ≥3 evidence rows; stamp it in the mission doc.
-3. Morning report: `ailang messages send controlplane "<summary>" --title "Mission iteration N:
-   <headline>" --from mission-control` — what shipped, score, parked items needing Mark,
-   any skill/process edit made.
+3. Morning report, TWO channels (both required):
+   - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
+     --from mission-control`
+   - `gh issue comment 329 --repo sunholo-data/ailang --body "<markdown report>"` — the
+     human-facing bookkeeping thread (Mark reads by email). Markdown, lead with the headline,
+     link commits by SHA, name anything parked for a human. End the body with:
+     `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 
 ## Standing rules
 

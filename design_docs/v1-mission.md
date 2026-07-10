@@ -10,6 +10,10 @@ loop; every friction found here routes to a lane (skill fix / process fix / back
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
 runs ONE iteration. The launchd job `dev.ailang.mission-control` fires it nightly.
 **Log**: [v1-mission-log.md](v1-mission-log.md) — append-only, one entry per iteration.
+**Human-facing reporting**: GitHub issue
+[#329](https://github.com/sunholo-data/ailang/issues/329) — every iteration posts its morning
+report there as a comment (Mark follows by email via issue subscription, no Claude login
+needed); driver crashes post there too.
 
 ---
 
