@@ -1,0 +1,89 @@
+{
+  "sprint_id": "M-FEEDBACK-GATE-CLOUD-ADAPTER",
+  "status": "planned",
+  "created": "2026-07-10T00:00:00Z",
+  "planned_by": "claude-opus-4-8",
+  "design_doc": "design_docs/planned/v0_29_0/m-feedback-gate-cloud-adapter.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/sprint-m-feedback-gate-cloud-adapter.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 370,
+    "estimated_days": 1
+  },
+  "disambiguation": {
+    "note": "Carries the parent sprint's naming discipline. The gate lives under feedbackgate/FeedbackGateConfig/coordinator.feedback_gate. Do NOT touch or reuse coordinator.triage/TriageConfig/coordinator.Decision (M-MSG-TRIAGE-ROUTER, a different feature: local intake-inbox promotion). New adapter types are FeedbackGateCooldownStore / FeedbackGateBudgetStore in the internal/storage/firestore package.",
+    "new_types": [
+      "firestore.FeedbackGateCooldownStore (implements feedbackgate.CooldownStore)",
+      "firestore.FeedbackGateBudgetStore (implements feedbackgate.BudgetStore)",
+      "coordinator.Daemon.SetFeedbackGateDeps (mirrors SetStores/SetCloudDispatcher)"
+    ]
+  },
+  "doc_vs_reality": [
+    "VERIFIED ACCURATE: all six design-doc premises re-checked live 2026-07-10 and match (interfaces cooldown.go:17-23 / budget.go:17-21, nil-deps gap daemon_tasks_init.go:59-65, SetStores pattern coordinator_lifecycle.go:103-112, firestore NewClient, anthropic.NewClient as ai.Provider). No premise was wrong; the clarifications below sharpen implementation, not correct the doc.",
+    "FeedbackGateConfig.Cooldown and .Classifier are EXPORTED, directly-assignable fields (config.go:75,79). Attach = plain field assignment on d.feedbackGateCfg (a *feedbackgate.FeedbackGateConfig alias, same pointer as coordConfig.FeedbackGate). No setter/reflection.",
+    "Classifier MODEL is a per-REQUEST field (ai.Request.Model = cfg.ClassifierModel, classifier.go:138-139), NOT a constructor arg. NewClassifier takes provider+prompt+budget only. So anthropic.NewClient(key) (bare client) is correct; do NOT thread a model into the client.",
+    "anthropic.NewClient(key) returns *anthropic.Client satisfying the FULL ai.Provider interface (Generate client.go:141 + Step step.go:41 + Name client.go:347; ai.Provider requires all three, provider.go:339-355). var provider ai.Provider = anthropic.NewClient(key) type-checks; no wrapper.",
+    "Fail-closed no-key posture ALREADY exists in merged code: applyClassifier has `if cl.provider == nil { return file }` (classifier.go:134-136). Wiring only PASSES a nil provider (loud log) when the key is absent; the gate does the filing. No new fail-closed code in the gate package.",
+    "Client.RunTransaction(ctx, fn(ctx, *firestore.Transaction) error) exists (client.go:65) and is already used with the read-modify-write pattern in messaging.go:93. Adapter mirrors that; window math extracted to a pure trimAndCount function per the no-emulator test convention.",
+    "IMPORT-CYCLE CHECK PASSES: internal/feedbackgate imports only internal/ai (classifier.go:12), never internal/storage/coordinator/firestore. Therefore internal/storage/firestore -> internal/feedbackgate (to implement interfaces + compile-time assertions) is a clean one-directional edge. Doc's layering claim verified."
+  ],
+  "adopted_decisions": [
+    "Adapters live in internal/storage/firestore (implement feedbackgate interfaces there + compile-time assertions var _ feedbackgate.CooldownStore = ...). Coordinator stays firestore-free.",
+    "Wiring point: cmd/ailang/coordinator_lifecycle.go constructs deps; new Daemon.SetFeedbackGateDeps hands them to the daemon; initTaskProcessing attaches onto d.feedbackGateCfg when the gate is enabled.",
+    "No-API-key in cloud mode -> classifier constructed with nil provider (FAIL CLOSED: heuristic-flagged messages filed, never dispatched) + loud startup log. Decided in the design doc's Design Freeze; Mark can veto on the #329 report before the separate enablement ops step.",
+    "Sliding-window storage: per-key doc holding a timestamp array, transactionally trimmed to 24h, saturation-capped (64 suggested; executor may choose) to bound doc size under flood.",
+    "TTL cleanup: adapters write expires_at (cooldown +7d, budget +3d); the Firestore TTL POLICY is sibling-repo terraform (documented handoff, NOT in this sprint)."
+  ],
+  "features": [
+    {
+      "id": "M1_FIRESTORE_ADAPTERS_PURE_MATH",
+      "description": "internal/storage/firestore/feedbackgate_stores.go: FeedbackGateCooldownStore (collection feedback_gate_cooldown; hashed doc IDs; RunTransaction read->trim->append->write; expires_at=now+7d; saturation cap) and FeedbackGateBudgetStore (collection feedback_gate_budget; dayKey doc ID; transactional increment; expires_at=now+3d). Pure trimAndCount(attempts, now) (kept, hour, day) function holds ALL window logic (thin untested transaction wrapper per the no-emulator firestore convention). Compile-time interface assertions against feedbackgate.CooldownStore/BudgetStore.",
+      "estimated_loc": 270,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both adapters satisfy the feedbackgate interfaces with compile-time assertions (var _ feedbackgate.CooldownStore = (*FeedbackGateCooldownStore)(nil); same for BudgetStore)",
+        "trimAndCount table tests: empty attempts; exactly-1h boundary; exactly-24h boundary; cross-day span; saturation cap (>= cap -> no append, saturated counts)",
+        "go test ./internal/storage/firestore/... green with NO GCP creds / no emulator (only pure functions exercised)",
+        "No import of internal/coordinator; internal/feedbackgate imported only for interface types"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_COORDINATOR_WIRING",
+      "description": "daemon.go: add feedbackGateCooldown/feedbackGateClassifier fields + SetFeedbackGateDeps (mirrors SetStores/SetCloudDispatcher). daemon_tasks_init.go: attach deps onto d.feedbackGateCfg.Cooldown/.Classifier inside the existing enabled block; extend startup log to name live stages (cooldown/classifier/budget). coordinator_lifecycle.go: after the SetStores block (cloud mode), construct firestore stores + budget + classifier; nil provider + loud log when ANTHROPIC_API_KEY absent (fail-closed). Adds imports: internal/storage/firestore, internal/ai, internal/ai/anthropic, internal/feedbackgate. feedback_gate_wiring_test.go: deps-attachment + nil-deps + no-key tests.",
+      "estimated_loc": 100,
+      "dependencies": ["M1_FIRESTORE_ADAPTERS_PURE_MATH"],
+      "acceptance_criteria": [
+        "Wiring test asserts attached fakes reach Decide with non-nil Cooldown/Classifier (guard the CALL-SITE, not just the setter - M-ENV-FORWARD lesson)",
+        "nil-deps ⇒ behavior identical to today: gate enabled but no deps -> d.feedbackGateCfg.Cooldown/.Classifier nil after initTaskProcessing (rules-only unchanged)",
+        "No-key construction path files (fail-closed): empty ANTHROPIC_API_KEY -> classifier nil-provider branch returns file for a heuristic-flagged input; assert on the built classifier, no network",
+        "Startup log names all three stages",
+        "make build, make lint, go test ./internal/coordinator/... ./internal/storage/firestore/... green in-worktree, no credentials"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ROLLOUT_DOCS_HANDOFF",
+      "description": "docs/docs/guides/coordinator.md: DRY-RUN-first enablement runbook (week 1 AILANG_FEEDBACK_GATE_DRY_RUN=1, watch feedback-gate-audit inbox, then flip) + env reference table + the two startup-log shapes. Append terraform handoff (TTL policy on expires_at for the two new collections + ANTHROPIC_API_KEY secret) to design_docs/implemented/v0_29_0/m-feedback-triage-gate.md follow-up section (NO sibling-repo files). CHANGELOG entry. Flip M1/M2/M3 checkboxes in the planned design doc.",
+      "estimated_loc": 0,
+      "dependencies": ["M2_COORDINATOR_WIRING"],
+      "acceptance_criteria": [
+        "Runbook documents DRY_RUN-first enablement + env reference table",
+        "Terraform handoff appended to the implemented triage-gate doc (no ailang-multivac files touched)",
+        "CHANGELOG updated",
+        "Design doc M1/M2/M3 checkboxes flipped"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
