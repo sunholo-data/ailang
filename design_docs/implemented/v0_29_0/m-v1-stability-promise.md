@@ -1,6 +1,6 @@
 # M-V1-STABILITY-PROMISE: The 1.x Stable-Surface Promise
 
-**Status**: Planned
+**Status**: ✅ Implemented (2026-07-10, sprint M-V1-STABILITY-PROMISE, eval PASS 96/100 round 1; ratification of tier assignments pending — Mark, at v1.0.0 release)
 **Target**: v1.0.0
 **Priority**: P0 (required-for-v1 — explicit clause of the ratified v1.0 bar)
 **Estimated**: 2–3 days
@@ -359,4 +359,4 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-07-10
-**Last updated**: 2026-07-10
+**Last updated**: 2026-07-10 (moved to implemented/v0_29_0 on evaluation pass)
