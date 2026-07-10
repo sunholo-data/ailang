@@ -273,3 +273,49 @@ Track via a daily counter in the same `triage_contacts` collection. Alert via th
 - [`internal/coordinator/daemon_tasks_polling.go`](../../../internal/coordinator/daemon_tasks_polling.go) — the wiring point for M4
 - [`ailang-multivac/terraform/cloud_run_mcp.tf`](../../../../ailang-multivac/terraform/cloud_run_mcp.tf) L132-133 — the Cloud Armor TODO that complements this doc
 - [CLAUDE.md "No Silent Fallbacks"](../../../CLAUDE.md) — informs the `reject` vs `file` distinction (no silent drops)
+
+## Follow-up: Cloud adapter (M-FEEDBACK-GATE-CLOUD-ADAPTER, v0.29.x)
+
+This gate shipped with the cooldown, classifier, and budget stages as **injected
+dependencies that nothing constructed in production** — cloud protection was
+rules-only. **M-FEEDBACK-GATE-CLOUD-ADAPTER** (sprint plan:
+[`design_docs/planned/v0_29_0/sprint-m-feedback-gate-cloud-adapter.md`](../../planned/v0_29_0/sprint-m-feedback-gate-cloud-adapter.md))
+closes that gap in-repo:
+
+- `internal/storage/firestore/feedbackgate_stores.go` — `FeedbackGateCooldownStore`
+  (collection `feedback_gate_cooldown`) and `FeedbackGateBudgetStore` (collection
+  `feedback_gate_budget`). Note the collection names differ from this doc's
+  original `triage_contacts` sketch: the shipped code uses two dedicated
+  collections. All window math is in the pure, table-tested `trimAndCount`.
+- `internal/coordinator` — `Daemon.SetFeedbackGateDeps` + `enableFeedbackGate`
+  attach the deps onto the gate config in cloud mode; nil deps (local) leave
+  every stage a no-op. Fail-closed when `ANTHROPIC_API_KEY` is absent.
+- Operator runbook (DRY-RUN-first) in
+  [`docs/docs/guides/coordinator.md`](../../../docs/docs/guides/coordinator.md)
+  → "Feedback Cost & Abuse Gate".
+
+### Terraform handoff (sibling `ailang-multivac` repo — NOT in this codebase)
+
+Two ops items remain for the terraform repo. They are provisioning, not code, and
+are intentionally out of scope for the in-repo adapter sprint:
+
+1. **Firestore TTL policy on `expires_at`** for the two new collections:
+   - `feedback_gate_cooldown` — the adapter writes `expires_at = now + 7d` on each
+     contact doc.
+   - `feedback_gate_budget` — the adapter writes `expires_at = now + 3d` on each
+     daily counter doc.
+
+   The adapters already stamp `expires_at`; the TTL *policy* (which actually deletes
+   expired docs) is a per-collection Firestore setting provisioned via terraform.
+   **Without the policy, stale docs are tiny and harmless** — cooldown docs are
+   saturation-capped at 64 timestamps, budget docs are a single int — so this is
+   housekeeping, not a correctness gate.
+
+2. **`ANTHROPIC_API_KEY` secret** on the coordinator Cloud Run service (Secret
+   Manager + the service's env). Absent ⇒ the classifier runs fail-closed
+   (heuristic-flagged submissions filed, never dispatched) with a loud startup
+   warning — safe, but the classifier stage is inert until the secret is wired.
+
+Both mirror the existing `terraform/security.tf` alert-email pattern referenced by
+this doc's M5. No new IAM is required — the coordinator SA already holds
+`roles/datastore.user` project-wide, which covers the two new collections.
