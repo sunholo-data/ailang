@@ -22,6 +22,13 @@ cd "$REPO" || exit 1
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 [ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
 
+# BILLING GUARD (2026-07-10): the nightly MUST bill the Claude subscription, never
+# API credits. secrets.env exports ANTHROPIC_API_KEY for other tools — if it leaks
+# into claude's env, headless -p silently bills the API. Strip it, and require the
+# subscription token (one-time: `claude setup-token`, then put the sk-ant-oat...
+# value in secrets.env as CLAUDE_CODE_OAUTH_TOKEN). No token → refuse to run.
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+
 LOG=/tmp/ailang-mission-control.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
@@ -34,7 +41,20 @@ if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
 fi
 
-# 2. claude CLI reachable?
+# 2. Subscription token present? (Keychain OAuth is unreadable from launchd,
+#    and the API key is deliberately stripped above — this token is the ONLY
+#    valid auth path for the nightly.)
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+  log "CLAUDE_CODE_OAUTH_TOKEN not set — refusing to run (would risk API-credit billing)."
+  log "One-time fix: run 'claude setup-token' interactively, add the token to"
+  log "~/.config/ailang/secrets.env as: export CLAUDE_CODE_OAUTH_TOKEN=<token>"
+  ailang messages send controlplane \
+    "mission-control refused to start: CLAUDE_CODE_OAUTH_TOKEN missing (subscription-billing guard). Run 'claude setup-token' once and add it to secrets.env." \
+    --title "Mission nightly blocked: no subscription token" --from mission-control 2>/dev/null
+  exit 1
+fi
+
+# 3. claude CLI reachable?
 if ! command -v claude >/dev/null 2>&1; then
   log "claude CLI not on PATH — abort"
   ailang messages send controlplane "mission-control driver: claude CLI not found on PATH" \
@@ -42,7 +62,7 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 1
 fi
 
-# 3. Dry run — verify wiring without spending tokens.
+# 4. Dry run — verify wiring without spending tokens.
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
   log "DRY RUN ok: repo=$REPO model=$MODEL timeout=${HARD_TIMEOUT}s"; exit 0
 fi

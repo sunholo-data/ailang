@@ -143,6 +143,10 @@ invokes.
 - **Budgeted**: hard wall-clock kill in the driver (default 6h); one backlog item per iteration.
 - **Kill switch**: `touch ~/.ailang/state/mission-control.disabled` (checked in preflight) or
   `launchctl unload ~/Library/LaunchAgents/dev.ailang.mission-control.plist`.
+- **Subscription billing only** (2026-07-10): the nightly bills the Claude subscription via
+  `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`, stored in secrets.env) — the driver strips
+  `ANTHROPIC_API_KEY` and refuses to start without the token. The first kickstarted run billed
+  ~13 min of API credits before this was caught; never again.
 - **Escalation**: evaluator `needs-human-review`, merge conflicts, or any guardrail trip →
   `ailang messages send controlplane`, park the item, pick the next; never force through.
 - **Skill edits**: max one per iteration, ≥2 recorded frictions each, called out in the morning
