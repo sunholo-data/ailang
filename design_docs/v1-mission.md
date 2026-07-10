@@ -9,9 +9,11 @@ rather than ad-hoc sessions.
 loop; every friction found here routes to a lane (skill fix / process fix / backlog item).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
 runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (22:00 nightly on the
-rig, armed 2026-07-10) behind the billing guard — it refuses to run until
-`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, subscription-billed) is in
-`~/.config/ailang/secrets.env`, so arming is safe before the token exists. The Claude Code
+rig, armed 2026-07-10) behind the billing guard — API keys are stripped from the environment
+(subscription-or-nothing by construction) and a cheap auth probe runs first: keychain OAuth
+suffices while the rig is logged in (verified 2026-07-10); `CLAUDE_CODE_OAUTH_TOKEN` in
+secrets.env is an optional belt-and-braces for post-reboot login screens. Probe failure refuses
+loudly with zero spend. The Claude Code
 scheduled-tasks path was TESTED AND RULED OUT for this job (2026-07-10 canary): that system is
 desktop-side — tasks landed on /Users/mark (Mark's machine, not the rig) and a probe task never
 dispatched even there (a June one-time task was also found a month overdue). Wrong machine +
