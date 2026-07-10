@@ -10,7 +10,11 @@ This document tracks known limitations, workarounds, and design constraints in A
 
 For features that have been implemented, see [Design Documents](/docs/design-docs).
 
-Last verified against AILANG **v0.14.2**.
+**All entries below were live-verified at AILANG `v0.28.0-141-g379990ad5` on 2026-07-10** with
+`ailang check` / `ailang run` transcripts. Each open entry carries a **Verified at** date; fixed
+items are listed under [Recently Resolved](#recently-resolved). This is the entry policy from
+[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-stability-promise.md):
+every remaining limitation is a reproducible artifact, not lore.
 
 ---
 
@@ -19,13 +23,15 @@ Last verified against AILANG **v0.14.2**.
 ### Y-Combinator and Recursive Lambdas (By Design)
 
 **Status**: Design constraint, not a bug
+**Verified at**: v0.28.0 (2026-07-10, `ailang check` transcript below)
 
 The Y-combinator and similar recursive lambda expressions fail with "occurs check" errors:
 
 ```ailang
 -- This fails:
 let Y = \f. (\x. f(x(x)))(\x. f(x(x))) in
--- Error: occurs check failed: type variable α occurs in (α → β)
+-- ailang check ->
+-- Error: occurs check failed: α2 occurs in α2 -> α3 ! {...ε4}
 ```
 
 **Root Cause**: Hindley-Milner type inference prevents infinite types to ensure decidability. The Y-combinator requires a recursive type `α = α → β`, which would create an infinite type.
@@ -51,6 +57,7 @@ Named `func` recursion is also supported by `ailang verify` via bounded unrollin
 
 **Status**: WASM-specific constraint with structured error
 **Since**: v0.22.x
+**Verified at**: v0.28.0 (2026-07-10 — structured `depth budget exceeded` error path present; WASM-host-only, not reproducible from the CLI, which is unaffected)
 **Affects**: AILANG modules compiled to WebAssembly (browser demos using `wasm/ailang.wasm`). **CLI is unaffected.**
 
 The WASM-compiled type-checker is bound by the host JavaScript engine's call-stack limit (~10–15K frames in Node, Chromium, Firefox). Modules with deeply-recursive type structure exceed it. On native Go the CLI handles them fine because goroutine stacks grow dynamically up to 1 GiB; on WASM we hit the cliff.
@@ -134,11 +141,12 @@ to browser execution.
 
 **Status**: Known limitation with workarounds
 **Since**: v0.5.10
+**Verified at**: v0.28.0 (2026-07-10 — **Go-codegen path only**; the interpreter is unaffected: `ailang run` on a duplicate-shaped record returns the correct field value)
 **Affects**: Go code generation when multiple record types share identical field structures
 
 When multiple record types declare the same field names and types, the Go
 codegen may pick the wrong struct because `GetRecordTypeByFields` returns the
-first match:
+first match (the interpreter path is fine — this is a `--emit-go` codegen issue only):
 
 ```ailang
 -- starmap.ail
@@ -168,6 +176,7 @@ func initSystem() -> StarSystem {
 ### If-Else Branches Require Explicit Braces
 
 **Status**: Design constraint (improved error message in v0.5.9)
+**Verified at**: v0.28.0 (2026-07-10 — `ailang check` emits "if-else branches require explicit braces when using let bindings" with a fix suggestion)
 **Affects**: Multi-statement branches in if-else expressions
 
 AILANG is not layout-sensitive, so multi-statement branches must be wrapped in
@@ -196,44 +205,12 @@ Single-expression branches don't need braces.
 
 ---
 
-### `match` Inside Block-Body Lambdas in HOF Arguments
-
-**Status**: Known parser bug — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-match-in-hof-block-lambda.md)
-**Affects**: Inline `\x. { ... match ... with ... }` lambdas passed directly to higher-order functions
-
-The parser's nested-delimiter tracking gets confused when a `match ... with`
-expression appears inside a brace-block lambda passed to a HOF:
-
-```ailang
--- Fails: PAR_UNEXPECTED_TOKEN at 'with'
-let result = flatMap(\item. {
-  let status = match item with
-    | 0 -> Err("zero")
-    | _ -> Ok;
-  [status]
-}, myList)
-```
-
-**Workaround**: Extract the lambda body into a named helper:
-
-```ailang
-let processItem = \item.
-  match item with
-  | 0 -> Err("zero")
-  | _ -> Ok
-
-let result = flatMap(\item. [processItem(item)], myList)
-```
-
-Simple `let` bindings inside block-body lambdas (without `match`) are fine.
-
----
-
 ## Language Feature Gaps
 
 ### Error Propagation Operator (`?`)
 
 **Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
+**Verified at**: v0.28.0 (2026-07-10 — `r?` produces `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`)
 
 The `?` operator for early return on `Result` errors is designed but not yet
 implemented. For now, use explicit `match` on `Result`:
@@ -250,6 +227,7 @@ match readFile(path) {
 ### Typed Quasiquotes
 
 **Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
+**Verified at**: v0.28.0 (2026-07-10 — quasiquote syntax not accepted by the parser)
 
 Typed quasiquotes for deterministic AST templates and secure string templating
 are designed but not yet implemented. Use string interpolation (`"${expr}"`,
@@ -260,6 +238,7 @@ v0.12.1+) or `concat([..])` for now.
 ### CSP Concurrency
 
 **Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-csp-session-types.md)
+**Verified at**: v0.28.0 (2026-07-10 — no channel/session-type surface in the parser)
 
 CSP-style concurrency with channels and session types is deferred to v1.0.0+.
 AILANG currently focuses on deterministic, single-threaded execution. The
@@ -271,6 +250,7 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 ### Interactive stdin / Keyboard Input
 
 **Status**: Line input works; two narrower gaps remain (see the three rows below).
+**Verified at**: v0.28.0 (2026-07-10 — `std/io.readLine` and `std/stream.asyncReadStdinLines` present in the stdlib)
 
 `std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
 presses Enter — covering prompt-and-read and REPL-style input. `std/stream.asyncReadStdinLines`
@@ -296,18 +276,29 @@ string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.a
 ## Recently Resolved
 
 These limitations existed in earlier versions and are now fully resolved.
-Listed for users following older docs:
+Listed for users following older docs. All re-verified at v0.28.0, 2026-07-10.
 
-- **String interpolation** — Implemented in v0.12.1 (`"Hello, ${name}!"`).
-  Phase 2 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md)
-  in v0.13.0 made `++` list-only.
-- **Pattern guards** — Implemented in v0.6.2
-  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)).
-  `match x { x if x > 100 => ..., x if x > 0 => ... }` now evaluates guards
-  correctly.
 - **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
   ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
   `let add = \x. \y. x + y in add(3.14)(2.71)` now returns `5.85`.
+  Re-verified v0.28.0 (`ailang run` → `5.85`).
+- **`match` inside block-body lambdas in HOF arguments** — Fixed (design doc
+  [m-dx-match-in-hof-block-lambda](https://github.com/sunholo-data/ailang/blob/dev/design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md)).
+  Using brace-form `match` inside a `\x. { ... }` lambda passed to a HOF now type-checks and runs:
+  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`.
+  Re-verified v0.28.0. (The old `match ... with | …` ML/Haskell form is retired — it now emits
+  `PAR019`; use brace-form `match x { pat => expr }`.)
+- **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing now works fully.
+  `{ println("step 1"); println("step 2"); println("step 3") }` runs all three. The old
+  `let _ = … in` workaround is no longer needed. Re-verified v0.28.0.
+- **String interpolation** — Implemented in v0.12.1 (`"Hello, ${name}!"`).
+  Phase 2 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md)
+  in v0.13.0 made `++` list-only (string `++` is now a type error). Re-verified v0.28.0
+  (`"Value: ${x}"` → `Value: 42`).
+- **Pattern guards** — Implemented in v0.6.2
+  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)).
+  `match x { n if n > 100 => ..., n if n > 0 => ... }` now evaluates guards
+  correctly. Re-verified v0.28.0 (→ `big`).
 
 ---
 
