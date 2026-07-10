@@ -2,7 +2,7 @@
 
 **Status**: Planned
 **Target**: v1.0.0+ (phased; minimum-viable demo possible by v0.16.x)
-**Priority**: P0 — Strategic (compliance + enterprise adoption differentiator)
+**Priority**: P1 — Strategic (compliance + enterprise adoption differentiator; downgraded from P0 per v1-mission iteration 0, Mark 2026-07-10: not v1.0-gating)
 **Estimated**: 3–5 weeks (phased across milestones)
 **Dependencies**:
   - Effect system (stable) — [m_r2_effect_system.md](../../implemented/v0_2_0/m_r2_effect_system.md) ✅

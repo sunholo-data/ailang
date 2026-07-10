@@ -51,3 +51,49 @@ are raw material for the first real retro pass.
 
 **Next**: Iteration 0 proper — Mark ratifies the v1.0 bar draft; re-score the backlog; rewrite
 the queue. Then iteration 1 picks the top P0 (m-typeenv-sub-fix, pending re-score).
+
+---
+
+## 1 — 2026-07-10 — Iteration 0: bar ratified, backlog re-scored, queue rewritten
+
+**Picked**: Iteration 0 (queue head). Interactive with Mark; ran via the mission-control skill
+(its first invocation).
+
+**Reality check**: paid off immediately — 2 of 4 v0_29_0 P0s were stale:
+- m-named-test-blocks: M1 shipped 2026-07-09 (ec4996e45, 7389e84c1 + fixes fd75ce8d4/71d0d43a3).
+  Verified LIVE after `make quick-install`: deliberately-failing named test → FAIL line + exit 1
+  (pre-rebuild the stale binary showed the old silent-green). Reduced to closeout.
+- m-feedback-triage-gate: genuinely open — shipped M-MCP-EDGE-THROTTLE (2d8d5e937) is its stated
+  PRECONDITION, not its scope.
+- m-typeenv-sub-fix / m-diagnostic-coverage: genuinely open. Both v1_0_0 P0s: never started.
+
+**Shipped**: v1.0 bar RATIFIED (Mark). Scope decisions: effect refinement IN (decompose first) /
+handlers OUT→v1.1 (bake-time argument); CSP, quasiquotes, perf4, D4 OUT→v1.1 (+
+agent-orchestration, zero-language-learnings by policy); both v1_0_0 P0s downgraded to P1 with
+dated notes. 7 docs git-mv'd v1_0_0→v1_1_0. Charter: bar marked ratified, 9-item
+required-for-v1 queue written (head: named-test-blocks closeout). Identified missing artifact:
+m-v1-stability-promise design doc (queued #5).
+
+**Routing evidence**: model=fable task-class=mission-coordination round1-score=n/a rounds=1
+corrections=0 (interactive; Mark redirected zero conclusions — but note 3 scope questions
+needed his input by design).
+
+**Ruled out**:
+- Effect handlers for v1.0 (Mark: bake-time risk under a fresh stability promise beats Koka
+  parity now).
+- "All 4 v0_29_0 P0s are open work" — refuted by reality-check (1 of 4 substantially shipped).
+- Trusting `$?` after a piped command for exit-code verification (caught own error: `| tail`
+  masks the exit code; use direct invocation or PIPESTATUS).
+
+**Retro lane**: none this iteration — two frictions RECORDED (each 1 instance; the ≥2 rule
+correctly blocks skill edits until they recur):
+1. Skill `!'...'` frontmatter injections rendered as raw text when invoked via the Skill tool —
+   preflight had to be run manually. If it recurs in the nightly headless run → skill fix
+   (inline the preflight commands as explicit Gate-0 bash instead of frontmatter injection).
+2. Stale installed binary nearly falsified the live reality-check (old `ailang` showed
+   pre-M1 behavior; the binary's own staleness warning saved it). If it recurs → skill fix
+   (Gate 2: `make quick-install` before any live verification).
+
+**Next**: Iteration 1 — m-named-test-blocks closeout (bookkeeping pick, so per standing rule 1
+it may also take m-typeenv-sub-fix: design decided, Opus sprint via planner→executor→evaluator,
+the first full inner-loop run with routing evidence).

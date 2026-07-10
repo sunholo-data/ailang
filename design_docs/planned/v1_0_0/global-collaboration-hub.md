@@ -2,7 +2,7 @@
 
 **Status**: Planned
 **Target**: v0.6.0
-**Priority**: P0 - High
+**Priority**: P1 — High (downgraded from P0 per v1-mission iteration 0, Mark 2026-07-10: not v1.0-gating)
 **Dependencies**: Collaboration Hub v2 (v0.5.0)
 
 ## Axiom Compliance

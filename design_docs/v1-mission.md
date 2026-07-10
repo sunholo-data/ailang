@@ -13,6 +13,21 @@ runs ONE iteration. The launchd job `dev.ailang.mission-control` fires it nightl
 
 ---
 
+## STATUS 2026-07-10 (later) — ITERATION 0 COMPLETE: BAR RATIFIED, BACKLOG RE-SCORED
+
+Mark ratified the v1.0 bar (interactive session) and made the scope calls:
+- **Effect refinement IN** (public docs promise; decompose ~90h into sprints before executing);
+  **effect handlers OUT → v1.1** (largest new surface; no bake time under a fresh stability
+  promise is the risky combination).
+- **CSP session types, quasiquotes, perf4-bytecode, D4 all OUT → v1.1** (plus agent-orchestration
+  and zero-language-learnings by ordering policy — multi-week strategic, not selected IN).
+- **Both v1_0_0 P0s downgraded to P1/nice-for-v1** (global-collaboration-hub,
+  m-eu-compliance-effects — multi-week non-language items; dated notes in the docs).
+- Reality-check finding: **m-named-test-blocks core scope already SHIPPED** (M1 commits
+  ec4996e45/7389e84c1 + fixes; verified live post-rebuild: failing named test → FAIL + exit 1).
+  Reduced to a closeout item. m-feedback-triage-gate confirmed genuinely open (the shipped
+  M-MCP-EDGE-THROTTLE rate limit is its precondition, not its scope).
+
 ## STATUS 2026-07-10 — MISSION INITIALIZED, ITERATION 0 PENDING
 
 Exploration findings that shaped this charter (full census in log entry 0):
@@ -35,17 +50,20 @@ Exploration findings that shaped this charter (full census in log entry 0):
 2. **Then**: work the queue P0-first through the inner loop, one sprint-sized item per iteration,
    recording routing evidence every time.
 
-## The v1.0 bar (DRAFT — ratify in iteration 0)
+## The v1.0 bar (RATIFIED 2026-07-10, Mark)
 
-A v1.0.0 declaration requires, at minimum:
-- **Zero open P0s** (currently 6).
+A v1.0.0 declaration requires:
+- **Zero open P0s** (at ratification: 3 open sprint-sized — typeenv-sub-fix, feedback-triage-gate,
+  diagnostic-coverage — plus the named-test-blocks closeout).
 - **Language core frozen**: no known type-safety holes (m-typeenv-sub-fix class), parser/typechecker
   regressions gated by CI, LIMITATIONS.md accurate.
 - **The eval bar**: frontier models ≥ Python-parity on the standard suite (already ~even after
-  regrade); agent-mode suite discriminating (not saturated) with published dashboard.
-- **Stability promise defined**: what syntax/stdlib/CLI surface is stable in 1.x, written into docs.
-- **Strategic multi-week items** (effect handlers, effect refinement, CSP session types,
-  quasiquotes, perf4-bytecode) are explicitly IN or OUT — decided, not drifted.
+  regrade); agent-mode suite discriminating (not saturated) with published dashboard
+  (→ m-eval-frontier-tier).
+- **Stability promise defined**: what syntax/stdlib/CLI surface is stable in 1.x, written into docs
+  (→ new design doc m-v1-stability-promise, queued).
+- **Strategic items — DECIDED**: effect refinement IN (docs promise; decomposed first); effect
+  handlers, CSP session types, quasiquotes, perf4-bytecode, D4 OUT → v1.1.
 
 ## How the mission runs (each iteration — codified in the mission-control skill)
 
@@ -122,13 +140,27 @@ invokes.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
-1. [NEXT] **Iteration 0** — ratify the v1.0 bar draft above with Mark; re-score the 93-doc backlog;
-   rewrite this queue accordingly.
-2. m-typeenv-sub-fix (P0, type-safety hole, 2–3d)
-3. m-named-test-blocks (P0, silent-green test runner, 2–3d)
-4. m-feedback-triage-gate (P0, public endpoint cost/safety, 2d)
-5. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
-6. *(remainder pending iteration-0 re-score)*
+**Required-for-v1 (the bar's critical path):**
+
+1. [NEXT] m-named-test-blocks **closeout** (bookkeeping: verify remaining success criteria —
+   deontic 5/5 via --package, skip-reason visibility, --allow-skips, docs/AGENT.md retirement —
+   then move doc to implemented/; core scope verified shipped 2026-07-10)
+2. m-typeenv-sub-fix (P0, type-safety hole, 2–3d; design decided: Option A + Approach 4)
+3. m-feedback-triage-gate (P0, public endpoint cost/safety, 2d)
+4. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
+5. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
+   LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)
+6. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows
+   as individual queue items)
+7. m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
+8. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
+9. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
+
+**Nice-for-v1** (worked opportunistically if the critical path is blocked): the remaining
+`planned/v1_0_0/` docs (incl. the two downgraded P1s) and `planned/v0_29_0/` P1s — those ship on
+the normal v0.29 road regardless; the queue only tracks what gates v1.0.
+
+**Post-v1**: everything in `planned/v1_1_0/` (7 strategic docs moved there in iteration 0).
 
 ## Ruled out / resolved
 
