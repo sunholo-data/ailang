@@ -97,3 +97,55 @@ correctly blocks skill edits until they recur):
 **Next**: Iteration 1 — m-named-test-blocks closeout (bookkeeping pick, so per standing rule 1
 it may also take m-typeenv-sub-fix: design decided, Opus sprint via planner→executor→evaluator,
 the first full inner-loop run with routing evidence).
+
+---
+
+## 2 — 2026-07-10 — Iteration 1: first full inner-loop run; 2 items landed; the loop's honesty held
+
+**Picked**: m-named-test-blocks closeout (bookkeeping) + m-typeenv-sub-fix (standing rule 1
+allows a second on a bookkeeping pick). Interactive with Mark; mission-control skill invoked.
+
+**Reality check**:
+- 1a: all in-repo criteria verified live post-rebuild; duckdb's formerly-silent-skipped shipped
+  tests now execute 2/2 via `--package .`. Deontic criterion unverifiable (package absent from
+  every local checkout) — deferred honestly, not hand-waved.
+- 1b: the "open P0" premise was STALE at a depth Gate 2 missed — I read the 3 `t.Skip`-parked
+  tests as "bug still open"; the executor's re-verify directive revealed all 3 PASS un-skipped.
+  Evaluator cross-history runs: FAIL at ebd23a67c (2026-03-27, bug documented live), PASS at
+  M-TYPE-LIST-SOUND round 3 (66aceed79). The hole was closed ~Jun 8 as a side effect; nobody
+  un-skipped the tests.
+
+**Shipped**: 1a closeout commit 246b89b1e. 1b: plan 7f5ca8615 (Opus; reconciled 6 stale
+design-doc items); executor branch (Opus, isolated worktree, 2 commits): 3 tests un-skipped +
+new TestTypeSafety_CrossModule_ExportedADTRoundtrip + honest CHANGELOG; evaluation 92/100 PASS
+(eval_M-TYPEENV-SUB_round_1.json); merge f59421ac8 with attribution corrected at merge (round 4
+→ by round 3, e67e24cb1 disproven as closer). Post-merge `make test` failure root-caused to a
+STALE `bin/ailang` (v0.26.0, Jun 26 — test helpers prefer it over PATH) — rebuilt, full suite
+green, 0 FAILs. Design doc + sprint plan → implemented/v0_29_0 (status: Resolved).
+
+**Routing evidence**:
+- model=opus task-class=plan round1-score=n/a rounds=1 corrections=0 (plan approved unchanged;
+  independently caught 6 stale doc items — high value add)
+- model=opus task-class=execute round1-score=92 rounds=1 corrections=1 (causal attribution wrong:
+  claimed round 4 + tvar-collision; proof shows ≤ round 3 and e67e24cb1 predates the live bug.
+  Scope discipline exemplary: declined dead 135-LOC shared-infra repair, recorded M1
+  passes:false honestly)
+
+**Ruled out**:
+- "The typeenv hole is open" — the biggest ruled-out yet: closed since ~2026-06-08 by
+  M-TYPE-LIST-SOUND (by round 3). The 3-month-old P0 was a bookkeeping ghost.
+- "The post-merge make test failure was caused by the merge" — it was the stale bin/ailang;
+  merge diff (test file + changelog) could not affect internal/pkg.
+- Executor's attribution of closure to round 4 + M-TVAR-COLLISION-FIX — disproven by
+  cross-history test runs (e67e24cb1 is 2026-02-13, bug documented live 2026-03-27).
+
+**Retro lane**: skill-fix (the ≥2 rule satisfied by THREE same-class frictions: 1a stale
+installed binary, 1b-eval stale bin/ailang, 1b parked-tests-read-as-open) — mission-control
+Gate 2 gained a Verification protocol: rebuild BOTH binaries + confirm --version vs git
+describe; un-skip-and-run parked tests before treating a bug as open; PIPESTATUS for piped exit
+codes. Systemic fix for the bin/ailang hazard (test helper prefers stale local builds) spun off
+as a background task chip.
+
+**Next**: Iteration 2 — m-feedback-triage-gate (P0, genuinely open, 2d): full inner loop again;
+apply the new Gate-2 protocol from the start. Also pending for Mark: arm the launchd nightly
+after this supervised run's evidence (2 iterations, both clean).

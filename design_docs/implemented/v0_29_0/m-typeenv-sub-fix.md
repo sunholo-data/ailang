@@ -1,6 +1,6 @@
 # M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports
 
-**Status**: Planned (design decision made: Option A + Approach 4)
+**Status**: ✅ Resolved (v1-mission iteration 1b, 2026-07-10) — hole closed by adjacent M-TYPE-LIST-SOUND work (by round 3, 66aceed79), NOT by the planned repair (deliberately not built — high-risk shared-infra change for a no-longer-reproducible bug). Regression-guarded: the 3 parked tests un-skipped + a new exported-ADT roundtrip guard (internal/pipeline/type_safety_test.go), evaluator-proven non-vacuous (FAIL at ebd23a67c where the bug was live). Eval 92/100 PASS, merged f59421ac8.
 **Target**: v0.9.2
 **Priority**: P0 (type safety hole — silently accepts invalid programs)
 **Estimated**: 2-3 days (revised from 4-6 hours after investigation)

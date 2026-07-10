@@ -13,6 +13,23 @@ runs ONE iteration. The launchd job `dev.ailang.mission-control` fires it nightl
 
 ---
 
+## STATUS 2026-07-10 (evening) — ITERATION 1 COMPLETE: FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED
+
+- **1a** m-named-test-blocks closed out (shipped 2026-07-09, verified live incl. duckdb's
+  formerly-silent-skipped tests now 2/2; deontic criterion deferred — package absent locally).
+- **1b** m-typeenv-sub-fix RESOLVED via the full loop: Opus planner (found 6 stale design-doc
+  items incl. 2 interacting post-doc fixes) → Opus executor in isolated worktree (proved the P0
+  no longer reproduces; declined the 135-LOC repair; shipped regression guards instead) → Fable
+  evaluation 92/100 PASS with adversarial non-vacuity proof (tests FAIL at the bug-live commit,
+  PASS from M-TYPE-LIST-SOUND round 3). Merged f59421ac8.
+- **Found + fixed en route**: stale `bin/ailang` (v0.26.0) silently breaking `make test` on this
+  rig — test helpers prefer `bin/ailang`; systemic fix spun off as a background task.
+- **Retro executed the ≥2 rule for real**: three same-class frictions (stale binaries ×2,
+  parked-test-as-status ×1) → ONE skill edit: Gate-2 verification protocol added to
+  mission-control (rebuild both binaries, un-skip-and-run parked tests, PIPESTATUS).
+- Routing evidence rows 1–2 recorded (Opus plan + execute: both high quality; 1 attribution
+  correction at evaluation).
+
 ## STATUS 2026-07-10 (later) — ITERATION 0 COMPLETE: BAR RATIFIED, BACKLOG RE-SCORED
 
 Mark ratified the v1.0 bar (interactive session) and made the scope calls:
@@ -142,11 +159,11 @@ invokes.
 
 **Required-for-v1 (the bar's critical path):**
 
-1. [NEXT] m-named-test-blocks **closeout** (bookkeeping: verify remaining success criteria —
-   deontic 5/5 via --package, skip-reason visibility, --allow-skips, docs/AGENT.md retirement —
-   then move doc to implemented/; core scope verified shipped 2026-07-10)
-2. m-typeenv-sub-fix (P0, type-safety hole, 2–3d; design decided: Option A + Approach 4)
-3. m-feedback-triage-gate (P0, public endpoint cost/safety, 2d)
+1. [LANDED 2026-07-10] m-named-test-blocks closeout (iteration 1a; deontic criterion deferred,
+   package absent locally)
+2. [LANDED 2026-07-10] m-typeenv-sub-fix (iteration 1b: RESOLVED — pre-closed by adjacent
+   M-TYPE-LIST-SOUND work, regression-guarded, eval 92/100, merge f59421ac8)
+3. [NEXT] m-feedback-triage-gate (P0, public endpoint cost/safety, 2d)
 4. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
 5. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
    LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)

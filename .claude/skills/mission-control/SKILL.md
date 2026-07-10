@@ -46,6 +46,18 @@ A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped ful
 said Planned for a month). If already done → the iteration's deliverable is the bookkeeping
 (move doc to implemented/, update queue, log it) and you pick the NEXT item too.
 
+**Verification protocol** (added iteration 1 after three same-class frictions):
+1. **Rebuild before any live check**: `make quick-install && make build` — BOTH binaries.
+   `~/go/bin/ailang` (PATH) and `bin/ailang` (preferred by test helpers when present) go stale
+   independently; a stale one silently falsifies results (1a: stale installed binary showed
+   pre-fix behavior; 1b-eval: Jun-26 `bin/ailang` v0.26.0 broke `make test` with a phantom
+   `_io_flush` error). Confirm `--version` matches `git describe` before trusting output.
+2. **A parked test is a claim, not evidence**: `t.Skip`-ed / disabled tests say "nobody
+   re-checked", not "still broken". Un-skip and RUN before treating the bug as open — the
+   M-TYPEENV-SUB "open P0" was already fixed; only un-skipping revealed it.
+3. **Exit codes through pipes lie**: `cmd | tail; echo $?` reports tail's status. Use direct
+   invocation or PIPESTATUS.
+
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
 Apply the mission doc's **model routing policy** (currently: Fable = design docs + evaluation +
