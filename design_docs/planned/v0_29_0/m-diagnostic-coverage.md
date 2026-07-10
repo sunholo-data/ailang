@@ -1,6 +1,14 @@
 # M-DIAGNOSTIC-COVERAGE: The footgun coverage table — error-time teaching with CI-enforced fix-carrying diagnostics (R1.1)
 
-**Status**: Planned
+**Status**: Partially implemented — M1–M3 SHIPPED 2026-07-09 (found stale-status at mission
+iteration 4 reality-check, 2026-07-10): footgun table (14 rows) at `internal/diag/footguns.md`,
+CI fixture mechanism at `internal/diag/footgun_fixtures_test.go`, first three diagnostics
+(#325 `PAR_IMPORT_PLACEMENT`, #327 interim truth-telling hint, `++` gold standard fixtured) —
+commits ff58a3259 / e59197554; #327's REAL fix (M2_RECORD_UPDATE_FIX, 01fb8676a) shipped in the
+same sprint, so the interim-hint retirement condition is already met (audit pending).
+OPEN: fixture-promotion of the 5 fix-carrying rows (sprint M-DIAG-FIXTURE-PROMOTION,
+2026-07-10), then the A/B-gated deletion pass + haiku causal re-run (see dated note above
+Solution Design).
 **Target**: v0.29.0 (Phase 1 of the strategy review routing table)
 **Priority**: P0 (the cheapest cost-per-success lever with fresh causal evidence: one missing diagnostic cost a full mid-tier benchmark cell)
 **Estimated**: 3–4 days for the mechanism + first three diagnostics (table+CI 1d, diagnostics 1.5d, prompt-deletion pass + rig A/B 1d)
@@ -94,6 +102,16 @@ Touches `internal/parser/` (for #325's placement diagnostic) and error-message p
    on old strings — the eval harness's `CategorizeErrorWithCode` patterns must be
    updated in the same PR; grep for affected `errorRule` entries).
 
+## Deferred-step note (2026-07-10, mission iteration 4)
+
+The deletion pass (step 4) is **deliberately deferred, not skipped**: with only M1–M3 shipped,
+the deletable surface is ~35 lines (`++` section ≈18 + scattered singles) — far below the ≥100
+gate — so a rig A/B now would be poorly amortized (hours of GPU eval to clear a 35-line
+deletion). Sequencing: widen `covered` first (fixture-promotion sprint, then future target
+diagnostics), THEN one A/B clears a ≥100-line deletion in a single gate. The haiku causal
+re-run (success criterion 3) is API-billed and cannot run from the headless mission loop
+(billing guard strips API keys) — it needs a supervised session or explicit human ops.
+
 ## Solution Design
 
 1. **Inventory** (~0.5d): sweep `prompts/v0.16.2.md` Common Mistakes + `docs/LIMITATIONS.md`
@@ -108,10 +126,10 @@ Touches `internal/parser/` (for #325's placement diagnostic) and error-message p
    prompt-size A/B per R3.1 tooling, merge only on no-loss.
 
 ## Success Criteria
-- [ ] Table with ≥ 10 inventoried entries, each row live-verified
-- [ ] 3 diagnostics shipped, fixtures green in CI
-- [ ] haiku re-run on `legal_obligation_engine` AILANG: the #325 cell flips (the causal test of the whole thesis)
-- [ ] ≥ 100 prompt lines deleted, rig A/B no-loss, KPI reported
+- [x] Table with ≥ 10 inventoried entries, each row live-verified (14 rows, live-verified 2026-07-09)
+- [x] 3 diagnostics shipped, fixtures green in CI (ff58a3259/e59197554; `go test ./internal/diag/` green on dev 22b3f0c62, re-verified 2026-07-10)
+- [ ] haiku re-run on `legal_obligation_engine` AILANG: the #325 cell flips (the causal test of the whole thesis) — API-billed; blocked headless, needs supervised session
+- [ ] ≥ 100 prompt lines deleted, rig A/B no-loss, KPI reported — deferred pending wider coverage (see dated note above)
 
 ## Verification Log
 
