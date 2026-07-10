@@ -2,9 +2,10 @@ package bestof
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // stubVerifier returns canned verdicts keyed by path — lets us unit-test the ranking
@@ -54,9 +55,7 @@ func TestSelectBest_Empty(t *testing.T) {
 // compiler: a good candidate typechecks+runs, a Num[string] candidate fails check, and
 // SelectBest picks the good one out of the pair. Skips if ailang isn't on PATH.
 func TestAilangVerifier_Integration(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	bin := testutil.FindAilangBinary(t)
 	dir := t.TempDir()
 	good := filepath.Join(dir, "good.ail")
 	bad := filepath.Join(dir, "bad.ail")
@@ -66,7 +65,7 @@ func TestAilangVerifier_Integration(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("module bad\nimport std/io (println)\nexport func main() -> () ! {IO} { println(show(\"a\" + \"b\")) }\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	v := AilangVerifier{}
+	v := AilangVerifier{Bin: bin}
 	if gv := v.Verify(good); !gv.TypeChecks || !gv.Runs {
 		t.Errorf("good candidate verdict=%+v, want TypeChecks && Runs", gv)
 	}

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestRunCommand_PipedStdoutFlushesPerLine guards the M-PERF6B regression
@@ -38,10 +40,7 @@ func TestRunCommand_PipedStdoutFlushesPerLine(t *testing.T) {
 	if os.Getenv("AILANG_SKIP_PIPE_TEST") == "1" {
 		t.Skip("AILANG_SKIP_PIPE_TEST=1 — skipping subprocess-based pipe test")
 	}
-	ailangBin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skipf("ailang binary not on PATH (%v) — install with `make quick-install`", err)
-	}
+	ailangBin := testutil.FindAilangBinary(t)
 
 	// Create a small AILANG program that emits 3 events with 500ms gaps.
 	// 500ms × 3 = 1.5s total runtime. We'll assert we see at least the

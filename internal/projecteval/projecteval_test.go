@@ -2,9 +2,10 @@ package projecteval
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func runnerReturning(out string) CheckRunner {
@@ -49,9 +50,9 @@ func TestGradeBuild(t *testing.T) {
 // real locked multi-module package — catching format drift (the clean summary is "all passed!", not
 // "0 failed"). Skips if ailang isn't on PATH or the example/lock is absent.
 func TestGradeBuild_RealPackage(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	// AilangCheckRunner/StdoutAcceptance default to the bare "ailang" on
+	// PATH, so that binary must be present AND fresh (see testutil).
+	testutil.RequireAilangOnPath(t)
 	dir := "../../examples/intra_package_imports"
 	if _, err := os.Stat(dir + "/ailang.lock"); err != nil {
 		t.Skip("example package not locked (run `ailang lock` in it)")
@@ -66,9 +67,9 @@ func TestGradeBuild_RealPackage(t *testing.T) {
 // logic error, not a type error) but FAILS acceptance (sub=a+b prints 13, expected 7). Validates
 // the full build+behaviour pipeline on a real multi-module project. Skips if ailang/fixture absent.
 func TestGradeProject_RealFixture(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	// AilangCheckRunner/StdoutAcceptance default to the bare "ailang" on
+	// PATH, so that binary must be present AND fresh (see testutil).
+	testutil.RequireAilangOnPath(t)
 	dir := "../../eval_projects/calc_bugfix"
 	if _, err := os.Stat(dir + "/ailang.lock"); err != nil {
 		t.Skip("fixture not locked")
@@ -87,9 +88,9 @@ func TestGradeProject_RealFixture(t *testing.T) {
 // grade) with stub harnesses, no rig: a harness that FIXES the bug → build+accept pass; a no-op
 // harness → baseline (build ok, accept fail). The real motoko/pi harness plugs in for the rig run.
 func TestRunProjectEval_StubHarness(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	// AilangCheckRunner/StdoutAcceptance default to the bare "ailang" on
+	// PATH, so that binary must be present AND fresh (see testutil).
+	testutil.RequireAilangOnPath(t)
 	if _, err := os.Stat("../../eval_projects/calc_bugfix/ailang.lock"); err != nil {
 		t.Skip("fixture not locked")
 	}

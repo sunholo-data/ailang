@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestZ3VerifyTierRanksAboveContracts: a Z3-verified candidate (score 4) outranks runs+contracts (3).
@@ -21,10 +23,7 @@ func TestZ3VerifyTierRanksAboveContracts(t *testing.T) {
 // TestZ3VerifyEndToEnd: real `ailang verify` (Z3 SMT) proves a valid contract and finds a counterexample
 // for an invalid one — strictly stronger than runtime contracts. Skips if ailang/z3 absent.
 func TestZ3VerifyEndToEnd(t *testing.T) {
-	bin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	bin := testutil.FindAilangBinary(t)
 	if _, err := exec.LookPath("z3"); err != nil {
 		t.Skip("z3 not installed")
 	}
@@ -58,10 +57,7 @@ func TestZ3VerifyEndToEnd(t *testing.T) {
 // score 3) and loses to a provably-correct candidate (Verifies=true, score 4). Runtime contracts alone
 // (and any untyped harness) can't distinguish them. Skips if ailang/z3 absent.
 func TestZ3CatchesRuntimePassingButUnprovable(t *testing.T) {
-	bin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	bin := testutil.FindAilangBinary(t)
 	if _, err := exec.LookPath("z3"); err != nil {
 		t.Skip("z3 not installed")
 	}

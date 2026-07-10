@@ -6,16 +6,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestInjectContract_VerifyEndToEnd is the R1-moat composition: inject a PROVIDED `ensures` into a
 // contract-LESS candidate, then `ailang run --verify-contracts` must REJECT the runs-but-wrong one
-// and PASS the correct one. Skips if ailang isn't on PATH (CI without a build).
+// and PASS the correct one. Skips if no fresh ailang binary exists (CI without a build).
 func TestInjectContract_VerifyEndToEnd(t *testing.T) {
-	bin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	bin := testutil.FindAilangBinary(t)
 	base := "module test/cand\nimport std/io (println)\n" +
 		"export func compute(x: int) -> int ! {} = %s\n" +
 		"export func main() -> () ! {IO} {\n  let r = compute(3);\n  if r > 0 then println(\"p\") else println(\"n\")\n}\n"

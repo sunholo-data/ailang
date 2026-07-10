@@ -4,9 +4,9 @@ go 1.26.5
 
 require (
 	cloud.google.com/go/firestore v1.22.0
-	cloud.google.com/go/kms v1.29.0
+	cloud.google.com/go/kms v1.31.0
 	cloud.google.com/go/pubsub v1.50.2
-	cloud.google.com/go/run v1.19.0
+	cloud.google.com/go/run v1.21.0
 	cloud.google.com/go/storage v1.62.2
 	cloud.google.com/go/trace v1.16.0
 	firebase.google.com/go/v4 v4.19.0
@@ -20,7 +20,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.44
-	github.com/modelcontextprotocol/go-sdk v1.5.0
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/ollama/ollama v0.31.1
 	github.com/peterh/liner v1.2.2
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
@@ -37,9 +37,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.opentelemetry.io/proto/otlp v1.10.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/net v0.55.0
-	golang.org/x/term v0.43.0
-	golang.org/x/text v0.37.0
+	golang.org/x/net v0.57.0
+	golang.org/x/term v0.45.0
+	golang.org/x/text v0.40.0
 	google.golang.org/api v0.280.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
@@ -98,10 +98,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20260427160629-7cedc36a6bc4 // indirect
