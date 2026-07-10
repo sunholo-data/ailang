@@ -335,6 +335,38 @@ models:
       Available in GitHub Copilot Pro/Pro+/Business/Enterprise.
       Eval support: ✅ Fully supported via Responses API.
 
+  # Anthropic Claude Sonnet 5 (released June 2026)
+  claude-sonnet-5:
+    api_name: "claude-sonnet-5"
+    provider: "anthropic"
+    description: "Claude Sonnet 5 - near-Opus quality on coding/agentic work at Sonnet cost"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "claude-sonnet-5"  # NOT the "sonnet" alias: verified 2026-06-30 against
+      # installed CLI v2.1.160 that "sonnet" still resolves to claude-sonnet-4-6 — using the
+      # alias here would silently benchmark the old model under the new model's label.
+    model_family: "claude-sonnet-5"  # Cross-harness grouping: pairs with opencode-claude-sonnet-5 if added
+    max_output_tokens: 64000   # Standard eval mode calls the non-streaming Messages API
+      # (internal/ai/anthropic/client.go has no `stream` field); 64K matches the documented
+      # non-streaming cap used consistently by sibling 4.5+ entries. The model's streaming
+      # ceiling is 128K, but standard mode here never streams.
+    pricing:
+      input_per_1k: 0.003  # $3 per million = $0.003 per 1K (standard rate)
+      output_per_1k: 0.015 # $15 per million = $0.015 per 1K (standard rate)
+    notes: |
+      Anthropic's Sonnet-tier flagship (June 2026) — near-Opus quality on coding and
+      agentic work at Sonnet cost; the biggest gains over Sonnet 4.6 are coding/agentic.
+      1M token context window, 128K max output (streaming only).
+      Adaptive thinking ON by default (omitting `thinking` runs adaptive, unlike Sonnet
+      4.6 which ran thinking-off by default). `effort` supports the full
+      low/medium/high/xhigh/max range (first Sonnet-tier model with xhigh); defaults to high.
+      New tokenizer (same as Opus 4.7/4.8): ~30% more tokens for the same text vs Sonnet 4.6.
+      Introductory pricing $2/$10 per 1M through 2026-08-31, reverting to standard $3/$15
+      after — this entry uses the standard (post-intro) rate.
+      Smoke gate: PENDING — run before adding to rotation (model-manager skill HARD RULE).
+      Agent eval support: ✅ via Claude Code CLI — agent_model_name MUST stay pinned to the
+      literal "claude-sonnet-5" string until the CLI's "sonnet" alias is confirmed updated.
+
   # Anthropic Claude Sonnet 4.6 (released February 2026)
   claude-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
@@ -2290,7 +2322,10 @@ extended_suite:
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
   - "claude-fable-5"    # Anthropic most-capable (Jun 2026, Mythos-class, $10/$50 per 1M) — standard eval only, NEVER agent_suite
   - "claude-opus-4-8"   # Anthropic flagship (Jun 2026) — was opus-4-7
-  - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
+  - "claude-sonnet-5"   # Anthropic best for coding (Jun 2026) — gated 2026-06-30: core 24/26 (92.3%) vs
+    # sonnet-4-6's 23/26 (88.5%), ~35% higher cost/bench (new tokenizer + adaptive thinking default).
+    # Narrow N=1 win — kept sonnet-4-6 alongside as the longitudinal anchor, not a replacement.
+  - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
   - "gemini-3-1-pro"    # Google flagship (Feb 2026)
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
   - "or-glm-5-1"        # z.ai GLM-5.1 — best OS on standard AILANG (91%/de-flaked 90%)
@@ -2314,6 +2349,8 @@ dev_models:
 # Cost: ~$1-2 per full benchmark run (depends on task complexity)
 agent_suite:
   - "claude-sonnet-4-6"     # agent_cli: "claude"          — longitudinal anchor (claude CLI), ~$0.20/bench
+  - "claude-sonnet-5"       # agent_cli: "claude"          — new Sonnet flagship (Jun 2026), added 2026-06-30
+    # alongside the anchor (not replacing it) — see extended_suite comment for the gate result.
   # gemini-3-5-flash (managed_agents/Vertex) REMOVED from the routine suite 2026-06-05:
   #   it costs ~$3.02/benchmark (88-turn loop) — ~$130/run for ailang alone, more than
   #   every other model COMBINED. There is no affordable Google agent path (no gemini CLI
