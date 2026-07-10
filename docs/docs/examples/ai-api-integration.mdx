@@ -284,8 +284,8 @@ func callWithRetry(prompt: string, apiKey: string, retries: int) -> string ! {Ne
 ### 2. Response Parsing
 
 ```ailang
--- Note: JSON decoding is planned for v0.4.0
--- For now, parse the JSON string manually or use external tools
+-- Note: JSON decoding is available via the stdlib: import std/json (decode, encode).
+-- The manual parsing below is illustrative; prefer std/json in real code.
 
 func extractContent(jsonBody: string) -> string ! {} {
   -- Manual parsing (simplified)
