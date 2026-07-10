@@ -190,6 +190,60 @@ func TestGenerateContractRequiresChecks_WithPredicates(t *testing.T) {
 	}
 }
 
+// TestGenerateContractRequiresChecks_WindowsPathLocation guards the 2026-07-10
+// test-windows CI red: Location is an OS path, and on Windows it contains
+// backslashes. Interpolating it raw into a generated Go string literal produced
+// "unknown escape sequence" compile errors in the generated code. The panic
+// message must be strconv.Quote'd so backslashes (and any quotes in the user's
+// contract Message text) survive as valid Go source on every OS.
+func TestGenerateContractRequiresChecks_WindowsPathLocation(t *testing.T) {
+	g := New("testpkg")
+	g.SetVerifyContracts(true)
+
+	predicate := &core.BinOp{
+		Op:    ">=",
+		Left:  &core.Var{Name: "x"},
+		Right: &core.Lit{Kind: core.IntLit, Value: int64(0)},
+	}
+
+	prog := &core.Program{
+		Meta: map[string]*core.DeclMeta{
+			"absolute": {
+				Name:     "absolute",
+				IsExport: true,
+				Contracts: []*core.Contract{
+					{
+						Kind:     core.RequiresKind,
+						Expr:     predicate,
+						Message:  `x >= 0`,
+						Location: `D:\a\ailang\examples\test.ail:12:1`,
+					},
+				},
+			},
+		},
+	}
+	g.prog = prog
+	g.currentFuncName = "absolute"
+	g.currentFuncParams = map[string]string{"x": "interface{}"}
+	g.expectedReturnType = "interface{}"
+
+	if err := g.generateContractRequiresChecks(); err != nil {
+		t.Fatalf("generateContractRequiresChecks failed: %v", err)
+	}
+
+	output := g.buf.String()
+
+	// The backslashes must be escaped in the generated literal…
+	if !strings.Contains(output, `panic("contract violation: requires: x >= 0 at D:\\a\\ailang\\examples\\test.ail:12:1")`) {
+		t.Errorf("expected escaped Windows path in panic literal, got:\n%s", output)
+	}
+	// …and the emitted fragment must be valid Go when wrapped in a function.
+	src := "package p\n\nfunc f(x interface{}) {\n" + output + "\n}\n"
+	if _, err := format.Source([]byte(src)); err != nil {
+		t.Errorf("generated contract check is not valid Go source: %v\n%s", err, src)
+	}
+}
+
 // TestGenerateContractRequiresChecks_Disabled tests that only comments (no panics) are generated when disabled
 func TestGenerateContractRequiresChecks_Disabled(t *testing.T) {
 	g := New("testpkg")

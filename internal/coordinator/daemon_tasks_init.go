@@ -57,11 +57,7 @@ func (d *Daemon) initTaskProcessing() error {
 	// cloud adapter path (follow-up), so the in-repo default gate runs
 	// rules-only (Cooldown/Classifier nil => no-op stages).
 	if coordConfig.FeedbackGate != nil && coordConfig.FeedbackGate.Enabled {
-		d.feedbackGate = feedbackGateFunc{}
-		d.feedbackGateCfg = coordConfig.FeedbackGate
-		d.logger.Printf("Feedback gate enabled (mode=%s, dry_run=%v)",
-			resolveFeedbackGateMode(*coordConfig.FeedbackGate).Mode,
-			resolveFeedbackGateMode(*coordConfig.FeedbackGate).DryRun)
+		d.enableFeedbackGate(coordConfig.FeedbackGate)
 	}
 
 	// Build agent registry

@@ -1,0 +1,40 @@
+{
+  "sprint_id": "M-FEEDBACK-GATE-CLOUD-ADAPTER",
+  "evaluation_round": 1,
+  "evaluator": "claude-fable-5 (mission-control iteration 3, headless)",
+  "date": "2026-07-10",
+  "branch": "worktree-agent-af9883fa66c0201bd",
+  "commits_evaluated": ["ee516e5c5", "8201b4205", "f7654aae7"],
+  "result": "fail",
+  "score": 92,
+  "score_note": "Numeric score 92/100 exceeds the 70 pass threshold, but the evaluation FAILS on policy: a CLAUDE.md Critical Principle 2 violation (silent fallback affecting business logic) in the core new adapter logic. Treated as a hard violation analogous to the axiom hard-violation rule: score cannot override a repo-critical principle in a cost/abuse-protection P0.",
+  "categories": {
+    "tests_pass": {"points": 20, "max": 20, "notes": "Independent full make test in worktree: 101 packages ok. Single failure TestRunCommand_PipedStdoutFlushesPerLine is the known load-sensitive flake (iteration-2 Ruled-out ledger); passes 2/2 isolated, re-verified this round. TestNetHttpPost (live network) passed this run."},
+    "lint_clean": {"points": 10, "max": 10, "notes": "Independent make lint in worktree: 0 issues."},
+    "acceptance_criteria": {"points": 30, "max": 30, "notes": "All 13 criteria across M1/M2/M3 verified: compile-time assertions present (stores + test file), trimAndCount table tests cover empty/1h-edge/24h-edge/cross-day/saturation, no-creds green, call-site tests TestEnableFeedbackGateAttachesDeps / TestEnableFeedbackGateNilDepsUnchanged pass, startup log names three stages, runbook + terraform handoff + CHANGELOG + checkbox flips all present."},
+    "code_quality": {"points": 11, "max": 15, "notes": "-4: readAttempts (feedbackgate_stores.go:115-138) and readCount (:212-226) swallow non-NotFound transaction read errors, returning empty window / zero count. The in-code justification ('the transaction commit is what actually reports failure') is not reliable for transient read RPC failures in Firestore native mode: a failed read never reaches the server's validation set, so the commit can SUCCEED and overwrite a populated window with a reset one. Effect: cooldown and budget counters reset exactly during Firestore degradation (fail-open) in a gate whose purpose is flood/cost protection. The cited messaging.go:93 precedent RETURNS such errors (if err != iterator.Done { return err })."},
+    "documentation": {"points": 15, "max": 15, "notes": "Runbook (DRY-RUN-first, env table, both log shapes), terraform handoff appended to implemented triage-gate doc (no sibling-repo files), CHANGELOG entry, design-doc checkboxes flipped."},
+    "design_fidelity": {"points": 6, "max": 10, "notes": "-4: design doc states 'The adapter just returns errors honestly' (Architecture, cooldown adapter section) — the read path does not. All other design decisions faithfully implemented, including three well-justified recorded deviations (enableFeedbackGate extraction, HasProvider accessor, vendored docs)."}
+  },
+  "conditional_categories": {
+    "regression_surface": "not triggered (no parser/types/codegen/eval/vm/effects/exec.go changes)",
+    "performance": "not triggered"
+  },
+  "issues": [
+    {
+      "id": 1,
+      "severity": "must-fix",
+      "file": "internal/storage/firestore/feedbackgate_stores.go",
+      "location": "readAttempts (:115-138), readCount (:212-226)",
+      "issue": "Non-NotFound transaction read errors are swallowed and mapped to an empty window (cooldown) / zero count (budget). Under transient Firestore read failure the transaction commit can still succeed, overwriting the stored window with a reset one — cooldown/budget protection silently resets during infra degradation (fail-open). Violates CLAUDE.md Critical Principle 2 (no silent fallbacks in business logic), contradicts the design doc's 'adapter just returns errors honestly', and deviates from the messaging.go:93 precedent which returns such errors.",
+      "suggestion": "Change readAttempts to return ([]time.Time, error) and readCount to (int, error); propagate any non-NotFound error out of the transaction fn (RunTransaction aborts/retries; Increment/IncrementDaily return the error; applyCooldown propagates; the M4 wiring already fails CLOSED on gate error with an audit). NotFound remains an empty window/zero count (legitimate first-attempt case). The malformed-field case (attempts not []interface{} / count not numeric) MAY remain a defensive empty/zero — it is deterministic corruption, not transient degradation — but must carry a comment making that decision explicit. Update tests if signatures change; make lint + targeted go test must stay green."
+    }
+  ],
+  "independent_verification": {
+    "full_make_test": "rc=2, 101 ok, 1 known flake (re-verified isolated 2/2 pass)",
+    "make_lint": "0 issues",
+    "callsite_tests": "TestEnableFeedbackGateAttachesDeps PASS, TestEnableFeedbackGateNilDepsUnchanged PASS",
+    "topology_note": "Worktree branched from origin/dev (contains dependabot merges not on local dev); executor vendored design doc + sprint plan; merge will be a true merge, add/add on two doc files expected."
+  },
+  "max_rounds": 3
+}

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         # SonarCloud needs full history to attribute blame and compute
         # "new code" metrics correctly. Shallow clones break both.
@@ -27,7 +27,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
         cache: true
 
     # uv pins the Python runtime for eval-harness tests (and the weekly eval
@@ -36,7 +36,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
 
     - name: Install dependencies
       run: make deps
@@ -58,8 +58,12 @@ jobs:
     - name: Install z3 (SMT solver for contract-verification tests)
       run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
 
+    # -timeout is PER TEST BINARY (package). cmd/ailang legitimately runs
+    # 35-50s (CLI subprocess tests), so 60s was boundary-flaky on loaded
+    # runners (red dev 2026-07-10: package panicked at exactly 1m0s).
+    # 300s still catches genuine hangs (M-DX11's intent) without the flake.
     - name: Run tests with timeout (M-DX11)
-      run: go test -timeout 60s ./...
+      run: go test -timeout 300s ./...
 
     # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
     # stays green while integration coverage silently evaporates (e.g. if
@@ -186,7 +190,7 @@ jobs:
     # continue-on-error keeps CI green if the secret is missing or the scan
     # service has a hiccup — Sonar is a reporting layer, not a gate.
     - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v7
+      uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v7
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -222,7 +226,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         # Avoid CRLF rewrites on test fixtures and golden files.
         # PowerShell + git autocrlf can otherwise mutate bytes between
@@ -236,11 +240,11 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
 
     - name: Install ailang to PATH (mirrors `make install`)
       shell: pwsh
@@ -302,12 +306,12 @@ jobs:
     needs: test
     
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
         cache: true
     
     - name: Build binary
@@ -324,7 +328,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Sync prompts/ to docs/prompts/
       run: ./docs/scripts/sync-prompts.sh
@@ -346,12 +350,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
         cache: true
 
     - name: Check code formatting
@@ -372,12 +376,12 @@ jobs:
     # allowlist entry past its expires date — forces re-review rather
     # than letting suppressions float forever.
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Install govulncheck
       # Pinned (was @latest): govulncheck v1.4.0 started crashing on `./...`
@@ -401,12 +405,12 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Go Dependency Submission
       uses: actions/go-dependency-submission@v2.0.3

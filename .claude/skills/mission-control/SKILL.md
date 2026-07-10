@@ -38,12 +38,26 @@ Read: the mission doc (queue, guardrails, routing policy — they may have chang
 log entries (especially **Next** and **Ruled out** — do not re-chase), any parked
 `needs-human-review` items that got human answers in the inbox.
 
-**Check dev CI first**: `gh run list --branch dev --limit 6` — a RED dev outranks the queue
-(added 2026-07-10 per Mark; that day's red was a pre-existing gofmt miss + a newly published
-stdlib vuln — neither from a sprint, both invisible to local gates). Diagnose via
-`gh run view <id> --log-failed`; the fix (or a reasoned allowlist/revert) IS this iteration's
-first deliverable. Time-based reds (new vuln advisories) hit whoever observes next — that's
-the mission's job now.
+**Check dev CI first — PER WORKFLOW, never a raw run list** (sharpened 2026-07-10 iteration 3:
+a raw `--limit 6` list was flooded by Dependabot-Updates entries and read as green while dev CI
+had been red for 3h; Build-and-Release and Docs-Deploy were equally invisible — TWO recorded
+frictions, one gap):
+
+```bash
+for wf in "CI" "Build and Release" "Deploy Documentation to GitHub Pages"; do
+  gh run list --workflow "$wf" --branch dev --limit 1 \
+    --json conclusion,headSha --jq '.[0] | "'"$wf"': \(.conclusion) @ \(.headSha[0:9])"'
+done
+```
+
+Any non-success → a RED dev outranks the queue (added 2026-07-10 per Mark; that day's red was a
+pre-existing gofmt miss + a newly published stdlib vuln — neither from a sprint, both invisible
+to local gates). Diagnose via `gh run view <id> --log-failed` — and check whether the SAME
+failure exists on the parent commits before blaming any merge (iteration 3's three reds all
+pre-dated the sprint; one first appeared on a docs-only commit). The fix (or a reasoned
+allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vuln advisories,
+runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes
+next — that's the mission's job now.
 
 ## Gate 2 — PICK + REALITY-CHECK
 

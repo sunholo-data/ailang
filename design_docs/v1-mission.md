@@ -27,6 +27,21 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-10 (evening) — ITERATION 3 COMPLETE: P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED
+
+m-feedback-gate-cloud-adapter landed via the full loop headless: Fable design doc (all 6
+premises later verified accurate by the Opus planner — zero discrepancies, a first), Opus
+plan + execute in isolated worktree, **first round-1 evaluation FAIL of the mission** (a
+fail-open bug: Firestore read errors silently reset cooldown/budget windows; numeric 92 but
+CLAUDE.md CP2 policy violation) → surgical round-2 fix → PASS 97/100, merge 842d7d501.
+En route, OBSERVE's "dev green" turned out WRONG — dev had been red since 12:57Z behind a
+dependabot-flooded run list (Gate-1 gap, skill-fixed): three pre-existing breaks fixed forward
+(Windows codegen escape bug in contract panic literals 9d2e32ac1 + docs npm peer-dep pin +
+go-test timeout 60s→300s 4c22032de). Dev fully green on 4c22032de. CALIBRATED: gate code is
+now complete INCLUDING cloud adapters, still off by default; production activation awaits
+HUMAN ops (terraform TTL + ANTHROPIC_API_KEY secret in sibling repo, then DRY_RUN week 1) —
+parked in #329.
+
 ## STATUS 2026-07-10 (afternoon) — ITERATION 2 COMPLETE: FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED
 
 m-feedback-triage-gate landed via the full inner loop with NO human present — the friction
@@ -213,12 +228,11 @@ invokes.
 3. [LANDED 2026-07-10] m-feedback-triage-gate (iteration 2: full loop headless, eval 93/100
    PASS round 1, merge 40f1cdc3f, remote CI green on dev post-merge; gate logic complete +
    merged, off by default — production activation gated on the next item)
-4. [NEXT] m-feedback-gate-cloud-adapter (NEW — completes the P0 operationally: Firestore
-   CooldownStore/BudgetStore adapters + classifier provider construction in cloud wiring,
-   enable with DRY_RUN=1 first week; ~0.5–1d; design served by the implemented
-   m-feedback-triage-gate doc's follow-up section — needs a short design doc via
-   design-doc-creator)
-5. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
+4. [LANDED 2026-07-10] m-feedback-gate-cloud-adapter (iteration 3: full loop headless, round-1
+   eval FAIL → round-2 PASS 97/100, merge 842d7d501, dev CI fully green on 4c22032de; gate
+   code complete incl. cloud adapters, OFF by default — production enablement is a HUMAN ops
+   task: sibling-repo terraform TTL + ANTHROPIC_API_KEY secret, then DRY_RUN=1 week 1)
+5. [NEXT] m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
 6. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
    LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)
 7. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows

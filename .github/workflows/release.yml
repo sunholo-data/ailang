@@ -19,12 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Get dependencies
       run: go mod download
@@ -106,12 +106,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Get dependencies
       run: go mod download
@@ -130,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Create examples.zip
       run: |
@@ -183,12 +183,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Get dependencies
       run: go mod download
@@ -237,12 +237,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.12'
+        go-version: '1.26.5'
 
     - name: Get dependencies
       run: go mod download
@@ -277,7 +277,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Download all artifacts
       uses: actions/download-artifact@v8
@@ -406,7 +406,7 @@ jobs:
       # with "Cannot upload assets to an immutable release". The
       # finalize-release job below flips draft=false after provenance
       # uploads its attestation.
-      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
       with:
         name: AILANG ${{ steps.get_version.outputs.VERSION }}
         body_path: changelog.md

@@ -12,10 +12,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/anthropic"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
+	"github.com/sunholo-data/ailang/internal/feedbackgate"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/storage"
+	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -109,6 +113,44 @@ func coordinatorStart(args []string) error {
 		}
 		daemon.SetStores(backends.Coordinator, backends.Messaging, backends.Observatory)
 		fmt.Printf("  Storage: %s\n", storageMode)
+
+		// M-FEEDBACK-GATE-CLOUD-ADAPTER: construct the Firestore-backed cooldown +
+		// budget stores and the real Anthropic classifier, then hand them to the
+		// daemon. initTaskProcessing attaches them onto the gate config ONLY when
+		// coordinator.feedback_gate.enabled is set, so this construction is inert
+		// (a couple of Firestore handles) until the operator turns the gate on.
+		//
+		// A dedicated Firestore client is created here rather than threading the
+		// one inside storage.NewBackends: Backends exposes interface-typed stores,
+		// not the raw *firestore.Client, and hybrid mode may not back all three
+		// with Firestore. A second client at daemon startup is correct and cheap
+		// (one-time construction, not a hot path) — the planner flagged this as an
+		// accepted trade-off over reshaping the Backends return type.
+		fsClient, fsErr := fsstore.NewClient(ctx)
+		if fsErr != nil {
+			// No silent fallback (CLAUDE.md rule 2): cloud mode already requires a
+			// reachable Firestore (SetStores above is fatal on error); a client
+			// error here is likewise fatal.
+			return fmt.Errorf("failed to create Firestore client for feedback gate: %w", fsErr)
+		}
+		cooldown := fsstore.NewFeedbackGateCooldownStore(fsClient)
+		budget := feedbackgate.NewBudget(fsstore.NewFeedbackGateBudgetStore(fsClient))
+
+		var provider ai.Provider
+		if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+			// The classifier model is a per-request field (ai.Request.Model =
+			// cfg.ClassifierModel), so a bare client is correct — do NOT thread a
+			// model into the client here.
+			provider = anthropic.NewClient(key)
+		} else {
+			fmt.Printf("  %s ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed "+
+				"(heuristic-flagged submissions filed, never dispatched)\n", yellow("⚠"))
+		}
+		// A nil provider yields the fail-closed classifier (files heuristic-flagged
+		// messages; never dispatches). NewClassifier tolerates a nil provider by
+		// design (internal/feedbackgate/classifier.go).
+		classifier := feedbackgate.NewClassifier(provider, feedbackgate.DefaultPrompt(), budget)
+		daemon.SetFeedbackGateDeps(cooldown, classifier)
 	}
 
 	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.

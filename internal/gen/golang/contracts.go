@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/core"
 )
@@ -360,10 +361,11 @@ func (g *Generator) generateContractRequiresChecks() error {
 			}
 			g.write(").(bool) {\n")
 			g.indent++
-			// %q: Location is an absolute path on some callers — Windows
-			// backslashes (and quotes in Message) must not reach the
-			// literal raw or the generated file will not compile.
-			g.writef("panic(%q)\n", fmt.Sprintf("contract violation: requires: %s at %s", c.Message, c.Location))
+			// strconv.Quote: Message is user expression text and Location is an
+			// OS path — on Windows it contains backslashes, which are invalid
+			// escapes inside a raw-interpolated Go string literal (broke
+			// test-windows CI 2026-07-10: "unknown escape sequence").
+			g.writef("panic(%s)\n", strconv.Quote(fmt.Sprintf("contract violation: requires: %s at %s", c.Message, c.Location)))
 			g.indent--
 			g.writef("}\n")
 		}
@@ -417,8 +419,9 @@ func (g *Generator) generateContractEnsuresChecks(funcName string, resultVar str
 			}
 			g.write(") {\n")
 			g.indent++
-			// %q: same escaping constraint as the requires panic above.
-			g.writef("panic(%q)\n", fmt.Sprintf("contract violation: ensures: %s at %s", c.Message, c.Location))
+			// strconv.Quote for the same Windows-path/user-text reason as the
+			// requires site above.
+			g.writef("panic(%s)\n", strconv.Quote(fmt.Sprintf("contract violation: ensures: %s at %s", c.Message, c.Location)))
 			g.indent--
 			g.writef("}\n")
 		}
