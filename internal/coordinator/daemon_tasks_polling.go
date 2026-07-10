@@ -331,6 +331,16 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			msg:     msg,
 		}
 
+		// M-FEEDBACK-TRIAGE-GATE: cost & abuse gate on the cloud dispatch path.
+		// Opt-in (coordinator.feedback_gate.enabled); pass-through when off so
+		// existing behavior is unchanged. A filed/rejected verdict suppresses
+		// CreateTask, emits a feedback-gate-audit record, and (for reject) acks
+		// the message. Gate errors fail closed (no dispatch).
+		if !d.gateFeedbackMessage(msg, inbox) {
+			d.cloudInboxAdapter.MarkAsRead(msg.ID)
+			continue
+		}
+
 		// Reuse the existing task creation logic from local mode.
 		taskID := fmt.Sprintf("task-%s", msgIDSuffix(msg.ID, 8))
 

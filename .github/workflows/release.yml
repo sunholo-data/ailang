@@ -24,7 +24,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.11'
+        go-version: '1.25.12'
 
     - name: Get dependencies
       run: go mod download
@@ -111,7 +111,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.11'
+        go-version: '1.25.12'
 
     - name: Get dependencies
       run: go mod download
@@ -188,7 +188,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.11'
+        go-version: '1.25.12'
 
     - name: Get dependencies
       run: go mod download
@@ -242,7 +242,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.11'
+        go-version: '1.25.12'
 
     - name: Get dependencies
       run: go mod download

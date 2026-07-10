@@ -101,6 +101,13 @@ type Daemon struct {
 	// Auto-triage router (M-MSG-TRIAGE-ROUTER). Opt-in via coordinator.triage.
 	triageRouter *TriageRouter
 
+	// Feedback cost & abuse gate (M-FEEDBACK-TRIAGE-GATE). Opt-in via
+	// coordinator.feedback_gate. Distinct from the triage router above — this
+	// gates the CLOUD dispatch path (pollAndProcessTasksCloud), not local
+	// intake promotion. Nil decider or nil/disabled config => pass-through.
+	feedbackGate    feedbackGateDecider
+	feedbackGateCfg *FeedbackGateConfig
+
 	// Event broadcasting for real-time updates
 	eventBroadcaster EventBroadcaster
 

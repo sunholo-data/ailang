@@ -49,6 +49,21 @@ func (d *Daemon) initTaskProcessing() error {
 		d.logger.Println("Dev mode enabled via coordinator config")
 	}
 
+	// M-FEEDBACK-TRIAGE-GATE: wire the cloud dispatch cost/abuse gate. Opt-in
+	// via coordinator.feedback_gate.enabled; when unset/disabled the daemon
+	// leaves d.feedbackGate nil and the poll loop is a pass-through (zero
+	// behavior change). The deterministic rules + cooldown-key logic run inline
+	// here; the Firestore-backed cooldown/classifier stores are attached by the
+	// cloud adapter path (follow-up), so the in-repo default gate runs
+	// rules-only (Cooldown/Classifier nil => no-op stages).
+	if coordConfig.FeedbackGate != nil && coordConfig.FeedbackGate.Enabled {
+		d.feedbackGate = feedbackGateFunc{}
+		d.feedbackGateCfg = coordConfig.FeedbackGate
+		d.logger.Printf("Feedback gate enabled (mode=%s, dry_run=%v)",
+			resolveFeedbackGateMode(*coordConfig.FeedbackGate).Mode,
+			resolveFeedbackGateMode(*coordConfig.FeedbackGate).DryRun)
+	}
+
 	// Build agent registry
 	d.agentRegistry = NewAgentRegistry()
 	for _, agent := range coordConfig.Agents {

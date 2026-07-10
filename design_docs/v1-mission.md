@@ -8,10 +8,36 @@ rather than ad-hoc sessions.
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (skill fix / process fix / backlog item).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
-runs ONE iteration. The launchd job `dev.ailang.mission-control` fires it nightly.
+runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (CONTINUOUS since
+2026-07-10 per Mark: StartInterval 2h + overlap guard = back-to-back iterations, ≤2h idle; was
+22:00-nightly for the first supervised runs) behind the billing guard — API keys are stripped from the environment
+(subscription-or-nothing by construction) and a cheap auth probe runs first: keychain OAuth
+suffices while the rig is logged in (verified 2026-07-10); `CLAUDE_CODE_OAUTH_TOKEN` in
+secrets.env is an optional belt-and-braces for post-reboot login screens. Probe failure refuses
+loudly with zero spend. The Claude Code
+scheduled-tasks path was TESTED AND RULED OUT for this job (2026-07-10 canary): that system is
+desktop-side — tasks landed on /Users/mark (Mark's machine, not the rig) and a probe task never
+dispatched even there (a June one-time task was also found a month overdue). Wrong machine +
+unreliable dispatch → launchd is primary, not fallback.
 **Log**: [v1-mission-log.md](v1-mission-log.md) — append-only, one entry per iteration.
+**Human-facing reporting**: GitHub issue
+[#329](https://github.com/sunholo-data/ailang/issues/329) — every iteration posts its morning
+report there as a comment (Mark follows by email via issue subscription, no Claude login
+needed); driver crashes post there too.
 
 ---
+
+## STATUS 2026-07-10 (13:30) — SCHEDULING MOVED INTO CLAUDE CODE; BILLING INCIDENT CLOSED
+
+The first kickstarted headless run billed ~13 min of API credits (`ANTHROPIC_API_KEY` leaked
+from secrets.env into `claude -p`; killed rc=143). Two fixes: (1) the launchd driver gained a
+billing guard (strips API keys, refuses without a subscription token) and was then (2)
+**superseded as primary by the Claude Code scheduled task `v1-mission-nightly`** — runs inside
+the app on the session OAuth, no token handling at all. The killed run's unreviewed plan
+artifacts for m-feedback-triage-gate were deleted (produced in 13 min, no Opus routing
+verified, no controller review) — tonight replans through the proper loop. Friction recorded:
+the headless controller reached Gate 3 planning without evidence it honored the model routing —
+watch for this in tonight's #329 report.
 
 ## STATUS 2026-07-10 (evening) — ITERATION 1 COMPLETE: FIRST FULL INNER-LOOP RUN, 2 QUEUE ITEMS LANDED
 
@@ -139,10 +165,18 @@ invokes.
 - **Budgeted**: hard wall-clock kill in the driver (default 6h); one backlog item per iteration.
 - **Kill switch**: `touch ~/.ailang/state/mission-control.disabled` (checked in preflight) or
   `launchctl unload ~/Library/LaunchAgents/dev.ailang.mission-control.plist`.
+- **Subscription billing only** (2026-07-10): the nightly bills the Claude subscription via
+  `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`, stored in secrets.env) — the driver strips
+  `ANTHROPIC_API_KEY` and refuses to start without the token. The first kickstarted run billed
+  ~13 min of API credits before this was caught; never again.
 - **Escalation**: evaluator `needs-human-review`, merge conflicts, or any guardrail trip →
   `ailang messages send controlplane`, park the item, pick the next; never force through.
 - **Skill edits**: max one per iteration, ≥2 recorded frictions each, called out in the morning
   report (git history is the rollback).
+- **Dev stays GREEN** (2026-07-10, Mark): an item is not [LANDED] until remote CI passes on its
+  merge commit (Gate 3b — local gates miss fmt-check/govulncheck/file-sizes/docs build), and a
+  red dev CI outranks the queue at OBSERVE, including time-based reds from newly published vuln
+  advisories.
 
 ## Backlog ordering policy
 

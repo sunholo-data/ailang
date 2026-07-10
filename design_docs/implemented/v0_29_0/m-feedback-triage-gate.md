@@ -1,7 +1,20 @@
 # M-FEEDBACK-TRIAGE-GATE: Cost & abuse gate for the public feedback → agent pipeline
 
-**Status**: Planned
+**Status**: Implemented (M1–M6, v0.29.x) — see sprint plan `sprint-m-feedback-triage-gate.md`
 **Target**: v0.15.x (immediately after the Cloud Armor edge throttle ships)
+
+> **Implementation note (v0.29.x).** Shipped as package `internal/feedbackgate`
+> (NOT `internal/triage/` — that name collides with the shipped
+> M-MSG-TRIAGE-ROUTER). The type is `feedbackgate.Verdict` (dispatch/file/reject),
+> the entry point `feedbackgate.Decide(ctx, Input, FeedbackGateConfig)`, the
+> config key `coordinator.feedback_gate`, the env vars `AILANG_FEEDBACK_GATE_MODE`
+> / `AILANG_FEEDBACK_GATE_DRY_RUN`, and the audit inbox `feedback-gate-audit`.
+> Deviations from this doc's prose (recorded in the sprint plan): Decide operates
+> on a coordinator-free `Input` built from `coordinator.Message` (no import
+> cycle); IP-hash cooldown keying is dropped (IP never reaches this layer);
+> `reject` marks/ack's rather than deletes (TTL cleanup); the terraform 80%-budget
+> alert (sibling repo) and the dashboard panel / `--show-triage` flag are
+> out-of-scope follow-ups. M5's classifier budget cap is logic+config only.
 **Priority**: P0 (cost/safety gap on a public unauthenticated endpoint that fans out to Sonnet-driven agents)
 **Estimated**: 2 days, ~700 LOC + config
 **Dependencies**:
