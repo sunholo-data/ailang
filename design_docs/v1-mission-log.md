@@ -279,3 +279,83 @@ enablement ops (sibling-repo terraform: TTL policies on expires_at for the two n
 ANTHROPIC_API_KEY secret on the coordinator service; then enable with DRY_RUN=1 for week 1) —
 the gate defaults OFF until then; Mark may veto the fail-closed no-key posture before enabling.
 
+## 5 — 2026-07-10 — Iteration 4: m-diagnostic-coverage closed for v1 (stale-status found, 4 footgun rows promoted to covered); first PR-route integration around a contended main tree
+
+**Picked**: m-diagnostic-coverage (top [NEXT], P0, "cheapest cost-per-success lever").
+Headless run, no human present. Dev CI at OBSERVE: in_progress on 22b3f0c62 (PR #335, test-
+coverage-only) — completed green mid-iteration; per-workflow check used per the iteration-3
+skill fix.
+
+**Reality check**: the doc's "Planned" status was STALE — M1–M3 (footgun table 14 rows,
+CI fixture mechanism, first 3 diagnostics incl. #325 PAR_IMPORT_PLACEMENT + #327 interim
+hint) shipped 2026-07-09 (ff58a3259/e59197554), and #327's REAL fix (01fb8676a) shipped in
+the same sprint. Fixtures re-verified green on dev before planning. Genuinely open remainder:
+5 fixture-promotions, the A/B-gated deletion pass, the haiku causal re-run. Gate-2 protocol
+followed; NOTE: rebuild produced `-dirty` binaries because a sibling agent opened a conflicted
+merge in the shared main tree mid-iteration (see Retro).
+
+**Shipped**: sprint M-DIAG-FIXTURE-PROMOTION via full loop headless — Opus plan (verified all
+premises live; found 2 real discrepancies: %/Fractional row's claimed diagnostic UNREACHABLE
+via `ailang check` → stays inventoried; stdlib-hint fixture needs TestMain wiring of
+AILANG_STDLIB_PATH + types.ImportSuggester) → Opus execute in isolated worktree (3 commits:
+467a398ec fixtures, 793b9177c footguns.md truth-pass, 9106ddfe1 changelog) → Fable evaluation
+**PASS 96/100 round 1** (independent test re-run; non-vacuity proven TWICE — executor inverted
+stdlib_import_hint, evaluator independently inverted reserved_keyword; both FAIL→restore→PASS).
+4 rows promoted to `covered` (PAR_RESERVED_KEYWORD, PAR_HYPHEN_IN_MODULE, PAR017,
+stdlib ImportSuggester hint): 7 fixtures now CI-enforced across 6 footgun rows. Plus design-doc
+stale-status correction (2bf4ecafe). Integrated via **PR #336** (main tree was commit-unsafe,
+see Retro) → merge fe807aac8; dev CI green per-workflow on the merge (CI, Build+Release,
+Docs-Deploy). [LANDED].
+**Parked** (both recorded in the design doc's dated deferred-step note + #329 report):
+(1) prompt-line deletion + rig A/B — only ~35 deletable lines today vs the ≥100 gate; sequencing
+decision: widen covered set first, then ONE A/B amortizes a ≥100-line deletion; (2) haiku causal
+re-run on legal_obligation_engine — API-billed, impossible under the headless billing guard;
+needs a supervised session or explicit human ops.
+
+**Routing evidence**:
+- model=fable task-class=triage/reality-check rounds=1 corrections=0 (caught the stale doc
+  status before any sprint tokens were spent — second stale-status catch of the mission)
+- model=opus task-class=plan rounds=1 corrections=0 (2 genuine discrepancies found by live
+  verification; both held up at execution — the fixture would have been silently red without
+  the TestMain finding)
+- model=opus task-class=execute round1-score=96 rounds=1 corrections=0 (zero deviations; did
+  the adversarial non-vacuity check unprompted-quality; footguns.md truth-pass was honest,
+  including writing down that its own table had claimed an unreachable diagnostic)
+- model=fable task-class=evaluate rounds=1 (independent re-run + independent non-vacuity
+  inversion on a different fixture than the executor's)
+
+**Ruled out**:
+- "%/Fractional row is fixturable as claimed" — refuted by the planner live: `3.5 % 2.0`
+  type-checks clean; the `No instance for Fractional[int] ... intToFloat` message only fires
+  via the internal InstanceEnv.Lookup unit path, NOT via `ailang check` on any .ail snippet.
+  Fixturing it requires new diagnostic work (future entry), not a fixture.
+- "stdlib import hint works out of the box in package tests" — refuted: types.ImportSuggester
+  is nil outside cmd/ailang init(), and stdlibindex scans ./std relative to CWD; without both
+  TestMain steps the fixture is silently red with a bare "undefined variable".
+- "The sibling's open merge blocks integration" — routed around, not through: worktree branch
+  + PR #336 with --auto merge integrated cleanly without ever committing in the main tree.
+- "#327 interim hint already retired by the real fix" — NOT verified either way: its unit test
+  drives inferVar directly so passing proves nothing about reachability; retirement needs the
+  original cross-module repro. Left as an explicit follow-up note in footguns.md, not scope.
+
+**Retro lane**: skill-fix (mission-control SKILL.md Gate-2 protocol, new point 4) — TWO
+recorded frictions, same gap ("the shared main checkout is mutable mid-iteration"): (a) Gate-2
+rebuild went `-dirty` under a sibling agent's conflicted in-progress merge (binaries from a
+half-merged tree; caught by the --version≠clean check the protocol already required); (b) a
+persisted Bash `cd` into the eval worktree made a later "main-tree" MERGE_HEAD check read the
+worktree's .git and report the merge cleared when it wasn't. New rules: pwd/absolute-path
+before main-tree checks, git-status-at-moment-of-use, never commit while a sibling's
+MERGE_HEAD exists (it would complete THEIR merge — integrate via worktree branch + PR),
+-dirty rebuild → rebuild in the isolated worktree. Single-instance frictions logged, no
+action: PR-CI + auto-merge added ~25 min wall-clock vs a local merge (acceptable; correctness
+won); planner flagged M3-changelog as merge-blocked but the worktree copy was clean (plan
+conservatism, harmless).
+
+**Next**: Iteration 5 — m-v1-stability-promise (queue 6, now [NEXT]): design doc via
+design-doc-creator for the 1.x stable-surface promise + LIMITATIONS.md accuracy pass. Note
+for a FUTURE iteration (not 5): first re-check `%`-row + m-record-update-local-resolution doc
+status before any new diagnostic work — this doc family has now been stale twice. Parked for
+HUMAN (repeat, still open from iteration 3): feedback-gate enablement ops (terraform TTL +
+ANTHROPIC_API_KEY secret + DRY_RUN week 1); NEW: haiku causal re-run needs a supervised
+(API-billed) session — cheap, one benchmark cell, high thesis value.
+

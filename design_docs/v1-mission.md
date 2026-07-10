@@ -27,6 +27,23 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-10 (night) — ITERATION 4 COMPLETE: LAST SPRINT-SIZED P0 CLOSED FOR V1
+
+m-diagnostic-coverage reality-check found its "Planned" status STALE (M1–M3 shipped 2026-07-09,
+ff58a3259/e59197554 — second stale-status catch of the mission); the genuinely open remainder ran
+as sprint M-DIAG-FIXTURE-PROMOTION via the full loop headless: Opus plan (2 real discrepancies
+found live: %/Fractional's claimed diagnostic is UNREACHABLE via `ailang check`; stdlib-hint
+fixture needs TestMain wiring) → Opus execute in worktree → Fable eval **PASS 96/100 round 1**
+(non-vacuity proven twice, independently). 4 footgun rows promoted to `covered` → 7 CI-enforced
+fixtures. Integrated via **PR #336 → fe807aac8** — a sibling agent held a conflicted merge open
+in the shared main tree all iteration, so integration went worktree-branch→PR→auto-merge without
+ever committing in the main tree (new Gate-2 rule 4 codifies this). Dev CI green per-workflow on
+the merge. DEFERRED with rationale in the design doc: prompt-deletion pass + rig A/B (35
+deletable lines < the ≥100 gate — widen coverage first); PARKED for human: haiku causal re-run
+(API-billed, blocked by the headless billing guard). With this, all four sprint-sized P0s from
+the ratified bar are closed; the critical path is now the stability promise + effect-refinement
+decomposition + eval-frontier tier.
+
 ## STATUS 2026-07-10 (evening) — ITERATION 3 COMPLETE: P0 OPERATIONALLY CLOSED (CODE-SIDE), DEV UN-REDDED
 
 m-feedback-gate-cloud-adapter landed via the full loop headless: Fable design doc (all 6
@@ -232,8 +249,12 @@ invokes.
    eval FAIL → round-2 PASS 97/100, merge 842d7d501, dev CI fully green on 4c22032de; gate
    code complete incl. cloud adapters, OFF by default — production enablement is a HUMAN ops
    task: sibling-repo terraform TTL + ANTHROPIC_API_KEY secret, then DRY_RUN=1 week 1)
-5. [NEXT] m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
-6. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
+5. [LANDED 2026-07-10] m-diagnostic-coverage (iteration 4: M1–M3 found pre-shipped 2026-07-09
+   under a stale "Planned" status; remainder sprint M-DIAG-FIXTURE-PROMOTION promoted 4 rows
+   to covered — 7 CI fixtures across 6 footgun rows — eval PASS 96/100 round 1, PR #336 →
+   fe807aac8, dev CI green per-workflow. DEFERRED, rationale in doc: deletion pass + rig A/B
+   until deletable surface ≥ 100 lines; PARKED for human: haiku causal re-run, API-billed)
+6. [NEXT] m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
    LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)
 7. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows
    as individual queue items)
