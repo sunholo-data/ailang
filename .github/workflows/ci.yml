@@ -58,8 +58,12 @@ jobs:
     - name: Install z3 (SMT solver for contract-verification tests)
       run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
 
+    # -timeout is PER TEST BINARY (package). cmd/ailang legitimately runs
+    # 35-50s (CLI subprocess tests), so 60s was boundary-flaky on loaded
+    # runners (red dev 2026-07-10: package panicked at exactly 1m0s).
+    # 300s still catches genuine hangs (M-DX11's intent) without the flake.
     - name: Run tests with timeout (M-DX11)
-      run: go test -timeout 60s ./...
+      run: go test -timeout 300s ./...
 
     # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
     # stays green while integration coverage silently evaporates (e.g. if
