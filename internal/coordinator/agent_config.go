@@ -43,6 +43,12 @@ type CoordinatorConfig struct {
 	// bug/feature messages to the design-doc-creator inbox
 	// (M-MSG-TRIAGE-ROUTER). Opt-in: nil or Enabled=false means off.
 	Triage *TriageConfig `yaml:"triage" json:"triage,omitempty"`
+
+	// FeedbackGate configures the cost & abuse gate on the cloud dispatch path
+	// (M-FEEDBACK-TRIAGE-GATE). Opt-in: nil or Enabled=false means off (full
+	// pass-through, zero behavior change). DISTINCT from Triage above — see the
+	// naming-disambiguation note in internal/feedbackgate.
+	FeedbackGate *FeedbackGateConfig `yaml:"feedback_gate" json:"feedback_gate,omitempty"`
 }
 
 // GitHubSyncConfig configures automatic GitHub issue import.
