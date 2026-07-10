@@ -8,13 +8,14 @@ rather than ad-hoc sessions.
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (skill fix / process fix / backlog item).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
-runs ONE iteration. **Scheduling (since 2026-07-10): the Claude Code scheduled task
-`v1-mission-nightly`** (22:00 daily, managed in the app's Scheduled sidebar) — it runs inside
-Claude Code with the subscription OAuth, so the billing question never arises. Runs while the
-app is open (this rig's daemon is always on; a missed slot fires on next launch). The launchd
-path (`tools/launchd/mission-control.sh` + plist) is the UNLOADED fallback — if ever re-armed
-it hard-requires `CLAUDE_CODE_OAUTH_TOKEN` (billing guard) since headless CLI outside the app
-cannot use the Keychain OAuth.
+runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (22:00 nightly on the
+rig, armed 2026-07-10) behind the billing guard — it refuses to run until
+`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, subscription-billed) is in
+`~/.config/ailang/secrets.env`, so arming is safe before the token exists. The Claude Code
+scheduled-tasks path was TESTED AND RULED OUT for this job (2026-07-10 canary): that system is
+desktop-side — tasks landed on /Users/mark (Mark's machine, not the rig) and a probe task never
+dispatched even there (a June one-time task was also found a month overdue). Wrong machine +
+unreliable dispatch → launchd is primary, not fallback.
 **Log**: [v1-mission-log.md](v1-mission-log.md) — append-only, one entry per iteration.
 **Human-facing reporting**: GitHub issue
 [#329](https://github.com/sunholo-data/ailang/issues/329) — every iteration posts its morning
