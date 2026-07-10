@@ -1,7 +1,7 @@
 # Sprint Plan — M-EVAL-BENCHMARK-UI-CONSOLIDATION
 
 **Goal:** Make the benchmark site coherent and correct — finish the standard/agent split, prune the accreted cloud dashboard, give OS/local (cross-language + harness + longitudinal) a real zero-cost home, and add a framing landing page.
-**Design doc:** [m-eval-benchmark-ui-consolidation.md](../m-eval-benchmark-ui-consolidation.md)
+**Design doc:** [m-eval-benchmark-ui-consolidation.md](m-eval-benchmark-ui-consolidation.md)
 **Mode:** overnight autonomous execution (2026-06-12 night) — committed per-phase on `dev` for morning review.
 **Risk:** medium — frontend (React/MDX) auto-deploys via docusaurus-deploy; verify each push's build. Phase C's *data* needs a local-rig run (offline) → scaffold + placeholder if the rig isn't driven tonight.
 

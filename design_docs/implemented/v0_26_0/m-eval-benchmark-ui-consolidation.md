@@ -1,6 +1,6 @@
 # M-EVAL-BENCHMARK-UI-CONSOLIDATION: A coherent benchmark/dashboard information architecture
 
-**Status**: Planned (supersedes the display portion of M-EVAL-DASHBOARD-REDESIGN, which delivered phase 1 — the ELO/regrade `latest.json` schema — already on dev)
+**Status**: ✅ Implemented (v0.26.0) — all 4 milestones shipped (M-A split correctness, M-B orphan prune, M-C OS/Local leaderboard + live rotation data, M-D overview + nav); supersedes the display portion of M-EVAL-DASHBOARD-REDESIGN, which delivered phase 1 — the ELO/regrade `latest.json` schema — already on dev
 **Target**: v0.26.0
 **Priority**: P1 (the public benchmark site accreted metrics over many releases; standard/agent mix, stale pages, and an empty local-model story make "actual performance" hard to read)
 **Estimated**: 3–4 days (phases A–D below)
