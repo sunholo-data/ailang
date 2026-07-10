@@ -52,8 +52,31 @@ jobs:
       # checks the real motoko core via MOTOKO_REPO.)
       run: tools/ci/motoko_smoke.sh
 
+    # Without z3, every SMT/contract-verification integration test
+    # (internal/smt TestSolve_*_Z3, internal/bestof TestZ3VerifyEndToEnd, …)
+    # t.Skip()s — they had silently never run in CI until 2026-07-10.
+    - name: Install z3 (SMT solver for contract-verification tests)
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
+
     - name: Run tests with timeout (M-DX11)
       run: go test -timeout 60s ./...
+
+    # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
+    # stays green while integration coverage silently evaporates (e.g. if
+    # the "Build binaries" or "Install z3" steps above are ever removed or
+    # reordered after the test step). Re-run one fast representative test
+    # per external-binary gate (ailang via bin/, ailang via PATH, z3)
+    # verbosely and require an explicit PASS — a skip or rename fails here.
+    - name: Assert binary-gated integration tests ran (no silent skips)
+      run: |
+        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestZ3VerifyEndToEnd)$' \
+          ./internal/pkg ./cmd/ailang ./internal/bestof 2>&1 | tee gated_integration.log
+        for t in TestRunSmokeInTempDir_Pass TestPromptCommand_Piping TestZ3VerifyEndToEnd; do
+          grep -q -- "--- PASS: $t" gated_integration.log || {
+            echo "::error::$t did not PASS — a binary-gated integration test is being skipped (missing/stale ailang or z3?) or was renamed (then update this step)."
+            exit 1
+          }
+        done
 
     - name: Run parser tests
       run: make test-parser
@@ -258,6 +281,21 @@ jobs:
       # If a test is genuinely Windows-incompatible (not just slow), fix it or
       # skip it with a `// TODO(windows-ci): <reason>` + tracked GH issue.
       run: go test -timeout 300s ./...
+
+    # Same anti-silent-skip gate as the Linux job (minus z3, which isn't
+    # installed here): tests that shell out to ailang t.Skip when it's
+    # missing, invisibly in non-verbose `go test ./...`. Require an explicit
+    # PASS from one representative test per discovery path (bin/ vs PATH).
+    - name: Assert binary-gated integration tests ran (no silent skips)
+      shell: pwsh
+      run: |
+        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping)$' ./internal/pkg ./cmd/ailang 2>&1 | Tee-Object -FilePath gated_integration.log
+        foreach ($t in 'TestRunSmokeInTempDir_Pass','TestPromptCommand_Piping') {
+          if (-not (Select-String -Path gated_integration.log -SimpleMatch "--- PASS: $t" -Quiet)) {
+            Write-Error "$t did not PASS - a binary-gated integration test is being skipped (missing/stale ailang?) or was renamed (then update this step)."
+            exit 1
+          }
+        }
 
   build:
     runs-on: ubuntu-latest
