@@ -57,6 +57,73 @@ func isTruthyEnv(v string) bool {
 	return false
 }
 
+// enableFeedbackGate installs the production decider and attaches the
+// cloud-constructed dependencies (M-FEEDBACK-GATE-CLOUD-ADAPTER) onto the gate
+// config the decider reads. Called from initTaskProcessing when
+// coordinator.feedback_gate.enabled is set. Extracted as a method so the
+// deps-attachment CALL-SITE (not just the SetFeedbackGateDeps setter) is
+// directly testable — the M-ENV-FORWARD lesson: guard the call-site.
+//
+// d.feedbackGateCfg is set to the same pointer as cfg, so the Cooldown/
+// Classifier assignments below are visible to every Decide call. When a dep is
+// nil (local mode / no ANTHROPIC_API_KEY), the field stays nil and that stage
+// is a no-op — behavior identical to the pre-adapter, rules-only gate.
+func (d *Daemon) enableFeedbackGate(cfg *FeedbackGateConfig) {
+	d.feedbackGate = feedbackGateFunc{}
+	d.feedbackGateCfg = cfg
+
+	if d.feedbackGateCooldown != nil {
+		d.feedbackGateCfg.Cooldown = d.feedbackGateCooldown
+	}
+	if d.feedbackGateClassifier != nil {
+		d.feedbackGateCfg.Classifier = d.feedbackGateClassifier
+	}
+
+	resolved := resolveFeedbackGateMode(*cfg)
+	d.logger.Printf("Feedback gate enabled (mode=%s, dry_run=%v, cooldown=%s, classifier=%s, budget=%s)",
+		resolved.Mode, resolved.DryRun,
+		feedbackGateCooldownStage(d.feedbackGateCfg),
+		feedbackGateClassifierStage(d.feedbackGateCfg),
+		feedbackGateBudgetStage(d.feedbackGateCfg),
+	)
+}
+
+// feedbackGateCooldownStage names the cooldown stage for the startup log:
+// "firestore" when a store is attached, "none" (rules-only) otherwise.
+func feedbackGateCooldownStage(cfg *feedbackgate.FeedbackGateConfig) string {
+	if cfg != nil && cfg.Cooldown != nil {
+		return "firestore"
+	}
+	return "none"
+}
+
+// feedbackGateClassifierStage names the classifier stage for the startup log:
+// "anthropic" when a live-provider classifier is attached, "fail-closed" when a
+// classifier is attached but has no provider (no ANTHROPIC_API_KEY → files
+// heuristic-flagged messages), "none" when no classifier is attached (stage
+// skipped entirely).
+func feedbackGateClassifierStage(cfg *feedbackgate.FeedbackGateConfig) string {
+	if cfg == nil || cfg.Classifier == nil {
+		return "none"
+	}
+	if cfg.Classifier.HasProvider() {
+		return "anthropic"
+	}
+	return "fail-closed"
+}
+
+// feedbackGateBudgetStage names the budget stage for the startup log. The
+// budget rides inside the classifier (feedbackgate.NewClassifier(provider,
+// prompt, budget)), so "firestore" whenever a classifier is attached (the cloud
+// wiring always builds the classifier with a Firestore budget), "none"
+// otherwise.
+func feedbackGateBudgetStage(cfg *feedbackgate.FeedbackGateConfig) string {
+	if cfg != nil && cfg.Classifier != nil {
+		return "firestore"
+	}
+	return "none"
+}
+
 // feedbackGateActive reports whether the gate should run for the daemon. It is
 // opt-in: nil decider, nil config, disabled config, or Mode=off all mean
 // pass-through (zero behavior change). Env AILANG_FEEDBACK_GATE_MODE=off also
