@@ -266,9 +266,245 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-// extractLambdaParams extracts parameter names from a Core Lambda
-func extractLambdaParams(lambda *core.Lambda) []string {
-	return lambda.Params
+// FoldBodyExprs collapses a slice of AST expressions — as produced by parsing a
+// named test block where semicolons separate statements — into a single nested
+// expression.  The parser emits standalone `let x = val` nodes (Body == nil)
+// for each binding; this function re-chains them:
+//
+//	[let x = val, let y = ..., finalExpr]
+//	  → let x = val in (let y = ... in finalExpr)
+//
+// Non-let expressions that are not the last item are dropped (they were
+// evaluated for side-effects in the original source, which is meaningless for
+// pure bodies, so stripping them is safe).
+func FoldBodyExprs(exprs []ast.Expr) ast.Expr {
+	if len(exprs) == 0 {
+		return nil
+	}
+	// Walk in reverse, threading each let-binding around the accumulated tail.
+	result := exprs[len(exprs)-1]
+	for i := len(exprs) - 2; i >= 0; i-- {
+		switch e := exprs[i].(type) {
+		case *ast.Let:
+			// Clone to avoid mutating the parser's AST in place.
+			result = &ast.Let{
+				Name:  e.Name,
+				Type:  e.Type,
+				Value: e.Value,
+				Body:  result,
+				Pos:   e.Pos,
+			}
+		case *ast.LetRec:
+			result = &ast.LetRec{
+				Name:  e.Name,
+				Type:  e.Type,
+				Value: e.Value,
+				Body:  result,
+				Pos:   e.Pos,
+			}
+		default:
+			// Side-effect expression before the final value — wrap in a let_ binding.
+			// AILANG has no sequencing operator, so we emit "let _ = expr in rest".
+			// This is the closest approximation; pure bodies shouldn't have real side
+			// effects anyway, so semantics are preserved.
+			result = &ast.Let{
+				Name:  "_seq",
+				Value: exprs[i],
+				Body:  result,
+				Pos:   exprs[i].Position(),
+			}
+		}
+	}
+	return result
+}
+
+// PrintAILANGSource converts an AST expression to valid AILANG source text.
+//
+// This is needed because ast.FuncCall.String() uses prefix notation
+// "(f arg1 arg2)" which is not valid AILANG syntax.  Named test bodies
+// are re-elaborated through the pipeline from source text, so we need
+// proper AILANG syntax rather than the debug representation from String().
+//
+// All known ast.Expr variants are handled.  An unknown variant returns a
+// descriptive error string that will cause the pipeline to fail with a
+// parse error — surfaced as a test FAIL, never a crash.
+//
+// IMPORTANT: always call with a non-nil expr; the nil guard at the top
+// returns a safe fallback so recursive callers (e.g. Let.Body == nil) never
+// dereference a nil interface.
+func PrintAILANGSource(expr ast.Expr) string {
+	if expr == nil {
+		return "<nil-expr>"
+	}
+	switch e := expr.(type) {
+	case *ast.Literal:
+		// UnitLit: Literal.String() returns "<nil>" via fmt.Sprintf("%v", nil).
+		// We need "()" which is the AILANG unit literal syntax.
+		if e.Kind == ast.UnitLit {
+			return "()"
+		}
+		// StringLit: Literal.String() only escapes \ and " but not \n, \t, \r.
+		// Re-escape control characters so the round-tripped source parses correctly.
+		if e.Kind == ast.StringLit {
+			if s, ok := e.Value.(string); ok {
+				var buf strings.Builder
+				buf.WriteByte('"')
+				for _, ch := range s {
+					switch ch {
+					case '\\':
+						buf.WriteString(`\\`)
+					case '"':
+						buf.WriteString(`\"`)
+					case '\n':
+						buf.WriteString(`\n`)
+					case '\t':
+						buf.WriteString(`\t`)
+					case '\r':
+						buf.WriteString(`\r`)
+					default:
+						buf.WriteRune(ch)
+					}
+				}
+				buf.WriteByte('"')
+				return buf.String()
+			}
+		}
+		return e.String() // bool, int, float all have correct String()
+	case *ast.Identifier:
+		return e.Name
+	case *ast.BinaryOp:
+		return fmt.Sprintf("(%s %s %s)",
+			PrintAILANGSource(e.Left), e.Op, PrintAILANGSource(e.Right))
+	case *ast.UnaryOp:
+		return fmt.Sprintf("(%s %s)", e.Op, PrintAILANGSource(e.Expr))
+	case *ast.FuncCall:
+		// Produce "f(arg1, arg2)" — the standard AILANG call syntax.
+		// Special case: f(()) — a call with a single unit literal — should print
+		// as f() because that is how zero-arg functions are called in AILANG source.
+		funcStr := PrintAILANGSource(e.Func)
+		if len(e.Args) == 0 {
+			return funcStr + "()"
+		}
+		if len(e.Args) == 1 {
+			if lit, ok := e.Args[0].(*ast.Literal); ok && lit.Kind == ast.UnitLit {
+				return funcStr + "()"
+			}
+		}
+		args := make([]string, len(e.Args))
+		for i, a := range e.Args {
+			args[i] = PrintAILANGSource(a)
+		}
+		return fmt.Sprintf("%s(%s)", funcStr, strings.Join(args, ", "))
+	case *ast.Tuple:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "(" + strings.Join(elems, ", ") + ")"
+	case *ast.List:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "[" + strings.Join(elems, ", ") + "]"
+	case *ast.Array:
+		elems := make([]string, len(e.Elements))
+		for i, el := range e.Elements {
+			elems[i] = PrintAILANGSource(el)
+		}
+		return "#[" + strings.Join(elems, ", ") + "]"
+	case *ast.If:
+		return fmt.Sprintf("if %s then %s else %s",
+			PrintAILANGSource(e.Condition),
+			PrintAILANGSource(e.Then),
+			PrintAILANGSource(e.Else))
+	case *ast.Let:
+		if e.Body == nil {
+			// Standalone let-binding (no 'in'): emit as "let name = val" — callers
+			// that need a complete expression should use FoldBodyExprs first.
+			return fmt.Sprintf("let %s = %s", e.Name, PrintAILANGSource(e.Value))
+		}
+		return fmt.Sprintf("let %s = %s in\n%s",
+			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	case *ast.LetRec:
+		if e.Body == nil {
+			return fmt.Sprintf("letrec %s = %s", e.Name, PrintAILANGSource(e.Value))
+		}
+		return fmt.Sprintf("letrec %s = %s in\n%s",
+			e.Name, PrintAILANGSource(e.Value), PrintAILANGSource(e.Body))
+	case *ast.Match:
+		cases := make([]string, len(e.Cases))
+		for i, c := range e.Cases {
+			if c.Guard != nil {
+				cases[i] = fmt.Sprintf("%s if %s => %s",
+					c.Pattern, PrintAILANGSource(c.Guard), PrintAILANGSource(c.Body))
+			} else {
+				cases[i] = fmt.Sprintf("%s => %s", c.Pattern, PrintAILANGSource(c.Body))
+			}
+		}
+		return fmt.Sprintf("match %s { %s }", PrintAILANGSource(e.Expr), strings.Join(cases, ", "))
+	case *ast.Block:
+		parts := make([]string, len(e.Exprs))
+		for i, ex := range e.Exprs {
+			parts[i] = PrintAILANGSource(ex)
+		}
+		return "{ " + strings.Join(parts, "; ") + " }"
+	case *ast.Record:
+		fields := make([]string, len(e.Fields))
+		for i, f := range e.Fields {
+			fields[i] = fmt.Sprintf("%s: %s", f.Name, PrintAILANGSource(f.Value))
+		}
+		return "{ " + strings.Join(fields, ", ") + " }"
+	case *ast.RecordAccess:
+		return fmt.Sprintf("%s.%s", PrintAILANGSource(e.Record), e.Field)
+	case *ast.RecordUpdate:
+		fields := make([]string, len(e.Fields))
+		for i, f := range e.Fields {
+			fields[i] = fmt.Sprintf("%s: %s", f.Name, PrintAILANGSource(f.Value))
+		}
+		return fmt.Sprintf("{ %s | %s }", PrintAILANGSource(e.Base), strings.Join(fields, ", "))
+	case *ast.Lambda:
+		params := make([]string, len(e.Params))
+		for i, p := range e.Params {
+			if p.Type != nil {
+				params[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
+			} else {
+				params[i] = p.Name
+			}
+		}
+		return fmt.Sprintf("\\%s. %s", strings.Join(params, " "), PrintAILANGSource(e.Body))
+	case *ast.FuncLit:
+		params := make([]string, len(e.Params))
+		for i, p := range e.Params {
+			if p.Type != nil {
+				params[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
+			} else {
+				params[i] = p.Name
+			}
+		}
+		retStr := ""
+		if e.ReturnType != nil {
+			retStr = fmt.Sprintf(" -> %s", e.ReturnType)
+		}
+		return fmt.Sprintf("func(%s)%s { %s }", strings.Join(params, ", "), retStr, PrintAILANGSource(e.Body))
+	case *ast.Error:
+		return fmt.Sprintf("<printer-error: unrepresentable *ast.Error node: %s>", e.Msg)
+	case *ast.AssertStmt:
+		return fmt.Sprintf("assert %s", PrintAILANGSource(e.Condition))
+	case *ast.Send:
+		return fmt.Sprintf("%s <- %s", PrintAILANGSource(e.Channel), PrintAILANGSource(e.Value))
+	case *ast.Recv:
+		return fmt.Sprintf("<- %s", PrintAILANGSource(e.Channel))
+	case *ast.ForallExpr:
+		return fmt.Sprintf("forall %s: %s..%s => %s",
+			e.Var, PrintAILANGSource(e.Lo), PrintAILANGSource(e.Hi), PrintAILANGSource(e.Body))
+	case *ast.QuasiQuote:
+		return e.String()
+	default:
+		// Unknown variant: return a descriptive error string.
+		// The pipeline will fail with a parse error (test FAIL), not a process crash.
+		return fmt.Sprintf("<printer-error: unhandled ast.Expr type %T>", expr)
+	}
 }
 
 // injectADTConstructors injects ADT constructor bindings into the evaluator
@@ -332,69 +568,155 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 		return
 	}
 
-	// PASS 1: Collect pending bindings (lambdas) and inject non-lambda values
-	type PendingLambdaBinding struct {
-		name       string
-		lambda     *core.Lambda
-		modulePath string // used for module-qualified env key to prevent alias collision
-	}
-	var pendingLambdas []PendingLambdaBinding
+	// PASS 1: Inject Let (non-recursive) lambdas and wire LetRec groups with proper
+	// self-referential environments.
+	//
+	// PROBLEM: Naively injecting every lambda with Env=env causes two bugs:
+	//
+	// (a) Name collision: both std/list and std/string export "concat" (different arity).
+	//     The last writer wins for env["concat"], so whichever module is processed last
+	//     (random map iteration order) becomes "concat", corrupting cross-module calls.
+	//
+	// (b) Broken self-recursion: std/list.concat body contains Var{concat} (recursive
+	//     call to itself).  If env["concat"] was overwritten by std/string.concat (1-param),
+	//     the recursive call uses the wrong function → "expects 1 arguments, got 2".
+	//
+	// FIX:
+	//   - For LetRec groups (self/mutual recursion), set up a recEnv child per group
+	//     using IndirectValue cells, exactly like evalCoreLetRec does.  The closures
+	//     capture recEnv so Var{name} within the group resolves back to the cell.
+	//   - Only bind the QUALIFIED key in the outer env (e.g. "pkg/std/list.concat") —
+	//     NOT the bare name.  This prevents collisions between modules.
+	//   - After ALL modules are processed, resolve VarGlobal re-exports into bare names
+	//     in a final pass so engine.ail's `let concat = VarGlobal{pkg/std/list,concat}`
+	//     correctly sets env["concat"] = 2-param FunctionValue.
 
-	for modulePath, mod := range e.modules {
-		if mod.Core == nil {
+	type DeferredVarGlobal struct {
+		name string
+		ref  *core.VarGlobal
+	}
+	var deferredVarGlobals []DeferredVarGlobal
+
+	// Use a deterministic module order: sort module paths so results are reproducible
+	// regardless of Go's random map iteration order.
+	sortedPaths := make([]string, 0, len(e.modules))
+	for modPath := range e.modules {
+		sortedPaths = append(sortedPaths, modPath)
+	}
+	// Sort: shorter paths (std/*) before longer (pkg/sunholo/...) for stable dependency order
+	sortStrings(sortedPaths)
+
+	for _, modulePath := range sortedPaths {
+		mod := e.modules[modulePath]
+		if mod == nil || mod.Core == nil {
 			continue
 		}
 
-		// Process each declaration in the module
 		for _, decl := range mod.Core.Decls {
 			switch d := decl.(type) {
 			case *core.Let:
-				// For pure functions, the value is a Lambda - queue it for Pass 2
 				if lambda, ok := d.Value.(*core.Lambda); ok {
-					pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-						name:       d.Name,
-						lambda:     lambda,
-						modulePath: modulePath,
-					})
-				} else if _, ok := d.Value.(*core.VarGlobal); ok {
-					// This is a re-export of another module's function
-					// We need to evaluate it to get the actual function value
-					val, err := evaluator.Eval(d.Value)
-					if err == nil && val != nil {
-						env.Set(d.Name, val)
+					// Non-recursive function: create closure with the outer env
+					// and bind ONLY under the qualified key.  The bare name will
+					// be resolved via VarGlobal re-exports or the qualified lookup.
+					funcVal := &eval.FunctionValue{
+						Params: lambda.Params,
+						Body:   lambda.Body,
+						Env:    env,
+						Typed:  true,
 					}
+					// Qualified key (never collides with same-named functions from
+					// other modules because module paths are unique).
+					if modulePath != "" {
+						env.Set(modulePath+"."+d.Name, funcVal)
+					}
+					// Bare name: set unconditionally.  For Let (non-recursive)
+					// lambdas there is no self-reference issue; the only concern is
+					// ordering, which is now deterministic (sorted paths above).
+					env.Set(d.Name, funcVal)
+				} else if vg, ok := d.Value.(*core.VarGlobal); ok {
+					// Re-export of another module's function: defer until all
+					// lambdas are wired so the qualified key is already in env.
+					deferredVarGlobals = append(deferredVarGlobals, DeferredVarGlobal{
+						name: d.Name,
+						ref:  vg,
+					})
 				}
 
 			case *core.LetRec:
-				// For recursive bindings, queue the lambdas for Pass 2
+				// Mutual/self-recursive group: use IndirectValue cells so Var
+				// references within the group resolve to the correct version of
+				// each function — not whatever happened to be last in env.
+				//
+				// Algorithm mirrors evalCoreLetRec phases 1-2.5:
+				//   Phase A: allocate cells in recEnv
+				//   Phase B: build FunctionValues that capture recEnv
+				//   Phase C: fill cells; register qualified keys in outer env;
+				//             also set bare names for non-conflicting functions
+				recEnv := env.NewChildEnvironment()
+				cells := make(map[string]*eval.RefCell, len(d.Bindings))
+
+				// Phase A
 				for _, binding := range d.Bindings {
-					if lambda, ok := binding.Value.(*core.Lambda); ok {
-						pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
-							name:       binding.Name,
-							lambda:     lambda,
-							modulePath: modulePath,
-						})
+					cell := &eval.RefCell{}
+					cells[binding.Name] = cell
+					recEnv.Set(binding.Name, &eval.IndirectValue{Cell: cell})
+				}
+
+				// Phase B+C
+				for _, binding := range d.Bindings {
+					lambda, ok := binding.Value.(*core.Lambda)
+					if !ok {
+						continue
 					}
+					funcVal := &eval.FunctionValue{
+						Params: lambda.Params,
+						Body:   lambda.Body,
+						Env:    recEnv, // captures the group's own env for self-ref
+						Typed:  true,
+					}
+					// Fill the indirect cell so in-group Var{name} resolves correctly
+					cells[binding.Name].Val = funcVal
+					cells[binding.Name].Init = true
+
+					// Register under qualified key in outer env (for CombinedResolver)
+					if modulePath != "" {
+						env.Set(modulePath+"."+binding.Name, funcVal)
+					}
+					// Also expose the actual FunctionValue (not IndirectValue) under
+					// bare name in the outer env, so EvalCoreProgram and cross-module
+					// callers that look up bare names find the correct version.
+					// This is safe: recEnv's self-reference via IndirectValue is still
+					// intact regardless of what env["name"] holds.
+					env.Set(binding.Name, funcVal)
 				}
 			}
 		}
 	}
 
-	// PASS 2: Now create FunctionValues with the fully-populated environment
-	// This ensures all function dependencies can be resolved from env.
-	// Also bind under a module-qualified key ("std/string.length") so that
-	// CombinedResolver can distinguish same-named functions from different modules
-	// (e.g. std/string.length vs std/list.length imported with an alias).
-	for _, pending := range pendingLambdas {
-		funcVal := &eval.FunctionValue{
-			Params: extractLambdaParams(pending.lambda),
-			Body:   pending.lambda.Body,
-			Env:    env, // Capture the fully-populated environment
-			Typed:  true,
+	// PASS 2: Resolve deferred VarGlobal re-exports now that all lambdas (including
+	// qualified keys) are in env.  For example, engine.ail's
+	//   let concat = VarGlobal{pkg/std/list, concat}
+	// resolves to the 2-param FunctionValue after env["pkg/std/list.concat"] is set.
+	// This overwrites any bare-name "concat" set above, so engine functions that
+	// reference Var{concat} get the correct (2-param) version.
+	for _, dv := range deferredVarGlobals {
+		val, err := evaluator.Eval(dv.ref)
+		if err == nil && val != nil {
+			env.Set(dv.name, val)
 		}
-		env.Set(pending.name, funcVal)
-		if pending.modulePath != "" {
-			env.Set(pending.modulePath+"."+pending.name, funcVal)
+	}
+}
+
+// sortStrings sorts a slice of strings in-place (ascending lexicographic order).
+func sortStrings(ss []string) {
+	for i := 1; i < len(ss); i++ {
+		key := ss[i]
+		j := i - 1
+		for j >= 0 && ss[j] > key {
+			ss[j+1] = ss[j]
+			j--
 		}
+		ss[j+1] = key
 	}
 }

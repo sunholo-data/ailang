@@ -1,0 +1,68 @@
+id: bytecode_vm_trace
+description: "Stack-machine interpreter with relative jumps — off-by-one in PC or operand order surfaces only in the final step count"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 2: stateful invariants).
+# The program computes gcd(252, 105) by repeated subtraction; the exact
+# `steps` count discriminates jump-base and pop-order mistakes that still
+# produce the right gcd. Jump offsets are relative to the jump instruction
+# ITSELF (not the next instruction) — the classic near-miss.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [state_machine, algorithmic]
+task_prompt: |
+  Write a program in <LANG> that implements a stack virtual machine and executes
+  the program below. Represent the bytecode as data in your code.
+
+  Instruction set (stack tops shown rightmost; "pop b, pop a" means b is the
+  top of the stack and a is beneath it):
+    PUSH k   push integer k
+    ADD      pop b, pop a, push a + b
+    SUB      pop b, pop a, push a - b
+    MUL      pop b, pop a, push a * b
+    DUP      push a copy of the top value
+    OVER     push a copy of the SECOND value from the top
+    SWAP     exchange the top two values
+    POP      discard the top value
+    JMP d    jump: set pc = pc + d, where pc is the index of THIS instruction
+    JMPZ d   pop v; if v == 0 set pc = pc + d (relative to THIS instruction),
+             otherwise continue to the next instruction
+    JMPGT d  pop b, pop a; if a > b set pc = pc + d (relative to THIS
+             instruction), otherwise continue to the next instruction
+    HALT     stop execution
+
+  Every executed instruction counts toward a step counter, including HALT and
+  jumps (taken or not). Execution starts at pc = 0. The program is guaranteed
+  to halt when the semantics above are implemented exactly.
+
+  Program (instruction index: instruction):
+     0: PUSH 252
+     1: PUSH 105
+     2: OVER
+     3: OVER
+     4: SUB
+     5: JMPZ 12
+     6: OVER
+     7: OVER
+     8: JMPGT 4
+     9: OVER
+    10: SUB
+    11: JMP -9
+    12: SWAP
+    13: OVER
+    14: SUB
+    15: SWAP
+    16: JMP -14
+    17: POP
+    18: HALT
+
+  After HALT, print each value remaining on the stack from bottom to top, one
+  per line, then print exactly:  steps: N
+  where N is the total number of instructions executed.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  21
+  steps: 64

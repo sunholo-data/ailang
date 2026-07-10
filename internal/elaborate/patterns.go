@@ -2,6 +2,8 @@ package elaborate
 
 import (
 	"fmt"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -73,6 +75,14 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 	return e.wrapWithBindings(result, binds), nil
 }
 
+// isUpperIdent reports whether an identifier starts with an uppercase letter,
+// i.e. is a constructor reference by language convention (the parser rejects
+// lowercase variant names with PAR_VARIANT_NEEDS_UIDENT).
+func isUpperIdent(name string) bool {
+	r, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(r)
+}
+
 // elaboratePattern converts surface pattern to core pattern
 func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error) {
 	switch p := pat.(type) {
@@ -84,11 +94,31 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		}
 		// Check if this identifier is a nullary constructor
 		// Nullary constructors appear as bare identifiers (e.g., "None", "Red")
-		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.Arity == 0 {
-			// It's a nullary constructor - create ConstructorPattern with no args
+		if ctorInfo, ok := e.constructors[p.Name]; ok {
+			if ctorInfo.Arity == 0 {
+				// It's a nullary constructor - create ConstructorPattern with no args
+				return &core.ConstructorPattern{
+					Name: p.Name,
+					Args: nil, // Empty args for nullary constructor
+				}, nil
+			}
+			// Bare non-nullary constructor (e.g. `Some` without arguments):
+			// previously this silently became a catch-all VarPattern named "Some".
+			return nil, fmt.Errorf("constructor %s in pattern expects %d argument(s) — write %s(...) with %d pattern(s), or use a lowercase name for a variable binding", p.Name, ctorInfo.Arity, p.Name, ctorInfo.Arity)
+		}
+		// Uppercase identifier = constructor by language convention (the parser
+		// enforces UpperCamelCase at declaration: PAR_VARIANT_NEEDS_UIDENT).
+		// A constructor that isn't in e.constructors (e.g. Option's None when
+		// only `std/list (nth)` is imported) previously fell through to
+		// VarPattern — a silent catch-all that matched EVERY value, so
+		// `match nth(xs, i) { None => ..., Some(v) => ... }` always took the
+		// None arm. Elaborate as a nullary constructor pattern instead; the
+		// runtime matches by constructor name, same as it already does for
+		// unimported constructor patterns with arguments like Some(v). (#323)
+		if isUpperIdent(p.Name) {
 			return &core.ConstructorPattern{
 				Name: p.Name,
-				Args: nil, // Empty args for nullary constructor
+				Args: nil,
 			}, nil
 		}
 		// Otherwise, it's a variable pattern

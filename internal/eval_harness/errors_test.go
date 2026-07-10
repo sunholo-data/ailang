@@ -21,6 +21,16 @@ func TestCategorizeErrorCode(t *testing.T) {
 			hintTitle: "Parse error",
 		},
 		{
+			// #325: the placement diagnostic must categorize as its own code with a
+			// placement-specific hint, NOT be swallowed by PAR_001's generic
+			// "parse errors in ..." pattern (which also matches this stderr).
+			name:      "PAR_IMPORT_PLACEMENT: import after declaration",
+			stderr:    "parse errors in solution.ail:\nPAR_IMPORT_PLACEMENT at solution.ail:3:1: imports must appear immediately after the module declaration",
+			wantCode:  PAR_IMPORT_PLACEMENT,
+			wantHint:  true,
+			hintTitle: "Import placed after a declaration",
+		},
+		{
 			name:      "TC_REC_001: Record field not found",
 			stderr:    "field 'email' not found in record {name: String, age: Int}",
 			wantCode:  TC_REC_001,

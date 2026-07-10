@@ -201,3 +201,64 @@ func decodeRecord(raw interface{}, recordType *types.TRecord) (eval.Value, error
 
 	return &eval.RecordValue{Fields: fields}, nil
 }
+
+// DecodeJSONUntyped converts a JSON string to an eval.Value structurally,
+// WITHOUT a target type: objects become records, arrays become lists,
+// integral numbers become ints (else floats), null becomes unit.
+//
+// Consumers that know the parameter type should prefer DecodeJSON (it
+// resolves int-vs-float and unit intent from the type). This variant exists
+// for hosts that have values but no type context — first user: the WASM
+// bridge (cmd/wasm callExport), whose JS arguments previously supported only
+// scalars ("unsupported argument type: object"). AILANG records are
+// structural, so runtime application unifies these values directly.
+//
+// Known limits (same spirit as DecodeJSON v0.1.0): JSON arrays always decode
+// to lists (never tuples), and integral floats decode to ints — a float-typed
+// parameter receiving 5 (not 5.0) fails at application, matching the existing
+// scalar heuristic in the WASM bridge.
+func DecodeJSONUntyped(jsonStr string) (eval.Value, error) {
+	var raw interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	return decodeUntyped(raw)
+}
+
+func decodeUntyped(raw interface{}) (eval.Value, error) {
+	switch v := raw.(type) {
+	case nil:
+		return &eval.UnitValue{}, nil
+	case bool:
+		return &eval.BoolValue{Value: v}, nil
+	case float64:
+		if v == float64(int(v)) {
+			return &eval.IntValue{Value: int(v)}, nil
+		}
+		return &eval.FloatValue{Value: v}, nil
+	case string:
+		return &eval.StringValue{Value: v}, nil
+	case []interface{}:
+		elems := make([]eval.Value, 0, len(v))
+		for i, e := range v {
+			ev, err := decodeUntyped(e)
+			if err != nil {
+				return nil, fmt.Errorf("array element %d: %w", i, err)
+			}
+			elems = append(elems, ev)
+		}
+		return &eval.ListValue{Elements: elems}, nil
+	case map[string]interface{}:
+		fields := make(map[string]eval.Value, len(v))
+		for k, e := range v {
+			ev, err := decodeUntyped(e)
+			if err != nil {
+				return nil, fmt.Errorf("field %q: %w", k, err)
+			}
+			fields[k] = ev
+		}
+		return &eval.RecordValue{Fields: fields}, nil
+	default:
+		return nil, fmt.Errorf("unsupported JSON value of type %T", raw)
+	}
+}

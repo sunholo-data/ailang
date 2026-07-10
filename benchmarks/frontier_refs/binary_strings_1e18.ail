@@ -1,0 +1,52 @@
+module benchmark/solution
+
+import std/io (println)
+
+-- Count binary strings of length n avoiding "101", mod 1e9+7.
+-- DFA states by longest suffix that is a proper prefix of "101":
+-- S0="", S1="1", S2="10". M[i][j] = ways state i -> state j in one step.
+
+type Mat = Mat({a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int})
+
+func md() -> int = 1000000007
+
+func mul(x: {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int}, y: {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int}) -> {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int} {
+  {
+    a: mod_Int(x.a * y.a + x.b * y.d + x.c * y.g, md()),
+    b: mod_Int(x.a * y.b + x.b * y.e + x.c * y.h, md()),
+    c: mod_Int(x.a * y.c + x.b * y.f + x.c * y.i, md()),
+    d: mod_Int(x.d * y.a + x.e * y.d + x.f * y.g, md()),
+    e: mod_Int(x.d * y.b + x.e * y.e + x.f * y.h, md()),
+    f: mod_Int(x.d * y.c + x.e * y.f + x.f * y.i, md()),
+    g: mod_Int(x.g * y.a + x.h * y.d + x.i * y.g, md()),
+    h: mod_Int(x.g * y.b + x.h * y.e + x.i * y.h, md()),
+    i: mod_Int(x.g * y.c + x.h * y.f + x.i * y.i, md())
+  }
+}
+
+func idm() -> {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int} {
+  { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0, g: 0, h: 0, i: 1 }
+}
+
+func trans() -> {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int} {
+  { a: 1, b: 1, c: 0, d: 0, e: 1, f: 1, g: 1, h: 0, i: 0 }
+}
+
+func mpow(m: {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int}, e2: int) -> {a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int} {
+  if e2 == 0 then idm()
+  else {
+    let half = mpow(m, e2 / 2);
+    let sq = mul(half, half);
+    if mod_Int(e2, 2) == 1 then mul(sq, m) else sq
+  }
+}
+
+func count(n: int) -> int {
+  let p = mpow(trans(), n);
+  mod_Int(p.a + p.b + p.c, md())
+}
+
+export func main() -> () ! {IO} {
+  println(show(count(1000000000000000000)));
+  println(show(count(987654321987654321)))
+}

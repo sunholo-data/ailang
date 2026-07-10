@@ -302,6 +302,20 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		}
 	}
 
+	// API-level refusal (stop_reason "refusal", empty content, HTTP 200).
+	// Observed on Fable 5: its safety layer deterministically refuses some
+	// benign constrained-construction eval prompts in short contexts. This is
+	// a MODEL BEHAVIOR, not an infrastructure failure — surface it distinctly
+	// so eval scoring can separate "declined to answer" from "API broke".
+	if result.StopReason == "refusal" {
+		span.SetAttributes(
+			attribute.String("error.message", "model refused (stop_reason=refusal)"),
+			attribute.String("error.category", "refused"),
+		)
+		span.SetStatus(codes.Error, "model refused")
+		return nil, ai.NewProviderError("anthropic", 0, "model refused to answer (stop_reason=refusal)", nil)
+	}
+
 	if text == "" {
 		span.SetAttributes(
 			attribute.String("error.message", "empty response from Claude"),

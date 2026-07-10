@@ -115,4 +115,4 @@ The `examples/asset_path.ail` shipped with this release uses a non-existent pack
 
 - [M-EXT-PORTABILITY-GATE design doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_19_0/m-ext-portability-gate.md) — the v0.19.0 sprint that introduced asset bundling, the pre-publish smoke gate, and `std/extension.requireWorkdirFile`.
 - [`std/extension.requireWorkdirFile`](./std-extension) — companion helper for extensions whose assets live in the consumer's workdir rather than the package itself.
-- [v0.19.0 changelog entry](https://github.com/sunholo-data/ailang/blob/main/changelogs/v0.10-current.md) — full v0.19.0 release notes.
+- [v0.19.0 changelog entry](https://github.com/sunholo-data/ailang/blob/main/changelogs/v0.18-current.md) — full v0.19.0 release notes.

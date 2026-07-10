@@ -1,0 +1,254 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (nth, reverse, length, take, drop, concat)
+import std/string (chars, contains)
+
+-- '*'-only CommonMark emphasis: delimiter runs, flanking, rule of 3,
+-- delimiter-stack matching, then render with <em>/<strong>.
+
+type Node = Text(string) | Run(int)
+
+-- Delim: node index, remaining count, original length, can open, can close
+type Delim = Delim({idx: int, cnt: int, orig: int, op: bool, cl: bool})
+
+func isPunct(c: string) -> bool = contains("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", c)
+
+func joinChars(cs: [string]) -> string {
+  match cs {
+    [] => "",
+    c :: rest => "${c}${joinChars(rest)}"
+  }
+}
+
+-- tokenize chars into Text/Run nodes
+func tok(cs: [string], acc: [Node]) -> [Node] {
+  match cs {
+    [] => reverse(acc),
+    c :: _ =>
+      if c == "*" then (match spanStar(cs, 0) {
+        (n, rest) => tok(rest, Run(n) :: acc)
+      })
+      else (match spanText(cs, []) {
+        (txt, rest) => tok(rest, Text(joinChars(reverse(txt))) :: acc)
+      })
+  }
+}
+
+func spanStar(cs: [string], n: int) -> (int, [string]) {
+  match cs {
+    [] => (n, []),
+    c :: rest => if c == "*" then spanStar(rest, n + 1) else (n, cs)
+  }
+}
+
+func spanText(cs: [string], acc: [string]) -> ([string], [string]) {
+  match cs {
+    [] => (acc, []),
+    c :: rest => if c == "*" then (acc, cs) else spanText(rest, c :: acc)
+  }
+}
+
+func nodeLen(n: Node) -> int {
+  match n {
+    Text(s) => listLen(chars(s)),
+    Run(k) => k
+  }
+}
+
+func listLen(xs: [string]) -> int {
+  match xs {
+    [] => 0,
+    _ :: rest => 1 + listLen(rest)
+  }
+}
+
+func charAt(s: [string], i: int) -> string {
+  if i < 0 then " "
+  else (match nth(s, i) {
+    None => " ",
+    Some(c) => c
+  })
+}
+
+-- build delimiter list with flanking flags
+func mkDelims(nodes: [Node], allChars: [string], idx: int, pos: int, acc: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}]) -> [{idx: int, cnt: int, orig: int, op: bool, cl: bool}] {
+  match nodes {
+    [] => reverse(acc),
+    n :: rest => {
+      let len = nodeLen(n);
+      match n {
+        Text(_) => mkDelims(rest, allChars, idx + 1, pos + len, acc),
+        Run(k) => {
+          let before = charAt(allChars, pos - 1);
+          let after = charAt(allChars, pos + k);
+          let wsB = before == " ";
+          let wsA = after == " ";
+          let pB = isPunct(before);
+          let pA = isPunct(after);
+          let leftF = (wsA == false) && ((pA == false) || wsB || pB);
+          let rightF = (wsB == false) && ((pB == false) || wsA || pA);
+          mkDelims(rest, allChars, idx + 1, pos + len, ({ idx: idx, cnt: k, orig: k, op: leftF, cl: rightF }) :: acc)
+        }
+      }
+    }
+  }
+}
+
+func ruleOf3Blocks(o: {idx: int, cnt: int, orig: int, op: bool, cl: bool}, c: {idx: int, cnt: int, orig: int, op: bool, cl: bool}) -> bool {
+  (o.cl || c.op) && mod_Int(o.orig + c.orig, 3) == 0 && ((mod_Int(o.orig, 3) == 0 && mod_Int(c.orig, 3) == 0) == false)
+}
+
+func findOpener(delims: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], k: int, closer: {idx: int, cnt: int, orig: int, op: bool, cl: bool}) -> int {
+  if k < 0 then -1
+  else (match nth(delims, k) {
+    None => -1,
+    Some(o) =>
+      if o.cnt > 0 && o.op && (ruleOf3Blocks(o, closer) == false) then k
+      else findOpener(delims, k - 1, closer)
+  })
+}
+
+func removeAt(xs: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], i: int) -> [{idx: int, cnt: int, orig: int, op: bool, cl: bool}] {
+  concat(take(i, xs), drop(i + 1, xs))
+}
+
+func process(delims: [{idx: int, cnt: int, orig: int, op: bool, cl: bool}], i: int, matches: [(int, int, int)]) -> [(int, int, int)] {
+  if i >= length(delims) then matches
+  else (match nth(delims, i) {
+    None => matches,
+    Some(closer) =>
+      if (closer.cl && closer.cnt > 0) == false then process(delims, i + 1, matches)
+      else {
+        let j = findOpener(delims, i - 1, closer);
+        if j < 0 then {
+          if closer.op == false
+          then process(removeAt(delims, i), i, matches)
+          else process(delims, i + 1, matches)
+        } else (match nth(delims, j) {
+          None => matches,
+          Some(opener) => {
+            let use = if opener.cnt >= 2 && closer.cnt >= 2 then 2 else 1;
+            let nOp = { opener | cnt: opener.cnt - use };
+            let nCl = { closer | cnt: closer.cnt - use };
+            let pre = take(j, delims);
+            let post = drop(i + 1, delims);
+            let keepOp = if nOp.cnt > 0 then [nOp] else [];
+            let keepCl = if nCl.cnt > 0 then [nCl] else [];
+            let newList = concat(concat(pre, keepOp), concat(keepCl, post));
+            let newI = length(pre) + length(keepOp);
+            process(newList, newI, concat(matches, [(opener.idx, closer.idx, use)]))
+          }
+        })
+      }
+  })
+}
+
+func tagFor(use: int) -> string = if use == 2 then "strong" else "em"
+
+func opensFor(matches: [(int, int, int)], idx: int) -> [string] {
+  match matches {
+    [] => [],
+    m :: rest => (match m {
+      (o, _, u) =>
+        if o == idx then tagFor(u) :: opensFor(rest, idx)
+        else opensFor(rest, idx)
+    })
+  }
+}
+
+func closesFor(matches: [(int, int, int)], idx: int) -> [string] {
+  match matches {
+    [] => [],
+    m :: rest => (match m {
+      (_, c, u) =>
+        if c == idx then tagFor(u) :: closesFor(rest, idx)
+        else closesFor(rest, idx)
+    })
+  }
+}
+
+func consumedFor(matches: [(int, int, int)], idx: int) -> int {
+  match matches {
+    [] => 0,
+    m :: rest => (match m {
+      (o, c, u) => {
+        let here = if o == idx then u else 0;
+        let here2 = if c == idx then u else 0;
+        here + here2 + consumedFor(rest, idx)
+      }
+    })
+  }
+}
+
+func stars(n: int) -> string = if n <= 0 then "" else "*${stars(n - 1)}"
+
+func openTags(tags: [string]) -> string {
+  -- outermost first = reverse match order
+  match reverse(tags) {
+    [] => "",
+    _ => openGo(reverse(tags))
+  }
+}
+
+func openGo(tags: [string]) -> string {
+  match tags {
+    [] => "",
+    t :: rest => "<${t}>${openGo(rest)}"
+  }
+}
+
+func closeTags(tags: [string]) -> string {
+  match tags {
+    [] => "",
+    t :: rest => "</${t}>${closeTags(rest)}"
+  }
+}
+
+func render(nodes: [Node], matches: [(int, int, int)], idx: int) -> string {
+  match nodes {
+    [] => "",
+    n :: rest => {
+      let piece = match n {
+        Text(s) => s,
+        Run(k) => {
+          let leftover = k - consumedFor(matches, idx);
+          "${closeTags(closesFor(matches, idx))}${stars(leftover)}${openTags(opensFor(matches, idx))}"
+        }
+      };
+      "${piece}${render(rest, matches, idx + 1)}"
+    }
+  }
+}
+
+func emph(s: string) -> string {
+  let cs = chars(s);
+  let nodes = tok(cs, []);
+  let delims = mkDelims(nodes, cs, 0, 0, []);
+  let matches = process(delims, 0, []);
+  render(nodes, matches, 0)
+}
+
+func runAll(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    s :: rest => { println(emph(s)); runAll(rest) }
+  }
+}
+
+export func main() -> () ! {IO} {
+  runAll([
+    "*wind mill*",
+    "a * lantern glow*",
+    "**tide**pool",
+    "***quartz***",
+    "**quiet*",
+    "*ember**",
+    "*sky**lark**dawn*",
+    "*moss**fern*",
+    "***husk*kernel**",
+    "**pearl**shell**",
+    "*a*b*c*",
+    "escape**not*done"
+  ])
+}

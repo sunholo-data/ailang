@@ -325,6 +325,15 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		return p.parseFunctionDeclaration(false, false) // not pure, not export
 	case lexer.TYPE:
 		return p.parseTypeDeclaration(false) // exported=false
+	case lexer.IMPORT:
+		// #325: An `import` at declaration level means imports were placed AFTER
+		// a non-import declaration (the ParseFile import loop only consumes a
+		// leading run of imports). The old behaviour fell through to
+		// parseExpression → PAR_NO_PREFIX_PARSE ("unexpected token in expression:
+		// import"), which never stated the rule and cost whole benchmark cells to
+		// failed self-repair. Emit a single fix-carrying placement diagnostic and
+		// consume the whole import so we don't cascade into further errors.
+		return p.reportMisplacedImport()
 	case lexer.CLASS:
 		return p.parseClassDeclaration()
 	case lexer.INSTANCE:

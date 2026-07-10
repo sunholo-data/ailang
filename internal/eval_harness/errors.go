@@ -12,6 +12,12 @@ const (
 	// Parser errors
 	PAR_001 ErrCode = "PAR_001" // Parse error (block/semicolon issues)
 
+	// Import placement (#325): imports after a declaration. Must be categorized
+	// BEFORE PAR_001, which otherwise swallows it via the generic "parse errors
+	// in ..." pattern and hands back a semicolon-oriented hint that can't repair
+	// a placement mistake.
+	PAR_IMPORT_PLACEMENT ErrCode = "PAR_IMPORT_PLACEMENT" // Import after a declaration
+
 	// AI usability errors - Wrong language
 	WRONG_LANG ErrCode = "WRONG_LANG" // Generated code in wrong programming language
 
@@ -33,6 +39,9 @@ const (
 
 	// Contract verification errors (M-CONTRACT-EVAL)
 	VERIFY_COUNTEREXAMPLE ErrCode = "VERIFY_COUNTEREXAMPLE" // Z3 found counterexample
+
+	// Source-constraint violations (constrained-construction benchmarks)
+	CONSTRAINT_VIOLATION ErrCode = "CONSTRAINT_VIOLATION" // Generated source violates source_constraints
 )
 
 // RepairHint provides actionable guidance for fixing an error
@@ -69,6 +78,19 @@ var Rules = []errorRule{
 			Title: "Imperative syntax not allowed",
 			Why:   "Used imperative constructs (loop/while/for/break/assignment statements). AILANG is purely functional - no loops, no mutation, no statements.",
 			How:   "Replace imperative code with functional patterns: 1) Use recursion instead of loops, 2) Use `let x = expr in body` instead of `x = expr;`, 3) Use pattern matching instead of break/continue, 4) All variables are immutable.",
+		},
+	},
+	{
+		// #325: MUST precede PAR_001 — its `parse errors? in` pattern also matches
+		// the PAR_IMPORT_PLACEMENT wrapper, but the generic semicolon hint can't
+		// repair a placement mistake. This keys on the specific diagnostic code so
+		// the repair hint carries the actual fix (hoist the import).
+		PAR_IMPORT_PLACEMENT,
+		regexp.MustCompile(`PAR_IMPORT_PLACEMENT|imports must appear immediately after the module declaration`),
+		RepairHint{
+			Title: "Import placed after a declaration",
+			Why:   "In AILANG, all `import` lines must appear immediately after the `module` declaration, before any type/func/let declaration. An import after a declaration is a parse error.",
+			How:   "Move every `import ...` line up so they sit directly under the `module ...` line, above the first type or func declaration. Order among imports does not matter.",
 		},
 	},
 	{

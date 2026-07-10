@@ -1,0 +1,31 @@
+module benchmark/solution
+
+import std/io (println)
+import std/list (foldl, sortBy, take)
+
+-- LCG: x_{n+1} = (48271 * x_n) mod 2147483647, x_0 = 20260708
+-- Build list of x_1..x_2000
+func gen(n: int, x: int, acc: [int]) -> [int] {
+  if n == 0 then acc
+  else {
+    let nx = mod_Int(48271 * x, 2147483647);
+    gen(n - 1, nx, nx :: acc)
+  }
+}
+
+func cmpDesc(a: int, b: int) -> int = b - a
+
+export func main() -> () ! {IO} {
+  let vals = gen(2000, 20260708, []);
+  -- vals is reversed (x_2000 first)
+  match vals {
+    last :: _ => println(show(last)),
+    [] => println("empty")
+  };
+  let sorted = sortBy(cmpDesc, vals);
+  let top10 = take(10, sorted);
+  let topSum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, top10);
+  println(show(topSum));
+  let total = foldl(func(acc: int, x: int) -> int { acc + x }, 0, vals);
+  println(show(mod_Int(total, 1000000007)))
+}

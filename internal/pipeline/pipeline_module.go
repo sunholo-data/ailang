@@ -82,16 +82,27 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		),
 	)
 
-	modLoader := loader.NewModuleLoader(".")
+	// ModuleLoader basePath determines where relative imports ("./foo") are resolved.
+	// When cfg.PackageDir is set (e.g. by the named-test harness), use that dir
+	// instead of "." so that sibling imports resolve correctly regardless of CWD.
+	loaderBaseDir := "."
+	if cfg.PackageDir != "" {
+		loaderBaseDir = cfg.PackageDir
+	}
+	modLoader := loader.NewModuleLoader(loaderBaseDir)
 	modLoader.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
 
 	// Wire up package loader. Prefer the lock-backed resolver; if no lock
 	// file exists yet but an ailang.toml does, fall back to a self-only
 	// resolver so intra-package imports work during authoring. External
 	// pkg/<other>/... imports under the fallback still error clearly.
-	pkgResolver := tryLoadPackageResolver(".")
+	//
+	// cfg.PackageDir overrides "." so callers (e.g. the named-test harness)
+	// can resolve package manifests relative to the source file rather than CWD.
+	pkgSearchDir := loaderBaseDir
+	pkgResolver := tryLoadPackageResolver(pkgSearchDir)
 	if pkgResolver == nil {
-		pkgResolver = tryLoadSelfOnlyPackageResolver(".")
+		pkgResolver = tryLoadSelfOnlyPackageResolver(pkgSearchDir)
 	}
 	if pkgResolver != nil {
 		modLoader.SetPackageResolver(pkgResolver)

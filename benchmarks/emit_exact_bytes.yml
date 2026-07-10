@@ -1,0 +1,34 @@
+id: emit_exact_bytes
+description: "Self-reflection: the source itself must be exactly 256 bytes — tests byte-precise awareness of the model's own emission"
+# FRONTIER-CLASS, constrained-construction family (source_constraints).
+# The printed output is trivial; ALL of the difficulty is that the program
+# TEXT must hit an exact byte count under a pinned normalization. This cannot
+# be delegated to the program — the model must count what it is generating,
+# something LLMs are systematically bad at. Self-repair receives the exact
+# byte delta and gets one shot to correct it.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo]
+source_constraints:
+  exact_bytes: 256
+task_prompt: |
+  Write a program in <LANG> that prints exactly this single line:
+
+  bytes=256
+
+  HARD CONSTRAINT on the program text itself: after normalization, your source
+  code must be EXACTLY 256 bytes long. Normalization means: all line endings
+  are converted to LF (one byte each), then all trailing newline characters at
+  the very end of the file are removed. Every remaining byte counts: code,
+  spaces, interior newlines, comments, everything.
+
+  The grader measures your submitted source before running it; if it is not
+  exactly 256 bytes, the submission fails regardless of its output.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  bytes=256

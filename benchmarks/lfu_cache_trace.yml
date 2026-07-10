@@ -1,0 +1,67 @@
+id: lfu_cache_trace
+description: "LFU cache with LRU tie-break — update-counts-as-use and evict-before-insert rules trap LRU intuition"
+# FRONTIER-CLASS (M-EVAL-FRONTIER-TIER axis 2: stateful invariants under mutation).
+# Validated: three plausible-wrong implementations (update doesn't count as a
+# use; update resets the count; pure LRU) all produce different output on this
+# op sequence. Includes the classic LFU surprise: a key inserted 3 ops ago and
+# just used still gets evicted because its frequency is lowest.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [state_machine, data_transform, algorithmic]
+task_prompt: |
+  Write a program in <LANG> that simulates an LFU (least-frequently-used) cache
+  with capacity 3 and integer keys/values, processing the operation sequence
+  below. Represent the operations as data in your code.
+
+  Rules (follow exactly):
+  - Each key in the cache has a use-count and a last-used timestamp. Operations
+    are timestamped 1, 2, 3, ... in order.
+  - get k: if k is cached, print its value, increment its use-count, and set its
+    last-used time to the current operation's timestamp. If not cached, print -1
+    and change nothing.
+  - put k v (k already cached): update the value, increment the use-count, and
+    set the last-used time. An update counts as a use.
+  - put k v (k not cached): if the cache holds 3 keys, first evict the key with
+    the smallest use-count; on a tie, evict the least-recently-USED (smallest
+    last-used time — uses are gets, updates, and the key's own insertion). Then
+    insert k with use-count 1 and last-used time set to this operation's
+    timestamp.
+  - Eviction considers only keys already in the cache (the incoming key is
+    inserted after the eviction).
+
+  Operations:
+    put 1 10, put 2 20, put 3 30,
+    get 1,
+    put 4 40,
+    put 5 50,
+    get 3, get 4, get 5, get 1,
+    put 4 44,
+    put 6 60,
+    get 5, get 6, get 6,
+    put 7 70,
+    get 1, get 4,
+    put 8 80,
+    get 7
+
+  After processing all operations, print one final line with the remaining
+  cache contents, keys in ascending order, in exactly this format:
+    cache: k1=v1,k2=v2,k3=v3
+
+  Output only the code, no explanations.
+expected_stdout: |
+  10
+  -1
+  40
+  50
+  10
+  -1
+  60
+  60
+  -1
+  44
+  -1
+  cache: 4=44,6=60,8=80

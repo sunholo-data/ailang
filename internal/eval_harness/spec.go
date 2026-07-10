@@ -62,6 +62,16 @@ type BenchmarkSpec struct {
 	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
 	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision|experimental. Missing defaults to "core".
 	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.
+
+	// Optional source-level constraints checked BEFORE execution (standard mode).
+	// Unlocks constrained-construction benchmarks — see source_constraints.go.
+	SourceConstraints *SourceConstraints `yaml:"source_constraints,omitempty"`
+
+	// Grading mode. "" (default) compares stdout against expected_stdout.
+	// "quine": stdout must equal the SUBMITTED SOURCE itself (both sides
+	// normalized: LF endings, trailing newlines stripped) — no fixed
+	// expected_stdout can grade a quine. Standard (0-shot) mode only.
+	Grading string `yaml:"grading,omitempty"`
 }
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.
@@ -160,6 +170,16 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 
 	// Note: We don't load prompts here anymore - they're loaded per-language in PromptForLanguage()
 	// This allows each language to have its own base prompt file
+
+	if spec.SourceConstraints != nil {
+		if err := spec.SourceConstraints.Validate(); err != nil {
+			return nil, fmt.Errorf("spec %q: %w", spec.ID, err)
+		}
+	}
+
+	if spec.Grading != "" && spec.Grading != "quine" {
+		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty or \"quine\")", spec.ID, spec.Grading)
+	}
 
 	return &spec, nil
 }

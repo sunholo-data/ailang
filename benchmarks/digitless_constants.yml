@@ -1,0 +1,37 @@
+id: digitless_constants
+description: "Constrained construction: print three exact integers with no decimal digit characters anywhere in the source"
+# FRONTIER-CLASS, constrained-construction family (source_constraints).
+# The program must compute 1000000007, 823543 and 1729 while its source
+# contains no character 0-9 — numbers must be built from primitives like
+# string lengths and arithmetic. Tests disciplined construction under a
+# global lexical constraint (a stray digit in a comment or identifier fails).
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [algorithmic, functional]
+source_constraints:
+  banned_chars: "0123456789"
+task_prompt: |
+  Write a program in <LANG> that prints exactly these three lines, in order:
+
+  1000000007
+  823543
+  1729
+
+  HARD CONSTRAINT on the program text itself: your source code must not
+  contain ANY decimal digit character (0 through 9) anywhere — not in numeric
+  literals, not in identifiers, not in strings, not in comments. The grader
+  scans your submitted source before running it; a single digit character
+  anywhere fails the submission regardless of its output.
+
+  You must therefore construct the numbers by computation, for example from
+  the lengths of string literals combined with arithmetic.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  1000000007
+  823543
+  1729

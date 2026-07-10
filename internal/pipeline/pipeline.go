@@ -91,6 +91,12 @@ type Config struct {
 
 	// Global resolver for non-module evaluation (v0.2.0 hotfix)
 	GlobalResolver eval.GlobalResolver
+
+	// PackageDir overrides the directory searched for ailang.toml/ailang.lock
+	// when setting up the package resolver. Empty string means use "." (CWD).
+	// Set this when the source file lives in a package directory other than CWD,
+	// e.g. when the test harness writes a temp file into the source package dir.
+	PackageDir string
 }
 
 // Source represents input source

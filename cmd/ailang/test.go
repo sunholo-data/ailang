@@ -14,7 +14,7 @@ import (
 
 // runTestsV2 executes all tests in the given path.
 // Replaces the stub implementation in main.go.
-func runTestsV2(path string, formatStr string, colorEnabled bool) {
+func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips bool) {
 	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)
 
 	// Collect all test files
@@ -74,8 +74,11 @@ func runTestsV2(path string, formatStr string, colorEnabled bool) {
 		os.Exit(1)
 	}
 
-	// Exit with appropriate code
-	if !aggregateResults.Success() {
+	// Exit with appropriate code.
+	// --allow-skips: treat an all-skipped suite as success (exit 0).
+	// Default: all-skipped exits 1 per M-NAMED-TEST-BLOCKS spec.
+	succeeded := aggregateResults.Success() || (allowSkips && aggregateResults.SuccessAllowingSkips())
+	if !succeeded {
 		os.Exit(1)
 	}
 }
@@ -125,7 +128,7 @@ func runTestFile(filename string) *ailangTesting.SuiteResult {
 // runPackageTests discovers and runs *_test.ail files in a package directory.
 // It reads ailang.toml for package metadata, finds test files by convention,
 // and runs them using the existing test framework.
-func runPackageTests(dir string, formatStr string, colorEnabled bool) {
+func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips bool) {
 	// Load package manifest
 	manifest, err := pkg.LoadManifest(dir)
 	if err != nil {
@@ -200,8 +203,10 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool) {
 		os.Exit(1)
 	}
 
-	// Exit with appropriate code
-	if !aggregateResults.Success() {
+	// Exit with appropriate code.
+	// --allow-skips: treat an all-skipped suite as success (exit 0).
+	succeeded := aggregateResults.Success() || (allowSkips && aggregateResults.SuccessAllowingSkips())
+	if !succeeded {
 		os.Exit(1)
 	}
 }
@@ -216,6 +221,7 @@ func printTestHelp() {
 	fmt.Println("  --format <format>  Output format: human (default), json")
 	fmt.Println("  --no-color         Disable colored output")
 	fmt.Println("  --package          Package mode: discover *_test.ail files via ailang.toml")
+	fmt.Println("  --allow-skips      Exit 0 even if all tests were skipped (default: exit 1)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang test                    # Run all tests in current directory")

@@ -175,6 +175,20 @@ func typeCheckAndLowerModule(
 		cfg.DictReg.RegisterDerivedEq(typeName)
 	}
 
+	// #327 interim diagnostic: record this module's function names so the type
+	// checker can tell the truth when a local function resolves as "undefined
+	// variable" in a record-update field (see types.localResolutionHint). This
+	// only enriches an already-failing error message; it changes no types.
+	if unit.Surface != nil && len(unit.Surface.Funcs) > 0 {
+		modFuncNames := make(map[string]bool, len(unit.Surface.Funcs))
+		for _, fn := range unit.Surface.Funcs {
+			if fn != nil {
+				modFuncNames[fn.Name] = true
+			}
+		}
+		typeChecker.SetModuleFuncNames(modFuncNames)
+	}
+
 	// Type check ALL declarations in the module, accumulating types in moduleTypeEnv
 	for i, decl := range unit.Core.Decls {
 		// InferWithConstraints returns the updated env with new bindings

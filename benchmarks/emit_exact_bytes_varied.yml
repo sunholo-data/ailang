@@ -1,0 +1,38 @@
+id: emit_exact_bytes_varied
+description: "Exact 512-byte source with uniform padding banned (no 3+ char runs) — byte-precise self-counting of VARIED emission"
+# FRONTIER-CLASS, self-reflection family (source_constraints). Successor to
+# emit_exact_bytes after the wave-2 probe: fable-5 passed 256 bytes by padding
+# with a single long dash run — trivially countable. max_char_run: 2 bans any
+# uniform run, so the padding itself must be varied text and every byte of a
+# heterogeneous source must be counted exactly at generation time. Self-repair
+# receives the exact delta but must apply a byte-precise correction to varied
+# text. The designed failure mode is the transformer's weakness at exact
+# counting of its own emission.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "medium"
+tier: stretch
+tags: [string_algo]
+source_constraints:
+  exact_bytes: 512
+  max_char_run: 2
+task_prompt: |
+  Write a program in <LANG> that prints exactly this single line:
+
+  bytes=512
+
+  HARD CONSTRAINTS on the program text itself, enforced by scanning your
+  submitted source before it runs:
+  - After normalization (line endings converted to LF, trailing newlines
+    stripped), your source must be EXACTLY 512 bytes. Every remaining byte
+    counts: code, spaces, interior newlines, comments.
+  - No character may appear 3 or more times IN A ROW anywhere in the source
+    (runs of at most 2 identical consecutive characters are allowed). This
+    applies to every character, including spaces, dashes and letters — so
+    uniform filler is not possible.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  bytes=512

@@ -31,6 +31,11 @@ echo ""
 REQUIRED_FIELDS=("id" "description" "languages" "entrypoint" "caps" "expected_stdout" "tags")
 
 for field in "${REQUIRED_FIELDS[@]}"; do
+    # grading: quine benchmarks are graded stdout==source; expected_stdout
+    # cannot exist for them (see internal/eval_harness/spec.go Grading field)
+    if [ "$field" = "expected_stdout" ] && grep -q "^grading: quine" "$BENCHMARK_FILE"; then
+        continue
+    fi
     if ! grep -q "^${field}:" "$BENCHMARK_FILE"; then
         echo "ERROR: Missing required field: $field"
         ((ERRORS++))

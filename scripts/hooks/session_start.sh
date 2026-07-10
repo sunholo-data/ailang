@@ -64,7 +64,7 @@ fi
 # Get current version. Primary source: newest git tag (authoritative — set by
 # the release workflow). Fallback: newest version string in CHANGELOG.md.
 # The root CHANGELOG.md is now an index referencing per-series files
-# (e.g. "v0.10-current.md"), so a naive grep/head would pin to an old series.
+# (e.g. "v0.18-current.md"), so a naive grep/head would pin to an old series.
 get_current_version() {
     local tag
     tag=$(git -C "$PROJECT_ROOT" tag --sort=-version:refname 2>/dev/null \

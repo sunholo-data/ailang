@@ -1,0 +1,119 @@
+id: legal_obligation_engine
+description: "Deontic contract reasoner: notice-and-cure, waiver forgiveness, force-majeure extension, amendment, termination cascade — type-shaped mistakes are loud in AILANG, silent in Python"
+# FRONTIER-CLASS, wave 5: the LANGUAGE-DELTA hypothesis test (strategy review
+# R6 vertical). Unlike waves 1-4 (language-neutral by design), this benchmark
+# is engineered so the dominant mistakes are TYPE-SHAPED: enumerated statuses,
+# rare event branches (one waiver, one FM, one amendment), interlocking
+# override rules. In AILANG a missed case is a loud compile/match error —
+# which one-shot self-repair can fix; in Python the same mistake is a silent
+# wrong line, and logic errors never trigger repair. Hypothesis: models score
+# HIGHER on AILANG than Python here — the "compiler in the loop" thesis made
+# measurable. Four wrong-readings verified divergent (ceil-interest, FM-scope,
+# waiver-not-forgiving, uncapped penalty). Refs byte-identical, 16 lines.
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "high"
+tier: stretch
+tags: [state_machine, adt_pattern_match, error_handling]
+task_prompt: |
+  Write a program in <LANG> that implements the following contract-reasoning
+  engine and prints the final report. Represent the contract and events as
+  data in your code and PROCESS the events; do not hand-compute the answers.
+
+  CONTRACT. Vendor must deliver milestones to Client:
+    M1: delivery deadline day 10, price 10000
+    M2: delivery deadline day 40, price 20000
+    M3: delivery deadline day 70, price 15000
+  Client must pay each milestone's price within 10 days of its delivery
+  (payment due day = delivery day + 10).
+
+  RULES (apply exactly):
+  - Late delivery penalty (owed by Vendor): 200 per day late, capped at 4000
+    per milestone. Days late for a delivered milestone = delivery day minus
+    effective deadline (0 if on time).
+  - Late payment interest (owed by Client): 1 percent of the milestone's
+    effective price per FULL 10-day period late, floor division on periods,
+    simple (non-compounding), integer arithmetic:
+    interest = price * (days_late / 10, floored) / 100, floored.
+  - AMENDMENT event: replaces a milestone's price entirely (as if the
+    contract had always said the new price).
+  - FORCE MAJEURE event with window [d1, d2]: every delivery deadline that
+    (a) lies within [d1, d2] inclusive and (b) belongs to a milestone not yet
+    delivered, is extended by the window length (d2 - d1 + 1). Payment due
+    dates are NOT affected.
+  - NOTICE event names a specific breach ("M2-payment", "M3-delivery"): it
+    starts a cure window ending on notice day + 15 INCLUSIVE. A payment
+    breach is CURED if the principal is paid in full on any day <= notice
+    day + 15 (accrued interest is still owed). A delivery breach is CURED by
+    delivering within the same window.
+  - WAIVER event names a breach: a waived breach is forgiven — its penalty
+    or interest is EXCLUDED from the final owed sums (vendor_owes /
+    client_owes), and it can never justify termination. Waiver does NOT
+    change the per-line report: delivery and payment lines always print the
+    ACCRUED penalty/interest as computed by the rules above.
+  - TERMINATE event (by Client) on day T is VALID only if there exists a
+    noticed breach that is not cured, not waived, and whose cure window has
+    expired (T > notice day + 15). The grounds are the FIRST such breach in
+    notice order. An invalid attempt changes nothing.
+    On valid termination: every undelivered milestone is CANCELLED — its
+    delivery penalty accrues from the day after its effective deadline
+    through day T - 1 inclusive (then the cap applies), and its payment is
+    CANCELLED (price not owed). Delivered-but-unpaid milestones would also
+    be CANCELLED for payment (none occur here). Amounts already accrued
+    remain owed.
+
+  EVENTS (at most one per day, process in day order):
+    day 8:  Vendor delivers M1
+    day 30: amendment: M2 price becomes 22000
+    day 35: force majeure window [38, 44] declared
+    day 41: Client pays M1 in full
+    day 45: Vendor waives the M1-payment breach
+    day 50: Vendor delivers M2
+    day 61: Client sends notice of the M2-payment breach
+    day 74: Client pays M2 in full
+    day 80: Client sends notice of the M3-delivery breach
+    day 96: Client terminates
+
+  OUTPUT — print exactly these lines in this order:
+  1. For each milestone M1, M2, M3 in order:
+       "<M> effective: deadline=<D> price=<P>"
+     using the final effective deadline and price.
+  2. Then for each milestone M1, M2, M3 in order, its block:
+     - delivery line: "<M> delivery: DELIVERED day=<d> late=<n> penalty=<p>"
+       for delivered milestones, or
+       "<M> delivery: CANCELLED late_days=<n> penalty=<p>" if cancelled by
+       termination. <p> is always the ACCRUED penalty (waiver does not
+       change it; waiver only removes it from vendor_owes).
+     - payment line: "<M> payment: PAID day=<d> late=<n> interest=<i>" or
+       "<M> payment: CANCELLED". <i> is always the ACCRUED interest (waiver
+       does not change it; waiver only removes it from client_owes).
+     - breach resolution lines, ONLY for breaches that were noticed or
+       waived (delivery breach line before payment breach line):
+       "<M> <what> breach: WAIVED" / "... CURED" / "... UNCURED"
+       where <what> is "delivery" or "payment".
+  3. "termination: day=<T> by=Client grounds=<breach-id>"
+  4. "vendor_owes=<sum of unwaived delivery penalties>"
+  5. "client_owes=<sum of unwaived payment interest>"
+  6. "net: Vendor pays Client <diff>" or "net: Client pays Vendor <diff>"
+     or "net: settled".
+
+  Output only the code, no explanations.
+expected_stdout: |
+  M1 effective: deadline=10 price=10000
+  M2 effective: deadline=47 price=22000
+  M3 effective: deadline=70 price=15000
+  M1 delivery: DELIVERED day=8 late=0 penalty=0
+  M1 payment: PAID day=41 late=23 interest=200
+  M1 payment breach: WAIVED
+  M2 delivery: DELIVERED day=50 late=3 penalty=600
+  M2 payment: PAID day=74 late=14 interest=220
+  M2 payment breach: CURED
+  M3 delivery: CANCELLED late_days=25 penalty=4000
+  M3 payment: CANCELLED
+  M3 delivery breach: UNCURED
+  termination: day=96 by=Client grounds=M3-delivery
+  vendor_owes=4600
+  client_owes=220
+  net: Vendor pays Client 4380
