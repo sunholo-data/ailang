@@ -208,3 +208,74 @@ BudgetStore adapters, classifier provider construction in cloud wiring, enable w
 first week) to operationally close the P0; then m-diagnostic-coverage (P0, 3–4d). Parked for
 human: none blocking — flood-drill-vs-live-env ops task and sibling-repo terraform alert remain
 follow-ups on the queue's nice-list.
+## 4 — 2026-07-10 — Iteration 3: cloud-adapter P0 completion landed (first round-1 eval FAIL, caught a fail-open bug) + dev un-redded (3 pre-existing CI breaks fixed)
+
+**Picked**: m-feedback-gate-cloud-adapter (top [NEXT]; completes P0 m-feedback-triage-gate
+operationally — merged gate was rules-only in production, Cooldown/Classifier deps never
+constructed). Headless run, no human present.
+
+**Reality check**: genuinely open — `daemon_tasks_init.go:52-65` wires the gate but leaves both
+deps nil (in-code comment even says "attached by the cloud adapter path (follow-up)"). Gate-2
+protocol: both binaries rebuilt, == git describe. Duplicate gate passed (top neural 0.35 < 0.45).
+Design doc written by Fable (e507287ab); Opus planner re-verified all six load-bearing premises
+LIVE and found **zero discrepancies** (plan 053425ae6) — first zero-discrepancy plan of the
+mission (contrast: 6 found in iteration 2's doc, which predated the sprint by weeks).
+
+**Shipped**: `internal/storage/firestore` FeedbackGateCooldownStore (sliding 24h window,
+hashed doc IDs, saturation cap 64) + FeedbackGateBudgetStore (per-UTC-day counter), pure
+table-tested window math (no-emulator convention); `Daemon.SetFeedbackGateDeps` + call-site-
+tested attach + three-stage startup log; CLI cloud construction with FAIL-CLOSED nil-provider
+path when ANTHROPIC_API_KEY absent; DRY-RUN-first runbook + terraform handoff (TTL policies,
+secret) + CHANGELOG. Executor commits ee516e5c5/8201b4205/f7654aae7 + round-2 fix 408375545.
+**Evaluation: round 1 FAIL** (numeric 92, policy fail — readAttempts/readCount swallowed
+non-NotFound Firestore read errors → degraded read commits a RESET window over stored state:
+fail-open in a flood gate; CLAUDE.md CP2 violation, contradicted the doc's "returns errors
+honestly"); surgical round-2 fix → **round 2 PASS 97/100**. Merge 842d7d501 → push 6fc5d7ee9.
+**Plus the red-dev deliverable** (see below): 9d2e32ac1 (Windows codegen escape fix +
+regression test; docs npm peer-dep pin) and 4c22032de (per-package go-test timeout 60s→300s).
+Dev CI fully green on 4c22032de (CI, Build+Release, CodeQL, Scorecard; docs deploy green on
+a1f66c333). [LANDED].
+
+**Routing evidence**:
+- model=fable task-class=design rounds=1 corrections=0 (all 6 premises survived Opus live
+  re-verification — the Gate-2 reality-check discipline is paying for itself)
+- model=opus task-class=plan round1-score=n/a rounds=1 corrections=0
+- model=opus task-class=execute round1-score=92(policy-FAIL) rounds=2 corrections=1 (the
+  error-swallow; its own in-code justification was plausible but wrong — evaluator refuted it
+  against Firestore commit semantics; round-2 fix exact and clean)
+- model=fable task-class=evaluate rounds=2 (independent full-suite + lint both rounds; caught
+  the fail-open bug by reading the diff against the cited messaging.go precedent)
+- model=fable task-class=mechanical(CI-fix) rounds=1 corrections=0 (strconv.Quote systemic fix
+  + audit of all writef sites; npm pin; timeout bump — all verified green remotely)
+
+**Ruled out**:
+- "Iteration-3 merge caused the red CI" — no: identical test-windows failure on parent commits
+  and on a DOCS-ONLY commit (0f3a5d95d, 12:57Z); npm ERESOLVE from dependabot #314; the reds
+  pre-date the merge by ~3h.
+- "test-windows red = new code bug from today's PRs" — no: latent codegen bug (contract panic
+  literals embed OS paths raw; backslashes = invalid escapes) exposed by an environment/cache
+  change, not introduced today. Real bug, fixed properly (strconv.Quote), not masked.
+- "TestRunCommand_PipedStdoutFlushesPerLine failures = regression" — re-confirmed known
+  load-sensitive flake (passes 2/2 isolated, twice this iteration).
+- "Executor rationale 'the transaction commit reports read failures anyway'" — refuted: a
+  failed read never enters Firestore's commit validation set; commit can succeed and clobber.
+- "cmd/ailang 1m0s timeout = hang" — no: package legitimately runs 35-50s; 60s budget was
+  boundary-flaky (green 15:45, red 16:10 on near-identical code).
+
+**Retro lane**: skill-fix (mission-control SKILL.md Gate 1) — TWO recorded frictions, same gap:
+(a) session-start OBSERVE read `gh run list --branch dev --limit 6` as green while dev CI had
+been red since 12:57Z — the list was flooded by Dependabot-Updates entries; (b) the also-red
+Build-and-Release and Docs-Deploy workflows were equally invisible (one showed as "queued").
+Fix: Gate 1 now requires per-workflow conclusion checks (CI, Build and Release, Docs deploy),
+not a raw limit-6 list. Single-instance frictions logged for the ledger, no action yet:
+worktree isolation branches from origin/dev not local dev (executor had to vendor the plan
+docs; add/add conflict at merge), SendMessage advertised by Agent tool but unavailable
+(round-2 feedback needed a fresh agent), self-inflicted conflict-marker slip (caught by grep
+count, amended before push — verify markers=0 BEFORE commit).
+
+**Next**: Iteration 4 — m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3-4d;
+may need decomposition check at PICK). Parked for HUMAN (in #329 report): feedback-gate
+enablement ops (sibling-repo terraform: TTL policies on expires_at for the two new collections,
+ANTHROPIC_API_KEY secret on the coordinator service; then enable with DRY_RUN=1 for week 1) —
+the gate defaults OFF until then; Mark may veto the fail-closed no-key posture before enabling.
+
