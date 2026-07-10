@@ -3,6 +3,7 @@ package feedbackgate
 import (
 	"context"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,17 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
+
+// embeddedPrompt is the checked-in classifier system prompt, embedded so it
+// ships with the binary. The canonical copy is prompts/feedback_gate_classifier.md;
+// this package-local mirror is kept byte-identical (a test enforces the version
+// line is present). Callers that want the prompt at runtime use DefaultPrompt().
+//
+//go:embed feedback_gate_classifier.md
+var embeddedPrompt string
+
+// DefaultPrompt returns the embedded classifier system prompt.
+func DefaultPrompt() string { return embeddedPrompt }
 
 // classifierResult is the strict JSON shape the Haiku classifier must return.
 // Any deviation (parse error, schema miss) makes the gate fail closed → file.
