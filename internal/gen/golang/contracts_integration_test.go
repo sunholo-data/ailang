@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestContractViolation_Integration is an end-to-end test that:
@@ -32,19 +34,10 @@ func TestContractViolation_Integration(t *testing.T) {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	ailangBin := filepath.Join(projectRoot, "bin", "ailang")
-	if _, err := os.Stat(ailangBin); os.IsNotExist(err) {
-		// Try building it
-		cmd := exec.Command("go", "build", "-o", ailangBin, "./cmd/ailang")
-		cmd.Dir = projectRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("Skipping: ailang binary not available and failed to build: %v\n%s", err, out)
-		}
-	}
-	// Verify the binary is actually executable
-	if _, err := exec.LookPath(ailangBin); err != nil {
-		t.Skipf("Skipping: ailang binary not executable: %v", err)
-	}
+	// testutil skips when the binary is missing or stale; the old inline
+	// `go build` fallback wrote an unversioned bin/ailang into the repo,
+	// which is exactly the kind of surprise binary the guard exists to catch.
+	ailangBin := testutil.FindAilangBinary(t)
 
 	// Compile the contracts example with --verify-contracts
 	sourceFile := filepath.Join(projectRoot, "examples", "runnable", "contracts", "basic.ail")
@@ -268,19 +261,10 @@ func TestContractViolation_NoVerify(t *testing.T) {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	ailangBin := filepath.Join(projectRoot, "bin", "ailang")
-	if _, err := os.Stat(ailangBin); os.IsNotExist(err) {
-		// Try building it
-		cmd := exec.Command("go", "build", "-o", ailangBin, "./cmd/ailang")
-		cmd.Dir = projectRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("Skipping: ailang binary not available and failed to build: %v\n%s", err, out)
-		}
-	}
-	// Verify the binary is actually executable
-	if _, err := exec.LookPath(ailangBin); err != nil {
-		t.Skipf("Skipping: ailang binary not executable: %v", err)
-	}
+	// testutil skips when the binary is missing or stale; the old inline
+	// `go build` fallback wrote an unversioned bin/ailang into the repo,
+	// which is exactly the kind of surprise binary the guard exists to catch.
+	ailangBin := testutil.FindAilangBinary(t)
 
 	// Compile WITHOUT --verify-contracts
 	sourceFile := filepath.Join(projectRoot, "examples", "runnable", "contracts", "basic.ail")

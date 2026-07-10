@@ -149,3 +149,62 @@ as a background task chip.
 **Next**: Iteration 2 — m-feedback-triage-gate (P0, genuinely open, 2d): full inner loop again;
 apply the new Gate-2 protocol from the start. Also pending for Mark: arm the launchd nightly
 after this supervised run's evidence (2 iterations, both clean).
+
+## 3 — 2026-07-10 — Iteration 2: m-feedback-triage-gate landed via full loop (first unsupervised nightly-mode run)
+
+**Picked**: m-feedback-triage-gate (P0, top [NEXT]; public unauthenticated endpoint fans out to
+Sonnet with no triage between Firestore and dispatch). Iteration ran headless — no human present.
+
+**Reality check**: genuinely open — `internal/triage/` absent, no gate in the cloud dispatch
+path. All 3 preconditions verified shipped: `auto_dispatch` on submit_feedback
+(feedback_tool.go), M-PKG-FEEDBACK-LOOP M2 (228d5c0a3/64bd31032), M-MCP-EDGE-THROTTLE
+(2d8d5e937). Found a NAMING-COLLISION hazard the design doc predates: M-MSG-TRIAGE-ROUTER
+already owns `coordinator.triage`/`Decision`/`TriageConfig` — plan mandated disambiguated names
+(package `feedbackgate`, `Verdict`, `coordinator.feedback_gate`). Also found + cleared leftovers
+from today's killed 13:03 run: a dead-locked worktree holding branch `sprint/m-feedback-triage-gate`
+(0 unique commits) with an uncommitted 205-line scaffold — quarantined to
+`~/.ailang/state/quarantine/2026-07-10-killed-run/`, worktree/branch removed. Binaries rebuilt,
+both == git describe before any live check (Gate-2 protocol).
+
+**Shipped**: plan commit dfc1bfd25 (Opus; reconciled 6 doc-vs-reality discrepancies: Message
+field mapping, NO IP on the wire → cooldown keys From+category+bodyHash, `auto:` is a category
+prefix not a bool, native JSON mode in internal/ai, sibling-repo terraform + dashboard UI cut to
+follow-ups). Executor (Opus, isolated worktree, 6 milestone commits 46dcef0bf→def5b9042):
+`internal/feedbackgate` (rules → sliding cooldown → fail-closed Haiku classifier via injected
+ai.Provider → daily budget cap) + opt-in coordinator wiring (off by default, feedback-gate-audit,
+dry-run, env kill-switch) + offline flood drill (1000 msgs → 30 dispatched, $0.90 vs $30
+baseline). Evaluation (Fable) 93/100 PASS round 1 (eval_M-FEEDBACK-TRIAGE-GATE_round_1.json);
+independent verification: full `make test` rc=0/101 ok in worktree, lint 0 issues, drill run
+live. Merge 40f1cdc3f; docs → implemented/v0_29_0 (8d234f2fc). CALIBRATED STATUS: gate logic
+complete + merged ✓; PRODUCTION protection is rules-only until the Firestore cooldown/budget
+adapters ship (executor deviation, recorded) — the P0 is NOT fully closed operationally; queued
+m-feedback-gate-cloud-adapter as its completion.
+
+**Routing evidence**:
+- model=opus task-class=plan round1-score=n/a rounds=1 corrections=0 (plan approved unchanged;
+  independently found 6 doc-vs-reality discrepancies; premise spot-check auto:-prefix verified)
+- model=opus task-class=execute round1-score=93 rounds=1 corrections=0 (honest report incl.
+  correctly-attributed environmental flake; 1 recorded scope deviation — cloud store adapters
+  deferred — judged acceptable-with-follow-up, not a correction)
+- model=fable task-class=evaluate rounds=1 (independent re-run of full suite + drill; deviation
+  impact analysis produced the follow-up item)
+
+**Ruled out**:
+- "M-MSG-TRIAGE-ROUTER overlaps this scope" — no: it is local intake-inbox promotion
+  (hold/promote/drop), a different wiring point; only the NAMES collided.
+- "The killed run's message-reported blockers (no subscription token / rc=143) are open" — both
+  superseded by the keychain-probe guard at HEAD (c8d56d509); this run launching proves it.
+- "Post-merge FAILs were caused by the merge" — TestRunCommand_PipedStdoutFlushesPerLine passes
+  2/2 isolated (load-sensitive 4s deadline; passed in code-identical worktree full run);
+  TestNetHttpPost is the known live-network test. Neither is in sprint-touched packages.
+
+**Retro lane**: process-fix (mission doc): queue insertion of m-feedback-gate-cloud-adapter
+directly after the landed item (a PASS whose deviation defers the operational point of a P0 must
+queue its completion, not bury it in follow-up notes). No skill edit (single-friction classes
+only this iteration; ≥2 rule not met).
+
+**Next**: Iteration 3 — m-feedback-gate-cloud-adapter (~0.5–1d: Firestore CooldownStore +
+BudgetStore adapters, classifier provider construction in cloud wiring, enable w/ DRY_RUN=1
+first week) to operationally close the P0; then m-diagnostic-coverage (P0, 3–4d). Parked for
+human: none blocking — flood-drill-vs-live-env ops task and sibling-repo terraform alert remain
+follow-ups on the queue's nice-list.

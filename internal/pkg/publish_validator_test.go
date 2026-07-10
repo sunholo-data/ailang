@@ -2,43 +2,25 @@ package pkg
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
-// findAilangBinary locates a usable ailang binary for the smoke runner. We
-// prefer the freshly-built bin/ailang (relative to the repo root) so tests
-// always exercise current code rather than whatever happens to be in PATH.
+// findAilangBinary is where binary discovery for these tests used to live: it
+// preferred bin/ailang with NO freshness check. REGRESSION NOTE (2026-07-10):
+// a stale bin/ailang (v0.26.0 June build, HEAD at v0.28.x) made
+// TestRunSmokeInTempDir_Pass/_Isolation fail with phantom stdlib errors
+// ("undefined variable: _io_flush at std/io.ail:29:36") that looked like a
+// merge regression and cost real debugging time. Discovery now lives in
+// internal/testutil, which skips loudly when every candidate binary is older
+// than the newest Go source.
 func findAilangBinary(t *testing.T) string {
 	t.Helper()
-	// Walk up to find the repo root (contains go.mod with module sunholo-data/ailang).
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 8; i++ {
-		candidate := filepath.Join(dir, "bin", "ailang")
-		if runtime.GOOS == "windows" {
-			candidate += ".exe"
-		}
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	if path, err := exec.LookPath("ailang"); err == nil {
-		return path
-	}
-	t.Skip("ailang binary not found (run `make build` first)")
-	return ""
+	return testutil.FindAilangBinary(t)
 }
 
 func writeMinimalPackage(t *testing.T, dir string, smokeBody string) {

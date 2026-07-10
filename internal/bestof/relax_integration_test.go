@@ -1,19 +1,17 @@
 package bestof
 
 import (
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestRelaxModulesContractSelection runs the REAL `ailang` binary: ephemeral candidates
 // (module decl ≠ temp path) must not fail MOD010 when RelaxModules is set, and the contract
-// tier must reject a runs-but-WRONG candidate. Skips when ailang isn't on PATH (CI w/o build).
+// tier must reject a runs-but-WRONG candidate. Skips when no fresh ailang exists (CI w/o build).
 func TestRelaxModulesContractSelection(t *testing.T) {
-	bin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not on PATH; skipping real-binary integration test")
-	}
+	bin := testutil.FindAilangBinary(t)
 	bad := filepath.Join("testdata", "contract_demo", "cand_bad.ail")
 	good := filepath.Join("testdata", "contract_demo", "cand_good.ail")
 	v := AilangVerifier{Bin: bin, Caps: "IO", VerifyContracts: true, RelaxModules: true}
@@ -35,10 +33,7 @@ func TestRelaxModulesContractSelection(t *testing.T) {
 // TestRelaxModulesGuardsMOD010 documents the bug the fix closes: WITHOUT RelaxModules the
 // ephemeral candidate fails typecheck (MOD010) → "neither"; WITH it, the candidate runs.
 func TestRelaxModulesGuardsMOD010(t *testing.T) {
-	bin, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	bin := testutil.FindAilangBinary(t)
 	good := filepath.Join("testdata", "contract_demo", "cand_good.ail")
 	if v := (AilangVerifier{Bin: bin, Caps: "IO"}).Verify(good); v.TypeChecks {
 		t.Skip("MOD010 not enforced in this environment; relax test still covers the fix")
