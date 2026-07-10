@@ -121,6 +121,7 @@ const sidebars = {
             'reference/arrays',
             'reference/repl-commands',
             'reference/implementation-status',
+            'reference/stability',
             'reference/limitations',
             'guides/consumer-contract-v0.5',
           ],

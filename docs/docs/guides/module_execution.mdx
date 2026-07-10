@@ -247,7 +247,10 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Note**: Runtime effect enforcement (capability checks) is planned for v0.3.0 (M-R2).
+**Note**: Runtime effect enforcement is **live** — capabilities are granted per-run with
+`ailang run --caps IO,FS ...` (a program may only perform effects whose capabilities it was
+granted). See the [effects reference](/docs/reference/effects) and
+[capability budgets](/docs/reference/capability-budgets).
 
 ### Pure Functions
 

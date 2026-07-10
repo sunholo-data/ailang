@@ -69,6 +69,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/fs` | Read/write files; sandboxed via `AILANG_FS_SANDBOX` | `FS` |
 | `std/env` | Environment variable access (snapshot, allowlist, redaction) | `Env` |
 | `std/process` | Execute external commands; allowlist + timeout + size limits | `Process` |
+| `std/secret` | Gated secret resolution (`op://…`); resolved value is tainted `<secret>` until an explicit `Declassify` step | `Secret` |
 
 ## Network
 

@@ -11,12 +11,14 @@ This guide covers **single-shot code generation** — one prompt, one response, 
 - Syntax familiarity
 - First-attempt success rate
 
-**Multi-turn agentic evaluation** (M-EVAL2) is planned for v0.3.0 and will measure:
+**Multi-turn agentic evaluation** (M-EVAL2) is **shipped** — the agent-mode eval suite runs
+multi-turn coding tasks against frontier and local models and measures:
 - Total effort across multiple iterations
 - Debugging/fix cycles
 - Real-world AI coding workflows
 
-See [M-EVAL2 Design Doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/20251002/m_eval2_agentic.md) for details.
+Run it with `ailang eval-suite` (see the [benchmark dashboard](/docs/benchmarks/performance)
+for live results). Original design: [M-EVAL2 Design Doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/20251002/m_eval2_agentic.md).
 
 ## Quick Start
 

@@ -1,526 +1,73 @@
 # AILANG Known Limitations
 
-This document tracks known limitations, workarounds, and design constraints in AILANG.
-
-## Recent Improvements
-
-### CLI Arguments & Zero-Argument Functions (v0.4.6 - NEW!)
-
-**Status**: ✅ Fully Implemented
-**Since**: v0.4.6 (November 18, 2025)
-**Impact**: CLI args feature now fully functional, zero-arg functions work universally
-
-**What's Now Available**:
-
-1. **Command-Line Arguments**:
-   ```ailang
-   -- ✅ Access CLI args (v0.4.6+):
-   import std/env
-
-   export func main() -> () ! {IO, Env} {
-     let args = getArgs() in
-     print(show(args))
-   }
-
-   -- Run: ailang run --caps IO,Env --entry main module.ail Alice Bob
-   -- Output: ["Alice", "Bob"]
-   ```
-
-2. **Zero-Argument Function Calls**:
-   ```ailang
-   -- ✅ Works everywhere (v0.4.6+):
-   now()           -- Clock builtin
-   getArgs()       -- Env builtin
-   readLine()      -- IO builtin
-
-   -- ✅ First-class values:
-   let f = getArgs in f()
-
-   -- ✅ Higher-order functions:
-   let callTwice[a](g: () -> a) -> (a, a) = (g(), g())
-   callTwice(now)
-   ```
-
-**What Was Fixed**:
-- Zero-arg builtins (`_env_getArgs`, `_clock_now`, `_io_readLine`) now use unit-argument model
-- Entry point invocation fixed: `main()` properly called as `main(())`
-- Stdlib wrappers work correctly: `getArgs()`, `now()`, `readLine()`
-- S-CALL0 sugar works in all contexts (expressions, statements, lambdas, match arms)
-
-**See Also**: `design_docs/implemented/v0_4_6/M-DX10.md`, `CHANGELOG.md` for technical details, `examples/runnable/cli_args_demo.ail` for working example.
-
----
-
-### Syntactic Sugar (v0.4.1)
-
-**Status**: ✅ Implemented
-**Since**: v0.4.1 (November 2, 2025)
-**Impact**: Makes AILANG more ergonomic while preserving canonical forms
-
-**What's Now Available**:
-
-1. **Infix Cons Operator** (`x :: xs`):
-   ```ailang
-   -- ✅ Sugar syntax (v0.4.1+):
-   let list = 1 :: 2 :: 3 :: []
-
-   -- Desugars to canonical: ::(1, ::(2, ::(3, [])))
-
-   -- Works in patterns too:
-   match list {
-     [] => 0,
-     h :: t => h + sum(t)
-   }
-   ```
-
-2. **Function Type Arrows** (`int -> bool`):
-   ```ailang
-   -- ✅ Sugar syntax (v0.4.1+):
-   let f: int -> bool = \x. x > 0
-
-   -- Desugars to canonical: funcType int bool
-
-   -- Multi-argument types:
-   let add: int -> int -> int = \x. \y. x + y
-   ```
-
-3. **Zero-Argument Calls** (`f()` everywhere):
-   ```ailang
-   -- ✅ Works universally (v0.4.6 - M-DX10):
-   let result = if ready() then compute() else 0
-
-   -- ✅ Works at top-level too:
-   main()
-
-   -- ✅ CLI args access:
-   let args = getArgs() in print(show(args))
-   ```
-
-**Disable Sugar**: Use `--strict-syntax` flag or `:strict` REPL command to reject all sugar and require canonical forms.
-
-**See Also**: `prompts/v0.4.1.md` for complete syntax guide, `CHANGELOG.md` for technical details.
-
----
-
-## Type System Limitations
-
-### Y-Combinator and Recursive Lambdas (By Design)
-
-**Status**: Design constraint, not a bug
-**Since**: v0.1.0 (Hindley-Milner type system)
-**Affects**: Recursive anonymous functions, fixed-point combinators
-
-**Problem**:
-The Y-combinator and similar recursive lambda expressions fail with "occurs check" errors:
-
-```ailang
--- ❌ This fails:
-let Y = \f. (\x. f(x(x)))(\x. f(x(x))) in
--- Error: occurs check failed: type variable α occurs in (α → β)
-```
-
-**Root Cause**:
-Hindley-Milner type inference prevents infinite types to ensure decidability. The Y-combinator requires a recursive type `α = α → β`, which would create an infinite type. This is an intentional limitation of the type system, not a bug.
-
-**Why This Limitation Exists**:
-1. **Type Inference Decidability**: Allowing infinite types would make type inference undecidable
-2. **AI-Friendly Design**: AILANG prioritizes deterministic, verifiable type checking over expressive power
-3. **Semantic Clarity**: Named recursion (`func factorial(n) = ...`) is more explicit than anonymous recursion
-
-**Workaround**:
-Use named recursive functions instead:
-
-```ailang
--- ✅ Use named recursion:
-func factorial(n: int) -> int =
-  if n <= 1 then
-    1
-  else
-    n * factorial(n - 1)
-```
-
-**Future**:
-We may explore:
-- Explicit type annotations for recursive lambdas (requires programmer-provided types)
-- Iso-recursive types (requires manual fold/unfold, less ergonomic)
-
-**Note**: Named recursive functions are now supported by `ailang verify` via bounded unrolling (`--verify-recursive-depth N`, v0.8.0). This limitation only affects recursive *lambdas* — named `func` recursion works for both execution and SMT verification.
-
-For now, use named functions for recursion. This aligns with AILANG's goal of semantic clarity for AI code synthesis.
-
----
-
-### Duplicate Record Types with Identical Fields (v0.5.10)
-
-**Status**: Known limitation with workarounds
-**Since**: v0.5.10 (December 2025)
-**Affects**: Go code generation when multiple record types share identical field structures
-
-**Problem**:
-When multiple record types have the same field names and types, the Go codegen may select the wrong struct type:
-
-```ailang
--- In starmap.ail:
-export type Vec3 = { x: float, y: float, z: float }
-
--- In celestial.ail:
-export type SystemPos = { x: float, y: float, z: float }
-
--- In a function returning StarSystem:
-export type StarSystem = {
-    position: SystemPos,  -- Expects SystemPos
-    ...
-}
-
-func initSystem() -> StarSystem {
-    { position: { x: 0.0, y: 0.0, z: 0.0 }, ... }
-    -- ❌ May generate &Vec3{} instead of &SystemPos{} !
-}
-```
-
-**Root Cause**:
-1. TypeName propagation doesn't reliably reach nested record literals during type checking
-2. Codegen falls back to `GetRecordTypeByFields` which returns the first matching type
-3. When multiple types have identical fields, the "first" one found may not be the correct one
-
-**Workarounds**:
-
-1. **Merge duplicate types** (recommended if semantically equivalent):
-   ```ailang
-   -- Keep only one type, import it everywhere:
-   import sim/celestial (SystemPos)
-   -- Remove: export type Vec3 = { x: float, y: float, z: float }
-   ```
-
-2. **Rename to be unique**:
-   ```ailang
-   export type GalacticCoord = { x: float, y: float, z: float }
-   export type SystemPos = { x: float, y: float, z: float }
-   -- Different names = unambiguous
-   ```
-
-3. **Add discriminator field** (if types must be distinct):
-   ```ailang
-   export type Vec3 = { x: float, y: float, z: float, _tag: string }
-   export type SystemPos = { sysX: float, sysY: float, sysZ: float }
-   ```
-
-**Best Practice**:
-Don't define multiple record types with identical field structures. If you need type aliases, use explicit type aliases that preserve identity:
-
-```ailang
--- ✅ Better: Single type, aliased if needed
-export type Vec3 = { x: float, y: float, z: float }
--- Use Vec3 everywhere, or create semantic wrappers with different fields
-```
-
-**Future**:
-We plan to improve TypeName propagation to nested record literals in the type checker. Until then, avoid defining record types with identical field structures in the same project.
-
-**See Also**: `design_docs/implemented/v0_5_10/m-codegen-nested-record-type.md`, `design_docs/planned/v0_5_10/codegen-bug-pattern-analysis.md`
-
----
-
-### Polymorphic Operators in Lambda Bodies
-
-**Status**: Partially fixed in v0.4.0 (M-POLY-B Phase 1)
-**Since**: v0.1.0 (fundamental to current compilation pipeline)
-**Affects**: Operators with polymorphic types inside lambda expressions
-**Last Updated**: v0.4.0
-
-**What Works Now** (v0.4.0 - M-POLY-B Phase 1):
-```ailang
--- ✅ Comparison operators work with polymorphic lambdas:
-let max = \x. \y. if x > y then x else y in
-max(3.14)(2.71)  -- Returns: 3.14 ✓
-
-let equals = \x. \y. x == y in
-equals(42.0)(42.0)  -- Returns: 42.0 ✓
-
--- ✅ All comparison operators work: >, <, >=, <=, ==, !=
--- ✅ Works with: floats, ints, strings (any Ord type)
--- ✅ Both inline and var-bound lambdas work
-```
-
-**What's Still Broken** (v0.4.0):
-```ailang
--- ❌ Arithmetic operators panic with polymorphic lambdas:
-let add = \x. \y. x + y in
-add(3.14)(2.71)  -- panic: FloatValue, not IntValue
-
--- ❌ ALL arithmetic operators broken: +, -, *, /, %
--- ❌ Affects BOTH inline AND var-bound lambdas
--- ❌ Even this panics: (\x. \y. x + y)(3.14)(2.71)
-```
-
-**What Works Without Lambdas** (v0.3.18+):
-```ailang
--- ✅ Direct arithmetic (no lambdas):
-let x = 3.14 + 2.71 in  -- Correctly uses add_Float
-x * 2.0                  -- Correctly uses mul_Float
-```
-
-**Root Cause**:
-Monomorphization (v0.4.0) partially solves this, but type inference still defaults arithmetic operators to `int`:
-
-1. **Type Inference**: Defaults arithmetic to `int` (Num typeclass defaulting)
-2. **Monomorphization**: Runs AFTER defaulting, sees lambda already as `int -> int -> int`
-3. **Runtime**: Receives Float values but code expects Int → panic
-
-**Why Comparison Works But Arithmetic Doesn't**:
-- **Comparison operators** (`>`, `<`, etc.): Type inference keeps them polymorphic (`Ord a => a -> a -> Bool`)
-- **Arithmetic operators** (`+`, `-`, etc.): Type inference defaults them to `int` (Num typeclass defaulting)
-
-This is a **type inference issue**, not a monomorphization issue. M-POLY-B Phase 1 fixed comparison operators by preserving their polymorphism. Phase 2 will fix arithmetic operators the same way.
-
-**Workarounds for Comparison Operators** (No longer needed in v0.4.0!):
-```ailang
--- ✅ Polymorphic comparison lambdas now work:
-let max = \x. \y. if x > y then x else y in
-max(3.14)(2.71)  -- Works! No workaround needed
-```
-
-**Workarounds for Arithmetic Operators** (Still needed in v0.4.0):
-```ailang
--- ❌ Option 1: Type annotations (doesn't work - type inference ignores them)
--- let add: float -> float -> float = \x. \y. x + y in
--- add(3.14)(2.71)  -- Still panics!
-
--- ✅ Option 2: Named functions with concrete types
-func addFloat(x: float, y: float) -> float = x + y
-addFloat(3.14, 2.71)  -- Works!
-
-func addInt(x: int, y: int) -> int = x + y
-addInt(42, 17)  -- Works!
-
--- ✅ Option 3: Direct arithmetic (no lambdas)
-let result = 3.14 + 2.71 in  -- Works!
-result * 2.0
-```
-
-**Technical Details**:
-- **M-POLY-B Phase 1** (v0.4.0): Fixed comparison operators by preserving polymorphism through monomorphization
-- **Phase 2** (v0.4.2): Will fix arithmetic operators by changing type inference defaulting
-- See: [M-POLY-B-PHASE1-COMPLETION-REPORT.md](../M-POLY-B-PHASE1-COMPLETION-REPORT.md)
-
-**Related Issues**:
-- Monomorphization implementation: `internal/pipeline/specialize.go`
-- Phase 1 completion report: `M-POLY-B-PHASE1-COMPLETION-REPORT.md`
-- Phase 2 tracking: Deferred to v0.4.2 (~4-8 hours estimated)
-
----
-
-## Parser Limitations
-
-### Parse Error Messages
-
-**Status**: Known limitation
-**Since**: v0.1.0
-**Affects**: Error messages for syntax errors
-
-**Problem**:
-Parse errors can be cryptic, especially for complex expressions:
-
-```ailang
--- Example: Missing closing parenthesis
-let x = (1 + 2
--- Error: "unexpected token: EOF"
-```
-
-**Workaround**:
-- Use clear formatting and indentation
-- Test small pieces in the REPL
-- Check matching pairs: `()`, `{}`, `[]`
-
-**Future**:
-Better error recovery and suggestions planned for v0.4.0+
-
----
+> **Canonical page:** the maintained, live-verified limitations list is the published reference —
+> **[docs/docs/reference/limitations.md](docs/docs/reference/limitations.md)** (rendered at
+> <https://ailang.sunholo.com/docs/reference/limitations>). This root file is a pointer + short
+> summary; the website copy is authoritative and carries per-entry repro transcripts + verified-at
+> dates.
+
+**All entries below were live-verified at AILANG `v0.28.0-141-g379990ad5` on 2026-07-10.** Per the
+[M-V1-STABILITY-PROMISE](design_docs/planned/v1_0_0/m-v1-stability-promise.md) entry policy, every
+open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
+dated "Resolved" list — this file is no longer allowed to freeze at a past version.
+
+## Open limitations (summary)
+
+See the [canonical page](docs/docs/reference/limitations.md) for repros, transcripts, and
+workarounds. Verified open at v0.28.0 (2026-07-10):
+
+| Limitation | Kind | Verified-at repro |
+|---|---|---|
+| **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
+| **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
+| **Duplicate record types with identical fields** | Go-codegen only (interpreter unaffected) | `--emit-go` may pick the first structurally-matching struct. `ailang run` returns the correct value. |
+| **WASM type-checker depth limit** | WASM-host only (CLI unaffected) | deeply-recursive type structure exceeds the JS-engine stack; structured `depth budget exceeded` error. |
+| **`?` error-propagation operator** | Not yet implemented (planned) | `r?` → `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`. Use explicit `match` on `Result`. |
+| **Typed quasiquotes** | Not yet implemented (planned) | quasiquote syntax not accepted. Use `"${expr}"` interpolation / `concat([..])`. |
+| **CSP concurrency (channels / session types)** | Deferred | no channel/session-type surface in the parser. |
+| **Raw-mode single keypress / mid-call `std/ai.step()` abort** | Narrow input gaps | line input (`readLine`, `asyncReadStdinLines`) works; raw keypress is out-of-core by design. |
 
 ### If-Else Branches Require Explicit Braces {#if-else-branches-require-explicit-braces}
 
-**Status**: Design constraint (v0.5.9 - improved error message)
-**Since**: v0.1.0
-**Affects**: Multi-statement branches in if-else expressions
-
-**Problem**:
-When using `let` bindings in if-else branches, you must wrap them in explicit braces `{}`. Without braces, the parser treats only the first `let` as the branch expression:
+AILANG is not layout-sensitive, so a multi-statement `if`/`else` branch must be wrapped in braces.
+Without them, only the first `let` is parsed as the branch and you get
+"if-else branches require explicit braces when using let bindings":
 
 ```ailang
--- ❌ This fails (confusing error message before v0.5.9):
-pure func buildList(x: int, maxX: int) -> [int] {
-    if x > maxX then []
-    else
-        let v = x * 2;
-        let rest = buildList(x + 1, maxX);
-        v :: rest
-}
--- Error: if-else branches require explicit braces when using let bindings
---        The 'let v = ...' is parsed as the entire else branch expression.
-```
+-- ❌ fails
+if x > maxX then [] else
+    let v = x * 2;
+    let rest = buildList(x + 1, maxX);
+    v :: rest
 
-**Why This Happens**:
-AILANG doesn't use layout-sensitive parsing (unlike Haskell/Python). Without explicit delimiters, the parser can't determine where a multi-statement branch ends. The `let v = x * 2;` becomes the entire else branch, and `let rest = ...` is a separate statement after the if-else.
-
-**Fix**:
-Wrap multi-statement branches in braces:
-
-```ailang
--- ✅ With explicit braces - works correctly:
-pure func buildList(x: int, maxX: int) -> [int] {
-    if x > maxX then [] else {
-        let v = x * 2;
-        let rest = buildList(x + 1, maxX);
-        v :: rest
-    }
+-- ✅ works
+if x > maxX then [] else {
+    let v = x * 2;
+    let rest = buildList(x + 1, maxX);
+    v :: rest
 }
 ```
 
-**Alternative Patterns**:
+Single-expression branches don't need braces. See the
+[canonical page](docs/docs/reference/limitations.md) for the full entry.
 
-```ailang
--- ✅ Use accumulator pattern (no let needed):
-pure func buildList(acc: [int], x: int, maxX: int) -> [int] {
-    if x > maxX then acc
-    else buildList(x :: acc, x + 1, maxX)
-}
+## Resolved (were documented as broken; re-verified working at v0.28.0)
 
--- ✅ Single expression in branch (no braces needed):
-pure func simple(x: int) -> [int] {
-    if x > 10 then [] else [x]
-}
-```
-
-**Technical Details**:
-- Error detection added in v0.5.9 (`internal/elaborate/expressions.go`)
-- See design doc: `design_docs/planned/v0_5_9/m-fix-if-else-let-block.md`
-- Future work may add `do` syntax or layout-sensitive parsing
-
----
-
-### `match` Inside Block-Body Lambdas in HOF Arguments
-
-**Status**: Known parser bug (M-DX-MATCH-HOF, planned v0.8.2)
-**Since**: v0.1.0
-**Affects**: Inline lambda expressions with pattern matching in HOF calls
-
-**Problem**:
-
-Using `match ... with` inside a block-body lambda (`\x. { ... }`) that is passed
-directly as an argument to a higher-order function fails with parser errors:
-
-```ailang
--- ❌ FAILS: PAR_UNEXPECTED_TOKEN at 'with'
-let result = flatMap(\item. {
-  let status = match item with
-    | 0 -> Err("zero")
-    | _ -> Ok;
-  [status]
-}, myList)
-```
-
-The parser's nested delimiter tracking gets confused: the block's `}` and the
-match expression's `with ... |` syntax conflict when combined in a HOF argument.
-Note that simple `let` bindings (without `match`) in block-body lambdas work fine.
-
-**Workaround**:
-
-Extract the lambda body to a named helper function:
-
-```ailang
--- ✅ Extract to helper (always works)
-let processItem = \item.
-  match item with
-  | 0 -> Err("zero")
-  | _ -> Ok
-
-let result = flatMap(\item. [processItem(item)], myList)
-```
-
-**Technical Details**:
-- Root cause: block-body lambda parser doesn't correctly track delimiter depth
-  when `match ... with` (non-brace match form) appears inside a `{ ... }` block
-- See design doc: `design_docs/planned/v0_8_2/m-dx-match-in-hof-block-lambda.md`
-
----
-
-## Language Feature Gaps
-
-### String Interpolation
-
-**Status**: ✅ **Resolved in v0.12.1** ([M-CONCAT-DISAMBIG](implemented/v0_13_0/m-concat-disambiguation.md) Phase 1)
-**Since**: v0.12.1
-
-Double-quoted strings now accept `${expr}` substitution; the parser desugars
-interpolations to a `concat_String` chain with auto-`show()` wrapping.
-
-```ailang
--- ✅ Interpolation (preferred):
-let msg = "Value: ${x}"
-
--- ✅ Stdlib concat (for list-of-strings):
-let msg = concat(["Value: ", show(x)])
-```
-
-**v0.13.0 breaking change**: `++` is now **list-only**. `"a" ++ "b"` is a
-compile-time type error; migrate to `"${a}${b}"` or `concat([a, b])`.
-
----
-
-### Block Expressions
-
-**Status**: Partially implemented
-**Since**: v0.3.0
-**Affects**: Sequencing multiple expressions
-
-**Problem**:
-Block expressions `{e1; e2; e3}` exist but have limitations around types and effects.
-
-**Workaround**:
-Use `let _ = expr in` chains for now:
-
-```ailang
--- Current workaround:
-let _ = print("step 1") in
-let _ = print("step 2") in
-print("step 3")
-```
-
-**Future**:
-Block expressions will be refined in v0.4.0+
-
----
-
-## Testing & Development
-
-### REPL/File Parity
-
-**Status**: Minor inconsistencies
-**Since**: v0.1.0
-**Affects**: Code that works in REPL but not in files (or vice versa)
-
-**Problem**:
-Some expressions work in the REPL but fail when in module files, usually due to:
-- Module path validation
-- Import/export requirements
-- Effect capability checking
-
-**Workaround**:
-- Always test final code as a module file with `ailang run`
-- Use `ailang repl` for quick experiments only
-
-**Future**:
-Improve parity and document differences clearly.
-
----
+- **Polymorphic arithmetic lambdas** — `let add = \x. \y. x + y in add(3.14)(2.71)` → `5.85`
+  (fixed v0.7.0, [m-poly-arithmetic-fix](design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
+- **`match` inside block-body lambdas in HOF arguments** —
+  `map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0,1,2])` → `[zero, ok, ok]`
+  ([design doc archived](design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md)). The old
+  ML/Haskell `match … with | …` form is **retired** — it now emits `PAR019`; use brace-form
+  `match x { pat => expr }`.
+- **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing works fully; the old
+  `let _ = … in` workaround is no longer needed.
+- **String interpolation** — `"Value: ${x}"` → `Value: 42` (v0.12.1); `++` is now list-only
+  (string `++` is a type error, v0.13.0).
+- **Pattern guards** — `match x { n if n > 100 => …, n if n > 0 => …, _ => … }` (v0.6.2).
 
 ## Reporting New Limitations
 
-Found a limitation not listed here? Please file an issue at:
-https://github.com/sunholo-data/ailang/issues
-
-Include:
-- AILANG version (`ailang --version`)
-- Minimal reproduction code
-- Expected vs actual behavior
-- Whether it's a bug or design limitation
+File an issue at <https://github.com/sunholo-data/ailang/issues> with: AILANG version
+(`ailang --version`), a minimal repro, expected vs actual behavior, and whether it's a bug or a
+design constraint.
