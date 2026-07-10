@@ -284,3 +284,93 @@ func TestGenerateContractRequiresChecks_Disabled(t *testing.T) {
 		t.Errorf("expected NO panic statement when verification disabled, got:\n%s", output)
 	}
 }
+
+// TestGenerateContractChecks_EscapesMessageAndLocation is the regression test
+// for the 2026-07-10 Windows CI break: Contract.Location holds an absolute
+// source path, and Windows paths (C:\Users\RUNNER~1\...) contain sequences
+// like \U that are invalid Go string escapes. Interpolating Message/Location
+// raw into the generated panic literal produced uncompilable code ("unknown
+// escape sequence"). A Message containing a double quote breaks the literal
+// on every OS the same way, so both fields ride through %q.
+func TestGenerateContractChecks_EscapesMessageAndLocation(t *testing.T) {
+	winLocation := `C:\Users\RUNNER~1\AppData\Local\Temp\basic.ail:7:1`
+	quotedMessage := `x != "" and x >= 0`
+
+	t.Run("requires", func(t *testing.T) {
+		g := New("testpkg")
+		g.SetVerifyContracts(true)
+		g.prog = &core.Program{
+			Meta: map[string]*core.DeclMeta{
+				"absolute": {
+					Name:     "absolute",
+					IsExport: true,
+					Contracts: []*core.Contract{
+						{
+							Kind: core.RequiresKind,
+							Expr: &core.BinOp{
+								Op:    ">=",
+								Left:  &core.Var{Name: "x"},
+								Right: &core.Lit{Kind: core.IntLit, Value: int64(0)},
+							},
+							Message:  quotedMessage,
+							Location: winLocation,
+						},
+					},
+				},
+			},
+		}
+		g.currentFuncName = "absolute"
+		g.currentFuncParams = map[string]string{"x": "interface{}"}
+		g.expectedReturnType = "interface{}"
+
+		if err := g.generateContractRequiresChecks(); err != nil {
+			t.Fatalf("generateContractRequiresChecks failed: %v", err)
+		}
+		assertContractCheckCompiles(t, g.buf.String())
+	})
+
+	t.Run("ensures", func(t *testing.T) {
+		g := New("testpkg")
+		g.SetVerifyContracts(true)
+		g.prog = &core.Program{
+			Meta: map[string]*core.DeclMeta{
+				"absolute": {
+					Name:     "absolute",
+					IsExport: true,
+					Contracts: []*core.Contract{
+						{
+							Kind: core.EnsuresKind,
+							Expr: &core.BinOp{
+								Op:    ">=",
+								Left:  &core.Var{Name: "result"},
+								Right: &core.Lit{Kind: core.IntLit, Value: int64(0)},
+							},
+							Message:  quotedMessage,
+							Location: winLocation,
+						},
+					},
+				},
+			},
+		}
+		g.currentFuncName = "absolute"
+
+		if err := g.generateContractEnsuresChecks("absolute", "_result", "interface{}"); err != nil {
+			t.Fatalf("generateContractEnsuresChecks failed: %v", err)
+		}
+		assertContractCheckCompiles(t, g.buf.String())
+	})
+}
+
+// assertContractCheckCompiles wraps a generated check fragment in a minimal
+// function and requires it to be syntactically valid Go with the path's
+// backslashes escaped inside the panic literal.
+func assertContractCheckCompiles(t *testing.T, output string) {
+	t.Helper()
+	src := "package p\n\nfunc f(x, _result interface{}) {\n" + output + "}\n"
+	if _, err := format.Source([]byte(src)); err != nil {
+		t.Fatalf("generated contract check is not valid Go: %v\noutput:\n%s", err, output)
+	}
+	if !strings.Contains(output, `C:\\Users\\RUNNER~1`) {
+		t.Errorf("panic literal does not escape path backslashes:\n%s", output)
+	}
+}
