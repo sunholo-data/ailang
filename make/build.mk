@@ -5,12 +5,15 @@
 .PHONY: build install quick-install dev deps clean prepare-embed bootstrap-content microrag-mcp-build microrag-mcp-install
 
 prepare-embed: ## Internal: Copy prompts and scorecard for embedding
-	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
+	@# Content-aware sync: an mtime check keyed on versions.json misses new or
+	@# edited prompt files that don't touch versions.json (e.g. on a fresh
+	@# checkout the mirror would silently stay stale and get embedded as-is).
+	@if ! diff -rq prompts cmd/ailang/prompts >/dev/null 2>&1; then \
 		echo "Copying prompts for embedding..."; \
 		rm -rf cmd/ailang/prompts; \
 		cp -r prompts cmd/ailang/prompts; \
 	fi
-	@if [ docs/static/benchmarks/axiom_scorecard.json -nt cmd/ailang/axiom_scorecard.json ]; then \
+	@if ! cmp -s docs/static/benchmarks/axiom_scorecard.json cmd/ailang/axiom_scorecard.json; then \
 		echo "Copying axiom scorecard for embedding..."; \
 		cp docs/static/benchmarks/axiom_scorecard.json cmd/ailang/axiom_scorecard.json; \
 	fi
