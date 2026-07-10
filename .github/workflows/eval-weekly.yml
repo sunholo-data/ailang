@@ -29,7 +29,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25.11'
+        go-version: '1.25.12'
         cache: true
 
     # uv pins the Python runtime so baselines are comparable across runs and

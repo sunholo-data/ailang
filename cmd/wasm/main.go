@@ -10,8 +10,8 @@ import (
 	"syscall/js"
 
 	"github.com/sunholo-data/ailang/internal/eval"
-	"github.com/sunholo-data/ailang/internal/runtime/argdecode"
 	"github.com/sunholo-data/ailang/internal/repl"
+	"github.com/sunholo-data/ailang/internal/runtime/argdecode"
 	"github.com/sunholo-data/ailang/internal/types"
 	"github.com/sunholo-data/ailang/std"
 )

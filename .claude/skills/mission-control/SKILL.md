@@ -38,6 +38,13 @@ Read: the mission doc (queue, guardrails, routing policy — they may have chang
 log entries (especially **Next** and **Ruled out** — do not re-chase), any parked
 `needs-human-review` items that got human answers in the inbox.
 
+**Check dev CI first**: `gh run list --branch dev --limit 6` — a RED dev outranks the queue
+(added 2026-07-10 per Mark; that day's red was a pre-existing gofmt miss + a newly published
+stdlib vuln — neither from a sprint, both invisible to local gates). Diagnose via
+`gh run view <id> --log-failed`; the fix (or a reasoned allowlist/revert) IS this iteration's
+first deliverable. Time-based reds (new vuln advisories) hit whoever observes next — that's
+the mission's job now.
+
 ## Gate 2 — PICK + REALITY-CHECK
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
@@ -78,6 +85,15 @@ time: "does this step touch the GPU?" — never let a test reach it by accident.
 
 **Multi-week strategic items**: do not execute — the iteration's deliverable is DECOMPOSITION
 into sprint-sized design docs (≤3–4 days each), queued individually.
+
+## Gate 3b — CI GREEN (an item is not LANDED until remote CI passes on its merge)
+
+After any push to dev: `gh run watch $(gh run list --branch dev --workflow CI --limit 1 --json
+databaseId --jq '.[0].databaseId') --exit-status` (or poll `gh run list` if watch is
+unavailable). Local `make test`/`make lint` do NOT cover the remote-only gates (fmt-check,
+govulncheck, check-file-sizes, docs build). Red → fix-forward immediately if small; otherwise
+revert the merge and park the item with the CI log excerpt. Only a green run upgrades the queue
+tag to [LANDED].
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 

@@ -173,6 +173,10 @@ invokes.
   `ailang messages send controlplane`, park the item, pick the next; never force through.
 - **Skill edits**: max one per iteration, ≥2 recorded frictions each, called out in the morning
   report (git history is the rollback).
+- **Dev stays GREEN** (2026-07-10, Mark): an item is not [LANDED] until remote CI passes on its
+  merge commit (Gate 3b — local gates miss fmt-check/govulncheck/file-sizes/docs build), and a
+  red dev CI outranks the queue at OBSERVE, including time-based reds from newly published vuln
+  advisories.
 
 ## Backlog ordering policy
 
