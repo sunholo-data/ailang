@@ -103,6 +103,7 @@ Priorities: Machine decidability, semantic transparency, compositional determini
 ## Available Skills
 
 - **use-ailang** — Write correct AILANG code
+- **mission-control** — One outer-loop mission iteration (default: V1 mission → v1.0.0)
 - **skill-builder** — Create new skills (meta-skill)
 - **release-manager** / **post-release** — Release workflow
 - **sprint-planner** / **sprint-executor** / **sprint-evaluator** — Sprint workflow (plan, execute, evaluate)

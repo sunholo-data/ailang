@@ -1,7 +1,7 @@
 ---
 name: dev-cycle
 description: Orchestrate the full AILANG development workflow from message triage through implementation. Use when user says "start dev cycle", "begin development workflow", or wants to work through messages systematically. Coordinates agent-inbox, design-doc-creator, sprint-planner, and sprint-executor skills.
-model: sonnet
+model: opus
 color: purple
 ---
 

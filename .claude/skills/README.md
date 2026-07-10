@@ -89,6 +89,13 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 
 ### Sprint Planning
 
+**[mission-control/](mission-control/)** - Run one outer-loop iteration of a long-running mission
+- Observes mission state (default: design_docs/v1-mission.md), picks top backlog item
+- Reality-checks doc status against git/code before working
+- Routes through design-doc-creator → sprint-planner → sprint-executor → sprint-evaluator with the mission's model routing policy
+- Records an append-only log entry (routing evidence + ruled-out ledger), then runs the retro (skill/process/backlog lanes)
+- Fired nightly by the dev.ailang.mission-control launchd job (tools/launchd/)
+
 **[sprint-planner/](sprint-planner/)** - Create comprehensive sprint plans
 - Analyzes design docs and current implementation status
 - Calculates velocity from recent work

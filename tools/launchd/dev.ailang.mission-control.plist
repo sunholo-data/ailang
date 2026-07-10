@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  dev.ailang.mission-control.plist — nightly V1-mission outer-loop iteration.
+
+  Fires a headless Fable session at 22:00 that runs ONE mission-control
+  iteration (design_docs/v1-mission.md): pick top backlog item, route through
+  design-doc → sprint-plan → execute (Opus) → evaluate, record, retro.
+  6h hard timeout in the driver → done by ~04:00, before the 04:00-07:00 eval
+  blackout window ever matters (this job is cloud-only and takes NO rig lock —
+  rig.lock is a GPU mutex; see the two-tier rule in the charter).
+
+  Installation (one-time, deliberate — this arms an autonomous nightly loop):
+    cp tools/launchd/dev.ailang.mission-control.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/dev.ailang.mission-control.plist
+
+  Test dry-run (no tokens spent, checks wiring):
+    MISSION_DRY_RUN=1 bash tools/launchd/mission-control.sh
+
+  Kick one iteration manually:
+    launchctl kickstart gui/$UID/dev.ailang.mission-control
+
+  Kill switch (survives reboots, no unload needed):
+    touch ~/.ailang/state/mission-control.disabled
+
+  Logs: /tmp/ailang-mission-control.log
+
+  Dependencies:
+    - claude CLI at ~/.local/bin/claude (authenticated)
+    - gh authenticated as sunholo-voight-kampff (plaintext storage for headless:
+      gh auth login \-\-insecure-storage — keychain tokens are unreadable here)
+    - ailang binary at ~/go/bin/ailang (messages CLI for the morning report)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.mission-control</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh</string>
+    </array>
+
+    <!-- 22:00 nightly: evening start + 6h driver timeout ends ~04:00 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>22</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/voightkampff/go/bin:/Users/voightkampff/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/voightkampff</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/voightkampff/dev/sunholo-data/ailang</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-mission-control.stdout</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-mission-control.stderr</string>
+
+    <!-- Scheduled one-shot, not a daemon -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
