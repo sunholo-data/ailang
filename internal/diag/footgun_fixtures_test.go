@@ -14,11 +14,31 @@
 package diag
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/stdlibindex"
+	"github.com/sunholo-data/ailang/internal/types"
 )
+
+// TestMain wires the stdlib import-suggestion path exactly as the CLI does
+// (cmd/ailang/diagnostics_wiring.go) so the stdlib_import_hint fixture below
+// sees the same fix-carrying diagnostic an agent's `ailang check` sees. Two
+// steps are required and BOTH must run before any fixture executes:
+//
+//  1. AILANG_STDLIB_PATH must point at the on-disk stdlib (../../std relative to
+//     this package's CWD) — stdlibindex scans it lazily via sync.Once, so the
+//     env var must be set before stdlibindex.Modules is first called.
+//  2. types.ImportSuggester must be wired to stdlibindex.Modules — it is nil in
+//     pure library code (only the CLI init() sets it), so without this the hint
+//     is empty and the fixture is silently red with a bare "undefined variable".
+func TestMain(m *testing.M) {
+	_ = os.Setenv("AILANG_STDLIB_PATH", "../../std")
+	types.ImportSuggester = stdlibindex.Modules
+	os.Exit(m.Run())
+}
 
 // footgunFixture is one CI-enforced row of footguns.md.
 type footgunFixture struct {
@@ -71,6 +91,47 @@ export func main() -> int { 1 }
 func helper(x: int) -> int { x }
 import std/string (join)
 export func main() -> int { 1 }
+`,
+	},
+	{
+		name:   "reserved_keyword",
+		code:   "PAR_RESERVED_KEYWORD",
+		fix:    "'exists' is reserved for existential types",
+		status: "covered", // promoted by m-diagnostic-coverage (M-DIAG-FIXTURE-PROMOTION)
+		src: `module benchmark/solution
+export func main() -> int { let exists = 1 in exists }
+`,
+	},
+	{
+		name:   "hyphen_in_module",
+		code:   "PAR_HYPHEN_IN_MODULE",
+		fix:    "Use underscores instead",
+		status: "covered", // promoted by m-diagnostic-coverage (M-DIAG-FIXTURE-PROMOTION)
+		src: `module benchmark/my-solution
+export func main() -> int { 1 }
+`,
+	},
+	{
+		name:   "semicolon_in_expr_func",
+		code:   "PAR017",
+		fix:    "only valid inside",
+		status: "covered", // promoted by m-diagnostic-coverage (M-DIAG-FIXTURE-PROMOTION)
+		src: `module benchmark/solution
+export func f() -> int = let x = 1; x
+export func main() -> int { f() }
+`,
+	},
+	{
+		// TYPE error (not parse) — the fix substring comes from the ImportSuggester
+		// hint wired in TestMain above. Assert a STABLE substring ("exported by
+		// std/list"), NOT the full "std/list, std/option, std/result" comma list,
+		// which shifts as stdlib exports change.
+		name:   "stdlib_import_hint",
+		code:   "undefined variable: map",
+		fix:    "exported by std/list",
+		status: "covered", // promoted by m-diagnostic-coverage (M-DIAG-FIXTURE-PROMOTION)
+		src: `module benchmark/solution
+export func main() -> list[int] { map(\x. x, [1,2,3]) }
 `,
 	},
 }
