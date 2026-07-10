@@ -27,6 +27,24 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-10/11 (night) — ITERATION 5 COMPLETE: STABILITY-PROMISE BAR CLAUSE CLOSED
+
+m-v1-stability-promise landed via the full loop headless, round-1 clean at every stage — the
+first queue item of the mission that was genuinely NEW (no stale status to catch; instead the
+Opus planner caught 2 premise errors in Fable's design doc: stdlib is 42 modules not 39, and
+LIMITATIONS.md is double-maintained with a diverged public website copy — both copies fixed).
+Shipped: the 1.x stability promise page (Stable/Experimental/Internal tiers, full stdlib + CLI
+tier tables, RATIFICATION-pending stamp), live-verified accuracy pass on BOTH LIMITATIONS files
+(every entry re-verified at HEAD with transcripts; poly-arith-lambda and match-in-HOF moved to
+Recently Resolved — they had been documented as broken for ~15 minor versions), 4 stale website
+version-promises retracted. Eval PASS 96/100 round 1 (independent distinct-sample verification).
+PR #337 → fcccd7208, dev CI green per-workflow. Two bar clauses now satisfied: "stability
+promise defined" ✓ and LIMITATIONS-accuracy under core-frozen ✓ (ratification of tier
+ASSIGNMENTS parked for Mark at the v1.0.0 release gate — not a merge blocker). Backlog: issue
+#338 (deflake TestRunCommand_PipedStdoutFlushesPerLine — hit twice this iteration, proven
+non-regression twice). Critical path remaining: effect-refinement decomposition (#7, [NEXT]) →
+eval-frontier-tier (#8).
+
 ## STATUS 2026-07-10 (night) — ITERATION 4 COMPLETE: LAST SPRINT-SIZED P0 CLOSED FOR V1
 
 m-diagnostic-coverage reality-check found its "Planned" status STALE (M1–M3 shipped 2026-07-09,
@@ -254,10 +272,16 @@ invokes.
    to covered — 7 CI fixtures across 6 footgun rows — eval PASS 96/100 round 1, PR #336 →
    fe807aac8, dev CI green per-workflow. DEFERRED, rationale in doc: deletion pass + rig A/B
    until deletable surface ≥ 100 lines; PARKED for human: haiku causal re-run, API-billed)
-6. [NEXT] m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
-   LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)
-7. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows
-   as individual queue items)
+6. [LANDED 2026-07-10] m-v1-stability-promise (iteration 5: FULL loop headless round-1 clean —
+   Fable design doc → Opus plan (caught 2 premise errors: 42 modules not 39; LIMITATIONS
+   double-maintained + diverged, both copies fixed) → Opus execute in worktree → Fable eval
+   PASS 96/100 round 1. Stability page docs/docs/reference/stability.md (3 tiers, full stdlib +
+   CLI tables), both LIMITATIONS files live-verified at HEAD, 4 website vX-promises retracted,
+   PR #337 → fcccd7208, dev CI green per-workflow. PARKED for human at RELEASE gate: tier-
+   assignment ratification — ⚠ proposed: std/net, crypto, jwt, xml, zip, process, CLI
+   watch/serve-api)
+7. [NEXT] m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution
+   follows as individual queue items — deliverable is the DECOMPOSITION, standing rule 4)
 8. m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
 9. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
 10. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)

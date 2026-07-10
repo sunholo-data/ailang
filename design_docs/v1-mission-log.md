@@ -359,3 +359,74 @@ HUMAN (repeat, still open from iteration 3): feedback-gate enablement ops (terra
 ANTHROPIC_API_KEY secret + DRY_RUN week 1); NEW: haiku causal re-run needs a supervised
 (API-billed) session — cheap, one benchmark cell, high thesis value.
 
+## 6 — 2026-07-10/11 — Iteration 5: m-v1-stability-promise landed — the v1.0 bar's stability clause closed (design→plan→execute→evaluate all in one headless pass)
+
+**Picked**: m-v1-stability-promise (queue #6, top [NEXT] per log entry 5). Design-doc-creation
+item — Fable lane. Headless run, no human present. Dev CI at OBSERVE: all three workflows green
+per-workflow (CI + Build-and-Release @ ece12eab9, Docs-Deploy @ a2ede0fee). Inbox: only our own
+iteration-4 report (acked).
+
+**Reality check**: no stability/promise doc exists anywhere (find + git-log-grep confirmed
+genuinely NEW — first queue item of the mission that wasn't stale-status). Supporting premises
+verified live at v0.28.0-139-gece12eab9 (both binaries rebuilt, clean, versions match): root
+docs/LIMITATIONS.md frozen at v0.13.0 (99f76ec7a) AND actively wrong — its two flagship "still
+broken" entries are FIXED (poly-arith lambda → 5.85; match-in-HOF block lambda → [zero, ok, ok],
+its example even uses the retired `match…with |` syntax); 4 website pages carry v0.3–v0.8-era
+promises for shipped features. Bonus finding at session start: stale M-SECRET-EFFECT sprint JSON
+(v0.26.0, shipped) still bannered as ACTIVE — flipped to completed.
+
+**Shipped**: full loop, all four stages, round-1 pass —
+- Fable design doc d53d7d800 (planned/v1_0_0, HARD-GATE live transcripts for every language claim).
+- Opus plan 379990ad5 — found 2 REAL premise discrepancies: stdlib is 42 modules not the doc's
+  39; LIMITATIONS.md is DOUBLE-MAINTAINED and diverged (website copy docs/docs/reference/
+  limitations.md "verified v0.14.2" vs root v0.13) — plan re-scoped M2 to fix BOTH.
+- Opus execute in isolated worktree, 4 commits (d28da7ba9 M1 stability page; 12473d76c M2 both
+  LIMITATIONS files, every entry live-verified w/ committed transcripts; 707749344 M3 4 website
+  promises + CHANGELOG; a2a067ae3 std/secret index drift fix). Docs-only diff: 0 Go files.
+- Fable evaluation **PASS 96/100 round 1** (eval_M-V1-STABILITY-PROMISE_round_1.json):
+  independent re-verification on DISTINCT samples — programmatic tier-coverage (every std module
+  exactly once), duplicate-record re-scope confirmed (interpreter correct → Go-codegen-only),
+  `?`→PAR_NO_PREFIX_PARSE, Y-combinator→occurs-check, sweep grep re-run (roadmap page only),
+  Recently-Resolved contains both pre-verified fixes, elaborate/expr_control.go anchor preserved.
+- Integrated via PR #337 → merge fcccd7208; all PR checks green; dev CI per-workflow on the merge:
+  see status stamp ([LANDED] only on green).
+**Parked for HUMAN (release gate, not merge blocker)**: tier-ASSIGNMENT ratification before the
+v1.0.0 tag — ⚠ proposed rows: std/net, std/crypto, std/jwt, std/xml, std/zip, std/process, CLI
+watch/serve-api (all held conservatively Experimental — the cheap direction to be wrong in).
+Still open from prior iterations: feedback-gate enablement ops; haiku causal re-run (API-billed).
+
+**Routing evidence**:
+- model=fable task-class=design rounds=1 corrections=2 (both factual slips — module count,
+  missed diverged LIMITATIONS copy — caught cheaply by the Opus planner's premise verification;
+  all flagship claims held. The verify-premises-at-plan-time protocol is earning its cost.)
+- model=opus task-class=plan rounds=1 corrections=0 (2 genuine discrepancies found live; also
+  caught the auto-linker false-positiving GH issues #6/#7 into the sprint JSON)
+- model=opus task-class=execute round1-score=96 rounds=1 corrections=0 (deviations all documented
+  + justified: root-LIMITATIONS→pointer resolved a Deferred Decision; anchor preservation for the
+  live CLI error link was unprompted-quality; honest flake reporting with isolation re-run)
+- model=fable task-class=evaluate rounds=1 (independent full make test — caught the same flake
+  independently, proving the executor's "pre-existing" claim rather than trusting it)
+
+**Ruled out**:
+- "The full-suite failure is a sprint regression" — refuted twice independently: zero Go files
+  in the diff, TestRunCommand_PipedStdoutFlushesPerLine passes 3/3 isolated (-count=3), history
+  shows it's the M-PERF6B stdout-buffer timing area. It's a load-dependent flake → issue #338.
+- "docs/LIMITATIONS.md is the single source to fix" — refuted by the planner: the website copy
+  is the PUBLIC one (sidebar-linked) and had diverged; fixing only the root file would have
+  left the public page wrong. Deferred-Decision #4 ("whether mirrored") was moot — it already was.
+- "The design doc's stdlib count (39) was verifiable-enough" — it came from a truncated ls
+  head; enumerate programmatically (`ls std/*.ail | wc`), never from a scrolled listing.
+
+**Retro lane**: backlog — GH issue #338 (deflake TestRunCommand_PipedStdoutFlushesPerLine; TWO
+observations this iteration: executor + evaluator full-suite runs, same failure, both proved
+non-regression by isolation). NO skill edit (nothing reached ≥2 same-gap frictions: design-doc
+factual slips ×1-class-but-caught, eval-report script zeroed score_breakdown needing manual
+fill ×1, stale sprint banner ×1 — all single-instance, logged here for future accumulation).
+
+**Next**: Iteration 6 — queue #7: m-effect-refinement DECOMPOSITION (multi-week strategic →
+the iteration's deliverable is decomposition into ≤3–4d sprint docs, NOT execution — standing
+rule for strategic items). Note: the ratified bar's remaining open clauses after this landing
+are the eval-bar (m-eval-frontier-tier, queue #8) + effect-refinement decision execution. Carry
+forward for a FUTURE iteration: re-check %-row + m-record-update-local-resolution doc status
+before new diagnostic work (from iteration 4). Parked-for-human items above.
+
