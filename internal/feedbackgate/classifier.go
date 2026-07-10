@@ -63,6 +63,15 @@ func NewClassifier(provider ai.Provider, prompt string, budget *Budget) *Classif
 	return &Classifier{provider: provider, prompt: prompt, budget: budget}
 }
 
+// HasProvider reports whether the classifier has a live ai.Provider. A false
+// result means the classifier is in its fail-closed posture (nil provider →
+// heuristic-flagged messages are filed, never dispatched). The cloud wiring
+// uses this only to name the classifier stage in the startup log; it does NOT
+// gate any decision (applyClassifier checks the provider directly).
+func (c *Classifier) HasProvider() bool {
+	return c != nil && c.provider != nil
+}
+
 // PromptHash returns a short content hash of the prompt, used as the version
 // field for replay (the prompt file carries the same hash in its front matter).
 func (c *Classifier) PromptHash() string {
