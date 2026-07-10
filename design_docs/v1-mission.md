@@ -8,8 +8,9 @@ rather than ad-hoc sessions.
 **Traces to**: [PROGRAM.md](PROGRAM.md) — this mission is an operational instance of the program's
 loop; every friction found here routes to a lane (skill fix / process fix / backlog item).
 **Skill**: [.claude/skills/mission-control/SKILL.md](../.claude/skills/mission-control/SKILL.md)
-runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (22:00 nightly on the
-rig, armed 2026-07-10) behind the billing guard — API keys are stripped from the environment
+runs ONE iteration. **Scheduling: launchd `dev.ailang.mission-control`** (CONTINUOUS since
+2026-07-10 per Mark: StartInterval 2h + overlap guard = back-to-back iterations, ≤2h idle; was
+22:00-nightly for the first supervised runs) behind the billing guard — API keys are stripped from the environment
 (subscription-or-nothing by construction) and a cheap auth probe runs first: keychain OAuth
 suffices while the rig is logged in (verified 2026-07-10); `CLAUDE_CODE_OAUTH_TOKEN` in
 secrets.env is an optional belt-and-braces for post-reboot login screens. Probe failure refuses

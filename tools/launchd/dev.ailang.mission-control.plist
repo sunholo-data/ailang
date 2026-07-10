@@ -42,14 +42,14 @@
         <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh</string>
     </array>
 
-    <!-- 22:00 nightly: evening start + 6h driver timeout ends ~04:00 -->
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>22</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
+    <!-- Continuous mode (2026-07-10, Mark): fire every 2h; the driver's overlap
+         guard yields while an iteration is still running, so this is
+         "back-to-back iterations, at most 2h idle gap". No GPU/rig-lock clash —
+         iterations are cloud-model work; subscription rate limits are the
+         natural throttle. Revert to a StartCalendarInterval block for
+         nightly-only cadence. -->
+    <key>StartInterval</key>
+    <integer>7200</integer>
 
     <key>EnvironmentVariables</key>
     <dict>
