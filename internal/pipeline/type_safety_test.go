@@ -149,7 +149,10 @@ export pure func main() -> Json =
 // from getDoc(). decode expects string, not Json. The type checker must reject
 // this — it was silently accepted, causing runtime garbage.
 func TestTypeSafety_DecodeJsonNotString(t *testing.T) {
-	t.Skip("M-TYPEENV-SUB not yet implemented")
+	// M-TYPEENV-SUB regression guard: this hole was closed by M-TYPE-LIST-SOUND
+	// (baseEnvFreeVars generalization-withholding) + M-TVAR-COLLISION-FIX
+	// (persistent inferFreshCounter). Un-skipped so a future regression at the
+	// generalization site re-trips here instead of silently accepting the program.
 	tempDir, err := os.MkdirTemp("", "ailang-decode-type-safety-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -222,7 +225,7 @@ export pure func main() -> Result[Json, string] =
 // TestTypeSafety_CrossModule_JsonToString verifies that passing Json to an
 // imported function expecting string is caught across module boundaries.
 func TestTypeSafety_CrossModule_JsonToString(t *testing.T) {
-	t.Skip("M-TYPEENV-SUB not yet implemented")
+	// M-TYPEENV-SUB regression guard (see TestTypeSafety_DecodeJsonNotString).
 	tempDir, err := os.MkdirTemp("", "ailang-json-to-string-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -350,7 +353,7 @@ export pure func main() -> string =
 // This was the wider manifestation of M-TYPEENV-SUB: even within a single module,
 // functions returning imported ADTs had their return types erased to type variables.
 func TestTypeSafety_WithinModule_ImportedADTChain(t *testing.T) {
-	t.Skip("M-TYPEENV-SUB not yet implemented")
+	// M-TYPEENV-SUB regression guard (see TestTypeSafety_DecodeJsonNotString).
 	tempDir, err := os.MkdirTemp("", "ailang-within-module-adt-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -451,4 +454,70 @@ export pure func main() -> Result[int, string] = wrap()
 	if err != nil {
 		t.Fatalf("Expected no error for valid Result chain, got: %v", err)
 	}
+}
+
+// TestTypeSafety_CrossModule_ExportedADTRoundtrip is the strongest interface-builder
+// guard for M-TYPEENV-SUB: an EXPORTED function whose return type is an imported ADT
+// (Result), consumed in a THIRD downstream module and misused as string. Unlike the
+// sibling tests, this exercises the full interface serialise -> deserialise roundtrip
+// (producer's export scheme is generalized, written to the iface, and re-read by the
+// consumer). If the interface builder ever over-generalizes an ADT return to
+// `∀a. … -> a`, the consumer's `makeResult() : string` unifies freely and this test
+// fails loudly instead of the program silently type-checking.
+func TestTypeSafety_CrossModule_ExportedADTRoundtrip(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "ailang-exported-adt-roundtrip-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	stdDir := filepath.Join(tempDir, "std")
+	if err := os.MkdirAll(stdDir, 0755); err != nil {
+		t.Fatalf("failed to create std dir: %v", err)
+	}
+
+	resultContent := `module std/result
+export type Result[a, e] = Ok(a) | Err(e)
+`
+	if err := os.WriteFile(filepath.Join(stdDir, "result.ail"), []byte(resultContent), 0644); err != nil {
+		t.Fatalf("failed to write result.ail: %v", err)
+	}
+
+	// Producer: EXPORTS a function returning an imported ADT.
+	producerContent := `module producer
+import std/result (Result, Ok, Err)
+export pure func makeResult() -> Result[int, string] = Ok(42)
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "producer.ail"), []byte(producerContent), 0644); err != nil {
+		t.Fatalf("failed to write producer.ail: %v", err)
+	}
+
+	// Consumer: imports the exported ADT-returning function and misuses it as string.
+	consumerContent := `module consumer
+import producer (makeResult)
+
+export pure func main() -> string = makeResult()
+`
+	testFile := filepath.Join(tempDir, "consumer.ail")
+	if err := os.WriteFile(testFile, []byte(consumerContent), 0644); err != nil {
+		t.Fatalf("failed to write consumer.ail: %v", err)
+	}
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	src := Source{Filename: "consumer.ail"}
+	cfg := Config{Mode: ModeCheck}
+
+	_, err = Run(cfg, src)
+	if err == nil {
+		t.Fatal("Expected type error: makeResult() returns Result[int, string], but main expects string")
+	}
+	t.Logf("Exported-ADT interface roundtrip mismatch caught: %s", err)
 }
