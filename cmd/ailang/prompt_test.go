@@ -6,14 +6,17 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
-// skipIfBinaryNotAvailable skips the test if ailang binary is not in PATH
+// skipIfBinaryNotAvailable skips the test if the ailang binary is not in
+// PATH or is older than the Go sources (a stale install would exercise old
+// prompt content — see internal/testutil/ailangbin.go). These tests exec the
+// bare name "ailang", so the PATH binary is the one that must be fresh.
 func skipIfBinaryNotAvailable(t *testing.T) {
 	t.Helper()
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not in PATH - skipping integration test")
-	}
+	testutil.RequireAilangOnPath(t)
 }
 
 // TestPromptCommand_Help tests the --help flag
@@ -255,16 +258,14 @@ func TestPromptCommand_InfoWithoutVersion(t *testing.T) {
 
 // TestPromptCommand_InGlobalPath tests that ailang is in PATH
 func TestPromptCommand_InGlobalPath(t *testing.T) {
-	// This test verifies the binary is installed correctly
-	_, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not in PATH - run 'make install' first")
-	}
+	// This test verifies the binary is installed correctly (and is not a
+	// stale install pre-dating the current sources).
+	testutil.RequireAilangOnPath(t)
 
 	// If we got here, ailang is in PATH
 	// Run a simple command to verify it works
 	cmd := exec.Command("ailang", "prompt", "--help")
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		t.Fatalf("ailang command failed even though it's in PATH: %v", err)
 	}

@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestRunAilangCheck_IntraPackageImports verifies that the registry
@@ -28,9 +29,9 @@ import (
 // (e.g. in a hermetic CI environment), the test is skipped — matching
 // the existing test pattern in TestPublish_ValidPackage_NoGCS.
 func TestRunAilangCheck_IntraPackageImports(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not in PATH; skipping integration test")
-	}
+	// validate.go hardcodes exec.Command("ailang", ...), so the PATH binary
+	// is the one that runs — require it present AND fresh (see testutil).
+	testutil.RequireAilangOnPath(t)
 
 	type form struct {
 		name        string
@@ -108,9 +109,9 @@ export pure func greet() -> string = "Hello ${name()}"
 // (no ailang.lock, no client at all), validation MUST fail. Without this
 // guard the M-PKG fix would mask broken external imports.
 func TestRunAilangCheck_ExternalImportStillErrors(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not in PATH; skipping integration test")
-	}
+	// validate.go hardcodes exec.Command("ailang", ...), so the PATH binary
+	// is the one that runs — require it present AND fresh (see testutil).
+	testutil.RequireAilangOnPath(t)
 
 	dir := t.TempDir()
 	writeFile(t, dir, "ailang.toml", `[package]

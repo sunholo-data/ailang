@@ -8,8 +8,10 @@
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
 
-# Core tests
-test: prepare-embed ## Run all Go unit tests
+# Core tests. Depends on build so integration tests that shell out to the
+# ailang binary never see a stale bin/ailang — a stale binary caused phantom
+# stdlib failures on 2026-07-10 (see internal/testutil/ailangbin.go).
+test: build ## Run all Go unit tests (builds bin/ailang first)
 	@echo "Running tests..."
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 

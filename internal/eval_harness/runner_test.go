@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestPythonRunner(t *testing.T) {
@@ -160,9 +162,8 @@ func TestCompareOutput_Normalization(t *testing.T) {
 // workspace outside /tmp/, so module path auto-relaxation didn't apply, causing
 // false negatives. Fix: add --relax-modules to runner args.
 func TestAILANGRunnerValidation(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not in PATH, skipping integration test")
-	}
+	// The runner resolves the bare "ailang" from PATH — require it fresh.
+	testutil.RequireAilangOnPath(t)
 
 	// Test with a simple solution that doesn't need stdlib imports
 	// (stdlib path depends on being run from project root)
@@ -211,9 +212,8 @@ export func main() -> () ! {IO} {
 // TestAILANGRunnerValidation_MismatchedModule tests that the validation runner
 // handles module path mismatches gracefully (agent may write different module names).
 func TestAILANGRunnerValidation_MismatchedModule(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not in PATH, skipping integration test")
-	}
+	// The runner resolves the bare "ailang" from PATH — require it fresh.
+	testutil.RequireAilangOnPath(t)
 
 	// Agent might write "module solution" instead of "module benchmark/solution"
 	code := `module solution

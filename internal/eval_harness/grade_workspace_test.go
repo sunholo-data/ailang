@@ -2,9 +2,10 @@ package eval_harness
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestGradeInWorkspace guards M-EVAL-RELIABLE-GRADING: the grader must run a harness-owned probe
@@ -12,9 +13,8 @@ import (
 // PASS when the implementation is correct, FAIL when it is wrong. The legacy path discarded the
 // implementation entirely, so a correct multi-file solution could not pass.
 func TestGradeInWorkspace(t *testing.T) {
-	if _, err := exec.LookPath("ailang"); err != nil {
-		t.Skip("ailang not on PATH")
-	}
+	// The grader invokes the bare "ailang" on PATH — require it fresh.
+	testutil.RequireAilangOnPath(t)
 
 	// Probe (harness-owned) imports the agent's implementation module and prints its result.
 	const probe = "module main\n" +

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestEndToEnd_PlanToCompile tests the complete workflow:
@@ -81,11 +82,8 @@ func TestEndToEnd_PlanToCompile(t *testing.T) {
 		}
 	}
 
-	// Step 6: Try to compile the generated code (if ailang is available)
-	ailangPath, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang not in PATH, skipping compilation test")
-	}
+	// Step 6: Try to compile the generated code (if a fresh ailang is available)
+	ailangPath := testutil.FindAilangBinary(t)
 
 	cmd := exec.Command(ailangPath, "check", generatedFile)
 	output, err := cmd.CombinedOutput()

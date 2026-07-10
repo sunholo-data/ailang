@@ -5,16 +5,14 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestJWT_DecodeExample runs the jwt_decode.ail example through the full pipeline
 // and verifies correct output.
 func TestJWT_DecodeExample(t *testing.T) {
-	// Find ailang binary
-	binary, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang binary not found in PATH; skipping integration test")
-	}
+	binary := testutil.FindAilangBinary(t)
 
 	cmd := exec.Command(binary, "run", "--caps", "IO", "--entry", "main",
 		"examples/runnable/jwt_decode.ail")
@@ -46,15 +44,12 @@ func TestJWT_DecodeExample(t *testing.T) {
 
 // TestJWT_DecodeInvalidToken verifies that decodeJWT returns Err for malformed tokens.
 func TestJWT_DecodeInvalidToken(t *testing.T) {
-	binary, err := exec.LookPath("ailang")
-	if err != nil {
-		t.Skip("ailang binary not found in PATH; skipping integration test")
-	}
+	binary := testutil.FindAilangBinary(t)
 
 	// Create a temporary test file that tries to decode an invalid JWT
 	tempDir := t.TempDir()
 	testFile := tempDir + "/jwt_invalid.ail"
-	err = os.WriteFile(testFile, []byte(`module jwt_invalid
+	err := os.WriteFile(testFile, []byte(`module jwt_invalid
 import std/jwt (decodeJWT)
 import std/result (Result, Ok, Err)
 
