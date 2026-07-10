@@ -27,6 +27,19 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-10 (afternoon) — ITERATION 2 COMPLETE: FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED
+
+m-feedback-triage-gate landed via the full inner loop with NO human present — the friction
+flagged at 13:30 (headless run reached planning without routing evidence) is answered: both
+plan and execute carried verified `claude-opus-4-8` attestations, evaluation by Fable with
+independent re-verification (full make test rc=0 in worktree, drill run live). Eval 93/100 PASS
+round 1, merge 40f1cdc3f. The killed 13:03 run's leftovers (dead-locked worktree + uncommitted
+scaffold) were quarantined and cleared. CALIBRATED: gate logic is complete and merged, off by
+default; production protection is rules-only until m-feedback-gate-cloud-adapter (queued [NEXT])
+ships the Firestore adapters — the P0 is not operationally closed yet. New "Dev stays GREEN"
+guardrail honored: merge pushed, remote CI verified before tagging [LANDED] (result recorded in
+the queue entry).
+
 ## STATUS 2026-07-10 (13:30) — SCHEDULING MOVED INTO CLAUDE CODE; BILLING INCIDENT CLOSED
 
 The first kickstarted headless run billed ~13 min of API credits (`ANTHROPIC_API_KEY` leaked
@@ -197,15 +210,22 @@ invokes.
    package absent locally)
 2. [LANDED 2026-07-10] m-typeenv-sub-fix (iteration 1b: RESOLVED — pre-closed by adjacent
    M-TYPE-LIST-SOUND work, regression-guarded, eval 92/100, merge f59421ac8)
-3. [NEXT] m-feedback-triage-gate (P0, public endpoint cost/safety, 2d)
-4. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
-5. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
+3. [LANDED 2026-07-10] m-feedback-triage-gate (iteration 2: full loop headless, eval 93/100
+   PASS round 1, merge 40f1cdc3f, remote CI green on dev post-merge; gate logic complete +
+   merged, off by default — production activation gated on the next item)
+4. [NEXT] m-feedback-gate-cloud-adapter (NEW — completes the P0 operationally: Firestore
+   CooldownStore/BudgetStore adapters + classifier provider construction in cloud wiring,
+   enable with DRY_RUN=1 first week; ~0.5–1d; design served by the implemented
+   m-feedback-triage-gate doc's follow-up section — needs a short design doc via
+   design-doc-creator)
+5. m-diagnostic-coverage (P0, cheapest cost-per-success lever, 3–4d)
+6. m-v1-stability-promise (NEW — design doc via design-doc-creator: the 1.x stable surface,
    LIMITATIONS.md accuracy pass, confirm/retract remaining vX promises in docs)
-6. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows
+7. m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution follows
    as individual queue items)
-7. m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
-8. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
-9. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
+8. m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
+9. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
+10. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
 
 **Nice-for-v1** (worked opportunistically if the critical path is blocked): the remaining
 `planned/v1_0_0/` docs (incl. the two downgraded P1s) and `planned/v0_29_0/` P1s — those ship on
