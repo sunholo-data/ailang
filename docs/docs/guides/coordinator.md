@@ -1205,6 +1205,95 @@ The cloud infrastructure is defined in `ailang-multivac/terraform/`:
 | Scaling | Always on | Scale-to-zero (min_instances=0) |
 | Availability | Laptop must be on | 24/7 (wakes on push/webhook) |
 
+## Feedback Cost & Abuse Gate (M-FEEDBACK-TRIAGE-GATE + Cloud Adapter)
+
+The coordinator's cloud dispatch path (Pub/Sub feedback → `CreateTask` → agentic
+fan-out) is protected by an opt-in cost & abuse gate. A flood of rule-passing
+submissions could otherwise fan out to expensive Sonnet runs. The gate runs four
+stages in order, each cheaper first:
+
+1. **Deterministic rules** (pure, &lt;1ms): auto-prefix authorization, body-size,
+   spam patterns, sender allowlist, known inbox/category.
+2. **Per-contact cooldown** (Firestore sliding window): caps dispatches per
+   contact per hour/day.
+3. **Last-resort classifier** (Anthropic Haiku): only for heuristic-flagged
+   messages; screens prompt-injection / low-value / miscategorized.
+4. **Daily budget** (Firestore counter): caps classifier spend; over budget the
+   classifier short-circuits to *file* (never a dispatch flood).
+
+The gate is **off by default** — existing deployments see zero behavior change
+until they explicitly enable it. Stages 2–4 only run live in **cloud mode**
+(`AILANG_STORAGE=gcp|hybrid`), where the coordinator constructs the Firestore
+stores and the real classifier at startup. In local mode the injected deps stay
+nil and the gate runs rules-only.
+
+### Enablement runbook (DRY-RUN first)
+
+Do **not** flip straight to enforcement. Run a shadow week first so false
+positives surface in an audit inbox instead of silently suppressing real
+feedback.
+
+**Week 1 — shadow / dry-run.** Keep the gate logic running but always dispatch:
+
+```bash
+export AILANG_FEEDBACK_GATE_DRY_RUN=1     # run the gate, audit the verdict, dispatch anyway
+# (coordinator.feedback_gate.enabled: true in ~/.ailang/config.yaml)
+```
+
+Every would-be suppression is written to the `feedback-gate-audit` inbox with a
+`DRY-RUN ` title prefix. Watch it for false positives:
+
+```bash
+ailang messages list --inbox feedback-gate-audit
+```
+
+**Flip to enforcement** once the audit stream looks clean: remove
+`AILANG_FEEDBACK_GATE_DRY_RUN` and keep `coordinator.feedback_gate.enabled:
+true`. Non-dispatch verdicts now actually suppress (and still audit — no silent
+drops).
+
+### Environment reference
+
+| Variable | Values | Effect |
+|----------|--------|--------|
+| `coordinator.feedback_gate.enabled` (YAML) | `true`/`false` | Master switch. Off (default) = full pass-through. |
+| `AILANG_FEEDBACK_GATE_MODE` | `off` \| `file-only` \| `full` | Operator kill-switch (env wins over YAML). `off` = pass-through; `file-only` = rules + cooldown, classifier disabled; `full` = all stages. |
+| `AILANG_FEEDBACK_GATE_DRY_RUN` | `1`/truthy | Run the gate + audit the verdict, but always dispatch. For false-positive tuning. |
+| `ANTHROPIC_API_KEY` | secret | Classifier provider. **Absent ⇒ classifier fail-closed** (heuristic-flagged submissions filed, never dispatched) with a loud startup warning. |
+| `AILANG_STORAGE` / `AILANG_CLOUD_PROJECT` | `gcp`/`hybrid` + project | Firestore backend for the cooldown + budget stores. Required for stages 2–4 to run live. |
+
+### Startup log shapes
+
+The coordinator names the live gate stages at startup. Two shapes to expect:
+
+**Fully wired** (cloud mode, key present):
+
+```
+Feedback gate enabled (mode=full, dry_run=false, cooldown=firestore, classifier=anthropic, budget=firestore)
+```
+
+**Key missing** (cloud mode, `ANTHROPIC_API_KEY` unset — fail-closed):
+
+```
+⚠ ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed (heuristic-flagged submissions filed, never dispatched)
+Feedback gate enabled (mode=full, dry_run=false, cooldown=firestore, classifier=fail-closed, budget=firestore)
+```
+
+In local mode (rules-only), the log reads `cooldown=none, classifier=none,
+budget=none`.
+
+### Ops handoff (terraform)
+
+Two housekeeping items live in the sibling `ailang-multivac` terraform repo, not
+in this codebase (see the M-FEEDBACK-TRIAGE-GATE implemented design doc's
+follow-up section for details):
+
+- A **Firestore TTL policy** on the `expires_at` field of the two new collections
+  (`feedback_gate_cooldown`, `feedback_gate_budget`). Without it, stale docs are
+  tiny and harmless (saturation-capped), so this is housekeeping, not a
+  correctness gate.
+- The **`ANTHROPIC_API_KEY` secret** on the coordinator Cloud Run service.
+
 ## Service Management
 
 ### Quick Start

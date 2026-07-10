@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/feedbackgate"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
@@ -108,6 +109,15 @@ type Daemon struct {
 	feedbackGate    feedbackGateDecider
 	feedbackGateCfg *FeedbackGateConfig
 
+	// Feedback-gate injected dependencies, constructed in the CLI entry point
+	// (cloud mode only) and attached onto feedbackGateCfg by initTaskProcessing.
+	// Nil in local mode / when no key is present — the gate stages degrade to
+	// no-ops (rules-only), matching the pre-adapter behavior. Kept separate from
+	// feedbackGateCfg so the CLI can hand them in without importing firestore
+	// into the coordinator package. (M-FEEDBACK-GATE-CLOUD-ADAPTER)
+	feedbackGateCooldown   feedbackgate.CooldownStore
+	feedbackGateClassifier *feedbackgate.Classifier
+
 	// Event broadcasting for real-time updates
 	eventBroadcaster EventBroadcaster
 
@@ -176,6 +186,19 @@ func (d *Daemon) SetStores(taskStore Store, msgStore messaging.MessageStore, obs
 // The dispatcher is created in the CLI entry point to avoid circular imports.
 func (d *Daemon) SetCloudDispatcher(dispatcher CloudDispatcher) {
 	d.cloudDispatcher = dispatcher
+}
+
+// SetFeedbackGateDeps installs the Firestore-backed cooldown store and the real
+// classifier for the feedback gate (M-FEEDBACK-GATE-CLOUD-ADAPTER). These are
+// constructed in the CLI entry point (cloud mode only) to keep the coordinator
+// package free of a firestore/anthropic import. initTaskProcessing attaches
+// them onto the gate config the decider reads, but ONLY when the gate is
+// enabled. In local mode (or when no ANTHROPIC_API_KEY is present) the stages
+// stay nil and the gate runs rules-only, exactly as before this adapter.
+// Call after NewDaemon(), before Start().
+func (d *Daemon) SetFeedbackGateDeps(cooldown feedbackgate.CooldownStore, classifier *feedbackgate.Classifier) {
+	d.feedbackGateCooldown = cooldown
+	d.feedbackGateClassifier = classifier
 }
 
 // NewDaemon creates a new daemon instance

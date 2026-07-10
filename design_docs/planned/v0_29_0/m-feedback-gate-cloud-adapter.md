@@ -1,6 +1,6 @@
 # M-FEEDBACK-GATE-CLOUD-ADAPTER: Firestore stores + classifier wiring for the feedback gate
 
-**Status**: Planned
+**Status**: Implemented (v0.29.x — M1 ee516e5c5, M2 8201b4205, M3 this commit)
 **Target**: v0.29.0
 **Priority**: P0 (operational completion of M-FEEDBACK-TRIAGE-GATE)
 **Estimated**: 0.5–1 day
@@ -166,27 +166,27 @@ if storageMode != storage.ModeLocal {
 ### Implementation Plan
 
 **M1: Firestore adapters + pure window math** (~3h)
-- [ ] `internal/storage/firestore/feedbackgate_stores.go`: both adapters; sliding-window
+- [x] `internal/storage/firestore/feedbackgate_stores.go`: both adapters; sliding-window
       trim/count/saturate as a **pure function** (`trimAndCount(attempts, now) (kept, hour, day)`)
       per this package's no-emulator test convention
-- [ ] Compile-time interface assertions against `feedbackgate.CooldownStore`/`BudgetStore`
-- [ ] `feedbackgate_stores_test.go`: table tests for the pure window math (boundary at exactly
+- [x] Compile-time interface assertions against `feedbackgate.CooldownStore`/`BudgetStore`
+- [x] `feedbackgate_stores_test.go`: table tests for the pure window math (boundary at exactly
       1h/24h, saturation cap, empty doc, cross-day)
 
 **M2: Wiring** (~2h)
-- [ ] `Daemon.SetFeedbackGateDeps` + attach in `initTaskProcessing` + startup log naming live stages
-- [ ] `cmd/ailang/coordinator_lifecycle.go` construction block (incl. fail-closed no-key path)
-- [ ] Wiring test in `internal/coordinator` (fake deps: assert they land on the cfg the decider sees;
+- [x] `Daemon.SetFeedbackGateDeps` + attach in `initTaskProcessing` + startup log naming live stages
+- [x] `cmd/ailang/coordinator_lifecycle.go` construction block (incl. fail-closed no-key path)
+- [x] Wiring test in `internal/coordinator` (fake deps: assert they land on the cfg the decider sees;
       assert nil-deps ⇒ unchanged rules-only behavior)
 
 **M3: Rollout docs + drill hook** (~1h)
-- [ ] `docs/docs/guides/coordinator.md` (or the feedback-gate section's home): enablement
+- [x] `docs/docs/guides/coordinator.md` (or the feedback-gate section's home): enablement
       runbook — week 1 `AILANG_FEEDBACK_GATE_DRY_RUN=1`, watch `feedback-gate-audit` inbox,
       then flip; env reference table
-- [ ] Sibling-repo handoff note (terraform): TTL policy on `expires_at` for the two new
+- [x] Sibling-repo handoff note (terraform): TTL policy on `expires_at` for the two new
       collections + `ANTHROPIC_API_KEY` secret on the coordinator service — appended to the
       implemented triage-gate doc's follow-up section
-- [ ] CHANGELOG entry
+- [x] CHANGELOG entry
 
 ### Files to Modify/Create
 
@@ -221,20 +221,20 @@ Feedback gate enabled (mode=full, dry_run=true, cooldown=firestore, classifier=a
 
 **After:**
 ```
-⚠ ANTHROPIC_API_KEY not set: feedback-gate classifier disabled (fail-closed)
+⚠ ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed (heuristic-flagged submissions filed, never dispatched)
 Feedback gate enabled (mode=full, dry_run=true, cooldown=firestore, classifier=fail-closed, budget=firestore)
 ```
 Heuristic-flagged messages are filed (auditable), never dispatched, never silently passed.
 
 ## Success Criteria
 
-- [ ] Both adapters satisfy the `feedbackgate` interfaces with compile-time assertions
-- [ ] Pure window math: hour/day boundaries exact, saturation cap bounds doc growth (table tests)
-- [ ] Daemon startup log names which stages are live; nil deps ⇒ behavior identical to today
-- [ ] No-key cloud startup fails closed with the loud warning (test on the construction helper)
-- [ ] `make test`, `make lint` green; no sibling-repo files touched
-- [ ] Rollout runbook documents DRY_RUN-first enablement
-- [ ] CHANGELOG updated
+- [x] Both adapters satisfy the `feedbackgate` interfaces with compile-time assertions
+- [x] Pure window math: hour/day boundaries exact, saturation cap bounds doc growth (table tests)
+- [x] Daemon startup log names which stages are live; nil deps ⇒ behavior identical to today
+- [x] No-key cloud startup fails closed with the loud warning (test on the construction helper)
+- [x] `make test`, `make lint` green; no sibling-repo files touched
+- [x] Rollout runbook documents DRY_RUN-first enablement
+- [x] CHANGELOG updated
 
 ## Testing Strategy
 
