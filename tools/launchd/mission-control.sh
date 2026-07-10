@@ -41,17 +41,24 @@ if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
 fi
 
-# 2. Subscription token present? (Keychain OAuth is unreadable from launchd,
-#    and the API key is deliberately stripped above — this token is the ONLY
-#    valid auth path for the nightly.)
-if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-  log "CLAUDE_CODE_OAUTH_TOKEN not set — refusing to run (would risk API-credit billing)."
-  log "One-time fix: run 'claude setup-token' interactively, add the token to"
-  log "~/.config/ailang/secrets.env as: export CLAUDE_CODE_OAUTH_TOKEN=<token>"
-  ailang messages send controlplane \
-    "mission-control refused to start: CLAUDE_CODE_OAUTH_TOKEN missing (subscription-billing guard). Run 'claude setup-token' once and add it to secrets.env." \
-    --title "Mission nightly blocked: no subscription token" --from mission-control 2>/dev/null
-  exit 1
+# 2. Subscription auth available? With API keys stripped above, claude can only
+#    bill the subscription — via CLAUDE_CODE_OAUTH_TOKEN if set, else the Keychain
+#    OAuth (works because this rig stays logged in; verified 2026-07-10: probe
+#    succeeds from this context with the key stripped). Probe cheaply before the
+#    real run so a locked keychain (e.g. rig at login screen post-reboot) fails
+#    loudly instead of wasting the iteration slot.
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "${MISSION_DRY_RUN:-0}" != "1" ]; then
+  if ! claude -p 'reply with exactly: ok' --model claude-haiku-4-5-20251001 >/dev/null 2>&1; then
+    log "auth probe FAILED with API keys stripped — no subscription auth available"
+    log "(keychain locked? rig at login screen?) Refusing to run."
+    ailang messages send controlplane \
+      "mission-control refused to start: no subscription auth (keychain probe failed, API keys deliberately stripped). Is the rig logged in? Optionally set CLAUDE_CODE_OAUTH_TOKEN in secrets.env." \
+      --title "Mission nightly blocked: auth probe failed" --from mission-control 2>/dev/null
+    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+      --body "⚠️ Nightly mission iteration did not start: subscription auth probe failed on the rig (API keys are deliberately stripped; keychain likely unavailable). Zero tokens spent. Will retry next schedule." 2>/dev/null
+    exit 1
+  fi
+  log "auth probe ok (subscription via keychain OAuth)"
 fi
 
 # 3. claude CLI reachable?
