@@ -360,7 +360,10 @@ func (g *Generator) generateContractRequiresChecks() error {
 			}
 			g.write(").(bool) {\n")
 			g.indent++
-			g.writef("panic(\"contract violation: requires: %s at %s\")\n", c.Message, c.Location)
+			// %q: Location is an absolute path on some callers — Windows
+			// backslashes (and quotes in Message) must not reach the
+			// literal raw or the generated file will not compile.
+			g.writef("panic(%q)\n", fmt.Sprintf("contract violation: requires: %s at %s", c.Message, c.Location))
 			g.indent--
 			g.writef("}\n")
 		}
@@ -414,7 +417,8 @@ func (g *Generator) generateContractEnsuresChecks(funcName string, resultVar str
 			}
 			g.write(") {\n")
 			g.indent++
-			g.writef("panic(\"contract violation: ensures: %s at %s\")\n", c.Message, c.Location)
+			// %q: same escaping constraint as the requires panic above.
+			g.writef("panic(%q)\n", fmt.Sprintf("contract violation: ensures: %s at %s", c.Message, c.Location))
 			g.indent--
 			g.writef("}\n")
 		}
