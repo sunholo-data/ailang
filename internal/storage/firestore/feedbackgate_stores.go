@@ -92,7 +92,14 @@ func (s *FeedbackGateCooldownStore) Increment(ctx context.Context, key string, n
 	ref := s.client.Doc(collFeedbackGateCooldown, cooldownDocID(key))
 
 	txErr := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
-		attempts := readAttempts(tx, ref)
+		attempts, err := readAttempts(tx, ref)
+		if err != nil {
+			// A transient read failure must ABORT the transaction so we never
+			// commit a reset window over stored state. Returning it here fails
+			// closed: RunTransaction aborts, Increment surfaces the error,
+			// applyCooldown propagates, and the M4 wiring blocks with an audit.
+			return err
+		}
 
 		kept, _ := appendCapped(attempts, now)
 		_, hourCount, dayCount = trimAndCount(kept, now)
@@ -110,31 +117,39 @@ func (s *FeedbackGateCooldownStore) Increment(ctx context.Context, key string, n
 }
 
 // readAttempts reads the stored attempt timestamps from a doc snapshot inside a
-// transaction. A missing doc yields an empty window (first attempt for the
-// key). Non-time entries are skipped defensively.
-func readAttempts(tx *firestore.Transaction, ref *firestore.DocumentRef) []time.Time {
+// transaction. A missing doc yields an empty window with no error (the
+// legitimate first attempt for the key). Any OTHER read error is returned so
+// the caller can abort the transaction rather than commit a reset window —
+// mirroring messaging.go's GetOrCreateThreadWithWorkspace, which returns
+// non-Done iterator errors from its transaction fn. Failing closed here is a
+// deliberate no-silent-fallback decision (CLAUDE.md Critical Principle 2):
+// cooldown/budget protection must not silently reset under Firestore
+// degradation.
+func readAttempts(tx *firestore.Transaction, ref *firestore.DocumentRef) ([]time.Time, error) {
 	snap, err := tx.Get(ref)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil
+			return nil, nil // first attempt for this key — legitimate empty window
 		}
-		// A transient read error surfaces via the eventual tx.Set error path;
-		// treat an unreadable doc as empty here so we never panic. The
-		// transaction commit is what actually reports failure to the caller.
-		return nil
+		return nil, err // transient/other read failure → abort, do not reset the window
 	}
 	data := snap.Data()
 	raw, ok := data["attempts"].([]interface{})
 	if !ok {
-		return nil
+		// Deterministic corruption (attempts field absent or not a list), not a
+		// transient failure: treat as an empty window defensively so a mangled
+		// doc self-heals on the next write rather than wedging the gate.
+		return nil, nil
 	}
 	out := make([]time.Time, 0, len(raw))
 	for _, v := range raw {
 		if t, ok := v.(time.Time); ok {
 			out = append(out, t)
 		}
+		// Non-time entries are deterministic corruption, not transient
+		// degradation: skipped defensively (they self-heal on the next write).
 	}
-	return out
+	return out, nil
 }
 
 // trimAndCount drops attempts strictly older than cooldownWindow (24h) before
@@ -194,7 +209,12 @@ func (s *FeedbackGateBudgetStore) IncrementDaily(ctx context.Context, dayKey str
 	ref := s.client.Doc(collFeedbackGateBudget, dayKey)
 
 	txErr := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
-		current := readCount(tx, ref)
+		current, err := readCount(tx, ref)
+		if err != nil {
+			// Same fail-closed rationale as Increment: a transient read failure
+			// must abort rather than reset today's budget counter to zero.
+			return err
+		}
 		count = current + 1
 		return tx.Set(ref, map[string]interface{}{
 			"count":      count,
@@ -208,19 +228,28 @@ func (s *FeedbackGateBudgetStore) IncrementDaily(ctx context.Context, dayKey str
 }
 
 // readCount reads the current daily count from a doc snapshot inside a
-// transaction. A missing doc means zero calls so far today.
-func readCount(tx *firestore.Transaction, ref *firestore.DocumentRef) int {
+// transaction. A missing doc means zero calls so far today (returned with no
+// error). Any OTHER read error is returned so the caller aborts the
+// transaction rather than resetting the budget — the same fail-closed,
+// no-silent-fallback decision as readAttempts (CLAUDE.md Critical Principle 2).
+func readCount(tx *firestore.Transaction, ref *firestore.DocumentRef) (int, error) {
 	snap, err := tx.Get(ref)
 	if err != nil {
-		return 0
+		if status.Code(err) == codes.NotFound {
+			return 0, nil // no doc yet today — legitimate zero
+		}
+		return 0, err // transient/other read failure → abort, do not reset the counter
 	}
 	data := snap.Data()
 	switch v := data["count"].(type) {
 	case int64:
-		return int(v)
+		return int(v), nil
 	case int:
-		return v
+		return v, nil
 	default:
-		return 0
+		// Deterministic corruption (count field absent or wrong type), not a
+		// transient failure: treat as zero defensively so a mangled doc
+		// self-heals on the next write rather than wedging the budget gate.
+		return 0, nil
 	}
 }

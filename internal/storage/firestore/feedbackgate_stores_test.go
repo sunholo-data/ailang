@@ -4,7 +4,21 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/firestore"
+
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
+)
+
+// readAttempts / readCount MUST return an error alongside their value so the
+// transaction can abort on a transient Firestore read failure instead of
+// silently committing a reset window/counter (round-2 fix, evaluator issue #1:
+// fail closed, no silent fallback — CLAUDE.md Critical Principle 2). The
+// no-emulator convention means we can't drive a real transient read here, so
+// this is a signature-level guard: if either helper ever drops its error
+// return, this file stops compiling and the swallow-regression is caught.
+var (
+	_ func(*firestore.Transaction, *firestore.DocumentRef) ([]time.Time, error) = readAttempts
+	_ func(*firestore.Transaction, *firestore.DocumentRef) (int, error)         = readCount
 )
 
 // Compile-time assertions that the adapters satisfy the feedbackgate interfaces.
