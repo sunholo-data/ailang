@@ -135,7 +135,7 @@ ailang repl
 - **AI-first** - Designed for machine reasoning, not human convenience
 - **LSP** - `ailang lsp --stdio` ships in the binary: diagnostics, hover types, go-to-def, references, document symbols. One-command VS Code install: `ailang editor install vscode` ([guide](https://ailang.sunholo.com/docs/guides/lsp))
 
-Learn more: [Why AILANG?](https://ailang.sunholo.com/docs/vision) | [No Loops Design](https://ailang.sunholo.com/docs/reference/no-loops) | [Go Interop](https://ailang.sunholo.com/docs/guides/go-interop)
+Learn more: [Why AILANG?](https://ailang.sunholo.com/docs/vision) | [No Loops Design](https://ailang.sunholo.com/docs/reference/no-loops) | [Go Interop](https://ailang.sunholo.com/docs/guides/go-interop) | [Stability Promise (1.x)](https://ailang.sunholo.com/docs/reference/stability)
 
 ---
 
