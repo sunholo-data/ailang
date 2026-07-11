@@ -111,6 +111,8 @@ now complete INCLUDING cloud adapters, still off by default; production activati
 HUMAN ops (terraform TTL + ANTHROPIC_API_KEY secret in sibling repo, then DRY_RUN week 1) —
 parked in #329.
 
+## STATUS 2026-07-11 (midday) — v1.0 BAR v2 RATIFIED (product-shaped): "the verified AI-orchestration language". Cutoff rule live: gates-v1 ⟺ serves an open clause. Queue re-derived (16 open, 7 NEW-DOC); 17 docs v1_0_0→v1_1_0; strategy review ACTIVE w/ Design Freeze 1+2 ratified. See bar section + log entry 9.
+
 ## STATUS 2026-07-10 (afternoon) — ITERATION 2 COMPLETE: FIRST HEADLESS FULL-LOOP RUN, P0 GATE LANDED
 
 m-feedback-triage-gate landed via the full inner loop with NO human present — the friction
@@ -190,20 +192,38 @@ Exploration findings that shaped this charter (full census in log entry 0):
 2. **Then**: work the queue P0-first through the inner loop, one sprint-sized item per iteration,
    recording routing evidence every time.
 
-## The v1.0 bar (RATIFIED 2026-07-10, Mark)
+## The v1.0 bar — v2, PRODUCT-SHAPED (RATIFIED 2026-07-11, Mark; supersedes the 2026-07-10 hygiene bar)
 
-A v1.0.0 declaration requires:
-- **Zero open P0s** (at ratification: 3 open sprint-sized — typeenv-sub-fix, feedback-triage-gate,
-  diagnostic-coverage — plus the named-test-blocks closeout).
-- **Language core frozen**: no known type-safety holes (m-typeenv-sub-fix class), parser/typechecker
-  regressions gated by CI, LIMITATIONS.md accurate.
-- **The eval bar**: frontier models ≥ Python-parity on the standard suite (already ~even after
-  regrade); agent-mode suite discriminating (not saturated) with published dashboard
-  (→ m-eval-frontier-tier).
-- **Stability promise defined**: what syntax/stdlib/CLI surface is stable in 1.x, written into docs
-  (→ new design doc m-v1-stability-promise, queued).
-- **Strategic items — DECIDED**: effect refinement IN (docs promise; decomposed first); effect
-  handlers, CSP session types, quasiquotes, perf4-bytecode, D4 OUT → v1.1.
+**The 1.0 claim**: ***the verified AI-orchestration language*** — an AI author gets a
+verified-correct program at the lowest cost, and AI orchestration is type-checked. Derived from
+[m-fable-strategy-review](planned/m-fable-strategy-review.md) (Design Freeze items 1+2 ratified
+by Mark 2026-07-11: cost-per-success is the headline KPI; orchestration is the vertical. Item 3,
+trace publication, stays deferred — post-v1).
+
+**The cutoff rule**: a design doc gates v1.0 **only if it serves an open clause below.**
+Everything else ships on the normal v0.2x road or is post-v1 — regardless of folder history.
+The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both essentially done.
+
+1. **STABLE** ✅ — the 1.x surface promise (docs/docs/reference/stability.md, iteration 5;
+   tier-assignment ratification parked for Mark).
+2. **SOUND** — zero P0s ✅ (all four closed, iterations 1–4); residue: m-check-strict-fallbacks,
+   m-bytecode-vm-parity-bugs (both ≤2d, queued).
+3. **ACCESSIBLE TO THE FLEET TIER** (strategy R1+R4): the finite, documented mid-tier footgun
+   list burned down — the 3 parser/type inconsistencies fixed (match-in-HOF-lambda parse,
+   polymorphic-arithmetic panic, arity call-style diagnostic), m-syntax-ai-forgiving landed
+   (kills the ~32% small-model failure class), and the teaching prompt ≤1,500 lines with a
+   rig-A/B showing no pass-rate loss (R3.1 measures the curve first; the deletion pass stays
+   gated on replacement diagnostics landing, per m-diagnostic-coverage's deferred section).
+   **Gate = this finite work.** The sonnet-class ≥ −5pts outcome is measured and published at
+   release, NOT blocking (per Mark: partially vendor-dependent).
+4. **ORCHESTRATION FLAGSHIP** (R6 + R7 + effect refinement): the four effect sprints (public
+   docs promise); a **verified multi-step AI pipeline** as the flagship example (typed LLM calls
+   + budgets + secret-flow + replay) with orchestration benchmarks promoted into the default
+   rotation and README/site positioning led by it; **linear-time regex + URL-parse builtins**
+   (both verified absent — an orchestration 1.0 without them is a credibility hole).
+5. **COST CREDIBILITY** (R3): the dashboard headline KPI flips to **cost-per-verified-success
+   vs Python, per tier**, and v1.0 ships with the measured baseline + trajectory. The ≤3×
+   zero-shot / ≤1.5× agent targets are the tracked post-1.0 trajectory, NOT release gates.
 
 ## How the mission runs (each iteration — codified in the mission-control skill)
 
@@ -327,22 +347,41 @@ invokes.
    PASS 96/100 round 1 w/ independent distinct-sample recount. PR #339 → 0515578ae, dev CI
    green per-workflow. PARKED for human: frontier-failure validation of the 8 (API-billed —
    each must fail ≥1 frontier model or demote back per CURATION.md §5) + 4 remaining sketches)
-9. [NEXT] m-effect-mode-validation (P1, ~1d — effect-refinement sprint 1/4; makes the public
-   guide's closed-set claim true; prerequisite for the other three)
-10. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
-11. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
-12. m-effect-replay-contracts (P1, ~3d — effect-refinement sprint 2/4; Rand modes get real
-    runtime semantics incl. crypto; supersedes never-landed M-CRYPTORAND)
-13. m-effect-clock-net-fs-modes (P1, ~3d — effect-refinement sprint 3/4; surfaces existing
-    AILANG_SEED/sandbox runtime switches at type level)
-14. m-effect-scope-params (P1, ~2.5d — effect-refinement sprint 4/4; weakest v1.0 forcing
-    function, flagged as release-gate re-score candidate for Mark)
+*(Queue re-derived 2026-07-11 from bar v2 — clause tag on every open item. NEW-DOC items start
+with design-doc-creator; existing-doc items start at reality-check.)*
 
-**Nice-for-v1** (worked opportunistically if the critical path is blocked): the remaining
-`planned/v1_0_0/` docs (incl. the two downgraded P1s) and `planned/v0_29_0/` P1s — those ship on
-the normal v0.29 road regardless; the queue only tracks what gates v1.0.
+9. [NEXT] m-effect-mode-validation (clause 4; P1, ~1d — effect-refinement sprint 1/4;
+   prerequisite for the other three; makes the public guide's closed-set claim true)
+10. m-syntax-ai-forgiving (clause 3; P1, ~3d, v0_29_0 — kills the ~32% small-model failure class)
+11. NEW-DOC m-stdlib-regex (clause 4; R7 — linear-time engine MANDATED, RE2-style; via
+    builtin-developer skill, ~1–2d)
+12. NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query; ~1d)
+13. NEW-DOC m-dx-match-hof (clause 3; R4a — `match` in block-body lambdas in HOF args fails to
+    parse; Conflict Surface mandatory, ~2–3d)
+14. NEW-DOC m-poly-arith-lambda (clause 3; R4b — polymorphic arithmetic in lambdas panics while
+    comparison works; ~2–3d)
+15. NEW-DOC m-arity-style-diagnostic (clause 3; R4c — curried vs multi-arg mistake gets a
+    call-style-naming diagnostic, not a generic type error; ~1–2d)
+16. m-eval-slim-prompt-self-discovery (clauses 3+5; P1, v0_29_0 — R3.1 pass-rate-per-prompt-token
+    curve per tier; the data that authorizes the deletion pass)
+17. m-effect-replay-contracts (clause 4; P1, ~3d — effect-refinement sprint 2/4)
+18. m-effect-clock-net-fs-modes (clause 4; P1, ~3d — effect-refinement sprint 3/4)
+19. NEW-DOC m-v1-orchestration-flagship (clause 4; R6 — verified multi-step AI-pipeline flagship
+    example, orchestration benchmarks into default rotation, README/site lead; ~2–3d)
+20. NEW-DOC m-cost-per-success-kpi (clause 5; R3 — dashboard headline flip + v1.0 measured
+    baseline publication; ~1–2d)
+21. m-check-strict-fallbacks (clause 2; P1, ~1d)
+22. m-bytecode-vm-parity-bugs (clause 2; P1, 1–2d)
+23. prompt deletion pass R1.2 (clause 3; GATED — unblocks when items 13–15 diagnostics land AND
+    item 16's curve authorizes; lives as m-diagnostic-coverage's deferred section)
+24. m-effect-scope-params (clause 4; P1, ~2.5d — sprint 4/4; weakest forcing function — Mark
+    re-score candidate at release gate)
 
-**Post-v1**: everything in `planned/v1_1_0/` (7 strategic docs moved there in iteration 0).
+**Not gating** (the other ~80 open docs): ship on the normal v0.2x road or post-v1 per the
+clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
+v1_1_0 on 2026-07-11); v0_29_0 docs that appear above gate v1 via the queue, not the folder.
+
+**Post-v1**: everything in `planned/v1_1_0/`.
 
 ## Ruled out / resolved
 

@@ -589,3 +589,45 @@ feedback-gate production ops; haiku causal re-run; scope-params release-gate re-
 frontier-failure validation of the 8 frontier benchmarks (API-billed frontier runs; each must
 fail ≥1 frontier model or demote back to stretch per CURATION.md §5) + authoring the 4
 remaining sketched benchmarks (benchmark-manager follow-up).
+
+---
+
+## 9 — 2026-07-11 — v1.0 SHAPE ratified: product-thesis bar v2 replaces the hygiene bar
+
+**Picked**: n/a — interactive shape session (Fable + Mark). Mark's challenge: "these tasks don't
+seem very critical to v1; 80+ open docs; I want a good cutoff" — correct: the 2026-07-10 bar was
+hygiene (safe-to-stamp), not product (what 1.0 IS).
+
+**Reality check**: fresh census 96 open docs (55 v0_29_0 / 23 v1_0_0 / 10 v1_1_0 / 8 loose).
+m-fable-strategy-review (2026-07-08) held the unused product thesis: frontier models already
+prefer AILANG (97% vs 91% Fable); the deficits are COST (10×/2.8× per success) and MID-TIER
+accessibility (−16pts sonnet-class); the moat is verified AI-orchestration (no competitor per
+THREE-CAMPS). Its Design Freeze items had sat unratified since 2026-07-08.
+
+**Shipped**: bar v2 in the charter — the 1.0 claim is "the verified AI-orchestration language";
+5 clauses (stable ✅ / sound ~✅ / fleet-tier accessible / orchestration flagship / cost
+credibility); cutoff rule = "gates v1.0 only if it serves an open clause". Mark ratified 4 calls:
+orchestration-led positioning; KPI flip + measured baseline gates (targets track, don't gate);
+footguns gate + mid-tier metric tracked; regex + URL-parse both gating. Queue re-derived: 16 open
+items incl. 7 NEW-DOCs (R4×3, regex, url-parse, orchestration-flagship, cost-KPI). 17 non-gating
+docs re-bucketed v1_0_0→v1_1_0 — the folder now equals the gate. Strategy doc → ACTIVE with
+Design Freeze 1+2 ticked, 3 deferred post-v1.
+
+**Routing evidence**: model=fable task-class=mission-coordination round1-score=n/a rounds=1
+corrections=1 (Mark's challenge WAS the correction: the loop optimized a queue whose shape was
+folder history, not thesis — for ~5 iterations. Caught because a human read the output stream.)
+
+**Ruled out**:
+- "The iteration-0 bar was sufficient" — it gated hygiene, not product; the loop landed 8 items
+  before the gap surfaced. Lesson: a bar needs a THESIS clause, not just safety clauses.
+- Hard-gating v1.0 on outcome metrics (≤1.5× cost, −5pts mid-tier) — Mark: measured+published
+  gates, outcomes track (vendor-dependent).
+
+**Retro lane**: process-fix (this bar v2 + cutoff rule). Candidate skill friction RECORDED
+(1 instance): mission-control has no "challenge the bar itself" step — OBSERVE reads the queue
+as given; nothing forces periodic re-derivation from the thesis. If a second
+drifting-queue instance appears → skill fix (add a bar-review trigger, e.g. every N iterations
+or on Mark's challenge).
+
+**Next**: loop continues at [NEXT] m-effect-mode-validation, then the re-derived queue. First
+NEW-DOC items exercise design-doc-creator headless for the first time.

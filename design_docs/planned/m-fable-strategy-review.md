@@ -1,6 +1,8 @@
 # M-FABLE-STRATEGY-REVIEW: What AILANG Should Do To Be the Best AI Programming Language
 
-**Status**: Planned (strategy review — routes into other docs, does not ship code itself)
+**Status**: ACTIVE — ratified as the v1.0 product thesis (Mark, 2026-07-11). The v1.0 bar v2 in
+[v1-mission.md](../v1-mission.md) is derived from this review; R1–R7 map onto its clauses 3–5.
+Design Freeze: items 1+2 RATIFIED (see below); item 3 deferred post-v1.
 **Target**: Direction for v0.29 – v0.34
 **Priority**: P0 (strategic direction)
 **Estimated**: Review itself: done. Routed work: sized in each follow-up doc.
@@ -132,9 +134,12 @@ program* for AI authors — not the highest zero-shot pass rate.
 
 ### Design Freeze
 
-- [ ] Mark confirms cost-per-success as the headline dashboard KPI (affects eval dashboard + post-release reporting)
-- [ ] Mark confirms the orchestration vertical as the marketing/benchmark lead (affects docs site + README positioning)
-- [ ] Mark decides whether trace-derived datasets may be published externally (licensing/privacy call — R8 blocked until then; internal use may proceed)
+- [x] Mark confirms cost-per-success as the headline dashboard KPI (RATIFIED 2026-07-11 —
+  queued as m-cost-per-success-kpi, v1.0-gating; measured baseline gates, ≤3×/≤1.5× targets track)
+- [x] Mark confirms the orchestration vertical as the marketing/benchmark lead (RATIFIED
+  2026-07-11 — queued as m-v1-orchestration-flagship, v1.0-gating)
+- [ ] Mark decides whether trace-derived datasets may be published externally (licensing/privacy
+  call — R8 blocked until then; internal use may proceed. DEFERRED post-v1, 2026-07-11)
 
 ## The Recommendations
 
