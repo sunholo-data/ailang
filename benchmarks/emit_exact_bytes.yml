@@ -11,7 +11,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "medium"
-tier: stretch
+tier: frontier
 tags: [string_algo]
 source_constraints:
   exact_bytes: 256

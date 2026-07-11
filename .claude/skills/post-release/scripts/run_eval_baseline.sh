@@ -351,14 +351,12 @@ echo "Agent models: $AGENT_HARNESS_DESC"
 echo "Agent parallelism: 2"
 echo
 
-# Agent expected file counts: benchmarks × harnesses × langs
-if [[ -n "$FULL_FLAG" ]]; then
-    EXPECTED_AGENT=$((BENCHMARK_COUNT * AGENT_HARNESS_COUNT * 2))  # both langs
-    AGENT_LANGS="ailang,python"
-else
-    EXPECTED_AGENT=$((BENCHMARK_COUNT * AGENT_HARNESS_COUNT * 1))  # AILANG only (faster)
-    AGENT_LANGS="ailang"
-fi
+# Agent mode is AILANG-only (M-EVAL agent redesign 2026-07-11). The agent-loop uplift
+# question is about AILANG; Python capability is covered by the standard run. Applies to
+# both FULL and dev agent runs.
+# Agent expected file counts: benchmarks × harnesses × langs(=1)
+EXPECTED_AGENT=$((BENCHMARK_COUNT * AGENT_HARNESS_COUNT * 1))
+AGENT_LANGS="ailang"
 
 echo "Expected results:"
 echo "  Standard eval: ~$EXPECTED_STANDARD files"

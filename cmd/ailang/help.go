@@ -105,6 +105,7 @@ func printHelp() {
 	fmt.Printf("  %s <results_dir> <version>    Performance matrix with stats\n", cyan("eval-matrix"))
 	fmt.Printf("  %s <results_dir>     Cost-vs-time-vs-success sweet-spot ranking\n", cyan("eval-sweet-spot"))
 	fmt.Printf("  %s <results_dir>        Summarize eval results\n", cyan("eval-summary"))
+	fmt.Printf("  %s <results_dir>            Per-language (AILANG vs Python) ELO leaderboard\n", cyan("eval-elo"))
 	fmt.Println()
 	fmt.Println("Development Tools:")
 	fmt.Printf("  %s [--version V]   Display AILANG teaching prompt (for AI code generation)\n", cyan("prompt"))

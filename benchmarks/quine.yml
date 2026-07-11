@@ -14,7 +14,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "medium"
-tier: stretch
+tier: frontier
 tags: [string_algo, recursion]
 grading: quine
 source_constraints:

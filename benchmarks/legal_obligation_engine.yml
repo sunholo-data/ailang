@@ -15,7 +15,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "high"
-tier: stretch
+tier: frontier
 tags: [state_machine, adt_pattern_match, error_handling]
 task_prompt: |
   Write a program in <LANG> that implements the following contract-reasoning

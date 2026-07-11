@@ -19,7 +19,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "medium"
-tier: stretch
+tier: frontier
 tags: [algorithmic, state_machine, string_algo]
 task_prompt: |
   Write ONE program in <LANG> that solves ALL TEN parts below and prints their

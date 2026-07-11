@@ -34,7 +34,43 @@ func buildRatingsBlock(standard, agent []*BenchmarkResult) map[string]interface{
 	return out
 }
 
+// ratingsForMode fits the combined (all-language) leaderboard for a mode and
+// also attaches a per-language "byLang" sub-map so consumers can read the
+// AILANG-vs-Python story separately. The top-level models/benchmarks/saturation
+// keys stay unchanged (both languages blended) for backward compatibility.
 func ratingsForMode(results []*BenchmarkResult) map[string]interface{} {
+	if len(results) == 0 {
+		return nil
+	}
+	block := fitLeaderboard(results)
+
+	// Per-language fits: group by .Lang and fit each language independently so a
+	// benchmark's difficulty and a model's capability are measured against a
+	// single language, not a python+ailang blend.
+	byLangResults := map[string][]*BenchmarkResult{}
+	for _, r := range results {
+		byLangResults[r.Lang] = append(byLangResults[r.Lang], r)
+	}
+	byLang := map[string]interface{}{}
+	for lang, rs := range byLangResults {
+		if lang == "" {
+			continue
+		}
+		if lb := fitLeaderboard(rs); lb != nil {
+			byLang[lang] = lb
+		}
+	}
+	if len(byLang) > 0 {
+		block["byLang"] = byLang
+	}
+	return block
+}
+
+// fitLeaderboard fits ELO over the given results and returns the leaderboard
+// block: {models, benchmarks, saturation}. A trial Pass = CompileOk && RuntimeOk
+// && StdoutOk. This is the reusable body shared by the combined fit and each
+// per-language fit in ratingsForMode.
+func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
 	if len(results) == 0 {
 		return nil
 	}

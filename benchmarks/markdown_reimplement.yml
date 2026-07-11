@@ -11,7 +11,7 @@ caps:
 - FS
 difficulty: hard
 expected_gain: high
-tier: stretch
+tier: frontier
 tags:
 - adt_pattern_match
 - data_transform

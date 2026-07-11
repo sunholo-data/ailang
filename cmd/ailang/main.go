@@ -237,6 +237,10 @@ func main() {
 	case "eval-suite":
 		runEvalSuite()
 
+	case "eval-elo":
+		// Per-language (AILANG vs Python) ELO leaderboard + benchmark difficulty
+		runEvalELO()
+
 	case "eval-trend":
 		// M-EVAL-OS-LONGITUDINAL Phase 4: failure-feedback candidate triage
 		runEvalTrend()

@@ -66,5 +66,5 @@ expected_stdout: |
   true
   true
 
-tier: stretch
+tier: frontier
 tags: [contracts, algorithmic, recursion]
