@@ -338,6 +338,12 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// effect_txn_rollback, glob_match_spec, dep_resolver_backtrack,
 	// stream_lcg_topk) were re-tiered stretch -> frontier. stretch 30 -> 22,
 	// frontier 0 -> 8.
+	// Same sprint (M5 saturation demotion): 7 saturated core benchmarks
+	// (audit_chain_replay, effect_composition, float_eq, graph_bfs, merge_sort,
+	// pattern_matching_complex, shadowing_heavy_contract) that pass 100% on ALL
+	// four std/agent x AILANG/Python dims in the banked v0.25.0 baseline were
+	// demoted core -> stretch. core 26 -> 19, stretch 22 -> 29. (symbolic_diff
+	// was also saturated but is a STRETCH benchmark; kept-for-coverage, no move.)
 	// Prior re-center 2026-07-09: wave-3 self-reference (+2: quine,
 	// emit_exact_bytes_varied), wave-4 conjunction (+1: gauntlet_10) and
 	// wave-5 language-delta (+1: legal_obligation_engine) benchmarks;
@@ -351,18 +357,18 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// 14 → 22 (now re-tiered to frontier, above).
 	// Prior re-center 2026-06-06: 6 benchmarks promoted into smoke (the
 	// local-ollama nightly set), moving smoke 17 → 23 and core 31 → 26.
-	// Centers now 23/26/22/8/9 ("experimental" diagnostic probes are excluded —
+	// Centers now 23/19/29/8/9 ("experimental" diagnostic probes are excluded —
 	// they measure language gaps, not score capability, so their growth is
 	// independent of the smoke/core/stretch/frontier/vision budget). Tolerance
 	// ±3 kept so future drift still trips this check.
 	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
 		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
-	if core := tierCounts["core"]; core < 23 || core > 29 {
-		t.Errorf("core count = %d, want 26±3", core)
+	if core := tierCounts["core"]; core < 16 || core > 22 {
+		t.Errorf("core count = %d, want 19±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 19 || stretch > 25 {
-		t.Errorf("stretch count = %d, want 22±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 26 || stretch > 32 {
+		t.Errorf("stretch count = %d, want 29±3", stretch)
 	}
 	if frontier := tierCounts["frontier"]; frontier < 5 || frontier > 11 {
 		t.Errorf("frontier count = %d, want 8±3", frontier)
