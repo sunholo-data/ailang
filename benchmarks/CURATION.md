@@ -225,7 +225,7 @@ produces signal. Guardrails:
   on them.
 
 Every demotion decision is recorded per-benchmark in a dated audit report
-(e.g. `design_docs/planned/v0_29_0/m-eval-frontier-tier-demotion-audit.md`), with
+(e.g. `design_docs/implemented/v0_29_0/m-eval-frontier-tier-demotion-audit.md`), with
 the four pass-rate cells and a one-line rationale. This reconciles the earlier
 design-doc phrasing ("≥95% on all four dimensions") with this document — **this
 section is the source of truth.**
