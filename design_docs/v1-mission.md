@@ -38,6 +38,21 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-11 (night) — ITERATION 10: m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage)
+
+Queue #11 (NEW-DOC) routed to design-doc-creator; deliverable is the verified design doc, next
+scheduled iteration plans+executes. `planned/v0_30_0/m-stdlib-regex.md` created — a linear-time
+(RE2) regex builtin closing the first half of bar clause 4's "linear-time regex + URL-parse
+builtins" mandate. **Scope-defining decision: wrap Go's stdlib `regexp` (which IS RE2 —
+linear-time guaranteed) instead of hand-rolling an engine → a 2-day builtin, not a multi-week
+project.** Two-stage API (`compile -> Result[Regex,string]` then total match fns), RE2 subset
+(no backreferences/lookaround — the documented price of linearity), all pure `! {}`. Hard gates
+passed: binary rebuilt (v0.29.2-29-gc533bb51c = `git describe`), the `Regex`/`RegexMatch` + 6
+signatures `ailang check`-clean; Conflict Surface = purely additive (namespace-collision only,
+no grammar); Axiom net +8. Dev CI green per-workflow on HEAD (the two prior tier-drift reds were
+fixed by c423490d8, included in the green HEAD run). No skill fix (clean stage). Next: #11
+sprint-planner → executor → evaluator.
+
 ## STATUS 2026-07-11 (evening) — ITERATION 9 COMPLETE: M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
 
 m-syntax-ai-forgiving landed via the full loop — the first iteration split across two scheduled
@@ -418,8 +433,12 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     parseRecordLiteral). PR #342 → merge, dev CI green per-workflow. DEFERRED: ailang fmt →
     m-ailang-fmt.md stub (D1). PARKED for controller/human: the rig A/B compile_error Δ on
     ;-family benchmarks — the REAL success metric, GPU step, rotation held the rig)
-11. NEW-DOC m-stdlib-regex (clause 4; R7 — linear-time engine MANDATED, RE2-style; via
-    builtin-developer skill, ~1–2d)
+11. [DOC-READY 2026-07-11] m-stdlib-regex (iteration 10: NEW-DOC stage — design doc
+    `planned/v0_30_0/m-stdlib-regex.md` created + `ailang check`-verified. Scope-defining
+    decision: **wrap Go stdlib `regexp` (= RE2, linear-time by construction)** → 2d builtin, not
+    a multi-week engine. Two-stage `compile -> Result[Regex,string]` + total match fns; RE2
+    subset (no backref/lookaround) is the documented linear-time price; pure `! {}`; Conflict
+    Surface = additive namespace-only. Axiom +8. NEXT: sprint-planner → executor → evaluator)
 12. NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query; ~1d)
 13. NEW-DOC m-dx-match-hof (clause 3; R4a — `match` in block-body lambdas in HOF args fails to
     parse; Conflict Surface mandatory, ~2–3d)

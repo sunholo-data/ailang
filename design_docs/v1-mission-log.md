@@ -806,3 +806,55 @@ frontier benchmarks + 4 remaining sketches; issue #341 triage call; NEW — **ri
 m-syntax-ai-forgiving** (old vs new parser, `;`-family benchmarks, 5 trials, 1M-token cap,
 compile_error Δ — the sprint's REAL success metric; GPU step under rig_lock_acquire wait, or
 fold into the next OS-rotation window).
+
+## 10 — 2026-07-11 — m-stdlib-regex design doc created (NEW-DOC stage; queue #11, bar clause 4)
+
+**Picked**: Queue #11 m-stdlib-regex — top open item (all of #1–10 LANDED), explicitly named
+"Next" by iteration 9's log. NEW-DOC item → Gate-3 routes to design-doc-creator as the stage.
+Serves v1.0 bar clause 4 (ORCHESTRATION FLAGSHIP, R7: linear-time regex builtin MANDATED — "an
+orchestration 1.0 without them is a credibility hole").
+
+**Reality check**: regex genuinely absent at v0.29.2 — `grep -rn "_regex_\|std/regex" internal/
+std/` → 0 matches; `ls std/ | grep regex` → nothing. No prior regex design doc (find + SimHash/
+grep dedup, no neural GPU call). Builtin architecture confirmed: `internal/eval/builtins_*.go`
+register `Builtins["_name"] = &BuiltinFunc{Name,Impl,NumArgs,IsPure}`; exposed via `std/*.ail`
+`export pure func` wrappers (`std/string.ail`, `std/json.ail`). Result-error convention =
+`json.decode -> Result[Json,string]`; opaque-handle precedent = `std/process.ail`
+`ProcessHandle = ProcessHandle(int)`. **Key finding: Go's stdlib `regexp` IS the RE2 engine** —
+linear-time guaranteed by construction → "wrap, don't build" turns a multi-week engine into a
+2-day builtin.
+
+**Shipped**: design doc `design_docs/planned/v0_30_0/m-stdlib-regex.md` (Planned, P1, 2d est).
+Two-stage API (`compile -> Result[Regex,string]` + total match fns), RE2 subset contract
+(no backref/lookaround, documented as the linear-time price), pure `! {}` throughout, full
+Conflict Surface (purely additive — namespace-collision only, no grammar change), Axiom net +8,
+Risks, Testing (headline: catastrophic-backtracking wall-time bound test). HARD GATE satisfied:
+binary rebuilt to v0.29.2-29-gc533bb51c (matches `git describe`), the exact `Regex`/`RegexMatch`
++ 6 signatures `ailang check`-clean (`✓ No errors found!`). NOT executed — NEW-DOC stage
+deliverable is the verified doc; continuous 2h schedule picks up sprint-planner next.
+
+**Routing evidence**: model=opus task-class=design round1-score=n/a rounds=1 corrections=0
+(controller-model design per the 2026-07-11 Opus TEMP switch; design-doc-creator hard gates
+applied — live `ailang check` verification + Conflict Surface for the `internal/eval/` touch).
+
+**Ruled out**:
+- "A linear-time regex needs a hand-rolled RE2 engine (multi-week)" — refuted: Go's stdlib
+  `regexp` is already RE2/linear-time (golang.org/pkg/regexp + Russ Cox swtch.com); wrapping it
+  satisfies the R7 mandate directly. This is THE scope-defining decision (High-Impact table).
+- "Regex might already exist partially" — refuted: 0 `_regex_`/`std/regex` matches anywhere.
+- "This is a parser/grammar change needing disambiguation" — refuted: patterns are ordinary
+  string literals; the feature adds no syntax/AST/token — Conflict Surface is namespace-only.
+
+**Retro lane**: none. No ≥2-friction skill gap surfaced this iteration (clean design stage,
+hard gates passed first time). Single observation (no edit): design-doc-creator's create script
+runs a neural (ollama) related-doc search — a latent GPU touch; sidestepped by manual
+SimHash/grep dedup per the mission GPU rule. If it recurs as friction, add an explicit
+`--no-neural`/GPU-rule note to the skill.
+
+**Next**: Iteration 11 — sprint-planner for m-stdlib-regex (Design Freeze is all-but-closed: 2
+open items = final capture-group record naming + replaceAll `$1` syntax subset), then
+sprint-executor in a worktree, then sprint-evaluator. Carry forward unchanged: %-row +
+m-record-update-local-resolution doc-status re-check. PARKED for human (cumulative, unchanged):
+tier-assignment ratification (release gate); feedback-gate production ops; haiku causal re-run;
+scope-params release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue
+#341 triage; rig A/B for m-syntax-ai-forgiving (GPU step, the `;`-family compile_error Δ).
