@@ -92,20 +92,22 @@ func TestElaborateEffectRowWithBudgets_UserParamsOverrideDefault(t *testing.T) {
 		t.Errorf("expected Params[Rand] = {mode: crypto}, got %v", got)
 	}
 
-	// Multiple params preserved.
+	// Multiple params preserved. Uses the legal AI multi-param surface
+	// (mode + scope); M-EFFECT-MODE-VALIDATION closed the Rand schema to
+	// {mode} only, so the earlier Rand[mode, scope] combo is no longer legal.
 	annotations = []ast.EffectAnnotation{
-		{Name: "Rand", Params: []ast.EffectParam{
-			{Key: "mode", Value: "os"},
-			{Key: "scope", Value: "identity"},
+		{Name: "AI", Params: []ast.EffectParam{
+			{Key: "mode", Value: "routeable"},
+			{Key: "scope", Value: "byok"},
 		}},
 	}
 	row, err = ElaborateEffectRowWithBudgets(annotations)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got := row.Params["Rand"]
-	if got["mode"] != "os" || got["scope"] != "identity" || len(got) != 2 {
-		t.Errorf("expected Params[Rand] = {mode: os, scope: identity}, got %v", got)
+	got := row.Params["AI"]
+	if got["mode"] != "routeable" || got["scope"] != "byok" || len(got) != 2 {
+		t.Errorf("expected Params[AI] = {mode: routeable, scope: byok}, got %v", got)
 	}
 
 	// Bare AST annotation (no Params) → default applied.
