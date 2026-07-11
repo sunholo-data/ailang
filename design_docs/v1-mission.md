@@ -27,6 +27,24 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-11 (morning) — ITERATION 6 COMPLETE: EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized)
+
+Queue #7 executed as a decomposition iteration (standing rule for multi-week items; Fable lane —
+no Opus sprint needed). Reality check found the parent doc's ~90h claim STALE by more than
+a third: Phases 1+2 AND the AI port shipped v0.15.0 (M-EFFECT-REFINEMENT-PHASE1 +
+M-AI-EFFECT-MODES), Phase 7's CryptoRand alias was scope-reduced away in v0.15.0 because
+**M-CRYPTORAND never landed at all** — its doc sits in implemented/v0_15_0 with "Status:
+Planned", swept there by the 48-doc bulk relocation 645467e13 (header corrected to Superseded).
+Remaining ~64h decomposed into 4 sprint docs (all premises live-verified at
+v0.28.0-148-g6c25f45e9): m-effect-mode-validation (1d) → m-effect-replay-contracts (3d) →
+m-effect-clock-net-fs-modes (3d) → m-effect-scope-params (2.5d, release-gate re-score
+candidate). Phase 6 (M-ENTROPY) routed OUT — ships with M-ENTROPY itself, not v1.0-required.
+**Discovered en route**: the public parameterised-effects guide claims "the typechecker rejects
+unknown values" — FALSE (`Rand[mode=banana]` passes `ailang check`, live transcript in sprint-1
+doc); interim accuracy note shipped, enforcement is sprint 1. With this, every required-for-v1
+queue item is sprint-sized: the bar's critical path is eval-frontier-tier (#8, [NEXT]) + the
+four effect sprints + two 1–2d P1s.
+
 ## STATUS 2026-07-10/11 (night) — ITERATION 5 COMPLETE: STABILITY-PROMISE BAR CLAUSE CLOSED
 
 m-v1-stability-promise landed via the full loop headless, round-1 clean at every stage — the
@@ -280,11 +298,24 @@ invokes.
    PR #337 → fcccd7208, dev CI green per-workflow. PARKED for human at RELEASE gate: tier-
    assignment ratification — ⚠ proposed: std/net, crypto, jwt, xml, zip, process, CLI
    watch/serve-api)
-7. [NEXT] m-effect-refinement **decomposition** (split ~90h into ≤3–4d sprint docs; execution
-   follows as individual queue items — deliverable is the DECOMPOSITION, standing rule 4)
-8. m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
-9. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
-10. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
+7. [LANDED 2026-07-11] m-effect-refinement **decomposition** (iteration 6: repo-verified phase
+   census — P1/P2 + AI port shipped v0.15.0 under the parent's stale "Planned"; P7 CryptoRand
+   never existed (m-cryptorand.md swept to implemented/ in error — header corrected); P6 routed
+   OUT to M-ENTROPY. Remaining ~64h split into 4 sprint docs (below, items 9/12/13/14) with live-
+   verified premises; parent doc now the umbrella. BONUS finding: the public guide's "typechecker
+   rejects unknown values" is FALSE (`Rand[mode=banana]` passes check) — interim accuracy note
+   shipped, enforcement is sprint 1)
+8. [NEXT] m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
+9. m-effect-mode-validation (P1, ~1d — effect-refinement sprint 1/4; makes the public guide's
+   closed-set claim true; prerequisite for the other three)
+10. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
+11. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
+12. m-effect-replay-contracts (P1, ~3d — effect-refinement sprint 2/4; Rand modes get real
+    runtime semantics incl. crypto; supersedes never-landed M-CRYPTORAND)
+13. m-effect-clock-net-fs-modes (P1, ~3d — effect-refinement sprint 3/4; surfaces existing
+    AILANG_SEED/sandbox runtime switches at type level)
+14. m-effect-scope-params (P1, ~2.5d — effect-refinement sprint 4/4; weakest v1.0 forcing
+    function, flagged as release-gate re-score candidate for Mark)
 
 **Nice-for-v1** (worked opportunistically if the critical path is blocked): the remaining
 `planned/v1_0_0/` docs (incl. the two downgraded P1s) and `planned/v0_29_0/` P1s — those ship on

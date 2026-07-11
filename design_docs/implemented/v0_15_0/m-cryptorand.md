@@ -1,7 +1,13 @@
 # M-CRYPTORAND: Cryptographic Randomness as a First-Class Effect
 
-**Status**: Planned
-**Target**: v0.13.0
+**Status**: Superseded — NEVER IMPLEMENTED as specced (no `!{CryptoRand}` token, no
+`std/crypto/rand`, no CSPRNG draw builtins exist in-tree; verified 2026-07-11). This file was
+swept into `implemented/` by the bulk relocation 645467e13 in error. The runtime intent (CSPRNG
+draws for security-sensitive code) is superseded by `Rand[mode=crypto]` dispatch in
+[m-effect-replay-contracts](../../planned/v1_0_0/m-effect-replay-contracts.md); the
+forward-compat constraint it imposed on parameterised effects was honoured by
+[M-EFFECT-REFINEMENT-PHASE1](../v0_15_x/m-effect-refinement-phase1.md).
+**Target**: v0.13.0 (historical)
 **Priority**: P0 — High (security)
 **Estimated**: ~30 hours (~1 sprint)
 **Dependencies**: None at the type-system level; forward-compatibility constraint with M-EFFECT-REFINEMENT (v1.0.0).

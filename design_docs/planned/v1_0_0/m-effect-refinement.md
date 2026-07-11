@@ -1,9 +1,30 @@
 # M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts
 
-**Status**: Planned
+**Status**: Decomposed (2026-07-11) — umbrella doc; execution tracked in the four sprint docs below
 **Target**: v1.0.0
 **Priority**: P1 — Medium (strategic language feature)
-**Estimated**: ~90 hours (~3 sprints)
+**Estimated**: ~90 hours original; ~64h remaining after v0.15.0 landings, split into 4 sprint docs
+
+## Decomposition (2026-07-11, mission iteration 6)
+
+This doc is now the **umbrella/reference**: the taxonomy tables, unification rationale, and
+worked examples below remain normative, but execution is tracked per sprint doc. Repo-verified
+status of the original eight phases:
+
+| Original phase | Status | Where |
+|---|---|---|
+| P1 parser + AST | ✅ shipped v0.15.0 | [M-EFFECT-REFINEMENT-PHASE1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) |
+| P2 effect row algebra | ✅ shipped v0.15.0 | same (invariant unification + default-mode table) |
+| P3 replay contract registry | Planned | [m-effect-replay-contracts](m-effect-replay-contracts.md) (sprint 2, ~3d) |
+| P4 capability scoping | Planned | [m-effect-scope-params](m-effect-scope-params.md) (sprint 4, ~2.5d; release-gate re-score candidate) |
+| P5 Clock/Net/FS port | Planned | [m-effect-clock-net-fs-modes](m-effect-clock-net-fs-modes.md) (sprint 3, ~3d) |
+| P5 AI port | ✅ shipped v0.15.0 | [M-AI-EFFECT-MODES](../../implemented/v0_15_x/m-ai-effect-modes.md); loose ends in [m-ai-effect-modes-followups](m-ai-effect-modes-followups.md) (P2) |
+| P6 M-ENTROPY integration | Routed OUT of this track | ships with [M-ENTROPY](m-entropy-budgets.md) itself (not v1.0-required); envelope mode-validation composes with sprint-1 machinery |
+| P7 CryptoRand alias | Scope-reduced away (v0.15.0) | no `CryptoRand` token exists; crypto-strength runtime intent superseded by `Rand[mode=crypto]` dispatch in sprint 2 |
+| P8 docs + examples | Partially shipped v0.15.0 | guide + modal_rand shipped; remainder folded into sprints 2–3 |
+| — NEW: closed-set enforcement | Planned (discovered 2026-07-11: guide's "typechecker rejects unknown values" is false — `Rand[mode=banana]` passes `ailang check`) | [m-effect-mode-validation](m-effect-mode-validation.md) (sprint 1, ~1d, FIRST) |
+
+Sprint order (dependency-driven): **1 validation → 2 replay-contracts → 3 clock-net-fs → 4 scope**.
 **Dependencies**:
   - [M-CRYPTORAND](../v0_13_0/m-cryptorand.md) (v0.13.0) — pilot milestone; provides the forward-compat constraint
   - [M-CAPABILITY-BUDGETS](../../implemented/v0_6_2/m-capability-budgets.md) (v0.6.2 ✅) — budget plumbing for scoped effects

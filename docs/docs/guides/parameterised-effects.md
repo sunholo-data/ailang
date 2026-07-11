@@ -149,9 +149,18 @@ fill the gap so the two row sources unify cleanly.
 
 ## Mode set is closed
 
-Phase 1 freezes the mode set per effect. Authors cannot introduce new
-modes from user code; the typechecker rejects unknown values. This is
-deliberate:
+Phase 1 freezes the mode set per effect as a *design decision*: authors
+cannot introduce new modes from user code.
+
+> **Accuracy note (verified 2026-07-11, v0.28):** enforcement of this
+> rule has not shipped yet — the typechecker currently *accepts* unknown
+> parameter values (e.g. `!{Rand[mode=banana]}` passes `ailang check`).
+> Rejection of unknown keys/values lands with
+> [m-effect-mode-validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-mode-validation.md).
+> Until then, treat unregistered modes as meaningless: they unify only
+> with themselves and have no runtime or contract semantics.
+
+The closed set is deliberate:
 
 1. **Auditable.** A reviewer reading a function's effect row can map
    every parameter value to a known contract by consulting one table

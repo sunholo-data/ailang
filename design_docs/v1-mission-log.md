@@ -430,3 +430,82 @@ are the eval-bar (m-eval-frontier-tier, queue #8) + effect-refinement decision e
 forward for a FUTURE iteration: re-check %-row + m-record-update-local-resolution doc status
 before new diagnostic work (from iteration 4). Parked-for-human items above.
 
+
+## 7 — 2026-07-11 — Iteration 6: m-effect-refinement DECOMPOSED — last strategic v1.0 item is now sprint-sized queue items
+
+**Picked**: m-effect-refinement decomposition (queue #7, top [NEXT] per log entry 6).
+Multi-week strategic item → deliverable is DECOMPOSITION into ≤3–4d sprint docs, not execution
+(standing rule 4). Fable lane throughout (design docs). Headless run — the 03:24 scheduled run
+died on a transient API socket error (rc=1, message a1aa4026); this 05:35 run is its retry.
+Dev CI at OBSERVE: all three workflows green per-workflow (CI + Build-and-Release @ 6c25f45e9,
+Docs-Deploy @ fcccd7208). Inbox: the rc=1 crash report + an eval-suite start notice (49
+benchmarks, agent mode — GPU busy; this iteration never touches the rig, GPU rule honored by
+staying off ollama entirely). Both acked.
+
+**Reality check** (both binaries rebuilt, v0.28.0-148-g6c25f45e9, versions match git describe):
+the parent doc's "Planned / ~90h" header was stale by more than a third — fourth stale-status
+catch of the mission:
+- Phases 1+2 (parser/AST + row algebra/invariant unification/default-mode table) shipped
+  v0.15.0 as M-EFFECT-REFINEMENT-PHASE1 (d1abd8ceb…de7fe9a7d), full outcome report in doc.
+- The AI port shipped v0.15.0 as M-AI-EFFECT-MODES (bare !{AI}→mode=fixed, routeable at type
+  level); its loose ends already cataloged in m-ai-effect-modes-followups (P2).
+- Phase 7 (CryptoRand alias): scope-reduced away in v0.15.0 because **M-CRYPTORAND never
+  landed at all** — no !{CryptoRand} token, no std/crypto/rand, no CSPRNG builtins (grep
+  sweep empty); yet its doc sits in implemented/v0_15_0 with "Status: Planned", swept there by
+  the 48-doc bulk relocation 645467e13. Header corrected to Superseded this iteration.
+- Live checks: !{Clock[mode=pinned]}, !{Rand[mode=banana]}, scope=identity ALL pass
+  `ailang check` — the grammar is generic and **no mode-value validation exists anywhere**
+  (grep internal/types + parser: none). The public guide explicitly claims "the typechecker
+  rejects unknown values" — FALSE. New sprint-sized item discovered.
+- Runtime: internal/effects/* has zero access to effect params (grep Params: empty);
+  builtins/rand.go = one global math/rand source for all modes. Clock ALREADY has wall/pinned
+  runtime behavior via AILANG_SEED; FS has sandbox machinery — both invisible in types.
+
+**Shipped** (docs-only, 0 Go files):
+- 4 sprint docs in planned/v1_0_0, all premises live-verified with transcripts, each with
+  Conflict Surface + Design Freeze + explicit boundaries against m-ai-effect-modes-followups:
+  1. m-effect-mode-validation (~1d, P1) — enforce the closed mode set; makes the guide's claim true.
+  2. m-effect-replay-contracts (~3d, P1) — registry + mode-aware Rand dispatch (seeded=
+     deterministic, crypto=CSPRNG — supersedes M-CRYPTORAND's runtime intent).
+  3. m-effect-clock-net-fs-modes (~3d, P1) — surface existing runtime switches at type level;
+     Net scoped honestly (recorded may be label-only pending planner reality-check).
+  4. m-effect-scope-params (~2.5d, P1) — capability narrowing; flagged as release-gate
+     re-score candidate (weakest v1.0 forcing function; no public doc promises scope semantics).
+- Parent doc → umbrella with repo-verified phase-status table; Phase 6 (M-ENTROPY) routed OUT
+  (ships with M-ENTROPY itself; not v1.0-required).
+- Public-guide accuracy note (interim truth-up of the false closed-set claim).
+- m-cryptorand.md header corrected (Superseded, never-implemented, relocation error named).
+- Queue renumbered: #8 eval-frontier-tier [NEXT]; effect sprints at #9/#12/#13/#14 by
+  impact-per-day; CHANGELOG entry.
+- Dedup gate run per doc (create-script dual search): no match ≥ thresholds; closest was the
+  historic v0_3 M-R6 clock/net doc (0.52, distinct scope) and m-process-modes v1.1 (consumer,
+  referenced).
+
+**Routing evidence**:
+- model=fable task-class=design(decomposition ×4 docs) rounds=1 corrections=0-so-far (premise
+  verification done at design time this iteration — every language claim carries a live
+  transcript; the Opus planner premise-check remains the independent gate when each sprint runs)
+- (no plan/execute/evaluate rows — decomposition iteration, no sprint executed)
+
+**Ruled out**:
+- "The parent doc's ~90h is the remaining work" — refuted: ~1/3 shipped v0.15.0 under a stale
+  Planned header; remaining ~64h.
+- "M-CRYPTORAND shipped in v0.13/v0.15 (as its implemented/ location implies)" — refuted by
+  grep sweep + git log: commissioned 5f18e350e, never implemented, mis-swept by 645467e13.
+- "The closed mode set is compiler-enforced (as the public guide claims)" — refuted live:
+  Rand[mode=banana] passes check at v0.28.0-148. Transcript in sprint-1 doc.
+- "Phase 6 (M-ENTROPY integration) must be decomposed for v1.0" — no: M-ENTROPY itself is not
+  v1.0-required (not in the ratified bar's queue); the integration ships with M-ENTROPY.
+
+**Retro lane**: none of the single-instance frictions reached the ≥2 rule this iteration
+(bulk-relocation mis-sweep ×1 — but note iteration 4+5+6 have now each found a stale/mis-stated
+doc status: the Gate-2 reality-check protocol is WORKING as designed, not failing; scheduled-run
+API socket crash ×1 — driver already reports + retries by schedule, no fix needed). Backlog
+lane: the 4 sprint docs ARE the backlog output. No skill edit.
+
+**Next**: Iteration 7 — queue #8 m-eval-frontier-tier (P1, 2.5–3.5d, eval-bar clause) [NEXT].
+It may need GPU/model access — apply the two-tier GPU rule at routing time; an eval-suite run
+was in flight this morning (fa586599), so check rig state at pick time. Carry forward: %-row +
+m-record-update-local-resolution doc-status re-check (from iteration 4); parked-for-human items
+unchanged (tier ratification at release gate; feedback-gate ops; haiku causal re-run; NEW:
+scope-params release-gate re-score flag for Mark).
