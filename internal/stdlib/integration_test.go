@@ -36,6 +36,7 @@ func TestStdlibModulesCanBeParsed(t *testing.T) {
 		{"std/net", "../../std/net.ail"},
 		{"std/option", "../../std/option.ail"},
 		{"std/result", "../../std/result.ail"},
+		{"std/regex", "../../std/regex.ail"},
 	}
 
 	for _, mod := range stdlibModules {

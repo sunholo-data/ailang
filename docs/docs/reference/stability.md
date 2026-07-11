@@ -116,6 +116,7 @@ May change in a 1.x minor with a CHANGELOG entry.
 | `std/crypto` | Cryptographic operations | ⚠ proposed — security-sensitive; conservative tiering |
 | `std/jwt` | JWT parsing/verification | ⚠ proposed — security-sensitive |
 | `std/xml` | XML parsing/querying | ⚠ proposed — format surface may evolve |
+| `std/regex` | Linear-time (RE2) regex: compile / isMatch / findFirst / findAll / replaceAll / split | new (v0.30.0); RE2 subset (no backref/lookaround); `RegexMatch` record shape may evolve |
 | `std/html` | HTML5 parsing | format surface may evolve |
 | `std/zip` | ZIP archive read/write/stream | ⚠ proposed — format surface may evolve |
 | `std/tar` | tar archive read/extract | format surface may evolve |
