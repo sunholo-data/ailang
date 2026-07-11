@@ -1,6 +1,8 @@
 # m-stdlib-regex — Linear-Time (RE2) Regex Builtin
 
-**Status**: Planned
+**Status**: Implemented (mission iteration 11, 2026-07-11; sprint-evaluator PASS 97/100 round 1).
+Builtins in `internal/builtins/regex.go` (modern `RegisterEffectBuiltin`, not the legacy
+`internal/eval/` path this doc drafted); module `std/regex.ail`; 3 examples; docs updated.
 **Target**: v0.30.0
 **Priority**: P1 (v1.0 bar clause 4 — ORCHESTRATION FLAGSHIP, strategy R7)
 **Estimated**: 2 days (1d engine+builtins, 0.5d stdlib module+examples, 0.5d tests+docs+buffer)
@@ -267,17 +269,26 @@ match R.compile("(a+)+$") {
 
 ## Success Criteria
 
-- [ ] `std/regex` module with `compile`, `isMatch`, `findFirst`, `findAll`, `replaceAll`, `split`
+*(Implemented — mission iteration 11. NOTE: builtins landed in `internal/builtins/regex.go`
+using the modern `RegisterEffectBuiltin` system, NOT `internal/eval/builtins_regex.go` as the
+doc drafted — that path is the legacy registry; the current architecture is `internal/builtins/`.
+Coverage/tests below refer to `internal/builtins/regex.go`.)*
+
+- [x] `std/regex` module with `compile`, `isMatch`, `findFirst`, `findAll`, `replaceAll`, `split`
       — all `ailang check`-clean.
-- [ ] `compile` returns `Err(msg)` for invalid/unsupported (backref/lookaround) patterns — never
-      panics (CLAUDE.md CP2). Test asserts `Err` for `"("` and for `"(?=x)"`.
-- [ ] **Linear-time regression test**: `(a+)+$` vs a 40-char non-matching input completes under a
-      hard wall bound (e.g. 100ms) — proves no catastrophic backtracking.
-- [ ] Capture groups: `findFirst`/`findAll` return correct spans + text for a multi-group pattern.
-- [ ] Index convention (byte vs rune) documented and consistent with `std/string`.
-- [ ] ≥2 examples runnable; `make verify-examples` green.
-- [ ] Go test coverage ≥80% on `builtins_regex.go`.
-- [ ] `make test` + `make lint` green; docs (LIMITATIONS, stability tier, CHANGELOG) updated.
+- [x] `compile` returns `Err(msg)` for invalid/unsupported (backref/lookaround) patterns — never
+      panics (CLAUDE.md CP2). Test asserts `Err` for `"("`, `"(?=x)"`, and `"(a)\1"`.
+- [x] **Linear-time regression test**: `(a+)+$` vs a 40-char non-matching input completes under a
+      hard 100ms wall bound — proves no catastrophic backtracking.
+- [x] Capture groups: `findFirst`/`findAll` return correct spans + text for a multi-group pattern;
+      non-participating optional group reports `start = -1`.
+- [x] Index convention: spans are **rune** indices (Go byte offsets converted), consistent with
+      `std/string`; documented + multibyte fixture (`TestRegexRuneIndices`).
+- [x] 3 examples runnable (basics, capture, log-orchestration); `make verify-examples` green.
+- [x] Go test coverage ~89.5% on `internal/builtins/regex.go` (≥80%).
+- [x] `make lint` (0 issues) + docs (LIMITATIONS, stability tier, CHANGELOG) updated. `make test`
+      green except a pre-existing timing flake (`TestRunCommand_PipedStdoutFlushesPerLine`,
+      unrelated — passes in isolation).
 
 ---
 

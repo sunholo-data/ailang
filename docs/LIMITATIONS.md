@@ -26,6 +26,7 @@ workarounds. Verified open at v0.28.0 (2026-07-10):
 | **Typed quasiquotes** | Not yet implemented (planned) | quasiquote syntax not accepted. Use `"${expr}"` interpolation / `concat([..])`. |
 | **CSP concurrency (channels / session types)** | Deferred | no channel/session-type surface in the parser. |
 | **Raw-mode single keypress / mid-call `std/ai.step()` abort** | Narrow input gaps | line input (`readLine`, `asyncReadStdinLines`) works; raw keypress is out-of-core by design. |
+| **Regex backreferences / lookaround** | Design constraint (RE2 linear-time guarantee) | `std/regex` wraps Go's RE2 engine → **no backreferences, no lookahead/lookbehind**. `regex.compile("(a)\\1")` / `compile("(?=x)")` return `Err(message)` (never panic). This is the deliberate price of the linear-time, no-catastrophic-backtracking guarantee. |
 
 ### If-Else Branches Require Explicit Braces {#if-else-branches-require-explicit-braces}
 

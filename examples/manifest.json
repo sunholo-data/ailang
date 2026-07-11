@@ -1912,6 +1912,49 @@
         "--entry",
         "main"
       ]
+    },
+    {
+      "path": "regex_basics.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "string",
+        "stdlib",
+        "re2"
+      ],
+      "description": "std/regex core ops: isMatch, replaceAll, split (linear-time RE2)",
+      "requires": [
+        "IO"
+      ]
+    },
+    {
+      "path": "regex_capture.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "capture-groups",
+        "stdlib",
+        "re2"
+      ],
+      "description": "Extract regex capture groups with std/regex findFirst + nth_or",
+      "requires": [
+        "IO"
+      ]
+    },
+    {
+      "path": "regex_log_orchestration.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "orchestration",
+        "stdlib",
+        "re2",
+        "routing"
+      ],
+      "description": "Parse + route structured log lines with std/regex (orchestration use case)",
+      "requires": [
+        "IO"
+      ]
     }
   ],
   "statistics": {

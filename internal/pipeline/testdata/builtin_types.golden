@@ -184,6 +184,12 @@ _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}
 _rand_seed : int -> () ! {Rand}
+_regex_compile : string -> Result[string, string]
+_regex_find_all : (string, string) -> list[{end: int, groups: list[{end: int, start: int, text: string}], start: int, text: string}]
+_regex_find_first : (string, string) -> Option[{end: int, groups: list[{end: int, start: int, text: string}], start: int, text: string}]
+_regex_is_match : (string, string) -> bool
+_regex_replace_all : (string, string, string) -> string
+_regex_split : (string, string) -> list[string]
 _secret_read : (string, string) -> string<secret> ! {Secret}
 _sharedindex_delete : (string, string) -> () ! {SharedIndex}
 _sharedindex_entry_count : string -> int ! {SharedIndex}

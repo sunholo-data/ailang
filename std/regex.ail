@@ -1,0 +1,69 @@
+-- std/regex - Linear-time (RE2) regular expressions
+--
+-- Backed by Go's regexp package (the RE2 engine): matching is GUARANTEED to run
+-- in time linear in the input, with NO backtracking. The classic catastrophic
+-- pattern (a+)+$ that makes PCRE/Python/JS blow up exponentially returns in
+-- microseconds here. The price of that guarantee is that RE2 does NOT support
+-- backreferences or lookaround — compile() surfaces those as Err(message),
+-- never a panic.
+--
+-- Two-stage API (like std/json's decode -> Result):
+--   1. compile(pattern) -> Result[Regex, string]   -- the ONLY fallible entry
+--   2. total match functions on the validated Regex  -- isMatch/findFirst/...
+--
+-- Index convention: match spans (start/end) are RUNE indices, consistent with
+-- std/string's length/substring. Pure functions (no effects).
+
+module std/regex
+
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+
+-- Opaque validated-pattern handle. Construct ONLY via compile.
+export type Regex = Regex(string)
+
+-- A single match: absolute rune span into the subject + capture groups + text.
+-- groups[0] is the whole match; groups[i] is capture group i. Optional groups
+-- that did not participate report start = end = -1 and text = "".
+export type RegexMatch = {
+  start: int,
+  end: int,
+  groups: [{start: int, end: int, text: string}],
+  text: string
+}
+
+-- Validate a pattern. Returns Err(message) for invalid syntax or for RE2-
+-- unsupported constructs (backreferences, lookaround). This is the only
+-- fallible function — once you hold a Regex, matching cannot fail.
+export pure func compile(pattern: string) -> Result[Regex, string] {
+  match _regex_compile(pattern) {
+    Ok(p) => Ok(Regex(p)),
+    Err(e) => Err(e)
+  }
+}
+
+-- True if the pattern matches anywhere in s.
+export pure func isMatch(re: Regex, s: string) -> bool {
+  match re { Regex(p) => _regex_is_match(p, s) }
+}
+
+-- The first match (with capture groups), or None.
+export pure func findFirst(re: Regex, s: string) -> Option[RegexMatch] {
+  match re { Regex(p) => _regex_find_first(p, s) }
+}
+
+-- Every non-overlapping match (with capture groups), left to right.
+export pure func findAll(re: Regex, s: string) -> [RegexMatch] {
+  match re { Regex(p) => _regex_find_all(p, s) }
+}
+
+-- Replace every match. repl may reference capture groups with $1, ${name}, etc.
+-- (Go replacement syntax). $$ is a literal $.
+export pure func replaceAll(re: Regex, s: string, repl: string) -> string {
+  match re { Regex(p) => _regex_replace_all(p, s, repl) }
+}
+
+-- Split s around every match of the pattern.
+export pure func split(re: Regex, s: string) -> [string] {
+  match re { Regex(p) => _regex_split(p, s) }
+}
