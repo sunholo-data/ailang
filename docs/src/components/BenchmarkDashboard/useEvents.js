@@ -62,3 +62,40 @@ export function groupByVersion(annotations, formatVersion) {
   });
   return map;
 }
+
+// snapEventsToVersions re-maps a version→events map onto the versions that
+// actually appear on the chart's x-axis. An annotation whose exact version has
+// no baseline data-point — e.g. the frontier benchmarks added at v0.29.0 when
+// the eval suite jumped v0.25.0 → v0.29.2 — would otherwise be silently dropped
+// by the ReferenceLine's `exists` check. Instead we snap it to the nearest
+// baseline so the annotation still renders. `chartVersions` is the ordered list
+// of x-axis version labels (e.g. chartData.map(d => d.version)).
+export function snapEventsToVersions(eventsByVersion, chartVersions) {
+  const present = new Set(chartVersions);
+  const key = (v) => (v || '').replace(/^v/, '').split(/[.-]/).map((n) => parseInt(n, 10) || 0);
+  const cmp = (a, b) => {
+    const A = key(a), B = key(b);
+    for (let i = 0; i < Math.max(A.length, B.length); i++) {
+      if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
+    }
+    return 0;
+  };
+  const nearest = (v) => {
+    if (present.has(v)) return v;
+    let best = null;
+    let bestD = Infinity;
+    chartVersions.forEach((cv) => {
+      const d = Math.abs(cmp(v, cv));
+      if (d < bestD) { bestD = d; best = cv; }
+    });
+    return best;
+  };
+  const out = new Map();
+  eventsByVersion.forEach((evs, ver) => {
+    const target = nearest(ver);
+    if (!target) return;
+    const tagged = target === ver ? evs : evs.map((e) => ({ ...e, snappedFrom: ver }));
+    out.set(target, [...(out.get(target) || []), ...tagged]);
+  });
+  return out;
+}

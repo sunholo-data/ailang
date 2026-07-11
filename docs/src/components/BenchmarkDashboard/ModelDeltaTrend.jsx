@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
-import { useEvents, annotationColor, groupByVersion } from './useEvents';
+import { useEvents, annotationColor, groupByVersion, snapEventsToVersions } from './useEvents';
 import { assignModelColors, getProvider } from './modelColors';
 
 // Provider grouping — collapses the 30+ per-model lines into one averaged line
@@ -154,11 +154,15 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
   const seriesColor = (k) => (byProvider ? PROVIDER_COLOR[k] : (modelColors.get(k) || '#999'));
   const seriesLabel = (k) => (byProvider ? PROVIDER_LABEL[k] || k : formatModelName(k));
 
+  // Snap annotations onto real x-axis points so events at versions with no
+  // baseline (e.g. the v0.29.0 benchmark additions) still render.
+  const snappedEvents = snapEventsToVersions(eventsByVersion, activeData.map((d) => d.version));
+
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const eventsHere = eventsByVersion.get(label) || [];
+      const eventsHere = snappedEvents.get(label) || [];
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
@@ -238,7 +242,7 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
             label={{ value: 'Gap (AILANG - Python) %', angle: -90, position: 'insideLeft' }}
           />
           <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" strokeWidth={1} />
-          {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {
+          {Array.from(snappedEvents.entries()).map(([formattedVersion, evs]) => {
             const exists = chartData.some(d => d.version === formattedVersion);
             if (!exists) return null;
             const color = annotationColor(evs[0]);

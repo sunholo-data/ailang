@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
-import { useEvents, annotationColor, groupByVersion } from './useEvents';
+import { useEvents, annotationColor, groupByVersion, snapEventsToVersions } from './useEvents';
 import { assignModelColors, getProvider } from './modelColors';
 
 // Provider grouping — collapses 30+ per-model lines into one averaged line per
@@ -233,6 +233,10 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   const seriesColor = (k) => (byProvider ? PROVIDER_COLOR[k] : (modelColors.get(k) || '#999'));
   const seriesLabel = (k) => (byProvider ? PROVIDER_LABEL[k] || k : formatModelName(k));
 
+  // Snap annotations onto real x-axis points so events at versions with no
+  // baseline (e.g. the v0.29.0 benchmark additions) still render.
+  const snappedEvents = snapEventsToVersions(eventsByVersion, activeData.map((d) => d.version));
+
   // Format a metric value for display (tooltip/axis ticks).
   const formatValue = (value) => {
     if (value == null) return '—';
@@ -250,7 +254,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
       const gatedHere = Array.from(allModels)
         .map((m) => ({ model: m, meta: apiErrorMeta[`${label}|${m}`] }))
         .filter((r) => r.meta);
-      const eventsHere = eventsByVersion.get(label) || [];
+      const eventsHere = snappedEvents.get(label) || [];
       // Sort entries best-at-top. For successRate higher = better;
       // for tts and costPerSuccess lower = better.
       const lowerIsBetter = selectedMetric === 'tts' || selectedMetric === 'costPerSuccess';
@@ -394,7 +398,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
             }}
           />
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
-          {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {
+          {Array.from(snappedEvents.entries()).map(([formattedVersion, evs]) => {
             const exists = chartData.some(d => d.version === formattedVersion);
             if (!exists) return null;
             // One dashed line per version, colored by the first event. Full
