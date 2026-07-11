@@ -149,16 +149,25 @@ fill the gap so the two row sources unify cleanly.
 
 ## Mode set is closed
 
-Phase 1 freezes the mode set per effect as a *design decision*: authors
-cannot introduce new modes from user code.
+The mode set per effect is **closed and enforced**: authors cannot
+introduce new modes from user code. The typechecker validates every
+parameterised effect against the frozen schema in
+[`internal/types/effects.go`](https://github.com/sunholo-data/ailang/blob/dev/internal/types/effects.go)
+at effect-row elaboration, rejecting unknown keys and values with a
+structured, fix-carrying diagnostic:
 
-> **Accuracy note (verified 2026-07-11, v0.28):** enforcement of this
-> rule has not shipped yet — the typechecker currently *accepts* unknown
-> parameter values (e.g. `!{Rand[mode=banana]}` passes `ailang check`).
-> Rejection of unknown keys/values lands with
-> [m-effect-mode-validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-mode-validation.md).
-> Until then, treat unregistered modes as meaningless: they unify only
-> with themselves and have no runtime or contract semantics.
+| Offending form | Diagnostic |
+|----------------|------------|
+| `!{Rand[mode=banana]}` (unknown value) | `EFF_UNKNOWN_MODE` — lists the allowed values (`os, seeded, crypto`) |
+| `!{Rand[flavor=hot]}` (unknown key) | `EFF_UNKNOWN_PARAM_KEY` — lists the allowed keys (`mode`) |
+| `!{Clock[mode=pinned]}` (schema-less effect) | `EFF_PARAMS_NOT_SUPPORTED` — names the tracking doc for the effect's future modes |
+
+Only `Rand` (`mode ∈ {os, seeded, crypto}`) and `AI`
+(`mode ∈ {fixed, routeable, replay-only}`, `scope ∈ {byok}`) carry a
+parameter schema today; every other effect accepts its bare form only,
+and any explicit parameter is a hard error. Adding modes to `Clock`,
+`Net`, and `FS` is tracked in
+[m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
 
 The closed set is deliberate:
 

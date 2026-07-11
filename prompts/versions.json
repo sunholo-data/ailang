@@ -611,7 +611,7 @@
     },
     "v0.16.2": {
       "file": "prompts/v0.16.2.md",
-      "hash": "1c6f31967e45bd654c0f140dc5db18f56f7c69ec461e8188b11989148883b3e2",
+      "hash": "01ba09c052941b7ffd608f67dca4ff5fdc2d25ddaafc396c44808b6ff88f4f16",
       "description": "v0.16.1 + Output Discipline section (stdout compared byte-for-byte: no labels/prefixes/status lines; print only the requested value). Targets verbosity false-negatives where a correct answer is wrapped in commentary (e.g. \"Result: 40\", \"Types unify!\").",
       "created": "2026-06-13",
       "tags": [
