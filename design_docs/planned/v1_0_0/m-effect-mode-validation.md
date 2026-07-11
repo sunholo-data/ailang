@@ -36,6 +36,15 @@ $ ailang check /tmp/modal_check2.ail
 `internal/types/` or `internal/parser/` — the only "invalid mode" error in-tree is an unrelated
 manifest check (`internal/manifest/manifest.go:234`).
 
+**Reality check re-run (2026-07-11, mission iteration 8, `ailang` v0.29.0-2-g8dad7e80b, both
+binaries rebuilt, versions match `git describe`):** all premises still hold at HEAD —
+`Clock[mode=banana]`, `Rand[mode=banana]`, `Rand[flavor=hot]` all pass `ailang check` (rc=0,
+live transcript); no validation code or commits landed since authoring (v0.29.0 was eval-suite
+work only); `defaultEffectModes` at `internal/types/effects.go:32`, `effectiveParamsOf` at
+`:75`, bridge comment referencing `stringSliceToEffectRow` at `:72`; `examples/modal_rand.ail`
+present; guide's "Mode set is closed" section + interim accuracy note present
+(`docs/docs/guides/parameterised-effects.md:150,155`). Item is genuinely open.
+
 ## Axiom Compliance
 
 **Canonical reference:** [Design Axioms](/docs/references/axioms)
