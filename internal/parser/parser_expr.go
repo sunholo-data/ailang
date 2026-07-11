@@ -420,18 +420,19 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	exprs := []ast.Expr{}
 	exprs = append(exprs, p.parseExpression(LOWEST))
 
-	// Keep parsing while we see semicolons
-	for p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // move to SEMICOLON
-
-		// Check for trailing semicolon (next token is RBRACE)
-		// Keep cursor at semicolon so peek is RBRACE for expectPeek below
-		if p.peekTokenIs(lexer.RBRACE) {
-			break
+	// Keep parsing while statements are separated by `;` OR (R2) by a newline
+	// before a statement-starter (peekStartsNewlineBlockStatement, parser_func.go).
+	for p.peekTokenIs(lexer.SEMICOLON) || p.peekStartsNewlineBlockStatement() {
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to SEMICOLON
+			// Trailing `;`: keep cursor at it so peek is RBRACE for expectPeek below.
+			if p.peekTokenIs(lexer.RBRACE) {
+				break
+			}
+			p.nextToken() // move past SEMICOLON
+		} else {
+			p.nextToken() // R2: newline separator — advance onto the next statement
 		}
-
-		p.nextToken() // move past SEMICOLON
-
 		exprs = append(exprs, p.parseExpression(LOWEST))
 	}
 

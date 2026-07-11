@@ -180,22 +180,25 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 
 	// Check if we're already at LBRACE (block-form) or ASSIGN (equation-form)
 	if p.peekTokenIs(lexer.ASSIGN) {
-		// Equation-form: consume = and parse expression
+		// Equation-form: consume = and parse the body.
+		// M-SYNTAX-AI-FORGIVING R1: accept `;`-separated statement sequences in the
+		// `=` body (`func f() = s1; s2; e`), the form small models naturally write.
+		// This eliminates the PAR017 parse-failure class. A single-expression body
+		// is unchanged (still wrapped in a 1-expr Block, identical to before). The
+		// sequence stops at a top-level declaration boundary so back-to-back decls
+		// (`func f() = e func g() = ...`) split correctly, while an anonymous-func
+		// expression (`func (`) stays inside the body (M-TAINT guard).
 		p.nextToken() // move to ASSIGN
 		p.nextToken() // move past ASSIGN to start of expression
 
-		body := p.parseExpression(LOWEST)
+		body := p.parseEquationBody()
 		if body == nil {
 			// parseExpression already recorded the underlying error (e.g. an
 			// unsupported construct such as index access `x[i]` in the body);
 			// don't nil-deref on .Position(). Matches the return nil below.
 			return nil
 		}
-		// Wrap single expression in a block for uniform handling
-		fn.Body = &ast.Block{
-			Exprs: []ast.Expr{body},
-			Pos:   body.Position(),
-		}
+		fn.Body = body
 	} else {
 		// Block-form: expect LBRACE
 		if !p.curTokenIs(lexer.LBRACE) {
@@ -339,17 +342,24 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 		exprs = append(exprs, expr)
 	}
 
-	// Continue parsing while we see semicolons
-	for p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // move to SEMICOLON
+	// Continue parsing while statements are separated by `;` OR (R2) by a newline
+	// before a statement-starting token. See peekStartsNewlineBlockStatement.
+	for p.peekTokenIs(lexer.SEMICOLON) || p.peekStartsNewlineBlockStatement() {
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to SEMICOLON
 
-		// Check for trailing semicolon (next token is RBRACE)
-		// Don't advance past it so caller can consume the RBRACE
-		if p.peekTokenIs(lexer.RBRACE) {
-			break
+			// Check for trailing semicolon (next token is RBRACE)
+			// Don't advance past it so caller can consume the RBRACE
+			if p.peekTokenIs(lexer.RBRACE) {
+				break
+			}
+
+			p.nextToken() // move past SEMICOLON
+		} else {
+			// R2 soft separator: no `;` to consume — the newline before the next
+			// statement-starter IS the separator. Advance onto that starter.
+			p.nextToken()
 		}
-
-		p.nextToken() // move past SEMICOLON
 
 		expr = p.parseExpression(LOWEST)
 		if expr != nil {
@@ -366,6 +376,94 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 	return &ast.Block{
 		Exprs: exprs,
 		Pos:   startPos,
+	}
+}
+
+// peekStartsNewlineBlockStatement reports whether the peek token begins a new block
+// statement that is separated from the current statement by a NEWLINE (rather than a
+// `;`). This is M-SYNTAX-AI-FORGIVING R2: a newline is accepted as a soft statement
+// separator inside `{ }` blocks, the form small models naturally write.
+//
+// It is deliberately conservative — it requires BOTH:
+//   - peek is on a LATER line than cur (`p.peekToken.Line > p.curToken.Line`), the
+//     same line-awareness the M-GAP2 LPAREN fix uses; AND
+//   - peek is an unambiguous statement-starter (let/letrec/if/match/identifier), via
+//     peekStartsBlockStatement.
+//
+// Because operators, literals, `(`, etc. are NOT statement-starters, a multi-line
+// expression (`= 1\n+ 2`, `{ 1\n+ 2 }`) is never split. Same-line adjacency
+// (`{ let x = 1 let y = 2 }`) fails the line check and still yields the PAR020
+// "missing ;" error at the guard sites.
+func (p *Parser) peekStartsNewlineBlockStatement() bool {
+	return p.peekToken.Line > p.curToken.Line && p.peekStartsBlockStatement()
+}
+
+// parseEquationBody parses the body of an equation-form function (`func f() = ...`).
+//
+// M-SYNTAX-AI-FORGIVING R1: the body is a `;`-separated statement sequence
+// (`s1; s2; e`), not just a single expression. The result is ALWAYS wrapped in an
+// ast.Block — identical to the pre-R1 single-expression wrapping and to what a
+// braced `{ ... }` body produces — so elaboration and typing are unchanged.
+//
+// The sequence continues past a `;` unless the following token begins a new
+// top-level declaration (peekIsDeclBoundary). This makes back-to-back decls
+// (`func f() = e; func g() = ...`, or without the `;`) split at `func g`, while an
+// anonymous-function expression `func ( ... )` in the body is never treated as a
+// boundary. Assumes cursor is AT the first token of the body.
+func (p *Parser) parseEquationBody() ast.Expr {
+	first := p.parseExpression(LOWEST)
+	if first == nil {
+		return nil
+	}
+	exprs := []ast.Expr{first}
+	startPos := first.Position()
+
+	// Continue while we see `;` and the next statement is not a declaration boundary.
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // move to SEMICOLON
+
+		// Trailing `;` before a real declaration boundary (or EOF): stop, leaving the
+		// boundary token in peek so the top-level loop picks up the next declaration.
+		if p.peekIsDeclBoundary() {
+			break
+		}
+
+		p.nextToken() // move past SEMICOLON to next statement
+
+		next := p.parseExpression(LOWEST)
+		if next == nil {
+			return nil
+		}
+		exprs = append(exprs, next)
+	}
+
+	return &ast.Block{
+		Exprs: exprs,
+		Pos:   startPos,
+	}
+}
+
+// peekIsDeclBoundary reports whether the peek token begins a new top-level
+// declaration, which ends the current equation-form body (M-SYNTAX-AI-FORGIVING R1).
+//
+// Boundary = `export | type | import | extern | @ (annotation) | EOF`, or `func` /
+// `pure` that begins a NAMED declaration (`func IDENT` / `pure func`). A bare
+// `func (` (or `func [`) is an anonymous-function EXPRESSION and is NOT a boundary
+// — it stays inside the body (M-TAINT guard against cutting a funclit argument).
+func (p *Parser) peekIsDeclBoundary() bool {
+	switch p.peekToken.Type {
+	case lexer.EXPORT, lexer.TYPE, lexer.IMPORT, lexer.EXTERN, lexer.AT, lexer.EOF:
+		return true
+	case lexer.PURE:
+		// `pure func ...` is a declaration; a bare `pure` is not a valid expr start
+		// here, so treating it as a boundary is safe and matches top-level dispatch.
+		return true
+	case lexer.FUNC:
+		// `func IDENT ...` is a named declaration boundary; `func (`/`func [` is an
+		// anonymous-function expression that must remain inside the body.
+		return p.peek2TokenIs(lexer.IDENT)
+	default:
+		return false
 	}
 }
 
