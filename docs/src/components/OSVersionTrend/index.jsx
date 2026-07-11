@@ -68,6 +68,42 @@ export default function OSVersionTrend() {
     (a, b) => a.harness.localeCompare(b.harness) || a.model.localeCompare(b.model),
   );
 
+  // Self-diagnostic: an empty table must never be silent. If we loaded versions but
+  // produced no series, show EXACTLY what the browser received — versions, total
+  // rows, and whether rows were dropped for missing model/harness — so a blank
+  // render becomes a legible report instead of a recurring mystery.
+  const totalRows = ordered.reduce((n, e) => n + (e.rows || []).length, 0);
+  const newestGen = ordered.map((e) => e.generated).filter(Boolean).sort().slice(-1)[0];
+  if (series.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '12px 14px',
+          border: '1px solid var(--ifm-color-warning-dark, #b45309)',
+          borderRadius: 8,
+          background: 'rgba(234,179,8,0.10)',
+          fontSize: '0.9em',
+          lineHeight: 1.5,
+        }}
+      >
+        <strong>No local-model rows to display.</strong>
+        <br />
+        Loaded <b>{ordered.length}</b> release{ordered.length === 1 ? '' : 's'} (
+        {ordered.map((e) => e.ailang_version).join(', ') || '—'}), <b>{totalRows}</b> total row
+        {totalRows === 1 ? '' : 's'} across them
+        {totalRows > 0 ? ' — but none carried both a model and a harness field (shape mismatch).' : '.'}
+        {totalRows === 0 && (
+          <>
+            {' '}
+            The browser fetched version metadata but <b>no model rows</b> — a stale/edge-cached copy of{' '}
+            <code>/benchmarks/os/history.json</code>. Hard-reload (Cmd-Shift-R); if it persists the CDN
+            cache needs purging.
+          </>
+        )}
+      </div>
+    );
+  }
+
   const rateAt = (entry, model, harness) => {
     const row = (entry.rows || []).find((r) => r.model === model && r.harness === harness);
     return row && row.lang ? row.lang[activeLang] : null;
@@ -130,6 +166,12 @@ export default function OSVersionTrend() {
         Local-rig {LANG_LABEL[activeLang]} pass rate per AILANG release (N-trial rotation, $0). Columns are
         AILANG versions, newest on the right — the version-over-version evolution. Retired models freeze at
         their last version.
+        <br />
+        <span style={{ opacity: 0.75 }}>
+          {ordered.length} release{ordered.length === 1 ? '' : 's'} · {series.length} local model
+          {series.length === 1 ? '' : 's'}
+          {newestGen ? ` · data generated ${String(newestGen).slice(0, 10)}` : ''}
+        </span>
       </p>
     </div>
   );
