@@ -29,12 +29,14 @@ needed); driver crashes post there too.
 
 ## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
 
-The outer-loop controller now runs on **Opus** (`claude-opus-4-8`), not Fable — driver default
-flipped (`tools/launchd/mission-control.sh`), effective next iteration. Reason: Fable quota
-relief (Mark). Consequence recorded in the routing table: evaluation is now model-homogeneous
-(Opus judges Opus) — mitigation available (distinct-model skeptic evaluator) but left off to keep
-the switch minimal. Revert = set the driver default back to `claude-fable-5`. No other loop
-behavior changes.
+The outer-loop controller runs on **Opus** (`claude-opus-4-8`) through a **time-boxed override**
+that AUTO-REVERTS to Fable at **Mon 2026-07-13 07:00 CEST** (when Fable quota resets) — no session
+or human needed. Mechanism: driver default is Fable; `~/.ailang/state/mission-model` holds
+`claude-opus-4-8 <expiry-epoch>`; the first iteration past expiry deletes it, falls back to Fable,
+and posts to #329. Reason: Fable quota relief (Mark). Both paths test-verified. Consequence in the
+routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus) — mitigation
+available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
+sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
 ## STATUS 2026-07-11 (evening) — ITERATION 9 COMPLETE: M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
 

@@ -31,7 +31,26 @@ unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
 LOG=/tmp/ailang-mission-control.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-MODEL="${MISSION_MODEL:-claude-opus-4-8}"   # 2026-07-11: controller→Opus (Fable quota relief, Mark); was claude-fable-5
+# Controller model. Steady state is Fable. A time-boxed override file lets us
+# borrow a different model (e.g. Opus during a Fable-quota window) and REVERT
+# AUTOMATICALLY when it expires — no session or human needed. Format of
+# ~/.ailang/state/mission-model:  "<model> <expiry-epoch>". Past expiry, the
+# next iteration deletes it and falls back to the default, notifying #329.
+DEFAULT_MODEL="claude-fable-5"
+OVERRIDE_FILE="$HOME/.ailang/state/mission-model"
+MODEL="${MISSION_MODEL:-$DEFAULT_MODEL}"
+if [ -z "${MISSION_MODEL:-}" ] && [ -f "$OVERRIDE_FILE" ]; then
+  read -r OV_MODEL OV_UNTIL < "$OVERRIDE_FILE" 2>/dev/null || true
+  NOW=$(date +%s)
+  if [ -n "${OV_UNTIL:-}" ] && [ "$NOW" -ge "$OV_UNTIL" ]; then
+    rm -f "$OVERRIDE_FILE"
+    echo "[$(date '+%F %H:%M:%S')] model override expired — reverting to $DEFAULT_MODEL" | tee -a /tmp/ailang-mission-control.log
+    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+      --body "🔁 Controller model override expired — the loop is back on **$DEFAULT_MODEL** (Fable) as of $(date '+%F %H:%M %Z'). Automatic revert, no action taken." 2>/dev/null || true
+  elif [ -n "${OV_MODEL:-}" ]; then
+    MODEL="$OV_MODEL"
+  fi
+fi
 HARD_TIMEOUT="${MISSION_TIMEOUT:-21600}"   # 6h wall-clock kill per iteration
 KILL_SWITCH="$HOME/.ailang/state/mission-control.disabled"
 
