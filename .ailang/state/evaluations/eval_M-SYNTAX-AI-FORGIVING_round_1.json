@@ -1,0 +1,28 @@
+{
+  "sprint_id": "M-SYNTAX-AI-FORGIVING",
+  "evaluation_round": 1,
+  "result": "pass",
+  "score": 96,
+  "max_score": 100,
+  "conditional_regression_surface": 10,
+  "evaluator_model": "claude-fable-5",
+  "evaluated": "2026-07-11T17:30:00+02:00",
+  "worktree": ".claude/worktrees/agent-af44352e3fb7d4708",
+  "commits": "c89e99336..64ddd6021 (4 milestones, on top of plan a7bd8257c)",
+  "categories": {
+    "tests_pass": {"score": 20, "max": 20, "note": "full make test rc=2 with SOLE failure TestRunCommand_PipedStdoutFlushesPerLine = known flake issue #338; proven non-regression 4/4 standalone passes in worktree. Parser suite green standalone. Precedent: iterations 5+8 same protocol."},
+    "lint_clean": {"score": 10, "max": 10, "note": "make lint 0 issues; make check-file-sizes clean (parser files < 800)."},
+    "acceptance_criteria": {"score": 30, "max": 30, "note": "All M1-M4 ACs verified, several INDEPENDENTLY: evaluator re-ran the corpus AST-diff fuzz gate himself (AILANG_CORPUS_FUZZ=1: 400 files, 389 currently-valid ALL byte-identical, 1 newly-accepted, 10 still-invalid, zero diffs); rebuilt binary from worktree sources and re-produced acceptance transcripts from scratch (R1 near-miss + validateVersion shape parse clean; R2 newline block parses; same-line-no-; still PAR020 with actionable message; comma-less multi-line record errors AS A RECORD, never statement-split); verify-examples 183/5/5 with the 5 failures exactly = issue #341's pre-existing set and the +1 pass being the new gated example."},
+    "code_quality": {"score": 12, "max": 15, "note": "-3: sprint artifacts incomplete — sprint JSON still status:planned with all milestones passes:null; sprint-plan checkboxes unticked (same artifact-bookkeeping gap class as iteration-8 watch item, now 2nd occurrence). Code itself is excellent: conservative helper (line-check AND statement-starter), well-commented, M-TAINT guard honored."},
+    "documentation": {"score": 14, "max": 15, "note": "CHANGELOG R1+R2 entries in v0.18-current.md; LIMITATIONS relaxed; dialect-traps trap #2 rewritten per D8 both-landed branch with embedded cmd/ailang copy IN SYNC (diff-verified); m-ailang-fmt.md stub tracks D1 erosion risk; example created+gated. -1: design doc status header not yet flipped (mover is the on-pass integration step)."},
+    "design_fidelity": {"score": 10, "max": 10, "note": "Deviations all IMPROVE on the plan: (1) R2 patched FOUR block loops not two — executor discovered if/then blocks and \\-lambda bodies route through parseRecordLiteral's block paths, not parseBlockOrExpression as the plan (D6) believed; the plan's own if/then fixture would have caught the miss, and the executor fixed it systemically. (2) peekIsDeclBoundary extends the plan's boundary set with extern/@/pure — all top-level-only tokens, safe. (3) The old-vs-new parser comparison realized via cmd/astdump + temp git worktree at pinned base a7bd8257c (go-spew promoted to direct dep) — a faithful mechanization of the plan's 'pre-R1 parser snapshot'."}
+  },
+  "regression_surface": {"triggered": true, "conflict_surface_in_design_doc": true, "must-still-work_fixtures": true, "corpus_fuzz_gate": "PASS (evaluator-re-run, zero diffs over 389 currently-valid files)", "non_vacuity": "pre-sprint binary v0.29.2-2-g07aa1062f emits PAR017 on r1_near_miss and PAR020 on r2_newline; sprint binary accepts both (live transcripts)"},
+  "hard_fails": [],
+  "notes_for_integration": [
+    "Corpus fuzz gate is env-gated (AILANG_CORPUS_FUZZ=1) — NOT in remote CI; it pins base a7bd8257c which is only meaningful pre-merge. Post-merge re-runs need AILANG_CORPUS_BASE.",
+    "go build in nested .claude/worktrees stamps the MAIN repo's vcs.revision (Go walks past the .git file) — version output misleading; verified behaviorally instead.",
+    "Rig A/B (compile_error delta on ;-family benchmarks) is the deferred post-merge GPU step for the mission controller.",
+    "Sprint JSON + plan checkboxes need the bookkeeping commit at integration (2nd consecutive iteration with this gap)."
+  ]
+}

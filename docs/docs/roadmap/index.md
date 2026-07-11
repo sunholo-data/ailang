@@ -107,7 +107,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-RIG-RELIABILITY — make the rig catch breaks + measure docx](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-rig-reliability-sprint-plan.md)
 - [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-stdlib-html-streaming.md)
-- [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-syntax-ai-forgiving.md)
+- [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-syntax-ai-forgiving.md)
 - [M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-typeenv-sub-fix.md)
 - [m verify stdlib stale path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-verify-stdlib-stale-path.md)
 - [M-WASM-TYPECHECK-LIMITS — depth-budget guard + clear error for WASM type-checker overflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-wasm-typecheck-limits.md)

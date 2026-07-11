@@ -2,7 +2,7 @@
 
 **Status**: Planned (deferred / stub)
 **Target**: TBD (post-v0.29.x)
-**Split from**: [m-syntax-ai-forgiving.md](m-syntax-ai-forgiving.md) (sprint discrepancy D1)
+**Split from**: [m-syntax-ai-forgiving.md](../../implemented/v0_30_0/m-syntax-ai-forgiving.md) (sprint discrepancy D1)
 
 > This is a **placeholder** doc capturing the formatter deferred out of the
 > M-SYNTAX-AI-FORGIVING sprint, so the canonical-form erosion risk is tracked rather

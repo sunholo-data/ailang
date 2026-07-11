@@ -27,6 +27,24 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-11 (evening) — ITERATION 9 COMPLETE: M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
+
+m-syntax-ai-forgiving landed via the full loop — the first iteration split across two scheduled
+runs (run A: reality-check + Opus plan + Opus execute, died pre-evaluation; run B resumed cleanly
+at sprint-evaluator from the committed artifacts). The parser now accepts both statement-separator
+forms small models naturally write: R1 `;`-sequences in `=` bodies (kills PAR017) and R2
+newline-as-soft-separator in blocks (narrows PAR020 to the genuine same-line case, actionable
+error preserved). Backward-compatibility PROVEN, not asserted: corpus AST-diff fuzz gate
+(old parser rebuilt from pinned base via temp worktree + new cmd/astdump) = zero re-parse diffs
+over all 389 currently-valid corpus files, re-run independently by the evaluator. Executor's
+systemic find: FOUR block loops needed the R2 patch, not the plan's two — if/then blocks and
+\-lambda bodies route through parseRecordLiteral. Eval PASS 96/100 round 1 (fifth consecutive).
+PR #342 merged, dev CI green per-workflow. Bar v2 clause 3's centerpiece is done: remaining
+clause-3 items are the three R4 diagnostics (#13–15) + prompt work (#16, #23). PARKED: rig A/B
+compile_error Δ (GPU; rotation held the rig) — the real success metric, measured post-merge.
+Skill fix (2 frictions, its 8+9): sprint-executor completion gate for sprint artifacts.
+Next: #11 m-stdlib-regex (NEW-DOC, clause 4).
+
 ## STATUS 2026-07-11 (afternoon) — ITERATION 8 COMPLETE: EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED)
 
 m-effect-mode-validation landed via the full loop headless, round-1 clean (FOURTH consecutive).
@@ -370,8 +388,16 @@ with design-doc-creator; existing-doc items start at reality-check.)*
    → Fable eval PASS 96/100 round 1 w/ independent transcript re-production. PR #340 → 8faa49de9,
    dev CI green per-workflow. Unlocks effect sprints 2-4. BONUS: dev-health issue #341 filed
    (5 pre-existing example type-check failures; verify-examples not a CI gate))
-10. [NEXT] m-syntax-ai-forgiving (clause 3; P1, ~3d, v0_29_0 — kills the ~32% small-model failure
-    class; NOTE: 3d = sprint-size ceiling, premises predate the v0.29.0 frontier-tier re-grade)
+10. [LANDED 2026-07-11] m-syntax-ai-forgiving (iteration 9 — the first iteration SPLIT ACROSS
+    TWO scheduled runs: run A did reality-check 192a79149 + Opus plan a7bd8257c + Opus execute
+    (worktree, M1–M4 64ddd6021) then died pre-evaluation; run B resumed at sprint-evaluator.
+    Fable eval PASS 96/100 round 1 (FIFTH consecutive) w/ independent fuzz-gate re-run (zero
+    AST diffs over 389 currently-valid corpus files), rebuilt-binary transcripts, non-vacuity
+    vs v0.29.2 (PAR017/PAR020 fire on exactly the now-accepted fixtures). R1+R2 BOTH landed —
+    R2 systemically patched FOUR block loops (plan's D6 knew two; if/then + \-lambda route via
+    parseRecordLiteral). PR #342 → merge, dev CI green per-workflow. DEFERRED: ailang fmt →
+    m-ailang-fmt.md stub (D1). PARKED for controller/human: the rig A/B compile_error Δ on
+    ;-family benchmarks — the REAL success metric, GPU step, rotation held the rig)
 11. NEW-DOC m-stdlib-regex (clause 4; R7 — linear-time engine MANDATED, RE2-style; via
     builtin-developer skill, ~1–2d)
 12. NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query; ~1d)

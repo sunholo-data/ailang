@@ -1,0 +1,184 @@
+{
+  "sprint_id": "M-SYNTAX-AI-FORGIVING",
+  "status": "completed",
+  "completed": "2026-07-11T14:54:03+02:00",
+  "evaluation": {
+    "result": "pass",
+    "score": 96,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-SYNTAX-AI-FORGIVING_round_1.json",
+    "note": "Milestone bookkeeping below reconstructed by the evaluator at integration (mission iteration 9) from worktree commits c89e99336..64ddd6021 — the executor did not update this file (2nd consecutive iteration with this gap; routed to retro)."
+  },
+  "created": "2026-07-11T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_29_0/m-syntax-ai-forgiving.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-syntax-ai-forgiving-sprint-plan.md",
+  "github_issues": [329],
+  "metadata": {
+    "planner-model": "claude-opus-4-8",
+    "scope": "Two additive, backward-compatible parser relaxations: R1 = `;`-separated statement sequences in `=` function bodies (kills PAR017); R2 = newline-as-soft-separator inside `{ }` blocks (kills PAR020). R1 ships first; R2 merges ONLY after the corpus AST-diff fuzz pass is green. NON-SCOPE: `ailang fmt` formatter (deferred to m-ailang-fmt.md follow-up stub — D1); significant indentation; match...with; tuple-type `;` slip; the rig A/B (deferred to mission controller as a post-merge measurement, NOT an in-sprint gate).",
+    "estimated_effort": "3 days (R1 1d, R2 1.5d, canonicalization-lite + docs/eval-handoff 0.5d)",
+    "premises_verified_live": true,
+    "verification_binary": "read-only against HEAD v0.29.2 (std/VERSION); parser sources read live, NOT rebuilt (plan is doc + JSON only, no code touched)",
+    "verification_date": "2026-07-11",
+    "read_only_main_checkout": true,
+    "fmt_discrepancy_resolution": "Option (b): `ailang fmt` DOES NOT EXIST (no fmt case in cmd/ailang/main.go dispatch, no formatter package). Deferred to its own follow-up doc design_docs/planned/v0_29_0/m-ailang-fmt.md. In-sprint canonical form = golden parse fixtures (same AST) + doc/prompt guidance. The v1.0 bar names 'm-syntax-ai-forgiving landed' = parser accepts the forms; it does NOT require fmt.",
+    "phasing_gate": "R1 (M1) -> R1 fuzz gate (M2, zero re-parse diffs) -> R2 (M3) -> R2 fuzz gate + full suites (M4, zero re-parse diffs). If the R2 fuzz gate goes red, R1 still merges independently and R2 is reworked/deferred (report R1-only outcome + apply D8 dialect-card wording rule).",
+    "in_sprint_acceptance": "parser fixtures (all Conflict-Surface fixtures) + corpus AST-diff fuzz zero-diff (benchmarks/**/*.ail + examples/**/*.ail, currently-valid files) + make verify-examples baseline + full Go suites (make test) + make lint + make check-file-sizes.",
+    "deferred_gpu_step": "The rig A/B on local models (old vs new parser, `;`-family benchmarks, 5 trials, 1M-token cap, compile_error delta) is the REAL success metric but is a GPU step. It is DEFERRED to the mission controller as a post-merge measurement under rig_lock_acquire wait — NOT an in-sprint acceptance gate. Current eval rotation is cloud-only (holds no rig lock).",
+    "magnitude_caveat": "The ~32% figure is from the June qwen3-5 corpus and predates the v0.29.0 frontier-tier re-grade — the failure CLASS is live-proven at HEAD (PAR017/PAR020 still fire on the near-miss forms), its current share is unmeasured. Treat the number as directional; the deferred A/B is the real metric."
+  },
+  "velocity": {
+    "target_loc_per_day": 105,
+    "estimated_total_loc": 315,
+    "estimated_days": 3,
+    "loc_note": "315 = sum of per-milestone LOC (impl + tests + docs). Deliberately test-heavy: impl is ~85 LOC, the rest is Conflict-Surface fixtures + the reusable corpus AST-diff fuzz harness. The 3-day budget is gated by edge-case correctness (R1->R2 fuzz gate), not typing volume."
+  },
+  "discrepancies_found": [
+    {
+      "id": "D1",
+      "doc_claim": "Phase 3: `ailang fmt` '0.5d canonicalization'; Files-to-Modify lists cmd/ailang/fmt*.go",
+      "finding": "No `fmt` subcommand exists — cmd/ailang/main.go's command dispatch has no `fmt` case, and there is no AST-formatter package anywhere in internal/ or cmd/. A from-scratch formatter is a multi-day item that would blow the <=3-day budget.",
+      "action": "Resolve via option (b): defer `ailang fmt` to a follow-up stub design_docs/planned/v0_29_0/m-ailang-fmt.md; in-sprint canonical form = golden parse fixtures (same AST -> same result) + doc/prompt guidance. Remove cmd/ailang/fmt*.go from Files-to-Modify."
+    },
+    {
+      "id": "D2",
+      "doc_claim": "Files-to-Modify: changelogs/v0.10-current.md",
+      "finding": "The current changelog is changelogs/v0.18-current.md. v0.10 is the archived changelogs/v0.10-v0.17-bytecode-vm.md.",
+      "action": "All CHANGELOG entries (R1 in M2, R2 in M4) target changelogs/v0.18-current.md [Unreleased]."
+    },
+    {
+      "id": "D3",
+      "doc_claim": "Fuzz corpus = 'benchmarks/*.ail' + 'examples/**/*.ail'",
+      "finding": "benchmarks/*.ail = 0 files (top-level benchmarks are .yml). .ail sources are benchmarks/**/*.ail (31 recursive) + examples/**/*.ail (368; 159 in examples/runnable/).",
+      "action": "Fuzz corpus glob = benchmarks/**/*.ail AND examples/**/*.ail; assert identical ASTs only for files the OLD parser currently accepts with zero errors."
+    },
+    {
+      "id": "D4",
+      "doc_claim": "R1 reuses parseFunctionBody's `;` loop",
+      "finding": "The `=` body branch (parser_func.go:182-198) calls parseExpression(LOWEST) ONCE then wraps in ast.Block. It does NOT call parseFunctionBody (that is the `{ }` branch at parser_func.go:207). R1 needs its OWN `;`-sequence loop in the `=` branch.",
+      "action": "R1 adds a statement-sequence loop directly in the `=` branch (with peekIsDeclBoundary()); do not route the `=` body through parseFunctionBody."
+    },
+    {
+      "id": "D5",
+      "doc_claim": "R2 reuses peekStartsBlockStatement and `peek.Line > cur.Line`",
+      "finding": "peekStartsBlockStatement (parser_expr.go:476) checks ONLY token type (LET/LETREC/IF/MATCH/IDENT) — no line awareness. The line comparison must be added at the call sites as p.peekToken.Line > p.curToken.Line. Precedent: parser_expr.go:53 already does exactly this comparison for the GAP2 LPAREN fix.",
+      "action": "R2 continue-condition = peekTokenIs(SEMICOLON) OR (peekStartsBlockStatement() AND p.peekToken.Line > p.curToken.Line) at both block loops."
+    },
+    {
+      "id": "D6",
+      "doc_claim": "R2 touches 'the block-statement loops' (singular framing)",
+      "finding": "There are TWO independent block `;`-loops: parseFunctionBody (parser_func.go:343, for func...{} bodies) AND parseBlockOrExpression (parser_expr.go:424, for standalone {} block expressions incl. if/else branch blocks). Both currently loop only `for p.peekTokenIs(SEMICOLON)`. A single-site fix leaves one block form (e.g. if...then {newline-block}) still emitting PAR020.",
+      "action": "Systemic fix: R2 must patch BOTH loops identically. The `if...then {newline-block}` fixture forces both to be patched."
+    },
+    {
+      "id": "D7",
+      "doc_claim": "PAR020 emitted in one place",
+      "finding": "missingBlockSemicolonError() PAR020 guard fires in TWO places: parser_func.go:212 (after parseFunctionBody) and parser_expr.go:443 (after parseBlockOrExpression).",
+      "action": "R2's 'keep PAR020 for same-line no-`;`' must preserve BOTH guards; each fires only when the line-check is false (same line) after the newline rule is added."
+    },
+    {
+      "id": "D8",
+      "doc_claim": "On adoption, remove dialect-traps trap #2",
+      "finding": "Trap #2 = the `;`-in-`=`-body rule (R1 target). Trap #3 = match-arm commas (a Conflict-Surface item, unaffected). If R2 is deferred behind the fuzz gate and only R1 lands, deleting trap #2 would drop still-live newline-in-block guidance.",
+      "action": "If R1+R2 BOTH land -> reword/remove trap #2 (both rules relaxed). If ONLY R1 lands -> REWORD trap #2 to keep the newline-in-block guidance; do NOT delete. Trap #3 untouched."
+    },
+    {
+      "id": "D9",
+      "doc_claim": "examples/runnable is the example home; verify-examples gates it",
+      "finding": "Confirmed: make verify-examples gates examples/runnable/ (make/examples.mk:10). Feature-example precedent = examples/if_then_else_blocks.ail.",
+      "action": "New feature example -> examples/runnable/syntax_ai_forgiving.ail so it is CI-gated."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_R1_EQ_BODY_SEQUENCES",
+      "description": "R1: accept `;`-separated statement sequences in `=` function bodies. In parseFunctionDeclaration's `=` branch (parser_func.go:182-198), replace the single parseExpression(LOWEST) with a loop parsing `expr (; expr)*` that stops at a declaration boundary, wrapping the exprs in the existing ast.Block. Add peekIsDeclBoundary() = export|type|import|EOF OR (func followed by IDENT). `func (` (anonymous-function expression) is NOT a boundary and stays in the body (D4 — own loop, not parseFunctionBody).",
+      "estimated_loc": 95,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "func g() -> int = let x = 5; x + 1 parses with NO PAR017; AST byte-identical to func g() -> int { let x = 5; x + 1 } (asserted in test)",
+        "config_file_parser validateVersion shape (pure func ... = let parts = split(...); length(parts) == 3) compiles",
+        "multi-statement `= s1; s2; s3` parses as a 3-expr Block",
+        "single-expr `= x * 2` unchanged (no changed wrapping semantics that break existing examples)",
+        "Back-to-back decls: `= ...` followed by `func g() = 2` -> f's body ends at `func g`; two decls parsed",
+        "`= ...` followed by export func / type / import / EOF -> body ends at that hard boundary",
+        "funclit-in-=-body: func f() -> int = g(func(x) -> int { x+1 }, xs) is NOT cut at `func(` (M-TAINT guard fixture)",
+        "`= map(\\x. x*2, xs)` (backslash lambda in body) parses",
+        "operator line-continuation `= 1\\n+ 2` parses as ONE expr (operator is not a stmt-start)",
+        "go test ./internal/parser/... -count=1 green; make lint clean on internal/parser/"
+      ],
+      "passes": true,
+      "started": "2026-07-11T14:29:12+02:00",
+      "completed": "2026-07-11T14:39:26+02:00",
+      "notes": "Commit c89e99336. parseEquationBody + peekIsDeclBoundary in parser_func.go; boundary set extended (safely) with extern/@/pure beyond the plan's export|type|import|EOF|func-IDENT. All M1 fixtures in syntax_ai_forgiving_test.go incl. the M-TAINT funclit guard; evaluator re-produced the near-miss + validateVersion transcripts live."
+    },
+    {
+      "id": "M2_R1_FUZZ_GATE_EXAMPLE_CHANGELOG",
+      "description": "R1 merge gate + gated example + R1 CHANGELOG. Build a reusable corpus AST-diff fuzz harness (corpus_astdiff_test.go): parse every benchmarks/**/*.ail + examples/**/*.ail; for every file the OLD parser accepted with zero errors, assert the R1 AST is structurally identical. Add examples/runnable/syntax_ai_forgiving.ail and a R1 CHANGELOG entry. This gate must be green before M3 (R2) starts.",
+      "estimated_loc": 70,
+      "dependencies": ["M1_R1_EQ_BODY_SEQUENCES"],
+      "acceptance_criteria": [
+        "corpus_astdiff_test.go parses all benchmarks/**/*.ail (31) + examples/**/*.ail (368); for every old-parser-valid file, R1 AST is identical -> ZERO re-parse diffs (D3 glob)",
+        "examples/runnable/syntax_ai_forgiving.ail created (demonstrates =-body `;`-sequence), type-checks and runs, gated by make verify-examples (D9)",
+        "make verify-examples at pre-sprint baseline (no regression)",
+        "R1 CHANGELOG entry added to changelogs/v0.18-current.md [Unreleased] referencing PAR017, parser_func.go, and this design doc (D2 — NOT v0.10)",
+        "GATE: this milestone green is the precondition for M3; any re-parse diff means R1 is reworked before R2"
+      ],
+      "passes": true,
+      "started": "2026-07-11T14:39:26+02:00",
+      "completed": "2026-07-11T14:39:37+02:00",
+      "notes": "Commit aca736267. corpus_astdiff_test.go (env-gated AILANG_CORPUS_FUZZ=1): builds cmd/astdump (new spew-based deep dumper, go-spew promoted to direct dep) from BOTH the pinned base a7bd8257c (temp git worktree) and HEAD, diffs over 400 corpus files. Evaluator re-ran it: 389 currently-valid ALL identical, zero diffs. Example examples/runnable/syntax_ai_forgiving.ail gated + passing; R1 CHANGELOG entry in v0.18-current.md."
+    },
+    {
+      "id": "M3_R2_NEWLINE_SOFT_SEPARATOR",
+      "description": "R2: newline as a soft statement separator inside `{ }` blocks. In BOTH block `;`-loops — parseFunctionBody (parser_func.go:343) AND parseBlockOrExpression (parser_expr.go:424, D6) — continue the loop when peek is `;` OR (p.peekToken.Line > p.curToken.Line AND p.peekStartsBlockStatement()) (D5). Preserve the up-front record-literal/record-update detection in parseBlockOrExpression (:/| checks at lines 407/414). Preserve BOTH PAR020 guards (parser_func.go:212, parser_expr.go:443, D7) for the genuine same-line-no-`;` case.",
+      "estimated_loc": 115,
+      "dependencies": ["M2_R1_FUZZ_GATE_EXAMPLE_CHANGELOG"],
+      "acceptance_criteria": [
+        "newline-separated block func f() { let n = length(s)\\n countOccurrences(s, \".\") } parses with NO PAR020; AST identical to the `;`-separated form",
+        "mixed `;` + newline in one block parses",
+        "record literal { name: \"a\"\\n age: 2 } parses as a RECORD, not two statements",
+        "record update { base | f: v\\n g: w } parses as a record-update",
+        "single-expression block { x * 2 } unchanged (no false split)",
+        "multi-line match x { A => 1, B => 2 } inside a block: arms unaffected (comma-separated, outside the block loop)",
+        "operator line-continuation inside a block ({ 1\\n+ 2 }) is NOT split (operator not a stmt-start)",
+        "NEGATIVE: same-line no-`;` { let x = 1 let y = 2 } still emits PAR020 (both call sites)",
+        "if ... then { newline-block } else { newline-block } parses -> proves BOTH loops patched (D6, systemic)",
+        "go test ./internal/parser/... -count=1 green; make lint clean"
+      ],
+      "passes": true,
+      "started": "2026-07-11T14:39:37+02:00",
+      "completed": "2026-07-11T14:46:13+02:00",
+      "notes": "Commit 16d768d74. BEYOND-PLAN systemic finding: if/then blocks and \\-lambda bodies route through parseRecordLiteral's TWO block paths, not parseBlockOrExpression as D6 believed — executor patched all FOUR block loops (parseFunctionBody, parseBlockOrExpression, parseRecordLiteral x2) with the shared peekStartsNewlineBlockStatement helper (line-check AND statement-starter). Record/record-update field parsing untouched (comma-separated). Both PAR020 guards preserved; evaluator verified same-line-no-; still errors and comma-less records error AS records."
+    },
+    {
+      "id": "M4_R2_FUZZ_GATE_DOCS_FMT_STUB_SUITES",
+      "description": "R2 merge gate + docs + fmt follow-up stub + full suites. Re-run corpus_astdiff_test.go WITH R2 (the R2 merge gate). Update prompts/agent/dialect-traps.md per D8. Create the deferred design_docs/planned/v0_29_0/m-ailang-fmt.md follow-up stub (D1). Add R2 CHANGELOG entry + update docs/LIMITATIONS.md. Run full Go suites + verify-examples + check-file-sizes. Hand the rig A/B to the mission controller as a POST-MERGE step (not an in-sprint gate).",
+      "estimated_loc": 35,
+      "dependencies": ["M3_R2_NEWLINE_SOFT_SEPARATOR"],
+      "acceptance_criteria": [
+        "corpus_astdiff_test.go re-run WITH R2: for every old-parser-valid benchmarks/**/*.ail + examples/**/*.ail file, AST identical -> ZERO re-parse diffs (R2 merge gate, NOT the hand-picked fixtures)",
+        "prompts/agent/dialect-traps.md updated per D8: R1+R2 both landed -> reword/remove trap #2; ONLY R1 landed -> reword trap #2 keeping newline-in-block guidance (do NOT delete). Trap #3 untouched",
+        "design_docs/planned/v0_29_0/m-ailang-fmt.md follow-up stub created (deferred formatter + canonical-separator choice) so D1's erosion risk is tracked",
+        "R2 CHANGELOG entry in changelogs/v0.18-current.md [Unreleased] (D2)",
+        "docs/LIMITATIONS.md updated (the `;`/newline separator limitation relaxed)",
+        "Full Go suites green (make test); make verify-examples at baseline; make lint clean; make check-file-sizes clean (parser_expr.go/parser_func.go stay < 800 lines)",
+        "Rig A/B documented as a DEFERRED post-merge measurement (mission controller, rig_lock_acquire wait) — NOT an in-sprint acceptance gate"
+      ],
+      "passes": true,
+      "started": "2026-07-11T14:46:13+02:00",
+      "completed": "2026-07-11T14:54:03+02:00",
+      "notes": "Commit 64ddd6021. R2 fuzz gate green (evaluator-re-run at HEAD = R1+R2, zero diffs). Dialect-traps trap #2 rewritten per D8 both-landed branch, embedded cmd/ailang copy diff-verified in sync. m-ailang-fmt.md stub created. R2 CHANGELOG + LIMITATIONS updated. Full suites: make test sole red = known flake #338 (4/4 standalone non-regression); lint 0 issues; check-file-sizes clean; verify-examples 183/5/5 (5 = pre-existing issue #341 set exactly). Rig A/B documented as deferred post-merge controller step."
+    }
+  ],
+  "risk_level": "medium",
+  "risks": [
+    "R1 `func IDENT` vs `func (` lookahead insufficient (M-TAINT v0.14.3 precedent: a 2-token lookahead passed hand-picked tests but mis-parsed ~14 real programs). Mitigation: funclit-in-=-body fixture (M1) + corpus fuzz (M2) before R1 merges.",
+    "R2 patched at only ONE of the two block loops (D6) — leaves if/then-branch blocks still emitting PAR020. Mitigation: the if...then {newline-block} fixture forces both parseBlockOrExpression and parseFunctionBody to be patched.",
+    "R2 newline rule misfires on a multi-line expression. Mitigation: continue only when peekStartsBlockStatement() (type) AND peek.Line > cur.Line; operators excluded so line-split expressions never split.",
+    "Record literal mis-read as two statements. Mitigation: up-front record/record-update detection (parser_expr.go:407/414) stays ahead of the loop; explicit record fixtures in M3.",
+    "Canonical-form erosion (two accepted forms, no `ailang fmt`). Mitigation (accepted): golden parse fixtures (same AST) + documented canonical form + tracked m-ailang-fmt.md follow-up (D1 option b).",
+    "CHANGELOG targeting: do NOT edit changelogs/v0.10-current.md (does not exist as current) — use changelogs/v0.18-current.md (D2).",
+    "The rig A/B is the real metric but MUST NOT be treated as an in-sprint gate — it is a GPU step deferred to the mission controller under rig_lock_acquire wait."
+  ]
+}

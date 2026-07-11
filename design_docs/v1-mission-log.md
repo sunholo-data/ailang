@@ -714,3 +714,95 @@ PARKED for human (cumulative): tier-assignment ratification (release gate); feed
 production ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure
 validation of the 8 frontier benchmarks + 4 remaining sketches; NEW — issue #341 triage call
 (bisect first; fix vs update-examples vs promote verify-examples into CI).
+
+## 11 — 2026-07-11 — Iteration 9: m-syntax-ai-forgiving LANDED — the ~32% small-model parse-failure class is dead (fifth consecutive round-1-clean; first iteration split across two scheduled runs)
+
+**Picked**: m-syntax-ai-forgiving (queue #10, top [NEXT] per log entry 10). P1, bar v2 clause 3
+(fleet-tier accessibility), ~3d ceiling. THE ITERATION SPANNED TWO SCHEDULED RUNS: run A
+(afternoon) did reality-check 192a79149 + Opus plan a7bd8257c + Opus execute (worktree
+agent-af44352e3fb7d4708, M1–M4, 64ddd6021 at 14:54) and died before evaluation; run B (this
+run, 16:56) found the mid-flight state via commits + worktree census — no eval file, no PR, no
+log entry, no live executor process — and resumed at sprint-evaluator. Inbox at OBSERVE: 6
+eval-suite status broadcasts (informational, 78–99% partials in line with baselines — did not
+outrank). Dev CI green per-workflow @ c4dd9aa1f at OBSERVE. GPU routing question: evaluation +
+integration touch NO GPU; the sprint's rig A/B is the deferred GPU step → PARKED (rotation
+held the rig — 16:31 suite driving 3 local models).
+
+**Reality check** (run A, stamped 192a79149): premises HOLD live at v0.29.2-2-g07aa1062f
+(PAR017/PAR020 transcripts at HEAD); DISCREPANCY found: `ailang fmt` DOES NOT EXIST — Phase-3
+canonicalization re-scoped (plan option b: golden parse fixtures + doc guidance in-sprint,
+formatter split to m-ailang-fmt.md stub). Run B re-verified the execution state independently
+rather than re-doing the reality check (worktree clean at M4, plan commit = merge-base).
+
+**Shipped** (full loop; plan+execute run A, evaluate+integrate run B):
+- Opus plan a7bd8257c: 9 discrepancies verified live (fmt non-existence D1; changelog target D2;
+  fuzz-corpus glob D3; `=`-branch needs its OWN loop D4; peekStartsBlockStatement is type-only
+  D5; TWO block loops D6; TWO PAR020 guards D7; D8 dialect-card wording rule; D9 example home).
+- Opus execute 4 milestones: R1 `parseEquationBody` + `peekIsDeclBoundary` (boundary set safely
+  extended with extern/@/pure beyond the plan's list); R2 via shared conservative helper
+  `peekStartsNewlineBlockStatement` (line-check AND statement-starter) patched **FOUR** block
+  loops — executor discovered if/then blocks and \-lambda bodies route through
+  parseRecordLiteral's block paths, NOT parseBlockOrExpression as D6 believed (the plan's own
+  if/then fixture caught it); reusable corpus AST-diff fuzz harness (cmd/astdump spew dumper,
+  old parser rebuilt from pinned base a7bd8257c in a temp git worktree, env-gated
+  AILANG_CORPUS_FUZZ=1); 314-line Conflict-Surface test file; PAR017 footgun fixture honestly
+  migrated (old source became VALID → now a genuinely-misplaced `;;`); dialect-traps trap #2
+  rewritten per D8 both-landed branch w/ embedded copy synced; CHANGELOG R1+R2, LIMITATIONS,
+  example gated, m-ailang-fmt.md stub.
+- Fable eval round 1: **PASS 96/100** (tests 20/20 — sole make-test red = known flake #338,
+  4/4 standalone; lint 10/10; AC 30/30; quality 12/15 — sprint-artifact gap, see retro; docs
+  14/15; fidelity 10/10; regression-surface +10). Independent verification: evaluator RE-RAN
+  the corpus fuzz gate himself (400 files: 389 currently-valid ALL byte-identical, 1
+  newly-accepted, 10 still-invalid — zero diffs), rebuilt the binary from worktree sources and
+  re-produced all acceptance transcripts (R1/R2 accept; same-line-no-`;` still PAR020;
+  comma-less multi-line record errors AS a record, never statement-split), proved non-vacuity
+  (v0.29.2 emits PAR017/PAR020 on exactly the fixtures the sprint binary accepts), and
+  re-verified verify-examples 183/5/5 with the 5 fails exactly = issue #341's pre-existing set.
+- Integration: PR #342 → merge 224404391 (auto-merge, MERGE method per #339/#340 precedent).
+  Bookkeeping: docs → implemented/v0_30_0, links fixed (roadmap/changelog/fmt-stub), sprint
+  JSON reconstructed + eval report committed. Dev CI on the merge: per-workflow watch (Gate 3b).
+
+**Routing evidence**:
+- model=opus task-class=plan round1-quality=high (9 live discrepancies incl. a scope re-route
+  the doc itself flagged as needing planner decision) rounds=1 corrections=0
+- model=opus task-class=execute round1-score=96 rounds=1 corrections=0 — QUALITY HIGHLIGHT:
+  found a systemic gap the plan missed (4 loops not 2) instead of implementing the plan
+  literally; artifact gap: sprint JSON never updated + plan checkboxes unticked (2nd
+  consecutive iteration → skill fix below)
+- model=fable task-class=evaluate rounds=1 (two self-caught evaluator dead ends: (a) `make test
+  | tail` masked rc — Gate-2 rule 3's exact pipes-lie case, re-run with captured rc; (b) first
+  verify-examples tail read the SKIPPED list as failures — full-log grep corrected it before
+  any wrong conclusion shipped)
+
+**Ruled out**:
+- "The 5 verify-examples failures are sprint-caused" — refuted: exactly the issue #341 set
+  (effectful_list ×2, mcp_tools, stream ×2), and the sprint's +1 (183 vs 182 passed) is the
+  new gated example.
+- "make test FAIL = sprint regression" — refuted: sole failure TestRunCommand_
+  PipedStdoutFlushesPerLine = known flake #338, 4/4 standalone passes in the sprint worktree.
+- "worktree binary stamps prove provenance" — REFUTED as a method: go build in nested
+  .claude/worktrees stamps the MAIN repo's vcs.revision (+its dirty flag) — version output
+  said c4dd9aa1f-dirty for a binary built from 64ddd6021 sources. Verified behaviorally
+  instead (fixtures only the new parser accepts). Recorded to agent memory.
+- "R2 needs exactly two block-loop patches" (plan D6) — refuted by the executor: four loops
+  (parseRecordLiteral's two block paths added); record/record-update field parsing untouched.
+
+**Retro lane**: skill fix (the one allowed) — sprint-executor SKILL.md gains a MANDATORY
+completion gate for sprint artifacts (tick plan checkboxes + update/CREATE sprint JSON in the
+WORKTREE so it rides the PR), traced to 2 recorded frictions: iteration 8 ("plan checkboxes
+unticked, sprint JSON left uncommitted") + iteration 9 (sprint JSON absent from the worktree
+entirely — root cause: the planner created it in the main tree uncommitted, so the executor's
+existing instructions had nothing to act on; evaluator reconstructed bookkeeping from commit
+history). Watch list (single instances, no edit): (a) mid-flight resume required inferring
+state from commits/worktrees — if a second iteration dies mid-loop, add a resume-detection
+step to mission-control's Gate 2; (b) go-vcs-stamp-in-worktrees (memory note written).
+
+**Next**: Iteration 10 — queue #11 m-stdlib-regex (NEW-DOC, clause 4; linear-time RE2-style
+engine MANDATED; via builtin-developer skill, ~1–2d). Carry forward: %-row +
+m-record-update-local-resolution doc-status re-check (iteration 4). PARKED for human
+(cumulative): tier-assignment ratification (release gate); feedback-gate production ops; haiku
+causal re-run; scope-params release-gate re-score; frontier-failure validation of the 8
+frontier benchmarks + 4 remaining sketches; issue #341 triage call; NEW — **rig A/B for
+m-syntax-ai-forgiving** (old vs new parser, `;`-family benchmarks, 5 trials, 1M-token cap,
+compile_error Δ — the sprint's REAL success metric; GPU step under rig_lock_acquire wait, or
+fold into the next OS-rotation window).

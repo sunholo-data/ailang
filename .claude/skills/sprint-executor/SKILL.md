@@ -277,6 +277,20 @@ After Phase 1 initialization, choose between sequential or parallel execution ba
 
 After all milestones complete, proceed to **Phase 4: Finalize Sprint**.
 
+**Completion gate — sprint artifacts (MANDATORY, added 2026-07-11 after 2 recorded
+frictions: mission iterations 8 + 9 both shipped code with plan checkboxes unticked
+and the sprint JSON stale/absent, forcing the evaluator to reconstruct bookkeeping
+from commit history).** The final milestone commit is not "done" until, IN THE SAME
+TREE the code was written in (i.e., the worktree, so it rides the same branch/PR):
+1. Every acceptance-criteria checkbox in the sprint-plan markdown is ticked (or
+   annotated why not).
+2. `.ailang/state/sprints/sprint_<id>.json` has `status: "completed"` and per-milestone
+   `passes`/`completed`/`notes` filled. **If the file is absent from the worktree**
+   (the planner created it in the main tree but didn't commit it — the iteration-9
+   root cause), CREATE it there from the sprint plan rather than skipping the step.
+3. Both are committed. Artifacts that only exist in an uncommitted main-tree file do
+   not exist as far as the branch, the PR, or the evaluator are concerned.
+
 **Quick tips:**
 - Use parser test helpers from `internal/parser/test_helpers.go`
 - Use `DEBUG_PARSER=1` for token flow tracing

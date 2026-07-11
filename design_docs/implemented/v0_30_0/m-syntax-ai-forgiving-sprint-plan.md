@@ -106,11 +106,11 @@ at a **declaration boundary**. Wrap the collected exprs in the existing `ast.Blo
 | operator line-continuation `= 1\n+ 2` | parses as one expr (operator not a stmt-start) |
 
 **Acceptance criteria:**
-- [ ] The `=`-body near-miss fixture and the `config_file_parser` `validateVersion` shape (`pure func … = let parts = split(…); length(parts) == 3`) compile with **no `PAR017`**.
-- [ ] AST for `func g() = let x = 5; x+1` is **identical** to `func g() { let x = 5; x+1 }` (asserted in test).
-- [ ] Every funclit/back-to-back/decl-boundary fixture above passes; `func (` is never treated as a boundary.
-- [ ] `go test ./internal/parser/... -count=1` green; `make lint` clean on `internal/parser/`.
-- [ ] Single-expr `=` bodies unchanged (no new Block wrapping semantics that break existing examples).
+- [x] The `=`-body near-miss fixture and the `config_file_parser` `validateVersion` shape (`pure func … = let parts = split(…); length(parts) == 3`) compile with **no `PAR017`**.
+- [x] AST for `func g() = let x = 5; x+1` is **identical** to `func g() { let x = 5; x+1 }` (asserted in test).
+- [x] Every funclit/back-to-back/decl-boundary fixture above passes; `func (` is never treated as a boundary.
+- [x] `go test ./internal/parser/... -count=1` green; `make lint` clean on `internal/parser/`.
+- [x] Single-expr `=` bodies unchanged (no new Block wrapping semantics that break existing examples).
 
 ---
 
@@ -124,11 +124,11 @@ the R1 AST is byte-identical (structural equality). Add the gated example + R1 C
 **LOC:** fuzz harness ~40 (`corpus_astdiff_test.go` — reusable for R2), example ~20, changelog ~10.
 
 **Acceptance criteria:**
-- [ ] `corpus_astdiff_test.go` parses all `benchmarks/**/*.ail` (31) + `examples/**/*.ail` (368); for every old-parser-valid file, R1 AST is identical → **zero re-parse diffs**.
-- [ ] `examples/runnable/syntax_ai_forgiving.ail` created (demonstrates `=`-body `;`-sequence + is gated by `make verify-examples`); type-checks/runs.
-- [ ] `make verify-examples` at baseline (no regression vs pre-sprint).
-- [ ] R1 CHANGELOG entry added to `changelogs/v0.18-current.md` [Unreleased], referencing `PAR017`, `parser_func.go`, and this doc.
-- [ ] **GATE:** M2 green is the precondition to start M3 (R2). If any re-parse diff appears, R1 is reworked before R2.
+- [x] `corpus_astdiff_test.go` parses all `benchmarks/**/*.ail` (31) + `examples/**/*.ail` (368); for every old-parser-valid file, R1 AST is identical → **zero re-parse diffs**.
+- [x] `examples/runnable/syntax_ai_forgiving.ail` created (demonstrates `=`-body `;`-sequence + is gated by `make verify-examples`); type-checks/runs.
+- [x] `make verify-examples` at baseline (no regression vs pre-sprint).
+- [x] R1 CHANGELOG entry added to `changelogs/v0.18-current.md` [Unreleased], referencing `PAR017`, `parser_func.go`, and this doc.
+- [x] **GATE:** M2 green is the precondition to start M3 (R2). If any re-parse diff appears, R1 is reworked before R2.
 
 ---
 
@@ -158,12 +158,12 @@ they now fire only for the genuine same-line-no-`;` case (line-check false).
 | newline block in `if … then { … } else { … }` branch (**parseBlockOrExpression path**) | parses (proves BOTH loops patched — D6) |
 
 **Acceptance criteria:**
-- [ ] Newline-separated block fixtures compile with **no `PAR020`**; AST identical to the `;`-form.
-- [ ] Same-line-no-`;` still emits `PAR020` (both call sites) — the actionable error is preserved for genuine errors.
-- [ ] Record literal / record-update fixtures parse as records, not statements (up-front detection intact).
-- [ ] The `if … then { newline-block }` fixture proves **both** loops were patched (systemic fix, D6).
-- [ ] Operator line-continuation is never split (matches doc's verified `= 1\n+ 2` / `1 +\n2`).
-- [ ] `go test ./internal/parser/... -count=1` green; `make lint` clean.
+- [x] Newline-separated block fixtures compile with **no `PAR020`**; AST identical to the `;`-form.
+- [x] Same-line-no-`;` still emits `PAR020` (both call sites) — the actionable error is preserved for genuine errors.
+- [x] Record literal / record-update fixtures parse as records, not statements (up-front detection intact).
+- [x] The `if … then { newline-block }` fixture proves **both** loops were patched (systemic fix, D6).
+- [x] Operator line-continuation is never split (matches doc's verified `= 1\n+ 2` / `1 +\n2`).
+- [x] `go test ./internal/parser/... -count=1` green; `make lint` clean.
 
 ---
 
@@ -178,13 +178,13 @@ Update the dialect-traps card per D8. Create the deferred `m-ailang-fmt.md` foll
 **LOC:** dialect card ~10, fmt stub ~15, changelog ~10.
 
 **Acceptance criteria:**
-- [ ] `corpus_astdiff_test.go` re-run **with R2**: for every old-parser-valid `benchmarks/**/*.ail` + `examples/**/*.ail` file, AST is identical → **zero re-parse diffs**. (This is R2's merge gate, not the hand-picked fixtures.)
-- [ ] `prompts/agent/dialect-traps.md` updated: if R1+R2 both landed → trap #2 reworded/removed (`;`-in-`=`-body + newline-in-block rules relaxed); **if only R1 landed** → trap #2 reworded to keep the newline-in-block guidance (do NOT delete). Trap #3 (match commas) untouched.
-- [ ] `design_docs/planned/v0_29_0/m-ailang-fmt.md` stub created (deferred formatter + canonical-separator choice), so D1's erosion risk is tracked.
-- [ ] R2 CHANGELOG entry in `changelogs/v0.18-current.md`.
-- [ ] `docs/LIMITATIONS.md` updated (the `;`/newline separator limitation is relaxed).
-- [ ] **Full Go suites green** (`make test`); `make verify-examples` at baseline; `make lint` clean; `make check-file-sizes` (parser files stay < 800 — verify `parser_expr.go`/`parser_func.go` don't cross).
-- [ ] **Rig A/B is documented as a deferred post-merge measurement step** (mission controller runs it under `rig_lock_acquire wait`), NOT an in-sprint acceptance gate.
+- [x] `corpus_astdiff_test.go` re-run **with R2**: for every old-parser-valid `benchmarks/**/*.ail` + `examples/**/*.ail` file, AST is identical → **zero re-parse diffs**. (This is R2's merge gate, not the hand-picked fixtures.)
+- [x] `prompts/agent/dialect-traps.md` updated: if R1+R2 both landed → trap #2 reworded/removed (`;`-in-`=`-body + newline-in-block rules relaxed); **if only R1 landed** → trap #2 reworded to keep the newline-in-block guidance (do NOT delete). Trap #3 (match commas) untouched.
+- [x] `design_docs/planned/v0_29_0/m-ailang-fmt.md` stub created (deferred formatter + canonical-separator choice), so D1's erosion risk is tracked.
+- [x] R2 CHANGELOG entry in `changelogs/v0.18-current.md`.
+- [x] `docs/LIMITATIONS.md` updated (the `;`/newline separator limitation is relaxed).
+- [x] **Full Go suites green** (`make test`); `make verify-examples` at baseline; `make lint` clean; `make check-file-sizes` (parser files stay < 800 — verify `parser_expr.go`/`parser_func.go` don't cross).
+- [x] **Rig A/B is documented as a deferred post-merge measurement step** (mission controller runs it under `rig_lock_acquire wait`), NOT an in-sprint acceptance gate.
 
 ---
 

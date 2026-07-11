@@ -1,7 +1,18 @@
 # M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior
 
-**Status**: Planned
-**Target**: v0.29.x (was v0.24.0 — stale; doc lives in planned/v0_29_0)
+**Status**: Implemented (2026-07-11, mission iteration 9 — full loop headless, eval PASS 96/100 round 1)
+**Target**: v0.30.0 (was v0.29.x/v0.24.0 — implemented on dev post-v0.29.2, PR #342)
+
+> **Implementation outcome stamp (2026-07-11):** R1 + R2 BOTH landed (PR #342, worktree commits
+> c89e99336..64ddd6021). Corpus AST-diff fuzz gate: zero re-parse diffs over all 389
+> currently-valid corpus files (evaluator-re-run). Systemic finding beyond the plan: R2 required
+> patching FOUR block statement-loops — `if/then` blocks and `\`-lambda bodies route through
+> `parseRecordLiteral`'s block paths, which the plan's D6 (two loops) missed. PAR020 preserved
+> for same-line-no-`;`; PAR017 footgun fixture migrated to a genuinely-misplaced `;;`.
+> **Deferred**: `ailang fmt` → [m-ailang-fmt.md](../../planned/v0_29_0/m-ailang-fmt.md) (D1
+> option b); **rig A/B** (`compile_error` Δ on the `;`-family benchmarks, the real success
+> metric) = post-merge GPU measurement PARKED with the mission controller — eval rotation held
+> the GPU at integration time.
 
 > **Reality-check stamp (mission iteration 9, 2026-07-11, HEAD = v0.29.2-2-g07aa1062f, both
 > binaries rebuilt + version-verified):**
@@ -217,13 +228,13 @@ pure func countDots(s: string) -> int {
 
 ## Success Criteria
 
-- [ ] R1: the `=`-body near-miss fixture and `config_file_parser`'s `validateVersion` shape compile.
-- [ ] R2: newline-separated block fixtures compile; same-line-no-`;` still errors (`PAR020`).
-- [ ] All Conflict Surface fixtures (funclit-in-`=`-body, records, back-to-back decls) parse correctly — fuzz pass over `benchmarks/` + `examples/` shows **zero** re-parse diffs in meaning.
-- [ ] `ailang fmt` is idempotent and maps all accepted forms → one canonical output.
-- [ ] A/B on the rig: `compile_error` rate on the `;`-family benchmarks drops measurably vs the old parser.
-- [ ] `make verify-examples` at baseline; full Go suites green.
-- [ ] Docs updated; dialect-traps card trap #2 *removed* (rule no longer exists).
+- [x] R1: the `=`-body near-miss fixture and `config_file_parser`'s `validateVersion` shape compile. *(evaluator live transcripts, 2026-07-11)*
+- [x] R2: newline-separated block fixtures compile; same-line-no-`;` still errors (`PAR020`). *(both guard sites tested)*
+- [x] All Conflict Surface fixtures (funclit-in-`=`-body, records, back-to-back decls) parse correctly — fuzz pass over `benchmarks/` + `examples/` shows **zero** re-parse diffs in meaning. *(389/389 currently-valid identical, evaluator-re-run)*
+- [ ] ~~`ailang fmt` is idempotent and maps all accepted forms → one canonical output.~~ **DEFERRED** to [m-ailang-fmt.md](../../planned/v0_29_0/m-ailang-fmt.md) (sprint discrepancy D1: `ailang fmt` never existed; erosion risk mitigated by golden parse fixtures + dialect-card guidance).
+- [ ] A/B on the rig: `compile_error` rate on the `;`-family benchmarks drops measurably vs the old parser. **PARKED post-merge** (GPU step; eval rotation held the rig at integration — mission controller runs it under `rig_lock_acquire wait`).
+- [x] `make verify-examples` at baseline; full Go suites green. *(183/5/5, the 5 = pre-existing #341 set; sole test red = known flake #338, 4/4 standalone)*
+- [x] Docs updated; dialect-traps card trap #2 rewritten per plan rule D8 (both R1+R2 landed → reworded to document the forgiving forms; embedded copy synced).
 
 ## Testing Strategy
 
