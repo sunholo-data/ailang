@@ -191,6 +191,70 @@ models:
       ⚠️ 6x more expensive than gpt-5.5 base — use sparingly.
       Use harness_suite to run both harnesses in one command.
 
+  # OpenAI GPT-5.6 family (released July 9, 2026) — three durable capability
+  # tiers: Sol (flagship), Terra (balanced), Luna (fast/cheap). New naming:
+  # generation number + tier name. All: 1M context, 128K max output,
+  # knowledge cutoff Feb 16 2026, programmatic tool calling (Responses API),
+  # explicit prompt-cache breakpoints (30-min minimum cache life),
+  # reasoning.effort none/low/medium/high/xhigh/max.
+  gpt5-6-sol:
+    api_name: "gpt-5.6-sol"
+    provider: "openai"
+    description: "GPT-5.6 Sol - OpenAI flagship tier (Jul 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.005     # $5.00 per 1M = $0.005 per 1K
+      output_per_1k: 0.030    # $30.00 per 1M = $0.030 per 1K
+    notes: |
+      GPT-5.6 Sol — flagship tier of the GPT-5.6 family (July 9, 2026).
+      Same pricing as gpt-5.5 ($5/$30 per 1M).
+      Gated 2026-07-11: smoke 21/23 (anchor-normalized clean — sonnet-4-6 also
+      failed the same 2), core 26/26 N=1 → 25/26 after N=3 de-flake of
+      explicit_dataflow_ssa (both Sol and gpt5-5 fail it 3/3). Core TIE with
+      gpt5-5 at identical price → PROMOTED to benchmark_suite/extended_suite
+      as the same-cost generational refresh (newer Feb-2026 cutoff, 30-min
+      prompt caching, programmatic tool calling).
+      Adaptive reasoning with reasoning_tokens; uses max_completion_tokens.
+      Codex CLI agent support assumed (same lineage as gpt-5.5) — unverified.
+
+  gpt5-6-terra:
+    api_name: "gpt-5.6-terra"
+    provider: "openai"
+    description: "GPT-5.6 Terra - balanced mid tier (Jul 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
+      output_per_1k: 0.015    # $15.00 per 1M = $0.015 per 1K
+    notes: |
+      GPT-5.6 Terra — balanced tier (July 9, 2026). OpenAI claims competitive
+      with GPT-5.5 at 2x cheaper. Same pricing as gpt-5.4 ($2.50/$15 per 1M).
+      Gated 2026-07-11: smoke 21/23 (anchor-normalized clean), core 24/26 at
+      $1.82 — ties the claude-sonnet-4-6 anchor (24/26, $2.52) at ~70% of its
+      cost, 1 behind gpt5-5/sol. Strong value; opt-in (no incumbent slot).
+      Uses max_completion_tokens instead of max_tokens.
+
+  gpt5-6-luna:
+    api_name: "gpt-5.6-luna"
+    provider: "openai"
+    description: "GPT-5.6 Luna - fast/cheap tier (Jul 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.001     # $1.00 per 1M = $0.001 per 1K
+      output_per_1k: 0.006    # $6.00 per 1M = $0.006 per 1K
+    notes: |
+      GPT-5.6 Luna — fast/affordable tier (July 9, 2026).
+      Gated 2026-07-11: smoke 21/23 (anchor-normalized clean), core 23/26 at
+      $0.73 — LOST to incumbent gpt5-4-mini (25/26, $0.55) on both quality and
+      cost, so dev_models/lang_harness_suite keep mini. Opt-in only; re-gate
+      if OpenAI retires the 5.4 line.
+      Uses max_completion_tokens instead of max_tokens.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
@@ -2306,7 +2370,7 @@ default: "claude-sonnet-4-6"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-5"           # OpenAI flagship (Apr 2026)
+  - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
   - "claude-opus-4-8"  # Anthropic flagship (Jun 2026) — was opus-4-7
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
 
@@ -2318,7 +2382,9 @@ benchmark_suite:
 # OS roster refreshed 2026-06-04: glm-5→glm-5.1, minimax-m2.7→m3, +deepseek-v4
 # flash/pro (both 75% std / 100% agent-smoke; the May 0/3 cut was harness-immaturity).
 extended_suite:
-  - "gpt5-5"            # OpenAI flagship (Apr 2026)
+  - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
+    # after N=3 de-flake of explicit_dataflow_ssa (both fail it 3/3; every OpenAI model fails it).
+    # Identical $5/$30 pricing → same-cost generational refresh, gpt5-5 kept opt-in for longitudinal compare.
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
   - "claude-fable-5"    # Anthropic most-capable (Jun 2026, Mythos-class, $10/$50 per 1M) — standard eval only, NEVER agent_suite
   - "claude-opus-4-8"   # Anthropic flagship (Jun 2026) — was opus-4-7
@@ -2427,6 +2493,9 @@ local_models:
 
 # - gpt5              # Superseded by gpt5-5
 # - gpt5-1            # Superseded by gpt5-5
+# - gpt5-5            # Superseded by gpt5-6-sol (2026-07-11, core tie at identical price) — kept for longitudinal compare; still in harness_suite pending opencode-gpt5-6-sol pair
+# - gpt5-6-terra      # Mid tier — core 24/26 at $1.82 (ties sonnet-4-6 anchor at ~70% of its cost); opt-in, no incumbent slot
+# - gpt5-6-luna       # Fast tier — core 23/26 at $0.73; LOST to gpt5-4-mini (25/26, $0.55), so dev_models keeps mini
 # - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
 # - opencode-gpt5-4   # Prior gen — opencode pair for gpt5-4, kept for cross-harness history
 # - opencode-haiku    # Was in agent_suite, swapped for opencode-sonnet-4-6 to pair with claude-sonnet-4-6

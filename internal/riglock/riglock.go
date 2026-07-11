@@ -16,10 +16,13 @@
 package riglock
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -97,6 +100,38 @@ func Holder() string {
 	}
 }
 
+// holderAlive reports whether the recorded holder PID is still running.
+// Returns true (assume alive — do NOT steal) when the holder file is missing
+// or unparseable: stealing is only safe when the holder is positively gone.
+// Both this package and rig-lock.sh write "PID timestamp", and the shell
+// holder's PID lives for the whole job, so the check is valid for either.
+func holderAlive(dir string) bool {
+	b, err := os.ReadFile(filepath.Join(dir, "holder"))
+	if err != nil {
+		return true
+	}
+	fields := strings.Fields(strings.TrimSpace(string(b)))
+	if len(fields) == 0 {
+		return true
+	}
+	pid, err := strconv.Atoi(fields[0])
+	if err != nil || pid <= 0 {
+		return true
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return true
+	}
+	sigErr := proc.Signal(syscall.Signal(0))
+	if sigErr == nil {
+		return true // process exists
+	}
+	if errors.Is(sigErr, os.ErrProcessDone) || errors.Is(sigErr, syscall.ESRCH) {
+		return false // positively dead
+	}
+	return true // EPERM etc. — exists but not ours, or inconclusive
+}
+
 // Acquire attempts to take the rig lock.
 //
 //   - If an ancestor already holds it (EnvHeld=1), returns (true, noop-release,
@@ -123,9 +158,12 @@ func Acquire(mode Mode) (bool, Release, error) {
 		if !os.IsExist(err) {
 			return false, func() {}, fmt.Errorf("riglock: mkdir lock: %w", err)
 		}
-		// Lock is held — steal it if stale (holder crashed without releasing).
+		// Lock is held — steal it if stale (holder crashed without releasing)
+		// or if the recorded holder PID is no longer running (holder exited via
+		// os.Exit, which skips the deferred release — observed 2026-07-11 when
+		// a completed eval-suite left the lock held for its full 6h window).
 		if fi, statErr := os.Stat(dir); statErr == nil {
-			if time.Since(fi.ModTime()) > staleWindow() {
+			if time.Since(fi.ModTime()) > staleWindow() || !holderAlive(dir) {
 				_ = os.RemoveAll(dir)
 				continue
 			}

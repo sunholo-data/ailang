@@ -167,32 +167,6 @@ func runEvalSuite() {
 		fmt.Printf("%s Version-banking: output → %s\n", cyan("→"), *outputDir)
 	}
 
-	// Shared rig lock (M-RIG-LOCK-ENFORCE): the rig is a single GPU. Two eval
-	// jobs hitting ollama concurrently thrash and can trigger a model reload that
-	// stalls a stream — which has hung runs for hours. Refuse to start if another
-	// rig job (nightly/lang-eval/rotation, or another eval-suite) holds the lock,
-	// surfacing the conflict immediately instead of relying on anyone to source
-	// rig-lock.sh. --dry-run touches no GPU, so it skips the lock. The launchd
-	// wrapper already holds the lock and exports AILANG_RIG_LOCK_HELD=1, which
-	// riglock.Acquire honours so it never deadlocks against its own parent.
-	if !*dryRun && !*noRigLock {
-		acquired, release, lockErr := riglock.Acquire(riglock.NoWait)
-		if lockErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: rig lock unavailable (%v) — proceeding without it\n", lockErr)
-		} else if !acquired {
-			holder := riglock.Holder()
-			if holder == "" {
-				holder = "another rig job"
-			}
-			fmt.Fprintf(os.Stderr, "Error: the rig is busy — %s holds the rig lock.\n", holder)
-			fmt.Fprintf(os.Stderr, "       The rig is a single GPU; running concurrently thrashes ollama and can hang.\n")
-			fmt.Fprintf(os.Stderr, "       Wait for it to finish, or pass --no-rig-lock to override (isolated box only).\n")
-			os.Exit(1)
-		} else {
-			defer release()
-		}
-	}
-
 	// Set package-level eval config from flags (M-CONTRACT-EVAL)
 	if *benchmarkDir != "" {
 		evalBenchmarkDir = *benchmarkDir
@@ -305,6 +279,45 @@ func runEvalSuite() {
 	}
 	for i := range benchmarkList {
 		benchmarkList[i] = strings.TrimSpace(benchmarkList[i])
+	}
+
+	// Shared rig lock (M-RIG-LOCK-ENFORCE): the rig is a single GPU. Two eval
+	// jobs hitting ollama concurrently thrash and can trigger a model reload that
+	// stalls a stream — which has hung runs for hours. Refuse to start if another
+	// rig job (nightly/lang-eval/rotation, or another eval-suite) holds the lock,
+	// surfacing the conflict immediately instead of relying on anyone to source
+	// rig-lock.sh. The lock only applies to runs that actually touch the local
+	// GPU (any selected model with provider "ollama" or an ollama/ agent model);
+	// cloud-only runs (OpenAI/Anthropic/Google/OpenRouter APIs) share nothing
+	// with the rig and proceed without it. --dry-run touches no GPU, so it skips
+	// the lock too. The launchd wrapper already holds the lock and exports
+	// AILANG_RIG_LOCK_HELD=1, which riglock.Acquire honours so it never
+	// deadlocks against its own parent.
+	needsRigLock := false
+	if eval_harness.GlobalModelsConfig != nil {
+		for _, m := range modelList {
+			if eval_harness.GlobalModelsConfig.UsesLocalGPU(m) {
+				needsRigLock = true
+				break
+			}
+		}
+	}
+	if !*dryRun && !*noRigLock && needsRigLock {
+		acquired, release, lockErr := riglock.Acquire(riglock.NoWait)
+		if lockErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: rig lock unavailable (%v) — proceeding without it\n", lockErr)
+		} else if !acquired {
+			holder := riglock.Holder()
+			if holder == "" {
+				holder = "another rig job"
+			}
+			fmt.Fprintf(os.Stderr, "Error: the rig is busy — %s holds the rig lock.\n", holder)
+			fmt.Fprintf(os.Stderr, "       The rig is a single GPU; running concurrently thrashes ollama and can hang.\n")
+			fmt.Fprintf(os.Stderr, "       Wait for it to finish, or pass --no-rig-lock to override (isolated box only).\n")
+			os.Exit(1)
+		} else {
+			defer release()
+		}
 	}
 
 	// Apply --tier filter (M-EVAL-SUITE-PREP M3)

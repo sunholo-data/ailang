@@ -100,6 +100,48 @@ func TestAcquire_StealsStaleLock(t *testing.T) {
 	release()
 }
 
+func TestAcquire_StealsDeadHolderLock(t *testing.T) {
+	dir := isolate(t)
+
+	// Pre-create a "held" lock with a fresh mtime (inside the staleness window)
+	// whose recorded holder PID cannot exist (above macOS/Linux pid limits) —
+	// the holder exited via os.Exit and skipped its deferred release.
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("seed lock: %v", err)
+	}
+	holder := []byte("999999999 2026-07-11T08:56:41Z")
+	if err := os.WriteFile(filepath.Join(dir, "holder"), holder, 0o644); err != nil {
+		t.Fatalf("seed holder: %v", err)
+	}
+
+	ok, release, err := Acquire(NoWait)
+	if err != nil {
+		t.Fatalf("Acquire: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected to steal a lock whose holder PID is dead")
+	}
+	release()
+}
+
+func TestAcquire_KeepsFreshLockWithUnreadableHolder(t *testing.T) {
+	dir := isolate(t)
+
+	// A fresh lock with no holder file must NOT be stolen — stealing is only
+	// safe when the holder is positively dead.
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("seed lock: %v", err)
+	}
+
+	ok, _, err := Acquire(NoWait)
+	if err != nil {
+		t.Fatalf("Acquire: %v", err)
+	}
+	if ok {
+		t.Fatal("must not steal a fresh lock just because the holder file is missing")
+	}
+}
+
 func TestHolder_FreeLock(t *testing.T) {
 	isolate(t)
 	if h := Holder(); h != "" {

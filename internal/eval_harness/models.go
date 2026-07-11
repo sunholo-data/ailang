@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -173,6 +174,21 @@ func (c *ModelsConfig) GetProvider(name string) (string, error) {
 		return "", err
 	}
 	return model.Provider, nil
+}
+
+// UsesLocalGPU reports whether a model runs on the local Ollama GPU — the
+// shared single-GPU rig that the rig lock protects. Cloud/API models return
+// false. Unknown model names return false: they fail model validation later,
+// and an ad-hoc cloud model name must not grab the rig lock.
+func (c *ModelsConfig) UsesLocalGPU(name string) bool {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return false
+	}
+	if model.Provider == "ollama" {
+		return true
+	}
+	return model.AgentModelName != nil && strings.HasPrefix(*model.AgentModelName, "ollama/")
 }
 
 // GetEnvVar returns the environment variable name for a model's API key
