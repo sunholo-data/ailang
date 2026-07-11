@@ -4,6 +4,6 @@ ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-codex:latest
 
 # Go toolchain — matches go.mod version in the ailang repo
-COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
+COPY --from=golang:1.26-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/ailang/go"
