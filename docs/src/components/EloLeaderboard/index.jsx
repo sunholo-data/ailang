@@ -103,6 +103,16 @@ export default function EloLeaderboard() {
   const sat = block.saturation || {};
   const regraded = (data.grading || {}).regraded;
 
+  // ELO range for the leaderboard bars (relative fill).
+  const eloVals = models.map((m) => m.elo).filter((v) => v != null);
+  const maxElo = eloVals.length ? Math.max(...eloVals) : 1;
+  const minElo = eloVals.length ? Math.min(...eloVals) : 0;
+  const eloPct = (v) => {
+    if (maxElo === minElo) return 100;
+    return Math.max(6, Math.round(((v - minElo) / (maxElo - minElo)) * 100));
+  };
+  const MEDALS = ['🥇', '🥈', '🥉'];
+
   // A-vs-P: merge AILANG + Python model ELOs into rows sorted by AILANG-ELO desc.
   const aMap = eloMap(byLang.ailang);
   const pMap = eloMap(byLang.python);
@@ -189,26 +199,43 @@ export default function EloLeaderboard() {
           {/* Model capability */}
           <div>
             <h4 style={{ marginBottom: 6 }}>Model capability (ELO){activeLang !== 'combined' ? ` — ${LANG_LABEL[activeLang]}` : ''}</h4>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '36px' }} />
+                <col />
+                <col style={{ width: '62px' }} />
+              </colgroup>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--ifm-color-emphasis-300)' }}>
-                  <th style={{ padding: '4px 8px' }}>#</th>
-                  <th style={{ padding: '4px 8px' }}>Model</th>
-                  <th style={{ padding: '4px 8px', textAlign: 'right' }}>ELO</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'bottom' }}>#</th>
+                  <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Model</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>ELO</th>
                 </tr>
               </thead>
               <tbody>
-                {models.map((m, i) => (
-                  <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
-                    <td style={{ padding: '6px 10px', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)' }}>{i + 1}</td>
-                    <td style={{ padding: '6px 10px', verticalAlign: 'middle', fontWeight: i === 0 ? 700 : 400 }}>
-                      {modelShort(m.id)} {i === 0 && '🥇'}
-                    </td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                      {Math.round(m.elo)}
-                    </td>
-                  </tr>
-                ))}
+                {models.map((m, i) => {
+                  const pct = eloPct(m.elo);
+                  return (
+                    <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)', fontVariantNumeric: 'tabular-nums' }}>
+                        {MEDALS[i] || i + 1}
+                      </td>
+                      <td style={{ padding: 0, verticalAlign: 'middle' }}>
+                        <div style={{ position: 'relative', padding: '6px 10px' }}>
+                          <div style={{
+                            position: 'absolute', top: 3, bottom: 3, left: 0, width: `${pct}%`,
+                            background: 'var(--ifm-color-primary)', opacity: i === 0 ? 0.24 : 0.13,
+                            borderRadius: '0 4px 4px 0',
+                          }} />
+                          <span style={{ position: 'relative', fontWeight: i === 0 ? 700 : 400 }}>{modelShort(m.id)}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+                        {Math.round(m.elo)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
