@@ -167,7 +167,7 @@ Only `Rand` (`mode ∈ {os, seeded, crypto}`) and `AI`
 parameter schema today; every other effect accepts its bare form only,
 and any explicit parameter is a hard error. Adding modes to `Clock`,
 `Net`, and `FS` is tracked in
-[m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
+[m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md).
 
 The closed set is deliberate:
 

@@ -218,13 +218,13 @@ comment/prose only.)
 
 ## Success Metrics (from design doc §Success Criteria)
 
-- [ ] Schema registers Rand + AI surfaces exactly as shipped in v0.15.0 (frozen table above)
-- [ ] Unknown value / unknown key / schema-less effect param → 3 distinct structured errors w/ fixes
-- [ ] All legal v0.15.0 forms type-check unchanged; `make verify-examples` green
-- [ ] Bridge/iface-cache round-trip regression (nil Params → no validation) passes
-- [ ] Guide "Mode set is closed" verified accurate; interim note removed
-- [ ] Teaching prompt mentions the three error codes
-- [ ] `make test && make lint` green
+- [x] Schema registers Rand + AI surfaces exactly as shipped in v0.15.0 (frozen table above)
+- [x] Unknown value / unknown key / schema-less effect param → 3 distinct structured errors w/ fixes
+- [x] All legal v0.15.0 forms type-check unchanged; `make verify-examples` green
+- [x] Bridge/iface-cache round-trip regression (nil Params → no validation) passes
+- [x] Guide "Mode set is closed" verified accurate; interim note removed
+- [x] Teaching prompt mentions the three error codes
+- [x] `make test && make lint` green
 
 ---
 
