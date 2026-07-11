@@ -12,16 +12,20 @@ import (
 // produce an actionable PAR020 error naming the fix, not a bare
 // "expected }, got X". This is the #1 unactionable thrash-causer on small models
 // — config_file_parser burned 66 agent turns on a generic "expected }, got if".
+//
+// M-SYNTAX-AI-FORGIVING R2 narrowed PAR020's scope: a NEWLINE between statements is
+// now an accepted soft separator (no error). PAR020 therefore fires only for the
+// genuine SAME-LINE, no-`;` case — where the tokens are ambiguous and a `;` really
+// is required. The fixtures below use same-line inputs accordingly.
 func TestPAR020_MissingBlockSemicolon(t *testing.T) {
-	t.Run("func body missing semicolon (the 66-turn pattern)", func(t *testing.T) {
+	t.Run("same-line missing semicolon before if (the 66-turn pattern)", func(t *testing.T) {
 		input := "module t\n" +
 			"pure func f(n: int) -> int {\n" +
-			"  let x = n\n" + // <-- missing ';'
-			"  if x > 0 then 1 else 0\n" +
+			"  let x = n if x > 0 then 1 else 0\n" + // <-- same line, missing ';'
 			"}\n"
 		err := firstParserErrorWithCode(t, input, "PAR020")
 		if err == nil {
-			t.Fatal("expected PAR020 for a missing ';' between block statements")
+			t.Fatal("expected PAR020 for a same-line missing ';' between block statements")
 		}
 		msg := err.Error()
 		if !strings.Contains(msg, "missing ';'") {
@@ -35,15 +39,25 @@ func TestPAR020_MissingBlockSemicolon(t *testing.T) {
 		}
 	})
 
-	t.Run("missing semicolon before another let", func(t *testing.T) {
+	t.Run("same-line missing semicolon before another let", func(t *testing.T) {
 		input := "module t\n" +
 			"pure func f(n: int) -> int {\n" +
-			"  let x = n\n" + // <-- missing ';'
+			"  let x = n let y = x y\n" + // <-- same line, missing ';'
+			"}\n"
+		if firstParserErrorWithCode(t, input, "PAR020") == nil {
+			t.Error("expected PAR020 when a same-line let-statement is followed by another without ';'")
+		}
+	})
+
+	t.Run("newline-separated statements do NOT trigger PAR020 (R2)", func(t *testing.T) {
+		input := "module t\n" +
+			"pure func f(n: int) -> int {\n" +
+			"  let x = n\n" + // newline is a soft separator now — no error
 			"  let y = x\n" +
 			"  y\n" +
 			"}\n"
-		if firstParserErrorWithCode(t, input, "PAR020") == nil {
-			t.Error("expected PAR020 when a let-statement is followed by another without ';'")
+		if err := firstParserErrorWithCode(t, input, "PAR020"); err != nil {
+			t.Errorf("newline-separated statements must not trigger PAR020 after R2: %s", err.Error())
 		}
 	})
 

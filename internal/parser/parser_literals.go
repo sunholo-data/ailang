@@ -502,15 +502,19 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 		// for the outer block's `}`. Resulting bug: `{ stmt; {a:1} }` parsed as
 		// the inner record-only block, leaving the outer `}` unconsumed and the
 		// caller (e.g. if-then-else) failing to find its `else` token.
-		for p.peekTokenIs(lexer.SEMICOLON) {
-			p.nextToken() // move to SEMICOLON
-
-			// Trailing semicolon support: `{ a; b; }`
-			if p.peekTokenIs(lexer.RBRACE) {
-				break
+		// R2 (M-SYNTAX-AI-FORGIVING): a newline before a statement-starter is a soft
+		// separator too, not only `;` (peekStartsNewlineBlockStatement, parser_func.go).
+		for p.peekTokenIs(lexer.SEMICOLON) || p.peekStartsNewlineBlockStatement() {
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken() // move to SEMICOLON
+				// Trailing semicolon support: `{ a; b; }`
+				if p.peekTokenIs(lexer.RBRACE) {
+					break
+				}
+				p.nextToken() // move past SEMICOLON to the next expression
+			} else {
+				p.nextToken() // R2: newline separator — advance onto the next statement
 			}
-
-			p.nextToken() // move past SEMICOLON to the next expression
 			expr := p.parseExpression(LOWEST)
 			block.Exprs = append(block.Exprs, expr)
 		}
@@ -537,6 +541,13 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken() // move to SEMICOLON
 				p.nextToken() // move past SEMICOLON
+				continue
+			}
+
+			// R2 (M-SYNTAX-AI-FORGIVING): a newline before a statement-starter is a
+			// soft separator — advance onto the next statement and continue.
+			if p.peekStartsNewlineBlockStatement() {
+				p.nextToken()
 				continue
 			}
 

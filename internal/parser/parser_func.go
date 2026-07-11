@@ -342,17 +342,24 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 		exprs = append(exprs, expr)
 	}
 
-	// Continue parsing while we see semicolons
-	for p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // move to SEMICOLON
+	// Continue parsing while statements are separated by `;` OR (R2) by a newline
+	// before a statement-starting token. See peekStartsNewlineBlockStatement.
+	for p.peekTokenIs(lexer.SEMICOLON) || p.peekStartsNewlineBlockStatement() {
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to SEMICOLON
 
-		// Check for trailing semicolon (next token is RBRACE)
-		// Don't advance past it so caller can consume the RBRACE
-		if p.peekTokenIs(lexer.RBRACE) {
-			break
+			// Check for trailing semicolon (next token is RBRACE)
+			// Don't advance past it so caller can consume the RBRACE
+			if p.peekTokenIs(lexer.RBRACE) {
+				break
+			}
+
+			p.nextToken() // move past SEMICOLON
+		} else {
+			// R2 soft separator: no `;` to consume — the newline before the next
+			// statement-starter IS the separator. Advance onto that starter.
+			p.nextToken()
 		}
-
-		p.nextToken() // move past SEMICOLON
 
 		expr = p.parseExpression(LOWEST)
 		if expr != nil {
@@ -370,6 +377,25 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 		Exprs: exprs,
 		Pos:   startPos,
 	}
+}
+
+// peekStartsNewlineBlockStatement reports whether the peek token begins a new block
+// statement that is separated from the current statement by a NEWLINE (rather than a
+// `;`). This is M-SYNTAX-AI-FORGIVING R2: a newline is accepted as a soft statement
+// separator inside `{ }` blocks, the form small models naturally write.
+//
+// It is deliberately conservative — it requires BOTH:
+//   - peek is on a LATER line than cur (`p.peekToken.Line > p.curToken.Line`), the
+//     same line-awareness the M-GAP2 LPAREN fix uses; AND
+//   - peek is an unambiguous statement-starter (let/letrec/if/match/identifier), via
+//     peekStartsBlockStatement.
+//
+// Because operators, literals, `(`, etc. are NOT statement-starters, a multi-line
+// expression (`= 1\n+ 2`, `{ 1\n+ 2 }`) is never split. Same-line adjacency
+// (`{ let x = 1 let y = 2 }`) fails the line check and still yields the PAR020
+// "missing ;" error at the guard sites.
+func (p *Parser) peekStartsNewlineBlockStatement() bool {
+	return p.peekToken.Line > p.curToken.Line && p.peekStartsBlockStatement()
 }
 
 // parseEquationBody parses the body of an equation-form function (`func f() = ...`).

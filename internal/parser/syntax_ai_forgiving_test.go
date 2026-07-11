@@ -181,3 +181,134 @@ func TestR1_OperatorLineContinuation(t *testing.T) {
 		t.Fatalf("expected BinaryOp (1 + 2), got %T", block.Exprs[0])
 	}
 }
+
+// --- R2: newline-as-soft-separator in `{ }` blocks ----------------------------
+
+// errsHaveCode reports whether any of errs is a *ParserError with the given code.
+func errsHaveCode(errs []error, code string) bool {
+	for _, e := range errs {
+		if pe, ok := e.(*ParserError); ok && pe.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// TestR2_NewlineMatchesSemicolon: a newline-separated block produces the SAME AST
+// as the `;`-separated block, across all three block-parsing paths.
+//
+//	parseFunctionBody       — `func f() { ... }`
+//	parseBlockOrExpression  — typed funclit body / match-case body
+//	parseRecordLiteral      — `{ }` in expression position (if/then blocks, \-lambda)
+func TestR2_NewlineMatchesSemicolon(t *testing.T) {
+	cases := []struct {
+		name    string
+		newline string
+		semi    string
+	}{
+		{
+			"func_body",
+			"func f(s) { let n = length(s)\n countOccurrences(s, \".\") }",
+			"func f(s) { let n = length(s); countOccurrences(s, \".\") }",
+		},
+		{
+			"if_then_block", // parseRecordLiteral else-block path (D6 systemic-fix proof)
+			"func f(x) { if x > 0 then { let a = x\n a + 1 } else { 0 } }",
+			"func f(x) { if x > 0 then { let a = x; a + 1 } else { 0 } }",
+		},
+		{
+			"typed_funclit_body", // parseBlockOrExpression path
+			"func f() { g(func(x) -> int { let y = x\n y * 2 }) }",
+			"func f() { g(func(x) -> int { let y = x; y * 2 }) }",
+		},
+		{
+			"backslash_lambda_body", // parseRecordLiteral IDENT-first / else path
+			"func f() = (\\x. { let a = x\n a + 1 })(3)",
+			"func f() = (\\x. { let a = x; a + 1 })(3)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			nl := funcBody(t, parseOK(t, tc.newline))
+			sc := funcBody(t, parseOK(t, tc.semi))
+			if diff := cmp.Diff(sc, nl, ignorePos); diff != "" {
+				t.Errorf("newline-block AST differs from ;-block AST (-semi +newline):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestR2_MixedSeparators: a block mixing `;` and newline separators parses.
+func TestR2_MixedSeparators(t *testing.T) {
+	body := funcBody(t, parseOK(t, "func f() { let a = 1; let b = 2\n let c = 3; a + b + c }"))
+	block, ok := body.(*ast.Block)
+	if !ok || len(block.Exprs) != 4 {
+		t.Fatalf("expected 4-expr Block, got %T (%d exprs)", body, blockLen(body))
+	}
+}
+
+// TestR2_SingleExprBlockUnchanged: a single-expression block is not falsely split.
+func TestR2_SingleExprBlockUnchanged(t *testing.T) {
+	body := funcBody(t, parseOK(t, "func f() { x * 2 }"))
+	if _, ok := body.(*ast.BinaryOp); !ok {
+		t.Fatalf("expected bare BinaryOp (single-expr block unwrapped), got %T", body)
+	}
+}
+
+// TestR2_MultiLineRecordStillRecord: a comma-separated multi-line record literal
+// and record update still parse as records — the newline rule never reaches a
+// record body (up-front record detection stays ahead of the block loop).
+func TestR2_MultiLineRecordStillRecord(t *testing.T) {
+	// Record literal spanning lines (comma-separated).
+	f := parseOK(t, "func f() { let r = { name: \"a\",\n age: 2 } in r }")
+	_ = f
+	// Record update spanning lines.
+	parseOK(t, "func g(base) { let r = { base | x: 1,\n y: 2 } in r }")
+}
+
+// TestR2_MatchArmsUnaffected: a multi-line match inside a block keeps comma-
+// separated arms (the match arm list is not the block statement loop).
+func TestR2_MatchArmsUnaffected(t *testing.T) {
+	parseOK(t, "func f(x) { match x {\n Some(v) => v,\n None => 0\n } }")
+}
+
+// TestR2_OperatorLineContinuationInBlock: `{ 1\n+ 2 }` is one expression (operator
+// is not a statement-starter), never split — matches the documented `= 1\n+ 2` rule.
+func TestR2_OperatorLineContinuationInBlock(t *testing.T) {
+	// Pure operator continuation: one expression.
+	body := funcBody(t, parseOK(t, "func f() { 1\n+ 2 }"))
+	if _, ok := body.(*ast.BinaryOp); !ok {
+		t.Fatalf("expected single BinaryOp (operator continuation not split), got %T", body)
+	}
+	// A statement then an operator-continued expression: 2 statements, the 2nd whole.
+	body2 := funcBody(t, parseOK(t, "func f() { let a = 1\n a + 2 }"))
+	block, ok := body2.(*ast.Block)
+	if !ok || len(block.Exprs) != 2 {
+		t.Fatalf("expected 2-expr Block, got %T", body2)
+	}
+}
+
+// TestR2_SameLineNoSemicolonStillPAR020: the actionable "missing ;" error is
+// preserved for the genuine same-line-no-`;` case (line-check false), at BOTH the
+// funcbody guard and the block-expression guard.
+func TestR2_SameLineNoSemicolonStillPAR020(t *testing.T) {
+	cases := []string{
+		"func f() { let x = 1 let y = 2 }",                       // parseFunctionBody guard
+		"func f() { g(func(z) -> int { let a = 1 let b = 2 }) }", // parseBlockOrExpression guard
+	}
+	for _, src := range cases {
+		p := New(lexer.New(src, "test://unit"))
+		p.Parse()
+		if !errsHaveCode(p.Errors(), "PAR020") {
+			t.Errorf("expected PAR020 for same-line-no-; %q, got: %v", src, p.Errors())
+		}
+	}
+}
+
+// blockLen returns the number of exprs if e is a Block, else -1 (test diagnostics).
+func blockLen(e ast.Expr) int {
+	if b, ok := e.(*ast.Block); ok {
+		return len(b.Exprs)
+	}
+	return -1
+}
