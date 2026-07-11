@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import historyData from '../../../static/benchmarks/os/history.json';
 
 // M-EVAL-OS-LONGITUDINAL: local-rig eval performance per AILANG release.
-// Reads docs/static/benchmarks/os/history.json (an array of per-version
-// snapshots written by tools/os-release-snapshot.sh) and renders a
-// version-over-version trend: rows = (model, harness), columns = AILANG
-// versions, cells = pass rate for the selected language. Degrades gracefully:
-// no history → renders nothing; one version → a single column (still valid).
+// The version-trend snapshots (docs/static/benchmarks/os/history.json — written by
+// tools/os-release-snapshot.sh and refreshed each rotation cycle) are BUNDLED AT
+// BUILD TIME (imported, NOT fetched at runtime). A runtime fetch of that static
+// JSON was subject to CDN edge-cache inconsistency: the same URL returned good data
+// to one request and a stale/collapsed copy to another, which rendered as an empty
+// table for weeks. The content-hashed bundle is cache-proof, always matches the
+// deployed commit, and refreshes on every deploy (the rotation commits + pushes it).
+// Renders a version-over-version trend: rows = (model, harness), columns = AILANG
+// versions, cells = pass rate for the selected language.
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
@@ -30,20 +35,11 @@ function shortModel(m) {
 }
 
 export default function OSVersionTrend() {
-  const [history, setHistory] = useState(null);
   const [lang, setLang] = useState('ailang');
 
-  useEffect(() => {
-    // Cache-bust: history.json is small and updates per-release, but it ships with
-    // max-age=600, so a browser that cached an early/transitional copy would show
-    // stale (or empty) rows for 10 min. A per-load query param forces fresh data.
-    fetch(`/benchmarks/os/history.json?v=${Date.now()}`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((h) => setHistory(Array.isArray(h) ? h : []))
-      .catch(() => setHistory([]));
-  }, []);
-
-  if (history == null) return <p>Loading version trend…</p>;
+  // BUILD-TIME data (see file header): imported, not fetched — no CDN edge-cache
+  // roulette, so the render is deterministic and matches the deployed commit.
+  const history = Array.isArray(historyData) ? historyData : [];
   const valid = history.filter((e) => e && e.ailang_version);
   if (valid.length < 1) return null; // nothing published yet — show nothing
 
