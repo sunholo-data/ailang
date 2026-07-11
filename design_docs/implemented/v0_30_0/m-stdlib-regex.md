@@ -1,6 +1,8 @@
 # m-stdlib-regex — Linear-Time (RE2) Regex Builtin
 
-**Status**: Planned
+**Status**: Implemented (mission iteration 11, 2026-07-11; sprint-evaluator PASS 97/100 round 1).
+Builtins in `internal/builtins/regex.go` (modern `RegisterEffectBuiltin`, not the legacy
+`internal/eval/` path this doc drafted); module `std/regex.ail`; 3 examples; docs updated.
 **Target**: v0.30.0
 **Priority**: P1 (v1.0 bar clause 4 — ORCHESTRATION FLAGSHIP, strategy R7)
 **Estimated**: 2 days (1d engine+builtins, 0.5d stdlib module+examples, 0.5d tests+docs+buffer)
