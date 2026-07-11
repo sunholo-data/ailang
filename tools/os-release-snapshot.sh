@@ -31,12 +31,28 @@ HISTORY="docs/static/benchmarks/os/history.json"
 
 command -v ailang >/dev/null || { echo "ailang not on PATH"; exit 1; }
 
-# 1. Refresh latest.json from the accumulator.
+# 1. Refresh latest.json from the accumulator (current rolling snapshot).
 ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" --os-json "$LATEST" >/dev/null \
   || { echo "eval-publish failed"; exit 1; }
 
-# 2. Append/replace the <version> entry in history.json.
-python3 - "$VERSION" "$LATEST" "$HISTORY" <<'PY'
+# 2. Snapshot THIS version for the history entry. Prefer the version-scoped
+#    subdir ($ROLL/$VERSION, created by --bank-by-version) so the history point
+#    reflects that version's own numbers, not the mixed multi-version root
+#    accumulator (fixed 2026-07-11 — the mixed-root read was silently
+#    cross-contaminating per-version history entries).
+VER_DIR="$ROLL/$VERSION"
+HIST_SRC="$LATEST"
+if [ -d "$VER_DIR" ]; then
+  VER_JSON="$(mktemp)"
+  if ailang eval-publish "$VERSION" --rotation "$VER_DIR" --os-json "$VER_JSON" >/dev/null 2>&1; then
+    HIST_SRC="$VER_JSON"
+  fi
+else
+  echo "note: no per-version dir $VER_DIR — attributing the mixed accumulator to $VERSION" >&2
+fi
+
+# 3. Append/replace the <version> entry in history.json (from the per-version snapshot).
+python3 - "$VERSION" "$HIST_SRC" "$HISTORY" <<'PY'
 import json, sys, os
 version, latest_p, hist_p = sys.argv[1], sys.argv[2], sys.argv[3]
 latest = json.load(open(latest_p))
