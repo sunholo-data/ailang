@@ -16,13 +16,11 @@
 package riglock
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -105,6 +103,10 @@ func Holder() string {
 // or unparseable: stealing is only safe when the holder is positively gone.
 // Both this package and rig-lock.sh write "PID timestamp", and the shell
 // holder's PID lives for the whole job, so the check is valid for either.
+// The PID liveness probe itself is platform-specific (pid_unix.go /
+// pid_windows.go): Unix uses signal 0; Windows uses OpenProcess, because
+// os.FindProcess errors there for any dead PID — which the Unix-style code
+// misread as "assume alive", so dead-holder locks were never stolen.
 func holderAlive(dir string) bool {
 	b, err := os.ReadFile(filepath.Join(dir, "holder"))
 	if err != nil {
@@ -118,18 +120,7 @@ func holderAlive(dir string) bool {
 	if err != nil || pid <= 0 {
 		return true
 	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return true
-	}
-	sigErr := proc.Signal(syscall.Signal(0))
-	if sigErr == nil {
-		return true // process exists
-	}
-	if errors.Is(sigErr, os.ErrProcessDone) || errors.Is(sigErr, syscall.ESRCH) {
-		return false // positively dead
-	}
-	return true // EPERM etc. — exists but not ours, or inconclusive
+	return pidAlive(pid)
 }
 
 // Acquire attempts to take the rig lock.
