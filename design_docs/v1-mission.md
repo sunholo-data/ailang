@@ -442,6 +442,9 @@ with design-doc-creator; existing-doc items start at reality-check.)*
 24. m-effect-scope-params (clause 4; P1, ~2.5d — sprint 4/4; weakest forcing function — Mark
     re-score candidate at release gate)
 
+**Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
+- **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md), 2026-07-11) — quota-aware probe-based model selection + cross-provider fallback (OpenAI Codex / Gemini), replacing the hardcoded Monday override; Phase 3 restores evaluation independence cross-family. Try Phase 1 next week (after Fable quota resets). Requested by Mark.
+
 **Not gating** (the other ~80 open docs): ship on the normal v0.2x road or post-v1 per the
 clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
 v1_1_0 on 2026-07-11); v0_29_0 docs that appear above gate v1 via the queue, not the folder.
