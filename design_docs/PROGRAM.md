@@ -80,7 +80,34 @@ crash, never overflow"; everything smart is above it.
 - **Extension count + reuse** → growing (catalog entries; how often each is picked).
 - **Benchmark difficulty** → rising, **with pass-rate maintained**.
 
-## 7. Where we are now (2026-06-28)
+## 7. Eval strategy — how the signal is generated
+
+The thesis: **can we build a language that AI models prefer and use better than existing ones — and can a
+weak on-device model in AILANG match or beat a frontier cloud model?** Every benchmark run exists to
+answer that, and to feed §3's loop. Three stages, each holding something different constant:
+
+| Stage | Who runs | Langs | Holds constant | Measures |
+|---|---|---|---|---|
+| **Cloud standard** (post-release) | latest/frontier cloud models (0-shot + repair) | ailang + python | mode = API | benchmark **difficulty** (ELO grading) · cost/tokens · **language preference** (ailang vs python) — *the thesis* |
+| **Cloud agent** | cheaper/faster models (agent_suite) | ailang | model overlaps standard | **agent uplift** — what harnessing adds over 0-shot |
+| **Local rig** (continuous, $0) | qwen3-6 × 3 harnesses (opencode · Pi · **motoko**) | ailang first, then python/js/go | model + benchmark chunk | **harness comparison** · **on-device-vs-cloud** — *"can weak local match cloud"* |
+
+**Which comparison lives where** (each is only valid *same-identity, same-benchmarks*):
+- *Do models prefer AILANG over Python?* → cloud standard, `byLang` ELO. (Not the rig — the rig is ailang-first.)
+- *What does agent mode add?* → cloud agent (ailang) vs cloud standard (ailang), same model. Needs the agent set to **overlap** the standard set, else "uplift" conflates model + mode.
+- *Can on-device match cloud?* → local rig (ailang) vs cloud agent (ailang), coverage-gated until local AILANG coverage matches.
+- *Which harness wins on the same model?* → local rig, opencode vs Pi vs motoko on one qwen — the north-star signal, controlled by construction.
+
+**Rig discipline (AILANG-first).** `tools/launchd/os-rotation-filler.sh` fills *every* core+stretch+frontier
+AILANG benchmark for the current version first; once that coverage is "in" it auto-hands-off to the
+cross-language pass. A new release resets coverage. This is what makes local ELO comparable to cloud.
+
+**Validity is enforced in the display, not the reader** — coverage is first-class, sparse cohorts are
+provisional (never a bogus #1), deltas are intersection-only. The standing discipline is
+[m-eval-validity-discipline.md](planned/m-eval-validity-discipline.md); every run has surfaced a new face
+of the same bug (comparing things measured differently), and that doc is the fix that stops the cycle.
+
+## 8. Where we are now (2026-06-28)
 On the cusp of the extension era. The core floor is being frozen (PR #75 compaction fix verifying via
 docx N=5). Once green: declare the core minimal+frozen, settle #73, and stand up the **first extension**
 (compaction strategy). From there the loop runs on the benchmark ladder and routes by §4.

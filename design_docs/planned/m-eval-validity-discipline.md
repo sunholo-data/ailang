@@ -31,7 +31,7 @@ None were random — they're all *comparing things that aren't comparable*, then
 - **W2** — coverage-gate the other consumers that rank/compare: `eval-elo` CLI, the Model Leaderboard / gap-trend / dashboard tables (audit each — CLAUDE.md §3 systemic-fix rule).
 - **W3** — like-for-like uplift: a shared-benchmark, matching-identity delta computation (backend helper) reused by any "vs standard"/"vs previous" view; harness differences explicitly labelled.
 - **W4** — tests: coverage-gating unit test; a "no ranked model below coverage threshold" invariant; keep the tier-distribution detectors in sync with the corpus.
-- **W5** — apply the same discipline to the merged local↔cloud board ([m-eval-local-cloud-unify](m-eval-local-cloud-unify.md)) — local only enters the ranking once `OS_FILLER_AILANG_FULL` grows its coverage.
+- **W5** — apply the same discipline to the merged local↔cloud board ([m-eval-local-cloud-unify](m-eval-local-cloud-unify.md)) — local only enters full (non-provisional) ranking once its AILANG coverage matches. The rig is now **AILANG-first**: `os-rotation-filler.sh` fills every core+stretch+frontier AILANG benchmark for the current version *first* (default), then auto-hands-off to the cross-language pass; a new release resets coverage so AILANG-first resumes. Completeness = every full-tier bench banked for every local model, OR one full AILANG lap (deadlock-safe against benchmarks a weak model can't pass).
 
 ## Acceptance criteria
 1. No dashboard/leaderboard/CLI ranks a model against others on a materially different benchmark set without a coverage annotation + gate.

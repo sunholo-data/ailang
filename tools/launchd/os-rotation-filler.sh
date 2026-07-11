@@ -52,13 +52,24 @@ ROLL="eval_results/rotation/os-rolling"        # accumulating rotation dir
 CURSOR="$HOME/.ailang/state/os-filler-cursor"
 # AILANG-FULL tier pass (M-EVAL-OS-FRONTIER-COVERAGE): the 4-language set above is only
 # 41/91 benchmarks (2/16 frontier) because it demands ailang+python+js+go. Set
-# OS_FILLER_AILANG_FULL=1 to ALSO rotate the local models through the FULL
-# core+stretch+frontier tiers in AILANG ONLY (own independent cursor), so
-# frontier/stretch benchmarks enter the local rotation over time. Off by default.
-AILANG_FULL="${OS_FILLER_AILANG_FULL:-0}"
+# PRIMARY PASS: rotate the local models through the FULL core+stretch+frontier
+# tiers in AILANG ONLY (own independent cursor). AILANG is the point of the
+# server, so full AILANG coverage is the default — every core/stretch/frontier
+# benchmark enters the local rotation and local ELO becomes comparable to cloud.
+# Set OS_FILLER_AILANG_FULL=0 to disable the AILANG-first pass.
+AILANG_FULL="${OS_FILLER_AILANG_FULL:-1}"
 FULL_TIERS="${OS_FILLER_FULL_TIERS:-core,stretch,frontier}"
-FULL_CHUNK="${OS_FILLER_FULL_CHUNK:-2}"        # benchmarks per cycle for the ailang-only pass
-FULL_CURSOR="$HOME/.ailang/state/os-filler-cursor-ailang-full"
+FULL_CHUNK="${OS_FILLER_FULL_CHUNK:-3}"        # benchmarks per cycle for the ailang-only pass
+# FULL_CURSOR / LAP_MARKER are per-VERSION (set in-block below) so a wrap is a true
+# full AILANG lap for that release and coverage resets automatically on a new one.
+
+# CROSS-LANGUAGE pass control. By default the cross-language (python/javascript/go)
+# sweep runs AUTOMATICALLY once AILANG coverage is complete for the version — AILANG
+# stays FIRST, then the rig keeps going into the other languages on its own. Set
+# OS_FILLER_4LANG=1 to FORCE it to interleave early (run every cycle alongside the
+# AILANG-first pass) for cross-language signal before AILANG fully fills. Set
+# OS_FILLER_AILANG_FULL=0 for a legacy pure cross-language rig.
+FORCE_4LANG="${OS_FILLER_4LANG:-0}"
 BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eval + model reloads
 BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
@@ -79,64 +90,26 @@ if ! rig_lock_acquire nowait; then
   log "rig busy — yielding"; exit 0
 fi
 log "rig lock acquired (filler)"
+mkdir -p "$ROLL"   # ensure the rolling dir exists for both passes (was previously only created inside the 4-lang block)
 
-# 4. 4-language benchmark set (same rule as nightly-lang-eval). No spaces in ids,
-#    so word-splitting into an array is bash-3.2 safe.
-# shellcheck disable=SC2207
-BENCHES=( $(for f in benchmarks/*.yml; do
-  # M-EVAL-RELIABLE-GRADING: ailang-only reimplement benchmarks (grade_entrypoint marker) join
-  # the rotation alongside the 4-language set. Checked FIRST because their block-list languages
-  # ('languages:\n- ailang') wouldn't pass the single-line 4-language grep below. eval-suite skips
-  # unsupported langs per benchmark (SupportsLanguage), so --langs with all 4 runs only ailang.
-  if grep -qE '^grade_entrypoint:' "$f"; then basename "$f" .yml; continue; fi
-  L=$(grep -E '^languages:' "$f" 2>/dev/null)
-  echo "$L" | grep -q ailang || continue
-  echo "$L" | grep -q python || continue
-  echo "$L" | grep -q javascript || continue
-  echo "$L" | grep -qE '\bgo\b' || continue
-  basename "$f" .yml
-done) )
-TOTAL=${#BENCHES[@]}
-if [ "$TOTAL" -eq 0 ]; then log "no 4-language benchmarks"; exit 0; fi
+# The rig is AILANG-FIRST: fill EVERY core+stretch+frontier AILANG benchmark for
+# the current version FIRST; only once that coverage is "in" does it hand rig time
+# to the cross-language (python/javascript/go) pass. A new release banks under a
+# fresh $ROLL/<version>/, so coverage resets and AILANG-first resumes automatically.
+# Both passes bank into the SAME $ROLL/<version>/ via --bank-by-version + --skip-existing.
+VERSION="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
+VDIR="$ROLL/${VERSION}/agent"
+OFFSET=0; WRAPPED=0        # surfaced in the step-7 commit/log; set by whichever pass runs
 
-# 5. Round-robin cursor: take the next CHUNK benchmarks. (Robust cold-start; can
-#    swap to --benchmarks-by-confidence once agent-mode ratings are warm.)
-OFFSET=$(cat "$CURSOR" 2>/dev/null || echo 0)
-case "$OFFSET" in (*[!0-9]*) OFFSET=0;; esac
-PICK=""
-i=0
-while [ "$i" -lt "$CHUNK" ] && [ "$i" -lt "$TOTAL" ]; do
-  idx=$(((OFFSET + i) % TOTAL))
-  PICK="${PICK:+$PICK,}${BENCHES[$idx]}"
-  i=$((i + 1))
-done
-NEXT=$(((OFFSET + CHUNK) % TOTAL))
-WRAPPED=0; [ "$NEXT" -le "$OFFSET" ] && WRAPPED=1
-mkdir -p "$(dirname "$CURSOR")"; echo "$NEXT" > "$CURSOR"
-log "cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
-
-# 6. Run the chunk — serial (single-GPU), accumulating via --skip-existing.
-mkdir -p "$ROLL"
-# Reimplement benchmarks (M-EVAL-RELIABLE-GRADING) are long agentic tasks (docx ~50min on
-# motoko-local): a single trial + a wider wall budget so a reimplement chunk doesn't always
-# time out before the slow benchmark banks. --skip-existing still banks each model over cycles.
-TRIALS=3; TMO="$CHUNK_TIMEOUT"
-case "$PICK" in *reimplement*) TRIALS=1; TMO="5400s";; esac
-# --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new build/release
-# re-evals from scratch and history accumulates per release (instead of --skip-existing freezing the
-# pre-release numbers forever). --skip-existing still accumulates the chunked sweep WITHIN a version.
-ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
-  --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --bank-by-version --timeout "$TMO" \
-  --output "$ROLL" >>"$LOG" 2>&1 || log "chunk had failures (continuing)"
-
-# 6b. AILANG-FULL tier pass (opt-in): rotate the local models through the FULL
-#     core+stretch+frontier tiers in AILANG ONLY, using an INDEPENDENT cursor so it
-#     doesn't perturb the 4-language round-robin above. This is what pulls frontier
-#     and stretch benchmarks into the local rotation (the 4-language set can't, since
-#     those benchmarks aren't implemented in all 4 languages). Banks into the SAME
-#     $ROLL/<version>/ dir (--skip-existing accumulates), so it flows into both the
-#     OS/Local JSON and the unified dashboard below.
-if [ "$AILANG_FULL" = "1" ]; then
+# ── PRIMARY: AILANG-first full-tier pass ────────────────────────────────────
+# Rotate the local models through the FULL core+stretch+frontier tiers in AILANG
+# ONLY (independent, per-version cursor). This is what pulls EVERY stretch/frontier
+# benchmark into the local rotation — the 4-language set can't, since those
+# benchmarks aren't implemented in all 4 langs, which is what caps AILANG at ~45%.
+AILANG_DONE=0
+if [ "$AILANG_FULL" != "1" ]; then
+  AILANG_DONE=1   # AILANG-first disabled -> legacy pure cross-language rig
+else
   # Full tier set: every benchmark whose `tier:` is one of $FULL_TIERS. Language
   # filtering is left to eval-suite (--langs ailang skips any that don't support it).
   # shellcheck disable=SC2207
@@ -145,27 +118,107 @@ if [ "$AILANG_FULL" = "1" ]; then
     case ",$FULL_TIERS," in (*",$T,"*) basename "$f" .yml;; esac
   done) )
   FULL_TOTAL=${#BENCHES_FULL[@]}
+  FULL_CURSOR="$ROLL/${VERSION}/.ailang-full-cursor"   # per-version: a wrap == a true full lap for this release
+  LAP_MARKER="$ROLL/${VERSION}/.ailang-full-lapped"
   if [ "$FULL_TOTAL" -eq 0 ]; then
     log "ailang-full: no benchmarks for tiers $FULL_TIERS — skip"
+    AILANG_DONE=1
+  elif [ -f "$LAP_MARKER" ]; then
+    # Already made one full AILANG lap for this version — coverage is "in". (A
+    # benchmark the local model genuinely can't pass must not block forever.)
+    AILANG_DONE=1
+    log "ailang-full: version $VERSION already lapped — cross-language pass active"
   else
-    F_OFFSET=$(cat "$FULL_CURSOR" 2>/dev/null || echo 0)
-    case "$F_OFFSET" in (*[!0-9]*) F_OFFSET=0;; esac
-    F_PICK=""
-    j=0
-    while [ "$j" -lt "$FULL_CHUNK" ] && [ "$j" -lt "$FULL_TOTAL" ]; do
-      fidx=$(((F_OFFSET + j) % FULL_TOTAL))
-      F_PICK="${F_PICK:+$F_PICK,}${BENCHES_FULL[$fidx]}"
-      j=$((j + 1))
+    # Coverage signal: AILANG is "in" when EVERY full-tier benchmark has a banked
+    # ailang result for EVERY local model (== what --skip-existing treats as done).
+    # Min distinct-ailang-benches across models = the bottleneck harness.
+    FULL_SET=",$(IFS=,; printf '%s' "${BENCHES_FULL[*]}"),"
+    MIN_COV=999999
+    _OIFS="$IFS"; IFS=','
+    for m in $MODELS; do
+      IFS="$_OIFS"
+      cov=0
+      for b in $(ls "$VDIR"/*_ailang_"${m}"_*.json 2>/dev/null | sed -E "s#.*/##; s/_(trial[0-9]+_)?ailang_.*//" | sort -u); do
+        case "$FULL_SET" in *",$b,"*) cov=$((cov + 1));; esac
+      done
+      [ "$cov" -lt "$MIN_COV" ] && MIN_COV="$cov"
+      IFS=','
     done
-    F_NEXT=$(((F_OFFSET + FULL_CHUNK) % FULL_TOTAL))
-    F_WRAPPED=0; [ "$F_NEXT" -le "$F_OFFSET" ] && F_WRAPPED=1
-    mkdir -p "$(dirname "$FULL_CURSOR")"; echo "$F_NEXT" > "$FULL_CURSOR"
-    log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, wrapped=$F_WRAPPED)"
-    F_TRIALS=3; F_TMO="$CHUNK_TIMEOUT"
-    case "$F_PICK" in *reimplement*) F_TRIALS=1; F_TMO="5400s";; esac
-    ailang eval-suite --agent --models "$MODELS" --benchmarks "$F_PICK" --langs ailang \
-      --parallel 1 --microrag on --trials "$F_TRIALS" --skip-existing --bank-by-version --timeout "$F_TMO" \
-      --output "$ROLL" >>"$LOG" 2>&1 || log "ailang-full chunk had failures (continuing)"
+    IFS="$_OIFS"
+    [ "$MIN_COV" = "999999" ] && MIN_COV=0
+
+    if [ "$MIN_COV" -ge "$FULL_TOTAL" ]; then
+      AILANG_DONE=1
+      : > "$LAP_MARKER"   # coverage complete -> mark so future cycles short-circuit to cross-language
+      log "ailang-full: coverage COMPLETE for $VERSION ($MIN_COV/$FULL_TOTAL per model) — handing rig time to cross-language pass"
+    else
+      # Not complete -> spend this cycle advancing AILANG coverage.
+      F_OFFSET=$(cat "$FULL_CURSOR" 2>/dev/null || echo 0)
+      case "$F_OFFSET" in (*[!0-9]*) F_OFFSET=0;; esac
+      F_PICK=""; j=0
+      while [ "$j" -lt "$FULL_CHUNK" ] && [ "$j" -lt "$FULL_TOTAL" ]; do
+        fidx=$(((F_OFFSET + j) % FULL_TOTAL))
+        F_PICK="${F_PICK:+$F_PICK,}${BENCHES_FULL[$fidx]}"
+        j=$((j + 1))
+      done
+      F_NEXT=$(((F_OFFSET + FULL_CHUNK) % FULL_TOTAL))
+      F_WRAPPED=0; [ "$F_NEXT" -le "$F_OFFSET" ] && F_WRAPPED=1
+      mkdir -p "$(dirname "$FULL_CURSOR")"; echo "$F_NEXT" > "$FULL_CURSOR"
+      [ "$F_WRAPPED" = "1" ] && : > "$LAP_MARKER"   # first full lap done -> hand off next cycle
+      OFFSET="$F_OFFSET"; WRAPPED="$F_WRAPPED"
+      log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, coverage $MIN_COV/$FULL_TOTAL, wrapped=$F_WRAPPED)"
+      F_TRIALS=3; F_TMO="$CHUNK_TIMEOUT"
+      case "$F_PICK" in *reimplement*) F_TRIALS=1; F_TMO="5400s";; esac
+      # --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new
+      # build/release re-evals from scratch and history accumulates per release.
+      ailang eval-suite --agent --models "$MODELS" --benchmarks "$F_PICK" --langs ailang \
+        --parallel 1 --microrag on --trials "$F_TRIALS" --skip-existing --bank-by-version --timeout "$F_TMO" \
+        --output "$ROLL" >>"$LOG" 2>&1 || log "ailang-full chunk had failures (continuing)"
+    fi
+  fi
+fi
+
+# ── SECONDARY: cross-language comparisons (python/javascript/go) ─────────────
+# Runs once AILANG coverage is "in" for the version (automatic hand-off above), or
+# immediately when forced early via OS_FILLER_4LANG=1. Same rule as nightly-lang-eval:
+# the 4-language-capable benchmark pool. ailang cells are already banked from the
+# AILANG-first pass, so --skip-existing effectively adds only python/javascript/go here.
+if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
+  # shellcheck disable=SC2207
+  BENCHES=( $(for f in benchmarks/*.yml; do
+    # M-EVAL-RELIABLE-GRADING: ailang-only reimplement benchmarks (grade_entrypoint marker) join
+    # the rotation alongside the 4-language set. Checked FIRST because their block-list languages
+    # ('languages:\n- ailang') wouldn't pass the single-line 4-language grep below.
+    if grep -qE '^grade_entrypoint:' "$f"; then basename "$f" .yml; continue; fi
+    L=$(grep -E '^languages:' "$f" 2>/dev/null)
+    echo "$L" | grep -q ailang || continue
+    echo "$L" | grep -q python || continue
+    echo "$L" | grep -q javascript || continue
+    echo "$L" | grep -qE '\bgo\b' || continue
+    basename "$f" .yml
+  done) )
+  TOTAL=${#BENCHES[@]}
+  if [ "$TOTAL" -eq 0 ]; then
+    log "no 4-language benchmarks — skipping cross-language pass"
+  else
+    # Round-robin cursor: take the next CHUNK benchmarks.
+    OFFSET=$(cat "$CURSOR" 2>/dev/null || echo 0)
+    case "$OFFSET" in (*[!0-9]*) OFFSET=0;; esac
+    PICK=""; i=0
+    while [ "$i" -lt "$CHUNK" ] && [ "$i" -lt "$TOTAL" ]; do
+      idx=$(((OFFSET + i) % TOTAL))
+      PICK="${PICK:+$PICK,}${BENCHES[$idx]}"
+      i=$((i + 1))
+    done
+    NEXT=$(((OFFSET + CHUNK) % TOTAL))
+    WRAPPED=0; [ "$NEXT" -le "$OFFSET" ] && WRAPPED=1
+    mkdir -p "$(dirname "$CURSOR")"; echo "$NEXT" > "$CURSOR"
+    log "cross-language cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
+    TRIALS=3; TMO="$CHUNK_TIMEOUT"
+    case "$PICK" in *reimplement*) TRIALS=1; TMO="5400s";; esac
+    ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
+      --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --bank-by-version --timeout "$TMO" \
+      --output "$ROLL" >>"$LOG" 2>&1 || log "cross-language chunk had failures (continuing)"
   fi
 fi
 
@@ -190,6 +243,32 @@ if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
     else
       log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish)"
     fi
+  fi
+fi
+
+# 7b. Version-trend: keep docs/static/benchmarks/os/history.json fresh for the
+#     CURRENT version EVERY cycle (idempotent append/replace of the $VERSION entry;
+#     NO --reset — that's a post-release-only action). This is what makes the
+#     "Local-rig version trend" panel fill in as coverage grows. Previously
+#     history.json was updated ONLY by the manual post-release snapshot, so between
+#     releases the trend went stale/empty (the "weeks of no data" bug). Now the rig
+#     refreshes it itself as the AILANG-first pass banks results.
+if [ -n "$VERSION" ] && [ -d "$ROLL/$VERSION" ]; then
+  if bash tools/os-release-snapshot.sh "$VERSION" >>"$LOG" 2>&1; then
+    git add docs/static/benchmarks/os/history.json 2>>"$LOG" || true
+    if ! git diff --cached --quiet -- docs/static/benchmarks/os/history.json 2>/dev/null; then
+      git commit -q -m "data(os): refresh version-trend history for ${VERSION}" \
+        -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
+      if [ "$AUTOPUSH" = "1" ]; then
+        git pull --rebase --autostash origin dev >>"$LOG" 2>&1 || true
+        git push origin dev >>"$LOG" 2>&1 && log "version-trend history pushed (${VERSION})" \
+          || log "version-trend push failed (retry next cycle)"
+      else
+        log "version-trend history committed locally (auto-push OFF)"
+      fi
+    fi
+  else
+    log "version-trend snapshot failed for ${VERSION} (continuing)"
   fi
 fi
 
