@@ -16,12 +16,20 @@ Every benchmark YAML declares exactly one tier. Tiers express *what signal the
 benchmark produces* — not difficulty alone. A difficult benchmark that every
 frontier model trivially passes is not a useful `stretch` benchmark.
 
-| Tier      | Purpose                                        | Expected pass rate (Core ≈ frontier avg) | Run cost  |
-|-----------|------------------------------------------------|-----------------------------------------|-----------|
-| `smoke`   | Regression gate. Fast, near-100% everywhere.   | ≥ 95% AILANG, ≥ 90% Python              | ~seconds  |
-| `core`    | **The headline number.** Representative corpus.| 70–95%. This is what releases are judged on. | ~minutes |
-| `stretch` | Headroom / differentiation benchmarks.         | 30–70%. Non-trivial for every model.    | ~minutes  |
-| `vision`  | Aspirational. May not compile on AILANG today. | 0–50%. Measures *potential*, not parity.| variable  |
+| Tier       | Purpose                                        | Expected pass rate (Core ≈ frontier avg) | Run cost  |
+|------------|------------------------------------------------|-----------------------------------------|-----------|
+| `smoke`    | Regression gate. Fast, near-100% everywhere.   | ≥ 95% AILANG, ≥ 90% Python              | ~seconds  |
+| `core`     | **The headline number.** Representative corpus.| 70–95%. This is what releases are judged on. | ~minutes |
+| `stretch`  | Headroom / differentiation benchmarks.         | 30–70%. Non-trivial for every model.    | ~minutes  |
+| `frontier` | Frontier-defeating. A frontier model fails ≥ 1.| 0–40%; frontier fails some. If *every* frontier model passes, it belongs in `stretch`. | ~minutes |
+| `vision`   | Aspirational. May not compile on AILANG today. | 0–50%. Measures *potential*, not parity.| variable  |
+
+The **frontier** tier (added v0.29.0, `M-EVAL-FRONTIER-TIER`) exists because the
+suite stopped discriminating at the top end — with the best model passing 36/37
+AILANG benchmarks, additional runs of the saturated set buy zero information. A
+frontier benchmark's defining property is that **at least one frontier model
+fails it in standard mode**; if a re-tiered benchmark later proves to be passed
+by *every* frontier model, it demotes back to `stretch` (see §5).
 
 **Default tier**: `core`. `LoadSpec` (`internal/eval_harness/spec.go`) fills in
 `tier: core` when the field is absent, so unannotated benchmarks automatically
@@ -185,7 +193,42 @@ that are genuinely discriminating.
 |----------------------|-----------------------------------------------------------------------------|
 | `smoke` → `core`     | Any regression to < 90% AILANG pass. Investigate before demoting.           |
 | `core` → `stretch`   | < 30% AILANG pass for **two baselines** *and* the benchmark is accurate. If it's just a prompt / stdlib gap, fix the language instead. |
+| `frontier` → `stretch` | **Every** frontier model passes it in standard mode (it no longer defeats the frontier). This is the counterpart of the frontier's defining property — a frontier benchmark that nothing fails is a `stretch` benchmark. |
 | `core` → retired     | Known-broken in AILANG for reasons unlikely to change (e.g. requires an unimplemented language feature). Move YAML to `benchmarks/retired/` with a note. |
+
+#### Saturation demotion (the 4-dimension rule)
+
+Added v0.29.0 (`M-EVAL-FRONTIER-TIER`). A `core` benchmark demotes to `stretch`
+**only if it is at/near 100% AILANG pass on ALL FOUR present dimensions** in the
+banked baseline:
+
+1. **standard × AILANG**
+2. **standard × Python**
+3. **agent × AILANG**
+4. **agent × Python**
+
+"At/near 100%" means **≥ 95% pass** on the dimension. The rule is deliberately
+conservative — a benchmark that saturates in *standard* mode but still
+discriminates in *agent* mode (or vice-versa) is **kept**, because it still
+produces signal. Guardrails:
+
+- **Do not demote on incomplete evidence.** If a dimension has **no data** in the
+  baseline, record that fact and do NOT use its absence to justify demotion.
+  Demote only when all four dimensions are present *and* saturated.
+- **Panel asymmetry is real.** The standard panel is larger (11 cloud models) than
+  the agent panel (6 models, incl. local/opencode). A 100% agent verdict rests on
+  fewer models — flag it as weaker evidence in the audit. Where standard and agent
+  **disagree** on saturation, **keep** the benchmark and record the disagreement.
+- **Saturated `stretch` benchmarks are kept-for-coverage**, not retired: they still
+  exercise their feature surface. Tag them low-ELO / rerun-deprioritized via a YAML
+  comment; the ELO scheduler (`M-EVAL-RATING-EFFICIENCY`) then spends little compute
+  on them.
+
+Every demotion decision is recorded per-benchmark in a dated audit report
+(e.g. `design_docs/implemented/v0_29_0/m-eval-frontier-tier-demotion-audit.md`), with
+the four pass-rate cells and a one-line rationale. This reconciles the earlier
+design-doc phrasing ("≥95% on all four dimensions") with this document — **this
+section is the source of truth.**
 
 ### Retirement (remove from suite entirely)
 

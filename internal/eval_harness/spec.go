@@ -60,7 +60,7 @@ type BenchmarkSpec struct {
 	NetAllowLocalhost bool `yaml:"net_allow_localhost,omitempty"`
 
 	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
-	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision|experimental. Missing defaults to "core".
+	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|frontier|vision|experimental. Missing defaults to "core".
 	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.
 
 	// Optional source-level constraints checked BEFORE execution (standard mode).
@@ -71,15 +71,27 @@ type BenchmarkSpec struct {
 	// "quine": stdout must equal the SUBMITTED SOURCE itself (both sides
 	// normalized: LF endings, trailing newlines stripped) — no fixed
 	// expected_stdout can grade a quine. Standard (0-shot) mode only.
+	// "prefix_line": STRUCTURAL grading for outputs that mix fixed lines with a
+	// free-text line whose CONTENT must not be graded verbatim (fixes the
+	// decision_block_capture anti-pattern — grading a justification sentence by
+	// exact string match measures verbatim copying, not capability). Each line
+	// of expected_stdout is matched exactly EXCEPT a line of the form
+	// "PREFIX: " (an all-caps token, colon, single space, then END-OF-LINE — an
+	// empty placeholder), which instead requires the actual output to contain a
+	// line "PREFIX: <non-empty>". The fixed lines still grade exactly; only the
+	// placeholder line is graded structurally. See GradeStdout.
 	Grading string `yaml:"grading,omitempty"`
 }
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.
 // Tier structure is defined in design_docs/planned/v0_13_0/m-benchmark-suite-tiers.md.
+// "frontier" (added M-EVAL-FRONTIER-TIER, v0.29.0) sits above stretch on the
+// difficulty ladder: frontier-defeating benchmarks where at least one frontier
+// model fails — they exist to keep the suite discriminating at the top end.
 // "experimental" is reserved for diagnostic-purpose probes (expected_gain: "diagnostic")
 // that measure language gaps rather than score language capability — they are excluded
-// from the smoke/core/stretch/vision distribution targets.
-var ValidTiers = []string{"smoke", "core", "stretch", "vision", "experimental"}
+// from the smoke/core/stretch/vision/frontier distribution targets.
+var ValidTiers = []string{"smoke", "core", "stretch", "frontier", "vision", "experimental"}
 
 // ValidTagTaxonomy lists the 12-tag taxonomy for BenchmarkSpec.Tags.
 // Tag definitions are in design_docs/planned/v0_13_0/m-eval-category-analysis.md §Component 1.
@@ -177,8 +189,8 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		}
 	}
 
-	if spec.Grading != "" && spec.Grading != "quine" {
-		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty or \"quine\")", spec.ID, spec.Grading)
+	if spec.Grading != "" && spec.Grading != "quine" && spec.Grading != "prefix_line" {
+		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty, \"quine\", or \"prefix_line\")", spec.ID, spec.Grading)
 	}
 
 	return &spec, nil

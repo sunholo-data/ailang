@@ -76,6 +76,65 @@ func TestFitFromTrials_Deterministic(t *testing.T) {
 	}
 }
 
+// TestFitFromTrials_UnseenBenchmarkEntersFlat is the M-EVAL-FRONTIER-TIER (M3)
+// regression: a never-before-seen benchmark id (e.g. a newly-added frontier
+// benchmark) enters the ELO fit at DefaultInitialRating (1500) with NO tier-biased
+// seeding — the rating engine treats every benchmark identically regardless of
+// tier. Its derived difficulty then RISES on FAIL and FALLS on PASS, exactly like
+// any other benchmark, so a frontier benchmark's "hard" rating is emergent from
+// pass/fail data, not seeded. Guards against anyone adding tier-biased provisional
+// seeding without recalibrating (there is no data to calibrate it — see the
+// ratings.go DefaultInitialRating comment).
+func TestFitFromTrials_UnseenBenchmarkEntersFlat(t *testing.T) {
+	// A single model, one trial, against a brand-new frontier-style benchmark id.
+	// With one trial the fit stays close to the seed, so we can observe the
+	// direction of the update from the flat 1500 start.
+	failTrials := []Trial{{"m", "frontier_new_bench", false}}
+	passTrials := []Trial{{"m", "frontier_new_bench", true}}
+
+	_, brFail := FitFromTrials(failTrials)
+	_, brPass := FitFromTrials(passTrials)
+
+	// The unseen benchmark must have been present in the output (it was seeded
+	// generically at DefaultInitialRating with no tier-specific branch).
+	if _, ok := brFail["frontier_new_bench"]; !ok {
+		t.Fatalf("unseen benchmark not present in fitted ratings: %v", brFail)
+	}
+
+	// A FAIL (model does not beat the benchmark) should push benchmark difficulty
+	// ABOVE the flat seed; a PASS should push it BELOW.
+	if !(brFail["frontier_new_bench"] > DefaultInitialRating) {
+		t.Errorf("FAIL should raise difficulty above seed %.0f, got %.1f",
+			DefaultInitialRating, brFail["frontier_new_bench"])
+	}
+	if !(brPass["frontier_new_bench"] < DefaultInitialRating) {
+		t.Errorf("PASS should lower difficulty below seed %.0f, got %.1f",
+			DefaultInitialRating, brPass["frontier_new_bench"])
+	}
+}
+
+// TestFitFromTrials_TierAgnostic confirms the ELO fit does not special-case any
+// benchmark by name/tier: two benchmarks with identical pass/fail patterns get
+// (near-)identical difficulty ratings, regardless of what a frontier vs core
+// naming might imply. They are not bit-identical only because the deterministic
+// (bench, model) processing order interleaves updates to the SHARED model
+// ratings differently — a consequence of ordering, NOT of any tier/name branch
+// (there is none). The tiny residual (<0.5 ELO here) proves the treatment is
+// identical up to that ordering. (M-EVAL-FRONTIER-TIER M3.)
+func TestFitFromTrials_TierAgnostic(t *testing.T) {
+	trials := []Trial{
+		// "frontier_x" and "core_y" see the exact same outcomes.
+		{"strong", "frontier_x", true}, {"weak", "frontier_x", false},
+		{"strong", "core_y", true}, {"weak", "core_y", false},
+	}
+	_, br := FitFromTrials(trials)
+	const eps = 1.0 // ELO points; ordering-only residual, must be far below a band width (200)
+	if diff := br["frontier_x"] - br["core_y"]; diff > eps || diff < -eps {
+		t.Errorf("tier-agnostic fit violated: frontier_x=%.6f core_y=%.6f (identical trials must give near-identical difficulty; diff %.6f > %.1f implies name/tier special-casing)",
+			br["frontier_x"], br["core_y"], diff, eps)
+	}
+}
+
 func TestBand(t *testing.T) {
 	cases := []struct {
 		r    float64

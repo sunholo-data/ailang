@@ -62,34 +62,40 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	smoke := filterBenchmarksByTier(all, []string{"smoke"})
 	core := filterBenchmarksByTier(all, []string{"core"})
 	stretch := filterBenchmarksByTier(all, []string{"stretch"})
+	frontier := filterBenchmarksByTier(all, []string{"frontier"})
 	vision := filterBenchmarksByTier(all, []string{"vision"})
 	experimental := filterBenchmarksByTier(all, []string{"experimental"})
 
 	// Sum must equal total (each benchmark has exactly one tier).
 	// "experimental" tier added 2026-05-22 for diagnostic probes (probes
 	// measure gaps, don't score capability) — included in the sum invariant
-	// but NOT in the distribution drift detector below.
-	if got := len(smoke) + len(core) + len(stretch) + len(vision) + len(experimental); got != len(all) {
+	// but NOT in the distribution drift detector below. "frontier" tier added
+	// 2026-07-11 (M-EVAL-FRONTIER-TIER) — included in both.
+	if got := len(smoke) + len(core) + len(stretch) + len(frontier) + len(vision) + len(experimental); got != len(all) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution drift detector. Refreshed 2026-07-09: waves 3-5 added
+	// Distribution drift detector. Refreshed 2026-07-11 (M-EVAL-FRONTIER-TIER,
+	// v0.29.0): the `frontier` tier landed — 8 frontier-class benchmarks
+	// re-tiered stretch->frontier (stretch 30->22, frontier 0->8), then the M5
+	// saturation-demotion audit moved 7 saturated core benchmarks core->stretch
+	// (core 26->19, stretch 22->29). Prior refresh 2026-07-09: waves 3-5 added
 	// quine, emit_exact_bytes_varied, gauntlet_10, legal_obligation_engine —
 	// stretch 26->30. Prior refresh 2026-07-08 (second pass): +4
 	// constrained-construction / insight-forced benchmarks (emit_exact_bytes,
 	// digitless_constants, commonmark_emphasis, binary_strings_1e18) after the
 	// sonnet probe showed the first 8 sat at the top of stretch — stretch
 	// 22→26. Earlier same day: 8 frontier-class benchmarks (M-EVAL-FRONTIER-TIER
-	// authoring phase) moved stretch 14→22; they re-tier to `frontier` when
-	// that tier lands. Prior baselines: 23/26/11/9 (2026-06-08), 17/32/11/9
-	// (2026-05-20), 15/21/11/6 (post-M5). Kept in sync with the sibling check in
-	// internal/eval_harness/spec_test.go. Refresh again when drift outgrows the
-	// ±3 envelope (don't widen tolerance — bump the target counts to match
-	// reality). Experimental tier is intentionally excluded — probe count grows
-	// independently.
+	// authoring phase) moved stretch 14→22. Prior baselines: 23/26/11/9
+	// (2026-06-08), 17/32/11/9 (2026-05-20), 15/21/11/6 (post-M5). Kept in sync
+	// with the sibling check in internal/eval_harness/spec_test.go. Refresh again
+	// when drift outgrows the ±3 envelope (don't widen tolerance — bump the
+	// target counts to match reality). Experimental tier is intentionally
+	// excluded — probe count grows independently.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
-	checkTierCount(t, "core", len(core), 26, 3)
-	checkTierCount(t, "stretch", len(stretch), 30, 3)
+	checkTierCount(t, "core", len(core), 19, 3)
+	checkTierCount(t, "stretch", len(stretch), 29, 3)
+	checkTierCount(t, "frontier", len(frontier), 8, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

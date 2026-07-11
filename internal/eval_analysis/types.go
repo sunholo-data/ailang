@@ -332,7 +332,7 @@ type DashboardJSON struct {
 	Timestamp  string                   `json:"timestamp"`
 	TotalRuns  int                      `json:"totalRuns"`
 	Aggregates map[string]interface{}   `json:"aggregates"`
-	Tiers      map[string]TierAggregate `json:"tiers,omitempty"` // Per-tier aggregates: smoke/core/stretch/vision
+	Tiers      map[string]TierAggregate `json:"tiers,omitempty"` // Per-tier aggregates: smoke/core/stretch/frontier/vision
 	// M-DASH-V2: per-tag aggregates (12 canonical tags) with per-model
 	// cross-sections so the dashboard can narrow the charts to a tag.
 	Tags        map[string]*TagAggregate `json:"tags,omitempty"`

@@ -31,5 +31,5 @@ task_prompt: |
 expected_stdout: |
   Sum: 18
   Max: 7
-tier: core
+tier: stretch # M-EVAL-FRONTIER-TIER (v0.29.0) saturation demotion core->stretch: 100% AILANG+Python pass on ALL 4 dims (std 11-model + agent 6-model) in the banked v0.25.0 baseline. See design_docs/planned/v0_29_0/m-eval-frontier-tier-demotion-audit.md.
 tags: [adt_pattern_match, recursion]

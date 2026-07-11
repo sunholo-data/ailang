@@ -79,7 +79,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EVAL-BENCHMARK-UI-CONSOLIDATION: A coherent benchmark/dashboard information architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-benchmark-ui-consolidation.md)
 - [Sprint Plan: M-EVAL-BOUNDED-PIPELINE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-bounded-pipeline-sprint-plan.md)
 - [M-EVAL-BOUNDED-PIPELINE: Fused Bounded Combinators + Memory Ceiling](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-bounded-pipeline.md)
-- [M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-frontier-tier.md)
+- [M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-frontier-tier.md)
 - [M-EVAL-OPENROUTER-BASELINE-ROTATION: Cloud Baseline Three Candidate Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-openrouter-baseline-rotation.md)
 - [M-EVAL-REGRESSION-DETECTOR-CONTRACT: Specify trial grouping, flaky-vs-persistent classification, and infra-noise policy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-regression-detector-contract.md)
 - [M-EVAL-RESULTS-FOLDER-STRUCTURE: Model-First Eval Results Layout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-results-folder-structure.md)

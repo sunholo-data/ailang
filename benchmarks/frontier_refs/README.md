@@ -1,7 +1,7 @@
 # Frontier benchmark reference solutions
 
 Verification artifacts for the frontier-class stretch benchmarks authored for
-[M-EVAL-FRONTIER-TIER](../../design_docs/planned/v0_29_0/m-eval-frontier-tier.md)
+[M-EVAL-FRONTIER-TIER](../../design_docs/implemented/v0_29_0/m-eval-frontier-tier.md)
 (2026-07-08, Claude Fable 5; wave 2 added after the sonnet probe showed wave 1
 sat at the top of stretch). **These are NOT shipped to models** — they exist so
 `expected_stdout` values can be re-derived and re-audited instead of trusted.

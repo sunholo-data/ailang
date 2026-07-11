@@ -5,5 +5,5 @@ caps: ["IO"]
 prompt: |
   Write a <LANG> program that evaluates (0.0 == 0.0) and prints true or false.
 expected_stdout: "true"
-tier: core
+tier: stretch # M-EVAL-FRONTIER-TIER (v0.29.0) saturation demotion core->stretch: 100% AILANG+Python pass on ALL 4 dims (std 11-model + agent 6-model) in the banked v0.25.0 baseline. See design_docs/planned/v0_29_0/m-eval-frontier-tier-demotion-audit.md.
 tags: [contracts, algorithmic]

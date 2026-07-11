@@ -13,6 +13,17 @@ import (
 // rig itself decides what "hard" means, instead of hand-assigned tiers.
 
 // DefaultInitialRating is the ELO starting point (chess convention).
+//
+// This is a FLAT seed applied to every unseen benchmark AND every unseen model,
+// regardless of tier. There is deliberately no tier-biased provisional rating:
+// a `frontier` benchmark does NOT enter with a higher difficulty than a `core`
+// benchmark — its "hard" rating is EMERGENT from pass/fail data as the fit
+// converges (a benchmark that frontier models fail rises; one they pass falls).
+// The M-EVAL-FRONTIER-TIER design doc's phrasing "enter with a high provisional
+// ELO" is aspirational, not literal: seeding frontier benchmarks high would need
+// calibration data that does not exist. Do not add tier-biased seeding here
+// without that data (guarded by TestFitFromTrials_UnseenBenchmarkEntersFlat and
+// TestFitFromTrials_TierAgnostic in ratings_test.go).
 const DefaultInitialRating = 1500.0
 
 // Trial is one (model, benchmark) outcome. Pass=true means the model beat the

@@ -501,6 +501,77 @@ func CompareOutput(expected, actual string) bool {
 	return normalizedEqual(expected, actual)
 }
 
+// prefixPlaceholderRe matches an expected-output placeholder line of the form
+// "PREFIX:" — an all-caps token (letters/digits/underscore, must start with a
+// letter), a colon, and NO value (any trailing space is stripped by the
+// per-line TrimSpace in gradePrefixLine, so the placeholder is written
+// "PREFIX: " in the YAML but seen here as "PREFIX:"). In prefix_line grading
+// this line is graded STRUCTURALLY: the actual output must contain a line
+// "PREFIX: <non-empty>", but the value itself is not matched.
+var prefixPlaceholderRe = regexp.MustCompile(`^([A-Z][A-Z0-9_]*):$`)
+
+// GradeStdout is the single grading entry point for a benchmark run. It routes on
+// spec.Grading so the grading policy lives in ONE place instead of being
+// re-implemented at each call site (previously only repair.go special-cased
+// "quine"; the agent runners called CompareOutput directly and could not honor
+// structural modes). Modes:
+//
+//   - ""           default: CompareOutput(expected, actual) (exact / JSON / normalized).
+//   - "quine"      actual (normalized source) must equal submittedSource (normalized).
+//     Callers that don't have the source (e.g. no-source paths) pass "".
+//   - "prefix_line" structural: expected lines match exactly EXCEPT "PREFIX: "
+//     placeholder lines, which require a "PREFIX: <non-empty>" line
+//     anywhere in the actual output. Fixes the free-text exact-match
+//     anti-pattern (decision_block_capture) without loosening the
+//     fixed lines.
+func GradeStdout(spec *BenchmarkSpec, actual, submittedSource string) bool {
+	switch spec.Grading {
+	case "quine":
+		return NormalizeSource(actual) == NormalizeSource(submittedSource)
+	case "prefix_line":
+		return gradePrefixLine(spec.ExpectedOut, actual)
+	default:
+		return CompareOutput(spec.ExpectedOut, actual)
+	}
+}
+
+// gradePrefixLine implements the "prefix_line" structural grader. See GradeStdout.
+func gradePrefixLine(expected, actual string) bool {
+	expLines := strings.Split(strings.TrimSpace(expected), "\n")
+	actLines := strings.Split(strings.TrimSpace(actual), "\n")
+
+	ai := 0 // cursor into actLines
+	for _, expLine := range expLines {
+		if m := prefixPlaceholderRe.FindStringSubmatch(expLine); m != nil {
+			// Structural: find the next actual line starting with "PREFIX: "
+			// and carrying a non-empty (non-whitespace) value.
+			prefix := m[1] + ": "
+			found := false
+			for ai < len(actLines) {
+				line := actLines[ai]
+				ai++
+				if strings.HasPrefix(line, prefix) && strings.TrimSpace(line[len(prefix):]) != "" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+			continue
+		}
+		// Fixed line: must match the next actual line exactly (trimmed).
+		if ai >= len(actLines) {
+			return false
+		}
+		if strings.TrimSpace(actLines[ai]) != strings.TrimSpace(expLine) {
+			return false
+		}
+		ai++
+	}
+	return true
+}
+
 // jsonEqual reports whether a and b both parse as JSON and are deeply equal.
 func jsonEqual(a, b string) bool {
 	var va, vb interface{}

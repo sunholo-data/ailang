@@ -514,7 +514,7 @@ func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspa
 		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", err)}
 	}
 
-	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	stdoutOk := runResult.RuntimeOk && GradeStdout(spec, runResult.Stdout, string(solutionContent))
 	return ValidationResult{
 		CompileOk: runResult.CompileOk,
 		RuntimeOk: runResult.RuntimeOk,

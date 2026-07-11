@@ -40,5 +40,11 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   ((x + x) + 3)
+# M-EVAL-FRONTIER-TIER (v0.29.0): saturation-audit flagged this stretch benchmark
+# as 100% on all 4 dims (std 11-model + agent 6-model) in the banked v0.25.0
+# baseline. Per the design doc, a saturated STRETCH benchmark is retained
+# "keep-for-coverage" (it still exercises recursion+ADT+symbolic reasoning) rather
+# than retired — it stays stretch but is a low-ELO / rerun-deprioritized candidate.
+# See design_docs/planned/v0_29_0/m-eval-frontier-tier-demotion-audit.md.
 tier: stretch
 tags: [recursion, adt_pattern_match, algorithmic]

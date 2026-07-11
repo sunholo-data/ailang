@@ -483,7 +483,7 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 	if runRunErr != nil {
 		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", runRunErr)}
 	}
-	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	stdoutOk := runResult.RuntimeOk && GradeStdout(spec, runResult.Stdout, string(solutionContent))
 	return ValidationResult{
 		CompileOk: runResult.CompileOk,
 		RuntimeOk: runResult.RuntimeOk,
@@ -539,7 +539,9 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 			Stderr:    fmt.Sprintf("Python execution failed: %v", err),
 		}
 	}
-	stdoutOk := CompareOutput(spec.ExpectedOut, string(output))
+	// Source not needed here: quine grading is AILANG standard-mode only; other
+	// modes (default, prefix_line) ignore the submitted source.
+	stdoutOk := GradeStdout(spec, string(output), "")
 	return ValidationResult{
 		CompileOk: true,
 		RuntimeOk: true,
@@ -563,7 +565,7 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 		}
 	}
 
-	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	stdoutOk := runResult.RuntimeOk && GradeStdout(spec, runResult.Stdout, solutionCode)
 	return ValidationResult{
 		CompileOk: runResult.CompileOk,
 		RuntimeOk: runResult.RuntimeOk,
@@ -629,7 +631,8 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 	compileOk := !strings.Contains(combined, "type error") &&
 		!strings.Contains(combined, "parse error") &&
 		!strings.Contains(combined, "entrypoint 'main' not found")
-	stdoutOk := runtimeOk && CompareOutput(spec.ExpectedOut, stdout)
+	// Multi-file workspace grading: no single submitted source (quine N/A here).
+	stdoutOk := runtimeOk && GradeStdout(spec, stdout, "")
 	return ValidationResult{
 		CompileOk: compileOk,
 		RuntimeOk: runtimeOk,

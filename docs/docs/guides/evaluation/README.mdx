@@ -150,12 +150,13 @@ for the full curation guide, promotion/demotion criteria, and rotation rules.
 
 ### Tier structure (v0.14.0+)
 
-| Tier      | Expected pass | Run cost  | Role                                       |
-|-----------|---------------|-----------|--------------------------------------------|
-| `smoke`   | ≥ 95%         | seconds   | Regression gate — flat near 100%           |
-| `core`    | 70–95%        | minutes   | **Headline metric** — what releases quote  |
-| `stretch` | 30–70%        | minutes   | Headroom / differentiation benchmarks      |
-| `vision`  | 0–50%         | variable  | Aspirational — measures potential          |
+| Tier       | Expected pass | Run cost  | Role                                       |
+|------------|---------------|-----------|--------------------------------------------|
+| `smoke`    | ≥ 95%         | seconds   | Regression gate — flat near 100%           |
+| `core`     | 70–95%        | minutes   | **Headline metric** — what releases quote  |
+| `stretch`  | 30–70%        | minutes   | Headroom / differentiation benchmarks      |
+| `frontier` | 0–40%         | minutes   | Frontier-defeating — at least one frontier model fails (v0.29.0+) |
+| `vision`   | 0–50%         | variable  | Aspirational — measures potential          |
 
 The **Core tier** pass rate is the primary headline metric on the dashboard
 and the number quoted in release notes. Dashboard at

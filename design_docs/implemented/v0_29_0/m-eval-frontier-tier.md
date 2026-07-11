@@ -1,6 +1,6 @@
 # M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite
 
-**Status**: Planned — authoring DONE (8 benchmarks merged as stretch, see 2026-07-08 update); remaining scope verified 2026-07-11 (see iteration-7 reality check below)
+**Status**: Implemented (v0.29.0 dev, 2026-07-11 — sprint M-EVAL-FRONTIER-TIER, eval PASS 96/100 round 1; PARKED: frontier-failure validation of the 8 re-tiered benchmarks is API-billed → human/next rotation, plus 4 remaining sketched benchmarks)
 **Target**: v0.29.0
 **Priority**: P1 (the suite no longer discriminates the frontier — Fable 36/37 on AILANG)
 **Estimated**: design 0.5d; authoring + cross-language validation 2–3d (benchmark-manager skill)
