@@ -1,7 +1,29 @@
 # M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior
 
 **Status**: Planned
-**Target**: v0.24.0
+**Target**: v0.29.x (was v0.24.0 — stale; doc lives in planned/v0_29_0)
+
+> **Reality-check stamp (mission iteration 9, 2026-07-11, HEAD = v0.29.2-2-g07aa1062f, both
+> binaries rebuilt + version-verified):**
+>
+> - **Premises HOLD.** Live `ailang check` transcripts: `= let x = 5; x + 1` → PAR017 at 2:35;
+>   newline-separated block → PAR020 at 4:3; braced `;` form → clean. No related parser work
+>   landed since this doc (git log --grep PAR017/PAR020/newline/separator since 2026-06-12: none).
+> - **DISCREPANCY — `ailang fmt` DOES NOT EXIST.** No `fmt` subcommand, no formatter package
+>   anywhere in `internal/` or `cmd/ailang/`. Phase 3's "0.5d canonicalization" premise is
+>   invalid as written: a from-scratch formatter is a multi-day item. Planner must re-scope —
+>   options: (a) minimal canonicalizer covering only the two accepted separator forms,
+>   (b) split `ailang fmt` into its own follow-up doc and mitigate canonical-form erosion with
+>   golden parse fixtures + prompt guidance in the interim.
+> - **Design Freeze direction items:** ratified via bar v2 clause 3 (Mark, 2026-07-11), which
+>   names "m-syntax-ai-forgiving landed" as a v1.0 gate. The doc's own phasing decision stands:
+>   R1 ships first; R2 only after the corpus AST-diff fuzz pass is green.
+> - **GPU:** the Phase-3 rig A/B is a GPU step → `rig_lock_acquire wait` around that step only,
+>   or defer with rationale (m-diagnostic-coverage precedent). Current eval rotation in flight
+>   is cloud-only (holds no rig lock post-d4cbcb5f7).
+> - **Magnitude caveat:** the ~32% figure is from the June qwen3-5 corpus and predates the
+>   v0.29.0 frontier-tier re-grade — the failure *class* is live-proven, its current share is
+>   unmeasured; treat the number as directional, the A/B as the real metric.
 **Priority**: P1 — eliminates the single largest small-model failure *class* (~32%) with a localized parser change; helps every model, not just a fine-tuned one
 **Estimated**: ~3 days (R1: 1 day; R2: 1.5 days; `ailang fmt` canonicalization + eval round-trip: 0.5 day)
 **Dependencies**: None. Complements M-AILANG-ERROR-QUALITY (which made these errors *actionable*; this removes the error class entirely). A strictly cheaper, broader alternative to the first iteration of M-EVAL-FINETUNING-DATA-PIPELINE for the dialect-adherence portion of the gap.
