@@ -2,7 +2,14 @@ import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion } from './useEvents';
-import { assignModelColors } from './modelColors';
+import { assignModelColors, getProvider } from './modelColors';
+
+// Provider grouping — collapses the 30+ per-model lines into one averaged line
+// per provider so the long-run trend is readable. 'other' = open-source models
+// (DeepSeek / GLM / MiniMax / Kimi / Qwen / Gemma).
+const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other'];
+const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source' };
+const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6' };
 
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
@@ -47,6 +54,9 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
   // tooltip rather than filtered out.
   const annotations = useEvents(events, { selectedTier });
   const eventsByVersion = groupByVersion(annotations, formatVersion);
+  // Default to provider grouping so the chart is readable at a glance; users can
+  // switch to per-model for detail.
+  const [groupBy, setGroupBy] = useState('provider');
   // Same solo-then-add semantics as PerModelTrend: empty set = show all.
   const [selectedModels, setSelectedModels] = useState(() => new Set());
   const isVisible = (m) => selectedModels.size === 0 || selectedModels.has(m);
@@ -123,6 +133,27 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
     return point;
   });
 
+  // Provider grouping: one line per provider = average of its member models'
+  // delta at each version (nulls skipped so gated points don't drag the mean).
+  const providers = PROVIDER_ORDER.filter((p) => Array.from(allModels).some((m) => getProvider(m) === p));
+  const providerChartData = chartData.map((pt) => {
+    const out = { version: pt.version, date: pt.date };
+    providers.forEach((p) => {
+      const vals = Array.from(allModels)
+        .filter((m) => getProvider(m) === p)
+        .map((m) => pt[m])
+        .filter((v) => v != null && !Number.isNaN(v));
+      out[p] = vals.length ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)) : null;
+    });
+    return out;
+  });
+
+  const byProvider = groupBy === 'provider';
+  const activeData = byProvider ? providerChartData : chartData;
+  const seriesKeys = byProvider ? providers : Array.from(allModels).filter(isVisible);
+  const seriesColor = (k) => (byProvider ? PROVIDER_COLOR[k] : (modelColors.get(k) || '#999'));
+  const seriesLabel = (k) => (byProvider ? PROVIDER_LABEL[k] || k : formatModelName(k));
+
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -137,7 +168,7 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
             return (
               <p key={index} className={styles.tooltipValue}>
                 <span className={styles.tooltipDot} style={{backgroundColor: entry.color}} />
-                {formatModelName(entry.name)}: {value >= 0 ? '+' : ''}{value}%
+                {seriesLabel(entry.name)}: {value >= 0 ? '+' : ''}{value}%
               </p>
             );
           })}
@@ -174,8 +205,24 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
       <div className={styles.chartSubtitle}>
         Positive = AILANG performs better · Negative = Python performs better
       </div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '8px 0 4px' }}>
+        <span style={{ fontSize: '0.82em', color: 'var(--ifm-color-emphasis-600)' }}>Group by:</span>
+        {['provider', 'model'].map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => setGroupBy(g)}
+            style={{
+              padding: '3px 11px', cursor: 'pointer', borderRadius: 6, fontSize: '0.85em', fontWeight: 600,
+              border: '1px solid var(--ifm-color-emphasis-300)',
+              background: groupBy === g ? 'var(--ifm-color-primary)' : 'transparent',
+              color: groupBy === g ? '#fff' : 'var(--ifm-color-emphasis-800)',
+            }}
+          >{g === 'provider' ? 'Provider' : 'Model'}</button>
+        ))}
+      </div>
       <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={activeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-200)" />
           <XAxis
             dataKey="version"
@@ -207,54 +254,64 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
             );
           })}
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
-          {Array.from(allModels)
-            .filter(isVisible)
-            .map(modelName => (
-              <Line
-                key={modelName}
-                type="linear"
-                dataKey={modelName}
-                stroke={modelColors.get(modelName) || '#999'}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                connectNulls
-              />
+          {seriesKeys.map((key) => (
+            <Line
+              key={key}
+              type="linear"
+              dataKey={key}
+              stroke={seriesColor(key)}
+              strokeWidth={byProvider ? 3 : 2}
+              dot={{ r: byProvider ? 3 : 4 }}
+              activeDot={{ r: 6 }}
+              connectNulls
+            />
           ))}
         </LineChart>
       </ResponsiveContainer>
-      <div className={styles.chipLegend}>
-        <p className={styles.chipLegendHint}>
-          {selectedModels.size === 0
-            ? 'Click a model to focus it; click more to compare.'
-            : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
-        </p>
-        {Array.from(allModels).map((modelName) => {
-          const active = isVisible(modelName);
-          const color = modelColors.get(modelName) || '#999';
-          return (
+      {byProvider ? (
+        <div className={styles.chipLegend}>
+          <p className={styles.chipLegendHint}>Averaged per provider — switch to “Model” for per-model detail.</p>
+          {providers.map((p) => (
+            <span key={p} className={styles.legendChip} style={{ cursor: 'default' }}>
+              <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
+              {PROVIDER_LABEL[p]}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.chipLegend}>
+          <p className={styles.chipLegendHint}>
+            {selectedModels.size === 0
+              ? 'Click a model to focus it; click more to compare.'
+              : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
+          </p>
+          {Array.from(allModels).map((modelName) => {
+            const active = isVisible(modelName);
+            const color = modelColors.get(modelName) || '#999';
+            return (
+              <button
+                key={modelName}
+                type="button"
+                className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
+                onClick={() => toggleModel(modelName)}
+              >
+                <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
+                {formatModelName(modelName)}
+              </button>
+            );
+          })}
+          {selectedModels.size > 0 && (
             <button
-              key={modelName}
               type="button"
-              className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
-              onClick={() => toggleModel(modelName)}
+              className={styles.legendChip}
+              onClick={() => setSelectedModels(new Set())}
+              title="Reset to show all models"
             >
-              <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
-              {formatModelName(modelName)}
+              Reset
             </button>
-          );
-        })}
-        {selectedModels.size > 0 && (
-          <button
-            type="button"
-            className={styles.legendChip}
-            onClick={() => setSelectedModels(new Set())}
-            title="Reset to show all models"
-          >
-            Reset
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

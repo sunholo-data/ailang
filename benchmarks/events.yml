@@ -59,3 +59,25 @@
   label: "baseline.json records resolved benchmark set"
   kind: taxonomy
   color: "#888888"
+
+# v0.29.0 (M-EVAL-FRONTIER-TIER, 2026-07): the suite stopped discriminating at
+# the top end (best model ~36/37) — the frontier tier + a batch of frontier-
+# defeating benchmarks restore separation.
+- version: v0.29.0
+  label: "Frontier tier + structural grader (M-EVAL-FRONTIER-TIER)"
+  kind: taxonomy
+  color: "#dc2626"
+  affects_tiers: [frontier]
+
+- version: v0.29.0
+  label: "+frontier benchmarks: gauntlet_10, quine, legal_obligation_engine, delegation/source-constraint proofs"
+  kind: benchmark_add
+  color: "#dc2626"
+  affects_tiers: [frontier]
+
+# v0.29.2 (2026-07-11): ELO-driven re-tier + per-language ELO leaderboard.
+- version: v0.29.2
+  label: "8 stretch→frontier promotions (ELO / frontier-model-fail audit) + per-language ELO"
+  kind: taxonomy
+  color: "#dc2626"
+  affects_tiers: [frontier, stretch]
