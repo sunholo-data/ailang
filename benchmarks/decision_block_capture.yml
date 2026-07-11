@@ -24,8 +24,16 @@ task_prompt: |
   Both lines must appear in order: the number first, then the CHOICE line.
 
   Output only the code, no explanations.
+# Grading: STRUCTURAL (prefix_line), not exact-match. Line 1 must be the exact
+# numeric result "9"; the "CHOICE: " line is a PLACEHOLDER — the grader requires
+# ANY line "CHOICE: <non-empty>", NOT the verbatim example sentence. This retires
+# the free-text exact-match anti-pattern (grading a justification sentence by
+# exact string match measured verbatim copying of the prompt example, not
+# capability). See GradeStdout / gradePrefixLine in internal/eval_harness/runner.go
+# and design_docs/planned/v0_29_0/m-eval-frontier-tier.md (M4).
 expected_stdout: |
   9
-  CHOICE: single linear pass for O(n) time and O(1) space
+  CHOICE:
+grading: prefix_line
 tier: stretch
-tags: [structured_output, decision_capture, algorithmic]
+tags: [algorithmic, functional]

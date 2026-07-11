@@ -517,3 +517,63 @@ func TestLimitedWriter_WriteAfterTruncation(t *testing.T) {
 		t.Error("Expected Truncated() to be true")
 	}
 }
+
+// TestGradeStdout_PrefixLine covers the "prefix_line" STRUCTURAL grader
+// (M-EVAL-FRONTIER-TIER M4): fixed lines match exactly, "PREFIX: " placeholder
+// lines require any "PREFIX: <non-empty>" line. This retires the
+// decision_block_capture free-text exact-match anti-pattern.
+func TestGradeStdout_PrefixLine(t *testing.T) {
+	spec := &BenchmarkSpec{
+		Grading:     "prefix_line",
+		ExpectedOut: "9\nCHOICE: \n",
+	}
+	tests := []struct {
+		name   string
+		actual string
+		want   bool
+	}{
+		// PASS: correct number + any non-empty CHOICE rationale (NOT the example).
+		{"any rationale", "9\nCHOICE: single linear pass\n", true},
+		{"different rationale still passes", "9\nCHOICE: recursion to match structure\n", true},
+		{"verbatim example passes too", "9\nCHOICE: single linear pass for O(n) time and O(1) space\n", true},
+		{"extra whitespace tolerated", "9\nCHOICE: fold over the list  \n", true},
+		// FAIL: wrong number (fixed line must match exactly).
+		{"wrong number", "8\nCHOICE: something\n", false},
+		// FAIL: missing CHOICE line entirely.
+		{"missing choice", "9\n", false},
+		// FAIL: empty CHOICE value (placeholder requires non-empty).
+		{"empty choice value", "9\nCHOICE: \n", false},
+		{"whitespace-only choice value", "9\nCHOICE:    \n", false},
+		// FAIL: CHOICE present but number missing.
+		{"only choice", "CHOICE: reason\n", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GradeStdout(spec, tt.actual, ""); got != tt.want {
+				t.Errorf("GradeStdout(prefix_line, %q) = %v, want %v", tt.actual, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestGradeStdout_RoutesModes confirms GradeStdout dispatches on spec.Grading:
+// default -> CompareOutput, quine -> source comparison.
+func TestGradeStdout_RoutesModes(t *testing.T) {
+	// default mode delegates to CompareOutput (JSON-aware).
+	def := &BenchmarkSpec{ExpectedOut: `{"a":1}`}
+	if !GradeStdout(def, `{"a": 1}`, "") {
+		t.Error("default mode should delegate to CompareOutput (JSON-equal)")
+	}
+	if GradeStdout(def, `{"a": 2}`, "") {
+		t.Error("default mode should fail on semantic diff")
+	}
+	// quine mode compares normalized stdout against submitted source.
+	q := &BenchmarkSpec{Grading: "quine"}
+	src := "print(\"hi\")\n"
+	if !GradeStdout(q, "print(\"hi\")", src) {
+		t.Error("quine mode should pass when stdout equals normalized source")
+	}
+	if GradeStdout(q, "different output", src) {
+		t.Error("quine mode should fail when stdout differs from source")
+	}
+}

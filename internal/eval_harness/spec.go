@@ -71,6 +71,15 @@ type BenchmarkSpec struct {
 	// "quine": stdout must equal the SUBMITTED SOURCE itself (both sides
 	// normalized: LF endings, trailing newlines stripped) — no fixed
 	// expected_stdout can grade a quine. Standard (0-shot) mode only.
+	// "prefix_line": STRUCTURAL grading for outputs that mix fixed lines with a
+	// free-text line whose CONTENT must not be graded verbatim (fixes the
+	// decision_block_capture anti-pattern — grading a justification sentence by
+	// exact string match measures verbatim copying, not capability). Each line
+	// of expected_stdout is matched exactly EXCEPT a line of the form
+	// "PREFIX: " (an all-caps token, colon, single space, then END-OF-LINE — an
+	// empty placeholder), which instead requires the actual output to contain a
+	// line "PREFIX: <non-empty>". The fixed lines still grade exactly; only the
+	// placeholder line is graded structurally. See GradeStdout.
 	Grading string `yaml:"grading,omitempty"`
 }
 
@@ -180,8 +189,8 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		}
 	}
 
-	if spec.Grading != "" && spec.Grading != "quine" {
-		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty or \"quine\")", spec.ID, spec.Grading)
+	if spec.Grading != "" && spec.Grading != "quine" && spec.Grading != "prefix_line" {
+		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty, \"quine\", or \"prefix_line\")", spec.ID, spec.Grading)
 	}
 
 	return &spec, nil
