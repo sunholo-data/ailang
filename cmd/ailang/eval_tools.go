@@ -281,12 +281,17 @@ func runEvalReport() {
 		fmt.Println("  --multi-model         Aggregate latest results per model from all baselines")
 		fmt.Println("  --from-chain ID       Load results from a specific eval chain")
 		fmt.Println("  --from-latest-chain   Load results from the most recent eval chain")
+		fmt.Println("  --merge DIR           Also load results from DIR and merge them into the")
+		fmt.Println("                        report (repeatable). Used to unify local on-device")
+		fmt.Println("                        rotation results with the cloud baseline.")
 		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-report eval_results/baselines/v0.3.0 v0.3.0")
 		fmt.Println("  ailang eval-report --multi-model v0.3.5 --format=docusaurus")
 		fmt.Println("  ailang eval-report --from-chain e9c7501d v0.8.1 --format=json")
 		fmt.Println("  ailang eval-report --from-latest-chain v0.8.1 --format=json")
+		fmt.Println("  ailang eval-report eval_results/baselines/v0.29.2 v0.29.2 \\")
+		fmt.Println("      --merge eval_results/rotation/os-rolling/v0.29.2 --format=json")
 		os.Exit(1)
 	}
 
@@ -296,6 +301,7 @@ func runEvalReport() {
 	multiModel := false
 	fromChain := ""
 	fromLatestChain := false
+	var mergeDirs []string
 
 	// Check if using special modes
 	if resultsDir == "--multi-model" {
@@ -312,11 +318,22 @@ func runEvalReport() {
 		version = flag.Arg(3)
 	}
 
-	// Check for format flag in remaining args
+	// Check for format/merge flags in remaining args.
+	// --merge accepts either "--merge=DIR" or "--merge DIR" (space form).
 	for i := 1; i < flag.NArg(); i++ {
 		arg := flag.Arg(i)
-		if strings.HasPrefix(arg, "--format=") {
+		switch {
+		case strings.HasPrefix(arg, "--format="):
 			format = strings.TrimPrefix(arg, "--format=")
+		case strings.HasPrefix(arg, "--merge="):
+			if dir := strings.TrimPrefix(arg, "--merge="); dir != "" {
+				mergeDirs = append(mergeDirs, dir)
+			}
+		case arg == "--merge":
+			if i+1 < flag.NArg() {
+				mergeDirs = append(mergeDirs, flag.Arg(i+1))
+				i++ // consume value
+			}
 		}
 	}
 
@@ -362,11 +379,19 @@ func runEvalReport() {
 		}
 		fmt.Fprintf(os.Stderr, "\n")
 	} else {
-		fmt.Fprintf(os.Stderr, "Loading results from %s...\n", resultsDir)
-		results, err = eval_analysis.LoadResults(resultsDir)
+		dirs := append([]string{resultsDir}, mergeDirs...)
+		if len(mergeDirs) > 0 {
+			fmt.Fprintf(os.Stderr, "Loading results from %s (merging: %s)...\n", resultsDir, strings.Join(mergeDirs, ", "))
+		} else {
+			fmt.Fprintf(os.Stderr, "Loading results from %s...\n", resultsDir)
+		}
+		results, err = eval_analysis.LoadResultsFromDirs(dirs...)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: failed to load results: %v\n", red("Error"), err)
 			os.Exit(1)
+		}
+		if len(mergeDirs) > 0 {
+			fmt.Fprintf(os.Stderr, "  Merged %d results across %d directories\n", len(results), len(dirs))
 		}
 	}
 

@@ -425,6 +425,35 @@ local-rig trend chart reads `os/history.json`; the live table still reads
 `os/latest.json`. Run **without** `--reset` if you only want to refresh a version's
 numbers while they're still filling (safe, idempotent).
 
+### 3b. Publish the UNIFIED Dashboard (cloud + local in one leaderboard)
+
+The whole point of the on-device roster is **comparison with cloud**. Step 3 above
+publishes the cloud baseline into the main `latest.json`; this step folds the local
+rig's rotation results for the **same release** into that SAME leaderboard so the
+on-device models (qwen/gemma) appear alongside the cloud frontier in the main tables
+(ELO leaderboard, gap-trend, per-model-trend). It re-runs `eval-report` on the cloud
+baseline with `--merge` pointed at this release's rotation dir:
+
+```bash
+# Regenerates docs/static/benchmarks/latest.json with cloud + local UNIFIED.
+# Auto-skips the merge if no rotation dir exists yet for this release
+# (then it's just a cloud-only refresh, identical to step 3).
+tools/publish-unified-dashboard.sh vX.X.X
+
+git add docs/static/benchmarks/latest.json
+git commit -m "Unify local rotation into main leaderboard for vX.X.X"
+git push
+```
+
+Under the hood this is:
+`ailang eval-report eval_results/baselines/vX.X.X vX.X.X --merge eval_results/rotation/os-rolling/vX.X.X --format=json`
+(the wrapper adds `--merge` only when that rotation dir exists). Do **not** redirect
+its stdout — `eval-report` writes `latest.json` itself and preserves history. Verify
+`ratings.agent.byLang.ailang.models` now lists BOTH cloud (`claude-*`, `opencode-or-*`)
+and local (`*-qwen*`, `*gemma*`) models, while `ratings.standard` still has the cloud
+roster. Note the daily os-rotation-filler also runs this automatically once a release's
+cloud baseline exists, so this step mainly guarantees the unify happens **at release**.
+
 ### 4. Update Axiom Scorecard
 
 **Review and update the axiom scorecard:**

@@ -12,29 +12,70 @@ import (
 // Returns results sorted by timestamp (newest first)
 // Recursively searches all subdirectories for .json files
 func LoadResults(dir string) ([]*BenchmarkResult, error) {
-	// Check if directory exists
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("directory not found: %s", dir)
+	return LoadResultsFromDirs(dir)
+}
+
+// LoadResultsFromDirs loads and merges all benchmark results from one or more
+// directories. This is the durable primitive behind `eval-report --merge`:
+// it walks every directory, concatenates the results, and applies a single
+// cross-directory dedup pass so overlapping result files (same
+// model/benchmark/lang/seed/mode) collapse to the newest one regardless of
+// which directory they came from. The merge is order-independent because the
+// dedup key is content-derived and selection is by timestamp, not by argument
+// order.
+//
+// At least one directory must be provided. A directory is required to exist,
+// but a directory that simply contains no JSON files is tolerated as long as
+// the combined set across all directories is non-empty (so callers can merge a
+// populated baseline with an empty/absent rotation without failing).
+func LoadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("no directories provided")
 	}
 
 	var allMatches []string
 
-	// Walk directory tree to find all .json files
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return nil, fmt.Errorf("directory not found: %s", dir)
+		}
+
+		// Walk directory tree to find all .json files
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil // Skip inaccessible dirs
+			}
+			if !d.IsDir() && filepath.Ext(path) == ".json" {
+				allMatches = append(allMatches, path)
+			}
+			return nil
+		})
 		if err != nil {
-			return nil // Skip inaccessible dirs
+			return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
 		}
-		if !d.IsDir() && filepath.Ext(path) == ".json" {
-			allMatches = append(allMatches, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
 	}
 
 	if len(allMatches) == 0 {
-		return nil, fmt.Errorf("no JSON files found in %s", dir)
+		return nil, fmt.Errorf("no JSON files found in %v", dirs)
+	}
+
+	// Dedupe identical file paths (e.g. a --merge dir nested under the primary,
+	// or the same dir passed twice) so a file is loaded at most once.
+	if len(dirs) > 1 {
+		seenPath := make(map[string]struct{}, len(allMatches))
+		uniq := allMatches[:0]
+		for _, p := range allMatches {
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				abs = p
+			}
+			if _, dup := seenPath[abs]; dup {
+				continue
+			}
+			seenPath[abs] = struct{}{}
+			uniq = append(uniq, p)
+		}
+		allMatches = uniq
 	}
 
 	var results []*BenchmarkResult

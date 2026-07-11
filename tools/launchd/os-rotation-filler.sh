@@ -50,6 +50,15 @@ CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
 ROLL="eval_results/rotation/os-rolling"        # accumulating rotation dir
 CURSOR="$HOME/.ailang/state/os-filler-cursor"
+# AILANG-FULL tier pass (M-EVAL-OS-FRONTIER-COVERAGE): the 4-language set above is only
+# 41/91 benchmarks (2/16 frontier) because it demands ailang+python+js+go. Set
+# OS_FILLER_AILANG_FULL=1 to ALSO rotate the local models through the FULL
+# core+stretch+frontier tiers in AILANG ONLY (own independent cursor), so
+# frontier/stretch benchmarks enter the local rotation over time. Off by default.
+AILANG_FULL="${OS_FILLER_AILANG_FULL:-0}"
+FULL_TIERS="${OS_FILLER_FULL_TIERS:-core,stretch,frontier}"
+FULL_CHUNK="${OS_FILLER_FULL_CHUNK:-2}"        # benchmarks per cycle for the ailang-only pass
+FULL_CURSOR="$HOME/.ailang/state/os-filler-cursor-ailang-full"
 BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eval + model reloads
 BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
@@ -120,6 +129,46 @@ ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANG
   --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --bank-by-version --timeout "$TMO" \
   --output "$ROLL" >>"$LOG" 2>&1 || log "chunk had failures (continuing)"
 
+# 6b. AILANG-FULL tier pass (opt-in): rotate the local models through the FULL
+#     core+stretch+frontier tiers in AILANG ONLY, using an INDEPENDENT cursor so it
+#     doesn't perturb the 4-language round-robin above. This is what pulls frontier
+#     and stretch benchmarks into the local rotation (the 4-language set can't, since
+#     those benchmarks aren't implemented in all 4 languages). Banks into the SAME
+#     $ROLL/<version>/ dir (--skip-existing accumulates), so it flows into both the
+#     OS/Local JSON and the unified dashboard below.
+if [ "$AILANG_FULL" = "1" ]; then
+  # Full tier set: every benchmark whose `tier:` is one of $FULL_TIERS. Language
+  # filtering is left to eval-suite (--langs ailang skips any that don't support it).
+  # shellcheck disable=SC2207
+  BENCHES_FULL=( $(for f in benchmarks/*.yml; do
+    T=$(grep -E '^tier:' "$f" 2>/dev/null | head -1 | sed -E 's/^tier:[[:space:]]*//; s/[[:space:]]*#.*//; s/"//g' | tr -d '[:space:]')
+    case ",$FULL_TIERS," in (*",$T,"*) basename "$f" .yml;; esac
+  done) )
+  FULL_TOTAL=${#BENCHES_FULL[@]}
+  if [ "$FULL_TOTAL" -eq 0 ]; then
+    log "ailang-full: no benchmarks for tiers $FULL_TIERS — skip"
+  else
+    F_OFFSET=$(cat "$FULL_CURSOR" 2>/dev/null || echo 0)
+    case "$F_OFFSET" in (*[!0-9]*) F_OFFSET=0;; esac
+    F_PICK=""
+    j=0
+    while [ "$j" -lt "$FULL_CHUNK" ] && [ "$j" -lt "$FULL_TOTAL" ]; do
+      fidx=$(((F_OFFSET + j) % FULL_TOTAL))
+      F_PICK="${F_PICK:+$F_PICK,}${BENCHES_FULL[$fidx]}"
+      j=$((j + 1))
+    done
+    F_NEXT=$(((F_OFFSET + FULL_CHUNK) % FULL_TOTAL))
+    F_WRAPPED=0; [ "$F_NEXT" -le "$F_OFFSET" ] && F_WRAPPED=1
+    mkdir -p "$(dirname "$FULL_CURSOR")"; echo "$F_NEXT" > "$FULL_CURSOR"
+    log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, wrapped=$F_WRAPPED)"
+    F_TRIALS=3; F_TMO="$CHUNK_TIMEOUT"
+    case "$F_PICK" in *reimplement*) F_TRIALS=1; F_TMO="5400s";; esac
+    ailang eval-suite --agent --models "$MODELS" --benchmarks "$F_PICK" --langs ailang \
+      --parallel 1 --microrag on --trials "$F_TRIALS" --skip-existing --bank-by-version --timeout "$F_TMO" \
+      --output "$ROLL" >>"$LOG" 2>&1 || log "ailang-full chunk had failures (continuing)"
+  fi
+fi
+
 # 7. Regenerate the OS/Local JSON from the cumulative rolling rotation; commit the
 #    single file every cycle (keeps the tree clean), but only PUSH on a full-pass
 #    wrap to keep deploy churn to ~1/pass. Push uses autostash-rebase for safety.
@@ -142,5 +191,35 @@ if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
       log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish)"
     fi
   fi
+fi
+
+# 8. UNIFIED dashboard: fold the local rotation into the MAIN leaderboard
+#    (docs/static/benchmarks/latest.json) so on-device models sit alongside the
+#    cloud frontier in the primary tables — the whole point of the on-device
+#    roster is cloud comparison. This re-runs eval-report on the CLOUD baseline
+#    of the current release WITH --merge <this rotation version>, but only when
+#    that release's cloud baseline already exists (mid-cycle before a release it
+#    won't, and cloud-only stays authoritative until post-release re-publishes).
+#    Committed to the same LOCAL-only-by-default policy as the OS JSON above.
+AILANG_VER="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
+if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
+  if bash tools/publish-unified-dashboard.sh "$AILANG_VER" >>"$LOG" 2>&1; then
+    git add docs/static/benchmarks/latest.json 2>>"$LOG" || true
+    if ! git diff --cached --quiet -- docs/static/benchmarks/latest.json 2>/dev/null; then
+      git commit -q -m "data(dashboard): unify local rotation into main leaderboard (${AILANG_VER})" \
+        -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
+      if [ "$AUTOPUSH" = "1" ]; then
+        git pull --rebase --autostash origin dev >>"$LOG" 2>&1 || true
+        git push origin dev >>"$LOG" 2>&1 && log "unified dashboard pushed (${AILANG_VER})" \
+          || log "unified push failed (retry next cycle)"
+      else
+        log "unified dashboard committed locally (auto-push OFF)"
+      fi
+    fi
+  else
+    log "unified dashboard publish skipped/failed for ${AILANG_VER} (continuing)"
+  fi
+else
+  log "no cloud baseline for ${AILANG_VER:-unknown} yet — unified publish deferred to post-release"
 fi
 log "cycle done"
