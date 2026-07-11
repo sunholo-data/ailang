@@ -38,6 +38,17 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-11 (night) — ITERATION 11 COMPLETE: m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed)
+
+Full loop headless, round-1 clean (sixth consecutive). `std/regex` ships — `compile → Result[Regex,
+string]` + total `isMatch`/`findFirst`/`findAll`/`replaceAll`/`split`, backed by Go's `regexp` (RE2,
+linear-time by construction; `(a+)+$` < 100ms). RE2 subset (no backref/lookaround) → `compile` Err,
+never panics. Opus plan→execute→evaluate; eval PASS 97/100 round 1 with INDEPENDENT reproduction
+(CJK rune-span proof of the byte→rune conversion). PR #343 → squash-merge 0b0ed7ea0, all required
+checks green. Builtins landed in the modern `internal/builtins/` system (D-ARCH: the doc's
+`internal/eval` path was outdated). Next: queue #12 m-stdlib-url-parse (clause 4's other half).
+See log entry 12.
+
 ## STATUS 2026-07-11 (night) — ITERATION 10: m-stdlib-regex DESIGN DOC CREATED (clause-4 regex, NEW-DOC stage)
 
 Queue #11 (NEW-DOC) routed to design-doc-creator; deliverable is the verified design doc, next
@@ -433,13 +444,19 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     parseRecordLiteral). PR #342 → merge, dev CI green per-workflow. DEFERRED: ailang fmt →
     m-ailang-fmt.md stub (D1). PARKED for controller/human: the rig A/B compile_error Δ on
     ;-family benchmarks — the REAL success metric, GPU step, rotation held the rig)
-11. [DOC-READY 2026-07-11] m-stdlib-regex (iteration 10: NEW-DOC stage — design doc
-    `planned/v0_30_0/m-stdlib-regex.md` created + `ailang check`-verified. Scope-defining
-    decision: **wrap Go stdlib `regexp` (= RE2, linear-time by construction)** → 2d builtin, not
-    a multi-week engine. Two-stage `compile -> Result[Regex,string]` + total match fns; RE2
-    subset (no backref/lookaround) is the documented linear-time price; pure `! {}`; Conflict
-    Surface = additive namespace-only. Axiom +8. NEXT: sprint-planner → executor → evaluator)
-12. NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query; ~1d)
+11. [LANDED 2026-07-11] m-stdlib-regex (iteration 11: full loop headless, round-1 clean — Opus
+    plan (3 de-risking findings: F1 `_str_slice`/`_str_len` are RUNE-indexed but Go `regexp`
+    returns BYTE offsets → span conversion is load-bearing; F2 embed is a glob; F4 changelog
+    path) → Opus execute (worktree: 6 `_regex_*` builtins in the MODERN `internal/builtins/`
+    RegisterEffectBuiltin system — NOT the doc's outdated `internal/eval` path, **D-ARCH**;
+    memoized RE2 cache; `std/regex.ail` + 3 examples incl. the log-orchestration clause-4 use
+    case) → Opus eval PASS 97/100 round 1 w/ INDEPENDENT reproduction (backref reject, CJK
+    `日本語 world` rune span [4,9) not byte [10,15), findAll). PR #343 → squash-merge 0b0ed7ea0,
+    all required checks green. `std/regex` = linear-time (RE2): compile/isMatch/findFirst/findAll/
+    replaceAll/split; RE2 subset (no backref/lookaround) → `compile` Err, never panics. Docs:
+    LIMITATIONS + stability (Experimental) + CHANGELOG. Design → implemented/v0_30_0)
+12. [NEXT] NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query;
+    ~1d — the OTHER half of clause-4's builtin mandate, now that regex landed)
 13. NEW-DOC m-dx-match-hof (clause 3; R4a — `match` in block-body lambdas in HOF args fails to
     parse; Conflict Surface mandatory, ~2–3d)
 14. NEW-DOC m-poly-arith-lambda (clause 3; R4b — polymorphic arithmetic in lambdas panics while

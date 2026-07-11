@@ -858,3 +858,85 @@ m-record-update-local-resolution doc-status re-check. PARKED for human (cumulati
 tier-assignment ratification (release gate); feedback-gate production ops; haiku causal re-run;
 scope-params release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue
 #341 triage; rig A/B for m-syntax-ai-forgiving (GPU step, the `;`-family compile_error Δ).
+
+## 12 — 2026-07-11 — Iteration 11: m-stdlib-regex LANDED — AILANG has linear-time (RE2) regex; v1.0 bar clause 4's regex half closed (sixth consecutive round-1-clean full loop)
+
+**Picked**: m-stdlib-regex (queue #11, [DOC-READY] top [NEXT]). P1, bar v2 clause 4
+(orchestration flagship — "linear-time regex + URL-parse builtins, both verified absent, a
+credibility hole"). ~2d. Design doc created iteration 10; this run did plan→execute→evaluate→
+land. Inbox at OBSERVE: 4 eval-suite broadcasts (Started + 52.7%/81.6% partials — informational,
+in line with baselines, did NOT outrank). Dev CI green per-workflow @ 4f8f087af at OBSERVE. GPU:
+pure Go builtin + AILANG stdlib + cloud eval → touches NO GPU, no rig.lock (asked at routing).
+
+**Reality check** (read-only @ v0.29.2-35-gb62ab5433, rebuilt, --version==git describe): regex
+VERIFIED absent (`grep _regex_/std/regex` → 0; no internal/eval/builtins_regex.go); no sprint
+plan existed. De-risking findings for the executor (recorded in plan + JSON): **F1** — `_str_slice`/
+`_str_len` are RUNE-indexed but Go `regexp` returns BYTE offsets (the doc's #1 risk, CONFIRMED
+real); **F2** — `std/embed.go` is `//go:embed *.ail` glob → `std/regex.ail` auto-embeds, no
+embed.go edit; **F4** — current changelog is `changelogs/v0.18-current.md`.
+
+**Shipped** (full loop, all Opus; round-1 clean):
+- Plan (Opus): 3 milestones, sprint JSON + `m-stdlib-regex-sprint-plan.md` (commit 7aa24ba99 to dev).
+- Execute (Opus, worktree `sprint/m-stdlib-regex`): M1 `internal/builtins/regex.go` — 6 `_regex_*`
+  builtins via the MODERN `RegisterEffectBuiltin` system, NOT the legacy `internal/eval/builtins_json.go`
+  path the doc drafted (**D-ARCH** — biggest deviation; the doc's file path was outdated, semantics/
+  API identical), mutex-guarded memoized `*regexp.Regexp` cache, byte→rune span conversion (F1);
+  tests pass `-count=20` incl. linear-time `(a+)+$`<100ms + multibyte rune fixture + backref/lookaround
+  Err-never-panics + cache memoization; golden `builtin_types` regenerated (6454c3fe0). M2 `std/regex.ail`
+  (opaque `Regex(string)` + `RegexMatch` + 6 pure wrappers) + 3 runnable examples (basics/capture/
+  **log_orchestration** = the clause-4 use case) — groups via `nth_or` since lists use `nth` not `[i]`
+  subscript (the doc's `m.groups[1]` example was not runnable) (0ca5c0bfd). M3 stdlib parse-test guard
+  + LIMITATIONS (RE2 subset) + stability tier (`std/regex`→Experimental) + CHANGELOG (6478aff99).
+- Evaluate (Opus, independence caveat mitigated by INDEPENDENT reproduction with FRESH cases):
+  **PASS 97/100** round 1 — tests 20/20 (regex pkgs green ×20; full make-test's sole red =
+  pre-existing flake `TestRunCommand_PipedStdoutFlushesPerLine`, passes standalone), lint 10/10,
+  AC 28/30 (−2 website raw-loader N/A: no regex feature-doc page), quality 15/15, docs 15/15,
+  fidelity 9/10 (−1 D-ARCH). Independent checks: backref `(a)\1`→Err; **CJK `日本語 world` → "world"
+  at RUNE span [4,9) not byte [10,15) — F1 proven on a script the executor never tested**; findAll
+  3 matches; coverage recomputed 89.5%; verify-examples 32/29. Report committed.
+- Integrate: docs→`implemented/v0_30_0`; branch merged origin/dev during work (sibling docs commit
+  bf4937ec3, index.jsx — this branch never touched it, merged clean). PR #343 → squash-merge
+  0b0ed7ea0 (auto-merge SQUASH; all required checks green = the merge gate). Dev post-merge CI
+  in-progress (identical content to the green PR checks — expected green).
+
+**Routing evidence**:
+- model=opus task-class=plan round1-quality=high (3 live de-risking findings F1/F2/F4 that
+  materially changed execution: F1 became M1's headline correctness requirement) rounds=1 corrections=0
+- model=opus task-class=execute round1-score=97 rounds=1 corrections=0 — QUALITY HIGHLIGHT:
+  correctly routed to the MODERN builtins subsystem instead of implementing the doc's outdated
+  `internal/eval` path literally (D-ARCH), and caught two non-runnable design-doc examples
+  (`m.groups[1]` subscript; qualified type `R.Regex` in a signature) — fixed both. Sprint artifacts
+  COMPLETE this iteration (JSON status=completed + notes + plan checkboxes) — the iteration-8/9
+  completion-gate skill fix HELD (no reconstruction needed).
+- model=opus task-class=evaluate rounds=1 — independence caveat handled by reproducing headline
+  claims with fresh inputs (CJK subject, larger findAll) rather than trusting executor tests.
+
+**Ruled out**:
+- "regex needs a hand-rolled multi-week engine" — refuted at design: Go `regexp` IS RE2 (linear-time
+  by construction) → 2-day wrap. Held.
+- "the design doc's `internal/eval/builtins_regex.go` + `m.groups[1]` are correct" — refuted live:
+  current builtins live in `internal/builtins/` (RegisterEffectBuiltin); lists use `nth`/`nth_or`,
+  not `[i]`. Both corrected; recorded as D-ARCH + example fix.
+- "`make test` FAIL = regex regression" — refuted: sole red = pre-existing timing flake
+  (`TestRunCommand_PipedStdoutFlushesPerLine`), passes in isolation + package-alone; regex is
+  additive in a different package.
+- "byte offsets are fine to expose" — refuted by F1 + independently on CJK: exposing Go's byte
+  offsets would break consistency with `std/string`'s rune indexing; conversion is load-bearing.
+
+**Retro lane**: NO skill edit (max one/iteration, requires ≥2 frictions at the same gap — none
+recurred; the iteration-8/9 completion-gate fix already HELD this run). Process: none. Watch list
+(single instances, no edit): (a) the design-doc-creator's `ailang check`-verification signed off
+the `internal/eval` file path + `m.groups[1]`/`R.Regex`-in-signature examples that don't actually
+run — the HARD GATE checks *type signatures* but not *example runnability* nor *current subsystem*;
+if a 2nd doc ships non-runnable examples, add "run every example fragment" to design-doc-creator's
+gate. (b) `.ailang/state` is gitignored so the sprint JSON can't ride the PR branch — mirrored to
+main-tree + worktree by hand; if this recurs, mission-control should note the evaluator reads it
+from disk, not the branch.
+
+**Next**: Iteration 12 — queue #12 m-stdlib-url-parse (NEW-DOC, clause 4; the OTHER half of the
+builtin mandate, ~1d) starts at design-doc-creator; OR #13 m-dx-match-hof (clause 3, Conflict
+Surface mandatory). Carry forward unchanged: %-row + m-record-update-local-resolution doc-status
+re-check. PARKED for human (cumulative, unchanged): tier-assignment ratification (release gate);
+feedback-gate production ops; haiku causal re-run; scope-params release-gate re-score; frontier-
+failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving
+(GPU step). NEW parked: confirm dev post-merge CI 0b0ed7ea0 green (in-progress at close).
