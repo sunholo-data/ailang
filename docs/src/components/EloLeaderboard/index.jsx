@@ -98,12 +98,23 @@ export default function EloLeaderboard() {
   const block = activeLang === 'combined' || activeLang === 'avp'
     ? view
     : byLang[activeLang] || view;
-  const models = block.models || [];
+  const allModels = block.models || [];
   const benches = block.benchmarks || [];
   const sat = block.saturation || {};
   const regraded = (data.grading || {}).regraded;
 
-  // ELO range for the leaderboard bars (relative fill).
+  // Coverage gating: ELO across models that ran DIFFERENT benchmark counts isn't
+  // comparable, so rank only models with adequate coverage and list the rest
+  // separately — a 6-benchmark ELO must not masquerade as a headline next to a
+  // 55-benchmark one. (M-EVAL-VALIDITY-DISCIPLINE)
+  const maxCov = block.maxCoverage || Math.max(1, ...allModels.map((m) => m.benchmarks || 0));
+  const covThreshold = Math.max(1, Math.round(maxCov * 0.5));
+  const models = allModels.filter((m) => (m.benchmarks || 0) >= covThreshold);
+  const underCovered = allModels
+    .filter((m) => (m.benchmarks || 0) < covThreshold)
+    .sort((a, b) => (b.benchmarks || 0) - (a.benchmarks || 0));
+
+  // ELO range for the leaderboard bars (relative fill) — over the RANKED set only.
   const eloVals = models.map((m) => m.elo).filter((v) => v != null);
   const maxElo = eloVals.length ? Math.max(...eloVals) : 1;
   const minElo = eloVals.length ? Math.min(...eloVals) : 0;
@@ -201,15 +212,17 @@ export default function EloLeaderboard() {
             <h4 style={{ marginBottom: 6 }}>Model capability (ELO){activeLang !== 'combined' ? ` — ${LANG_LABEL[activeLang]}` : ''}</h4>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em', tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '36px' }} />
+                <col style={{ width: '34px' }} />
                 <col />
-                <col style={{ width: '62px' }} />
+                <col style={{ width: '56px' }} />
+                <col style={{ width: '50px' }} />
               </colgroup>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--ifm-color-emphasis-300)' }}>
                   <th style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'bottom' }}>#</th>
                   <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Model</th>
                   <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>ELO</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title="benchmarks run (of the max any model ran)">cov</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,11 +246,30 @@ export default function EloLeaderboard() {
                       <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                         {Math.round(m.elo)}
                       </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: 'var(--ifm-color-emphasis-500)' }}>
+                        {m.benchmarks != null ? m.benchmarks : '—'}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            {underCovered.length > 0 && (
+              <div style={{ marginTop: 10, padding: '8px 10px', border: '1px dashed var(--ifm-color-emphasis-300)', borderRadius: 6, fontSize: '0.84em' }}>
+                <div style={{ fontWeight: 700, color: '#b45309', marginBottom: 3 }}>⚠ Not ranked — insufficient coverage</div>
+                <div style={{ color: 'var(--ifm-color-emphasis-600)', marginBottom: 6 }}>
+                  Ran &lt;{covThreshold}/{maxCov} benchmarks, so their ELO isn't comparable to the ranked models (different, mostly easier, benchmark sets).
+                </div>
+                {underCovered.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', opacity: 0.8 }}>
+                    <span>{modelShort(m.id)}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ifm-color-emphasis-500)' }}>
+                      ELO {Math.round(m.elo)} · {m.benchmarks}/{maxCov}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Benchmark difficulty */}

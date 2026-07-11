@@ -75,7 +75,8 @@ func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
 		return nil
 	}
 	trials := make([]eval_harness.Trial, 0, len(results))
-	pass := map[string][2]int{} // benchmark -> [passed, total]
+	pass := map[string][2]int{}                  // benchmark -> [passed, total]
+	modelBenches := map[string]map[string]bool{} // model -> distinct benchmark ids
 	for _, r := range results {
 		ok := r.CompileOk && r.RuntimeOk && r.StdoutOk
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
@@ -85,13 +86,29 @@ func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
 			v[0]++
 		}
 		pass[r.ID] = v
+		if modelBenches[r.Model] == nil {
+			modelBenches[r.Model] = map[string]bool{}
+		}
+		modelBenches[r.Model][r.ID] = true
 	}
 	modelRatings, benchRatings := eval_harness.FitFromTrials(trials)
 
+	// Coverage: how many distinct benchmarks each model actually ran. ELO across
+	// models that played DIFFERENT benchmark sets is not comparable, so we surface
+	// per-model coverage + the max so consumers can gate/annotate under-covered
+	// models (a 6-benchmark ELO must not read as a headline next to a 55-benchmark
+	// one). See M-EVAL-VALIDITY-DISCIPLINE.
+	maxCoverage := 0
+	for _, bs := range modelBenches {
+		if len(bs) > maxCoverage {
+			maxCoverage = len(bs)
+		}
+	}
 	models := make([]map[string]interface{}, 0, len(modelRatings))
 	for id, elo := range modelRatings {
 		models = append(models, map[string]interface{}{
 			"id": id, "elo": round1(elo), "band": eval_harness.Band(elo),
+			"benchmarks": len(modelBenches[id]),
 		})
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i]["elo"].(float64) > models[j]["elo"].(float64) })
@@ -116,8 +133,9 @@ func fitLeaderboard(results []*BenchmarkResult) map[string]interface{} {
 	sort.Slice(benches, func(i, j int) bool { return benches[i]["elo"].(float64) > benches[j]["elo"].(float64) })
 
 	return map[string]interface{}{
-		"models":     models,
-		"benchmarks": benches,
+		"models":      models,
+		"benchmarks":  benches,
+		"maxCoverage": maxCoverage, // most benchmarks any model ran — gate/annotate the rest against this
 		"saturation": map[string]interface{}{
 			"saturated":      saturated,
 			"discriminating": len(benchRatings) - saturated,

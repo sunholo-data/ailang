@@ -81,3 +81,34 @@ func TestRatingsForMode_ByLang(t *testing.T) {
 		t.Errorf("modelB Python-ELO (%.1f) should exceed modelA Python-ELO (%.1f)", bPython, aPython)
 	}
 }
+
+// TestRatingsForMode_Coverage verifies per-model benchmark coverage + maxCoverage
+// are surfaced so consumers can gate under-covered models out of the ranking
+// (M-EVAL-VALIDITY-DISCIPLINE): an ELO over 1 benchmark must not rank next to one
+// over 3.
+func TestRatingsForMode_Coverage(t *testing.T) {
+	mk := func(id, model string, ok bool) *BenchmarkResult {
+		return &BenchmarkResult{ID: id, Lang: "ailang", Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}
+	}
+	var results []*BenchmarkResult
+	// full: runs b1,b2,b3 ; sparse: runs only b1
+	for _, b := range []string{"b1", "b2", "b3"} {
+		results = append(results, mk(b, "full", true))
+	}
+	results = append(results, mk("b1", "sparse", true))
+
+	block := ratingsForMode(results)
+	if got, ok := block["maxCoverage"].(int); !ok || got != 3 {
+		t.Fatalf("maxCoverage = %v, want 3", block["maxCoverage"])
+	}
+	cov := map[string]int{}
+	for _, m := range block["models"].([]map[string]interface{}) {
+		cov[m["id"].(string)] = m["benchmarks"].(int)
+	}
+	if cov["full"] != 3 {
+		t.Errorf("full coverage = %d, want 3", cov["full"])
+	}
+	if cov["sparse"] != 1 {
+		t.Errorf("sparse coverage = %d, want 1", cov["sparse"])
+	}
+}
