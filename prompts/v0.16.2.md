@@ -543,8 +543,17 @@ func deterministic() -> int ! {Rand[mode=seeded]} = {
 - v0.15.0 ships two default-mode entries: `Rand → mode=os` and
   `AI → mode=fixed`. Other effects (`IO`, `FS`, `Net`, `Env`, ...)
   have no params yet — write `!{IO}`, not `!{IO[...]}`.
-- Mode set is closed (compiler-known per effect); user code cannot
-  introduce new modes.
+- Mode set is closed (compiler-known per effect) and **enforced** at
+  type-check. Only these forms are legal:
+  `Rand[mode=os|seeded|crypto]`, `AI[mode=fixed|routeable|replay-only]`,
+  `AI[scope=byok]`. Anything else is a hard error:
+  - `EFF_UNKNOWN_MODE` — value not in the effect's allowed set
+    (e.g. `Rand[mode=banana]`).
+  - `EFF_UNKNOWN_PARAM_KEY` — key not on the effect
+    (e.g. `Rand[flavor=hot]`).
+  - `EFF_PARAMS_NOT_SUPPORTED` — an effect with no params was given one
+    (e.g. `Clock[mode=pinned]`); write the bare effect instead.
+  Each error lists the legal keys/values — read them and pick one.
 
 See [Parameterised Effects guide](https://ailang.sunholo.com/docs/guides/parameterised-effects).
 

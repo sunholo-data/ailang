@@ -13,6 +13,40 @@ func isEffectRowVar(name string) bool {
 	return len(name) > 0 && name[0] >= 'a' && name[0] <= 'z'
 }
 
+// effectSchema is the frozen per-effect parameter schema (M-EFFECT-MODE-VALIDATION,
+// v1.0.0). It maps effect name → param key → the closed set of allowed values.
+//
+// This is the single source of truth for which parameterised-effect forms are
+// LEGAL. The mode set is CLOSED: any key or value outside this table is a hard
+// error at effect-row elaboration (see validateEffectParams). An effect with no
+// entry here accepts NO explicit params at all (bare form only).
+//
+// v0.15.0 shipped surfaces (verified against M-AI-EFFECT-MODES §"AI mode table"
+// and examples/modal_rand.ail):
+//   - Rand: { mode ∈ {os, seeded, crypto} }
+//   - AI:   { mode ∈ {fixed, routeable, replay-only}, scope ∈ {byok} }
+//
+// Other effects (Clock, Net, FS, IO, Env, DB, …) intentionally have NO entry —
+// their bare forms type-check unchanged (back-compat), and any explicit param
+// is rejected with EFF_PARAMS_NOT_SUPPORTED naming the tracking doc
+// m-effect-clock-net-fs-modes. Their port sprints (Phase 5 of M-EFFECT-REFINEMENT
+// v1.0.0) add rows here, which UNLOCKS the syntax.
+//
+// This is intentional, not a fallback (per CLAUDE.md no-silent-fallbacks).
+var effectSchema = map[string]map[string]map[string]struct{}{
+	"Rand": {
+		"mode": {"os": {}, "seeded": {}, "crypto": {}},
+	},
+	"AI": {
+		"mode":  {"fixed": {}, "routeable": {}, "replay-only": {}},
+		"scope": {"byok": {}},
+	},
+	// Future (Phase 5 ports edit HERE; adding a row unlocks that effect's params):
+	// "Clock": {"mode": {"wall": {}, "sim": {}}},
+	// "Net":   {"mode": {"live": {}, "record": {}, "replay": {}}},
+	// "FS":    {"mode": {"real": {}, "virtual": {}}},
+}
+
 // defaultEffectModes is the per-effect default-mode lookup table.
 // When a bare effect (no params) is elaborated, if its name has an entry
 // here, the elaborator desugars to the parameterised form.
@@ -29,6 +63,9 @@ func isEffectRowVar(name string) bool {
 //
 // This is intentional, not a fallback (per CLAUDE.md no-silent-fallbacks).
 // Effects without entries stay bare; they don't silently get a default.
+//
+// INVARIANT (enforced by TestEffectSchemaDefaultsConsistent): every (Key, Value)
+// here is a member of effectSchema[effect][Key] — a default must itself be legal.
 var defaultEffectModes = map[string]struct{ Key, Value string }{
 	"Rand": {Key: "mode", Value: "os"},
 	"AI":   {Key: "mode", Value: "fixed"},
@@ -36,6 +73,88 @@ var defaultEffectModes = map[string]struct{ Key, Value string }{
 	// "Clock": {Key: "mode", Value: "wall"},
 	// "Net":   {Key: "mode", Value: "live"},
 	// "FS":    {Key: "mode", Value: "real"},
+}
+
+// validateEffectParams enforces the closed effectSchema for an effect's
+// explicit parameters. It returns one of three structured, fix-carrying errors
+// (or nil if params are legal / empty):
+//
+//   - EFF_PARAMS_NOT_SUPPORTED — the effect has no schema entry (Clock/Net/FS/…)
+//     but was given an explicit param. Names the tracking doc
+//     m-effect-clock-net-fs-modes so the fix is "wait for the port / drop the param".
+//   - EFF_UNKNOWN_PARAM_KEY — the key (e.g. "flavor") is not a schema key for
+//     this effect. Lists the legal keys.
+//   - EFF_UNKNOWN_MODE — the key is legal but the value (e.g. mode=banana) is
+//     outside the closed value set. Lists the legal values for that key.
+//
+// The error code string is embedded VERBATIM in the message so `ailang check`
+// output and the footgun harness (strings.Contains) both see it. params is the
+// explicit user-supplied param map for this effect (nil/empty → nil, no-op).
+func validateEffectParams(effectName string, params map[string]string) error {
+	if len(params) == 0 {
+		return nil
+	}
+
+	schema, hasSchema := effectSchema[effectName]
+	if !hasSchema {
+		// Deterministic listing of the offending keys for the message.
+		keys := sortedKeys(params)
+		return fmt.Errorf(
+			"EFF_PARAMS_NOT_SUPPORTED: effect '%s' does not support parameters (found: %s). "+
+				"Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
+				"  Fix: drop the parameter and use the bare effect '%s'.",
+			effectName, strings.Join(keys, ", "), effectName)
+	}
+
+	// Validate each supplied key/value against the closed schema. Iterate in
+	// sorted key order so the FIRST reported error is deterministic.
+	for _, key := range sortedKeys(params) {
+		value := params[key]
+		allowed, keyOK := schema[key]
+		if !keyOK {
+			return fmt.Errorf(
+				"EFF_UNKNOWN_PARAM_KEY: effect '%s' has no parameter '%s'. Allowed keys: %s.\n"+
+					"  Fix: use one of the allowed keys, or drop the parameter for the default.",
+				effectName, key, strings.Join(sortedSetKeys(schema), ", "))
+		}
+		if _, valueOK := allowed[value]; !valueOK {
+			return fmt.Errorf(
+				"EFF_UNKNOWN_MODE: effect '%s' has no %s '%s'. Allowed values: %s.\n"+
+					"  Fix: use one of the allowed values, or drop the parameter for the default.",
+				effectName, key, value, strings.Join(sortedValues(allowed), ", "))
+		}
+	}
+	return nil
+}
+
+// sortedKeys returns the keys of a string map in deterministic sorted order.
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sortedSetKeys returns the outer keys of a schema (the legal param keys) sorted.
+func sortedSetKeys(m map[string]map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sortedValues returns the members of a value set sorted.
+func sortedValues(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for v := range m {
+		out = append(out, v)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // DefaultModeFor returns the default mode key=value for an effect, if one is registered.
@@ -265,6 +384,13 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 			pmap := make(map[string]string, len(eff.Params))
 			for _, p := range eff.Params {
 				pmap[p.Key] = p.Value
+			}
+			// Enforce the closed effectSchema (M-EFFECT-MODE-VALIDATION).
+			// Rejects unknown keys/values and params on schema-less effects
+			// with a structured, fix-carrying EFF_* diagnostic. Validate the
+			// explicit params BEFORE defaults are applied below.
+			if err := validateEffectParams(eff.Name, pmap); err != nil {
+				return nil, err
 			}
 			params[eff.Name] = pmap
 		}

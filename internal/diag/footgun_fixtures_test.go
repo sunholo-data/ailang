@@ -134,6 +134,38 @@ export func main() -> int { f() }
 export func main() -> list[int] { map(\x. x, [1,2,3]) }
 `,
 	},
+	{
+		// EFFECT error (M-EFFECT-MODE-VALIDATION) — closed mode set. Value
+		// outside the schema value set. Assert a STABLE legal-value substring.
+		name:   "effect_unknown_mode",
+		code:   "EFF_UNKNOWN_MODE",
+		fix:    "Allowed values: crypto, os, seeded",
+		status: "shipped-this-sprint", // M-EFFECT-MODE-VALIDATION
+		src: `module benchmark/solution
+export func main() -> int ! {Rand[mode=banana]} { 42 }
+`,
+	},
+	{
+		// EFFECT error (M-EFFECT-MODE-VALIDATION) — key outside the schema keys.
+		name:   "effect_unknown_param_key",
+		code:   "EFF_UNKNOWN_PARAM_KEY",
+		fix:    "Allowed keys: mode",
+		status: "shipped-this-sprint", // M-EFFECT-MODE-VALIDATION
+		src: `module benchmark/solution
+export func main() -> int ! {Rand[flavor=hot]} { 42 }
+`,
+	},
+	{
+		// EFFECT error (M-EFFECT-MODE-VALIDATION) — param on a schema-less effect.
+		// The fix names the tracking doc so the port-sprint unblocks the syntax.
+		name:   "effect_params_not_supported",
+		code:   "EFF_PARAMS_NOT_SUPPORTED",
+		fix:    "m-effect-clock-net-fs-modes",
+		status: "shipped-this-sprint", // M-EFFECT-MODE-VALIDATION
+		src: `module benchmark/solution
+export func main() -> int ! {Clock[mode=pinned]} { 0 }
+`,
+	},
 }
 
 // TestFootgunFixtures enforces that every covered/shipped footgun still produces

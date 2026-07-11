@@ -1,7 +1,7 @@
 # M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects
 
-**Status**: Planned
-**Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
+**Status**: Implemented (2026-07-11, mission iteration 8 — full loop headless, eval PASS 96/100 round 1)
+**Target**: v1.0.0 (sprint-sized carve-out; shipped post-v0.29.0 on the normal road)
 **Priority**: P1 — High within the effect-refinement track (public docs make a FALSE claim today)
 **Estimated**: ~8 hours (~1 day)
 **Dependencies**:
@@ -120,7 +120,7 @@ parameters.
 - [x] Schema registers **both** keys and values per effect: `Rand: {mode: os|seeded|crypto}`,
   `AI: {mode: fixed|routeable|replay-only, scope: byok}`. (Planner must verify AI's exact
   shipped surface against the M-AI-EFFECT-MODES outcome report before freezing the table.)
-- [ ] Exact error code + message wording (planner; "boring errors" style).
+- [x] Exact error code + message wording — EFF_UNKNOWN_MODE / EFF_UNKNOWN_PARAM_KEY / EFF_PARAMS_NOT_SUPPORTED (planner, sprint plan D2).
 
 ## Solution Design
 
@@ -181,13 +181,13 @@ export func h() -> int ! {Clock[mode=pinned]} = ...  -- EFF_PARAMS_NOT_SUPPORTED
 
 ## Success Criteria
 
-- [ ] Schema table registers Rand + AI surfaces exactly as shipped in v0.15.0
-- [ ] Unknown value / unknown key / schema-less effect param → 3 distinct structured errors with fix hints
-- [ ] All legal v0.15.0 forms type-check unchanged; `make verify-examples` green
-- [ ] Iface-cache round-trip test (pre-sprint artefact loads clean)
-- [ ] Guide "Mode set is closed" section verified accurate post-sprint; interim truth-up note removed
-- [ ] Teaching prompt mentions the error codes (coordinate with `prompt-manager` skill)
-- [ ] `make test && make lint` green
+- [x] Schema table registers Rand + AI surfaces exactly as shipped in v0.15.0
+- [x] Unknown value / unknown key / schema-less effect param → 3 distinct structured errors with fix hints
+- [x] All legal v0.15.0 forms type-check unchanged; `make verify-examples`: 5 pre-existing unrelated reds (proven identical pre-sprint), zero param-related
+- [x] Iface-cache round-trip test (pre-sprint artefact loads clean)
+- [x] Guide "Mode set is closed" section verified accurate post-sprint; interim truth-up note removed
+- [x] Teaching prompt mentions the error codes (prompts/v0.16.2.md + embedded copy, hash recomputed)
+- [x] `make test && make lint` green (2 known non-regression flakes: #338 + httpbin.org outage, both proven pre-existing)
 
 ## Testing Strategy
 

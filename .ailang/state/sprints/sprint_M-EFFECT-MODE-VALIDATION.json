@@ -1,7 +1,26 @@
 {
   "sprint_id": "M-EFFECT-MODE-VALIDATION",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-07-11T00:00:00Z",
+  "completed": "2026-07-11T09:34:00Z",
+  "executor": {
+    "model": "claude-opus-4-8",
+    "mission_iteration": 8,
+    "worktree_branch": "worktree-agent-aabb4013501b0f980",
+    "worktree_path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/agent-aabb4013501b0f980",
+    "commits": {
+      "M1": "6f55991b5",
+      "M2": "6f3dce4d2",
+      "M3": "2e70c860e",
+      "M4": "f0675e3a0"
+    },
+    "final_verification": {
+      "make_test": "1 pre-existing/known-flaky failure only (TestRunCommand_PipedStdoutFlushesPerLine #338) + 1 network-flaky (TestNetHttpPost httpbin.org); BOTH pass standalone; changed packages (types/diag/eval_harness) all green",
+      "make_lint": "0 issues",
+      "make_verify_examples": "182 passed, 5 failed (ALL 5 pre-existing IO effect-row unification failures \u2014 proven identical on plan commit 689001311 baseline; none use effect params)",
+      "live_acceptance": "PASS \u2014 Rand[mode=banana]\u2192EFF_UNKNOWN_MODE, Rand[flavor=hot]\u2192EFF_UNKNOWN_PARAM_KEY, Clock[mode=pinned]\u2192EFF_PARAMS_NOT_SUPPORTED; examples/modal_rand.ail + examples/ai_modes.ail clean"
+    }
+  },
   "design_doc": "design_docs/planned/v1_0_0/m-effect-mode-validation.md",
   "sprint_plan": "design_docs/planned/v1_0_0/sprint-m-effect-mode-validation.md",
   "metadata": {
@@ -22,8 +41,23 @@
     "estimated_days": 1
   },
   "schema_frozen": {
-    "Rand": { "mode": ["os", "seeded", "crypto"] },
-    "AI": { "mode": ["fixed", "routeable", "replay-only"], "scope": ["byok"] },
+    "Rand": {
+      "mode": [
+        "os",
+        "seeded",
+        "crypto"
+      ]
+    },
+    "AI": {
+      "mode": [
+        "fixed",
+        "routeable",
+        "replay-only"
+      ],
+      "scope": [
+        "byok"
+      ]
+    },
     "note": "Verified against M-AI-EFFECT-MODES outcome report lines 149-152 (mode=fixed|routeable|replay-only, scope=byok; replay-only+byok are Reserved/parser-accepted/runtime-stub) and examples/modal_rand.ail. The design doc's guessed table was CORRECT."
   },
   "error_codes_chosen": {
@@ -70,16 +104,19 @@
         "go test ./internal/types/ -count=1 green (existing effect_params/effects tests unchanged)",
         "go build -o /tmp/ailang-plan ./cmd/ailang (or make build) succeeds"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Validate at the ONLY param-carrying path (ElaborateEffectRowWithBudgets), NOT parser (accepts any bare-ident key/value by design) and NOT stringSliceToEffectRow (no params - see D1)."
+      "passes": true,
+      "started": "2026-07-11T09:20:00Z",
+      "completed": "2026-07-11T09:34:00Z",
+      "notes": "Validate at the ONLY param-carrying path (ElaborateEffectRowWithBudgets), NOT parser (accepts any bare-ident key/value by design) and NOT stringSliceToEffectRow (no params - see D1).",
+      "commit": "6f55991b5"
     },
     {
       "id": "M2_UNIT_TESTS",
       "description": "Add unit tests (internal/types/effect_params_test.go or new effect_schema_test.go): full legal (effect,key,value) matrix elaborates clean; the three error classes produce the correct code + legal-list substring; a bridge regression proving stringSliceToEffectRow(['Rand']) (nil Params) round-trips with NO validation triggered (satisfies doc Conflict-Surface item 4 iface-cache back-compat).",
       "estimated_loc": 120,
-      "dependencies": ["M1_SCHEMA_AND_VALIDATION"],
+      "dependencies": [
+        "M1_SCHEMA_AND_VALIDATION"
+      ],
       "acceptance_criteria": [
         "Legal matrix passes: Rand[mode=os|seeded|crypto], AI[mode=fixed|routeable|replay-only], AI[scope=byok], bare Rand, bare AI",
         "Rand[mode=banana] -> EFF_UNKNOWN_MODE with 'os, seeded, crypto' present",
@@ -88,16 +125,19 @@
         "Bridge regression: stringSliceToEffectRow(['Rand']) nil-params row round-trips, no validation error",
         "go test ./internal/types/ ./internal/pipeline/ -count=1 green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-11T09:20:00Z",
+      "completed": "2026-07-11T09:34:00Z",
+      "notes": null,
+      "commit": "6f3dce4d2"
     },
     {
       "id": "M3_DIAG_FIXTURE_PROMOTION",
       "description": "Promote the 3 error classes to the diagnostic-fixture CI harness (as sibling M-DIAG-FIXTURE-PROMOTION did): add 3 rows to footgunFixtures in internal/diag/footgun_fixtures_test.go (status 'shipped-this-sprint') each {name,code,fix,src,status} with the EFF_* code and a stable fix substring, src a minimal 'module benchmark/solution' snippet via pipeline.Run(ModeCheck, RelaxModules:true) with NO Filename; add the corresponding rows to internal/diag/footguns.md.",
       "estimated_loc": 40,
-      "dependencies": ["M1_SCHEMA_AND_VALIDATION"],
+      "dependencies": [
+        "M1_SCHEMA_AND_VALIDATION"
+      ],
       "acceptance_criteria": [
         "3 new footgunFixtures rows: EFF_UNKNOWN_MODE (Rand[mode=banana]), EFF_UNKNOWN_PARAM_KEY (Rand[flavor=hot]), EFF_PARAMS_NOT_SUPPORTED (Clock[mode=pinned])",
         "Each fixture asserts BOTH the EFF_* code and the fix substring appear in ailang check output",
@@ -105,16 +145,19 @@
         "go test ./internal/diag/ -count=1 green (new fixtures + pre-existing rows + TestFootgunConflictSurface)",
         "make lint passes on internal/diag/"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Harness uses in-memory pipeline.Run (single path, no Filename). Do NOT set Filename (yields LDR001)."
+      "passes": true,
+      "started": "2026-07-11T09:20:00Z",
+      "completed": "2026-07-11T09:34:00Z",
+      "notes": "Harness uses in-memory pipeline.Run (single path, no Filename). Do NOT set Filename (yields LDR001).",
+      "commit": "2e70c860e"
     },
     {
       "id": "M4_DOCS_PROMPT_CHANGELOG",
       "description": "Docs truth-up: remove the interim 'Accuracy note' block (docs/docs/guides/parameterised-effects.md:155-159) and verify 'Mode set is closed' (:150) reads as shipped fact. Teaching prompt: mention the three EFF_* codes (via prompt-manager; edit CURRENT prompt only, NOT frozen prompts/v0.16.x.md). CHANGELOG entry (changelogs/v0.18-current.md) noting the three diagnostics + closed-set enforcement as a pre-1.0 Experimental-surface breaking narrowing. Optional: document the three rejected forms in prose (do NOT add a .ail that fails make verify-examples).",
       "estimated_loc": 30,
-      "dependencies": ["M1_SCHEMA_AND_VALIDATION"],
+      "dependencies": [
+        "M1_SCHEMA_AND_VALIDATION"
+      ],
       "acceptance_criteria": [
         "Guide interim Accuracy note (:155-159) removed",
         "'Mode set is closed' section verified accurate post-sprint (tense/wording no longer implies future work)",
@@ -124,10 +167,11 @@
         "In-tree sweep re-run confirms no illegal params: grep -rn 'mode=|scope=|flavor=' std/ examples/ benchmarks/ prompts/",
         "make test && make lint green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Do NOT retro-edit frozen prompts/v0.16.x.md. Do NOT add a failing .ail example."
+      "passes": true,
+      "started": "2026-07-11T09:20:00Z",
+      "completed": "2026-07-11T09:34:00Z",
+      "notes": "Do NOT retro-edit frozen prompts/v0.16.x.md. Do NOT add a failing .ail example.",
+      "commit": "f0675e3a0"
     }
   ]
 }

@@ -51,17 +51,22 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
 | `;` in expression-body func | `func f() -> int = let x = 1; x` | `PAR017 at ...: ';' is only valid inside '{ ... }' block bodies, not in expression-body functions` + `let .. in ..` vs `{ }` suggestions | (met — fix-carrying) | `footgun_fixtures_test.go:semicolon_in_expr_func` | `prompts/v0.16.2.md:2349` | covered |
 | stdlib func used without import | `map(\x. x, [1,2,3])` (no `import std/list`) | ``undefined variable: map at ... — `map` is exported by std/list, std/option, std/result; add the matching import`` | (met — fix-carrying via ImportSuggester) | `footgun_fixtures_test.go:stdlib_import_hint` (needs `AILANG_STDLIB_PATH` + `types.ImportSuggester` wired in TestMain — the CLI wires these in `init()`) | `prompts/v0.16.2.md:2347` (transitive-imports line) | covered |
 | `list.map(f)` (method syntax) | `list.map(f)` | (field-access / type error — method-call syntax does not exist) | detect `x.method(args)` where `method` is a known stdlib function and suggest `method(x, args)` | (future) | `prompts/v0.16.2.md:2340` | inventoried |
+| unknown effect mode value (M-EFFECT-MODE-VALIDATION) | `Rand[mode=banana]` | `EFF_UNKNOWN_MODE at ...: effect 'Rand' has no mode 'banana'. Allowed values: crypto, os, seeded.` + `Fix: use one of the allowed values, or drop the parameter for the default.` | (met — fix-carrying) | `footgun_fixtures_test.go:effect_unknown_mode` | (none in prompt) | shipped-this-sprint |
+| unknown effect param key (M-EFFECT-MODE-VALIDATION) | `Rand[flavor=hot]` | `EFF_UNKNOWN_PARAM_KEY at ...: effect 'Rand' has no parameter 'flavor'. Allowed keys: mode.` + `Fix: use one of the allowed keys, or drop the parameter for the default.` | (met — fix-carrying) | `footgun_fixtures_test.go:effect_unknown_param_key` | (none in prompt) | shipped-this-sprint |
+| param on schema-less effect (M-EFFECT-MODE-VALIDATION) | `Clock[mode=pinned]` | `EFF_PARAMS_NOT_SUPPORTED at ...: effect 'Clock' does not support parameters (found: mode). Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.` + `Fix: drop the parameter and use the bare effect 'Clock'.` | (met — fix-carrying) | `footgun_fixtures_test.go:effect_params_not_supported` | (none in prompt) | shipped-this-sprint |
 
-**Count:** 14 rows (≥ 10 required).
+**Count:** 17 rows (≥ 10 required).
 
-- **Fixtured footgun rows: 7** — `++` (covered), import-after-decl (shipped-this-sprint, contributes
-  **2** fixtures: `import_placement` + `import_placement_rule_stated`), and the 4 promoted this sprint
-  (reserved keyword, hyphen, `;`-in-expr-func, stdlib-import hint). So the fixture *row* count (7)
-  equals the fixture *entry* count in `footgunFixtures` — but it maps to **6 distinct footgun rows**
-  in this table because import-after-decl has two fixtures.
-- **CI-fixtured footgun rows in this table: 6** (1 `covered` `++` + 1 `shipped-this-sprint`
-  import-after-decl + 4 promoted-this-sprint `covered`). The #327-interim row is `shipped-this-sprint`
-  but its contract lives in `internal/types/local_resolution_hint_test.go`, not `footgunFixtures`.
+- **Fixtured footgun rows: 10** — `++` (covered), import-after-decl (shipped-this-sprint, contributes
+  **2** fixtures: `import_placement` + `import_placement_rule_stated`), the 4 promoted by
+  M-DIAG-FIXTURE-PROMOTION (reserved keyword, hyphen, `;`-in-expr-func, stdlib-import hint), and the
+  **3** added by M-EFFECT-MODE-VALIDATION (unknown-mode, unknown-param-key, params-not-supported). So
+  the fixture *entry* count in `footgunFixtures` is 10, mapping to **9 distinct footgun rows** in this
+  table (import-after-decl has two fixtures).
+- **CI-fixtured footgun rows in this table: 9** (1 `covered` `++` + 1 `shipped-this-sprint`
+  import-after-decl + 4 promoted-this-sprint `covered` + 3 `shipped-this-sprint` effect-mode). The
+  #327-interim row is `shipped-this-sprint` but its contract lives in
+  `internal/types/local_resolution_hint_test.go`, not `footgunFixtures`.
 - **Promote-to-`covered` candidates remaining: 1** (down from 5) — only `%`/Fractional, and it is
   **blocked**: its claimed diagnostic is not reachable via `ailang check` on an .ail snippet (see its
   current-diagnostic cell), so it cannot be fixtured without new diagnostic work (out of scope).
