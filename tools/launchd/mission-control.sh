@@ -31,7 +31,7 @@ unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
 LOG=/tmp/ailang-mission-control.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-MODEL="${MISSION_MODEL:-claude-fable-5}"
+MODEL="${MISSION_MODEL:-claude-opus-4-8}"   # 2026-07-11: controller→Opus (Fable quota relief, Mark); was claude-fable-5
 HARD_TIMEOUT="${MISSION_TIMEOUT:-21600}"   # 6h wall-clock kill per iteration
 KILL_SWITCH="$HOME/.ailang/state/mission-control.disabled"
 

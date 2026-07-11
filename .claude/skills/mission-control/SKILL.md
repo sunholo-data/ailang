@@ -92,8 +92,10 @@ said Planned for a month). If already done → the iteration's deliverable is th
 
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
-Apply the mission doc's **model routing policy** (currently: Fable = design docs + evaluation +
-this loop; Opus = sprint-planner + sprint-executor; Sonnet = deterministic mechanical work only).
+Apply the mission doc's **model routing policy** (read the charter's routing table — it is the
+source of truth and changes for quota; as of 2026-07-11 the controller/design/evaluation roles
+run on the controller's own model, Opus, with the independence caveat noted there; sprint-planner
++ sprint-executor = Opus; deterministic mechanical work = Sonnet).
 
 - No design doc yet → invoke **design-doc-creator** (its hard gates apply: live `ailang check`
   verification, Conflict Surface for parser/types/codegen).

@@ -27,6 +27,15 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
+
+The outer-loop controller now runs on **Opus** (`claude-opus-4-8`), not Fable — driver default
+flipped (`tools/launchd/mission-control.sh`), effective next iteration. Reason: Fable quota
+relief (Mark). Consequence recorded in the routing table: evaluation is now model-homogeneous
+(Opus judges Opus) — mitigation available (distinct-model skeptic evaluator) but left off to keep
+the switch minimal. Revert = set the driver default back to `claude-fable-5`. No other loop
+behavior changes.
+
 ## STATUS 2026-07-11 (evening) — ITERATION 9 COMPLETE: M-SYNTAX-AI-FORGIVING LANDED (the ~32% small-model parse-failure class is dead)
 
 m-syntax-ai-forgiving landed via the full loop — the first iteration split across two scheduled
@@ -277,11 +286,20 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 
 | Role | Model | Why / evidence |
 |---|---|---|
-| Mission controller (this loop: triage, pick, judge, retro) | **Fable** (claude-fable-5) | Strategy + judgment work; the nightly headless session |
-| Design docs (create/review) | **Fable** | Spec quality gates every downstream token |
+| Mission controller (this loop: triage, pick, judge, retro) | **Opus** (claude-opus-4-8) — TEMP 2026-07-11 (was Fable) | Fable quota relief (Mark). Revert the driver default to `claude-fable-5` when quota clears |
+| Design docs (create/review) | **Opus** (was Fable, same TEMP switch) | Runs on the controller model; spec quality still gates downstream |
 | Sprint planning | **Opus** (claude-opus-4-8) | Plan quality determined execution success historically |
 | Sprint execution | **Opus** — the default, per Mark 2026-07-10 | Sonnet execution was a false economy (needed corrections); also `dev-cycle.md` had silently pinned sonnet |
-| Sprint evaluation | **Fable** | Independent judge ≠ the model that wrote the code |
+| Sprint evaluation | **Opus** (was Fable, same TEMP switch) — ⚠ independence caveat below | Judge now shares the executor's model; relies on BEHAVIORAL independence (fresh sub-agent, re-runs tests, cross-history/adversarial checks), not model diversity |
+
+> **⚠ Evaluation-independence caveat (2026-07-11):** while the controller is Opus, Opus evaluates
+> Opus-executed work — the generator≠judge *model* diversity is gone. The evaluation's proven
+> value has been mostly behavioral (independent test re-runs, cross-history non-vacuity proofs,
+> distinct-sample recounts), which survives; but rubber-stamp risk rises. **Mitigation available
+> on request:** route the evaluator sub-agent to a distinct-model skeptic (e.g. Sonnet — cheap,
+> behavioral role, no Fable spend) via a Gate-3 change. Left OFF for now to keep the switch
+> minimal; revisit if any evaluation looks lenient. Full model diversity returns when the
+> controller reverts to Fable.
 | Mechanical tasks (doc moves, regen, banking) | Sonnet allowed | Only with deterministic verification; promotion beyond this requires evidence |
 
 **Evidence rule**: every sprint's log entry records `(model, task class, evaluator round-1 score,
