@@ -367,11 +367,11 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	if core := tierCounts["core"]; core < 16 || core > 22 {
 		t.Errorf("core count = %d, want 19±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 26 || stretch > 32 {
-		t.Errorf("stretch count = %d, want 29±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 18 || stretch > 24 {
+		t.Errorf("stretch count = %d, want 21±3", stretch)
 	}
-	if frontier := tierCounts["frontier"]; frontier < 5 || frontier > 11 {
-		t.Errorf("frontier count = %d, want 8±3", frontier)
+	if frontier := tierCounts["frontier"]; frontier < 13 || frontier > 19 {
+		t.Errorf("frontier count = %d, want 16±3", frontier)
 	}
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)

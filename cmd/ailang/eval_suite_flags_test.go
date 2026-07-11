@@ -92,10 +92,14 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// when drift outgrows the ±3 envelope (don't widen tolerance — bump the
 	// target counts to match reality). Experimental tier is intentionally
 	// excluded — probe count grows independently.
+	// v0.29.2 re-tier (2026-07-11): the ELO / frontier-model-fail audit promoted
+	// 8 stretch->frontier (docx/markdown reimplement, contract_sorted_merge,
+	// contract_rle_roundtrip, quine, emit_exact_bytes, gauntlet_10,
+	// legal_obligation_engine) — stretch 29->21, frontier 8->16.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 19, 3)
-	checkTierCount(t, "stretch", len(stretch), 29, 3)
-	checkTierCount(t, "frontier", len(frontier), 8, 3)
+	checkTierCount(t, "stretch", len(stretch), 21, 3)
+	checkTierCount(t, "frontier", len(frontier), 16, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.
