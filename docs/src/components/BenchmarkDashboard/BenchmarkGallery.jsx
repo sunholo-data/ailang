@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import styles from './styles.module.css';
 
-const TIER_ORDER = ['core', 'stretch', 'vision', 'smoke'];
-const TIER_LABELS = { core: 'Core', stretch: 'Stretch', vision: 'Vision', smoke: 'Smoke' };
+const TIER_ORDER = ['core', 'stretch', 'frontier', 'vision', 'smoke'];
+const TIER_LABELS = { core: 'Core', stretch: 'Stretch', frontier: 'Frontier', vision: 'Vision', smoke: 'Smoke' };
 // `gemini` rows are historical (Gemini CLI executor retired v0.22.0); do not relabel them.
 const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI (retired)', managed_agents: 'Managed Agents', opencode: 'opencode', pi: 'Pi' };
 const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'managed_agents', 'opencode', 'pi'];

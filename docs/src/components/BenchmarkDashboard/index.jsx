@@ -23,17 +23,19 @@ import styles from './styles.module.css';
 // Tier order + labels for the M6 toggle. Core is the headline tier
 // (primary metric), so it's the default selection when the tiers block
 // is present in the dashboard JSON.
-const TIER_ORDER = ['smoke', 'core', 'stretch', 'vision'];
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'vision'];
 const TIER_LABELS = {
   smoke: 'Smoke',
   core: 'Core',
   stretch: 'Stretch',
+  frontier: 'Frontier',
   vision: 'Vision',
 };
 const TIER_BLURBS = {
   smoke: 'Signal tier — fast sanity checks',
   core: 'Primary metric — expected AILANG floor',
   stretch: 'Headroom tier — hard contracts + polymorphism',
+  frontier: 'Frontier-defeating — at least one frontier model fails',
   vision: 'Aspirational — type-directed synthesis',
 };
 

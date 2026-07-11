@@ -89,8 +89,8 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-const TIER_LABEL = { smoke: 'Smoke', core: 'Core', stretch: 'Stretch', vision: 'Vision' };
-const TIER_ORDER = ['smoke', 'core', 'stretch', 'vision'];
+const TIER_LABEL = { smoke: 'Smoke', core: 'Core', stretch: 'Stretch', frontier: 'Frontier', vision: 'Vision' };
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'vision'];
 
 function FilterBar({ harnesses, activeHarness, onHarness, langs, activeLang, onLang }) {
   return (
