@@ -509,3 +509,83 @@ was in flight this morning (fa586599), so check rig state at pick time. Carry fo
 m-record-update-local-resolution doc-status re-check (from iteration 4); parked-for-human items
 unchanged (tier ratification at release gate; feedback-gate ops; haiku causal re-run; NEW:
 scope-params release-gate re-score flag for Mark).
+
+---
+
+## 8 — 2026-07-11 — Iteration 7: m-eval-frontier-tier LANDED — the eval-bar clause's machinery shipped (full loop headless, round-1 clean)
+
+**Picked**: m-eval-frontier-tier (queue #8, top [NEXT] per log entry 7). P1, eval-bar clause
+("agent-mode suite discriminating, not saturated"). Scheduled headless run. Inbox at OBSERVE:
+nightly eval 69/98 with 6 non-regression failures (flaky/known-gap, gap-finder candidates — did
+NOT outrank the queue) + own iteration-6 report. Dev CI green per-workflow ×3 @ 45bbbf8f9.
+GPU routing question answered explicitly at Gate 3: NO step touches the GPU (demotion audit =
+banked data only; frontier validation runs = API-billed → parked).
+
+**Reality check** (both binaries rebuilt, v0.28.0-149-g45bbbf8f9, versions match git describe):
+the doc's 2026-07-08 authoring update is ACCURATE (all 8 benchmarks exist as tier: stretch;
+frontier absent from ValidTiers) — first pick of the mission whose status header was
+substantially true. Genuinely open: tier machinery, re-tier, ELO wiring, decision_block_capture
+(still exact-matches the free-text CHOICE sentence), demotion (all 12+3 still on old tiers).
+Both dependencies confirmed shipped v0.26.0 (v0.25.0 baseline re-graded, 44 recoveries;
+ratings.go exists). ZERO banked results for the 8 new benchmarks (nightly = smoke+core) →
+frontier-failure validation needs API-billed runs, parked for human. Premises stamped into the
+doc as a dated reality-check block (c826c8d8a) BEFORE handing to the planner.
+
+**Shipped** (full loop, round-1 clean at every stage):
+- Opus plan (9 premise discrepancies found live, incl.: sibling enum test the doc missed;
+  stretch tier-count assertions re-centered 30→22; ELO "high provisional rating" is aspirational
+  — flat 1500 for all unseen benchmarks; CURATION.md had NO 4-dimension demote rule, only the
+  design doc did; "agent data sparse" REFUTED — baselines/v0.25.0/agent/ has 444 files / 6
+  models covering all 15 candidates).
+- Opus execute in isolated worktree, 5 milestones / 6 commits: frontier in ValidTiers + full
+  plumbing; 8 benchmarks re-tiered with PARKED-validation provenance comments; ELO flat-seed
+  verified + locked with 2 regression tests; decision_block_capture fixed via PRIMARY path
+  (new `grading: prefix_line` structural grader + GradeStdout centralizing 6 call sites);
+  demotion audit from banked data → 7 core→stretch DEMOTED, 7 KEPT (conservative 4-dim rule,
+  now codified in CURATION.md §5 both directions incl. frontier→stretch demote-back), 1
+  keep-for-coverage. Final distribution: smoke 23 / core 19 / stretch 29 / frontier 8 / vision 9.
+- Fable eval round 1: **PASS 96/100** (tests 20/20 — rc=0 re-run independently in worktree;
+  lint 10/10; AC 30/30 — 27/27 verified; code quality 12/15; docs 15/15; fidelity 9/10).
+  Independent distinct-sample verification: demotion audit re-computed from raw banked JSONs
+  for 5 benchmarks × 4 dims (graph_bfs, cli_args, merge_sort, float_eq, api_call_json) — all
+  matched the executor's table exactly.
+- Integration: PR #339 → merge 0515578ae (auto-merge after checks; direct merge blocked by
+  branch policy). Design doc + demotion-audit doc → implemented/v0_29_0 (1e2eebe73). Dev CI
+  green on the merge (Gate 3b verified per-workflow). Worktree removed post-merge.
+
+**Routing evidence**:
+- model=opus task-class=plan round1-quality=high (9 live-verified discrepancies, 0 controller
+  corrections) rounds=1
+- model=opus task-class=execute round1-score=96 rounds=1 corrections=0 (one honest deviation
+  recorded: baseline data read from main checkout — gitignored, absent in worktree; one miss:
+  sprint JSON bookkeeping skipped, cost -3)
+- model=fable task-class=design(reality-check note)+evaluate rounds=1
+
+**Ruled out**:
+- "Agent-mode data is too sparse for the 4-dim demotion audit" — REFUTED (my own Gate-2 claim,
+  corrected by the planner): baselines/v0.25.0/agent/ covers all 15 candidates × 6 models ×
+  both languages. Only the top-level eval_results/agent/ scratch dir is sparse.
+- "The doc's 12-benchmark demotion list is correct" — refuted: only 7 meet the 4-dim rule;
+  cli_args is a strong agent discriminator (agent-Python 0/6, agent-AILANG 4/6) and stays core.
+- "ELO gives new frontier benchmarks a high provisional rating" (doc's integration section) —
+  refuted: flat DefaultInitialRating=1500 regardless of tier; difficulty is emergent. Now
+  documented in ratings.go + guarded by TestFitFromTrials_UnseenBenchmarkEntersFlat/TierAgnostic.
+- "TestRunCommand_PipedStdoutFlushesPerLine failure = sprint regression" — refuted again (3rd
+  time): known flake #338, passes standalone ×2 at 1.48s/1.5s window; fails only under
+  full-suite parallel load.
+
+**Retro lane**: none (no ≥2 same-class frictions). Single instances recorded for the watch
+list: (a) executor skipped sprint-JSON bookkeeping (status/passes/completed) despite SKILL.md
+§272-273/789 requiring it — FIRST occurrence (M-V1-STABILITY-PROMISE and M-TYPEENV-SUB JSONs
+were updated correctly); if it recurs, the fix is a pre-push hard gate in sprint-executor.
+(b) flake #338 hit again — backlog item already exists, priority unchanged (proven
+non-regression 3×).
+
+**Next**: Iteration 8 — queue #9 m-effect-mode-validation (P1, ~1d, effect-refinement sprint
+1/4; prerequisite for the other three effect sprints; makes the public guide's closed-set
+claim true). Carry forward: %-row + m-record-update-local-resolution doc-status re-check
+(iteration 4). PARKED for human (cumulative): tier-assignment ratification (release gate);
+feedback-gate production ops; haiku causal re-run; scope-params release-gate re-score; NEW —
+frontier-failure validation of the 8 frontier benchmarks (API-billed frontier runs; each must
+fail ≥1 frontier model or demote back to stretch per CURATION.md §5) + authoring the 4
+remaining sketched benchmarks (benchmark-manager follow-up).

@@ -27,6 +27,22 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-11 (day) — ITERATION 7 COMPLETE: EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation)
+
+m-eval-frontier-tier landed via the full loop headless, round-1 clean (third consecutive
+round-1-clean full loop). The suite regains discrimination structure: `frontier` tier exists
+(8 benchmarks re-tiered with parked-validation provenance), 7 saturated core benchmarks demoted
+to stretch via a conservative 4-dimension rule computed ONLY from banked re-graded v0.25.0 data
+(now codified in CURATION.md §5, both directions), and the decision_block_capture free-text
+exact-match anti-pattern is retired via a new `grading: prefix_line` structural grader
+(GradeStdout centralizes 6 call sites). Eval PASS 96/100 round 1 with independent
+distinct-sample recount (5 benchmarks × 4 dims from raw JSONs — all matched). PR #339 →
+0515578ae, dev CI green per-workflow. Tier distribution now smoke 23 / core 19 / stretch 29 /
+frontier 8 / vision 9. **The eval-bar clause is NOT fully closed**: frontier-failure validation
+(each of the 8 must fail ≥1 frontier model, else demote back) is API-billed → PARKED for
+human/next frontier rotation; 4 sketched benchmarks remain unauthored. Next: #9
+m-effect-mode-validation (effect-refinement sprint 1/4).
+
 ## STATUS 2026-07-11 (morning) — ITERATION 6 COMPLETE: EFFECT-REFINEMENT DECOMPOSED (last strategic v1.0 item now sprint-sized)
 
 Queue #7 executed as a decomposition iteration (standing rule for multi-week items; Fable lane —
@@ -305,9 +321,14 @@ invokes.
    verified premises; parent doc now the umbrella. BONUS finding: the public guide's "typechecker
    rejects unknown values" is FALSE (`Rand[mode=banana]` passes check) — interim accuracy note
    shipped, enforcement is sprint 1)
-8. [NEXT] m-eval-frontier-tier (P1, suite no longer discriminates frontier, 2.5–3.5d — eval-bar clause)
-9. m-effect-mode-validation (P1, ~1d — effect-refinement sprint 1/4; makes the public guide's
-   closed-set claim true; prerequisite for the other three)
+8. [LANDED 2026-07-11] m-eval-frontier-tier (iteration 7: full loop headless, round-1 clean —
+   Opus plan (9 discrepancies) → Opus execute (frontier tier + 8 re-tiered + prefix_line
+   structural grader + 7 core→stretch demotions via 4-dim rule from banked data) → Fable eval
+   PASS 96/100 round 1 w/ independent distinct-sample recount. PR #339 → 0515578ae, dev CI
+   green per-workflow. PARKED for human: frontier-failure validation of the 8 (API-billed —
+   each must fail ≥1 frontier model or demote back per CURATION.md §5) + 4 remaining sketches)
+9. [NEXT] m-effect-mode-validation (P1, ~1d — effect-refinement sprint 1/4; makes the public
+   guide's closed-set claim true; prerequisite for the other three)
 10. m-check-strict-fallbacks (P1, silent-failure class, ~1d — core-frozen clause)
 11. m-bytecode-vm-parity-bugs (P1, blocks bytecode parity gate, 1–2d — correctness)
 12. m-effect-replay-contracts (P1, ~3d — effect-refinement sprint 2/4; Rand modes get real
