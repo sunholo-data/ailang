@@ -1,7 +1,7 @@
 # M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite
 
-**Status**: Planned (design — authoring of runnable benchmarks is a follow-up sprint)
-**Target**: v0.26.0
+**Status**: Planned — authoring DONE (8 benchmarks merged as stretch, see 2026-07-08 update); remaining scope verified 2026-07-11 (see iteration-7 reality check below)
+**Target**: v0.29.0
 **Priority**: P1 (the suite no longer discriminates the frontier — Fable 36/37 on AILANG)
 **Estimated**: design 0.5d; authoring + cross-language validation 2–3d (benchmark-manager skill)
 **Dependencies**: [M-EVAL-RATING-EFFICIENCY](v0_24_0/m-eval-rating-efficiency.md) (ELO difficulty + selective rerun + tier graduation — this doc supplies the harder tier its graduation logic promotes into); [M-EVAL-OUTPUT-NORMALIZE](m-eval-output-normalization.md) (re-grade first, so we design against true scores); `benchmarks/CURATION.md` (keep-vs-demote philosophy).
@@ -85,6 +85,32 @@ and from where saturated tasks are trivially easy:
 > rotation.** The blocker found during verification (unimported nullary constructor patterns
 > silently matching everything, #323 — initially misdiagnosed as an nth/recursion bug) is **fixed**:
 > uppercase identifiers in pattern position now always elaborate as constructor patterns.
+
+> **🔎 ITERATION-7 REALITY CHECK (2026-07-11, mission-control — all premises live-verified at
+> v0.28.0-149-g45bbbf8f9):**
+> - **All 8 authored benchmarks exist** with `tier: stretch` (`ls benchmarks/*.yml` + grep
+>   verified). `frontier` is NOT in `ValidTiers` (`internal/eval_harness/spec.go:82` =
+>   smoke/core/stretch/vision/experimental). `spec_test.go:342-344` asserts stretch went 14→22
+>   with these 8 and notes "they re-tier to `frontier` when that tier value lands" — tier-count
+>   assertions WILL need updating when re-tiering.
+> - **Both dependencies SHIPPED v0.26.0**: M-EVAL-OUTPUT-NORMALIZE (v0.25.0 baseline re-graded,
+>   44 recoveries — the "re-grade first" precondition is DONE) and M-EVAL-RATING-EFFICIENCY
+>   (`internal/eval_harness/ratings.go`). Design against the re-graded scores.
+> - **`decision_block_capture` is UNCHANGED** — `expected_stdout` still exact-matches the
+>   free-text CHOICE sentence. Genuinely open.
+> - **Demotion NOT done**: all 12 saturated core + 3 saturated stretch benchmarks still carry
+>   their old tiers (grep verified).
+> - **Frontier-failure validation has ZERO banked data**: no results for any of the 8 new
+>   benchmarks anywhere in `eval_results/` (they're stretch; the nightly runs smoke+core only).
+>   Validation requires fresh frontier-model runs = **API-billed → NOT runnable in the headless
+>   mission loop** (billing guard; same class as iteration 4's parked haiku re-run). The sprint
+>   must (a) land the tier machinery + re-tier the 8 per the 2026-07-08 update's instruction,
+>   (b) fix/retire decision_block_capture, (c) run the demotion audit from BANKED re-graded
+>   data per CURATION.md's 4-dimension rule (agent-mode coverage in `eval_results/agent/` is
+>   sparse — handle missing dimensions honestly, don't fabricate), and (d) PARK the
+>   frontier-failure validation runs as an explicit human/next-rotation item. No step may
+>   invoke ollama or any API-billed model.
+> - `benchmarks/CURATION.md`'s tier table has no `frontier` row — update it in the same sprint.
 
 ## Candidate benchmarks (sketches — to be authored + validated)
 
