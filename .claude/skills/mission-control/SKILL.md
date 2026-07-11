@@ -34,6 +34,25 @@ inner-loop skills — it does not duplicate them.
 
 ## Gate 1 — OBSERVE (cheap, read-only)
 
+**Sync to origin FIRST — the local checkout LIES when a prior run merged via GitHub** (added
+2026-07-12 iteration 12; second instance of the same gap — iteration 9's watch-list already flagged
+"add a resume-detection step to Gate 2", and iteration 12 booted on a stale local dev that was 2
+commits behind origin/dev with the picked item ALREADY merged+recorded, yet the local mission
+log/queue/sprint-JSON read as "mid-flight iteration 11" and drove a full redundant re-evaluation
+before the Gate-3b fetch caught it). Before reading ANY local mission state:
+
+```bash
+git fetch origin
+git rev-parse --short dev origin/dev          # differ? origin is ground truth
+git log --oneline dev..origin/dev             # commits your working tree is missing
+```
+
+If local dev is behind origin/dev, read the mission doc + log + queue tags FROM ORIGIN
+(`git show origin/dev:design_docs/v1-mission.md`, `…:v1-mission-log.md`) — a GitHub squash/merge
+advances origin/dev without touching the local ref, so the working-tree copies are stale. Do NOT
+pull/reset the shared main tree (Critical Principle 0 — it may hold a sibling's uncommitted work);
+treat origin as truth, and if you need the code, branch a worktree from `origin/dev`.
+
 Read: the mission doc (queue, guardrails, routing policy — they may have changed), the last 1–2
 log entries (especially **Next** and **Ruled out** — do not re-chase), any parked
 `needs-human-review` items that got human answers in the inbox.
@@ -64,8 +83,13 @@ next — that's the mission's job now.
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
 reality**: `git log --grep`, does the code/test already exist, does `make test` already cover it.
 A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc
-said Planned for a month). If already done → the iteration's deliverable is the bookkeeping
-(move doc to implemented/, update queue, log it) and you pick the NEXT item too.
+said Planned for a month). **Also confirm the item is not ALREADY LANDED on origin** — check the
+`origin/dev` queue tag (`git show origin/dev:design_docs/v1-mission.md | grep`) and any merged PR
+(`gh pr list --search "<item> in:title" --state merged`) BEFORE starting a "resume" — iteration 12
+ran a full redundant re-evaluation of an item that had already merged, because it trusted the stale
+local queue/sprint-JSON (Gate 1's origin-sync now front-runs this, but re-check per item too). If
+already done → the iteration's deliverable is the bookkeeping (move doc to implemented/, update
+queue, log it) and you pick the NEXT item too.
 
 **Verification protocol** (added iteration 1 after three same-class frictions):
 1. **Rebuild before any live check**: `make quick-install && make build` — BOTH binaries.

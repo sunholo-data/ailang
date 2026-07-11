@@ -940,3 +940,84 @@ re-check. PARKED for human (cumulative, unchanged): tier-assignment ratification
 feedback-gate production ops; haiku causal re-run; scope-params release-gate re-score; frontier-
 failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving
 (GPU step). NEW parked: confirm dev post-merge CI 0b0ed7ea0 green (in-progress at close).
+
+## 13 — 2026-07-12 — Iteration 12: m-stdlib-url-parse DESIGN DOC CREATED (NEW-DOC stage; queue #12, bar clause 4) — plus iteration-11 confirmed already-landed (no duplication) + Gate-1 stale-state skill fix
+
+**Picked**: queue #12 m-stdlib-url-parse (NEW-DOC, clause 4 orchestration flagship, ~1d). Reached
+only after the pick's headline surprise: this scheduled run booted on a STALE local checkout and
+initially mis-read the mission as mid-flight on iteration 11 (regex). See "Ruled out".
+
+**The already-landed catch (the real story of this run)**: local dev was `bf4937ec3` while
+origin/dev was 2 commits ahead — `0b0ed7ea0` (regex feature, PR #343, MERGED 22:53) +
+`c88e1cf93` (iteration-11 record). The local mission log had no iter-11 entry, the local sprint
+JSON had no eval score, and the local queue still said `[DOC-READY]` — all STALE. Gate 1/2 read
+that stale local state and I began a redundant "resume at sprint-evaluator": restored the lost
+`sprint/m-stdlib-regex` branch, built + independently verified the executor's work in a worktree
+(Go tests green, 12 non-vacuous regex tests incl. TestRegexLinearTime + TestRegexRuneIndices,
+verify-examples 183/5/5 with the 5 = pre-existing #341 set, all clean), and ran a fresh Fable/Opus
+sprint-eval that returned **PASS 96/100**. Only at Gate-3b push-prep — `git fetch origin` +
+`git merge-base --is-ancestor` BEFORE any push — did the already-merged state surface, preventing
+a duplicate/conflicting merge. Verified the merged `0b0ed7ea0` code is byte-identical to what I
+evaluated, so the independent eval stands as corroboration of the landed regex work, not waste.
+Cleaned up: removed the redundant worktree + `sprint/m-stdlib-regex` branch.
+
+**Reality check (url-parse, live at origin/dev c88e1cf93 + built binary v0.29.2-39-gc88e1cf93)**:
+no url-parse design doc exists (url-ENCODE shipped v0.19.2 in std/net; url-PARSE is the unbuilt
+complement). Verified premises: URL fns live in `std/net` (`std/net.ail` + `internal/builtins/net.go`),
+existing `urlEncode`/`urlEncodeForm` are PURE (`IsPure:true`, no Net cap) → url-parse mirrors that
+pattern exactly. GPU: NONE (pure Go wrap + design doc + cloud model). Worked in a worktree branched
+from origin/dev (up-to-date, regex as live sibling reference; main tree is dirty w/ sibling work).
+
+**Shipped** (NEW-DOC deliverable):
+- design-doc-creator (Opus) → `design_docs/planned/v0_30_0/m-stdlib-url-parse.md` (567 lines),
+  committed `b633bdbd5`. Wrap Go `net/url` (RFC-3986), extend `std/net`, pure `! {}`, no new module.
+  Public API `ailang check`-clean (HARD GATE), re-verified independently by the controller:
+    - `type Url = { scheme, host, port, path, query, fragment : string }`
+    - `parseUrl(s) -> Result[Url, string]`  (Err on malformed — CP2, no silent fallback)
+    - `parseQuery(s) -> [{name, value}]`     (order-preserving inverse of urlEncodeForm)
+  Decisions: `Url` = plain record (data, not opaque handle like regex's Regex); `port: string`
+  (empty=absent, no 0/-1 sentinel); parseQuery keeps order+duplicates (not Go's sorted map).
+  Conflict Surface = additive namespace-only, zero collisions. Avoided the regex doc's `groups[i]`
+  trap: examples use `nth_or` (lists have no subscript) + `${}` (no `++`) — both caught live by
+  `ailang check` during authoring.
+- Integration: PR #344 → merge (auto-merge, MERGE method per #343 precedent), dev CI green
+  per-workflow (Gate 3b). Queue #12 → [DOC-READY]. NEXT stage: sprint-planner → executor → evaluator.
+
+**Routing evidence**:
+- model=opus task-class=design(NEW-DOC) round1-quality=high (ailang check-clean on first
+  independent re-run; caught 2 example-syntax traps live before shipping; premises all confirmed)
+  rounds=1 corrections=0
+- model=opus task-class=evaluate(regex, corroborative) round1-score=96 rounds=1 — independent
+  re-verification of an already-landed sprint; matched the origin iter-11 eval, confirming the
+  landed work rather than duplicating it
+
+**Ruled out**:
+- "Iteration 11 (regex) is mid-flight and needs resuming" — REFUTED: it fully LANDED via PR #343
+  (`0b0ed7ea0`) + record (`c88e1cf93`) at ~22:53–22:57 the prior night. The mid-flight signal was
+  entirely a STALE LOCAL CHECKOUT artifact (local mission log/queue/sprint-JSON never synced after
+  the GitHub squash-merge). Lesson → skill fix below.
+- "The restored sprint branch's binary provenance proves which sources built it" — N/A here (I
+  verified behaviorally + by diffing content against the merged commit), but re-confirms the
+  standing go-vcs-stamp-in-worktrees caveat.
+- "verify-examples' 5 fails are regex/url regressions" — REFUTED: exactly the pre-existing #341
+  set (effectful_list ×2, mcp_tools, stream ×2), none import the new modules.
+
+**Retro lane**: skill fix (the one allowed) — mission-control Gate 1 (OBSERVE) gains a MANDATORY
+"**sync to origin FIRST**" step (`git fetch origin`; compare local dev ↔ origin/dev; if behind,
+treat origin as ground truth) AND Gate 2's reality-check now explicitly includes "is the picked
+item already LANDED on origin / merged via a PR". Traced to 2 recorded frictions pointing at the
+same gap: iteration 9's watch-list ("add a resume-detection step to Gate 2" — recorded, not yet
+acted) + iteration 12 (this run: stale-local-state drove a redundant regex resume all the way to a
+full re-evaluation before the Gate-3b fetch caught it). Both = mission-control never reconciles the
+local checkout against origin at OBSERVE, so a stale tree causes redundant/duplicate work.
+Watch list (single instances, no edit): main-tree dirtiness from concurrent sibling agents
+(uplift.go/uplift_test.go untracked, docs modified) — handled by working in origin-based worktrees,
+already covered by existing guidance.
+
+**Next**: Iteration 13 — queue #12 m-stdlib-url-parse sprint-planner → executor → evaluator (the
+design doc is DOC-READY, Public API frozen + check-clean, ~1d, GPU: none). Carry forward
+unchanged: %-row + m-record-update-local-resolution doc-status re-check. PARKED for human
+(cumulative, unchanged): tier-assignment ratification (release gate); feedback-gate production
+ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure validation of the
+8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU, the `;`-family
+compile_error Δ).

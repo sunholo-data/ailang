@@ -38,6 +38,18 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 12: m-stdlib-url-parse DESIGN DOC CREATED (NEW-DOC stage, queue #12, clause 4)
+
+Design doc `planned/v0_30_0/m-stdlib-url-parse.md` shipped (PR #344 → `7ca58f86f`) — wrap Go
+`net/url` (RFC-3986), extend `std/net`, pure `! {}`, Public API `ailang check`-clean:
+`parseUrl(s) -> Result[Url, string]` + `parseQuery(s) -> [{name,value}]` (order-preserving inverse
+of `urlEncodeForm`). Conflict Surface additive namespace-only. Queue #12 → [DOC-READY]; NEXT stage
+sprint-planner → executor → evaluator (~1d, GPU: none). SIDE-STORY: this run booted on a STALE
+local checkout and nearly re-did the already-LANDED iteration-11 regex sprint (ran a full redundant
+re-eval, PASS 96/100, which now corroborates the landed work) — the Gate-3b `git fetch` caught it
+before any duplicate merge. Fix: Gate-1 "sync to origin FIRST" skill edit (2nd instance of the same
+gap; see log ## 13).
+
 ## STATUS 2026-07-11 (night) — ITERATION 11 COMPLETE: m-stdlib-regex LANDED (AILANG now has linear-time RE2 regex; bar clause 4's regex half closed)
 
 Full loop headless, round-1 clean (sixth consecutive). `std/regex` ships — `compile → Result[Regex,
@@ -455,8 +467,11 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     all required checks green. `std/regex` = linear-time (RE2): compile/isMatch/findFirst/findAll/
     replaceAll/split; RE2 subset (no backref/lookaround) → `compile` Err, never panics. Docs:
     LIMITATIONS + stability (Experimental) + CHANGELOG. Design → implemented/v0_30_0)
-12. [NEXT] NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query;
-    ~1d — the OTHER half of clause-4's builtin mandate, now that regex landed)
+12. [DOC-READY 2026-07-12] m-stdlib-url-parse (iteration 12: NEW-DOC stage — design doc
+    `planned/v0_30_0/m-stdlib-url-parse.md` created + `ailang check`-verified, PR #344 →
+    `7ca58f86f`. Wrap Go `net/url` (RFC-3986) → 2 pure builtins in `std/net`, no new module;
+    `parseUrl -> Result[Url,string]` + order-preserving `parseQuery`. Conflict Surface additive
+    namespace-only. NEXT: sprint-planner → executor → evaluator, ~1d, GPU none)
 13. NEW-DOC m-dx-match-hof (clause 3; R4a — `match` in block-body lambdas in HOF args fails to
     parse; Conflict Surface mandatory, ~2–3d)
 14. NEW-DOC m-poly-arith-lambda (clause 3; R4b — polymorphic arithmetic in lambdas panics while
