@@ -631,3 +631,86 @@ or on Mark's challenge).
 
 **Next**: loop continues at [NEXT] m-effect-mode-validation, then the re-derived queue. First
 NEW-DOC items exercise design-doc-creator headless for the first time.
+
+---
+
+## 10 — 2026-07-11 — Iteration 8: m-effect-mode-validation LANDED — the guide's closed-mode-set claim is now TRUE (effect-refinement 1/4; fourth consecutive round-1-clean full loop)
+
+**Picked**: m-effect-mode-validation (queue #9, top [NEXT] per log entries 8/9). P1, bar clause 4
+(orchestration flagship — effect sprints), ~1d, prerequisite for the other three effect sprints.
+Scheduled headless run. Inbox at OBSERVE: eval-suite 105/108 (97.2% — above the 69/98 precedent,
+non-regression, did not outrank) + v0.29.0 release notice (informational). Dev CI: in-progress at
+OBSERVE on 8dad7e80b, confirmed green per-workflow before integration. GPU routing question
+answered explicitly at Gate 3: NO step touches the GPU (compiler validation + make test only).
+
+**Reality check** (both binaries rebuilt, v0.29.0-2-g8dad7e80b, versions match git describe):
+first pick of the mission that was BOTH genuinely open AND accurately documented — the doc was
+authored by iteration 6's decomposition with live-verified premises and they all still held:
+`Clock[mode=banana]` / `Rand[mode=banana]` / `Rand[flavor=hot]` all passed `ailang check` rc=0
+at HEAD (live transcript), no validation code or commits since authoring. Premises re-stamped
+into the doc (b91338dab) before handing to the planner.
+
+**Shipped** (full loop, round-1 clean at every stage — fourth consecutive):
+- Opus plan 689001311 (2 premise discrepancies found live: D1 the `stringSliceToEffectRow`
+  bridge carries NO params — doc over-scoped it; validation placed at the true chokepoint
+  `ElaborateEffectRowWithBudgets`, bridge covered by a nil-params regression test instead.
+  D2 `validate_effects.go` has no error-code convention to follow — `EFF_*` codes chosen from
+  the doc's own Examples. Also verified the doc's GUESSED AI schema correct against the
+  M-AI-EFFECT-MODES outcome report before freezing).
+- Opus execute in isolated worktree, 4 milestones: frozen `effectSchema` (Rand: mode∈{os,seeded,
+  crypto}; AI: mode∈{fixed,routeable,replay-only}, scope∈{byok}) + `validateEffectParams` wired
+  into elaboration with 3 fix-carrying diagnostics (EFF_UNKNOWN_MODE / EFF_UNKNOWN_PARAM_KEY /
+  EFF_PARAMS_NOT_SUPPORTED, code embedded verbatim, deterministic ordering); legal-matrix +
+  error-shape + bridge-regression tests; 3 footgun CI fixtures; guide truth-up (interim accuracy
+  note REMOVED — the public claim is now true), teaching prompt v0.16.2 names the codes (hash
+  recomputed + embedded copy synced — an unplanned-but-required step the executor caught),
+  CHANGELOG pre-1.0 narrowing entry.
+- Fable eval round 1: **PASS 96/100** (tests 20/20, lint 10/10, AC 29/30, quality 13/15, docs
+  14/15, fidelity 10/10, regression-surface +10). Independent verification distinct from
+  executor: evaluator rebuilt the worktree binary and re-produced the acceptance transcript from
+  scratch; prompt load hash-verified end-to-end; both full-suite reds proven non-regression
+  (flake #338 standalone-pass ×4; TestNetHttpPost fails IDENTICALLY on pre-sprint dev —
+  httpbin.org outage); executor's "5 verify-examples reds pre-existing" claim independently
+  re-verified with the PRE-sprint binary.
+- Integration: PR #340 → merge 8faa49de9 (auto-merge, MERGE method matching #339 precedent —
+  first attempt armed SQUASH, caught and switched). Design doc + sprint plan →
+  implemented/v0_30_0 + guide link fix + sprint-JSON committed (bee845466). Dev CI green on the
+  merge per-workflow (Gate 3b verified). Worktree removed post-merge.
+
+**Routing evidence**:
+- model=opus task-class=plan round1-quality=high (2 live-verified discrepancies incl. a scope
+  REDUCTION the doc missed; 0 controller corrections) rounds=1
+- model=opus task-class=execute round1-score=96 rounds=1 corrections=0 (sprint-JSON bookkeeping
+  DONE this time — iteration-7 watch item did not recur; two artifact nits: plan checkboxes
+  unticked, sprint JSON left uncommitted)
+- model=fable task-class=evaluate rounds=1 (one self-caught evaluator error: ran the 5 failing
+  examples at wrong paths first — bogus rc=1 "confirmation" from missing files; re-anchored via
+  pwd + absolute paths per Gate-2 rule 4a and redid the check properly)
+
+**Ruled out**:
+- "The 5 verify-examples failures are sprint-caused" — REFUTED twice independently (executor:
+  identical at plan commit via throwaway baseline binary; evaluator: identical with pre-sprint
+  main binary). They are a dev-health issue: type-unification failures on examples untouched
+  since v0.13.0, invisible because verify-examples is NOT a remote CI gate → issue #341.
+- "TestNetHttpPost failure = sprint regression" — refuted: fails identically on pre-sprint dev;
+  httpbin.org returning an HTML error page (live-network test inside make test; noted in #341).
+- "Validation must also cover the stringSliceToEffectRow bridge" (design doc's risk table) —
+  refuted by the planner: that bridge builds rows from effect NAMES only, params always nil;
+  a nil-params regression test suffices.
+
+**Retro lane**: backlog — issue #341 (5 runnable examples fail type-check on dev, pre-existing,
++ verify-examples-not-in-CI gap + TestNetHttpPost network flake). No skill edit (no ≥2 same-class
+frictions this iteration; single instances on the watch list: (a) planner asserted "verify-examples
+expected green pre/post" without running it — an unverified-green claim in a plan; if a second
+unverified-green plan claim appears, the fix is a sprint-planner gate "any 'expected green'
+assertion must carry a live rc=0 transcript"; (b) evaluator wrong-path dead end, self-caught,
+already covered by Gate-2 rule 4a).
+
+**Next**: Iteration 9 — queue #10 m-syntax-ai-forgiving (clause 3; P1, ~3d, v0_29_0 — kills the
+~32% small-model failure class). NOTE for the picker: 3d is at the sprint-size ceiling; verify
+the doc's premises against v0.29.0 reality first (it predates the frontier-tier re-grade).
+Carry forward: %-row + m-record-update-local-resolution doc-status re-check (iteration 4).
+PARKED for human (cumulative): tier-assignment ratification (release gate); feedback-gate
+production ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure
+validation of the 8 frontier benchmarks + 4 remaining sketches; NEW — issue #341 triage call
+(bisect first; fix vs update-examples vs promote verify-examples into CI).

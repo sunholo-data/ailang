@@ -27,6 +27,19 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-11 (afternoon) — ITERATION 8 COMPLETE: EFFECT SPRINT 1/4 LANDED (closed mode set ENFORCED)
+
+m-effect-mode-validation landed via the full loop headless, round-1 clean (FOURTH consecutive).
+The public guide's "typechecker rejects unknown values" claim is now TRUE: frozen `effectSchema`
+(Rand + AI) enforced at effect-row elaboration with 3 fix-carrying diagnostics (EFF_UNKNOWN_MODE /
+EFF_UNKNOWN_PARAM_KEY / EFF_PARAMS_NOT_SUPPORTED), CI-fixtured in the footgun harness; interim
+accuracy note removed; teaching prompt names the codes. Eval PASS 96/100 round 1 with the
+evaluator re-producing the acceptance transcript from a self-rebuilt worktree binary. PR #340 →
+8faa49de9, dev CI green per-workflow. Unlocks effect sprints 2-4 (replay-contracts, clock-net-fs,
+scope-params). EN ROUTE: dev-health issue #341 — 5 runnable examples fail type-check on dev
+(pre-existing, proven twice independently; verify-examples is NOT a remote CI gate — same
+invisibility class as iteration 3's gofmt miss). Next: #10 m-syntax-ai-forgiving.
+
 ## STATUS 2026-07-11 (day) — ITERATION 7 COMPLETE: EVAL-BAR CLAUSE MACHINERY LANDED (frontier tier + curation)
 
 m-eval-frontier-tier landed via the full loop headless, round-1 clean (third consecutive
@@ -350,9 +363,15 @@ invokes.
 *(Queue re-derived 2026-07-11 from bar v2 — clause tag on every open item. NEW-DOC items start
 with design-doc-creator; existing-doc items start at reality-check.)*
 
-9. [NEXT] m-effect-mode-validation (clause 4; P1, ~1d — effect-refinement sprint 1/4;
-   prerequisite for the other three; makes the public guide's closed-set claim true)
-10. m-syntax-ai-forgiving (clause 3; P1, ~3d, v0_29_0 — kills the ~32% small-model failure class)
+9. [LANDED 2026-07-11] m-effect-mode-validation (iteration 8: full loop headless, round-1 clean —
+   Opus plan (2 discrepancies: bridge carries no params, scope-reduced; EFF_* codes frozen) →
+   Opus execute (effectSchema + validateEffectParams at elaboration, 3 fix-carrying diagnostics
+   CI-fixtured, guide truth-up: the public closed-set claim is now TRUE, prompt names the codes)
+   → Fable eval PASS 96/100 round 1 w/ independent transcript re-production. PR #340 → 8faa49de9,
+   dev CI green per-workflow. Unlocks effect sprints 2-4. BONUS: dev-health issue #341 filed
+   (5 pre-existing example type-check failures; verify-examples not a CI gate))
+10. [NEXT] m-syntax-ai-forgiving (clause 3; P1, ~3d, v0_29_0 — kills the ~32% small-model failure
+    class; NOTE: 3d = sprint-size ceiling, premises predate the v0.29.0 frontier-tier re-grade)
 11. NEW-DOC m-stdlib-regex (clause 4; R7 — linear-time engine MANDATED, RE2-style; via
     builtin-developer skill, ~1–2d)
 12. NEW-DOC m-stdlib-url-parse (clause 4; R7 — parse/split into scheme/host/path/query; ~1d)
