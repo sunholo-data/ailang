@@ -112,12 +112,17 @@ export func main() -> int { 1 }
 `,
 	},
 	{
-		name:   "semicolon_in_expr_func",
+		// M-SYNTAX-AI-FORGIVING R1 made a well-formed `;`-sequence in a `=`-body
+		// VALID (`= let x = 1; x` now parses). PAR017 now fires only for a genuinely
+		// MISPLACED `;` — here a stray double `;` where an expression was expected.
+		// The diagnostic (and its "only valid inside" fix text) is preserved for that
+		// real error; the previously-rejected valid form is not.
+		name:   "misplaced_semicolon_in_expr_func",
 		code:   "PAR017",
 		fix:    "only valid inside",
 		status: "covered", // promoted by m-diagnostic-coverage (M-DIAG-FIXTURE-PROMOTION)
 		src: `module benchmark/solution
-export func f() -> int = let x = 1; x
+export func f() -> int = let x = 1;; x
 export func main() -> int { f() }
 `,
 	},

@@ -62,6 +62,11 @@ Single-expression branches don't need braces. See the
   `match x { pat => expr }`.
 - **Multi-statement block expressions** — `{ e1; e2; e3 }` sequencing works fully; the old
   `let _ = … in` workaround is no longer needed.
+- **Forgiving statement separators (v0.29+, M-SYNTAX-AI-FORGIVING)** — a `;`-separated
+  sequence is now accepted directly in a `=`-body (`func f() = s1; s2; e`), and a
+  **newline** is a soft statement separator inside `{ }` blocks (`{ let x = e\n rest }`).
+  Both parse to the same AST as the `;`-in-braces form; a `;` is only *required* to
+  separate two statements on the **same line**. Records still use commas.
 - **String interpolation** — `"Value: ${x}"` → `Value: 42` (v0.12.1); `++` is now list-only
   (string `++` is a type error, v0.13.0).
 - **Pattern guards** — `match x { n if n > 100 => …, n if n > 0 => …, _ => … }` (v0.6.2).
