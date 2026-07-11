@@ -45,6 +45,18 @@ function Badge({ children, color }) {
   );
 }
 
+function BandPill({ band }) {
+  const c = BAND_COLOR[band] || 'var(--ifm-color-emphasis-500)';
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: '0.75em', fontWeight: 700, padding: '2px 9px',
+      borderRadius: 20, whiteSpace: 'nowrap', color: c,
+      background: band === 'Trivial' ? 'var(--ifm-color-emphasis-200)' : `${c}1f`,
+      border: `1px solid ${c}44`,
+    }}>{band}</span>
+  );
+}
+
 const LANG_LABEL = { combined: 'Combined', ailang: 'AILANG', python: 'Python', avp: 'AILANG vs Python' };
 
 function eloMap(block) {
@@ -188,11 +200,11 @@ export default function EloLeaderboard() {
               <tbody>
                 {models.map((m, i) => (
                   <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
-                    <td style={{ padding: '4px 8px', color: 'var(--ifm-color-emphasis-500)' }}>{i + 1}</td>
-                    <td style={{ padding: '4px 8px', fontWeight: i === 0 ? 700 : 400 }}>
+                    <td style={{ padding: '6px 10px', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)' }}>{i + 1}</td>
+                    <td style={{ padding: '6px 10px', verticalAlign: 'middle', fontWeight: i === 0 ? 700 : 400 }}>
                       {modelShort(m.id)} {i === 0 && '🥇'}
                     </td>
-                    <td style={{ padding: '4px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                       {Math.round(m.elo)}
                     </td>
                   </tr>
@@ -204,28 +216,36 @@ export default function EloLeaderboard() {
           {/* Benchmark difficulty */}
           <div>
             <h4 style={{ marginBottom: 6 }}>Benchmark difficulty{activeLang !== 'combined' ? ` — ${LANG_LABEL[activeLang]}` : ''}</h4>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col />
+                <col style={{ width: '96px' }} />
+                <col style={{ width: '64px' }} />
+                <col style={{ width: '56px' }} />
+              </colgroup>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--ifm-color-emphasis-300)' }}>
-                  <th style={{ padding: '4px 8px' }}>Benchmark</th>
-                  <th style={{ padding: '4px 8px' }}>Band</th>
-                  <th style={{ padding: '4px 8px', textAlign: 'right' }}>ELO</th>
-                  <th style={{ padding: '4px 8px', textAlign: 'right' }}>pass</th>
+                  <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Benchmark</th>
+                  <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Band</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>ELO</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>pass</th>
                 </tr>
               </thead>
               <tbody>
                 {benches.map((b) => (
                   <tr key={b.id} style={{
                     borderBottom: '1px solid var(--ifm-color-emphasis-200)',
-                    background: bandBg(b.band), opacity: b.saturated ? 0.55 : 1,
+                    background: bandBg(b.band), opacity: b.saturated ? 0.6 : 1,
                   }}>
-                    <td style={{ padding: '4px 8px' }}>
-                      {b.id}{' '}
-                      {b.graderFlag && <Badge color="#a855f7">⚠ artifact</Badge>}
+                    <td style={{ padding: '6px 10px', verticalAlign: 'middle' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <code style={{ background: 'transparent', padding: 0, fontSize: '0.92em', wordBreak: 'break-word' }}>{b.id}</code>
+                        {b.graderFlag && <Badge color="#a855f7">⚠ artifact</Badge>}
+                      </span>
                     </td>
-                    <td style={{ padding: '4px 8px', color: BAND_COLOR[b.band], fontWeight: 600 }}>{b.band}</td>
-                    <td style={{ padding: '4px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{Math.round(b.elo)}</td>
-                    <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--ifm-color-emphasis-600)' }}>
+                    <td style={{ padding: '6px 10px', verticalAlign: 'middle' }}><BandPill band={b.band} /></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{Math.round(b.elo)}</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-600)', fontVariantNumeric: 'tabular-nums' }}>
                       {b.passRate != null ? `${Math.round(b.passRate)}%` : '—'}
                     </td>
                   </tr>
