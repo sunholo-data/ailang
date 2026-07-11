@@ -103,24 +103,24 @@ export default function EloLeaderboard() {
   const sat = block.saturation || {};
   const regraded = (data.grading || {}).regraded;
 
-  // Coverage gating: ELO across models that ran DIFFERENT benchmark counts isn't
-  // comparable, so rank only models with adequate coverage and list the rest
-  // separately — a 6-benchmark ELO must not masquerade as a headline next to a
-  // 55-benchmark one. (M-EVAL-VALIDITY-DISCIPLINE)
+  // Coverage awareness: ELO across models that ran DIFFERENT benchmark counts
+  // isn't strictly comparable, so we keep every model VISIBLE but mark those with
+  // partial coverage as "provisional" (dimmed + a coverage badge) so a 6-benchmark
+  // ELO can't be misread as beating a 55-benchmark one. Full ranking is earned
+  // once coverage catches up. (M-EVAL-VALIDITY-DISCIPLINE)
   const maxCov = block.maxCoverage || Math.max(1, ...allModels.map((m) => m.benchmarks || 0));
   const covThreshold = Math.max(1, Math.round(maxCov * 0.5));
-  const models = allModels.filter((m) => (m.benchmarks || 0) >= covThreshold);
-  const underCovered = allModels
-    .filter((m) => (m.benchmarks || 0) < covThreshold)
-    .sort((a, b) => (b.benchmarks || 0) - (a.benchmarks || 0));
+  const isProvisional = (m) => (m.benchmarks || 0) < covThreshold;
+  const models = allModels; // all shown; provisional ones are flagged, not hidden
 
-  // ELO range for the leaderboard bars (relative fill) — over the RANKED set only.
-  const eloVals = models.map((m) => m.elo).filter((v) => v != null);
+  // ELO range for the leaderboard bars — over FULL-coverage models so a sparse
+  // model's inflated ELO doesn't rescale everyone else's bars.
+  const eloVals = models.filter((m) => !isProvisional(m)).map((m) => m.elo).filter((v) => v != null);
   const maxElo = eloVals.length ? Math.max(...eloVals) : 1;
   const minElo = eloVals.length ? Math.min(...eloVals) : 0;
   const eloPct = (v) => {
     if (maxElo === minElo) return 100;
-    return Math.max(6, Math.round(((v - minElo) / (maxElo - minElo)) * 100));
+    return Math.min(100, Math.max(6, Math.round(((v - minElo) / (maxElo - minElo)) * 100)));
   };
   const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -228,25 +228,28 @@ export default function EloLeaderboard() {
               <tbody>
                 {models.map((m, i) => {
                   const pct = eloPct(m.elo);
+                  const prov = isProvisional(m);
                   return (
-                    <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
+                    <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.65 : 1 }}>
                       <td style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)', fontVariantNumeric: 'tabular-nums' }}>
-                        {MEDALS[i] || i + 1}
+                        {prov ? '·' : (MEDALS[i] || i + 1)}
                       </td>
                       <td style={{ padding: 0, verticalAlign: 'middle' }}>
                         <div style={{ position: 'relative', padding: '6px 10px' }}>
                           <div style={{
                             position: 'absolute', top: 3, bottom: 3, left: 0, width: `${pct}%`,
-                            background: 'var(--ifm-color-primary)', opacity: i === 0 ? 0.24 : 0.13,
+                            background: prov ? 'var(--ifm-color-emphasis-500)' : 'var(--ifm-color-primary)',
+                            opacity: prov ? 0.1 : (i === 0 ? 0.24 : 0.13),
                             borderRadius: '0 4px 4px 0',
                           }} />
-                          <span style={{ position: 'relative', fontWeight: i === 0 ? 700 : 400 }}>{modelShort(m.id)}</span>
+                          <span style={{ position: 'relative', fontWeight: (!prov && i === 0) ? 700 : 400, fontStyle: prov ? 'italic' : 'normal' }}>{modelShort(m.id)}</span>
                         </div>
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                         {Math.round(m.elo)}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: 'var(--ifm-color-emphasis-500)' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: prov ? '#b45309' : 'var(--ifm-color-emphasis-500)', fontWeight: prov ? 700 : 400 }}
+                          title={prov ? `provisional — only ${m.benchmarks} of ${maxCov} benchmarks run so far; ELO not yet comparable` : `${m.benchmarks} benchmarks`}>
                         {m.benchmarks != null ? m.benchmarks : '—'}
                       </td>
                     </tr>
@@ -254,21 +257,10 @@ export default function EloLeaderboard() {
                 })}
               </tbody>
             </table>
-            {underCovered.length > 0 && (
-              <div style={{ marginTop: 10, padding: '8px 10px', border: '1px dashed var(--ifm-color-emphasis-300)', borderRadius: 6, fontSize: '0.84em' }}>
-                <div style={{ fontWeight: 700, color: '#b45309', marginBottom: 3 }}>⚠ Not ranked — insufficient coverage</div>
-                <div style={{ color: 'var(--ifm-color-emphasis-600)', marginBottom: 6 }}>
-                  Ran &lt;{covThreshold}/{maxCov} benchmarks, so their ELO isn't comparable to the ranked models (different, mostly easier, benchmark sets).
-                </div>
-                {underCovered.map((m) => (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', opacity: 0.8 }}>
-                    <span>{modelShort(m.id)}</span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ifm-color-emphasis-500)' }}>
-                      ELO {Math.round(m.elo)} · {m.benchmarks}/{maxCov}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {models.some(isProvisional) && (
+              <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-600)', marginTop: 6 }}>
+                <span style={{ color: '#b45309', fontWeight: 700 }}>Provisional</span> rows (italic, low <strong>cov</strong>) have only run a fraction of the {maxCov} benchmarks — their ELO isn't yet comparable and settles as the rotation fills coverage in.
+              </p>
             )}
           </div>
 

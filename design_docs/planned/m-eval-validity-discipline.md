@@ -21,7 +21,7 @@ None were random — they're all *comparing things that aren't comparable*, then
 
 ## Rules (enforced in code, not convention)
 1. **Coverage is first-class.** Every model in the ratings block carries `benchmarks` (distinct count) + the block carries `maxCoverage`. ✅ done.
-2. **Coverage gating.** A model is only *ranked* if its coverage ≥ threshold (currently 50% of `maxCoverage`). Under-covered models render in a separate "not ranked — insufficient coverage" section with their count, never in the headline ranking. ✅ done (ELO leaderboard).
+2. **Coverage annotation, not hiding.** Every model stays **visible** in the leaderboard (the local models are the point of the server). Models below the coverage threshold (currently 50% of `maxCoverage`) are marked **provisional** — dimmed, italic, no medal, with a coverage badge — so a 6-benchmark ELO is visible but can't be misread as beating a 55-benchmark one. Full ranking (medal, undimmed) is earned as coverage fills in. ✅ done (ELO leaderboard).
 3. **Like-for-like deltas.** Any *cross-mode* (standard→agent) or *cross-run* delta is computed over the **intersection** of benchmarks the two cohorts both ran, and only across a **matching (model, harness) identity**. `or-X` (API-standard) vs `opencode-or-X` (agent-CLI) is a *harness* comparison and must be labelled as such, not presented as "uplift". ⏳ remaining.
 4. **Label the axis.** Standard vs agent, API vs CLI-harness, per-language vs blended — every comparison states what it holds constant.
 5. **Tests are the guardrail.** Distribution/validity invariants are unit-tested so a re-tier or a new cohort can't silently break them (the v0.29.2 re-tier already broke two drift detectors — caught late).
