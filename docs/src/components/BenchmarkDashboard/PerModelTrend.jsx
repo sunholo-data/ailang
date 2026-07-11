@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion } from './useEvents';
-import { assignModelColors } from './modelColors';
+import { assignModelColors, getProvider } from './modelColors';
+
+// Provider grouping — collapses 30+ per-model lines into one averaged line per
+// provider. 'other' = open-source (DeepSeek / GLM / MiniMax / Kimi / Qwen / Gemma).
+const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other'];
+const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source' };
+const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6' };
 
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
@@ -61,6 +67,8 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   // from the selection. Clicking the last remaining selection clears back
   // to "show all" — lets the user focus one model then add peers to compare.
   const [selectedModels, setSelectedModels] = useState(() => new Set());
+  // Default to provider grouping so the chart is readable; users can switch to per-model.
+  const [groupBy, setGroupBy] = useState('provider');
   const isVisible = (m) => selectedModels.size === 0 || selectedModels.has(m);
   const toggleModel = (m) => {
     setSelectedModels((prev) => {
@@ -203,6 +211,28 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   // every chip + line gets a stable colour.
   const modelColors = assignModelColors(allModels);
 
+  // Provider grouping: one line per provider = average of member models' metric
+  // per version (nulls skipped). Precision follows the metric ($ keeps 4 dp).
+  const providers = PROVIDER_ORDER.filter((p) => Array.from(allModels).some((m) => getProvider(m) === p));
+  const providerChartData = chartData.map((pt) => {
+    const out = { version: pt.version, date: pt.date };
+    providers.forEach((p) => {
+      const vals = Array.from(allModels)
+        .filter((m) => getProvider(m) === p)
+        .map((m) => pt[m])
+        .filter((v) => v != null && !Number.isNaN(v));
+      out[p] = vals.length
+        ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(selectedMetric === 'costPerSuccess' ? 4 : 1))
+        : null;
+    });
+    return out;
+  });
+  const byProvider = groupBy === 'provider';
+  const activeData = byProvider ? providerChartData : chartData;
+  const seriesKeys = byProvider ? providers : Array.from(allModels).filter(isVisible);
+  const seriesColor = (k) => (byProvider ? PROVIDER_COLOR[k] : (modelColors.get(k) || '#999'));
+  const seriesLabel = (k) => (byProvider ? PROVIDER_LABEL[k] || k : formatModelName(k));
+
   // Format a metric value for display (tooltip/axis ticks).
   const formatValue = (value) => {
     if (value == null) return '—';
@@ -234,7 +264,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
           {sortedPayload.map((entry, index) => (
             <p key={entry.name || index} className={styles.tooltipValue}>
               <span className={styles.tooltipDot} style={{backgroundColor: entry.color}} />
-              {formatModelName(entry.name)}: {formatValue(entry.value)}
+              {seriesLabel(entry.name)}: {formatValue(entry.value)}
             </p>
           ))}
           {gatedHere.length > 0 && (
@@ -309,6 +339,20 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
               Python
             </button>
           </div>
+          <div className={styles.languageToggle} title="Group the lines by provider or show every model">
+            <button
+              className={groupBy === 'provider' ? styles.toggleActive : styles.toggleInactive}
+              onClick={() => setGroupBy('provider')}
+            >
+              Provider
+            </button>
+            <button
+              className={groupBy === 'model' ? styles.toggleActive : styles.toggleInactive}
+              onClick={() => setGroupBy('model')}
+            >
+              Model
+            </button>
+          </div>
         </div>
       </div>
       {usingSnapshotFallback && (
@@ -325,7 +369,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
         </div>
       )}
       <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={activeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-200)" />
           <XAxis
             dataKey="version"
@@ -368,54 +412,64 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
               />
             );
           })}
-          {Array.from(allModels)
-            .filter(isVisible)
-            .map(modelName => (
-              <Line
-                key={modelName}
-                type="linear"
-                dataKey={modelName}
-                stroke={modelColors.get(modelName) || '#999'}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                connectNulls
-              />
+          {seriesKeys.map((key) => (
+            <Line
+              key={key}
+              type="linear"
+              dataKey={key}
+              stroke={seriesColor(key)}
+              strokeWidth={byProvider ? 3 : 2}
+              dot={{ r: byProvider ? 3 : 4 }}
+              activeDot={{ r: 6 }}
+              connectNulls
+            />
           ))}
         </LineChart>
       </ResponsiveContainer>
-      <div className={styles.chipLegend}>
-        <p className={styles.chipLegendHint}>
-          {selectedModels.size === 0
-            ? 'Click a model to focus it; click more to compare.'
-            : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
-        </p>
-        {Array.from(allModels).map((modelName) => {
-          const active = isVisible(modelName);
-          const color = modelColors.get(modelName) || '#999';
-          return (
+      {byProvider ? (
+        <div className={styles.chipLegend}>
+          <p className={styles.chipLegendHint}>Averaged per provider — switch to “Model” for per-model detail.</p>
+          {providers.map((p) => (
+            <span key={p} className={styles.legendChip} style={{ cursor: 'default' }}>
+              <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
+              {PROVIDER_LABEL[p]}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.chipLegend}>
+          <p className={styles.chipLegendHint}>
+            {selectedModels.size === 0
+              ? 'Click a model to focus it; click more to compare.'
+              : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
+          </p>
+          {Array.from(allModels).map((modelName) => {
+            const active = isVisible(modelName);
+            const color = modelColors.get(modelName) || '#999';
+            return (
+              <button
+                key={modelName}
+                type="button"
+                className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
+                onClick={() => toggleModel(modelName)}
+              >
+                <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
+                {formatModelName(modelName)}
+              </button>
+            );
+          })}
+          {selectedModels.size > 0 && (
             <button
-              key={modelName}
               type="button"
-              className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
-              onClick={() => toggleModel(modelName)}
+              className={styles.legendChip}
+              onClick={() => setSelectedModels(new Set())}
+              title="Reset to show all models"
             >
-              <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
-              {formatModelName(modelName)}
+              Reset
             </button>
-          );
-        })}
-        {selectedModels.size > 0 && (
-          <button
-            type="button"
-            className={styles.legendChip}
-            onClick={() => setSelectedModels(new Set())}
-            title="Reset to show all models"
-          >
-            Reset
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
