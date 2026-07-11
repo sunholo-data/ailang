@@ -1,6 +1,6 @@
 ---
 name: post-release
-description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Runs the tier-based benchmark suite (core+stretch by default) for standard + agent evals with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
+description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Runs the tier-based benchmark suite (core+stretch+frontier by default) for standard + agent evals with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
@@ -91,15 +91,15 @@ Expected time: ~30-60 minutes
 - **Step 2**: Agent eval — flagship + modern OS × AILANG+Python
   - `agent_suite` (7 models, one per harness + modern OS): claude-sonnet-4-6 (claude CLI, longitudinal anchor), gemini-3-5-flash (managed_agents/Vertex — Google agent path; expensive ~88 turns), gpt5-4-mini (codex CLI), opencode-or-glm-5-1, opencode-or-minimax-m3, opencode-or-deepseek-v4-flash, opencode-or-deepseek-v4-pro (opencode — reliable OS harness; deepseek-v4-pro is the agent champion at 97%)
   - **motoko-* removed 2026-06-04**: the AILANG-native motoko/bun harness hangs on the rig (0 completions, orphans subprocesses). Pending agent-harness-instability diagnosis; re-add when reliable.
-  - **Tier system** (v0.14.0+): `smoke` (23), `core` (26), `stretch` (11), `vision` (9) — counts as of 2026-06 (excludes `events.yml`, a non-benchmark dashboard meta-file)
-  - **🚫 Never run `smoke` for cloud models.** Smoke is the cheap/fast sanity tier for the *local OS-model iteration loop* (the nightly rig, Ollama, de-flaking). Cloud/API models (Anthropic, OpenAI, Google, OpenRouter) go **straight to `core,stretch`** — smoke would just spend API budget re-confirming saturated benchmarks every model already passes, with zero added signal. The only time smoke joins a cloud run is an explicit `--tier smoke,core,stretch` full audit.
-  - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
+  - **Tier system** (v0.14.0+, frontier added v0.29.0): `smoke` (23), `core` (19), `stretch` (29), `frontier` (8), `vision` (9) — counts as of 2026-07 post-M-EVAL-FRONTIER-TIER re-tier (excludes `events.yml`, a non-benchmark dashboard meta-file)
+  - **🚫 Never run `smoke` for cloud models.** Smoke is the cheap/fast sanity tier for the *local OS-model iteration loop* (the nightly rig, Ollama, de-flaking). Cloud/API models (Anthropic, OpenAI, Google, OpenRouter) go **straight to `core,stretch,frontier`** — smoke would just spend API budget re-confirming saturated benchmarks every model already passes, with zero added signal. The only time smoke joins a cloud run is an explicit `--tier smoke,core,stretch,frontier` full audit.
+  - Default scope: `core,stretch,frontier` — Core is the headline metric, Stretch is harder mixed results, Frontier is the top-end discriminator (release baselines are its only routine data source)
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
   - Feeds the ailang-vs-python comparison story in the Model Leaderboard page
 - **Step 3** (--lang-harness): Language × Harness sweep — cheapest models × 4 languages
   - `lang_harness_suite`: claude-haiku-4-5, gemini-3-flash, gpt5-4-mini, opencode-haiku
   - All 4 languages: ailang, python, javascript, go
-  - **Tier: `core` only** (26 benchmarks) — stretch is skipped here even if `--tier core,stretch` was set globally
+  - **Tier: `core` only** (19 benchmarks) — stretch/frontier are skipped here even if a wider `--tier` was set globally
   - Note: 4 core benchmarks are AILANG/Python-only (`contract_bst_validate`, `contract_roman_numeral`, `effect_composition`, `effect_tracking_io_fs`) and auto-skip on JS/Go runs
   - Feeds the **Agent Harness Explorer** language spread and cross-harness comparison data
   - Cost: ~$7 extra
@@ -318,23 +318,37 @@ git push
 
 This runs all 7 production models (`extended_suite`) with both AILANG and Python.
 
-**Tier scope for releases:**
-- Default (release): `--tier core,stretch` — 37 benchmarks (26 core + 11 stretch). **This is the tier for every cloud/API model — never smoke.** Smoke is the local OS-model iteration tier only (see the 🚫 note above); a cloud model added to a release baseline (e.g. a new Anthropic/OpenAI/Google model) goes straight to `core,stretch`.
-- Dev/fast mode: `--tier core` — 26 benchmarks (Core is the headline metric)
-- Full audit: `--tier smoke,core,stretch` — 60 benchmarks; only add smoke when you deliberately want the local sanity tier in the sweep, not for routine cloud baselines
+**Tier scope for releases** (counts re-centered after the v0.29.0 M-EVAL-FRONTIER-TIER
+re-tier: 7 saturated core benchmarks demoted to stretch, 8 stretch promoted to the new
+`frontier` tier):
+- Default (release): `--tier core,stretch,frontier` — 56 benchmarks (19 core + 29
+  stretch + 8 frontier). **This is the tier for every cloud/API model — never smoke.**
+  Smoke is the local OS-model iteration tier only (see the 🚫 note above); a cloud model
+  added to a release baseline (e.g. a new Anthropic/OpenAI/Google model) goes straight to
+  `core,stretch,frontier`.
+- `frontier` (8): the anti-saturation discriminator tier — a frontier benchmark's defining
+  property is that at least one frontier model FAILS it in standard mode; if every frontier
+  model passes it, it demotes back to stretch (CURATION.md §5). Release baselines are the
+  ONLY routine source of frontier-failure data (its authoring-time failure validation was
+  parked as API-billed), so keep it in every release run — that data doubles as the check
+  that the tier still discriminates.
+- Dev/fast mode: `--tier core` — 19 benchmarks (Core is the headline metric)
+- Full audit: `--tier smoke,core,stretch,frontier` — 79 benchmarks; only add smoke when you
+  deliberately want the local sanity tier in the sweep, not for routine cloud baselines
 - `vision` benchmarks are research-grade and excluded by default — opt in explicitly
   with `--tier vision` if you want to publish those numbers.
 
 Override tier via the script's `--tier` flag (see `run_eval_baseline.sh --help`). If
 unsure, the default is tuned to produce a release-ready baseline in ~30–60 minutes.
 
-**Cost & time** (default tier `core,stretch` = 37 benchmarks):
+**Cost & time** (default tier `core,stretch,frontier` = 56 benchmarks; ~1.5× the old
+37-benchmark `core,stretch` figures — re-center after the first v0.29.0+ baseline):
 | Mode | Cost | Time | Use for |
 |---|---|---|---|
-| `--full` | ~$16 | ~30-40 min | Standard release |
-| `--full --lang-harness` | ~$23 | ~45-60 min | **Recommended** — adds 4-lang Explorer data |
-| `--full --cross-harness` | ~$47 | ~45-60 min | Major releases (vX.0, quarterly) |
-| dev (no flags) | ~$3.50 | ~10-15 min | Quick validation only — never for releases |
+| `--full` | ~$24 | ~45-60 min | Standard release |
+| `--full --lang-harness` | ~$31 | ~60-80 min | **Recommended** — adds 4-lang Explorer data |
+| `--full --cross-harness` | ~$65 | ~60-80 min | Major releases (vX.0, quarterly) |
+| dev (no flags) | ~$5 | ~15-20 min | Quick validation only — never for releases |
 
 **❌ WRONG workflow (what happened with v0.3.22):**
 ```bash
@@ -735,7 +749,7 @@ For historical improvements and lessons learned, see [`resources/version_notes.m
 Key points:
 - All scripts accept version with or without 'v' prefix
 - Use `--validate` flag to check configuration before running
-- Agent eval scopes benchmarks by tier (`--tier core,stretch` default) — benchmarks
+- Agent eval scopes benchmarks by tier (`--tier core,stretch,frontier` default) — benchmarks
   are resolved from `benchmarks/*.yml` by tier, not a hardcoded list
 - Tag-based curation analysis runs via `ailang eval-matrix --by-tags/--show-saturated/
   --ailang-wins` in Step 5b

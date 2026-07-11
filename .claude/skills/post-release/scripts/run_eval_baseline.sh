@@ -98,11 +98,14 @@ teardown_ollama_models() {
 }
 
 # Default tier scope for release baselines:
-#   - `core`    = headline metric (22 benchmarks as of v0.14.0)
-#   - `stretch` = harder benchmarks we expect mixed results on (11 benchmarks)
+#   - `core`     = headline metric (19 benchmarks post-v0.29.0 re-tier)
+#   - `stretch`  = harder benchmarks we expect mixed results on (29 benchmarks)
+#   - `frontier` = top-end discriminators, v0.29.0+ (8 benchmarks; at least one
+#                  frontier model must FAIL each in standard mode or it demotes —
+#                  release baselines are the only routine source of that data)
 # Vision tier (research-grade) is excluded by default; smoke tier is a subset of
 # CI sanity checks and also excluded by default to keep releases focused.
-DEFAULT_TIER="core,stretch"
+DEFAULT_TIER="core,stretch,frontier"
 
 # Count benchmarks matching a tier spec (comma-separated tiers).
 # Usage: count_benchmarks_in_tiers "core,stretch"
@@ -194,7 +197,7 @@ if [[ $# -eq 0 ]]; then
     echo "" >&2
     echo "Options:" >&2
     echo "  --full              Use all production models (default: dev models)" >&2
-    echo "  --tier <spec>       Comma-separated tiers: smoke,core,stretch,vision" >&2
+    echo "  --tier <spec>       Comma-separated tiers: smoke,core,stretch,frontier,vision" >&2
     echo "                      (default: $DEFAULT_TIER)" >&2
     echo "  --cross-harness     Use harness_suite (sonnet+gemini via claude/opencode)" >&2
     echo "                      to measure harness-induced benchmark deltas" >&2
@@ -274,7 +277,7 @@ echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
     echo "Mode: FULL (extended_suite, 11 models incl. claude-fable-5, + agent_suite)"
-    echo "Expected cost: ~\$30-60 (fable ~\$16 on core,stretch; agent step adds ~\$10-20)"
+    echo "Expected cost: ~\$45-90 (fable ~\$24 on core,stretch,frontier; agent step adds ~\$10-20)"
     echo "Expected time: ~45-90 minutes"
 else
     echo "Mode: DEV (3 dev models)"
