@@ -1,0 +1,34 @@
+-- regex_basics.ail — std/regex core operations: isMatch, replaceAll, split.
+--
+-- std/regex is backed by Go's RE2 engine: matching is guaranteed linear-time
+-- (no catastrophic backtracking). Two-stage API: compile once (the only fallible
+-- step), then run total match functions on the validated Regex.
+--
+-- Run: ailang run --caps IO examples/regex_basics.ail
+
+module examples/regex_basics
+
+import std/io (println)
+import std/regex as R
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {IO} = {
+  match R.compile("[0-9]+") {
+    Err(e) => println("bad pattern: ${e}"),
+    Ok(digits) => {
+      -- isMatch: does the pattern occur anywhere?
+      println("isMatch '[0-9]+' in 'abc123'  => ${show(R.isMatch(digits, "abc123"))}");
+      println("isMatch '[0-9]+' in 'no nums' => ${show(R.isMatch(digits, "no nums"))}");
+      -- replaceAll: mask every run of digits
+      println("mask digits: ${R.replaceAll(digits, "call 0800-555 now", "#")}")
+    }
+  };
+  -- split on a whitespace-run pattern (one or more spaces/tabs)
+  match R.compile("[ \t]+") {
+    Err(e) => println("bad pattern: ${e}"),
+    Ok(ws) => {
+      let parts = R.split(ws, "one   two\tthree");
+      println("split on whitespace => ${show(parts)}")
+    }
+  }
+}
