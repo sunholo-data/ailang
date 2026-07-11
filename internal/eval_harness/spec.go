@@ -60,7 +60,7 @@ type BenchmarkSpec struct {
 	NetAllowLocalhost bool `yaml:"net_allow_localhost,omitempty"`
 
 	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
-	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision|experimental. Missing defaults to "core".
+	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|frontier|vision|experimental. Missing defaults to "core".
 	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.
 
 	// Optional source-level constraints checked BEFORE execution (standard mode).
@@ -76,10 +76,13 @@ type BenchmarkSpec struct {
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.
 // Tier structure is defined in design_docs/planned/v0_13_0/m-benchmark-suite-tiers.md.
+// "frontier" (added M-EVAL-FRONTIER-TIER, v0.29.0) sits above stretch on the
+// difficulty ladder: frontier-defeating benchmarks where at least one frontier
+// model fails — they exist to keep the suite discriminating at the top end.
 // "experimental" is reserved for diagnostic-purpose probes (expected_gain: "diagnostic")
 // that measure language gaps rather than score language capability — they are excluded
-// from the smoke/core/stretch/vision distribution targets.
-var ValidTiers = []string{"smoke", "core", "stretch", "vision", "experimental"}
+// from the smoke/core/stretch/vision/frontier distribution targets.
+var ValidTiers = []string{"smoke", "core", "stretch", "frontier", "vision", "experimental"}
 
 // ValidTagTaxonomy lists the 12-tag taxonomy for BenchmarkSpec.Tags.
 // Tag definitions are in design_docs/planned/v0_13_0/m-eval-category-analysis.md §Component 1.

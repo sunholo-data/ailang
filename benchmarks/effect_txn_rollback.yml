@@ -10,7 +10,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"
 expected_gain: "high"
-tier: stretch
+tier: frontier # M-EVAL-FRONTIER-TIER (v0.29.0): re-tiered stretch->frontier per design-doc 2026-07-08 authoring update. Frontier-FAILURE validation (must fail >=1 frontier model in standard mode) is PARKED (API-billed, headless mission loop) - see design_docs/planned/v0_29_0/m-eval-frontier-tier.md parked_out_of_scope.
 tags: [state_machine, error_handling]
 task_prompt: |
   Write a program in <LANG> that processes a sequence of ledger operations over

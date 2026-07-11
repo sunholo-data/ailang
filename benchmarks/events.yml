@@ -18,6 +18,12 @@
 # prompt, append an entry here as part of the release PR. See
 # benchmarks/CURATION.md §5 for the workflow.
 
+- version: v0.29.0
+  label: "frontier tier: 8 re-tiered stretch→frontier"
+  kind: taxonomy
+  color: "#C0392B"
+  affects_tiers: [stretch, frontier]
+
 - version: v0.9.1.1
   label: "+5 contract benchmarks"
   kind: benchmark_add

@@ -100,7 +100,7 @@ func runEvalSuite() {
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
-	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|vision). Empty = all tiers. Applied after benchmark discovery.")
+	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|frontier|vision). Empty = all tiers. Applied after benchmark discovery.")
 	byConfidence := fs.String("benchmarks-by-confidence", "", "Select the most informative (non-saturated) benchmarks for the run mode from a ratings DB instead of --benchmarks/--tier. Pass a db path, or 'auto' for ~/.ailang/state/observatory.db (M-EVAL-RATING-EFFICIENCY).")
 	maxBenchmarks := fs.Int("max-benchmarks", 0, "Cap on benchmarks selected by --benchmarks-by-confidence (0 = no cap)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")

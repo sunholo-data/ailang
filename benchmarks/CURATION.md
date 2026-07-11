@@ -16,12 +16,20 @@ Every benchmark YAML declares exactly one tier. Tiers express *what signal the
 benchmark produces* — not difficulty alone. A difficult benchmark that every
 frontier model trivially passes is not a useful `stretch` benchmark.
 
-| Tier      | Purpose                                        | Expected pass rate (Core ≈ frontier avg) | Run cost  |
-|-----------|------------------------------------------------|-----------------------------------------|-----------|
-| `smoke`   | Regression gate. Fast, near-100% everywhere.   | ≥ 95% AILANG, ≥ 90% Python              | ~seconds  |
-| `core`    | **The headline number.** Representative corpus.| 70–95%. This is what releases are judged on. | ~minutes |
-| `stretch` | Headroom / differentiation benchmarks.         | 30–70%. Non-trivial for every model.    | ~minutes  |
-| `vision`  | Aspirational. May not compile on AILANG today. | 0–50%. Measures *potential*, not parity.| variable  |
+| Tier       | Purpose                                        | Expected pass rate (Core ≈ frontier avg) | Run cost  |
+|------------|------------------------------------------------|-----------------------------------------|-----------|
+| `smoke`    | Regression gate. Fast, near-100% everywhere.   | ≥ 95% AILANG, ≥ 90% Python              | ~seconds  |
+| `core`     | **The headline number.** Representative corpus.| 70–95%. This is what releases are judged on. | ~minutes |
+| `stretch`  | Headroom / differentiation benchmarks.         | 30–70%. Non-trivial for every model.    | ~minutes  |
+| `frontier` | Frontier-defeating. A frontier model fails ≥ 1.| 0–40%; frontier fails some. If *every* frontier model passes, it belongs in `stretch`. | ~minutes |
+| `vision`   | Aspirational. May not compile on AILANG today. | 0–50%. Measures *potential*, not parity.| variable  |
+
+The **frontier** tier (added v0.29.0, `M-EVAL-FRONTIER-TIER`) exists because the
+suite stopped discriminating at the top end — with the best model passing 36/37
+AILANG benchmarks, additional runs of the saturated set buy zero information. A
+frontier benchmark's defining property is that **at least one frontier model
+fails it in standard mode**; if a re-tiered benchmark later proves to be passed
+by *every* frontier model, it demotes back to `stretch` (see §5).
 
 **Default tier**: `core`. `LoadSpec` (`internal/eval_harness/spec.go`) fills in
 `tier: core` when the field is absent, so unannotated benchmarks automatically
@@ -185,6 +193,7 @@ that are genuinely discriminating.
 |----------------------|-----------------------------------------------------------------------------|
 | `smoke` → `core`     | Any regression to < 90% AILANG pass. Investigate before demoting.           |
 | `core` → `stretch`   | < 30% AILANG pass for **two baselines** *and* the benchmark is accurate. If it's just a prompt / stdlib gap, fix the language instead. |
+| `frontier` → `stretch` | **Every** frontier model passes it in standard mode (it no longer defeats the frontier). This is the counterpart of the frontier's defining property — a frontier benchmark that nothing fails is a `stretch` benchmark. |
 | `core` → retired     | Known-broken in AILANG for reasons unlikely to change (e.g. requires an unimplemented language feature). Move YAML to `benchmarks/retired/` with a note. |
 
 ### Retirement (remove from suite entirely)
