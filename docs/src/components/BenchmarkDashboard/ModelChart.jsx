@@ -1,8 +1,8 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import styles from './styles.module.css';
 
-export default function ModelChart({ models }) {
+export default function ModelChart({ models, coverage }) {
   // Transform data for recharts - now with per-language breakdown
   const chartData = Object.entries(models)
     // Filter: Only show models with both AILANG and Python data
@@ -10,13 +10,19 @@ export default function ModelChart({ models }) {
       return stats.languages && stats.languages.ailang && stats.languages.python;
     })
     .map(([name, stats]) => {
-      const shortName = formatModelName(name);
+      // M-EVAL-VALIDITY-DISCIPLINE (W2): a model that ran few benchmarks is not
+      // comparable to one that ran the full suite. Flag it provisional (dimmed +
+      // sorted last) so its pass rate can't be misread as a headline ranking.
+      const provisional = coverage ? coverage.isProvisional(name) : false;
+      const shortName = formatModelName(name) + (provisional ? ' ⚠' : '');
       const ailang = stats.languages?.ailang;
       const python = stats.languages?.python;
       const data = {
         name: shortName,
         fullName: name,
-        runs: stats.totalRuns
+        runs: stats.totalRuns,
+        provisional,
+        benchmarks: coverage ? coverage.benchmarksFor(name) : null,
       };
 
       // Use per-language stats with safe access
@@ -30,10 +36,13 @@ export default function ModelChart({ models }) {
       return data;
     });
 
-  // Sort by AILANG success rate (highest first)
+  // Sort by AILANG success rate (highest first), but push provisional
+  // (low-coverage) models to the end so the headline bars are the comparable ones.
   chartData.sort((a, b) => {
+    if (a.provisional !== b.provisional) return a.provisional ? 1 : -1;
     return parseFloat(b['AILANG']) - parseFloat(a['AILANG']);
   });
+  const hasProvisional = chartData.some((d) => d.provisional);
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
@@ -86,14 +95,29 @@ export default function ModelChart({ models }) {
             dataKey="AILANG"
             fill="var(--ifm-color-primary-dark)"
             radius={[8, 8, 0, 0]}
-          />
+          >
+            {chartData.map((d, i) => (
+              <Cell key={`a-${i}`} fillOpacity={d.provisional ? 0.3 : 1} />
+            ))}
+          </Bar>
           <Bar
             dataKey="Python"
             fill="var(--ifm-color-success-dark)"
             radius={[8, 8, 0, 0]}
-          />
+          >
+            {chartData.map((d, i) => (
+              <Cell key={`p-${i}`} fillOpacity={d.provisional ? 0.3 : 1} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
+      {hasProvisional && (
+        <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-600)', marginTop: 4 }}>
+          ⚠ Dimmed bars are <strong>provisional</strong> — the model has run fewer than half of the
+          {coverage ? ` ${coverage.maxCoverage}` : ''} benchmarks, so its rate isn&apos;t yet comparable
+          to full-coverage models (it fills in as the rotation runs).
+        </p>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
 import ModelComparisonTable from './ModelComparisonTable';
+import { buildCoverage } from './coverageGate';
 import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
@@ -230,6 +231,10 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
     ? buildTierScopedModels(activeTag.model_stats, models)
     : null;
   const scopedModels = tierModels || tagModels || models;
+  // M-EVAL-VALIDITY-DISCIPLINE (W2): coverage lookup so charts/tables can flag
+  // under-covered models as provisional (a 6-benchmark local model must not read
+  // as a headline next to a 55-benchmark cloud model).
+  const coverage = buildCoverage(data.ratings);
   let scopedLanguages;
   if (activeTier) {
     scopedLanguages = buildTierScopedLanguages(activeTier, tierModels);
@@ -279,9 +284,9 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
             onSelect={(t) => { setSelectedTier(t); setSelectedTag(null); }}
           />
         )}
-        <ModelChart models={scopedModels} />
+        <ModelChart models={scopedModels} coverage={coverage} />
         <ModelTokenChart models={scopedModels} />
-        <ModelComparisonTable models={scopedModels} />
+        <ModelComparisonTable models={scopedModels} coverage={coverage} />
       </div>
     );
   }
@@ -360,7 +365,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           <p className={styles.sectionSubtitle}>
             Positive values indicate AILANG outperforms Python for that model
           </p>
-          <ModelDeltaTrend history={history} events={events} selectedTier={selectedTier} />
+          <ModelDeltaTrend history={history} events={events} selectedTier={selectedTier} coverage={coverage} />
         </div>
       )}
 
@@ -399,8 +404,8 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
             {activeTier && <span className={styles.tierHeadline}> — {TIER_LABELS[selectedTier]} tier</span>}
             {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
           </h3>
-          <ModelChart models={scopedModels} />
-          <ModelComparisonTable models={scopedModels} />
+          <ModelChart models={scopedModels} coverage={coverage} />
+          <ModelComparisonTable models={scopedModels} coverage={coverage} />
         </div>
       )}
 
