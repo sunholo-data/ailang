@@ -485,6 +485,10 @@ func (s *Server) Start() error {
 	// WebSocket endpoint
 	mux.HandleFunc("/ws", s.wsServer.HandleWebSocket)
 
+	// Public benchmark data (M-EVAL-DATA-HOSTING-DECOUPLE) — read-through from the
+	// private GCS bucket so the docs site fetches it at runtime, no site rebuild.
+	mux.HandleFunc("/benchmarks/", s.handleBenchmarks)
+
 	// REST API endpoints - Threads
 	mux.HandleFunc("/api/threads", s.handleThreads)
 	mux.HandleFunc("/api/threads/", s.handleThread)
