@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8627450980392157,
+          "ailang": 0.8833333333333333,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -21,13 +21,13 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.95,
+            "ailang": 0.9615384615384616,
             "go": 1,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.4
+            "ailang": 0.625
           },
           "smoke": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6274509803921569,
+          "ailang": 0.5833333333333334,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -57,13 +57,13 @@
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.7,
+            "ailang": 0.6153846153846154,
             "go": 1,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.16666666666666666
+            "ailang": 0.2222222222222222
           },
           "smoke": {
             "ailang": 1,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7924528301886793,
+          "ailang": 0.7903225806451613,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -93,13 +93,13 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.85,
+            "ailang": 0.8076923076923077,
             "go": 0.8333333333333334,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.16666666666666666
+            "ailang": 0.4444444444444444
           },
           "smoke": {
             "ailang": 1,
