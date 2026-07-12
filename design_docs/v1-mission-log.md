@@ -1021,3 +1021,43 @@ unchanged: %-row + m-record-update-local-resolution doc-status re-check. PARKED 
 ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure validation of the
 8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU, the `;`-family
 compile_error Δ).
+
+---
+
+## 10 — 2026-07-12 — v1.0 SCOPE SET: full backlog triage (interactive, Mark + Opus)
+
+**Picked**: n/a — decision session. Mark: "triage the other design docs and see what I want in v1.0."
+
+**Reality check**: all 69 non-gating planned docs reality-checked by 5 parallel agents (used the
+docs-sync skill's frame; per-doc verification via git/code). Decomposition of the "~85 backlog":
+- **~12 ghosts** (shipped, headers stale) — 10 confirmed + evidence, reconciled to
+  implemented/v0_29_0 (GHOSTS-RECONCILED-2026-07-12.md); 2 CONFLICTED (agents split ghost-vs-open:
+  m-dx-record-cons-pattern, m-dx-tapp-trecord-unification) kept OPEN pending repro.
+- **~30 not-v1.0** — eval-infra (rig/harness), cloud-infra (coordinator/dashboard), motoko-fork
+  (separate mission), post-v1. Ruled OUT of the v1.0 gate.
+- **~18 genuine candidates** — almost all clause-3 accessibility (footgun/DX/prompt), a few clause-4.
+
+**Shipped**: charter STATUS stamp + queue restructured from a flat 14-item list into clause groups,
+now ~33 open items (Mark chose FULL SCOPE across all 4 AskUserQuestion cluster decisions: whole
+clause-3 cluster IN, both DX tooling investments IN, full clause-4 orchestration surface IN,
+rig/cloud/motoko OUT). 10 ghost docs git-mv'd to implemented/. "~80 not-gating" corrected to ~30.
+
+**Routing evidence**: model=opus task-class=triage-coordination round1-score=n/a rounds=1
+corrections=1 (one reality-check agent HUNG mid-batch — same unbounded-wait class as iteration 13;
+re-ran it tighter, it completed; the cross-check of both runs caught the 2 ghost-vs-open
+disagreements, which is why they're kept OPEN not archived). Parallel-agent triage = ~65k tokens/
+agent × 5.
+
+**Ruled out**:
+- "~85 real backlog" — inflated; ~12 ghosts + ~30 infra/tooling/motoko = ~42 that don't represent
+  open v1.0 language work. Real v1.0-relevant open set was ~18 before Mark's scope expansion.
+- Archiving the 2 conflicted docs on ambiguous evidence (wrongly archiving a live doc is worse than
+  leaving a possibly-fixed one in the queue — the loop's reality-check catches the latter).
+
+**Retro lane**: process-fix (v1.0 scope expansion in the charter + ghost reconciliation). RECORDED
+(not yet actionable): iteration-12 booted on a stale checkout and nearly re-did the landed regex
+sprint — 2nd instance of the stale-checkout-at-Gate-1 gap; the loop already flagged a "sync to
+origin FIRST" skill fix (log 13). If it recurs → that skill edit.
+
+**Next**: loop continues at #12 (url-parse build), then the clause-3 accessibility cluster —
+now the bulk of v1.0. Timeline honest: ~33 open items ≈ 40–55 sprint-days.

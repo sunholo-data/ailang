@@ -27,6 +27,17 @@ needed); driver crashes post there too.
 
 ---
 
+## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET via full backlog triage (Mark, interactive)
+
+Triaged all 69 non-gating planned docs (5 parallel reality-check agents). Result: the "~85
+backlog" is really **~12 ghosts** (already shipped, headers stale) + **~30 not-v1.0** (eval-infra
+rig/harness, cloud-infra, motoko-fork, post-v1) + **~18 genuine v1.0 candidates**, almost all
+clause-3 accessibility. Mark chose FULL SCOPE: the whole clause-3 footgun/DX/prompt cluster +
+both DX tooling investments (fmt, deterministic-tooling) + the full clause-4 orchestration surface
+are IN; rig/cloud/motoko stay OUT. v1.0 queue ~14 → ~33 open items (clause-grouped below).
+10 confirmed ghosts reconciled to implemented/; 2 conflicted docs kept OPEN pending repro. Full
+evidence: log entry 10.
+
 ## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
 
 The outer-loop controller runs on **Opus** (`claude-opus-4-8`) through a **time-boxed override**
@@ -472,32 +483,52 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     `7ca58f86f`. Wrap Go `net/url` (RFC-3986) → 2 pure builtins in `std/net`, no new module;
     `parseUrl -> Result[Url,string]` + order-preserving `parseQuery`. Conflict Surface additive
     namespace-only. NEXT: sprint-planner → executor → evaluator, ~1d, GPU none)
-13. NEW-DOC m-dx-match-hof (clause 3; R4a — `match` in block-body lambdas in HOF args fails to
-    parse; Conflict Surface mandatory, ~2–3d)
-14. NEW-DOC m-poly-arith-lambda (clause 3; R4b — polymorphic arithmetic in lambdas panics while
-    comparison works; ~2–3d)
-15. NEW-DOC m-arity-style-diagnostic (clause 3; R4c — curried vs multi-arg mistake gets a
-    call-style-naming diagnostic, not a generic type error; ~1–2d)
-15b. **m-module-less-run-fail-loud** ([planned/v0_30_0](planned/v0_30_0/m-module-less-run-fail-loud.md), 2026-07-12; clause 3; R1 — DOC-READY, diagnosed) — `ailang run`/`check` silently exit 0 with no output on a file that has decls but no `module` declaration; add a MOD011 fix-carrying diagnostic. ~0.5d, blast radius 1 file (block_demo). Requested by Mark.
-16. m-eval-slim-prompt-self-discovery (clauses 3+5; P1, v0_29_0 — R3.1 pass-rate-per-prompt-token
-    curve per tier; the data that authorizes the deletion pass)
-17. m-effect-replay-contracts (clause 4; P1, ~3d — effect-refinement sprint 2/4)
-18. m-effect-clock-net-fs-modes (clause 4; P1, ~3d — effect-refinement sprint 3/4)
-19. NEW-DOC m-v1-orchestration-flagship (clause 4; R6 — verified multi-step AI-pipeline flagship
-    example, orchestration benchmarks into default rotation, README/site lead; ~2–3d)
-20. NEW-DOC m-cost-per-success-kpi (clause 5; R3 — dashboard headline flip + v1.0 measured
-    baseline publication; ~1–2d)
-21. m-check-strict-fallbacks (clause 2; P1, ~1d)
-22. m-bytecode-vm-parity-bugs (clause 2; P1, 1–2d)
-23. prompt deletion pass R1.2 (clause 3; GATED — unblocks when items 13–15 diagnostics land AND
-    item 16's curve authorizes; lives as m-diagnostic-coverage's deferred section)
-24. m-effect-scope-params (clause 4; P1, ~2.5d — sprint 4/4; weakest forcing function — Mark
-    re-score candidate at release gate)
+**[NEXT]** 12 (m-stdlib-url-parse build) — then the clause groups below. Loop ordering within a
+group: P0/unblockers first, then cheapest impact-per-day.
+
+*(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
+accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
+are all IN. v1.0 = the complete "verified AI-orchestration language, accessible to mid-tier
+models" — ~33 open items, ~40–55 sprint-days. Rig/cloud/motoko/post-v1 infra stays OUT. Full
+triage evidence = log entry 10.)*
+
+### Clause 3 — fleet-tier accessibility (the footgun burn-down; the thesis's core deficit)
+- **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): m-dx-match-hof (R4a, 2–3d) ·
+  m-poly-arith-lambda (R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) ·
+  m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
+- **VERIFY-then-route** (agents split ghost-vs-open; run the doc repro FIRST — may be ghosts):
+  m-dx-record-cons-pattern · m-dx-tapp-trecord-unification
+- **Diagnostics** (DOC-READY / small): m-module-less-run-fail-loud (MOD011, 0.5d, DOC-READY,
+  [v0_30_0](planned/v0_30_0/m-module-less-run-fail-loud.md)) · m-match-xcheck-error-quality (0.5d) ·
+  m-dx-split-argument-warning (1d) · m-dx-json-bool-coercion (0.5d)
+- **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
+  (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
+  m-dx-expected-fail-fixes (1–2d)
+- **Prompt teaching** (batchable, ~0.5d each): m-prompt-option-none-idiom · m-prompt-single-file-module ·
+  m-prompt-split-list-operations · m-prompt-log-file-analyzer-string-ops
+- **DX tooling** (Mark: both in): m-ailang-fmt (canonical AST-reprinting formatter, multi-day) ·
+  M-TOOLING-DETERMINISTIC (normalize/suggest-imports/apply, 3–4d)
+- **Prompt-diet** (GATED — unblocks once the diagnostics above land + the curve authorizes):
+  m-eval-slim-prompt-self-discovery (R3.1 pass-rate-per-token curve, 2d) → prompt-deletion pass R1.2
+
+### Clause 4 — orchestration flagship (Mark: full surface in)
+- **Effect sprints** (decomposed): m-effect-replay-contracts (2/4, 3d) · m-effect-clock-net-fs-modes
+  (3/4, 3d) · m-effect-scope-params (4/4, 2.5d — release-gate re-score candidate)
+- **Flagship + surface**: m-v1-orchestration-flagship (verified AI-pipeline example + orchestration
+  benchmarks into rotation + README/site lead, 2–3d; m-contracts-as-code-vertical folds in as the
+  worked example) · m-serve-api-live-tool-registry (hot MCP tool registry, 3–4d) ·
+  m-agent-step-cancellation (1.5d) · m-ai-reasoning-effort (~0.5d)
+
+### Clause 5 — cost credibility
+- m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
+
+### Clause 2 — soundness (near-done; no new holes found in triage)
+- m-check-strict-fallbacks (1d) · m-bytecode-vm-parity-bugs (bytecode-VM vs eval output divergences, 1–2d)
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
 - **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md), 2026-07-11) — quota-aware probe-based model selection + cross-provider fallback (OpenAI Codex / Gemini), replacing the hardcoded Monday override; Phase 3 restores evaluation independence cross-family. Try Phase 1 next week (after Fable quota resets). Requested by Mark.
 
-**Not gating** (the other ~80 open docs): ship on the normal v0.2x road or post-v1 per the
+**Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
 clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
 v1_1_0 on 2026-07-11); v0_29_0 docs that appear above gate v1 via the queue, not the folder.
 
