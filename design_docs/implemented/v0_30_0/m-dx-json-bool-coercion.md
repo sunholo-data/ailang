@@ -1,13 +1,36 @@
 # M-DX-JSON-BOOL: JSON Boolean Coercion and Firestore Encoding Consistency
 
-**Status**: Planned
-**Target**: v0.9.5
+**Status**: Implemented (in-repo half — v0.30.0, mission iteration 16); Phase 1 PARKED (out-of-repo)
+**Target**: v0.9.5 → landed v0.30.0
 **Priority**: P3 (DX — package-level bug with std/json implications)
 **Estimated**: 0.5 days
 **Dependencies**: M-DX-XPKG-RESOLVE (the asString cross-package bug blocks testing this fix)
 **Milestone ID**: M-DX-JSON-BOOL
 **Created**: 2026-03-25
 **Source**: DocParse agent message `eafa7e06` (boolVal encoding inconsistency)
+
+---
+
+## Outcome (mission iteration 16, 2026-07-12)
+
+Reality-check against the repo split this doc into an in-repo half and an out-of-repo half:
+
+- **`std/json` already had the correct primitives** — `jb(b)` (JBool) and `asBool` (JBool → Option)
+  exist and round-trip correctly. `asBool(jb(true)) == Some(true)` was verified live. So the core
+  encoder/decoder are not broken; the bug is *use of the wrong constructor* at the package layer.
+- **Phase 2 LANDED**: added **`asBoolLoose(j) -> Option[bool]`** (accepts `JBool` OR
+  `JString "true"/"false"`, else `None` — structured failure, never a silent default). This is the
+  "system boundary" resilience helper (A12). Shipped with runnable example
+  `examples/runnable/json_bool_encoding.ail` and Go regression test
+  `internal/repl/json_asboolloose_test.go` (7 cases incl. the Firestore `booleanValue` round-trip;
+  non-vacuity proven — the same test fails on stringified booleans if `asBool` is substituted).
+- **Phase 3 (teaching prompt)** folded into the example's header comment (`jb` vs `js` footgun)
+  rather than editing the embedded prompt — prompt-budget is GATED in the v1 mission (prompt-diet).
+- **Phase 1 (the actual data-integrity bug) PARKED**: `sunholo/firestore/fields.ail` lives in the
+  **separate `ailang-packages` repo**, absent from this checkout, and the doc's own dependency
+  M-DX-XPKG-RESOLVE gates testing it. The one-line encoder fix (`js("true")` → `jb(b)`) plus the
+  decoder swap to `asBoolLoose` is a coordinator/human task in that repo — see the mission log
+  iteration 16 and GH issue #329. `asBoolLoose` now exists so that decoder fix is a drop-in.
 
 ---
 

@@ -122,6 +122,23 @@ export func asBool(j: Json) -> Option[bool] {
   }
 }
 
+-- Extract boolean value, tolerating a stringified boolean.
+-- System-boundary helper (A12): some external APIs normalise a boolean
+-- written as JSON true/false but return "true"/"false" as a JSON string
+-- (e.g. Firestore's booleanValue). Accepts JBool(b) OR JString "true"/"false";
+-- anything else is None. Prefer asBool for values you control — reach for
+-- asBoolLoose only at the boundary with an API that may hand back either shape.
+export func asBoolLoose(j: Json) -> Option[bool] {
+  match j {
+    JBool(b) => Some(b),
+    JString(s) =>
+      if s == "true" then Some(true)
+      else if s == "false" then Some(false)
+      else None,
+    _ => None
+  }
+}
+
 -- Extract array value
 export func asArray(j: Json) -> Option[List[Json]] {
   match j {
