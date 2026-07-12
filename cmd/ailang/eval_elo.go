@@ -23,12 +23,14 @@ import (
 
 // eloModelRow is one row of the model leaderboard (per mode).
 type eloModelRow struct {
-	Model      string   `json:"model"`
-	AilangELO  *float64 `json:"ailang_elo"`
-	PythonELO  *float64 `json:"python_elo"`
-	Delta      *float64 `json:"delta_ailang_minus_python"` // set only when both langs present
-	AilangBand string   `json:"ailang_band,omitempty"`
-	PythonBand string   `json:"python_band,omitempty"`
+	Model       string   `json:"model"`
+	AilangELO   *float64 `json:"ailang_elo"`
+	PythonELO   *float64 `json:"python_elo"`
+	Delta       *float64 `json:"delta_ailang_minus_python"` // set only when both langs present
+	AilangBand  string   `json:"ailang_band,omitempty"`
+	PythonBand  string   `json:"python_band,omitempty"`
+	Benchmarks  int      `json:"benchmarks"`  // distinct AILANG benchmarks this model ran (coverage)
+	Provisional bool     `json:"provisional"` // AILANG coverage below threshold — ELO not comparable
 }
 
 // eloBenchRow is one row of the benchmark difficulty table (per mode).
@@ -46,16 +48,18 @@ type eloBenchRow struct {
 
 // eloModeReport is the per-mode payload emitted by --json.
 type eloModeReport struct {
-	Mode       string        `json:"mode"`
-	Models     []eloModelRow `json:"models"`
-	Benchmarks []eloBenchRow `json:"benchmarks"`
+	Mode        string        `json:"mode"`
+	Models      []eloModelRow `json:"models"`
+	Benchmarks  []eloBenchRow `json:"benchmarks"`
+	MaxCoverage int           `json:"max_coverage"` // most AILANG benchmarks any model ran — gate/annotate the rest
 }
 
 // langFit holds the per-language fit outputs.
 type langFit struct {
-	modelELO map[string]float64
-	benchELO map[string]float64
-	pass     map[string][2]int // benchmark -> [passed, total]
+	modelELO     map[string]float64
+	benchELO     map[string]float64
+	pass         map[string][2]int          // benchmark -> [passed, total]
+	modelBenches map[string]map[string]bool // model -> distinct benchmark ids (coverage)
 }
 
 // runEvalELO implements `ailang eval-elo <results_dir> [--json]`.
@@ -145,6 +149,18 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 	for m := range python.modelELO {
 		modelSet[m] = true
 	}
+	// Coverage gating (M-EVAL-VALIDITY-DISCIPLINE): a model's ELO is only comparable
+	// to another's if measured on a similar benchmark set. Compute each model's AILANG
+	// coverage (the ranking axis) and flag those below 50% of the max as provisional,
+	// so a sparse ELO (e.g. a local model that ran 6 benchmarks) isn't misread as a
+	// headline next to a 55-benchmark cloud model.
+	maxCov := 0
+	for _, bs := range ailang.modelBenches {
+		if len(bs) > maxCov {
+			maxCov = len(bs)
+		}
+	}
+	covThreshold := maxCov / 2
 	var models []eloModelRow
 	for m := range modelSet {
 		row := eloModelRow{Model: m}
@@ -159,6 +175,8 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 		if row.AilangELO != nil && row.PythonELO != nil {
 			row.Delta = ptr(round1(*row.AilangELO - *row.PythonELO))
 		}
+		row.Benchmarks = len(ailang.modelBenches[m])
+		row.Provisional = maxCov > 0 && row.Benchmarks < covThreshold
 		models = append(models, row)
 	}
 	sortByELODesc(models, func(r eloModelRow) *float64 { return r.AilangELO }, func(r eloModelRow) string { return r.Model })
@@ -194,13 +212,14 @@ func buildELOModeReport(mode string, results []*eval_analysis.BenchmarkResult) *
 	}
 	sortByELODesc(benches, func(r eloBenchRow) *float64 { return r.AilangELO }, func(r eloBenchRow) string { return r.Benchmark })
 
-	return &eloModeReport{Mode: mode, Models: models, Benchmarks: benches}
+	return &eloModeReport{Mode: mode, Models: models, Benchmarks: benches, MaxCoverage: maxCov}
 }
 
 // fitLang runs the deterministic ELO fit over only the results for one language.
 func fitLang(results []*eval_analysis.BenchmarkResult, lang string) langFit {
 	trials := make([]eval_harness.Trial, 0, len(results))
 	pass := map[string][2]int{}
+	modelBenches := map[string]map[string]bool{}
 	for _, r := range results {
 		if r.Lang != lang {
 			continue
@@ -213,9 +232,13 @@ func fitLang(results []*eval_analysis.BenchmarkResult, lang string) langFit {
 			v[0]++
 		}
 		pass[r.ID] = v
+		if modelBenches[r.Model] == nil {
+			modelBenches[r.Model] = map[string]bool{}
+		}
+		modelBenches[r.Model][r.ID] = true
 	}
 	modelELO, benchELO := eval_harness.FitFromTrials(trials)
-	return langFit{modelELO: modelELO, benchELO: benchELO, pass: pass}
+	return langFit{modelELO: modelELO, benchELO: benchELO, pass: pass, modelBenches: modelBenches}
 }
 
 // eloFlag computes a promote/demote heuristic for a benchmark.
@@ -265,12 +288,16 @@ func printELOReports(resultsDir string, reports []eloModeReport) {
 	for _, rep := range reports {
 		fmt.Printf("\n=== %s mode ===\n", rep.Mode)
 
-		fmt.Println("\nModel leaderboard (sorted by AILANG-ELO):")
-		fmt.Printf("  %-28s %11s %11s %9s\n", "Model", "AILANG-ELO", "Python-ELO", "Δ(A−P)")
-		fmt.Println("  " + repeat("-", 62))
+		fmt.Printf("\nModel leaderboard (sorted by AILANG-ELO; max AILANG coverage = %d benchmarks):\n", rep.MaxCoverage)
+		fmt.Printf("  %-28s %11s %11s %9s %5s  %s\n", "Model", "AILANG-ELO", "Python-ELO", "Δ(A−P)", "Cov", "")
+		fmt.Println("  " + repeat("-", 78))
 		for _, m := range rep.Models {
-			fmt.Printf("  %-28s %11s %11s %9s\n",
-				truncStr(m.Model, 28), eloStr(m.AilangELO), eloStr(m.PythonELO), deltaStr(m.Delta))
+			note := ""
+			if m.Provisional {
+				note = "⚠ provisional (low coverage — ELO not comparable)"
+			}
+			fmt.Printf("  %-28s %11s %11s %9s %5d  %s\n",
+				truncStr(m.Model, 28), eloStr(m.AilangELO), eloStr(m.PythonELO), deltaStr(m.Delta), m.Benchmarks, note)
 		}
 
 		fmt.Println("\nBenchmark difficulty (sorted by AILANG-ELO):")
