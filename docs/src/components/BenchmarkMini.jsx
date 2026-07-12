@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import { TrendingUp, CheckCircle, Zap, Bot } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Link from '@docusaurus/Link';
@@ -8,7 +9,7 @@ export default function BenchmarkMini() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         setData(data);

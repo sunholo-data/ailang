@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 
 // ELO leaderboard + difficulty-banded benchmark view (M-EVAL-DASHBOARD-REDESIGN).
 // Reads the per-mode `ratings` block emitted into latest.json by eval-report:
@@ -72,7 +73,7 @@ export default function EloLeaderboard() {
   const [lang, setLang] = useState('combined');
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then((r) => r.json())
       .then(setData)
       .catch((e) => setError(e.message));

@@ -5,13 +5,14 @@
 // ModelDeltaTrend, and SuccessTrend so all three tell the same on-device story.
 
 import { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 
 // Runtime fetch of the local rig history. Returns null while loading, then an array
 // ([] if missing/malformed — a no-op merge).
 export function useOSHistory() {
   const [os, setOS] = useState(null);
   useEffect(() => {
-    fetch('/benchmarks/os/history.json')
+    benchmarkFetch('os/history.json')
       .then((r) => (r.ok ? r.json() : []))
       .then((h) => setOS(Array.isArray(h) ? h : []))
       .catch(() => setOS([]));

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import styles from './styles.module.css';
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
@@ -465,8 +466,8 @@ export default function BenchmarkExplorer() {
     // Baseline (cloud, release/nightly) + live OS/Local rotation, unioned.
     // The OS file is optional: if it's missing, fall back to baseline only.
     Promise.all([
-      fetch('/benchmarks/latest.json').then(r => r.json()),
-      fetch('/benchmarks/os/latest.json').then(r => (r.ok ? r.json() : null)).catch(() => null),
+      benchmarkFetch('latest.json').then(r => r.json()),
+      benchmarkFetch('os/latest.json').then(r => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([base, os]) => setData(mergeOSData(base, os)))
       .catch(e => setError(e.message));

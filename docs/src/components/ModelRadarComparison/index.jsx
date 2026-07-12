@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import styles from './styles.module.css';
 
@@ -39,7 +40,7 @@ export default function ModelRadarComparison() {
   const [error, setError] = useState(null);
 
   React.useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then(res => res.json())
       .then(json => setData(json))
       .catch(err => setError(err.message));

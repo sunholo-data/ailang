@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 
 // OS / Local-model leaderboard (M-EVAL-BENCHMARK-UI-CONSOLIDATION phase C).
 // Renders cross-language × harness pass rates for open/locally-hosted models from
@@ -34,7 +35,7 @@ export default function OSLocalLeaderboard() {
   const [data, setData] = useState(undefined); // undefined=loading, null=absent
 
   useEffect(() => {
-    fetch('/benchmarks/os/latest.json')
+    benchmarkFetch('os/latest.json')
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => setData(null));

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 
 // M-EVAL-VALIDITY-DISCIPLINE (W3): the like-for-like agent-uplift view.
 // Reads ratings.uplift from /benchmarks/latest.json — standard→agent pass-rate
@@ -34,7 +35,7 @@ export default function AgentUpliftTable() {
     // Cache-bust: latest.json ships with max-age=600, so a copy cached just before
     // an eval publish shows stale (or empty) uplift for ~10 min. The uplift block is
     // the newest data on the page, so force a fresh pull instead of the 10-min cache.
-    fetch(`/benchmarks/latest.json?v=${Date.now()}`, { cache: 'no-store' })
+    benchmarkFetch('latest.json', { cacheBust: true, cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : {}))
       .then((d) => setRows(Array.isArray(d && d.ratings && d.ratings.uplift) ? d.ratings.uplift : []))
       .catch(() => setRows([]));

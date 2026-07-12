@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
 import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
 import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
@@ -21,7 +22,7 @@ export default function ValueDashboard() {
   const [mode, setMode] = useState('standard');
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load benchmark data');
         return res.json();

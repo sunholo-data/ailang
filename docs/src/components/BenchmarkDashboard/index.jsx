@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
 import ModelComparisonTable from './ModelComparisonTable';
@@ -133,7 +134,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
 
   useEffect(() => {
     // Fetch benchmark data
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load benchmark data');
         return res.json();

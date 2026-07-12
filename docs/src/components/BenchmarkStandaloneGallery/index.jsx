@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import BenchmarkGallery from '../BenchmarkDashboard/BenchmarkGallery';
 
 export default function BenchmarkStandaloneGallery() {
@@ -6,7 +7,7 @@ export default function BenchmarkStandaloneGallery() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    benchmarkFetch('latest.json')
       .then(r => r.json())
       .then(setData)
       .catch(e => setError(e.message));
