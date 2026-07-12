@@ -1464,3 +1464,80 @@ causal re-run; scope-params release-gate re-score; frontier-failure validation o
 issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row +
 m-record-update-local-resolution doc-status re-check; the two dev-health flakies
 (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
+
+## 19 — 2026-07-13 — Iteration 18: m-dx-record-cons-pattern + m-dx-tapp-trecord-unification BOTH GHOSTS — verified-closed + regression-guarded
+
+**Picked**: the clause-3 **VERIFY-then-route** pair (`m-dx-record-cons-pattern`,
+`m-dx-tapp-trecord-unification`) — iteration-17's **Next** named it as the recommended next step
+("run the doc repro FIRST — may be ghosts, a ghost is a near-zero-cost close"). Both are existing
+docs → started at reality-check, not design-doc-creator. Bookkeeping-double allowed under Standing
+rule 1 (both are the one VERIFY-then-route batch).
+
+**Reality check**: Gate-1 origin-sync clean (local dev == origin/dev @ `8f505e633`); dev CI green
+per-workflow (CI/Build/Docs all success @ 8f505e633). Inbox: one `eval-suite` partial (19/27, 70.4%)
+— routine status, not a regression/directive, ack'd, did NOT outrank the queue. Rebuilt both binaries
+(`v0.29.2-106-g8f505e633`; `-dirty` only from a sibling's 5 pre-existing uncommitted doc/skill edits
+in the main tree — NOT touched, Critical Principle 0). Ran each doc's repro LIVE at HEAD:
+- **m-dx-record-cons-pattern = GHOST.** `{text: s, bold: b} :: rest => s` type-checks (`✓ No errors`);
+  canonical `::({…}, rest)` and baseline `first :: rest` also clean. (First repro attempt FALSE-failed
+  because I wrote match arms with a leading `|` — corrected against a real example: AILANG arms have
+  NO `|` prefix. The doc's `PAT_INVALID_CONS` bug itself does not reproduce.)
+- **m-dx-tapp-trecord-unification = GHOST.** `makeTable(rows: [[TableCell]]) -> Block` type-checks in
+  both the modern `func` form AND the doc's original `let makeTable: [[TableCell]] -> Block = \rows. …`
+  lambda-binding form (`✓ No errors`). The doc's cited error `cannot unify type application with
+  *types.TRecord` (`%T`) was reworded to `.String()` in `5cf6287bf`; the remaining fallback
+  (`unification_types.go:250`) fires only for genuinely-unrelated type apps — `unifyTypeApps`
+  decomposes `TApp~TApp` and recursively unifies element types, alias-expanding the record alias.
+
+**Shipped** (durable close, NOT just markdown — the record-cons doc flagged its OWN gap: *"Missing:
+Cons with record patterns (no test)"*). One worktree off origin/dev, one commit:
+- **`adde9e9d0`** (squash of `7e1881586`) — parser regression test
+  `internal/parser/list_cons_pattern_test.go::TestListConsPatternWithRecord` (table: infix + canonical);
+  two runnable top-level examples `examples/record_cons_pattern.ail` (→ `hello`) and
+  `examples/record_list_extraction.ail` (→ `headers: 2`) — both **CI-gated** by
+  `verify-examples-toplevel`; both design docs → `implemented/v0_30_0/` with resolution notes;
+  CHANGELOG entry.
+- **No inner-loop skills invoked** (no design-doc-creator/planner/executor/evaluator): Gate 2's
+  "already done → bookkeeping" path. The deliverable is verification + a CI-enforced regression guard,
+  not a feature — the full sprint machinery would be overkill for a 4-file additive change (2 examples,
+  1 test func, 2 doc moves + CHANGELOG). Zero Go production-code change.
+- **Local gates green in-worktree**: `internal/parser` package tests; `verify-examples-toplevel`
+  (36 type-checked, 33 ran clean, incl. both new examples); `gofmt`/`go vet` clean.
+
+**Routing evidence**: model=controller(opus) task-class=verify+bookkeeping. NO plan/execute/evaluate
+roles used this iteration — it was a reality-check that resolved to two ghosts, so the routing table's
+sprint roles didn't apply. No routing-policy change (this is 1 evidence row, not the ≥3 required, and
+it's a null case — no sprint executed).
+
+**Ruled out**:
+- "m-dx-record-cons-pattern is an open parser bug (doc status: Planned)" — REFUTED live: record head
+  in `::` type-checks in all three forms at HEAD. Ghost.
+- "m-dx-tapp-trecord-unification is an open High-pri type-inference bug (doc status: Planned)" —
+  REFUTED live: `[[TableCell]]` extraction type-checks in both `func` and `let`-lambda forms. Ghost.
+- "The `cannot unify type application with *types.TRecord` error still guards this case" — REFUTED:
+  the `%T` form was reworded (`5cf6287bf`); the surviving fallback is for unrelated type apps only.
+- (Self-correction, not a code claim) "match arms take a leading `|`" — REFUTED by
+  `examples/first_non_repeat.ail`: AILANG arms are `pat => expr,` with NO `|`. My first repro
+  false-failed on this; re-ran correctly before concluding.
+
+**Gate 3b**: PR #358 squash auto-merge on green required checks; bounded CI poll in two ~7-8 min
+chunks (30-min hard deadline, never open-ended) observed all required checks pass → merge `adde9e9d0`;
+origin/dev advanced `8f505e633..adde9e9d0`. Post-merge dev CI: the `CI` job's **Install dependencies**
+step hit a transient `proxy.golang.org` flake (`golang.org/x/tools@v0.47.0` "stream ID 1;
+INTERNAL_ERROR" during `make deps` — NOT code; no dependency change in this PR, parent `8f505e633`
+was green). Fix-forward = one `gh run rerun --failed` → **all 3 workflows green** on `adde9e9d0`
+(CI/Build/Docs). The PR's required checks had already passed pre-merge on identical content, so this
+was an environmental red on the post-merge re-run only, not a real regression.
+
+**Next**: Iteration 19 — clause-3 continues. VERIFY-then-route backlog is now EXHAUSTED (both ghosts
+closed). All remaining clause-3 starters are heavier NEW-DOC footgun fixes needing design-doc-creator
+first (Conflict Surface mandatory + the error-code/mechanism verification gates): **m-dx-match-hof**
+(R4a, 2–3d) · **m-poly-arith-lambda** (R4b, 2–3d) · **m-arity-style-diagnostic** (R4c, 1–2d) ·
+m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d). Recommend R4c (arity-style, cheapest)
+or R4a next. These are full inner-loop sprints (design→plan→execute→evaluate), NOT bookkeeping.
+PARKED for human/coordinator (cumulative, unchanged): M-DX-JSON-BOOL Phase-1 firestore-package fix in
+`ailang-packages`; tier-assignment ratification (release gate); feedback-gate production ops; haiku
+causal re-run; scope-params release-gate re-score; frontier-failure validation of the 8 + 4 sketches;
+issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row +
+m-record-update-local-resolution doc-status re-check; the two dev-health flakies
+(`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
