@@ -374,8 +374,15 @@ invokes.
 
 ## Guardrails (the loop may not…)
 
-- **No releases.** release-manager stays human-triggered; the loop stops at "ready-to-release"
-  and reports.
+- **No releases** by the loop — but a rolling release cadence (Mark, 2026-07-12): the loop lands
+  to `dev` continuously and never cuts a release; **Mark snapshots interim releases (v0.30.x,
+  v0.31.x…) as needed**, each carrying whatever's accumulated. **v1.0.0 is a MILESTONE declared
+  when all five bar clauses are satisfied — not a single big-bang release.** Implications: (1) dev
+  must stay release-ready at EVERY commit — the "Dev stays GREEN" guardrail already enforces this
+  and it is now load-bearing (any commit may become a release point); (2) each iteration's #329
+  report should note when it CLOSES a bar clause (e.g. "clause 3 footgun burn-down: N of M
+  landed"), so Mark can watch the bar fill and time the v1.0 call; (3) a version bump mid-mission
+  is expected, not a stop signal — the loop already handled v0.29.0/.1/.2 landing between iterations.
 - **No pushes without account check** (`gh auth status` → `sunholo-voight-kampff`).
 - **No work on a dirty main worktree** — sprints run in coordinator-managed worktrees; the
   controller session itself is read-mostly + doc edits.
