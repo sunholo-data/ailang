@@ -1,6 +1,6 @@
 # m-stdlib-url-parse — RFC-3986 URL Parsing via Go net/url
 
-**Status**: Planned
+**Status**: Implemented (2026-07-12, iteration 13, PR #347 → `a8628a40c`)
 **Target**: v0.30.0
 **Priority**: P1 (v1.0 bar clause 4 — ORCHESTRATION FLAGSHIP, strategy R7)
 **Estimated**: ~1 day (0.5d Go builtins+tests, 0.25d std/net additions+examples, 0.25d docs+integration)
