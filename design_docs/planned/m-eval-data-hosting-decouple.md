@@ -52,6 +52,8 @@ The data does not need to be in the build: **every consumer already fetches it a
 - **W4** — `post-release`: keep a release-time git/bucket snapshot for provenance; stop routine data commits. *(pending)*
 - **W5** — Remove the data-churn commits from the rotation once a full rig cycle proves the runtime path; document the new flow in [database-architecture](../../docs/docs/guides/database-architecture.md). *(pending — one rig cycle away)*
 
+**Custom-domain adoption (deferred, 2026-07-12).** `dashboard.ailang.sunholo.com` exists but maps to the **PROD** dashboard (`ailang-dashboard` in project `ailang-multivac`), which lacks the `/benchmarks/` route (dev-only) and read access to the dev-project bucket. Decision: keep `DATA_BASE` = the dev run.app for now (decouple is active there immediately). To adopt the clean domain later: (1) ship the route to prod on a normal release, (2) grant `ailang-dashboard@ailang-multivac.iam.gserviceaccount.com` `objectViewer` on `gs://ailang-multivac-dev-benchmarks` (cross-project), (3) flip the one `DATA_BASE` constant in `benchmarkFetch.js`.
+
 ## Acceptance criteria
 1. A rig rotation cycle updates the live dashboard within ~1 min **with no site rebuild and no git commit**.
 2. A code-only site change still deploys via the normal GitHub Pages path, unaffected.
