@@ -15,6 +15,7 @@ const PALETTES = {
   openai:    ['#10A37F', '#14B8A6', '#5EEAD4', '#047857'],
   google:    ['#4285F4', '#8B5CF6', '#A78BFA', '#1E40AF'],
   other:     ['#6B7280', '#9CA3AF', '#4B5563', '#D1D5DB'],
+  local:     ['#0891B2', '#06B6D4', '#22D3EE', '#0E7490'], // on-device rig (cyan)
 };
 
 export function getProvider(modelName) {
@@ -42,9 +43,11 @@ export function getProvider(modelName) {
 // alphabetically inside each group so the same model always gets the same
 // shade across renders (no flicker when toggling chips).
 export function assignModelColors(models) {
-  const byProvider = { anthropic: [], openai: [], google: [], other: [] };
+  const byProvider = { anthropic: [], openai: [], google: [], other: [], local: [] };
   Array.from(models).forEach((m) => {
-    byProvider[getProvider(m)].push(m);
+    // Defensive: an unknown provider must never crash the chart (this exact bug —
+    // a 'local' provider with no bucket here — took down the benchmarks page).
+    (byProvider[getProvider(m)] || byProvider.other).push(m);
   });
   Object.values(byProvider).forEach((arr) => arr.sort((a, b) => a.localeCompare(b)));
 
