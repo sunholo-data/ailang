@@ -1134,3 +1134,82 @@ PARKED for human (cumulative, unchanged): tier-assignment ratification (release 
 production ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure validation
 of the 8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward:
 %-row + m-record-update-local-resolution doc-status re-check; the two dev-health flakies above.
+
+---
+
+## 15 — 2026-07-12 — Iteration 14: m-module-less-run-fail-loud BUILT + LANDED (MOD014) — module-less files now FAIL LOUDLY; clause-3 footgun burn-down opened
+
+**Picked**: queue #13 `m-module-less-run-fail-loud` (top `[NEXT]` of the clause-3 accessibility
+cluster; iteration-13's **Next** named it as the cheapest DOC-READY starter — MOD011 hint, 0.5d,
+doc at `planned/v0_30_0/`, GPU none). A silent-success footgun (violates CP2 NO-SILENT-FALLBACKS).
+
+**Reality check**: Gate-1 origin-sync clean (local dev == origin/dev == f72313e33 at start; all 3
+dev CI workflows green — no red outranking the queue). Item is REAL and UNBUILT: only the design
+doc was committed (`a14789f20`, "design(dx)", 135 lines + queue line — no implementation).
+`validateModulePath` still had the `Module==nil { return nil }` early-accept (pipeline_module.go:665).
+Reproduced the bug live at HEAD after rebuilding both binaries: module-less file `ailang run` prints
+"✓ Running", exit 0, `SHOULD_PRINT` never prints; `ailang check` → "✓ No errors found!". **Two
+Conflict-Surface defects found in the doc and corrected before/during the sprint** (see Ruled out).
+
+**Shipped**: full build loop headless in an origin/dev worktree → **PR #349 → merge `c2ffd1b5c`**,
+design doc + sprint plan → `implemented/v0_30_0/`.
+- Opus sprint-planner → 2-milestone plan + JSON (M1 MOD014 diagnostic; M2 block_demo remediation +
+  docs + doc-move), carrying the MOD011→MOD014 correction.
+- Opus executor (worktree, commits `138eebef2` M1 / `42b1cd601` M2): replaced the early-accept with
+  a loud **MOD014** error gated on `len(Funcs) > 0` (fires for both `run` AND `check` at the shared
+  chokepoint — systemic); +120-line `internal/pipeline/module_less_test.go` (5 tests, 2 fail-before);
+  footgun fixture in `internal/diag/` (count 17→18); `block_demo.ail` given `module
+  examples/runnable/block_demo`; CHANGELOG + LIMITATIONS resolved-entries; MOD011→MOD014 across the
+  design doc + `git mv` to implemented/. **No golden regenerated** (all golden tests passed).
+- Controller independent spot-check (rebuilt worktree binary): module-less run/check → MOD014 exit 1;
+  `1+1`→`2` exit 0; proper module → prints, exit 0. All four behaviors confirmed.
+- Independent Opus evaluator (built a BASE origin/dev binary in a throwaway worktree to prove
+  non-vacuity + pre-existing-failure claims): **round-1 PASS 100/100**. Verified the guard=Funcs-only
+  decision in code (`parser_file.go:72-78`), proved the 2 new tests FAIL on base / PASS on fix,
+  confirmed the 5 `verify-examples` failures + the `PipedStdoutFlushesPerLine` flaky are pre-existing
+  and unrelated (identical on base binary). Recommended merge.
+- Gate 3b: PR #349 auto-merged on green required checks; **post-merge CI on `c2ffd1b5c` = success**
+  across all 3 workflows (CI, Build and Release, Deploy Docs). Bounded 30-min poll exited on green at
+  ~17 min. Queue #13 → `[LANDED]`.
+
+**Routing evidence**: model=opus task-class=plan (2-milestone, correct scope, folded the reality-check
+correction) rounds=1 corrections=0. model=opus task-class=execute round1-quality=high (found and
+corrected a SECOND doc defect mid-sprint — the guard predicate — with a code-verified rationale;
+faithful otherwise) rounds=1 corrections=0. model=opus task-class=evaluate round1-score=100 rounds=1
+(FIFTH-plus consecutive round-1 pass). Evaluator-independence caveat holds (Opus judges Opus) —
+mitigated HARD this run: the evaluator built a base-origin/dev binary and independently reproduced the
+original bug, the test non-vacuity (fail-on-base), and every pre-existing-failure claim; nothing rested
+on the executor's report.
+
+**Ruled out**:
+- "The design doc's proposed error code MOD011 is available" — REFUTED at Gate 2: MOD011 is the LIVE
+  module-path-collision diagnostic (since v0.10.9, `pipeline_module.go:566`). Allocated = MOD001–013
+  (only MOD008 a free gap). Reassigned to **MOD014** (next fresh). One `grep` would have caught it.
+- "Bare-expression eval never reaches `validateModulePath` (routes to runSingle), so a 3-way
+  `Funcs||Statements||Decls` guard is safe" (the doc's Conflict-Surface premise) — REFUTED by the
+  executor in code: a bare-expr FILE does route through the module pipeline and reach
+  `validateModulePath`, and the parser mirrors the expression into `Statements`+`Decls` — so the
+  doc's OR would have broken `ailang run 1+1`. Correct guard = `len(Funcs) > 0` ONLY. The observable
+  (`1+1`→`2`) was right; the doc's stated MECHANISM was wrong.
+- "The 5 verify-examples failures / the PipedStdout flaky are this sprint's regressions" — REFUTED:
+  all identical on a base origin/dev binary; blast radius stays exactly 1 (block_demo). Statement-only
+  module-less files (no funcs) still exit 0 by design — a degenerate, documented, non-footgun gap.
+
+**Retro lane**: **skill-fix** — `.claude/skills/design-doc-creator/SKILL.md`: extended the existing
+"Verify Every Language Claim (HARD GATE)" section with two more must-verify claim classes + a case
+study. Justified by TWO same-gap frictions THIS iteration (both = the doc's Verification Log marked a
+technical claim "Confirmed" that a one-command code-check refuted): (F1) the MOD011 error-code
+collision, (F2) the bare-expr routing-mechanism claim. New requirements: (1) grep any newly-proposed
+error/diagnostic code for allocation before writing it into a doc; (2) verify Conflict-Surface
+routing/mechanism claims by reading the code path, not inferring from observable output.
+
+**Next**: Iteration 15 — continue the clause-3 accessibility cluster. Remaining DOC-READY/small
+diagnostics: m-match-xcheck-error-quality (0.5d) · m-dx-split-argument-warning (1d) ·
+m-dx-json-bool-coercion (0.5d). The NEW-DOC footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda
+R4b, m-arity-style-diagnostic R4c) each need design-doc-creator first (Conflict Surface mandatory —
+and now the error-code + mechanism verification gates). PARKED for human (cumulative, unchanged):
+tier-assignment ratification (release gate); feedback-gate production ops; haiku causal re-run;
+scope-params release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue #341
+triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution
+doc-status re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example
+failures — candidate dev-health issue, sibling of #341).
