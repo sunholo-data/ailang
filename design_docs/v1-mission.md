@@ -49,6 +49,24 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 17: m-dx-split-argument-warning BUILT + LANDED (clause 3 — compile-time non-blocking warning for the reversed-`split` footgun)
+
+Full build loop headless, round-1 clean. Reality-check verified the footgun live (`split("/", name)` →
+`["/"]` silently) and caught the doc's stale premise: there is NO generic "warning infrastructure" — the
+only one was exhaustiveness-specific (`[]*elaborate.ExhaustivenessWarning`). **Conflict Surface** → M1
+generalized it to an `elaborate.Warning { String() string }` interface (render sites call `.String()`,
+untouched). Opus plan → Opus executor (worktree) → **independent Opus evaluator PASS 97/100 round 1**,
+no blockers, non-vacuity reproduced TWO ways (arg0/arg1 flip breaks trigger tests; a user-`Var` match
+branch breaks the module-guard test — proving `std/string.split` is genuinely distinguished from a
+user-defined `split`). Extensible `swapTraps` table (only split armed); detection runs over final
+module Core so it fires on cold AND cache-hit compiles, surfaced by both `run` and `check` (bonus:
+`ailang check` previously dropped ALL pipeline warnings — now fixed). Heuristic: arg0 a 1–3-rune string
+literal + arg1 not a literal → warn; non-blocking (program still runs, exit 0). PR #356 →
+squash-merge `8339b6421`, required checks green (auto-merge); post-merge dev CI green. Runnable example
+`split_argument_order.ail` (Phase-2 teaching in header — embedded prompt NOT edited, prompt-diet gated).
+Design → implemented/v0_30_0. Retro: no skill/process edit. Next: NEW-DOC footgun fixes (m-dx-match-hof
+R4a) via design-doc-creator, or VERIFY-then-route m-dx-record-cons-pattern. Detail: log entry 18.
+
 ## STATUS 2026-07-12 — ITERATION 16: m-dx-json-bool-coercion BUILT + LANDED (in-repo half, clause 3 — `std/json.asBoolLoose`; Phase-1 firestore-package fix parked out-of-repo)
 
 Reality-check split the item: `std/json` already round-trips booleans (`jb`+`asBool` verified live), so
@@ -583,13 +601,16 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     Foreign-ctor errors now enumerate transitively-known constructors (`None, Some` + did-you-mean).
     SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
-P0/unblockers first, then cheapest impact-per-day → cheapest remaining DOC-READY/small diagnostics:
-m-dx-split-argument-warning (1d); the NEW-DOC footgun fixes
-(m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-creator first (Conflict Surface
-mandatory — incl. the error-code + mechanism verification gates). *(m-match-xcheck-error-quality
-LANDED iter 15 → implemented/v0_30_0; m-dx-json-bool-coercion in-repo half LANDED iter 16 →
-implemented/v0_30_0 as `std/json.asBoolLoose` — its Phase-1 firestore-package fix is PARKED
-out-of-repo in `ailang-packages`.)*
+P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics are now EXHAUSTED
+(module-less/xcheck/json-bool/split-arg all landed iters 14–17). Remaining clause-3 starters:
+(a) **VERIFY-then-route** — m-dx-record-cons-pattern · m-dx-tapp-trecord-unification: run the doc repro
+FIRST (may be ghosts, cheap if so); (b) the **NEW-DOC footgun fixes** (m-dx-match-hof R4a,
+m-poly-arith-lambda R4b, m-arity-style-diagnostic R4c) each need design-doc-creator first (Conflict
+Surface mandatory — incl. the error-code + mechanism verification gates). Recommend (a) next: a ghost
+is a near-zero-cost close and clears the VERIFY-then-route backlog before the heavier NEW-DOC work.
+*(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
+[`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
+iter 17 — all → implemented/v0_30_0.)*
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
@@ -607,7 +628,8 @@ triage evidence = log entry 10.)*
   implemented/v0_30_0]** · ~~m-match-xcheck-error-quality~~ **[LANDED iter 15 → implemented/v0_30_0]** ·
   ~~m-dx-json-bool-coercion~~ **[in-repo half LANDED iter 16 → implemented/v0_30_0 (`std/json.asBoolLoose`);
   Phase-1 firestore-package fix PARKED out-of-repo in `ailang-packages`]** ·
-  m-dx-split-argument-warning (1d)
+  ~~m-dx-split-argument-warning (1d)~~ **[LANDED iter 17 → implemented/v0_30_0; compile-time
+  non-blocking reversed-`split` warning, extensible `swapTraps` table, PR #356 → `8339b6421`]**
 - **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
   (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
   m-dx-expected-fail-fixes (1–2d)

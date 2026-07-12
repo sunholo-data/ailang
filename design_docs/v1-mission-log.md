@@ -1370,3 +1370,97 @@ ratification (release gate); feedback-gate production ops; haiku causal re-run; 
 release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B
 for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
 re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
+
+## 18 — 2026-07-12 — Iteration 17: m-dx-split-argument-warning BUILT + LANDED — compile-time non-blocking warning for the reversed-`split` footgun
+
+**Picked**: queue `m-dx-split-argument-warning` (1d) — iteration-16's **Next** named it as the top
+DOC-READY/small diagnostic in the clause-3 accessibility cluster. Existing design doc → started at
+reality-check.
+
+**Reality check**: Gate-1 origin-sync clean (local dev == origin/dev @ `c94c67417`); dev CI green
+per-workflow (CI/Build/Docs all success @ c94c67417). Inbox empty; no red outranking the queue. Rebuilt
++ installed (`v0.29.2-101-gc94c67417`, `-dirty` only from a sibling's 5 pre-existing uncommitted
+doc/skill edits in the main tree — NOT touched, Critical Principle 0). Verified live:
+- Footgun is REAL: `split("/", name)` → `["/"]` (silently wrong); `split(name, "/")` →
+  `["api","keys","user123"]`. `split` is data-first `split(s, delimiter)` — matches the doc.
+- No `warn_split` pass exists — genuinely unimplemented.
+- **CONFLICT SURFACE (doc premise stale)**: the doc said "hook into existing diagnostics/warning
+  infrastructure", but the ONLY warning infra was exhaustiveness-specific
+  (`[]*elaborate.ExhaustivenessWarning`, sourced from `elaborator.GetWarnings()`, 2 render sites calling
+  `.String()`). → M1 generalized it to an `elaborate.Warning { String() string }` interface.
+
+**Shipped**: Opus plan (sprint-planner) → sprint JSON + de-risked plan naming the Conflict Surface and
+the Core detection point → Opus executor in an isolated worktree off origin/dev → independent Opus
+evaluator. Three milestones, one commit each:
+- **M1 `3cfcc8a6a`** — `pipeline.Result.Warnings` generalized to `[]elaborate.Warning`
+  (`*ExhaustivenessWarning` already satisfies it; render sites untouched).
+- **M2 `9dcaa01ce`** — extensible `swapTraps` detection pass (`internal/pipeline/warn_split_args.go`):
+  walks the FINAL module Core for `App{VarGlobal{std/string.split}, [lit, non-lit]}`, emits
+  `ArgOrderWarning` (hint + note) when arg0 is a 1–3-rune string literal and arg1 is not a literal.
+  Module-guarded (a user-defined `split` elaborates to `core.Var`, never the guarded `VarGlobal`).
+- **M3 `56e716953`** — CHANGELOG, `examples/runnable/split_argument_order.ail` (Phase-2 teaching in the
+  header — embedded prompt NOT edited, prompt-diet gated), LIMITATIONS heuristic-bounds note. Plus a
+  1-word evaluator-nit fix `83006dfdc` (false-negative→false-positive wording).
+- **Executor deviations (all improvements, verified by the evaluator)**: (1) detection runs
+  post-compile over every unit's final `unit.Core` in sorted module-ID order — NOT the plan's
+  freshly-elaborated hook — because the user-code call keeps its `VarGlobal{std/string.split}` shape in
+  stored Core (the `_str_split` substitution happens only INSIDE `std/string` at link time), and this
+  also covers the module CACHE-HIT branch that skips elaboration. (2) `ailang check` rendered NO
+  pipeline warnings at all (pre-existing gap) → added `printCheckWarnings` so `check` surfaces both the
+  new warning AND exhaustiveness warnings. (3) `repl/planning.go` (listed in my reality-check as a
+  render site) is a DIFFERENT `planning.ValidationResult.Warnings` type — correctly left untouched.
+- **Independent Opus evaluator: round-1 PASS 97/100**, no blockers. Built its own worktree binary,
+  reran the full suite (`go test ./internal/... ./cmd/...` clean, 11/11 new tests), reproduced
+  non-vacuity TWO ways (arg0/arg1 flip breaks all trigger tests; adding a user-`Var` match branch makes
+  the warning fire on a user `split` → proves the module-guard is load-bearing), and verified the
+  non-blocking behavior live (reversed → warning on stderr + program runs, exit 0). One non-blocking
+  nit (LIMITATIONS wording) fixed before merge.
+- **Gate 3b**: PR #356 auto-merge on green required checks; bounded ~11-min CI poll (30-min hard
+  deadline) observed all required checks pass → squash-merge `8339b6421`; origin/dev advanced
+  `c94c67417..8339b6421`; post-merge dev CI green. Queue → `[LANDED]`. Design + sprint plan →
+  implemented/v0_30_0. `internal/pipeline/warn_split_args.go` 215 lines (< 800).
+
+**Routing evidence**: model=opus task-class=plan (sprint-planner produced a de-risked 3-milestone plan
+that correctly surfaced the warning-generalization Conflict Surface before any code). model=opus
+task-class=execute round1-quality=high (clean 3-milestone impl; the executor IMPROVED on the plan's
+hook-point hypothesis via live Core inspection — exactly the "confirm, don't assume" instruction).
+rounds=1 corrections=0. model=opus task-class=evaluate round1-score=97 rounds=1 (SIXTH consecutive
+round-1 pass this mission). Evaluator-independence caveat holds (Opus judges Opus) — mitigated: the
+evaluator rebuilt the binary and reproduced non-vacuity itself in throwaway copies; nothing rested on
+the executor's report. Full inner loop (plan→execute→evaluate) used — this was a genuine 1-day task
+with a real Conflict Surface, NOT the sub-0.5d de-scoped case from iter 16, so no plan-skip.
+
+**Ruled out**:
+- "There is a generic warning/diagnostics infrastructure to hook into (doc premise)" — REFUTED: the
+  only one was exhaustiveness-specific; a split-arg warning REQUIRED generalizing the warning type.
+- "Detect on freshly-elaborated Core (plan hypothesis)" — REFUTED by the executor's live inspection:
+  that hook silently drops the warning on module cache hits; final-Core detection covers cold+warm and
+  both `run`/`check`. Recorded as a plan-refinement, not a failure (the plan flagged it as a hypothesis
+  to verify).
+- "split resolves to the `_str_split` builtin in stored user Core" — REFUTED: the builtin substitution
+  is internal to `std/string` at link time; user code retains `VarGlobal{std/string.split}`.
+- "`repl/planning.go` is a warning render site for `pipeline.Result.Warnings`" — REFUTED: it's a
+  different `ValidationResult.Warnings` type; no change needed there.
+
+**Retro lane**: **none** (no skill or process edit). The iter-16 candidate watch-item (authorize a
+plan-skip for sub-0.5d de-scoped mechanical items) did NOT get a 2nd instance — this iteration was a
+genuine 1-day task needing a full plan, so the watch-item stays at one instance, not yet actionable.
+No new ≥2-friction pattern emerged. One observation logged for future watch (needs a 2nd instance
+before routing): my reality-check listed `repl/planning.go` as a render site and proposed a hook point
+that were both slightly off — the executor's "confirm the actual representation, don't assume"
+instruction caught both. If a future iteration's reality-check again hands the executor a wrong
+code-location premise that only live inspection catches, that's the signal to add a mission-doc note
+requiring the CONTROLLER to live-verify each named code location during reality-check (not just the
+behavior). One instance so far.
+
+**Next**: Iteration 18 — continue clause-3. The DOC-READY/small diagnostics are now EXHAUSTED
+(module-less/xcheck/json-bool/split-arg landed iters 14–17). Recommended: **VERIFY-then-route**
+m-dx-record-cons-pattern / m-dx-tapp-trecord-unification (run the doc repro FIRST — may be ghosts, a
+ghost is a near-zero-cost close). Then the NEW-DOC footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda
+R4b, m-arity-style-diagnostic R4c) each need design-doc-creator first (Conflict Surface mandatory).
+PARKED for human/coordinator (cumulative, unchanged): M-DX-JSON-BOOL Phase-1 firestore-package fix in
+`ailang-packages`; tier-assignment ratification (release gate); feedback-gate production ops; haiku
+causal re-run; scope-params release-gate re-score; frontier-failure validation of the 8 + 4 sketches;
+issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row +
+m-record-update-local-resolution doc-status re-check; the two dev-health flakies
+(`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
