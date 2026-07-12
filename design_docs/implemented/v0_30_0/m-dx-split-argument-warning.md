@@ -1,7 +1,7 @@
 # M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments
 
-**Status**: Planned
-**Target**: v0.9.5
+**Status**: Implemented (2026-07-12, mission iteration 17, PR #356 → `8339b6421`)
+**Target**: v0.9.5 (shipped in the v0.30.0 line)
 **Priority**: P2 (DX — silent wrong results, observed twice in AI-generated code)
 **Estimated**: 1 day
 **Dependencies**: None
