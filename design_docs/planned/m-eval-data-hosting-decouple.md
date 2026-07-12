@@ -1,6 +1,8 @@
 # M-EVAL-DATA-HOSTING-DECOUPLE: serve benchmark data off the site build
 
-**Status**: PLANNED — 2026-07-12.
+**Status**: IMPLEMENTED (data plane live) — 2026-07-12. W1 (bucket), the read-through **route**, rig **upload**, and the site **repoint** all landed and are verified against the production dashboard. Remaining: W4 (release provenance snapshot) + W5 (retire the routine data-churn git commits once a full rig cycle proves the runtime path).
+
+> **Architecture decision (2026-07-12): private bucket + Cloud Run read-through, NOT a public bucket.** The org policy `storage.publicAccessPrevention` is *enforced* on `ailang-multivac-dev`, so the "public GCS bucket" of the original plan is impossible. We adopted the documented **Cloud Run alternative** below: the bucket stays private, and the existing `ailang-dev-dashboard` service exposes it read-only at `GET /benchmarks/<path>.json` (the service SA has `objectViewer`). This also gives us exact CORS/cache headers "for free" (the server's global `*` CORS + a per-handler `Cache-Control: max-age=60`). `DATA_BASE` = the dashboard run.app URL `https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app` (swap for a custom domain later).
 **Target**: v0.30.x (eval infrastructure).
 **Priority**: P1 — this is the *root cause* of the recurring dashboard cache/stale-render pain. Fixing it retires a whole class of problems in one move.
 **Author**: Claude Opus 4.8 (with Mark, 2026-07-12 — "some way of updating data elsewhere to avoid re-renders").
@@ -43,11 +45,12 @@ The data does not need to be in the build: **every consumer already fetches it a
 **Cloud Run alternative** (fallback if we want cleaner caching/headers/domain control than a raw bucket): a tiny read-through service (or an endpoint on an existing service) that serves the JSON from the bucket with exact cache/CORS headers. More moving parts; adopt only if the bucket's CORS/CDN ergonomics prove annoying.
 
 ## Work items
-- **W1** — Create the bucket (public read + CORS + lifecycle), pick the host/CDN. Decide `DATA_BASE` URL.
-- **W2** — Rig: replace the `git add/commit/push` of `latest.json` / `os/*.json` in `os-rotation-filler.sh` (and `os-release-snapshot.sh`) with a `gsutil cp` upload (short cache). Keep `OS_FILLER_PUSH` semantics off by default.
-- **W3** — Site: introduce `DATA_BASE` (one constant), repoint the 3 fetch call-sites, add fallback-to-in-build-copy on fetch error. Verify via CI build + a manual fetch (not headless — see [feedback: no headless verify]).
-- **W4** — `post-release`: keep a release-time git/bucket snapshot for provenance; stop routine data commits.
-- **W5** — Remove the data-churn commits from the rotation once W1–W3 are proven; document the new flow in [database-architecture](../../docs/docs/guides/database-architecture.md).
+- **W1 ✅** — Bucket `gs://ailang-multivac-dev-benchmarks` created (EUROPE-WEST1, public-access-prevention enforced so it stays private), `ailang-dev-dashboard` SA granted `roles/storage.objectViewer`. `DATA_BASE` = dashboard run.app URL.
+- **Route ✅** (replaces the "public bucket + CDN" of W1, forced by the org policy) — `GET /benchmarks/<path>.json` read-through in `internal/server/handlers_benchmarks.go` (safe-path validated, global `*` CORS, `Cache-Control: max-age=60`), registered in `server.go`. Live in prod on dashboard revision `01017`; verified `latest.json`→200 (3 uplift rows), `os/history.json`→4 versions, `../traversal`→404.
+- **W2 ✅ (rig upload)** — `os-rotation-filler.sh` step 9 `gsutil cp`s the 3 JSONs to the bucket every cycle (independent of `AUTOPUSH`; opt out with `BENCH_BUCKET_SYNC=0`; skips gracefully w/o gsutil). Git commit retained as the in-build fallback for now (removed in W5). Rig identity confirmed able to write.
+- **W3 ✅ (site repoint)** — shared `docs/src/lib/benchmarkFetch.js` (`DATA_BASE` constant + remote→in-build fallback, returns a `Response` so call sites are unchanged); all **10** fetch sites across **9** components repointed. Verified: all files babel-compile, fallback logic sim'd (remote ok / 404 / throw / path-normalize), **CI docs build green**.
+- **W4** — `post-release`: keep a release-time git/bucket snapshot for provenance; stop routine data commits. *(pending)*
+- **W5** — Remove the data-churn commits from the rotation once a full rig cycle proves the runtime path; document the new flow in [database-architecture](../../docs/docs/guides/database-architecture.md). *(pending — one rig cycle away)*
 
 ## Acceptance criteria
 1. A rig rotation cycle updates the live dashboard within ~1 min **with no site rebuild and no git commit**.
