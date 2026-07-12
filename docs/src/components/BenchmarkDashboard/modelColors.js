@@ -28,6 +28,12 @@ export function getProvider(modelName) {
   if (n.includes('gemini') || n.includes('bard') || n.includes('google')) {
     return 'google';
   }
+  // On-device rig models (Ollama qwen3 / gemma4 run through the motoko/opencode/pi
+  // harnesses, $0/run). Distinct "local agent" category — NOT the same as cloud
+  // open-source served via OpenRouter (which carries a `-or-` marker).
+  if ((n.includes('qwen3') || n.includes('gemma4')) && !n.includes('-or-')) {
+    return 'local';
+  }
   return 'other';
 }
 

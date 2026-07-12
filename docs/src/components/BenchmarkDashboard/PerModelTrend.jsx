@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion, snapEventsToVersions } from './useEvents';
 import { assignModelColors, getProvider } from './modelColors';
 
 // Provider grouping — collapses 30+ per-model lines into one averaged line per
-// provider. 'other' = open-source (DeepSeek / GLM / MiniMax / Kimi / Qwen / Gemma).
-const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other'];
-const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source' };
-const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6' };
+// provider. 'other' = cloud open-source (DeepSeek / GLM / MiniMax / Kimi via
+// OpenRouter). 'local' = the on-device rig (qwen3/gemma4 through motoko/opencode/pi,
+// $0/run) folded in from os/history.json.
+const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other', 'local'];
+const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source', local: 'Local agent' };
+const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6', local: '#0891b2' };
 
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
@@ -81,6 +83,38 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   const annotations = useEvents(events, { selectedTier });
   const eventsByVersion = groupByVersion(annotations, formatVersion);
 
+  // Fold the on-device rig's version-trend (os/history.json) into the cloud
+  // history so local model×harness combos (motoko/opencode/pi on qwen) appear as a
+  // "Local agent" provider line + per-model breakdowns. Runtime fetch; a missing
+  // file is a no-op. Local data is all-tier only, so it shows in the "All" view.
+  const [osHistory, setOsHistory] = useState(null);
+  useEffect(() => {
+    fetch('/benchmarks/os/history.json')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((h) => setOsHistory(Array.isArray(h) ? h : []))
+      .catch(() => setOsHistory([]));
+  }, []);
+  const mergedHistory = useMemo(() => {
+    if (!osHistory || osHistory.length === 0) return history;
+    const osByVer = {};
+    osHistory.forEach((e) => { if (e && e.ailang_version) osByVer[e.ailang_version] = e.rows || []; });
+    return history.map((entry) => {
+      const base = (entry.version || '').split('-')[0]; // v0.29.2 from v0.29.2-29-g…
+      const rows = osByVer[entry.version] || osByVer[base];
+      if (!rows || !rows.length) return entry;
+      const modelStats = { ...(entry.modelStats || {}) };
+      rows.forEach((r) => {
+        if (!r || !r.model || !r.lang) return;
+        const ms = {};
+        for (const [l, rate] of Object.entries(r.lang)) {
+          if (typeof rate === 'number') ms[l] = { successRate: rate, totalRuns: 1 };
+        }
+        modelStats[r.model] = ms;
+      });
+      return { ...entry, modelStats };
+    });
+  }, [history, osHistory]);
+
   // When a tier is selected, read history[i].tiers[t].modelStats instead of
   // the all-tier history[i].modelStats. Historic baselines without tier
   // data simply drop out of the view (connectNulls bridges the gap).
@@ -90,7 +124,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   };
 
   // Filter out entries with invalid timestamps or no model data
-  const validHistory = history.filter(h => {
+  const validHistory = mergedHistory.filter(h => {
     const date = new Date(h.timestamp);
     return date.getFullYear() > 2000 && tierScopedStats(h);
   });
