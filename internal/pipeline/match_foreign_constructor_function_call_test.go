@@ -86,6 +86,47 @@ export pure func main() -> float =
 	if !strings.Contains(msg, "Option") || !strings.Contains(msg, "Result") {
 		t.Errorf("error message should name both 'Option' and 'Result', got: %s", msg)
 	}
+	// M-MATCH-XCHECK-ERROR-QUALITY: the scrutinee's ADT (Option) is known only
+	// transitively here — std/json imports std/option, but this module does not.
+	// The "Option's constructors are:" suggestion list must still be populated
+	// (Some, None) via the diagnostic ctor registry, not left empty.
+	if !strings.Contains(msg, "Some") || !strings.Contains(msg, "None") {
+		t.Errorf("error message should enumerate Option's transitively-known constructors (Some, None), got: %s", msg)
+	}
+}
+
+// TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope is the scope-safety
+// guard for M-MATCH-XCHECK-ERROR-QUALITY. The diagnostic constructor registry
+// KNOWS about Option's Some/None here (std/json transitively imports std/option,
+// so it is loaded into the linker), which is exactly why the foreign-ctor error
+// can now enumerate them. But that registry is diagnostics-ONLY: a module that
+// imports std/json + std/result — but NOT std/option — must STILL be unable to
+// CALL Some(...) . If this ever compiles, the diagnostic map has leaked into
+// scope and the fix is unsound.
+func TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope(t *testing.T) {
+	tempDir := t.TempDir()
+	writeOptionResultStdlib(t, filepath.Join(tempDir, "std"))
+
+	testContent := `module test
+import std/json (Json, JNum)
+import std/result (Ok, Err)
+
+-- Some is a transitively-known Option constructor (std/json imports std/option),
+-- but this module never imports std/option, so Some must NOT be in scope.
+export pure func main() -> int =
+  match Some(1) {
+    Ok(_)  => 1,
+    Err(_) => 0
+  }
+`
+	err := runCheck(t, tempDir, testContent)
+	if err == nil {
+		t.Fatal("expected error: Some must not be callable without importing std/option (diagnostic registry must not leak into scope)")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "Some") {
+		t.Errorf("error should mention the unbound constructor 'Some', got: %s", msg)
+	}
 }
 
 // TestSchemeImport_NestedFunctionCallMatch covers the cognitive_commons shape:

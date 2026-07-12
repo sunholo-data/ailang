@@ -111,6 +111,12 @@ func typeCheckAndLowerModule(
 	typeChecker.SetConstructorTypes(ctorTypes)
 	typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 
+	// M-MATCH-XCHECK-ERROR-QUALITY: diagnostic-only registry of ALL transitively-
+	// loaded constructors, so foreign-constructor errors can enumerate an ADT's
+	// constructors even when the user hasn't imported that ADT's module. Kept
+	// separate from ctorTypes above — does NOT affect scope or inference.
+	typeChecker.SetDiagnosticConstructorTypes(imports.AllCtorTypes)
+
 	// M-FIX-RECORD-UPDATE: Pass type aliases to type checker for expansion during unification
 	// This enables `type NPC = { pos: Pos, name: string }` to work with record update
 	elabAliases := elaborator.GetTypeAliases()

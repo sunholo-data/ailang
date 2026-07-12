@@ -27,6 +27,12 @@ type moduleImports struct {
 	ImportedCtorTypes     map[string]string
 	ImportedADTTypeParams map[string]int
 	ImportedCtorInfos     map[string]*importedCtorInfo
+	// AllCtorTypes is a diagnostic-only Constructor → ADT map covering ALL
+	// transitively-loaded modules (not just direct imports). It feeds error-
+	// message constructor suggestions when the scrutinee's ADT is known only
+	// transitively; it does NOT bring constructors into scope.
+	// M-MATCH-XCHECK-ERROR-QUALITY.
+	AllCtorTypes map[string]string
 }
 
 // resolveModuleImports builds the external type environment and global references
@@ -44,6 +50,24 @@ func resolveModuleImports(
 		ImportedCtorTypes:     make(map[string]string),
 		ImportedADTTypeParams: make(map[string]int),
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
+		AllCtorTypes:          make(map[string]string),
+	}
+
+	// M-MATCH-XCHECK-ERROR-QUALITY: collect a diagnostic-only Constructor → ADT
+	// map from every transitively-loaded interface. Deps compile before their
+	// importers (topo order), so by the time the root module type-checks, every
+	// transitive ADT (e.g. Option, imported by std/json but not by the user) is
+	// registered here. Used ONLY for error-message constructor enumeration —
+	// these constructors are NOT in scope.
+	for _, loadedIface := range modLinker.GetLoadedModules() {
+		if loadedIface == nil {
+			continue
+		}
+		for ctorName, ctorScheme := range loadedIface.Constructors {
+			if ctorScheme != nil {
+				imports.AllCtorTypes[ctorName] = ctorScheme.TypeName
+			}
+		}
 	}
 
 	// Always include $builtin module exports (available to all modules)

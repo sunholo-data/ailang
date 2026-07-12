@@ -1,11 +1,36 @@
 # M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs
 
-**Status**: Planned — P2 (cosmetic / UX polish)
-**Target**: v0.22.x or v0.23.0
-**Priority**: P2 — error message degradation. Correctness is fine; the suggestion list is just empty.
-**Estimated**: ~0.5 day (~50 LOC)
+**Status**: ✅ Implemented v0.30.0 (mission iteration 15) — **Option A** chosen (diagnostic-only
+transitive constructor registry). Sprint plan: [m-match-xcheck-error-quality-sprint-plan.md](m-match-xcheck-error-quality-sprint-plan.md).
+**Target**: v0.30.0 (was: v0.22.x/v0.23.0)
+**Priority**: P2 — error message degradation. Correctness is fine; the suggestion list was empty.
+**Estimated**: ~0.5 day (~50 LOC) — Actual: ~55 LOC (impl + test assertion)
 **Dependencies**: None
-**Source**: Discovered 2026-05-20 during sprint evaluation of [M-SCHEME-IMPORT-PRESERVE-ADT-HEAD](../implemented/v0_22_0/m-scheme-import-preserve-adt-head.md).
+**Source**: Discovered 2026-05-20 during sprint evaluation of [M-SCHEME-IMPORT-PRESERVE-ADT-HEAD](../v0_22_0/m-scheme-import-preserve-adt-head.md).
+
+## Implementation note (v0.30.0)
+
+Shipped **Option A**. A diagnostic-only `Constructor → ADT` registry
+(`moduleImports.AllCtorTypes`) is built from every transitively-loaded interface via
+`modLinker.GetLoadedModules()` and passed to the typechecker with
+`SetDiagnosticConstructorTypes`. `lookupADTConstructors`
+([`internal/types/typechecker_core.go`](../../../internal/types/typechecker_core.go)) consults it
+**only** when the primary (direct-import + local) scan yields nothing for the requested ADT — so
+direct/local constructors always win and the registry never affects scope or inference. Verified:
+the repro (`match asNumber(...) { Ok ... Err ... }` importing only `std/result`) now prints
+`Option's constructors are: None, Some`. Non-vacuity of the guarding test proven by disabling the
+fallback (message reverts to empty). Option B's import-hint text remains a possible follow-up.
+
+Two hardening notes from the round-1 evaluation:
+- **Scope safety is regression-guarded**: `TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope`
+  asserts that a transitively-known constructor (`Some`) remains **uncallable** without importing
+  its module — the diagnostic registry must never leak into scope.
+- **Collision is benign**: `AllCtorTypes` is keyed by constructor *name* across all loaded modules,
+  so two modules defining a same-named constructor for different ADTs would leave only the
+  last-loaded one in the map. Because `lookupADTConstructors` reverse-scans by ADT name, the worst
+  case is a *slightly incomplete* suggestion list for that rare shared-name ADT — never a
+  wrong-ADT suggestion, and never any effect on scope or inference (the fallback fires only when
+  the primary direct/local scan is already empty).
 
 ## Problem
 
