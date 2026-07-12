@@ -154,7 +154,7 @@ function paretoFrontier(points) {
  *   xMetric   — 'cost' | 'speed'
  *   minRuns   — filter models with fewer total runs (default 10)
  */
-export default function QualityScatter({ models, xMetric = 'cost', mode = 'standard', minRuns = 10 }) {
+export default function QualityScatter({ models, xMetric = 'cost', mode = 'standard', minRuns = 10, coverage }) {
   const isCost = xMetric === 'cost';
   const isAgent = mode === 'agent';
 
@@ -207,6 +207,8 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       runs: totalRuns,
       harness,
       color: HARNESS_COLOR[harness] || HARNESS_COLOR.api,
+      // M-EVAL-VALIDITY-DISCIPLINE (W2): under-covered models can't define the frontier.
+      provisional: coverage ? coverage.isProvisional(name) : false,
     });
   }
 
@@ -223,7 +225,7 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
   // Pareto frontier: maximise pass-rate while minimising x.
   // Carry full payload through so the tooltip shows model name when the
   // line vertex is the closest hover target.
-  const frontier = paretoFrontier(points);
+  const frontier = paretoFrontier(points.filter(p => !p.provisional));
   const frontierLine = frontier.map(p => ({ ...p }));
 
   // Bucket by harness for separate Scatter series (so Legend works per-harness)

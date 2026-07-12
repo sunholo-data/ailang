@@ -37,7 +37,7 @@ function formatModelName(name) {
  *   - efficiency.median_time_to_success_ms → speed factor
  *   - reliability for adjusted (api-error-excluded) pass rate when available
  */
-export default function ValueScoreTable({ models, mode = 'standard' }) {
+export default function ValueScoreTable({ models, mode = 'standard', coverage }) {
   const [weighting, setWeighting] = useState(2); // N
   const [sortBy, setSortBy] = useState('score');
   const [sortDir, setSortDir] = useState('desc');
@@ -80,6 +80,10 @@ export default function ValueScoreTable({ models, mode = 'standard' }) {
         timeFactor,
         totalRuns,
         totalCost,
+        // M-EVAL-VALIDITY-DISCIPLINE (W2): under-covered models earn no medal and
+        // sort last — a 9-benchmark model must not win "best value" over a 56.
+        provisional: coverage ? coverage.isProvisional(name) : false,
+        benchmarks: coverage ? coverage.benchmarksFor(name) : null,
       });
     }
 
@@ -100,12 +104,14 @@ export default function ValueScoreTable({ models, mode = 'standard' }) {
 
     // Sort
     const sorted = [...data].sort((a, b) => {
+      // Provisional (low-coverage) models always sort last so they can't take a medal.
+      if (a.provisional !== b.provisional) return a.provisional ? 1 : -1;
       const dir = sortDir === 'desc' ? -1 : 1;
       if (sortBy === 'name') return a.name.localeCompare(b.name) * dir;
       return ((a[sortBy] ?? 0) - (b[sortBy] ?? 0)) * dir;
     });
     return sorted;
-  }, [models, weighting, sortBy, sortDir, isAgent]);
+  }, [models, weighting, sortBy, sortDir, isAgent, coverage]);
 
   const handleSort = (col) => {
     if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
@@ -160,12 +166,20 @@ export default function ValueScoreTable({ models, mode = 'standard' }) {
           </thead>
           <tbody>
             {rows.map((m, idx) => (
-              <tr key={m.name} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
+              <tr key={m.name} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', ...(m.provisional ? { opacity: 0.6, fontStyle: 'italic' } : {}) }}>
                 <td style={td}>
                   <span style={{ marginRight: 6 }}>
-                    {idx === 0 && sortBy === 'score' ? '🥇' : idx === 1 && sortBy === 'score' ? '🥈' : idx === 2 && sortBy === 'score' ? '🥉' : ''}
+                    {!m.provisional && sortBy === 'score' && idx === 0 ? '🥇' : !m.provisional && sortBy === 'score' && idx === 1 ? '🥈' : !m.provisional && sortBy === 'score' && idx === 2 ? '🥉' : ''}
                   </span>
                   {formatModelName(m.name)}
+                  {m.provisional && (
+                    <span
+                      title={`Provisional: ran ${m.benchmarks ?? '?'}/${coverage ? coverage.maxCoverage : '?'} benchmarks — not comparable to full-coverage models; no medal awarded.`}
+                      style={{ marginLeft: 6, fontSize: '0.7em', padding: '1px 5px', borderRadius: 3, background: 'var(--ifm-color-warning-lightest)', color: 'var(--ifm-color-warning-darkest)', border: '1px solid var(--ifm-color-warning-light)', cursor: 'help', fontWeight: 600, fontStyle: 'normal' }}
+                    >
+                      ⚠ {m.benchmarks != null ? `${m.benchmarks}/${coverage ? coverage.maxCoverage : '?'}` : 'low cov'}
+                    </span>
+                  )}
                 </td>
                 <td style={tdNum}>{(m.passRate * 100).toFixed(1)}%</td>
                 <td style={tdNum}>${m.costPerSuccess.toFixed(4)}</td>

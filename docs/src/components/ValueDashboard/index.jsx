@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
 import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
+import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
 
 import dashboardStyles from '@site/src/components/BenchmarkDashboard/styles.module.css';
 
@@ -45,6 +46,10 @@ export default function ValueDashboard() {
   };
   const isAgent = mode === 'agent';
   const view = isAgent ? agentModels : standardModels;
+  // M-EVAL-VALIDITY-DISCIPLINE (W2): coverage lookup so the value tables/scatter
+  // can flag under-covered models provisional (no medals / dimmed) — a 9-benchmark
+  // model must not win "best value" over one measured on the full 56.
+  const coverage = buildCoverage(data.ratings);
 
   const tab = (m) => ({
     padding: '4px 14px', cursor: 'pointer', borderRadius: 6, fontWeight: 600,
@@ -71,7 +76,7 @@ export default function ValueDashboard() {
           "Score vs cost" plot. NW corner = best value (cheap + accurate). The dashed green line is
           the <strong>Pareto frontier</strong> — models on it are non-dominated. Color codes the harness.
         </p>
-        <QualityScatter models={view} xMetric="cost" mode={mode} />
+        <QualityScatter models={view} xMetric="cost" mode={mode} coverage={coverage} />
       </div>
 
       <div className={dashboardStyles.section}>
@@ -81,11 +86,11 @@ export default function ValueDashboard() {
           sub-second; agent multi-turn loops are seconds, so they are never blended. NW corner =
           fastest accurate models.
         </p>
-        <QualityScatter models={view} xMetric="speed" mode={mode} />
+        <QualityScatter models={view} xMetric="speed" mode={mode} coverage={coverage} />
       </div>
 
       <div className={dashboardStyles.section}>
-        <ValueScoreTable models={view} mode={mode} />
+        <ValueScoreTable models={view} mode={mode} coverage={coverage} />
         <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-500)' }}>
           Value Score reflects the selected <strong>{isAgent ? 'agent' : 'standard'}</strong> mode
           (toggle above).
