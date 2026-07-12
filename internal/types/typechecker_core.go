@@ -76,6 +76,7 @@ type CoreTypeChecker struct {
 	returnTypeAnnots    map[uint64]Type                   // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI              CoreTypeInfo                      // Core NodeID → inferred types (principal types for lowering)
 	constructorTypes    map[string]string                 // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	diagnosticCtorTypes map[string]string                 // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
 	adtTypeParams       map[string]int                    // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
@@ -296,6 +297,19 @@ func (tc *CoreTypeChecker) SetConstructorTypes(ctors map[string]string) {
 	tc.constructorTypes = ctors
 }
 
+// SetDiagnosticConstructorTypes sets a diagnostic-only constructor → ADT map.
+//
+// M-MATCH-XCHECK-ERROR-QUALITY: this registry is sourced from ALL transitively-
+// loaded module interfaces (not just direct imports), and is used ONLY to
+// enumerate an ADT's constructors in error messages (see lookupADTConstructors).
+// It is deliberately kept separate from constructorTypes so it NEVER brings
+// constructors into scope — a user who hasn't imported std/option still cannot
+// call Some(x); we merely name Some/None in the "did you mean" suggestion when
+// the scrutinee's ADT is known only transitively.
+func (tc *CoreTypeChecker) SetDiagnosticConstructorTypes(ctors map[string]string) {
+	tc.diagnosticCtorTypes = ctors
+}
+
 // RegisterConstructorType registers a single constructor → ADT type mapping.
 // M-DX25.4: Used to infer correct types for pattern matching on ADTs.
 func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
@@ -313,13 +327,23 @@ func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
 // to enumerate the valid constructors of both the scrutinee's ADT and the
 // foreign constructor's ADT in the error message.
 func (tc *CoreTypeChecker) lookupADTConstructors(adtName string) []string {
-	if tc.constructorTypes == nil {
-		return nil
-	}
 	var out []string
 	for ctor, adt := range tc.constructorTypes {
 		if adt == adtName {
 			out = append(out, ctor)
+		}
+	}
+	// M-MATCH-XCHECK-ERROR-QUALITY: the primary map only holds directly-imported
+	// + local constructors. When the scrutinee's ADT is known only transitively
+	// (e.g. std/json returns Option but the user imported only std/result), fall
+	// back to the diagnostic registry so the suggestion list isn't empty. Only
+	// used when the primary scan found nothing for this ADT — direct/local
+	// constructors always win.
+	if len(out) == 0 {
+		for ctor, adt := range tc.diagnosticCtorTypes {
+			if adt == adtName {
+				out = append(out, ctor)
+			}
 		}
 	}
 	return out
