@@ -354,7 +354,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           <p className={styles.sectionSubtitle}>
             Track how each AI model's performance evolves across AILANG versions
           </p>
-          <PerModelTrend history={history} events={events} selectedTier={selectedTier} models={models} />
+          <PerModelTrend history={history} events={events} selectedTier={selectedTier} models={models} coverage={coverage} />
         </div>
       )}
 
@@ -493,7 +493,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
       {history && history.length > 1 && (
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
-          <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} />
+          <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} coverage={coverage} />
         </div>
       )}
 

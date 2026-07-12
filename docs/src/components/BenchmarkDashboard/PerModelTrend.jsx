@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion, snapEventsToVersions } from './useEvents';
 import { assignModelColors, getProvider } from './modelColors';
+import { useOSHistory, mergeOSHistory } from './osHistory';
 
 // Provider grouping — collapses 30+ per-model lines into one averaged line per
 // provider. 'other' = cloud open-source (DeepSeek / GLM / MiniMax / Kimi via
@@ -60,7 +61,7 @@ const METRIC_OPTIONS = [
   { id: 'costPerSuccess', label: 'Cost per Success ($)', unit: '$', historic: false },
 ];
 
-export default function PerModelTrend({ history, events, selectedTier, models: currentModels }) {
+export default function PerModelTrend({ history, events, selectedTier, models: currentModels, coverage }) {
   const [selectedLanguage, setSelectedLanguage] = useState('ailang');
   const [selectedMetric, setSelectedMetric] = useState('successRate');
   const metric = METRIC_OPTIONS.find((m) => m.id === selectedMetric) || METRIC_OPTIONS[0];
@@ -83,37 +84,14 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   const annotations = useEvents(events, { selectedTier });
   const eventsByVersion = groupByVersion(annotations, formatVersion);
 
-  // Fold the on-device rig's version-trend (os/history.json) into the cloud
-  // history so local model×harness combos (motoko/opencode/pi on qwen) appear as a
-  // "Local agent" provider line + per-model breakdowns. Runtime fetch; a missing
-  // file is a no-op. Local data is all-tier only, so it shows in the "All" view.
-  const [osHistory, setOsHistory] = useState(null);
-  useEffect(() => {
-    fetch('/benchmarks/os/history.json')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((h) => setOsHistory(Array.isArray(h) ? h : []))
-      .catch(() => setOsHistory([]));
-  }, []);
-  const mergedHistory = useMemo(() => {
-    if (!osHistory || osHistory.length === 0) return history;
-    const osByVer = {};
-    osHistory.forEach((e) => { if (e && e.ailang_version) osByVer[e.ailang_version] = e.rows || []; });
-    return history.map((entry) => {
-      const base = (entry.version || '').split('-')[0]; // v0.29.2 from v0.29.2-29-g…
-      const rows = osByVer[entry.version] || osByVer[base];
-      if (!rows || !rows.length) return entry;
-      const modelStats = { ...(entry.modelStats || {}) };
-      rows.forEach((r) => {
-        if (!r || !r.model || !r.lang) return;
-        const ms = {};
-        for (const [l, rate] of Object.entries(r.lang)) {
-          if (typeof rate === 'number') ms[l] = { successRate: rate, totalRuns: 1 };
-        }
-        modelStats[r.model] = ms;
-      });
-      return { ...entry, modelStats };
-    });
-  }, [history, osHistory]);
+  // Fold the on-device rig's version-trend (os/history.json) into the cloud history
+  // so local model×harness combos appear as a "Local agent" provider line + per-model
+  // breakdowns (shared helper — same story on every trend chart).
+  const osHistory = useOSHistory();
+  const mergedHistory = useMemo(() => mergeOSHistory(history, osHistory), [history, osHistory]);
+  // On-device scores are over an incomplete benchmark set until the rig fills coverage;
+  // mark them with an asterisk (auto-clears once coverage catches up).
+  const localIncomplete = (m) => getProvider(m) === 'local' && (coverage ? coverage.isProvisional(m) : true);
 
   // When a tier is selected, read history[i].tiers[t].modelStats instead of
   // the all-tier history[i].modelStats. Historic baselines without tier
@@ -244,6 +222,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   // Computed after the snapshot fallback has potentially added models so
   // every chip + line gets a stable colour.
   const modelColors = assignModelColors(allModels);
+  const anyLocalIncomplete = Array.from(allModels).some(localIncomplete);
 
   // Provider grouping: one line per provider = average of member models' metric
   // per version (nulls skipped). Precision follows the metric ($ keeps 4 dp).
@@ -470,9 +449,15 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
           {providers.map((p) => (
             <span key={p} className={styles.legendChip} style={{ cursor: 'default' }}>
               <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
-              {PROVIDER_LABEL[p]}
+              {PROVIDER_LABEL[p]}{p === 'local' && anyLocalIncomplete ? ' *' : ''}
             </span>
           ))}
+          {anyLocalIncomplete && (
+            <p className={styles.chipLegendHint} style={{ width: '100%', marginTop: 4 }}>
+              * on-device scores are over an <strong>incomplete</strong> benchmark set so far — they fill
+              in as the rotation runs.
+            </p>
+          )}
         </div>
       ) : (
         <div className={styles.chipLegend}>
@@ -492,10 +477,16 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
                 onClick={() => toggleModel(modelName)}
               >
                 <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
-                {formatModelName(modelName)}
+                {formatModelName(modelName)}{localIncomplete(modelName) ? ' *' : ''}
               </button>
             );
           })}
+          {anyLocalIncomplete && (
+            <p className={styles.chipLegendHint} style={{ width: '100%', marginTop: 4 }}>
+              * on-device scores are over an <strong>incomplete</strong> benchmark set so far — they fill
+              in as the rotation runs.
+            </p>
+          )}
           {selectedModels.size > 0 && (
             <button
               type="button"

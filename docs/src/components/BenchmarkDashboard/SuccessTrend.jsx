@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion } from './useEvents';
+import { useOSHistory } from './osHistory';
 
-export default function SuccessTrend({ history, languages, events, selectedTier }) {
+export default function SuccessTrend({ history, languages, events, selectedTier, coverage }) {
   const annotations = useEvents(events, { selectedTier });
   const eventsByVersion = groupByVersion(annotations, formatVersion);
+
+  // On-device rig: a "Local agent" aggregate AILANG line (mean of the local models
+  // per version) so the whole-page trend shows how on-device tracks vs cloud.
+  const osHistory = useOSHistory();
+  const osByVer = useMemo(() => {
+    const m = {};
+    (osHistory || []).forEach((e) => { if (e && e.ailang_version) m[e.ailang_version] = e.rows || []; });
+    return m;
+  }, [osHistory]);
+  const localModelNames = useMemo(() => {
+    const s = new Set();
+    Object.values(osByVer).forEach((rows) => rows.forEach((r) => r && r.model && s.add(r.model)));
+    return s;
+  }, [osByVer]);
+  // Incomplete while any local model is still under-covered (auto-clears via coverage).
+  const anyLocalIncomplete = [...localModelNames].some((m) => (coverage ? coverage.isProvisional(m) : true));
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
@@ -55,10 +72,18 @@ export default function SuccessTrend({ history, languages, events, selectedTier 
       pythonRate = combinedRate;
     }
 
+    const base = (baseline.version || '').split('-')[0];
+    const osRows = osByVer[baseline.version] || osByVer[base] || [];
+    const localRates = osRows.map((r) => r && r.lang && r.lang.ailang).filter((v) => typeof v === 'number');
+    const localMean = localRates.length
+      ? parseFloat(((localRates.reduce((a, b) => a + b, 0) / localRates.length) * 100).toFixed(1))
+      : null;
+
     return {
       version: formatVersion(baseline.version),
       'AILANG': parseFloat(ailangRate.toFixed(1)),
       'Python': parseFloat(pythonRate.toFixed(1)),
+      'Local agent': localMean,
       date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : ''
     };
   });
@@ -156,8 +181,25 @@ export default function SuccessTrend({ history, languages, events, selectedTier 
             dot={{ r: 5 }}
             activeDot={{ r: 7 }}
           />
+          <Line
+            type="monotone"
+            dataKey="Local agent"
+            name={anyLocalIncomplete ? 'Local agent *' : 'Local agent'}
+            stroke="#0891b2"
+            strokeWidth={3}
+            strokeDasharray="5 3"
+            dot={{ r: 4 }}
+            activeDot={{ r: 6 }}
+            connectNulls
+          />
         </LineChart>
       </ResponsiveContainer>
+      {anyLocalIncomplete && chartData.some((d) => d['Local agent'] != null) && (
+        <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-600)', marginTop: 8 }}>
+          * <strong>Local agent</strong> is the on-device rig&apos;s mean AILANG rate — over an
+          <strong> incomplete</strong> benchmark set so far; it fills in as the rotation runs.
+        </p>
+      )}
     </div>
   );
 }

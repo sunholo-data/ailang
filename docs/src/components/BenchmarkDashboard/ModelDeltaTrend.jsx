@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion, snapEventsToVersions } from './useEvents';
 import { assignModelColors, getProvider } from './modelColors';
+import { useOSHistory, mergeOSHistory } from './osHistory';
 
-// Provider grouping — collapses the 30+ per-model lines into one averaged line
-// per provider so the long-run trend is readable. 'other' = open-source models
-// (DeepSeek / GLM / MiniMax / Kimi / Qwen / Gemma).
-const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other'];
-const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source' };
-const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6' };
+// Provider grouping — collapses the 30+ per-model lines into one averaged line per
+// provider. 'other' = cloud open-source (OpenRouter). 'local' = the on-device rig
+// (qwen3/gemma4 via motoko/opencode/pi), folded in from os/history.json.
+const PROVIDER_ORDER = ['anthropic', 'openai', 'google', 'other', 'local'];
+const PROVIDER_LABEL = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', other: 'Open-source', local: 'Local agent' };
+const PROVIDER_COLOR = { anthropic: '#E67E22', openai: '#16a34a', google: '#2E86DE', other: '#8b5cf6', local: '#0891b2' };
 
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
@@ -69,6 +70,11 @@ export default function ModelDeltaTrend({ history, events, selectedTier, coverag
     });
   };
 
+  // Fold the on-device rig history in as a "Local agent" provider (shared helper).
+  const osHistory = useOSHistory();
+  const mergedHistory = useMemo(() => mergeOSHistory(history, osHistory), [history, osHistory]);
+  const localIncomplete = (m) => getProvider(m) === 'local' && (coverage ? coverage.isProvisional(m) : true);
+
   // Tier-scoped source: when a tier is selected read the per-tier snapshot
   // so the gap updates when the user flips between Core/Stretch.
   const tierScopedStats = (entry) => {
@@ -77,7 +83,7 @@ export default function ModelDeltaTrend({ history, events, selectedTier, coverag
   };
 
   // Filter out entries with invalid timestamps or no model data
-  const validHistory = history.filter(h => {
+  const validHistory = mergedHistory.filter(h => {
     const date = new Date(h.timestamp);
     return date.getFullYear() > 2000 && tierScopedStats(h);
   });
@@ -94,17 +100,15 @@ export default function ModelDeltaTrend({ history, events, selectedTier, coverag
   sortedHistory.forEach(entry => {
     const ms = tierScopedStats(entry);
     if (ms) {
-      // M-EVAL-VALIDITY-DISCIPLINE (W2): omit provisional (low-coverage) models —
-      // a sparse model's AILANG−Python delta line is noisy and skews the provider
-      // average. It rejoins the trend once its coverage fills in.
-      Object.keys(ms).forEach(model => {
-        if (!(coverage && coverage.isProvisional(model))) allModels.add(model);
-      });
+      // Local models are SHOWN (with a "*" while coverage is incomplete) so the
+      // on-device gap is visible; cloud models are always full-coverage here.
+      Object.keys(ms).forEach(model => allModels.add(model));
     }
   });
 
   // Provider-grouped color assignment — see modelColors.js.
   const modelColors = assignModelColors(allModels);
+  const anyLocalIncomplete = Array.from(allModels).some(localIncomplete);
 
   // Transform history data for recharts - calculate delta (AILANG - Python).
   // Same api-error gate as PerModelTrend: if either side's run is dominated
@@ -283,9 +287,15 @@ export default function ModelDeltaTrend({ history, events, selectedTier, coverag
           {providers.map((p) => (
             <span key={p} className={styles.legendChip} style={{ cursor: 'default' }}>
               <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
-              {PROVIDER_LABEL[p]}
+              {PROVIDER_LABEL[p]}{p === 'local' && anyLocalIncomplete ? ' *' : ''}
             </span>
           ))}
+          {anyLocalIncomplete && (
+            <p className={styles.chipLegendHint} style={{ width: '100%', marginTop: 4 }}>
+              * on-device scores are over an <strong>incomplete</strong> benchmark set so far — they fill
+              in as the rotation runs.
+            </p>
+          )}
         </div>
       ) : (
         <div className={styles.chipLegend}>
@@ -305,10 +315,16 @@ export default function ModelDeltaTrend({ history, events, selectedTier, coverag
                 onClick={() => toggleModel(modelName)}
               >
                 <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
-                {formatModelName(modelName)}
+                {formatModelName(modelName)}{localIncomplete(modelName) ? ' *' : ''}
               </button>
             );
           })}
+          {anyLocalIncomplete && (
+            <p className={styles.chipLegendHint} style={{ width: '100%', marginTop: 4 }}>
+              * on-device scores are over an <strong>incomplete</strong> benchmark set so far — they fill
+              in as the rotation runs.
+            </p>
+          )}
           {selectedModels.size > 0 && (
             <button
               type="button"
