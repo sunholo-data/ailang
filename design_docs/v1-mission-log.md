@@ -1213,3 +1213,77 @@ scope-params release-gate re-score; frontier-failure validation of the 8 + 4 ske
 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution
 doc-status re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example
 failures — candidate dev-health issue, sibling of #341).
+
+## 16 — 2026-07-12 — Iteration 15: m-match-xcheck-error-quality BUILT + LANDED — foreign-ctor errors now enumerate transitively-known constructors
+
+**Picked**: queue #14 `m-match-xcheck-error-quality` (top DOC-READY of the clause-3 accessibility
+cluster; iteration-14's **Next** named it as the cheapest 0.5d starter). A P2 diagnostic-quality
+paper-cut: `MatchForeignConstructorError` correctly names both ADTs + the offending constructor, but
+the `<scrutinee ADT>'s constructors are:` suggestion line was EMPTY when the scrutinee's ADT was
+known only transitively.
+
+**Reality check**: Gate-1 origin-sync caught local dev 4 commits BEHIND origin/dev (`f72313e33` vs
+`363164dab` — iteration 14 had landed via PR #350). Read all mission state from origin. dev CI green
+per-workflow (CI/Build/Docs all success @ 363164dab) — no red outranking the queue. Item REAL and
+UNBUILT: not in `implemented/`, no merged PR. Reproduced live at origin/dev HEAD in a worktree
+(rebuilt binary): a module importing only `std/json`+`std/result` (NOT `std/option`), matching
+`asNumber(jnum(3.0))` with `Ok/Err`, printed `Option's constructors are: ` (empty) while
+`Result's constructors are: Err, Ok` was populated. Design doc's cited code (`lookupADTConstructors`,
+`pipeline_module_imports.go` M-CTOR-AUTO block) verified present; **Option A** chosen per the doc's
+own recommendation.
+
+**Shipped**: full build loop headless in an origin/dev worktree → **PR #352 → squash-merge `5aaaff2ed`**,
+design doc + sprint plan → `implemented/v0_30_0/`.
+- Opus sprint-planner → 2-milestone plan + JSON, with root-cause verified in code (topo-order
+  deps-first compile ⇒ every transitive iface registered in `modLinker.GetLoadedModules()` before the
+  root type-checks) and the `types` cannot import `link` cycle noted (⇒ pass a plain `map[string]string`).
+- Opus executor (worktree, commits `3ded459cc` M1 / `f5498ca0e` M2 / `ecca08b3b` hardening):
+  a **diagnostic-only** `Constructor→ADT` registry (`moduleImports.AllCtorTypes`) built from all
+  loaded ifaces, plumbed via new `SetDiagnosticConstructorTypes`, consulted by `lookupADTConstructors`
+  ONLY when the primary direct/local scan is empty — so it never enters scope. Strengthened the
+  existing function-call repro test to assert `Some`+`None` now appear; non-vacuity proven by
+  disabling the fallback (line reverts to empty). CHANGELOG + doc-move.
+- Independent Opus evaluator: **round-1 PASS 96/100**, no blockers. Re-proved non-vacuity with a
+  BASE origin/dev binary (empty on base, `None, Some` on fix), confirmed `Some` stays uncallable
+  without importing `std/option` (no scope leak — identical on base+fix), confirmed the error-message
+  format string is byte-identical (out-of-scope respected), and that direct/local ctors always win.
+  Two −2 deductions (benign same-name-ctor collision undocumented; scope invariant not locked into
+  CI) → BOTH addressed in the `ecca08b3b` hardening commit (added
+  `TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope` + a collision note in the design doc).
+- Gate 3b: PR #352 auto-merge on green required checks; bounded 29-min CI poll observed `CI: completed success` on the PR head (`ecca08b3b`) — the required-check green that gated auto-merge; post-merge dev CI re-running on `5aaaff2ed` at record time.
+  Queue #14 → `[LANDED]`.
+
+**Routing evidence**: model=opus task-class=plan (2-milestone, correct scope, root-cause code-verified
+before planning) rounds=1 corrections=0. model=opus task-class=execute round1-quality=high (clean
+Option-A impl; proactively hardened per the evaluator's two non-blocking deductions) rounds=1
+corrections=0. model=opus task-class=evaluate round1-score=96 rounds=1 (consecutive round-1 pass
+continues). Evaluator-independence caveat holds (Opus judges Opus) — mitigated as before: the
+evaluator built a base-origin/dev binary and independently reproduced the empty-vs-populated delta,
+the scope-non-leak invariant, and the format-unchanged claim; nothing rested on the executor's report.
+
+**Ruled out**:
+- "Bringing transitive constructors into `constructorTypes` would fix the message" — REJECTED by
+  design: that would put `Some`/`None` in scope (auto-import), the doc's explicit out-of-scope
+  hazard. Kept a SEPARATE diagnostic map consulted only for error text.
+- "`types` can reach the linker to enumerate ifaces at error time" — REFUTED: `internal/types` is
+  below `internal/link`; importing it is a cycle. The registry is passed down as a plain
+  `map[string]string` (the doc's "slimmed-down ADT registry").
+- "The strengthened test might be vacuous" — REFUTED twice: executor disabled the fallback (line
+  empty); evaluator ran the identical repro on a base binary (empty) vs fix (`None, Some`).
+
+**Retro lane**: **none** (no skill or process edit). One iteration, zero corrections, clean round-1
+PASS — no ≥2-friction pattern to route. The only friction (local dev 4 commits behind origin/dev) is
+EXACTLY the case Gate 1's origin-sync step already handles, and it worked as designed (caught it
+before any stale-state work) — the process fix from iteration 12/13 is paying off, no further change
+warranted.
+
+**Next**: Iteration 16 — continue the clause-3 accessibility cluster. Remaining DOC-READY/small
+diagnostics: m-dx-json-bool-coercion (0.5d) · m-dx-split-argument-warning (1d). Then the NEW-DOC
+footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda R4b, m-arity-style-diagnostic R4c) each need
+design-doc-creator first (Conflict Surface mandatory — incl. the error-code + mechanism verification
+gates added iter 14). Also VERIFY-then-route: m-dx-record-cons-pattern, m-dx-tapp-trecord-unification
+(may be ghosts — run the repro FIRST). PARKED for human (cumulative, unchanged): tier-assignment
+ratification (release gate); feedback-gate production ops; haiku causal re-run; scope-params
+release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B
+for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
+re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
