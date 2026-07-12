@@ -1,6 +1,6 @@
 # M-MODULE-LESS-RUN-FAIL-LOUD: `ailang run`/`check` must not silently succeed on a module-less file
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.30.0
 **Priority**: P1 (silent-success class — violates "NO SILENT FALLBACKS, FAIL LOUDLY"; a fleet-tier footgun per strategy R1/R4, bar-v2 clause 3)
 **Estimated**: ~0.5 day (pipeline diagnostic ~30 LOC + block_demo remediation + fixtures + regression)
@@ -51,7 +51,7 @@ So a "forgot `module`" file is misclassified as a bare-expression eval that happ
 with a fix-carrying diagnostic — while every legitimate mode is preserved.
 
 **Success**: exit ≠ 0 + a message like
-`MOD011: no 'module' declaration — add 'module <derived/path>' at the top of the file` (the derived
+`MOD014: no 'module' declaration — add 'module <derived/path>' at the top of the file` (the derived
 path computed the same way MOD010 already suggests one). Both `check` and `run` emit it (one fix,
 pipeline-level — systemic per AUDIT-BEFORE-PATCHING).
 
@@ -62,33 +62,60 @@ In `validateModulePath` (the single chokepoint check/run/eval/test all pass thro
 
 ```go
 if mod.File.Module == nil {
-    if len(mod.File.Funcs) > 0 || len(mod.File.Statements) > 0 || len(mod.File.Decls) > 0 {
-        return <MOD011 error: no module declaration; suggest `module <canonicalID>`>
+    if len(mod.File.Funcs) > 0 {
+        return <MOD014 error: no module declaration; suggest `module <canonicalID>`>
     }
-    return nil // genuinely empty file — unchanged
+    return nil // genuinely empty file OR a bare-expression eval — unchanged
 }
 ```
 
-Use the real AST fields (`ast.File.Funcs`/`Statements`; `Decls` is deprecated but kept for
-back-compat). Suggested path = `loader.CanonicalModuleID(modID)` (already used by MOD010).
+Use the real AST fields (`ast.File.Funcs`). Suggested path = `loader.CanonicalModuleID(modID)`
+(already used by MOD010).
+
+> **Implementation correction (2026-07-12):** The original proposal gated on
+> `len(Funcs) > 0 || len(Statements) > 0 || len(Decls) > 0` on the assumption that a bare
+> expression (`1 + 1`) routes through `runSingle` and never reaches `validateModulePath`. That
+> assumption is **false** for a bare-expression *file with a filename*: `RunWithContext` routes any
+> non-REPL file with a filename through the **module** pipeline, so `1 + 1` in a `.ail` file DOES
+> reach `validateModulePath`. The parser mirrors that bare expression into BOTH `Statements` and
+> `Decls` (back-compat, `parser_file.go`), so the 3-way OR would have made `ailang run file-with-1+1`
+> fail with MOD014 — breaking the eval escape hatch. The shipped guard is **`len(Funcs) > 0` only**:
+> a genuine "forgot `module`" file always has top-level `Funcs` (`export func main …`), while the
+> bare-expression path has none. Verified live: `1 + 1` → `2` still works, module-less `export func`
+> now fails loudly.
 
 ## Conflict Surface Analysis
+
+**Error-code collision (2026-07-12 correction):** the original doc allocated `MOD011` for this
+diagnostic, but **`MOD011` was already taken** — it is the module-path-collision diagnostic
+(`internal/pipeline/pipeline_module.go`, live since v0.10.9: "module X is declared in two different
+files"). Allocated codes at implementation time are MOD001–MOD013 (only MOD008 is a free gap). This
+feature ships as **`MOD014`** (next fresh, unambiguous) everywhere — in code and in this doc.
 
 `validateModulePath` is shared by **check, run, eval, test, package-check**. Adjacent behavior that
 must NOT regress:
 - **MOD010** (declared-but-mismatched path) + its temp-path/`--relax-modules` relaxation — untouched
-  (this branch is the `Module == nil` case, disjoint from MOD010's `Module != nil` path).
+  (the MOD014 branch is the `Module == nil` case, disjoint from MOD010's `Module != nil` path).
 - **`std/*` bypass** and **`pkg/*` prefix mapping** — untouched (also `Module != nil`).
-- **Bare-expression eval** (`ailang run` on `1 + 1` → `2`): routes to `runSingle`, NOT the module
-  pipeline — never reaches `validateModulePath`. Verified: `1+1` → `2` still works. MUST stay working.
+- **Bare-expression eval** (`ailang run` on a `.ail` file containing `1 + 1` → `2`): **CORRECTION** —
+  a bare-expression *file with a filename* routes through the **module** pipeline and DOES reach
+  `validateModulePath` (only the REPL / no-filename path goes to `runSingle`). It is preserved because
+  the MOD014 guard is `len(Funcs) > 0` only, and a bare expression has no top-level `Funcs`. Verified:
+  `1 + 1` → `2` still works. MUST stay working.
 - **Top-level effectful eval** in genuine non-module files — confirm the fixture set still behaves.
 
-**Blast radius (audited, 2026-07-12)**: exactly **1** corpus file — `examples/runnable/block_demo.ail`
-(has `export func compute/singleLine`, no `module`, no `main`; currently a silent no-op). Remediate it
-as part of this doc: add `module examples/runnable/block_demo` and either a `main` that exercises the
-demo or mark it check-only in the example manifest. All other examples/stdlib/benchmarks already carry
-module declarations, so the fix makes zero currently-passing case fail (a module-less file cannot pass
-today — it produces no output).
+**Blast radius (audited, 2026-07-12; re-confirmed at implementation)**: exactly **1** corpus file —
+`examples/runnable/block_demo.ail` (has `export func compute/singleLine/multiStep`, no `module`, no
+`main`; currently a silent no-op). Remediated: added `module examples/runnable/block_demo` as the first
+line. It has no `main`, and `scripts/verify-examples.sh` already treats no-entrypoint files as
+check-only, so it now checks clean with no manifest change. All other examples/stdlib/benchmarks
+already carry module declarations, so the fix makes zero currently-passing case fail (a module-less
+file cannot pass today — it produces no output).
+
+`make verify-examples` at implementation showed 5 pre-existing failures (`effectful_list`,
+`effectful_list_t7_chain_combinators`, `mcp_tools`, `stream_multi_source`, `stream_process_source`) —
+all effect-row / type-unification errors, all **module-bearing**, and all confirmed failing identically
+on the base `origin/dev` binary. They are unrelated to MOD014; block_demo passes.
 
 ## Testing Strategy (TDD)
 
@@ -102,7 +129,7 @@ today — it produces no output).
 
 ## Routing (PROGRAM.md §4)
 
-**AILANG fix** — `internal/pipeline` + a new `MOD011` diagnostic. Not motoko, not core. Directly
+**AILANG fix** — `internal/pipeline` + a new `MOD014` diagnostic. Not motoko, not core. Directly
 serves strategy **R1** (error-time teaching: the compiler *is* the prompt) and bar-v2 **clause 3**
 (fleet-tier footgun burn-down). Could fold into the m-diagnostic-coverage footgun table as one row.
 

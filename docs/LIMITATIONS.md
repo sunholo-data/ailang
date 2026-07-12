@@ -78,6 +78,12 @@ Single-expression branches don't need braces. See the
   pairs (the inverse of `urlEncodeForm`). Both **pure** — no `Net` capability. Previously an author
   had to hand-roll a `std/string.split` chain (order-sensitive, RFC-ignorant); that workaround is no
   longer needed.
+- **Module-less file silent success** (v0.30.0, M-MODLESS-FAIL-LOUD) — a `.ail` file with top-level
+  `export func` declarations but **no `module` line** used to type-check clean, print `✓ Running`, and
+  **exit 0 with no output** (the entry never ran, since a module-less file exports nothing). `ailang
+  run`/`check` now **fail loudly** with `MOD014: no 'module' declaration … Fix: add 'module
+  <canonical/path>' as the first line`. The fix names the exact module line to add. Bare-expression
+  files (`1 + 1` → `2`) are unaffected — they have no top-level funcs and still evaluate.
 
 ## Reporting New Limitations
 
