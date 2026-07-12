@@ -317,6 +317,22 @@ Suggestion: Add ')' to close grouped expression
 
 ---
 
+## Diagnostic Heuristic Bounds (By Design)
+
+### Reversed-`split`-argument warning is best-effort
+
+The compile-time warning for reversed `split` arguments (M-DX-SPLIT-ARG) is a
+**best-effort heuristic**: it fires only when the first argument is a short (1–3
+rune) **string literal** and the second is not a literal, e.g. `split("/", name)`.
+It intentionally does **not** flag `split(sep, s)` when the delimiter is a
+variable (`let sep = "/"; split(sep, name)`) — there is no literal delimiter to
+key on, and both arguments are `string` so the type system cannot distinguish
+them. The warning is non-blocking and never produces false positives on the
+correct data-first order `split(s, delimiter)`. Prefer data-first and treat the
+warning as a backstop for the literal-delimiter case.
+
+---
+
 ## Reporting New Limitations
 
 Found a limitation not listed here? Please file an issue at:

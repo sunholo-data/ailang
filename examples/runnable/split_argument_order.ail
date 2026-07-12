@@ -1,0 +1,47 @@
+-- split_argument_order.ail
+--
+-- TEACHING: split() is DATA-FIRST. It takes the string to split FIRST, and the
+-- delimiter SECOND:
+--
+--     split(s, delimiter)   -- data first  ->  split("a/b/c", "/") = ["a","b","c"]
+--
+-- This is the OPPOSITE order from join(), which is SEPARATOR-FIRST:
+--
+--     join(delimiter, xs)   -- separator first  ->  join("/", ["a","b","c"]) = "a/b/c"
+--
+-- Because both split arguments are strings, the type system cannot catch a swap.
+-- Calling split with the arguments reversed is a silent footgun:
+--
+--     split("/", name)      -- WRONG: splits the literal "/" BY the contents of
+--                           -- `name`. Since "/" does not contain `name`, this
+--                           -- returns the 1-element list ["/"], NOT the parts.
+--
+-- The AILANG compiler emits a NON-BLOCKING warning (M-DX-SPLIT-ARG) when it sees
+-- a short (1-3 char) string literal as the first arg and a non-literal second
+-- arg, e.g. `split("/", name)`. The program still compiles and runs.
+--
+-- LIMITATION (best-effort heuristic): the warning fires only when the delimiter
+-- is a SHORT STRING LITERAL. It cannot catch `split(delim, s)` where `delim` is
+-- a variable (e.g. `let sep = "/"; split(sep, name)`) — there is no literal to
+-- key on. Prefer the data-first order and let the warning backstop literals.
+--
+-- Run me:  ailang run --caps IO --entry main examples/runnable/split_argument_order.ail
+
+module examples/runnable/split_argument_order
+
+import std/string (split)
+import std/list (length)
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let name = "api/keys/user123";
+
+  -- CORRECT: string first, delimiter second -> ["api", "keys", "user123"]
+  let right = split(name, "/");
+  let _ = println("correct  split(name, \"/\") -> ${show(length(right))} parts");
+
+  -- WRONG (reversed): splits "/" by `name` -> ["/"] (1 element).
+  -- The compiler warns about this line but does NOT block the run.
+  let wrong = split("/", name);
+  println("reversed split(\"/\", name) -> ${show(length(wrong))} part(s)")
+}
