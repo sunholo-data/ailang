@@ -25,7 +25,7 @@ function formatModelName(name) {
   return s + suffix;
 }
 
-export default function ModelComparisonTable({ models }) {
+export default function ModelComparisonTable({ models, coverage }) {
   const [sortColumn, setSortColumn] = useState('ailangSuccess');
   const [sortDirection, setSortDirection] = useState('desc');
 
@@ -68,7 +68,12 @@ export default function ModelComparisonTable({ models }) {
     const minRuns = Math.min(row.ailangRuns || 0, row.pythonRuns || 0);
     row.isPartialSample = fullRuns > 0 && minRuns > 0 && minRuns < fullRuns;
     row.runs = minRuns;
+    // M-EVAL-VALIDITY-DISCIPLINE (W2): prefer TRUE benchmark coverage (distinct
+    // benchmarks from the ratings block) over the run-count heuristic when present.
+    row.benchmarks = coverage ? coverage.benchmarksFor(row.modelName) : null;
+    row.provisional = coverage ? coverage.isProvisional(row.modelName) : row.isPartialSample;
   }
+  const maxCoverage = coverage ? coverage.maxCoverage : fullRuns;
 
   // Sort table data
   const sortedData = [...tableData].sort((a, b) => {
@@ -134,12 +139,14 @@ export default function ModelComparisonTable({ models }) {
         </thead>
         <tbody>
           {sortedData.map((row) => (
-            <tr key={row.modelName}>
+            <tr key={row.modelName} style={row.provisional ? { opacity: 0.6, fontStyle: 'italic' } : undefined}>
               <td className={styles.tableModelName}>
                 {row.displayName}
-                {row.isPartialSample && (
+                {row.provisional && (
                   <span
-                    title={`Partial sample: ran ${row.runs}/${fullRuns} benchmarks (core tier only). Pass-rate not directly comparable to models that ran the full core+stretch suite.`}
+                    title={row.benchmarks != null
+                      ? `Provisional: ran ${row.benchmarks}/${maxCoverage} benchmarks so far — pass-rate not comparable to full-coverage models until the rotation fills coverage in.`
+                      : `Partial sample: ran ${row.runs}/${fullRuns} benchmarks (core tier only). Pass-rate not directly comparable to models that ran the full core+stretch suite.`}
                     style={{
                       marginLeft: 6,
                       fontSize: '0.7em',
@@ -153,7 +160,7 @@ export default function ModelComparisonTable({ models }) {
                       fontWeight: 600,
                     }}
                   >
-                    ⚠ {row.runs}/{fullRuns}
+                    ⚠ {row.benchmarks != null ? `${row.benchmarks}/${maxCoverage}` : `${row.runs}/${fullRuns}`}
                   </span>
                 )}
               </td>
