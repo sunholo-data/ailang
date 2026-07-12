@@ -415,6 +415,12 @@ function mergeOSData(data, os) {
     m.source = 'local';
     m.languages = m.languages || {};
     for (const [l, rate] of Object.entries(lang)) {
+      // latest.json is authoritative (version-specific, same source as every other
+      // table). Only FILL IN a rate the baseline lacks — never overwrite a current
+      // rate with the CUMULATIVE os rate. That overwrite is what made motoko-qwen
+      // read 100% (v0.29.2, 27 runs) in the Per-Model Breakdown but 93% (cumulative
+      // across versions) in the Harness×Language table.
+      if (m.languages[l] && m.languages[l].agentSuccessRate != null) continue;
       m.languages[l] = { ...(m.languages[l] || {}), agentSuccessRate: rate };
     }
     data.models[model] = m;
