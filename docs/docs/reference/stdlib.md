@@ -22,6 +22,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed) | — |
 | `std/map` | O(1) key-value lookup backed by Go hashmaps | — |
 | `std/string` | Length, substring, trim, split, replace, case | — |
+| `std/regex` | Linear-time (RE2) regex: match, find, replace, split | — |
 | `std/bytes` | UTF-8 encoding, base64, byte-level operations | — |
 | `std/iter` | `FoldStep` and bounded folds for early exit | — |
 
