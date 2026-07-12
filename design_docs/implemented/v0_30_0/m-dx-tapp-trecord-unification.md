@@ -1,9 +1,30 @@
 # M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]
 
-**Status**: Planned
+**Status**: Resolved — ghost (verified fixed, no change needed; closed mission iteration 18, 2026-07-13)
 **Priority**: High
 **Source**: DX feedback from docparse-demo (Feb 2026)
-**Milestone**: v0.8.0
+**Milestone**: v0.8.0 (closed in the v0.30.0 line)
+
+## Resolution (2026-07-13, mission iteration 18)
+
+VERIFY-then-route reality-check: the bug **no longer reproduces at HEAD** (`v0.29.2`). A helper
+`makeTable(rows: [[TableCell]]) -> Block` — the exact "fails when extracted to a function" case —
+type-checks cleanly in both the modern `func` form and the doc's original
+`let makeTable: [[TableCell]] -> Block = \rows. …` lambda-binding form.
+
+The doc cited the error `cannot unify type application with *types.TRecord` from
+`internal/types/unification_types.go:unifyTypeApps()`. That `%T`-formatted string was reworded to
+`.String()` in commit `5cf6287bf`; the remaining fallback (`cannot unify type application %s with
+%s`) fires only for genuinely-unrelated type applications, not for `[[RecordAlias]]` element
+unification — `unifyTypeApps` decomposes `TApp ~ TApp` and recursively unifies element types
+(alias expansion resolves the record alias before comparison). No code change was required.
+
+CI-enforced regression guard added:
+
+- `examples/record_list_extraction.ail` — top-level example whose `[[TableCell]]` extraction is
+  type-checked (and run, printing `headers: 2`) by `verify-examples-toplevel` in CI.
+
+*(Everything below is the original 2026-02 analysis, retained for provenance.)*
 
 ## Problem
 

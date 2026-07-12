@@ -1,0 +1,22 @@
+-- Record-literal head in a :: cons pattern.
+-- Regression guard for M-DX-RECORD-CONS: destructuring a record directly in the
+-- head of a cons pattern (`{field} :: rest`) once failed with PAT_INVALID_CONS.
+-- Verified fixed / closed as a ghost in mission iteration 18 (2026-07-13).
+module examples/record_cons_pattern
+
+import std/io (println)
+
+type Row = { text: string, bold: bool }
+
+-- The head of the cons pattern is a record literal, destructured inline.
+pure func firstText(rows: [Row]) -> string {
+  match rows {
+    {text: s, bold: _} :: _ => s,
+    [] => "(empty)"
+  }
+}
+
+export func main() -> () ! {IO} {
+  let rows = [{text: "hello", bold: true}, {text: "world", bold: false}];
+  println(firstText(rows))
+}

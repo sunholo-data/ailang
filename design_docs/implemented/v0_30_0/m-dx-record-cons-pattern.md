@@ -1,9 +1,28 @@
 # M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug
 
-**Status**: Planned
+**Status**: Resolved — ghost (verified fixed, no change needed; closed mission iteration 18, 2026-07-13)
 **Priority**: Low
 **Source**: DX feedback from docparse-demo (Feb 2026)
-**Milestone**: v0.8.0
+**Milestone**: v0.8.0 (closed in the v0.30.0 line)
+
+## Resolution (2026-07-13, mission iteration 18)
+
+VERIFY-then-route reality-check: the bug **no longer reproduces at HEAD** (`v0.29.2`). All three
+forms type-check cleanly (`ailang check`):
+
+- infix record head — `{text: s, bold: b} :: rest => s` ✓
+- canonical form — `::({text: s, bold: b}, rest) => s` ✓
+- baseline var head — `first :: rest` ✓ (was never broken)
+
+The parser cursor-position mismatch described below was fixed by subsequent record-pattern /
+`::`-sugar work (`internal/parser/parser_pattern.go`); no code change was required this iteration.
+The doc's own noted gap — *"Missing: Cons with record patterns (no test)"* — is now closed with a
+CI-enforced regression guard so it cannot silently regress:
+
+- `internal/parser/list_cons_pattern_test.go::TestListConsPatternWithRecord` (infix + canonical)
+- `examples/record_cons_pattern.ail` (top-level example, type-checked + run by `verify-examples-toplevel` in CI)
+
+*(Everything below is the original 2026-02 analysis, retained for provenance.)*
 
 ## Problem
 
