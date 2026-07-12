@@ -15,6 +15,7 @@ package diag
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -193,6 +194,57 @@ func TestFootgunFixtures(t *testing.T) {
 				t.Errorf("%s: diagnostic must carry the fix substring %q, got:\n%s", fx.name, fx.fix, msg)
 			}
 		})
+	}
+}
+
+// TestFootgunFixture_MOD014_ModuleLess is the MOD014 footgun contract. Unlike
+// the inline-Code table above (which routes through the single-file pipeline),
+// MOD014 only fires in the MODULE pipeline, which requires a real filename on
+// disk. A file with top-level `func` declarations but no `module` header used to
+// silently succeed with exit 0 and no output (the entry never ran). It must now
+// fail loudly with a fix-carrying diagnostic naming the canonical module path.
+func TestFootgunFixture_MOD014_ModuleLess(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nomod.ail")
+	src := "import std/io (println)\n" +
+		"export func main() -> () ! {IO} { println(\"x\") }\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := pipeline.Run(
+		pipeline.Config{Mode: pipeline.ModeCheck},
+		pipeline.Source{Code: src, Filename: path},
+	)
+	if err == nil {
+		t.Fatal("MOD014: module-less file with top-level funcs must fail loudly, got nil error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "MOD014") {
+		t.Errorf("expected MOD014 code in diagnostic, got:\n%s", msg)
+	}
+	// Fix-carrying contract: the message must tell the agent to add a module line.
+	if !strings.Contains(msg, "Fix: add 'module ") {
+		t.Errorf("MOD014 diagnostic must carry the 'add module' fix, got:\n%s", msg)
+	}
+}
+
+// TestFootgunFixture_MOD014_BareExpressionPreserved guards the escape hatch: a
+// module-less file that is a lone bare expression (`1 + 1`) must NOT trip MOD014
+// — that eval path is intentional. MOD014 gates on top-level Funcs only.
+func TestFootgunFixture_MOD014_BareExpressionPreserved(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "expr.ail")
+	src := "1 + 1\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := pipeline.Run(
+		pipeline.Config{Mode: pipeline.ModeCheck},
+		pipeline.Source{Code: src, Filename: path},
+	)
+	if err != nil && strings.Contains(err.Error(), "MOD014") {
+		t.Fatalf("bare-expression module-less file must NOT trip MOD014, got:\n%s", err.Error())
 	}
 }
 
