@@ -52,6 +52,8 @@ The data does not need to be in the build: **every consumer already fetches it a
 - **W4** — `post-release`: keep a release-time git/bucket snapshot for provenance; stop routine data commits. *(pending)*
 - **W5** — Remove the data-churn commits from the rotation once a full rig cycle proves the runtime path; document the new flow in [database-architecture](../../docs/docs/guides/database-architecture.md). *(pending — one rig cycle away)*
 
+- **W6 (contingent — TODO 2026-07-12)** — *once this decouple is proven end-to-end on dev and promoted to prod*, write a follow-up design doc to migrate the other dynamic datasets (eval run details, telemetry/chain rollups, coordinator status) onto the same runtime-data-plane pattern (see **Generalization** below). Do not start until the benchmark case is green in prod.
+
 **Custom-domain adoption (deferred, 2026-07-12).** `dashboard.ailang.sunholo.com` exists but maps to the **PROD** dashboard (`ailang-dashboard` in project `ailang-multivac`), which lacks the `/benchmarks/` route (dev-only) and read access to the dev-project bucket. Decision: keep `DATA_BASE` = the dev run.app for now (decouple is active there immediately). To adopt the clean domain later: (1) ship the route to prod on a normal release, (2) grant `ailang-dashboard@ailang-multivac.iam.gserviceaccount.com` `objectViewer` on `gs://ailang-multivac-dev-benchmarks` (cross-project), (3) flip the one `DATA_BASE` constant in `benchmarkFetch.js`.
 
 ## Acceptance criteria
