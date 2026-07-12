@@ -197,6 +197,61 @@ func firstSome(xs: List[Option]) -> int {
 	}
 }
 
+// TestListConsPatternWithRecord is the regression guard for M-DX-RECORD-CONS.
+// A record-literal pattern as the head of an infix :: cons pattern used to fail
+// with PAT_INVALID_CONS (a parser cursor-position mismatch after the record
+// pattern). Verified fixed and closed as a ghost in mission iteration 18
+// (2026-07-13); this test locks it in — both the infix and canonical forms.
+func TestListConsPatternWithRecord(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "infix record head",
+			input: `module test
+
+func firstText(rows: List[{text: string, bold: bool}]) -> string {
+  match rows {
+    {text: s, bold: b} :: rest => s,
+    [] => ""
+  }
+}`,
+		},
+		{
+			name: "canonical record head",
+			input: `module test
+
+func firstText(rows: List[{text: string, bold: bool}]) -> string {
+  match rows {
+    ::({text: s, bold: b}, rest) => s,
+    [] => ""
+  }
+}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := lexer.New(tc.input, "test.ail")
+			p := New(l)
+			program := p.Parse()
+
+			if len(p.Errors()) != 0 {
+				t.Log("Parser errors:")
+				for _, err := range p.Errors() {
+					t.Logf("  %s", err)
+				}
+				t.Fatal("REGRESSION: record-literal head in :: cons pattern rejected (M-DX-RECORD-CONS)")
+			}
+
+			if program == nil || program.File == nil {
+				t.Fatal("Expected file to parse successfully")
+			}
+		})
+	}
+}
+
 // TestListConsPatternInvalidNoArgs tests error when :: has no arguments
 func TestListConsPatternInvalidNoArgs(t *testing.T) {
 	input := `module test

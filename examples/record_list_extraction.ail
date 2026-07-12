@@ -1,0 +1,36 @@
+-- Extracting a helper that takes a nested list of a record-type alias.
+-- Regression guard for M-DX-TAPP-TRECORD: a function parameter typed
+-- `[[RecordAlias]]` once failed type inference with
+-- "cannot unify type application with *types.TRecord" when the same body
+-- type-checked inline. Verified fixed / closed as a ghost in mission
+-- iteration 18 (2026-07-13).
+module examples/record_list_extraction
+
+import std/io (println)
+import std/list (length)
+
+type TableCell = { text: string, bold: bool }
+
+type Block = TableBlock({ rows: [[TableCell]], headers: [TableCell] }) | EmptyBlock
+
+-- The [[TableCell]] parameter is the crux: nested list of a record alias,
+-- unified across the function boundary against the pattern-inferred record type.
+pure func makeTable(rows: [[TableCell]]) -> Block {
+  match rows {
+    firstRow :: dataRows => TableBlock({ rows: dataRows, headers: firstRow }),
+    [] => EmptyBlock
+  }
+}
+
+pure func headerCount(b: Block) -> int {
+  match b {
+    TableBlock({ rows: _, headers: hs }) => length(hs),
+    EmptyBlock => 0
+  }
+}
+
+export func main() -> () ! {IO} {
+  let cell = {text: "h", bold: true};
+  let table = makeTable([[cell, cell], [cell]]);
+  println("headers: ${show(headerCount(table))}")
+}
