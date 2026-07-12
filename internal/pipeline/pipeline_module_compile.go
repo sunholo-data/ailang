@@ -18,7 +18,7 @@ import (
 type moduleCompileResult struct {
 	TypeChecker   *types.CoreTypeChecker
 	DebugSink     *types.VerboseDebugSink
-	Warnings      []*elaborate.ExhaustivenessWarning
+	Warnings      []elaborate.Warning
 	ModuleTypeEnv *types.TypeEnv // Accumulated type environment for interface building
 }
 
@@ -292,8 +292,9 @@ func typeCheckAndLowerModule(
 	}
 
 	// Collect exhaustiveness warnings
-	warnings := elaborator.GetWarnings()
-	result.Warnings = append(result.Warnings, warnings...)
+	for _, w := range elaborator.GetWarnings() {
+		result.Warnings = append(result.Warnings, w)
+	}
 	result.ModuleTypeEnv = moduleTypeEnv
 
 	return result, nil

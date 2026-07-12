@@ -121,8 +121,8 @@ type Result struct {
 	Value          eval.Value
 	Type           types.Type
 	Constraints    []types.Constraint
-	Errors         []error                            // TODO: Use structured errors
-	Warnings       []*elaborate.ExhaustivenessWarning // Exhaustiveness warnings
+	Errors         []error             // TODO: Use structured errors
+	Warnings       []elaborate.Warning // Compile-time warnings (exhaustiveness, split-arg-order, ...)
 	Artifacts      Artifacts
 	Interface      *iface.Iface                    // Module interface (for modules only)
 	Modules        map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)

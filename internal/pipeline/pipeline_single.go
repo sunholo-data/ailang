@@ -186,7 +186,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	}
 
 	// Collect exhaustiveness warnings
-	result.Warnings = elaborator.GetWarnings()
+	result.Warnings = nil
+	for _, w := range elaborator.GetWarnings() {
+		result.Warnings = append(result.Warnings, w)
+	}
 
 	// Record Core stats on span
 	elabSpan.SetAttributes(attribute.Int("core.decls", len(coreProg.Decls)))
