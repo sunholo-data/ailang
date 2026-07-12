@@ -663,6 +663,22 @@ func detectModulePrefixOverlap(prefixMap map[string]string, rootPkgName string) 
 // validateModulePath validates that the module declaration matches the canonical path (MOD010).
 func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) error {
 	if mod.File.Module == nil {
+		// MOD014: A file with top-level *function declarations* but no `module`
+		// header exports nothing, so the entry (e.g. `main`) never runs and the
+		// runner silently falls through to a non-module print of unit — exit 0,
+		// no output. Fail loudly with an actionable fix instead.
+		//
+		// Guard on Funcs ONLY, never Statements/Decls. A file that is a lone
+		// bare expression to be evaluated (e.g. `1 + 1` -> 2) is parsed into
+		// Statements (and, for back-compat, ALSO into Decls — see
+		// parser_file.go), with Funcs empty. Gating on Decls would break that
+		// eval path. `func main`-style footguns always populate Funcs.
+		if len(mod.File.Funcs) > 0 {
+			canonicalID := loader.CanonicalModuleID(modID)
+			return fmt.Errorf("Error MOD014: no 'module' declaration — this file has top-level "+
+				"declarations but no module, so nothing is exported and the entry never runs.\n"+
+				"  Fix: add 'module %s' as the first line of the file", canonicalID)
+		}
 		return nil
 	}
 
