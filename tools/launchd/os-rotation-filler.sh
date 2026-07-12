@@ -301,4 +301,28 @@ if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
 else
   log "no cloud baseline for ${AILANG_VER:-unknown} yet — unified publish deferred to post-release"
 fi
+
+# 9. Bucket sync (M-EVAL-DATA-HOSTING-DECOUPLE): push the 3 refreshed JSONs to the
+#    private GCS bucket EVERY cycle so the docs site — which fetches them at runtime
+#    via the dashboard's /benchmarks/ route — shows new data within ~1 min, with no
+#    site rebuild / GitHub Pages deploy. Independent of AUTOPUSH (git stays the
+#    in-build fallback); opt out with BENCH_BUCKET_SYNC=0. Never fails the cycle.
+BENCH_SYNC="${BENCH_BUCKET_SYNC:-1}"
+BENCH_BUCKET="${BENCHMARKS_BUCKET:-ailang-multivac-dev-benchmarks}"
+if [ "$BENCH_SYNC" = "1" ] && command -v gsutil >/dev/null 2>&1; then
+  synced=0
+  for rel in latest.json os/latest.json os/history.json; do
+    src="docs/static/benchmarks/$rel"
+    [ -f "$src" ] || continue
+    if gsutil -q -h "Cache-Control:public, max-age=60" cp "$src" "gs://$BENCH_BUCKET/$rel" >>"$LOG" 2>&1; then
+      synced=$((synced + 1))
+    else
+      log "bucket sync failed for $rel (continuing)"
+    fi
+  done
+  [ "$synced" -gt 0 ] && log "bucket sync: $synced/3 JSONs → gs://$BENCH_BUCKET (runtime dashboard fetch)"
+elif [ "$BENCH_SYNC" = "1" ]; then
+  log "bucket sync skipped: gsutil not on PATH"
+fi
+
 log "cycle done"
