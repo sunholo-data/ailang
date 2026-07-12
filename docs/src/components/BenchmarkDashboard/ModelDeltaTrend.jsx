@@ -48,7 +48,7 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-export default function ModelDeltaTrend({ history, events, selectedTier }) {
+export default function ModelDeltaTrend({ history, events, selectedTier, coverage }) {
   // Show the same events on both trend charts so release context is
   // consistent at a glance; taxonomy events get grouped+summarized in the
   // tooltip rather than filtered out.
@@ -94,7 +94,12 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
   sortedHistory.forEach(entry => {
     const ms = tierScopedStats(entry);
     if (ms) {
-      Object.keys(ms).forEach(model => allModels.add(model));
+      // M-EVAL-VALIDITY-DISCIPLINE (W2): omit provisional (low-coverage) models —
+      // a sparse model's AILANG−Python delta line is noisy and skews the provider
+      // average. It rejoins the trend once its coverage fills in.
+      Object.keys(ms).forEach(model => {
+        if (!(coverage && coverage.isProvisional(model))) allModels.add(model);
+      });
     }
   });
 
