@@ -370,6 +370,24 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		compiledUnits[string(modID)] = unit
 	}
 
+	// M-DX-SPLIT-ARG: same-typed-arg swap warnings (e.g. reversed split args).
+	// Runs over every compiled unit's final Core. In user code, a call to an
+	// imported std/string.split stays as App{Func: VarGlobal{std/string.split}}
+	// even after lowering (the _str_split builtin substitution happens only
+	// inside std/string itself), so this correctly detects on both freshly
+	// compiled AND cache-hit-loaded modules. Non-blocking: warnings only.
+	// The VarGlobal module-guard means std library internals and user-defined
+	// local `split` functions never trigger. Iterate in sorted module order so
+	// warning output is deterministic.
+	argOrderModIDs := make([]string, 0, len(compiledUnits))
+	for modID := range compiledUnits {
+		argOrderModIDs = append(argOrderModIDs, modID)
+	}
+	sort.Strings(argOrderModIDs)
+	for _, modID := range argOrderModIDs {
+		result.Warnings = append(result.Warnings, DetectArgOrderWarnings(compiledUnits[modID].Core)...)
+	}
+
 	// Register $adt module after all modules are loaded and their interfaces are built
 	// This allows $adt to collect all constructors from all loaded modules
 	link.RegisterAdtModule(modLinker)

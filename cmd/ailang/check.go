@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
@@ -239,7 +240,19 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 			Errors:     []checkJSONError{},
 		})
 	} else if !quietFlag {
+		printCheckWarnings(result.Warnings)
 		fmt.Printf("\n%s No errors found!\n", green("✓"))
+	}
+}
+
+// printCheckWarnings renders non-blocking pipeline warnings (exhaustiveness,
+// split-arg-order, ...) to stderr. Warnings never fail the check.
+func printCheckWarnings(warnings []elaborate.Warning) {
+	for _, w := range warnings {
+		if w == nil {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", yellow(w.String()))
 	}
 }
 
@@ -327,6 +340,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 				Errors:     []checkJSONError{},
 			})
 		} else if !quietFlag {
+			printCheckWarnings(r.result.Warnings)
 			fmt.Printf("\n%s No errors found!\n", green("✓"))
 		}
 

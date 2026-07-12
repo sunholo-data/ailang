@@ -191,6 +191,12 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		result.Warnings = append(result.Warnings, w)
 	}
 
+	// M-DX-SPLIT-ARG: same-typed-arg swap warnings on the elaborated Core
+	// (before lowering). In the single-file/REPL pipeline imports are not
+	// resolved to VarGlobal, so this is effectively a no-op today; wired for
+	// consistency and future extensibility. Non-blocking.
+	result.Warnings = append(result.Warnings, DetectArgOrderWarnings(coreProg)...)
+
 	// Record Core stats on span
 	elabSpan.SetAttributes(attribute.Int("core.decls", len(coreProg.Decls)))
 	elabSpan.End()
