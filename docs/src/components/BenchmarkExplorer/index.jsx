@@ -425,7 +425,14 @@ function mergeOSData(data, os) {
     const h = data.harnesses[harness] || { models: [], languages: {}, source: 'local' };
     h.models = h.models || [];
     if (!h.models.includes(model)) h.models.push(model);
-    if (h.source === 'local') {
+    // Recompute the harness aggregate from its models' LIVE os rates whenever EVERY
+    // model under it is on-device (local). Otherwise a stale baseline aggregate —
+    // e.g. motoko's 100% over 9 banked runs from the unified publish — contradicts
+    // the live per-model rate (93%) the breakdown row shows, producing an impossible
+    // "100% aggregate, 93% only-model". Cloud/mixed harnesses (opencode) keep their
+    // backend-computed aggregate.
+    const allLocal = h.models.length > 0 && h.models.every(mm => data.models[mm]?.source === 'local');
+    if (h.source === 'local' || allLocal) {
       for (const l of LANG_ORDER) {
         const rates = h.models
           .map(mm => data.models[mm]?.languages?.[l]?.agentSuccessRate)
