@@ -60,6 +60,9 @@ The data does not need to be in the build: **every consumer already fetches it a
 3. The dashboard never shows a stale mixed-build after a data update (the class of bug from 2026-07-12 cannot recur — data is not in the bundle).
 4. A bucket outage degrades to the last in-build snapshot, not an empty dashboard.
 
+## Generalization (2026-07-12)
+If this proves out, the **bucket → Cloud Run read-through route → runtime fetch (with in-build fallback)** shape is the intended template for *any* frequently-changing data that currently forces a site rebuild — eval run details, chain/telemetry rollups, coordinator status. Each is a new bucket prefix + a `benchmarkFetch`-style helper; the `/benchmarks/` handler already generalizes (path-validated read-through). Promote the route to prod first (see custom-domain adoption above), then widen the prefix allowlist rather than adding per-dataset handlers.
+
 ## Out of scope
 - Changing the docs site host (stays GitHub Pages).
 - The dashboard component logic (already runtime-fetch; only the fetch URL changes).
