@@ -49,9 +49,19 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 13: m-stdlib-url-parse BUILT + LANDED (queue #12, clause 4 — URL-parse half CLOSED)
+
+`std/net` now parses URLs. `parseUrl(s) -> Result[Url,string]` (Err on malformed, never panics —
+CP2; `port:string`, ""=absent) + order-preserving percent-decoded `parseQuery` (inverse of
+`urlEncodeForm`), both pure builtins (no Net cap) wrapping Go `net/url`. Full build loop headless:
+Opus executor → independent Opus evaluator (round-1 FAIL 80/100 on a stale `builtin_types.golden`
+→ round-2 PASS 100/100 after regen). PR #347 → `a8628a40c`, auto-merge on green. Design →
+implemented/v0_30_0. With regex (#11), v1.0 bar **clause 4's regex+URL-parse gate is now fully
+closed**. Next: the clause-3 accessibility cluster. Detail: log entry 14.
+
 ## STATUS 2026-07-12 — ITERATION 12: m-stdlib-url-parse DESIGN DOC CREATED (NEW-DOC stage, queue #12, clause 4)
 
-Design doc `planned/v0_30_0/m-stdlib-url-parse.md` shipped (PR #344 → `7ca58f86f`) — wrap Go
+Design doc `implemented/v0_30_0/m-stdlib-url-parse.md` shipped (PR #344 → `7ca58f86f`) — wrap Go
 `net/url` (RFC-3986), extend `std/net`, pure `! {}`, Public API `ailang check`-clean:
 `parseUrl(s) -> Result[Url, string]` + `parseQuery(s) -> [{name,value}]` (order-preserving inverse
 of `urlEncodeForm`). Conflict Surface additive namespace-only. Queue #12 → [DOC-READY]; NEXT stage
@@ -485,13 +495,23 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     all required checks green. `std/regex` = linear-time (RE2): compile/isMatch/findFirst/findAll/
     replaceAll/split; RE2 subset (no backref/lookaround) → `compile` Err, never panics. Docs:
     LIMITATIONS + stability (Experimental) + CHANGELOG. Design → implemented/v0_30_0)
-12. [DOC-READY 2026-07-12] m-stdlib-url-parse (iteration 12: NEW-DOC stage — design doc
-    `planned/v0_30_0/m-stdlib-url-parse.md` created + `ailang check`-verified, PR #344 →
-    `7ca58f86f`. Wrap Go `net/url` (RFC-3986) → 2 pure builtins in `std/net`, no new module;
-    `parseUrl -> Result[Url,string]` + order-preserving `parseQuery`. Conflict Surface additive
-    namespace-only. NEXT: sprint-planner → executor → evaluator, ~1d, GPU none)
-**[NEXT]** 12 (m-stdlib-url-parse build) — then the clause groups below. Loop ordering within a
-group: P0/unblockers first, then cheapest impact-per-day.
+12. [LANDED 2026-07-12] m-stdlib-url-parse (iteration 13: full build loop headless — Opus executor
+    (worktree: `_net_url_parse` + `_net_url_parse_query` pure builtins in the modern
+    `internal/builtins/net.go`, wrapping Go `net/url`; `Url` record + wrappers in `std/net.ail`;
+    26 non-vacuous tests incl. IPv6 `[::1]:80`, error-never-panics, order+dupe preservation,
+    round-trip; 2 examples; docs) → independent Opus evaluator round-1 FAIL 80/100 (single BLOCKER:
+    stale `builtin_types.golden` not regenerated → repo-wide `make test` red) → round-2 golden
+    regen → PASS 100/100. Design → implemented/v0_30_0. PR #347 → squash-merge `a8628a40c`,
+    auto-merge on green required checks. `std/net` now parses URLs: `parseUrl(s) -> Result[Url,string]`
+    (Err on malformed, never panics/fallbacks — CP2; `port:string` ""=absent) + order-preserving
+    percent-decoded `parseQuery` (inverse of `urlEncodeForm`). Pure `! {}`, no Net cap. Closes v1.0
+    bar clause 4's URL-parse half (regex half = #11). BONUS finding: `cmd/ailang`
+    `TestRunCommand_PipedStdoutFlushesPerLine` is a pre-existing flaky under parallel `make test`
+    load — passes 3/3 in isolation, unrelated to this sprint; flagged for dev-health, not a gate)
+**[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
+P0/unblockers first, then cheapest impact-per-day → the cheapest DOC-READY starter is
+m-module-less-run-fail-loud (MOD011, 0.5d, doc at `planned/v0_30_0/`); the NEW-DOC footgun fixes
+(m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-creator first.
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface

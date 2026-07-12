@@ -1061,3 +1061,76 @@ origin FIRST" skill fix (log 13). If it recurs → that skill edit.
 
 **Next**: loop continues at #12 (url-parse build), then the clause-3 accessibility cluster —
 now the bulk of v1.0. Timeline honest: ~33 open items ≈ 40–55 sprint-days.
+
+## 14 — 2026-07-12 — Iteration 13: m-stdlib-url-parse BUILT + LANDED — AILANG parses URLs; v1.0 bar clause 4's URL-parse half closed (regex + URL-parse gate now fully met)
+
+**Picked**: queue #12 m-stdlib-url-parse build (top `[NEXT]`; design doc was DOC-READY from iter 12,
+API frozen + `ailang check`-clean; ~1d, GPU none). The URL-parse complement to the regex half (#11)
+and the existing `urlEncode`/`urlEncodeForm` — both named v1.0 bar clause-4 release gates.
+
+**Reality check**: design doc present at `planned/v0_30_0/m-stdlib-url-parse.md` (DOC-READY, not yet
+built). `parseUrl`/`parseQuery` builtins **genuinely absent** — the only `parseQuery*` hits in the
+tree are unrelated `parseQueryArgs` in `internal/apiserver/` (HTTP query-arg extraction, different
+thing). Only PR #344 (the doc) merged; no build PR. origin/dev queue tag = `[DOC-READY]`, `[NEXT]`
+= build. Confirmed a real, unbuilt task. Gate-1 origin-sync clean this run: local dev == origin/dev
+== HEAD at start (the new skill step held).
+
+**Shipped**: full build loop headless in an origin/dev worktree.
+- Opus executor: `_net_url_parse` + `_net_url_parse_query` pure builtins (`IsPure:true, Effect:""`,
+  no Net cap) in the modern `internal/builtins/net.go` (+206), wrapping Go `net/url`; `Url` flat
+  record + `parseUrl`/`parseQuery` wrappers in `std/net.ail` (+50); 26 non-vacuous Go tests
+  (`net_url_parse_test.go`, +240) incl. IPv6 `[::1]:80`→host="::1"/port="80", no-port→"", userinfo,
+  error-never-panics on `%zz`, percent-decode, source-order + duplicate-key preservation, bare-key,
+  empty→[], purity, round-trip `parseQuery(urlEncodeForm(pairs))`; 2 runnable examples
+  (`url_parse_basics`, `url_route_dispatch`); docs (CHANGELOG, LIMITATIONS resolved-entry, stability
+  Experimental tier). Commits `5ea30d8b1`/`ea5a60f86`/`34e518a13`.
+- Independent Opus evaluator: **round-1 FAIL 80/100** — single BLOCKER: `internal/pipeline/testdata/
+  builtin_types.golden` not regenerated after registering the two builtins → repo-wide `make test`
+  red (auto-reject gate), everything else 100%. **Round-2**: golden regenerated (exactly 2 correct
+  lines, commit `52ac50e3b`) → repo-wide `make test` green except a pre-existing flaky → **PASS
+  100/100**.
+- Controller independent verification (not taking the executor's word): rebuilt binary, ran the 26
+  tests + full builtins package green, both examples produce the design-doc's expected output
+  (field decomposition + percent-decoded params; host/path routing + query branching), consumer
+  type-checks clean.
+- Integration: PR #347 → squash-merge `a8628a40c` on dev, auto-merge fired on green required checks
+  (Gate 3b — the required checks that gated the merge were the observed green; post-merge dev CI run
+  on the merge commit was still in-flight at report time, no failures). Queue #12 → `[LANDED]`,
+  design doc → `implemented/v0_30_0/`.
+
+**Routing evidence**: model=opus task-class=execute round1-quality=high (faithful to every frozen
+decision; only miss = the golden-regen step, a known mechanical follow-on to adding a builtin)
+rounds=1 corrections=1 (the golden fix, applied by the controller deterministically — a single
+`UPDATE_GOLDEN=1` regen, not a re-loop). model=opus task-class=evaluate round1-score=80 (FAIL, hard
+gate on tests-red) → round2-score=100 rounds=2. Evaluator independence caveat holds (Opus judges
+Opus while on the Monday-reverting override) — mitigated here by the evaluator reproducing the red
+`make test` and the exact 2-line golden diff itself, and by the controller's own independent
+re-run; the BLOCKER was a real, reproducible test failure, not a judgment call.
+
+**Ruled out**:
+- "`cmd/ailang` `TestRunCommand_PipedStdoutFlushesPerLine` is a url-parse regression" — REFUTED: it
+  fails only under parallel `make test` load, passes 3/3 in isolation, and this sprint touches zero
+  `cmd/`/stdout code. Pre-existing timing-flaky; flagged for dev-health (sibling of #341), not a gate.
+- "origin/dev's `BenchmarkDashboard/*` changes in my range-diff are executor contamination" —
+  REFUTED: the 3 executor commits touch only url-parse files; origin/dev advanced under me
+  (sibling dashboard commits `2de953067`, then the M-EVAL-DATA-HOSTING-DECOUPLE set) with zero file
+  overlap → a clean divergence, clean merge.
+
+**Retro lane**: none. No skill edit (the one-allowed slot needs ≥2 frictions at the same gap; this
+run had none — the golden-regen miss is a known mechanical follow-on, already the evaluator's job to
+catch, and it did). Gate-1 origin-sync + Gate-2 already-landed checks (added last iteration) worked
+as intended: clean sync, no redundant work. Every wait bounded (Standing rule 6): the Gate-3b CI
+poll used a 29-min hard deadline and exited on MERGED well inside it. Watch list (single instances,
+no edit): (a) the pre-existing `PipedStdoutFlushesPerLine` flaky under parallel `make test` — if it
+bites another iteration, file a dev-health issue; (b) `ailang check <bare-stdlib-file>` derives the
+module name from the filename (`net.ail` → "invalid characters") so a stdlib module can't be checked
+in isolation — check via a consumer instead; minor, single instance.
+
+**Next**: Iteration 14 — the clause-3 accessibility cluster (now the bulk of v1.0, ~33 open items ≈
+40–55 sprint-days). Cheapest DOC-READY starter: m-module-less-run-fail-loud (MOD011, 0.5d, doc at
+`planned/v0_30_0/`); the NEW-DOC footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda R4b,
+m-arity-style-diagnostic R4c, …) each need design-doc-creator first (Conflict Surface mandatory).
+PARKED for human (cumulative, unchanged): tier-assignment ratification (release gate); feedback-gate
+production ops; haiku causal re-run; scope-params release-gate re-score; frontier-failure validation
+of the 8 + 4 sketches; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward:
+%-row + m-record-update-local-resolution doc-status re-check; the two dev-health flakies above.
