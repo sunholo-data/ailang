@@ -49,6 +49,25 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-13 — ITERATION 18: m-dx-record-cons-pattern + m-dx-tapp-trecord-unification BOTH GHOSTS — verified-closed + CI-regression-guarded (clause 3, VERIFY-then-route)
+
+The clause-3 **VERIFY-then-route** pair. Ran each doc's repro LIVE at HEAD (`v0.29.2`): both bugs are
+**ghosts** — already fixed by prior record-pattern/`::`-sugar + type-unification work. `{text: s, bold:
+b} :: rest` type-checks (infix + canonical); `makeTable(rows: [[TableCell]]) -> Block` type-checks in
+both `func` and `let`-lambda forms. The doc's `cannot unify type application with *types.TRecord` (`%T`)
+error was reworded to `.String()` (`5cf6287bf`); the surviving fallback is for unrelated type apps only.
+NO inner-loop skills invoked — Gate 2 "already done → bookkeeping" path; deliverable is verification +
+a CI-enforced regression guard (the record-cons doc flagged its OWN missing-test gap). Shipped one
+worktree commit: parser test `TestListConsPatternWithRecord` + two runnable examples
+`record_cons_pattern.ail` (→ `hello`) / `record_list_extraction.ail` (→ `headers: 2`), both gated by
+`verify-examples-toplevel` in CI; both docs → implemented/v0_30_0; CHANGELOG. Zero Go production-code
+change. PR #358 → squash-merge `adde9e9d0`, required checks green (bounded 2-chunk poll, 30-min cap);
+post-merge dev CI green (one `gh run rerun --failed` cleared a transient `proxy.golang.org` deps
+flake in the `CI` job's install step — NOT code; all 3 workflows green on `adde9e9d0`). Retro: no
+skill/process edit (see log 19). VERIFY-then-route
+backlog now EXHAUSTED. Next: NEW-DOC footgun fixes (R4c arity-style / R4a match-hof) via
+design-doc-creator — full inner-loop sprints. Detail: log entry 19.
+
 ## STATUS 2026-07-12 — ITERATION 17: m-dx-split-argument-warning BUILT + LANDED (clause 3 — compile-time non-blocking warning for the reversed-`split` footgun)
 
 Full build loop headless, round-1 clean. Reality-check verified the footgun live (`split("/", name)` →
@@ -601,16 +620,18 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     Foreign-ctor errors now enumerate transitively-known constructors (`None, Some` + did-you-mean).
     SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
-P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics are now EXHAUSTED
-(module-less/xcheck/json-bool/split-arg all landed iters 14–17). Remaining clause-3 starters:
-(a) **VERIFY-then-route** — m-dx-record-cons-pattern · m-dx-tapp-trecord-unification: run the doc repro
-FIRST (may be ghosts, cheap if so); (b) the **NEW-DOC footgun fixes** (m-dx-match-hof R4a,
-m-poly-arith-lambda R4b, m-arity-style-diagnostic R4c) each need design-doc-creator first (Conflict
-Surface mandatory — incl. the error-code + mechanism verification gates). Recommend (a) next: a ghost
-is a near-zero-cost close and clears the VERIFY-then-route backlog before the heavier NEW-DOC work.
+P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
+VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
+14–17; both VERIFY-then-route items closed as ghosts iter 18). Remaining clause-3 starters are all
+**NEW-DOC footgun fixes** — each needs design-doc-creator first (Conflict Surface mandatory, incl.
+the error-code + mechanism verification gates): m-dx-match-hof (R4a, 2–3d) · m-poly-arith-lambda
+(R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) · m-lambda-open-record-pattern (1d) ·
+m-xmod-alias-poly (1–2d). Recommend R4c (cheapest) or R4a next — these are full inner-loop sprints,
+NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
-iter 17 — all → implemented/v0_30_0.)*
+iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18 —
+all → implemented/v0_30_0.)*
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
@@ -622,8 +643,11 @@ triage evidence = log entry 10.)*
 - **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): m-dx-match-hof (R4a, 2–3d) ·
   m-poly-arith-lambda (R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) ·
   m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
-- **VERIFY-then-route** (agents split ghost-vs-open; run the doc repro FIRST — may be ghosts):
-  m-dx-record-cons-pattern · m-dx-tapp-trecord-unification
+- **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
+  **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
+  `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·
+  ~~m-dx-tapp-trecord-unification~~ **[LANDED/GHOST iter 18 → implemented/v0_30_0; `[[TableCell]]`
+  extraction type-checks; guard `examples/record_list_extraction.ail`, PR #358 → `adde9e9d0`]**
 - **Diagnostics** (DOC-READY / small): ~~m-module-less-run-fail-loud (MOD014)~~ **[LANDED iter 14 →
   implemented/v0_30_0]** · ~~m-match-xcheck-error-quality~~ **[LANDED iter 15 → implemented/v0_30_0]** ·
   ~~m-dx-json-bool-coercion~~ **[in-repo half LANDED iter 16 → implemented/v0_30_0 (`std/json.asBoolLoose`);
