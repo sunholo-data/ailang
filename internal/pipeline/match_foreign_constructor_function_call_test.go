@@ -86,6 +86,13 @@ export pure func main() -> float =
 	if !strings.Contains(msg, "Option") || !strings.Contains(msg, "Result") {
 		t.Errorf("error message should name both 'Option' and 'Result', got: %s", msg)
 	}
+	// M-MATCH-XCHECK-ERROR-QUALITY: the scrutinee's ADT (Option) is known only
+	// transitively here — std/json imports std/option, but this module does not.
+	// The "Option's constructors are:" suggestion list must still be populated
+	// (Some, None) via the diagnostic ctor registry, not left empty.
+	if !strings.Contains(msg, "Some") || !strings.Contains(msg, "None") {
+		t.Errorf("error message should enumerate Option's transitively-known constructors (Some, None), got: %s", msg)
+	}
 }
 
 // TestSchemeImport_NestedFunctionCallMatch covers the cognitive_commons shape:
