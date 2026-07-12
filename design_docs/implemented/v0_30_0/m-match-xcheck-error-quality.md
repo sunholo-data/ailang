@@ -21,6 +21,17 @@ the repro (`match asNumber(...) { Ok ... Err ... }` importing only `std/result`)
 `Option's constructors are: None, Some`. Non-vacuity of the guarding test proven by disabling the
 fallback (message reverts to empty). Option B's import-hint text remains a possible follow-up.
 
+Two hardening notes from the round-1 evaluation:
+- **Scope safety is regression-guarded**: `TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope`
+  asserts that a transitively-known constructor (`Some`) remains **uncallable** without importing
+  its module — the diagnostic registry must never leak into scope.
+- **Collision is benign**: `AllCtorTypes` is keyed by constructor *name* across all loaded modules,
+  so two modules defining a same-named constructor for different ADTs would leave only the
+  last-loaded one in the map. Because `lookupADTConstructors` reverse-scans by ADT name, the worst
+  case is a *slightly incomplete* suggestion list for that rare shared-name ADT — never a
+  wrong-ADT suggestion, and never any effect on scope or inference (the fallback fires only when
+  the primary direct/local scan is already empty).
+
 ## Problem
 
 After M-SCHEME-IMPORT-PRESERVE-ADT-HEAD landed, the foreign-constructor reproducer at `/tmp/foreign_ctor_repro.ail` correctly fires:
