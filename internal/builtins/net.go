@@ -18,6 +18,8 @@ func init() {
 	registerNetHTTPRequestBytes()
 	registerNetURLEncode()
 	registerNetURLEncodeForm()
+	registerNetURLParse()
+	registerNetURLParseQuery()
 }
 
 // registerNetHTTPRequest registers the _net_httpRequest builtin
@@ -323,6 +325,210 @@ func netURLEncodeFormImpl(_ *effects.EffContext, args []eval.Value) (eval.Value,
 		values.Add(nameStr.Value, valueStr.Value)
 	}
 	return &eval.StringValue{Value: values.Encode()}, nil
+}
+
+// registerNetURLParse registers the _net_url_parse builtin.
+// Parses an RFC-3986 URL into a Url record (scheme/host/port/path/query/fragment).
+// Backed by Go net/url.Parse — pure, no Net capability. Fallible: Err on malformed input.
+func registerNetURLParse() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/net",
+		Name:    "_net_url_parse",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeNetURLParseType,
+		Impl:    netURLParseImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Parse an RFC-3986 URL into a {scheme,host,port,path,query,fragment} record",
+			LongDesc: `Parses a URL string into its structured components using Go's net/url
+(the reference RFC-3986 parser). Returns Result[Url, string]: Ok(record) with
+scheme/host/port/path/query/fragment fields, or Err(message) for malformed
+input (control chars, invalid %-escape, bad port) — never a silent fallback.
+
+Fields are all strings. port is "" when absent (Go url.Port() semantics); host
+is the hostname only (no port, no IPv6 brackets); path and fragment are percent-
+DECODED; query is the raw substring after ? (still encoded — feed to parseQuery).
+
+Pure function: no Net capability needed. It reaches no network; it only takes a
+URL apart. The inverse of urlEncode/urlEncodeForm.`,
+			Params: []ParamDoc{
+				{Name: "s", Description: "The URL string to parse"},
+			},
+			Returns: "Result[Url, string] where Url = {scheme, host, port, path, query, fragment : string}",
+			Examples: []Example{
+				{
+					Code:        `_net_url_parse("https://user@host:8443/a/b?q=1#frag")`,
+					Description: `Ok({scheme:"https", host:"host", port:"8443", path:"/a/b", query:"q=1", fragment:"frag"})`,
+				},
+			},
+			SeeAlso:   []string{"_net_url_parse_query", "_net_url_encode", "_net_url_encode_form"},
+			Since:     "v0.30.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"url", "parse", "http", "web", "orchestration"},
+			Category:  "network",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _net_url_parse: %v", err))
+	}
+}
+
+// makeNetURLParseType: string -> Result[Url, string]
+func makeNetURLParseType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(
+		T.App("Result", urlRecordType(T), T.String()),
+	).Build()
+}
+
+// urlRecordType returns the Url record type:
+// {scheme, host, port, path, query, fragment : string}. All fields are strings.
+func urlRecordType(T *types.Builder) types.Type {
+	return T.Record(
+		types.Field("scheme", T.String()),
+		types.Field("host", T.String()),
+		types.Field("port", T.String()),
+		types.Field("path", T.String()),
+		types.Field("query", T.String()),
+		types.Field("fragment", T.String()),
+	)
+}
+
+// netURLParseImpl parses its argument with net/url.Parse and marshals the
+// *url.URL into a Url RecordValue wrapped in Ok(...). On parse error it returns
+// Err(err.Error()) — no silent fallback on the structural fields (CP2).
+//
+// Field mapping (all decoded string fields — no byte offsets exposed):
+//
+//	scheme   = u.Scheme      ("" if scheme-relative)
+//	host     = u.Hostname()  (no port, no IPv6 brackets)
+//	port     = u.Port()      ("" when absent)
+//	path     = u.Path        (percent-decoded)
+//	query    = u.RawQuery    (raw, still percent-encoded — feed to parseQuery)
+//	fragment = u.Fragment    (decoded; "" when absent)
+func netURLParseImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_net_url_parse: expected String, got %T", args[0])
+	}
+	u, err := url.Parse(s.Value)
+	if err != nil {
+		return wrapErr(err.Error()), nil
+	}
+	rec := &eval.RecordValue{
+		Fields: map[string]eval.Value{
+			"scheme":   &eval.StringValue{Value: u.Scheme},
+			"host":     &eval.StringValue{Value: u.Hostname()},
+			"port":     &eval.StringValue{Value: u.Port()},
+			"path":     &eval.StringValue{Value: u.Path},
+			"query":    &eval.StringValue{Value: u.RawQuery},
+			"fragment": &eval.StringValue{Value: u.Fragment},
+		},
+	}
+	return wrapOk(rec), nil
+}
+
+// registerNetURLParseQuery registers the _net_url_parse_query builtin.
+// Parses a query string ("a=1&b=2") into order-preserving {name,value} pairs.
+// Values are percent-DECODED (inverse of urlEncodeForm). Total — never panics.
+func registerNetURLParseQuery() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/net",
+		Name:    "_net_url_parse_query",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeNetURLParseQueryType,
+		Impl:    netURLParseQueryImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Parse a query string into order-preserving, percent-decoded {name,value} pairs",
+			LongDesc: `Parses a query string ("a=1&b=2") into a list of {name: String, value: String}
+records — the inverse of urlEncodeForm. Values are percent-DECODED.
+
+Unlike Go's url.ParseQuery (which returns a sorted map, lossy for order and
+duplicate keys), this parses the raw string itself: it splits on &, each pair on
+the FIRST =, url.QueryUnescape's both halves, and PRESERVES source order and
+duplicate keys (?a=1&a=2 -> two entries). A bare key (?flag) yields
+{name:"flag", value:""}. An empty string yields []. Total: never panics.
+
+Pure function: no Net capability needed.`,
+			Params: []ParamDoc{
+				{Name: "s", Description: "The query string to parse (the raw substring after ?, no leading ?)"},
+			},
+			Returns: "List[{name: String, value: String}] in source order, values percent-decoded",
+			Examples: []Example{
+				{
+					Code:        `_net_url_parse_query("q=hello%20world&r=2")`,
+					Description: `[{name:"q", value:"hello world"}, {name:"r", value:"2"}]`,
+				},
+			},
+			SeeAlso:   []string{"_net_url_parse", "_net_url_encode_form"},
+			Since:     "v0.30.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"url", "parse", "query", "http", "web"},
+			Category:  "network",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _net_url_parse_query: %v", err))
+	}
+}
+
+// makeNetURLParseQueryType: string -> List[{name: String, value: String}]
+func makeNetURLParseQueryType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.List(httpHeaderType(T))).Build()
+}
+
+// netURLParseQueryImpl parses a raw query string into order-preserving
+// {name,value} records with percent-decoded values. It deliberately does NOT
+// use url.ParseQuery (which sorts and dedups); it splits the raw string to
+// preserve source order and duplicate keys — the inverse of netURLEncodeFormImpl.
+//
+// Rules: empty string -> []; split on "&" (empty segments skipped); each segment
+// on the FIRST "="; both halves url.QueryUnescape'd (best-effort: on decode error
+// the raw half is kept, matching url.ParseQuery leniency, never panics); a bare
+// key with no "=" -> {name:key, value:""}.
+func netURLParseQueryImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_net_url_parse_query: expected String, got %T", args[0])
+	}
+	elems := []eval.Value{}
+	if s.Value != "" {
+		for _, pair := range strings.Split(s.Value, "&") {
+			if pair == "" {
+				continue
+			}
+			var rawKey, rawVal string
+			if idx := strings.IndexByte(pair, '='); idx >= 0 {
+				rawKey, rawVal = pair[:idx], pair[idx+1:]
+			} else {
+				rawKey, rawVal = pair, ""
+			}
+			name := queryUnescapeLenient(rawKey)
+			value := queryUnescapeLenient(rawVal)
+			elems = append(elems, &eval.RecordValue{
+				Fields: map[string]eval.Value{
+					"name":  &eval.StringValue{Value: name},
+					"value": &eval.StringValue{Value: value},
+				},
+			})
+		}
+	}
+	return &eval.ListValue{Elements: elems}, nil
+}
+
+// queryUnescapeLenient percent-decodes a query half, falling back to the raw
+// input if decoding fails so the parser stays total (never panics, never errors).
+func queryUnescapeLenient(raw string) string {
+	if decoded, err := url.QueryUnescape(raw); err == nil {
+		return decoded
+	}
+	return raw
 }
 
 // httpResponseType returns the HttpResponse record type with body (string view)
