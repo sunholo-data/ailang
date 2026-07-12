@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import historyData from '../../../static/benchmarks/os/history.json';
+import React, { useState, useEffect } from 'react';
 
 // M-EVAL-OS-LONGITUDINAL: local-rig eval performance per AILANG release.
-// The version-trend snapshots (docs/static/benchmarks/os/history.json — written by
-// tools/os-release-snapshot.sh and refreshed each rotation cycle) are BUNDLED AT
-// BUILD TIME (imported, NOT fetched at runtime). A runtime fetch of that static
-// JSON was subject to CDN edge-cache inconsistency: the same URL returned good data
-// to one request and a stale/collapsed copy to another, which rendered as an empty
-// table for weeks. The content-hashed bundle is cache-proof, always matches the
-// deployed commit, and refreshes on every deploy (the rotation commits + pushes it).
+// Fetches docs/static/benchmarks/os/history.json AT RUNTIME — the same pattern the
+// working dashboards (EloLeaderboard, BenchmarkDashboard) use for latest.json.
+// (An earlier build-time `import` of this JSON caused an SSR-vs-client hydration
+// mismatch: Docusaurus's server render used the fresh file but the client webpack
+// bundle cached a stale copy, so the page rendered 3 models then hydrated to 1.
+// Runtime fetch keeps server + client identical and always reads the live file.)
 // Renders a version-over-version trend: rows = (model, harness), columns = AILANG
 // versions, cells = pass rate for the selected language.
 
@@ -35,11 +33,20 @@ function shortModel(m) {
 }
 
 export default function OSVersionTrend() {
+  const [history, setHistory] = useState(null);
   const [lang, setLang] = useState('ailang');
 
-  // BUILD-TIME data (see file header): imported, not fetched — no CDN edge-cache
-  // roulette, so the render is deterministic and matches the deployed commit.
-  const history = Array.isArray(historyData) ? historyData : [];
+  useEffect(() => {
+    // Plain runtime fetch — same as the working dashboards. GitHub Pages serves
+    // history.json with max-age=600 and purges Fastly on each deploy, so it stays
+    // fresh within ~10 min. No build coupling → no SSR/client hydration mismatch.
+    fetch('/benchmarks/os/history.json')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((h) => setHistory(Array.isArray(h) ? h : []))
+      .catch(() => setHistory([]));
+  }, []);
+
+  if (history == null) return <p>Loading version trend…</p>;
   const valid = history.filter((e) => e && e.ailang_version);
   if (valid.length < 1) return null; // nothing published yet — show nothing
 
