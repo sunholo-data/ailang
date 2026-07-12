@@ -228,3 +228,53 @@ export func urlEncode(s: string) -> string {
 export func urlEncodeForm(params: List[{name: string, value: string}]) -> string {
   _net_url_encode_form(params)
 }
+
+-- A parsed URL as a plain record for direct field access.
+--
+-- `port` is a string ("" when absent, matching Go url.Port()); `host` is the
+-- hostname only (no port, no brackets for IPv6). `path` and `fragment` are
+-- percent-DECODED. `query` is the raw substring after `?` (still percent-encoded
+-- — feed it to parseQuery to decode it into pairs).
+export type Url = {
+  scheme: string,     -- "https"        ("" if the URL is scheme-relative)
+  host: string,       -- "example.com"  (hostname only, no port, no brackets for IPv6)
+  port: string,       -- "8443"         ("" when no explicit port)
+  path: string,       -- "/a/b"         (percent-decoded)
+  query: string,      -- "q=1&r=2"      (raw, still percent-encoded — feed to parseQuery)
+  fragment: string    -- "frag"         (decoded; "" when absent)
+}
+
+-- Parse an RFC-3986 URL into its components (scheme/host/port/path/query/fragment).
+--
+-- Backed by Go's net/url — the reference RFC-3986 parser. Returns Err(message)
+-- for malformed input (control chars, invalid %-escape, bad port) — never a
+-- silent fallback (all record fields are then total).
+--
+-- Pure function: no Net capability needed. It takes a URL apart; it reaches no
+-- network. The inverse of urlEncode/urlEncodeForm.
+--
+-- Example:
+--   match parseUrl("https://api.example.com:8443/v1/users?id=42#top") {
+--     Err(e) => println("bad url: ${e}"),
+--     Ok(u)  => println("${u.host}:${u.port}${u.path}")  -- api.example.com:8443/v1/users
+--   }
+export func parseUrl(s: string) -> Result[Url, string] {
+  _net_url_parse(s)
+}
+
+-- Parse a query string ("a=1&b=2") into order-preserving {name,value} pairs.
+--
+-- Values are percent-DECODED (the inverse of urlEncodeForm). Unlike Go's
+-- url.ParseQuery (a sorted map), this PRESERVES source order and duplicate keys
+-- (`a=1&a=2` yields two entries). A bare key (`flag`) yields
+-- {name:"flag", value:""}. An empty string yields []. Total: never fails.
+--
+-- Pure function: no Net capability needed. Pass a Url's `query` field, or any
+-- raw query string (no leading `?`).
+--
+-- Example:
+--   parseQuery("q=hello%20world&r=2")
+--   -- [{name:"q", value:"hello world"}, {name:"r", value:"2"}]
+export func parseQuery(s: string) -> [{name: string, value: string}] {
+  _net_url_parse_query(s)
+}

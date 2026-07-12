@@ -102,6 +102,7 @@ May change in a 1.x minor with a CHANGELOG entry.
 | `std/ai` | AI as a typed effect (`call`, `callJson`, `step`) | surface still evolving with the agent loop |
 | `std/ai/streaming` | Streaming AI responses | new; narrow usage |
 | `std/net` | Network operations | ⚠ proposed — widely used (13 examples) but security/format-sensitive; held Experimental pending a network-surface review |
+| `std/net` — `parseUrl` / `parseQuery` | Pure RFC-3986 URL parsing (URL → `Url` record; query string → `{name,value}` pairs) | new (v0.30.0); pure, no `Net` capability; `Url` record shape may evolve; `parseQuery` is order-preserving (deliberately not Go's sorted `url.ParseQuery`) |
 | `std/stream` | Async stream sources / `selectEvents` | concurrency-adjacent; evolving |
 | `std/secret` | Gated secret resolution (M-SECRET-EFFECT, v0.26.0) | new effect (v0.26.0) |
 | `std/cognition` | Cognitive-OS message fabric (M-COG-RUNTIME) | named Experimental in design doc |

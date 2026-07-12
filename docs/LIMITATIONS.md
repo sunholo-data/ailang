@@ -71,6 +71,13 @@ Single-expression branches don't need braces. See the
 - **String interpolation** — `"Value: ${x}"` → `Value: 42` (v0.12.1); `++` is now list-only
   (string `++` is a type error, v0.13.0).
 - **Pattern guards** — `match x { n if n > 100 => …, n if n > 0 => …, _ => … }` (v0.6.2).
+- **URL parsing** (v0.30.0, M-STDLIB-URL-PARSE) — `std/net` now parses URLs, not just builds them.
+  `parseUrl(s) -> Result[Url, string]` splits a URL into `{scheme, host, port, path, query, fragment}`
+  (RFC-3986, backed by Go `net/url`; `Err` on malformed input, never a panic), and
+  `parseQuery(s) -> [{name, value}]` decodes a query string into order-preserving, percent-decoded
+  pairs (the inverse of `urlEncodeForm`). Both **pure** — no `Net` capability. Previously an author
+  had to hand-roll a `std/string.split` chain (order-sensitive, RFC-ignorant); that workaround is no
+  longer needed.
 
 ## Reporting New Limitations
 
