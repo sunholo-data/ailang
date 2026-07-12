@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 1,
+          "ailang": 0.8571428571428571,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -21,10 +21,13 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 1,
+            "ailang": 0.95,
             "go": 1,
             "javascript": 1,
             "python": 1
+          },
+          "frontier": {
+            "ailang": 0
           },
           "smoke": {
             "ailang": 1,
@@ -33,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 1
+            "ailang": 0.625
           },
           "vision": {
             "ailang": 1,
@@ -46,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.8148148148148148,
+          "ailang": 0.6190476190476191,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -54,10 +57,13 @@
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.8333333333333334,
+            "ailang": 0.7,
             "go": 1,
             "javascript": 1,
             "python": 1
+          },
+          "frontier": {
+            "ailang": 0
           },
           "smoke": {
             "ailang": 1,
@@ -66,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 1
+            "ailang": 0.42857142857142855
           },
           "vision": {
             "ailang": 0,
@@ -79,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.9629629629629629,
+          "ailang": 0.7954545454545454,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -87,10 +93,13 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.9166666666666666,
+            "ailang": 0.85,
             "go": 0.8333333333333334,
             "javascript": 1,
             "python": 1
+          },
+          "frontier": {
+            "ailang": 0
           },
           "smoke": {
             "ailang": 1,
@@ -99,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 1
+            "ailang": 0.6666666666666666
           },
           "vision": {
             "ailang": 1,
