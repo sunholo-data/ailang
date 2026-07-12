@@ -49,6 +49,18 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 14: m-module-less-run-fail-loud BUILT + LANDED (queue #13, clause 3 — footgun burn-down opened, MOD014)
+
+Module-less `.ail` files (top-level decls, no `module`) now **FAIL LOUDLY** with `MOD014` on both
+`run` and `check` — previously they printed `✓ Running` and exited 0 with the entry never running
+(a silent-success footgun, CP2 violation). Full build loop headless, round-1 clean: reality-check
+caught the doc's proposed `MOD011` was already taken (module-path-collision) → reassigned `MOD014`;
+Opus plan → Opus execute (worktree; guard = `len(Funcs) > 0`, the doc's 3-way OR was code-refuted
+mid-sprint) → independent Opus evaluator PASS 100/100 round 1 (base-binary non-vacuity proof). PR
+#349 → `c2ffd1b5c`, post-merge dev CI green per-workflow. Design → implemented/v0_30_0. Skill-fix:
+design-doc-creator gains error-code-allocation + mechanism-claim verification gates. Next: continue
+the clause-3 diagnostics (m-match-xcheck-error-quality, …). Detail: log entry 15.
+
 ## STATUS 2026-07-12 — ITERATION 13: m-stdlib-url-parse BUILT + LANDED (queue #12, clause 4 — URL-parse half CLOSED)
 
 `std/net` now parses URLs. `parseUrl(s) -> Result[Url,string]` (Err on malformed, never panics —
@@ -508,10 +520,21 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     bar clause 4's URL-parse half (regex half = #11). BONUS finding: `cmd/ailang`
     `TestRunCommand_PipedStdoutFlushesPerLine` is a pre-existing flaky under parallel `make test`
     load — passes 3/3 in isolation, unrelated to this sprint; flagged for dev-health, not a gate)
+13. [LANDED 2026-07-12] m-module-less-run-fail-loud (iteration 14: full build loop headless, round-1
+    clean — reality-check caught the doc's **MOD011 collision** (already the module-path-collision
+    code) → reassigned **MOD014**; Opus plan → Opus execute (worktree: `validateModulePath` early-
+    accept replaced with a loud MOD014 error gated on `len(Funcs) > 0`, fires for both `run` AND
+    `check`; the doc's 3-way `Funcs||Statements||Decls` guard was code-refuted mid-sprint — a bare-
+    expr FILE does reach `validateModulePath`, so the OR would break `ailang run 1+1`; block_demo
+    remediated; footgun fixture 17→18) → independent Opus evaluator PASS 100/100 round 1 w/ a
+    base-origin/dev binary proving test non-vacuity + pre-existing-failure claims. PR #349 →
+    merge `c2ffd1b5c`, post-merge dev CI green per-workflow. Design → implemented/v0_30_0. Module-less
+    files now FAIL LOUDLY (CP2). Skill-fix: design-doc-creator error-code + mechanism verification gates)
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
-P0/unblockers first, then cheapest impact-per-day → the cheapest DOC-READY starter is
-m-module-less-run-fail-loud (MOD011, 0.5d, doc at `planned/v0_30_0/`); the NEW-DOC footgun fixes
-(m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-creator first.
+P0/unblockers first, then cheapest impact-per-day → cheapest remaining DOC-READY/small diagnostics:
+m-match-xcheck-error-quality (0.5d) · m-dx-json-bool-coercion (0.5d) · m-dx-split-argument-warning
+(1d); the NEW-DOC footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-
+creator first (Conflict Surface mandatory — incl. the new error-code + mechanism verification gates).
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
@@ -525,8 +548,8 @@ triage evidence = log entry 10.)*
   m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
 - **VERIFY-then-route** (agents split ghost-vs-open; run the doc repro FIRST — may be ghosts):
   m-dx-record-cons-pattern · m-dx-tapp-trecord-unification
-- **Diagnostics** (DOC-READY / small): m-module-less-run-fail-loud (MOD011, 0.5d, DOC-READY,
-  [v0_30_0](planned/v0_30_0/m-module-less-run-fail-loud.md)) · m-match-xcheck-error-quality (0.5d) ·
+- **Diagnostics** (DOC-READY / small): ~~m-module-less-run-fail-loud (MOD014)~~ **[LANDED iter 14 →
+  implemented/v0_30_0]** · m-match-xcheck-error-quality (0.5d) ·
   m-dx-split-argument-warning (1d) · m-dx-json-bool-coercion (0.5d)
 - **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
   (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
