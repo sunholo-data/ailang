@@ -28,6 +28,12 @@ func buildRatingsBlock(standard, agent []*BenchmarkResult) map[string]interface{
 	if m := ratingsForMode(agent); m != nil {
 		out["agent"] = m
 	}
+	// Like-for-like agent uplift (M-EVAL-VALIDITY-DISCIPLINE W3): standard→agent
+	// delta over ONLY shared benchmarks + matching model identity. Attached so the
+	// dashboard can show a VALID uplift instead of ad-hoc cross-cohort subtraction.
+	if up := ComputeUplift(standard, agent); len(up) > 0 {
+		out["uplift"] = up
+	}
 	if len(out) == 0 {
 		return nil
 	}
