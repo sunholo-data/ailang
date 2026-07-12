@@ -478,6 +478,7 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     comparison works; ~2–3d)
 15. NEW-DOC m-arity-style-diagnostic (clause 3; R4c — curried vs multi-arg mistake gets a
     call-style-naming diagnostic, not a generic type error; ~1–2d)
+15b. **m-module-less-run-fail-loud** ([planned/v0_30_0](planned/v0_30_0/m-module-less-run-fail-loud.md), 2026-07-12; clause 3; R1 — DOC-READY, diagnosed) — `ailang run`/`check` silently exit 0 with no output on a file that has decls but no `module` declaration; add a MOD011 fix-carrying diagnostic. ~0.5d, blast radius 1 file (block_demo). Requested by Mark.
 16. m-eval-slim-prompt-self-discovery (clauses 3+5; P1, v0_29_0 — R3.1 pass-rate-per-prompt-token
     curve per tier; the data that authorizes the deletion pass)
 17. m-effect-replay-contracts (clause 4; P1, ~3d — effect-refinement sprint 2/4)
