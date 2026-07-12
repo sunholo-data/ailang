@@ -49,6 +49,26 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 16: m-dx-json-bool-coercion BUILT + LANDED (in-repo half, clause 3 — `std/json.asBoolLoose`; Phase-1 firestore-package fix parked out-of-repo)
+
+Reality-check split the item: `std/json` already round-trips booleans (`jb`+`asBool` verified live), so
+the doc's "encode/decode is broken" premise is stale — the real bug is wrong-constructor use
+(`js("true")` = a JSON string) in `sunholo/firestore/fields.ail`, which lives in the SEPARATE
+`ailang-packages` repo (absent here, gated on M-DX-XPKG-RESOLVE) → **Phase 1 PARKED for a coordinator
+task**. Shipped the in-repo half: **`asBoolLoose(j) -> Option[bool]`** — the system-boundary (A12)
+decoder that accepts `JBool(b)` OR `JString "true"/"false"`, else `None` (structured failure, never a
+silent default — CP2), for APIs (Firestore `booleanValue`) that may return a boolean stringified.
+Purely additive (no existing json fn touched). Runnable example `json_bool_encoding.ail` (carries the
+`jb`-vs-`js` teaching — embedded prompt deliberately NOT edited; prompt-budget GATED) + Go regression
+`json_asboolloose_test.go` (7-case Firestore round-trip; non-vacuity PROVEN — plain `asBool` flips the
+stringified cases to NOT_BOOL). Controller (Opus) executed directly given sub-0.5d additive scope,
+then routed an independent Opus evaluator → **PASS 92/100 round 1**, no blockers (rebuilt binary,
+reproduced non-vacuity itself, verified out-of-repo parking is honest). Gate 3b: bounded ~19-min CI
+poll observed all required checks green → PR #354 squash-merge `5b41b3835`; origin/dev advanced. Design
+→ implemented/v0_30_0. Retro: no skill/process edit (candidate watch-item logged: authorize a
+plan-skip for sub-0.5d de-scoped mechanical items once a 2nd instance appears). Next:
+m-dx-split-argument-warning. Detail: log entry 17.
+
 ## STATUS 2026-07-12 — ITERATION 15: m-match-xcheck-error-quality BUILT + LANDED (queue #14, clause 3 — foreign-ctor errors now enumerate transitively-known constructors)
 
 `MatchForeignConstructorError` used to print an EMPTY `<scrutinee ADT>'s constructors are:` line
@@ -564,10 +584,12 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day → cheapest remaining DOC-READY/small diagnostics:
-m-dx-json-bool-coercion (0.5d) · m-dx-split-argument-warning (1d); the NEW-DOC footgun fixes
+m-dx-split-argument-warning (1d); the NEW-DOC footgun fixes
 (m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-creator first (Conflict Surface
 mandatory — incl. the error-code + mechanism verification gates). *(m-match-xcheck-error-quality
-LANDED iter 15 → implemented/v0_30_0.)*
+LANDED iter 15 → implemented/v0_30_0; m-dx-json-bool-coercion in-repo half LANDED iter 16 →
+implemented/v0_30_0 as `std/json.asBoolLoose` — its Phase-1 firestore-package fix is PARKED
+out-of-repo in `ailang-packages`.)*
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
@@ -583,7 +605,9 @@ triage evidence = log entry 10.)*
   m-dx-record-cons-pattern · m-dx-tapp-trecord-unification
 - **Diagnostics** (DOC-READY / small): ~~m-module-less-run-fail-loud (MOD014)~~ **[LANDED iter 14 →
   implemented/v0_30_0]** · ~~m-match-xcheck-error-quality~~ **[LANDED iter 15 → implemented/v0_30_0]** ·
-  m-dx-split-argument-warning (1d) · m-dx-json-bool-coercion (0.5d)
+  ~~m-dx-json-bool-coercion~~ **[in-repo half LANDED iter 16 → implemented/v0_30_0 (`std/json.asBoolLoose`);
+  Phase-1 firestore-package fix PARKED out-of-repo in `ailang-packages`]** ·
+  m-dx-split-argument-warning (1d)
 - **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
   (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
   m-dx-expected-fail-fixes (1–2d)

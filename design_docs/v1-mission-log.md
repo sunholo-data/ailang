@@ -1287,3 +1287,86 @@ ratification (release gate); feedback-gate production ops; haiku causal re-run; 
 release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B
 for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
 re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
+
+## 17 — 2026-07-12 — Iteration 16: m-dx-json-bool-coercion BUILT + LANDED (in-repo half) — std/json.asBoolLoose; Phase-1 firestore-package fix parked out-of-repo
+
+**Picked**: queue #15 `m-dx-json-bool-coercion` (0.5d) — the cheapest remaining DOC-READY diagnostic
+in the clause-3 accessibility cluster; iteration-15's **Next** named it as the top starter.
+
+**Reality check**: Gate-1 origin-sync clean (local dev == origin/dev @ `a4d8e58d8`); dev CI green
+per-workflow (CI/Build/Docs all success @ a4d8e58d8) — no red outranking the queue. Inbox: 2
+eval-suite infos (rig rotation started + 44.4% partial — the known-stale os-rolling banked data, not
+a regression) + iteration-15 recap; all ack'd. **The doc's scope did NOT survive contact with the
+repo** and split cleanly in two:
+- **Already correct**: `std/json.jb(b)` (→ JSON `true`) and `asBool` (JBool → Option) both exist and
+  round-trip (`asBool(jb(true)) == Some(true)` verified live). The core encoder/decoder are NOT
+  broken — the doc's premise that they are is stale. The real bug is *use of the wrong constructor*
+  (`js("true")` = a JSON string) at the package layer.
+- **Phase 1 is OUT-OF-REPO**: the buggy `sunholo/firestore/fields.ail` lives in the separate
+  `ailang-packages` repo — `find '*firestore*fields.ail'` returns nothing here (only unrelated Go
+  infra: `internal/server/auth/firestore.go`, `internal/storage/firestore`). The doc's own dependency
+  M-DX-XPKG-RESOLVE also gates testing it. Cannot fix or test here → PARKED for a coordinator task.
+- **In-repo deliverable = Phase 2** (`asBoolLoose`) + Phase 3 (teaching, folded into the example).
+
+**Shipped**: full build loop headless in an origin/dev worktree → **PR #354 → squash-merge `5b41b3835`**,
+design doc → `implemented/v0_30_0/`. As controller (Opus) I executed directly given the sub-0.5d
+mechanical scope, then routed an INDEPENDENT Opus evaluator.
+- `std/json.asBoolLoose(j) -> Option[bool]`: accepts `JBool(b)` OR `JString "true"/"false"`, else
+  `None` — structured failure, never a silent default (CP2); the "system boundary" (A12) decoder for
+  APIs (e.g. Firestore `booleanValue`) that may return a boolean stringified. `asBool` stays the
+  choice for values you control. Purely additive — no existing json fn touched (zero regression surface).
+- `examples/runnable/json_bool_encoding.ail`: demonstrates the `jb` vs `js` footgun + `asBool`/
+  `asBoolLoose` distinction end-to-end (Phase 3 teaching lives in its header comment — the embedded
+  prompt was deliberately NOT edited; prompt-budget is GATED in the mission under prompt-diet).
+- `internal/repl/json_asboolloose_test.go`: 7-case Firestore `{"field":{"booleanValue": …}}`
+  round-trip (real-bool, stringified-bool, non-bool → structured None, missing field). Non-vacuity
+  PROVEN — substituting plain `asBool` flips exactly `string_true`/`string_false` to `NOT_BOOL`.
+- Independent Opus evaluator: **round-1 PASS 92/100**, no blockers — rebuilt the binary, reran the
+  test, independently reproduced non-vacuity in a throwaway copy, ran+type-checked the example,
+  confirmed CP2 structured-failure (not silent fallback), verified the firestore `.ail` is genuinely
+  absent (parking is honest, not dodging), and that docs match what shipped.
+- Gate 3b: PR #354 auto-merge on green required checks; bounded ~19-min CI poll (30-min hard deadline)
+  observed all required checks pass (`test` 9m50s, `lint`, `govulncheck`, `build` ×macOS/ubuntu/windows,
+  `test-windows`) → squash-merged `5b41b3835`; origin/dev advanced `a4d8e58d8..5b41b3835`.
+  Queue #15 → `[LANDED]`. std/json.ail is NOT in the frozen STDLIB manifest → no golden to regen
+  (proactively confirmed after iteration-13's stale-golden blocker).
+
+**Routing evidence**: model=opus task-class=execute round1-quality=high (clean additive Phase-2 impl;
+reality-check correctly de-scoped the out-of-repo Phase 1 before any wasted work) rounds=1
+corrections=0. model=opus task-class=evaluate round1-score=92 rounds=1 (round-1 pass streak continues).
+Evaluator-independence caveat holds (Opus judges Opus) — mitigated as before: the evaluator rebuilt
+the binary, reproduced non-vacuity itself in a throwaway copy, and independently verified the
+out-of-repo parking claim; nothing rested on the executor's report. No sprint-planner this iteration:
+sub-0.5d additive mechanical scope after the de-scope, so controller executed directly — flagged as a
+Gate-5 watch-item below, not yet a process change.
+
+**Ruled out**:
+- "std/json's boolean encode/decode is broken (the doc's premise)" — REFUTED live: `jb`+`asBool`
+  round-trip correctly. The defect is wrong-constructor USE at the package layer, not a core bug.
+- "The whole 0.5d item is in-repo" — REFUTED: Phase 1's target file is in the separate `ailang-packages`
+  repo (absent) and gated on M-DX-XPKG-RESOLVE. Only Phase 2/3 are reachable here.
+- "Add the fix to the embedded teaching prompt (Phase 3 as written)" — DECLINED (not refuted): prompt
+  edits are GATED behind prompt-diet in the mission; folded the `jb`-vs-`js` teaching into the runnable
+  example instead (zero prompt-budget cost, still discoverable).
+- "asBoolLoose is a silent fallback (CP2 risk)" — REFUTED: it returns `Option`, `None` for non-bool
+  input; the caller explicitly opts into loose-vs-strict. Structured, not silent.
+
+**Retro lane**: **none** (no skill or process edit this iteration). Candidate watch-item (needs a 2nd
+instance before routing): the inner loop assumes a sprint-planner→executor split, but a reality-check
+that de-scopes an item to a sub-0.5d additive change makes a formal plan pure overhead — I executed
+directly + kept the independent evaluator. If a FUTURE iteration hits the same "de-scoped to trivial,
+plan is ceremony" friction, that's the ≥2-friction signal to add a mission-doc note authorizing a
+plan-skip for sub-0.5d mechanical items (with independent evaluation still mandatory). One instance
+so far → recorded, not yet acted on (Standing rule: max one skill edit, ≥2 frictions).
+
+**Next**: Iteration 17 — continue clause-3. Next DOC-READY/small diagnostic: `m-dx-split-argument-warning`
+(1d). Then the NEW-DOC footgun fixes (`m-dx-match-hof` R4a, `m-poly-arith-lambda` R4b,
+`m-arity-style-diagnostic` R4c) each need design-doc-creator first (Conflict Surface mandatory — incl.
+the error-code + mechanism verification gates). Also VERIFY-then-route: `m-dx-record-cons-pattern`,
+`m-dx-tapp-trecord-unification` (may be ghosts — run the repro FIRST). PARKED for human/coordinator
+(cumulative): **NEW → the M-DX-JSON-BOOL Phase-1 firestore-package fix in `ailang-packages`** (one-line
+`js("true")`→`jb(b)` encoder + decoder swap to `asBoolLoose`, now a drop-in); tier-assignment
+ratification (release gate); feedback-gate production ops; haiku causal re-run; scope-params
+release-gate re-score; frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B
+for m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
+re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
