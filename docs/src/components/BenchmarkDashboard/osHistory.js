@@ -34,15 +34,32 @@ export function mergeOSHistory(history, osHistory) {
     const base = (entry.version || '').split('-')[0];
     const rows = osByVer[entry.version] || osByVer[base];
     if (!rows || !rows.length) return entry;
-    const modelStats = { ...(entry.modelStats || {}) };
+    // Build the local per-model fragment for this version.
+    const localStats = {};
     rows.forEach((r) => {
       if (!r || !r.model || !r.lang) return;
       const ms = {};
       for (const [l, rate] of Object.entries(r.lang)) {
         if (typeof rate === 'number') ms[l] = { successRate: rate, totalRuns: 1 };
       }
-      modelStats[r.model] = ms;
+      localStats[r.model] = ms;
     });
-    return { ...entry, modelStats };
+    if (Object.keys(localStats).length === 0) return entry;
+    const merged = { ...entry, modelStats: { ...(entry.modelStats || {}), ...localStats } };
+    // The rig's rate is NOT tier-split (the rotation runs AILANG across tiers), so
+    // inject the same fragment into every tier's modelStats too — otherwise the
+    // "Local agent" line vanishes in tier views (and Core is the default view). The
+    // asterisk flags it as a blended/incomplete figure. Once os/history carries
+    // per-tier local rates, replace this with a tier-scoped merge.
+    if (entry.tiers && typeof entry.tiers === 'object') {
+      const tiers = {};
+      for (const [t, tv] of Object.entries(entry.tiers)) {
+        tiers[t] = tv && typeof tv === 'object'
+          ? { ...tv, modelStats: { ...(tv.modelStats || {}), ...localStats } }
+          : tv;
+      }
+      merged.tiers = tiers;
+    }
+    return merged;
   });
 }
