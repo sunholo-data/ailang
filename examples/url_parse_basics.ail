@@ -1,0 +1,36 @@
+-- url_parse_basics.ail — take a URL apart with std/net.parseUrl / parseQuery
+--
+-- parseUrl splits an RFC-3986 URL into scheme/host/port/path/query/fragment.
+-- parseQuery decodes the query string into order-preserving {name,value} pairs.
+-- Both are PURE (no Net capability) — they reach no network, they just parse.
+--
+-- Run: ailang run --caps IO --entry main examples/url_parse_basics.ail
+
+module examples/url_parse_basics
+
+import std/net (parseUrl, parseQuery)
+import std/result (Result, Ok, Err)
+import std/list (nth_or)
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  match parseUrl("https://user@api.example.com:8443/v1/users?q=hello%20world&r=2#top") {
+    Err(e) => println("bad url: ${e}"),
+    Ok(u) => {
+      -- Direct .field access on the Url record — no accessor boilerplate.
+      println("scheme:   ${u.scheme}");     -- https
+      println("host:     ${u.host}");       -- api.example.com  (no userinfo, no port)
+      println("port:     ${u.port}");       -- 8443
+      println("path:     ${u.path}");       -- /v1/users
+      println("query:    ${u.query}");      -- q=hello%20world&r=2  (raw, still encoded)
+      println("fragment: ${u.fragment}");   -- top
+
+      -- Decode the query into {name,value} pairs (values percent-DECODED).
+      let params = parseQuery(u.query);
+      let q = nth_or(params, 0, {name: "", value: ""});
+      let r = nth_or(params, 1, {name: "", value: ""});
+      println("param 0:  ${q.name}=${q.value}");   -- q=hello world
+      println("param 1:  ${r.name}=${r.value}")     -- r=2
+    }
+  }
+}
