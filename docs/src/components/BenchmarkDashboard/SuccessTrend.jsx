@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 import { useEvents, annotationColor, groupByVersion } from './useEvents';
-import { useOSHistory } from './osHistory';
+import { useOSHistory, mergeOSHistory } from './osHistory';
 
 export default function SuccessTrend({ history, languages, events, selectedTier, coverage }) {
   const annotations = useEvents(events, { selectedTier });
@@ -23,8 +23,11 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
   }, [osByVer]);
   // Incomplete while any local model is still under-covered (auto-clears via coverage).
   const anyLocalIncomplete = [...localModelNames].some((m) => (coverage ? coverage.isProvisional(m) : true));
+  // Merged history adds local-ONLY versions (rig releases the cloud never ran) so the
+  // Local-agent line spans all rig releases; cloud lines are null there (localOnly).
+  const mergedHistory = useMemo(() => mergeOSHistory(history, osHistory), [history, osHistory]);
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
-  const validHistory = history.filter(h => {
+  const validHistory = mergedHistory.filter(h => {
     const date = new Date(h.timestamp);
     return date.getFullYear() > 2000; // Only show entries with real timestamps
   });
@@ -43,33 +46,34 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
     const langs = baseline.languages || '';
     const isLatest = index === sortedHistory.length - 1;
 
-    let ailangRate = 0;
-    let pythonRate = 0;
+    // Local-only versions (rig ran, cloud didn't) have no cloud rates → null so the
+    // AILANG/Python lines skip them instead of plotting a misleading 0%.
+    let ailangRate = null;
+    let pythonRate = null;
 
-    const tierSnap = selectedTier ? baseline.tiers?.[selectedTier] : null;
-
-    if (tierSnap) {
-      ailangRate = (tierSnap.ailang_success_rate || 0) * 100;
-      pythonRate = (tierSnap.python_success_rate || 0) * 100;
-    } else if (baseline.languageStats) {
-      ailangRate = (baseline.languageStats.ailang?.success_rate || 0) * 100;
-      pythonRate = (baseline.languageStats.python?.success_rate || 0) * 100;
-    } else if (isLatest && languages) {
-      // Fallback: Use top-level language stats for latest version
-      ailangRate = (languages.ailang?.success_rate || 0) * 100;
-      pythonRate = (languages.python?.success_rate || 0) * 100;
-    } else if (langs === 'ailang') {
-      const combinedRate = (baseline.successRate || 0) * 100;
-      ailangRate = combinedRate;
-      pythonRate = 0;
-    } else if (langs === 'python') {
-      const combinedRate = (baseline.successRate || 0) * 100;
-      ailangRate = 0;
-      pythonRate = combinedRate;
-    } else {
-      const combinedRate = (baseline.successRate || 0) * 100;
-      ailangRate = combinedRate;
-      pythonRate = combinedRate;
+    if (!baseline.localOnly) {
+      const tierSnap = selectedTier ? baseline.tiers?.[selectedTier] : null;
+      if (tierSnap) {
+        ailangRate = (tierSnap.ailang_success_rate || 0) * 100;
+        pythonRate = (tierSnap.python_success_rate || 0) * 100;
+      } else if (baseline.languageStats) {
+        ailangRate = (baseline.languageStats.ailang?.success_rate || 0) * 100;
+        pythonRate = (baseline.languageStats.python?.success_rate || 0) * 100;
+      } else if (isLatest && languages) {
+        // Fallback: Use top-level language stats for latest version
+        ailangRate = (languages.ailang?.success_rate || 0) * 100;
+        pythonRate = (languages.python?.success_rate || 0) * 100;
+      } else if (langs === 'ailang') {
+        ailangRate = (baseline.successRate || 0) * 100;
+        pythonRate = 0;
+      } else if (langs === 'python') {
+        ailangRate = 0;
+        pythonRate = (baseline.successRate || 0) * 100;
+      } else {
+        const combinedRate = (baseline.successRate || 0) * 100;
+        ailangRate = combinedRate;
+        pythonRate = combinedRate;
+      }
     }
 
     const base = (baseline.version || '').split('-')[0];
@@ -81,8 +85,8 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
 
     return {
       version: formatVersion(baseline.version),
-      'AILANG': parseFloat(ailangRate.toFixed(1)),
-      'Python': parseFloat(pythonRate.toFixed(1)),
+      'AILANG': ailangRate == null ? null : parseFloat(ailangRate.toFixed(1)),
+      'Python': pythonRate == null ? null : parseFloat(pythonRate.toFixed(1)),
       'Local agent': localMean,
       date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : ''
     };
@@ -172,6 +176,7 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 7 }}
+            connectNulls
           />
           <Line
             type="monotone"
@@ -180,6 +185,7 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 7 }}
+            connectNulls
           />
           <Line
             type="monotone"

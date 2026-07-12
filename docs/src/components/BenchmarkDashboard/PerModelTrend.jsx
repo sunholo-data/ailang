@@ -81,6 +81,17 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
       return next;
     });
   };
+  // Same solo-then-add focus behaviour for the PROVIDER legend (empty = show all).
+  const [selectedProviders, setSelectedProviders] = useState(() => new Set());
+  const isProviderVisible = (p) => selectedProviders.size === 0 || selectedProviders.has(p);
+  const toggleProvider = (p) => {
+    setSelectedProviders((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
   const annotations = useEvents(events, { selectedTier });
   const eventsByVersion = groupByVersion(annotations, formatVersion);
 
@@ -242,7 +253,7 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
   });
   const byProvider = groupBy === 'provider';
   const activeData = byProvider ? providerChartData : chartData;
-  const seriesKeys = byProvider ? providers : Array.from(allModels).filter(isVisible);
+  const seriesKeys = byProvider ? providers.filter(isProviderVisible) : Array.from(allModels).filter(isVisible);
   const seriesColor = (k) => (byProvider ? PROVIDER_COLOR[k] : (modelColors.get(k) || '#999'));
   const seriesLabel = (k) => (byProvider ? PROVIDER_LABEL[k] || k : formatModelName(k));
 
@@ -445,13 +456,35 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
       </ResponsiveContainer>
       {byProvider ? (
         <div className={styles.chipLegend}>
-          <p className={styles.chipLegendHint}>Averaged per provider — switch to “Model” for per-model detail.</p>
-          {providers.map((p) => (
-            <span key={p} className={styles.legendChip} style={{ cursor: 'default' }}>
-              <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
-              {PROVIDER_LABEL[p]}{p === 'local' && anyLocalIncomplete ? ' *' : ''}
-            </span>
-          ))}
+          <p className={styles.chipLegendHint}>
+            {selectedProviders.size === 0
+              ? 'Averaged per provider — click one to focus it; switch to “Model” for per-model detail.'
+              : `Showing ${selectedProviders.size} of ${providers.length} — click more to add, or click again to remove.`}
+          </p>
+          {providers.map((p) => {
+            const active = isProviderVisible(p);
+            return (
+              <button
+                key={p}
+                type="button"
+                className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
+                onClick={() => toggleProvider(p)}
+              >
+                <span className={styles.legendChipDot} style={{ backgroundColor: PROVIDER_COLOR[p] }} />
+                {PROVIDER_LABEL[p]}{p === 'local' && anyLocalIncomplete ? ' *' : ''}
+              </button>
+            );
+          })}
+          {selectedProviders.size > 0 && (
+            <button
+              type="button"
+              className={styles.legendChip}
+              onClick={() => setSelectedProviders(new Set())}
+              title="Reset to show all providers"
+            >
+              Reset
+            </button>
+          )}
           {anyLocalIncomplete && (
             <p className={styles.chipLegendHint} style={{ width: '100%', marginTop: 4 }}>
               * on-device scores are over an <strong>incomplete</strong> benchmark set so far — they fill
