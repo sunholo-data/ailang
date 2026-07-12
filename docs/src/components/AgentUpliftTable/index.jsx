@@ -31,7 +31,10 @@ export default function AgentUpliftTable() {
   const [rows, setRows] = useState(null);
 
   useEffect(() => {
-    fetch('/benchmarks/latest.json')
+    // Cache-bust: latest.json ships with max-age=600, so a copy cached just before
+    // an eval publish shows stale (or empty) uplift for ~10 min. The uplift block is
+    // the newest data on the page, so force a fresh pull instead of the 10-min cache.
+    fetch(`/benchmarks/latest.json?v=${Date.now()}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : {}))
       .then((d) => setRows(Array.isArray(d && d.ratings && d.ratings.uplift) ? d.ratings.uplift : []))
       .catch(() => setRows([]));
