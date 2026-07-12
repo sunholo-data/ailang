@@ -1,7 +1,7 @@
 [
   {
     "ailang_version": "v0.29.2",
-    "generated": "2026-07-11",
+    "generated": "2026-07-12",
     "trials": 3,
     "languages": [
       "ailang",
@@ -23,7 +23,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.8333333333333334,
+          "ailang": 0.8148148148148148,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -33,7 +33,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 1,
+          "ailang": 0.9629629629629629,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
