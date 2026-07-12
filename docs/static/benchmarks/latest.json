@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-12T02:35:34+02:00",
+  "timestamp": "2026-07-12T07:13:19+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -18647,7 +18647,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-12T02:35:30+02:00",
+      "timestamp": "2026-07-12T07:13:18+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -35502,14 +35502,14 @@
         {
           "band": "Moderate",
           "elo": 1513.4,
-          "id": "effect_txn_rollback",
+          "id": "contract_roman_numeral",
           "passRate": 85.7,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1513.4,
-          "id": "contract_roman_numeral",
+          "id": "effect_txn_rollback",
           "passRate": 85.7,
           "saturated": false
         },
@@ -35928,14 +35928,14 @@
             {
               "band": "Moderate",
               "elo": 1505,
-              "id": "contract_roman_numeral",
+              "id": "effect_txn_rollback",
               "passRate": 85.7,
               "saturated": false
             },
             {
               "band": "Moderate",
               "elo": 1505,
-              "id": "effect_txn_rollback",
+              "id": "contract_roman_numeral",
               "passRate": 85.7,
               "saturated": false
             },
@@ -36049,14 +36049,14 @@
             {
               "band": "Easy",
               "elo": 1459.6,
-              "id": "audit_chain_replay",
+              "id": "list_comprehension",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1459.6,
-              "id": "list_comprehension",
+              "id": "audit_chain_replay",
               "passRate": 90,
               "saturated": false
             },
@@ -36877,14 +36877,14 @@
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "api_call_json",
+          "id": "intent_annotated_solver",
           "passRate": 94.1,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "intent_annotated_solver",
+          "id": "api_call_json",
           "passRate": 94.1,
           "saturated": true
         },
@@ -37205,14 +37205,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
@@ -37268,14 +37268,14 @@
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "intent_annotated_solver",
+              "id": "higher_order_functions",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "higher_order_functions",
+              "id": "intent_annotated_solver",
               "passRate": 94.1,
               "saturated": true
             },
@@ -37706,14 +37706,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
@@ -37826,14 +37826,14 @@
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "ast_patch_roundtrip",
+              "id": "float_eq",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "float_eq",
+              "id": "ast_patch_roundtrip",
               "passRate": 100,
               "saturated": true
             },
@@ -38081,7 +38081,33 @@
         "saturated": 25,
         "total": 56
       }
-    }
+    },
+    "uplift": [
+      {
+        "model": "claude-haiku-4-5",
+        "lang": "ailang",
+        "sharedBenchmarks": 56,
+        "standardPass": 0.411,
+        "agentPass": 0.929,
+        "uplift": 0.518
+      },
+      {
+        "model": "claude-sonnet-4-6",
+        "lang": "ailang",
+        "sharedBenchmarks": 55,
+        "standardPass": 0.673,
+        "agentPass": 0.927,
+        "uplift": 0.254
+      },
+      {
+        "model": "gpt5-6-luna",
+        "lang": "ailang",
+        "sharedBenchmarks": 55,
+        "standardPass": 0.818,
+        "agentPass": 0.491,
+        "uplift": -0.326
+      }
+    ]
   },
   "grading": {
     "method": "M-EVAL-OUTPUT-NORMALIZE (boolean-case + numeric parity)",
