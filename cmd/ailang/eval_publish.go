@@ -141,6 +141,22 @@ func runEvalPublish() {
 func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string]eval_harness.BenchmarkSummary) ([]byte, error) {
 	type acc struct{ passed, trials int }
 	perModelLang := map[string]map[string]*acc{}
+	// Per-tier breakdown (model → tier → lang → acc) so the dashboard can show the
+	// rig's rate BY TIER, not just a blended overall. Tier comes from the benchmark
+	// spec (banked results carry tier:null), cached to avoid re-reading specs.
+	perModelTierLang := map[string]map[string]map[string]*acc{}
+	tierCache := map[string]string{}
+	tierOf := func(bench string) string {
+		if t, ok := tierCache[bench]; ok {
+			return t
+		}
+		t := "core" // default when the spec omits tier (matches spec.defaultTier)
+		if spec, err := eval_harness.LoadSpec(filepath.Join("benchmarks", bench+".yml")); err == nil && spec.Tier != "" {
+			t = spec.Tier
+		}
+		tierCache[bench] = t
+		return t
+	}
 	langsSet := map[string]bool{}
 	maxTrials := 0
 	for _, s := range current {
@@ -154,6 +170,23 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 		}
 		a.passed += s.Passed
 		a.trials += s.Trials
+
+		// Per-tier accumulation for the same (model, lang).
+		tier := tierOf(s.BenchmarkID)
+		if perModelTierLang[s.Model] == nil {
+			perModelTierLang[s.Model] = map[string]map[string]*acc{}
+		}
+		if perModelTierLang[s.Model][tier] == nil {
+			perModelTierLang[s.Model][tier] = map[string]*acc{}
+		}
+		ta := perModelTierLang[s.Model][tier][s.Lang]
+		if ta == nil {
+			ta = &acc{}
+			perModelTierLang[s.Model][tier][s.Lang] = ta
+		}
+		ta.passed += s.Passed
+		ta.trials += s.Trials
+
 		langsSet[s.Lang] = true
 		if s.Trials > maxTrials {
 			maxTrials = s.Trials
@@ -194,11 +227,29 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 				langMap[l] = float64(a.passed) / float64(a.trials)
 			}
 		}
-		rows = append(rows, map[string]interface{}{
+		// Per-tier rates: tiers[tier][lang] = passed/trials, so the trend charts can
+		// merge the rig's Core/Stretch/Frontier lines accurately instead of blending.
+		tiers := map[string]map[string]float64{}
+		for tier, langAcc := range perModelTierLang[m] {
+			tm := map[string]float64{}
+			for l, a := range langAcc {
+				if a.trials > 0 {
+					tm[l] = float64(a.passed) / float64(a.trials)
+				}
+			}
+			if len(tm) > 0 {
+				tiers[tier] = tm
+			}
+		}
+		row := map[string]interface{}{
 			"model":   m,
 			"harness": harnessOf(m),
 			"lang":    langMap,
-		})
+		}
+		if len(tiers) > 0 {
+			row["tiers"] = tiers
+		}
+		rows = append(rows, row)
 	}
 
 	return json.MarshalIndent(map[string]interface{}{

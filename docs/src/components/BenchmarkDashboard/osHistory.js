@@ -30,32 +30,44 @@ export function mergeOSHistory(history, osHistory) {
   osHistory.forEach((e) => {
     if (e && e.ailang_version) osByVer[e.ailang_version] = e.rows || [];
   });
+  // langMap { ailang: rate, … } → modelStats fragment { ailang: {successRate, totalRuns}, … }.
+  const toStats = (langMap) => {
+    const ms = {};
+    for (const [l, rate] of Object.entries(langMap || {})) {
+      if (typeof rate === 'number') ms[l] = { successRate: rate, totalRuns: 1 };
+    }
+    return ms;
+  };
+
   return history.map((entry) => {
     const base = (entry.version || '').split('-')[0];
     const rows = osByVer[entry.version] || osByVer[base];
     if (!rows || !rows.length) return entry;
-    // Build the local per-model fragment for this version.
-    const localStats = {};
+    // Overall (all-tier) local fragment + per-tier fragments (tier → model → stats)
+    // from the publisher's `tiers` block, so the Core/Stretch/Frontier lines are
+    // tier-ACCURATE, not a blend. Falls back to `lang` for pre-tiers os data.
+    const overall = {};
+    const byTier = {};
     rows.forEach((r) => {
       if (!r || !r.model || !r.lang) return;
-      const ms = {};
-      for (const [l, rate] of Object.entries(r.lang)) {
-        if (typeof rate === 'number') ms[l] = { successRate: rate, totalRuns: 1 };
+      overall[r.model] = toStats(r.lang);
+      if (r.tiers && typeof r.tiers === 'object') {
+        for (const [tier, langMap] of Object.entries(r.tiers)) {
+          (byTier[tier] = byTier[tier] || {})[r.model] = toStats(langMap);
+        }
       }
-      localStats[r.model] = ms;
     });
-    if (Object.keys(localStats).length === 0) return entry;
-    const merged = { ...entry, modelStats: { ...(entry.modelStats || {}), ...localStats } };
-    // The rig's rate is NOT tier-split (the rotation runs AILANG across tiers), so
-    // inject the same fragment into every tier's modelStats too — otherwise the
-    // "Local agent" line vanishes in tier views (and Core is the default view). The
-    // asterisk flags it as a blended/incomplete figure. Once os/history carries
-    // per-tier local rates, replace this with a tier-scoped merge.
+    if (Object.keys(overall).length === 0) return entry;
+    const merged = { ...entry, modelStats: { ...(entry.modelStats || {}), ...overall } };
     if (entry.tiers && typeof entry.tiers === 'object') {
       const tiers = {};
       for (const [t, tv] of Object.entries(entry.tiers)) {
-        tiers[t] = tv && typeof tv === 'object'
-          ? { ...tv, modelStats: { ...(tv.modelStats || {}), ...localStats } }
+        // Prefer the tier-specific local rate; a tier the rig hasn't run yet gets no
+        // local row (line is absent there, honestly, until coverage reaches it).
+        // Pre-tiers os data (no `tiers` block) falls back to the overall fragment.
+        const localForTier = byTier[t] || (Object.keys(byTier).length === 0 ? overall : null);
+        tiers[t] = (tv && typeof tv === 'object' && localForTier)
+          ? { ...tv, modelStats: { ...(tv.modelStats || {}), ...localForTier } }
           : tv;
       }
       merged.tiers = tiers;

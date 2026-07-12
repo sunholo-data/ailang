@@ -18,7 +18,30 @@
           "javascript": 0.9444444444444444,
           "python": 1
         },
-        "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
+        "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 0.8888888888888888,
+            "python": 1
+          },
+          "stretch": {
+            "ailang": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
       },
       {
         "harness": "opencode",
@@ -28,7 +51,30 @@
           "javascript": 1,
           "python": 1
         },
-        "model": "opencode-qwen3-6-35b-a3b-mxfp8"
+        "model": "opencode-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.8333333333333334,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "stretch": {
+            "ailang": 1
+          },
+          "vision": {
+            "ailang": 0,
+            "go": 0.6666666666666666,
+            "javascript": 1,
+            "python": 1
+          }
+        }
       },
       {
         "harness": "pi",
@@ -38,7 +84,30 @@
           "javascript": 1,
           "python": 1
         },
-        "model": "pi-qwen3-6-35b-a3b-mxfp8"
+        "model": "pi-qwen3-6-35b-a3b-mxfp8",
+        "tiers": {
+          "core": {
+            "ailang": 0.9166666666666666,
+            "go": 0.8333333333333334,
+            "javascript": 1,
+            "python": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "stretch": {
+            "ailang": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
       }
     ]
   },

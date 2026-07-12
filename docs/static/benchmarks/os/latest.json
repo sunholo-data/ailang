@@ -16,7 +16,36 @@
         "javascript": 0.934156378600823,
         "python": 0.9209486166007905
       },
-      "model": "motoko-local-qwen3-6-35b-a3b-mxfp8"
+      "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
+      "tiers": {
+        "core": {
+          "ailang": 0.8961038961038961,
+          "go": 0.9402985074626866,
+          "javascript": 0.8985507246376812,
+          "python": 0.8873239436619719
+        },
+        "frontier": {
+          "ailang": 0.875
+        },
+        "smoke": {
+          "ailang": 0.99,
+          "go": 0.9893617021276596,
+          "javascript": 0.978494623655914,
+          "python": 0.97
+        },
+        "stretch": {
+          "ailang": 0.9117647058823529,
+          "go": 0.9253731343283582,
+          "javascript": 0.9393939393939394,
+          "python": 0.9253731343283582
+        },
+        "vision": {
+          "ailang": 0.8,
+          "go": 0.6666666666666666,
+          "javascript": 0.8,
+          "python": 0.7333333333333333
+        }
+      }
     },
     {
       "harness": "opencode",
@@ -26,7 +55,33 @@
         "javascript": 0.905982905982906,
         "python": 0.9316239316239316
       },
-      "model": "opencode-qwen3-5-35b-a3b-mxfp8"
+      "model": "opencode-qwen3-5-35b-a3b-mxfp8",
+      "tiers": {
+        "core": {
+          "ailang": 0.5277777777777778,
+          "go": 0.8055555555555556,
+          "javascript": 0.8333333333333334,
+          "python": 0.9166666666666666
+        },
+        "smoke": {
+          "ailang": 0.8571428571428571,
+          "go": 0.8809523809523809,
+          "javascript": 0.9523809523809523,
+          "python": 0.9761904761904762
+        },
+        "stretch": {
+          "ailang": 0.6060606060606061,
+          "go": 0.9090909090909091,
+          "javascript": 0.9090909090909091,
+          "python": 0.9090909090909091
+        },
+        "vision": {
+          "ailang": 0.3333333333333333,
+          "go": 1,
+          "javascript": 1,
+          "python": 0.8333333333333334
+        }
+      }
     },
     {
       "harness": "opencode",
@@ -36,7 +91,36 @@
         "javascript": 0.9510204081632653,
         "python": 0.9380165289256198
       },
-      "model": "opencode-qwen3-6-35b-a3b-mxfp8"
+      "model": "opencode-qwen3-6-35b-a3b-mxfp8",
+      "tiers": {
+        "core": {
+          "ailang": 0.8378378378378378,
+          "go": 0.9104477611940298,
+          "javascript": 0.9142857142857143,
+          "python": 0.9104477611940298
+        },
+        "frontier": {
+          "ailang": 0.25
+        },
+        "smoke": {
+          "ailang": 0.9473684210526315,
+          "go": 0.9680851063829787,
+          "javascript": 0.9782608695652174,
+          "python": 0.9791666666666666
+        },
+        "stretch": {
+          "ailang": 0.703125,
+          "go": 0.9104477611940298,
+          "javascript": 0.9558823529411765,
+          "python": 0.9846153846153847
+        },
+        "vision": {
+          "ailang": 0.4375,
+          "go": 0.6923076923076923,
+          "javascript": 0.9333333333333333,
+          "python": 0.5714285714285714
+        }
+      }
     },
     {
       "harness": "pi",
@@ -46,7 +130,33 @@
         "javascript": 0.9743589743589743,
         "python": 0.9572649572649573
       },
-      "model": "pi-qwen3-5-35b-a3b-mxfp8"
+      "model": "pi-qwen3-5-35b-a3b-mxfp8",
+      "tiers": {
+        "core": {
+          "ailang": 0.7222222222222222,
+          "go": 0.8611111111111112,
+          "javascript": 0.9444444444444444,
+          "python": 0.9722222222222222
+        },
+        "smoke": {
+          "ailang": 0.9285714285714286,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "stretch": {
+          "ailang": 0.7575757575757576,
+          "go": 0.9393939393939394,
+          "javascript": 1,
+          "python": 0.9090909090909091
+        },
+        "vision": {
+          "ailang": 0.8333333333333334,
+          "go": 0.8333333333333334,
+          "javascript": 0.8333333333333334,
+          "python": 0.8333333333333334
+        }
+      }
     },
     {
       "harness": "pi",
@@ -56,7 +166,36 @@
         "javascript": 0.9717741935483871,
         "python": 0.9878542510121457
       },
-      "model": "pi-qwen3-6-35b-a3b-mxfp8"
+      "model": "pi-qwen3-6-35b-a3b-mxfp8",
+      "tiers": {
+        "core": {
+          "ailang": 0.9210526315789473,
+          "go": 0.9242424242424242,
+          "javascript": 0.9722222222222222,
+          "python": 1
+        },
+        "frontier": {
+          "ailang": 0.7142857142857143
+        },
+        "smoke": {
+          "ailang": 0.99,
+          "go": 0.968421052631579,
+          "javascript": 0.9787234042553191,
+          "python": 1
+        },
+        "stretch": {
+          "ailang": 0.9253731343283582,
+          "go": 0.9692307692307692,
+          "javascript": 0.9850746268656716,
+          "python": 0.9538461538461539
+        },
+        "vision": {
+          "ailang": 0.8666666666666667,
+          "go": 0.8461538461538461,
+          "javascript": 0.8666666666666667,
+          "python": 1
+        }
+      }
     }
   ],
   "trials": 10,
