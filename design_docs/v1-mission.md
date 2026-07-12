@@ -49,6 +49,23 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-12 — ITERATION 15: m-match-xcheck-error-quality BUILT + LANDED (queue #14, clause 3 — foreign-ctor errors now enumerate transitively-known constructors)
+
+`MatchForeignConstructorError` used to print an EMPTY `<scrutinee ADT>'s constructors are:` line
+whenever the scrutinee's ADT was known only *transitively* (e.g. `std/json` returns `Option` but the
+module imported only `std/result`). Now it enumerates them (`Option's constructors are: None, Some` +
+a `did you mean` hint). Full build loop headless, round-1 clean: Gate-1 origin-sync caught local dev
+4 commits behind (iter 14 landed via #350) — read state from origin; reproduced the empty line live;
+**Option A** (design doc's recommendation) — a diagnostic-only `Constructor→ADT` registry from all
+transitively-loaded ifaces, consulted only when the primary scan is empty, never entering scope. Opus
+plan → Opus execute (worktree) → independent Opus evaluator **PASS 96/100 round 1**, no blockers
+(base-binary non-vacuity proof + scope-non-leak verified); 2 non-blocking deductions folded into a
+hardening commit (scope-leak regression test + collision note). PR #352 → `5aaaff2ed`, required checks
+green (auto-merge). Design → implemented/v0_30_0. Retro: no skill/process change (clean round-1, the
+sole friction was the already-handled stale-local-dev case). SonarCloud PR gate red = advisory
+(non-required; merge succeeded) — flagged for sonarcloud-triage. Next: m-dx-json-bool-coercion /
+m-dx-split-argument-warning. Detail: log entry 16.
+
 ## STATUS 2026-07-12 — ITERATION 14: m-module-less-run-fail-loud BUILT + LANDED (queue #13, clause 3 — footgun burn-down opened, MOD014)
 
 Module-less `.ail` files (top-level decls, no `module`) now **FAIL LOUDLY** with `MOD014` on both
@@ -530,11 +547,27 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     base-origin/dev binary proving test non-vacuity + pre-existing-failure claims. PR #349 →
     merge `c2ffd1b5c`, post-merge dev CI green per-workflow. Design → implemented/v0_30_0. Module-less
     files now FAIL LOUDLY (CP2). Skill-fix: design-doc-creator error-code + mechanism verification gates)
+14. [LANDED 2026-07-12] m-match-xcheck-error-quality (iteration 15: full build loop headless, round-1
+    clean — Gate-1 origin-sync caught local dev 4 commits behind origin/dev (iter 14 landed via #350),
+    read state from origin; reproduced the empty `Option's constructors are: ` line live at HEAD →
+    **Option A** (design doc's own recommendation): a diagnostic-only `Constructor→ADT` registry
+    (`moduleImports.AllCtorTypes`) built from ALL transitively-loaded ifaces via
+    `modLinker.GetLoadedModules()`, plumbed via new `SetDiagnosticConstructorTypes`, consulted by
+    `lookupADTConstructors` ONLY when the primary direct/local scan is empty — never enters scope
+    (`types` can't import `link` → passed as a plain `map[string]string`). Opus plan → Opus execute
+    (worktree, commits `3ded459cc`/`f5498ca0e`/`ecca08b3b`) → independent Opus evaluator **PASS 96/100
+    round 1** w/ base-binary non-vacuity proof + scope-non-leak + format-unchanged checks; 2
+    non-blocking deductions folded into the hardening commit
+    (`TestSchemeImport_DiagnosticRegistryDoesNotLeakIntoScope` + collision note). PR #352 →
+    squash-merge `5aaaff2ed`, required checks green (auto-merge). Design → implemented/v0_30_0.
+    Foreign-ctor errors now enumerate transitively-known constructors (`None, Some` + did-you-mean).
+    SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day → cheapest remaining DOC-READY/small diagnostics:
-m-match-xcheck-error-quality (0.5d) · m-dx-json-bool-coercion (0.5d) · m-dx-split-argument-warning
-(1d); the NEW-DOC footgun fixes (m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-
-creator first (Conflict Surface mandatory — incl. the new error-code + mechanism verification gates).
+m-dx-json-bool-coercion (0.5d) · m-dx-split-argument-warning (1d); the NEW-DOC footgun fixes
+(m-dx-match-hof R4a, m-poly-arith-lambda R4b, …) each need design-doc-creator first (Conflict Surface
+mandatory — incl. the error-code + mechanism verification gates). *(m-match-xcheck-error-quality
+LANDED iter 15 → implemented/v0_30_0.)*
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
 accessibility cluster, BOTH DX tooling investments, and the FULL clause-4 orchestration surface
@@ -549,7 +582,7 @@ triage evidence = log entry 10.)*
 - **VERIFY-then-route** (agents split ghost-vs-open; run the doc repro FIRST — may be ghosts):
   m-dx-record-cons-pattern · m-dx-tapp-trecord-unification
 - **Diagnostics** (DOC-READY / small): ~~m-module-less-run-fail-loud (MOD014)~~ **[LANDED iter 14 →
-  implemented/v0_30_0]** · m-match-xcheck-error-quality (0.5d) ·
+  implemented/v0_30_0]** · ~~m-match-xcheck-error-quality~~ **[LANDED iter 15 → implemented/v0_30_0]** ·
   m-dx-split-argument-warning (1d) · m-dx-json-bool-coercion (0.5d)
 - **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
   (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
