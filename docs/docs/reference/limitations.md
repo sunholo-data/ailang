@@ -327,7 +327,7 @@ rune) **string literal** and the second is not a literal, e.g. `split("/", name)
 It intentionally does **not** flag `split(sep, s)` when the delimiter is a
 variable (`let sep = "/"; split(sep, name)`) — there is no literal delimiter to
 key on, and both arguments are `string` so the type system cannot distinguish
-them. The warning is non-blocking and never produces false negatives on the
+them. The warning is non-blocking and never produces false positives on the
 correct data-first order `split(s, delimiter)`. Prefer data-first and treat the
 warning as a backstop for the literal-delimiter case.
 
