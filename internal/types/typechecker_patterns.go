@@ -396,18 +396,43 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// Extract field types from scrutinee record
 		var fieldTypes map[string]Type
 
-		// Try to extract record type from scrutinee
+		// Try to extract record type from scrutinee.
+		//
+		// M-LAMBDA-OPEN-RECORD-PATTERN: the open/closed intent the user wrote
+		// (`{name, ...}` vs `{name}`) is carried on p.Rest. This is the flag that
+		// decides whether the scrutinee (frequently a lambda parameter — a fresh
+		// TVar at this point) becomes an OPEN record `{listed | ρ}` (extra caller
+		// fields allowed) or a CLOSED record `{listed}` (extra caller fields
+		// rejected). Erasing this flag at the AST->Core boundary was the bug.
 		if recTy, ok := scrutType.(*TRecord); ok {
+			// Resolved record scrutinee: read the listed fields verbatim. Its
+			// shape is already known, so a match arm just reads the fields it
+			// names; extra scrutinee fields are simply not required by this arm.
+			// A closed arm `{name, age}` legitimately matches a wider concrete
+			// record `{name, age, active}` (subset matching, unchanged by this
+			// fix). p.Rest only matters for an UNRESOLVED scrutinee (below).
 			fieldTypes = recTy.Fields
 		} else {
-			// Create fresh type variables for matched fields and add constraint
+			// Build a constraint `scrutinee ~ {matched fields | ρ?}`.
+			//
+			//   - OPEN pattern (`...`, p.Rest==true): ρ is a fresh row variable,
+			//     so the scrutinee stays extensible and extra caller fields unify
+			//     into ρ. This is the fix for the lambda-parameter case.
+			//   - CLOSED pattern (p.Rest==false): NO row variable (Row: nil), so
+			//     the scrutinee is pinned to EXACTLY the listed fields and a caller
+			//     passing extra fields is (correctly) rejected. This preserves the
+			//     M-SCHEME-IMPORT-PRESERVE-ADT-HEAD strictness — it must NOT reverse.
 			fieldTypes = make(map[string]Type)
 			for fieldName := range p.Fields {
+				// This branch only runs when scrutType is NOT a *TRecord (the
+				// outer type-switch handled the resolved-record case above), so
+				// each matched field starts as a fresh type variable.
 				fieldTypes[fieldName] = ctx.freshTypeVar()
 			}
-			// Constraint: scrutinee type unifies with record containing matched fields
-			// Use row variable for extensibility (pattern may match subset of fields)
-			rowVar := ctx.freshRecordRow()
+			var rowVar Type // nil => closed record constraint
+			if p.Rest {
+				rowVar = ctx.freshRecordRow()
+			}
 			ctx.addConstraint(TypeEq{
 				Left:  scrutType,
 				Right: &TRecord{Fields: fieldTypes, Row: rowVar},

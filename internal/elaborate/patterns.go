@@ -216,6 +216,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		}
 		return &core.RecordPattern{
 			Fields: fields,
+			Rest:   p.Rest, // carry open/closed intent (`{name, ...}` vs `{name}`) into Core
 		}, nil
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)

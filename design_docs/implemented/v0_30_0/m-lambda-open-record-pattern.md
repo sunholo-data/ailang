@@ -1,7 +1,7 @@
 # M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism
 
-**Status**: Planned — P2 (pre-existing, surfaced post-fix)
-**Target**: v0.22.x or v0.23.0
+**Status**: Implemented — v0.30.0 (mission iteration 25, 2026-07-13; branch `sprint/m-lambda-open-record-pattern`, evaluator PASS 92/100 round 1 + hardening commit `89b75bd3f`). NOTE: the actual PRIMARY root cause was `unifyRecord`'s pre-row field-count rejection — absent from this doc's hypotheses; H1 (Rest erased at AST→Core) was real and also fixed; H3 (generalize drops row vars) refuted as primary. See the sprint plan for the corrected mechanism.
+**Target**: v0.22.x or v0.23.0 (shipped v0.30.0)
 **Priority**: P2 — pre-existing limitation, only surfaced when M-SCHEME-IMPORT-PRESERVE-ADT-HEAD removed the over-polymorphism that was hiding it.
 **Estimated**: ~1 day (elaborate/typecheck/generalize trace)
 **Dependencies**: None
@@ -97,13 +97,13 @@ Pre-fix the substitution wasn't applied, so the lambda parameter stayed as a bar
 
 ## Acceptance criteria
 
-- [ ] [`examples/runnable/record_patterns.ail`](../../examples/runnable/record_patterns.ail) can be restored to use `{name, ...}` patterns in lambdas with extra-field callers.
-- [ ] New regression test in `internal/pipeline/lambda_open_record_test.go` covers the four shapes:
+- [x] [`examples/runnable/record_patterns.ail`](../../examples/runnable/record_patterns.ail) can be restored to use `{name, ...}` patterns in lambdas with extra-field callers.
+- [x] New regression test in `internal/pipeline/lambda_open_record_test.go` covers the four shapes:
   - Lambda + open pattern + extra-field caller → PASS
   - Lambda + open pattern + matching-shape caller → PASS
   - Lambda + closed pattern + matching-shape caller → PASS
   - Lambda + closed pattern + extra-field caller → FAIL (correctness check)
-- [ ] No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests or any other type-system tests.
+- [x] No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests or any other type-system tests.
 
 ## Risks
 

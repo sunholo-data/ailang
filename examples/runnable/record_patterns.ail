@@ -6,9 +6,8 @@
 -- =======================
 
 -- {name, ...} binds field "name" and accepts extra fields via open-record syntax.
--- Pre-v0.22.0 a closed-record pattern {name} accepted records with extra fields
--- by accident (over-polymorphic schemes hid the field-count mismatch). Now use
--- {name, ...} explicitly to accept records that carry additional fields.
+-- A closed-record pattern {name} matches ONLY records with exactly that field;
+-- use {name, ...} explicitly to accept records that carry additional fields.
 let person = {name: "Alice", age: 30} in
 match person {
   {name, ...} => name
@@ -79,18 +78,16 @@ match big_record {
 -- FUNCTION RETURNING EXTRACTED FIELD
 -- =======================
 
--- Extract field using record pattern in match. The lambda parameter takes
--- the SHAPE inferred from the pattern, so the call site must pass a record
--- with exactly that shape. Open-record patterns inside lambdas don't yet
--- propagate row polymorphism through the lambda parameter — pass matching
--- shapes when using lambda + match together, or use top-level `match` for
--- open-record patterns over records with extra fields.
+-- Extract field using an OPEN record pattern in a lambda. Since
+-- M-LAMBDA-OPEN-RECORD-PATTERN (v0.29.x), {name, ...} inside a lambda gives the
+-- parameter an open row type {name: t | r}, so the caller may pass a record with
+-- extra fields (here: id) — matching how top-level `match` already behaves.
 let getName = \obj.
   match obj {
-    {name} => name
+    {name, ...} => name
   }
 in
-getName({name: "Grace"})
+getName({name: "Grace", id: 123})
 -- Output: "Grace"
 
 -- Extract nested field (matching shape exactly)
