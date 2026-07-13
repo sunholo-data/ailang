@@ -1,0 +1,120 @@
+{
+  "sprint_id": "M-ARITY-STYLE-DIAGNOSTIC",
+  "design_doc": "design_docs/planned/v1_0_0/m-arity-style-diagnostic.md",
+  "mission": "V1 clause-3 R4c (footgun burn-down)",
+  "target_version": "v1.0.0",
+  "created": "2026-07-13",
+  "planner_model": "claude-opus-4-8",
+  "github_issues": [],
+  "risk_level": "low",
+  "velocity": {
+    "target_loc_per_day": 100,
+    "estimated_total_loc": 100,
+    "estimated_days": 2
+  },
+  "scope_note": "Diagnostic-quality ONLY. No arity semantics change: strict arity + no-partial-application preserved. Confined to the post-curry-flatten else branch at internal/types/unification_types.go:39 and the arity error text in internal/types/errors.go. No grammar/AST change.",
+  "direction_investigation": {
+    "question": "Which of fp1/fp2 at unification_types.go:39 is the callee's declared arity (expected) vs the call-site arg count (actual)?",
+    "resolved_by_planner": true,
+    "answer": "For the App footgun path, fp1 (t1) = EXPECTED (declared arity), fp2 (t2) = ACTUAL (provided args).",
+    "chain": [
+      "typechecker_functions.go:471 inferApp builds TypeEq{Left: getType(funcNode) [callee's actual declared func type], Right: expectedFuncType [TFunc2 with Params: argTypes = the N supplied args]}.",
+      "inference_helpers.go:181-187 solves TypeEq via Unify(ApplySubst(Left), ApplySubst(Right)) => t1=Left=declared callee, t2=Right=call-site.",
+      "unification_core.go:275 dispatches u.unifyFunctions(t1, t2). unification_types.go:33-39: fp1=flatten(t1)=declared/EXPECTED, fp2=flatten(t2Func)=provided/ACTUAL.",
+      "Matches live orientation: partial/too-few '2 vs 1' (expected 2, got 1), too-many '2 vs 3' (expected 2, got 3)."
+    ],
+    "stability_caveat": "Direction is stable ONLY for the concrete App path (both sides concrete *TFunc2, no TVar swap-and-retry fires before unifyFunctions). In raw unit tests (e.g. curry_unify_test.go) either side may be t1 (TestCurriedMismatchStillFails passes Unify(curried, threeParam) => fp1=2, fp2=3 with NO callee semantics). Therefore the wording must degrade gracefully and stay coded/correct even when 'expected/actual' labels are semantically arbitrary. Message with 'expects N argument(s), but M provided' is neutral-safe: it always describes the two function types being unified, which is true regardless of which is the source of truth.",
+    "executor_action": "Wire fp1 -> expected, fp2 -> actual at line 39. Pin with the three golden App tests (too-many MUST render 'but 3 provided', too-few 'but 1 provided'). Do NOT add a swap heuristic; the App path is the only user-facing one and it is direction-stable."
+  },
+  "features": [
+    {
+      "id": "M1_CODED_DIRECTIONAL_MESSAGE",
+      "description": "Allocate TC_ARITY_001 and replace the bare fmt.Errorf at unification_types.go:39 with a coded, directional, style-aware inline message. Code+hint MUST be inline in the string (not a *TypeCheckError.Suggestion field) because the wrap at inference_helpers.go:187 is plain %w and nothing recovers *TypeCheckError via errors.As, so a struct Suggestion would never render. Mirror the TC_REC_00X convention (errors.go:409).",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "files": [
+        "internal/types/errors.go (add TC_ARITY_001 const next to TC_REC_00X block ~line 393; add arityMismatchMsg(expected, actual int) string helper next to NewArityMismatchError ~line 336)",
+        "internal/types/unification_types.go (replace bare fmt.Errorf at line 39 with fmt.Errorf(\"%s\", arityMismatchMsg(len(fp1), len(fp2))); fp1=expected, fp2=actual)"
+      ],
+      "message_spec": {
+        "line1": "TC_ARITY_001: function expects <expected> argument(s), but <actual> provided",
+        "suggestion_line": "\\n  Suggestion: <direction-specific hint>  (mirror TypeCheckError.Error() render at errors.go:88-89)",
+        "hint_actual_lt_expected": "AILANG has no partial application — call with all <expected> arguments, or wrap in a lambda `\\a b. f(a, b)`.",
+        "hint_actual_gt_expected": "Remove the extra <actual-expected> argument(s); this function takes <expected>."
+      },
+      "acceptance_criteria": [
+        "TC_ARITY_001 constant added and greppable; grep TC_ARITY finds it in non-test code",
+        "arityMismatchMsg(expected, actual) produces line containing 'TC_ARITY_001', 'expects <expected>', 'but <actual> provided', and a Suggestion line",
+        "actual<expected (too-few/partial) hint explicitly names AILANG's no-partial-application rule",
+        "actual>expected (too-many) hint says to remove the extra argument(s)",
+        "Direction wired correctly: fp1=expected, fp2=actual at unification_types.go:39"
+      ],
+      "passes": true,
+      "started": "2026-07-13T06:24:22Z",
+      "completed": "2026-07-13T06:24:22Z",
+      "notes": "TC_ARITY_001 const + arityMismatchMsg(expected,actual) helper added in errors.go; bare fmt.Errorf at unification_types.go:39 replaced with inline coded/directional/style-aware message. Direction verified from inferApp: fp1=expected, fp2=actual. Repros in tmp_arity/ emit correct directional wording + Suggestion. Commit f1b506e53."
+    },
+    {
+      "id": "M2_GOLDEN_TESTS_REGRESSION_LOCK",
+      "description": "New golden tests for the three footgun cases + regression lock over the Conflict-Surface programs. Prefer table-driven unit tests over arityMismatchMsg and/or a full type-check of the three .ail repros. Use make verify-examples + curry_unify_test.go for the regression surface.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_CODED_DIRECTIONAL_MESSAGE"
+      ],
+      "files": [
+        "internal/types/arity_diagnostic_test.go (new): golden tests for partial/too-many/too-few + regression asserts",
+        "internal/types/curry_unify_test.go (VERIFY only — see discrepancy: no text change actually needed; see notes)"
+      ],
+      "test_list": {
+        "new_golden_tests": [
+          "TestArityDiagnostic_TooFew_Partial: message contains TC_ARITY_001, 'expects 2', 'but 1 provided', and the no-partial-application hint",
+          "TestArityDiagnostic_TooMany: message contains TC_ARITY_001, 'expects 2', 'but 3 provided', 'Remove the extra' / 'remove ... argument'",
+          "TestArityDiagnostic_TooFew: same family as partial (add(1) where add is arity-2)"
+        ],
+        "regression_asserts": [
+          "All 7 curry_unify_test.go tests stay GREEN (TestCurriedLambdaUnifiesWithMultiParam, TestCurriedLambdaUnifiesWithConcreteTypes, TestTripleCurriedUnifies, TestMultiParamStillWorks, TestSymmetricCurriedUnification, TestPartialCurriedUnification, TestCurriedMismatchStillFails)",
+          "TestCurriedMismatchStillFails still FAILS to unify (asserts err != nil only — does NOT assert text; no edit required, see discrepancy)"
+        ],
+        "regression_fixtures": [
+          "make verify-examples green (covers all 36 examples; the doc-named examples/lambdas_higher_order.ail and examples/no_loops_fold.ail DO NOT EXIST — use verify-examples as the regression surface instead)",
+          "benchmarks/higher_order_functions.yml unaffected",
+          "benchmarks/fold_reduce.yml unaffected",
+          "positive controls in /tmp/mc20/ok.ail and /tmp/mc20/curry.ail still emit '✓ No errors' (re-create if /tmp cleared: ok.ail = 2-arg call of arity-2 add; curry.ail = curried↔tupled unification)"
+        ]
+      },
+      "acceptance_criteria": [
+        "arity_diagnostic_test.go covers all three footgun cases with code+direction+hint asserts",
+        "All 7 curry_unify_test.go tests green",
+        "make verify-examples green",
+        "make test green",
+        "higher_order_functions and fold_reduce benchmarks unaffected (spot-check type-check)",
+        "One-paragraph note added to the DX/error-quality reference (mirror m-match-xcheck-error-quality)"
+      ],
+      "passes": true,
+      "started": "2026-07-13T06:24:22Z",
+      "completed": "2026-07-13T06:24:22Z",
+      "notes": "arity_diagnostic_test.go: 6 golden tests (too-few/partial, too-many, too-few, equal-defensive, curried-flatten-reconciles) asserting code+direction+hint via both arityMismatchMsg and App-path Unify orientation. All 7 curry_unify_test.go tests green. TestCurriedMismatchStillFails left untouched (no text assert). Errors reference + CHANGELOG updated."
+    }
+  ],
+  "acceptance_criteria_overall": [
+    "SM1: each of the three cases emits a message containing (a) TC_ARITY_001, (b) directional wording ('expects N ... but M provided'), (c) a Suggestion-style hint — verified by golden test",
+    "SM2: the too-few/partial case's hint explicitly names AILANG's no-partial-application rule",
+    "SM3: zero regressions — all 7 curry_unify_test.go positive cases green; /tmp/mc20/ok.ail and /tmp/mc20/curry.ail still '✓ No errors'",
+    "SM4: make test + make verify-examples green; higher_order_functions and fold_reduce benchmarks unaffected"
+  ],
+  "discrepancies_found": [
+    "TestCurriedMismatchStillFails does NOT assert on error text (only err != nil at curry_unify_test.go:137-140). The design doc's claim that this is 'the ONE intentional test-text change' is INCORRECT — no text edit is required there; it keeps passing regardless. Executor should NOT invent a text assertion just to satisfy the doc.",
+    "The two example files named in the Conflict Surface (examples/lambdas_higher_order.ail, examples/no_loops_fold.ail) DO NOT EXIST. Use make verify-examples (all 36 examples) as the regression surface instead.",
+    "unification_types.go:187 (TCon arity, already directional) is explicitly OUT of scope — do not touch.",
+    "Direction is stable only for the concrete App path; unit-test callers can invert t1/t2. Message wording is neutral-safe so this does not break correctness."
+  ],
+  "out_of_scope": [
+    "Any arity SEMANTICS change (partial application / auto-currying)",
+    "Touching TCon arity site unification_types.go:187",
+    "Upgrading inference_helpers.go:187 %w wrap to preserve structured errors via errors.As",
+    "A dedicated 'ailang explain TC_ARITY_001' entry"
+  ],
+  "status": "completed",
+  "completed": "2026-07-13T06:24:22Z",
+  "actual_loc": 130
+}
