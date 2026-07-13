@@ -49,7 +49,22 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
-## STATUS 2026-07-13 — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
+## STATUS 2026-07-13 — ITERATION 23: `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-FIRST missed at pick — iteration 24 HARD-PINNED to m-public-feedback-delivery-audit
+
+Full inner loop headless: CI-red fix first (gofmt miss from `366c5bbb2`, 2 red runs → `39171a4f9`
+observed green) → Opus plan (caught the doc's wrong #327-matrix test path: `internal/pipeline/`,
+not `internal/types/`) → Opus execute in worktree (M0 spike GO → unified SCC over lets+funcs,
+wrapInLets DELETED; module letrec via core.LetRec; MOD007 dup-name hard error; truthful hint) →
+independent **Fable** evaluator (diversity restored) PASS 98/100 round 1 w/ base-binary
+non-vacuity + adversarial probes. Module lets now resolve module funcs uniformly — the 4th
+position-divergence family member CLOSED at the decl-class level. Sibling-agent Build-and-Release
+red at `b293331f2` triaged = `TestReferenceSolutions_JS/fizzbuzz` Windows 60s-timeout infra flake
+(rerun green; dev-health ledger). ⚠ Gate-2 friction recorded: Mark's [NEXT-FIRST]
+m-public-feedback-delivery-audit (added 13:04, pre-session) was missed at pick time — caught
+mid-flight, sprint already through eval → landed it; iteration 24 MUST take the NEXT-FIRST.
+Detail: log entry 24.
+
+## STATUS 2026-07-13 (earlier) — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
 
 Gate 0.4 fired: 2 fresh nightly regressions (opencode-qwen3-5) outranked the queue. Triage
 (data-led, error-stream first): `adt_option` = thrash_aborted ~8% over token cap, 2-trial noise,
@@ -678,7 +693,26 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     squash-merge `5aaaff2ed`, required checks green (auto-merge). Design → implemented/v0_30_0.
     Foreign-ctor errors now enumerate transitively-known constructors (`None, Some` + did-you-mean).
     SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
-**[NEXT-FIRST, one iteration — Mark 2026-07-13]** m-public-feedback-delivery-audit
+15. [LANDED 2026-07-13] m-module-let-func-resolution (iteration 23: full build loop headless, round-1
+    clean — first CI-red fix-forward (gofmt miss from `366c5bbb2` broke dev fmt-check 2 runs →
+    `39171a4f9`, observed green); Opus plan (caught the design doc's WRONG test path: the #327
+    40-cell matrix is `internal/pipeline/record_update_positions_test.go`, NOT `internal/types/`;
+    proposed MOD007 from the reserved block) → Opus execute (worktree: M0 spike **GO** — evaluator
+    binds any `core.Let`, `CheckCoreProgram` threads forward env → unified SCC over lets+funcs,
+    `wrapInLets` + BOTH re-elaboration loops DELETED; module `letrec` SUPPORTED via `core.LetRec`;
+    dup module-scope name → **MOD007** hard error, zero corpus collisions; hint truth pass — 0
+    `known bug #327` hits, residual hint cites #366 + real workaround "declare it as a func") →
+    independent **Fable** evaluator (model diversity restored — controller reverted from Opus)
+    **PASS 98/100 round 1** w/ own worktrees+binaries, base-binary non-vacuity (v3/v7/v8 fail at
+    `116ebcb49` → run 16/0/4 post-fix; v10 silent shadow → MOD007), adversarial probes (func→let→func
+    topo chain, let↔func cycle → LetRec no crash, effectful module let rejected identically).
+    PR #368 → squash-merge `fd38ec14e`, post-merge dev CI green per-workflow. Design →
+    implemented/v0_30_0. Module lets now resolve module funcs uniformly (4th family member CLOSED).
+    ⚠ PICK-ORDER MISS recorded: Mark's [NEXT-FIRST] below (added 13:04, pre-session) should have
+    outranked this pick; Gate-2 read the queue head + prior log's Next but not the fresh directive.
+    Sprint was already through eval when caught → landed; iteration 24 is HARD-PINNED to it)
+**[NEXT-FIRST, one iteration — Mark 2026-07-13; ⚠ MISSED by iteration 23's pick (caught mid-flight,
+recorded log entry 24) — iteration 24 MUST take this]** m-public-feedback-delivery-audit
 ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), P1): the human-input
 channel is blind — daemon dual-subscribe dev+prod + the pkg:*-inbox Discord-filter fix. Root
 cause already verified in the doc; part 1 is a small notify/daemon change with fanout tests.
@@ -695,10 +729,10 @@ VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-
 the error-code + mechanism + fixture-existence verification gates): m-dx-match-hof (R4a, 2–3d) ·
 m-poly-arith-lambda (R4b, 2–3d) · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d).
 **Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
-`higher_order_functions` triage → real decl-class resolver gap #366): `m-module-let-func-resolution`
-is now DOC-READY (PR #367). Recommend **EXECUTE m-module-let-func-resolution next** (sprint-planner
-→ executor → evaluator; 2–3d, Phase-1 spike gates the approach), THEN START R4a `m-dx-match-hof`.
-Full inner-loop sprints, NOT bookkeeping.
+`higher_order_functions` triage → real decl-class resolver gap #366); **iteration 23 EXECUTED it
+→ LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Next clause-3
+starter after the NEXT-FIRST above: **R4a `m-dx-match-hof`** (NEW-DOC). Full inner-loop sprints,
+NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
 iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18;
@@ -712,9 +746,10 @@ models" — ~33 open items, ~40–55 sprint-days. Rig/cloud/motoko/post-v1 infra
 triage evidence = log entry 10.)*
 
 ### Clause 3 — fleet-tier accessibility (the footgun burn-down; the thesis's core deficit)
-- **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): **m-module-let-func-resolution
-  (#366, DOC-READY iter 22 via PR #367, 2–3d — regression-derived 2026-07-13: module-level let/letrec
-  can never reference module funcs, wrapInLets mechanism; lying closed-#327 hint; EXECUTE next)** ·
+- **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): ~~m-module-let-func-resolution~~
+  **[LANDED iter 23 → implemented/v0_30_0; unified SCC over lets+funcs, wrapInLets deleted, module
+  letrec via core.LetRec, MOD007 dup-name, truthful hint; PR #368 → `fd38ec14e`, eval PASS 98/100
+  round 1]** ·
   m-dx-match-hof (R4a, 2–3d) ·
   m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[LANDED iter 21 →
   implemented/v0_30_0; `TC_ARITY_001` coded/directional/style-aware arity diagnostic at

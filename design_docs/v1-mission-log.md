@@ -1848,3 +1848,95 @@ firestore fix; tier-assignment ratification; feedback-gate production ops; haiku
 scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
 m-syntax-ai-forgiving (GPU); %-row re-check; the two dev-health flakies. DROPPED from carry-forward:
 m-record-update-local-resolution doc-status re-check (closed via #366 this iteration).
+
+---
+
+## 24 — 2026-07-13 — Iteration 23: `m-module-let-func-resolution` EXECUTED + LANDED (full inner loop, round-1 clean, PASS 98/100) → PR #368; dev CI-red fixed forward; ⚠ NEXT-FIRST pick-order miss recorded
+
+**Picked**: iteration 22's Next — EXECUTE `m-module-let-func-resolution` (DOC-READY via PR #367,
+issue #366). ⚠ **PICK-ORDER MISS**: Mark's `[NEXT-FIRST]` m-public-feedback-delivery-audit was
+inserted into the queue at 13:04 (`cf15d0163`), BEFORE this session started (~13:53) — it should
+have outranked the clause-3 item per Gate 0.4 (human directive). Gate 2 read the queue-head grep +
+prior log's Next but never scanned for fresh human-directive tags; the miss was caught at Gate-4
+prep, when the sprint was already through round-1 eval with auto-merge armed. Decision: land the
+finished, evaluated work rather than revert it; iteration 24 is HARD-PINNED to the NEXT-FIRST
+(queue tag updated to say so).
+
+**Reality check** (Gates 1/2): origin-sync — local dev 1 commit AHEAD (unpushed docs commit from a
+prior session; pushed with this iteration's work), 0 behind. **Dev CI was RED** (per-workflow
+check): 2 consecutive CI failures (`366c5bbb2`, `7d295360b`) = `make fmt-check` on
+`internal/pkg/tarball_test.go` — one stray double blank line from the Tar-Slip hardening commit
+`366c5bbb2` (parent-commit check confirmed it first appeared there; both later commits docs-only).
+Fixed forward → `39171a4f9`, CI run 29248006228 OBSERVED green. Item-level: only the design-doc PR
+#367 existed (no implementation, #366 OPEN); rebuilt BOTH binaries, `--version` == `git describe`
+(`v0.29.2-129-g39171a4f9`); bug live-reproduced at HEAD (`let four = double(2)` → undefined
+variable + lying #327 hint).
+
+**Shipped**:
+- CI-red fix: `39171a4f9` (gofmt), observed green.
+- Opus sprint plan → `116ebcb49` (4 milestones, M0 spike gate first). Plan-stage reality check
+  caught a MATERIAL premise error: the #327 40-cell matrix lives at
+  `internal/pipeline/record_update_positions_test.go`, NOT the design doc's `internal/types/` path;
+  proposed MOD007 from the codes.go reserved block (MOD007–MOD009).
+- Opus executor (isolated worktree, branch `worktree-agent-abd141548fb79b2ee`, commits
+  `691f070f3`/`9808a96b9`/`71d260372`/`2d8fde3d1`): **M0 spike GO** (runtime `extractBindings`
+  evaluates ANY core.Let; `CheckCoreProgram` threads forward env; `extractFuncParams` ok-guarded)
+  → unified SCC over lets+funcs, `wrapInLets` + BOTH re-elaboration loops DELETED; module `letrec`
+  SUPPORTED via core.LetRec (~15 LOC; non-lambda self-ref → honest RT_REC_001, never false
+  undefined-variable); dup module-scope name → **MOD007 hard error** (col-0 corpus scan: zero
+  collisions in examples/stdlib → hard error safe); hint truth pass (`known bug #327` → 0 hits in
+  internal/; residual hint cites #366 + verified workaround "declare it as a func"); behavior-matrix
+  test v1–v10; `examples/runnable/module_let_helpers.ail` (executor deviation: runnable/ because the
+  verify-examples counter only walks that dir — judged legitimate); CHANGELOG/footguns/MOD007 docs.
+- Independent **Fable** evaluator (model diversity RESTORED — controller reverted from the Opus
+  override on schedule; Fable judged Opus work): **PASS 98/100 round 1**, own worktrees + own
+  rebuilt binaries (sprint `2d8fde3d1`, base `116ebcb49`), base-binary non-vacuity (v3/v7/v8 FAIL
+  on base → run 16/0/4 on sprint; v10 silent shadow → MOD007 naming both positions), adversarial
+  probes: func→later-let→earlier-func topo chain runs 50; genuine let↔func cycle → LetRec, no
+  crash; effectful module let (`let x = println(…)`) rejected byte-identically on base+sprint
+  (pure-value position preserved); verify-examples differential on BOTH binaries (185→186 pass,
+  5 pre-existing #341 fails byte-identical); no scope creep in the 13-file diff. −2 = unticked
+  sprint-plan checkboxes.
+- PR #368 → squash-merge `fd38ec14e` (auto-merge on green required checks), post-merge dev CI
+  green per-workflow (observed). Design + sprint plan → implemented/v0_30_0.
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (caught 1 material premise error,
+proposed MOD007) · model=Opus task-class=execute round1-score=98 rounds=1 corrections=0 (3
+deviations, all judged legitimate) · model=Fable task-class=evaluate (independent worktree+binary
+re-verification; first Fable-judges-Opus eval since diversity restored — behaviorally thorough,
+no leniency observed) · model=Fable task-class=triage/mechanical (CI-red gofmt fix, deterministic).
+
+**Ruled out**:
+- "The Build-and-Release red at `b293331f2` is a code regression from the sibling's eval/docs
+  commits" — REFUTED: failure = `TestReferenceSolutions_JS/fizzbuzz` "JavaScript execution timed
+  out" (60s) on the Windows runner only; sibling commits touched `internal/eval_analysis` + docs,
+  not `internal/eval_harness`; same test green at `4b826148d` 2.5h earlier; fibonacci subtest took
+  32s (pathologically slow runner). Rerun → SUCCESS. = infra flake; dev-health ledger, 3rd flaky
+  (after PipedStdoutFlushes + TestNetHttpPost).
+- "The #327 40-cell matrix is in internal/types/" (design doc claim) — REFUTED by plan-stage
+  reality check: `internal/pipeline/record_update_positions_test.go`.
+- "wrapInLets fallback (pre-pass env extension) might be needed" — REFUTED by M0 spike: GO on
+  first try; runtime + type-checker already handle non-lambda module decls.
+- "letrec support would blow the 0.5d time-box" — REFUTED: ~15 LOC via existing core.LetRec path.
+
+**Gate 3b**: every wait bounded — gofmt-fix CI poll (30m cap, background, green), PR #368 merge
+poll (35m cap, background, merged), post-merge per-workflow poll (30m cap, background). No
+unbounded waits; no rig.lock touch (eval-suite held the GPU all session; sprint had zero GPU steps).
+
+**Retro lane**: **process-fix** (this entry + queue tag): the NEXT-FIRST miss is friction #1 of
+the "fresh human directive invisible at pick time" class — below the ≥2 threshold for a skill
+edit, so the fix is procedural: the queue's NEXT-FIRST tag now carries an explicit "iteration 24
+MUST take this" marker, and this ledger records the class. If it recurs, mission-control Gate 2
+gets a mandatory `grep -n "NEXT-FIRST\|Mark 20" design_docs/v1-mission.md` step (that would be
+friction #2). No skill edit this iteration.
+
+**Next**: Iteration 24 — **m-public-feedback-delivery-audit** (HARD-PINNED, Mark's NEXT-FIRST,
+[planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 0.5–1d): daemon
+dual-subscribe dev+prod + pkg:*-inbox Discord-filter fix; part 1 = small notify/daemon change with
+fanout tests; plist reload may need Mark/park. THEN R4a `m-dx-match-hof` (NEW-DOC). **Carry
+forward**: PARKED for human/coordinator (cumulative): M-DX-JSON-BOOL Phase-1 firestore fix;
+tier-assignment ratification; feedback-gate production ops; haiku causal re-run; scope-params
+re-score; frontier-failure validation; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU);
+%-row re-check; dev-health flakies (now THREE: PipedStdoutFlushes, TestNetHttpPost-httpbin-503,
+TestReferenceSolutions_JS/fizzbuzz-windows-timeout). MOD007 allocation flagged for human review
+(design doc allowed veto).

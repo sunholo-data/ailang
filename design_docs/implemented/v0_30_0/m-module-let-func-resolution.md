@@ -1,6 +1,6 @@
 # M-MODULE-LET-FUNC-RESOLUTION: Module-level lets cannot reference module funcs (false "undefined variable"; hint cites closed #327)
 
-**Status**: Planned
+**Status**: Implemented (mission iteration 23, 2026-07-13 — PR #368 → `fd38ec14e`, independent eval PASS 98/100 round 1; M0 spike GO → unified SCC, wrapInLets deleted; letrec supported via core.LetRec; dup-name → MOD007 hard error)
 **Target**: v0.30.0 (v1.0.0 queue, clause-3 DX/soundness)
 **Priority**: P1 (false diagnostic on a natural idiom; the hint actively misroutes agents; broke nightly `higher_order_functions` 2026-07-13)
 **Estimated**: 2–3 days (SCC unification 1–1.5d, semantics pinning + fixtures 1d)
