@@ -1,6 +1,6 @@
 # Arity-Style Diagnostic (m-arity-style-diagnostic)
 
-**Status**: Planned
+**Status**: Implemented (mission iteration 21, 2026-07-13 — PASS 97/100 round 1)
 **Target**: v1.0.0 (clause-3 accessibility — fleet-tier footgun burn-down)
 **Priority**: P1
 **Estimated**: 1–2 days
