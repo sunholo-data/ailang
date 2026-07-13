@@ -78,10 +78,10 @@
         "go test ./internal/daemon/... and go build ./... green; make lint green",
         "PR records: refactor-vs-two-instance choice AND how prod Firestore fetcher is scoped without env mutation"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:46:00Z",
+      "completed": "2026-07-13T16:20:00Z",
+      "notes": "CHOSEN APPROACH: Daemon source-list REFACTOR (primary approach, not two-instance). Rationale: keeps ONE dedup window (message IDs are globally unique fb_*/msg_*, so shared dedup is correct + simpler), ONE Daemon/notifier/webhook, and cleanly separates 'task events = primary(dev) only' from 'N message sources'; two-instance would either double the task sub or need awkward suppression. Daemon now holds msgSources []MessageSource{Sub,Fetcher,SubName,Label}; New() seeds the primary source; AddMessageSource() appends extras; Run() fans out one goroutine per message source (+1 for primary task events). handleMessageEvent -> messageHandlerFor(src) using src.Fetcher. PROD FETCHER SCOPING (highest risk, resolved): storage.NewGCPBackends + firestore.NewClient read AILANG_CLOUD_PROJECT PROCESS-GLOBALLY -> mutating env would collide dev/prod. Added firestore.NewClientForProject(ctx, projectID) (explicit project, no env); CLI builds the prod messaging store via NewMessagingStore(NewClientForProject(ctx,'ailang-multivac')) WITHOUT touching AILANG_CLOUD_PROJECT. Config: FileConfig.ExtraMessageEnvs (yaml extra_message_envs) + repeatable --also-subscribe flag; ResolveExtraMessageSources resolves via EnvProject, dedups against primary+self, fails loudly on unknown env. Default OFF -> single-project byte-identical. Tests: TestDaemon_DualProjectMessageFiresOnce, TestDaemon_ProdFetcherScopedToProdStore (prod id nacks on dev source, fires on prod source = scoping proof), TestDaemon_SingleProjectUnchanged, TestResolveExtraMessageSources. All existing daemon_test.go tests pass unchanged. go test ./internal/daemon/... ./internal/notify/... ./internal/storage/... green; -race -count=3 green; go build ./internal/... ./cmd/ailang/ green; gofmt clean. No prod resource created/modified (daemon only READS the existing ailang-messages-laptop sub confirmed in M0)."
     },
     {
       "id": "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG",
@@ -116,7 +116,7 @@
     ]
   },
   "open_premises_for_executor": [
-    "storage.NewBackends project selection (M2, highest risk): confirm it accepts an explicit project vs reading AILANG_CLOUD_PROJECT globally; the prod messaging store must be built WITHOUT mutating shared env or the dev/prod fetchers collide",
-    "M2 approach: pick Daemon source-list refactor vs two Daemon instances; both satisfy acceptance — record the choice"
+    "RESOLVED — storage.NewBackends project selection (M2, highest risk): NewGCPBackends reads AILANG_CLOUD_PROJECT globally, and firestore.NewClient(ctx) also reads it globally. So mutating the env WOULD collide the dev/prod fetchers. Resolution: added firestore.NewClientForProject(ctx, projectID) (explicit project, ignores env); the CLI builds the prod messaging store via NewMessagingStore(NewClientForProject(ctx,'ailang-multivac')) with NO env mutation.",
+    "RESOLVED — M2 approach: chose the Daemon source-list REFACTOR (not two instances). One dedup window (globally-unique message IDs), one Daemon/notifier/webhook, task events primary-only. See M2 feature notes for full rationale."
   ]
 }

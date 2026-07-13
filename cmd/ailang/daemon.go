@@ -16,6 +16,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/notify"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/storage"
+	firestore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
 // daemonCommand is the entry point for `ailang daemon ...`. Subcommands:
@@ -73,6 +74,8 @@ func daemonRun(args []string) error {
 	fs := flag.NewFlagSet("daemon run", flag.ExitOnError)
 	envFlag := fs.String("env", "", "Cloud environment to subscribe to (dev|test|prod). Default: from daemon.yaml or 'prod'.")
 	dryRun := fs.Bool("dry-run", false, "Log notifications instead of firing them. Useful for tests.")
+	var alsoSubscribe multiFlag
+	fs.Var(&alsoSubscribe, "also-subscribe", "ADDITIONAL cloud env whose inbox messages to also watch (dev|test|prod). Repeatable. Appends to daemon.yaml extra_message_envs. Example: --env dev --also-subscribe prod.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -84,11 +87,14 @@ func daemonRun(args []string) error {
 	if *dryRun {
 		fc.DryRun = true
 	}
+	// CLI --also-subscribe appends to the yaml extra_message_envs.
+	fc.ExtraMessageEnvs = append(fc.ExtraMessageEnvs, alsoSubscribe...)
 
 	cfg, project, prefix, err := daemon.ConfigForEnv(*envFlag, fc)
 	if err != nil {
 		return err
 	}
+	primaryEnv := envOrDefault(*envFlag, fc.Env, "prod")
 
 	ctx, cancel := signalContext()
 	defer cancel()
@@ -127,11 +133,62 @@ func daemonRun(args []string) error {
 		reg.FanOut(log.Default()),
 	)
 
-	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s dry_run=%t channels=%v\n",
-		envOrDefault(*envFlag, fc.Env, "prod"), project, cfg.EventsSub, cfg.MessagesSub, cfg.DryRun,
+	// Additional inbox-message sources (e.g. prod), each scoped to its OWN
+	// project's Firestore WITHOUT mutating the shared AILANG_CLOUD_PROJECT env
+	// (env mutation would make the dev/prod fetchers collide). We build a
+	// project-explicit Firestore messaging store per extra source.
+	extras, err := daemon.ResolveExtraMessageSources(primaryEnv, fc.ExtraMessageEnvs)
+	if err != nil {
+		return err
+	}
+	var extraClosers []func()
+	defer func() {
+		for _, c := range extraClosers {
+			c()
+		}
+	}()
+	for _, ex := range extras {
+		exPS, err := pubsub.NewClient(ctx, ex.Project, ex.Prefix)
+		if err != nil {
+			return fmt.Errorf("pubsub client (%s): %w", ex.Env, err)
+		}
+		extraClosers = append(extraClosers, func() { _ = exPS.Close() })
+
+		fsClient, err := firestore.NewClientForProject(ctx, ex.Project)
+		if err != nil {
+			return fmt.Errorf("firestore client (%s): %w", ex.Env, err)
+		}
+		exStore := firestore.NewMessagingStore(fsClient)
+		extraClosers = append(extraClosers, func() { _ = exStore.Close() })
+
+		d.AddMessageSource(daemon.MessageSource{
+			Sub:     pubsubAdapter{sub: pubsub.NewSubscriber(exPS)},
+			Fetcher: storeFetcher{store: exStore},
+			SubName: ex.MessagesSub,
+			Label:   ex.Env,
+		})
+	}
+
+	extraLabels := make([]string, 0, len(extras))
+	for _, ex := range extras {
+		extraLabels = append(extraLabels, ex.Env+"("+ex.Project+")")
+	}
+	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s extra_message_sources=%v dry_run=%t channels=%v\n",
+		primaryEnv, project, cfg.EventsSub, cfg.MessagesSub, extraLabels, cfg.DryRun,
 		reg.Names())
 
 	return d.Run(ctx)
+}
+
+// multiFlag collects a repeatable string flag (e.g. --also-subscribe prod
+// --also-subscribe test).
+type multiFlag []string
+
+func (m *multiFlag) String() string { return strings.Join(*m, ",") }
+
+func (m *multiFlag) Set(v string) error {
+	*m = append(*m, v)
+	return nil
 }
 
 func daemonInstall(args []string) error {
