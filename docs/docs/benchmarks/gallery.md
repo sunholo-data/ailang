@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 6
 title: Benchmark Gallery
 description: Browse all AILANG benchmarks — task descriptions, pass rates, and code samples by tier
 ---

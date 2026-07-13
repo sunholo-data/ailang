@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 1
 title: Model Leaderboard
 description: AI model leaderboard for AILANG code generation — radar comparison, trend charts, and 0-shot / self-repair results across 8 models
 last_updated: 2026-04-23

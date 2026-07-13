@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 title: Agent Harness Explorer
 description: Compare coding agent performance across harnesses (Claude CLI, opencode, Codex, and the hosted Managed Agents API) by language — agent mode only
 ---
