@@ -98,9 +98,9 @@ type as `({name: τ | r}) -> τ`; the IIFE and the extra-field caller must pass.
    or whether M2 (generalize/instantiate row vars) is also required for the *let-bound* case.
 
 **Acceptance:**
-- [ ] IIFE `(\obj. match obj { {name, ...} => name })({name,id})` → PASS.
-- [ ] lambda + `{name}` (closed) + extra caller → still FAIL.
-- [ ] `make build` clean; no gob/cache round-trip breakage.
+- [x] IIFE `(\obj. match obj { {name, ...} => name })({name,id})` → PASS.
+- [x] lambda + `{name}` (closed) + extra caller → still FAIL.
+- [x] `make build` clean; no gob/cache round-trip breakage.
 
 **Risk:** Over-forcing openness could make closed `{name}` accept extra fields (soundness
 regression, reversing the M-SCHEME-IMPORT strictness). Mitigation: gate strictly on
@@ -133,8 +133,8 @@ kind. **Only do the work here that M1's instrumentation proves is still needed.*
 2. Otherwise quantify record row vars + fix instantiate kinds.
 
 **Acceptance:**
-- [ ] let-bound `getName({name,id})` → PASS.
-- [ ] No over-generalization: a genuinely incompatible record is still rejected (add a
+- [x] let-bound `getName({name,id})` → PASS.
+- [x] No over-generalization: a genuinely incompatible record is still rejected (add a
       negative probe, e.g. call with a record MISSING `name`).
 
 **Risk (TOP RISK):** Row-variable over-generalization in HM-with-rows — quantifying a row var
@@ -169,8 +169,8 @@ the hint is actively misleading.
 - Test: assert Hint absent on the fixed open reproducer.
 
 **Acceptance:**
-- [ ] Post-fix, the open-pattern reproducer produces NO error (so no hint) — asserted by test.
-- [ ] Closed-pattern-+-extra still shows the (now-correct) hint.
+- [x] Post-fix, the open-pattern reproducer produces NO error (so no hint) — asserted by test.
+- [x] Closed-pattern-+-extra still shows the (now-correct) hint.
 
 **Risk:** Low. Don't over-engineer source-position plumbing into the unifier; the structural M1
 fix removes the misleading path.

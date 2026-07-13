@@ -97,13 +97,13 @@ Pre-fix the substitution wasn't applied, so the lambda parameter stayed as a bar
 
 ## Acceptance criteria
 
-- [ ] [`examples/runnable/record_patterns.ail`](../../examples/runnable/record_patterns.ail) can be restored to use `{name, ...}` patterns in lambdas with extra-field callers.
-- [ ] New regression test in `internal/pipeline/lambda_open_record_test.go` covers the four shapes:
+- [x] [`examples/runnable/record_patterns.ail`](../../examples/runnable/record_patterns.ail) can be restored to use `{name, ...}` patterns in lambdas with extra-field callers.
+- [x] New regression test in `internal/pipeline/lambda_open_record_test.go` covers the four shapes:
   - Lambda + open pattern + extra-field caller → PASS
   - Lambda + open pattern + matching-shape caller → PASS
   - Lambda + closed pattern + matching-shape caller → PASS
   - Lambda + closed pattern + extra-field caller → FAIL (correctness check)
-- [ ] No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests or any other type-system tests.
+- [x] No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests or any other type-system tests.
 
 ## Risks
 

@@ -2,15 +2,17 @@
   "sprint_id": "M-LAMBDA-OPEN-RECORD",
   "design_doc": "design_docs/planned/v0_29_0/m-lambda-open-record-pattern.md",
   "sprint_plan": "design_docs/planned/v0_29_0/m-lambda-open-record-pattern-sprint-plan.md",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-07-13T00:00:00Z",
+  "completed": "2026-07-13T21:40:00Z",
   "target_version": "v0.29.x / v0.30.0",
   "planned_at_head": "999bd629f (v0.29.2-151)",
   "github_issues": [],
   "velocity": {
     "target_loc_per_day": 120,
     "estimated_total_loc": 110,
-    "estimated_days": 1
+    "estimated_days": 1,
+    "actual_loc": 336
   },
   "features": [
     {
@@ -24,10 +26,10 @@
         "make build clean; no gob/cache round-trip breakage from new Rest bool",
         "Nested open patterns {user: {name, ...}, ...} still work"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T21:00:00Z",
+      "completed": "2026-07-13T21:30:00Z",
+      "notes": "DONE (commit 71ecde047). Root cause was DEEPER than the plan's H1/H2/H3. Three coordinated fixes: (1) core.RecordPattern.Rest bool + elaborator propagation (H1, confirmed). (2) checkPattern honors Rest ONLY for an UNRESOLVED scrutinee (lambda param): open=>{fields|freshRow}, closed=>Row:nil. A RESOLVED record scrutinee reads fields verbatim (subset match) regardless of Rest — my first attempt gated on recTy.Row==nil which broke closed arm `{name,age}` against a wider literal `{name,age,active}`; corrected. (3) THE primary site, NOT in the design doc: unifyRecord's TRecord~TRecord path rejected any field-count difference BEFORE consulting row vars, so open {name|r} vs {name,id} failed a length check and never reached row unification. Added unifyOpenRecords + recordRowIsOpen/recordExtensionRow helpers (TRecord.Row is overloaded: closed literals carry *Row{Tail:nil}, so Row!=nil does NOT mean open). Verified matrix cache-busted: all 7 shapes correct, strictness NOT reversed. gob-safe (new bool zero-values); all struct literals use keyed fields; internal/smt (RecordPattern consumer) green."
     },
     {
       "id": "M2_PRESERVE_OPENNESS_THROUGH_GENERALIZE",
@@ -40,10 +42,10 @@
         "No regression in internal/types effect-row tests (instantiate kinds correct)",
         "make test green for internal/types and internal/pipeline"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T21:30:00Z",
+      "completed": "2026-07-13T21:32:00Z",
+      "notes": "NO CODE CHANGE NEEDED — proved unnecessary via instrumentation (as the plan anticipated). CheckCoreExpr.SolveConstraints() runs BEFORE generalizeWithConstraints, so the let-bound param's record structure ({name: t | r} or closed {name: t}) is already resolved and preserved through the scheme's Type field. Confirmed: let-bound open+extra PASSES, let-bound closed+extra FAILS, let-bound missing-field FAILS. The RowVars:[]string{} hardcode is a real latent gap but does NOT affect this bug because the row var is embedded in the record type, not a top-level quantified row. Covered by the M4 let-bound tests (ExtraField_Pass, ClosedRecord_ExtraField_Fail, MissingField_Fail)."
     },
     {
       "id": "M3_MISLEADING_HINT_DX",
@@ -55,10 +57,10 @@
         "Closed-pattern + extra-field caller still emits the hint (now genuinely helpful)",
         "No source-position plumbing added to the unifier unless strictly required"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T21:32:00Z",
+      "completed": "2026-07-13T21:34:00Z",
+      "notes": "NO SOURCE CHANGE NEEDED (as the plan anticipated). After M1 the open reproducer type-checks cleanly => no error => no misleading hint. The ONLY remaining site the hint fires is closed {name} + extra caller, where the hint (add `...`) is now genuinely correct. Verified via probe + covered by test TestLambdaOpenRecord_HintNotMisleading (asserts open reproducer has no error, and closed+extra error still carries the 'open record syntax' hint)."
     },
     {
       "id": "M4_REGRESSION_MATRIX_AND_EXAMPLE",
@@ -72,21 +74,21 @@
         "go test -race ./internal/pipeline/ -run LambdaOpenRecord green",
         "No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests; make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T21:34:00Z",
+      "completed": "2026-07-13T21:40:00Z",
+      "notes": "DONE. 7 tests in internal/pipeline/lambda_open_record_test.go all pass (incl. -race -count=3). Restored examples/runnable/record_patterns.ail lambda to `{name, ...}` + extra-field caller `{name:\"Grace\", id:123}` and updated the two now-stale comments. verify-examples PASSED (36 type-checked, 33 ran clean). Full go test ./... = 102 packages OK, 0 failures. golangci-lint 0 issues on touched packages; go vet clean. CHANGELOG entry added under [Unreleased] in changelogs/v0.18-current.md."
     }
   ],
   "risks": [
-    {"risk": "Row-variable over-generalization (M2) accepts incompatible records", "severity": "high", "mitigation": "Mirror vetted inference_helpers.generalize withhold logic; missing-field negative test; full type suite + -race"},
-    {"risk": "Closed-record strictness silently reversed (M1)", "severity": "high", "mitigation": "Gate openness strictly on Rest==true; closed+extra red-line test"},
-    {"risk": "gob/cache schema break from new Rest bool on core.RecordPattern", "severity": "medium", "mitigation": "New bool zero-values on old blobs; verify cache round-trip; bump cache key if needed"},
-    {"risk": "Instantiate row-kind fix (M2) mis-kinds effect rows", "severity": "medium", "mitigation": "Track kind per quantified var; run effect_soundness_test.go"}
+    {"risk": "Row-variable over-generalization (M2) accepts incompatible records", "severity": "high", "mitigation": "Mirror vetted inference_helpers.generalize withhold logic; missing-field negative test; full type suite + -race", "outcome": "AVOIDED — M2 needed no code change; missing-field negative test (TestLambdaOpenRecord_MissingField_Fail) passes"},
+    {"risk": "Closed-record strictness silently reversed (M1)", "severity": "high", "mitigation": "Gate openness strictly on Rest==true; closed+extra red-line test", "outcome": "HELD — closed+extra (TestLambdaClosedRecord_ExtraField_Fail) and closed-IIFE both correctly FAIL"},
+    {"risk": "gob/cache schema break from new Rest bool on core.RecordPattern", "severity": "medium", "mitigation": "New bool zero-values on old blobs; verify cache round-trip; bump cache key if needed", "outcome": "NO BREAK — gob.Register(&RecordPattern{}) already present; new bool zero-values; all struct literals keyed"},
+    {"risk": "Instantiate row-kind fix (M2) mis-kinds effect rows", "severity": "medium", "mitigation": "Track kind per quantified var; run effect_soundness_test.go", "outcome": "N/A — no instantiate change made; effect tests green"}
   ],
   "reality_check": {
-    "H1_core_drops_rest": "CONFIRMED — core.go:380-387 no Rest; elaborate/patterns.go:207-219 (doc said 177-189, DRIFTED)",
-    "H2_checkpattern": "typechecker_patterns.go:394-416 (doc said 365-387, DRIFTED); closed-TRecord branch ignores recTy.Row",
-    "H3_generalize_primary_cause": "PARTIALLY REFUTED as primary — IIFE (no generalize) also fails, so collapse precedes generalization; H3 is a real SECONDARY gap needed only for the let-bound variant"
+    "H1_core_drops_rest": "CONFIRMED — core.go no Rest; elaborate/patterns.go propagation added",
+    "H2_checkpattern": "PARTIALLY relevant — the fix is in checkPattern (Rest gating for unresolved scrutinee) but that alone was insufficient",
+    "H3_generalize_primary_cause": "REFUTED as primary AND as secondary — generalization preserves the record structure because SolveConstraints runs first. The REAL primary site (in neither the design doc nor the plan) was unifyRecord's field-count check firing before row unification."
   }
 }
