@@ -193,9 +193,6 @@ export default function EloLeaderboard() {
       {sat.total != null && activeLang !== 'avp' && (
         <p style={{ fontSize: '0.85em', color: 'var(--ifm-color-emphasis-600)', marginTop: 0 }}>
           {sat.saturated}/{sat.total} saturated · {sat.discriminating} discriminating
-          {sat.total > 0 && sat.saturated / sat.total >= 0.3 && (
-            <strong style={{ color: '#ea580c' }}> · suite needs harder benchmarks</strong>
-          )}
         </p>
       )}
 
