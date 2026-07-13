@@ -120,7 +120,6 @@ export default function EloLeaderboard() {
   const allModels = block.models || [];
   const benches = block.benchmarks || [];
   const sat = block.saturation || {};
-  const regraded = (data.grading || {}).regraded;
 
   // Coverage awareness: ELO across models that ran DIFFERENT benchmark counts
   // isn't strictly comparable, so we keep every model VISIBLE but mark those with
@@ -168,7 +167,6 @@ export default function EloLeaderboard() {
             {m === 'standard' ? 'Standard' : 'Agent'}
           </button>
         ))}
-        {regraded && <Badge color="#16a34a">regraded</Badge>}
         {activeMode === 'standard' && (ratings.agent?.models || []).some((m) => isLocalAgent(m.id)) && (
           <button
             onClick={() => setMode('agent')}
