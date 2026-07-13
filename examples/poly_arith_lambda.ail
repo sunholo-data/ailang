@@ -1,0 +1,40 @@
+-- Polymorphic arithmetic in lambdas.
+-- Regression guard for M-POLY-ARITH-LAMBDA (R4b): the strategy review's footgun
+-- row claimed polymorphic *arithmetic* in lambdas panics while polymorphic
+-- comparison works. Verified GHOST in mission iteration 25 (2026-07-13): fixed
+-- in v0.7.0 (design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md); every
+-- variant probed here — including one binding used at BOTH int and float —
+-- type-checks and runs.
+module examples/poly_arith_lambda
+
+import std/io (println)
+import std/list (map, foldl)
+
+-- Polymorphic top-level helper used at two Num instantiations.
+pure func double[a](x: a) -> a { x + x }
+
+export func main() -> () ! {IO} {
+  -- Curried polymorphic arithmetic lambda, instantiated at float and int.
+  let add = \x. \y. x + y;
+  println(show(add(3.14)(2.71)));
+  println(show(add(3)(4)));
+
+  -- One let-bound lambda used at BOTH int and float (real let-polymorphism).
+  let twice = \x. x + x;
+  println(show(twice(4)));
+  println(show(twice(2.5)));
+
+  -- Polymorphic helper func at both types.
+  println(show(double(21)));
+  println(show(double(1.5)));
+
+  -- Arithmetic lambdas passed to HOFs at each instantiation.
+  println(show(map(\x. x * 2, [1, 2, 3])));
+  println(show(map(\x. x * 2.0, [1.5, 2.5])));
+  println(show(foldl(\acc. \x. acc * x, 1, [2, 3, 4])));
+  println(show(foldl(\acc. \x. acc * x, 1.0, [0.5, 4.0])));
+
+  -- Comparison AND arithmetic mixed in the same lambda.
+  let clamp = \x. if x > 10 then x - 10 else x + 1;
+  println(show(map(clamp, [5, 20])))
+}
