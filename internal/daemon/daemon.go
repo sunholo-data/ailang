@@ -48,42 +48,78 @@ type Config struct {
 	Logger      *log.Logger   // optional; defaults to log.Default()
 }
 
-// Daemon is the running pull loop.
-type Daemon struct {
-	cfg       Config
-	sub       EventSubscriber
-	fetcher   MessageFetcher
-	notify    func(notify.Notification) error
-	taskDedup *dedup
-	msgDedup  *dedup
-	log       *log.Logger
+// MessageSource is one project's inbox-message feed: a Pub/Sub subscriber, the
+// Firestore fetcher scoped to THAT project, the base subscription name, and a
+// human label for logs. A daemon fans out over N of these so a single process
+// can watch both dev and prod (see cmd/ailang/daemon.go). Every source shares
+// the daemon's notifier and dedup window — message IDs are globally unique
+// (fb_*/msg_*), so a shared dedup is both correct and simpler than per-source.
+type MessageSource struct {
+	Sub     EventSubscriber
+	Fetcher MessageFetcher
+	SubName string // base sub name; the Pub/Sub client prepends the project prefix
+	Label   string // e.g. "dev", "prod" — for startup/delivery logs only
 }
 
-// New constructs a Daemon. Pass interface implementations for sub/fetcher so
-// tests can substitute fakes.
+// Daemon is the running pull loop.
+type Daemon struct {
+	cfg        Config
+	sub        EventSubscriber // primary source's subscriber; task events use this
+	msgSources []MessageSource // all inbox-message sources (includes the primary)
+	notify     func(notify.Notification) error
+	taskDedup  *dedup
+	msgDedup   *dedup
+	log        *log.Logger
+}
+
+// New constructs a single-source Daemon (dev-only, backward-compatible). Task
+// events and inbox messages both flow through sub/fetcher. Pass interface
+// implementations so tests can substitute fakes. To watch additional projects,
+// build with New then AddMessageSource, or use NewMulti.
 func New(cfg Config, sub EventSubscriber, fetcher MessageFetcher, notifyFn func(notify.Notification) error) *Daemon {
 	logger := cfg.Logger
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &Daemon{
+	d := &Daemon{
 		cfg:       cfg,
 		sub:       sub,
-		fetcher:   fetcher,
 		notify:    notifyFn,
 		taskDedup: newDedup(cfg.TaskWindow),
 		msgDedup:  newDedup(cfg.MsgWindow),
 		log:       logger,
 	}
+	// The primary (task+message) source is also the first message source, using
+	// the configured MessagesSub. Task events are pulled ONLY from this source
+	// (the rig emits eval pings to dev; we never double-fan prod task events).
+	d.msgSources = []MessageSource{{
+		Sub:     sub,
+		Fetcher: fetcher,
+		SubName: cfg.MessagesSub,
+		Label:   "primary",
+	}}
+	return d
 }
 
-// Run blocks until ctx is cancelled, pulling from both subscriptions in
-// parallel and firing notifications for relevant events. Returns nil on a
-// clean shutdown; returns the first error from a subscription if one fails.
+// AddMessageSource registers an ADDITIONAL inbox-message source (e.g. prod)
+// beyond the primary. Task events are NOT pulled from added sources — only
+// messages. Each source's Fetcher MUST resolve against that source's project's
+// Firestore (see cmd/ailang/daemon.go, where the prod fetcher is scoped to
+// ailang-multivac without mutating the shared process env).
+func (d *Daemon) AddMessageSource(src MessageSource) {
+	d.msgSources = append(d.msgSources, src)
+}
+
+// Run blocks until ctx is cancelled, pulling task events from the primary
+// source and inbox messages from EVERY registered message source in parallel.
+// Returns nil on a clean shutdown; returns the first error from a subscription
+// if one fails.
 func (d *Daemon) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
-	errCh := make(chan error, 2)
+	// One goroutine per message source, plus one for the primary task events.
+	errCh := make(chan error, len(d.msgSources)+1)
 
+	// Task events: primary source only.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -93,14 +129,18 @@ func (d *Daemon) Run(ctx context.Context) error {
 		}
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := d.sub.Subscribe(ctx, d.cfg.MessagesSub, d.handleMessageEvent)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			errCh <- fmt.Errorf("messages subscription: %w", err)
-		}
-	}()
+	// Inbox messages: every registered source.
+	for _, src := range d.msgSources {
+		src := src // capture per-iteration
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := src.Sub.Subscribe(ctx, src.SubName, d.messageHandlerFor(src))
+			if err != nil && !errors.Is(err, context.Canceled) {
+				errCh <- fmt.Errorf("messages subscription (%s): %w", src.Label, err)
+			}
+		}()
+	}
 
 	wg.Wait()
 	close(errCh)
@@ -137,39 +177,44 @@ func (d *Daemon) handleTaskEvent(_ context.Context, data []byte, _ map[string]st
 	return nil
 }
 
-func (d *Daemon) handleMessageEvent(ctx context.Context, data []byte, _ map[string]string) error {
-	var m pubsub.MessageNotification
-	if err := json.Unmarshal(data, &m); err != nil {
-		d.log.Printf("daemon: malformed message event: %v", err)
+// messageHandlerFor returns a MessageHandler bound to src's project-scoped
+// fetcher. Dedup is shared across sources (message IDs are globally unique), so
+// a message that somehow arrives on two sources fires exactly once.
+func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
+	return func(ctx context.Context, data []byte, _ map[string]string) error {
+		var m pubsub.MessageNotification
+		if err := json.Unmarshal(data, &m); err != nil {
+			d.log.Printf("daemon: malformed message event (%s): %v", src.Label, err)
+			return nil
+		}
+		key := messageDedupKey(m.MessageID)
+		if d.msgDedup.seen(key) {
+			return nil
+		}
+		full, err := src.Fetcher.Fetch(ctx, m.MessageID)
+		if err != nil {
+			d.msgDedup.forget(key) // nack: let redelivery retry the fetch
+			return fmt.Errorf("fetch message %s (%s): %w", m.MessageID, src.Label, err)
+		}
+		if full == nil {
+			// Notification arrived before Firestore replication; nack to retry.
+			d.msgDedup.forget(key)
+			return fmt.Errorf("message %s not yet visible (%s)", m.MessageID, src.Label)
+		}
+		n, fire := messageNotification(full)
+		if !fire {
+			return nil
+		}
+		if shouldExclude(n, d.cfg.Excludes) {
+			return nil
+		}
+		if err := d.fire(n); err != nil {
+			d.msgDedup.forget(key) // nack: let redelivery retry delivery
+			return err
+		}
+		d.log.Printf("daemon: delivered message %s [src=%s, from=%s, inbox=%s] -> %q", m.MessageID, src.Label, full.FromAgent, full.ToInbox, n.Title)
 		return nil
 	}
-	key := messageDedupKey(m.MessageID)
-	if d.msgDedup.seen(key) {
-		return nil
-	}
-	full, err := d.fetcher.Fetch(ctx, m.MessageID)
-	if err != nil {
-		d.msgDedup.forget(key) // nack: let redelivery retry the fetch
-		return fmt.Errorf("fetch message %s: %w", m.MessageID, err)
-	}
-	if full == nil {
-		// Notification arrived before Firestore replication; nack to retry.
-		d.msgDedup.forget(key)
-		return fmt.Errorf("message %s not yet visible", m.MessageID)
-	}
-	n, fire := messageNotification(full)
-	if !fire {
-		return nil
-	}
-	if shouldExclude(n, d.cfg.Excludes) {
-		return nil
-	}
-	if err := d.fire(n); err != nil {
-		d.msgDedup.forget(key) // nack: let redelivery retry delivery
-		return err
-	}
-	d.log.Printf("daemon: delivered message %s [from=%s, inbox=%s] -> %q", m.MessageID, full.FromAgent, full.ToInbox, n.Title)
-	return nil
 }
 
 // fire invokes the notifier (or logs in dry-run). Returning an error causes

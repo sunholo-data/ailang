@@ -299,6 +299,205 @@ func TestDaemon_ExcludesMatchedNotificationsSkipped(t *testing.T) {
 	}
 }
 
+// prodOnlyFetcher resolves a message ID to a message ONLY if the ID belongs to
+// the prod set — proving in-test that a source's fetcher is scoped to its own
+// project's store (a dev fetcher would return nil for a prod ID and vice versa).
+type prodOnlyFetcher struct {
+	prodMsgs map[string]*messaging.InboxMessage
+}
+
+func (f *prodOnlyFetcher) Fetch(_ context.Context, messageID string) (*messaging.InboxMessage, error) {
+	if f.prodMsgs == nil {
+		return nil, nil
+	}
+	return f.prodMsgs[messageID], nil // nil for any non-prod id
+}
+
+// TestDaemon_DualProjectMessageFiresOnce proves that with a prod message source
+// added, a message delivered on the prod source fires exactly one notification,
+// resolved via the prod-scoped fetcher.
+func TestDaemon_DualProjectMessageFiresOnce(t *testing.T) {
+	// Primary (dev) source.
+	devSub := newFakeSubscriber()
+	devFetch := &fakeFetcher{msgs: map[string]*messaging.InboxMessage{}}
+	rec := &recordingNotifier{}
+	d := New(Config{
+		EventsSub:   "events-laptop",
+		MessagesSub: "messages-laptop",
+		TaskWindow:  60 * time.Second,
+		MsgWindow:   5 * time.Minute,
+	}, devSub, devFetch, rec.notify)
+
+	// Prod source: its OWN subscriber + a prod-scoped fetcher that only knows
+	// prod message IDs.
+	prodSub := newFakeSubscriber()
+	prodFetch := &prodOnlyFetcher{prodMsgs: map[string]*messaging.InboxMessage{
+		"fb_prod_1": {
+			MessageID: "fb_prod_1",
+			ToInbox:   "public-feedback",
+			FromAgent: "mcp-public",
+			Title:     "prod feedback from a real user",
+		},
+	}}
+	d.AddMessageSource(MessageSource{
+		Sub:     prodSub,
+		Fetcher: prodFetch,
+		SubName: "messages-laptop",
+		Label:   "prod",
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = d.Run(ctx) }()
+	time.Sleep(30 * time.Millisecond) // let all sources register handlers
+
+	data := msgNotificationJSON(t, pubsub.MessageNotification{MessageID: "fb_prod_1"})
+	if err := prodSub.deliver(t, "messages-laptop", data, map[string]string{"inbox": "public-feedback"}); err != nil {
+		t.Fatalf("prod deliver: %v", err)
+	}
+
+	calls := rec.calls()
+	if len(calls) != 1 {
+		t.Fatalf("expected exactly 1 notification from prod source, got %d", len(calls))
+	}
+	if calls[0].Title != "🌐 External feedback" {
+		t.Errorf("title = %q, want 🌐 External feedback", calls[0].Title)
+	}
+	if calls[0].EventType != "public-feedback" {
+		t.Errorf("EventType = %q, want public-feedback", calls[0].EventType)
+	}
+
+	// Dedup: a duplicate prod delivery is suppressed.
+	if err := prodSub.deliver(t, "messages-laptop", data, nil); err != nil {
+		t.Fatalf("prod redeliver: %v", err)
+	}
+	if got := len(rec.calls()); got != 1 {
+		t.Errorf("expected dedup to suppress duplicate prod message, got %d calls", got)
+	}
+}
+
+// TestDaemon_ProdFetcherScopedToProdStore proves the prod source resolves
+// against its OWN store: a prod message ID resolves via the prod fetcher, but
+// the SAME id delivered on the dev source (whose fetcher does not know it)
+// nacks (not-yet-visible) rather than firing — the fetchers do not collide.
+func TestDaemon_ProdFetcherScopedToProdStore(t *testing.T) {
+	devSub := newFakeSubscriber()
+	devFetch := &fakeFetcher{msgs: map[string]*messaging.InboxMessage{}} // dev knows nothing
+	rec := &recordingNotifier{}
+	d := New(Config{
+		EventsSub: "events-laptop", MessagesSub: "messages-laptop",
+		TaskWindow: 60 * time.Second, MsgWindow: 5 * time.Minute,
+	}, devSub, devFetch, rec.notify)
+
+	prodSub := newFakeSubscriber()
+	prodFetch := &prodOnlyFetcher{prodMsgs: map[string]*messaging.InboxMessage{
+		"fb_prod_2": {MessageID: "fb_prod_2", ToInbox: "public-feedback", FromAgent: "mcp-public", Title: "prod"},
+	}}
+	d.AddMessageSource(MessageSource{Sub: prodSub, Fetcher: prodFetch, SubName: "messages-laptop", Label: "prod"})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = d.Run(ctx) }()
+	time.Sleep(30 * time.Millisecond)
+
+	data := msgNotificationJSON(t, pubsub.MessageNotification{MessageID: "fb_prod_2"})
+
+	// Delivered on the DEV source: dev fetcher returns nil -> handler nacks.
+	if err := devSub.deliver(t, "messages-laptop", data, nil); err == nil {
+		t.Fatal("expected dev source to nack a prod-only message id (fetcher scoping)")
+	}
+	if got := len(rec.calls()); got != 0 {
+		t.Fatalf("dev source must not fire for a prod id, got %d", got)
+	}
+
+	// Delivered on the PROD source: prod fetcher resolves it -> fires once.
+	if err := prodSub.deliver(t, "messages-laptop", data, nil); err != nil {
+		t.Fatalf("prod deliver: %v", err)
+	}
+	if got := len(rec.calls()); got != 1 {
+		t.Fatalf("expected prod source to fire once, got %d", got)
+	}
+}
+
+// TestDaemon_SingleProjectUnchanged proves that a daemon built with New (no
+// added sources) behaves exactly as before: the single messages-laptop source
+// fires from the primary subscriber, and task events still flow.
+func TestDaemon_SingleProjectUnchanged(t *testing.T) {
+	d, sub, fetch, rec := newTestDaemon(t)
+	fetch.msgs["msg_single_1"] = &messaging.InboxMessage{
+		MessageID: "msg_single_1",
+		ToInbox:   "public-feedback",
+		FromAgent: "nightly-eval",
+		Title:     "regression fade",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = d.Run(ctx) }()
+	time.Sleep(20 * time.Millisecond)
+
+	// Message on the single (primary) source fires.
+	data := msgNotificationJSON(t, pubsub.MessageNotification{MessageID: "msg_single_1"})
+	if err := sub.deliver(t, "messages-laptop", data, nil); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	if got := len(rec.calls()); got != 1 {
+		t.Fatalf("expected 1 notification, got %d", got)
+	}
+
+	// Task events still flow on the same primary subscriber.
+	tdata := taskCompletionJSON(t, pubsub.TaskCompletion{TaskID: "t1", AgentID: "x", Status: "pending_approval"})
+	if err := sub.deliver(t, "events-laptop", tdata, nil); err != nil {
+		t.Fatalf("task deliver: %v", err)
+	}
+	if got := len(rec.calls()); got != 2 {
+		t.Fatalf("expected 2 notifications (msg+task), got %d", got)
+	}
+}
+
+func TestResolveExtraMessageSources(t *testing.T) {
+	// Basic: env=dev + extra prod -> one prod source.
+	got, err := ResolveExtraMessageSources("dev", []string{"prod"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].Env != "prod" || got[0].Project != "ailang-multivac" ||
+		got[0].Prefix != "ailang" || got[0].MessagesSub != "messages-laptop" {
+		t.Fatalf("got %+v", got)
+	}
+
+	// Dedup against primary: env=prod + extra prod -> no extra source.
+	got, err = ResolveExtraMessageSources("prod", []string{"prod"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected extra prod to dedup against primary prod, got %+v", got)
+	}
+
+	// Dedup against itself + blank-skip: [prod, , prod] -> one prod.
+	got, err = ResolveExtraMessageSources("dev", []string{"prod", "", "prod"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Errorf("expected self-dedup to yield 1 source, got %+v", got)
+	}
+
+	// Unknown env fails loudly.
+	if _, err := ResolveExtraMessageSources("dev", []string{"staging"}); err == nil {
+		t.Error("expected error for unknown env label")
+	}
+
+	// Nil/empty extras -> nil, backward compatible.
+	got, err = ResolveExtraMessageSources("dev", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected no extra sources for nil, got %+v", got)
+	}
+}
+
 func TestDaemon_GracefulShutdown(t *testing.T) {
 	d, _, _, _ := newTestDaemon(t)
 	ctx, cancel := context.WithCancel(context.Background())

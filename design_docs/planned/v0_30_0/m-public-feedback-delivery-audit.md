@@ -99,6 +99,7 @@ eval→public-feedback→Discord path; weaken the edge rate-limit's abuse protec
 
 - [m-feedback-triage-gate](../../implemented/v0_29_0/) + [m-feedback-gate-cloud-adapter] — the gate that sits on this path (off by default)
 - [project_ailang_notify_daemon] (agent memory) — Pub/Sub → daemon → Registry fan-out architecture
+- **Runbook (added by this sprint):** [Agent Messaging → Triaging Public Feedback](../../../docs/docs/guides/agent-messaging.md) names the PROD project (`ailang-multivac`) as the home of external feedback; [macOS Notification Daemon → Dual-subscribe](../../../docs/docs/guides/notify-daemon.md) documents the `extra_message_envs` / `--also-subscribe` opt-in.
 
 ---
 

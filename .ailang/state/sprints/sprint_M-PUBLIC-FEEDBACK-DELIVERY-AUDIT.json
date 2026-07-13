@@ -1,14 +1,20 @@
 {
   "sprint_id": "M-PUBLIC-FEEDBACK-DELIVERY-AUDIT",
-  "status": "planned",
+  "status": "completed",
   "branch": "sprint/m-public-feedback-delivery-audit",
-  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-worktrees/m-public-feedback-delivery-audit",
-  "commits": {},
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/m-public-feedback-audit",
+  "commits": {
+    "M0_PREMISE_CONFIRMATION_GATE": "bfde6fe25f7be5db4ee9d9bcc71d1b14229f0716",
+    "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING": "47df615acb2ab9ae3a1ddf9fc2df06f67922ac9a",
+    "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE": "4f631e1bf6f143a044b189ea6f0ecd2cf5e6adc4",
+    "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG": "baf4d3e8f1053a3a14766dd4e59f587bfaa04325"
+  },
   "gates": {
     "premise_check": "PLANNER-VERIFIED at HEAD: (1) prod sub projects/ailang-multivac/subscriptions/ailang-messages-laptop EXISTS + ACTIVE (topic ailang-messages, ack 30s); (2) daemon ADC identity m@sunholo.com is roles/owner on BOTH ailang-multivac-dev and ailang-multivac -> pubsub.subscriber access already present, NO new IAM/Terraform; (3) EnvProject[prod]={ailang-multivac,ailang}; Client.Subscription prepends prefix so base 'messages-laptop' resolves correctly for both projects. Executor re-confirms in M0.",
-    "make_test": null,
-    "make_lint": null,
-    "docs_build": null,
+    "m0_premise_reconfirm": "EXECUTOR-RECONFIRMED 2026-07-13 (worktree, read-only): (1) `gcloud pubsub subscriptions describe ailang-messages-laptop --project ailang-multivac` -> projects/ailang-multivac/subscriptions/ailang-messages-laptop | topic projects/ailang-multivac/topics/ailang-messages | ackDeadline 30 (EXISTS+ACTIVE). (2) `gcloud auth list` active=m@sunholo.com; `gcloud projects get-iam-policy ailang-multivac --filter=roles/owner` -> user:m@sunholo.com (OWNER on prod). (3) internal/daemon/config.go:22 EnvProject[prod]={Project:ailang-multivac, Prefix:ailang}. ALL THREE PASS -- no drift since planning; no escalation needed.",
+    "make_test": "PASS with ONE pre-existing flake. Touched packages ALL green: go test ./internal/daemon/... ./internal/notify/... ./internal/storage/... ./cmd/ailang/ -> ok (daemon, notify, storage, storage/firestore, cmd/ailang). -race -count=3 ./internal/daemon/... green. Full `make test` reported ONE failure: TestRunCommand_PipedStdoutFlushesPerLine (cmd/ailang) -- a TIMING-flaky test (asserts per-line stdout flush timings) that PASSES in isolation (5/5 reruns) and failed only under full-suite parallel CPU contention. PRE-EXISTING + UNRELATED: not in this branch's diff (main_run_pipe_test.go last touched by 675da8ecf), no connection to daemon/feedback code.",
+    "make_lint": "PASS -- `make lint` -> 0 issues. `make check-file-sizes` -> all files within 800-line limit (largest touched: daemon_test.go 516, cmd/ailang/daemon.go 269, daemon.go 233).",
+    "docs_build": "PRE-EXISTING FAILURE (not caused by this sprint): `npm run build` in docs/ fails at docusaurus sidebars validation -- 'These sidebar document ids do not exist: reference/errors/index, reference/errors/mod007, reference/errors/mod013, reference/errors/typ_effect_row_mismatch'. PROVEN pre-existing: stashing OUT my three guide edits reproduces the IDENTICAL failure. My edits are plain .md guides (agent-messaging, notify-daemon, cloud-messaging-integration) -- no sidebars/reference-errors/doc-file changes. The sync-all-generated design-docs.md/roadmap/index.md churn was reverted to keep the diff focused.",
     "live_prod_verification": null
   },
   "created": "2026-07-13T00:00:00Z",
@@ -36,10 +42,10 @@
         "internal/daemon/config.go EnvProject[prod] == {Project: ailang-multivac, Prefix: ailang}",
         "If ANY confirmation fails, STOP and escalate to Mark (fix approach would change to a Terraform-managed prod subscription)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:30:00Z",
+      "completed": "2026-07-13T15:35:00Z",
+      "notes": "All three premise checks re-confirmed read-only in the worktree (see gates.m0_premise_reconfirm). No drift; no escalation. No code changes in M0."
     },
     {
       "id": "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING",
@@ -56,10 +62,10 @@
         "New table test TestMessageNotification_PkgInboxIsExternalFeedback follows handlers_test.go idiom",
         "go test ./internal/daemon/... ./internal/notify/... green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:36:00Z",
+      "completed": "2026-07-13T15:45:00Z",
+      "notes": "Added isExternalFeedbackInbox(inbox) helper (public-feedback OR pkg: prefix) + const pkgInboxPrefix in handlers.go; messageNotification now gates the 🌐 External-feedback shape + EventType public-feedback on that helper, with the inbox name already in the body ([%s] %s). DefaultDiscordEventTypes untouched. Tests: TestMessageNotification_PkgInboxIsExternalFeedback (table: public-feedback/pkg:*/internal) + TestIsExternalFeedbackInbox. Existing TestMessageNotification_PublicFeedback, TestDaemon_PublicFeedbackEventFiresDedicatedNotification, TestDiscordDefaultEventTypes (Accepts public-feedback==true, message==false) unchanged and green. go test ./internal/daemon/... ./internal/notify/... green; gofmt clean."
     },
     {
       "id": "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE",
@@ -77,10 +83,10 @@
         "go test ./internal/daemon/... and go build ./... green; make lint green",
         "PR records: refactor-vs-two-instance choice AND how prod Firestore fetcher is scoped without env mutation"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:46:00Z",
+      "completed": "2026-07-13T16:20:00Z",
+      "notes": "CHOSEN APPROACH: Daemon source-list REFACTOR (primary approach, not two-instance). Rationale: keeps ONE dedup window (message IDs are globally unique fb_*/msg_*, so shared dedup is correct + simpler), ONE Daemon/notifier/webhook, and cleanly separates 'task events = primary(dev) only' from 'N message sources'; two-instance would either double the task sub or need awkward suppression. Daemon now holds msgSources []MessageSource{Sub,Fetcher,SubName,Label}; New() seeds the primary source; AddMessageSource() appends extras; Run() fans out one goroutine per message source (+1 for primary task events). handleMessageEvent -> messageHandlerFor(src) using src.Fetcher. PROD FETCHER SCOPING (highest risk, resolved): storage.NewGCPBackends + firestore.NewClient read AILANG_CLOUD_PROJECT PROCESS-GLOBALLY -> mutating env would collide dev/prod. Added firestore.NewClientForProject(ctx, projectID) (explicit project, no env); CLI builds the prod messaging store via NewMessagingStore(NewClientForProject(ctx,'ailang-multivac')) WITHOUT touching AILANG_CLOUD_PROJECT. Config: FileConfig.ExtraMessageEnvs (yaml extra_message_envs) + repeatable --also-subscribe flag; ResolveExtraMessageSources resolves via EnvProject, dedups against primary+self, fails loudly on unknown env. Default OFF -> single-project byte-identical. Tests: TestDaemon_DualProjectMessageFiresOnce, TestDaemon_ProdFetcherScopedToProdStore (prod id nacks on dev source, fires on prod source = scoping proof), TestDaemon_SingleProjectUnchanged, TestResolveExtraMessageSources. All existing daemon_test.go tests pass unchanged. go test ./internal/daemon/... ./internal/notify/... ./internal/storage/... green; -race -count=3 green; go build ./internal/... ./cmd/ailang/ green; gofmt clean. No prod resource created/modified (daemon only READS the existing ailang-messages-laptop sub confirmed in M0)."
     },
     {
       "id": "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG",
@@ -96,10 +102,10 @@
         "CHANGELOG.md v0.30.x entry present",
         "Docs build (npm run build in docs/) passes if docs changed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T16:21:00Z",
+      "completed": "2026-07-13T16:45:00Z",
+      "notes": "Runbook: added 'Triaging Public Feedback (READ THIS -- it lives in PROD)' to docs/docs/guides/agent-messaging.md naming AILANG_CLOUD_PROJECT=ailang-multivac (prod) for public-feedback + pkg:* triage, with the never-export-globally caveat. Dual-subscribe opt-in: added a 'Dual-subscribe (dev+prod external feedback)' section to docs/docs/guides/notify-daemon.md (Configuration) with copy-pasteable daemon.yaml (extra_message_envs: [prod]), --also-subscribe prod flag, plist edit, semantics, and the launchctl reload; cross-linked from docs/docs/guides/cloud-messaging-integration.md (+ a 'Public feedback lives in PROD' note). Updated notify-daemon 'What gets notified' table to include pkg:* -> 🌐. CHANGELOG: entry under [Unreleased] in changelogs/v0.18-current.md (the active changelog; CHANGELOG.md is an index) covering Defect A, Defect B, dual-subscribe opt-in, runbook. Added Related Documents runbook links to the design doc. DOCS BUILD: `npm run build` (docusaurus) FAILS at the sidebars stage with a PRE-EXISTING error ('These sidebar document ids do not exist: reference/errors/index, mod007, mod013, typ_effect_row_mismatch') that reproduces identically with my three guide edits stashed OUT -> NOT caused by this sprint (I touched no sidebars, no reference/errors pages, added/removed no doc files). My edits are plain .md (not .mdx). Reverted the sync-all auto-generated churn in docs/docs/design-docs.md + roadmap/index.md to keep the PR diff focused (regenerated by CI/sync)."
     }
   ],
   "parked_for_human": {
@@ -115,7 +121,7 @@
     ]
   },
   "open_premises_for_executor": [
-    "storage.NewBackends project selection (M2, highest risk): confirm it accepts an explicit project vs reading AILANG_CLOUD_PROJECT globally; the prod messaging store must be built WITHOUT mutating shared env or the dev/prod fetchers collide",
-    "M2 approach: pick Daemon source-list refactor vs two Daemon instances; both satisfy acceptance — record the choice"
+    "RESOLVED — storage.NewBackends project selection (M2, highest risk): NewGCPBackends reads AILANG_CLOUD_PROJECT globally, and firestore.NewClient(ctx) also reads it globally. So mutating the env WOULD collide the dev/prod fetchers. Resolution: added firestore.NewClientForProject(ctx, projectID) (explicit project, ignores env); the CLI builds the prod messaging store via NewMessagingStore(NewClientForProject(ctx,'ailang-multivac')) with NO env mutation.",
+    "RESOLVED — M2 approach: chose the Daemon source-list REFACTOR (not two instances). One dedup window (globally-unique message IDs), one Daemon/notifier/webhook, task events primary-only. See M2 feature notes for full rationale."
   ]
 }

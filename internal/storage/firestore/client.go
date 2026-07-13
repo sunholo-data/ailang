@@ -24,10 +24,22 @@ func NewClient(ctx context.Context) (*Client, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for Firestore backend")
 	}
+	return NewClientForProject(ctx, projectID)
+}
+
+// NewClientForProject creates a Firestore client for an EXPLICIT project,
+// bypassing the AILANG_CLOUD_PROJECT env var. Use this when a single process
+// must talk to more than one project (e.g. the notify daemon watching both dev
+// and prod inbox messages) — mutating the shared env would make the two clients
+// collide. Uses Application Default Credentials.
+func NewClientForProject(ctx context.Context, projectID string) (*Client, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("projectID must be non-empty for Firestore backend")
+	}
 
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Firestore client: %w", err)
+		return nil, fmt.Errorf("failed to create Firestore client (project %s): %w", projectID, err)
 	}
 
 	return &Client{

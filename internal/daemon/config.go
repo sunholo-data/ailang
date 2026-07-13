@@ -31,6 +31,55 @@ type FileConfig struct {
 	MsgWindowSec  int    `yaml:"msg_window_sec"`  // dedup window for messages   (default: 300)
 	DryRun        bool   `yaml:"dry_run"`         // skip notifier (default: false)
 	ExcludesPath  string `yaml:"excludes_path"`   // override path to notify_excludes.conf
+
+	// ExtraMessageEnvs lists ADDITIONAL cloud environments whose inbox-message
+	// subscriptions this daemon should ALSO watch, beyond the primary Env.
+	// Each entry is resolved through EnvProject to a (project, prefix) and the
+	// daemon subscribes to that project's MessagesSub. Default empty =
+	// single-project (backward-compatible). Example: env=dev +
+	// extra_message_envs=[prod] makes one process watch BOTH dev and prod
+	// inbox messages (fixing silent loss of external prod feedback). Task
+	// events remain primary-env only. The `--also-subscribe` CLI flag appends
+	// to this list.
+	ExtraMessageEnvs []string `yaml:"extra_message_envs"`
+}
+
+// ExtraMessageSource is a resolved additional inbox-message source: the env
+// label plus its (project, prefix, base sub name). The CLI uses these to build
+// a project-scoped fetcher + subscriber per extra env.
+type ExtraMessageSource struct {
+	Env         string
+	Project     string
+	Prefix      string
+	MessagesSub string
+}
+
+// ResolveExtraMessageSources maps each extra env label to its (project, prefix)
+// via EnvProject, de-duplicating against the primary env (so `env: prod` +
+// `extra_message_envs: [prod]` does not double-subscribe the same project) and
+// against itself. Returns an error for an unknown env label — a typo must fail
+// loudly rather than silently drop a feedback source.
+func ResolveExtraMessageSources(primaryEnv string, extras []string) ([]ExtraMessageSource, error) {
+	seen := map[string]bool{primaryEnv: true}
+	var out []ExtraMessageSource
+	for _, env := range extras {
+		env = strings.TrimSpace(env)
+		if env == "" || seen[env] {
+			continue
+		}
+		mapping, ok := EnvProject[env]
+		if !ok {
+			return nil, fmt.Errorf("unknown extra_message_env %q (want dev|test|prod)", env)
+		}
+		seen[env] = true
+		out = append(out, ExtraMessageSource{
+			Env:         env,
+			Project:     mapping.Project,
+			Prefix:      mapping.Prefix,
+			MessagesSub: "messages-laptop",
+		})
+	}
+	return out, nil
 }
 
 // LoadFileConfig reads ~/.ailang/config/daemon.yaml if present. Returns a

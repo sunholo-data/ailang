@@ -95,6 +95,65 @@ func TestMessageNotification_PublicFeedback(t *testing.T) {
 	}
 }
 
+func TestMessageNotification_PkgInboxIsExternalFeedback(t *testing.T) {
+	cases := []struct {
+		name            string
+		inbox           string
+		wantEventType   string
+		wantExternal    bool // 🌐 External feedback shape
+		wantInboxInBody bool
+	}{
+		{"public-feedback", "public-feedback", "public-feedback", true, true},
+		{"pkg scoped", "pkg:sunholo/auth", "public-feedback", true, true},
+		{"pkg ailang", "pkg:sunholo/ailang", "public-feedback", true, true},
+		{"internal user", "user", "message", false, false},
+		{"internal controlplane", "controlplane", "message", false, false},
+		{"internal agent", "sprint-executor", "message", false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			n, fire := messageNotification(&messaging.InboxMessage{
+				MessageID: "m_" + tc.name,
+				ToInbox:   tc.inbox,
+				FromAgent: "mcp-public",
+				Title:     "Effect row mismatch confused parser",
+			})
+			if !fire {
+				t.Fatal("expected fire=true")
+			}
+			if n.EventType != tc.wantEventType {
+				t.Errorf("EventType = %q, want %q", n.EventType, tc.wantEventType)
+			}
+			gotExternal := strings.Contains(n.Title, "External feedback")
+			if gotExternal != tc.wantExternal {
+				t.Errorf("external-feedback shape = %v, want %v (title=%q)", gotExternal, tc.wantExternal, n.Title)
+			}
+			if tc.wantInboxInBody && !strings.Contains(n.Body, tc.inbox) {
+				t.Errorf("expected inbox %q visible in body, got %q", tc.inbox, n.Body)
+			}
+		})
+	}
+}
+
+func TestIsExternalFeedbackInbox(t *testing.T) {
+	cases := map[string]bool{
+		"public-feedback":    true,
+		"pkg:sunholo/auth":   true,
+		"pkg:sunholo/ailang": true,
+		"pkg:":               true,
+		"user":               false,
+		"controlplane":       false,
+		"sprint-executor":    false,
+		"feedback":           false, // note: not the literal "public-feedback"
+		"":                   false,
+	}
+	for inbox, want := range cases {
+		if got := isExternalFeedbackInbox(inbox); got != want {
+			t.Errorf("isExternalFeedbackInbox(%q) = %v, want %v", inbox, got, want)
+		}
+	}
+}
+
 func TestMessageNotification_GenericInbox(t *testing.T) {
 	n, fire := messageNotification(&messaging.InboxMessage{
 		MessageID: "msg_abc",

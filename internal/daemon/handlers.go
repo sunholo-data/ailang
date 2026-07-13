@@ -63,13 +63,32 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 	}
 }
 
-// messageNotification builds a Notification for an inbox message. Public-feedback
-// messages get a dedicated 🌐 prefix; everything else uses the generic shape.
+// pkgInboxPrefix is the inbox-name prefix the feedback publisher uses to route
+// package-scoped feedback (e.g. "pkg:sunholo/auth"). See
+// internal/feedback/publisher.go.
+const pkgInboxPrefix = "pkg:"
+
+// isExternalFeedbackInbox reports whether an inbox carries externally-sourced
+// user feedback that should reach Discord. Today that is the literal
+// "public-feedback" inbox OR any package-scoped "pkg:*" inbox (which the
+// feedback publisher routes package feedback to). Naming the rule here keeps it
+// unit-testable and gives a single place for a future Source=external flag to
+// extend it — instead of widening the Discord allow-list to all "message"
+// traffic (which would leak internal inbox chatter to Discord).
+func isExternalFeedbackInbox(inbox string) bool {
+	return inbox == "public-feedback" || strings.HasPrefix(inbox, pkgInboxPrefix)
+}
+
+// messageNotification builds a Notification for an inbox message. Externally-
+// sourced feedback (public-feedback + pkg:* inboxes) gets a dedicated 🌐 prefix
+// and the "public-feedback" EventType (which the Discord allow-list accepts);
+// everything else uses the generic shape and stays EventType "message" (macOS
+// only, dropped by Discord).
 func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) {
 	if m == nil {
 		return notify.Notification{}, false
 	}
-	if m.ToInbox == "public-feedback" {
+	if isExternalFeedbackInbox(m.ToInbox) {
 		return notify.Notification{
 			Title:     "🌐 External feedback",
 			Subtitle:  m.FromAgent,
