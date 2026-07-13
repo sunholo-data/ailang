@@ -678,6 +678,15 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     squash-merge `5aaaff2ed`, required checks green (auto-merge). Design → implemented/v0_30_0.
     Foreign-ctor errors now enumerate transitively-known constructors (`None, Some` + did-you-mean).
     SonarCloud PR gate red = advisory/non-required (merge succeeded) — flagged for sonarcloud-triage)
+**[NEXT-FIRST, one iteration — Mark 2026-07-13]** m-public-feedback-delivery-audit
+([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), P1): the human-input
+channel is blind — daemon dual-subscribe dev+prod + the pkg:*-inbox Discord-filter fix. Root
+cause already verified in the doc; part 1 is a small notify/daemon change with fanout tests.
+Take this BEFORE the next clause-3 item, then resume below. (Listed in mission-infra but it
+outranks feature work: the loop's own feedback flywheel depends on it. NOTE: daemon plist edit +
+reload is a MAIN-CHECKOUT + launchctl operation — code lands via the normal loop; the plist
+reload may need Mark/park if permissions block it.)
+
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
