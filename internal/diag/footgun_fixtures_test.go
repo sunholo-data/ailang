@@ -248,6 +248,44 @@ func TestFootgunFixture_MOD014_BareExpressionPreserved(t *testing.T) {
 	}
 }
 
+// TestFootgunFixture_MOD007_DuplicateModuleBinding is the MOD007 footgun contract
+// (M-MODULE-LET-FUNC-RESOLUTION, #366). Once module-level lets and funcs share one
+// declaration space, a name bound as BOTH a let and a func used to compile silently
+// with undefined shadowing semantics — a soundness trap. It must now fail loudly
+// with both declaration positions and a rename fix. Like MOD014 this only fires in
+// the module pipeline (needs a real filename), so it lives here, not in the inline
+// single-file Code table.
+func TestFootgunFixture_MOD007_DuplicateModuleBinding(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dup.ail")
+	src := "module dup\n" +
+		"let helper = 5\n" +
+		"export func helper() -> int = 10\n" +
+		"export func main() -> int = helper()\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := pipeline.Run(
+		pipeline.Config{Mode: pipeline.ModeCheck},
+		pipeline.Source{Code: src, Filename: path},
+	)
+	if err == nil {
+		t.Fatal("MOD007: let/func same-name module binding must fail loudly, got nil error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "MOD007") {
+		t.Errorf("expected MOD007 code in diagnostic, got:\n%s", msg)
+	}
+	// Fix-carrying contract: the message must offer a rename.
+	if !strings.Contains(msg, "rename") {
+		t.Errorf("MOD007 diagnostic must carry a rename fix, got:\n%s", msg)
+	}
+	// Both positions must be present (the let and the func).
+	if !strings.Contains(msg, "let") || !strings.Contains(msg, "func") {
+		t.Errorf("MOD007 diagnostic must name both the let and the func, got:\n%s", msg)
+	}
+}
+
 // TestFootgunConflictSurface is the guard from the m-diagnostic-coverage conflict
 // analysis: the import-placement diagnostic must REPLACE the PAR_NO_PREFIX_PARSE
 // cascade for a misplaced import, while a genuinely stray token that cannot start

@@ -79,7 +79,13 @@ const (
 	// MOD006 indicates attempted export of underscore-prefixed (private) name
 	MOD006 = "MOD006"
 
-	// MOD007-MOD009 reserved for future use
+	// MOD007 indicates a duplicate module-scope binding: a module-level let/letrec
+	// and a func (or two lets) declared with the same name. Silent shadowing was a
+	// soundness trap once module lets and funcs share one declaration space
+	// (M-MODULE-LET-FUNC-RESOLUTION, #366) — now a loud compile error.
+	MOD007 = "MOD007"
+
+	// MOD008-MOD009 reserved for future use
 
 	// MOD010 indicates module/path mismatch (e.g., module foo/bar but file is foo/baz.ail)
 	MOD010 = "MOD010"
@@ -267,6 +273,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD012: {MOD012, "module", "structure", "Implicit module warning"},
 	MOD013: {MOD013, "module", "package", "Shared module_prefix between root and dependency"},
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
+	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},

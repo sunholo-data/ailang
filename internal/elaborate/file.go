@@ -5,7 +5,47 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/errors"
 )
+
+// checkDuplicateModuleBindings enforces MOD007: no two module-scope declarations
+// may share a name once lets and funcs occupy one declaration space (#366). It
+// reports the FIRST collision with both declaration positions. Ordering: a let
+// colliding with an earlier-declared func (or another let) is reported at the
+// let's position, citing the func/let it collides with.
+func checkDuplicateModuleBindings(file *ast.File, lets []*ModuleLet, funcs []*FuncSig) error {
+	// Position of each module func by name (funcs are declared, so unique by the
+	// parser's own rules; we only need them for the collision message).
+	funcPos := make(map[string]ast.Pos, len(funcs))
+	for _, f := range funcs {
+		if f.FuncDecl != nil {
+			funcPos[f.Name] = f.FuncDecl.Position()
+		}
+	}
+
+	seenLet := make(map[string]ast.Pos, len(lets))
+	for _, l := range lets {
+		if fpos, isFunc := funcPos[l.Name]; isFunc {
+			return fmt.Errorf("Error %s: '%s' is declared as both a module-level let (at %s) "+
+				"and a func (at %s) — a module-scope name may have only one binding.\n"+
+				"  Fix: rename one of them, or fold the let into the func body",
+				errors.MOD007, l.Name, posString(l.Pos), posString(fpos))
+		}
+		if lpos, isLet := seenLet[l.Name]; isLet {
+			return fmt.Errorf("Error %s: module-level let '%s' is declared twice (at %s and %s) "+
+				"— a module-scope name may have only one binding.\n"+
+				"  Fix: rename or remove the duplicate",
+				errors.MOD007, l.Name, posString(lpos), posString(l.Pos))
+		}
+		seenLet[l.Name] = l.Pos
+	}
+	return nil
+}
+
+// posString renders a declaration position as line:col for MOD007 messages.
+func posString(p ast.Pos) string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
 
 // Elaborate transforms a surface program to Core ANF
 func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
@@ -70,17 +110,36 @@ type ModuleLet struct {
 	Pos   ast.Pos
 }
 
-// collectModuleLets extracts module-level let bindings from file statements
-// These bindings should be in scope for all function bodies in the module
+// collectModuleLets extracts module-level let/letrec bindings from file
+// statements. These become first-class SCC nodes (M-MODULE-LET-FUNC-RESOLUTION,
+// #366) so their values resolve module-scope names exactly as func bodies do.
+//
+// A module-level `letrec` (parsed as *ast.LetRec with no `in` body) is collected
+// the same way: its self-reference is discovered by findReferences, so Tarjan
+// makes it a self-recursive singleton and it is emitted as core.LetRec — a
+// recursive lambda binds correctly; a self-referential non-lambda (`letrec x =
+// x + 1`) hits the runtime's strict-eval cycle detector (an honest cycle error),
+// never a false "undefined variable".
 func collectModuleLets(file *ast.File) []*ModuleLet {
 	var lets []*ModuleLet
 	for _, stmt := range file.Statements {
-		if letExpr, ok := stmt.(*ast.Let); ok {
+		switch e := stmt.(type) {
+		case *ast.Let:
 			lets = append(lets, &ModuleLet{
-				Name:  letExpr.Name,
-				Value: letExpr.Value,
-				Pos:   letExpr.Position(),
+				Name:  e.Name,
+				Value: e.Value,
+				Pos:   e.Position(),
 			})
+		case *ast.LetRec:
+			// Only a module-level letrec (no `in` body) is a declaration; a
+			// let…in / letrec…in expression is a value and stays an expression.
+			if e.Body == nil {
+				lets = append(lets, &ModuleLet{
+					Name:  e.Name,
+					Value: e.Value,
+					Pos:   e.Position(),
+				})
+			}
 		}
 	}
 	return lets
@@ -135,6 +194,14 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	symbols := make(map[string]*FuncSig)
 	for _, f := range funcs {
 		symbols[f.Name] = f
+	}
+
+	// MOD007 (M-MODULE-LET-FUNC-RESOLUTION, #366): now that module lets and funcs
+	// share ONE declaration space (unified SCC), a name declared as both a let and
+	// a func — or as two lets — is an ambiguous binding. Silent shadowing here is a
+	// soundness trap, so fail loudly with both positions BEFORE elaboration.
+	if err := checkDuplicateModuleBindings(file, moduleLets, funcs); err != nil {
+		return nil, err
 	}
 
 	// Load imported modules and add their exports to symbols
@@ -299,8 +366,12 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	// forward-threaded env — no wrapping needed.
 	for _, stmt := range file.Statements {
 		if expr, ok := stmt.(ast.Expr); ok {
-			// Skip let expressions - they are module-let decls handled above.
+			// Skip module-let decls (let, and bodyless letrec) — handled above by
+			// the SCC emitter. A letrec WITH an `in` body is a real expression.
 			if _, isLet := expr.(*ast.Let); isLet {
+				continue
+			}
+			if lr, isLetRec := expr.(*ast.LetRec); isLetRec && lr.Body == nil {
 				continue
 			}
 			coreExpr, err := e.elaborateExpr(expr)
