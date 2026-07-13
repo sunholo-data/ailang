@@ -14,7 +14,7 @@
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
 [![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=sqale_rating)
-[![Go Report Card](https://goreportcard.com/badge/github.com/sunholo-data/ailang)](https://goreportcard.com/report/github.com/sunholo-data/ailang)
+[![CodeQL](https://github.com/sunholo-data/ailang/actions/workflows/codeql.yml/badge.svg)](https://github.com/sunholo-data/ailang/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sunholo-data/ailang/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12676/badge)](https://www.bestpractices.dev/projects/12676)
 
