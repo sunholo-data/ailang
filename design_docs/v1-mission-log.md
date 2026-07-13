@@ -1541,3 +1541,77 @@ causal re-run; scope-params release-gate re-score; frontier-failure validation o
 issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU). Carry forward: %-row +
 m-record-update-local-resolution doc-status re-check; the two dev-health flakies
 (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
+
+## 20 — 2026-07-13 — Iteration 19: versioned the never-committed iteration-13 bounded-wait safety fix (unversioned 6 iters) — clause-3 queue untouched, R4c next
+
+**Picked**: NOT the queue's `[NEXT]` (clause-3 R4c/R4a NEW-DOC sprints). The Gate-1/Gate-2
+reality-check surfaced a higher-priority **infrastructure liability that outranks feature work**
+(analogous to the mission's "a red dev outranks the queue" rule): the mission's OWN iteration-13
+anti-wedge remediation was never committed to git — SKILL.md Gate 3b bounded-poll rewrite +
+Standing rule 6 ("Every wait is bounded"), and the `mission-control.sh` `_mc_stalled` stall
+watchdog (idle-tree + long-lived-child fingerprint → early kill before HARD_TIMEOUT). Live for 6
+iterations only because launchd reads the on-disk working tree; one `git checkout`/`reset`/`clean`
+from permanent loss of the very mechanism that prevents a repeat of iteration-13's 4h loop-wide
+wedge.
+
+**Reality check**: Gate-1 origin-sync: local dev STALE at `8f505e633`, **2 commits behind**
+origin/dev `76d15aeea` (iters 17/18 landed via #358/#359; the local ref never advanced —
+iteration-12 stale-local class) → read all mission state from origin. dev CI **green per-workflow**
+(CI/Build success @ `76d15aeea`, Docs @ `adde9e9d0`). Inbox: one routine `eval-suite` start
+(3 local models × 3 benchmarks, 27 jobs) — not a regression/directive, did NOT outrank the queue.
+Classified the 7 dirty main-tree files:
+- **mission-log.md + mission.md** — uncommitted but byte-identical to origin/dev (already-merged
+  iter-18 content; the local ref is just stale). Harmless.
+- **SKILL.md + mission-control.sh** — the iteration-13 fix. Confirmed **never in git history**:
+  `git log --all -S "Every wait is bounded" -- SKILL.md` and `-S "_mc_stalled" -- mission-control.sh`
+  BOTH empty; `git show origin/dev:` greps = 0. Lives ONLY as uncommitted working-tree state.
+- **3 auto-generated docs** (`docs/docs/design-docs.md` index, `docs/docs/prompts/current.md`
+  v0.16.1→v0.16.2 sync, `docs/docs/roadmap/index.md`) — build-artifact drift, regenerated locally
+  but never committed. Left untouched (lower-risk than the safety tooling; a future iteration
+  commits them or confirms the docs build regenerates them).
+- No sibling mission-control process running (only PID 82573 = this run); the other `claude`
+  processes are unrelated ccd-cli desktop/remote sessions. So these are accumulated cross-iteration
+  drift, NOT a sibling's active in-progress work — refuting iteration 18's assumption.
+
+**Shipped**: worktree off origin/dev, branch `mission/iter19-bounded-wait-versioning`, **PR #360**.
+- commit `de26d6a7a` — versions the exact live on-disk SKILL.md (+39) + mission-control.sh (+74);
+  `bash -n` clean; **no behavioral change** (already-live content made durable + reviewable).
+- commit (this entry) — iteration-19 log + mission-doc STATUS stamp (Gate 4).
+- NO inner-loop skills invoked (design-doc-creator/planner/executor/evaluator): protective
+  bookkeeping, not a feature. Zero Go production-code change.
+
+**Routing evidence**: model=controller(opus) task-class=verify+bookkeeping. No plan/execute/evaluate
+roles used. No routing-policy change (null case; 1 evidence row, not the ≥3 required).
+
+**Ruled out**:
+- "The iteration-13 bounded-wait fix is committed / landed somewhere" — REFUTED: absent from ALL
+  of git history (`git log --all -S`) and from origin/dev; exists only as uncommitted working-tree
+  state, live solely because launchd reads on-disk files.
+- "The 5 non-log dirty files are a sibling agent's active in-progress work" (iteration 18's stated
+  assumption) — REFUTED: no sibling mission-control process; 2 are the mission's own iter-13 fix,
+  3 are auto-gen doc drift; nothing is being actively edited.
+- "Local dev == origin/dev" (what the stale local ref implied at face value) — REFUTED by
+  origin-sync: local is 2 commits behind.
+
+**Gate 3b**: PR #360 — bounded 30-min CI poll; merged only on OBSERVED green required checks
+(result recorded in the mission-doc STATUS + this entry updated at merge; see the iteration report).
+
+**Retro lane**: **none** (no skill/process/backlog edit). The SKILL.md commit **versions an
+EXISTING iteration-13 edit** — it is NOT a new Gate-5 skill improvement (the content was already
+the running skill's text), so the "one skill edit per iteration" budget is untouched. No guardrail
+change is warranted because the recurring blind spot (iters 13–18 kept re-seeing and mislabeling
+these edits) is *closed by the act of committing them*, not by a new rule. Frictions cited in the
+commit (≥2, same gap): (1) iteration-13's 4h wedge that burned a 6h slot; (2) the fix sitting
+unversioned/at-risk for 6 iterations.
+
+**Next**: Iteration 20 — clause-3 continues with a **full inner-loop NEW-DOC sprint**:
+**m-arity-style-diagnostic** (R4c, cheapest, 1–2d) or **m-dx-match-hof** (R4a, 2–3d) via
+design-doc-creator (Conflict Surface mandatory + error-code/mechanism verification gates) → planner
+→ executor in worktree → evaluator. **Carry forward (new this iteration)**: the 3 uncommitted
+auto-generated docs in the main tree remain unversioned drift — commit them or confirm the docs
+build regenerates them. PARKED for human/coordinator (cumulative, unchanged): M-DX-JSON-BOOL Phase-1
+firestore-package fix in `ailang-packages`; tier-assignment ratification (release gate);
+feedback-gate production ops; haiku causal re-run; scope-params release-gate re-score;
+frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B for
+m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
+re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
