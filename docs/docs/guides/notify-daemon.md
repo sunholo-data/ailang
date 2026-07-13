@@ -50,8 +50,15 @@ The default subcommand is `run`, so `ailang daemon` alone starts the foreground 
 | Task pending approval | `TaskStreamEvent.status = "pending_approval"` | ⏳ Approval needed |
 | Task completed | `TaskStreamEvent.status = "completed"` | ✅ Task done |
 | Task failed | `TaskStreamEvent.status = "failed"` | ❌ Task failed |
-| Public feedback | InboxMessage with `to_inbox = "public-feedback"` | 🌐 External feedback |
+| Public feedback | InboxMessage with `to_inbox = "public-feedback"` **or any `pkg:*` inbox** | 🌐 External feedback |
 | Other inbox message | Any other InboxMessage notification | ✉️ Message from `<from_agent>` |
+
+External feedback (the `public-feedback` inbox **and** package-scoped `pkg:*`
+inboxes, which the feedback publisher routes package feedback to) is tagged
+`EventType: "public-feedback"` so it passes the Discord allow-list. Internal
+inbox traffic (`user`, `controlplane`, agent inboxes) stays `EventType:
+"message"` — surfaced on macOS but intentionally dropped by Discord to avoid
+phone noise.
 
 Other Pub/Sub events (intermediate task states like `running` or `queued`) are silently dropped.
 
@@ -80,9 +87,64 @@ task_window_sec: 60        # task event dedup window
 msg_window_sec: 300        # message event dedup window (5 min)
 dry_run: false             # skip notifier; log instead
 excludes_path: ""          # override path to notify_excludes.conf
+extra_message_envs: []     # ADDITIONAL envs to also watch for inbox messages (see below)
 ```
 
 `~/.ailang/config/notify_excludes.conf` (optional): one substring per line; matched against title and body. Lines starting with `#` are comments. Useful for muting noisy event categories without editing code.
+
+### Dual-subscribe (dev+prod external feedback)
+
+By default the daemon watches ONE project's inbox-message subscription (the
+`env` above). But **the public MCP (`mcp.ailang.sunholo.com`) writes external
+user feedback to the PROD project (`ailang-multivac`)**, while the rig daemon
+typically runs on `env: dev`. Without dual-subscribe, prod feedback never pings
+Discord/macOS — it is silently lost.
+
+Enable a second (or third) inbox-message source with `extra_message_envs`:
+
+```yaml
+env: dev                   # primary: task events + dev messages
+extra_message_envs: [prod] # ALSO watch prod inbox messages (external feedback)
+```
+
+Or opt in at the command line (appends to the yaml list, repeatable):
+
+```bash
+ailang daemon run --env dev --also-subscribe prod
+```
+
+Equivalently, in `~/Library/LaunchAgents/com.sunholo.ailang.daemon.plist`
+`ProgramArguments`, add `--also-subscribe` and `prod` as two entries after
+`--env`/`dev`.
+
+Semantics:
+
+- **Off by default** — with no `extra_message_envs`, behavior is byte-identical
+  to single-project.
+- **Task events stay primary-env only** (the rig emits eval pings to dev; prod
+  task events are not double-fanned).
+- **Each source reads its OWN project's Firestore.** The prod source is scoped
+  to `ailang-multivac` explicitly, without mutating the process
+  `AILANG_CLOUD_PROJECT`, so dev and prod fetchers never collide.
+- **Shared dedup** — message IDs are globally unique (`fb_*`/`msg_*`), so a
+  message fires exactly once even in the (non-occurring) case of cross-project id
+  overlap.
+- **No prod resource is created.** The daemon only READS the already-existing
+  `ailang-messages-laptop` subscription in `ailang-multivac`. The active ADC
+  identity needs read access to prod (the rig's `m@sunholo.com` is Owner on both
+  projects).
+
+After editing `daemon.yaml` or the plist, reload the daemon:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.sunholo.ailang.daemon.plist
+launchctl load   ~/Library/LaunchAgents/com.sunholo.ailang.daemon.plist
+tail -f /tmp/ailang-daemon.log   # startup line lists extra_message_sources=[prod(ailang-multivac)]
+```
+
+> To TRIAGE (read) prod feedback from the CLI without the daemon, scope the
+> command to prod — see
+> [Agent Messaging → Triaging Public Feedback](./agent-messaging.md#triaging-public-feedback--read-this--it-lives-in-prod).
 
 ## Logs and troubleshooting
 

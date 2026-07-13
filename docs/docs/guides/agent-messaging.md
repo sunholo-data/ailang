@@ -46,6 +46,30 @@ All messages are stored in a SQLite database:
 - **Accessible via**: CLI (`ailang messages`) and Collaboration Hub dashboard
 - **Message statuses**: `unread`, `read`, `archived`, `deleted`
 
+## Triaging Public Feedback (READ THIS — it lives in PROD)
+
+**External user feedback is written to the PROD project (`ailang-multivac`), not
+dev.** The public MCP (`mcp.ailang.sunholo.com`) writes to prod Firestore; every
+agent session that checks dev-only has been **blind to real users**. To read or
+triage public/package feedback you MUST scope the query to prod:
+
+```bash
+# List public feedback from real users (PROD):
+AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac \
+  ailang messages list --inbox public-feedback
+
+# Package-scoped feedback lands in pkg:<vendor>/<name> inboxes (also PROD):
+AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac \
+  ailang messages list --inbox "pkg:sunholo/ailang"
+```
+
+> **Only prefix these env vars on the *feedback* command** — never export them
+> globally, or your local SQLite reads (agent inboxes, sprint state) break.
+
+For real-time notification (Discord/macOS) of prod feedback, the notify daemon
+must **dual-subscribe** dev + prod — see
+[Cloud Messaging Integration → Dual-subscribe](./cloud-messaging-integration.md#dual-subscribe-devprod-external-feedback).
+
 ## Message Format
 
 Messages in the system contain:

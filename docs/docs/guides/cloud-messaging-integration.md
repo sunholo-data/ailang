@@ -1080,6 +1080,28 @@ Messages are routed to agents by `inbox` name. The coordinator matches inbox to 
 
 Custom agents can be added in `~/.ailang/config.yaml` — each agent watches its own inbox.
 
+### Public feedback lives in PROD
+
+External user feedback (via the public MCP `mcp.ailang.sunholo.com`) is written
+to the **PROD** project (`ailang-multivac`), landing in the `public-feedback`
+inbox for general feedback and `pkg:<vendor>/<name>` inboxes for package-scoped
+feedback. Agent sessions that query dev-only are blind to real users. To read
+it, scope the CLI to prod (only on that command — never export globally):
+
+```bash
+AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac \
+  ailang messages list --inbox public-feedback
+```
+
+### Dual-subscribe (dev/prod external feedback)
+
+For real-time Discord/macOS notification of prod feedback, the notify daemon
+must watch **both** dev and prod inbox-message subscriptions in one process.
+This is an **opt-in** (`extra_message_envs: [prod]` in `daemon.yaml`, or
+`--also-subscribe prod`), off by default. Full setup, semantics, and the
+one-time `launchctl` reload are documented in
+[macOS Notification Daemon → Dual-subscribe](./notify-daemon.md#dual-subscribe-devprod-external-feedback).
+
 ### Skip-Approval Agents (Direct Push)
 
 Some agents are configured with `skip_approval: true` to bypass the human approval step. These agents push their changes directly to a target branch (e.g., `main`) instead of creating a `coordinator/{taskID}` branch.
