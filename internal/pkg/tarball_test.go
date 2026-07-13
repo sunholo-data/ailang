@@ -336,6 +336,7 @@ func TestTarballHash(t *testing.T) {
 	}
 }
 
+
 // TestExtractTarball_RejectsTraversal locks in the zip-slip guard
 // (gosecurity:S6096): entries that would resolve outside destDir must be
 // rejected and nothing may be written outside it.
@@ -376,5 +377,61 @@ func TestExtractTarball_RejectsTraversal(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(destDir, "ok", "fine.txt")); err != nil {
 		t.Fatalf("benign entry not extracted: %v", err)
+	}
+}
+
+// makeMaliciousTarball builds a tar.gz with a single entry using the given
+// header + body, bypassing CreateTarball's own sanitization so we can test
+// ExtractTarball's defenses directly.
+func makeMaliciousTarball(t *testing.T, hdr *tar.Header, body []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+	// Only regular files carry a body; link/dir entries must have Size 0.
+	if hdr.Typeflag != tar.TypeReg {
+		body = nil
+	}
+	if hdr.Size == 0 && len(body) > 0 {
+		hdr.Size = int64(len(body))
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if len(body) > 0 {
+		if _, err := tw.Write(body); err != nil {
+			t.Fatalf("Write body: %v", err)
+		}
+	}
+	tw.Close()
+	gw.Close()
+	return buf.Bytes()
+}
+
+// TestExtractTarball_RejectsMaliciousEntries extends the traversal coverage to
+// absolute paths and symlink/hardlink escapes (link entries are refused outright).
+func TestExtractTarball_RejectsMaliciousEntries(t *testing.T) {
+	cases := []struct {
+		name string
+		hdr  *tar.Header
+	}{
+		{"parent traversal", &tar.Header{Name: "../escape.txt", Typeflag: tar.TypeReg}},
+		{"nested traversal", &tar.Header{Name: "a/../../escape.txt", Typeflag: tar.TypeReg}},
+		{"absolute path", &tar.Header{Name: "/tmp/escape.txt", Typeflag: tar.TypeReg}},
+		{"symlink escape", &tar.Header{Name: "link", Typeflag: tar.TypeSymlink, Linkname: "../../etc/passwd"}},
+		{"hardlink escape", &tar.Header{Name: "hard", Typeflag: tar.TypeLink, Linkname: "../../etc/passwd"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := makeMaliciousTarball(t, tc.hdr, []byte("pwned"))
+			destDir := t.TempDir()
+			if err := ExtractTarball(data, destDir); err == nil {
+				t.Fatalf("expected ExtractTarball to reject %q, got nil error", tc.hdr.Name)
+			}
+			// Nothing should have escaped destDir.
+			if _, err := os.Stat(filepath.Join(filepath.Dir(destDir), "escape.txt")); err == nil {
+				t.Errorf("file escaped destDir for case %q", tc.name)
+			}
+		})
 	}
 }

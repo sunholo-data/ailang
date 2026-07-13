@@ -29,6 +29,7 @@ listed here (or listed as `Review required`).
 | Rule | File:line | Verdict | Comment |
 |------|-----------|---------|---------|
 | `gosecurity:S6096` | `internal/builtins/tar.go:472,476,484` | **False Positive** | Guarded by isEntryPathTraversal + filepath.Rel containment check at lines 458-468; analyzer doesn't follow the guard. |
+| `gosecurity:S6096` | `internal/pkg/tarball.go:141,149,158` | **Fixed (not FP)** | `ExtractTarball` (the `ailang install` extract path) originally used a weaker `Clean`+reject-leading-`..` guard. Hardened 2026-07-13 to match `builtins/tar.go`: `isTarPathTraversal` + `filepath.Rel` containment + explicit symlink/hardlink rejection. Findings should auto-resolve on next scan — do NOT mark FP. |
 | `go:S5542` | `internal/builtins/crypto_rsa.go:89` | **False Positive** | PKCS1v15 used for signature verification only (required for RS256 JWT interop), not encryption. |
 | `text:S8564` | `internal/apiserver/templates/web_app/ui/package.json` | **False Positive** | Code generation template — not an installed package; lock file is irrelevant; users run npm install after copying the template. |
 | `text:S8564` | `cmd/ailang/editor_assets/vscode/package.json` | **False Positive** | Embedded VS Code extension asset (syntax highlighting only, no runtime deps installed from CI); lock file is not applicable for embedded editor assets. |

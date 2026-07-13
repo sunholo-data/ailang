@@ -112,6 +112,24 @@ func CreateTarball(packageDir string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// isTarPathTraversal reports whether a tar entry name is unsafe to extract:
+// traversal (contains ".."), absolute, or otherwise non-local. Tar entry names
+// use forward slashes by convention, so we check those explicitly rather than
+// rely solely on filepath.IsAbs (which needs a drive letter on Windows).
+func isTarPathTraversal(name string) bool {
+	if name == "" {
+		return false
+	}
+	if strings.Contains(name, "..") {
+		return true
+	}
+	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, `\`) || filepath.IsAbs(name) {
+		return true
+	}
+	// filepath.IsLocal (Go 1.20+) also rejects volume-rooted and reserved names.
+	return !filepath.IsLocal(filepath.FromSlash(name))
+}
+
 // ExtractTarball extracts a tar.gz to a destination directory.
 func ExtractTarball(data []byte, destDir string) error {
 	gr, err := gzip.NewReader(bytes.NewReader(data))
@@ -130,30 +148,40 @@ func ExtractTarball(data []byte, destDir string) error {
 			return fmt.Errorf("failed to read tarball entry: %w", err)
 		}
 
-		// Security: prevent path traversal (zip-slip, gosecurity:S6096).
-		// The ".." prefix check catches the common case; the canonical containment
-		// check below is the guarantee — destPath must resolve under destDir no
-		// matter how the entry name was crafted (absolute paths, interior "..",
-		// separator tricks).
-		cleanName := filepath.Clean(hdr.Name)
-		if strings.HasPrefix(cleanName, "..") {
+		// Security: reject path-traversal and absolute entry names outright.
+		if isTarPathTraversal(hdr.Name) {
 			return fmt.Errorf("invalid path in tarball: %s", hdr.Name)
 		}
 
-		destPath := filepath.Join(destDir, cleanName)
-		if rel, relErr := filepath.Rel(destDir, destPath); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-			return fmt.Errorf("tarball entry escapes destination dir: %s", hdr.Name)
+		destPath := filepath.Join(destDir, filepath.FromSlash(hdr.Name))
+
+		// Defense in depth: verify the joined path stays under destDir. This is
+		// the containment idiom the analyzer follows (mirrors internal/builtins/tar.go).
+		rel, err := filepath.Rel(destDir, destPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("path escapes destination: %s", hdr.Name)
 		}
 
-		if hdr.Typeflag == tar.TypeDir {
-			if err := os.MkdirAll(destPath, 0755); err != nil {
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(destPath, 0o755); err != nil {
 				return err
 			}
+			continue
+		case tar.TypeReg:
+			// Regular file — written below. (The reader normalizes legacy
+			// TypeRegA to TypeReg, so we don't need a separate case.)
+		case tar.TypeSymlink, tar.TypeLink:
+			// Links are rejected: even a currently-local target could later be
+			// resolved to escape destDir. Safer to refuse (matches builtins/tar.go).
+			return fmt.Errorf("link entry rejected: %s", hdr.Name)
+		default:
+			// Skip unsupported entry types (devices, fifos, etc.).
 			continue
 		}
 
 		// Ensure parent directory exists
-		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
 
@@ -162,7 +190,7 @@ func ExtractTarball(data []byte, destDir string) error {
 			return fmt.Errorf("failed to read %s: %w", hdr.Name, err)
 		}
 
-		if err := os.WriteFile(destPath, data, 0644); err != nil {
+		if err := os.WriteFile(destPath, data, 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", destPath, err)
 		}
 	}
