@@ -49,7 +49,25 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
-## STATUS 2026-07-13 — ITERATION 23: `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-FIRST missed at pick — iteration 24 HARD-PINNED to m-public-feedback-delivery-audit
+## STATUS 2026-07-13 — ITERATION 24: `m-public-feedback-delivery-audit` (Mark's NEXT-FIRST) EXECUTED + LANDED (round-1 clean, eval PASS 97/100) → PR #378 `4fee247a8`; live prod verification PARKED for Mark (daemon reload)
+
+The feedback flywheel's blind spot is code-fixed: Defect A — `pkg:*` package-feedback inboxes now
+tagged `EventType: "public-feedback"` (🌐, Discord-accepted) via `isExternalFeedbackInbox`;
+Discord allow-list untouched, internal traffic still dropped. Defect B — daemon dual-subscribe:
+`Daemon` refactored to N message sources; prod fetcher scoped via new
+`firestore.NewClientForProject` (explicit project, no env mutation); opt-in
+`extra_message_envs: [prod]` / `--also-subscribe prod`, default OFF byte-identical. Plan-stage
+reality check corrected the design doc (dual-subscribe is a real multi-project fan-in, NOT "structural,
+not novel") and KILLED two feared ops steps (prod sub `ailang-messages-laptop` already exists; ADC
+owner on both projects — no Terraform, no IAM). Fable evaluator PASS 97/100 round 1 (base-binary
+non-vacuity both defects; conflict surface fully intact; executor's local-docs-build claim
+confirmed pre-existing but re-rooted: CI-generated `packages/sunholo/*` pages, not
+`reference/errors/*`). ⚠ HUMAN (Mark): live end-to-end proof needs the daemon reload —
+`extra_message_envs: [prod]` in daemon.yaml (or plist `--also-subscribe prod`), launchctl
+reload, then the 2 prod test-sends — exact checklist in the sprint plan §Parked-for-human and
+docs/docs/guides/notify-daemon.md. Detail: log entry 25.
+
+## STATUS 2026-07-13 (earlier) — ITERATION 23: `m-module-let-func-resolution` EXECUTED + LANDED (round-1 clean, eval PASS 98/100) → PR #368 `fd38ec14e`; dev CI-red (gofmt) fixed forward; ⚠ NEXT-FIRST missed at pick — iteration 24 HARD-PINNED to m-public-feedback-delivery-audit
 
 Full inner loop headless: CI-red fix first (gofmt miss from `366c5bbb2`, 2 red runs → `39171a4f9`
 observed green) → Opus plan (caught the doc's wrong #327-matrix test path: `internal/pipeline/`,
@@ -64,7 +82,7 @@ m-public-feedback-delivery-audit (added 13:04, pre-session) was missed at pick t
 mid-flight, sprint already through eval → landed it; iteration 24 MUST take the NEXT-FIRST.
 Detail: log entry 24.
 
-## STATUS 2026-07-13 (earlier) — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
+## STATUS 2026-07-13 (earliest) — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
 
 Gate 0.4 fired: 2 fresh nightly regressions (opencode-qwen3-5) outranked the queue. Triage
 (data-led, error-stream first): `adt_option` = thrash_aborted ~8% over token cap, 2-trial noise,
@@ -711,15 +729,19 @@ with design-doc-creator; existing-doc items start at reality-check.)*
     ⚠ PICK-ORDER MISS recorded: Mark's [NEXT-FIRST] below (added 13:04, pre-session) should have
     outranked this pick; Gate-2 read the queue head + prior log's Next but not the fresh directive.
     Sprint was already through eval when caught → landed; iteration 24 is HARD-PINNED to it)
-**[NEXT-FIRST, one iteration — Mark 2026-07-13; ⚠ MISSED by iteration 23's pick (caught mid-flight,
-recorded log entry 24) — iteration 24 MUST take this]** m-public-feedback-delivery-audit
-([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), P1): the human-input
-channel is blind — daemon dual-subscribe dev+prod + the pkg:*-inbox Discord-filter fix. Root
-cause already verified in the doc; part 1 is a small notify/daemon change with fanout tests.
-Take this BEFORE the next clause-3 item, then resume below. (Listed in mission-infra but it
-outranks feature work: the loop's own feedback flywheel depends on it. NOTE: daemon plist edit +
-reload is a MAIN-CHECKOUT + launchctl operation — code lands via the normal loop; the plist
-reload may need Mark/park if permissions block it.)
+**[LANDED 2026-07-13, iteration 24 — was Mark's NEXT-FIRST, ⚠ missed by iteration 23, taken
+first by iteration 24 as pinned]** m-public-feedback-delivery-audit
+([implemented/v0_30_0](implemented/v0_30_0/m-public-feedback-delivery-audit.md), P1): full inner
+loop headless, round-1 clean — Opus plan (killed 2 feared ops steps: prod sub exists, ADC owner
+on both projects; corrected "structural, not novel" → real multi-project fan-in) → Opus execute
+in worktree (Defect A: `isExternalFeedbackInbox` tags `pkg:*` as `public-feedback`, allow-list
+untouched; Defect B: `Daemon` N-message-sources refactor + `firestore.NewClientForProject` +
+opt-in `extra_message_envs`/`--also-subscribe`, default OFF byte-identical) → Fable evaluator
+**PASS 97/100 round 1** (base-binary non-vacuity both defects; 0 test deletions; conflict surface
+intact). PR #378 → `4fee247a8`, post-merge dev CI green per-workflow (observed). ⚠ PARKED for
+Mark: daemon reload + 2 live prod test-sends (checklist: sprint plan §Parked-for-human +
+docs/docs/guides/notify-daemon.md); until reloaded, prod feedback still doesn't ping — the CODE
+is landed, the OPS switch is human.
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the

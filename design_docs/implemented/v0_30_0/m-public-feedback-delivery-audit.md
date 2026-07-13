@@ -1,6 +1,6 @@
 # M-PUBLIC-FEEDBACK-DELIVERY-AUDIT: external feedback isn't reaching Discord (or the inbox)
 
-**Status**: Planned
+**Status**: Implemented (2026-07-13, mission iteration 24 — PR #378 → `4fee247a8`, eval PASS 97/100 round 1; live prod verification parked for Mark: daemon-reload checklist in the sprint plan)
 **Target**: v0.30.x (operational — not v1.0-language-gating, but it's the HUMAN-INPUT channel that feeds the whole data-led loop, so treat as P1)
 **Priority**: P1 (silent loss of real user feedback — Kevin's messages vanished; the feedback flywheel is blind)
 **Estimated**: 0.5–1d investigation + fix (2 parts; part 1 is a small code fix, part 2 needs Cloud Run logs)
@@ -97,7 +97,7 @@ eval→public-feedback→Discord path; weaken the edge rate-limit's abuse protec
 
 ## Related Documents
 
-- [m-feedback-triage-gate](../../implemented/v0_29_0/) + [m-feedback-gate-cloud-adapter] — the gate that sits on this path (off by default)
+- [m-feedback-triage-gate](../v0_29_0/) + [m-feedback-gate-cloud-adapter] — the gate that sits on this path (off by default)
 - [project_ailang_notify_daemon] (agent memory) — Pub/Sub → daemon → Registry fan-out architecture
 - **Runbook (added by this sprint):** [Agent Messaging → Triaging Public Feedback](../../../docs/docs/guides/agent-messaging.md) names the PROD project (`ailang-multivac`) as the home of external feedback; [macOS Notification Daemon → Dual-subscribe](../../../docs/docs/guides/notify-daemon.md) documents the `extra_message_envs` / `--also-subscribe` opt-in.
 

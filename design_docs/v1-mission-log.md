@@ -1940,3 +1940,97 @@ re-score; frontier-failure validation; issue #341 triage; rig A/B for m-syntax-a
 %-row re-check; dev-health flakies (now THREE: PipedStdoutFlushes, TestNetHttpPost-httpbin-503,
 TestReferenceSolutions_JS/fizzbuzz-windows-timeout). MOD007 allocation flagged for human review
 (design doc allowed veto).
+
+## 25 — 2026-07-13 — Iteration 24: `m-public-feedback-delivery-audit` (Mark's NEXT-FIRST) EXECUTED + LANDED (full inner loop, round-1 clean, PASS 97/100) → PR #378; live prod switch PARKED for Mark
+
+**Picked**: the HARD-PIN from iteration 23 — Mark's `[NEXT-FIRST]` m-public-feedback-delivery-audit
+(P1: external user feedback silently lost; the loop's own human-input flywheel was blind). Gate 0.4
+honored this time — the pick-order-miss class did NOT recur (stays at 1 recorded friction). Inbox:
+3 eval-suite partials (informational, 21/27 → 26/27 as the rotation progressed; no regression
+alert) + iteration 23's report; all acked.
+
+**Reality check** (Gates 1/2): local dev == origin/dev (`6d5ae64eb`), no resume-detection issue.
+Dev CI green per-workflow at last completed runs (one `failure` at `5690724e5` superseded by green
+at its successor `5bd4766f6`; 3 in-flight runs on data-only commits completed green mid-iteration).
+Item-level: design doc real (Planned, no PR merged/open, `git log --grep` clean); all three code
+claims re-verified at HEAD (handlers.go literal-inbox check, discord.go 3-type allow-list,
+publisher pkg:* routing). Not-already-landed confirmed.
+
+**Shipped** (PR #378 → squash `4fee247a8`, post-merge dev CI green per-workflow, observed):
+- Opus sprint plan → `c35188aa3` (M0 premise gate + M1 Defect A + M2 Defect B + M3 docs). Plan-stage
+  reality check MATERIALLY corrected the design doc: (a) "the daemon's Run already races two
+  subscriptions, so adding a second project is structural, not novel" — misleading; Run races two
+  *subscriptions* through ONE EventSubscriber + ONE fetcher bound to one project — dual-project is a
+  real fan-in refactor, sized as such; (b) the feared prod-infra ops step is a GHOST — prod sub
+  `projects/ailang-multivac/subscriptions/ailang-messages-laptop` already EXISTS + ACTIVE, and the
+  daemon's ADC identity is roles/owner on BOTH projects (no Terraform, no IAM grant); (c) Part 2's
+  "needs Cloud Run logs" milestone dropped — root cause was already established (dev/prod split).
+- Opus executor (isolated worktree, branch `sprint/m-public-feedback-delivery-audit`, milestones
+  `bfde6fe25`/`47df615ac`/`4f631e1bf`/`baf4d3e8f`+`c14df24d8`): **M1** `isExternalFeedbackInbox`
+  (public-feedback OR `pkg:` prefix) → `EventType: "public-feedback"` + 🌐 with inbox in body;
+  `DefaultDiscordEventTypes` byte-identical (no "message" — internal traffic still Discord-dropped).
+  **M2** `Daemon` refactored to `msgSources []MessageSource` (sub, fetcher, subName, label); task
+  events stay dev-only; NEW `firestore.NewClientForProject(ctx, projectID)` — explicit project, NO
+  env fallback — resolves the highest-risk premise (storage.NewBackends reads AILANG_CLOUD_PROJECT
+  process-globally; mutating it would collide the dev/prod fetchers); config
+  `FileConfig.ExtraMessageEnvs` + repeatable `--also-subscribe`, resolved via `EnvProject`, default
+  OFF = single-project byte-identical. **M3** runbook (agent-messaging.md: public-feedback triage
+  lives in PROD `ailang-multivac`) + dual-subscribe docs (notify-daemon.md + cross-link) + CHANGELOG.
+  Tests: 6 new (incl. `TestDaemon_DualProjectMessageFiresOnce`, `TestDaemon_ProdFetcherScopedToProdStore`),
+  `-race -count=3` green, lint 0, file sizes ok. 2 deviations, both judged legitimate (dual-home
+  daemon-config docs; reverted sync-all churn to keep the diff reviewable).
+- Independent **Fable** evaluator: **PASS 97/100 round 1** — own 2 worktrees (sprint head + merge-
+  base), both binaries version-verified; base-binary non-vacuity BOTH defects (own M1 probe FAILS on
+  base/PASSES on sprint; sprint daemon_test.go doesn't compile on base — APIs absent); 0 deletions
+  in test diffs (no weakened tests); conflict surface adversarially probed (allow-list byte-identical,
+  internal inboxes still "message", ratelimit.go untouched, read-only prod path); found the
+  executor's docs-build diagnosis IMPRECISE and re-rooted it (see Ruled out). −3: plan-md checkboxes
+  unticked, one broken-anchor slug (cosmetic, `onBrokenAnchors: warn`), nothing critical.
+- Bookkeeping: design doc + sprint plan → implemented/v0_30_0; queue NEXT-FIRST → [LANDED]; STATUS
+  stamped.
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (corrected 1 misleading design-doc
+premise, killed 2 ghost ops steps via live gcloud verification) · model=Opus task-class=execute
+round1-score=97 rounds=1 corrections=0 (2 deviations, both judged legitimate) · model=Fable
+task-class=evaluate (independent worktrees+binaries, non-vacuity both directions, corrected the
+executor's docs-failure root cause — behavioral independence demonstrably non-rubber-stamp) ·
+model=Fable task-class=controller/bookkeeping (deterministic).
+
+**Ruled out**:
+- "A new prod Pub/Sub subscription (Terraform, park-for-human) is needed for dual-subscribe" —
+  REFUTED at plan stage: `ailang-messages-laptop` already exists + ACTIVE in `ailang-multivac`
+  (prefix `ailang` + base `messages-laptop`); ADC identity is owner on both projects.
+- "Executor's local docs `npm run build` failure = `reference/errors/*` sidebar ids" (executor
+  claim) — REFUTED by evaluator reproduction: the failing ids are `packages/sunholo/*` — committed
+  `packages-sidebar.json` references pages generated only by CI's `sync-registry.sh`; ANY fresh
+  checkout fails local docs build. Pre-existing-local-only confirmed (remote docs workflow green at
+  `6d5ae64eb` AND at the merge `4fee247a8`); sprint touched no sidebar machinery.
+- "The dev CI `failure` at `5690724e5` is a live red needing fix-first" — REFUTED: successor
+  data-commit `5bd4766f6` green before this session started; nothing to fix.
+
+**Gate 3b**: every wait bounded — PR-merge poll (35m cap, background, merged in ~8m), post-merge
+per-workflow poll (30m cap, background). ⚠ The per-workflow poll TIMED OUT with empty statuses —
+my custom loop used `gh run list --commit <short-sha>`, which silently matches NOTHING (needs the
+full SHA); a direct re-list immediately showed all three workflows green at `4fee247a8`. Green was
+OBSERVED, just not by the broken loop. Friction recorded (first instance of the class): prefer the
+skill's run-id-based snippet or pass the FULL sha to `--commit`.
+
+**Retro lane**: **none/log-only** — no friction class reached the ≥2 skill-edit threshold. Recorded
+(all first instances): (1) `gh run list --commit` short-SHA silent-empty (my deviation from the
+skill's run-id snippet — the snippet was fine); (2) `.ailang/` is gitignored while historical
+sprint JSONs are tracked → new sprint JSON needs `git add -f` (planner convention, worked); (3)
+fresh-checkout local docs build structurally broken (CI-generated `packages/sunholo/*` pages vs
+committed sidebar JSON) — recurring trap for executors/evaluators; candidate small fix queued in
+carry-forward, not worth a design doc alone yet. No routing-policy change (today's rows are all
+confirmatory).
+
+**Next**: Iteration 25 — resume the clause-3 queue: **R4a `m-dx-match-hof`** (NEW-DOC, 2–3d;
+design-doc-creator first, Conflict Surface mandatory). **Carry forward**: NEW — Mark's daemon
+reload + 2 live prod test-sends for m-public-feedback-delivery-audit (until then, prod feedback
+still doesn't ping — code landed, ops switch human); notify-daemon.md anchor-slug nit; local-docs-
+build trap (make `sync-registry.sh` part of local docs flow or commit generated pages — candidate
+mechanical fix). UNCHANGED: M-DX-JSON-BOOL Phase-1 firestore fix; tier-assignment ratification;
+feedback-gate production ops; haiku causal re-run; scope-params re-score; frontier-failure
+validation; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health
+flakies (THREE: PipedStdoutFlushes, TestNetHttpPost-httpbin-503,
+TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007 allocation human veto window.
