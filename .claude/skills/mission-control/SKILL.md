@@ -139,12 +139,30 @@ into sprint-sized design docs (≤3–4 days each), queued individually.
 
 ## Gate 3b — CI GREEN (an item is not LANDED until remote CI passes on its merge)
 
-After any push to dev: `gh run watch $(gh run list --branch dev --workflow CI --limit 1 --json
-databaseId --jq '.[0].databaseId') --exit-status` (or poll `gh run list` if watch is
-unavailable). Local `make test`/`make lint` do NOT cover the remote-only gates (fmt-check,
-govulncheck, check-file-sizes, docs build). Red → fix-forward immediately if small; otherwise
-revert the merge and park the item with the CI log excerpt. Only a green run upgrades the queue
-tag to [LANDED].
+After any push to dev, wait for CI **with a hard deadline** (Standing rule 6). A headless run has
+no human to notice a hang, and a bare `gh run watch … --exit-status` blocks FOREVER if the run
+never leaves `queued` (no runner). Iteration 13 (2026-07-12) wedged 4h in exactly this class of
+unbounded poll — an `until COND; do sleep 30; done` whose condition never came true — before the
+6h driver watchdog reclaimed the slot. Use a BOUNDED poll that fails loudly on expiry (portable;
+there is no GNU `timeout` on the rig):
+
+```bash
+rid=$(gh run list --branch dev --workflow CI --limit 1 --json databaseId --jq '.[0].databaseId')
+[ -n "$rid" ] || echo "Gate 3b: no CI run for HEAD yet — re-list a few times, still bounded"
+deadline=$(( $(date +%s) + 1800 ))            # 30-min cap; CI is ~15-20m — never open-ended
+while :; do
+  st=$(gh run view "$rid" --json status,conclusion --jq '.status + " " + (.conclusion // "")')
+  case "$st" in "completed "*) echo "CI: $st"; break ;; esac
+  [ "$(date +%s)" -ge "$deadline" ] && { echo "Gate 3b TIMEOUT after 30m (status=$st) — PARK, do not hang"; break; }
+  sleep 30
+done
+```
+
+On timeout, do NOT keep waiting: park the item `needs-human-review` with the last status and
+report (Gate 5), same as for a red run — a timed-out wait is NOT green. Local `make test`/`make
+lint` do NOT cover the remote-only gates (fmt-check, govulncheck, check-file-sizes, docs build).
+Red → fix-forward immediately if small; otherwise revert the merge and park the item with the CI
+log excerpt. Only an OBSERVED green run upgrades the queue tag to [LANDED].
 
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
@@ -180,3 +198,12 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
    mid-iteration because one is annoying. If a skill blocks you, that IS the retro finding.
 5. **Data before conclusions** (PROGRAM.md invariant): no fix without a measured/reproduced
    failure; record refuted hypotheses in the log's Ruled out field.
+6. **Every wait is bounded** (added 2026-07-12 after iteration 13 hung 4h in an unbounded
+   `until COND; do sleep 30; done` — no worktree, no commit, claude idle at 0% CPU with a live
+   `sleep` grandchild, until the 6h driver watchdog reclaimed the slot). ANY poll/wait you issue
+   — CI (Gate 3b), a coordinator task, a background agent, an eval, a `make` step — MUST carry a
+   hard ceiling: a `date +%s` deadline OR a max-iteration counter. On expiry, FAIL LOUDLY and
+   park/report — never keep sleeping. Forbidden: a bare `gh run watch`, `while true`, or
+   `until COND; do sleep …; done` with no cutoff. A headless iteration has no human to notice, so
+   one unbounded wait burns the entire 6h slot. Default cap ≤30 min; treat expiry as a parkable
+   failure, not an error to retry in place.
