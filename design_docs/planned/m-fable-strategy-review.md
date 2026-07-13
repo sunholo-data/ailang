@@ -219,11 +219,23 @@ work as part of this.
 The sonnet-class 75%-vs-91% gap is not diffuse — it concentrates on documented, *finite*
 friction. Several entries are parser/type limitations, not design choices:
 
-- `match` inside block-body lambdas in HOF arguments fails to parse (M-DX-MATCH-HOF,
-  [docs/LIMITATIONS.md](../../docs/LIMITATIONS.md)) — workaround is "extract a helper".
-- Polymorphic **arithmetic** in lambdas panics while polymorphic *comparison* works
-  (LIMITATIONS.md, v0.4.0 partial fix) — an inconsistency a model cannot predict.
-- Arity style mismatch (curried vs multi-arg) produces a generic type error (see R1).
+- ~~`match` inside block-body lambdas in HOF arguments fails to parse (M-DX-MATCH-HOF,
+  [docs/LIMITATIONS.md](../../docs/LIMITATIONS.md)) — workaround is "extract a helper".~~
+  **[GHOST — verified 2026-07-13, mission iter 25: the failure was the retired `match … with`
+  syntax; brace-form works everywhere probed. Design doc had already been archived Not-Applicable
+  2026-05-09. Guard: `examples/match_hof_lambda.ail` (PR #379).]**
+- ~~Polymorphic **arithmetic** in lambdas panics while polymorphic *comparison* works
+  (LIMITATIONS.md, v0.4.0 partial fix) — an inconsistency a model cannot predict.~~
+  **[GHOST — verified 2026-07-13, mission iter 25: fixed v0.7.0 (m-poly-arithmetic-fix);
+  LIMITATIONS.md already listed it as fixed when this review cited it. Guard:
+  `examples/poly_arith_lambda.ail` (PR #379).]**
+- ~~Arity style mismatch (curried vs multi-arg) produces a generic type error (see R1).~~
+  **[LANDED iter 21: `TC_ARITY_001`, PR #363.]**
+
+*(2026-07-13 note, mission iter 25: this table's own Verification Log flagged "Footgun list …
+not re-verified individually — each R4 doc must verify its own target". That caveat was
+load-bearing — 2 of these 3 rows were already fixed when written. Verify-first before designing
+against any remaining row.)*
 
 Every fix here does triple duty: removes a mid-tier failure mode, deletes prompt lines (R1
 KPI), and removes a LIMITATIONS.md entry. Each needs its own design doc with the mandatory

@@ -91,6 +91,17 @@ local queue/sprint-JSON (Gate 1's origin-sync now front-runs this, but re-check 
 already done → the iteration's deliverable is the bookkeeping (move doc to implemented/, update
 queue, log it) and you pick the NEXT item too.
 
+**A queue row sourced from a survey/strategy review inherits that survey's verification debt —
+live-repro the claimed bug BEFORE any routing** (added 2026-07-13 iteration 25; second instance
+of the ghost class): a 10-minute `ailang check`/run probe at HEAD beats a design-doc sprint on a
+phantom. Iteration 18's two "VERIFY-then-route" items were both ghosts (that tag saved them);
+iteration 25's R4a/R4b were tagged as 2–3d NEW-DOC sprints yet were ALSO ghosts — R4a's design
+doc had been archived Not-Applicable two months earlier, R4b was fixed in v0.7.0, and the
+sourcing review's own Verification Log admitted "footgun list … not re-verified individually"
+(4 of 7 survey-sourced rows so far were ghosts or mislabeled — a third, m-lambda-open-record-
+pattern, was tagged NEW-DOC while a full design doc existed). Ghost → close with a CI-enforced
+regression guard (example or test), never bare bookkeeping — that's what makes the close durable.
+
 **Verification protocol** (added iteration 1 after three same-class frictions):
 1. **Rebuild before any live check**: `make quick-install && make build` — BOTH binaries.
    `~/go/bin/ailang` (PATH) and `bin/ailang` (preferred by test helpers when present) go stale

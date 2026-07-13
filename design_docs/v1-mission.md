@@ -49,6 +49,20 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-13 (evening) — ITERATION 25: R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardening) → PR #380 `47576e25d`; `{name, ...}` in lambda params now truly OPEN
+
+Gate-2 reality check paid for the whole iteration: the clause-3 "NEW-DOC footgun" cluster was
+sourced from a strategy review whose own Verification Log said the rows were never individually
+re-verified — live probes showed R4a (match-in-HOF-lambda) and R4b (poly-arith-lambda) were
+ALREADY FIXED (R4a's doc archived Not-Applicable back in May; R4b fixed v0.7.0). Both closed
+with CI-enforced guard examples. The one REAL row, m-lambda-open-record-pattern, ran the full
+inner loop same-iteration: the executor found the true primary cause (unifyRecord's pre-row
+field-count rejection) was absent from BOTH the design doc and the plan; the independent
+evaluator caught an arm-order-dependent acceptance that got hardened before merge. Remaining
+clause-3 starter: m-xmod-alias-poly — tagged VERIFY-FIRST (3 of 5 cluster rows were
+ghosts/mislabeled). Skill edit: Gate-2 now mandates live-repro before routing any survey-sourced
+row. Detail: log entry 26.
+
 ## STATUS 2026-07-13 — ITERATION 24: `m-public-feedback-delivery-audit` (Mark's NEXT-FIRST) EXECUTED + LANDED (round-1 clean, eval PASS 97/100) → PR #378 `4fee247a8`; live prod verification PARKED for Mark (daemon reload)
 
 The feedback flywheel's blind spot is code-fixed: Defect A — `pkg:*` package-feedback inboxes now
@@ -743,18 +757,41 @@ Mark: daemon reload + 2 live prod test-sends (checklist: sprint plan §Parked-fo
 docs/docs/guides/notify-daemon.md); until reloaded, prod feedback still doesn't ping — the CODE
 is landed, the OPS switch is human.
 
+16. [LANDED 2026-07-13] iteration 25 — **R4a+R4b GHOST-CLOSE + m-lambda-open-record-pattern
+    EXECUTED**: Gate-2 reality check live-probed the queue's R4 rows (the sourcing strategy
+    review admitted they were never individually re-verified) → R4a `m-dx-match-hof` GHOST
+    (retired `match … with` syntax was the culprit; design doc archived Not-Applicable
+    2026-05-09; `\x ->` already has a teaching diagnostic) + R4b `m-poly-arith-lambda` GHOST
+    (fixed v0.7.0) — guards `examples/match_hof_lambda.ail` + `poly_arith_lambda.ail`, PR #379
+    → `ea8116f83`, CI green observed. Then the full inner loop on m-lambda-open-record-pattern
+    (REAL at HEAD; mislabeled NEW-DOC — full design doc existed at planned/v0_29_0): Opus plan
+    (refuted the doc's H3-primary via an IIFE probe) → Opus execute (found the TRUE primary
+    site absent from doc+plan: `unifyRecord` rejected on field-count BEFORE consulting row
+    variables; `core.RecordPattern.Rest` + `unifyOpenRecords` row-polymorphic subsumption;
+    closed-pattern strictness preserved) → independent Fable evaluator **PASS 92/100 round 1**
+    (own base+sprint worktrees/binaries, non-vacuity both directions, 8 adversarial probes, 0
+    test deletions; found an arm-order-dependent acceptance) → hardening commit `89b75bd3f`
+    (order-independence fix proven load-bearing, dead-code removal, cacheKeyVersion v2 for the
+    gob-struct change). PR #380 → `47576e25d`, dev CI green per-workflow observed. Design +
+    sprint plan → implemented/v0_30_0.
+
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
-14–17; both VERIFY-then-route items closed as ghosts iter 18). Remaining clause-3 starters are all
-**NEW-DOC footgun fixes** — each needs design-doc-creator first (Conflict Surface mandatory, incl.
-the error-code + mechanism + fixture-existence verification gates): m-dx-match-hof (R4a, 2–3d) ·
-m-poly-arith-lambda (R4b, 2–3d) · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d).
+14–17; both VERIFY-then-route items closed as ghosts iter 18). **Iteration 25 (2026-07-13)
+Gate-2 reality check found the strategy review's R4 rows were never individually re-verified:
+R4a `m-dx-match-hof` and R4b `m-poly-arith-lambda` are BOTH GHOSTS** (R4a: original failure used
+the retired `match … with` syntax, brace-form works in every probed position, design doc was
+already archived Not-Applicable 2026-05-09; R4b: fixed v0.7.0, verified incl. one let-bound
+lambda at BOTH int and float) — guard examples `match_hof_lambda.ail` + `poly_arith_lambda.ail`,
+PR #379 → `ea8116f83`, dev CI green observed. Same iteration EXECUTED
+**m-lambda-open-record-pattern** (REAL at HEAD — doc existed at planned/v0_29_0, so NOT NEW-DOC;
+see queue item 16). Remaining clause-3 starter: **m-xmod-alias-poly (1–2d, NEW-DOC — but
+VERIFY-FIRST: 3 of 5 rows in this cluster were already ghosts/mislabeled)**.
 **Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
 `higher_order_functions` triage → real decl-class resolver gap #366); **iteration 23 EXECUTED it
-→ LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Next clause-3
-starter after the NEXT-FIRST above: **R4a `m-dx-match-hof`** (NEW-DOC). Full inner-loop sprints,
-NOT bookkeeping.
+→ LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Full inner-loop
+sprints, NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
 iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18;
@@ -772,11 +809,21 @@ triage evidence = log entry 10.)*
   **[LANDED iter 23 → implemented/v0_30_0; unified SCC over lets+funcs, wrapInLets deleted, module
   letrec via core.LetRec, MOD007 dup-name, truthful hint; PR #368 → `fd38ec14e`, eval PASS 98/100
   round 1]** ·
-  m-dx-match-hof (R4a, 2–3d) ·
-  m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[LANDED iter 21 →
+  ~~m-dx-match-hof (R4a)~~ **[GHOST iter 25 — retired `match … with` syntax was the real culprit,
+  brace-form match works in every probed position (block-body/direct/mid-block/nested-HOF/curried
+  foldl); `\x ->` wrong-arrow already has a teaching diagnostic; guard
+  `examples/match_hof_lambda.ail`, PR #379 → `ea8116f83`]** ·
+  ~~m-poly-arith-lambda (R4b)~~ **[GHOST iter 25 — fixed v0.7.0 (m-poly-arithmetic-fix); verified
+  incl. let-bound lambda at BOTH int and float; guard `examples/poly_arith_lambda.ail`, PR #379 →
+  `ea8116f83`]** · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[LANDED iter 21 →
   implemented/v0_30_0; `TC_ARITY_001` coded/directional/style-aware arity diagnostic at
   `unification_types.go`, 5 golden/regression tests, eval PASS 97/100 round 1, PR #363 →
-  `5b54509d1`]** · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
+  `5b54509d1`]** · ~~m-lambda-open-record-pattern (1d)~~ **[LANDED iter 25 → implemented/v0_30_0;
+  `{name, ...}` in lambda params now infers OPEN `{name: τ | r}`; PRIMARY root cause was
+  `unifyRecord`'s pre-row field-count rejection (deeper than the doc's hypotheses) + Rest erased
+  at AST→Core; closed-pattern strictness preserved + arm-order-independence hardened + cacheKey
+  v2; eval PASS 92/100 round 1, PR #380 → `47576e25d`, dev CI green per-workflow observed]** ·
+  m-xmod-alias-poly (1–2d, VERIFY-FIRST)
 - **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
   **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
   `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·

@@ -2034,3 +2034,103 @@ feedback-gate production ops; haiku causal re-run; scope-params re-score; fronti
 validation; issue #341 triage; rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health
 flakies (THREE: PipedStdoutFlushes, TestNetHttpPost-httpbin-503,
 TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007 allocation human veto window.
+
+---
+
+## 26 — 2026-07-13 — Iteration 25: R4a+R4b GHOSTS closed with guards (PR #379) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardening) → PR #380; the survey-sourced queue rows were 3-of-5 wrong
+
+**Picked**: the queue's `[NEXT]` R4a `m-dx-match-hof`, exactly as entry 25's Next directed — but
+Gate-2's reality check terminated it in 20 minutes: the sourcing strategy review's own
+Verification Log says "Footgun list … not re-verified individually", and the archived design doc
+(v0_13_0, investigated 2026-05-09) already said Not-Applicable. Live probes at HEAD (fresh
+version-verified binaries, adversarial variants) confirmed **R4a GHOST** (retired `match … with`
+syntax was the real culprit; brace-form works in block-body/direct/mid-block/nested-HOF/curried-
+foldl positions; the conflated `\x ->` mistake already gets a first-line teaching diagnostic).
+Same probe pass on the sibling row: **R4b `m-poly-arith-lambda` GHOST** (fixed v0.7.0; verified
+incl. one let-bound lambda used at BOTH int and float). Ghost-close = bookkeeping pick → took a
+second item per Standing rule 1: **m-lambda-open-record-pattern**, which the SAME probe pass
+verified REAL at HEAD (closed-record unify error; the hint even suggests the `{name, ...}` syntax
+the user already wrote) — and which was mislabeled NEW-DOC in the queue while a full design doc
+sat at planned/v0_29_0 since 2026-05-20. Inbox: empty. No NEXT-FIRST directive.
+
+**Reality check** (Gates 1/2): local == origin/dev (999bd629f) after fetch; all three workflows
+green at last completed runs (in-flight runs on the docs-dashboard commits completed green
+mid-iteration, observed). Item-level: no PRs/commits for any of the three items; R4a/R4b probes
+above; open-record reproducer fails at HEAD.
+
+**Shipped**:
+- **Ghost-close** (PR #379 → squash `ea8116f83`, dev CI green observed): CI-enforced guards
+  `examples/match_hof_lambda.ail` (5 match-in-HOF shapes) + `examples/poly_arith_lambda.ail`
+  (8 poly-arith shapes incl. dual-type let-polymorphism); verify-examples 38 type-checked/35 ran.
+  Strategy-review R4 rows annotated GHOST with evidence; queue updated.
+- **m-lambda-open-record-pattern** (PR #380 → squash `47576e25d`, dev CI green per-workflow
+  observed): full inner loop. **Opus plan** — materially corrected the design doc BEFORE
+  execution: H3 ("generalize drops row vars", the doc's "most likely") REFUTED as primary via an
+  IIFE probe (no let → no generalization → still fails); H1 (Rest erased at AST→Core) confirmed
+  structural; drifted line numbers re-anchored. **Opus execute** (worktree, commits `71ecde047`
+  fix + `3d2f0dd32` tests/example) — found the TRUE primary site, absent from BOTH doc and plan:
+  `unifyRecord`'s `TRecord~TRecord` path rejected on field-count BEFORE consulting row variables;
+  new `unifyOpenRecords` does row-polymorphic subsumption; `core.RecordPattern.Rest` carried
+  through elaborate→checkPattern; M2/M3 proven-unnecessary by instrumentation (not asserted).
+  102 packages green, 7 new tests (closed+extra still FAILS — strictness preserved; open+missing
+  still FAILS — no over-generalization), record_patterns.ail restored to `{name, ...}`.
+  **Independent Fable evaluator** (own base+sprint worktrees/binaries): **PASS 92/100 round 1** —
+  non-vacuity both directions with its OWN probes, 8 adversarial shapes (nested open patterns,
+  HOF composition, guards, open~open disjoint, Num-conflict), 0 test deletions; CAUGHT a real
+  arm-order-dependent acceptance (open-first `{a,...}`/`{a}` arms weakened a later closed
+  constraint) + dead code + missing cacheKey bump. **Hardening commit** `89b75bd3f` (fresh agent;
+  SendMessage unavailable): order-independence fix PROVEN load-bearing (stash-test), 9/9 tests,
+  cacheKeyVersion v1→v2 (gob struct changed), dead-code removal. Design doc + sprint plan →
+  implemented/v0_30_0 with corrected status header.
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (refuted the design doc's primary
+hypothesis pre-execution via IIFE probe; re-anchored drifted line refs) · model=Opus
+task-class=execute round1-score=92 rounds=1 corrections=1-hardening-commit (found the true
+primary site missing from doc+plan; deviation documented) · model=Fable task-class=evaluate
+(independent worktrees+binaries, own probes, caught a genuine soundness-adjacent wart the
+executor missed — model diversity + behavioral independence both demonstrably non-rubber-stamp)
+· model=Fable task-class=controller/bookkeeping+ghost-probes (deterministic).
+
+**Ruled out**:
+- "R4a m-dx-match-hof is a live 2–3d parser fix" — REFUTED: ghost since ≤2026-05-09 (archived
+  doc); the queue row and both LIMITATIONS files disagreed and the LIMITATIONS files were right.
+- "R4b m-poly-arith-lambda panics" — REFUTED: fixed v0.7.0; the sourcing review cited
+  LIMITATIONS.md which ALREADY listed it as fixed (v0.4.0-partial claim was stale too).
+- "H3 generalize-drops-row-vars is the primary open-record cause" (design doc) — REFUTED at plan
+  stage (IIFE probe) and by instrumentation at execute (SolveConstraints resolves the param
+  before generalization).
+- "`Scheme.RowVars: []string{}` hardcode bites this feature" — REFUTED by evaluator probe (n):
+  let-generalized open rows work across differently-shaped callers; latent gap noted, unrelated.
+
+**Gate 3b**: every wait bounded — PR #380 merge+CI watch: single background loop, 35m merge cap +
+30m per-workflow cap, run-id/full-sha based (entry 25's short-sha lesson applied), completed with
+all three workflows green. PR #379 auto-merged during sprint execution; green verified per-commit.
+
+**Retro lane**: **skill fix** (the one allowed edit, ≥2 frictions same gap): mission-control
+Gate 2 now mandates live-repro BEFORE routing any survey-sourced queue row — evidence: iteration
+18 (2 ghosts, saved only by their VERIFY-then-route tag) + iteration 25 (2 ghosts tagged as 2–3d
+NEW-DOC sprints + 1 NEW-DOC mislabel with a full doc existing; 4 of 7 survey-sourced rows wrong
+so far); ghost closes must ship a CI-enforced guard, never bare bookkeeping. Logged-only (first
+instances): (a) PR #379 omitted a CHANGELOG entry (iter-18's equivalent had one; backfilled in
+this bookkeeping commit); (b) the hardening agent's fallback disk-edit path (used to dodge a
+stale Read/Edit file-state tracker after a worktree switch) ALSO wrote `cache_key.go` into the
+MAIN checkout — caught at ff-sync because the stray blocked the merge; byte-identical to the
+merged content, discarded safely; watch for recurrence → if it repeats, add a worktree-isolation
+check to sprint-executor; (c) planner artifacts written to the main checkout (sprint-plan md)
+duplicate into planned/ vs the branch's implemented/ copy — superseded stray deleted; prefer
+having the EXECUTOR create plan files in its worktree, or the planner write only to the branch.
+No routing-policy change (rows confirmatory; evaluator independence with Fable-judges-Opus
+demonstrated value again — caught what the executor missed).
+
+**Next**: Iteration 26 — **m-xmod-alias-poly (1–2d, VERIFY-FIRST per the new Gate-2 rule)**: a
+10-minute live probe decides ghost-close vs design-doc-creator; if ghost, the next starters are
+the Prelude/discovery group (m-prelude-option-result 1.5d, m-dx-ai-discovery 2d) or clause-4
+effect sprints. **Carry forward**: NEW — watch for the file-state-tracker/main-checkout-stray
+class (b) recurring in any sub-agent using disk-edit fallbacks. UNCHANGED: Mark's daemon reload +
+2 live prod test-sends (m-public-feedback-delivery-audit); notify-daemon.md anchor-slug nit;
+local-docs-build trap (packages/sunholo/* sidebar vs fresh checkout); M-DX-JSON-BOOL Phase-1
+firestore fix; tier-assignment ratification; feedback-gate production ops; haiku causal re-run;
+scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
+m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies (THREE: PipedStdoutFlushes,
+TestNetHttpPost-httpbin-503, TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007
+allocation human veto window.
