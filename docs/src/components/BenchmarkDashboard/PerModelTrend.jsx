@@ -429,7 +429,10 @@ export default function PerModelTrend({ history, events, selectedTier, models: c
             // label text lives in the tooltip — stacking multiple labels on
             // the axis is unreadable when a release carries several events.
             const color = annotationColor(evs[0]);
-            const marker = evs.length > 1 ? `● ${evs.length}` : '●';
+            // A single clean dot marks the version; the event details (and count,
+            // when a release carries several) live in the hover tooltip. A bare
+            // "● N" count on the axis just read as a cryptic number.
+            const marker = '●';
             return (
               <ReferenceLine
                 key={`ev-${formattedVersion}`}

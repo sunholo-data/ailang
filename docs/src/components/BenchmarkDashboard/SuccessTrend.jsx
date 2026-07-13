@@ -158,7 +158,8 @@ export default function SuccessTrend({ history, languages, events, selectedTier,
             const exists = chartData.some(d => d.version === formattedVersion);
             if (!exists) return null;
             const color = annotationColor(evs[0]);
-            const marker = evs.length > 1 ? `● ${evs.length}` : '●';
+            // Clean dot marker; event details + count live in the hover tooltip.
+            const marker = '●';
             return (
               <ReferenceLine
                 key={`ev-${formattedVersion}`}
