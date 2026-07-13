@@ -1,7 +1,7 @@
 [
   {
     "ailang_version": "v0.29.2",
-    "generated": "2026-07-13",
+    "generated": "2026-07-14",
     "trials": 3,
     "languages": [
       "ailang",
@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.9111111111111111,
+          "ailang": 0.8846153846153846,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -21,13 +21,13 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.9696969696969697,
+            "ailang": 0.9743589743589743,
             "go": 1,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.7777777777777778
+            "ailang": 0.6363636363636364
           },
           "smoke": {
             "ailang": 1,
@@ -36,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8888888888888888
+            "ailang": 0.9032258064516129
           },
           "vision": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6333333333333333,
+          "ailang": 0.6226415094339622,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -63,7 +63,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.3684210526315789
+            "ailang": 0.2916666666666667
           },
           "smoke": {
             "ailang": 1,
@@ -72,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.7307692307692307
+            "ailang": 0.7741935483870968
           },
           "vision": {
             "ailang": 0,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.8043478260869565,
+          "ailang": 0.8,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -93,13 +93,13 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.8484848484848485,
+            "ailang": 0.8461538461538461,
             "go": 0.8333333333333334,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.5263157894736842
+            "ailang": 0.47619047619047616
           },
           "smoke": {
             "ailang": 1,
@@ -108,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8571428571428571
+            "ailang": 0.8787878787878788
           },
           "vision": {
             "ailang": 1,
