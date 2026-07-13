@@ -336,7 +336,6 @@ func TestTarballHash(t *testing.T) {
 	}
 }
 
-
 // TestExtractTarball_RejectsTraversal locks in the zip-slip guard
 // (gosecurity:S6096): entries that would resolve outside destDir must be
 // rejected and nothing may be written outside it.
