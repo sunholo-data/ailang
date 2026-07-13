@@ -374,6 +374,37 @@ func arityMismatchMsg(expected, actual int) string {
 		TC_ARITY_001, expected, actual, hint)
 }
 
+// TC_ALIAS_ARITY_001 codes a parameterized type-alias arity mismatch
+// (M-XMOD-ALIAS-POLY): an alias applied with the wrong number of type
+// arguments, e.g. `type Box[a] = {items:[a]}` used as `Box[int, string]`, or a
+// nullary alias `type Row = Json` used as `Row[int]`. See aliasArityMismatchMsg
+// for the rendered, directional text. Styled on TC_ARITY_001.
+const TC_ALIAS_ARITY_001 = "TC_ALIAS_ARITY_001"
+
+// aliasArityMismatchMsg builds the coded, directional diagnostic for an applied
+// type alias whose argument count doesn't match its declared parameter count.
+//
+// Like TC_ARITY_001, the code + Suggestion are embedded INLINE in the returned
+// string (the error is wrapped by a plain %w and nothing recovers
+// *TypeCheckError via errors.As), so a struct Suggestion would never render.
+//
+// name is the alias name, expected its declared param count, actual the number
+// of type arguments supplied at the use site.
+func aliasArityMismatchMsg(name string, expected, actual int) string {
+	var hint string
+	switch {
+	case expected == 0:
+		// Nullary alias applied with type arguments.
+		hint = fmt.Sprintf("`%s` takes no type arguments — write `%s` without `[...]`.", name, name)
+	case actual < expected:
+		hint = fmt.Sprintf("`%s` expects %d type argument(s); supply the missing %d.", name, expected, expected-actual)
+	default: // actual > expected
+		hint = fmt.Sprintf("`%s` expects %d type argument(s); remove the extra %d.", name, expected, actual-expected)
+	}
+	return fmt.Sprintf("%s: type alias %s expects %d type argument(s), but %d provided\n  Suggestion: %s",
+		TC_ALIAS_ARITY_001, name, expected, actual, hint)
+}
+
 // NewUnsolvedConstraintError creates an unsolved type class constraint error
 func NewUnsolvedConstraintError(className string, typ Type, path []string) *TypeCheckError {
 	suggestion := ""

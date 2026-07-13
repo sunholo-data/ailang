@@ -15,6 +15,16 @@ type Unifier struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
 	aliasEnv map[string]Type
+	// aliasParams maps parameterized-alias names to their ordered param names
+	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias. Used by expandAlias to
+	// instantiate an APPLIED alias (`Box[int]`) via Body.Substitute(param->arg),
+	// keyed STRICTLY on aliasEnv membership so real ADTs stay nominal.
+	aliasParams map[string][]string
+	// aliasArityErr latches a coded TC_ALIAS_ARITY_001 diagnostic raised by
+	// expandAlias when an applied alias has the wrong number of type arguments
+	// (M-XMOD-ALIAS-POLY). expandAlias returns Type (4 call sites) and cannot
+	// itself return an error, so Unify checks this immediately after expanding.
+	aliasArityErr error
 	// M-DX11-PHASE2: Debug sink for emitting OnSubstitute events during unification
 	debugSink TypeDebugSink
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): constructor → ADT-name
@@ -61,11 +71,21 @@ func NewUnifier() *Unifier {
 // NewUnifierWithAliases creates a unifier with type alias expansion support
 // M-BUGFIX: This allows ADT variants with alias parameters to work correctly
 func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
+	return NewUnifierWithAliasesAndParams(aliases, nil)
+}
+
+// NewUnifierWithAliasesAndParams creates a unifier with type alias expansion
+// support that ALSO instantiates parameterized aliases (M-XMOD-ALIAS-POLY).
+// aliasParams maps a parameterized alias name to its ordered param names; a
+// missing entry means the alias is nullary. Passing nil params degrades to the
+// nullary-only behaviour of NewUnifierWithAliases.
+func NewUnifierWithAliasesAndParams(aliases map[string]Type, aliasParams map[string][]string) *Unifier {
 	u := &Unifier{
-		rowUnifier: NewRowUnifier(),
-		depth:      0,
-		aliasEnv:   aliases,
-		debugSink:  NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
+		rowUnifier:  NewRowUnifier(),
+		depth:       0,
+		aliasEnv:    aliases,
+		aliasParams: aliasParams,
+		debugSink:   NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
 	}
 	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
 	u.rowUnifier.SetParentUnifier(u)
@@ -96,6 +116,51 @@ func (u *Unifier) expandAlias(t Type) Type {
 	// the last TCon, letting unification report a normal mismatch.
 	var seen map[string]bool
 	for {
+		// M-XMOD-ALIAS-POLY: an APPLIED alias reaches unification as a *TApp
+		// whose head constructor is the alias TCon (e.g. Box[int] =
+		// TApp{TCon("Box"), [int]}). Instantiate it by substituting the alias's
+		// declared params with the applied args, keyed STRICTLY on aliasEnv
+		// membership — so genuine parameterized ADTs (Option[a], Result[a,b],
+		// user `type Tree[a]`), whose head TCon is NOT in aliasEnv, are returned
+		// unchanged and stay nominal. This is the critical non-regression.
+		if app, ok := t.(*TApp); ok {
+			head, args := decomposeApp(app)
+			headCon, isCon := head.(*TCon)
+			if !isCon {
+				return t
+			}
+			body, isAlias := u.aliasEnv[headCon.Name]
+			if !isAlias {
+				return t // not an alias head → real ADT / type application, stay nominal
+			}
+			params := u.aliasParams[headCon.Name] // nil for a nullary alias
+			if len(args) != len(params) {
+				// Arity mismatch: applied a k-arg alias with the wrong count
+				// (includes applying a nullary alias with any args). Latch a
+				// coded, directional diagnostic for Unify to surface.
+				u.aliasArityErr = fmt.Errorf("%s", aliasArityMismatchMsg(headCon.Name, len(params), len(args)))
+				return t
+			}
+			if seen[headCon.Name] {
+				return t // cycle detected (e.g. `type A[x] = A[x]`) — stop expanding
+			}
+			if seen == nil {
+				seen = make(map[string]bool)
+			}
+			seen[headCon.Name] = true
+			// Substitute params[i] -> args[i] throughout the body via the
+			// Type.Substitute(map) method (TVar2.Substitute keys by name), which
+			// recurses through record/tuple/function bodies. Continue the fixpoint
+			// loop on the result so alias chains and the record-TypeName terminal
+			// path below still fire.
+			subs := make(map[string]Type, len(params))
+			for i, p := range params {
+				subs[p] = args[i]
+			}
+			t = body.Substitute(subs)
+			continue
+		}
+
 		con, ok := t.(*TCon)
 		if !ok {
 			return t
@@ -173,6 +238,15 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
 	t1 = u.expandAlias(t1)
 	t2 = u.expandAlias(t2)
+
+	// M-XMOD-ALIAS-POLY: surface a latched arity diagnostic from expandAlias
+	// (an applied alias with the wrong number of type arguments). Clear it so a
+	// later successful unification isn't poisoned by a stale error.
+	if u.aliasArityErr != nil {
+		err := u.aliasArityErr
+		u.aliasArityErr = nil
+		return nil, err
+	}
 
 	// Check if already equal with cycle detection
 	if SafeEquals(t1, t2) {

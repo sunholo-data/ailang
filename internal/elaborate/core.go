@@ -26,6 +26,12 @@ type Elaborator struct {
 	// typeAliases stores type aliases for expansion during type checking
 	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
 	typeAliases map[string]types.Type
+	// aliasParams stores the type-parameter names for PARAMETERIZED aliases
+	// (M-XMOD-ALIAS-POLY). Maps alias name -> ordered param names
+	// (e.g. "Box" -> ["a"] for `type Box[a] = {items: [a]}`). A missing entry
+	// means the alias is nullary (arity 0). Kept as a sibling map so the
+	// existing typeAliases[name] -> body path is unchanged.
+	aliasParams map[string][]string
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types (preserves float annotations through elaboration)
 	paramTypeAnnots map[uint64][]types.Type
@@ -187,6 +193,25 @@ func (e *Elaborator) RegisterTypeAlias(name string, target types.Type) {
 // M-BUGFIX: Used to pass aliases to the type checker for expansion during unification
 func (e *Elaborator) GetTypeAliases() map[string]types.Type {
 	return e.typeAliases
+}
+
+// RegisterTypeAliasParams records the ordered type-parameter names for a
+// parameterized alias (M-XMOD-ALIAS-POLY). A nil/empty list is not stored
+// (a missing entry naturally means "nullary alias").
+func (e *Elaborator) RegisterTypeAliasParams(name string, params []string) {
+	if len(params) == 0 {
+		return
+	}
+	if e.aliasParams == nil {
+		e.aliasParams = make(map[string][]string)
+	}
+	e.aliasParams[name] = params
+}
+
+// GetTypeAliasParams returns the parameter names for all parameterized aliases
+// registered during elaboration (M-XMOD-ALIAS-POLY).
+func (e *Elaborator) GetTypeAliasParams() map[string][]string {
+	return e.aliasParams
 }
 
 // GetEffectAnnotation returns the effect annotation for a Core node ID

@@ -81,6 +81,10 @@ type CoreTypeChecker struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
+	// aliasParams maps parameterized-alias names to their ordered param names
+	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias (arity 0). Passed to
+	// the Unifier so applied aliases (`Box[int]`) instantiate their body.
+	aliasParams map[string][]string
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
 	paramTypeAnnots map[uint64][]Type
@@ -211,11 +215,12 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
-		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
-		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
-		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
-		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
-		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
+		adtTypeParams:       make(map[string]int),      // M-TAPP-FIX: Initialize ADT type params
+		aliasEnv:            make(map[string]Type),     // M-BUGFIX: Initialize alias environment
+		aliasParams:         make(map[string][]string), // M-XMOD-ALIAS-POLY: Initialize alias params
+		paramTypeAnnots:     make(map[uint64][]Type),   // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),     // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
+		DebugSink:           NoOpDebugSink{},           // M-DX11: Default to no-op (zero overhead)
 	}
 }
 
@@ -237,11 +242,12 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
-		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
-		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
-		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
-		letTypeAnnots:       make(map[uint64]Type),   // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
-		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
+		adtTypeParams:       make(map[string]int),      // M-TAPP-FIX: Initialize ADT type params
+		aliasEnv:            make(map[string]Type),     // M-BUGFIX: Initialize alias environment
+		aliasParams:         make(map[string][]string), // M-XMOD-ALIAS-POLY: Initialize alias params
+		paramTypeAnnots:     make(map[uint64][]Type),   // M-FIX-FLOAT-OP: Initialize param annotations
+		letTypeAnnots:       make(map[uint64]Type),     // M-TYPE-LIST-ELEMENT-SOUNDNESS: let annotations
+		DebugSink:           NoOpDebugSink{},           // M-DX11: Default to no-op (zero overhead)
 	}
 }
 
@@ -268,6 +274,24 @@ func (tc *CoreTypeChecker) RegisterTypeAlias(name string, target Type) {
 // M-BUGFIX: Used to create UnifierWithAliases
 func (tc *CoreTypeChecker) GetAliasEnv() map[string]Type {
 	return tc.aliasEnv
+}
+
+// RegisterTypeAliasParams records the type-parameter names for a parameterized
+// alias (M-XMOD-ALIAS-POLY), so the unifier can instantiate applied uses
+// (`Box[int]`). Empty params are ignored (a missing entry means nullary).
+func (tc *CoreTypeChecker) RegisterTypeAliasParams(name string, params []string) {
+	if len(params) == 0 {
+		return
+	}
+	if tc.aliasParams == nil {
+		tc.aliasParams = make(map[string][]string)
+	}
+	tc.aliasParams[name] = params
+}
+
+// GetAliasParams returns the parameterized-alias param env (M-XMOD-ALIAS-POLY).
+func (tc *CoreTypeChecker) GetAliasParams() map[string][]string {
+	return tc.aliasParams
 }
 
 // SetGlobalTypes sets the global types for import resolution
@@ -415,7 +439,9 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// M-BUGFIX: Create unifier with alias environment for type alias expansion
 	var unifier *Unifier
 	if len(tc.aliasEnv) > 0 {
-		unifier = NewUnifierWithAliases(tc.aliasEnv)
+		// M-XMOD-ALIAS-POLY: thread the parameterized-alias param env so applied
+		// aliases (`Box[int]`) instantiate their body during unification.
+		unifier = NewUnifierWithAliasesAndParams(tc.aliasEnv, tc.aliasParams)
 	} else {
 		unifier = NewUnifier()
 	}

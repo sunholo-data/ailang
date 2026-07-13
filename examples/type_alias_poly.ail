@@ -1,0 +1,67 @@
+-- examples/type_alias_poly.ail
+-- Parameterized type aliases (M-XMOD-ALIAS-POLY, v0.30.0).
+--
+-- A type alias may take type parameters and be used at a concrete
+-- instantiation. The alias body is SUBSTITUTED with the applied arguments at
+-- the use site, so `Box[int]` type-checks as `{ items: [int] }`.
+--
+-- Three shapes are shown:
+--   * record body   — `type Box[a]  = { items: [a] }`  used as `Box[int]`
+--   * bare param     — `type Ident[a] = a`               used as `Ident[int]`
+--   * tuple body     — `type Pair[a,b] = (a, b)`          used as `Pair[int, string]`
+--
+-- Genuine parameterized ADTs (Option[a], Result[a,b], a user `type Tree[a]`)
+-- are NOT aliases and stay strictly nominal — only alias heads are instantiated.
+--
+-- Run:
+--   ailang run --caps IO --entry main examples/type_alias_poly.ail
+
+module examples/type_alias_poly
+
+import std/io (println)
+
+-- Record-body alias: Box[a] = { items: [a] }
+type Box[a] = { items: [a] }
+
+-- Bare-parameter alias: Ident[a] = a
+type Ident[a] = a
+
+-- Tuple-body alias: Pair[a, b] = (a, b)
+type Pair[a, b] = (a, b)
+
+-- mkBox builds a Box[int] from a concrete [int]. The return annotation Box[int]
+-- expands to { items: [int] } during unification.
+export func mkBox(xs: [int]) -> Box[int] {
+  { items: xs }
+}
+
+-- idInt uses the bare-param alias Ident[int], which expands to int.
+export func idInt(x: int) -> Ident[int] {
+  x
+}
+
+-- mkPair builds a Pair[int, string], expanding to (int, string).
+export func mkPair(n: int, s: string) -> Pair[int, string] {
+  (n, s)
+}
+
+-- firstItem reads a field off the parameterized-alias record body.
+export func firstItem(b: Box[int]) -> int {
+  match b.items {
+    [] => 0,
+    [x, ..._] => x
+  }
+}
+
+export func main() -> () ! {IO} {
+  let b = mkBox([10, 20, 30]);
+  println("firstItem(Box[int]): ${show(firstItem(b))}");
+
+  let y = idInt(42);
+  println("idInt(Ident[int]): ${show(y)}");
+
+  let p = mkPair(7, "seven");
+  match p {
+    (n, s) => println("mkPair(Pair[int,string]): ${show(n)} = ${s}")
+  }
+}

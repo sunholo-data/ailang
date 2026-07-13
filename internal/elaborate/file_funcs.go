@@ -214,6 +214,9 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		recordType := e.astTypeToInternalType(def)
 		if recordType != nil {
 			e.RegisterTypeAlias(typeName, recordType)
+			// M-XMOD-ALIAS-POLY: record the alias's type params (e.g. Box[a])
+			// so applied uses (`Box[int]`) instantiate the body.
+			e.RegisterTypeAliasParams(typeName, decl.TypeParams)
 		}
 		return nil, nil
 
@@ -223,6 +226,9 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		targetType := e.astTypeToInternalType(def.Target)
 		if targetType != nil {
 			e.RegisterTypeAlias(typeName, targetType)
+			// M-XMOD-ALIAS-POLY: record the alias's type params (e.g. Ident[a],
+			// Pair[a,b]) so applied uses instantiate the body.
+			e.RegisterTypeAliasParams(typeName, decl.TypeParams)
 		}
 		return nil, nil
 

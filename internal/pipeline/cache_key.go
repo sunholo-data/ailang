@@ -15,7 +15,13 @@ import (
 // Rest bool. Same-version dev/worktree builds could otherwise collide cache keys and
 // round-trip pre-Rest blobs into the new decoder. Bumping guarantees old blobs never
 // decode into the new Core struct.
-const cacheKeyVersion = "v2"
+//
+// v2 -> v3 (M-XMOD-ALIAS-POLY): the on-disk Iface gained an AliasParams
+// map[string][]string (params for parameterized aliases). The blob is JSON
+// (tolerant of new/missing fields), so this is a defensive guard against a
+// same-version dev/worktree build decoding a pre-AliasParams blob and treating a
+// parameterized alias as nullary.
+const cacheKeyVersion = "v3"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

@@ -12,6 +12,7 @@ type Iface struct {
 	Constructors map[string]*ConstructorScheme // Exported ADT constructors
 	Types        map[string]*TypeExport        // Exported type names
 	TypeAliases  map[string]types.Type         // M-FIX-RECORD-UPDATE: Type alias expansions for record types
+	AliasParams  map[string][]string           // M-XMOD-ALIAS-POLY: param names for parameterized aliases (name -> ["a"]); missing = nullary
 	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
 	Digest       string                        // Deterministic digest of interface
 }
@@ -47,6 +48,7 @@ func NewIface(module string) *Iface {
 		Constructors: make(map[string]*ConstructorScheme),
 		Types:        make(map[string]*TypeExport),
 		TypeAliases:  make(map[string]types.Type),
+		AliasParams:  make(map[string][]string),
 		Schema:       "ailang.iface/v1",
 	}
 }
@@ -111,4 +113,23 @@ func (i *Iface) AddTypeAlias(name string, target types.Type) {
 func (i *Iface) GetTypeAlias(name string) (types.Type, bool) {
 	typ, ok := i.TypeAliases[name]
 	return typ, ok
+}
+
+// AddTypeAliasParams records the param names of a parameterized alias
+// (M-XMOD-ALIAS-POLY). Empty/nil params are not stored (missing = nullary).
+func (i *Iface) AddTypeAliasParams(name string, params []string) {
+	if len(params) == 0 {
+		return
+	}
+	if i.AliasParams == nil {
+		i.AliasParams = make(map[string][]string)
+	}
+	i.AliasParams[name] = params
+}
+
+// GetTypeAliasParams retrieves the param names of a parameterized alias
+// (M-XMOD-ALIAS-POLY). ok is false for nullary aliases.
+func (i *Iface) GetTypeAliasParams(name string) ([]string, bool) {
+	params, ok := i.AliasParams[name]
+	return params, ok
 }
