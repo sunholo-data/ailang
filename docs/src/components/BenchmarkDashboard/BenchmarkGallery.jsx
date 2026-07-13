@@ -117,7 +117,10 @@ function Index({ list, onOpen }) {
     return r;
   }, [list, tier, tag, q, sortBy]);
 
+  // Explicit margins (not flex gap) space the chips — some Docusaurus builds drop
+  // inline flex-gap, which bunched every chip into one blob.
   const chip = (active) => ({
+    display: 'inline-block', verticalAlign: 'middle', margin: '0 6px 6px 0',
     fontSize: 12, padding: '3px 11px', borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
     border: `1px solid ${active ? 'var(--ifm-color-primary)' : 'var(--ifm-color-emphasis-300)'}`,
     background: active ? 'var(--ifm-color-primary)' : 'transparent',
@@ -138,14 +141,14 @@ function Index({ list, onOpen }) {
           <option value="name">Name (A–Z)</option>
         </select>
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)' }}>Tier</span>
+      <div style={{ marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tier</span>
         <button style={chip(!tier)} onClick={() => setTier(null)}>All</button>
         {tiers.map((t) => <button key={t} style={chip(tier === t)} onClick={() => setTier(tier === t ? null : t)}>{t}</button>)}
       </div>
       {tags.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
-          <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)' }}>Tag</span>
+        <div style={{ marginBottom: 14 }}>
+          <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tag</span>
           <button style={chip(!tag)} onClick={() => setTag(null)}>All</button>
           {tags.map((t) => <button key={t} style={chip(tag === t)} onClick={() => setTag(tag === t ? null : t)}>{t}</button>)}
         </div>
