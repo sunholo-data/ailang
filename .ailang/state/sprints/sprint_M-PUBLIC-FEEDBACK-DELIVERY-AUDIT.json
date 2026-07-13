@@ -57,10 +57,10 @@
         "New table test TestMessageNotification_PkgInboxIsExternalFeedback follows handlers_test.go idiom",
         "go test ./internal/daemon/... ./internal/notify/... green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:36:00Z",
+      "completed": "2026-07-13T15:45:00Z",
+      "notes": "Added isExternalFeedbackInbox(inbox) helper (public-feedback OR pkg: prefix) + const pkgInboxPrefix in handlers.go; messageNotification now gates the 🌐 External-feedback shape + EventType public-feedback on that helper, with the inbox name already in the body ([%s] %s). DefaultDiscordEventTypes untouched. Tests: TestMessageNotification_PkgInboxIsExternalFeedback (table: public-feedback/pkg:*/internal) + TestIsExternalFeedbackInbox. Existing TestMessageNotification_PublicFeedback, TestDaemon_PublicFeedbackEventFiresDedicatedNotification, TestDiscordDefaultEventTypes (Accepts public-feedback==true, message==false) unchanged and green. go test ./internal/daemon/... ./internal/notify/... green; gofmt clean."
     },
     {
       "id": "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE",
