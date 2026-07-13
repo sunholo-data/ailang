@@ -92,7 +92,7 @@ export default function ValueDashboard() {
       </div>
 
       <div className={dashboardStyles.section}>
-        <ValueScoreTable models={view} mode={mode} coverage={coverage} />
+        <ValueScoreTable models={view} mode={mode} coverage={coverage} ratings={data.ratings} />
         <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-500)' }}>
           Value Score reflects the selected <strong>{isAgent ? 'agent' : 'standard'}</strong> mode
           (toggle above).

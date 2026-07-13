@@ -26,22 +26,34 @@ function formatModelName(name) {
 /**
  * ValueScoreTable — combined cost/quality/speed leaderboard.
  *
- * Score = pass_rate^N / (cost_per_success × (1 + median_TTS_seconds / 60))
+ * Score = (elo / best_elo)^N / (cost_per_success × (1 + median_TTS_seconds / 60))
  *
+ * Quality is the AILANG ELO (normalised to the best model in view), not raw pass
+ * rate — ELO separates the strong models a saturated pass rate collapses together.
  * N=1 leans toward cheap models; N=3 weights quality more heavily.
  * The "Pareto" column flags non-dominated models — i.e. no other model is
- * BOTH cheaper AND higher pass-rate.
+ * BOTH cheaper AND higher-ELO.
  *
  * Reads three sources from latest.json per model:
  *   - aggregates.finalSuccess + aggregates.totalCostUSD + totalRuns → pass%, $/success
  *   - efficiency.median_time_to_success_ms → speed factor
  *   - reliability for adjusted (api-error-excluded) pass rate when available
  */
-export default function ValueScoreTable({ models, mode = 'standard', coverage }) {
+export default function ValueScoreTable({ models, mode = 'standard', coverage, ratings }) {
   const [weighting, setWeighting] = useState(2); // N
   const [sortBy, setSortBy] = useState('score');
   const [sortDir, setSortDir] = useState('desc');
   const isAgent = mode === 'agent';
+
+  // Per-model AILANG ELO for this mode (prefer the AILANG-specific fit). ELO is the
+  // quality basis — it discriminates the top models a raw pass rate saturates.
+  const eloOf = useMemo(() => {
+    const r = (ratings && ratings[mode]) || {};
+    const block = (r.byLang && r.byLang.ailang) || r;
+    const m = {};
+    (block.models || []).forEach((x) => { if (x && x.id != null) m[x.id] = x.elo; });
+    return m;
+  }, [ratings, mode]);
 
   const rows = useMemo(() => {
     const data = [];
@@ -70,10 +82,13 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
       const ttsSec = ttsMs / 1000;
 
       if (totalRuns < 10 || passRate <= 0 || costPerSuccess == null) continue; // skip low-sample models
+      const elo = eloOf[name];
+      if (elo == null) continue; // need an ELO rating to score quality
 
       const timeFactor = 1 + ttsSec / 60; // 1-min baseline; lower is better
       data.push({
         name,
+        elo,
         passRate,
         costPerSuccess,
         ttsSec,
@@ -87,19 +102,22 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
       });
     }
 
-    // Pareto frontier: a model is dominated if any other has higher pass AND lower cost.
+    // Pareto frontier: dominated if any other has higher ELO AND lower cost.
     for (const m of data) {
       m.pareto = !data.some(o =>
-        o.name !== m.name && o.passRate >= m.passRate && o.costPerSuccess < m.costPerSuccess
+        o.name !== m.name && o.elo >= m.elo && o.costPerSuccess < m.costPerSuccess
       );
     }
 
-    // Compute weighted score for each model
+    // Weighted value score. Quality = ELO normalised to the best model in view
+    // (elo/maxElo, ~0.5–1.0), so N still tunes cost-vs-quality the way it did with
+    // pass rate — but now it reflects the ELO gaps a saturated pass rate hides.
+    const maxElo = Math.max(1, ...data.map(m => m.elo || 0));
     for (const m of data) {
-      const score = costPerSuccessSafe(m) > 0
-        ? Math.pow(m.passRate, weighting) / (costPerSuccessSafe(m) * m.timeFactor)
+      const q = m.elo / maxElo;
+      m.score = costPerSuccessSafe(m) > 0
+        ? Math.pow(q, weighting) / (costPerSuccessSafe(m) * m.timeFactor)
         : 0;
-      m.score = score;
     }
 
     // Sort
@@ -111,7 +129,7 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
       return ((a[sortBy] ?? 0) - (b[sortBy] ?? 0)) * dir;
     });
     return sorted;
-  }, [models, weighting, sortBy, sortDir, isAgent, coverage]);
+  }, [models, weighting, sortBy, sortDir, isAgent, coverage, eloOf]);
 
   const handleSort = (col) => {
     if (sortBy === col) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
@@ -125,9 +143,10 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
       <h3 style={{ marginTop: 0 }}>Value Score Leaderboard</h3>
       <p style={{ fontSize: '0.9em', color: 'var(--ifm-color-emphasis-700)' }}>
         Combined cost-quality-speed score:{' '}
-        <code>pass_rate<sup>N</sup> / (cost_per_success × (1 + sec_to_solution/60))</code>.{' '}
-        Higher = better. <strong>Pareto ⭐</strong> models are not dominated by any other
-        on the cost+quality plane (no model is both cheaper AND higher pass-rate).
+        <code>(ELO / best_ELO)<sup>N</sup> / (cost_per_success × (1 + sec_to_solution/60))</code>.{' '}
+        Higher = better. Quality is <strong>AILANG ELO</strong> — it separates the top models a raw
+        pass rate saturates. <strong>Pareto ⭐</strong> models are not dominated by any other on the
+        cost+ELO plane (nothing is both cheaper AND higher-ELO).
       </p>
 
       <div style={{ marginBottom: 12 }}>
@@ -157,6 +176,7 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
           <thead>
             <tr style={{ background: 'var(--ifm-color-emphasis-100)', borderBottom: '2px solid var(--ifm-color-emphasis-300)' }}>
               <th style={th} onClick={() => handleSort('name')}>Model{sortIndicator('name')}</th>
+              <th style={th} onClick={() => handleSort('elo')}>ELO{sortIndicator('elo')}</th>
               <th style={th} onClick={() => handleSort('passRate')}>Pass %{sortIndicator('passRate')}</th>
               <th style={th} onClick={() => handleSort('costPerSuccess')}>$/success{sortIndicator('costPerSuccess')}</th>
               <th style={th} onClick={() => handleSort('ttsSec')}>Med. Time{sortIndicator('ttsSec')}</th>
@@ -181,13 +201,14 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage })
                     </span>
                   )}
                 </td>
+                <td style={{ ...tdNum, fontWeight: 600 }}>{Math.round(m.elo)}</td>
                 <td style={tdNum}>{(m.passRate * 100).toFixed(1)}%</td>
                 <td style={tdNum}>${m.costPerSuccess.toFixed(4)}</td>
                 <td style={tdNum}>{m.ttsSec > 0 ? `${formatSeconds2sf(m.ttsSec)}s` : '—'}</td>
                 <td style={{ ...tdNum, fontWeight: 600 }}>{m.score.toFixed(1)}</td>
                 <td style={td}>
                   {m.pareto ? (
-                    <span title="Non-dominated: no other model is both cheaper AND higher pass-rate">⭐ Pareto</span>
+                    <span title="Non-dominated: no other model is both cheaper AND higher-ELO">⭐ Pareto</span>
                   ) : (
                     <span style={{ color: 'var(--ifm-color-emphasis-500)' }}>—</span>
                   )}
