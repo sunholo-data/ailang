@@ -379,10 +379,19 @@ func (l *ListPattern) String() string {
 
 type RecordPattern struct {
 	Fields map[string]CorePattern
+	// Rest is true when the source pattern used the open form `{field, ...}`,
+	// signalling that the matched record may carry additional (unlisted) fields.
+	// When false, the pattern is closed `{field}` and the scrutinee must have
+	// EXACTLY the listed fields. This flag is honored by the type checker
+	// (checkPattern) to keep lambda parameters open when the user wrote `...`.
+	Rest bool
 }
 
 func (r *RecordPattern) patternNode() {}
 func (r *RecordPattern) String() string {
+	if r.Rest {
+		return fmt.Sprintf("{%v, ...}", r.Fields)
+	}
 	return fmt.Sprintf("{%v}", r.Fields)
 }
 
