@@ -27,7 +27,25 @@ function bandBg(band) {
   return band === 'Trivial' ? 'transparent' : `${c}22`;
 }
 
+// On-device GPU agents: a local Qwen/Gemma run through an agentic harness
+// (motoko/opencode/pi), $0/run. The "-or-" models are cloud-via-OpenRouter, NOT local.
+function isLocalAgent(id) {
+  return /qwen3|gemma4/i.test(id || '') && !String(id).includes('-or-');
+}
+
 function modelShort(key) {
+  // Local GPU agents get a clean "<model> · <harness>" label instead of the raw
+  // "motoko-local-qwen3-6-35b-a3b-mxfp8" string.
+  if (isLocalAgent(key)) {
+    let harness = 'agent';
+    if (key.startsWith('motoko-')) harness = 'motoko';
+    else if (key.startsWith('opencode-')) harness = 'opencode';
+    else if (key.startsWith('pi-')) harness = 'Pi';
+    const qm = /qwen3-(\d+)/.exec(key);
+    const gm = /gemma4-(\d+)/.exec(key);
+    const model = qm ? `Qwen3.${qm[1]}` : gm ? `Gemma4.${gm[1]}` : 'local';
+    return `${model} · ${harness}`;
+  }
   return key
     .replace('claude-', 'Claude ')
     .replace('gemini-', 'Gemini ')
@@ -151,6 +169,15 @@ export default function EloLeaderboard() {
           </button>
         ))}
         {regraded && <Badge color="#16a34a">regraded</Badge>}
+        {activeMode === 'standard' && (ratings.agent?.models || []).some((m) => isLocalAgent(m.id)) && (
+          <button
+            onClick={() => setMode('agent')}
+            style={{ ...smallBtn(false), border: '1px dashed #0891b2', color: '#0891b2', whiteSpace: 'nowrap' }}
+            title="On-device GPU agents (local Qwen via motoko/opencode/pi, ~$0/run) run agent mode only — switch to Agent to see them ranked."
+          >
+            🖥️ Local GPU agents rank in Agent mode →
+          </button>
+        )}
       </div>
 
       {/* Language toggle (per-mode: only shows languages present in this mode's data) */}
@@ -230,8 +257,9 @@ export default function EloLeaderboard() {
                 {models.map((m, i) => {
                   const pct = eloPct(m.elo);
                   const prov = isProvisional(m);
+                  const local = isLocalAgent(m.id);
                   return (
-                    <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.65 : 1 }}>
+                    <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.65 : 1, background: local ? 'rgba(8,145,178,0.08)' : undefined, boxShadow: local ? 'inset 3px 0 0 #0891b2' : undefined }}>
                       <td style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)', fontVariantNumeric: 'tabular-nums' }}>
                         {prov ? '·' : (MEDALS[i] || i + 1)}
                       </td>
@@ -244,6 +272,12 @@ export default function EloLeaderboard() {
                             borderRadius: '0 4px 4px 0',
                           }} />
                           <span style={{ position: 'relative', fontWeight: (!prov && i === 0) ? 700 : 400, fontStyle: prov ? 'italic' : 'normal' }}>{modelShort(m.id)}</span>
+                          {local && (
+                            <span style={{ position: 'relative', marginLeft: 6 }}
+                              title="On-device GPU agent: a local Qwen run through an agentic harness — slow, ~$0/run. Not directly comparable to hosted 0-shot models, shown for the free-local-option story.">
+                              <Badge color="#0891b2">🖥️ local · ~$0</Badge>
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
