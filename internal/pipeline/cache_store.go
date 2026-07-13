@@ -260,6 +260,7 @@ type ifaceFullJSON struct {
 	Constructors map[string]*ctorSchemeJSON   `json:"constructors"`
 	Types        map[string]*iface.TypeExport `json:"types"`
 	TypeAliases  map[string]json.RawMessage   `json:"type_aliases,omitempty"`
+	AliasParams  map[string][]string          `json:"alias_params,omitempty"` // M-XMOD-ALIAS-POLY
 }
 
 type ifaceItemJSON struct {
@@ -338,6 +339,14 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 		}
 	}
 
+	// AliasParams (M-XMOD-ALIAS-POLY): params for parameterized aliases.
+	if len(ifc.AliasParams) > 0 {
+		result.AliasParams = make(map[string][]string, len(ifc.AliasParams))
+		for name, params := range ifc.AliasParams {
+			result.AliasParams[name] = params
+		}
+	}
+
 	return json.Marshal(result)
 }
 
@@ -355,6 +364,7 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 		Constructors: make(map[string]*iface.ConstructorScheme),
 		Types:        d.Types,
 		TypeAliases:  make(map[string]types.Type),
+		AliasParams:  make(map[string][]string),
 	}
 
 	// Exports
@@ -401,6 +411,11 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 			return nil, fmt.Errorf("unmarshal type alias %s: %w", name, err)
 		}
 		ifc.TypeAliases[name] = t
+	}
+
+	// AliasParams (M-XMOD-ALIAS-POLY)
+	for name, params := range d.AliasParams {
+		ifc.AliasParams[name] = params
 	}
 
 	return ifc, nil

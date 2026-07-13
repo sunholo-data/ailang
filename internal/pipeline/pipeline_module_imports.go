@@ -24,6 +24,7 @@ type moduleImports struct {
 	ExternalTypes         map[string]*types.Scheme
 	GlobalRefs            map[string]core.GlobalRef
 	ImportedTypeAliases   map[string]types.Type
+	ImportedAliasParams   map[string][]string // M-XMOD-ALIAS-POLY: params for imported parameterized aliases
 	ImportedCtorTypes     map[string]string
 	ImportedADTTypeParams map[string]int
 	ImportedCtorInfos     map[string]*importedCtorInfo
@@ -47,6 +48,7 @@ func resolveModuleImports(
 		ExternalTypes:         make(map[string]*types.Scheme),
 		GlobalRefs:            make(map[string]core.GlobalRef),
 		ImportedTypeAliases:   make(map[string]types.Type),
+		ImportedAliasParams:   make(map[string][]string),
 		ImportedCtorTypes:     make(map[string]string),
 		ImportedADTTypeParams: make(map[string]int),
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
@@ -135,6 +137,10 @@ func resolveModuleImports(
 		for aliasName, aliasTarget := range modIface.TypeAliases {
 			if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
 				imports.ImportedTypeAliases[aliasName] = aliasTarget
+				// M-XMOD-ALIAS-POLY: carry params alongside the alias body.
+				if params, ok := modIface.GetTypeAliasParams(aliasName); ok {
+					imports.ImportedAliasParams[aliasName] = params
+				}
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Transitive type alias %s -> %s (from %s)\n", aliasName, aliasTarget, modPath)
 				}
@@ -183,6 +189,10 @@ func resolveSelectiveImports(
 			// This enables cross-module record update syntax
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
 				imports.ImportedTypeAliases[sym] = alias
+				// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
+				if params, ok := depIface.GetTypeAliasParams(sym); ok {
+					imports.ImportedAliasParams[sym] = params
+				}
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
 				}
@@ -214,6 +224,10 @@ func resolveSelectiveImports(
 	for aliasName, aliasTarget := range depIface.TypeAliases {
 		if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
 			imports.ImportedTypeAliases[aliasName] = aliasTarget
+			// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
+			if params, ok := depIface.GetTypeAliasParams(aliasName); ok {
+				imports.ImportedAliasParams[aliasName] = params
+			}
 			if cfg.TraceDefaulting {
 				fmt.Printf("  Import type alias %s -> %s from %s\n", aliasName, aliasTarget, imp.Path)
 			}

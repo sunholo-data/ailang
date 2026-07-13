@@ -15,6 +15,11 @@ type Unifier struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
 	aliasEnv map[string]Type
+	// aliasParams maps parameterized-alias names to their ordered param names
+	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias. Used by expandAlias to
+	// instantiate an APPLIED alias (`Box[int]`) via Body.Substitute(param->arg),
+	// keyed STRICTLY on aliasEnv membership so real ADTs stay nominal.
+	aliasParams map[string][]string
 	// M-DX11-PHASE2: Debug sink for emitting OnSubstitute events during unification
 	debugSink TypeDebugSink
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): constructor → ADT-name
@@ -61,11 +66,21 @@ func NewUnifier() *Unifier {
 // NewUnifierWithAliases creates a unifier with type alias expansion support
 // M-BUGFIX: This allows ADT variants with alias parameters to work correctly
 func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
+	return NewUnifierWithAliasesAndParams(aliases, nil)
+}
+
+// NewUnifierWithAliasesAndParams creates a unifier with type alias expansion
+// support that ALSO instantiates parameterized aliases (M-XMOD-ALIAS-POLY).
+// aliasParams maps a parameterized alias name to its ordered param names; a
+// missing entry means the alias is nullary. Passing nil params degrades to the
+// nullary-only behaviour of NewUnifierWithAliases.
+func NewUnifierWithAliasesAndParams(aliases map[string]Type, aliasParams map[string][]string) *Unifier {
 	u := &Unifier{
-		rowUnifier: NewRowUnifier(),
-		depth:      0,
-		aliasEnv:   aliases,
-		debugSink:  NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
+		rowUnifier:  NewRowUnifier(),
+		depth:       0,
+		aliasEnv:    aliases,
+		aliasParams: aliasParams,
+		debugSink:   NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
 	}
 	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
 	u.rowUnifier.SetParentUnifier(u)

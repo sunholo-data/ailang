@@ -261,6 +261,11 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	for name, target := range elabAliases {
 		typeChecker.RegisterTypeAlias(name, target)
 	}
+	// M-XMOD-ALIAS-POLY: register parameterized-alias params so applied uses
+	// (`Box[int]`) instantiate their body during unification.
+	for name, params := range elaborator.GetTypeAliasParams() {
+		typeChecker.RegisterTypeAliasParams(name, params)
+	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
 	// This preserves float annotations from function declarations through elaboration

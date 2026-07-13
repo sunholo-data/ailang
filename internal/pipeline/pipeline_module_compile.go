@@ -123,11 +123,20 @@ func typeCheckAndLowerModule(
 	for name, target := range elabAliases {
 		typeChecker.RegisterTypeAlias(name, target)
 	}
+	// M-XMOD-ALIAS-POLY: register local parameterized-alias params so applied
+	// uses (`Box[int]`) instantiate their body during unification.
+	for name, params := range elaborator.GetTypeAliasParams() {
+		typeChecker.RegisterTypeAliasParams(name, params)
+	}
 
 	// M-FIX-RECORD-UPDATE: Also register type aliases from imported modules
 	// This enables cross-module record update (e.g., { npc | pos: ... } where NPC is imported)
 	for name, target := range imports.ImportedTypeAliases {
 		typeChecker.RegisterTypeAlias(name, target)
+	}
+	// M-XMOD-ALIAS-POLY: register imported parameterized-alias params (cross-module).
+	for name, params := range imports.ImportedAliasParams {
+		typeChecker.RegisterTypeAliasParams(name, params)
 	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker

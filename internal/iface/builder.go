@@ -384,6 +384,9 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						if recordType, ok := typeDecl.Definition.(*ast.RecordType); ok {
 							internalType := astTypeToInternalType(recordType)
 							iface.AddTypeAlias(typeDecl.Name, internalType)
+							// M-XMOD-ALIAS-POLY: carry param names cross-module so
+							// importers can instantiate `Box[int]`.
+							iface.AddTypeAliasParams(typeDecl.Name, typeDecl.TypeParams)
 							// DEBUG: fmt.Printf("DEBUG: Added type alias %s -> %s\n", typeDecl.Name, internalType)
 						}
 
@@ -398,6 +401,9 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						if aliasType, ok := typeDecl.Definition.(*ast.TypeAlias); ok {
 							if internalType := astTypeToInternalType(aliasType.Target); internalType != nil {
 								iface.AddTypeAlias(typeDecl.Name, internalType)
+								// M-XMOD-ALIAS-POLY: carry param names cross-module
+								// (e.g. `Ident[a]`, `Pair[a,b]`).
+								iface.AddTypeAliasParams(typeDecl.Name, typeDecl.TypeParams)
 							}
 						}
 
