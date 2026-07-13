@@ -49,6 +49,25 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-13 — ITERATION 19: versioned the never-committed iteration-13 bounded-wait safety fix (SKILL.md Gate-3b/rule-6 + mission-control.sh stall watchdog — unversioned 6 iters); clause-3 queue untouched, R4c next
+
+The Gate-1/Gate-2 reality-check surfaced a **P0 infrastructure liability that outranks the feature
+queue** (analogous to "red dev outranks queue"): the mission's OWN iteration-13 anti-wedge
+remediation — SKILL.md Gate 3b bounded-poll + Standing rule 6, and the `mission-control.sh`
+`_mc_stalled` stall watchdog — was **never committed to git anywhere in history** (`git log --all
+-S` empty; absent from `origin/dev`). Live for 6 iterations only because launchd reads the on-disk
+working tree; one `git checkout`/`reset`/`clean` from permanent loss of the anti-wedge mechanism.
+Iteration 18's own log had mislabeled these as "a sibling's 5 uncommitted edits" and left them — a
+recurring blind spot across iters 13–18, now closed. Versioned the exact live on-disk content
+(SKILL.md +39, mission-control.sh +74; `bash -n` clean; **no behavioral change**) via a worktree off
+origin/dev → **PR #360**. Gate-1 also caught local dev STALE 2 commits behind origin/dev (iters
+17/18 landed via #358/#359; iteration-12 stale-local class) → read all state from origin. 3
+auto-generated docs (design-docs index, `prompts/current` v0.16.2, roadmap index) remain uncommitted
+build-drift — left untouched to keep the safety-fix commit focused (carried to next iteration). NO
+inner-loop skills invoked (protective bookkeeping, zero Go change). Next: clause-3 R4c
+`m-arity-style-diagnostic` (cheapest) or R4a `m-dx-match-hof` — full inner-loop NEW-DOC sprints.
+Detail: log entry 20.
+
 ## STATUS 2026-07-13 — ITERATION 18: m-dx-record-cons-pattern + m-dx-tapp-trecord-unification BOTH GHOSTS — verified-closed + CI-regression-guarded (clause 3, VERIFY-then-route)
 
 The clause-3 **VERIFY-then-route** pair. Ran each doc's repro LIVE at HEAD (`v0.29.2`): both bugs are
