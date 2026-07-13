@@ -29,17 +29,17 @@ func importHint(name string) string {
 	return fmt.Sprintf(" — `%s` is exported by %s; add the matching import", name, strings.Join(mods, ", "))
 }
 
-// localResolutionHint returns the interim truth-telling clause for #327: when an
-// "undefined variable: X" is raised for X that IS a module-level function of the
-// current module, the error is misleading (the function exists — the resolver
-// just fails to bind it in certain syntactic positions, e.g. a record-update
-// field `{ s | f: localFn(...) }`). Until the real fix
-// (m-record-update-local-resolution) lands, this at least tells the truth and
-// carries the hoist-to-let workaround. Returns "" when X is not a known local
-// function (so genuine undefined-variable errors are untouched).
-//
-// This is deliberately surgical and tested; it becomes dead code and is removed
-// the moment the resolver fix ships.
+// localResolutionHint returns a truth-telling residual clause for the
+// "resolution diverges by syntactic position" family (#323 → #327 → #366): when
+// an "undefined variable: X" is raised for X that IS a module-level function of
+// the current module, the bare message misleads (the function exists). The known
+// members of this family are now fixed — expression positions by #327
+// (m-record-update-local-resolution) and the module-let/letrec DECL class by #366
+// (this work, m-module-let-func-resolution). This clause is the residual safety
+// net for any not-yet-discovered position: it names the truth and the VERIFIED
+// workaround (declare X as a `func`, which resolves in every position), and it
+// does NOT cite the closed #327 as a live bug. Returns "" when X is not a known
+// local function, so genuine undefined-variable errors are untouched.
 func (tc *CoreTypeChecker) localResolutionHint(name string) string {
 	if tc == nil || tc.moduleFuncNames == nil {
 		return ""
@@ -47,7 +47,7 @@ func (tc *CoreTypeChecker) localResolutionHint(name string) string {
 	if !tc.moduleFuncNames[name] {
 		return ""
 	}
-	return fmt.Sprintf(" (%s is defined in this module but not resolvable in this position — known bug #327; workaround: bind it with let first)", name)
+	return fmt.Sprintf(" (%s is defined in this module but not resolvable in this position — please report as #366; workaround: declare %s as a `func`)", name, name)
 }
 
 // collisionHint returns a note when an applied callee is a bare name exported by more
