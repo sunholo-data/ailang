@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-LAMBDA-OPEN-RECORD",
+  "design_doc": "design_docs/planned/v0_29_0/m-lambda-open-record-pattern.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-lambda-open-record-pattern-sprint-plan.md",
+  "status": "planned",
+  "created": "2026-07-13T00:00:00Z",
+  "target_version": "v0.29.x / v0.30.0",
+  "planned_at_head": "999bd629f (v0.29.2-151)",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 110,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_CARRY_REST_INTO_CORE",
+      "description": "Add `Rest bool` to core.RecordPattern (core.go), propagate p.Rest in elaborate/patterns.go:207-219, and honor it in checkPattern (typechecker_patterns.go:394-416): when Rest==true always build an OPEN constraint {matched fields | freshRow} even when scrutinee already resolves to a *TRecord; keep today's closed behavior when Rest==false. This is the confirmed structural root cause (H1) — the open/closed intent was erased at the AST->Core boundary. Instrument to confirm the IIFE param resolves to an open TRecord.",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "IIFE (\\obj. match obj { {name, ...} => name })({name:\"Grace\", id:123}) type-checks (PASS)",
+        "lambda + closed {name} pattern + extra-field caller STILL fails (strictness not reversed)",
+        "make build clean; no gob/cache round-trip breakage from new Rest bool",
+        "Nested open patterns {user: {name, ...}, ...} still work"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PRESERVE_OPENNESS_THROUGH_GENERALIZE",
+      "description": "Only do what M1 instrumentation proves is still needed for the LET-BOUND variant. CoreTypeChecker.generalizeWithConstraints (typechecker_functions.go:462-464) hardcodes RowVars:[]string{} — quantify free RECORD row vars mirroring the vetted inference_helpers.generalize withhold logic. Scheme.Instantiate (types_v2.go:541-546) only freshens row vars at EffectRow kind — allocate fresh row vars at the correct kind (RecordRow vs EffectRow). If value-restriction keeps the row env-free so the let-bound case already passes after M1, this shrinks to a regression test + note.",
+      "estimated_loc": 30,
+      "dependencies": ["M1_CARRY_REST_INTO_CORE"],
+      "acceptance_criteria": [
+        "let getName = \\obj. match obj { {name, ...} => name } in getName({name:\"Grace\", id:123}) type-checks (PASS)",
+        "Negative: open pattern + caller record MISSING name field is REJECTED (no over-generalization)",
+        "No regression in internal/types effect-row tests (instantiate kinds correct)",
+        "make test green for internal/types and internal/pipeline"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_MISLEADING_HINT_DX",
+      "description": "The Hint at unification_records.go:516-520 suggests {name | r} or {name, ...} on extra-field mismatches — misleading when the user already wrote {name, ...}. After M1 the open reproducer no longer errors, so the misleading path largely vanishes. Verify via probe; only touch source if a genuinely misleading residual case remains. Otherwise: regression test asserting the hint no longer fires on the open-pattern reproducer, and confirm closed-pattern+extra still shows the (now-correct) hint.",
+      "estimated_loc": 10,
+      "dependencies": ["M1_CARRY_REST_INTO_CORE"],
+      "acceptance_criteria": [
+        "Open-pattern reproducer produces NO error and NO 'Use open record syntax' hint (asserted by test)",
+        "Closed-pattern + extra-field caller still emits the hint (now genuinely helpful)",
+        "No source-position plumbing added to the unifier unless strictly required"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_REGRESSION_MATRIX_AND_EXAMPLE",
+      "description": "Add internal/pipeline/lambda_open_record_test.go (package pipeline_test, pipeline.Run form per poly_arithmetic_test.go) with the 4-shape matrix + IIFE + missing-field + hint tests (7 tests). Restore examples/runnable/record_patterns.ail lines 82-94 to use {name, ...} in the lambda with an extra-field caller (revert the documented workaround). Full make verify-examples + -race.",
+      "estimated_loc": 30,
+      "dependencies": ["M1_CARRY_REST_INTO_CORE", "M2_PRESERVE_OPENNESS_THROUGH_GENERALIZE", "M3_MISLEADING_HINT_DX"],
+      "acceptance_criteria": [
+        "4-shape matrix: open+extra PASS, open+matching PASS, closed+matching PASS, closed+extra FAIL",
+        "IIFE+extra PASS and missing-field FAIL tests present (guard M1 and M2 independently)",
+        "examples/runnable/record_patterns.ail restored to {name, ...} lambda + extra caller, passes make verify-examples",
+        "go test -race ./internal/pipeline/ -run LambdaOpenRecord green",
+        "No regression in M-SCHEME-IMPORT-PRESERVE-ADT-HEAD tests; make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "risks": [
+    {"risk": "Row-variable over-generalization (M2) accepts incompatible records", "severity": "high", "mitigation": "Mirror vetted inference_helpers.generalize withhold logic; missing-field negative test; full type suite + -race"},
+    {"risk": "Closed-record strictness silently reversed (M1)", "severity": "high", "mitigation": "Gate openness strictly on Rest==true; closed+extra red-line test"},
+    {"risk": "gob/cache schema break from new Rest bool on core.RecordPattern", "severity": "medium", "mitigation": "New bool zero-values on old blobs; verify cache round-trip; bump cache key if needed"},
+    {"risk": "Instantiate row-kind fix (M2) mis-kinds effect rows", "severity": "medium", "mitigation": "Track kind per quantified var; run effect_soundness_test.go"}
+  ],
+  "reality_check": {
+    "H1_core_drops_rest": "CONFIRMED — core.go:380-387 no Rest; elaborate/patterns.go:207-219 (doc said 177-189, DRIFTED)",
+    "H2_checkpattern": "typechecker_patterns.go:394-416 (doc said 365-387, DRIFTED); closed-TRecord branch ignores recTy.Row",
+    "H3_generalize_primary_cause": "PARTIALLY REFUTED as primary — IIFE (no generalize) also fails, so collapse precedes generalization; H3 is a real SECONDARY gap needed only for the let-bound variant"
+  }
+}
