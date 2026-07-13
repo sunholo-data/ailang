@@ -93,5 +93,6 @@ TC_ARITY_001: function expects 2 argument(s), but 1 provided
 
 ## Individual error code pages
 
+- [MOD007 — Duplicate module-scope binding (let/func same name)](mod007.md)
 - [MOD013 — Shared module_prefix](mod013.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

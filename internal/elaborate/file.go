@@ -5,7 +5,47 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/errors"
 )
+
+// checkDuplicateModuleBindings enforces MOD007: no two module-scope declarations
+// may share a name once lets and funcs occupy one declaration space (#366). It
+// reports the FIRST collision with both declaration positions. Ordering: a let
+// colliding with an earlier-declared func (or another let) is reported at the
+// let's position, citing the func/let it collides with.
+func checkDuplicateModuleBindings(file *ast.File, lets []*ModuleLet, funcs []*FuncSig) error {
+	// Position of each module func by name (funcs are declared, so unique by the
+	// parser's own rules; we only need them for the collision message).
+	funcPos := make(map[string]ast.Pos, len(funcs))
+	for _, f := range funcs {
+		if f.FuncDecl != nil {
+			funcPos[f.Name] = f.FuncDecl.Position()
+		}
+	}
+
+	seenLet := make(map[string]ast.Pos, len(lets))
+	for _, l := range lets {
+		if fpos, isFunc := funcPos[l.Name]; isFunc {
+			return fmt.Errorf("Error %s: '%s' is declared as both a module-level let (at %s) "+
+				"and a func (at %s) — a module-scope name may have only one binding.\n"+
+				"  Fix: rename one of them, or fold the let into the func body",
+				errors.MOD007, l.Name, posString(l.Pos), posString(fpos))
+		}
+		if lpos, isLet := seenLet[l.Name]; isLet {
+			return fmt.Errorf("Error %s: module-level let '%s' is declared twice (at %s and %s) "+
+				"— a module-scope name may have only one binding.\n"+
+				"  Fix: rename or remove the duplicate",
+				errors.MOD007, l.Name, posString(lpos), posString(l.Pos))
+		}
+		seenLet[l.Name] = l.Pos
+	}
+	return nil
+}
+
+// posString renders a declaration position as line:col for MOD007 messages.
+func posString(p ast.Pos) string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
 
 // Elaborate transforms a surface program to Core ANF
 func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
@@ -70,17 +110,36 @@ type ModuleLet struct {
 	Pos   ast.Pos
 }
 
-// collectModuleLets extracts module-level let bindings from file statements
-// These bindings should be in scope for all function bodies in the module
+// collectModuleLets extracts module-level let/letrec bindings from file
+// statements. These become first-class SCC nodes (M-MODULE-LET-FUNC-RESOLUTION,
+// #366) so their values resolve module-scope names exactly as func bodies do.
+//
+// A module-level `letrec` (parsed as *ast.LetRec with no `in` body) is collected
+// the same way: its self-reference is discovered by findReferences, so Tarjan
+// makes it a self-recursive singleton and it is emitted as core.LetRec — a
+// recursive lambda binds correctly; a self-referential non-lambda (`letrec x =
+// x + 1`) hits the runtime's strict-eval cycle detector (an honest cycle error),
+// never a false "undefined variable".
 func collectModuleLets(file *ast.File) []*ModuleLet {
 	var lets []*ModuleLet
 	for _, stmt := range file.Statements {
-		if letExpr, ok := stmt.(*ast.Let); ok {
+		switch e := stmt.(type) {
+		case *ast.Let:
 			lets = append(lets, &ModuleLet{
-				Name:  letExpr.Name,
-				Value: letExpr.Value,
-				Pos:   letExpr.Position(),
+				Name:  e.Name,
+				Value: e.Value,
+				Pos:   e.Position(),
 			})
+		case *ast.LetRec:
+			// Only a module-level letrec (no `in` body) is a declaration; a
+			// let…in / letrec…in expression is a value and stays an expression.
+			if e.Body == nil {
+				lets = append(lets, &ModuleLet{
+					Name:  e.Name,
+					Value: e.Value,
+					Pos:   e.Position(),
+				})
+			}
 		}
 	}
 	return lets
@@ -137,6 +196,14 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		symbols[f.Name] = f
 	}
 
+	// MOD007 (M-MODULE-LET-FUNC-RESOLUTION, #366): now that module lets and funcs
+	// share ONE declaration space (unified SCC), a name declared as both a let and
+	// a func — or as two lets — is an ambiguous binding. Silent shadowing here is a
+	// soundness trap, so fail loudly with both positions BEFORE elaboration.
+	if err := checkDuplicateModuleBindings(file, moduleLets, funcs); err != nil {
+		return nil, err
+	}
+
 	// Load imported modules and add their exports to symbols
 	if e.moduleLoader != nil {
 		for _, imp := range file.Imports {
@@ -179,89 +246,110 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		}
 	}
 
-	// Build call graph for SCC detection
-	graph := BuildCallGraph(funcs, symbols, imports)
+	// M-MODULE-LET-FUNC-RESOLUTION (#366): module-level lets are first-class
+	// call-graph nodes, not a wrapping special case. Build a name->let lookup so
+	// the SCC emitter can tell funcs from lets and emit each in dependency order.
+	letByName := make(map[string]*ModuleLet, len(moduleLets))
+	for _, ml := range moduleLets {
+		letByName[ml.Name] = ml
+	}
+
+	// Build call graph for SCC detection over BOTH funcs and module lets.
+	graph := BuildCallGraph(funcs, moduleLets, symbols, imports)
 
 	// Find SCCs for mutual recursion
 	sccs := graph.SCCs()
 
-	// Desugar functions based on SCCs
+	// Emit each SCC in topological order. Every node is either a module func
+	// (emitted as a lambda-valued let/letrec binding) or a module let (emitted
+	// with its elaborated value). Interleaving lets and funcs in dependency
+	// order is what lets a module-let value resolve a module func — the fix.
 	var coreDecls []core.CoreExpr
 	meta := make(map[string]*core.DeclMeta)
-	for _, scc := range sccs {
-		if len(scc) == 1 && !isSelfRecursive(scc[0], symbols) {
-			// Single non-recursive function -> Let
-			f := symbols[scc[0]]
+
+	// emitFuncMeta records DeclMeta/contracts for a func node. Let nodes carry no
+	// contracts and must NOT collide with func-keyed meta.
+	emitFuncMeta := func(f *FuncSig) error {
+		astFunc := findASTFunc(file, f.Name)
+		if astFunc == nil {
+			return nil
+		}
+		contracts, err := e.elaborateContracts(astFunc.Properties)
+		if err != nil {
+			return fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
+		}
+		dm := &core.DeclMeta{
+			Name:      f.Name,
+			IsExport:  astFunc.IsExport,
+			IsPure:    astFunc.IsPure,
+			Contracts: contracts,
+		}
+		if astFunc.VerifyDepth != nil {
+			dm.VerifyDepth = *astFunc.VerifyDepth
+		}
+		meta[f.Name] = dm
+		return nil
+	}
+
+	// bindingValue elaborates the core value for a node: a lambda for funcs, the
+	// elaborated value expression for module lets.
+	bindingValue := func(nodeName string) (core.CoreExpr, ast.Pos, error) {
+		if f, isFunc := symbols[nodeName]; isFunc {
+			if err := emitFuncMeta(f); err != nil {
+				return nil, ast.Pos{}, err
+			}
 			lambda, err := e.funcToLambda(f)
+			if err != nil {
+				return nil, ast.Pos{}, err
+			}
+			return lambda, f.FuncDecl.Position(), nil
+		}
+		ml := letByName[nodeName]
+		value, err := e.elaborateExpr(ml.Value)
+		if err != nil {
+			return nil, ast.Pos{}, fmt.Errorf("error elaborating module-level let '%s': %w", ml.Name, err)
+		}
+		return value, ml.Pos, nil
+	}
+
+	for _, scc := range sccs {
+		if len(scc) == 1 && !isSelfRecursive(scc[0], symbols, letByName) {
+			// Single non-recursive node -> Let
+			nodeName := scc[0]
+			value, pos, err := bindingValue(nodeName)
 			if err != nil {
 				return nil, err
 			}
-
-			let := &core.Let{
-				CoreNode: e.makeNodeFromFunc(f),
-				Name:     f.Name,
-				Value:    lambda,
+			coreDecls = append(coreDecls, &core.Let{
+				CoreNode: e.makeNode(pos),
+				Name:     nodeName,
+				Value:    value,
 				Body: &core.Var{
-					CoreNode: e.makeNodeFromFunc(f),
-					Name:     f.Name,
+					CoreNode: e.makeNode(pos),
+					Name:     nodeName,
 				},
-			}
-			// Track metadata from original AST function
-			if astFunc := findASTFunc(file, f.Name); astFunc != nil {
-				// M-VERIFY: Elaborate contracts for this function
-				contracts, err := e.elaborateContracts(astFunc.Properties)
-				if err != nil {
-					return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
-				}
-				dm := &core.DeclMeta{
-					Name:      f.Name,
-					IsExport:  astFunc.IsExport,
-					IsPure:    astFunc.IsPure,
-					Contracts: contracts,
-				}
-				// M4: Carry per-function verify depth from AST attribute
-				if astFunc.VerifyDepth != nil {
-					dm.VerifyDepth = *astFunc.VerifyDepth
-				}
-				meta[f.Name] = dm
-			}
-			coreDecls = append(coreDecls, let)
+			})
 		} else {
-			// Mutual or self-recursive -> LetRec
+			// Mutual or self-recursive group -> LetRec.
+			//
+			// Tarjan yields SCC members in reverse topological (post-)order, so a
+			// self/mutual-recursive group that mixes lets and funcs is bound
+			// together. The runtime LetRec evaluator (eval_expressions.go) handles
+			// non-lambda RHS with a strict-eval self-cycle detector, so a module
+			// letrec self-reference emits an honest cycle error rather than a false
+			// "undefined variable" (see #366 M2 decision).
 			var bindings []core.RecBinding
-			for _, fname := range scc {
-				f := symbols[fname]
-				lambda, err := e.funcToLambda(f)
+			for _, nodeName := range scc {
+				value, _, err := bindingValue(nodeName)
 				if err != nil {
 					return nil, err
 				}
 				bindings = append(bindings, core.RecBinding{
-					Name:  f.Name,
-					Value: lambda,
+					Name:  nodeName,
+					Value: value,
 				})
-				// Track metadata for each binding
-				if astFunc := findASTFunc(file, f.Name); astFunc != nil {
-					// M-VERIFY: Elaborate contracts for this function
-					contracts, err := e.elaborateContracts(astFunc.Properties)
-					if err != nil {
-						return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
-					}
-					dm := &core.DeclMeta{
-						Name:      f.Name,
-						IsExport:  astFunc.IsExport,
-						IsPure:    astFunc.IsPure,
-						Contracts: contracts,
-					}
-					// M4: Carry per-function verify depth from AST attribute
-					if astFunc.VerifyDepth != nil {
-						dm.VerifyDepth = *astFunc.VerifyDepth
-					}
-					meta[f.Name] = dm
-				}
 			}
-
-			// Create a LetRec that binds all functions and returns unit
-			letRec := &core.LetRec{
+			coreDecls = append(coreDecls, &core.LetRec{
 				CoreNode: e.makeNode(ast.Pos{Line: 0, Column: 0}),
 				Bindings: bindings,
 				Body: &core.Lit{
@@ -269,93 +357,32 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					Kind:     core.UnitLit,
 					Value:    nil,
 				},
-			}
-			coreDecls = append(coreDecls, letRec)
+			})
 		}
 	}
 
-	// Elaborate module-level lets and wrap all function declarations in them
-	// This ensures module-level lets are in scope for function bodies
-	if len(moduleLets) > 0 {
-		// Elaborate module-level let values once
-		elaboratedLets := make([]struct {
-			Name  string
-			Value core.CoreExpr
-			Pos   ast.Pos
-		}, len(moduleLets))
-		for i, ml := range moduleLets {
-			value, err := e.elaborateExpr(ml.Value)
-			if err != nil {
-				return nil, fmt.Errorf("error elaborating module-level let '%s': %w", ml.Name, err)
-			}
-			elaboratedLets[i] = struct {
-				Name  string
-				Value core.CoreExpr
-				Pos   ast.Pos
-			}{ml.Name, value, ml.Pos}
-		}
-
-		// Wrap each function declaration in the module-level lets
-		for i, decl := range coreDecls {
-			coreDecls[i] = e.wrapInLets(decl, elaboratedLets)
-		}
-	}
-
-	// Add any non-func, non-let statements (e.g., main() call)
+	// Add any non-func, non-let statements (e.g., a bare main() call). These are
+	// emitted AFTER all func/let decls, so they see every module binding via the
+	// forward-threaded env — no wrapping needed.
 	for _, stmt := range file.Statements {
 		if expr, ok := stmt.(ast.Expr); ok {
-			// Skip let expressions - they're already processed above
+			// Skip module-let decls (let, and bodyless letrec) — handled above by
+			// the SCC emitter. A letrec WITH an `in` body is a real expression.
 			if _, isLet := expr.(*ast.Let); isLet {
+				continue
+			}
+			if lr, isLetRec := expr.(*ast.LetRec); isLetRec && lr.Body == nil {
 				continue
 			}
 			coreExpr, err := e.elaborateExpr(expr)
 			if err != nil {
 				return nil, err
 			}
-			// Wrap non-func statements in module-level lets too
-			if len(moduleLets) > 0 {
-				// Re-elaborate for wrapping (values are simple, this is fine)
-				elaboratedLets := make([]struct {
-					Name  string
-					Value core.CoreExpr
-					Pos   ast.Pos
-				}, len(moduleLets))
-				for i, ml := range moduleLets {
-					value, _ := e.elaborateExpr(ml.Value)
-					elaboratedLets[i] = struct {
-						Name  string
-						Value core.CoreExpr
-						Pos   ast.Pos
-					}{ml.Name, value, ml.Pos}
-				}
-				coreExpr = e.wrapInLets(coreExpr, elaboratedLets)
-			}
 			coreDecls = append(coreDecls, coreExpr)
 		}
 	}
 
 	return &core.Program{Decls: coreDecls, Meta: meta}, nil
-}
-
-// wrapInLets wraps a Core expression in a series of let bindings
-// The lets are applied in order, so the innermost let is the last in the slice
-func (e *Elaborator) wrapInLets(expr core.CoreExpr, lets []struct {
-	Name  string
-	Value core.CoreExpr
-	Pos   ast.Pos
-}) core.CoreExpr {
-	result := expr
-	// Wrap in reverse order so first let is outermost
-	for i := len(lets) - 1; i >= 0; i-- {
-		l := lets[i]
-		result = &core.Let{
-			CoreNode: e.makeNode(l.Pos),
-			Name:     l.Name,
-			Value:    l.Value,
-			Body:     result,
-		}
-	}
-	return result
 }
 
 // findASTFunc finds the AST function declaration by name
@@ -418,16 +445,22 @@ func collectImports(file *ast.File) map[string]string {
 	return imports
 }
 
-// isSelfRecursive checks if function calls itself
-func isSelfRecursive(fname string, symbols map[string]*FuncSig) bool {
-	f := symbols[fname]
-	if f == nil {
+// isSelfRecursive checks whether a module node (func OR let) references its own
+// name in its body/value. Self-recursive nodes must be emitted as LetRec so the
+// name is in scope for its own definition (a recursive func) or so the runtime's
+// strict-eval cycle detector fires an honest error (a self-referential let, #366).
+func isSelfRecursive(name string, symbols map[string]*FuncSig, lets map[string]*ModuleLet) bool {
+	var body ast.Expr
+	if f, ok := symbols[name]; ok && f != nil {
+		body = f.Body
+	} else if ml, ok := lets[name]; ok && ml != nil {
+		body = ml.Value
+	} else {
 		return false
 	}
 
-	refs := findReferences(f.Body)
-	for _, ref := range refs {
-		if ref == fname {
+	for _, ref := range findReferences(body) {
+		if ref == name {
 			return true
 		}
 	}

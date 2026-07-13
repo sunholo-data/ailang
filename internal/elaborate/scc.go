@@ -107,27 +107,58 @@ func (g *CallGraph) SCCs() [][]string {
 	return sccs
 }
 
-// BuildCallGraph analyzes functions to build a call graph
-func BuildCallGraph(funcs []*FuncSig, symbols map[string]*FuncSig, imports map[string]string) *CallGraph {
+// BuildCallGraph analyzes functions AND module-level lets to build a call graph.
+//
+// M-MODULE-LET-FUNC-RESOLUTION (#366): module-level lets are first-class nodes of
+// this graph, not a wrapping special case. Their value expressions are walked by
+// the same exhaustive findReferences, so a let value can depend on a module func
+// (either declaration order), a func can depend on a let, and let→let / func→func
+// all get real ordering edges. Tarjan then emits every decl in dependency order,
+// interleaving lets and funcs — which is exactly what the strict forward-env core
+// type checker (typechecker_core.go CheckCoreProgram) needs to resolve a
+// module-scope name identically in every DECL class, not just every func body.
+//
+// A name is "local" (edge-worthy) if it is a module func OR a module let, and is
+// NOT an imported name (imports resolve via globalEnv, so they need no ordering).
+func BuildCallGraph(funcs []*FuncSig, lets []*ModuleLet, symbols map[string]*FuncSig, imports map[string]string) *CallGraph {
 	graph := NewCallGraph()
 
-	// Add all function nodes
+	// A local name is edge-worthy: module func OR module let. Imports are excluded
+	// (they resolve via the global env and need no intra-module ordering edge).
+	localNames := make(map[string]bool, len(symbols)+len(lets))
+	for name := range symbols {
+		localNames[name] = true
+	}
+	for _, l := range lets {
+		localNames[l.Name] = true
+	}
+
+	addEdges := func(from string, body ast.Expr) {
+		for _, ref := range findReferences(body) {
+			if !localNames[ref] {
+				continue
+			}
+			if _, isImported := imports[ref]; isImported {
+				continue
+			}
+			graph.AddEdge(from, ref)
+		}
+	}
+
+	// Add all function nodes, then all let nodes (nodes with no edges still emit).
 	for _, f := range funcs {
 		graph.AddNode(f.Name)
 	}
+	for _, l := range lets {
+		graph.AddNode(l.Name)
+	}
 
-	// Analyze each function body for calls
+	// Analyze each function body AND each module-let value for local references.
 	for _, f := range funcs {
-		refs := findReferences(f.Body)
-		for _, ref := range refs {
-			// Only add edge if reference is to a local function
-			if _, isLocal := symbols[ref]; isLocal {
-				// Check it's not an imported name
-				if _, isImported := imports[ref]; !isImported {
-					graph.AddEdge(f.Name, ref)
-				}
-			}
-		}
+		addEdges(f.Name, f.Body)
+	}
+	for _, l := range lets {
+		addEdges(l.Name, l.Value)
 	}
 
 	return graph

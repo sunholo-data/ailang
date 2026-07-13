@@ -1,0 +1,29 @@
+-- module_let_helpers.ail — module-level let combinators over module funcs (#366)
+--
+-- Before M-MODULE-LET-FUNC-RESOLUTION this failed with a FALSE
+-- "undefined variable: double" — a module-level `let` value could never see a
+-- module `func`, in either declaration order. Now module lets and funcs share one
+-- unified declaration ordering, so a top-level `let` combinator can call local
+-- helpers exactly like a func body can.
+module examples/runnable/module_let_helpers
+
+-- A module helper func.
+export func double(x: int) -> int = x * 2
+
+-- A module-level let whose value CALLS the helper func above (func declared
+-- first). `quad` is ordered after `double` by the unified call-graph SCC.
+let quad = \y. double(double(y))
+
+-- A module-level let that is an IMMEDIATE call of a module func.
+let eight = double(4)
+
+-- A let combinator built from an EARLIER let (let -> let) and a func declared
+-- LATER in the file (let -> func, func-after order).
+let addOne = \n. inc(n)
+
+export func inc(x: int) -> int = x + 1
+
+export func main() -> int {
+  -- quad(3) = double(double(3)) = 12 ; eight = 8 ; addOne(4) = 5
+  quad(3) + eight + addOne(4)
+}

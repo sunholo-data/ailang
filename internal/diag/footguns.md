@@ -39,7 +39,8 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
 |---------|-----------------|----------------------------------------------|-------------------|---------|------------------------|--------|
 | `++` on strings | `"a" ++ "b"` | ``type error: ++ operator at ...: `++` is for lists only. For strings use "${expr}" interpolation, concat([parts]), or join(sep, parts).`` | (met — gold standard) | `footgun_fixtures_test.go:plusplus_strings` | `prompts/v0.16.2.md:199`; String and List Concatenation section (≈1193–1210) | covered |
 | import after a declaration (#325) | `type Op = Add`<br>`import std/list (map)` | `PAR_IMPORT_PLACEMENT at ...: imports must appear immediately after the module declaration` + suggestion `move this import above the first type/func declaration` | (met this sprint) | `footgun_fixtures_test.go:import_placement`, `import_placement_rule_stated` | (none in prompt today — pre-empts a future line) | shipped-this-sprint |
-| local func in record-update field (#327) | `{ s \| dls: extendFm(s.dls, ...) }` where `extendFm` is a module-local func | `undefined variable: extendFm at ... (extendFm is defined in this module but not resolvable in this position — known bug #327; workaround: bind it with let first)` | truth-telling + workaround (interim); real fix in `m-record-update-local-resolution` retires this | `internal/types/local_resolution_hint_test.go` | (none — this is a bug, not a prompt line) | shipped-this-sprint |
+| module-local func not resolvable in some position (#323→#327→#366 family) | e.g. `let sub4 = \y. subtract(4, y)` where `subtract` is a module func | `undefined variable: subtract at ... (subtract is defined in this module but not resolvable in this position — please report as #366; workaround: declare subtract as a \`func\`)` — residual net; the known members (record-update fields #327, module-let/letrec decl class #366) are FIXED, so this now fires only for a not-yet-discovered position | truth-telling residual (cites LIVE #366, drops closed #327, gives the VERIFIED `func` workaround) | `internal/types/local_resolution_hint_test.go` | (none — this is a bug, not a prompt line) | retired-trigger/residual-net |
+| duplicate module-scope binding (let/func same name) (#366, MOD007) | `let helper = 5`<br>`export func helper() -> int = 10` | `Error MOD007: 'helper' is declared as both a module-level let (at ...) and a func (at ...) — a module-scope name may have only one binding.` + `Fix: rename one of them, or fold the let into the func body` | (met — fix-carrying, both positions) | `footgun_fixtures_test.go:TestFootgunFixture_MOD007_DuplicateModuleBinding` (module pipeline, needs a real filename, per MOD014 precedent) | (none in prompt) | shipped-this-sprint |
 | `println(42)` / `print(42)` (needs string) | `println(42)` | `type error: ... No instance for Num[string] in scope. Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number.` | should name the print-arg-must-be-string rule + suggest `show(42)`; current message is about arithmetic, misdirecting | (future) | `prompts/v0.16.2.md:2338` | inventoried |
 | `import "std/io"` (quoted path) | `import "std/io"` | `IMP012_UNSUPPORTED_NAMESPACE at ...: namespace imports not yet supported` + suggestion `Use selective import: import module/path (symbol1, symbol2) / Or module alias: import std/list as List` | should detect the quoted-path shape and suggest dropping the quotes: `import std/io (println)` | (future) | `prompts/v0.16.2.md:190`, `:2339` | inventoried |
 | `%` / division on wrong numeric type | `3.5 % 2.0` **type-checks clean** (floats satisfy the operator — no diagnostic fires); the nearest mismatch `func f(a:int,b:int)->float{a/b}` yields a plain `cannot unify int vs float`, not the Fractional hint | the `No instance for Fractional[int] ... intToFloat` message (`internal/types/instances.go`) is **NOT reachable via `ailang check` on an .ail snippet** — it only fires through the internal `InstanceEnv.Lookup` path exercised by `instances_test.go` (live-verified 2026-07-10). Kept for the record; not fixturable | carries a fix (intToFloat) once reachable; would also need to name the actual operator (`%` vs `/`) | (not fixturable — see current-diagnostic cell) | `prompts/v0.16.2.md:1094` (defaulting note) | inventoried |
@@ -56,7 +57,7 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
 | param on schema-less effect (M-EFFECT-MODE-VALIDATION) | `Clock[mode=pinned]` | `EFF_PARAMS_NOT_SUPPORTED at ...: effect 'Clock' does not support parameters (found: mode). Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.` + `Fix: drop the parameter and use the bare effect 'Clock'.` | (met — fix-carrying) | `footgun_fixtures_test.go:effect_params_not_supported` | (none in prompt) | shipped-this-sprint |
 | module-less file with top-level funcs (M-MODLESS-FAIL-LOUD) | `export func main() -> () ! {IO} { ... }` with **no** `module` line | `Error MOD014: no 'module' declaration — this file has top-level declarations but no module, so nothing is exported and the entry never runs.` + `Fix: add 'module <canonical/path>' as the first line of the file` | (met — fix-carrying) | `footgun_fixtures_test.go:TestFootgunFixture_MOD014_ModuleLess` (needs a real filename — MOD014 fires only in the module pipeline, so it is a standalone test, not a `footgunFixtures` inline-Code row; the `BareExpressionPreserved` sibling guards the `1 + 1` eval escape hatch) | (none in prompt) | shipped-this-sprint |
 
-**Count:** 18 rows (≥ 10 required).
+**Count:** 19 rows (≥ 10 required).
 
 - **Fixtured footgun rows: 10** — `++` (covered), import-after-decl (shipped-this-sprint, contributes
   **2** fixtures: `import_placement` + `import_placement_rule_stated`), the 4 promoted by
@@ -72,11 +73,14 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
   **blocked**: its claimed diagnostic is not reachable via `ailang check` on an .ail snippet (see its
   current-diagnostic cell), so it cannot be fixtured without new diagnostic work (out of scope).
 
-> **Follow-up (not this sprint):** the #327 interim truth-telling hint (`internal/types/import_hint.go:43`,
-> aka `localResolutionHint`) is a **dead-code retirement candidate** now that the real record-update
-> resolver fix shipped (`01fb8676a`, `M2_RECORD_UPDATE_FIX`). Its own comment says it "becomes dead code
-> and is removed the moment the resolver fix ships." Confirming deadness needs reproducing the original
-> cross-module repro — tracked separately, NOT retired here.
+> **Status update (#366, M-MODULE-LET-FUNC-RESOLUTION):** the truth-telling hint
+> (`internal/types/import_hint.go:43`, `localResolutionHint`) is KEPT as a residual safety net but
+> **no longer cites the closed #327 or the no-op "bind it with let first" workaround**. Both known
+> members of the family are fixed — expression positions by #327 (`m-record-update-local-resolution`)
+> and the module-let/letrec DECL class by #366 (this work: unified SCC over lets+funcs, `wrapInLets`
+> deleted). The clause now cites the LIVE #366 and the VERIFIED workaround "declare it as a `func`".
+> Full deletion is deferred: it would need a proof that NO syntactic position can still mis-resolve a
+> module func, and the residual net is cheap insurance against the next family member.
 
 ## Deletion gate (do NOT skip)
 
