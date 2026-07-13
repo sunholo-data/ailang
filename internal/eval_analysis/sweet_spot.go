@@ -33,9 +33,10 @@ type SweetSpotBucket struct {
 	// genuinely couldn't solve it within reasonable scope.
 	CapabilityBlocked int `json:"capability_blocked"`
 	// Refused: the model's safety layer declined the prompt (ErrorCategory
-	// "refused", e.g. Fable 5's deterministic refusals). Model behavior, NOT a
-	// coding failure — its own bucket, and excluded from capability scoring
-	// (see capability.go) just like provider noise.
+	// "refused", e.g. Fable 5's deterministic Python refusals). Model behavior,
+	// NOT a coding failure — surfaced as its own bucket for visibility. Still
+	// counted as a non-pass in the rates ("keep counting" decision); the
+	// per-language refusal RATE is annotated separately in the dashboard.
 	Refused int `json:"refused"`
 	// ProviderBlocked: quota_exhausted / rate_limit / api_error — not the
 	// model's fault. Excluded from capability scoring (see capability.go).

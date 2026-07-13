@@ -10,6 +10,29 @@ function shortLocalModel(model) {
   return m ? `Qwen3.${m[1]}` : (model || 'local');
 }
 
+// RefusalNote annotates a success cell with the share of runs that were safety
+// refusals (model declined). Refusals are still counted as non-passes in the rate
+// ("keep counting") — this badge just contextualizes a number depressed by declines
+// (e.g. Fable's Python) so it doesn't read as "can't code".
+function RefusalNote({ rate }) {
+  if (!rate || rate <= 0) return null;
+  const pct = (rate * 100).toFixed(0);
+  return (
+    <span
+      title={`${pct}% of these runs were safety refusals — the model declined the prompt. Counted as non-passes in the rate above; shown here so a decline-driven number isn't misread as a coding failure.`}
+      style={{
+        marginLeft: 5, fontSize: '0.7em', whiteSpace: 'nowrap', verticalAlign: 'middle',
+        cursor: 'help', padding: '0 3px', borderRadius: 3,
+        color: 'var(--ifm-color-warning-darkest)',
+        background: 'var(--ifm-color-warning-lightest)',
+        border: '1px solid var(--ifm-color-warning-light)',
+      }}
+    >
+      ⚠{pct}% refused
+    </span>
+  );
+}
+
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
   // BenchmarkExplorer/index.jsx::modelShort for the canonical version.
@@ -94,6 +117,8 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
         pythonTokens: Math.round(python?.avgTokens || 0),
         gap: gap,
         tokenRatio: ailangTokens / pythonTokens,
+        ailangRefusalRate: ailang?.refusalRate || 0,
+        pythonRefusalRate: python?.refusalRate || 0,
       };
     });
 
@@ -241,6 +266,7 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
                 }}>
                   {row.ailangSuccess.toFixed(1)}
                 </span>
+                <RefusalNote rate={row.ailangRefusalRate} />
               </td>
               <td className={styles.tableNumber}>{row.ailangTokens}</td>
               <td className={styles.tableNumber}>
@@ -251,6 +277,7 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
                 }}>
                   {row.pythonSuccess.toFixed(1)}
                 </span>
+                <RefusalNote rate={row.pythonRefusalRate} />
               </td>
               <td className={styles.tableNumber}>{row.pythonTokens}</td>
               <td className={styles.tableNumber}>

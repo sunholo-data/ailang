@@ -84,6 +84,22 @@ func buildModelsJS(
 		s.totalCost += r.CostUSD
 	}
 
+	// --- Per-model, per-language refusal counts (standard mode) ---
+	// A safety-layer decline ("refused") is a "keep counting" non-pass, so the
+	// raw successRate stays as-is; we surface the refusal RATE as a dashboard
+	// annotation so a low number driven by refusals (e.g. Fable's Python, ~30%
+	// refused) reads as "declined", not "can't code".
+	modelLangRefused := make(map[string]map[string]int)
+	for _, r := range results {
+		if r.EvalMode == "agent" || r.ErrorCategory != "refused" {
+			continue
+		}
+		if modelLangRefused[r.Model] == nil {
+			modelLangRefused[r.Model] = make(map[string]int)
+		}
+		modelLangRefused[r.Model][r.Lang]++
+	}
+
 	// --- Per-model efficiency (blended, all modes — kept for back-compat) ---
 	resultsByModel := make(map[string][]*BenchmarkResult)
 	for _, r := range results {
@@ -195,6 +211,10 @@ func buildModelsJS(
 				"successRate": lstats.SuccessRate,
 				"avgTokens":   lstats.AvgTokens,
 				"totalRuns":   lstats.TotalRuns,
+			}
+			if ref := modelLangRefused[name][lang]; ref > 0 && lstats.TotalRuns > 0 {
+				entry["refused"] = ref
+				entry["refusalRate"] = float64(ref) / float64(lstats.TotalRuns)
 			}
 			if agentLangs, ok := modelAgentLangStats[name]; ok {
 				if als, ok := agentLangs[lang]; ok && als.runs > 0 {
