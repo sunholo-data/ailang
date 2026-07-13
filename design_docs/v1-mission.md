@@ -49,24 +49,27 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
-## STATUS 2026-07-13 — ITERATION 19: versioned the never-committed iteration-13 bounded-wait safety fix (SKILL.md Gate-3b/rule-6 + mission-control.sh stall watchdog — unversioned 6 iters); clause-3 queue untouched, R4c next
+## STATUS 2026-07-13 — ITERATION 20: clause-3 R4c `m-arity-style-diagnostic` DESIGN DOC (full inner-loop NEW-DOC, design stage) → PR #361; also unwedged a broken main-tree autostash left by the os-rotation cron
 
-The Gate-1/Gate-2 reality-check surfaced a **P0 infrastructure liability that outranks the feature
-queue** (analogous to "red dev outranks queue"): the mission's OWN iteration-13 anti-wedge
-remediation — SKILL.md Gate 3b bounded-poll + Standing rule 6, and the `mission-control.sh`
-`_mc_stalled` stall watchdog — was **never committed to git anywhere in history** (`git log --all
--S` empty; absent from `origin/dev`). Live for 6 iterations only because launchd reads the on-disk
-working tree; one `git checkout`/`reset`/`clean` from permanent loss of the anti-wedge mechanism.
-Iteration 18's own log had mislabeled these as "a sibling's 5 uncommitted edits" and left them — a
-recurring blind spot across iters 13–18, now closed. Versioned the exact live on-disk content
-(SKILL.md +39, mission-control.sh +74; `bash -n` clean; **no behavioral change**) via a worktree off
-origin/dev → **PR #360**. Gate-1 also caught local dev STALE 2 commits behind origin/dev (iters
-17/18 landed via #358/#359; iteration-12 stale-local class) → read all state from origin. 3
-auto-generated docs (design-docs index, `prompts/current` v0.16.2, roadmap index) remain uncommitted
-build-drift — left untouched to keep the safety-fix commit focused (carried to next iteration). NO
-inner-loop skills invoked (protective bookkeeping, zero Go change). Next: clause-3 R4c
-`m-arity-style-diagnostic` (cheapest) or R4a `m-dx-match-hof` — full inner-loop NEW-DOC sprints.
-Detail: log entry 20.
+Picked the queue's `[NEXT]` R4c (cheapest clause-3 footgun fix), routed through **design-doc-creator**
+(design stage of a full inner-loop NEW-DOC sprint). **Gate 0 first had to unwedge the shared main
+tree**: an interrupted `git pull --rebase --autostash` (from the sibling os-rotation data cron) had
+left `.git/AUTO_MERGE` + a `both-modified` conflict on BOTH mission docs. Resolved **losslessly** —
+the `Stashed changes` side was an *empty deletion* of already-landed iteration-19 content, so
+`git checkout HEAD -- <both docs>` (= origin/dev, the rich side) lost nothing; removed the vestigial
+`AUTO_MERGE` so the next data-cron pull won't re-collide. Left the cron's 5 staged data files
+untouched. Gate-1: local dev == origin/dev `d6b22b75d` (no stale-local this iter); dev CI **green
+per-workflow** (CI/Build/Docs all success @ d6b22b75d). Inbox: 3 routine (eval-suite ×2 @ 85%,
+self-note) — none outranked the queue. **Reality-check + design (all live-verified, binary
+d6b22b75d)**: no prior doc/PR; the 3 arity footguns (partial-app/too-many/too-few) all emit the same
+weak `arity mismatch: 2 vs 1` — no error code (clause-3 gate unmet), no direction, no suggestion.
+Mechanism traced: emission = bare `fmt.Errorf` at `unification_types.go:39` (post curry-flatten
+`else`); plain-`%w` wrap at `inference_helpers.go:187` (why no Suggestion renders); no `errors.As`
+recovery of `*TypeCheckError` anywhere → fix must embed code+hint INLINE (matches `TC_REC_00X`).
+`TC_ARITY_001` confirmed free. Design: allocate the code + emit coded/directional/style-aware text,
+NO arity-semantics change. Shipped the doc via a worktree off origin/dev → **PR #361** (auto-merge
+SQUASH). **Design only — execution (M1/M2, ~1–2d) queued next iteration.** Next: EXECUTE R4c
+(now `[DOC-READY]`) or start R4a `m-dx-match-hof`. Detail: log entry 21.
 
 ## STATUS 2026-07-13 — ITERATION 18: m-dx-record-cons-pattern + m-dx-tapp-trecord-unification BOTH GHOSTS — verified-closed + CI-regression-guarded (clause 3, VERIFY-then-route)
 
@@ -645,8 +648,10 @@ VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-
 **NEW-DOC footgun fixes** — each needs design-doc-creator first (Conflict Surface mandatory, incl.
 the error-code + mechanism verification gates): m-dx-match-hof (R4a, 2–3d) · m-poly-arith-lambda
 (R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) · m-lambda-open-record-pattern (1d) ·
-m-xmod-alias-poly (1–2d). Recommend R4c (cheapest) or R4a next — these are full inner-loop sprints,
-NOT bookkeeping.
+m-xmod-alias-poly (1–2d). **R4c now [DOC-READY iter 20 → PR #361]** — recommend EXECUTE R4c
+(sprint-planner → executor: allocate `TC_ARITY_001`, wire the coded/directional/style-aware arity
+message at `unification_types.go:39`; ~100 LOC, well-scoped) or start R4a `m-dx-match-hof`. Full
+inner-loop sprints, NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
 iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18 —
@@ -660,8 +665,10 @@ triage evidence = log entry 10.)*
 
 ### Clause 3 — fleet-tier accessibility (the footgun burn-down; the thesis's core deficit)
 - **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): m-dx-match-hof (R4a, 2–3d) ·
-  m-poly-arith-lambda (R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) ·
-  m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
+  m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[DOC-READY iter 20 →
+  `planned/v1_0_0/m-arity-style-diagnostic.md`, PR #361; allocate `TC_ARITY_001` + coded/directional/
+  style-aware arity msg at `unification_types.go:39`; EXECUTE next]** · m-lambda-open-record-pattern
+  (1d) · m-xmod-alias-poly (1–2d)
 - **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
   **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
   `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·
