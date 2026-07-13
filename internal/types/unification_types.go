@@ -36,7 +36,12 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 				p1, r1 = fp1, fr1
 				p2, r2 = fp2, fr2
 			} else {
-				return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(fp1), len(fp2))
+				// M-ARITY-STYLE: coded, directional, style-aware diagnostic.
+				// For the user-facing App path, t1=Left=declared callee (EXPECTED
+				// arity) and t2=Right=call-site func type (ACTUAL args); so
+				// fp1=expected, fp2=actual. Wording is neutral-safe for raw
+				// unit-test callers where the orientation is arbitrary.
+				return nil, fmt.Errorf("%s", arityMismatchMsg(len(fp1), len(fp2)))
 			}
 		}
 
