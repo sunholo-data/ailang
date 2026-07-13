@@ -8,8 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Line,
-  ComposedChart,
+  ScatterChart,
   LabelList,
 } from 'recharts';
 import styles from './styles.module.css';
@@ -273,7 +272,7 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
   return (
     <div className={styles.chartContainer}>
       <ResponsiveContainer width="100%" height={420}>
-        <ComposedChart margin={{ top: 24, right: 30, left: 30, bottom: 60 }}>
+        <ScatterChart margin={{ top: 24, right: 30, left: 30, bottom: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-200)" />
           <XAxis
             type="number"
@@ -314,16 +313,17 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
           />
           <Legend wrapperStyle={{ paddingTop: 16 }} />
 
-          {/* Pareto frontier line connects best-in-class points */}
-          <Line
-            type="linear"
+          {/* Pareto frontier line — drawn as a Scatter (ScatterChart has no Line) so
+              the chart keeps ITEM tooltips and every dot is hoverable. A `<Line>` in a
+              ComposedChart forced an axis tooltip that only snapped to frontier points.
+              shape returns null so this series contributes the connecting line only, not
+              a second set of dots on top of the per-harness ones. */}
+          <Scatter
             data={frontierLine}
-            dataKey="y"
-            stroke="#10B981"
-            strokeDasharray="5 3"
-            strokeWidth={2}
-            dot={false}
-            activeDot={false}
+            fill="none"
+            line={{ stroke: '#10B981', strokeWidth: 2, strokeDasharray: '5 3' }}
+            lineJointType="linear"
+            shape={() => null}
             legendType="none"
             name="Pareto frontier"
             isAnimationActive={false}
@@ -354,7 +354,7 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
               />
             </Scatter>
           ))}
-        </ComposedChart>
+        </ScatterChart>
       </ResponsiveContainer>
 
       <div style={{ marginTop: 8, fontSize: '0.85em', color: 'var(--ifm-color-emphasis-700)', padding: '0 16px' }}>
