@@ -147,6 +147,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	codeSamples := make(map[string]map[string]string)       // benchmarkID -> language -> code
 	langStats := make(map[string]map[string]*LanguageStats) // benchmarkID -> language -> stats
 
+	// Per-model, per-language pass counts per benchmark — powers the gallery detail
+	// view's "which models pass this benchmark" strip. bench -> model -> lang -> counts.
+	type benchModelStat struct{ runs, passes int }
+	modelBenchStats := make(map[string]map[string]map[string]*benchModelStat)
+
 	for _, r := range results {
 		// Collect code samples
 		if r.Code != "" {
@@ -175,6 +180,25 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 		// Use output tokens (not total)
 		stats.AvgTokens = (stats.AvgTokens*float64(stats.TotalRuns-1) + float64(r.OutputTokens)) / float64(stats.TotalRuns)
+
+		// Per-model per-language pass counts for this benchmark.
+		if r.Model != "" {
+			if modelBenchStats[r.ID] == nil {
+				modelBenchStats[r.ID] = make(map[string]map[string]*benchModelStat)
+			}
+			if modelBenchStats[r.ID][r.Model] == nil {
+				modelBenchStats[r.ID][r.Model] = make(map[string]*benchModelStat)
+			}
+			ms := modelBenchStats[r.ID][r.Model][r.Lang]
+			if ms == nil {
+				ms = &benchModelStat{}
+				modelBenchStats[r.ID][r.Model][r.Lang] = ms
+			}
+			ms.runs++
+			if r.StdoutOk {
+				ms.passes++
+			}
+		}
 	}
 
 	// Collect agent-specific stats per benchmark+language, including api_errors
@@ -264,6 +288,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		} else if spec.Prompt != "" {
 			benchmark["taskPrompt"] = spec.Prompt
 		}
+		// Expected stdout — the other half of "the benchmark code" (what a correct
+		// solution must print), shown alongside the prompt in the gallery detail.
+		if spec.ExpectedOut != "" {
+			benchmark["expectedStdout"] = spec.ExpectedOut
+		}
 		// Expose tier + tags so the dashboard can filter per-tier
 		// and render tag chips. Tier defaults to "core" in LoadSpec.
 		if spec.Tier != "" {
@@ -289,6 +318,31 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				}
 			}
 			benchmark["languageStats"] = langStatsJS
+		}
+
+		// Per-model breakdown for this benchmark: {model: {lang: {passRate, runs}}}.
+		// Powers the gallery detail view's per-model strip (which of the N models
+		// pass THIS task, by language).
+		if perModel, ok := modelBenchStats[id]; ok && len(perModel) > 0 {
+			modelStatsJS := make(map[string]interface{}, len(perModel))
+			for model, langs := range perModel {
+				langJS := make(map[string]interface{}, len(langs))
+				for lang, ms := range langs {
+					if ms.runs == 0 {
+						continue
+					}
+					langJS[lang] = map[string]interface{}{
+						"passRate": float64(ms.passes) / float64(ms.runs),
+						"runs":     ms.runs,
+					}
+				}
+				if len(langJS) > 0 {
+					modelStatsJS[model] = langJS
+				}
+			}
+			if len(modelStatsJS) > 0 {
+				benchmark["modelStats"] = modelStatsJS
+			}
 		}
 
 		// Add agent-specific stats per language. Includes api_error counts
