@@ -204,7 +204,13 @@ func TestCacheStore_ArtifactRoundTrip(t *testing.T) {
 					Fields:   map[string]types.Type{"x": &types.TCon{Name: "float"}, "y": &types.TCon{Name: "float"}},
 					TypeName: "Point",
 				},
+				// M-XMOD-ALIAS-POLY: a parameterized alias body.
+				"Box": &types.TRecord{
+					Fields: map[string]types.Type{"items": &types.TList{Element: &types.TVar2{Name: "a", Kind: types.Star}}},
+				},
 			},
+			// M-XMOD-ALIAS-POLY: params for the parameterized alias must round-trip.
+			AliasParams: map[string][]string{"Box": {"a"}},
 		},
 		Constructors: map[string]*ConstructorInfo{
 			"Some": {
@@ -278,6 +284,12 @@ func TestCacheStore_ArtifactRoundTrip(t *testing.T) {
 		t.Errorf("TypeAlias Point: got %T, want *types.TRecord", pt)
 	} else if rec.TypeName != "Point" {
 		t.Errorf("TypeAlias Point.TypeName: got %q", rec.TypeName)
+	}
+	// M-XMOD-ALIAS-POLY: AliasParams must round-trip through the JSON cache.
+	if params, ok := got.Iface.AliasParams["Box"]; !ok {
+		t.Error("Iface.AliasParams missing 'Box'")
+	} else if len(params) != 1 || params[0] != "a" {
+		t.Errorf("AliasParams[Box]: got %v, want [a]", params)
 	}
 
 	// Verify Constructors

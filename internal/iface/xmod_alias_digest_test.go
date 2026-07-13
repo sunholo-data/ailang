@@ -37,3 +37,40 @@ func TestXModAlias_DigestIgnoresTypeAliases(t *testing.T) {
 			"M-XMOD-ALIAS would trigger cascade rebuilds; digest must ignore TypeAliases", d1, d2)
 	}
 }
+
+// TestXModAliasPoly_DigestIgnoresParameterizedAlias extends the digest-neutral
+// lock to M-XMOD-ALIAS-POLY: adding a PARAMETERIZED alias (body + AliasParams)
+// must ALSO leave the interface digest unchanged. computeDigest excludes both
+// TypeAliases and AliasParams, so a module gaining `type Box[a] = { items: [a] }`
+// triggers no dependent-package cascade. If AliasParams ever enters the digest,
+// this fails and the no-cascade claim must be revisited.
+func TestXModAliasPoly_DigestIgnoresParameterizedAlias(t *testing.T) {
+	b := NewBuilder("test/mod", types.NewTypeEnv())
+
+	base := NewIface("test/mod")
+	base.Schema = "ailang.iface/v1"
+
+	withPoly := NewIface("test/mod")
+	withPoly.Schema = "ailang.iface/v1"
+	// `type Box[a] = { items: [a] }` — record body + one param.
+	withPoly.AddTypeAlias("Box", &types.TRecord{
+		Fields: map[string]types.Type{
+			"items": &types.TList{Element: &types.TVar2{Name: "a", Kind: types.Star}},
+		},
+	})
+	withPoly.AddTypeAliasParams("Box", []string{"a"})
+
+	d1, err := b.computeDigest(base)
+	if err != nil {
+		t.Fatalf("computeDigest(base): %v", err)
+	}
+	d2, err := b.computeDigest(withPoly)
+	if err != nil {
+		t.Fatalf("computeDigest(withPoly): %v", err)
+	}
+
+	if d1 != d2 {
+		t.Fatalf("interface digest changed when a PARAMETERIZED alias was added (%q vs %q) — "+
+			"M-XMOD-ALIAS-POLY would trigger cascade rebuilds; digest must ignore AliasParams", d1, d2)
+	}
+}

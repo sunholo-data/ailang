@@ -1,6 +1,13 @@
 # Sprint Plan: M-XMOD-ALIAS-POLY — Parameterized Type-Alias Substitution
 
-**Design doc**: [m-xmod-alias-poly.md](../v0_29_0/m-xmod-alias-poly.md)
+**Status**: ✅ COMPLETED (mission iteration 26). All milestones landed; M4
+(cross-module) folded into M3 as planned. Acceptance criteria all met — see the
+per-milestone "Acceptance criteria" lists below, each verified by the tests
+named in the design doc's Implementation notes. Full suite green,
+`verify-examples` green (top-level gate; the 5 pre-existing `runnable/` failures
+are unrelated effect-row/Option bugs, identical on the base commit).
+
+**Design doc**: [m-xmod-alias-poly.md](m-xmod-alias-poly.md)
 **Sprint ID**: M-XMOD-ALIAS-POLY
 **Target version**: v0.30.0
 **Duration**: 1.5–2 days

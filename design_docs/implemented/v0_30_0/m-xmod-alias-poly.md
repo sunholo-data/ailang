@@ -1,7 +1,7 @@
 ## M-XMOD-ALIAS-POLY: parameterized type aliases substitute their arguments (`type Box[a] = { items: [a] }`)
 
-**Status**: PLANNED
-**Target**: tbd (a real feature, not a quick fix — needs substitution machinery)
+**Status**: IMPLEMENTED (v0.30.0, mission iteration 26 — M-XMOD-ALIAS-POLY sprint)
+**Target**: v0.30.0 (a real feature, not a quick fix — needs substitution machinery)
 **Priority**: P3 (Medium-low — a genuine expressiveness gap, but with a clean workaround: inline the parameterized shape, or use a single-constructor ADT `type Box[a] = Box([a])`. Unblocks nothing outright.)
 **Estimated**: ~1–2 days (alias env must store `(params, body)`; substitute on applied-alias expansion; wire through the interface export; tests).
 **Dependencies**: None, but builds directly on [M-XMOD-ALIAS](implemented/v0_28_1/m-cross-module-type-alias.md) and [M-XMOD-ALIAS-CHAIN](implemented/v0_28_1/m-xmod-alias-chain.md).
@@ -97,3 +97,39 @@ Teach the alias machinery to carry and apply parameters:
 ## Out of scope
 
 - Higher-kinded / partially-applied aliases (`type F = Box` used as `F[int]`) — punt unless a real case appears.
+
+## Implementation notes (as landed, v0.30.0)
+
+Delivered as sprint M-XMOD-ALIAS-POLY across three milestones (see the sprint plan
+alongside this doc). Summary of what landed vs the proposal:
+
+- **Representation:** rather than replacing `TypeAliases map[string]Type` with a
+  `(params, body)` struct, a **sibling** `AliasParams map[string][]string` was
+  added at every layer (elaborator, `iface.Iface`, `CoreTypeChecker`, `Unifier`).
+  A missing entry means "nullary alias". This kept the existing nullary/record-
+  `TypeName` paths byte-identical (the M-XMOD-ALIAS pack is untouched).
+- **Substitution helper:** the right primitive was the `Type.Substitute(map[string]Type)`
+  method (every variant implements it; `TVar2.Substitute` keys by name), NOT
+  `ApplySubstitution` (which walks a unifier `Substitution` of fresh inference
+  vars). No new traversal code.
+- **expandAlias:** a `*TApp` branch was added at the top of the fixpoint loop —
+  decompose, require the head `TCon` be in `aliasEnv` (strict membership = the
+  ADT-nominality guarantee), arity-check, `body.Substitute(param→arg)`, continue
+  the loop. The `seen` cycle guard was extended to the `TApp` head name.
+- **Arity diagnostic:** `TC_ALIAS_ARITY_001` (errors.go), coded + directional,
+  styled on `TC_ARITY_001`. `expandAlias` returns `Type` (4 call sites) so the
+  error is latched on the unifier and surfaced by `Unify` right after expansion.
+- **cacheKey:** bumped `v2 → v3` defensively (on-disk `Iface` gained
+  `AliasParams`; the blob is JSON so tolerant, but a same-version dev build could
+  otherwise treat a parameterized alias as nullary). Digest stays neutral
+  (`computeDigest` excludes both `TypeAliases` and `AliasParams`) — no cascade.
+- **PR #380 ordering:** expansion runs at `Unify` entry, before the type-switch
+  dispatches to `unifyRecord`, so open-record patterns over a parameterized-alias
+  body already see the expanded record. Locked by a test.
+- **Extra shape covered for free:** function-body aliases (`type Fn[a,b] = (a)->b`)
+  work via `TFunc2.Substitute` — not in the original test plan, added as a test.
+
+Tests: `internal/types/alias_poly_test.go` (unit: expansion, ADT nominality,
+arity), `internal/pipeline/alias_poly_test.go` (E2E single- + cross-module, PR
+#380 lock), extended `internal/iface/xmod_alias_digest_test.go` and
+`internal/pipeline/cache_store_test.go`. Example: `examples/type_alias_poly.ail`.
