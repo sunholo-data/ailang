@@ -56,3 +56,6 @@ transition is applied.
 
 For bulk Won't Fix: `mark_wontfix.sh RULE_KEY "comment"` transitions every open
 issue matching the rule in a single run — same pagination caveat as `mark_safe.sh`.
+| `go:S6418` | `internal/eval_harness/httpmock.go:19` (key AZ6XLcWep2VFTZekZ1ui) | **FP** | MockHTTPURLToken is the template placeholder string "{{MOCK_HTTP_URL}}", substituted with a local mock-server URL at runtime — not a credential. |
+| `go:S5443` | `internal/executor/motoko/{motoko.go:405,isolation.go:54}` (keys AZ4IVJt6y_bEga48CWqB, AZ4IVJvty_bEga48CWqD) | **FP** | Per-session temp paths on the single-tenant eval rig (same rationale as go:S5445 worktree decision); deterministic names are deliberate for per-session debugging/cleanup. |
+| `go:S4036` | `internal/executor/motoko/motoko.go:{655,665}` vuln-typed pair (keys AZ8T7J0blyXstVJKHcIT, AZ8T7J0blyXstVJKHcIU) — scope EXTENDED 2026-07-12 to internal/coordinator/, cmd/registry-validator/, internal/auth/gcp/, internal/executor/ | **FP / Safe** | Running known system/dev tools (lsof, ps, git, gcloud, ailang) from PATH is standard for the single-tenant developer CLI, daemon, and rig executors. |

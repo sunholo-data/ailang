@@ -130,13 +130,20 @@ func ExtractTarball(data []byte, destDir string) error {
 			return fmt.Errorf("failed to read tarball entry: %w", err)
 		}
 
-		// Security: prevent path traversal
+		// Security: prevent path traversal (zip-slip, gosecurity:S6096).
+		// The ".." prefix check catches the common case; the canonical containment
+		// check below is the guarantee — destPath must resolve under destDir no
+		// matter how the entry name was crafted (absolute paths, interior "..",
+		// separator tricks).
 		cleanName := filepath.Clean(hdr.Name)
 		if strings.HasPrefix(cleanName, "..") {
 			return fmt.Errorf("invalid path in tarball: %s", hdr.Name)
 		}
 
 		destPath := filepath.Join(destDir, cleanName)
+		if rel, relErr := filepath.Rel(destDir, destPath); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("tarball entry escapes destination dir: %s", hdr.Name)
+		}
 
 		if hdr.Typeflag == tar.TypeDir {
 			if err := os.MkdirAll(destPath, 0755); err != nil {

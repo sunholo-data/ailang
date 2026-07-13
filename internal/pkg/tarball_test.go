@@ -335,3 +335,46 @@ func TestTarballHash(t *testing.T) {
 		t.Errorf("unexpected hash length: %d", len(h))
 	}
 }
+
+// TestExtractTarball_RejectsTraversal locks in the zip-slip guard
+// (gosecurity:S6096): entries that would resolve outside destDir must be
+// rejected and nothing may be written outside it.
+func TestExtractTarball_RejectsTraversal(t *testing.T) {
+	hostile := func(name string) []byte {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(gw)
+		body := []byte("evil")
+		tw.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(body)), Typeflag: tar.TypeReg})
+		tw.Write(body)
+		tw.Close()
+		gw.Close()
+		return buf.Bytes()
+	}
+
+	outer := t.TempDir()
+	destDir := filepath.Join(outer, "extract")
+	os.MkdirAll(destDir, 0755)
+	sentinel := filepath.Join(outer, "evil.txt")
+
+	for _, name := range []string{
+		"../evil.txt",
+		"a/../../evil.txt",
+		"a/b/../../../evil.txt",
+	} {
+		if err := ExtractTarball(hostile(name), destDir); err == nil {
+			t.Errorf("entry %q: expected rejection, got nil error", name)
+		}
+		if _, statErr := os.Stat(sentinel); statErr == nil {
+			t.Fatalf("entry %q: file escaped to %s", name, sentinel)
+		}
+	}
+
+	// Benign entry still extracts fine.
+	if err := ExtractTarball(hostile("ok/fine.txt"), destDir); err != nil {
+		t.Fatalf("benign entry rejected: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "ok", "fine.txt")); err != nil {
+		t.Fatalf("benign entry not extracted: %v", err)
+	}
+}
