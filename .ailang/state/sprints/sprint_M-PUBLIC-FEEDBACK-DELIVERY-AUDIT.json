@@ -1,0 +1,121 @@
+{
+  "sprint_id": "M-PUBLIC-FEEDBACK-DELIVERY-AUDIT",
+  "status": "planned",
+  "branch": "sprint/m-public-feedback-delivery-audit",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-worktrees/m-public-feedback-delivery-audit",
+  "commits": {},
+  "gates": {
+    "premise_check": "PLANNER-VERIFIED at HEAD: (1) prod sub projects/ailang-multivac/subscriptions/ailang-messages-laptop EXISTS + ACTIVE (topic ailang-messages, ack 30s); (2) daemon ADC identity m@sunholo.com is roles/owner on BOTH ailang-multivac-dev and ailang-multivac -> pubsub.subscriber access already present, NO new IAM/Terraform; (3) EnvProject[prod]={ailang-multivac,ailang}; Client.Subscription prepends prefix so base 'messages-laptop' resolves correctly for both projects. Executor re-confirms in M0.",
+    "make_test": null,
+    "make_lint": null,
+    "docs_build": null,
+    "live_prod_verification": null
+  },
+  "created": "2026-07-13T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-public-feedback-delivery-audit.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-public-feedback-delivery-audit-sprint-plan.md",
+  "github_issues": [],
+  "planner_model": "claude-opus-4-8",
+  "execution_environment": "isolated git worktree branched from origin/dev (never the shared main working tree); PR into dev; go tests + lint must be green; live prod end-to-end verification is a PARKED human (Mark) step because agent launchctl daemon-reload is auto-denied on the rig",
+  "ratification": "n/a (operational fix, not a language/release-gate line-item)",
+  "mission_context": "mission-control iteration 24; Mark's NEXT-FIRST P1 (silent loss of external user feedback)",
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 180,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M0_PREMISE_CONFIRMATION_GATE",
+      "description": "Read-only re-confirmation before touching code: prod sub ailang-messages-laptop exists+ACTIVE; daemon ADC identity is Owner on ailang-multivac; EnvProject[prod] mapping correct. Guards against drift since planning. All three pre-verified by planner.",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "gcloud pubsub subscriptions list --project ailang-multivac shows ailang-messages-laptop",
+        "Active gcloud/ADC identity is roles/owner (or explicit pubsub.subscriber) on ailang-multivac",
+        "internal/daemon/config.go EnvProject[prod] == {Project: ailang-multivac, Prefix: ailang}",
+        "If ANY confirmation fails, STOP and escalate to Mark (fix approach would change to a Terraform-managed prod subscription)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING",
+      "description": "In messageNotification (internal/daemon/handlers.go), tag externally-sourced feedback (ToInbox == public-feedback OR HasPrefix pkg:) with EventType public-feedback + the 🌐 external-feedback shape (inbox name in body), so Discord's existing allow-list passes pkg:* feedback. Do NOT add 'message' to DefaultDiscordEventTypes (would spam Discord with internal traffic). Add isExternalFeedbackInbox helper so the rule is named/extensible (future Source=external flag).",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M0_PREMISE_CONFIRMATION_GATE"
+      ],
+      "acceptance_criteria": [
+        "Message to pkg:sunholo/auth yields EventType public-feedback, 🌐 title, and pkg:sunholo/auth visible in body",
+        "Message to public-feedback keeps existing 🌐/public-feedback behavior (TestMessageNotification_PublicFeedback + TestDaemon_PublicFeedbackEventFiresDedicatedNotification unchanged)",
+        "Message to internal inbox (user/controlplane/agent) still yields EventType message (Discord drops it)",
+        "DefaultDiscordEventTypes unchanged: Accepts('public-feedback')==true, Accepts('message')==false",
+        "New table test TestMessageNotification_PkgInboxIsExternalFeedback follows handlers_test.go idiom",
+        "go test ./internal/daemon/... ./internal/notify/... green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE",
+      "description": "Daemon dual-subscribes dev + prod messages subscriptions with one process/notifier/webhook. Blocker: Daemon binds a single sub + single fetcher to one project. Primary approach: refactor Daemon to hold N (EventSubscriber, MessageFetcher, subName) message sources and race them in Run; task events stay dev-only. Fallback: run two Daemon instances sharing reg.FanOut. Add FileConfig.ExtraMessageEnvs (yaml extra_message_envs) and/or --also-subscribe flag resolved via EnvProject; default single-project (backward compatible). Prod source fetcher MUST read prod Firestore (scope the messaging store to ailang-multivac WITHOUT mutating global env). No prod resource created/modified.",
+      "estimated_loc": 125,
+      "dependencies": [
+        "M0_PREMISE_CONFIRMATION_GATE"
+      ],
+      "acceptance_criteria": [
+        "With dual-subscribe enabled, a message on the prod source fires exactly one notification (fake subscriber keyed per-source per daemon_test.go idiom)",
+        "With dual-subscribe DISABLED (default), all existing daemon_test.go tests pass unchanged (byte-for-byte single-dev behavior)",
+        "Prod source's fetcher resolves against a prod-scoped store (proven in test)",
+        "No prod resource created/modified by executor code (sub already exists, confirmed M0)",
+        "Dedup suppresses a duplicate prod message; TestDaemon_DualProjectMessageFiresOnce + TestDaemon_SingleProjectUnchanged added",
+        "go test ./internal/daemon/... and go build ./... green; make lint green",
+        "PR records: refactor-vs-two-instance choice AND how prod Firestore fetcher is scoped without env mutation"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG",
+      "description": "Runbook: triaging public feedback requires AILANG_CLOUD_PROJECT=ailang-multivac (prod) — every dev-only check has been blind to real users (docs/docs/guides/agent-messaging.md). Document extra_message_envs/--also-subscribe opt-in with copy-pasteable daemon.yaml + plist snippet (cloud-messaging-integration.md). CHANGELOG v0.30.x entry for Defect A + Defect B + dual-subscribe opt-in.",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING",
+        "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE"
+      ],
+      "acceptance_criteria": [
+        "Runbook explicitly names prod project (ailang-multivac) for public-feedback triage",
+        "Dual-subscribe opt-in documented with copy-pasteable daemon.yaml and plist edit",
+        "CHANGELOG.md v0.30.x entry present",
+        "Docs build (npm run build in docs/) passes if docs changed"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "parked_for_human": {
+    "owner": "Mark",
+    "reason": "agent launchctl daemon-reload is auto-denied on the rig; the daemon reads on-disk env at load time; live prod round-trip needs the reloaded daemon",
+    "steps": [
+      "Enable dual-subscribe: add extra_message_envs: [prod] to ~/.ailang/config/daemon.yaml (or --also-subscribe prod in the plist, per whichever the executor shipped)",
+      "launchctl unload/load ~/Library/LaunchAgents/com.sunholo.ailang.daemon.plist; tail /tmp/ailang-daemon.log for a startup line listing BOTH dev and prod message sources (never unload during a mission-control iteration)",
+      "Live test (general): AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac ailang messages send public-feedback 'sprint verify: prod ping' --title '...' --from mcp-public -> expect 🌐 Discord ping within seconds",
+      "Live test (package, proves Defect A): AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac ailang messages send 'pkg:sunholo/ailang' 'sprint verify: pkg ping' --title '...' --from mcp-public -> expect 🌐 ping showing pkg:sunholo/ailang inbox",
+      "Confirm dev eval-regression pings still reach Discord (no regression)",
+      "Report outcome on the tracking issue; executor records it in gates.live_prod_verification"
+    ]
+  },
+  "open_premises_for_executor": [
+    "storage.NewBackends project selection (M2, highest risk): confirm it accepts an explicit project vs reading AILANG_CLOUD_PROJECT globally; the prod messaging store must be built WITHOUT mutating shared env or the dev/prod fetchers collide",
+    "M2 approach: pick Daemon source-list refactor vs two Daemon instances; both satisfy acceptance — record the choice"
+  ]
+}
