@@ -42,6 +42,16 @@ type FileConfig struct {
 	// events remain primary-env only. The `--also-subscribe` CLI flag appends
 	// to this list.
 	ExtraMessageEnvs []string `yaml:"extra_message_envs"`
+
+	// ExtraMessagesSub overrides the base subscription name used for the
+	// EXTRA message sources (default "messages-laptop"). Pub/Sub subscriptions
+	// are work-stealing, not broadcast: if two daemons (e.g. Mark's laptop and
+	// the rig) share one subscription, each message reaches only ONE of them —
+	// discovered live 2026-07-13 when the rig's prod test ping was consumed by
+	// the laptop daemon. Every device that wants its own notifications needs
+	// its own subscription (e.g. rig: "messages-rig" → prod
+	// ailang-messages-rig). Does not affect the primary env's MessagesSub.
+	ExtraMessagesSub string `yaml:"extra_messages_sub"`
 }
 
 // ExtraMessageSource is a resolved additional inbox-message source: the env
@@ -60,6 +70,18 @@ type ExtraMessageSource struct {
 // against itself. Returns an error for an unknown env label — a typo must fail
 // loudly rather than silently drop a feedback source.
 func ResolveExtraMessageSources(primaryEnv string, extras []string) ([]ExtraMessageSource, error) {
+	return ResolveExtraMessageSourcesWithSub(primaryEnv, extras, "")
+}
+
+// ResolveExtraMessageSourcesWithSub is ResolveExtraMessageSources with an
+// explicit base subscription name for the extra sources. Empty sub keeps the
+// historical default "messages-laptop" (backward-compatible); a per-device
+// name (e.g. "messages-rig") avoids work-stealing against other daemons
+// sharing the default subscription.
+func ResolveExtraMessageSourcesWithSub(primaryEnv string, extras []string, sub string) ([]ExtraMessageSource, error) {
+	if sub == "" {
+		sub = "messages-laptop"
+	}
 	seen := map[string]bool{primaryEnv: true}
 	var out []ExtraMessageSource
 	for _, env := range extras {
@@ -76,7 +98,7 @@ func ResolveExtraMessageSources(primaryEnv string, extras []string) ([]ExtraMess
 			Env:         env,
 			Project:     mapping.Project,
 			Prefix:      mapping.Prefix,
-			MessagesSub: "messages-laptop",
+			MessagesSub: sub,
 		})
 	}
 	return out, nil

@@ -76,6 +76,7 @@ func daemonRun(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Log notifications instead of firing them. Useful for tests.")
 	var alsoSubscribe multiFlag
 	fs.Var(&alsoSubscribe, "also-subscribe", "ADDITIONAL cloud env whose inbox messages to also watch (dev|test|prod). Repeatable. Appends to daemon.yaml extra_message_envs. Example: --env dev --also-subscribe prod.")
+	extraMessagesSub := fs.String("extra-messages-sub", "", "Base subscription name for the EXTRA message sources (default messages-laptop). Give each device its own (e.g. messages-rig) — shared subscriptions work-steal, so two daemons on one sub each see only some messages. Overrides daemon.yaml extra_messages_sub.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -89,6 +90,9 @@ func daemonRun(args []string) error {
 	}
 	// CLI --also-subscribe appends to the yaml extra_message_envs.
 	fc.ExtraMessageEnvs = append(fc.ExtraMessageEnvs, alsoSubscribe...)
+	if *extraMessagesSub != "" {
+		fc.ExtraMessagesSub = *extraMessagesSub
+	}
 
 	cfg, project, prefix, err := daemon.ConfigForEnv(*envFlag, fc)
 	if err != nil {
@@ -137,7 +141,7 @@ func daemonRun(args []string) error {
 	// project's Firestore WITHOUT mutating the shared AILANG_CLOUD_PROJECT env
 	// (env mutation would make the dev/prod fetchers collide). We build a
 	// project-explicit Firestore messaging store per extra source.
-	extras, err := daemon.ResolveExtraMessageSources(primaryEnv, fc.ExtraMessageEnvs)
+	extras, err := daemon.ResolveExtraMessageSourcesWithSub(primaryEnv, fc.ExtraMessageEnvs, fc.ExtraMessagesSub)
 	if err != nil {
 		return err
 	}

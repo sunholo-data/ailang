@@ -104,3 +104,36 @@ eval→public-feedback→Discord path; weaken the edge rate-limit's abuse protec
 ---
 
 **Document created**: 2026-07-12
+
+---
+
+## POST-LANDING VERIFICATION (2026-07-13 evening, Mark-authorized ops session) — PARTIAL; open phantom-consumer question
+
+**Done + verified:** binary rebuilt (--also-subscribe + new --extra-messages-sub flag), daemon
+plist wired (`--also-subscribe prod --extra-messages-sub messages-rig`), daemon reloaded, startup
+line shows `extra_message_sources=[prod(ailang-multivac)]`. Discovered + fixed en route:
+**shared-subscription work-stealing** — the plan had the rig share `ailang-messages-laptop` with
+Mark's MacBook daemon; Pub/Sub gives each message to ONE puller, so the first live test ping was
+consumed by the laptop (no Discord). Fix landed: per-device sub (`ailang-messages-rig` created;
+`extra_messages_sub` config + flag, default byte-identical; unit-tested).
+
+**NOT yet proven: live prod→Discord delivery.** Verified evidence trail:
+1. Test sends 2/3/4 to prod `public-feedback` all published OK, none delivered by the rig daemon
+   (zero `src=prod` log lines), none visible in `ailang-messages-rig` backlog within 10s.
+2. **Isolation test: with the rig daemon STOPPED, send #4 still vanished** — an unidentified
+   consumer acks copies on the rig's brand-new subscription (or the CLI notification never
+   reaches it — but:) a RAW `gcloud pubsub topics publish` to `ailang-messages` DID surface in
+   the rig sub and was pullable, so topic→sub delivery works for at least some messages.
+3. Sub verified healthy: pull-type (no pushConfig), topic `ailang-messages`, exists.
+
+**Candidates for the phantom** (next diagnostic, needs GCP-side eyes): a prod service
+(coordinator / cloud-run) that dynamically attaches to `ailang-messages-*` subscriptions; or
+CLI-vs-raw message shape triggering an attribute-based consumer; or the raw message merely
+surviving via nack-redelivery racing. **Next steps:** Cloud Monitoring
+`streaming_pull_response_count` / `pull_request_count` grouped by subscription_id + caller, and
+Cloud Run request logs, during a controlled test send. Also fix the silent-failure design flaw
+found in `Daemon.Run`: a failed extra-source subscription writes errCh but is only surfaced at
+shutdown — should log immediately.
+
+**Current state is safe:** dev notifications unaffected (primary source untouched); prod source
+dark = status quo ante. Mark's laptop daemon still consumes `ailang-messages-laptop` unchanged.
