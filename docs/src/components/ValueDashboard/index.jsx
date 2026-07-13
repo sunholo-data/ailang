@@ -72,22 +72,23 @@ export default function ValueDashboard() {
       </div>
 
       <div className={dashboardStyles.section}>
-        <h2>Pass Rate vs Cost <small>({isAgent ? 'agent' : 'standard'})</small></h2>
+        <h2>Quality (ELO) vs Cost <small>({isAgent ? 'agent' : 'standard'})</small></h2>
         <p className={dashboardStyles.sectionSubtitle}>
-          "Score vs cost" plot. NW corner = best value (cheap + accurate). The dashed green line is
-          the <strong>Pareto frontier</strong> — models on it are non-dominated. Color codes the harness.
+          Quality is the <strong>AILANG ELO rating</strong> — it separates the strong models that a raw
+          pass rate saturates into one corner. NW corner = best value (high ELO, low cost). The dashed
+          green line is the <strong>Pareto frontier</strong>; frontier models are labeled — hover any dot for the rest.
         </p>
-        <QualityScatter models={view} xMetric="cost" mode={mode} coverage={coverage} />
+        <QualityScatter models={view} xMetric="cost" mode={mode} coverage={coverage} ratings={data.ratings} />
       </div>
 
       <div className={dashboardStyles.section}>
-        <h2>Pass Rate vs Speed <small>({isAgent ? 'agent' : 'standard'})</small></h2>
+        <h2>Quality (ELO) vs Speed <small>({isAgent ? 'agent' : 'standard'})</small></h2>
         <p className={dashboardStyles.sectionSubtitle}>
-          Score vs median time-to-success, <strong>split by mode</strong> — standard 0-shot is
+          AILANG ELO vs median time-to-success, <strong>split by mode</strong> — standard 0-shot is
           sub-second; agent multi-turn loops are seconds, so they are never blended. NW corner =
-          fastest accurate models.
+          fastest high-ELO models.
         </p>
-        <QualityScatter models={view} xMetric="speed" mode={mode} coverage={coverage} />
+        <QualityScatter models={view} xMetric="speed" mode={mode} coverage={coverage} ratings={data.ratings} />
       </div>
 
       <div className={dashboardStyles.section}>

@@ -154,9 +154,19 @@ function paretoFrontier(points) {
  *   xMetric   — 'cost' | 'speed'
  *   minRuns   — filter models with fewer total runs (default 10)
  */
-export default function QualityScatter({ models, xMetric = 'cost', mode = 'standard', minRuns = 10, coverage }) {
+export default function QualityScatter({ models, xMetric = 'cost', mode = 'standard', minRuns = 10, coverage, ratings }) {
   const isCost = xMetric === 'cost';
   const isAgent = mode === 'agent';
+
+  // Quality axis = per-model AILANG ELO for this mode. ELO spreads the strong models
+  // that a raw pass rate saturates into one corner. Prefer the AILANG-specific ELO;
+  // fall back to the combined rating.
+  const eloOf = {};
+  {
+    const r = (ratings && ratings[mode]) || {};
+    const block = (r.byLang && r.byLang.ailang) || r;
+    (block.models || []).forEach((m) => { if (m && m.id != null) eloOf[m.id] = m.elo; });
+  }
 
   const points = [];
   for (const [name, stats] of Object.entries(models || {})) {
@@ -196,6 +206,8 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       }
     }
     if (totalRuns < minRuns || passRate <= 0 || x <= 0) continue;
+    const elo = eloOf[name];
+    if (elo == null) continue; // no ELO rating for this model in this mode — omit
 
     const harness = harnessFor(stats);
     points.push({
@@ -203,7 +215,8 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       shortName: formatModelName(name),
       labelName: shortLabel(name),  // compact inline label
       x,
-      y: passRate * 100, // percentage
+      y: elo,                  // quality = AILANG ELO
+      passPct: passRate * 100, // kept for the tooltip
       runs: totalRuns,
       harness,
       color: HARNESS_COLOR[harness] || HARNESS_COLOR.api,
@@ -228,6 +241,11 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
   const frontier = paretoFrontier(points.filter(p => !p.provisional));
   const frontierLine = frontier.map(p => ({ ...p }));
 
+  // Label only the value-frontier models inline — labeling every dot overlaps badly
+  // once the strong models cluster. Everything else keeps its dot + hover tooltip.
+  const frontierNames = new Set(frontier.map(p => p.name));
+  for (const p of points) p.plotLabel = frontierNames.has(p.name) ? p.labelName : '';
+
   // Bucket by harness for separate Scatter series (so Legend works per-harness)
   const byHarness = {};
   for (const p of points) {
@@ -239,6 +257,12 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
   const xs = points.map(p => p.x);
   const xMin = Math.min(...xs) * 0.7;
   const xMax = Math.max(...xs) * 1.3;
+
+  // Y (ELO) domain — round out to the nearest 50 with a little headroom so points
+  // don't sit on the axis edge.
+  const ys = points.map(p => p.y);
+  const yMin = Math.floor(Math.min(...ys) / 50) * 50 - 25;
+  const yMax = Math.ceil(Math.max(...ys) / 50) * 50 + 25;
 
   const xLabel = isCost ? 'Cost per success ($, log scale)' : 'Median time to solution (sec, log scale)';
 
@@ -263,10 +287,11 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
           <YAxis
             type="number"
             dataKey="y"
-            domain={[0, 100]}
+            domain={[yMin, yMax]}
+            allowDecimals={false}
             tick={{ fill: 'var(--ifm-color-emphasis-800)', fontSize: 12 }}
-            label={{ value: 'Pass rate (%)', angle: -90, position: 'insideLeft', fill: 'var(--ifm-color-emphasis-700)' }}
-            tickFormatter={(v) => `${v}%`}
+            label={{ value: 'AILANG ELO', angle: -90, position: 'insideLeft', fill: 'var(--ifm-color-emphasis-700)' }}
+            tickFormatter={(v) => Math.round(v)}
           />
           <ZAxis type="number" range={[60, 60]} />
           <Tooltip
@@ -277,7 +302,8 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
               return (
                 <div className={styles.chartTooltip}>
                   <div style={{ fontWeight: 600 }}>{p.shortName}</div>
-                  <div>Pass rate: {p.y.toFixed(1)}%</div>
+                  <div>AILANG ELO: {Math.round(p.y)}</div>
+                  <div>Pass rate: {p.passPct.toFixed(1)}%</div>
                   <div>{isCost ? `Cost / success: $${p.x.toFixed(4)}` : `Time / success: ${formatSeconds2sf(p.x)}s`}</div>
                   <div style={{ fontSize: '0.85em', color: 'var(--ifm-color-emphasis-600)' }}>
                     Harness: {p.harness} · {p.runs} runs
@@ -316,13 +342,13 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
               shape="circle"
             >
               <LabelList
-                dataKey="labelName"
+                dataKey="plotLabel"
                 position="right"
                 offset={8}
                 style={{
                   fontSize: 11,
                   fill: 'var(--ifm-color-emphasis-800)',
-                  fontWeight: 500,
+                  fontWeight: 600,
                   pointerEvents: 'none',
                 }}
               />
@@ -332,9 +358,10 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       </ResponsiveContainer>
 
       <div style={{ marginTop: 8, fontSize: '0.85em', color: 'var(--ifm-color-emphasis-700)', padding: '0 16px' }}>
-        <strong>Read NW-corner-up:</strong> high pass rate + {isCost ? 'low cost' : 'low time'} = better.
-        Green dashed line is the Pareto frontier — models on it are non-dominated. Color codes harness.
-        {isCost && ' Lower-left corner = budget tier; upper-right = expensive flagships.'}
+        <strong>Read NW-corner-up:</strong> high ELO + {isCost ? 'low cost' : 'low time'} = better.
+        The green dashed line is the Pareto frontier — its models are non-dominated and are the ones
+        labeled; hover any dot for its name, ELO, and {isCost ? 'cost' : 'time'}. Color codes harness.
+        {isCost && ' Lower-left corner = cheap but weaker; upper-right = expensive flagships.'}
         {!isCost && ' Faster solutions are leftward; slower (multi-turn agent loops) rightward.'}
       </div>
     </div>
