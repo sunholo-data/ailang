@@ -1615,3 +1615,78 @@ feedback-gate production ops; haiku causal re-run; scope-params release-gate re-
 frontier-failure validation of the 8 + 4 sketches; issue #341 triage; rig A/B for
 m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
 re-check; the two dev-health flakies (`PipedStdoutFlushesPerLine`; 5 effect-row example failures).
+
+## 21 — 2026-07-13 — Iteration 20: clause-3 R4c `m-arity-style-diagnostic` DESIGN DOC (full inner-loop, design stage) → PR #361; unwedged a broken os-cron autostash in the main tree
+
+**Picked**: the queue's `[NEXT]` **R4c `m-arity-style-diagnostic`** (cheapest clause-3 footgun fix,
+1–2d NEW-DOC), exactly as iteration-19's Next recommended. Routed through **design-doc-creator** —
+the design stage of a full inner-loop sprint. Design-only this iteration by a calibrated scope call:
+the fix touches the type unifier (sensitive), and the expected/actual *direction* is a real
+correctness risk better handled in a focused execution iteration than rushed in one headless slot.
+
+**Reality check** (all live-verified on binary `d6b22b75d`, `./bin/ailang`): **Gate 0 had to unwedge
+the shared main tree first** — an interrupted `git pull --rebase --autostash` (sibling os-rotation
+data cron) left `.git/AUTO_MERGE` + a `both-modified` conflict on BOTH mission docs. Resolved
+**losslessly**: the `Stashed changes` side was an *empty deletion* of already-landed iteration-19
+content, so `git checkout HEAD -- <both docs>` (=origin/dev, the rich side) lost nothing; removed the
+vestigial `AUTO_MERGE` so the next data-cron pull won't re-collide; left the cron's 5 staged data
+files untouched. Gate-1: local dev == origin/dev `d6b22b75d` (no stale-local); dev CI **green
+per-workflow** (CI/Build/Docs all success @ d6b22b75d). Inbox: 3 routine (eval-suite start + partial
+85% on qwen3 rig, self-note) — none a regression/directive, queue stood. Item not already
+landed (no doc, no merged PR — grep hits were `parity` false-positives). Repro'd the 3 arity footguns
+(`/tmp/mc20/{partial,toomany,toofew}.ail`): all emit the same weak `type unification failed … arity
+mismatch: 2 vs 1` — no error code (clause-3 gate unmet), no direction, no `Suggestion:` line, no
+no-partial-application hint. **Mechanism traced in code, not inferred**: emission = bare `fmt.Errorf`
+at `internal/types/unification_types.go:39` (post curry-flatten `else`); plain-`%w` wrap at
+`inference_helpers.go:187` (WHY no Suggestion renders); no `errors.As` recovery of `*TypeCheckError`
+anywhere → the fix MUST embed code+hint INLINE (matches the `TC_REC_00X` convention, `errors.go:389`).
+`TC_ARITY_001` confirmed unallocated. Positive controls (`ok.ail` 2-arg, `curry.ail` curried↔tupled)
+both `✓ No errors` — pinning the regression boundary.
+
+**Shipped**: design doc `design_docs/planned/v1_0_0/m-arity-style-diagnostic.md` (259 lines; Problem
+w/ live repros · TC_ARITY_001 design · Conflict Surface [curry-flatten must not regress; direction
+pinned by golden test] · Verification Log [8 live-checked claims] · regression fixtures
+[`curry_unify_test.go` ×7, `lambdas_higher_order.ail`, `no_loops_fold.ail`, `higher_order_functions`
++ `fold_reduce` benchmarks]). Committed via a worktree off origin/dev, branch
+`mc20-arity-style-diagnostic` → **PR #361** (auto-merge SQUASH). Design-doc-creator hard gates all
+met (live `ailang check`, Conflict Surface, error-code freed, mechanism read from code).
+
+**Routing evidence**: model=controller(opus) task-class=design (design-doc-creator). Per routing
+policy, design runs on the controller's own model (Opus) with the independence caveat noted in the
+charter. No plan/execute/evaluate this iteration (design stage only). No GPU (skipped the create
+script's neural related-search while the qwen3 eval-suite held the rig — used grep/manual duplicate
+gate instead). 1 evidence row; below the ≥3 threshold for any routing-policy change.
+
+**Ruled out**:
+- "m-arity-style-diagnostic already has a doc / already landed" — REFUTED: no file in
+  `planned/v1_0_0`, no merged PR; the `git ls` hits (`*parity*`) were false-positives.
+- "Just calling the existing `NewArityMismatchError` at the emission site fixes it" — REFUTED by
+  reading the wrap: `inference_helpers.go:187` flattens any `*TypeCheckError` via plain `%w`, and
+  nothing `errors.As`-recovers it, so the Suggestion field would never render. Inline message required.
+- "The main-tree conflict was a sibling's live uncommitted work to preserve" — REFUTED: the stashed
+  side was an empty deletion of content already on origin/dev; taking HEAD was provably lossless.
+
+**Gate 3b**: PR #361 (doc-only) — bounded CI polls (4-/8-/3-min ceilings, hard `date +%s`
+deadlines, never open-ended). **OBSERVED GREEN → MERGED @ `109324e14`** (auto-merge SQUASH fired on
+green; all required checks passed, 0 failures). Design doc now on origin/dev. This bookkeeping commit
+(log + queue + STATUS) goes to `dev` directly with explicit pathspec so launchd's on-disk copy is
+both current AND versioned (avoids re-creating the os-cron autostash conflict).
+
+**Retro lane**: **none** (no skill/process/backlog edit). The Gate-0 autostash-unwedge is a
+one-off cleanup, not a recurring gap needing a rule yet — but NOTED as a watch item: the sibling
+os-rotation cron's `pull --rebase --autostash` collides with uncommitted mission-doc drift. If it
+recurs, the process fix is "mission bookkeeping must always be committed, never left uncommitted in
+the main tree" (already applied this iteration — log+queue committed, not left dirty). One instance
+so far; needs a second before a SKILL/mission-doc edit.
+
+**Next**: Iteration 21 — **EXECUTE R4c `m-arity-style-diagnostic`** (now `[DOC-READY]`): sprint-planner
+→ sprint-executor in a worktree (allocate `TC_ARITY_001` in `errors.go`; add `arityMismatchMsg`
+helper; wire it direction-correctly at `unification_types.go:39`; golden + regression tests) →
+sprint-evaluator. ~100 LOC, well-scoped. Or start R4a `m-dx-match-hof` (NEW-DOC) if execution is
+deferred. **Carry forward** (unchanged): the 3 uncommitted auto-generated docs (design-docs index,
+`prompts/current` v0.16.2, roadmap) + 2 benchmark JSONs remain the os-cron's staged drift in the main
+tree — the data cron commits them. PARKED for human/coordinator (cumulative): M-DX-JSON-BOOL Phase-1
+firestore fix; tier-assignment ratification; feedback-gate production ops; haiku causal re-run;
+scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
+m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
+re-check; the two dev-health flakies.
