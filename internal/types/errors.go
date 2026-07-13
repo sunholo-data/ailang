@@ -341,6 +341,39 @@ func NewArityMismatchError(expected, actual int, path []string) *TypeCheckError 
 	}
 }
 
+// TC_ARITY_001 codes an irreconcilable function-arity mismatch (M-ARITY-STYLE).
+// See arityMismatchMsg for the rendered, directional, style-aware text.
+const TC_ARITY_001 = "TC_ARITY_001"
+
+// arityMismatchMsg builds the coded, directional, style-aware arity diagnostic
+// emitted at unification_types.go's post-curry-flatten else branch (M-ARITY-STYLE).
+//
+// The code + Suggestion are embedded INLINE in the returned string (not a
+// *TypeCheckError.Suggestion field): the error is wrapped by a plain `%w` at
+// inference_helpers.go and nothing recovers *TypeCheckError via errors.As, so a
+// struct Suggestion would never render. Mirrors the TC_REC_00X convention.
+//
+// AILANG has strict arity and NO partial application, so the hint targets the
+// two fleet-tier ML habits directly: under-supply (partial application) and
+// over-supply (extra arguments).
+func arityMismatchMsg(expected, actual int) string {
+	var hint string
+	switch {
+	case actual < expected:
+		hint = fmt.Sprintf("AILANG has no partial application — call with all %d arguments, or wrap in a lambda `\\a b. f(a, b)`.", expected)
+	case actual > expected:
+		extra := actual - expected
+		hint = fmt.Sprintf("Remove the extra %d argument(s); this function takes %d.", extra, expected)
+	default:
+		// Unreachable in the emission-site else branch (that branch runs only
+		// when arities differ), but stay coded and neutral rather than emit a
+		// nonsense hint if ever reached.
+		hint = "Check the function's declared arity against the call site."
+	}
+	return fmt.Sprintf("%s: function expects %d argument(s), but %d provided\n  Suggestion: %s",
+		TC_ARITY_001, expected, actual, hint)
+}
+
 // NewUnsolvedConstraintError creates an unsolved type class constraint error
 func NewUnsolvedConstraintError(className string, typ Type, path []string) *TypeCheckError {
 	suggestion := ""
