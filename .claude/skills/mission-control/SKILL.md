@@ -133,7 +133,11 @@ run on the controller's own model, Opus, with the independence caveat noted ther
 + sprint-executor = Opus; deterministic mechanical work = Sonnet).
 
 - No design doc yet → invoke **design-doc-creator** (its hard gates apply: live `ailang check`
-  verification, Conflict Surface for parser/types/codegen).
+  verification, Conflict Surface for parser/types/codegen). **But first
+  `grep -ri "<item-id>" design_docs/` — a NEW-DOC queue tag is a claim, not a fact** (added
+  2026-07-14 iteration 26; 2 of 2 recent NEW-DOC tags were wrong: m-lambda-open-record-pattern
+  had a full doc at planned/v0_29_0 since May [iter 25], m-xmod-alias-poly likewise [iter 26] —
+  both times the grep found it in seconds and saved a redundant design-doc-creator run).
 - Design doc but no plan → **sprint-planner** → sprint JSON + handoff.
 - Plan exists → **sprint-executor** in an isolated worktree (coordinator-managed or
   `git worktree add` — NEVER the shared main tree; concurrent agents stomp uncommitted work).

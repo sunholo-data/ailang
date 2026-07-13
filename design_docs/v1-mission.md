@@ -49,6 +49,19 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-14 — ITERATION 26: `m-xmod-alias-poly` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 93/100, first zero-correction pass) → PR #381 `fd1b11a47`; parameterized type aliases now instantiate
+
+The clause-3 parser/type footgun row is CLEARED: `type Box[a] = { items: [a] }` used as
+`Box[int]` now instantiates (single- + cross-module), with `TC_ALIAS_ARITY_001` on arity
+mismatch and ADTs proven nominal (strict alias-env keying). Gate-2's VERIFY-FIRST probe
+confirmed the bug REAL at HEAD in 10 minutes — and caught the NEW-DOC tag WRONG again (full doc
+at planned/v0_29_0; 2 of 2 recent NEW-DOC tags wrong → Gate-3 grep rule added to the skill).
+Full inner loop: Opus plan (all 3 doc root-cause claims verified against live code first) →
+Opus execute (3 milestone commits, 25 new tests, 0 deletions) → independent Fable evaluation
+(12 adversarial probes, non-vacuity both directions, PASS 93/100 round 1 — no corrections
+needed, a mission first). Bonus DX: wrong-body programs now get precise field-level type errors.
+Detail: log entry 27.
+
 ## STATUS 2026-07-13 (evening) — ITERATION 25: R4a+R4b exposed as GHOSTS at Gate-2 (guards PR #379 `ea8116f83`) + `m-lambda-open-record-pattern` EXECUTED + LANDED (round-1 PASS 92/100 + hardening) → PR #380 `47576e25d`; `{name, ...}` in lambda params now truly OPEN
 
 Gate-2 reality check paid for the whole iteration: the clause-3 "NEW-DOC footgun" cluster was
@@ -823,7 +836,13 @@ triage evidence = log entry 10.)*
   `unifyRecord`'s pre-row field-count rejection (deeper than the doc's hypotheses) + Rest erased
   at AST→Core; closed-pattern strictness preserved + arm-order-independence hardened + cacheKey
   v2; eval PASS 92/100 round 1, PR #380 → `47576e25d`, dev CI green per-workflow observed]** ·
-  m-xmod-alias-poly (1–2d, VERIFY-FIRST)
+  ~~m-xmod-alias-poly (1–2d, VERIFY-FIRST)~~ **[LANDED 2026-07-14, iter 26 →
+  implemented/v0_30_0; VERIFY-FIRST probe confirmed REAL at HEAD (NOT a ghost — but the NEW-DOC
+  tag was wrong, full doc existed at planned/v0_29_0); parameterized aliases now instantiate
+  (`Box[int]` → `{items: [int]}`, single- + cross-module) via `expandAlias` `*TApp` branch keyed
+  strictly on alias-env membership (ADTs stay nominal, proven); `TC_ALIAS_ARITY_001`; cacheKey
+  v3; eval PASS 93/100 round 1 (first zero-correction pass); PR #381 → `fd1b11a47`, dev CI green
+  per-workflow observed]**
 - **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
   **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
   `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·

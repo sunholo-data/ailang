@@ -2134,3 +2134,88 @@ scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B f
 m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies (THREE: PipedStdoutFlushes,
 TestNetHttpPost-httpbin-503, TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007
 allocation human veto window.
+
+## 27 — 2026-07-14 — Iteration 26: `m-xmod-alias-poly` VERIFIED REAL at Gate-2, EXECUTED + LANDED (full inner loop, round-1 PASS 93/100) → PR #381; NEW-DOC tag wrong AGAIN (2 of 2) → Gate-3 grep rule
+
+**Picked**: the queue's `[NEXT]` **m-xmod-alias-poly** (1–2d), exactly as entry 26's Next
+directed, tagged VERIFY-FIRST. Gate-2's 10-minute probe (fresh version-verified binaries,
+`v0.29.2-154-gfedbee699` == git describe) confirmed **REAL at HEAD**: both design-doc
+reproducers fail (`Box[int]` → "cannot unify old record type with *types.TApp"; `Ident[int]` →
+"cannot unify Ident[int] with int"). Also found the queue's NEW-DOC label WRONG — a full design
+doc sat at `planned/v0_29_0/m-xmod-alias-poly.md` since the M-XMOD-ALIAS scope-out (second
+instance of the mislabel class after m-lambda-open-record-pattern, iter 25). Inbox: 1
+informational (eval-suite started, GPU rig — not mine), acked. No NEXT-FIRST directive.
+
+**Reality check** (Gates 1/2): local == origin/dev (fedbee699) after fetch; all three workflows
+green at HEAD. Item-level: no commits (`git log --grep XMOD-ALIAS-POLY` → only the doc filing),
+no PRs, doc's three anchor sites all present (`RegisterTypeAlias`, `expandAlias`, `AddTypeAlias`).
+Mid-iteration the shared checkout's dev was advanced by the rig's data-refresh commits (known
+mutable-checkout class; handled by ff-only pull with a clean tree at Gate 4).
+
+**Shipped** (PR #381 → squash `fd1b11a47`, dev CI green per-workflow OBSERVED — CI, Build and
+Release, Docs Deploy all success on the merge commit):
+- **Opus plan** (worktree `mission/iter26-xmod-alias-poly`, commit `3a5201f82`) — verified all
+  three of the doc's root-cause claims against live code BEFORE planning (refs updated: alias
+  params discarded at elaborate `file_funcs.go` call sites; `expandAlias` bare-`*TCon`-only;
+  iface `AddTypeAlias` drops TypeParams); corrected the substitution-helper target to the
+  `Type.Substitute(map)` METHOD; mapped the failure surface behaviorally (5 shapes incl. a
+  function-body alias not in the doc); decided digest-neutral + cacheKey v2→v3 up front.
+- **Opus execute** (commits `6b52f69b0` M1 params-through-layers, `1ddfbcf22` M2 TApp expansion +
+  `TC_ALIAS_ARITY_001`, `480209e2a` M3 locks/example/docs; M4 cross-module folded into M3):
+  sibling `AliasParams map[string][]string` through elaborate→iface→typechecker→Unifier;
+  `expandAlias` `*TApp` branch instantiates via simultaneous `Substitute`, keyed STRICTLY on
+  alias-env membership (ADTs stay nominal — proven by negative tests); arity diagnostic latched
+  on `u.aliasArityErr` (expandAlias returns Type at 4 call sites — documented deviation);
+  25 new tests, 0 deletions; `examples/type_alias_poly.ail`; CHANGELOG; doc+plan →
+  implemented/v0_30_0.
+- **Independent Fable evaluator** (own probes, own fresh worktree build, behavioral version
+  check): **PASS 93/100 round 1**. Non-vacuity both directions; 12 adversarial shapes green
+  (dup-param tuple, alias-in-alias body, function-type arg, nullary-alias arg, `Pair` swap
+  proving simultaneous substitution, nested `Box[Box[int]]`, cross-module import+use, recursive
+  alias TERMINATES, ADT-nominality negative, runtime execution); arity diagnostic fires with
+  teaching text; full suite green modulo known flaky `PipedStdoutFlushesPerLine` (3/3 isolated,
+  diff doesn't touch cmd/); runnable-examples failures byte-identical to base (5 pre-existing);
+  toplevel example gate 39/36 (+1 = the new example, CI-enforced via `make ci`). Bonus DX:
+  wrong-body programs now get precise field-level errors (`string vs int`) instead of the opaque
+  TApp message. Minor warts only: arity-latch surfacing location (documented); executor's report
+  mislabeled the 5 pre-existing runnable failures as "effect-row/Option" (actual set:
+  contracts/exit_code/secrets — substantive byte-identical claim was right).
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (all 3 doc claims confirmed with
+refs corrected; failure surface mapped pre-execution) · model=Opus task-class=execute
+round1-score=93 rounds=1 corrections=0 (one documented design deviation, no evaluator-forced
+fixes — first zero-correction round-1 pass of the mission) · model=Fable task-class=evaluate
+(independent probes/build; model-diverse judge vs Opus executor) · model=Fable
+task-class=controller/bookkeeping (deterministic).
+
+**Ruled out**:
+- "m-xmod-alias-poly is NEW-DOC" — REFUTED: full doc at planned/v0_29_0 since 2026-05; the
+  10-second `grep -ri` found it. 2 of 2 recent NEW-DOC tags now proven wrong.
+- "worktree `--version` can gate binaries" — re-confirmed lie (stamps main-repo HEAD); both
+  planner and evaluator verified behaviorally per the standing memory.
+- "recursive alias `type Rec[a] = { next: Rec[a] }` could hang expansion" — REFUTED by bounded
+  probe: seen-guard stops the fixpoint; checks clean, terminates.
+
+**Gate 3b**: every wait bounded — single background loop, 35m merge cap + 30m CI cap, run-id/
+full-sha based; completed with all three workflows green (exit 0, no timeout).
+
+**Retro lane**: **skill fix** (the one allowed edit, ≥2 frictions same gap): mission-control
+Gate 3 now mandates `grep -ri <item-id> design_docs/` before invoking design-doc-creator — a
+NEW-DOC queue tag is a claim, not a fact (evidence: iter 25 m-lambda-open-record-pattern + iter
+26 m-xmod-alias-poly, both had full docs). Logged-only (first instances): (a) executor
+mischaracterized pre-existing runnable failures in its report (facts right, labels wrong) —
+watch; (b) `make verify-examples` covers ONLY runnable/, the toplevel gate is the separate
+`verify-examples-toplevel` (both in `make ci`) — cost the evaluator a few minutes of
+gate-archaeology; documented in examples.mk, no fix needed. Worktree-only discipline held: NO
+main-checkout strays this iteration (iter-25 carry-forward watch item — no recurrence). No
+routing-policy change (rows confirmatory).
+
+**Next**: Iteration 27 — the Prelude/discovery group per entry 26's Next: **m-prelude-option-result
+(1.5d)** or **m-dx-ai-discovery (2d)** — apply the Gate-3 grep rule first (both may have docs);
+else clause-4 effect sprints. **Carry forward** UNCHANGED: Mark's daemon reload + 2 live prod
+test-sends (m-public-feedback-delivery-audit); notify-daemon.md anchor-slug nit; local-docs-build
+trap; M-DX-JSON-BOOL Phase-1 firestore fix; tier-assignment ratification; feedback-gate production
+ops; haiku causal re-run; scope-params re-score; frontier-failure validation; issue #341 triage;
+rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies (THREE:
+PipedStdoutFlushes, TestNetHttpPost-httpbin-503, TestReferenceSolutions_JS/fizzbuzz-windows-timeout);
+MOD007 allocation human veto window.
