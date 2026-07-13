@@ -72,14 +72,6 @@ The `adt_option` benchmark caught a critical bug where float comparisons with va
 
 **Result**: Benchmark went from runtime_error → PASSING ✅
 
-## Try It Yourself
-
-Want to see AILANG in action?
-
-- **[Interactive REPL](/docs/reference/repl-commands)** - Try AILANG in your browser
-- **[Code Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - 48+ working examples
-- **[Getting Started](/docs/guides/getting-started)** - Install and run locally
-
 ---
 
 **Methodology**: Benchmarks use deterministic seeds across multiple AI models. Each benchmark tests code generation, compilation, and execution. The M-EVAL-LOOP system provides structured error feedback for automatic repair.

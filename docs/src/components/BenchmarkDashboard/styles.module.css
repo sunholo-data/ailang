@@ -2124,6 +2124,7 @@
 .failureSuccess    { background: var(--ifm-color-success); }
 .failureBudget     { background: var(--ifm-color-warning); }
 .failureCapability { background: var(--ifm-color-danger); }
+.failureRefused    { background: #8b5cf6; }
 .failureProvider   { background: var(--ifm-color-emphasis-500); }
 
 /* On narrow viewports the label can wrap to multi-line; force single line

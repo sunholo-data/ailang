@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
-import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Target } from 'lucide-react';
 import ModelChart from './ModelChart';
 import ModelComparisonTable from './ModelComparisonTable';
 import { buildCoverage } from './coverageGate';
 import ModelTokenChart from './ModelTokenChart';
-import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
 import PerModelTrend from './PerModelTrend';
 import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
-import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
 import TagFilter from './TagFilter';
 import ReliabilityCard from './ReliabilityCard';
@@ -348,6 +346,15 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         </div>
       </div>
 
+      {/* Success Trend — TOP of page: the headline "how is AILANG tracking over
+          time" view (moved up in the M-EVAL dashboard rework). */}
+      {history && history.length > 1 && (
+        <div className={styles.section}>
+          <h3>Success Rate Over Time</h3>
+          <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} coverage={coverage} />
+        </div>
+      )}
+
       {/* Per-Model Trend */}
       {history && history.length > 1 && history.some(h => h.modelStats) && (
         <div className={styles.section}>
@@ -406,22 +413,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
             {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
           </h3>
           <ModelChart models={scopedModels} coverage={coverage} />
-          <ModelComparisonTable models={scopedModels} coverage={coverage} />
-        </div>
-      )}
-
-      {/* Language Comparison Chart */}
-      {scopedLanguages && Object.keys(scopedLanguages).length > 1 && (
-        <div className={styles.section}>
-          <h3>
-            AILANG vs Python Performance
-            {activeTier && <span className={styles.tierHeadline}> — {TIER_LABELS[selectedTier]} tier</span>}
-            {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
-          </h3>
-          <p className={styles.sectionSubtitle}>
-            Direct comparison of AI code generation success rates and efficiency
-          </p>
-          <LanguageChart languages={scopedLanguages} />
+          <ModelComparisonTable models={scopedModels} coverage={coverage} showLocalAgent />
         </div>
       )}
 
@@ -483,20 +475,9 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
           /benchmarks/value page (ValueDashboard component). This page stays focused
           on the leaderboard / success-rate-over-time view. */}
 
-      {/* Agent Performance Detail */}
-      {aggregates.agentRuns > 0 && (
-        <div className={styles.section}>
-          <AgentRadar data={data} />
-        </div>
-      )}
-
-      {/* Success Trend */}
-      {history && history.length > 1 && (
-        <div className={styles.section}>
-          <h3>Success Rate Over Time</h3>
-          <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} coverage={coverage} />
-        </div>
-      )}
+      {/* Agent-mode detail (AgentRadar) moved to the Explorer page in the
+          M-EVAL dashboard rework — the performance page stays leaderboard-focused.
+          Success Rate Over Time was moved to the top of this page. */}
 
       {/* Benchmark Gallery (filtered by selected tier + tag when active) */}
       {showGallery && filteredBenchmarks && Object.keys(filteredBenchmarks).length > 0 && (
@@ -524,43 +505,9 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
         <AxiomScorecard />
       </div>
 
-      {/* Value Propositions */}
-      <div className={styles.valueProps}>
-        <ValueProp
-          icon={<Lock size={32} />}
-          title="Type Safety"
-          description="Hindley-Milner inference catches errors before execution"
-        />
-        <ValueProp
-          icon={<Zap size={32} />}
-          title="Effect System"
-          description="Explicit IO, FS, Net effects guide AI code generation"
-        />
-        <ValueProp
-          icon={<Target size={32} />}
-          title="Deterministic"
-          description="Same input always produces same output"
-        />
-        <ValueProp
-          icon={<Bot size={32} />}
-          title="AI-Optimized"
-          description="Designed for AI-assisted development"
-        />
-      </div>
-
-      {/* CTA Section */}
-      <div className={styles.ctaSection}>
-        <h3>Try AILANG Today</h3>
-        <p>Start building with AI-first functional programming</p>
-        <div className={styles.ctaButtons}>
-          <a href="/docs/guides/getting-started" className={styles.ctaButton}>
-            Get Started
-          </a>
-          <a href="https://github.com/sunholo-data/ailang" className={styles.ctaButton + ' ' + styles.secondary}>
-            View on GitHub
-          </a>
-        </div>
-      </div>
+      {/* Marketing footer (value-prop cards + "Try AILANG Today" CTA) removed in
+          the M-EVAL dashboard rework — that material is covered on the intro /
+          why-ailang / getting-started pages; this page stays data-focused. */}
     </div>
   );
 }
@@ -584,16 +531,6 @@ function MetricCard({ icon, title, value, subtitle, trend, large }) {
         </div>
         {subtitle && <div className={styles.metricSubtitle}>{subtitle}</div>}
       </div>
-    </div>
-  );
-}
-
-function ValueProp({ icon, title, description }) {
-  return (
-    <div className={styles.valueProp}>
-      <div className={styles.valuePropIcon}>{icon}</div>
-      <div className={styles.valuePropTitle}>{title}</div>
-      <div className={styles.valuePropDescription}>{description}</div>
     </div>
   );
 }

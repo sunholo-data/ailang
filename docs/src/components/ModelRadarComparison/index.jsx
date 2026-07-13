@@ -147,9 +147,15 @@ export default function ModelRadarComparison() {
       // Python metrics
       'Python 0-Shot': pythonZeroShot,
       'Python w/Repair': pythonSuccess,
-      // Delta metrics (AILANG relative to Python baseline)
-      'Success Gap': pythonSuccess - ailangSuccess, // Positive = Python is better
-      'Token Delta': ((pythonTokens - ailangTokens) / pythonTokens) * 100, // Positive = AILANG uses fewer tokens
+      // Delta metrics (AILANG relative to Python baseline). These can run far
+      // outside the [-50,50] axis (e.g. a very verbose AILANG model burning 4x
+      // Python's tokens = -300%+). Plot a CLAMPED value so the polygon stays
+      // readable, but keep the raw value (_raw*) for the tooltip so the true
+      // magnitude isn't silently hidden at the axis edge.
+      'Success Gap': Math.max(-50, Math.min(50, pythonSuccess - ailangSuccess)), // + = Python ahead
+      'Token Delta': Math.max(-50, Math.min(50, pythonTokens > 0 ? ((pythonTokens - ailangTokens) / pythonTokens) * 100 : 0)), // + = AILANG uses fewer
+      _rawSuccessGap: pythonSuccess - ailangSuccess,
+      _rawTokenDelta: pythonTokens > 0 ? ((pythonTokens - ailangTokens) / pythonTokens) * 100 : 0,
       // Cost efficiency per language (cost per 1000 successful runs in dollars)
       'AILANG Cost ($)': ailangCostPer1000,
       'Python Cost ($)': pythonCostPer1000,
@@ -160,8 +166,20 @@ export default function ModelRadarComparison() {
   });
 
   // Custom tooltip formatter to round values
-  const formatTooltip = (value, name) => {
+  const formatTooltip = (value, name, item) => {
     if (typeof value !== 'number') return value;
+    // Delta radars clamp to the [-50,50] axis; surface the TRUE magnitude here
+    // so an off-scale value (e.g. Fable's -323% token delta) isn't hidden at
+    // the axis edge reading as "no delta".
+    const payload = item && item.payload;
+    if (payload && name === 'Success Gap (%)' && typeof payload._rawSuccessGap === 'number') {
+      const raw = payload._rawSuccessGap;
+      return `${raw.toFixed(1)}%${Math.abs(raw) > 50 ? ' (off-scale, clamped)' : ''}`;
+    }
+    if (payload && name === 'Token Delta (%)' && typeof payload._rawTokenDelta === 'number') {
+      const raw = payload._rawTokenDelta;
+      return `${raw.toFixed(1)}%${Math.abs(raw) > 50 ? ' (off-scale, clamped)' : ''}`;
+    }
     // Use 2 decimal places for money (cost per success)
     if (name && name.includes('Cost')) {
       return value.toFixed(2);
@@ -269,7 +287,7 @@ export default function ModelRadarComparison() {
             </RadarChart>
           </ResponsiveContainer>
           <div className={styles.chartNote}>
-            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The <strong style={{color: '#10B981'}}>green dashed line</strong> at 0% marks parity with Python.
+            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The <strong style={{color: '#10B981'}}>green dashed line</strong> at 0% marks parity with Python. Values beyond ±50% are clamped to the axis edge — <strong>hover any point for the true figure</strong> (e.g. a very verbose model can burn 300%+ more AILANG tokens).
           </div>
         </div>
 

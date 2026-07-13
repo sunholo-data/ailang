@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import styles from './styles.module.css';
+
+// Short label for an on-device model string, e.g.
+// "motoko-local-qwen3-6-35b-a3b-mxfp8" -> "Qwen3.6". Falls back to the raw model.
+function shortLocalModel(model) {
+  const m = /qwen3-(\d+)/.exec(model || '');
+  return m ? `Qwen3.${m[1]}` : (model || 'local');
+}
 
 function formatModelName(name) {
   // Surface harness + provider as explicit suffixes. See
@@ -25,9 +33,41 @@ function formatModelName(name) {
   return s + suffix;
 }
 
-export default function ModelComparisonTable({ models, coverage }) {
+export default function ModelComparisonTable({ models, coverage, showLocalAgent = false }) {
   const [sortColumn, setSortColumn] = useState('ailangSuccess');
   const [sortDirection, setSortDirection] = useState('desc');
+
+  // Optional on-device "Local GPU agent" row (M-EVAL): the rig's best agentic
+  // config (opencode/pi/motoko on a local qwen) fetched from os/latest.json. It's
+  // agent-mode + ~$0/run — a slow, free option — so we surface only its AILANG
+  // success against the 0-shot cloud rows (the thesis), not a full head-to-head.
+  const [localRow, setLocalRow] = useState(null);
+  useEffect(() => {
+    if (!showLocalAgent) return;
+    let alive = true;
+    benchmarkFetch('os/latest.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((os) => {
+        if (!alive || !os || !Array.isArray(os.rows)) return;
+        let best = null;
+        for (const row of os.rows) {
+          const a = row.lang && row.lang.ailang;
+          if (typeof a !== 'number') continue;
+          if (!best || a > best.ailang) best = { ailang: a, harness: row.harness, model: row.model };
+        }
+        if (best) {
+          setLocalRow({
+            ailangSuccess: best.ailang * 100,
+            harness: best.harness || 'agent',
+            model: shortLocalModel(best.model),
+            configCount: os.rows.length,
+            version: os.ailang_version || os.version || '',
+          });
+        }
+      })
+      .catch(() => { /* os data optional — omit the row on failure */ });
+    return () => { alive = false; };
+  }, [showLocalAgent]);
 
   // Transform models data into table rows
   const tableData = Object.entries(models)
@@ -138,6 +178,35 @@ export default function ModelComparisonTable({ models, coverage }) {
           </tr>
         </thead>
         <tbody>
+          {localRow && (
+            <tr style={{ background: 'var(--ifm-color-info-contrast-background, rgba(8,145,178,0.10))', borderLeft: '4px solid #0891b2' }}>
+              <td className={styles.tableModelName}>
+                <span
+                  title={`Best of ${localRow.configCount} on-device agent configs (${localRow.harness} · ${localRow.model}${localRow.version ? ', ' + localRow.version : ''}). Agent-mode, multi-turn, runs on the local GPU at ~$0/run — slow but free. Not directly comparable to the 0-shot cloud rows.`}
+                  style={{ fontWeight: 700, cursor: 'help' }}
+                >
+                  🖥️ Local GPU agent
+                </span>
+                <span style={{ marginLeft: 6, fontSize: '0.7em', color: 'var(--ifm-color-emphasis-600)' }}>
+                  {localRow.harness} · {localRow.model} · agent · ~$0
+                </span>
+              </td>
+              <td className={styles.tableNumber}>
+                <span className={styles.successBadge} style={{
+                  backgroundColor: localRow.ailangSuccess >= 70 ? 'var(--ifm-color-success)' :
+                                    localRow.ailangSuccess >= 50 ? 'var(--ifm-color-warning)' :
+                                    'var(--ifm-color-danger)'
+                }}>
+                  {localRow.ailangSuccess.toFixed(1)}
+                </span>
+              </td>
+              <td className={styles.tableNumber} title="No token data for on-device runs">—</td>
+              <td className={styles.tableNumber} title="Local agent runs AILANG only">—</td>
+              <td className={styles.tableNumber}>—</td>
+              <td className={styles.tableNumber}>—</td>
+              <td className={styles.tableNumber}>—</td>
+            </tr>
+          )}
           {sortedData.map((row) => (
             <tr key={row.modelName} style={row.provisional ? { opacity: 0.6, fontStyle: 'italic' } : undefined}>
               <td className={styles.tableModelName}>
@@ -200,6 +269,11 @@ export default function ModelComparisonTable({ models, coverage }) {
       </table>
       <div className={styles.tableFootnote}>
         💡 <strong>Gap</strong> = AILANG - Python success % (positive = better) · <strong>Ratio</strong> = AILANG/Python tokens (lower = more efficient) · <strong>Tok</strong> = avg output tokens
+        {localRow && (
+          <>
+            {' · '}<strong>🖥️ Local GPU agent</strong> = best on-device config (qwen via an agentic harness), agent-mode + ~$0/run. Shown for the free-local-option thesis — <em>agent-mode, so not directly comparable to the 0-shot cloud rows</em>.
+          </>
+        )}
       </div>
     </div>
   );

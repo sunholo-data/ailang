@@ -6,6 +6,7 @@ description: Compare coding agent performance across harnesses (Claude CLI, open
 
 import BenchmarkExplorer from '@site/src/components/BenchmarkExplorer';
 import AgentUpliftTable from '@site/src/components/AgentUpliftTable';
+import AgentEvalPerformance from '@site/src/components/AgentEvalPerformance';
 
 # Agent Harness Explorer
 
@@ -22,3 +23,9 @@ This view aggregates **two sources**: the cloud release/nightly baseline, and th
 AILANG is built for AI coding *with harnesses*, so the question that matters is: for a given model, how much does wrapping it in an agentic loop (multi-turn, tool-using) improve its AILANG pass rate over a plain 0-shot API call? This table answers it **like-for-like** — each model compared to *itself*, over only the benchmarks both modes ran. A negative delta means the agent loop actually *hurt* that model.
 
 <AgentUpliftTable />
+
+## Agent evaluation performance
+
+Multi-turn agentic problem solving by executor — runs, success rate, and cost per run for each harness (Claude, Codex, Motoko, opencode, Pi). Moved here from the model leaderboard so all agent-mode detail lives on one page.
+
+<AgentEvalPerformance />

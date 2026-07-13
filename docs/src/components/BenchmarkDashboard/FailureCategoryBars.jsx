@@ -53,7 +53,7 @@ export default function FailureCategoryBars({ models }) {
       if (!ss || !ss.buckets) continue;
       const b = ss.buckets;
       const success = (b.fast_pass || 0) + (b.slow_pass || 0);
-      const total = success + (b.budget_blocked || 0) + (b.capability_blocked || 0) + (b.provider_blocked || 0);
+      const total = success + (b.budget_blocked || 0) + (b.capability_blocked || 0) + (b.refused || 0) + (b.provider_blocked || 0);
       if (total === 0) continue;
       data.push({
         name,
@@ -62,6 +62,7 @@ export default function FailureCategoryBars({ models }) {
         success,
         budget:     b.budget_blocked || 0,
         capability: b.capability_blocked || 0,
+        refused:    b.refused || 0,
         provider:   b.provider_blocked || 0,
       });
     }
@@ -86,7 +87,9 @@ export default function FailureCategoryBars({ models }) {
       <p className={styles.sweetSpotHeadlineNote}>
         Each (model × benchmark) lands in exactly one bucket. Capability =
         broken code; Budget = ran out of $ or turns (operator could raise);
-        Provider = quota/rate-limit (provider noise, excluded from capability scoring).
+        Refused = the model&apos;s safety layer declined the prompt (model behavior,
+        not a coding failure); Provider = quota/rate-limit (provider noise). Refused
+        and Provider are both excluded from capability scoring.
       </p>
 
       <div role="img" aria-label="Failure mode breakdown per model">
@@ -95,6 +98,7 @@ export default function FailureCategoryBars({ models }) {
             { key: 'success',    label: 'Success',    count: r.success,    cls: styles.failureSuccess },
             { key: 'budget',     label: 'Budget',     count: r.budget,     cls: styles.failureBudget },
             { key: 'capability', label: 'Capability', count: r.capability, cls: styles.failureCapability },
+            { key: 'refused',    label: 'Refused',    count: r.refused,    cls: styles.failureRefused },
             { key: 'provider',   label: 'Provider',   count: r.provider,   cls: styles.failureProvider },
           ];
           return (
@@ -127,6 +131,7 @@ export default function FailureCategoryBars({ models }) {
           { key: 'success',    label: 'Success (fast + slow passes)',                          cls: styles.failureSuccess },
           { key: 'budget',     label: 'Budget-blocked (cost_killed, step_exhausted)',          cls: styles.failureBudget },
           { key: 'capability', label: 'Capability-blocked (compile/runtime/logic/timeout)',    cls: styles.failureCapability },
+          { key: 'refused',    label: 'Refused (safety-layer decline — not a coding failure)', cls: styles.failureRefused },
           { key: 'provider',   label: 'Provider-blocked (quota / rate_limit / api_error)',     cls: styles.failureProvider },
         ].map(item => (
           <div key={item.key} className={styles.failureLegendItem}>
