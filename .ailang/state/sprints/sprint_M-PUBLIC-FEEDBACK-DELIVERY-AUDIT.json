@@ -1,11 +1,12 @@
 {
   "sprint_id": "M-PUBLIC-FEEDBACK-DELIVERY-AUDIT",
-  "status": "planned",
+  "status": "in_progress",
   "branch": "sprint/m-public-feedback-delivery-audit",
-  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-worktrees/m-public-feedback-delivery-audit",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/m-public-feedback-audit",
   "commits": {},
   "gates": {
     "premise_check": "PLANNER-VERIFIED at HEAD: (1) prod sub projects/ailang-multivac/subscriptions/ailang-messages-laptop EXISTS + ACTIVE (topic ailang-messages, ack 30s); (2) daemon ADC identity m@sunholo.com is roles/owner on BOTH ailang-multivac-dev and ailang-multivac -> pubsub.subscriber access already present, NO new IAM/Terraform; (3) EnvProject[prod]={ailang-multivac,ailang}; Client.Subscription prepends prefix so base 'messages-laptop' resolves correctly for both projects. Executor re-confirms in M0.",
+    "m0_premise_reconfirm": "EXECUTOR-RECONFIRMED 2026-07-13 (worktree, read-only): (1) `gcloud pubsub subscriptions describe ailang-messages-laptop --project ailang-multivac` -> projects/ailang-multivac/subscriptions/ailang-messages-laptop | topic projects/ailang-multivac/topics/ailang-messages | ackDeadline 30 (EXISTS+ACTIVE). (2) `gcloud auth list` active=m@sunholo.com; `gcloud projects get-iam-policy ailang-multivac --filter=roles/owner` -> user:m@sunholo.com (OWNER on prod). (3) internal/daemon/config.go:22 EnvProject[prod]={Project:ailang-multivac, Prefix:ailang}. ALL THREE PASS -- no drift since planning; no escalation needed.",
     "make_test": null,
     "make_lint": null,
     "docs_build": null,
@@ -36,10 +37,10 @@
         "internal/daemon/config.go EnvProject[prod] == {Project: ailang-multivac, Prefix: ailang}",
         "If ANY confirmation fails, STOP and escalate to Mark (fix approach would change to a Terraform-managed prod subscription)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-13T15:30:00Z",
+      "completed": "2026-07-13T15:35:00Z",
+      "notes": "All three premise checks re-confirmed read-only in the worktree (see gates.m0_premise_reconfirm). No drift; no escalation. No code changes in M0."
     },
     {
       "id": "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING",
