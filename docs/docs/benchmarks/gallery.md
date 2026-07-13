@@ -8,8 +8,6 @@ import BenchmarkStandaloneGallery from '@site/src/components/BenchmarkStandalone
 
 # Benchmark Gallery
 
-Browse benchmarks by tier. Expand any card for the task prompt, per-language pass rates, and generated code samples.
-
-Currently showing **Core** tier results. Stretch · Vision · Smoke tier results will appear here as evals are run.
+Search and filter every benchmark by tier and feature-area tag. Open any card for its spec sheet: the task prompt and expected output, pass rates by language, by model, and by agent harness, and a browsable sample solution for each language. The [ELO difficulty table](/docs/benchmarks/elo) links straight to a benchmark's detail here.
 
 <BenchmarkStandaloneGallery />

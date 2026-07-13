@@ -322,7 +322,9 @@ export default function EloLeaderboard() {
                   }}>
                     <td style={{ padding: '6px 10px', verticalAlign: 'middle' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <code style={{ background: 'transparent', padding: 0, fontSize: '0.92em', wordBreak: 'break-word' }}>{b.id}</code>
+                        <a href={`/docs/benchmarks/gallery#bench-${encodeURIComponent(b.id)}`} style={{ color: 'var(--ifm-color-primary)', textDecoration: 'none' }} title="Open in the benchmark gallery">
+                          <code style={{ background: 'transparent', padding: 0, fontSize: '0.92em', wordBreak: 'break-word', color: 'inherit' }}>{b.id}</code>
+                        </a>
                         {b.graderFlag && <Badge color="#a855f7">⚠ artifact</Badge>}
                       </span>
                     </td>

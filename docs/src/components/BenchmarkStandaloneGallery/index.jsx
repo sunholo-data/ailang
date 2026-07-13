@@ -17,5 +17,5 @@ export default function BenchmarkStandaloneGallery() {
   if (!data) return <p>Loading benchmarks…</p>;
   if (!data.benchmarks) return <p>No benchmark data found.</p>;
 
-  return <BenchmarkGallery benchmarks={data.benchmarks} />;
+  return <BenchmarkGallery benchmarks={data.benchmarks} ratings={data.ratings} />;
 }
