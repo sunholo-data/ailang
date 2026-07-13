@@ -32,15 +32,24 @@ Two independent defects, one latent + one active:
 to `pkg:<vendor>/<name>` inboxes instead of `public-feedback`. **Result: any external feedback about
 a specific package is invisible on Discord by construction.**
 
-### Defect B (active, needs Cloud Run logs) — the inbound cliff since May 4
-No external submission has reached the inbox in ~2 months. Candidates, in order of suspicion:
-1. The public MCP `submit_feedback` (`internal/apiserver/feedback_tool.go` via `mcp.ailang.sunholo.com`)
-   is erroring/rejecting before the Firestore write — e.g. the M-DOCPARSE-RESILIENCE param-rejection
-   (`f2253d88b`) or the edge rate-limit (`ratelimit.go`, M-MCP-EDGE-THROTTLE) over-rejecting.
-2. Kevin used the **ailang-parse (docparse) MCP** `submit_feedback` — a *different product* whose
-   feedback never targets the AILANG `public-feedback` inbox. (Confirm which endpoint he hit.)
-3. The just-built **feedback-triage-gate** (`internal/feedbackgate/`) — should be OFF by default, but
-   verify it isn't fail-closing in the live config.
+### Defect B (ROOT-CAUSED 2026-07-12, Mark's hypothesis confirmed) — dev/prod env split
+**The inbound path works fine.** Kevin's messages ARE in Firestore — in the **prod** project
+(`ailang-multivac`), `public-feedback` inbox, 2026-06-30 (fb_c3427, fb_942b7, fb_343bd, fb_cef30…),
+all triaged/read (his `flushStdout()` ask shipped as the `_io_flush` builtin the same day). The
+"May-4 cliff" was an artifact of querying **dev** only: the public MCP (`mcp.ailang.sunholo.com`)
+writes to **prod** Firestore, while the rig's notify daemon
+(`com.sunholo.ailang.daemon.plist` → `AILANG_CLOUD_PROJECT=ailang-multivac-dev`, verified) subscribes
+to **dev** only. Eval pings reach Discord because the rig *sends* them to dev; external feedback
+never pings because *nothing listens to prod*. (The May-4 dev entries = when the public endpoint
+last wrote to dev, i.e. the dev→prod cutover.)
+
+**Fix direction:** the daemon subscribes to BOTH projects (second `EventSubscriber` on prod's
+`ailang-messages` subscription — the daemon's `Run` already races two subscriptions, so adding a
+second project is structural, not novel), OR a prod-side notifier bridges prod→Discord directly.
+Prefer daemon-dual-subscribe: one binary, one webhook, no prod mutation. Also update agent runbooks:
+**triaging public feedback requires `AILANG_CLOUD_PROJECT=ailang-multivac` (prod)** — every agent
+session that checked dev-only has been blind to real users (this session included, until Mark
+corrected it).
 
 ## Goals
 
