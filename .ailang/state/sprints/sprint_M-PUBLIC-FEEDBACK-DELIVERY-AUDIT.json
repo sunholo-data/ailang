@@ -7,7 +7,7 @@
     "M0_PREMISE_CONFIRMATION_GATE": "bfde6fe25f7be5db4ee9d9bcc71d1b14229f0716",
     "M1_DEFECT_A_EXTERNAL_FEEDBACK_TAGGING": "47df615acb2ab9ae3a1ddf9fc2df06f67922ac9a",
     "M2_DEFECT_B_DAEMON_DUAL_SUBSCRIBE": "4f631e1bf6f143a044b189ea6f0ecd2cf5e6adc4",
-    "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG": "pending-this-commit"
+    "M3_RUNBOOK_CONFIG_DOCS_CHANGELOG": "baf4d3e8f1053a3a14766dd4e59f587bfaa04325"
   },
   "gates": {
     "premise_check": "PLANNER-VERIFIED at HEAD: (1) prod sub projects/ailang-multivac/subscriptions/ailang-messages-laptop EXISTS + ACTIVE (topic ailang-messages, ack 30s); (2) daemon ADC identity m@sunholo.com is roles/owner on BOTH ailang-multivac-dev and ailang-multivac -> pubsub.subscriber access already present, NO new IAM/Terraform; (3) EnvProject[prod]={ailang-multivac,ailang}; Client.Subscription prepends prefix so base 'messages-laptop' resolves correctly for both projects. Executor re-confirms in M0.",
