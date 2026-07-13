@@ -748,6 +748,7 @@ triage evidence = log entry 10.)*
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
 - **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md), 2026-07-11) — quota-aware probe-based model selection + cross-provider fallback (OpenAI Codex / Gemini), replacing the hardcoded Monday override; Phase 3 restores evaluation independence cross-family. Try Phase 1 next week (after Fable quota resets). Requested by Mark.
+- **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: no external MCP feedback in the inbox since 2026-05-04, and a latent Discord-filter bug drops any feedback not in the exact `public-feedback` inbox. Two-part fix (small notify code fix + Cloud Run log root-cause). The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
 clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
