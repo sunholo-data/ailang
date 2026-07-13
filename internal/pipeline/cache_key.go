@@ -10,7 +10,12 @@ import (
 // M-PERF6 M3: Content-addressed cache key computation for module compilation.
 
 // cacheKeyVersion is bumped when the cache format changes, invalidating all entries.
-const cacheKeyVersion = "v1"
+//
+// v1 -> v2 (M-LAMBDA-OPEN-RECORD-PATTERN): core.RecordPattern gained a gob-encoded
+// Rest bool. Same-version dev/worktree builds could otherwise collide cache keys and
+// round-trip pre-Rest blobs into the new decoder. Bumping guarantees old blobs never
+// decode into the new Core struct.
+const cacheKeyVersion = "v2"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

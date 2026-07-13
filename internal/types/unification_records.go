@@ -249,21 +249,44 @@ func (u *Unifier) unifyOpenRecords(t1, t2 *TRecord, sub Substitution) (Substitut
 	}
 
 	// 4. Bind the extension row variables so leftover fields are accounted for.
-	//    ext1 must equal {extra2 | freshTail}; ext2 must equal {extra1 | freshTail}
-	//    sharing the SAME fresh tail so both records stay mutually extensible.
-	//    Extension rows live at ROW kind, so the leftover fields are expressed as
-	//    a *Row (Labels + Tail), NOT a *TRecord (which is at Star kind).
+	//    ext1 absorbs t2's extras (extra2); ext2 absorbs t1's extras (extra1).
+	//
+	//    The tail of each binding depends on whether the OTHER side is open:
+	//      - other side OPEN  → bind to {extras | freshTail}, sharing ONE fresh
+	//        tail so both records stay mutually extensible.
+	//      - other side CLOSED → bind to a CLOSED row {extras} (Tail: nil). The
+	//        closed side names EXACTLY its fields, so the open side must resolve
+	//        to precisely {common ∪ extras} with no further extension. Leaving
+	//        this tail OPEN was order-dependent: an open arm solved first would
+	//        leave the shared param row open, silently weakening a later CLOSED
+	//        arm's constraint on the same TVar (open-first accepted a wide caller
+	//        that closed-first rejected). Closing the tail here makes open-first
+	//        and closed-first arm orders agree — both reject the wide caller.
+	//        (Runtime matching is subset-based and already sound; this only
+	//        removes the order-dependent STATIC acceptance.)
 	freshTail := &RowVar{Name: u.freshRowVarName(), Kind: RecordRow}
 
 	var err error
 	if ext1 != nil {
-		sub, err = u.Unify(ext1, &Row{Kind: RecordRow, Labels: extra2, Tail: freshTail}, sub)
+		// ext1 absorbs extra2; its tail stays open only if ext2 (the other
+		// side's extension) is also open.
+		var tail *RowVar
+		if ext2 != nil {
+			tail = freshTail
+		}
+		sub, err = u.Unify(ext1, &Row{Kind: RecordRow, Labels: extra2, Tail: tail}, sub)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unify record row (left): %w", err)
 		}
 	}
 	if ext2 != nil {
-		sub, err = u.Unify(ext2, &Row{Kind: RecordRow, Labels: extra1, Tail: freshTail}, sub)
+		// ext2 absorbs extra1; its tail stays open only if ext1 (the other
+		// side's extension) is also open.
+		var tail *RowVar
+		if ext1 != nil {
+			tail = freshTail
+		}
+		sub, err = u.Unify(ext2, &Row{Kind: RecordRow, Labels: extra1, Tail: tail}, sub)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unify record row (right): %w", err)
 		}

@@ -424,14 +424,9 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			//     M-SCHEME-IMPORT-PRESERVE-ADT-HEAD strictness — it must NOT reverse.
 			fieldTypes = make(map[string]Type)
 			for fieldName := range p.Fields {
-				// If the scrutinee already resolved to a record, reuse its field
-				// type so the pattern is checked against the real field types.
-				if recTy, ok := scrutType.(*TRecord); ok {
-					if ft, present := recTy.Fields[fieldName]; present {
-						fieldTypes[fieldName] = ft
-						continue
-					}
-				}
+				// This branch only runs when scrutType is NOT a *TRecord (the
+				// outer type-switch handled the resolved-record case above), so
+				// each matched field starts as a fresh type variable.
 				fieldTypes[fieldName] = ctx.freshTypeVar()
 			}
 			var rowVar Type // nil => closed record constraint
