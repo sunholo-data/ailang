@@ -1,0 +1,38 @@
+-- `match` inside block-body lambdas passed to higher-order functions.
+-- Regression guard for M-DX-MATCH-HOF (R4a): the strategy review's footgun row
+-- claimed this fails to parse. Verified GHOST in mission iteration 25
+-- (2026-07-13): the failing pattern used the retired `match … with` syntax;
+-- brace-form match works in every position probed here (design doc archived at
+-- design_docs/archive/v0_13_0_m-dx-match-in-hof-block-lambda.md).
+module examples/match_hof_lambda
+
+import std/io (println)
+import std/list (map, foldl)
+
+type Chunk = Delta(string) | Usage(int)
+
+export func main() -> () ! {IO} {
+  -- Block-body lambda with a let-bound match, passed straight to map.
+  let labels = map(\item. { let s = match item { 0 => "zero", _ => "ok" }; s }, [0, 1, 2]);
+  println(show(labels));
+
+  -- Direct match body (no braces) in a lambda over an ADT.
+  let texts = map(\c. match c { Delta(t) => t, Usage(_) => "usage" }, [Delta("a"), Usage(3)]);
+  println(show(texts));
+
+  -- Match mid-block after another statement.
+  let bumped = map(\x. {
+    let doubled = x * 2;
+    let label = match doubled { 0 => 0, n => n + 1 };
+    label
+  }, [0, 1, 2]);
+  println(show(bumped));
+
+  -- Nested HOFs with match in the inner lambda.
+  let nested = map(\xs. map(\x. match x { 0 => "z", _ => "nz" }, xs), [[0], [1, 0]]);
+  println(show(nested));
+
+  -- Match inside a curried two-argument lambda passed to foldl.
+  let total = foldl(\acc. \x. match x { 0 => acc, n => acc + n }, 0, [0, 1, 2, 3]);
+  println(show(total))
+}
