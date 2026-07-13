@@ -1,7 +1,7 @@
 [
   {
     "ailang_version": "v0.29.2",
-    "generated": "2026-07-12",
+    "generated": "2026-07-13",
     "trials": 3,
     "languages": [
       "ailang",
@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8833333333333333,
+          "ailang": 0.8985507246376812,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -27,7 +27,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.625
+            "ailang": 0.7272727272727273
           },
           "smoke": {
             "ailang": 1,
@@ -36,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.7857142857142857
+            "ailang": 0.85
           },
           "vision": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.5833333333333334,
+          "ailang": 0.5797101449275363,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -63,7 +63,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.2222222222222222
+            "ailang": 0.16666666666666666
           },
           "smoke": {
             "ailang": 1,
@@ -72,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.6153846153846154
+            "ailang": 0.6842105263157895
           },
           "vision": {
             "ailang": 0,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7903225806451613,
+          "ailang": 0.8169014084507042,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -99,7 +99,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.4444444444444444
+            "ailang": 0.5833333333333334
           },
           "smoke": {
             "ailang": 1,
@@ -108,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8
+            "ailang": 0.8571428571428571
           },
           "vision": {
             "ailang": 1,

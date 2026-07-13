@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.1) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.2) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.1.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.2.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.1.md -->
-<!-- Active Version: v0.16.1 -->
+<!-- Source: prompts/v0.16.2.md -->
+<!-- Active Version: v0.16.2 -->
 
-# AILANG v0.16.0 - AI Teaching Prompt (with IFC Labels)
+# AILANG v0.16.2 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -31,7 +31,7 @@ export func main() -> () ! {IO} {
 3. **Pick ONE function-body style per function and stick to it:**
    - **Block body** `func f() ! {IO} { let x = a; let y = b; finalExpr }` — semicolons between lets, NO `in`
    - **Expression body** `func f() ! {IO} = let x = a in let y = b in finalExpr` — `in` keyword, NO semicolons
-   - **Common error**: `func f() = let x = a; ...` is a parse error (`unexpected token: ;`). Either wrap the body in `{ }` and use semicolons, or use `let .. in ..` chains.
+   - **The `= {` trap**: `func f() = { a; b }` mixes both styles. `=` means expression body (no `;`); for multiple statements DROP the `=` → `func f() { a; b }`. (Error: `PAR017: ';' is only valid inside { } block bodies`.)
 4. No loops — use recursion
 5. **Output raw AILANG code only** — no markdown fences (`` ``` ``), no prose, no JSON wrappers. The first line must be `module ...`.
 
@@ -52,6 +52,36 @@ print("A"); print("B")      -- Output: AB
 ```
 
 **Use `println` for most output.** Use `print` ONLY when building output on one line.
+
+**Real-time terminal output (games, progress bars, TUIs), v0.27.0+:** on a TTY, stdout is
+line-buffered — `println` shows at once, but partial-line output (`\r` with no newline) needs
+an explicit `flush()`. C-style escapes `\xHH` / `\u{..}` / `\e` / `\0` work in string literals.
+
+```ailang
+import std/io (print, flush)
+print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
+flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
+```
+Runs under `--caps IO,Clock` — no `FS`. `printErr`/`eprintln` (std/io) write to stderr (unbuffered).
+
+## Output Discipline (stdout is compared byte-for-byte)
+
+Your program's printed output is graded by an **exact match** against the expected
+result. Extra text — even when the computed value is correct — is a failure.
+
+- **Print only what the task asks for, nothing more.** If the task wants `40`, print
+  `40` — never `Result: 40`, `Answer: 40`, or `The result is 40`.
+- **No labels, captions, or prefixes** in front of values. If the task says to print
+  `a = TBool`, that exact string is the whole line — do not add `Types unify!` or any
+  other commentary before or after it.
+- **No status / confirmation lines** ("Done", "Success", "They unify!", "Computing…")
+  unless the task explicitly tells you to print them.
+- **Match the requested format exactly**: same capitalisation, same spacing, one value
+  per line as specified, and no extra trailing or leading blank lines.
+- When the task says *"print the result"* or *"print if they unify"*, it means print
+  the bare value(s) it just defined — not a sentence describing them.
+
+Treat the expected output as a contract: emit exactly those characters and stop.
 
 ## CLI Exploration (USE THIS!)
 
@@ -524,8 +554,17 @@ func deterministic() -> int ! {Rand[mode=seeded]} = {
 - v0.15.0 ships two default-mode entries: `Rand → mode=os` and
   `AI → mode=fixed`. Other effects (`IO`, `FS`, `Net`, `Env`, ...)
   have no params yet — write `!{IO}`, not `!{IO[...]}`.
-- Mode set is closed (compiler-known per effect); user code cannot
-  introduce new modes.
+- Mode set is closed (compiler-known per effect) and **enforced** at
+  type-check. Only these forms are legal:
+  `Rand[mode=os|seeded|crypto]`, `AI[mode=fixed|routeable|replay-only]`,
+  `AI[scope=byok]`. Anything else is a hard error:
+  - `EFF_UNKNOWN_MODE` — value not in the effect's allowed set
+    (e.g. `Rand[mode=banana]`).
+  - `EFF_UNKNOWN_PARAM_KEY` — key not on the effect
+    (e.g. `Rand[flavor=hot]`).
+  - `EFF_PARAMS_NOT_SUPPORTED` — an effect with no params was given one
+    (e.g. `Clock[mode=pinned]`); write the bare effect instead.
+  Each error lists the legal keys/values — read them and pick one.
 
 See [Parameterised Effects guide](https://ailang.sunholo.com/docs/guides/parameterised-effects).
 

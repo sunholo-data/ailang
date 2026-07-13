@@ -8,6 +8,29 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.30.0
+
+- [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
+- [Sprint Plan — m-stdlib-regex (Linear-Time RE2 Regex Builtin)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex-sprint-plan.md)
+- [m-stdlib-regex — Linear-Time (RE2) Regex Builtin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex.md)
+- [Sprint Plan: M-SYNTAX-AI-FORGIVING — Forgiving statement-separator syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-syntax-ai-forgiving-sprint-plan.md)
+- [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-syntax-ai-forgiving.md)
+- [Sprint Plan: M-EFFECT-MODE-VALIDATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/sprint-m-effect-mode-validation.md)
+
+## v0.29.0
+
+- [M-EVAL-FRONTIER-TIER — Saturation Demotion Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-frontier-tier-demotion-audit.md)
+- [M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-frontier-tier.md)
+- [M-FEEDBACK-GATE-CLOUD-ADAPTER: Firestore stores + classifier wiring for the feedback gate](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-feedback-gate-cloud-adapter.md)
+- [M-FEEDBACK-TRIAGE-GATE: Cost & abuse gate for the public feedback → agent pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-feedback-triage-gate.md)
+- [M-NAMED-TEST-BLOCKS: Execute `test "name" { ... }` blocks — and stop reporting skipped suites as passing](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-named-test-blocks.md)
+- [M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-typeenv-sub-fix.md)
+- [Sprint Plan: M-TYPEENV-SUB — TypeEnv Substitution Gap (ADT return types lost in exports)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-typeenv-sub-sprint-plan.md)
+- [Sprint Plan: M-V1-STABILITY-PROMISE — The 1.x Stable-Surface Promise](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise-sprint-plan.md)
+- [M-V1-STABILITY-PROMISE: The 1.x Stable-Surface Promise](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md)
+- [Sprint Plan: M-FEEDBACK-GATE-CLOUD-ADAPTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/sprint-m-feedback-gate-cloud-adapter.md)
+- [Sprint Plan: M-FEEDBACK-TRIAGE-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/sprint-m-feedback-triage-gate.md)
+
 ## v0.28.1
 
 - [Sprint Plan: M-XMOD-ALIAS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_28_1/m-cross-module-type-alias-sprint-plan.md)
@@ -39,6 +62,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-EMBED-TASK-PREFIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix-sprint-plan.md)
 - [M-EMBED-TASK-PREFIX: Model- and Role-Aware Embedding Task Prefixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-embed-task-prefix.md)
+- [Sprint Plan — M-EVAL-BENCHMARK-UI-CONSOLIDATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-benchmark-ui-consolidation-sprint-plan.md)
+- [M-EVAL-BENCHMARK-UI-CONSOLIDATION: A coherent benchmark/dashboard information architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-benchmark-ui-consolidation.md)
 - [M-EVAL-DASHBOARD-REDESIGN: Surface ELO ratings, difficulty bands, and regraded scores on the website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-dashboard-redesign.md)
 - [Sprint Plan — M-EVAL-ELO-PERSIST (M-EVAL-RATING-EFFICIENCY part 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-elo-persist-sprint-plan.md)
 - [M-EVAL-OS-CONTINUOUS-ROTATION: Background, incremental OS cross-language/harness evals between releases](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_26_0/m-eval-os-continuous-rotation.md)
@@ -1237,4 +1262,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 882 design documents across 115 versions.*
+*Generated at build time. 901 design documents across 117 versions.*

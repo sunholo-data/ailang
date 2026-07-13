@@ -1,1 +1,2 @@
 {"date": "2026-06-15", "model": "opencode-qwen3-5-35b-a3b-mxfp8", "lang": "ailang", "trials": 2, "on_pass": 71, "on_total": 98, "off_pass": 74, "off_total": 98, "on_rate": 0.7245, "off_rate": 0.7551, "delta_pp": -3.1}
+{"date": "2026-07-13", "model": "opencode-qwen3-5-35b-a3b-mxfp8", "lang": "ailang", "trials": 2, "on_pass": 58, "on_total": 84, "off_pass": 62, "off_total": 84, "on_rate": 0.6905, "off_rate": 0.7381, "delta_pp": -4.8}
