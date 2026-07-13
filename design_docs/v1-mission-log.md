@@ -1769,3 +1769,82 @@ scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B f
 m-syntax-ai-forgiving (GPU); %-row + m-record-update-local-resolution doc-status re-check; the two
 dev-health flakies (`PipedStdoutFlushesPerLine` reproduced again this iteration under parallel
 load, passes isolated).
+
+## 23 — 2026-07-13 — Iteration 22: nightly-regression triage → REAL decl-class resolver gap found (#366); `m-module-let-func-resolution` design doc → PR #367 (regression outranked the queue)
+
+**Picked**: NOT the queue's recommended R4a — Gate 0.4 fired: 2 fresh solid→broken nightly
+regressions (adt_option, higher_order_functions; opencode-qwen3-5, 2 trials each) outrank the
+queue. Deliverable = data-led triage + the design doc for what the triage uncovered
+(design stage; execution next iteration, mirroring the R4c two-iteration pattern).
+
+**Reality check** (Gates 1/2): origin-sync — local dev AHEAD of origin by 1 unpushed data commit
+(`20e0fe4f1`, weekly μRAG A/B; pushed as part of this iteration), NOT behind; local state fresh.
+Dev CI green per-workflow (CI / Build and Release / Docs) @ 36c8c3717 pre-pick. Rebuilt BOTH
+binaries (`make quick-install && make build`, verified `v0.29.2-115-g20e0fe4f1` == `git describe`).
+
+**Triage** (data before conclusions — read the error STREAM, not the pass-rate):
+- `adt_option` [thrash_aborted ×2]: cumulative tokens 494k/499k vs `MaxTokensPerBench=456324`
+  (~8% over) — the known content-non-convergence class, no eval-relevant binary delta between the
+  two nightlies (arity-diag NOT in either; #327-fix in both). Noise; no action.
+- `higher_order_functions` [compile_error ×2]: yesterday's pass wrote canonical lets-inside-main;
+  today's trials wrote **module-level `let`/`letrec` + `_` placeholders + an undefined `multiply`**
+  — model sampling variance, NOT a binary regression. BUT the failing shape exposed a REAL,
+  deterministic, pre-existing compiler gap, live-reproduced at HEAD in 10 minimal variants:
+  **a module-level `let`/`letrec` value can NEVER reference a module-level `func`** (either
+  declaration order; immediate-call too; `letrec` can't even reference itself), while the live
+  hint cites the **CLOSED** #327 with a workaround ("bind it with let first") that is a NO-OP for
+  this shape — an agent following it loops forever. Mechanism READ from code (not inferred):
+  `BuildCallGraph` is funcs-only (`scc.go:111`); module lets are `wrapInLets`-wrapped OUTSIDE any
+  func binding (`file.go:279–302`), so let values see globalEnv + earlier lets only; plain
+  `core.Let` breaks letrec self-ref. 4th member of the #323/#327 "resolution diverges by position"
+  family — at the DECL-class level the v0.29.0 expression-position fix never covered.
+
+**Shipped**:
+- GitHub issue **#366** (full verified behavior matrix + mechanism).
+- Design doc `m-module-let-func-resolution` → `planned/v1_0_0` via **PR #367** (squash-merge
+  `7c0d91c4c`, required checks OBSERVED green — auto-merge fired): unify decl ordering (module lets as first-class SCC nodes, topo-emitted core
+  decls, DELETE wrapInLets), duplicate-name pinning (today: silent collision — live-verified),
+  letrec decision by spike cost, hint truth pass (`import_hint.go:50` stops citing a closed bug;
+  real workaround = `func` form, verified green). All design-doc-creator hard gates met: 10 live
+  `ailang check` repros at HEAD; mechanism from code-reading; no new error code proposed (claim
+  class 1: n/a, deferred grep for Phase-2's duplicate-name code); Conflict Surface with
+  EXISTING-file fixtures only (`ls`-verified: fnv1a/array_basic/deriving_eq/list_sum — claim
+  class 3); duplicate gate via grep + SimHash (NEURAL SEARCH SKIPPED — rig busy with the qwen3.6
+  eval-suite, GPU rule; iteration-20 precedent).
+
+**Routing evidence**: model=controller (claude-fable-5) task-class=triage+design per policy
+(controller reverted from the TEMP Opus override 2026-07-13 07:00 as designed). No
+plan/execute/evaluate stage this iteration. No GPU (rig.lock untouched; neural search skipped
+while eval-suite held the GPU). 1 evidence row; below the ≥3 routing-change threshold.
+
+**Ruled out**:
+- "adt_option is a code regression" — REFUTED: thrash_aborted at ~8% over the token cap, 2-trial
+  local-model noise in the known convergence class; no eval-relevant commit delta between nightlies.
+- "higher_order_functions is a compiler regression introduced since yesterday" — REFUTED: the
+  failing dialect shape was never attempted yesterday; its failure is PRE-EXISTING (mechanism
+  dates to the v0.4.9 wrapInLets design) and reproduces minimally at HEAD.
+- "the v0.29.0 #327 fix covers module-level lets" — REFUTED: it made `findReferences` exhaustive
+  over expression positions but only wires func→func edges; lets are not call-graph nodes at all.
+- "μRAG A/B on=58 off=62 needs action now" — DEFERRED, not concluded: Δ−4 on 2-trial agentic
+  data is within the established noise band; left to the weekly trend, no lever pulled.
+
+**Gate 3b**: every wait bounded (PR #367 merge poll 45s × 30-min hard cap, background; post-merge
+dev-CI check per-workflow before this entry's tags were finalized). Doc-only diff. Mission
+bookkeeping committed to dev directly (never left dirty — iteration-20 rule).
+
+**Retro lane**: **backlog** (the design doc IS the routed outcome of this iteration's friction).
+No skill edit (no ≥2 same-gap frictions this iteration: the loop mechanics ran clean; the
+lying-hint friction is the backlog item itself). No process fix. NOTE for the watch-list: the
+carry-forward "m-record-update-local-resolution doc-status re-check" is now CLOSED by this
+iteration — the residual class it worried about is exactly #366, routed. adt_option-style
+thrash alerts at ≤10% over cap are a candidate alert-threshold tune for nightly-eval, ONE
+instance so far; needs a second before an edit.
+
+**Next**: Iteration 23 — **EXECUTE `m-module-let-func-resolution`** (DOC-READY): sprint-planner →
+sprint-executor (worktree; Phase-1 spike FIRST — link/eval acceptance of non-lambda module decls
+gates the approach, fallback documented in the doc) → sprint-evaluator. THEN R4a `m-dx-match-hof`
+(NEW-DOC). **Carry forward**: PARKED for human/coordinator (cumulative): M-DX-JSON-BOOL Phase-1
+firestore fix; tier-assignment ratification; feedback-gate production ops; haiku causal re-run;
+scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
+m-syntax-ai-forgiving (GPU); %-row re-check; the two dev-health flakies. DROPPED from carry-forward:
+m-record-update-local-resolution doc-status re-check (closed via #366 this iteration).

@@ -49,6 +49,24 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-13 — ITERATION 22: nightly-regression triage → REAL resolver gap found (#366); `m-module-let-func-resolution` DOC-READY → PR #367 `7c0d91c4c`
+
+Gate 0.4 fired: 2 fresh nightly regressions (opencode-qwen3-5) outranked the queue. Triage
+(data-led, error-stream first): `adt_option` = thrash_aborted ~8% over token cap, 2-trial noise,
+no action; `higher_order_functions` = model dialect variance (module-level lets, never attempted
+yesterday) — NOT a binary regression, BUT the shape exposed a real pre-existing decl-class gap,
+live-reproduced 10 ways at HEAD: **module-level `let`/`letrec` values can NEVER reference module
+`func`s** (any order; letrec can't self-reference), while the hint cites the CLOSED #327 with a
+no-op workaround — an agent following it loops forever (which is exactly what the model did).
+Mechanism read from code: funcs-only `BuildCallGraph` (scc.go:111) + `wrapInLets` checking let
+values outside every func binding (file.go:279–302). 4th member of the #323/#327
+position-divergence family, at the decl-class level. Filed #366; design doc (unified SCC over
+lets+funcs, delete wrapInLets, duplicate-name pinning, truthful hint) → PR #367 squash-merged
+`7c0d91c4c` on observed-green checks. Controller back on Fable (Opus override expired on
+schedule). Neural doc-search skipped (qwen3.6 eval-suite held the GPU — iteration-20 precedent).
+Next: EXECUTE m-module-let-func-resolution (Phase-1 spike gates approach), then R4a. Detail: log
+entry 23.
+
 ## STATUS 2026-07-13 — ITERATION 21: clause-3 R4c `m-arity-style-diagnostic` EXECUTED + LANDED (full inner loop, round-1 clean) → PR #363 `5b54509d1`
 
 Executed R4c exactly as iteration-20's Next specified: Opus **sprint-planner** (resolved the #1
@@ -667,8 +685,11 @@ VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-
 **NEW-DOC footgun fixes** — each needs design-doc-creator first (Conflict Surface mandatory, incl.
 the error-code + mechanism + fixture-existence verification gates): m-dx-match-hof (R4a, 2–3d) ·
 m-poly-arith-lambda (R4b, 2–3d) · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d).
-Recommend START R4a `m-dx-match-hof` (design-doc-creator; next-cheapest after R4c landed). Full
-inner-loop sprints, NOT bookkeeping.
+**Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
+`higher_order_functions` triage → real decl-class resolver gap #366): `m-module-let-func-resolution`
+is now DOC-READY (PR #367). Recommend **EXECUTE m-module-let-func-resolution next** (sprint-planner
+→ executor → evaluator; 2–3d, Phase-1 spike gates the approach), THEN START R4a `m-dx-match-hof`.
+Full inner-loop sprints, NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
 iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18;
@@ -682,7 +703,10 @@ models" — ~33 open items, ~40–55 sprint-days. Rig/cloud/motoko/post-v1 infra
 triage evidence = log entry 10.)*
 
 ### Clause 3 — fleet-tier accessibility (the footgun burn-down; the thesis's core deficit)
-- **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): m-dx-match-hof (R4a, 2–3d) ·
+- **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): **m-module-let-func-resolution
+  (#366, DOC-READY iter 22 via PR #367, 2–3d — regression-derived 2026-07-13: module-level let/letrec
+  can never reference module funcs, wrapInLets mechanism; lying closed-#327 hint; EXECUTE next)** ·
+  m-dx-match-hof (R4a, 2–3d) ·
   m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[LANDED iter 21 →
   implemented/v0_30_0; `TC_ARITY_001` coded/directional/style-aware arity diagnostic at
   `unification_types.go`, 5 golden/regression tests, eval PASS 97/100 round 1, PR #363 →
