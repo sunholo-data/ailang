@@ -32,6 +32,11 @@ type SweetSpotBucket struct {
 	// CapabilityBlocked: compile/runtime/logic/timeout failures — model
 	// genuinely couldn't solve it within reasonable scope.
 	CapabilityBlocked int `json:"capability_blocked"`
+	// Refused: the model's safety layer declined the prompt (ErrorCategory
+	// "refused", e.g. Fable 5's deterministic refusals). Model behavior, NOT a
+	// coding failure — its own bucket, and excluded from capability scoring
+	// (see capability.go) just like provider noise.
+	Refused int `json:"refused"`
 	// ProviderBlocked: quota_exhausted / rate_limit / api_error — not the
 	// model's fault. Excluded from capability scoring (see capability.go).
 	ProviderBlocked int `json:"provider_blocked"`
@@ -348,6 +353,7 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 			// this model. Priority: budget > capability > provider.
 			budget := false
 			capability := false
+			refused := false
 			provider := false
 			for _, r := range rs {
 				if r.ID != benchID || r.StdoutOk {
@@ -358,6 +364,8 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 					budget = true
 				case "timeout", "compile_error", "runtime_error", "logic_error", "verify_error":
 					capability = true
+				case "refused":
+					refused = true
 				case "quota_exhausted", "rate_limit", "api_error":
 					provider = true
 				default:
@@ -369,6 +377,8 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 				row.Buckets.BudgetBlocked++
 			case capability:
 				row.Buckets.CapabilityBlocked++
+			case refused:
+				row.Buckets.Refused++
 			case provider:
 				row.Buckets.ProviderBlocked++
 			}
@@ -471,6 +481,7 @@ func renderSweetSpotRow(r SweetSpotRow) map[string]interface{} {
 			"slow_pass":          r.Buckets.SlowPass,
 			"budget_blocked":     r.Buckets.BudgetBlocked,
 			"capability_blocked": r.Buckets.CapabilityBlocked,
+			"refused":            r.Buckets.Refused,
 			"provider_blocked":   r.Buckets.ProviderBlocked,
 		},
 		"error_categories": map[string]int{

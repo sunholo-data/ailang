@@ -38,6 +38,11 @@ func ShouldExcludeFromCapability(category string) bool {
 	switch category {
 	case "quota_exhausted", "rate_limit", "api_error":
 		return true
+	case "refused":
+		// A safety-layer refusal (e.g. Fable 5) is model behavior, not an
+		// inability to code — it should not count against the capability-aware
+		// pass rate. It gets its own bucket in the failure-mode breakdown.
+		return true
 	default:
 		return false
 	}
