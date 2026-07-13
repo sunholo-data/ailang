@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.9012345679012346,
+          "ailang": 0.9111111111111111,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -21,7 +21,7 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.9629629629629629,
+            "ailang": 0.9696969696969697,
             "go": 1,
             "javascript": 1,
             "python": 1
@@ -36,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.875
+            "ailang": 0.8888888888888888
           },
           "vision": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6049382716049383,
+          "ailang": 0.6333333333333333,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -57,7 +57,7 @@
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.6296296296296297,
+            "ailang": 0.6666666666666666,
             "go": 1,
             "javascript": 1,
             "python": 1
@@ -72,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.6956521739130435
+            "ailang": 0.7307692307692307
           },
           "vision": {
             "ailang": 0,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7831325301204819,
+          "ailang": 0.8043478260869565,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -93,7 +93,7 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.8148148148148148,
+            "ailang": 0.8484848484848485,
             "go": 0.8333333333333334,
             "javascript": 1,
             "python": 1
@@ -108,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.84
+            "ailang": 0.8571428571428571
           },
           "vision": {
             "ailang": 1,
