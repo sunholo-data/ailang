@@ -1690,3 +1690,82 @@ firestore fix; tier-assignment ratification; feedback-gate production ops; haiku
 scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
 m-syntax-ai-forgiving (GPU). Carry forward: %-row + m-record-update-local-resolution doc-status
 re-check; the two dev-health flakies.
+
+## 22 — 2026-07-13 — Iteration 21: clause-3 R4c `m-arity-style-diagnostic` EXECUTED + LANDED (full inner loop, round-1 clean, PASS 97/100) → PR #363
+
+**Picked**: the queue's `[NEXT]` **EXECUTE R4c `m-arity-style-diagnostic`** — exactly as
+iteration-20's Next recommended (doc DOC-READY via PR #361). Full inner-loop execution stage:
+sprint-planner → sprint-executor (worktree) → sprint-evaluator.
+
+**Reality check** (Gate 1/2): Gate-1 origin-sync caught local dev **2 commits behind origin/dev**
+(iters 20's #361/#362 merged via GitHub) — read all mission state from origin per the rule; dev CI
+green per-workflow (CI/Build/Docs) pre-pick. Inbox: 2 routine eval-suite rotation messages (69.0% =
+the known-stale os-rolling banked rate, not a regression) — queue stood. Item NOT already landed
+(`TC_ARITY_001` grep = empty; only #361/#362 doc PRs merged). Rebuilt both binaries
+(`make quick-install && make build`, d6b22b75d); reproduced all 3 arity footguns live at HEAD
+(same weak `arity mismatch: N vs M`, no code/direction/hint) + positive control `✓ No errors` —
+this base-binary run later doubled as the evaluation's non-vacuity proof.
+
+**Shipped** (PR #363 → squash-merge `5b54509d1`): `TC_ARITY_001` const + `arityMismatchMsg(expected,
+actual)` helper in `internal/types/errors.go` — code + `Suggestion:` INLINE in the string (the plain
+`%w` wrap at `inference_helpers.go:187` would flatten a struct Suggestion; TC_REC_00X convention);
+wired at the post-curry-flatten `else` in `unification_types.go` (the ONLY changed emission line).
+Direction pinned by code-reading, not guessing: `inferApp` builds `TypeEq{Left: declared callee,
+Right: func-type-from-args}` → `fp1`=EXPECTED, `fp2`=ACTUAL — verified independently by BOTH planner
+and executor. Under-supply hint names the no-partial-application rule + lambda-wrap alternative;
+over-supply says remove the extra N. New `arity_diagnostic_test.go` (5 tests: 3 goldens through
+`arityMismatchMsg` + `Unify` App-orientation, equal-arity defensive, curried↔tupled-still-reconciles);
+docs/reference/errors TC_* section; CHANGELOG. Design doc → implemented/v0_30_0 (status stamped).
+
+**Evaluation** (Fable, independent of the Opus plan/execute — the mission-model Opus override
+expired on schedule, `~/.ailang/state/mission-model` absent, controller auto-reverted to Fable):
+**PASS 97/100 round 1** — SIXTH round-1 pass. Independent verification: evaluator-rebuilt worktree
+binary (verified BEHAVIORALLY per the worktree-version-stamp caveat); all 3 repros emit code +
+direction + hint; ok/curry controls pass; `go test ./internal/... -count=1` rc=0 evaluator-run;
+7/7 curry tests; gofmt clean; diff scope exactly the 6 intended files; TCon arity site untouched.
+Non-vacuity: identical repro files on base d6b22b75d emitted the old bare message. −3: no runnable
+example file (acceptable for diagnostic-only); verify-examples baseline (185/5/5 = issue #341 set
+exactly) accepted from executor evidence. Report: `.ailang/state/evaluations/eval_M-ARITY-STYLE-DIAGNOSTIC_round_1.json`.
+
+**Routing evidence**: plan=claude-opus-4-8 (attested; resolved the direction risk pre-execution +
+caught 2 doc premise errors — high quality); execute=claude-opus-4-8 (attested; clean round-1,
+honored both premise corrections, added 2 defensive tests beyond spec); evaluate=Fable
+(claude-fable-5, controller). Evaluation independence RESTORED this iteration (Opus override
+expired Mon 07:00 CEST as designed — the file was already absent at Gate 0). No GPU (rig
+untouched; no rig.lock).
+
+**Ruled out**:
+- "The design doc's `TestCurriedMismatchStillFails` needs its expected text updated" — REFUTED by
+  reading the test body (asserts `err != nil` only); the doc's "ONE intentional test-text change"
+  was a false premise. No edit made.
+- "`examples/lambdas_higher_order.ail` + `no_loops_fold.ail` guard the regression surface" —
+  REFUTED: neither exists; `make verify-examples` (185 pass / 5 pre-existing #341 failures,
+  unchanged) is the real surface.
+- "The eval-suite 69.0% partial is a regression" — REFUTED: matches the known-stale os-rolling
+  banked rate (frozen by --skip-existing); routine rotation traffic.
+
+**Gate 3b**: every wait bounded (PR merge poll 45s×30min cap, background; post-merge dev CI poll
+60s×30min cap). PR #363: all required checks OBSERVED green → auto-merge SQUASH fired →
+`5b54509d1`; post-merge dev CI (CI + Build and Release) observed completed/success @ `5b54509d1`
+before this [LANDED] tag was written. Local dev fast-forwarded to origin AFTER a provably-lossless
+mission-doc reset (working-tree copies were byte-identical to origin — 0-line diff — before
+`checkout HEAD` + `merge --ff-only`); worktree + branches cleaned up.
+
+**Retro lane**: **skill fix** (design-doc-creator) — ≥2 same-class frictions THIS iteration, both
+from the iter-20 doc: (1) cited regression fixtures that don't exist, (2) claimed test-asserts-text
+behavior refuted by the test body. ONE edit: Verification-gate claim class 3 added ("every cited
+regression fixture must exist [`ls`]; every claim about an existing test's behavior must come from
+reading the test body"), with this iteration as the case study. Queue guardrail text updated to
+name the fixture-existence gate. No routing-policy change (evidence rows consistent with current
+policy).
+
+**Next**: Iteration 22 — **START R4a `m-dx-match-hof`** (2–3d, NEW-DOC → design-doc-creator with
+the now-3-class verification gate; likely design-only iteration, execution next, mirroring the
+R4c two-iteration pattern that just ran round-1 clean). Alternative: m-lambda-open-record-pattern
+(1d) if a smaller slot. **Carry forward** (unchanged): os-cron's 5 staged data files in the main
+tree (cron commits them); PARKED for human/coordinator (cumulative): M-DX-JSON-BOOL Phase-1
+firestore fix; tier-assignment ratification; feedback-gate production ops; haiku causal re-run;
+scope-params re-score; frontier-failure validation; issue #341 triage; rig A/B for
+m-syntax-ai-forgiving (GPU); %-row + m-record-update-local-resolution doc-status re-check; the two
+dev-health flakies (`PipedStdoutFlushesPerLine` reproduced again this iteration under parallel
+load, passes isolated).

@@ -49,6 +49,25 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-13 — ITERATION 21: clause-3 R4c `m-arity-style-diagnostic` EXECUTED + LANDED (full inner loop, round-1 clean) → PR #363 `5b54509d1`
+
+Executed R4c exactly as iteration-20's Next specified: Opus **sprint-planner** (resolved the #1
+risk — direction pinned from `inferApp`'s constraint construction: `fp1`=declared/EXPECTED,
+`fp2`=call-site/ACTUAL; found 2 design-doc premise errors: `TestCurriedMismatchStillFails` asserts
+only `err != nil` [the doc's "one intentional test-text change" was fictional], and both cited
+example fixtures don't exist) → Opus **sprint-executor** (worktree off origin/dev: `TC_ARITY_001`
+const + `arityMismatchMsg` helper inline-coded per the TC_REC_00X convention, wired at the
+post-curry-flatten `else`; 5 golden/regression tests; docs + CHANGELOG) → **Fable evaluation
+PASS 97/100 round 1** (independence restored — mission-model override expired on schedule) with
+independent reproduction on an evaluator-built worktree binary + base-binary non-vacuity proof.
+All 3 arity footguns (partial-app/too-many/too-few) now emit code + direction + `Suggestion:`
+(the under-supply hint names AILANG's no-partial-application rule); positive controls (2-arg,
+curried↔tupled) unchanged. PR #363 → squash-merge `5b54509d1`, required checks green + post-merge
+dev CI verified. Design → implemented/v0_30_0. Retro skill-fix: design-doc-creator gained claim
+class 3 (cited regression fixtures must exist; test-behavior claims read from the test body — 2
+same-class frictions this iteration). Next: R4a `m-dx-match-hof` (design-doc-creator). Detail:
+log entry 22.
+
 ## STATUS 2026-07-13 — ITERATION 20: clause-3 R4c `m-arity-style-diagnostic` DESIGN DOC (full inner-loop NEW-DOC, design stage) → PR #361; also unwedged a broken main-tree autostash left by the os-rotation cron
 
 Picked the queue's `[NEXT]` R4c (cheapest clause-3 footgun fix), routed through **design-doc-creator**
@@ -646,15 +665,14 @@ P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnosti
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
 14–17; both VERIFY-then-route items closed as ghosts iter 18). Remaining clause-3 starters are all
 **NEW-DOC footgun fixes** — each needs design-doc-creator first (Conflict Surface mandatory, incl.
-the error-code + mechanism verification gates): m-dx-match-hof (R4a, 2–3d) · m-poly-arith-lambda
-(R4b, 2–3d) · m-arity-style-diagnostic (R4c, 1–2d) · m-lambda-open-record-pattern (1d) ·
-m-xmod-alias-poly (1–2d). **R4c now [DOC-READY iter 20 → PR #361]** — recommend EXECUTE R4c
-(sprint-planner → executor: allocate `TC_ARITY_001`, wire the coded/directional/style-aware arity
-message at `unification_types.go:39`; ~100 LOC, well-scoped) or start R4a `m-dx-match-hof`. Full
+the error-code + mechanism + fixture-existence verification gates): m-dx-match-hof (R4a, 2–3d) ·
+m-poly-arith-lambda (R4b, 2–3d) · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d).
+Recommend START R4a `m-dx-match-hof` (design-doc-creator; next-cheapest after R4c landed). Full
 inner-loop sprints, NOT bookkeeping.
 *(m-match-xcheck-error-quality LANDED iter 15; m-dx-json-bool-coercion in-repo half LANDED iter 16
 [`std/json.asBoolLoose`; Phase-1 firestore fix PARKED out-of-repo]; m-dx-split-argument-warning LANDED
-iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18 —
+iter 17; m-dx-record-cons-pattern + m-dx-tapp-trecord-unification GHOSTS/verified-closed iter 18;
+m-arity-style-diagnostic (R4c) LANDED iter 21 [TC_ARITY_001, PR #363 → `5b54509d1`] —
 all → implemented/v0_30_0.)*
 
 *(SCOPE EXPANDED 2026-07-12, Mark — full-v1.0 triage of the 69 non-gating docs. The clause-3
@@ -665,10 +683,10 @@ triage evidence = log entry 10.)*
 
 ### Clause 3 — fleet-tier accessibility (the footgun burn-down; the thesis's core deficit)
 - **Parser/type footgun fixes** (NEW-DOC, Conflict Surface mandatory): m-dx-match-hof (R4a, 2–3d) ·
-  m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[DOC-READY iter 20 →
-  `planned/v1_0_0/m-arity-style-diagnostic.md`, PR #361; allocate `TC_ARITY_001` + coded/directional/
-  style-aware arity msg at `unification_types.go:39`; EXECUTE next]** · m-lambda-open-record-pattern
-  (1d) · m-xmod-alias-poly (1–2d)
+  m-poly-arith-lambda (R4b, 2–3d) · ~~m-arity-style-diagnostic (R4c, 1–2d)~~ **[LANDED iter 21 →
+  implemented/v0_30_0; `TC_ARITY_001` coded/directional/style-aware arity diagnostic at
+  `unification_types.go`, 5 golden/regression tests, eval PASS 97/100 round 1, PR #363 →
+  `5b54509d1`]** · m-lambda-open-record-pattern (1d) · m-xmod-alias-poly (1–2d)
 - **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
   **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
   `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·
