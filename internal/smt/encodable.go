@@ -5,6 +5,7 @@ package smt
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/core"
 )
@@ -110,6 +111,20 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 	}
 
 	return len(reasons) == 0, reasons
+}
+
+// CollectCalleeNames returns the names of all user-defined functions reachable
+// (transitively) as cross-function calls from a function body — exactly the set
+// that ResolveCallees would attempt to inline. Exported so the verify driver can
+// gate a caller on its callees' signature types. Names are returned sorted for
+// deterministic downstream reporting.
+func CollectCalleeNames(body core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program) []string {
+	if body == nil || prog == nil {
+		return nil
+	}
+	names := collectCalleeCalls(body, selfName, prog, imported, 0)
+	sort.Strings(names)
+	return names
 }
 
 // hasContracts checks if the function has any contracts.
