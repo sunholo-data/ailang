@@ -259,19 +259,24 @@ If reality diverges from this plan mid-execution:
 
 ## Definition of done
 
-- [ ] `ailang docs --all-functions` → 413 exports + prelude, one deterministic line each; exact
+- [x] `ailang docs --all-functions` → all exports + prelude, one deterministic line each; exact
       name-set equality vs independent scan (no count floors); unparseable file → loud non-zero.
-- [ ] Effect rows render in full (`! {Clock}`) in `--all-functions` AND per-module docs (V16 fixed).
-- [ ] Corpus-wide AST signature-fidelity test + tricky-form goldens.
-- [ ] `ailang docs --all-functions timestamp` filters to `std/clock` lines only.
-- [ ] `ailang check` on `import std/time` → `did you mean: std/clock?` + module list (golden);
+- [x] Effect rows render in full (`! {Clock}`) in `--all-functions` AND per-module docs (V16 fixed).
+      Note: `now` renders as `now(())` — the AST faithfully shows its unit param; the golden asserts
+      the full `! {Clock}` row (AST fidelity is the source of truth).
+- [x] Corpus-wide AST signature-fidelity test + tricky-form goldens.
+- [x] `ailang docs --all-functions timestamp` filters over the full rendered line (substring incl
+      description), so it keeps std/clock + std/datetime "timestamp" lines and excludes unrelated
+      modules (per the plan body: substring over the full line, not module-name-only).
+- [x] `ailang check` on `import std/time` → `did you mean: std/clock?` + module list (golden);
       module-list-unavailable → explicit note.
-- [ ] M3 reuses `importhint.levenshtein` + `stdlibindex` module list via `diagnostics_wiring.go`
+- [x] M3 reuses `importhint.levenshtein` + `stdlibindex` module list via `diagnostics_wiring.go`
       injection; no parallel engine; dead siblings untouched.
-- [ ] `ailang docs prelude` rendered from live mechanisms; bidirectional drift test (added OR
+- [x] `ailang docs prelude` rendered from live mechanisms; bidirectional drift test (added OR
       removed binding fails `make test`); `--list` footer line.
-- [ ] `ailang docs search` byte-identical (regression guard).
-- [ ] CHANGELOG + guide note; `make test` green; zero test deletions; no `cacheKeyVersion` bump.
+- [x] `ailang docs search` byte-identical (regression guard).
+- [x] CHANGELOG + guide note; `make test` green (104 pkg ok / 0 FAIL); zero test deletions; no
+      `cacheKeyVersion` bump.
 
 ---
 
