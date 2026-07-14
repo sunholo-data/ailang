@@ -614,6 +614,11 @@ func handleRequest(path: string) -> Response ! {Net} {
 - `print` (entry modules only)
 - `show(x)` - convert to string
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
+- **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
+  the types AND their constructors resolve without `import std/option` / `import std/result`.
+  You can construct and pattern-match them directly. (Their helper functions — `map`,
+  `getOrElse`, etc. — still need an explicit import, e.g. `import std/option (map)`.
+  Library modules with no exported `main` still require the explicit import.)
 
 **Common imports:**
 ```ailang
@@ -850,7 +855,10 @@ To RETURN an Option from a function, use `Some(value)` or `None`:
 
 ```ailang
 module benchmark/solution
-import std/option (Option, Some, None)  -- REQUIRED for constructing Option
+import std/option (Option, Some, None)  -- explicit import (this is a LIBRARY module — no `main`)
+-- NOTE (v0.30.0+): in an ENTRY module (one with an exported `main`) this import is
+-- OPTIONAL — Option/Some/None resolve as prelude. Library modules like this one
+-- still import explicitly so the dependency is self-documenting.
 
 -- Return Some(value) for success, None for failure
 pure func safeDivide(a: int, b: int) -> Option[int] =

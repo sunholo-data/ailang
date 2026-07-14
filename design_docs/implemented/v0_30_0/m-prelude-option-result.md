@@ -1,10 +1,42 @@
 # M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)
 
-**Status**: Planned
-**Target**: v0.24.0
+**Status**: Implemented (2026-07-14, mission iteration 27)
+**Target**: v0.30.0 (doc originally said v0.24.0; retargeted — see sprint plan)
 **Priority**: P1 (High — structural fix; permanent, no re-teaching per model)
 **Estimated**: 1.5 days
-**Dependencies**: None (extends existing `internal/pipeline/prelude.go`)
+**Dependencies**: None
+
+> **AS-BUILT NOTE (2026-07-14).** The sprint plan
+> (`m-prelude-option-result-sprint-plan.md`) CORRECTED this doc's mechanism, and
+> the implementation follows the plan, not the original "Architecture" /
+> "Implementation Plan" sections below:
+>
+> - **NOT `internal/pipeline/prelude.go` + `InjectPrelude` / `InjectPreludeValues`.**
+>   `InjectPreludeValues` never existed (it was a TODO comment), and the prelude
+>   only ever injected the `println` type — there was no type/constructor
+>   injection path there to extend.
+> - **As built:** entry modules **implicitly import `std/option` + `std/result`**,
+>   injected at the **loader** (`internal/loader/prelude_imports.go`, wired into
+>   `ModuleLoader.Load`). That is the single call-site both the compile pipeline
+>   (`mod.File.Imports`) and the runtime (`LoadedModule.Imports`) consume, so
+>   compile and runtime stay in lockstep with **zero** changes to the type
+>   checker, elaborator, or runtime resolver core. The injection reuses the
+>   existing constructor-import machinery (selective import → `M-CTOR-AUTO` →
+>   `resolveConstructorImport` → `findConstructorMatches`).
+> - **Shadowing** is handled by (a) prepending implicit imports = lowest
+>   precedence, (b) deduping against the user's explicit imports, and (c) skipping
+>   a prelude module entirely when the entry file locally declares a colliding
+>   type or constructor name (`type Option` / `type Result` / a local `Some`/`Ok`).
+> - **No `cacheKeyVersion` bump** (stays `v3`): no persisted `Iface`/gob struct
+>   field changed; entry-module cache keys shift naturally via their dep set.
+> - Example: `examples/prelude_option_result.ail`. Tests:
+>   `internal/loader/prelude_imports_test.go`,
+>   `internal/pipeline/prelude_option_result_test.go`,
+>   `internal/runtime/prelude_option_result_test.go`.
+>
+> The "Solution Design", "Architecture", and "Implementation Plan" sections below
+> are preserved as the ORIGINAL proposal for historical context; trust the plan +
+> this note for what actually shipped.
 
 > **📊 RECENT-VERIFIED: 6% of recent (Apr-Jun 2026) compile failures are `None`/`Some`
 > used without `import std/option`. This is a STRUCTURAL fix — the model's code is

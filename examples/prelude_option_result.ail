@@ -1,0 +1,52 @@
+-- examples/prelude_option_result.ail
+-- Prelude Option/Result (M-PRELUDE-OPTION-RESULT, v0.30.0).
+--
+-- In ENTRY modules (a module with an exported `main`), the Option and Result
+-- types AND their data constructors are available WITHOUT an explicit import:
+--
+--   Option[a] = Some(a) | None          -- from std/option, implicit
+--   Result[a, e] = Ok(a) | Err(e)       -- from std/result, implicit
+--
+-- No `import std/option` / `import std/result` needed to construct or match
+-- them. (Library modules — no exported `main` — still require the explicit
+-- import, so library code stays self-documenting.)
+--
+-- Helper functions (map, getOrElse, ...) still need `import std/option (map)`;
+-- only the type + constructors are prelude.
+--
+-- Run:
+--   ailang run --caps IO --entry main examples/prelude_option_result.ail
+
+module examples/prelude_option_result
+
+-- safeDiv returns None on divide-by-zero — Option with NO import.
+export func safeDiv(a: int, b: int) -> Option[int] {
+  if b == 0 then None else Some(a / b)
+}
+
+-- parseSign classifies an int into a Result — Ok/Err with NO import.
+export func classify(n: int) -> Result[string, string] {
+  if n >= 0 then Ok("non-negative") else Err("negative")
+}
+
+export func main() -> () ! {IO} {
+  -- Construct + match Option, no import:
+  match safeDiv(84, 2) {
+    Some(x) => println("safeDiv(84, 2) = ${show(x)}"),
+    None => println("safeDiv(84, 2) = undefined")
+  };
+  match safeDiv(1, 0) {
+    Some(x) => println("safeDiv(1, 0) = ${show(x)}"),
+    None => println("safeDiv(1, 0) = undefined")
+  };
+
+  -- Construct + match Result, no import:
+  match classify(42) {
+    Ok(msg) => println("classify(42) = Ok(${msg})"),
+    Err(msg) => println("classify(42) = Err(${msg})")
+  };
+  match classify(-1) {
+    Ok(msg) => println("classify(-1) = Ok(${msg})"),
+    Err(msg) => println("classify(-1) = Err(${msg})")
+  }
+}
