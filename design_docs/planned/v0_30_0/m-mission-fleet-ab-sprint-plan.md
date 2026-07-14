@@ -3,7 +3,7 @@
 **Sprint ID**: M-MISSION-FLEET-AB
 **Design doc**: [m-mission-adaptive-multiprovider-routing.md](./m-mission-adaptive-multiprovider-routing.md)
 **Branch / worktree**: `mission/iter28-fleet-ab` @ `/Users/voightkampff/dev/sunholo-data/ailang-wt-iter28`
-**Status**: planned
+**Status**: completed (all milestones ✅, 2026-07-14; awaiting independent evaluator)
 **Risk**: MEDIUM (touches the live mission driver + spends OpenAI/Vertex credits per design doc)
 **Estimate**: ~1.5–2.0 dev-days total (Phase A **already landed** → verification-only ~0.25d; Phase B ~1.25–1.75d)
 **GH bookkeeping**: #329
@@ -134,13 +134,12 @@ Build the off-Anthropic reviewer invocation as a thin Go subcommand reusing ship
 4. Per-call **budget cap**: `--max-cost-usd` (default $0.10/reviewer); refuse + record if the
    model's models.yml pricing × expected tokens would exceed it. No silent fallback (Principle 2).
 
-**Acceptance**
-- `ailang design-review <doc> --reviewer gpt5-6-sol --json` returns valid JSON with all four fields.
-- Same for `--reviewer gemini-3-pro` **without** `GEMINI_API_KEY` set (ADC path proven).
-- Empty `strongest_objection` on a `reject` (or any missing field) → the call is a hard error, not a
-  pass. Budget-cap breach → structured error, zero spend.
-- Unit tests: schema-conformance (stubbed handler), budget-cap refusal, ADC-vs-apikey provider
-  resolution. (Delete any superseded tests per coding-standards.)
+**Acceptance** — ✅ ALL MET (verified 2026-07-14, exec; live smokes bounded)
+- [x] `ailang design-review <doc> --reviewer gpt5-6-sol --json` returns valid JSON (verdict/strongest_objection/catch). Live: reject, $0.0055.
+- [x] Same for `--reviewer gemini-3-1-pro` **without** `GEMINI_API_KEY` set (ADC path proven; ran under `env -u GEMINI_API_KEY` → reject, $0.0019). *(picked `gemini-3-1-pro`, the newer ADC pro, per the parked question.)*
+- [x] Empty `strongest_objection`/missing field → hard error, not a pass (`ValidateReviewResult`). Budget-cap breach → structured error, zero spend (unit test asserts caller not invoked).
+- [x] Unit tests: schema-conformance (stubbed handler), budget-cap refusal, ADC-vs-apikey resolution. No superseded tests existed to remove (new package).
+- **Deviation (declared):** pre-flight budget estimate now scales to the ACTUAL doc size (chars/4), not a fixed 16k — the fixed estimate over-refused a small doc at gpt5-6-sol pricing. POST-check still uses real provider token counts.
 
 **Risk**: MEDIUM. Real credit spend (OpenAI + Vertex). Mitigated by budget cap + cents/doc scale.
 
@@ -173,14 +172,12 @@ Compose N reviewers into one quorum verdict with graceful degrade and a recordab
    step* — the design-doc-creator SKILL.md gets a one-paragraph "Quorum review (optional)" note
    pointing at `ailang design-review` + the orchestrator; **no inner-loop skill CONTRACT changes.**
 
-**Acceptance**
-- Orchestrator on a real design doc writes a well-formed JSON artifact + a mission-log markdown block.
-- Kill one provider (unset OPENAI_API_KEY OR block ADC) → verdict records the absentee with reason,
-  proceeds with N−1, still emits both artifacts. Verified by a bounded test (≤5-min cap).
-- `any-reject → blocked` and `unanimous-pass → proceed` both exercised (one real doc each, or a
-  fixture pair).
-- The design-doc-creator SKILL.md documents the hook (paragraph only; no contract change).
-- Cost per full quorum recorded and ≤ the budget cap × N.
+**Acceptance** — ✅ ALL MET (verified 2026-07-14, exec; live smokes bounded ≤5 min)
+- [x] Orchestrator on a real design doc writes a well-formed JSON artifact (`.ailang/state/mission-quorum/<slug>-<iso>.json`) + a mission-log markdown block (both inspected).
+- [x] Kill one provider (`env -u OPENAI_API_KEY`) → gpt5-6-sol recorded absent (reason `auth`), NAMED in `absent_reviewers`, proceeds with N−1 (gemini present), still emits artifact. Never a silent pass.
+- [x] `any-reject → blocked` (both reviewers rejected the fixture → exit 3) and `unanimous-pass → proceed` (covered by unit test `TestRunQuorum_UnanimousPassProceeds`) both exercised. All-absent → blocked (refuses zero signal).
+- [x] design-doc-creator SKILL.md documents the optional quorum hook (one paragraph; no contract change).
+- [x] Full-quorum cost recorded ($0.0074 for 2 reviewers) and ≤ budget cap × N. `controller_in_session` recorded as a distinct non-API entry.
 
 **Risk**: MEDIUM. Orchestration is the genuinely-new engineering. Concurrency + degrade paths are the
 sharp edges — covered by the N−1 degrade test.

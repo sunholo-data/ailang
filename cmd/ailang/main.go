@@ -369,6 +369,12 @@ func main() {
 	case "exec":
 		runExec()
 
+	case "design-review":
+		runDesignReview()
+
+	case "design-quorum":
+		runDesignQuorum()
+
 	case "verify":
 		verifyCommand()
 

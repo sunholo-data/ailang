@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-FLEET-AB",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-07-14",
   "branch": "mission/iter28-fleet-ab",
   "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-wt-iter28",
@@ -44,10 +44,10 @@
         "--max-cost-usd (default 0.10) breach -> structured error, zero spend, no silent fallback",
         "Unit tests: schema conformance (stubbed handler), budget-cap refusal, ADC-vs-apikey provider resolution; superseded tests removed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "CRITICAL: Gemini MUST route via models.yml/ai_handlers ADC path, NOT exec.go --api-only (which reads the rig-absent GEMINI_API_KEY). This is the design doc's flagged risk, mitigated."
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE + LIVE-VERIFIED. New package internal/mission/quorum (reviewer.go schema+reject-by-default prompt+validation; call.go models.yml resolver→openai/OPENAI_API_KEY + google/Vertex-ADC, refuses GEMINI_API_KEY dependence; run.go budget-capped RunReviewer with named absence reasons). CLI: cmd/ailang/design_review.go (ailang design-review). Live smokes (bounded): gpt5-6-sol→reject $0.0055; gemini-3-1-pro via Vertex ADC WITHOUT GEMINI_API_KEY (env -u GEMINI_API_KEY)→reject $0.0019 (flagged risk MITIGATED). Budget cap: pre-flight refusal, zero spend (unit test asserts caller NOT invoked). Missing field→hard error (ValidateReviewResult), never a pass. Unit tests: schema conformance, code-fence strip, empty-objection hard-error, unreachable/invalid/budget absences, ADC-vs-apikey resolution (call_test), hoistFlags (cmd). Estimate improved: pre-flight scales to ACTUAL doc size (chars/4), not a fixed 16k (declared deviation — original fixed-estimate over-refused a tiny doc)."
     },
     {
       "id": "B2_QUORUM_ORCHESTRATION_VERDICT_ARTIFACT",
@@ -62,10 +62,10 @@
         "Cost per full quorum recorded and <= budget cap x N (cents/doc)",
         "controller_in_session review recorded in the artifact as a distinct entry (not an API call)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "This is the genuinely-new engineering per the binding redundancy audit (all quorum logic). Sharp edges: parallel reviewers + the N-1 degrade path. Artifact seeds Phase E."
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE + LIVE-VERIFIED. quorum.go RunQuorum runs reviewers IN PARALLEL (goroutines+WaitGroup), synthesize(): any present reviewer OR controller reject→blocked, unanimous present pass→proceed, ALL-absent→blocked (refuses zero-signal). Controller review is a distinct in-session entry (NOT an API call). artifact.go writes .ailang/state/mission-quorum/<slug>-<iso>.json + appends mission-log markdown block. Catch-rate hook = per-reviewer landed:null field. CLI cmd/ailang/design_quorum.go (exit 0 proceed / 3 blocked). Live smokes (bounded ≤5min): full quorum on real doc→both reject→BLOCKED, controller pass recorded distinctly, artifact+log both well-formed, total $0.0074 (≤ cap×N). N-1 degrade: env -u OPENAI_API_KEY→gpt5-6-sol absent(reason=auth) NAMED in absent_reviewers, gemini present, proceeds with N-1 (never silent). Unit tests: unanimous-pass proceeds, any-reject blocks, controller-reject blocks, N-1 names absentee, all-absent blocks, artifact JSON round-trip + markdown content, log append preserves+adds. Hook: design-doc-creator SKILL.md documents optional quorum (paragraph only, NO contract change)."
     }
   ],
   "non_goals": [
