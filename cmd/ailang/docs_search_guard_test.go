@@ -32,7 +32,8 @@ func TestDocsSearch_StillDesignDocSimHash(t *testing.T) {
 		t.Errorf("docs search no longer runs the SimHash search — did M1 intercept it?\n%s", got)
 	}
 	// Results are design_docs/* paths, NOT `std/*.func:` lines from --all-functions.
-	if !strings.Contains(got, "design_docs/") {
+	// SimHash prints native separators (design_docs\... on Windows) — normalize first.
+	if !strings.Contains(strings.ReplaceAll(got, `\`, "/"), "design_docs/") {
 		t.Errorf("docs search should return design_docs results, got:\n%s", got)
 	}
 	// It must NOT have degraded into the all-functions stdlib dump.
