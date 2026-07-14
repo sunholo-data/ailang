@@ -2672,3 +2672,105 @@ now a REAL gate; the verify-stdlib target itself still needs its fix-or-delete).
 issue #386 (effect-row regression, 5 quarantined examples — a REAL internal/types candidate
 for a future NEW-DOC pick with mandatory Conflict Surface); gemini quorum-reviewer retry;
 quorum termination-rule friction #1 on file.
+
+## 33 — 2026-07-14 — Iteration 30: m-dx-ai-discovery LANDED (PR #393, PASS 93/100 round 1) — first RESUMED iteration (prior run died rc=1 mid-execution) + triple dev-red interleave fixed forward
+
+**Picked**: **m-dx-ai-discovery** (log-32's Next; last clause-3 Prelude/discovery starter) — as a
+**RESUME**: the 15:30 scheduled run claimed iteration 30 (msg cdccb162), did the mandated Gate-2
+scope check (doc re-scoped at `39d671a52`: 5 superseded premises tabled, 4 residual gaps probed
+REAL), produced the quorum-refined sprint plan at `648a919be`, started the executor in worktree
+`ailang-wt-dx-ai-discovery` — then **died at 16:05:24 rc=1** (transient Anthropic error; the
+driver's TRANSIENT-RETRY fix `111d72958` landed at 17:16, AFTER this death and because of it).
+This 18:05 run found the mid-flight artifacts at Gate 0/2 (dirty doc+plan in the shared tree,
+stalled worktree, claim message, NO log entry), verified not-landed against fresh origin (grep +
+PR search), sent a RESUME claim, and continued rather than re-derived. Inbox: eval-suite 25/27
+partial = routine mid-suite progress, acked.
+
+**Reality check**: prior run's artifacts taken as the contract after verification — plan JSON at
+`648a919be` with all citations re-verified by its planner (2 discrepancies D1/D2 pre-recorded);
+inherited uncommitted executor work assessed by THIS run's executor: build+vet clean, matched
+plan anchors → **all KEEP** (the feared 16:04 mid-write truncation did not materialize).
+
+**Shipped** (PR #393 → squash `c07c36b25`):
+- **Opus executor (resume)**: M1 `docs --all-functions [filter]` (AST-rendered signatures, V16
+  effect-row truncation fixed in per-module docs too, unparseable-file loud failure, exact
+  name-set/corpus-fidelity/tricky-form tests) · M3 unknown-stdlib-module recovery (alias table +
+  Levenshtein≤2 via importhint reuse, `stdlibindex.AllModules()`, did-you-mean + available list
+  in `errWithSearchTrace`, explicit list-unavailable note) · M4 `docs prelude` (live-mechanism
+  rendering via `PreludeSurface()` enumerator + `EntryPreludeSymbols`, bidirectional drift test,
+  `--list` footer) · M5 CHANGELOG + guide + docs-search byte-identical guard. 4 declared
+  deviations, all evaluator-verified.
+- **Independent evaluator round 1: PASS 93/100** (own base/sprint binaries, behavioral
+  differentiation, non-vacuity both directions on all 4 surfaces, zero test deletions, forbidden
+  zones 0-diff). Findings hardened by controller: `arrays→list` alias misdirected (real
+  `std/array` is distance 1 — exactly M3's forbidden class) → `ea6069815` + regression test;
+  false DoD tick ("keeps std/clock timestamp lines" — std/clock.now says "epoch time", planner
+  premise error) → PR body + archived plan corrected.
+- **Windows round**: docs-search guard failed both Windows jobs (asserted `design_docs/` against
+  native separators) → `0ad27444c`, third instance of the Windows class.
+- **INTERLEAVE (Gate-1 red-dev rule)**: sibling M-STD-YAML + M-SMT-CALLEE-SORT-GATE merges turned
+  dev RED mid-iteration with THREE causes: (1) `_yaml_to_json` builtin added without regenerating
+  `builtin_types.golden` (red all platforms); (2) new verify e2e tests invoke z3, absent on the
+  Windows runner (4 tests, empty JSON); (3) +161/+127-line growth pushed verify.go to 928 /
+  codegen.go to 844, tripping check-file-sizes. Fixed forward direct-to-dev: `9a314772d` (golden
+  regen + `smt.Z3Available()` gating per repo convention) + `4caddfd23` (mechanical split of the
+  sprint's own additions into `verify_callee_gate.go` / `codegen_sig_sorts.go`; zero logic
+  change). Dev observed GREEN at `4caddfd23` pre-merge.
+
+**Routing evidence**: model=controller-resume task-class=state-reconstruction (mid-flight
+artifacts + driver log read; resume claim; zero re-derivation of the dead run's design/plan
+work — est. ~2h saved vs restart) · model=Opus task-class=execute(resume) round1-score=93
+rounds=1+hardening inherited-work-verdicts=6-KEEP deviations=4-all-justified ·
+model=Fable task-class=evaluate (independent; caught the alias-misdirection defect + the false
+DoD tick + two weak tests; 6+ adversarial probes) · model=Fable task-class=controller/hardening/
+dev-red-interleave (3 direct-to-dev fix commits, all mechanical/test-only) · quorum NOT re-run
+(doc already quorumed by the dead run — artifacts on disk sufficed).
+
+**Ruled out**:
+- "the dead executor's last-touched files are truncated" — REFUTED: all 6 inherited files build
+  + vet clean and match plan anchors (executor's file-by-file verdict).
+- "empty commit retriggers skipped PR checks" — REFUTED: the skip cause was
+  `mergeable=CONFLICTING` (changelog conflict with the sibling merges); Actions can't build the
+  test-merge commit, so `pull_request` workflows skip silently. One `gh pr view --json mergeable`
+  call diagnoses it; the retrigger commit did nothing. Saved to memory.
+- "my PR broke the ubuntu test job" — REFUTED: the failing step was Check-file-sizes on the
+  sibling M-SMT files (928/844 lines), pre-existing on dev at `efd251f16`.
+
+**Gate 3b**: all waits bounded (35–40-min caps, 5 polls total). One poll burned its full 35-min
+cap watching a conflict-skipped check suite (see Ruled out) — the successor poll added a
+`mergeable` check each round and a bail-on-CONFLICTING branch. Dev green observed per-workflow at
+`4caddfd23`; merge `c07c36b25` green observed per-workflow (CI + Build-and-Release + Docs
+Deploy) before this entry's queue-tag upgrade.
+
+**Retro lane** (each friction → ONE lane):
+- **Windows-unproofed tests, 3rd+4th instances** (iter-29 exampleRunPath; this iteration's
+  docs-search guard; M-SMT's ungated z3 — plus M-STD-YAML's golden as adjacent CI-blindness) →
+  **SKILL EDIT (the one allowed)**: sprint-executor Core Principle 10 "Windows-Proof Every New
+  Test" (path normalization, external-binary availability guards, golden/native-rendering), citing
+  all instances.
+- **Blind PR-checks poll** (35 min burned on a skipped suite + a useless retrigger commit) →
+  memory `pr-checks-skipped-means-conflict` + poll template fixed in-session; friction #1 for a
+  mission-control Gate-3b edit if it recurs.
+- **Dead-run mid-flight resume** worked but is UNCODIFIED in the skill (Gate 2 covers
+  already-landed, not died-mid-execution) → friction #1 on file; the driver retry (`111d72958`,
+  Mark) is the process fix at the driver layer; if another resume lands before the skill covers
+  it, edit then with both citations.
+- **Sibling sprints merging without observed CI** (3 red causes from 2 merges) → report lane:
+  named for Mark in the morning report; their own retro loop should pick it up (not this
+  mission's skill surface).
+
+**Next**: Iteration 31 — clause-3 cheapest-impact-per-day continues: `20251013_auto_caps` (2d) or
+`m-dx-expected-fail-fixes` (1–2d), Gate-2 live-repro mandatory (both are older rows — ghost risk).
+Alternative interleave: m-arch-boundaries P1–3 (approved, loop-executable). Issue #386 (effect-row
+collapse, 5 quarantined examples) remains the NEW-DOC internal/types candidate — needs a slot with
+mandatory Conflict Surface. Quorum: next new/revised doc; watch termination-rule friction #2.
+
+**Carry forward** UNCHANGED from iter 29 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies incl. TestNetHttpPost-httpbin;
+MOD007 veto window; alias-import prelude edge; executor evidence-artifact watch; docs-site CLI
+reference for design-review/design-quorum; quorum-on-sprint-plans decision; fleet C/D/E opt-in;
+issue #386; gemini quorum-reviewer retry; quorum termination-rule friction #1) **PLUS**:
+dead-run resume-detection friction #1; blind-PR-poll friction #1; evaluator's non-blocking seeds
+(near-tautological filter test; static forward prelude probe; guide's drifted inline example;
+prelude vs stdlib signature-shape inconsistency).

@@ -35,17 +35,6 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
-## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET via full backlog triage (Mark, interactive)
-
-Triaged all 69 non-gating planned docs (5 parallel reality-check agents). Result: the "~85
-backlog" is really **~12 ghosts** (already shipped, headers stale) + **~30 not-v1.0** (eval-infra
-rig/harness, cloud-infra, motoko-fork, post-v1) + **~18 genuine v1.0 candidates**, almost all
-clause-3 accessibility. Mark chose FULL SCOPE: the whole clause-3 footgun/DX/prompt cluster +
-both DX tooling investments (fmt, deterministic-tooling) + the full clause-4 orchestration surface
-are IN; rig/cloud/motoko stay OUT. v1.0 queue ~14 → ~33 open items (clause-grouped below).
-10 confirmed ghosts reconciled to implemented/; 2 conflicted docs kept OPEN pending repro. Full
-evidence: log entry 10.
-
 ## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
 
 Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in
@@ -81,6 +70,27 @@ PASS. Nightly "regression" (state_machine_vending) RULED OUT as model variance �
 passing solution compiles clean at HEAD. Quorum frictions recorded: no termination rule
 (reject-by-default can block forever; controller synthesized after round 5 with recorded
 dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
+
+## STATUS 2026-07-14 (evening) — ITERATION 30: m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
+
+The last clause-3 Prelude/discovery starter is in: `ailang docs --all-functions [filter]`
+(one grep-able line per stdlib export, AST-rendered signatures — also fixing the V16
+effect-row truncation in per-module docs), unknown-stdlib-module recovery (`import std/time`
+→ `did you mean: std/clock?` + module list; curated alias table + Levenshtein≤2 reusing
+importhint), and `ailang docs prelude` (rendered from live mechanisms, bidirectional drift
+test). NOTE this iteration was a RESUME: the 15:30 scheduled run re-scoped the doc, ran the
+quorum-refined plan, and died rc=1 (transient Anthropic error, pre-dating the 17:16
+driver-retry fix) with uncommitted executor work in the sprint worktree; this run detected the
+mid-flight artifacts at Gate 2, verified them (all KEEP), and completed execution. Evaluator
+round-1 PASS 93/100; hardening `ea6069815` (arrays→array alias misdirection) + `0ad27444c`
+(Windows separator in the docs-search guard). INTERLEAVE (Gate-1 red-dev rule): sibling
+M-STD-YAML/M-SMT merges turned dev red mid-iteration with THREE distinct causes — missing
+builtin golden regen, z3-less Windows runner on ungated verify e2e tests, and >800-line
+file-size overflow — fixed forward direct-to-dev `9a314772d` + `4caddfd23` (mechanical split
+of the sprint's own additions into verify_callee_gate.go / codegen_sig_sorts.go). Retro:
+sprint-executor gains the Windows-proofing core principle (3 same-class frictions recorded);
+"all-skipped PR checks = conflict, poll mergeable" saved to memory (friction #1, no skill
+edit yet).
 
 ## CURRENT GOAL
 
@@ -398,10 +408,15 @@ m-prompt-option-none-idiom closed SUPERSEDED by it. **Iteration 29 (2026-07-14) 
 m-dx-examples-coverage → LANDED** (doc re-scoped through the FIRST LIVE 5-round quorum, PR #392
 → `3d451947c`, eval round-2 PASS after a one-line Windows fix `881711325`; 5 red examples
 quarantined under #386, verify-examples now a REAL CI gate, docs --examples un-inert —
-doc → implemented/v0_30_0). Remaining clause-3 starter: m-dx-ai-discovery (2d, doc at
-planned/v0_29_0, NOTE: partially superseded — iter-28 probe found `ailang docs`/`ailang
-examples` already exist and iter-29 landed the examples linkage; apply Gate-2 live-repro
-before routing).**
+doc → implemented/v0_30_0). **Iteration 30 (2026-07-14) EXECUTED the last clause-3 starter
+m-dx-ai-discovery → LANDED** (RESUMED from a died-mid-execution prior run [transient Anthropic
+rc=1 at 16:05, pre-dating the 17:16 driver-retry fix]; doc re-scoped + quorumed by that run at
+`39d671a52`, executor completed M1/M3/M4/M5, PR #393 → squash `c07c36b25`, eval round-1 PASS
+93/100 + hardening `ea6069815` [arrays→array alias] + Windows guard fix `0ad27444c`. Interleave:
+dev went RED mid-iteration from sibling M-STD-YAML/M-SMT merges — fixed forward direct-to-dev
+`9a314772d` [yaml builtin golden + Z3-gating verify e2e] + `4caddfd23` [>800-line split of
+verify.go/codegen.go]; `ailang docs --all-functions [filter]`, unknown-module did-you-mean +
+module list, `ailang docs prelude`, V16 effect-row fix — doc → implemented/v0_30_0).**
 **Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
 `higher_order_functions` triage → real decl-class resolver gap #366); **iteration 23 EXECUTED it
 → LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Full inner-loop
@@ -464,7 +479,9 @@ triage evidence = log entry 10.)*
   cacheKeyVersion bump (verified); 15 new tests, 0 deletions; eval PASS 98/100 round 1 (mission
   high; 20 adversarial probes incl. entry-only through real multi-module runs + PR-#381 alias-env
   non-interaction); PR #382 → `d26215341`, dev CI green per-workflow observed]** ·
-  m-dx-ai-discovery (2d) · ~~m-dx-examples-coverage (1d)~~ **[LANDED iter 29 →
+  ~~m-dx-ai-discovery (2d)~~ **[LANDED iter 30 → implemented/v0_30_0; re-scoped (one-shot
+  discovery: docs --all-functions, unknown-module recovery, docs prelude, V16 fix); PR #393 →
+  `c07c36b25`, eval PASS 93/100 round 1]** · ~~m-dx-examples-coverage (1d)~~ **[LANDED iter 29 →
   implemented/v0_30_0; first live 5-round quorum subject; PR #392 → `3d451947c`; 5 red examples
   quarantined under #386; verify-examples now a real gate + validate_manifest --ci wired;
   docs --examples un-inert via manifest `modules` field]** · 20251013_auto_caps (infer caps,

@@ -3,6 +3,17 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET via full backlog triage (Mark, interactive)
+
+Triaged all 69 non-gating planned docs (5 parallel reality-check agents). Result: the "~85
+backlog" is really **~12 ghosts** (already shipped, headers stale) + **~30 not-v1.0** (eval-infra
+rig/harness, cloud-infra, motoko-fork, post-v1) + **~18 genuine v1.0 candidates**, almost all
+clause-3 accessibility. Mark chose FULL SCOPE: the whole clause-3 footgun/DX/prompt cluster +
+both DX tooling investments (fmt, deterministic-tooling) + the full clause-4 orchestration surface
+are IN; rig/cloud/motoko stay OUT. v1.0 queue ~14 → ~33 open items (clause-grouped below).
+10 confirmed ghosts reconciled to implemented/; 2 conflicted docs kept OPEN pending repro. Full
+evidence: log entry 10.
+
 ## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
 
 The outer-loop controller runs on **Opus** (`claude-opus-4-8`) through a **time-boxed override**

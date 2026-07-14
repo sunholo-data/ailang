@@ -266,8 +266,11 @@ If reality diverges from this plan mid-execution:
       the full `! {Clock}` row (AST fidelity is the source of truth).
 - [x] Corpus-wide AST signature-fidelity test + tricky-form goldens.
 - [x] `ailang docs --all-functions timestamp` filters over the full rendered line (substring incl
-      description), so it keeps std/clock + std/datetime "timestamp" lines and excludes unrelated
-      modules (per the plan body: substring over the full line, not module-name-only).
+      description), keeping std/datetime "timestamp" lines and excluding unrelated modules (per the
+      plan body: substring over the full line, not module-name-only). **Corrected post-eval (round-1
+      finding): std/clock.now does NOT match — its doc line says "epoch time", not "timestamp" — so
+      this plan's original "includes std/clock.now" test-requirement was a planner premise error
+      about the docs text, not a filter defect. The filter behaves exactly as specified.**
 - [x] `ailang check` on `import std/time` → `did you mean: std/clock?` + module list (golden);
       module-list-unavailable → explicit note.
 - [x] M3 reuses `importhint.levenshtein` + `stdlibindex` module list via `diagnostics_wiring.go`

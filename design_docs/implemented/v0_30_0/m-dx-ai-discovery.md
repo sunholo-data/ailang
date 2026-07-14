@@ -1,7 +1,8 @@
 # M-DX-AI-DISCOVERY: One-Shot Stdlib Discovery for AI Agents (RE-SCOPED)
 
-**Status**: Planned (RE-SCOPED 2026-07-14, mission iteration 30 — original v0.10.1-era doc was
-partially superseded; every premise below re-verified live at HEAD `39d671a52`, v0.29.2-194)
+**Status**: Implemented (2026-07-14, mission iteration 30 — PR #393 → squash `c07c36b25`, eval
+round-1 PASS 93/100 + hardening `ea6069815`/`0ad27444c`. RE-SCOPED same day: original v0.10.1-era
+doc was partially superseded; every premise re-verified live at HEAD `39d671a52`, v0.29.2-194)
 **Target**: v0.30.0
 **Priority**: P2 (clause-3 accessibility; last starter in the Prelude/discovery group)
 **Estimated**: 1–1.5 days
