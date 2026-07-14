@@ -30,6 +30,9 @@ type ExampleEntry struct {
 	Tags        []string        `json:"tags"`
 	Description string          `json:"description"`
 	Expected    *ExpectedOutput `json:"expected,omitempty"`
+	// Modules is the set of std/* modules this example imports (backfilled and
+	// drift-checked in the manifest). Powers `ailang docs --examples <module>`.
+	Modules []string `json:"modules,omitempty"`
 }
 
 // ExpectedOutput defines the expected output for an example

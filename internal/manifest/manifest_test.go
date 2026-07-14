@@ -91,18 +91,45 @@ func TestManifestValidation(t *testing.T) {
 			errMsg:  "invalid status",
 		},
 		{
-			name: "working without expected",
+			// Expected output is now OPTIONAL for working examples: verify_examples.go
+			// is the source of truth for actual output, and the canonical manifest
+			// carries `expected` on only some working entries. Loading must not reject
+			// a working entry that omits it. (M-DX-EXAMPLES-COVERAGE)
+			name: "working without expected is valid",
 			modify: func(m *Manifest) {
 				m.Examples = []Example{
 					{Path: "test.ail", Status: StatusWorking, Mode: ModeFile},
 				}
 				m.UpdateStatistics()
 			},
-			wantErr: true,
-			errMsg:  "missing expected output",
+			wantErr: false,
 		},
 		{
-			name: "broken without error code",
+			// Mode is optional; empty defaults to file mode. (M-DX-EXAMPLES-COVERAGE)
+			name: "working without mode is valid",
+			modify: func(m *Manifest) {
+				m.Examples = []Example{
+					{Path: "test.ail", Status: StatusWorking, Expected: &Expected{}},
+				}
+				m.UpdateStatistics()
+			},
+			wantErr: false,
+		},
+		{
+			// Aspirational (VISION-ONLY) is a valid status. (M-DX-EXAMPLES-COVERAGE)
+			name: "aspirational status is valid",
+			modify: func(m *Manifest) {
+				m.Examples = []Example{
+					{Path: "test.ail", Status: StatusAspirational, Mode: ModeFile},
+				}
+				m.UpdateStatistics()
+			},
+			wantErr: false,
+		},
+		{
+			// Broken info is optional at load time (legacy entries predate it), but
+			// if present it must carry an error code. (M-DX-EXAMPLES-COVERAGE)
+			name: "broken with info but no error code",
 			modify: func(m *Manifest) {
 				m.Examples = []Example{
 					{Path: "test.ail", Status: StatusBroken, Mode: ModeFile,
@@ -112,6 +139,16 @@ func TestManifestValidation(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "missing error code",
+		},
+		{
+			name: "broken without any broken info is valid (legacy)",
+			modify: func(m *Manifest) {
+				m.Examples = []Example{
+					{Path: "test.ail", Status: StatusBroken, Mode: ModeFile},
+				}
+				m.UpdateStatistics()
+			},
+			wantErr: false,
 		},
 		{
 			name: "non-ail extension",
