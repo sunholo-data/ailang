@@ -1,0 +1,88 @@
+{
+  "sprint_id": "M-MISSION-FLEET-AB",
+  "status": "completed",
+  "created": "2026-07-14",
+  "branch": "mission/iter28-fleet-ab",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-wt-iter28",
+  "design_doc": "design_docs/planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-mission-fleet-ab-sprint-plan.md",
+  "github_issues": [329],
+  "scope_note": "Phases A+B ONLY. C/D/E explicitly OUT. Phase A already LANDED (3bee6b6df) + deployed to main checkout -> Milestone A is verification/hardening, not construction. Phase B = quorum (genuinely-new per redundancy audit).",
+  "risk_level": "medium",
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 620,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "A_VERIFY_LANDED_PHASE_A_DRIVER",
+      "description": "Verify + harden the already-landed Phase A probe loop in tools/launchd/mission-control.sh (commit 3bee6b6df, deployed to main checkout). NOT a build: bash -n, dry-run, bounded fall-through smoke, safety-invariant + deployment confirmation.",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "bash -n tools/launchd/mission-control.sh is clean",
+        "MISSION_DRY_RUN=1 run exits 0, prints 'DRY RUN ok ... prefs=', fires no probes",
+        "Fall-through smoke (MISSION_MODEL_PREFS='bogus-model-xyz,claude-opus-4-8') selects opus within a <=2-min bounded window and logs the fall-through, then is killed before the real iteration runs",
+        "Six safety invariants confirmed unchanged: kill switch, overlap guard, stall watchdog, ANTHROPIC_API_KEY strip, subscription-billing probe (claude -p not API), override/env pins",
+        "Deployment confirmed: main-checkout on-disk script contains _mc_probe (no deployment action needed)"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "VERIFIED (no build). bash -n clean (exit 0). MISSION_DRY_RUN=1 exits 0, prints 'DRY RUN ok ... prefs=claude-fable-5,claude-opus-4-8', fires NO probes (dry-run step 3 precedes select_model step 4). Fall-through smoke: extracted the REAL probe+select block (sed -n '88,134p') with a stubbed claude — bogus-model-xyz -> 'quota-limited, falling through' -> selects claude-opus-4-8 ('probe ok'), bounded 120s, zero real spend, no iteration launched. Six invariants present+unchanged: kill switch (:149), overlap guard pgrep 'claude -p Run one mission' (:159), stall watchdog _mc_stalled (:73), ANTHROPIC_API_KEY strip (:41), subscription-billing probe uses claude -p never API (:97/:102), override+env pins (:90/:110/:112). Deployment confirmed: main-checkout tools/launchd/mission-control.sh has _mc_probe (3 matches). NO driver edit made -> NO deployment action needed."
+    },
+    {
+      "id": "B1_REVIEWER_CALLER_REJECT_BY_DEFAULT",
+      "description": "Thin Go subcommand (ailang design-review) that runs ONE off-Anthropic reviewer via the models.yml resolver + internal/ai handler.CallJson. gpt5-6-sol via OPENAI_API_KEY; gemini-3-pro via Vertex ADC (NOT GEMINI_API_KEY, which is absent on the rig). Reject-by-default prompt with a required strongest_objection field + per-call budget cap. Reuses shipped auth wiring; does NOT rebuild the stalled ailang exec unification.",
+      "estimated_loc": 300,
+      "dependencies": ["A_VERIFY_LANDED_PHASE_A_DRIVER"],
+      "acceptance_criteria": [
+        "ailang design-review <doc> --reviewer gpt5-6-sol --json returns valid JSON: {verdict in {pass,reject}, strongest_objection (non-empty), catch}",
+        "Same works for --reviewer gemini-3-pro WITHOUT GEMINI_API_KEY set (Vertex ADC path proven; ADC token verified working on rig)",
+        "Empty strongest_objection or any missing field -> hard error, not a pass (Principle 2)",
+        "--max-cost-usd (default 0.10) breach -> structured error, zero spend, no silent fallback",
+        "Unit tests: schema conformance (stubbed handler), budget-cap refusal, ADC-vs-apikey provider resolution; superseded tests removed"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE + LIVE-VERIFIED. New package internal/mission/quorum (reviewer.go schema+reject-by-default prompt+validation; call.go models.yml resolver→openai/OPENAI_API_KEY + google/Vertex-ADC, refuses GEMINI_API_KEY dependence; run.go budget-capped RunReviewer with named absence reasons). CLI: cmd/ailang/design_review.go (ailang design-review). Live smokes (bounded): gpt5-6-sol→reject $0.0055; gemini-3-1-pro via Vertex ADC WITHOUT GEMINI_API_KEY (env -u GEMINI_API_KEY)→reject $0.0019 (flagged risk MITIGATED). Budget cap: pre-flight refusal, zero spend (unit test asserts caller NOT invoked). Missing field→hard error (ValidateReviewResult), never a pass. Unit tests: schema conformance, code-fence strip, empty-objection hard-error, unreachable/invalid/budget absences, ADC-vs-apikey resolution (call_test), hoistFlags (cmd). Estimate improved: pre-flight scales to ACTUAL doc size (chars/4), not a fixed 16k (declared deviation — original fixed-estimate over-refused a tiny doc)."
+    },
+    {
+      "id": "B2_QUORUM_ORCHESTRATION_VERDICT_ARTIFACT",
+      "description": "Compose gpt5-6-sol + gemini-3-pro reviewers (parallel) plus the Claude controller's IN-SESSION review (NOT an API call) into one quorum verdict. any-reject -> back to author; unanimous-pass -> proceed. Graceful N-1 degrade that NAMES the absent reviewer (never a silent pass). Recordable artifact (JSON under .ailang/state/mission-quorum/ + mission-log markdown row). Catch-rate tracking field. Invoked via a documented HOOK at the design-doc-creator gate / mission-control Gate 3 (no inner-loop skill CONTRACT change).",
+      "estimated_loc": 300,
+      "dependencies": ["B1_REVIEWER_CALLER_REJECT_BY_DEFAULT"],
+      "acceptance_criteria": [
+        "Orchestrator on a real design doc writes .ailang/state/mission-quorum/<slug>-<iso8601>.json AND appends a mission-log routing-evidence markdown block",
+        "Killing one provider (unset OPENAI_API_KEY or block ADC) records the absentee with reason (unreachable/budget/auth), proceeds with N-1, still emits both artifacts (bounded <=5-min test)",
+        "any-reject -> blocked and unanimous-pass -> proceed both exercised",
+        "design-doc-creator SKILL.md documents the optional quorum hook (one paragraph; NO contract change)",
+        "Cost per full quorum recorded and <= budget cap x N (cents/doc)",
+        "controller_in_session review recorded in the artifact as a distinct entry (not an API call)"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE + LIVE-VERIFIED. quorum.go RunQuorum runs reviewers IN PARALLEL (goroutines+WaitGroup), synthesize(): any present reviewer OR controller reject→blocked, unanimous present pass→proceed, ALL-absent→blocked (refuses zero-signal). Controller review is a distinct in-session entry (NOT an API call). artifact.go writes .ailang/state/mission-quorum/<slug>-<iso>.json + appends mission-log markdown block. Catch-rate hook = per-reviewer landed:null field. CLI cmd/ailang/design_quorum.go (exit 0 proceed / 3 blocked). Live smokes (bounded ≤5min): full quorum on real doc→both reject→BLOCKED, controller pass recorded distinctly, artifact+log both well-formed, total $0.0074 (≤ cap×N). N-1 degrade: env -u OPENAI_API_KEY→gpt5-6-sol absent(reason=auth) NAMED in absent_reviewers, gemini present, proceeds with N-1 (never silent). Unit tests: unanimous-pass proceeds, any-reject blocks, controller-reject blocks, N-1 names absentee, all-absent blocks, artifact JSON round-trip + markdown content, log append preserves+adds. Hook: design-doc-creator SKILL.md documents optional quorum (paragraph only, NO contract change)."
+    }
+  ],
+  "non_goals": [
+    "Phases C/D/E (cross-provider executors, local-GPU lane, assignment table)",
+    "Rebuilding the ailang exec unification (stalled ledger path m-unified-ai-control-plane)",
+    "Changing inner-loop skill contracts (only a documented optional hook is added)",
+    "Any GPU work or rig.lock touch",
+    "Reading subscription quota gauges directly (probe is the deliberate substitute)"
+  ],
+  "parked_for_human": [
+    "Phase A landed ~3h before planning (3bee6b6df) -> this sprint verifies rather than builds it; flag in case a duplicate build was expected.",
+    "'gemini (latest pro)': rig has gemini-3-pro AND gemini-3-1-pro (both Vertex-ADC). Executor picks the newer ADC-reachable pro.",
+    "Quorum-on-sprint-plans deferred; this sprint scopes the hook to design docs only unless the controller wants sprint-plan quorum now."
+  ],
+  "deployment": {
+    "phase_a": "NONE - already committed AND on-disk in the main checkout (launchd reads it directly).",
+    "phase_b": "No driver deployment - Phase B is an on-demand tool + skill-doc hook invoked inside an iteration; does not modify mission-control.sh.",
+    "guard": "Main tree currently dirty (sprint_M-CODEGEN-IR.json, BenchmarkGallery.jsx). Automated git pull FORBIDDEN (Principle 0). Not triggered this sprint since no driver change ships."
+  }
+}

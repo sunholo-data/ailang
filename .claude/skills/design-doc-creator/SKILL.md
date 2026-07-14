@@ -311,6 +311,32 @@ The design doc MUST include a **Conflict Surface** section (see [resources/desig
 
 **Axiom Compliance:** Every feature must score against all 12 axioms. Hard violations on A1/A3/A4/A7 = automatic rejection, net score must be ≥ +2. See `resources/design_doc_structure.md` for full scoring matrix and examples.
 
+**Quorum review (OPTIONAL, off-Anthropic — M-MISSION-FLEET-AB Phase B):** Before a
+design doc proceeds to planning, you MAY run an independent N-reviewer quorum that scores it
+against these same hard gates (premise verification, Conflict Surface, axiom compliance) using
+non-Anthropic frontier models — a cheap (cents/doc), off-quota second opinion that catches bad
+premises before an Opus sprint is spent on them. This is an **optional documented step, not a
+contract change**: the design-doc-creator flow is unchanged if you skip it.
+
+```bash
+# One reviewer (reject-by-default; exits non-zero if it can't produce a verdict):
+ailang design-review design_docs/planned/vX_Y/my-doc.md --reviewer gpt5-6-sol --json
+
+# Full quorum (parallel reviewers + your own IN-SESSION verdict as the controller):
+ailang design-quorum design_docs/planned/vX_Y/my-doc.md \
+  --reviewers gpt5-6-sol,gemini-3-1-pro \
+  --controller-verdict pass --controller-note "<your in-session judgement>" \
+  --mission-log design_docs/v1-mission-log.md
+```
+
+Reviewers are **reject-by-default** (each must state a `strongest_objection`). Synthesis: any
+present reviewer or the controller rejects → **blocked** (exit 3); the objection goes back to you,
+the author, before planning. A reviewer that is unreachable / over-budget / mis-authed is recorded
+by NAME with its reason and the quorum degrades to N−1 — never a silent pass. Each run writes a
+machine artifact under `.ailang/state/mission-quorum/` (seeds the Phase E assignment table) and,
+with `--mission-log`, a human markdown block. Gemini reviewers use **Vertex ADC** (not
+`GEMINI_API_KEY`). See `ailang design-quorum --help`.
+
 **2. Choose Document Name**
 
 **Naming conventions:**
