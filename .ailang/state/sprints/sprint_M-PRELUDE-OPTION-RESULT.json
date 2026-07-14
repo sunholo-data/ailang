@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-PRELUDE-OPTION-RESULT",
+  "status": "planned",
+  "created": "2026-07-14T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_29_0/m-prelude-option-result.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-prelude-option-result-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 330,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1_IMPLICIT_IMPORT_INJECTION",
+      "description": "Entry modules implicitly import std/option and std/result. Reuse the EXISTING constructor-import machinery (resolveConstructorImport / RegisterConstructor / findConstructorMatches) rather than building a new prelude constructor registry. Add the two module paths to the entry module's dependency+import set (compile-time depIfaces AND runtime inst.Imports) so Option/Result type cons, Some/None/Ok/Err data cons, and their $adt factories are all in scope with ZERO changes to the type checker, elaborator, or runtime resolver core. User-written `import std/option (...)` must dedupe (not double-load), and library (non-entry) modules must NOT get the injection.",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`pure func f(x:int) -> Option[int] = if x>0 then Some(x) else None` type-checks with NO import (currently fails `undefined variable: Some at :N` from typechecker_literals.go:62)",
+        "Same for Result/Ok/Err: `func g(x:int) -> Result[int,string] = if x>0 then Ok(x) else Err(\"neg\")` type-checks with no import",
+        "Injection is ENTRY-ONLY: gated on IsEntryModuleFromAST(unit.Surface) exactly like InjectPrelude at pipeline_module_compile.go:69 — a library module (module with no exported 0/unit-arity main) using Some WITHOUT import STILL fails (verified today it fails at lib.ail:4:3)",
+        "A user who writes `import std/option (Option, Some, None)` in an entry module does NOT get a duplicate-load / ambiguous-constructor error (dedupe against explicit AST imports)",
+        "std/option and std/result appear in the entry module's runtime inst.Imports so findConstructorMatches (resolver.go:256-283) resolves the $adt factory at eval time"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SHADOWING_AND_MATCH",
+      "description": "Guarantee prelude LOSES to user definitions and user imports, for TYPES and CONSTRUCTORS (not just functions). Match patterns using bare Some/None/Ok/Err must resolve without import. A user-defined local `type Option[a] = Some(a) | None` or `type Result = Pending | Done` (DIFFERENT constructors) must shadow the injected import with NO ambiguity error. Ordering: the implicit import must be registered such that a local type decl or explicit import for the same name takes precedence (place implicit imports FIRST / lowest precedence so local constructors override in elaborator.constructors and ctorTypes; ensure runtime does not see two same-name-same-type matches).",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_IMPLICIT_IMPORT_INJECTION"
+      ],
+      "acceptance_criteria": [
+        "`match opt { Some(x) => x, None => 0 }` with NO import resolves (elaborator registers Some/None as constructors, not variable patterns)",
+        "User-defined `type Option[a] = Some(a) | None` locally shadows the prelude: no ambiguous-constructor error at compile OR runtime",
+        "User-defined `type Result = Pending | Done` (different constructors, same type name) compiles and runs; injected Result does not clash",
+        "Explicit `import std/option (Some, None)` in an entry module coexists with the implicit injection (dedupe — no ambiguity)",
+        "AliasParams (PR #381) non-interaction confirmed: Option/Result are ADTs registered via ctorTypes/factory schemes, NOT the alias env (RegisterTypeAliasParams) — a `type Box[a] = a` alias in the same file still expands correctly with the injection active"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_RUNTIME_TESTS_EXAMPLE_DOCS",
+      "description": "End-to-end runtime execution, full fixture test suite, example file, prompt + docs. Prove `ailang run` (not just `ailang check`) works: construct + match + Result all execute to correct output with no import. Add the Conflict-Surface fixture list as tests. Decide cache-key: implicit deps CHANGE the entry module's dependency digest set, so entry-module cache keys shift naturally via ModuleCacheKey's depDigests — NO cacheKeyVersion bump needed unless an Iface gob/JSON struct changes (it does not). Verify make verify-examples and make verify-stdlib stay green.",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M2_SHADOWING_AND_MATCH"
+      ],
+      "acceptance_criteria": [
+        "`ailang run --entry main --caps IO` on a no-import Some/None program prints correct output (matches the WITH-import baseline: `42`)",
+        "`ailang run` on a no-import Ok/Err program executes correctly",
+        "Fixture tests (from doc Conflict Surface §4) ALL pass: (a) explicit `import std/option (Option,Some,None)` unchanged, (b) local `type Option[a]=Some(a)|None` shadows, (c) local `type Result=Pending|Done` shadows, (d) non-entry library module WITHOUT import still requires import, (e) `match opt { Some(x)=>x, None=>0 }` no-import resolves",
+        "example file `examples/prelude_option_result.ail` added and runs green under `make verify-examples`",
+        "`make test` green, `make verify-stdlib` green, `make verify-examples` green (no new failures)",
+        "prompt updated (prompts/ current version): “Option/Result/Some/None/Ok/Err are prelude in entry modules — no import needed”; CHANGELOG entry added; cache-key decision documented in commit/plan (NO bump, or bump-with-justification if an Iface struct is touched)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "completed": null
+}
