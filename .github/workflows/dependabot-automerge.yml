@@ -1,0 +1,38 @@
+name: Dependabot auto-merge
+
+# Auto-merges low-risk Dependabot PRs once required CI (test/lint/build) is
+# green, so the weekly Monday batch clears itself instead of piling up.
+#
+# Scope: patch + minor bumps only (any ecosystem). Grouped PRs whose highest
+# bump is minor/patch qualify too, because fetch-metadata reports the group's
+# max update-type. ANY major — grouped or not — is held for a human, which is
+# exactly the set that needs eyes (e.g. the go.lsp.dev 1.0 breakage).
+#
+# --auto enables GitHub's merge queue: the PR only merges after the branch
+# protection checks pass, and Dependabot auto-rebases conflicting go.sum PRs.
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Enable auto-merge for patch/minor updates
+        if: >
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Go modules — shipped binary. Group patches so PRs don't fragment.
+  # Go modules — shipped binary. Group minor+patch so PRs don't fragment.
   - package-ecosystem: gomod
     directory: /
     schedule:
@@ -15,9 +15,22 @@ updates:
         patterns:
           - "google.golang.org/grpc*"
           - "google.golang.org/protobuf*"
-      patches:
+      # Catch-all so minor + patch bumps batch into one PR instead of
+      # fragmenting one-per-dependency (mirrors the npm blocks below).
+      # Majors still open individually so they get human eyes.
+      all-minor-patch:
+        patterns:
+          - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      # go.lsp.dev/* v1.0 is a coordinated breaking change across
+      # uri + protocol (+ jsonrpc2) that touches all of internal/lsp.
+      # Dependabot can't bundle it — upgrade the LSP stack deliberately,
+      # not via a piecemeal major bump that never compiles. (#374, #377)
+      - dependency-name: "go.lsp.dev/*"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions — keep our workflow actions pinned to current patched majors.
   - package-ecosystem: github-actions
