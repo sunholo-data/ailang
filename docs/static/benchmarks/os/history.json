@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8527131782945736,
+          "ailang": 0.8333333333333334,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -21,13 +21,13 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.9523809523809523,
+            "ailang": 0.9333333333333333,
             "go": 1,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.5483870967741935
+            "ailang": 0.5
           },
           "smoke": {
             "ailang": 1,
@@ -36,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.9318181818181818
+            "ailang": 0.9361702127659575
           },
           "vision": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6307692307692307,
+          "ailang": 0.6330935251798561,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -57,13 +57,13 @@
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.6904761904761905,
+            "ailang": 0.7111111111111111,
             "go": 1,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.25
+            "ailang": 0.22857142857142856
           },
           "smoke": {
             "ailang": 1,
@@ -72,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8181818181818182
+            "ailang": 0.8297872340425532
           },
           "vision": {
             "ailang": 0,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7633587786259542,
+          "ailang": 0.7571428571428571,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -93,13 +93,13 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.8571428571428571,
+            "ailang": 0.8666666666666667,
             "go": 0.8333333333333334,
             "javascript": 1,
             "python": 1
           },
           "frontier": {
-            "ailang": 0.3548387096774194
+            "ailang": 0.3235294117647059
           },
           "smoke": {
             "ailang": 1,
@@ -108,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8913043478260869
+            "ailang": 0.8979591836734694
           },
           "vision": {
             "ailang": 1,
