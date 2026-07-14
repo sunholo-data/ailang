@@ -1513,7 +1513,7 @@
     },
     {
       "path": "runnable/effectful_list.ail",
-      "status": "working",
+      "status": "broken",
       "tags": [
         "effects",
         "higher-order",
@@ -1525,7 +1525,13 @@
         "forEachE",
         "flatMap"
       ],
-      "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap"
+      "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap",
+      "broken": {
+        "reason": "effect-row inference regression: show() in effectful-lambda interpolation collapses effect row to closed-empty (conflicts with foldlE {IO})",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
     },
     {
       "path": "runnable/effectful_list_t1_mapE_basic.ail",
@@ -1606,7 +1612,7 @@
     },
     {
       "path": "runnable/effectful_list_t7_chain_combinators.ail",
-      "status": "working",
+      "status": "broken",
       "tags": [
         "types",
         "type-inference",
@@ -1615,7 +1621,13 @@
         "regression",
         "std/list"
       ],
-      "description": "Type inference regression T7: chaining multiple effectful combinators"
+      "description": "Type inference regression T7: chaining multiple effectful combinators",
+      "broken": {
+        "reason": "effect-row inference regression: chained effectful combinators with show()-interpolation over-constrain the effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
     },
     {
       "path": "runnable/effectful_list_t8_string_list.ail",
@@ -1649,7 +1661,7 @@
     },
     {
       "path": "runnable/stream_multi_source.ail",
-      "status": "working",
+      "status": "broken",
       "tags": [
         "stream",
         "async",
@@ -1658,15 +1670,16 @@
         "M-ASYNC-IO"
       ],
       "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
-      "expected": {
-        "stdin": "hello from stdin",
-        "stdout": "stdin: hello from stdin\ndone\n",
-        "exit_code": 0
+      "broken": {
+        "reason": "effect-row inference regression: show()-interpolation in effectful lambda collapses effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
       }
     },
     {
       "path": "runnable/stream_process_source.ail",
-      "status": "working",
+      "status": "broken",
       "tags": [
         "stream",
         "async",
@@ -1675,9 +1688,11 @@
         "M-ASYNC-IO"
       ],
       "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
-      "expected": {
-        "stdout": "[echo] hello from subprocess\ndone\n",
-        "exit_code": 0
+      "broken": {
+        "reason": "effect-row inference regression: show()-interpolation in effectful lambda collapses effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
       }
     },
     {
@@ -1958,11 +1973,12 @@
     }
   ],
   "statistics": {
-    "total": 144,
-    "working": 136,
+    "total": 176,
+    "working": 165,
     "aspirational": 4,
-    "broken": 3,
-    "coverage": 0.951
+    "broken": 7,
+    "coverage": 0.9375,
+    "experimental": 0
   },
   "milestones": {
     "completed": [
