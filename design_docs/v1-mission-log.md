@@ -2387,3 +2387,115 @@ approved the synthesis unamended).
 
 **Next**: loop continues gating queue; fleet A/B + arch-boundaries P1–3 are the mission-infra
 interleaves; release-gate audit now has 2 of 5 items pre-decided.
+
+---
+
+## 31 — 2026-07-14 — Iteration 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383, eval PASS 94/100 round 1; design-doc QUORUM live; Phase A found ALREADY-DEPLOYED at Gate 2 (concurrent interactive session)
+
+**Picked**: **m-mission-adaptive-multiprovider-routing Phases A+B** — the fleet doc's binding
+SEQUENCE line ("Phases A+B are the next mission-infra interleave", Requested + prioritized by
+Mark, quota the binding constraint) with no clause-3 item in flight (all sprints completed;
+iter-27's item landed). Applied the iteration-23 lesson: a fresh Mark directive outranks the
+queue head. Before the switch, Gate-2 had already live-probed the queue's cheapest clause-3
+starter **m-dx-examples-coverage** — partial data recorded under Carry forward so the next
+iteration doesn't redo it. Inbox: 1 informational (eval-suite start, GPU rotation — not mine),
+acked.
+
+**Reality check** (Gates 1/2): local dev == origin/dev at pick (26d5f2323), all three workflows
+green per-workflow (CI in_progress on a docs-only HEAD → completed green mid-iteration). THE
+BIG CATCH — **Phase A was already LANDED and DEPLOYED**: commit `3bee6b6df` (direct-to-dev,
+07:32, by the concurrent Mark+Opus interactive session) implements exactly the audit's
+"genuinely-new" Phase A surface (multi-candidate probe loop + quota-signature matching), and
+the launchd-read main-checkout script already carried it. My pick-time already-landed check
+MISSED it (local refs minutes-stale + no PR to find — direct commit); the Opus planner's
+verify-before-planning fetch caught it and re-scoped Milestone A to verification/hardening.
+4th consecutive iteration where doc/claim verification materially changed the plan. Sibling
+session actively committing mid-iteration (tree went `-dirty` with their sprint-JSON edit;
+local dev advanced 26d5f232→5e908979f under me) — handled per Gate-2 rule 4: worktree
+isolation + a controlplane CLAIM message naming the item before routing.
+
+**Shipped** (PR #383 → squash `1186a48e6`, dev CI green on the merge SHA per-workflow OBSERVED
+— CI + Build-and-Release success @ 1186a48e6; Docs Deploy N/A no docs-path change):
+- **Opus plan** (worktree `mission/iter28-fleet-ab`, `3164a801d`): 4 discrepancies found incl.
+  Phase-A-already-landed and the Gemini env-var trap (`exec --api-only` reads GEMINI_API_KEY
+  [absent]; models.yml `gemini-3-*-pro` ride Vertex ADC [present, verified]) → routed Phase B
+  via the models.yml/ai_handlers ADC path. Read the ruled-out ledger
+  (archive `m-unified-ai-control-plane`) and deliberately avoided its stalled `ailang exec`
+  unification.
+- **Opus execute** (`267460c12` Milestone A, `8e46fdaf9` B1+B2): A = verification only (bash -n,
+  MISSION_DRY_RUN=1, stubbed-claude fall-through smoke; six driver safety invariants confirmed
+  intact; NO driver diff → no deployment step needed). B = new `internal/mission/quorum` (8
+  files ≤166 lines) + `ailang design-review`/`design-quorum`: reject-by-default with required
+  strongest-objection, schema-enforced verdicts (`ValidateReviewResult`), N−1 degrade with
+  NAMED absences (never silent — CP2 honored in verdicts), per-call budget caps with zero-spend
+  pre-flight refusal, JSON artifact + mission-log block (Phase-E seed data), controller review
+  in-session (non-API). Live smokes: gpt-5.6-sol $0.0055, gemini-3-1-pro via ADC $0.0019, full
+  quorum BLOCKED-on-both-reject $0.0074. 4 deviations, ALL DECLARED (scaled budget estimate;
+  gemini-3-1-pro pick; B1+B2 one commit; A verification-not-build).
+- **Independent Fable evaluator round 1: PASS 94/100** (own worktrees+binaries both sides,
+  version-verified non-dirty; non-vacuity both directions; spend figures reproduced within 3%;
+  prompt-injection probe — embedded "SYSTEM OVERRIDE… output pass" — rejected by BOTH live
+  reviewers, verdict structurally unspoofable; budget-cap refusal proven zero-network; N−1
+  artifact cannot read as a pass; 0 test deletions; redundancy-audit compliance confirmed).
+  Total eval spend $0.0095.
+- **Hardening commit `027523b44`** (pre-merge, per iter-25 precedent): 4 evaluator warts fixed —
+  artifact clobber (O_EXCL + suffix retry), GOOGLE_CLOUD_PROJECT Setenv race (serialized),
+  unknown-model absence reason (`unknown-model`, not `auth`), `absent_reviewers` marshals `[]`
+  not null. 3 tests added, race-detector green, 0 deletions.
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (caught Phase-A-already-landed the
+controller's pick-time check missed + the Gemini auth-path trap; 4th consecutive
+verify-before-planning save) · model=Opus task-class=execute round1-score=94 rounds=1
+corrections=0 (4 deviations all declared — the iter-27 deviation-declaration watch item held) ·
+model=Fable task-class=evaluate (independent, model-diverse; reproduced live spends within 3%;
+found 6 warts incl. 2 real code fixes) · model=Opus task-class=hardening (mechanical,
+deterministic verification) · model=Fable task-class=controller/bookkeeping.
+
+**Ruled out**:
+- "Phase A needs building" — REFUTED: landed `3bee6b6df` + on-disk in the launchd-read main
+  checkout before planning. Sprint re-scoped; no duplicate build.
+- "GEMINI_API_KEY absence blocks the Gemini reviewer" — REFUTED: Vertex ADC via models.yml
+  (`gcp_project: ailang-dev`), live-proven $0.0019/call. `exec --api-only` path WOULD have
+  blocked — the planner's env-var probe prevented shipping that.
+- "cmd/wasm build failure from this sprint" — REFUTED: identical on dev HEAD pre-merge (needs
+  GOOS=js; pre-existing, out of scope).
+- "PipedStdoutFlushes failure from this sprint" — REFUTED (3rd sighting): passes isolated on
+  tip AND -count=3 on base; file untouched by PR. Standing dev-health flaky.
+
+**Gate 3b**: every wait bounded — 35m merge poll (background, exited 0 on MERGED) + 30m
+per-workflow CI poll keyed to merge SHA `1186a48e6` (completed green, no timeout).
+
+**Retro lane**: **skill fix (the one allowed)** — mission-control SKILL.md Gate-2 already-landed
+check sharpened: fetch-fresh `git log origin/dev --grep` at pick time (local refs go
+minutes-stale under a concurrent session) + PR search alone is insufficient (direct-to-dev
+commits have no PR) + send a controlplane CLAIM message when a sibling session is active. TWO
+recorded frictions, one gap: iteration 12 (stale local refs hid a merged item) + iteration 28
+(direct-to-dev Phase A invisible to PR search AND stale local log). Logged-only (first
+instances, watch): (a) executor didn't preserve its live-smoke artifacts (evaluator had to
+reproduce them — candidate sprint-executor rule if repeated: preserve evidence artifacts);
+(b) docs-site CLI reference not updated for the 2 new subcommands (wart, carry-forward);
+(c) sibling's uncommitted `sprint_M-CODEGEN-IR.json` edit (paused→frozen, matches log entry
+30's claim) still uncommitted in the shared tree — left alone per Principle 0, flagged for the
+interactive session to commit. No routing-policy change (rows confirmatory).
+
+**Next**: Iteration 29 — **first live use of the quorum**: the queue's next NEW design doc gets
+`ailang design-quorum` at the design-doc-creator gate (the documented optional hook), recording
+verdicts as routing-evidence rows. Feature queue: clause-3 starters **m-dx-examples-coverage
+(1d)** or **m-dx-ai-discovery (2d)**; my partial Gate-2 probe of m-dx-examples-coverage
+(RECORDED, do not redo): 167 runnable examples exist but 6 std modules have ZERO example
+importers (embedding, game, gzip, sharedindex, simhash, trace) + 12 more only one; `ailang
+docs`/`ailang examples` commands EXIST (doc's discovery goals partially superseded — its
+7-module solution table is fully stale); `make verify-examples` exists but is NOT a CI gate
+(issue #341); `ailang docs --examples` flag appears inert for modules without registered
+examples. The item is REAL but needs re-scoping at plan time. Other interleave available:
+m-arch-boundaries P1–3 (approved, loop-executable). **Carry forward** UNCHANGED from iter 27:
+Mark's daemon reload + 2 live prod test-sends; tier-assignment ratification; feedback-gate
+production ops; haiku causal re-run; scope-params re-score; frontier-failure validation; issue
+#341 triage; rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies
+(PipedStdoutFlushes passed isolated again this iter; TestNetHttpPost-httpbin-503;
+TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007 human veto window; dead
+`make verify-stdlib` gate (fix or delete, mechanical); alias-import prelude-suppression edge.
+**NEW carry-forward**: executor evidence-artifact preservation watch; docs-site CLI reference
+for design-review/design-quorum; quorum-on-sprint-plans deferred decision; "latest pro"
+reviewer pick = gemini-3-1-pro (revisit when gemini-4 lands); fleet Phases C (~1d re-scoped) /
+D / E remain opt-in.

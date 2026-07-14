@@ -1,8 +1,12 @@
 # M-MISSION-ADAPTIVE-MULTIPROVIDER-ROUTING: the heterogeneous model fleet — quota-aware selection, design quorums, cross-provider executors, local-GPU lane
 
-**Status**: Planned (SCOPE EXPANDED 2026-07-14 per Mark: from availability-fallback to the
-mission's standing model-fleet architecture — quorum design review, OpenAI Sol + Gemini in the
-loop, local bare-metal GPU lane, and evidence-based (provider, model, task-class) assignment)
+**Status**: Phases A+B LANDED 2026-07-14 (iteration 28: Phase A `3bee6b6df` direct-to-dev +
+sprint-verified; Phase B PR #383 → `1186a48e6`, eval PASS 94/100 — `ailang design-review`/
+`design-quorum` live). Phases C/D/E remain Planned, opt-in as evidence accrues; doc stays in
+planned/ until all phases resolve. (SCOPE EXPANDED 2026-07-14 per Mark: from
+availability-fallback to the mission's standing model-fleet architecture — quorum design review,
+OpenAI Sol + Gemini in the loop, local bare-metal GPU lane, and evidence-based (provider, model,
+task-class) assignment)
 **Target**: v0.30.x (mission infrastructure — not a v1.0 release gate; the loop keeps running while this is built)
 **Priority**: P1 → elevated (Anthropic quota is now the mission's binding constraint — Mark
 2026-07-14 "my quota is draining faster now"; every phase here reduces per-iteration Anthropic

@@ -49,6 +49,21 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
+
+Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in
+the driver) was found ALREADY LANDED+DEPLOYED at Gate 2 (`3bee6b6df`, direct-to-dev by the
+2026-07-14 interactive session ~3h before planning — the sprint re-scoped to verification, six
+driver safety invariants confirmed intact). Phase B shipped as new `internal/mission/quorum` +
+`ailang design-review`/`design-quorum`: N-reviewer design-doc quorum (gpt-5.6-sol via
+OPENAI_API_KEY + gemini-3-1-pro via Vertex ADC — the GEMINI_API_KEY-absent risk mitigated and
+live-proven at $0.002/call — + the Claude controller in-session), reject-by-default with
+required strongest-objection, N−1 graceful degrade with NAMED absences (never silent), budget
+caps with zero-spend pre-flight refusal, JSON artifact + mission-log block (seed data for Phase
+E). Full quorum live test: $0.0074. Evaluator round-1 PASS 94/100 (independent live re-runs,
+spend figures reproduced within 3%, prompt-injection probe held); 4 warts hardened pre-merge
+(`027523b44`). Phases C/D/E remain queued opt-in. Detail: log entry 31.
+
 ## STATUS 2026-07-14 (night) — ITERATION 27: `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in entry modules
 
 The #1 structural AI-DX friction (6% of recent compile failures, "forgot `import std/option`")
@@ -944,7 +959,7 @@ frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted 
 frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
-- **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md); EXPANDED 2026-07-14 per Mark — quota now the binding constraint) — the heterogeneous model FLEET: Phase A probe-based Anthropic fallback; **Phase B design-doc QUORUM (gpt-5.6-sol + gemini + Claude, text-provider calls, days not weeks)**; Phase C cross-provider executors (Codex/Gemini); Phase D local-GPU lane (rig's own motoko/opencode executors for free long-running task classes); Phase E full (provider, model)×task-class assignment incl. cloud-run jobs + cross-family evaluation. **SEQUENCE: Phases A+B are the next mission-infra interleave** — take after the current in-flight clause-3 item completes, then resume the feature queue. Requested + prioritized by Mark.
+- **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md); EXPANDED 2026-07-14 per Mark — quota now the binding constraint) — the heterogeneous model FLEET. **[Phases A+B LANDED 2026-07-14, iteration 28]**: Phase A (quota-aware multi-candidate probing in the driver) landed `3bee6b6df` direct-to-dev by the interactive session + verified/hardened by the sprint; Phase B (design-doc QUORUM: gpt-5.6-sol + gemini-3-1-pro-via-Vertex-ADC + Claude controller in-session, reject-by-default, N−1 named-absence degrade, budget-capped) landed PR #383 → `1186a48e6`, eval PASS 94/100 round 1 — `ailang design-review`/`design-quorum` live, artifacts under `.ailang/state/mission-quorum/`. REMAINING (opt-in as evidence accrues): Phase C cross-provider executors (re-scoped ~1d, audit binding); Phase D local-GPU lane (~2–3d); Phase E full (provider, model)×task-class assignment (~3–4d). Quorum-on-sprint-plans deferred (hook scoped to design docs). Requested + prioritized by Mark.
 - **m-arch-boundaries Phases 1–3** ([planned/v0_30_0](planned/v0_30_0/m-arch-boundaries.md); APPROVED Mark 2026-07-14) — boundary docs + `check_boundaries.sh` CI gate + CODEOWNERS, PRE-1.0 (lets the stability promise scope to `core/`). Phase 4 (physical git mv) reserved for the v1.0→v1.1 boundary. Separate repos rejected (reaffirmed). Loop-executable.
 - **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: ROOT-CAUSED: dev/prod env split (Mark). Public MCP writes feedback to PROD (`ailang-multivac`) — Kevin's June-30 messages are there, triaged; the rig daemon subscribes to DEV only, so external feedback never pings Discord. Fix = daemon dual-subscribes dev+prod; plus the latent pkg:*-inbox Discord-filter bug. The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
