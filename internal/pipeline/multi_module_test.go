@@ -74,9 +74,17 @@ export func main() -> int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	// Verify both modules were compiled
-	if len(result.Modules) != 2 {
-		t.Errorf("expected 2 modules, got %d", len(result.Modules))
+	// Verify both user modules were compiled.
+	// M-PRELUDE-OPTION-RESULT: entry modules now implicitly import std/option +
+	// std/result, so the compiled set is 2 user modules + 2 implicit prelude = 4.
+	if len(result.Modules) != 4 {
+		t.Errorf("expected 4 modules (2 user + std/option + std/result), got %d", len(result.Modules))
+	}
+	if _, ok := result.Modules["std/option"]; !ok {
+		t.Error("std/option not implicitly loaded for entry module")
+	}
+	if _, ok := result.Modules["std/result"]; !ok {
+		t.Error("std/result not implicitly loaded for entry module")
 	}
 
 	// Check that sim/protocol was loaded
@@ -165,9 +173,17 @@ export func main() -> int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	// Verify both modules were compiled
-	if len(result.Modules) != 2 {
-		t.Errorf("expected 2 modules, got %d", len(result.Modules))
+	// Verify both user modules were compiled.
+	// M-PRELUDE-OPTION-RESULT: entry modules now implicitly import std/option +
+	// std/result, so the compiled set is 2 user modules + 2 implicit prelude = 4.
+	if len(result.Modules) != 4 {
+		t.Errorf("expected 4 modules (2 user + std/option + std/result), got %d", len(result.Modules))
+	}
+	if _, ok := result.Modules["std/option"]; !ok {
+		t.Error("std/option not implicitly loaded for entry module")
+	}
+	if _, ok := result.Modules["std/result"]; !ok {
+		t.Error("std/result not implicitly loaded for entry module")
 	}
 
 	if _, ok := result.Modules["lib/math/utils/helpers"]; !ok {
@@ -244,9 +260,17 @@ export func main() -> int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	// Verify both modules were compiled
-	if len(result.Modules) != 2 {
-		t.Errorf("expected 2 modules, got %d", len(result.Modules))
+	// Verify both user modules were compiled.
+	// M-PRELUDE-OPTION-RESULT: entry modules now implicitly import std/option +
+	// std/result, so the compiled set is 2 user modules + 2 implicit prelude = 4.
+	if len(result.Modules) != 4 {
+		t.Errorf("expected 4 modules (2 user + std/option + std/result), got %d", len(result.Modules))
+	}
+	if _, ok := result.Modules["std/option"]; !ok {
+		t.Error("std/option not implicitly loaded for entry module")
+	}
+	if _, ok := result.Modules["std/result"]; !ok {
+		t.Error("std/result not implicitly loaded for entry module")
 	}
 }
 
@@ -320,9 +344,11 @@ export func main() -> int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	// Verify both modules compiled
-	if len(result.Modules) != 2 {
-		t.Errorf("expected 2 modules, got %d", len(result.Modules))
+	// Verify both user modules compiled.
+	// M-PRELUDE-OPTION-RESULT: `consumer` is an entry module, so std/option +
+	// std/result are implicitly imported: 2 user modules + 2 prelude = 4.
+	if len(result.Modules) != 4 {
+		t.Errorf("expected 4 modules (2 user + std/option + std/result), got %d", len(result.Modules))
 	}
 
 	if _, ok := result.Modules["lib/helpers"]; !ok {
