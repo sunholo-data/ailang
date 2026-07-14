@@ -120,10 +120,15 @@ func TestIntegration_CachedModules(t *testing.T) {
 		t.Error("Expected cached instance to be returned on second load")
 	}
 
-	// Check instances list
+	// Check instances list.
+	// M-PRELUDE-OPTION-RESULT: `simple` is an entry module, so it implicitly
+	// imports std/option + std/result — 1 user module + 2 implicit prelude = 3.
 	instances := rt.ListInstances()
-	if len(instances) != 1 {
-		t.Errorf("Expected 1 cached instance, got %d", len(instances))
+	if len(instances) != 3 {
+		t.Errorf("Expected 3 cached instances (simple + std/option + std/result), got %d", len(instances))
+	}
+	if rt.GetInstance("std/option") == nil || rt.GetInstance("std/result") == nil {
+		t.Error("Expected std/option and std/result to be implicitly loaded for the entry module")
 	}
 }
 
@@ -141,10 +146,12 @@ func TestIntegration_ModuleEvaluationOrder(t *testing.T) {
 		t.Fatalf("Failed to load module: %v", err)
 	}
 
-	// Both modules should be in cache
+	// Both modules should be in cache.
+	// M-PRELUDE-OPTION-RESULT: `with_import` is an entry module, so it also
+	// implicitly imports std/option + std/result: with_import + dep + 2 = 4.
 	instances := rt.ListInstances()
-	if len(instances) != 2 {
-		t.Errorf("Expected 2 cached instances, got %d", len(instances))
+	if len(instances) != 4 {
+		t.Errorf("Expected 4 cached instances (with_import + dep + std/option + std/result), got %d", len(instances))
 	}
 
 	// Dependency should be evaluated first
@@ -167,9 +174,11 @@ func TestIntegration_ModuleEvaluationOrder(t *testing.T) {
 		t.Error("Expected with_import module to be evaluated")
 	}
 
-	// Main module should have dependency in its imports
-	if len(mainInst.Imports) != 1 {
-		t.Errorf("Expected 1 import, got %d", len(mainInst.Imports))
+	// Main module should have dependency in its imports.
+	// M-PRELUDE-OPTION-RESULT: entry modules also carry the implicit std/option
+	// + std/result imports, so the import set is {dep, std/option, std/result}.
+	if len(mainInst.Imports) != 3 {
+		t.Errorf("Expected 3 imports (dep + std/option + std/result), got %d", len(mainInst.Imports))
 	}
 
 	if mainInst.Imports["tests/runtime_integration/dep"] != depInst {

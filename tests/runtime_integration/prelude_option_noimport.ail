@@ -1,0 +1,10 @@
+module tests/runtime_integration/prelude_option_noimport
+
+-- M-PRELUDE-OPTION-RESULT: Option/Some/None with NO explicit import.
+export func main() -> int {
+  let o = Some(42);
+  match o {
+    Some(x) => x,
+    None => 0
+  }
+}

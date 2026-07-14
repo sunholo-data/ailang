@@ -1,0 +1,10 @@
+module tests/runtime_integration/prelude_result_noimport
+
+-- M-PRELUDE-OPTION-RESULT: Result/Ok/Err with NO explicit import.
+export func main() -> int {
+  let r = if true then Ok(42) else Err("neg");
+  match r {
+    Ok(x) => x,
+    Err(_) => 0
+  }
+}

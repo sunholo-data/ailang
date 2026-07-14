@@ -611,8 +611,8 @@
     },
     "v0.16.2": {
       "file": "prompts/v0.16.2.md",
-      "hash": "01ba09c052941b7ffd608f67dca4ff5fdc2d25ddaafc396c44808b6ff88f4f16",
-      "description": "v0.16.1 + Output Discipline section (stdout compared byte-for-byte: no labels/prefixes/status lines; print only the requested value). Targets verbosity false-negatives where a correct answer is wrapped in commentary (e.g. \"Result: 40\", \"Types unify!\").",
+      "hash": "1c16a8fca39a6a5bbb396924248c08052c7a6b5db4fc877c753ab49164bf379c",
+      "description": "v0.16.1 + Output Discipline section (stdout compared byte-for-byte: no labels/prefixes/status lines; print only the requested value). Targets verbosity false-negatives where a correct answer is wrapped in commentary (e.g. \"Result: 40\", \"Types unify!\"). M-PRELUDE-OPTION-RESULT (v0.30.0): notes Option/Result are prelude-available in entry modules (no import needed).",
       "created": "2026-06-13",
       "tags": [
         "production",

@@ -283,6 +283,14 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	//	fmt.Printf("DEBUG loader: module %s imports %v\n", path, imports)
 	//}
 
+	// M-PRELUDE-OPTION-RESULT: Entry modules implicitly import std/option +
+	// std/result so Option/Some/None and Result/Ok/Err resolve with no explicit
+	// import. This mutates file.Imports (AST) and the imports slice together, so
+	// BOTH the compile pipeline (reads mod.File.Imports) and the runtime (reads
+	// LoadedModule.Imports) pick up the implicit deps from this single call-site.
+	// Entry-only + deduped against the user's own imports.
+	imports = injectEntryPreludeImports(file, imports)
+
 	// Build export table
 	exports := ml.buildExports(file)
 
