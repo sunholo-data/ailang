@@ -49,6 +49,19 @@ routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus)
 available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
 sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
 
+## STATUS 2026-07-14 (night) — ITERATION 27: `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in entry modules
+
+The #1 structural AI-DX friction (6% of recent compile failures, "forgot `import std/option`")
+is CLOSED: entry modules get implicit lowest-precedence std/option + std/result imports at ONE
+loader call-site consumed by both compile and runtime; explicit imports + user-local types
+shadow cleanly; library modules unchanged (still explicit, self-documenting). The planner's
+verify-before-planning CORRECTED the design doc's whole mechanism (its `InjectPreludeValues`
+path never existed) — third consecutive iteration where doc-claim verification changed the
+plan. Full inner loop round-1 clean: Opus plan → Opus execute (15 new tests, 0 deletions) →
+independent Fable evaluation (model diversity RESTORED — controller back on Fable; 20
+adversarial probes, PASS 98/100). Bonus closeout: m-prompt-option-none-idiom SUPERSEDED
+(the band-aid this fix retires) → archive/. Detail: log entry 28.
+
 ## STATUS 2026-07-14 — ITERATION 26: `m-xmod-alias-poly` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 93/100, first zero-correction pass) → PR #381 `fd1b11a47`; parameterized type aliases now instantiate
 
 The clause-3 parser/type footgun row is CLEARED: `type Box[a] = { items: [a] }` used as
@@ -552,11 +565,11 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 
 | Role | Model | Why / evidence |
 |---|---|---|
-| Mission controller (this loop: triage, pick, judge, retro) | **Opus** (claude-opus-4-8) — TEMP 2026-07-11 (was Fable) | Fable quota relief (Mark). Revert the driver default to `claude-fable-5` when quota clears |
-| Design docs (create/review) | **Opus** (was Fable, same TEMP switch) | Runs on the controller model; spec quality still gates downstream |
+| Mission controller (this loop: triage, pick, judge, retro) | **Fable** (claude-fable-5) — REVERTED 2026-07-14 per the TEMP note's own condition (driver back on Fable; iters 26–27 ran Fable-controlled) | Was Opus TEMP 2026-07-11 for quota relief (Mark); quota cleared |
+| Design docs (create/review) | **Fable** (runs on the controller model) | Spec quality still gates downstream |
 | Sprint planning | **Opus** (claude-opus-4-8) | Plan quality determined execution success historically |
 | Sprint execution | **Opus** — the default, per Mark 2026-07-10 | Sonnet execution was a false economy (needed corrections); also `dev-cycle.md` had silently pinned sonnet |
-| Sprint evaluation | **Opus** (was Fable, same TEMP switch) — ⚠ independence caveat below | Judge now shares the executor's model; relies on BEHAVIORAL independence (fresh sub-agent, re-runs tests, cross-history/adversarial checks), not model diversity |
+| Sprint evaluation | **Fable** — model diversity vs the Opus executor RESTORED (the 2026-07-11 caveat below is dormant while controller=Fable) | Generator≠judge again; behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
 
 > **⚠ Evaluation-independence caveat (2026-07-11):** while the controller is Opus, Opus evaluates
 > Opus-executed work — the generator≠judge *model* diversity is gone. The evaluation's proven
@@ -799,8 +812,12 @@ already archived Not-Applicable 2026-05-09; R4b: fixed v0.7.0, verified incl. on
 lambda at BOTH int and float) — guard examples `match_hof_lambda.ail` + `poly_arith_lambda.ail`,
 PR #379 → `ea8116f83`, dev CI green observed. Same iteration EXECUTED
 **m-lambda-open-record-pattern** (REAL at HEAD — doc existed at planned/v0_29_0, so NOT NEW-DOC;
-see queue item 16). Remaining clause-3 starter: **m-xmod-alias-poly (1–2d, NEW-DOC — but
-VERIFY-FIRST: 3 of 5 rows in this cluster were already ghosts/mislabeled)**.
+see queue item 16). The parser/type footgun row is now FULLY BURNED DOWN (m-xmod-alias-poly
+landed iter 26). **Iteration 27 (2026-07-14) opened the Prelude/discovery group:
+m-prelude-option-result LANDED (PASS 98/100 round 1, mission high; PR #382 → `d26215341`) +
+m-prompt-option-none-idiom closed SUPERSEDED by it. Remaining clause-3 starters:
+m-dx-ai-discovery (2d) or m-dx-examples-coverage (1d) — both have docs at planned/v0_29_0
+(grep-verified); apply Gate-2 live-repro before routing.**
 **Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
 `higher_order_functions` triage → real decl-class resolver gap #366); **iteration 23 EXECUTED it
 → LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Full inner-loop
@@ -854,10 +871,21 @@ triage evidence = log entry 10.)*
   Phase-1 firestore-package fix PARKED out-of-repo in `ailang-packages`]** ·
   ~~m-dx-split-argument-warning (1d)~~ **[LANDED iter 17 → implemented/v0_30_0; compile-time
   non-blocking reversed-`split` warning, extensible `swapTraps` table, PR #356 → `8339b6421`]**
-- **Prelude / discovery**: m-prelude-option-result (Some/None no-import, 1.5d) · m-dx-ai-discovery
-  (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
+- **Prelude / discovery**: ~~m-prelude-option-result (Some/None no-import, 1.5d)~~ **[LANDED
+  2026-07-14, iter 27 → implemented/v0_30_0; Gate-2 probe confirmed REAL at HEAD (`undefined
+  variable: Some`/`Err` without import); planner CORRECTED the doc's mechanism (the proposed
+  `InjectPreludeValues` never existed — real fix = implicit lowest-precedence std/option +
+  std/result imports at ONE loader call-site consumed by both compile and runtime, entry-modules
+  only); explicit imports + local types shadow cleanly, library modules unchanged, no
+  cacheKeyVersion bump (verified); 15 new tests, 0 deletions; eval PASS 98/100 round 1 (mission
+  high; 20 adversarial probes incl. entry-only through real multi-module runs + PR-#381 alias-env
+  non-interaction); PR #382 → `d26215341`, dev CI green per-workflow observed]** ·
+  m-dx-ai-discovery (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
   m-dx-expected-fail-fixes (1–2d)
-- **Prompt teaching** (batchable, ~0.5d each): m-prompt-option-none-idiom · m-prompt-single-file-module ·
+- **Prompt teaching** (batchable, ~0.5d each): ~~m-prompt-option-none-idiom~~ **[SUPERSEDED
+  2026-07-14 by m-prelude-option-result's structural fix (its own doc named this band-aid as
+  superseded-on-ship); prompt v0.16.2 already teaches the prelude availability; doc → archive/
+  with library-module caveat noted]** · m-prompt-single-file-module ·
   m-prompt-split-list-operations · m-prompt-log-file-analyzer-string-ops
 - **DX tooling** (Mark: both in): m-ailang-fmt (canonical AST-reprinting formatter, multi-day) ·
   M-TOOLING-DETERMINISTIC (normalize/suggest-imports/apply, 3–4d)

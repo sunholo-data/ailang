@@ -2219,3 +2219,108 @@ ops; haiku causal re-run; scope-params re-score; frontier-failure validation; is
 rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies (THREE:
 PipedStdoutFlushes, TestNetHttpPost-httpbin-503, TestReferenceSolutions_JS/fizzbuzz-windows-timeout);
 MOD007 allocation human veto window.
+
+## 28 — 2026-07-14 — Iteration 27: `m-prelude-option-result` VERIFIED REAL at Gate-2, EXECUTED + LANDED (full inner loop, round-1 PASS 98/100 — mission high) → PR #382; planner corrected the doc's ENTIRE mechanism; m-prompt-option-none-idiom closed SUPERSEDED
+
+**Picked**: the queue's `[NEXT]` Prelude/discovery group opener **m-prelude-option-result
+(1.5d)**, exactly as entry 27's Next directed. Gate-3 grep rule applied FIRST: both candidate
+items (m-prelude-option-result, m-dx-ai-discovery) have full docs at `planned/v0_29_0` — no
+design-doc-creator run needed. Gate-2 live-repro (fresh version-verified binaries,
+`v0.29.2-159-g5cf7235b0` == git describe, BOTH `~/go/bin` and `bin/`) confirmed **REAL at
+HEAD**: `undefined variable: Some` / `undefined variable: Err` without import; the same file
+WITH `import std/option` checks clean and runs (non-vacuity baseline). Inbox: 2 informational
+(iter-26's own report + eval-suite start, GPU rig — not mine), acked. No NEXT-FIRST directive.
+
+**Reality check** (Gates 1/2): local == origin/dev (5cf7235b0) after fetch; all three workflows
+green at HEAD. Item-level: no prior commits (`git log --grep`), no merged PRs, doc filed
+2026-06-03 (bfe4bb408, e87cc0e31 are design-only). NOT a ghost — 5th survey-adjacent row where
+the 10-minute probe settled it either way.
+
+**Shipped** (PR #382 → squash `d26215341`, dev CI green per-workflow OBSERVED — CI, Build and
+Release, Docs Deploy all success on the merge commit):
+- **Opus plan** (worktree `mission/iter27-prelude-option-result`, commit `f09936a3e`) — verified
+  every doc claim against live code BEFORE planning and **CORRECTED THE MECHANISM**: the doc's
+  proposed `InjectPreludeValues` value-injection path NEVER EXISTED (TODO comment only,
+  prelude.go:57-59); real root cause = elaborator rewrites `Some(x)` only when the constructor
+  is in `e.constructors` (populated solely from imports/local types), and runtime
+  `findConstructorMatches` scans `inst.Imports` — so the fix belongs in the IMPORT-RESOLUTION
+  layer, not the prelude type-env. Files-to-Modify table redone; no-cacheKey-bump decision made
+  up front with a guard condition; PR-#381 alias-env non-interaction pre-checked.
+- **Opus execute** (commits `b2e08d8a3` M1+M2, `3f3fc56cf` M3): implicit lowest-precedence
+  `std/option` + `std/result` imports injected at ONE loader call-site
+  (`internal/loader/prelude_imports.go`) consumed by BOTH compile pipeline and runtime —
+  guard-the-call-site realized structurally; selective (not whole-module) synthetic imports so
+  constructor auto-import fires; prepend+dedup precedence (explicit imports and user-local types
+  shadow; skip-on-collision); ENTRY modules only (library modules unchanged, still explicit);
+  15 new tests, 0 deletions, 7 assertions strengthened (+2 implicit deps);
+  `examples/prelude_option_result.ail`; prompt v0.16.2 + synced copy + versions.json hash;
+  CHANGELOG; doc+plan → implemented/v0_30_0 with as-built note. No cacheKeyVersion bump (stays
+  v3; guard condition verified not triggered).
+- **Independent Fable evaluator** (model diversity RESTORED vs Opus executor; own scratch
+  probes, own worktree build, behavioral binary verification both directions BEFORE probing):
+  **PASS 98/100 round 1** — mission high. 20 adversarial probes: feature real (5 fail-on-base/
+  pass-on-sprint), no collateral (8 byte-identical incl. custom local Option/Result shadowing,
+  entry-only enforced through a REAL two-module run, REPL unchanged, std/list interop);
+  PR-#381 alias-env non-interaction; partial-import dedup; nested Option[Result[..]] runs.
+  Full suite + lint + check-file-sizes + toplevel example gate independently re-run green;
+  runnable-tier pre-existing failures spot-checked byte-identical vs base (3 of 5). All
+  executor caveats AUDITED TRUE (dead verify-stdlib gate; cacheKey v3; flaky pipe test passed
+  3/3 this round). Warts (−2): no drift-guard test for the duplicated entry-module predicate;
+  plan's "std/VERSION bump" line silently dropped (release-time item, but dropping should be
+  stated); `import std/option as O` suppresses the prelude for bare `Some` (conservative,
+  identical to base, undocumented edge).
+- **Bookkeeping closeout** (same item, not a second pick): **m-prompt-option-none-idiom →
+  SUPERSEDED** — the design doc itself names it "the PROMPT band-aid this structural fix
+  supersedes"; shipped prompt already teaches the prelude; doc → `archive/` with the
+  library-module caveat noted. Routing-table stamp REVERTED to Fable per the TEMP note's own
+  condition (driver back on claude-fable-5 since iter 26; not a policy change — executing the
+  policy's recorded revert condition).
+
+**Routing evidence**: model=Opus task-class=plan round1=n/a (corrected the doc's entire
+mechanism pre-execution; root cause verified to file:line; the 3rd consecutive iteration where
+doc-claim verification materially changed the plan) · model=Opus task-class=execute
+round1-score=98 rounds=1 corrections=0 (2 documented deviations, both improvements: single
+call-site, selective imports) · model=Fable task-class=evaluate (independent, model-diverse
+judge; 20 probes; caught 3 warts incl. a silently-dropped plan item) · model=Fable
+task-class=controller/bookkeeping (deterministic).
+
+**Ruled out**:
+- "The doc's InjectPreludeValues type/value split exists to extend" — REFUTED: TODO comment
+  only; `println`'s value comes from the global builtin resolver. The doc's Files-to-Modify
+  table pointed at the wrong layer entirely.
+- "cacheKeyVersion bump needed" — REFUTED (plan + evaluator): no persisted Iface/gob field;
+  entry-module cache keys shift naturally via the +2 implicit depDigests.
+- "whole-module `import std/option` syntax exists" — REFUTED: parse error on both base and
+  sprint (a prelude_imports.go comment implies it; harmless wart, noted).
+- "`make verify-stdlib` guards anything" — REFUTED: globs `stdlib/std/*.ail` (moved to `std/`
+  at v0.0.12), fails identically on base, NOT in `make ci`. Dead gate; carry-forward nit.
+
+**Gate 3b**: every wait bounded — single background poll, 35m merge cap + 30m CI cap,
+merge-SHA-keyed per-workflow check; completed GREEN (exit 0, no timeout).
+
+**Retro lane**: **none — no skill/process edit this iteration** (process-fix lane was consumed
+only by executing the routing table's own recorded revert condition, which its TEMP note
+mandated). Rationale: the iteration's biggest friction class — stale design-doc claims — is
+already HANDLED by the verify-before-planning protocol, which has now corrected docs 3
+iterations running (25: wrong primary site; 26: H3 refuted; 27: whole mechanism); the system is
+working, don't add rules to what works. Logged-only (first instances, watch for a second): (a)
+evaluator accidentally `rm`'d a committed worktree example mid-probe (self-caught, `git
+restore`d, verified clean — candidate sprint-evaluator rule if repeated: probes NEVER touch
+worktree files); (b) executor silently dropped a plan line (std/VERSION bump) without stating
+the deviation — deviations must be declared even when correct; (c) `import std/option as O`
+prelude-suppression edge undocumented. No routing-policy change (rows confirmatory; Fable
+revert was pre-authorized by the table itself).
+
+**Next**: Iteration 28 — continue the Prelude/discovery group: **m-dx-examples-coverage (1d,
+cheapest)** or **m-dx-ai-discovery (2d)** — both docs grep-verified at planned/v0_29_0; Gate-2
+live-repro their claims first (both filed ~2026-06, 6 weeks stale). Then clause-4 effect
+sprints. **Carry forward** UNCHANGED: Mark's daemon reload + 2 live prod test-sends
+(m-public-feedback-delivery-audit); notify-daemon.md anchor-slug nit; local-docs-build trap;
+M-DX-JSON-BOOL Phase-1 firestore fix; tier-assignment ratification; feedback-gate production
+ops; haiku causal re-run; scope-params re-score; frontier-failure validation; issue #341
+triage; rig A/B for m-syntax-ai-forgiving (GPU); %-row re-check; dev-health flakies (THREE:
+PipedStdoutFlushes [passed 3/3 this iteration], TestNetHttpPost-httpbin-503,
+TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007 allocation human veto window.
+**NEW carry-forward**: dead `make verify-stdlib` gate (fix or delete, mechanical); evaluator
+worktree-file incident watch; executor deviation-declaration watch; alias-import
+prelude-suppression edge (document or accept).

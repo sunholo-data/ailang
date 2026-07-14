@@ -2,7 +2,13 @@
 
 > **📊 RECENT-VERIFIED: 6% of recent compile failures (15/230). Current.** (verified 2026-06-03 against Apr-Jun 2026 data only — not all-time aggregate.)
 
-**Status**: Planned
+> **Superseded by:** [M-PRELUDE-OPTION-RESULT](../implemented/v0_30_0/m-prelude-option-result.md)
+> (landed 2026-07-14, PR #382 → `d26215341`). The structural fix makes `Option`/`Some`/`None`/
+> `Result`/`Ok`/`Err` resolve WITHOUT import in ENTRY modules — the failure class this prompt
+> band-aid targeted. The shipped prompt (v0.16.2) already notes the prelude availability.
+> Residual caveat: LIBRARY (non-entry) modules still require explicit imports by design.
+
+**Status**: Superseded (2026-07-14, by M-PRELUDE-OPTION-RESULT — structural fix landed)
 **Target**: v0.24.0
 **Priority**: P2 (Low)
 **Estimated**: 0.5 day
