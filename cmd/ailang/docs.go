@@ -44,6 +44,7 @@ func docsCommand() {
 	docsFlags := flag.NewFlagSet("docs", flag.ExitOnError)
 	listFlag := docsFlags.Bool("list", false, "List all available stdlib modules")
 	examplesFlag := docsFlags.Bool("examples", false, "Show usage examples")
+	allFunctionsFlag := docsFlags.Bool("all-functions", false, "Dump every stdlib export (module.func: sig -- doc), one grep-able line each")
 	helpFlag := docsFlags.Bool("help", false, "Show help for docs command")
 
 	if err := docsFlags.Parse(args); err != nil {
@@ -64,6 +65,16 @@ func docsCommand() {
 		os.Exit(1)
 	}
 
+	// All-functions mode: one grep-able line per stdlib export (+ prelude),
+	// deterministic order, signatures rendered from the AST. Handled before
+	// --list and before the module-view positional so its optional trailing
+	// positional (the filter) is not treated as a module name.
+	if *allFunctionsFlag {
+		filter := docsFlags.Arg(0)
+		allFunctionsCommand(stdlibPath, filter)
+		return
+	}
+
 	// List mode
 	if *listFlag {
 		listModules(stdlibPath)
@@ -73,6 +84,13 @@ func docsCommand() {
 	// View specific module
 	if docsFlags.NArg() >= 1 {
 		moduleName := docsFlags.Arg(0)
+		// `ailang docs prelude` is special-cased BEFORE the stdlib file lookup:
+		// the prelude is not a std/*.ail file — it is rendered from live
+		// mechanisms (loader implicit-import accessors + pipeline.InjectPrelude).
+		if moduleName == "prelude" {
+			renderPreludeDocs()
+			return
+		}
 		showModuleDocs(stdlibPath, moduleName, *examplesFlag)
 		return
 	}
@@ -136,6 +154,8 @@ func listModules(stdlibPath string) {
 
 	fmt.Println()
 	fmt.Printf("Use 'ailang docs <module>' for details (e.g., ailang docs std/io)\n")
+	fmt.Printf("Use 'ailang docs prelude' for functions available without import (entry modules)\n")
+	fmt.Printf("Use 'ailang docs --all-functions [filter]' to dump every stdlib export (grep-able)\n")
 }
 
 // discoverModules finds all stdlib modules
@@ -289,6 +309,17 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 
 	mod := parseModuleFile(filePath)
 
+	// Signatures are rendered from the AST (fixes V16: the exportSigRe regex
+	// truncated effect rows at `{`, so `now() -> int ! {Clock}` printed as
+	// `now() -> int ! `). A parse failure fails loudly — stdlib must always
+	// parse (CI's contract). The regex-derived exp.Signature is kept only as a
+	// fallback should the AST somehow lack an export.
+	astSigs, _, err := parseExportSignatures(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
 	// Print module header
 	fmt.Printf("# %s\n", mod.Name)
 	if mod.Description != "" {
@@ -302,8 +333,12 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 		fmt.Println()
 
 		for _, exp := range mod.Exports {
-			// Format signature nicely
-			sig := formatExportSignature(exp.Signature)
+			// Prefer the AST-rendered signature (full effect rows); fall back to
+			// the regex signature only if the AST is missing this export.
+			sig, ok := astSigs[exp.Name]
+			if !ok {
+				sig = formatExportSignature(exp.Signature)
+			}
 			fmt.Printf("  %s\n", sig)
 			if exp.DocLine != "" {
 				fmt.Printf("    %s\n", exp.DocLine)
@@ -433,14 +468,20 @@ func printDocsHelp() {
 	fmt.Println("Show documentation for AILANG stdlib modules.")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  --list        List all available stdlib modules")
-	fmt.Println("  --examples    Also print a 'Try it' section of registered runnable")
-	fmt.Println("                examples that import the module (with run commands)")
-	fmt.Println("  --help        Show this help message")
+	fmt.Println("  --list             List all available stdlib modules")
+	fmt.Println("  --all-functions    Dump every stdlib export (module.func: sig -- doc),")
+	fmt.Println("                     one grep-able line each. Optional trailing positional")
+	fmt.Println("                     filters case-insensitively over the full line.")
+	fmt.Println("  --examples         Also print a 'Try it' section of registered runnable")
+	fmt.Println("                     examples that import the module (with run commands)")
+	fmt.Println("  --help             Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  ailang docs --list              List all modules")
-	fmt.Println("  ailang docs std/io              Show std/io documentation")
-	fmt.Println("  ailang docs io                  Short form (same as std/io)")
-	fmt.Println("  ailang docs --examples gzip     Show std/gzip docs + runnable examples")
+	fmt.Println("  ailang docs --list                    List all modules")
+	fmt.Println("  ailang docs --all-functions           Dump every stdlib export")
+	fmt.Println("  ailang docs --all-functions timestamp Filter exports by substring")
+	fmt.Println("  ailang docs prelude                   Functions available without import")
+	fmt.Println("  ailang docs std/io                    Show std/io documentation")
+	fmt.Println("  ailang docs io                        Short form (same as std/io)")
+	fmt.Println("  ailang docs --examples gzip           Show std/gzip docs + runnable examples")
 }
