@@ -75,3 +75,88 @@ func TestIMP010_ClosestExportSuggestion(t *testing.T) {
 		t.Errorf("unknown symbol should get no suggestion, got %q", got)
 	}
 }
+
+// M-DX-AI-DISCOVERY M3: ModuleSuggestion recovers a mistyped stdlib MODULE name.
+
+func modLocatorFixture() []string {
+	// A representative sorted slice of the real stdlib module set.
+	return []string{"std/clock", "std/datetime", "std/io", "std/list", "std/net", "std/regex", "std/string"}
+}
+
+// Alias-table hit: time->clock is edit-distance 5, so ONLY the alias table catches
+// it (the highest-value trap). Alias hits do not need the locator.
+func TestModuleSuggestion_AliasHit(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = nil // prove the alias works without a module list
+	if got := ModuleSuggestion("time"); got != "std/clock" {
+		t.Errorf("time should alias to std/clock, got %q", got)
+	}
+}
+
+// Distance hit: `lst` -> `std/list` (edit distance 1) via Levenshtein.
+func TestModuleSuggestion_DistanceHit(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = modLocatorFixture
+	if got := ModuleSuggestion("lst"); got != "std/list" {
+		t.Errorf("lst should suggest std/list, got %q", got)
+	}
+}
+
+// Empty / no-match -> "".
+func TestModuleSuggestion_NoMatch(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = modLocatorFixture
+	if got := ModuleSuggestion(""); got != "" {
+		t.Errorf("empty name should give no suggestion, got %q", got)
+	}
+	if got := ModuleSuggestion("zzqqxxww"); got != "" {
+		t.Errorf("far-off name should give no suggestion, got %q", got)
+	}
+}
+
+// Alias ALWAYS outranks a distance hit: `date` aliases to std/datetime even though
+// it is also within edit distance of other modules.
+func TestModuleSuggestion_AliasOutranksDistance(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	// Locator offers a close distance match, but the alias must win.
+	ModuleLocator = func() []string { return []string{"std/data", "std/datetime"} }
+	if got := ModuleSuggestion("date"); got != "std/datetime" {
+		t.Errorf("date should alias to std/datetime (alias outranks distance), got %q", got)
+	}
+}
+
+// Tie-break: among equal Levenshtein distances, the lexicographically-smallest
+// module wins (the locator list is sorted, so a first-min scan is lexicographic).
+func TestModuleSuggestion_TieBreakLexicographic(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	// "aa" and "ab" are both edit-distance 1 from "ax"; sorted list => std/aa wins.
+	ModuleLocator = func() []string { return []string{"std/aa", "std/ab"} }
+	if got := ModuleSuggestion("ax"); got != "std/aa" {
+		t.Errorf("tie should break to lexicographically-smallest std/aa, got %q", got)
+	}
+}
+
+// Exact module name is NOT a "did you mean" (no self-suggestion).
+func TestModuleSuggestion_ExactNotSuggested(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = modLocatorFixture
+	if got := ModuleSuggestion("list"); got != "" {
+		t.Errorf("exact module name should not self-suggest, got %q", got)
+	}
+}
+
+// No locator wired + no alias -> "" (no panic, no misleading line).
+func TestModuleSuggestion_NoLocatorNoAlias(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = nil
+	if got := ModuleSuggestion("wibble"); got != "" {
+		t.Errorf("no locator + no alias should give no suggestion, got %q", got)
+	}
+}

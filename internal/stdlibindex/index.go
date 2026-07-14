@@ -94,6 +94,26 @@ func Modules(name string) []string {
 	return mods
 }
 
+// AllModules returns every std module path (e.g. "std/clock"), sorted; empty if
+// the stdlib is unresolvable. Built from the same lazily-scanned index as
+// Modules/SymbolsOf. Used by import-hint "did you mean" to catch a mistyped
+// stdlib MODULE name and to print the available-module list (M-DX-AI-DISCOVERY M3).
+func AllModules() []string {
+	once.Do(build)
+	seen := map[string]bool{}
+	for _, mods := range idx {
+		for _, m := range mods {
+			seen[m] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for m := range seen {
+		out = append(out, m)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // SymbolsOf returns the symbols exported by the given std module (e.g. "std/io"),
 // sorted; empty if none. The inverse of Modules — used by import-hint "did you
 // mean" to suggest a close-named export (e.g. flushStdout -> flush).
