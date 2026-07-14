@@ -1,5 +1,14 @@
 # M-ARCH-BOUNDARIES: Formalize Dashboard/Core Separation
 
+> **REVIVED 2026-07-14 (Mark, strategic audit)** — moved deferred/ → planned/v0_30_0.
+> **Phases 1–3 (boundary docs, check_boundaries.sh CI gate, CODEOWNERS) are APPROVED for loop
+> execution PRE-v1.0** — they let the 1.0 stability promise scope to `core/` (~120k LOC) instead
+> of the full ~270k. **Phase 4 (physical git mv) is deliberately scheduled AT the v1.0→v1.1
+> boundary** — import churn lands in one re-baselining moment. The doc's separate-repos
+> REJECTION is REAFFIRMED: this week's loop velocity depends on atomic cross-cutting commits
+> (parser+prompt+fixtures+docs in one evaluated PR); repo splits would tax every iteration.
+
+
 **Status**: Planned
 **Target**: v0.7.0
 **Priority**: P1 (Medium)

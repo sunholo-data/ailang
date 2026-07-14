@@ -2358,3 +2358,32 @@ Gate-2 now guards; no new skill edit needed, existing protocol covers it).
 
 **Next**: loop continues the gating queue + fleet A/B interleave (now with binding scoping);
 the release-gate audit fires as one human session when the queue empties.
+
+---
+
+## 30 — 2026-07-14 — Strategic-audit decisions ACTIONED (interactive, Mark: "action this")
+
+**Picked**: n/a — encoding Mark's three calls from the audit synthesis.
+
+**Shipped**:
+1. **m-arch-boundaries REVIVED** deferred/→planned/v0_30_0 with binding phasing: Phases 1–3
+   (boundary docs, CI gate, CODEOWNERS) queued mission-infra PRE-1.0 — scopes the stability
+   promise to core/ (~120k LOC); Phase 4 (git mv) reserved for the v1.0→v1.1 boundary;
+   separate-repos rejection REAFFIRMED (atomic cross-cutting commits are the loop's velocity).
+2. **emit-go-v2 FROZEN** (sprint JSON status→frozen; formal ratification at the release gate;
+   contracts projection stays live). Go source codegen stays demoted per the v0.11 committee.
+3. **The v1.1 arc set**: "the bytecode VM grows up, proven by a game" — new stub doc
+   m-game-engine-effects (planned/v1_1_0): Stapledon's Voyage inverted from compile-to-Go onto
+   `!{Render, Input, Clock}` host effects, evaluator-first, game frame-budget as the VM's
+   standing flagship KPI.
+
+**Ruled out**: resurrecting Go codegen for game perf (committee decision + demo's own 8-emergency-
+commit history); separate repos (again — now with the atomic-commit velocity argument recorded).
+
+**Routing evidence**: model=opus task-class=strategy-encoding rounds=1 corrections=0 (Mark
+approved the synthesis unamended).
+
+**Retro lane**: none (decisions encoded; no skill/process friction).
+
+**Next**: loop continues gating queue; fleet A/B + arch-boundaries P1–3 are the mission-infra
+interleaves; release-gate audit now has 2 of 5 items pre-decided.

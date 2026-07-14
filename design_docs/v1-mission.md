@@ -926,18 +926,26 @@ empty — the bundled in/out + ratification calls):**
 2. Dashboard: in/out of 1.0 (evidence: dashboard-lineage review 2026-07-14; keeping it OUT costs
    nothing user-facing — chains CLI covers the live path; IN = commit 4–7d to finish the
    abandoned simplification).
-3. Compilation posture: ratify evaluator-first for 1.0 (`--bytecode` labeled experimental);
-   decide emit-go-v2 freeze-vs-finish; VERIFY the contracts codegen caveat (gen/golang/contracts
-   is live via --verify-contracts — if 1.0 materials mention contract compilation, that ships).
-4. Repo/boundary split: revive `design_docs/deferred/m-arch-boundaries.md` (directory-level
-   core/apps/tools/sdk split + CI boundary checks + independent release tracks; it explicitly
-   REJECTS separate repos). Codebase is ~120k LOC core vs ~150k tools — the 1.0 stability
-   promise is cleaner scoped to `core/`. Decide: adopt (loop can execute the phases), amend
-   (actual repo split), or re-defer.
+3. Compilation posture: ratify evaluator-first for 1.0 (`--bytecode` labeled experimental).
+   **PRE-DECIDED (Mark 2026-07-14): emit-go-v2 FROZEN** (contracts projection stays live) —
+   formal ratification here; VERIFY the contracts codegen caveat (gen/golang/contracts is live
+   via --verify-contracts — if 1.0 materials mention contract compilation, that ships).
+4. Boundary split: **PRE-DECIDED (Mark 2026-07-14): m-arch-boundaries ADOPTED** — Phases 1–3
+   pre-1.0 (queued, loop-executable), Phase 4 physical restructure AT this boundary (schedule it
+   here), separate repos rejected. Audit confirms Phase 1–3 landed + green, then greenlights
+   Phase 4 as the first v1.1 act.
 5. Effect-scope-params re-score (standing flag from iteration 6).
+
+**The v1.1 arc (spine, Mark 2026-07-14):** *"the bytecode VM grows up, proven by a game"* —
+m-arch-boundaries Phase 4 (physical core/apps/tools split) → the game engine as typed effects
+(`m-game-engine-effects`, [planned/v1_1_0](planned/v1_1_0/m-game-engine-effects.md)): Stapledon's
+Voyage revived on `!{Render, Input, Clock}` host effects, evaluator-first, with the game's
+frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted (emit-go-v2
+frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
 - **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md); EXPANDED 2026-07-14 per Mark — quota now the binding constraint) — the heterogeneous model FLEET: Phase A probe-based Anthropic fallback; **Phase B design-doc QUORUM (gpt-5.6-sol + gemini + Claude, text-provider calls, days not weeks)**; Phase C cross-provider executors (Codex/Gemini); Phase D local-GPU lane (rig's own motoko/opencode executors for free long-running task classes); Phase E full (provider, model)×task-class assignment incl. cloud-run jobs + cross-family evaluation. **SEQUENCE: Phases A+B are the next mission-infra interleave** — take after the current in-flight clause-3 item completes, then resume the feature queue. Requested + prioritized by Mark.
+- **m-arch-boundaries Phases 1–3** ([planned/v0_30_0](planned/v0_30_0/m-arch-boundaries.md); APPROVED Mark 2026-07-14) — boundary docs + `check_boundaries.sh` CI gate + CODEOWNERS, PRE-1.0 (lets the stability promise scope to `core/`). Phase 4 (physical git mv) reserved for the v1.0→v1.1 boundary. Separate repos rejected (reaffirmed). Loop-executable.
 - **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: ROOT-CAUSED: dev/prod env split (Mark). Public MCP writes feedback to PROD (`ailang-multivac`) — Kevin's June-30 messages are there, triaged; the rig daemon subscribes to DEV only, so external feedback never pings Discord. Fix = daemon dual-subscribes dev+prod; plus the latent pkg:*-inbox Discord-filter bug. The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
