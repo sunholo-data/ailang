@@ -80,6 +80,25 @@ func TestValidateReviewResult_EmptyObjectionIsHardError(t *testing.T) {
 	}
 }
 
+// TestRunReviewer_UnknownModelIsNamedAbsence proves an unknown model id is
+// reported with the semantically correct reason "unknown-model" (not "auth"),
+// while staying loud: Present=false with a named reason.
+func TestRunReviewer_UnknownModelIsNamedAbsence(t *testing.T) {
+	if err := eval_harness.InitModelsConfig(); err != nil {
+		t.Skipf("models.yml unavailable: %v", err)
+	}
+	got := RunReviewer("definitely-not-a-real-model-id", "doc.md", "body", DefaultMaxCostUSD)
+	if got.Present {
+		t.Fatalf("expected absent for unknown model id")
+	}
+	if got.AbsentReason != ReasonUnknownModel {
+		t.Errorf("absent reason = %q, want %q", got.AbsentReason, ReasonUnknownModel)
+	}
+	if got.Err == "" {
+		t.Errorf("unknown-model absence must still carry an error (named, not silent)")
+	}
+}
+
 func TestRunReviewerWith_ValidVerdict(t *testing.T) {
 	stub := &stubCaller{
 		raw:  `{"verdict":"pass","strongest_objection":"none material","catch":"double-check the cost cap"}`,

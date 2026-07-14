@@ -1,6 +1,7 @@
 package quorum
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -46,7 +47,8 @@ type ReviewerOutcome struct {
 	// Present is true iff the reviewer ran and returned a valid verdict.
 	Present bool `json:"present"`
 	// AbsentReason is populated iff Present is false: one of "unreachable",
-	// "budget", "auth", "invalid" (malformed/gate-violating response).
+	// "budget", "auth", "unknown-model", "invalid" (malformed/gate-violating
+	// response).
 	AbsentReason string `json:"absent_reason,omitempty"`
 	// Err carries the underlying error text for an absent reviewer (audit).
 	Err string `json:"error,omitempty"`
@@ -63,10 +65,11 @@ type ReviewerOutcome struct {
 
 // AbsentReason values.
 const (
-	ReasonUnreachable = "unreachable"
-	ReasonBudget      = "budget"
-	ReasonAuth        = "auth"
-	ReasonInvalid     = "invalid"
+	ReasonUnreachable  = "unreachable"
+	ReasonBudget       = "budget"
+	ReasonAuth         = "auth"
+	ReasonUnknownModel = "unknown-model"
+	ReasonInvalid      = "invalid"
 )
 
 // RunReviewer runs one reviewer end-to-end with a budget cap. It NEVER returns
@@ -81,11 +84,16 @@ func RunReviewer(modelID, docPath, docBody string, maxCostUSD float64) *Reviewer
 		maxCostUSD = DefaultMaxCostUSD
 	}
 
-	// Resolve provider + auth. A resolve failure (no key / no ADC / unknown
-	// model) is an auth/unreachable absence, not a pass.
+	// Resolve provider + auth. A resolve failure is a named absence, not a
+	// pass. An unknown model id gets its own semantically correct reason
+	// ("unknown-model") rather than being mislabeled as "auth".
 	caller, mc, err := ResolveCaller(modelID)
 	if err != nil {
-		out.AbsentReason = ReasonAuth
+		if errors.Is(err, ErrUnknownModel) {
+			out.AbsentReason = ReasonUnknownModel
+		} else {
+			out.AbsentReason = ReasonAuth
+		}
 		out.Err = err.Error()
 		return out
 	}

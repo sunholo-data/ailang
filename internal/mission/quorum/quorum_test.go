@@ -141,6 +141,56 @@ func TestWriteJSONArtifactAndMarkdown(t *testing.T) {
 	}
 }
 
+// TestWriteJSONArtifact_NoClobberOnSameSecond proves two immediate successive
+// writes for the SAME doc + SAME timestamp yield two distinct files rather than
+// clobbering — the O_CREATE|O_EXCL + suffix-retry guard.
+func TestWriteJSONArtifact_NoClobberOnSameSecond(t *testing.T) {
+	q := RunQuorum("design_docs/foo-bar.md", "body", "2026-07-14T12:00:00Z", []string{"m1"}, 0.10, nil,
+		fakeRunner(map[string]*ReviewerOutcome{"m1": present("m1", VerdictPass, "minor")}))
+
+	dir := t.TempDir()
+	p1, err := WriteJSONArtifact(dir, q)
+	if err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	p2, err := WriteJSONArtifact(dir, q)
+	if err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	if p1 == p2 {
+		t.Fatalf("same-second writes clobbered: both wrote %s", p1)
+	}
+	// Both files must exist on disk (neither overwritten).
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("want 2 artifact files, got %d: %v", len(entries), names)
+	}
+}
+
+// TestSynthesis_AbsentReviewersMarshalsAsEmptySlice proves the absent_reviewers
+// field marshals as [] (not null) when all reviewers were present.
+func TestSynthesis_AbsentReviewersMarshalsAsEmptySlice(t *testing.T) {
+	q := RunQuorum("doc.md", "body", "t", []string{"m1"}, 0.10, nil,
+		fakeRunner(map[string]*ReviewerOutcome{"m1": present("m1", VerdictPass, "minor")}))
+	if q.Synthesis.AbsentReviewers == nil {
+		t.Fatal("AbsentReviewers is nil; want non-nil empty slice")
+	}
+	b, err := json.Marshal(q.Synthesis)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"absent_reviewers":[]`) {
+		t.Errorf("absent_reviewers did not marshal as []:\n%s", b)
+	}
+}
+
 func TestAppendMarkdownToLog(t *testing.T) {
 	q := RunQuorum("doc.md", "body", "t", []string{"m1"}, 0.10, nil,
 		fakeRunner(map[string]*ReviewerOutcome{"m1": present("m1", VerdictPass, "minor")}))

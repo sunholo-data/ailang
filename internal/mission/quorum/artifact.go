@@ -31,6 +31,12 @@ func Slug(docPath string) string {
 // WriteJSONArtifact writes the machine-readable quorum verdict to
 // <dir>/<slug>-<iso8601>.json and returns the path. The iso timestamp in the
 // filename is sanitized (colons → dashes) for filesystem safety.
+//
+// The write is collision-proof: two runs on the same doc within the same
+// second (or the same injected timestamp in tests) would otherwise share a
+// name and clobber, so we open with O_CREATE|O_EXCL and, on collision, retry
+// with a numeric suffix. Every run yields its own file (Principle 2 — evidence
+// is never silently overwritten).
 func WriteJSONArtifact(dir string, q *QuorumResult) (string, error) {
 	if dir == "" {
 		dir = ArtifactDir
@@ -38,16 +44,36 @@ func WriteJSONArtifact(dir string, q *QuorumResult) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create artifact dir: %w", err)
 	}
-	tsSafe := strings.NewReplacer(":", "-", "/", "-").Replace(q.ISOTimestamp)
-	path := filepath.Join(dir, fmt.Sprintf("%s-%s.json", Slug(q.Doc), tsSafe))
 	b, err := json.MarshalIndent(q, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("marshal quorum: %w", err)
 	}
-	if err := os.WriteFile(path, b, 0o644); err != nil {
-		return "", fmt.Errorf("write artifact: %w", err)
+	tsSafe := strings.NewReplacer(":", "-", "/", "-").Replace(q.ISOTimestamp)
+	base := filepath.Join(dir, fmt.Sprintf("%s-%s", Slug(q.Doc), tsSafe))
+	// Try <base>.json first, then <base>-1.json, <base>-2.json, ... until an
+	// O_EXCL create succeeds — no existing artifact is ever clobbered.
+	for i := 0; ; i++ {
+		path := base + ".json"
+		if i > 0 {
+			path = fmt.Sprintf("%s-%d.json", base, i)
+		}
+		f, oerr := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if os.IsExist(oerr) {
+			continue
+		}
+		if oerr != nil {
+			return "", fmt.Errorf("create artifact: %w", oerr)
+		}
+		_, werr := f.Write(b)
+		cerr := f.Close()
+		if werr != nil {
+			return "", fmt.Errorf("write artifact: %w", werr)
+		}
+		if cerr != nil {
+			return "", fmt.Errorf("close artifact: %w", cerr)
+		}
+		return path, nil
 	}
-	return path, nil
 }
 
 // MarkdownBlock renders the human-readable routing-evidence block appended to

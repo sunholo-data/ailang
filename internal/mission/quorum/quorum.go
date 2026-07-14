@@ -92,7 +92,10 @@ func RunQuorum(docPath, docBody, isoTS string, reviewerModels []string, maxCostU
 // Absent reviewers are recorded but do not vote; they can never turn a real
 // reject into a proceed, and their absence is always visible (Principle 2).
 func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synthesis {
-	s := Synthesis{Verdict: SynthProceed}
+	// AbsentReviewers is initialized to a non-nil empty slice so it marshals as
+	// [] (not null) when every reviewer was present — a consistent JSON shape
+	// for Phase E consumers.
+	s := Synthesis{Verdict: SynthProceed, AbsentReviewers: []AbsentNote{}}
 	presentCount := 0
 
 	for _, o := range outcomes {

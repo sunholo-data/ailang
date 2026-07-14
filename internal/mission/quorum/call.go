@@ -2,15 +2,30 @@ package quorum
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
+
+// ErrUnknownModel is returned by ResolveCaller when the model id is not present
+// in models.yml. Callers use errors.Is to report a semantically correct
+// absence reason ("unknown-model") rather than lumping it under "auth".
+var ErrUnknownModel = errors.New("model not in models.yml")
+
+// googleEnvMu serializes the process-global os.Setenv of GOOGLE_CLOUD_PROJECT
+// below. RunQuorum resolves reviewers in PARALLEL, so two Google reviewers with
+// different gcp_project values could otherwise race on this shared env var (a
+// latent data race + a wrong-project mutation). The mutation is process-global
+// because the Vertex ADC client reads GOOGLE_CLOUD_PROJECT from the environment;
+// we serialize rather than restructure that contract.
+var googleEnvMu sync.Mutex
 
 // JSONCaller is the minimal provider surface the reviewer needs: a single
 // structured-JSON call plus token/cost details for budget accounting. Both
@@ -67,7 +82,7 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 	}
 	mc, err := eval_harness.GlobalModelsConfig.GetModel(modelID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("model %q not in models.yml: %w", modelID, err)
+		return nil, nil, fmt.Errorf("model %q not in models.yml: %w", modelID, ErrUnknownModel)
 	}
 
 	var provider ai.Provider
@@ -84,9 +99,16 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 		// Export the model's gcp_project so NewVertexAIClient/ADC resolves the
 		// right project on a rig where GOOGLE_CLOUD_PROJECT is unset. We do
 		// NOT read GEMINI_API_KEY (absent on the rig) — that is the whole point.
-		if mc.GCPProject != "" && os.Getenv("GOOGLE_CLOUD_PROJECT") == "" {
+		if mc.GCPProject != "" {
 			// Set for this process so the ADC client picks up the project.
-			_ = os.Setenv("GOOGLE_CLOUD_PROJECT", mc.GCPProject)
+			// Serialized: RunQuorum fans out reviewers in parallel and this env
+			// var is process-global (see googleEnvMu). Re-check inside the lock
+			// so we only mutate when still unset.
+			googleEnvMu.Lock()
+			if os.Getenv("GOOGLE_CLOUD_PROJECT") == "" {
+				_ = os.Setenv("GOOGLE_CLOUD_PROJECT", mc.GCPProject)
+			}
+			googleEnvMu.Unlock()
 		}
 		client, gerr := gemini.NewVertexAIClient(mc.GCPProject)
 		if gerr != nil {
