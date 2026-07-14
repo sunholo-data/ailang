@@ -185,3 +185,32 @@ the coordinator's existing executor registry.
 ---
 
 **Document created**: 2026-07-11
+
+---
+
+## REDUNDANCY AUDIT (2026-07-14, Mark-requested — "we have tried many times")
+
+A full sweep of existing machinery against each phase. **Net: only Phase B (quorum
+orchestration) and Phase E's assignment-table data structure are genuinely new engineering.
+Everything else is selection-policy/wiring over shipped primitives — estimates and scoping
+below are BINDING for whoever executes.**
+
+| Phase | Already exists (do NOT rebuild) | Genuinely new |
+|---|---|---|
+| A | 1-token probe (`mission-control.sh:128`), auto-reverting override (`:76-95`) | only the multi-candidate loop + quota-error-signature matching |
+| B | text providers (`internal/ai/{openai,gemini}`, `handler.go` Call/CallJson) | ALL the quorum logic: N-reviewer orchestration, reject-by-default scoring, verdict synthesis, catch-rate tracking |
+| C | **the entire executor layer**: `provider_executor.go` registry (claude/codex/opencode/motoko/pi/managed_agents; codex landed v0.22.0 m-coord-codex-executor), `AgentConfig.Provider/Model/ExecutorVariant`, `models.yml agent_cli` | ONLY the provider-selection policy + per-(provider,task-class) evidence rows. **Re-scoped: ~1d, not 2–3d** |
+| D | `UsesLocalGPU()` (models.go:183), `worker_tags`/`worker_host_id` capability routing (M-COORD-MULTI-HOST-WORKERS v0.24.0), rig.lock two-tier, local-* skills | ONLY the task-class → local-lane rule |
+| E | `cloud_dispatcher.go DispatchParams{Provider,Model,MaxCostUSD}`, per-provider `BudgetsConfig` (agent_config.go:135-178), table-drives-behavior precedent (`autonomy_router.go`) | the (provider,model)×task-class table + evidence-rule updater + cross-family-eval default |
+
+**Third-vocabulary rule (binding):** an ordered-fallback routing abstraction already exists
+TWICE — `internal/ai/routing.go` `AIRoutingPolicy{Order,AllowFallback,Require,Prefer}`
+(program-level, OpenRouter) and `worker_tags` dispatch (coordinator-level). The driver-level
+preference list MUST reuse the AIRoutingPolicy vocabulary (or document in one paragraph why the
+driver layer can't) — three incompatible notions of "preferred provider order" is the failure
+mode of the prior attempts.
+
+**Prior-attempt fingerprint:** `design_docs/archive/v0_6_4_defunct/m-unified-ai-control-plane.md`
+— defunct, but its Future Work names multi-provider fallback verbatim. Its heavier `ailang exec`
+unification is the path that stalled; this doc's driver-level probe loop is deliberately lighter.
+READ IT before Phase A/C work — it is the ruled-out ledger for this problem.
