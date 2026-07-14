@@ -94,6 +94,20 @@ func TestModuleSuggestion_AliasHit(t *testing.T) {
 	}
 }
 
+// Regression (eval round-1 finding): every alias target must be a module that
+// actually EXISTS and be the nearest sensible target — `arrays` must point at
+// std/array (edit distance 1), NOT std/list. A wrong alias is exactly the
+// "misleading did-you-mean" class M3 forbids, and it silently outranks the
+// correct Levenshtein hit.
+func TestModuleSuggestion_AliasNeverMisdirects(t *testing.T) {
+	old := ModuleLocator
+	defer func() { ModuleLocator = old }()
+	ModuleLocator = nil
+	if got := ModuleSuggestion("arrays"); got != "std/array" {
+		t.Errorf("arrays should alias to std/array (nearest real module), got %q", got)
+	}
+}
+
 // Distance hit: `lst` -> `std/list` (edit distance 1) via Levenshtein.
 func TestModuleSuggestion_DistanceHit(t *testing.T) {
 	old := ModuleLocator

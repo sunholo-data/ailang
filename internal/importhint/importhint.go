@@ -51,7 +51,7 @@ var moduleAliases = map[string]string{
 	"regexp":  "regex",
 	"strings": "string",
 	"lists":   "list",
-	"arrays":  "list",
+	"arrays":  "array",
 	"os":      "process",
 	"sys":     "process",
 }
