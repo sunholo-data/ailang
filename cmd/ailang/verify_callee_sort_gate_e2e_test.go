@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/smt"
 )
 
 // TestVerify_UnencodableCalleeSkipsNotErrors is the end-to-end acceptance test for
@@ -13,6 +15,9 @@ import (
 // returns Option[float] must SKIP it with an UNENCODABLE_TYPE reason — NOT crash Z3
 // with a hard error. The example doubles as the regression fixture.
 func TestVerify_UnencodableCalleeSkipsNotErrors(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
+	}
 	bin := buildAilang(t)
 	stdout, stderr, _ := runAilangBin(t, bin, "verify", "--json",
 		"examples/runnable/contracts/unencodable_callee_skip.ail")
@@ -67,6 +72,9 @@ func TestVerify_UnencodableCalleeSkipsNotErrors(t *testing.T) {
 // both used to hard-ERROR with "unknown constant"; they must now skip gracefully.
 // These are the reporter's `strrec` and `adt_result` minimal repros.
 func TestVerify_UnresolvedCalleeShapesSkipNotError(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
+	}
 	bin := buildAilang(t)
 
 	cases := map[string]string{
@@ -121,6 +129,9 @@ ensures { legal(result) }
 // TestVerify_CrossFunctionIntChainStillVerifies guards against the gate falsely
 // rejecting callees with encodable (primitive / monomorphic-enum) signatures.
 func TestVerify_CrossFunctionIntChainStillVerifies(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
+	}
 	bin := buildAilang(t)
 	stdout, _, _ := runAilangBin(t, bin, "verify", "--json",
 		"examples/runnable/contracts/cross_function.ail")

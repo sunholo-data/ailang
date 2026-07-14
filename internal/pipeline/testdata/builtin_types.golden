@@ -286,6 +286,7 @@ _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_sanitize : string -> string
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
+_yaml_to_json : string -> Result[string, string]
 _zip_createArchive : (string, list[{content: string, name: string}]) -> Result[(), string] ! {FS}
 _zip_createArchiveWithBytes : (string, list[{data: string, name: string}]) -> Result[(), string] ! {FS}
 _zip_listEntries : string -> Result[list[string], string] ! {FS}
