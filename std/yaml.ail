@@ -1,0 +1,24 @@
+-- YAML ingestion for AILANG
+-- Bridges YAML to the std/json Json ADT via a Go-backed, WASM-portable converter.
+-- The conversion is a thin wrapper over the _yaml_to_json builtin (yaml.v3 -> JSON);
+-- decode reuses std/json.decode so YAML and JSON share one Json ADT.
+module std/yaml
+
+import std/result (Result, Ok, Err)
+import std/json (Json, decode as jsonDecode)
+
+-- Convert a YAML string to an equivalent JSON string (Go-backed).
+-- Reads only the first document of a multi-document stream. Any YAML that cannot be
+-- represented as JSON (non-string map keys, NaN/Inf floats) returns Err — no coercion.
+export func yamlToJson(s: string) -> Result[string, string] {
+  _yaml_to_json(s)
+}
+
+-- Decode a YAML string into the std/json Json ADT.
+-- Equivalent to yamlToJson followed by std/json.decode; returns the same Json ADT.
+export func decode(s: string) -> Result[Json, string] {
+  match yamlToJson(s) {
+    Ok(j) => jsonDecode(j),
+    Err(e) => Err(e)
+  }
+}

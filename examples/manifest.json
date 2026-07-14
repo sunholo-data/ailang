@@ -2531,14 +2531,30 @@
       ],
       "description": "Web API demo: pure math functions (add, multiply, factorial, fibonacci) served via ailang serve-api",
       "run_mode": "serve-api"
+    },
+    {
+      "path": "yaml_config.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "yaml",
+        "config"
+      ],
+      "description": "Reading a YAML config with std/yaml: decode into the shared Json ADT and read fields",
+      "modules": [
+        "std/json",
+        "std/option",
+        "std/result",
+        "std/yaml"
+      ]
     }
   ],
   "statistics": {
-    "total": 183,
-    "working": 171,
+    "total": 184,
+    "working": 172,
     "aspirational": 4,
     "broken": 8,
-    "coverage": 0.9344262295081968,
+    "coverage": 0.9347826086956522,
     "experimental": 0
   },
   "milestones": {

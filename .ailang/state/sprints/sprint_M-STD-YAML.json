@@ -1,0 +1,69 @@
+{
+  "sprint_id": "M-STD-YAML",
+  "status": "completed",
+  "created": "2026-07-14T16:23:11Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-std-yaml.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-std-yaml-sprint-plan.md",
+  "github_issues": [],
+  "request_source": "msg_20260714_181417_5dde3021 (cph-uni-stx-bench)",
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 410,
+    "estimated_days": 1,
+    "actual_loc": null
+  },
+  "features": [
+    {
+      "id": "M1_YAML_BUILTIN",
+      "description": "Go builtin _yaml_to_json (string -> Result[string,string]) in internal/builtins/yaml.go via yaml.Unmarshal->json.Marshal, pattern from json_decode.go. No silent coercion: any marshal error returns Err. Full Go unit tests in yaml_test.go.",
+      "estimated_loc": 270,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang builtins list shows _yaml_to_json as [pure] std/yaml",
+        "Non-string map key / NaN inputs return Err, never a coerced value",
+        "go test ./internal/builtins/ -run YAML green (happy path, nested, sequences, all scalar types, empty->null, flow==block, malformed->Err)",
+        "make lint clean on new file"
+      ],
+      "passes": true,
+      "started": "2026-07-14T17:00:00Z",
+      "completed": "2026-07-14T17:00:00Z",
+      "notes": "internal/builtins/yaml.go (_yaml_to_json, pure, string->Result[string,string]); 15 test funcs in yaml_test.go incl determinism (-count) + non-string-key/NaN/Inf/malformed Err cases. Registered as [pure] std/yaml. builtins pkg builds to wasm."
+    },
+    {
+      "id": "M2_YAML_MODULE",
+      "description": "std/yaml.ail wrapper: import std/json (Json, decode as jsonDecode); export yamlToJson(s) -> Result[string,string] and decode(s) -> Result[Json,string] composed as match yamlToJson(s){Ok(j)=>jsonDecode(j),Err(e)=>Err(e)}. Reuses std/json Json ADT. Integration test in tests/yaml_bridge_test.ail. NO embed/resolver edits (go:embed *.ail auto-includes it).",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_YAML_BUILTIN"
+      ],
+      "acceptance_criteria": [
+        "ailang docs std/yaml lists yamlToJson and decode with signatures",
+        "ailang check std/yaml.ail clean (resolve decode name collision via import alias)",
+        ".ail integration test passes: decode round-trip and yamlToJson->json.decode equals equivalent-JSON decode",
+        "decode returns the same Json ADT as std/json (constructor identity confirmed in test)"
+      ],
+      "passes": true,
+      "started": "2026-07-14T17:00:00Z",
+      "completed": "2026-07-14T17:00:00Z",
+      "notes": "std/yaml.ail exports yamlToJson + decode (decode as jsonDecode alias to avoid collision). tests/yaml_bridge_test.ail: 7/7 pass. decode reuses std/json Json ADT (canonical std/ import; stdlib/std/ prefix does not resolve new modules)."
+    },
+    {
+      "id": "M3_EXAMPLE_DOCS_WASM",
+      "description": "examples/yaml_config.ail (self-contained YAML string, decode + std/json accessors, passes make verify-examples); docs/docs/reference/stdlib/yaml.md; std/yaml row in docs/docs/reference/stdlib.md index; CHANGELOG v0.30.0 entry; GOOS=js GOARCH=wasm go build ./... verify.",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M2_YAML_MODULE"
+      ],
+      "acceptance_criteria": [
+        "ailang run examples/yaml_config.ail prints expected output; make verify-examples green",
+        "GOOS=js GOARCH=wasm go build ./... exit 0",
+        "docs_search(\"yaml\") returns the new module",
+        "CHANGELOG.md and stdlib.md index updated"
+      ],
+      "passes": true,
+      "started": "2026-07-14T17:00:00Z",
+      "completed": "2026-07-14T17:00:00Z",
+      "notes": "examples/runnable/yaml_config.ail (runs, prints title/year); manifest entry + coverage recalced, validate_manifest --ci green. docs/docs/reference/std-yaml.md + stdlib.md index row. CHANGELOG entry. WASM verified on ./cmd/wasm + ./internal/builtins (./... fails on pre-existing _unix Setpgid pkgs, not in wasm binary)."
+    }
+  ]
+}
