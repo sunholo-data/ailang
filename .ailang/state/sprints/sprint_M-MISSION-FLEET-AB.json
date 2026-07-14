@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-FLEET-AB",
-  "status": "planned",
+  "status": "in_progress",
   "created": "2026-07-14",
   "branch": "mission/iter28-fleet-ab",
   "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-wt-iter28",
@@ -27,10 +27,10 @@
         "Six safety invariants confirmed unchanged: kill switch, overlap guard, stall watchdog, ANTHROPIC_API_KEY strip, subscription-billing probe (claude -p not API), override/env pins",
         "Deployment confirmed: main-checkout on-disk script contains _mc_probe (no deployment action needed)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Phase A landed ~3h before planning. Third-vocabulary rule already honored (header cites AIRoutingPolicy.Order with the bash-precedes-Go justification). Read-only + one time-boxed live-ish test that is killed before the iteration begins."
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "VERIFIED (no build). bash -n clean (exit 0). MISSION_DRY_RUN=1 exits 0, prints 'DRY RUN ok ... prefs=claude-fable-5,claude-opus-4-8', fires NO probes (dry-run step 3 precedes select_model step 4). Fall-through smoke: extracted the REAL probe+select block (sed -n '88,134p') with a stubbed claude — bogus-model-xyz -> 'quota-limited, falling through' -> selects claude-opus-4-8 ('probe ok'), bounded 120s, zero real spend, no iteration launched. Six invariants present+unchanged: kill switch (:149), overlap guard pgrep 'claude -p Run one mission' (:159), stall watchdog _mc_stalled (:73), ANTHROPIC_API_KEY strip (:41), subscription-billing probe uses claude -p never API (:97/:102), override+env pins (:90/:110/:112). Deployment confirmed: main-checkout tools/launchd/mission-control.sh has _mc_probe (3 matches). NO driver edit made -> NO deployment action needed."
     },
     {
       "id": "B1_REVIEWER_CALLER_REJECT_BY_DEFAULT",

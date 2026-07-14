@@ -105,9 +105,12 @@ Findings:
 5. Confirm deployment: main-checkout on-disk script contains `_mc_probe` (5 matches — confirmed).
    **No deployment action needed** (already deployed).
 
-**Acceptance**
-- `bash -n` clean; dry-run exits 0 with no probes; fall-through selects the next candidate within
-  the ≤2-min bounded window; all six safety invariants present and unchanged; deployment confirmed.
+**Acceptance** — ✅ ALL MET (verified 2026-07-14, exec)
+- [x] `bash -n` clean (exit 0).
+- [x] dry-run exits 0 with no probes (`DRY RUN ok … prefs=claude-fable-5,claude-opus-4-8`; step-3 dry-run precedes step-4 `select_model`).
+- [x] fall-through selects the next candidate within the bounded window: real `select_model` block (sed `88,134p`) + stubbed `claude` → `bogus-model-xyz … falling through` → selects `claude-opus-4-8` (`probe ok`), bounded 120s, zero real spend, no iteration launched.
+- [x] all six safety invariants present and unchanged: kill switch (:149), overlap guard (:159), stall watchdog (:73), `ANTHROPIC_API_KEY` strip (:41), subscription-billing probe uses `claude -p` never API (:97/:102), override+env pins (:90/:110/:112).
+- [x] deployment confirmed: main-checkout script has `_mc_probe` (3 matches). No driver edit made → no deployment action needed.
 
 **Risk**: LOW. Read-only verification of live code. The one live-ish test (task 3) is time-boxed and
 killed before the real iteration starts, so it cannot wedge the loop.
