@@ -2324,3 +2324,37 @@ TestReferenceSolutions_JS/fizzbuzz-windows-timeout); MOD007 allocation human vet
 **NEW carry-forward**: dead `make verify-stdlib` gate (fix or delete, mechanical); evaluator
 worktree-file incident watch; executor deviation-declaration watch; alias-import
 prelude-suppression edge (document or accept).
+
+---
+
+## 29 — 2026-07-14 — Strategic audit (interactive, Mark + Opus): redundancy, dashboard, codegen, boundaries
+
+**Picked**: n/a — Mark-requested audit before fleet work begins ("we have tried many times…
+hope nothing is redundant").
+
+**Reality check**: 4 parallel reviews (fleet-redundancy, dashboard lineage, bytecode/codegen
+state, repo-split doc hunt). Full reports in session; durable outputs below.
+
+**Shipped**:
+- Fleet doc gained a BINDING redundancy audit (049fc30a8): only Phase B quorum + Phase E
+  assignment table are new engineering; Phase C re-scoped 2–3d→~1d (executor layer fully exists:
+  v0.6.1 registry + v0.22.0 codex); third-vocabulary rule (reuse AIRoutingPolicy); defunct
+  m-unified-ai-control-plane flagged as the prior attempt's ruled-out ledger.
+- Charter: HUMAN-LED lanes carved out (dashboard, Go/bytecode story — loop hands-off) + the
+  five-item v1.0 RELEASE-GATE AUDIT bundle.
+
+**Ruled out**:
+- "Fleet phases C/D are greenfield" — REFUTED (selection-policy/wiring over shipped primitives).
+- "The Go port is half-done and in-flight" — REFRAMED: strategy of record (v0.11 design
+  committee) DEMOTED Go emission to diagnostic projection; bytecode VM is the perf path (~95%
+  parity); emit-go-v2 is PAUSED with an open finish-vs-freeze question — a decision, not a port.
+- "A repo-split doc proposes separate repos" — the found doc (deferred/m-arch-boundaries.md)
+  specs a DIRECTORY split and explicitly rejects separate repos.
+
+**Retro lane**: process-fix (the human-led-lane + release-gate-audit charter sections).
+Friction RECORDED (3rd instance of doc/reality drift class, this time in the dashboard
+retrospective's own words: "code was complete weeks before we realized it" — same ghost class
+Gate-2 now guards; no new skill edit needed, existing protocol covers it).
+
+**Next**: loop continues the gating queue + fleet A/B interleave (now with binding scoping);
+the release-gate audit fires as one human session when the queue empties.
