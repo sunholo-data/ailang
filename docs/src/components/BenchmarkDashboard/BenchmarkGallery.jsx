@@ -132,10 +132,13 @@ function Index({ list, onOpen }) {
   const [sortBy, setSortBy] = useState('difficulty');
 
   const tiers = useMemo(
-    () => [...new Set(list.map((x) => x.tier).filter(Boolean))].sort((a, b) => TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b)),
+    // Array.from (not [...set]) — Docusaurus's prod Babel lowers array-spread to
+    // [].concat(x), which does NOT spread a Set, leaving a 1-element [Set] that
+    // rendered every tier inside one chip. Array.from always iterates.
+    () => Array.from(new Set(list.map((x) => x.tier).filter(Boolean))).sort((a, b) => TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b)),
     [list],
   );
-  const tags = useMemo(() => [...new Set(list.flatMap((x) => x.tags || []))].sort(), [list]);
+  const tags = useMemo(() => Array.from(new Set(list.flatMap((x) => x.tags || []))).sort(), [list]);
 
   const rows = useMemo(() => {
     const ql = q.trim().toLowerCase();
