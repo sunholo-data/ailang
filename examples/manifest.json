@@ -1362,6 +1362,21 @@
       "description": "Cross-function verification — Z3 inlines callee definitions to verify 3-level call chains"
     },
     {
+      "path": "runnable/contracts/unencodable_callee_skip.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "cross-function-calls",
+        "unencodable-type"
+      ],
+      "description": "Cross-function contract with a callee returning Option[float] — ailang verify skips gracefully (UNENCODABLE_TYPE) instead of crashing Z3",
+      "modules": [
+        "std/option"
+      ]
+    },
+    {
       "path": "runnable/contracts/cross_module_functions.ail",
       "status": "working",
       "tags": [
@@ -2531,14 +2546,30 @@
       ],
       "description": "Web API demo: pure math functions (add, multiply, factorial, fibonacci) served via ailang serve-api",
       "run_mode": "serve-api"
+    },
+    {
+      "path": "yaml_config.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "yaml",
+        "config"
+      ],
+      "description": "Reading a YAML config with std/yaml: decode into the shared Json ADT and read fields",
+      "modules": [
+        "std/json",
+        "std/option",
+        "std/result",
+        "std/yaml"
+      ]
     }
   ],
   "statistics": {
-    "total": 183,
-    "working": 171,
+    "total": 185,
+    "working": 173,
     "aspirational": 4,
     "broken": 8,
-    "coverage": 0.9344262295081968,
+    "coverage": 0.9351351351351351,
     "experimental": 0
   },
   "milestones": {

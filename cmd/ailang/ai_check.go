@@ -238,6 +238,31 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		RecordTypeAliases:  recordAliases,
 	}
 
+	// Callee-sort gate inputs (M-SMT-CALLEE-SORT-GATE): reject a caller whose
+	// cross-function callee has an unencodable signature type (e.g. Option[float])
+	// instead of leaking an undeclared sort into Z3. Mirrors verifyCommand.
+	calleeASTFuncs := make(map[string]*ast.FuncDecl)
+	for name, fd := range surfaceFuncs {
+		calleeASTFuncs[name] = fd
+	}
+	importedPrograms := make(map[string]*core.Program)
+	allTypeFiles := []*ast.File{surfaceAST}
+	for modPath, mod := range modules {
+		if mod.Core != nil {
+			importedPrograms[modPath] = mod.Core
+		}
+		if mod.File == nil {
+			continue
+		}
+		allTypeFiles = append(allTypeFiles, mod.File)
+		for _, fd := range mod.File.Funcs {
+			if _, exists := calleeASTFuncs[fd.Name]; !exists {
+				calleeASTFuncs[fd.Name] = fd
+			}
+		}
+	}
+	declarableADTs := collectMonomorphicTypeNames(allTypeFiles)
+
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
 		if len(meta.Contracts) == 0 {
@@ -271,6 +296,16 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		}
 
 		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
+		// Callee-sort gate: skip cleanly if a cross-function callee has an unencodable
+		// signature type (e.g. Option[float]) rather than crashing Z3.
+		if callee, badType := firstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
+			rejections = append(rejections, smt.SMTRejectionReason{
+				Code:    smt.RejectUnencodable,
+				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
+				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
+			})
+			encodable = false
+		}
 		if !encodable && recursiveDepth > 0 {
 			var filtered []smt.SMTRejectionReason
 			for _, r := range rejections {

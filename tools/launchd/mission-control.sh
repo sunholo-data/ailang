@@ -23,6 +23,8 @@
 # Manual pins still win: MISSION_MODEL env (absolute) or
 # ~/.ailang/state/mission-model ("<model> [expiry-epoch]", auto-expires).
 #
+# Transient Anthropic errors (Overloaded/dropped socket) are retried with backoff
+# (TRANSIENT-RETRY block); deliberate watchdog kills are not.
 # Kill switch: touch ~/.ailang/state/mission-control.disabled
 # Portable to macOS bash 3.2. No GNU timeout on this rig → bash watchdog below.
 set -uo pipefail
@@ -148,6 +150,19 @@ STALL_SAMPLES="${MISSION_STALL_SAMPLES:-3}"      # consecutive idle+long-child h
 export STALL_CHILD_AGE
 KILL_SWITCH="$HOME/.ailang/state/mission-control.disabled"
 
+# TRANSIENT-RETRY (2026-07-14): Anthropic capacity is flaky some evenings —
+# `claude -p` does its own internal retries then exits rc=1 on a persistent
+# "API Error: Overloaded" / dropped socket, losing the whole iteration (2 lost
+# 2026-07-14). Retry the run on a TIGHTLY-ANCHORED transient signature (claude's
+# own "API Error:" emissions + socket-closed), with backoff. NEVER retried:
+# watchdog kills (rc 143/137 = deliberate stall/timeout), quota/429 (that's
+# Phase A's start-probe fall-through job, not a same-model retry), or any other
+# genuine rc. Signature is anchored so an unrelated "503" in a test's output
+# (e.g. the httpbin fixture) cannot trigger a false retry.
+TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
+TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
+TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
+
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
@@ -203,43 +218,68 @@ design_docs/v1-mission.md and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill."
 
-claude -p "$PROMPT" \
-  --model "$MODEL" \
-  --permission-mode bypassPermissions \
-  >>"$LOG" 2>&1 &
-CLAUDE_PID=$!
+# _mc_run_once → runs claude -p with BOTH watchdogs, waits, sets global RC.
+# Watchdogs are per-attempt (fresh PIDs each retry).
+_mc_run_once() {
+  claude -p "$PROMPT" \
+    --model "$MODEL" \
+    --permission-mode bypassPermissions \
+    >>"$LOG" 2>&1 &
+  CLAUDE_PID=$!
 
-# Watchdog: TERM at the wall limit, KILL 60s later. (No GNU timeout on macOS.)
-(
-  sleep "$HARD_TIMEOUT"
-  if kill -0 "$CLAUDE_PID" 2>/dev/null; then
-    echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CLAUDE_PID" >>"$LOG"
-    kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 60; kill -KILL "$CLAUDE_PID" 2>/dev/null
-  fi
-) &
-WATCHDOG_PID=$!
-
-# Stall watchdog: after the grace window, sample for the wedged-tool fingerprint
-# (idle tree + a descendant alive ≥ STALL_CHILD_AGE). STALL_SAMPLES consecutive
-# hits → kill early so the slot recycles instead of idling to HARD_TIMEOUT. hits
-# resets on any non-idle/no-long-child sample, so live work is never killed.
-(
-  sleep "$STALL_GRACE"
-  hits=0
-  while kill -0 "$CLAUDE_PID" 2>/dev/null; do
-    if _mc_stalled "$CLAUDE_PID"; then hits=$((hits + 1)); else hits=0; fi
-    if [ "$hits" -ge "$STALL_SAMPLES" ]; then
-      echo "[$(date '+%F %H:%M:%S')] STALL: claude $CLAUDE_PID idle with a descendant alive ≥${STALL_CHILD_AGE}s across $STALL_SAMPLES samples (unbounded poll loop?) — killing early" >>"$LOG"
-      kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 30; kill -KILL "$CLAUDE_PID" 2>/dev/null
-      break
+  # Watchdog: TERM at the wall limit, KILL 60s later. (No GNU timeout on macOS.)
+  (
+    sleep "$HARD_TIMEOUT"
+    if kill -0 "$CLAUDE_PID" 2>/dev/null; then
+      echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CLAUDE_PID" >>"$LOG"
+      kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 60; kill -KILL "$CLAUDE_PID" 2>/dev/null
     fi
-    sleep "$STALL_INTERVAL"
-  done
-) &
-STALL_PID=$!
+  ) &
+  WATCHDOG_PID=$!
 
-wait "$CLAUDE_PID"; RC=$?
-kill "$WATCHDOG_PID" "$STALL_PID" 2>/dev/null
+  # Stall watchdog: after the grace window, sample for the wedged-tool fingerprint
+  # (idle tree + a descendant alive ≥ STALL_CHILD_AGE). STALL_SAMPLES consecutive
+  # hits → kill early so the slot recycles instead of idling to HARD_TIMEOUT. hits
+  # resets on any non-idle/no-long-child sample, so live work is never killed.
+  (
+    sleep "$STALL_GRACE"
+    hits=0
+    while kill -0 "$CLAUDE_PID" 2>/dev/null; do
+      if _mc_stalled "$CLAUDE_PID"; then hits=$((hits + 1)); else hits=0; fi
+      if [ "$hits" -ge "$STALL_SAMPLES" ]; then
+        echo "[$(date '+%F %H:%M:%S')] STALL: claude $CLAUDE_PID idle with a descendant alive ≥${STALL_CHILD_AGE}s across $STALL_SAMPLES samples (unbounded poll loop?) — killing early" >>"$LOG"
+        kill -TERM "$CLAUDE_PID" 2>/dev/null; sleep 30; kill -KILL "$CLAUDE_PID" 2>/dev/null
+        break
+      fi
+      sleep "$STALL_INTERVAL"
+    done
+  ) &
+  STALL_PID=$!
+
+  wait "$CLAUDE_PID"; RC=$?
+  kill "$WATCHDOG_PID" "$STALL_PID" 2>/dev/null
+  return "$RC"
+}
+
+# Run with transient-retry. On a non-zero exit that is NOT a deliberate watchdog
+# kill (143/137) AND whose THIS-attempt output carries a transient signature,
+# back off and re-run — up to TRANSIENT_RETRIES total attempts.
+attempt=1
+while : ; do
+  logpos=$(wc -l < "$LOG" 2>/dev/null || echo 0)
+  _mc_run_once; RC=$?
+  [ "$RC" -eq 0 ] && break
+  case "$RC" in 143|137) break ;; esac   # watchdog kill — never retry
+  if [ "$attempt" -lt "$TRANSIENT_RETRIES" ] \
+     && tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qiE "$TRANSIENT_SIG"; then
+    backoff=$(( TRANSIENT_BACKOFF * attempt ))
+    log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (Anthropic capacity)"
+    sleep "$backoff"
+    attempt=$((attempt + 1))
+    continue
+  fi
+  break
+done
 
 if [ "$RC" -ne 0 ]; then
   log "iteration exited rc=$RC"

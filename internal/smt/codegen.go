@@ -26,6 +26,16 @@ type FunctionParam struct {
 // This is a package-level variable set during encoding (sequential per function).
 var activeResolvedCallees map[string]bool
 
+// activeUserFunctions holds the set of ALL user-defined function names visible to
+// the current EncodeFunction call (same-module + imported). It lets encodeApp
+// distinguish a real ADT constructor application (fine to encode) from a call to a
+// user function that was NOT resolved into a define-fun or contract substitution —
+// i.e. a leak that would otherwise emit a raw uninterpreted symbol and make Z3
+// hard-error with "unknown constant". When encodeApp sees such an unresolved user
+// function it returns ErrUnresolvableTypes so the driver skips gracefully.
+// See M-SMT-CALLEE-SORT-GATE (leak-site detection).
+var activeUserFunctions map[string]bool
+
 // activeRecordTypes maps record sort names to their type info.
 // Populated during EncodeFunction, used by encodeRecord/encodeRecordUpdate.
 var activeRecordTypes map[string]*RecordTypeInfo
@@ -151,6 +161,22 @@ func EncodeFunction(
 	// Set active resolved callees for encodeApp to use
 	activeResolvedCallees = ctx.ResolvedCallees
 	defer func() { activeResolvedCallees = nil }()
+
+	// Record every user-defined function name visible to this encoding so encodeApp
+	// can tell a real ADT constructor from a call to a user function that wasn't
+	// resolved (which would otherwise leak a raw "unknown constant" symbol into Z3).
+	activeUserFunctions = make(map[string]bool)
+	defer func() { activeUserFunctions = nil }()
+	if len(opts) > 0 && opts[0].Program != nil {
+		for _, name := range collectFunctionNames(opts[0].Program) {
+			activeUserFunctions[name] = true
+		}
+		for _, imp := range opts[0].ImportedPrograms {
+			for _, name := range collectFunctionNames(imp) {
+				activeUserFunctions[name] = true
+			}
+		}
+	}
 
 	// Populate contract callee substitutions
 	activeContractCallees = make(map[string]string)
@@ -659,6 +685,22 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 	}
 
 	for _, decl := range decls {
+		// Defense-in-depth (M-SMT-CALLEE-SORT-GATE): validate that cross-function
+		// callee define-funs reference only declared/primitive sorts in their
+		// signature. The caller-side AST gate is the primary defense; this catches
+		// any leak that slips past it (e.g. a callee with no AST FuncDecl) so we
+		// return ErrUnresolvableTypes (→ graceful skip) instead of crashing Z3.
+		if strings.HasPrefix(decl, "(define-fun ") {
+			for _, sortStr := range extractDefineFunSigSorts(decl) {
+				for _, ref := range sortRefPattern.FindAllString(sortStr, -1) {
+					if primitiveSorts[ref] || declared[ref] || strings.HasPrefix(ref, "mk_") {
+						continue
+					}
+					return fmt.Errorf("%w: sort %q referenced in signature of a callee define-fun is not declared", ErrUnresolvableTypes, ref)
+				}
+			}
+			continue
+		}
 		if !strings.HasPrefix(decl, "(declare-datatype ") {
 			// Non-datatype declarations (declare-const, define-const, etc.) are fine
 			continue
@@ -684,6 +726,91 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 		}
 	}
 	return nil
+}
+
+// extractDefineFunSigSorts extracts the parameter sorts and return sort from an
+// SMT-LIB (define-fun name ((v1 S1) (v2 S2)) RetSort body) declaration. Only the
+// signature is parsed — never the body — so constructor/field references inside the
+// body cannot produce false positives. Returns nil on any parse difficulty
+// (fail-open: the caller-side AST gate is the primary defense).
+func extractDefineFunSigSorts(decl string) []string {
+	const prefix = "(define-fun "
+	if !strings.HasPrefix(decl, prefix) {
+		return nil
+	}
+	s := decl[len(prefix):]
+	// Skip the function name (no spaces) up to the first space.
+	sp := strings.IndexByte(s, ' ')
+	if sp < 0 {
+		return nil
+	}
+	s = strings.TrimLeft(s[sp+1:], " ")
+	if len(s) == 0 || s[0] != '(' {
+		return nil
+	}
+	// Read the balanced parameter list group.
+	paramList, rest, ok := readBalancedParen(s)
+	if !ok {
+		return nil
+	}
+	var sorts []string
+	// paramList is the inside of the outer parens: "(v1 S1) (v2 S2) ...".
+	inner := paramList
+	for {
+		inner = strings.TrimLeft(inner, " ")
+		if len(inner) == 0 || inner[0] != '(' {
+			break
+		}
+		var pair string
+		pair, inner, ok = readBalancedParen(inner)
+		if !ok {
+			return nil
+		}
+		// pair is "v S" (or "v (Seq X)"); the sort is everything after the first token.
+		pair = strings.TrimSpace(pair)
+		if psp := strings.IndexByte(pair, ' '); psp >= 0 {
+			sorts = append(sorts, strings.TrimSpace(pair[psp+1:]))
+		}
+	}
+	// Read the return sort: a parenthesized group or a bare token.
+	rest = strings.TrimLeft(rest, " ")
+	if len(rest) == 0 {
+		return sorts
+	}
+	if rest[0] == '(' {
+		if ret, _, okRet := readBalancedParen(rest); okRet {
+			sorts = append(sorts, "("+ret+")")
+		}
+	} else {
+		end := strings.IndexByte(rest, ' ')
+		if end < 0 {
+			end = len(rest)
+		}
+		sorts = append(sorts, rest[:end])
+	}
+	return sorts
+}
+
+// readBalancedParen reads one balanced parenthesized group from the start of s
+// (which must begin with '('). It returns the group's inner content (without the
+// outer parens) and the remainder after the closing paren.
+func readBalancedParen(s string) (inner, rest string, ok bool) {
+	if len(s) == 0 || s[0] != '(' {
+		return "", "", false
+	}
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return s[1:i], s[i+1:], true
+			}
+		}
+	}
+	return "", "", false
 }
 
 // allFieldsPrimitiveOrDeclared checks whether all field sorts are either

@@ -1,0 +1,66 @@
+-- Test std/yaml: YAML->JSON bridge and decode into the shared Json ADT
+module tests/yaml_bridge_test
+
+import std/yaml (yamlToJson, decode)
+import std/json (getString, get, asNumber)
+import std/option (Some, None)
+import std/result (Ok, Err)
+
+export func main() -> () ! {IO} {
+  println("=== std/yaml Bridge Tests ===");
+
+  -- Test 1: yamlToJson produces JSON with sorted keys
+  let y1 = "name: STX\ncount: 3\nitems:\n  - a\n  - b\n";
+  match yamlToJson(y1) {
+    Ok(j) =>
+      if j == "{\"count\":3,\"items\":[\"a\",\"b\"],\"name\":\"STX\"}"
+      then println("✓ yamlToJson block mapping")
+      else println("✗ yamlToJson wrong output: ${j}"),
+    Err(e) => println("✗ yamlToJson failed: ${e}")
+  };
+
+  -- Test 2: decode into Json ADT + std/json accessor
+  match decode(y1) {
+    Ok(v) => match getString(v, "name") {
+      Some(s) => if s == "STX" then println("✓ decode + getString") else println("✗ wrong name: ${s}"),
+      None => println("✗ getString returned None")
+    },
+    Err(e) => println("✗ decode failed: ${e}")
+  };
+
+  -- Test 3: decode yields the SAME Json ADT as std/json (numbers decode as JNumber)
+  match decode(y1) {
+    Ok(v) => match get(v, "count") {
+      Some(c) => match asNumber(c) {
+        Some(_) => println("✓ number decodes as Json JNumber"),
+        None => println("✗ count not a JNumber")
+      },
+      None => println("✗ count missing")
+    },
+    Err(e) => println("✗ decode failed: ${e}")
+  };
+
+  -- Test 4: flow style equals block style
+  match yamlToJson("{a: 1, b: [x, y]}") {
+    Ok(j) => if j == "{\"a\":1,\"b\":[\"x\",\"y\"]}" then println("✓ flow style") else println("✗ flow: ${j}"),
+    Err(e) => println("✗ flow failed: ${e}")
+  };
+
+  -- Test 5: empty input decodes to null
+  match yamlToJson("") {
+    Ok(j) => if j == "null" then println("✓ empty -> null") else println("✗ empty: ${j}"),
+    Err(e) => println("✗ empty failed: ${e}")
+  };
+
+  -- Test 6: non-string map key is rejected loudly (no silent coercion)
+  match decode("1: a\n2: b\n") {
+    Ok(_) => println("✗ should have rejected non-string key"),
+    Err(_) => println("✓ rejects non-string map key")
+  };
+
+  -- Test 7: malformed indentation is a parse error
+  match yamlToJson("a: 1\n  b: 2\n") {
+    Ok(_) => println("✗ should have rejected bad indentation"),
+    Err(_) => println("✓ rejects malformed indentation")
+  }
+}

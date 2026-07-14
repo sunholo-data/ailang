@@ -234,6 +234,40 @@ func verifyCommand() {
 		ImportedPrograms:   importedPrograms,
 	}
 
+	// Build the callee-sort gate inputs. The gate rejects a contracted function whose
+	// cross-function callee has an unencodable signature *type* (e.g. Option[float], a
+	// parametric ADT application) with a structured UNENCODABLE_TYPE reason, instead of
+	// leaking an undeclared sort into the SMT script and crashing Z3. See
+	// M-SMT-CALLEE-SORT-GATE.
+	//
+	// We inspect the surface AST types (not the flattened SMT sort strings): a mapped
+	// sort like "Option" loses the [float] argument, and an imported parametric ADT such
+	// as Option is registered in adtTypes yet cannot be declared as a usable monomorphic
+	// sort — so a sort-string check wrongly passes it. The AST distinguishes a monomorphic
+	// enum (SimpleType) from a parametric application (TypeApp with args) and a type var.
+	calleeASTFuncs := make(map[string]*ast.FuncDecl)
+	for name, fd := range surfaceFuncs {
+		calleeASTFuncs[name] = fd
+	}
+	allTypeFiles := []*ast.File{surfaceAST}
+	if result.Modules != nil {
+		for _, mod := range result.Modules {
+			if mod.File == nil {
+				continue
+			}
+			allTypeFiles = append(allTypeFiles, mod.File)
+			for _, fd := range mod.File.Funcs {
+				if _, exists := calleeASTFuncs[fd.Name]; !exists {
+					calleeASTFuncs[fd.Name] = fd
+				}
+			}
+		}
+	}
+	// declarableADTs: monomorphic (non-parametric) ADT/record names that WILL be declared
+	// as SMT sorts. Parametric ADTs (those whose TypeDecl carries type parameters) are
+	// excluded — they cannot be monomorphized by the current encoder.
+	declarableADTs := collectMonomorphicTypeNames(allTypeFiles)
+
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
 		if len(meta.Contracts) == 0 {
@@ -279,6 +313,17 @@ func verifyCommand() {
 
 		// Check if function is in the decidable SMT fragment
 		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
+		// Callee-sort gate: reject cleanly if a cross-function callee has an
+		// unencodable signature type (e.g. Option[float]) rather than leaking an
+		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
+		if callee, badType := firstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
+			rejections = append(rejections, smt.SMTRejectionReason{
+				Code:    smt.RejectUnencodable,
+				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
+				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
+			})
+			encodable = false
+		}
 		if !encodable {
 			// If bounded recursion is enabled, filter out RejectRecursive
 			if effectiveDepth > 0 {
@@ -624,6 +669,122 @@ func astTypeToSMTSort(t ast.Type) string {
 	default:
 		return "Int" // Fallback for complex types
 	}
+}
+
+// collectMonomorphicTypeNames returns the set of type names (ADTs and record
+// aliases) declared WITHOUT type parameters across the given files. These are the
+// only user types that can be emitted as concrete SMT sorts. Parametric types
+// (e.g. Option[a], Result[e,a]) are excluded: the encoder cannot monomorphize them,
+// so a signature that mentions them must be gated rather than encoded.
+func collectMonomorphicTypeNames(files []*ast.File) map[string]bool {
+	names := make(map[string]bool)
+	for _, f := range files {
+		if f == nil {
+			continue
+		}
+		for _, decl := range f.Decls {
+			if td, ok := decl.(*ast.TypeDecl); ok && len(td.TypeParams) == 0 {
+				names[td.Name] = true
+			}
+		}
+	}
+	return names
+}
+
+// astTypeEncodable reports whether an AST type can appear in a callee signature
+// that the SMT encoder can handle. Primitives, lists/sequences, records, and
+// monomorphic ADTs (declared in `declarable`) are encodable. A parametric ADT
+// application (TypeApp with args, e.g. Option[float]) or a bare type variable is
+// NOT — those are exactly the shapes that leak an undeclared sort into Z3.
+// A nil type (no annotation) is treated as encodable — we only gate on what we can see.
+func astTypeEncodable(t ast.Type, declarable map[string]bool) bool {
+	switch ty := t.(type) {
+	case nil:
+		return true
+	case *ast.SimpleType:
+		switch ty.Name {
+		case "int", "float", "bool", "string":
+			return true
+		default:
+			return declarable[ty.Name] // monomorphic user ADT/record
+		}
+	case *ast.ListType:
+		return astTypeEncodable(ty.Element, declarable)
+	case *ast.TypeApp:
+		// list[T] is the one encodable type application (maps to (Seq T)).
+		if ty.Constructor == "list" && len(ty.Args) == 1 {
+			return astTypeEncodable(ty.Args[0], declarable)
+		}
+		return false // parametric ADT application (Option[float], Result[e,a], ...)
+	case *ast.RecordType:
+		return true // records map to declared record datatypes
+	case *ast.LabelledType:
+		return astTypeEncodable(ty.Base, declarable)
+	case *ast.TypeVar:
+		return false // unbound type variable in a signature
+	default:
+		return false // tuples, function types, and other shapes are not encodable
+	}
+}
+
+// describeASTType renders an AST type for diagnostic messages.
+func describeASTType(t ast.Type) string {
+	switch ty := t.(type) {
+	case nil:
+		return "?"
+	case *ast.SimpleType:
+		return ty.Name
+	case *ast.ListType:
+		return "[" + describeASTType(ty.Element) + "]"
+	case *ast.TypeApp:
+		parts := make([]string, len(ty.Args))
+		for i, a := range ty.Args {
+			parts[i] = describeASTType(a)
+		}
+		return ty.Constructor + "[" + strings.Join(parts, ", ") + "]"
+	case *ast.RecordType:
+		return "{...}"
+	case *ast.LabelledType:
+		return describeASTType(ty.Base)
+	case *ast.TypeVar:
+		return ty.Name
+	default:
+		return fmt.Sprintf("%T", t)
+	}
+}
+
+// firstUnencodableCalleeType walks the cross-function call graph reachable from a
+// contracted function's body and returns the first callee whose signature (a
+// parameter type or the return type) is not SMT-encodable — e.g. a parametric ADT
+// like Option[float]. Returns (calleeName, renderedType), or ("","") if all clean.
+//
+// This closes a gap in the fragment gate: the smt-side checks only inspect
+// $builtin/stdlib call names, never the signature TYPES of a user cross-function
+// callee. Without this, such a callee leaks an undeclared sort into the SMT script
+// and Z3 hard-errors instead of the verifier skipping with UNENCODABLE_TYPE.
+func firstUnencodableCalleeType(
+	funcName string,
+	body core.CoreExpr,
+	prog *core.Program,
+	imported map[string]*core.Program,
+	calleeASTFuncs map[string]*ast.FuncDecl,
+	declarable map[string]bool,
+) (string, string) {
+	for _, name := range smt.CollectCalleeNames(body, funcName, prog, imported) {
+		fd, ok := calleeASTFuncs[name]
+		if !ok {
+			continue
+		}
+		if !astTypeEncodable(fd.ReturnType, declarable) {
+			return name, describeASTType(fd.ReturnType)
+		}
+		for _, p := range fd.Params {
+			if !astTypeEncodable(p.Type, declarable) {
+				return name, describeASTType(p.Type)
+			}
+		}
+	}
+	return "", ""
 }
 
 // findFunctionBody finds the body expression of a named function in the Core program.
