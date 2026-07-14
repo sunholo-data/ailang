@@ -13,7 +13,7 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8648648648648649,
+          "ailang": 0.85,
           "go": 1,
           "javascript": 0.9444444444444444,
           "python": 1
@@ -27,7 +27,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.6071428571428571
+            "ailang": 0.5483870967741935
           },
           "smoke": {
             "ailang": 1,
@@ -36,7 +36,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.90625
+            "ailang": 0.9210526315789473
           },
           "vision": {
             "ailang": 1,
@@ -49,7 +49,7 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6071428571428571,
+          "ailang": 0.6115702479338843,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -63,7 +63,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.27586206896551724
+            "ailang": 0.25
           },
           "smoke": {
             "ailang": 1,
@@ -72,7 +72,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.78125
+            "ailang": 0.8157894736842105
           },
           "vision": {
             "ailang": 0,
@@ -85,7 +85,7 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7610619469026548,
+          "ailang": 0.7459016393442623,
           "go": 0.9444444444444444,
           "javascript": 1,
           "python": 1
@@ -99,7 +99,7 @@
             "python": 1
           },
           "frontier": {
-            "ailang": 0.39285714285714285
+            "ailang": 0.3548387096774194
           },
           "smoke": {
             "ailang": 1,
@@ -108,7 +108,7 @@
             "python": 1
           },
           "stretch": {
-            "ailang": 0.8823529411764706
+            "ailang": 0.875
           },
           "vision": {
             "ailang": 1,
