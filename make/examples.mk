@@ -4,7 +4,7 @@
 
 .PHONY: verify-examples verify-examples-toplevel verify-examples-all verify-examples-trace verify-cli-examples examples-status
 .PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib
-.PHONY: compile-examples-go verify-examples-gate-selftest backfill-manifest-modules
+.PHONY: compile-examples-go verify-examples-gate-selftest backfill-manifest-modules validate-manifest-selftest
 
 # Example verification (parallel by default, ~8s vs ~3min sequential)
 #
@@ -52,6 +52,23 @@ verify-examples-gate-selftest: build ## Prove the verify-examples gate fails (an
 # Regenerate the manifest `modules` field (parser-backed). Commit the result.
 backfill-manifest-modules: ## Backfill examples/manifest.json `modules` field from actual imports
 	@go run ./scripts/backfill_manifest_modules.go
+
+# Drift-lint self-test: prove validate_manifest --ci turns non-zero when a
+# committed `modules` entry disagrees with the actual imports (same guard pattern
+# as the gate self-test). Uses a temp copy; never mutates the real manifest.
+validate-manifest-selftest: build ## Prove the manifest modules drift-lint fails on a drifted entry
+	@echo "Drift-lint self-test: injecting a deliberately-drifted modules entry..."
+	@tmp=$$(mktemp); \
+	trap "rm -f $$tmp" EXIT; \
+	go run ./scripts/backfill_manifest_modules.go >/dev/null 2>&1; \
+	python3 -c "import json,sys; d=json.load(open('examples/manifest.json')); \
+[e.update({'modules':['std/DRIFT']}) for e in d['examples'] if e['path']=='runnable/stdlib_gzip.ail']; \
+json.dump(d,open('$$tmp','w'),indent=2)"; \
+	if go run ./scripts/validate_manifest.go --manifest $$tmp --ci >/dev/null 2>&1; then \
+		echo "❌ SELF-TEST FAIL: drift-lint exited 0 on a drifted modules entry"; exit 1; \
+	else \
+		echo "✅ drift-lint self-test passed: drifted modules entry -> non-zero exit"; \
+	fi
 
 # Gate the TOP-LEVEL examples/*.ail directory, which verify-examples (above)
 # does NOT cover — it only checks examples/runnable/. That gap let 8 examples
