@@ -4,11 +4,14 @@
 name: Scorecard supply-chain security
 
 on:
-  # Re-evaluate weekly so the public score stays fresh.
+  # Scorecard measures repo-level supply-chain posture (branch protection,
+  # pinned deps, token permissions) that barely changes commit-to-commit, so
+  # the weekly cron is the right cadence. Running on every `dev` push added
+  # ~28 redundant runs/day (each an actions/checkout) with no score movement.
+  # Use workflow_dispatch to refresh the public badge on demand after a
+  # security-posture change.
   schedule:
     - cron: '30 6 * * 1'  # Monday 06:30 UTC
-  push:
-    branches: [dev]
   workflow_dispatch:
 
 permissions: read-all
