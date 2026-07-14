@@ -1,11 +1,16 @@
-# M-MISSION-ADAPTIVE-MULTIPROVIDER-ROUTING: quota-aware, multi-provider model selection for the outer loop
+# M-MISSION-ADAPTIVE-MULTIPROVIDER-ROUTING: the heterogeneous model fleet — quota-aware selection, design quorums, cross-provider executors, local-GPU lane
 
-**Status**: Planned
-**Target**: v0.30.0 (mission infrastructure — not a v1.0 release gate; the loop keeps running while this is built)
-**Priority**: P1 (resilience — today the loop stalls or needs a manual model switch when a provider's quota is exhausted; see the 2026-07-11 Fable-quota event)
-**Estimated**: Phase 1 ~0.5d · Phase 2 ~2–3d · Phase 3 ~3–4d (phase-gated; only Phase 1 is committed)
-**Dependencies**: `tools/launchd/mission-control.sh` (the driver), the mission model routing policy in [../../v1-mission.md](../../v1-mission.md); leverages existing `internal/coordinator/provider_executor.go` (multi-CLI executors) and `internal/ai/{anthropic,openai,gemini,ollama,openrouter}` (multi-provider text generation)
-**Author**: Fable/Opus mission session, requested by Mark 2026-07-11
+**Status**: Planned (SCOPE EXPANDED 2026-07-14 per Mark: from availability-fallback to the
+mission's standing model-fleet architecture — quorum design review, OpenAI Sol + Gemini in the
+loop, local bare-metal GPU lane, and evidence-based (provider, model, task-class) assignment)
+**Target**: v0.30.x (mission infrastructure — not a v1.0 release gate; the loop keeps running while this is built)
+**Priority**: P1 → elevated (Anthropic quota is now the mission's binding constraint — Mark
+2026-07-14 "my quota is draining faster now"; every phase here reduces per-iteration Anthropic
+burn or adds a non-Anthropic lane)
+**Estimated**: Phase A ~0.5d · Phase B ~1–2d · Phase C ~2–3d · Phase D ~2–3d · Phase E ~3–4d
+(phase-gated; A+B are the committed near-term slice)
+**Dependencies**: `tools/launchd/mission-control.sh` (the driver), the mission model routing policy in [../../v1-mission.md](../../v1-mission.md); leverages existing `internal/coordinator/provider_executor.go` (multi-CLI executors: claude, codex, opencode, motoko, pi), `internal/ai/{anthropic,openai,gemini,ollama,openrouter}` (multi-provider text generation), `internal/eval_harness/models.yml` (gpt-5.6-sol registered 2026-07-12), and the rig's local-model executors (the eval rotation's motoko/opencode/pi on qwen3.6 — the "local bare-metal GPU agent" already exists)
+**Author**: Fable/Opus mission session, requested by Mark 2026-07-11; fleet expansion 2026-07-14
 
 ---
 
@@ -79,20 +84,44 @@ providers need different agentic CLIs:
 The inner-loop **executors** are already multi-provider via `provider_executor.go` (claude, codex,
 opencode, motoko, pi) — so Phase 2 is mostly wiring, not new capability.
 
-### Phasing (only Phase 1 is committed; later phases are opt-in)
+### Phasing (A+B committed near-term; C–E opt-in as evidence accrues)
 
-- **Phase 1 — adaptive Claude-family fallback (~0.5d).** Preference list limited to Anthropic
-  models (Fable → Opus). Probe-based selection replaces the hardcoded Monday override. Delivers
-  self-monitoring + auto-recovery immediately, zero new provider surface. **This alone closes the
-  2026-07-11 pain.**
-- **Phase 2 — cross-provider executors (~2–3d).** Inner-loop planner/executor can run on Codex
-  (GPT) or a Gemini managed-agent when Anthropic is constrained, via the existing executor
-  registry. Sprint quality per (provider, task-class) recorded in the routing-evidence rows — the
-  same evidence rule that governs the Opus-vs-Sonnet decision extends to providers.
-- **Phase 3 — cross-provider controller + cross-family evaluation (~3–4d).** The controller itself
-  can run on Codex/Gemini; and critically, the **evaluator** can be a different family from the
-  executor. This *restores and strengthens* the independence the current same-model state lost —
-  a GPT judge scoring Claude-written code is harder to rubber-stamp than any same-vendor pairing.
+- **Phase A — adaptive Claude-family fallback (~0.5d).** Preference list limited to Anthropic
+  models (Fable → Opus). Probe-based selection replaces the hardcoded expiry override. Delivers
+  self-monitoring + auto-recovery immediately, zero new provider surface.
+- **Phase B — design-doc QUORUM review (~1–2d; Mark's headline ask, and the cheapest
+  non-Anthropic win).** Design docs (and optionally sprint plans) get N independent frontier
+  reviews before execution: **gpt-5.6-sol + gemini (latest pro) + the Claude controller**, each
+  scoring against the design-doc-creator hard gates (premise verification, Conflict Surface,
+  axiom compliance) + a free-form "what would you reject". This is **pure text-in/text-out** —
+  it rides `internal/ai/{openai,gemini}` providers directly, NO executor/CLI work — which is why
+  it's days not weeks. Controller synthesizes: unanimous-pass → proceed; any-reject → the
+  objection goes back through the doc author before planning. Quorum verdicts recorded in the
+  log's routing-evidence rows (they're also the seed data for Phase E's assignment table).
+  Cost note: 2 extra frontier calls per design doc ≈ cents; saves whole Opus sprints when a bad
+  premise is caught pre-execution (iterations 22/27 both had planners correct doc mechanisms —
+  quorum catches these earlier and off-quota).
+- **Phase C — cross-provider executors (~2–3d).** Inner-loop planner/executor can run on Codex
+  (GPT) or a Gemini managed-agent when Anthropic is constrained — or by assignment, not just
+  fallback — via the existing executor registry. Sprint quality per (provider, model,
+  task-class) recorded in the routing-evidence rows; the same evidence rule that governed
+  Opus-vs-Sonnet extends to providers.
+- **Phase D — the local-GPU lane (~2–3d).** Route long-running, low-urgency task classes to the
+  rig's OWN local-model executors (motoko/opencode on qwen3.6) — **zero marginal cost, slow,
+  always-on**. Candidate classes: corpus soak/fuzz sweeps, doc reality-check batches (the ghost
+  audits), example-coverage generation, retry-until-green mechanical fixes. Constraints: GPU
+  steps take `rig_lock_acquire nowait` + yield to the eval rotation (two-tier rule); output
+  always lands behind the SAME evaluator gate as cloud work (local models get no quality
+  discount). This is wiring, not new capability — the eval rotation already drives these
+  executors daily.
+- **Phase E — full assignment + cross-family evaluation (~3–4d).** The endgame Mark described:
+  a standing **(provider, model) × task-class assignment table** in the charter, updated by the
+  evidence rule (≥3 rows per cell to change routing), covering controller, design, plan,
+  execute, evaluate, mechanical, and long-running lanes — including coordinator **cloud-run
+  jobs** via the existing cloud dispatcher. Evaluation goes cross-FAMILY by default (a GPT/Gemini
+  judge on Claude-written code and vice versa) — stronger generator≠judge independence than any
+  same-vendor pairing, and it converts the quorum from a design-time gate into a fleet-wide
+  quality property.
 
 ### What this builds on (verified, 2026-07-11)
 
@@ -116,6 +145,9 @@ the coordinator's existing executor registry.
 | A weaker fallback provider lands lower-quality sprints | Med | Evidence rule: record (provider, round-1 score, corrections) per sprint; demote a provider that underperforms — same mechanism as the model-routing table |
 | Cross-provider controller behaves differently in the mission-control skill (tool-call formats, etc.) | Med | Phase-gated: Phase 1 stays Anthropic; Phase 3 validates a provider on supervised iterations before it joins the controller preference list |
 | Probe false-negatives (transient 5xx read as "unavailable") vs the real signal (429/quota) | Med | Match the *quota/limit* error signature specifically; transient errors retry the same model, don't fall through |
+| Non-Anthropic phases spend API credits (OpenAI/Gemini keys), unlike subscription-billed Claude | Med | Per-phase budget caps + the cost-per-item recorded in routing evidence; Phase B is cents/doc; Phase C sprints get an explicit per-sprint dollar cap in the driver env |
+| Quorum reviewers rubber-stamp (LGTM bias) | Med | Prompt reviewers to REJECT-by-default with a required "strongest objection" field; track per-reviewer catch-rate in evidence rows; drop a reviewer whose objections never land |
+| Local-GPU lane produces low-quality output cheaply (volume ≠ value) | Med | Same evaluator gate as cloud work, no exceptions; lane limited to task classes with deterministic verification |
 
 ## Non-Goals
 
