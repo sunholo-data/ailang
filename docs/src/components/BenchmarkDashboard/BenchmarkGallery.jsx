@@ -141,13 +141,13 @@ function Index({ list, onOpen }) {
           <option value="name">Name (A–Z)</option>
         </select>
       </div>
-      <div style={{ marginBottom: 6 }}>
+      <div style={{ marginBottom: 6, lineHeight: 2.2 }}>
         <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tier</span>
         <button style={chip(!tier)} onClick={() => setTier(null)}>All</button>
         {tiers.map((t) => <button key={t} style={chip(tier === t)} onClick={() => setTier(tier === t ? null : t)}>{t}</button>)}
       </div>
       {tags.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 14, lineHeight: 2.2 }}>
           <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tag</span>
           <button style={chip(!tag)} onClick={() => setTag(null)}>All</button>
           {tags.map((t) => <button key={t} style={chip(tag === t)} onClick={() => setTag(tag === t ? null : t)}>{t}</button>)}
