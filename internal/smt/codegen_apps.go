@@ -103,6 +103,14 @@ func encodeApp(app *core.App) (string, error) {
 				return resultConst, nil
 			}
 		}
+		// Leak guard: an unresolved call to a KNOWN user function (as opposed to an
+		// ADT constructor) would emit a raw uninterpreted symbol and make Z3
+		// hard-error with "unknown constant". Skip the whole function gracefully
+		// instead. Covers record/enum-returning callees and user functions called
+		// inside requires/ensures predicates. See M-SMT-CALLEE-SORT-GATE.
+		if activeUserFunctions[vg.Ref.Name] {
+			return "", fmt.Errorf("%w: calls user function %q that is not SMT-encodable in this context", ErrUnresolvableTypes, vg.Ref.Name)
+		}
 		// ADT constructor application
 		name := stripConstructorPrefix(vg.Ref.Name)
 		return encodeConstructorApp(name, app.Args)
@@ -112,6 +120,16 @@ func encodeApp(app *core.App) (string, error) {
 	if v, ok := app.Func.(*core.Var); ok {
 		if activeResolvedCallees != nil && activeResolvedCallees[v.Name] {
 			return encodeUserFunctionCall(v.Name, app.Args)
+		}
+		if activeContractCallees != nil {
+			if resultConst, ok := activeContractCallees[v.Name]; ok {
+				return resultConst, nil
+			}
+		}
+		// Leak guard (see VarGlobal branch above): unresolved call to a known user
+		// function → skip gracefully rather than leak a raw "unknown constant".
+		if activeUserFunctions[v.Name] {
+			return "", fmt.Errorf("%w: calls user function %q that is not SMT-encodable in this context", ErrUnresolvableTypes, v.Name)
 		}
 		// Otherwise treat as constructor reference
 		name := stripConstructorPrefix(v.Name)

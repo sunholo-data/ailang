@@ -340,6 +340,31 @@ Discovered during implementation: an imported parametric ADT like `Option` gets 
 - `internal/smt/codegen.go:642` — `validateDeclarations`
 - Reproduced live on v0.29.2 (see Problem Statement transcript)
 
+## Follow-up: M3 leak-site guard (round 2)
+
+A reporter follow-up showed the M1 signature gate was necessary but **not sufficient**. Two more
+shapes still hard-ERRORed with `unknown constant`:
+- a callee returning a **record** (`canon(s) -> Rec`) — the callee is *dropped* by
+  `ResolveCallees` (record body not inlinable / return sort not declared), so no define-fun is
+  emitted and the call site leaks a raw symbol. M1's signature check treats `RecordType` as
+  encodable, so it doesn't fire; M2 has no define-fun to inspect.
+- a user function called inside a **contract predicate** (`ensures { legal(result) }`) —
+  `collectCalleeCalls` only walks the body, so `legal` is never a resolution candidate; when the
+  ensures clause is encoded it leaks.
+
+**Root cause (systemic):** *any* referenced user function (body OR contract) that isn't resolved
+into a define-fun/contract-substitution falls through `encodeApp` → `encodeConstructorApp` → raw
+symbol → Z3 `unknown constant`. The right fix is at the **leak site**, not a per-shape gate:
+`EncodeFunction` now records every user function name (`activeUserFunctions`), and `encodeApp`
+returns `ErrUnresolvableTypes` (→ graceful skip) when it meets an unresolved call to one, instead
+of emitting a raw symbol. This one guard subsumes M1's cases and covers every drop path + both
+positions; real ADT constructors (not user functions) are unaffected. M1 is retained only for its
+nicer, type-specific message on the common `Option`/`Result` case.
+
+Verified: `useCanon` (record callee) and `pick` (`legal` in `ensures`) now SKIP; `useDbl` (int
+callee) and `classify` (enum-in-ensures, no user func) still VERIFY. The misleading M1 hint that
+listed "records / monomorphic enum ADTs" as supported callee signatures was corrected.
+
 ## Future Work
 
 - **M-SMT-PARAMETRIC-ADT (option b):** actually verify `Option`/`Result`/enum-over-primitive

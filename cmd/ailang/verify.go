@@ -320,7 +320,7 @@ func verifyCommand() {
 			rejections = append(rejections, smt.SMTRejectionReason{
 				Code:    smt.RejectUnencodable,
 				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-				Hint:    "Cross-function verification requires callee signatures over int/float/bool/string, records, or monomorphic enum ADTs. Parametric ADTs like Option/Result over primitives are not yet SMT-encodable.",
+				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
 			})
 			encodable = false
 		}

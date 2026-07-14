@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -57,6 +59,62 @@ func TestVerify_UnencodableCalleeSkipsNotErrors(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("gradeNumeric not present in verify results:\n%s", stdout)
+	}
+}
+
+// TestVerify_UnresolvedCalleeShapesSkipNotError covers the leak-site guard: a
+// callee returning a record and a user function called inside an ensures predicate
+// both used to hard-ERROR with "unknown constant"; they must now skip gracefully.
+// These are the reporter's `strrec` and `adt_result` minimal repros.
+func TestVerify_UnresolvedCalleeShapesSkipNotError(t *testing.T) {
+	bin := buildAilang(t)
+
+	cases := map[string]string{
+		"record_callee": `module m
+type Rec = { name: string }
+export func canon(s: string) -> Rec ! {} { { name: s } }
+export func useCanon(s: string) -> string ! {}
+ensures { true }
+{ (canon(s)).name }
+`,
+		"contract_predicate_callee": `module m
+type V = A | B
+export func legal(v: V) -> bool ! {} { match v { A => true, B => true } }
+export func pick(n: int) -> V ! {}
+requires { n >= 0 }
+ensures { legal(result) }
+{ A }
+`,
+	}
+
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			f := filepath.Join(dir, "m.ail")
+			if err := os.WriteFile(f, []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stdout, stderr, _ := runAilangBin(t, bin, "verify", "--json", "--relax-modules", f)
+			combined := stdout + stderr
+			for _, bad := range []string{"unknown constant", "unknown sort", "Invalid function definition"} {
+				if strings.Contains(combined, bad) {
+					t.Fatalf("%s leaked a Z3 error %q; output:\n%s", name, bad, combined)
+				}
+			}
+			var payload struct {
+				Skipped int `json:"skipped"`
+				Errors  int `json:"errors"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("invalid JSON: %v\n%s", err, stdout)
+			}
+			if payload.Errors != 0 {
+				t.Fatalf("%s: expected 0 errors, got %d:\n%s", name, payload.Errors, stdout)
+			}
+			if payload.Skipped != 1 {
+				t.Fatalf("%s: expected 1 skipped, got %d:\n%s", name, payload.Skipped, stdout)
+			}
+		})
 	}
 }
 

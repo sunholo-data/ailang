@@ -26,6 +26,16 @@ type FunctionParam struct {
 // This is a package-level variable set during encoding (sequential per function).
 var activeResolvedCallees map[string]bool
 
+// activeUserFunctions holds the set of ALL user-defined function names visible to
+// the current EncodeFunction call (same-module + imported). It lets encodeApp
+// distinguish a real ADT constructor application (fine to encode) from a call to a
+// user function that was NOT resolved into a define-fun or contract substitution —
+// i.e. a leak that would otherwise emit a raw uninterpreted symbol and make Z3
+// hard-error with "unknown constant". When encodeApp sees such an unresolved user
+// function it returns ErrUnresolvableTypes so the driver skips gracefully.
+// See M-SMT-CALLEE-SORT-GATE (leak-site detection).
+var activeUserFunctions map[string]bool
+
 // activeRecordTypes maps record sort names to their type info.
 // Populated during EncodeFunction, used by encodeRecord/encodeRecordUpdate.
 var activeRecordTypes map[string]*RecordTypeInfo
@@ -151,6 +161,22 @@ func EncodeFunction(
 	// Set active resolved callees for encodeApp to use
 	activeResolvedCallees = ctx.ResolvedCallees
 	defer func() { activeResolvedCallees = nil }()
+
+	// Record every user-defined function name visible to this encoding so encodeApp
+	// can tell a real ADT constructor from a call to a user function that wasn't
+	// resolved (which would otherwise leak a raw "unknown constant" symbol into Z3).
+	activeUserFunctions = make(map[string]bool)
+	defer func() { activeUserFunctions = nil }()
+	if len(opts) > 0 && opts[0].Program != nil {
+		for _, name := range collectFunctionNames(opts[0].Program) {
+			activeUserFunctions[name] = true
+		}
+		for _, imp := range opts[0].ImportedPrograms {
+			for _, name := range collectFunctionNames(imp) {
+				activeUserFunctions[name] = true
+			}
+		}
+	}
 
 	// Populate contract callee substitutions
 	activeContractCallees = make(map[string]string)

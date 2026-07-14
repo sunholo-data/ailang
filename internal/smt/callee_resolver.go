@@ -416,6 +416,27 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 }
 
 // findFuncBody finds a function's body expression in the Core program.
+// collectFunctionNames returns every top-level function name bound in a Core
+// program (LetRec bindings and Let declarations). Used to distinguish user
+// functions from ADT constructors at the encoding leak site.
+func collectFunctionNames(prog *core.Program) []string {
+	if prog == nil {
+		return nil
+	}
+	var names []string
+	for _, decl := range prog.Decls {
+		switch d := decl.(type) {
+		case *core.LetRec:
+			for _, binding := range d.Bindings {
+				names = append(names, binding.Name)
+			}
+		case *core.Let:
+			names = append(names, d.Name)
+		}
+	}
+	return names
+}
+
 func findFuncBody(prog *core.Program, funcName string) core.CoreExpr {
 	for _, decl := range prog.Decls {
 		switch d := decl.(type) {
