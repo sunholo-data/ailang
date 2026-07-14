@@ -50,6 +50,41 @@ function hashId() {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
+// A single filter chip. Its own component so each button wraps exactly ONE text
+// child. An inline `options.map(o => <button>{o}</button>)` sitting next to a sibling
+// button was compiling, in the production bundle, to a single button holding every
+// option as children (rendering "corestretchfrontier" as one blob) — extracting the
+// button + the row into components sidesteps that.
+function FilterChip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'inline-block', verticalAlign: 'middle', margin: '0 6px 6px 0',
+        fontSize: 12, padding: '3px 11px', borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
+        border: `1px solid ${active ? 'var(--ifm-color-primary)' : 'var(--ifm-color-emphasis-300)'}`,
+        background: active ? 'var(--ifm-color-primary)' : 'transparent',
+        color: active ? '#fff' : 'var(--ifm-color-emphasis-800)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ChipRow({ label, options, selected, onSelect, mb = 6 }) {
+  return (
+    <div style={{ marginBottom: mb, lineHeight: 2.2 }}>
+      <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>{label}</span>
+      <FilterChip active={!selected} onClick={() => onSelect(null)}>All</FilterChip>
+      {options.map((o) => (
+        <FilterChip key={o} active={selected === o} onClick={() => onSelect(selected === o ? null : o)}>{o}</FilterChip>
+      ))}
+    </div>
+  );
+}
+
 export default function BenchmarkGallery({ benchmarks, ratings }) {
   const [selected, setSelected] = useState(hashId());
   useEffect(() => {
@@ -117,16 +152,6 @@ function Index({ list, onOpen }) {
     return r;
   }, [list, tier, tag, q, sortBy]);
 
-  // Explicit margins (not flex gap) space the chips — some Docusaurus builds drop
-  // inline flex-gap, which bunched every chip into one blob.
-  const chip = (active) => ({
-    display: 'inline-block', verticalAlign: 'middle', margin: '0 6px 6px 0',
-    fontSize: 12, padding: '3px 11px', borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
-    border: `1px solid ${active ? 'var(--ifm-color-primary)' : 'var(--ifm-color-emphasis-300)'}`,
-    background: active ? 'var(--ifm-color-primary)' : 'transparent',
-    color: active ? '#fff' : 'var(--ifm-color-emphasis-800)',
-  });
-
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
@@ -141,18 +166,8 @@ function Index({ list, onOpen }) {
           <option value="name">Name (A–Z)</option>
         </select>
       </div>
-      <div style={{ marginBottom: 6, lineHeight: 2.2 }}>
-        <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tier</span>
-        <button style={chip(!tier)} onClick={() => setTier(null)}>All</button>
-        {tiers.map((t) => <button key={t} style={chip(tier === t)} onClick={() => setTier(tier === t ? null : t)}>{t}</button>)}
-      </div>
-      {tags.length > 0 && (
-        <div style={{ marginBottom: 14, lineHeight: 2.2 }}>
-          <span style={{ fontSize: 12, color: 'var(--ifm-color-emphasis-600)', marginRight: 8, verticalAlign: 'middle' }}>Tag</span>
-          <button style={chip(!tag)} onClick={() => setTag(null)}>All</button>
-          {tags.map((t) => <button key={t} style={chip(tag === t)} onClick={() => setTag(tag === t ? null : t)}>{t}</button>)}
-        </div>
-      )}
+      <ChipRow label="Tier" options={tiers} selected={tier} onSelect={setTier} mb={6} />
+      {tags.length > 0 && <ChipRow label="Tag" options={tags} selected={tag} onSelect={setTag} mb={14} />}
       <p style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-600)', margin: '0 0 10px' }}>
         {rows.length} benchmark{rows.length === 1 ? '' : 's'} · click any card for the task, pass rates, and solutions
       </p>
