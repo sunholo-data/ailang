@@ -30,6 +30,68 @@ var Locator func(string) []string
 // name per operation (no duplicate aliases) while still rescuing a cold-start miss.
 var SymbolsOf func(modID string) []string
 
+// ModuleLocator, when set, returns ALL stdlib module paths (e.g. "std/clock"),
+// sorted. Wired to stdlibindex.AllModules from the CLI so this leaf package keeps
+// no filesystem-scan dependency. Used by ModuleSuggestion to catch a mistyped
+// stdlib MODULE name (e.g. `import std/time` -> `std/clock`), the analogue of
+// SymbolsOf for symbols. M-DX-AI-DISCOVERY M3.
+var ModuleLocator func() []string
+
+// moduleAliases maps a common WRONG stdlib module name (the bare name after
+// "std/") to its correct AILANG module — the curated-data analogue of
+// autoImportedBuiltins. These are alias slips where the intended module is NOT a
+// close edit-distance match (e.g. time->clock is edit-distance 5, so only the
+// alias table catches it). Alias hits ALWAYS outrank a Levenshtein hit.
+var moduleAliases = map[string]string{
+	"time":    "clock",
+	"date":    "datetime",
+	"dates":   "datetime",
+	"http":    "net",
+	"url":     "net",
+	"regexp":  "regex",
+	"strings": "string",
+	"lists":   "list",
+	"arrays":  "array",
+	"os":      "process",
+	"sys":     "process",
+}
+
+// ModuleSuggestion returns the single best "did you mean: std/<X>?" module for a
+// mistyped stdlib module name (the bare name after "std/", e.g. "time"), or "" if
+// there is no confident match (a genuinely-unknown module gets no misleading line).
+//
+// Ranking, deterministic:
+//  1. Curated alias table (moduleAliases) — always wins if it hits.
+//  2. Levenshtein <= 2 against the live module list (ModuleLocator), if wired.
+//     Among equal distances, the lexicographically-smallest module wins (the
+//     module list is sorted, so a stable first-min scan is lexicographic).
+//
+// Returns the FULL module path (e.g. "std/clock").
+func ModuleSuggestion(bareName string) string {
+	name := strings.ToLower(strings.TrimSpace(bareName))
+	if name == "" {
+		return ""
+	}
+	if alias, ok := moduleAliases[name]; ok {
+		return "std/" + alias
+	}
+	if ModuleLocator == nil {
+		return ""
+	}
+	bestDist := 3 // accept edit distance <= 2 only
+	best := ""
+	for _, m := range ModuleLocator() {
+		bare := strings.ToLower(strings.TrimPrefix(m, "std/"))
+		if bare == name {
+			continue // exact match is not a "did you mean"
+		}
+		if d := levenshtein(name, bare); d < bestDist {
+			bestDist, best = d, m
+		}
+	}
+	return best
+}
+
 // IMP010 returns the suffix to append to an IMP010 "not exported by" message, or "" when neither
 // import mistake applies (a genuinely unknown symbol gets no misleading hint).
 func IMP010(symbol, modID string) string {

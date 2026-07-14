@@ -40,6 +40,20 @@ func EntryPreludeModules() []string {
 	return []string{"std/option", "std/result"}
 }
 
+// EntryPreludeSymbols returns the type + constructor symbols brought into scope
+// by the implicit prelude import of modPath (e.g. "std/option" -> Option, Some,
+// None), or nil if modPath is not an implicit-prelude module. Exported accessor
+// over preludeModuleSymbols (the single source of truth) so `ailang docs prelude`
+// can render the implicit-prelude surface WITHOUT copying the symbol list — a
+// symbol added here appears in the docs page automatically (M-DX-AI-DISCOVERY M4).
+func EntryPreludeSymbols(modPath string) []string {
+	syms := preludeModuleSymbols[modPath]
+	if syms == nil {
+		return nil
+	}
+	return append([]string(nil), syms...)
+}
+
 // injectEntryPreludeImports mutates an entry module's AST + import list so that
 // EntryPreludeModules() are implicitly imported.
 //

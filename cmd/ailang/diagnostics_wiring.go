@@ -17,4 +17,8 @@ func init() {
 	// ...and a close-named-export suggestion when the symbol exists nowhere
 	// (e.g. flushStdout -> flush) — one canonical name, rescued via the error.
 	importhint.SymbolsOf = stdlibindex.SymbolsOf
+	// Unknown-stdlib-MODULE recovery: a mistyped module name (import std/time)
+	// gets a "did you mean: std/clock?" + available-module list appended to the
+	// resolver's not-found error (M-DX-AI-DISCOVERY M3).
+	importhint.ModuleLocator = stdlibindex.AllModules
 }

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/importhint"
 )
 
 // BinaryVersion is the version of the ailang binary.
@@ -330,5 +332,25 @@ func (r *StdlibResolver) errWithSearchTrace(moduleName string, triedPaths []stri
 		sb.WriteString(fmt.Sprintf("  - %s\n", p))
 	}
 	sb.WriteString("\ntip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path flag\n")
+
+	// M-DX-AI-DISCOVERY M3: recover a mistyped stdlib MODULE name. A curated alias
+	// table (time->clock, ...) first, then Levenshtein <= 2 over the live module
+	// list — both via internal/importhint (reusing its levenshtein; no parallel
+	// engine). Exactly one "did you mean" line, only if a confident match exists.
+	if suggestion := importhint.ModuleSuggestion(moduleName); suggestion != "" {
+		sb.WriteString(fmt.Sprintf("\ndid you mean: %s?\n", suggestion))
+	}
+	// Always show the available module list (or an explicit unavailable note — never
+	// a silent skip). Alias suggestions above still print even when this is nil.
+	if importhint.ModuleLocator != nil {
+		if mods := importhint.ModuleLocator(); len(mods) > 0 {
+			sb.WriteString(fmt.Sprintf("available: %s (%d modules)\n", strings.Join(mods, ", "), len(mods)))
+		} else {
+			sb.WriteString("available: (module list unavailable — no stdlib root resolved; see 'searched' above)\n")
+		}
+	} else {
+		sb.WriteString("available: (module list unavailable — no stdlib root resolved; see 'searched' above)\n")
+	}
+
 	return fmt.Errorf("%s", sb.String())
 }

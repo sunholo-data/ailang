@@ -38,20 +38,49 @@ func InjectPrelude(env *types.TypeEnv) *types.TypeEnv {
 		fmt.Fprintf(os.Stderr, "prelude: injecting type for [println]\n")
 	}
 
-	// Inject println type: string -> () ! {IO}
-	// println is the common case (with newline), print (no newline) requires import
-	T := types.NewBuilder()
-	printlnType := T.Func(T.String()).Returns(T.Unit()).Effects("IO")
+	// The injected surface is enumerated by PreludeSurface() — ONE source of
+	// truth shared by the real injection here and `ailang docs prelude`'s
+	// renderer / reverse drift test. Adding a binding to preludeSurface() adds
+	// it both to the type env AND to the docs page; removing it drops both.
+	for _, b := range preludeSurface() {
+		env = env.ExtendScheme(b.Name, b.Scheme)
+	}
+	return env
+}
 
-	// Wrap in a scheme (no type variables)
+// PreludeBinding is one type binding injected into entry-module / REPL type
+// environments by InjectPrelude, exposed so `ailang docs prelude` can render
+// the real injected surface (name + scheme) without a hand-copied table
+// (M-DX-AI-DISCOVERY M4).
+type PreludeBinding struct {
+	Name   string
+	Scheme *types.Scheme
+}
+
+// preludeSurface is the single, authoritative list of type bindings InjectPrelude
+// adds. Both InjectPrelude (the real injection) and PreludeSurface (docs +
+// drift test) iterate this, so the two can never diverge.
+func preludeSurface() []PreludeBinding {
+	T := types.NewBuilder()
+
+	// println : string -> () ! {IO}
+	// println is the common case (with newline); print (no newline) requires import.
 	printlnScheme := &types.Scheme{
 		TypeVars: []string{},
 		RowVars:  []string{},
-		Type:     printlnType,
+		Type:     T.Func(T.String()).Returns(T.Unit()).Effects("IO"),
 	}
 
-	env = env.ExtendScheme("println", printlnScheme)
-	return env
+	return []PreludeBinding{
+		{Name: "println", Scheme: printlnScheme},
+	}
+}
+
+// PreludeSurface returns the bindings InjectPrelude injects, in a stable order.
+// Used by `ailang docs prelude` to render the injected surface from the live
+// mechanism (no copied table) and by the reverse drift test.
+func PreludeSurface() []PreludeBinding {
+	return preludeSurface()
 }
 
 // TODO: InjectPreludeValues - inject runtime value bindings for print

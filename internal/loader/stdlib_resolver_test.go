@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/importhint"
 )
 
 func TestValidateModuleName(t *testing.T) {
@@ -443,4 +445,68 @@ func TestStdlibResolver_SearchPathOrder(t *testing.T) {
 			t.Errorf("expected CLI path %q, got %q", ioPath1, path)
 		}
 	})
+}
+
+// M-DX-AI-DISCOVERY M3: errWithSearchTrace appends a "did you mean" line + the
+// available-module list, sourced from internal/importhint (alias table +
+// Levenshtein) and its injected ModuleLocator.
+
+func TestErrWithSearchTrace_AliasSuggestionAndList(t *testing.T) {
+	old := importhint.ModuleLocator
+	defer func() { importhint.ModuleLocator = old }()
+	importhint.ModuleLocator = func() []string {
+		return []string{"std/clock", "std/io", "std/list"}
+	}
+
+	r := NewStdlibResolver("", false, false)
+	err := r.errWithSearchTrace("time", []string{"/x/std/time.ail"})
+	got := err.Error()
+
+	// Alias-table catch: time -> clock (edit distance 5, only the alias catches it).
+	if !strings.Contains(got, "did you mean: std/clock?") {
+		t.Errorf("expected 'did you mean: std/clock?', got:\n%s", got)
+	}
+	// Available list with count.
+	if !strings.Contains(got, "available: std/clock, std/io, std/list (3 modules)") {
+		t.Errorf("expected sorted available list with count, got:\n%s", got)
+	}
+	// The original searched/tip block is preserved.
+	if !strings.Contains(got, "stdlib module not found: std/time") || !strings.Contains(got, "tip:") {
+		t.Errorf("original error block should be preserved, got:\n%s", got)
+	}
+}
+
+func TestErrWithSearchTrace_NoMatchNoMisleadingLine(t *testing.T) {
+	old := importhint.ModuleLocator
+	defer func() { importhint.ModuleLocator = old }()
+	importhint.ModuleLocator = func() []string { return []string{"std/clock", "std/io"} }
+
+	r := NewStdlibResolver("", false, false)
+	got := r.errWithSearchTrace("zzqqxxww", []string{"/x/std/zzqqxxww.ail"}).Error()
+
+	if strings.Contains(got, "did you mean") {
+		t.Errorf("a far-off unknown module must NOT get a did-you-mean line, got:\n%s", got)
+	}
+	// The available list is still shown (helpful, not misleading).
+	if !strings.Contains(got, "available: std/clock, std/io (2 modules)") {
+		t.Errorf("expected available list even with no suggestion, got:\n%s", got)
+	}
+}
+
+func TestErrWithSearchTrace_ModuleListUnavailableNote(t *testing.T) {
+	old := importhint.ModuleLocator
+	defer func() { importhint.ModuleLocator = old }()
+	importhint.ModuleLocator = func() []string { return nil } // stdlib root unresolved
+
+	r := NewStdlibResolver("", false, false)
+	got := r.errWithSearchTrace("time", []string{"/x/std/time.ail"}).Error()
+
+	// Alias suggestion (static data) still prints even with no module list.
+	if !strings.Contains(got, "did you mean: std/clock?") {
+		t.Errorf("alias suggestion should print without a module list, got:\n%s", got)
+	}
+	// Explicit unavailable note, never a silent skip.
+	if !strings.Contains(got, "available: (module list unavailable") {
+		t.Errorf("expected explicit unavailable note, got:\n%s", got)
+	}
 }
