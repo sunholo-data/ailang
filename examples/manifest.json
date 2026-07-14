@@ -5,87 +5,6 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
-      "path": "hello.ail",
-      "status": "working",
-      "tags": [
-        "basic",
-        "io"
-      ],
-      "description": "Basic hello world program",
-      "expected": {
-        "stdout": "Hello, AILANG!\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "exit_code.ail",
-      "status": "working",
-      "tags": [
-        "io",
-        "exit",
-        "cli",
-        "process"
-      ],
-      "description": "Process exit with explicit exit code",
-      "expected": {
-        "stdout": "Exiting with code 42\n",
-        "exit_code": 42
-      }
-    },
-    {
-      "path": "simple.ail",
-      "status": "working",
-      "tags": [
-        "basic",
-        "arithmetic",
-        "let"
-      ],
-      "description": "Let bindings and arithmetic",
-      "expected": {
-        "stdout": "10\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "arithmetic.ail",
-      "status": "working",
-      "tags": [
-        "typeclass",
-        "show",
-        "arithmetic"
-      ],
-      "description": "Show type class usage with multiple types",
-      "expected": {
-        "stdout": "42\n3.14159\ntrue\nHello, AILANG!\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "lambda_expressions.ail",
-      "status": "working",
-      "tags": [
-        "lambda",
-        "functional",
-        "closures",
-        "higher-order"
-      ],
-      "description": "Comprehensive lambda examples: currying, closures, composition"
-    },
-    {
-      "path": "adt_simple.ail",
-      "status": "working",
-      "tags": [
-        "adt",
-        "pattern-matching",
-        "m-p3"
-      ],
-      "description": "ADT declaration and constructor pattern matching",
-      "expected": {
-        "stdout": "42\n",
-        "exit_code": 0
-      }
-    },
-    {
       "path": "adt_option.ail",
       "status": "working",
       "tags": [
@@ -101,117 +20,18 @@
       }
     },
     {
-      "path": "patterns.ail",
+      "path": "adt_simple.ail",
       "status": "working",
       "tags": [
-        "pattern-matching",
-        "tuples",
         "adt",
+        "pattern-matching",
         "m-p3"
       ],
-      "description": "All pattern types: tuples, literals, constructors, nested"
-    },
-    {
-      "path": "typeclasses.ail",
-      "status": "working",
-      "tags": [
-        "typeclass",
-        "num",
-        "eq",
-        "ord",
-        "show"
-      ],
-      "description": "Type class usage: Num, Eq, Ord, Show"
-    },
-    {
-      "path": "records.ail",
-      "status": "working",
-      "tags": [
-        "records",
-        "field-access",
-        "nesting"
-      ],
-      "description": "Record literals, field access, nested records"
-    },
-    {
-      "path": "experimental/factorial.ail",
-      "status": "aspirational",
-      "tags": [
-        "func",
-        "recursion",
-        "tests",
-        "future"
-      ],
-      "description": "\u26a0\ufe0f VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
-      "requires": [
-        "func",
-        "tests",
-        "properties"
-      ],
-      "skip_reason": "tests/properties syntax not implemented. Running causes memory explosion."
-    },
-    {
-      "path": "experimental/quicksort.ail",
-      "status": "working",
-      "tags": [
-        "algorithms",
-        "sorting",
-        "pattern-matching",
-        "stdlib"
-      ],
-      "description": "Functional sorting: custom quicksort and std/list sortBy"
-    },
-    {
-      "path": "experimental/concurrent_pipeline.ail",
-      "status": "aspirational",
-      "tags": [
-        "csp",
-        "channels",
-        "concurrency",
-        "future"
-      ],
-      "description": "\u26a0\ufe0f VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
-      "requires": [
-        "channels",
-        "spawn",
-        "parallel",
-        "session-types"
-      ],
-      "skip_reason": "CSP not implemented. Running causes memory explosion."
-    },
-    {
-      "path": "experimental/web_api.ail",
-      "status": "aspirational",
-      "tags": [
-        "quasiquotes",
-        "http",
-        "effects",
-        "future"
-      ],
-      "description": "\u26a0\ufe0f VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
-      "requires": [
-        "quasiquotes",
-        "http-effects",
-        "db-effects"
-      ],
-      "skip_reason": "Quasiquotes not implemented. Running causes memory explosion."
-    },
-    {
-      "path": "experimental/ai_agent_integration.ail",
-      "status": "aspirational",
-      "tags": [
-        "ai",
-        "effects",
-        "introspection",
-        "future"
-      ],
-      "description": "\u26a0\ufe0f VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
-      "requires": [
-        "effects",
-        "introspection",
-        "json-schema"
-      ],
-      "skip_reason": "Uses arrow lambda syntax and spread operators not yet implemented"
+      "description": "ADT declaration and constructor pattern matching",
+      "expected": {
+        "stdout": "42\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "adt_tree.ail",
@@ -229,7 +49,12 @@
         "effects",
         "ai"
       ],
-      "description": "AILANG OpenAI API Integration Example"
+      "description": "AILANG OpenAI API Integration Example",
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/net"
+      ]
     },
     {
       "path": "ai_effect.ail",
@@ -238,91 +63,25 @@
         "effects",
         "ai"
       ],
-      "description": "AI Effect Example"
+      "description": "AI Effect Example",
+      "modules": [
+        "std/ai",
+        "std/io"
+      ]
     },
     {
-      "path": "runnable/structured_ai_basic.ail",
+      "path": "arithmetic.ail",
       "status": "working",
       "tags": [
-        "effects",
-        "ai",
-        "json",
-        "structured-output"
+        "typeclass",
+        "show",
+        "arithmetic"
       ],
-      "description": "Demonstrates callJsonSimple: AI returns valid JSON without schema enforcement"
-    },
-    {
-      "path": "runnable/structured_ai_schema.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "json",
-        "structured-output"
-      ],
-      "description": "Demonstrates callJson: AI returns schema-enforced JSON output"
-    },
-    {
-      "path": "runnable/ai_caching.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "cache",
-        "tool-use"
-      ],
-      "description": "Demonstrates std/ai.stepWithCache \u2014 opt-in prompt caching across providers (M-AI-PROMPT-CACHING v0.18.4)"
-    },
-    {
-      "path": "runnable/ai_call_json_simple_result.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "result",
-        "typed-errors",
-        "json"
-      ],
-      "description": "Demonstrates std/ai.callJsonSimpleResult \u2014 Result-returning no-schema JSON call with retryable typed errors (M-DOCPARSE-RESILIENCE-FIXES v0.23.0)"
-    },
-    {
-      "path": "runnable/ai_stream_openai.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "streaming",
-        "sse",
-        "config-driven"
-      ],
-      "description": "AI token streaming via std/ai/streaming.openaiCompatStream + manual event loop (per-delta control flow)"
-    },
-    {
-      "path": "runnable/ai_call_stream.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "streaming",
-        "sse",
-        "config-driven",
-        "accumulator"
-      ],
-      "description": "AI token streaming via std/ai/streaming.callStream \u2014 synchronous accumulator returning Result[string, AIError]"
-    },
-    {
-      "path": "runnable/ai_streaming.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "ai",
-        "streaming",
-        "sse",
-        "tool-use",
-        "cache",
-        "typed"
-      ],
-      "description": "Demonstrates std/ai.stepWithStream \u2014 typed-StepResult streaming with per-chunk callback (M-AI-STEP-STREAMING v0.18.7)"
+      "description": "Show type class usage with multiple types",
+      "expected": {
+        "stdout": "42\n3.14159\ntrue\nHello, AILANG!\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "array_adt.ail",
@@ -340,7 +99,12 @@
         "array",
         "data-structures"
       ],
-      "description": "Array Basics Example"
+      "description": "Array Basics Example",
+      "modules": [
+        "std/array",
+        "std/io",
+        "std/option"
+      ]
     },
     {
       "path": "array_grid.ail",
@@ -349,7 +113,11 @@
         "array",
         "data-structures"
       ],
-      "description": "Array Grid Example"
+      "description": "Array Grid Example",
+      "modules": [
+        "std/array",
+        "std/io"
+      ]
     },
     {
       "path": "block_demo.ail",
@@ -368,7 +136,10 @@
         "syntax",
         "blocks"
       ],
-      "description": "Blocks with recursive calls"
+      "description": "Blocks with recursive calls",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "bug_float_comparison.ail",
@@ -379,12 +150,53 @@
       "description": "Bug Demonstration: Float Comparison"
     },
     {
+      "path": "bugs/concat_operator_list_inference.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "list",
+        "type-inference"
+      ],
+      "description": "Bug reproduction: ++ operator list concat inference issue with workaround",
+      "skip_reason": "Demonstrates ++ operator type inference bug with workaround"
+    },
+    {
+      "path": "bugs/list_concat_match.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "list",
+        "type-inference"
+      ],
+      "description": "Bug: ++ operator defaults to string concat in simple expressions. See bugs/concat_operator_list_inference.ail",
+      "modules": [
+        "std/io"
+      ],
+      "skip_reason": "Type inference bug: ++ defaults to string concat instead of list concat"
+    },
+    {
+      "path": "bugs/parser_infinite_loop_on_test_syntax.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "parser",
+        "critical"
+      ],
+      "description": "Bug: Parser infinite loop on test/property syntax causes 67GB memory usage",
+      "skip_reason": "DO NOT UNCOMMENT - documents parser loop bug. See M-PARSER-LOOP design doc."
+    },
+    {
       "path": "claude_haiku_call.ail",
       "status": "working",
       "tags": [
         "misc"
       ],
-      "description": "Example: Real Claude Haiku API call using AILANG"
+      "description": "Example: Real Claude Haiku API call using AILANG",
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/net"
+      ]
     },
     {
       "path": "cli_args_demo.ail",
@@ -392,7 +204,12 @@
       "tags": [
         "demo"
       ],
-      "description": "Demonstrates CLI argument access using getArgs()"
+      "description": "Demonstrates CLI argument access using getArgs()",
+      "modules": [
+        "std/env",
+        "std/io",
+        "std/list"
+      ]
     },
     {
       "path": "closures.ail",
@@ -412,12 +229,29 @@
       "description": "Example file demonstrating cyclic type patterns"
     },
     {
+      "path": "cons_expression.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures",
+        "cons",
+        "expression"
+      ],
+      "description": "Cons (::) in expression position — building lists by prepending",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
       "path": "conway_grid.ail",
       "status": "working",
       "tags": [
         "misc"
       ],
-      "description": "Conway's Game of Life on an Array grid"
+      "description": "Conway's Game of Life on an Array grid",
+      "modules": [
+        "std/array"
+      ]
     },
     {
       "path": "debug_effect.ail",
@@ -426,7 +260,10 @@
         "debug",
         "effects"
       ],
-      "description": "Debug Effect Example"
+      "description": "Debug Effect Example",
+      "modules": [
+        "std/debug"
+      ]
     },
     {
       "path": "debug_types_demo.ail",
@@ -444,7 +281,28 @@
       "tags": [
         "demo"
       ],
-      "description": "Demo: Call a public API endpoint"
+      "description": "Demo: Call a public API endpoint",
+      "modules": [
+        "std/net"
+      ]
+    },
+    {
+      "path": "effect_budget_demo.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "m-dx25"
+      ],
+      "description": "Effect budget demo: @limit for max calls, @min for minimum requirements",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ],
+      "expected": {
+        "exit_code": 0
+      }
     },
     {
       "path": "effect_budgets.ail",
@@ -479,39 +337,15 @@
       "description": "Demonstrates effect budget annotations with Rand capability"
     },
     {
-      "path": "effect_budget_demo.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "budget",
-        "m-dx25"
-      ],
-      "description": "Effect budget demo: @limit for max calls, @min for minimum requirements",
-      "expected": {
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "reference/budget_minimum.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "budget",
-        "reference",
-        "m-dx25"
-      ],
-      "description": "Reference: Minimum budget (@min) verification for audit logging and cache bypass",
-      "expected": {
-        "exit_code": 0
-      }
-    },
-    {
       "path": "effects_basic.ail",
       "status": "working",
       "tags": [
         "effects"
       ],
-      "description": "Effects Basic example"
+      "description": "Effects Basic example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "effects_fs_io.ail",
@@ -519,7 +353,11 @@
       "tags": [
         "effects"
       ],
-      "description": "effects_fs_io.ail - Demonstrates multiple effect capabilities"
+      "description": "effects_fs_io.ail - Demonstrates multiple effect capabilities",
+      "modules": [
+        "std/fs",
+        "std/io"
+      ]
     },
     {
       "path": "effects_pure.ail",
@@ -530,12 +368,172 @@
       "description": "Pure functional programming: basic list operations"
     },
     {
+      "path": "exit_code.ail",
+      "status": "working",
+      "tags": [
+        "io",
+        "exit",
+        "cli",
+        "process"
+      ],
+      "description": "Process exit with explicit exit code",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "Exiting with code 42\n",
+        "exit_code": 42
+      }
+    },
+    {
+      "path": "expected_fail/contracts/hof_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "higher-order",
+        "hof-inlining",
+        "map",
+        "filter",
+        "lambda"
+      ],
+      "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
+    },
+    {
+      "path": "expected_fail/contracts/list_recursive_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "lists",
+        "list-contains",
+        "list-extract",
+        "z3-sequence-theory"
+      ],
+      "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract"
+    },
+    {
+      "path": "expected_fail/contracts/per_function_depth_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "bounded-recursion",
+        "verify-attribute",
+        "per-function-depth"
+      ],
+      "description": "Per-function recursion depth — @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
+    },
+    {
+      "path": "expected_fail/contracts/quantifier_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "quantifiers",
+        "forall",
+        "bounded-quantifiers"
+      ],
+      "description": "Bounded quantifier verification — forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
+    },
+    {
+      "path": "experimental/ai_agent_integration.ail",
+      "status": "aspirational",
+      "tags": [
+        "ai",
+        "effects",
+        "introspection",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
+      "requires": [
+        "effects",
+        "introspection",
+        "json-schema"
+      ],
+      "skip_reason": "Uses arrow lambda syntax and spread operators not yet implemented"
+    },
+    {
+      "path": "experimental/concurrent_pipeline.ail",
+      "status": "aspirational",
+      "tags": [
+        "csp",
+        "channels",
+        "concurrency",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "channels",
+        "spawn",
+        "parallel",
+        "session-types"
+      ],
+      "skip_reason": "CSP not implemented. Running causes memory explosion."
+    },
+    {
+      "path": "experimental/factorial.ail",
+      "status": "aspirational",
+      "tags": [
+        "func",
+        "recursion",
+        "tests",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "func",
+        "tests",
+        "properties"
+      ],
+      "skip_reason": "tests/properties syntax not implemented. Running causes memory explosion."
+    },
+    {
+      "path": "experimental/quicksort.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "sorting",
+        "pattern-matching",
+        "stdlib"
+      ],
+      "description": "Functional sorting: custom quicksort and std/list sortBy",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "experimental/web_api.ail",
+      "status": "aspirational",
+      "tags": [
+        "quasiquotes",
+        "http",
+        "effects",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "quasiquotes",
+        "http-effects",
+        "db-effects"
+      ],
+      "skip_reason": "Quasiquotes not implemented. Running causes memory explosion."
+    },
+    {
       "path": "factorial.ail",
       "status": "working",
       "tags": [
         "misc"
       ],
-      "description": "Factorial function with inline tests"
+      "description": "Factorial function with inline tests",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "func_expressions.ail",
@@ -544,7 +542,10 @@
         "syntax",
         "functions"
       ],
-      "description": "func_expressions.ail"
+      "description": "func_expressions.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "game_npc_dialogue.ail",
@@ -553,7 +554,11 @@
         "game",
         "demo"
       ],
-      "description": "Game NPC Dialogue Example"
+      "description": "Game NPC Dialogue Example",
+      "modules": [
+        "std/ai",
+        "std/io"
+      ]
     },
     {
       "path": "guards_basic.ail",
@@ -574,14 +579,37 @@
       "description": "guards_module.ail - Pattern guards with module structure"
     },
     {
-      "path": "http_simple.ail",
+      "path": "hello.ail",
       "status": "working",
       "tags": [
-        "http",
-        "effects",
-        "net"
+        "basic",
+        "io"
       ],
-      "description": "http_simple.ail - Simple HTTP request example"
+      "description": "Basic hello world program",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "Hello, AILANG!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "hello_world.ail",
+      "status": "working",
+      "tags": [
+        "basic",
+        "io",
+        "classic"
+      ],
+      "description": "Classic Hello, World! program",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "Hello, World!\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "http_put_bytes.ail",
@@ -592,7 +620,28 @@
         "net",
         "binary"
       ],
-      "description": "http_put_bytes.ail - PUT raw bytes (image/binary upload via httpRequestBytes)"
+      "description": "http_put_bytes.ail - PUT raw bytes (image/binary upload via httpRequestBytes)",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/net",
+        "std/result"
+      ]
+    },
+    {
+      "path": "http_simple.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "effects",
+        "net"
+      ],
+      "description": "http_simple.ail - Simple HTTP request example",
+      "modules": [
+        "std/io",
+        "std/net",
+        "std/string"
+      ]
     },
     {
       "path": "if_else_chain.ail",
@@ -618,7 +667,10 @@
         "imports",
         "modules"
       ],
-      "description": "Imports example"
+      "description": "Imports example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "imports_basic.ail",
@@ -627,7 +679,10 @@
         "imports",
         "modules"
       ],
-      "description": "Basic import test: imports std/io and uses println"
+      "description": "Basic import test: imports std/io and uses println",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "json_basic_decode.ail",
@@ -636,7 +691,11 @@
         "parsing",
         "json"
       ],
-      "description": "Basic JSON decoding with direct pattern matching"
+      "description": "Basic JSON decoding with direct pattern matching",
+      "modules": [
+        "std/json",
+        "std/result"
+      ]
     },
     {
       "path": "json_parsing.ail",
@@ -645,7 +704,24 @@
         "parsing",
         "json"
       ],
-      "description": "json_parsing.ail - JSON parsing example"
+      "description": "json_parsing.ail - JSON parsing example",
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/option",
+        "std/result"
+      ]
+    },
+    {
+      "path": "lambda_expressions.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional",
+        "closures",
+        "higher-order"
+      ],
+      "description": "Comprehensive lambda examples: currying, closures, composition"
     },
     {
       "path": "lambdas.ail",
@@ -699,51 +775,10 @@
         "recursion",
         "letrec"
       ],
-      "description": "letrec_recursion.ail"
-    },
-    {
-      "path": "bugs/list_concat_match.ail",
-      "status": "broken",
-      "tags": [
-        "bug",
-        "list",
-        "type-inference"
-      ],
-      "description": "Bug: ++ operator defaults to string concat in simple expressions. See bugs/concat_operator_list_inference.ail",
-      "skip_reason": "Type inference bug: ++ defaults to string concat instead of list concat"
-    },
-    {
-      "path": "bugs/concat_operator_list_inference.ail",
-      "status": "broken",
-      "tags": [
-        "bug",
-        "list",
-        "type-inference"
-      ],
-      "description": "Bug reproduction: ++ operator list concat inference issue with workaround",
-      "skip_reason": "Demonstrates ++ operator type inference bug with workaround"
-    },
-    {
-      "path": "bugs/parser_infinite_loop_on_test_syntax.ail",
-      "status": "broken",
-      "tags": [
-        "bug",
-        "parser",
-        "critical"
-      ],
-      "description": "Bug: Parser infinite loop on test/property syntax causes 67GB memory usage",
-      "skip_reason": "DO NOT UNCOMMENT - documents parser loop bug. See M-PARSER-LOOP design doc."
-    },
-    {
-      "path": "cons_expression.ail",
-      "status": "working",
-      "tags": [
-        "list",
-        "data-structures",
-        "cons",
-        "expression"
-      ],
-      "description": "Cons (::) in expression position \u2014 building lists by prepending"
+      "description": "letrec_recursion.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "list_pattern_cons.ail",
@@ -752,7 +787,10 @@
         "list",
         "data-structures"
       ],
-      "description": "List pattern matching with :: (cons) constructor"
+      "description": "List pattern matching with :: (cons) constructor",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "list_pattern_records.ail",
@@ -770,7 +808,12 @@
         "list",
         "data-structures"
       ],
-      "description": "List Patterns example"
+      "description": "List Patterns example",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option"
+      ]
     },
     {
       "path": "list_sum.ail",
@@ -795,7 +838,10 @@
       "tags": [
         "pattern-matching"
       ],
-      "description": "Match arm with block: println THEN nested match"
+      "description": "Match arm with block: println THEN nested match",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "match_in_block.ail",
@@ -811,7 +857,11 @@
       "tags": [
         "misc"
       ],
-      "description": "Math Trigonometry Example (v0.5.10)"
+      "description": "Math Trigonometry Example (v0.5.10)",
+      "modules": [
+        "std/io",
+        "std/math"
+      ]
     },
     {
       "path": "micro_block_if.ail",
@@ -819,7 +869,10 @@
       "tags": [
         "misc"
       ],
-      "description": "Blocks work in if-then-else branches"
+      "description": "Blocks work in if-then-else branches",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "micro_block_seq.ail",
@@ -827,7 +880,10 @@
       "tags": [
         "misc"
       ],
-      "description": "Block expressions allow sequencing multiple expressions"
+      "description": "Block expressions allow sequencing multiple expressions",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "micro_io_echo.ail",
@@ -835,7 +891,10 @@
       "tags": [
         "misc"
       ],
-      "description": "Micro example: IO effect with println"
+      "description": "Micro example: IO effect with println",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "micro_option_map.ail",
@@ -843,7 +902,10 @@
       "tags": [
         "higher-order"
       ],
-      "description": "Micro example: Option map usage (pure ADT operations)"
+      "description": "Micro example: Option map usage (pure ADT operations)",
+      "modules": [
+        "std/option"
+      ]
     },
     {
       "path": "micro_record_person.ail",
@@ -851,7 +913,10 @@
       "tags": [
         "misc"
       ],
-      "description": "Micro example: Record field access and aliasing"
+      "description": "Micro example: Record field access and aliasing",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "nested_match_minimal.ail",
@@ -871,7 +936,10 @@
         "pattern-matching",
         "records"
       ],
-      "description": "Nested Match Simple example"
+      "description": "Nested Match Simple example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "no_loops_filter_map.ail",
@@ -881,7 +949,10 @@
         "recursion",
         "functional"
       ],
-      "description": "no_loops_filter_map.ail - Transformation without loops"
+      "description": "no_loops_filter_map.ail - Transformation without loops",
+      "modules": [
+        "std/list"
+      ]
     },
     {
       "path": "no_loops_fold.ail",
@@ -891,7 +962,10 @@
         "recursion",
         "functional"
       ],
-      "description": "no_loops_fold.ail - Aggregation without loops"
+      "description": "no_loops_fold.ail - Aggregation without loops",
+      "modules": [
+        "std/list"
+      ]
     },
     {
       "path": "no_loops_recursion.ail",
@@ -908,7 +982,10 @@
       "tags": [
         "demo"
       ],
-      "description": "Option type demo: Some, None, map, getOrElse"
+      "description": "Option type demo: Some, None, map, getOrElse",
+      "modules": [
+        "std/option"
+      ]
     },
     {
       "path": "pattern_sugar.ail",
@@ -916,7 +993,21 @@
       "tags": [
         "pattern-matching"
       ],
-      "description": "S-CONS Pattern Sugar Example (v0.4.3)"
+      "description": "S-CONS Pattern Sugar Example (v0.4.3)",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
+      "path": "patterns.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "tuples",
+        "adt",
+        "m-p3"
+      ],
+      "description": "All pattern types: tuples, literals, constructors, nested"
     },
     {
       "path": "polymorphic_comparison_simple.ail",
@@ -943,7 +1034,10 @@
         "pattern-matching",
         "records"
       ],
-      "description": "Example: Inline Record Literals in Match Arms (M-DX16)"
+      "description": "Example: Inline Record Literals in Match Arms (M-DX16)",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "record_patterns.ail",
@@ -962,13 +1056,26 @@
       "description": "Record Update Examples"
     },
     {
+      "path": "records.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "field-access",
+        "nesting"
+      ],
+      "description": "Record literals, field access, nested records"
+    },
+    {
       "path": "recursion_factorial.ail",
       "status": "working",
       "tags": [
         "algorithms",
         "recursion"
       ],
-      "description": "recursion_factorial.ail"
+      "description": "recursion_factorial.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "recursion_fibonacci.ail",
@@ -977,7 +1084,10 @@
         "algorithms",
         "recursion"
       ],
-      "description": "recursion_fibonacci.ail"
+      "description": "recursion_fibonacci.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "recursion_match.ail",
@@ -987,7 +1097,10 @@
         "pattern-matching",
         "recursion"
       ],
-      "description": "recursion_match.ail"
+      "description": "recursion_match.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "recursion_mutual.ail",
@@ -996,7 +1109,10 @@
         "algorithms",
         "recursion"
       ],
-      "description": "recursion_mutual.ail"
+      "description": "recursion_mutual.ail",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "recursion_quicksort.ail",
@@ -1005,7 +1121,1232 @@
         "algorithms",
         "recursion"
       ],
-      "description": "recursion_quicksort.ail"
+      "description": "recursion_quicksort.ail",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "reference/budget_minimum.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "reference",
+        "m-dx25"
+      ],
+      "description": "Reference: Minimum budget (@min) verification for audit logging and cache bypass",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "regex_basics.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "string",
+        "stdlib",
+        "re2"
+      ],
+      "description": "std/regex core ops: isMatch, replaceAll, split (linear-time RE2)",
+      "modules": [
+        "std/io",
+        "std/regex",
+        "std/result"
+      ],
+      "requires": [
+        "IO"
+      ]
+    },
+    {
+      "path": "regex_capture.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "capture-groups",
+        "stdlib",
+        "re2"
+      ],
+      "description": "Extract regex capture groups with std/regex findFirst + nth_or",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/regex",
+        "std/result"
+      ],
+      "requires": [
+        "IO"
+      ]
+    },
+    {
+      "path": "regex_log_orchestration.ail",
+      "status": "working",
+      "tags": [
+        "regex",
+        "orchestration",
+        "stdlib",
+        "re2",
+        "routing"
+      ],
+      "description": "Parse + route structured log lines with std/regex (orchestration use case)",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/regex",
+        "std/result",
+        "std/string"
+      ],
+      "requires": [
+        "IO"
+      ]
+    },
+    {
+      "path": "runnable/adt_list_fields.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "lists",
+        "codegen",
+        "types"
+      ],
+      "description": "ADT record types with list fields for Go codegen (Issue #116)",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/ai_caching.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "cache",
+        "tool-use"
+      ],
+      "description": "Demonstrates std/ai.stepWithCache — opt-in prompt caching across providers (M-AI-PROMPT-CACHING v0.18.4)",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/ai_call_json_simple_result.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "result",
+        "typed-errors",
+        "json"
+      ],
+      "description": "Demonstrates std/ai.callJsonSimpleResult — Result-returning no-schema JSON call with retryable typed errors (M-DOCPARSE-RESILIENCE-FIXES v0.23.0)",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/ai_call_stream.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "config-driven",
+        "accumulator"
+      ],
+      "description": "AI token streaming via std/ai/streaming.callStream — synchronous accumulator returning Result[string, AIError]",
+      "modules": [
+        "std/ai/streaming",
+        "std/io",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/ai_stream_openai.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "config-driven"
+      ],
+      "description": "AI token streaming via std/ai/streaming.openaiCompatStream + manual event loop (per-delta control flow)",
+      "modules": [
+        "std/ai/streaming",
+        "std/io",
+        "std/result",
+        "std/stream"
+      ]
+    },
+    {
+      "path": "runnable/ai_streaming.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "sse",
+        "tool-use",
+        "cache",
+        "typed"
+      ],
+      "description": "Demonstrates std/ai.stepWithStream — typed-StepResult streaming with per-chunk callback (M-AI-STEP-STREAMING v0.18.7)",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/bitwise.ail",
+      "status": "working",
+      "tags": [
+        "bitwise",
+        "operators",
+        "math",
+        "int",
+        "xor",
+        "shift"
+      ],
+      "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
+    },
+    {
+      "path": "runnable/contracts/access_control.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "security",
+        "cross-function-calls"
+      ],
+      "description": "Role-based access control with cross-function calls and Z3-verified security properties"
+    },
+    {
+      "path": "runnable/contracts/basic.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
+      "run_flags": [
+        "--verify-contracts"
+      ]
+    },
+    {
+      "path": "runnable/contracts/cross_function.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "cross-function-calls",
+        "transitive"
+      ],
+      "description": "Cross-function verification — Z3 inlines callee definitions to verify 3-level call chains"
+    },
+    {
+      "path": "runnable/contracts/cross_module_functions.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "cross-module",
+        "m-smt-cross-module-functions"
+      ],
+      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: cross-module function calls verified via inline (define-fun) and contract-as-spec paths (3 verified)"
+    },
+    {
+      "path": "runnable/contracts/cross_module_functions_lib.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "cross-module",
+        "m-smt-cross-module-functions"
+      ],
+      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: library with double (inlineable) and sumTo (recursive, contract fallback)"
+    },
+    {
+      "path": "runnable/contracts/finance.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "counterexample",
+        "cross-function-calls"
+      ],
+      "description": "Financial calculations with cross-function calls, provably correct tax rules, and counterexample demo"
+    },
+    {
+      "path": "runnable/contracts/inbox_v2_app.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "ifc",
+        "labels",
+        "m-taint-types",
+        "cross-module",
+        "smt-verification"
+      ],
+      "description": "M-TAINT-TYPES: cross-module inbox-injection demo (5 functions: 3 verified, 2 violations)",
+      "modules": [
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/contracts/inbox_v2_lib.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "ifc",
+        "labels",
+        "m-taint-types",
+        "cross-module"
+      ],
+      "description": "M-TAINT-TYPES: cross-module library exporting Mail record with labelled fields"
+    },
+    {
+      "path": "runnable/contracts/insurance.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "complex",
+        "business-rules"
+      ],
+      "description": "Complex insurance pricing with 768 code paths — Z3 catches subtle discount overflow"
+    },
+    {
+      "path": "runnable/contracts/invoice.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "strings",
+        "lists",
+        "enums",
+        "cross-function-calls",
+        "business-logic",
+        "billing"
+      ],
+      "description": "Provably correct invoice processing — Z3 verifies billing invariants across 5 tiers x 5 tax regions x promo codes x line items. Catches volume pricing bug.",
+      "modules": [
+        "std/list",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/contracts/list_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "lists",
+        "z3-sequence-theory"
+      ],
+      "description": "List contract verification — Z3 proves properties about list length, head, nth, cons using sequence theory",
+      "modules": [
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/contracts/nested_record_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "nested-records",
+        "field-access"
+      ],
+      "description": "Nested record contract verification — Z3 proves properties about nested record field access (o.pos.x) with dependency-ordered type declarations"
+    },
+    {
+      "path": "runnable/contracts/park.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: theme park admission example with age/height constraints",
+      "run_flags": [
+        "--verify-contracts"
+      ]
+    },
+    {
+      "path": "runnable/contracts/record_pattern_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "pattern-matching",
+        "record-patterns"
+      ],
+      "description": "Record pattern matching in contracts — Z3 verifies match expressions that destructure records into field bindings"
+    },
+    {
+      "path": "runnable/contracts/record_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "field-access",
+        "cross-function-calls",
+        "record-construction"
+      ],
+      "description": "Record contract verification — Z3 proves properties about record field access, construction, cross-function calls with records, and counterexample generation"
+    },
+    {
+      "path": "runnable/contracts/scoring.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "complex",
+        "scoring"
+      ],
+      "description": "Multi-factor scoring system — Z3 finds score exceeds 100 in specific enum combination"
+    },
+    {
+      "path": "runnable/contracts/showcase.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "strings",
+        "lists",
+        "enums",
+        "cross-function-calls",
+        "showcase"
+      ],
+      "description": "Comprehensive verification showcase — combines enums, records, strings, lists, and cross-function calls in one file",
+      "modules": [
+        "std/list",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/contracts/string_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "strings",
+        "z3-string-theory"
+      ],
+      "description": "String contract verification — Z3 proves properties about string concatenation, equality, and prefix operations",
+      "modules": [
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/contracts/temperature.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "physics"
+      ],
+      "description": "Temperature conversion with verified physical constraints"
+    },
+    {
+      "path": "runnable/effectful_list.ail",
+      "status": "broken",
+      "tags": [
+        "effects",
+        "higher-order",
+        "std/list",
+        "mapE",
+        "filterE",
+        "foldlE",
+        "flatMapE",
+        "forEachE",
+        "flatMap"
+      ],
+      "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap",
+      "modules": [
+        "std/io",
+        "std/list"
+      ],
+      "broken": {
+        "reason": "effect-row inference regression: show() in effectful-lambda interpolation collapses effect row to closed-empty (conflicts with foldlE {IO})",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
+      "path": "runnable/effectful_list_t1_mapE_basic.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T1: mapE basic type inference",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t2_filterE_bool.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T2: filterE infers predicate returns bool",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t3_foldlE_acc.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T3: foldlE accumulator type inference",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t4_flatMapE_expand.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T4: flatMapE list expansion",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t5_forEachE_unit.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T5: forEachE returns unit",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t6_pure_flatMap.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T6: pure flatMap (no effects)",
+      "modules": [
+        "std/io",
+        "std/list"
+      ]
+    },
+    {
+      "path": "runnable/effectful_list_t7_chain_combinators.ail",
+      "status": "broken",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
+      "description": "Type inference regression T7: chaining multiple effectful combinators",
+      "modules": [
+        "std/io",
+        "std/list"
+      ],
+      "broken": {
+        "reason": "effect-row inference regression: chained effectful combinators with show()-interpolation over-constrain the effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
+      "path": "runnable/effectful_list_t8_string_list.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list",
+        "std/string"
+      ],
+      "description": "Type inference regression T8: effectful combinators on string lists",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/fnv1a.ail",
+      "status": "working",
+      "tags": [
+        "hash",
+        "bitwise",
+        "string",
+        "foldChars",
+        "charCode",
+        "benchmark"
+      ],
+      "description": "FNV-1a hash function using bitwise XOR, charCode, and foldChars — demonstrates character-level string processing and deterministic hashing",
+      "modules": [
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/html_parser.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "html",
+        "parsing",
+        "adt",
+        "result",
+        "option",
+        "std/html",
+        "std/xml"
+      ],
+      "description": "HTML5 parsing with std/html: lenient parse of unclosed tags, boolean attributes, mixed-case tags; returns same XmlNode ADT as std/xml",
+      "modules": [
+        "std/html",
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/result",
+        "std/xml"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO"
+      ]
+    },
+    {
+      "path": "runnable/map_basic.ail",
+      "status": "working",
+      "tags": [
+        "map",
+        "hashmap",
+        "std-map",
+        "data-structures",
+        "option"
+      ],
+      "description": "Hash map operations: fromList, lookup (Option), member, size, keys, insert, remove",
+      "modules": [
+        "std/io",
+        "std/map",
+        "std/option",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/mcp_tools.ail",
+      "status": "broken",
+      "tags": [
+        "mcp",
+        "tools",
+        "effects"
+      ],
+      "description": "MCP tool definitions and dispatch demo (quarantined: getString→Option[string] regression)",
+      "modules": [
+        "std/json",
+        "std/list",
+        "std/string"
+      ],
+      "broken": {
+        "reason": "getString now returns Option[string]; example predates the API change",
+        "error_code": "TC_UNIFY",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
+      "path": "runnable/parser_block_trailing_record.ail",
+      "status": "working",
+      "tags": [
+        "parser",
+        "regression",
+        "record",
+        "block",
+        "if-then-else"
+      ],
+      "description": "Demonstrates the M-PARSER-BLOCK-TR fix (inbox c8813647): a block expression with `;`-separated effect statements followed by a trailing record literal now parses cleanly inside if-then-else branches.",
+      "modules": [
+        "std/io"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ]
+    },
+    {
+      "path": "runnable/poly_adt_result_type.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt"
+      ],
+      "description": "Polymorphic ADT with mixed field types: Result[a] = Ok(a) | Err(string)",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
+      "path": "runnable/polymorphic_adt.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt",
+        "option",
+        "result",
+        "either",
+        "functional"
+      ],
+      "description": "Comprehensive polymorphic ADT examples: Result, Either, mapResult, bindResult, Option integration",
+      "modules": [
+        "std/option",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/process_demo.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "process",
+        "exec",
+        "std/process",
+        "security"
+      ],
+      "description": "External command execution with Process effect: exec, error handling, completion semantics",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/process"
+      ],
+      "expected": {
+        "stdout": "=== Echo test ===\nstdout: hello from AILANG\n\n=== Non-zero exit ===\nexitCode: 1\n=== NotFound test ===\nnot found: nonexistent_cmd_xyz\n=== Stderr test ===\nstderr: stderr_msg\n\nDone!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/process_stdin_write.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "stdin",
+        "pipe",
+        "subprocess",
+        "M-ASYNC-IO"
+      ],
+      "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
+      "modules": [
+        "std/bytes",
+        "std/process",
+        "std/result"
+      ],
+      "expected": {
+        "stdout": "hello from AILANG\nstreaming to subprocess\ndone!\nwrote line 1\nwrote line 2\nwrote line 3\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/record_width_subtyping.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "row-polymorphism",
+        "width-subtyping",
+        "types"
+      ],
+      "description": "Record width subtyping via open record types ({a: T | r} and {a: T, ...})",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
+      "path": "runnable/std_deflate_pdf_objstm.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "deflate",
+        "zlib",
+        "pdf",
+        "result",
+        "io",
+        "std/deflate"
+      ],
+      "description": "Decode a PDF FlateDecode /ObjStm payload via std/deflate.inflateZlib (3 annotation dicts)",
+      "modules": [
+        "std/bytes",
+        "std/deflate",
+        "std/io",
+        "std/option",
+        "std/result"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ]
+    },
+    {
+      "path": "runnable/stdlib_embedding.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/embedding",
+        "vectors",
+        "similarity",
+        "pure"
+      ],
+      "description": "std/embedding headline: cosine-similarity ranking + pure vector ops (magnitude, normalize)",
+      "modules": [
+        "std/embedding",
+        "std/io",
+        "std/list"
+      ],
+      "expected": {
+        "stdout": "cosine scores: [0.9999999999999998, 0.0, 0.9999999999999998]\nbest match: cat (score 0.9999999999999998)\nmagnitude([3,4]): 5.0\nnormalize([3,4]): [0.6, 0.8]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stdlib_game.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/game",
+        "clock",
+        "frame-timing",
+        "capability"
+      ],
+      "description": "std/game headline: frame-rate-independent movement with a fixed timestep + Clock frame_count()",
+      "modules": [
+        "std/game",
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "frame_count at start: 0\nposition after 60 frames @ dt=0.016: 95.99999999999991\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stdlib_gzip.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/gzip",
+        "compression",
+        "bytes",
+        "base64"
+      ],
+      "description": "std/gzip headline: lossless compress -> decompress round-trip over base64 bytes",
+      "modules": [
+        "std/bytes",
+        "std/gzip",
+        "std/io",
+        "std/result"
+      ],
+      "expected": {
+        "stdout": "original bytes: 55\nround-trip lossless: true\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stdlib_sharedindex.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/sharedindex",
+        "index",
+        "similarity",
+        "capability"
+      ],
+      "description": "std/sharedindex headline: namespace-partitioned SimHash index + deterministic similarity query",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/sharedindex",
+        "std/simhash"
+      ],
+      "expected": {
+        "stdout": "namespaces: [docs]\nentry count: 3\nquery hits: 3\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stdlib_simhash.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/simhash",
+        "lsh",
+        "near-duplicate",
+        "pure"
+      ],
+      "description": "std/simhash headline: SimHash fingerprints + Hamming-distance near-duplicate classification",
+      "modules": [
+        "std/io",
+        "std/simhash"
+      ],
+      "expected": {
+        "stdout": "edit vs base: somewhat similar\nother vs base: different\ndist(base, edit) = 4\ndist(base, other) = 35\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stdlib_smoke.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/smoke",
+        "smoke-test",
+        "package",
+        "dispatch"
+      ],
+      "description": "std/smoke headline: dispatchAllTools/dispatchTool/okSuite package boot-probe pattern",
+      "modules": [
+        "std/io",
+        "std/smoke"
+      ],
+      "expected": {
+        "stdout": "  -> exercised search\nOK: tool search dispatched without crash\n  -> exercised fetch\nOK: tool fetch dispatched without crash\n  -> exercised summarize\nOK: tool summarize dispatched without crash\n  -> exercised healthcheck\nOK: tool healthcheck dispatched without crash\nOK: demo_package smoke complete\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/stream_multi_source.ail",
+      "status": "broken",
+      "tags": [
+        "stream",
+        "async",
+        "stdin",
+        "multiplexer",
+        "M-ASYNC-IO"
+      ],
+      "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
+      "modules": [
+        "std/result",
+        "std/stream"
+      ],
+      "broken": {
+        "reason": "effect-row inference regression: show()-interpolation in effectful lambda collapses effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
+      "path": "runnable/stream_process_source.ail",
+      "status": "broken",
+      "tags": [
+        "stream",
+        "async",
+        "process",
+        "subprocess",
+        "M-ASYNC-IO"
+      ],
+      "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
+      "modules": [
+        "std/bytes",
+        "std/stream"
+      ],
+      "broken": {
+        "reason": "effect-row inference regression: show()-interpolation in effectful lambda collapses effect row",
+        "error_code": "TC_EFFECT_ROW",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
+      "path": "runnable/string_contains.ail",
+      "status": "working",
+      "tags": [
+        "string",
+        "stdlib"
+      ],
+      "description": "Demonstrates std/string contains and find functions",
+      "modules": [
+        "std/io",
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/structured_ai_basic.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "json",
+        "structured-output"
+      ],
+      "description": "Demonstrates callJsonSimple: AI returns valid JSON without schema enforcement",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/json",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/structured_ai_schema.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "json",
+        "structured-output"
+      ],
+      "description": "Demonstrates callJson: AI returns schema-enforced JSON output",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/json",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/tar_gzip_reader.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "tar",
+        "gzip",
+        "fs",
+        "effects",
+        "result",
+        "std/tar",
+        "std/gzip"
+      ],
+      "description": "Read entries from a .tar.gz bundle and demonstrate tarbomb defence (std/tar + std/gzip)",
+      "modules": [
+        "std/io",
+        "std/result",
+        "std/tar"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO,FS"
+      ]
+    },
+    {
+      "path": "runnable/url_encode.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "url",
+        "encoding",
+        "oauth",
+        "http",
+        "form",
+        "std/net"
+      ],
+      "description": "URL percent-encoding via std/net.urlEncode and form-body construction via std/net.urlEncodeForm (OAuth2 token-exchange pattern)",
+      "modules": [
+        "std/io",
+        "std/net"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ]
+    },
+    {
+      "path": "runnable/xml_fold.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "fold",
+        "streaming",
+        "performance",
+        "std/xml"
+      ],
+      "description": "XML fold: process elements one-at-a-time via parseFold without building a result list",
+      "modules": [
+        "std/result",
+        "std/xml"
+      ]
+    },
+    {
+      "path": "runnable/xml_parser.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "parsing",
+        "adt",
+        "result",
+        "option",
+        "std/xml"
+      ],
+      "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes",
+      "modules": [
+        "std/result",
+        "std/xml"
+      ]
+    },
+    {
+      "path": "runnable/xml_walk_perf.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "performance",
+        "foldChildren",
+        "getAttrMap",
+        "std/xml"
+      ],
+      "description": "Wallclock comparison of classic getChildren+getAttr walks vs new foldChildren+getAttrMap walks (M-STDLIB-XML-WALK-PERF)",
+      "modules": [
+        "std/clock",
+        "std/list",
+        "std/map",
+        "std/option",
+        "std/result",
+        "std/string",
+        "std/xml"
+      ]
+    },
+    {
+      "path": "runnable/zip_reader.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "zip",
+        "fs",
+        "effects",
+        "result",
+        "std/zip"
+      ],
+      "description": "ZIP archive reading with std/zip builtins: list entries, read text/binary content",
+      "modules": [
+        "std/result",
+        "std/zip"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO,FS"
+      ]
+    },
+    {
+      "path": "runnable/zip_xml_fold.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "zip",
+        "fold",
+        "streaming",
+        "performance",
+        "std/zip",
+        "std/xml"
+      ],
+      "description": "Streaming ZIP+XML fold: extract shared strings from XLSX-like ZIP without OOM",
+      "modules": [
+        "std/list",
+        "std/result",
+        "std/xml",
+        "std/zip"
+      ]
+    },
+    {
+      "path": "simple.ail",
+      "status": "working",
+      "tags": [
+        "basic",
+        "arithmetic",
+        "let"
+      ],
+      "description": "Let bindings and arithmetic",
+      "expected": {
+        "stdout": "10\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "simple_func_match.ail",
@@ -1013,7 +2354,10 @@
       "tags": [
         "pattern-matching"
       ],
-      "description": "Simple Func Match example"
+      "description": "Simple Func Match example",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "stdlib_demo.ail",
@@ -1021,7 +2365,13 @@
       "tags": [
         "demo"
       ],
-      "description": "Standard library demo: string functions and options"
+      "description": "Standard library demo: string functions and options",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/string"
+      ]
     },
     {
       "path": "stdlib_demo_simple.ail",
@@ -1038,7 +2388,12 @@
         "parsing",
         "string"
       ],
-      "description": "Demonstrates string-to-number parsing with Option types"
+      "description": "Demonstrates string-to-number parsing with Option types",
+      "modules": [
+        "std/io",
+        "std/option",
+        "std/string"
+      ]
     },
     {
       "path": "string_split.ail",
@@ -1047,90 +2402,10 @@
         "parsing",
         "string"
       ],
-      "description": "String Split example"
-    },
-    {
-      "path": "runnable/string_contains.ail",
-      "status": "working",
-      "tags": [
-        "string",
-        "stdlib"
-      ],
-      "description": "Demonstrates std/string contains and find functions"
-    },
-    {
-      "path": "runnable/record_width_subtyping.ail",
-      "status": "working",
-      "tags": [
-        "records",
-        "row-polymorphism",
-        "width-subtyping",
-        "types"
-      ],
-      "description": "Record width subtyping via open record types ({a: T | r} and {a: T, ...})"
-    },
-    {
-      "path": "runnable/adt_list_fields.ail",
-      "status": "working",
-      "tags": [
-        "records",
-        "lists",
-        "codegen",
-        "types"
-      ],
-      "description": "ADT record types with list fields for Go codegen (Issue #116)"
-    },
-    {
-      "path": "runnable/poly_adt_result_type.ail",
-      "status": "working",
-      "tags": [
-        "adt",
-        "polymorphism",
-        "type-inference",
-        "m-poly-adt"
-      ],
-      "description": "Polymorphic ADT with mixed field types: Result[a] = Ok(a) | Err(string)"
-    },
-    {
-      "path": "runnable/polymorphic_adt.ail",
-      "status": "working",
-      "tags": [
-        "adt",
-        "polymorphism",
-        "type-inference",
-        "m-poly-adt",
-        "option",
-        "result",
-        "either",
-        "functional"
-      ],
-      "description": "Comprehensive polymorphic ADT examples: Result, Either, mapResult, bindResult, Option integration"
-    },
-    {
-      "path": "runnable/bitwise.ail",
-      "status": "working",
-      "tags": [
-        "bitwise",
-        "operators",
-        "math",
-        "int",
-        "xor",
-        "shift"
-      ],
-      "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
-    },
-    {
-      "path": "runnable/fnv1a.ail",
-      "status": "working",
-      "tags": [
-        "hash",
-        "bitwise",
-        "string",
-        "foldChars",
-        "charCode",
-        "benchmark"
-      ],
-      "description": "FNV-1a hash function using bitwise XOR, charCode, and foldChars \u2014 demonstrates character-level string processing and deterministic hashing"
+      "description": "String Split example",
+      "modules": [
+        "std/string"
+      ]
     },
     {
       "path": "test_cli_io.ail",
@@ -1146,7 +2421,10 @@
       "tags": [
         "testing"
       ],
-      "description": "Integration Test: FizzBuzz"
+      "description": "Integration Test: FizzBuzz",
+      "modules": [
+        "std/io"
+      ]
     },
     {
       "path": "test_guard_bool.ail",
@@ -1162,7 +2440,10 @@
       "tags": [
         "testing"
       ],
-      "description": "Test Import Func example"
+      "description": "Test Import Func example",
+      "modules": [
+        "std/option"
+      ]
     },
     {
       "path": "test_io_builtins.ail",
@@ -1205,12 +2486,39 @@
       "description": "Type Inference Regression Test"
     },
     {
+      "path": "typeclasses.ail",
+      "status": "working",
+      "tags": [
+        "typeclass",
+        "num",
+        "eq",
+        "ord",
+        "show"
+      ],
+      "description": "Type class usage: Num, Eq, Ord, Show"
+    },
+    {
       "path": "values_basic.ail",
       "status": "working",
       "tags": [
         "misc"
       ],
       "description": "values_basic.ail - Working with values and string concatenation"
+    },
+    {
+      "path": "web_api_demo/api/greet.ail",
+      "status": "working",
+      "tags": [
+        "api",
+        "serve-api",
+        "json",
+        "demo"
+      ],
+      "description": "Web API demo: string and JSON functions (hello, farewell, welcome) served via ailang serve-api",
+      "modules": [
+        "std/json"
+      ],
+      "run_mode": "serve-api"
     },
     {
       "path": "web_api_demo/api/math.ail",
@@ -1223,746 +2531,15 @@
       ],
       "description": "Web API demo: pure math functions (add, multiply, factorial, fibonacci) served via ailang serve-api",
       "run_mode": "serve-api"
-    },
-    {
-      "path": "web_api_demo/api/greet.ail",
-      "status": "working",
-      "tags": [
-        "api",
-        "serve-api",
-        "json",
-        "demo"
-      ],
-      "description": "Web API demo: string and JSON functions (hello, farewell, welcome) served via ailang serve-api",
-      "run_mode": "serve-api"
-    },
-    {
-      "path": "runnable/contracts/basic.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "requires",
-        "ensures",
-        "m-verify-contracts"
-      ],
-      "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
-      "run_flags": [
-        "--verify-contracts"
-      ]
-    },
-    {
-      "path": "runnable/contracts/park.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "requires",
-        "ensures",
-        "m-verify-contracts"
-      ],
-      "description": "Contract verification: theme park admission example with age/height constraints",
-      "run_flags": [
-        "--verify-contracts"
-      ]
-    },
-    {
-      "path": "runnable/contracts/finance.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "counterexample",
-        "cross-function-calls"
-      ],
-      "description": "Financial calculations with cross-function calls, provably correct tax rules, and counterexample demo"
-    },
-    {
-      "path": "runnable/contracts/access_control.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "security",
-        "cross-function-calls"
-      ],
-      "description": "Role-based access control with cross-function calls and Z3-verified security properties"
-    },
-    {
-      "path": "runnable/contracts/temperature.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "physics"
-      ],
-      "description": "Temperature conversion with verified physical constraints"
-    },
-    {
-      "path": "runnable/contracts/insurance.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "complex",
-        "business-rules"
-      ],
-      "description": "Complex insurance pricing with 768 code paths \u2014 Z3 catches subtle discount overflow"
-    },
-    {
-      "path": "runnable/contracts/scoring.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "complex",
-        "scoring"
-      ],
-      "description": "Multi-factor scoring system \u2014 Z3 finds score exceeds 100 in specific enum combination"
-    },
-    {
-      "path": "runnable/contracts/cross_function.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "cross-function-calls",
-        "transitive"
-      ],
-      "description": "Cross-function verification \u2014 Z3 inlines callee definitions to verify 3-level call chains"
-    },
-    {
-      "path": "runnable/contracts/record_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "records",
-        "field-access",
-        "cross-function-calls",
-        "record-construction"
-      ],
-      "description": "Record contract verification \u2014 Z3 proves properties about record field access, construction, cross-function calls with records, and counterexample generation"
-    },
-    {
-      "path": "runnable/contracts/string_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "strings",
-        "z3-string-theory"
-      ],
-      "description": "String contract verification \u2014 Z3 proves properties about string concatenation, equality, and prefix operations"
-    },
-    {
-      "path": "runnable/contracts/list_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "lists",
-        "z3-sequence-theory"
-      ],
-      "description": "List contract verification \u2014 Z3 proves properties about list length, head, nth, cons using sequence theory"
-    },
-    {
-      "path": "runnable/contracts/showcase.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "records",
-        "strings",
-        "lists",
-        "enums",
-        "cross-function-calls",
-        "showcase"
-      ],
-      "description": "Comprehensive verification showcase \u2014 combines enums, records, strings, lists, and cross-function calls in one file"
-    },
-    {
-      "path": "runnable/contracts/invoice.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "records",
-        "strings",
-        "lists",
-        "enums",
-        "cross-function-calls",
-        "business-logic",
-        "billing"
-      ],
-      "description": "Provably correct invoice processing \u2014 Z3 verifies billing invariants across 5 tiers x 5 tax regions x promo codes x line items. Catches volume pricing bug."
-    },
-    {
-      "path": "hello_world.ail",
-      "status": "working",
-      "tags": [
-        "basic",
-        "io",
-        "classic"
-      ],
-      "description": "Classic Hello, World! program",
-      "expected": {
-        "stdout": "Hello, World!\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "runnable/zip_reader.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "zip",
-        "fs",
-        "effects",
-        "result",
-        "std/zip"
-      ],
-      "description": "ZIP archive reading with std/zip builtins: list entries, read text/binary content",
-      "run_flags": [
-        "--caps",
-        "IO,FS"
-      ]
-    },
-    {
-      "path": "runnable/xml_parser.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "xml",
-        "parsing",
-        "adt",
-        "result",
-        "option",
-        "std/xml"
-      ],
-      "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes"
-    },
-    {
-      "path": "runnable/html_parser.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "html",
-        "parsing",
-        "adt",
-        "result",
-        "option",
-        "std/html",
-        "std/xml"
-      ],
-      "description": "HTML5 parsing with std/html: lenient parse of unclosed tags, boolean attributes, mixed-case tags; returns same XmlNode ADT as std/xml",
-      "run_flags": [
-        "--caps",
-        "IO"
-      ]
-    },
-    {
-      "path": "runnable/xml_fold.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "xml",
-        "fold",
-        "streaming",
-        "performance",
-        "std/xml"
-      ],
-      "description": "XML fold: process elements one-at-a-time via parseFold without building a result list"
-    },
-    {
-      "path": "runnable/xml_walk_perf.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "xml",
-        "performance",
-        "foldChildren",
-        "getAttrMap",
-        "std/xml"
-      ],
-      "description": "Wallclock comparison of classic getChildren+getAttr walks vs new foldChildren+getAttrMap walks (M-STDLIB-XML-WALK-PERF)"
-    },
-    {
-      "path": "runnable/zip_xml_fold.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "xml",
-        "zip",
-        "fold",
-        "streaming",
-        "performance",
-        "std/zip",
-        "std/xml"
-      ],
-      "description": "Streaming ZIP+XML fold: extract shared strings from XLSX-like ZIP without OOM"
-    },
-    {
-      "path": "runnable/effectful_list.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "higher-order",
-        "std/list",
-        "mapE",
-        "filterE",
-        "foldlE",
-        "flatMapE",
-        "forEachE",
-        "flatMap"
-      ],
-      "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap"
-    },
-    {
-      "path": "runnable/effectful_list_t1_mapE_basic.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T1: mapE basic type inference"
-    },
-    {
-      "path": "runnable/effectful_list_t2_filterE_bool.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T2: filterE infers predicate returns bool"
-    },
-    {
-      "path": "runnable/effectful_list_t3_foldlE_acc.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T3: foldlE accumulator type inference"
-    },
-    {
-      "path": "runnable/effectful_list_t4_flatMapE_expand.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T4: flatMapE list expansion"
-    },
-    {
-      "path": "runnable/effectful_list_t5_forEachE_unit.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T5: forEachE returns unit"
-    },
-    {
-      "path": "runnable/effectful_list_t6_pure_flatMap.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T6: pure flatMap (no effects)"
-    },
-    {
-      "path": "runnable/effectful_list_t7_chain_combinators.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list"
-      ],
-      "description": "Type inference regression T7: chaining multiple effectful combinators"
-    },
-    {
-      "path": "runnable/effectful_list_t8_string_list.ail",
-      "status": "working",
-      "tags": [
-        "types",
-        "type-inference",
-        "effects",
-        "higher-order",
-        "regression",
-        "std/list",
-        "std/string"
-      ],
-      "description": "Type inference regression T8: effectful combinators on string lists"
-    },
-    {
-      "path": "runnable/process_demo.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "process",
-        "exec",
-        "std/process",
-        "security"
-      ],
-      "description": "External command execution with Process effect: exec, error handling, completion semantics",
-      "expected": {
-        "stdout": "=== Echo test ===\nstdout: hello from AILANG\n\n=== Non-zero exit ===\nexitCode: 1\n=== NotFound test ===\nnot found: nonexistent_cmd_xyz\n=== Stderr test ===\nstderr: stderr_msg\n\nDone!\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "runnable/stream_multi_source.ail",
-      "status": "working",
-      "tags": [
-        "stream",
-        "async",
-        "stdin",
-        "multiplexer",
-        "M-ASYNC-IO"
-      ],
-      "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
-      "expected": {
-        "stdin": "hello from stdin",
-        "stdout": "stdin: hello from stdin\ndone\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "runnable/stream_process_source.ail",
-      "status": "working",
-      "tags": [
-        "stream",
-        "async",
-        "process",
-        "subprocess",
-        "M-ASYNC-IO"
-      ],
-      "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
-      "expected": {
-        "stdout": "[echo] hello from subprocess\ndone\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "runnable/process_stdin_write.ail",
-      "status": "working",
-      "tags": [
-        "process",
-        "stdin",
-        "pipe",
-        "subprocess",
-        "M-ASYNC-IO"
-      ],
-      "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
-      "expected": {
-        "stdout": "hello from AILANG\nstreaming to subprocess\ndone!\nwrote line 1\nwrote line 2\nwrote line 3\n",
-        "exit_code": 0
-      }
-    },
-    {
-      "path": "runnable/contracts/nested_record_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "records",
-        "nested-records",
-        "field-access"
-      ],
-      "description": "Nested record contract verification \u2014 Z3 proves properties about nested record field access (o.pos.x) with dependency-ordered type declarations"
-    },
-    {
-      "path": "runnable/contracts/record_pattern_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "records",
-        "pattern-matching",
-        "record-patterns"
-      ],
-      "description": "Record pattern matching in contracts \u2014 Z3 verifies match expressions that destructure records into field bindings"
-    },
-    {
-      "path": "expected_fail/contracts/list_recursive_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "lists",
-        "list-contains",
-        "list-extract",
-        "z3-sequence-theory"
-      ],
-      "description": "Recursive list operation contracts \u2014 Z3 proves containment and extraction properties using seq.contains and seq.extract"
-    },
-    {
-      "path": "expected_fail/contracts/per_function_depth_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "bounded-recursion",
-        "verify-attribute",
-        "per-function-depth"
-      ],
-      "description": "Per-function recursion depth \u2014 @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
-    },
-    {
-      "path": "expected_fail/contracts/hof_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "higher-order",
-        "hof-inlining",
-        "map",
-        "filter",
-        "lambda"
-      ],
-      "description": "Higher-order function verification \u2014 Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
-    },
-    {
-      "path": "expected_fail/contracts/quantifier_verify.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "ailang-verify",
-        "quantifiers",
-        "forall",
-        "bounded-quantifiers"
-      ],
-      "description": "Bounded quantifier verification \u2014 forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
-    },
-    {
-      "path": "runnable/map_basic.ail",
-      "status": "working",
-      "tags": [
-        "map",
-        "hashmap",
-        "std-map",
-        "data-structures",
-        "option"
-      ],
-      "description": "Hash map operations: fromList, lookup (Option), member, size, keys, insert, remove"
-    },
-    {
-      "path": "runnable/tar_gzip_reader.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "tar",
-        "gzip",
-        "fs",
-        "effects",
-        "result",
-        "std/tar",
-        "std/gzip"
-      ],
-      "description": "Read entries from a .tar.gz bundle and demonstrate tarbomb defence (std/tar + std/gzip)",
-      "run_flags": [
-        "--caps",
-        "IO,FS"
-      ]
-    },
-    {
-      "path": "runnable/contracts/cross_module_functions_lib.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "cross-module",
-        "m-smt-cross-module-functions"
-      ],
-      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: library with double (inlineable) and sumTo (recursive, contract fallback)"
-    },
-    {
-      "path": "runnable/contracts/cross_module_functions.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "smt-verification",
-        "cross-module",
-        "m-smt-cross-module-functions"
-      ],
-      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: cross-module function calls verified via inline (define-fun) and contract-as-spec paths (3 verified)"
-    },
-    {
-      "path": "runnable/contracts/inbox_v2_lib.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "ifc",
-        "labels",
-        "m-taint-types",
-        "cross-module"
-      ],
-      "description": "M-TAINT-TYPES: cross-module library exporting Mail record with labelled fields"
-    },
-    {
-      "path": "runnable/contracts/inbox_v2_app.ail",
-      "status": "working",
-      "tags": [
-        "contracts",
-        "ifc",
-        "labels",
-        "m-taint-types",
-        "cross-module",
-        "smt-verification"
-      ],
-      "description": "M-TAINT-TYPES: cross-module inbox-injection demo (5 functions: 3 verified, 2 violations)"
-    },
-    {
-      "path": "runnable/std_deflate_pdf_objstm.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "deflate",
-        "zlib",
-        "pdf",
-        "result",
-        "io",
-        "std/deflate"
-      ],
-      "description": "Decode a PDF FlateDecode /ObjStm payload via std/deflate.inflateZlib (3 annotation dicts)",
-      "run_flags": [
-        "--caps",
-        "IO",
-        "--entry",
-        "main"
-      ]
-    },
-    {
-      "path": "runnable/url_encode.ail",
-      "status": "working",
-      "tags": [
-        "stdlib",
-        "url",
-        "encoding",
-        "oauth",
-        "http",
-        "form",
-        "std/net"
-      ],
-      "description": "URL percent-encoding via std/net.urlEncode and form-body construction via std/net.urlEncodeForm (OAuth2 token-exchange pattern)",
-      "run_flags": [
-        "--caps",
-        "IO",
-        "--entry",
-        "main"
-      ]
-    },
-    {
-      "path": "runnable/parser_block_trailing_record.ail",
-      "status": "working",
-      "tags": [
-        "parser",
-        "regression",
-        "record",
-        "block",
-        "if-then-else"
-      ],
-      "description": "Demonstrates the M-PARSER-BLOCK-TR fix (inbox c8813647): a block expression with `;`-separated effect statements followed by a trailing record literal now parses cleanly inside if-then-else branches.",
-      "run_flags": [
-        "--caps",
-        "IO",
-        "--entry",
-        "main"
-      ]
-    },
-    {
-      "path": "regex_basics.ail",
-      "status": "working",
-      "tags": [
-        "regex",
-        "string",
-        "stdlib",
-        "re2"
-      ],
-      "description": "std/regex core ops: isMatch, replaceAll, split (linear-time RE2)",
-      "requires": [
-        "IO"
-      ]
-    },
-    {
-      "path": "regex_capture.ail",
-      "status": "working",
-      "tags": [
-        "regex",
-        "capture-groups",
-        "stdlib",
-        "re2"
-      ],
-      "description": "Extract regex capture groups with std/regex findFirst + nth_or",
-      "requires": [
-        "IO"
-      ]
-    },
-    {
-      "path": "regex_log_orchestration.ail",
-      "status": "working",
-      "tags": [
-        "regex",
-        "orchestration",
-        "stdlib",
-        "re2",
-        "routing"
-      ],
-      "description": "Parse + route structured log lines with std/regex (orchestration use case)",
-      "requires": [
-        "IO"
-      ]
     }
   ],
   "statistics": {
-    "total": 144,
-    "working": 136,
+    "total": 183,
+    "working": 171,
     "aspirational": 4,
-    "broken": 3,
-    "coverage": 0.951
+    "broken": 8,
+    "coverage": 0.9344262295081968,
+    "experimental": 0
   },
   "milestones": {
     "completed": [

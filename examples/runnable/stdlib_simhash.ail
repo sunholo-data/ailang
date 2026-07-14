@@ -1,0 +1,32 @@
+-- std/simhash — locality-sensitive hashing (near-duplicate detection)
+-- Capabilities: IO only (all std/simhash functions are pure)
+--
+-- Pattern: fingerprint documents, then use Hamming distance between fingerprints
+-- as a cheap near-duplicate signal. Similar text -> low distance; different
+-- text -> high distance. No embedding model required.
+module examples/runnable/stdlib_simhash
+
+import std/io (println)
+import std/simhash (simhash, hammingDistance)
+
+-- Classify two documents by the Hamming distance of their SimHash fingerprints.
+export func relatedness(a: string, b: string) -> string {
+  let d = hammingDistance(simhash(a), simhash(b));
+  if d <= 3 then "near-duplicate"
+  else if d <= 10 then "somewhat similar"
+  else "different"
+}
+
+export func main() -> () ! {IO} {
+  let base = "the quick brown fox jumps over the lazy dog";
+  let edit = "the quick brown fox jumps over the lazy dogs";  -- one char added
+  let other = "completely unrelated sentence about databases";
+
+  -- Headline: fingerprint + distance-based classification.
+  println("edit vs base: ${relatedness(base, edit)}");
+  println("other vs base: ${relatedness(base, other)}");
+
+  -- Raw distances for transparency.
+  println("dist(base, edit) = ${show(hammingDistance(simhash(base), simhash(edit)))}");
+  println("dist(base, other) = ${show(hammingDistance(simhash(base), simhash(other)))}")
+}

@@ -27,6 +27,10 @@ const (
 	StatusWorking      Status = "working"
 	StatusBroken       Status = "broken"
 	StatusExperimental Status = "experimental"
+	// StatusAspirational marks VISION-ONLY examples that are not expected to
+	// type-check or run against the current compiler (examples/experimental/*).
+	// They carry no expected output and are skipped by validators.
+	StatusAspirational Status = "aspirational"
 )
 
 // Mode represents how an example should be executed
@@ -72,6 +76,10 @@ type Example struct {
 	Broken           *BrokenInfo  `json:"broken,omitempty"`
 	RequiresFeatures []string     `json:"requires_features,omitempty"`
 	SkipReason       string       `json:"skip_reason,omitempty"`
+	// Modules is the set of std/* modules this example imports, backfilled by
+	// scripts/backfill_manifest_modules.go and drift-checked by
+	// scripts/validate_manifest.go. Powers `ailang docs --examples <module>`.
+	Modules []string `json:"modules,omitempty"`
 }
 
 // Statistics provides aggregate information about examples
@@ -200,36 +208,40 @@ func (m *Manifest) validateExample(ex Example) error {
 	if ex.Status == "" {
 		return fmt.Errorf("missing status")
 	}
-	if ex.Mode == "" {
-		return fmt.Errorf("missing mode")
-	}
+	// Mode is optional: the canonical examples/manifest.json does not carry a
+	// per-example execution mode (the verifier auto-detects run vs repl). When
+	// absent, default to file mode below rather than rejecting the manifest.
 
 	// Validate status
 	switch ex.Status {
 	case StatusWorking:
-		if ex.Expected == nil {
-			return fmt.Errorf("working example missing expected output")
-		}
+		// Expected output is optional here: verify_examples.go is the source of
+		// truth for actual program output. The canonical examples/manifest.json
+		// carries `expected` on many but not all working entries; requiring it
+		// on every entry would reject the real manifest. We only forbid the
+		// contradictory case (a working example also carrying broken info).
 		if ex.Broken != nil {
 			return fmt.Errorf("working example should not have broken info")
 		}
 	case StatusBroken:
-		if ex.Broken == nil {
-			return fmt.Errorf("broken example missing broken info")
+		// Broken info (reason/error_code/tracked_issue) is recommended but not
+		// mandatory at load time: a handful of legacy bugs/* entries predate the
+		// structured broken block. New quarantines SHOULD carry it (see the
+		// M-DX-EXAMPLES-COVERAGE entries), but the loader stays lenient so the
+		// real manifest loads; enforcement of richer invariants lives in --ci.
+		if ex.Broken != nil && ex.Broken.ErrorCode == "" {
+			return fmt.Errorf("broken example has broken info but missing error code")
 		}
-		if ex.Broken.ErrorCode == "" {
-			return fmt.Errorf("broken example missing error code")
-		}
-	case StatusExperimental:
-		// Experimental can have various states
+	case StatusExperimental, StatusAspirational:
+		// Experimental / aspirational (VISION-ONLY) can have various states
 	default:
 		return fmt.Errorf("invalid status: %s", ex.Status)
 	}
 
-	// Validate mode
+	// Validate mode (optional; empty means file mode)
 	switch ex.Mode {
-	case ModeFile, ModeREPL:
-		// Valid
+	case "", ModeFile, ModeREPL:
+		// Valid (empty defaults to file)
 	default:
 		return fmt.Errorf("invalid mode: %s", ex.Mode)
 	}

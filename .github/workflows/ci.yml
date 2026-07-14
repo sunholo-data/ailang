@@ -202,16 +202,16 @@ jobs:
     - name: Verify examples
       id: verify
       run: |
-        make verify-examples > examples_output.txt 2>&1 || true
-        cat examples_output.txt
-        if grep -q "Failed: 0" examples_output.txt; then
-          echo "status=success" >> $GITHUB_OUTPUT
-        else
-          echo "status=failure" >> $GITHUB_OUTPUT
-        fi
-    
+        # Real gate: `make verify-examples` exits non-zero on any red example or
+        # manifest modules drift, while still writing examples_report.json +
+        # examples_status.md. Tee keeps the full log visible AND lets the step's
+        # own exit code fail the job (no `|| true`, no unmatchable grep).
+        make verify-examples 2>&1 | tee examples_output.txt
+        exit "${PIPESTATUS[0]}"
+
     - name: Verify example determinism (traces)
       id: verify-traces
+      if: always()  # still print the trace signal even when the gate above is red
       run: |
         make verify-examples-trace > trace_output.txt 2>&1 || true
         cat trace_output.txt

@@ -1,0 +1,29 @@
+-- std/sharedindex — namespace-partitioned similarity index
+-- Capabilities: IO, SharedIndex  (run with: ailang run --caps IO,SharedIndex ...)
+--
+-- Pattern: build a small in-process semantic index keyed by SimHash fingerprint,
+-- then run a deterministic similarity query. Entries live in a named namespace so
+-- unrelated collections don't interfere. findSimhash with deterministic=true
+-- returns a stable ordering, which is what makes this example reproducible.
+module examples/runnable/stdlib_sharedindex
+
+import std/io (println)
+import std/sharedindex (upsert, findSimhash, entryCount, namespaces)
+import std/simhash (simhash)
+import std/list (length)
+
+export func main() -> () ! {IO, SharedIndex} {
+  let ns = "docs";
+
+  -- Headline: index three documents by their SimHash fingerprints.
+  upsert(ns, "greeting", simhash("hello world"), 1, 1000);
+  upsert(ns, "farewell", simhash("goodbye world"), 1, 1001);
+  upsert(ns, "unrelated", simhash("quarterly revenue report"), 1, 1002);
+
+  println("namespaces: ${show(namespaces(()))}");
+  println("entry count: ${show(entryCount(ns))}");
+
+  -- Deterministic similarity query: how many hits for a "hello"-like query?
+  let hits = findSimhash(ns, simhash("hello there world"), 3, 0, true);
+  println("query hits: ${show(length(hits))}")
+}

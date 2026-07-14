@@ -333,6 +333,88 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 			fmt.Printf("  %s\n", ex)
 		}
 	}
+
+	// Print a "Try it" section of registered runnable examples that import this
+	// module (additive; only when --examples is passed).
+	if showExamples {
+		printTryItSection(mod.Name)
+	}
+}
+
+// printTryItSection prints registered runnable examples that import moduleName
+// (e.g. "std/gzip"), read from examples/manifest.json's `modules` field. It
+// reuses loadExamplesManifest -> findExamplesDir resolution, so it works both
+// in-repo and from an installed binary (AILANG_EXAMPLES / ~/.ailang/examples).
+//
+// Behavior is never silently identical to flagless output:
+//   - resolution failure -> prints the explicit findExamplesDir error as a note
+//     under the doc (the doc is still shown above);
+//   - no matches -> says so explicitly.
+func printTryItSection(moduleName string) {
+	fmt.Println()
+	fmt.Println("## Try it")
+	fmt.Println()
+
+	m, err := loadExamplesManifest()
+	if err != nil {
+		// Explicit note, never a silent fallback (see findExamplesDir error text).
+		fmt.Printf("  (could not load registered examples: %v)\n", err)
+		return
+	}
+
+	var matches []ExampleEntry
+	for _, e := range m.Examples {
+		if e.Status != "working" {
+			continue
+		}
+		for _, mod := range e.Modules {
+			if mod == moduleName {
+				matches = append(matches, e)
+				break
+			}
+		}
+	}
+
+	if len(matches) == 0 {
+		fmt.Printf("  No registered examples import %s yet\n", moduleName)
+		return
+	}
+
+	// Deterministic order.
+	sort.Slice(matches, func(i, j int) bool { return matches[i].Path < matches[j].Path })
+
+	shown := 0
+	for _, e := range matches {
+		if shown >= 3 {
+			break
+		}
+		path := exampleRunPath(e.Path)
+		desc := e.Description
+		if desc != "" {
+			fmt.Printf("  %s — %s\n", path, desc)
+		} else {
+			fmt.Printf("  %s\n", path)
+		}
+		fmt.Printf("    ailang run %s\n", path)
+		shown++
+	}
+	if len(matches) > shown {
+		short := strings.TrimPrefix(moduleName, "std/")
+		fmt.Printf("\n  (%d more: ailang examples search %s)\n", len(matches)-shown, short)
+	}
+}
+
+// exampleRunPath normalizes a manifest entry path to a `examples/...`-rooted
+// path suitable for `ailang run`. Legacy bare-name entries live under runnable/.
+// Always slash-form: this is a display/run-command string, and `ailang run`
+// accepts slash paths on every platform (Windows renders backslashes otherwise).
+func exampleRunPath(entryPath string) string {
+	if strings.HasPrefix(entryPath, "runnable/") ||
+		strings.HasPrefix(entryPath, "experimental/") ||
+		strings.Contains(entryPath, "/") {
+		return filepath.ToSlash(filepath.Join("examples", entryPath))
+	}
+	return filepath.ToSlash(filepath.Join("examples", "runnable", entryPath))
 }
 
 // formatExportSignature formats an export signature for display
@@ -352,12 +434,13 @@ func printDocsHelp() {
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  --list        List all available stdlib modules")
-	fmt.Println("  --examples    Show usage examples (with module name)")
+	fmt.Println("  --examples    Also print a 'Try it' section of registered runnable")
+	fmt.Println("                examples that import the module (with run commands)")
 	fmt.Println("  --help        Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang docs --list              List all modules")
 	fmt.Println("  ailang docs std/io              Show std/io documentation")
 	fmt.Println("  ailang docs io                  Short form (same as std/io)")
-	fmt.Println("  ailang docs --examples array    Show array module with examples")
+	fmt.Println("  ailang docs --examples gzip     Show std/gzip docs + runnable examples")
 }

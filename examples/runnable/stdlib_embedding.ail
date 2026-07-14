@@ -1,0 +1,46 @@
+-- std/embedding — vector embedding utilities (headline pattern: semantic similarity search)
+-- Capabilities: IO only (all std/embedding functions are pure)
+--
+-- Pattern: rank a set of candidate document vectors against a query vector by
+-- cosine similarity, then report the best match. This is the core of any
+-- retrieval / nearest-neighbour step, done with pure vector math.
+module examples/runnable/stdlib_embedding
+
+import std/io (println)
+import std/embedding (cosine, magnitude, normalize)
+import std/list (map, foldl)
+
+-- Score each (label, vector) against the query, keeping the running best.
+export func bestMatch(
+  query: list[float],
+  docs: list[{label: string, vec: list[float]}]
+) -> {label: string, score: float} {
+  foldl(
+    \acc doc. {
+      let s = cosine(query, doc.vec);
+      if s > acc.score then {label: doc.label, score: s} else acc
+    },
+    {label: "(none)", score: -1.0},
+    docs
+  )
+}
+
+export func main() -> () ! {IO} {
+  let query = [1.0, 0.0, 1.0];
+  let docs = [
+    {label: "cat", vec: [1.0, 0.0, 1.0]},
+    {label: "dog", vec: [0.0, 1.0, 0.0]},
+    {label: "kitten", vec: [2.0, 0.0, 2.0]}
+  ];
+
+  -- Headline: similarity ranking
+  let scores = map(\d. cosine(query, d.vec), docs);
+  println("cosine scores: ${show(scores)}");
+
+  let best = bestMatch(query, docs);
+  println("best match: ${best.label} (score ${show(best.score)})");
+
+  -- Supporting pure vector ops
+  println("magnitude([3,4]): ${show(magnitude([3.0, 4.0]))}");
+  println("normalize([3,4]): ${show(normalize([3.0, 4.0]))}")
+}
