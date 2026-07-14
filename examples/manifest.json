@@ -1814,6 +1814,27 @@
       ]
     },
     {
+      "path": "runnable/mcp_tools.ail",
+      "status": "broken",
+      "tags": [
+        "mcp",
+        "tools",
+        "effects"
+      ],
+      "description": "MCP tool definitions and dispatch demo (quarantined: getString→Option[string] regression)",
+      "modules": [
+        "std/json",
+        "std/list",
+        "std/string"
+      ],
+      "broken": {
+        "reason": "getString now returns Option[string]; example predates the API change",
+        "error_code": "TC_UNIFY",
+        "requires": [],
+        "tracked_issue": "https://github.com/sunholo-data/ailang/issues/386"
+      }
+    },
+    {
       "path": "runnable/parser_block_trailing_record.ail",
       "status": "working",
       "tags": [
@@ -2513,11 +2534,11 @@
     }
   ],
   "statistics": {
-    "total": 182,
+    "total": 183,
     "working": 171,
     "aspirational": 4,
-    "broken": 7,
-    "coverage": 0.9395604395604396,
+    "broken": 8,
+    "coverage": 0.9344262295081968,
     "experimental": 0
   },
   "milestones": {

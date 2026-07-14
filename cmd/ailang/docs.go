@@ -406,13 +406,15 @@ func printTryItSection(moduleName string) {
 
 // exampleRunPath normalizes a manifest entry path to a `examples/...`-rooted
 // path suitable for `ailang run`. Legacy bare-name entries live under runnable/.
+// Always slash-form: this is a display/run-command string, and `ailang run`
+// accepts slash paths on every platform (Windows renders backslashes otherwise).
 func exampleRunPath(entryPath string) string {
 	if strings.HasPrefix(entryPath, "runnable/") ||
 		strings.HasPrefix(entryPath, "experimental/") ||
 		strings.Contains(entryPath, "/") {
-		return filepath.Join("examples", entryPath)
+		return filepath.ToSlash(filepath.Join("examples", entryPath))
 	}
-	return filepath.Join("examples", "runnable", entryPath)
+	return filepath.ToSlash(filepath.Join("examples", "runnable", entryPath))
 }
 
 // formatExportSignature formats an export signature for display
