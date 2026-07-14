@@ -90,6 +90,15 @@ ran a full redundant re-evaluation of an item that had already merged, because i
 local queue/sprint-JSON (Gate 1's origin-sync now front-runs this, but re-check per item too). If
 already done → the iteration's deliverable is the bookkeeping (move doc to implemented/, update
 queue, log it) and you pick the NEXT item too.
+**The already-landed check must run against a FRESH origin, at pick time** (sharpened 2026-07-14
+iteration 28; second instance of the landed-but-invisible class after iteration 12): re-run
+`git fetch origin` immediately before the item-level check and grep `git log origin/dev --grep`
+— NOT the local ref, which goes minutes-stale whenever a concurrent interactive session is
+committing. And a PR search alone is NOT sufficient: direct-to-dev commits have no PR (iteration
+28's Phase A landed mid-session as a direct commit `3bee6b6df`, invisible to both the stale
+local log and the PR search; only the planner's own fetch caught it — the sprint was then
+re-scoped in flight rather than pre-pick). When a sibling session is active (dirty shared tree,
+fresh commits appearing), also send a controlplane CLAIM message naming the item before routing.
 
 **A queue row sourced from a survey/strategy review inherits that survey's verification debt —
 live-repro the claimed bug BEFORE any routing** (added 2026-07-13 iteration 25; second instance
