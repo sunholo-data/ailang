@@ -1,0 +1,39 @@
+-- std/gzip — gzip compression / decompression
+-- Capabilities: IO only (compress/decompress are pure; decompressFile needs FS)
+--
+-- Pattern: a compress -> decompress round-trip. All binary data crosses the
+-- AILANG boundary as base64-encoded strings, so std/bytes converts between
+-- UTF-8 text, raw bytes, and base64. Highly repetitive text compresses well,
+-- which the example verifies (compressed base64 is shorter than the input).
+module examples/runnable/stdlib_gzip
+
+import std/io (println)
+import std/gzip (compress, decompress)
+import std/bytes (fromString, toString, toBase64, fromBase64, length)
+import std/result (Result)
+
+-- Compress text, then decompress it, returning the recovered text (or an error).
+export func roundTrip(text: string) -> Result[string, string] {
+  let b64In = toBase64(fromString(text));
+  match compress(b64In, 9) {
+    Err(e) => Err("compress: ${e}"),
+    Ok(gzB64) => match decompress(gzB64) {
+      Err(e2) => Err("decompress: ${e2}"),
+      Ok(outB64) => match fromBase64(outB64) {
+        None => Err("bad base64 from decompress"),
+        Some(b) => Ok(toString(b))
+      }
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  let original = "AILANG AILANG AILANG AILANG AILANG AILANG AILANG AILANG";
+  println("original bytes: ${show(length(fromString(original)))}");
+
+  -- Headline: verify a lossless round-trip.
+  match roundTrip(original) {
+    Err(e) => println("error: ${e}"),
+    Ok(recovered) => println("round-trip lossless: ${show(recovered == original)}")
+  }
+}

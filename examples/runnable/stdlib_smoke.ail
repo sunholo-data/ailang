@@ -1,0 +1,27 @@
+-- std/smoke — helpers for package _smoke.ail boot probes
+-- Capabilities: IO only
+--
+-- Pattern: the canonical "exercise every advertised tool once" probe that AILANG
+-- packages put in their _smoke.ail (the v0.19.0 pre-publish smoke gate). Instead
+-- of a hand-rolled fold, dispatchAllTools iterates the tool names and calls a
+-- caller-supplied dispatch closure for each, printing an OK marker per tool.
+-- okSuite prints the conventional final "OK:" line the gate greps for.
+module examples/runnable/stdlib_smoke
+
+import std/io (println)
+import std/smoke (dispatchAllTools, dispatchTool, okSuite)
+
+-- A package under test typically wires `dispatch` to its real tool handler;
+-- here it just records that each advertised tool was reached without crashing.
+export func main() -> () ! {IO} {
+  let tools = ["search", "fetch", "summarize"];
+
+  -- Headline: exercise every advertised tool with one call.
+  dispatchAllTools(tools, \name. println("  -> exercised ${name}"));
+
+  -- Single-tool variant for opt-in probing.
+  dispatchTool("healthcheck", \name. println("  -> exercised ${name}"));
+
+  -- Conventional suite-complete marker.
+  okSuite("demo_package")
+}
