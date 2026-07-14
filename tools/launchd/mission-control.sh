@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # mission-control.sh — continuous outer-loop iterations for the V1 mission.
 #
-# Fires a headless Claude (Fable) session that runs the mission-control skill:
+# Fires a headless Claude session that runs the mission-control skill:
 # observe mission state → pick top backlog item → route through the inner-loop
 # skills (design-doc → sprint-plan → execute → evaluate) → record → retro.
 # See design_docs/v1-mission.md for the charter and guardrails.
@@ -10,6 +10,18 @@
 # guard below makes this effectively "back-to-back iterations, ≤2h idle gap".
 # Iterations are cloud-model work: they NEVER take rig.lock (GPU mutex only —
 # GPU-touching sprint steps take it per-step inside the session).
+#
+# MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
+# MISSION_MODEL_PREFS (default "claude-fable-5,claude-opus-4-8") is walked each
+# iteration with a 1-token probe; first usable model wins. A quota-limited
+# probe falls through to the next candidate; transient errors retry once.
+# Recovery is automatic: the moment Fable's probe succeeds again (weekly
+# reset), the loop is back on Fable — no dates, no human. Semantics of the
+# ordered list follow internal/ai/routing.go AIRoutingPolicy.Order (the
+# third-vocabulary rule in m-mission-adaptive-multiprovider-routing); it lives
+# in bash because the driver must select BEFORE any Go/claude process exists.
+# Manual pins still win: MISSION_MODEL env (absolute) or
+# ~/.ailang/state/mission-model ("<model> [expiry-epoch]", auto-expires).
 #
 # Kill switch: touch ~/.ailang/state/mission-control.disabled
 # Portable to macOS bash 3.2. No GNU timeout on this rig → bash watchdog below.
@@ -73,26 +85,55 @@ _mc_stalled() {
 }
 # ----------------------------------------------------------------------------
 
-# Controller model. Steady state is Fable. A time-boxed override file lets us
-# borrow a different model (e.g. Opus during a Fable-quota window) and REVERT
-# AUTOMATICALLY when it expires — no session or human needed. Format of
-# ~/.ailang/state/mission-model:  "<model> <expiry-epoch>". Past expiry, the
-# next iteration deletes it and falls back to the default, notifying #329.
-DEFAULT_MODEL="claude-fable-5"
+# --- model selection (fleet Phase A) -----------------------------------------
+PREFS="${MISSION_MODEL_PREFS:-claude-fable-5,claude-opus-4-8}"
 OVERRIDE_FILE="$HOME/.ailang/state/mission-model"
-MODEL="${MISSION_MODEL:-$DEFAULT_MODEL}"
-if [ -z "${MISSION_MODEL:-}" ] && [ -f "$OVERRIDE_FILE" ]; then
-  read -r OV_MODEL OV_UNTIL < "$OVERRIDE_FILE" 2>/dev/null || true
-  NOW=$(date +%s)
-  if [ -n "${OV_UNTIL:-}" ] && [ "$NOW" -ge "$OV_UNTIL" ]; then
-    rm -f "$OVERRIDE_FILE"
-    echo "[$(date '+%F %H:%M:%S')] model override expired — reverting to $DEFAULT_MODEL" | tee -a /tmp/ailang-mission-control.log
-    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
-      --body "🔁 Controller model override expired — the loop is back on **$DEFAULT_MODEL** (Fable) as of $(date '+%F %H:%M %Z'). Automatic revert, no action taken." 2>/dev/null || true
-  elif [ -n "${OV_MODEL:-}" ]; then
-    MODEL="$OV_MODEL"
+LAST_MODEL_FILE="$HOME/.ailang/state/mission-model-last"
+QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
+
+# _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2)
+_mc_probe() {
+  local m="$1" out rc
+  out=$(claude -p 'reply with exactly: ok' --model "$m" 2>&1); rc=$?
+  [ "$rc" -eq 0 ] && return 0
+  if printf '%s' "$out" | grep -qiE "$QUOTA_SIG"; then return 1; fi
+  # transient? retry once
+  sleep 5
+  out=$(claude -p 'reply with exactly: ok' --model "$m" 2>&1); rc=$?
+  [ "$rc" -eq 0 ] && return 0
+  printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
+  return 2
+}
+
+select_model() {
+  # 1. absolute pin
+  if [ -n "${MISSION_MODEL:-}" ]; then MODEL="$MISSION_MODEL"; MODEL_WHY="env pin"; return 0; fi
+  # 2. override file pin (optional expiry epoch)
+  if [ -f "$OVERRIDE_FILE" ]; then
+    local ov_model ov_until now
+    read -r ov_model ov_until < "$OVERRIDE_FILE" 2>/dev/null || true
+    now=$(date +%s)
+    if [ -n "${ov_until:-}" ] && [ "$now" -ge "${ov_until:-0}" ]; then
+      rm -f "$OVERRIDE_FILE"
+      log "model override expired — resuming preference probing"
+    elif [ -n "${ov_model:-}" ]; then
+      MODEL="$ov_model"; MODEL_WHY="override file"; return 0
+    fi
   fi
-fi
+  # 3. ordered preference probing
+  local m why rcode
+  for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
+    _mc_probe "$m"; rcode=$?
+    case "$rcode" in
+      0) MODEL="$m"; MODEL_WHY="probe ok"; return 0 ;;
+      1) log "model $m quota-limited — falling through" ;;
+      2) log "model $m unusable (auth/transient) — falling through" ;;
+    esac
+  done
+  return 1
+}
+# ----------------------------------------------------------------------------
+
 HARD_TIMEOUT="${MISSION_TIMEOUT:-21600}"   # 6h wall-clock kill per iteration
 # Stall watchdog (2026-07-12): a wedged unbounded poll loop (iteration 13's
 # `until COND; do sleep 30; done`) otherwise burns the whole 6h slot before
@@ -119,27 +160,7 @@ if pgrep -f "claude -p Run one mission" >/dev/null 2>&1; then
   log "previous iteration still running — yield (next interval retries)"; exit 0
 fi
 
-# 2. Subscription auth available? With API keys stripped above, claude can only
-#    bill the subscription — via CLAUDE_CODE_OAUTH_TOKEN if set, else the Keychain
-#    OAuth (works because this rig stays logged in; verified 2026-07-10: probe
-#    succeeds from this context with the key stripped). Probe cheaply before the
-#    real run so a locked keychain (e.g. rig at login screen post-reboot) fails
-#    loudly instead of wasting the iteration slot.
-if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "${MISSION_DRY_RUN:-0}" != "1" ]; then
-  if ! claude -p 'reply with exactly: ok' --model claude-haiku-4-5-20251001 >/dev/null 2>&1; then
-    log "auth probe FAILED with API keys stripped — no subscription auth available"
-    log "(keychain locked? rig at login screen?) Refusing to run."
-    ailang messages send controlplane \
-      "mission-control refused to start: no subscription auth (keychain probe failed, API keys deliberately stripped). Is the rig logged in? Optionally set CLAUDE_CODE_OAUTH_TOKEN in secrets.env." \
-      --title "Mission iteration blocked: auth probe failed" --from mission-control 2>/dev/null
-    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
-      --body "⚠️ Mission iteration did not start: subscription auth probe failed on the rig (API keys are deliberately stripped; keychain likely unavailable). Zero tokens spent. Will retry next interval." 2>/dev/null
-    exit 1
-  fi
-  log "auth probe ok (subscription via keychain OAuth)"
-fi
-
-# 3. claude CLI reachable?
+# 2. claude CLI reachable?
 if ! command -v claude >/dev/null 2>&1; then
   log "claude CLI not on PATH — abort"
   ailang messages send controlplane "mission-control driver: claude CLI not found on PATH" \
@@ -147,12 +168,35 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 1
 fi
 
-# 4. Dry run — verify wiring without spending tokens.
+# 3. Dry run — verify wiring without spending tokens (no probes fired).
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
-  log "DRY RUN ok: repo=$REPO model=$MODEL timeout=${HARD_TIMEOUT}s"; exit 0
+  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s"; exit 0
 fi
 
-log "=== mission iteration starting (model=$MODEL, timeout=${HARD_TIMEOUT}s) ==="
+# 4. Select the model (probe doubles as the subscription-auth check: API keys
+#    are stripped above, so a passing probe proves keychain/token auth too).
+if ! select_model; then
+  log "NO usable model in prefs ($PREFS) — quota-exhausted across candidates or auth dead. Refusing."
+  ailang messages send controlplane \
+    "mission-control refused to start: no usable model in prefs ($PREFS). Either every candidate is quota-limited or subscription auth is unavailable (keychain locked / rig at login screen?). Zero tokens spent beyond probes." \
+    --title "Mission iteration blocked: no usable model" --from mission-control 2>/dev/null
+  gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+    --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — all candidates quota-limited or auth unavailable. Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
+  exit 1
+fi
+
+# Announce model CHANGES on #329 (not every iteration — only transitions).
+PREV_MODEL=$(cat "$LAST_MODEL_FILE" 2>/dev/null || true)
+if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
+  printf '%s\n' "$MODEL" > "$LAST_MODEL_FILE"
+  if [ -n "${PREV_MODEL:-}" ]; then
+    log "controller model change: ${PREV_MODEL} → ${MODEL} (${MODEL_WHY})"
+    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+      --body "🔁 Controller model: **${PREV_MODEL} → ${MODEL}** (${MODEL_WHY}) at $(date '+%F %H:%M %Z'). Automatic — preference order \`$PREFS\`; reverts when a higher-preference probe succeeds again." 2>/dev/null || true
+  fi
+fi
+
+log "=== mission iteration starting (model=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 design_docs/v1-mission.md and follow its gates. You are a scheduled run; \

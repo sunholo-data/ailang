@@ -86,7 +86,7 @@ opencode, motoko, pi) — so Phase 2 is mostly wiring, not new capability.
 
 ### Phasing (A+B committed near-term; C–E opt-in as evidence accrues)
 
-- **Phase A — adaptive Claude-family fallback (~0.5d).** Preference list limited to Anthropic
+- **Phase A — adaptive Claude-family fallback: ✅ IMPLEMENTED 2026-07-14** (interactive Opus session, zero Fable spend; driver commit) — ordered `MISSION_MODEL_PREFS` probing with quota-signature fall-through + transient retry, model-change announcements to #329 (transitions only), manual pins preserved (env absolute > override file > probing). Probe doubles as the auth check (replaces the separate haiku probe). Fall-through live-tested (bogus→opus). Original scope: Preference list limited to Anthropic
   models (Fable → Opus). Probe-based selection replaces the hardcoded expiry override. Delivers
   self-monitoring + auto-recovery immediately, zero new provider surface.
 - **Phase B — design-doc QUORUM review (~1–2d; Mark's headline ask, and the cheapest
