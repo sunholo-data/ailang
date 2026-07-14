@@ -46,17 +46,6 @@ are IN; rig/cloud/motoko stay OUT. v1.0 queue ~14 → ~33 open items (clause-gro
 10 confirmed ghosts reconciled to implemented/; 2 conflicted docs kept OPEN pending repro. Full
 evidence: log entry 10.
 
-## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
-
-The outer-loop controller runs on **Opus** (`claude-opus-4-8`) through a **time-boxed override**
-that AUTO-REVERTS to Fable at **Mon 2026-07-13 07:00 CEST** (when Fable quota resets) — no session
-or human needed. Mechanism: driver default is Fable; `~/.ailang/state/mission-model` holds
-`claude-opus-4-8 <expiry-epoch>`; the first iteration past expiry deletes it, falls back to Fable,
-and posts to #329. Reason: Fable quota relief (Mark). Both paths test-verified. Consequence in the
-routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus) — mitigation
-available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
-sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
-
 ## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
 
 Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in
@@ -71,6 +60,27 @@ caps with zero-spend pre-flight refusal, JSON artifact + mission-log block (seed
 E). Full quorum live test: $0.0074. Evaluator round-1 PASS 94/100 (independent live re-runs,
 spend figures reproduced within 3%, prompt-injection probe held); 4 warts hardened pre-merge
 (`027523b44`). Phases C/D/E remain queued opt-in. Detail: log entry 31.
+
+## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
+
+The clause-3 queue head shipped end-to-end headless: the stale v0.10.1-era doc was re-scoped on
+live HEAD data, then became the **first live Tier-1 design-quorum subject** — 5 reject-by-default
+rounds, EVERY objection a real spec gap (installed-binary path resolution; downloader-manifest
+premise; CI step lifecycle; modules-field drift enforcement; parser-backed extraction; the
+`known-broken` status that didn't exist). Result: the Opus planner found ZERO premise
+discrepancies (first time in 5 iterations — the quorum front-loaded the corrections mid-sprint
+planners had been making). Shipped: 5 red examples quarantined under issue #386 (bisect
+inconclusive→quarantine per decision rule; real trigger root-caused: `show()` in effectful-lambda
+interpolation collapses effect rows — fix forbidden in-sprint, routed to #386); 6 new stdlib
+examples (all 6 zero-importer modules covered); the triple-defeated verify-examples gate made
+REAL (3 `|| true` layers fixed + self-test + `validate_manifest --ci` wired, non-vacuity proven
+both directions); `docs --examples` un-inert (manifest `modules` field, parser-backed backfill +
+drift lint, installed-binary test). Evaluator round 1 FAIL 81/100 on ONE Windows path-separator
+defect → one-line hardening `881711325` → all checks green incl. both Windows jobs = round-2
+PASS. Nightly "regression" (state_machine_vending) RULED OUT as model variance — yesterday's
+passing solution compiles clean at HEAD. Quorum frictions recorded: no termination rule
+(reject-by-default can block forever; controller synthesized after round 5 with recorded
+dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
 
 ## CURRENT GOAL
 
@@ -384,9 +394,14 @@ PR #379 → `ea8116f83`, dev CI green observed. Same iteration EXECUTED
 see queue item 16). The parser/type footgun row is now FULLY BURNED DOWN (m-xmod-alias-poly
 landed iter 26). **Iteration 27 (2026-07-14) opened the Prelude/discovery group:
 m-prelude-option-result LANDED (PASS 98/100 round 1, mission high; PR #382 → `d26215341`) +
-m-prompt-option-none-idiom closed SUPERSEDED by it. Remaining clause-3 starters:
-m-dx-ai-discovery (2d) or m-dx-examples-coverage (1d) — both have docs at planned/v0_29_0
-(grep-verified); apply Gate-2 live-repro before routing.**
+m-prompt-option-none-idiom closed SUPERSEDED by it. **Iteration 29 (2026-07-14) EXECUTED
+m-dx-examples-coverage → LANDED** (doc re-scoped through the FIRST LIVE 5-round quorum, PR #392
+→ `3d451947c`, eval round-2 PASS after a one-line Windows fix `881711325`; 5 red examples
+quarantined under #386, verify-examples now a REAL CI gate, docs --examples un-inert —
+doc → implemented/v0_30_0). Remaining clause-3 starter: m-dx-ai-discovery (2d, doc at
+planned/v0_29_0, NOTE: partially superseded — iter-28 probe found `ailang docs`/`ailang
+examples` already exist and iter-29 landed the examples linkage; apply Gate-2 live-repro
+before routing).**
 **Iteration 22 (2026-07-13) front-ran R4a with a regression-derived NEW-DOC pick** (nightly
 `higher_order_functions` triage → real decl-class resolver gap #366); **iteration 23 EXECUTED it
 → LANDED** (PR #368 → `fd38ec14e`, eval PASS 98/100 round 1 — queue item 15). Full inner-loop
@@ -449,8 +464,11 @@ triage evidence = log entry 10.)*
   cacheKeyVersion bump (verified); 15 new tests, 0 deletions; eval PASS 98/100 round 1 (mission
   high; 20 adversarial probes incl. entry-only through real multi-module runs + PR-#381 alias-env
   non-interaction); PR #382 → `d26215341`, dev CI green per-workflow observed]** ·
-  m-dx-ai-discovery (2d) · m-dx-examples-coverage (1d) · 20251013_auto_caps (infer caps, 2d) ·
-  m-dx-expected-fail-fixes (1–2d)
+  m-dx-ai-discovery (2d) · ~~m-dx-examples-coverage (1d)~~ **[LANDED iter 29 →
+  implemented/v0_30_0; first live 5-round quorum subject; PR #392 → `3d451947c`; 5 red examples
+  quarantined under #386; verify-examples now a real gate + validate_manifest --ci wired;
+  docs --examples un-inert via manifest `modules` field]** · 20251013_auto_caps (infer caps,
+  2d) · m-dx-expected-fail-fixes (1–2d)
 - **Prompt teaching** (batchable, ~0.5d each): ~~m-prompt-option-none-idiom~~ **[SUPERSEDED
   2026-07-14 by m-prelude-option-result's structural fix (its own doc named this band-aid as
   superseded-on-ship); prompt v0.16.2 already teaches the prelude availability; doc → archive/

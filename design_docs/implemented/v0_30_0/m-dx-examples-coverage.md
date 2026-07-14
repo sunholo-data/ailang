@@ -1,8 +1,44 @@
 # M-DX-EXAMPLES-COVERAGE: Close the Examples Gap — Coverage, a Real CI Gate, and a Working `--examples` Flag
 
-**Status**: Planned (RE-SCOPED 2026-07-14, mission iteration 29 — the original v0.10.1-era doc
-was fully stale: its 7-module solution table is superseded, every listed module now has
-coverage; verified below)
+**Status**: Implemented (2026-07-14, mission iteration 29 — PR #392 → squash `3d451947c`, dev
+CI green per-workflow observed; re-scoped same day from the fully-stale v0.10.1-era version and
+reviewed through the FIRST LIVE 5-round design quorum before planning)
+
+## Implementation Report (2026-07-14)
+
+Executed headless by the Opus sprint-executor in worktree `sprint/m-dx-examples-coverage`
+(5 milestone commits + 1 hardening), independent evaluation round 1 FAIL 81/100 (single
+sprint-introduced Windows path-separator defect) → hardening `881711325` → round-2 PASS, all
+PR checks green including both Windows jobs.
+
+- **M1 (`3b6ab098f`)**: bisect INCONCLUSIVE (first-bad landed on a docs-only commit —
+  corrupted by go-build binary caching under `2>/dev/null`); per decision rule → quarantine.
+  Real trigger additionally root-caused by in-file bisection: `show()` inside a string
+  interpolation inside an effectful lambda collapses the combinator effect row to closed-empty
+  (4 files); mcp_tools is a separate `getString`→`Option[string]` API change. All 5 quarantined
+  (skippedExamples reason = issue URL, manifest `status: broken`) under **issue #386** (owner +
+  5-file closing checklist). No `internal/types`/`internal/effects` changes (forbidden zone
+  verified empty by the evaluator).
+- **M2 (`d8b43e7c0`)**: 6 new deterministic examples — all six zero-importer modules covered.
+- **M3 (`a283caafd`)**: all three `|| true` defeat layers fixed; artifacts written
+  unconditionally then exit re-raised; `if: always()` on the trace step; `validate_manifest
+  --ci` wired; gate self-test. Non-vacuity proven BOTH directions by the evaluator (sprint:
+  broken example → exit 2 + artifacts written; base: same breakage → exit 0).
+- **M4 (`6352c6d35`)**: additive manifest `modules` field, parser-backed extraction
+  (`scripts/internal/importextract`, ast.File.Imports) shared by backfill + drift lint;
+  `docs --examples` Try-it section; installed-binary integration test (AILANG_EXAMPLES temp
+  layout, no network). 108 entries backfilled.
+- **M5 (`b40d976f8`)**: CHANGELOG + issue #341 comment. Hardening (`881711325`): slash-form
+  Try-it paths (Windows), mcp_tools quarantine manifest entry + stats recalc.
+- **Declared deviations**: `validate_manifest.go` REWRITTEN (legacy version could not even
+  load the real manifest — wrong path prefixes, nil-deref, no --caps; evaluator judged the
+  relaxation justified: old strict Validate would have rejected the real manifest, and the
+  old validator was wired into nothing); `aspirational` status added to the schema;
+  SharedIndex cap spec added to the verifier.
+- **Known follow-ups**: #386 (effect-row regression under the 5 quarantined examples);
+  examples_report.json invalid-JSON-on-failure (pre-existing, now the gating case — backlog);
+  examples_status.md doesn't show skip reasons; manifest `expected` unenforced (pre-existing);
+  self-tests manual-only.
 **Target**: v0.30.x
 **Priority**: P2 (DX / clause-3 accessibility — mid-tier models and humans both learn from
 runnable examples; a silent example-rot gate is a standing trust leak)

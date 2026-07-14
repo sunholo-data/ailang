@@ -3,6 +3,17 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-11 (evening) — CONTROLLER MODEL: Fable → Opus (quota relief, Mark)
+
+The outer-loop controller runs on **Opus** (`claude-opus-4-8`) through a **time-boxed override**
+that AUTO-REVERTS to Fable at **Mon 2026-07-13 07:00 CEST** (when Fable quota resets) — no session
+or human needed. Mechanism: driver default is Fable; `~/.ailang/state/mission-model` holds
+`claude-opus-4-8 <expiry-epoch>`; the first iteration past expiry deletes it, falls back to Fable,
+and posts to #329. Reason: Fable quota relief (Mark). Both paths test-verified. Consequence in the
+routing table: while on Opus, evaluation is model-homogeneous (Opus judges Opus) — mitigation
+available (distinct-model skeptic evaluator) but left off. To go back to Fable EARLY (more quota
+sooner): `rm ~/.ailang/state/mission-model`. To extend Opus: bump the epoch in that file.
+
 ## STATUS 2026-07-14 (night) — ITERATION 27: `m-prelude-option-result` VERIFIED REAL + EXECUTED + LANDED (round-1 PASS 98/100, mission high) → PR #382 `d26215341`; Option/Result now prelude in entry modules
 
 The #1 structural AI-DX friction (6% of recent compile failures, "forgot `import std/option`")

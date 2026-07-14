@@ -2546,3 +2546,129 @@ D / E remain opt-in.
 - controller (in-session, not an API call) → **pass** — Round 5 (TERMINAL — declared terminal action: pass=proceed, immaterial-reject=proceed with recorded dissent, material-new-reject=park needs-human-review). R4 objection applied verbatim: import extraction is now specified as PARSER-BACKED via one shared function (internal/parser Parser.ParseFile -> ast.File.Imports []*ImportDecl, both verified present at ast.go:140/parser_file.go:13) used by BOTH backfill and validate_manifest drift assertion — no line/regex scanning anywhere; aliases/selective/multiline/comments/duplicates handled by the compiler's own grammar; unparseable examples are already red via the verify gate so the extractor never guesses.
 - Blocking objections (return to author before planning):
   - gpt5-6-sol: Phase 1 relies on changing entries to `status: "known-broken"` to unblock the gate, but the document never verifies that this is a valid manifest status or that `verify_examples.go` handles it as claimed. This unverified behavior is central to making Phase 3 landable and could either break validation or silently exclude genuine regressions from the purported real CI gate.
+
+## 32 — 2026-07-14 — Iteration 29: m-dx-examples-coverage LANDED (PR #392, round-2 PASS after 1-line Windows fix) — FIRST LIVE QUORUM: 5 rounds, 5 real catches, then a zero-discrepancy plan
+
+**Picked**: **m-dx-examples-coverage** (clause-3 queue head, 1d, per log-31's Next). Inbox
+first (Gate 0.4): nightly flagged a solid→broken REGRESSION (`state_machine_vending`,
+compile_error, 2/2 trials) — triaged BEFORE the pick and RULED OUT (below), so the queue kept
+priority. 7 messages acked. Fresh-origin landed-check clean (grep + PR search on a
+just-fetched origin/dev); sibling-session CLAIM message sent before routing (a sibling was
+live: dirty sprint_M-CODEGEN-IR.json + dependabot merges advanced origin mid-iteration).
+
+**Reality check** (Gate 2): all iter-28 probe claims re-verified live at HEAD with two deltas
+(zero-importer set is embedding/game/gzip/sharedindex/simhash/**smoke** — trace moved to 1;
+and the CI gate is TRIPLE-defeated, not single: ci.yml:205 `|| true` + a `grep "Failed: 0"`
+that can never match the actual summary format + `make/examples.mk` recipe-level `|| true`,
+so even local `make ci` never gated). 5 examples red at HEAD (issue #341 confirmed live);
+`docs --examples` proven inert by byte-identical diff + mechanism read (docs.go comment-parsing
+only). Doc re-scoped in place (planned/v0_29_0) on this data.
+
+**FIRST LIVE QUORUM** (the log-31 Next item + the precondition in Mark's
+m-mission-quorum-agentic-verify — now satisfied; 5 artifacts in .ailang/state/mission-quorum/):
+`ailang design-quorum` on the re-scoped doc, 5 rounds, ALL blocked (reject-by-default), total
+~$0.16. **Every objection was a real spec gap**, each fixed with fresh code-verification rows
+in the doc: r1 installed-binary path resolution (answer: findExamplesDir 4-step machinery,
+read live) · r2 downloader-manifest premise (proven: release.yml:138 packages manifest.json;
+examples.go:553 verifies post-extract) + CI step lifecycle (if: always() on the trace step;
+verified no other in-job consumer) · r3 modules-field drift enforcement (extend the
+existing-but-unwired validate_manifest.go) + reuse justification + O(1)→linear correction ·
+r4 parser-backed import extraction (ast.File.Imports, one shared function) · r5 the quarantine
+draft used a NONEXISTENT manifest status ("known-broken" — valid enums are
+working/broken/experimental) AND the wrong mechanism (verifier skips via its hardcoded
+skippedExamples map, not the manifest). Controller synthesized PROCEED after round 5 with
+recorded dissent (materiality strictly decreasing; the contract grants reviewers no gating
+authority). Measured payoff: **the Opus planner then found ZERO premise discrepancies — first
+zero-discrepancy plan in 5 iterations** (iters 25–28 all had the planner correcting doc
+premises mid-loop).
+
+**Shipped** (PR #392 → squash `3d451947c`; dev CI green OBSERVED per-workflow on the merge SHA
+— CI + Build-and-Release via 35-min bounded poll, Docs Deploy success too):
+- **Opus executor** (worktree, 5 milestone commits): M1 bisect INCONCLUSIVE (go-build caching
+  corrupted the automated bisect — first-bad landed on a docs-only commit; caught) → quarantine
+  branch per decision rule, with the real trigger still root-caused in-file (`show()` in
+  effectful-lambda interpolation collapses effect rows; mcp_tools separately hit the
+  getString→Option[string] API change); 5 files quarantined under NEW issue #386 (owner +
+  closing checklist); FORBIDDEN internal/types|effects zone verified untouched. M2 six new
+  stdlib examples — all six zero-importer modules now covered. M3 gate made real (3 defeat
+  layers fixed, artifacts still written unconditionally, gate self-test, validate_manifest
+  --ci wired). M4 docs --examples un-inert (manifest `modules` field, parser-backed
+  importextract package shared by backfill + drift lint, installed-binary integration test,
+  108 entries backfilled). M5 CHANGELOG + #341 comment. Declared deviations incl.
+  validate_manifest.go REWRITE (legacy version couldn't load the real manifest).
+- **Independent evaluator round 1: FAIL 81/100** — ONE sprint-introduced defect (exampleRunPath
+  rendered backslash paths on Windows; TestDocsExamples_InstalledBinaryLayout red on BOTH
+  Windows CI jobs) + adversarial verification of everything else PASSED (non-vacuity BOTH
+  directions: broken example fails the sprint gate with artifacts written AND passes silently
+  on base — the gate was really dead before; deviation scrutiny JUSTIFIED the Validate
+  relaxation: the old strict validator would have rejected the real manifest and was wired
+  into nothing; zero test deletions repo-wide).
+- **Round-2 hardening `881711325`** (controller, iter-25/28 precedent): filepath.ToSlash on
+  Try-it paths + the missing mcp_tools quarantine manifest entry (+stats recalc, drift-lint
+  green). All PR checks green incl. test-windows + Build windows-latest = **round-2 PASS**.
+
+**Routing evidence**: model=quorum(text-tier gpt5-6-sol + gemini-3-1-pro) task-class=design-review
+round1..5=blocked catches=5-real cost=$0.16 (payoff: first zero-discrepancy plan in 5
+iterations; ALSO: no termination rule — 5 reject-by-default rounds needed controller synthesis;
+gemini unreachable 3/5 calls "no content in response") · model=Opus task-class=plan
+discrepancies=0 · model=Opus task-class=execute round1-score=81 rounds=2 corrections=1
+(Windows path separator; all deviations declared) · model=Fable task-class=evaluate
+(independent agent; found the cross-platform defect the executor missed; both-directions
+non-vacuity; deviation scrutiny with decisive evidence) · model=Fable
+task-class=controller/bookkeeping/hardening.
+
+**Ruled out**:
+- "state_machine_vending is an AILANG regression" — REFUTED: yesterday's passing solution
+  compiles clean at today's binary; the two failing trials have DIFFERENT parse errors (model
+  output variance, the known compile-stuck class); same prompt version v0.16.2/model/seed.
+  No compiler change involved.
+- "the 5 red examples broke at docs-only commit 607b5b5df" (automated bisect) — REFUTED:
+  clean rebuild passes at that commit AND its parent; the bisect run was corrupted by go-build
+  binary caching under 2>/dev/null. Bisect hygiene: always build to a fresh temp path.
+- "docs --examples needs new path-discovery machinery" (quorum r1 premise) — REFUTED:
+  findExamplesDir already resolves installed-binary layouts incl. ~/.ailang/examples via
+  `ailang examples download`; release.zip ships the manifest.
+- "AILANG_STDLIB_PATH failure at /tmp is sprint-caused" — REFUTED by evaluator: base binary
+  fails identically (pre-existing).
+
+**Gate 3b**: every wait bounded — PR-checks poll 35-min cap (settled green), merge-SHA
+per-workflow poll 35-min cap (green at 13:09). One self-inflicted near-miss: I hand-expanded
+the short merge SHA into a FABRICATED full SHA inside the first poll (would have burned the
+full timeout matching nothing); caught within a minute, poll killed and restarted with the
+fetched oid. Lesson saved to memory: never retype/expand SHAs — fetch them in the same block.
+
+**Retro lane** (each friction → ONE lane):
+- **Quorum termination rule missing** (reject-by-default can block forever; controller
+  synthesized after 5 rounds) → recorded as friction #1 for design-doc-creator's quorum
+  section; NO skill edit yet (rule requires ≥2 frictions pointing at the same gap — this is
+  the first live instance). If the next quorum use loops again, edit the skill with both
+  citations (proposal on file: max-3-rounds then controller synthesis with recorded dissent
+  or park, mirroring sprint-evaluator).
+- **gemini-3-1-pro unreachable 3/5** ("no content in response", intermittent same-session) →
+  carry-forward watch item; candidate mechanical fix: one retry in the quorum caller
+  (relevant to Mark's m-mission-quorum-agentic-verify which builds on this plumbing).
+- **Bisect binary-caching corruption** (executor) → single friction, carry; candidate
+  sprint-executor note if it recurs.
+- **Backlog seeds from the evaluator** (all pre-existing, none blocking): examples_report.json
+  is invalid JSON on failing runs (now the gating case — worth fixing when next touched);
+  examples_status.md omits skip reasons; manifest `expected` unenforced; self-tests
+  manual-only.
+
+**Next**: Iteration 30 — remaining clause-3 starter **m-dx-ai-discovery (2d)** with a MANDATORY
+scope check at Gate 2: iter-28/29 landed `ailang docs`/`ailang examples` improvements that
+partially supersede its doc (7-module solution table already stale then; now more so). If
+mostly superseded → close-with-guard + take a second bookkeeping pick. Other interleave:
+m-arch-boundaries P1–3 (approved, loop-executable). Quorum: use again on the NEXT new/revised
+doc; watch for the termination-rule friction recurring (would justify the skill edit).
+
+**Carry forward** UNCHANGED from iter 28 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies incl. TestNetHttpPost-httpbin
+[hit again this iteration, external 503]; MOD007 veto window; alias-import prelude edge;
+executor evidence-artifact watch; docs-site CLI reference for design-review/design-quorum;
+quorum-on-sprint-plans decision; fleet C/D/E opt-in) **MINUS** issue #341 (closed by PR #392's
+`Fixes #341`) and the dead `make verify-stdlib` gate row's sibling concern (verify-examples is
+now a REAL gate; the verify-stdlib target itself still needs its fix-or-delete). **NEW**:
+issue #386 (effect-row regression, 5 quarantined examples — a REAL internal/types candidate
+for a future NEW-DOC pick with mandatory Conflict Surface); gemini quorum-reviewer retry;
+quorum termination-rule friction #1 on file.
