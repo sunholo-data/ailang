@@ -10,24 +10,59 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.30.0
 
+- [Arity-Style Diagnostic (m-arity-style-diagnostic)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arity-style-diagnostic.md)
+- [M-DX-AI-DISCOVERY — Sprint Plan (Executor Handoff)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery-sprint-plan.md)
+- [M-DX-AI-DISCOVERY: One-Shot Stdlib Discovery for AI Agents (RE-SCOPED)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery.md)
+- [M-DX-EXAMPLES-COVERAGE: Close the Examples Gap — Coverage, a Real CI Gate, and a Working `--examples` Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-examples-coverage.md)
+- [M-DX-JSON-BOOL: JSON Boolean Coercion and Firestore Encoding Consistency](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-json-bool-coercion.md)
+- [M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-record-cons-pattern.md)
+- [Sprint Plan: M-DX-SPLIT-ARG — Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-split-argument-warning-sprint-plan.md)
+- [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-split-argument-warning.md)
+- [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-tapp-trecord-unification.md)
 - [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
+- [Sprint Plan: M-LAMBDA-OPEN-RECORD-PATTERN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-lambda-open-record-pattern-sprint-plan.md)
+- [M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-lambda-open-record-pattern.md)
+- [Sprint Plan — M-MATCH-XCHECK-ERROR-QUALITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-match-xcheck-error-quality-sprint-plan.md)
+- [M-MATCH-XCHECK-ERROR-QUALITY — `MatchForeignConstructorError` shows empty constructor list for non-imported ADTs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-match-xcheck-error-quality.md)
+- [Sprint Plan — M-MODLESS-FAIL-LOUD (MOD014)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-module-less-run-fail-loud-sprint-plan.md)
+- [M-MODULE-LESS-RUN-FAIL-LOUD: `ailang run`/`check` must not silently succeed on a module-less file](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-module-less-run-fail-loud.md)
+- [Sprint Plan: M-MODULE-LET-FUNC-RESOLUTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-module-let-func-resolution-sprint-plan.md)
+- [M-MODULE-LET-FUNC-RESOLUTION: Module-level lets cannot reference module funcs (false "undefined variable"; hint cites closed #327)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-module-let-func-resolution.md)
+- [Sprint Plan — M-PRELUDE-OPTION-RESULT (mission iter 27)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prelude-option-result-sprint-plan.md)
+- [M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prelude-option-result.md)
+- [Sprint Plan: M-PUBLIC-FEEDBACK-DELIVERY-AUDIT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-public-feedback-delivery-audit-sprint-plan.md)
+- [M-PUBLIC-FEEDBACK-DELIVERY-AUDIT: external feedback isn't reaching Discord (or the inbox)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-public-feedback-delivery-audit.md)
 - [Sprint Plan — m-stdlib-regex (Linear-Time RE2 Regex Builtin)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex-sprint-plan.md)
 - [m-stdlib-regex — Linear-Time (RE2) Regex Builtin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex.md)
+- [m-stdlib-url-parse — RFC-3986 URL Parsing via Go net/url](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-url-parse.md)
 - [Sprint Plan: M-SYNTAX-AI-FORGIVING — Forgiving statement-separator syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-syntax-ai-forgiving-sprint-plan.md)
 - [M-SYNTAX-AI-FORGIVING: Forgiving statement syntax — accept the AI's newline-separator prior](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-syntax-ai-forgiving.md)
+- [Sprint Plan: M-XMOD-ALIAS-POLY — Parameterized Type-Alias Substitution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-xmod-alias-poly-sprint-plan.md)
+- [m xmod alias poly](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-xmod-alias-poly.md)
 - [Sprint Plan: M-EFFECT-MODE-VALIDATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/sprint-m-effect-mode-validation.md)
 
 ## v0.29.0
 
+- [Ghost reconciliation — 2026-07-12 (v1.0 backlog triage)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/GHOSTS-RECONCILED-2026-07-12.md)
+- [M-CLOUD-OBSERVATORY: Observatory Firestore Backend for Cloud Run](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-cloud-observatory.md)
+- [M-DASHBOARD-PUBSUB-EVENTS: Dashboard Pub/Sub Event Subscriber](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-dashboard-pubsub-events.md)
+- [M-DIAGNOSTIC-COVERAGE: The footgun coverage table — error-time teaching with CI-enforced fix-carrying diagnostics (R1.1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-diagnostic-coverage.md)
+- [M-EFFECT-ROW-POLY-PARAMS — Effect-row polymorphism on higher-order arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-effect-row-poly-params.md)
+- [M-EVAL-BOUNDED-PIPELINE: Fused Bounded Combinators + Memory Ceiling](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-bounded-pipeline.md)
 - [M-EVAL-FRONTIER-TIER — Saturation Demotion Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-frontier-tier-demotion-audit.md)
 - [M-EVAL-FRONTIER-TIER: A harder benchmark tier + curation to de-saturate the suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-frontier-tier.md)
+- [M-EVAL-LOCAL-OLLAMA — Optimize eval-suite for local Ollama models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-eval-local-ollama.md)
 - [M-FEEDBACK-GATE-CLOUD-ADAPTER: Firestore stores + classifier wiring for the feedback gate](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-feedback-gate-cloud-adapter.md)
 - [M-FEEDBACK-TRIAGE-GATE: Cost & abuse gate for the public feedback → agent pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-feedback-triage-gate.md)
+- [M-FILE-HANDLING: fileData/fileUri Support & serve-api POST Param Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-file-handling-improvements.md)
+- [Improve Module Loading Error Messages for Standalone/Scratch Files](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-module-error-messages.md)
 - [M-NAMED-TEST-BLOCKS: Execute `test "name" { ... }` blocks — and stop reporting skipped suites as passing](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-named-test-blocks.md)
+- [M-RECORD-UPDATE-LOCAL-RESOLUTION: Local functions in record-update fields resolve as "undefined variable" (#327)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-record-update-local-resolution.md)
 - [M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-typeenv-sub-fix.md)
 - [Sprint Plan: M-TYPEENV-SUB — TypeEnv Substitution Gap (ADT return types lost in exports)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-typeenv-sub-sprint-plan.md)
 - [Sprint Plan: M-V1-STABILITY-PROMISE — The 1.x Stable-Surface Promise](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise-sprint-plan.md)
 - [M-V1-STABILITY-PROMISE: The 1.x Stable-Surface Promise](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md)
+- [M-WASM-TYPECHECK-LIMITS — depth-budget guard + clear error for WASM type-checker overflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-wasm-typecheck-limits.md)
 - [Sprint Plan: M-FEEDBACK-GATE-CLOUD-ADAPTER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/sprint-m-feedback-gate-cloud-adapter.md)
 - [Sprint Plan: M-FEEDBACK-TRIAGE-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/sprint-m-feedback-triage-gate.md)
 
@@ -1262,4 +1297,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 901 design documents across 117 versions.*
+*Generated at build time. 936 design documents across 117 versions.*
