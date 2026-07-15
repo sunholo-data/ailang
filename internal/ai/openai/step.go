@@ -89,7 +89,7 @@ func logAIWire(url string, reqBody, respBody []byte) {
 // ai.ClassifyError. The inner error.message field of an OpenAI error
 // envelope, when present, is hoisted into the AIError.Message for clarity.
 func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if req.Routing != nil && req.Routing.HasRouting() {
+	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
 		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
 			"openai: AIRoutingPolicy not supported; use openrouter instead", false)
 	}

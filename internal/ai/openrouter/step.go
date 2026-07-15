@@ -68,7 +68,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// Wrap the shared body in an OpenRouter-extended envelope that adds the
 	// optional `provider` field. We marshal the wrapped struct so the wire
 	// JSON is exactly: { ...chat completions fields, provider?: {...} }.
-	body, marshalErr := marshalStepBodyWithProvider(chatReq, translatePolicy(req.Routing))
+	provider, rerr := translatePolicy(req.Routing)
+	if rerr != nil {
+		e := ai.NewAIError(ai.CodeSchemaValidation,
+			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+	body, marshalErr := marshalStepBodyWithProvider(chatReq, provider)
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal request: %v", marshalErr), false)

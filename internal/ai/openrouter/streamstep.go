@@ -73,7 +73,14 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	//      openrouter.ai/api/v1: without this flag OR drops reasoning
 	//      silently regardless of underlying provider's native field name)
 	extras := [][]byte{[]byte(`"include_reasoning":true`)}
-	if pf := translatePolicy(req.Routing); pf != nil {
+	pf, rerr := translatePolicy(req.Routing)
+	if rerr != nil {
+		e := ai.NewAIError(ai.CodeSchemaValidation,
+			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+	if pf != nil {
 		pfBytes, marshalErr := json.Marshal(pf)
 		if marshalErr != nil {
 			e := ai.NewAIError(ai.CodeInternal,

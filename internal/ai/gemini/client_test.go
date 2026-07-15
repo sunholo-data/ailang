@@ -496,3 +496,21 @@ func TestGenerate_RejectsRoutingPolicy(t *testing.T) {
 		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }
+
+// TestGenerate_RejectsPriceCapOnlyPolicy ensures a max-price cost cap is refused
+// rather than silently ignored. Gemini cannot enforce a per-token price cap, so
+// a policy carrying one (even with no Order/AllowFallback) must fail loud.
+func TestGenerate_RejectsPriceCapOnlyPolicy(t *testing.T) {
+	client := NewClient("test-key")
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "gemini-2.5-flash",
+		UserPrompt: "hi",
+		Routing:    &ai.AIRoutingPolicy{MaxPricePerMTok: "0.005"},
+	})
+	if err == nil {
+		t.Fatal("expected error rejecting price-cap policy, got nil")
+	}
+	if !errors.Is(err, ai.ErrRoutingNotSupported) {
+		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
+	}
+}

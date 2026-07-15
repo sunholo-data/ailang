@@ -7,7 +7,12 @@
 // callers cannot accidentally mask their intent (no silent fallbacks).
 package ai
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // RoutePreference is the optimization target for routing.
 //
@@ -61,11 +66,9 @@ type AIRoutingPolicy struct {
 	// MaxPricePerMTok caps the price per million tokens in USD.
 	// Empty string = no cap. Stored as string for precision.
 	//
-	// NOTE: In M2 this field is currently NOT forwarded to OpenRouter — their
-	// per-call max-price filter lives under `transforms` which is explicitly
-	// deferred per the v0.16.0 design doc. The field is preserved on the IR
-	// so callers can express the intent today and a follow-up milestone can
-	// wire it through without breaking the API.
+	// Forwarded to OpenRouter as provider.max_price.{prompt,completion}
+	// (both legs share the single cap); providers priced above it are
+	// excluded. Use ParsedMaxPrice to read the validated numeric value.
 	MaxPricePerMTok string
 
 	// Prefer is the optimization target.
@@ -86,6 +89,26 @@ func (p *AIRoutingPolicy) IsZero() bool {
 		p.Prefer == PreferUnspecified
 }
 
+// ParsedMaxPrice returns the numeric max-price cap in USD per million tokens.
+// ok is false when no cap is set (nil policy or empty string). Returns an error
+// when the string is set but not a valid non-negative number — callers MUST
+// surface this rather than dropping the cap, since a silently-ignored price
+// guard is worse than no guard at all.
+func (p *AIRoutingPolicy) ParsedMaxPrice() (value float64, ok bool, err error) {
+	if p == nil || strings.TrimSpace(p.MaxPricePerMTok) == "" {
+		return 0, false, nil
+	}
+	raw := strings.TrimSpace(p.MaxPricePerMTok)
+	v, perr := strconv.ParseFloat(raw, 64)
+	if perr != nil {
+		return 0, false, fmt.Errorf("invalid max price %q: must be a number in USD per million tokens", p.MaxPricePerMTok)
+	}
+	if v < 0 {
+		return 0, false, fmt.Errorf("invalid max price %q: must be non-negative", p.MaxPricePerMTok)
+	}
+	return v, true, nil
+}
+
 // HasRouting returns true if the policy actually requests provider routing
 // (non-empty Order or AllowFallback). Used by non-OpenRouter providers to
 // decide whether to reject the request.
@@ -99,6 +122,15 @@ func (p *AIRoutingPolicy) HasRouting() bool {
 		return false
 	}
 	return len(p.Order) > 0 || p.AllowFallback
+}
+
+// PriceCapSet reports whether the policy carries a non-empty max-price cost
+// cap. Only OpenRouter can enforce this (via provider.max_price); every other
+// provider MUST reject a policy for which this is true rather than silently
+// ignoring the cap — a cost guard the caller believes is active but isn't is
+// worse than no guard at all.
+func (p *AIRoutingPolicy) PriceCapSet() bool {
+	return p != nil && strings.TrimSpace(p.MaxPricePerMTok) != ""
 }
 
 // ErrRoutingNotSupported is returned by providers that do not support routing

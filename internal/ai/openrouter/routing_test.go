@@ -12,13 +12,21 @@ import (
 )
 
 func TestTranslatePolicy_Nil(t *testing.T) {
-	if got := translatePolicy(nil); got != nil {
+	got, err := translatePolicy(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != nil {
 		t.Errorf("translatePolicy(nil) = %+v, want nil", got)
 	}
 }
 
 func TestTranslatePolicy_ZeroValue(t *testing.T) {
-	if got := translatePolicy(&ai.AIRoutingPolicy{}); got != nil {
+	got, err := translatePolicy(&ai.AIRoutingPolicy{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != nil {
 		t.Errorf("translatePolicy(zero) = %+v, want nil", got)
 	}
 }
@@ -28,7 +36,10 @@ func TestTranslatePolicy_OrderAndFallback(t *testing.T) {
 		Order:         []string{"anthropic", "openai", "google"},
 		AllowFallback: true,
 	}
-	got := translatePolicy(pol)
+	got, err := translatePolicy(pol)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got == nil {
 		t.Fatal("translatePolicy returned nil for non-zero policy")
 	}
@@ -48,7 +59,10 @@ func TestTranslatePolicy_AllowFallbackFalseWithOrder(t *testing.T) {
 		Order:         []string{"anthropic"},
 		AllowFallback: false,
 	}
-	got := translatePolicy(pol)
+	got, err := translatePolicy(pol)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got == nil {
 		t.Fatal("translatePolicy returned nil")
 	}
@@ -81,7 +95,10 @@ func TestTranslatePolicy_RequireParameters(t *testing.T) {
 			ai.CapJSONMode,
 		},
 	}
-	got := translatePolicy(pol)
+	got, err := translatePolicy(pol)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got == nil {
 		t.Fatal("translatePolicy returned nil")
 	}
@@ -108,7 +125,10 @@ func TestTranslatePolicy_PreferMapping(t *testing.T) {
 				Order:  []string{"anthropic"},
 				Prefer: c.pref,
 			}
-			got := translatePolicy(pol)
+			got, err := translatePolicy(pol)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			if got == nil {
 				t.Fatal("nil result")
 			}
@@ -119,21 +139,30 @@ func TestTranslatePolicy_PreferMapping(t *testing.T) {
 	}
 }
 
-// TestTranslatePolicy_MaxPriceIgnored documents the deferred-by-design
-// behaviour: MaxPricePerMTok is silently dropped in M2. If this test starts
-// failing it means someone wired the field through — update the test and
-// the doc comment in routing.go together.
-func TestTranslatePolicy_MaxPriceIgnored(t *testing.T) {
+// TestTranslatePolicy_MaxPriceForwarded confirms MaxPricePerMTok rides through
+// to provider.max_price, applied to both the prompt and completion legs, in USD
+// per million tokens. This is the cost guard the caller believes is enforced —
+// it must reach the wire, not be silently dropped.
+func TestTranslatePolicy_MaxPriceForwarded(t *testing.T) {
 	pol := &ai.AIRoutingPolicy{
 		Order:           []string{"anthropic"},
 		MaxPricePerMTok: "0.005",
 	}
-	got := translatePolicy(pol)
+	got, err := translatePolicy(pol)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if got == nil {
 		t.Fatal("nil result")
 	}
-	// Marshal the providerField — the JSON must NOT contain "max_price"
-	// or any equivalent. translatePolicy is the contract here.
+	if got.MaxPrice == nil {
+		t.Fatal("MaxPrice is nil; max-price cap was dropped")
+	}
+	if got.MaxPrice.Prompt != 0.005 || got.MaxPrice.Completion != 0.005 {
+		t.Errorf("MaxPrice = %+v, want prompt=completion=0.005", *got.MaxPrice)
+	}
+
+	// Confirm it actually serialises as provider.max_price.{prompt,completion}.
 	b, err := json.Marshal(got)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -142,9 +171,26 @@ func TestTranslatePolicy_MaxPriceIgnored(t *testing.T) {
 	if err := json.Unmarshal(b, &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	for k := range m {
-		if k == "max_price" || k == "max_price_per_mtok" {
-			t.Errorf("unexpected field %q in serialised provider field; got: %s", k, string(b))
+	mp, ok := m["max_price"].(map[string]any)
+	if !ok {
+		t.Fatalf("max_price missing or wrong shape in JSON: %s", string(b))
+	}
+	if mp["prompt"] != 0.005 || mp["completion"] != 0.005 {
+		t.Errorf("JSON max_price = %v, want prompt=completion=0.005", mp)
+	}
+}
+
+// TestTranslatePolicy_MaxPriceMalformed confirms a non-numeric cap fails loud
+// rather than silently shipping a request with no price guard.
+func TestTranslatePolicy_MaxPriceMalformed(t *testing.T) {
+	for _, bad := range []string{"abc", "$5", "-1", "1.2.3"} {
+		pol := &ai.AIRoutingPolicy{MaxPricePerMTok: bad}
+		got, err := translatePolicy(pol)
+		if err == nil {
+			t.Errorf("translatePolicy(%q) = %+v, want error", bad, got)
+		}
+		if got != nil {
+			t.Errorf("translatePolicy(%q) returned non-nil provider on error: %+v", bad, got)
 		}
 	}
 }

@@ -25,6 +25,21 @@ type providerField struct {
 	// Sort is OpenRouter's optimisation target — maps from RoutePreference.
 	// One of "price", "throughput", "latency", or empty.
 	Sort string `json:"sort,omitempty"`
+
+	// MaxPrice caps the per-million-token price OpenRouter will pay when
+	// selecting an upstream provider. nil when no cap is set.
+	MaxPrice *maxPriceField `json:"max_price,omitempty"`
+}
+
+// maxPriceField is the JSON shape OpenRouter accepts under `provider.max_price`.
+// Values are USD per million tokens; providers priced above the cap are
+// excluded. See https://openrouter.ai/docs/features/provider-routing.
+//
+// AIRoutingPolicy carries a single MaxPricePerMTok cap, which we apply to both
+// the prompt and completion legs (the two OpenRouter enforces per token).
+type maxPriceField struct {
+	Prompt     float64 `json:"prompt"`
+	Completion float64 `json:"completion"`
 }
 
 // translatePolicy converts an AIRoutingPolicy into an OpenRouter provider
@@ -43,13 +58,14 @@ type providerField struct {
 //     PreferMostReliable → "latency" (OpenRouter has no true "reliability"
 //     sort; latency is the closest reasonable proxy),
 //     PreferUnspecified → empty.
-//   - policy.MaxPricePerMTok is currently NOT forwarded — OpenRouter's
-//     per-call max-price filter lives under `transforms`, which the v0.16.0
-//     design doc explicitly defers. We silently ignore the field in M2 and
-//     a follow-up milestone can wire it without an API change.
-func translatePolicy(p *ai.AIRoutingPolicy) *providerField {
+//   - policy.MaxPricePerMTok → MaxPrice.{Prompt,Completion} (USD per million
+//     tokens). The single cap is applied to both legs; providers priced above
+//     it are excluded by OpenRouter. Returns an error when the string is set
+//     but not a valid non-negative number (fail loud — never silently drop a
+//     cost guard the caller believes is enforced).
+func translatePolicy(p *ai.AIRoutingPolicy) (*providerField, error) {
 	if p.IsZero() {
-		return nil
+		return nil, nil
 	}
 
 	pf := &providerField{}
@@ -83,8 +99,13 @@ func translatePolicy(p *ai.AIRoutingPolicy) *providerField {
 		pf.Sort = "latency"
 	}
 
-	// TODO(v0.17.0): forward p.MaxPricePerMTok via OpenRouter `transforms`
-	// once that surface area is in scope.
+	price, ok, err := p.ParsedMaxPrice()
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		pf.MaxPrice = &maxPriceField{Prompt: price, Completion: price}
+	}
 
-	return pf
+	return pf, nil
 }

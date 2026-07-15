@@ -43,6 +43,33 @@ func TestBuildRoutingPolicy_SafetyGate_RoutingFlagsRequireAllowFlag(t *testing.T
 	}
 }
 
+// TestBuildRoutingPolicy_MaxPriceValidation verifies that a malformed
+// --routing-max-price value fails at the CLI boundary rather than building a
+// policy whose cost cap would later be dropped. A well-formed value builds
+// cleanly and preserves the string.
+func TestBuildRoutingPolicy_MaxPriceValidation(t *testing.T) {
+	t.Run("malformed rejected", func(t *testing.T) {
+		for _, bad := range []string{"abc", "$5", "-1"} {
+			policy, err := buildRoutingPolicy("openrouter", "", "", "", bad, true)
+			if err == nil {
+				t.Errorf("--routing-max-price %q: expected error, got policy %+v", bad, policy)
+			}
+			if err != nil && !strings.Contains(err.Error(), "--routing-max-price") {
+				t.Errorf("error should mention --routing-max-price, got: %v", err)
+			}
+		}
+	})
+	t.Run("valid accepted", func(t *testing.T) {
+		policy, err := buildRoutingPolicy("openrouter", "", "", "", "0.005", true)
+		if err != nil {
+			t.Fatalf("valid max price errored: %v", err)
+		}
+		if policy == nil || policy.MaxPricePerMTok != "0.005" {
+			t.Fatalf("policy = %+v, want MaxPricePerMTok=0.005", policy)
+		}
+	})
+}
+
 // TestBuildRoutingPolicy_SafetyGate_AllowRoutingPermits verifies that
 // passing --allow-routing alongside routing flags returns a non-nil
 // policy without error.

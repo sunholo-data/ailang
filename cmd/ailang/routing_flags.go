@@ -66,7 +66,7 @@ func registerRoutingFlags(fs *flag.FlagSet) *routingFlagSet {
 		prefer: fs.String("routing-prefer", "",
 			"Routing preference: cheapest|fastest|most_reliable"),
 		maxPrice: fs.String("routing-max-price", "",
-			"Max price per million tokens in USD (currently parsed but not forwarded; reserved for v0.17.0)"),
+			"Max price per million tokens in USD; excludes providers priced above the cap (OpenRouter only; applies to both prompt and completion legs)"),
 		allowRouting: fs.Bool("allow-routing", false,
 			"Required acknowledgment when --routing-* flags are set; routing introduces dynamic provider selection so explicit opt-in is required"),
 	}
@@ -87,8 +87,9 @@ func routingFlagNames() []string {
 // Validation:
 //   - routing-prefer must be one of "cheapest", "fastest", "most_reliable" (or empty).
 //   - routing-fallback / routing-require parse comma-separated lists, trimming whitespace.
-//   - routing-max-price is forwarded as a string (preserving precision); not validated
-//     for numeric format here — OpenRouter is not yet receiving it (see translatePolicy).
+//   - routing-max-price is stored as a string (preserving precision) and validated
+//     here for numeric format (fail loud on a malformed cap). OpenRouter forwards it
+//     as provider.max_price; other providers reject a policy that carries it.
 //   - When the provider isn't openrouter and any routing flag is set, we return an
 //     error early rather than relying on the provider to reject it, so the CLI gives
 //     a fast, friendly diagnostic. Pass providerCheck=false from `ailang run` where
@@ -158,6 +159,11 @@ func buildRoutingPolicy(provider, fallback, require, prefer, maxPrice string, al
 	}
 
 	p.MaxPricePerMTok = maxPrice
+	// Validate numeric format up front so a bad value fails at the CLI boundary
+	// with a friendly message, rather than deep inside the provider translation.
+	if _, _, err := p.ParsedMaxPrice(); err != nil {
+		return nil, fmt.Errorf("--routing-max-price: %v", err)
+	}
 
 	return p, nil
 }

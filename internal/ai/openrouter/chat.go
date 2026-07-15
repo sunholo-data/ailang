@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -62,7 +63,14 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 	}
 
 	// Translate optional routing policy. Nil when no policy or zero policy.
-	apiReq.Provider = translatePolicy(req.Routing)
+	// A malformed max-price cap fails loud rather than shipping a request that
+	// silently ignores the caller's cost guard.
+	provider, rerr := translatePolicy(req.Routing)
+	if rerr != nil {
+		return nil, ai.NewAIError(ai.CodeSchemaValidation,
+			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)
+	}
+	apiReq.Provider = provider
 
 	// Add structured output configuration
 	if req.ResponseFormat == "json" {

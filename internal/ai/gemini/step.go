@@ -31,7 +31,7 @@ import (
 // Errors returned are always *ai.AIError (typed) so the AILANG-side
 // _ai_call_result / _ai_step builtins can assert on Code/Retryable.
 func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if req.Routing != nil && req.Routing.HasRouting() {
+	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
 		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
 			"gemini: AIRoutingPolicy not supported; use openrouter instead", false)
 	}

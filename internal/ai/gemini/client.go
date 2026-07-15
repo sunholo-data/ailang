@@ -107,7 +107,7 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if req.Routing != nil && req.Routing.HasRouting() {
+	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
 		return nil, ai.NewProviderError("gemini", 0,
 			"this provider does not support AIRoutingPolicy; use openrouter instead",
 			ai.ErrRoutingNotSupported)

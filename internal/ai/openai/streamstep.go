@@ -40,7 +40,7 @@ var _ ai.StreamingProvider = (*Client)(nil)
 // Implements ai.StreamingProvider so ai.Handler.StepWithStream type-asserts
 // successfully and dispatches natively rather than NO-OP-falling-back.
 func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
-	if req.Routing != nil && req.Routing.HasRouting() {
+	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
 		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
 			"openai: AIRoutingPolicy not supported; use openrouter instead", false)
 	}

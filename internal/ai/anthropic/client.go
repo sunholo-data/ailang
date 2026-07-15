@@ -139,7 +139,7 @@ type errorResponse struct {
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if req.Routing != nil && req.Routing.HasRouting() {
+	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
 		return nil, ai.NewProviderError("anthropic", 0,
 			"this provider does not support AIRoutingPolicy; use openrouter instead",
 			ai.ErrRoutingNotSupported)
