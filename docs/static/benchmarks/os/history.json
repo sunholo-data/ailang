@@ -1,7 +1,7 @@
 [
   {
     "ailang_version": "v0.29.2",
-    "generated": "2026-07-15",
+    "generated": "2026-07-16",
     "trials": 3,
     "languages": [
       "ailang",
@@ -15,8 +15,8 @@
         "lang": {
           "ailang": 0.8531073446327684,
           "go": 1,
-          "javascript": 0.9821428571428571,
-          "python": 0.9821428571428571
+          "javascript": 0.9846153846153847,
+          "python": 0.9846153846153847
         },
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
@@ -53,9 +53,9 @@
         "harness": "opencode",
         "lang": {
           "ailang": 0.6460674157303371,
-          "go": 0.9107142857142857,
-          "javascript": 1,
-          "python": 0.9464285714285714
+          "go": 0.8923076923076924,
+          "javascript": 0.9846153846153847,
+          "python": 0.9538461538461539
         },
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
@@ -76,9 +76,9 @@
           },
           "stretch": {
             "ailang": 0.7857142857142857,
-            "go": 0.7857142857142857,
-            "javascript": 1,
-            "python": 0.9285714285714286
+            "go": 0.75,
+            "javascript": 0.95,
+            "python": 0.95
           },
           "vision": {
             "ailang": 0.3333333333333333,
@@ -92,15 +92,15 @@
         "harness": "pi",
         "lang": {
           "ailang": 0.7821229050279329,
-          "go": 0.8928571428571429,
-          "javascript": 0.9821428571428571,
-          "python": 0.9821428571428571
+          "go": 0.9076923076923077,
+          "javascript": 0.9846153846153847,
+          "python": 0.9846153846153847
         },
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.8888888888888888,
-            "go": 0.9333333333333333,
+            "go": 0.9444444444444444,
             "javascript": 1,
             "python": 1
           },
@@ -115,7 +115,7 @@
           },
           "stretch": {
             "ailang": 0.896551724137931,
-            "go": 0.9285714285714286,
+            "go": 0.95,
             "javascript": 1,
             "python": 1
           },
