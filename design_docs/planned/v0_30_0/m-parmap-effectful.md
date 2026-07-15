@@ -3,8 +3,8 @@
 **Status**: Planned
 **Target**: v0.30.0
 **Priority**: P1 (High — the one primitive an in-AILANG eval/agent harness actually needs)
-**Estimated**: 4-6 days
-**Dependencies**: M-SERVE-API-CONCURRENCY (Fork() + thread-safe Environment — complete, shipped v0.9.4)
+**Estimated**: 5-7 days (M0 Fork-safety gate ~1.5-2d + M1 primitive ~3-4d + docs)
+**Dependencies**: M-SERVE-API-CONCURRENCY (Fork() + thread-safe Environment — complete, shipped v0.9.4). **NB: the audit (Conflict Surface) found `EffContext.Clone()` shares effect state shallowly — the concurrent path panics on the Budget map today. M0 must fix this before any `parMap` surface.**
 **Milestone ID**: M-PARMAP-EFFECTFUL
 **Created**: 2026-07-15
 **Source**: Benchmark-discovered gap. An eval driver fanning out N independent `std/ai` request/response calls has no in-program concurrency primitive: `--batch` is a sequential loop, and `Stream`/`selectEvents` is event-source-shaped, not request/response fan-out. This is the "Intra-request parallelism" item that [M-CONCURRENCY-LEVERAGE](../v0_29_0/m-concurrency-leverage.md) explicitly deferred to "a separate design doc" (Non-Goals) and listed only under Future Work.
@@ -89,6 +89,7 @@ An eval/agent harness written in AILANG wants: *given `xs: [Input]` and `f: Inpu
 | Error semantics: first-error vs all-results | Changes the return type (`[b]` vs `[Result[b, e]]`) | human | design | high |
 | Bounded pool default (`parMap` = ?) | Unbounded fan-out over `! {AI}` can hit rate limits / OOM | human | design | med |
 | Determinism guarantee (input-order return) | A1 compliance — must be a guarantee, not a coincidence | human | design | low |
+| **Per-fork vs shared budget** | Deep-cloning `Budget` per fork gives each concurrent call its own cap → a "$5 run" becomes N×$5 and the bound is meaningless. An eval harness needs ONE shared, atomically-synchronized budget. This decides the `Clone()` fix shape. | human | design | high |
 
 ### Design Freeze
 
@@ -97,6 +98,7 @@ An eval/agent harness written in AILANG wants: *given `xs: [Input]` and `f: Inpu
 - [ ] **Error semantics**: `parMap` is fail-fast → `[b] ! {e}` (propagates the first error, cancels the rest); a `parMapResult` variant returns `[Result[b, Error]]` for collect-all. **Recommendation: ship `parMapResult` first** (total, no cancellation semantics to design), add fail-fast `parMap` second.
 - [ ] **Bound**: `parMap` = `runtime.NumCPU()` for CPU-bound; `parMapN(n, ...)` for explicit bound. **AI-bound callers should always use `parMapN`** — document `parMap` as CPU-oriented.
 - [x] **Determinism**: results **always** returned in input order (indexed collection, not completion order).
+- [ ] **Budget model** (blocks M1): **shared, synchronized** budget — one cap for the whole `parMap`, not per-fork. `Clone()` must keep `Budget`/`BudgetReport` shared but make their mutations mutex-guarded (NOT deep-copy them, which would multiply the cap by N). `AI.lastRoute` and `IOWriter`, by contrast, *should* be per-fork isolated. This split is the crux of the `Clone()` fix.
 
 ---
 
@@ -175,7 +177,14 @@ func (e *CoreEvaluator) ParMap(fn Value, xs []Value, workers int) ([]Value, erro
 
 ### Files to Create/Modify
 
-**Core:**
+**M0 — Fork concurrency-safety gate (PREREQUISITE; blocks everything below):**
+- `internal/effects/context.go` (~+40 LOC) — `EffContext.Clone()` ([context.go:636](../../../internal/effects/context.go)): per-fork-isolate `AI` (`lastRoute`) and `IOWriter`; keep `Budget`/`BudgetReport` **shared but mutex-guarded**
+- `internal/effects/budget.go` (~+20 LOC) — add a mutex to `BudgetContext`/`BudgetReport` map mutations ([budget.go:231](../../../internal/effects/budget.go), :419)
+- `internal/ai/handler.go` (~+5 LOC) — guard/isolate `lastRoute` ([handler.go:39](../../../internal/ai/handler.go))
+- `internal/effects/*_concurrent_test.go` (~+80 LOC) — `-race` tests fanning N forks through the Budget gate + AI/IO; **must pass before M1**
+- *Side benefit: this also hardens the existing serve-api one-fork-per-request path.*
+
+**M1 — Core primitive (after M0 green):**
 - `internal/eval/eval_parmap.go` (~+120 LOC) — `ParMap` concurrent apply on Fork()
 - `internal/builtins/parmap.go` (~+80 LOC) — builtin bridge (`_par_map`, `_par_map_n`, `_par_map_result`)
 - `internal/runtime/builtins.go` (~+6 LOC) — register builtins
@@ -183,9 +192,6 @@ func (e *CoreEvaluator) ParMap(fn Value, xs []Value, workers int) ([]Value, erro
 
 **Type system:**
 - Type schemes for the three functions with effect-row propagation (`internal/types` / builtin scheme registration)
-
-**Effect safety:**
-- Audit `internal/effects/*` handlers for concurrency safety under Fork (AI budget counter, FS, Net, IO ordering) — add mutexes / per-Fork state where a handler mutates shared state
 
 **Docs/examples:**
 - `examples/par_map.ail` (~30 LOC) — fan out N `std/ai` calls, collect in order
@@ -257,13 +263,27 @@ This milestone adds **no grammar** (A8 = 0). It touches three semantic positions
 | Identifier `parMap*` in `std/` | **None** — verified free (see Verification Log) | No collision |
 | Effectful list-map scheme | `mapE`/`filterE`/`foldE` ([std/list.ail:217](../../../std/list.ail)) — `(a) -> b ! {e}` serial | `parMap` reuses the *same* scheme shape; must not change how `mapE` types |
 | `CoreEvaluator` evaluation | Serial `Eval`/`Apply`; `Fork()` used only per-HTTP-request ([entrypoint.go:96](../../../internal/runtime/entrypoint.go)) | `Fork()` was designed for one-fork-per-goroutine; N concurrent forks from *one* parent is a new usage pattern — must confirm the parent evaluator is safe to `Fork()` from N goroutines concurrently (not just to hand one Fork to one goroutine) |
-| Effect handlers under concurrency | `AI` budget counter, `FS`, `Net`, `IO` handlers in `internal/effects/` assume single-threaded eval | **Primary conflict**: these mutate shared state (budget totals, RNG, output buffers). Running them from N forks concurrently is the real risk — see Risks (gated audit) |
+| Effect handlers under concurrency | `AI`, `IO`, `Budget` handlers in `internal/effects/` assume single-threaded eval | **Primary conflict — AUDIT DONE, see below.** `EffContext.Clone()` is a shallow one-level copy that shares `AI`/`Budget`/`BudgetReport`/`IOWriter` **by pointer**. `Budget` is the killer: `CheckAndConsume` ([budget.go:231](../../../internal/effects/budget.go)) does unsynchronized map writes on *every* effect call → N concurrent forks trigger `fatal error: concurrent map writes` (a panic, not a silent race). `FS`/`Net` handlers are stateless-safe (fresh `http.Client` per call, direct `os` calls) but still pass through the shared Budget gate. |
 
 ### Disambiguation / soundness
 
 - **No parser disambiguation needed** — `parMap` is an ordinary identifier applied by ordinary call syntax; nothing in the grammar changes, so no lookahead question arises (contrast M-TAINT-TYPES).
 - **Type soundness**: `parMap`'s scheme is `mapE`'s scheme; if `mapE` types soundly today, `parMap` does too. The only new type obligation is that the effect row is *preserved*, not widened/narrowed.
-- **Concurrency soundness** rests entirely on: (a) each element evaluates on its own `Fork()` (no shared eval state), and (b) effect *handlers* are made concurrency-safe. (b) is the gate.
+- **Concurrency soundness** rests entirely on: (a) each element evaluates on its own `Fork()` (no shared eval state), and (b) effect *handlers* are made concurrency-safe. (b) is the gate, and the audit (below) confirms it is **not** satisfied today: `Fork()` re-isolates only `env`/`resolver`/`recursionDepth`/`FnCaller` ([eval_evaluator.go:142](../../../internal/eval/eval_evaluator.go)); all effect state is shared by the shallow `Clone()`.
+
+### Effect-handler concurrency audit (M1 gate — DONE 2026-07-15)
+
+Verified against the code. `EffContext.Clone()` ([context.go:636](../../../internal/effects/context.go)) is `clone := *ctx` — a single-level struct copy, so every pointer/map field is shared across forks.
+
+| Effect | State under concurrency | Verdict | Fix |
+|--------|------------------------|---------|-----|
+| **Budget** (gates ALL effects) | `BudgetContext`/`BudgetReport` plain maps, no mutex, mutated per effect call ([budget.go:231](../../../internal/effects/budget.go), `RecordUsage` :419) | 💥 **panics** — `fatal error: concurrent map writes` | Mutex on the maps **or** the shared-budget design decision below |
+| **AI** | `Handler.lastRoute` written per call, shared `*AIContext` ([handler.go:39](../../../internal/ai/handler.go)) | racy (write/read data race) | deep-copy `AIContext` in `Clone()`, or mutex |
+| **IO** | shared `IOWriter` ([io.go:49](../../../internal/effects/io.go), [context.go:600](../../../internal/effects/context.go)) | interleaves on stdout; corrupts if a shared `*bytes.Buffer` is installed | per-fork writer, or a locked writer |
+| **FS** | none — direct `os` calls, only reads `ctx.Env.Sandbox` | ✅ safe at handler level | — (inherits Budget gate) |
+| **Net** | none — fresh `http.Client`+`Transport` per call ([net.go:91](../../../internal/effects/net.go)) | ✅ safe at handler level | — (inherits Budget gate) |
+
+**Conclusion:** no effect is architecturally single-threaded — every unsafe one is a shared-field/shared-map mutation fixable by isolating it in `Clone()` or adding a lock. But the fix is a **hard M1 gate**: until `Clone()` deep-copies (or locks) `Budget`/`BudgetReport`/`AI`/`IOWriter`, *any* concurrent effectful `parMap` panics on the Budget map. This also hardens the existing serve-api Fork path, which today is safe only by avoiding these effects.
 
 ### Programs that MUST still work (regression fixtures)
 
@@ -295,8 +315,9 @@ Claims in this doc verified against the live codebase (2026-07-15, v0.29.2-206-g
 | `Fork()` exists but is Go-internal, not AILANG-callable | Read [eval_evaluator.go:142](../../../internal/eval/eval_evaluator.go), caller [entrypoint.go:96](../../../internal/runtime/entrypoint.go) | Confirmed; only caller is per-HTTP-request isolation |
 | `std/ai` calls are single-shot | Read [std/ai.ail](../../../std/ai.ail) | `call`/`callJson`/`step`/`stepWithStream`/`runTools` all `! {AI}`, one request each |
 | Duplicate design docs | `ailang docs search` (SimHash) | Top hits are codegen/type docs (keyword false-positives); no concurrency/parMap doc exists — not a duplicate |
+| Effect handlers safe under N concurrent forks? | Read `EffContext.Clone()` ([context.go:636](../../../internal/effects/context.go)), `BudgetContext` ([budget.go:231](../../../internal/effects/budget.go)), `ai.Handler` ([handler.go:39](../../../internal/ai/handler.go)), `io.go`, `net.go`, `fs.go` | **NO — confirmed.** `Clone()` shallow-shares `Budget`/`AI`/`IOWriter`. Budget maps are mutated unsynchronized per effect call → `concurrent map writes` **panic**. AI/IO racy. FS/Net handler-safe. Full table in Conflict Surface → "Effect-handler concurrency audit". |
 
-**Open verification (deferred to sprint):** whether every effect handler in `internal/effects/` is safe to invoke from N concurrent forks is **not** yet verified — it is the gated pre-condition in Risks, to be confirmed by a `-race` audit in M1 before the concurrent path is enabled.
+**Gate status:** the effect-handler audit is **DONE** (was the deferred pre-condition). Result: the concurrent path panics today on the shared Budget map; M1 must fix `EffContext.Clone()` (shared-synchronized Budget, per-fork AI/IO) with `-race` coverage before any `parMap` surface is enabled. This is now a concrete, scoped task, not an unknown.
 
 ---
 
@@ -338,7 +359,8 @@ Claims in this doc verified against the live codebase (2026-07-15, v0.29.2-206-g
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Effect handlers not concurrency-safe under Fork (AI budget, FS, Net) | **High** | Audit `internal/effects/*`; add mutex/per-Fork state; a `-race` test that hammers the AI budget counter. Gate the milestone on this audit. |
+| Shared Budget map panics under concurrency (`concurrent map writes`) | **High — CONFIRMED, not hypothetical** | Audit done (Conflict Surface). M0 gate: fix `EffContext.Clone()` — mutex-guard the shared `Budget`/`BudgetReport` maps ([budget.go:231](../../../internal/effects/budget.go)), per-fork-isolate `AI.lastRoute` + `IOWriter`. `-race` test that fans out N effectful closures through the Budget gate. **No `parMap` surface ships until this passes.** Side benefit: hardens the serve-api Fork path. |
+| `Clone()` fix regresses serve-api one-fork-per-request path | Med | The existing path shares the same `Clone()`; regression fixtures (Conflict Surface #3) + `go test -race ./internal/runtime/...` pin it |
 | Unbounded fan-out over `! {AI}` hits rate limits / OOM | Med | No unbounded `parMap` over AI: document `parMapN` as the AI path; `parMap` default = NumCPU |
 | Nested `parMap` → `workers²` goroutines | Med | Document; consider a process-global in-flight semaphore in a follow-up |
 | Non-deterministic side-effect ordering surprises users | Low | Explicit contract: results ordered, side effects not; example + doc call-out |
