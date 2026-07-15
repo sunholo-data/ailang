@@ -26,10 +26,20 @@
 | A5: Bounded Verification | 0 | No verification changes |
 | A6: Safe Concurrency | +2 | Direct use of the Fork()/thread-safe-Environment substrate we already built and race-tested; each element runs on its own Fork |
 | A7: Machines First | +2 | The harness that generates/evaluates AILANG can itself fan out N model calls in-program, keeping budget + telemetry in one process |
+| A8: Minimal Syntax | 0 | No new syntax — three stdlib functions with ordinary signatures; no grammar/keyword change |
 | A9: Cost Visibility | +1 | Bounded worker pool (`parMapN`) makes the concurrency ceiling explicit; per-element AI cost stays attributed in-program |
-| A10: Composability | +1 | `parMap` composes with any effectful `a -> b ! e`, uniformly across `AI`, `Net`, `FS`, `IO` |
+| A10: Composability | +1 | `parMap` composes with any effectful `(a) -> b ! {e}`, uniformly across `AI`, `Net`, `FS`, `IO` — it is the concurrent sibling of the existing `mapE` |
+| A11: Structured Failure | +1 | `parMapResult` returns `[Result[b, Error]]` — failures are values, not panics; fail-fast `parMap` propagates a typed error in input order |
+| A12: System Boundary | 0 | No boundary changes — concurrency is internal to one evaluator process |
 
-**Net Score: +8** → **Decision: Move forward**
+**Net Score: +10** → **Decision: Move forward**
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): No implicit nondeterminism — results are input-ordered by construction (indexed collection); side-effect *ordering* is explicitly out of contract, not silently nondeterministic
+- [x] A3 (Effects): No hidden effects — the callee's effect row propagates unchanged; `parMap` adds none of its own
+- [x] A4 (Authority): No ambient authority — inherits exactly the callee's effects, grants nothing
+- [x] A7 (Machines First): Optimizes for machine analysis (in-program budget/telemetry), not human convenience
 
 ---
 
@@ -43,8 +53,8 @@ The concurrency substrate exists but is not surfaced to AILANG user code. Forens
 | `Stream`/`selectEvents` fan-out | **No** — event-source-shaped | `internal/effects/stream_mux.go:26` — consumer-side priority merge of persistent sources (stdin, WS/SSE, subprocess stdout) via `reflect.Select`; cannot issue N outbound calls + gather N responses |
 | `asyncExecProcess` | Exists — subprocess streaming source | `internal/effects/stream_process.go:44` — one process, stdout → events; not a collection fan-out |
 | Go-internal `Fork()` | Exists — **not** AILANG-callable | `internal/eval/eval_evaluator.go:142`; sole caller `internal/runtime/entrypoint.go:96` (per-HTTP-request isolation in serve-api) |
-| AILANG-callable `parMap`/`gather`/`Fork` | **Missing** | Zero builtin/stdlib matches across `internal/builtins/`, `internal/runtime/builtins.go`, `stdlib/**` |
-| `std/ai` concurrency | **None** | `stdlib/std/ai.ail` — `call`/`callJson`/`step`/`stepWithStream`/`runTools` are all single-shot `! {AI}` |
+| AILANG-callable `parMap`/`gather`/`Fork` | **Missing** | Zero builtin/stdlib matches across `internal/builtins/`, `internal/runtime/builtins.go`, `std/**` |
+| `std/ai` concurrency | **None** | `std/ai.ail` — `call`/`callJson`/`step`/`stepWithStream`/`runTools` are all single-shot `! {AI}` |
 
 ### The concrete shape that has no home today
 
@@ -62,9 +72,9 @@ An eval/agent harness written in AILANG wants: *given `xs: [Input]` and `f: Inpu
 **Primary Goal:** Provide an AILANG-callable `parMap` (and bounded `parMapN`) that evaluates an effectful function concurrently across a list, returning results in input order, backed by the existing Fork()/Environment substrate.
 
 **Success Metrics:**
-- `parMapN(8, f, xs)` runs up to 8 elements of `xs` concurrently, each on its own Fork
+- `parMapN(f, xs, 8)` runs up to 8 elements of `xs` concurrently, each on its own Fork
 - Results are returned in **input order**, independent of completion order (determinism)
-- The mapped function's effect row propagates: `parMap : (a -> b ! e) -> [a] -> [b] ! e`
+- The mapped function's effect row propagates: `parMap[a,b,e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e}` (same shape as the existing serial `mapE`)
 - Wall-clock for N I/O-bound items ≈ `ceil(N/workers) × latency`, not `N × latency`
 - `go test -race` passes for the new evaluator path
 - No new authority — `parMap` over a pure function is pure; over `! {AI}` carries `{AI}`
@@ -82,8 +92,9 @@ An eval/agent harness written in AILANG wants: *given `xs: [Input]` and `f: Inpu
 
 ### Design Freeze
 
-- [ ] **Surface**: plain builtin `parMap`/`parMapN` typed `(a -> b ! e) -> [a] -> [b] ! e` (leading candidate — see Open Questions for the `Fork` effect-op alternative)
-- [ ] **Error semantics**: `parMap` is fail-fast → `[b] ! e` (propagates the first error, cancels the rest); a `parMapResult` variant returns `[Result[b, Error]]` for collect-all. **Recommendation: ship `parMapResult` first** (total, no cancellation semantics to design), add fail-fast `parMap` second.
+- [ ] **Surface**: stdlib functions `parMap`/`parMapN` typed `(f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e}` (leading candidate — see Open Questions for the `Fork` effect-op alternative)
+- [ ] **Naming**: `parMap`/`parMapN` vs convention-strict `parMapE` (matching `mapE`/`filterE`/`foldE`). Recommendation: `parMap` (no `E` — inherently effectful, cleaner call sites)
+- [ ] **Error semantics**: `parMap` is fail-fast → `[b] ! {e}` (propagates the first error, cancels the rest); a `parMapResult` variant returns `[Result[b, Error]]` for collect-all. **Recommendation: ship `parMapResult` first** (total, no cancellation semantics to design), add fail-fast `parMap` second.
 - [ ] **Bound**: `parMap` = `runtime.NumCPU()` for CPU-bound; `parMapN(n, ...)` for explicit bound. **AI-bound callers should always use `parMapN`** — document `parMap` as CPU-oriented.
 - [x] **Determinism**: results **always** returned in input order (indexed collection, not completion order).
 
@@ -93,18 +104,24 @@ An eval/agent harness written in AILANG wants: *given `xs: [Input]` and `f: Inpu
 
 ### The type
 
-```ailang
--- Bounded concurrent map. `n` = max in-flight evaluations.
-parMapN : (a -> b ! e) -> [a] -> int -> [b] ! e
+AILANG **already has a serial effectful map**: [`std/list.ail:217`](../../../std/list.ail) `mapE[a, b, e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e}`, with a sibling `filterE`/`foldE`. The header comment at `std/list.ail:214` states the contract we are parallelizing: *"All effectful combinators evaluate elements left-to-right, sequentially."* `parMap` is the **concurrent counterpart of `mapE`** — same type, relaxed evaluation order (bounded concurrency), same input-ordered result.
 
--- Unbounded-by-CPU convenience (n = NumCPU). CPU-oriented.
-parMap  : (a -> b ! e) -> [a] -> [b] ! e
+Using AILANG's actual effect-row-polymorphic syntax (modeled on `mapE`):
+
+```ailang
+-- Bounded concurrent effectful map. `n` = max in-flight evaluations.
+export func parMapN[a, b, e](f: (a) -> b ! {e}, xs: [a], n: int) -> [b] ! {e}
+
+-- Convenience: n = NumCPU. CPU-oriented; AI-bound callers should use parMapN.
+export func parMap[a, b, e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e}
 
 -- Collect-all variant (total; no cancellation). Ship this first.
-parMapResult : (a -> b ! e) -> [a] -> int -> [Result[b, Error]] ! e
+export func parMapResult[a, b, e](f: (a) -> b ! {e}, xs: [a], n: int) -> [Result[b, Error]] ! {e}
 ```
 
-The **key type-system property**: the effect row `e` of the mapped function is the effect row of the whole call. Concurrency does not launder effects (A3). A `parMapN(4, fetch, urls)` where `fetch : Url -> Body ! {Net}` has type `[Body] ! {Net}`.
+The **key type-system property**: the effect row `{e}` of the mapped function is the effect row of the whole call — identical to how `mapE` is typed. Concurrency does not launder effects (A3). `parMapN(fetch, urls, 4)` where `fetch: (Url) -> Body ! {Net}` has type `[Body] ! {Net}`.
+
+**Naming decision (surfaced by the `mapE` convention):** the existing serial combinators use an `E` suffix (`mapE`/`filterE`/`foldE`). A strict-convention name would be `parMapE`. This doc proposes `parMap`/`parMapN` (no `E`) because the concurrent map is *inherently* effectful — there is no pure `parMap` to disambiguate from, and `parMap` reads cleaner at call sites. See Design Freeze.
 
 ### Evaluator implementation (leverages existing Fork)
 
@@ -153,7 +170,7 @@ func (e *CoreEvaluator) ParMap(fn Value, xs []Value, workers int) ([]Value, erro
 
 ### Type-checker / effect propagation
 
-- Register `parMap`/`parMapN`/`parMapResult` with schemes that unify the callee's effect row into the result's effect row (mirror how `map` is typed, but preserve `! e` instead of requiring purity).
+- Register `parMap`/`parMapN`/`parMapResult` with schemes that unify the callee's effect row into the result's effect row (mirror how the existing `mapE` is typed — it already does exactly this, `(a) -> b ! {e}` → `[b] ! {e}`).
 - `parMap` over a pure `f` stays pure (empty effect row) — the primitive adds no effects of its own.
 
 ### Files to Create/Modify
@@ -162,7 +179,7 @@ func (e *CoreEvaluator) ParMap(fn Value, xs []Value, workers int) ([]Value, erro
 - `internal/eval/eval_parmap.go` (~+120 LOC) — `ParMap` concurrent apply on Fork()
 - `internal/builtins/parmap.go` (~+80 LOC) — builtin bridge (`_par_map`, `_par_map_n`, `_par_map_result`)
 - `internal/runtime/builtins.go` (~+6 LOC) — register builtins
-- `stdlib/std/list.ail` or new `stdlib/std/par.ail` (~+40 LOC) — `parMap`/`parMapN`/`parMapResult` surface + doc comments
+- `std/list.ail` or new `std/par.ail` (~+40 LOC) — `parMap`/`parMapN`/`parMapResult` surface + doc comments
 
 **Type system:**
 - Type schemes for the three functions with effect-row propagation (`internal/types` / builtin scheme registration)
@@ -221,6 +238,68 @@ func fetchAll(urls: [string]) -> [string] ! {Net} =
 
 ---
 
+## Conflict Surface
+
+*(Required — this change touches `internal/eval/`, `internal/types/` (builtin schemes), `internal/effects/` (handler concurrency), and `internal/builtins/`.)*
+
+### Syntactic / semantic positions touched
+
+This milestone adds **no grammar** (A8 = 0). It touches three semantic positions:
+
+1. **Builtin/identifier namespace** — three new stdlib names `parMap`, `parMapN`, `parMapResult` in `std/` (new `std/par.ail` or appended to `std/list.ail`), backed by builtins `_par_map*` in `internal/builtins/`.
+2. **Type-scheme registration** — new schemes with effect-row-polymorphic signatures unified into the result row (the same machinery that types `mapE`).
+3. **Evaluator apply path** — a concurrent `Apply` over `Fork()`ed child evaluators in `internal/eval/`.
+
+### What else lives in each position
+
+| Position | Existing valid form | Shape / risk |
+|----------|--------------------|--------------|
+| Identifier `parMap*` in `std/` | **None** — verified free (see Verification Log) | No collision |
+| Effectful list-map scheme | `mapE`/`filterE`/`foldE` ([std/list.ail:217](../../../std/list.ail)) — `(a) -> b ! {e}` serial | `parMap` reuses the *same* scheme shape; must not change how `mapE` types |
+| `CoreEvaluator` evaluation | Serial `Eval`/`Apply`; `Fork()` used only per-HTTP-request ([entrypoint.go:96](../../../internal/runtime/entrypoint.go)) | `Fork()` was designed for one-fork-per-goroutine; N concurrent forks from *one* parent is a new usage pattern — must confirm the parent evaluator is safe to `Fork()` from N goroutines concurrently (not just to hand one Fork to one goroutine) |
+| Effect handlers under concurrency | `AI` budget counter, `FS`, `Net`, `IO` handlers in `internal/effects/` assume single-threaded eval | **Primary conflict**: these mutate shared state (budget totals, RNG, output buffers). Running them from N forks concurrently is the real risk — see Risks (gated audit) |
+
+### Disambiguation / soundness
+
+- **No parser disambiguation needed** — `parMap` is an ordinary identifier applied by ordinary call syntax; nothing in the grammar changes, so no lookahead question arises (contrast M-TAINT-TYPES).
+- **Type soundness**: `parMap`'s scheme is `mapE`'s scheme; if `mapE` types soundly today, `parMap` does too. The only new type obligation is that the effect row is *preserved*, not widened/narrowed.
+- **Concurrency soundness** rests entirely on: (a) each element evaluates on its own `Fork()` (no shared eval state), and (b) effect *handlers* are made concurrency-safe. (b) is the gate.
+
+### Programs that MUST still work (regression fixtures)
+
+These exercise the serial effectful-combinator path and the evaluator's existing `Fork()` usage; none may regress:
+
+1. [std/list.ail](../../../std/list.ail) `mapE`/`filterE`/`foldE` — the serial combinators keep their left-to-right semantics
+2. Any example using `mapE` over `! {IO}` (e.g. printing each element in order) — serial ordering unchanged
+3. serve-api concurrent request handling ([entrypoint.go:96](../../../internal/runtime/entrypoint.go)) — the existing one-Fork-per-request path must be untouched
+4. `std/ai.ail` single-shot `call`/`step` — unchanged; `parMap` wraps them, does not modify them
+5. Existing `go test -race ./internal/eval/...` — must still pass (plus new concurrent-apply race tests)
+
+### What deliberately changes
+
+- **Nothing existing changes behavior.** All three functions are additive. No previously-valid program is intended to break.
+- The *new* contract explicitly introduced: `parMap` does **not** guarantee ordering of observable side effects across elements (only results are ordered). This is a new promise, not a change to an existing one.
+
+---
+
+## Verification Log
+
+Claims in this doc verified against the live codebase (2026-07-15, v0.29.2-206-gefd251f16):
+
+| Claim | Method | Result |
+|-------|--------|--------|
+| `parMap`/`parMapN`/`parMapResult`/`gather`/`_par_map` identifiers are free | `grep -rn` over `std/`, `internal/builtins/`, `internal/runtime/builtins.go` | **Zero matches** — names available |
+| A serial effectful map already exists | Read [std/list.ail:217](../../../std/list.ail) | `mapE[a,b,e](f:(a)->b!{e}, xs:[a])->[b]!{e}` confirmed; header at :214 states combinators run "left-to-right, sequentially" |
+| Batch mode is a sequential loop | Read [main_run_exec.go:313](../../../cmd/ailang/main_run_exec.go) | Plain `for i, input := range programArgs`; no goroutines |
+| `selectEvents` is event-source-shaped | Read [stream_mux.go:26](../../../internal/effects/stream_mux.go) | `reflect.Select` priority merge of persistent sources; not request/response fan-out |
+| `Fork()` exists but is Go-internal, not AILANG-callable | Read [eval_evaluator.go:142](../../../internal/eval/eval_evaluator.go), caller [entrypoint.go:96](../../../internal/runtime/entrypoint.go) | Confirmed; only caller is per-HTTP-request isolation |
+| `std/ai` calls are single-shot | Read [std/ai.ail](../../../std/ai.ail) | `call`/`callJson`/`step`/`stepWithStream`/`runTools` all `! {AI}`, one request each |
+| Duplicate design docs | `ailang docs search` (SimHash) | Top hits are codegen/type docs (keyword false-positives); no concurrency/parMap doc exists — not a duplicate |
+
+**Open verification (deferred to sprint):** whether every effect handler in `internal/effects/` is safe to invoke from N concurrent forks is **not** yet verified — it is the gated pre-condition in Risks, to be confirmed by a `-race` audit in M1 before the concurrent path is enabled.
+
+---
+
 ## Testing Strategy
 
 **Unit / property:**
@@ -272,7 +351,7 @@ func fetchAll(urls: [string]) -> [string] ! {Net} =
 - [M-CONCURRENCY-LEVERAGE](../v0_29_0/m-concurrency-leverage.md) — Harness-level parallelism (batch/eval/coordinator). This doc realizes its deferred "Intra-request parallelism" / "Async/await separate design doc" items.
 - [M-SERVE-API-CONCURRENCY](../../implemented/v0_9_4/m-serve-api-concurrency.md) — Foundation: `Fork()` + thread-safe `Environment` (the substrate this reuses).
 - [M-PERF7: DocParse Production Pipeline](../v0_9_3/m-perf7-docparse-production-pipeline.md) — Batch mode origin (sequential-by-design).
-- `stdlib/std/ai.ail` — Single-shot AI calls this primitive fans out.
+- `std/ai.ail` — Single-shot AI calls this primitive fans out.
 - `internal/effects/stream_mux.go` — `selectEvents` (event-source concurrency; the *other* shape).
 
 ---
