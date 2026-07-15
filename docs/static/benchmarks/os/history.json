@@ -13,9 +13,9 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8395061728395061,
+          "ailang": 0.8452380952380952,
           "go": 1,
-          "javascript": 0.95,
+          "javascript": 0.9655172413793104,
           "python": 1
         },
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
@@ -32,7 +32,7 @@
           "smoke": {
             "ailang": 1,
             "go": 1,
-            "javascript": 0.8888888888888888,
+            "javascript": 0.9333333333333333,
             "python": 1
           },
           "stretch": {
@@ -52,8 +52,8 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6196319018404908,
-          "go": 0.9,
+          "ailang": 0.6331360946745562,
+          "go": 0.896551724137931,
           "javascript": 1,
           "python": 1
         },
@@ -76,7 +76,7 @@
           },
           "stretch": {
             "ailang": 0.7857142857142857,
-            "go": 0.5,
+            "go": 0.6,
             "javascript": 1,
             "python": 1
           },
@@ -91,9 +91,9 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7682926829268293,
-          "go": 0.95,
-          "javascript": 1,
+          "ailang": 0.7764705882352941,
+          "go": 0.8620689655172413,
+          "javascript": 0.9655172413793104,
           "python": 1
         },
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
@@ -109,13 +109,13 @@
           },
           "smoke": {
             "ailang": 1,
-            "go": 1,
-            "javascript": 1,
+            "go": 0.8666666666666667,
+            "javascript": 0.9333333333333333,
             "python": 1
           },
           "stretch": {
             "ailang": 0.896551724137931,
-            "go": 1,
+            "go": 0.8,
             "javascript": 1,
             "python": 1
           },
