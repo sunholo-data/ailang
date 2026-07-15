@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-14T23:27:20+02:00",
+  "timestamp": "2026-07-15T04:32:10+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -84,13 +84,13 @@
       "opencode-qwen3-6-35b-a3b-mxfp8",
       "pi-qwen3-6-35b-a3b-mxfp8"
     ],
-    "agentRuns": 596,
-    "agentSuccessRate": 0.8036912751677853,
-    "agentTotalTokens": 68478173,
+    "agentRuns": 605,
+    "agentSuccessRate": 0.8016528925619835,
+    "agentTotalTokens": 69685912,
     "apiErrorCount": 3,
     "apiErrorRate": 0.0016189962223421479,
-    "avgAgentCost": 0.05424866996912751,
-    "avgAgentTurns": 5.533557046979865,
+    "avgAgentCost": 0.053441664961322306,
+    "avgAgentTurns": 5.507438016528925,
     "avgDurationMs": 101.68321640582839,
     "finalSuccess": 0.7868321640582838,
     "refusalCount": 1,
@@ -12964,21 +12964,21 @@
   "agentModels": {
     "motoko-local-qwen3-6-35b-a3b-mxfp8": {
       "agentStats": {
-        "apiErrorRate": 0.11428571428571428,
-        "apiErrors": 8,
+        "apiErrorRate": 0.1232876712328767,
+        "apiErrors": 9,
         "avgCost": 0,
-        "avgTokens": 195790.85714285713,
-        "avgTurns": 6.071428571428571,
-        "runs": 70,
-        "successRate": 0.8428571428571429
+        "avgTokens": 191347.76712328766,
+        "avgTurns": 5.931506849315069,
+        "runs": 73,
+        "successRate": 0.8356164383561644
       },
       "agent_cli": "motoko",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0.8428571428571429,
+        "finalSuccess": 0.8356164383561644,
         "totalCostUSD": 0,
-        "totalRuns": 70,
-        "totalTokens": 13705360
+        "totalRuns": 73,
+        "totalTokens": 13968387
       },
       "efficiency": {
         "median_time_to_first_attempt_ms": 0,
@@ -12986,7 +12986,7 @@
         "median_turns_to_success": 5,
         "median_tokens_per_sec": 0,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.439129134977628,
+        "speed_efficiency_score": 0.4353567230913563,
         "cost_killed_count": 0
       },
       "efficiencyAgent": {
@@ -12995,21 +12995,21 @@
         "median_turns_to_success": 5,
         "median_tokens_per_sec": 0,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.439129134977628,
+        "speed_efficiency_score": 0.4353567230913563,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 0.15384615384615385,
-          "agentApiErrors": 8,
+          "agentApiErrorRate": 0.16363636363636364,
+          "agentApiErrors": 9,
           "agentOnly": true,
-          "agentRuns": 52,
-          "agentSuccessRate": 0.7884615384615384,
-          "agentSuccessRateAdjusted": 0.9318181818181818,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.7818181818181819,
+          "agentSuccessRateAdjusted": 0.9347826086956522,
           "avgCost": 0,
-          "avgTokens": 7710.25,
-          "successRate": 0.7884615384615384,
-          "totalRuns": 52
+          "avgTokens": 7423.145454545454,
+          "successRate": 0.7818181818181819,
+          "totalRuns": 55
         },
         "go": {
           "agentApiErrorRate": 0,
@@ -13054,15 +13054,15 @@
         "buckets": {
           "budget_blocked": 1,
           "capability_blocked": 2,
-          "fast_pass": 15,
-          "provider_blocked": 8,
+          "fast_pass": 16,
+          "provider_blocked": 9,
           "refused": 0,
-          "slow_pass": 26
+          "slow_pass": 27
         },
         "cost_overhead_vs_best": 0,
         "dollars_per_pass": 0,
         "error_categories": {
-          "api_error": 8,
+          "api_error": 9,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -13070,8 +13070,8 @@
           "timeout": 0
         },
         "finish_reasons": {
-          "": 9,
-          "stop": 61
+          "": 10,
+          "stop": 63
         },
         "harness": "motoko",
         "median_tokens_per_sec": 0,
@@ -13079,25 +13079,25 @@
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "p90_cost_per_success": 0,
         "pareto_frontier": false,
-        "pass_rate": 0.9516129032258065,
-        "speed_efficiency": 0.439129134977628,
-        "token_overhead_vs_best": 171.78600823045267,
-        "total_runs": 70
+        "pass_rate": 0.953125,
+        "speed_efficiency": 0.4353567230913563,
+        "token_overhead_vs_best": 156.33552631578948,
+        "total_runs": 73
       },
       "sweet_spot_by_lang": {
         "ailang": {
           "buckets": {
             "budget_blocked": 1,
             "capability_blocked": 2,
-            "fast_pass": 14,
-            "provider_blocked": 8,
+            "fast_pass": 15,
+            "provider_blocked": 9,
             "refused": 0,
-            "slow_pass": 27
+            "slow_pass": 28
           },
           "cost_overhead_vs_best": 0,
           "dollars_per_pass": 0,
           "error_categories": {
-            "api_error": 8,
+            "api_error": 9,
             "cost_killed": 0,
             "quota_exhausted": 0,
             "rate_limit": 0,
@@ -13105,8 +13105,8 @@
             "timeout": 0
           },
           "finish_reasons": {
-            "": 9,
-            "stop": 43
+            "": 10,
+            "stop": 45
           },
           "harness": "motoko",
           "median_tokens_per_sec": 0,
@@ -13114,10 +13114,10 @@
           "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
           "p90_cost_per_success": 0,
           "pareto_frontier": false,
-          "pass_rate": 0.9318181818181818,
-          "speed_efficiency": 0.31141101088571366,
+          "pass_rate": 0.9347826086956522,
+          "speed_efficiency": 0.30878714870973645,
           "token_overhead_vs_best": 110.30069124423963,
-          "total_runs": 52
+          "total_runs": 55
         },
         "go": {
           "buckets": {
@@ -13219,7 +13219,7 @@
           "total_runs": 6
         }
       },
-      "totalRuns": 70
+      "totalRuns": 73
     },
     "opencode-or-deepseek-v4-flash": {
       "agentStats": {
@@ -13711,52 +13711,52 @@
     },
     "opencode-qwen3-6-35b-a3b-mxfp8": {
       "agentStats": {
-        "apiErrorRate": 0.07142857142857142,
-        "apiErrors": 5,
+        "apiErrorRate": 0.0821917808219178,
+        "apiErrors": 6,
         "avgCost": 0,
-        "avgTokens": 227923.9714285714,
-        "avgTurns": 6.8428571428571425,
-        "runs": 70,
-        "successRate": 0.7714285714285715
+        "avgTokens": 227417.04109589042,
+        "avgTurns": 6.794520547945205,
+        "runs": 73,
+        "successRate": 0.7671232876712328
       },
       "agent_cli": "opencode",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0.7714285714285715,
+        "finalSuccess": 0.7671232876712328,
         "totalCostUSD": 0,
-        "totalRuns": 70,
-        "totalTokens": 15954678
+        "totalRuns": 73,
+        "totalTokens": 16601444
       },
       "efficiency": {
-        "median_time_to_first_attempt_ms": 99016,
+        "median_time_to_first_attempt_ms": 101289,
         "median_time_to_success_ms": 103624.5,
         "median_turns_to_success": 6,
-        "median_tokens_per_sec": 61.14992122463747,
+        "median_tokens_per_sec": 61.590049261200676,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.28287765148687566,
+        "speed_efficiency_score": 0.2812989329854268,
         "cost_killed_count": 0
       },
       "efficiencyAgent": {
-        "median_time_to_first_attempt_ms": 99016,
+        "median_time_to_first_attempt_ms": 101289,
         "median_time_to_success_ms": 103624.5,
         "median_turns_to_success": 6,
-        "median_tokens_per_sec": 61.14992122463747,
+        "median_tokens_per_sec": 61.590049261200676,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.28287765148687566,
+        "speed_efficiency_score": 0.2812989329854268,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 0.09615384615384616,
-          "agentApiErrors": 5,
+          "agentApiErrorRate": 0.10909090909090909,
+          "agentApiErrors": 6,
           "agentOnly": true,
-          "agentRuns": 52,
-          "agentSuccessRate": 0.6923076923076923,
-          "agentSuccessRateAdjusted": 0.7659574468085106,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.6909090909090909,
+          "agentSuccessRateAdjusted": 0.7755102040816326,
           "avgCost": 0,
-          "avgTokens": 5645.826923076923,
-          "successRate": 0.6923076923076923,
-          "totalRuns": 52
+          "avgTokens": 5557.309090909091,
+          "successRate": 0.6909090909090909,
+          "totalRuns": 55
         },
         "go": {
           "agentApiErrorRate": 0,
@@ -13802,14 +13802,14 @@
           "budget_blocked": 0,
           "capability_blocked": 10,
           "fast_pass": 5,
-          "provider_blocked": 5,
+          "provider_blocked": 6,
           "refused": 0,
-          "slow_pass": 32
+          "slow_pass": 34
         },
         "cost_overhead_vs_best": 0,
         "dollars_per_pass": 0,
         "error_categories": {
-          "api_error": 5,
+          "api_error": 6,
           "cost_killed": 0,
           "quota_exhausted": 0,
           "rate_limit": 0,
@@ -13817,18 +13817,18 @@
           "timeout": 6
         },
         "finish_reasons": {
-          "": 70
+          "": 73
         },
         "harness": "opencode",
-        "median_tokens_per_sec": 61.14992122463747,
+        "median_tokens_per_sec": 61.590049261200676,
         "median_tts_ms": 103624.5,
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "p90_cost_per_success": 0,
         "pareto_frontier": false,
-        "pass_rate": 0.8307692307692308,
-        "speed_efficiency": 0.28287765148687566,
-        "token_overhead_vs_best": 174.95116145252388,
-        "total_runs": 70
+        "pass_rate": 0.835820895522388,
+        "speed_efficiency": 0.2812989329854268,
+        "token_overhead_vs_best": 184.2422470343535,
+        "total_runs": 73
       },
       "sweet_spot_by_lang": {
         "ailang": {
@@ -13836,14 +13836,14 @@
             "budget_blocked": 0,
             "capability_blocked": 11,
             "fast_pass": 2,
-            "provider_blocked": 5,
+            "provider_blocked": 6,
             "refused": 0,
-            "slow_pass": 34
+            "slow_pass": 36
           },
           "cost_overhead_vs_best": 0,
           "dollars_per_pass": 0,
           "error_categories": {
-            "api_error": 5,
+            "api_error": 6,
             "cost_killed": 0,
             "quota_exhausted": 0,
             "rate_limit": 0,
@@ -13851,18 +13851,18 @@
             "timeout": 6
           },
           "finish_reasons": {
-            "": 52
+            "": 55
           },
           "harness": "opencode",
-          "median_tokens_per_sec": 60.5371014813719,
+          "median_tokens_per_sec": 60.96910319140352,
           "median_tts_ms": 135807,
           "model": "opencode-qwen3-6-35b-a3b-mxfp8",
           "p90_cost_per_success": 0,
           "pareto_frontier": false,
-          "pass_rate": 0.7659574468085106,
-          "speed_efficiency": 0.2121398189975922,
-          "token_overhead_vs_best": 137.35562154636034,
-          "total_runs": 52
+          "pass_rate": 0.7755102040816326,
+          "speed_efficiency": 0.211711253706688,
+          "token_overhead_vs_best": 150.2807313431477,
+          "total_runs": 55
         },
         "go": {
           "buckets": {
@@ -13964,56 +13964,56 @@
           "total_runs": 6
         }
       },
-      "totalRuns": 70
+      "totalRuns": 73
     },
     "pi-qwen3-6-35b-a3b-mxfp8": {
       "agentStats": {
-        "apiErrorRate": 0.02857142857142857,
+        "apiErrorRate": 0.0273972602739726,
         "apiErrors": 2,
         "avgCost": 0,
-        "avgTokens": 271175.9,
-        "avgTurns": 7.771428571428571,
-        "runs": 70,
-        "successRate": 0.8
+        "avgTokens": 264113.1369863014,
+        "avgTurns": 7.575342465753424,
+        "runs": 73,
+        "successRate": 0.7945205479452054
       },
       "agent_cli": "pi",
       "aggregates": {
         "avgDurationMs": 0,
-        "finalSuccess": 0.8,
+        "finalSuccess": 0.7945205479452054,
         "totalCostUSD": 0,
-        "totalRuns": 70,
-        "totalTokens": 18982313
+        "totalRuns": 73,
+        "totalTokens": 19280259
       },
       "efficiency": {
-        "median_time_to_first_attempt_ms": 57370.5,
+        "median_time_to_first_attempt_ms": 56666,
         "median_time_to_success_ms": 62500,
         "median_turns_to_success": 5,
         "median_tokens_per_sec": 1334.4037163083349,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.39183673469387753,
+        "speed_efficiency_score": 0.38915292144254954,
         "cost_killed_count": 0
       },
       "efficiencyAgent": {
-        "median_time_to_first_attempt_ms": 57370.5,
+        "median_time_to_first_attempt_ms": 56666,
         "median_time_to_success_ms": 62500,
         "median_turns_to_success": 5,
         "median_tokens_per_sec": 1334.4037163083349,
         "p90_cost_per_success": 0,
-        "speed_efficiency_score": 0.39183673469387753,
+        "speed_efficiency_score": 0.38915292144254954,
         "cost_killed_count": 0
       },
       "languages": {
         "ailang": {
-          "agentApiErrorRate": 0.038461538461538464,
+          "agentApiErrorRate": 0.03636363636363636,
           "agentApiErrors": 2,
           "agentOnly": true,
-          "agentRuns": 52,
-          "agentSuccessRate": 0.7307692307692307,
-          "agentSuccessRateAdjusted": 0.76,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.7272727272727273,
+          "agentSuccessRateAdjusted": 0.7547169811320755,
           "avgCost": 0,
-          "avgTokens": 6503.4807692307695,
-          "successRate": 0.7307692307692307,
-          "totalRuns": 52
+          "avgTokens": 6227.127272727273,
+          "successRate": 0.7272727272727273,
+          "totalRuns": 55
         },
         "go": {
           "agentApiErrorRate": 0,
@@ -14057,11 +14057,11 @@
       "sweet_spot": {
         "buckets": {
           "budget_blocked": 0,
-          "capability_blocked": 12,
-          "fast_pass": 10,
+          "capability_blocked": 13,
+          "fast_pass": 11,
           "provider_blocked": 2,
           "refused": 0,
-          "slow_pass": 28
+          "slow_pass": 29
         },
         "cost_overhead_vs_best": 0,
         "dollars_per_pass": 0,
@@ -14071,10 +14071,10 @@
           "quota_exhausted": 0,
           "rate_limit": 0,
           "step_exhausted": 0,
-          "timeout": 10
+          "timeout": 11
         },
         "finish_reasons": {
-          "": 70
+          "": 73
         },
         "harness": "pi",
         "median_tokens_per_sec": 1334.4037163083349,
@@ -14082,20 +14082,20 @@
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "p90_cost_per_success": 0,
         "pareto_frontier": false,
-        "pass_rate": 0.8235294117647058,
-        "speed_efficiency": 0.39183673469387753,
-        "token_overhead_vs_best": 155.4248339353178,
-        "total_runs": 70
+        "pass_rate": 0.8169014084507042,
+        "speed_efficiency": 0.38915292144254954,
+        "token_overhead_vs_best": 156.6505611484746,
+        "total_runs": 73
       },
       "sweet_spot_by_lang": {
         "ailang": {
           "buckets": {
             "budget_blocked": 0,
-            "capability_blocked": 12,
-            "fast_pass": 10,
+            "capability_blocked": 13,
+            "fast_pass": 11,
             "provider_blocked": 2,
             "refused": 0,
-            "slow_pass": 28
+            "slow_pass": 29
           },
           "cost_overhead_vs_best": 0,
           "dollars_per_pass": 0,
@@ -14105,21 +14105,21 @@
             "quota_exhausted": 0,
             "rate_limit": 0,
             "step_exhausted": 0,
-            "timeout": 10
+            "timeout": 11
           },
           "finish_reasons": {
-            "": 52
+            "": 55
           },
           "harness": "pi",
           "median_tokens_per_sec": 1259.3132954104472,
-          "median_tts_ms": 94063,
+          "median_tts_ms": 85442,
           "model": "pi-qwen3-6-35b-a3b-mxfp8",
           "p90_cost_per_success": 0,
           "pareto_frontier": false,
-          "pass_rate": 0.76,
-          "speed_efficiency": 0.2845988579097762,
-          "token_overhead_vs_best": 151.4820475318931,
-          "total_runs": 52
+          "pass_rate": 0.7547169811320755,
+          "speed_efficiency": 0.3000258772319113,
+          "token_overhead_vs_best": 139.83331419109695,
+          "total_runs": 55
         },
         "go": {
           "buckets": {
@@ -14221,7 +14221,7 @@
           "total_runs": 6
         }
       },
-      "totalRuns": 70
+      "totalRuns": 73
     }
   },
   "benchmarks": {
@@ -28076,8 +28076,8 @@
         "ailang": {
           "apiErrorRate": 0,
           "apiErrors": 0,
-          "avgTokens": 46860.28571428572,
-          "avgTurns": 3.4285714285714284,
+          "avgTokens": 64229.6,
+          "avgTurns": 3.4,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -28091,14 +28091,26 @@
               "runs": 1,
               "successRate": 1
             },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
             "opencode": {
               "apiErrorRate": 0,
               "apiErrors": 0,
-              "runs": 4,
+              "runs": 5,
+              "successRate": 1
+            },
+            "pi": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
               "successRate": 1
             }
           },
-          "runs": 7,
+          "runs": 10,
           "successRate": 1
         }
       },
@@ -28110,9 +28122,9 @@
       "expectedStdout": "25\n11\n",
       "languageStats": {
         "ailang": {
-          "avgTokens": 293.625,
+          "avgTokens": 448.22222222222223,
           "successRate": 1,
-          "totalRuns": 24
+          "totalRuns": 27
         },
         "python": {
           "avgTokens": 87.52941176470588,
@@ -28235,6 +28247,12 @@
             "runs": 1
           }
         },
+        "motoko-local-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
+            "passRate": 1,
+            "runs": 1
+          }
+        },
         "opencode-or-deepseek-v4-flash": {
           "ailang": {
             "passRate": 1,
@@ -28254,6 +28272,12 @@
           }
         },
         "opencode-or-glm-5-2": {
+          "ailang": {
+            "passRate": 1,
+            "runs": 1
+          }
+        },
+        "opencode-qwen3-6-35b-a3b-mxfp8": {
           "ailang": {
             "passRate": 1,
             "runs": 1
@@ -28318,6 +28342,12 @@
             "passRate": 1,
             "runs": 1
           }
+        },
+        "pi-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
+            "passRate": 1,
+            "runs": 1
+          }
         }
       },
       "successRate": 1,
@@ -28333,10 +28363,10 @@
     "ssa_constant_fold": {
       "agentStats": {
         "ailang": {
-          "apiErrorRate": 0.7142857142857143,
-          "apiErrors": 5,
-          "avgTokens": 8927.42857142857,
-          "avgTurns": 3.5714285714285716,
+          "apiErrorRate": 0.7,
+          "apiErrors": 7,
+          "avgTokens": 6249.2,
+          "avgTurns": 2.5,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -28350,15 +28380,27 @@
               "runs": 1,
               "successRate": 0
             },
+            "motoko": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
             "opencode": {
               "apiErrorRate": 1,
-              "apiErrors": 4,
-              "runs": 4,
+              "apiErrors": 5,
+              "runs": 5,
+              "successRate": 0
+            },
+            "pi": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
               "successRate": 0
             }
           },
-          "runs": 7,
-          "successRate": 0.2857142857142857
+          "runs": 10,
+          "successRate": 0.2
         }
       },
       "avgTokens": 3655.5588235294117,
@@ -28369,9 +28411,9 @@
       "expectedStdout": "n.0 = input\ne.0 = n.0 * 7\nreturn e.0\n",
       "languageStats": {
         "ailang": {
-          "avgTokens": 6384.583333333333,
-          "successRate": 0.4166666666666667,
-          "totalRuns": 24
+          "avgTokens": 5675.185185185185,
+          "successRate": 0.37037037037037035,
+          "totalRuns": 27
         },
         "python": {
           "avgTokens": 1963.5294117647059,
@@ -28494,6 +28536,12 @@
             "runs": 1
           }
         },
+        "motoko-local-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
+            "passRate": 0,
+            "runs": 1
+          }
+        },
         "opencode-or-deepseek-v4-flash": {
           "ailang": {
             "passRate": 0,
@@ -28513,6 +28561,12 @@
           }
         },
         "opencode-or-glm-5-2": {
+          "ailang": {
+            "passRate": 0,
+            "runs": 1
+          }
+        },
+        "opencode-qwen3-6-35b-a3b-mxfp8": {
           "ailang": {
             "passRate": 0,
             "runs": 1
@@ -28577,6 +28631,12 @@
             "passRate": 0,
             "runs": 1
           }
+        },
+        "pi-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
+            "passRate": 0,
+            "runs": 1
+          }
         }
       },
       "successRate": 0.5,
@@ -28594,8 +28654,8 @@
         "ailang": {
           "apiErrorRate": 0,
           "apiErrors": 0,
-          "avgTokens": 43051.71428571428,
-          "avgTurns": 3.5714285714285716,
+          "avgTokens": 119482.7,
+          "avgTurns": 4.9,
           "byHarness": {
             "claude": {
               "apiErrorRate": 0,
@@ -28609,14 +28669,26 @@
               "runs": 1,
               "successRate": 1
             },
+            "motoko": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
             "opencode": {
               "apiErrorRate": 0,
               "apiErrors": 0,
-              "runs": 4,
+              "runs": 5,
+              "successRate": 1
+            },
+            "pi": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
               "successRate": 1
             }
           },
-          "runs": 7,
+          "runs": 10,
           "successRate": 1
         }
       },
@@ -28628,9 +28700,9 @@
       "expectedStdout": "MOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nDOOR_OPEN @ floor 5 (3sec)\nDOOR_OPEN @ floor 5 (2sec)\nDOOR_OPEN @ floor 5 (1sec)\nIDLE @ floor 5\nIDLE @ floor 5\nMOVING 5 -\u003e 1\n",
       "languageStats": {
         "ailang": {
-          "avgTokens": 906.2916666666666,
-          "successRate": 0.9166666666666666,
-          "totalRuns": 24
+          "avgTokens": 1496.888888888889,
+          "successRate": 0.9259259259259259,
+          "totalRuns": 27
         },
         "python": {
           "avgTokens": 602.8235294117648,
@@ -28753,6 +28825,12 @@
             "runs": 1
           }
         },
+        "motoko-local-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
+            "passRate": 1,
+            "runs": 1
+          }
+        },
         "opencode-or-deepseek-v4-flash": {
           "ailang": {
             "passRate": 1,
@@ -28772,6 +28850,12 @@
           }
         },
         "opencode-or-glm-5-2": {
+          "ailang": {
+            "passRate": 1,
+            "runs": 1
+          }
+        },
+        "opencode-qwen3-6-35b-a3b-mxfp8": {
           "ailang": {
             "passRate": 1,
             "runs": 1
@@ -28833,6 +28917,12 @@
             "runs": 1
           },
           "python": {
+            "passRate": 1,
+            "runs": 1
+          }
+        },
+        "pi-qwen3-6-35b-a3b-mxfp8": {
+          "ailang": {
             "passRate": 1,
             "runs": 1
           }
@@ -30143,68 +30233,68 @@
   },
   "languages": {
     "ailang": {
-      "agent_api_error_rate": 0.14760147601476015,
+      "agent_api_error_rate": 0.14882032667876588,
       "agent_api_error_rate_claude": 0.02702702702702703,
       "agent_api_error_rate_codex": 0.509090909090909,
-      "agent_api_error_rate_motoko": 0.15384615384615385,
-      "agent_api_error_rate_opencode": 0.14338235294117646,
-      "agent_api_error_rate_pi": 0.038461538461538464,
-      "agent_api_errors": 80,
+      "agent_api_error_rate_motoko": 0.16363636363636364,
+      "agent_api_error_rate_opencode": 0.14545454545454545,
+      "agent_api_error_rate_pi": 0.03636363636363636,
+      "agent_api_errors": 82,
       "agent_api_errors_claude": 3,
       "agent_api_errors_codex": 28,
-      "agent_api_errors_motoko": 8,
-      "agent_api_errors_opencode": 39,
+      "agent_api_errors_motoko": 9,
+      "agent_api_errors_opencode": 40,
       "agent_api_errors_pi": 2,
-      "agent_avg_cost": 0.05965351900664206,
+      "agent_avg_cost": 0.05867914210816696,
       "agent_avg_cost_claude": 0.179454399099099,
       "agent_avg_cost_codex": 0.10283981818181819,
       "agent_avg_cost_motoko": 0,
-      "agent_avg_cost_opencode": 0.024840363976470575,
+      "agent_avg_cost_opencode": 0.024569378187636354,
       "agent_avg_cost_pi": 0,
-      "agent_avg_tokens": 122201.61623616236,
+      "agent_avg_tokens": 122397.48638838476,
       "agent_avg_tokens_claude": 6166.531531531532,
       "agent_avg_tokens_codex": 77220.14545454546,
-      "agent_avg_tokens_motoko": 256309.46153846153,
-      "agent_avg_tokens_opencode": 108749.76102941176,
-      "agent_avg_tokens_pi": 353724.1538461539,
-      "agent_avg_turns": 5.555350553505535,
+      "agent_avg_tokens_motoko": 247111.25454545455,
+      "agent_avg_tokens_opencode": 109915.27636363637,
+      "agent_avg_tokens_pi": 339847.3090909091,
+      "agent_avg_turns": 5.526315789473684,
       "agent_avg_turns_claude": 6.801801801801802,
       "agent_avg_turns_codex": 0.4909090909090909,
-      "agent_avg_turns_failure": 1.8547008547008548,
-      "agent_avg_turns_motoko": 6.596153846153846,
-      "agent_avg_turns_opencode": 5.305147058823529,
-      "agent_avg_turns_pi": 8.51923076923077,
-      "agent_avg_turns_success": 6.574117647058824,
-      "agent_cost_efficiency_ratio": 1.059215198599016,
+      "agent_avg_turns_failure": 1.8083333333333333,
+      "agent_avg_turns_motoko": 6.381818181818182,
+      "agent_avg_turns_opencode": 5.3090909090909095,
+      "agent_avg_turns_pi": 8.218181818181819,
+      "agent_avg_turns_success": 6.561484918793504,
+      "agent_cost_efficiency_ratio": 1.0444697433981016,
       "agent_cost_efficiency_ratio_adjusted_claude": 1.8524086306026752,
       "agent_cost_efficiency_ratio_adjusted_codex": 2.9798610420207163,
       "agent_cost_efficiency_ratio_claude": 1.9038644258971942,
       "agent_cost_efficiency_ratio_codex": 6.0700873078199775,
-      "agent_cost_per_success": 0.07607578188611763,
-      "agent_impossibility_coverage": 0.5522755227552276,
-      "agent_runs": 542,
+      "agent_cost_per_success": 0.07501672227749419,
+      "agent_impossibility_coverage": 0.5482960274248839,
+      "agent_runs": 551,
       "agent_runs_claude": 111,
       "agent_runs_codex": 55,
-      "agent_runs_motoko": 52,
-      "agent_runs_opencode": 272,
-      "agent_runs_pi": 52,
-      "agent_success_gap": 0.2662756984712704,
+      "agent_runs_motoko": 55,
+      "agent_runs_opencode": 275,
+      "agent_runs_pi": 55,
+      "agent_success_gap": 0.2643570132227119,
       "agent_success_gap_adjusted_claude": 0.5251322751322751,
       "agent_success_gap_adjusted_codex": 0.2909090909090909,
       "agent_success_gap_claude": 0.49935649935649934,
       "agent_success_gap_codex": -0.2181818181818182,
-      "agent_success_rate": 0.7841328413284133,
-      "agent_success_rate_adjusted": 0.9199134199134199,
+      "agent_success_rate": 0.7822141560798548,
+      "agent_success_rate_adjusted": 0.9189765458422174,
       "agent_success_rate_adjusted_claude": 0.9537037037037037,
       "agent_success_rate_adjusted_codex": 1,
-      "agent_success_rate_adjusted_motoko": 0.9318181818181818,
-      "agent_success_rate_adjusted_opencode": 0.927038626609442,
-      "agent_success_rate_adjusted_pi": 0.76,
+      "agent_success_rate_adjusted_motoko": 0.9347826086956522,
+      "agent_success_rate_adjusted_opencode": 0.9276595744680851,
+      "agent_success_rate_adjusted_pi": 0.7547169811320755,
       "agent_success_rate_claude": 0.9279279279279279,
       "agent_success_rate_codex": 0.4909090909090909,
-      "agent_success_rate_motoko": 0.7884615384615384,
-      "agent_success_rate_opencode": 0.7941176470588235,
-      "agent_success_rate_pi": 0.7307692307692307,
+      "agent_success_rate_motoko": 0.7818181818181819,
+      "agent_success_rate_opencode": 0.7927272727272727,
+      "agent_success_rate_pi": 0.7272727272727273,
       "avg_cost_usd": 0.09649670570378138,
       "avg_tokens": 1421.3676470588234,
       "final_cost_per_success_comparable": 0.09682628571428571,
@@ -30366,17 +30456,17 @@
     },
     "motoko": {
       "avgCost": 0,
-      "avgTokens": 195790.85714285713,
-      "avgTurns": 6.071428571428571,
+      "avgTokens": 191347.76712328766,
+      "avgTurns": 5.931506849315069,
       "languages": {
         "ailang": {
           "avgCost": 0,
-          "avgTokens": 256309.46153846153,
-          "avgTurns": 6.596153846153846,
-          "avgTurnsFailure": 2.3636363636363638,
-          "avgTurnsSuccess": 7.7317073170731705,
-          "runs": 52,
-          "successRate": 0.7884615384615384
+          "avgTokens": 247111.25454545455,
+          "avgTurns": 6.381818181818182,
+          "avgTurnsFailure": 2.1666666666666665,
+          "avgTurnsSuccess": 7.558139534883721,
+          "runs": 55,
+          "successRate": 0.7818181818181819
         },
         "go": {
           "avgCost": 0,
@@ -30406,29 +30496,29 @@
       "models": {
         "motoko-local-qwen3-6-35b-a3b-mxfp8": {
           "avgCost": 0,
-          "avgTokens": 195790.85714285713,
-          "avgTurns": 6.071428571428571,
-          "runs": 70,
-          "successRate": 0.8428571428571429
+          "avgTokens": 191347.76712328766,
+          "avgTurns": 5.931506849315069,
+          "runs": 73,
+          "successRate": 0.8356164383561644
         }
       },
-      "runs": 70,
-      "successRate": 0.8428571428571429,
+      "runs": 73,
+      "successRate": 0.8356164383561644,
       "totalCost": 0
     },
     "opencode": {
-      "avgCost": 0.0232985482813793,
-      "avgTokens": 106410.02413793103,
-      "avgTurns": 5.334482758620689,
+      "avgCost": 0.023059996592491458,
+      "avgTokens": 107527.89419795222,
+      "avgTurns": 5.337883959044369,
       "languages": {
         "ailang": {
-          "avgCost": 0.024840363976470575,
-          "avgTokens": 108749.76102941176,
-          "avgTurns": 5.305147058823529,
-          "avgTurnsFailure": 1.9642857142857142,
-          "avgTurnsSuccess": 6.171296296296297,
-          "runs": 272,
-          "successRate": 0.7941176470588235
+          "avgCost": 0.024569378187636354,
+          "avgTokens": 109915.27636363637,
+          "avgTurns": 5.3090909090909095,
+          "avgTurnsFailure": 1.9298245614035088,
+          "avgTurnsSuccess": 6.192660550458716,
+          "runs": 275,
+          "successRate": 0.7927272727272727
         },
         "go": {
           "avgCost": 0,
@@ -30486,29 +30576,29 @@
         },
         "opencode-qwen3-6-35b-a3b-mxfp8": {
           "avgCost": 0,
-          "avgTokens": 227923.9714285714,
-          "avgTurns": 6.8428571428571425,
-          "runs": 70,
-          "successRate": 0.7714285714285715
+          "avgTokens": 227417.04109589042,
+          "avgTurns": 6.794520547945205,
+          "runs": 73,
+          "successRate": 0.7671232876712328
         }
       },
-      "runs": 290,
-      "successRate": 0.8068965517241379,
+      "runs": 293,
+      "successRate": 0.8054607508532423,
       "totalCost": 6.756579001599997
     },
     "pi": {
       "avgCost": 0,
-      "avgTokens": 271175.9,
-      "avgTurns": 7.771428571428571,
+      "avgTokens": 264113.1369863014,
+      "avgTurns": 7.575342465753424,
       "languages": {
         "ailang": {
           "avgCost": 0,
-          "avgTokens": 353724.1538461539,
-          "avgTurns": 8.51923076923077,
-          "avgTurnsFailure": 4.5,
-          "avgTurnsSuccess": 10,
-          "runs": 52,
-          "successRate": 0.7307692307692307
+          "avgTokens": 339847.3090909091,
+          "avgTurns": 8.218181818181819,
+          "avgTurnsFailure": 4.2,
+          "avgTurnsSuccess": 9.725,
+          "runs": 55,
+          "successRate": 0.7272727272727273
         },
         "go": {
           "avgCost": 0,
@@ -30538,14 +30628,14 @@
       "models": {
         "pi-qwen3-6-35b-a3b-mxfp8": {
           "avgCost": 0,
-          "avgTokens": 271175.9,
-          "avgTurns": 7.771428571428571,
-          "runs": 70,
-          "successRate": 0.8
+          "avgTokens": 264113.1369863014,
+          "avgTurns": 7.575342465753424,
+          "runs": 73,
+          "successRate": 0.7945205479452054
         }
       },
-      "runs": 70,
-      "successRate": 0.8,
+      "runs": 73,
+      "successRate": 0.7945205479452054,
       "totalCost": 0
     }
   },
@@ -30661,17 +30751,17 @@
     },
     "motoko": {
       "avg_cost_usd": 0,
-      "avg_duration_ms": 124095.27142857143,
+      "avg_duration_ms": 120915.83561643836,
       "display_name": "motoko_agent",
       "languages": {
         "ailang": {
-          "apiErrorRate": 0.15384615384615385,
-          "apiErrors": 8,
+          "apiErrorRate": 0.16363636363636364,
+          "apiErrors": 9,
           "avgCost": 0,
-          "avgTokens": 256309.46153846153,
-          "runs": 52,
-          "successRate": 0.7884615384615384,
-          "successRateAdjusted": 0.9318181818181818
+          "avgTokens": 247111.25454545455,
+          "runs": 55,
+          "successRate": 0.7818181818181819,
+          "successRateAdjusted": 0.9347826086956522
         },
         "go": {
           "apiErrorRate": 0,
@@ -30705,16 +30795,16 @@
         "motoko-local-qwen3-6-35b-a3b-mxfp8"
       ],
       "name": "motoko",
-      "success_rate": 0.8428571428571429,
+      "success_rate": 0.8356164383561644,
       "tiers": {
         "core": {
           "ailang": {
             "apiErrorRate": 0,
             "apiErrors": 0,
             "avgCost": 0,
-            "runs": 16,
-            "successRate": 0.9375,
-            "successRateAdjusted": 0.9375
+            "runs": 17,
+            "successRate": 0.9411764705882353,
+            "successRateAdjusted": 0.9411764705882353
           },
           "go": {
             "apiErrorRate": 0,
@@ -30743,40 +30833,40 @@
         },
         "frontier": {
           "ailang": {
-            "apiErrorRate": 0.5,
-            "apiErrors": 7,
+            "apiErrorRate": 0.5333333333333333,
+            "apiErrors": 8,
             "avgCost": 0,
-            "runs": 14,
-            "successRate": 0.35714285714285715,
+            "runs": 15,
+            "successRate": 0.3333333333333333,
             "successRateAdjusted": 0.7142857142857143
           }
         },
         "stretch": {
           "ailang": {
-            "apiErrorRate": 0.05555555555555555,
+            "apiErrorRate": 0.05263157894736842,
             "apiErrors": 1,
             "avgCost": 0,
-            "runs": 18,
-            "successRate": 0.9444444444444444,
+            "runs": 19,
+            "successRate": 0.9473684210526315,
             "successRateAdjusted": 1
           }
         }
       },
-      "total_runs": 70
+      "total_runs": 73
     },
     "opencode": {
-      "avg_cost_usd": 0.0232985482813793,
-      "avg_duration_ms": 76959.4724137931,
+      "avg_cost_usd": 0.023059996592491458,
+      "avg_duration_ms": 77330.8566552901,
       "display_name": "opencode CLI",
       "languages": {
         "ailang": {
-          "apiErrorRate": 0.14338235294117646,
-          "apiErrors": 39,
-          "avgCost": 0.024840363976470575,
-          "avgTokens": 108749.76102941176,
-          "runs": 272,
-          "successRate": 0.7941176470588235,
-          "successRateAdjusted": 0.927038626609442
+          "apiErrorRate": 0.14545454545454545,
+          "apiErrors": 40,
+          "avgCost": 0.024569378187636354,
+          "avgTokens": 109915.27636363637,
+          "runs": 275,
+          "successRate": 0.7927272727272727,
+          "successRateAdjusted": 0.9276595744680851
         },
         "go": {
           "apiErrorRate": 0,
@@ -30814,16 +30904,16 @@
         "opencode-qwen3-6-35b-a3b-mxfp8"
       ],
       "name": "opencode",
-      "success_rate": 0.8068965517241379,
+      "success_rate": 0.8054607508532423,
       "tiers": {
         "core": {
           "ailang": {
-            "apiErrorRate": 0.010869565217391304,
+            "apiErrorRate": 0.010752688172043012,
             "apiErrors": 1,
-            "avgCost": 0.025929914882608696,
-            "runs": 92,
-            "successRate": 0.8913043478260869,
-            "successRateAdjusted": 0.9010989010989011
+            "avgCost": 0.025651098593548385,
+            "runs": 93,
+            "successRate": 0.8924731182795699,
+            "successRateAdjusted": 0.9021739130434783
           },
           "go": {
             "apiErrorRate": 0,
@@ -30852,40 +30942,40 @@
         },
         "frontier": {
           "ailang": {
-            "apiErrorRate": 0.4189189189189189,
-            "apiErrors": 31,
-            "avgCost": 0.019676837902702703,
-            "runs": 74,
-            "successRate": 0.5135135135135135,
+            "apiErrorRate": 0.4266666666666667,
+            "apiErrors": 32,
+            "avgCost": 0.019414480064,
+            "runs": 75,
+            "successRate": 0.5066666666666667,
             "successRateAdjusted": 0.8837209302325582
           }
         },
         "stretch": {
           "ailang": {
-            "apiErrorRate": 0.06862745098039216,
+            "apiErrorRate": 0.06796116504854369,
             "apiErrors": 7,
-            "avgCost": 0.0285778512509804,
-            "runs": 102,
-            "successRate": 0.9117647058823529,
-            "successRateAdjusted": 0.9789473684210527
+            "avgCost": 0.02830039638446603,
+            "runs": 103,
+            "successRate": 0.912621359223301,
+            "successRateAdjusted": 0.9791666666666666
           }
         }
       },
-      "total_runs": 290
+      "total_runs": 293
     },
     "pi": {
       "avg_cost_usd": 0,
-      "avg_duration_ms": 99042.08571428571,
+      "avg_duration_ms": 96551.43835616438,
       "display_name": "pi",
       "languages": {
         "ailang": {
-          "apiErrorRate": 0.038461538461538464,
+          "apiErrorRate": 0.03636363636363636,
           "apiErrors": 2,
           "avgCost": 0,
-          "avgTokens": 353724.1538461539,
-          "runs": 52,
-          "successRate": 0.7307692307692307,
-          "successRateAdjusted": 0.76
+          "avgTokens": 339847.3090909091,
+          "runs": 55,
+          "successRate": 0.7272727272727273,
+          "successRateAdjusted": 0.7547169811320755
         },
         "go": {
           "apiErrorRate": 0,
@@ -30919,16 +31009,16 @@
         "pi-qwen3-6-35b-a3b-mxfp8"
       ],
       "name": "pi",
-      "success_rate": 0.8,
+      "success_rate": 0.7945205479452054,
       "tiers": {
         "core": {
           "ailang": {
-            "apiErrorRate": 0.0625,
+            "apiErrorRate": 0.058823529411764705,
             "apiErrors": 1,
             "avgCost": 0,
-            "runs": 16,
-            "successRate": 0.75,
-            "successRateAdjusted": 0.8
+            "runs": 17,
+            "successRate": 0.7647058823529411,
+            "successRateAdjusted": 0.8125
           },
           "go": {
             "apiErrorRate": 0,
@@ -30957,12 +31047,12 @@
         },
         "frontier": {
           "ailang": {
-            "apiErrorRate": 0.07142857142857142,
+            "apiErrorRate": 0.06666666666666667,
             "apiErrors": 1,
             "avgCost": 0,
-            "runs": 14,
-            "successRate": 0.35714285714285715,
-            "successRateAdjusted": 0.38461538461538464
+            "runs": 15,
+            "successRate": 0.3333333333333333,
+            "successRateAdjusted": 0.35714285714285715
           }
         },
         "stretch": {
@@ -30970,19 +31060,19 @@
             "apiErrorRate": 0,
             "apiErrors": 0,
             "avgCost": 0,
-            "runs": 18,
-            "successRate": 0.9444444444444444,
-            "successRateAdjusted": 0.9444444444444444
+            "runs": 19,
+            "successRate": 0.9473684210526315,
+            "successRateAdjusted": 0.9473684210526315
           }
         }
       },
-      "total_runs": 70
+      "total_runs": 73
     }
   },
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-14T23:27:16+02:00",
+      "timestamp": "2026-07-15T04:32:06+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -47631,9 +47721,9 @@
       },
       {
         "benchmark_id": "shadowing_heavy_contract",
-        "cheapest_cost_usd": 0.00009225999999999999,
-        "cheapest_model": "or-deepseek-v4-flash",
-        "cheapest_tts_ms": 45,
+        "cheapest_cost_usd": 0,
+        "cheapest_model": "motoko-local-qwen3-6-35b-a3b-mxfp8/motoko",
+        "cheapest_tts_ms": 29731,
         "fastest_cost_usd": 0.000875,
         "fastest_model": "gpt5-6-luna",
         "fastest_tts_ms": 15
@@ -47649,9 +47739,9 @@
       },
       {
         "benchmark_id": "state_machine_elevator",
-        "cheapest_cost_usd": 0.0003003,
-        "cheapest_model": "or-deepseek-v4-flash",
-        "cheapest_tts_ms": 61,
+        "cheapest_cost_usd": 0,
+        "cheapest_model": "pi-qwen3-6-35b-a3b-mxfp8/pi",
+        "cheapest_tts_ms": 71504,
         "fastest_cost_usd": 0.015491999999999999,
         "fastest_model": "claude-sonnet-5",
         "fastest_tts_ms": 24
@@ -47703,196 +47793,196 @@
       }
     ],
     "slow_threshold_ms": 60000,
-    "total_runs": 2449
+    "total_runs": 2458
   },
   "ratings": {
     "agent": {
       "benchmarks": [
         {
           "band": "Very hard",
-          "elo": 3035.1,
+          "elo": 3040.8,
           "id": "quine",
           "passRate": 0,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2515.3,
+          "elo": 2520.6,
           "id": "gauntlet_10",
           "passRate": 10,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2514.4,
+          "elo": 2519.7,
           "id": "commonmark_emphasis",
           "passRate": 10,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2310.5,
+          "elo": 2340.6,
           "id": "ssa_constant_fold",
-          "passRate": 28.6,
+          "passRate": 20,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2200.8,
+          "elo": 2204.3,
           "id": "docx_reimplement",
           "passRate": 30,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2198.6,
+          "elo": 2202.1,
           "id": "config_file_parser",
           "passRate": 30,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2085.2,
+          "elo": 2087.8,
           "id": "parse_prec_climb",
           "passRate": 40,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2082.8,
+          "elo": 2085.4,
           "id": "legal_obligation_engine",
           "passRate": 40,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 2082.5,
+          "elo": 2085.1,
           "id": "glob_match_spec",
           "passRate": 40,
           "saturated": false
         },
         {
           "band": "Very hard",
-          "elo": 1975,
+          "elo": 1976.8,
           "id": "bytecode_vm_trace",
           "passRate": 50,
           "saturated": false
         },
         {
           "band": "Hard",
-          "elo": 1867.7,
+          "elo": 1869.1,
           "id": "lfu_cache_trace",
           "passRate": 60,
           "saturated": false
         },
         {
           "band": "Hard",
-          "elo": 1865.9,
+          "elo": 1867.3,
           "id": "csv_to_json_converter",
           "passRate": 60,
           "saturated": false
         },
         {
           "band": "Hard",
-          "elo": 1811.2,
+          "elo": 1813.8,
           "id": "type_unify",
           "passRate": 71.4,
           "saturated": false
         },
         {
           "band": "Hard",
-          "elo": 1754.7,
+          "elo": 1755.6,
           "id": "ast_patch_roundtrip",
           "passRate": 70,
           "saturated": false
         },
         {
           "band": "Hard",
-          "elo": 1753.6,
+          "elo": 1754.6,
           "id": "dep_resolver_backtrack",
           "passRate": 70,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1623.1,
+          "elo": 1623.8,
           "id": "contract_rle_roundtrip",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1622.5,
+          "elo": 1623.2,
           "id": "binary_strings_1e18",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1621.5,
+          "elo": 1622.2,
           "id": "emit_exact_bytes_varied",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1618.7,
+          "elo": 1619.4,
           "id": "cli_args",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1617.9,
+          "elo": 1618.7,
           "id": "prompt_injection",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1616.8,
+          "elo": 1617.6,
           "id": "pipeline",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1551.5,
+          "elo": 1553,
           "id": "state_machine_vending",
           "passRate": 85.7,
           "saturated": false
         },
         {
           "band": "Moderate",
-          "elo": 1551,
+          "elo": 1552.6,
           "id": "stream_lcg_topk",
           "passRate": 85.7,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1435.2,
+          "elo": 1435.8,
           "id": "contract_bst_validate",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1433.6,
+          "elo": 1434.1,
           "id": "contract_roman_numeral",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1433.2,
+          "elo": 1433.8,
           "id": "contract_leap_year",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1433.1,
+          "elo": 1433.6,
           "graderFlag": "set-repr",
           "id": "contract_sorted_merge",
           "passRate": 90,
@@ -47900,14 +47990,14 @@
         },
         {
           "band": "Easy",
-          "elo": 1432.9,
+          "elo": 1433.4,
           "id": "intent_annotated_solver",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1432.4,
+          "elo": 1432.9,
           "graderFlag": "free-text-exact-match",
           "id": "decision_block_capture",
           "passRate": 90,
@@ -47915,189 +48005,189 @@
         },
         {
           "band": "Easy",
-          "elo": 1432.3,
+          "elo": 1432.8,
           "id": "effect_txn_rollback",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1431.5,
+          "elo": 1432,
           "id": "explicit_dataflow_ssa",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1431.2,
+          "elo": 1431.7,
           "id": "api_call_json",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1431,
+          "elo": 1431.5,
           "id": "polymorphic_ord_defaulting",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1430.5,
+          "elo": 1431.1,
           "id": "graph_bfs",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1430.4,
+          "elo": 1431,
           "id": "audit_chain_replay",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1430,
+          "elo": 1430.6,
           "id": "log_file_analyzer",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1429.5,
+          "elo": 1430,
           "id": "merge_sort",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1428.9,
+          "elo": 1429.5,
           "id": "mini_interpreter",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Easy",
-          "elo": 1378.3,
+          "elo": 1377.1,
           "id": "lambda_calc",
           "passRate": 91.7,
           "saturated": false
         },
         {
           "band": "Trivial",
-          "elo": 1287.3,
+          "elo": 1287.4,
           "id": "list_comprehension",
           "passRate": 94.7,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 1016.1,
+          "elo": 1016.2,
           "id": "markdown_reimplement",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 858.4,
-          "id": "state_machine_elevator",
-          "passRate": 100,
-          "saturated": true
-        },
-        {
-          "band": "Trivial",
-          "elo": 858,
-          "id": "shadowing_heavy_contract",
-          "passRate": 100,
-          "saturated": true
-        },
-        {
-          "band": "Trivial",
-          "elo": 854.5,
+          "elo": 854.7,
           "id": "tree_transformation_pipeline",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 852.9,
+          "elo": 853.1,
           "id": "symbolic_diff",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 800.6,
+          "elo": 802.1,
+          "id": "shadowing_heavy_contract",
+          "passRate": 100,
+          "saturated": true
+        },
+        {
+          "band": "Trivial",
+          "elo": 802,
+          "id": "state_machine_elevator",
+          "passRate": 100,
+          "saturated": true
+        },
+        {
+          "band": "Trivial",
+          "elo": 801,
           "id": "run_length_encode",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 799.8,
+          "elo": 799.9,
           "id": "contract_matrix_determinant",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 797.2,
+          "elo": 797.5,
           "id": "emit_exact_bytes",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 795.5,
+          "elo": 795.7,
           "id": "error_handling",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 794.4,
+          "elo": 794.7,
           "id": "float_eq",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 793.3,
+          "elo": 793.5,
           "id": "expression_evaluator",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 792.9,
+          "elo": 793.1,
           "id": "effect_tracking_io_fs",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 791.9,
+          "elo": 792.1,
           "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 791.7,
+          "elo": 791.9,
           "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 791,
+          "elo": 791.4,
           "id": "pattern_matching_complex",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
-          "elo": 789.5,
+          "elo": 789.8,
           "id": "higher_order_functions",
           "passRate": 100,
           "saturated": true
@@ -48111,7 +48201,7 @@
         },
         {
           "band": "Trivial",
-          "elo": 783.6,
+          "elo": 783.5,
           "id": "immutable_data_structures",
           "passRate": 100,
           "saturated": true
@@ -48125,7 +48215,7 @@
         },
         {
           "band": "Trivial",
-          "elo": 692.8,
+          "elo": 692.9,
           "id": "json_transform",
           "passRate": 100,
           "saturated": true
@@ -48136,196 +48226,196 @@
           "benchmarks": [
             {
               "band": "Very hard",
-              "elo": 3016.8,
+              "elo": 3022.6,
               "id": "quine",
               "passRate": 0,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2496.8,
+              "elo": 2502,
               "id": "gauntlet_10",
               "passRate": 10,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2495.9,
+              "elo": 2501.2,
               "id": "commonmark_emphasis",
               "passRate": 10,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2292.3,
+              "elo": 2322,
               "id": "ssa_constant_fold",
-              "passRate": 28.6,
+              "passRate": 20,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2182,
+              "elo": 2185.6,
               "id": "docx_reimplement",
               "passRate": 30,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2179.9,
+              "elo": 2183.4,
               "id": "config_file_parser",
               "passRate": 30,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2066.2,
+              "elo": 2068.9,
               "id": "parse_prec_climb",
               "passRate": 40,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2063.8,
+              "elo": 2066.5,
               "id": "legal_obligation_engine",
               "passRate": 40,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 2063.6,
+              "elo": 2066.2,
               "id": "glob_match_spec",
               "passRate": 40,
               "saturated": false
             },
             {
               "band": "Very hard",
-              "elo": 1955.8,
+              "elo": 1957.7,
               "id": "bytecode_vm_trace",
               "passRate": 50,
               "saturated": false
             },
             {
               "band": "Hard",
-              "elo": 1848.3,
+              "elo": 1849.7,
               "id": "lfu_cache_trace",
               "passRate": 60,
               "saturated": false
             },
             {
               "band": "Hard",
-              "elo": 1846.5,
+              "elo": 1847.9,
               "id": "csv_to_json_converter",
               "passRate": 60,
               "saturated": false
             },
             {
               "band": "Hard",
-              "elo": 1794.2,
+              "elo": 1797,
               "id": "type_unify",
               "passRate": 71.4,
               "saturated": false
             },
             {
               "band": "Hard",
-              "elo": 1735.1,
+              "elo": 1736.1,
               "id": "ast_patch_roundtrip",
               "passRate": 70,
               "saturated": false
             },
             {
               "band": "Hard",
-              "elo": 1734,
+              "elo": 1735.1,
               "id": "dep_resolver_backtrack",
               "passRate": 70,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1658.8,
+              "elo": 1658.5,
               "id": "lambda_calc",
               "passRate": 66.7,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1603.7,
+              "elo": 1604.6,
               "id": "contract_rle_roundtrip",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1603.1,
+              "elo": 1603.9,
               "id": "binary_strings_1e18",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1602.2,
+              "elo": 1603,
               "id": "emit_exact_bytes_varied",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1599.4,
+              "elo": 1600.2,
               "id": "cli_args",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1598.5,
+              "elo": 1599.4,
               "id": "prompt_injection",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1597.5,
+              "elo": 1598.3,
               "id": "pipeline",
               "passRate": 80,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1536.2,
+              "elo": 1537.8,
               "id": "state_machine_vending",
               "passRate": 85.7,
               "saturated": false
             },
             {
               "band": "Moderate",
-              "elo": 1535.8,
+              "elo": 1537.4,
               "id": "stream_lcg_topk",
               "passRate": 85.7,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1417.1,
+              "elo": 1417.8,
               "id": "contract_bst_validate",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1415.4,
+              "elo": 1416.1,
               "id": "contract_roman_numeral",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1415.1,
+              "elo": 1415.7,
               "id": "contract_leap_year",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1414.9,
+              "elo": 1415.5,
               "graderFlag": "set-repr",
               "id": "contract_sorted_merge",
               "passRate": 90,
@@ -48333,14 +48423,14 @@
             },
             {
               "band": "Easy",
-              "elo": 1414.7,
+              "elo": 1415.4,
               "id": "intent_annotated_solver",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1414.2,
+              "elo": 1414.8,
               "graderFlag": "free-text-exact-match",
               "id": "decision_block_capture",
               "passRate": 90,
@@ -48348,210 +48438,210 @@
             },
             {
               "band": "Easy",
-              "elo": 1414.1,
+              "elo": 1414.7,
               "id": "effect_txn_rollback",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1413.3,
+              "elo": 1413.9,
               "id": "explicit_dataflow_ssa",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1413.1,
+              "elo": 1413.7,
               "id": "api_call_json",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1412.9,
+              "elo": 1413.5,
               "id": "polymorphic_ord_defaulting",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1412.4,
+              "elo": 1413.1,
               "id": "list_comprehension",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1412.3,
+              "elo": 1413,
               "id": "graph_bfs",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1412.3,
+              "elo": 1413,
               "id": "audit_chain_replay",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1411.9,
+              "elo": 1412.6,
               "id": "log_file_analyzer",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1411.4,
+              "elo": 1412.1,
               "id": "merge_sort",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
-              "elo": 1410.9,
+              "elo": 1411.5,
               "id": "mini_interpreter",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Trivial",
-              "elo": 999.4,
+              "elo": 999.8,
               "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 998.7,
+              "elo": 999,
               "id": "json_parse",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 997.5,
+              "elo": 997.8,
               "id": "json_encode",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 990.1,
+              "elo": 990.6,
               "id": "markdown_reimplement",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 846.5,
-              "id": "state_machine_elevator",
-              "passRate": 100,
-              "saturated": true
-            },
-            {
-              "band": "Trivial",
-              "elo": 846.2,
-              "id": "shadowing_heavy_contract",
-              "passRate": 100,
-              "saturated": true
-            },
-            {
-              "band": "Trivial",
-              "elo": 842.7,
+              "elo": 842.9,
               "id": "tree_transformation_pipeline",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 841.1,
+              "elo": 841.3,
               "id": "symbolic_diff",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 784.5,
+              "elo": 786.1,
+              "id": "shadowing_heavy_contract",
+              "passRate": 100,
+              "saturated": true
+            },
+            {
+              "band": "Trivial",
+              "elo": 786.1,
+              "id": "state_machine_elevator",
+              "passRate": 100,
+              "saturated": true
+            },
+            {
+              "band": "Trivial",
+              "elo": 785.1,
               "id": "run_length_encode",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 783.9,
+              "elo": 784.2,
               "id": "contract_matrix_determinant",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 781.3,
+              "elo": 781.7,
               "id": "emit_exact_bytes",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 779.5,
+              "elo": 779.9,
               "id": "error_handling",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 778.9,
+              "elo": 779.4,
               "id": "json_transform",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 778.5,
+              "elo": 778.9,
               "id": "float_eq",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 777.4,
+              "elo": 777.8,
               "id": "expression_evaluator",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 777,
+              "elo": 777.4,
               "id": "effect_tracking_io_fs",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 776,
+              "elo": 776.3,
               "id": "digitless_constants",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 775.9,
+              "elo": 776.2,
               "id": "effect_composition",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 775.1,
+              "elo": 775.6,
               "id": "pattern_matching_complex",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
-              "elo": 773.7,
+              "elo": 774.1,
               "id": "higher_order_functions",
               "passRate": 100,
               "saturated": true
@@ -48562,61 +48652,61 @@
             {
               "band": "Very hard",
               "benchmarks": 56,
-              "elo": 2376.7,
+              "elo": 2383.5,
               "id": "claude-haiku-4-5"
             },
             {
               "band": "Very hard",
               "benchmarks": 55,
-              "elo": 2375.1,
+              "elo": 2381.9,
               "id": "claude-sonnet-4-6"
             },
             {
               "band": "Very hard",
               "benchmarks": 55,
-              "elo": 2153,
+              "elo": 2157.5,
               "id": "opencode-or-deepseek-v4-flash"
             },
             {
               "band": "Very hard",
               "benchmarks": 55,
-              "elo": 2146.7,
+              "elo": 2151.1,
               "id": "opencode-or-deepseek-v4-pro"
             },
             {
               "band": "Hard",
-              "benchmarks": 52,
-              "elo": 1887.3,
+              "benchmarks": 55,
+              "elo": 1885.4,
               "id": "motoko-local-qwen3-6-35b-a3b-mxfp8"
             },
             {
               "band": "Hard",
               "benchmarks": 55,
-              "elo": 1865.3,
+              "elo": 1867.1,
               "id": "opencode-or-glm-5-1"
             },
             {
               "band": "Hard",
               "benchmarks": 55,
-              "elo": 1862,
+              "elo": 1863.9,
               "id": "opencode-or-glm-5-2"
             },
             {
               "band": "Hard",
-              "benchmarks": 52,
-              "elo": 1774.2,
+              "benchmarks": 55,
+              "elo": 1774.1,
               "id": "pi-qwen3-6-35b-a3b-mxfp8"
             },
             {
               "band": "Hard",
-              "benchmarks": 52,
-              "elo": 1706.1,
+              "benchmarks": 55,
+              "elo": 1706.4,
               "id": "opencode-qwen3-6-35b-a3b-mxfp8"
             },
             {
               "band": "Easy",
               "benchmarks": 55,
-              "elo": 1427.4,
+              "elo": 1427.8,
               "id": "gpt5-6-luna"
             }
           ],
@@ -48848,61 +48938,61 @@
         {
           "band": "Very hard",
           "benchmarks": 56,
-          "elo": 2395.1,
+          "elo": 2402,
           "id": "claude-haiku-4-5"
         },
         {
           "band": "Very hard",
           "benchmarks": 55,
-          "elo": 2393.5,
+          "elo": 2400.4,
           "id": "claude-sonnet-4-6"
         },
         {
           "band": "Very hard",
           "benchmarks": 55,
-          "elo": 2171.2,
+          "elo": 2175.7,
           "id": "opencode-or-deepseek-v4-flash"
         },
         {
           "band": "Very hard",
           "benchmarks": 55,
-          "elo": 2164.9,
+          "elo": 2169.3,
           "id": "opencode-or-deepseek-v4-pro"
         },
         {
           "band": "Very hard",
-          "benchmarks": 52,
-          "elo": 1907.3,
+          "benchmarks": 55,
+          "elo": 1905.2,
           "id": "motoko-local-qwen3-6-35b-a3b-mxfp8"
         },
         {
           "band": "Hard",
           "benchmarks": 55,
-          "elo": 1882.3,
+          "elo": 1884.1,
           "id": "opencode-or-glm-5-1"
         },
         {
           "band": "Hard",
           "benchmarks": 55,
-          "elo": 1879.1,
+          "elo": 1880.9,
           "id": "opencode-or-glm-5-2"
         },
         {
           "band": "Hard",
-          "benchmarks": 52,
-          "elo": 1796.7,
+          "benchmarks": 55,
+          "elo": 1796.3,
           "id": "pi-qwen3-6-35b-a3b-mxfp8"
         },
         {
           "band": "Hard",
-          "benchmarks": 52,
-          "elo": 1731.6,
+          "benchmarks": 55,
+          "elo": 1731.8,
           "id": "opencode-qwen3-6-35b-a3b-mxfp8"
         },
         {
           "band": "Easy",
           "benchmarks": 55,
-          "elo": 1440,
+          "elo": 1440.3,
           "id": "gpt5-6-luna"
         }
       ],
@@ -49603,14 +49693,14 @@
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "intent_annotated_solver",
+              "id": "higher_order_functions",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "higher_order_functions",
+              "id": "intent_annotated_solver",
               "passRate": 94.1,
               "saturated": true
             },
@@ -50006,14 +50096,14 @@
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "lfu_cache_trace",
+              "id": "glob_match_spec",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "glob_match_spec",
+              "id": "lfu_cache_trace",
               "passRate": 88.2,
               "saturated": false
             },
@@ -50041,14 +50131,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
@@ -50161,14 +50251,14 @@
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "ast_patch_roundtrip",
+              "id": "float_eq",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "float_eq",
+              "id": "ast_patch_roundtrip",
               "passRate": 100,
               "saturated": true
             },
