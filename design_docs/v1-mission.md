@@ -174,6 +174,17 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 rounds-to-pass, corrections)`. A routing change (either direction) requires ≥3 data points and is
 made in RETRO, recorded here with a dated stamp.
 
+> **ENFORCED 2026-07-15 (m-mission-agentic-provider-routing M1):** this table is no longer prose.
+> The driver exports `$MISSION_PLANNER_MODEL` / `$MISSION_EXECUTOR_MODEL` / `$MISSION_EVALUATOR_MODEL`
+> and mission-control Gate 3 spawns each heavy role as a model-PINNED sub-agent (the controller
+> session runs `$MODEL` only). **Before M1, every role inherited the single session model → 100%
+> Fable burn** (the driver had been Fable-first since 07-14). Execution now bills the executor pin
+> (Opus), not the controller (Fable); generator≠judge is restored (Fable evaluator ≠ Opus executor).
+> M2 extends the evidence rows with `(provider, agent, $/quota)`; M3 A/Bs the **sprint-planner
+> down-tier** (kept at Opus until ≥3 datapoints — do NOT lower it on this hypothesis alone).
+> Cross-provider AGENT executors (codex/motoko/managed_agents) ride the same env once fleet Phase C
+> resolves a value like `codex:gpt-5.6` in the spawn.
+
 ## Rig integration — the two-tier rule
 
 `rig.lock` (`~/.ailang/state/rig.lock.d`) is a **GPU mutex, nothing more** (Mark, 2026-07-10).
@@ -389,6 +400,20 @@ is landed, the OPS switch is human.
     (order-independence fix proven load-bearing, dead-code removal, cacheKeyVersion v2 for the
     gob-struct change). PR #380 → `47576e25d`, dev CI green per-workflow observed. Design +
     sprint plan → implemented/v0_30_0.
+
+**[NEXT — TOP PRIORITY, Mark 2026-07-15]** **m-mission-agentic-provider-routing**
+([planned/v0_30_0](planned/v0_30_0/m-mission-agentic-provider-routing.md)) — mission-infra P0.
+Fixes the routing-never-enforced bug (every role inherits the driver's single `--model` → 100%
+Fable burn; see memory `project-mission-routing-table-never-enforced`), makes cross-provider
+routing **agentic** (motoko/claude/codex/managed_agents, not `std/ai` single calls), and
+right-sizes roles (sprint-planner is the #1 down-tier candidate post-quorum). The executable slice
+of fleet Phase C+E — reuses `provider_executor.go`, invents no plumbing. **Picked before the
+clause-3 cluster because quota-efficient execution gates the loop's ability to burn down everything
+below it.** **M1a LANDED 2026-07-15** (interactive, main checkout): Anthropic per-role pinning —
+driver exports `$MISSION_{PLANNER,EXECUTOR,EVALUATOR}_MODEL`, Gate 3 spawns pinned sub-agents;
+execution→opus, controller/eval→fable, drain closed on-disk (pending live verification). The loop
+picks up **M1b** (non-claude cross-provider executor via provider_executor — the true off-Anthropic
+step), **M2** (evidence rows + `(provider,agent,$/quota)`), **M3** (sprint-planner down-tier A/B).
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the

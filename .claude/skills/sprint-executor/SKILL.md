@@ -343,6 +343,9 @@ For each parallelizable wave, spawn one `Task` sub-agent per milestone **in a si
 Task(
     description=f"Sprint milestone {milestone.id}",
     subagent_type="general-purpose",
+    # Per-role model pin (m-mission-agentic-provider-routing M1): never inherit the controller
+    # session model. Mission runs export MISSION_EXECUTOR_MODEL; standalone runs default to Opus.
+    model=os.environ.get("MISSION_EXECUTOR_MODEL", "opus"),  # Agent-tool alias (opus|sonnet|fable), NOT a full model ID
     prompt=f"""
     You are executing milestone {milestone.id}: {milestone.description}
     Sprint plan: {plan_path}

@@ -136,10 +136,32 @@ regression guard (example or test), never bare bookkeeping — that's what makes
 
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
-Apply the mission doc's **model routing policy** (read the charter's routing table — it is the
-source of truth and changes for quota; as of 2026-07-11 the controller/design/evaluation roles
-run on the controller's own model, Opus, with the independence caveat noted there; sprint-planner
-+ sprint-executor = Opus; deterministic mechanical work = Sonnet).
+**Routing is ENFORCED per-role model pinning — NOT session-model inheritance.** Running every role
+on the controller's single session model is the routing-never-enforced bug: with the driver on
+Fable, 100% of every iteration billed Fable (fixed 2026-07-15, m-mission-agentic-provider-routing
+M1 — memory `project-mission-routing-table-never-enforced`). **Invariant:** the controller session
+(triage/pick/judge/retro + design-doc-creator, run inline) uses the driver-selected `$MODEL`; every
+HEAVY role is spawned as a **model-PINNED `Agent`/`Task` sub-agent**, never inline. Read each role's
+model from the driver-exported env (defaults track the charter table):
+
+| Role | Model env | Default |
+|---|---|---|
+| Controller + design-doc-creator | `$MODEL` (session) | Fable |
+| Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
+| Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
+| Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | Fable (≠ the Opus executor → generator≠judge restored) |
+
+Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
+prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
+`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**
+(`opus`/`fable`/`sonnet`/`haiku`), NOT full IDs; a `provider:model` value (e.g. `codex:gpt-5.6`)
+instead signals cross-provider routing via `provider_executor` (fleet Phase C), not the Agent tool.
+If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
+FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **Gate 4 MUST
+record the ACTUAL (role, model) used** in the routing-evidence row; a role that ran on the session
+model instead of its pin is a regression to surface, not bury (observability is the enforcement
+backstop until a Go orchestrator hard-pins it). Deterministic mechanical work (doc moves, regen) =
+Sonnet, inline, is fine.
 
 - No design doc yet → invoke **design-doc-creator** (its hard gates apply: live `ailang check`
   verification, Conflict Surface for parser/types/codegen). **But first
@@ -147,10 +169,13 @@ run on the controller's own model, Opus, with the independence caveat noted ther
   2026-07-14 iteration 26; 2 of 2 recent NEW-DOC tags were wrong: m-lambda-open-record-pattern
   had a full doc at planned/v0_29_0 since May [iter 25], m-xmod-alias-poly likewise [iter 26] —
   both times the grep found it in seconds and saved a redundant design-doc-creator run).
-- Design doc but no plan → **sprint-planner** → sprint JSON + handoff.
-- Plan exists → **sprint-executor** in an isolated worktree (coordinator-managed or
-  `git worktree add` — NEVER the shared main tree; concurrent agents stomp uncommitted work).
-- Execution complete → **sprint-evaluator**. Max 3 rounds; on round-3 fail →
+- Design doc but no plan → **sprint-planner** as a `$MISSION_PLANNER_MODEL`-pinned Agent sub-agent
+  → sprint JSON + handoff.
+- Plan exists → **sprint-executor** as a `$MISSION_EXECUTOR_MODEL`-pinned Agent sub-agent, in an
+  isolated worktree (coordinator-managed or `git worktree add` — NEVER the shared main tree;
+  concurrent agents stomp uncommitted work).
+- Execution complete → **sprint-evaluator** as a `$MISSION_EVALUATOR_MODEL`-pinned Agent sub-agent
+  (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
 
 **GPU rule (two-tier)**: default iterations never touch `rig.lock` — it is a GPU mutex only.

@@ -163,6 +163,23 @@ TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
 TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
 
+# PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
+# table was never enforced — every inner role ran on the controller's single session --model, so with
+# the driver on Fable 100% of each iteration billed Fable (memory:
+# project-mission-routing-table-never-enforced). Fix: the controller session keeps $MODEL; the HEAVY
+# roles are spawned by mission-control Gate 3 as model-PINNED sub-agents that read these env vars.
+# Defaults track the charter routing table; M3 will A/B the planner down-tier — keep it at the proven
+# Opus until there's evidence. Cross-provider AGENT executors (codex/motoko) ride the same env once
+# fleet Phase C wires them into the spawn (a value like "codex:gpt-5.6" is resolved by the skill).
+# NB: these are in-session Agent/Task-tool model ALIASES (opus|fable|sonnet|haiku) — NOT the full
+# IDs (claude-opus-4-8) the driver's own `claude -p --model` flag takes. Two different interfaces:
+# the controller session is launched with a full ID; the sub-agents it spawns are pinned by alias.
+# A "provider:model" value (e.g. codex:gpt-5.6) instead signals cross-provider agent routing via
+# provider_executor (fleet Phase C), which the skill resolves — not the Agent tool.
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
+export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-fable}"
+
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
@@ -185,7 +202,7 @@ fi
 
 # 3. Dry run — verify wiring without spending tokens (no probes fired).
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
-  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s"; exit 0
+  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
 fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
@@ -211,7 +228,7 @@ if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
   fi
 fi
 
-log "=== mission iteration starting (model=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s) ==="
+log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 design_docs/v1-mission.md and follow its gates. You are a scheduled run; \
