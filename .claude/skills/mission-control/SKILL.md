@@ -159,9 +159,13 @@ routing-policy change requiring the charter's evidence rule.
 
 Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
 prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
-`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**
-(`opus`/`fable`/`sonnet`/`haiku`), NOT full IDs; a `provider:model` value (e.g. `codex:gpt-5.6`)
-instead signals cross-provider routing via `provider_executor` (fleet Phase C), not the Agent tool.
+`echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases** — but the Agent
+tool accepts ONLY `sonnet`/`opus`/`haiku` as explicit pins; **`fable` is REJECTED**
+(InputValidationError, live-observed 2026-07-16 iteration 31). A fable role runs ONLY by session
+inheritance: spawn with NO `model=` param when the controller session itself is Fable; if the
+session is NOT Fable, a fable pin is unenforceable — apply the generator≠judge re-route below, never
+silently inherit. `provider:model` values (e.g. `codex:gpt-5.6-sol`) instead signal cross-provider
+routing via `provider_executor` (fleet Phase C), not the Agent tool.
 
 **Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
 value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
@@ -187,7 +191,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      **bounded ≤30-min wall-clock cap** using the same `date +%s` deadline pattern (Standing rule 6):
      ```bash
      WT=<sprint worktree path>; deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
-     ( cd "$WT" && codex exec --model "$MODEL" "$SPRINT_DIRECTIVE" ) & pid=$!
+     ( cd "$WT" && exec codex exec --model "$MODEL" "$SPRINT_DIRECTIVE" ) & pid=$!   # exec: the cap's kill must reach codex itself, not just the subshell
      while kill -0 "$pid" 2>/dev/null; do
        [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; echo "codex exec 30-min cap — FLAG"; break; }
        sleep 15; done; wait "$pid" 2>/dev/null
@@ -198,8 +202,8 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
      evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
-     to a DISTINCT provider (an Anthropic alias `fable`, or `gemini`) and **FLAG** the collision in the
-     Gate-5 report.
+     to a DISTINCT, PINNABLE Anthropic alias (`sonnet` — fable is unpinnable, gemini is not wired) and
+     **FLAG** the collision in the Gate-5 report.
   4. **Fallback (never wedge the loop):** if the pre-flight probe fails, or the real run errors /
      hits the cap, fall back to `$MODEL` via the Agent tool for that role and FLAG it in Gate-5 — the
      same discipline as a quota-limited Anthropic pin below.
@@ -207,7 +211,13 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   `rig.lock`, out of scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
 If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
-FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **Gate 4 MUST
+FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **EXCEPTION — the
+evaluator role never falls back to bare `$MODEL`** (alias-lane generator≠judge guard, added
+iteration 31 after F1): before spawning the evaluator, compare its RESOLVED model (post-fallback)
+against the model the executor ACTUALLY ran on. If they are equal — e.g. opus-first session, fable
+evaluator pin rejected, `$MODEL`=opus == opus executor — re-route the evaluator to a distinct
+pinnable alias (`sonnet`) and FLAG it. A degraded-but-independent judge beats a same-model judge.
+**Gate 4 MUST
 record the ACTUAL (role, model) used** in the routing-evidence row; a role that ran on the session
 model instead of its pin is a regression to surface, not bury (observability is the enforcement
 backstop until a Go orchestrator hard-pins it). Deterministic mechanical work (doc moves, regen) =
