@@ -240,6 +240,21 @@ if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
   fi
 fi
 
+# ONE-SHOT executor override (2026-07-16, Mark: fleet live-fire tests). If armed, the file's value
+# overrides MISSION_EXECUTOR_MODEL for exactly THIS iteration and is deleted on consumption.
+# Placed after every early-exit (kill switch, overlap yield, no-model refusal) so a fire that does
+# not actually run can never burn the shot. Arm with e.g.:
+#   echo "codex:gpt-5.6-sol" > ~/.ailang/state/mission-executor-model-once
+EXEC_ONCE_FILE="$HOME/.ailang/state/mission-executor-model-once"
+if [ -f "$EXEC_ONCE_FILE" ]; then
+  once=$(head -1 "$EXEC_ONCE_FILE" 2>/dev/null)
+  rm -f "$EXEC_ONCE_FILE"
+  if [ -n "$once" ]; then
+    export MISSION_EXECUTOR_MODEL="$once"
+    log "one-shot executor override consumed: executor=$once (this iteration only)"
+  fi
+fi
+
 log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \

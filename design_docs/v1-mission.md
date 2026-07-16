@@ -446,6 +446,24 @@ never falls back to bare $MODEL, re-routes to sonnet + FLAG) + F2 `exec` orphan-
 = the doc's M1b acceptance) · **M3** (planner down-tier A/B) PARKED with a concrete protocol in the
 sprint plan until 3 quorum-reviewed docs accrue. Doc stays in planned/ until those close.
 
+**[NEXT-FIRST, Mark 2026-07-16 — FLEET ROLLOUT ("should be awesome")]** The ratified starting
+fleet is **claude (Anthropic) + codex gpt-5.6-sol (OpenAI) + managed_agents gemini (Google) +
+motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
+- **(a) Iteration 32 — codex LIVE-FIRE, ARMED**: the driver now supports a one-shot executor
+  override (`~/.ailang/state/mission-executor-model-once`, consumed+deleted at fire time; armed
+  with `codex:gpt-5.6-sol` by Mark's directive). This IS the doc's M1b acceptance: controller and
+  executor on **different providers**, real metered-OpenAI evidence row, generator≠judge guard
+  observed firing. Pick a sprint-shaped queue item and execute it through codex.
+- **(b) M1c — gemini managed_agents recipe branch (wiring-only)**: extend the Gate-3
+  `provider:model` recipe with `PROVIDER=gemini` → `ailang exec` (VERIFIED 2026-07-16: the exec
+  factory registers `managed_agents`, the same lane evals use — no new plumbing; find the exact
+  flag surface in `cmd/ailang/exec.go`). Same probe/cap/fallback discipline as codex.
+- **(c) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
+  long-running/low-urgency task classes with deterministic verification to the rig's GPU.
+  HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),
+  the port-8080 zombie hazard (memory: a hung motoko holding 8080 breaks all later runs), and
+  the same evaluator gate as cloud work — no quality discount for free tokens.
+
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
