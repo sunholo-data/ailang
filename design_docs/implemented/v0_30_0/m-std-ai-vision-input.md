@@ -1,6 +1,6 @@
 # M-STD-AI-VISION-INPUT — Image (vision) input on std/ai Message
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.30.0
 **Priority**: P1 (Medium) — unblocks a whole class of benchmark items; not blocking any in-flight sprint
 **Estimated**: 3–4 days
@@ -13,7 +13,7 @@
 > **⚠️ SCOPE UPDATE (2026-07-16, during implementation):** The `callJsonResultVision`
 > one-call structured-output helper (originally M3 of this doc) has been **removed from
 > scope and split into its own follow-up**,
-> [M-AI-STRUCTURED-STEP](../v0_31_0/m-ai-structured-step.md) (v0.31.0). Reason: wiring it
+> [M-AI-STRUCTURED-STEP](../../planned/v0_31_0/m-ai-structured-step.md) (v0.31.0). Reason: wiring it
 > surfaced that structured-output and multi-turn/vision live in **separate, non-composable
 > builtins** (`callJson` vs `step`), and the industry-aligned fix is to make schema an
 > orthogonal option on `step` (so vision+JSON+tools all compose) rather than adding a bespoke
