@@ -248,8 +248,29 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   generator≠judge holds) if the sonnet evaluator's verdicts look lenient — that switch needs the
   charter's ≥3-datapoint evidence rule, not vibes. Quota note: a probe-failed Fable (weekly bucket
   gone) falls back gracefully — never wedge on the scarce model.
-- **Any other `PROVIDER`** (motoko/opencode/pi/gemini): NOT wired in M1b (motoko needs the GPU
-  `rig.lock`, out of scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
+- **`PROVIDER=gemini`** (added 2026-07-16 iteration 33, M1c — the managed_agents lane): reached via
+  `ailang exec gemini "directive"`. **The agentic `gemini` provider routes to the `managed_agents`
+  executor** (Vertex AI Managed Agents API via ADC) — the successor to the Gemini CLI retired in
+  v0.22.0 (wired this iteration: `resolveAgenticExecutorName` in `cmd/ailang/exec.go`, PR from
+  `sprint/m-gemini-exec-lane`; before it, `ailang exec gemini` failed `unknown executor: gemini` —
+  the fleet directive's "wiring-only, no new plumbing" claim was REFUTED). Requires **ADC**
+  (`gcloud auth application-default print-access-token` must succeed — probe it first; unset ADC →
+  fall back to `$MODEL` + FLAG). `--model` selects the Vertex **agent** name (default
+  `antigravity-preview-05-2026`), NOT a gemini-model string. Same probe/cap/fallback discipline as
+  codex: ADC-gated 1-token probe (`ailang exec gemini "reply with exactly: ok"` under a bounded
+  `date +%s` deadline; only proceed on rc=0), the real run backgrounded with a bounded ≤30-min cap,
+  fall back to `$MODEL` + FLAG on probe-fail/cap.
+  - **CRITICAL — CapRemoteSandbox (role-scope limit):** managed_agents runs the agent in a
+    Google-hosted server-side sandbox, so **file edits do NOT touch the local worktree** — they
+    return ONLY in the agent's TEXT output. This lane therefore fits **READ-ONLY roles**
+    (evaluator / reviewer / quorum-verifier — the item-(c) agentic-verify lane) that read the repo
+    and emit a verdict/text. It is **NOT usable for the file-editing EXECUTOR role** without a
+    bridge (see the eval harness's `managed_agents_bridge.go`, which parses artifacts back out of
+    the text response). Do NOT pin `MISSION_EXECUTOR_MODEL=gemini:…` expecting worktree edits — that
+    is a follow-up (bridge work), not this lane. generator≠judge: gemini (Google) is a distinct
+    provider from any Anthropic/OpenAI executor, so it is a valid independent evaluator/reviewer.
+- **Any other `PROVIDER`** (motoko/opencode/pi): NOT wired (motoko needs the GPU `rig.lock`, out of
+  scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
 If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
 FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **EXCEPTION — the
