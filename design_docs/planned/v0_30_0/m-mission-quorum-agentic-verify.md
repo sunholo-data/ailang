@@ -1,9 +1,13 @@
-# M-MISSION-QUORUM-AGENTIC-VERIFY: quorum reviewers that VERIFY (agentic, repo-armed), not just reason
+# M-MISSION-QUORUM-AGENTIC-VERIFY: quorum reviewers that VERIFY and HONE (agentic, repo-armed), not just reason
 
-**Status**: Planned (follow-up to the shipped Phase B text quorum; Mark 2026-07-14 — "we need a
-follow up where it's an agent that is verifying, not just an api call")
-**Target**: v0.30.x (mission infrastructure; sequenced AFTER fleet Phase C — cross-provider
-executors — because it REUSES that executor plumbing)
+**Status**: Planned — **both preconditions now SATISFIED** (Tier-1 quorum fired live iterations
+28–30, artifacts on disk; Phase C executor plumbing proven by iteration 32's codex live-fire,
+PR #397). **SCOPE EXPANDED 2026-07-16 (Mark)**: reviewers don't just object — each verified
+objection carries a **concrete `proposed_fix`** the author accepts/rejects. This is the
+"Sol + Gemini Pro + Fable hone the design" capability, kept inside the single-author model.
+(Original ask Mark 2026-07-14 — "an agent that is verifying, not just an api call".)
+**Target**: v0.30.x — **queued NEXT after fleet (b)** (gemini M1c wiring, iteration 33) — it
+reuses that lane the moment it lands
 **Priority**: P1 (closes the one gap the text quorum structurally cannot: independent premise
 verification — the exact class that has cost mid-sprint corrections)
 **Estimated**: ~2–3d (escalation tier ~1d; full agentic-reviewer backend ~2d) — phase-gated
@@ -42,6 +46,17 @@ The verdict schema (`{verdict, strongest_objection, catch}`), the reject-by-defa
 graceful degradation, and the artifact recording ALL stay. This follow-up changes only *how a
 reviewer produces its verdict*, from a text call to an agentic run.
 
+### HONE: verified objections carry a proposed fix (added 2026-07-16, Mark)
+The verdict schema gains one ADDITIVE field: `proposed_fix` — a concrete revision (replacement
+paragraph / corrected claim / added verification-log row) for the objection, grounded in what the
+agent actually verified. **Authority model unchanged**: reviewers still have zero write access —
+the AUTHOR (the designer role; true-Fable via the Gate-3 `claude:claude-fable-5` CLI lane, added
+same day) integrates, accepting or rejecting each proposal by name in the doc's revision note.
+This is deliberately single-author + adversarial-proposers, NOT co-authoring: the quorum's value
+has been sharp disagreement (live 2-reject/1-pass splits), which design-by-committee would smooth
+away. A `proposed_fix` may be empty ONLY on a pass verdict — a reject must say what would fix it,
+which is what makes a reject actionable rather than a veto.
+
 ### Agentic reviewer backend
 Each reviewer becomes a **tool-using agent in a read-only worktree of `origin/dev`**, ridden on
 the EXISTING executor registry rather than new plumbing:
@@ -78,11 +93,11 @@ actually pays for the agentic cost.
   doc or gate merges by itself. The controller still synthesizes verdicts (unanimous-pass →
   proceed; any-reject → objection back to the author).
 
-## Precondition (verify FIRST)
-Confirm the shipped Tier-1 quorum has actually fired a LIVE 3-provider review (no quorum
-artifacts found in `.ailang/state/` as of 2026-07-14 — it may have only run under the test stub).
-A live Tier-1 run with real Sol+Gemini verdicts is the baseline this builds on; if it has never
-fired live, that's step 0.
+## Precondition — ✅ SATISFIED 2026-07-16
+The Tier-1 quorum HAS fired live: artifacts in `.ailang/state/mission-quorum/` (iterations 28–30,
+e.g. `m-dx-examples-coverage-2026-07-14T09-23-43Z.json` — gpt5-6-sol reject + gemini-3-1-pro
+reject + Claude pass, a real 3-provider split). Phase C plumbing proven by iteration 32's codex
+live-fire (PR #397). Nothing blocks this doc.
 
 ## Conflict surface
 Touches the quorum package (additive: a second reviewer backend behind the existing `JSONCaller`

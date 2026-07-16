@@ -459,7 +459,14 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   `provider:model` recipe with `PROVIDER=gemini` → `ailang exec` (VERIFIED 2026-07-16: the exec
   factory registers `managed_agents`, the same lane evals use — no new plumbing; find the exact
   flag surface in `cmd/ailang/exec.go`). Same probe/cap/fallback discipline as codex.
-- **(c) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
+- **(c) m-mission-quorum-agentic-verify+HONE (Mark 2026-07-16 — do right after (b), it reuses the
+  gemini lane the moment it lands)**: reviewers become tool-using agents (codex/managed_agents/
+  claude-CLI, read-only worktrees) that VERIFY premises against the repo AND attach a concrete
+  `proposed_fix` per objection; the AUTHOR (designer role, now true-Fable via the Gate-3
+  `claude:claude-fable-5` CLI lane — driver default updated) accepts/rejects each by name.
+  Single-author + adversarial-proposers, NOT co-authoring. Preconditions all satisfied (doc
+  updated). Two-tier stays: text quorum always, agentic escalation when contested/high-stakes.
+- **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),
   the port-8080 zombie hazard (memory: a hung motoko holding 8080 breaks all later runs), and

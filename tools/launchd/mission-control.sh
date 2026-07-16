@@ -187,7 +187,10 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # provider:model value (codex:gpt-5.6-sol) which the mission-control Gate-3 recipe routes to a bounded
 # `codex exec` run in the sprint worktree (M1b). The default stays "opus" — codex is OPT-IN per
 # iteration via an env override, so a normal fire never bills metered OpenAI $ by accident.
-export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-fable}"
+# designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
+# Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
+# bare "fable" would silently fall back to opus. claude:claude-fable-5 = a REAL bounded Fable run.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
 export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-fable}"

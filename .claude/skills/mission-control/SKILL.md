@@ -82,6 +82,17 @@ next — that's the mission's job now.
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
 reality**: `git log --grep`, does the code/test already exist, does `make test` already cover it.
+
+**QUORUM-AT-PICK (Mark 2026-07-16 — "old docs may not be up to new standards"):** the creation-time
+quorum hook only covers NEW/REVISED docs, so most of the backlog is pre-quorum (iteration 32's
+auto_caps doc, Oct 2025, reached the planner with zero multi-provider eyes). At pick time, if the
+picked doc has NO quorum artifact (`ls .ailang/state/mission-quorum/<doc-id>-*.json`), run the text
+quorum BEFORE routing: `ailang design-quorum <doc.md> --controller-verdict <your own pass|reject>`
+(cents, budget-capped, N−1 degrade). Any-reject → the objections go to the designer role for a
+revision pass first (Gate 3's design-doc-creator lane), then re-quorum ONCE; still-rejected →
+`needs-human-review`, park, next item. Skip only for: bookkeeping-only picks, ghost-closes, and
+mission-infra docs the quorum already reviewed. This is a pick-time gate, not a re-litigation —
+one round, bounded.
 A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc
 said Planned for a month). **Also confirm the item is not ALREADY LANDED on origin** — check the
 `origin/dev` queue tag (`git show origin/dev:design_docs/v1-mission.md | grep`) and any merged PR
@@ -226,6 +237,17 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   4. **Fallback (never wedge the loop):** if the pre-flight probe fails, or the real run errors /
      hits the cap, fall back to `$MODEL` via the Agent tool for that role and FLAG it in Gate-5 — the
      same discipline as a quota-limited Anthropic pin below.
+- **`PROVIDER=claude`** (added 2026-07-16, Mark — the true-Fable lane): the `claude` CLI takes FULL
+  model IDs (`claude -p --model claude-fable-5`), unlike the Agent tool's sonnet|opus|haiku alias
+  limit (F1). So a role value like `claude:claude-fable-5` routes around F1 to a REAL Fable run.
+  Same discipline as codex: 1-token probe first (the driver's own `_mc_probe` pattern), run
+  backgrounded from the role's working dir with a bounded ≤30-min `date +%s` deadline,
+  `--permission-mode bypassPermissions`, fall back to `$MODEL` + FLAG on probe-fail/cap. Primary
+  use: the DESIGNER role (deep spec synthesis on Fable — quota-bounded, fires only when a doc is
+  created/revised). The evaluator MAY move here too (`claude:claude-fable-5` ≠ opus executor →
+  generator≠judge holds) if the sonnet evaluator's verdicts look lenient — that switch needs the
+  charter's ≥3-datapoint evidence rule, not vibes. Quota note: a probe-failed Fable (weekly bucket
+  gone) falls back gracefully — never wedge on the scarce model.
 - **Any other `PROVIDER`** (motoko/opencode/pi/gemini): NOT wired in M1b (motoko needs the GPU
   `rig.lock`, out of scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
 
