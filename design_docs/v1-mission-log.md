@@ -3107,3 +3107,90 @@ agentic lane is now reachable (`ailang exec gemini`→managed_agents) but **CapR
 (read-only roles only; executor-role file edits need a bridge — the item-(c)/eval-harness
 `managed_agents_bridge` pattern); the first LIVE gemini fire is still unproven (deferred to item c);
 F2 codex `exec` orphan-kill still unexercised (codex has not run under a live cap-kill).
+
+## 37 — 2026-07-16 — Iteration 34: fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick — dogfood irony (text quorum blocked the AGENTIC-quorum doc for premises TRUE-in-code) — NO code shipped
+
+**Picked**: fleet rollout item **(c) m-mission-quorum-agentic-verify+HONE**, the explicitly-marked
+`← NEXT fleet step` (iteration 33 landed (b) gemini M1c; (c) "reuses that lane the moment it lands").
+Inbox: 4 routine `eval-suite` messages (2× suite-started, 98/99 + 18/27 partials) — no regression, no
+human directive → acked. Dev CI green per-workflow (CI + Build-and-Release + Docs-Deploy all success
+@ `a81a2b37c`). Local dev == origin/dev (no stale-local drift).
+
+**Reality check** (Gate-2): design doc EXISTS (`planned/v0_30_0/m-mission-quorum-agentic-verify.md`),
+NO sprint plan, NO quorum artifact for the doc itself, implementation NOT done. Confirmed `bfa13a0ef`
+("quorum-at-pick + verify-and-HONE + true-Fable designer lane") was the DESIGN/scoping/SKILL commit
+(SKILL.md + doc scope-expansion + driver env), NOT the backend implementation — so (c) is a real,
+unstarted pick, not already-landed. The doc has no quorum artifact → **QUORUM-AT-PICK gate fired**
+(added this same day; a pre-quorum backlog doc gets a text-quorum round before routing).
+
+**Routed**: NOT routed to planner — blocked at the quorum-at-pick gate (see below). Per-role pins
+resolved but only the controller (Opus session) and the text-quorum reviewers (gpt5-6-sol + gemini-3-1-pro)
+fired. Designer/planner/executor/evaluator sub-agents NOT spawned (the item never reached routing).
+
+**Quorum-at-pick** (2 rounds, total ~$0.052, both bounded ≤5min):
+- **Round 1** (`…2026-07-16T09-42-56Z.json`): BLOCKED — both reviewers on ONE objection: the
+  Verification-Log row "no live quorum artifact yet | `find .ailang/state -name '*quorum*'`" contradicts
+  the SATISFIED precondition. Controller integrated INLINE (mechanical, known-correct value): root-caused
+  that the `find -name '*quorum*'` is the WRONG probe — artifacts are named after the DOC, so it matches
+  nothing even though `ls .ailang/state/mission-quorum/` shows the iter 28–30 `m-dx-examples-coverage-*`
+  artifacts; fixed the row + reconciled the `proposed_fix` schema-vs-contract wording (additive-OPTIONAL).
+  [Controller judgment FLAGGED: did the revision inline rather than spawning the Fable designer lane —
+  the objections were factual fact-reconciliation with known-correct values, not design synthesis; a
+  Fable run on a 2-row doc-hygiene fix is not warranted under the Fable-discipline rule.]
+- **Round 2** (`…2026-07-16T09-44-59Z.json`): still BLOCKED, but on DEEPER, DIFFERENT objections
+  (round-1 fixes accepted). Per the Gate-2 one-bounded-round rule → PARK. The two round-2 objections,
+  characterized by the controller:
+  1. **gpt5-6-sol "reuse premise unverified" → REFUTED BY CODE.** Objection: doc proves executors
+     *exist*, not that they expose tool-use/worktree/cancellation/cost. Controller read
+     `internal/coordinator/provider_executor.go`: cancellation = `Execute(ctx context.Context,…)`→
+     `p.exec.Execute(ctx,…)`; timeout = `opts.Timeout`/`IdleTimeout`; cost = `result.Cost =
+     execResult.CostUSD`; **read-only tool mode = lines 122–124 `AllowedTools=["Read","Grep","Glob",
+     "WebFetch","WebSearch"]` for `Kind=="question"`**; worktree = `WorkingDir` (agent_registry.go:37)
+     + approval_processor.go machinery. **Reuse-don't-rebuild premise HOLDS.** This is the text tier's
+     STRUCTURAL blind spot — it can't read the repo (the exact gap this doc closes) → reject-by-default.
+  2. **gemini-3-1-pro contract contradiction → REAL open authorial decision.** "A reject MUST carry
+     `proposed_fix`" makes it required-on-reject → `ValidateReviewResult` + the Go struct DO change,
+     contradicting "contract unchanged." Needs a decision: **(a)** keep `proposed_fix` truly optional
+     (soft-encouraged, NOT validated → contract frozen; soften "MUST") [recommended], or **(b)** accept
+     a bounded contract extension. Only real remaining blocker.
+
+**Routing evidence** (ACTUAL role/model used):
+- provider=anthropic agent=claude-code model=opus task-class=controller(triage/pick/quorum-integrate/record) round1=n/a rounds=n/a corrections=0 cost=quota-bucket:weekly-opus
+- provider=openai model=gpt5-6-sol task-class=quorum-review(text) rounds=2 verdict=reject/reject cost=$0.0362 (r1 $0.0165 + r2 $0.0198)
+- provider=google model=gemini-3-1-pro task-class=quorum-review(text) rounds=2 verdict=reject/reject cost=$0.0157 (r1 $0.0068 + r2 $0.0089)
+- **NOTE**: designer/planner/executor/evaluator NOT fired — item never reached routing (blocked at quorum-at-pick). No Fable spend this iteration (designer lane not triggered).
+
+**Ruled out**:
+- "(c) is already landed via `bfa13a0ef`" — REFUTED: that commit is design/scoping/SKILL only; the
+  agentic-verify backend (`proposed_fix` field, escalation logic, agentic reviewer) is unimplemented.
+- "gpt5-6-sol round-2 'reuse premise unverified' is a real blocker" — REFUTED by controller code-read
+  (all four capabilities present in provider_executor.go, cited above). The premise is TRUE-in-code.
+- "quorum-at-pick should be skipped for this mission-infra doc" — NO: the skip clause is only for
+  mission-infra docs the quorum ALREADY reviewed; this one had no artifact → gate correctly fired.
+
+**Next**: unblock (c) (≈2-min human/author call) — settle objection #2 (a)/(b), add the code-cited
+Verification-Log rows for objection #1, then route to sprint-planner. Preconditions otherwise satisfied.
+If (c) stays parked, the next queue item is fleet (d) Phase D motoko+qwen3-6 local-GPU (rig.lock +
+port-8080-zombie discipline; heavier, GPU-bound — unsuitable for a headless tail-pickup, needs its own
+iteration).
+
+**Retro finding** (Gate-5, PROCESS lane — recorded, not yet actioned; needs a 2nd datapoint before a
+gate change): the TEXT quorum-at-pick reject-by-defaults a PREMISE-class objection it structurally
+cannot verify (no repo access), which parked a doc whose premise the controller then proved TRUE in
+code in ~3 min. The gate has no path for a controller code-refutation of a premise-class objection to
+count toward unblocking — so a correct-but-code-dependent doc can be forced to park. This is BOTH (i) a
+live datapoint FOR building item (c) itself (agentic reviewers that CAN read the repo close exactly this
+gap), and (ii) a candidate mission-doc process tweak: "a premise-class quorum objection the controller
+refutes with a cited code-read counts as resolved (record the cite); only non-premise or unrefuted
+objections force the park." Deferred pending a 2nd instance (mission rule: process change needs the
+evidence; skill/process edits need ≥2 frictions at the same gap).
+
+**Carry forward** UNCHANGED from iter 33 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies; MOD007 veto window; alias-import
+prelude edge; executor evidence-artifact watch; docs-site CLI reference for design-review/design-quorum;
+quorum-on-sprint-plans decision; fleet C/D/E opt-in; issue #386; gemini quorum-reviewer retry;
+quorum termination-rule friction #1; dead-run resume-detection friction #1; gemini CapRemoteSandbox
+executor-bridge; first LIVE gemini fire still unproven; F2 codex `exec` orphan-kill unexercised)
+**PLUS**: (c) parked with a ≈2-min unblock path; quorum-at-pick premise-refutation process friction #1
+(above — needs a 2nd datapoint).

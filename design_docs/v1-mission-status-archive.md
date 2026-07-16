@@ -3,6 +3,27 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
+
+The clause-3 queue head shipped end-to-end headless: the stale v0.10.1-era doc was re-scoped on
+live HEAD data, then became the **first live Tier-1 design-quorum subject** — 5 reject-by-default
+rounds, EVERY objection a real spec gap (installed-binary path resolution; downloader-manifest
+premise; CI step lifecycle; modules-field drift enforcement; parser-backed extraction; the
+`known-broken` status that didn't exist). Result: the Opus planner found ZERO premise
+discrepancies (first time in 5 iterations — the quorum front-loaded the corrections mid-sprint
+planners had been making). Shipped: 5 red examples quarantined under issue #386 (bisect
+inconclusive→quarantine per decision rule; real trigger root-caused: `show()` in effectful-lambda
+interpolation collapses effect rows — fix forbidden in-sprint, routed to #386); 6 new stdlib
+examples (all 6 zero-importer modules covered); the triple-defeated verify-examples gate made
+REAL (3 `|| true` layers fixed + self-test + `validate_manifest --ci` wired, non-vacuity proven
+both directions); `docs --examples` un-inert (manifest `modules` field, parser-backed backfill +
+drift lint, installed-binary test). Evaluator round 1 FAIL 81/100 on ONE Windows path-separator
+defect → one-line hardening `881711325` → all checks green incl. both Windows jobs = round-2
+PASS. Nightly "regression" (state_machine_vending) RULED OUT as model variance — yesterday's
+passing solution compiles clean at HEAD. Quorum frictions recorded: no termination rule
+(reject-by-default can block forever; controller synthesized after round 5 with recorded
+dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
+
 ## STATUS 2026-07-14 (evening) — ITERATION 30: m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
 
 The last clause-3 Prelude/discovery starter is in: `ailang docs --all-functions [filter]`

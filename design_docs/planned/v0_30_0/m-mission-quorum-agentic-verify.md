@@ -1,8 +1,11 @@
 # M-MISSION-QUORUM-AGENTIC-VERIFY: quorum reviewers that VERIFY and HONE (agentic, repo-armed), not just reason
 
-**Status**: Planned — **both preconditions now SATISFIED** (Tier-1 quorum fired live iterations
-28–30, artifacts on disk; Phase C executor plumbing proven by iteration 32's codex live-fire,
-PR #397). **SCOPE EXPANDED 2026-07-16 (Mark)**: reviewers don't just object — each verified
+**Status**: Planned — **PARKED needs-human-review 2026-07-16 (iteration 34)** at the Gate-2
+quorum-at-pick gate: one bounded revision round exhausted, re-quorum still BLOCKED on a real
+contract-wording decision (see "Quorum-at-pick round 2" note below — reuse premise verified TRUE
+in code; only objection #2's optional-vs-required `proposed_fix` decision remains). **Preconditions
+SATISFIED** (Tier-1 quorum fired live iterations 28–30, artifacts on disk; Phase C executor plumbing
+proven by iteration 32's codex live-fire, PR #397). **SCOPE EXPANDED 2026-07-16 (Mark)**: reviewers don't just object — each verified
 objection carries a **concrete `proposed_fix`** the author accepts/rejects. This is the
 "Sol + Gemini Pro + Fable hone the design" capability, kept inside the single-author model.
 (Original ask Mark 2026-07-14 — "an agent that is verifying, not just an api call".)
@@ -47,9 +50,13 @@ graceful degradation, and the artifact recording ALL stay. This follow-up change
 reviewer produces its verdict*, from a text call to an agentic run.
 
 ### HONE: verified objections carry a proposed fix (added 2026-07-16, Mark)
-The verdict schema gains one ADDITIVE field: `proposed_fix` — a concrete revision (replacement
-paragraph / corrected claim / added verification-log row) for the objection, grounded in what the
-agent actually verified. **Authority model unchanged**: reviewers still have zero write access —
+The verdict schema gains one ADDITIVE, OPTIONAL field: `proposed_fix` — a concrete revision
+(replacement paragraph / corrected claim / added verification-log row) for the objection, grounded
+in what the agent actually verified. **This does not violate the "do NOT change the shipped verdict
+contract" rule above**: the three existing fields (`verdict`, `strongest_objection`, `catch`) keep
+their exact meaning and validation, and `proposed_fix` is optional-absent — every existing consumer
+and the `ValidateReviewResult` reject-by-default check are byte-compatible with a verdict that omits
+it. Additive-optional is a backward-compatible extension of the contract, not a breaking change to it. **Authority model unchanged**: reviewers still have zero write access —
 the AUTHOR (the designer role; true-Fable via the Gate-3 `claude:claude-fable-5` CLI lane, added
 same day) integrates, accepting or rejecting each proposal by name in the doc's revision note.
 This is deliberately single-author + adversarial-proposers, NOT co-authoring: the quorum's value
@@ -116,11 +123,57 @@ run agentic review on every doc (cost); grant reviewers merge authority.
 | Text reviewers have no repo access | `internal/mission/quorum/run.go:120` (CallJSON), reviewer.go BuildPrompt (doc body only) | Confirmed |
 | Rubric = the 3 design-doc-creator hard gates | reviewer.go systemPrompt | Confirmed |
 | codex/managed_agents already integrated | provider_executor.go | Confirmed (redundancy audit 2026-07-14) |
-| No live quorum artifact yet | `find .ailang/state -name '*quorum*'` | none found — precondition flagged |
+| Live quorum artifacts on disk (precondition SATISFIED) | `ls .ailang/state/mission-quorum/` | Confirmed 2026-07-16 — iter 28–30 `m-dx-examples-coverage-2026-07-14T09-{19,21,23}*.json` present (the earlier `find -name '*quorum*'` returned none because artifacts are named after the DOC, not the literal "quorum" — that command was the wrong probe, not evidence of absence) |
 
 ## Related
 - [m-mission-adaptive-multiprovider-routing](m-mission-adaptive-multiprovider-routing.md) — Phase B (this extends), Phase C (executor reuse), Phase E (cross-family eval this enables)
 - `.claude/skills/design-doc-creator/SKILL.md` — the agentic verification standard the reviewers now match
+
+## Revision note — quorum-at-pick round 1 (2026-07-16, iteration 34)
+Text quorum at pick (`m-mission-quorum-agentic-verify-2026-07-16T09-42-56Z.json`) returned BLOCKED,
+both reviewers on one objection; controller integrated (single-author model):
+- **gpt5-6-sol + gemini-3-1-pro (ACCEPTED):** the Verification Log's "no live quorum artifact yet"
+  row contradicted the SATISFIED precondition. Root cause found on re-probe: the row's `find
+  .ailang/state -name '*quorum*'` is the WRONG command — artifacts are named after the doc, so it
+  matches nothing even though `ls .ailang/state/mission-quorum/` shows the iter 28–30 artifacts.
+  Fixed the row to the correct probe + result; precondition is genuinely satisfied.
+- **gpt5-6-sol #2 (ACCEPTED):** reconciled the `proposed_fix` "schema gains a field" wording with
+  the "do NOT change the verdict contract" constraint — clarified it as additive-OPTIONAL,
+  backward-compatible with `ValidateReviewResult` and existing consumers.
+
+## Quorum-at-pick round 2 → PARKED needs-human-review (2026-07-16, iteration 34)
+Re-quorum after round-1 integration (`m-mission-quorum-agentic-verify-2026-07-16T09-44-59Z.json`)
+returned BLOCKED again, but on DEEPER, different objections (round-1 fixes accepted). Per the
+Gate-2 QUORUM-AT-PICK rule (one bounded revision round, then park), the item is parked. The two
+round-2 objections, characterized by the controller:
+
+1. **gpt5-6-sol — "reuse premise unverified" → REFUTED BY CODE (controller investigation).** The
+   objection: the doc proves executors *exist* but not that they expose tool-execution, worktree
+   selection, cancellation, or cost accounting. **This is the text tier's structural blind spot —
+   it cannot read the repo (the exact gap this doc closes).** Controller verified in
+   `internal/coordinator/provider_executor.go`: cancellation = `Execute(ctx context.Context, …)`
+   threaded to `p.exec.Execute(ctx, …)`; timeout = `opts.Timeout`/`IdleTimeout`; cost =
+   `result.Cost = execResult.CostUSD` (+ Input/OutputTokens); **read-only tool mode = lines 122–124,
+   `AllowedTools = ["Read","Grep","Glob","WebFetch","WebSearch"]` for `Kind=="question"`** — exactly
+   the read-only reviewer capability; worktree = `WorkingDir` (agent_registry.go:37, `{{.Workspace}}`)
+   + the worktree machinery in approval_processor.go. **The reuse-don't-rebuild premise HOLDS.** Fix
+   is CHEAP, not a re-scope: add these code-cited rows to the Verification Log. (NOT done here — that
+   would be a second revision round, which the gate forbids.)
+2. **gemini-3-1-pro — real contract contradiction → NEEDS AN AUTHORIAL DECISION.** "A reject MUST
+   carry `proposed_fix`" makes the field *required-on-reject*, which means `ValidateReviewResult` +
+   the Go struct DO change — contradicting "contract unchanged / only how a reviewer produces its
+   verdict." This is a genuine, small design decision the doc must settle one way:
+   **(a)** `proposed_fix` stays truly optional (strongly-encouraged-on-reject, NOT validated →
+   `ValidateReviewResult` unchanged, wording softened from "MUST"), OR
+   **(b)** accept a bounded contract extension (struct + `ValidateReviewResult` gain the field, drop
+   the "zero changes" claim). Recommended: **(a)** — keeps the shipped contract frozen, matches the
+   "additive-optional" framing.
+
+**Unblock path (≈2-minute human/author call):** decide (a) vs (b) for objection #2, add the
+code-cited Verification-Log rows for objection #1, then re-route to sprint-planner. Preconditions
+otherwise satisfied. See Gate-5 retro (iteration 34) for the meta-finding: the text quorum-at-pick
+blocked a doc whose premises are TRUE-in-code precisely because text reviewers cannot verify code —
+the motivating case for this very doc.
 
 ---
 **Document created**: 2026-07-14

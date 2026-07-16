@@ -35,6 +35,22 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-16 — ITERATION 34: fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick (dogfood: text quorum blocked the AGENTIC-quorum doc for premises TRUE-in-code that text reviewers structurally can't verify)
+
+The picked fleet-(c) doc had no quorum artifact → QUORUM-AT-PICK fired (2 rounds, ~$0.05). Round 1
+BLOCKED on a stale Verification-Log row (its `find -name '*quorum*'` couldn't match doc-named
+artifacts) + `proposed_fix` wording — controller integrated inline (mechanical, known-correct),
+re-quorum. Round 2 still BLOCKED on DEEPER objections: gpt5-6-sol's "reuse premise unverified" the
+controller **REFUTED by code-read** (provider_executor.go exposes ctx-cancel/`Timeout`/`CostUSD`/
+read-only `AllowedTools` + `WorkingDir` worktree — reuse HOLDS); gemini's is a REAL open authorial
+decision (`proposed_fix` required-on-reject vs contract-unchanged → pick optional-not-validated **(a)**
+or bounded contract-extension **(b)**). Per the one-bounded-round gate → PARKED. **≈2-min unblock**:
+settle (a)/(b) + add the code-cited Verification-Log rows → route to planner. **Meta-finding**: the
+TEXT quorum-at-pick can't verify code, so it reject-by-defaults exactly the premise class the agentic
+tier exists to check — a live datapoint FOR building item (c), and a Gate-5 process note (the gate
+should let a controller code-refutation of a PREMISE-class objection count, not force a park). No code
+shipped; doc + queue updated. Detail: log entry 37.
+
 ## STATUS 2026-07-16 — ITERATION 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1; codex real-run recipe corrected (Gate-5 skill edit)
 
 The armed one-shot override fired: `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` executed a real sprint
@@ -68,27 +84,6 @@ re-route sonnet + FLAG) + F2 `exec` orphan-kill fix. Open by design: first REAL 
 fire (opt-in env), M3 planner A/B parked until 3 quorum docs accrue. Nightly binary_tree_sum
 "regression" triaged as model noise (9/9 same-night rotation pass on qwen3-6; alert was qwen3-5
 N=2). Detail: log entry 34.
-
-## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
-
-The clause-3 queue head shipped end-to-end headless: the stale v0.10.1-era doc was re-scoped on
-live HEAD data, then became the **first live Tier-1 design-quorum subject** — 5 reject-by-default
-rounds, EVERY objection a real spec gap (installed-binary path resolution; downloader-manifest
-premise; CI step lifecycle; modules-field drift enforcement; parser-backed extraction; the
-`known-broken` status that didn't exist). Result: the Opus planner found ZERO premise
-discrepancies (first time in 5 iterations — the quorum front-loaded the corrections mid-sprint
-planners had been making). Shipped: 5 red examples quarantined under issue #386 (bisect
-inconclusive→quarantine per decision rule; real trigger root-caused: `show()` in effectful-lambda
-interpolation collapses effect rows — fix forbidden in-sprint, routed to #386); 6 new stdlib
-examples (all 6 zero-importer modules covered); the triple-defeated verify-examples gate made
-REAL (3 `|| true` layers fixed + self-test + `validate_manifest --ci` wired, non-vacuity proven
-both directions); `docs --examples` un-inert (manifest `modules` field, parser-backed backfill +
-drift lint, installed-binary test). Evaluator round 1 FAIL 81/100 on ONE Windows path-separator
-defect → one-line hardening `881711325` → all checks green incl. both Windows jobs = round-2
-PASS. Nightly "regression" (state_machine_vending) RULED OUT as model variance — yesterday's
-passing solution compiles clean at HEAD. Quorum frictions recorded: no termination rule
-(reject-by-default can block forever; controller synthesized after round 5 with recorded
-dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
 
 ## CURRENT GOAL
 
@@ -463,8 +458,17 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   scoping**: the lane serves READ-ONLY roles (evaluator/reviewer/quorum-verifier) only — the
   server-side sandbox never writes the local worktree, so the file-editing executor role needs a
   bridge (follow-up). Sonnet eval PASS 96/100 r1. First LIVE gemini fire deferred to (c).
-- **(c) m-mission-quorum-agentic-verify+HONE (Mark 2026-07-16 — do right after (b), it reuses the
-  gemini lane the moment it lands)** ← **NEXT fleet step**: reviewers become tool-using agents (codex/managed_agents/
+- **(c) [PARKED needs-human-review 2026-07-16 iter 34]** m-mission-quorum-agentic-verify+HONE — Gate-2
+  quorum-at-pick BLOCKED after one bounded revision round. Round-1 objections (stale Verification-Log
+  find-command row; proposed_fix wording) integrated inline + accepted. Round-2 re-quorum surfaced
+  DEEPER objections: gpt5-6-sol's "reuse premise unverified" was **REFUTED by controller code-read**
+  (provider_executor.go exposes ctx-cancel/Timeout/CostUSD/read-only-AllowedTools + WorkingDir worktree
+  — reuse premise HOLDS); gemini's is a REAL open authorial decision — `proposed_fix` required-on-reject
+  vs contract-unchanged (pick: optional-not-validated **(a, recommended)** or bounded contract-extension
+  **(b)**). **≈2-min unblock:** settle (a)/(b) + add the code-cited Verification-Log rows, then route to
+  planner. Meta-finding (Gate-5): the TEXT quorum-at-pick blocked a doc whose premises are TRUE-in-code
+  precisely because text reviewers can't read code — the motivating case for this very doc. Original ask:
+  reviewers become tool-using agents (codex/managed_agents/
   claude-CLI, read-only worktrees) that VERIFY premises against the repo AND attach a concrete
   `proposed_fix` per objection; the AUTHOR (designer role, now true-Fable via the Gate-3
   `claude:claude-fable-5` CLI lane — driver default updated) accepts/rejects each by name.
