@@ -47,17 +47,33 @@ type ReviewResult struct {
 	// doc author (a premise gap, a Conflict-Surface omission, an axiom
 	// violation, etc.). Required non-empty.
 	Catch string `json:"catch"`
+
+	// ProposedFix is an ADDITIVE, OPTIONAL concrete revision the reviewer
+	// suggests for its objection (a corrected claim, replacement paragraph, or
+	// added verification-log row), grounded in what it actually verified. It is
+	// the "hone" half of the capability. It is NOT part of the frozen verdict
+	// contract (Mark decision 2026-07-16, option (a)): it is absent from
+	// reviewSchema.required and is NOT referenced by ValidateReviewResult, so a
+	// verdict that omits it validates byte-identically. Reviewers are PROMPTED
+	// to include one on every reject; a fix-less reject is recorded as reviewer
+	// friction, never a validation error.
+	ProposedFix string `json:"proposed_fix,omitempty"`
 }
 
 // reviewSchema is the JSON schema handed to CallJson so schema-supporting
 // providers enforce structure server-side. ValidateReviewResult re-checks it
 // regardless (providers vary in enforcement strength).
+//
+// proposed_fix is present in "properties" but DELIBERATELY ABSENT from
+// "required": it is additive-optional (Mark option (a)), so the frozen
+// verdict contract is unchanged — a verdict omitting it still conforms.
 const reviewSchema = `{
   "type": "object",
   "properties": {
     "verdict": {"type": "string", "enum": ["pass", "reject"]},
     "strongest_objection": {"type": "string"},
-    "catch": {"type": "string"}
+    "catch": {"type": "string"},
+    "proposed_fix": {"type": "string"}
   },
   "required": ["verdict", "strongest_objection", "catch"]
 }`
@@ -78,6 +94,7 @@ You MUST return a single JSON object with exactly these fields:
 - "verdict": "pass" or "reject"
 - "strongest_objection": the SINGLE most important reason this doc should not proceed as written. On a reject this MUST be a concrete, specific objection (never empty, never "looks fine"). On a pass, state the closest concern you could find.
 - "catch": the specific thing you would flag to the author to fix or verify.
+- "proposed_fix" (OPTIONAL, strongly encouraged on every reject): a concrete revision that resolves your objection — a corrected claim, a replacement paragraph, or an added verification-log row. Omit it only if you genuinely cannot propose one. A reject without a proposed_fix is accepted but noted as friction.
 
 Do not praise. Do not summarize the doc. Output ONLY the JSON object, no prose, no code fences.`
 
