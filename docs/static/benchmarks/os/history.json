@@ -2,7 +2,7 @@
   {
     "ailang_version": "v0.29.2",
     "generated": "2026-07-16",
-    "trials": 3,
+    "trials": 5,
     "languages": [
       "ailang",
       "go",
@@ -13,16 +13,16 @@
       {
         "harness": "motoko",
         "lang": {
-          "ailang": 0.8579234972677595,
-          "go": 1,
-          "javascript": 0.9864864864864865,
-          "python": 0.9864864864864865
+          "ailang": 0.8624338624338624,
+          "go": 0.9879518072289156,
+          "javascript": 0.9879518072289156,
+          "python": 0.9879518072289156
         },
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
-            "ailang": 0.9444444444444444,
-            "go": 1,
+            "ailang": 0.9473684210526315,
+            "go": 0.9629629629629629,
             "javascript": 1,
             "python": 1
           },
@@ -32,7 +32,7 @@
           "smoke": {
             "ailang": 1,
             "go": 1,
-            "javascript": 0.9629629629629629,
+            "javascript": 0.9666666666666667,
             "python": 1
           },
           "stretch": {
@@ -52,25 +52,25 @@
       {
         "harness": "opencode",
         "lang": {
-          "ailang": 0.6521739130434783,
-          "go": 0.9054054054054054,
-          "javascript": 0.9864864864864865,
-          "python": 0.9594594594594594
+          "ailang": 0.6577540106951871,
+          "go": 0.8795180722891566,
+          "javascript": 0.9518072289156626,
+          "python": 0.963855421686747
         },
         "model": "opencode-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.7407407407407407,
-            "go": 1,
-            "javascript": 1,
+            "go": 0.9259259259259259,
+            "javascript": 0.8888888888888888,
             "python": 1
           },
           "frontier": {
             "ailang": 0.1951219512195122
           },
           "smoke": {
-            "ailang": 0.9629629629629629,
-            "go": 1,
+            "ailang": 0.9666666666666667,
+            "go": 0.9666666666666667,
             "javascript": 1,
             "python": 1
           },
@@ -91,17 +91,17 @@
       {
         "harness": "pi",
         "lang": {
-          "ailang": 0.7891891891891892,
-          "go": 0.918918918918919,
-          "javascript": 0.9864864864864865,
-          "python": 0.9864864864864865
+          "ailang": 0.7925531914893617,
+          "go": 0.9036144578313253,
+          "javascript": 0.9759036144578314,
+          "python": 0.9879518072289156
         },
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.8888888888888888,
-            "go": 0.9523809523809523,
-            "javascript": 1,
+            "go": 0.8888888888888888,
+            "javascript": 0.9629629629629629,
             "python": 1
           },
           "frontier": {
@@ -109,8 +109,8 @@
           },
           "smoke": {
             "ailang": 1,
-            "go": 0.9259259259259259,
-            "javascript": 0.9629629629629629,
+            "go": 0.9333333333333333,
+            "javascript": 0.9666666666666667,
             "python": 1
           },
           "stretch": {
