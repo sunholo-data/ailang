@@ -3194,3 +3194,64 @@ quorum termination-rule friction #1; dead-run resume-detection friction #1; gemi
 executor-bridge; first LIVE gemini fire still unproven; F2 codex `exec` orphan-kill unexercised)
 **PLUS**: (c) parked with a ≈2-min unblock path; quorum-at-pick premise-refutation process friction #1
 (above — needs a 2nd datapoint).
+
+---
+
+## 38 — 2026-07-16 — Iteration 35: RED-DEV fix (outranks queue) — manifest statistics drift + stream Opened-ordering race, CI + Build-and-Release both green on `2bb3de2c5`; bookkeeping thread rotated #329 → #399
+
+**Picked**: **RED dev at HEAD** (`fe7c13efa`) — outranks the queue (mission guardrail, 2026-07-10 Mark).
+Gate-1 per-workflow check found CI = failure AND Build-and-Release = failure; the doc-backlog [NEXT]
+(clause-3 accessibility cluster) yields to the red. Inbox: 2 routine `eval-suite` messages (suite-started
++ 98/99 partial) — no regression, no directive → acked. No new `@MarkEdmondson1234` comment on #329 since
+the watermark. Local dev == origin/dev (`fe7c13efa`, no stale-local drift).
+
+**Reality check** (Gate-2): CI history isolated the window — `93ba90a06` GREEN → red starting at the
+next CI run `814468a2d`, with NO CI run for the intervening vision-input merge `8c3de5ce8`. Reproduced
+BOTH reds locally on rebuilt binaries (v0.29.2-289-gfe7c13efa, `--version` == `git describe`):
+- **CI red = manifest statistics drift**, NOT a type-checker regression. The individual `ailang check`
+  errors in the CI log (effectful_list/mcp_tools/stream_* effect-row + Option unification) are all
+  *expected-fail* examples — `verify_examples.go` passes 195/195. The real gate failure was
+  `validate_manifest --ci`: `8c3de5ce8` added `ai_vision_input.ail` (a working example) but left the
+  aggregate `statistics` block recording 185/173 while the calc was 186/174. RULED OUT the tempting
+  "unification_records.go changed → type regression" — that diff is error-MESSAGE text only.
+- **Build-and-Release red = pre-existing Windows race**, NOT caused by its commit. It first appeared at
+  `fe7c13efa`, a DOC-ONLY commit (SKILL.md + v1-mission.md + mission-control.sh) — a doc commit cannot
+  change Go test behavior, so this is a flake, not a regression. `TestStreamNDJSONPost_Success` asserts
+  `events[0] == "Opened"`; the impl started the reader goroutine BEFORE enqueuing `Opened` → the reader
+  could push an `sse_data` event first ([SSEData Opened SSEData SSEData]).
+
+**Shipped**: commit **`2bb3de2c5`** (direct-to-dev fix-forward, no MERGE_HEAD in the shared tree).
+(1) manifest `statistics`: total 185→186, working 173→174, coverage→0.9354838709677419 — `make
+verify-examples` green (195/195 + manifest in sync). (2) SYSTEMIC stream fix (Critical Principle 3) —
+enqueue `Opened` before starting the reader goroutine in ALL FOUR connectors (`stream_ndjson.go`,
+`stream.go` WebSocket, `stream_sse.go` GET + POST); eventBuffer is buffered (1000) so the pre-goroutine
+push never blocks. Verified `go test ./internal/effects -race -count=20` (green, 111s). **Gate 3b**:
+pushed → CI + Build-and-Release both `completed success` on `2bb3de2c5` (bounded poll, 28-min cap;
+Docs-Deploy N/A — path-filtered, no `docs/` in diff). DEV IS GREEN.
+
+**Routing evidence**: model=opus task-class=mechanical (diagnostic + fix-forward)
+  round1-score=n/a rounds=0 corrections=0
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- Controller-INLINE red-dev fix: no design/plan/execute/evaluate sub-agents spawned — a CI
+       fix-forward is not a sprint. Per routing policy "deterministic mechanical work, inline, is fine."
+       Heavy-role pins (designer=claude:claude-fable-5, planner/executor=opus, evaluator=fable) unused
+       this iteration; nothing to FLAG. -->
+
+**Ruled out**:
+- "unification_records.go change broke type-checking" — REFUTED: that diff is error-message text only;
+  `verify_examples.go` passes 195/195; the failing examples are expected-fail entries.
+- "the vision merge introduced a real effect-row/Option regression" — REFUTED: no unification-logic
+  change in the window; the type errors are pre-existing expected-fails, not new.
+- "`fe7c13efa` (the commit CI blamed) caused the Windows failure" — REFUTED: it is doc-only; the race
+  is pre-existing and timing-dependent (proved by `-race -count=20` reproducing/then-fixing).
+
+**Retro lane**: **process-fix (mission doc, small)** — Gate-1's per-workflow CI check already caught this
+red; the NEW gap is that a manifest-statistics drift from a *sibling* feature merge is invisible to local
+`make test`/`make lint` and only fails the remote `verify-examples` gate. Candidate guardrail note added
+to the Gate-2 verification protocol (statistics drift after any example add). NOT a skill edit (needs a
+2nd datapoint at the same gap per the ≥2-friction rule). See Gate-5 note below.
+
+**Next**: dev is green — iteration 36 returns to the queue [NEXT]: the **clause-3 accessibility cluster**
+(bulk of v1.0; P0/unblockers first, then cheapest impact-per-day). Still parked for human:
+**m-mission-quorum-agentic-verify** (iter 34, Gate-2 quorum-at-pick; ≈2-min unblock once the (a)/(b)
+`proposed_fix` decision is made — now tracked on #399).
