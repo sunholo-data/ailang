@@ -116,16 +116,31 @@ now provider/agent/cost-aware.
   design-doc-creator moved from inline to a `$MISSION_DESIGNER_MODEL`-pinned sub-agent (fable). Net
   Fable per iteration = two bounded sub-agents (designer when needed + evaluator) — matching this
   doc's own right-sizing table, which already put the controller at mid-tier.
-- **M1b — one NON-CLAUDE agent executor (the true cross-provider proof) — loop / fleet Phase C:**
-  wire a `provider:model` executor (codex OR motoko) through `provider_executor.go` so the skill
-  branches a non-alias env value to the registry. Acceptance: an iteration where controller and
-  executor run on **different PROVIDERS**. (M1a proved different *models*, same provider; M1b is the
-  cross-provider step that actually moves burn OFF Anthropic — metered API $ or the local-GPU lane.)
-- **M2 — right-sizing table + evidence instrumentation:** table into the charter; routing-evidence
-  rows extended with provider/agent/cost. Acceptance: one iteration writes a full new-schema row.
-- **M3 — planner down-tier A/B:** plan the same 3 quorum-reviewed docs with a mid-tier planner-agent
-  vs the Opus planner; compare executor round-1 scores + corrections; record verdict in the table.
-  Acceptance: a data-backed keep/down-tier decision for sprint-planner (not an assertion).
+- **M1b — one NON-CLAUDE agent executor (the true cross-provider proof) — ✅ EXECUTED 2026-07-16
+  (mission iteration 31, main checkout), pending CI+eval:** teach mission-control Gate 3 to branch a
+  `provider:model` executor env value (e.g. `codex:gpt-5.6-sol`) to a **bounded (≤30-min) `codex exec`
+  run in the sprint worktree**, instead of the Agent tool. No Go plumbing — reuses the existing
+  `provider_executor.go` registry + codex executor. Recipe includes a token-cheap pre-flight probe,
+  generator≠judge assert (re-route+FLAG on collision), and fallback-to-`$MODEL`-via-Agent+FLAG on any
+  codex failure. Live probe verified: `codex exec --model gpt-5.6-sol 'reply with exactly: ok'` → exit
+  0. Acceptance: an iteration where controller and executor run on **different PROVIDERS**. (M1a
+  proved different *models*, same provider; M1b is the cross-provider step that actually moves burn OFF
+  Anthropic — metered API $ or the local-GPU lane.) **NOT-yet-verified:** a full real cross-provider
+  iteration end-to-end (acceptance smoke uses the token-cheap probe per constraint #6).
+- **M2 — right-sizing table + evidence instrumentation — ✅ EXECUTED 2026-07-16 (iteration 31),
+  pending CI+eval:** the (provider, agent, tier) right-sizing table landed in the charter
+  (`v1-mission.md`, cross-linked here); the log routing-evidence rows extended with
+  `provider`/`agent`/`cost` (`v1-mission-log.md`, appended so historical rows still parse). Acceptance:
+  one iteration writes a full new-schema row.
+- **M3 — planner down-tier A/B — ⏸ PARKED with a concrete protocol** (needs 3 quorum-reviewed docs
+  planned mid-tier vs Opus across ≥3 iterations; charter ≥3-datapoint rule). The executable A/B
+  protocol is recorded in the sprint plan
+  ([m-mission-agentic-provider-routing-sprint-plan.md](m-mission-agentic-provider-routing-sprint-plan.md),
+  "Milestone M3" section) — the deliverable this iteration is the *protocol*, not the run. Runs
+  deterministically once M1b (cross-provider planner branch) + M2 (evidence schema) are live and 3
+  quorum docs exist. Plan the same 3 quorum-reviewed docs with a mid-tier planner-agent vs the Opus
+  planner; compare executor round-1 scores + corrections; record verdict in the table. Acceptance: a
+  data-backed keep/down-tier decision for sprint-planner (not an assertion).
 
 ## Conflict surface
 Touches: the mission-control SKILL (how Gate 3 spawns the inner loop — from inline Skill to pinned

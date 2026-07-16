@@ -173,11 +173,11 @@ routing-evidence row schema. Acceptance: one iteration writes a full new-schema 
 4. **Deploy to main checkout** (charter + log are read by the controller session on disk).
 
 ### Acceptance criteria (M2)
-- [ ] Charter `design_docs/v1-mission.md` contains the (provider, agent, tier) right-sizing table, cross-linked to this doc.
-- [ ] `v1-mission-log.md` template row schema has `provider`, `agent`, and `cost` columns appended (old columns retained).
-- [ ] One new log entry is written in the new schema with real (provider, agent, model, task-class, round-1 score, rounds, corrections, cost).
-- [ ] `cost` uses `$` for metered providers, quota-bucket for Anthropic, explicit `unknown` otherwise (never silent 0).
-- [ ] Deployed to main checkout on disk.
+- [x] Charter `design_docs/v1-mission.md` contains the (provider, agent, tier) right-sizing table, cross-linked to this doc.
+- [x] `v1-mission-log.md` template row schema has `provider`, `agent`, and `cost` columns appended (old columns retained).
+- [x] One new log entry is written in the new schema with real (provider, agent, model, task-class, round-1 score, rounds, corrections, cost). *(entry 34; round-1 score marked `<pending-evaluator>` — the row is written by this executor run, the evaluator fills scores next)*
+- [x] `cost` uses `$` for metered providers, quota-bucket for Anthropic, explicit `unknown` otherwise (never silent 0). *(this row: `cost=quota-bucket:weekly-opus` — Anthropic subscription, no per-call $)*
+- [x] Deployed to main checkout on disk. *(edited directly on `dev` in the main checkout)*
 
 ### Risks
 - **Log parser drift** — if any tooling parses the fixed row template, appending columns could break

@@ -10,6 +10,11 @@ section, write "none" rather than omitting:
 **Shipped**: <commits/branches/PRs, evaluator result + score, or "parked: reason">
 **Routing evidence**: model=<m> task-class=<design|plan|execute|evaluate|mechanical>
   round1-score=<n> rounds=<n> corrections=<n>
+  provider=<p> agent=<a> cost=<$<n>|quota-bucket:weekly-fable|quota-bucket:weekly-opus|unknown>
+  <!-- provider/agent/cost appended 2026-07-16 (M2). Leading columns unchanged so historical rows
+       still parse. provider = anthropic|codex|gemini|motoko|... ; agent = claude-code|codex|... ;
+       cost = $ for metered providers (executResult.CostUSD), quota-bucket:<weekly-*> for Anthropic
+       subscription calls, explicit "unknown" otherwise — NEVER silent 0 (Critical Principle 2). -->
 **Ruled out**: <hypotheses/approaches refuted this iteration — the anti-re-chase ledger>
 **Retro lane**: <skill-fix: file+change | process-fix: change | backlog: new doc | none>
 **Next**: <what iteration N+1 should pick up>
@@ -2774,3 +2779,38 @@ issue #386; gemini quorum-reviewer retry; quorum termination-rule friction #1) *
 dead-run resume-detection friction #1; blind-PR-poll friction #1; evaluator's non-blocking seeds
 (near-tautological filter test; static forward prelude probe; guide's drifted inline example;
 prelude vs stdlib signature-shape inconsistency).
+
+---
+
+## 34 — 2026-07-16 — Iteration 31: m-mission-agentic-provider-routing M1b+M2 EXECUTED (main checkout; M3 parked)
+
+**Picked**: m-mission-agentic-provider-routing remaining slice (M1b cross-provider codex executor
+recipe + M2 right-sizing table & evidence schema). M1a landed prior (8ee07ef23 + d545d4a9e).
+
+**Reality check**: `provider_executor.go` registry + DryRun + codex executor all pre-exist (v0.22.0)
+— M1b is skill-orchestration, zero Go plumbing. codex CLI at `/opt/homebrew/bin/codex` (codex-cli
+0.137.0), `OPENAI_API_KEY` present, `gpt-5.6-sol` valid (models.yml:201, agent_cli codex). Live probe
+`codex exec --model gpt-5.6-sol 'reply with exactly: ok'` → exit 0, replied `ok`, ~13.7k tokens.
+
+**Shipped**: M1b — Gate-3 `provider:model`→`codex exec` bounded recipe in mission-control SKILL +
+driver comment (commit `956fda55c`). M2 — right-sizing (provider,agent,tier) table in the charter +
+routing-evidence schema extended with provider/agent/cost. Worked directly on `dev` in the main
+checkout (controller-authorized — launchd reads on-disk). M3 PARKED with protocol (in sprint plan).
+
+**Routing evidence**: model=opus task-class=execute
+  round1-score=<pending-evaluator> rounds=<pending> corrections=<pending>
+  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
+  <!-- First row written in the M2 schema. Executor ran on the Opus pin (M1a); Anthropic
+       subscription call → quota-bucket, not $ (no per-call CostUSD). Evaluator scores fill on the
+       sprint-evaluator round. -->
+
+**Ruled out**: "M1b needs a provider_executor.go code change" — refuted (registry/DryRun/codex
+executor already exist; the gap was the missing spawn RECIPE, not plumbing). "mission-log template
+has a positional parser that appending would break" — grepped tools/ internal/ .claude/: only the
+sprint-evaluator feedback template uses a differently-named JSON `round1_score` field; no consumer
+parses the mission-log line, so appending columns is safe.
+
+**Retro lane**: (deferred to controller retro) — this is the executor report, not the retro.
+
+**Next**: sprint-evaluator (Fable-pinned, ≠ Opus executor → generator≠judge) round 1; then Gate-3b
+CI green; then M3 stays parked until 3 quorum docs accrue.

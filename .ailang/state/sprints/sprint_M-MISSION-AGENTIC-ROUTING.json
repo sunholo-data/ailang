@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-AGENTIC-ROUTING",
-  "status": "planned",
+  "status": "in_progress",
   "created": "2026-07-16T00:00:00Z",
   "design_doc": "design_docs/planned/v0_30_0/m-mission-agentic-provider-routing.md",
   "sprint_plan": "design_docs/planned/v0_30_0/m-mission-agentic-provider-routing-sprint-plan.md",
@@ -68,10 +68,10 @@
         "cost uses $ for metered providers (codex/gemini via CostUSD), quota-bucket for Anthropic (weekly-fable/weekly-opus), explicit unknown otherwise (never silent 0 per Critical Principle 2).",
         "Deployed to main checkout on disk."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-16T00:00:00Z",
+      "completed": "2026-07-16T00:00:00Z",
+      "notes": "Right-sizing (Role|Agentic?|Needs|Tier hypothesis|Agent candidates) table added to design_docs/v1-mission.md 'Model routing policy' section, cross-linked to the design doc, with a note distinguishing current enforced assignments vs the tier hypothesis. Routing-evidence schema in design_docs/v1-mission-log.md extended by APPENDING provider=<p> agent=<a> cost=<...> (leading model=/task-class=/round1-score=/rounds=/corrections= unchanged so historical rows still parse); inline comment documents provider/agent enums + cost policy ($ metered / quota-bucket Anthropic / explicit unknown, never silent 0). One new-schema row written as log entry 34 (provider=anthropic agent=claude-code model=opus task-class=execute cost=quota-bucket:weekly-opus; round-1 score pending the sprint-evaluator round). Grep-checked no positional parser consumes the mission-log line before appending (only sprint-evaluator's feedback template uses a differently-named JSON round1_score field). Design-doc milestone list updated: M1b/M2 marked EXECUTED-pending-CI+eval, M3 PARKED-with-protocol pointer to the sprint plan. Worked directly on dev in the main checkout."
     },
     {
       "id": "M3_PLANNER_DOWNTIER_AB_PARKED",
@@ -90,10 +90,10 @@
         "DEFERRED: 3 quorum-reviewed docs planned in both arms (Opus vs mid-tier planner via M1b provider:model branch); round-1 evaluator scores + corrections recorded per arm.",
         "DEFERRED: data-backed keep/down-tier verdict for sprint-planner written to the charter (>=3 data points, both directions per evidence rule)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Parked, not descoped: it is the first Phase-E evidence probe but its cadence is multi-iteration. Executable deterministically once M1b (cross-provider planner branch) + M2 (evidence schema) land and 3 quorum docs exist."
+      "passes": true,
+      "started": "2026-07-16T00:00:00Z",
+      "completed": "2026-07-16T00:00:00Z",
+      "notes": "PARKED, deliverable = the PROTOCOL only (not the run). The concrete A/B protocol is recorded in the sprint plan (Milestone M3 section) and now referenced from the design-doc milestone list (M3 marked PARKED-with-protocol pointing at the plan). The two DEFERRED criteria (3 quorum docs planned both arms; data-backed keep/down-tier verdict) are explicitly out of this iteration per constraint #5 — executable once M1b + M2 are live and 3 quorum docs accrue. passes=true reflects the protocol-recording deliverable being complete; the deferred run remains open by design."
     }
   ]
 }

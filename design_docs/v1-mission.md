@@ -192,6 +192,26 @@ made in RETRO, recorded here with a dated stamp.
 > from inline to a **`$MISSION_DESIGNER_MODEL`-pinned sub-agent (fable)**. Net Fable spend per
 > iteration = two bounded sub-agents: designer (only when a new doc is needed) + evaluator.
 
+### Right-sizing table — the (provider, agent, tier) hypothesis (M2)
+
+Landed 2026-07-16 (m-mission-agentic-provider-routing M2). This is the *hypothesis* that the routing
+evidence rows below test — updated by the ≥3-datapoint evidence rule, never by vibes. Canonical source:
+[design_docs/planned/v0_30_0/m-mission-agentic-provider-routing.md](planned/v0_30_0/m-mission-agentic-provider-routing.md).
+
+| Role | Agentic? | Needs | Tier hypothesis | Agent candidates |
+|---|---|---|---|---|
+| Controller (pick/judge/retro) | agent (claude-code) | orchestration judgment | **mid** | claude-code (home harness) |
+| Design-doc-creator | agent (`check` in loop) | deep spec reasoning (highest leverage) | **strong** | strong claude/codex + live quorum |
+| **Sprint-planner** | agent-capable | decompose a quorum-reviewed doc | **MID (down-tier)** — kept at Opus until M3's ≥3-datapoint A/B | mid codex/gemini/motoko |
+| Sprint-executor | AGENT (heavy) | tool-using coding | **strong AGENT** (not just a model) | **codex / motoko / claude**; motoko may over-perform on AILANG (M1b wired codex) |
+| Sprint-evaluator | AGENT (re-runs tests) | behavioral verification | **mid**, distinct provider from executor | gemini/codex ≠ executor |
+| Mechanical (moves/regen) | no | deterministic | **low / local** | local-GPU (Phase D) |
+
+> The model-routing table above (Opus-first) is the CURRENT enforced assignment; this right-sizing
+> table is the tier *hypothesis* those assignments are converging toward as evidence accrues. Where
+> the two differ (e.g. controller runs Opus today but the hypothesis is mid-tier), the gap is a
+> deliberate, evidence-gated decision — a routing change requires the ≥3-datapoint rule.
+
 ## Rig integration — the two-tier rule
 
 `rig.lock` (`~/.ailang/state/rig.lock.d`) is a **GPU mutex, nothing more** (Mark, 2026-07-10).
