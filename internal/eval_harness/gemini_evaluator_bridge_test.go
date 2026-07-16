@@ -1,6 +1,7 @@
 package eval_harness
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -339,7 +340,7 @@ func TestRunGeminiEvaluator_StubHappyPath(t *testing.T) {
 	dir := newTempGitRepo(t)
 	writeFile(t, dir, "feature.go", "package f\nvar F = 1\n")
 
-	stub := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+	stub := func(_ context.Context, directive, systemPrompt string) (EvalRunnerOutput, error) {
 		// Sanity: the directive must actually carry the bundle + reasoning note.
 		if !strings.Contains(directive, "Reasoning-only sprint evaluation") {
 			t.Errorf("stub: directive missing reasoning-only instruction")
@@ -353,7 +354,7 @@ func TestRunGeminiEvaluator_StubHappyPath(t *testing.T) {
 		}, nil
 	}
 
-	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stub})
+	v, err := RunGeminiEvaluator(context.Background(), dir, "design", "plan", EvalOptions{Runner: stub})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,14 +372,14 @@ func TestRunGeminiEvaluator_TruncationStampsDegraded(t *testing.T) {
 	writeFile(t, dir, "huge.go", "package h\nvar H = \""+strings.Repeat("y", 20*1024)+"\"\n")
 
 	// The stub LIES with pass:true — the caller must override to degraded.
-	stub := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+	stub := func(_ context.Context, directive, systemPrompt string) (EvalRunnerOutput, error) {
 		return EvalRunnerOutput{
 			Success: true,
 			Output:  "```json\n{\"score\": 95, \"pass\": true, \"blockers\": []}\n```",
 		}, nil
 	}
 
-	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{
+	v, err := RunGeminiEvaluator(context.Background(), dir, "design", "plan", EvalOptions{
 		Runner: stub,
 		Bundle: BundleOptions{MaxBytes: 2 * 1024},
 	})
@@ -401,10 +402,10 @@ func TestRunGeminiEvaluator_BackendErrorIsDegradedNotPass(t *testing.T) {
 	writeFile(t, dir, "x.go", "package x\nvar X = 1\n")
 
 	// Case 1: runner returns Success==false with error text.
-	stubFail := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+	stubFail := func(_ context.Context, directive, systemPrompt string) (EvalRunnerOutput, error) {
 		return EvalRunnerOutput{Success: false, Error: "vertex 503 unavailable"}, nil
 	}
-	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stubFail})
+	v, err := RunGeminiEvaluator(context.Background(), dir, "design", "plan", EvalOptions{Runner: stubFail})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,10 +417,10 @@ func TestRunGeminiEvaluator_BackendErrorIsDegradedNotPass(t *testing.T) {
 	}
 
 	// Case 2: runner returns a hard error.
-	stubErr := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+	stubErr := func(_ context.Context, directive, systemPrompt string) (EvalRunnerOutput, error) {
 		return EvalRunnerOutput{}, errStub("network down")
 	}
-	v2, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stubErr})
+	v2, err := RunGeminiEvaluator(context.Background(), dir, "design", "plan", EvalOptions{Runner: stubErr})
 	if err != nil {
 		t.Fatal(err)
 	}

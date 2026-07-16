@@ -21,6 +21,7 @@ package eval_harness
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -586,7 +587,11 @@ type EvalRunnerOutput struct {
 // system prompt and returns its output. It is INJECTABLE so tests pass a stub
 // and NEVER make a live Vertex/managed_agents call. The default production
 // runner (DefaultGeminiRunner) shells `ailang exec gemini --json`.
-type EvalRunner func(directive, systemPrompt string) (EvalRunnerOutput, error)
+//
+// ctx is the caller's context: the live path MUST honor its
+// cancellation/deadline (never a fresh context.Background()) so a live Tier-2
+// fire respects caller timeout/cancellation.
+type EvalRunner func(ctx context.Context, directive, systemPrompt string) (EvalRunnerOutput, error)
 
 // EvalOptions configures RunGeminiEvaluator.
 type EvalOptions struct {
@@ -609,7 +614,10 @@ type EvalOptions struct {
 // non-empty reason — a model/stub pass:true under degradation can NEVER stand
 // as a real pass (CLAUDE.md "no silent fallbacks", Principle 2). Mirrors
 // quorum.RunAgenticReviewer's policy-layer boundary.
-func RunGeminiEvaluator(worktree, designDoc, sprintPlan string, opts EvalOptions) (*GeminiVerdict, error) {
+//
+// ctx is the caller's context: it is threaded to the runner so a live Tier-2
+// fire honors caller cancellation/timeout (never context.Background()).
+func RunGeminiEvaluator(ctx context.Context, worktree, designDoc, sprintPlan string, opts EvalOptions) (*GeminiVerdict, error) {
 	bundle, err := BuildDiffBundle(worktree, opts.Bundle)
 	if err != nil {
 		return nil, fmt.Errorf("RunGeminiEvaluator: build bundle: %w", err)
@@ -627,7 +635,7 @@ func RunGeminiEvaluator(worktree, designDoc, sprintPlan string, opts EvalOptions
 	if runner == nil {
 		runner = DefaultGeminiRunner
 	}
-	out, runErr := runner(directive, opts.SystemPrompt)
+	out, runErr := runner(ctx, directive, opts.SystemPrompt)
 	if runErr != nil {
 		degraded.BackendError = runErr.Error()
 	} else if !out.Success {
@@ -666,12 +674,17 @@ func RunGeminiEvaluator(worktree, designDoc, sprintPlan string, opts EvalOptions
 // exec.go:317-322) and parses the --json envelope. It is the default when
 // EvalOptions.Runner is nil and is NEVER invoked by the test suite (all tests
 // inject a stub) — so no test makes a live Vertex/managed_agents call.
-func DefaultGeminiRunner(directive, systemPrompt string) (EvalRunnerOutput, error) {
+//
+// ctx is the caller's context: the underlying `ailang exec gemini` process is
+// launched with exec.CommandContext(ctx, ...) so caller cancellation/deadline
+// kills the live call. It is DERIVED from the passed ctx (never a fresh
+// context.Background()).
+func DefaultGeminiRunner(ctx context.Context, directive, systemPrompt string) (EvalRunnerOutput, error) {
 	args := []string{"exec", "gemini", "--json", "--prompt", directive}
 	if strings.TrimSpace(systemPrompt) != "" {
 		args = append(args, "--system-prompt", systemPrompt)
 	}
-	cmd := exec.Command("ailang", args...)
+	cmd := exec.CommandContext(ctx, "ailang", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
