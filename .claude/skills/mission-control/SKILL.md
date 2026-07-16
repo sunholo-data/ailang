@@ -186,19 +186,38 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      ```
      (Live-verified 2026-07-16 with `MODEL=gpt-5.6-sol`: exit 0, replied `ok`. Mirrors the driver's
      own Anthropic probe at `tools/launchd/mission-control.sh:102`.)
-  2. **Real executor run** — from INSIDE the sprint worktree (never the main tree), pass the sprint
-     directive as the prompt (the sprint-executor skill contract for `<doc>`/`<plan>`), with a
-     **bounded ≤30-min wall-clock cap** using the same `date +%s` deadline pattern (Standing rule 6):
+  2. **Real executor run** (recipe corrected 2026-07-16 iteration 32 after the FIRST real codex fire
+     — the prior form had only ever been verified against the text probe and was underspecified on
+     THREE points that all broke a real coding run: sandbox flags, build-cache writability, and the
+     30-min cap vs the harness's 10-min foreground `Bash` limit). A real `codex exec` that edits
+     files + runs `go build`/`go test` + git needs a WRITE sandbox that also reaches the Go caches
+     (outside the worktree), and it CANNOT be run foreground (the wall-clock cap is 30 min but the
+     `Bash` tool caps at 10 min). Write the directive to a file (avoid shell-escaping), then run the
+     bounded wrapper via **`Bash` with `run_in_background: true`** — it stays bounded by the wrapper's
+     own `date +%s` deadline (Standing rule 6) and notifies you on exit:
      ```bash
+     # /tmp/codex_run.sh — launch with Bash run_in_background:true (30-min cap > the 10-min fg limit)
      WT=<sprint worktree path>; deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
-     ( cd "$WT" && exec codex exec --model "$MODEL" "$SPRINT_DIRECTIVE" ) & pid=$!   # exec: the cap's kill must reach codex itself, not just the subshell
+     GOCACHE=$(go env GOCACHE); GOMODCACHE=$(go env GOMODCACHE)
+     ( exec codex exec --model "$MODEL" \
+         --sandbox workspace-write \
+         --add-dir "$GOCACHE" --add-dir "$GOMODCACHE" \
+         -C "$WT" -o /tmp/codex_last.txt \
+         "$(cat /tmp/codex_directive.txt)" ) > /tmp/codex_out.log 2>&1 &   # exec: the cap's kill reaches codex, not just the subshell
+     pid=$!
      while kill -0 "$pid" 2>/dev/null; do
-       [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; echo "codex exec 30-min cap — FLAG"; break; }
-       sleep 15; done; wait "$pid" 2>/dev/null
+       [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null; echo "codex 30-min cap — FLAG"; break; }
+       sleep 15; done; wait "$pid" 2>/dev/null; echo "codex rc=$?"
      ```
-     The codex executor commits to the worktree branch itself — capture the branch + report the SAME
-     way the claude executor path does: read the diff via `git -C "$WT" diff` / `git -C "$WT" log`.
-     Do NOT invent a new read step; reuse the existing worktree-read.
+     `--sandbox workspace-write` confines codex to the worktree (blocks escape to the main checkout)
+     while `--add-dir GOCACHE/GOMODCACHE` lets `go build`/`go test` write their caches; `-o` captures
+     codex's final message. **The codex executor CANNOT commit to the worktree branch itself under
+     this sandbox** (a linked worktree's `.git` is a file pointing under the main checkout's
+     `.git/worktrees/…`, which `workspace-write` excludes — live-observed iter 32: codex finished
+     green but its `git commit` was blocked). So: **read the UNCOMMITTED worktree diff** via
+     `git -C "$WT" diff` / `git -C "$WT" status` (NOT `git log` — there's no commit yet), verify it,
+     then the CONTROLLER finalizes the commit on the branch, crediting the codex executor in the
+     message (`Co-Authored-By: codex <model>`). Everything else reuses the existing worktree-read.
   3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
      evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
      NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator

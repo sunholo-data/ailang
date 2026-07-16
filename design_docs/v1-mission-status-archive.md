@@ -3,6 +3,27 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-14 (evening) — ITERATION 30: m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
+
+The last clause-3 Prelude/discovery starter is in: `ailang docs --all-functions [filter]`
+(one grep-able line per stdlib export, AST-rendered signatures — also fixing the V16
+effect-row truncation in per-module docs), unknown-stdlib-module recovery (`import std/time`
+→ `did you mean: std/clock?` + module list; curated alias table + Levenshtein≤2 reusing
+importhint), and `ailang docs prelude` (rendered from live mechanisms, bidirectional drift
+test). NOTE this iteration was a RESUME: the 15:30 scheduled run re-scoped the doc, ran the
+quorum-refined plan, and died rc=1 (transient Anthropic error, pre-dating the 17:16
+driver-retry fix) with uncommitted executor work in the sprint worktree; this run detected the
+mid-flight artifacts at Gate 2, verified them (all KEEP), and completed execution. Evaluator
+round-1 PASS 93/100; hardening `ea6069815` (arrays→array alias misdirection) + `0ad27444c`
+(Windows separator in the docs-search guard). INTERLEAVE (Gate-1 red-dev rule): sibling
+M-STD-YAML/M-SMT merges turned dev red mid-iteration with THREE distinct causes — missing
+builtin golden regen, z3-less Windows runner on ungated verify e2e tests, and >800-line
+file-size overflow — fixed forward direct-to-dev `9a314772d` + `4caddfd23` (mechanical split
+of the sprint's own additions into verify_callee_gate.go / codegen_sig_sorts.go). Retro:
+sprint-executor gains the Windows-proofing core principle (3 same-class frictions recorded);
+"all-skipped PR checks = conflict, poll mergeable" saved to memory (friction #1, no skill
+edit yet).
+
 ## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
 
 Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in

@@ -35,6 +35,23 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-16 — ITERATION 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1; codex real-run recipe corrected (Gate-5 skill edit)
+
+The armed one-shot override fired: `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` executed a real sprint
+end-to-end across THREE providers/roles — Opus planner (refuted the doc's ~200-LOC new-package
+mechanism → 74-line reuse of the existing `iface`/`TFunc2`/`EffectRow` required-effect path), **codex
+gpt-5.6-sol executor** (OpenAI, ~4.5-min metered run, `--caps auto` infers the entrypoint's effect row
+and grants exactly those), **Sonnet evaluator** (generator≠judge held: openai≠anthropic; the fable pin
+is unenforceable in the Agent tool so the F1 guard re-routed evaluator→sonnet + FLAG) PASS 98/100 r1.
+Gate-2 live-repro also caught that the alt candidate `m-dx-expected-fail-fixes` is largely a GHOST
+(effect-budget `@limit` runtime enforcement works at HEAD). **The first real codex run exposed that the
+Gate-3 codex recipe had only ever been verified against the text probe** — the real-run invocation is
+underspecified: it needs `--sandbox workspace-write` + `--add-dir` GOCACHE/GOMODCACHE, cannot self-commit
+(the worktree `.git` lives under the non-writable main checkout → controller finalizes from the
+uncommitted worktree diff), and must run backgrounded (30-min cap > the harness 10-min foreground bash
+limit). Two+ frictions, one gap → the retro-lane skill edit rewrote the recipe to the empirically-verified
+form. Detail: log entry 35.
+
 ## STATUS 2026-07-16 — ITERATION 31: m-mission-agentic-provider-routing M1b+M2 LANDED (direct-on-dev `956fda55c`+`8d12e8e9c`, eval PASS 87/100 round 1, hardening `1c964aae2`); M3 PARKED w/ protocol; F1: `fable` is NOT a pinnable Agent alias
 
 The mission-infra P0 closed its executable slice headless: Gate-3 `provider:model`→bounded
@@ -72,27 +89,6 @@ PASS. Nightly "regression" (state_machine_vending) RULED OUT as model variance �
 passing solution compiles clean at HEAD. Quorum frictions recorded: no termination rule
 (reject-by-default can block forever; controller synthesized after round 5 with recorded
 dissent), gemini-3-1-pro unreachable 3/5 calls. Detail: log entry 32.
-
-## STATUS 2026-07-14 (evening) — ITERATION 30: m-dx-ai-discovery LANDED (PR #393 `c07c36b25`, eval PASS 93/100 round 1) — a RESUMED iteration; interleave: dev-red from two sibling merges fixed forward (3 causes)
-
-The last clause-3 Prelude/discovery starter is in: `ailang docs --all-functions [filter]`
-(one grep-able line per stdlib export, AST-rendered signatures — also fixing the V16
-effect-row truncation in per-module docs), unknown-stdlib-module recovery (`import std/time`
-→ `did you mean: std/clock?` + module list; curated alias table + Levenshtein≤2 reusing
-importhint), and `ailang docs prelude` (rendered from live mechanisms, bidirectional drift
-test). NOTE this iteration was a RESUME: the 15:30 scheduled run re-scoped the doc, ran the
-quorum-refined plan, and died rc=1 (transient Anthropic error, pre-dating the 17:16
-driver-retry fix) with uncommitted executor work in the sprint worktree; this run detected the
-mid-flight artifacts at Gate 2, verified them (all KEEP), and completed execution. Evaluator
-round-1 PASS 93/100; hardening `ea6069815` (arrays→array alias misdirection) + `0ad27444c`
-(Windows separator in the docs-search guard). INTERLEAVE (Gate-1 red-dev rule): sibling
-M-STD-YAML/M-SMT merges turned dev red mid-iteration with THREE distinct causes — missing
-builtin golden regen, z3-less Windows runner on ungated verify e2e tests, and >800-line
-file-size overflow — fixed forward direct-to-dev `9a314772d` + `4caddfd23` (mechanical split
-of the sprint's own additions into verify_callee_gate.go / codegen_sig_sorts.go). Retro:
-sprint-executor gains the Windows-proofing core principle (3 same-class frictions recorded);
-"all-skipped PR checks = conflict, poll mergeable" saved to memory (friction #1, no skill
-edit yet).
 
 ## CURRENT GOAL
 
@@ -449,12 +445,17 @@ sprint plan until 3 quorum-reviewed docs accrue. Doc stays in planned/ until tho
 **[NEXT-FIRST, Mark 2026-07-16 — FLEET ROLLOUT ("should be awesome")]** The ratified starting
 fleet is **claude (Anthropic) + codex gpt-5.6-sol (OpenAI) + managed_agents gemini (Google) +
 motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
-- **(a) Iteration 32 — codex LIVE-FIRE, ARMED**: the driver now supports a one-shot executor
-  override (`~/.ailang/state/mission-executor-model-once`, consumed+deleted at fire time; armed
-  with `codex:gpt-5.6-sol` by Mark's directive). This IS the doc's M1b acceptance: controller and
-  executor on **different providers**, real metered-OpenAI evidence row, generator≠judge guard
-  observed firing. Pick a sprint-shaped queue item and execute it through codex.
-- **(b) M1c — gemini managed_agents recipe branch (wiring-only)**: extend the Gate-3
+- **(a) ~~Iteration 32 — codex LIVE-FIRE~~ DONE 2026-07-16**: FIRST real cross-provider fire landed.
+  `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` (one-shot override consumed) executed `20251013_auto_caps`
+  M1 (`--caps auto`) end-to-end: Opus planner → **codex/gpt-5.6-sol executor** (OpenAI, ~4.5-min run,
+  metered) → **Sonnet evaluator** (generator≠judge: openai≠anthropic; fable pin unenforceable →
+  re-routed to sonnet + FLAGGED per the F1 guard) PASS 98/100 r1. PR #397 → `e542065c0`. **Recipe
+  frictions found & fixed (Gate-5 skill edit): the codex real-run recipe had only ever been verified
+  against the text probe** — a real coding run needs `--sandbox workspace-write` + `--add-dir` for
+  GOCACHE/GOMODCACHE, cannot self-commit (worktree `.git` lives under the main checkout →
+  controller finalizes the commit from the uncommitted worktree diff), and must run backgrounded
+  (the 30-min cap exceeds the harness's 10-min foreground bash limit).
+- **(b) M1c — gemini managed_agents recipe branch (wiring-only)** ← **NEXT fleet step**: extend the Gate-3
   `provider:model` recipe with `PROVIDER=gemini` → `ailang exec` (VERIFIED 2026-07-16: the exec
   factory registers `managed_agents`, the same lane evals use — no new plumbing; find the exact
   flag surface in `cmd/ailang/exec.go`). Same probe/cap/fallback discipline as codex.
@@ -558,8 +559,16 @@ triage evidence = log entry 10.)*
   `c07c36b25`, eval PASS 93/100 round 1]** · ~~m-dx-examples-coverage (1d)~~ **[LANDED iter 29 →
   implemented/v0_30_0; first live 5-round quorum subject; PR #392 → `3d451947c`; 5 red examples
   quarantined under #386; verify-examples now a real gate + validate_manifest --ci wired;
-  docs --examples un-inert via manifest `modules` field]** · 20251013_auto_caps (infer caps,
-  2d) · m-dx-expected-fail-fixes (1–2d)
+  docs --examples un-inert via manifest `modules` field]** ·
+  ~~20251013_auto_caps (infer caps, 2d)~~ **[M1 LANDED iter 32 (kept in planned/v0_29_0 — 1 of 4
+  phases): `ailang run --caps auto` infers the entrypoint's effect row + grants exactly those
+  (planner refuted the doc's ~200-LOC new-package mechanism → 74-line reuse of the existing
+  `iface`/`TFunc2`/`EffectRow` path); FIRST cross-provider codex live-fire (executor = OpenAI
+  gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1), PR #397 → `e542065c0`, all required checks green
+  observed. Deferred: `--auto-caps` flag, `AILANG_AUTO_CAPS` env, always-on preflight+exit-2,
+  bench-harness integ, cap manifest]** · m-dx-expected-fail-fixes (1–2d, ⚠ Gate-2 flagged
+  LARGELY-GHOST iter 32: effect_budgets `@limit` runtime enforcement WORKS at HEAD; arrow-lambda +
+  dup-requires now have teaching diagnostics — re-verify each sub-bug before routing)
 - **Prompt teaching** (batchable, ~0.5d each): ~~m-prompt-option-none-idiom~~ **[SUPERSEDED
   2026-07-14 by m-prelude-option-result's structural fix (its own doc named this band-aid as
   superseded-on-ship); prompt v0.16.2 already teaches the prelude availability; doc → archive/

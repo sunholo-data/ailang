@@ -3,11 +3,27 @@
 **Created**: 2025-10-13
 **Priority**: P2a (High - UX Enhancement)
 **Estimated**: 420 LOC, 2 days
-**Status**: 📋 PLANNED for v0.4.0
+**Status**: 🚧 M1 LANDED (2026-07-16, mission iter 32) — remaining phases DEFERRED
 **Category**: Runtime, CLI, Developer Experience
 **Roadmap**: See [roadmap_v0_4_0.md](../roadmap_v0_4_0.md#-p2a-capability-inference-auto_caps)
 
 > **Update (2025-10-15)**: Deferred to v0.4.0 sprint (P2a priority). This was identified in the 20251013 audit as P2. All P0-P1 features completed in v0.3.5-v0.3.7. See roadmap for v0.4.0 implementation plan.
+
+> **M1 LANDED 2026-07-16 (mission iteration 32, PR #397 → `e542065c0`)** — `ailang run --caps auto`
+> infers the entrypoint's declared effect row and grants exactly those capabilities, printing
+> `auto-granted capabilities: <sorted>` (or `none`) to stderr. The planner **refuted this doc's
+> proposed mechanism**: the ~200 LOC of new `internal/effects/analysis.go` +
+> `internal/runtime/preflight.go` were redundant — the required-effect set is already available from
+> the pipeline `result.Interface` (the same `iface`/`TFunc2`/`EffectRow` path
+> `DetermineDeclaredAIMode` walks). Real change = **74 insertions across 5 files**
+> (`cmd/ailang/run_helpers.go` `resolveAutoCaps`, interception in `main_run_exec.go` before the
+> batch split, flag help, unit test, changelog). Secure-by-default unchanged. Executed by **OpenAI
+> codex `gpt-5.6-sol`** (first cross-provider mission live-fire); evaluated by Sonnet PASS 98/100 r1.
+> **DEFERRED (still valid follow-ups):** standalone `--auto-caps` flag, `AILANG_AUTO_CAPS` env,
+> always-on preflight display + exit-code-2, benchmark-harness `--auto-caps` integration, capability
+> manifest / `SafeAutoCaps` whitelist. **Known cosmetic (deferred):** `--caps auto` on a nonexistent
+> `--entry` prints `auto-granted capabilities: none` before the loud entry-not-found failure (misleading
+> but not silent).
 
 ---
 

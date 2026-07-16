@@ -2899,3 +2899,105 @@ that was raised FOR this class — if it recurs, skip-on-windows or raise the sl
 first-real-codex-run watch (F2 exec-fix unproven under a live cap-kill); fable-pin F1 watch (does
 the sonnet re-route fire correctly on the first opus-first collision?); M3 A/B protocol armed
 behind M1b+M2.
+
+## 35 — 2026-07-16 — Iteration 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`, Sonnet eval PASS 98/100 r1) — 3 providers/roles, codex real-run recipe corrected
+
+**Picked**: `20251013_auto_caps` (capability inference), per Mark's `[NEXT-FIRST FLEET ROLLOUT]`
+directive item (a): the armed one-shot executor override
+(`~/.ailang/state/mission-executor-model-once` → `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol`,
+consumed at fire time) mandated the FIRST real cross-provider fire on a small clause-3 item. Chosen
+over the alt candidate `m-dx-expected-fail-fixes` because Gate-2 live-repro found the latter is
+LARGELY A GHOST (see Ruled out). Inbox: 1 routine eval-suite "started" message, no regression/directive.
+
+**Reality check** (Gate-2, both candidates live-repro'd at HEAD on rebuilt `bin/ailang` v0.29.2-255):
+`--caps auto` genuinely does NOT exist (treated as a literal unknown cap → IO stays ungranted); the
+proposed `internal/effects/{analysis,preflight}.go` files are absent; no plan/sprint JSON existed;
+the "requires capability" error lives in `internal/effects/errors.go` (the effect-checker already
+knows the required set). REAL, unimplemented → full inner loop. CLAIM message sent (sibling
+M-CODEGEN-IR sprint JSON dirty in the shared tree); work isolated in worktree
+`ailang-wt-auto-caps` from origin/dev.
+
+**Routed** (per-role model pinning; controller = Opus session):
+- **Planner (Opus Agent)**: refuted the doc's ~200-LOC new-package mechanism — the required-effect
+  set is already available from the pipeline `result.Interface` (the same `iface.GetExport(entry)`
+  → `*types.TFunc2` → `EffectRow.Labels` path `DetermineDeclaredAIMode`/`extractEffects` walk).
+  Right-sized M1 to ONLY `--caps auto` (deferred `--auto-caps`/env/preflight/bench-harness/manifest)
+  to fit a 30-min codex run; wrote sprint JSON + a self-contained executor directive.
+- **Executor (codex `gpt-5.6-sol`, OpenAI — cross-provider recipe)**: probe rc=0 (~13.7k tok);
+  real run `codex exec --sandbox workspace-write --add-dir GOCACHE --add-dir GOMODCACHE -C <wt>`,
+  ~4.5-min metered run. Implemented `resolveAutoCaps` + interception before the batch split + flag
+  help + multi-effect unit test + changelog. Clean 5-file diff exactly matching the plan.
+- **Evaluator (Sonnet Agent — generator≠judge)**: fable pin unenforceable in the Agent tool (F1)
+  and controller session is Opus, so per the F1 alias-lane guard the evaluator re-routed
+  fable→**sonnet** (anthropic ≠ codex/openai → generator≠judge holds) — **FLAGGED**. Independent
+  base-binary non-vacuity proof, adversarial probes (per-`--entry` caps, no over/under-grant, batch
+  path, case-sensitivity). **PASS 98/100 round 1**, no blockers; 2 MINORs (CHANGELOG placement —
+  FIXED in a hardening commit; cosmetic `none` line on nonexistent entry — deferred to the doc).
+  Its "NOISE: benchmark JSONs committed" finding was a range-diff misread (origin/dev advanced 3
+  data commits mid-iteration; my commit touched only 5 files — verified via `git show --stat`).
+
+**Shipped**: PR #397 (worktree branch `sprint/m-auto-caps`, rebased onto origin/dev) →
+squash-merge `e542065c0`, auto-merge on green. `resolveAutoCaps` confirmed present on origin/dev.
+Doc updated (status → 🚧 M1 LANDED, remaining deferred); kept in `planned/v0_29_0` (1 of 4 phases).
+
+**Routing evidence** (M2 schema; ACTUAL role/model used):
+- provider=anthropic agent=claude-code model=opus task-class=plan round1=n/a rounds=1 corrections=0
+  cost=quota-bucket:weekly-opus (refuted the doc's new-package mechanism → 74-line reuse; upheld by executor+evaluator)
+- provider=openai agent=codex model=gpt-5.6-sol task-class=execute round1=98 rounds=1 corrections=0
+  cost=$~metered (~4.5-min run; **FIRST real cross-provider executor fire** — the doc's M1b acceptance)
+- provider=anthropic agent=claude-code model=sonnet task-class=evaluate round1=98 rounds=1 corrections=0
+  cost=quota-bucket:weekly-sonnet **[F1 RE-ROUTE FIRED: MISSION_EVALUATOR_MODEL=fable is unpinnable in the
+  Agent tool + Opus controller session → re-routed to sonnet per the alias-lane generator≠judge guard; distinct provider from the codex executor — guard held]**
+- controller session = opus (opus-first default; mechanical orchestration)
+
+**Ruled out**:
+- "`m-dx-expected-fail-fixes` is a live 1–2d sprint" — REFUTED at HEAD: effect-budget `@limit`
+  RUNTIME enforcement WORKS (`effect_budgets.ail` runs, exhausts IO@limit=3 correctly); arrow-lambda
+  `\x ->` and duplicate-`requires` now emit teaching diagnostics; the doc (2026-03-25) is
+  largely a ghost. Queue row annotated ⚠ re-verify-each-sub-bug; not routed.
+- "codex commits to the worktree branch itself" (the recipe's claim) — REFUTED: under
+  `--sandbox workspace-write` codex could NOT write the worktree's git metadata (the `.git` file
+  points under the non-writable main checkout) → the commit was blocked; controller finalized it from
+  the uncommitted worktree diff (the `git diff` read step still works). Recipe corrected.
+- "the codex real-run recipe is ready as written" — REFUTED by first real use: it had only ever been
+  verified against the text probe. A real coding run additionally needs `--sandbox workspace-write` +
+  `--add-dir` GOCACHE/GOMODCACHE (else `go build`/`go test` can't write the build cache) and must run
+  BACKGROUNDED (30-min cap > the harness 10-min foreground bash limit). Recipe corrected.
+
+**Gate 3b**: PR #397 required checks ALL observed green pre-merge on the exact merged content (CI
+test, lint, govulncheck, Build-and-Release across ubuntu/macos/windows, test-windows, CodeQL,
+SonarCloud) → auto-merged `e542065c0` at 08:35. Post-merge dev CI on the squash commit polled
+separately (bounded 25-min). All waits bounded (codex 30-min cap backgrounded; Gate-3b 30-min poll;
+post-merge 25-min poll).
+
+**Retro lane** (each friction → ONE lane):
+- **codex real-run recipe underspecified** (frictions: no sandbox flags → build-cache write fail; no
+  `--add-dir`; worktree git-dir non-writable → can't self-commit; foreground 30-min poll > 10-min
+  bash cap) — 3 facets, ONE gap ("the recipe was only ever probe-verified, never run for real") →
+  **THE retro-lane SKILL EDIT**: mission-control Gate-3 codex recipe rewritten to the
+  empirically-verified real-run form (sandbox + add-dir + background execution + controller-finalizes-commit).
+- **evaluator diffed against origin/dev tip, not the branch merge-base** → false "benchmark-JSON
+  noise" finding when origin advanced mid-iteration. Process note (this entry): evaluators should
+  diff `merge-base..HEAD` or `git show --stat <commit>`; not worth a skill edit (single instance,
+  controller caught it).
+- **cosmetic `--caps auto` on nonexistent `--entry` prints `none`** → backlog (folded into the
+  auto_caps doc's deferred list).
+
+**Next**: Iteration 33 — fleet item (b): **M1c gemini `managed_agents` recipe branch** (wiring-only:
+extend the Gate-3 `provider:model` recipe with `PROVIDER=gemini` → `ailang exec`; the exec factory
+already registers `managed_agents` — find the flag surface in `cmd/ailang/exec.go`; same
+probe/cap/fallback discipline as codex, now with the corrected real-run form). Then clause-3
+cheapest-impact-per-day resumes (Gate-2 live-repro mandatory — `m-dx-expected-fail-fixes` is a ghost;
+prefer a fresh-verified row). M3 planner A/B still parked (needs 3 quorum docs).
+
+**Carry forward** UNCHANGED from iter 31 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies incl. TestNetHttpPost-httpbin +
+TestReferenceSolutions_JS/fizzbuzz-windows-cold-start; MOD007 veto window; alias-import prelude edge;
+executor evidence-artifact watch; docs-site CLI reference for design-review/design-quorum;
+quorum-on-sprint-plans decision; fleet C/D/E opt-in; issue #386; gemini quorum-reviewer retry;
+quorum termination-rule friction #1; dead-run resume-detection friction #1) **PLUS**: fleet (b)
+gemini M1c is next; the F1 sonnet re-route FIRED correctly this iteration (first opus-first collision
+— guard verified); F2 codex `exec` orphan-kill was NOT exercised (codex finished in 4.5 min, well
+under the cap — still unproven under a live cap-kill); codex-can't-self-commit-in-worktree is now
+recipe-documented (watch whether the gemini `ailang exec` lane has the same git-dir constraint).
