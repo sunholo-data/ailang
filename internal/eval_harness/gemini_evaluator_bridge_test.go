@@ -223,3 +223,110 @@ func firstN(s string, n int) string {
 	}
 	return s[:n]
 }
+
+// ============================================================================
+// M2 — directive + verdict parse/validate tests
+// ============================================================================
+
+func TestBuildEvaluatorDirective_ReasoningOnly(t *testing.T) {
+	bundle := Bundle{Text: "=== SPRINT DIFF BUNDLE ===\nSOME-DIFF-CONTENT\n"}
+	dir := BuildEvaluatorDirective("DESIGN-DOC-BODY", "SPRINT-PLAN-BODY", "CRIT-A; CRIT-B", bundle)
+
+	// reasoning-only instruction present
+	if !strings.Contains(dir, "Reasoning-only sprint evaluation") {
+		t.Errorf("directive missing reasoning-only instruction:\n%s", dir)
+	}
+	// fenced-json verdict instruction present
+	if !strings.Contains(dir, "fenced ```json block") {
+		t.Errorf("directive missing fenced-json verdict instruction")
+	}
+	// bundle text present
+	if !strings.Contains(dir, "SOME-DIFF-CONTENT") {
+		t.Errorf("directive missing bundle text")
+	}
+	// design doc + plan + criteria present
+	if !strings.Contains(dir, "DESIGN-DOC-BODY") || !strings.Contains(dir, "SPRINT-PLAN-BODY") || !strings.Contains(dir, "CRIT-A") {
+		t.Errorf("directive missing design/plan/criteria")
+	}
+	// non-truncated bundle must NOT add the truncation note
+	if strings.Contains(dir, "note in blockers") || strings.Contains(dir, "marked TRUNCATED") {
+		t.Errorf("non-truncated bundle should not add truncation note")
+	}
+
+	// truncated bundle DOES add the note
+	truncBundle := Bundle{Text: "x", Truncated: true, DroppedFiles: []string{"big.go (over-ceiling)"}}
+	dir2 := BuildEvaluatorDirective("d", "p", "c", truncBundle)
+	if !strings.Contains(dir2, "marked TRUNCATED") || !strings.Contains(dir2, "unseen files") {
+		t.Errorf("truncated bundle missing the note-unseen-files line:\n%s", dir2)
+	}
+}
+
+func TestParseGeminiVerdict_ExtractsFencedJSON(t *testing.T) {
+	resp := "Let me reason about the diff.\n\n" +
+		"Scratch verdict (ignore): ```json\n{\"score\": 10, \"pass\": false, \"blockers\": [\"draft\"]}\n```\n\n" +
+		"Final answer:\n```json\n{\"score\": 85, \"pass\": true, \"blockers\": []}\n```\n"
+	v, err := ParseGeminiVerdict(resp, DegradationInfo{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Score != 85 || !v.Pass {
+		t.Errorf("parsed wrong (last) verdict: %+v", v)
+	}
+	if len(v.Blockers) != 0 {
+		t.Errorf("expected no blockers, got %v", v.Blockers)
+	}
+	if v.VerificationDegraded {
+		t.Errorf("clean bundle should not be degraded")
+	}
+}
+
+func TestValidateGeminiVerdict_RejectsMalformed(t *testing.T) {
+	// score out of range
+	if err := ValidateGeminiVerdict(&GeminiVerdict{Score: 101}); err == nil {
+		t.Errorf("expected error for score>100")
+	}
+	if err := ValidateGeminiVerdict(&GeminiVerdict{Score: -1}); err == nil {
+		t.Errorf("expected error for score<0")
+	}
+	// blockers non-empty with pass==true
+	if err := ValidateGeminiVerdict(&GeminiVerdict{Score: 90, Pass: true, Blockers: []string{"x"}}); err == nil {
+		t.Errorf("expected error for pass==true with blockers")
+	}
+	// degraded with empty reason
+	if err := ValidateGeminiVerdict(&GeminiVerdict{Score: 50, VerificationDegraded: true}); err == nil {
+		t.Errorf("expected error for degraded with empty reason")
+	}
+	// valid case: no error
+	if err := ValidateGeminiVerdict(&GeminiVerdict{Score: 80, Pass: true}); err != nil {
+		t.Errorf("unexpected error on valid verdict: %v", err)
+	}
+
+	// ParseGeminiVerdict hard-errors on missing fence / non-JSON
+	if _, err := ParseGeminiVerdict("no fences at all here", DegradationInfo{}); err == nil {
+		t.Errorf("expected error for missing fence")
+	}
+	if _, err := ParseGeminiVerdict("```json\nnot json at all\n```", DegradationInfo{}); err == nil {
+		t.Errorf("expected error for non-JSON fenced body")
+	}
+	// ParseGeminiVerdict must NOT coerce a malformed verdict to a pass
+	if _, err := ParseGeminiVerdict("```json\n{\"score\": 999, \"pass\": true, \"blockers\": []}\n```", DegradationInfo{}); err == nil {
+		t.Errorf("expected error for out-of-range score (never coerced pass)")
+	}
+}
+
+func TestLastFencedBlock_UnchangedForExtractOut(t *testing.T) {
+	// The exact extract-out cases from managed_agents_bridge_test.go must yield
+	// identical results through the exported wrapper (regression guard for the
+	// Conflict-Surface seam 4 sharing).
+	cases := []string{
+		"Here's my solution:\n\n```ailang\nmodule benchmark/solution\nexport func main() -> () = ()\n```\n\nDone.",
+		"First attempt:\n```\nbroken\n```\n\nFinal:\n```ailang\nmodule benchmark/solution\nexport func main() -> () = ()\n```\n",
+		"no fences here",
+		"```\njust text\n```",
+	}
+	for i, c := range cases {
+		if got, want := LastFencedBlock(c), lastFencedBlock(c); got != want {
+			t.Errorf("case %d: LastFencedBlock diverged from lastFencedBlock:\n got=%q\nwant=%q", i, got, want)
+		}
+	}
+}

@@ -162,6 +162,16 @@ func firstCodeLineStartsWith(s, prefix string) bool {
 	return false
 }
 
+// LastFencedBlock is an exported thin wrapper over lastFencedBlock so the
+// inject-in path (gemini_evaluator_bridge.go's ParseGeminiVerdict) can reuse
+// the exact same "last fenced block" extraction as the extract-out path,
+// without renaming the unexported symbol or touching the extractCode call site
+// (Conflict-Surface seam 4: lowest-risk sharing; zero behavior change).
+// TestLastFencedBlock_UnchangedForExtractOut guards the equivalence.
+func LastFencedBlock(s string) string {
+	return lastFencedBlock(s)
+}
+
 // lastFencedBlock returns the content of the last ``` ... ``` block in s,
 // stripped of the language hint on the opening fence. Returns "" if no
 // complete fenced block is present.

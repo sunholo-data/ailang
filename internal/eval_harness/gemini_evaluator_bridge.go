@@ -21,6 +21,7 @@ package eval_harness
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -429,4 +430,136 @@ func ensureTrailingNL(s string) string {
 		return ""
 	}
 	return strings.TrimRight(s, "\n") + "\n"
+}
+
+// ============================================================================
+// M2 — Reasoning-only evaluator directive + structured verdict parse/validate
+// ============================================================================
+
+// geminiPassThreshold is the sprint-evaluator convention: pass requires
+// score >= 70 (and no blockers). Matches the sprint-evaluator skill's
+// pass_threshold.
+const geminiPassThreshold = 70
+
+// evaluatorReasoningInstruction is the compile-time reasoning-only directive
+// prelude, mirroring managedAgentsBridgeInstruction's role for the extract-out
+// path. It tells the sandboxed evaluator it has NO repo/test access and must
+// judge only from the supplied bundle, then emit a fenced json verdict.
+const evaluatorReasoningInstruction = "IMPORTANT — Reasoning-only sprint evaluation. " +
+	"You are running in a sandbox with NO access to the repository or local tests. " +
+	"Everything you can inspect is in the DIFF BUNDLE below. " +
+	"Do NOT claim you ran any test. Judge ONLY from the supplied diff + file contents " +
+	"against the design doc's acceptance criteria. " +
+	"At the very END of your response, output your verdict as a single fenced ```json block " +
+	"with fields: score (0-100), pass (bool), blockers (string[])."
+
+// evaluatorTruncationNote is appended when the bundle was truncated so the
+// evaluator qualifies its confidence rather than silently over-trusting a
+// partial view.
+const evaluatorTruncationNote = "\nThe DIFF BUNDLE is marked TRUNCATED: some files were NOT shown to you. " +
+	"Note in blockers which unseen files limit your confidence."
+
+// GeminiVerdict is the reasoning-only sprint-evaluation verdict returned by a
+// sandboxed gemini evaluator.
+//
+// SCHEMA NOTE (adaptation, not a byte-mirror): this is a COMPACT ADAPTATION of
+// the sprint-evaluator skill's evaluation_report_schema.md, whose fields are
+// total_score/result/hard_fails/feedback. The mapping is:
+//
+//	total_score        -> Score   (0..100)
+//	result == "pass"   -> Pass     (at threshold 70)
+//	hard_fails + feedback -> Blockers (compact stand-in)
+//
+// It is intentionally compact for a single-shot reasoning-only verdict; the
+// full evaluation_report_schema.md remains the shape for the local sonnet
+// sprint-evaluator, not this sandboxed gemini one.
+//
+// It is DISTINCT from quorum.ReviewResult (pass/reject/strongest_objection),
+// which is a design-DOC-REVIEW verdict in a different domain and MUST NOT be
+// conflated or overloaded — GeminiVerdict does not import or extend it.
+type GeminiVerdict struct {
+	// Score is 0..100; pass threshold is 70 (sprint-evaluator convention).
+	Score int `json:"score"`
+	// Pass is score >= 70 AND no blockers.
+	Pass bool `json:"pass"`
+	// Blockers are hard-fail reasons; a non-empty Blockers ⇒ Pass==false
+	// regardless of Score.
+	Blockers []string `json:"blockers"`
+
+	// VerificationDegraded is set (with a non-empty DegradedReason) whenever
+	// the bundle was truncated / files were dropped / the backend errored, so
+	// a partial or lenient verdict can NEVER masquerade as a full pass
+	// (CLAUDE.md "no silent fallbacks"). It is stamped by the CALLER, not
+	// trusted from the model.
+	VerificationDegraded bool   `json:"verification_degraded"`
+	DegradedReason       string `json:"degraded_reason,omitempty"`
+}
+
+// BuildEvaluatorDirective composes the reasoning-only evaluator directive: the
+// reasoning-only instruction, the design doc + sprint plan + acceptance
+// criteria, and the diff bundle. A truncated bundle appends the "note unseen
+// files in blockers" line. Mirrors managedAgentsBridgeInstruction's role.
+func BuildEvaluatorDirective(designDoc, sprintPlan, acceptanceCriteria string, bundle Bundle) string {
+	var b strings.Builder
+	b.WriteString(evaluatorReasoningInstruction)
+	if bundle.Truncated {
+		b.WriteString(evaluatorTruncationNote)
+	}
+	b.WriteString("\n\n=== DESIGN DOC ===\n")
+	b.WriteString(strings.TrimSpace(designDoc))
+	b.WriteString("\n\n=== SPRINT PLAN ===\n")
+	b.WriteString(strings.TrimSpace(sprintPlan))
+	if strings.TrimSpace(acceptanceCriteria) != "" {
+		b.WriteString("\n\n=== ACCEPTANCE CRITERIA ===\n")
+		b.WriteString(strings.TrimSpace(acceptanceCriteria))
+	}
+	b.WriteString("\n\n")
+	b.WriteString(bundle.Text)
+	return b.String()
+}
+
+// ParseGeminiVerdict extracts the LAST fenced json block from the agent's
+// response, unmarshals it into a GeminiVerdict, validates it, and STAMPS the
+// caller-supplied degradation (truncation / dropped files / backend error).
+// A missing fence, non-JSON body, or gate violation is a HARD ERROR — never a
+// coerced/lenient pass (CLAUDE.md "no silent fallbacks").
+func ParseGeminiVerdict(response string, degraded DegradationInfo) (GeminiVerdict, error) {
+	block := LastFencedBlock(response)
+	if strings.TrimSpace(block) == "" {
+		return GeminiVerdict{}, fmt.Errorf("gemini verdict: no fenced ```json block found in response (%.200q)", response)
+	}
+	var v GeminiVerdict
+	if err := json.Unmarshal([]byte(strings.TrimSpace(block)), &v); err != nil {
+		return GeminiVerdict{}, fmt.Errorf("gemini verdict: fenced block is not valid JSON: %w (block: %.200q)", err, block)
+	}
+	// Stamp degradation from the caller BEFORE validating, so a degraded
+	// verdict with an empty reason cannot slip through.
+	if degraded.degraded() {
+		v.VerificationDegraded = true
+		v.DegradedReason = degraded.reason()
+	}
+	if err := ValidateGeminiVerdict(&v); err != nil {
+		return GeminiVerdict{}, err
+	}
+	return v, nil
+}
+
+// ValidateGeminiVerdict enforces the sprint-eval contract as HARD errors:
+//   - Score ∈ [0,100];
+//   - a non-empty Blockers ⇒ Pass==false (a blocker cannot coexist with pass);
+//   - VerificationDegraded ⇒ DegradedReason non-empty.
+//
+// Any violation is an error, never a coerced pass (CLAUDE.md "no silent
+// fallbacks", mirroring quorum.ValidateReviewResult discipline).
+func ValidateGeminiVerdict(v *GeminiVerdict) error {
+	if v.Score < 0 || v.Score > 100 {
+		return fmt.Errorf("gemini verdict: score %d out of range [0,100]", v.Score)
+	}
+	if len(v.Blockers) > 0 && v.Pass {
+		return fmt.Errorf("gemini verdict: pass==true with %d blocker(s) is contradictory: %v", len(v.Blockers), v.Blockers)
+	}
+	if v.VerificationDegraded && strings.TrimSpace(v.DegradedReason) == "" {
+		return fmt.Errorf("gemini verdict: verification_degraded==true requires a non-empty degraded_reason")
+	}
+	return nil
 }
