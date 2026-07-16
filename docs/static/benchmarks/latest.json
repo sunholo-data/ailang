@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-16T21:17:15+02:00",
+  "timestamp": "2026-07-16T22:02:24+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -33919,7 +33919,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-16T21:17:14+02:00",
+      "timestamp": "2026-07-16T22:02:22+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -50798,14 +50798,14 @@
         {
           "band": "Very hard",
           "elo": 2163.9,
-          "id": "legal_obligation_engine",
+          "id": "glob_match_spec",
           "passRate": 40,
           "saturated": false
         },
         {
           "band": "Very hard",
           "elo": 2163.9,
-          "id": "glob_match_spec",
+          "id": "legal_obligation_engine",
           "passRate": 40,
           "saturated": false
         },
@@ -50973,7 +50973,8 @@
         {
           "band": "Moderate",
           "elo": 1521.2,
-          "id": "intent_annotated_solver",
+          "graderFlag": "set-repr",
+          "id": "contract_sorted_merge",
           "passRate": 90,
           "saturated": false
         },
@@ -50987,8 +50988,7 @@
         {
           "band": "Moderate",
           "elo": 1521.2,
-          "graderFlag": "set-repr",
-          "id": "contract_sorted_merge",
+          "id": "intent_annotated_solver",
           "passRate": 90,
           "saturated": false
         },
@@ -51122,14 +51122,14 @@
         {
           "band": "Trivial",
           "elo": 926.2,
-          "id": "json_parse",
+          "id": "immutable_data_structures",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 926.2,
-          "id": "immutable_data_structures",
+          "id": "json_parse",
           "passRate": 100,
           "saturated": true
         },
@@ -51241,14 +51241,14 @@
         {
           "band": "Trivial",
           "elo": 783.6,
-          "id": "expression_evaluator",
+          "id": "error_handling",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 783.6,
-          "id": "error_handling",
+          "id": "expression_evaluator",
           "passRate": 100,
           "saturated": true
         },
@@ -51506,14 +51506,14 @@
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "polymorphic_ord_defaulting",
+              "id": "api_call_json",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "api_call_json",
+              "id": "polymorphic_ord_defaulting",
               "passRate": 90,
               "saturated": false
             },
@@ -51618,14 +51618,14 @@
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "fizzbuzz",
+              "id": "numeric_modulo",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "numeric_modulo",
+              "id": "fizzbuzz",
               "passRate": 100,
               "saturated": true
             },
@@ -52019,14 +52019,14 @@
             {
               "band": "Trivial",
               "elo": 1285.4,
-              "id": "binary_tree_sum",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1285.4,
-              "id": "merge_sort",
+              "id": "binary_tree_sum",
               "passRate": 100,
               "saturated": true
             },
@@ -53097,14 +53097,14 @@
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "api_call_json",
+          "id": "intent_annotated_solver",
           "passRate": 94.1,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "intent_annotated_solver",
+          "id": "api_call_json",
           "passRate": 94.1,
           "saturated": true
         },
@@ -53488,14 +53488,14 @@
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "higher_order_functions",
+              "id": "intent_annotated_solver",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1185.3,
-              "id": "intent_annotated_solver",
+              "id": "higher_order_functions",
               "passRate": 94.1,
               "saturated": true
             },
@@ -53926,14 +53926,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
