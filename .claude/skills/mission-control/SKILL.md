@@ -31,6 +31,21 @@ inner-loop skills — it does not duplicate them.
    Doc-only edits (mission doc, log) may proceed; sprint work goes to a coordinator worktree anyway.
 4. Unread inbox messages: triage per agent-inbox skill. A genuine regression or human directive
    OUTRANKS the queue — it becomes this iteration's pick.
+5. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
+   issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
+   commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
+   ```bash
+   last=$(cat ~/.ailang/state/mission-329-last-seen 2>/dev/null || echo "1970-01-01T00:00:00Z")
+   gh issue view "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang --json comments \
+     --jq --arg last "$last" '[.comments[] | select(.author.login != "sunholo-voight-kampff")
+       | select(.createdAt > $last)] | .[] | "\(.author.login) @ \(.createdAt):\n\(.body)\n---"'
+   ```
+   Any hit = a **human directive** with the same rank as an inbox directive (outranks the queue;
+   an answer to a parked item UNPARKS it and makes it this iteration's pick). After triaging,
+   write the newest processed `createdAt` to `~/.ailang/state/mission-329-last-seen` — before
+   routing, so a crashed iteration re-reads (re-triage is idempotent; dropping a human answer is
+   not). Acknowledge in this iteration's report which comment(s) were acted on, quoting the ask
+   one line each — Mark must SEE the channel worked.
 
 ## Gate 1 — OBSERVE (cheap, read-only)
 
