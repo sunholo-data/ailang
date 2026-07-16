@@ -1239,6 +1239,21 @@
       ]
     },
     {
+      "path": "runnable/ai_vision_input.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "vision",
+        "multimodal"
+      ],
+      "description": "Demonstrates image (vision) INPUT on std/ai.step via Message.images / ImagePart (M-STD-AI-VISION-INPUT v0.30.0)",
+      "modules": [
+        "std/ai",
+        "std/io"
+      ]
+    },
+    {
       "path": "runnable/ai_call_json_simple_result.ail",
       "status": "working",
       "tags": [

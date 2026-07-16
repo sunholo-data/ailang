@@ -10,6 +10,16 @@
 > (agent message `msg_20260716_070552_f9104997`, 2026-07-16). Verified live against
 > the v0.29.2 codebase before drafting — see Verification Log.
 
+> **⚠️ SCOPE UPDATE (2026-07-16, during implementation):** The `callJsonResultVision`
+> one-call structured-output helper (originally M3 of this doc) has been **removed from
+> scope and split into its own follow-up**,
+> [M-AI-STRUCTURED-STEP](../v0_31_0/m-ai-structured-step.md) (v0.31.0). Reason: wiring it
+> surfaced that structured-output and multi-turn/vision live in **separate, non-composable
+> builtins** (`callJson` vs `step`), and the industry-aligned fix is to make schema an
+> orthogonal option on `step` (so vision+JSON+tools all compose) rather than adding a bespoke
+> vision-JSON builtin. **This doc now covers vision INPUT only** (M1 + M2), which is complete
+> and live-verified. Structured grading over vision is delivered by the follow-up.
+
 ## Verification Log
 
 Every language/behaviour claim below was checked against the code, not assumed.
