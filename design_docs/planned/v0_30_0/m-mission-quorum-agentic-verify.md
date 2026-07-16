@@ -65,11 +65,21 @@ away. A `proposed_fix` may be empty ONLY on a pass verdict — a reject must say
 which is what makes a reject actionable rather than a veto.
 
 ### Agentic reviewer backend
-Each reviewer becomes a **tool-using agent in a read-only worktree of `origin/dev`**, ridden on
-the EXISTING executor registry rather than new plumbing:
-- OpenAI reviewer → `codex` executor (already integrated, `provider_executor.go`).
-- Gemini reviewer → `managed_agents` path (already integrated).
-- Claude reviewer → `claude -p` (the controller's own harness).
+Each reviewer becomes a **tool-using agent with read-only repo access**, ridden on the EXISTING
+executor registry rather than new plumbing — but repo access differs by sandbox locality:
+- OpenAI reviewer → `codex` executor: **local read-only worktree of `origin/dev`** (already
+  integrated, `provider_executor.go`; iteration 32 proved the lane).
+- Claude reviewer → `claude -p` (the controller's own harness): local read-only worktree.
+- Gemini reviewer → `managed_agents`: **NO local worktree exists** — the agent runs in a
+  Google-hosted sandbox with no shared filesystem that **starts empty** (`CapRemoteSandbox`,
+  README verified 2026-07-16). Repo access = **clone-in-sandbox**: the repo is PUBLIC, so the
+  directive instructs `git clone --depth 1` at the PINNED review SHA + fetch the linux `ailang`
+  release binary to run `ailang check`. Read-only holds by construction (its writes stay in
+  Google's sandbox). **UNVERIFIED PREMISE — probe FIRST (M0 of this sprint):** whether the
+  managed sandbox allows outbound network (git/curl). One cheap interaction: clone + fetch binary
+  + `ailang --version`, report. If network is BLOCKED → gemini falls back to prompt-packed
+  excerpts (reviewer sees only what we send — weaker, flag it) or stays a Tier-1 text reviewer;
+  do NOT silently pretend it verified.
 
 The agent gets the doc body + the same reject-by-default rubric, PLUS repo tools (`ailang check`,
 grep, read — read-only; no writes, no network beyond the model API). It is instructed to
