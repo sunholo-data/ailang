@@ -171,8 +171,36 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 		}
 	}
 
-	effCtx.AI = effects.NewAIContext(handler)
+	effCtx.AI = effects.NewAIContext(handler).WithModelResolver(makeModelResolver(model.Provider))
 	return nil
+}
+
+// makeModelResolver builds the per-call model resolver injected into the
+// AIContext. It lets step()/stepWithCache()/stepWithStream() accept models.yml
+// FRIENDLY names (e.g. "gemini-2-5-flash") the same way the --ai flag does,
+// instead of forcing hand-written api_names ("gemini-2.5-flash").
+//
+// boundProvider is the provider of the --ai-selected handler; per-call routing
+// stays within it. See effects.ModelResolver for the full contract.
+func makeModelResolver(boundProvider string) effects.ModelResolver {
+	return func(model string) (string, error) {
+		apiName, provider, err := eval_harness.ResolveModelName(model)
+		if err != nil {
+			// Unknown to models.yml — assume it is already an api_name and let
+			// the provider be the final authority (preserves the pre-resolver
+			// path where step("gemini-2.5-flash") already worked).
+			return model, nil
+		}
+		if !strings.EqualFold(provider, boundProvider) {
+			// Cross-vendor per-call is not supported: the handler is bound to
+			// one provider. Return a typed, non-retryable AIError with a hint.
+			return "", ai.NewAIError(ai.CodeModelNotAllowed, fmt.Sprintf(
+				"per-call model %q resolves to provider %q, but the bound --ai handler is %q; "+
+					"per-call routing stays within the bound provider (use --ai %s to switch providers)",
+				model, provider, boundProvider, model), false)
+		}
+		return apiName, nil
+	}
 }
 
 // setupAIHandlerDirect creates an AI handler using the model name directly

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -134,5 +135,77 @@ func TestAI_NoContext(t *testing.T) {
 
 	if !errors.Is(err, ErrNoAIHandler) {
 		t.Errorf("expected ErrNoAIHandler, got %v", err)
+	}
+}
+
+// --- ModelResolver (per-call friendly-name resolution) ---------------------
+
+func TestAIContext_ModelResolver_ResolvesFriendlyName(t *testing.T) {
+	ctx := NewAIContext(NewStubAIHandler()).WithModelResolver(
+		func(model string) (string, error) {
+			if model == "gemini-2-5-flash" {
+				return "gemini-2.5-flash", nil // friendly -> api_name
+			}
+			return model, nil
+		})
+	resp, err := ctx.Step("gemini-2-5-flash", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Model != "gemini-2.5-flash" {
+		t.Errorf("expected friendly name resolved to api_name, got %q", resp.Model)
+	}
+}
+
+func TestAIContext_ModelResolver_UnknownPassesThrough(t *testing.T) {
+	// An unknown string (already an api_name) must reach the handler unchanged,
+	// preserving the pre-resolver path where step("gemini-2.5-flash") worked.
+	ctx := NewAIContext(NewStubAIHandler()).WithModelResolver(
+		func(model string) (string, error) { return model, nil })
+	resp, err := ctx.Step("gemini-2.5-flash", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Model != "gemini-2.5-flash" {
+		t.Errorf("expected api_name unchanged, got %q", resp.Model)
+	}
+}
+
+func TestAIContext_ModelResolver_EmptyModelSkipsResolver(t *testing.T) {
+	called := false
+	ctx := NewAIContext(NewStubAIHandler()).WithModelResolver(
+		func(model string) (string, error) { called = true; return model, nil })
+	if _, err := ctx.Step("", nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if called {
+		t.Error("resolver should not be called for empty model (handler default)")
+	}
+}
+
+func TestAIContext_ModelResolver_CrossVendorErrors(t *testing.T) {
+	ctx := NewAIContext(NewStubAIHandler()).WithModelResolver(
+		func(model string) (string, error) {
+			return "", ai.NewAIError(ai.CodeModelNotAllowed, "cross-vendor", false)
+		})
+	_, err := ctx.Step("claude-haiku-4-5", nil, nil)
+	if err == nil {
+		t.Fatal("expected cross-vendor error, got nil")
+	}
+	var aiErr *ai.AIError
+	if !errors.As(err, &aiErr) || aiErr.Code != ai.CodeModelNotAllowed {
+		t.Errorf("expected ModelNotAllowed AIError, got %v", err)
+	}
+}
+
+func TestAIContext_ModelResolver_NilResolverPassthrough(t *testing.T) {
+	// Default (no resolver) must pass the model straight through.
+	ctx := NewAIContext(NewStubAIHandler())
+	resp, err := ctx.Step("anything", nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Model != "anything" {
+		t.Errorf("expected passthrough, got %q", resp.Model)
 	}
 }

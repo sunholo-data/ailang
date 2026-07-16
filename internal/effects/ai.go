@@ -109,12 +109,32 @@ type AIHandlerWithRouting interface {
 // Centralized so the literal isn't duplicated across each op.
 const errAICallFmt = "E_AI_CALL_ERROR: %w"
 
+// ModelResolver maps a per-call model string to the api_name the bound
+// provider expects. It exists so the per-call step()/stepWithCache()/
+// stepWithStream() path resolves models.yml FRIENDLY names (dashes, e.g.
+// "gemini-2-5-flash") the same way the --ai flag does, instead of forcing
+// callers to hand-write api_names ("gemini-2.5-flash").
+//
+// Contract (see cmd/ailang/ai_handlers.go for the injected implementation):
+//   - Empty model ("") is never passed here — the caller short-circuits to
+//     the handler's bound default.
+//   - A KNOWN friendly name resolves to its api_name.
+//   - An UNKNOWN string is returned unchanged (assumed to already be an
+//     api_name); the provider remains the final authority and will surface
+//     ModelNotFound if it is bogus. This preserves the pre-resolver behaviour
+//     where step("gemini-2.5-flash") already worked.
+//   - A name that resolves to a DIFFERENT provider than the bound handler
+//     returns a typed *ai.AIError (CodeModelNotAllowed) — per-call routing
+//     stays within the bound provider.
+type ModelResolver func(model string) (apiName string, err error)
+
 // AIContext holds the handler for the current execution
 //
 // Thread-safety: AIContext is designed for single-threaded use
 // within one evaluation. Create a new context for each step/tick.
 type AIContext struct {
-	handler AIHandler
+	handler       AIHandler
+	modelResolver ModelResolver
 }
 
 // LastRoutingMetadata returns routing info from the underlying handler
@@ -136,6 +156,24 @@ func (c *AIContext) LastRoutingMetadata() *trace.ResolvedRoute {
 // Production code should always have a real handler or explicit stub.
 func NewAIContext(handler AIHandler) *AIContext {
 	return &AIContext{handler: handler}
+}
+
+// WithModelResolver attaches a ModelResolver used by the per-call step()
+// path to resolve friendly model names to api_names. Returns the receiver
+// for chaining. A nil resolver (the default) means per-call model strings
+// pass through to the handler unchanged.
+func (c *AIContext) WithModelResolver(r ModelResolver) *AIContext {
+	c.modelResolver = r
+	return c
+}
+
+// resolveModel applies the injected ModelResolver to a per-call model string.
+// Empty model or no resolver → passthrough (handler uses its bound default).
+func (c *AIContext) resolveModel(model string) (string, error) {
+	if model == "" || c.modelResolver == nil {
+		return model, nil
+	}
+	return c.modelResolver(model)
 }
 
 // Call invokes the AI handler with the given input
@@ -182,6 +220,10 @@ func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSch
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
 	}
+	model, err := c.resolveModel(model)
+	if err != nil {
+		return nil, err
+	}
 	return c.handler.Step(model, messages, tools)
 }
 
@@ -190,6 +232,10 @@ func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSch
 func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
+	}
+	model, err := c.resolveModel(model)
+	if err != nil {
+		return nil, err
 	}
 	return c.handler.StepWithCache(model, messages, tools, cacheBreakpoints)
 }
@@ -200,6 +246,10 @@ func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []a
 func (c *AIContext) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
+	}
+	model, err := c.resolveModel(model)
+	if err != nil {
+		return nil, err
 	}
 	return c.handler.StepWithStream(model, messages, tools, cacheBreakpoints, onChunk)
 }
