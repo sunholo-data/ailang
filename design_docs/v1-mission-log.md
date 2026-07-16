@@ -2781,36 +2781,121 @@ dead-run resume-detection friction #1; blind-PR-poll friction #1; evaluator's no
 prelude vs stdlib signature-shape inconsistency).
 
 ---
+## 34 — 2026-07-16 — Iteration 31: m-mission-agentic-provider-routing M1b+M2 LANDED-pending-CI (main checkout; M3 parked w/ protocol) — eval PASS 87/100 round 1 + F1 fable-pin-unenforceable hardening
 
-## 34 — 2026-07-16 — Iteration 31: m-mission-agentic-provider-routing M1b+M2 EXECUTED (main checkout; M3 parked)
+**Picked**: m-mission-agentic-provider-routing remaining slice — M1b (cross-provider codex executor
+recipe) + M2 (right-sizing table + evidence schema); M3 planner down-tier A/B PARKED with a concrete
+protocol (needs ≥3 quorum docs across iterations; forcing it inline would break the sprint-size and
+≥3-datapoint rules). M1a landed prior (8ee07ef23, amended d545d4a9e — that amendment committed at
+06:28 mid-this-session and explicitly acknowledged this pre-amendment Fable-controller fire).
+**Inbox triage first (Gate 0.4)**: nightly binary_tree_sum solid→broken alert did NOT outrank the
+queue — ruled out as model noise (see Ruled out). 30 msgs acked, all eval-suite/nightly routine.
 
-**Picked**: m-mission-agentic-provider-routing remaining slice (M1b cross-provider codex executor
-recipe + M2 right-sizing table & evidence schema). M1a landed prior (8ee07ef23 + d545d4a9e).
+**Reality check**: fresh-origin verified at pick time (grep origin/dev + PR search: only M1a landed;
+no sprint plan existed) → full inner loop. Planner live-verified every doc premise; found M1b needs
+ZERO Go changes (registry+DryRun+codex executor pre-exist since v0.22.0 — the gap was the missing
+Gate-3 spawn RECIPE). codex CLI at /opt/homebrew/bin/codex (0.137.0), OPENAI_API_KEY present,
+gpt-5.6-sol valid (models.yml:201). CLAIM message sent before routing (fresh sibling commit
+d545d4a9e had appeared mid-session).
 
-**Reality check**: `provider_executor.go` registry + DryRun + codex executor all pre-exist (v0.22.0)
-— M1b is skill-orchestration, zero Go plumbing. codex CLI at `/opt/homebrew/bin/codex` (codex-cli
-0.137.0), `OPENAI_API_KEY` present, `gpt-5.6-sol` valid (models.yml:201, agent_cli codex). Live probe
-`codex exec --model gpt-5.6-sol 'reply with exactly: ok'` → exit 0, replied `ok`, ~13.7k tokens.
+**Shipped** (direct-on-dev main checkout — controller-authorized deviation; launchd reads the
+on-disk checkout, same lane as M1a; text/markdown/sh-comment only, zero Go):
+- **M1b** (`956fda55c`): Gate-3 `provider:model`→`codex exec` recipe in mission-control SKILL —
+  env parse, token-cheap pre-flight probe (live-verified: exit 0, replied `ok`, ~13.7k tokens),
+  bounded 30-min real-run cap, worktree-read reuse, generator≠judge assert, fallback+FLAG; driver
+  comment documents the dual env form (alias OR provider:model), default stays opus (codex opt-in —
+  a default-env fire is a no-op through the new branch, evaluator-verified).
+- **M2** (`8d12e8e9c`): charter right-sizing (provider,agent,tier) table + routing-evidence schema
+  extended with provider/agent/cost (append-only; no-parser claim independently re-verified by the
+  evaluator); this entry's rows are the first in the new schema.
+- **Evaluator round 1: PASS 87/100** (adversarial: re-ran the codex probe itself — identical result
+  down to the token count; empirically tested the recipe's rc-capture with rc=0/7/143 cases;
+  extracted+`bash -n`ed the snippets; confirmed driver diff comment-only; confirmed diff hygiene,
+  7 files, sibling dirty file unstaged).
+- **Controller hardening** (`1c964aae2`, from evaluator F1/F2): **F1 HIGH — the Agent tool accepts
+  only sonnet|opus|haiku pins; `fable` is REJECTED** (live InputValidationError when spawning this
+  iteration's evaluator). A fable role runs only by session inheritance → with the d545d4a9e
+  opus-first default, a fable evaluator pin would fall back to $MODEL=opus == opus executor =
+  generator=judge collision on every default fire. Fixed: alias-list caveat + collision re-route
+  corrected (fable/gemini→sonnet, pinnable+wired) + NEW alias-lane guard (evaluator NEVER falls back
+  to bare $MODEL; re-route sonnet + FLAG). **F2 MED**: 30-min cap kill orphaned codex (subshell
+  killed, codex survived, kept billing) → `exec codex` fix.
 
-**Shipped**: M1b — Gate-3 `provider:model`→`codex exec` bounded recipe in mission-control SKILL +
-driver comment (commit `956fda55c`). M2 — right-sizing (provider,agent,tier) table in the charter +
-routing-evidence schema extended with provider/agent/cost. Worked directly on `dev` in the main
-checkout (controller-authorized — launchd reads on-disk). M3 PARKED with protocol (in sprint plan).
+**Routing evidence** (first rows in the M2 schema):
+- provider=anthropic agent=claude-code model=opus task-class=plan round1-score=n/a rounds=1
+  corrections=0 cost=quota-bucket:weekly-opus (plan surfaced 4 doc discrepancies incl. zero-Go-change
+  re-scope; all upheld by executor+evaluator)
+- provider=anthropic agent=claude-code model=opus task-class=execute round1-score=87 rounds=1
+  corrections=0 cost=quota-bucket:weekly-opus (F1 counted controller-discovered, not an executor
+  correction — evaluator's recommendation; executor scope was clean)
+- provider=anthropic agent=claude-code model=fable task-class=evaluate round1-score=n/a rounds=1
+  corrections=0 cost=quota-bucket:weekly-fable **[PIN REJECTED — ran via session inheritance; the
+  fable pin is unenforceable in the Agent tool, F1]**
+- provider=openai agent=codex model=gpt-5.6-sol task-class=probe round1-score=n/a rounds=2
+  corrections=0 cost=$~0.03 (2× ~13.7k-token probes, executor + evaluator re-verify — the first
+  metered-OpenAI rows ever written by the loop)
+- controller session = fable (pre-amendment fire, acknowledged in d545d4a9e; next fire is opus-first)
 
-**Routing evidence**: model=opus task-class=execute
-  round1-score=<pending-evaluator> rounds=<pending> corrections=<pending>
-  provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus
-  <!-- First row written in the M2 schema. Executor ran on the Opus pin (M1a); Anthropic
-       subscription call → quota-bucket, not $ (no per-call CostUSD). Evaluator scores fill on the
-       sprint-evaluator round. -->
+**Ruled out**:
+- "nightly binary_tree_sum solid→broken = fresh AILANG regression" — REFUTED with data: the SAME
+  night's os-rolling rotation passed binary_tree_sum×AILANG 9/9 (3 harnesses × 3 trials, qwen3-6,
+  same v0.29.2 build, overlapping timestamps); the failing alert is qwen3-5 at N=2 (1 thrash-abort
+  at the token cap, 1 model-authored logic error — compiled+ran, printed 43 vs 31); the ONLY
+  code-path commit between the two nightly builds is 2429bfef3 (--routing-max-price cost-cap fix,
+  unrelated). Model noise; gap-finder candidate at most.
+- "M1b needs a provider_executor.go code change" — REFUTED (planner): registry/DryRun/codex executor
+  all pre-exist; the doc's own Conflict Surface already called it a read-only consumer.
+- "the mission-log template has a positional parser appending would break" — REFUTED twice
+  (executor grep + evaluator independent grep): no consumer parses the routing-evidence line.
+- "the recipe's rc-capture doesn't capture the codex exit code" — REFUTED empirically by the
+  evaluator (rc=0/7/143 all propagate through the command-substitution `wait`).
 
-**Ruled out**: "M1b needs a provider_executor.go code change" — refuted (registry/DryRun/codex
-executor already exist; the gap was the missing spawn RECIPE, not plumbing). "mission-log template
-has a positional parser that appending would break" — grepped tools/ internal/ .claude/: only the
-sprint-evaluator feedback template uses a differently-named JSON `round1_score` field; no consumer
-parses the mission-log line, so appending columns is safe.
+**Gate 3b**: dev @ `1c964aae2` observed GREEN — CI completed/success; Build-and-Release
+completed/success **on rerun** (first attempt: windows-latest `TestReferenceSolutions_JS/fizzbuzz`
+"JavaScript execution timed out" at the 60s slot — the runner-cold-start class the test itself
+documents; text-only diff, parent green, cleared on rerun → dev-health flaky, carried forward);
+Docs-Deploy **N/A by paths-filter** (this diff touches none of its trigger paths — recorded as
+N/A, not pending, per this iteration's Gate-3b skill edit). All waits bounded (3 polls, 25–30-min
+caps; first poll replaced mid-flight when its own blind-poll defect was caught — see Retro).
 
-**Retro lane**: (deferred to controller retro) — this is the executor report, not the retro.
+**Retro lane** (each friction → ONE lane):
+- **F1 fable-pin-unenforceable** → skill edit ALREADY SHIPPED as evaluator-mandated hardening of
+  this sprint's own deliverable (`1c964aae2`) — not counted as the retro-lane skill edit; the
+  routing item's whole point is enforcement-by-code, and the Agent-tool alias constraint is now
+  recorded where the recipe lives.
+- **Executor pre-wrote the controller's Gate-4 entry** (F4 low) → process note, this entry: fine as
+  an M2 demonstration row this once; controller finalizes in place; future executors report, the
+  controller writes the log.
+- **Agent-tool valid-alias set was undocumented anywhere in the mission stack** (bit us live) →
+  backlog seed for m-mission-adaptive-multiprovider-routing Phase E: enumerate per-surface valid
+  targets (Agent aliases vs provider:model vs full IDs) in ONE table in the charter.
+- **Blind Gate-3b poll, friction #2** (this controller's first poll demanded a Docs-Deploy run
+  that the workflow's `paths:` filter guaranteed would NEVER trigger for a non-docs diff — it
+  would have burned the full 30-min cap; iter-30's mergeable-blind PR poll was friction #1,
+  flagged "for a mission-control Gate-3b edit if it recurs") → **SKILL EDIT (the one allowed,
+  retro-lane)**: Gate 3b now requires determining EXPECTED workflows (paths-filter vs diff, or
+  run-appears-within-2–3-listings) before arming a poll; path-filtered-no-run = N/A not pending;
+  PR polls check `mergeable` each round. "A poll waiting on a check that cannot complete is an
+  unbounded wait wearing a deadline." (The F1/F2 skill edits in `1c964aae2` were sprint-deliverable
+  hardening mandated by the evaluator pre-push, not retro-lane — the recipe under test lives in
+  the skill file; recorded here for transparency against the one-skill-edit rule.)
 
-**Next**: sprint-evaluator (Fable-pinned, ≠ Opus executor → generator≠judge) round 1; then Gate-3b
-CI green; then M3 stays parked until 3 quorum docs accrue.
+**Next**: Iteration 32 — (a) first REAL cross-provider fire: opt-in `MISSION_EXECUTOR_MODEL=
+codex:gpt-5.6-sol` on a small clause-3 item (M1b acceptance = controller and executor on different
+PROVIDERS; the recipe + probe are live, only the metered run remains); (b) M3 stays parked until 3
+quorum-reviewed docs accrue; (c) clause-3 cheapest-impact-per-day resumes: `20251013_auto_caps` (2d)
+or `m-dx-expected-fail-fixes` (1–2d), Gate-2 live-repro mandatory (older rows — ghost risk).
+
+**Carry forward** UNCHANGED from iter 30 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies incl. TestNetHttpPost-httpbin;
+MOD007 veto window; alias-import prelude edge; executor evidence-artifact watch; docs-site CLI
+reference for design-review/design-quorum; quorum-on-sprint-plans decision; fleet C/D/E opt-in;
+issue #386; gemini quorum-reviewer retry; quorum termination-rule friction #1; dead-run
+resume-detection friction #1; evaluator seeds from iter 30) **PLUS**:
+dev-health flaky NEW instance: TestReferenceSolutions_JS/fizzbuzz windows "JavaScript execution
+timed out" at the 60s slot (runner cold-start class the test already documents; blew the slot
+that was raised FOR this class — if it recurs, skip-on-windows or raise the slot);
+first-real-codex-run watch (F2 exec-fix unproven under a live cap-kill); fable-pin F1 watch (does
+the sonnet re-route fire correctly on the first opus-first collision?); M3 A/B protocol armed
+behind M1b+M2.

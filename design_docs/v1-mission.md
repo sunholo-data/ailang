@@ -35,20 +35,22 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
-## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
+## STATUS 2026-07-16 — ITERATION 31: m-mission-agentic-provider-routing M1b+M2 LANDED (direct-on-dev `956fda55c`+`8d12e8e9c`, eval PASS 87/100 round 1, hardening `1c964aae2`); M3 PARKED w/ protocol; F1: `fable` is NOT a pinnable Agent alias
 
-Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in
-the driver) was found ALREADY LANDED+DEPLOYED at Gate 2 (`3bee6b6df`, direct-to-dev by the
-2026-07-14 interactive session ~3h before planning — the sprint re-scoped to verification, six
-driver safety invariants confirmed intact). Phase B shipped as new `internal/mission/quorum` +
-`ailang design-review`/`design-quorum`: N-reviewer design-doc quorum (gpt-5.6-sol via
-OPENAI_API_KEY + gemini-3-1-pro via Vertex ADC — the GEMINI_API_KEY-absent risk mitigated and
-live-proven at $0.002/call — + the Claude controller in-session), reject-by-default with
-required strongest-objection, N−1 graceful degrade with NAMED absences (never silent), budget
-caps with zero-spend pre-flight refusal, JSON artifact + mission-log block (seed data for Phase
-E). Full quorum live test: $0.0074. Evaluator round-1 PASS 94/100 (independent live re-runs,
-spend figures reproduced within 3%, prompt-injection probe held); 4 warts hardened pre-merge
-(`027523b44`). Phases C/D/E remain queued opt-in. Detail: log entry 31.
+The mission-infra P0 closed its executable slice headless: Gate-3 `provider:model`→bounded
+`codex exec` recipe (zero Go — planner found registry/DryRun/codex executor pre-existing since
+v0.22.0; the gap was only the missing spawn recipe), codex probe live-verified (gpt-5.6-sol,
+exit 0, executor + evaluator reproduced identically), charter right-sizing table + provider/
+agent/cost evidence rows (first new-schema rows written in log entry 34, incl. the loop's first
+metered-OpenAI rows). Evaluator (Fable ≠ Opus executor) PASS 87/100 round 1, then surfaced
+**F1 HIGH: the Agent tool accepts only sonnet|opus|haiku pins — `fable` is REJECTED** (live
+InputValidationError; fable roles run by session inheritance only; with opus-first defaults a
+fable evaluator pin would have silently become an opus judge on opus work) → hardened same-day:
+alias caveat + alias-lane generator≠judge guard (evaluator never falls back to bare $MODEL;
+re-route sonnet + FLAG) + F2 `exec` orphan-kill fix. Open by design: first REAL cross-provider
+fire (opt-in env), M3 planner A/B parked until 3 quorum docs accrue. Nightly binary_tree_sum
+"regression" triaged as model noise (9/9 same-night rotation pass on qwen3-6; alert was qwen3-5
+N=2). Detail: log entry 34.
 
 ## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
 
@@ -428,19 +430,21 @@ is landed, the OPS switch is human.
     gob-struct change). PR #380 → `47576e25d`, dev CI green per-workflow observed. Design +
     sprint plan → implemented/v0_30_0.
 
-**[NEXT — TOP PRIORITY, Mark 2026-07-15]** **m-mission-agentic-provider-routing**
+**[LANDED 2026-07-16 (M1a+M1b+M2) / M3 PARKED-protocol]** **m-mission-agentic-provider-routing**
 ([planned/v0_30_0](planned/v0_30_0/m-mission-agentic-provider-routing.md)) — mission-infra P0.
-Fixes the routing-never-enforced bug (every role inherits the driver's single `--model` → 100%
-Fable burn; see memory `project-mission-routing-table-never-enforced`), makes cross-provider
-routing **agentic** (motoko/claude/codex/managed_agents, not `std/ai` single calls), and
-right-sizes roles (sprint-planner is the #1 down-tier candidate post-quorum). The executable slice
-of fleet Phase C+E — reuses `provider_executor.go`, invents no plumbing. **Picked before the
-clause-3 cluster because quota-efficient execution gates the loop's ability to burn down everything
-below it.** **M1a LANDED 2026-07-15** (interactive, main checkout): Anthropic per-role pinning —
-driver exports `$MISSION_{PLANNER,EXECUTOR,EVALUATOR}_MODEL`, Gate 3 spawns pinned sub-agents;
-execution→opus, controller/eval→fable, drain closed on-disk (pending live verification). The loop
-picks up **M1b** (non-claude cross-provider executor via provider_executor — the true off-Anthropic
-step), **M2** (evidence rows + `(provider,agent,$/quota)`), **M3** (sprint-planner down-tier A/B).
+Fixed the routing-never-enforced bug (memory `project-mission-routing-table-never-enforced`).
+**M1a LANDED 2026-07-15** (interactive, 8ee07ef23 + amended d545d4a9e): per-role env pins, opus-first
+controller, fable designer/evaluator by inheritance. **M1b+M2 LANDED 2026-07-16 iteration 31**
+(direct-on-dev main checkout, zero Go — the planner found registry/DryRun/codex executor all
+pre-exist since v0.22.0): Gate-3 `provider:model`→bounded `codex exec` recipe (probe live-verified:
+gpt-5.6-sol exit 0; default-env fire = no-op, codex strictly opt-in) `956fda55c` + charter
+right-sizing table & provider/agent/cost evidence-row schema `8d12e8e9c`; eval PASS 87/100 round 1;
+hardening `1c964aae2` — **F1: the Agent tool pins only sonnet|opus|haiku, `fable` is REJECTED**
+(fable roles run by session inheritance only; alias-lane generator≠judge guard added: evaluator
+never falls back to bare $MODEL, re-routes to sonnet + FLAG) + F2 `exec` orphan-kill fix.
+**Open by design**: first REAL cross-provider fire (opt-in `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol`,
+= the doc's M1b acceptance) · **M3** (planner down-tier A/B) PARKED with a concrete protocol in the
+sprint plan until 3 quorum-reviewed docs accrue. Doc stays in planned/ until those close.
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the

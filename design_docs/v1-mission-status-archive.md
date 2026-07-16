@@ -3,6 +3,21 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-14 — ITERATION 28: fleet Phases A+B LANDED (Mark's mission-infra interleave) → PR #383 `1186a48e6`, eval PASS 94/100 round 1; design-doc QUORUM live (`ailang design-review`/`design-quorum`), Phase A found already-deployed at Gate 2
+
+Mark's prioritized fleet slice is DONE: Phase A (quota-aware multi-candidate model probing in
+the driver) was found ALREADY LANDED+DEPLOYED at Gate 2 (`3bee6b6df`, direct-to-dev by the
+2026-07-14 interactive session ~3h before planning — the sprint re-scoped to verification, six
+driver safety invariants confirmed intact). Phase B shipped as new `internal/mission/quorum` +
+`ailang design-review`/`design-quorum`: N-reviewer design-doc quorum (gpt-5.6-sol via
+OPENAI_API_KEY + gemini-3-1-pro via Vertex ADC — the GEMINI_API_KEY-absent risk mitigated and
+live-proven at $0.002/call — + the Claude controller in-session), reject-by-default with
+required strongest-objection, N−1 graceful degrade with NAMED absences (never silent), budget
+caps with zero-spend pre-flight refusal, JSON artifact + mission-log block (seed data for Phase
+E). Full quorum live test: $0.0074. Evaluator round-1 PASS 94/100 (independent live re-runs,
+spend figures reproduced within 3%, prompt-injection probe held); 4 warts hardened pre-merge
+(`027523b44`). Phases C/D/E remain queued opt-in. Detail: log entry 31.
+
 ## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET via full backlog triage (Mark, interactive)
 
 Triaged all 69 non-gating planned docs (5 parallel reality-check agents). Result: the "~85

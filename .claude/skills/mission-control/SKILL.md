@@ -274,6 +274,17 @@ lint` do NOT cover the remote-only gates (fmt-check, govulncheck, check-file-siz
 Red → fix-forward immediately if small; otherwise revert the merge and park the item with the CI
 log excerpt. Only an OBSERVED green run upgrades the queue tag to [LANDED].
 
+**Poll only checks that CAN complete for this push** (added 2026-07-16 iteration 31; second
+friction in the blind-poll class — iteration 30 burned a full 35-min cap watching a
+conflict-skipped PR suite, iteration 31's first poll demanded a Docs-Deploy run that its
+`paths:` filter guaranteed would never trigger for a non-docs diff). Before arming any Gate-3b
+poll: (a) determine which workflows are EXPECTED for this push — check each workflow's `on.push.
+paths` filter against the diff, or confirm a run for the target SHA appears within the first 2–3
+listings; a path-filtered workflow with no run is **N/A, record it as such — not pending**;
+(b) for PR polls, check `gh pr view --json mergeable` each round and bail on CONFLICTING —
+Actions skips `pull_request` workflows it cannot build a test-merge for (they never complete).
+A poll that waits on a check that cannot complete is an unbounded wait wearing a deadline.
+
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
 Append an entry to `design_docs/v1-mission-log.md` using its fixed template — every section,
