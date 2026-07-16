@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-16T23:32:40+02:00",
+  "timestamp": "2026-07-17T00:17:53+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -33919,7 +33919,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-16T23:32:39+02:00",
+      "timestamp": "2026-07-17T00:17:52+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -50798,14 +50798,14 @@
         {
           "band": "Very hard",
           "elo": 2163.9,
-          "id": "glob_match_spec",
+          "id": "legal_obligation_engine",
           "passRate": 40,
           "saturated": false
         },
         {
           "band": "Very hard",
           "elo": 2163.9,
-          "id": "legal_obligation_engine",
+          "id": "glob_match_spec",
           "passRate": 40,
           "saturated": false
         },
@@ -50973,13 +50973,6 @@
         {
           "band": "Moderate",
           "elo": 1521.2,
-          "id": "intent_annotated_solver",
-          "passRate": 90,
-          "saturated": false
-        },
-        {
-          "band": "Moderate",
-          "elo": 1521.2,
           "id": "contract_leap_year",
           "passRate": 90,
           "saturated": false
@@ -50989,6 +50982,13 @@
           "elo": 1521.2,
           "graderFlag": "set-repr",
           "id": "contract_sorted_merge",
+          "passRate": 90,
+          "saturated": false
+        },
+        {
+          "band": "Moderate",
+          "elo": 1521.2,
+          "id": "intent_annotated_solver",
           "passRate": 90,
           "saturated": false
         },
@@ -51506,14 +51506,14 @@
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "api_call_json",
+              "id": "polymorphic_ord_defaulting",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "polymorphic_ord_defaulting",
+              "id": "api_call_json",
               "passRate": 90,
               "saturated": false
             },
@@ -51590,14 +51590,14 @@
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "immutable_data_structures",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "gcd_lcm",
+              "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
@@ -51858,14 +51858,14 @@
             {
               "band": "Very hard",
               "elo": 2267.9,
-              "id": "fold_reduce",
+              "id": "log_file_analyzer",
               "passRate": 66.7,
               "saturated": false
             },
             {
               "band": "Very hard",
               "elo": 2267.9,
-              "id": "log_file_analyzer",
+              "id": "fold_reduce",
               "passRate": 66.7,
               "saturated": false
             },
@@ -52019,14 +52019,14 @@
             {
               "band": "Trivial",
               "elo": 1285.4,
-              "id": "binary_tree_sum",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1285.4,
-              "id": "merge_sort",
+              "id": "binary_tree_sum",
               "passRate": 100,
               "saturated": true
             },
@@ -53425,14 +53425,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
@@ -53891,14 +53891,14 @@
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "glob_match_spec",
+              "id": "lfu_cache_trace",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "lfu_cache_trace",
+              "id": "glob_match_spec",
               "passRate": 88.2,
               "saturated": false
             },
