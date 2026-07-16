@@ -3,6 +3,22 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-16 — ITERATION 34: fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick (dogfood: text quorum blocked the AGENTIC-quorum doc for premises TRUE-in-code that text reviewers structurally can't verify)
+
+The picked fleet-(c) doc had no quorum artifact → QUORUM-AT-PICK fired (2 rounds, ~$0.05). Round 1
+BLOCKED on a stale Verification-Log row (its `find -name '*quorum*'` couldn't match doc-named
+artifacts) + `proposed_fix` wording — controller integrated inline (mechanical, known-correct),
+re-quorum. Round 2 still BLOCKED on DEEPER objections: gpt5-6-sol's "reuse premise unverified" the
+controller **REFUTED by code-read** (provider_executor.go exposes ctx-cancel/`Timeout`/`CostUSD`/
+read-only `AllowedTools` + `WorkingDir` worktree — reuse HOLDS); gemini's is a REAL open authorial
+decision (`proposed_fix` required-on-reject vs contract-unchanged → pick optional-not-validated **(a)**
+or bounded contract-extension **(b)**). Per the one-bounded-round gate → PARKED. **≈2-min unblock**:
+settle (a)/(b) + add the code-cited Verification-Log rows → route to planner. **Meta-finding**: the
+TEXT quorum-at-pick can't verify code, so it reject-by-defaults exactly the premise class the agentic
+tier exists to check — a live datapoint FOR building item (c), and a Gate-5 process note (the gate
+should let a controller code-refutation of a PREMISE-class objection count, not force a park). No code
+shipped; doc + queue updated. Detail: log entry 37.
+
 ## STATUS 2026-07-16 — ITERATION 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1; codex real-run recipe corrected (Gate-5 skill edit)
 
 The armed one-shot override fired: `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` executed a real sprint

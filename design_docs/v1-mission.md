@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-16 — ITERATION 37: fleet **(c0) m-gemini-exec-project-plumbing LANDED** (PR #401 → `60351087b`, eval PASS 96/100 r1) — `ailang exec gemini` now reaches the Vertex Managed Agents backend; unblocks fleet (c)'s parked M0/M4 gemini reviewer lane
+
+The ≤1d unblocker surfaced by iteration 36. Live-repro confirmed the gap at HEAD (`managed_agents: GCP project not set`), root cause `cmd/ailang/exec.go:executeCLI` built `executor.Task{}` with no `GCPProject`/`GCPLocation` (the eval harness sets them per-model; the CLI path never did). **Fix** (minimal, +13 LOC code): `resolveGCPProjectEnv()` (`AILANG_CLOUD_PROJECT` → `GOOGLE_CLOUD_PROJECT`, coordinator precedence) + set both fields on the shared Task; empty location defers to executor `defaultLocation="global"`, unset project keeps the loud error (no silent default). **Live-verified by the controller**: env-unset → loud error preserved; `AILANG_CLOUD_PROJECT=ailang-multivac-dev` → error moved to Vertex `HTTP 400: Resource setup has just started` (project REACHED the backend). Non-vacuous `t.Setenv` regression test. Full loop: **Fable designer** (`claude:claude-fable-5` CLI lane, N−1 quorum PROCEED) → **Opus planner+executor** → **Fable evaluator** (true-Fable CLI lane, PASS 96/100 r1). ⚠ **Routing FLAG**: evaluator ran on the `claude:claude-fable-5` CLI lane, NOT the doc-prescribed sonnet re-route (iteration 36 hit the identical `MISSION_EVALUATOR_MODEL=fable` env and chose sonnet per the ≥3-datapoint gate) — recorded as an evidence datapoint + a doc-inconsistency retro note, NOT a ratified policy change. Detail: log entry 40.
+
 ## STATUS 2026-07-16 — ITERATION 36: fleet (c) m-mission-quorum-agentic-verify **CORE LANDED** (M1-M3, PR #400 → `0e83a1b12`, eval PASS 91/100 r1) — agentic reviewers that VERIFY-not-just-reason; M0/M4 gemini parked on a real `Task.GCPProject` plumbing gap
 
 Mark's option-(a) decision unparked iteration 34's Gate-2 blocker (`proposed_fix` optional, not validated,
@@ -63,22 +67,6 @@ enqueue `Opened` into the buffered eventBuffer BEFORE starting the reader gorout
 event[0]. Verified `go test ./internal/effects -race -count=20` (green, 111s). Commit `2bb3de2c5` →
 dev CI + Build-and-Release both green (Gate 3b, bounded poll). Weekly rotation (Gate 5): #329 (53
 comments, created before Mon 07:00 2026-07-13) closed → #399. Detail: log entry 38.
-
-## STATUS 2026-07-16 — ITERATION 34: fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick (dogfood: text quorum blocked the AGENTIC-quorum doc for premises TRUE-in-code that text reviewers structurally can't verify)
-
-The picked fleet-(c) doc had no quorum artifact → QUORUM-AT-PICK fired (2 rounds, ~$0.05). Round 1
-BLOCKED on a stale Verification-Log row (its `find -name '*quorum*'` couldn't match doc-named
-artifacts) + `proposed_fix` wording — controller integrated inline (mechanical, known-correct),
-re-quorum. Round 2 still BLOCKED on DEEPER objections: gpt5-6-sol's "reuse premise unverified" the
-controller **REFUTED by code-read** (provider_executor.go exposes ctx-cancel/`Timeout`/`CostUSD`/
-read-only `AllowedTools` + `WorkingDir` worktree — reuse HOLDS); gemini's is a REAL open authorial
-decision (`proposed_fix` required-on-reject vs contract-unchanged → pick optional-not-validated **(a)**
-or bounded contract-extension **(b)**). Per the one-bounded-round gate → PARKED. **≈2-min unblock**:
-settle (a)/(b) + add the code-cited Verification-Log rows → route to planner. **Meta-finding**: the
-TEXT quorum-at-pick can't verify code, so it reject-by-defaults exactly the premise class the agentic
-tier exists to check — a live datapoint FOR building item (c), and a Gate-5 process note (the gate
-should let a controller code-refutation of a PREMISE-class objection count, not force a park). No code
-shipped; doc + queue updated. Detail: log entry 37.
 
 ## CURRENT GOAL
 
@@ -453,7 +441,7 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   scoping**: the lane serves READ-ONLY roles (evaluator/reviewer/quorum-verifier) only — the
   server-side sandbox never writes the local worktree, so the file-editing executor role needs a
   bridge (follow-up). Sonnet eval PASS 96/100 r1. First LIVE gemini fire deferred to (c).
-- **(c) [CORE LANDED 2026-07-16 iter 36 (M1-M3) — PR #400 → `0e83a1b12`; M0/M4/M5 PARKED on the gemini `Task.GCPProject` gap, see (c0) below]** m-mission-quorum-agentic-verify+HONE
+- **(c) [CORE LANDED 2026-07-16 iter 36 (M1-M3) — PR #400 → `0e83a1b12`; M0/M4/M5 now UNBLOCKED — (c0) plumbing landed iter 37, this is the `[← NEXT fleet step]`]** m-mission-quorum-agentic-verify+HONE
   — **M1-M3 shipped**: `agenticCaller` behind the `JSONCaller` seam (frozen verdict JSON via the coordinator
   executor layer), `ShouldEscalate` two-tier trigger + additive-optional `proposed_fix` (option (a), contract
   frozen), Tier-2 codex+claude read-only verify. 43 tests pass, verdict contract independently verified
@@ -477,14 +465,16 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   `claude:claude-fable-5` CLI lane — driver default updated) accepts/rejects each by name.
   Single-author + adversarial-proposers, NOT co-authoring. Preconditions all satisfied (doc
   updated). Two-tier stays: text quorum always, agentic escalation when contested/high-stakes.
-- **(c0) [NEXT fleet step — NEW-DOC, ≤1d; surfaced iter 36]** m-gemini-exec-project-plumbing — plumb
-  `Task.GCPProject`/`GCPLocation` from an env (`AILANG_CLOUD_PROJECT`/`GOOGLE_CLOUD_PROJECT`, default
-  location) into `cmd/ailang/exec.go`'s managed_agents/gemini path so `ailang exec gemini` works outside
-  the eval harness. ROOT CAUSE (verified iter 36): `exec.go:336` builds `executor.Task{}` with no
-  `GCPProject`; the managed_agents default project is `""` (`managed_agents.go:44`, filled per-task only
-  by the eval harness). ADC itself is fine. This is the hard prerequisite for fleet (c)'s M0/M4 (live
-  gemini probe + clone-in-sandbox) AND for any gemini reviewer/evaluator lane. Start at design-doc-creator
-  (NEW-DOC — grep first, no doc found iter 36).
+- **(c0) [LANDED 2026-07-16 iter 37 → implemented/v0_30_0; PR #401 → `60351087b`, eval PASS 96/100 r1]**
+  m-gemini-exec-project-plumbing — `resolveGCPProjectEnv()` (`AILANG_CLOUD_PROJECT` → `GOOGLE_CLOUD_PROJECT`,
+  coordinator precedence) + `GCPProject`/`GCPLocation` now set on the shared `executor.Task` in
+  `cmd/ailang/exec.go:executeCLI`; empty location defers to executor `defaultLocation="global"`, unset
+  project keeps the loud error (no silent default). **Live-verified**: env-unset → loud error preserved;
+  `AILANG_CLOUD_PROJECT` set → error moved past "GCP project not set" to Vertex `HTTP 400: Resource setup
+  has just started` (project REACHES the backend — the "resource setup" state is fleet (c) M0/M4 territory).
+  Non-vacuous `t.Setenv` regression test. **Fleet (c)'s M0/M4 gemini reviewer lane is now UNBLOCKED** —
+  next fleet step is (c) M0 (live gemini network probe) → M4 (conditional on M0) → M5 (bounded live-fire +
+  doc → implemented/).
 - **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),
