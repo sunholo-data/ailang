@@ -12,14 +12,17 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-fable-5,claude-opus-4-8") is walked each
-# iteration with a 1-token probe; first usable model wins. A quota-limited
-# probe falls through to the next candidate; transient errors retry once.
-# Recovery is automatic: the moment Fable's probe succeeds again (weekly
-# reset), the loop is back on Fable — no dates, no human. Semantics of the
-# ordered list follow internal/ai/routing.go AIRoutingPolicy.Order (the
-# third-vocabulary rule in m-mission-adaptive-multiprovider-routing); it lives
-# in bash because the driver must select BEFORE any Go/claude process exists.
+# MISSION_MODEL_PREFS (default "claude-opus-4-8,claude-fable-5" — OPUS-FIRST
+# since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
+# synthesis + evaluation, both bounded pinned sub-agents — never the long
+# orchestration session, which burned the weekly Fable bucket at 2h cadence)
+# is walked each iteration with a 1-token probe; first usable model wins. A
+# quota-limited probe falls through to the next candidate; transient errors
+# retry once. Fable last = emergency fallback only (a controller on Fable
+# beats no controller). Semantics of the ordered list follow
+# internal/ai/routing.go AIRoutingPolicy.Order (the third-vocabulary rule in
+# m-mission-adaptive-multiprovider-routing); it lives in bash because the
+# driver must select BEFORE any Go/claude process exists.
 # Manual pins still win: MISSION_MODEL env (absolute) or
 # ~/.ailang/state/mission-model ("<model> [expiry-epoch]", auto-expires).
 #
@@ -88,7 +91,7 @@ _mc_stalled() {
 # ----------------------------------------------------------------------------
 
 # --- model selection (fleet Phase A) -----------------------------------------
-PREFS="${MISSION_MODEL_PREFS:-claude-fable-5,claude-opus-4-8}"
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-4-8,claude-fable-5}"
 OVERRIDE_FILE="$HOME/.ailang/state/mission-model"
 LAST_MODEL_FILE="$HOME/.ailang/state/mission-model-last"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
@@ -171,11 +174,16 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # Defaults track the charter routing table; M3 will A/B the planner down-tier — keep it at the proven
 # Opus until there's evidence. Cross-provider AGENT executors (codex/motoko) ride the same env once
 # fleet Phase C wires them into the spawn (a value like "codex:gpt-5.6" is resolved by the skill).
+# 2026-07-16 (Mark): Fable = high-cognition ROLES only. The controller session is opus-first (see
+# PREFS above); Fable bills exactly two BOUNDED pinned sub-agents per iteration: the designer
+# (deep spec synthesis, fired only when a new doc is needed) and the evaluator (adversarial judge,
+# ≠ the opus executor → generator≠judge holds).
 # NB: these are in-session Agent/Task-tool model ALIASES (opus|fable|sonnet|haiku) — NOT the full
 # IDs (claude-opus-4-8) the driver's own `claude -p --model` flag takes. Two different interfaces:
 # the controller session is launched with a full ID; the sub-agents it spawns are pinned by alias.
 # A "provider:model" value (e.g. codex:gpt-5.6) instead signals cross-provider agent routing via
 # provider_executor (fleet Phase C), which the skill resolves — not the Agent tool.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-fable}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
 export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-fable}"
@@ -202,7 +210,7 @@ fi
 
 # 3. Dry run — verify wiring without spending tokens (no probes fired).
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
-  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
+  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
 fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
@@ -228,7 +236,7 @@ if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
   fi
 fi
 
-log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
+log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 design_docs/v1-mission.md and follow its gates. You are a scheduled run; \

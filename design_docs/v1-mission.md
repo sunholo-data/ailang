@@ -154,11 +154,11 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 
 | Role | Model | Why / evidence |
 |---|---|---|
-| Mission controller (this loop: triage, pick, judge, retro) | **Fable** (claude-fable-5) — REVERTED 2026-07-14 per the TEMP note's own condition (driver back on Fable; iters 26–27 ran Fable-controlled) | Was Opus TEMP 2026-07-11 for quota relief (Mark); quota cleared |
-| Design docs (create/review) | **Fable** (runs on the controller model) | Spec quality still gates downstream |
+| Mission controller (this loop: triage, pick, judge, retro) | **Opus** — opus-first PREFS since 2026-07-16 (Mark: "Fable for real high cognition stuff not execution"; the long orchestration session is mechanical and was the residual Fable drain even after M1a). Fable = emergency fallback only | The 07-14 Fable revert burned the weekly bucket at 2h cadence; orchestration doesn't need the top tier |
+| Design docs (create/review) | **Fable** — `$MISSION_DESIGNER_MODEL`-PINNED sub-agent (2026-07-16; no longer inherits the session) | Spec quality still gates downstream — the one place deep synthesis pays; bounded run, fires only when a new doc is needed |
 | Sprint planning | **Opus** (claude-opus-4-8) | Plan quality determined execution success historically |
 | Sprint execution | **Opus** — the default, per Mark 2026-07-10 | Sonnet execution was a false economy (needed corrections); also `dev-cycle.md` had silently pinned sonnet |
-| Sprint evaluation | **Fable** — model diversity vs the Opus executor RESTORED (the 2026-07-11 caveat below is dormant while controller=Fable) | Generator≠judge again; behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
+| Sprint evaluation | **Fable** — `$MISSION_EVALUATOR_MODEL`-PINNED sub-agent; generator≠judge holds STRUCTURALLY now (pin ≠ the opus executor pin, independent of whatever the controller session runs — the 2026-07-11 caveat below is fully obsolete post-M1a) | Behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
 
 > **⚠ Evaluation-independence caveat (2026-07-11):** while the controller is Opus, Opus evaluates
 > Opus-executed work — the generator≠judge *model* diversity is gone. The evaluation's proven
@@ -184,6 +184,13 @@ made in RETRO, recorded here with a dated stamp.
 > down-tier** (kept at Opus until ≥3 datapoints — do NOT lower it on this hypothesis alone).
 > Cross-provider AGENT executors (codex/motoko/managed_agents) ride the same env once fleet Phase C
 > resolves a value like `codex:gpt-5.6` in the spawn.
+>
+> **AMENDED 2026-07-16 (Mark: "Fable for real high cognition stuff not execution"):** the
+> controller session itself was the residual Fable drain after M1a (a ≤6h mostly-mechanical
+> orchestration session on the scarcest model). Driver PREFS are now **opus-first**
+> (`claude-opus-4-8,claude-fable-5`; Fable = emergency fallback only) and design-doc-creator moved
+> from inline to a **`$MISSION_DESIGNER_MODEL`-pinned sub-agent (fable)**. Net Fable spend per
+> iteration = two bounded sub-agents: designer (only when a new doc is needed) + evaluator.
 
 ## Rig integration — the two-tier rule
 

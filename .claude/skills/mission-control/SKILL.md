@@ -146,10 +146,16 @@ model from the driver-exported env (defaults track the charter table):
 
 | Role | Model env | Default |
 |---|---|---|
-| Controller + design-doc-creator | `$MODEL` (session) | Fable |
+| Controller (this session: triage/pick/record/retro) | `$MODEL` (session) | **Opus** (opus-first since 2026-07-16, Mark: the long orchestration session is mechanical work — it must NOT ride Fable) |
+| Design-doc-creator | `$MISSION_DESIGNER_MODEL` | **Fable** (deep spec synthesis = high cognition; PINNED sub-agent, no longer inline) |
 | Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
 | Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
-| Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | Fable (≠ the Opus executor → generator≠judge restored) |
+| Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | Fable (≠ the Opus executor → generator≠judge holds) |
+
+**Fable discipline (Mark 2026-07-16):** Fable bills exactly two BOUNDED sub-agent runs per
+iteration — designer (only when a new doc is actually needed) and evaluator. Everything
+long-running or mechanical rides Opus. Do not "upgrade" a role to Fable ad hoc; that is a
+routing-policy change requiring the charter's evidence rule.
 
 Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
 prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via
@@ -163,8 +169,9 @@ model instead of its pin is a regression to surface, not bury (observability is 
 backstop until a Go orchestrator hard-pins it). Deterministic mechanical work (doc moves, regen) =
 Sonnet, inline, is fine.
 
-- No design doc yet → invoke **design-doc-creator** (its hard gates apply: live `ailang check`
-  verification, Conflict Surface for parser/types/codegen). **But first
+- No design doc yet → **design-doc-creator** as a `$MISSION_DESIGNER_MODEL`-pinned Agent sub-agent
+  (its hard gates apply: live `ailang check` verification, Conflict Surface for
+  parser/types/codegen). **But first
   `grep -ri "<item-id>" design_docs/` — a NEW-DOC queue tag is a claim, not a fact** (added
   2026-07-14 iteration 26; 2 of 2 recent NEW-DOC tags were wrong: m-lambda-open-record-pattern
   had a full doc at planned/v0_29_0 since May [iter 25], m-xmod-alias-poly likewise [iter 26] —

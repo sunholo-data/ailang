@@ -108,7 +108,14 @@ now provider/agent/cost-aware.
   loop, because these are the loop's own driver+skill and MUST edit the MAIN checkout (launchd reads
   on-disk, not a worktree — memory `project-mission-unbounded-wait…`). **NOT yet verified LIVE** (loop
   paused for quota): the first real iteration is the acceptance test — confirm the start-log `roles:`
-  line and that Gate 4 records the actual (role, model).
+  line and that Gate 4 records the actual (role, model). *Driver-side verified live 2026-07-16 06:23
+  (first resumed iteration logged `roles: planner=opus executor=opus evaluator=fable`); skill-side
+  (pinned spawns + Gate-4 rows) pending that iteration's report.*
+  **AMENDED 2026-07-16 (Mark: Fable = high-cognition roles only, never the orchestration session):**
+  driver PREFS now opus-first (`claude-opus-4-8,claude-fable-5`; Fable = emergency fallback);
+  design-doc-creator moved from inline to a `$MISSION_DESIGNER_MODEL`-pinned sub-agent (fable). Net
+  Fable per iteration = two bounded sub-agents (designer when needed + evaluator) — matching this
+  doc's own right-sizing table, which already put the controller at mid-tier.
 - **M1b — one NON-CLAUDE agent executor (the true cross-provider proof) — loop / fleet Phase C:**
   wire a `provider:model` executor (codex OR motoko) through `provider_executor.go` so the skill
   branches a non-alias env value to the registry. Acceptance: an iteration where controller and
