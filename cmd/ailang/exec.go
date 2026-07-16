@@ -304,10 +304,30 @@ func runExec() {
 	}
 }
 
-// executeCLI uses the CLI executor (Claude Code, Gemini CLI)
+// resolveAgenticExecutorName maps the CLI provider name to the executor-factory
+// registry name for the AGENTIC (non --api-only) path.
+//
+// The Gemini CLI executor was retired in v0.22.0 (M-MANAGED-AGENTS). Its
+// successor agentic lane is the `managed_agents` package (Vertex AI Managed
+// Agents API via ADC), which registers itself in the factory under the name
+// "managed_agents" — not "gemini". So the CLI-facing `gemini` provider must be
+// translated to that registry name here. Every other provider maps to itself
+// (identity). Note: this affects ONLY the agentic path; the --api-only path
+// (executeAPI, single-shot gemini generateContent) is untouched.
+func resolveAgenticExecutorName(provider string) string {
+	if provider == "gemini" {
+		return "managed_agents"
+	}
+	return provider
+}
+
+// executeCLI uses the agentic executor (Claude Code CLI, Vertex Managed Agents, ...)
 func executeCLI(ctx context.Context, provider, directive, workspace, model, systemPrompt, taskID string, timeout time.Duration, streamJSON bool) (*executor.Result, error) {
-	// Get executor from factory
-	exec, err := executor.GlobalFactory().GetExecutor(provider)
+	// Get executor from factory. The CLI provider name is translated to the
+	// executor-factory registry name for the agentic path (e.g. gemini →
+	// managed_agents); see resolveAgenticExecutorName.
+	execName := resolveAgenticExecutorName(provider)
+	exec, err := executor.GlobalFactory().GetExecutor(execName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get executor for %s: %w", provider, err)
 	}
@@ -641,7 +661,9 @@ Execute an AI task using the specified provider.
 
 Providers:
   claude      Claude Code CLI (agentic coding with file editing)
-  gemini      Gemini CLI (agentic coding with file editing)
+  gemini      Vertex AI Managed Agents API via ADC (agentic). Runs the agent in
+              a Google-hosted sandbox: file edits are bridged via the agent's
+              text output, NOT written to your local workspace.
   openai      OpenAI API (text generation only, use --api-only)
   anthropic   Anthropic API (text generation only, use --api-only)
   ollama      Ollama (local models, text generation only, use --api-only)
@@ -667,8 +689,9 @@ Examples:
   # Run Claude Code to fix a bug
   ailang exec claude "Fix the null pointer in parser.go" --workspace /repo
 
-  # Run Gemini CLI with specific model
-  ailang exec gemini "Add tests for the login function" --model gemini-2.5-pro
+  # Run the Vertex Managed Agents lane (--model selects the Vertex agent name;
+  # omit it to use the default antigravity-preview-05-2026)
+  ailang exec gemini "Add tests for the login function" --model antigravity-preview-05-2026
 
   # Use OpenAI API for text generation
   ailang exec openai "Explain recursion" --api-only
