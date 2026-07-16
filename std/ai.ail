@@ -83,17 +83,29 @@ export type ToolCall = {
   arguments: string
 }
 
+-- ImagePart is one vision-input image attached to a Message
+-- (M-STD-AI-VISION-INPUT, v0.30.0).
+--   source : base64 payload or data-URI (local-path sources are a follow-up)
+--   mime   : IANA media type, e.g. "image/png", "image/jpeg"
+export type ImagePart = {
+  source: string,
+  mime: string
+}
+
 -- Message is one entry in a multi-turn conversation.
 --   role         : "user" | "assistant" | "tool" | "system"
 --   content      : prose; may be empty for assistant messages whose tool_calls
 --                  is non-empty
 --   tool_calls   : assistant only — invocations the model emitted
 --   tool_call_id : "tool" role only — references a prior ToolCall.id
+--   images       : vision-input images for this message; [] = text-only
+--                  (required field — AILANG records are closed)
 export type Message = {
   role: string,
   content: string,
   tool_calls: [ToolCall],
-  tool_call_id: string
+  tool_call_id: string,
+  images: [ImagePart]
 }
 
 -- ToolSchema declares one tool the model may call. Parameters is the raw
@@ -388,7 +400,8 @@ func dispatchToolCalls(
         role: "tool",
         content: result,
         tool_calls: [],
-        tool_call_id: call.id
+        tool_call_id: call.id,
+        images: []
       };
       [msg] ++ dispatchToolCalls(rest, dispatch)
     }

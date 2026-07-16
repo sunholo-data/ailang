@@ -47,8 +47,8 @@ export func main() -> () ! {AI, IO} {
   ];
 
   let messages: [Message] = [
-    { role: "system", content: systemPrompt(), tool_calls: [], tool_call_id: "" },
-    { role: "user",   content: "Compose a haiku about prompt caching.", tool_calls: [], tool_call_id: "" }
+    { role: "system", content: systemPrompt(), tool_calls: [], tool_call_id: "", images: [] },
+    { role: "user",   content: "Compose a haiku about prompt caching.", tool_calls: [], tool_call_id: "", images: [] }
   ];
 
   let result = stepWithCache("", messages, [], breakpoints);

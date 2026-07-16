@@ -109,14 +109,25 @@ through the existing `std/ai` surface, backward-compatibly.
 
 Before implementation begins, these must be resolved:
 
-- [ ] **Shape decision: (a) parallel `images: [ImagePart]` field.** Recommended — smaller,
-      backward-compatible (empty list = today's exact wire shape), mirrors how `CacheBreakpoint`
-      was added. Shape (b) (content becomes `[Part]` with `Text | Image`) is a breaking change to
-      every existing caller and every provider adapter — rejected unless a reviewer overrides.
-- [ ] **ImagePart shape: `{ source: string, mime: string }`** where `source` is a data-URI/base64
-      string OR a local path; `mime` e.g. `"image/png"`. Confirm whether v1 supports local-path
-      sources (adds `FS` cap requirement) or base64/data-URI only (pure `AI`).
-- [ ] **New vision structured-output builtin name.** Recommended `callJsonResultVision(input, images, schema)`.
+- [x] **Shape decision: (a) parallel `images: [ImagePart]` field** on the `Message` record
+      (over shape (b) content-part refactor). **RESOLVED 2026-07-16.**
+- [x] **Back-compat mechanism — RESOLVED 2026-07-16 (breaking, closed 5-field record).**
+      Implementation discovered the design's "backward-compatible field addition" premise is
+      FALSE for AILANG's type system: `messageRecordType` is a **closed** record (all fields
+      required, extra fields rejected — verified empirically with `ailang check`, and
+      `types.Builder.Record` sets `Tail: nil // No row polymorphism yet`). Adding `images` is
+      therefore a breaking change no matter what. Decision (user sign-off): add
+      `images: [ImagePart]` as a **required** field (closed 5-field record) and **migrate the
+      ~7 in-repo `Message` literals** to add `images:[]`. Rationale: full static type safety on
+      `images` (a core AILANG principle; a typo like `imagse` becomes a compile error), no
+      type-system-core surgery, and consistent with AILANG's stated no-back-compat policy
+      (pre-1.0; CLAUDE.md coding-standards). External callers (motoko, stx-bench) add `images:[]`
+      once. The rejected alternative (extend `Builder` for open records `{…|ρ}`) preserved source
+      back-compat but lost static typing on `images` and was higher-risk.
+- [x] **ImagePart shape: `{ source: string, mime: string }`** — `source` is a data-URI/base64
+      string OR a local path; `mime` e.g. `"image/png"`. Local-path support deferred to a
+      follow-up (see Deferred); v1 forwards `source` as-is (base64/data-URI). **RESOLVED.**
+- [x] **Vision structured-output builtin name: `callJsonResultVision(input, images, schema)`.** **RESOLVED.**
 
 ## Solution Design
 

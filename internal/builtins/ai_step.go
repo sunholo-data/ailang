@@ -34,13 +34,30 @@ func toolCallRecordType(T *types.Builder) types.Type {
 	)
 }
 
+// imagePartRecordType returns the AILANG ImagePart record shape — one
+// vision-input image. source = base64/data-URI payload; mime = media type
+// (e.g. "image/png"). Added by M-STD-AI-VISION-INPUT (v0.30.0).
+func imagePartRecordType(T *types.Builder) types.Type {
+	return T.Record(
+		types.Field("source", T.String()),
+		types.Field("mime", T.String()),
+	)
+}
+
 // messageRecordType returns the AILANG Message record shape.
+//
+// M-STD-AI-VISION-INPUT (v0.30.0) added the required `images: [ImagePart]`
+// field. AILANG records are closed (all fields required), so this is a
+// deliberate breaking change: every Message literal must include `images`
+// (use `images: []` for a text-only message). Full static typing on images
+// was chosen over source back-compat — see the design doc's Design Freeze.
 func messageRecordType(T *types.Builder) types.Type {
 	return T.Record(
 		types.Field("role", T.String()),
 		types.Field("content", T.String()),
 		types.Field("tool_calls", T.List(toolCallRecordType(T))),
 		types.Field("tool_call_id", T.String()),
+		types.Field("images", T.List(imagePartRecordType(T))),
 	)
 }
 

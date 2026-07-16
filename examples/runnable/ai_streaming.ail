@@ -61,13 +61,15 @@ export func main() -> () ! {AI, IO} {
       role: "system",
       content: "You are a terse haiku composer. Reply with exactly three lines, 5-7-5 syllables, no preamble.",
       tool_calls: [],
-      tool_call_id: ""
+      tool_call_id: "",
+      images: []
     },
     {
       role: "user",
       content: "Compose a haiku about streaming tokens.",
       tool_calls: [],
-      tool_call_id: ""
+      tool_call_id: "",
+      images: []
     }
   ];
 

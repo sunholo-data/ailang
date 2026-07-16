@@ -664,7 +664,18 @@ func recordFieldMismatchError(expectedFields, actualFields map[string]Type) erro
 		msg.WriteString(fmt.Sprintf("  missing fields:  %s\n", strings.Join(missingFields, ", ")))
 	}
 
-	// Suggest open record syntax if there are extra fields
+	// Missing-field hint: AILANG records are closed, so the literal must
+	// supply every required field. This is the common case when a record type
+	// gains a new required field (e.g. Message.images in v0.30.0) — the fix is
+	// to ADD the field to the literal, NOT to use open-record syntax. Naming
+	// the missing fields with an example makes it copy-pasteable to fix.
+	if len(missingFields) > 0 {
+		msg.WriteString(fmt.Sprintf("\n  Hint: this record is missing required field(s): %s\n", strings.Join(missingFields, ", ")))
+		msg.WriteString(fmt.Sprintf("        AILANG records are closed — add the field(s) to the literal, e.g. %s: <value>", missingFields[0]))
+	}
+
+	// Suggest open record syntax only when the ONLY problem is extra fields —
+	// for a missing field, open-record syntax does not help.
 	if len(extraFields) > 0 && len(missingFields) == 0 {
 		msg.WriteString("\n  Hint: Use open record syntax to accept extra fields:\n")
 		msg.WriteString(fmt.Sprintf("        {%s | r} or {%s, ...}", strings.Join(expected, ", "), strings.Join(expected, ", ")))

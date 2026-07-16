@@ -56,7 +56,8 @@ export func initialMessages() -> [Message] {
       role: "user",
       content: "Summarize the contents of nda.docx",
       tool_calls: [],
-      tool_call_id: ""
+      tool_call_id: "",
+      images: []
     }
   ]
 }

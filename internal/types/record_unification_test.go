@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -372,5 +373,45 @@ func TestTypeAliasExpansion_NoAliases(t *testing.T) {
 	_, err := u.Unify(t1, t2, make(Substitution))
 	if err == nil {
 		t.Error("Expected unification to fail without alias expansion")
+	}
+}
+
+// TestRecordFieldMismatchError_MissingFieldHint locks in the actionable hint
+// for a missing required field (M-STD-AI-VISION-INPUT: Message.images). The
+// old message only suggested open-record syntax for EXTRA fields, leaving
+// missing-field callers (the common "type gained a required field" case) with
+// no guidance. The hint must name the field and say to add it — NOT suggest
+// open-record syntax, which does not fix a missing field.
+func TestRecordFieldMismatchError_MissingFieldHint(t *testing.T) {
+	expected := map[string]Type{
+		"role": &TCon{Name: "string"}, "content": &TCon{Name: "string"},
+		"tool_calls": &TCon{Name: "string"}, "tool_call_id": &TCon{Name: "string"},
+		"images": &TCon{Name: "string"},
+	}
+	actual := map[string]Type{
+		"role": &TCon{Name: "string"}, "content": &TCon{Name: "string"},
+		"tool_calls": &TCon{Name: "string"}, "tool_call_id": &TCon{Name: "string"},
+	}
+	err := recordFieldMismatchError(expected, actual)
+	msg := err.Error()
+	if !strings.Contains(msg, "missing required field(s): images") {
+		t.Errorf("expected missing-field hint naming 'images', got:\n%s", msg)
+	}
+	if !strings.Contains(msg, "add the field(s) to the literal") {
+		t.Errorf("expected actionable 'add the field(s)' guidance, got:\n%s", msg)
+	}
+	if strings.Contains(msg, "open record syntax") {
+		t.Errorf("must NOT suggest open-record syntax for a MISSING field, got:\n%s", msg)
+	}
+}
+
+// TestRecordFieldMismatchError_ExtraFieldHint confirms the extra-only case
+// still suggests open-record syntax (unchanged behavior).
+func TestRecordFieldMismatchError_ExtraFieldHint(t *testing.T) {
+	expected := map[string]Type{"name": &TCon{Name: "string"}}
+	actual := map[string]Type{"name": &TCon{Name: "string"}, "extra": &TCon{Name: "string"}}
+	msg := recordFieldMismatchError(expected, actual).Error()
+	if !strings.Contains(msg, "open record syntax") {
+		t.Errorf("extra-only case should still suggest open-record syntax, got:\n%s", msg)
 	}
 }

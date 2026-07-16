@@ -202,6 +202,20 @@ type Message struct {
 	Content    string
 	ToolCalls  []ToolCall
 	ToolCallID string
+	// Images is the optional vision-input attachment list (M-STD-AI-VISION-INPUT,
+	// v0.30.0). Empty = a text-only message, wire-identical to pre-vision. Each
+	// provider adapter maps these to its native image block (Anthropic image
+	// content block, OpenAI image_url, Gemini inline_data, Ollama images[]).
+	Images []ImagePart
+}
+
+// ImagePart is one vision-input image attached to a Message. Source is a
+// base64 payload or data-URI (local-path sources are a deferred follow-up);
+// Mime is the IANA media type, e.g. "image/png". Mirrors the AILANG record
+// {source: string, mime: string}.
+type ImagePart struct {
+	Source string
+	Mime   string
 }
 
 // ToolSchema is a JSON-Schema-described tool the model may call.
