@@ -119,12 +119,16 @@ func StreamNDJSONPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	go conn.ndjsonReadLoop()
-
+	// Enqueue Opened BEFORE starting the read goroutine so it is always the
+	// first event in the buffer — otherwise the reader can push an sse_data
+	// event ahead of Opened (observed as a Windows CI flake:
+	// [SSEData Opened ...]). eventBuffer is buffered, so this never blocks.
 	conn.eventBuffer <- streamEvent{
 		kind: "opened",
 		text: "NDJSON-POST",
 	}
+
+	go conn.ndjsonReadLoop()
 
 	return makeStreamOk(makeStreamConn(id)), nil
 }

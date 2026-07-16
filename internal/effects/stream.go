@@ -288,14 +288,16 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	// Start read goroutine
-	go conn.readLoop()
-
-	// Deliver Opened event
+	// Deliver Opened BEFORE starting the read goroutine so it is always the
+	// first event in the buffer (buffered channel → never blocks); otherwise
+	// the reader can race an inbound message ahead of Opened.
 	conn.eventBuffer <- streamEvent{
 		kind: "opened",
 		text: conn.subprotocol,
 	}
+
+	// Start read goroutine
+	go conn.readLoop()
 
 	// Return Ok(StreamConn(id))
 	return makeStreamOk(makeStreamConn(id)), nil

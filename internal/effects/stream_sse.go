@@ -122,14 +122,16 @@ func StreamSSEConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	// Start SSE read goroutine
-	go conn.sseReadLoop()
-
-	// Deliver Opened event
+	// Deliver Opened BEFORE starting the read goroutine so it is always the
+	// first event in the buffer (buffered channel → never blocks); otherwise
+	// the reader can race an sse_data event ahead of Opened.
 	conn.eventBuffer <- streamEvent{
 		kind: "opened",
 		text: "SSE",
 	}
+
+	// Start SSE read goroutine
+	go conn.sseReadLoop()
 
 	return makeStreamOk(makeStreamConn(id)), nil
 }
@@ -377,14 +379,16 @@ func StreamSSEPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	// Start SSE read goroutine (reuses sseReadLoop from GET-SSE)
-	go conn.sseReadLoop()
-
-	// Deliver Opened event
+	// Deliver Opened BEFORE starting the read goroutine so it is always the
+	// first event in the buffer (buffered channel → never blocks); otherwise
+	// the reader can race an sse_data event ahead of Opened.
 	conn.eventBuffer <- streamEvent{
 		kind: "opened",
 		text: "SSE-POST",
 	}
+
+	// Start SSE read goroutine (reuses sseReadLoop from GET-SSE)
+	go conn.sseReadLoop()
 
 	return makeStreamOk(makeStreamConn(id)), nil
 }

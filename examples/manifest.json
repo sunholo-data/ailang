@@ -2580,11 +2580,11 @@
     }
   ],
   "statistics": {
-    "total": 185,
-    "working": 173,
+    "total": 186,
+    "working": 174,
     "aspirational": 4,
     "broken": 8,
-    "coverage": 0.9351351351351351,
+    "coverage": 0.9354838709677419,
     "experimental": 0
   },
   "milestones": {
