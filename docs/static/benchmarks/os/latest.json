@@ -1,6 +1,6 @@
 {
   "ailang_version": "v0.29.2",
-  "generated": "2026-07-16",
+  "generated": "2026-07-17",
   "languages": [
     "ailang",
     "go",
@@ -199,5 +199,5 @@
     }
   ],
   "trials": 12,
-  "version": "rolling-20260716"
+  "version": "rolling-20260717"
 }
