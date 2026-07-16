@@ -455,12 +455,16 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   GOCACHE/GOMODCACHE, cannot self-commit (worktree `.git` lives under the main checkout →
   controller finalizes the commit from the uncommitted worktree diff), and must run backgrounded
   (the 30-min cap exceeds the harness's 10-min foreground bash limit).
-- **(b) M1c — gemini managed_agents recipe branch (wiring-only)** ← **NEXT fleet step**: extend the Gate-3
-  `provider:model` recipe with `PROVIDER=gemini` → `ailang exec` (VERIFIED 2026-07-16: the exec
-  factory registers `managed_agents`, the same lane evals use — no new plumbing; find the exact
-  flag surface in `cmd/ailang/exec.go`). Same probe/cap/fallback discipline as codex.
+- **(b) ~~M1c — gemini managed_agents recipe branch~~ DONE 2026-07-16 (iteration 33, PR #398 →
+  `bd89418a6`)**: the "no new plumbing" claim was REFUTED — `ailang exec gemini` (agentic) was
+  unreachable (`unknown executor: gemini`; managed_agents registers under its own name, no gemini
+  alias). Landed a real ~30-LOC `exec.go` fix (`resolveAgenticExecutorName`: gemini→managed_agents,
+  `--api-only` untouched) + test + the Gate-3 `PROVIDER=gemini` recipe branch. **CapRemoteSandbox
+  scoping**: the lane serves READ-ONLY roles (evaluator/reviewer/quorum-verifier) only — the
+  server-side sandbox never writes the local worktree, so the file-editing executor role needs a
+  bridge (follow-up). Sonnet eval PASS 96/100 r1. First LIVE gemini fire deferred to (c).
 - **(c) m-mission-quorum-agentic-verify+HONE (Mark 2026-07-16 — do right after (b), it reuses the
-  gemini lane the moment it lands)**: reviewers become tool-using agents (codex/managed_agents/
+  gemini lane the moment it lands)** ← **NEXT fleet step**: reviewers become tool-using agents (codex/managed_agents/
   claude-CLI, read-only worktrees) that VERIFY premises against the repo AND attach a concrete
   `proposed_fix` per objection; the AUTHOR (designer role, now true-Fable via the Gate-3
   `claude:claude-fable-5` CLI lane — driver default updated) accepts/rejects each by name.

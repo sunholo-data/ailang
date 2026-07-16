@@ -3001,3 +3001,109 @@ gemini M1c is next; the F1 sonnet re-route FIRED correctly this iteration (first
 — guard verified); F2 codex `exec` orphan-kill was NOT exercised (codex finished in 4.5 min, well
 under the cap — still unproven under a live cap-kill); codex-can't-self-commit-in-worktree is now
 recipe-documented (watch whether the gemini `ailang exec` lane has the same git-dir constraint).
+
+## 36 — 2026-07-16 — Iteration 33: fleet item (b) M1c gemini `managed_agents` lane LANDED (PR #398 → `bd89418a6`) — the "wiring-only" claim REFUTED (real `exec.go` gap), Sonnet eval PASS 96/100 r1
+
+**Picked**: fleet rollout item **(b) M1c — gemini `managed_agents` recipe branch**, per Mark's
+`[NEXT-FIRST FLEET ROLLOUT]` sequence (iteration 32 did item (a) codex live-fire; (b) is the next
+sequenced step). Inbox: 2 routine eval-suite messages (suite "started" + "83/93 partial 89.2%"),
+no regression/directive → acked.
+
+**Reality check** (Gate-2, live-repro on rebuilt `bin/ailang` v0.29.2-262): the directive's
+**"wiring-only, no new plumbing" claim REFUTED** — `ailang exec gemini "…"` (agentic) fails
+`unknown executor: gemini`. The `managed_agents` executor (Vertex AI Managed Agents API via ADC,
+the v0.22.0 Gemini-CLI successor) registers in the factory under the name `managed_agents` with
+**NO gemini alias**, and `ailang exec`'s `validProviders` rejects `managed_agents` — so the gemini
+agentic lane was unreachable via `ailang exec`. The eval harness reaches it by registry name
+directly (`agent_cli: managed_agents`), but the `ailang exec` CLI had no `gemini→managed_agents`
+mapping. REAL, small code gap → routed. CLAIM sent (sibling M-CODEGEN-IR sprint JSON dirty in the
+shared tree); work isolated in worktree `ailang-wt-gemini-lane` off origin/dev. ADC verified
+available.
+
+**Routed** (per-role model pinning; controller = Opus session, `MODEL` env empty):
+- **Planning**: controller-inline (Opus) — the Gate-2 reality-check already refuted the "no-plumbing"
+  premise and right-sized the fix (~30 LOC + test); folded into a self-contained executor directive
+  (iter-32 precedent for a small right-sized item). No sprint-planner sub-agent.
+- **Executor (Opus Agent, `MISSION_EXECUTOR_MODEL=opus`)**: added `resolveAgenticExecutorName`
+  (gemini→managed_agents, identity else) in `cmd/ailang/exec.go`; `executeCLI` uses it; the
+  `--api-only` path (single-shot `internal/ai/gemini`) left UNTOUCHED; corrected the stale "Gemini
+  CLI" help + `--model gemini-2.5-pro` example (Vertex agent name; server-side-sandbox note); table
+  test + a real factory-lookup reachability test (`Name()=="managed_agents"`, no network); CHANGELOG.
+  Clean 3-file diff, `go build`/`vet`/`gofmt` clean, dry-run accepts `gemini`.
+- **Evaluator (Sonnet Agent — F1 re-route, FLAGGED)**: `MISSION_EVALUATOR_MODEL=fable` is unpinnable
+  in the Agent tool + the controller session is Opus, so a fable fallback would be `$MODEL`=opus ==
+  the opus executor (COLLISION). Per the F1 alias-lane guard → re-routed to **sonnet** (distinct
+  model → generator≠judge holds). Independent build+test+dry-run+help+adversarial-mis-routing
+  verification. **PASS 96/100 round 1**, no blockers; 2 minor nits (no explicit `--api-only`
+  regression test; CHANGELOG wording) — deferred.
+
+**Recipe branch** (controller-inline, `mission-control` SKILL.md Gate 3): added the `PROVIDER=gemini`
+cross-provider recipe — `ailang exec gemini`→managed_agents, ADC-gated 1-token probe + bounded ≤30-min
+cap + `$MODEL`-fallback discipline, **scoped to READ-ONLY roles** (evaluator/reviewer/quorum-verifier)
+per **CapRemoteSandbox** (server-side sandbox → file edits never touch the local worktree, bridged
+only via the agent's text output); the file-editing executor role needs a bridge (follow-up / item
+(c)). Removed gemini from the "not wired" list.
+
+**Shipped**: PR **#398** (branch `sprint/m-gemini-exec-lane`, rebased onto origin/dev) → squash-merge
+`bd89418a6`, auto-merge on green. `resolveAgenticExecutorName` confirmed present on origin/dev.
+
+**Routing evidence** (ACTUAL role/model used):
+- provider=anthropic agent=claude-code model=opus task-class=plan+execute round1=96 rounds=1
+  corrections=0 cost=quota-bucket:weekly-opus (controller-inline planning + pinned Opus executor
+  Agent; clean 3-file diff, upheld by the evaluator)
+- provider=anthropic agent=claude-code model=sonnet task-class=evaluate round1=96 rounds=1
+  corrections=0 cost=quota-bucket:weekly-sonnet **[F1 RE-ROUTE FIRED (2nd time): `MISSION_EVALUATOR_MODEL=fable`
+  unpinnable + Opus controller → collision with the opus executor → re-routed to sonnet per the
+  alias-lane generator≠judge guard; sonnet ≠ opus executor (model-distinctness) → guard held]**
+- controller session = opus (opus-first default; mechanical orchestration)
+- **NOTE: gemini/codex were NOT fired LIVE this iteration** — item (b) was scoped *wiring-only*
+  (make the lane reachable + recipe), not a gemini live-fire. The first live gemini fire is the
+  natural payload of item (c) (the read-only quorum-verify lane = CapRemoteSandbox's correct home).
+
+**Ruled out**:
+- "item (b) is wiring-only / no new plumbing" (the fleet directive's own claim) — **REFUTED**:
+  `ailang exec gemini` agentic was unreachable (`unknown executor: gemini`); required a real ~30-LOC
+  `exec.go` fix (`resolveAgenticExecutorName` + corrected help). Third instance of the
+  survey/directive verification-debt class the Gate-2 live-repro rule already guards.
+- "gemini `managed_agents` can serve the file-editing EXECUTOR role" — **REFUTED** by CapRemoteSandbox:
+  the agent runs in a Google-hosted sandbox; file edits never touch the caller's worktree (bridged
+  only via text output). The lane's correct home is READ-ONLY roles. This is a STRONGER constraint
+  than codex's can't-self-commit git-dir issue flagged in iter 32's carry-forward — answering that
+  watch item: the gemini lane doesn't write the worktree at all.
+
+**Gate 3b**: PR #398 required checks (CI test, lint, govulncheck, Build ubuntu/macos/windows,
+test-windows, CodeQL Analyze-Go) all green → auto-merged `bd89418a6`. `docs` job + Docs-Deploy
+correctly path-filtered to *skipping* (no docs-path changes — SKILL.md is under `.claude/`, the
+changelog under `changelogs/`) → recorded **N/A, not pending** (poll-only-what-can-complete). Bounded
+28-min background poll, merged at 07:35Z. All waits bounded.
+
+**Retro lane** (each friction → ONE lane):
+- **the fleet directive under-verified item (b) as "wiring-only"** — the existing Gate-2 "live-repro
+  before routing" gate caught it in ~5 min and the fix landed same-iteration. The gate worked as
+  designed → **no skill/process edit** (this is the gate succeeding, not a gap).
+- **F1 sonnet re-route fired a 2nd time** (opus-first + unpinnable-fable evaluator) — now a stable,
+  repeatable pattern; guard text is correct → no edit.
+- **No Gate-5 skill edit this iteration**: the SKILL.md `PROVIDER=gemini` recipe branch was the
+  DELIVERABLE (Mark's directive), not a retro friction-fix — the ONE-skill-edit/≥2-friction budget
+  is untouched.
+
+**Next**: Iteration 34 — fleet item **(c) m-mission-quorum-agentic-verify+HONE** (Mark: "do right
+after (b), it reuses the gemini lane the moment it lands"). Precondition now satisfied — the gemini
+read-only lane is reachable (`ailang exec gemini`→managed_agents). This is the natural **first LIVE
+gemini fire**: read-only reviewers (codex/managed_agents/claude-CLI, read-only worktrees) VERIFY
+design-doc premises against the repo AND attach a concrete `proposed_fix` per objection; the
+true-Fable designer (`claude:claude-fable-5` CLI lane) accepts/rejects each by name. Two-tier stays
+(text quorum always, agentic escalation when contested). Then clause-3 cheapest-impact-per-day
+resumes (Gate-2 live-repro mandatory — `m-dx-expected-fail-fixes` is a ghost).
+
+**Carry forward** UNCHANGED from iter 32 (daemon reload + prod test-sends; tier ratification;
+feedback-gate ops; haiku re-run; scope-params re-score; frontier-failure validation; rig A/B
+m-syntax-ai-forgiving [GPU]; %-row re-check; dev-health flakies incl. TestNetHttpPost-httpbin +
+TestReferenceSolutions_JS/fizzbuzz-windows-cold-start; MOD007 veto window; alias-import prelude edge;
+executor evidence-artifact watch; docs-site CLI reference for design-review/design-quorum;
+quorum-on-sprint-plans decision; fleet C/D/E opt-in; issue #386; gemini quorum-reviewer retry;
+quorum termination-rule friction #1; dead-run resume-detection friction #1) **PLUS**: the gemini
+agentic lane is now reachable (`ailang exec gemini`→managed_agents) but **CapRemoteSandbox-bound**
+(read-only roles only; executor-role file edits need a bridge — the item-(c)/eval-harness
+`managed_agents_bridge` pattern); the first LIVE gemini fire is still unproven (deferred to item c);
+F2 codex `exec` orphan-kill still unexercised (codex has not run under a live cap-kill).
