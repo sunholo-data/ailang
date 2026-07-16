@@ -203,8 +203,18 @@ fi
 # 1b. ONE iteration at a time (2026-07-10, continuous mode): two concurrent
 #     controllers would stomp the charter/log in the main tree and could pick
 #     the same queue item. If one is still running, yield this slot.
-if pgrep -f "claude -p Run one mission" >/dev/null 2>&1; then
-  log "previous iteration still running — yield (next interval retries)"; exit 0
+#     PIDFILE-based (2026-07-16): the old `pgrep -f "claude -p Run one mission"`
+#     matched ANY process whose cmdline contained the phrase — including a
+#     human's monitoring shell (`pgrep -f "claude -p Run one mission"` itself!),
+#     which made a kickstarted fire yield against its own observer. A pidfile
+#     + liveness check cannot false-positive.
+PIDFILE="$HOME/.ailang/state/mission-control.pid"
+if [ -f "$PIDFILE" ]; then
+  oldpid=$(head -1 "$PIDFILE" 2>/dev/null)
+  if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null; then
+    log "previous iteration still running (pid $oldpid) — yield (next interval retries)"; exit 0
+  fi
+  rm -f "$PIDFILE"   # stale pidfile from a crashed/killed run — proceed
 fi
 
 # 2. claude CLI reachable?
@@ -273,6 +283,7 @@ _mc_run_once() {
     --permission-mode bypassPermissions \
     >>"$LOG" 2>&1 &
   CLAUDE_PID=$!
+  printf '%s\n' "$CLAUDE_PID" > "$PIDFILE"   # overlap guard reads this (per-attempt: retries refresh it)
 
   # Watchdog: TERM at the wall limit, KILL 60s later. (No GNU timeout on macOS.)
   (
@@ -327,6 +338,8 @@ while : ; do
   fi
   break
 done
+
+rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach here
 
 if [ "$RC" -ne 0 ]; then
   log "iteration exited rc=$RC"
