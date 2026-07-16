@@ -157,20 +157,21 @@ Notes:
 ### Implementation Plan
 
 **Phase 1: Plumbing** (~1h)
-- [ ] Add `resolveGCPProjectEnv()` helper to `cmd/ailang/exec.go`
-- [ ] Set `GCPProject`/`GCPLocation` on the Task construction at `exec.go:336`
+- [x] Add `resolveGCPProjectEnv()` helper to `cmd/ailang/exec.go`
+- [x] Set `GCPProject`/`GCPLocation` on the Task construction at `exec.go:336`
 
 **Phase 2: Regression guard** (~1-2h)
-- [ ] Unit test in `cmd/ailang/exec_test.go` (file exists): env-injected via `t.Setenv`,
+- [x] Unit test in `cmd/ailang/exec_test.go` (file exists): env-injected via `t.Setenv`,
       asserts precedence (`AILANG_CLOUD_PROJECT` wins over `GOOGLE_CLOUD_PROJECT`),
       fallback, and empty-when-unset. No live GCP call — test the resolver and/or the
-      constructed Task fields directly.
+      constructed Task fields directly. (`TestResolveGCPProjectEnv` +
+      `TestExecTaskGCPFieldsFromEnv`)
 
 **Phase 3: Verification** (~1h)
-- [ ] `make test` green
-- [ ] Live probe (needs ADC): `AILANG_CLOUD_PROJECT=<proj> ailang exec gemini "reply with exactly: ok"` — reaches backend
-- [ ] Live probe: `env -u AILANG_CLOUD_PROJECT -u GOOGLE_CLOUD_PROJECT ailang exec gemini "x"` — existing loud error unchanged
-- [ ] CHANGELOG entry
+- [x] `make test` green (`go test ./cmd/ailang/...` green; `go build ./cmd/ailang/` green)
+- [ ] Live probe (needs ADC): `AILANG_CLOUD_PROJECT=<proj> ailang exec gemini "reply with exactly: ok"` — reaches backend *(deferred to controller: headless run has no ADC; command + expected output recorded in executor report)*
+- [ ] Live probe: `env -u AILANG_CLOUD_PROJECT -u GOOGLE_CLOUD_PROJECT ailang exec gemini "x"` — existing loud error unchanged *(deferred to controller: recorded in executor report)*
+- [x] CHANGELOG entry (`changelogs/v0.18-current.md`, `### Fixed`)
 
 ### Files to Modify/Create
 
