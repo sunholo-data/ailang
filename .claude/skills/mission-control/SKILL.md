@@ -162,6 +162,50 @@ prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value
 `echo $MISSION_EXECUTOR_MODEL`. These are in-session Agent-tool model **aliases**
 (`opus`/`fable`/`sonnet`/`haiku`), NOT full IDs; a `provider:model` value (e.g. `codex:gpt-5.6`)
 instead signals cross-provider routing via `provider_executor` (fleet Phase C), not the Agent tool.
+
+**Cross-provider spawn recipe (`provider:model`, M1b — currently `codex` only).** When a role's env
+value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER=${VAL%%:*}`,
+`MODEL=${VAL#*:}`) and route:
+
+- **`PROVIDER=codex`** (executor role — the landed M1b lane; codex CLI at `/opt/homebrew/bin/codex`,
+  `OPENAI_API_KEY` set):
+  1. **Pre-flight probe (token-cheap, ~1 reply-token, do this BEFORE the real directive):** run the
+     probe with a bounded deadline (Standing rule 6 — never unbounded), and only proceed if it exits 0:
+     ```bash
+     deadline=$(( $(date +%s) + 120 ))
+     out=$( codex exec --model "$MODEL" 'reply with exactly: ok' 2>&1 & pid=$!
+            while kill -0 "$pid" 2>/dev/null; do
+              [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; break; }
+              sleep 2; done
+            wait "$pid" 2>/dev/null ); rc=$?
+     [ "$rc" -eq 0 ] || { echo "codex probe failed — FALL BACK"; }   # → fallback rule below
+     ```
+     (Live-verified 2026-07-16 with `MODEL=gpt-5.6-sol`: exit 0, replied `ok`. Mirrors the driver's
+     own Anthropic probe at `tools/launchd/mission-control.sh:102`.)
+  2. **Real executor run** — from INSIDE the sprint worktree (never the main tree), pass the sprint
+     directive as the prompt (the sprint-executor skill contract for `<doc>`/`<plan>`), with a
+     **bounded ≤30-min wall-clock cap** using the same `date +%s` deadline pattern (Standing rule 6):
+     ```bash
+     WT=<sprint worktree path>; deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
+     ( cd "$WT" && codex exec --model "$MODEL" "$SPRINT_DIRECTIVE" ) & pid=$!
+     while kill -0 "$pid" 2>/dev/null; do
+       [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; echo "codex exec 30-min cap — FLAG"; break; }
+       sleep 15; done; wait "$pid" 2>/dev/null
+     ```
+     The codex executor commits to the worktree branch itself — capture the branch + report the SAME
+     way the claude executor path does: read the diff via `git -C "$WT" diff` / `git -C "$WT" log`.
+     Do NOT invent a new read step; reuse the existing worktree-read.
+  3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
+     evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
+     NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
+     to a DISTINCT provider (an Anthropic alias `fable`, or `gemini`) and **FLAG** the collision in the
+     Gate-5 report.
+  4. **Fallback (never wedge the loop):** if the pre-flight probe fails, or the real run errors /
+     hits the cap, fall back to `$MODEL` via the Agent tool for that role and FLAG it in Gate-5 — the
+     same discipline as a quota-limited Anthropic pin below.
+- **Any other `PROVIDER`** (motoko/opencode/pi/gemini): NOT wired in M1b (motoko needs the GPU
+  `rig.lock`, out of scope). Treat as unavailable → fall back to `$MODEL` + FLAG.
+
 If a pinned model is quota-limited or unavailable/rejected, fall back to `$MODEL` for that role and
 FLAG it in the Gate-5 report — never wedge the loop on a role-model outage. **Gate 4 MUST
 record the ACTUAL (role, model) used** in the routing-evidence row; a role that ran on the session

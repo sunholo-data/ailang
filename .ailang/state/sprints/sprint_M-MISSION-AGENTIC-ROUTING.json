@@ -1,0 +1,99 @@
+{
+  "sprint_id": "M-MISSION-AGENTIC-ROUTING",
+  "status": "planned",
+  "created": "2026-07-16T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-mission-agentic-provider-routing.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-mission-agentic-provider-routing-sprint-plan.md",
+  "github_issues": [329],
+  "base_commit": "d545d4a9e992cf2cce7d5e093a7c57812bab3cc9",
+  "scope_note": "M1a is LANDED (commit 8ee07ef23, amended d545d4a9e) — enforcement + Anthropic per-role pinning, driver-side verified live 2026-07-16 06:23. This sprint covers the REMAINING milestones only: M1b (codex cross-provider executor via Gate 3), M2 (right-sizing table + evidence schema), M3 (planner down-tier A/B, PARKED with a concrete protocol).",
+  "hard_constraints": [
+    "Deployment reality: launchd reads the ON-DISK main checkout; skill/driver/charter edits merged only to a PR branch do NOT reach the loop until the main checkout is git-pull --ff-only synced. Never reset/checkout over uncommitted work (Critical Principle 0).",
+    "No new Go plumbing: reuse internal/coordinator/provider_executor.go + the codex executor. M1b is skill-orchestration, not a coordinator code change.",
+    "Generator != judge: evaluator provider MUST differ from executor provider.",
+    "Every wait bounded <=30 min; GPU (ollama/motoko/rig.lock) steps are OUT of scope.",
+    "Sprint-sized <=2 days for the executable slice; M3 is parked as a protocol, not forced inline.",
+    "codex smoke must be token-cheap: trivial probe (reply with exactly: ok) + DryRun path, not a full real coding run."
+  ],
+  "velocity": {
+    "target_loc_per_day": 0,
+    "estimated_total_loc": 0,
+    "estimated_days": 1.5,
+    "sizing_note": "Skill/driver/charter TEXT + a token-cheap probe path, not feature LOC. 7-day repo velocity is data/eval-rotation churn and not a meaningful signal here. Sized by task shape."
+  },
+  "features": [
+    {
+      "id": "M1b_CODEX_CROSS_PROVIDER_EXECUTOR",
+      "description": "mission-control Gate 3 branches a provider:model env value (e.g. MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol) to a bounded codex exec run against the sprint worktree, instead of the in-session Agent tool. Reuses provider_executor.go + the codex executor (no Go plumbing). codex is the preferred provider (CLI installed at /opt/homebrew/bin/codex, OPENAI_API_KEY set; motoko needs the GPU rig.lock and is out of scope).",
+      "estimated_loc": 0,
+      "estimated_days": 1,
+      "dependencies": [],
+      "file_anchors": [
+        ".claude/skills/mission-control/SKILL.md:160-166 (existing provider:model concept, no concrete recipe = the gap)",
+        "internal/coordinator/provider_executor.go:10-15 (registry, read-only reuse)",
+        "internal/coordinator/provider_executor.go:72-77 (DryRun token-free path)",
+        "internal/executor/codex/codex.go:135-146 (codex exec --json --model <m>)",
+        "internal/executor/codex/codex.go:777-783 (Register/init)",
+        "tools/launchd/mission-control.sh:102 (Anthropic probe pattern to mirror for codex)",
+        "tools/launchd/mission-control.sh:186-189 (role env exports)"
+      ],
+      "acceptance_criteria": [
+        "Gate 3 in the ON-DISK SKILL has a concrete provider:model -> codex exec spawn recipe with a bounded (<=30 min, date +%s deadline) cap.",
+        "A codex exec trivial probe succeeds token-cheaply (reply with exactly: ok) proving auth+model+CLI before any real directive.",
+        "generator != judge asserted in-recipe: evaluator provider != executor provider (re-route to distinct provider + FLAG on collision).",
+        "Fallback-to-$MODEL-via-Agent-tool-and-FLAG on codex failure documented (never wedge the loop).",
+        "One iteration (or dry harness run) demonstrates controller (claude) and executor (codex) on DIFFERENT PROVIDERS; Gate-4 row records provider=codex agent=codex model=<gpt-5.x>.",
+        "Change deployed to the main checkout (grep-verified on disk via git pull --ff-only), not merely merged to a PR branch."
+      ],
+      "passes": true,
+      "started": "2026-07-16T00:00:00Z",
+      "completed": "2026-07-16T00:00:00Z",
+      "notes": "Recipe landed in .claude/skills/mission-control/SKILL.md (after the provider:model concept line): env parse ^([a-z_]+):(.+)$, codex branch with token-cheap pre-flight probe + bounded 30-min date+%s deadline codex exec in the sprint worktree, worktree-branch/diff read reusing the claude path, generator!=judge assert (re-route+FLAG on collision), fallback-to-$MODEL-via-Agent+FLAG on any codex failure. Driver comment at mission-control.sh:186 documents MISSION_EXECUTOR_MODEL accepts alias OR provider:model, default stays opus (codex opt-in). LIVE PROBE VERIFIED 2026-07-16: `codex exec --model gpt-5.6-sol 'reply with exactly: ok'` -> exit 0, replied 'ok', ~13.7k tokens, codex-cli 0.137.0. No model substitution needed (gpt-5.6-sol valid, models.yml:201 agent_cli codex). Worked directly on dev in the main checkout (controller-authorized deviation: launchd reads on-disk checkout). NOT-YET-VERIFIED: a full real cross-provider iteration end-to-end (recipe is executable but the acceptance uses the token-cheap probe per constraint #6)."
+    },
+    {
+      "id": "M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA",
+      "description": "Land the (provider, agent, tier) right-sizing table into the charter and extend the routing-evidence row schema to (provider, agent, model, task-class, round-1 score, rounds, corrections, cost). Acceptance: one iteration writes a full new-schema row.",
+      "estimated_loc": 0,
+      "estimated_days": 0.5,
+      "dependencies": [],
+      "file_anchors": [
+        "design_docs/v1-mission.md:153-181 (Model routing policy section -> add right-sizing table)",
+        "design_docs/v1-mission-log.md:11-12 (evidence-row template -> append provider/agent/cost)",
+        "internal/coordinator/provider_executor.go:146 (execResult.CostUSD source for metered $)"
+      ],
+      "acceptance_criteria": [
+        "Charter design_docs/v1-mission.md contains the (provider, agent, tier) right-sizing table, cross-linked to the design doc.",
+        "v1-mission-log.md template row schema has provider, agent, and cost columns APPENDED (old columns retained so historical rows still parse).",
+        "One new log entry is written in the new schema with real (provider, agent, model, task-class, round-1 score, rounds, corrections, cost).",
+        "cost uses $ for metered providers (codex/gemini via CostUSD), quota-bucket for Anthropic (weekly-fable/weekly-opus), explicit unknown otherwise (never silent 0 per Critical Principle 2).",
+        "Deployed to main checkout on disk."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PLANNER_DOWNTIER_AB_PARKED",
+      "description": "PARKED with a concrete A/B protocol (cannot execute in one iteration; needs 3 quorum-reviewed docs planned mid-tier vs Opus, executor round-1 scores compared; charter >=3-datapoint rule). This milestone deliverable is the PROTOCOL, not the run.",
+      "estimated_loc": 0,
+      "estimated_days": 0,
+      "dependencies": [
+        "M1b_CODEX_CROSS_PROVIDER_EXECUTOR",
+        "M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA"
+      ],
+      "file_anchors": [
+        "design_docs/planned/v0_30_0/m-mission-agentic-provider-routing-sprint-plan.md (Milestone M3 section = the protocol)"
+      ],
+      "acceptance_criteria": [
+        "A/B protocol recorded in the sprint plan and referenced from the charter right-sizing table (this milestone = the plan, not the run).",
+        "DEFERRED: 3 quorum-reviewed docs planned in both arms (Opus vs mid-tier planner via M1b provider:model branch); round-1 evaluator scores + corrections recorded per arm.",
+        "DEFERRED: data-backed keep/down-tier verdict for sprint-planner written to the charter (>=3 data points, both directions per evidence rule)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Parked, not descoped: it is the first Phase-E evidence probe but its cadence is multi-iteration. Executable deterministically once M1b (cross-provider planner branch) + M2 (evidence schema) land and 3 quorum docs exist."
+    }
+  ]
+}

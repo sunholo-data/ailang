@@ -181,8 +181,12 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # NB: these are in-session Agent/Task-tool model ALIASES (opus|fable|sonnet|haiku) — NOT the full
 # IDs (claude-opus-4-8) the driver's own `claude -p --model` flag takes. Two different interfaces:
 # the controller session is launched with a full ID; the sub-agents it spawns are pinned by alias.
-# A "provider:model" value (e.g. codex:gpt-5.6) instead signals cross-provider agent routing via
+# A "provider:model" value (e.g. codex:gpt-5.6-sol) instead signals cross-provider agent routing via
 # provider_executor (fleet Phase C), which the skill resolves — not the Agent tool.
+# MISSION_EXECUTOR_MODEL specifically accepts EITHER form: an Agent alias (opus, the default) OR a
+# provider:model value (codex:gpt-5.6-sol) which the mission-control Gate-3 recipe routes to a bounded
+# `codex exec` run in the sprint worktree (M1b). The default stays "opus" — codex is OPT-IN per
+# iteration via an env override, so a normal fire never bills metered OpenAI $ by accident.
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-fable}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
