@@ -386,10 +386,28 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 3. Morning report, TWO channels (both required):
    - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
      --from mission-control`
-   - `gh issue comment 329 --repo sunholo-data/ailang --body "<markdown report>"` — the
-     human-facing bookkeeping thread (Mark reads by email). Markdown, lead with the headline,
+   - `gh issue comment "$MISSION_GH_ISSUE" --repo sunholo-data/ailang --body "<markdown report>"`
+     — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
+     `~/.ailang/state/mission-gh-issue`, NOT hardcoded). Markdown, lead with the headline,
      link commits by SHA, name anything parked for a human. End the body with:
      `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+
+4. **WEEKLY THREAD ROTATION (Mark 2026-07-16 — do this BEFORE posting the report):** the
+   bookkeeping thread rolls weekly so neither GitHub's UI nor Gate-0's comment fetch grows without
+   bound (#329 hit 120KB/53 comments in 6 days). **Rotate when** (either): the current time is past
+   the most recent **Monday 07:00** (the quota-reset boundary) AND the current issue was created
+   before that boundary; OR the current issue has >80 comments. To rotate:
+   1. `gh issue create --repo sunholo-data/ailang --title "V1 mission bookkeeping — week of <this
+      Monday's date>" --body "<5-line state snapshot: queue head · fleet state · parked-for-human
+      list · link to predecessor issue #N · directive convention: comments from
+      @MarkEdmondson1234 on THIS issue steer the loop>"` — the mention auto-subscribes Mark.
+   2. Final comment on the OLD issue: "→ continues in #<new>" — then `gh issue close` it.
+   3. Write the new number to `~/.ailang/state/mission-gh-issue` and the old one to
+      `~/.ailang/state/mission-gh-issue-prev`.
+   4. Post this iteration's report to the NEW issue.
+   **Rotation-week catch:** on the first iteration after a rotation (the `-prev` file is fresh),
+   Gate-0's Mark-comment read must ALSO check the predecessor issue — Mark may have replied to the
+   old thread over the boundary. Same allowlist + watermark.
 
 ## Standing rules
 

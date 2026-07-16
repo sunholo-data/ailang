@@ -187,6 +187,15 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # provider:model value (codex:gpt-5.6-sol) which the mission-control Gate-3 recipe routes to a bounded
 # `codex exec` run in the sprint worktree (M1b). The default stays "opus" — codex is OPT-IN per
 # iteration via an env override, so a normal fire never bills metered OpenAI $ by accident.
+# Weekly rolling bookkeeping issue (2026-07-16, Mark): the issue number lives in a state file so
+# the skill's Monday-07:00 rotation (aligned to the quota reset) moves threads without a driver
+# edit. Precedence: env pin > state file > 329 (the original thread). Exported so the skill's
+# gh snippets see the same number the driver reports to.
+GH_ISSUE_FILE="$HOME/.ailang/state/mission-gh-issue"
+MISSION_GH_ISSUE="${MISSION_GH_ISSUE:-$(head -1 "$GH_ISSUE_FILE" 2>/dev/null)}"
+MISSION_GH_ISSUE="${MISSION_GH_ISSUE:-329}"
+export MISSION_GH_ISSUE
+
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
 # bare "fable" would silently fall back to opus. claude:claude-fable-5 = a REAL bounded Fable run.
