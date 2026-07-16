@@ -181,12 +181,15 @@ model from the driver-exported env (defaults track the charter table):
 | Design-doc-creator | `$MISSION_DESIGNER_MODEL` | **Fable** (deep spec synthesis = high cognition; PINNED sub-agent, no longer inline) |
 | Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
 | Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
-| Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | Fable (≠ the Opus executor → generator≠judge holds) |
+| Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | **Sonnet** (default changed fable→sonnet 2026-07-16 iter 38, Mark directive #399: "default … gemini (if able to git clone the codebase etc)? otherwise sonnet-5"; gemini-managed_agents VERIFIED not-viable-today — server-side sandbox sees no worktree + backend timed out; sonnet ≠ opus executor → generator≠judge, and it's Agent-tool-PINNABLE unlike fable) |
 
-**Fable discipline (Mark 2026-07-16):** Fable bills exactly two BOUNDED sub-agent runs per
-iteration — designer (only when a new doc is actually needed) and evaluator. Everything
-long-running or mechanical rides Opus. Do not "upgrade" a role to Fable ad hoc; that is a
-routing-policy change requiring the charter's evidence rule.
+**Fable discipline (Mark 2026-07-16, amended iter 38):** Fable now bills at most **ONE** BOUNDED
+sub-agent run per iteration — the **designer** (only when a new doc is actually needed). The
+evaluator moved OFF Fable to **sonnet** (fable was Agent-tool-unpinnable → it silently re-routed to
+sonnet every iteration anyway: iters 31/36; and it fires EVERY iteration, so it was the residual
+Fable drain). Everything long-running or mechanical rides Opus. Do not "upgrade" a role to Fable ad
+hoc; that is a routing-policy change requiring the charter's evidence rule. (Resolves the iter-36/37
+inconsistency between this clause and the old "evaluator→sonnet unless ≥3 datapoints" rule.)
 
 Spawn pattern (heavy roles): `Agent(subagent_type="general-purpose", model="<the role's env value>",
 prompt="invoke the <skill> for <doc>/<worktree> …")` — resolve the env value first via

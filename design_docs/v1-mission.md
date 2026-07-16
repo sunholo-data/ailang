@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-16 — ITERATION 38: HUMAN DIRECTIVE (#399, outranks queue) — evaluator default **fable → sonnet**; gemini-as-evaluator VERIFIED not-viable-today (server-side sandbox can't see the worktree + live probe timed out)
+
+Mark commented on #399: *"once we have gemini via managed agents and openai we can use one of those instead for evaluator? so default can be gemini (if able to git clone the codebase etc)? otherwise sonnet-5"*. Resolved his conditional with data. **gemini (managed_agents) is NOT viable as the evaluator today, two independent counts**: (1) **architectural (code-proven)** — the request body carries only `Directive`+`SystemPrompt` over a server-side `CapRemoteSandbox` (`managed_agents.go:164`); no repo upload, so it cannot see the sprint's UNCOMMITTED worktree changes nor re-run local tests (at most `git clone` the *public* origin/dev, which lacks them) — exactly Mark's "if able to git clone" gap; (2) **operational (live-observed)** — a bounded `ailang exec gemini` probe timed out (`http2 timeout awaiting response headers`, same class as iters 36-37). Per Mark's ladder → **sonnet-5**: Agent-tool-pinnable (fable is not — F1, so the fable default silently re-routed to sonnet every iteration anyway: 31/36), distinct from the opus executor (generator≠judge restored & now ENFORCEABLE), cheap, behavioral. Changed: driver `MISSION_EVALUATOR_MODEL` default fable→sonnet + routing-policy table + independence caveat RESOLVED. Follow-up queued: **fleet (c1) m-gemini-evaluator-diff-bridge** (ship the sprint diff into the directive + backend reliability). No CI risk (doc + driver-comment + one env default). Detail: log entry 41.
+
 ## STATUS 2026-07-16 — ITERATION 37: fleet **(c0) m-gemini-exec-project-plumbing LANDED** (PR #401 → `60351087b`, eval PASS 96/100 r1) — `ailang exec gemini` now reaches the Vertex Managed Agents backend; unblocks fleet (c)'s parked M0/M4 gemini reviewer lane
 
 The ≤1d unblocker surfaced by iteration 36. Live-repro confirmed the gap at HEAD (`managed_agents: GCP project not set`), root cause `cmd/ailang/exec.go:executeCLI` built `executor.Task{}` with no `GCPProject`/`GCPLocation` (the eval harness sets them per-model; the CLI path never did). **Fix** (minimal, +13 LOC code): `resolveGCPProjectEnv()` (`AILANG_CLOUD_PROJECT` → `GOOGLE_CLOUD_PROJECT`, coordinator precedence) + set both fields on the shared Task; empty location defers to executor `defaultLocation="global"`, unset project keeps the loud error (no silent default). **Live-verified by the controller**: env-unset → loud error preserved; `AILANG_CLOUD_PROJECT=ailang-multivac-dev` → error moved to Vertex `HTTP 400: Resource setup has just started` (project REACHED the backend). Non-vacuous `t.Setenv` regression test. Full loop: **Fable designer** (`claude:claude-fable-5` CLI lane, N−1 quorum PROCEED) → **Opus planner+executor** → **Fable evaluator** (true-Fable CLI lane, PASS 96/100 r1). ⚠ **Routing FLAG**: evaluator ran on the `claude:claude-fable-5` CLI lane, NOT the doc-prescribed sonnet re-route (iteration 36 hit the identical `MISSION_EVALUATOR_MODEL=fable` env and chose sonnet per the ≥3-datapoint gate) — recorded as an evidence datapoint + a doc-inconsistency retro note, NOT a ratified policy change. Detail: log entry 40.
@@ -53,20 +57,6 @@ the opus executor → alias-lane generator≠judge guard) PASS 91/100 r1. **M0 (
 a real gap**: `ailang exec gemini` fails `GCP project not set` — `cmd/ailang/exec.go:336` builds `Task{}` with
 no `GCPProject`, managed_agents default is `""` (filled per-task only by the eval harness). Fix = new queue
 item (c0), prerequisite for M0/M4 + any gemini reviewer/evaluator lane. Detail: log entry 39.
-
-## STATUS 2026-07-16 — ITERATION 35: RED-DEV fix (outranks queue) — CI + Build-and-Release both green on `2bb3de2c5`; weekly bookkeeping thread rotated #329 → #399
-
-Two independent reds observed at HEAD (`fe7c13efa`). **(1) CI `verify-examples`**: the v0.30.0
-vision-input merge (`8c3de5ce8`) added `examples/runnable/ai_vision_input.ail` but left the manifest
-`statistics` aggregate stale (recorded 185/173 vs calculated 186/174 — `validate_manifest --ci` drift);
-bumped total/working/coverage. **(2) Build-and-Release Windows** `TestStreamNDJSONPost_Success`:
-`[SSEData Opened SSEData SSEData]` — the reader goroutine raced an `sse_data` event ahead of `Opened`.
-Surfaced at a DOC-ONLY commit (`fe7c13efa`) → confirmed pre-existing race, not a regression. Systemic
-fix (Critical Principle 3) across ALL FOUR stream connectors (NDJSON, WebSocket, SSE-GET, SSE-POST):
-enqueue `Opened` into the buffered eventBuffer BEFORE starting the reader goroutine → `Opened` is always
-event[0]. Verified `go test ./internal/effects -race -count=20` (green, 111s). Commit `2bb3de2c5` →
-dev CI + Build-and-Release both green (Gate 3b, bounded poll). Weekly rotation (Gate 5): #329 (53
-comments, created before Mon 07:00 2026-07-13) closed → #399. Detail: log entry 38.
 
 ## CURRENT GOAL
 
@@ -134,16 +124,16 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 | Design docs (create/review) | **Fable** — `$MISSION_DESIGNER_MODEL`-PINNED sub-agent (2026-07-16; no longer inherits the session) | Spec quality still gates downstream — the one place deep synthesis pays; bounded run, fires only when a new doc is needed |
 | Sprint planning | **Opus** (claude-opus-4-8) | Plan quality determined execution success historically |
 | Sprint execution | **Opus** — the default, per Mark 2026-07-10 | Sonnet execution was a false economy (needed corrections); also `dev-cycle.md` had silently pinned sonnet |
-| Sprint evaluation | **Fable** — `$MISSION_EVALUATOR_MODEL`-PINNED sub-agent; generator≠judge holds STRUCTURALLY now (pin ≠ the opus executor pin, independent of whatever the controller session runs — the 2026-07-11 caveat below is fully obsolete post-M1a) | Behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
+| Sprint evaluation | **Sonnet** — `$MISSION_EVALUATOR_MODEL`-PINNED sub-agent (default changed fable→sonnet 2026-07-16, Mark directive #399; see below). generator≠judge holds STRUCTURALLY (sonnet ≠ the opus executor pin) AND is now ENFORCEABLE (sonnet is an Agent-tool alias; fable was not — F1 — so the fable default re-routed to sonnet every iteration anyway: 31, 36) | Behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
 
-> **⚠ Evaluation-independence caveat (2026-07-11):** while the controller is Opus, Opus evaluates
-> Opus-executed work — the generator≠judge *model* diversity is gone. The evaluation's proven
-> value has been mostly behavioral (independent test re-runs, cross-history non-vacuity proofs,
-> distinct-sample recounts), which survives; but rubber-stamp risk rises. **Mitigation available
-> on request:** route the evaluator sub-agent to a distinct-model skeptic (e.g. Sonnet — cheap,
-> behavioral role, no Fable spend) via a Gate-3 change. Left OFF for now to keep the switch
-> minimal; revisit if any evaluation looks lenient. Full model diversity returns when the
-> controller reverts to Fable.
+> **✅ Evaluation-independence (RESOLVED 2026-07-16, iteration 38):** the evaluator default is now
+> **Sonnet** — a distinct model from the Opus executor, so generator≠judge model-diversity is
+> restored (the 2026-07-11 "Opus-evaluates-Opus rubber-stamp risk" is gone) AND it is *enforceable*
+> (sonnet is an Agent-tool pin; the old `fable` default was not — F1 — so it silently re-routed to
+> sonnet every iteration anyway; this makes that the standing state, not a per-iteration patch).
+> Behavioral value (independent test re-runs, cross-history non-vacuity, distinct-sample recounts)
+> is unchanged. Fable is retired from the every-iteration evaluator slot to protect the weekly quota
+> (it fires every iteration, unlike the designer which fires only on new docs).
 | Mechanical tasks (doc moves, regen, banking) | Sonnet allowed | Only with deterministic verification; promotion beyond this requires evidence |
 
 **Evidence rule**: every sprint's log entry records `(model, task class, evaluator round-1 score,
@@ -166,7 +156,30 @@ made in RETRO, recorded here with a dated stamp.
 > orchestration session on the scarcest model). Driver PREFS are now **opus-first**
 > (`claude-opus-4-8,claude-fable-5`; Fable = emergency fallback only) and design-doc-creator moved
 > from inline to a **`$MISSION_DESIGNER_MODEL`-pinned sub-agent (fable)**. Net Fable spend per
-> iteration = two bounded sub-agents: designer (only when a new doc is needed) + evaluator.
+> iteration = ~~two bounded sub-agents: designer (only when a new doc is needed) + evaluator~~
+> ONE bounded sub-agent: the **designer** only (fires only when a new doc is needed). The evaluator
+> moved OFF Fable to **sonnet** in iteration 38 (below) — this also RESOLVES the iteration-36/37
+> inconsistency between this clause and the "evaluator→sonnet unless ≥3 datapoints" rule (Mark's
+> #399 directive settles it: not fable).
+>
+> **AMENDED 2026-07-16 iteration 38 (Mark directive #399: "once we have gemini via managed agents
+> and openai we can use one of those instead for evaluator? so default can be gemini (if able to git
+> clone the codebase etc)? otherwise sonnet-5"):** evaluator default moved **fable → sonnet**.
+> gemini (managed_agents) — Mark's *preferred* default — is NOT viable as the evaluator today, on
+> two independent counts VERIFIED this iteration: **(1) architectural (code-proven)** — the
+> managed_agents request body carries only `Directive`+`SystemPrompt` over a server-side
+> `CapRemoteSandbox` (`internal/executor/managed_agents/managed_agents.go:164`); there is no repo
+> upload, so the agent cannot see the sprint's UNCOMMITTED worktree changes nor re-run local tests
+> (at most it could `git clone` the *public* origin/dev, which lacks the changes) — exactly the
+> "if able to git clone the codebase" gap Mark flagged; **(2) operational (live-observed)** — a
+> bounded `ailang exec gemini` probe timed out (`http2 timeout awaiting response headers`), same
+> class as iterations 36-37. Per Mark's own ladder this resolves to **sonnet-5**. gemini-as-evaluator
+> is a queued follow-up (**m-gemini-evaluator-diff-bridge**): needs a bridge that ships the sprint
+> diff + changed files into the directive text AND the Vertex backend returning reliably. NOTE:
+> **codex (openai)** is a viable local distinct-provider evaluator alternative (it runs a sandboxed
+> local CLI → CAN read the worktree + re-run tests; openai≠anthropic satisfies generator≠judge) —
+> but Mark's stated default ladder is gemini→sonnet-5, so sonnet is the default; codex-as-evaluator
+> requires the executor NOT be codex (generator≠judge) and stays opt-in.
 
 ### Right-sizing table — the (provider, agent, tier) hypothesis (M2)
 
@@ -475,6 +488,19 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   Non-vacuous `t.Setenv` regression test. **Fleet (c)'s M0/M4 gemini reviewer lane is now UNBLOCKED** —
   next fleet step is (c) M0 (live gemini network probe) → M4 (conditional on M0) → M5 (bounded live-fire +
   doc → implemented/).
+- **(c1) [NEXT fleet step — surfaced iteration 38]** m-gemini-evaluator-diff-bridge — Mark's #399
+  directive ("default evaluator = gemini if able to git clone the codebase, otherwise sonnet-5")
+  forced fleet (c)'s M0 live probe early. **Two findings**: (1) **M0 live gemini probe TIMED OUT**
+  (`ailang exec gemini` → `http2: timeout awaiting response headers` on the Vertex
+  `interactions` POST — the request reaches the backend but no response returns; same class as the
+  iter-37 "Resource setup has just started"). Backend reliability is still unproven — M4/M5 stay
+  blocked on it. (2) **The evaluator role needs a diff-bridge, not just the executor** (extends
+  fleet (b)'s note): the managed_agents request body carries only `Directive`+`SystemPrompt`
+  (`managed_agents.go:164`), so even a READ-ONLY evaluator sees NO local repo — it cannot inspect
+  the sprint's uncommitted worktree changes nor re-run tests. To make gemini a real evaluator: ship
+  the `git diff` + changed files INTO the directive text (mirror `managed_agents_bridge.go`), accept
+  it's reasoning-only (no local test re-runs), AND land backend reliability. Until both: evaluator
+  default = **sonnet** (this iteration's change). ~2d when picked.
 - **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),

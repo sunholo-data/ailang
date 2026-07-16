@@ -202,7 +202,17 @@ export MISSION_GH_ISSUE
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
-export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-fable}"
+# evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
+# to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
+# evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
+# Directive+SystemPrompt over a server-side CapRemoteSandbox (managed_agents.go:164), so it cannot
+# see the sprint's UNCOMMITTED worktree changes nor re-run local tests — at most it could clone the
+# public origin/dev, which lacks the changes; (2) the backend live-timed-out (http2 timeout, same
+# class as iters 36-37). So the ladder resolves to sonnet-5: pinnable via the Agent tool (fable is
+# not — F1), distinct from the opus executor (generator≠judge holds), cheap, behavioral (re-runs
+# tests locally). This also RETIRES the per-iteration fable→sonnet re-route (iters 31/36) into a
+# standing default. gemini-as-evaluator is a queued follow-up (diff-bridge + backend reliability).
+export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then

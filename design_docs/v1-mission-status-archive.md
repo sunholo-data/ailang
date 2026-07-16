@@ -3,6 +3,20 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-16 — ITERATION 35: RED-DEV fix (outranks queue) — CI + Build-and-Release both green on `2bb3de2c5`; weekly bookkeeping thread rotated #329 → #399
+
+Two independent reds observed at HEAD (`fe7c13efa`). **(1) CI `verify-examples`**: the v0.30.0
+vision-input merge (`8c3de5ce8`) added `examples/runnable/ai_vision_input.ail` but left the manifest
+`statistics` aggregate stale (recorded 185/173 vs calculated 186/174 — `validate_manifest --ci` drift);
+bumped total/working/coverage. **(2) Build-and-Release Windows** `TestStreamNDJSONPost_Success`:
+`[SSEData Opened SSEData SSEData]` — the reader goroutine raced an `sse_data` event ahead of `Opened`.
+Surfaced at a DOC-ONLY commit (`fe7c13efa`) → confirmed pre-existing race, not a regression. Systemic
+fix (Critical Principle 3) across ALL FOUR stream connectors (NDJSON, WebSocket, SSE-GET, SSE-POST):
+enqueue `Opened` into the buffered eventBuffer BEFORE starting the reader goroutine → `Opened` is always
+event[0]. Verified `go test ./internal/effects -race -count=20` (green, 111s). Commit `2bb3de2c5` →
+dev CI + Build-and-Release both green (Gate 3b, bounded poll). Weekly rotation (Gate 5): #329 (53
+comments, created before Mon 07:00 2026-07-13) closed → #399. Detail: log entry 38.
+
 ## STATUS 2026-07-16 — ITERATION 34: fleet item (c) m-mission-quorum-agentic-verify **PARKED needs-human-review** at Gate-2 quorum-at-pick (dogfood: text quorum blocked the AGENTIC-quorum doc for premises TRUE-in-code that text reviewers structurally can't verify)
 
 The picked fleet-(c) doc had no quorum artifact → QUORUM-AT-PICK fired (2 rounds, ~$0.05). Round 1
