@@ -321,6 +321,17 @@ func resolveAgenticExecutorName(provider string) string {
 	return provider
 }
 
+// resolveGCPProjectEnv returns the GCP project for exec tasks, using the same
+// precedence as the coordinator (daemon_tasks_init.go): AILANG_CLOUD_PROJECT
+// first, then GOOGLE_CLOUD_PROJECT. Empty when neither is set — the executor
+// fails loud downstream (no silent default project).
+func resolveGCPProjectEnv() string {
+	if p := os.Getenv("AILANG_CLOUD_PROJECT"); p != "" {
+		return p
+	}
+	return os.Getenv("GOOGLE_CLOUD_PROJECT")
+}
+
 // executeCLI uses the agentic executor (Claude Code CLI, Vertex Managed Agents, ...)
 func executeCLI(ctx context.Context, provider, directive, workspace, model, systemPrompt, taskID string, timeout time.Duration, streamJSON bool) (*executor.Result, error) {
 	// Get executor from factory. The CLI provider name is translated to the
@@ -340,6 +351,8 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Workspace:    workspace,
 		Timeout:      timeout,
 		Model:        model,
+		GCPProject:   resolveGCPProjectEnv(),
+		GCPLocation:  os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
 	}
 
 	// Open coordinator store for event storage (enables chat history in dashboard)

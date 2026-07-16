@@ -1,0 +1,99 @@
+{
+  "sprint_id": "M-GEMINI-EXEC-PROJECT-PLUMBING",
+  "status": "completed",
+  "created": "2026-07-16T17:46:48Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-gemini-exec-project-plumbing.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-gemini-exec-project-plumbing.md",
+  "target_version": "v0.30.0",
+  "priority": "P0",
+  "risk_level": "low",
+  "conflict_surface": "LOW \u2014 touches ONLY cmd/ailang/exec.go + cmd/ailang/exec_test.go. No parser/types/codegen/elaborate/eval/VM.",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 55,
+    "estimated_total_loc": 55,
+    "estimated_days": 1
+  },
+  "acceptance_criteria_verbatim": [
+    "1. With AILANG_CLOUD_PROJECT (or GOOGLE_CLOUD_PROJECT) set + ADC present, `ailang exec gemini \"reply with exactly: ok\"` reaches the managed_agents backend (no \"GCP project not set\" error).",
+    "2. With NEITHER env set, the existing loud error still fires (no silent default project).",
+    "3. Non-gemini providers (codex/claude/opus) are UNAFFECTED \u2014 this only adds env-plumbing to the shared Task construction, which those executors already ignore or already thread identically (codex.go:160, claude.go:247).",
+    "4. Regression guard: a Go unit test asserting exec.go's Task construction picks up AILANG_CLOUD_PROJECT/GOOGLE_CLOUD_PROJECT with the correct precedence (env-injected via t.Setenv \u2014 no live GCP call)."
+  ],
+  "features": [
+    {
+      "id": "M1_PLUMBING",
+      "description": "Phase 1 (~1h): Add resolveGCPProjectEnv() helper to cmd/ailang/exec.go with precedence AILANG_CLOUD_PROJECT -> GOOGLE_CLOUD_PROJECT (mirroring internal/coordinator/daemon_tasks_init.go:315-317). In executeCLI at exec.go:336, set GCPProject: resolveGCPProjectEnv() and GCPLocation: os.Getenv(\"GOOGLE_CLOUD_LOCATION\") on the executor.Task{}. Empty location string defers to the executor's own defaultLocation=\"global\" (client.go:32) \u2014 no CLI-side default. No project fallback beyond the two envs (fail loud).",
+      "estimated_loc": 15,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "resolveGCPProjectEnv() helper added to cmd/ailang/exec.go: returns AILANG_CLOUD_PROJECT if set, else GOOGLE_CLOUD_PROJECT, else empty string",
+        "executor.Task{} at exec.go:336 sets GCPProject: resolveGCPProjectEnv()",
+        "executor.Task{} at exec.go:336 sets GCPLocation: os.Getenv(\"GOOGLE_CLOUD_LOCATION\") (empty -> executor default \"global\")",
+        "No silent default project invented (Critical Principle #2 \u2014 fail loud when both envs unset)",
+        "No CLI-side location default that could drift from managed_agents client.go:32",
+        "Fields set unconditionally on the shared Task (not gemini-gated), matching codex.go:160 / claude.go:247 convention"
+      ],
+      "passes": true,
+      "started": "2026-07-16T18:30:00Z",
+      "completed": "2026-07-16T18:30:00Z",
+      "notes": "Added resolveGCPProjectEnv() helper (AILANG_CLOUD_PROJECT -> GOOGLE_CLOUD_PROJECT) to cmd/ailang/exec.go and set GCPProject/GCPLocation on the executor.Task in executeCLI. Empty location defers to managed_agents defaultLocation 'global'; unset project stays empty (fail loud). go build ./cmd/ailang/ green. Commit 3a584ae12."
+    },
+    {
+      "id": "M2_REGRESSION_TEST",
+      "description": "Phase 2 (~1-2h): Add a Go unit test to cmd/ailang/exec_test.go (file exists \u2014 no new file). Use t.Setenv to assert resolveGCPProjectEnv() precedence: AILANG_CLOUD_PROJECT wins over GOOGLE_CLOUD_PROJECT; GOOGLE_CLOUD_PROJECT fallback when AILANG_CLOUD_PROJECT unset; empty string when neither set. Optionally assert the constructed Task fields directly. NO live GCP call. Table-driven vs separate cases left to implementer.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M1_PLUMBING"
+      ],
+      "acceptance_criteria": [
+        "Unit test in cmd/ailang/exec_test.go (existing file, no new file created)",
+        "Test asserts AILANG_CLOUD_PROJECT wins over GOOGLE_CLOUD_PROJECT (precedence)",
+        "Test asserts GOOGLE_CLOUD_PROJECT fallback when AILANG_CLOUD_PROJECT unset",
+        "Test asserts empty-when-unset (neither env set)",
+        "Env injected via t.Setenv (auto-restores per test \u2014 no env pollution)",
+        "No live GCP call in the test",
+        "Regression guard satisfies Acceptance Criterion 4"
+      ],
+      "passes": true,
+      "started": "2026-07-16T18:30:00Z",
+      "completed": "2026-07-16T18:30:00Z",
+      "notes": "Added TestResolveGCPProjectEnv (table-driven precedence/fallback/empty) and TestExecTaskGCPFieldsFromEnv (Task picks up project + GOOGLE_CLOUD_LOCATION) to cmd/ailang/exec_test.go. t.Setenv, no live GCP call. Both pass. Satisfies AC4. Commit 3a532d76c."
+    },
+    {
+      "id": "M3_VERIFICATION",
+      "description": "Phase 3 (~1h): make test green. Live probes (need ADC): AILANG_CLOUD_PROJECT=<proj> ailang exec gemini \"reply with exactly: ok\" reaches backend (AC1); env -u AILANG_CLOUD_PROJECT -u GOOGLE_CLOUD_PROJECT ailang exec gemini \"x\" still fires the existing loud error (AC2); one ailang exec claude smoke confirms non-gemini unaffected (AC3). Add CHANGELOG entry. NOTE: live probes require ADC + billing; in a headless run without ADC, record the probe commands and their expected outputs, and rely on the unit test + build for the automated gate.",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M2_REGRESSION_TEST"
+      ],
+      "acceptance_criteria": [
+        "make test passes (no regressions)",
+        "Live probe (ADC present): AILANG_CLOUD_PROJECT=<proj> ailang exec gemini \"reply with exactly: ok\" reaches managed_agents backend \u2014 no \"GCP project not set\" (AC1). If ADC unavailable in headless run, record command + expected output.",
+        "Live probe: env -u AILANG_CLOUD_PROJECT -u GOOGLE_CLOUD_PROJECT ailang exec gemini \"x\" -> existing loud error unchanged (AC2)",
+        "ailang exec claude smoke confirms non-gemini providers unaffected (AC3)",
+        "CHANGELOG.md entry added"
+      ],
+      "passes": true,
+      "started": "2026-07-16T18:30:00Z",
+      "completed": "2026-07-16T18:30:00Z",
+      "notes": "go test ./cmd/ailang/... green (full package, 50s); go build ./cmd/ailang/ green. CHANGELOG entry added under [Unreleased] ### Fixed in changelogs/v0.18-current.md. Live gemini/claude probes deferred to controller (headless run has no ADC) \u2014 commands + expected outputs recorded in executor report."
+    }
+  ],
+  "files_to_modify": [
+    "cmd/ailang/exec.go \u2014 resolveGCPProjectEnv() helper + GCPProject/GCPLocation fields on Task construction (~15 LOC)",
+    "cmd/ailang/exec_test.go \u2014 env-precedence regression test (~40 LOC)",
+    "CHANGELOG.md \u2014 entry"
+  ],
+  "deferred_decisions": [
+    "Whether env resolution lives inline in executeCLI or in a small helper (helper recommended for testability) \u2014 implementer may choose.",
+    "Exact test structure (table-driven vs separate cases) \u2014 implementer may choose."
+  ],
+  "non_goals": [
+    "Live gemini reviewer/evaluator wiring \u2014 fleet (c) M0/M4/M5 follow-up that this unblocks.",
+    "Any managed_agents server-side behavior.",
+    "New CLI flags (--gcp-project) \u2014 env convention is sufficient.",
+    "Changing the eval harness's per-model models.yml GCP plumbing (already correct)."
+  ],
+  "notes_plan": "LEAN sprint per scheduled-headless directive. Design doc contains a precise, code-verified 3-phase Implementation Plan (Phase 1 plumbing ~1h, Phase 2 regression test ~1-2h, Phase 3 verification ~1h). This JSON formalizes those 3 phases as 3 milestones \u2014 NOT a re-scope. Single day, ~3-4h total, ~55 LOC. Conflict surface LOW: only cmd/ailang/exec.go + exec_test.go. Fleet step c0 unblocker."
+}
