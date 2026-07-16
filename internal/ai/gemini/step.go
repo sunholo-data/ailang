@@ -151,6 +151,17 @@ func buildStepRequest(req *ai.Request) (*generateRequest, error) {
 				})
 				continue
 			}
+			if len(m.Images) > 0 {
+				// Vision input (M-STD-AI-VISION-INPUT): emit a leading text
+				// part (only when non-empty) followed by one inlineData part
+				// per image. Guarded strictly on len(m.Images) > 0 so a
+				// text-only user message stays wire-identical to pre-vision.
+				out.Contents = append(out.Contents, content{
+					Role:  "user",
+					Parts: userImageParts(m),
+				})
+				continue
+			}
 			out.Contents = append(out.Contents, content{
 				Role:  "user",
 				Parts: []part{{Text: m.Content}},
@@ -252,6 +263,51 @@ func buildStepRequest(req *ai.Request) (*generateRequest, error) {
 	}
 
 	return out, nil
+}
+
+// userImageParts builds the Gemini parts slice for a user message carrying
+// vision-input images (M-STD-AI-VISION-INPUT). A leading text part is emitted
+// only when m.Content is non-empty, followed by one inlineData part per image.
+// Gemini requires RAW base64 in inlineData.data, so data-URI sources are split
+// via splitDataURI before being attached.
+func userImageParts(m ai.Message) []part {
+	parts := make([]part, 0, 1+len(m.Images))
+	if m.Content != "" {
+		parts = append(parts, part{Text: m.Content})
+	}
+	for _, img := range m.Images {
+		mimeType, data := splitDataURI(img.Source, img.Mime)
+		parts = append(parts, part{
+			InlineData: &inlineData{
+				MimeType: mimeType,
+				Data:     data,
+			},
+		})
+	}
+	return parts
+}
+
+// splitDataURI normalizes an image source into (mimeType, rawBase64). Gemini's
+// inlineData.data must be RAW base64 with no data-URI prefix. When source is a
+// "data:<mime>[;...];base64,<payload>" URI, the prefix is stripped and the
+// declared media type is preferred (falling back to mime when absent);
+// otherwise source is returned verbatim as the payload with mime as the type.
+func splitDataURI(source, mime string) (mimeType, data string) {
+	if strings.HasPrefix(source, "data:") {
+		if comma := strings.IndexByte(source, ','); comma >= 0 {
+			meta := source[len("data:"):comma]
+			payload := source[comma+1:]
+			declared := meta
+			if semi := strings.IndexByte(meta, ';'); semi >= 0 {
+				declared = meta[:semi]
+			}
+			if declared != "" {
+				return declared, payload
+			}
+			return mime, payload
+		}
+	}
+	return mime, source
 }
 
 // parseStepResponse converts a successful Gemini generateContent response

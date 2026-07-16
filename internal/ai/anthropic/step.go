@@ -191,6 +191,18 @@ type stepContentBlock struct {
 	Input     json.RawMessage `json:"input,omitempty"`
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 	Content   json.RawMessage `json:"content,omitempty"`
+	// Source carries the base64 payload for "image" blocks (M-STD-AI-VISION-INPUT).
+	// It is a pointer with omitempty so text/tool_use/tool_result blocks — which
+	// never set it — marshal byte-for-byte as before.
+	Source *stepImageSource `json:"source,omitempty"`
+}
+
+// stepImageSource is the Anthropic wire shape for an image block's source.
+// Anthropic requires raw base64 in Data with MediaType supplied separately.
+type stepImageSource struct {
+	Type      string `json:"type"`
+	MediaType string `json:"media_type"`
+	Data      string `json:"data"`
 }
 
 // buildStepRequest translates an ai.Request into the Anthropic Messages API
@@ -235,6 +247,32 @@ func buildStepRequest(req *ai.Request) (*stepMessagesRequest, *ai.AIError) {
 				if err != nil {
 					return nil, ai.NewAIError(ai.CodeInternal,
 						fmt.Sprintf("anthropic: failed to marshal tool_result content for messages[%d]: %v", i, err), false)
+				}
+				apiReq.Messages = append(apiReq.Messages, stepMessage{Role: "user", Content: raw})
+			} else if len(m.Images) > 0 {
+				// Vision input (M-STD-AI-VISION-INPUT): emit a content array with
+				// an optional leading text block followed by one image block per
+				// image. Anthropic requires raw base64 in data with media_type
+				// separate.
+				var blocks []stepContentBlock
+				if m.Content != "" {
+					blocks = append(blocks, stepContentBlock{Type: "text", Text: m.Content})
+				}
+				for _, img := range m.Images {
+					mediaType, data := splitDataURI(img.Source, img.Mime)
+					blocks = append(blocks, stepContentBlock{
+						Type: "image",
+						Source: &stepImageSource{
+							Type:      "base64",
+							MediaType: mediaType,
+							Data:      data,
+						},
+					})
+				}
+				raw, err := json.Marshal(blocks)
+				if err != nil {
+					return nil, ai.NewAIError(ai.CodeInternal,
+						fmt.Sprintf("anthropic: failed to marshal user image content for messages[%d]: %v", i, err), false)
 				}
 				apiReq.Messages = append(apiReq.Messages, stepMessage{Role: "user", Content: raw})
 			} else {
@@ -344,6 +382,31 @@ func strconvJSONString(s string) string {
 		return `""`
 	}
 	return string(b)
+}
+
+// splitDataURI normalizes an image source into (mediaType, rawBase64) as
+// required by Anthropic's image block: the base64 payload must be raw, with the
+// media type carried separately. If source is a data URI
+// ("data:<mime>;base64,<payload>"), the declared mime is preferred and the
+// prefix is stripped. Otherwise source is treated as raw base64 and the
+// fallback mime is used.
+func splitDataURI(source, mime string) (mediaType, data string) {
+	if strings.HasPrefix(source, "data:") {
+		// data:<media_type>[;...];base64,<payload>
+		if comma := strings.IndexByte(source, ','); comma >= 0 {
+			meta := source[len("data:"):comma]
+			payload := source[comma+1:]
+			declared := meta
+			if semi := strings.IndexByte(meta, ';'); semi >= 0 {
+				declared = meta[:semi]
+			}
+			if declared != "" {
+				return declared, payload
+			}
+			return mime, payload
+		}
+	}
+	return mime, source
 }
 
 // mapStopReason converts Anthropic's stop_reason into the normalized

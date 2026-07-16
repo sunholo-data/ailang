@@ -221,6 +221,33 @@ type ChatStepMessage struct {
 	ToolCalls  []ChatStepToolCall `json:"tool_calls,omitempty"`
 }
 
+// openaiContentPart is one element of the multimodal content array OpenAI's
+// Chat Completions API accepts for user messages (M-STD-AI-VISION-INPUT,
+// v0.30.0). Text parts carry Text; image parts carry ImageURL. The omitempty
+// tags keep each emitted part minimal (a text part has no image_url key and
+// vice-versa).
+type openaiContentPart struct {
+	Type     string          `json:"type"`
+	Text     string          `json:"text,omitempty"`
+	ImageURL *openaiImageURL `json:"image_url,omitempty"`
+}
+
+// openaiImageURL is the {"url": ...} object nested under an image_url content
+// part. The url is always a data-URI (see toDataURI).
+type openaiImageURL struct {
+	URL string `json:"url"`
+}
+
+// toDataURI returns a data-URI for an image source. If source is already a
+// data-URI ("data:...") it is passed through unchanged; otherwise the raw
+// base64 payload is wrapped as "data:<mime>;base64,<source>".
+func toDataURI(source, mime string) string {
+	if strings.HasPrefix(source, "data:") {
+		return source
+	}
+	return "data:" + mime + ";base64," + source
+}
+
 // ChatStepToolCall is one tool invocation in an assistant message. Note that
 // Function.Arguments is a JSON STRING (not an object) — OpenAI requires this.
 type ChatStepToolCall struct {
@@ -378,6 +405,33 @@ func BuildChatStepRequest(req *ai.Request) (*ChatStepRequest, *ai.AIError) {
 					Role:       "tool",
 					ToolCallID: m.ToolCallID,
 					Content:    raw,
+				})
+				continue
+			}
+			// Vision input (M-STD-AI-VISION-INPUT, v0.30.0): when a user message
+			// carries images, content becomes a multimodal parts ARRAY (text
+			// part first, if any, then one image_url part per image). With no
+			// images, content stays the plain-string form — byte-for-byte
+			// identical to pre-vision wire bytes.
+			if len(m.Images) > 0 {
+				parts := make([]openaiContentPart, 0, len(m.Images)+1)
+				if m.Content != "" {
+					parts = append(parts, openaiContentPart{Type: "text", Text: m.Content})
+				}
+				for _, img := range m.Images {
+					parts = append(parts, openaiContentPart{
+						Type:     "image_url",
+						ImageURL: &openaiImageURL{URL: toDataURI(img.Source, img.Mime)},
+					})
+				}
+				raw, err := json.Marshal(parts)
+				if err != nil {
+					return nil, ai.NewAIError(ai.CodeInternal,
+						fmt.Sprintf("openai: failed to marshal user vision content for messages[%d]: %v", i, err), false)
+				}
+				out.Messages = append(out.Messages, ChatStepMessage{
+					Role:    "user",
+					Content: raw,
 				})
 				continue
 			}

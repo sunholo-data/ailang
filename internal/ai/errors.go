@@ -34,6 +34,11 @@ const (
 	CodeToolsNotSupported = "ToolsNotSupported"
 	CodeModelNotFound     = "ModelNotFound"
 	CodeInternal          = "Internal"
+
+	// CodeModelNoVision (M-STD-AI-VISION-INPUT, v0.30.0) is returned when a
+	// message carries image parts but the selected model/provider cannot accept
+	// vision input — a clear typed error rather than silently dropping the image.
+	CodeModelNoVision = "ModelNoVision"
 )
 
 // AIError is the canonical typed error returned by Provider.Step (and consumed
@@ -89,7 +94,8 @@ func IsRetryable(code string) bool {
 		CodeContextLength,
 		CodeSchemaValidation,
 		CodeToolsNotSupported,
-		CodeModelNotFound:
+		CodeModelNotFound,
+		CodeModelNoVision:
 		return false
 	}
 	// Unknown code — default to retryable so adapters that emit a custom
