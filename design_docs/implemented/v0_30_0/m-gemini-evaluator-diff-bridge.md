@@ -1,6 +1,6 @@
 # M-GEMINI-EVALUATOR-DIFF-BRIDGE: inject a sprint diff bundle into a sandboxed gemini evaluator
 
-**Status**: Planned
+**Status**: Implemented (2026-07-17, mission iteration 39 — PASS 96/100 round 1)
 **Target**: v0.30.x — mission infrastructure
 **Priority**: P1 (model-diversity capability for the mission evaluator; unblocks generator≠judge)
 **Estimated**: ~2 days (M1 bundle builder ~0.75d; M2 directive + verdict parse ~0.75d; M3 caller seam + degradation ~0.5d)
