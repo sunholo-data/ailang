@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -214,6 +215,43 @@ func bareModel(m string) string {
 	return m
 }
 
+// rawBase64 normalizes a vision-input image source to raw base64. A data-URI
+// source ("data:<mime>;base64,<payload>") is reduced to its <payload>; any
+// other source is assumed to already be raw base64 and returned unchanged.
+func rawBase64(source string) string {
+	if !strings.HasPrefix(source, "data:") {
+		return source
+	}
+	if i := strings.Index(source, ";base64,"); i >= 0 {
+		return source[i+len(";base64,"):]
+	}
+	// data: URI without an explicit base64 marker — strip up to the comma.
+	if i := strings.IndexByte(source, ','); i >= 0 {
+		return source[i+1:]
+	}
+	return source
+}
+
+// toOllamaImages converts provider image parts into Ollama message images.
+// ollamaapi.ImageData is []byte and encoding/json marshals it to base64, so we
+// store the *decoded* image bytes (decoding each normalized source) to avoid
+// double-encoding on the wire. Undecodable sources are dropped rather than sent
+// as garbage. Returns nil for empty input so the images field is omitted.
+func toOllamaImages(imgs []ai.ImagePart) []ollamaapi.ImageData {
+	if len(imgs) == 0 {
+		return nil
+	}
+	out := make([]ollamaapi.ImageData, 0, len(imgs))
+	for _, img := range imgs {
+		raw, err := base64.StdEncoding.DecodeString(rawBase64(img.Source))
+		if err != nil {
+			continue
+		}
+		out = append(out, ollamaapi.ImageData(raw))
+	}
+	return out
+}
+
 func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Request observability (M-OLLAMA-LOG-REQUESTS): when AILANG_OLLAMA_LOG_REQUESTS
 	// is set, append the exact logical request (model, system prompt, messages,
@@ -295,6 +333,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		// Tool-result message: Ollama has a native "tool" role with tool_call_id.
 		if m.Role == "tool" {
 			om.ToolCallID = m.ToolCallID
+		}
+		// Vision input: Ollama's native chat API takes an "images" field on a
+		// message = an array of base64-encoded images. Only attach when images
+		// are present so a text-only message marshals byte-for-byte as before
+		// (images field omitted via omitempty).
+		if len(m.Images) > 0 {
+			om.Images = toOllamaImages(m.Images)
 		}
 		// Assistant message that issued tool calls: re-attach them so the model
 		// sees its own prior calls in the running conversation.

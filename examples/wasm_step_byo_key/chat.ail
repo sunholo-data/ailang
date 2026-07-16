@@ -18,7 +18,7 @@ import std/io (println)
 -- Single-turn ai.step. Returns the assistant text or an error string.
 export func ask(model: string, prompt: string) -> string ! {AI} = {
   let messages: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "" }
+    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }
   ];
   let tools: [ToolSchema] = [];
   match step(model, messages, tools) {
@@ -32,8 +32,8 @@ export func ask(model: string, prompt: string) -> string ! {AI} = {
 -- them on providers that don't support caching).
 export func askCached(model: string, system: string, prompt: string) -> string ! {AI} = {
   let messages: [Message] = [
-    { role: "system", content: system, tool_calls: [], tool_call_id: "" },
-    { role: "user",   content: prompt, tool_calls: [], tool_call_id: "" }
+    { role: "system", content: system, tool_calls: [], tool_call_id: "", images: [] },
+    { role: "user",   content: prompt, tool_calls: [], tool_call_id: "", images: [] }
   ];
   let tools: [ToolSchema] = [];
   let breakpoints: [CacheBreakpoint] = [
@@ -61,7 +61,7 @@ export func renderChunk(chunk: StreamChunk) -> () ! {IO} {
 
 export func askStreaming(model: string, prompt: string) -> string ! {AI, IO} = {
   let messages: [Message] = [
-    { role: "user", content: prompt, tool_calls: [], tool_call_id: "" }
+    { role: "user", content: prompt, tool_calls: [], tool_call_id: "", images: [] }
   ];
   let tools: [ToolSchema] = [];
   let breakpoints: [CacheBreakpoint] = [];

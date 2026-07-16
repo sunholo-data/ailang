@@ -591,3 +591,24 @@ func mustParseJSON(t *testing.T, s string) any {
 	}
 	return v
 }
+
+// TestStep_ImagesReturnModelNoVision verifies the M-STD-AI-VISION-INPUT guard:
+// a config-driven provider (no image-block mapping) returns a typed
+// ModelNoVision error instead of silently dropping the image.
+func TestStep_ImagesReturnModelNoVision(t *testing.T) {
+	p := New(openaiChatSpec("http://example.invalid"))
+	req := &ai.Request{
+		Model: "x",
+		Messages: []ai.Message{
+			{Role: "user", Content: "what is this?", Images: []ai.ImagePart{{Source: "AAAA", Mime: "image/png"}}},
+		},
+	}
+	_, err := p.Step(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected ModelNoVision error, got nil")
+	}
+	var aiErr *ai.AIError
+	if !errors.As(err, &aiErr) || aiErr.Code != ai.CodeModelNoVision {
+		t.Errorf("expected CodeModelNoVision, got %v", err)
+	}
+}

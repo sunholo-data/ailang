@@ -476,6 +476,15 @@ func decodeMessages(list *eval.ListValue) ([]ai.Message, error) {
 			}
 			msg.ToolCalls = calls
 		}
+		// images is a list[ImagePart] (M-STD-AI-VISION-INPUT). Empty/absent =
+		// text-only message, wire-identical to pre-vision (Images stays nil).
+		if imgList, ok := rec.Fields["images"].(*eval.ListValue); ok && len(imgList.Elements) > 0 {
+			images, err := decodeImageParts(imgList)
+			if err != nil {
+				return nil, fmt.Errorf("messages[%d]: %w", i, err)
+			}
+			msg.Images = images
+		}
 		out = append(out, msg)
 	}
 	return out, nil
@@ -493,6 +502,29 @@ func decodeToolCalls(list *eval.ListValue) ([]ai.ToolCall, error) {
 			ID:        getStringField(rec, "id"),
 			Name:      getStringField(rec, "name"),
 			Arguments: getStringField(rec, "arguments"),
+		})
+	}
+	return out, nil
+}
+
+// decodeImageParts decodes an AILANG list[ImagePart] into []ai.ImagePart.
+// Each element is a {source, mime} record (M-STD-AI-VISION-INPUT). An empty
+// source is rejected — the caller (decodeMessages) surfaces it as a typed
+// SchemaValidation AIError rather than silently forwarding a blank image.
+func decodeImageParts(list *eval.ListValue) ([]ai.ImagePart, error) {
+	out := make([]ai.ImagePart, 0, len(list.Elements))
+	for i, elem := range list.Elements {
+		rec, ok := elem.(*eval.RecordValue)
+		if !ok {
+			return nil, fmt.Errorf("images[%d]: expected record, got %T", i, elem)
+		}
+		source := getStringField(rec, "source")
+		if source == "" {
+			return nil, fmt.Errorf("images[%d]: empty source (expected base64 or data-URI)", i)
+		}
+		out = append(out, ai.ImagePart{
+			Source: source,
+			Mime:   getStringField(rec, "mime"),
 		})
 	}
 	return out, nil

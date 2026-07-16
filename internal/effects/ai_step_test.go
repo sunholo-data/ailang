@@ -6,6 +6,7 @@ package effects
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -492,6 +493,23 @@ func messageRecordVal(role, content string, toolCalls []eval.Value, toolCallID s
 	}
 }
 
+// imagePartRecordVal builds an AILANG ImagePart record {source, mime}.
+func imagePartRecordVal(source, mime string) eval.Value {
+	return &eval.RecordValue{
+		Fields: map[string]eval.Value{
+			"source": &eval.StringValue{Value: source},
+			"mime":   &eval.StringValue{Value: mime},
+		},
+	}
+}
+
+// messageRecordValWithImages is messageRecordVal plus an images list.
+func messageRecordValWithImages(role, content string, images []eval.Value) eval.Value {
+	rec := messageRecordVal(role, content, nil, "").(*eval.RecordValue)
+	rec.Fields["images"] = &eval.ListValue{Elements: images}
+	return rec
+}
+
 func toolCallRecordVal(id, name, args string) eval.Value {
 	return &eval.RecordValue{
 		Fields: map[string]eval.Value{
@@ -527,4 +545,79 @@ func findAIEvent(c *trace.Collector, op string) *trace.EffectEvent {
 		}
 	}
 	return nil
+}
+
+// ============================================================================
+// M-STD-AI-VISION-INPUT — image (vision) input decoding
+// ============================================================================
+
+func TestDecodeMessages_ImagesEmpty_WireIdentical(t *testing.T) {
+	// images: [] must produce a nil Images slice — byte-for-byte the same
+	// ai.Message a text-only message produced before vision existed.
+	list := &eval.ListValue{Elements: []eval.Value{
+		messageRecordValWithImages("user", "hi", []eval.Value{}),
+	}}
+	msgs, err := decodeMessages(list)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(msgs))
+	}
+	if msgs[0].Images != nil {
+		t.Errorf("empty images list must yield nil Images (wire-identical), got %+v", msgs[0].Images)
+	}
+}
+
+func TestDecodeMessages_ImagesAbsent_NilImages(t *testing.T) {
+	// A record without the images field (tolerant decode) yields nil Images.
+	list := &eval.ListValue{Elements: []eval.Value{
+		messageRecordVal("user", "hi", nil, ""),
+	}}
+	msgs, err := decodeMessages(list)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if msgs[0].Images != nil {
+		t.Errorf("absent images must yield nil Images, got %+v", msgs[0].Images)
+	}
+}
+
+func TestDecodeMessages_DecodesImageParts(t *testing.T) {
+	list := &eval.ListValue{Elements: []eval.Value{
+		messageRecordValWithImages("user", "what is this?", []eval.Value{
+			imagePartRecordVal("BASE64DATA", "image/png"),
+			imagePartRecordVal("data:image/jpeg;base64,ABC", "image/jpeg"),
+		}),
+	}}
+	msgs, err := decodeMessages(list)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := msgs[0].Images
+	if len(got) != 2 {
+		t.Fatalf("expected 2 image parts, got %d", len(got))
+	}
+	if got[0].Source != "BASE64DATA" || got[0].Mime != "image/png" {
+		t.Errorf("image[0] mismatch: %+v", got[0])
+	}
+	if got[1].Source != "data:image/jpeg;base64,ABC" || got[1].Mime != "image/jpeg" {
+		t.Errorf("image[1] mismatch: %+v", got[1])
+	}
+}
+
+func TestDecodeMessages_EmptyImageSourceRejected(t *testing.T) {
+	// An empty source is a schema error — never silently forward a blank image.
+	list := &eval.ListValue{Elements: []eval.Value{
+		messageRecordValWithImages("user", "x", []eval.Value{
+			imagePartRecordVal("", "image/png"),
+		}),
+	}}
+	_, err := decodeMessages(list)
+	if err == nil {
+		t.Fatal("expected error for empty image source, got nil")
+	}
+	if !strings.Contains(err.Error(), "empty source") {
+		t.Errorf("expected 'empty source' error, got: %v", err)
+	}
 }
