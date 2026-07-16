@@ -93,6 +93,19 @@ func MarkdownBlock(q *QuorumResult) string {
 	if q.ControllerInSession != nil {
 		fmt.Fprintf(&b, "- controller (in-session, not an API call) → **%s** — %s\n", q.ControllerInSession.Verdict, q.ControllerInSession.Note)
 	}
+	if q.Tier2 != nil {
+		fmt.Fprintf(&b, "- **Tier-2 escalation** (%s) — verified the contested premise\n", q.Tier2.Decision.Reason)
+		for _, o := range q.Tier2.Reviewers {
+			if o == nil {
+				continue
+			}
+			if o.Present {
+				fmt.Fprintf(&b, "  - `%s` (tier2) → **%s** ($%.4f) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.Result.StrongestObjection)
+			} else {
+				fmt.Fprintf(&b, "  - `%s` (tier2) → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, o.AbsentReason)
+			}
+		}
+	}
 	if len(q.Synthesis.BlockingObjections) > 0 {
 		b.WriteString("- Blocking objections (return to author before planning):\n")
 		for _, obj := range q.Synthesis.BlockingObjections {

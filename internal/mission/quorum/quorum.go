@@ -3,6 +3,7 @@ package quorum
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // SynthesisVerdict is the quorum's composed decision.
@@ -33,6 +34,11 @@ type QuorumResult struct {
 	Reviewers           []*ReviewerOutcome `json:"reviewers"`
 	ControllerInSession *ControllerReview  `json:"controller_in_session,omitempty"`
 	Synthesis           Synthesis          `json:"synthesis"`
+
+	// Tier2 records the escalated agentic-verification pass, when one ran. It is
+	// ADDITIVE + omitempty: a Tier-1-only run marshals byte-identically to the
+	// shipped shape, so existing Phase E consumers are unaffected.
+	Tier2 *Tier2Result `json:"tier2,omitempty"`
 }
 
 // Synthesis is the composed decision plus the specific blocking objections and
@@ -80,6 +86,41 @@ func RunQuorum(docPath, docBody, isoTS string, reviewerModels []string, maxCostU
 		ControllerInSession: controller,
 		Synthesis:           synthesize(outcomes, controller),
 	}
+}
+
+// RunQuorumWithEscalation runs the full two-tier flow: the Tier-1 text quorum
+// ALWAYS runs (via RunQuorum, unchanged); then ShouldEscalate decides whether a
+// Tier-2 agentic verification is warranted. If it is, the agentic reviewers run
+// (RunTier2) and the FINAL synthesis folds Tier-2 rejects in (an escalated
+// reject blocks exactly like a Tier-1 reject). When no escalation fires, no
+// agentic call is made (cost-smart default) and the result is a plain Tier-1
+// QuorumResult.
+//
+// agenticReviewers are the Tier-2 reviewers (each with its own read-only
+// worktree); pass nil/empty to disable Tier-2 even when escalation would fire
+// (e.g. no agentic backend configured this run). agenticTimeout bounds each
+// agentic reviewer's wall clock.
+func RunQuorumWithEscalation(
+	docPath, docBody, isoTS string,
+	reviewerModels []string,
+	maxCostUSD float64,
+	controller *ControllerReview,
+	runner func(model, docPath, docBody string, maxCostUSD float64) *ReviewerOutcome,
+	agenticReviewers []AgenticReviewer,
+	agenticTimeout time.Duration,
+) *QuorumResult {
+	q := RunQuorum(docPath, docBody, isoTS, reviewerModels, maxCostUSD, controller, runner)
+
+	decision := ShouldEscalate(q, DocSelfDeclaresHighStakes(docBody))
+	tier2 := RunTier2(docPath, docBody, decision, agenticReviewers, maxCostUSD, agenticTimeout)
+	if tier2 == nil {
+		// No escalation (or no agentic backend) — Tier-1 stands unchanged.
+		return q
+	}
+
+	q.Tier2 = tier2
+	q.Synthesis = SynthesizeWithTier2(q.Reviewers, controller, tier2)
+	return q
 }
 
 // synthesize composes present reviewers + the controller into a verdict.

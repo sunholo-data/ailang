@@ -61,7 +61,17 @@ type ReviewerOutcome struct {
 	// true/false once they act (or don't) on the objection. null = not yet
 	// adjudicated.
 	Landed *bool `json:"landed"`
+
+	// Tier labels which review pass produced this outcome: "" (empty) for the
+	// Tier-1 text quorum (preserving the shipped artifact shape byte-for-byte
+	// for existing Phase E consumers), "tier2" for an escalated agentic
+	// verification. Additive + omitempty — a Tier-1 outcome marshals identically
+	// to before.
+	Tier string `json:"tier,omitempty"`
 }
+
+// TierAgentic is the Tier label for an escalated agentic-verification outcome.
+const TierAgentic = "tier2"
 
 // AbsentReason values.
 const (
