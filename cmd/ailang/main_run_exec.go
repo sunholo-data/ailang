@@ -276,6 +276,15 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	// Entrypoint resolution and execution
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
+		if caps == "auto" {
+			autoCaps := resolveAutoCaps(result.Interface, entry)
+			caps = strings.Join(autoCaps, ",")
+			if len(autoCaps) == 0 {
+				fmt.Fprintln(os.Stderr, "auto-granted capabilities: none")
+			} else {
+				fmt.Fprintf(os.Stderr, "auto-granted capabilities: %s\n", caps)
+			}
+		}
 
 		// M-PERF7: Batch mode -- compile once, execute entrypoint per input
 		// In batch mode, programArgs are treated as inputs (one execution per arg).

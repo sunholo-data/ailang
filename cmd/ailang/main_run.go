@@ -31,7 +31,7 @@ func runCommand() {
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
 	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
-	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env,Process)")
+	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env,Process; or 'auto' to infer from the entrypoint)")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
 	// Stdlib resolution flags

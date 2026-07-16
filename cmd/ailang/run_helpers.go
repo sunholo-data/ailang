@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -110,6 +111,27 @@ func setupEnvContext(effCtx *effects.EffContext, flags envFlags) bool {
 	}
 
 	return false // Continue execution
+}
+
+func resolveAutoCaps(moduleIface *iface.Iface, entry string) []string {
+	if moduleIface == nil {
+		return []string{}
+	}
+	item, ok := moduleIface.GetExport(entry)
+	if !ok || item == nil || item.Type == nil {
+		return []string{}
+	}
+	funcType, ok := item.Type.Type.(*types.TFunc2)
+	if !ok || funcType == nil || funcType.EffectRow == nil {
+		return []string{}
+	}
+
+	caps := make([]string, 0, len(funcType.EffectRow.Labels))
+	for name := range funcType.EffectRow.Labels {
+		caps = append(caps, name)
+	}
+	sort.Strings(caps)
+	return caps
 }
 
 // grantCapabilities parses capability string and grants them to the effect context

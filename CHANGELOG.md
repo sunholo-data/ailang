@@ -2,6 +2,10 @@
 
 For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-current.md).
 
+## Added
+
+- Add `ailang run --caps auto` to grant exactly the entrypoint's declared effects as capabilities.
+
 ## Changelog Archives
 
 The full changelog has been split into themed files for searchability and readability:
