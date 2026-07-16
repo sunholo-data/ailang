@@ -1,0 +1,229 @@
+{
+  "sprint_id": "M-GEMINI-EVALUATOR-DIFF-BRIDGE",
+  "title": "Inject a sprint diff bundle into a sandboxed gemini evaluator (INJECT-IN inverse of the extract-out managed_agents bridge)",
+  "design_doc": "design_docs/planned/v0_30_0/m-gemini-evaluator-diff-bridge.md",
+  "mission_iteration": 39,
+  "target_version": "v0.30.x",
+  "base_version_at_plan": "v0.29.2",
+  "priority": "P1",
+  "risk_level": "low",
+  "github_issues": [
+    399
+  ],
+  "created": "2026-07-17",
+  "created_at_head": "2bdf4e9e7eae969649c0a6422eafbc35100e5bfb",
+  "origin_dev_at_plan": "2bdf4e9e7eae969649c0a6422eafbc35100e5bfb",
+  "executor_constraints": {
+    "worktree": "Work in an isolated git worktree branched from origin/dev. NEVER the shared main tree. Commit each milestone promptly (concurrent-agent safety — a sibling agent shares the working tree).",
+    "executor_policy_free": "ZERO code changes to internal/executor/managed_agents/. The executor stays policy-free (managed_agents.go:158-163). All new code lives in internal/eval_harness/ (the POLICY layer), mirroring the sibling managed_agents_bridge.go rationale (file header lines 8-11). The diff bundle goes into the EXISTING task.Directive / task.SystemPrompt fields the executor already reads verbatim.",
+    "frozen_quorum_contract": "internal/mission/quorum/ is BYTE-IDENTICAL untouched. Do NOT import quorum into eval_harness, do NOT add fields to ReviewResult, do NOT add Verdict enum values. GeminiVerdict is a SEPARATE type in a DIFFERENT domain (sprint eval vs design-doc review). go test ./internal/mission/quorum/... must pass unchanged (quorum_test.go, reviewer_test.go, agentic_caller_test.go, escalate_test.go, tier2_test.go).",
+    "no_exec_go_change": "No change to cmd/ailang/exec.go. resolveAgenticExecutorName(\"gemini\")==\"managed_agents\" and the --json shape already exist (verified exec.go:281-294, 317-322). The default runner consumes the EXISTING seam.",
+    "no_live_vertex": "NO live Vertex / managed_agents call in ANY test. RunGeminiEvaluator takes an INJECTABLE runner func; unit tests pass a stub returning canned --json output. The default (production) runner shells `ailang exec gemini --json` but is never exercised by the test suite.",
+    "no_silent_fallback": "CLAUDE.md Principle 2. Truncation, binary/generated drop, AND backend error each set an EXPLICIT VerificationDegraded marker (caller-enforced, NOT model-trusted). A malformed verdict is a HARD ERROR, never a coerced pass. A stub/model pass:true under truncation STILL surfaces VerificationDegraded==true.",
+    "non_vacuous_tests": "Every listed Go test references a symbol absent on the base binary, so `go test` fails to compile/pass BEFORE implementation and passes AFTER. Verify non-vacuity by confirming the test compiles against the new symbols only.",
+    "fence_helper_discipline": "Conflict-Surface seam 4: when sharing lastFencedBlock, follow coding-standards 'rename definitions too, test between each change'. Prefer adding an EXPORTED thin wrapper (LastFencedBlock) over the existing unexported lastFencedBlock (zero behavior change, no rename of the internal call site in extractCode) — the lowest-risk option. TestLastFencedBlock_UnchangedForExtractOut guards it."
+  },
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 705,
+    "estimated_days": 2,
+    "basis": "Design estimates ~2d across 3 milestones (M1 bundle builder ~0.75d; M2 directive + verdict parse ~0.75d; M3 caller seam ~0.5d). Recent mission sprints (iters 30-38) are 1-2d single-iteration full-loop items landing round-1 (M-PRELUDE-OPTION-RESULT, M-XMOD-ALIAS-POLY single-milestone same-day; M-QUORUM-AGENTIC-VERIFY core M1-M3 in one iteration). This is three PURE, independently-testable functions + a thin caller over an ALREADY-VERIFIED executor seam and an EXISTING fence helper — mostly wiring + policy, no new subsystem. LOC est ~320 impl + ~380 test + ~5 export = ~705. Low risk: no external-network unknown (M0-style probe not needed — tests are stub-only), no core/executor/quorum change."
+  },
+  "premise_verification": {
+    "status": "ALL CITED SEAMS VERIFIED at HEAD 2bdf4e9e7 (2026-07-17). One SCHEMA-CLAIM discrepancy found (GeminiVerdict does NOT byte-mirror evaluation_report_schema.md field names — it is a defensible adaptation); no phantom seams; no blocking discrepancy. Plan adjusted to acknowledge the adaptation (see schema_adaptation_note).",
+    "checks": [
+      "managed_agents request body carries ONLY Input=[task.Directive] + SystemInstruction=task.SystemPrompt, no repo/file upload. CONFIRMED at managed_agents.go:164-176 (doc-cited lines exact).",
+      "Executor deliberately policy-free; harness owns bridging. CONFIRMED managed_agents.go:158-163 + managed_agents_bridge.go:8-11 (file header).",
+      "managed_agents_bridge.go EXISTS as the extract-out precedent (managedAgentsBridgeInstruction const + extractCode + writeSolutionFromResponse). CONFIRMED.",
+      "lastFencedBlock helper exists and is UNEXPORTED at managed_agents_bridge.go:168. CONFIRMED — the doc's plan to export/share it is valid. Single internal call site is extractCode (line 116). Recommend exported thin wrapper over rename (lowest risk).",
+      "quorum.ReviewResult is a design-doc-review verdict {Verdict pass|reject, StrongestObjection, Catch, ProposedFix} at reviewer.go:39-61 (doc-cited lines exact); ParseReviewResult (reviewer.go:116) + ValidateReviewResult (reviewer.go:136) exist. CONFIRMED it is a DIFFERENT domain from sprint eval; the doc's decision to NOT overload it is correct.",
+      "cmd/ailang/exec.go: resolveAgenticExecutorName(\"gemini\")==\"managed_agents\" at exec.go:317-322 (doc-cited); --json emits {success,output,error,input_tokens,output_tokens,cost_usd,duration_ms,num_turns} at exec.go:281-294 (doc-cited). CONFIRMED — no routing change needed.",
+      "No existing VerificationDegraded / verification_degraded / bundle_truncated marker anywhere in internal/. CONFIRMED zero hits — this marker is new (matches doc Verification Log).",
+      "Target version folder design_docs/planned/v0_30_0/ exists and holds the design doc. CONFIRMED."
+    ],
+    "discrepancies": [
+      {
+        "severity": "minor / non-blocking",
+        "claim": "The doc (lines 74-94, 216, 264) states GeminiVerdict 'mirrors the sprint-evaluator skill's evaluation_report_schema.md (score/result/blockers)'.",
+        "finding": "REFUTED as a byte-for-byte mirror. The actual schema (.claude/skills/sprint-evaluator/resources/evaluation_report_schema.md) uses `total_score` (int), `result` (string \"pass\"/\"fail\"), `hard_fails[]`, and `feedback[]`. There is NO `blockers` field and NO boolean `pass` field. GeminiVerdict{Score int, Pass bool, Blockers []string} is a defensible COMPACT ADAPTATION for a reasoning-only single-shot verdict, not a mirror.",
+        "resolution": "KEEP the doc's chosen GeminiVerdict shape — it is the frozen acceptance-test contract for M2 (TestParseGeminiVerdict_ExtractsFencedJSON, TestValidateGeminiVerdict_RejectsMalformed reference exactly {score,pass,blockers}). Do NOT switch to total_score/result to chase the skill schema mid-sprint (that would break the doc's own tests). REQUIRED: add a code doc-comment on GeminiVerdict noting it is an ADAPTATION of evaluation_report_schema.md (compact score/pass/blockers), not a field-name mirror, so a future reader is not misled. This surfaces the discrepancy in code without silently rewriting the design."
+      }
+    ],
+    "schema_adaptation_note": "GeminiVerdict.Score maps to the skill's total_score; GeminiVerdict.Pass corresponds to result==\"pass\"; GeminiVerdict.Blockers is a compact stand-in for hard_fails + high-severity feedback. Threshold 70 (pass>=70 AND no blockers) matches the skill's pass_threshold. The adaptation is intentional for a single-shot reasoning-only verdict; the full evaluation_report_schema.md remains the shape for the local sonnet sprint-evaluator, not the sandboxed gemini one."
+  },
+  "features": [
+    {
+      "id": "M1_DIFF_BUNDLE_BUILDER",
+      "phase": 1,
+      "description": "BuildDiffBundle(worktree string, opts BundleOptions) (Bundle, error) in the NEW file internal/eval_harness/gemini_evaluator_bridge.go, plus Bundle, BundleOptions, DegradationInfo types. Enumerates the changed-file set via `git -C <wt> status --porcelain -z` (modified + staged + UNTRACKED ??), runs `git -C <wt> diff` + `git -C <wt> diff --cached` for tracked changes (ALWAYS included, never dropped), synthesizes `+++ NEW FILE: <path>` headers + bodies for untracked files (git diff alone misses them — quorum gemini-3-1-pro catch 2026-07-16), appends full contents of changed non-binary non-generated files, applies drop-order + byte ceiling with LOUD truncation markers.",
+      "estimated_loc": 260,
+      "estimated_hours": 6,
+      "dependencies": [],
+      "blocks": [
+        "M3_CALLER_SEAM_DEGRADATION"
+      ],
+      "implementation": {
+        "types": "Bundle{Text string, Truncated bool, DroppedFiles []string, Bytes int}; BundleOptions{MaxBytes int (default 256*1024), ...}; DegradationInfo{Truncated bool, DroppedFiles []string, BackendError string} carrying the degradation signal to M3.",
+        "enumeration": "git -C <wt> status --porcelain -z parses modified/staged/untracked (?? = untracked). For tracked changes use git -C <wt> diff (unstaged) + git -C <wt> diff --cached (staged). For untracked files synthesize a `+++ NEW FILE: <path>` header followed by full contents; de-dupe against tracked appendices.",
+        "always_included": "The unified diff of tracked changes + the untracked-file `+++ NEW FILE` HEADER lines are ALWAYS first and never dropped (the change signal is load-bearing). Only full-file-content appendices (and a new file's BODY) are subject to the ceiling. A dropped new file KEEPS its header line so it is never silently invisible.",
+        "drop_order": "(1) binary files (NUL byte in first 8 KiB) — never included, only listed; (2) generated/vendored (path globs: *.pb.go, dist/, vendor/, *.min.js, *_generated.go, go.sum); (3) if still over ceiling, largest remaining changed files by byte size, dropped WHOLE (never mid-file), until under ceiling.",
+        "loud_marker": "Every drop appends a line to Bundle.Text AND Bundle.DroppedFiles: `=== BUNDLE TRUNCATED: dropped <path> (<size>, <reason>) — NOT shown to evaluator ===`. No silent drop. Bundle.Truncated=true propagates to DegradationInfo.",
+        "deterministic": "Drop order is stable/sorted so two calls on the same worktree yield byte-identical Text (git status output sorted; drop candidates sorted by (size desc, path) with a stable tiebreak)."
+      },
+      "files": [
+        "internal/eval_harness/gemini_evaluator_bridge.go (new: BuildDiffBundle + Bundle + BundleOptions + DegradationInfo)",
+        "internal/eval_harness/gemini_evaluator_bridge_test.go (new: table tests, each builds a real temp git repo via git init + git add/commit + modify)"
+      ],
+      "acceptance_criteria": [
+        "TestBuildDiffBundle_IncludesDiffAndFiles: temp git repo with 2 modified .go files => Bundle.Text contains BOTH the unified diff AND both files' full contents",
+        "TestBuildDiffBundle_IncludesUntrackedNewFiles (quorum catch): temp git repo with a brand-new untracked .go file => Bundle.Text contains a `+++ NEW FILE: <path>` header AND the file's contents (proves git diff alone would miss it)",
+        "TestBuildDiffBundle_DropsBinaryAndGenerated: a modified *.pb.go and a NUL-containing file => both in DroppedFiles, NOT in Text, and a LOUD marker line present for each",
+        "TestBuildDiffBundle_TruncatesOverCeiling: MaxBytes small + one large changed file => Truncated==true, file in DroppedFiles, marker present, and the git diff itself STILL present (never dropped)",
+        "TestBuildDiffBundle_Deterministic: two calls on the same worktree => byte-identical Text (stable/sorted drop order)"
+      ],
+      "test_requirements": [
+        "Each test constructs a REAL temp git repo (t.TempDir() + git init/add/commit) — no mocking of git; deterministic across runs",
+        "Binary detection asserted via a file with an embedded NUL byte in the first 8 KiB",
+        "Generated detection asserted via at least one path glob (*.pb.go)",
+        "The git diff / +++ NEW FILE headers are proven present EVEN in the truncation test (never-dropped invariant)"
+      ],
+      "passes": true,
+      "started": "2026-07-16T23:18:39Z",
+      "completed": "2026-07-16T23:18:39Z",
+      "notes": "BuildDiffBundle + Bundle/BundleOptions/DegradationInfo. git status --porcelain -z enumeration incl untracked ?? (+++ NEW FILE views); tracked diff always first/never dropped; drop-order binary->generated->largest-whole-file under 256KiB ceiling; LOUD === BUNDLE TRUNCATED === markers; deterministic (sorted). 5 tests pass."
+    },
+    {
+      "id": "M2_DIRECTIVE_AND_VERDICT_PARSE",
+      "phase": 2,
+      "description": "BuildEvaluatorDirective (reasoning-only directive composition, mirrors managedAgentsBridgeInstruction), the GeminiVerdict type, ParseGeminiVerdict (reuses the shared fence helper), ValidateGeminiVerdict (hard error on malformed — mirrors ParseReviewResult/ValidateReviewResult discipline), and the shared/exported fence helper. GeminiVerdict is a COMPACT ADAPTATION of evaluation_report_schema.md (score/pass/blockers) — see schema_adaptation_note; add a doc-comment saying so (do NOT claim a byte-mirror).",
+      "estimated_loc": 200,
+      "estimated_hours": 6,
+      "dependencies": [],
+      "blocks": [
+        "M3_CALLER_SEAM_DEGRADATION"
+      ],
+      "implementation": {
+        "directive": "BuildEvaluatorDirective(designDoc, sprintPlan, acceptanceCriteria string, bundle Bundle) string composes: a compile-time const reasoning-only instruction (NO repo/test access, judge ONLY from the bundle, do NOT claim you ran a test, END with a single fenced ```json verdict {score(0-100), pass(bool), blockers(string[])}), the bundle text, and the design/plan/criteria. If bundle.Truncated, append the 'note in blockers which unseen files limit your confidence' line.",
+        "verdict_type": "GeminiVerdict{Score int `json:\"score\"`, Pass bool `json:\"pass\"`, Blockers []string `json:\"blockers\"`, VerificationDegraded bool `json:\"verification_degraded\"`, DegradedReason string `json:\"degraded_reason,omitempty\"`}. Doc-comment: this is a COMPACT ADAPTATION of the sprint-evaluator skill's evaluation_report_schema.md (total_score->Score, result->Pass, hard_fails/feedback->Blockers), NOT a field-name mirror, and is DISTINCT from quorum.ReviewResult (different domain).",
+        "parse": "ParseGeminiVerdict(response string, degraded DegradationInfo) (GeminiVerdict, error): extract the LAST fenced json block via the shared helper, json.Unmarshal, call ValidateGeminiVerdict, then STAMP VerificationDegraded/DegradedReason from `degraded` (truncation/drop/backend-error). Missing fence or non-JSON => hard error (never a coerced pass).",
+        "validate": "ValidateGeminiVerdict enforces: Score in [0,100]; if len(Blockers)>0 then Pass==false; if VerificationDegraded then DegradedReason non-empty. Any violation => hard error (Principle 2).",
+        "fence_share": "Add an EXPORTED thin wrapper LastFencedBlock(s string) string in managed_agents_bridge.go delegating to the existing unexported lastFencedBlock (zero behavior change, no rename of the extractCode call site — the lowest-risk option per Conflict-Surface seam 4)."
+      },
+      "files": [
+        "internal/eval_harness/gemini_evaluator_bridge.go (add: BuildEvaluatorDirective, GeminiVerdict, ParseGeminiVerdict, ValidateGeminiVerdict, reasoning-only const)",
+        "internal/eval_harness/gemini_evaluator_bridge_test.go (add: directive + parse + validate + fence-regression tests)",
+        "internal/eval_harness/managed_agents_bridge.go (MODIFY small: export LastFencedBlock thin wrapper, ~5 LOC, no behavior change)"
+      ],
+      "acceptance_criteria": [
+        "TestBuildEvaluatorDirective_ReasoningOnly: directive contains the reasoning-only instruction, the bundle text, the design-doc/criteria, and the fenced-json verdict-schema instruction; a truncated bundle adds the 'note unseen files in blockers' line",
+        "TestParseGeminiVerdict_ExtractsFencedJSON: response with prose + a final ```json verdict => parsed {score,pass,blockers}",
+        "TestValidateGeminiVerdict_RejectsMalformed: score>100, OR blockers non-empty with pass==true, OR degraded with empty reason => hard error (never coerced pass); also non-JSON / missing fence => error",
+        "TestLastFencedBlock_UnchangedForExtractOut: the shared/exported helper returns IDENTICAL results for the extract-out cases in managed_agents_bridge_test.go (regression guard for Conflict-Surface seam 4)",
+        "GeminiVerdict carries a doc-comment acknowledging it is an ADAPTATION of evaluation_report_schema.md (not a byte-mirror) and is distinct from quorum.ReviewResult"
+      ],
+      "test_requirements": [
+        "Directive test asserts the reasoning-only const substring, the bundle substring, and the fenced-json instruction substring are all present",
+        "Parse test uses a response with intermediate scratch + a final json fence (proves LAST-fence selection)",
+        "Validate table covers each failure mode as a distinct hard-error case",
+        "Fence regression: the same inputs used by managed_agents_bridge_test.go extract-out cases yield identical output through the exported wrapper"
+      ],
+      "passes": true,
+      "started": "2026-07-16T23:18:39Z",
+      "completed": "2026-07-16T23:18:39Z",
+      "notes": "BuildEvaluatorDirective (reasoning-only const + truncation note), GeminiVerdict (doc-commented compact adaptation of evaluation_report_schema.md, distinct from quorum.ReviewResult), ParseGeminiVerdict/ValidateGeminiVerdict (hard error on malformed, never coerced pass), LastFencedBlock exported thin wrapper delegating to lastFencedBlock (no call-site rename). 4 tests pass incl extract-out regression guard."
+    },
+    {
+      "id": "M3_CALLER_SEAM_DEGRADATION",
+      "phase": 3,
+      "description": "RunGeminiEvaluator(ctx, worktree, designDoc, sprintPlan string, opts EvalOptions) (*GeminiVerdict, error) with an INJECTABLE runner func, plus EvalOptions. Composes BuildDiffBundle -> BuildEvaluatorDirective -> injected runner -> ParseGeminiVerdict, and CALLER-STAMPS VerificationDegraded from truncation/drop/backend-error. The default (production) runner shells `ailang exec gemini --json`; tests inject a STUB (no live Vertex call). Mirrors quorum.RunAgenticReviewer's policy-layer boundary.",
+      "estimated_loc": 245,
+      "estimated_hours": 4,
+      "dependencies": [
+        "M1_DIFF_BUNDLE_BUILDER",
+        "M2_DIRECTIVE_AND_VERDICT_PARSE"
+      ],
+      "blocks": [],
+      "implementation": {
+        "options": "EvalOptions carries BundleOptions (MaxBytes etc.), the acceptance criteria, and an injectable Runner func (e.g. func(ctx, directive, systemPrompt string) (execOutput, error) returning the --json fields {Success, Output, Error, cost, turns}). Default Runner = a production impl that shells `ailang exec gemini --json --workspace <tmp>` (or calls the executor factory as executeCLI does). The default runner is NEVER exercised by the test suite.",
+        "flow": "1) BuildDiffBundle => Bundle + DegradationInfo(Truncated, DroppedFiles). 2) BuildEvaluatorDirective => directive. 3) invoke injected runner. On runner error OR Success==false: set DegradationInfo.BackendError = executor error text. 4) ParseGeminiVerdict(output, degradation) => validated verdict with degradation stamped.",
+        "caller_enforced_degradation": "VerificationDegraded is stamped by the CALLER, not trusted from the model. A stub verdict of pass:true UNDER truncation still returns VerificationDegraded==true + non-empty reason. A backend error returns VerificationDegraded==true with the executor error text and is NOT a fabricated pass (Principle 2).",
+        "no_live_vertex": "Every test injects a stub runner returning canned output. NO test makes a live managed_agents/Vertex call."
+      },
+      "files": [
+        "internal/eval_harness/gemini_evaluator_bridge.go (add: RunGeminiEvaluator, EvalOptions, default production runner)",
+        "internal/eval_harness/gemini_evaluator_bridge_test.go (add: stub-runner happy path, truncation-stamps-degraded, backend-error-is-degraded-not-pass)"
+      ],
+      "acceptance_criteria": [
+        "TestRunGeminiEvaluator_StubHappyPath: stub runner returns a valid fenced verdict => RunGeminiEvaluator returns it with VerificationDegraded==false",
+        "TestRunGeminiEvaluator_TruncationStampsDegraded: bundle over ceiling => returned verdict has VerificationDegraded==true + non-empty reason, EVEN IF the stub verdict said pass:true (caller-enforced, not model-trusted)",
+        "TestRunGeminiEvaluator_BackendErrorIsDegradedNotPass: stub runner returns Success==false => verdict is VerificationDegraded==true with the executor error text; result is NOT a fabricated pass (Principle 2)",
+        "No live Vertex / managed_agents call in ANY test (stub runner only) — asserted by construction (the runner is an injected func; the default production runner is untouched by tests)"
+      ],
+      "test_requirements": [
+        "Stub runner is an injected func returning a canned {Success, Output} — no HTTP, no executor factory call in tests",
+        "Truncation test forces a small MaxBytes + a large changed file so DegradationInfo.Truncated==true, then asserts the stamp overrides a stub pass:true",
+        "Backend-error test sets stub Success=false + Error text and asserts VerificationDegraded + reason + NOT pass",
+        "The default production runner exists and shells `ailang exec gemini --json` but is NEVER invoked by the test suite"
+      ],
+      "passes": true,
+      "started": "2026-07-16T23:18:39Z",
+      "completed": "2026-07-16T23:18:39Z",
+      "notes": "RunGeminiEvaluator with injectable EvalRunner (stub in tests, DefaultGeminiRunner shells ailang exec gemini --json in prod, never exercised by tests). Caller-enforced VerificationDegraded on truncation OR backend error; stub pass:true under truncation still degraded; backend error -> degraded non-pass carrying error text, never fabricated pass. 3 tests pass, no live Vertex call."
+    }
+  ],
+  "phase_sequencing": {
+    "constraint": "M1 (bundle builder) and M2 (directive + verdict parse) are INDEPENDENT and may proceed in parallel; M3 (caller seam) depends on BOTH. Each milestone is independently committable.",
+    "hard_rules": [
+      "Executor stays policy-free: ZERO changes to internal/executor/managed_agents/. All new code in internal/eval_harness/.",
+      "The frozen quorum.ReviewResult contract is BYTE-IDENTICAL untouched; do NOT import quorum into eval_harness. go test ./internal/mission/quorum/... passes unchanged.",
+      "No change to cmd/ailang/exec.go — the gemini->managed_agents routing and --json shape already exist.",
+      "No silent fallback: truncation/drop/backend-error => caller-stamped VerificationDegraded (never model-trusted); malformed verdict => hard error, never a coerced pass.",
+      "No live Vertex/managed_agents call in any test — RunGeminiEvaluator takes an injectable runner; tests use a stub.",
+      "Fence helper: add an EXPORTED thin wrapper (LastFencedBlock) over the existing unexported lastFencedBlock; do NOT rename the internal extractCode call site (lowest-risk); TestLastFencedBlock_UnchangedForExtractOut guards it.",
+      "Every listed Go test is non-vacuous: references a symbol absent on the base binary (fails before, passes after)."
+    ]
+  },
+  "success_criteria_rollup": [
+    "M1: BuildDiffBundle returns deterministic Text = tracked diff + untracked +++ NEW FILE views + full changed-file contents, with binary/generated dropped and a LOUD marker + Truncated flag over a 256 KiB ceiling; the git diff is never dropped; untracked new files are included (quorum catch).",
+    "M2: reasoning-only directive const + GeminiVerdict (compact score/pass/blockers adaptation, doc-commented, distinct from quorum.ReviewResult) + ParseGeminiVerdict/ValidateGeminiVerdict with hard-error-on-malformed; lastFencedBlock shared via an exported wrapper with a regression guard.",
+    "M3: RunGeminiEvaluator with an injectable stub runner; caller-enforced VerificationDegraded on truncation/drop/backend-error (a stub pass:true under truncation still surfaces degraded); no live Vertex call in tests.",
+    "go test ./internal/eval_harness/... green (each new test fails on base binary, passes after); go test ./internal/mission/quorum/... unchanged; internal/executor/managed_agents/ untouched; make lint + make check-file-sizes green.",
+    "CHANGELOG entry added (grouped) for the inject-in gemini evaluator bridge capability."
+  ],
+  "risks": [
+    {
+      "risk": "GeminiVerdict field-name confusion: the doc claims it 'mirrors' evaluation_report_schema.md but that schema uses total_score/result/hard_fails/feedback, NOT score/pass/blockers.",
+      "mitigation": "RESOLVED at plan time: keep the doc's {score,pass,blockers} shape (it is the M2 acceptance-test contract) but add a code doc-comment marking it a COMPACT ADAPTATION (not a byte-mirror). Do NOT switch field names mid-sprint (would break the doc's own tests). Surfaced as a de-risking finding to the controller.",
+      "severity": "low"
+    },
+    {
+      "risk": "Sharing lastFencedBlock accidentally changes extract-out behavior (the Import System Disaster failure mode).",
+      "mitigation": "Add an EXPORTED thin wrapper over the existing unexported function (no rename, no call-site change). TestLastFencedBlock_UnchangedForExtractOut asserts identical output for the extract-out cases. Run go test ./internal/eval_harness/... after the change.",
+      "severity": "low"
+    },
+    {
+      "risk": "Non-deterministic bundle Text (git output ordering / map iteration) breaks TestBuildDiffBundle_Deterministic.",
+      "mitigation": "Sort git status entries and drop candidates with a stable total order (size desc, path asc); never range over a map for output. The determinism test is a hard gate.",
+      "severity": "low"
+    },
+    {
+      "risk": "A test accidentally makes a live Vertex/managed_agents call (billed, flaky, network-dependent).",
+      "mitigation": "RunGeminiEvaluator takes the runner as an injected func; ALL tests pass a stub. The default production runner is never referenced by the test suite. Hard rule + reviewer check.",
+      "severity": "low"
+    },
+    {
+      "risk": "Untracked-file handling drifts back to git-diff-only (the quorum gemini-3-1-pro catch), making the evaluator blind to the sprint's most important additions (new files).",
+      "mitigation": "Enumerate via git status --porcelain -z; synthesize +++ NEW FILE views; TestBuildDiffBundle_IncludesUntrackedNewFiles is a dedicated guard.",
+      "severity": "medium"
+    }
+  ],
+  "handoff": {
+    "worktree_required": true,
+    "branch_from": "origin/dev",
+    "estimated_duration": "2 days (~16 hours across 3 milestones)",
+    "total_loc_estimate": 705,
+    "risk_level": "low",
+    "recommendation": "Execute M1 and M2 in parallel (independent), then M3 (depends on both). Each milestone is independently committable. NO phase-gate/STOP-POINT needed (unlike M-QUORUM-AGENTIC-VERIFY) — there is no external-network unknown here: all tests are stub-only, no live Vertex call, no core/executor/quorum change. Land all 3 milestones in one iteration (matches iters 30-38 velocity). Before committing, verify: (1) internal/executor/managed_agents/ shows zero diff, (2) internal/mission/quorum/ shows zero diff, (3) cmd/ailang/exec.go shows zero diff, (4) the GeminiVerdict doc-comment acknowledges the schema adaptation. Ship the CAPABILITY only — do NOT wire it into mission routing (that is m-mission-agentic-provider-routing.md, out of scope) and do NOT make gemini the default evaluator (stays sonnet-5)."
+  },
+  "status": "completed"
+}
