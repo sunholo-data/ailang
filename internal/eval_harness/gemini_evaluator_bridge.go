@@ -563,3 +563,133 @@ func ValidateGeminiVerdict(v *GeminiVerdict) error {
 	}
 	return nil
 }
+
+// ============================================================================
+// M3 — Caller seam + caller-enforced degradation stamping
+// ============================================================================
+
+// EvalRunnerOutput is the minimal executor result the caller needs: it mirrors
+// the fields `ailang exec gemini --json` already emits (exec.go:281-294) that
+// matter for verdict extraction and degradation. The default production runner
+// populates it from the executor; unit tests return a canned value.
+type EvalRunnerOutput struct {
+	// Success is false when the backend errored — the caller stamps
+	// VerificationDegraded and NEVER treats the result as a real pass.
+	Success bool
+	// Output is the agent's raw text response (contains the fenced verdict).
+	Output string
+	// Error is the executor/backend error text (surfaced in DegradedReason).
+	Error string
+}
+
+// EvalRunner invokes the sandboxed evaluator with a composed directive +
+// system prompt and returns its output. It is INJECTABLE so tests pass a stub
+// and NEVER make a live Vertex/managed_agents call. The default production
+// runner (DefaultGeminiRunner) shells `ailang exec gemini --json`.
+type EvalRunner func(directive, systemPrompt string) (EvalRunnerOutput, error)
+
+// EvalOptions configures RunGeminiEvaluator.
+type EvalOptions struct {
+	// Bundle configures BuildDiffBundle (byte ceiling etc.).
+	Bundle BundleOptions
+	// AcceptanceCriteria is the criteria text folded into the directive.
+	AcceptanceCriteria string
+	// SystemPrompt is passed through to the runner (executor SystemInstruction).
+	SystemPrompt string
+	// Runner is the injectable executor seam. If nil, DefaultGeminiRunner is
+	// used (production path — shells `ailang exec gemini --json`; NEVER
+	// exercised by the test suite).
+	Runner EvalRunner
+}
+
+// RunGeminiEvaluator composes the reasoning-only evaluation end-to-end:
+// BuildDiffBundle → BuildEvaluatorDirective → injected runner →
+// ParseGeminiVerdict, and CALLER-ENFORCES degradation. On bundle truncation OR
+// a backend error, the returned verdict has VerificationDegraded==true with a
+// non-empty reason — a model/stub pass:true under degradation can NEVER stand
+// as a real pass (CLAUDE.md "no silent fallbacks", Principle 2). Mirrors
+// quorum.RunAgenticReviewer's policy-layer boundary.
+func RunGeminiEvaluator(worktree, designDoc, sprintPlan string, opts EvalOptions) (*GeminiVerdict, error) {
+	bundle, err := BuildDiffBundle(worktree, opts.Bundle)
+	if err != nil {
+		return nil, fmt.Errorf("RunGeminiEvaluator: build bundle: %w", err)
+	}
+
+	// Seed degradation from the bundle (truncation / dropped files).
+	degraded := DegradationInfo{
+		Truncated:    bundle.Truncated,
+		DroppedFiles: bundle.DroppedFiles,
+	}
+
+	directive := BuildEvaluatorDirective(designDoc, sprintPlan, opts.AcceptanceCriteria, bundle)
+
+	runner := opts.Runner
+	if runner == nil {
+		runner = DefaultGeminiRunner
+	}
+	out, runErr := runner(directive, opts.SystemPrompt)
+	if runErr != nil {
+		degraded.BackendError = runErr.Error()
+	} else if !out.Success {
+		msg := strings.TrimSpace(out.Error)
+		if msg == "" {
+			msg = "executor reported failure with no error text"
+		}
+		degraded.BackendError = msg
+	}
+
+	// On a backend error we have no trustworthy model verdict at all. Return a
+	// degraded, NON-PASS verdict carrying the error — never a fabricated pass.
+	if strings.TrimSpace(degraded.BackendError) != "" {
+		v := &GeminiVerdict{
+			Score:                0,
+			Pass:                 false,
+			Blockers:             []string{"backend error: no verdict obtained"},
+			VerificationDegraded: true,
+			DegradedReason:       degraded.reason(),
+		}
+		return v, nil
+	}
+
+	// Backend OK: parse the model verdict, then the caller-supplied degradation
+	// (bundle truncation) is stamped inside ParseGeminiVerdict — so a stub/model
+	// pass:true UNDER truncation still surfaces VerificationDegraded==true.
+	v, err := ParseGeminiVerdict(out.Output, degraded)
+	if err != nil {
+		return nil, fmt.Errorf("RunGeminiEvaluator: parse verdict: %w", err)
+	}
+	return &v, nil
+}
+
+// DefaultGeminiRunner is the production runner: it shells
+// `ailang exec gemini --json` (which routes to the managed_agents executor,
+// exec.go:317-322) and parses the --json envelope. It is the default when
+// EvalOptions.Runner is nil and is NEVER invoked by the test suite (all tests
+// inject a stub) — so no test makes a live Vertex/managed_agents call.
+func DefaultGeminiRunner(directive, systemPrompt string) (EvalRunnerOutput, error) {
+	args := []string{"exec", "gemini", "--json", "--prompt", directive}
+	if strings.TrimSpace(systemPrompt) != "" {
+		args = append(args, "--system-prompt", systemPrompt)
+	}
+	cmd := exec.Command("ailang", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	runErr := cmd.Run()
+
+	// The --json envelope from exec.go:281-294.
+	var env struct {
+		Success bool   `json:"success"`
+		Output  string `json:"output"`
+		Error   string `json:"error"`
+	}
+	if jerr := json.Unmarshal(stdout.Bytes(), &env); jerr != nil {
+		// No parseable envelope — surface the raw failure loudly.
+		return EvalRunnerOutput{}, fmt.Errorf("ailang exec gemini: unparseable --json output: %v (stderr: %s)",
+			jerr, strings.TrimSpace(stderr.String()))
+	}
+	if runErr != nil && env.Error == "" {
+		env.Error = strings.TrimSpace(stderr.String())
+	}
+	return EvalRunnerOutput{Success: env.Success, Output: env.Output, Error: env.Error}, nil
+}

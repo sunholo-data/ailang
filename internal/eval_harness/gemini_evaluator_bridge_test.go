@@ -330,3 +330,107 @@ func TestLastFencedBlock_UnchangedForExtractOut(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// M3 — RunGeminiEvaluator caller-seam tests (stub runner only, no live Vertex)
+// ============================================================================
+
+func TestRunGeminiEvaluator_StubHappyPath(t *testing.T) {
+	dir := newTempGitRepo(t)
+	writeFile(t, dir, "feature.go", "package f\nvar F = 1\n")
+
+	stub := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+		// Sanity: the directive must actually carry the bundle + reasoning note.
+		if !strings.Contains(directive, "Reasoning-only sprint evaluation") {
+			t.Errorf("stub: directive missing reasoning-only instruction")
+		}
+		if !strings.Contains(directive, "+++ NEW FILE: feature.go") {
+			t.Errorf("stub: directive missing the new file")
+		}
+		return EvalRunnerOutput{
+			Success: true,
+			Output:  "Looks good.\n```json\n{\"score\": 88, \"pass\": true, \"blockers\": []}\n```\n",
+		}, nil
+	}
+
+	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stub})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Score != 88 || !v.Pass {
+		t.Errorf("wrong verdict: %+v", v)
+	}
+	if v.VerificationDegraded {
+		t.Errorf("clean run should not be degraded: reason=%q", v.DegradedReason)
+	}
+}
+
+func TestRunGeminiEvaluator_TruncationStampsDegraded(t *testing.T) {
+	dir := newTempGitRepo(t)
+	// Large new file blows a tiny ceiling → bundle Truncated.
+	writeFile(t, dir, "huge.go", "package h\nvar H = \""+strings.Repeat("y", 20*1024)+"\"\n")
+
+	// The stub LIES with pass:true — the caller must override to degraded.
+	stub := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{
+			Success: true,
+			Output:  "```json\n{\"score\": 95, \"pass\": true, \"blockers\": []}\n```",
+		}, nil
+	}
+
+	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{
+		Runner: stub,
+		Bundle: BundleOptions{MaxBytes: 2 * 1024},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !v.VerificationDegraded {
+		t.Fatalf("expected VerificationDegraded==true under truncation (stub said pass:true)")
+	}
+	if strings.TrimSpace(v.DegradedReason) == "" {
+		t.Errorf("degraded verdict must carry a non-empty reason")
+	}
+	if !strings.Contains(v.DegradedReason, "huge.go") {
+		t.Errorf("degraded reason should name the dropped file: %q", v.DegradedReason)
+	}
+}
+
+func TestRunGeminiEvaluator_BackendErrorIsDegradedNotPass(t *testing.T) {
+	dir := newTempGitRepo(t)
+	writeFile(t, dir, "x.go", "package x\nvar X = 1\n")
+
+	// Case 1: runner returns Success==false with error text.
+	stubFail := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{Success: false, Error: "vertex 503 unavailable"}, nil
+	}
+	v, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stubFail})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Pass {
+		t.Errorf("backend failure must NOT be a pass: %+v", v)
+	}
+	if !v.VerificationDegraded || !strings.Contains(v.DegradedReason, "vertex 503") {
+		t.Errorf("backend error not surfaced in degraded reason: %+v", v)
+	}
+
+	// Case 2: runner returns a hard error.
+	stubErr := func(directive, systemPrompt string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{}, errStub("network down")
+	}
+	v2, err := RunGeminiEvaluator(dir, "design", "plan", EvalOptions{Runner: stubErr})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v2.Pass || !v2.VerificationDegraded {
+		t.Errorf("runner error must be degraded non-pass: %+v", v2)
+	}
+	if !strings.Contains(v2.DegradedReason, "network down") {
+		t.Errorf("runner error text not surfaced: %q", v2.DegradedReason)
+	}
+}
+
+type errStub string
+
+func (e errStub) Error() string { return string(e) }
