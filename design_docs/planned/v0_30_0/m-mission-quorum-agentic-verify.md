@@ -61,8 +61,12 @@ the AUTHOR (the designer role; true-Fable via the Gate-3 `claude:claude-fable-5`
 same day) integrates, accepting or rejecting each proposal by name in the doc's revision note.
 This is deliberately single-author + adversarial-proposers, NOT co-authoring: the quorum's value
 has been sharp disagreement (live 2-reject/1-pass splits), which design-by-committee would smooth
-away. A `proposed_fix` may be empty ONLY on a pass verdict — a reject must say what would fix it,
-which is what makes a reject actionable rather than a veto.
+away. **DECIDED 2026-07-16 (Mark, option (a) — resolves iteration 34's parked blocker):**
+`proposed_fix` is **OPTIONAL and not validated** — the shipped verdict contract stays frozen
+(`ValidateReviewResult` and the Go struct unchanged; the field is purely additive). Reviewers are
+PROMPTED to include a concrete fix with every reject and the author pushes back on fix-less
+rejects; a fix-less reject is recorded as reviewer friction, not a validation error. (The earlier
+"must carry a fix" wording contradicted "contract unchanged" — gemini-3-1-pro's round-2 catch.)
 
 ### Agentic reviewer backend
 Each reviewer becomes a **tool-using agent with read-only repo access**, ridden on the EXISTING
@@ -133,6 +137,8 @@ run agentic review on every doc (cost); grant reviewers merge authority.
 | Text reviewers have no repo access | `internal/mission/quorum/run.go:120` (CallJSON), reviewer.go BuildPrompt (doc body only) | Confirmed |
 | Rubric = the 3 design-doc-creator hard gates | reviewer.go systemPrompt | Confirmed |
 | codex/managed_agents already integrated | provider_executor.go | Confirmed (redundancy audit 2026-07-14) |
+| Reuse premise: cancellation, timeout, cost, read-only tools, worktree ALL already exposed by the executor layer | Controller code-read 2026-07-16 (iteration 34, refuting sol's round-2 objection): `Execute(ctx …)` (cancellation), `opts.Timeout`/`IdleTimeout`, `result.Cost = execResult.CostUSD`, `AllowedTools=["Read","Grep","Glob","WebFetch","WebSearch"]` (provider_executor.go:122–124), `WorkingDir` (worktree) | Confirmed — reuse-don't-rebuild HOLDS |
+| `proposed_fix` optionality vs contract freeze | Mark decision 2026-07-16: option (a) — optional, not validated, contract frozen | Decided (unblocks the iteration-34 park) |
 | Live quorum artifacts on disk (precondition SATISFIED) | `ls .ailang/state/mission-quorum/` | Confirmed 2026-07-16 — iter 28–30 `m-dx-examples-coverage-2026-07-14T09-{19,21,23}*.json` present (the earlier `find -name '*quorum*'` returned none because artifacts are named after the DOC, not the literal "quorum" — that command was the wrong probe, not evidence of absence) |
 
 ## Related

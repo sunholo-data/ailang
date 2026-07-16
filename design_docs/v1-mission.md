@@ -458,15 +458,15 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   scoping**: the lane serves READ-ONLY roles (evaluator/reviewer/quorum-verifier) only — the
   server-side sandbox never writes the local worktree, so the file-editing executor role needs a
   bridge (follow-up). Sonnet eval PASS 96/100 r1. First LIVE gemini fire deferred to (c).
-- **(c) [PARKED needs-human-review 2026-07-16 iter 34]** m-mission-quorum-agentic-verify+HONE — Gate-2
-  quorum-at-pick BLOCKED after one bounded revision round. Round-1 objections (stale Verification-Log
-  find-command row; proposed_fix wording) integrated inline + accepted. Round-2 re-quorum surfaced
-  DEEPER objections: gpt5-6-sol's "reuse premise unverified" was **REFUTED by controller code-read**
-  (provider_executor.go exposes ctx-cancel/Timeout/CostUSD/read-only-AllowedTools + WorkingDir worktree
-  — reuse premise HOLDS); gemini's is a REAL open authorial decision — `proposed_fix` required-on-reject
-  vs contract-unchanged (pick: optional-not-validated **(a, recommended)** or bounded contract-extension
-  **(b)**). **≈2-min unblock:** settle (a)/(b) + add the code-cited Verification-Log rows, then route to
-  planner. Meta-finding (Gate-5): the TEXT quorum-at-pick blocked a doc whose premises are TRUE-in-code
+- **(c) [UNPARKED 2026-07-16 — Mark DECIDED (a); ← NEXT fleet step]** m-mission-quorum-agentic-verify+HONE
+  — iteration 34's Gate-2 quorum-at-pick park is RESOLVED: Mark chose **(a) `proposed_fix` optional,
+  not validated, contract frozen** (doc's HONE section stamped; the code-cited Verification-Log rows
+  for the refuted sol objection added — provider_executor.go exposes ctx-cancel/Timeout/CostUSD/
+  read-only-AllowedTools/WorkingDir, reuse premise HOLDS). Doc is quorum-cleared for routing: **start
+  at sprint-planner** (both quorum rounds + revisions already done; do NOT re-quorum — the two rounds
+  + resolved authorial decision ARE the quorum outcome). M0 = the managed-sandbox network probe (doc
+  §Agentic reviewer backend). Meta-finding stands (text quorum blocked premises TRUE-in-code — the
+  motivating case for this doc). Meta-finding (Gate-5): the TEXT quorum-at-pick blocked a doc whose premises are TRUE-in-code
   precisely because text reviewers can't read code — the motivating case for this very doc. Original ask:
   reviewers become tool-using agents (codex/managed_agents/
   claude-CLI, read-only worktrees) that VERIFY premises against the repo AND attach a concrete
