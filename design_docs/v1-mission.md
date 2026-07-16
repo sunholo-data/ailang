@@ -35,6 +35,21 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-16 — ITERATION 36: fleet (c) m-mission-quorum-agentic-verify **CORE LANDED** (M1-M3, PR #400 → `0e83a1b12`, eval PASS 91/100 r1) — agentic reviewers that VERIFY-not-just-reason; M0/M4 gemini parked on a real `Task.GCPProject` plumbing gap
+
+Mark's option-(a) decision unparked iteration 34's Gate-2 blocker (`proposed_fix` optional, not validated,
+verdict contract frozen); doc was already quorum-cleared so routing started at sprint-planner. **Shipped
+M1-M3** (the provider-independent core): `agenticCaller` behind the existing `JSONCaller` seam producing the
+frozen `{verdict,strongest_objection,catch}` JSON via the coordinator executor layer (post-hoc cost cap vs
+`result.Cost`, N-1 degradation, read-only `Kind=="question"`); `ShouldEscalate` two-tier trigger
+(premise-class ∨ high-stakes ∨ Tier-1-split) + additive-optional `proposed_fix`; Tier-2 codex+claude
+read-only verify. 43 tests pass (29 new, deterministic -count=5); verdict contract independently verified
+UNCHANGED. Evaluator **re-routed fable→sonnet** (fable Agent-tool-unpinnable; $MODEL=opus would collide with
+the opus executor → alias-lane generator≠judge guard) PASS 91/100 r1. **M0 (gemini network probe) BLOCKED by
+a real gap**: `ailang exec gemini` fails `GCP project not set` — `cmd/ailang/exec.go:336` builds `Task{}` with
+no `GCPProject`, managed_agents default is `""` (filled per-task only by the eval harness). Fix = new queue
+item (c0), prerequisite for M0/M4 + any gemini reviewer/evaluator lane. Detail: log entry 39.
+
 ## STATUS 2026-07-16 — ITERATION 35: RED-DEV fix (outranks queue) — CI + Build-and-Release both green on `2bb3de2c5`; weekly bookkeeping thread rotated #329 → #399
 
 Two independent reds observed at HEAD (`fe7c13efa`). **(1) CI `verify-examples`**: the v0.30.0
@@ -64,40 +79,6 @@ TEXT quorum-at-pick can't verify code, so it reject-by-defaults exactly the prem
 tier exists to check — a live datapoint FOR building item (c), and a Gate-5 process note (the gate
 should let a controller code-refutation of a PREMISE-class objection count, not force a park). No code
 shipped; doc + queue updated. Detail: log entry 37.
-
-## STATUS 2026-07-16 — ITERATION 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1; codex real-run recipe corrected (Gate-5 skill edit)
-
-The armed one-shot override fired: `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` executed a real sprint
-end-to-end across THREE providers/roles — Opus planner (refuted the doc's ~200-LOC new-package
-mechanism → 74-line reuse of the existing `iface`/`TFunc2`/`EffectRow` required-effect path), **codex
-gpt-5.6-sol executor** (OpenAI, ~4.5-min metered run, `--caps auto` infers the entrypoint's effect row
-and grants exactly those), **Sonnet evaluator** (generator≠judge held: openai≠anthropic; the fable pin
-is unenforceable in the Agent tool so the F1 guard re-routed evaluator→sonnet + FLAG) PASS 98/100 r1.
-Gate-2 live-repro also caught that the alt candidate `m-dx-expected-fail-fixes` is largely a GHOST
-(effect-budget `@limit` runtime enforcement works at HEAD). **The first real codex run exposed that the
-Gate-3 codex recipe had only ever been verified against the text probe** — the real-run invocation is
-underspecified: it needs `--sandbox workspace-write` + `--add-dir` GOCACHE/GOMODCACHE, cannot self-commit
-(the worktree `.git` lives under the non-writable main checkout → controller finalizes from the
-uncommitted worktree diff), and must run backgrounded (30-min cap > the harness 10-min foreground bash
-limit). Two+ frictions, one gap → the retro-lane skill edit rewrote the recipe to the empirically-verified
-form. Detail: log entry 35.
-
-## STATUS 2026-07-16 — ITERATION 31: m-mission-agentic-provider-routing M1b+M2 LANDED (direct-on-dev `956fda55c`+`8d12e8e9c`, eval PASS 87/100 round 1, hardening `1c964aae2`); M3 PARKED w/ protocol; F1: `fable` is NOT a pinnable Agent alias
-
-The mission-infra P0 closed its executable slice headless: Gate-3 `provider:model`→bounded
-`codex exec` recipe (zero Go — planner found registry/DryRun/codex executor pre-existing since
-v0.22.0; the gap was only the missing spawn recipe), codex probe live-verified (gpt-5.6-sol,
-exit 0, executor + evaluator reproduced identically), charter right-sizing table + provider/
-agent/cost evidence rows (first new-schema rows written in log entry 34, incl. the loop's first
-metered-OpenAI rows). Evaluator (Fable ≠ Opus executor) PASS 87/100 round 1, then surfaced
-**F1 HIGH: the Agent tool accepts only sonnet|opus|haiku pins — `fable` is REJECTED** (live
-InputValidationError; fable roles run by session inheritance only; with opus-first defaults a
-fable evaluator pin would have silently become an opus judge on opus work) → hardened same-day:
-alias caveat + alias-lane generator≠judge guard (evaluator never falls back to bare $MODEL;
-re-route sonnet + FLAG) + F2 `exec` orphan-kill fix. Open by design: first REAL cross-provider
-fire (opt-in env), M3 planner A/B parked until 3 quorum docs accrue. Nightly binary_tree_sum
-"regression" triaged as model noise (9/9 same-night rotation pass on qwen3-6; alert was qwen3-5
-N=2). Detail: log entry 34.
 
 ## CURRENT GOAL
 
@@ -472,7 +453,15 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   scoping**: the lane serves READ-ONLY roles (evaluator/reviewer/quorum-verifier) only — the
   server-side sandbox never writes the local worktree, so the file-editing executor role needs a
   bridge (follow-up). Sonnet eval PASS 96/100 r1. First LIVE gemini fire deferred to (c).
-- **(c) [UNPARKED 2026-07-16 — Mark DECIDED (a); ← NEXT fleet step]** m-mission-quorum-agentic-verify+HONE
+- **(c) [CORE LANDED 2026-07-16 iter 36 (M1-M3) — PR #400 → `0e83a1b12`; M0/M4/M5 PARKED on the gemini `Task.GCPProject` gap, see (c0) below]** m-mission-quorum-agentic-verify+HONE
+  — **M1-M3 shipped**: `agenticCaller` behind the `JSONCaller` seam (frozen verdict JSON via the coordinator
+  executor layer), `ShouldEscalate` two-tier trigger + additive-optional `proposed_fix` (option (a), contract
+  frozen), Tier-2 codex+claude read-only verify. 43 tests pass, verdict contract independently verified
+  unchanged, evaluator PASS 91/100 r1. **M0 (gemini network probe) BLOCKED**: `ailang exec gemini` fails
+  `GCP project not set` — `cmd/ailang/exec.go` never plumbs `Task.GCPProject` outside the eval harness
+  (fix = item (c0)). Once (c0) lands: M0 (live gemini probe) → M4 (conditional on M0 result) → M5 (live-fire
+  + doc → implemented/). Watch items carried: `agentic_caller.go:85` ctx.Background→caller-ctx before a live
+  Tier-2 fire; `premiseSignals` breadth; M4 fallback must carry an explicit `VerificationDegraded` marker.
   — iteration 34's Gate-2 quorum-at-pick park is RESOLVED: Mark chose **(a) `proposed_fix` optional,
   not validated, contract frozen** (doc's HONE section stamped; the code-cited Verification-Log rows
   for the refuted sol objection added — provider_executor.go exposes ctx-cancel/Timeout/CostUSD/
@@ -488,6 +477,14 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   `claude:claude-fable-5` CLI lane — driver default updated) accepts/rejects each by name.
   Single-author + adversarial-proposers, NOT co-authoring. Preconditions all satisfied (doc
   updated). Two-tier stays: text quorum always, agentic escalation when contested/high-stakes.
+- **(c0) [NEXT fleet step — NEW-DOC, ≤1d; surfaced iter 36]** m-gemini-exec-project-plumbing — plumb
+  `Task.GCPProject`/`GCPLocation` from an env (`AILANG_CLOUD_PROJECT`/`GOOGLE_CLOUD_PROJECT`, default
+  location) into `cmd/ailang/exec.go`'s managed_agents/gemini path so `ailang exec gemini` works outside
+  the eval harness. ROOT CAUSE (verified iter 36): `exec.go:336` builds `executor.Task{}` with no
+  `GCPProject`; the managed_agents default project is `""` (`managed_agents.go:44`, filled per-task only
+  by the eval harness). ADC itself is fine. This is the hard prerequisite for fleet (c)'s M0/M4 (live
+  gemini probe + clone-in-sandbox) AND for any gemini reviewer/evaluator lane. Start at design-doc-creator
+  (NEW-DOC — grep first, no doc found iter 36).
 - **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),

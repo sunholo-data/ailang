@@ -3,6 +3,40 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-16 — ITERATION 32: FIRST cross-provider codex live-fire — `20251013_auto_caps` M1 (`--caps auto`) LANDED (PR #397 → `e542065c0`); executor = OpenAI codex gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1; codex real-run recipe corrected (Gate-5 skill edit)
+
+The armed one-shot override fired: `MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol` executed a real sprint
+end-to-end across THREE providers/roles — Opus planner (refuted the doc's ~200-LOC new-package
+mechanism → 74-line reuse of the existing `iface`/`TFunc2`/`EffectRow` required-effect path), **codex
+gpt-5.6-sol executor** (OpenAI, ~4.5-min metered run, `--caps auto` infers the entrypoint's effect row
+and grants exactly those), **Sonnet evaluator** (generator≠judge held: openai≠anthropic; the fable pin
+is unenforceable in the Agent tool so the F1 guard re-routed evaluator→sonnet + FLAG) PASS 98/100 r1.
+Gate-2 live-repro also caught that the alt candidate `m-dx-expected-fail-fixes` is largely a GHOST
+(effect-budget `@limit` runtime enforcement works at HEAD). **The first real codex run exposed that the
+Gate-3 codex recipe had only ever been verified against the text probe** — the real-run invocation is
+underspecified: it needs `--sandbox workspace-write` + `--add-dir` GOCACHE/GOMODCACHE, cannot self-commit
+(the worktree `.git` lives under the non-writable main checkout → controller finalizes from the
+uncommitted worktree diff), and must run backgrounded (30-min cap > the harness 10-min foreground bash
+limit). Two+ frictions, one gap → the retro-lane skill edit rewrote the recipe to the empirically-verified
+form. Detail: log entry 35.
+
+## STATUS 2026-07-16 — ITERATION 31: m-mission-agentic-provider-routing M1b+M2 LANDED (direct-on-dev `956fda55c`+`8d12e8e9c`, eval PASS 87/100 round 1, hardening `1c964aae2`); M3 PARKED w/ protocol; F1: `fable` is NOT a pinnable Agent alias
+
+The mission-infra P0 closed its executable slice headless: Gate-3 `provider:model`→bounded
+`codex exec` recipe (zero Go — planner found registry/DryRun/codex executor pre-existing since
+v0.22.0; the gap was only the missing spawn recipe), codex probe live-verified (gpt-5.6-sol,
+exit 0, executor + evaluator reproduced identically), charter right-sizing table + provider/
+agent/cost evidence rows (first new-schema rows written in log entry 34, incl. the loop's first
+metered-OpenAI rows). Evaluator (Fable ≠ Opus executor) PASS 87/100 round 1, then surfaced
+**F1 HIGH: the Agent tool accepts only sonnet|opus|haiku pins — `fable` is REJECTED** (live
+InputValidationError; fable roles run by session inheritance only; with opus-first defaults a
+fable evaluator pin would have silently become an opus judge on opus work) → hardened same-day:
+alias caveat + alias-lane generator≠judge guard (evaluator never falls back to bare $MODEL;
+re-route sonnet + FLAG) + F2 `exec` orphan-kill fix. Open by design: first REAL cross-provider
+fire (opt-in env), M3 planner A/B parked until 3 quorum docs accrue. Nightly binary_tree_sum
+"regression" triaged as model noise (9/9 same-night rotation pass on qwen3-6; alert was qwen3-5
+N=2). Detail: log entry 34.
+
 ## STATUS 2026-07-14 (midday) — ITERATION 29: m-dx-examples-coverage LANDED (PR #392 `3d451947c`, all 3 workflows green observed) + FIRST LIVE QUORUM (5 rounds, 5 real catches, ~$0.16)
 
 The clause-3 queue head shipped end-to-end headless: the stale v0.10.1-era doc was re-scoped on
