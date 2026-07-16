@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-17 — ITERATION 39: fleet **(c1) m-gemini-evaluator-diff-bridge LANDED** (PR #405 → `ae5f0a00f`, eval PASS 96/100 r1) — a sandboxed gemini evaluator can now review a sprint's UNCOMMITTED worktree diff; the backend-reliability blocker CLEARED
+
+Iteration 38 parked (c1) on Vertex backend reliability ("do not pick until a bounded `ailang exec gemini` probe returns a response"). Gate-2 reality-check ran **4/4 bounded probes → all SUCCESS** (8–11s, ~$0.01 each) → blocker cleared, (c1) pickable (NEXT-FIRST fleet step, serves Mark #399). Full inner loop: **designer** — Fable **quota-exhausted until 2026-08-01** ("reached your specified API usage limits") → fell back to **opus** + FLAGGED (graceful, never wedged); design-doc-creator's creation-time quorum degraded (gpt5-6-sol unreachable via an OpenAI structured-output infra bug; gemini-3-1-pro truncated) → controller PROCEED, gemini's untracked-files objection incorporated. **Opus planner** (verified 8/8 seams; caught the schema-mirror discrepancy — `GeminiVerdict` is a documented adaptation, not a byte-mirror of the frozen `quorum.ReviewResult`; pinned the lowest-risk `LastFencedBlock` thin-wrapper, no call-site rename) → **Opus executor** (worktree `internal/eval_harness/gemini_evaluator_bridge.go`: `BuildDiffBundle` untracked-inclusive + 256 KiB ceiling + LOUD truncation; reasoning-only directive; `GeminiVerdict` parse/validate; `RunGeminiEvaluator` injectable caller seam + caller-enforced `VerificationDegraded`; 12 non-vacuous tests) → **Sonnet evaluator** (generator≠judge: opus≠sonnet) **PASS 96/100 r1**, non-vacuity + frozen-contract independently confirmed; NB-1 folded into a ctx-threading hardening commit (`exec.CommandContext` — the fleet-(c) caller-ctx watch-item). Executor/`quorum`/`exec.go` byte-identical. **Default evaluator STAYS sonnet** — this ships the CAPABILITY, not a routing change (defaulting to gemini needs the evidence rule + a live diff-bridge fire). PR #405 → squash `ae5f0a00f`, dev CI green (test/lint/build required; SonarCloud advisory-red, non-required). Doc → implemented/v0_30_0. Detail: log entry 42.
+
 ## STATUS 2026-07-16 — ITERATION 38: HUMAN DIRECTIVE (#399, outranks queue) — evaluator default **fable → sonnet**; gemini-as-evaluator VERIFIED not-viable-today (server-side sandbox can't see the worktree + live probe timed out)
 
 Mark commented on #399: *"once we have gemini via managed agents and openai we can use one of those instead for evaluator? so default can be gemini (if able to git clone the codebase etc)? otherwise sonnet-5"*. Resolved his conditional with data. **gemini (managed_agents) is NOT viable as the evaluator today, two independent counts**: (1) **architectural (code-proven)** — the request body carries only `Directive`+`SystemPrompt` over a server-side `CapRemoteSandbox` (`managed_agents.go:164`); no repo upload, so it cannot see the sprint's UNCOMMITTED worktree changes nor re-run local tests (at most `git clone` the *public* origin/dev, which lacks them) — exactly Mark's "if able to git clone" gap; (2) **operational (live-observed)** — a bounded `ailang exec gemini` probe timed out (`http2 timeout awaiting response headers`, same class as iters 36-37). Per Mark's ladder → **sonnet-5**: Agent-tool-pinnable (fable is not — F1, so the fable default silently re-routed to sonnet every iteration anyway: 31/36), distinct from the opus executor (generator≠judge restored & now ENFORCEABLE), cheap, behavioral. Changed: driver `MISSION_EVALUATOR_MODEL` default fable→sonnet + routing-policy table + independence caveat RESOLVED. Follow-up queued: **fleet (c1) m-gemini-evaluator-diff-bridge** (ship the sprint diff into the directive + backend reliability). No CI risk (doc + driver-comment + one env default). Detail: log entry 41.
@@ -42,21 +46,6 @@ Mark commented on #399: *"once we have gemini via managed agents and openai we c
 ## STATUS 2026-07-16 — ITERATION 37: fleet **(c0) m-gemini-exec-project-plumbing LANDED** (PR #401 → `60351087b`, eval PASS 96/100 r1) — `ailang exec gemini` now reaches the Vertex Managed Agents backend; unblocks fleet (c)'s parked M0/M4 gemini reviewer lane
 
 The ≤1d unblocker surfaced by iteration 36. Live-repro confirmed the gap at HEAD (`managed_agents: GCP project not set`), root cause `cmd/ailang/exec.go:executeCLI` built `executor.Task{}` with no `GCPProject`/`GCPLocation` (the eval harness sets them per-model; the CLI path never did). **Fix** (minimal, +13 LOC code): `resolveGCPProjectEnv()` (`AILANG_CLOUD_PROJECT` → `GOOGLE_CLOUD_PROJECT`, coordinator precedence) + set both fields on the shared Task; empty location defers to executor `defaultLocation="global"`, unset project keeps the loud error (no silent default). **Live-verified by the controller**: env-unset → loud error preserved; `AILANG_CLOUD_PROJECT=ailang-multivac-dev` → error moved to Vertex `HTTP 400: Resource setup has just started` (project REACHED the backend). Non-vacuous `t.Setenv` regression test. Full loop: **Fable designer** (`claude:claude-fable-5` CLI lane, N−1 quorum PROCEED) → **Opus planner+executor** → **Fable evaluator** (true-Fable CLI lane, PASS 96/100 r1). ⚠ **Routing FLAG**: evaluator ran on the `claude:claude-fable-5` CLI lane, NOT the doc-prescribed sonnet re-route (iteration 36 hit the identical `MISSION_EVALUATOR_MODEL=fable` env and chose sonnet per the ≥3-datapoint gate) — recorded as an evidence datapoint + a doc-inconsistency retro note, NOT a ratified policy change. Detail: log entry 40.
-
-## STATUS 2026-07-16 — ITERATION 36: fleet (c) m-mission-quorum-agentic-verify **CORE LANDED** (M1-M3, PR #400 → `0e83a1b12`, eval PASS 91/100 r1) — agentic reviewers that VERIFY-not-just-reason; M0/M4 gemini parked on a real `Task.GCPProject` plumbing gap
-
-Mark's option-(a) decision unparked iteration 34's Gate-2 blocker (`proposed_fix` optional, not validated,
-verdict contract frozen); doc was already quorum-cleared so routing started at sprint-planner. **Shipped
-M1-M3** (the provider-independent core): `agenticCaller` behind the existing `JSONCaller` seam producing the
-frozen `{verdict,strongest_objection,catch}` JSON via the coordinator executor layer (post-hoc cost cap vs
-`result.Cost`, N-1 degradation, read-only `Kind=="question"`); `ShouldEscalate` two-tier trigger
-(premise-class ∨ high-stakes ∨ Tier-1-split) + additive-optional `proposed_fix`; Tier-2 codex+claude
-read-only verify. 43 tests pass (29 new, deterministic -count=5); verdict contract independently verified
-UNCHANGED. Evaluator **re-routed fable→sonnet** (fable Agent-tool-unpinnable; $MODEL=opus would collide with
-the opus executor → alias-lane generator≠judge guard) PASS 91/100 r1. **M0 (gemini network probe) BLOCKED by
-a real gap**: `ailang exec gemini` fails `GCP project not set` — `cmd/ailang/exec.go:336` builds `Task{}` with
-no `GCPProject`, managed_agents default is `""` (filled per-task only by the eval harness). Fix = new queue
-item (c0), prerequisite for M0/M4 + any gemini reviewer/evaluator lane. Detail: log entry 39.
 
 ## CURRENT GOAL
 
@@ -488,7 +477,7 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   Non-vacuous `t.Setenv` regression test. **Fleet (c)'s M0/M4 gemini reviewer lane is now UNBLOCKED** —
   next fleet step is (c) M0 (live gemini network probe) → M4 (conditional on M0) → M5 (bounded live-fire +
   doc → implemented/).
-- **(c1) [NEXT fleet step — surfaced iteration 38]** m-gemini-evaluator-diff-bridge — Mark's #399
+- **(c1) [LANDED 2026-07-17 iter 39 → implemented/v0_30_0; PR #405 → `ae5f0a00f`, eval PASS 96/100 r1]** m-gemini-evaluator-diff-bridge — Mark's #399
   directive ("default evaluator = gemini if able to git clone the codebase, otherwise sonnet-5")
   forced fleet (c)'s M0 live probe early. **Two findings**: (1) **M0 live gemini probe TIMED OUT**
   (`ailang exec gemini` → `http2: timeout awaiting response headers` on the Vertex
@@ -499,8 +488,12 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   (`managed_agents.go:164`), so even a READ-ONLY evaluator sees NO local repo — it cannot inspect
   the sprint's uncommitted worktree changes nor re-run tests. To make gemini a real evaluator: ship
   the `git diff` + changed files INTO the directive text (mirror `managed_agents_bridge.go`), accept
-  it's reasoning-only (no local test re-runs), AND land backend reliability. Until both: evaluator
-  default = **sonnet** (this iteration's change). ~2d when picked.
+  it's reasoning-only (no local test re-runs), AND land backend reliability. **BOTH DONE (iter 39)**:
+  backend reliability confirmed (4/4 bounded probes SUCCESS); the diff-bridge capability shipped
+  (`internal/eval_harness/gemini_evaluator_bridge.go` — `BuildDiffBundle` untracked-inclusive +
+  reasoning-only directive + `GeminiVerdict` + `RunGeminiEvaluator` injectable caller seam +
+  caller-enforced `VerificationDegraded`; PASS 96/100 r1). Default evaluator STAYS **sonnet** —
+  capability only; a gemini-default flip needs a live diff-bridge fire + the ≥3-datapoint evidence rule.
 - **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),

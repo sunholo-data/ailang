@@ -3,6 +3,21 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+
+## STATUS 2026-07-16 — ITERATION 36: fleet (c) m-mission-quorum-agentic-verify **CORE LANDED** (M1-M3, PR #400 → `0e83a1b12`, eval PASS 91/100 r1) — agentic reviewers that VERIFY-not-just-reason; M0/M4 gemini parked on a real `Task.GCPProject` plumbing gap
+
+Mark's option-(a) decision unparked iteration 34's Gate-2 blocker (`proposed_fix` optional, not validated,
+verdict contract frozen); doc was already quorum-cleared so routing started at sprint-planner. **Shipped
+M1-M3** (the provider-independent core): `agenticCaller` behind the existing `JSONCaller` seam producing the
+frozen `{verdict,strongest_objection,catch}` JSON via the coordinator executor layer (post-hoc cost cap vs
+`result.Cost`, N-1 degradation, read-only `Kind=="question"`); `ShouldEscalate` two-tier trigger
+(premise-class ∨ high-stakes ∨ Tier-1-split) + additive-optional `proposed_fix`; Tier-2 codex+claude
+read-only verify. 43 tests pass (29 new, deterministic -count=5); verdict contract independently verified
+UNCHANGED. Evaluator **re-routed fable→sonnet** (fable Agent-tool-unpinnable; $MODEL=opus would collide with
+the opus executor → alias-lane generator≠judge guard) PASS 91/100 r1. **M0 (gemini network probe) BLOCKED by
+a real gap**: `ailang exec gemini` fails `GCP project not set` — `cmd/ailang/exec.go:336` builds `Task{}` with
+no `GCPProject`, managed_agents default is `""` (filled per-task only by the eval harness). Fix = new queue
+item (c0), prerequisite for M0/M4 + any gemini reviewer/evaluator lane. Detail: log entry 39.
 ## STATUS 2026-07-16 — ITERATION 35: RED-DEV fix (outranks queue) — CI + Build-and-Release both green on `2bb3de2c5`; weekly bookkeeping thread rotated #329 → #399
 
 Two independent reds observed at HEAD (`fe7c13efa`). **(1) CI `verify-examples`**: the v0.30.0
