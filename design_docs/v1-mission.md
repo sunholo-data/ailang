@@ -123,6 +123,18 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 > Behavioral value (independent test re-runs, cross-history non-vacuity, distinct-sample recounts)
 > is unchanged. Fable is retired from the every-iteration evaluator slot to protect the weekly quota
 > (it fires every iteration, unlike the designer which fires only on new docs).
+>
+> **⚠ CORRECTION (2026-07-16 evening, Mark + interactive session): "Fable quota-exhausted until
+> 2026-08-01" was a MISDIAGNOSIS — OAuth Fable was available the whole time.** The tell: OAuth
+> buckets reset **weekly Monday 07:00**; an "until the 1st" date is the **API key's monthly
+> cycle**. Root cause: `~/.zshenv` sources `secrets.env`, so every tool shell re-exports
+> `ANTHROPIC_API_KEY`; nested `claude -p` calls (the `claude:` CLI lane) therefore billed the
+> METERED API — iteration 37's fable designer+evaluator runs were API-billed $, and the key's cap
+> then produced the fake "Fable exhausted" error. Fixed in the skill: every nested `claude` call
+> now strips the keys at the call-site (`env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN`).
+> **The `claude:claude-fable-5` designer lane is AVAILABLE again — do not treat Fable as gone
+> until 08-01.** Any future "quota" error naming a reset date that is not a Monday = you are on
+> the API key; fix the leak, don't fall back.
 | Mechanical tasks (doc moves, regen, banking) | Sonnet allowed | Only with deterministic verification; promotion beyond this requires evidence |
 
 **Evidence rule**: every sprint's log entry records `(model, task class, evaluator round-1 score,

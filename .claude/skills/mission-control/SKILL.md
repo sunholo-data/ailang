@@ -263,8 +263,18 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
 - **`PROVIDER=claude`** (added 2026-07-16, Mark — the true-Fable lane): the `claude` CLI takes FULL
   model IDs (`claude -p --model claude-fable-5`), unlike the Agent tool's sonnet|opus|haiku alias
   limit (F1). So a role value like `claude:claude-fable-5` routes around F1 to a REAL Fable run.
-  Same discipline as codex: 1-token probe first (the driver's own `_mc_probe` pattern), run
-  backgrounded from the role's working dir with a bounded ≤30-min `date +%s` deadline,
+  **BILLING GUARD — MANDATORY at every nested `claude` call (added 2026-07-16 evening after a live
+  incident):** `~/.zshenv` sources `secrets.env`, so EVERY tool shell re-exports
+  `ANTHROPIC_API_KEY` — the driver's top-level strip does NOT survive into your Bash calls. A bare
+  nested `claude -p` therefore bills the METERED API (real $), and when the key's monthly cap is
+  hit it fails with an "until the 1st" quota error that MASQUERADES as OAuth-Fable exhaustion
+  (the 2026-07-16 "Fable quota-exhausted until 2026-08-01" finding was exactly this — OAuth Fable
+  was fine the whole time; OAuth buckets reset weekly Mon 07:00, so ANY until-the-1st reset date
+  = you are on the API key). Invoke as:
+  `env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN claude -p … --model claude-fable-5 …`
+  — subscription-or-nothing, same as the driver (guard the CALL-SITE, not just the helper).
+  Same discipline as codex: 1-token probe first (with the same `env -u` strip), run backgrounded
+  from the role's working dir with a bounded ≤30-min `date +%s` deadline,
   `--permission-mode bypassPermissions`, fall back to `$MODEL` + FLAG on probe-fail/cap. Primary
   use: the DESIGNER role (deep spec synthesis on Fable — quota-bounded, fires only when a doc is
   created/revised). The evaluator MAY move here too (`claude:claude-fable-5` ≠ opus executor →
