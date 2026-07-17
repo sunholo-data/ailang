@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-17T23:36:42+02:00",
+  "timestamp": "2026-07-18T00:21:55+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34028,7 +34028,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-17T23:36:40+02:00",
+      "timestamp": "2026-07-18T00:21:54+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51068,15 +51068,15 @@
         {
           "band": "Moderate",
           "elo": 1516.7,
-          "id": "contract_leap_year",
+          "graderFlag": "set-repr",
+          "id": "contract_sorted_merge",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.7,
-          "graderFlag": "set-repr",
-          "id": "contract_sorted_merge",
+          "id": "contract_leap_year",
           "passRate": 90,
           "saturated": false
         },
@@ -51301,14 +51301,14 @@
         {
           "band": "Trivial",
           "elo": 851.2,
-          "id": "effect_composition",
+          "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 851.2,
-          "id": "digitless_constants",
+          "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
@@ -51586,15 +51586,15 @@
             {
               "band": "Easy",
               "elo": 1482.4,
-              "id": "state_machine_vending",
+              "graderFlag": "free-text-exact-match",
+              "id": "decision_block_capture",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1482.4,
-              "graderFlag": "free-text-exact-match",
-              "id": "decision_block_capture",
+              "id": "state_machine_vending",
               "passRate": 90,
               "saturated": false
             },
@@ -51727,14 +51727,14 @@
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "fizzbuzz",
+              "id": "numeric_modulo",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "numeric_modulo",
+              "id": "fizzbuzz",
               "passRate": 100,
               "saturated": true
             },
@@ -53227,14 +53227,14 @@
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "api_call_json",
+          "id": "intent_annotated_solver",
           "passRate": 94.1,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "intent_annotated_solver",
+          "id": "api_call_json",
           "passRate": 94.1,
           "saturated": true
         },
@@ -54056,14 +54056,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
