@@ -1,10 +1,16 @@
 # M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern
 
-**Status**: PARKED (needs-human-review) — mission iter 42 re-quorum (restored 2-reviewer, binary
-rebuilt) BLOCKED by a fundamental soundness objection: **the purely-syntactic option (a) cannot
-catch its own motivating incident.** See "REBLOCK (iter 42)" below. The option-(a) analysis and
-Pattern C grounding below are RETAINED (durable), but they are contradicted by the primary goal and
-the architecture must be re-decided before routing.
+**Status**: UNPARKED — **ARCHITECTURE DECIDED by Mark 2026-07-17 ("go with 2"): the pass runs
+AFTER name resolution** (resolved-callee identity), with a **curated known-empty-builder registry**
+matched by resolved identity (std/json `jo` with empty args, etc. — never bare name-match, per
+gpt5-6-sol's soundness warning), so `Ok(jo([]))` — the motivating incident — IS caught. Channel
+decision (same directive): **WARNING in dev `ailang check`, HARD ERROR (exit 1) under
+`check --package`** — fail loudly at the publish boundary, don't nag mid-development. Precedent
+layer: the M-DX-SPLIT-ARG warning's post-resolution hook (`internal/pipeline/warn_split_args.go`).
+Literal-empties (`Ok([])`/`Ok("")`/`Ok({})`) are caught by the same resolved-layer pass trivially.
+Revised estimate ~2d. **Route to sprint-planner** (quorum already run twice; the decided
+architecture answers both standing objections — do NOT re-quorum, record the decision as the
+resolution). The earlier option-(a) analysis below is RETAINED as history; it is superseded.
 
 ## REBLOCK (iter 42 clean re-quorum — the real blocker)
 
