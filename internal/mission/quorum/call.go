@@ -63,9 +63,19 @@ func (c *handlerCaller) CallJSON(sysPrompt, userPrompt, schema string) (string, 
 	return strings.TrimSpace(resp.Text), resp, nil
 }
 
-// reviewMaxTokens caps reviewer output. Reviews are short structured JSON;
-// this both bounds cost and leaves reasoning headroom for the frontier models.
-const reviewMaxTokens = 4096
+// reviewMaxTokens caps reviewer output. Reviews are short structured JSON, but
+// the frontier reviewers are REASONING models whose thinking tokens count
+// against maxOutputTokens (Gemini 3.x especially — "2x reasoning"). At the old
+// 4096 cap the thinking trace could consume the whole budget and truncate the
+// JSON answer mid-object, so the review was silently dropped as
+// "malformed JSON" and the quorum degraded to N-1 (observed live, mission iter
+// 42: gemini-3-1-pro finishReason=MAX_TOKENS on a substantive objection). 16384
+// leaves genuine thinking headroom above the ~1-2K structured verdict. Cost is
+// billed per ACTUAL token emitted (a short verdict stays in cents) and the
+// pre-flight budget cap uses a fixed expectedOutputTokens estimate, so raising
+// this ceiling does not change budget gating. A residual truncation now fails
+// LOUDLY via resp.FinishReason == "length" (see runReviewerWith), never silently.
+const reviewMaxTokens = 16384
 
 // ResolveCaller builds a JSONCaller for a models.yml model id, wiring the
 // correct provider + auth from the shipped registry:

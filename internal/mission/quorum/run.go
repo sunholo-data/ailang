@@ -140,7 +140,16 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 	result, perr := ParseReviewResult(raw)
 	if perr != nil {
 		out.AbsentReason = ReasonInvalid
-		out.Err = perr.Error()
+		// Fail LOUDLY on a max_tokens truncation: a reasoning model whose
+		// thinking exhausted the output cap returns a valid-but-cut-off body
+		// that ParseReviewResult rejects as malformed JSON. Surfacing the
+		// finish reason turns an opaque "non-JSON" into an actionable
+		// "output truncated at N tokens — raise reviewMaxTokens" (Principle 2).
+		if resp.FinishReason == "length" {
+			out.Err = fmt.Sprintf("reviewer output truncated at %d tokens (finish_reason=length) — reasoning likely exhausted the %d-token cap; raise reviewMaxTokens. Parse error: %v", resp.OutputTokens, reviewMaxTokens, perr)
+		} else {
+			out.Err = perr.Error()
+		}
 		return out
 	}
 
