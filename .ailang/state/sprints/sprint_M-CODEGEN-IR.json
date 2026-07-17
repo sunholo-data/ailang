@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CODEGEN-IR",
-  "status": "paused",
+  "status": "frozen",
   "created": "2026-04-03T12:30:36Z",
   "design_doc": "design_docs/planned/v0_11_0/m-codegen-strategic-review.md",
   "sprint_plan": "design_docs/planned/v0_11_0/m-codegen-strategic-review-sprint-plan.md",
@@ -49,7 +49,9 @@
       "id": "M3_LOWERING_PASSES",
       "description": "Build lowering passes: block lowering (let-chain flattening), type projection (AILANG types to ResolvedType), match lowering (7 pattern types to if/switch), expression lowering (20 Core expr types), program lowering (multi-module).",
       "estimated_loc": 800,
-      "dependencies": ["M2_STATEMENT_IR_TYPES"],
+      "dependencies": [
+        "M2_STATEMENT_IR_TYPES"
+      ],
       "acceptance_criteria": [
         "Block lowering produces flat VarDecl sequences (no nested IIFEs)",
         "Type projection handles all types used by Stapledon's Voyage",
@@ -69,7 +71,10 @@
       "id": "M4_GO_EMITTER",
       "description": "Build thin Go emitter over Statement IR. Generate ADT structs, record structs, function bodies. Wire CLI.",
       "estimated_loc": 1200,
-      "dependencies": ["M3_LOWERING_PASSES", "M1_EXTRACT_GOLDEN_TESTS"],
+      "dependencies": [
+        "M3_LOWERING_PASSES",
+        "M1_EXTRACT_GOLDEN_TESTS"
+      ],
       "acceptance_criteria": [
         "Go emitter is under 600 LOC",
         "Old internal/gen/golang/ codegen deleted (10,757 LOC removed)",
@@ -88,7 +93,9 @@
       "id": "M5_ACCEPTANCE",
       "description": "Compile production codebase (docparse: 34 files, 595 functions) through new pipeline. Fix remaining issues.",
       "estimated_loc": 300,
-      "dependencies": ["M4_GO_EMITTER"],
+      "dependencies": [
+        "M4_GO_EMITTER"
+      ],
       "acceptance_criteria": [
         "Production target compiles to gofmt-clean Go",
         "CI workflow runs on every PR touching internal/gen/",
@@ -99,7 +106,7 @@
       "passes": "partial",
       "started": "2026-04-03T18:00:00Z",
       "completed": null,
-      "notes": "PIVOTED from Stapledon's Voyage to docparse (34 files, 595 functions — much harder target). All 595 functions compile to gofmt-clean Go. Recursive directory scanning added. Cons operator, List/Map type projection, IIFE type mismatch — all fixed. go build NOT yet passing: 415 undefined symbols remain across 5 categories (see last-mile analysis below). CI and CHANGELOG deferred."
+      "notes": "PIVOTED from Stapledon's Voyage to docparse (34 files, 595 functions \u2014 much harder target). All 595 functions compile to gofmt-clean Go. Recursive directory scanning added. Cons operator, List/Map type projection, IIFE type mismatch \u2014 all fixed. go build NOT yet passing: 415 undefined symbols remain across 5 categories (see last-mile analysis below). CI and CHANGELOG deferred."
     }
   ],
   "last_mile_analysis": {
@@ -112,7 +119,7 @@
       },
       "stdlib_functions": {
         "count": 90,
-        "cause": "std_list__Map, std_string__Trim, etc. — AILANG stdlib functions have no Go implementation",
+        "cause": "std_list__Map, std_string__Trim, etc. \u2014 AILANG stdlib functions have no Go implementation",
         "fix": "Generate runtime bridge with Go implementations of stdlib functions, or use embedded evaluator for stdlib"
       },
       "cross_module_calls": {
@@ -142,7 +149,7 @@
       },
       "builtin_functions": {
         "count": 7,
-        "cause": "_builtin__Concat_String etc. — core builtins need Go implementations",
+        "cause": "_builtin__Concat_String etc. \u2014 core builtins need Go implementations",
         "fix": "Generate runtime bridge or inline during lowering"
       },
       "tuple_types": {
@@ -156,7 +163,8 @@
       "Or pivot to Option F (hybrid: evaluator for stdlib, emitter for pure functions)?",
       "Or pivot to Option C (embedded evaluator library for deployment)?",
       "The 90 stdlib stubs alone represent the 'superlinear maintenance burden' the design doc warned about.",
-      "The architecture (Statement IR) is proven and target-agnostic — the question is which target."
+      "The architecture (Statement IR) is proven and target-agnostic \u2014 the question is which target."
     ]
-  }
+  },
+  "notes_freeze": "FROZEN per Mark 2026-07-14 (strategic audit): emit-go-v2 not resumed; contracts projection stays live; ratify at v1.0 release-gate audit. See m-game-engine-effects for the path that replaced the game-perf motivation."
 }
