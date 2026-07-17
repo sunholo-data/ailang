@@ -530,13 +530,19 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   `ailang exec --env-repo/--env-inline-file`; then gemini reviewers run REAL `ailang check`
   in-sandbox (fetch the linux release binary, checkout the pinned SHA) and gemini becomes
   designer-rotation-eligible.
-- **(G5) = (d) below** — the qwen3-6/motoko lane, after G1–G4.
+- ~~(G5)~~ **REMOVED from the gap path (Mark 2026-07-17): the qwen3-6 lane is a NICE-TO-HAVE,
+  not a gap.** See (d) below — sequenced only after the cloud fleet is fully proven (G1–G4
+  done), and NOT at gap priority: after G4, the loop returns to the clause queue; (d) is picked
+  on normal cheapest-impact ordering.
 
-- **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
-  long-running/low-urgency task classes with deterministic verification to the rig's GPU.
-  HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),
-  the port-8080 zombie hazard (memory: a hung motoko holding 8080 breaks all later runs), and
-  the same evaluator gate as cloud work — no quality discount for free tokens.
+- **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d) — **NICE-TO-HAVE,
+  post-cloud (Mark 2026-07-17)**: the standing role of this lane is the **local assignee for
+  slow-but-free task classes** — long-running, low-urgency work with deterministic verification
+  (bulk regens, wide test sweeps, corpus churn) where wall-clock doesn't matter and $0/token does.
+  It is NOT a peer of the cloud lanes for interactive-cadence roles. HARD constraints unchanged:
+  `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide), the port-8080 zombie
+  hazard (memory: a hung motoko holding 8080 breaks all later runs), and the same evaluator gate
+  as cloud work — no quality discount for free tokens.
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
