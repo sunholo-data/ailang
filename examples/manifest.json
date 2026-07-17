@@ -305,36 +305,51 @@
       }
     },
     {
-      "path": "effect_budgets.ail",
+      "path": "expected_fail/effect_budgets.ail",
       "status": "working",
       "tags": [
         "effects"
       ],
-      "description": "Demonstrates effect budget annotations"
+      "description": "Demonstrates effect budget annotations",
+      "modules": [
+        "std/io"
+      ]
     },
     {
-      "path": "effect_budgets_exhausted.ail",
+      "path": "expected_fail/effect_budgets_exhausted.ail",
       "status": "working",
       "tags": [
         "effects"
       ],
-      "description": "Demonstrates budget exhaustion behavior"
+      "description": "Demonstrates budget exhaustion behavior",
+      "modules": [
+        "std/io"
+      ]
     },
     {
-      "path": "effect_budgets_multi.ail",
+      "path": "expected_fail/effect_budgets_multi.ail",
       "status": "working",
       "tags": [
         "effects"
       ],
-      "description": "Demonstrates multiple effect budgets in a single function"
+      "description": "Demonstrates multiple effect budgets in a single function",
+      "modules": [
+        "std/clock",
+        "std/io",
+        "std/rand"
+      ]
     },
     {
-      "path": "effect_budgets_rand.ail",
+      "path": "expected_fail/effect_budgets_rand.ail",
       "status": "working",
       "tags": [
         "effects"
       ],
-      "description": "Demonstrates effect budget annotations with Rand capability"
+      "description": "Demonstrates effect budget annotations with Rand capability",
+      "modules": [
+        "std/io",
+        "std/rand"
+      ]
     },
     {
       "path": "effects_basic.ail",
@@ -386,7 +401,7 @@
       }
     },
     {
-      "path": "expected_fail/contracts/hof_verify.ail",
+      "path": "runnable/contracts/hof_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -398,10 +413,13 @@
         "filter",
         "lambda"
       ],
-      "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
+      "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling",
+      "modules": [
+        "std/list"
+      ]
     },
     {
-      "path": "expected_fail/contracts/list_recursive_verify.ail",
+      "path": "runnable/contracts/list_recursive_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -412,10 +430,13 @@
         "list-extract",
         "z3-sequence-theory"
       ],
-      "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract"
+      "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract",
+      "modules": [
+        "std/list"
+      ]
     },
     {
-      "path": "expected_fail/contracts/per_function_depth_verify.ail",
+      "path": "runnable/contracts/per_function_depth_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -428,7 +449,7 @@
       "description": "Per-function recursion depth — @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
     },
     {
-      "path": "expected_fail/contracts/quantifier_verify.ail",
+      "path": "runnable/contracts/quantifier_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -439,6 +460,22 @@
         "bounded-quantifiers"
       ],
       "description": "Bounded quantifier verification — forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
+    },
+    {
+      "path": "runnable/serve_api_webhook.ail",
+      "status": "working",
+      "tags": [
+        "serve-api",
+        "raw-route",
+        "webhook",
+        "json",
+        "headers"
+      ],
+      "description": "@raw @route webhook handler — reads signature headers from a raw HTTP request via std/json.getString; demo main() exercises the handler",
+      "modules": [
+        "std/json",
+        "std/string"
+      ]
     },
     {
       "path": "experimental/ai_agent_integration.ail",
@@ -2580,11 +2617,11 @@
     }
   ],
   "statistics": {
-    "total": 186,
-    "working": 174,
+    "total": 187,
+    "working": 175,
     "aspirational": 4,
     "broken": 8,
-    "coverage": 0.9354838709677419,
+    "coverage": 0.9358288770053476,
     "experimental": 0
   },
   "milestones": {
