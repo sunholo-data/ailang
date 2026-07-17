@@ -51,12 +51,13 @@ type ReviewResult struct {
 	// ProposedFix is an ADDITIVE, OPTIONAL concrete revision the reviewer
 	// suggests for its objection (a corrected claim, replacement paragraph, or
 	// added verification-log row), grounded in what it actually verified. It is
-	// the "hone" half of the capability. It is NOT part of the frozen verdict
-	// contract (Mark decision 2026-07-16, option (a)): it is absent from
-	// reviewSchema.required and is NOT referenced by ValidateReviewResult, so a
-	// verdict that omits it validates byte-identically. Reviewers are PROMPTED
-	// to include one on every reject; a fix-less reject is recorded as reviewer
-	// friction, never a validation error.
+	// the "hone" half of the capability. It is not part of the verdict contract
+	// (Mark decision 2026-07-16, option (a)): ValidateReviewResult never inspects
+	// it, so an empty proposed_fix ("" — the "no fix" case) validates identically
+	// to a real one. It is schema-"required" (a cross-provider strict-mode
+	// necessity, see reviewSchema) but semantically optional via the "" sentinel;
+	// the parser also tolerates a missing/null value (json → Go "") defensively.
+	// A fix-less reject is recorded as reviewer friction, never a validation error.
 	ProposedFix string `json:"proposed_fix,omitempty"`
 }
 
@@ -64,9 +65,23 @@ type ReviewResult struct {
 // providers enforce structure server-side. ValidateReviewResult re-checks it
 // regardless (providers vary in enforcement strength).
 //
-// proposed_fix is present in "properties" but DELIBERATELY ABSENT from
-// "required": it is additive-optional (Mark option (a)), so the frozen
-// verdict contract is unchanged — a verdict omitting it still conforms.
+// proposed_fix MUST be listed in "required" alongside the other fields. The
+// original form (proposed_fix in "properties" but ABSENT from "required") is
+// rejected by OpenAI's strict json_schema mode ("'required' must include every
+// key in properties"), which silently knocked every OpenAI reviewer (e.g.
+// gpt5-6-sol) out of the quorum, degrading it to solo-gemini on every run
+// (observed mission iter 40/41).
+//
+// It stays a plain "string" (NOT a nullable ["string","null"] union): Vertex /
+// Gemini's response_schema rejects union types outright ("Proto field is not
+// repeating, cannot start list", live-observed iter 41), so the union that
+// satisfies OpenAI breaks Gemini. A required plain string is the ONE form both
+// providers accept. The "optional" intent (Mark option (a)) is preserved by
+// CONVENTION, not by schema: a reviewer with no fix returns "" (see the system
+// prompt), and ValidateReviewResult never inspects proposed_fix, so "" validates
+// byte-identically to the old omitted case. The parser also tolerates a missing
+// or null proposed_fix (json → Go "") defensively. Cross-provider live-verified
+// iter 41 (both gpt5-6-sol and gemini-3-1-pro present).
 const reviewSchema = `{
   "type": "object",
   "properties": {
@@ -75,7 +90,7 @@ const reviewSchema = `{
     "catch": {"type": "string"},
     "proposed_fix": {"type": "string"}
   },
-  "required": ["verdict", "strongest_objection", "catch"]
+  "required": ["verdict", "strongest_objection", "catch", "proposed_fix"]
 }`
 
 // systemPrompt is the reject-by-default reviewer instruction. It scores
@@ -94,7 +109,7 @@ You MUST return a single JSON object with exactly these fields:
 - "verdict": "pass" or "reject"
 - "strongest_objection": the SINGLE most important reason this doc should not proceed as written. On a reject this MUST be a concrete, specific objection (never empty, never "looks fine"). On a pass, state the closest concern you could find.
 - "catch": the specific thing you would flag to the author to fix or verify.
-- "proposed_fix" (OPTIONAL, strongly encouraged on every reject): a concrete revision that resolves your objection — a corrected claim, a replacement paragraph, or an added verification-log row. Omit it only if you genuinely cannot propose one. A reject without a proposed_fix is accepted but noted as friction.
+- "proposed_fix" (REQUIRED field, strongly encouraged to be non-empty on every reject): a concrete revision that resolves your objection — a corrected claim, a replacement paragraph, or an added verification-log row. If you genuinely cannot propose one, return an empty string "". A reject with an empty proposed_fix is accepted but noted as friction.
 
 Do not praise. Do not summarize the doc. Output ONLY the JSON object, no prose, no code fences.`
 

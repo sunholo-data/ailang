@@ -1,6 +1,7 @@
 package quorum
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -50,6 +51,63 @@ func TestParseReviewResult_SchemaConformance(t *testing.T) {
 	}
 	if r.StrongestObjection == "" || r.Catch == "" {
 		t.Errorf("required fields empty: %+v", r)
+	}
+}
+
+// TestReviewSchema_OpenAIStrictInvariant guards the regression fixed in mission
+// iteration 41: OpenAI's strict json_schema mode rejects any schema whose
+// "properties" contains a key absent from "required" (400 "'required' ... must
+// include every key in properties"). The original reviewSchema left
+// proposed_fix out of "required" to make it optional, which silently knocked
+// every OpenAI reviewer out of the quorum (degrading it to solo-gemini). The
+// fix keeps proposed_fix optional via a nullable type that IS in "required".
+// This test fails if anyone reintroduces a property that is not also required.
+func TestReviewSchema_OpenAIStrictInvariant(t *testing.T) {
+	var schema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
+	}
+	if err := json.Unmarshal([]byte(reviewSchema), &schema); err != nil {
+		t.Fatalf("reviewSchema is not valid JSON: %v", err)
+	}
+	reqSet := make(map[string]bool, len(schema.Required))
+	for _, k := range schema.Required {
+		reqSet[k] = true
+	}
+	for prop := range schema.Properties {
+		if !reqSet[prop] {
+			t.Errorf("property %q is not in \"required\" — OpenAI strict json_schema mode will 400 and drop the reviewer from the quorum", prop)
+		}
+	}
+	// Cross-provider guard: every property type must be a single JSON string
+	// (not a ["string","null"] union). Vertex/Gemini's response_schema rejects
+	// union types ("Proto field is not repeating"), so a union that satisfies
+	// OpenAI would knock Gemini out. proposed_fix stays optional by CONVENTION
+	// ("" sentinel), not by a nullable type.
+	for prop, rawProp := range schema.Properties {
+		var p struct {
+			Type json.RawMessage `json:"type"`
+		}
+		if err := json.Unmarshal(rawProp, &p); err != nil {
+			t.Fatalf("property %q malformed: %v", prop, err)
+		}
+		if strings.HasPrefix(strings.TrimSpace(string(p.Type)), "[") {
+			t.Errorf("property %q type = %s is a union; Vertex/Gemini rejects union types — use a single type", prop, p.Type)
+		}
+	}
+}
+
+// TestParseReviewResult_NullProposedFixPreservesContract confirms the contract
+// invariant behind the strict-mode fix: a reviewer that emits proposed_fix:null
+// (the "no fix" case) still parses and validates, mapping to the Go zero value.
+func TestParseReviewResult_NullProposedFixPreservesContract(t *testing.T) {
+	raw := `{"verdict":"reject","strongest_objection":"premise unverified","catch":"verify foo.go","proposed_fix":null}`
+	r, err := ParseReviewResult(raw)
+	if err != nil {
+		t.Fatalf("null proposed_fix must validate (optional-via-null contract): %v", err)
+	}
+	if r.ProposedFix != "" {
+		t.Errorf("proposed_fix = %q, want \"\" (JSON null → Go zero value)", r.ProposedFix)
 	}
 }
 
