@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -141,8 +142,31 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		OutputTokens: outputTokens,
 		TotalTokens:  result.UsageMetadata.TotalTokenCount,
 		ReasonTokens: reasoningTokens,
+		FinishReason: normalizeGeminiFinishReason(result.Candidates[0].FinishReason),
 		Model:        req.Model,
 	}, nil
+}
+
+// normalizeGeminiFinishReason maps the Gemini/Vertex finishReason vocabulary
+// into the normalized ai.Response.FinishReason values (see provider.go). The
+// critical case is "MAX_TOKENS" → "length": a reasoning model whose thinking
+// tokens exhaust maxOutputTokens returns MAX_TOKENS with a truncated body, and
+// callers (e.g. the quorum reviewer) need that signal to fail LOUDLY instead of
+// reporting a generic "malformed JSON". Empty input maps to "" (back-compat with
+// legacy responses that omit the field).
+func normalizeGeminiFinishReason(r string) string {
+	switch r {
+	case "STOP":
+		return "stop"
+	case "MAX_TOKENS":
+		return "length"
+	case "SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII":
+		return "content_filter"
+	case "":
+		return ""
+	default:
+		return strings.ToLower(r)
+	}
 }
 
 // buildParts converts a user prompt into Gemini API parts.

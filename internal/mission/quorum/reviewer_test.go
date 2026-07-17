@@ -200,6 +200,32 @@ func TestRunReviewerWith_MalformedResponseIsInvalidAbsence(t *testing.T) {
 	}
 }
 
+// TestRunReviewerWith_TruncatedOutputFailsLoudly guards the mission-iter-42
+// regression: a reasoning model (gemini-3.x) whose thinking exhausts
+// maxOutputTokens returns a valid-but-cut-off JSON body (finish_reason=length)
+// that ParseReviewResult rejects. The absence must be reported as a specific
+// truncation error, not an opaque "malformed JSON" (Principle 2: fail loudly).
+func TestRunReviewerWith_TruncatedOutputFailsLoudly(t *testing.T) {
+	stub := &stubCaller{
+		// A verdict object cut off mid-string — exactly what a MAX_TOKENS
+		// truncation produces.
+		raw:  `{"verdict":"reject","strongest_objection":"the design wires the check to return`,
+		resp: &ai.Response{InputTokens: 1200, OutputTokens: 16384, FinishReason: "length"},
+	}
+	out := &ReviewerOutcome{Model: "gemini-3-1-pro"}
+	got := runReviewerWith(stub, cheapModel(), out, "doc.md", "body", DefaultMaxCostUSD)
+
+	if got.Present {
+		t.Fatalf("expected absent for truncated response")
+	}
+	if got.AbsentReason != ReasonInvalid {
+		t.Errorf("absent reason = %q, want %q", got.AbsentReason, ReasonInvalid)
+	}
+	if !strings.Contains(got.Err, "truncated") || !strings.Contains(got.Err, "finish_reason=length") {
+		t.Errorf("truncation must be surfaced explicitly; got err = %q", got.Err)
+	}
+}
+
 func TestRunReviewerWith_UnreachableProvider(t *testing.T) {
 	stub := &stubCaller{err: errors.New("connection refused")}
 	out := &ReviewerOutcome{Model: "test-model"}
