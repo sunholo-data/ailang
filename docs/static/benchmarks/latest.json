@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-17T17:50:40+02:00",
+  "timestamp": "2026-07-17T18:35:50+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34018,7 +34018,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-17T17:50:38+02:00",
+      "timestamp": "2026-07-17T18:35:48+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51058,15 +51058,15 @@
         {
           "band": "Moderate",
           "elo": 1516.8,
-          "id": "canonical_normalization",
-          "passRate": 91.7,
+          "id": "contract_leap_year",
+          "passRate": 90,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.8,
-          "id": "contract_leap_year",
-          "passRate": 90,
+          "id": "canonical_normalization",
+          "passRate": 91.7,
           "saturated": false
         },
         {
@@ -51291,14 +51291,14 @@
         {
           "band": "Trivial",
           "elo": 851.1,
-          "id": "digitless_constants",
+          "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 851.1,
-          "id": "effect_composition",
+          "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
@@ -51689,14 +51689,14 @@
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "immutable_data_structures",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "gcd_lcm",
+              "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
@@ -51717,14 +51717,14 @@
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "fizzbuzz",
+              "id": "numeric_modulo",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "numeric_modulo",
+              "id": "fizzbuzz",
               "passRate": 100,
               "saturated": true
             },
@@ -53545,14 +53545,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
@@ -54011,14 +54011,14 @@
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "glob_match_spec",
+              "id": "lfu_cache_trace",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "lfu_cache_trace",
+              "id": "glob_match_spec",
               "passRate": 88.2,
               "saturated": false
             },
@@ -54046,14 +54046,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
@@ -54166,14 +54166,14 @@
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "ast_patch_roundtrip",
+              "id": "float_eq",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "float_eq",
+              "id": "ast_patch_roundtrip",
               "passRate": 100,
               "saturated": true
             },
