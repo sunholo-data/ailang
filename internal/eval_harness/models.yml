@@ -1946,6 +1946,55 @@ models:
       Standard-mode companion to opencode-or-kimi-k2-7-code.
       Smoke gate: PASSED 21/23 (91%) standard mode 2026-06-16. Added to extended_suite.
 
+  # Kimi K3 (Moonshot AI) — general successor to the K2.x line, NOT the coding
+  # variant. 1M context window (4x K2.7 Code's 256K). Priced like a frontier
+  # model: $3.00/$15.00 per MTok (4x K2.7 Code's $0.75/$3.50) — this is a
+  # capability probe, NOT a cheap-OS sweet-spot probe. Smoke gate PENDING.
+  # OpenRouter ID verified live 2026-07-17 (moonshotai/kimi-k3, 1048576 ctx).
+  opencode-or-kimi-k3:
+    api_name: "moonshotai/kimi-k3"
+    provider: "openrouter"
+    description: "Kimi K3 via opencode+OpenRouter — general K2.x successor, 1M ctx, smoke gate PENDING"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openrouter/moonshotai/kimi-k3"
+    model_family: "kimi"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.003    # $3.00 per 1M
+      output_per_1k: 0.015   # $15.00 per 1M
+    budgets:
+      max_cost_usd: 1.00
+      hard_timeout_secs: 3600
+    notes: |
+      Kimi K3 (Moonshot AI) — general-purpose successor to the K2.x line
+      (distinct from the coding-specialized K2.7 Code). 1M context window.
+      Frontier-tier pricing: $3.00/$15.00 per MTok, 4x K2.7 Code — treat as a
+      capability probe, not a cheap-OS candidate.
+      OpenRouter ID verified live 2026-07-17 (moonshotai/kimi-k3, 1048576 ctx).
+      Smoke gate: BLOCKED 2026-07-17 — upstream 429 rate_limit_exceeded on
+      every request (even a single minimal call). Only ONE provider serves K3
+      on OpenRouter (Moonshot AI direct), so there's no alternate route to fall
+      back to; this is Moonshot's own capacity/tier throttle on a day-old model.
+      Retry the smoke gate once provider capacity opens up.
+
+  or-kimi-k3:
+    api_name: "moonshotai/kimi-k3"
+    provider: "openrouter"
+    description: "Kimi K3 via OpenRouter standard mode — companion to opencode-or-kimi-k3"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "kimi"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.003    # $3.00 per 1M
+      output_per_1k: 0.015   # $15.00 per 1M
+    budgets:
+      max_cost_usd: 0.60
+      hard_timeout_secs: 600
+    notes: |
+      Standard-mode companion to opencode-or-kimi-k3.
+      Smoke gate: PENDING.
+
   # =============================================================================
   # LOCAL MODELS (via Ollama)
   # =============================================================================
