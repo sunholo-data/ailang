@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-17T13:19:46+02:00",
+  "timestamp": "2026-07-17T14:04:56+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34018,7 +34018,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-17T13:19:44+02:00",
+      "timestamp": "2026-07-17T14:04:53+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51291,14 +51291,14 @@
         {
           "band": "Trivial",
           "elo": 851.1,
-          "id": "effect_composition",
+          "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 851.1,
-          "id": "digitless_constants",
+          "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
@@ -51661,14 +51661,14 @@
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "recursion_fibonacci",
+              "id": "balanced_parens",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "balanced_parens",
+              "id": "recursion_fibonacci",
               "passRate": 100,
               "saturated": true
             },
@@ -51717,14 +51717,14 @@
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "numeric_modulo",
+              "id": "fizzbuzz",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "fizzbuzz",
+              "id": "numeric_modulo",
               "passRate": 100,
               "saturated": true
             },
@@ -52139,14 +52139,14 @@
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "json_parse",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "merge_sort",
+              "id": "json_parse",
               "passRate": 100,
               "saturated": true
             },
@@ -53217,14 +53217,14 @@
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "api_call_json",
+          "id": "intent_annotated_solver",
           "passRate": 94.1,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 1206.3,
-          "id": "intent_annotated_solver",
+          "id": "api_call_json",
           "passRate": 94.1,
           "saturated": true
         },
@@ -53545,14 +53545,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
