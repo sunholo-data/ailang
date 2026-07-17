@@ -3593,3 +3593,56 @@ reviewers with one live 3-provider round.
 **Parked for human (#399)**: **greenlight the Phase-2 clone-over-egress decomposition** (small sprint: egress-env wiring in the `managed_agents` executor + a clone+review directive + the existing `managed_agents_bridge` for artifact return) — or say shelve. Also parked: our-project Developer-API confirm needs a valid interactions-preview key.
 
 **Next**: If Mark greenlights (d), next iteration decomposes the small clone-over-egress Phase-2 sprint (design-doc update already carries the contract). If shelve, G4 closes and the loop returns to the clause-3 accessibility queue. m-check-strict-fallbacks remains PARKED (entry 47, human architecture fork).
+
+## 52 — 2026-07-17 — Iteration 47: clause-3 prompt-teaching cluster REALITY-CHECKED → re-scoped to diagnostics doc, PARKED needs-human-review after the bounded quorum round (commit `a7b484395`)
+**Picked**: The [NEXT] clause-3 accessibility cluster's cheapest remaining actionable work — the
+three stale "prompt-teaching" docs (`m-prompt-single-file-module`, `m-prompt-split-list-operations`,
+`m-prompt-log-file-analyzer-string-ops`; all target the ancient v0.24.0, all evidence Apr–Jun 2026).
+G4 (#399 human directive) stayed PARKED awaiting Mark's greenlight (iter-46 conclusion; no new
+`@MarkEdmondson1234` comment on #399 or #329 since watermark) → fell back to the queue.
+**Reality check**: Rebuilt binary to true HEAD (`v0.29.2-354`; installed was stale `-335`). Live-repro
+of all three at HEAD: (1) split-list-operations = **GHOST** — prompt v0.16.2 already teaches
+`split(s,delim) -> [string]` inline (line 704) + the full split→map→join pipeline via `mapSlicesJoin`
+(lines 1071–1085). (2) single-file-module = **REAL** — two top-level `module` decls yield only opaque
+`PAR_NO_PREFIX_PARSE`; KEY finding: error code **MOD002** ("multiple module declarations in single
+file") is DEFINED (`codes.go:67`) + published (`dist/error_codes.json`) but has **zero emission
+sites** — the parser falls through to generic expression parsing on the 2nd `module` token. (3)
+dot-notation = **REAL but marginal** — `content.split("\n")` parses as field access → opaque
+`cannot unify string with TRecordOpen`; doc's own 2026-06-03 correction: dot-notation ≈ 2%.
+**Shipped**: PARKED. One consolidated design doc `planned/v0_30_0/m-prompt-footguns-to-diagnostics.md`
+(commit `a7b484395`, doc-only, dev CI checked), landed with a decision-ready PARK-NOTE. Diet-aligned:
+zero prompt lines (prompt is 2535 vs the ≤1500 clause-3 target) — routes both real footguns to the
+**diagnostic lane** per m-diagnostic-coverage. Quorum ran the FULL bounded round:
+**author → reject → revise → re-quorum → reject**. R1 blocking (gpt5-6-sol): Phase-3 embedded a
+std/string symbol catalog inside `internal/types` (frozen-core violation) → designer revised to
+generic-only (`TC_PRIMITIVE_FIELD_ACCESS_001`, no stdlib names; ran the hook-audit and found no
+pipeline enrichment seam at HEAD → symbol-specifics deferred to an extension backlog doc). R2 blocking
+(both present): gpt5-6-sol — Phase-3 primitive-detection premise (`string/int/float/bool` TCon-name
+match) is unverified vs user ADTs/aliases (remedy offered: "defer Phase 3"); gemini — Part-A
+error-recovery should SET `seenModule` so two late modules emit `PAR_MODULE_PLACEMENT`+`MOD002`
+(reversing its own R1 catch; the more-correct semantics). **Part A (PRIMARY module diagnostics) + Part
+B (ghost-close guard) were UNANIMOUSLY ACCEPTED both rounds** — parked only on the two narrow named
+fixes above (a second revision would exceed the one-round Gate-2 bound).
+**Routing evidence**: model=claude-fable-5 task-class=design
+  round1-score=n/a rounds=2(quorum) corrections=1(revision)
+  provider=anthropic agent=claude-code(claude-sub) cost=quota-bucket:weekly-fable
+  <!-- Designer=claude:claude-fable-5 (rotation next after codex; probe rc=0; billing-guarded via
+       env-stripped claude-sub, backgrounded ≤30min). Quorum reviewers gpt5-6-sol ($0.057+$0.068) +
+       gemini-3-1-pro ($0.024+$0.030) both PRESENT both rounds; controller=opus PASS both. Planner/
+       executor (opus) + evaluator (sonnet) NOT reached — parked pre-plan. Rotation write-back → claude. -->
+**Ruled out**: (a) prompt-additions as the lane for these footguns — REFUTED by the diet (2535 vs
+≤1500) + m-diagnostic-coverage sequencing; diagnostics are the ratified replacement. (b)
+split-list-operations as an open gap — GHOST (prompt already covers it). (c) allocating a new MOD code
+for duplicate-module — REFUTED, dormant MOD002 exists for exactly this. (d) hosting the dot-notation
+symbol catalog in `internal/types` — REFUTED by quorum (frozen-core / route-to-extension). (e) the
+stale docs' 10%/2% frequencies as current — NOT re-measured (flagged cited-historical); mechanisms
+re-verified, frequencies were not.
+**Retro lane**: process-fix candidate RECORDED (1 instance, below the ≥2 bar → not applied this
+iteration): the roles table's Controller row parenthetical ("+ design-doc-creator, run inline")
+contradicts the Designer ROTATION row + Gate-3's "spawned pinned/bounded, never inline". Followed the
+newer/more-specific rule (spawned rotation). Needs a 2nd instance before a skill edit.
+**Next**: Iteration 48 — either (i) Mark ratifies the recommended unblock on
+m-prompt-footguns-to-diagnostics (drop Phase 3 → extension backlog, apply gemini's seenModule fix,
+ship the accepted Part A+B ~1.25d) which UNPARKS it as the pick; or (ii) if no human answer, take the
+next clause-3 item — DX tooling (`m-ailang-fmt` / `M-TOOLING-DETERMINISTIC`) — or a clause-4
+orchestration item. G4 (#399) remains parked awaiting Mark's clone-over-egress greenlight.
