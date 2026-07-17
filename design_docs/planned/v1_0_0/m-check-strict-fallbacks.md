@@ -1,10 +1,51 @@
 # M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern
 
-**Status**: Planned
+**Status**: PARKED (needs-human-review) — quorum did not converge in one bounded round (mission iter 41)
 **Target**: v0.21.0
 **Priority**: P1 — closes a class of silent-failure bugs that just bit production
 **Estimated**: ~1 day (~300 LOC impl + ~200 LOC tests + parser whitelist + docs)
 **Dependencies**: None (uses existing AST + annotation infrastructure)
+
+## Premise Verification (added 2026-07-17, mission iteration 41 pick-time quorum)
+
+This doc pre-dates the design-quorum gate; the pick-time quorum was run and did NOT converge in
+its one bounded revision+re-quorum round, so the item is **PARKED needs-human-review**. The
+verification below is a durable improvement kept regardless (it corrected a real premise error).
+Verified against the source tree at `origin/dev` `b417d02c6`:
+
+| Claim | Verified? | Evidence |
+|-------|-----------|----------|
+| `internal/parser/parser_decl.go::parseAnnotation` is a name-keyed annotation whitelist | ✅ TRUE | `parser_decl.go:15 func (p *Parser) parseAnnotation()`; cases `verify` (l.30), `route` (l.32), `mcp_name` (l.34), `raw` (l.36) — adding `case "allow_empty_ok":` is a pure additive switch case, as the doc claims |
+| `internal/parser/route_attr_test.go` exists (parser-test home) | ✅ TRUE | `internal/parser/route_attr_test.go` present (13 KB) |
+| The check pass lives in `internal/check/` | ❌ **FALSE — CORRECTED** | **No `internal/check/` package exists.** `ailang check` is implemented in `cmd/ailang/check.go` and runs `internal/pipeline`. Existing compile-time static passes live in **`internal/pipeline/`** (e.g. `warn_split_args.go`, the M-DX-SPLIT-ARG warning from iter-17) and `internal/elaborate/warnings.go`. |
+
+**Corrected target (the planner must use this, NOT `internal/check/`):** implement the pass in
+**`internal/pipeline/`**, in the same style as `internal/pipeline/warn_split_args.go`: a
+compile-time, non-blocking pass whose result is appended to `result.Warnings` at the two existing
+call-sites `internal/pipeline/pipeline_single.go:198` (single-file) and
+`internal/pipeline/pipeline_module.go:388` (multi-module), and surfaced through `ailang check`
+via `cmd/ailang/check.go` (`runCheckWithContext`), not a new command file.
+
+### OPEN design decision (the sprint's FIRST task — this is why the quorum did not converge)
+
+`warn_split_args.go` walks the **post-elaboration Core** program (`DetectArgOrderWarnings(prog
+*core.Program)`), which needs no return-type information. This pass is different: its trigger is
+"function whose *declared return type* is `Result[_,_]`", and the Solution Design below inspects
+`FuncDecl.Annotations` + syntactic `Result[_,_]` — both of which live on the **pre-elaboration
+typed AST**, not on Core. The two are not interchangeable (you cannot walk `FuncDecl` nodes from a
+`*core.Program`). The planner must resolve, as the sprint's first design step, ONE of:
+
+- **(a) Run on the typed AST before elaboration.** Requires first *verifying* that a
+  pre-elaboration pipeline hook exists where a pass can read typed `FuncDecl`s AND append to
+  `result.Warnings` (NOT yet verified — `warn_split_args` uses the post-elaboration hook only).
+- **(b) Thread the needed return-type + annotation info into a Core-level pass** (e.g. via the
+  `iface` layer), keeping the warn_split_args post-elaboration call-sites.
+
+This layer choice was flagged by the `gemini-3-1-pro` reviewer both quorum rounds; it is a genuine
+mechanism question the planner routinely resolves (cf. iter-27 m-prelude-option-result, iter-32
+auto_caps), but it must be *resolved in the doc* (not left contradictory) before this re-quorums
+and routes. All design DECISIONS (A/B/C detection, `@allow_empty_ok`, error-on-publish/warn-on-dev)
+are unchanged and were not objected to.
 
 ## Axiom Compliance
 
@@ -103,7 +144,7 @@ The bug ran in production until customer complaints surfaced it. Diagnosis requi
 
 ## Conflict Surface
 
-This change touches `internal/parser/parser_decl.go` (annotation whitelist) and adds new AST-walking code in `internal/check/`. Per the design-doc-creator's required Conflict Surface analysis:
+This change touches `internal/parser/parser_decl.go` (annotation whitelist) and adds a new static pass in `internal/pipeline/` (precedent: `warn_split_args.go`). Per the design-doc-creator's required Conflict Surface analysis:
 
 ### What syntactic positions does this change extend?
 
@@ -138,7 +179,7 @@ The sprint plan will include positive + negative fixtures for each pattern A/B/C
 
 ### Overview
 
-A new check pass in `internal/check/strict_fallbacks.go`:
+A new check pass in `internal/pipeline/strict_fallbacks.go`:
 
 1. **Find candidates**: AST-walk every `FuncDecl` whose declared return type is `Result[_, _]`.
 2. **Walk the body**: look for `Ok(<literal>)` expressions where the literal is structurally empty/zero-default.
@@ -209,7 +250,7 @@ The annotation MUST be added per the API server rules' annotation-whitelist disc
 - [ ] `internal/parser/parser_decl.go` — add `case "allow_empty_ok":` to `parseAnnotation()` switch
 - [ ] Update error message in `default:` case
 - [ ] `internal/parser/route_attr_test.go` — add parser test
-- [ ] `internal/check/strict_fallbacks.go` — implement runtime behavior
+- [ ] `internal/pipeline/strict_fallbacks.go` — implement runtime behavior
 - [ ] `docs/docs/guides/strict-fallbacks.md` — document the annotation
 - [ ] CHANGELOG entry
 
@@ -260,8 +301,8 @@ STRICT_FALLBACK_001 at client.ail:78:23
 ### Files to Modify/Create
 
 **New:**
-- `internal/check/strict_fallbacks.go` — the check pass (~300 LOC)
-- `internal/check/strict_fallbacks_test.go` — unit tests for pattern detection (~200 LOC)
+- `internal/pipeline/strict_fallbacks.go` — the check pass (~300 LOC)
+- `internal/pipeline/strict_fallbacks_test.go` — unit tests for pattern detection (~200 LOC)
 - `examples/runnable/strict_fallbacks_demo.ail` — demonstrates the diagnostic + the `@allow_empty_ok` opt-out
 - `docs/docs/guides/strict-fallbacks.md` — author-facing docs
 
@@ -348,7 +389,7 @@ The fallback `Ok` is constructed from runtime values, not literals. Caller still
 
 ## Success Criteria
 
-- [ ] `internal/check/strict_fallbacks.go` implements pattern A/B/C detection
+- [ ] `internal/pipeline/strict_fallbacks.go` implements pattern A/B/C detection
 - [ ] Running the check against the v0.7.1 `getDoc` body (preserved as a fixture) emits `STRICT_FALLBACK_001` on the correct line
 - [ ] Running against the v0.7.2 patched body emits no diagnostic
 - [ ] `@allow_empty_ok("rationale")` annotation suppresses the diagnostic on the annotated function
@@ -362,7 +403,7 @@ The fallback `Ok` is constructed from runtime values, not literals. Caller still
 
 ## Testing Strategy
 
-**Unit tests** (`internal/check/strict_fallbacks_test.go`):
+**Unit tests** (`internal/pipeline/strict_fallbacks_test.go`):
 
 - Pattern A positive: `None => Ok([])`, `Err(_) => Ok("")`, `Err(_) => Ok(jo([]))` each flag
 - Pattern B positive: `Err(_) => Ok({name: "", age: 0})` flags; `Err(_) => Ok({name: "real", age: 0})` does NOT
@@ -398,7 +439,7 @@ The fallback `Ok` is constructed from runtime values, not literals. Caller still
 
 **Day 1 (~7 hours)**:
 - 09:00-10:00: Add `@allow_empty_ok` to parser annotation whitelist + parser test
-- 10:00-12:00: Implement `internal/check/strict_fallbacks.go` patterns A/B/C
+- 10:00-12:00: Implement `internal/pipeline/strict_fallbacks.go` patterns A/B/C
 - 12:00-13:00: Lunch
 - 13:00-14:30: Unit tests for pattern detection
 - 14:30-15:30: Wire `--strict-fallbacks` flag in `cmd/ailang/check.go` + integrate into `--package`

@@ -139,18 +139,9 @@ func TestProposedFix_ParsesFromJSON(t *testing.T) {
 	}
 }
 
-// TestReviewSchema_ProposedFixNotRequired asserts proposed_fix is in properties
-// but ABSENT from required — the frozen-contract guard.
-func TestReviewSchema_ProposedFixNotRequired(t *testing.T) {
-	if !strings.Contains(reviewSchema, `"proposed_fix"`) {
-		t.Errorf("proposed_fix missing from schema properties")
-	}
-	// required[] must NOT contain proposed_fix.
-	if strings.Contains(reviewSchema, `"required": ["verdict", "strongest_objection", "catch", "proposed_fix"]`) {
-		t.Errorf("proposed_fix must NOT be in reviewSchema.required (contract frozen)")
-	}
-	// The required list is exactly the three frozen fields.
-	if !strings.Contains(reviewSchema, `"required": ["verdict", "strongest_objection", "catch"]`) {
-		t.Errorf("frozen required[] changed; must be exactly [verdict, strongest_objection, catch]")
-	}
-}
+// NOTE (mission iter 41): the former TestReviewSchema_ProposedFixNotRequired —
+// which asserted proposed_fix must be ABSENT from required — was removed. That
+// "absent-from-required" form is rejected by OpenAI's strict json_schema mode
+// and silently dropped every OpenAI reviewer from the quorum. proposed_fix now
+// stays optional via a NULLABLE type that IS in required; the corrected
+// invariant is guarded by TestReviewSchema_OpenAIStrictInvariant (reviewer_test.go).
