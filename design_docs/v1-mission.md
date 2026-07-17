@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-17 — ITERATION 44: gap **G3 designer-rotation live test CONFIRMED** (`codex:gpt-5.6-sol` authored + revised a full design doc); **G4 design PARKED needs-human-review** — quorum gates ratification on running the live contract-discovery spike (PR #409 → `d422f727a`)
+
+Picked gap-priority **G4** (gemini repo-mount); it needs a NEW doc, so authoring it IS the **G3 designer-rotation live test** (two gaps, one iteration). Reality-check: G4 REAL+unstarted (`managed_agents.go:164` hardcodes empty `{"type":"remote"}`, no `--env-repo` flags, `Task` has no `EnvSources`). Rotation last-used=`claude:claude-fable-5` → designer=`codex:gpt-5.6-sol`. **First codex-designer fire = SUCCESS**: authored a format-complete 427-line doc (cited HEAD facts, typed-vs-Metadata tradeoff, Axiom +7) + a competent revision pass — all via the cross-provider `workspace-write` worktree recipe (previously verified only for the executor role; carries the design-doc directive cleanly). **Quorum ×2 rounds (gpt5-6-sol+gemini-3-1-pro+controller, all present both rounds): reject→revise→reject.** R1: unverified wire contract + programmatic silent-fallback hole. Revision: Premise Verification Log + Phase-1 contract-discovery spike hard-gating the encoder + `CapEnvironmentSources` pre-dispatch gate. R2 still BLOCKED — a design on a DOC-ONLY external API contract can't be ratified until the live spike is RUN+RECORDED (reviewers converge on the doc's OWN Phase 1) + a new shallow-clone catch. Per the one-revision cap → **PARKED needs-human-review**; doc landed on dev with a PARK-NOTE (PR #409 → `d422f727a`, auto-merged on green). **G3 mechanism CONFIRMED** (rotation+cross-provider-designer+quorum-gating end-to-end); content-park ≠ mechanism-fail. Codex can't self-commit under the sandbox → controller finalized, crediting codex. G3 evidence row: `(designer=codex:gpt-5.6-sol, quorum=reject→revise→reject)`. **Unblock G4**: human-authorize the ADC-gated live Vertex spike. Detail: log entry 49.
+
 ## STATUS 2026-07-17 — ITERATION 43: gap **G1 (gemini FIRST LIVE REVIEWER FIRE) + G2 (3-provider quorum) CONFIRMED**; shipped the reasoning-model truncation fix that makes gemini a RELIABLE reviewer (PR #408 → `885725f06`)
 
 Picked gap-priority **G1** (Mark #399; G1–G4 outrank the clause queue). Live `ailang design-quorum` (default reviewers `gpt5-6-sol`+`gemini-3-1-pro`) → **both present, gemini `reject` $0.023** = G1 (gemini's first clean live reviewer verdict) + G2 (OpenAI+gemini+claude = 3 providers) CONFIRMED. Reality-check surfaced the real blocker: gemini-3.1-pro ("2× reasoning") counts THINKING tokens against the quorum's `reviewMaxTokens=4096` `maxOutputTokens` cap → a substantive review truncates its JSON mid-object → `invalid`/absent → **silent N-1 quorum** (iter-42 artifact, byte-identical reviewer code; intermittent — the exact iter-39+iter-42-logged friction, now "next-blocked" G1). **Fixed root-cause + fail-loudly**: cap 4096→16384 (budget gating unchanged — pre-flight uses a fixed estimate); a residual `finish_reason=length` now surfaces an explicit truncation error not "malformed JSON"; wired the discarded gemini `finishReason`→normalized `ai.Response.FinishReason`. 2 regression tests, gofmt clean, pkg tests green, live post-fix quorum clean. Inline-controller fix (iter-41/42 quorum-tool-fix precedent; no new design doc → designer/planner/executor/evaluator NOT invoked). PR CI green on the merge-test tree → auto-merged; installed binary rebuilt to `885725f06`. Calibrated: one clean run can't PROVE an intermittent bug gone — the deterministic tests + 4× cap raise carry it, and truncation now fails LOUD. **G1/G2 done → G3 (designer rotation, `codex:gpt-5.6-sol`) is next.** Detail: log entry 48.
@@ -42,10 +46,6 @@ Picked gap-priority **G1** (Mark #399; G1–G4 outrank the clause queue). Live `
 ## STATUS 2026-07-17 — ITERATION 42: re-attempted PARKED m-check-strict-fallbacks (both iter-41 blockers cleared) → **re-PARKED with a sharper, quorum-validated blocker**; found + fixed a stale-binary regression that had silently disabled the #407 quorum fix
 
 Both iter-41 blockers were gone (Fable designer back via `claude-sub`; #407 restored the OpenAI quorum reviewer), so the iter-41 park (run on a BROKEN solo-gemini quorum + degraded controller-as-designer) was never a valid verdict → re-attempted. Resolved the "OPEN design decision" to option (a) (syntactic surface-AST pass) via the **Fable designer** (rotation seed; hooks live-verified: `pipeline_single.go` astFile@159/Warnings@189-198, `pipeline_module.go` mod.File@318/Warnings@337,388) + grounded Pattern C in AILANG's **language-enforced uppercase-constructor rule** (`PAR_VARIANT_NEEDS_UIDENT`; live-probed). **Gate-2 miss caught:** I skipped the Verification-Protocol Rule-1 rebuild — the installed binary was `de9556413` (pre-#407), so my first re-quorum re-hit the exact `Missing 'proposed_fix'` 400 (gpt5-6-sol silently unreachable). **Rebuilt** (`make quick-install` → 326/77e7dccc9); the clean re-quorum made gpt5-6-sol **present** — and it immediately caught a **goal-contradicting** design error the designer AND I both missed: the motivating incident `None => Ok(jo([]))` has `jo` as a **lowercase function call**, which option (a)'s pure-syntax rules NEVER flag → the pass fails its own primary goal; catching it needs resolved callee identity → **refutes option (a)**. Synthesis **BLOCKED** → **re-PARKED needs-human-review** (Standing rule 2). The doc now carries the full REBLOCK write-up + the architecture fork for a human. Doc-only commit `b159305ae`. Gemini truncated its quorum response BOTH rounds (recurring tooling friction, logged). Detail: log entry 47.
-
-## STATUS 2026-07-17 — ITERATION 41: pick-time quorum PARKED m-check-strict-fallbacks (needs-human-review); SHIPPED the mission-infra bug it exposed — `design-quorum` was silently a solo-gemini veto (OpenAI reviewers 400'd on every run)
-
-Picked m-check-strict-fallbacks (clause-2, ~1d, headless-viable — clause-3's remainder needs the Fable designer [quota-gone until 2026-08-01] or an eval rotation). QUORUM-AT-PICK on the pre-quorum doc: round-1 reject (premise gate — `internal/check/` does NOT exist; corrected target → `internal/pipeline/` per the `warn_split_args.go` precedent), round-2 reject (a design-layer AST-vs-Core coherence gap my own revision introduced) → per the ONE-round cap **PARKED needs-human-review** (both reviewers reject → well-supported, not a solo artifact). The friction exposed a real bug: `reviewSchema` omitted `proposed_fix` from `required`, which OpenAI strict `json_schema` mode 400s → gpt5-6-sol `unreachable` every run → quorum degraded to solo-gemini. **Fixed** (proposed_fix → plain `string` in `required`; a `["string","null"]` union satisfies OpenAI but Vertex rejects unions — plain required string is the one cross-provider form); **live-verified both gpt5-6-sol AND gemini-3-1-pro now present**; regression guards + CHANGELOG. Doc hardened (Premise Verification + OPEN layer decision spelled out for the planner). PR #<PENDING>, worktree off origin/dev. Detail: log entry 44.
 
 ## CURRENT GOAL
 
@@ -517,13 +517,22 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
 - ~~**(G2) 3-provider quorum CONFIRMATION round**~~ **CONFIRMED iter 43** — same live quorum:
   `gpt5-6-sol` (OpenAI, restored post-#407) + `gemini-3-1-pro` (Google) BOTH present + claude
   controller = 3 providers, both `reject`. The solo-gemini-veto era is over. Log 48.
-- **(G3) DESIGNER ROTATION live test** — the designer role is now SHARED across top-of-line
-  models (routing table updated): next new-doc iteration designs with `codex:gpt-5.6-sol` (works
-  today via the executor recipe carrying the design-doc-creator directive), the following returns
-  to `claude:claude-fable-5`, gemini joins after G4. The quorum gates every design regardless of
-  author. Record `(designer, quorum outcome)` rows — this is the Phase-E seed data for the
-  designer task-class.
-- **(G4) gemini REPO-MOUNT upgrade (~≤1d code)** — the Managed Agents `environment` param
+- ~~**(G3) DESIGNER ROTATION live test**~~ **CONFIRMED iter 44** — `codex:gpt-5.6-sol` (rotation next
+  after `claude:claude-fable-5`) authored the G4 design doc via the cross-provider `workspace-write`
+  worktree recipe carrying the design-doc-creator directive (**first codex-designer fire**), then ran a
+  competent objection-addressing revision. The rotation MECHANISM works end-to-end (design → quorum-gate →
+  revise). Evidence row: `(designer=codex:gpt-5.6-sol, quorum=reject→revise→reject over 2 rounds × 3
+  providers)` — the content reject is the quorum enforcing data-before-conclusions (unverified external
+  contract), NOT a designer failure. Rotation state advanced to `codex:gpt-5.6-sol`; next new-doc iteration
+  returns to `claude:claude-fable-5` (gemini joins after G4). Log 49.
+- **(G4) gemini REPO-MOUNT upgrade (~≤1d code)** — **[DESIGN PARKED needs-human-review iter 44:
+  design doc `planned/v0_30_0/m-gemini-repo-mount.md` authored (codex designer) + landed PR #409 →
+  `d422f727a`, but BLOCKED by 2 quorum rounds. Unblock = human-authorize the ADC-gated live Vertex
+  contract-discovery spike (Phase 1: repo-only/inline-only/combined POSTs, record credential-scrubbed
+  request+response+FS evidence → Premise-log rows to VERIFIED-LIVE, add the clone-depth row); THEN
+  Phase 2+ (encoder + `CapEnvironmentSources` gate + CLI flags) may proceed. Do NOT re-pick headless —
+  the block is the unverified external API contract, which needs the live spike Mark must authorize.]**
+  the Managed Agents `environment` param
   NATIVELY mounts sources into the sandbox (docs verified 2026-07-17,
   ai.google.dev/gemini-api/docs/agent-environment): `sources:[{type:repository,source:<public
   repo URL>,target:/workspace/ailang}]` (≤500MB, no auth for public), `{type:inline,…}` (≤1MB/file
