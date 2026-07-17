@@ -2,7 +2,7 @@
 -- Demonstrates _list_contains and list operations in contracts
 -- Shows Z3 proving containment and length preservation properties
 
-module examples/expected_fail/contracts/list_recursive_verify
+module examples/runnable/contracts/list_recursive_verify
 
 import std/list (length as listLength)
 
@@ -16,9 +16,7 @@ ensures { result == true }
 
 -- Extract preserves bounds: extracted sublist length <= original
 export func extractBounded(xs: [int], offset: int, len: int) -> bool ! {}
-requires { offset >= 0 }
-requires { len >= 0 }
-requires { offset + len <= listLength(xs) }
+requires { offset >= 0, len >= 0, offset + len <= listLength(xs) }
 ensures { result == true }
 {
   listLength(_list_extract(xs, offset, len)) <= listLength(xs)

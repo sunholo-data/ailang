@@ -2,14 +2,19 @@
 -- Demonstrates @raw @route for receiving raw HTTP requests with headers.
 -- Use case: webhook handlers that need access to signature headers.
 --
--- Run: ailang serve-api examples/runnable/serve_api_webhook.ail
+-- Run as a server: ailang serve-api examples/runnable/serve_api_webhook.ail
 -- Test: curl -X POST http://localhost:8080/webhooks/example \
 --         -H "X-Signature: abc123" \
 --         -d '{"event": "test"}'
+--
+-- Regression guard: a `let x = <block-expr>` binding needs a `;` before the
+-- next expression, and string joining uses "${expr}" interpolation (`++` is
+-- list-only since v0.13.0).
 
-module webhook_example
+module examples/runnable/serve_api_webhook
 
-import std/json (Json, get, getString, getOrElse, asString)
+import std/json (Json, getString, decode)
+import std/string (length)
 
 -- A @raw @route handler receives a record with:
 --   body: string, headers: Json, method: string, path: string, query: Json
@@ -21,12 +26,27 @@ export func handleWebhook(request: {body: string, headers: Json, method: string,
   let sig = match getString(request.headers, "X-Signature") {
     Some(s) => s,
     None => "no-signature"
-  }
-  "received webhook with signature: " ++ sig ++ " body length: " ++ toString(length(request.body))
+  };
+  "received webhook with signature: ${sig} body length: ${show(length(request.body))}"
 }
 
 -- Non-@raw routes continue to work with parsed arguments as before
 @route("GET", "/health")
 export pure func health() -> string {
   "ok"
+}
+
+-- Demo entrypoint for verify-examples: exercises handleWebhook with a
+-- synthetic request so the file both type-checks and runs cleanly.
+export func main() -> () ! {IO} {
+  let response = match decode("{\"X-Signature\": \"abc123\"}") {
+    Ok(headers) => handleWebhook({
+      body: "{\"event\": \"test\"}",
+      headers: headers,
+      method: "POST",
+      path: "/webhooks/example"
+    }),
+    Err(e) => "could not decode headers: ${e}"
+  };
+  println(response)
 }

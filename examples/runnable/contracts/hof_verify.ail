@@ -1,28 +1,29 @@
 -- examples/runnable/contracts/hof_verify.ail
 -- Higher-order function contract verification demonstration
+-- Regression guard: lambda body separator is '.' (\x. expr), not '->'.
 -- Shows Z3 proving properties about map/filter when given literal lambdas
 -- Demonstrates: HOF inlining, lambda specialization, bounded unrolling
 -- M5_HOF_INLINING milestone
 
-module examples/expected_fail/contracts/hof_verify
+module examples/runnable/contracts/hof_verify
 
-import std/list (length as listLength)
+import std/list (length as listLength, map, filter)
 
--- Increment all elements: map(\x -> x + 1, xs)
+-- Increment all elements: map(\x. x + 1, xs)
 -- The SMT verifier specializes this into a recursive function
 -- and proves that the result length equals the input length.
 export func incrementAll(xs: [int]) -> [int] ! {}
 ensures { listLength(result) >= 0 }
 {
-  map(\x -> x + 1, xs)
+  map(\x. x + 1, xs)
 }
 
--- Filter positive elements: filter(\x -> x > 0, xs)
+-- Filter positive elements: filter(\x. x > 0, xs)
 -- Verifies that the filtered result has non-negative length.
 export func positives(xs: [int]) -> [int] ! {}
 ensures { listLength(result) >= 0 }
 {
-  filter(\x -> x > 0, xs)
+  filter(\x. x > 0, xs)
 }
 
 -- Entry point
