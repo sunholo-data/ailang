@@ -1,10 +1,26 @@
 # M-GEMINI-REPO-MOUNT — Managed Agents repository and inline-source mounts
 
-**Status**: PARKED (needs-human-review) — Blocked pending Phase-1 VERIFIED-LIVE contract record
+**Status**: PARKED (needs-human-review) — **Phase-1 spike RUN (2026-07-17); core premise REFUTED.**
+The documented `repository` + `inline` source mounts **do not exist** on the live Vertex endpoint;
+this design cannot be implemented as written and needs a **GCS-backed redesign OR abandonment** (human
+scope decision — see the Phase-1 Spike Result section and the mission-iteration-45 report on issue #399).
 **Target**: v0.30.0
 **Priority**: P1 — mission gap G4; upgrades Gemini from reasoning-only review to in-sandbox verification
-**Estimated**: ~1 day (≤~250 LOC of Go)
+**Estimated**: ~~~1 day (≤~250 LOC of Go)~~ — invalidated; a GCS-backed approach is a larger, unscoped lift
 **Dependencies**: `managed_agents` executor / M-MANAGED-AGENTS v0.22.0
+
+> **⛔ PHASE-1 SPIKE RESULT (mission iteration 45, 2026-07-17) — PREMISE REFUTED.** Mark authorized the
+> ADC-gated live Vertex contract-discovery spike ("yep do the vertex contract spike", #399). It ran
+> against the real `interactions` endpoint (project `ailang-dev`, `global`, `Api-Revision 2026-05-20`,
+> 14 credential-free probes, all cheap request-validation `400`s — no sandbox provisioned). **Result: the
+> live API rejects both `repository` and `inline` source types outright** — `Unsupported environment data
+> source type: REPOSITORY/INLINE. Must be one of: [gcs, skill_registry]`. It further requires **network
+> egress to be enabled before ANY data source is accepted** (a fresh `{"type":"remote"}` env has egress
+> OFF). So every source-mount premise in this doc is refuted, and the encoder/CLI/limit design below is
+> moot as written. See the **Phase-1 Spike Result** section for the full VERIFIED-LIVE record and the
+> reproducible probe (`internal/executor/managed_agents/managed_agents_live_test.go`,
+> `AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`). **The Phase-1 gate the quorum demanded is now satisfied — and it
+> returned a NEGATIVE. No Phase-2 code should be written against the refuted contract.**
 
 > **PARK NOTE (mission iteration 44, 2026-07-17).** This doc was authored by the `codex:gpt-5.6-sol`
 > designer (G3 designer-rotation live test) and passed through TWO 3-provider quorum rounds
@@ -62,17 +78,96 @@ instead of reviewing only a textual representation of it.
 `managed_agents`; documentation examples alone are `DOC-ONLY`. This log starts honestly below and must be
 updated by the Phase-1 spike before Phase 2 begins.
 
-| Claim | Source (doc URL + section / or "unverified") | Status (VERIFIED-LIVE \| DOC-ONLY \| ASSUMED) | Evidence / How-to-confirm |
-|-------|------------------------------------------------|--------------------------------------------------|---------------------------|
-| A config-object environment accepts an `environment.sources[]` array | `https://ai.google.dev/gemini-api/docs/agent-environment` — “The `environment` parameter” and “Mount from a source” | DOC-ONLY | Phase-1 repository-only and combined POSTs must record the accepted serialized `environment` object and successful response from the executor's real endpoint. |
-| Repository sources use fields `type`, `source`, and `target` | `https://ai.google.dev/gemini-api/docs/agent-environment` — “Mount from a source” REST example | DOC-ONLY | Phase-1 repository-only POST mounts a known public repository, then records the accepted request and agent-visible target. |
-| Inline sources use the documented field names and an exact content encoding | `https://ai.google.dev/gemini-api/docs/agent-environment` — “Mount from a source” shows `type`, `content`, and `target`, but does not prove this Vertex endpoint or SDK-independent encoding | ASSUMED | Phase-1 inline-only POST must determine the exact accepted field set and whether `content` is raw UTF-8 text, base64, or another encoding; record both request and observed file bytes. No encoder is designed before this result. |
-| Inline content has a per-file limit described as “1 MB” | `https://ai.google.dev/gemini-api/docs/agent-environment` — “Mount from a source” source-type table | DOC-ONLY | Phase-1 boundary probing must determine the endpoint's actual byte ceiling and record its response. |
-| Equality at exactly `1 << 20` bytes is accepted and `1 << 20 + 1` is rejected | unverified | ASSUMED | Phase-1 submits both sizes, records accept/reject responses, and updates the frozen constant/inequality; if the provider uses decimal MB or rejects equality, the implementation follows the live result. |
-| A public repository mounts without repository credentials | `https://ai.google.dev/gemini-api/docs/agent-environment` — “Mount from a source” public GitHub example and “Private sources” credential configuration | DOC-ONLY | Phase-1 repository-only POST omits repository credentials and verifies the mounted checkout is readable. |
-| A fresh remote environment has unrestricted outbound network by default | `https://ai.google.dev/gemini-api/docs/agent-environment` — “Network configuration” | DOC-ONLY | Phase-1 combined probe makes a bounded outbound HTTPS request without a `network` override and records success/failure; implementation/help text must follow the live result. |
+**Updated by the Phase-1 spike, mission iteration 45 (2026-07-17). Every DOC-ONLY/ASSUMED row was probed
+against the live endpoint; the net result is REFUTED.** The endpoint used is
+`aiplatform.googleapis.com` (Vertex) — NOT the `ai.google.dev` Gemini Developer API the original rows
+cited; the two contracts diverge, which is exactly the risk the quorum flagged.
+
+| Claim | Original source | Status (post-spike) | Live evidence |
+|-------|-----------------|---------------------|---------------|
+| A config-object environment accepts an `environment.sources[]` array | `ai.google.dev` docs | **PARTIALLY VERIFIED-LIVE** | The `sources[]` array IS parsed and validated (the API reads each element's `type` and validates per-source `target`, error path `environment.config.sources.target`). But the *contents* below are refuted. |
+| Repository sources use fields `type`, `source`, and `target` | `ai.google.dev` "Mount from a source" | **REFUTED (VERIFIED-LIVE)** | `HTTP 400: Unsupported environment data source type: `REPOSITORY`. Must be one of: [`gcs`, `skill_registry`].` There is **no repository/git source type** on this endpoint. |
+| Inline sources use the documented field names and an exact content encoding | `ai.google.dev` "Mount from a source" | **REFUTED (VERIFIED-LIVE)** | `HTTP 400: Unsupported environment data source type: `INLINE`. Must be one of: [`gcs`, `skill_registry`].` There is **no inline source type**; inline patch injection is impossible via `environment`. |
+| Inline content has a per-file limit described as "1 MB" | `ai.google.dev` source-type table | **N/A (VERIFIED-LIVE)** | Moot — no inline source type exists. Not probed for accept/reject size because the type itself is rejected first. |
+| Equality at exactly `1 << 20` bytes is accepted and `1 << 20 + 1` is rejected | unverified | **N/A (VERIFIED-LIVE)** | Moot — no inline source type. |
+| A public repository mounts without repository credentials | `ai.google.dev` public GitHub example | **N/A (VERIFIED-LIVE)** | Moot — no repository source type. GCS sources would use GCS/IAM auth, not git-repo credentials. |
+| A fresh remote environment has unrestricted outbound network by default | `ai.google.dev` "Network configuration" | **REFUTED (VERIFIED-LIVE)** | `HTTP 400: Network egress is not enabled for the environment. Cannot specify data sources.` A fresh `{"type":"remote"}` env has egress **OFF**, and egress must be enabled *before* any data source is accepted. |
+| **[NEW — gemini round-2 row]** A mounted repo has enough history to `git checkout` an arbitrary older SHA (not shallow) | quorum reviewer | **N/A (VERIFIED-LIVE)** | Moot — no repository mount exists to be shallow or deep. A GCS-backed redesign would ship whatever the caller uploads, so history depth becomes a tarball-contents question, not a provider-mount question. |
+| **[NEW — discovered]** The only supported `sources[].type` values | live probe | **VERIFIED-LIVE** | Exactly **`gcs`** and **`skill_registry`** (per the two rejection messages). |
+| **[NEW — discovered]** Each source requires a `target` | live probe | **VERIFIED-LIVE** | Bare `{"type":"gcs"}` / `{"type":"skill_registry"}` → `HTTP 400: `environment.config.sources.target` is required.` |
+| **[NEW — discovered]** `environment.network` is a real config object gating egress | live probe | **VERIFIED-LIVE (name undiscovered)** | `environment.network` accepts params (errors are scoped to `environment.network`), but its egress-enable field is **not** `egress`, `egress_enabled`, `enable_egress`, `enable_internet_access`, or `egress_setting` (all → `Unknown parameter … at 'environment.network'`). The exact param name needs the Vertex Managed Agents environment proto/reference — a follow-up, not blind probing. |
+
+## Phase-1 Spike Result (VERIFIED-LIVE, mission iteration 45, 2026-07-17)
+
+**Authorization:** Mark, on issue #399 — "yep do the vertex contract spike".
+
+**Method:** an env-var-guarded, in-package Go probe
+(`internal/executor/managed_agents/managed_agents_live_test.go`, gated by
+`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`) that reuses the executor's own `sendInteraction` + `parseSSE` so
+each request is byte-identical to production. It POSTs varying `environment` payloads to the exact live
+endpoint the executor uses and records the response. **14 probes were run; all were request-validation
+`HTTP 400`s that reject before a sandbox is provisioned, so the spike cost was negligible** (no agent
+run, no sandbox — the informative-rejection path). No credentials appear in requests (the ADC bearer
+token is added inside `sendInteraction` and never printed); interaction/environment IDs are redacted.
+
+- **Endpoint:** `POST https://aiplatform.googleapis.com/v1beta1/projects/ailang-dev/locations/global/interactions`
+- **Headers:** `Api-Revision: 2026-05-20`, `Authorization: Bearer <ADC>`, `Accept: text/event-stream`.
+
+**Verbatim probe transcript (credential-free):**
+
+| Probe | `environment` sent (abridged) | Live response |
+|-------|-------------------------------|---------------|
+| A repo-only | `sources:[{type:repository, source:<git url>, target:/workspace/ailang}]` | `400 Unsupported environment data source type: `REPOSITORY`. Must be one of: [`gcs`, `skill_registry`].` |
+| B inline-only | `sources:[{type:inline, target:…, content:"AILANG_INLINE_SENTINEL_v1…"}]` | `400 Unsupported environment data source type: `INLINE`. Must be one of: [`gcs`, `skill_registry`].` |
+| F gcs bare | `sources:[{type:gcs}]` | `400 `environment.config.sources.target` is required.` |
+| G gcs+source+target | `sources:[{type:gcs, source:gs://…, target:/workspace/x}]` | `400 Network egress is not enabled for the environment. Cannot specify data sources.` |
+| H skill_registry bare | `sources:[{type:skill_registry}]` | `400 `environment.config.sources.target` is required.` |
+| I–N egress-enable guesses | `network:{egress\|egress_enabled\|enable_egress\|enable_internet_access\|egress_setting: …}` | `400 Unknown parameter '<name>' at 'environment.network'.` (all six guesses rejected) |
+
+**What is now VERIFIED-LIVE:**
+
+1. **The documented `repository` and `inline` mounts do not exist on this endpoint.** The only accepted
+   `sources[].type` values are **`gcs`** and **`skill_registry`**. This refutes the entire mount model
+   this doc was built on (git-URL repository mount + inline patch injection).
+2. **Data sources are gated behind network egress.** A fresh `{"type":"remote"}` environment has egress
+   OFF; any `sources[]` on such an env is rejected with "Network egress is not enabled … Cannot specify
+   data sources." Egress must be enabled first, via some parameter under the real `environment.network`
+   object (name TBD — see #3).
+3. **`environment.network` exists but its egress-enable field name is undiscovered.** Six idiomatic
+   guesses were all rejected as unknown params scoped to `environment.network`. Discovering it (and the
+   full `gcs` source contract) requires the actual Vertex Managed Agents environment proto/reference,
+   not further blind 400-probing.
+4. Each source requires a `target`; the server normalizes `environment.sources` to
+   `environment.config.sources` internally.
+
+**Implication — this design is refuted, not merely unverified.** "Mount the caller's git repo + inject
+the uncommitted diff as an inline file" is not expressible against this API. The nearest real path is a
+**GCS-backed mount**: enable egress, upload a repo tarball/checkout (and the diff) to a GCS bucket in
+`ailang-dev`, and mount it via a `gcs` source. That is a materially different and larger design (GCS
+bucket + upload/lifecycle pipeline, IAM, egress config, tarball assembly) than the ≤250-LOC estimate
+here, and it still needs the egress-param + `gcs`-source contract pinned first.
+
+### 🔴 Decision needed (Mark) — scope, not code
+
+The spike did its job (verify-before-build) and returned a decisive negative. Three options:
+
+- **(a) Redesign around GCS-backed mounts.** Highest value (Gemini gains real in-sandbox `ailang check`),
+  but a fresh, larger design + a second contract-discovery spike (egress param + `gcs` source fields).
+  Would be re-queued as a new design-doc iteration, not a resume of this one.
+- **(b) Shelve G4; keep the prompt-packed diff bridge.** Gemini stays a reasoning-only reviewer (as
+  today). Zero further cost. The diff bridge already works and `VerificationDegraded` is stamped honestly.
+- **(c) Investigate `skill_registry`** as an alternate delivery path (unknown fit; likely for agent
+  skills, not repo code — lowest confidence).
+
+Recommendation: **(b) shelve unless mounted Gemini verification proves worth a GCS pipeline** — the
+existing bridge covers the review use case, and the mission has cheaper accessibility-queue items. Reply
+on #399 to choose. Until then the doc stays PARKED with the contract now honestly recorded.
 
 ## Goals
+
+> **NOTE (iter 45):** the Goals/Decisions/Plan below describe the REFUTED repository+inline design and are
+> retained only as the record of what the spike invalidated. Do not implement against them. A GCS-backed
+> redesign (option a) would rewrite this section.
 
 - Preserve byte-for-byte-equivalent default behavior: a task with no requested sources sends
   `{"type":"remote"}`.
