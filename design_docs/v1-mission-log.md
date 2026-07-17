@@ -3413,3 +3413,25 @@ to the Gate-2 verification protocol (statistics drift after any example add). NO
 **Retro lane**: **backlog/process observation, no skill/mission-doc edit** (no ≥2-friction pattern warranting a SKILL.md change this iteration). Highest-value finding = the quorum-tool bug itself, now fixed. Second: pre-quorum backlog docs can carry premise errors that only surface at the quorum gate (this doc's `internal/check/`), and a controller designer-revision can itself introduce a NEW incoherence (my Core-signature over-commitment) — reinforces that the one-round cap + park is the right discipline rather than the controller iterating solo against a single reviewer. No new rule needed.
 
 **Next**: iteration 42 can RE-QUORUM the hardened m-check-strict-fallbacks (now with a restored 2-reviewer quorum) once its OPEN layer decision is resolved — cheapest path is a planner pass that verifies the pre-elaboration hook + picks option (a) or (b), then re-quorum → route. Otherwise the clause-3 headless surface remains blocked on the Fable designer (returns 2026-08-01) or an eval rotation; m-bytecode-vm-parity-bugs is REAL but needs a re-scope (fresh data above). Fable designer unavailable until 2026-08-01.
+
+## 45 — 2026-07-17 — INTERACTIVE CORRECTION (Mark + session): the "Fable unavailable until 2026-08-01" belief is FALSE — kill it from the Ruled-out chain
+
+**What**: entries 41–44 carried forward "Fable quota-exhausted until 2026-08-01." That was a
+MISDIAGNOSIS of a billing leak, not an OAuth quota state. OAuth buckets reset **weekly Monday
+07:00** — an "until the 1st" date is the **API key's monthly cycle**. `~/.zshenv` sourced
+`secrets.env` into every tool shell, so nested `claude -p` calls (the `claude:` CLI lane) billed
+the METERED API; when that key's cap hit, the error masqueraded as Fable exhaustion. Iteration
+37's fable designer+evaluator runs were API-billed $.
+
+**Fix (landed + live-verified)**: L1 `~/.zshenv` now unsets the Anthropic keys after sourcing
+(tool shells are credential-free; OPENAI/GOOGLE kept for codex/gemini); L2 all nested claude goes
+via `claude-sub` (execs with keys stripped); L3 Gate-0 billing tripwire (LEAKED env → claude:
+lanes off + alert). Commits `87cd40de1` + `e314bbe63`. **Live proof 2026-07-17 morning**:
+`claude-sub -p 'reply with exactly: ok' --model claude-fable-5` from a keyless tool shell →
+`ok` on keychain OAuth.
+
+**Ruled out**: "fable designer unavailable until 2026-08-01" — REFUTED by the live keyless probe.
+Standing rule: any quota error naming a non-Monday reset date = you are on the API key; fix the
+leak, never fall back or retire the lane.
+
+**Next**: normal queue; the `claude:claude-fable-5` designer lane is BACK (via `claude-sub` only).
