@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-17 — ITERATION 40: clause-3 **m-dx-expected-fail-fixes GHOST-CLOSED** (PR #406, eval PASS 92/100 r1) — Gate-2 live-repro found 0 of 4 "bugs" needed a language fix; closed with CI-gated regression guards; the block-RHS-`let` parser ASI footgun split to a new evidence-gated backlog item
+
+Picked the `[NEXT]` clause-3 sub-item flagged LARGELY-GHOST at iter 32 (over 3 sibling prompt-teaching items, which need an eval rotation to verify — GPU/API-billed — a poor headless fit). Gate-2 live-repro at `origin/dev 1ee919386` CONFIRMED it: **Bug 4 (effect_budgets)** works — the doc's repro put `--caps` AFTER the filename (ignored); with the flag first, `@limit=N` enforcement fires ("budget exhausted: semantic limit=3"). **Bugs 1/2 + 2 match_foreign files** = good teaching diagnostics / intended type-rejections. **Bug 3 (serve_api_webhook)** = non-canonical example (omitted `;`/`in` after a block-RHS `let`, deprecated string `++`). Closed with regression guards: 3 examples fixed to canonical syntax + promoted to `examples/runnable/` (now CI-gated by `verify-examples`), README budget claim corrected, manifest de-drifted (2 mispathed `contracts/` entries repaired — not phantom). **Opus executor / Sonnet evaluator PASS 92/100 r1** (generator≠judge; zero Go/parser changes; `make test` + `verify-examples` green). The real-but-minor block-RHS-`let` separator inconsistency split to `m-parser-block-let-separator` (planned/v0_30_0, evidence-gated — default-bias-not-core). Gate-1: local dev was 2 commits behind origin (iter-39's PR #405) — worked from a worktree off origin. Detail: log entry 43.
+
 ## STATUS 2026-07-17 — ITERATION 39: fleet **(c1) m-gemini-evaluator-diff-bridge LANDED** (PR #405 → `ae5f0a00f`, eval PASS 96/100 r1) — a sandboxed gemini evaluator can now review a sprint's UNCOMMITTED worktree diff; the backend-reliability blocker CLEARED
 
 Iteration 38 parked (c1) on Vertex backend reliability ("do not pick until a bounded `ailang exec gemini` probe returns a response"). Gate-2 reality-check ran **4/4 bounded probes → all SUCCESS** (8–11s, ~$0.01 each) → blocker cleared, (c1) pickable (NEXT-FIRST fleet step, serves Mark #399). Full inner loop: **designer** — Fable **quota-exhausted until 2026-08-01** ("reached your specified API usage limits") → fell back to **opus** + FLAGGED (graceful, never wedged); design-doc-creator's creation-time quorum degraded (gpt5-6-sol unreachable via an OpenAI structured-output infra bug; gemini-3-1-pro truncated) → controller PROCEED, gemini's untracked-files objection incorporated. **Opus planner** (verified 8/8 seams; caught the schema-mirror discrepancy — `GeminiVerdict` is a documented adaptation, not a byte-mirror of the frozen `quorum.ReviewResult`; pinned the lowest-risk `LastFencedBlock` thin-wrapper, no call-site rename) → **Opus executor** (worktree `internal/eval_harness/gemini_evaluator_bridge.go`: `BuildDiffBundle` untracked-inclusive + 256 KiB ceiling + LOUD truncation; reasoning-only directive; `GeminiVerdict` parse/validate; `RunGeminiEvaluator` injectable caller seam + caller-enforced `VerificationDegraded`; 12 non-vacuous tests) → **Sonnet evaluator** (generator≠judge: opus≠sonnet) **PASS 96/100 r1**, non-vacuity + frozen-contract independently confirmed; NB-1 folded into a ctx-threading hardening commit (`exec.CommandContext` — the fleet-(c) caller-ctx watch-item). Executor/`quorum`/`exec.go` byte-identical. **Default evaluator STAYS sonnet** — this ships the CAPABILITY, not a routing change (defaulting to gemini needs the evidence rule + a live diff-bridge fire). PR #405 → squash `ae5f0a00f`, dev CI green (test/lint/build required; SonarCloud advisory-red, non-required). Doc → implemented/v0_30_0. Detail: log entry 42.
@@ -42,10 +46,6 @@ Iteration 38 parked (c1) on Vertex backend reliability ("do not pick until a bou
 ## STATUS 2026-07-16 — ITERATION 38: HUMAN DIRECTIVE (#399, outranks queue) — evaluator default **fable → sonnet**; gemini-as-evaluator VERIFIED not-viable-today (server-side sandbox can't see the worktree + live probe timed out)
 
 Mark commented on #399: *"once we have gemini via managed agents and openai we can use one of those instead for evaluator? so default can be gemini (if able to git clone the codebase etc)? otherwise sonnet-5"*. Resolved his conditional with data. **gemini (managed_agents) is NOT viable as the evaluator today, two independent counts**: (1) **architectural (code-proven)** — the request body carries only `Directive`+`SystemPrompt` over a server-side `CapRemoteSandbox` (`managed_agents.go:164`); no repo upload, so it cannot see the sprint's UNCOMMITTED worktree changes nor re-run local tests (at most `git clone` the *public* origin/dev, which lacks them) — exactly Mark's "if able to git clone" gap; (2) **operational (live-observed)** — a bounded `ailang exec gemini` probe timed out (`http2 timeout awaiting response headers`, same class as iters 36-37). Per Mark's ladder → **sonnet-5**: Agent-tool-pinnable (fable is not — F1, so the fable default silently re-routed to sonnet every iteration anyway: 31/36), distinct from the opus executor (generator≠judge restored & now ENFORCEABLE), cheap, behavioral. Changed: driver `MISSION_EVALUATOR_MODEL` default fable→sonnet + routing-policy table + independence caveat RESOLVED. Follow-up queued: **fleet (c1) m-gemini-evaluator-diff-bridge** (ship the sprint diff into the directive + backend reliability). No CI risk (doc + driver-comment + one env default). Detail: log entry 41.
-
-## STATUS 2026-07-16 — ITERATION 37: fleet **(c0) m-gemini-exec-project-plumbing LANDED** (PR #401 → `60351087b`, eval PASS 96/100 r1) — `ailang exec gemini` now reaches the Vertex Managed Agents backend; unblocks fleet (c)'s parked M0/M4 gemini reviewer lane
-
-The ≤1d unblocker surfaced by iteration 36. Live-repro confirmed the gap at HEAD (`managed_agents: GCP project not set`), root cause `cmd/ailang/exec.go:executeCLI` built `executor.Task{}` with no `GCPProject`/`GCPLocation` (the eval harness sets them per-model; the CLI path never did). **Fix** (minimal, +13 LOC code): `resolveGCPProjectEnv()` (`AILANG_CLOUD_PROJECT` → `GOOGLE_CLOUD_PROJECT`, coordinator precedence) + set both fields on the shared Task; empty location defers to executor `defaultLocation="global"`, unset project keeps the loud error (no silent default). **Live-verified by the controller**: env-unset → loud error preserved; `AILANG_CLOUD_PROJECT=ailang-multivac-dev` → error moved to Vertex `HTTP 400: Resource setup has just started` (project REACHED the backend). Non-vacuous `t.Setenv` regression test. Full loop: **Fable designer** (`claude:claude-fable-5` CLI lane, N−1 quorum PROCEED) → **Opus planner+executor** → **Fable evaluator** (true-Fable CLI lane, PASS 96/100 r1). ⚠ **Routing FLAG**: evaluator ran on the `claude:claude-fable-5` CLI lane, NOT the doc-prescribed sonnet re-route (iteration 36 hit the identical `MISSION_EVALUATOR_MODEL=fable` env and chose sonnet per the ≥3-datapoint gate) — recorded as an evidence datapoint + a doc-inconsistency retro note, NOT a ratified policy change. Detail: log entry 40.
 
 ## CURRENT GOAL
 
@@ -568,7 +568,11 @@ triage evidence = log entry 10.)*
   (`Box[int]` → `{items: [int]}`, single- + cross-module) via `expandAlias` `*TApp` branch keyed
   strictly on alias-env membership (ADTs stay nominal, proven); `TC_ALIAS_ARITY_001`; cacheKey
   v3; eval PASS 93/100 round 1 (first zero-correction pass); PR #381 → `fd1b11a47`, dev CI green
-  per-workflow observed]**
+  per-workflow observed]** · **m-parser-block-let-separator** (PARKED, evidence-gated, split out
+  of m-dx-expected-fail-fixes iter 40 → planned/v0_30_0): a simple-RHS `let x = e` tolerates
+  eliding the statement separator before a trailing expr, but a block-RHS `let x = match{...}`
+  does not — a minor parser ASI inconsistency. NOT auto-fixed (default-bias-not-core); route only
+  with a measured eval failure-rate + Conflict Surface.
 - **VERIFY-then-route** (ran the doc repro FIRST — both were ghosts): ~~m-dx-record-cons-pattern~~
   **[LANDED/GHOST iter 18 → implemented/v0_30_0; `{…} :: rest` type-checks; guard
   `TestListConsPatternWithRecord` + `examples/record_cons_pattern.ail`, PR #358 → `adde9e9d0`]** ·
@@ -601,9 +605,18 @@ triage evidence = log entry 10.)*
   `iface`/`TFunc2`/`EffectRow` path); FIRST cross-provider codex live-fire (executor = OpenAI
   gpt-5.6-sol, evaluator = Sonnet PASS 98/100 r1), PR #397 → `e542065c0`, all required checks green
   observed. Deferred: `--auto-caps` flag, `AILANG_AUTO_CAPS` env, always-on preflight+exit-2,
-  bench-harness integ, cap manifest]** · m-dx-expected-fail-fixes (1–2d, ⚠ Gate-2 flagged
-  LARGELY-GHOST iter 32: effect_budgets `@limit` runtime enforcement WORKS at HEAD; arrow-lambda +
-  dup-requires now have teaching diagnostics — re-verify each sub-bug before routing)
+  bench-harness integ, cap manifest]** · ~~m-dx-expected-fail-fixes (1–2d)~~ **[GHOST-CLOSED
+  2026-07-17 iter 40 → implemented/v0_30_0; Gate-2 live-repro CONFIRMED largely-ghost — 0 of 4
+  "bugs" needed a language fix. Bug4 effect_budgets: `@limit` enforcement WORKS at runtime
+  ("budget exhausted: semantic limit=3"); the doc's repro put `--caps` AFTER the filename where
+  it's ignored (flag must precede the file). Bugs1/2 (arrow-lambda, multi-`requires`) + the 2
+  match_foreign files: good teaching diagnostics / intended type-rejections, not bugs. Bug3
+  serve_api_webhook: non-canonical example (omitted `;`/`in` after a block-RHS `let`, deprecated
+  string `++`). CLOSED with regression guards: the 3 parser-bug examples fixed to canonical syntax
+  + promoted to `examples/runnable/` (now CI-gated), effect_budgets README corrected, manifest
+  de-drifted (2 mispathed contracts entries repaired). Executor Opus / evaluator Sonnet PASS
+  92/100 r1 (generator≠judge). Split-out: the block-RHS-`let` separator ASI inconsistency →
+  new backlog `m-parser-block-let-separator` (evidence-gated, default-bias-not-core). PR #406]**
 - **Prompt teaching** (batchable, ~0.5d each): ~~m-prompt-option-none-idiom~~ **[SUPERSEDED
   2026-07-14 by m-prelude-option-result's structural fix (its own doc named this band-aid as
   superseded-on-ship); prompt v0.16.2 already teaches the prelude availability; doc → archive/

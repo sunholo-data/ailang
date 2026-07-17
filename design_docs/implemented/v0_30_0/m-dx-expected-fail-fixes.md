@@ -1,6 +1,6 @@
 # M-DX-EXPECTED-FAIL-FIXES: Fix Remaining Expected-Fail Examples
 
-**Status**: Planned
+**Status**: GHOST-CLOSED (2026-07-17, mission iteration 40) — see addendum below
 **Target**: v0.9.5
 **Priority**: P2 (DX — broken examples erode confidence)
 **Estimated**: 1-2 days
@@ -8,6 +8,34 @@
 **Milestone ID**: M-DX-EXPECTED-FAIL-FIXES
 **Created**: 2026-03-25
 **Source**: Audit of `examples/expected_fail/` directory
+
+---
+
+## GHOST-CLOSE ADDENDUM (2026-07-17, mission iteration 40)
+
+A Gate-2 live-repro at origin/dev `1ee919386` found the four "bugs" below were **largely ghosts** —
+**0 of 4 required a language fix**. The design doc's diagnoses pre-dated shipped teaching
+diagnostics and (for Bug 4) contained a reproduction error. Findings:
+
+| Doc bug | File(s) | Reality at HEAD | Resolution |
+|---|---|---|---|
+| Bug 1 `\x -> ` not parsed | `contracts/hof_verify.ail` | GHOST — AILANG lambda is `\x. expr`; parser emits a clean teaching diagnostic ("lambda body separator is '.' not '->'"). Example used non-canonical arrow syntax. | Fixed example to `\x.`, promoted to `examples/runnable/contracts/` as a passing guard. |
+| Bug 2 multiple `requires` rejected | `contracts/list_recursive_verify.ail` | GHOST — single-block is the intended design; parser teaches "combine with commas". | Merged to one comma-separated `requires {...}`, promoted to runnable. |
+| Bug 3 `let` in `@raw` handler fails | `serve_api_webhook.ail` | MOSTLY GHOST — example omitted the `;`/`in` statement separator after a block-RHS `let = match {...}`, and used deprecated string `++`. | Fixed to canonical syntax + `"${...}"` interpolation, promoted to runnable. Underlying parser ASI inconsistency split out (below). |
+| Bug 4 `@limit=N` breaks cap checking | `effect_budgets*.ail` (4) | GHOST — the doc's repro placed `--caps` AFTER the filename, where it is ignored. With `ailang run --caps IO,Clock <file>` (flag first), `@limit` enforcement fires at runtime ("effect 'IO' budget exhausted: semantic limit=3, used=3"). | README corrected; files kept as budget-enforcement demonstrations. |
+| (README: intended rejections) | `match_foreign_constructor_{option,result}.ail` | CORRECT — excellent cross-ADT constructor diagnostics; already documented as intended type-rejections. | Unchanged. |
+
+Also de-drifted `examples/manifest.json` (two `contracts/` entries were mispathed to
+`expected_fail/`, not phantom — the files live at `runnable/contracts/`).
+
+**Split-out backlog item:** the block-RHS-`let` separator inconsistency (a simple-RHS `let x = e`
+tolerates omitting the statement separator before a trailing expression, but a block-RHS
+`let x = match{...}` does not) is a real but minor parser footgun. Per PROGRAM.md's
+default-bias-not-core, it is filed as `m-parser-block-let-separator` (planned/v0_30_0) for
+evidence-gated evaluation, NOT folded into this doc/example cleanup.
+
+**Executor** Opus / **evaluator** Sonnet (generator≠judge) **PASS 92/100 round 1**. Zero Go/parser
+changes; `make test` + `make verify-examples` green.
 
 ---
 
