@@ -240,6 +240,44 @@ func TestLiveEnvironmentContract(t *testing.T) {
 			envJSON:   `{"type":"remote","network":{"egress_setting":"EGRESS_SETTING_ALL"},"sources":[{"type":"gcs","source":"gs://ailang-dev-probe-nonexistent/x.tar","target":"/workspace/x"}]}`,
 			directive: "reply with exactly: OK",
 		},
+		// Iter-46 (human directive #399, philschmid.de/managed-agents-gh): iter-45's
+		// egress guesses (I-N) were all SCALAR enable-flags. The blog demonstrates
+		// the real egress shape on the Gemini *Developer* API is a LIST:
+		// network.allowlist:[{domain, transform:[{Authorization:...}]}]. Never tried
+		// on Vertex. These probe whether the SAME structured shape is the accepted
+		// Vertex egress param (a change away from "Network egress is not enabled" or
+		// "Unknown parameter environment.network" pins it → G4 unblockable on Vertex,
+		// no re-target). gcs source is nonexistent → validation 400, no sandbox.
+		{
+			label:     "O_top_network_allowlist",
+			envJSON:   `{"type":"remote","network":{"allowlist":[{"domain":"api.github.com","transform":[{"Authorization":"Bearer X"}]}]},"sources":[{"type":"gcs","source":"gs://ailang-dev-probe-nonexistent/x.tar","target":"/workspace/x"}]}`,
+			directive: "reply with exactly: OK",
+		},
+		{
+			label:     "P_config_network_allowlist",
+			envJSON:   `{"type":"remote","config":{"network":{"allowlist":[{"domain":"api.github.com","transform":[{"Authorization":"Bearer X"}]}]},"sources":[{"type":"gcs","source":"gs://ailang-dev-probe-nonexistent/x.tar","target":"/workspace/x"}]}}`,
+			directive: "reply with exactly: OK",
+		},
+		{
+			label:     "Q_top_network_allowlist_domain_only",
+			envJSON:   `{"type":"remote","network":{"allowlist":[{"domain":"*"}]},"sources":[{"type":"gcs","source":"gs://ailang-dev-probe-nonexistent/x.tar","target":"/workspace/x"}]}`,
+			directive: "reply with exactly: OK",
+		},
+		// Q proved network.allowlist:[{domain:"*"}] enables egress and provisions a
+		// sandbox. R is the end-to-end money shot for G4/#399 ("can gemini git clone
+		// the codebase?"): egress-only (NO data source at all), agent clones the
+		// PUBLIC ailang repo itself over the open egress. If HEAD + file listing come
+		// back, the whole repository/inline/gcs MOUNT question is MOOT for public
+		// repos — clone-over-egress replaces it. This provisions a real sandbox.
+		{
+			label:   "R_egress_only_agent_git_clone_public",
+			envJSON: `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}`,
+			directive: "You are in a Linux sandbox with outbound network. Run EACH command and paste raw stdout+stderr verbatim under '### <n>'. Do not summarize.\n" +
+				"### 1\ncd /tmp && git clone --depth 1 https://github.com/sunholo-data/ailang.git 2>&1 | tail -5\n" +
+				"### 2\ngit -C /tmp/ailang rev-parse HEAD 2>&1\n" +
+				"### 3\nls /tmp/ailang 2>&1 | head -20\n" +
+				"### 4\nsed -n '1,3p' /tmp/ailang/go.mod 2>&1\n",
+		},
 	}
 
 	// Allow selecting a subset via AILANG_LIVE_MA_PROBES="A,B" to control cost.

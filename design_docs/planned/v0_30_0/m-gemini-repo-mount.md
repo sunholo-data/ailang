@@ -1,12 +1,16 @@
 # M-GEMINI-REPO-MOUNT — Managed Agents repository and inline-source mounts
 
-**Status**: PARKED (needs-human-review) — **Phase-1 spike RUN (2026-07-17); core premise REFUTED.**
-The documented `repository` + `inline` source mounts **do not exist** on the live Vertex endpoint;
-this design cannot be implemented as written and needs a **GCS-backed redesign OR abandonment** (human
-scope decision — see the Phase-1 Spike Result section and the mission-iteration-45 report on issue #399).
+**Status**: RESHAPED (Phase-1b, 2026-07-17, mission iteration 46) — **the mount model is superseded by
+CLONE-OVER-EGRESS, which is now LIVE-VERIFIED end-to-end.** The original `repository`/`inline` mounts do
+not exist (iter-45), BUT iter-46 (human directive #399 → philschmid.de/managed-agents-gh) found the
+missing egress-enable param — `environment.network.allowlist:[{domain:"*"}]` — and proved that an
+egress-only sandbox (NO data source) **`git clone`s the public ailang repo end-to-end** (verified: cloned
+HEAD `806b3b4a4`, listed files, read `go.mod`). The whole source-mount question is **moot for public
+repos**. Pending Mark's greenlight to decompose the lean clone-over-egress capability (see the new
+**Phase-1b Spike Result** section + option **(d)**).
 **Target**: v0.30.0
 **Priority**: P1 — mission gap G4; upgrades Gemini from reasoning-only review to in-sandbox verification
-**Estimated**: ~~~1 day (≤~250 LOC of Go)~~ — invalidated; a GCS-backed approach is a larger, unscoped lift
+**Estimated**: clone-over-egress path is SMALL again (agent-side `git clone`, no encoder/GCS/mount) — re-scope pending greenlight
 **Dependencies**: `managed_agents` executor / M-MANAGED-AGENTS v0.22.0
 
 > **⛔ PHASE-1 SPIKE RESULT (mission iteration 45, 2026-07-17) — PREMISE REFUTED.** Mark authorized the
@@ -21,6 +25,20 @@ scope decision — see the Phase-1 Spike Result section and the mission-iteratio
 > reproducible probe (`internal/executor/managed_agents/managed_agents_live_test.go`,
 > `AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`). **The Phase-1 gate the quorum demanded is now satisfied — and it
 > returned a NEGATIVE. No Phase-2 code should be written against the refuted contract.**
+
+> **✅ PHASE-1b UPDATE (mission iteration 46, 2026-07-17) — EGRESS PARAM FOUND; CLONE-OVER-EGRESS
+> LIVE-VERIFIED.** Mark replied on #399: *"can you look at this for the vertex managed agents interaction
+> with GitHub? https://www.philschmid.de/managed-agents-gh"*. That post (Gemini **Developer** API surface,
+> `google-genai` SDK) demonstrates GitHub access via **network egress with header transform**, and — key
+> insight — the egress param is a **structured list** `network.allowlist:[{domain, transform}]`, NOT the
+> six *scalar* enable-flags iter-45 guessed (which is why iter-45 missed it). Re-probing OUR Vertex
+> endpoint with that shape (probes O–R, same ADC harness): `network.allowlist:[{domain:"*"}]` is
+> **accepted and provisions an egress-enabled sandbox** (specific domains + `transform` are "not supported
+> now" on Vertex — wildcard only). Probe **R** then proved the money shot: an egress-only env (no data
+> source at all) **cloned the public ailang repo end-to-end** — `git clone --depth 1` succeeded,
+> `rev-parse HEAD` = `806b3b4a4` (current dev), file listing + `go.mod` returned. **So iter-45's "nearest
+> path = GCS-backed mount, large lift" is superseded: for a PUBLIC repo the agent just clones itself over
+> egress — no mount, no GCS, no inline.** See the **Phase-1b Spike Result** section and option **(d)**.
 
 > **PARK NOTE (mission iteration 44, 2026-07-17).** This doc was authored by the `codex:gpt-5.6-sol`
 > designer (G3 designer-rotation live test) and passed through TWO 3-provider quorum rounds
@@ -147,21 +165,69 @@ the uncommitted diff as an inline file" is not expressible against this API. The
 bucket + upload/lifecycle pipeline, IAM, egress config, tarball assembly) than the ≤250-LOC estimate
 here, and it still needs the egress-param + `gcs`-source contract pinned first.
 
-### 🔴 Decision needed (Mark) — scope, not code
+## Phase-1b Spike Result (VERIFIED-LIVE, mission iteration 46, 2026-07-17)
 
-The spike did its job (verify-before-build) and returned a decisive negative. Three options:
+**Authorization / trigger:** Mark, on #399 — "can you look at this … https://www.philschmid.de/managed-agents-gh".
 
-- **(a) Redesign around GCS-backed mounts.** Highest value (Gemini gains real in-sandbox `ailang check`),
-  but a fresh, larger design + a second contract-discovery spike (egress param + `gcs` source fields).
-  Would be re-queued as a new design-doc iteration, not a resume of this one.
-- **(b) Shelve G4; keep the prompt-packed diff bridge.** Gemini stays a reasoning-only reviewer (as
-  today). Zero further cost. The diff bridge already works and `VerificationDegraded` is stamped honestly.
-- **(c) Investigate `skill_registry`** as an alternate delivery path (unknown fit; likely for agent
-  skills, not repo code — lowest confidence).
+**What the blog gave us.** It targets the Gemini **Developer** API (`ai.google.dev` /
+`generativelanguage.googleapis.com`, `google-genai` SDK, API-key auth) — a *different surface* from our
+executor's Vertex `aiplatform.googleapis.com` (ADC). On that surface, GitHub access is done by enabling
+**network egress** and injecting the PAT via a per-domain header **transform**, with the agent running
+`gh`/`git` inside the sandbox. The transferable insight: the egress param is a **structured list**
+`environment.network.allowlist:[{domain, transform:[{Authorization:…}]}]`, not a boolean/enum enable-flag.
+(Independent our-project confirmation of the Developer-API surface was **not** possible this iteration —
+the available `GOOGLE_API_KEY` is invalid even for `generateContent`; a valid Developer-API key with
+interactions/preview access is a human provisioning step, parked.)
 
-Recommendation: **(b) shelve unless mounted Gemini verification proves worth a GCS pipeline** — the
-existing bridge covers the review use case, and the mission has cheaper accessibility-queue items. Reply
-on #399 to choose. Until then the doc stays PARKED with the contract now honestly recorded.
+**Method:** the same env-guarded ADC probe harness as iter-45 (`managed_agents_live_test.go`, probes
+O–R), against the **Vertex** endpoint the executor actually uses. Probes O–Q are cheap validation `400`s;
+Q and R **provision a real sandbox** (small, bounded cost).
+
+| Probe | `environment` sent (abridged) | Live Vertex response |
+|-------|-------------------------------|----------------------|
+| O top `network.allowlist` + domain+transform | `network:{allowlist:[{domain:"api.github.com",transform:[{Authorization:"Bearer X"}]}]}` + gcs src | `400 Only domain: '*' is supported now.` |
+| P same under `config` | `config:{network:{allowlist:[…api.github.com…]},sources:[…]}` | `400 Only domain: '*' is supported now.` |
+| Q wildcard only | `network:{allowlist:[{domain:"*"}]}` + gcs src | **`status=completed`, agent ran, replied `OK`** — egress env provisioned |
+| R **egress-only clone** | `network:{allowlist:[{domain:"*"}]}` (NO data source) | **`status=completed`, 9 steps** — `git clone --depth 1` of public ailang repo OK; `rev-parse HEAD`=`806b3b4a4`; file listing + `go.mod` (`module github.com/sunholo-data/ailang`, `go 1.26.5`) returned verbatim |
+
+**What is now VERIFIED-LIVE (superseding iter-45 #3):**
+
+1. **The egress-enable param IS `environment.network.allowlist`** — a list of `{domain}` (with optional
+   `transform`). iter-45's six scalar guesses missed it because the shape is a list, not a flag.
+2. **Only `domain:"*"` (wildcard, all-egress) is accepted on Vertex today.** Specific domains and the
+   blog's per-domain header `transform` are explicitly *"not supported now"* on Vertex (they work on the
+   Developer-API surface). So the blog's PAT-injection trick is **not** available on Vertex yet.
+3. **An egress-only sandbox (no data source) clones a PUBLIC repo end-to-end.** The agent itself runs
+   `git clone` over the open egress — no `repository`/`inline`/`gcs` mount involved at all. For public
+   repos this makes the entire source-mount design **unnecessary**.
+
+**Security note.** `domain:"*"` is unrestricted outbound. For the intended use (an evaluator/reviewer
+that clones a *public* repo at a given SHA and reasons over it, read-only) that is acceptable and needs
+no secret — a public clone requires no auth, so no PAT ever enters the sandbox. Anything requiring a
+private repo or secret would need per-domain `transform` (Vertex: not yet) or the Developer-API surface —
+out of scope for the public-repo review capability.
+
+### ✅ Decision needed (Mark) — scope, not code (reshaped by Phase-1b)
+
+Phase-1b turned the iter-45 negative into a much leaner positive. Options, re-ranked:
+
+- **(d) Clone-over-egress (NEW — recommended).** Give the `managed_agents` executor/evaluator an
+  egress-enabled env (`network.allowlist:[{domain:"*"}]`) and have the agent `git clone` the (public)
+  ailang repo at the target SHA itself, then run `ailang check`/review in-sandbox. **No encoder, no GCS,
+  no inline, no mount** — this is the small path the doc originally hoped for, now on solid ground. Directly
+  delivers Mark's #399 "gemini can git clone the codebase" for the reviewer/evaluator role. Next step:
+  decompose a small sprint (egress env wiring in the executor + a review directive + the existing
+  `managed_agents_bridge` for artifact return). LIVE-VERIFIED feasible.
+- **(a) GCS-backed mounts.** Still valid for *private* code / offline determinism, but now the *fallback*,
+  not the primary — a larger lift only justified if clone-over-egress's public-only / wildcard-egress
+  limits bite.
+- **(b) Shelve; keep the prompt-packed diff bridge.** Still the zero-cost option, but (d) is now cheap
+  enough that shelving forgoes a real capability gain.
+- **(c) `skill_registry`.** Unchanged — lowest confidence, not pursued.
+
+**Recommendation: (d).** It is the small, verified path to in-sandbox Gemini review of the public repo.
+Reply on #399 to greenlight the Phase-2 decomposition (small sprint), or say shelve. Until then the doc
+stays in RESHAPED state with the clone-over-egress contract recorded and the probe reproducible.
 
 ## Goals
 
