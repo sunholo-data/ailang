@@ -1,6 +1,45 @@
 # M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern
 
-**Status**: PARKED (needs-human-review) — quorum did not converge in one bounded round (mission iter 41)
+**Status**: PARKED (needs-human-review) — mission iter 42 re-quorum (restored 2-reviewer, binary
+rebuilt) BLOCKED by a fundamental soundness objection: **the purely-syntactic option (a) cannot
+catch its own motivating incident.** See "REBLOCK (iter 42)" below. The option-(a) analysis and
+Pattern C grounding below are RETAINED (durable), but they are contradicted by the primary goal and
+the architecture must be re-decided before routing.
+
+## REBLOCK (iter 42 clean re-quorum — the real blocker)
+
+After resolving the iter-41 "OPEN design decision" to option (a) (syntactic surface-AST pass) and
+addressing gemini's Pattern C objection (see below), a re-quorum on a **rebuilt binary** (the iter-41
+`#407` quorum-schema fix was not in the stale installed binary, so gpt5-6-sol had been silently
+`unreachable`; rebuilding restored it) surfaced a **goal-contradicting** objection:
+
+- **`gpt5-6-sol` (present, reject):** the motivating incident is `None => Ok(jo([]))`. `jo` is a
+  **lowercase function call** (the `std/json` object builder), and the doc's own "does NOT flag"
+  rules — plus the iter-42 Pattern C rule (uppercase head = constructor, lowercase = function, never
+  flags) — mean `Ok(jo([]))` **would not emit `STRICT_FALLBACK_001`**. So the purely-syntactic pass
+  **fails its own primary goal, examples, tests, and success criteria.** Catching it requires
+  resolving that `jo` is the canonical JSON-empty-object builder (name resolution / known-symbol
+  identity), which a surface-AST-only pass cannot do soundly (shadowing / qualification / import
+  aliases). This **refutes the option-(a) resolution** and resurrects a resolved-layer (option (b))
+  or hybrid architecture — the exact fork the doc must re-decide.
+- **`gemini-3-1-pro` (response truncated → recorded `invalid`; recurring tooling issue this iter):**
+  partial objection — the pass returns **warnings** but `ailang check --package` needs an **ERROR /
+  exit-1** publish gate; the warning-channel wiring can't produce the required failure exit. (Also a
+  real design point for the planner: the warning channel vs. an error/exit path.)
+
+**Human decision needed (the architecture fork):** (1) run the pass AFTER name resolution to resolve
+callee identity (`jo`, etc.) — contradicts "purely syntactic", closer to warn_split_args' Core hook;
+OR (2) narrow the goal: drop the claim it catches `Ok(jo([]))` and only catch literal empties
+(`Ok([])`/`Ok("")`/`Ok({})`/all-zero record literals), filing the `jo([])`-class under the interproc
+follow-up; OR (3) a curated known-empty-builder list with resolved identity (gpt5-6-sol warns a bare
+name-match is unsound). Plus: resolve the warning-vs-error/exit-1 channel for `--package`. This is a
+genuine architecture decision, not a quick patch — hence the park (Standing rule 2: never force a
+guardrail).
+
+---
+
+### (retained) iter-41→42 OPEN design decision analysis (option a) and Pattern C grounding
+
 **Target**: v0.21.0
 **Priority**: P1 — closes a class of silent-failure bugs that just bit production
 **Estimated**: ~1 day (~300 LOC impl + ~200 LOC tests + parser whitelist + docs)
@@ -18,6 +57,7 @@ Verified against the source tree at `origin/dev` `b417d02c6`:
 | `internal/parser/parser_decl.go::parseAnnotation` is a name-keyed annotation whitelist | ✅ TRUE | `parser_decl.go:15 func (p *Parser) parseAnnotation()`; cases `verify` (l.30), `route` (l.32), `mcp_name` (l.34), `raw` (l.36) — adding `case "allow_empty_ok":` is a pure additive switch case, as the doc claims |
 | `internal/parser/route_attr_test.go` exists (parser-test home) | ✅ TRUE | `internal/parser/route_attr_test.go` present (13 KB) |
 | The check pass lives in `internal/check/` | ❌ **FALSE — CORRECTED** | **No `internal/check/` package exists.** `ailang check` is implemented in `cmd/ailang/check.go` and runs `internal/pipeline`. Existing compile-time static passes live in **`internal/pipeline/`** (e.g. `warn_split_args.go`, the M-DX-SPLIT-ARG warning from iter-17) and `internal/elaborate/warnings.go`. |
+| Post-parse surface-AST hooks exist in BOTH pipelines where a pass can read `FuncDecl`s AND append to `result.Warnings` | ✅ TRUE (verified iter 42) | `pipeline_single.go`: `result.Artifacts.AST = astFile` (~l.159) is set BEFORE elaboration (`ElaborateFile(astFile)` ~l.174), and `result.Warnings` is appended in the SAME function scope (~l.189-198). `pipeline_module.go`: each module's surface AST is `mod.File` (elaborated ~l.318), `result.Warnings` appended ~l.337/388. |
 
 **Corrected target (the planner must use this, NOT `internal/check/`):** implement the pass in
 **`internal/pipeline/`**, in the same style as `internal/pipeline/warn_split_args.go`: a
@@ -26,26 +66,42 @@ call-sites `internal/pipeline/pipeline_single.go:198` (single-file) and
 `internal/pipeline/pipeline_module.go:388` (multi-module), and surfaced through `ailang check`
 via `cmd/ailang/check.go` (`runCheckWithContext`), not a new command file.
 
-### OPEN design decision (the sprint's FIRST task — this is why the quorum did not converge)
+### RESOLVED design decision: option (a) — syntactic pass on the post-parse surface AST (mission iter 42)
 
 `warn_split_args.go` walks the **post-elaboration Core** program (`DetectArgOrderWarnings(prog
 *core.Program)`), which needs no return-type information. This pass is different: its trigger is
 "function whose *declared return type* is `Result[_,_]`", and the Solution Design below inspects
-`FuncDecl.Annotations` + syntactic `Result[_,_]` — both of which live on the **pre-elaboration
-typed AST**, not on Core. The two are not interchangeable (you cannot walk `FuncDecl` nodes from a
-`*core.Program`). The planner must resolve, as the sprint's first design step, ONE of:
+`FuncDecl.Annotations` + syntactic `Result[_,_]` — both of which live on the **post-parse surface
+AST** (`*ast.File`), not on Core. (Earlier drafts said "pre-elaboration *typed* AST" — that wording
+was imprecise: the check needs **no type inference**. Its trigger is the syntactic return-type
+annotation on the surface `FuncDecl`, the Ok(<empty-literal>) patterns A/B/C are syntactic, and
+`@allow_empty_ok` is a parse-time annotation. It is a purely **syntactic** pass.)
 
-- **(a) Run on the typed AST before elaboration.** Requires first *verifying* that a
-  pre-elaboration pipeline hook exists where a pass can read typed `FuncDecl`s AND append to
-  `result.Warnings` (NOT yet verified — `warn_split_args` uses the post-elaboration hook only).
-- **(b) Thread the needed return-type + annotation info into a Core-level pass** (e.g. via the
-  `iface` layer), keeping the warn_split_args post-elaboration call-sites.
+**DECISION: option (a).** Run `DetectStrictFallbacks(astFile *ast.File) []elaborate.Warning` as a
+syntactic pass over the post-parse surface AST, wired at BOTH pipelines:
 
-This layer choice was flagged by the `gemini-3-1-pro` reviewer both quorum rounds; it is a genuine
-mechanism question the planner routinely resolves (cf. iter-27 m-prelude-option-result, iter-32
-auto_caps), but it must be *resolved in the doc* (not left contradictory) before this re-quorums
-and routes. All design DECISIONS (A/B/C detection, `@allow_empty_ok`, error-on-publish/warn-on-dev)
-are unchanged and were not objected to.
+- **Single-file** (`internal/pipeline/pipeline_single.go`): the parsed surface AST is set as
+  `result.Artifacts.AST = astFile` at ~line 159, BEFORE elaboration (~line 174), and
+  `result.Warnings` is a plain `[]elaborate.Warning` appended to in the SAME function scope
+  (~lines 189-198). The new pass runs right after parse, its result appended alongside the
+  existing warnings.
+- **Multi-module** (`internal/pipeline/pipeline_module.go`): each module's surface AST is
+  `mod.File` (elaborated at ~line 318 via `elaborator.ElaborateFile(mod.File)`); the pass runs
+  per-module over `mod.File` in that loop, appending to `result.Warnings` (existing appends at
+  ~lines 337/388).
+
+The pre-elaboration hook option (a) originally required verifying therefore **exists** — the
+surface AST and `result.Warnings` are already in the same scope in both pipelines; no new
+elaboration hook is needed.
+
+**Option (b) — threading return-type + annotation info into a Core-level pass (e.g. via the
+`iface` layer) — is REJECTED:** it is unnecessary. Everything the check needs is syntactically
+present on the surface `FuncDecl`; a Core-level pass would add plumbing (and lose the surface
+`FuncDecl` nodes) for zero benefit.
+
+This layer choice was flagged by the `gemini-3-1-pro` reviewer both quorum rounds; it is now
+resolved in the doc. All other design DECISIONS (A/B/C detection, `@allow_empty_ok`,
+error-on-publish/warn-on-dev) are unchanged and were not objected to.
 
 ## Axiom Compliance
 
@@ -149,7 +205,7 @@ This change touches `internal/parser/parser_decl.go` (annotation whitelist) and 
 ### What syntactic positions does this change extend?
 
 1. **Function annotations**: `@allow_empty_ok("rationale")` joins the existing set (`@route`, `@raw`, `@nowrap`, `@noexpose`, `@mcp_name`, `@verify`).
-2. **Static check pipeline**: new pass added to `ailang check` after type-checking, before code generation.
+2. **Static check pipeline**: new syntactic pass added to `ailang check` after parsing (surface AST), before elaboration.
 
 ### What OTHER valid constructs already live in those positions?
 
@@ -159,7 +215,7 @@ This change touches `internal/parser/parser_decl.go` (annotation whitelist) and 
 ### How does the parser/typechecker disambiguate?
 
 - The parser's annotation handler is a name-keyed switch. Adding a new case is mechanical — no precedence change, no token-class shift, no lookahead change.
-- The typechecker doesn't interact with annotations (they're metadata-only on AST). The new check pass reads `FuncDecl.Annotations` after typechecking finishes.
+- The typechecker doesn't interact with annotations (they're metadata-only on AST). The new check pass reads `FuncDecl.Annotations` directly off the post-parse surface AST.
 
 ### Programs that MUST still work post-change
 
@@ -179,9 +235,18 @@ The sprint plan will include positive + negative fixtures for each pattern A/B/C
 
 ### Overview
 
-A new check pass in `internal/pipeline/strict_fallbacks.go`:
+A new check pass in `internal/pipeline/strict_fallbacks.go` —
+`DetectStrictFallbacks(astFile *ast.File) []elaborate.Warning` — a purely **syntactic** pass over
+the post-parse surface AST (no type inference needed), called at two pipeline sites:
 
-1. **Find candidates**: AST-walk every `FuncDecl` whose declared return type is `Result[_, _]`.
+- `pipeline_single.go`: right after `astFile` is set (~line 159), result appended to
+  `result.Warnings` (~lines 189-198)
+- `pipeline_module.go`: per-module over `mod.File` in the compile loop, appended to
+  `result.Warnings` (~lines 337/388)
+
+The pass itself:
+
+1. **Find candidates**: walk every surface `*ast.FuncDecl` whose declared return-type annotation is `Result[_, _]`.
 2. **Walk the body**: look for `Ok(<literal>)` expressions where the literal is structurally empty/zero-default.
 3. **Check opt-out**: if the surrounding `FuncDecl` has `@allow_empty_ok("rationale")`, skip.
 4. **Emit diagnostic**: `STRICT_FALLBACK_001` with file:line:col, the offending expression, and a suggested fix.
@@ -229,6 +294,22 @@ func parsePlan(s: string) -> Result[Plan, string] =
 ```
 
 Same logic as Pattern B but for tagged-union constructors as well. `Ok(MyCtor("", 0))` flags if MyCtor's all positional args are zero literals.
+
+**Constructor-vs-function is decided SYNTACTICALLY** (resolves the `gemini-3-1-pro` iter-42 quorum
+objection that Pattern C "isn't purely syntactic"). AILANG **language-enforces** uppercase-first
+data constructors: a variant/constructor decl that is not UpperCamelCase is a parse error
+(`PAR_VARIANT_NEEDS_UIDENT` at `internal/parser/parser_type_decl.go:241`; the elaborator's
+`isUpperIdent` at `internal/elaborate/patterns.go:78` likewise treats an unresolved uppercase
+identifier as a nullary constructor). So the pass classifies an application head purely by its
+first character:
+
+- **Uppercase-first head** (e.g. `MyCtor(…)`, `Ok(…)`) → a data-constructor application → eligible
+  for Pattern C when ALL positional args are zero literals.
+- **Lowercase-first head** (e.g. `computeThing(…)`, `getStr(…)`) → a function call → **never flags**
+  (already covered by the "`Ok(v)` where `v` is a function call does NOT flag" rule below).
+
+No name resolution or type information is required — the uppercase rule is a hard syntactic
+invariant of the language, so the pass remains purely syntactic over the surface AST.
 
 ### What does NOT flag
 
@@ -301,12 +382,14 @@ STRICT_FALLBACK_001 at client.ail:78:23
 ### Files to Modify/Create
 
 **New:**
-- `internal/pipeline/strict_fallbacks.go` — the check pass (~300 LOC)
+- `internal/pipeline/strict_fallbacks.go` — the check pass, `DetectStrictFallbacks(astFile *ast.File) []elaborate.Warning`, syntactic walk of the surface AST (~300 LOC)
 - `internal/pipeline/strict_fallbacks_test.go` — unit tests for pattern detection (~200 LOC)
 - `examples/runnable/strict_fallbacks_demo.ail` — demonstrates the diagnostic + the `@allow_empty_ok` opt-out
 - `docs/docs/guides/strict-fallbacks.md` — author-facing docs
 
 **Modified:**
+- `internal/pipeline/pipeline_single.go` — call the pass after `astFile` is set (~l.159), append to `result.Warnings` (~l.189-198) (~3 LOC)
+- `internal/pipeline/pipeline_module.go` — call the pass per-module over `mod.File`, append to `result.Warnings` (~l.337/388) (~3 LOC)
 - `internal/parser/parser_decl.go` — annotation whitelist (~5 LOC)
 - `internal/parser/route_attr_test.go` — parser test for the new annotation (~30 LOC)
 - `cmd/ailang/check.go` — wire `--strict-fallbacks` flag (~20 LOC)
@@ -489,6 +572,6 @@ The fallback `Ok` is constructed from runtime values, not literals. Caller still
 ---
 
 **Document created**: 2026-05-15
-**Last updated**: 2026-05-15
+**Last updated**: 2026-07-17 (mission iter 42 — OPEN design decision resolved to option (a))
 
 DESIGN_DOC_PATH: design_docs/planned/v0_21_0/m-check-strict-fallbacks.md
