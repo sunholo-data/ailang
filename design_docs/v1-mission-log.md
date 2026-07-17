@@ -3435,3 +3435,17 @@ Standing rule: any quota error naming a non-Monday reset date = you are on the A
 leak, never fall back or retire the lane.
 
 **Next**: normal queue; the `claude:claude-fable-5` designer lane is BACK (via `claude-sub` only).
+
+## 46 — 2026-07-17 — INTERACTIVE PROBE: gemini managed_agents backend is NOW LIVE — the iter-36/38 "not-viable-today" verdict is STALE
+
+**What**: `ailang exec -quiet -json gemini "reply with exactly: ok"` (AILANG_CLOUD_PROJECT=
+ailang-multivac-dev, HEAD binary) → `{"output":"ok","success":true,"duration_ms":10939,
+"cost_usd":0.0098,"num_turns":1}`. The Vertex "Resource setup has just started" HTTP 400 (iter
+37) and http2 header timeouts (iters 36/38) were PROVISIONING, now complete. Ruled-out-chain
+update: "gemini-as-evaluator not viable today (backend)" — the BACKEND half is REFUTED as of this
+probe; the architectural half (server-side sandbox can't see the local worktree) was already
+solved by the diff-bridge (iter 39, PR #405).
+
+**Next**: first live gemini fire in a real mission role (evaluator or quorum-reviewer, read-only,
+diff-bridged) — both prerequisites now hold. Also verify the iter-41 quorum fix restored OpenAI
+reviewers with one live 3-provider round.
