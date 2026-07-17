@@ -75,15 +75,22 @@ executor registry rather than new plumbing — but repo access differs by sandbo
   integrated, `provider_executor.go`; iteration 32 proved the lane).
 - Claude reviewer → `claude -p` (the controller's own harness): local read-only worktree.
 - Gemini reviewer → `managed_agents`: **NO local worktree exists** — the agent runs in a
-  Google-hosted sandbox with no shared filesystem that **starts empty** (`CapRemoteSandbox`,
-  README verified 2026-07-16). Repo access = **clone-in-sandbox**: the repo is PUBLIC, so the
-  directive instructs `git clone --depth 1` at the PINNED review SHA + fetch the linux `ailang`
-  release binary to run `ailang check`. Read-only holds by construction (its writes stay in
-  Google's sandbox). **UNVERIFIED PREMISE — probe FIRST (M0 of this sprint):** whether the
-  managed sandbox allows outbound network (git/curl). One cheap interaction: clone + fetch binary
-  + `ailang --version`, report. If network is BLOCKED → gemini falls back to prompt-packed
-  excerpts (reviewer sees only what we send — weaker, flag it) or stays a Tier-1 text reviewer;
-  do NOT silently pretend it verified.
+  Google-hosted sandbox with no shared filesystem (`CapRemoteSandbox`). **RESOLVED 2026-07-17
+  (Mark: "surely it has an API for adding git clones" — it does; docs verified):** the
+  Managed Agents `environment` parameter accepts a config object with a **`sources` array** that
+  mounts context directly into the sandbox filesystem:
+  `{"type":"repository","source":"https://github.com/sunholo-data/ailang","target":"/workspace/ailang"}`
+  (git ≤500MB; public repo needs no auth), plus `{"type":"inline","content":…,"target":…}`
+  (≤1MB/file, 2MB total — the natural carrier for the sprint's UNCOMMITTED diff, superseding
+  prompt-packing) and `{"type":"gcs",…}` (≤2GB). **Network is unrestricted outbound by default**
+  (allowlist/disable available), so fetching the linux `ailang` release binary for real
+  `ailang check` runs works; environments are REUSABLE (`environment_id`, files persist) so the
+  repo mount can be provisioned once and reused across review rounds. Backend LIVE-verified
+  2026-07-17 (log entry 46: probe `ok`, 10.9s, $0.0098). **M0 is now an implementation step, not
+  a probe**: extend `internal/executor/managed_agents/client.go` (the `Environment
+  json.RawMessage` field already exists — thread a sources config through `ailang exec`, e.g.
+  `--env-repo URL[@ref]` / `--env-inline-file PATH:TARGET`), pin the review SHA by having the
+  agent `git checkout <sha>` post-mount. Read-only vs OUR tree still holds by construction.
 
 The agent gets the doc body + the same reject-by-default rubric, PLUS repo tools (`ailang check`,
 grep, read — read-only; no writes, no network beyond the model API). It is instructed to

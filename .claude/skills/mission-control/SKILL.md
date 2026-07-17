@@ -185,7 +185,7 @@ model from the driver-exported env (defaults track the charter table):
 | Role | Model env | Default |
 |---|---|---|
 | Controller (this session: triage/pick/record/retro) | `$MODEL` (session) | **Opus** (opus-first since 2026-07-16, Mark: the long orchestration session is mechanical work — it must NOT ride Fable) |
-| Design-doc-creator | `$MISSION_DESIGNER_MODEL` | **Fable** (deep spec synthesis = high cognition; PINNED sub-agent, no longer inline) |
+| Design-doc-creator | **ROTATION** (Mark 2026-07-17; `$MISSION_DESIGNER_MODEL` is the rotation SEED, not a fixed pin) | Rotate per new-doc iteration: `claude:claude-fable-5` → `codex:gpt-5.6-sol` → (gemini after G4) → repeat. State: `~/.ailang/state/mission-designer-rotation` holds the LAST-USED value; pick the next list entry (missing file = start at claude), write back after the designer run. Every design passes the quorum regardless of author — record `(designer, quorum outcome)` in the evidence row. A probe-failed designer falls to the NEXT in rotation (not to `$MODEL`), FLAGGED |
 | Sprint-planner | `$MISSION_PLANNER_MODEL` | Opus (down-tier A/B = M3; keep Opus until evidence) |
 | Sprint-executor | `$MISSION_EXECUTOR_MODEL` | Opus |
 | Sprint-evaluator | `$MISSION_EVALUATOR_MODEL` | **Sonnet** (default changed fable→sonnet 2026-07-16 iter 38, Mark directive #399: "default … gemini (if able to git clone the codebase etc)? otherwise sonnet-5"; gemini-managed_agents VERIFIED not-viable-today — server-side sandbox sees no worktree + backend timed out; sonnet ≠ opus executor → generator≠judge, and it's Agent-tool-PINNABLE unlike fable) |
@@ -328,7 +328,9 @@ model instead of its pin is a regression to surface, not bury (observability is 
 backstop until a Go orchestrator hard-pins it). Deterministic mechanical work (doc moves, regen) =
 Sonnet, inline, is fine.
 
-- No design doc yet → **design-doc-creator** as a `$MISSION_DESIGNER_MODEL`-pinned Agent sub-agent
+- No design doc yet → **design-doc-creator** on the ROTATION designer (see the roles table: next
+  entry after `~/.ailang/state/mission-designer-rotation`; claude via `claude-sub`, codex via the
+  executor recipe carrying the design-doc-creator directive) — spawned pinned/bounded, never inline
   (its hard gates apply: live `ailang check` verification, Conflict Surface for
   parser/types/codegen). **But first
   `grep -ri "<item-id>" design_docs/` — a NEW-DOC queue tag is a claim, not a fact** (added

@@ -110,7 +110,7 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 | Role | Model | Why / evidence |
 |---|---|---|
 | Mission controller (this loop: triage, pick, judge, retro) | **Opus** — opus-first PREFS since 2026-07-16 (Mark: "Fable for real high cognition stuff not execution"; the long orchestration session is mechanical and was the residual Fable drain even after M1a). Fable = emergency fallback only | The 07-14 Fable revert burned the weekly bucket at 2h cadence; orchestration doesn't need the top tier |
-| Design docs (create/review) | **Fable** — `$MISSION_DESIGNER_MODEL`-PINNED sub-agent (2026-07-16; no longer inherits the session) | Spec quality still gates downstream — the one place deep synthesis pays; bounded run, fires only when a new doc is needed |
+| Design docs (create/review) | **ROTATION across top-of-line models (Mark 2026-07-17)**: `claude:claude-fable-5` (via `claude-sub`) ⇄ `codex:gpt-5.6-sol` ⇄ gemini (joins once repo-mount G4 lands). Each new-doc iteration takes the next designer in rotation; record `(designer, quorum outcome)` in the evidence row | Every design passes the QUORUM regardless of author — the quorum is the quality gate, so authorship diversity is free comparative signal on which frontier model designs best for AILANG. Fires only when a doc is created/revised |
 | Sprint planning | **Opus** (claude-opus-4-8) | Plan quality determined execution success historically |
 | Sprint execution | **Opus** — the default, per Mark 2026-07-10 | Sonnet execution was a false economy (needed corrections); also `dev-cycle.md` had silently pinned sonnet |
 | Sprint evaluation | **Sonnet** — `$MISSION_EVALUATOR_MODEL`-PINNED sub-agent (default changed fable→sonnet 2026-07-16, Mark directive #399; see below). generator≠judge holds STRUCTURALLY (sonnet ≠ the opus executor pin) AND is now ENFORCEABLE (sonnet is an Agent-tool alias; fable was not — F1 — so the fable default re-routed to sonnet every iteration anyway: 31, 36) | Behavioral independence (fresh sub-agent, re-runs tests, adversarial probes) retained on top |
@@ -506,6 +506,32 @@ motoko/qwen3-6 (local GPU)**. Sequenced, one per iteration:
   reasoning-only directive + `GeminiVerdict` + `RunGeminiEvaluator` injectable caller seam +
   caller-enforced `VerificationDegraded`; PASS 96/100 r1). Default evaluator STAYS **sonnet** —
   capability only; a gemini-default flip needs a live diff-bridge fire + the ≥3-datapoint evidence rule.
+**[GAP CLOSURE PRIORITY — Mark 2026-07-17: "I want the gaps here worked on as priority"]**
+Work these BEFORE returning to the clause queue; one per iteration, cheapest-confirmation-first:
+- **(G1) gemini FIRST LIVE ROLE FIRE** — backend is LIVE (log entry 46: probe ok, 10.9s, $0.0098)
+  and the diff-bridge landed (PR #405). Assign gemini the evaluator OR a quorum-reviewer seat on a
+  real sprint this iteration; record the evidence row. Zero new code.
+- **(G2) 3-provider quorum CONFIRMATION round** — one live design-quorum observed with OpenAI
+  reviewers restored post-#407 (the solo-gemini-veto fix has never been seen live). Piggybacks on
+  any quorum-at-pick.
+- **(G3) DESIGNER ROTATION live test** — the designer role is now SHARED across top-of-line
+  models (routing table updated): next new-doc iteration designs with `codex:gpt-5.6-sol` (works
+  today via the executor recipe carrying the design-doc-creator directive), the following returns
+  to `claude:claude-fable-5`, gemini joins after G4. The quorum gates every design regardless of
+  author. Record `(designer, quorum outcome)` rows — this is the Phase-E seed data for the
+  designer task-class.
+- **(G4) gemini REPO-MOUNT upgrade (~≤1d code)** — the Managed Agents `environment` param
+  NATIVELY mounts sources into the sandbox (docs verified 2026-07-17,
+  ai.google.dev/gemini-api/docs/agent-environment): `sources:[{type:repository,source:<public
+  repo URL>,target:/workspace/ailang}]` (≤500MB, no auth for public), `{type:inline,…}` (≤1MB/file
+  — the natural carrier for the uncommitted sprint diff, superseding prompt-packing), network
+  unrestricted-outbound by default, environments REUSABLE with persisted files. Extend
+  `managed_agents/client.go` (the `Environment json.RawMessage` field already exists) +
+  `ailang exec --env-repo/--env-inline-file`; then gemini reviewers run REAL `ailang check`
+  in-sandbox (fetch the linux release binary, checkout the pinned SHA) and gemini becomes
+  designer-rotation-eligible.
+- **(G5) = (d) below** — the qwen3-6/motoko lane, after G1–G4.
+
 - **(d) Phase D — motoko + qwen3-6 local-GPU lane** (fleet doc Phase D, ~2–3d): route
   long-running/low-urgency task classes with deterministic verification to the rig's GPU.
   HARD constraints: `rig.lock` two-tier discipline (GPU mutex per-step, never iteration-wide),
