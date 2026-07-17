@@ -35,6 +35,10 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-17 — ITERATION 45: HUMAN DIRECTIVE (#399, outranks queue) — gap **G4 Phase-1 Vertex contract-discovery spike RUN → PREMISE REFUTED**; PARKED on a scope decision for Mark (PR #410 → `24f9e14c9`)
+
+Mark authorized the spike (#399: "yep do the vertex contract spike") — the ADC-gated live probe the G4 quorum demanded before Phase-2 code. Ran it directly as a controller-lane live-repro (Gate-2-class external-ground-truth + security-sensitive credential scrubbing before a public commit; the Phase 2-5 code sprint is NOT this iteration). **14 credential-free probes vs the live Vertex `interactions` endpoint (project ailang-dev, global, Api-Revision 2026-05-20), all cheap request-validation 400s — no sandbox provisioned, negligible cost.** Result **REFUTES the doc's mount model**: `repository` and `inline` source types DON'T EXIST (`Unsupported environment data source type … Must be one of: [gcs, skill_registry]`); data sources are gated behind network egress that is OFF by default (`Network egress is not enabled … Cannot specify data sources`); `environment.network` is real but its egress-enable param is undiscovered (6 idiomatic guesses rejected — needs the Vertex proto). The git-repo+inline design (≤250-LOC, ≤1MB-inline) is not expressible here; nearest real path is a GCS-backed mount = a larger, unscoped redesign. **Decision for Mark:** (a) redesign around GCS, (b) shelve & keep the prompt-packed diff bridge (recommended), (c) probe `skill_registry`. Reproducible env-var-guarded probe (`managed_agents_live_test.go`, CI-inert) + full VERIFIED-LIVE record committed. **Routing (FLAGGED):** spike run inline on the opus controller (not a pinned executor sub-agent) — investigative live-repro + security-sensitive; the WRITE-UP got an independent **sonnet** evaluator PASS (generator≠judge on interpretation). Data-before-conclusions working exactly as designed. Detail: log entry 50.
+
 ## STATUS 2026-07-17 — ITERATION 44: gap **G3 designer-rotation live test CONFIRMED** (`codex:gpt-5.6-sol` authored + revised a full design doc); **G4 design PARKED needs-human-review** — quorum gates ratification on running the live contract-discovery spike (PR #409 → `d422f727a`)
 
 Picked gap-priority **G4** (gemini repo-mount); it needs a NEW doc, so authoring it IS the **G3 designer-rotation live test** (two gaps, one iteration). Reality-check: G4 REAL+unstarted (`managed_agents.go:164` hardcodes empty `{"type":"remote"}`, no `--env-repo` flags, `Task` has no `EnvSources`). Rotation last-used=`claude:claude-fable-5` → designer=`codex:gpt-5.6-sol`. **First codex-designer fire = SUCCESS**: authored a format-complete 427-line doc (cited HEAD facts, typed-vs-Metadata tradeoff, Axiom +7) + a competent revision pass — all via the cross-provider `workspace-write` worktree recipe (previously verified only for the executor role; carries the design-doc directive cleanly). **Quorum ×2 rounds (gpt5-6-sol+gemini-3-1-pro+controller, all present both rounds): reject→revise→reject.** R1: unverified wire contract + programmatic silent-fallback hole. Revision: Premise Verification Log + Phase-1 contract-discovery spike hard-gating the encoder + `CapEnvironmentSources` pre-dispatch gate. R2 still BLOCKED — a design on a DOC-ONLY external API contract can't be ratified until the live spike is RUN+RECORDED (reviewers converge on the doc's OWN Phase 1) + a new shallow-clone catch. Per the one-revision cap → **PARKED needs-human-review**; doc landed on dev with a PARK-NOTE (PR #409 → `d422f727a`, auto-merged on green). **G3 mechanism CONFIRMED** (rotation+cross-provider-designer+quorum-gating end-to-end); content-park ≠ mechanism-fail. Codex can't self-commit under the sandbox → controller finalized, crediting codex. G3 evidence row: `(designer=codex:gpt-5.6-sol, quorum=reject→revise→reject)`. **Unblock G4**: human-authorize the ADC-gated live Vertex spike. Detail: log entry 49.
@@ -42,10 +46,6 @@ Picked gap-priority **G4** (gemini repo-mount); it needs a NEW doc, so authoring
 ## STATUS 2026-07-17 — ITERATION 43: gap **G1 (gemini FIRST LIVE REVIEWER FIRE) + G2 (3-provider quorum) CONFIRMED**; shipped the reasoning-model truncation fix that makes gemini a RELIABLE reviewer (PR #408 → `885725f06`)
 
 Picked gap-priority **G1** (Mark #399; G1–G4 outrank the clause queue). Live `ailang design-quorum` (default reviewers `gpt5-6-sol`+`gemini-3-1-pro`) → **both present, gemini `reject` $0.023** = G1 (gemini's first clean live reviewer verdict) + G2 (OpenAI+gemini+claude = 3 providers) CONFIRMED. Reality-check surfaced the real blocker: gemini-3.1-pro ("2× reasoning") counts THINKING tokens against the quorum's `reviewMaxTokens=4096` `maxOutputTokens` cap → a substantive review truncates its JSON mid-object → `invalid`/absent → **silent N-1 quorum** (iter-42 artifact, byte-identical reviewer code; intermittent — the exact iter-39+iter-42-logged friction, now "next-blocked" G1). **Fixed root-cause + fail-loudly**: cap 4096→16384 (budget gating unchanged — pre-flight uses a fixed estimate); a residual `finish_reason=length` now surfaces an explicit truncation error not "malformed JSON"; wired the discarded gemini `finishReason`→normalized `ai.Response.FinishReason`. 2 regression tests, gofmt clean, pkg tests green, live post-fix quorum clean. Inline-controller fix (iter-41/42 quorum-tool-fix precedent; no new design doc → designer/planner/executor/evaluator NOT invoked). PR CI green on the merge-test tree → auto-merged; installed binary rebuilt to `885725f06`. Calibrated: one clean run can't PROVE an intermittent bug gone — the deterministic tests + 4× cap raise carry it, and truncation now fails LOUD. **G1/G2 done → G3 (designer rotation, `codex:gpt-5.6-sol`) is next.** Detail: log entry 48.
-
-## STATUS 2026-07-17 — ITERATION 42: re-attempted PARKED m-check-strict-fallbacks (both iter-41 blockers cleared) → **re-PARKED with a sharper, quorum-validated blocker**; found + fixed a stale-binary regression that had silently disabled the #407 quorum fix
-
-Both iter-41 blockers were gone (Fable designer back via `claude-sub`; #407 restored the OpenAI quorum reviewer), so the iter-41 park (run on a BROKEN solo-gemini quorum + degraded controller-as-designer) was never a valid verdict → re-attempted. Resolved the "OPEN design decision" to option (a) (syntactic surface-AST pass) via the **Fable designer** (rotation seed; hooks live-verified: `pipeline_single.go` astFile@159/Warnings@189-198, `pipeline_module.go` mod.File@318/Warnings@337,388) + grounded Pattern C in AILANG's **language-enforced uppercase-constructor rule** (`PAR_VARIANT_NEEDS_UIDENT`; live-probed). **Gate-2 miss caught:** I skipped the Verification-Protocol Rule-1 rebuild — the installed binary was `de9556413` (pre-#407), so my first re-quorum re-hit the exact `Missing 'proposed_fix'` 400 (gpt5-6-sol silently unreachable). **Rebuilt** (`make quick-install` → 326/77e7dccc9); the clean re-quorum made gpt5-6-sol **present** — and it immediately caught a **goal-contradicting** design error the designer AND I both missed: the motivating incident `None => Ok(jo([]))` has `jo` as a **lowercase function call**, which option (a)'s pure-syntax rules NEVER flag → the pass fails its own primary goal; catching it needs resolved callee identity → **refutes option (a)**. Synthesis **BLOCKED** → **re-PARKED needs-human-review** (Standing rule 2). The doc now carries the full REBLOCK write-up + the architecture fork for a human. Doc-only commit `b159305ae`. Gemini truncated its quorum response BOTH rounds (recurring tooling friction, logged). Detail: log entry 47.
 
 ## CURRENT GOAL
 
@@ -525,23 +525,25 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   providers)` — the content reject is the quorum enforcing data-before-conclusions (unverified external
   contract), NOT a designer failure. Rotation state advanced to `codex:gpt-5.6-sol`; next new-doc iteration
   returns to `claude:claude-fable-5` (gemini joins after G4). Log 49.
-- **(G4) gemini REPO-MOUNT upgrade (~≤1d code)** — **[DESIGN PARKED needs-human-review iter 44:
-  design doc `planned/v0_30_0/m-gemini-repo-mount.md` authored (codex designer) + landed PR #409 →
-  `d422f727a`, but BLOCKED by 2 quorum rounds. Unblock = human-authorize the ADC-gated live Vertex
-  contract-discovery spike (Phase 1: repo-only/inline-only/combined POSTs, record credential-scrubbed
-  request+response+FS evidence → Premise-log rows to VERIFIED-LIVE, add the clone-depth row); THEN
-  Phase 2+ (encoder + `CapEnvironmentSources` gate + CLI flags) may proceed. Do NOT re-pick headless —
-  the block is the unverified external API contract, which needs the live spike Mark must authorize.]**
-  the Managed Agents `environment` param
-  NATIVELY mounts sources into the sandbox (docs verified 2026-07-17,
-  ai.google.dev/gemini-api/docs/agent-environment): `sources:[{type:repository,source:<public
-  repo URL>,target:/workspace/ailang}]` (≤500MB, no auth for public), `{type:inline,…}` (≤1MB/file
-  — the natural carrier for the uncommitted sprint diff, superseding prompt-packing), network
-  unrestricted-outbound by default, environments REUSABLE with persisted files. Extend
-  `managed_agents/client.go` (the `Environment json.RawMessage` field already exists) +
-  `ailang exec --env-repo/--env-inline-file`; then gemini reviewers run REAL `ailang check`
-  in-sandbox (fetch the linux release binary, checkout the pinned SHA) and gemini becomes
-  designer-rotation-eligible.
+- **(G4) gemini REPO-MOUNT upgrade** — **[SPIKE RUN iter 45 — PREMISE REFUTED; PARKED on a scope
+  decision. PR #410 → `24f9e14c9`.]** Mark authorized the ADC-gated live Vertex contract-discovery
+  spike (#399 "yep do the vertex contract spike"). It ran (14 credential-free probes vs the live
+  `interactions` endpoint, all cheap request-validation 400s, no sandbox provisioned) and **REFUTED the
+  doc's whole mount model**: the documented `repository` and `inline` source types **do not exist** on
+  this endpoint (`Unsupported environment data source type … Must be one of: [gcs, skill_registry]`),
+  and data sources are gated behind network egress that is **OFF by default**
+  (`Network egress is not enabled … Cannot specify data sources`). `environment.network` is real but its
+  egress-enable param name is undiscovered (6 idiomatic guesses rejected → needs the Vertex proto). The
+  git-repo + inline-patch design (and its ≤250-LOC / ≤1MB-inline estimate) is **not expressible against
+  this API**. Nearest real path = a **GCS-backed mount** (enable egress, upload a repo tarball to GCS,
+  mount via a `gcs` source) — a materially larger, unscoped redesign. **Decision for Mark on #399:**
+  (a) redesign around GCS (fresh doc + a 2nd egress/gcs contract spike), (b) shelve G4 & keep the
+  prompt-packed diff bridge (gemini stays reasoning-only — *recommended*), or (c) probe `skill_registry`.
+  Reproducible probe: `internal/executor/managed_agents/managed_agents_live_test.go`
+  (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, CI-inert). Doc records the full VERIFIED-LIVE contract. Log 50.
+  **Note:** the doc's ai.google.dev-cited source-mount claims (repository/inline/1MB/no-auth/unrestricted-
+  network) were `ai.google.dev` Gemini Developer API docs — this executor hits Vertex
+  `aiplatform.googleapis.com`, a DIFFERENT contract; that divergence is exactly what the quorum flagged.
 - ~~(G5)~~ **REMOVED from the gap path (Mark 2026-07-17): the qwen3-6 lane is a NICE-TO-HAVE,
   not a gap.** See (d) below — sequenced only after the cloud fleet is fully proven (G1–G4
   done), and NOT at gap priority: after G4, the loop returns to the clause queue; (d) is picked
