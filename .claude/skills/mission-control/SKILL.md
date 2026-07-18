@@ -178,8 +178,9 @@ regression guard (example or test), never bare bookkeeping — that's what makes
 on the controller's single session model is the routing-never-enforced bug: with the driver on
 Fable, 100% of every iteration billed Fable (fixed 2026-07-15, m-mission-agentic-provider-routing
 M1 — memory `project-mission-routing-table-never-enforced`). **Invariant:** the controller session
-(triage/pick/judge/retro + design-doc-creator, run inline) uses the driver-selected `$MODEL`; every
-HEAVY role is spawned as a **model-PINNED `Agent`/`Task` sub-agent**, never inline. Read each role's
+(triage/pick/judge/retro) uses the driver-selected `$MODEL`; every HEAVY role — **including
+design-doc-creator, which is the spawned ROTATION designer, never inline** (see the roles table below) —
+is spawned as a **model-PINNED `Agent`/`Task`/provider sub-agent**, never inline. Read each role's
 model from the driver-exported env (defaults track the charter table):
 
 | Role | Model env | Default |
