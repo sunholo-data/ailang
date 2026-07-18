@@ -2,11 +2,63 @@
 
 **Milestone**: M-TOOLING-DETERMINISTIC
 **Version**: v0.3.15
-**Status**: 📋 PLANNED (Phase 2)
+**Status**: ⚠️ REALITY-CHECKED 2026-07-18 (mission iteration 48) — **PREMISE SUPERSEDED; scope-close decision PARKED for Mark** (queue-tagged "both in")
 **Owner**: Tooling Team
 **Created**: 2025-10-18
 **Estimated Duration**: 3-4 days (24-32 hours)
 **Dependencies**: M-LANG-JSON-DECODE (v0.3.14) ✅
+
+---
+
+## ⚠️ Reality check (mission iteration 48, 2026-07-18, HEAD `v0.29.2-362`)
+
+This doc was authored **2025-10-18 (v0.3.15-era)**. Nine months of DX/eval work have moved the
+ground out from under its premise. Live-repro at HEAD, **data-before-conclusions**:
+
+**The doc's premise is obsolete.** It justifies the trio by: *"AIs generate single-shot fragments →
+repaired by a slow, non-deterministic LLM (`prompts/repair_prompts/`)."*
+- `prompts/repair_prompts/` **is deleted** — the LLM-repair path the doc argues against is gone.
+- The eval flow is now **agentic** (`agent_mode:true`): multi-turn tool-use with **per-edit
+  `ailang check` feedback** (the agentic-result gate requires `NumTurns>1 || ToolCallCount>0`,
+  `agent_runner_multi.go`). Agents write whole modules and self-correct against the compiler — not
+  one-shot fragments needing a normalize/apply pass.
+
+**The doc's core capability already ships (differently packaged).** Goal 1 (deterministic
+fragment normalization — wrap-in-module, add module decl, inject imports, fix bare calls,
+synthesize main) **exists** as `normalizeProgram` in `internal/eval_harness/normalize.go`
+(regex-based, no LLM; `RepairLog` tracks `Wrapped`/`AddedModule`/`AddedImports`/`CallFixes`/
+`AddedMainFunc`). It is an **internal eval-harness function**, not the doc's standalone
+`ailang normalize`/`suggest-imports`/`apply` CLI trio. Coverage in `normalize_test.go` incl. the
+new guard `TestNormalizeProgram_MToolingMotivatingFragment` (the doc's exact json_parse fragment).
+
+**Per-goal disposition at HEAD:**
+| Doc goal | State at HEAD |
+|---|---|
+| 1. Normalize (wrap fragment → runnable module) | **SHIPPED** internally as `normalizeProgram` (deterministic). |
+| 2. Suggest imports (missing symbols → minimal imports) | **PARTIAL / ABSORBED** — `normalizeProgram` auto-injects `std/io` only. General symbol→import resolution was never built; the need is now met by agentic `ailang check` feedback, **implicit prelude imports** (m-prelude-option-result, iter 27), and `ailang docs`/unknown-module did-you-mean (m-dx-ai-discovery, iter 30). |
+| 3. Apply (JSON edits → code) | **NOT SHIPPED, and obsolete** — in agentic mode the agent edits files with its own tools; no JSON-edit-application command is needed. |
+| 4. Byte-stable JSON output | N/A — no CLI trio to emit JSON; `normalizeProgram` is deterministic (guarded). |
+
+Also eroding the fragment-repair need since Oct 2025: **MOD014** module-less-run-fail-loud (fragments
+without `module` now fail loud with guidance) and **`--caps auto`** effect-row inference (auto_caps M1,
+iter 32).
+
+**What genuinely remains unbuilt:** the *public CLI packaging* of the trio (so an agent OUTSIDE the
+eval harness could call `ailang normalize`), and the `apply` edit infra. Both solve the single-shot
+model the architecture moved past.
+
+**PARKED for Mark (scope-close decision).** The queue tags DX tooling "both in" (Mark's directive),
+so the mission controller does **not** unilaterally rule this out. **Recommendation:** close as
+**SUPERSEDED** (premise obsolete, capability shipped internally, remaining pieces solve an obsolete
+problem) and, if any DX-tooling budget is spent, prefer `m-ailang-fmt` (a real, unshipped gap).
+Alternatively, if a *non-agentic* external-agent integration is a real v1.0 audience, scope a
+**much smaller** doc: expose the existing `normalizeProgram` as `ailang normalize` (Goal 1 only) —
+NOT the full 3-4d trio. Awaiting Mark's call on #399.
+
+Regression guard landing with this reality-check: `TestNormalizeProgram_MToolingMotivatingFragment`
+(pins the shipped capability + its std/json boundary; deterministic-output assertion).
+
+*(Everything below is the original 2025-10-18 design, preserved for the record.)*
 
 ---
 

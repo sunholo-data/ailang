@@ -3646,3 +3646,93 @@ m-prompt-footguns-to-diagnostics (drop Phase 3 → extension backlog, apply gemi
 ship the accepted Part A+B ~1.25d) which UNPARKS it as the pick; or (ii) if no human answer, take the
 next clause-3 item — DX tooling (`m-ailang-fmt` / `M-TOOLING-DETERMINISTIC`) — or a clause-4
 orchestration item. G4 (#399) remains parked awaiting Mark's clone-over-egress greenlight.
+
+## 53 — 2026-07-18 — Iteration 48: DX-tooling pick **M-TOOLING-DETERMINISTIC REALITY-CHECKED → PREMISE SUPERSEDED**; regression guard landed, scope-close PARKED for Mark
+
+**Picked**: Both parked-for-human items had **no new `@MarkEdmondson1234` answer** since watermark, so
+the queue [NEXT] fell to the **DX-tooling** group. Gate-0 surfaced Mark's #399 comment
+(`2026-07-17T17:06:40Z`, the philschmid managed-agents-gh link) as "unseen" — but that was a
+**stale-watermark-file split**: iter-46 already actioned it and advanced `mission-329-last-seen` to
+its `createdAt`, while `mission-399-last-seen` (the current issue's file, which Gate-0's hardcoded
+`329` command doesn't touch) still read `14:16:41Z`. Confirmed via log entry 51 (iter-46 quoted this
+exact comment) → already-processed, NOT a new directive; advanced `mission-399-last-seen` to
+`17:06:40Z`. Of the two DX items, picked the older/fuller **M-TOOLING-DETERMINISTIC** (Oct-2025,
+v0.3.15-era, 898 lines) for reality-check — a 9-month-old survey-class doc whose premise overlaps
+heavily with landed DX/eval work (high ghost/supersede probability, the mission's flagged class).
+
+**Gate-0**: killswitch armed; billing **CLEAN** (`ANTHROPIC_API_KEY`/`AUTH_TOKEN` both empty);
+gh `sunholo-voight-kampff`; bookkeeping issue = **#399** (prev #329). Inbox = 8 automated eval-suite
+msgs (started/no-op — known-benign os-rolling rotation, same class iters 45–47), ack'd. Rotation-week
+check: #399 has ~14 comments, created 2026-07-16 (after this Monday's boundary) → **no rotation**.
+**Gate-1**: local dev == origin/dev `6896bcf5e`; CI + Build-and-Release + Docs-Deploy all **green** @
+`6896bcf5e`.
+
+**Reality check** (rebuilt to true HEAD `v0.29.2-362-g6896bcf5e`, `--version` == `git describe`):
+- The trio `ailang normalize`/`suggest-imports`/`apply` (and `fmt`) **do not exist** as subcommands.
+- **Premise is obsolete**: `prompts/repair_prompts/` (the LLM-repair path the doc argues against)
+  **is deleted**; the eval flow is **agentic** (`agent_mode:true`, multi-turn tool-use, per-edit
+  `ailang check` feedback; agentic-result gate `NumTurns>1 || ToolCallCount>0` in
+  `agent_runner_multi.go`) — not single-shot fragments needing a normalize/apply pass.
+- **Core capability already ships**: `normalizeProgram` (`internal/eval_harness/normalize.go`) —
+  deterministic (regex, no LLM) module-wrap + module-decl + std/io inject + bare-`print`-call fix +
+  main synthesis; `RepairLog` = `Wrapped/AddedModule/AddedImports/CallFixes/AddedMainFunc`. Internal
+  eval-harness fn, not the doc's public CLI trio. Covered by `normalize_test.go`.
+- Per-goal disposition: **G1 normalize = SHIPPED** (internal); **G2 suggest-imports = PARTIAL/ABSORBED**
+  (`normalizeProgram` auto-injects std/io ONLY; general symbol→import never built, need now met by
+  implicit prelude imports [m-prelude-option-result iter 27] + agentic `ailang check` feedback +
+  `ailang docs`/unknown-module did-you-mean [m-dx-ai-discovery iter 30]); **G3 apply = NOT SHIPPED &
+  obsolete** (agentic agents edit files directly). Further eroded by **MOD014** module-less-fail-loud
+  + **`--caps auto`** effect inference (auto_caps M1 iter 32).
+- Genuinely unbuilt: the *public CLI packaging* of the trio + the `apply` edit infra — both solve the
+  single-shot model the architecture moved past.
+
+**Shipped** (durable close, not bare bookkeeping): (1) regression guard
+`TestNormalizeProgram_MToolingMotivatingFragment` in `internal/eval_harness/normalize_test.go` —
+feeds the doc's **exact** json_parse motivating fragment (bare `func main`, no module/imports/effects)
+through `normalizeProgram`, asserts module-wrap + std/io inject + body preserved + **determinism**
+(same input → identical output twice) + the **std/json boundary** (general symbol resolution is NOT
+`normalizeProgram`'s contract → forces a conscious supersession-record update if that ever changes).
+PASS, alongside the 3 existing normalize tests. (2) Doc header → **REALITY-CHECKED / PREMISE
+SUPERSEDED** with a per-goal disposition table + preserved original design. (3) Queue tag struck through
+→ REALITY-CHECKED, scope-close PARKED for Mark.
+
+**Routing evidence** (ACTUAL role→model used):
+- `model=opus task-class=controller+reality-check (triage/pick/live-repro/guard-authoring/doc-write-up/record/report) provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus` — controller-lane reality-check (FLAGGED, same pattern as iters 45/46): objective repo evidence (subcommand-absence, deleted repair prompts, existing `normalizeProgram` + tests), **no generation-quality layer** → no generator≠judge evaluator needed.
+- Designer/planner/executor/evaluator **NOT invoked** — no new doc (reality-check updates the existing doc), no code sprint (the pick resolved to a supersede + a single guard test), no interpretation layer requiring an independent judge. QUORUM-AT-PICK **skipped** (ghost/supersede-close class, per the Gate-2 exemption).
+
+**Ruled out**:
+- "M-TOOLING-DETERMINISTIC's deterministic-repair trio is unbuilt and needed → route a 3–4d sprint" —
+  **REFUTED**: the core capability ships as `normalizeProgram`; the premise (single-shot fragment +
+  LLM repair) is obsolete under agentic mode; the remaining CLI-packaging solves a problem the
+  architecture moved past.
+- "The doc's Goal 2 (suggest-imports) is an open gap" — **REFUTED/ABSORBED**: general symbol→import is
+  met by implicit prelude imports + agentic compiler feedback + `ailang docs` discovery; `std/io` auto-
+  inject already covered internally.
+- "Ghost-close it outright (bare bookkeeping)" — **REFUTED by discipline**: Mark scoped DX tooling
+  "both in", so the controller does not unilaterally rule it out; and a durable close needs a CI-
+  enforced guard (added), not just a status flip.
+- "The philschmid #399 comment is a new unactioned directive" — **REFUTED**: iter-46 (log entry 51)
+  already actioned it; a stale-watermark-file split (329 vs 399 files) re-surfaced it.
+
+**Retro lane**: **process-fix candidate RECORDED (2nd instance → at the ≥2 bar, but deferred one
+iteration for a cleaner single edit).** The Gate-0 / weekly-rotation machinery has a **watermark-file
+split bug**: the charter's Gate-0 comment-fetch hardcodes `~/.ailang/state/mission-329-last-seen`,
+but after the #329→#399 weekly rotation (iter ~38) the *current* issue's watermark lives in
+`mission-399-last-seen`. Iter-46 advanced the 329 file; this iteration's Gate-0 read the 399 file
+(via the correct current-issue path) and re-surfaced an already-actioned comment — a false-positive
+"new directive" that cost a verification detour (harmless here because idempotent re-triage caught it,
+but it could mis-drive an iteration). **Fix (deferred to a dedicated mission-doc edit next iteration,
+to stay within the 1-skill/1-process-edit budget and pair it with any 2nd rotation-machinery friction):
+the Gate-0 command must read `~/.ailang/state/mission-<CURRENT_ISSUE>-last-seen` (derive the issue from
+`mission-gh-issue`), not a hardcoded 329.** First instance was latent (the rotation happened but no
+prior iteration hit the split because iter-47 fell to the queue without a fresh Mark comment). No
+skill/SKILL.md edit this iteration.
+
+**Next**: Iteration 49 — (i) if Mark answers #399 on M-TOOLING-DETERMINISTIC (SUPERSEDED-close vs.
+much-smaller `ailang normalize` expose), action it; (ii) else the remaining DX-tooling item
+**m-ailang-fmt** is a real unshipped gap but only a **stub** → the deliverable would be a
+design-doc-creator run on the ROTATION designer (rotation last-used = `claude:claude-fable-5` per state
+file → **next = `codex:gpt-5.6-sol`**) to flesh it into a sprint-ready doc + quorum; or (iii) a
+clause-4 orchestration item. Also queued: apply the Gate-0 watermark-file-split process fix (retro
+lane above). G4 (#399) + m-prompt-footguns-to-diagnostics + m-check-strict-fallbacks all remain PARKED
+awaiting Mark.
