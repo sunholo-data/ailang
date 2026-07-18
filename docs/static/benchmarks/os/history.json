@@ -14,16 +14,16 @@
         "harness": "motoko",
         "lang": {
           "ailang": 0.8706467661691543,
-          "go": 0.9622641509433962,
-          "javascript": 0.9807692307692307,
+          "go": 0.9532710280373832,
+          "javascript": 0.9714285714285714,
           "python": 0.9807692307692307
         },
         "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
         "tiers": {
           "core": {
             "ailang": 0.9473684210526315,
-            "go": 0.9032258064516129,
-            "javascript": 1,
+            "go": 0.875,
+            "javascript": 0.9666666666666667,
             "python": 1
           },
           "frontier": {
@@ -93,7 +93,7 @@
         "lang": {
           "ailang": 0.805,
           "go": 0.9134615384615384,
-          "javascript": 0.9807692307692307,
+          "javascript": 0.9809523809523809,
           "python": 0.9904761904761905
         },
         "model": "pi-qwen3-6-35b-a3b-mxfp8",
