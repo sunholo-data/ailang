@@ -2,7 +2,10 @@
 
 **Milestone**: M-TOOLING-DETERMINISTIC
 **Version**: v0.3.15
-**Status**: ⚠️ REALITY-CHECKED 2026-07-18 (mission iteration 48) — **PREMISE SUPERSEDED; scope-close decision PARKED for Mark** (queue-tagged "both in")
+**Status**: **CLOSED — SUPERSEDED (Mark 2026-07-18, option (a): "close")**. Premise obsolete
+(repair-path deleted; eval flow agentic), core capability ships internally as `normalizeProgram`
+(regression-guarded, iteration 48). No CLI packaging: reopen a much smaller "expose `ailang
+normalize`" doc ONLY if a non-agentic external-agent audience materializes. DX budget → m-ailang-fmt.
 **Owner**: Tooling Team
 **Created**: 2025-10-18
 **Estimated Duration**: 3-4 days (24-32 hours)

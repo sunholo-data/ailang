@@ -19,7 +19,10 @@
 > `seenModule`-on-recovery fix to Part A, then ship the accepted Part A + Part B (a clean ~1.25-day
 > sprint that kills the 10%-frequency multi-module footgun). Mission iteration 47 report: GH #399.
 
-**Status**: Planned (PARKED needs-human-review — see banner)
+**Status**: **RATIFIED by Mark 2026-07-18** ("ratify") — the PARK-NOTE's recommendation is adopted
+verbatim: drop Phase 3 → extension backlog, apply gemini's `seenModule`-on-recovery fix, ship the
+unanimously-accepted Part A (MOD002/PAR_MODULE_PLACEMENT module diagnostics) + Part B (ghost-close
+guard), ~1.25d. Route to sprint-planner; do NOT re-quorum (Parts A+B were unanimous both rounds).
 **Target**: v0.30.0
 **Priority**: P1 (High — clause-3 fleet-tier accessibility burn-down)
 **Estimated**: 2.25 days (PRIMARY ~1d · ghost-close ~0.25d · SECONDARY ~0.5d · verification/docs ~0.5d)

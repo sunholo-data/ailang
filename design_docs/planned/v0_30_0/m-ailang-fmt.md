@@ -1,6 +1,6 @@
 # M-AILANG-FMT: `ailang fmt` — Canonical AILANG Source Formatter
 
-**Status**: Planned — **PARKED needs-human-review** (design complete + fully verified; quorum-blocked on the re-quorum-ONCE guardrail only — see Controller PARK-NOTE at end). Authored by `codex:gpt-5.6-sol`; quorum `gemini-3-1-pro` + Opus controller.
+**Status**: **GREENLIT by Mark 2026-07-18** ("greenlight") — route to sprint-planner (opus) → executor (opus) → evaluator (sonnet), ~4-day Phase-1. The park was the re-quorum-ONCE guardrail only; both gemini nits verified-closed (V19/V20) — do NOT re-quorum. Authored by `codex:gpt-5.6-sol`; quorum `gemini-3-1-pro` + Opus controller.
 **Target**: v0.30.0
 **Priority**: P1 (canonical presentation for an intentionally forgiving syntax)
 **Estimated effort**: Phase 1: 4 days; Phase 2 comment preservation: separately scheduled, estimated 2–3 days
@@ -370,8 +370,8 @@ No new error/diagnostic code is proposed, so there is no diagnostic namespace al
 
 ## Controller PARK-NOTE (2026-07-18, mission iteration 49)
 
-**Status: PARKED — needs-human-review (`@MarkEdmondson1234` on #399).** The design is
-architecturally complete; it is blocked only on the bounded-quorum guardrail, not on a design flaw.
+**Status: GREENLIT — Mark 2026-07-18 (interactive session; supersedes this park banner).** The
+one-line ratification the park asked for has been given; route to the sprint-planner.
 
 **Provenance.** Authored by the rotation designer `codex:gpt-5.6-sol`; reviewed by a quorum of
 `gemini-3-1-pro` (reject-by-default, provider-independent of the OpenAI author) + the Opus controller.

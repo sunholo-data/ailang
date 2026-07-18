@@ -686,7 +686,9 @@ triage evidence = log entry 10.)*
   superseded-on-ship); prompt v0.16.2 already teaches the prelude availability; doc → archive/
   with library-module caveat noted]** · ~~m-prompt-single-file-module · m-prompt-split-list-operations ·
   m-prompt-log-file-analyzer-string-ops~~ **[CONSOLIDATED + RE-SCOPED iter 47 (2026-07-17) into
-  `m-prompt-footguns-to-diagnostics` (planned/v0_30_0, commit `a7b484395`), PARKED needs-human-review.
+  `m-prompt-footguns-to-diagnostics` (planned/v0_30_0, commit `a7b484395`), **RATIFIED by Mark
+  2026-07-18 → [NEXT] routable** (park-note adopted: Phase 3 → extension backlog, seenModule fix,
+  ship Part A+B ~1.25d).
   Live-repro at HEAD: split-list-operations = GHOST (prompt already teaches split→map→join via
   `mapSlicesJoin`); single-file-module = REAL (10%; dormant MOD002 unwired) + dot-notation = REAL-marginal
   (2%). Diet-aligned diagnostics lane (NOT prompt additions — prompt is 2535 vs ≤1500 target). Fable
@@ -695,8 +697,9 @@ triage evidence = log entry 10.)*
   ACCEPTED, parked on 2 narrow named fixes. UNBLOCK: Mark ratifies the PARK-NOTE's recommendation (drop
   Phase 3 → extension backlog, apply gemini's seenModule fix, ship Part A+B ~1.25d). Log entry 52. The
   3 stale docs archive on landing.]**
-- **DX tooling** (Mark: both in): **m-ailang-fmt [DESIGN AUTHORED + PARKED needs-human-review, iter 49
-  (2026-07-18)]** — full sprint-ready doc at [planned/v0_30_0/m-ailang-fmt.md](planned/v0_30_0/m-ailang-fmt.md)
+- **DX tooling** (Mark: both in → resolved 2026-07-18: M-TOOLING-DETERMINISTIC **CLOSED-SUPERSEDED**
+  by Mark; fmt is the DX item): **m-ailang-fmt [GREENLIT by Mark 2026-07-18 → [NEXT] route to
+  sprint-planner]** — full sprint-ready doc at [planned/v0_30_0/m-ailang-fmt.md](planned/v0_30_0/m-ailang-fmt.md)
   (canonical `ailang fmt [--write] [--check]`; new `internal/format` AST→source printer — `print.go` is
   JSON-only, unusable; newline-per-statement braced canonical form; Phase-1 fail-CLOSED on comments (exit 2,
   byte-identical, no silent deletion), Phase-2 lossless trivia attachment separately scoped; 4-day Phase-1;
