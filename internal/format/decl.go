@@ -74,7 +74,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) error {
 		}
 		p.w.write(" -> " + rt)
 	}
-	if eff := ast.FormatEffects(d.Effects); eff != "" {
+	if eff := formatEffectRow(d.Effects); eff != "" {
 		p.w.write(" " + eff)
 	}
 	if err := p.testsAndProperties(d); err != nil {

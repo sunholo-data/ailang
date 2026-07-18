@@ -215,7 +215,7 @@ func (p *printer) funcLit(n *ast.FuncLit) error {
 		}
 		p.w.write(" -> " + rt)
 	}
-	if eff := ast.FormatEffects(n.Effects); eff != "" {
+	if eff := formatEffectRow(n.Effects); eff != "" {
 		p.w.write(" " + eff)
 	}
 	p.w.write(" ")
