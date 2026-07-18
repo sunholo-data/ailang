@@ -828,6 +828,17 @@ frozen; contracts projection live).
   fallbacks) — OR earlier if the clause queue blocks on anything.** ONE skill parameterized, never
   forked (Gate-5 retro fixes must keep benefiting all missions). Expect quorum-at-pick (doc
   authored interactively, no creation-time quorum).
+- **m-mission-cost-chains** ([planned/v0_30_0](planned/v0_30_0/m-mission-cost-chains.md), 2026-07-18;
+  **P1½ — the clause-5 KPI's data substrate**, Mark: "keep an eye on these budgets… that should
+  all appear in ailang chains CLI") — VERIFIED live: chains flow for eval (45 chains/50.3M tokens
+  in 48h) but **cost=$0.0000 everywhere** (attribution unwired, Defect A) and the MISSION's
+  activity — iterations, codex $, gemini $ (the $0.865 E2E appears nowhere), quorum cents — is
+  **entirely absent** (loop never posts to `handleCreateChain`, Gap B). M1 fix cost attribution
+  at source + rate-fallback (flagged estimates) · M2 Gate-4 posts one chain per iteration
+  (`mission:<name>/iter-N` — portability-ready for World; fail-soft spool, never blocks the loop;
+  quota-lane stages carry bucket attribution at $0) · M3 `chains stats --by-mission` budget
+  rollup vs `MISSION_METERED_BUDGET_USD`. ~1.5–2d. **Sequence BEFORE m-cost-per-success-kpi**
+  (a headline cost KPI over a $0.0000 tracker is not credible). Expect quorum-at-pick.
 - **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: ROOT-CAUSED: dev/prod env split (Mark). Public MCP writes feedback to PROD (`ailang-multivac`) — Kevin's June-30 messages are there, triaged; the rig daemon subscribes to DEV only, so external feedback never pings Discord. Fix = daemon dual-subscribes dev+prod; plus the latent pkg:*-inbox Discord-filter bug. The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
