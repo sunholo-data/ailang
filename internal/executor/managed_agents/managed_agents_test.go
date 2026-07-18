@@ -445,3 +445,74 @@ func TestLive_ManagedAgentsEndpoint(t *testing.T) {
 	t.Logf("live PONG took %dms, %d in / %d out tokens, $%.6f",
 		res.DurationMS, res.InputTokens, res.OutputTokens, res.CostUSD)
 }
+
+// --- M-GEMINI-REPO-MOUNT Phase 2: buildEnvironment golden tests + capability advertisement ---
+
+// TestBuildEnvironment_DefaultByteIdentical pins the egress-OFF payload to be
+// byte-identical to the pre-Phase-2 hardcode. Any drift here changes the wire
+// request for EVERY existing managed_agents caller.
+func TestBuildEnvironment_DefaultByteIdentical(t *testing.T) {
+	const want = `{"type":"remote"}`
+
+	// nil task (defensive) and explicit RequiresEgress=false must both match.
+	for _, task := range []*executor.Task{nil, {RequiresEgress: false}} {
+		got, err := buildEnvironment(task)
+		if err != nil {
+			t.Fatalf("buildEnvironment: %v", err)
+		}
+		if string(got) != want {
+			t.Errorf("egress-off payload drift:\n got: %s\nwant: %s", got, want)
+		}
+	}
+}
+
+// TestBuildEnvironment_EgressShapePinned pins the exact wildcard-egress shape
+// the Vertex interactions endpoint accepts (probes Q/R).
+func TestBuildEnvironment_EgressShapePinned(t *testing.T) {
+	const want = `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}`
+	got, err := buildEnvironment(&executor.Task{RequiresEgress: true})
+	if err != nil {
+		t.Fatalf("buildEnvironment: %v", err)
+	}
+	if string(got) != want {
+		t.Errorf("egress-on payload drift:\n got: %s\nwant: %s", got, want)
+	}
+	// Sanity: it must be valid JSON with the expected structure.
+	var probe struct {
+		Type    string `json:"type"`
+		Network struct {
+			Allowlist []struct {
+				Domain string `json:"domain"`
+			} `json:"allowlist"`
+		} `json:"network"`
+	}
+	if err := json.Unmarshal(got, &probe); err != nil {
+		t.Fatalf("egress payload is not valid JSON: %v", err)
+	}
+	if probe.Type != "remote" || len(probe.Network.Allowlist) != 1 || probe.Network.Allowlist[0].Domain != "*" {
+		t.Errorf("egress payload structure unexpected: %+v", probe)
+	}
+}
+
+// TestCapabilities_AdvertisesNetworkEgress verifies the executor now advertises
+// CapNetworkEgress so the shared ValidateTaskCapabilities gate accepts egress
+// tasks routed to managed_agents.
+func TestCapabilities_AdvertisesNetworkEgress(t *testing.T) {
+	exec, err := New(&executor.Config{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	var found bool
+	for _, c := range exec.Capabilities() {
+		if c == executor.CapNetworkEgress {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("managed_agents Capabilities() must include CapNetworkEgress, got %v", exec.Capabilities())
+	}
+	// The shared gate must accept an egress task against this executor.
+	if err := executor.ValidateTaskCapabilities(&executor.Task{RequiresEgress: true}, exec); err != nil {
+		t.Errorf("ValidateTaskCapabilities rejected egress on managed_agents: %v", err)
+	}
+}

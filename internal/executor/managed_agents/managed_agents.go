@@ -66,7 +66,28 @@ func (e *Executor) Capabilities() []executor.Capability {
 		executor.CapStreaming,
 		executor.CapSessionResume, // Multi-turn via interaction.id + environment_id
 		executor.CapRemoteSandbox, // Sandbox runs server-side; no shared filesystem with caller
+		executor.CapNetworkEgress, // Opt-in outbound egress (Task.RequiresEgress) — M-GEMINI-REPO-MOUNT Phase 2
 	}
+}
+
+// buildEnvironment renders the interaction's Environment payload for a task.
+//
+// Egress is strictly opt-in and visible in the request payload:
+//   - RequiresEgress == false → byte-identical to the pre-Phase-2 default,
+//     {"type":"remote"} (egress OFF; today's behavior unchanged).
+//   - RequiresEgress == true  → {"type":"remote","network":{"allowlist":[{"domain":"*"}]}},
+//     the exact wildcard-egress shape the Vertex interactions endpoint accepts
+//     (probes Q/R). This is the ONLY allowlist shape Vertex supports today;
+//     it is scoped to a read-only reviewer cloning a PUBLIC repo (no secrets
+//     enter the sandbox). See design_docs/planned/v0_30_0/m-gemini-repo-mount.md.
+//
+// The executor stays policy-free: it emits "egress on/off" only; what the agent
+// clones/checks out is caller-owned directive policy.
+func buildEnvironment(task *executor.Task) (json.RawMessage, error) {
+	if task != nil && task.RequiresEgress {
+		return json.RawMessage(`{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}`), nil
+	}
+	return json.RawMessage(`{"type":"remote"}`), nil
 }
 
 // CostModel returns gemini-3-5-flash Vertex pricing (the default agent's
@@ -161,7 +182,10 @@ func (e *Executor) ExecuteStreaming(
 	// expected to (a) instruct the agent to dump artifacts in its text
 	// response via task.SystemPrompt, and (b) parse them from Result.Output
 	// after the call returns. The executor itself stays policy-free.
-	envRaw := json.RawMessage(`{"type":"remote"}`)
+	envRaw, err := buildEnvironment(task)
+	if err != nil {
+		return nil, err
+	}
 	body := &interactionRequest{
 		Stream:      true,
 		Background:  true,

@@ -5,6 +5,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -111,6 +112,17 @@ type Task struct {
 	// model isn't truncated mid-<think> by a small default. Distinct from
 	// MaxTokensPerBench (a cumulative thrash ceiling).
 	MaxOutputTokens int
+
+	// RequiresEgress (M-GEMINI-REPO-MOUNT Phase 2) opts the task into an
+	// egress-enabled sandbox so the hosted agent can reach the public network
+	// (e.g. `git clone` the public AILANG repo at a target revision, then run
+	// review / `ailang check` in-sandbox). Zero value false = today's behavior:
+	// the request payload stays byte-identical to the pre-Phase-2 default. Only
+	// an executor advertising CapNetworkEgress may honor it; setting it on any
+	// other executor is a loud pre-dispatch error via ValidateTaskCapabilities
+	// (no silent fallback). What the agent DOES with the egress (clone what,
+	// checkout what) is caller-owned directive policy, not an executor input.
+	RequiresEgress bool
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.
@@ -211,7 +223,48 @@ const (
 	// after the run. Other backend callers can ignore this capability if
 	// they don't need file bridging.
 	CapRemoteSandbox Capability = "remote_sandbox"
+
+	// CapNetworkEgress (M-GEMINI-REPO-MOUNT Phase 2) means the executor can run
+	// the agent in a sandbox with opt-in outbound network access, honoring
+	// Task.RequiresEgress. Currently only managed_agents advertises this. A task
+	// that sets RequiresEgress on an executor lacking this capability is rejected
+	// loudly by ValidateTaskCapabilities before any network I/O (no silent
+	// fallback).
+	CapNetworkEgress Capability = "network_egress"
 )
+
+// ValidateTaskCapabilities is the single, grep-able pre-dispatch gate that
+// enforces typed capability requirements on a task before it is handed to an
+// executor. CLI (executeCLI) and eval-bridge dispatch paths call it before
+// Execute/ExecuteStreaming.
+//
+// Today it enforces exactly one rule: if task.RequiresEgress is true, the
+// resolved executor MUST advertise CapNetworkEgress. This closes the
+// programmatic silent-fallback hole — a non-egress executor can no longer
+// silently ignore an egress request; it fails loudly instead. When
+// RequiresEgress is false the function is a no-op (nil) on any executor.
+func ValidateTaskCapabilities(task *Task, exec Executor) error {
+	if task == nil || exec == nil {
+		return nil
+	}
+	if task.RequiresEgress && !hasCapability(exec.Capabilities(), CapNetworkEgress) {
+		return fmt.Errorf(
+			"task requires network egress but executor %q does not advertise capability %q "+
+				"(only egress-capable executors like managed_agents may honor RequiresEgress)",
+			exec.Name(), CapNetworkEgress,
+		)
+	}
+	return nil
+}
+
+func hasCapability(caps []Capability, want Capability) bool {
+	for _, c := range caps {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
 
 // EventHandler receives streaming events during execution
 type EventHandler interface {
