@@ -3736,3 +3736,95 @@ file → **next = `codex:gpt-5.6-sol`**) to flesh it into a sprint-ready doc + q
 clause-4 orchestration item. Also queued: apply the Gate-0 watermark-file-split process fix (retro
 lane above). G4 (#399) + m-prompt-footguns-to-diagnostics + m-check-strict-fallbacks all remain PARKED
 awaiting Mark.
+
+---
+
+## 54 — 2026-07-18 — Iteration 49: **m-ailang-fmt DESIGN AUTHORED** (`codex:gpt-5.6-sol` rotation designer) → quorum BLOCKED on two verification-completeness nits (controller PASS both rounds) → **PARKED needs-human-review** (re-quorum-ONCE guardrail); skill-fix: negative-existence-claim verification gate
+
+**Picked**: The parked-for-human items (m-prompt-footguns-to-diagnostics iter-47; m-check-strict-fallbacks;
+M-TOOLING-DETERMINISTIC scope-close iter-48; G4 #399) had **no new `@MarkEdmondson1234` answer** on
+#399/#329 since watermark (`2026-07-17T17:06:40Z`). Fell to the queue [NEXT] → clause-3 accessibility
+cluster. Its routable items are exhausted EXCEPT DX-tooling **m-ailang-fmt** — a real unshipped gap
+(iter-48 explicitly recommended "prefer m-ailang-fmt for any DX budget") with a v0.29.0 **stub** only, and
+crucially **no human-decision dependency** (unlike every other open clause-3 item). Reality-check at HEAD:
+`ailang fmt` genuinely absent; `internal/ast/print.go` emits JSON for golden tests (positions/comments
+stripped) → **not** a source printer → the formatter is net-new. → routed to design-doc-creator.
+
+**Gate-0**: killswitch armed; billing **CLEAN**; gh `sunholo-voight-kampff`; bookkeeping issue **#399**
+(prev #329). Inbox = 3 automated eval-suite msgs (started/no-op; os-rolling rotation), ack'd. Rotation-week:
+#399 has 17 comments, created 2026-07-16 (after this Monday's boundary) → **no rotation**. No Mark comment
+on #399 OR #329 (rotation-catch) since watermark. **Gate-1**: local dev == origin/dev `3b77bc036`; CI +
+Build-and-Release + Docs-Deploy all **green** @ `3b77bc036`.
+
+**Route** (ROTATION designer): rotation state file = `claude:claude-fable-5` (last-used) → **next =
+`codex:gpt-5.6-sol`**. Cross-provider codex lane: token-cheap probe rc=0 (`ok`); real run backgrounded in
+isolated worktree `sprint/m-ailang-fmt-design` (from origin/dev), `--sandbox workspace-write` + GOCACHE/
+GOMODCACHE add-dirs, 30-min cap; carried the design-doc-creator directive (hard gates: live `ailang check`
+per claim, Conflict Surface, systemic comment handling). Controller read the uncommitted diff.
+
+**Design produced** (`codex:gpt-5.6-sol`, one file, exhaustive): `ailang fmt [--write] [--check] <files>`;
+new `internal/format` package (`Source(*ast.Program, Options) ([]byte, error)` + `HasComments`);
+canonical form = **newline-per-statement braced blocks, bare final expr, 2-space indent, `let … in` kept
+explicit** (premise-corrected via `astdump` V8: statement-lets are nil-`Body` block siblings, explicit
+let-in is nested non-nil-`Body` — structurally distinct, must stay explicit); precedence-driven parens;
+**comments fail-CLOSED in Phase 1** (exit 2, byte-identical, no silent deletion — the lexer skips comments
+& the AST has no trivia field, so a naive reprint would DELETE them; Phase-2 lossless attachment fully
+specced separately); idempotence + structural round-trip property tests; M1 2d / M2 0.5d / M3 1d / M4 0.5d
+= **4-day Phase-1**; no new error codes (fmt/--write/--check verified unallocated V13–V15); Verification
+Log V1–V18 with live `ailang check` results.
+
+**Quorum** (QUORUM-AT-PICK: pre-quorum doc → ran BEFORE routing to planner): reviewers = `gemini-3-1-pro`
+(Google — provider-independent of the OpenAI author; **excluded `gpt5-6-sol` for generator≠judge**) + Opus
+controller in-session. **Controller PASS both rounds; gemini REJECT both rounds → BLOCKED both.** Both
+objections were the SAME class — a TRUE negative-existence claim lacking a Verification Log row, surfaced
+one-per-round:
+- **R1** (`.ailang/state/mission-quorum/m-ailang-fmt-2026-07-18T02-55-20Z.json`): atomic-write left
+  conditional ("safe-write helper *if one exists*"). → Routed back to author for the **one allowed
+  revision** → FIXED: hedge removed, **V19** records `os.Rename` grep (no shared helper; ad-hoc at
+  `heartbeat_file.go:114`, `dashboard_io.go:196`, `ext_registry_gen.go:240`, `editor.go:246`), atomic-write
+  assigned to an owned unexported `cmd/ailang` helper; M2 + Conflict Surface updated.
+- **R2** (`.ailang/state/mission-quorum/m-ailang-fmt-2026-07-18T02-58-29Z.json`): Rule 5's "AST has no
+  parenthesis node" asserted but unproven. → **Controller-verified TRUE** (`grep -rin paren
+  internal/ast/*.go` → only two `// move to LPAREN` comments, no `ast.ParenExpr`) and recorded as **V20**
+  (exactly gemini's proposed fix).
+
+Re-quorum-ONCE guardrail exhausted (author→reject→revise→re-quorum→reject). **Did NOT force through**
+(Standing rule 2) → PARKED needs-human-review with a controller PARK-NOTE. With V19+V20 recorded, every
+claim the design relies on is verified; the block is the guardrail, not a design flaw.
+
+**Shipped** (this iteration's durable deliverable — a fully-verified sprint-ready design doc, parked for a
+one-line human ratification): `design_docs/planned/v0_30_0/m-ailang-fmt.md` (401 lines; supersedes the
+v0.29.0 stub) with Status → PARKED, a Controller PARK-NOTE (provenance, both-objections-are-nits assessment,
+recommended one-line unblock, systemic note), and V19+V20. Queue tag updated; rotation state advanced to
+`codex:gpt-5.6-sol`. Doc-only commit to dev.
+
+**Routing evidence** (ACTUAL role→model used):
+- Controller = **opus** (session), task-class controller (triage/pick/reality-check/quorum-voice/park-note/
+  record/report), provider=anthropic, agent=claude-code, cost=quota-bucket:weekly-opus.
+- Designer = **`codex:gpt-5.6-sol`** (rotation next-after-claude), provider=openai via `codex exec
+  --sandbox workspace-write`, probe rc=0, real run rc=0, ~13.9k probe tokens + full authoring+revision run;
+  worktree-isolated, controller finalized the commit (codex cannot commit under the worktree `.git`-file
+  sandbox). **ENFORCED (not session-inherited).**
+- Quorum reviewer = **`gemini-3-1-pro`** (Vertex/ADC), provider=google, present both rounds, cost
+  ~$0.0148 + ~$0.015; reject-by-default. **generator≠judge held**: OpenAI author, Google reviewer,
+  Anthropic controller — three distinct providers; `gpt5-6-sol` deliberately excluded from reviewers.
+- Planner/executor/evaluator = **NOT invoked** — the pick did not reach a code sprint (design parked at the
+  quorum gate).
+
+**Ruled out**:
+- "The two gemini rejects are design defects → the formatter design is unsound" — **REFUTED**: both are
+  verification-log-completeness nits on TRUE negative-existence claims (no shared write helper [V19]; no
+  `ast.ParenExpr` [V20, controller-verified]); the architecture (new `internal/format`, print.go untouched,
+  precedence-driven parens, fail-closed comments) is sound and controller-passed both rounds.
+- "Force the design through since the controller passed and the objections are trivial" — **REJECTED**:
+  Standing rule 2 (never force a guardrail); the re-quorum-ONCE limit is the anti-ping-pong backstop. Parked
+  + reported instead, with a one-line unblock path for Mark.
+- "Pick a parked-for-Mark item or a mission-infra item instead" — **REJECTED**: no new Mark answer unparks
+  them; clause-3 is [NEXT] and m-ailang-fmt is its one routable, human-decision-free item.
+
+**Next**: On Mark's #399 greenlight of the m-ailang-fmt PARK-NOTE → route to sprint-planner (opus) →
+executor (opus) → evaluator (sonnet); ~4-day Phase-1. If Mark stays silent, the clause-3 group is now
+fully parked/gated → the next iteration falls to **clause-4** (cheapest-impact-per-day: m-ai-reasoning-effort
+~0.5d or m-agent-step-cancellation 1.5d) or a loop-executable mission-infra item (m-arch-boundaries Phases
+1–3, APPROVED). Still PARKED awaiting Mark: m-ailang-fmt (this iter), G4 #399, m-prompt-footguns-to-
+diagnostics, m-check-strict-fallbacks, M-TOOLING-DETERMINISTIC scope-close.

@@ -243,7 +243,7 @@ Both errors were a 10-second `ailang check` away from being caught. The neural r
 search (below) is passive context; THIS gate is the active check. Do not skip it by
 hand-writing content over the scaffold — fill the scaffold, and verify as you fill.
 
-**The same "verify against the code, not your assumption" rule covers three more claim classes
+**The same "verify against the code, not your assumption" rule covers four more claim classes
 the Verification Log routinely marks "Confirmed" without actually checking:**
 
 1. **A newly-proposed diagnostic/error code MUST be verified unallocated.** Error codes
@@ -274,6 +274,31 @@ the Verification Log routinely marks "Confirmed" without actually checking:**
    requiring "the ONE intentional test-text change"; the test asserts only `err != nil`, so the
    planned edit was fictional. Both were one `ls`/one read away at doc time; the sprint-planner
    had to correct the premises mid-loop.
+
+4. **Every NEGATIVE-EXISTENCE claim about an internal structure the design RELIES ON MUST carry
+   its own Verification Log row.** A design that says "the AST has no `ParenExpr` node," "no shared
+   safe-write helper exists," "there is no `fmt` subcommand," or "field X is not retained" is making
+   a claim about the *absence* of something — and a reject-by-default reviewer will (correctly)
+   block on any such claim that lacks a grep/read proving it, because if the thing DOES exist the
+   exhaustive-visitor / reuse / mechanism premise silently breaks. These are easy to leave implicit
+   because "it's not there" feels like a non-claim — but it is exactly as load-bearing as a positive
+   claim. Grep/read and record each one:
+   ```bash
+   grep -rin "paren" internal/ast/*.go        # prove "no ParenExpr node" (empty/only-comments = confirmed)
+   grep -rn "os.Rename\|SafeWrite\|Atomic" internal/ cmd/   # prove "no shared write helper" (or name the one to reuse)
+   ```
+   **Rule of thumb:** if a design sentence contains "no", "none", "doesn't exist", "not retained",
+   "unallocated", or "must reconstruct because … isn't stored", it needs a log row. Sweep the doc
+   for these BEFORE submitting to quorum — one row each is cheap; discovering them one-per-round via
+   reviewer rejects ping-pongs a sound design across the bounded revision limit and parks it.
+   **Case study (2026-07-18, m-ailang-fmt, iter 49):** the formatter design was architecturally
+   sound and the controller passed it, but `gemini-3-1-pro` (reject-by-default) blocked it TWICE —
+   round 1 on "atomic-write uses the repo's helper *if one exists*" (no helper exists; the
+   temp+`os.Rename` pattern is ad-hoc at 4 sites → V19), round 2 on "the AST has no parenthesis
+   node" (true — only `// move to LPAREN` comments → V20). Both were TRUE negatives missing a log
+   row, surfaced one-per-round; the re-quorum-ONCE guardrail was then exhausted and a complete design
+   parked for a human ratification it did not need. Both rows were a 10-second grep away at authoring
+   time.
 
 **Case study (2026-07-12, m-module-less-run-fail-loud):** the doc's Verification Log marked two
 things "Confirmed" that a code-check refuted. (a) It proposed error code `MOD011` — already the

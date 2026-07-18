@@ -689,8 +689,19 @@ triage evidence = log entry 10.)*
   ACCEPTED, parked on 2 narrow named fixes. UNBLOCK: Mark ratifies the PARK-NOTE's recommendation (drop
   Phase 3 → extension backlog, apply gemini's seenModule fix, ship Part A+B ~1.25d). Log entry 52. The
   3 stale docs archive on landing.]**
-- **DX tooling** (Mark: both in): m-ailang-fmt (canonical AST-reprinting formatter, multi-day; still a
-  real unshipped gap — a stub doc awaiting design-doc-creator) ·
+- **DX tooling** (Mark: both in): **m-ailang-fmt [DESIGN AUTHORED + PARKED needs-human-review, iter 49
+  (2026-07-18)]** — full sprint-ready doc at [planned/v0_30_0/m-ailang-fmt.md](planned/v0_30_0/m-ailang-fmt.md)
+  (canonical `ailang fmt [--write] [--check]`; new `internal/format` AST→source printer — `print.go` is
+  JSON-only, unusable; newline-per-statement braced canonical form; Phase-1 fail-CLOSED on comments (exit 2,
+  byte-identical, no silent deletion), Phase-2 lossless trivia attachment separately scoped; 4-day Phase-1;
+  no new error codes). Author = `codex:gpt-5.6-sol` (rotation; probe rc=0). **Quorum (`gemini-3-1-pro` +
+  Opus controller): controller PASS both rounds; gemini REJECT both rounds — BLOCKED.** Both objections were
+  verification-completeness nits (TRUE negative-existence claims lacking a log row, one per round): R1
+  atomic-write "if a helper exists" → FIXED in revision R1 (V19: no shared helper, ad-hoc `os.Rename` at 4
+  sites → owned `cmd/ailang` helper); R2 "AST has no ParenExpr" → controller-verified TRUE, recorded as V20.
+  Re-quorum-ONCE guardrail exhausted → PARKED (not forced). **UNBLOCK: Mark ratifies the doc's Controller
+  PARK-NOTE (one-line greenlight → sprint-planner); design is complete + fully verified, no architectural
+  fork.** Log entry 54. ·
   ~~M-TOOLING-DETERMINISTIC (normalize/suggest-imports/apply, 3–4d)~~ **[REALITY-CHECKED iter 48
   (2026-07-18) → PREMISE SUPERSEDED; scope-close PARKED for Mark.** The CLI trio doesn't exist, but
   its premise (single-shot fragment + LLM repair) is obsolete — `prompts/repair_prompts/` deleted,
