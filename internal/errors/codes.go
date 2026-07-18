@@ -273,7 +273,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD004: {MOD004, "module", "namespace", "Duplicate export"},
 	MOD005: {MOD005, "module", "syntax", "Invalid module path"},
 	MOD010: {MOD010, "module", "validation", "Module/path mismatch"},
-	MOD011: {MOD011, "module", "structure", "Multiple module declarations"},
+	MOD011: {MOD011, "module", "structure", "Cross-file module-name collision"},
 	MOD012: {MOD012, "module", "structure", "Implicit module warning"},
 	MOD013: {MOD013, "module", "package", "Shared module_prefix between root and dependency"},
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},

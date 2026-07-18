@@ -415,41 +415,41 @@ hand-wave:
 
 ## Implementation Plan
 
-**Phase 1: PRIMARY — module diagnostics** (~1 day)
-- [ ] `Parser` fields `seenModule`/`firstModulePos`/`firstModulePath`; set **only** in
+**Phase 1: PRIMARY — module diagnostics** (~1 day) — ✅ IMPLEMENTED (commit 66fae8c47)
+- [x] `Parser` fields `seenModule`/`firstModulePos`/`firstModulePath`; set **only** in
       `ParseFile`'s leading-module branch (`parser_file.go:48-51`, which calls the existing
       `parseModuleDecl()` helper at `:49` — verified present, no extraction needed); the
       `reportMisplacedModule` recovery path must NOT set them
-- [ ] `reportMisplacedModule()` in `parser_file.go` (mirror `reportMisplacedImport`): MOD002
+- [x] `reportMisplacedModule()` in `parser_file.go` (mirror `reportMisplacedImport`): MOD002
       duplicate variant + PAR_MODULE_PLACEMENT misplaced variant, consume-and-truncate
-- [ ] `case lexer.MODULE:` in `parseTopLevelDecl` (`parser_decl.go`, beside the IMPORT case)
-- [ ] Fix stale `MOD011` comment at `codes.go:93` (says "per file"; actual: cross-file collision)
-- [ ] Tests: `internal/parser/module_placement_test.go` styled on `import_placement_test.go`
+- [x] `case lexer.MODULE:` in `parseTopLevelDecl` (`parser_decl.go`, beside the IMPORT case)
+- [x] Fix stale `MOD011` comment at `codes.go:93` (says "per file"; actual: cross-file collision)
+- [x] Tests: `internal/parser/module_placement_test.go` styled on `import_placement_test.go`
       (duplicate → MOD002 + no cascade; misplaced → PAR_MODULE_PLACEMENT; 3 modules → 2 errors;
       **module-less file with TWO late modules → both PAR_MODULE_PLACEMENT, second never MOD002**;
-      leading module unaffected); run `make test-imports` + parser suite
-- [ ] Footgun contract test in `internal/diag/footgun_fixtures_test.go` (MOD014 pattern)
+      leading module unaffected); `make test-imports` + parser suite GREEN
+- [x] Footgun contract test in `internal/diag/footgun_fixtures_test.go` (rows duplicate_module + misplaced_module) + footguns.md table
 
-**Phase 2: Ghost-close guard** (~0.25 day)
-- [ ] Add `examples/runnable/split_map_join.ail` (verified-compiling program above)
-- [ ] Manifest entry + statistics block update; `make verify-examples` green locally
-- [ ] Record prompt-deletion candidates (lines 704/715/1071-1085 stay until the R3.1 diet pass)
+**Phase 2: Ghost-close guard** (~0.25 day) — ✅ IMPLEMENTED (commit 4f335ef64)
+- [x] Add `examples/runnable/split_map_join.ail` (verified-compiling program above)
+- [x] Manifest entry + statistics block update (187→188); `make verify-examples` GREEN locally
+- [x] Record prompt-deletion candidates (lines 704/715/1071-1085 stay until the R3.1 diet pass) — recorded in CHANGELOG
 
-**Phase 3 (severable): SECONDARY — primitive field access, GENERIC-ONLY** (~0.5 day)
-- [ ] `TC_PRIMITIVE_FIELD_ACCESS_001` + `makePrimitiveFieldAccessError` in `internal/types`
-      (styled on `tagged_union_predicate.go` + `TC_ARITY_001` conventions) — receiver primitive +
-      field + path only; **no symbol table, no stdlib names, no import advice**
-- [ ] Branches at `unification_core.go:346` fallthrough + `unification_records.go:407` mirror
-- [ ] Golden tests styled on `internal/types/arity_diagnostic_test.go`; tagged-union tests stay green
-- [ ] File the extension-lane backlog doc stub `m-diag-primitive-field-suggestions.md` (one item:
-      symbol→call-form enrichment OUTSIDE `internal/types`; candidate routes recorded in
-      [Frozen-Core Routing](#frozen-core-routing-part-c))
+**Phase 3 (severable): SECONDARY — primitive field access, GENERIC-ONLY** (~0.5 day) — ⛔ DROPPED / SEVERED (Mark ratify 2026-07-18)
+- [ ] ~~`TC_PRIMITIVE_FIELD_ACCESS_001` + `makePrimitiveFieldAccessError` in `internal/types`~~ — SEVERED, not implemented
+- [ ] ~~Branches at `unification_core.go:346` fallthrough + `unification_records.go:407` mirror~~ — SEVERED, not implemented
+- [ ] ~~Golden tests styled on `internal/types/arity_diagnostic_test.go`~~ — SEVERED, not implemented
+- [x] File the extension-lane backlog doc stub `m-diag-primitive-field-suggestions.md` (records the
+      severed Part C: symbol→call-form enrichment OUTSIDE `internal/types`; both candidate routes recorded) — DONE
 
-**Verification & docs** (~0.5 day)
-- [ ] `make ci` locally; `ailang check` on both repro files shows new diagnostics
-- [ ] Regenerate `dist/error_codes.json` (`tools/gen-error-codes`) — MOD002 gains a live emitter;
-      new TC code registered
-- [ ] CHANGELOG.md; LIMITATIONS.md if applicable
+**Verification & docs** (~0.5 day) — ✅ IMPLEMENTED (M3 commit)
+- [x] `ailang check` on both repro files shows the new MOD002 / PAR_MODULE_PLACEMENT diagnostics
+      (full `make ci` not run wholesale; targeted parser/diag/errors/tools tests + verify-examples +
+      test-imports + gofmt + check-file-sizes + golangci-lint on touched pkgs all GREEN)
+- [x] Regenerate `dist/error_codes.json` (`tools/gen-error-codes`) — MOD002 gains a live emitter;
+      MOD011 fix_hint/summary corrected. (PAR_MODULE_PLACEMENT is an inline string-code like
+      PAR_IMPORT_PLACEMENT, so it is NOT in the const-derived registry — matches existing convention)
+- [x] CHANGELOG.md updated (changelogs/v0.18-current.md); LIMITATIONS.md not applicable (no capability limit changed)
 
 ### Files to Modify/Create
 
@@ -471,15 +471,13 @@ hand-wave:
 
 ## Success Criteria
 
-- [ ] Two-module repro file: exactly one `MOD002` naming both module paths + first-decl position;
-      zero `PAR_NO_PREFIX_PARSE` for the module token (acceptance: golden test + manual repro)
-- [ ] Misplaced-module repro: one `PAR_MODULE_PLACEMENT` (acceptance: golden test)
-- [ ] `content.split("\n")` repro: `TC_PRIMITIVE_FIELD_ACCESS_001` stating primitive + field +
-      "functions rather than methods" rule; **grep of `internal/types` shows zero std/string
-      symbol names or import-advice strings introduced** (Phase 3)
-- [ ] `make verify-examples` green including `split_map_join.ail`
-- [ ] All existing parser/types/pipeline tests green (`make test`, `make test-imports`)
-- [ ] `dist/error_codes.json` regenerated; CHANGELOG updated
+- [x] Two-module repro file: exactly one `MOD002` naming both module paths + first-decl position;
+      zero `PAR_NO_PREFIX_PARSE` for the module token (golden test + manual repro — both verified)
+- [x] Misplaced-module repro: one `PAR_MODULE_PLACEMENT` (golden test + manual repro — verified)
+- [ ] ~~`content.split("\n")` repro: `TC_PRIMITIVE_FIELD_ACCESS_001`~~ — Phase 3 SEVERED (not implemented this sprint)
+- [x] `make verify-examples` green including `split_map_join.ail`
+- [x] All existing parser/pipeline/diag/errors/tools tests green (targeted `go test` + `make test-imports`)
+- [x] `dist/error_codes.json` regenerated; CHANGELOG updated
 
 ## Testing Strategy
 

@@ -188,6 +188,12 @@
       "fix_hint": "MOD006 indicates attempted export of underscore-prefixed (private) name"
     },
     {
+      "code": "MOD007",
+      "category": "namespace",
+      "summary": "Duplicate module-scope binding (let/func same name)",
+      "fix_hint": "MOD007 indicates a duplicate module-scope binding: a module-level let/letrec\nand a func (or two lets) declared with the same name. Silent shadowing was a\nsoundness trap once module lets and funcs share one declaration space\n(M-MODULE-LET-FUNC-RESOLUTION, #366) — now a loud compile error."
+    },
+    {
       "code": "MOD010",
       "category": "validation",
       "summary": "Module/path mismatch",
@@ -196,8 +202,8 @@
     {
       "code": "MOD011",
       "category": "structure",
-      "summary": "Multiple module declarations",
-      "fix_hint": "MOD011 indicates multiple module declarations per file"
+      "summary": "Cross-file module-name collision",
+      "fix_hint": "MOD011 indicates a cross-FILE module-name collision (two files declaring the\nsame module path), detected in the module pipeline. NOTE: per-file duplicate\nmodule declarations are a PARSE-time diagnostic (MOD002 /\nPAR_MODULE_PLACEMENT), not MOD011 — the old \"multiple module declarations per\nfile\" comment here was stale (M-PROMPT-FOOTGUNS)."
     },
     {
       "code": "MOD012",
