@@ -533,7 +533,19 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   ratification parked):** gemini/managed_agents is now a proven in-sandbox EVALUATOR/reviewer (clone→`ailang
   check`→verdict; Google provider = valid generator≠judge) — but `CapRemoteSandbox` means it canNOT edit a
   worktree, so "gemini joins the DESIGNER rotation" needs the text-bridge and is NOT auto-wired; recommend
-  gemini enter as evaluator. Prior: LANDED (code) iter 52; both approved fixes (typed `RequiresEgress`/
+  gemini enter as evaluator. **→ RATIFIED by Mark 2026-07-18 (interactive, after cost review):
+  gemini is ADMITTED to the fleet as the ESCALATION-TIER in-sandbox evaluator/reviewer — NOT
+  every-iteration (sonnet stays the default evaluator) — with THREE mandatory cost guards:
+  (1) ENVIRONMENT REUSE ("environment reuse for sure"): clone once per review target, persist the
+  `env_<id>`, reuse across rounds — never re-clone per round; (2) tight directives (targeted
+  `ailang check`/grep, no repo wandering); (3) two-tier discipline (text quorum first; in-sandbox
+  only when a premise is contested/high-stakes). Cost basis VERIFIED against official docs
+  2026-07-18: NO managed-agents premium — standard Gemini token rates only ($1.50/M in, $9/M out
+  incl. thought tokens at output rate; our client math reconciles $0.865 = 0.79 in + 0.07 out);
+  sandbox compute is FREE during preview. ⚠ WATCH ITEM: at GA, Google adds environment-compute
+  charges — re-benchmark the escalation-tier economics when GA pricing lands. Designer rotation
+  UNCHANGED (claude⇄codex) pending the text-bridge. Next iteration wires the evaluator seat +
+  env-reuse.** Prior: LANDED (code) iter 52; both approved fixes (typed `RequiresEgress`/
   `CapNetworkEgress` gate + `ValidateTaskCapabilities`; bounded-execution) + iter-52 shallow-fetch-by-SHA fix;
   opus executor, sonnet evaluator 91/100. Log 57–58.]** iter-45 refuted the `repository`/`inline`
   mount model (only `gcs`+`skill_registry`; egress OFF by default; egress param "undiscovered"). iter-46
