@@ -270,6 +270,9 @@ func TestCapabilities(t *testing.T) {
 	if !have[executor.CapSessionResume] {
 		t.Error("missing CapSessionResume capability")
 	}
+	if !have[executor.CapNetworkEgress] {
+		t.Error("missing CapNetworkEgress capability")
+	}
 }
 
 // TestCostModelPricing pins gemini-3-5-flash Vertex pricing.
