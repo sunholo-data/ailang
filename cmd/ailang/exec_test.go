@@ -100,3 +100,59 @@ func TestExecTaskGCPFieldsFromEnv(t *testing.T) {
 		t.Errorf("task.GCPLocation = %q, want %q", task.GCPLocation, "europe-west3")
 	}
 }
+
+// --- M-GEMINI-REPO-MOUNT Phase 2 (M2): clone-over-egress CLI flag wiring ---
+
+// TestIsEgressCapable asserts the CLI's egress-capability probe: the resolved
+// gemini→managed_agents executor advertises CapNetworkEgress; claude does not.
+// Pure factory lookup, no network call.
+func TestIsEgressCapable(t *testing.T) {
+	if !isEgressCapable(resolveAgenticExecutorName("gemini")) {
+		t.Error("gemini/managed_agents must be egress-capable")
+	}
+	if isEgressCapable(resolveAgenticExecutorName("claude")) {
+		t.Error("claude must NOT be egress-capable")
+	}
+}
+
+// TestCloneFlagValidation_CLIWiring exercises the exact validation the CLI runs
+// in runExec: executor.ValidateCloneFlags with the resolved executor name +
+// isEgressCapable. This is the loud-reject contract for the two non-zero-exit
+// cases and the --clone-sha-without-repo case.
+func TestCloneFlagValidation_CLIWiring(t *testing.T) {
+	const url = "https://github.com/sunholo-data/ailang.git"
+	const sha = "806b3b4a4c0000000000000000000000000000ab"
+
+	cases := []struct {
+		name       string
+		provider   string
+		cloneRepo  string
+		cloneSHA   string
+		apiOnly    bool
+		wantErr    bool
+		wantEgress bool
+	}{
+		{"gemini clone HEAD ok", "gemini", url, "", false, false, true},
+		{"gemini clone pinned SHA ok", "gemini", url, sha, false, false, true},
+		{"claude clone rejected (non-egress executor)", "claude", url, "", false, true, false},
+		{"gemini --api-only clone rejected", "gemini", url, "", true, true, false},
+		{"clone-sha without clone-repo rejected", "gemini", "", sha, false, true, false},
+		{"no clone flags is a no-op", "claude", "", "", false, false, false},
+		{"gemini invalid SHA rejected", "gemini", url, "not-a-sha", false, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			execName := resolveAgenticExecutorName(tc.provider)
+			gotEgress, err := executor.ValidateCloneFlags(tc.cloneRepo, tc.cloneSHA, tc.apiOnly, execName, isEgressCapable(execName))
+			if tc.wantErr && err == nil {
+				t.Fatalf("expected error, got nil (egress=%v)", gotEgress)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if gotEgress != tc.wantEgress {
+				t.Errorf("requiresEgress = %v, want %v", gotEgress, tc.wantEgress)
+			}
+		})
+	}
+}

@@ -77,6 +77,12 @@ func runExec() {
 	registerTask := fs.Bool("register-task", false, "Register task in Observatory")
 	dryRun := fs.Bool("dry-run", false, "Validate without executing")
 
+	// Clone-over-egress flags (M-GEMINI-REPO-MOUNT Phase 2). Only the agentic
+	// gemini/managed_agents executor (which advertises CapNetworkEgress) may
+	// honor these; any other resolution or --api-only is a loud error.
+	cloneRepo := fs.String("clone-repo", "", "Egress-enabled sandbox clones this public git URL, checks out the target revision, and reviews in-sandbox (gemini/managed_agents only)")
+	cloneSHA := fs.String("clone-sha", "", "Target 40-hex commit SHA for --clone-repo (default: shallow HEAD clone). Requires --clone-repo")
+
 	// Output flags
 	streamJSON := fs.Bool("stream-json", true, "Output NDJSON streaming events")
 	quiet := fs.Bool("quiet", false, "Suppress streaming output, only show final result")
@@ -92,7 +98,7 @@ func runExec() {
 	normalizable := []string{
 		"workspace", "model", "timeout", "task-id", "parent-task-id",
 		"system-prompt", "api-only", "register-task", "dry-run",
-		"stream-json", "quiet", "json",
+		"stream-json", "quiet", "json", "clone-repo", "clone-sha",
 	}
 	normalizable = append(normalizable, routingFlagNames()...)
 	args = normalizeArgsForFlags(args, normalizable)
@@ -128,6 +134,16 @@ func runExec() {
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
 		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter\n")
+		os.Exit(1)
+	}
+
+	// Validate clone-over-egress flags loudly before any dispatch (M-GEMINI-REPO-MOUNT
+	// Phase 2). This is a fast UX check layered over the shared ValidateTaskCapabilities
+	// gate in executeCLI. egressCapable is resolved via the executor factory so the
+	// rule tracks CapNetworkEgress rather than a hardcoded provider name.
+	execName := resolveAgenticExecutorName(provider)
+	if _, cloneErr := executor.ValidateCloneFlags(*cloneRepo, *cloneSHA, *apiOnly, execName, isEgressCapable(execName)); cloneErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), cloneErr)
 		os.Exit(1)
 	}
 
@@ -223,7 +239,7 @@ func runExec() {
 		if *routing.fallback != "" || *routing.require != "" || *routing.prefer != "" || *routing.maxPrice != "" {
 			fmt.Fprintf(os.Stderr, "Warning: --routing-* flags are ignored without --api-only\n")
 		}
-		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, streamEvents)
+		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, streamEvents, *cloneRepo, *cloneSHA)
 	}
 
 	if err != nil {
@@ -321,6 +337,26 @@ func resolveAgenticExecutorName(provider string) string {
 	return provider
 }
 
+// isEgressCapable reports whether the resolved agentic executor advertises
+// CapNetworkEgress (M-GEMINI-REPO-MOUNT Phase 2). It resolves the executor via
+// the global factory so the CLI clone-flag check tracks the real capability set
+// rather than a hardcoded provider name. If the executor cannot be constructed
+// (e.g. missing ADC) it is treated as not-capable — the loud clone-flag error is
+// the correct UX, and the shared ValidateTaskCapabilities gate re-enforces at
+// dispatch regardless.
+func isEgressCapable(execName string) bool {
+	exec, err := executor.GlobalFactory().GetExecutor(execName)
+	if err != nil {
+		return false
+	}
+	for _, c := range exec.Capabilities() {
+		if c == executor.CapNetworkEgress {
+			return true
+		}
+	}
+	return false
+}
+
 // resolveGCPProjectEnv returns the GCP project for exec tasks, using the same
 // precedence as the coordinator (daemon_tasks_init.go): AILANG_CLOUD_PROJECT
 // first, then GOOGLE_CLOUD_PROJECT. Empty when neither is set — the executor
@@ -333,7 +369,7 @@ func resolveGCPProjectEnv() string {
 }
 
 // executeCLI uses the agentic executor (Claude Code CLI, Vertex Managed Agents, ...)
-func executeCLI(ctx context.Context, provider, directive, workspace, model, systemPrompt, taskID string, timeout time.Duration, streamJSON bool) (*executor.Result, error) {
+func executeCLI(ctx context.Context, provider, directive, workspace, model, systemPrompt, taskID string, timeout time.Duration, streamJSON bool, cloneRepo, cloneSHA string) (*executor.Result, error) {
 	// Get executor from factory. The CLI provider name is translated to the
 	// executor-factory registry name for the agentic path (e.g. gemini →
 	// managed_agents); see resolveAgenticExecutorName.
@@ -343,16 +379,37 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		return nil, fmt.Errorf("failed to get executor for %s: %w", provider, err)
 	}
 
+	// Clone-over-egress (M-GEMINI-REPO-MOUNT Phase 2): when --clone-repo is set,
+	// prepend the canonical clone-review preamble (single-source builder shared
+	// with the eval-harness bridge) and mark the task as requiring egress. Flag
+	// combinations were already validated loudly in runExec.
+	requiresEgress := false
+	if strings.TrimSpace(cloneRepo) != "" {
+		preamble, pErr := executor.BuildClonePreamble(cloneRepo, cloneSHA)
+		if pErr != nil {
+			return nil, pErr
+		}
+		directive = preamble + directive
+		requiresEgress = true
+	}
+
 	// Build task
 	task := &executor.Task{
-		ID:           taskID,
-		Directive:    directive,
-		SystemPrompt: systemPrompt,
-		Workspace:    workspace,
-		Timeout:      timeout,
-		Model:        model,
-		GCPProject:   resolveGCPProjectEnv(),
-		GCPLocation:  os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
+		ID:             taskID,
+		Directive:      directive,
+		SystemPrompt:   systemPrompt,
+		Workspace:      workspace,
+		Timeout:        timeout,
+		Model:          model,
+		GCPProject:     resolveGCPProjectEnv(),
+		GCPLocation:    os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
+		RequiresEgress: requiresEgress,
+	}
+
+	// Shared pre-dispatch capability gate — the enforcement that also covers
+	// non-CLI programmatic callers (no silent fallback on a mis-routed egress task).
+	if err := executor.ValidateTaskCapabilities(task, exec); err != nil {
+		return nil, err
 	}
 
 	// Open coordinator store for event storage (enables chat history in dashboard)
@@ -694,6 +751,14 @@ Mode Options:
   --register-task       Register task in Observatory
   --dry-run             Validate without executing
 
+Clone-over-egress Options (gemini/managed_agents only):
+  --clone-repo URL      Give the hosted sandbox opt-in network egress and have it
+                        git-clone this PUBLIC repo, run review/ailang check
+                        in-sandbox, and echo the reviewed revision. Rejected on any
+                        other provider or with --api-only (no sandbox to clone into).
+  --clone-sha SHA       Target 40-hex commit for --clone-repo (shallow fetch-by-SHA).
+                        Omit for a shallow HEAD clone. Requires --clone-repo.
+
 Output Options:
   --stream-json         Output NDJSON streaming events (default: true)
   --quiet               Suppress streaming output
@@ -708,6 +773,11 @@ Examples:
 
   # Use OpenAI API for text generation
   ailang exec openai "Explain recursion" --api-only
+
+  # Have Gemini clone the public repo at a pinned SHA and review it in-sandbox
+  ailang exec gemini "Review the diff for correctness" \
+    --clone-repo https://github.com/sunholo-data/ailang.git \
+    --clone-sha 806b3b4a4c0000000000000000000000000000ab
 
   # Execute with parent task context (from coordinator)
   ailang exec claude "Implement feature" --task-id=task_123 --parent-task-id=task_parent
