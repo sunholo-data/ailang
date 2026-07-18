@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-18T02:37:19+02:00",
+  "timestamp": "2026-07-18T07:07:30+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34028,7 +34028,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-18T02:37:18+02:00",
+      "timestamp": "2026-07-18T07:07:27+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51068,13 +51068,6 @@
         {
           "band": "Moderate",
           "elo": 1516.7,
-          "id": "contract_leap_year",
-          "passRate": 90,
-          "saturated": false
-        },
-        {
-          "band": "Moderate",
-          "elo": 1516.7,
           "graderFlag": "set-repr",
           "id": "contract_sorted_merge",
           "passRate": 90,
@@ -51082,8 +51075,15 @@
         },
         {
           "band": "Moderate",
+          "elo": 1516.7,
+          "id": "contract_leap_year",
+          "passRate": 90,
+          "saturated": false
+        },
+        {
+          "band": "Moderate",
           "elo": 1516.1,
-          "id": "numeric_modulo",
+          "id": "canonical_normalization",
           "passRate": 91.7,
           "saturated": false
         },
@@ -51097,16 +51097,16 @@
         {
           "band": "Moderate",
           "elo": 1516.1,
-          "graderFlag": "free-text-exact-match",
-          "id": "decision_block_capture",
-          "passRate": 90,
+          "id": "numeric_modulo",
+          "passRate": 91.7,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.1,
-          "id": "canonical_normalization",
-          "passRate": 91.7,
+          "graderFlag": "free-text-exact-match",
+          "id": "decision_block_capture",
+          "passRate": 90,
           "saturated": false
         },
         {
@@ -51210,14 +51210,14 @@
         {
           "band": "Trivial",
           "elo": 917.3,
-          "id": "fizzbuzz",
+          "id": "recursion_fibonacci",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 917.3,
-          "id": "recursion_fibonacci",
+          "id": "fizzbuzz",
           "passRate": 100,
           "saturated": true
         },
@@ -51301,14 +51301,14 @@
         {
           "band": "Trivial",
           "elo": 851.2,
-          "id": "effect_composition",
+          "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 851.2,
-          "id": "digitless_constants",
+          "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
@@ -51586,15 +51586,15 @@
             {
               "band": "Easy",
               "elo": 1482.4,
-              "graderFlag": "free-text-exact-match",
-              "id": "decision_block_capture",
+              "id": "state_machine_vending",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1482.4,
-              "id": "state_machine_vending",
+              "graderFlag": "free-text-exact-match",
+              "id": "decision_block_capture",
               "passRate": 90,
               "saturated": false
             },
@@ -51699,14 +51699,14 @@
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "immutable_data_structures",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "gcd_lcm",
+              "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
@@ -52149,14 +52149,14 @@
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "merge_sort",
+              "id": "json_parse",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "json_parse",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
@@ -54021,14 +54021,14 @@
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "glob_match_spec",
+              "id": "lfu_cache_trace",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1424.8,
-              "id": "lfu_cache_trace",
+              "id": "glob_match_spec",
               "passRate": 88.2,
               "saturated": false
             },
@@ -54056,14 +54056,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
