@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -92,7 +93,10 @@ func TestAtomicWriteFile_PreservesMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o640 {
+	// Windows does not honor Unix permission bits (Go reports 0666/0444 based on
+	// the read-only attribute only), so the exact-mode assertion is Unix-only.
+	// atomicWriteFile still preserves the source mode via os.Chmod on all platforms.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o640 {
 		t.Errorf("mode = %v, want 0640", info.Mode().Perm())
 	}
 }
