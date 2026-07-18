@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-18T15:55:48+02:00",
+  "timestamp": "2026-07-18T16:41:19+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34049,7 +34049,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-18T15:55:19+02:00",
+      "timestamp": "2026-07-18T16:41:15+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51089,15 +51089,15 @@
         {
           "band": "Moderate",
           "elo": 1516.9,
-          "id": "fold_reduce",
-          "passRate": 91.7,
+          "id": "contract_leap_year",
+          "passRate": 90,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.9,
-          "id": "contract_leap_year",
-          "passRate": 90,
+          "id": "fold_reduce",
+          "passRate": 91.7,
           "saturated": false
         },
         {
@@ -52170,14 +52170,14 @@
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "json_parse",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "merge_sort",
+              "id": "json_parse",
               "passRate": 100,
               "saturated": true
             },
@@ -53576,14 +53576,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
@@ -54077,14 +54077,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
