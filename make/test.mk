@@ -149,9 +149,29 @@ test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
 	exit $$ok
 
 # Fuzzing
-fuzz-parser: ## Fuzz parser (2s - for CI)
+# fuzz-parser retries the Go-fuzzing fuzztime-boundary "context deadline exceeded"
+# artifact once: when -fuzztime expires while a slow (deeply-nested) input is still
+# executing on a loaded CI runner, the coordinator cancels the worker context and Go
+# reports it as a FAIL even though no crasher was found. A REAL crasher writes
+# "Failing input written to testdata/fuzz/..." and fails immediately; a genuine
+# slow-parse regression that ALWAYS times out fails on the second attempt too. Only
+# the single transient boundary timeout is retried.
+fuzz-parser: ## Fuzz parser (2s - for CI; retries transient fuzztime-boundary timeout once)
 	@echo "Fuzzing parser (2s)..."
-	@$(GOTEST) -fuzz=FuzzParseExpr -fuzztime=2s ./internal/parser
+	@for attempt in 1 2; do \
+	  out="$$($(GOTEST) -fuzz=FuzzParseExpr -fuzztime=2s ./internal/parser 2>&1)"; rc=$$?; \
+	  printf '%s\n' "$$out"; \
+	  [ $$rc -eq 0 ] && exit 0; \
+	  if printf '%s' "$$out" | grep -q "Failing input written"; then \
+	    echo "fuzz-parser: real crasher found — failing"; exit $$rc; \
+	  fi; \
+	  if printf '%s' "$$out" | grep -q "context deadline exceeded"; then \
+	    echo "fuzz-parser: transient fuzztime-boundary timeout (no crasher persisted) — retry $$attempt/2"; \
+	    continue; \
+	  fi; \
+	  echo "fuzz-parser: unexpected failure — not retrying"; exit $$rc; \
+	done; \
+	echo "fuzz-parser: transient timeout on both attempts — FAIL (investigate slow-parse inputs)"; exit 1
 
 fuzz-parser-long: ## Fuzz parser (extended - 1m per target)
 	@echo "Fuzzing parser (1m)..."
