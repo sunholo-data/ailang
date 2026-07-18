@@ -1,0 +1,7 @@
+module test/canonical_block
+
+func compute() -> int {
+  let x = 1 + 2;
+  let y = x * 3;
+  y + 10
+}

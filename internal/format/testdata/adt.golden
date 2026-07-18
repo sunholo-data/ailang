@@ -1,0 +1,5 @@
+module test/adt
+
+type Color = Red | Green | Blue deriving (Eq)
+
+type Shape = Circle(int) | Rectangle(int, int)

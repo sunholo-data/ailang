@@ -1,0 +1,3 @@
+module test/separators_eq
+
+func g() = let a = 1; let b = 2; a + b
