@@ -2463,6 +2463,19 @@
       ]
     },
     {
+      "path": "split_map_join.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "string"
+      ],
+      "description": "split -> map -> join pipeline (explicit and fused mapSlicesJoin); durable regression guard for the ghost-closed m-prompt-split-list-operations footgun (M-PROMPT-FOOTGUNS)",
+      "modules": [
+        "std/list",
+        "std/string"
+      ]
+    },
+    {
       "path": "string_split.ail",
       "status": "working",
       "tags": [
@@ -2617,11 +2630,11 @@
     }
   ],
   "statistics": {
-    "total": 187,
-    "working": 175,
+    "total": 188,
+    "working": 176,
     "aspirational": 4,
     "broken": 8,
-    "coverage": 0.9358288770053476,
+    "coverage": 0.9361702127659575,
     "experimental": 0
   },
   "milestones": {

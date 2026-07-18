@@ -1,0 +1,14 @@
+module examples/runnable/split_map_join
+
+import std/string (split, join, toUpper, mapSlicesJoin)
+import std/list (map)
+
+export func main() -> () ! {IO} {
+  let csv = "alice,bob,carol";
+  let names = split(csv, ",");            -- split(s, delim) -> [string]
+  let upper = map(\n. toUpper(n), names); -- transform the list
+  let joined = join(",", upper);          -- join(delim, list) -> string
+  println(joined);
+  -- O(n) fused form, no intermediate list:
+  println(mapSlicesJoin(csv, ",", \f. toUpper(f)))
+}
