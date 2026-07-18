@@ -114,6 +114,7 @@ const sidebars = {
           label: 'Language',
           items: [
             'reference/language-syntax',
+            'reference/formatter',
             'reference/modules',
             'reference/effects',
             'guides/parameterised-effects',
