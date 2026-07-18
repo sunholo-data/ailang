@@ -799,6 +799,18 @@ frozen; contracts projection live).
 - **m-mission-adaptive-multiprovider-routing** ([planned/v0_30_0](planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md); EXPANDED 2026-07-14 per Mark — quota now the binding constraint) — the heterogeneous model FLEET. **[Phases A+B LANDED 2026-07-14, iteration 28]**: Phase A (quota-aware multi-candidate probing in the driver) landed `3bee6b6df` direct-to-dev by the interactive session + verified/hardened by the sprint; Phase B (design-doc QUORUM: gpt-5.6-sol + gemini-3-1-pro-via-Vertex-ADC + Claude controller in-session, reject-by-default, N−1 named-absence degrade, budget-capped) landed PR #383 → `1186a48e6`, eval PASS 94/100 round 1 — `ailang design-review`/`design-quorum` live, artifacts under `.ailang/state/mission-quorum/`. REMAINING (opt-in as evidence accrues): Phase C cross-provider executors (re-scoped ~1d, audit binding); Phase D local-GPU lane (~2–3d); Phase E full (provider, model)×task-class assignment (~3–4d). Quorum-on-sprint-plans deferred (hook scoped to design docs). Requested + prioritized by Mark.
 - **m-arch-boundaries Phases 1–3** ([planned/v0_30_0](planned/v0_30_0/m-arch-boundaries.md); APPROVED Mark 2026-07-14) — boundary docs + `check_boundaries.sh` CI gate + CODEOWNERS, PRE-1.0 (lets the stability promise scope to `core/`). Phase 4 (physical git mv) reserved for the v1.0→v1.1 boundary. Separate repos rejected (reaffirmed). Loop-executable.
 - **m-mission-quorum-agentic-verify** ([planned/v0_30_0](planned/v0_30_0/m-mission-quorum-agentic-verify.md), 2026-07-14; P1) — the shipped text quorum REASONS but cannot VERIFY (no repo access); this makes reviewers tool-using agents (codex/managed_agents, read-only worktree) that actually run `ailang check`/grep to confirm premises, two-tier (cheap text first → agentic escalation only when a premise is contested). Reuses the quorum contract + executor registry. Sequenced after fleet Phase C. Precondition: confirm Tier-1 has fired LIVE (no artifacts found yet). Requested by Mark.
+
+- **m-mission-portability** ([planned/v0_30_0](planned/v0_30_0/m-mission-portability.md), 2026-07-18;
+  **P1 mission-infra — GATES THE AILANG WORLD MISSION LAUNCH**, Mark: "design doc this up and plan
+  it in") — extract the loop into a portable template: M1 driver parameterization + per-mission
+  state namespace (`MISSION_NAME/REPO/DOC` profile env; backward-compatible defaults — this
+  mission's behavior unchanged), M2 skill repo/verify profiles (go-compiler vs ailang-code —
+  World verifies via `ailang check/test/ai-check`, which the binary ships), M3 bootstrap kit +
+  charter template + scratch-repo dry-run (no state collision with the live loop). ~1–1.5d, zero
+  language surface. **Pick order: after the greenlit clause-3 trio (fmt → footguns → strict-
+  fallbacks) — OR earlier if the clause queue blocks on anything.** ONE skill parameterized, never
+  forked (Gate-5 retro fixes must keep benefiting all missions). Expect quorum-at-pick (doc
+  authored interactively, no creation-time quorum).
 - **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: ROOT-CAUSED: dev/prod env split (Mark). Public MCP writes feedback to PROD (`ailang-multivac`) — Kevin's June-30 messages are there, triaged; the rig daemon subscribes to DEV only, so external feedback never pings Discord. Fix = daemon dual-subscribes dev+prod; plus the latent pkg:*-inbox Discord-filter bug. The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
