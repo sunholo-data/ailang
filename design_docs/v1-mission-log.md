@@ -3828,3 +3828,81 @@ fully parked/gated → the next iteration falls to **clause-4** (cheapest-impact
 ~0.5d or m-agent-step-cancellation 1.5d) or a loop-executable mission-infra item (m-arch-boundaries Phases
 1–3, APPROVED). Still PARKED awaiting Mark: m-ailang-fmt (this iter), G4 #399, m-prompt-footguns-to-
 diagnostics, m-check-strict-fallbacks, M-TOOLING-DETERMINISTIC scope-close.
+
+## 55 — 2026-07-18 — Iteration 50: **dev CI RED outranked the queue** — `make fuzz-parser` fuzztime-boundary flake fixed-forward (commit `c8f61e212`, dev CI green observed)
+
+**Picked**: Gate-1 found **dev CI RED** @ `3556e9377` (a *data-only* `data(dashboard)` commit) with
+`FuzzParseExpr: context deadline exceeded`. A red dev outranks the queue → this was the iteration's
+deliverable. No queue [NEXT] item was routed (correct: red-dev consumes the iteration). Parked-for-Mark
+items unchanged (no new `@MarkEdmondson1234` answer since watermark `2026-07-17T17:06:40Z`).
+
+**Gate-0**: killswitch armed; billing **CLEAN** (`ANTHROPIC_API_KEY`/`AUTH_TOKEN` both empty); gh
+`sunholo-voight-kampff`; bookkeeping issue **#399** (prev #329, 18 comments, created 2026-07-16 → after
+this Monday's boundary → **no weekly rotation**). No Mark comment on #399 since watermark. Inbox: 7 unread
+(2 eval-suite start/no-op; 3 nightly-eval; 2 nightly regressions) — ack'd.
+
+**Inbox triage (nightly "regressions" — RULED noise, not code regressions, did NOT outrank the CI-red
+deliverable)**: `fold_reduce` (thrash_aborted) + `cli_args` (logic_error), local `opencode-qwen3-5-35b`,
+**2 trials**. (a) Build delta since the "solid" prev run = `data(dashboard)`/`docs(mission)` commits ONLY —
+no compiler/parser/stdlib code touched in 36h, so a genuine codegen regression is impossible; (b) prev-run
+dir is literally `/tmp/nightly_eval_20260717_rag_on` while today's is `/tmp/nightly_eval_20260718` → a
+**RAG-config delta**, not a fair regression comparison; (c) noisy agentic model + 2 trials + model-behavior
+error categories (not compiler faults). Consistent with memory `ground_conclusions_in_data` /
+`os_rolling_stale_eval_data` (reproduce/aggregate before alarming). → Gap-finder candidates for the nightly
+rotation; NOT this iteration's work.
+
+**Diagnosis (data before conclusions, Standing rule 5)**: (1) parser + `internal/parser/testdata` + fuzz
+test UNCHANGED for 7 days; (2) the previous **11** dev CI runs were green on the same parser code (incl.
+the identical-class `3b77bc036` data commit); (3) local repro `go test -fuzz=FuzzParseExpr -fuzztime=2s`
+**PASS 3/3** (~3.2–3.4s wall); (4) **no crasher persisted** (a timeout is not a panic — Go doesn't write
+a `testdata/fuzz` seed for it); (5) the CI log shows **4 workers** vs 16 locally. Root cause: when
+`-fuzztime=2s` expires while a slow, deeply-nested input (DELIM_STACK depth 9 in the log) is mid-execution
+on a loaded 4-worker runner, Go's fuzzing coordinator cancels the worker context and reports the
+cancellation as a test **FAIL** — a known fuzztime-boundary artifact, not a parser bug.
+
+**Fix (fix-forward, small — Gate 1)**: `make fuzz-parser` now discriminates a **real crasher**
+(`Failing input written to testdata/fuzz/…` → fail immediately, `exit $$rc`) from the **transient boundary
+timeout** (`context deadline exceeded` with no crasher → retry once); a genuine slow-parse regression that
+*always* times out still fails on the second attempt (`exit 1`). Crash-detection AND perf-regression
+coverage preserved; only the single-boundary flake is masked. `make fuzz-parser` PASS locally post-patch.
+Commit `c8f61e212` (`make/test.mk` + CHANGELOG), pushed direct-to-dev (clean tree, no `MERGE_HEAD`).
+
+**Gate-3b (bounded, 30-min cap)**: CI run `29632296716` on `c8f61e212` → **completed success** @ 07:38
+(≈9 min); `Fuzz parser (short)` step **success**; `Build and Release` **success**; `Deploy Documentation`
+**N/A** (path-filtered — `changelogs/` not in its `paths:`, no run for the SHA → recorded N/A, not pending).
+Dev is **GREEN**. → LANDED.
+
+**Routing evidence** (ACTUAL role→model used):
+- Controller = **opus** (session): triage/inbox-triage/reality-check/diagnosis/fix/record/report. The fix is
+  a deterministic CI-tooling patch (Makefile shell + CHANGELOG) — no generation layer, so no
+  planner/executor/evaluator and no generator≠judge needed (same controller-lane pattern as iters 45/46/48).
+- Designer/Planner/Executor/Evaluator = **NOT invoked** (CI-red infra fix, not a design-doc sprint).
+
+**Ruled out**:
+- "The nightly `fold_reduce`/`cli_args` flips are fresh regressions → investigate/route" — **REFUTED**: no
+  compiler code changed in 36h (data/docs-only commits), the prev "solid" run was `rag_on` vs today's
+  non-rag (config delta), and it's a 2-trial noisy local model. Noise/config, not a code regression.
+- "The fuzz FAIL is a real parser hang/crasher introduced by `3556e9377`" — **REFUTED**: `3556e9377` is
+  data-only; parser unchanged 7 days; 11 prior runs green; local PASS 3/3; no crasher persisted; CI had
+  4 workers → boundary artifact.
+- "Re-run the failed CI job and move on (bare bookkeeping)" — **REJECTED**: a re-run un-reds dev once but
+  the flake recurs on the next loaded runner. Gate-1 wants the fix or a reasoned guard; the retry-on-
+  transient-timeout target is the durable guard.
+- "Widen the retry to any non-zero fuzz exit" — **REJECTED**: that would mask genuine crashers; the target
+  retries ONLY `context deadline exceeded` with no `Failing input written`, and fails on two consecutive
+  timeouts (a persistent slow-parse regression still surfaces).
+
+**Retro**: The gates worked as designed — Gate-1's per-workflow CI check caught a red that the local
+`make test` gates cannot (fuzz timing under CI load), and the standing "check the same failure on parent
+commits before blaming a merge" rule + Standing-rule-5 (reproduce before concluding) steered straight to
+"flake, not regression." **No skill fix** (a skill edit needs ≥2 recorded frictions at the same gap; this
+fuzz-boundary flake is a first occurrence — the general "time-based reds hit whoever observes next" is
+already in Gate 1). **No process fix**. **No routing-policy change** (needs ≥3 evidence rows).
+
+**Next**: Parked-for-Mark backlog unchanged — awaiting `@MarkEdmondson1234` on #399: **m-ailang-fmt**
+(iter-49 PARK-NOTE, sprint-ready), G4 #399, m-prompt-footguns-to-diagnostics, m-check-strict-fallbacks,
+M-TOOLING-DETERMINISTIC scope-close. If Mark stays silent, next iteration falls to **clause-4**
+(m-ai-reasoning-effort ~0.5d / m-agent-step-cancellation 1.5d) or the loop-executable mission-infra item
+m-arch-boundaries Phases 1–3 (APPROVED). Watch: if `FuzzParseExpr` boundary timeouts recur despite the
+retry (two-consecutive on the same run), that is a REAL slow-parse signal → open a parser-perf design doc
+(nesting-depth guard), not another retry.
