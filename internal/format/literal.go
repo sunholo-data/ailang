@@ -8,12 +8,14 @@ import (
 	"github.com/sunholo-data/ailang/internal/ast"
 )
 
-// literal.go holds the single canonical escaping routine for string and
-// character payloads. Every string/char emitter routes through escapeString /
-// escapeChar so escaping is uniform and precedence-safe. The AST stores the
-// DECODED payload (the lexer resolves \n, \u{...}, etc.), so the formatter
-// re-escapes canonically rather than echoing source bytes. Debug String()
-// methods are never used as a fallback (design non-negotiable).
+// literal.go holds the single canonical escaping routine for string payloads.
+// Every string emitter routes through escapeString so escaping is uniform and
+// precedence-safe. Character literals are parsed as single-char ast.StringLit
+// (parser_literals.go: "Treat chars as single-char strings for now"), so they
+// share the same escaping path; there is no separate ast.CharLit kind to print.
+// The AST stores the DECODED payload (the lexer resolves \n, \u{...}, etc.), so
+// the formatter re-escapes canonically rather than echoing source bytes. Debug
+// String() methods are never used as a fallback (design non-negotiable).
 
 // escapeString renders a decoded string payload as a canonical double-quoted
 // AILANG string literal. It emits the minimal, round-trip-safe escape set that
@@ -54,36 +56,6 @@ func escapeString(s string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
-}
-
-// escapeChar renders a decoded single-character payload as a canonical
-// single-quoted AILANG char literal.
-func escapeChar(s string) (string, error) {
-	runes := []rune(s)
-	if len(runes) != 1 {
-		return "", fmt.Errorf("char literal payload must be exactly one rune, got %q", s)
-	}
-	r := runes[0]
-	var body string
-	switch r {
-	case '\'':
-		body = `\'`
-	case '\\':
-		body = `\\`
-	case '\n':
-		body = `\n`
-	case '\t':
-		body = `\t`
-	case '\r':
-		body = `\r`
-	default:
-		if isPrintableRune(r) {
-			body = string(r)
-		} else {
-			body = fmt.Sprintf(`\u{%X}`, r)
-		}
-	}
-	return "'" + body + "'", nil
 }
 
 // isPrintableRune reports whether a rune can be emitted verbatim inside a

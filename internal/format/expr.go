@@ -106,7 +106,7 @@ func (p *printer) binaryOp(n *ast.BinaryOp, parentPrec int) error {
 		// For left-associative ops, the left operand may share the same
 		// precedence without parens; the right operand needs prec+1. Cons (::)
 		// is right-associative, so the sides swap.
-		leftMin, rightMin := prec+1, prec+1
+		var leftMin, rightMin int
 		if rightAssociative(n.Op) {
 			leftMin = prec + 1
 			rightMin = prec
