@@ -1,17 +1,50 @@
 # M-GEMINI-REPO-MOUNT — Managed Agents repository and inline-source mounts
 
-**Status**: RESHAPED (Phase-1b, 2026-07-17, mission iteration 46) — **the mount model is superseded by
-CLONE-OVER-EGRESS, which is now LIVE-VERIFIED end-to-end.** The original `repository`/`inline` mounts do
-not exist (iter-45), BUT iter-46 (human directive #399 → philschmid.de/managed-agents-gh) found the
-missing egress-enable param — `environment.network.allowlist:[{domain:"*"}]` — and proved that an
-egress-only sandbox (NO data source) **`git clone`s the public ailang repo end-to-end** (verified: cloned
-HEAD `806b3b4a4`, listed files, read `go.mod`). The whole source-mount question is **moot for public
-repos**. Pending Mark's greenlight to decompose the lean clone-over-egress capability (see the new
-**Phase-1b Spike Result** section + option **(d)**).
+**Status**: **PARKED — needs-human-review (clone-over-egress decomposition authored + 2-round quorum-hardened; BLOCKED on 2 convergent reviewer objections)** — Mark greenlit the *scope* on #399 2026-07-18T06:58:06Z ("clone over egress approved"), so the Phase 2 below is the decomposed capability. But the bounded design quorum (iteration 51, 2026-07-18) BLOCKED it over two rounds: round 1 caught the HEAD-review evidence-check bug (FIXED); the re-quorum then surfaced two NEW, sound objections that exceed the one-revision bound — see the **⛔ PARK-NOTE (quorum block, iteration 51)** immediately below. The original `repository`/`inline` mount model was REFUTED live (iter-45) and is retained further below only as historical record; iter-46 LIVE-VERIFIED the lean replacement: an egress-enabled sandbox (`environment.network.allowlist:[{domain:"*"}]`, NO data source) in which the agent itself runs `git clone` of the public ailang repo end-to-end (cloned HEAD `806b3b4a4`, listed files, read `go.mod`).
 **Target**: v0.30.0
 **Priority**: P1 — mission gap G4; upgrades Gemini from reasoning-only review to in-sandbox verification
-**Estimated**: clone-over-egress path is SMALL again (agent-side `git clone`, no encoder/GCS/mount) — re-scope pending greenlight
+**Estimated**: 1–2 focused days; ≤120 LOC production Go (agent-side `git clone` — no encoder, no GCS, no
+mount, no inline)
 **Dependencies**: `managed_agents` executor / M-MANAGED-AGENTS v0.22.0
+
+> **⛔ PARK-NOTE (quorum block, mission iteration 51, 2026-07-18) — decision-ready for Mark (#399).**
+> Mark greenlit the clone-over-egress *scope*; this iteration decomposed it into the sprint-sized **Phase 2**
+> below and ran the bounded design quorum (`gpt5-6-sol` + `gemini-3-1-pro` + claude controller). Round 1 →
+> BLOCKED on a real HEAD-review evidence-check bug (echoed-SHA `==` empty `CloneSHA` would fail every HEAD
+> review) → **FIXED** in a revision pass (evidence check is now conditional; new positive acceptance test).
+> The **re-quorum** (both reviewers present) then BLOCKED again on **two NEW, sound objections** that exceed
+> the one-revision / re-quorum-ONCE bound — so the doc parks here rather than re-litigating:
+>
+> 1. **Typed egress-capability gate, not a `Metadata` key (gemini-3-1-pro).** The Phase-2 opt-in uses one
+>    provider-scoped `Task.Metadata["managed_agents.egress"]="1"` key. gemini holds that this is a
+>    programmatic silent-fallback hole on the shared `executor.Task` Go API: a non-CLI caller that sets the
+>    key on a non-managed_agents executor gets egress *silently ignored* (the key is uninterpreted), which
+>    violates no-silent-fallback — the same class as round 1. Proposed fix: **add a typed
+>    `RequiresEgress bool` field to `executor.Task` + a `CapNetworkEgress` capability constant in
+>    `internal/executor/executor.go`, and a shared pre-dispatch validation that errors loudly when
+>    `RequiresEgress` is set but the resolved executor does not advertise the capability.** (Note: the
+>    SUPERSEDED mount design used a typed `EnvSources` field + capability gate for exactly this reason — so
+>    this reverses the designer's ≤120-LOC "one boolean → Metadata" scope call and re-widens the shared
+>    `executor.Task` contract. That widening is the crux the designer deliberately avoided; it's a Mark-level
+>    architecture call, hence the park.)
+> 2. **Bounded execution & timeout reuse (gpt5-6-sol).** Phase 2 has the sandbox agent run a
+>    (possibly full-history, for arbitrary SHAs) `git clone` + optional binary download + `ailang check`
+>    with **no deadlines / cancellation / repo-size or step budgets**, and does not identify the existing
+>    managed_agents timeout/context machinery to reuse. This violates the mission's own **Standing Rule 6
+>    (every wait is bounded)**. Proposed fix: **add a "Bounded execution & timeout reuse" section** — locate
+>    the existing `context`/deadline symbols on the `sendInteraction` / executor / eval-runner call paths
+>    (record file:line in the premise table), state the overall deadline propagated to `sendInteraction`,
+>    require finite timeouts on clone/checkout/download/check, cap clone depth (or reject the arbitrary-SHA
+>    full-clone mode if it would be unbounded), make deadline-expiry a structured degraded/error result
+>    (never a retry or a clean pass), and add cancellation/timeout acceptance tests.
+>
+> **Recommended unblock (one designer pass, then it's plan-ready):** adopt fix #1 (typed
+> `RequiresEgress`/`CapNetworkEgress` gate — accepts the ~modest widening of the shared executor contract)
+> and fix #2 (bounded-execution section reusing existing context machinery). Both reviewers gave concrete,
+> convergent fixes; neither disputes the VERIFIED-LIVE clone-over-egress feasibility or the ≤120-LOC scope
+> (fix #1 adds a typed field + constant + one validation; fix #2 is mostly reuse). **Mark's call:** greenlight
+> that unblock (a one-line "apply both, ship it" is enough), or weigh in on widening `executor.Task` with a
+> typed egress capability. Quorum artifacts: `.ailang/state/mission-quorum/m-gemini-repo-mount-2026-07-18T08-*.json`.
 
 > **⛔ PHASE-1 SPIKE RESULT (mission iteration 45, 2026-07-17) — PREMISE REFUTED.** Mark authorized the
 > ADC-gated live Vertex contract-discovery spike ("yep do the vertex contract spike", #399). It ran
@@ -207,9 +240,10 @@ no secret — a public clone requires no auth, so no PAT ever enters the sandbox
 private repo or secret would need per-domain `transform` (Vertex: not yet) or the Developer-API surface —
 out of scope for the public-repo review capability.
 
-### ✅ Decision needed (Mark) — scope, not code (reshaped by Phase-1b)
+### ✅ Decision RESOLVED (Mark, #399, 2026-07-18T06:58:06Z): option (d) APPROVED
 
-Phase-1b turned the iter-45 negative into a much leaner positive. Options, re-ranked:
+**"clone over egress approved."** The Phase-2 decomposition below implements option (d). The option
+analysis is retained as the decision record:
 
 - **(d) Clone-over-egress (NEW — recommended).** Give the `managed_agents` executor/evaluator an
   egress-enabled env (`network.allowlist:[{domain:"*"}]`) and have the agent `git clone` the (public)
@@ -225,9 +259,223 @@ Phase-1b turned the iter-45 negative into a much leaner positive. Options, re-ra
   enough that shelving forgoes a real capability gain.
 - **(c) `skill_registry`.** Unchanged — lowest confidence, not pursued.
 
-**Recommendation: (d).** It is the small, verified path to in-sandbox Gemini review of the public repo.
-Reply on #399 to greenlight the Phase-2 decomposition (small sprint), or say shelve. Until then the doc
-stays in RESHAPED state with the clone-over-egress contract recorded and the probe reproducible.
+**Recommendation was (d); Mark approved (d) on #399 (2026-07-18).** The doc is now APPROVED and the
+Phase-2 decomposition follows immediately below.
+
+## Phase 2 (PROPOSED — quorum-blocked, see ⛔ PARK-NOTE at top) — Clone-over-egress capability
+
+This is the approved, sprint-sized decomposition of option (d). Everything here is grounded either in the
+doc's recorded HEAD facts (Problem Statement, verified against the working tree 2026-07-18) or in the
+VERIFIED-LIVE probe record (Phase-1/1b sections above). No mount, no GCS, no inline, no encoder.
+
+### Overview
+
+Give the `managed_agents` executor an **opt-in egress-enabled environment**
+(`{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}` — the exact shape probes Q/R proved), and
+have the sandbox agent itself `git clone` the public ailang repo at the target revision, run
+review/`ailang check` in-sandbox, and return a structured verdict through the **existing** text-output
+bridge. The executor wires the environment; the *caller* (CLI / eval harness) owns the clone directive —
+matching the executor's recorded policy-free contract (comment at `managed_agents.go:153–163`: artifact
+return via text output, "The executor itself stays policy-free").
+
+### Opt-in mechanism (DECISION: one Metadata key, `managed_agents.egress=1`)
+
+**Chosen:** the executor consumes exactly ONE `Task.Metadata` key — `managed_agents.egress` with required
+value `"1"`. Repo URL and SHA are **caller-side directive inputs** (CLI flags / eval-harness options),
+not executor inputs, because the executor is policy-free: it needs to know only "egress on/off"; what the
+agent does with the egress (clone what, checkout what) is directive policy built by the caller.
+
+**Why Metadata and not a typed `Task` field:** `Task.Metadata map[string]string` ("Provider-specific
+options") already exists at `executor.go:37` (field at line 60) for exactly this — a single-provider
+scalar option. The superseded design's anti-Metadata rationale ("stringly typed JSON … would hide
+malformed authority") targeted a structured *source list with content bytes and size limits*; none of
+that exists here — one boolean-like scalar, validated centrally in the managed_agents environment builder,
+which **fails loudly** on any value other than `"1"`. Adding a typed field + capability gate for one
+provider-scoped boolean would widen the shared `Task` contract for no compile-time benefit.
+
+**Residual (stated honestly for quorum):** `Metadata` is provider-scoped by its own contract, so a
+*programmatic* caller that sets `managed_agents.egress` on a non-managed_agents executor gets the
+provider-contract behavior (the key is not interpreted). Mitigations: (1) the CLI boundary rejects the
+clone flags loudly for any non-managed_agents resolution (below); (2) the only in-tree programmatic
+setter is the eval-harness bridge, which sets it only on its managed_agents path; (3) an acceptance test
+pins the CLI rejection. A shared capability gate remains available as follow-up if a second programmatic
+setter ever appears — deliberately NOT built now (≤120-LOC bound; extension-lane bias).
+
+### Code-change surface (grounded at recorded HEAD facts)
+
+1. **`internal/executor/managed_agents/managed_agents.go`** — replace the hardcode at line 164
+   (`envRaw := json.RawMessage(`{"type":"remote"}`)`, assigned to `Environment` at line 170) with a
+   small `buildEnvironment(task) (json.RawMessage, error)`:
+   - Metadata key absent → return **byte-identical** `{"type":"remote"}` (default unchanged, egress OFF).
+   - `managed_agents.egress == "1"` → return
+     `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}` (probe Q/R shape).
+   - Key present with any other value → **error before `sendInteraction`** (no silent fallback in either
+     direction). Today the package reads **no** Metadata key at all (verified by grep, 2026-07-18 — empty).
+2. **`cmd/ailang/exec.go`** — register `--clone-repo <url>` and `--clone-sha <sha>` in the `runExec`
+   flag block (flags registered ~lines 63–88; help text ~lines 677–710):
+   - `--clone-repo` set → validate the resolved executor is `managed_agents`
+     (`resolveAgenticExecutorName`, line 317); otherwise, or with `--api-only`, **exit non-zero with a
+     clear error** — never ignore (mirrors the "Provider scope" no-silent-fallback reasoning).
+   - `--clone-sha` without `--clone-repo` → error.
+   - On success: set `task.Metadata["managed_agents.egress"] = "1"` on the `executor.Task` built in
+     `executeCLI` (task literal at lines 347–356) and prepend the canonical clone preamble (below) to the
+     directive.
+3. **`internal/eval_harness/gemini_evaluator_bridge.go`** — extend `EvalOptions` with optional
+   `CloneRepoURL` + `CloneSHA`. When set, `RunGeminiEvaluator` (line 620) builds the clone-review
+   directive instead of packing the full diff; when unset, the `BuildDiffBundle` (line 131)
+   prompt-packed path is **unchanged**. Verdict return rides the existing text-output parsing in
+   `managed_agents_bridge.go` / the bridge's verdict parser — no new artifact channel. The directive
+   requires the agent to echo `git rev-parse HEAD`; the bridge's evidence check is **conditional on
+   whether a SHA was pinned**: when `CloneSHA` is non-empty, the bridge asserts the echoed HEAD
+   **equals** `CloneSHA`; when `CloneSHA` is empty (HEAD review), there is nothing to compare against —
+   the bridge instead asserts the echo is a syntactically-valid, non-empty 40-hex SHA (proof the agent
+   actually cloned and ran in-sandbox) and **records** it as the reviewed revision. In both cases a
+   missing/empty/invalid echo — or, in the pinned case, a mismatch — stamps `VerificationDegraded: true`
+   with a non-empty `DegradedReason` (reusing the existing invariant at lines 551–562: degraded ⇒ reason
+   non-empty; degraded is never a clean pass). A HEAD review with a valid echo is NOT degraded.
+
+### Canonical clone preamble (review directive)
+
+- **No SHA requested (HEAD review):** `git clone --depth 1 <public-url>` — the exact probe-R-proven
+  recipe; echo `git rev-parse HEAD`. **Evidence = a syntactically-valid, non-empty 40-hex echo** (there
+  is no `CloneSHA` to compare against); the bridge records the echoed SHA as the reviewed revision.
+- **Arbitrary SHA requested:** **full clone (NOT `--depth 1`)** then `git checkout --detach <sha>`;
+  echo `git rev-parse HEAD`. **Evidence = the echo must equal the requested `CloneSHA`.** This
+  incorporates the gemini round-2 quorum row verbatim: a shallow clone
+  cannot check out an arbitrary older SHA, and probe R only proved the shallow path — so the directive
+  must not rely on shallow clone when a pinned non-HEAD SHA is in scope.
+- Then: run the review / `ailang check` (the agent may fetch a pinned Linux `ailang` release binary over
+  the same egress) and emit the structured verdict JSON the bridge already parses.
+
+### No-silent-fallback compliance
+
+- Egress is strictly opt-in; the no-key default request stays byte-identical to today.
+- Clone flags on a non-managed_agents executor or with `--api-only` → loud CLI error, never ignored.
+- `managed_agents.egress` ≠ `"1"` → executor error before any network I/O.
+- A requested clone-review that cannot produce valid clone evidence → `VerificationDegraded` with
+  reason — never silently downgraded to the prompt-packed path, never a clean pass on absent evidence.
+  "Valid" is conditional on the request: pinned `CloneSHA` ⇒ echo must match it; HEAD review (empty
+  `CloneSHA`) ⇒ echo must be a valid non-empty 40-hex SHA (recorded as the reviewed revision).
+
+### Milestones (each ≤1 day)
+
+| Milestone | Deliverable (one line) |
+|-----------|------------------------|
+| **M1** — egress env wiring | `buildEnvironment` replaces the `managed_agents.go:164` hardcode; golden tests assert BOTH JSON shapes with no live call |
+| **M2** — CLI flags | `--clone-repo`/`--clone-sha` + loud non-managed_agents/`--api-only` rejection + help text + parsing tests |
+| **M3** — eval-harness clone-review | `EvalOptions.CloneRepoURL/CloneSHA` → clone directive + HEAD-evidence check + unchanged-fallback regression tests |
+| **M4** — live E2E + docs | `AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`-gated (CI-skipped) end-to-end clone→check→verdict run; evidence recorded in this doc |
+
+### Acceptance criteria (testable)
+
+- [ ] **Default unchanged:** no Metadata key → environment payload byte-identical `{"type":"remote"}`
+  (golden test, no live call).
+- [ ] **Egress shape pinned:** key = `"1"` → exactly
+  `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}` (unit/golden test, no live call).
+- [ ] `managed_agents.egress` with any value ≠ `"1"` → error before `sendInteraction`.
+- [ ] `ailang exec claude --clone-repo …` (any non-managed_agents resolution) and
+  `ailang exec gemini --api-only --clone-repo …` → non-zero exit with a clear error (unit test).
+- [ ] `--clone-sha` without `--clone-repo` → error.
+- [ ] Eval bridge with clone options unset → `BuildDiffBundle` fallback path unchanged (regression test).
+- [ ] Eval bridge with `CloneSHA` set and a mismatched `rev-parse HEAD` echo →
+  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner).
+- [ ] Eval bridge in HEAD review (`CloneSHA` empty) with a valid non-empty 40-hex `rev-parse HEAD`
+  echo → `VerificationDegraded == false`, echoed SHA recorded as the reviewed revision (positive unit
+  test — HEAD reviews must pass cleanly).
+- [ ] Eval bridge (either mode) with a missing/empty/invalid `rev-parse HEAD` echo →
+  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner).
+- [ ] Live-gated E2E (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, skipped in default CI; missing ADC is a SKIP,
+  never a pass): sandbox clones the public repo, runs the directive, returns a parsed verdict.
+- [ ] All tests passing; `ailang exec` help + docs updated.
+
+### LOC budget
+
+**≤120 LOC production Go** (tests excluded): `managed_agents` env builder ~25; `cmd/ailang/exec.go`
+flags/validation/preamble ~40; eval-bridge options/directive/evidence-check ~55. If the eval-bridge share
+grows past ~70, cut scope there (directive templating stays minimal), not elsewhere.
+
+### Conflict Surface (Phase 2)
+
+Files/symbols touched:
+
+- `internal/executor/managed_agents/managed_agents.go` — `envRaw` hardcode at :164/:170 → `buildEnvironment`;
+  first-ever Metadata read in this package (today it reads none — grep-verified 2026-07-18, empty).
+- `internal/executor/managed_agents/types.go` — **unchanged** (`interactionRequest.Environment` is already
+  `json.RawMessage` at :38; the builder emits raw JSON, no new wire structs required).
+- `internal/executor/managed_agents/managed_agents_test.go` — golden/rejection tests (new).
+- `internal/executor/managed_agents/managed_agents_live_test.go` — extends the EXISTING probe harness
+  (probes A–R) with the gated E2E; stays manual-only, out of default CI.
+- `cmd/ailang/exec.go` — `runExec` flag block (~63–88), read-only use of `resolveAgenticExecutorName` (:317),
+  `executeCLI`/task literal (:336/:347–356, adds the Metadata assignment), help (~677–710).
+- `internal/eval_harness/gemini_evaluator_bridge.go` — `EvalOptions`, `RunGeminiEvaluator` (:620),
+  degraded-verdict invariant reuse (:551–562).
+- `internal/eval_harness/managed_agents_bridge.go` — **unchanged**; the existing extract-out text bridge is
+  reused as-is for verdict return.
+
+**Explicitly NOT touched:** `internal/executor/executor.go` `Task` struct (no new typed field, no
+capability constant), every non-managed_agents executor, parser/lexer/AST/type-system/eval/VM (no AILANG
+language surface at all), and the **motoko core** — this is executor/eval-harness plumbing in the
+extension lane; **no core-floor change** (frozen-core boundary confirmed).
+
+Callers that must continue to work unchanged: `ailang exec gemini "<directive>"` (all current flag
+combinations, no clone flags) sends byte-identical requests; coordinator/factory callers constructing
+`executor.Task` without the Metadata key; `RunGeminiEvaluator` with default `EvalOptions` (diff-bundle
+path); injected-runner test seams; `managed_agents_bridge` extract-out behavior; all Claude/OpenAI/
+Anthropic/OpenRouter/Ollama `ailang exec` paths.
+
+Syntactic-position analysis: **N/A — no parser/lexer/type change**; the surface is one JSON request field,
+two CLI flags, and two eval-option fields.
+
+### Phase-2 premise verification (new claims only; Phase-1/1b log above is unchanged)
+
+| Claim | Status | Evidence |
+|-------|--------|----------|
+| Egress-enable JSON shape `network.allowlist:[{domain:"*"}]` | VERIFIED-LIVE | Probes Q/R (Phase-1b table) |
+| Egress-only sandbox clones the public repo end-to-end | VERIFIED-LIVE | Probe R (`--depth 1`, HEAD `806b3b4a4`) |
+| `Task.Metadata map[string]string` exists as "Provider-specific options" | VERIFIED | `executor.go:37` (field at :60), re-checked 2026-07-18 |
+| `managed_agents` currently reads NO Metadata keys (negative claim) | VERIFIED | grep of `internal/executor/managed_agents/` for Metadata reads, 2026-07-18 — empty |
+| `envRaw` hardcode still at `managed_agents.go:164` | VERIFIED | re-checked in working tree 2026-07-18 |
+| `VerificationDegraded ⇒ DegradedReason non-empty` invariant exists to reuse | VERIFIED | `gemini_evaluator_bridge.go:551–562` |
+| Shallow clone cannot check out an arbitrary older SHA | INCORPORATED | gemini round-2 quorum row; directive uses full clone whenever a SHA is pinned |
+
+### Security
+
+`domain:"*"` is unrestricted outbound egress — the ONLY shape Vertex accepts today (per-domain allowlists
+and header `transform` are "not supported now", probes O/P). Accepted because the capability is scoped
+to a **read-only reviewer/evaluator cloning a PUBLIC repo at a SHA**: a public clone needs no auth, so
+**no secret, PAT, or credential ever enters the sandbox** — there is nothing to exfiltrate but the public
+repo and the directive. The private-repo/PAT path (per-domain `transform`, Developer-API surface) stays
+**out of scope**. Directives should pin any binary-download URLs/versions. Egress is opt-in per task and
+visible in the request payload.
+
+### Generator ≠ judge
+
+This capability makes gemini (Google) a valid **in-sandbox, read-only evaluator/reviewer** — a judge from
+a different provider than the Anthropic/OpenAI **generators/executors**, which is the mission's preferred
+evaluator direction (Mark, #399). The file-EDITING executor role remains **out of scope**: the sandbox is
+Google-hosted server-side (`CapRemoteSandbox`), so agent edits never land on the local worktree — this is
+the reviewer/evaluator lane only. A default-evaluator flip is still gated on the charter's ≥3-datapoint
+evidence rule (see Future Work).
+
+### Phase-2 risks
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Wildcard egress widens sandbox authority | Outbound exfil surface | Opt-in per task; public-repo/read-only scope; no secrets in sandbox (see Security) |
+| Programmatic caller sets the Metadata key on another executor | Key uninterpreted (provider-contract) | CLI-boundary loud rejection + single in-tree setter + pinned test; typed gate deferred as follow-up (see Opt-in mechanism residual) |
+| Agent claims wrong revision reviewed | Verdict on wrong code | Directive echoes `git rev-parse HEAD`; bridge check is conditional: pinned `CloneSHA` ⇒ echo must equal it (mismatch ⇒ `VerificationDegraded`); HEAD review ⇒ echo must be a valid non-empty 40-hex SHA, recorded as the reviewed revision (missing/invalid ⇒ degraded) — never a clean pass on absent evidence |
+| Vertex tightens/renames the allowlist contract | Requests rejected | Shape is golden-tested + the live probe harness (A–R) re-verifies cheaply; failure mode is a loud 400, not silent |
+
+---
+
+## ⛔ SUPERSEDED — original mount-based design (historical record only)
+
+**Everything from here through the "Risks & Mitigations" table describes the REFUTED
+`repository`/`inline` mount design — the typed source contract, `CapEnvironmentSources` gate, inline
+encoder, per-file byte limits, and `--env-repo`/`--env-inline-file` flags. It was refuted by the Phase-1
+live spike (the Vertex `interactions` endpoint accepts only `gcs`/`skill_registry` source types) and is
+retained ONLY as historical context and the record of what the spike invalidated. Do NOT implement
+against it. The approved design is the Phase 2 — Clone-over-egress section above.**
 
 ## Goals
 
@@ -372,7 +620,11 @@ executor behavior.
 - [ ] **Gate:** If the live probe cannot be run, Phase 2 does not begin; the doc stays blocked pending a
   recorded contract.
 
-#### Phase 2 — Typed source contract, capability gate, and encoder
+#### Phase 2 — Typed source contract, capability gate, and encoder **(SUPERSEDED — do not implement)**
+
+> **⛔ SUPERSEDED:** the typed-source/encoder design below is refuted — see the Phase-1 spike (no
+> `repository`/`inline` source types exist on the live endpoint). Retained only as historical context.
+> The approved replacement is **Phase 2 — Clone-over-egress capability** above.
 
 - [ ] Add `EnvironmentSource` and `Task.EnvSources` in `internal/executor/executor.go`.
 - [ ] Add `CapEnvironmentSources`, shared capability validation, and capability-validating production
@@ -642,28 +894,26 @@ Total: approximately one focused engineering day.
 | Live-confirmed default outbound network increases sandbox authority | Supply-chain or data-exfiltration risk | Phase 1 records actual behavior. If unrestricted, mounts remain explicit opt-in, public-repo-only, and directives pin download URLs/versions; do not pass local secrets or credentials as inline files. If restricted, fail or configure the recorded allowlist explicitly. |
 | Production patch grows beyond the one-day bound | Delayed mission gap | Keep environment reuse, automatic overlays, private repos, and check orchestration deferred; target ≤~250 LOC of Go. |
 
-## Axiom Compliance
+## Axiom Compliance (scored against the APPROVED clone-over-egress design)
 
 | Axiom | Score | Justification |
 |-------|-------|---------------|
-| A1: Determinism | 0 | Managed Agents execution is already nondeterministic; source order, content, targets, and pinned SHA are explicit and deterministically encoded. |
-| A2: Replayability | +1 | Repository URL, pinned SHA, inline bytes, and targets can be captured with the task/request, making the reviewed input reconstructable. |
-| A3: Effect Legibility | 0 | No AILANG effect-system change; external filesystem/network effects remain inside the executor boundary. |
-| A4: Explicit Authority | +1 | Mounting grants the hosted sandbox read access to a named public repository and explicit inline content only when the caller opts in. No local workspace, secret, or credential authority is ambient; unsupported authority requests fail. |
-| A5: Bounded Verification | +1 | The bounded, env-var-gated live spike must establish the external premise before implementation, and mounted Gemini checks then run against a pinned revision instead of relying solely on diff reasoning. The live-confirmed inline boundary is explicit and tested. |
-| A6: Safe Concurrency | 0 | No concurrency or shared-environment reuse is introduced; each interaction still receives a fresh environment. |
-| A7: Machines First | +1 | Typed source configuration and machine-executed `ailang check` replace a human-oriented prompt-only bridge as the preferred verifying path. |
-| A8: Minimal Syntax | 0 | Adds only CLI flags and Go structs; no AILANG syntax. The surface is the minimum needed for repository and inline mounts. |
-| A9: Cost Visibility | 0 | Existing execution usage/cost reporting remains; source mounting does not add hidden model calls. Download/runtime costs remain visible in agent execution duration. |
-| A10: Composability | +1 | The same source list composes repository baseline and multiple inline overlays and can be used by CLI, evaluator, and reviewer callers. |
-| A11: Structured Failure | +1 | A shared pre-dispatch capability gate rejects non-empty sources for unsupported executors across CLI and programmatic callers; invalid URLs, targets, kinds, duplicates, oversized files, unverified contracts, and JSON construction errors also fail explicitly with no silent fallback. |
-| A12: System Boundary | +1 | Local file reading occurs at the caller boundary; provider JSON encoding occurs in `managed_agents`; reviewer orchestration stays in the directive. Responsibilities remain explicit. |
+| A1: Determinism | 0 | Managed Agents execution is already nondeterministic; the egress payload is a fixed golden-tested JSON shape and the reviewed revision is an explicit SHA. |
+| A2: Replayability | +1 | Repo URL + pinned SHA + the clone preamble travel with the directive, and the bridge records the agent-echoed `rev-parse HEAD` — the reviewed input is reconstructable from the task record. |
+| A3: Effect Legibility | 0 | No AILANG effect-system change; network/filesystem effects stay inside the provider sandbox boundary. |
+| A4: Explicit Authority | 0 | Egress authority is opt-in, per-task, and visible in the request payload — but it is wildcard-wide (the only shape Vertex accepts), so it cannot be scoped to the one repo. Honest downgrade from the mount design's +1; compensated by the no-secrets/public-only scope (Security section). |
+| A5: Bounded Verification | +1 | The external contract was pinned by a bounded live probe BEFORE implementation (probes Q/R), and the reviewer now runs `ailang check` against a pinned revision in-sandbox instead of reasoning over packed diff text. |
+| A6: Safe Concurrency | 0 | No concurrency or environment reuse introduced; each interaction still gets a fresh environment. |
+| A7: Machines First | +1 | Machine-executed in-sandbox `ailang check` on real code replaces a human-oriented prompt-packed text bridge as the verifying path. |
+| A8: Minimal Syntax | 0 | Two CLI flags, one Metadata key, two eval-option fields; no AILANG syntax. Strictly smaller surface than the superseded mount design. |
+| A9: Cost Visibility | 0 | Existing usage/cost reporting unchanged; clone/check time is visible in agent execution duration (probe R: 9 steps). |
+| A10: Composability | +1 | The same opt-in serves `ailang exec` CLI calls, the eval-harness evaluator, and future quorum-reviewer callers without provider-specific coupling in shared types. |
+| A11: Structured Failure | +1 | Every off-contract state fails loudly: clone flags on a non-supporting executor, `--api-only`, a malformed Metadata value, SHA-without-repo, and missing/mismatched clone evidence (⇒ `VerificationDegraded` with reason). No silent fallback in any direction. |
+| A12: System Boundary | +1 | The executor wires only the environment (policy-free, per its recorded contract); directive policy lives at the caller; verdict parsing stays in the eval bridge. Responsibilities remain explicit and unchanged in shape. |
 
-**Net Score: +7** → **Proceed only after the Phase-1 contract gate.** No hard-axiom violations. A4 is
-strengthened because repository and inline read authority is explicit, bounded, visible in task
-configuration, and off by default. A5 is stronger because external premises are established by a bounded
-live probe before conclusions, and A11 is stronger because unsupported programmatic dispatch fails at the
-shared executor boundary rather than relying on CLI-only validation.
+**Net Score: +6** → **Proceed.** No hard-axiom violations (A1/A3/A4/A7 all ≥ 0). A4 is scored 0, not +1,
+because Vertex's wildcard-only egress cannot express repo-scoped authority — recorded honestly rather
+than claimed away; the mitigation is the public-only/no-secrets scope, not a narrower grant.
 
 ## References
 
