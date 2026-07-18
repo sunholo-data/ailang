@@ -189,6 +189,49 @@ func TestFmtCheck_ReturnsCodes(t *testing.T) {
 	}
 }
 
+// TestFmtCommentedExitsAndUnchanged proves the Phase-1 comment partition across
+// all three modes: a commented file yields exit 2 and is never modified.
+func TestFmtCommentedExitsAndUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	src := "module t/c\n-- a real comment\nfunc f() = 1\n"
+
+	t.Run("stdout", func(t *testing.T) {
+		path := writeTemp(t, dir, "s.ail", src)
+		before, _ := os.ReadFile(path)
+		if code := fmtStdout(path); code != 2 {
+			t.Errorf("expected exit 2, got %d", code)
+		}
+		after, _ := os.ReadFile(path)
+		if string(before) != string(after) {
+			t.Error("commented file was modified in stdout mode")
+		}
+	})
+
+	t.Run("check", func(t *testing.T) {
+		path := writeTemp(t, dir, "c.ail", src)
+		before, _ := os.ReadFile(path)
+		if code := fmtCheck([]string{path}); code != 2 {
+			t.Errorf("expected exit 2, got %d", code)
+		}
+		after, _ := os.ReadFile(path)
+		if string(before) != string(after) {
+			t.Error("commented file was modified in check mode")
+		}
+	})
+
+	t.Run("write", func(t *testing.T) {
+		path := writeTemp(t, dir, "w.ail", src)
+		before, _ := os.ReadFile(path)
+		if code := fmtWrite([]string{path}); code != 2 {
+			t.Errorf("expected exit 2, got %d", code)
+		}
+		after, _ := os.ReadFile(path)
+		if string(before) != string(after) {
+			t.Error("commented file was modified in write mode")
+		}
+	})
+}
+
 func TestFmtStdout_LeavesFileUnchanged(t *testing.T) {
 	dir := t.TempDir()
 	src := "module t/s\nfunc f() = let a = 1; a\n"
