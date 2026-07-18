@@ -193,6 +193,11 @@ func main() {
 		}
 		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
 
+	case "fmt":
+		// Canonical AILANG source formatter (M-AILANG-FMT). Owns its own flag
+		// parsing and exit codes; never returns on its exit paths.
+		runFmtCommand(flag.Args()[1:])
+
 	case "iface":
 		ifaceFS := flag.NewFlagSet("iface", flag.ExitOnError)
 		ifaceCompact := ifaceFS.Bool("compact", false, "Compact one-line-per-export signatures (dense typed-interface view for agent context)")

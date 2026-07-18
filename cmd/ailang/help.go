@@ -90,6 +90,7 @@ func printHelp() {
 	fmt.Printf("  %s                   Run tests\n", cyan("test [path]"))
 	fmt.Printf("  %s           Watch file for changes and auto-reload\n", cyan("watch <file>"))
 	fmt.Printf("  %s           Type-check a file without running\n", cyan("check <file>"))
+	fmt.Printf("  %s     Format AILANG source (stdout / --write / --check)\n", cyan("fmt <file.ail>"))
 	fmt.Printf("  %s      Unified check+verify JSON output (for AI)\n", cyan("ai-check <file>"))
 	fmt.Printf("  %s  Diagnose FS sandbox path resolution (AILANG_FS_SANDBOX)\n", cyan("sandbox-check <path>"))
 	fmt.Printf("  %s        Output normalized JSON interface for a module\n", cyan("iface <module>"))
