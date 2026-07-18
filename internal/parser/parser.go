@@ -30,6 +30,17 @@ type Parser struct {
 
 	// M-GAP4: Fresh row variable counter for sugar syntax {a: T, ..}
 	rowVarCounter int
+
+	// Module-declaration tracking (M-PROMPT-FOOTGUNS): records that ParseFile has
+	// consumed a VALID leading module declaration. Set ONLY in ParseFile's
+	// leading-module branch — NEVER in the reportMisplacedModule recovery path.
+	// This state-isolation rule (gemini's error-recovery fix) ensures that a
+	// module-less file with two late `module` declarations emits
+	// PAR_MODULE_PLACEMENT for BOTH (the second is never a false MOD002 that
+	// would reference a non-existent "first module").
+	seenModule      bool
+	firstModulePos  ast.Pos
+	firstModulePath string
 }
 
 type (

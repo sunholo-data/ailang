@@ -46,7 +46,17 @@ func (p *Parser) ParseFile() (file *ast.File) {
 
 	// Optional module declaration
 	if p.curTokenIs(lexer.MODULE) {
+		modPos := p.curPos()
 		file.Module = p.parseModuleDecl()
+		// Record the valid leading module so a later (misplaced) module token can
+		// be reported as a genuine duplicate (MOD002). This is the ONLY place that
+		// sets seenModule/firstModulePos/firstModulePath — the reportMisplacedModule
+		// recovery path must never mutate them (state-isolation rule).
+		p.seenModule = true
+		p.firstModulePos = modPos
+		if file.Module != nil {
+			p.firstModulePath = file.Module.Path
+		}
 		p.nextToken()
 	}
 
@@ -394,6 +404,86 @@ func (p *Parser) reportMisplacedImport() ast.Node {
 		p.errors = p.errors[:errCountBefore]
 	}
 
+	return nil
+}
+
+// reportMisplacedModule emits a coded, fix-carrying diagnostic for a `module`
+// token encountered at declaration level (i.e. anywhere other than the file's
+// first declaration, which ParseFile consumes directly). Today such a token
+// falls through parseTopLevelDecl's switch into expression parsing, producing
+// the opaque PAR_NO_PREFIX_PARSE + PAR_UNEXPECTED_TOKEN cascade with no rule
+// statement — mirroring the pre-#325 misplaced-import footgun.
+//
+// Two variants, mirroring the module system's registry semantics:
+//   - a VALID leading module was already seen  → this is a genuine DUPLICATE →
+//     errors.MOD002 ("multiple module declarations in single file"), naming both
+//     paths and the first module's position.
+//   - no leading module was seen (module-less file with a late module) → the
+//     module is MISPLACED, not duplicated → PAR_MODULE_PLACEMENT.
+//
+// State-isolation rule (gemini's error-recovery fix): this recovery path MUST
+// NOT set seenModule/firstModulePos/firstModulePath. Only ParseFile's valid
+// leading-module branch sets them. Otherwise a module-less file with two late
+// modules would flip seenModule on the first recovery and emit a false MOD002
+// (referencing a non-existent "first module") for the second — instead of the
+// correct PAR_MODULE_PLACEMENT for BOTH.
+//
+// Design choice (documented in m-diagnostic-coverage, mirrored from
+// reportMisplacedImport): one diagnostic per offending declaration, so each
+// offending line is pointed at individually — matching how models read per-line
+// compiler output. The message text still states the "exactly one module per
+// file" rule (the teaching payload).
+func (p *Parser) reportMisplacedModule() ast.Node {
+	pos := p.curPos()
+	tok := p.curToken
+
+	// Recover the offending module's path WITHOUT mutating module state, so we
+	// can name it in the diagnostic and consume it for clean continuation.
+	errCountBefore := len(p.errors)
+	late := p.parseModuleDecl()
+	// Truncate any errors parseModuleDecl appended — we've already reported (or
+	// will report) the single diagnostic that matters; we don't want the
+	// placement/duplicate error to cascade into module-internal complaints.
+	if len(p.errors) > errCountBefore {
+		p.errors = p.errors[:errCountBefore]
+	}
+	latePath := "<module>"
+	if late != nil {
+		latePath = late.Path
+	}
+
+	var err *ParserError
+	if p.seenModule {
+		// Genuine duplicate: a valid leading module already exists.
+		err = NewSuggestionError(
+			errors.MOD002,
+			pos,
+			tok,
+			fmt.Sprintf("duplicate module declaration '%s' — AILANG requires exactly one module declaration per file (first module '%s' declared at %s)",
+				latePath, p.firstModulePath, p.firstModulePos),
+			[]string{
+				"keep the single module declaration at the top and define all functions inside it (module-per-file, like Go packages — not Python modules)",
+				"to model multiple namespaces, split into separate .ail files, one module declaration each",
+			},
+			"https://ailang.sunholo.com/docs/guides/module_execution",
+		)
+	} else {
+		// Misplaced (module-less file with a late module).
+		err = NewSuggestionError(
+			"PAR_MODULE_PLACEMENT",
+			pos,
+			tok,
+			"the module declaration must be the first declaration in the file",
+			[]string{
+				fmt.Sprintf("move 'module %s' above the other declarations at the top of the file", latePath),
+			},
+			"https://ailang.sunholo.com/docs/guides/module_execution",
+		)
+	}
+	p.errors = append(p.errors, err)
+
+	// parseModuleDecl leaves the cursor AT its last token (parser convention), so
+	// the ParseFile loop's nextToken() advances correctly to the next declaration.
 	return nil
 }
 

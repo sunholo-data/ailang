@@ -141,6 +141,34 @@ export func main() -> list[int] { map(\x. x, [1,2,3]) }
 `,
 	},
 	{
+		// PARSE error (M-PROMPT-FOOTGUNS) — a second `module` declaration in one
+		// file. Used to yield the opaque PAR_NO_PREFIX_PARSE + PAR_UNEXPECTED_TOKEN
+		// cascade; now the dormant MOD002 fires, stating the one-module-per-file
+		// rule and naming both module paths.
+		name:   "duplicate_module",
+		code:   "MOD002",
+		fix:    "exactly one module declaration per file",
+		status: "shipped-this-sprint", // M-PROMPT-FOOTGUNS
+		src: `module benchmark/math_utils
+export func add(a: int, b: int) -> int { a + b }
+module benchmark/string_utils
+export func greet(name: string) -> string { name }
+`,
+	},
+	{
+		// PARSE error (M-PROMPT-FOOTGUNS) — a module declaration that is not first
+		// (module-less file with a late module). Distinct from a duplicate: nothing
+		// was duplicated, so PAR_MODULE_PLACEMENT (not MOD002) fires.
+		name:   "misplaced_module",
+		code:   "PAR_MODULE_PLACEMENT",
+		fix:    "must be the first declaration in the file",
+		status: "shipped-this-sprint", // M-PROMPT-FOOTGUNS
+		src: `import std/list (map)
+module test/late
+export func main() -> int { 1 }
+`,
+	},
+	{
 		// EFFECT error (M-EFFECT-MODE-VALIDATION) — closed mode set. Value
 		// outside the schema value set. Assert a STABLE legal-value substring.
 		name:   "effect_unknown_mode",

@@ -334,6 +334,16 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		// failed self-repair. Emit a single fix-carrying placement diagnostic and
 		// consume the whole import so we don't cascade into further errors.
 		return p.reportMisplacedImport()
+	case lexer.MODULE:
+		// M-PROMPT-FOOTGUNS: A `module` token at declaration level means the file
+		// has a second/misplaced module declaration (the valid leading module is
+		// consumed directly by ParseFile). The old behaviour fell through to
+		// parseExpression → PAR_NO_PREFIX_PARSE ("unexpected token in expression:
+		// module") + a PAR_UNEXPECTED_TOKEN cascade, which never stated the
+		// one-module-per-file rule. Emit a single coded, fix-carrying diagnostic
+		// (MOD002 duplicate / PAR_MODULE_PLACEMENT misplaced) and consume the whole
+		// module declaration so we don't cascade into further errors.
+		return p.reportMisplacedModule()
 	case lexer.CLASS:
 		return p.parseClassDeclaration()
 	case lexer.INSTANCE:

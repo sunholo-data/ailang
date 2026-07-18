@@ -90,7 +90,11 @@ const (
 	// MOD010 indicates module/path mismatch (e.g., module foo/bar but file is foo/baz.ail)
 	MOD010 = "MOD010"
 
-	// MOD011 indicates multiple module declarations per file
+	// MOD011 indicates a cross-FILE module-name collision (two files declaring the
+	// same module path), detected in the module pipeline. NOTE: per-file duplicate
+	// module declarations are a PARSE-time diagnostic (MOD002 /
+	// PAR_MODULE_PLACEMENT), not MOD011 — the old "multiple module declarations per
+	// file" comment here was stale (M-PROMPT-FOOTGUNS).
 	MOD011 = "MOD011"
 
 	// MOD012 indicates implicit module (file without module declaration)

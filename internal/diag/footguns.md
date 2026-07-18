@@ -39,6 +39,8 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
 |---------|-----------------|----------------------------------------------|-------------------|---------|------------------------|--------|
 | `++` on strings | `"a" ++ "b"` | ``type error: ++ operator at ...: `++` is for lists only. For strings use "${expr}" interpolation, concat([parts]), or join(sep, parts).`` | (met — gold standard) | `footgun_fixtures_test.go:plusplus_strings` | `prompts/v0.16.2.md:199`; String and List Concatenation section (≈1193–1210) | covered |
 | import after a declaration (#325) | `type Op = Add`<br>`import std/list (map)` | `PAR_IMPORT_PLACEMENT at ...: imports must appear immediately after the module declaration` + suggestion `move this import above the first type/func declaration` | (met this sprint) | `footgun_fixtures_test.go:import_placement`, `import_placement_rule_stated` | (none in prompt today — pre-empts a future line) | shipped-this-sprint |
+| duplicate `module` declaration in one file (M-PROMPT-FOOTGUNS) | `module benchmark/a`<br>...<br>`module benchmark/b` | `MOD002 at ...: duplicate module declaration 'benchmark/b' — AILANG requires exactly one module declaration per file (first module 'benchmark/a' declared at ...)` + suggestions `keep the single module declaration at the top ...` / `to model multiple namespaces, split into separate .ail files ...` | (met — wires the dormant MOD002; kills the PAR_NO_PREFIX_PARSE cascade) | `footgun_fixtures_test.go:duplicate_module` | (none in prompt — pre-empts a future line) | shipped-this-sprint |
+| misplaced (non-first) `module` declaration (M-PROMPT-FOOTGUNS) | `import std/list (map)`<br>`module test/late` | `PAR_MODULE_PLACEMENT at ...: the module declaration must be the first declaration in the file` + suggestion `move 'module test/late' above the other declarations at the top of the file` | (met — new PAR_MODULE_PLACEMENT; distinct from duplicate) | `footgun_fixtures_test.go:misplaced_module` | (none in prompt) | shipped-this-sprint |
 | module-local func not resolvable in some position (#323→#327→#366 family) | e.g. `let sub4 = \y. subtract(4, y)` where `subtract` is a module func | `undefined variable: subtract at ... (subtract is defined in this module but not resolvable in this position — please report as #366; workaround: declare subtract as a \`func\`)` — residual net; the known members (record-update fields #327, module-let/letrec decl class #366) are FIXED, so this now fires only for a not-yet-discovered position | truth-telling residual (cites LIVE #366, drops closed #327, gives the VERIFIED `func` workaround) | `internal/types/local_resolution_hint_test.go` | (none — this is a bug, not a prompt line) | retired-trigger/residual-net |
 | duplicate module-scope binding (let/func same name) (#366, MOD007) | `let helper = 5`<br>`export func helper() -> int = 10` | `Error MOD007: 'helper' is declared as both a module-level let (at ...) and a func (at ...) — a module-scope name may have only one binding.` + `Fix: rename one of them, or fold the let into the func body` | (met — fix-carrying, both positions) | `footgun_fixtures_test.go:TestFootgunFixture_MOD007_DuplicateModuleBinding` (module pipeline, needs a real filename, per MOD014 precedent) | (none in prompt) | shipped-this-sprint |
 | `println(42)` / `print(42)` (needs string) | `println(42)` | `type error: ... No instance for Num[string] in scope. Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number.` | should name the print-arg-must-be-string rule + suggest `show(42)`; current message is about arithmetic, misdirecting | (future) | `prompts/v0.16.2.md:2338` | inventoried |
@@ -57,16 +59,18 @@ pipeline (`internal/diag/footgun_fixtures_test.go`, driving `pipeline.Run` in
 | param on schema-less effect (M-EFFECT-MODE-VALIDATION) | `Clock[mode=pinned]` | `EFF_PARAMS_NOT_SUPPORTED at ...: effect 'Clock' does not support parameters (found: mode). Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.` + `Fix: drop the parameter and use the bare effect 'Clock'.` | (met — fix-carrying) | `footgun_fixtures_test.go:effect_params_not_supported` | (none in prompt) | shipped-this-sprint |
 | module-less file with top-level funcs (M-MODLESS-FAIL-LOUD) | `export func main() -> () ! {IO} { ... }` with **no** `module` line | `Error MOD014: no 'module' declaration — this file has top-level declarations but no module, so nothing is exported and the entry never runs.` + `Fix: add 'module <canonical/path>' as the first line of the file` | (met — fix-carrying) | `footgun_fixtures_test.go:TestFootgunFixture_MOD014_ModuleLess` (needs a real filename — MOD014 fires only in the module pipeline, so it is a standalone test, not a `footgunFixtures` inline-Code row; the `BareExpressionPreserved` sibling guards the `1 + 1` eval escape hatch) | (none in prompt) | shipped-this-sprint |
 
-**Count:** 19 rows (≥ 10 required).
+**Count:** 21 rows (≥ 10 required).
 
-- **Fixtured footgun rows: 10** — `++` (covered), import-after-decl (shipped-this-sprint, contributes
+- **Fixtured footgun rows: 12** — `++` (covered), import-after-decl (shipped-this-sprint, contributes
   **2** fixtures: `import_placement` + `import_placement_rule_stated`), the 4 promoted by
-  M-DIAG-FIXTURE-PROMOTION (reserved keyword, hyphen, `;`-in-expr-func, stdlib-import hint), and the
-  **3** added by M-EFFECT-MODE-VALIDATION (unknown-mode, unknown-param-key, params-not-supported). So
-  the fixture *entry* count in `footgunFixtures` is 10, mapping to **9 distinct footgun rows** in this
-  table (import-after-decl has two fixtures).
-- **CI-fixtured footgun rows in this table: 9** (1 `covered` `++` + 1 `shipped-this-sprint`
-  import-after-decl + 4 promoted-this-sprint `covered` + 3 `shipped-this-sprint` effect-mode). The
+  M-DIAG-FIXTURE-PROMOTION (reserved keyword, hyphen, `;`-in-expr-func, stdlib-import hint), the
+  **3** added by M-EFFECT-MODE-VALIDATION (unknown-mode, unknown-param-key, params-not-supported),
+  and the **2** added by M-PROMPT-FOOTGUNS (`duplicate_module` MOD002, `misplaced_module`
+  PAR_MODULE_PLACEMENT). So the fixture *entry* count in `footgunFixtures` is 12, mapping to **11
+  distinct footgun rows** in this table (import-after-decl has two fixtures).
+- **CI-fixtured footgun rows in this table: 11** (1 `covered` `++` + 1 `shipped-this-sprint`
+  import-after-decl + 4 promoted-this-sprint `covered` + 3 `shipped-this-sprint` effect-mode + 2
+  `shipped-this-sprint` module-placement). The
   #327-interim row is `shipped-this-sprint` but its contract lives in
   `internal/types/local_resolution_hint_test.go`, not `footgunFixtures`.
 - **Promote-to-`covered` candidates remaining: 1** (down from 5) — only `%`/Fractional, and it is
