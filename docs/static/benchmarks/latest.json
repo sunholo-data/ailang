@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-18T19:41:57+02:00",
+  "timestamp": "2026-07-18T20:27:06+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34049,7 +34049,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-18T19:41:55+02:00",
+      "timestamp": "2026-07-18T20:27:04+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51089,15 +51089,15 @@
         {
           "band": "Moderate",
           "elo": 1516.9,
-          "id": "fold_reduce",
-          "passRate": 91.7,
+          "id": "contract_leap_year",
+          "passRate": 90,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.9,
-          "id": "contract_leap_year",
-          "passRate": 90,
+          "id": "fold_reduce",
+          "passRate": 91.7,
           "saturated": false
         },
         {
@@ -51111,15 +51111,15 @@
         {
           "band": "Moderate",
           "elo": 1516.2,
-          "graderFlag": "free-text-exact-match",
-          "id": "decision_block_capture",
+          "id": "effect_txn_rollback",
           "passRate": 90,
           "saturated": false
         },
         {
           "band": "Moderate",
           "elo": 1516.2,
-          "id": "effect_txn_rollback",
+          "graderFlag": "free-text-exact-match",
+          "id": "decision_block_capture",
           "passRate": 90,
           "saturated": false
         },
@@ -51607,15 +51607,15 @@
             {
               "band": "Easy",
               "elo": 1482.4,
-              "id": "state_machine_vending",
+              "graderFlag": "free-text-exact-match",
+              "id": "decision_block_capture",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1482.4,
-              "graderFlag": "free-text-exact-match",
-              "id": "decision_block_capture",
+              "id": "state_machine_vending",
               "passRate": 90,
               "saturated": false
             },
@@ -51636,14 +51636,14 @@
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "api_call_json",
+              "id": "polymorphic_ord_defaulting",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "polymorphic_ord_defaulting",
+              "id": "api_call_json",
               "passRate": 90,
               "saturated": false
             },
@@ -51692,14 +51692,14 @@
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "balanced_parens",
+              "id": "recursion_fibonacci",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "recursion_fibonacci",
+              "id": "balanced_parens",
               "passRate": 100,
               "saturated": true
             },
@@ -53576,14 +53576,14 @@
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "cli_args",
+              "id": "error_handling",
               "passRate": 94.1,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1187.6,
-              "id": "error_handling",
+              "id": "cli_args",
               "passRate": 94.1,
               "saturated": true
             },
@@ -54077,14 +54077,14 @@
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "api_call_json",
+              "id": "graph_bfs",
               "passRate": 88.2,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1423.5,
-              "id": "graph_bfs",
+              "id": "api_call_json",
               "passRate": 88.2,
               "saturated": false
             },
