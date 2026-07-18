@@ -744,6 +744,13 @@ triage evidence = log entry 10.)*
 - **Flagship + surface**: m-v1-orchestration-flagship (verified AI-pipeline example + orchestration
   benchmarks into rotation + README/site lead, 2–3d; m-contracts-as-code-vertical folds in as the
   worked example) · m-serve-api-live-tool-registry (hot MCP tool registry, 3–4d) ·
+  **m-serveapi-raw-handler-mcp** (DOC-READY, quorum-pending → [planned/v0_30_0/m-serveapi-raw-handler-mcp.md](planned/v0_30_0/m-serveapi-raw-handler-mcp.md);
+  M1 `@nomcp` MCP-exclusion annotation — keep a `@route` on HTTP but off the `--mcp-http` tool surface
+  (`@noexpose` can't: it also kills HTTP + is overridden by `@route`) — closes the live docparse
+  `getKeyUsage`/`requestHistory` MCP leak; M2 `@raw` handlers callable over MCP by synthesizing the
+  `{body,headers,method,path,query}` envelope into `req.body` — NO retype/breaking change (rejects the
+  `req: Json` path that breaks record access). Unblocks docparse quota-hardening item 5. Verification Log
+  V1–V9 code-grounded; touches `internal/parser` allowlist → Conflict Surface done. Axiom net +6. ~1.5d) ·
   m-agent-step-cancellation (1.5d) · m-ai-reasoning-effort (~0.5d)
 
 ### Clause 5 — cost credibility
