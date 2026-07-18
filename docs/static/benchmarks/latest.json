@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-18T08:37:46+02:00",
+  "timestamp": "2026-07-18T09:22:54+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34028,7 +34028,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-18T08:37:44+02:00",
+      "timestamp": "2026-07-18T09:22:52+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51068,6 +51068,13 @@
         {
           "band": "Moderate",
           "elo": 1516.7,
+          "id": "contract_leap_year",
+          "passRate": 90,
+          "saturated": false
+        },
+        {
+          "band": "Moderate",
+          "elo": 1516.7,
           "graderFlag": "set-repr",
           "id": "contract_sorted_merge",
           "passRate": 90,
@@ -51075,8 +51082,8 @@
         },
         {
           "band": "Moderate",
-          "elo": 1516.7,
-          "id": "contract_leap_year",
+          "elo": 1516.1,
+          "id": "effect_txn_rollback",
           "passRate": 90,
           "saturated": false
         },
@@ -51090,8 +51097,8 @@
         {
           "band": "Moderate",
           "elo": 1516.1,
-          "id": "effect_txn_rollback",
-          "passRate": 90,
+          "id": "numeric_modulo",
+          "passRate": 91.7,
           "saturated": false
         },
         {
@@ -51100,13 +51107,6 @@
           "graderFlag": "free-text-exact-match",
           "id": "decision_block_capture",
           "passRate": 90,
-          "saturated": false
-        },
-        {
-          "band": "Moderate",
-          "elo": 1516.1,
-          "id": "numeric_modulo",
-          "passRate": 91.7,
           "saturated": false
         },
         {
@@ -51210,14 +51210,14 @@
         {
           "band": "Trivial",
           "elo": 917.3,
-          "id": "fizzbuzz",
+          "id": "recursion_fibonacci",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 917.3,
-          "id": "recursion_fibonacci",
+          "id": "fizzbuzz",
           "passRate": 100,
           "saturated": true
         },
@@ -51586,15 +51586,15 @@
             {
               "band": "Easy",
               "elo": 1482.4,
-              "graderFlag": "free-text-exact-match",
-              "id": "decision_block_capture",
+              "id": "state_machine_vending",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1482.4,
-              "id": "state_machine_vending",
+              "graderFlag": "free-text-exact-match",
+              "id": "decision_block_capture",
               "passRate": 90,
               "saturated": false
             },
@@ -51615,14 +51615,14 @@
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "api_call_json",
+              "id": "polymorphic_ord_defaulting",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1481.2,
-              "id": "polymorphic_ord_defaulting",
+              "id": "api_call_json",
               "passRate": 90,
               "saturated": false
             },
@@ -51699,14 +51699,14 @@
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "immutable_data_structures",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "gcd_lcm",
+              "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
@@ -52100,14 +52100,14 @@
             {
               "band": "Trivial",
               "elo": 1266.3,
-              "id": "nested_records",
+              "id": "lambda_calc",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1266.3,
-              "id": "lambda_calc",
+              "id": "nested_records",
               "passRate": 100,
               "saturated": true
             },
@@ -52149,14 +52149,14 @@
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "merge_sort",
+              "id": "json_parse",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1264.5,
-              "id": "json_parse",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
