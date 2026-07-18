@@ -33,9 +33,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // liveProbe describes one environment-shape experiment.
@@ -314,4 +317,95 @@ func TestLiveEnvironmentContract(t *testing.T) {
 		fmt.Printf("AGENT TEXT OUTPUT (verbatim, IDs are not present here):\n%s\n\n", r.agentText)
 	}
 	fmt.Printf("========== END SPIKE ==========\n")
+}
+
+// sha40LineLive matches a standalone echoed 40-hex `git rev-parse HEAD`.
+var sha40LineLive = regexp.MustCompile(`(?m)^\s*([0-9a-fA-F]{40})\s*$`)
+
+// TestLiveCloneOverEgressE2E is the M-GEMINI-REPO-MOUNT Phase 2 (M4) live E2E:
+// an egress-enabled sandbox performs the fetch-by-SHA clone-review END-TO-END —
+// clone -> checkout target SHA -> echo `git rev-parse HEAD` -> emit a verdict —
+// through the PRODUCTION Executor.Execute path (RequiresEgress=true drives
+// buildEnvironment to emit the wildcard-egress shape). It confirms the one
+// INCORPORATED-not-yet-live-verified premise: the provider supports
+// `git fetch --depth 1 <sha>`.
+//
+// Gating (all three tiers, in order):
+//   - AILANG_LIVE_MANAGED_AGENTS_MOUNT != "1"  => SKIP (default CI: never runs).
+//   - ADC unavailable (no token)               => SKIP (never a pass, never a fail).
+//   - provider rejects fetch-by-SHA            => FAIL LOUDLY (surface as a
+//     design-doc follow-up; NO silent fallback to a full clone).
+//
+// Run it with:
+//
+//	AILANG_LIVE_MANAGED_AGENTS_MOUNT=1 \
+//	  go test ./internal/executor/managed_agents/ -run TestLiveCloneOverEgressE2E -v -timeout 20m
+//
+// Optional: AILANG_LIVE_MA_SHA pins the reviewed commit (default: repo HEAD via
+// the empty-SHA shallow-clone path, which still exercises the egress env).
+func TestLiveCloneOverEgressE2E(t *testing.T) {
+	if os.Getenv("AILANG_LIVE_MANAGED_AGENTS_MOUNT") != "1" {
+		t.Skip("live clone-over-egress E2E disabled; set AILANG_LIVE_MANAGED_AGENTS_MOUNT=1 (needs ADC, provisions a real egress sandbox)")
+	}
+	// ADC probe: a missing token is a SKIP, never a pass and never a fail.
+	if _, err := defaultTokenSource(context.Background()); err != nil {
+		t.Skipf("ADC unavailable — skipping live E2E (run `gcloud auth application-default login`): %v", err)
+	}
+
+	project := os.Getenv("AILANG_LIVE_MA_PROJECT")
+	if project == "" {
+		project = "ailang-dev"
+	}
+	location := os.Getenv("AILANG_LIVE_MA_LOCATION")
+	if location == "" {
+		location = "global"
+	}
+	repo := os.Getenv("AILANG_LIVE_MA_REPO")
+	if repo == "" {
+		repo = "https://github.com/sunholo-data/ailang.git"
+	}
+	sha := os.Getenv("AILANG_LIVE_MA_SHA") // empty => HEAD review (still egress)
+
+	// Build the SAME clone-review preamble the CLI + eval-bridge use.
+	preamble, err := executor.BuildClonePreamble(repo, sha)
+	if err != nil {
+		t.Fatalf("BuildClonePreamble: %v", err)
+	}
+	directive := preamble +
+		"\nAfter cloning, respond with the single line CLONE_OK if `git status` succeeds inside the clone, " +
+		"then a fenced ```json block: {\"score\":100,\"pass\":true,\"blockers\":[]}.\n"
+
+	exec, err := New(&executor.Config{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	task := &executor.Task{
+		ID:             "live-clone-egress-e2e",
+		Directive:      directive,
+		GCPProject:     project,
+		GCPLocation:    location,
+		Timeout:        15 * time.Minute,
+		RequiresEgress: true, // drives buildEnvironment -> wildcard-egress shape
+	}
+
+	res, err := exec.Execute(context.Background(), task)
+	if err != nil {
+		// A provider-side rejection of fetch-by-SHA surfaces here — LOUD, not silent.
+		t.Fatalf("live clone-over-egress Execute failed (if the provider rejected `git fetch --depth 1 <sha>`, record it as a design-doc follow-up — do NOT fall back to a full clone): %v", err)
+	}
+
+	// Evidence: the sandbox must echo a real 40-hex HEAD (proof it cloned).
+	m := sha40LineLive.FindStringSubmatch(res.Output)
+	if m == nil {
+		t.Fatalf("live E2E: no echoed `git rev-parse HEAD` 40-hex SHA in output (clone likely failed):\n%s", res.Output)
+	}
+	got := strings.ToLower(m[1])
+	if sha != "" && got != strings.ToLower(sha) {
+		t.Fatalf("live E2E: echoed HEAD %s != pinned SHA %s (fetch-by-SHA checked out the wrong revision)", got, sha)
+	}
+	if !strings.Contains(res.Output, "CLONE_OK") {
+		t.Errorf("live E2E: sandbox did not confirm CLONE_OK; git may have failed in-sandbox:\n%s", res.Output)
+	}
+	t.Logf("live clone-over-egress E2E OK: reviewed revision %s (%dms, %d in / %d out tokens, $%.6f)",
+		got, res.DurationMS, res.InputTokens, res.OutputTokens, res.CostUSD)
 }

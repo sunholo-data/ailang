@@ -104,6 +104,48 @@ executor that advertises `executor.CapRemoteSandbox`. Other backend callers
 that don't need file bridging (e.g. plain reasoning queries) get a
 policy-free executor.
 
+### Clone-over-egress: in-sandbox verification (`--clone-repo`)
+
+By default the sandbox has no network egress and no local repo, so a Gemini
+review can only *reason* about a prompt-packed diff. With **opt-in egress** the
+hosted agent can instead `git clone` the **public** AILANG repo at a target
+revision and run review / `ailang check` **in-sandbox**, returning a structured
+verdict — real verification, not reasoning-only.
+
+Egress is strictly opt-in and visible in the request payload. It is gated by the
+`executor.CapNetworkEgress` capability (only `managed_agents` advertises it):
+setting `Task.RequiresEgress` on any other executor is a **loud pre-dispatch
+error**, never a silent fallback.
+
+```bash
+# HEAD review — shallow clone of the repo's default branch
+ailang exec gemini "Review the repo for correctness" \
+  --clone-repo https://github.com/sunholo-data/ailang.git
+
+# Pinned-SHA review — shallow fetch-by-SHA of exactly one commit
+ailang exec gemini "Review this revision" \
+  --clone-repo https://github.com/sunholo-data/ailang.git \
+  --clone-sha 806b3b4a4c0000000000000000000000000000ab
+```
+
+- Both modes are **shallow** (`--depth 1`) and bounded by construction — the HEAD
+  path clones HEAD; the pinned path does `git fetch --depth 1 origin <sha>` (no
+  full-history walk).
+- `--clone-repo` on any provider other than `gemini`, or together with
+  `--api-only` (which has no sandbox), or `--clone-sha` without `--clone-repo`,
+  **exits non-zero with a clear error**.
+- The agent must echo `git rev-parse HEAD`. The eval bridge
+  (`EvalOptions.CloneRepoURL` / `CloneSHA` in `gemini_evaluator_bridge.go`)
+  verifies it: a pinned review must match the requested SHA; a HEAD review must
+  produce a valid 40-hex SHA (recorded as the reviewed revision). Missing or
+  mismatched evidence — or a deadline-exceeded run — stamps
+  `verification_degraded: true` with a reason. Absent evidence is **never** a
+  clean pass.
+- **Security:** `network.allowlist` is wildcard (`{"domain":"*"}`) — the only
+  shape Vertex accepts today. It is scoped to a **read-only reviewer cloning a
+  PUBLIC repo**, so no secret/PAT/credential ever enters the sandbox. The
+  private-repo path is out of scope.
+
 ### Limits
 
 - **No multi-turn yet.** Each Execute() provisions a fresh sandbox.

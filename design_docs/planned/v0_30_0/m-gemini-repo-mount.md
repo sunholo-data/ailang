@@ -429,36 +429,72 @@ path:
 | **M3** — eval-harness clone-review | `EvalOptions.CloneRepoURL/CloneSHA` → clone directive + HEAD-evidence check + unchanged-fallback regression tests + timeout/cancellation tests (deadline-exceeded ⇒ degraded; caller ctx honored, no fresh background ctx) |
 | **M4** — live E2E + docs | `AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`-gated (CI-skipped) end-to-end clone→check→verdict run; evidence recorded in this doc |
 
+#### Implementation status (sprint `M-GEMINI-REPO-MOUNT`, branch `sprint/g4-clone-over-egress`)
+
+- **M1 — DONE.** `Task.RequiresEgress`, `CapNetworkEgress`, and shared
+  `ValidateTaskCapabilities` in `internal/executor/executor.go`; `buildEnvironment`
+  replaces the `envRaw` hardcode in `managed_agents.go` and the executor advertises
+  `CapNetworkEgress`. Golden tests pin both JSON shapes byte-for-byte + the loud
+  non-capability rejection (fake executor, no `Execute` call). No live call.
+- **M2 — DONE.** `--clone-repo`/`--clone-sha` in `cmd/ailang/exec.go`; a single-source
+  `executor.BuildClonePreamble` (shared with M3 so CLI + bridge cannot drift) and
+  `executor.ValidateCloneFlags` (dispatch-independent). Non-`managed_agents`,
+  `--api-only`, `--clone-sha`-without-`--clone-repo`, and invalid-SHA all exit
+  non-zero. Help updated. Parsing tests cover every case.
+- **M3 — DONE.** `EvalOptions.CloneRepoURL/CloneSHA` in `gemini_evaluator_bridge.go`;
+  clone-review directive replaces the diff bundle when set (unset ⇒ `BuildDiffBundle`
+  path unchanged, regression-tested). Conditional echoed-`git rev-parse HEAD` evidence
+  check (pinned ⇒ equal; HEAD ⇒ valid 40-hex, recorded on `GeminiVerdict.ReviewedRevision`);
+  missing/invalid/mismatch/deadline-exceeded ⇒ `VerificationDegraded` with reason. Caller
+  ctx threaded unchanged (pre-cancelled-ctx-reaches-runner test).
+- **M4 — CODE + DOCS DONE; LIVE RUN SKIPPED (no ADC in executor worktree).** The gated E2E
+  `TestLiveCloneOverEgressE2E` (in `managed_agents_live_test.go`) exercises the fetch-by-SHA
+  clone-review through the production `Execute` path. It is CI-skipped and SKIPs (never
+  fails, never passes) when ADC is absent — verified both gate-off and gate-on-but-no-ADC.
+  **The one INCORPORATED-not-yet-live-verified premise — provider support for
+  `git fetch --depth 1 <sha>` — still needs a live confirmation run with ADC + Vertex spend
+  (hand-off to Mark).** A provider rejection surfaces as a LOUD test failure (design-doc
+  follow-up), never a silent fallback to a full clone.
+
 ### Acceptance criteria (testable)
 
-- [ ] **Default unchanged:** `RequiresEgress == false` → environment payload byte-identical
-  `{"type":"remote"}` (golden test, no live call).
-- [ ] **Egress shape pinned:** `RequiresEgress == true` → exactly
-  `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}` (unit/golden test, no live call).
-- [ ] `RequiresEgress` set on an executor that does NOT advertise `CapNetworkEgress` → loud shared
+- [x] **Default unchanged:** `RequiresEgress == false` → environment payload byte-identical
+  `{"type":"remote"}` (golden test, no live call). — `TestBuildEnvironment_DefaultByteIdentical`
+- [x] **Egress shape pinned:** `RequiresEgress == true` → exactly
+  `{"type":"remote","network":{"allowlist":[{"domain":"*"}]}}` (unit/golden test, no live call). —
+  `TestBuildEnvironment_EgressShapePinned`
+- [x] `RequiresEgress` set on an executor that does NOT advertise `CapNetworkEgress` → loud shared
   pre-dispatch error before any network I/O (unit test with a fake non-capability executor; no
-  `Execute`/`ExecuteStreaming` call is made).
-- [ ] `ailang exec claude --clone-repo …` (any non-managed_agents resolution) and
-  `ailang exec gemini --api-only --clone-repo …` → non-zero exit with a clear error (unit test).
-- [ ] `--clone-sha` without `--clone-repo` → error.
-- [ ] Eval bridge with clone options unset → `BuildDiffBundle` fallback path unchanged (regression test).
-- [ ] Eval bridge with `CloneSHA` set and a mismatched `rev-parse HEAD` echo →
-  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner).
-- [ ] Eval bridge in HEAD review (`CloneSHA` empty) with a valid non-empty 40-hex `rev-parse HEAD`
+  `Execute`/`ExecuteStreaming` call is made). — `TestValidateTaskCapabilities_EgressOnNonCapableExecutor_LoudReject`
+- [x] `ailang exec claude --clone-repo …` (any non-managed_agents resolution) and
+  `ailang exec gemini --api-only --clone-repo …` → non-zero exit with a clear error (unit test). —
+  `TestCloneFlagValidation_CLIWiring`
+- [x] `--clone-sha` without `--clone-repo` → error. — `TestCloneFlagValidation_CLIWiring` / `TestValidateCloneFlags`
+- [x] Eval bridge with clone options unset → `BuildDiffBundle` fallback path unchanged (regression test).
+  — `TestRunGeminiEvaluator_CloneUnset_FallbackUnchanged` (+ existing `TestRunGeminiEvaluator_StubHappyPath`)
+- [x] Eval bridge with `CloneSHA` set and a mismatched `rev-parse HEAD` echo →
+  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner). —
+  `TestRunGeminiEvaluator_ClonePinned_Mismatch_Degraded`
+- [x] Eval bridge in HEAD review (`CloneSHA` empty) with a valid non-empty 40-hex `rev-parse HEAD`
   echo → `VerificationDegraded == false`, echoed SHA recorded as the reviewed revision (positive unit
-  test — HEAD reviews must pass cleanly).
-- [ ] Eval bridge (either mode) with a missing/empty/invalid `rev-parse HEAD` echo →
-  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner).
-- [ ] **Timeout is structured degraded:** a fake runner returning a `context.DeadlineExceeded`-class
+  test — HEAD reviews must pass cleanly). — `TestRunGeminiEvaluator_CloneHEAD_ValidEchoPasses`
+- [x] Eval bridge (either mode) with a missing/empty/invalid `rev-parse HEAD` echo →
+  `VerificationDegraded == true` with non-empty `DegradedReason` (unit test with fake runner). —
+  `TestRunGeminiEvaluator_CloneMissingEvidence_Degraded`
+- [x] **Timeout is structured degraded:** a fake runner returning a `context.DeadlineExceeded`-class
   error → `VerificationDegraded == true` with non-empty `DegradedReason` (unit test; never a retry,
-  never a clean pass).
-- [ ] **Caller ctx honored:** the managed_agents env-builder + clone-review path creates no fresh
+  never a clean pass). — `TestRunGeminiEvaluator_CloneDeadlineExceeded_Degraded`
+- [x] **Caller ctx honored:** the managed_agents env-builder + clone-review path creates no fresh
   background context — the caller's ctx reaches `sendInteraction` via the existing
-  `WithTimeout` propagation (`managed_agents.go:183/187`) and the eval-bridge threading
-  (`gemini_evaluator_bridge.go:594/620/682`) (assertion/unit test).
-- [ ] Live-gated E2E (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, skipped in default CI; missing ADC is a SKIP,
-  never a pass): sandbox clones the public repo, runs the directive, returns a parsed verdict.
-- [ ] All tests passing; `ailang exec` help + docs updated.
+  `WithTimeout` propagation and the eval-bridge threading (assertion/unit test). —
+  `TestRunGeminiEvaluator_CallerCtxHonored`
+- [~] Live-gated E2E (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, skipped in default CI; missing ADC is a SKIP,
+  never a pass): sandbox clones the public repo, runs the directive, returns a parsed verdict. —
+  `TestLiveCloneOverEgressE2E` EXISTS, is correctly gated, compiles, and SKIPs cleanly (gate-off AND
+  gate-on-but-no-ADC verified). **Live confirmation run pending ADC/Vertex spend (hand-off to Mark);
+  NOT counted as a live pass on a SKIP.**
+- [x] All tests passing; `ailang exec` help + docs updated. — `harness-setup.md` Clone-over-egress
+  section + `printExecHelp` in `exec.go`.
 
 ### LOC budget
 
