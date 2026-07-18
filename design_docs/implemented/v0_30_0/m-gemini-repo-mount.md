@@ -1,6 +1,6 @@
 # M-GEMINI-REPO-MOUNT — Managed Agents repository and inline-source mounts
 
-**Status**: **IMPLEMENTED (code + all non-live tests green) — one premise pending live confirmation.** Phase 2 shipped in sprint `M-GEMINI-REPO-MOUNT` (mission iteration 52, opus executor, sonnet evaluator 91/100 PASS): typed `RequiresEgress`/`CapNetworkEgress` gate + shared `ValidateTaskCapabilities`, `buildEnvironment` egress wiring, `--clone-repo`/`--clone-sha` CLI flags, eval-harness clone-review with conditional evidence check + bounded-execution/deadline-degraded, and a CI-skipped live-gated E2E. **The one INCORPORATED-not-VERIFIED-LIVE premise** — provider support for the arbitrary-SHA shallow `git fetch --depth 1 origin <sha>` — is confirmed only by the `AILANG_LIVE_MANAGED_AGENTS_MOUNT=1` E2E, which SKIPs without ADC; that live run needs ADC + Vertex spend → **hand-off to Mark** (see M4). This doc stays in `planned/` until that live confirmation; move to `implemented/v0_30_0/` after. Trail below (revised by the claude-fable-5 designer per Mark's #399 "apply both fixes, ship it"; both iteration-51 re-quorum fixes + the iteration-52 re-quorum shallow-fetch fix applied): (1) typed `RequiresEgress`/`CapNetworkEgress` gate replacing the Metadata-key opt-in; (2) "Bounded execution & timeout reuse" grounded in the existing timeout/context machinery. The original `repository`/`inline` mount model was REFUTED live (iter-45), retained below as historical record; iter-46 LIVE-VERIFIED the lean replacement: an egress-enabled sandbox (`environment.network.allowlist:[{domain:"*"}]`, NO data source) in which the agent runs `git clone` of the public ailang repo end-to-end (cloned HEAD `806b3b4a4`, listed files, read `go.mod`).
+**Status**: **✅ IMPLEMENTED + LIVE-VERIFIED (all premises confirmed).** Phase 2 shipped in sprint `M-GEMINI-REPO-MOUNT` (mission iteration 52, opus executor, sonnet evaluator 91/100 PASS): typed `RequiresEgress`/`CapNetworkEgress` gate + shared `ValidateTaskCapabilities`, `buildEnvironment` egress wiring, `--clone-repo`/`--clone-sha` CLI flags, eval-harness clone-review with conditional evidence check + bounded-execution/deadline-degraded, and a live-gated E2E. **The last INCORPORATED-not-VERIFIED-LIVE premise** — provider support for the arbitrary-SHA shallow `git fetch --depth 1 origin <sha>` — was **LIVE-CONFIRMED in mission iteration 53** (Mark #399 "vertex git clone test granted"): `TestLiveCloneOverEgressE2E` pinned a real non-HEAD SHA (`80cbd9612…`) through the production `Executor.Execute` path — the sandbox fetched-by-SHA, checked out `FETCH_HEAD`, echoed the EXACT pinned SHA, emitted `CLONE_OK` + verdict. **PASS in 113.6s, $0.865, 527221 in / 8201 out tokens** (project `ailang-dev`, `global`). Doc moved to `implemented/v0_30_0/`. Trail below (revised by the claude-fable-5 designer per Mark's #399 "apply both fixes, ship it"; both iteration-51 re-quorum fixes + the iteration-52 re-quorum shallow-fetch fix applied): (1) typed `RequiresEgress`/`CapNetworkEgress` gate replacing the Metadata-key opt-in; (2) "Bounded execution & timeout reuse" grounded in the existing timeout/context machinery. The original `repository`/`inline` mount model was REFUTED live (iter-45), retained below as historical record; iter-46 LIVE-VERIFIED the lean replacement: an egress-enabled sandbox (`environment.network.allowlist:[{domain:"*"}]`, NO data source) in which the agent runs `git clone` of the public ailang repo end-to-end (cloned HEAD `806b3b4a4`, listed files, read `go.mod`).
 **Target**: v0.30.0
 **Priority**: P1 — mission gap G4; upgrades Gemini from reasoning-only review to in-sandbox verification
 **Estimated**: 1–2 focused days; ≤150 LOC production Go (agent-side `git clone` + typed egress capability
@@ -447,14 +447,15 @@ path:
   check (pinned ⇒ equal; HEAD ⇒ valid 40-hex, recorded on `GeminiVerdict.ReviewedRevision`);
   missing/invalid/mismatch/deadline-exceeded ⇒ `VerificationDegraded` with reason. Caller
   ctx threaded unchanged (pre-cancelled-ctx-reaches-runner test).
-- **M4 — CODE + DOCS DONE; LIVE RUN SKIPPED (no ADC in executor worktree).** The gated E2E
+- **M4 — CODE + DOCS DONE; LIVE RUN ✅ CONFIRMED (mission iteration 53).** The gated E2E
   `TestLiveCloneOverEgressE2E` (in `managed_agents_live_test.go`) exercises the fetch-by-SHA
   clone-review through the production `Execute` path. It is CI-skipped and SKIPs (never
   fails, never passes) when ADC is absent — verified both gate-off and gate-on-but-no-ADC.
-  **The one INCORPORATED-not-yet-live-verified premise — provider support for
-  `git fetch --depth 1 <sha>` — still needs a live confirmation run with ADC + Vertex spend
-  (hand-off to Mark).** A provider rejection surfaces as a LOUD test failure (design-doc
-  follow-up), never a silent fallback to a full clone.
+  **Mark #399 ("vertex git clone test granted") authorized the live run; it PASSED** with ADC
+  against `ailang-dev`/`global`, pinning a real non-HEAD SHA (`80cbd9612…`): the sandbox
+  fetched-by-SHA, checked out `FETCH_HEAD`, echoed the exact pinned SHA, emitted `CLONE_OK`.
+  **113.6s, $0.865, 527221 in / 8201 out tokens.** Provider support for `git fetch --depth 1 <sha>`
+  is confirmed — no silent fallback to a full clone was ever taken.
 
 ### Acceptance criteria (testable)
 
@@ -488,11 +489,11 @@ path:
   background context — the caller's ctx reaches `sendInteraction` via the existing
   `WithTimeout` propagation and the eval-bridge threading (assertion/unit test). —
   `TestRunGeminiEvaluator_CallerCtxHonored`
-- [~] Live-gated E2E (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, skipped in default CI; missing ADC is a SKIP,
+- [x] Live-gated E2E (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, skipped in default CI; missing ADC is a SKIP,
   never a pass): sandbox clones the public repo, runs the directive, returns a parsed verdict. —
-  `TestLiveCloneOverEgressE2E` EXISTS, is correctly gated, compiles, and SKIPs cleanly (gate-off AND
-  gate-on-but-no-ADC verified). **Live confirmation run pending ADC/Vertex spend (hand-off to Mark);
-  NOT counted as a live pass on a SKIP.**
+  `TestLiveCloneOverEgressE2E` **PASSED LIVE (mission iteration 53, Mark #399 authorization)** with ADC
+  against `ailang-dev`/`global`, pinning real SHA `80cbd9612…`: fetch-by-SHA → checkout → exact-SHA echo
+  → `CLONE_OK` + verdict. 113.6s, $0.865, 527221 in / 8201 out tokens.
 - [x] All tests passing; `ailang exec` help + docs updated. — `harness-setup.md` Clone-over-egress
   section + `printExecHelp` in `exec.go`.
 
@@ -559,7 +560,7 @@ eval-option fields.
 | `WithTimeout` → `sendInteraction` deadline propagation exists to reuse | VERIFIED | `managed_agents.go:178–184` (`timeout := task.Timeout`, fallback `e.timeoutSeconds` from `cfg.TimeoutSeconds` :38); `context.WithTimeout(ctx, timeout)` :183 → `sendInteraction(reqCtx, ...)` :187 |
 | Eval bridge threads the caller ctx (no fresh background ctx on the live path) | VERIFIED | `gemini_evaluator_bridge.go` — `EvalRunner` ctx :594; `RunGeminiEvaluator` ctx :620; `DefaultGeminiRunner` ctx :682 |
 | `VerificationDegraded ⇒ DegradedReason non-empty` invariant exists to reuse | VERIFIED | `gemini_evaluator_bridge.go:551–562` |
-| Arbitrary older SHA is reachable without a full clone | INCORPORATED | iteration-52 re-quorum (gemini-3-1-pro): directive uses `git fetch --depth 1 origin <sha>` (shallow fetch-by-SHA) — reaches any pinned commit while staying in the probe-R-proven shallow envelope; M4 E2E confirms provider support (supersedes the earlier full-clone directive, whose completion within sandbox limits was an unverified premise) |
+| Arbitrary older SHA is reachable without a full clone | **VERIFIED-LIVE** | Mission iteration 53 (Mark #399 "vertex git clone test granted"): `TestLiveCloneOverEgressE2E` with `AILANG_LIVE_MA_SHA=80cbd9612d8c4f56a9391b4f65cb09249a373230` (a real non-HEAD commit) through the production `Executor.Execute` path — sandbox ran `git fetch --depth 1 origin <sha>` + `git checkout --detach FETCH_HEAD`, echoed the EXACT pinned SHA back (`git rev-parse HEAD` == pinned), emitted `CLONE_OK` + verdict JSON. PASS in 113.6s, $0.865, 527221 in / 8201 out tokens. Provider supports arbitrary-SHA shallow fetch — the last INCORPORATED premise is now live-confirmed. |
 
 ### Security
 
