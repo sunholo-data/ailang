@@ -27,8 +27,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // defaultBundleMaxBytes is the default bundle-text ceiling (256 KiB). Well
@@ -85,11 +88,18 @@ type DegradationInfo struct {
 	// BackendError is non-empty if the executor runner errored / returned
 	// Success==false. Set by the caller (RunGeminiEvaluator), not the builder.
 	BackendError string
+	// CloneEvidenceError is non-empty when a clone-review could not produce
+	// valid clone evidence (M-GEMINI-REPO-MOUNT Phase 2): a missing/invalid
+	// echoed `git rev-parse HEAD`, or — for a pinned review — an echo that does
+	// not match the requested SHA. A clone-review that cannot prove which
+	// revision it inspected is degraded, never a clean pass on absent evidence.
+	CloneEvidenceError string
 }
 
 // degraded reports whether any degradation signal is present.
 func (d DegradationInfo) degraded() bool {
-	return d.Truncated || len(d.DroppedFiles) > 0 || strings.TrimSpace(d.BackendError) != ""
+	return d.Truncated || len(d.DroppedFiles) > 0 ||
+		strings.TrimSpace(d.BackendError) != "" || strings.TrimSpace(d.CloneEvidenceError) != ""
 }
 
 // reason composes a human-readable degradation reason (non-empty iff degraded).
@@ -97,6 +107,9 @@ func (d DegradationInfo) reason() string {
 	var parts []string
 	if strings.TrimSpace(d.BackendError) != "" {
 		parts = append(parts, "backend error: "+strings.TrimSpace(d.BackendError))
+	}
+	if strings.TrimSpace(d.CloneEvidenceError) != "" {
+		parts = append(parts, "clone evidence: "+strings.TrimSpace(d.CloneEvidenceError))
 	}
 	if d.Truncated || len(d.DroppedFiles) > 0 {
 		parts = append(parts, fmt.Sprintf("bundle truncated: %d file(s) dropped and not shown to the evaluator (%s)",
@@ -494,6 +507,13 @@ type GeminiVerdict struct {
 	// trusted from the model.
 	VerificationDegraded bool   `json:"verification_degraded"`
 	DegradedReason       string `json:"degraded_reason,omitempty"`
+
+	// ReviewedRevision records the 40-hex commit the sandbox actually cloned and
+	// reviewed, extracted from the agent's echoed `git rev-parse HEAD`
+	// (M-GEMINI-REPO-MOUNT Phase 2). Empty for a diff-bundle (non-clone) review.
+	// Stamped by the CALLER from the runner output, never trusted from the
+	// model's verdict JSON.
+	ReviewedRevision string `json:"reviewed_revision,omitempty"`
 }
 
 // BuildEvaluatorDirective composes the reasoning-only evaluator directive: the
@@ -605,6 +625,18 @@ type EvalOptions struct {
 	// used (production path — shells `ailang exec gemini --json`; NEVER
 	// exercised by the test suite).
 	Runner EvalRunner
+
+	// CloneRepoURL, when set, switches RunGeminiEvaluator from the prompt-packed
+	// diff-bundle path to an in-sandbox CLONE-REVIEW (M-GEMINI-REPO-MOUNT Phase 2):
+	// the egress-enabled sandbox git-clones this PUBLIC repo, runs review/
+	// `ailang check` in-sandbox, and echoes `git rev-parse HEAD` as evidence.
+	// When empty, the diff-bundle path is UNCHANGED.
+	CloneRepoURL string
+	// CloneSHA optionally pins the reviewed revision. Empty ⇒ HEAD review
+	// (shallow `git clone --depth 1`, echo must be a valid 40-hex SHA, recorded
+	// as ReviewedRevision). Non-empty ⇒ shallow fetch-by-SHA; the echoed HEAD
+	// must EQUAL CloneSHA or the review is degraded. Only honored with CloneRepoURL.
+	CloneSHA string
 }
 
 // RunGeminiEvaluator composes the reasoning-only evaluation end-to-end:
@@ -618,23 +650,37 @@ type EvalOptions struct {
 // ctx is the caller's context: it is threaded to the runner so a live Tier-2
 // fire honors caller cancellation/timeout (never context.Background()).
 func RunGeminiEvaluator(ctx context.Context, worktree, designDoc, sprintPlan string, opts EvalOptions) (*GeminiVerdict, error) {
-	bundle, err := BuildDiffBundle(worktree, opts.Bundle)
-	if err != nil {
-		return nil, fmt.Errorf("RunGeminiEvaluator: build bundle: %w", err)
-	}
+	cloneReview := strings.TrimSpace(opts.CloneRepoURL) != ""
 
-	// Seed degradation from the bundle (truncation / dropped files).
-	degraded := DegradationInfo{
-		Truncated:    bundle.Truncated,
-		DroppedFiles: bundle.DroppedFiles,
-	}
+	var directive string
+	degraded := DegradationInfo{}
 
-	directive := BuildEvaluatorDirective(designDoc, sprintPlan, opts.AcceptanceCriteria, bundle)
+	if cloneReview {
+		// Clone-review path (M-GEMINI-REPO-MOUNT Phase 2): the sandbox clones the
+		// PUBLIC repo itself; no local diff bundle is packed.
+		d, dErr := buildCloneReviewDirective(opts.CloneRepoURL, opts.CloneSHA, designDoc, sprintPlan, opts.AcceptanceCriteria)
+		if dErr != nil {
+			return nil, fmt.Errorf("RunGeminiEvaluator: build clone directive: %w", dErr)
+		}
+		directive = d
+	} else {
+		bundle, err := BuildDiffBundle(worktree, opts.Bundle)
+		if err != nil {
+			return nil, fmt.Errorf("RunGeminiEvaluator: build bundle: %w", err)
+		}
+		// Seed degradation from the bundle (truncation / dropped files).
+		degraded.Truncated = bundle.Truncated
+		degraded.DroppedFiles = bundle.DroppedFiles
+		directive = BuildEvaluatorDirective(designDoc, sprintPlan, opts.AcceptanceCriteria, bundle)
+	}
 
 	runner := opts.Runner
 	if runner == nil {
 		runner = DefaultGeminiRunner
 	}
+	// ctx is threaded straight through — no fresh context.Background() — so a
+	// live fire honors the caller's cancellation/deadline (a deadline-exceeded
+	// runner error is stamped as a structured degraded verdict below).
 	out, runErr := runner(ctx, directive, opts.SystemPrompt)
 	if runErr != nil {
 		degraded.BackendError = runErr.Error()
@@ -644,6 +690,20 @@ func RunGeminiEvaluator(ctx context.Context, worktree, designDoc, sprintPlan str
 			msg = "executor reported failure with no error text"
 		}
 		degraded.BackendError = msg
+	}
+
+	// For a clone-review with a successful backend, verify the clone evidence
+	// (echoed `git rev-parse HEAD`) BEFORE trusting the verdict. Missing/invalid
+	// evidence — or a pinned-SHA mismatch — is a structured degradation, never a
+	// clean pass on absent evidence.
+	var reviewedRevision string
+	if cloneReview && strings.TrimSpace(degraded.BackendError) == "" {
+		rev, evErr := checkCloneEvidence(out.Output, opts.CloneSHA)
+		if evErr != nil {
+			degraded.CloneEvidenceError = evErr.Error()
+		} else {
+			reviewedRevision = rev
+		}
 	}
 
 	// On a backend error we have no trustworthy model verdict at all. Return a
@@ -660,13 +720,73 @@ func RunGeminiEvaluator(ctx context.Context, worktree, designDoc, sprintPlan str
 	}
 
 	// Backend OK: parse the model verdict, then the caller-supplied degradation
-	// (bundle truncation) is stamped inside ParseGeminiVerdict — so a stub/model
-	// pass:true UNDER truncation still surfaces VerificationDegraded==true.
+	// (bundle truncation / clone-evidence failure) is stamped inside
+	// ParseGeminiVerdict — so a stub/model pass:true UNDER degradation still
+	// surfaces VerificationDegraded==true.
 	v, err := ParseGeminiVerdict(out.Output, degraded)
 	if err != nil {
 		return nil, fmt.Errorf("RunGeminiEvaluator: parse verdict: %w", err)
 	}
+	// Record the reviewed revision (present only for a clean clone-review).
+	v.ReviewedRevision = reviewedRevision
 	return &v, nil
+}
+
+// buildCloneReviewDirective composes the clone-review directive: the canonical
+// clone preamble (shared single-source executor.BuildClonePreamble, so the CLI
+// and the bridge cannot drift) followed by the reasoning-only evaluator
+// instruction and the design doc + sprint plan + acceptance criteria. No diff
+// bundle is packed — the sandbox reads the repo it clones.
+func buildCloneReviewDirective(repoURL, sha, designDoc, sprintPlan, acceptanceCriteria string) (string, error) {
+	preamble, err := executor.BuildClonePreamble(repoURL, sha)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	b.WriteString(preamble)
+	b.WriteString(evaluatorReasoningInstruction)
+	b.WriteString("\n\n=== DESIGN DOC ===\n")
+	b.WriteString(strings.TrimSpace(designDoc))
+	b.WriteString("\n\n=== SPRINT PLAN ===\n")
+	b.WriteString(strings.TrimSpace(sprintPlan))
+	if strings.TrimSpace(acceptanceCriteria) != "" {
+		b.WriteString("\n\n=== ACCEPTANCE CRITERIA ===\n")
+		b.WriteString(strings.TrimSpace(acceptanceCriteria))
+	}
+	b.WriteString("\n\n")
+	return b.String(), nil
+}
+
+// sha40Line matches a standalone 40-hex SHA the agent echoed from
+// `git rev-parse HEAD`. It is anchored to a line so a SHA mentioned mid-prose
+// is not mistaken for the evidence echo.
+var sha40Line = regexp.MustCompile(`(?m)^\s*([0-9a-fA-F]{40})\s*$`)
+
+// checkCloneEvidence extracts the echoed `git rev-parse HEAD` from the agent
+// output and validates it against the request (M-GEMINI-REPO-MOUNT Phase 2):
+//
+//   - pinned (wantSHA != ""): the echo must EQUAL wantSHA (case-insensitive);
+//   - HEAD review (wantSHA == ""): the echo must be a valid, non-empty 40-hex
+//     SHA — proof the agent actually cloned and ran in-sandbox.
+//
+// It returns the reviewed 40-hex revision on success, or an error describing the
+// missing/invalid/mismatched evidence (which the caller stamps as a structured
+// degradation — never a clean pass on absent evidence).
+func checkCloneEvidence(output, wantSHA string) (string, error) {
+	matches := sha40Line.FindAllStringSubmatch(output, -1)
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no echoed `git rev-parse HEAD` 40-hex SHA found in the agent output (cannot prove which revision was reviewed)")
+	}
+	// The evidence echo is the LAST standalone 40-hex line (the agent echoes it
+	// after cloning, before the verdict).
+	got := strings.ToLower(strings.TrimSpace(matches[len(matches)-1][1]))
+
+	if want := strings.ToLower(strings.TrimSpace(wantSHA)); want != "" {
+		if got != want {
+			return "", fmt.Errorf("echoed HEAD %s does not match the pinned --clone-sha %s (verdict would be on the wrong revision)", got, want)
+		}
+	}
+	return got, nil
 }
 
 // DefaultGeminiRunner is the production runner: it shells

@@ -435,3 +435,199 @@ func TestRunGeminiEvaluator_BackendErrorIsDegradedNotPass(t *testing.T) {
 type errStub string
 
 func (e errStub) Error() string { return string(e) }
+
+// ============================================================================
+// M-GEMINI-REPO-MOUNT Phase 2 (M3) — clone-review path
+// ============================================================================
+
+const cloneURL = "https://github.com/sunholo-data/ailang.git"
+const pinnedSHA = "806b3b4a4c0000000000000000000000000000ab"
+
+// verdictJSON is a small helper: a fenced pass verdict the stub can echo.
+func verdictJSON() string {
+	return "```json\n{\"score\": 90, \"pass\": true, \"blockers\": []}\n```\n"
+}
+
+// TestRunGeminiEvaluator_CloneUnset_FallbackUnchanged is the regression guard:
+// with clone options unset, the diff-bundle path is used (directive carries the
+// reasoning instruction + bundle), NOT the clone preamble.
+func TestRunGeminiEvaluator_CloneUnset_FallbackUnchanged(t *testing.T) {
+	dir := newTempGitRepo(t)
+	writeFile(t, dir, "feature.go", "package f\nvar F = 1\n")
+
+	var seenDirective string
+	stub := func(_ context.Context, directive, _ string) (EvalRunnerOutput, error) {
+		seenDirective = directive
+		return EvalRunnerOutput{Success: true, Output: verdictJSON()}, nil
+	}
+	v, err := RunGeminiEvaluator(context.Background(), dir, "design", "plan", EvalOptions{Runner: stub})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(seenDirective, "git clone") || strings.Contains(seenDirective, "network egress") {
+		t.Errorf("clone-unset path must NOT use the clone preamble:\n%s", seenDirective)
+	}
+	if !strings.Contains(seenDirective, "+++ NEW FILE: feature.go") {
+		t.Errorf("clone-unset path must pack the diff bundle")
+	}
+	if v.ReviewedRevision != "" {
+		t.Errorf("diff-bundle review must not set ReviewedRevision, got %q", v.ReviewedRevision)
+	}
+	if v.VerificationDegraded {
+		t.Errorf("clean diff-bundle review should not be degraded: %q", v.DegradedReason)
+	}
+}
+
+// TestRunGeminiEvaluator_CloneHEAD_ValidEchoPasses is the POSITIVE HEAD-review
+// case: CloneSHA empty, a valid 40-hex echo → NOT degraded, echo recorded as the
+// reviewed revision.
+func TestRunGeminiEvaluator_CloneHEAD_ValidEchoPasses(t *testing.T) {
+	const headSHA = "1234567890abcdef1234567890abcdef12345678"
+	var seenDirective string
+	stub := func(_ context.Context, directive, _ string) (EvalRunnerOutput, error) {
+		seenDirective = directive
+		return EvalRunnerOutput{Success: true, Output: headSHA + "\n" + verdictJSON()}, nil
+	}
+	v, err := RunGeminiEvaluator(context.Background(), "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(seenDirective, "git clone --depth 1 "+cloneURL) {
+		t.Errorf("HEAD clone-review must use the shallow-clone preamble:\n%s", seenDirective)
+	}
+	if v.VerificationDegraded {
+		t.Fatalf("valid HEAD echo must NOT be degraded: %q", v.DegradedReason)
+	}
+	if v.ReviewedRevision != headSHA {
+		t.Errorf("ReviewedRevision = %q, want %q", v.ReviewedRevision, headSHA)
+	}
+	if !v.Pass {
+		t.Errorf("valid HEAD review should pass cleanly: %+v", v)
+	}
+}
+
+// TestRunGeminiEvaluator_ClonePinned_Mismatch_Degraded: pinned SHA but the echo
+// differs → degraded with reason (verdict would be on the wrong revision).
+func TestRunGeminiEvaluator_ClonePinned_Mismatch_Degraded(t *testing.T) {
+	wrong := "ffffffffffffffffffffffffffffffffffffffff"
+	stub := func(_ context.Context, _, _ string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{Success: true, Output: wrong + "\n" + verdictJSON()}, nil
+	}
+	v, err := RunGeminiEvaluator(context.Background(), "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+		CloneSHA:     pinnedSHA,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !v.VerificationDegraded {
+		t.Fatalf("pinned-SHA mismatch must be degraded (stub said pass:true)")
+	}
+	if strings.TrimSpace(v.DegradedReason) == "" {
+		t.Errorf("degraded verdict must carry a non-empty reason")
+	}
+	if v.ReviewedRevision != "" {
+		t.Errorf("mismatched review must not record a reviewed revision, got %q", v.ReviewedRevision)
+	}
+}
+
+// TestRunGeminiEvaluator_ClonePinned_Match_Passes: pinned SHA echoed exactly →
+// clean pass, revision recorded.
+func TestRunGeminiEvaluator_ClonePinned_Match_Passes(t *testing.T) {
+	stub := func(_ context.Context, _, _ string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{Success: true, Output: pinnedSHA + "\n" + verdictJSON()}, nil
+	}
+	v, err := RunGeminiEvaluator(context.Background(), "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+		CloneSHA:     pinnedSHA,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.VerificationDegraded {
+		t.Fatalf("matched pinned SHA must NOT be degraded: %q", v.DegradedReason)
+	}
+	if !strings.EqualFold(v.ReviewedRevision, pinnedSHA) {
+		t.Errorf("ReviewedRevision = %q, want %q", v.ReviewedRevision, pinnedSHA)
+	}
+}
+
+// TestRunGeminiEvaluator_CloneMissingEvidence_Degraded: no echoed 40-hex SHA →
+// degraded (cannot prove which revision was reviewed), even for a HEAD review.
+func TestRunGeminiEvaluator_CloneMissingEvidence_Degraded(t *testing.T) {
+	stub := func(_ context.Context, _, _ string) (EvalRunnerOutput, error) {
+		// No standalone 40-hex line anywhere.
+		return EvalRunnerOutput{Success: true, Output: "I reviewed it.\n" + verdictJSON()}, nil
+	}
+	v, err := RunGeminiEvaluator(context.Background(), "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !v.VerificationDegraded || strings.TrimSpace(v.DegradedReason) == "" {
+		t.Fatalf("missing clone evidence must be degraded with reason: %+v", v)
+	}
+	if !strings.Contains(v.DegradedReason, "clone evidence") {
+		t.Errorf("degraded reason should mention clone evidence: %q", v.DegradedReason)
+	}
+}
+
+// TestRunGeminiEvaluator_CloneDeadlineExceeded_Degraded: a runner returning a
+// context.DeadlineExceeded-class error is a structured degraded verdict — never
+// a retry, never a clean pass.
+func TestRunGeminiEvaluator_CloneDeadlineExceeded_Degraded(t *testing.T) {
+	stub := func(ctx context.Context, _, _ string) (EvalRunnerOutput, error) {
+		return EvalRunnerOutput{}, context.DeadlineExceeded
+	}
+	v, err := RunGeminiEvaluator(context.Background(), "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+		CloneSHA:     pinnedSHA,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Pass || !v.VerificationDegraded {
+		t.Fatalf("deadline-exceeded must be degraded non-pass: %+v", v)
+	}
+	if !strings.Contains(v.DegradedReason, context.DeadlineExceeded.Error()) {
+		t.Errorf("deadline error not surfaced in reason: %q", v.DegradedReason)
+	}
+}
+
+// TestRunGeminiEvaluator_CallerCtxHonored: the clone-review path threads the
+// caller's ctx to the runner unchanged (no fresh context.Background()). We prove
+// it by cancelling the caller ctx and asserting the SAME ctx (Done fired) reaches
+// the runner.
+func TestRunGeminiEvaluator_CallerCtxHonored(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel: the same ctx must arrive at the runner already Done.
+
+	var sawDone bool
+	stub := func(rctx context.Context, _, _ string) (EvalRunnerOutput, error) {
+		select {
+		case <-rctx.Done():
+			sawDone = true
+		default:
+		}
+		return EvalRunnerOutput{Success: true, Output: pinnedSHA + "\n" + verdictJSON()}, nil
+	}
+	_, err := RunGeminiEvaluator(ctx, "", "design", "plan", EvalOptions{
+		Runner:       stub,
+		CloneRepoURL: cloneURL,
+		CloneSHA:     pinnedSHA,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sawDone {
+		t.Error("caller ctx not honored: cancelled ctx did not reach the runner (fresh background ctx?)")
+	}
+}
