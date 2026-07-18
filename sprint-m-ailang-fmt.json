@@ -1,0 +1,273 @@
+{
+  "sprint_id": "M-AILANG-FMT",
+  "title": "ailang fmt \u2014 Canonical AILANG Source Formatter (Phase 1)",
+  "design_doc": "design_docs/planned/v0_30_0/m-ailang-fmt.md",
+  "target_version": "v0.30.0",
+  "status": "completed",
+  "greenlit_by": "Mark 2026-07-18",
+  "branch": "sprint/m-ailang-fmt",
+  "worktree": ".claude/worktrees/m-ailang-fmt",
+  "model_routing": {
+    "planner": "opus",
+    "executor": "opus",
+    "evaluator": "sonnet",
+    "billing": "quota-bucket anthropic (no metered spend, no external calls)"
+  },
+  "github_issues": [],
+  "hard_constraints": [
+    "Fail closed on comments (exit 2, byte-identical file), parse errors, unsupported/unknown AST nodes, and write failures. No fallback to original source.",
+    "Do NOT modify internal/ast/print.go or its JSON golden output \u2014 byte-for-byte untouched. It is a golden-test contract, NOT source-formatting infrastructure.",
+    "Do NOT change the grammar or any spelling accepted by the parser. No --strict-syntax change.",
+    "Exhaustive AST visitor: every concrete node kind gets a source printer or an explicit unsupported-error path. NEVER call existing AST String() methods as a fallback (they are debug renderings, not precedence-safe source).",
+    "Parentheses are precedence-driven: the AST has no ParenExpr node (verified V20), so Phase 1 reconstructs parens from parent precedence + syntactic position; source-only redundant parens are removed.",
+    "explicit let..in stays explicit: nil-Body lets print as newline statements in their sequence; non-nil-Body lets print as `let name = value in body`. No source-spelling side table.",
+    "Canonical sequence form: braced newline-per-expression, final value expression bare, NO sequence semicolons. Two-space indent, LF output, exactly one final newline, one blank line between top-level decls, original AST order (module, imports, decls) \u2014 no reordering.",
+    "Atomic multi-file --write: validate ALL inputs (preflight+parse+print+round-trip) in memory FIRST; replace each file individually via same-directory temp + os.Rename, preserving each original file mode. Cross-file crash atomicity is NOT claimed.",
+    "Exit codes: 0 success / all canonical; 1 --check found non-canonical (no operational error); 2 usage/read/comment-preflight/parse/print/round-trip/write error.",
+    "No new diagnostic code. Human-readable path-qualified stderr errors only.",
+    "internal/lexer opt-in comment scan must NOT change Lexer.NextToken() output used by the parser \u2014 byte-for-byte behaviorally unchanged.",
+    "Formatter consumes only parsed AST + fixed Options. No type checker, elaborator, filesystem, env, or wall clock."
+  ],
+  "velocity": {
+    "target_loc_per_day": 175,
+    "estimated_total_loc": 700,
+    "estimated_days": 4,
+    "basis": "Doc-provided estimates (M1 2d, M2 0.5d, M3 1d, M4 0.5d). No padding per mission directive."
+  },
+  "public_api": {
+    "package": "internal/format",
+    "signatures": [
+      "type Options struct { Indent string }",
+      "func Source(program *ast.Program, options Options) ([]byte, error)",
+      "func HasComments(source []byte) (bool, error)"
+    ]
+  },
+  "ast_node_surface": {
+    "note": "Exhaustive coverage required. All concrete node kinds enumerated from internal/ast (2026-07-18).",
+    "expr": [
+      "Identifier",
+      "Literal",
+      "BinaryOp",
+      "UnaryOp",
+      "Lambda",
+      "Param",
+      "FuncLit",
+      "FuncCall",
+      "Let",
+      "LetRec",
+      "Block",
+      "If",
+      "Match",
+      "Case",
+      "List",
+      "Array",
+      "Tuple",
+      "Record",
+      "Field",
+      "RecordAccess",
+      "RecordUpdate",
+      "Error",
+      "QuasiQuote",
+      "Interpolation",
+      "Send",
+      "Recv",
+      "ForallExpr"
+    ],
+    "decl": [
+      "FuncDecl",
+      "Annotation",
+      "TestCase",
+      "Property",
+      "Binder",
+      "TestDecl",
+      "PropertyDecl",
+      "AssertStmt",
+      "TypeDecl",
+      "AlgebraicType",
+      "ConstructorField",
+      "Constructor",
+      "RecordType",
+      "RecordField",
+      "TypeAlias",
+      "TypeClass",
+      "Method",
+      "Instance",
+      "Module",
+      "Import"
+    ],
+    "type": [
+      "SimpleType",
+      "TypeVar",
+      "FuncType",
+      "ListType",
+      "ArrayType",
+      "TupleType",
+      "TypeApp",
+      "LabelExpr",
+      "RefinementExpr",
+      "LabelledType"
+    ],
+    "pattern": [
+      "WildcardPattern",
+      "ConsPattern",
+      "ListPattern",
+      "TuplePattern",
+      "RecordPattern",
+      "FieldPattern",
+      "ConstructorPattern"
+    ]
+  },
+  "features": [
+    {
+      "id": "M1_PRINTER",
+      "name": "Exhaustive AST-to-Source Printer",
+      "description": "New internal/format package: a document/token builder (indent, hard-line, soft-line, group primitives) and precedence-aware exhaustive visitor over every concrete declaration, expression, type, pattern, effect, test, and property node. Unknown/nil-required/ast.Error nodes fail loudly. String/char/quasiquote literals go through one canonical escaping routine \u2014 never String() fallback. Emits func.Source(program, Options) and lays down canonical-form goldens.",
+      "estimated_loc": 420,
+      "estimated_days": 2,
+      "dependencies": [],
+      "files": [
+        "internal/format/format.go (Source, Options, top-level file/module/import/decl driver)",
+        "internal/format/doc.go (document builder: indent/hard-line/soft-line/group primitives)",
+        "internal/format/expr.go (expression printers + parent-precedence parenthesization)",
+        "internal/format/decl.go (declaration printers)",
+        "internal/format/types.go (type printers)",
+        "internal/format/pattern.go (pattern printers)",
+        "internal/format/literal.go (single canonical string/char/quasiquote escaping routine)",
+        "internal/format/precedence.go (operator precedence table + parent-context parens rule)",
+        "internal/format/format_test.go (per-node printer tests + canonical goldens)",
+        "internal/format/testdata/*.golden (canonical sequence/whitespace/paren/literal/final-newline fixtures)"
+      ],
+      "acceptance_criteria": [
+        "Canonical statement sequence: braces + newline-per-expression, final expression bare, zero sequence semicolons.",
+        "Single-expression function bodies print `= expr`; multi-expression ast.Block bodies print a braced newline block; a one-expression normalization wrapper does NOT force braces unless grammar requires.",
+        "Two-space indent, LF, exactly one final newline, one blank line between top-level decls, original AST order for module/imports/decls (no reordering of imports, symbols, cases, fields, decls).",
+        "Parentheses reconstructed from parent precedence + syntactic position; redundant source-only parens removed (no ast.ParenExpr exists, V20).",
+        "Every concrete AST node kind has a source-printer test OR an explicit unsupported-error test; NO debug String() fallback anywhere.",
+        "String/char/quasiquote literals emit via ONE escaping routine; malformed/unsupported literal payloads return an error rather than String() fallback; quasiquote template contents are never reinterpreted.",
+        "Printer depends only on AST + Options: no type checker, elaborator, filesystem, env, or wall-clock access."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-18T21:54:13Z",
+      "notes": "internal/format package: doc builder + precedence-aware exhaustive visitor over every concrete AST node; single canonical escaping routine; per-node coverage tests + canonical-layout goldens. Cons re-emitted infix; parens precedence-driven; block-vs-bare body fidelity handled. All 21 comment-free examples round-trip+idempotent. Commit ab98f4b98.",
+      "commit": "ab98f4b98"
+    },
+    {
+      "id": "M2_CLI",
+      "name": "CLI and Transactional File Handling",
+      "description": "Add `fmt` case to cmd/ailang dispatch with help text. Implement default single-file stdout mode, --write (1+ files), --check (1+ files), mutual exclusion of --write/--check, argument validation, and exit codes 0/1/2. Multi-file --write buffers and fully validates every file in memory (preflight+parse+print+round-trip) before replacing any; implement an unexported same-directory temp-file + os.Rename helper in cmd/ailang that preserves each original file mode (no shared helper exists \u2014 V19).",
+      "estimated_loc": 130,
+      "estimated_days": 0.5,
+      "dependencies": [
+        "M1_PRINTER"
+      ],
+      "files": [
+        "cmd/ailang/fmt.go (fmt subcommand: flag parsing, stdout/--write/--check modes, exit codes, path-qualified diagnostics, unexported atomic-write helper)",
+        "cmd/ailang/main.go (add `case \"fmt\"` to dispatch switch)",
+        "cmd/ailang/fmt_test.go (mode/mutual-exclusion/exit-code/atomic-write/mode-preservation tests)"
+      ],
+      "acceptance_criteria": [
+        "`ailang fmt file.ail` emits canonical source to stdout and leaves the file unchanged (exactly one file in stdout mode).",
+        "`ailang fmt --write a.ail b.ail` changes NO file if preflight/parse/print/round-trip fails for ANY input; each replacement is individually atomic (same-dir temp + os.Rename) and preserves file mode.",
+        "`ailang fmt --check` exits 0 when all inputs canonical, exits 1 and lists drifted paths when formatting differs, exits 2 on operational/usage errors; NEVER writes.",
+        "Canonical means byte-equal to formatter output INCLUDING final newline.",
+        "--write and --check are mutually exclusive; zero files, multiple files in stdout mode, or both flags = usage error (exit 2).",
+        "Inputs processed in argument order; diagnostics deterministic and path-qualified.",
+        "Atomic-write helper is unexported, lives in cmd/ailang, stages a same-directory temp, preserves original mode, calls os.Rename \u2014 no shared helper reused."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-18T21:54:13Z",
+      "notes": "cmd/ailang/fmt.go: stdout/--write/--check, mutual exclusion, arg validation, exit codes 0/1/2. In-memory validate-all-before-write; unexported same-dir temp + os.Rename atomic helper preserving mode. Behaviorally proven with worktree binary. Commit 2fd01036c.",
+      "commit": "2fd01036c"
+    },
+    {
+      "id": "M3_ROUNDTRIP",
+      "name": "Idempotence and Corpus Round-Trip",
+      "description": "Property/corpus test harness. Byte-idempotence property (fmt(fmt(x))==fmt(x)) and structural round-trip (Parse(fmt(x))==Parse(x)) via go-cmp ignoring positions/spans/file paths only \u2014 NOT textual equality of debug String(). Run across every comment-free examples/**/*.ail file plus parser formatter fixtures. Commented examples partitioned explicitly: detect, assert exit 2, assert unchanged bytes. Focused fixtures for the three equivalent separator spellings must format to identical text; explicit let..in proven to remain explicit and round-trip.",
+      "estimated_loc": 110,
+      "estimated_days": 1,
+      "dependencies": [
+        "M1_PRINTER",
+        "M2_CLI"
+      ],
+      "files": [
+        "internal/format/roundtrip_test.go (idempotence + structural round-trip property tests, go-cmp with explicit ignored metadata)",
+        "internal/format/corpus_test.go (walk comment-free examples/**/*.ail + parser fixtures; partition commented -> exit-2 + unchanged-bytes)",
+        "internal/format/separators_test.go (three-separator-spelling identical-output fixtures + explicit let..in stays-explicit round-trip)",
+        "internal/format/testdata/separators/*.ail (equation-semicolon, braced-semicolon, braced-newline, let..in fixtures)"
+      ],
+      "acceptance_criteria": [
+        "Idempotence property test proves fmt(fmt(x))==fmt(x) byte-for-byte over generated AST cases AND the formatter-eligible example corpus.",
+        "Structural round-trip test proves Parse(fmt(x))==Parse(x) over every comment-free example and dedicated fixture, ignoring ONLY positions/spans/file paths (go-cmp, not String()).",
+        "Equation-semicolon, braced-semicolon, and braced-newline fixtures format to the SAME newline-per-statement braced form.",
+        "Explicit `let ... in` formats as `let ... in` (non-nil Body preserved) and structurally round-trips.",
+        "Every commented example is detected, exits 2, and remains byte-identical (partitioned from the round-trip set).",
+        "Existing parser R1/R2 equivalence and corpus AST-diff tests remain green (unchanged)."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-18T21:54:13Z",
+      "notes": "Idempotence + structural round-trip property tests (go-cmp ignoring pos/span) over generated cases + corpus (21 comment-free files formatted; 372 commented detected). Three-separator identical-output + explicit let..in stays-explicit fixtures. Commented -> exit2 + byte-identical CLI test. Parser R1/R2 + corpus AST-diff green. Commit 3021c6f23.",
+      "commit": "3021c6f23"
+    },
+    {
+      "id": "M4_COMMENT_GATE",
+      "name": "Comment Safety Gate and Documentation",
+      "description": "Implement HasComments as a lossless lexical preflight (opt-in trivia-emitting scan mode in internal/lexer that does NOT change NextToken output). Distinguish real comment introducers from string/char/regex/quasiquote contents \u2014 never substring matching. Marker tests for leading/trailing/floating comments and comment-like text inside literals/quasiquotes. Document Phase 1 refusal and Phase 2 attachment model in CLI help + guides. Run make test, make fmt, and example verification target.",
+      "estimated_loc": 90,
+      "estimated_days": 0.5,
+      "dependencies": [
+        "M1_PRINTER"
+      ],
+      "files": [
+        "internal/format/comments.go (HasComments lossless preflight API)",
+        "internal/lexer/lexer.go (opt-in trivia/comment-emitting scan mode; NextToken behavior unchanged)",
+        "internal/format/comments_test.go (leading/trailing/floating + string-contained + quasiquote-contained marker tests)",
+        "docs/docs/guides/ (or CLI help): Phase 1 refusal + Phase 2 attachment-model documentation"
+      ],
+      "acceptance_criteria": [
+        "HasComments detects any real source comment before parsing and is lossless (comment introducers vs literal/quasiquote/regex contents), never substring-based.",
+        "Opt-in lexer scan mode leaves default NextToken() output byte-for-byte behaviorally unchanged (parser-visible tokens unaffected).",
+        "Marker tests distinguish actual comments from comment-like text in strings/quasiquotes (leading, trailing, floating, string-contained, quasiquote-contained).",
+        "Phase 1 refusal (exit 2, stderr `path: comments are not yet supported by ailang fmt`, no write) documented in CLI help/guides; Phase 2 attachment model documented as separately-scheduled.",
+        "internal/ast/print.go and its JSON golden output remain byte-for-byte untouched.",
+        "`make test`, `make fmt`, and the repository example-verification target pass."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-18T21:54:13Z",
+      "notes": "HasComments lossless preflight via opt-in internal/lexer/comment_scan.go (NextToken byte-for-byte unchanged, proven by test). Leading/trailing/floating + string/char/quasiquote-contained marker tests. Docs: reference/formatter.md + sidebar + CLI --help. make test/verify-examples/check-file-sizes all green. print.go untouched. Commit d5fa52606.",
+      "commit": "d5fa52606"
+    }
+  ],
+  "milestone_order": [
+    "M1_PRINTER",
+    "M2_CLI",
+    "M3_ROUNDTRIP",
+    "M4_COMMENT_GATE"
+  ],
+  "implementation_plan": {
+    "day_1_2": "M1: printer + precedence model + canonical-layout goldens + exhaustive node audit.",
+    "day_3_morning": "M2: CLI dispatch + transactional atomic writes.",
+    "day_3_afternoon_day_4_morning": "M3: idempotence + corpus round-trip harness + separator/let-in fixtures.",
+    "day_4_afternoon": "M4: comment refusal + literal-disambiguation marker tests + help/docs + full validation (make test/fmt/verify-examples)."
+  },
+  "release_gate_tests": [
+    "Idempotence property test: fmt(fmt(x))==fmt(x) byte-for-byte over generated AST cases + eligible example corpus.",
+    "Structural round-trip: Parse(fmt(x))==Parse(x) over every comment-free examples/**/*.ail + fixtures, ignoring positions/spans/paths only.",
+    "Three separator spellings (equation-semicolon / braced-semicolon / braced-newline) format to identical newline-per-statement braced text.",
+    "Explicit let..in stays explicit and structurally round-trips.",
+    "Every commented file: detected -> exit 2 -> byte-identical; literal/quasiquote comment-like text NOT misdetected.",
+    "Every concrete AST node kind has a printer test or explicit unsupported-error test (no String() fallback).",
+    "internal/ast/print.go + JSON goldens byte-for-byte untouched; parser R1/R2 + corpus AST-diff tests green.",
+    "make test, make fmt, example-verification target all pass."
+  ],
+  "corpus_notes": {
+    "total_ail_examples_recursive": 393,
+    "comment_free_examples_recursive": 49,
+    "note": "The comment-free set (~49) is the round-trip/idempotence corpus; the commented remainder (~344) is the exit-2/unchanged-bytes partition. Counts are advisory \u2014 M3 must compute the partition programmatically via HasComments, not hard-code these numbers."
+  },
+  "risk_level": "medium",
+  "top_risk": "Printer completeness: the AST surface is broad (40+ concrete node kinds); a single precedence, literal, pattern, or declaration omission breaks round-trip even when simple sequence examples look correct. M1 exhaustive coverage + M3 corpus/property tests are the release gate."
+}

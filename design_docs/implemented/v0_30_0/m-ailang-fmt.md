@@ -1,6 +1,11 @@
 # M-AILANG-FMT: `ailang fmt` — Canonical AILANG Source Formatter
 
-**Status**: **GREENLIT by Mark 2026-07-18** ("greenlight") — route to sprint-planner (opus) → executor (opus) → evaluator (sonnet), ~4-day Phase-1. The park was the re-quorum-ONCE guardrail only; both gemini nits verified-closed (V19/V20) — do NOT re-quorum. Authored by `codex:gpt-5.6-sol`; quorum `gemini-3-1-pro` + Opus controller.
+**Status**: **IMPLEMENTED (Phase 1) 2026-07-18** — M1–M4 landed on branch `sprint/m-ailang-fmt`
+(commits ab98f4b98, 2fd01036c, 3021c6f23, d5fa52606). All acceptance criteria met; `make test`,
+`make verify-examples`, and `make check-file-sizes` green; `internal/ast/print.go` untouched. Phase 2
+comment preservation remains separately scheduled. Was: **GREENLIT by Mark 2026-07-18** — routed
+sprint-planner (opus) → executor (opus) → evaluator (sonnet). Authored by `codex:gpt-5.6-sol`;
+quorum `gemini-3-1-pro` + Opus controller.
 **Target**: v0.30.0
 **Priority**: P1 (canonical presentation for an intentionally forgiving syntax)
 **Estimated effort**: Phase 1: 4 days; Phase 2 comment preservation: separately scheduled, estimated 2–3 days
@@ -281,26 +286,26 @@ and does not introduce execution or trace nondeterminism.
 
 ## Acceptance Criteria
 
-- [ ] `ailang fmt file.ail` emits canonical source to stdout and leaves the file unchanged.
-- [ ] `ailang fmt --write a.ail b.ail` changes no file if preflight, parse, print, or round-trip
+- [x] `ailang fmt file.ail` emits canonical source to stdout and leaves the file unchanged.
+- [x] `ailang fmt --write a.ail b.ail` changes no file if preflight, parse, print, or round-trip
       validation fails for any input; each subsequent file replacement is individually atomic and
       preserves file mode. Cross-file crash atomicity is not claimed.
-- [ ] `ailang fmt --check` exits 0 when all inputs are canonical, exits 1 and lists drifted paths when
+- [x] `ailang fmt --check` exits 0 when all inputs are canonical, exits 1 and lists drifted paths when
       formatting differs, and exits 2 on operational/usage errors; it never writes.
-- [ ] An idempotence property test proves `fmt(fmt(x)) == fmt(x)` over generated AST cases and the
+- [x] An idempotence property test proves `fmt(fmt(x)) == fmt(x)` over generated AST cases and the
       formatter-eligible example corpus.
-- [ ] A structural round-trip test proves `Parse(fmt(x)) == Parse(x)` over every comment-free example
+- [x] A structural round-trip test proves `Parse(fmt(x)) == Parse(x)` over every comment-free example
       and dedicated fixture, ignoring only positions/spans/file paths.
-- [ ] Equation-semicolon, braced-semicolon, and braced-newline fixtures format to the same
+- [x] Equation-semicolon, braced-semicolon, and braced-newline fixtures format to the same
       newline-per-statement braced form; explicit `let ... in` formats as `let ... in`.
-- [ ] Every commented example is detected before formatting, exits 2, and remains byte-identical;
+- [x] Every commented example is detected before formatting, exits 2, and remains byte-identical;
       marker tests distinguish actual comments from comment-like text in literals/quasiquotes.
-- [ ] No parser-accepted grammar is removed or restricted; existing syntax-forgiving and corpus
+- [x] No parser-accepted grammar is removed or restricted; existing syntax-forgiving and corpus
       AST-diff tests pass unchanged.
-- [ ] `internal/ast/print.go` and its JSON golden output are byte-for-byte untouched.
-- [ ] Every concrete AST node kind has either a source printer test or an explicit unsupported-error
+- [x] `internal/ast/print.go` and its JSON golden output are byte-for-byte untouched.
+- [x] Every concrete AST node kind has either a source printer test or an explicit unsupported-error
       test; there is no debug `String()` fallback.
-- [ ] `make test`, `make fmt`, and the repository's example verification target pass.
+- [x] `make test`, `make fmt`, and the repository's example verification target pass.
 
 ## Risks and Mitigations
 
