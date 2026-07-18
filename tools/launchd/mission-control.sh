@@ -200,6 +200,11 @@ export MISSION_GH_ISSUE
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
 # bare "fable" would silently fall back to opus. claude:claude-fable-5 = a REAL bounded Fable run.
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
+# Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
+# the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
+# this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
+# NOT counted — this caps dollars, not tokens.
+export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able

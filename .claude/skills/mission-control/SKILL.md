@@ -350,6 +350,18 @@ Sonnet, inline, is fine.
   (distinct from the executor model → generator≠judge). Max 3 rounds; on round-3 fail →
   `needs-human-review`, park, message controlplane.
 
+**METERED-SPEND LEDGER (Mark 2026-07-18 — "make sure costs don't go crazy"):** keep a running
+per-iteration tally of METERED dollars (every codex run's reported cost, every managed_agents
+`CostUSD`, every quorum reviewer bill — subscription/quota-bucket spend does NOT count). BEFORE
+each metered call: if `tally + estimated-cost > $MISSION_METERED_BUDGET_USD` (default $5), do NOT
+make the call — fall back to a quota-bucket lane if the role allows, else park the step, FLAG the
+ceiling hit in Gate 4/5. Existing per-call caps stay (quorum $0.10/reviewer; managed_agents
+post-hoc budget flag; codex mid-stream CostBudget). Cost hygiene for managed_agents specifically
+(live-measured 2026-07-18, `TestLiveEnvironmentReuseEconomics`): a TIGHT directive ("run exactly
+these commands, do not explore") is worth ~12× vs exploratory ($0.07 vs $0.87); ENVIRONMENT REUSE
+(persist `env_<id>`, never re-clone per round) saves a further ~42%. Both are MANDATORY for
+gemini escalation runs. Record the final tally as a `metered=$X.XX` field in the evidence row.
+
 **GPU rule (two-tier)**: default iterations never touch `rig.lock` — it is a GPU mutex only.
 If (and only if) a step drives ollama/local models: `source tools/launchd/rig-lock.sh &&
 rig_lock_acquire wait` around THAT STEP, release immediately after. Ask explicitly at routing
