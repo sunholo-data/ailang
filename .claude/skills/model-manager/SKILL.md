@@ -186,6 +186,42 @@ scripts/find_model_info.sh "GPT-5.1 API documentation pricing"
 
 **Reference:** See [resources/provider_endpoints.md](resources/provider_endpoints.md)
 
+### 2a. Reasoning-Model Check (REQUIRED before gating any verdict)
+
+**The GLM-5.2 lesson (v0.30.0, 2026-07-19):** GLM-5.2 was rejected in June as "worse
+than 5.1" — but the regression was OUR truncation: its always-on thinking phase
+(28–32K tokens) shared a 32,768 `max_output_tokens` budget with content, and the
+harness recorded neither `reason_tokens` nor `finish_reason`, so the guillotine was
+invisible. With 64K headroom, 5.2 beats 5.1 on every axis. Kimi K3 nearly repeated
+this (thinks by default, same 32K cap, unmeasured).
+
+**Before writing any gate verdict for a new model:**
+
+1. **Probe default thinking** — one small OpenRouter/API call, no reasoning params:
+   ```bash
+   # reasoning_tokens > 0 → the model thinks by default
+   curl -s https://openrouter.ai/api/v1/chat/completions -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"model":"<api_name>","messages":[{"role":"user","content":"Prove there are infinitely many primes, then state the 10th prime."}],"max_tokens":3000}' \
+     | jq '{reasoning: .usage.completion_tokens_details.reasoning_tokens, provider}'
+   ```
+2. **If it thinks: size `max_output_tokens` for thinking + content**, not content
+   alone — floor 65536 for always-thinkers (check the real ceiling via
+   `/api/v1/models` → `top_provider.max_completion_tokens`). Do NOT leave the
+   fleet-default 32768; thinking shares that budget.
+3. **Leave default thinking ON.** A thinking-tuned model with thinking suppressed
+   is not the model you're gating. The knob that is actually enforced is
+   `max_tokens` headroom — OpenRouter third-party upstreams (Baidu, StreamLake)
+   ignore `reasoning: {max_tokens: N}` (probed 2026-07-19); `reasoning_max_tokens`
+   in models.yml is best-effort only.
+4. **Read `finish_reason` + `reason_tokens` in every failure before concluding
+   capability** (recorded on standard results since v0.30.0). A `finish=length`
+   failure with huge `reason_tokens` is truncation, not weakness. Results banked
+   before v0.30.0 cannot show this — never re-derive a verdict from them alone.
+5. **Cost note:** thinking bills as output tokens. Budget/cost projections for a
+   reasoning model must use `output + reasoning`, and expect ~2-10x the completion
+   tokens of a non-thinking peer.
+
 ### 3. Update models.yml
 
 **Add the model configuration:**

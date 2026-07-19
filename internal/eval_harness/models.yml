@@ -1939,7 +1939,7 @@ models:
     description: "Kimi K2.7 Code via OpenRouter standard mode — companion to opencode-or-kimi-k2-7-code"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
     pricing:
       input_per_1k: 0.00075   # $0.75 per 1M
       output_per_1k: 0.0035   # $3.50 per 1M
@@ -1988,7 +1988,7 @@ models:
     description: "Kimi K3 via OpenRouter standard mode — companion to opencode-or-kimi-k3"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
     pricing:
       input_per_1k: 0.003    # $3.00 per 1M
       output_per_1k: 0.015   # $15.00 per 1M
@@ -2318,7 +2318,7 @@ models:
     provider: "openrouter"
     description: "MiniMax M3 via OpenRouter (standard mode) — newest MiniMax, 1M ctx"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
     model_family: "minimax-m3"
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
