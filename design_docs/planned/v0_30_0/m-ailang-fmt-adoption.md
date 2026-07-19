@@ -1,6 +1,10 @@
 # M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks
 
-**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 3 rounds; Rev-3 fixed jq but the timeout fix needs 1 trivial SIGKILL-escalation correction)** + GATED behind [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md) — see the ⛔ Quorum Block below
+**Status**: ✅ **CORRECTION APPROVED by Mark 2026-07-19** — apply the SIGTERM→grace→SIGKILL
+escalation exactly as written in this doc's own fix note (`kill "$PID"; sleep 1; kill -9 …;
+wait`), same pattern as the mission's executor wrappers. No re-quorum (that was the last standing
+objection). **Remains HARD-GATED behind [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md)** — route
+to planner only after Phase-2 lands (it needs comment preservation + the exit-code split).
 **Target**: v0.30.0
 **Priority**: P2 (valuable, but strictly sequenced after Phase 2)
 **Estimated**: 1–1.5 days

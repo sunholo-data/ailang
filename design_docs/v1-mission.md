@@ -732,14 +732,18 @@ triage evidence = log entry 10.)*
   `ailang check`; hard-left-wall widening clause), but the re-quorum surfaced **2 NEW architecture-level objections**:
   (a) gpt5-6-sol → attacher-totality inventory unproven (no code-audit of all printer child-list boundaries —
   params/type-args/ctor-args/record-fields/annotations); (b) gemini → interpolation clamping structurally fatal
-  (collapses inner-AST boundaries; would silently delete comments in `${…}`). **Human fork (#399):** authorize a
-  design-verification sprint (printer child-list audit + interpolation-aware attachment) — NOT a short round; or
-  amend/simplify scope (e.g. keep Phase-1 refusal for interpolation-bearing files). See the doc's ⛔ Quorum Block. ·
+  (collapses inner-AST boundaries; would silently delete comments in `${…}`). **→ RESOLVED by Mark 2026-07-19
+  (interactive, option (b) + recommendations): UNPARKED, [NEXT] route to sprint-planner, do NOT re-quorum.**
+  (1) M0 of the sprint = the PRINTER CHILD-LIST CODE AUDIT — proven inventory folded into the design before
+  attachment code; (2) interpolation = FAIL-CLOSED CARVE-OUT (preflight refuses files with comments inside
+  `${…}` holes — silent deletion structurally impossible; full interpolation-aware attachment deferred,
+  evidence-gated on measured refusal rate, expected ≈0). Doc Status stamped. ·
   **m-ailang-fmt-adoption [DOC CREATED + QUORUM-BLOCKED ×3 → PARKED needs-human-review; GATED behind m-ailang-fmt-phase2; Rev-3 iter 60]**
   — discoverability + opt-in hooks. Rev-3 iter-60 (`…/m-ailang-fmt-adoption.md`, `d1ed2fe57`). Rev-3 FIXED the jq
   defect (`command -v jq` probe + dropped first-jq `2>/dev/null`); re-quorum accepted it but both reviewers reject
   the timeout fix (SIGTERM-then-unbounded-`wait` wedges on a signal-ignoring proc) — **1 trivial SIGKILL-escalation
-  from clean**, but hard-gated behind phase2. Human fork: rides whenever phase2 clears. Original scope retained below.
+  from clean**, but hard-gated behind phase2. **→ Mark 2026-07-19: SIGKILL-escalation correction APPROVED as
+  written in the doc; no re-quorum; still rides behind phase2** (which is now unparked). Original scope retained below.
   — Mark #399: "Is ailang fmt discoverable by agents via prompt… run every turn after .ail writes by Motoko or a
   hook in other harnesses?" iter-58 findings: (1) `ailang fmt` is **NOT** in `ailang prompt` (embedded v0.16.2
   teaches `check`/`run`/`test`, not `fmt`) → agents don't know it exists. (2) A per-turn auto-`fmt --write` hook

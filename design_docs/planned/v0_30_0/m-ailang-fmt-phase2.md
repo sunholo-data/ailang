@@ -1,6 +1,22 @@
 # M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`
 
-**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 3 rounds; Rev-3 fixed the R2 defects but surfaced 2 NEW architecture-level objections)** — see the ⛔ block below
+**Status**: ✅ **UNPARKED — Mark DECIDED 2026-07-19 (option (b): "permit b and recommendations")**.
+The two Rev-3 architecture objections are resolved BY DECISION, not another text round:
+1. **Attacher-totality (gpt5-6-sol)** → **M0 of the sprint is a PRINTER CODE AUDIT**: enumerate
+   every ordered child-list emission site in the printer (params, type args, constructor args,
+   record fields, annotations — everything), fold the PROVEN inventory into this design before any
+   attachment code is written. The audit's completeness claim is verified against the printer
+   source, not asserted.
+2. **Interpolation clamping (gemini-3-1-pro)** → **FAIL-CLOSED CARVE-OUT, the Phase-1 way**: the
+   comment preflight additionally detects comments INSIDE interpolation holes (`${ /* c */ … }`)
+   and REFUSES the file with a clear message — silent deletion is structurally impossible; the
+   clamping/opaque treatment then only ever applies to interpolations proven comment-free.
+   Full interpolation-aware attachment is DEFERRED to a follow-up phase, evidence-gated on the
+   observed refusal rate (measure it in the corpus gate; expected ≈0).
+**Route to sprint-planner — do NOT re-quorum** (3 rounds consumed; the decision addresses both
+standing objections and M0's audit IS the verification the quorum demanded — its findings bind
+the sprint, and any site the audit finds beyond the doc's list extends the inventory, never
+skips it).
 **Target**: v0.30.0
 **Priority**: P1 (Phase 1 refuses 372/393 = 94.7% of the live example corpus; the formatter is unusable on normal commented code until this lands)
 **Estimated**: 2–3 days (sprint-sized)
