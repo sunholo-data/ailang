@@ -4368,3 +4368,50 @@ retry (two-consecutive on the same run), that is a REAL slow-parse signal → op
 **Next**: m-ai-reasoning-effort parked pending Mark's #399 decision (recommended: one more bounded round — it's close to green). Absent a steer next iteration: fmt phase2/adoption + m-serveapi M1-split remain parked for human; the queue head among UNblocked clause-4 items is **m-agent-step-cancellation (1.5d)** (has a design doc at `planned/v0_29_0/` — reality-check + quorum-at-pick it; designer rotation next = **gemini** if a revision is needed). Watches (carried): (1) designer/reviewer same-provider overlap on the design quorum (1st instance this iter); (2) `executor.Task` `RequiresEgress` widening precedent; (3) 2nd Windows-GOOS-guard-missing → sprint-executor skill note; (4) cap-caused quorum degrade (iter-60, 1st).
 
 ---
+
+## 67 — 2026-07-19 — Iteration 62: HUMAN DIRECTIVE (#399) — Mark UNPARKED **m-ailang-fmt-phase2** (option b) → **routed to sprint-planner (opus); 4-milestone plan produced (M0 = printer child-list audit, interpolation = fail-closed carve-out), READY FOR EXECUTOR** — no re-quorum per Mark; `metered=$0.00`
+
+**Picked**: Mark resolved the 3-round phase2 quorum block BY DECISION on 2026-07-19 (commit `c624b456d`, "permit b and recommendations"), committed AFTER iter-61's record (which pre-dated the unpark and read both fmt docs as parked). The mission-doc queue now carries phase2 as the [NEXT] item: *"UNPARKED, [NEXT] route to sprint-planner, do NOT re-quorum."* A human directive recorded in the queue outranks everything → this iteration's pick. No NEW #399 comment since watermark `2026-07-19T07:52:58Z` (the directive is the committed doc resolution, not a fresh comment).
+
+**Gate-0/1**: killswitch armed; billing **CLEAN** (both Anthropic keys empty); gh `sunholo-voight-kampff`; tree clean on dev, no `MERGE_HEAD`; bookkeeping issue **#399** (prev #329; created 2026-07-16, 37 comments < 80; next-Monday boundary is 07-20 and today is 07-19 Sun → no rotation). Local dev == origin/dev `cb2823982`. dev CI per-workflow @ `cb2823982`: CI / Build-and-Release / Deploy-Docs all `completed/success`. Inbox: 1 unread `eval-suite` informational (88/112 = 78.6% partial) — no regression, no directive → acked.
+
+**Mark's decision folds TWO BINDING CONSTRAINTS into the sprint** (both reflected as milestones/acceptance in the plan):
+- Objection-1 (attacher-totality unproven) → **M0 = printer child-list CODE AUDIT** (FIRST milestone): a written, source-verified inventory of every ordered child-list emission site in `internal/format` (params/type-args/ctor-args/record-fields/annotations/effect-rows/list-tuple-record elements/match-arms/imports/decls/block-children + any others found). The proven inventory folds into the design before any attachment code and BINDS M1–M3.
+- Objection-2 (interpolation clamping structurally fatal) → **fail-closed carve-out**: a preflight REFUSES (Phase-1-style, exit 2, byte-identical) any file with a comment inside a `${…}` hole — silent deletion structurally impossible; NO general interpolation attacher. Full interpolation-aware attachment DEFERRED, evidence-gated on the M3-measured refusal rate (expected ≈0).
+
+**Reality check (Gate 2)**: doc premises **REAL at HEAD** (planner live-checked, zero stale): 393-file `.ail` corpus; `HasComments` blanket refusal at `cmd/ailang/fmt.go:103-108` (all exits `2`, no `3` yet → exit-split is net-new); interpolation-naive `skipString` at `internal/lexer/comment_scan.go:102` (exactly what M1 extends); AST `Span` present only on the 3 node kinds (V16 accurate). Not a ghost, not already landed (no sprint JSON existed; `origin/dev == cb2823982` carries only the unpark). **No re-quorum** — the doc is quorum-complete-by-decision (Mark answered both standing objections).
+
+**Route (Gate 3)**: design-doc → sprint-plan transition. **SPRINT-PLANNER = `$MISSION_PLANNER_MODEL` = opus**, spawned as a model-pinned `Agent` (not inline). Produced:
+- `.ailang/state/sprints/sprint_M-AILANG-FMT-PHASE2.json` (local-only/gitignored) — 4 features, M0-audit-first, acceptance criteria 4/5/4/4, dependency chain M0→M1→M2→M3, `risk_level=medium`, links only #399.
+- `design_docs/planned/v0_30_0/m-ailang-fmt-phase2-sprint-plan.md` (committed) — day-by-day plan.
+- **Milestones**: M0 printer child-list audit (0.5d) · M1 lossless collector + token-anchored envelope + interpolation fail-closed carve-out (1d) · M2 deterministic attachment rules 1–5 + emission, totality fixtures keyed to the M0 inventory (1d) · M3 property gate + refusal removal + exit split + 386-file corpus zero-error gate + docs (0.5–1d). **Total 3–3.5 days.**
+- **Velocity**: ~110 LOC/day derived from comparable completed sprints M-SYNTAX-AI-FORGIVING (315 LOC/3d) + M-ARITY-STYLE-DIAGNOSTIC (100 LOC/2d), + Phase-1 fmt actual (4d same subsystem, correctness-gated). ~1500 doc LOC is heavily test/fixture → 2.5–3d skeleton + 0.5d human-directed audit.
+- **Non-blocking flag for the executor** (planner, not fixed): `internal/format/decl.go` is 486 LOC, `expr.go` 437 — the +150 LOC emission interleaving could push `decl.go` toward ~560–600 if concentrated; split emission helpers if `make check-file-sizes` nears the 800 limit.
+- No designer/quorum/cross-provider spawn (doc quorum-complete-by-decision; NEW-DOC-tag-is-a-claim not applicable — doc exists and is Mark-resolved).
+
+**Routing evidence** (ACTUAL role→model used):
+- `model=opus task-class=sprint-planner(velocity + day-by-day plan + sprint JSON for m-ailang-fmt-phase2, M0-audit-first, interpolation-carve-out) provider=anthropic agent=claude-code(Agent-tool pinned model=opus) cost=quota-bucket:weekly-opus`.
+- `model=opus task-class=controller(triage/pick/reality-check/plan-verify/doc-record/report) provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus`.
+- **Iteration metered spend: `$0.00`** (planner + controller both quota-bucket Opus; no metered lane fired). Well under `MISSION_METERED_BUDGET_USD=$5`.
+
+**Ruled out**:
+- "Both fmt docs are still parked" (iter-61's reading) — REFUTED: iter-61's record pre-dated Mark's `c624b456d` unpark (14:45 record vs 15:25 unpark). The committed queue is ground truth: phase2 is UNPARKED + [NEXT].
+- "phase2 needs re-quorum before planning" — REFUTED: Mark's decision explicitly answers both standing objections and says "no re-quorum (3 rounds consumed)". Re-quorum would be re-litigation, forbidden by the pick-time gate (one round, bounded) AND by Mark's directive.
+- "This iteration should run the full loop through executor" — REJECTED: Gate-3 routing advances one stage per iteration (design-doc → plan is this stage; plan → execute is next). The sprint is a real coding sprint (comment-preserving formatter, M0-audit-first) → the executor runs next iteration in an isolated worktree, opus-pinned.
+- "The sprint JSON should be committed" — REFUTED: `.ailang/state/sprints/` is gitignored (local-only state); only the plan markdown + mission-doc/log are committable. Confirmed via `git check-ignore`.
+
+**Retro lane**: **NO edit this iteration.** Frictions logged:
+- The `sprint-planner` skill's JSON schema used ALL-CAPS underscore-mangled milestone ids (`M0_PRINTER_CHILD_LIST_CODE_AUDIT_`) with `null` `title`/`estimate` at the top level (values live inside `features[]`/`velocity`) — a minor schema-shape awkwardness that made a naive `jq '.milestones'` fail. **1st instance** → below the ≥2-friction bar, no skill edit; WATCH: a 2nd planner-JSON-shape friction → add a schema note to the sprint-planner skill.
+- All mission disciplines (billing-tripwire, bounded checks, human-directive-outranks-queue, quorum-skip-on-Mark-decision, opus-pinned-planner, metered-ledger) worked as written. `$0.00` metered — cheapest possible iteration shape (single quota-bucket planner spawn).
+- Carried WATCHES (no recurrence this iter): (1) designer/reviewer same-provider overlap on the design quorum (iter-61, 1st — no quorum ran this iter); (2) cap-caused quorum degrade (iter-60, 1st — no quorum this iter); (3) `executor.Task` `RequiresEgress` widening; (4) 2nd Windows-GOOS-guard-missing; (5) 2nd codex-background-stdin-hang.
+
+**Parked for human (#399)** (updated + carried):
+- **m-ai-reasoning-effort quorum fork** (iter-61): R1 resolved by Rev-1; R2 blocks on 2 small converging fixes ((1) add OpenRouter `reasoning_max_tokens` to the resolver matrix; (2) exempt Gemini `B=0` from mandatory-MaxTokens — fixes a docparse-breaking over-reach). Decision: authorize one more bounded round [RECOMMENDED — close to green], amend scope, or keep parked.
+- **m-ailang-fmt-adoption**: 1 trivial SIGKILL-escalation fix (APPROVED by Mark as written); hard-gated behind phase2 — rides once phase2 lands.
+- **CARRIED**: m-serveapi-raw-handler-mcp M2 architecture fork (iter-57, M1-split RECOMMENDED); gemini fleet-role ratification (iter-53); m-check-strict-fallbacks architecture fork (iter-42); M-TOOLING-DETERMINISTIC SUPERSEDED-close (iter-48).
+
+**Gate 3b**: commit pushed to dev (doc-only, `design_docs/**` + status-archive). Expected workflows: CI + Build-and-Release (no `paths:` filter); Deploy-Docs is `docs/`-filtered → **N/A** for a `design_docs/` change. [CI result recorded below after bounded poll.]
+
+**Next**: **EXECUTE m-ailang-fmt-phase2** — route the ready sprint plan to sprint-executor (`$MISSION_EXECUTOR_MODEL`=opus, isolated worktree), evaluator = sonnet (generator≠judge). M0 (printer child-list audit) is the first deliverable and its inventory binds M1–M3. If Mark answers the reasoning-effort fork on #399 first, that outranks. Watches carried as above.
+
+---
