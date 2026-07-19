@@ -3,7 +3,7 @@
 # =============================================================================
 
 .PHONY: check-file-sizes report-file-sizes codebase-health largest-files
-.PHONY: fmt fmt-check vet lint install-lint
+.PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
 
 # Code formatting
 fmt: ## Format all Go code
@@ -19,6 +19,24 @@ fmt-check: ## Check code formatting (CI gate)
 		exit 1; \
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
+
+# AILANG canonical-form drift check (opt-in, standalone — NOT wired into `make ci`).
+# Reports `.ail` files under examples/ and stdlib/ that are not in `ailang fmt`
+# canonical form. Exits 1 and lists the drifted paths on drift, 0 when canonical.
+# `ailang fmt --check` itself prints each non-canonical path and exits 1 on drift.
+fmt-check-ail: ## Report ailang fmt drift over examples/ + stdlib/ (opt-in; not in CI)
+	@echo "Checking AILANG canonical form (examples/ + stdlib/)..."
+	@files=$$(find examples stdlib -name '*.ail' 2>/dev/null); \
+	if [ -z "$$files" ]; then \
+		echo "$(GREEN)$(CHECKMARK) No .ail files found$(RESET)"; \
+		exit 0; \
+	fi; \
+	if ailang fmt --check $$files; then \
+		echo "$(GREEN)$(CHECKMARK) All .ail files are canonical$(RESET)"; \
+	else \
+		echo "$(RED)$(CROSS) AILANG drift above. Run 'ailang fmt --write <file>' to canonicalize.$(RESET)"; \
+		exit 1; \
+	fi
 
 # Go vet
 vet: prepare-embed ## Run go vet
