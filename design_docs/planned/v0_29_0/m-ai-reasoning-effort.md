@@ -1,7 +1,7 @@
 ---
 title: "M-AI-REASONING-EFFORT — Cross-provider request-side reasoning control"
-status: Planned
-target: v0.17.0
+status: PARKED needs-human-review (2026-07-19, iter 61 — quorum-at-pick R1 revised → R2 re-quorum blocked on 2 narrow converging fixes; bounded gate consumed)
+target: v0.31.0
 priority: P2
 estimated: ~10-14h
 owner: ailang-core
@@ -15,170 +15,235 @@ consumers:
 
 # M-AI-REASONING-EFFORT — Cross-Provider Request-Side Reasoning Control
 
+## ⛔ Quorum Record (mission iteration 61, 2026-07-19) — PARKED needs-human-review
+
+This pre-quorum backlog doc was picked by mission-control. Per QUORUM-AT-PICK it ran the text
+quorum (`gpt5-6-sol` + `gemini-3-1-pro`, controller verdict PASS both rounds). The bounded gate
+(one revision + one re-quorum) is now **consumed** and the doc is **PARKED for human review**.
+
+**Round 1 (original doc) — BLOCKED.** Two objections, both resolved by Rev-1 (codex designer):
+1. `gpt5-6-sol` — the "ignore/omit+log" fallback policy and OpenAI `"off"→"minimal"` mapping
+   violated AILANG's no-silent-fallback + determinism axioms. → **Resolved**: Rev-1 added a
+   fail-loud contract (5 typed sentinel errors, capability-table gating where unknown-model =
+   error, `"off"` rejected not weakened, deterministic precedence + conflict errors).
+2. `gemini-3-1-pro` — missing Conflict Surface vs the existing `MaxTokens` field (Anthropic
+   requires `max_tokens > thinking.budget_tokens`; `"high"`=16384 with unset MaxTokens → 400).
+   → **Resolved**: Rev-1 added a full `## Conflict Surface` with pre-dispatch `MaxTokens > budget`
+   rules and caught that `anthropic/client.go:160-168` silently substitutes `MaxTokens=4096`
+   (validation must precede that defaulting). Version metadata aligned to v0.31.0; Verification
+   Log added.
+
+**Round 2 (Rev-1) — BLOCKED on 2 NEW, NARROWER, converging fixes** (NOT the fmt-phase2 pattern of
+ever-deeper premise gaps — these are shallow completeness/refinement fixes):
+1. `gpt5-6-sol` — the shared resolver omits a **4th input**, OpenRouter's existing (code-verified)
+   `Options["reasoning_max_tokens"]`. It is retained but absent from the precedence/conflict/
+   validation matrix and test acceptance, so combining it with typed effort or
+   `thinking_budget_tokens` has undefined behavior. **Fix**: add `reasoning_max_tokens` to the
+   resolver as a deprecated OpenRouter-only input; all other providers reject its presence; any
+   effort+max_tokens combination on OpenRouter is `ErrConflictingReasoningConfig` unless a
+   documented equivalence is proven; both numeric-budget option names together is always a
+   conflict.
+2. `gemini-3-1-pro` — the Gemini Conflict-Surface rule **over-reaches**: it forces `MaxTokens` to
+   be explicitly set even for `B=0` (`"off"`), but a zero thinking budget consumes no output
+   tokens. This is a hostile constraint that breaks the **target consumer docparse** (wants
+   reasoning=off for PDF parse without truncating output). Anthropic already exempts `B=0`; Gemini
+   should too. **Fix**: exempt `B=0`/`"off"` from Gemini's mandatory-MaxTokens check — require
+   `MaxTokens > B` only for enabled thinking (`B > 0`).
+
+**Decision for Mark (#399):** both R2 fixes are small, concrete, and converging — one is a direct
+correction of Rev-1's own over-reach. **Recommended:** (1) authorize ONE more bounded revision
+round (add `reasoning_max_tokens` to the resolver matrix + exempt Gemini `B=0`), then re-quorum —
+this doc is close to green, unlike fmt-phase2. Alternatives: (2) amend scope (drop the
+`reasoning_max_tokens` unification — keep it strictly OpenRouter-internal and out of the typed
+resolver); (3) keep parked. Metered quorum+designer spend this iteration ≈ $0.23.
+
 ## Framing
 
-> Reasoning/thinking tokens are no longer a Gemini-3-only concern. **Response-side**, AILANG already abstracts this cleanly: every provider populates `ai.Response.ReasonTokens` with the same field name and semantics. **Request-side**, only OpenAI is wired — via the freeform `req.Options["reasoning_effort"]` map — while Gemini, Anthropic, and OpenRouter have no way to influence reasoning at all. This doc promotes reasoning effort to a first-class typed field on `ai.Request` and maps it consistently across all four providers.
+> Reasoning/thinking tokens are no longer a Gemini-only concern. **Response-side**, AILANG already abstracts them as `ai.Response.ReasonTokens`. **Request-side**, only OpenAI Responses is wired, through the freeform `req.Options["reasoning_effort"]` map. This design promotes reasoning effort to a typed `ai.Request` field while preserving one narrow compatibility guarantee: an unset field and absent legacy options produce the same bytes each provider emits today. Any explicit reasoning request is validated before network dispatch and either honored exactly or rejected with a typed error. It is never silently weakened, omitted, or ignored.
 
 ## Why this changed
 
-Earlier draft of this design proposed adding `Request.ThinkingBudget *int` as a Gemini-only feature, motivated by docparse wanting `thinkingBudget: 0` for `gemini-3-flash-preview` PDF parses. Re-reading the codebase showed that's the wrong shape:
+An earlier draft proposed `Request.ThinkingBudget *int` as a Gemini-only feature. That is the wrong factoring:
 
-1. **Response side is already universal** — [provider.go:139-140](../../../internal/ai/provider.go#L139-L140) defines `ReasonTokens int` once; [gemini/generate.go:138](../../../internal/ai/gemini/generate.go#L138), [openai/responses.go:142](../../../internal/ai/openai/responses.go#L142), [openai/chat.go:130](../../../internal/ai/openai/chat.go#L130), and [openrouter/chat.go:146](../../../internal/ai/openrouter/chat.go#L146) all funnel through it.
-2. **OpenAI request side already has a knob** — [openai/responses.go:49](../../../internal/ai/openai/responses.go#L49) reads `req.Options["reasoning_effort"]` as a string. It's documented nowhere on the `Request` type, lives in a freeform map, and is silently ignored by every other provider.
-3. **At least three providers expose request-side controls now**: OpenAI o-series + GPT-5 (`reasoning_effort`), Gemini 3 (`thinkingConfig.thinkingBudget`), Anthropic Claude Opus 4 / Sonnet 4 (`thinking.budget_tokens`).
-
-Shipping a Gemini-specific field on `Request` would entrench the inconsistency: OpenAI uses `Options[...]`, Gemini would use a typed field, Anthropic would have a third path. Promoting it to a typed first-class field is the right factoring.
+1. **Response-side accounting is already universal** — `ReasonTokens` is defined once on the shared response type.
+2. **OpenAI already has an untyped request knob** — [openai/responses.go:46-53](../../../internal/ai/openai/responses.go#L46-L53) reads `Options["reasoning_effort"]`, accepts any string, defaults it to `"medium"`, and emits a Responses API reasoning block.
+3. **The provider controls differ in shape, not intent** — qualitative effort for OpenAI/OpenRouter and absolute thinking budgets for Gemini/Anthropic.
+4. **Latency bounds are business logic** — per AILANG's no-silent-fallback axiom, an explicit `"off"` request cannot become `"minimal"`, provider default, or a logged no-op.
 
 ## Problem
 
-Three concrete shortfalls today:
+| Provider | Current request-side behavior | Failure surface |
+|----------|-------------------------------|-----------------|
+| OpenAI Responses | Reads untyped `Options["reasoning_effort"]`; defaults to `"medium"` | Invalid strings reach the API; no exact `"off"` contract |
+| OpenAI Chat | No reasoning field in the request shape | Explicit effort would currently be ignored |
+| Gemini | No `thinkingConfig` in `generationConfig` | Cannot request or validate exact thinking budgets |
+| Anthropic | No `thinking` block; silently substitutes `MaxTokens=4096` when unset | A mapped thinking budget can collide with output-token limits |
+| OpenRouter | Supports only `reasoning.max_tokens` through a separate option | No typed effort or exact-disable guarantee |
 
-| Provider | Request-side reasoning control | Status |
-|----------|-------------------------------|--------|
-| OpenAI Responses (`responses.go`) | `Options["reasoning_effort"]` (`"low"\|"medium"\|"high"`) | Wired, undocumented on `Request` |
-| OpenAI Chat (`chat.go`) | None | Field exists in API but not forwarded |
-| Gemini (generate + step) | None | API supports `thinkingConfig`; not in `generationConfig` struct ([types.go:75-83](../../../internal/ai/gemini/types.go#L75-L83)) |
-| Anthropic | None | API supports `thinking.budget_tokens`; not in our request shape |
-| OpenRouter | None | Relays to underlying provider; needs pass-through |
-
-Concrete downstream impact: `docparse` evaluated `gemini-3-flash-preview` for PDF parsing. The model produces good output but spends thinking tokens unnecessarily — there's no way for docparse (or any caller) to say "skip thinking, this is a parse workload." Same will hit any caller wanting bounded latency on Anthropic Claude 4 thinking models.
+The dangerous case is not merely unsupported syntax. A caller may request `"off"` to enforce a latency policy and receive a response whose provider silently reasoned anyway. The client must make that outcome impossible.
 
 ## Goals
 
-1. **Promote `reasoning_effort` to a typed field** on `ai.Request`.
-2. **Wire all four providers** to honour it (OpenAI Responses + Chat, Gemini, Anthropic, OpenRouter).
-3. **Preserve back-compat** — when the field is unset, request bodies are byte-identical to today's. OpenAI continues to honour `Options["reasoning_effort"]` if set, with a deprecation note in the Request docstring.
-4. **Document in `prompts/`** so std/ai callers know the option exists at the AILANG language level (likely a follow-up; see Out-of-Scope).
+1. Promote reasoning effort to a typed field on `ai.Request`.
+2. Define deterministic validation and precedence across the typed field and both legacy escape hatches.
+3. Validate provider/model capability before marshaling or network dispatch.
+4. Honor every explicit request exactly or return a typed, non-retryable validation error.
+5. Preserve byte-identical provider request bodies only when all reasoning controls are unset.
 
 ## Non-Goals
 
-- No std/ai surface changes in this sprint. The new field is plumbed through `ai.Request` first; surfacing in `std/ai` (e.g. `callWithReasoning(prompt, "off")`) is a follow-up gated on this landing.
-- No automatic per-model defaults. Defaults belong in callers where workload context is known.
-- No replay-store invalidation. Unset field = byte-identical request body, so existing replay hashes are unaffected.
-- Not aiming to expose **chain-of-thought content** (Gemini `includeThoughts`, Anthropic `thinking` block content). Token-budget control only.
+- No `std/ai` surface change in this sprint; a language-level helper follows after the provider contract lands.
+- No automatic per-model defaults or silent token-budget selection.
+- No chain-of-thought content exposure; this controls token spend only.
+- No assumption that an unknown model accepts a provider's reasoning parameter. Unknown capability plus an explicit request is an error.
 
 ## Design
 
-### The unified field
+### Typed field
 
 ```go
-// internal/ai/provider.go
-type Request struct {
-    // ...existing fields...
-
-    // ReasoningEffort controls per-call reasoning/thinking-token spend on
-    // providers that expose such a knob (currently: OpenAI o-series + GPT-5,
-    // Gemini 3+, Anthropic Claude 4 thinking models). Providers that do not
-    // expose a knob ignore the field. Pre-thinking models on supporting
-    // providers also ignore it server-side (verified: gemini-2.5-flash
-    // accepts thinkingConfig as a no-op).
-    //
-    // Values:
-    //   ""        — provider default (current implicit behaviour, fully back-compat)
-    //   "off"     — disable reasoning where supported
-    //   "low"     — minimum reasoning budget
-    //   "medium"  — moderate reasoning budget
-    //   "high"    — maximum reasoning budget
-    //
-    // Each provider maps these to its native parameter (table below).
-    // Quantitative budgets (Gemini, Anthropic) are not exposed directly to
-    // keep the abstraction small; callers needing exact token counts should
-    // use Options["thinking_budget_tokens"] (provider-specific escape hatch).
-    ReasoningEffort string
-}
+// ReasoningEffort controls per-call reasoning/thinking-token spend.
+// Valid values are "", "off", "low", "medium", and "high".
+// Empty preserves the provider's current request body exactly. Every non-empty
+// value must be honored exactly by the selected provider/model or request
+// construction returns ErrUnsupportedReasoningEffort before network dispatch.
+ReasoningEffort string
 ```
 
-### Provider mapping
+The field is intentionally qualitative. Exact token counts remain available through `Options["thinking_budget_tokens"]`, but that escape hatch is subject to the same type, range, capability, conflict, and `MaxTokens` validation as the typed field.
 
-| Effort   | OpenAI (Responses + Chat) | Gemini             | Anthropic                              | OpenRouter |
-|----------|---------------------------|--------------------|----------------------------------------|------------|
-| `""`     | omit (server default)     | omit `thinkingConfig` | omit `thinking`                       | passthrough |
-| `"off"`  | `reasoning.effort: "minimal"` (or omit + log) | `thinkingBudget: 0` | omit `thinking` (no "off" semantic; defaults to disabled) | passthrough |
-| `"low"`  | `reasoning.effort: "low"` | `thinkingBudget: 1024` | `thinking: {type: "enabled", budget_tokens: 1024}` | passthrough |
-| `"medium"` | `reasoning.effort: "medium"` | `thinkingBudget: 4096` | `thinking: {type: "enabled", budget_tokens: 4096}` | passthrough |
-| `"high"` | `reasoning.effort: "high"` | `thinkingBudget: 16384` | `thinking: {type: "enabled", budget_tokens: 16384}` | passthrough |
+### Fail-loud request contract
 
-Notes:
-- OpenAI lacks a true "off" — `minimal` is the floor; we may also accept `"off"` as a synonym and log a one-line warning. To be decided in implementation.
-- Anthropic doesn't model "off" — absence of `thinking` is the off state.
-- Gemini token budgets above are seed defaults; tunable via constants in `internal/ai/gemini/`.
-- OpenRouter relays whichever underlying provider; it forwards `reasoning` per [its docs](https://openrouter.ai/docs/use-cases/reasoning-tokens) using the OpenAI-compatible shape.
+All provider entry points that construct requests (`Generate`, `Step`, and streaming variants) MUST run the same validation before JSON marshaling and before creating or dispatching an HTTP request.
 
-### Escape hatch for exact budgets
+Typed sentinel errors, wrapped by the existing provider/`AIError` structure with a non-retryable schema-validation code, are required:
 
-Callers needing exact token counts (e.g. "cap Gemini at exactly 256 thinking tokens") use `Options`:
+- `ErrInvalidReasoningEffort` — a present effort is not one of `""`, `"off"`, `"low"`, `"medium"`, or `"high"`, or the legacy option is not a string.
+- `ErrUnsupportedReasoningEffort` — the selected provider/model cannot honor the requested semantic exactly, including exact disablement.
+- `ErrConflictingReasoningConfig` — two reasoning controls are present but disagree.
+- `ErrInvalidThinkingBudget` — `thinking_budget_tokens` has an invalid Go type or provider-specific range.
+- `ErrReasoningBudgetExceedsMaxTokens` — an absolute thinking budget is not strictly below `Request.MaxTokens`, or `MaxTokens` is required but unset.
 
-```go
-req.Options = map[string]any{
-    "thinking_budget_tokens": 256,  // Gemini + Anthropic; ignored by OpenAI
-}
-```
+Validation behavior for every effort value:
 
-When `Options["thinking_budget_tokens"]` is set on a provider that supports it, it overrides whatever bucket `ReasoningEffort` maps to. This keeps the typed surface small without locking out precision use cases.
+| Value | Contract |
+|-------|----------|
+| `""` / unset | Preserve the provider's current wire body exactly. This is the sole compatibility default and is not a fallback. OpenAI Responses therefore retains its current implicit `"medium"` block when no reasoning control is supplied; other current bodies remain unchanged. |
+| `"off"` | Require exact disablement. If the provider/model cannot guarantee no reasoning, return `ErrUnsupportedReasoningEffort`; never map to `"minimal"`, omit and warn, or rely on a server-side no-op. |
+| `"low"` | Emit the documented low control only for a capability-registered provider/model; otherwise return `ErrUnsupportedReasoningEffort`. |
+| `"medium"` | Emit the documented medium control only for a capability-registered provider/model; otherwise return `ErrUnsupportedReasoningEffort`. |
+| `"high"` | Emit the documented high control only for a capability-registered provider/model; otherwise return `ErrUnsupportedReasoningEffort`. |
+| Any other string | Return `ErrInvalidReasoningEffort`. |
 
-### Back-compat for OpenAI
+Capability checks MUST use an explicit provider/model capability table or equivalent deterministic predicate. Sending a field to an older model because the server might ignore it is forbidden. Unknown models are unsupported for non-empty controls until verified and registered.
 
-OpenAI Responses currently reads `req.Options["reasoning_effort"]` ([responses.go:49](../../../internal/ai/openai/responses.go#L49)). New rule:
+### Deterministic precedence and conflicts
 
-1. If `req.ReasoningEffort != ""`, use it.
-2. Else if `req.Options["reasoning_effort"]` is set, use it (with a one-line `_ = ` log to encourage migration).
-3. Else default to `"medium"` (current behaviour).
+The three inputs are resolved in this order, but precedence never permits disagreement:
 
-Existing eval baselines and recorded calls that set `Options["reasoning_effort"]` continue to work unchanged.
+1. Validate every present input independently; an invalid lower-precedence option is still an error.
+2. Resolve `Request.ReasoningEffort` and `Options["reasoning_effort"]`:
+   - If only one is non-empty, use it.
+   - If both are present and identical, use the typed field and emit the same wire body as one value alone.
+   - If both are present and differ, return `ErrConflictingReasoningConfig`.
+3. Resolve `Options["thinking_budget_tokens"]` for Gemini and Anthropic only:
+   - It must have Go type `int`; floats, JSON-number wrappers, strings, unsigned integers, and other numeric types are rejected rather than coerced.
+   - Gemini accepts integers `>= 0`; Anthropic accepts `0` for exact disablement or integers `>= 1024` for enabled thinking. Negative values and Anthropic values `1..1023` return `ErrInvalidThinkingBudget`.
+   - If an effort is also resolved, the exact budget must equal that provider's mapped budget. A different value returns `ErrConflictingReasoningConfig`; the numeric option does not silently override the typed request.
+   - On OpenAI and OpenRouter, presence of `thinking_budget_tokens` returns `ErrUnsupportedReasoningEffort`; it is never ignored.
+
+`Options["reasoning_effort"]` remains a deprecated compatibility input. It receives the same value and capability validation as the typed field. There is no log-only failure mode.
+
+### Provider mapping and honorable values
+
+| Effort | OpenAI Responses + Chat | Gemini thinking-capable models | Anthropic opt-in-thinking models | OpenRouter capability-registered models |
+|--------|--------------------------|---------------------------------|-----------------------------------------|-----------------------------------------|
+| `""` | Preserve today's body: Responses keeps its current implicit `reasoning.effort: "medium"`; Chat omits reasoning | Omit `thinkingConfig` | Omit `thinking` | Preserve today's body |
+| `"off"` | **Unsupported initially** because the supported OpenAI surface has no verified exact-off semantic; return `ErrUnsupportedReasoningEffort` | `thinkingBudget: 0` | Omit `thinking`, but only for models whose capability entry confirms thinking is opt-in; mandatory-thinking models reject | Send normalized exact-disable form `reasoning: {"effort":"none"}` only for models verified to honor it; otherwise reject |
+| `"low"` | Responses: `reasoning: {"effort":"low"}`; Chat: native `reasoning_effort: "low"` | `thinkingBudget: 1024` | `thinking: {"type":"enabled","budget_tokens":1024}` | `reasoning: {"effort":"low"}` |
+| `"medium"` | Responses: `reasoning: {"effort":"medium"}`; Chat: native `reasoning_effort: "medium"` | `thinkingBudget: 4096` | `thinking: {"type":"enabled","budget_tokens":4096}` | `reasoning: {"effort":"medium"}` |
+| `"high"` | Responses: `reasoning: {"effort":"high"}`; Chat: native `reasoning_effort: "high"` | `thinkingBudget: 16384` | `thinking: {"type":"enabled","budget_tokens":16384}` | `reasoning: {"effort":"high"}` |
+
+The table states the desired contract, not a license to send fields optimistically. Each non-empty row is gated by the provider/model capability table. In particular, OpenAI `"off"` MUST NOT be translated to `"minimal"`.
+
+### Conflict Surface
+
+`ai.Request.MaxTokens` is the maximum response/output token count and currently uses `0` to request a provider default ([provider.go:46-47](../../../internal/ai/provider.go#L46-L47)). Absolute thinking budgets consume or constrain the same request envelope on Anthropic and create the same unsafe overcommit class on Gemini. Therefore validation uses the caller's explicit `Request.MaxTokens`, not a provider client's internal default.
+
+Exact pre-dispatch rules:
+
+- **Gemini:** whenever a non-empty effort or `thinking_budget_tokens` resolves to an absolute budget `B` (including `B=0` for `"off"`), `Request.MaxTokens` MUST be explicitly set and MUST satisfy `MaxTokens > B`. If `MaxTokens == 0` or `B >= MaxTokens`, return `ErrReasoningBudgetExceedsMaxTokens`. Do not synthesize a max-output value.
+- **Anthropic:** for enabled thinking (`B >= 1024`), `Request.MaxTokens` MUST be explicitly set and MUST satisfy the API's strict rule `MaxTokens > B`. If `MaxTokens == 0` or `B >= MaxTokens`, return `ErrReasoningBudgetExceedsMaxTokens`. `"off"` or exact budget `0` omits the `thinking` block and does not require `MaxTokens`, because no absolute thinking budget is sent.
+- **OpenAI/OpenRouter:** qualitative effort does not participate in this absolute-budget check. Existing output-token validation remains in force. `thinking_budget_tokens` is rejected as unsupported rather than compared or ignored.
+
+This deliberately rejects cases such as Anthropic `ReasoningEffort: "high"` with `MaxTokens: 4096`; the client returns a typed validation error instead of dispatching a request that the provider will reject. Current Anthropic code silently replaces unset `MaxTokens` with `4096` ([anthropic/client.go:160-168](../../../internal/ai/anthropic/client.go#L160-L168)); reasoning validation MUST occur before that defaulting and MUST NOT use the substituted value to make an explicit reasoning request appear valid.
 
 ### Wiring
 
-Touched files:
+- [internal/ai/provider.go](../../../internal/ai/provider.go) — add `ReasoningEffort` and typed sentinel errors.
+- Shared reasoning helper — canonicalize values, resolve conflicts, map buckets, and validate capabilities/budgets for all request paths.
+- [internal/ai/gemini/types.go](../../../internal/ai/gemini/types.go) plus generate/step/stream paths — add `thinkingConfig` and fail-loud absolute-budget validation.
+- [internal/ai/openai/responses.go](../../../internal/ai/openai/responses.go) — preserve the unset body, validate the legacy option, and use the resolved typed value.
+- [internal/ai/openai/chat.go](../../../internal/ai/openai/chat.go) — add the distinct Chat payload field and reject unsupported models.
+- [internal/ai/anthropic/](../../../internal/ai/anthropic) — add `thinking`, required headers/model gating, and strict `MaxTokens > budget` validation.
+- [internal/ai/openrouter/](../../../internal/ai/openrouter) — extend the normalized reasoning block with effort while retaining the existing exact-max-token control; capability-gate exact semantics.
 
-- [internal/ai/provider.go](../../../internal/ai/provider.go) — add `ReasoningEffort string` field with full doc comment.
-- [internal/ai/gemini/types.go](../../../internal/ai/gemini/types.go) — add `thinkingConfig` struct, `ThinkingConfig *thinkingConfig` on `generationConfig`.
-- [internal/ai/gemini/generate.go](../../../internal/ai/gemini/generate.go) + [internal/ai/gemini/step.go](../../../internal/ai/gemini/step.go) — translate `req.ReasoningEffort` (and `Options["thinking_budget_tokens"]` override) to `thinkingConfig`.
-- [internal/ai/openai/responses.go](../../../internal/ai/openai/responses.go) — accept new field, fall back to `Options["reasoning_effort"]`.
-- `internal/ai/openai/chat.go` — newly accept reasoning effort (currently it ignores it; needs the same translation).
-- `internal/ai/anthropic/` — add `thinking` block to request shape; honour the field on supported models.
-- [internal/ai/openrouter/](../../../internal/ai/openrouter) — translate to OpenAI-compatible `reasoning: {effort: ...}` body field.
+## Verification Log
 
-A small shared helper `internal/ai/reasoning.go` could centralise the bucket→tokens mapping so Gemini and Anthropic stay in sync; tradeoff is one more file vs. inline constants in each provider. Lean toward the helper.
+| Claim | Status | Evidence / required verification |
+|-------|--------|----------------------------------|
+| Gemini older-model `thinkingConfig` no-op handling | **NEEDS-LIVE-SMOKE** | Current `generationConfig` has no `thinkingConfig` field ([gemini/types.go:80-89](../../../internal/ai/gemini/types.go#L80-L89)), so the repository cannot verify the claimed server no-op. The design no longer relies on it: unregistered models reject explicit reasoning controls. Metered smoke tests may be parked, but capability entries cannot be added until verified. |
+| Anthropic request currently lacks thinking configuration and beta headers | **CODE-VERIFIED** | The Generate request contains `model`, `max_tokens`, messages, temperature, and tools only ([anthropic/client.go:71-80](../../../internal/ai/anthropic/client.go#L71-L80)); dispatch sets `anthropic-version` but no thinking beta header ([anthropic/client.go:225-227](../../../internal/ai/anthropic/client.go#L225-L227)). |
+| Anthropic thinking header/model constraints and strict `max_tokens > budget_tokens` behavior | **NEEDS-LIVE-SMOKE** | These are external API constraints not established by current code. Verify supported model IDs, required header/version, minimum budget, exact-off behavior, and boundary cases `max_tokens == budget_tokens` / `max_tokens == budget_tokens+1` before enabling capability entries. Metered smoke may be parked; fail-loud gating remains mandatory. |
+| OpenAI Responses and Chat use different current payload shapes | **CODE-VERIFIED** | Responses has nested `reasoning` with `effort` ([openai/types.go:88-94](../../../internal/ai/openai/types.go#L88-L94), [openai/types.go:117-120](../../../internal/ai/openai/types.go#L117-L120)); Chat's request type has no reasoning field ([openai/types.go:7-16](../../../internal/ai/openai/types.go#L7-L16)). |
+| OpenAI Chat native `reasoning_effort` support by model | **NEEDS-LIVE-SMOKE** | Verify the planned top-level Chat shape and model allowlist. Until verified, Chat models without a capability entry return `ErrUnsupportedReasoningEffort`. |
+| OpenRouter currently passes a normalized reasoning block | **CODE-VERIFIED** | The request contains `reasoning` and currently models only `max_tokens` ([openrouter/types.go:26-37](../../../internal/ai/openrouter/types.go#L26-L37)); construction populates it only from `Options["reasoning_max_tokens"]` ([openrouter/chat.go:59-66](../../../internal/ai/openrouter/chat.go#L59-L66)). |
+| OpenRouter effort and exact-off pass-through reach the selected upstream model unchanged | **NEEDS-LIVE-SMOKE** | Verify `low`/`medium`/`high`, exact-disable spelling, and routed-provider behavior per model. Unknown or dynamically ambiguous routes reject explicit effort until a deterministic capability contract exists. |
 
 ## Risks and considerations
 
-- **Anthropic API surface stability**: `thinking` block requires `anthropic-beta: extended-thinking-2024-12-19` (or current header). Add gated by model name or always send for thinking-capable models. Implementation detail; smoke-test before merge.
-- **Token budget tuning**: 1024/4096/16384 are reasonable seeds but may want per-provider tuning. Pick conservative defaults; revisit after eval-harness data.
-- **Mapping lossiness**: there's no perfect bijection between OpenAI's qualitative scale and Gemini/Anthropic's quantitative budgets. We're choosing a useful coarse-grained surface; the `Options` escape hatch handles precision cases.
-- **Docs drift risk**: with 4 providers, mapping table is easy to fall out of sync. Mitigate by table-driven tests in `internal/ai/reasoning_test.go` that assert each bucket → expected JSON for each provider.
-- **OpenAI `"off"` ambiguity**: punt to implementation — either accept and map to `"minimal"`, or reject with a clear error. Document whichever choice is made.
+- **Capability drift:** provider model support changes. Keep capability entries explicit and tested; unknown is an error, not an optimistic pass-through.
+- **Mapping lossiness:** qualitative buckets cannot perfectly match absolute budgets. The exact-budget escape hatch remains, but conflicting controls fail rather than override.
+- **Header/API drift:** Anthropic thinking headers and model constraints require live verification before enablement.
+- **Compatibility:** the only body-preservation promise is the all-controls-unset case. Explicit invalid legacy options now fail loudly by design.
+- **Replay determinism:** validation and conflict resolution must be shared across Generate/Step/streaming so identical requests cannot produce provider-path-dependent bodies.
 
-## Acceptance criteria
+## Acceptance Criteria
 
-1. `Request.ReasoningEffort string` added with full docstring listing all five values.
-2. Helper `mapReasoningEffort(effort) (tokens int, ok bool)` exists in `internal/ai/reasoning.go` (or per-provider equivalent), table-tested.
-3. **Gemini**: request with `ReasoningEffort: "off"` produces JSON containing `"thinkingConfig":{"thinkingBudget":0}`; unset request produces no `thinkingConfig` key. Live smoke test against `gemini-3-flash-preview` returns `thoughtsTokenCount == 0`.
-4. **OpenAI Responses**: request with `ReasoningEffort: "high"` produces `"reasoning":{"effort":"high"}`. Falling back to `Options["reasoning_effort"]` still works (test).
-5. **OpenAI Chat**: request with `ReasoningEffort: "low"` is honoured (currently ignored).
-6. **Anthropic**: request with `ReasoningEffort: "medium"` produces `"thinking":{"type":"enabled","budget_tokens":4096}` against a thinking-capable model.
-7. **OpenRouter**: request with `ReasoningEffort: "high"` produces an OpenAI-compatible `"reasoning":{"effort":"high"}` body field; relayed to underlying model.
-8. **Escape hatch**: `Options["thinking_budget_tokens"] = 256` on Gemini overrides `ReasoningEffort: "low"` and produces `thinkingBudget: 256`.
-9. **Back-compat**: unset field produces byte-identical request bodies for all four providers (table-driven golden test).
-10. CHANGELOG entry under v0.16.0: "AI providers now accept `Request.ReasoningEffort` (off/low/medium/high) for cross-provider reasoning-token control. OpenAI's existing `Options[\"reasoning_effort\"]` continues to work."
-11. Notify ailang-parse (docparse) via `ailang messages` once shipped so they can adopt for `gemini-3-flash-preview` parse calls.
+1. `Request.ReasoningEffort string` is documented with exactly five valid values: `""`, `"off"`, `"low"`, `"medium"`, and `"high"`.
+2. Request construction validates reasoning controls before marshaling and before network dispatch on Generate, Step, and streaming paths.
+3. Unsupported provider/model/value combinations return a typed `ErrUnsupportedReasoningEffort`; specifically, OpenAI `"off"` is rejected rather than mapped to `"minimal"` or omitted.
+4. Invalid effort strings and non-string `Options["reasoning_effort"]` values return typed `ErrInvalidReasoningEffort` errors.
+5. Invalid `Options["thinking_budget_tokens"]` types and provider-specific ranges return typed `ErrInvalidThinkingBudget` errors; unsupported providers reject the option instead of ignoring it.
+6. Precedence is deterministic: identical typed/legacy values are accepted, differing values return `ErrConflictingReasoningConfig`, and a numeric exact budget must equal any simultaneously supplied effort mapping.
+7. Gemini emits `thinkingBudget: 0/1024/4096/16384` only for capability-registered models. Unsupported/unknown models return a typed error rather than relying on server no-op behavior.
+8. Anthropic emits enabled thinking only for capability-registered models and uses the mapped `1024/4096/16384` budgets; exact off omits thinking only where opt-in semantics are verified.
+9. Gemini absolute budgets require explicit `MaxTokens > budget`; `MaxTokens == 0` or `budget >= MaxTokens` returns typed `ErrReasoningBudgetExceedsMaxTokens` before dispatch.
+10. Anthropic enabled-thinking budgets require explicit `MaxTokens > budget`; `MaxTokens == 0` or `budget >= MaxTokens` returns typed `ErrReasoningBudgetExceedsMaxTokens` before dispatch.
+11. OpenAI Responses emits nested `reasoning.effort`; OpenAI Chat emits its separately verified native field. Both reject unregistered models and invalid values before dispatch.
+12. OpenRouter emits normalized effort only for capability-registered model/routing combinations; exact `"off"` is rejected unless live verification proves exact disablement.
+13. With `ReasoningEffort == ""` and neither legacy reasoning option present, golden tests prove byte-identical request bodies for every provider and request path.
+14. Table-driven tests cover all five effort values, invalid values, invalid option types/ranges, every precedence combination, unsupported models, `MaxTokens == 0`, `budget == MaxTokens`, and `budget == MaxTokens-1`.
+15. CHANGELOG entry is added under v0.31.0: "AI provider requests now accept validated `Request.ReasoningEffort` controls and fail loudly when a provider/model cannot honor the requested reasoning semantic."
+16. Notify ailang-parse (docparse) via `ailang messages` once shipped so it can adopt exact `"off"` for verified Gemini parse models.
 
-## Estimated effort
+## Estimated Effort
 
 | Task | Hours |
 |------|-------|
-| Add `Request.ReasoningEffort` + `internal/ai/reasoning.go` helper + tests | 1.5 |
-| Gemini wiring (types, generate, step) + tests | 2.0 |
-| OpenAI Responses (refactor existing) + Chat (new) + tests | 2.0 |
-| Anthropic wiring (request shape, header gating) + tests | 2.5 |
-| OpenRouter wiring + tests | 1.5 |
-| Live smoke tests across all four providers | 1.5 |
-| CHANGELOG, downstream message, doc updates | 1.0 |
-| Buffer | 2.0 |
+| Shared field, typed errors, resolver, capability table, and tests | 2.5 |
+| Gemini wiring and conflict/MaxTokens tests | 2.0 |
+| OpenAI Responses refactor and Chat support/tests | 2.0 |
+| Anthropic request/header/model/budget validation and tests | 2.5 |
+| OpenRouter effort extension and capability tests | 1.5 |
+| Metered live smoke verification | 1.5 |
+| CHANGELOG, downstream message, and docs | 1.0 |
+| Buffer | 1.0 |
 | **Total** | **~14h** |
 
-## Out-of-scope follow-ups
+## Out-of-Scope Follow-Ups
 
-- Surface `ReasoningEffort` in `std/ai` (e.g. `callWithReasoning(prompt, effort)` builtin).
-- Per-model default policies (e.g. auto-`off` for parse-mimetype calls).
-- Expose chain-of-thought content (Gemini `includeThoughts`, Anthropic `thinking` block content) — only useful with deliberate audit/eval use case.
-- Eval-harness baseline columns for `ReasoningEffort` (already records `ReasonTokens` on the response side).
+- Surface `ReasoningEffort` in `std/ai`, for example `callWithReasoning(prompt, effort)`.
+- Per-workload caller policies such as explicitly selecting `"off"` for parse calls.
+- Expose chain-of-thought content; response-side token accounting remains sufficient for this milestone.
+- Eval-harness baseline columns for the requested effort value.
