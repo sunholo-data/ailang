@@ -1972,11 +1972,11 @@ models:
       Frontier-tier pricing: $3.00/$15.00 per MTok, 4x K2.7 Code — treat as a
       capability probe, not a cheap-OS candidate.
       OpenRouter ID verified live 2026-07-17 (moonshotai/kimi-k3, 1048576 ctx).
-      Smoke gate: BLOCKED 2026-07-17 — upstream 429 rate_limit_exceeded on
-      every request (even a single minimal call). Only ONE provider serves K3
-      on OpenRouter (Moonshot AI direct), so there's no alternate route to fall
-      back to; this is Moonshot's own capacity/tier throttle on a day-old model.
-      Retry the smoke gate once provider capacity opens up.
+      Access RESTORED 2026-07-19 — the 2026-07-17 upstream 429 rate_limit has
+      cleared (Moonshot AI provider now serving; minimal probe returned HTTP 200
+      in ~6s, "pong", finish_reason=stop). K3 is a reasoning model (~36 reasoning
+      tokens on a trivial prompt) so keep max_output_tokens generous.
+      Smoke gate: PENDING — access unblocked, run the smoke tier next.
 
   or-kimi-k3:
     api_name: "moonshotai/kimi-k3"
@@ -1993,7 +1993,13 @@ models:
       hard_timeout_secs: 600
     notes: |
       Standard-mode companion to opencode-or-kimi-k3.
-      Smoke gate: PENDING.
+      Smoke gate: PASSED 22/23 standard mode 2026-07-19. Only miss is
+      dense_operator_program (IMP010: 'bitwiseOr' not exported by std/math) — a
+      known benchmark/stdlib gap the anchors also fail, NOT a model gap or token
+      truncation (clean 162-tok import error, not finish=length). Beat the kimi
+      sibling or-kimi-k2-7-code (21/23) head-to-head. K3 is frontier-priced
+      ($3/$15 per MTok, 4x K2.7 Code) so it's an ADDITION as a capability probe,
+      NOT a replacement for the cheap coding entry. Added to extended_suite.
 
   # =============================================================================
   # LOCAL MODELS (via Ollama)
@@ -2452,6 +2458,9 @@ extended_suite:
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
   - "or-glm-5-1"        # z.ai GLM-5.1 — best OS on standard AILANG (91%/de-flaked 90%)
   - "or-kimi-k2-7-code" # Kimi K2.7 Code — 91% std, 100% agent smoke 2026-06-16, $0.75/$3.50/M
+  - "or-kimi-k3"        # Kimi K3 (general successor, 1M ctx) — 96% std smoke 2026-07-19 (22/23, only
+    # dense_operator_program IMP010 bug), beat K2.7 Code sibling. Frontier-priced $3/$15/M — capability
+    # probe, ADDITION not a K2.7-Code replacement (different lineage + 4x cost).
   - "or-minimax-m3"     # MiniMax M3 — 87% std, $0.30/1M (ties opus/gpt5 at 1/16 cost)
   - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — 75% std, agent champion (97%)
