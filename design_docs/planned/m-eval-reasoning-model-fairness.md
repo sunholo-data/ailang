@@ -1,8 +1,20 @@
 # M-EVAL-REASONING-MODEL-FAIRNESS: Fair, correctly-measured reasoning models in the eval harness
 
-**Status**: PLANNED — surfaced 2026-07-11 while verifying the "weird" GLM-5.2 vs GLM-5.1 result in the v0.29.2 baseline.
+**Status**: PLANNED — surfaced 2026-07-11 while verifying the "weird" GLM-5.2 vs GLM-5.1 result in
+the v0.29.2 baseline. **RE-REQUESTED + QUEUED on the mission roadmap by Mark 2026-07-19** ("we
+think it may be our eval harness's fault not setting right thinking tokens or limits with
+OpenRouter") — promoted P2→P1.
+**Corroboration since authored (2026-07-18, iteration 43):** the SAME mechanism was caught LIVE in
+our own quorum tooling — gemini-3.x thinking tokens counted against `maxOutputTokens=4096`,
+truncating JSON verdicts mid-object → silent reviewer drops; fixed by 4× headroom + fail-loud on
+`finish_reason=length` + wiring the discarded `finishReason` (PR #408). Hypothesis 3 below is that
+bug, in the eval harness, against OpenRouter reasoning models. Apply the same remedy pattern:
+reasoning-aware budgets, fail-loud truncation, per-turn `finish_reason` capture (memory:
+`feedback_motoko_check_per_turn_finish` — truncation hides in summary finish_reasons). Roster
+pressure also grew: Kimi K3 (`moonshotai/kimi-k3`, reasoning) added 2026-07-18 (`2d83426d4`).
 **Target**: v0.30.x (eval infrastructure; no language surface)
-**Priority**: P2 (data trust — reasoning models are a growing share of the roster and their results are currently untrustworthy-looking and possibly unfair)
+**Priority**: **P1** (was P2) — data trust; reasoning models are a growing share of the roster and
+their results are currently untrustworthy-looking and possibly unfair
 **Estimated**: 1–2 days
 **Dependencies**: none in AILANG core. Touches `internal/eval_harness/` (standard path) + `internal/ai/` provider adapters (OpenRouter). Agent path (`agent_runner*`) is secondary.
 **Author**: Claude Opus 4.8 (requested by Mark, 2026-07-11)

@@ -853,6 +853,17 @@ frozen; contracts projection live).
   fallbacks) — OR earlier if the clause queue blocks on anything.** ONE skill parameterized, never
   forked (Gate-5 retro fixes must keep benefiting all missions). Expect quorum-at-pick (doc
   authored interactively, no creation-time quorum).
+- **m-eval-reasoning-model-fairness** ([planned/](planned/m-eval-reasoning-model-fairness.md);
+  authored 2026-07-11, **QUEUED by Mark 2026-07-19, P1**: "why does GLM 5.2 perform worse than
+  5.1? We think it may be our eval harness's fault — thinking tokens/limits with OpenRouter") —
+  the doc already carries the evidence: GLM-5.2 40/56 vs 5.1 48/56 with negative token counts,
+  empty `code` fields despite compile_ok, and NO reasoning request/budget (MaxTokens bounds total
+  output → thinking crowds out the answer). Iteration 43 proved the same mechanism live in our
+  quorum (PR #408) — apply the same remedies: reasoning-aware budgets, fail-loud on
+  `finish_reason=length`, per-turn finish_reason capture, then RE-RUN the GLM pair to split
+  harness-artifact from genuine regression. ~1–2d, metered-cheap (OpenRouter), no GPU. Expect
+  quorum-at-pick. Eval-infra (non-gating for v1.0) but Mark-prioritized — pick after the
+  greenlit clause-3 trio unless the queue blocks.
 - **m-mission-cost-chains** ([planned/v0_30_0](planned/v0_30_0/m-mission-cost-chains.md), 2026-07-18;
   **P1½ — the clause-5 KPI's data substrate**, Mark: "keep an eye on these budgets… that should
   all appear in ailang chains CLI") — VERIFIED live: chains flow for eval (45 chains/50.3M tokens
