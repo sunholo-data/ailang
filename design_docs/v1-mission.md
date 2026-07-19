@@ -35,6 +35,8 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-19 — ITERATION 58: HUMAN DIRECTIVE (#399) — Mark "is ailang fmt discoverable by agents via prompt? can we run it every turn after .ail writes (Motoko / harness hooks)?" → **answered from reproduced evidence, $0.00 metered** (no heavy-role spawn). Findings: (1) `ailang fmt` NOT in the teaching prompt (agents don't know it exists); (2) Phase-1 fmt REFUSES comment-bearing files → **344/393 (87.5%) of `examples/*.ail` un-formattable today** → auto-run-every-turn is near-useless pre-Phase-2. Both threads gated on **Phase-2 comment preservation** (design pre-exists). Queued **m-ailang-fmt-phase2** (unblock) + **m-ailang-fmt-adoption** (gated) as NEW-DOC candidates awaiting Mark greenlight. m-serveapi M1 (`@nomcp`) still PARKED for the human fork.
+
 ## STATUS 2026-07-19 — ITERATION 57: queue pick **m-serveapi-raw-handler-mcp** (clause-4 unblocker) → **QUORUM-AT-PICK BLOCKED ×2 → PARKED needs-human-review**; M1 (`@nomcp`) clean+shippable, M2 architecture is a human fork
 
 Clause-3 routable items exhausted (remaining PARKED/evidence-gated or GATED); per "unblockers first" the top clause-4 candidate was the DOC-READY unblocker **m-serveapi-raw-handler-mcp** (closes the live docparse `getKeyUsage`/`requestHistory` MCP leak). Preflight CLEAN (killswitch armed, billing CLEAN, gh `sunholo-voight-kampff`, tree clean, no MERGE_HEAD; CI+Build+Docs green @ `b205df841`). No new #399 directive (the one Mark cost-comment @`2026-07-18T16:09:03Z` was already answered iter-55; watermark advanced). Gate-2 reality-check CONFIRMED premise live (`@nomcp` absent; `routes.go:106` `IsNoExpose=false // @route overrides @noexpose`; `mcp.go:60/188` + `routes_dispatch.go:51` match doc line-refs). **QUORUM-AT-PICK (no artifact → required): BLOCKED ×2.** R1 (Rev 1): gpt5-6-sol → M2 default-on `@raw`-over-MCP silently fabricates headers = authority-WIDENING + silent-fallback (Crit. Principle 2); gemini → threads singular `RouteMethod`/`RoutePath` but MCP registers per-FUNCTION (0/>1 route). Routed to ROTATION designer **codex:gpt-5.6-sol** (bounded, workspace-write, doc-only 186+/96−) → Rev 2: `@mcp` opt-in + function-keyed envelope (`method="MCP"`, `path="/mcp/tool/"+funcName`) + typed unavailable-context sentinels. **R2 (Rev 2): STILL BLOCKED** — the sentinel fix is itself flawed: `headers`/`query` are typed `Json`, so a non-`Json` sentinel **type-panics at parameter binding** (before any projection — gemini), and a `Json`-valued sentinel would need core `std/json` changes = **Minimal-Frozen-Core violation** (PROGRAM.md); gpt5-6-sol concurred (unjustified `internal/eval/` core expansion). Gate = ONE revision + re-quorum → **PARKED needs-human-review**. **Both rounds objected ONLY to M2**; M1 `@nomcp` is clean+unobjected. Human fork on #399: (1) split+ship M1 now [RECOMMENDED], (2) pick an M2 arch (gemini's valid-`Json` provenance-marker+`req.method=="MCP"` branch, or drop the fake-envelope), (3) keep parked. Rev-2 doc preserved with a ⛔ Quorum Reblock section. Designer rotation advanced → codex. `metered=$0.15` (quorum R1 $0.066 + R2 $0.082; codex designer = OpenAI-key spend ~$0.25 est. from 83K tok — separate from the Anthropic-quota controller). Detail: log entry 62.
@@ -723,6 +725,21 @@ triage evidence = log entry 10.)*
   failed on the doc's own V2–V5 idiom; `ast.FormatEffects` collapses nil vs non-nil-empty; no comment-free
   example uses `! {}`) → `formatEffectRow` helper at all 3 sites + regression fixtures (`0b983a8f8`); 2
   evaluator lint nits cleaned (`305a37dd6`). `metered=$0.00`. Log entry 61. ·
+  **m-ailang-fmt-phase2 [NEW-DOC candidate — awaiting Mark greenlight; iter 58 (2026-07-19) directive-sourced]**
+  — Phase-2 lossless comment preservation (design already exists: implemented/v0_30_0/m-ailang-fmt.md §168-332
+  "Lossless Attachment", est. 2–3d). **This is the UNBLOCK for Mark's #399 fmt-adoption question**: iter-58
+  reproduced that Phase-1 fmt REFUSES any comment-bearing file (exit 2) → **344/393 (87.5%) of `examples/*.ail`
+  are un-formattable today**; only 12.5% comment-free files pass. Neither `--write` nor `--check` is usable on
+  real agent-written code until comments survive. Route as sprint when greenlit (design pre-exists → refine-into-
+  planned-doc, not a fresh design-doc-creator run). ·
+  **m-ailang-fmt-adoption [NEW-DOC candidate — GATED behind m-ailang-fmt-phase2; iter 58 directive-sourced]**
+  — Mark #399: "Is ailang fmt discoverable by agents via prompt… run every turn after .ail writes by Motoko or a
+  hook in other harnesses?" iter-58 findings: (1) `ailang fmt` is **NOT** in `ailang prompt` (embedded v0.16.2
+  teaches `check`/`run`/`test`, not `fmt`) → agents don't know it exists. (2) A per-turn auto-`fmt --write` hook
+  (Claude Code PostToolUse on `*.ail`, Motoko per-edit) is **near-useless pre-Phase-2** — it would exit-2/no-op on
+  87.5% of real files. Scope once Phase-2 lands: teaching-prompt line + CLI discoverability + opt-in harness hooks
+  (`--check` in CI, `--write` post-write). Deliberately NOT teaching fmt in the prompt yet — teaching a tool that
+  refuses 87.5% of commented files would frustrate agents (no-premature-adoption). ·
   ~~M-TOOLING-DETERMINISTIC (normalize/suggest-imports/apply, 3–4d)~~ **[REALITY-CHECKED iter 48
   (2026-07-18) → PREMISE SUPERSEDED; scope-close PARKED for Mark.** The CLI trio doesn't exist, but
   its premise (single-shot fragment + LLM repair) is obsolete — `prompts/repair_prompts/` deleted,
