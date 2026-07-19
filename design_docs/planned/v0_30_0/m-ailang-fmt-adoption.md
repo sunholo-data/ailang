@@ -1,12 +1,12 @@
 # M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks
 
-**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 2 rounds)** + GATED behind [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md) — see the ⛔ Quorum Block below
+**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 3 rounds; Rev-3 fixed jq but the timeout fix needs 1 trivial SIGKILL-escalation correction)** + GATED behind [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md) — see the ⛔ Quorum Block below
 **Target**: v0.30.0
 **Priority**: P2 (valuable, but strictly sequenced after Phase 2)
 **Estimated**: 1–1.5 days
 **Dependencies**: [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md) (hard gate — comment preservation AND the exit-code split (3 = parse error) this doc's hook contract distinguishes on), [M-AILANG-FMT Phase 1](../../implemented/v0_30_0/m-ailang-fmt.md) (implemented)
 
-## ⛔ Quorum Block (iteration 59, 2026-07-19) — needs-human-review
+## ⛔ Quorum Block (iteration 59, 2026-07-19) — needs-human-review — **Rev 3 (mission iteration 60): jq defect FIXED, but the timeout fix was itself flawed → STILL BLOCKED on 1 trivial correction (see "Rev-3 Re-Quorum Outcome" at the end of this block); also HARD-GATED behind Phase-2, which has deeper unresolved objections**
 
 Created + revised this iteration on Mark's #399 directive. Ran the design-quorum twice (bounded
 one-revision cap). R1's silent-fallback objection (the `2>/dev/null` hook) was resolved; R2
@@ -17,17 +17,46 @@ surfaced **two new, small, fixable defects** in the revised hook:
    always-exit-0 posture. **Fix (small):** wrap the `fmt` call in a bounded timeout (portable
    `date +%s` deadline or a backgrounded-kill guard, no GNU `timeout` dependency) and on expiry
    surface an advisory "fmt timed out" note, still exit 0.
+   **Fixed (Rev 3):** the `fmt` invocation is now bounded by a portable `date +%s` deadline +
+   backgrounded-kill guard (10s, no GNU `timeout`); on expiry the hook kills `fmt`, the file stays
+   byte-identical (atomic `--write` wrote nothing), and the timeout surfaces via the same
+   `additionalContext` path as other non-exit-3 failures — the turn is never blocked and the
+   exit-3 silent-defer contract is unchanged.
 2. **`gemini-3-1-pro` — residual silent fallback on the FIRST `jq`.** `file_path=$(… | jq -r … 2>/dev/null)`
    still swallows a missing-`jq` "command not found", yielding an empty path that no-ops via the
    wildcard case — contradicting this doc's own "a missing jq cannot silence a real error" claim.
    **Fix (small):** probe `jq` presence up front (or drop the first-`jq` stderr suppression) so a
    broken dependency surfaces as advisory context, never a silent skip.
+   **Fixed (Rev 3):** both — `jq` presence is probed up front (`command -v jq` — missing `jq`
+   surfaces an advisory stderr note and the hook no-ops) AND the first `jq`'s `2>/dev/null` is
+   dropped, so a broken dependency can never be silenced into an empty-path no-op.
 
 **Both are mechanical hook-script corrections, not contract rejections.** Per the mission's bounded
 quorum gate, parked for the human alongside the companion Phase-2 doc: authorize one short revision
 round to fix both. Quorum artifacts:
 `.ailang/state/mission-quorum/m-ailang-fmt-adoption-2026-07-19T07-02-40Z.json` (R1),
 `…-07-23-50Z.json` (R2). Metered cost both rounds: ~$0.13.
+
+### Rev-3 Re-Quorum Outcome (mission iteration 60, 2026-07-19) — STILL BLOCKED (1 trivial defect)
+
+Rev-3 (above) fixed both R2 defects; the re-quorum **accepted the `jq` fix** (defect 2 not
+re-raised) but **both reviewers rejected the timeout fix** (defect 1) — the guard is still not
+bounded:
+
+- **`gpt5-6-sol` + `gemini-3-1-pro` (agree) — SIGTERM-then-unbounded-`wait`.** After the 10s
+  deadline the guard sends only a soft `kill "$FMT_PID"` (SIGTERM) and then executes an **unbounded
+  `wait "$FMT_PID"`**. A process that ignores or traps SIGTERM (deadlock, signal handler) is never
+  reaped, so `wait` blocks indefinitely and the turn wedges anyway — the timeout guard defeats
+  itself. **Fix (trivial):** escalate to `kill -9` after a short grace before `wait` — e.g.
+  `kill "$PID"; sleep 1; kill -9 "$PID" 2>/dev/null; wait "$PID"` — the exact SIGTERM→grace→SIGKILL
+  pattern the mission's own codex/designer wrappers already use (`kill; sleep 2; kill -9`).
+
+This is **one small correction from quorum-clean**, but the doc is **hard-gated behind
+[M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md)**, whose Rev-3 re-quorum surfaced deeper
+architecture-level objections — so adoption cannot proceed regardless of this fix. Per the bounded
+gate (one revision + one re-quorum, now consumed) → **PARKED needs-human-review**. Rev-3 re-quorum
+artifact: `.ailang/state/mission-quorum/m-ailang-fmt-adoption-2026-07-19T10-00-54Z.json` (both
+reviewers present). Metered this round: ~$0.08.
 
 ## ⛔ Execution Gate
 
@@ -75,8 +104,8 @@ without ever being forced.
 - A documented, opt-in Claude Code PostToolUse hook formats `.ail` files after Edit/Write, never blocks a turn.
 - **No silent fallback:** the hook never discards `fmt` diagnostics. Exactly ONE case is silent —
   exit 3, "input does not parse yet" (the expected mid-edit state; contract clause 5). Every other
-  failure (read, print, round-trip, envelope, write, panic, missing binary) surfaces to the agent
-  as advisory context while the wrapper still exits 0.
+  failure (read, print, round-trip, envelope, write, panic, timeout, missing binary) surfaces to
+  the agent as advisory context while the wrapper still exits 0.
 - Hook contract (exit codes, idempotence, failure behavior) documented in `docs/docs/reference/formatter.md` — one page a harness author reads to integrate safely.
 - Zero forced adoption: no change to `make ci` gating, no default-on hook, no prompt teaching before Phase 2.
 
@@ -215,21 +244,54 @@ never discarding stderr:
 ```bash
 #!/bin/bash
 # PostToolUse hook for Edit/Write on .ail files: canonical-format the edited file.
-# Non-blocking (always exits 0) and NON-SILENT (contract clause 4):
+# Non-blocking (always exits 0), NON-SILENT (contract clause 4), and BOUNDED
+# (portable date-deadline + kill guard — no GNU `timeout` dependency):
 #   exit 0 -> optional confirmation
 #   exit 3 -> input does not parse yet (expected mid-edit) -> defer silently (clause 5)
+#   timeout -> kill fmt (atomic --write wrote nothing; file byte-identical),
+#     surface an advisory note via additionalContext, then exit 0
 #   anything else (2 = operational error / panic; 127 = ailang missing; ...) ->
 #     surface captured output to the agent via additionalContext, then exit 0
 set +e
+
+# jq is load-bearing for parsing hook input; a missing jq must SURFACE, never
+# silently no-op via an empty path (quorum R2 finding).
+if ! command -v jq >/dev/null 2>&1; then
+  echo "format_ail hook: jq not found on PATH — .ail formatting skipped (install jq)" >&2
+  exit 0
+fi
+
 HOOK_JSON=$(cat 2>/dev/null || echo "{}")
-file_path=$(echo "$HOOK_JSON" | jq -r '.tool_input.file_path // ""' 2>/dev/null)
+file_path=$(echo "$HOOK_JSON" | jq -r '.tool_input.file_path // ""')  # no 2>/dev/null: jq errors surface
 case "$file_path" in
   *.ail) ;;
   *) exit 0 ;;
 esac
 
-FMT_OUT=$(ailang fmt --write "$file_path" 2>&1)   # capture stderr — NEVER 2>/dev/null
+# Bounded run (contract clause 4: never wedge a turn, even on a hung fmt).
+FMT_TIMEOUT_SECS=10
+FMT_TMP=$(mktemp)
+ailang fmt --write "$file_path" >"$FMT_TMP" 2>&1 &   # capture stderr — NEVER 2>/dev/null
+FMT_PID=$!
+FMT_DEADLINE=$(( $(date +%s) + FMT_TIMEOUT_SECS ))
+FMT_TIMED_OUT=0
+while kill -0 "$FMT_PID" 2>/dev/null; do            # 2>/dev/null here = process-probe noise only
+  if [ "$(date +%s)" -ge "$FMT_DEADLINE" ]; then
+    kill "$FMT_PID" 2>/dev/null
+    FMT_TIMED_OUT=1
+    break
+  fi
+  sleep 0.2
+done
+wait "$FMT_PID" 2>/dev/null
 FMT_RC=$?
+FMT_OUT=$(cat "$FMT_TMP")
+rm -f "$FMT_TMP"
+if [ "$FMT_TIMED_OUT" -eq 1 ]; then
+  FMT_RC=124   # synthetic timeout code -> routed to the surface-it branch below
+  FMT_OUT="ailang fmt timed out after ${FMT_TIMEOUT_SECS}s and was killed; file left as written (atomic --write wrote nothing).
+$FMT_OUT"
+fi
 
 case "$FMT_RC" in
   0) echo "✓ Formatted $file_path" >&2 ;;
@@ -250,10 +312,21 @@ exit 0
 Registered under `hooks.PostToolUse` with matcher `Edit|Write` in `.claude/settings.json`
 (alongside the existing Go entry). Opt-in per repo; this repo enables it (deferred-decision row).
 
-Design notes: (a) the `jq` fallback line means even a missing `jq` cannot silence a real error —
-it degrades to plain stderr, which PostToolUse also surfaces; (b) exit 127 (`ailang` not on PATH)
-and exit 2 from an unrecovered Go panic both land in the surface-it branch by construction —
-the silent branch is pinned to exactly `3`, never a catch-all.
+Design notes: (a) `jq` presence is probed up front — a missing `jq` surfaces as an advisory
+stderr note (PostToolUse-visible) and the hook no-ops, and the first `jq` call carries no stderr
+suppression, so a `jq` runtime error also surfaces (quorum R2 fix: previously a missing-`jq`
+"command not found" was silenced into an empty path that no-op'd via the wildcard case); the
+emit-line `jq -n … ||` fallback remains as belt-and-braces for a runtime `jq` failure, degrading
+to plain stderr, which PostToolUse also surfaces; (b) exit 127 (`ailang` not on PATH) and exit 2
+from an unrecovered Go panic both land in the surface-it branch by construction — the silent
+branch is pinned to exactly `3`, never a catch-all; (c) the `fmt` run is time-bounded by a
+portable `date +%s` deadline + backgrounded-kill guard (no GNU `timeout` dependency — the rig has
+none); on expiry the hook kills `fmt`, the file stays byte-identical (atomic `--write` never
+leaves partial output, clause 3), and the timeout surfaces via the same `additionalContext` path
+as every other non-exit-3 failure (synthetic exit 124) — the turn is never blocked and the
+exit-3 silent-defer contract is unchanged. The `2>/dev/null` redirects on the guard's
+`kill -0`/`kill`/`wait` are process-management noise suppression only and carry no `fmt` or `jq`
+diagnostics.
 
 #### Hook 3: Motoko per-edit (`--write`) — cross-repo contract
 
@@ -301,7 +374,7 @@ limitation-paragraph removal), or any compiler/runtime path.
 ### M3: Opt-in Hooks — 0.5 day
 
 - [ ] `make fmt-check` target; run it once and record the drift count (informational baseline — mass reformat is out of scope)
-- [ ] `scripts/hooks/format_ail.sh` + `.claude/settings.json` registration; manual tests: (a) edit an `.ail` file via Claude Code → formatted, turn not blocked; (b) deliberately non-parsing file → exit 3 path, silent defer, turn not blocked; (c) simulated operational error (e.g. chmod-unreadable file) → advisory context surfaced to the agent, turn not blocked
+- [ ] `scripts/hooks/format_ail.sh` + `.claude/settings.json` registration; manual tests: (a) edit an `.ail` file via Claude Code → formatted, turn not blocked; (b) deliberately non-parsing file → exit 3 path, silent defer, turn not blocked; (c) simulated operational error (e.g. chmod-unreadable file) → advisory context surfaced to the agent, turn not blocked; (d) simulated hang (stub `ailang` that sleeps past the deadline) → fmt killed at the `date +%s` deadline, file byte-identical, timeout advisory surfaced, turn not blocked
 - [ ] `make test` green (nothing in `internal/` changed; this is a regression tripwire, not a coverage claim)
 
 **Total: 1.25 days.**
@@ -350,7 +423,11 @@ equivalents:
   with a forced operational error (unreadable file / renamed binary) → file untouched, advisory
   context visible to the agent on the next turn, turn not blocked (clause 4)
 - Silence audit: grep the shipped hook for `2>/dev/null` on the `ailang fmt` invocation — must be
-  absent (the only sanctioned redirect is `2>&1` into the captured variable)
+  absent (the only sanctioned redirect there is `2>&1` into the capture file); the `jq` lines must
+  not silently swallow a missing-binary error (`jq` presence is probed up front; the first `jq`
+  carries no stderr suppression). The `2>/dev/null` redirects on the timeout guard's
+  `kill -0`/`kill`/`wait` process-management calls are exempt — they carry no `fmt` or `jq`
+  diagnostics
 - Idempotence spot-check: run the hook twice on the same file; second run is a no-op
 
 ## Non-Goals
@@ -370,7 +447,8 @@ equivalents:
 | Prompt registry corruption (in-place edit of a hashed version) | Medium | Design-Freeze rule: new version entry only; verification step proves v0.16.2 serves byte-identical |
 | Teaching line induces premature `fmt` calls on broken code | Low | Line says "after your edits type-check"; clause 5 means the worst case is a no-op exit 3 |
 | Hook surfaces noisy advisory context on repeated operational errors (e.g. broken install) | Low | Context fires only on non-0/non-3 exits, which are genuine faults the agent SHOULD see and fix (e.g. reinstall); silence here was the design flaw the quorum blocked, not the noise |
-| Hook-side `jq` missing → surfacing path degrades | Low | Explicit fallback to plain stderr in the script (also agent-visible in PostToolUse); the silent branch remains pinned to exit 3 only |
+| Hook-side `jq` missing → surfacing path degrades | Low | Up-front `command -v jq` probe surfaces a missing `jq` as an advisory stderr note (agent-visible in PostToolUse) and no-ops — never a silent empty-path skip; the first `jq` carries no stderr suppression; the emit-line fallback to plain stderr covers runtime `jq` failure; the silent branch remains pinned to exit 3 only |
+| `ailang fmt` hangs inside the hook → turn wedged | Low | Bounded by the portable `date +%s` deadline + kill guard (10s); on expiry fmt is killed, the file stays byte-identical (atomic `--write`), and a timeout advisory surfaces — the wrapper still exits 0 |
 | Post-write hook fights another write-path tool | Low | Idempotence clause 1 + PostToolUse ordering (runs after the write completes); manual double-run test |
 | `fmt-check` baseline shows huge drift and invites a rushed mass reformat | Low | Explicit non-goal + informational-baseline framing in M3 |
 | Stale installed binary serves old embedded prompt after flip | Low | M1 verification requires rebuild (`make quick-install`) before the grep check |

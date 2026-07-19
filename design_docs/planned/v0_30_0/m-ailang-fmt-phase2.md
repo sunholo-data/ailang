@@ -1,6 +1,6 @@
 # M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`
 
-**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 2 rounds)** — see the ⛔ block below
+**Status**: ⛔ **PARKED — needs-human-review (design-quorum BLOCKED, 3 rounds; Rev-3 fixed the R2 defects but surfaced 2 NEW architecture-level objections)** — see the ⛔ block below
 **Target**: v0.30.0
 **Priority**: P1 (Phase 1 refuses 372/393 = 94.7% of the live example corpus; the formatter is unusable on normal commented code until this lands)
 **Estimated**: 2–3 days (sprint-sized)
@@ -8,7 +8,7 @@
 **Refined from**: the "Phase 2: Lossless Attachment" section of the implemented Phase 1 doc (its technical decisions are preserved verbatim below and expanded into a standalone plan)
 **Companion doc**: [M-AILANG-FMT-ADOPTION](m-ailang-fmt-adoption.md) — discoverability + opt-in hooks, **gated behind this doc**
 
-## ⛔ Quorum Block (iteration 59, 2026-07-19) — needs-human-review
+## ⛔ Quorum Block (iteration 59, 2026-07-19) — needs-human-review — **Rev 3 (mission iteration 60): the 2 R2 defects below FIXED, but the Rev-3 re-quorum surfaced 2 NEW, DEEPER structural objections → STILL BLOCKED (see "Rev-3 Re-Quorum Outcome" at the end of this block)**
 
 Created + revised this iteration on Mark's #399 directive ("Yep do the fmt design docs next"). Ran
 the multi-provider design-quorum twice (the mission's bounded one-revision cap). The design
@@ -23,18 +23,61 @@ fixable defects**:
    baseline rest on that unverified premise. **Fix (small):** re-verify parse-validity with a
    parser-level sweep (`ailang check` per file, not `fmt`), quantify any non-parsing files, and
    restate the corpus gate over the *parse-valid* subset.
+   **Fixed (Rev 3):** parse-validity re-measured directly at the parser level (V21, `ailang check`
+   per file at v0.30.0): **386/393 (98.2%) parse**; the corpus gate is restated over the 386
+   parse-valid files and the 7 non-parsing files (all expected error-demo/experimental/bug
+   fixtures) are enumerated and explicitly out of the format gate.
 2. **`gemini-3-1-pro` — left-widening rule over-consumes the parent open-delimiter.** In
    `[ /* C */ x ]` the first child `x` widens left over the parent's `[` (its match `]` lies after
    the min-anchor), trapping comment `C` inside `x` instead of attaching it to the list's boundary 0
    — breaking attacher totality. **Fix (small):** the widening rule must stop at the nearest
    enclosing-list open-delimiter (never cross a boundary the parent owns); add `[ /* C */ x ]` and
    nested-bracket fixtures to the totality test.
+   **Fixed (Rev 3):** the widening rule now carries an explicit hard-wall clause — left-widening
+   stops at the nearest enclosing-list open-delimiter; a child may never widen across a delimiter
+   its parent owns, and comments before the first child attach to the parent's boundary 0. The
+   `[ /* C */ x ]` and `[ /* C */ [ y ] ]` totality fixtures are added to M1/M2 and the test list.
 
 **Both are tightly-scoped corrections on an otherwise-sound design, not architecture rejections.**
 Per the mission's bounded quorum gate (one revision + one re-quorum), the item is **parked for the
 human**: authorize one more short revision round to address the two objections, or amend the design.
 Quorum artifacts: `.ailang/state/mission-quorum/m-ailang-fmt-phase2-2026-07-19T07-01-55Z.json` (R1),
 `…-07-21-45Z.json` (R2). Metered cost both rounds: ~$0.16.
+
+### Rev-3 Re-Quorum Outcome (mission iteration 60, 2026-07-19) — STILL BLOCKED (2 NEW deeper objections)
+
+Mark authorized "one more short decision round" (#399 @ `2026-07-19T07:52:58Z`). Rev-3 (above)
+fixed both R2 defects; the re-quorum **confirmed that** (neither R2 defect was re-raised) — but the
+complete 2-reviewer pass surfaced **two NEW, architecture-level objections** on the token-anchored
+envelope itself. This corrects the iter-59 "converging / a few fixes from green" framing: each
+quorum round has surfaced a *different, deeper* premise gap, and these two are not mechanical:
+
+1. **`gpt5-6-sol` — attacher-totality inventory is unproven.** The envelope depends on an
+   *exhaustive* mapping of every ordered child-list the printer emits, but the doc asserts only a
+   **partial** inventory (top-level decls, block children, list/tuple/record elements, match arms,
+   import lists) with no code-audit evidence that all comment-bearing boundaries are covered —
+   parameters, type arguments, constructor arguments, record fields, annotations, and any other
+   printer-specific sequences. Without a verified inventory, attacher totality and "every
+   parse-valid source is supported" are unproven, and a corpus-only zero-error gate cannot
+   establish coverage for valid **off-corpus** syntax. **Needs:** a code audit of every child-list
+   emission site in the printer, folded into the design as a proven inventory.
+2. **`gemini-3-1-pro` — interpolation clamping is structurally fatal.** Clamping all
+   interpolation-interior anchors (the 3,510 V18 interior tokens) to the outer string's start
+   **collapses distinct inner-AST child boundaries into a single offset**, breaking the load-bearing
+   "sibling min-anchors are strictly increasing" invariant; and treating a `${…}` block as an
+   opaque literal falsely assumes comments cannot occur inside it → silent deletion / envelope
+   errors for valid inner comments. (This doc's own **V19** already flagged "the collector's
+   `skipString` must become interpolation-aware" as an open Phase-2 work item — the re-quorum
+   promotes it from a footnote to a blocking design gap.) **Needs:** an interpolation-aware
+   attachment strategy that preserves inner-expression boundaries (or an explicit, justified
+   carve-out proving comments cannot occur there).
+
+**Both are architecture-level, beyond the bounded quorum gate (one revision + one re-quorum, now
+consumed).** → **PARKED needs-human-review.** The token-anchored envelope needs a deeper
+design-verification pass before it can clear; this is not a "one short round" fix. Rev-3 re-quorum
+artifacts: `.ailang/state/mission-quorum/m-ailang-fmt-phase2-2026-07-19T09-59-09Z.json` (degraded
+N-1 — `gpt5-6-sol` refused on the $0.10 cap after the doc grew), `…-2026-07-19T10-03-00Z.json`
+(complete 2-reviewer). Metered this round: ~$0.14.
 
 ## Problem Statement
 
@@ -69,14 +112,23 @@ appears in the output exactly once, deterministically placed — unlocking the f
 
 **Success Metrics:**
 
-- **Corpus gate (hard precondition for refusal removal):** all 393 `examples/**/*.ail` files format
-  with 0 comment-refusals AND 0 envelope/attachment errors. The two load-bearing envelope premises
+- **Corpus gate (hard precondition for refusal removal):** all **386 parse-valid** `examples/**/*.ail`
+  files (of 393 total) format with 0 comment-refusals AND 0 envelope/attachment errors. Two distinct
+  corpus measurements back this gate and must not be conflated: **(a)** the lossless BYTE-token
+  sweep covers all 393 files (81,224 tokens — V18) and is unaffected by parse validity, since it
+  scans raw bytes; **(b) PARSE-VALIDITY is proven at the parser level** (V21, `ailang check` per
+  file): **386/393 (98.2%) parse** — 314 check-clean plus 72 that parse but fail only type/effect
+  checks. The 7 non-parsing files are all expected error-demo/experimental/bug fixtures
+  (enumerated in V21: 2 × `examples/archive/broken/`, 1 × `examples/bugs/`, 4 ×
+  `examples/experimental/`) and are explicitly **OUT of the format gate** — they exit 3 by design.
+  The two load-bearing envelope premises
   (rune-column conversion exactness, anchor↔token alignment) are already **measured corpus-wide at
   design time** (V14–V19: 81,224 tokens, exact for every token outside string-literal interiors,
   and the interior class is fully characterized and clamped by design). The one remaining corpus
   unknown — attachment-rule coverage — is turned into a measured gate in M3: the refusal path is
   deleted **only when the sweep shows zero residual errors**. So "every parse-valid corpus file
-  formats" is an *enforced shipping precondition*, not a hope that coexists with fail-closed errors.
+  (386/393) formats" is an *enforced shipping precondition*, not a hope that coexists with
+  fail-closed errors.
 - **Fail-closed posture reconciled with the goal:** on the corpus, envelope/attachment errors are
   gated to exactly zero before release. Off-corpus files may still hit a fail-closed envelope error
   (exit 2, file untouched) — and every such occurrence is classified a **formatter defect** to be
@@ -252,7 +304,15 @@ architecture they force, follow.
      child: opening brackets whose match (byte-level bracket matching over code bytes — proper
      nesting is guaranteed for parse-valid input, and brackets inside comments/literals are
      excluded by the region map) lies at/after the min-anchor, and modifier keywords (`export`,
-     `pure`). Sibling min-anchors are strictly increasing (children are disjoint and ordered), so
+     `pure`). **Hard left wall (explicit clause):** left-widening STOPS at the nearest
+     enclosing-list open-delimiter — a child may **never** widen across a delimiter its PARENT
+     owns. The parent's own opening bracket/paren/brace is a hard left wall for every child, even
+     when that delimiter's byte-level match lies at/after the child's min-anchor: in
+     `[ /* C */ x ]`, `x` must not consume the list's `[`, so comment `C` attaches to the *list's*
+     boundary 0, not to `x` (attacher totality depends on this — without the wall, the first
+     child over-consumes the parent's open delimiter and traps boundary-0 comments inside
+     itself). Comments before the first child always attach to the parent's boundary 0.
+     Sibling min-anchors are strictly increasing (children are disjoint and ordered), so
      boundaries between siblings are unambiguous; nested lists resolve by interval containment
      (subtree intervals nest). An unclassifiable token during widening is an envelope error —
      the class is extended only by explicit doc amendment, never heuristically.
@@ -418,20 +478,27 @@ boundary before `println(...)` in the enclosing block's child list).
   code bytes; child-boundary resolution (min-anchor + closed-class left widening over
   brackets/modifiers); envelope-error taxonomy; fail-closed wiring
 - [ ] Unit tests: collector spans (incl. unicode + nested interpolation), boundary resolution over
-  `export`/`pure` and paren-wrapped heads, envelope errors on constructed inconsistencies
+  `export`/`pure` and paren-wrapped heads, the parent-open-delimiter hard left wall
+  (`[ /* C */ x ]` — first child must not widen over the list's `[`; nested case
+  `[ /* C */ [ y ] ]` — comment stays at the outer list's boundary 0), envelope errors on
+  constructed inconsistencies
 
 ### M2: Deterministic Attachment + Emission — 1 day
 
-- [ ] Implement rules 1–5; totality check (every comment attached or file errors)
+- [ ] Implement rules 1–5; totality check (every comment attached or file errors) — incl. the
+  hard-left-wall totality fixtures: `[ /* C */ x ]` (comment must attach to the list's boundary 0,
+  NOT to `x`) and `[ /* C */ [ y ] ]` (comment must attach to the outer list's boundary 0, not be
+  widened into the inner list)
 - [ ] Emission interleaving in the document builder: leading / node / same-line trailing / boundary-floating; rule-5 blank-line grouping
 - [ ] Fixed-point tests per rule: each attachment class re-derives identically on its own output (idempotence at the rule level)
 
 ### M3: Property Gate, Refusal Removal + Exit Split, Corpus + Docs — 0.5–1 day
 
 - [ ] Marker property test: unique marker per input comment; output contains each marker exactly once; `fmt(fmt(x)) == fmt(x)`
-- [ ] Full-corpus sweep: all 393 `examples/**/*.ail` — parse-valid files format with **0
-  comment-refusals AND 0 envelope/attachment errors** (hard gate: refusal removal blocked until
-  zero), structural round-trip green
+- [ ] Full-corpus sweep over the **386 parse-valid** `examples/**/*.ail` files (of 393; the 7
+  non-parsing error-demo/experimental/bug fixtures enumerated in V21 exit 3 and are out of the
+  gate) — every parse-valid file formats with **0 comment-refusals AND 0 envelope/attachment
+  errors** (hard gate: refusal removal blocked until zero), structural round-trip green
 - [ ] Remove the refusal path in `cmd/ailang/fmt.go`; split exit codes (3 = input parse error,
   2 = operational error — the adoption doc's hook contract depends on this); update `fmt --help`
   and `docs/docs/reference/formatter.md` (exit table + NFC note)
@@ -463,7 +530,9 @@ token stream is byte-for-byte unchanged; comments continue to be skipped on the 
 
 ### Programs that MUST still work
 
-Regression fixtures (all exist; paths verified via the corpus sweep V4, which parsed all 393):
+Regression fixtures (all exist; paths verified via the corpus sweep V4 — note V4 classified `fmt`
+outcomes and could not establish parse-validity; that is now measured separately in V21, 386/393
+parse):
 
 1. The 21 currently-formattable comment-free examples — Phase 2 output must be byte-identical to Phase 1 output for comment-free input (zero-comment regression gate)
 2. `examples/hello_world.ail` (verified: exists, comment-refused today with exit 2; file-header comment → rule 4, leading decl comment → rule 2)
@@ -473,8 +542,8 @@ Regression fixtures (all exist; paths verified via the corpus sweep V4, which pa
 
 (The three named examples are verified fixtures — each was confirmed to exist and to be
 comment-refused (`ailang fmt` exit 2) on 2026-07-19, see Verification Log V13. They are samples of
-attachment classes; the release gate remains M3's full 393-file sweep, so no example is silently
-dropped.)
+attachment classes; the release gate remains M3's corpus sweep over all 386 parse-valid files
+(V21), so no parse-valid example is silently dropped.)
 
 ### What deliberately changes
 
@@ -493,7 +562,7 @@ dropped.)
 **Unit tests:**
 - Collector: spans, kinds, literal/quasiquote non-comments, nested-interpolation regions, unicode column handling
 - Envelope: anchor conversion (incl. the permanent corpus premise sweep), literal clamping, bracket matching, boundary resolution, each envelope-error class (fail closed, never guess)
-- Attacher: one test per rule 1–5 + boundary cases (comment at EOF with no trailing newline; comment between `;`-separated expressions; consecutive groups with/without blank lines)
+- Attacher: one test per rule 1–5 + boundary cases (comment at EOF with no trailing newline; comment between `;`-separated expressions; consecutive groups with/without blank lines; the hard-left-wall totality fixtures `[ /* C */ x ]` and `[ /* C */ [ y ] ]` — comment attaches to the enclosing list's boundary 0, never to the first child)
 
 **Property tests:**
 - Marker preservation: every input comment's unique marker appears exactly once in output
@@ -602,6 +671,7 @@ contract.
 | V18 | **Corpus-wide premise sweep** (throwaway probe #2/#3; deleted after run): for all 393 `examples/**/*.ail`, every `NextToken` token's (line,col) converted via line-start table + rune walk over normalized source; converted offset must land on the token's source text | 393 files, **81,224 tokens**: conversion **exact for every token outside string-literal interiors**. Mismatches: 3,510, ALL inside string-literal regions = interpolation-queue tokens (positions synthesized inside `${…}`), + 8 nested-interpolation tokens (also inside strings; see V19), + 8 tagged-quasiquote tokens (`sql"""`/`json{` in `examples/experimental/web_api.ail`) whose positions were **verified correct** at the tag start (probe's literal-vs-source matcher was too strict, not a position error). The exception class is fully characterized and confined to literal interiors, where comments cannot occur → clamped by design. |
 | V19 | Mismatch classification probe: literal-region map (mirroring `comment_scan.go` states) applied to all V18 mismatches | 3,510/3,526 inside mapped regions; the 16 "outside" decompose into the 8 verified-correct quasiquote tags + 8 nested-interpolation tokens (`examples/runnable/directory_ops.ail:21`, `"${f("${base}/…")}"`-shaped) where the probe's region scanner — replicating `comment_scan.go`'s `skipString` — terminated the region at the first unescaped `"`. **Discovered real Phase-2 work item:** the collector's `skipString` must become interpolation-aware; today's naive version errs conservative (possible false-positive refusal, never data loss). |
 | V20 | Read `cmd/ailang/fmt.go` error paths end-to-end | All failure classes (usage, read, comment-preflight, parse, print, round-trip, write) exit **2** with distinct stderr text only (`parseForFmt` → `"<path>: parse error: …"`). Exit codes alone cannot distinguish input-parse-refusal from operational errors → grounds the exit-3 split this doc now owns (required by the adoption doc's hook contract). |
+| V21 | **Rev-3 parser-level parse-validity sweep** (2026-07-19, `ailang` v0.30.0 at HEAD): `find examples -name '*.ail'` → 393 files; per file `ailang check --json`, classifying parse errors (`PAR_`/`LEX_`/"parse error") vs type/effect errors | **PARSE-VALID = 386/393 (98.2%)** — 314 check-clean + 72 that parse but fail only type/effect checks. NON-PARSING = 7/393, all in expected-broken dirs: `examples/archive/broken/testing_advanced.ail`, `examples/archive/broken/testing_basic.ail`, `examples/bugs/concat_operator_list_inference.ail`, `examples/experimental/factorial.ail`, `examples/experimental/web_api.ail`, `examples/experimental/ai_agent_integration.ail`, `examples/experimental/concurrent_pipeline.ail`. Closes the R2 `gpt5-6-sol` objection: V4 ran Phase-1 `fmt`, whose comment preflight refuses 372 files BEFORE parsing, so it could not prove the refused majority parse — this sweep measures parse-validity directly at the parser level. The corpus gate and M3 sweep are restated over the 386 parse-valid files; the 7 fixtures above are out of the format gate (exit 3 by design). |
 
 ## References
 
