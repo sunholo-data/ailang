@@ -248,6 +248,10 @@ models:
     pricing:
       input_per_1k: 0.001     # $1.00 per 1M = $0.001 per 1K
       output_per_1k: 0.006    # $6.00 per 1M = $0.006 per 1K
+    budgets:
+      max_cost_usd: 0.30      # tier parity: every other cheap-tier agent model has an
+      hard_timeout_secs: 600  # explicit $0.30; the default formula gave luna only $0.256
+                              # and cost-killed 3 agent benchmarks in the v0.30.0 baseline
     notes: |
       GPT-5.6 Luna — fast/affordable tier (July 9, 2026).
       Gated 2026-07-11: smoke 21/23 (anchor-normalized clean), core 23/26 at
