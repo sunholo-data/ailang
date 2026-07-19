@@ -15,6 +15,17 @@ pressure also grew: Kimi K3 (`moonshotai/kimi-k3`, reasoning) added 2026-07-18 (
 **Target**: v0.30.x (eval infrastructure; no language surface)
 **Priority**: **P1** (was P2) — data trust; reasoning models are a growing share of the roster and
 their results are currently untrustworthy-looking and possibly unfair
+**K3 EVIDENCE + MANDATE (Mark 2026-07-19 — "make sure not to curtail thinking tokens for K3, we
+may not have even seen its best yet"):** v0.30.0 standard failure-row audit: of or-kimi-k3's 12
+fails (97/109 passing), **5 produced ZERO code** — 3 × api_error (0 tokens) and **2 × "logic_error"
+with THREE output tokens and empty code** (an answer that never arrived, blamed on the model), and
+**`finish_reason` is not recorded in the result rows at all**, so truncation vs genuine-stop is
+currently indistinguishable. If the 5 are artifacts, K3's true ceiling is ≤102/109 (~94%) — the
+top model on the board is plausibly UNDER-measured. MANDATES for the re-run: (1) explicit,
+GENEROUS reasoning budgets for K3/GLM/Kimi-class models — never let MaxTokens curtail thinking
+(separate reasoning budget or ≥4× headroom, per the PR #408 remedy); (2) persist per-row
+`finish_reason` (and per-turn for agentic) so truncation is a measured category, not a guess;
+(3) re-run the 5 zero-code rows FIRST — they're the cheapest hypothesis test in the whole doc.
 **Estimated**: 1–2 days
 **Dependencies**: none in AILANG core. Touches `internal/eval_harness/` (standard path) + `internal/ai/` provider adapters (OpenRouter). Agent path (`agent_runner*`) is secondary.
 **Author**: Claude Opus 4.8 (requested by Mark, 2026-07-11)

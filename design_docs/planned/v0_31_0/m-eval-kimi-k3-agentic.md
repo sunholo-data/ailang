@@ -18,7 +18,11 @@ v0.19.0 sweet-spot probe); pi harness (same executor contract); the fairness fix
 
 v0.30.0 standard baseline, AILANG: **or-kimi-k3 = 97/109 (89.0%)** — the strongest OpenRouter
 model on the board, ahead of or-glm-5.2 (88/109), or-kimi-k2-7-code (88/109), or-glm-5.1
-(85/109). If that strength holds AGENTICALLY (multi-turn, tool-use, per-edit `ailang check`
+(85/109). **And 97 is plausibly an UNDER-measure** (Mark 2026-07-19): 5 of its 12 fails produced
+zero code (3 api_error + 2 three-token "logic errors" — answers that never arrived), and
+finish_reason isn't persisted, so truncation is invisible. The fairness re-run re-measures K3's
+standard score with uncurtailed thinking budgets; **M2's comparison baseline is the POST-FIX
+standard score, not 97/109.** If that strength holds AGENTICALLY (multi-turn, tool-use, per-edit `ailang check`
 feedback), K3 becomes a serious cheap-executor candidate for the suite and potentially the
 mission fleet's evidence-based assignment table (Phase E) — a mid-cost lane between the local-GPU
 free tier and frontier metered lanes.
