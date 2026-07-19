@@ -1,6 +1,6 @@
 {
   "version": "v0.29.2",
-  "timestamp": "2026-07-19T10:14:02+02:00",
+  "timestamp": "2026-07-19T10:59:11+02:00",
   "totalRuns": 1853,
   "aggregates": {
     "agentBenchmarks": [
@@ -34079,7 +34079,7 @@
   "history": [
     {
       "version": "v0.29.2",
-      "timestamp": "2026-07-19T10:14:01+02:00",
+      "timestamp": "2026-07-19T10:59:10+02:00",
       "successRate": 0.7868321640582838,
       "totalRuns": 1853,
       "successCount": 1458,
@@ -51042,14 +51042,14 @@
         {
           "band": "Hard",
           "elo": 1708,
-          "id": "stream_lcg_topk",
+          "id": "emit_exact_bytes_varied",
           "passRate": 80,
           "saturated": false
         },
         {
           "band": "Hard",
           "elo": 1708,
-          "id": "emit_exact_bytes_varied",
+          "id": "stream_lcg_topk",
           "passRate": 80,
           "saturated": false
         },
@@ -51352,14 +51352,14 @@
         {
           "band": "Trivial",
           "elo": 853,
-          "id": "digitless_constants",
+          "id": "effect_composition",
           "passRate": 100,
           "saturated": true
         },
         {
           "band": "Trivial",
           "elo": 853,
-          "id": "effect_composition",
+          "id": "digitless_constants",
           "passRate": 100,
           "saturated": true
         },
@@ -51637,15 +51637,15 @@
             {
               "band": "Easy",
               "elo": 1482.4,
-              "id": "state_machine_vending",
+              "graderFlag": "free-text-exact-match",
+              "id": "decision_block_capture",
               "passRate": 90,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1482.4,
-              "graderFlag": "free-text-exact-match",
-              "id": "decision_block_capture",
+              "id": "state_machine_vending",
               "passRate": 90,
               "saturated": false
             },
@@ -51722,14 +51722,14 @@
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "balanced_parens",
+              "id": "recursion_fibonacci",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1059.2,
-              "id": "recursion_fibonacci",
+              "id": "balanced_parens",
               "passRate": 100,
               "saturated": true
             },
@@ -51750,14 +51750,14 @@
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "immutable_data_structures",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1055.9,
-              "id": "gcd_lcm",
+              "id": "immutable_data_structures",
               "passRate": 100,
               "saturated": true
             },
@@ -51778,14 +51778,14 @@
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "numeric_modulo",
+              "id": "fizzbuzz",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1054.2,
-              "id": "fizzbuzz",
+              "id": "numeric_modulo",
               "passRate": 100,
               "saturated": true
             },
@@ -52158,14 +52158,14 @@
             {
               "band": "Trivial",
               "elo": 1261.9,
-              "id": "binary_tree_sum",
+              "id": "nested_records",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1261.9,
-              "id": "nested_records",
+              "id": "binary_tree_sum",
               "passRate": 100,
               "saturated": true
             },
@@ -52179,14 +52179,14 @@
             {
               "band": "Trivial",
               "elo": 1261,
-              "id": "json_transform",
+              "id": "mini_interpreter",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1261,
-              "id": "mini_interpreter",
+              "id": "json_transform",
               "passRate": 100,
               "saturated": true
             },
@@ -52200,7 +52200,7 @@
             {
               "band": "Trivial",
               "elo": 1260.1,
-              "id": "expression_evaluator",
+              "id": "merge_sort",
               "passRate": 100,
               "saturated": true
             },
@@ -52214,7 +52214,7 @@
             {
               "band": "Trivial",
               "elo": 1260.1,
-              "id": "merge_sort",
+              "id": "expression_evaluator",
               "passRate": 100,
               "saturated": true
             },
@@ -52715,14 +52715,14 @@
             {
               "band": "Easy",
               "elo": 1328.4,
-              "id": "nested_records",
+              "id": "gcd_lcm",
               "passRate": 100,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1328.4,
-              "id": "gcd_lcm",
+              "id": "nested_records",
               "passRate": 100,
               "saturated": false
             },
@@ -54227,14 +54227,14 @@
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "ast_patch_roundtrip",
+              "id": "float_eq",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 707.5,
-              "id": "float_eq",
+              "id": "ast_patch_roundtrip",
               "passRate": 100,
               "saturated": true
             },
