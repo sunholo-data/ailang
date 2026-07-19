@@ -896,7 +896,18 @@ frozen; contracts projection live).
   `finish_reason=length`, per-turn finish_reason capture, then RE-RUN the GLM pair to split
   harness-artifact from genuine regression. ~1–2d, metered-cheap (OpenRouter), no GPU. Expect
   quorum-at-pick. Eval-infra (non-gating for v1.0) but Mark-prioritized — pick after the
-  greenlit clause-3 trio unless the queue blocks.
+  greenlit clause-3 trio unless the queue blocks. **RE-RUN VERIFICATION MODELS: the GLM 5.1/5.2
+  pair + Kimi K3 (top OpenRouter model, 97/109 standard — also reasoning-class).**
+- **m-eval-kimi-k3-agentic** ([planned/v0_31_0](planned/v0_31_0/m-eval-kimi-k3-agentic.md),
+  Mark 2026-07-19: "Kimi K3 did very well — look into using it within the suite via OpenRouter
+  and Pi or motoko harness") — K3 = **97/109 (89%) standard, the strongest OpenRouter model on
+  the v0.30.0 board** (beats GLM-5.2 88, K2.7-code 88, GLM-5.1 85). Onboard it AGENTICALLY:
+  `motoko-or-kimi-k3` + `pi-or-kimi-k3` roster entries (K2.6 precedent, mechanical), smoke→core
+  tiered runs, 4-way comparison (vs its own standard score, vs K2.6, vs GLM-5.x, motoko-vs-pi
+  harness effect), routing-evidence rows; if it clears the sweet-spot bar → PROPOSE for the
+  fleet's Phase-E table (admission stays a routing-policy decision). ~0.5–1d, metered-cheap,
+  no GPU. **HARD-SEQUENCED AFTER m-eval-reasoning-model-fairness** — K3 is always-reasoning;
+  measuring it agentically on the pre-fix harness = the broken ruler. Expect quorum-at-pick.
 - **m-mission-cost-chains** ([planned/v0_30_0](planned/v0_30_0/m-mission-cost-chains.md), 2026-07-18;
   **P1½ — the clause-5 KPI's data substrate**, Mark: "keep an eye on these budgets… that should
   all appear in ailang chains CLI") — VERIFIED live: chains flow for eval (45 chains/50.3M tokens
