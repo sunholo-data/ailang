@@ -353,6 +353,96 @@ a checked-in test — for every corpus file, every parse-path token's converted 
 its source text (outside literal interiors) — so the two load-bearing premises are continuously
 enforced against parser/lexer drift, not just verified once at design time.
 
+### Printer Child-List Inventory (M0, verified)
+
+**This inventory was produced by reading EVERY child-list emission site across
+`internal/format/*.go` at sprint HEAD (`sprint/m-ailang-fmt-phase2` from `origin/dev@f48e268e5`).
+It is source-verified, not asserted — it BINDS M1 boundary-resolution coverage and M2 totality
+fixtures.** The doc's prior partial list (§"Child-boundary resolution": top-level decls, block
+children, list/tuple/record elements, match arms, import lists) named 5 sites; the audit found
+**many more**, all flagged below as **[ADDED by M0 audit]**.
+
+The critical classification the audit surfaces is **which lists render on their OWN lines vs
+single-line**, because that determines whether an ordered-child boundary can carry a comment at all:
+
+- **Multi-line child lists (one child per line via `hardline()`)** — a comment CAN sit on a
+  boundary between children on its own line. These are the attachment targets rules 1–5 must cover.
+- **Single-line child lists (comma-joined on one line, no `hardline()` between children)** — a
+  comment between two such children would be an *interior*, mid-line comment. The Phase-1 canonical
+  layout puts these on one line; a boundary comment here is handled by attaching to the nearest
+  enclosing MULTI-LINE list per rule 3 (floating to the smallest enclosing ordered list). The
+  audit records these so no site is silently unaccounted for.
+- **String-built sublists (`strings.Join` inside a `typeString`/`patternString` that returns a
+  Go `string`)** — these never touch the writer and are emitted atomically as part of a larger
+  token. A comment inside a type/pattern re-emits with that type/pattern's owner (the type region
+  is between real anchors, but the sub-structure is opaque to the writer). Recorded for
+  completeness; not an independent writer-level boundary.
+
+| # | Node kind | Printer fn (file:line) | Delimiter pair | Layout | Comment boundary? | Notes |
+|---|---|---|---|---|---|---|
+| 1 | `*ast.File` top-level: module / imports / decls | `file` (format.go:61) | none (blank-line separated) | **multi-line** | **YES** (rules 4, 3) | The primary boundary; comments before module → boundary 0, after last decl → final boundary. Named in doc. |
+| 2 | `*ast.ImportDecl` symbol list | `importDecl` (format.go:104-121) | `( )` | single-line | interior (→ enclosing file list) | Named in doc as "import lists". Symbols comma-joined on one line. |
+| 3 | `*ast.Block` statements (value position) | `blockBraced` (format.go:166-197) | `{ }` | **multi-line** | **YES** (rules 1, 2, 3) | Named in doc as "block children". Each stmt on own line; `;`/newline separator logic. |
+| 4 | func-literal single-stmt body wrap | `bodyBraced` (format.go:136-153) | `{ }` | **multi-line** | **YES** | **[ADDED by M0 audit]** — a bare body wrapped into a one-statement braced block; the single child is a block boundary. |
+| 5 | `*ast.FuncDecl` annotations | `funcDecl` (decl.go:47-53) | none (one per line) | **multi-line** | **YES** (rule 2) | **[ADDED by M0 audit]** — leading `@ann` lines before a decl; each on its own `hardline()`. |
+| 6 | `*ast.FuncDecl` type params | `funcDecl` (decl.go:64-66) | `[ ]` | single-line | interior | **[ADDED by M0 audit]** — `strings.Join(d.TypeParams, ", ")`, a `[]string` (identifiers), not AST child exprs. No inner anchors. |
+| 7 | `*ast.FuncDecl` / `*ast.FuncLit` params | `declParams`/`params` (decl.go:93-136; funcLit expr.go:206-210) | `( )` | single-line | interior | **[ADDED by M0 audit]** — param list comma-joined on one line. Doc's partial list OMITTED params (the exact `gpt5-6-sol` objection). |
+| 8 | `*ast.Annotation` args | `annotation` (decl.go:165-180) | `( )` | single-line | interior | **[ADDED by M0 audit]** — annotation call-args; comma-joined exprs on one line. |
+| 9 | `*ast.FuncDecl` `tests [...]` | `testsBlock` (decl.go:208-231) | `[ ]` | **multi-line** | **YES** | **[ADDED by M0 audit]** — each test case on own line, `,`+`hardline()`. |
+| 10 | `*ast.TestCase` inputs / body | `testCase` (decl.go:233-257) | `( )` nested | single-line | interior | **[ADDED by M0 audit]** — inputs + expected, comma-joined on one line. |
+| 11 | `*ast.FuncDecl` `properties [...]` | `propertiesBlock` (decl.go:259-282) | `[ ]` | **multi-line** | **YES** | **[ADDED by M0 audit]** — each property on own line. |
+| 12 | `*ast.Property` binders (`forall(...)`) | `property` (decl.go:286-301) | `( )` | single-line | interior | **[ADDED by M0 audit]** — binder list comma-joined. |
+| 13 | `*ast.TypeDecl` type params | `typeDecl` (decl.go:311-313) | `[ ]` | single-line | interior | **[ADDED by M0 audit]** — `strings.Join(TypeParams)`. |
+| 14 | `*ast.TypeDecl` `deriving (...)` | `typeDecl` (decl.go:318-324) | `( )` | single-line | interior | **[ADDED by M0 audit]** — deriving class names comma-joined. |
+| 15 | `*ast.AlgebraicType` constructors | `algebraicType` (decl.go:352-362) | none (` \| `-joined) | single-line | interior | **[ADDED by M0 audit]** — sum-type constructors pipe-joined on one line (string-built). |
+| 16 | `*ast.Constructor` fields | `constructor` (decl.go:365-382) | `( )` | single-line | interior | **[ADDED by M0 audit]** — ctor field list comma-joined (string-built). Doc OMITTED constructor args. |
+| 17 | `*ast.TypeClass` methods | `typeClass` (decl.go:384-411) | `{ }` | **multi-line** | **YES** | **[ADDED by M0 audit]** — each method sig on own line. |
+| 18 | `*ast.Instance` methods | `instance` (decl.go:413-429) | `{ }` | **multi-line** (errors if populated) | n/a | **[ADDED by M0 audit]** — map-backed; printer ERRORS if non-empty (parser never emits populated). No comment boundary reachable. |
+| 19 | `*ast.TestDecl` body | `testDecl` (decl.go:431-451) | `{ }` | **multi-line** | **YES** | **[ADDED by M0 audit]** — each body expr on own line. |
+| 20 | `*ast.PropertyDecl` property | `propertyDecl` (decl.go:453-468) | `{ }` | **multi-line** (single child) | **YES** | **[ADDED by M0 audit]** — single property on own line inside braces. |
+| 21 | `*ast.FuncCall` args | `funcCall` (expr.go:169-179) | `( )` | single-line | interior | **[ADDED by M0 audit]** — call args comma-joined. Doc OMITTED. |
+| 22 | `*ast.Lambda` params | `lambda` (expr.go:193-201) | none (space-joined) | single-line | interior | **[ADDED by M0 audit]** — `\x y. body`, params space-joined. |
+| 23 | `*ast.Match` cases | `match` (expr.go:284-312) | `{ }` | **multi-line** | **YES** (rule 3) | Named in doc as "match arms". Each case on own line, `,`+`hardline()`. |
+| 24 | `*ast.List` elements | `seq` (expr.go:321-333) | `[ ]` | single-line | interior | Named in doc as "list elements". Comma-joined one line. **Hard-left-wall fixture site** (`[ /* C */ x ]`). |
+| 25 | `*ast.Array` elements | `seq` (expr.go:60-62,321-333) | `#[ ]` | single-line | interior | **[ADDED by M0 audit]** — array literal, same `seq` printer, `#[` open. |
+| 26 | `*ast.Tuple` elements | `tuple` (expr.go:335-352) | `( )` | single-line | interior | Named in doc as "tuple elements". Comma-joined; 1-tuple trailing comma. |
+| 27 | `*ast.Record` fields | `record` (expr.go:354-371) | `{ }` | single-line | interior | Named in doc as "record elements". `{ k: v, ... }` one line. |
+| 28 | `*ast.RecordUpdate` fields | `recordUpdate` (expr.go:373-390) | `{ }` | single-line | interior | **[ADDED by M0 audit]** — `{ base \| k: v, ... }` one line. |
+| 29 | `*ast.ForallExpr` (Lo..Hi bounds) | `forall` (expr.go:415-426) | none | single-line | interior | **[ADDED by M0 audit]** — not an ordered list per se (fixed 2-slot Lo/Hi), recorded for completeness. |
+| 30 | type: `*ast.TupleType` elements | `typeString`/`typeList` (types.go:64-69) | `( )` | single-line | interior (string-built) | **[ADDED by M0 audit]** — all type sublists return `string`; opaque to writer. |
+| 31 | type: `*ast.TypeApp` args | `typeString` (types.go:70-75) | `[ ]` | single-line | interior (string-built) | **[ADDED by M0 audit]** — `Ctor[a, b]`. |
+| 32 | type: `*ast.FuncType` params | `funcTypeString` (types.go:101-114) | `( )` | single-line | interior (string-built) | **[ADDED by M0 audit]** — `(P1, P2) -> R`. |
+| 33 | type: `*ast.RecordType` fields | `recordTypeString` (types.go:118-138) | `{ }` | single-line | interior (string-built) | **[ADDED by M0 audit]** — `{ a: T, b: U }` / open row. |
+| 34 | effect row | `formatEffectRow` (types.go:27-39) | `{ }` (effect braces) | single-line | interior (string-built) | Named indirectly; doc's Milestones list "effect rows". `! {e1, e2}` string-built. |
+| 35 | pattern: `*ast.ListPattern` elements | `listPatternString` (pattern.go:72-85) | `[ ]` | single-line | interior (string-built) | **[ADDED by M0 audit]** — patterns return `string`; opaque. |
+| 36 | pattern: `*ast.TuplePattern` elements | `patternString` (pattern.go:47-50) | `( )` | single-line | interior (string-built) | **[ADDED by M0 audit]** |
+| 37 | pattern: `*ast.RecordPattern` fields | `recordPatternString` (pattern.go:87-103) | `{ }` | single-line | interior (string-built) | **[ADDED by M0 audit]** |
+| 38 | pattern: `*ast.ConstructorPattern` sub-patterns | `constructorPatternString` (pattern.go:105-114) | `( )` | single-line | interior (string-built) | **[ADDED by M0 audit]** |
+| 39 | pattern: `*ast.ConsPattern` head/tail | `patternString` (pattern.go:31-42) | `[ ]` | single-line | interior (string-built) | **[ADDED by M0 audit]** |
+
+**Binding conclusions for M1/M2:**
+
+1. **The doc's partial 5-site list is a strict subset.** The audit adds 34 further sites. The
+   `gpt5-6-sol` objection (params/type-args/ctor-args/record-fields/annotations omitted) is
+   confirmed real and every named-missing site is now enumerated (#5, #6, #7, #8, #13, #14, #16).
+2. **Only 9 sites are true WRITER-LEVEL MULTI-LINE ordered child lists** (#1, #3, #4, #9, #11, #17,
+   #19, #20, #23) — these are where a comment can land on its own boundary line. **M2 totality
+   fixtures MUST cover each of these 9**: file top-level, value-position block, func-lit-body wrap,
+   `tests[...]`, `properties[...]`, typeclass methods, test-decl body, property-decl body, match
+   cases. (#18 instance-methods is unreachable — the printer errors before emitting; it is covered
+   by an "errors, not attaches" note, not a positive fixture.)
+3. **The remaining sites are single-line or string-built lists.** A comment appearing at such a
+   boundary is, by the Phase-1 canonical single-line layout, an *interior* comment; the envelope's
+   hard-left-wall + rule 3 floats it to the nearest enclosing MULTI-LINE list boundary. M2 includes
+   the hard-left-wall fixtures (`[ /* C */ x ]`, `[ /* C */ [ y ] ]`) as the representative
+   single-line-list cases (#24), plus at least one per additional bracketed single-line family
+   (call args #21, tuple #26, record #27, params #7) to prove the float-to-enclosing-list behavior
+   is uniform across delimiter pairs.
+4. **String-built type/pattern sublists (#30–#39) are NOT independent writer boundaries.** A comment
+   inside a type or pattern re-emits with that type/pattern's owning statement (types/patterns are
+   opaque single tokens to the writer). M2 records one type-interior and one pattern-interior
+   fixture proving the comment attaches to the owning decl/case, never lost.
+
 ### Invariants
 
 For every parse-valid source `x`, **including commented files** (this extends Phase 1's invariant,
