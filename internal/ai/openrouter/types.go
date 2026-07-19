@@ -23,6 +23,17 @@ type chatRequest struct {
 	// ai.AIRoutingPolicy by translatePolicy; nil when the caller did not
 	// supply a routing policy.
 	Provider *providerField `json:"provider,omitempty"`
+	// Reasoning caps hidden thinking tokens for reasoning models
+	// (https://openrouter.ai/docs/use-cases/reasoning-tokens). Nil = provider
+	// default. Set from ai.Request.Options["reasoning_max_tokens"] so
+	// always-thinking models (e.g. z-ai/glm-5.2) keep content headroom inside
+	// max_tokens instead of burning the whole budget on thought.
+	Reasoning *reasoningField `json:"reasoning,omitempty"`
+}
+
+// reasoningField configures OpenRouter's normalized reasoning controls.
+type reasoningField struct {
+	MaxTokens int `json:"max_tokens"`
 }
 
 // chatResponseFormat configures structured output.

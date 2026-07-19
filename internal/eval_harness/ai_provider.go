@@ -18,10 +18,11 @@ import (
 
 // providerAdapter wraps ai.Provider for eval harness use.
 type providerAdapter struct {
-	provider    ai.Provider
-	model       string
-	maxTokens   int             // Max output tokens; 0 means use defaultMaxTokens
-	attribution *ai.Attribution // OpenRouter app-attribution overrides
+	provider           ai.Provider
+	model              string
+	maxTokens          int             // Max output tokens; 0 means use defaultMaxTokens
+	reasoningMaxTokens int             // Cap on hidden thinking tokens; 0 = uncapped
+	attribution        *ai.Attribution // OpenRouter app-attribution overrides
 }
 
 // defaultMaxTokens is the fallback output budget when a model has no
@@ -96,6 +97,13 @@ func (p *providerAdapter) setMaxTokens(n int) {
 	p.maxTokens = n
 }
 
+// setReasoningMaxTokens caps hidden thinking tokens for reasoning models
+// (models.yml reasoning_max_tokens). 0 = provider default / uncapped.
+// Currently honored by the OpenRouter adapter only.
+func (p *providerAdapter) setReasoningMaxTokens(n int) {
+	p.reasoningMaxTokens = n
+}
+
 // generate calls the unified provider and converts to GenerateResult.
 func (p *providerAdapter) generate(ctx context.Context, prompt string) (*GenerateResult, error) {
 	systemPrompt := "You are a code generation engine. Output ONLY a complete, runnable program that solves the given task. " +
@@ -114,6 +122,9 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 		UserPrompt:   prompt,
 		MaxTokens:    maxTokens,
 		Attribution:  p.attribution,
+	}
+	if p.reasoningMaxTokens > 0 {
+		req.Options = map[string]any{"reasoning_max_tokens": p.reasoningMaxTokens}
 	}
 
 	resp, err := p.provider.Generate(ctx, req)

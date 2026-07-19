@@ -61,6 +61,9 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		if seed, ok := req.Options["seed"].(int64); ok {
 			apiReq.Seed = &seed
 		}
+		if rmax, ok := req.Options["reasoning_max_tokens"].(int); ok && rmax > 0 {
+			apiReq.Reasoning = &reasoningField{MaxTokens: rmax}
+		}
 	}
 
 	// Translate optional routing policy. Nil when no policy or zero policy.

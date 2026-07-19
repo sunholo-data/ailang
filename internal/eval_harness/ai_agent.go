@@ -44,8 +44,13 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	// GPT-5, Claude 4.x thinking) need this to avoid burning the whole 4K
 	// default budget on hidden thoughts and returning empty content.
 	if GlobalModelsConfig != nil {
-		if cfg, lookupErr := GlobalModelsConfig.GetModel(model); lookupErr == nil && cfg.MaxOutputTokens > 0 {
-			adapter.setMaxTokens(cfg.MaxOutputTokens)
+		if cfg, lookupErr := GlobalModelsConfig.GetModel(model); lookupErr == nil {
+			if cfg.MaxOutputTokens > 0 {
+				adapter.setMaxTokens(cfg.MaxOutputTokens)
+			}
+			if cfg.ReasoningMaxTokens > 0 {
+				adapter.setReasoningMaxTokens(cfg.ReasoningMaxTokens)
+			}
 		}
 	}
 

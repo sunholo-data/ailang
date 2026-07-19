@@ -2274,7 +2274,13 @@ models:
     provider: "openrouter"
     description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replacement candidate for GLM-5.1"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # always-thinking model; at 32768 its thinking phase (observed
+                              # 28-32K tokens) hit OUR cap and truncated: 6 finish=length
+                              # failures, 3 with ZERO content (v0.30.0 instrumented run).
+                              # OpenRouter upstreams (Baidu/StreamLake) do NOT enforce
+                              # reasoning.max_tokens (probed 2026-07-19), so headroom is the
+                              # only enforced fix. Model ceiling is 131072; 65536 covers
+                              # thinking + content at worst-case ~$0.29/run.
     model_family: "glm-5"
     pricing:
       input_per_1k: 0.0014   # $1.40 per 1M
