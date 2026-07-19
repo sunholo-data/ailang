@@ -61,7 +61,9 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		if seed, ok := req.Options["seed"].(int64); ok {
 			apiReq.Seed = &seed
 		}
-		if rmax, ok := req.Options["reasoning_max_tokens"].(int); ok && rmax > 0 {
+		if effort, ok := req.Options["reasoning_effort"].(string); ok && effort != "" {
+			apiReq.Reasoning = &reasoningField{Effort: effort}
+		} else if rmax, ok := req.Options["reasoning_max_tokens"].(int); ok && rmax > 0 {
 			apiReq.Reasoning = &reasoningField{MaxTokens: rmax}
 		}
 	}

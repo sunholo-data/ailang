@@ -205,10 +205,27 @@ this (thinks by default, same 32K cap, unmeasured).
      -d '{"model":"<api_name>","messages":[{"role":"user","content":"Prove there are infinitely many primes, then state the 10th prime."}],"max_tokens":3000}' \
      | jq '{reasoning: .usage.completion_tokens_details.reasoning_tokens, provider}'
    ```
-2. **If it thinks: size `max_output_tokens` for thinking + content**, not content
-   alone — floor 65536 for always-thinkers (check the real ceiling via
-   `/api/v1/models` → `top_provider.max_completion_tokens`). Do NOT leave the
-   fleet-default 32768; thinking shares that budget.
+2. **If it thinks: ground `max_output_tokens` in the DECLARED provider ceilings,
+   not a guess.** Context window ≠ output cap ≠ thinking budget — a "1M context"
+   model may declare no completion cap at all (Kimi K3 via Moonshot: undeclared →
+   generation is bounded only by request `max_tokens` + remaining window).
+   ```bash
+   # Per-provider documented ceilings for this model (machine-readable):
+   curl -s "https://openrouter.ai/api/v1/models/<api_name>/endpoints" \
+     | jq -r '.data.endpoints[] | "\(.provider_name): ctx=\(.context_length) max_completion=\(.max_completion_tokens // "undeclared")"'
+   ```
+   Providers DIVERGE (glm-5.2: 32768 on DeepInfra vs 131072 on Z.AI first-party vs
+   1M on others) — routing roulette means the effective cap varies per request
+   unless you pin provider order. Set `max_output_tokens` from the first-party /
+   dominant provider's declared ceiling, sized for thinking + content (never the
+   fleet-default 32768), and record the provenance in the models.yml comment.
+   Also check the vendor's own docs for the intended control surface: some models
+   bound thinking by an **effort dial** (K3: Low/Standard/High/Max via
+   `reasoning_effort` in models.yml), Anthropic by `budget_tokens`, not by
+   output headroom. Reasoning bills as OUTPUT tokens — at K3's $15/M a chatty
+   trace can cost more than the visible answer, so an eval that doesn't pin
+   effort isn't reproducible; leave vendor-default unless deviating, and if you
+   deviate, record it in models.yml (`reasoning_effort`).
 3. **Leave default thinking ON.** A thinking-tuned model with thinking suppressed
    is not the model you're gating. The knob that is actually enforced is
    `max_tokens` headroom — OpenRouter third-party upstreams (Baidu, StreamLake)

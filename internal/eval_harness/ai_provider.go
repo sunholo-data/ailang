@@ -22,6 +22,7 @@ type providerAdapter struct {
 	model              string
 	maxTokens          int             // Max output tokens; 0 means use defaultMaxTokens
 	reasoningMaxTokens int             // Cap on hidden thinking tokens; 0 = uncapped
+	reasoningEffort    string          // Vendor effort dial ("low"|"medium"|"high"); "" = vendor default
 	attribution        *ai.Attribution // OpenRouter app-attribution overrides
 }
 
@@ -104,6 +105,12 @@ func (p *providerAdapter) setReasoningMaxTokens(n int) {
 	p.reasoningMaxTokens = n
 }
 
+// setReasoningEffort sets the vendor effort dial (models.yml reasoning_effort).
+// "" = vendor default. Currently honored by the OpenRouter adapter only.
+func (p *providerAdapter) setReasoningEffort(e string) {
+	p.reasoningEffort = e
+}
+
 // generate calls the unified provider and converts to GenerateResult.
 func (p *providerAdapter) generate(ctx context.Context, prompt string) (*GenerateResult, error) {
 	systemPrompt := "You are a code generation engine. Output ONLY a complete, runnable program that solves the given task. " +
@@ -123,8 +130,14 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 		MaxTokens:    maxTokens,
 		Attribution:  p.attribution,
 	}
-	if p.reasoningMaxTokens > 0 {
-		req.Options = map[string]any{"reasoning_max_tokens": p.reasoningMaxTokens}
+	if p.reasoningMaxTokens > 0 || p.reasoningEffort != "" {
+		req.Options = map[string]any{}
+		if p.reasoningMaxTokens > 0 {
+			req.Options["reasoning_max_tokens"] = p.reasoningMaxTokens
+		}
+		if p.reasoningEffort != "" {
+			req.Options["reasoning_effort"] = p.reasoningEffort
+		}
 	}
 
 	resp, err := p.provider.Generate(ctx, req)

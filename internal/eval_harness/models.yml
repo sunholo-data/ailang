@@ -1988,7 +1988,13 @@ models:
     description: "Kimi K3 via OpenRouter standard mode — companion to opencode-or-kimi-k3"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
-    max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
+    max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation
+                              # retraction). PROVENANCE: Moonshot first-party declares NO
+                              # max_completion cap (1M ctx; endpoints API 2026-07-19) — generation
+                              # is bounded only by this request cap. Vendor's intended thinking
+                              # bound is the EFFORT dial (Low/Standard/High/Max; reasoning bills
+                              # as output at $15/M). Evals run vendor-default (Standard); set
+                              # reasoning_effort here to deviate — record it, it changes cost/quality.
     pricing:
       input_per_1k: 0.003    # $3.00 per 1M
       output_per_1k: 0.015   # $15.00 per 1M

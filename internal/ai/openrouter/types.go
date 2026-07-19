@@ -32,8 +32,12 @@ type chatRequest struct {
 }
 
 // reasoningField configures OpenRouter's normalized reasoning controls.
+// MaxTokens and Effort are mutually exclusive per the OpenRouter contract;
+// when both are requested, Effort wins (it is the vendor-documented dial —
+// e.g. Kimi K3's Low/Standard/High/Max — while max_tokens is best-effort).
 type reasoningField struct {
-	MaxTokens int `json:"max_tokens"`
+	MaxTokens int    `json:"max_tokens,omitempty"`
+	Effort    string `json:"effort,omitempty"`
 }
 
 // chatResponseFormat configures structured output.

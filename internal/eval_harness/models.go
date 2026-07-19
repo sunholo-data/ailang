@@ -22,7 +22,8 @@ type ModelConfig struct {
 	AgentCLI                 *string `yaml:"agent_cli"`            // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
 	AgentModelName           *string `yaml:"agent_model_name"`     // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
 	MaxOutputTokens          int     `yaml:"max_output_tokens"`    // Max output tokens (0 = handler default 4096)
-	ReasoningMaxTokens       int     `yaml:"reasoning_max_tokens"` // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; guarantees content headroom for always-thinking models that otherwise burn the whole output budget reasoning (observed: glm-5.2)
+	ReasoningMaxTokens       int     `yaml:"reasoning_max_tokens"` // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; best-effort — third-party upstreams may ignore it (observed: glm-5.2 via Baidu/StreamLake)
+	ReasoningEffort          string  `yaml:"reasoning_effort"`     // Vendor effort dial ("low"|"medium"|"high"; empty = vendor default). OpenRouter reasoning.effort — the DOCUMENTED control for effort-capable models (e.g. kimi-k3 Low/Standard/High/Max). Reasoning bills as output; record explicitly for eval reproducibility when deviating from default
 	TTFTTimeoutSeconds       int     `yaml:"ttft_timeout"`         // Prefill budget in seconds (0 = executor default 30s)
 	GenerationTimeoutSeconds int     `yaml:"generation_timeout"`   // Per-token idle budget after first event (0 = executor default 3m)
 	ModelFamily              string  `yaml:"model_family"`         // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping

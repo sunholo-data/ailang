@@ -51,6 +51,9 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 			if cfg.ReasoningMaxTokens > 0 {
 				adapter.setReasoningMaxTokens(cfg.ReasoningMaxTokens)
 			}
+			if cfg.ReasoningEffort != "" {
+				adapter.setReasoningEffort(cfg.ReasoningEffort)
+			}
 		}
 	}
 
