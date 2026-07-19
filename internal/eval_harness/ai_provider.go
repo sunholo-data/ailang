@@ -125,7 +125,9 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 		Code:         extractCodeFromMarkdown(resp.Text),
 		InputTokens:  resp.InputTokens,
 		OutputTokens: resp.OutputTokens,
+		ReasonTokens: resp.ReasonTokens,
 		TotalTokens:  resp.TotalTokens,
+		FinishReason: resp.FinishReason,
 		Model:        resp.Model,
 	}, nil
 }

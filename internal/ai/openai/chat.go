@@ -138,6 +138,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		OutputTokens: outputTokens,
 		TotalTokens:  result.Usage.TotalTokens,
 		ReasonTokens: reasoningTokens,
+		FinishReason: MapChatFinishReason(result.Choices[0].FinishReason),
 		Model:        result.Model,
 	}, nil
 }

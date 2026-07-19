@@ -72,9 +72,11 @@ func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateRes
 // GenerateResult contains the result of code generation
 type GenerateResult struct {
 	Code         string
-	InputTokens  int // Prompt tokens (input to LLM)
-	OutputTokens int // Completion tokens (generated code)
-	TotalTokens  int // Total tokens (for billing)
+	InputTokens  int    // Prompt tokens (input to LLM)
+	OutputTokens int    // Completion tokens (generated code, reasoning excluded)
+	ReasonTokens int    // Hidden reasoning/thinking tokens (billed as output)
+	TotalTokens  int    // Total tokens (for billing; includes reasoning)
+	FinishReason string // Normalized stop reason ("stop", "length", ...); "" if unreported
 	Model        string
 }
 

@@ -16,9 +16,10 @@ type RunMetrics struct {
 	Model          string    `json:"model"`
 	Executor       string    `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode only)
 	Seed           int64     `json:"seed"`
-	InputTokens    int       `json:"input_tokens"`  // Prompt tokens (recorded but not primary metric)
-	OutputTokens   int       `json:"output_tokens"` // Generated code tokens (PRIMARY METRIC)
-	TotalTokens    int       `json:"total_tokens"`  // Total for billing
+	InputTokens    int       `json:"input_tokens"`            // Prompt tokens (recorded but not primary metric)
+	OutputTokens   int       `json:"output_tokens"`           // Generated code tokens (PRIMARY METRIC; reasoning excluded)
+	ReasonTokens   int       `json:"reason_tokens,omitempty"` // Hidden reasoning/thinking tokens (billed as output)
+	TotalTokens    int       `json:"total_tokens"`            // Total for billing (includes reasoning)
 	CostUSD        float64   `json:"cost_usd"`
 	CompileOk      bool      `json:"compile_ok"`
 	RuntimeOk      bool      `json:"runtime_ok"`

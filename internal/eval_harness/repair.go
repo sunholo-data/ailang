@@ -150,10 +150,17 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 			metrics.Stderr = repairResult.RunResult.Stderr
 		}
 		metrics.ErrorCategory = "none"
-		// Add repair tokens to totals
+		// Add repair tokens to totals (reasoning included — billed as output)
 		metrics.InputTokens += repairResult.InputTokens
 		metrics.OutputTokens += repairResult.OutputTokens
-		metrics.TotalTokens += repairResult.InputTokens + repairResult.OutputTokens
+		metrics.ReasonTokens += repairResult.ReasonTokens
+		metrics.TotalTokens += repairResult.InputTokens + repairResult.OutputTokens + repairResult.ReasonTokens
+		// The repaired attempt's stop reason is the one that produced the
+		// persisted code.
+		metrics.FinishReason = repairResult.FinishReason
+		// Recompute cost over the accumulated totals: populateMetrics priced
+		// only the first attempt, so repair tokens were never billed.
+		metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens+metrics.ReasonTokens)
 	}
 
 	return metrics, nil
@@ -164,6 +171,8 @@ type attemptResult struct {
 	Code                 string
 	InputTokens          int
 	OutputTokens         int
+	ReasonTokens         int    // hidden reasoning/thinking tokens (billed as output)
+	FinishReason         string // normalized stop reason; "length" = output truncated at cap
 	RunResult            *RunResult
 	CompileOk            bool
 	RuntimeOk            bool
@@ -189,6 +198,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 				Code:                 genResult.Code,
 				InputTokens:          genResult.InputTokens,
 				OutputTokens:         genResult.OutputTokens,
+				ReasonTokens:         genResult.ReasonTokens,
+				FinishReason:         genResult.FinishReason,
 				RunResult:            &RunResult{Stderr: stderrMsg},
 				CompileOk:            false,
 				RuntimeOk:            false,
@@ -212,6 +223,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 		Code:         genResult.Code,
 		InputTokens:  genResult.InputTokens,
 		OutputTokens: genResult.OutputTokens,
+		ReasonTokens: genResult.ReasonTokens,
+		FinishReason: genResult.FinishReason,
 		RunResult:    runResult,
 		CompileOk:    runResult.CompileOk,
 		RuntimeOk:    runResult.RuntimeOk,
@@ -223,8 +236,13 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResult) {
 	metrics.InputTokens = result.InputTokens
 	metrics.OutputTokens = result.OutputTokens
-	metrics.TotalTokens = result.InputTokens + result.OutputTokens
-	metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens)
+	metrics.ReasonTokens = result.ReasonTokens
+	metrics.FinishReason = result.FinishReason
+	// Reasoning tokens are billed as output tokens by every provider, so they
+	// belong in both the billing total and the cost calculation. Recomputing
+	// in+out here used to silently drop them (reasoning models undercounted).
+	metrics.TotalTokens = result.InputTokens + result.OutputTokens + result.ReasonTokens
+	metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens+metrics.ReasonTokens)
 
 	metrics.CompileOk = result.CompileOk
 	metrics.RuntimeOk = result.RuntimeOk

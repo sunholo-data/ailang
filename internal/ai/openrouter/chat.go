@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
 
 // generateChat uses OpenRouter's Chat Completions API (/v1/chat/completions).
@@ -142,10 +143,12 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 
 	// Calculate output tokens. For reasoning models, completion_tokens
 	// includes reasoning_tokens — split them out the same way openai does.
+	// Some upstreams report reasoning_tokens > completion_tokens (observed on
+	// z-ai via OpenRouter); clamp at 0 rather than banking a negative count.
 	outputTokens := result.Usage.CompletionTokens
 	reasoningTokens := result.Usage.CompletionTokensDetails.ReasoningTokens
 	if reasoningTokens > 0 {
-		outputTokens = outputTokens - reasoningTokens
+		outputTokens = max(outputTokens-reasoningTokens, 0)
 	}
 
 	// Cost is reported as a float by OpenRouter; preserve precision via
@@ -171,6 +174,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		OutputTokens:     outputTokens,
 		TotalTokens:      result.Usage.TotalTokens,
 		ReasonTokens:     reasoningTokens,
+		FinishReason:     openai.MapChatFinishReason(result.Choices[0].FinishReason),
 		CachedTokens:     result.Usage.PromptTokensDetails.CachedTokens,
 		CostUSD:          costUSD,
 		Model:            result.Model,
