@@ -127,7 +127,12 @@ export default function EloLeaderboard() {
   // ELO can't be misread as beating a 55-benchmark one. Full ranking is earned
   // once coverage catches up. (M-EVAL-VALIDITY-DISCIPLINE)
   const maxCov = block.maxCoverage || Math.max(1, ...allModels.map((m) => m.benchmarks || 0));
-  const covThreshold = Math.max(1, Math.round(maxCov * 0.5));
+  // 90%: ELO is only comparable on a near-identical benchmark set. Missing runs
+  // are rarely random — an API-quota death mid-run skips the alphabetical tail,
+  // which is where the hardest (frontier) benchmarks live, inflating the ELO of
+  // exactly the models with holes (v0.30.0: claude-sonnet-5 topped the board on
+  // 44/56 coverage that excluded gauntlet_10/quine/ssa_constant_fold/...).
+  const covThreshold = Math.max(1, Math.ceil(maxCov * 0.9));
   const isProvisional = (m) => (m.benchmarks || 0) < covThreshold;
   const models = allModels; // all shown; provisional ones are flagged, not hidden
 
