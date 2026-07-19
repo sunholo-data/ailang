@@ -39,6 +39,20 @@ free tier and frontier metered lanes.
    the bar the sweet-spot criteria define, propose it to the fleet's Phase-E assignment table
    (proposal only — fleet admission stays a Mark/routing-policy decision).
 
+## Harness-selection rule (Mark 2026-07-19: "Pi or Motoko depending on what is best for our
+codebase — Pi since it's Go, Motoko if it's AILANG")
+
+**The harness follows the task's language.** motoko is the AILANG-specialized harness (per-edit
+`ailang check` feedback, AILANG teaching); pi is the deliberately-minimal general multi-provider
+harness (`@mariozechner/pi-coding-agent`) — the right neutral fit for Go/general work. Applied:
+- **Eval-suite benchmarks are AILANG tasks → motoko is K3's PRIMARY suite harness**; pi runs as
+  the cross-harness CONTROL (the suite's existing pairing discipline) — M2's motoko-vs-pi
+  comparison is the empirical test of this very rule at fixed model.
+- **Fleet executor lanes** (if M3 proposes admission): work on THIS repo is Go → the **pi** lane
+  is the candidate; work on Ailang World is AILANG → the **motoko** lane. The Phase-E assignment
+  table gets `(provider, harness, model) × task-LANGUAGE` as an explicit dimension — decided by
+  the M2 evidence, not assumed.
+
 ## Guardrails
 - Metered OpenRouter $ — per-model `max_cost_usd` caps + the mission's per-iteration metered
   ceiling apply; smoke-before-core keeps the failure case cheap.
