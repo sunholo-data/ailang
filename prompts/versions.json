@@ -620,9 +620,21 @@
         "output-discipline"
       ],
       "notes": "Active from v0.26.0 benchmark cycle. Additive patch over v0.16.1 (no syntax changes): adds an Output Discipline section instructing exact byte-for-byte stdout (no labels/prefixes/status lines). Validated by A/B on claude-opus-4-8 standard (14/24 -> 19/24; type_unify 1/3->3/3, mini_interpreter 2/3->3/3, csv_to_json 0/3->2/3; zero control regressions). Removes a verbosity grading tax that disproportionately hit frontier models. Full multi-model re-baseline deferred to the next release."
+    },
+    "v0.16.3": {
+      "file": "prompts/v0.16.3.md",
+      "hash": "39d93a7926f4fa23ef0db112e1a30d51c934e23ec317a4c37b45b16f984fb153",
+      "description": "v0.16.2 + Formatting section teaching `ailang fmt --write`/`--check` (command usage only, no AILANG code snippet). Makes the canonical formatter discoverable to agents; usage guidance says format after edits type-check. M-AILANG-FMT-ADOPTION (v0.30.0).",
+      "created": "2026-07-20",
+      "tags": [
+        "production",
+        "latest",
+        "fmt-discoverability"
+      ],
+      "notes": "Additive patch over v0.16.2 (no syntax changes, byte-identical prefix): appends a ~6-line Formatting section so agents can discover `ailang fmt`. Command-usage only (no code snippet) to avoid an `ailang check` verification surface. Activated as part of the fmt adoption rollout; v0.16.2 remains served byte-identical for pinned eval baselines."
     }
   },
-  "active": "v0.16.2",
+  "active": "v0.16.3",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
