@@ -4468,3 +4468,46 @@ retry (two-consecutive on the same run), that is a REAL slow-parse signal → op
 **Next**: pick the next [NEXT] queue item — the clause-3 accessibility cluster / remaining fmt follow-ups, unless Mark answers a #399 fork (reasoning-effort or m-serveapi M1-split), which outranks. Watches carried as above.
 
 ---
+
+## 69 — 2026-07-19 — Iteration 64: queue pick **m-ailang-fmt-adoption** → **routed to sprint-planner (opus); 3-milestone plan produced (teaching prompt v0.16.3 · `make fmt-check` · opt-in PostToolUse hook w/ Mark-approved SIGKILL escalation), READY FOR EXECUTOR** — no re-quorum (Mark-approved); exit-code contract VERIFIED matches; `metered=$0.00`
+
+**Picked**: iter-63 landed phase2 → the phase2 execution gate on **m-ailang-fmt-adoption** is now SATISFIED, and the Next pointer named "remaining fmt follow-ups". Of the open fmt items (adoption [doc+quorum ready], m-ailang-fmt-inline-interior [needs design doc], m-fmt-properties-printer-roundtrip [needs design doc]), adoption is the ready unblocker — design doc exists + quorum-complete + Mark approved the last SIGKILL fix with no re-quorum. It also directly answers Mark's #399 fmt-discoverability question. Gate-3 advances one stage → this iteration = PLAN (design doc, no plan); execute next iteration (the iter-62→63 cadence).
+
+**Gate-0/1**: killswitch armed; billing **CLEAN** (both Anthropic keys empty); gh `sunholo-voight-kampff`; tree clean on dev, no `MERGE_HEAD`; bookkeeping issue **#399** (prev #329; created 2026-07-16, next-Monday boundary 07-20 is tomorrow, today 07-19 Sun → no rotation; #399 comment fetch found **no new Mark comment** since watermark `2026-07-19T07:52:58Z`). Local dev == origin/dev `06513167e`. dev CI per-workflow @ `06513167e`: CI / Build-and-Release / Deploy-Docs all `completed/success`. Inbox: 1 unread `eval-suite` informational ("Eval Suite Started: 3 models, 3 benchmarks") — no regression, no directive → acked.
+
+**Reality check (Gate 2)**: NOT a ghost, NOT already landed — fresh `git fetch`; no `sprint/*fmt-adoption` branch, no merged/open PR, adoption doc still in `planned/v0_30_0/`, only doc-creation commits exist (`ad14dfc19`/`72996baaa`), no adoption sprint JSON. Phase-2 confirmed LANDED (iter 63, `3815ba617`), which clears the doc's "⛔ Execution Gate". Quorum: 3 artifacts present + Mark approved the final SIGKILL-escalation fix with **no re-quorum** (doc Status header) → QUORUM-AT-PICK satisfied, no designer/quorum spawn.
+
+**Route (Gate 3)**: plan-needed. **PLANNER = `$MISSION_PLANNER_MODEL` = opus**, spawned as a model-pinned `Agent` (general-purpose, `model=opus`), PLANNING-ONLY (no worktree, no source edits). Produced `.ailang/state/sprints/sprint_M-AILANG-FMT-ADOPTION.json` (local-only, gitignored) + `design_docs/planned/v0_30_0/m-ailang-fmt-adoption-sprint-plan.md` (committable). Plan: **3 milestones, 1.25d (~130 LOC), LOW risk, LOW conflict** (prompts/docs/build-glue/hooks only; zero compiler/runtime change):
+- **M1 (0.5d)** — teaching prompt: create `prompts/v0.16.3.md` (v0.16.2 + ~6-line Formatting section), register with hash, flip active→v0.16.3, rebuild. AC: `ailang prompt | grep -i fmt` returns the line; `--version v0.16.2` still empty (append-only proof).
+- **M2 (0.25d)** — docs + CLI audit: verify `ailang --help`/`fmt --help`; add Adoption section to `docs/docs/reference/formatter.md` (contract table + make target + hook config + Motoko cross-repo contract); cross-link development-workflow guide.
+- **M3 (0.5d)** — opt-in hooks: `make fmt-check` (examples/ + stdlib/, exit 1 on drift, **NOT** in `make ci`); `scripts/hooks/format_ail.sh` (non-blocking, non-silent) + `.claude/settings.json` registration landing the **Mark-approved SIGTERM→grace→SIGKILL** escalation; 4 manual hook tests incl. a SIGTERM-ignoring stub proving the escalation reaps a hung `fmt`.
+
+**Planner stale-premise flags (all live-verified at HEAD, folded into the plan)**:
+- **Exit-code contract — the CRITICAL item-3 check: VERIFIED MATCHES.** `cmd/ailang/fmt.go` + live tests confirm `0`=success/canonical, `1`=`--check` drift, `2`=operational (incl. the 15.28% inline-interior refusal), `3`=parse error (`const exitParse = 3`). The hook's "exit 3 silent / exit 2 surface" distinction is sound → **no execution-time premise to resolve**.
+- Phase-2 gate sections (⛔ Execution Gate / ⛔ Quorum Block / Rev-3 Re-Quorum) are now historical (phase2 landed) → flagged not-blockers; M1 keeps a gate sanity tripwire only.
+- The hook script printed in the design doc (~lines 282-291) is the PRE-FIX version (soft `kill` + unbounded `wait`); M3 must implement the approved SIGKILL escalation, NOT copy the doc snippet verbatim.
+- Installed binary stale ("source modified after build") → M1 needs `make quick-install` before the prompt-embed verification (already an accepted M1 step).
+
+**Routing evidence** (ACTUAL role→model used):
+- `model=opus task-class=sprint-planner(3-milestone plan + sprint JSON for m-ailang-fmt-adoption, planning-only, no worktree) provider=anthropic agent=claude-code(Agent-tool pinned model=opus) cost=quota-bucket:weekly-opus`.
+- `model=opus task-class=controller(triage/pick/reality-check/quorum-check/record/report) provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus`.
+- **Iteration metered spend: `$0.00`** (planner + controller both quota-bucket Anthropic; NO metered lane fired — no codex/managed_agents/quorum/designer spawn). Well under `MISSION_METERED_BUDGET_USD=$5`.
+
+**Ruled out**:
+- "adoption needs a designer/new-doc pass" — REJECTED: full doc exists at `planned/v0_30_0/m-ailang-fmt-adoption.md` (39KB, Rev-3), quorum-complete-by-Mark-decision → route straight to planner (the NEW-DOC-tag-is-a-claim discipline, inverted: here the doc is real and ready).
+- "re-quorum the doc since it was QUORUM-BLOCKED ×3" — REJECTED: Mark's Status-header decision approved the final fix and said no re-quorum; QUORUM-AT-PICK is a one-round gate, not re-litigation.
+- "the hook's exit-3-vs-2 silent/surface split is an unverified premise" — REFUTED by the planner's live check: the shipped binary's exit codes match exactly (0/1/2/3).
+- "plan + execute in one iteration" — declined: kept the one-stage cadence (iter-62→63 precedent) for a bounded, reviewable iteration; execute is next.
+
+**Retro lane**: **NO skill/process edit this iteration.** Frictions: none new. All disciplines (billing-tripwire, origin-sync, per-workflow CI, QUORUM-AT-PICK, generator≠judge planning, metered-ledger, STATUS rotation) worked as written; `$0.00` metered. Carried WATCHES (no recurrence): executor-commits-with-known-lint-debt (iter-63, 1st); planner-JSON-shape (iter-62, 1st); designer/reviewer same-provider overlap (iter-61, 1st).
+
+**Parked for human (#399)** (carried; none NEW this iteration):
+- **m-ai-reasoning-effort quorum fork** (iter-61): 2 small converging R2 fixes; authorize one bounded round [RECOMMENDED], amend scope, or keep parked.
+- **m-serveapi-raw-handler-mcp M2 architecture fork** (iter-57): split+ship M1 [RECOMMENDED], pick an M2 arch, or keep parked.
+- **CARRIED**: gemini fleet-role ratification (iter-53); m-check-strict-fallbacks fork (iter-42); M-TOOLING-DETERMINISTIC SUPERSEDED-close (iter-48).
+
+**Gate 3b**: doc-only push (log + queue + status rotation + sprint-plan doc). CI expected on the push; Deploy-Docs N/A (`design_docs/` not under the docs `paths:` filter); Build-and-Release expected. Bounded-poll to green.
+
+**Next**: **execute m-ailang-fmt-adoption** (opus executor, isolated worktree, the ready 3-milestone plan) → sonnet evaluator (generator≠judge) — unless Mark answers a #399 fork (reasoning-effort or m-serveapi M1-split), which outranks. Watches carried as above.
+
+---
