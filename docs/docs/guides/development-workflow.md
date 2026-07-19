@@ -271,6 +271,9 @@ Fixes #42"
 - Update CHANGELOG.md at each milestone
 - Create example files for new features
 - Keep design docs in sync with reality
+- Run `make fmt-check` before opening a PR to catch canonical-form drift in
+  `examples/` and `stdlib/`, and consider the opt-in post-edit formatter hook —
+  see the [`ailang fmt` Adoption section](/docs/reference/formatter#adoption)
 
 ## File Locations
 
@@ -299,6 +302,7 @@ design_docs/
 
 ## See Also
 
+- [`ailang fmt` Adoption](/docs/reference/formatter#adoption) - Opt-in formatter hooks, `make fmt-check`, and the exit-code contract
 - [Testing Guide](/docs/guides/testing) - Tests are part of sprint execution
 - [Debugging Guide](/docs/guides/debugging) - Debug flags for troubleshooting
 - [Architecture Overview](/docs/architecture) - System design before modifying
