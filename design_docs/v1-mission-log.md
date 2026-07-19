@@ -4415,3 +4415,56 @@ retry (two-consecutive on the same run), that is a REAL slow-parse signal → op
 **Next**: **EXECUTE m-ailang-fmt-phase2** — route the ready sprint plan to sprint-executor (`$MISSION_EXECUTOR_MODEL`=opus, isolated worktree), evaluator = sonnet (generator≠judge). M0 (printer child-list audit) is the first deliverable and its inventory binds M1–M3. If Mark answers the reasoning-effort fork on #399 first, that outranks. Watches carried as above.
 
 ---
+
+## 68 — 2026-07-19 — Iteration 63: queue pick **m-ailang-fmt-phase2 EXECUTED + LANDED** — PR #414 squash `3815ba617`; executor (opus, worktree) M0–M3, evaluator (sonnet, generator≠judge) PASS **78/100 r1**; `ailang fmt` now preserves comments losslessly on ~85% of the corpus, fail-closed (never lossy) on the rest; `metered=$0.00`
+
+**Picked**: iter-62 produced the ready 4-milestone sprint plan (`sprint_M-AILANG-FMT-PHASE2.json` + `m-ailang-fmt-phase2-sprint-plan.md`) with status "READY FOR EXECUTOR". Gate-3 advances one stage per iteration → this iteration executes the plan (plan→execute). The mission-doc queue carried phase2 as [IN-SPRINT / READY FOR EXECUTOR]. No new #399 human directive (the 3 Mark comments 02:36/06:14/07:52 on 07-19 were all already processed iters 58–60; watermark advanced to `2026-07-19T07:52:58Z` before routing).
+
+**Gate-0/1**: killswitch armed; billing **CLEAN** (both Anthropic keys empty); gh `sunholo-voight-kampff`; tree clean on dev, no `MERGE_HEAD`; bookkeeping issue **#399** (prev #329; created 2026-07-16, next-Monday boundary 07-20 is tomorrow, today 07-19 Sun → no rotation; #399 comment fetch found the 3 already-processed Mark comments, no new directive). Local dev == origin/dev `f48e268e5`. dev CI per-workflow @ `f48e268e5`: CI / Build-and-Release / Deploy-Docs all `completed/success`. Inbox: 4 unread `eval-suite` informational (2 "started", partial 10/28 + 210/280) — no regression, no directive → acked all.
+
+**Reality check (Gate 2)**: NOT a ghost, NOT already landed — fresh `git fetch`; no `sprint/m-ailang-fmt-phase2` branch, no merged/open PR, phase2 doc still in `planned/`, only doc commits existed (`50e2007d4`/`ad14dfc19`/`72996baaa`). Phase-1 fmt (M1–M4) confirmed landed. All 3 sprint artifacts present (JSON + plan + design doc). No re-quorum (doc quorum-complete-by-Mark-decision iter 62).
+
+**Route (Gate 3)**: plan→execute. **EXECUTOR = `$MISSION_EXECUTOR_MODEL` = opus**, spawned as a model-pinned `Agent` (general-purpose, `model=opus`), working in an **isolated worktree** `/Users/voightkampff/dev/sunholo-data/ailang-wt-fmt-phase2` (branch `sprint/m-ailang-fmt-phase2` from origin/dev `f48e268e5`) — NEVER the shared main tree. Delivered M0–M3, 6 commits `83f7ebf23`→`b29e871c4`:
+- **M0** printer child-list code audit → verified **39-site inventory** folded into the design doc; confirmed the gpt5-6-sol attacher-totality objection was concrete (params/type-args/ctor-args/record-fields/annotations were omitted from the doc's 5-site list).
+- **M1** premise-sweep test FIRST (393 files, 81,224 tokens, matches design V18) → lexer comment collector w/ byte-exact spans (parser token stream byte-identical) → token-anchored envelope (rune-walk anchors, literal clamping, bracket matching, hard left wall) → **interpolation FAIL-CLOSED carve-out** (comment inside `${…}` → exit 2, byte-identical).
+- **M2** total attacher (rules 1–5), fail-closed totality, emission interleaving, per-rule idempotence; `internal/ast/print.go` untouched.
+- **M3** marker property test + corpus gate + `HasComments` refusal removal (only after gates green) + exit-split (3=parse, 2=operational) + docs (`formatter.md`, `fmt --help`, CHANGELOG).
+
+**Evaluator (Gate 3)** = **sonnet** (`$MISSION_EVALUATOR_MODEL`; generator≠judge holds: opus executor ≠ sonnet evaluator, both PINNABLE) → **PASS 78/100 round 1**. Independently ran tests/lint/verify-examples/corpus. Ruled BOTH deviations acceptable: (1) 15.28% (59/386) inline-interior refusal is fail-closed/never-lossy — the alternative (silent relocation) is strictly worse; (2) 28 `properties[...]` round-trip bugs verified genuinely pre-existing (fail comment-free round-trip on origin/dev too). Score detail: tests 20/20, lint 4/10 (3 sprint-introduced issues), acceptance 24/30, code-quality 13/15, docs 12/15, design-fidelity 9/10.
+
+**Controller finalization**: independently rebuilt + `go test` the worktree (all green); **fixed the 3 sprint-introduced lint issues** (`fe236572c`: S1040 no-op assertion in attach.go → spread; removed dead `inLiteral`/`hasTrailing` — grep-confirmed no callers, this-sprint code, coding-standards-compliant); moved design doc `planned/` → `implemented/v0_30_0/` with a landed status header (`6cb3fdd1e`); opened **PR #414** (auto-merge squash); **Gate-3b bounded poll** (Monitor + call-capped bash, 30-min overall deadline) → all required checks green → merged **`3815ba617`**. Left the pre-existing `geminiPassThreshold` unused-const flag UNTOUCHED (not in this diff; pre-existing on dev via `b417d02c6`; dev CI green with it → not this iteration's concern; coding-standards forbids deleting pre-existing flagged code).
+
+**Corpus gate V22** (the key measurement): 386 parse-valid `examples/**/*.ail` → **327 formatted, 0 comment-loss, 0 Phase-2 round-trip regressions, interpolation-refusal 0/386 (0.00%)**, idempotence 299/299. The interpolation-carve-out evidence gate (BINDING CONSTRAINT 2) is satisfied at 0/386 → the deferred full-interpolation follow-up is NOT needed by current evidence.
+
+**Routing evidence** (ACTUAL role→model used):
+- `model=opus task-class=sprint-executor(M0 audit + M1 collector/envelope + M2 attach/emission + M3 gates/refusal-removal/docs for m-ailang-fmt-phase2 in isolated worktree) provider=anthropic agent=claude-code(Agent-tool pinned model=opus) cost=quota-bucket:weekly-opus`.
+- `model=sonnet task-class=sprint-evaluator(independent verify + rubric score, generator≠judge vs opus executor) provider=anthropic agent=claude-code(Agent-tool pinned model=sonnet) cost=quota-bucket:weekly-sonnet`.
+- `model=opus task-class=controller(triage/pick/reality-check/lint-fix/doc-move/PR/Gate-3b/record/report) provider=anthropic agent=claude-code cost=quota-bucket:weekly-opus`.
+- **Iteration metered spend: `$0.00`** (executor + evaluator + controller all quota-bucket Anthropic; NO metered lane fired — no codex/managed_agents/quorum). Well under `MISSION_METERED_BUDGET_USD=$5`.
+
+**Ruled out**:
+- "The 15.28% inline-interior refusal fails the M3 '0 comment-refusals' bar → round-2" — REJECTED by the evaluator: fail-closed (exit 2, byte-identical, never lossy) satisfies the design's explicit fail-closed philosophy; silent relocation would be strictly worse; the 59 files are enumerated + evidence-gated in Future Work. Tracked as a follow-up sub-sprint, not a sprint failure.
+- "The 28 properties[...] round-trip failures are a Phase-2 regression" — REFUTED: verified they fail comment-free round-trip on origin/dev too (executor's `phase1AlsoBreaks()` helper distinguishes them; evaluator independently reproduced on the installed dev binary). Pre-existing, out of scope for a comment-preservation sprint.
+- "Run the full loop (plan+execute) in one iteration" — N/A: the plan already existed (iter 62); this iteration was execute-only, correct one-stage advance.
+
+**Retro lane**: **NO skill/process edit this iteration.** Frictions logged:
+- 3 sprint-introduced lint issues escaped the executor's own `make lint` self-check (it reported them but committed anyway, leaving them for the controller/evaluator). **1st instance of "executor commits with known lint debt"** → below the ≥2-friction bar; WATCH: a 2nd → add a "lint-clean-before-commit" hard gate note to the sprint-executor skill.
+- The sprint's real deliverable (85% lossless + 15% fail-closed) is a *partial* delivery of the "unblock the 94.7% commented corpus" headline — the evaluator flagged this honestly and it's queued as a follow-up. Good calibration, no action.
+- All disciplines (billing-tripwire, bounded Gate-3b, generator≠judge pin, worktree isolation, metered-ledger, doc-rotation) worked as written. `$0.00` metered.
+- Carried WATCHES (no recurrence): planner-JSON-shape (iter-62, 1st); designer/reviewer same-provider overlap (iter-61, 1st); cap-caused quorum degrade (iter-60, 1st); `RequiresEgress` widening; Windows-GOOS-guard; codex-background-stdin-hang.
+
+**Parked for human (#399)** (carried; none NEW this iteration):
+- **m-ai-reasoning-effort quorum fork** (iter-61): 2 small converging R2 fixes; authorize one bounded round [RECOMMENDED], amend scope, or keep parked.
+- **m-serveapi-raw-handler-mcp M2 architecture fork** (iter-57): split+ship M1 [RECOMMENDED], pick an M2 arch, or keep parked.
+- **m-ailang-fmt-adoption**: now UNBLOCKED (its phase2 gate landed); SIGKILL-escalation fix APPROVED by Mark → ready to plan a future fmt iteration.
+- **CARRIED**: gemini fleet-role ratification (iter-53); m-check-strict-fallbacks fork (iter-42); M-TOOLING-DETERMINISTIC SUPERSEDED-close (iter-48).
+
+**New backlog queued** (from phase2 findings, both design-doc-needed):
+- **m-ailang-fmt-inline-interior** (~1.5–2d) — reduce the 15.28% inline-interior refusal (root: parser collapses `let … in` to a single expression; options: preserve let-in layout / edit-grade spans).
+- **m-fmt-properties-printer-roundtrip** (~1d) — fix the pre-existing `properties[...]` printer round-trip on 28 contract/devtools files.
+
+**Gate 3b**: PR #414 required checks green → auto-merge squash `3815ba617`. Post-merge dev CI on the squash commit bounded-polled to completion (Monitor `bcovrgiib`). Docs commit (this log + queue + status rotation) pushed to dev separately (doc-only; CI expected, Deploy-Docs N/A for `design_docs/`).
+
+**Next**: pick the next [NEXT] queue item — the clause-3 accessibility cluster / remaining fmt follow-ups, unless Mark answers a #399 fork (reasoning-effort or m-serveapi M1-split), which outranks. Watches carried as above.
+
+---
