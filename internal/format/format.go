@@ -183,14 +183,6 @@ func (p *printer) emitTrailing(owner any, child int) {
 	}
 }
 
-// hasTrailing reports whether a trailing comment exists at (owner, child).
-func (p *printer) hasTrailing(owner any, child int) bool {
-	if p.att == nil {
-		return false
-	}
-	return len(p.att.trailing[attKey{owner: owner, index: child}]) > 0
-}
-
 // file emits the module declaration, then imports in AST order, then top-level
 // declarations in AST order, with one blank line between top-level items. No
 // reordering of imports, symbols, cases, fields, or declarations occurs.

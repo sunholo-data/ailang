@@ -141,11 +141,6 @@ func (e *Envelope) regionContaining(off int) *lexer.LiteralRegion {
 	return nil
 }
 
-// inLiteral reports whether byte offset off is inside any literal region.
-func (e *Envelope) inLiteral(off int) bool {
-	return e.regionContaining(off) != nil
-}
-
 // inStringSpan reports whether byte offset off lies within the full byte span of
 // a string/quasiquote literal INCLUDING its interpolation holes and the `${`/`}`
 // delimiters — i.e. anywhere between a literal's opening delimiter and its

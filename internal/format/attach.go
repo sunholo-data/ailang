@@ -109,11 +109,7 @@ func (a *attacher) collectLists(f *ast.File) {
 	for _, imp := range f.Imports {
 		top = append(top, imp)
 	}
-	for _, d := range f.Decls {
-		if n, ok := d.(ast.Node); ok {
-			top = append(top, n)
-		}
-	}
+	top = append(top, f.Decls...)
 	a.addList(f, top, -1)
 
 	for _, d := range f.Decls {
