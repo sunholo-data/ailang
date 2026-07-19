@@ -286,6 +286,13 @@ func (p *printer) match(n *ast.Match) error {
 			if caseErr != nil {
 				return
 			}
+			// Boundary i: leading + floating comments before case i. The attacher
+			// keys match-case boundaries on the case Body node (see collectLists).
+			p.emitLeading(n, i)
+			if p.hasFloating(n, i) {
+				p.emitFloating(n, i)
+				p.w.hardline()
+			}
 			pat, err := p.patternString(c.Pattern)
 			if err != nil {
 				caseErr = err
@@ -307,8 +314,14 @@ func (p *printer) match(n *ast.Match) error {
 			if i < len(n.Cases)-1 {
 				p.w.write(",")
 			}
+			p.emitTrailing(n, i)
 			p.w.hardline()
 		}
+		if p.hasFloating(n, len(n.Cases)) {
+			p.emitFloating(n, len(n.Cases))
+			p.w.hardline()
+		}
+		p.emitLeading(n, len(n.Cases))
 	})
 	if caseErr != nil {
 		return caseErr

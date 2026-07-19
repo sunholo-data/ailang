@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -24,10 +25,26 @@ import (
 // Exit codes (fail-closed everywhere):
 //   0  formatting succeeded, or every file is canonical in --check mode
 //   1  --check found at least one non-canonical file (no operational error)
-//   2  usage / read / comment-preflight / parse / print / round-trip / write error
+//   2  operational error (usage / read / print / round-trip / envelope / write)
+//   3  input parse error (the file does not parse — the mid-edit state harness
+//      hooks defer on, distinct from a genuine operational failure)
 //
-// Phase 1 refuses commented input (the AST carries no trivia, so a reprint would
-// silently delete comments). There is NO fallback to original source.
+// Phase 2 preserves comments losslessly via a token-anchored envelope. A comment
+// that cannot be attached to a stable boundary (e.g. inside a `${...}`
+// interpolation hole, or interior to an inline-emitted expression) is REFUSED
+// fail-closed (exit 2, file byte-identical) — never silently dropped or moved.
+// There is NO fallback to original source.
+
+// exitParse is the process exit code for an input that does not parse (exit 3),
+// distinct from operational failures (exit 2). Callers use fmtParseError to tag
+// the error so the top-level dispatch can select the code.
+const exitParse = 3
+
+// fmtParseError wraps a parse error so the CLI can map it to exit code 3.
+type fmtParseError struct{ err error }
+
+func (e *fmtParseError) Error() string { return e.err.Error() }
+func (e *fmtParseError) Unwrap() error { return e.err }
 
 // fmtIgnorePos ignores positional metadata so the round-trip AST comparison is
 // purely structural, matching the parser's own equivalence tests.
@@ -99,31 +116,29 @@ func formatOne(path string) (orig []byte, canonical []byte, err error) {
 		return nil, nil, fmt.Errorf("%s: %w", path, err)
 	}
 
-	// Comment safety gate (Phase 1): refuse any file containing real comments.
-	hasComments, cerr := format.HasComments(src)
-	if cerr != nil {
-		return nil, nil, fmt.Errorf("%s: comment preflight failed: %w", path, cerr)
-	}
-	if hasComments {
-		return nil, nil, fmt.Errorf("%s: comments are not yet supported by ailang fmt", path)
-	}
-
+	// Parse first. A parse error is exit 3 (input does not parse), tagged so the
+	// dispatcher can distinguish it from operational failures (exit 2).
 	prog, perr := parseForFmt(string(src), path)
 	if perr != nil {
 		return nil, nil, perr
 	}
 
-	out, ferr := format.Source(prog, format.Options{})
+	// Phase 2: format with lossless comment preservation. A fail-closed
+	// envelope/attachment error (comment inside an interpolation hole, or interior
+	// to an inline-emitted expression) is an operational error (exit 2) — the file
+	// is left byte-identical, never mis-formatted.
+	out, ferr := format.SourceWithComments(prog, src, format.Options{})
 	if ferr != nil {
 		return nil, nil, fmt.Errorf("%s: %w", path, ferr)
 	}
 
 	// Round-trip verification: re-parse the formatted output and require a
 	// structurally identical AST (ignoring only positions/spans). A mismatch is a
-	// formatter defect and must fail the file, never silently ship bad output.
-	reprog, rperr := parseForFmt(string(out), path)
-	if rperr != nil {
-		return nil, nil, fmt.Errorf("%s: formatted output failed to re-parse: %w", path, rperr)
+	// formatter DEFECT (exit 2), NOT an input parse error — so it is reported as a
+	// plain operational error even though the re-parse failed.
+	reprog := parseRaw(string(out), path)
+	if reprog == nil {
+		return nil, nil, fmt.Errorf("%s: formatted output failed to re-parse (formatter defect)", path)
 	}
 	if diff := cmp.Diff(prog.File, reprog.File, fmtIgnorePos); diff != "" {
 		return nil, nil, fmt.Errorf("%s: round-trip verification failed (formatter defect); AST changed", path)
@@ -132,18 +147,41 @@ func formatOne(path string) (orig []byte, canonical []byte, err error) {
 	return src, out, nil
 }
 
-// parseForFmt parses source into a program, converting parse errors into a
-// single path-qualified error.
+// parseForFmt parses the ORIGINAL source into a program. A parse error is tagged
+// as an *fmtParseError so the dispatcher maps it to exit code 3 (input does not
+// parse), distinct from operational failures (exit 2).
 func parseForFmt(src, path string) (*ast.Program, error) {
 	p := parser.New(lexer.New(src, path))
 	prog := p.Parse()
 	if errs := p.Errors(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: parse error: %v", path, errs[0])
+		return nil, &fmtParseError{err: fmt.Errorf("%s: parse error: %v", path, errs[0])}
 	}
 	if prog == nil || prog.File == nil {
-		return nil, fmt.Errorf("%s: parser produced no file", path)
+		return nil, &fmtParseError{err: fmt.Errorf("%s: parser produced no file", path)}
 	}
 	return prog, nil
+}
+
+// parseRaw parses source and returns the program, or nil on any parse error. Used
+// for round-trip re-parsing of formatter output, where a failure is a formatter
+// defect (exit 2), not an input parse error.
+func parseRaw(src, path string) *ast.Program {
+	p := parser.New(lexer.New(src, path))
+	prog := p.Parse()
+	if len(p.Errors()) > 0 || prog == nil || prog.File == nil {
+		return nil
+	}
+	return prog
+}
+
+// fmtExitCode maps a formatOne error to its process exit code: 3 for an input
+// parse error (tagged *fmtParseError), 2 for every operational error.
+func fmtExitCode(err error) int {
+	var pe *fmtParseError
+	if errors.As(err, &pe) {
+		return exitParse
+	}
+	return 2
 }
 
 // fmtStdout formats one file and writes canonical source to stdout, leaving the
@@ -152,7 +190,7 @@ func fmtStdout(path string) int {
 	_, canonical, err := formatOne(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		return 2
+		return fmtExitCode(err)
 	}
 	if _, err := os.Stdout.Write(canonical); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: writing to stdout: %v\n", red("Error"), err)
@@ -162,14 +200,14 @@ func fmtStdout(path string) int {
 }
 
 // fmtCheck reports every non-canonical file to stdout and never writes. Exit 0 if
-// all inputs are canonical, 1 if any drift, 2 on any operational error.
+// all inputs are canonical, 1 if any drift, 2 on operational error, 3 on parse error.
 func fmtCheck(paths []string) int {
 	drift := false
 	for _, path := range paths {
 		orig, canonical, err := formatOne(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			return 2
+			return fmtExitCode(err)
 		}
 		// Canonical means byte-equal to formatter output, including final newline.
 		if string(orig) != string(canonical) {
@@ -198,7 +236,7 @@ func fmtWrite(paths []string) int {
 		orig, canonical, err := formatOne(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			return 2
+			return fmtExitCode(err)
 		}
 		jobs = append(jobs, job{path: path, orig: orig, canonical: canonical})
 	}
@@ -275,9 +313,12 @@ func printFmtHelp() {
 	fmt.Println("Exit codes:")
 	fmt.Println("  0  Formatting succeeded, or every file is canonical (--check).")
 	fmt.Println("  1  --check found at least one non-canonical file.")
-	fmt.Println("  2  Usage, read, comment, parse, print, round-trip, or write error.")
+	fmt.Println("  2  Operational error: usage, read, print, round-trip, envelope, or write.")
+	fmt.Println("  3  Input parse error: the file does not parse (distinct from exit 2 so")
+	fmt.Println("     tooling can defer on mid-edit files vs surface a real formatter failure).")
 	fmt.Println()
-	fmt.Println("Phase 1 limitation: files containing comments are refused (exit 2) and left")
-	fmt.Println("byte-identical — the formatter never deletes comments. Lossless comment")
-	fmt.Println("preservation is a separately-scheduled Phase 2.")
+	fmt.Println("Comments are preserved losslessly. A comment that cannot be placed on a stable")
+	fmt.Println("boundary (inside a ${...} interpolation, or interior to an inline-emitted")
+	fmt.Println("expression) is refused fail-closed (exit 2, file byte-identical) — the")
+	fmt.Println("formatter never deletes or relocates a comment.")
 }

@@ -37,19 +37,45 @@ func TestFormatOne_CanonicalizesSeparators(t *testing.T) {
 	}
 }
 
-func TestFormatOne_RejectsComments(t *testing.T) {
+// TestFormatOne_PreservesComments proves the Phase-2 behavior: a commented file
+// now FORMATS (comments preserved), it is no longer refused.
+func TestFormatOne_PreservesComments(t *testing.T) {
 	dir := t.TempDir()
-	path := writeTemp(t, dir, "c.ail", "module t/c\n-- hello\nfunc f() = 1\n")
-	if _, _, err := formatOne(path); err == nil {
-		t.Fatal("expected error for commented file, got nil")
+	path := writeTemp(t, dir, "c.ail", "module t/c\n\n-- hello\nfunc f() = 1\n")
+	_, canonical, err := formatOne(path)
+	if err != nil {
+		t.Fatalf("expected commented file to format, got: %v", err)
+	}
+	if !contains(string(canonical), "-- hello") {
+		t.Errorf("comment not preserved in output:\n%s", canonical)
 	}
 }
 
 func TestFormatOne_RejectsParseError(t *testing.T) {
 	dir := t.TempDir()
 	path := writeTemp(t, dir, "p.ail", "module t/p\nfunc f( = \n")
-	if _, _, err := formatOne(path); err == nil {
+	_, _, err := formatOne(path)
+	if err == nil {
 		t.Fatal("expected parse error, got nil")
+	}
+	// A parse error must be tagged so the dispatcher maps it to exit 3.
+	if fmtExitCode(err) != exitParse {
+		t.Errorf("parse error should map to exit %d, got %d", exitParse, fmtExitCode(err))
+	}
+}
+
+// TestFormatOne_RefusesInterpolationComment proves the fail-closed carve-out: a
+// comment inside a ${...} interpolation hole is refused (operational error, exit
+// 2), never silently dropped.
+func TestFormatOne_RefusesInterpolationComment(t *testing.T) {
+	dir := t.TempDir()
+	path := writeTemp(t, dir, "i.ail", "module t/i\n\nexport func f() -> string = \"pre${ x -- oops\n }post\"\n")
+	_, _, err := formatOne(path)
+	if err == nil {
+		t.Fatal("expected fail-closed refusal for interpolation comment, got nil")
+	}
+	if fmtExitCode(err) != 2 {
+		t.Errorf("interpolation-comment refusal should be exit 2, got %d", fmtExitCode(err))
 	}
 }
 
@@ -123,17 +149,18 @@ func TestAtomicWriteFile_NoTempLeftBehind(t *testing.T) {
 
 func TestFmtWrite_AtomicAcrossFiles(t *testing.T) {
 	dir := t.TempDir()
-	// One valid non-canonical file and one commented (invalid) file. The write
-	// must touch NEITHER, because validation of all inputs must pass first.
+	// One valid non-canonical file and one that does NOT parse. The write must
+	// touch NEITHER, because validation of all inputs must pass first. (Commented
+	// files now format, so the failing sibling is a parse error → exit 3.)
 	good := writeTemp(t, dir, "good.ail", "module t/g\nfunc f() = let a = 1; a\n")
-	bad := writeTemp(t, dir, "bad.ail", "module t/b\n-- comment\nfunc f() = 1\n")
+	bad := writeTemp(t, dir, "bad.ail", "module t/b\nfunc f( = \n")
 
 	goodBefore, _ := os.ReadFile(good)
 	badBefore, _ := os.ReadFile(bad)
 
 	code := fmtWrite([]string{good, bad})
-	if code != 2 {
-		t.Errorf("expected exit code 2 for commented input, got %d", code)
+	if code != exitParse {
+		t.Errorf("expected exit code %d for parse-error input, got %d", exitParse, code)
 	}
 
 	goodAfter, _ := os.ReadFile(good)
@@ -142,7 +169,7 @@ func TestFmtWrite_AtomicAcrossFiles(t *testing.T) {
 		t.Error("valid file was modified despite a sibling failure (atomicity violated)")
 	}
 	if string(badBefore) != string(badAfter) {
-		t.Error("commented file was modified (must stay byte-identical)")
+		t.Error("failing file was modified (must stay byte-identical)")
 	}
 }
 
@@ -171,7 +198,7 @@ func TestFmtCheck_ReturnsCodes(t *testing.T) {
 	dir := t.TempDir()
 	canonical := writeTemp(t, dir, "c.ail", "module t/c\n\nfunc f() = 1\n")
 	drifted := writeTemp(t, dir, "d.ail", "module t/d\nfunc f() = let a = 1; a\n")
-	commented := writeTemp(t, dir, "x.ail", "module t/x\n-- c\nfunc f() = 1\n")
+	parseErr := writeTemp(t, dir, "x.ail", "module t/x\nfunc f( = \n")
 
 	if code := fmtCheck([]string{canonical}); code != 0 {
 		t.Errorf("canonical: expected 0, got %d", code)
@@ -179,8 +206,8 @@ func TestFmtCheck_ReturnsCodes(t *testing.T) {
 	if code := fmtCheck([]string{drifted}); code != 1 {
 		t.Errorf("drifted: expected 1, got %d", code)
 	}
-	if code := fmtCheck([]string{commented}); code != 2 {
-		t.Errorf("commented: expected 2, got %d", code)
+	if code := fmtCheck([]string{parseErr}); code != exitParse {
+		t.Errorf("parse error: expected %d, got %d", exitParse, code)
 	}
 	// A drifted file among canonical ones still yields 1, and no file is written.
 	before, _ := os.ReadFile(drifted)
@@ -193,45 +220,48 @@ func TestFmtCheck_ReturnsCodes(t *testing.T) {
 	}
 }
 
-// TestFmtCommentedExitsAndUnchanged proves the Phase-1 comment partition across
-// all three modes: a commented file yields exit 2 and is never modified.
-func TestFmtCommentedExitsAndUnchanged(t *testing.T) {
-	dir := t.TempDir()
-	src := "module t/c\n-- a real comment\nfunc f() = 1\n"
+// TestFmtCommentedFormats proves the Phase-2 behavior across all three modes: a
+// commented file now FORMATS with its comment preserved (exit 0 in stdout;
+// stdout/check never modify the file; write canonicalizes it).
+func TestFmtCommentedFormats(t *testing.T) {
+	src := "module t/c\n\n-- a real comment\nfunc f() = 1\n"
 
 	t.Run("stdout", func(t *testing.T) {
+		dir := t.TempDir()
 		path := writeTemp(t, dir, "s.ail", src)
 		before, _ := os.ReadFile(path)
-		if code := fmtStdout(path); code != 2 {
-			t.Errorf("expected exit 2, got %d", code)
+		if code := fmtStdout(path); code != 0 {
+			t.Errorf("expected exit 0 (commented file now formats), got %d", code)
 		}
 		after, _ := os.ReadFile(path)
 		if string(before) != string(after) {
-			t.Error("commented file was modified in stdout mode")
+			t.Error("stdout mode must not modify the input file")
 		}
 	})
 
 	t.Run("check", func(t *testing.T) {
+		dir := t.TempDir()
 		path := writeTemp(t, dir, "c.ail", src)
 		before, _ := os.ReadFile(path)
-		if code := fmtCheck([]string{path}); code != 2 {
-			t.Errorf("expected exit 2, got %d", code)
+		// Already canonical (comment preserved, canonical layout) → exit 0.
+		if code := fmtCheck([]string{path}); code != 0 && code != 1 {
+			t.Errorf("expected exit 0 or 1 (formats), got %d", code)
 		}
 		after, _ := os.ReadFile(path)
 		if string(before) != string(after) {
-			t.Error("commented file was modified in check mode")
+			t.Error("--check must never write")
 		}
 	})
 
 	t.Run("write", func(t *testing.T) {
+		dir := t.TempDir()
 		path := writeTemp(t, dir, "w.ail", src)
-		before, _ := os.ReadFile(path)
-		if code := fmtWrite([]string{path}); code != 2 {
-			t.Errorf("expected exit 2, got %d", code)
+		if code := fmtWrite([]string{path}); code != 0 {
+			t.Errorf("expected exit 0, got %d", code)
 		}
 		after, _ := os.ReadFile(path)
-		if string(before) != string(after) {
-			t.Error("commented file was modified in write mode")
+		if !contains(string(after), "-- a real comment") {
+			t.Errorf("comment lost after --write:\n%s", after)
 		}
 	})
 }
