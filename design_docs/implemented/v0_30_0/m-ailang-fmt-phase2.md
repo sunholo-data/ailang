@@ -1,7 +1,16 @@
 # M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`
 
-**Status**: ✅ **UNPARKED — Mark DECIDED 2026-07-19 (option (b): "permit b and recommendations")**.
-The two Rev-3 architecture objections are resolved BY DECISION, not another text round:
+**Status**: ✅ **IMPLEMENTED (v0.30.0, mission iter 63, 2026-07-19)** — branch `sprint/m-ailang-fmt-phase2`,
+6 sprint commits (M0 `83f7ebf23` → M3 `b29e871c4`) + lint fix `fe236572c`. Sprint-evaluator (sonnet,
+generator≠judge) PASS **78/100 round 1**. Corpus gate (V22): 386 parse-valid files → **327 formatted,
+0 comment-loss, 0 Phase-2 round-trip regressions, interpolation-refusal 0/386**. Known calibrated
+boundary: **15.28% (59/386) inline-interior refusal is FAIL-CLOSED (exit 2, byte-identical, never
+lossy)** — dominantly top-level `let … in` chains the parser collapses to a single expression with no
+stable idempotent boundary; tracked as a follow-up sub-sprint (see Future Work). 28 pre-existing
+Phase-1 `properties[...]` printer round-trip bugs surfaced (not caused) — separate out-of-scope item.
+
+**Original UNPARK context** — Mark DECIDED 2026-07-19 (option (b): "permit b and recommendations").
+The two Rev-3 architecture objections were resolved BY DECISION, not another text round:
 1. **Attacher-totality (gpt5-6-sol)** → **M0 of the sprint is a PRINTER CODE AUDIT**: enumerate
    every ordered child-list emission site in the printer (params, type args, constructor args,
    record fields, annotations — everything), fold the PROVEN inventory into this design before any
