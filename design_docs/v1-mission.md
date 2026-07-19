@@ -778,7 +778,17 @@ triage evidence = log entry 10.)*
   (1) split+ship M1 now [RECOMMENDED], (2) pick an M2 arch — valid-`Json` provenance marker
   `{"_transport":"MCP_UNAVAILABLE"}` + require `req.method=="MCP"` branch, OR drop the fake-envelope entirely,
   (3) keep parked. Unblocks docparse quota-hardening item 5. Log entry 62. ~0.5d for M1 alone) ·
-  m-agent-step-cancellation (1.5d) · m-ai-reasoning-effort (~0.5d)
+  m-agent-step-cancellation (1.5d) ·
+  **m-ai-reasoning-effort** (**[PARKED needs-human-review iter 61 — QUORUM-AT-PICK: R1 BLOCKED
+  (no-silent-fallback + missing MaxTokens conflict surface) → codex-designer Rev-1 resolved both
+  (fail-loud contract w/ 5 typed errors + capability gating + full Conflict Surface) → R2
+  re-quorum BLOCKED on 2 NEW *narrower converging* fixes]** →
+  [planned/v0_29_0/m-ai-reasoning-effort.md](planned/v0_29_0/m-ai-reasoning-effort.md), see its
+  ⛔ Quorum Record. R2 objections: (1) resolver omits OpenRouter's `reasoning_max_tokens` 4th input;
+  (2) Gemini rule over-reaches forcing `MaxTokens` for `B=0` "off" (breaks docparse consumer).
+  Both small/concrete — NOT fmt-phase2's deepening gaps. **Human fork on #399:** (1) authorize
+  ONE more bounded round [RECOMMENDED — close to green], (2) amend scope (drop `reasoning_max_tokens`
+  from the typed resolver), (3) keep parked. ~14h impl (doc est), metered $0.23 this iter. Log entry 66.)
 
 ### Clause 5 — cost credibility
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
