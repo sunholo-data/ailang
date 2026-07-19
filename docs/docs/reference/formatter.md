@@ -164,18 +164,20 @@ Harness authors rely on five properties:
    parses. This is the sole sanctioned silence: mid-edit parse failure is an
    expected state, not a fault.
 
-### CI drift check: `make fmt-check`
+### CI drift check: `make fmt-check-ail`
 
 ```bash
-make fmt-check
+make fmt-check-ail
 ```
 
 Runs `ailang fmt --check` over `examples/**/*.ail` and `stdlib/**/*.ail`. It
 exits **0** when every file is canonical and **1** (listing the drifted paths)
 when any file has drifted. It is a **standalone** target — it is deliberately
-**not** wired into `make ci`, so it never gates the build. Run it locally, or
-add it as an advisory (non-required) CI step. Gating CI on canonical form would
-require a one-time mass-reformat commit, which is a separate decision.
+**not** wired into `make ci`, so it never gates the build. (The name is
+`fmt-check-ail`, not `fmt-check`, because `make fmt-check` is already the Go
+`gofmt` CI gate.) Run it locally, or add it as an advisory (non-required) CI
+step. Gating CI on canonical form would require a one-time mass-reformat
+commit, which is a separate decision.
 
 ### Claude Code PostToolUse hook
 
