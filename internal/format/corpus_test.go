@@ -105,9 +105,10 @@ func TestCorpusCommentFreeRoundTrips(t *testing.T) {
 	}
 }
 
-// TestCorpusCommentedFilesAreDetected asserts that every commented example is
-// detected by HasComments (the Phase-1 refusal partition). This is the guard that
-// keeps commented files away from the printer entirely.
+// TestCorpusCommentedFilesAreDetected sanity-checks that HasComments (now backed
+// by the Phase-2 collector) still detects the commented majority of the corpus.
+// Phase 2 formats these losslessly (see TestCorpusCommentGate); this test only
+// guards that comment detection itself has not regressed.
 func TestCorpusCommentedFilesAreDetected(t *testing.T) {
 	var commented int
 	walkAilExamples(t, func(path string, data []byte) {
@@ -119,7 +120,7 @@ func TestCorpusCommentedFilesAreDetected(t *testing.T) {
 			commented++
 		}
 	})
-	t.Logf("corpus: %d commented files detected (Phase-1 refusal partition)", commented)
+	t.Logf("corpus: %d commented files detected", commented)
 	if commented == 0 {
 		t.Error("expected the corpus to contain commented examples")
 	}

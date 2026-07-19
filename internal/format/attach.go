@@ -359,6 +359,21 @@ func (a *attacher) attachOne(c lexer.Comment) (Attachment, bool) {
 	}
 	cl := &a.lists[best]
 
+	// Fail-closed guard: if the comment's LINE falls strictly WITHIN a child's
+	// rendered line span (after its first line, before its last), the comment is
+	// interior to a MULTI-LINE child that the chosen list does not decompose into a
+	// tighter sublist (e.g. a top-level `let ... in` chain that the printer
+	// collapses onto fewer lines, or a multi-line expression with no recognized
+	// child list). Attaching it to a list boundary would relocate it
+	// non-idempotently, so we refuse (fail-closed). A tighter enclosing list, when
+	// one exists, is chosen as `best` first, so reaching here means none does.
+	// (Rule 1 trailing is already resolved above; this only affects floating/leading.)
+	for _, ch := range cl.children {
+		if ch.startLine < cLine && cLine < ch.endLine {
+			return Attachment{}, false
+		}
+	}
+
 	// Find the boundary index: the first child whose min-anchor is on a line at or
 	// after the comment's line. Comments before the first child → boundary 0
 	// (rule 4 / hard left wall). After the last child → boundary len (rule 4 tail).

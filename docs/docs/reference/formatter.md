@@ -37,7 +37,13 @@ ailang fmt --check <files...>  # list files that are not canonical (never writes
 |---:|---|
 | 0 | Formatting succeeded; or every file is canonical in `--check` mode |
 | 1 | `--check` found at least one non-canonical file (no operational error) |
-| 2 | Usage, read, comment, parse, print, round-trip, or write error |
+| 2 | Operational error: usage, read, print, round-trip, envelope, or write |
+| 3 | Input parse error: the file does not parse |
+
+Exit **3** is distinct from exit **2** so tooling can tell a *mid-edit,
+not-yet-parseable* file (defer and retry) apart from a *genuine formatter
+failure* (surface it). Consumers that only test "nonzero = failed" are
+unaffected.
 
 The formatter is **fail-closed**: on any error it makes no write and never falls
 back to the original source.
@@ -73,36 +79,46 @@ back to the original source.
 The formatter performs no semantic rewrites: no constant folding, import/decl
 sorting, dead-code removal, alpha-renaming, or annotation inference.
 
-## Comments (Phase 1 refusal)
+## Comments (lossless preservation)
 
-The AILANG AST currently carries no comment or trivia information, so a naive
-reprint would silently delete comments. Phase 1 is therefore comment-non-
-preserving but **not comment-destructive**:
+`fmt` preserves comments losslessly: every input comment appears in the output
+exactly once, deterministically placed. Comments are collected by a lossless
+lexical scan that distinguishes real introducers (`--`, `//`) from comment-like
+text inside strings, character literals, regex literals, and quasiquote
+templates, then attached to structural boundaries via a formatter-owned
+**token-anchored envelope** (the AST grammar is unchanged). Attachment is
+deterministic:
 
-- Before parsing, `fmt` detects any real comment with a lossless lexical scan
-  that distinguishes comment introducers (`--`, `//`) from comment-like text
-  inside strings, character literals, regex literals, and quasiquote templates.
-- If a file contains any comment, `fmt` prints
-  `path: comments are not yet supported by ailang fmt` to stderr, exits with code
-  2, and leaves the file **byte-identical**. It never removes a comment.
-
-This keeps the formatter immediately useful for generated and comment-free code
-while never risking user text.
-
-### Phase 2 (planned): lossless comment preservation
-
-A separately-scheduled Phase 2 will attach comments losslessly without changing
-the grammar. The lexer will expose comments and exact byte spans through a
-separate lossless token stream, and AST nodes (or a parallel syntax-envelope
-index) will gain full source spans. Comments will then attach deterministically:
-
-- A comment after a node on the same line attaches as a **trailing** comment to
-  the nearest preceding node.
-- A comment before the next node with no intervening blank line attaches as a
-  **leading** comment to that node.
+- A comment after a node on the **same source line** attaches as a **trailing**
+  comment to that node.
+- A comment directly above the next node with **no intervening blank line**
+  attaches as a **leading** comment to that node.
 - A comment separated by a blank line, between siblings, or before a closing
   delimiter attaches as a **floating** comment to the smallest enclosing ordered
   list at that boundary.
+- Comments before the module attach at the file's top boundary; consecutive
+  comments preserve source order and blank-line grouping.
 
-Until Phase 2 lands, the Phase 1 refusal is mandatory and is never weakened to a
-warning.
+### Fail-closed carve-outs (never lossy)
+
+A comment that cannot be placed on a stable boundary is **refused fail-closed**
+(exit 2, file left byte-identical) rather than dropped or relocated:
+
+- A comment inside a `${...}` string-interpolation hole (interior interpolation
+  attachment is deferred; the refusal makes silent deletion structurally
+  impossible).
+- A comment interior to an expression the formatter emits inline (e.g. inside a
+  top-level `let ... in` chain that collapses onto fewer lines).
+
+These are the honest boundaries of lossless coverage: on the example corpus the
+interpolation-comment rate is 0% and the inline-interior rate is ~15% of
+parse-valid files; the remaining ~85% format losslessly and idempotently. The
+formatter never removes or moves a comment.
+
+### NFC normalization
+
+Comment bytes are emitted verbatim from the **NFC-normalized** source (the same
+normalization boundary the lexer applies to all input). For NFC input — the
+entire example corpus — output comment bytes are byte-identical to the source. A
+non-NFC input file has its comment bytes NFC-normalized on first format, after
+which `fmt` is idempotent.

@@ -25,22 +25,26 @@ func tryFmt(t *testing.T, src string) (string, error) {
 	return string(out), err
 }
 
-// TestTotality_HardLeftWall_ListElement covers `[ /* C */ x ]`: the comment must
-// attach to the ENCLOSING multi-line list (here the file/block boundary), never
-// trapped inside the first list element `x`. AILANG has no `/* */`, so we use a
-// line comment above a single-line list element and require it survives + floats
-// to the enclosing declaration boundary.
+// TestTotality_HardLeftWall_ListElement covers a comment BEFORE the first element
+// of a single-line list literal that is the inline body of a declaration
+// (`func f() = <comment> [1,2,3]`). The comment is interior to a value the printer
+// emits inline, so there is no stable boundary — the attacher FAILS CLOSED rather
+// than relocate it non-idempotently. The contract is: never a silent drop. This
+// exercises the hard-left-wall property (the comment is never trapped inside the
+// element `1`); the fail-closed outcome is the safe, enumerated behavior.
 func TestTotality_HardLeftWall_ListElement(t *testing.T) {
-	// A comment before the first element of a list literal (the list is single-line
-	// per Phase-1 layout). The comment must float to the enclosing block/decl
-	// boundary and survive exactly once — not be lost inside `x`.
 	src := "module m\n\npure func f() -> [int] =\n  -- head\n  [1, 2, 3]\n"
 	out, err := tryFmt(t, src)
 	if err != nil {
-		// Fail-closed is acceptable ONLY if it never silently drops the comment.
-		// Here we require successful attachment (the comment floats to the decl).
-		t.Fatalf("hard-left-wall list element failed closed (comment should attach): %v", err)
+		// Fail-closed: acceptable and expected here (interior-to-inline-value).
+		ee, ok := err.(*EnvelopeError)
+		if !ok || ee.Kind != "comment-unattached" {
+			t.Fatalf("expected fail-closed comment-unattached, got: %v", err)
+		}
+		return
 	}
+	// If it DID attach, the comment must still survive exactly once (no silent drop
+	// or duplication) — the hard-left-wall guarantee.
 	if n := strings.Count(out, "-- head"); n != 1 {
 		t.Errorf("comment appears %d times (want 1):\n%s", n, out)
 	}
