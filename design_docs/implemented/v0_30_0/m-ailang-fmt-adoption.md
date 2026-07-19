@@ -1,10 +1,17 @@
 # M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks
 
-**Status**: ✅ **CORRECTION APPROVED by Mark 2026-07-19** — apply the SIGTERM→grace→SIGKILL
-escalation exactly as written in this doc's own fix note (`kill "$PID"; sleep 1; kill -9 …;
-wait`), same pattern as the mission's executor wrappers. No re-quorum (that was the last standing
-objection). **Remains HARD-GATED behind [M-AILANG-FMT-PHASE2](m-ailang-fmt-phase2.md)** — route
-to planner only after Phase-2 lands (it needs comment preservation + the exit-code split).
+**Status**: ✅ **IMPLEMENTED** (mission iteration 65, 2026-07-19) — shipped on
+`sprint/m-ailang-fmt-adoption`: teaching prompt v0.16.3, `formatter.md` Adoption section +
+dev-workflow cross-link, `make fmt-check-ail`, and the opt-in `format_ail.sh` PostToolUse hook
+carrying the Mark-approved SIGTERM→grace→SIGKILL escalation. Sprint-executor (opus) → sprint-
+evaluator (sonnet, generator≠judge) PASS **89/100 round 1**; Phase-2 hard gate satisfied
+(landed iter-63, PR #414). The `fmt-check` name collided with the pre-existing Go gofmt CI gate,
+so the AILANG target shipped as `fmt-check-ail` (keeps `make ci` byte-identical).
+
+_Historical (pre-implementation)_: CORRECTION APPROVED by Mark 2026-07-19 — apply the
+SIGTERM→grace→SIGKILL escalation exactly as written in this doc's own fix note (`kill "$PID";
+sleep 1; kill -9 …; wait`). No re-quorum (last standing objection). Was HARD-GATED behind
+[M-AILANG-FMT-PHASE2](../../implemented/v0_30_0/m-ailang-fmt-phase2.md) — now satisfied.
 **Target**: v0.30.0
 **Priority**: P2 (valuable, but strictly sequenced after Phase 2)
 **Estimated**: 1–1.5 days
