@@ -579,6 +579,26 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   hazard (memory: a hung motoko holding 8080 breaks all later runs), and the same evaluator gate
   as cloud work — no quality discount for free tokens.
 
+**[NEXT-FIRST after the authorized decision set drains — Mark 2026-07-20: FULL BACKLOG RE-TRIAGE]**
+("lets do another review of the docs in planned and see which we can put into the cycle.") The
+third triage pass, against July reality: fleet live, fmt shipped, v0.30.0 released, arch-boundaries
+landed, quorum-at-pick in force. Sweep **ALL planned/ folders** (~114 docs: root 14 · v0_29_0 38 ·
+v0_30_0 19 · v0_31_0 3 · v1_0_0 5 · v1_1_0 30 · docparse-billing 5). Rules:
+- **Sequencing**: run AFTER the currently-authorized work (raw-handler M1 · reasoning-effort final
+  round · fmt polish pair · strict-fallbacks) — those are decided; triage before picking anything
+  NEW beyond them. May span 2–3 iterations (folder-group per iteration; oldest first: root +
+  v0_29_0, then v0_30/31/v1_0_0, then v1_1_0 + docparse).
+- **Per doc**: reality-check the status claim FIRST (the ghost discipline — cheap live probes for
+  bug-claims, `git log --grep` for landed-claims; iteration-0/25/48 precedent: statuses LIE), then
+  tag exactly one: **[GATING clause-N]** (serves an open bar clause → queue placement) ·
+  **[CYCLE]** (non-gating but net-valuable now → normal v0.3x road, loop may pick when gating
+  queue is blocked) · **[POST-V1]** · **[GHOST/SUPERSEDED → close with a CI-enforced guard where
+  the claim was a bug]** · **[FOLD-INTO <doc>]**.
+- **Controller-lane** (read+verify, no generation — iterations 45/48 pattern; no quorum during
+  triage, quorum-at-pick fires when a doc is actually PICKED). Deliverable: triage table on the
+  bookkeeping issue + charter queue rewrite + archive moves for ghosts/superseded. Docs promoted
+  to [CYCLE] get an explicit one-line WHY (what changed since they were shelved).
+
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
