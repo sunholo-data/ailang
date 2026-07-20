@@ -337,10 +337,15 @@ if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
   fi
 fi
 
-# 7. Regenerate the OS/Local JSON from the cumulative rolling rotation; commit the
+# 7. Regenerate the OS/Local JSON from the CURRENT VERSION's bank dir; commit the
 #    single file every cycle (keeps the tree clean), but only PUSH on a full-pass
 #    wrap to keep deploy churn to ~1/pass. Push uses autostash-rebase for safety.
-if ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" \
+#    NEVER publish from the rolling ROOT: findSummaryFiles walks recursively, so a
+#    root publish pools EVERY version's summaries into one table (the mixed-
+#    attribution bug found 2026-07-20). --summarize regenerates the bank dir's
+#    summary from raw files (interrupted suites never finalize one).
+if [ -d "$ROLL/$VERSION" ] && ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL/$VERSION" \
+      --summarize --ailang-version "$VERSION" \
       --os-json docs/static/benchmarks/os/latest.json >>"$LOG" 2>&1; then
   # Stage first, THEN check the staged diff — `git diff --quiet -- <file>` ignores
   # untracked files, so on the first cycle (file not yet in git) it would silently
@@ -370,8 +375,9 @@ fi
 #     refreshes it itself as the AILANG-first pass banks results.
 if [ -n "$VERSION" ] && [ -d "$ROLL/$VERSION" ]; then
   if bash tools/os-release-snapshot.sh "$VERSION" >>"$LOG" 2>&1; then
-    git add docs/static/benchmarks/os/history.json 2>>"$LOG" || true
-    if ! git diff --cached --quiet -- docs/static/benchmarks/os/history.json 2>/dev/null; then
+    # snapshot rewrites BOTH history.json and latest.json (per-version source)
+    git add docs/static/benchmarks/os/history.json docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
+    if ! git diff --cached --quiet -- docs/static/benchmarks/os/history.json docs/static/benchmarks/os/latest.json 2>/dev/null; then
       git commit -q -m "data(os): refresh version-trend history for ${VERSION}" \
         -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
       if [ "$AUTOPUSH" = "1" ]; then

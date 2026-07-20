@@ -85,17 +85,20 @@ ailang messages send controlplane \
     "Weekly language eval ($DATE): $MODEL — $SUMMARY (set=$N benchmarks, $LANGS). Dir: $RESULTS_DIR." \
     --title "Weekly language eval: $SUMMARY" --from "lang-eval" 2>/dev/null || true
 
-# Publish to the OS/Local dashboard (M-EVAL-OS-CONTINUOUS-ROTATION): emit the
+# Publish to the OS/Local dashboard (M-EVAL-OS-CONTINUOUS-ROTATION): refresh the
 # static JSON the OSLocalLeaderboard component reads, then commit+push just that
-# file so the docusaurus deploy refreshes the page. Scoped to the single file so
-# it's safe regardless of other working-tree state.
-if ailang eval-publish "$DATE" --rotation "$RESULTS_DIR" \
-        --os-json docs/static/benchmarks/os/latest.json >>"$LOG" 2>&1; then
+# file so the docusaurus deploy refreshes the page.
+# NOT from $RESULTS_DIR (a /tmp single-model weekly run — publishing it clobbered
+# the rolling table with a subset until the next filler cycle): latest.json is
+# owned by the per-version snapshot, which republishes the CURRENT version's bank
+# dir with correct attribution (2026-07-20 mixed-attribution fix).
+NIGHTLY_VERSION="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
+if [ -n "$NIGHTLY_VERSION" ] && bash tools/os-release-snapshot.sh "$NIGHTLY_VERSION" >>"$LOG" 2>&1; then
     # Stage first, THEN check the staged diff — `git diff --quiet -- <file>` ignores
     # untracked files, so the first publish (file not yet in git) would silently skip
     # the commit. `git add` + --cached detects both new and modified files.
-    git add docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
-    if ! git diff --cached --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
+    git add docs/static/benchmarks/os/latest.json docs/static/benchmarks/os/history.json 2>>"$LOG" || true
+    if ! git diff --cached --quiet -- docs/static/benchmarks/os/latest.json docs/static/benchmarks/os/history.json 2>/dev/null; then
         git commit -q -m "data(os): refresh OS/Local leaderboard from lang eval $DATE" \
             -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
         # Auto-push is opt-in (safe default): set OS_FILLER_PUSH=1 to publish.
