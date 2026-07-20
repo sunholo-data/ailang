@@ -245,18 +245,18 @@ emission is right.
 
 ### Implementation Plan
 
-**M1: Printer emission split + parser clobber fix** (~4h)
-- [ ] `internal/format/decl.go`: in `funcDecl`, after the effect row, partition `d.Properties`
+**M1: Printer emission split + parser clobber fix** (~4h) — ✅ IMPLEMENTED (commit 58eadd3b5)
+- [x] `internal/format/decl.go`: in `funcDecl`, after the effect row, partition `d.Properties`
       by `Kind`; emit `requires { … }` / `ensures { … }` clauses (comma-separated predicates,
       slice order). **Refactor `testsAndProperties` to accept a PRE-FILTERED
       `[]*ast.Property` (PropertyKind-only) parameter** instead of reading `d.Properties`
       itself — so it structurally CANNOT re-emit the contract clauses already printed in
       signature position (reviewer nit, gemini-3-1-pro).
-- [ ] `internal/parser/parser_func.go:169`: `fn.Properties = p.parsePropertiesBlock()` →
+- [x] `internal/parser/parser_func.go:169`: `fn.Properties = p.parsePropertiesBlock()` →
       `fn.Properties = append(fn.Properties, p.parsePropertiesBlock()...)` — explicit slice
       unpacking (reviewer nit, gemini-3-1-pro); preserves contracts when a `properties [...]`
       block follows; append order matches print order.
-- [ ] Unit tests (`internal/format/`): round-trip fixtures for (a) requires-only, (b) ensures-only,
+- [x] Unit tests (`internal/format/`): round-trip fixtures for (a) requires-only, (b) ensures-only,
       (c) both, (d) multi-predicate `requires { a, b }`, (e) ensures containing `ForallExpr`,
       (f) genuine `forall(...)` properties block (no parse-valid corpus file exercises this —
       verified: only `examples/experimental/factorial.ail` contains `properties [` and it does
@@ -264,8 +264,8 @@ emission is right.
       round-trip (must assert the `requires` entry survives; the same fixture also feeds the
       acceptance-gated integration test in M2).
 
-**M2: Regression guard + corpus green** (~3h)
-- [ ] **Acceptance-gated combined-case integration test** (blocks acceptance; see Success
+**M2: Regression guard + corpus green** (~3h) — ✅ IMPLEMENTED
+- [x] **Acceptance-gated combined-case integration test** (blocks acceptance; see Success
       Criteria): check in a synthetic fixture `internal/format/testdata/contracts_and_properties.ail`
       containing BOTH a contract and a genuine properties block on one function:
       `export func f(x: int) -> int ! {}` with `requires { x >= 0 }`, `ensures { result >= 0 }`,
@@ -288,12 +288,15 @@ emission is right.
         (`== 1`, not `>= 1`); the test completing without panic covers panic-freedom; plus
         the M1(g) fmt round-trip on the same fixture asserts `cmp.Diff` AST identity with the
         `requires` clause present in the output.
-- [ ] `internal/format/corpus_comment_test.go`: harden the gate — `preExistingRT` moves from
+- [x] `internal/format/corpus_comment_test.go`: harden the gate — `preExistingRT` moves from
       logged-and-tolerated into the `t.Fatalf` condition (`preExistingRT != 0` fails).
-- [ ] Run `ailang fmt --write` over the 28 now-eligible files; verify `ailang check` (and for the
-      verify-corpus files, `ailang ai-check --json`) still passes on every reformatted file.
-- [ ] Acceptance sweep (see Success Criteria).
-- [ ] CHANGELOG.md entry; note the silent-deletion fix explicitly.
+- [x] Run `ailang fmt --write` over the now-eligible files (30, not 28 — two adjacent Phase-1
+      printer bugs were also fixed, making `scoring.ail` + `per_function_depth_verify.ail`
+      formattable); verified `ailang check` (and `ailang ai-check` for the verify-corpus files)
+      still passes on every reformatted file. `discount_calculator.ail` retains a PRE-EXISTING,
+      unrelated `++`-on-string type error (expected-fail demo), not a reformat regression.
+- [x] Acceptance sweep (see Success Criteria) — passes.
+- [x] CHANGELOG.md entry; silent-deletion data-loss fix noted explicitly.
 
 ### Files to Modify/Create
 
@@ -387,24 +390,24 @@ after the split only `forall`-carrying `PropertyKind` entries may appear there.
 
 ## Success Criteria
 
-- [ ] The minimal repro (`cf_contract.ail` above) formats: `fmt --check` exits 1 (needs
-      reformat) or 0 — never exit 2 — and `fmt` output re-parses with identical AST.
-- [ ] The contracts+properties combined file round-trips WITHOUT losing the `requires` clause.
-- [ ] **Acceptance-gated**: `TestCombinedContractsAndPropertiesPipeline` (M2) passes — the
+- [x] The minimal repro (`cf_contract.ail` above) formats: `fmt --check` exits 1 (needs
+      reformat) or 0 — never exit 2 — and `fmt` output re-parses with identical AST. (Verified: exit 1.)
+- [x] The contracts+properties combined file round-trips WITHOUT losing the `requires` clause.
+- [x] **Acceptance-gated**: `TestCombinedContractsAndPropertiesPipeline` (M2) passes — the
       combined fixture checks clean, the contract reaches `DeclMeta.Contracts` (and `ai-check`
       verification), the forall reaches only the property pipeline, with exact-count
       (no-duplication/no-omission) assertions and no panic.
-- [ ] `for f in examples/runnable/contracts/*.ail examples/ai_devtools_workflow/*.ail` —
+- [x] `for f in examples/runnable/contracts/*.ail examples/ai_devtools_workflow/*.ail` —
       zero exit-2 results from `ailang fmt --check`, excepting exactly
       `inbox_injection_v2.ail` and `inbox_v2_app.ail` (comment-attachment carve-out, unchanged
       error message).
-- [ ] After `fmt --write` on the 28 eligible files: `ailang fmt --check` on them exits **0**, and
-      `ailang check` passes on every one (verify-corpus files also re-pass `ailang ai-check`).
-- [ ] `go test ./internal/format/`: `TestCorpusCommentGate` reports
+- [x] After `fmt --write` on the eligible files (30): `ailang fmt --check` on them exits **0**, and
+      `ailang check` passes on every one (verify-corpus files also re-pass `ailang ai-check`;
+      `discount_calculator.ail` retains a pre-existing unrelated `++` type error).
+- [x] `go test ./internal/format/`: `TestCorpusCommentGate` reports
       `preexisting-Phase1-rt-bug=0` and the hardened gate fails on any future non-zero count.
-- [ ] `make test` green; `make verify-examples` green (watch for manifest-drift, not type
-      regressions, if red).
-- [ ] CHANGELOG.md updated.
+- [x] `make test` green; `make verify-examples` green (0 drift).
+- [x] CHANGELOG.md updated.
 
 ## Testing Strategy
 

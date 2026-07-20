@@ -114,14 +114,17 @@ func TestCorpusCommentGate(t *testing.T) {
 		t.Logf("  PRE-EXISTING Phase-1 printer bug (round-trip fails comment-free too, caught fail-closed by fmt.go): %s", p)
 	}
 
-	// HARD GATE: zero Phase-2 defects. interp-refusal and let-in-refusal are the
-	// enumerated evidence-gated fail-closed carve-outs; preExistingRT are Phase-1
-	// printer bugs the comment work merely EXPOSED (they fail round-trip comment-free
-	// too, and fmt.go's round-trip check refuses them fail-closed — no silent
-	// breakage). Everything genuinely attributable to Phase-2 must be zero.
-	if otherRefusal != 0 || roundTripFail != 0 || markerFail != 0 {
-		t.Fatalf("corpus comment gate FAILED (Phase-2 defects): other-refusal=%d PHASE2-rt-regression=%d marker-fail=%d (see DEFECT logs)",
-			otherRefusal, roundTripFail, markerFail)
+	// HARD GATE: zero Phase-2 defects AND zero pre-existing Phase-1 round-trip bugs.
+	// interp-refusal and let-in-refusal are the enumerated evidence-gated fail-closed
+	// carve-outs. preExistingRT WAS a logged-and-tolerated exception (the contract
+	// corpus's Phase-1 printer bugs); m-fmt-properties-printer-roundtrip drove it to
+	// zero (contract-clause emission + parser clobber fix + the two adjacent
+	// paren-separator / @verify-annotation printer fixes), so it is now a HARD
+	// failure — any future non-zero count means a printer round-trip regression
+	// silently regrew the exception class.
+	if otherRefusal != 0 || roundTripFail != 0 || markerFail != 0 || preExistingRT != 0 {
+		t.Fatalf("corpus comment gate FAILED: other-refusal=%d PHASE2-rt-regression=%d marker-fail=%d preexisting-Phase1-rt-bug=%d (see DEFECT logs; preExistingRT must stay 0 after m-fmt-properties-printer-roundtrip)",
+			otherRefusal, roundTripFail, markerFail, preExistingRT)
 	}
 	// Record the interpolation refusal rate for the design doc's Verification Log.
 	t.Logf("INTERPOLATION REFUSAL RATE: %d/%d parse-valid files (%.2f%%)",
