@@ -136,6 +136,9 @@ check-file-sizes: ## Check for files >800 lines (CI gate)
 		echo "$(GREEN)$(CHECKMARK) All files within 800 line limit$(RESET)"; \
 	fi
 
+check-boundaries: ## Check architecture layer boundaries (CI gate)
+	@bash scripts/check_boundaries.sh
+
 report-file-sizes: ## Report all files >500 lines
 	@echo "$(BOLD)=== File Size Report ===$(RESET)"
 	@echo ""
