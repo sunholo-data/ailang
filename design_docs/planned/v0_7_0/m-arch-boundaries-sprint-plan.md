@@ -1,5 +1,14 @@
 # Sprint Plan: M-ARCH-BOUNDARIES (Phases 1–3)
 
+> **STATUS: IMPLEMENTED (iter-68, 2026-07-20).** All three milestones done and committed on
+> `mission/iter-68-arch-boundaries`. M1 = `1ba39018a`, M2 = `6157494d4`, M3 = `cfdc33bf1`.
+> Execution-time corrections (see per-milestone notes in the sprint JSON): the module anchor is
+> `github.com/sunholo-data/ailang` (not `…/sunholo/ailang` — the wrong value was a silent false
+> pass, caught by the self-test); `internal/eval` is deliberately excluded from rule 2 because
+> `internal/embed`'s public API takes `eval.Value`; and the stdlib path is `internal/stdlib`
+> (not `/stdlib/`). Both boundary rules were self-tested fail→revert→pass. `go build`,
+> `make check-boundaries`, `make check-file-sizes` all green.
+
 **Design doc**: [m-arch-boundaries.md](m-arch-boundaries.md)
 **Iteration**: 68 (V1 mission-control loop)
 **Worktree**: `.claude/worktrees/iter68-arch-boundaries` (checked out at `origin/dev`, HEAD `d5e849abe`)

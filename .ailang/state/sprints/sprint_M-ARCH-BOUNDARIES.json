@@ -1,0 +1,107 @@
+{
+  "sprint_id": "M-ARCH-BOUNDARIES",
+  "design_doc": "design_docs/planned/v0_7_0/m-arch-boundaries.md",
+  "plan_path": "design_docs/planned/v0_7_0/m-arch-boundaries-sprint-plan.md",
+  "created": "2026-07-20",
+  "iteration": 68,
+  "worktree": ".claude/worktrees/iter68-arch-boundaries",
+  "scope_note": "Phases 1-3 ONLY (Mark 2026-07-14 approval). Phase 4 physical restructure and dual release tracks are OUT OF SCOPE (Non-Goals). Plan targets the REAL current internal/ layout, not the doc's non-existent core//apps/ trees.",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 260,
+    "estimated_days": 1.5
+  },
+  "risk_level": "low",
+  "status": "completed",
+  "features": [
+    {
+      "id": "M1_BOUNDARY_GATE",
+      "description": "Create scripts/check_boundaries.sh (a correct, self-testing import-boundary checker using grep -rE / ripgrep against real internal/ package paths), add a `make check-boundaries` target, and wire it into CI (.github/workflows/ci.yml) as a gate immediately after the check-file-sizes step. Script must (a) PASS on the current tree, and (b) be PROVEN to FAIL on a deliberately-planted cross-boundary import (self-test, then revert the plant).",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "files": [
+        "scripts/check_boundaries.sh (new, ~60 LOC)",
+        "Makefile (add check-boundaries target, ~6 LOC)",
+        ".github/workflows/ci.yml (add gate step after check-file-sizes, ~4 LOC)"
+      ],
+      "acceptance_criteria": [
+        "scripts/check_boundaries.sh is executable and exits 0 on the current HEAD tree",
+        "CORE set checked = internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface} (NOTE: NO typeclass dir exists; do not reference it)",
+        "DASHBOARD set checked = internal/{server,coordinator,observatory,messaging}",
+        "BRIDGE exception = internal/embed (and internal/runtime) is the ONLY allowed dashboard->compiler path",
+        "Import matching uses grep -rE (or ripgrep) against Go import lines of form \"github.com/sunholo/ailang/internal/<pkg>\" — NOT the doc's naive un-anchored grep -r which never matches",
+        "Rule 1: fail if any CORE package imports any DASHBOARD package",
+        "Rule 2: fail if any DASHBOARD package imports parser/types/eval/core/elaborate/pipeline directly (bypassing embed)",
+        "SELF-TEST PROVEN: temporarily plant a violating import (e.g. add \"github.com/sunholo/ailang/internal/server\" import into a core pkg file), run the script, confirm it exits non-zero with a clear BOUNDARY VIOLATION message, then FULLY REVERT the plant and confirm the script exits 0 again",
+        "make check-boundaries invokes the script and is documented in `make help` output if help is auto-generated",
+        "CI step named e.g. 'Check architecture boundaries' runs `make check-boundaries` and is placed right after the check-file-sizes step (~ci.yml line 89)",
+        "go build ./... and existing `make check-file-sizes` still pass (no regressions from the reverted plant)"
+      ],
+      "passes": true,
+      "started": "2026-07-20",
+      "completed": "2026-07-20",
+      "notes": "DONE (commit 1ba39018a). CORRECTION during execution: the plan/JSON's module anchor `github.com/sunholo/ailang` is WRONG — go.mod is `github.com/sunholo-data/ailang`. Using the wrong anchor gave a FALSE PASS (matched nothing); the self-test caught it. With the correct anchor, a real leak surfaced: internal/server/ailang_bridge.go imports internal/eval — but ONLY for the `eval.Value` type required by internal/embed's own public API (embed.ToGo(v eval.Value)). This is the sanctioned bridge type, not a behavioral compiler dep, so `eval` is INTENTIONALLY excluded from rule 2's deny-list (documented in ARCHITECTURE.md + script). Rule 2 surface = parser/types/core/elaborate/pipeline. Added MODULE-vs-go.mod drift guard (exit 2) to prevent future false passes. Self-tested BOTH rules: core parser->server (rule 1) and dashboard server->types (rule 2) each exit 1 with file:line; fully reverted, clean tree, exit 0. make check-boundaries + CI step (after check-file-sizes) added. go build + check-file-sizes green."
+    },
+    {
+      "id": "M2_BOUNDARY_DOCS",
+      "description": "Document the logical core / dashboard(apps) / tools / sdk(bridge) layering and the enforced import boundaries. ARCHITECTURE.md and CONTRIBUTING.md ALREADY EXIST (committed fa64b79e2) — AUGMENT them, do not recreate. Add a short 'Architecture boundaries' section to CLAUDE.md for agents. NO new physical layer directories, NO core/doc.go or apps/doc.go (those are Phase 4).",
+      "estimated_loc": 120,
+      "dependencies": ["M1_BOUNDARY_GATE"],
+      "files": [
+        "ARCHITECTURE.md (augment: add an explicit 'Architecture boundaries' section with the allow/deny import table + the check-boundaries gate reference)",
+        "CLAUDE.md (add a concise agent-boundary section)",
+        "CONTRIBUTING.md (only if a natural subsystem-guidance hook exists; light touch, optional)"
+      ],
+      "acceptance_criteria": [
+        "ARCHITECTURE.md gains a 'Architecture boundaries' section describing the four LOGICAL layers mapped to REAL paths: core = internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}; dashboard/apps = internal/{server,coordinator,observatory,messaging}(+ui/); tools = internal/{eval_harness,eval_analysis,ai}; bridge/sdk = internal/embed (+internal/runtime,internal/schema)",
+        "The boundary section includes the enforced allow/deny table (apps->core NO except via embed; core->apps NO; tools->core YES; tools->apps NO) and points to `make check-boundaries` / scripts/check_boundaries.sh as the mechanical enforcement",
+        "Docs describe LOGICAL layers over the EXISTING internal/ tree — they must NOT claim a physical core/ or apps/ directory exists (that is Phase 4, deferred)",
+        "Any stale path references discovered during planning are noted: ARCHITECTURE.md currently references internal/dictionary which does NOT exist (type-class dictionaries live in internal/dispatch + internal/types) — fix or drop that line while editing",
+        "CLAUDE.md gains a short 'Architecture boundaries (agents)' subsection: which subsystem an agent is touching, the never-cross-import rule, and to run `make check-boundaries` before committing cross-cutting changes",
+        "No core/doc.go or apps/doc.go files are created (Phase 4 non-goal); any boundary doc-comment intent is folded into ARCHITECTURE.md instead",
+        "Docs build / markdown lint (if any) still pass; links are valid"
+      ],
+      "passes": true,
+      "started": "2026-07-20",
+      "completed": "2026-07-20",
+      "notes": "DONE (commit 6157494d4). Augmented existing ARCHITECTURE.md with an 'Architecture boundaries' section (four logical layers -> real paths, allow/deny table, eval.Value bridge-exception rationale, make check-boundaries pointer). Fixed the stale internal/dictionary reference -> internal/dispatch (verified: no dictionary pkg; dispatch does type-class dictionary-passing). Added a concise 'Architecture boundaries (agents)' subsection to CLAUDE.md with the never-cross rules + anchor link. CONTRIBUTING.md left untouched (contributor-process focused, no natural subsystem hook; plan said light-touch only if one exists). No core/doc.go or apps/doc.go created. Docs describe LOGICAL layers only (no claim of a physical core//apps/ dir). NOTE: prose refers to 'stdlib/' generically; the real dir is internal/stdlib (used correctly in CODEOWNERS)."
+    },
+    {
+      "id": "M3_CODEOWNERS",
+      "description": "Create .github/CODEOWNERS with path-based ownership on the EXISTING internal/ layout (NOT the doc's non-existent core//apps/ paths). Notification-only ownership (teams as placeholders per the doc's risk-mitigation: start non-blocking).",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "files": [
+        ".github/CODEOWNERS (new, ~35 LOC)"
+      ],
+      "acceptance_criteria": [
+        "File lives at .github/CODEOWNERS",
+        "Core-compiler paths owned (e.g. @ailang/compiler): /internal/parser/ /internal/types/ /internal/eval/ /internal/core/ /internal/elaborate/ /internal/effects/ /internal/builtins/ /internal/lexer/ /internal/ast/ /internal/pipeline/ /internal/runtime/ /internal/link/ /internal/iface/ /stdlib/",
+        "Dashboard paths owned (e.g. @ailang/dashboard): /internal/server/ /internal/coordinator/ /internal/observatory/ /internal/messaging/ /ui/",
+        "Bridge path owned by BOTH teams: /internal/embed/",
+        "Every path in the file corresponds to a directory that ACTUALLY EXISTS in the tree (no core/ or apps/ prefixes)",
+        "GitHub CODEOWNERS syntax is valid (paths + owners per line, comments with #); teams referenced are documented as placeholders that a maintainer must create/rename",
+        "If the owning team handles don't exist on GitHub yet, this is notification-intent only and does not block merges (matches doc risk mitigation 'start with notification-only')"
+      ],
+      "passes": true,
+      "started": "2026-07-20",
+      "completed": "2026-07-20",
+      "notes": "DONE (commit cfdc33bf1). .github/CODEOWNERS created on real internal/ layout; all 20 paths verified to be existing directories (no core//apps/ prefixes). CORRECTION: the plan listed /stdlib/ but the AILANG stdlib lives at internal/stdlib — used /internal/stdlib/. core-compiler paths + internal/stdlib -> @ailang/compiler; server/coordinator/observatory/messaging + ui/ -> @ailang/dashboard; internal/embed reviewed by both. Team handles are documented placeholders (notification-only, non-blocking until maintainer creates/renames the @ailang/* teams — GitHub ignores unresolved owners)."
+    }
+  ],
+  "non_goals": [
+    "Phase 4 physical restructure: NO git mv, NO core/ or apps/ directory creation, NO import-path rewrites, NO core/doc.go or apps/doc.go. Deferred to the v1.0->v1.1 boundary.",
+    "Dual release tracks: NO make release-dashboard target, NO dashboard/CHANGELOG.md, NO changes to the release-manager skill. Not in Mark's Phase 1-3 approval.",
+    "Automated agent scope enforcement beyond documentation.",
+    "Separate git repos (explicitly reaffirmed REJECTED by the REVIVED banner)."
+  ],
+  "premise_corrections": [
+    "ARCHITECTURE.md ALREADY EXISTS (committed fa64b79e2) — Phase 2 is AUGMENT not create; real LOC << doc's ~200.",
+    "CONTRIBUTING.md ALREADY EXISTS — touch only if a natural hook exists.",
+    "internal/typeclass does NOT exist (the controller's adaptation note listed it). Type classes live in internal/types + internal/dispatch. The core set in the gate/CODEOWNERS/docs must NOT reference a typeclass package.",
+    "internal/dictionary does NOT exist either, yet ARCHITECTURE.md line ~69 references it — fix/drop while editing (M2).",
+    "Doc Example-1 grep is broken (un-anchored grep -r with regex alternation, no -E) — the script must use grep -rE or ripgrep matching quoted Go import paths.",
+    "Boundary premises hold at HEAD: core->dashboard=0, dashboard->core direct=0 (dashboard reaches compiler via internal/embed + internal/runtime). Gate passes on current tree."
+  ]
+}
