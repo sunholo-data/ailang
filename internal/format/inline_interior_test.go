@@ -399,3 +399,44 @@ func TestInlineInterior_TargetsFormatLosslessly(t *testing.T) {
 		t.Fatalf("M2: expected %d clean targets to format losslessly, got %d", want, ok)
 	}
 }
+
+// TestInlineInterior_DeferredFilesStillRefuse is the M3 fail-closed probe (library
+// layer): a deferred non-let refusal file still returns comment-unattached (no partial
+// output), proving the strict-interior guard remains intact for out-of-scope classes.
+// The CLI equivalent (exit 2 + unchanged SHA-256 under `fmt --write`) rides on this
+// same SourceWithComments refusal — cmd/ailang/fmt.go writes nothing when it errors.
+func TestInlineInterior_DeferredFilesStillRefuse(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	// Enumerated deferred refusals across distinct classes: a non-let equation body, an
+	// inline tests list, and a footer/no-enclosing-list case.
+	deferred := []string{
+		"examples/docs/records_person.ail",     // non-let single-expression equation body
+		"examples/inline_tests_arithmetic.ail", // inline tests[...] list
+		"examples/runnable/cli_args_demo.ail",  // footer / no-enclosing-list
+	}
+	for _, rel := range deferred {
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		p := parser.New(lexer.New(string(data), rel))
+		prog := p.Parse()
+		if len(p.Errors()) > 0 || prog == nil || prog.File == nil {
+			t.Fatalf("%s not parse-valid", rel)
+		}
+		out, ferr := SourceWithComments(prog, data, Options{})
+		if ferr == nil {
+			t.Errorf("%s: expected fail-closed refusal (deferred class), but it formatted:\n%s", rel, out)
+			continue
+		}
+		if ee, ok := ferr.(*EnvelopeError); !ok || ee.Kind != "comment-unattached" {
+			t.Errorf("%s: expected comment-unattached refusal, got %v", rel, ferr)
+		}
+		if out != nil {
+			t.Errorf("%s: fail-closed must return NO partial output, got %d bytes", rel, len(out))
+		}
+	}
+}

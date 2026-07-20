@@ -215,7 +215,11 @@ func classifyRefusalSite(env *Envelope, f *ast.File, byteOff int) (letChainShape
 	a := &attacher{env: env}
 	c := &shapeClassifier{a: a, byteOff: byteOff, bestLetWidth: -1, bestBlockWidth: -1}
 	for _, d := range f.Decls {
-		c.walkNode(d, 0)
+		// Top-level decls carry NO inherited left wall (-1): a construct brackets a byte
+		// only from its own min anchor (a FuncDecl body computes its own `=`/`{` wall in
+		// walkNode). Passing 0 here would make EVERY top-level `let … in` bracket from
+		// byte 0 and spuriously claim unrelated footer comments as let-chain-interior.
+		c.walkNode(d, -1)
 	}
 	switch {
 	case c.bestLetWidth >= 0 && (c.bestBlockWidth < 0 || c.bestLetWidth <= c.bestBlockWidth):

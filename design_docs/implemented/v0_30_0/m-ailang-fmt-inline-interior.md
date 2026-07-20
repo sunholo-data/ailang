@@ -1,8 +1,13 @@
 # M-AILANG-FMT-INLINE-INTERIOR: Stable Multi-Line Let-Chain Comment Boundaries
 
-**Status**: **UNPARKED — Mark 2026-07-20 ("yes lets finish off ailang fmt")**: the R2 objection is
-DATA-REFUTED for all 28 target cases (controller data-check, ⛔ Quorum Record) — proceed on the
-data. Route to sprint-planner; no re-quorum. Part of the finish-fmt set with
+**Status**: **IMPLEMENTED — 2026-07-20** (v0.30.0). Landed as M-AILANG-FMT-INLINE-INTERIOR: the
+printer-local conditional multi-line let-chain emitter (Decision 1, option (a)). Corpus
+comment-unattached refusals **59 → 32** (15.28% → 8.29%); the let-chain-interior refusal class is
+eliminated (0); `marker-fail=0`, `PHASE2-rt-regression=0`, `preexisting-Phase1-rt-bug=0`. M0 proved
+all 28 targets are `let … in` continuation chains (0 `*ast.Block.Exprs`). 27/28 files format
+losslessly; `records.ail` retains a deferred FOOTER comment (out of scope) so it stays fail-closed on
+that comment. `internal/parser` + `internal/ast` untouched. The R2 objection was DATA-REFUTED for all
+28 target cases (controller data-check + M0 proof, ⛔ Quorum Record). Part of the finish-fmt set with
 m-fmt-properties-printer-roundtrip.
 
 ## ⛔ Quorum Record (mission iteration 67, 2026-07-20)
