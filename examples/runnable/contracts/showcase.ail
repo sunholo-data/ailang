@@ -11,6 +11,7 @@
 module examples/runnable/contracts/showcase
 
 import std/string (length as strLength, startsWith as strStartsWith)
+
 import std/list (length as listLength)
 
 -- ============================================================================
@@ -25,8 +26,7 @@ export type Priority = RUSH | NORMAL | LOW
 
 -- Surcharge is always non-negative
 export func surcharge(p: Priority) -> int ! {}
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match p {
     RUSH => 500,
     NORMAL => 100,
@@ -41,8 +41,7 @@ ensures { result >= 0 }
 -- Z3 inlines surcharge via define-fun, proves total >= 0
 export func lineTotal(unitPrice: int, qty: int, p: Priority) -> int ! {}
 requires { unitPrice >= 0, qty >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   unitPrice * qty + surcharge(p)
 }
 
@@ -51,10 +50,9 @@ ensures { result >= 0 }
 -- ============================================================================
 
 -- Z3 proves: value is non-negative when discount doesn't exceed subtotal
-export func orderValue(order: {subtotal: int, tax: int, discount: int}) -> int ! {}
+export func orderValue(order: { subtotal: int, tax: int, discount: int }) -> int ! {}
 requires { order.subtotal >= 0, order.tax >= 0, order.discount >= 0, order.discount <= order.subtotal }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   order.subtotal - order.discount + order.tax
 }
 
@@ -64,16 +62,14 @@ ensures { result >= 0 }
 
 -- Non-empty strings have positive length (tautology Z3 proves instantly)
 export func hasContent(s: string) -> bool ! {}
-ensures { result == (strLength(s) > 0) }
-{
+ensures { result == strLength(s) > 0 } {
   strLength(s) > 0
 }
 
 -- Prefixed string is always longer than the prefix itself
 export func prefixedLength(prefix: string, body: string) -> int ! {}
-ensures { result >= strLength(prefix) }
-{
-  strLength("${prefix}${body}")
+ensures { result >= strLength(prefix) } {
+  strLength(concat_String(show(prefix), show(body)))
 }
 
 -- ============================================================================
@@ -81,16 +77,14 @@ ensures { result >= strLength(prefix) }
 -- ============================================================================
 
 -- List length is always non-negative
-export func itemCount(items: [int]) -> int ! {}
-ensures { result >= 0 }
-{
+export func itemCount(items: list[int]) -> int ! {}
+ensures { result >= 0 } {
   listLength(items)
 }
 
 -- Prepending preserves the original elements (head of new list is the added item)
-export func prependAndCheck(x: int, xs: [int]) -> bool ! {}
-ensures { result == true }
-{
+export func prependAndCheck(x: int, xs: list[int]) -> bool ! {}
+ensures { result == true } {
   _list_head(x :: xs) == x
 }
 
@@ -101,8 +95,7 @@ ensures { result == true }
 -- All examples above use stdlib imports (strLength, strStartsWith, listLength).
 -- Z3 resolves these transparently: std/string.length → str.len, etc.
 export func validateOrderCode(code: string) -> bool ! {}
-ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) }
-{
+ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) } {
   strStartsWith(code, "ORD-") && strLength(code) >= 8
 }
 
@@ -113,8 +106,7 @@ ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) }
 -- Claims every string starts with "ORD-" — obviously false!
 -- Z3 finds a counterexample string that doesn't start with "ORD-"
 export func brokenPrefixCheck(code: string) -> bool ! {}
-ensures { result == true }
-{
+ensures { result == true } {
   strStartsWith(code, "ORD-")
 }
 
@@ -122,11 +114,10 @@ ensures { result == true }
 -- Entry point
 -- ============================================================================
 
-export func main() -> int ! {}
-{
-  let total = lineTotal(1000, 3, RUSH);
-  let value = orderValue({subtotal: 5000, tax: 500, discount: 200});
-  let count = itemCount([10, 20, 30]);
-  let prefLen = prefixedLength("ORD-", "12345");
+export func main() -> int ! {} {
+  let total = lineTotal(1000, 3, RUSH)
+  let value = orderValue({ subtotal: 5000, tax: 500, discount: 200 })
+  let count = itemCount([10, 20, 30])
+  let prefLen = prefixedLength("ORD-", "12345")
   total + value + count + prefLen
 }

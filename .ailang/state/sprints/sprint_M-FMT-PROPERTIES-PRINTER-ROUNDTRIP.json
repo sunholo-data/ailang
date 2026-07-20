@@ -1,0 +1,59 @@
+{
+  "sprint_id": "M-FMT-PROPERTIES-PRINTER-ROUNDTRIP",
+  "design_doc": "design_docs/planned/v0_30_0/m-fmt-properties-printer-roundtrip.md",
+  "plan_path": "design_docs/planned/v0_30_0/m-fmt-properties-printer-roundtrip.md",
+  "created": "2026-07-20",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-wt-fmt-properties",
+  "branch": "sprint/m-fmt-properties-printer-roundtrip",
+  "scope_note": "Printer-only contract-clause round-trip fix + one-line parser clobber fix. Non-goals honored: no AST split of contracts out of FuncDecl.Properties, no comment-attachment carve-out work, no properties[...] grammar changes, no fmt adoption/CI enforcement. Sprint-plan markdown and sprint JSON were absent from the worktree at start; the design doc is the contract per the executor prompt, and this JSON was created by the executor to satisfy the completion gate.",
+  "github_issues": [399],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 200,
+    "estimated_days": 1
+  },
+  "risk_level": "low",
+  "status": "completed",
+  "non_goals": [
+    "AST refactor splitting contracts out of FuncDecl.Properties",
+    "comment-attachment carve-out (inbox_injection_v2.ail, inbox_v2_app.ail stay fail-closed)",
+    "properties [...] grammar changes",
+    "fmt adoption / CI formatting enforcement"
+  ],
+  "milestones": [
+    {
+      "id": "M1_PRINTER_SPLIT_PARSER_FIX",
+      "description": "Partition FuncDecl.Properties by ContractKind in funcDecl; emit requires/ensures merged clauses in signature position; refactor testsAndProperties to take a pre-filtered PropertyKind-only slice; fix parser_func.go properties-block clobber (= -> append). 7 round-trip fixtures (requires-only, ensures-only, both, multi-predicate, ensures+ForallExpr, genuine properties block, contracts+properties combined) + parse-partition test. ALSO fixed two adjacent pre-existing Phase-1 printer round-trip bugs the corpus gate exposed: precedence-unaware startsWithStatementStarter (paren-leading statement separator) and @verify(depth: N) key-drop on print.",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "files": [
+        "internal/format/decl.go",
+        "internal/format/format.go",
+        "internal/parser/parser_func.go",
+        "internal/format/contracts_test.go (new)",
+        "internal/format/node_coverage_test.go"
+      ],
+      "passes": true,
+      "completed": "2026-07-20",
+      "commit": "58eadd3b5",
+      "notes": "All 7 M1 fixtures + parse-partition + paren-separator + @verify tests pass. Repros verified: cf_contract.ail exit 2 -> exit 1; both.ail no longer silently deletes requires. go test ./internal/format ./internal/parser green. Two extra printer fixes made scoring.ail + per_function_depth_verify.ail formattable too, taking preExistingRT from 28 to 0 (vs the doc's 28-file target — MORE coverage)."
+    },
+    {
+      "id": "M2_REGRESSION_GUARD_CORPUS_GREEN",
+      "description": "New internal/format/testdata/contracts_and_properties.ail fixture + acceptance-gated TestCombinedContractsAndPropertiesPipeline (four assertion groups: checks-clean+ai-check-verify, contract reaches DeclMeta.Contracts exactly 1 requires + 1 ensures + 0 from forall, fn.Properties exactly [Requires,Ensures,Property] + collector emits exactly one PropertyKind case, exact-count no-dup/no-omission + fmt round-trip with requires present). Harden corpus_comment_test preExistingRT into the t.Fatalf condition. fmt --write over the 30 now-eligible files in a dedicated commit; ailang check (+ ai-check for verify-corpus) re-passes. CHANGELOG entry noting the silent-deletion data-loss fix.",
+      "estimated_loc": 200,
+      "dependencies": ["M1_PRINTER_SPLIT_PARSER_FIX"],
+      "files": [
+        "internal/format/testdata/contracts_and_properties.ail (new)",
+        "internal/format/combined_pipeline_test.go (new)",
+        "internal/format/corpus_comment_test.go",
+        "examples/runnable/contracts/*.ail (30 reformatted)",
+        "examples/ai_devtools_workflow/discount_calculator.ail",
+        "changelogs/v0.18-current.md"
+      ],
+      "passes": true,
+      "completed": "2026-07-20",
+      "notes": "TestCombinedContractsAndPropertiesPipeline passes all four groups. Corpus gate hardened: preexisting-Phase1-rt-bug=0 and now a hard failure. Acceptance sweep: only inbox_injection_v2.ail + inbox_v2_app.ail remain exit-2 (carve-out, unchanged); all 30 reformatted files exit 0 and ailang check clean (discount_calculator.ail has a PRE-EXISTING unrelated ++ type error at both original and reformatted — expected-fail demo, not a regression). ai-check verify-corpus errors=0. make test green (one flaky httpbin.org network test on first run, passed on re-run). make verify-examples green, 0 drift."
+    }
+  ]
+}

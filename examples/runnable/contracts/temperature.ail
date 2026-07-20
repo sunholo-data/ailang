@@ -11,14 +11,12 @@ export type Scale = CELSIUS | FAHRENHEIT
 -- Z3 proves: for non-negative Celsius, Fahrenheit is always >= Celsius
 export func celsiusToFahrenheit(c: int) -> int ! {}
 requires { c >= 0 }
-ensures { result >= c }
-{
+ensures { result >= c } {
   c * 9 / 5 + 32
 }
 
 -- Check if temperature is at or below freezing point
-export func isFreezing(temp: int, scale: Scale) -> bool ! {}
-{
+export func isFreezing(temp: int, scale: Scale) -> bool ! {} {
   match scale {
     CELSIUS => temp <= 0,
     FAHRENHEIT => temp <= 32
@@ -29,18 +27,14 @@ export func isFreezing(temp: int, scale: Scale) -> bool ! {}
 -- Z3 proves: result is always within [lo, hi]
 export func clampTemp(temp: int, lo: int, hi: int) -> int ! {}
 requires { lo <= hi }
-ensures { result >= lo }
-{
-  if temp < lo then lo
-  else if temp > hi then hi
-  else temp
+ensures { result >= lo } {
+  if temp < lo then lo else if temp > hi then hi else temp
 }
 
 -- Entry point for testing
-export func main() -> int ! {}
-{
-  let boiling = celsiusToFahrenheit(100);  -- 212
-  let freezing = celsiusToFahrenheit(0);   -- 32
-  let clamped = clampTemp(150, 0, 100);    -- 100
+export func main() -> int ! {} {
+  let boiling = celsiusToFahrenheit(100)  -- 212
+  let freezing = celsiusToFahrenheit(0)  -- 32
+  let clamped = clampTemp(150, 0, 100)  -- 100
   boiling + freezing + clamped
 }

@@ -15,27 +15,24 @@ module examples/runnable/contracts/nested_record_verify
 
 -- Extract the X coordinate from a nested position record
 -- Z3 proves: if inner.x >= 0, then result >= 0
-export func getInnerX(o: {name: string, pos: {x: int, y: int}}) -> int ! {}
+export func getInnerX(o: { name: string, pos: { x: int, y: int } }) -> int ! {}
 requires { o.pos.x >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   o.pos.x
 }
 
 -- Compute manhattan distance from nested position
 -- Z3 proves: if both inner coords are non-negative, sum is non-negative
-export func nestedManhattan(o: {name: string, pos: {x: int, y: int}}) -> int ! {}
+export func nestedManhattan(o: { name: string, pos: { x: int, y: int } }) -> int ! {}
 requires { o.pos.x >= 0, o.pos.y >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   o.pos.x + o.pos.y
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let obj = {name: "origin", pos: {x: 3, y: 4}};
-  let x = getInnerX(obj);
-  let m = nestedManhattan(obj);
+export func main() -> int ! {} {
+  let obj = { name: "origin", pos: { x: 3, y: 4 } }
+  let x = getInnerX(obj)
+  let m = nestedManhattan(obj)
   x + m
 }

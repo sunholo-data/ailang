@@ -10,8 +10,7 @@ import std/option (Option, Some, None)
 
 -- Callee returns Option[float] — a parametric ADT application the encoder can't
 -- monomorphize into a concrete SMT sort.
-export func convertTo(x: float, target: string) -> Option[float] ! {}
-{
+export func convertTo(x: float, target: string) -> Option[float] ! {} {
   Some(x * 2.0)
 }
 
@@ -19,15 +18,13 @@ export func convertTo(x: float, target: string) -> Option[float] ! {}
 -- `convertTo`'s signature uses Option[float]. It does NOT emit a Z3 error.
 export func gradeNumeric(x: float) -> float ! {}
 requires { x >= 0.0 }
-ensures { result >= 0.0 }
-{
+ensures { result >= 0.0 } {
   match convertTo(x, "F") {
     Some(v) => v,
     None => 0.0
   }
 }
 
-export func main() -> () ! {IO}
-{
-  println("gradeNumeric(3.5) = ${show(gradeNumeric(3.5))}")
+export func main() -> () ! {IO} {
+  println(concat_String("gradeNumeric(3.5) = ", show(show(gradeNumeric(3.5)))))
 }

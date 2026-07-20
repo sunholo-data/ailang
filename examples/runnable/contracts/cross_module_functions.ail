@@ -23,8 +23,7 @@ import examples/runnable/contracts/cross_module_functions_lib (double, sumTo)
 -- Z3 sees: double(x) = x + x, so double(double(n)) = 4*n.
 -- Proves result == n * 4.
 export func quadruple(n: int) -> int ! {}
-ensures { result == n * 4 }
-{
+ensures { result == n * 4 } {
   double(double(n))
 }
 
@@ -33,8 +32,7 @@ ensures { result == n * 4 }
 -- From that axiom, result >= 0 follows immediately. Proved.
 export func sumBound(n: int) -> int ! {}
 requires { n >= 0 }
-ensures  { result >= 0 }
-{
+ensures { result >= 0 } {
   sumTo(n)
 }
 
@@ -45,14 +43,12 @@ ensures  { result >= 0 }
 -- Z3 proves result >= 0 from those two constraints.
 export func mixed(n: int) -> int ! {}
 requires { n >= 0 }
-ensures  { result >= 0 }
-{
+ensures { result >= 0 } {
   double(n) + sumTo(n)
 }
 
-export func main() -> int ! {}
-{
-  let q = quadruple(3);   -- 12
-  let s = sumBound(4);    -- some non-negative value
+export func main() -> int ! {} {
+  let q = quadruple(3)  -- 12
+  let s = sumBound(4)  -- some non-negative value
   q + s
 }

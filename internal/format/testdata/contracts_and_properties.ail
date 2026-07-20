@@ -1,0 +1,20 @@
+-- contracts_and_properties.ail
+-- Acceptance fixture for m-fmt-properties-printer-roundtrip (M2).
+-- A single function carrying BOTH requires/ensures contract clauses AND a
+-- genuine forall properties block — the combined case the parser previously
+-- clobbered (silent contract deletion) and the printer previously failed to
+-- round-trip. No corpus example combines both forms, so this fixture locks the
+-- combined pipeline: contracts must reach core.DeclMeta.Contracts, the forall
+-- must reach only the property pipeline, and fmt must preserve the requires
+-- clause.
+
+module examples/format/contracts_and_properties
+
+export func f(x: int) -> int ! {}
+requires { x >= 0 }
+ensures { result >= 0 }
+  properties [
+    forall(y: int) => f(y) >= 0
+  ] {
+  x
+}

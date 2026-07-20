@@ -16,7 +16,4 @@ module examples/runnable/contracts/inbox_v2_lib
 -- The label travels cross-module through the iface JSON: the importing
 -- module sees `body: string<email>` even though the underlying value
 -- is a plain string at runtime.
-export type Mail = {
-  body: string<email>,
-  subject: string<email>
-}
+export type Mail = { body: string<email>, subject: string<email> }

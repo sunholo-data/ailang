@@ -381,22 +381,54 @@ func (p *printer) blockBraced(b *ast.Block) error {
 // statement starter (let, letrec, if, match, or an identifier). This mirrors
 // parser.peekStartsBlockStatement. When false, the preceding statement must be
 // `;`-terminated so the two do not merge on re-parse.
+//
+// A block statement is rendered at precLowest, so the recursion tracks the
+// parent precedence: if a subexpression renders PARENTHESISED (its own
+// precedence is below the parent's required minimum), its first token is `(`,
+// which is NOT a statement starter. Ignoring parenthesisation was a latent
+// round-trip bug — e.g. `(a + b) * c` starts with `(` at the statement level,
+// but its BinaryOp.Left recursion reaches the identifier `a` and wrongly
+// reported "starter", so no `;` was emitted and re-parse glued it as a call.
 func startsWithStatementStarter(e ast.Expr) bool {
+	return startsWithStatementStarterAt(e, precLowest)
+}
+
+// startsWithStatementStarterAt mirrors the precedence-driven parenthesisation in
+// expr.go (wrap/binaryOp/funcCall/recordAccess) to determine the first RENDERED
+// token of e when emitted at parentPrec.
+func startsWithStatementStarterAt(e ast.Expr, parentPrec int) bool {
 	switch n := e.(type) {
 	case *ast.Let, *ast.LetRec, *ast.If, *ast.Match, *ast.Identifier:
 		return true
 	case *ast.BinaryOp:
-		return startsWithStatementStarter(n.Left)
-	case *ast.FuncCall:
-		// Cons `a :: b` renders infix, starting with its left operand.
-		if id, ok := n.Func.(*ast.Identifier); ok && id.Name == "::" && len(n.Args) == 2 {
-			return startsWithStatementStarter(n.Args[0])
+		prec := binaryPrecedence(n.Op)
+		if prec < parentPrec {
+			return false // renders parenthesised → starts with '('
 		}
-		return startsWithStatementStarter(n.Func)
+		leftMin := prec
+		if rightAssociative(n.Op) {
+			leftMin = prec + 1
+		}
+		return startsWithStatementStarterAt(n.Left, leftMin)
+	case *ast.FuncCall:
+		// Cons `a :: b` renders infix at precCons, starting with its left operand.
+		if id, ok := n.Func.(*ast.Identifier); ok && id.Name == "::" && len(n.Args) == 2 {
+			if precCons < parentPrec {
+				return false
+			}
+			return startsWithStatementStarterAt(n.Args[0], precCons+1)
+		}
+		if precCall < parentPrec {
+			return false
+		}
+		return startsWithStatementStarterAt(n.Func, precCall)
 	case *ast.RecordAccess:
-		return startsWithStatementStarter(n.Record)
+		if precDotAccess < parentPrec {
+			return false
+		}
+		return startsWithStatementStarterAt(n.Record, precDotAccess)
 	case *ast.Send:
-		return startsWithStatementStarter(n.Channel)
+		return startsWithStatementStarterAt(n.Channel, precLowest+1)
 	default:
 		return false
 	}

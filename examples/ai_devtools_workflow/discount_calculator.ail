@@ -10,8 +10,7 @@ type Tier = Bronze | Silver | Gold | Platinum
 
 -- Calculate discount percentage based on tier
 export func discountPercent(tier: Tier) -> int ! {}
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match tier {
     Bronze => 5,
     Silver => 10,
@@ -23,33 +22,27 @@ ensures { result >= 0 }
 -- Apply discount to a price (returns discounted price)
 export func applyDiscount(price: int, tier: Tier) -> int ! {}
 requires { price >= 0 }
-ensures { result >= 0 }
-{
-  let discount = discountPercent(tier);
-  price - (price * discount / 100)
+ensures { result >= 0 } {
+  let discount = discountPercent(tier)
+  price - price * discount / 100
 }
 
 -- Check if a customer qualifies for free shipping
 export func freeShipping(totalAfterDiscount: int) -> bool ! {}
 requires { totalAfterDiscount >= 0 }
-ensures { result == (totalAfterDiscount >= 50) }
-{
+ensures { result == totalAfterDiscount >= 50 } {
   totalAfterDiscount >= 50
 }
 
 -- Entry point: demonstrate the calculator
 export func main() -> () ! {IO} = {
-  let price = 100;
-
-  let bronzePrice = applyDiscount(price, Bronze);
-  println("Bronze: " ++ show(bronzePrice));
-
-  let goldPrice = applyDiscount(price, Gold);
-  println("Gold: " ++ show(goldPrice));
-
-  let platinumPrice = applyDiscount(price, Platinum);
-  println("Platinum: " ++ show(platinumPrice));
-
-  let ships = freeShipping(goldPrice);
+  let price = 100
+  let bronzePrice = applyDiscount(price, Bronze)
+  println("Bronze: " ++ show(bronzePrice))
+  let goldPrice = applyDiscount(price, Gold)
+  println("Gold: " ++ show(goldPrice))
+  let platinumPrice = applyDiscount(price, Platinum)
+  println("Platinum: " ++ show(platinumPrice))
+  let ships = freeShipping(goldPrice)
   println("Gold free shipping: " ++ show(ships))
 }

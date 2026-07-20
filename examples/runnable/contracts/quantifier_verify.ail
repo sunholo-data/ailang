@@ -9,8 +9,7 @@ module examples/runnable/contracts/quantifier_verify
 -- some property holds.
 export func positiveRange(n: int) -> int ! {}
 requires { n >= 0 }
-ensures { forall i: 0..n => i >= 0 }
-{
+ensures { forall i: 0..n => i >= 0 } {
   n
 }
 
@@ -18,8 +17,7 @@ ensures { forall i: 0..n => i >= 0 }
 -- Verifies that the result is always >= every index in the range
 export func doubleRange(n: int) -> int ! {}
 requires { n >= 0 }
-ensures { result >= n }
-{
+ensures { result >= n } {
   n * 2
 }
 
@@ -27,15 +25,14 @@ ensures { result >= n }
 -- Multiple contract predicates work alongside forall
 export func clampedAdd(x: int, y: int) -> int ! {}
 requires { x >= 0, y >= 0 }
-ensures { result >= x }
-{
+ensures { result >= x } {
   x + y
 }
 
 -- Entry point to make this runnable (not just verify-only)
 export func main() -> int ! {} {
-  let p = positiveRange(5);
-  let d = doubleRange(3);
-  let c = clampedAdd(10, 20);
+  let p = positiveRange(5)
+  let d = doubleRange(3)
+  let c = clampedAdd(10, 20)
   p + d + c
 }

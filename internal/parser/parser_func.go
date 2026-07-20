@@ -166,7 +166,11 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 			p.report("PAR_UNEXPECTED_TOKEN", "expected [ after properties keyword", "Check syntax")
 		} else {
 			p.nextToken() // move to LBRACKET, now cur=[, peek=first_property_token
-			fn.Properties = p.parsePropertiesBlock()
+			// Append (do NOT assign): contract entries (requires/ensures) were
+			// appended to fn.Properties above (lines 124-125). Assignment here would
+			// silently clobber them when a function has BOTH contracts and a
+			// properties block, causing fmt --write to delete verified contracts.
+			fn.Properties = append(fn.Properties, p.parsePropertiesBlock()...)
 			// parsePropertiesBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()

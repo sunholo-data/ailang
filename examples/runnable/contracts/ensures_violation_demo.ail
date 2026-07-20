@@ -14,20 +14,14 @@ module examples/runnable/contracts/ensures_violation_demo
 
 -- INTENTIONAL BUG: returns -1 for negative inputs (violates `result >= 0`).
 export pure func clampBuggy(x: int) -> int
-  ensures { result >= 0 && result <= 10 }
-{
-  if x < 0 then -1
-  else if x > 10 then 10
-  else x
+ensures { result >= 0 && result <= 10 } {
+  if x < 0 then -1 else if x > 10 then 10 else x
 }
 
 -- Correct implementation; same `ensures` clause; should pass.
 export pure func clampOk(x: int) -> int
-  ensures { result >= 0 && result <= 10 }
-{
-  if x < 0 then 0
-  else if x > 10 then 10
-  else x
+ensures { result >= 0 && result <= 10 } {
+  if x < 0 then 0 else if x > 10 then 10 else x
 }
 
 export func main() -> int ! {} {

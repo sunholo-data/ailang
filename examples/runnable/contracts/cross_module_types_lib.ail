@@ -10,10 +10,7 @@ module examples/runnable/contracts/cross_module_types_lib
 --   (declare-datatype Cell ((mk_Cell (text String) (count Int))))
 -- only into functions that actually reference it, thanks to per-function
 -- demand-driven filtering (M1).
-export type Cell = {
-  text: string,
-  count: int
-}
+export type Cell = { text: string, count: int }
 
 -- Self-recursive ADT — the SectionNode variant references its own type via
 -- an inline record. Pre-sprint, the inline record would have referenced
@@ -21,5 +18,4 @@ export type Cell = {
 -- Post-M2, this is encoded as a single
 --   (declare-datatypes ((Tree 0) (Record_label_subtrees 0)) (...))
 -- block, which Z3 accepts.
-export type Tree = LeafNode({value: int})
-                 | SectionNode({label: string, subtrees: [Tree]})
+export type Tree = LeafNode({ value: int }) | SectionNode({ label: string, subtrees: list[Tree] })
