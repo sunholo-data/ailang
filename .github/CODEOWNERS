@@ -1,0 +1,45 @@
+# CODEOWNERS — path-based review notification for AILANG.
+#
+# This file maps the LOGICAL architecture layers (see ARCHITECTURE.md >
+# "Architecture boundaries") onto the CURRENT physical internal/ tree. There is
+# no core//apps/ directory — the layering is a convention, and these paths are
+# the real directories that exist today.
+#
+# NOTE (maintainers): the team handles below are PLACEHOLDERS. Until they are
+# created/renamed on GitHub, this file is notification-intent only and does NOT
+# block merges — GitHub silently ignores owners that don't resolve. Rename the
+# @ailang/* teams (or replace with individual @handles) to activate reviews.
+#
+# Syntax: <path> <owner...>   (later matches win)
+
+# ---------------------------------------------------------------------------
+# core — the compiler + runtime (the v1.0 stability surface)
+# ---------------------------------------------------------------------------
+/internal/parser/      @ailang/compiler
+/internal/types/       @ailang/compiler
+/internal/eval/        @ailang/compiler
+/internal/core/        @ailang/compiler
+/internal/elaborate/   @ailang/compiler
+/internal/effects/     @ailang/compiler
+/internal/builtins/    @ailang/compiler
+/internal/lexer/       @ailang/compiler
+/internal/ast/         @ailang/compiler
+/internal/pipeline/    @ailang/compiler
+/internal/runtime/     @ailang/compiler
+/internal/link/        @ailang/compiler
+/internal/iface/       @ailang/compiler
+/internal/stdlib/      @ailang/compiler
+
+# ---------------------------------------------------------------------------
+# dashboard / apps — services + UI
+# ---------------------------------------------------------------------------
+/internal/server/       @ailang/dashboard
+/internal/coordinator/  @ailang/dashboard
+/internal/observatory/  @ailang/dashboard
+/internal/messaging/    @ailang/dashboard
+/ui/                    @ailang/dashboard
+
+# ---------------------------------------------------------------------------
+# bridge — the sanctioned dashboard -> compiler path; both teams review
+# ---------------------------------------------------------------------------
+/internal/embed/       @ailang/compiler @ailang/dashboard
