@@ -66,7 +66,8 @@ Grouped by phase:
   effect inference. The single most security-relevant subsystem
   (capability checks happen here).
 - `internal/iface` — module interfaces + cross-module type sharing.
-- `internal/dictionary` — type class dictionary passing.
+- `internal/dispatch` — type-class dictionary construction and method
+  resolution (dictionary-passing).
 - `internal/pipeline` — orchestrates lexer → parser → elaborate →
   types into a loadable module artifact.
 
@@ -87,6 +88,57 @@ Grouped by phase:
   used by the coordinator.
 - `internal/messaging` — inter-agent message bus + Pub/Sub.
 - `internal/eval_harness` — runs benchmarks against language models.
+
+## Architecture boundaries
+
+The `internal/` tree is a single Go module today, but it is organized into
+four **logical layers**. These layers are a *convention over the existing
+physical tree* — there is deliberately **no** physical `core/` or `apps/`
+directory (a physical restructure is a separately-scoped future step). The
+layering exists so the v1.0 stability promise has a mechanical boundary to
+scope to, and so contributors and AI agents know which subsystem they are in.
+
+| Layer | Real packages |
+|---|---|
+| **core** (the compiler + runtime) | `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}` |
+| **dashboard / apps** (services + UI) | `internal/{server,coordinator,observatory,messaging}` (+ `ui/`) |
+| **tools** | `internal/{eval_harness,eval_analysis,ai}` |
+| **bridge / sdk** | `internal/embed` (+ `internal/runtime`, `internal/schema`) |
+
+### Enforced import directions
+
+The **bridge** (`internal/embed`) is the *only* sanctioned path from the
+dashboard into the compiler. `internal/embed` exposes an `Engine` that loads
+and calls AILANG modules and converts values to/from Go, so apps never need to
+touch the parser, type checker, or elaborator directly.
+
+| Direction | Allowed? | Enforced by |
+|---|---|---|
+| apps → core | **No** — only via `internal/embed` | `scripts/check_boundaries.sh` |
+| core → apps | **No** — core must never depend on a service/UI | `scripts/check_boundaries.sh` |
+| tools → core | Yes | (documented; not policed) |
+| tools → apps | No | (documented; not policed) |
+| bridge (`embed`) → core | Yes (controlled) | design |
+
+The gate runs in CI (after the file-size check) and locally via:
+
+```bash
+make check-boundaries        # or: bash scripts/check_boundaries.sh
+```
+
+It matches quoted Go import paths, so it catches real `import` statements
+rather than incidental string mentions. Two rules are enforced:
+
+1. No **core** package imports any **dashboard** package.
+2. No **dashboard** package imports the compiler surface
+   (`parser`/`types`/`core`/`elaborate`/`pipeline`) directly.
+
+**One deliberate exception:** `internal/eval` is *not* on rule 2's deny-list.
+`internal/embed`'s own public API takes and returns `eval.Value`
+(e.g. `embed.ToGo(v eval.Value)`), so a dashboard caller of the sanctioned
+bridge is forced to name `eval.Value`. That is the bridge's value type, not a
+behavioral dependency on the evaluator. If `embed` ever re-exports its own
+`Value` alias, `eval` should be added back to the deny-list.
 
 ## Capability-effect system
 

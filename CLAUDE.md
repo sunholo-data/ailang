@@ -98,6 +98,22 @@ Priorities: Machine decidability, semantic transparency, compositional determini
 | `internal/ai/` | Text generation via HTTP APIs | Research, docs, Q&A |
 | `internal/executor/` | Agentic coding with file editing | Bug fixes, features, refactoring |
 
+### Architecture boundaries (agents)
+
+`internal/` is organized into logical layers. Know which one you're touching:
+
+- **core** (compiler/runtime): `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}`
+- **dashboard/apps** (services + UI): `internal/{server,coordinator,observatory,messaging}` (+ `ui/`)
+- **bridge**: `internal/embed` — the ONLY sanctioned path from dashboard → compiler.
+
+**Never cross these import directions:**
+1. A **core** package must NOT import a **dashboard** package.
+2. A **dashboard** package must NOT import the compiler surface
+   (`parser`/`types`/`core`/`elaborate`/`pipeline`) directly — go through `internal/embed`.
+
+Run `make check-boundaries` before committing any cross-cutting change (it's a
+CI gate). Full rationale + the allow/deny table live in [ARCHITECTURE.md](ARCHITECTURE.md#architecture-boundaries).
+
 ---
 
 ## Available Skills
