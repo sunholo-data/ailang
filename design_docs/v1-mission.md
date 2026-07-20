@@ -764,10 +764,21 @@ triage evidence = log entry 10.)*
   chain has no stable idempotent boundary. Two design options surfaced by the executor: (a) preserve let-in-chain layout
   in the printer so interior comments get a boundary; (b) land edit-grade parser spans. Evidence-gated: the 59 files are
   enumerated. NOT urgent (current behavior is safe fail-closed, never lossy). Needs a design doc → quorum. ·
-  **m-fmt-properties-printer-roundtrip [NEW — pre-existing, surfaced by phase2 iter 63; ~1d]** — 28 `examples/**/contracts/`
-  + `ai_devtools_workflow` files fail the Phase-1 printer round-trip on `properties[...]` blocks (fail comment-free on dev
-  too — pre-existing, NOT a Phase-2 regression; `fmt` refuses them fail-closed). Fix the `properties[...]` printer emission
-  so those files round-trip. Small, concrete, mechanical-ish. ·
+  **m-fmt-properties-printer-roundtrip** (**[PARKED needs-human-review iter 66 — QUORUM-AT-PICK: R1
+  BLOCKED (unverified `FuncDecl.Properties` consumer blast radius) → Rev-2 resolved (V17 6-site
+  consumer audit + acceptance-gated combined-case integration test) → R2 re-quorum still-BLOCKED by
+  ONE persistent gpt5-6-sol objection (V17 grepped only `internal/`)]** →
+  [planned/v0_30_0/m-fmt-properties-printer-roundtrip.md](planned/v0_30_0/m-fmt-properties-printer-roundtrip.md),
+  see its ⛔ Quorum Record. **Controller repo-wide re-check DATA-REFUTES the residual objection**: the
+  only `ast.FuncDecl.Properties` consumers repo-wide are exactly the V17 sites (`internal/elaborate`
+  + `internal/testing`); the `cmd/ailang/test.go` `.Properties` hits are a distinct `[]PropertyResult`
+  results field, not the AST field; no accessor/interface/visitor indirection. Scope-corrected doc:
+  the real defect is `requires`/`ensures` contract clauses (NOT `properties[...]` blocks) failing the
+  Phase-1 printer round-trip (exit 2) on 30 corpus files, PLUS a latent silent-contract-deletion
+  data-loss bug (`parser_func.go:169` `=`→append). **Human fork on #399:** (1) authorize routing to
+  sprint-planner [RECOMMENDED — sole objection data-refuted, not fmt-phase2's deepening gaps],
+  (2) authorize one more bounded round to fold the repo-wide audit into the Verification Log,
+  (3) keep parked. ~1d impl, LOW risk/conflict, metered $0.1347 quorum (iter-66). Log entry 71. ·
   ~~M-TOOLING-DETERMINISTIC (normalize/suggest-imports/apply, 3–4d)~~ **[REALITY-CHECKED iter 48
   (2026-07-18) → PREMISE SUPERSEDED; scope-close PARKED for Mark.** The CLI trio doesn't exist, but
   its premise (single-shot fragment + LLM repair) is obsolete — `prompts/repair_prompts/` deleted,
@@ -809,7 +820,14 @@ triage evidence = log entry 10.)*
   (2) Gemini rule over-reaches forcing `MaxTokens` for `B=0` "off" (breaks docparse consumer).
   Both small/concrete — NOT fmt-phase2's deepening gaps. **Human fork on #399:** (1) authorize
   ONE more bounded round [RECOMMENDED — close to green], (2) amend scope (drop `reasoning_max_tokens`
-  from the typed resolver), (3) keep parked. ~14h impl (doc est), metered $0.23 this iter. Log entry 66.)
+  from the typed resolver), (3) keep parked. ~14h impl (doc est), metered $0.23 (iter 61). Log entry 66.
+  **REALITY-CHECK (iter 66, log entry 71): STILL PARKED — the feature did NOT land out-of-loop.** The
+  iter-65 "Next" flagged commit `5afa9a1e1` ("feat(eval): reasoning_effort knob") as a possible
+  out-of-loop landing. REFUTED: that commit is an EVAL-HARNESS-only OpenRouter `reasoning.effort` knob
+  (`models.yml` + `internal/eval_harness/` + `openrouter/chat.go`), NOT this doc's typed
+  `ai.Request.ReasoningEffort` field. Verified absent on origin/dev: `git show origin/dev:internal/ai/provider.go`
+  has no `ReasoningEffort`, and the 5 sentinel errors (`ErrUnsupportedReasoningEffort`, …) do not exist.
+  The v0.31.0 cross-provider feature is unbuilt; the R2 fork above still awaits Mark.)
 
 ### Clause 5 — cost credibility
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
