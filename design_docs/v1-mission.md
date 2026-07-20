@@ -598,6 +598,19 @@ v0_30_0 19 · v0_31_0 3 · v1_0_0 5 · v1_1_0 30 · docparse-billing 5). Rules:
   triage, quorum-at-pick fires when a doc is actually PICKED). Deliverable: triage table on the
   bookkeeping issue + charter queue rewrite + archive moves for ghosts/superseded. Docs promoted
   to [CYCLE] get an explicit one-line WHY (what changed since they were shelved).
+- **(B) GITHUB-ISSUE TRIAGE (Mark 2026-07-20: "for v1.0.0 we should also triage all the other
+  github issues — see if they have design docs, are stale or defunct superseded etc or need a new
+  doc")** — the ~19 open non-thread issues (span Dec 2025–Jul 2026: CI flakies #351/#338,
+  test-runner litter #328, runtime/test paths #324/#326, effect-row bug #386, the May
+  motoko_explore trio #231/#226/#225, CLI asks #223/#157/#155, Z3 #215, docparse #224/#153/#143,
+  Sonar #104, stapledons #18, nightly-watch #384). Use the **github-issue-triage skill**. Per
+  issue: reality-check at HEAD (cheap live repro where the claim is a bug — issue bodies age like
+  doc statuses), then exactly one: **FIXED → close citing the commit** · **STALE/SUPERSEDED →
+  close with evidence** · **COVERED-BY an existing/queued doc → link both ways + tag** ·
+  **NEEDS-NEW-DOC → note for the designer rotation (doc authored on pick, quorum applies)** ·
+  **GENUINE v1-GATING → clause-tag + queue placement** · **POST-V1 → label + say so on the
+  issue**. External-author issues ALWAYS get a reply (public repo — same courtesy as #417).
+  Runs alongside/after the doc sweep; same 2–3-iteration budget, same evidence discipline.
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
