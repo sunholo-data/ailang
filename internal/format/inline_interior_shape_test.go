@@ -128,25 +128,22 @@ func TestInlineInterior_LetChainSurfaceShape(t *testing.T) {
 			t.Fatalf("target %s is not parse-valid (M0 requires parse-valid targets)", rel)
 		}
 
-		// Find the refused comment byte by running the real attacher.
+		// M0 is a SHAPE proof that must survive the M1 attach change (once the chain
+		// list is registered these files no longer refuse). Rather than depend on the
+		// live attacher refusing, classify the shape directly: find the first comment a
+		// let-chain root (or bare block) brackets, and classify that site. This is the
+		// AST-shape fact the design's flattening traversal depends on, independent of
+		// whether attachment currently succeeds.
 		env, err := NewEnvelope(data)
 		if err != nil {
 			t.Fatalf("target %s: envelope: %v", rel, err)
 		}
-		_, attErr := AttachComments(env, prog.File)
-		refusedByte := -1
-		if attErr != nil {
-			if ee, ok := attErr.(*EnvelopeError); ok && ee.Kind == "comment-unattached" {
-				refusedByte = firstUnattachedByte(env, prog.File)
-			}
-		}
-		if refusedByte < 0 {
-			results = append(results, result{rel, shapeNoRefusal, -1, "attacher did not refuse a comment"})
+		siteByte, shape, note := classifyFirstChainComment(env, prog.File)
+		if siteByte < 0 {
+			results = append(results, result{rel, shapeNoRefusal, -1, "no comment brackets a let-chain root or block in this file"})
 			continue
 		}
-
-		shape, note := classifyRefusalSite(env, prog.File, refusedByte)
-		results = append(results, result{rel, shape, refusedByte, note})
+		results = append(results, result{rel, shape, siteByte, note})
 	}
 
 	// Report + tally.
@@ -187,19 +184,19 @@ func TestInlineInterior_LetChainSurfaceShape(t *testing.T) {
 	}
 }
 
-// firstUnattachedByte re-derives the byte offset of the first comment the attacher
-// refuses, by re-running attachment comment-by-comment (the attacher itself returns
-// only the first failing comment's byte in its error text; we recompute it here so
-// the shape probe does not depend on parsing that message).
-func firstUnattachedByte(env *Envelope, f *ast.File) int {
-	a := &attacher{env: env}
-	a.collectLists(f)
+// classifyFirstChainComment scans comments in source order and returns the first one
+// whose enclosing site is a let-chain root or a bare multi-expr block, together with
+// the shape classification of that site. Returns (-1, shapeNoRefusal, note) if no
+// comment brackets such a construct. This is the M0 shape proof, decoupled from the
+// live attacher so it stays green after M1 registers the chain list.
+func classifyFirstChainComment(env *Envelope, f *ast.File) (int, letChainShape, string) {
 	for _, c := range env.Comments() {
-		if _, ok := a.attachOne(c); !ok {
-			return c.Start
+		shape, note := classifyRefusalSite(env, f, c.Start)
+		if shape == shapeNestedLetBody || shape == shapeBlockExprs {
+			return c.Start, shape, note
 		}
 	}
-	return -1
+	return -1, shapeNoRefusal, "no comment brackets a let-chain root or block"
 }
 
 // classifyRefusalSite finds the tightest enclosing construct that brackets byteOff
