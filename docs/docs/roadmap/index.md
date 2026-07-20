@@ -51,14 +51,27 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-contracts.md)
 - [M-EFFECT-SCOPE-PARAMS: Capability-Scoping Parameters on Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-scope-params.md)
 
+## Planned for v0.31.0
+
+- [M-AI-STRUCTURED-STEP — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-ai-structured-step-sprint-plan.md)
+- [M-AI-STRUCTURED-STEP — Structured output as an orthogonal option on `step`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-ai-structured-step.md)
+
 ## Planned for v0.30.0
 
-- [M-ARCH-BOUNDARIES: Formalize Dashboard/Core Separation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-arch-boundaries.md)
+- [Sprint Plan: M-AILANG-FMT-ADOPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-adoption-sprint-plan.md)
+- [M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-adoption.md)
+- [Sprint Plan: M-AILANG-FMT-PHASE2 — Lossless Comment Preservation for `ailang fmt`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-phase2-sprint-plan.md)
+- [M-DIAG-PRIMITIVE-FIELD-SUGGESTIONS: Symbol-Specific Enrichment of the Primitive-Field-Access Diagnostic](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-diag-primitive-field-suggestions.md)
 - [M-MISSION-ADAPTIVE-MULTIPROVIDER-ROUTING: the heterogeneous model fleet — quota-aware selection, design quorums, cross-provider executors, local-GPU lane](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md)
+- [Sprint Plan — M-MISSION-AGENTIC-ROUTING (remaining slice: M1b · M2 · M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-agentic-provider-routing-sprint-plan.md)
 - [M-MISSION-AGENTIC-PROVIDER-ROUTING: enforce per-role AGENTIC cross-provider routing + right-size the roles](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-agentic-provider-routing.md)
+- [M-MISSION-COST-CHAINS: make `ailang chains` the mission's cost tracker — fix $0 attribution + ingest loop activity](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-cost-chains.md)
 - [Sprint Plan — M-MISSION-FLEET-AB (Phases A+B of m-mission-adaptive-multiprovider-routing)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-fleet-ab-sprint-plan.md)
-- [M-MISSION-QUORUM-AGENTIC-VERIFY: quorum reviewers that VERIFY (agentic, repo-armed), not just reason](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-quorum-agentic-verify.md)
+- [M-MISSION-PORTABILITY: extract the mission loop into a portable template — bootstrap kit for the Ailang World mission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-portability.md)
+- [M-MISSION-QUORUM-AGENTIC-VERIFY: quorum reviewers that VERIFY and HONE (agentic, repo-armed), not just reason](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-quorum-agentic-verify.md)
 - [M-PARMAP-EFFECTFUL: Concurrent Map over Effectful Functions (`parMap` / `gather`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-parmap-effectful.md)
+- [M-PARSER-BLOCK-LET-SEPARATOR: Consistent statement-separator handling after block-RHS `let`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-parser-block-let-separator.md)
+- [M-SERVEAPI-RAW-HANDLER-MCP: `@nomcp` exclusion + opt-in `@raw` handlers over MCP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-serveapi-raw-handler-mcp.md)
 - [Sprint Plan: M-SMT-CALLEE-SORT-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-smt-callee-sort-gate-sprint-plan.md)
 - [M-SMT-CALLEE-SORT-GATE: Reject Unencodable Callee Signature Sorts (No Z3 Crash)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-smt-callee-sort-gate.md)
 - [Sprint Plan: M-STD-YAML — `std/yaml` YAML→JSON Bridge](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-std-yaml-sprint-plan.md)
@@ -84,7 +97,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-coordinator-inbox-wildcards.md)
 - [Dashboard Simplification - Remaining Work (v0.7.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-dashboard-simplification.md)
 - [M-DX-AGENT-EVAL-GAPS: Agent DX Improvements from v0.9.0 Eval Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-dx-agent-eval-gaps.md)
-- [M-DX-EXPECTED-FAIL-FIXES: Fix Remaining Expected-Fail Examples](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-dx-expected-fail-fixes.md)
 - [M-DX27: GitHub Repository Search Fallback for `ailang docs search`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md)
 - [Sprint Plan: M-EVAL-BOUNDED-PIPELINE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-bounded-pipeline-sprint-plan.md)
 - [M-EVAL-OPENROUTER-BASELINE-ROTATION: Cloud Baseline Three Candidate Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-eval-openrouter-baseline-rotation.md)
@@ -100,14 +112,15 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan — M-PATTERN-AND-INVOCATION-REPAIR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pattern-and-invocation-repair-sprint-plan.md)
 - [Sprint Plan: M-PKG-FEEDBACK-LOOP (Test + activate per-package feedback + macOS notifier)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pkg-feedback-loop-sprint-plan.md)
 - [M-PKG-FEEDBACK-LOOP: Validate the per-package feedback loop end-to-end](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pkg-feedback-loop.md)
-- [M-PROMPT-LOG-FILE-ANALYZER: String ops pipeline example (split→filter→map→join)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-prompt-log-file-analyzer-string-ops.md)
-- [M-PROMPT-SINGLE-FILE-MODULE: Teach Single-File Module Convention for Benchmarks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-prompt-single-file-module.md)
-- [Prompt Gap: Split Returns List, Not String](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-prompt-split-list-operations.md)
 - [m pure prng](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pure-prng.md)
 - [Sprint Plan: M-RIG-RELIABILITY — make the rig catch breaks + measure docx](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-rig-reliability-sprint-plan.md)
 - [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-stdlib-html-streaming.md)
 - [m verify stdlib stale path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-verify-stdlib-stale-path.md)
+
+## Planned for v0.7.0
+
+- [M-ARCH-BOUNDARIES: Formalize Dashboard/Core Separation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-arch-boundaries.md)
 
 ## Planned for docparse-billing
 
@@ -130,4 +143,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 92 planned features across 5 upcoming versions.*
+*Generated at build time. 99 planned features across 7 upcoming versions.*

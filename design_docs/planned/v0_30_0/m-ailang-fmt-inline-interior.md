@@ -1,6 +1,9 @@
 # M-AILANG-FMT-INLINE-INTERIOR: Stable Multi-Line Let-Chain Comment Boundaries
 
-**Status**: PARKED needs-human-review (2026-07-20, mission iteration 67 — QUORUM-AT-PICK bounded gate consumed: R1 BLOCKED → controller revision (V13) → R2 re-quorum BLOCKED on a NEW premise; controller in-session data-check **DATA-REFUTES** the R2 objection for the 28 target cases. See ⛔ Quorum Record. Human fork on the bookkeeping issue.)
+**Status**: **UNPARKED — Mark 2026-07-20 ("yes lets finish off ailang fmt")**: the R2 objection is
+DATA-REFUTED for all 28 target cases (controller data-check, ⛔ Quorum Record) — proceed on the
+data. Route to sprint-planner; no re-quorum. Part of the finish-fmt set with
+m-fmt-properties-printer-roundtrip.
 
 ## ⛔ Quorum Record (mission iteration 67, 2026-07-20)
 

@@ -840,8 +840,10 @@ triage evidence = log entry 10.)*
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
 
 ### Clause 2 — soundness (near-done; no new holes found in triage)
-- **m-check-strict-fallbacks** (1d) **[PARKED needs-human-review, RE-PARKED iter 42 with a sharper
-  blocker]** — iter-42 re-attempt (both iter-41 blockers cleared: Fable designer back; #407 quorum
+- **m-check-strict-fallbacks** (now ~2d) **[DECIDED by Mark 2026-07-18 — option 2: post-name-resolution
+  pass + curated known-empty-builder registry (catches `Ok(jo([]))`), warning-in-dev / hard-error at
+  `check --package`; doc Status stamped UNPARKED → route to sprint-planner, no re-quorum. The historical
+  park record follows:]** — iter-42 re-attempt (both iter-41 blockers cleared: Fable designer back; #407 quorum
   fix). Resolved the iter-41 "OPEN decision" to option (a) (syntactic surface-AST pass, hooks
   live-verified) + grounded Pattern C in the language-enforced uppercase-constructor rule — BUT a
   clean re-quorum (on a REBUILT binary; the #407 fix was NOT in the stale installed binary, so
@@ -923,6 +925,15 @@ frozen; contracts projection live).
   quorum-at-pick. Eval-infra (non-gating for v1.0) but Mark-prioritized — pick after the
   greenlit clause-3 trio unless the queue blocks. **RE-RUN VERIFICATION MODELS: the GLM 5.1/5.2
   pair + Kimi K3 (top OpenRouter model, 97/109 standard — also reasoning-class).**
+- **m-eval-fmt-weakmodel-ab [NEW-DOC, Mark 2026-07-20** — "fmt should be a real help for weaker
+  models creating AILANG… can we do a test with a weak model to see if its making a difference?"
+  + his #422 directive "test it's used by small model such as haiku"**]**: A/B agent-mode evals,
+  ONE weak model (haiku first; optionally a local small model as replication), fmt PostToolUse
+  hook ON vs OFF, same benchmarks/N-runs. Metrics: pass rate + compile-stuck/green-stability
+  convergence (the noisy-agentic-metrics rule: N-run aggregates, never single runs) + per-turn
+  fmt exit codes (was fmt actually invoked/useful). Hypothesis: canonical formatting reduces
+  weak-model syntax drift. Depends: fmt+adoption (LANDED); sequence AFTER the fmt polish pair
+  below lands (test the finished tool, not the interim). ~0.5d + eval time, subscription/cheap.
 - **m-eval-kimi-k3-agentic** ([planned/v0_31_0](planned/v0_31_0/m-eval-kimi-k3-agentic.md),
   Mark 2026-07-19: "Kimi K3 did very well — look into using it within the suite via OpenRouter
   and Pi or motoko harness") — K3 = **97/109 (89%) standard, the strongest OpenRouter model on

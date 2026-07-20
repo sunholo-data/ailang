@@ -1,6 +1,6 @@
 ---
 title: "M-AI-REASONING-EFFORT — Cross-provider request-side reasoning control"
-status: PARKED needs-human-review (2026-07-19, iter 61 — quorum-at-pick R1 revised → R2 re-quorum blocked on 2 narrow converging fixes; bounded gate consumed)
+status: AUTHORIZED — Mark 2026-07-20 ("another round for reasoning efforts") grants ONE more bounded revision+re-quorum round beyond the consumed gate, scoped to the 2 named R2 objections ONLY (add OpenRouter reasoning_max_tokens as the resolver's 4th input; narrow the Gemini rule so B=0 "off" does not force MaxTokens — the docparse consumer keeps its contract). Green after that → sprint-planner; still blocked → back to parked with the new objection verbatim.
 target: v0.31.0
 priority: P2
 estimated: ~10-14h

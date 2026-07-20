@@ -1,6 +1,9 @@
 # m-fmt-properties-printer-roundtrip — Contract-Clause Printer Round-Trip Fix
 
-**Status**: PARKED needs-human-review (2026-07-20, iter 66 — quorum-at-pick R1 revised → R2 re-quorum still-blocked by one persistent, now data-refuted objection; bounded gate consumed)
+**Status**: **UNPARKED — Mark 2026-07-20 ("yes lets finish off ailang fmt")**: the one persistent
+R2 objection is DATA-REFUTED (controller data-check, iter 66 — recorded in the Quorum Record); a
+text reviewer rejecting against measured data does not outrank the data. Route to sprint-planner;
+no re-quorum. fmt is a weak-model accessibility lever — finish the polish set.
 **Target**: v0.30.0 (fmt Phase-1 correctness follow-up)
 **Priority**: P1
 **Estimated**: ~1 day

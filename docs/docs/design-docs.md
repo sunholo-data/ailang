@@ -10,16 +10,23 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.30.0
 
+- [M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-phase2.md)
+- [M-AILANG-FMT: `ailang fmt` — Canonical AILANG Source Formatter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt.md)
 - [Arity-Style Diagnostic (m-arity-style-diagnostic)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arity-style-diagnostic.md)
 - [M-DX-AI-DISCOVERY — Sprint Plan (Executor Handoff)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery-sprint-plan.md)
 - [M-DX-AI-DISCOVERY: One-Shot Stdlib Discovery for AI Agents (RE-SCOPED)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery.md)
 - [M-DX-EXAMPLES-COVERAGE: Close the Examples Gap — Coverage, a Real CI Gate, and a Working `--examples` Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-examples-coverage.md)
+- [M-DX-EXPECTED-FAIL-FIXES: Fix Remaining Expected-Fail Examples](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-expected-fail-fixes.md)
 - [M-DX-JSON-BOOL: JSON Boolean Coercion and Firestore Encoding Consistency](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-json-bool-coercion.md)
 - [M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-record-cons-pattern.md)
 - [Sprint Plan: M-DX-SPLIT-ARG — Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-split-argument-warning-sprint-plan.md)
 - [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-split-argument-warning.md)
 - [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-tapp-trecord-unification.md)
 - [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
+- [M-GEMINI-EVALUATOR-DIFF-BRIDGE: inject a sprint diff bundle into a sandboxed gemini evaluator](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-evaluator-diff-bridge.md)
+- [M-GEMINI-EXEC-PROJECT-PLUMBING: Thread GCP Project/Location Env into `ailang exec` Task Construction](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-exec-project-plumbing.md)
+- [M-GEMINI-REPO-MOUNT Phase 2 — Sprint Plan (Clone-over-egress capability)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-repo-mount-sprint-plan.md)
+- [M-GEMINI-REPO-MOUNT — Managed Agents repository and inline-source mounts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-repo-mount.md)
 - [Sprint Plan: M-LAMBDA-OPEN-RECORD-PATTERN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-lambda-open-record-pattern-sprint-plan.md)
 - [M-LAMBDA-OPEN-RECORD-PATTERN — Lambda + `{field, ...}` pattern doesn't propagate row polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-lambda-open-record-pattern.md)
 - [Sprint Plan — M-MATCH-XCHECK-ERROR-QUALITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-match-xcheck-error-quality-sprint-plan.md)
@@ -30,8 +37,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-MODULE-LET-FUNC-RESOLUTION: Module-level lets cannot reference module funcs (false "undefined variable"; hint cites closed #327)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-module-let-func-resolution.md)
 - [Sprint Plan — M-PRELUDE-OPTION-RESULT (mission iter 27)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prelude-option-result-sprint-plan.md)
 - [M-PRELUDE-OPTION-RESULT: Add Option/Result to the prelude (structural AI-DX fix)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prelude-option-result.md)
+- [Sprint Plan: M-PROMPT-FOOTGUNS — Prompt-Teaching Footguns → Compiler Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prompt-footguns-sprint-plan.md)
+- [M-PROMPT-FOOTGUNS-TO-DIAGNOSTICS: Route Prompt-Teaching Footguns to Compiler Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-prompt-footguns-to-diagnostics.md)
 - [Sprint Plan: M-PUBLIC-FEEDBACK-DELIVERY-AUDIT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-public-feedback-delivery-audit-sprint-plan.md)
 - [M-PUBLIC-FEEDBACK-DELIVERY-AUDIT: external feedback isn't reaching Discord (or the inbox)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-public-feedback-delivery-audit.md)
+- [M-STD-AI-VISION-INPUT — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-std-ai-vision-input-sprint-plan.md)
+- [M-STD-AI-VISION-INPUT — Image (vision) input on std/ai Message](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-std-ai-vision-input.md)
 - [Sprint Plan — m-stdlib-regex (Linear-Time RE2 Regex Builtin)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex-sprint-plan.md)
 - [m-stdlib-regex — Linear-Time (RE2) Regex Builtin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-regex.md)
 - [m-stdlib-url-parse — RFC-3986 URL Parsing via Go net/url](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-stdlib-url-parse.md)
@@ -1297,4 +1308,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 936 design documents across 117 versions.*
+*Generated at build time. 947 design documents across 117 versions.*
