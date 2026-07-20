@@ -758,12 +758,19 @@ triage evidence = log entry 10.)*
   87.5% of real files. Scope once Phase-2 lands: teaching-prompt line + CLI discoverability + opt-in harness hooks
   (`--check` in CI, `--write` post-write). Deliberately NOT teaching fmt in the prompt yet — teaching a tool that
   refuses 87.5% of commented files would frustrate agents (no-premature-adoption). ·
-  **m-ailang-fmt-inline-interior [NEW — follow-up from phase2 iter 63; ~1.5–2d]** — reduce the 15.28% (59/386)
-  inline-interior fail-closed refusal. Root cause (M0/M2 finding): the AST represents `{ let x = v; tail }` as a single
-  collapsing `let-in` expression, not a multi-child `Block`, so a comment interior to a multi-line top-level `let … in`
-  chain has no stable idempotent boundary. Two design options surfaced by the executor: (a) preserve let-in-chain layout
-  in the printer so interior comments get a boundary; (b) land edit-grade parser spans. Evidence-gated: the 59 files are
-  enumerated. NOT urgent (current behavior is safe fail-closed, never lossy). Needs a design doc → quorum. ·
+  **m-ailang-fmt-inline-interior** (**[PARKED needs-human-review iter 67 — DESIGN DOC CREATED (codex:gpt-5.6-sol
+  rotation designer, `design_docs/planned/v0_30_0/m-ailang-fmt-inline-interior.md`); QUORUM-AT-PICK bounded gate
+  CONSUMED: R1 BLOCKED (unverified `*ast.Let` struct) → controller revision V13 → R2 re-quorum BLOCKED on a NEW
+  premise (block-form `;`-lets → nested `Let.Body` unproven; "15 of 28 will silently fail"). Controller in-session
+  data-check DATA-REFUTES R2 for the 28 targets: all sampled chain via `let … in` → nested `*ast.Let.Body`
+  (incl. brace-body outlier `neural_semantic_search.ail` via leading-`in`); the bare-`;` Block.Exprs form does NOT
+  occur in the target set. Recommends option (a) printer-local conditional multi-line let-chain; scopes to 28/59
+  (15.28%→8.03%), rest explicitly deferred. See its ⛔ Quorum Record. gpt5-6-sol excluded (==designer, generator≠judge);
+  reviewer gemini-3-1-pro + controller opus; metered $0.0517.]**) — **Human fork on the bookkeeping issue:**
+  (1) [RECOMMENDED] route to sprint-planner (R2 data-refuted for the 28; add M0 mandate to dump+verify the surface
+  `*ast.Let.Body` shape of all 28 & correct the Problem-Statement bare-`;` sentence), (2) authorize one more bounded
+  quorum round to fold the AST-shape verification in, (3) keep parked. NOT urgent (current behavior safe fail-closed,
+  never lossy). Log entry 72. ·
   **m-fmt-properties-printer-roundtrip** (**[PARKED needs-human-review iter 66 — QUORUM-AT-PICK: R1
   BLOCKED (unverified `FuncDecl.Properties` consumer blast radius) → Rev-2 resolved (V17 6-site
   consumer audit + acceptance-gated combined-case integration test) → R2 re-quorum still-BLOCKED by
