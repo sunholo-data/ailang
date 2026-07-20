@@ -415,6 +415,181 @@ func TestExecute_NoJSONLFile(t *testing.T) {
 	}
 }
 
+// TestExecute_StartupCrash_StderrTailInError reproduces the 2026-07-16
+// incident shape: motoko exits nonzero BEFORE writing any session JSONL
+// (an AILANG compile error on stdlib schema drift — std/ai.Message gained an
+// `images` field the core's 4-field literals didn't have). The compile error
+// lands on stderr; Result.Error must carry its tail + the stderr log path so
+// triage reads the actual cause instead of chasing the "no session JSONL" /
+// delivery-regression classes.
+func TestExecute_StartupCrash_StderrTailInError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	mockScript := `#!/bin/bash
+echo "error[TC001]: record literal is missing field 'images' required by std/ai.Message" >&2
+echo "  --> src/core/backend.ail:42:7" >&2
+exit 1
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	res, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "any",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned hard error (should return Result with Error instead): %v", err)
+	}
+	if res.Success {
+		t.Error("Success = true; want false")
+	}
+	if !strings.Contains(res.Error, "no session JSONL found") {
+		t.Errorf("Error should still name the missing-JSONL symptom; got: %s", res.Error)
+	}
+	if !strings.Contains(res.Error, "missing field 'images'") {
+		t.Errorf("Error must include the stderr tail (the actual crash cause); got: %s", res.Error)
+	}
+	if !strings.Contains(res.Error, "motoko-stderr-") {
+		t.Errorf("Error must include the on-disk stderr log path; got: %s", res.Error)
+	}
+}
+
+// TestExecute_MidRunCrash_NoRunSummary_StderrTailInError: the session JSONL
+// exists but truncates before run_summary (crash mid-run) and NO system prompt
+// is configured — so the delivery guard never runs. The stderr tail must still
+// be attached by the central post-parse attribution, not only via the guard.
+func TestExecute_MidRunCrash_NoRunSummary_StderrTailInError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	mockScript := `#!/bin/bash
+LOGDIR="$WORKDIR/.motoko/logfile"
+mkdir -p "$LOGDIR"
+SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
+cat > "$LOGDIR/$SESSION.jsonl" <<EOF
+{"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"m"}
+{"schema_version":"1","session_id":"$SESSION","type":"thinking","step":1,"text":"...","finish_reason":"length","input_tokens":10,"output_tokens":5}
+EOF
+echo "RuntimeError: env-server connection reset mid-step" >&2
+exit 1
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	res, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace: wsDir,
+		Directive: "any",
+		// SystemPrompt intentionally empty: the delivery guard must not be the
+		// only path that surfaces stderr.
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if res.Success {
+		t.Error("Success = true; want false")
+	}
+	if !strings.Contains(res.Error, "no run_summary") {
+		t.Errorf("Error should name the missing-run_summary symptom; got: %s", res.Error)
+	}
+	if !strings.Contains(res.Error, "env-server connection reset") {
+		t.Errorf("Error must include the stderr tail; got: %s", res.Error)
+	}
+}
+
+// TestExecute_StartupCrashWithSystemPrompt_StderrAttachedOnce: when the
+// delivery guard fires its startup-crash verdict it embeds the stderr tail in
+// Result.Error itself; the central post-parse attribution must then NOT append
+// the same tail a second time.
+func TestExecute_StartupCrashWithSystemPrompt_StderrAttachedOnce(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("bash mock binary requires POSIX shell")
+	}
+
+	tmp := t.TempDir()
+	mockMotoko := filepath.Join(tmp, "motoko")
+	mockScript := `#!/bin/bash
+LOGDIR="$WORKDIR/.motoko/logfile"
+mkdir -p "$LOGDIR"
+SESSION="${MOTOKO_SESSION_ID:-session_unknown}"
+cat > "$LOGDIR/$SESSION.jsonl" <<EOF
+{"schema_version":"1","session_id":"$SESSION","type":"session_start","task":"x","model":"m"}
+EOF
+echo "BOOM_UNIQUE_MARKER: startup compile failure" >&2
+exit 1
+`
+	if err := os.WriteFile(mockMotoko, []byte(mockScript), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wsDir := filepath.Join(tmp, "ws")
+	if err := os.MkdirAll(wsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	res, err := exec.Execute(context.Background(), &executor.Task{
+		Workspace:    wsDir,
+		Directive:    "any",
+		SystemPrompt: "AILANG teaching content",
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if res.Success {
+		t.Error("Success = true; want false")
+	}
+	if got := strings.Count(res.Error, "BOOM_UNIQUE_MARKER"); got != 1 {
+		t.Errorf("stderr tail appears %d times in Error, want exactly 1 (guard + central attribution must not double-append):\n%s", got, res.Error)
+	}
+	if _, has := res.ProviderData["motoko_startup_crash"]; !has {
+		t.Error("guard should have classified this as a startup crash")
+	}
+}
+
+// TestAttachStderrTail covers the helper's two shapes: non-empty stderr gets
+// the tail + log path; empty stderr still points at the log path so the reader
+// knows stderr WAS captured and had nothing (vs. not captured at all).
+func TestAttachStderrTail(t *testing.T) {
+	got := attachStderrTail("crashed", "/tmp/motoko-stderr-x.log", "line1\nline2\n")
+	if !strings.Contains(got, "crashed") || !strings.Contains(got, "line2") ||
+		!strings.Contains(got, "/tmp/motoko-stderr-x.log") {
+		t.Errorf("non-empty stderr: got %q", got)
+	}
+
+	got = attachStderrTail("crashed", "/tmp/motoko-stderr-x.log", "  \n")
+	if !strings.Contains(got, "stderr was empty") || !strings.Contains(got, "/tmp/motoko-stderr-x.log") {
+		t.Errorf("empty stderr: got %q", got)
+	}
+
+	// Long stderr is bounded to the last ~1KB.
+	long := strings.Repeat("x", 4096) + "TAIL_END"
+	got = attachStderrTail("crashed", "/tmp/l.log", long)
+	if !strings.Contains(got, "TAIL_END") {
+		t.Errorf("tail lost the end of stderr")
+	}
+	if len(got) > 1024+300 {
+		t.Errorf("attached message too long (%d bytes); tail must be bounded to ~1KB", len(got))
+	}
+}
+
 // TestLiveRun_Motoko (gated): runs against the real motoko binary if
 // AILANG_MOTOKO_LIVE=1 is set AND `motoko` is on PATH. Skipped by default
 // so CI does not spawn real LLM calls. Use this to validate adapter
