@@ -14,18 +14,16 @@ module examples/runnable/contracts/record_verify
 -- ============================================================================
 
 -- Extract the X coordinate (proving non-negativity preserved)
-export func getX(p: {x: int, y: int}) -> int ! {}
+export func getX(p: { x: int, y: int }) -> int ! {}
 requires { p.x >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   p.x
 }
 
 -- Manhattan distance from origin (always non-negative when both coords are)
-export func manhattan(p: {x: int, y: int}) -> int ! {}
+export func manhattan(p: { x: int, y: int }) -> int ! {}
 requires { p.x >= 0, p.y >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   p.x + p.y
 }
 
@@ -34,10 +32,9 @@ ensures { result >= 0 }
 -- ============================================================================
 
 -- Move a point right: new x is always greater than original
-export func moveRight(p: {x: int, y: int}, dx: int) -> {x: int, y: int} ! {}
+export func moveRight(p: { x: int, y: int }, dx: int) -> { x: int, y: int } ! {}
 requires { dx > 0, p.x >= 0 }
-ensures { result.x > p.x }
-{
+ensures { result.x > p.x } {
   { x: p.x + dx, y: p.y }
 }
 
@@ -48,10 +45,9 @@ ensures { result.x > p.x }
 -- Check if a first-quadrant point is near the origin
 -- CALLS manhattan (cross-function with records!)
 -- Z3 inlines manhattan and proves: when true, manhattan <= radius
-export func isNearOrigin(p: {x: int, y: int}, radius: int) -> bool ! {}
+export func isNearOrigin(p: { x: int, y: int }, radius: int) -> bool ! {}
 requires { p.x >= 0, p.y >= 0, radius >= 0 }
-ensures { result == (manhattan(p) <= radius) }
-{
+ensures { result == manhattan(p) <= radius } {
   manhattan(p) <= radius
 }
 
@@ -60,19 +56,17 @@ ensures { result == (manhattan(p) <= radius) }
 -- Z3 finds large coordinates (e.g., x=50, y=50) that violate this
 -- ============================================================================
 
-export func brokenDistance(p: {x: int, y: int}) -> bool ! {}
+export func brokenDistance(p: { x: int, y: int }) -> bool ! {}
 requires { p.x >= 0, p.y >= 0 }
-ensures { result == true }
-{
+ensures { result == true } {
   p.x + p.y < 100
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let p = {x: 3, y: 4};
-  let moved = moveRight(p, 10);
-  let m = manhattan(p);
-  let near = isNearOrigin(p, 10);
+export func main() -> int ! {} {
+  let p = { x: 3, y: 4 }
+  let moved = moveRight(p, 10)
+  let m = manhattan(p)
+  let near = isNearOrigin(p, 10)
   if near then m + moved.x else m
 }

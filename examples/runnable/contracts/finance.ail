@@ -11,8 +11,7 @@ export type TaxBracket = STANDARD | REDUCED | EXEMPT
 -- Z3 proves: tax is always non-negative AND never exceeds income
 export func calculateTax(income: int, bracket: TaxBracket) -> int ! {}
 requires { income >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match bracket {
     EXEMPT => 0,
     REDUCED => income / 10,
@@ -24,8 +23,7 @@ ensures { result >= 0 }
 -- Z3 inlines calculateTax as (define-fun) and proves netIncome >= 0
 export func netIncome(gross: int, bracket: TaxBracket) -> int ! {}
 requires { gross >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   gross - calculateTax(gross, bracket)
 }
 
@@ -33,17 +31,15 @@ ensures { result >= 0 }
 -- Z3 will find inputs where discount > price, violating ensures { result >= 0 }
 export func brokenDiscount(price: int, discount: int) -> int ! {}
 requires { price >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   price - discount
 }
 
 -- Entry point for testing
-export func main() -> int ! {}
-{
-  let tax1 = calculateTax(1000, STANDARD);   -- 200
-  let tax2 = calculateTax(1000, REDUCED);    -- 100
-  let tax3 = calculateTax(1000, EXEMPT);     -- 0
-  let net = netIncome(5000, STANDARD);       -- 4000
+export func main() -> int ! {} {
+  let tax1 = calculateTax(1000, STANDARD)  -- 200
+  let tax2 = calculateTax(1000, REDUCED)  -- 100
+  let tax3 = calculateTax(1000, EXEMPT)  -- 0
+  let net = netIncome(5000, STANDARD)  -- 4000
   tax1 + tax2 + tax3 + net
 }

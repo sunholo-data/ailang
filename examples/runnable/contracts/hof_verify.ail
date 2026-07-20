@@ -12,25 +12,22 @@ import std/list (length as listLength, map, filter)
 -- Increment all elements: map(\x. x + 1, xs)
 -- The SMT verifier specializes this into a recursive function
 -- and proves that the result length equals the input length.
-export func incrementAll(xs: [int]) -> [int] ! {}
-ensures { listLength(result) >= 0 }
-{
+export func incrementAll(xs: list[int]) -> list[int] ! {}
+ensures { listLength(result) >= 0 } {
   map(\x. x + 1, xs)
 }
 
 -- Filter positive elements: filter(\x. x > 0, xs)
 -- Verifies that the filtered result has non-negative length.
-export func positives(xs: [int]) -> [int] ! {}
-ensures { listLength(result) >= 0 }
-{
+export func positives(xs: list[int]) -> list[int] ! {}
+ensures { listLength(result) >= 0 } {
   filter(\x. x > 0, xs)
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let xs = [1, 2, 3, 4, 5];
-  let incremented = incrementAll(xs);
-  let pos = positives(xs);
+export func main() -> int ! {} {
+  let xs = [1, 2, 3, 4, 5]
+  let incremented = incrementAll(xs)
+  let pos = positives(xs)
   listLength(incremented) + listLength(pos)
 }

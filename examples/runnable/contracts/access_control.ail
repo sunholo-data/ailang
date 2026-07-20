@@ -13,8 +13,7 @@ export type Permission = GRANTED | DENIED
 -- Map role to numeric access level (0-100)
 -- Z3 proves: level is always within bounds
 export func accessLevel(role: Role) -> int ! {}
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match role {
     ADMIN => 100,
     EDITOR => 50,
@@ -24,8 +23,7 @@ ensures { result >= 0 }
 
 -- Check if a role has sufficient access — CALLS accessLevel (cross-function!)
 export func canAccess(role: Role, requiredLevel: int) -> Permission ! {}
-requires { requiredLevel >= 0 }
-{
+requires { requiredLevel >= 0 } {
   if accessLevel(role) >= requiredLevel then GRANTED else DENIED
 }
 
@@ -33,17 +31,15 @@ requires { requiredLevel >= 0 }
 -- CALLS accessLevel — Z3 inlines it and proves result >= 0
 export func effectiveLevel(role: Role, penalty: int) -> int ! {}
 requires { penalty >= 0 }
-ensures { result >= 0 }
-{
-  let base = accessLevel(role);
+ensures { result >= 0 } {
+  let base = accessLevel(role)
   if base >= penalty then base - penalty else 0
 }
 
 -- Entry point for testing
-export func main() -> int ! {}
-{
-  let adminLevel = accessLevel(ADMIN);        -- 100
-  let viewerLevel = accessLevel(VIEWER);      -- 10
-  let effective = effectiveLevel(EDITOR, 20); -- 30
+export func main() -> int ! {} {
+  let adminLevel = accessLevel(ADMIN)  -- 100
+  let viewerLevel = accessLevel(VIEWER)  -- 10
+  let effective = effectiveLevel(EDITOR, 20)  -- 30
   adminLevel + viewerLevel + effective
 }

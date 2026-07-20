@@ -7,26 +7,23 @@ module examples/runnable/contracts/list_recursive_verify
 import std/list (length as listLength)
 
 -- Element containment: if a list contains an element, it has positive length
-export func containsImpliesNonEmpty(xs: [int], elem: int) -> bool ! {}
+export func containsImpliesNonEmpty(xs: list[int], elem: int) -> bool ! {}
 requires { _list_contains(xs, elem) == true }
-ensures { result == true }
-{
+ensures { result == true } {
   listLength(xs) > 0
 }
 
 -- Extract preserves bounds: extracted sublist length <= original
-export func extractBounded(xs: [int], offset: int, len: int) -> bool ! {}
+export func extractBounded(xs: list[int], offset: int, len: int) -> bool ! {}
 requires { offset >= 0, len >= 0, offset + len <= listLength(xs) }
-ensures { result == true }
-{
+ensures { result == true } {
   listLength(_list_extract(xs, offset, len)) <= listLength(xs)
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let xs = [10, 20, 30, 40, 50];
-  let has20 = _list_contains(xs, 20);
-  let sub = _list_extract(xs, 1, 2);
+export func main() -> int ! {} {
+  let xs = [10, 20, 30, 40, 50]
+  let has20 = _list_contains(xs, 20)
+  let sub = _list_extract(xs, 1, 2)
   if has20 then listLength(sub) else 0
 }

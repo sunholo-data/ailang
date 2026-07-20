@@ -14,10 +14,9 @@ module examples/runnable/contracts/record_discovery_verify
 -- Previously caused "unknown record type" ERROR
 -- ============================================================================
 
-export func makePoint(px: int, py: int) -> {x: int, y: int} ! {}
+export func makePoint(px: int, py: int) -> { x: int, y: int } ! {}
 requires { px >= 0, py >= 0 }
-ensures { result.x == px, result.y == py }
-{
+ensures { result.x == px, result.y == py } {
   { x: px, y: py }
 }
 
@@ -27,10 +26,9 @@ ensures { result.x == px, result.y == py }
 -- Return record type must be discovered separately from param record
 -- ============================================================================
 
-export func transform(input: {a: int, b: int}) -> {x: int, y: int} ! {}
+export func transform(input: { a: int, b: int }) -> { x: int, y: int } ! {}
 requires { input.a >= 0 }
-ensures { result.x >= 1 }
-{
+ensures { result.x >= 1 } {
   { x: input.a + 1, y: input.b * 2 }
 }
 
@@ -39,18 +37,16 @@ ensures { result.x >= 1 }
 -- Tests that the record type from return annotation is correctly matched
 -- ============================================================================
 
-export func swapXY(p: {x: int, y: int}) -> {x: int, y: int} ! {}
+export func swapXY(p: { x: int, y: int }) -> { x: int, y: int } ! {}
 requires { p.x >= 0, p.y >= 0 }
-ensures { result.x == p.y, result.y == p.x }
-{
+ensures { result.x == p.y, result.y == p.x } {
   { x: p.y, y: p.x }
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let p = makePoint(3, 4);
-  let t = transform({a: 5, b: 6});
-  let s = swapXY(p);
+export func main() -> int ! {} {
+  let p = makePoint(3, 4)
+  let t = transform({ a: 5, b: 6 })
+  let s = swapXY(p)
   p.x + t.x + s.x
 }

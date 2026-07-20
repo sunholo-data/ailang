@@ -10,28 +10,24 @@ import std/string (length as strLength, startsWith)
 -- Concatenation always produces a longer-or-equal result
 export func safeConcat(a: string, b: string) -> string ! {}
 requires { strLength(a) >= 0, strLength(b) >= 0 }
-ensures { strLength(result) >= strLength(a) }
-{
-  "${a}${b}"
+ensures { strLength(result) >= strLength(a) } {
+  concat_String(show(a), show(b))
 }
 
 -- String equality is reflexive (trivially provable)
 export func isEqual(s: string, t: string) -> bool ! {}
-ensures { result == (s == t) }
-{
+ensures { result == (s == t) } {
   s == t
 }
 
 -- Intentionally BROKEN: claims prefix is always shorter, but equal strings violate this
 export func brokenPrefixCheck(s: string, prefix: string) -> bool ! {}
-ensures { result == true }
-{
+ensures { result == true } {
   startsWith(s, prefix)
 }
 
 -- Entry point
-export func main() -> int ! {}
-{
-  let greeting = safeConcat("hello", " world");
+export func main() -> int ! {} {
+  let greeting = safeConcat("hello", " world")
   if isEqual(greeting, greeting) then 1 else 0
 }

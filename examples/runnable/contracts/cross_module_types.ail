@@ -16,7 +16,9 @@
 module examples/runnable/contracts/cross_module_types
 
 import examples/runnable/contracts/cross_module_types_lib (Cell, Tree)
+
 import std/list (length as listLength)
+
 import std/string (trim)
 
 -- M1 + M3a: parameter `text` shares its name with Cell.text accessor.
@@ -25,8 +27,7 @@ import std/string (trim)
 -- unambiguous to Z3.
 export pure func makeCell(text: string, count: int) -> Cell ! {}
 requires { count >= 0 }
-ensures  { result.count >= 0 }
-{
+ensures { result.count >= 0 } {
   { text: text, count: count }
 }
 
@@ -34,8 +35,7 @@ ensures  { result.count >= 0 }
 -- the alias map down to {Cell} for THIS function — Tree never appears in
 -- its preamble, so the recursion in Tree cannot cascade-poison verification.
 export pure func emptyCell() -> Cell ! {}
-ensures { result.count == 0 }
-{
+ensures { result.count == 0 } {
   { text: "", count: 0 }
 }
 
@@ -43,9 +43,8 @@ ensures { result.count == 0 }
 -- declare-datatypes (plural) for the Tree <-> Record_label_subtrees cycle.
 -- Pre-M2 this would SKIP with "sort 'Tree' referenced in declaration of
 -- 'Record_label_subtrees' is not declared".
-export pure func countNodes(subtrees: [Tree]) -> int ! {}
-ensures { result >= 0 }
-{
+export pure func countNodes(subtrees: list[Tree]) -> int ! {}
+ensures { result >= 0 } {
   listLength(subtrees)
 }
 
@@ -53,8 +52,7 @@ ensures { result >= 0 }
 -- works the same as makeCell above.
 export pure func bumpCount(c: Cell, count: int) -> int ! {}
 requires { c.count >= 0, count >= 0 }
-ensures  { result >= c.count }
-{
+ensures { result >= c.count } {
   c.count + count
 }
 
@@ -64,16 +62,14 @@ ensures  { result >= c.count }
 -- Without M4 the message would be the generic "uses types not encodable in
 -- SMT (list, unsupported string operations)" — leaving the user guessing.
 export pure func trimText(s: string) -> string ! {}
-ensures { result == result }
-{
+ensures { result == result } {
   trim(s)
 }
 
 -- Entry point.
-export func main() -> int ! {}
-{
-  let c = makeCell("hello", 3);
-  let bumped = bumpCount(c, 5);
-  let nodes = countNodes([]);
+export func main() -> int ! {} {
+  let c = makeCell("hello", 3)
+  let bumped = bumpCount(c, 5)
+  let nodes = countNodes([])
   bumped + nodes
 }

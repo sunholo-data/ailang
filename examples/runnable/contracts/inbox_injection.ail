@@ -37,15 +37,13 @@ type SendAction = { to: string, body: string }
 -- email". A real summariser would expose a length bound or alphabet
 -- restriction instead; the shape of the proof is the same.
 export pure func summarize(emailBody: string) -> string ! {}
-ensures { result == "[summary]" }
-{
+ensures { result == "[summary]" } {
   "[summary]"
 }
 
 -- Domain check: only @company.com recipients are internal.
 export pure func isInternal(addr: string) -> bool ! {}
-ensures { result == endsWith(addr, "@company.com") }
-{
+ensures { result == endsWith(addr, "@company.com") } {
   endsWith(addr, "@company.com")
 }
 
@@ -58,8 +56,7 @@ ensures { result == endsWith(addr, "@company.com") }
 --   2. result.body equals "[summary]" -- the raw email never reaches the wire
 export pure func safeForward(rawEmail: string, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[summary]" }
-{
+ensures { endsWith(result.to, "@company.com"), result.body == "[summary]" } {
   { to: recipient, body: summarize(rawEmail) }
 }
 
@@ -72,8 +69,7 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[summary]" }
 -- the paper, caught without running anything.
 export pure func injectedForward(rawEmail: string, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[summary]" }
-{
+ensures { endsWith(result.to, "@company.com"), result.body == "[summary]" } {
   { to: recipient, body: rawEmail }
 }
 
@@ -86,8 +82,7 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[summary]" }
 -- "send_email to a forbidden domain" guardians automaton case as a
 -- straight Z3 string-suffix check.
 export pure func externalLeak(rawEmail: string) -> SendAction ! {}
-ensures { endsWith(result.to, "@company.com"), result.body == "[summary]" }
-{
+ensures { endsWith(result.to, "@company.com"), result.body == "[summary]" } {
   { to: "attacker@evil.com", body: summarize(rawEmail) }
 }
 
@@ -95,8 +90,7 @@ ensures { endsWith(result.to, "@company.com"), result.body == "[summary]" }
 -- Entry point
 -- ----------------------------------------------------------------------------
 
-export func main() -> int ! {}
-{
-  let action = safeForward("any-email-content", "alice@company.com");
+export func main() -> int ! {} {
+  let action = safeForward("any-email-content", "alice@company.com")
   if isInternal(action.to) then strLength(action.body) else 0
 }

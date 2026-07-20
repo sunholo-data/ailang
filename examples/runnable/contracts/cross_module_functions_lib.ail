@@ -13,8 +13,7 @@ module examples/runnable/contracts/cross_module_functions_lib
 -- Non-recursive, so the verifier inlines its body as a define-fun
 -- into any caller function, enabling compositional proof.
 export func double(n: int) -> int ! {}
-ensures { result == n + n }
-{
+ensures { result == n + n } {
   n + n
 }
 
@@ -26,7 +25,6 @@ ensures { result == n + n }
 -- so callers that only need result >= 0 can still be verified.
 export func sumTo(n: int) -> int ! {}
 requires { n >= 0 }
-ensures  { result >= 0 }
-{
+ensures { result >= 0 } {
   if n <= 0 then 0 else n + sumTo(n - 1)
 }

@@ -25,6 +25,7 @@
 module examples/runnable/contracts/invoice
 
 import std/string (length as strLength, startsWith)
+
 import std/list (length as listLength)
 
 -- ============================================================================
@@ -32,6 +33,7 @@ import std/list (length as listLength)
 -- ============================================================================
 
 export type CustomerTier = ENTERPRISE | BUSINESS | STARTER | TRIAL | FREE
+
 export type TaxRegion = US_STANDARD | US_REDUCED | EU_STANDARD | EU_REDUCED | TAX_EXEMPT
 
 -- ============================================================================
@@ -41,14 +43,13 @@ export type TaxRegion = US_STANDARD | US_REDUCED | EU_STANDARD | EU_REDUCED | TA
 -- Tax rate by region
 -- Z3 proves: rate is always non-negative and bounded ≤ 2000
 export func taxRate(region: TaxRegion) -> int ! {}
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match region {
     US_STANDARD => 875,
-    US_REDUCED  => 400,
+    US_REDUCED => 400,
     EU_STANDARD => 2000,
-    EU_REDUCED  => 700,
-    TAX_EXEMPT  => 0
+    EU_REDUCED => 700,
+    TAX_EXEMPT => 0
   }
 }
 
@@ -56,8 +57,7 @@ ensures { result >= 0 }
 -- Z3 inlines taxRate and proves tax is non-negative for any amount ≥ 0
 export func calculateTax(amount: int, region: TaxRegion) -> int ! {}
 requires { amount >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   amount * taxRate(region) / 10000
 }
 
@@ -68,14 +68,13 @@ ensures { result >= 0 }
 -- Discount rate by customer tier (basis points)
 -- Z3 proves: discount is bounded and non-negative
 export func tierDiscountRate(tier: CustomerTier) -> int ! {}
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   match tier {
     ENTERPRISE => 2500,
-    BUSINESS   => 1500,
-    STARTER    => 500,
-    TRIAL      => 1000,
-    FREE       => 0
+    BUSINESS => 1500,
+    STARTER => 500,
+    TRIAL => 1000,
+    FREE => 0
   }
 }
 
@@ -83,8 +82,7 @@ ensures { result >= 0 }
 -- Z3 proves: discounted amount is non-negative AND never exceeds original
 export func applyTierDiscount(amount: int, tier: CustomerTier) -> int ! {}
 requires { amount >= 0 }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   amount - amount * tierDiscountRate(tier) / 10000
 }
 
@@ -95,8 +93,7 @@ ensures { result >= 0 }
 -- Validate promo code format: must start with "PROMO-" and be ≥ 8 chars
 -- Z3 proves this is equivalent to the conjunction (tautology check)
 export func isValidPromo(code: string) -> bool ! {}
-ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) }
-{
+ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) } {
   startsWith(code, "PROMO-") && strLength(code) >= 8
 }
 
@@ -104,11 +101,8 @@ ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) }
 -- Z3 proves: rebate is non-negative and bounded by the amount
 export func promoRebate(code: string, amount: int) -> int ! {}
 requires { amount >= 0 }
-ensures { result >= 0 }
-{
-  if startsWith(code, "PROMO-") && strLength(code) >= 8
-  then amount / 10
-  else 0
+ensures { result >= 0 } {
+  if startsWith(code, "PROMO-") && strLength(code) >= 8 then amount / 10 else 0
 }
 
 -- ============================================================================
@@ -116,17 +110,15 @@ ensures { result >= 0 }
 -- ============================================================================
 
 -- Count items in invoice — Z3 proves count is non-negative
-export func itemCount(items: [int]) -> int ! {}
-ensures { result >= 0 }
-{
+export func itemCount(items: list[int]) -> int ! {}
+ensures { result >= 0 } {
   listLength(items)
 }
 
 -- Adding a line item always increases count by exactly 1
 -- Z3 proves using sequence theory: len(x :: xs) = len(xs) + 1
-export func addItem(price: int, items: [int]) -> int ! {}
-ensures { result == listLength(items) + 1 }
-{
+export func addItem(price: int, items: list[int]) -> int ! {}
+ensures { result == listLength(items) + 1 } {
   listLength(price :: items)
 }
 
@@ -136,10 +128,9 @@ ensures { result == listLength(items) + 1 }
 
 -- Validate invoice summary record — Z3 proves net is always non-negative
 -- when discount doesn't exceed subtotal (a key business invariant)
-export func netFromSummary(inv: {subtotal: int, tax: int, discount: int}) -> int ! {}
+export func netFromSummary(inv: { subtotal: int, tax: int, discount: int }) -> int ! {}
 requires { inv.subtotal >= 0, inv.tax >= 0, inv.discount >= 0, inv.discount <= inv.subtotal }
-ensures { result >= 0 }
-{
+ensures { result >= 0 } {
   inv.subtotal - inv.discount + inv.tax
 }
 
@@ -156,11 +147,10 @@ ensures { result >= 0 }
 -- = effectively infinite input space, but Z3 proves it in milliseconds
 export func invoiceTotal(subtotal: int, tier: CustomerTier, region: TaxRegion, promoCode: string) -> int ! {}
 requires { subtotal >= 0 }
-ensures { result >= 0 }
-{
-  let afterDiscount = applyTierDiscount(subtotal, tier);
-  let tax = calculateTax(afterDiscount, region);
-  let rebate = promoRebate(promoCode, afterDiscount);
+ensures { result >= 0 } {
+  let afterDiscount = applyTierDiscount(subtotal, tier)
+  let tax = calculateTax(afterDiscount, region)
+  let rebate = promoRebate(promoCode, afterDiscount)
   afterDiscount + tax - rebate
 }
 
@@ -176,10 +166,9 @@ ensures { result >= 0 }
 -- Z3 catches this before it ever reaches production.
 export func brokenVolumePrice(unitPrice: int, qty: int) -> int ! {}
 requires { unitPrice >= 0, qty >= 0 }
-ensures { result >= 0 }
-{
-  let lineTotal = unitPrice * qty;
-  let volumeDiscount = qty * 50;
+ensures { result >= 0 } {
+  let lineTotal = unitPrice * qty
+  let volumeDiscount = qty * 50
   lineTotal - volumeDiscount
 }
 
@@ -187,11 +176,10 @@ ensures { result >= 0 }
 -- Entry point
 -- ============================================================================
 
-export func main() -> int ! {}
-{
-  let enterprise = invoiceTotal(100000, ENTERPRISE, EU_STANDARD, "PROMO-LAUNCH");
-  let starter = invoiceTotal(5000, STARTER, US_STANDARD, "");
-  let net = netFromSummary({subtotal: 10000, tax: 800, discount: 500});
-  let items = itemCount([1000, 2000, 3000, 500]);
+export func main() -> int ! {} {
+  let enterprise = invoiceTotal(100000, ENTERPRISE, EU_STANDARD, "PROMO-LAUNCH")
+  let starter = invoiceTotal(5000, STARTER, US_STANDARD, "")
+  let net = netFromSummary({ subtotal: 10000, tax: 800, discount: 500 })
+  let items = itemCount([1000, 2000, 3000, 500])
   enterprise + starter + net + items
 }
