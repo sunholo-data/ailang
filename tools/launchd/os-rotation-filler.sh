@@ -74,6 +74,72 @@ BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eva
 BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
                                   # set OS_FILLER_PUSH=1 to autonomously push -> docs deploy.
+# ELO-driven pick priority (M-EVAL-ELO-PRIORITY-ROTATION): order each lap so
+# non-saturated ("signal") benchmarks bank FIRST and saturated ones (ELO band
+# Trivial in the published ratings) run as a cheap once-per-version
+# re-confirmation TAIL at reduced trials — they can un-saturate after a
+# regression, so they are reordered, never skipped. Saturation is read from the
+# unified dashboard JSON (ratings.agent[.byLang.ailang]), which step 8 below
+# refreshes each cycle from the cloud+local merged fit — a closed loop. Fail-open:
+# if jq/JSON/ratings are unavailable the order degrades to today's ls-order.
+ELO_PRIORITY="${OS_FILLER_ELO_PRIORITY:-1}"   # 0 = legacy ls-order round-robin
+SAT_TRIALS="${OS_FILLER_SAT_TRIALS:-1}"       # trials for saturated re-confirmation runs
+RATINGS_JSON="docs/static/benchmarks/latest.json"
+
+# sat_set [lang] — echo the saturated ids as a ,-wrapped membership set (",a,b,")
+# for `case` matching; "," (empty set) when priority is off or ratings unreadable.
+# Prefers the per-language fit (byLang.<lang>) when a lang is given.
+sat_set() {
+  ids=""
+  if [ "$ELO_PRIORITY" = "1" ]; then
+    ids="$(bash tools/eval-signal-set.sh --json "$RATINGS_JSON" --mode agent ${1:+--lang "$1"} 2>>"$LOG")" || ids=""
+  fi
+  if [ -n "$ids" ]; then printf ',%s,\n' "$(printf '%s' "$ids" | tr '\n' ',')" | sed 's/,,/,/g'
+  else echo ","; fi
+}
+
+# prioritize_benches NAME... — echo the names reordered signal-first then
+# saturated-tail (input order preserved within each group), one per line.
+# Membership set is read from $SAT_SET. Lap/cursor/coverage semantics are
+# untouched: same list, same length, front-loaded by signal.
+prioritize_benches() {
+  sig=""; sat=""
+  for pb in "$@"; do
+    case "$SAT_SET" in
+      *",$pb,"*) sat="${sat}${pb}
+";;
+      *)         sig="${sig}${pb}
+";;
+    esac
+  done
+  printf '%s%s' "$sig" "$sat"
+}
+
+# split_pick CSV — split a comma pick-list into PICK_SIG / PICK_SAT globals by
+# $SAT_SET membership, so trial count follows the benchmark, not the chunk.
+split_pick() {
+  PICK_SIG=""; PICK_SAT=""
+  _SOIFS="$IFS"; IFS=','
+  for sp in $1; do
+    case "$SAT_SET" in
+      *",$sp,"*) PICK_SAT="${PICK_SAT:+$PICK_SAT,}$sp";;
+      *)         PICK_SIG="${PICK_SIG:+$PICK_SIG,}$sp";;
+    esac
+  done
+  IFS="$_SOIFS"
+}
+
+# run_chunk LABEL PICKS LANGS TRIALS — one eval-suite invocation for a comma
+# pick-list; no-op on an empty list. Preserves the reimplement special case
+# (single trial + long timeout) per group, exactly as the old whole-chunk logic.
+run_chunk() {
+  rc_label="$1"; rc_picks="$2"; rc_langs="$3"; rc_trials="$4"; rc_tmo="$CHUNK_TIMEOUT"
+  [ -n "$rc_picks" ] || return 0
+  case "$rc_picks" in *reimplement*) rc_trials=1; rc_tmo="5400s";; esac
+  ailang eval-suite --agent --models "$MODELS" --benchmarks "$rc_picks" --langs "$rc_langs" \
+    --parallel 1 --microrag on --trials "$rc_trials" --skip-existing --bank-by-version --timeout "$rc_tmo" \
+    --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
+}
 
 # 1. Blackout window — stay clear of the scheduled nightly jobs.
 if rig_in_blackout "$BLACKOUT_START" "$BLACKOUT_END"; then
@@ -148,6 +214,16 @@ else
     T=$(grep -E '^tier:' "$f" 2>/dev/null | head -1 | sed -E 's/^tier:[[:space:]]*//; s/[[:space:]]*#.*//; s/"//g' | tr -d '[:space:]')
     case ",$FULL_TIERS," in (*",$T,"*) basename "$f" .yml;; esac
   done) )
+  # ELO priority: signal benchmarks to the head, saturated to the tail. The
+  # per-language fit (byLang.ailang) is preferred for this AILANG-only pass.
+  SAT_SET="$(sat_set ailang)"
+  if [ "$SAT_SET" != "," ] && [ ${#BENCHES_FULL[@]} -gt 0 ]; then
+    # shellcheck disable=SC2207
+    BENCHES_FULL=( $(prioritize_benches "${BENCHES_FULL[@]}") )
+    nsat=0
+    for b in "${BENCHES_FULL[@]}"; do case "$SAT_SET" in *",$b,"*) nsat=$((nsat + 1));; esac; done
+    log "elo-priority(ailang-full): $(( ${#BENCHES_FULL[@]} - nsat )) signal first, $nsat saturated tail (source: $RATINGS_JSON)"
+  fi
   FULL_TOTAL=${#BENCHES_FULL[@]}
   FULL_CURSOR="$ROLL/${VERSION}/.ailang-full-cursor"   # per-version: a wrap == a true full lap for this release
   LAP_MARKER="$ROLL/${VERSION}/.ailang-full-lapped"
@@ -198,13 +274,13 @@ else
       [ "$F_WRAPPED" = "1" ] && : > "$LAP_MARKER"   # first full lap done -> hand off next cycle
       OFFSET="$F_OFFSET"; WRAPPED="$F_WRAPPED"
       log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, coverage $MIN_COV/$FULL_TOTAL, wrapped=$F_WRAPPED)"
-      F_TRIALS=3; F_TMO="$CHUNK_TIMEOUT"
-      case "$F_PICK" in *reimplement*) F_TRIALS=1; F_TMO="5400s";; esac
       # --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new
       # build/release re-evals from scratch and history accumulates per release.
-      ailang eval-suite --agent --models "$MODELS" --benchmarks "$F_PICK" --langs ailang \
-        --parallel 1 --microrag on --trials "$F_TRIALS" --skip-existing --bank-by-version --timeout "$F_TMO" \
-        --output "$ROLL" >>"$LOG" 2>&1 || log "ailang-full chunk had failures (continuing)"
+      # Saturated picks (boundary/tail chunks) run at $SAT_TRIALS — one failing
+      # re-confirmation trial is enough to move the fit and un-saturate them.
+      split_pick "$F_PICK"
+      run_chunk "ailang-full" "$PICK_SIG" ailang 3
+      run_chunk "ailang-full(saturated)" "$PICK_SAT" ailang "$SAT_TRIALS"
     fi
   fi
 fi
@@ -228,6 +304,16 @@ if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
     echo "$L" | grep -qE '\bgo\b' || continue
     basename "$f" .yml
   done) )
+  # ELO priority for the cross-language pass: blended top-level agent set (no
+  # per-language fits exist yet for python/js/go — see design doc, deferred).
+  SAT_SET="$(sat_set)"
+  if [ "$SAT_SET" != "," ] && [ ${#BENCHES[@]} -gt 0 ]; then
+    # shellcheck disable=SC2207
+    BENCHES=( $(prioritize_benches "${BENCHES[@]}") )
+    nsat=0
+    for b in "${BENCHES[@]}"; do case "$SAT_SET" in *",$b,"*) nsat=$((nsat + 1));; esac; done
+    log "elo-priority(cross-language): $(( ${#BENCHES[@]} - nsat )) signal first, $nsat saturated tail (source: $RATINGS_JSON)"
+  fi
   TOTAL=${#BENCHES[@]}
   if [ "$TOTAL" -eq 0 ]; then
     log "no 4-language benchmarks — skipping cross-language pass"
@@ -245,11 +331,9 @@ if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
     WRAPPED=0; [ "$NEXT" -le "$OFFSET" ] && WRAPPED=1
     mkdir -p "$(dirname "$CURSOR")"; echo "$NEXT" > "$CURSOR"
     log "cross-language cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
-    TRIALS=3; TMO="$CHUNK_TIMEOUT"
-    case "$PICK" in *reimplement*) TRIALS=1; TMO="5400s";; esac
-    ailang eval-suite --agent --models "$MODELS" --benchmarks "$PICK" --langs "$LANGS" \
-      --parallel 1 --microrag on --trials "$TRIALS" --skip-existing --bank-by-version --timeout "$TMO" \
-      --output "$ROLL" >>"$LOG" 2>&1 || log "cross-language chunk had failures (continuing)"
+    split_pick "$PICK"
+    run_chunk "cross-language" "$PICK_SIG" "$LANGS" 3
+    run_chunk "cross-language(saturated)" "$PICK_SAT" "$LANGS" "$SAT_TRIALS"
   fi
 fi
 
