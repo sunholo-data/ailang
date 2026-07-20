@@ -448,25 +448,23 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}, nil
 	}
 
-	// END-TO-END SYSTEM-PROMPT DELIVERY GUARD (M-RIG-RELIABILITY). This bug has
-	// recurred 7×, each time in a DIFFERENT layer (default flag, env-forward
-	// scrub, path rejection) with the IDENTICAL symptom: the AILANG teaching
-	// never reaches the model → dialect confusion → step-budget exhaustion. No
-	// per-layer fix stops it; only asserting the OUTCOME does. If we wrote a
-	// SYSTEM_MD file (intended delivery) but the session reports system_md !=
-	// "set", delivery failed — FAIL LOUDLY (CLAUDE.md: NO SILENT FALLBACKS) so
-	// the next regression is caught in the run output, not days later by luck.
+	// END-TO-END SYSTEM-PROMPT DELIVERY GUARD (M-RIG-RELIABILITY) — see
+	// guardSystemPromptDelivery for the full rationale. It distinguishes the
+	// recurring delivery regression from a motoko startup crash before step 0
+	// (which produces the same system_md != "set" but whose answer is in the
+	// stderr log, not the delivery layers).
 	if systemPromptPath != "" {
-		sysMD, _ := result.ProviderData["system_md"].(string)
-		if sysMD != "set" {
-			msg := fmt.Sprintf("SYSTEM PROMPT NOT DELIVERED: wrote SYSTEM_MD=%s but session reports system_md=%q "+
-				"(expected \"set\"). The AILANG teaching did not reach the model — recurring delivery regression.",
-				systemPromptPath, sysMD)
+		verdict, msg := guardSystemPromptDelivery(result, systemPromptPath, stderrLogPath,
+			tailString(stderrBuf.String(), 2048))
+		switch verdict {
+		case sysPromptDelivered:
+			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", true))
+		case sysPromptStartupCrash:
+			fmt.Fprintf(os.Stderr, "[motoko] ⚠️  %s\n", msg)
+			span.SetAttributes(attribute.Bool("motoko.startup_crash", true))
+		case sysPromptDeliveryRegression:
 			fmt.Fprintf(os.Stderr, "[motoko] ⚠️  %s\n", msg)
 			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", false))
-			result.ProviderData["system_prompt_delivery_error"] = msg
-		} else {
-			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", true))
 		}
 	}
 
