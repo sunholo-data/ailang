@@ -945,6 +945,15 @@ frozen; contracts projection live).
   quorum-at-pick. Eval-infra (non-gating for v1.0) but Mark-prioritized — pick after the
   greenlit clause-3 trio unless the queue blocks. **RE-RUN VERIFICATION MODELS: the GLM 5.1/5.2
   pair + Kimi K3 (top OpenRouter model, 97/109 standard — also reasoning-class).**
+- **m-comments-for-ai-authors** ([planned/v0_31_0](planned/v0_31_0/m-comments-for-ai-authors.md),
+  **direction RATIFIED by Mark 2026-07-20**: prompt style guidance + first-class `---`
+  doc-comments + contracts/tests-as-self-documentation "as much as is reasonable" + the eval) —
+  M1 prompt comment-style section (≤15 net lines, prompt-manager lane, ~0.5d) · M2 the
+  comment-variant A/B (V-strip / V-keep / V-migrate on MODIFICATION tasks, haiku, N-run
+  aggregates; registered hypotheses; SHARES m-eval-fmt-weakmodel-ab's variant machinery — build
+  once, run both) · M3 first-class `---` doc-comments as AST nodes (v0.31; dissolves fmt
+  attachment at the root for the doc position; sequence AFTER the fmt polish pair) · M4
+  contracts-as-docs exemplars (rolling). First measured comment semantics for AI authors.
 - **m-eval-fmt-weakmodel-ab [NEW-DOC, Mark 2026-07-20** — "fmt should be a real help for weaker
   models creating AILANG… can we do a test with a weak model to see if its making a difference?"
   + his #422 directive "test it's used by small model such as haiku"**]**: A/B agent-mode evals,
