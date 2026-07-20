@@ -21,7 +21,7 @@
 #           through internal/embed.
 #
 # Matching is anchored on quoted Go import paths of the form
-#   "github.com/sunholo/ailang/internal/<pkg>"
+#   "github.com/sunholo-data/ailang/internal/<pkg>"
 # (NOT a naive un-anchored grep, which never matches real import lines).
 #
 # Exit 0 = clean. Exit 1 = at least one BOUNDARY VIOLATION (offending
@@ -79,7 +79,7 @@ join_alt() {
 search_imports() {
   local src_dir="$1"
   local alt="$2"
-  # Regex: a quoted "github.com/sunholo/ailang/internal/(pkg1|pkg2|...)"
+  # Regex: a quoted "github.com/sunholo-data/ailang/internal/(pkg1|pkg2|...)"
   # The trailing (/[^"]*)?" allows sub-packages (none today, but future-proof).
   local pattern="\"${MODULE}/internal/(${alt})(/[^\"]*)?\""
   if command -v rg >/dev/null 2>&1; then
