@@ -455,8 +455,12 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 	// End-to-end system-prompt delivery signal (M-RIG-RELIABILITY). The executor
 	// asserts on this: if it wrote a SYSTEM_MD file (intended delivery) but this
 	// is not "set", the AILANG teaching never reached the model — the recurring
-	// bug. Empty means the session predates the runtime_config_resolved event.
+	// bug. Empty means the session predates the runtime_config_resolved event
+	// — OR motoko crashed at startup before emitting it (see the guard in
+	// motoko.go, which uses motoko_run_summary_present below to tell the two
+	// apart).
 	res.ProviderData["system_md"] = systemMDState
+	res.ProviderData["motoko_run_summary_present"] = gotRunSummary
 
 	// If run_summary is missing, fall back to summed totals + infer success
 	// from the last thinking event's finish_reason. M-MOTOKO-EVAL-HARNESS-
