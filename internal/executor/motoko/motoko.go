@@ -58,6 +58,29 @@ import (
 
 var motokoTracer = telemetry.Tracer("executor.motoko")
 
+// stderrTailBytes bounds the stderr excerpt attached to Result.Error on
+// crash-shaped failures. ~1KB captures the tail of an AILANG compile error or
+// bun stack trace without flooding eval-harness logs; the full output is on
+// disk at the per-task stderr log.
+const stderrTailBytes = 1024
+
+// attachStderrTail appends the captured subprocess stderr tail + the on-disk
+// stderr log path to a Result error message. Applied on EVERY failure path
+// where motoko died without an authoritative run_summary (session JSONL
+// missing, JSONL unparseable, crash before/mid-run — audited systemically per
+// CLAUDE.md #3). In each of those the real cause is on stderr: the 2026-07-16
+// incident (v0.30.0 std/ai.Message gained an `images` field → motoko's 4-field
+// literals failed to compile at startup) sat fully captured in the stderr log
+// while the Result.Error said only "terminated without emitting run_summary",
+// misdirecting triage to the historical delivery-regression class for days.
+func attachStderrTail(msg, stderrLogPath, stderr string) string {
+	tail := strings.TrimSpace(tailString(stderr, stderrTailBytes))
+	if tail == "" {
+		return fmt.Sprintf("%s (subprocess stderr was empty; log: %s)", msg, stderrLogPath)
+	}
+	return fmt.Sprintf("%s — stderr tail (full log: %s):\n%s", msg, stderrLogPath, tail)
+}
+
 // systemPromptViaSystemRole reports whether the AILANG system prompt should be
 // delivered as a persistent system-role message (written to SYSTEM_MD) rather
 // than folded into the user directive (where context compaction strips it on
@@ -425,13 +448,18 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 	wallDurationMS := int(time.Since(startTime).Milliseconds())
 
-	// Locate the session JSONL motoko wrote during the run.
+	// Locate the session JSONL motoko wrote during the run. No JSONL at all is
+	// the startup-crash shape (motoko died before its logger initialized — e.g.
+	// an AILANG compile error on stdlib schema drift), so the cause is on
+	// stderr: attach its tail rather than reporting only the missing file.
 	jsonlPath, findErr := findSessionJSONL(task.Workspace, sessionID, e.motokoRepo)
 	if findErr != nil {
 		span.SetStatus(codes.Error, "session jsonl not found")
 		return &executor.Result{
-			Success:    false,
-			Error:      fmt.Sprintf("motoko ran but no session JSONL found: %v", findErr),
+			Success: false,
+			Error: attachStderrTail(
+				fmt.Sprintf("motoko ran but no session JSONL found: %v", findErr),
+				stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
@@ -441,8 +469,10 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if parseErr != nil {
 		span.SetStatus(codes.Error, "session jsonl parse failed")
 		return &executor.Result{
-			Success:    false,
-			Error:      fmt.Sprintf("motoko session JSONL parse failed: %v", parseErr),
+			Success: false,
+			Error: attachStderrTail(
+				fmt.Sprintf("motoko session JSONL parse failed: %v", parseErr),
+				stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
@@ -453,19 +483,32 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// recurring delivery regression from a motoko startup crash before step 0
 	// (which produces the same system_md != "set" but whose answer is in the
 	// stderr log, not the delivery layers).
+	stderrAttached := false // set when the guard already embedded the stderr tail in result.Error
 	if systemPromptPath != "" {
 		verdict, msg := guardSystemPromptDelivery(result, systemPromptPath, stderrLogPath,
-			tailString(stderrBuf.String(), 2048))
+			tailString(stderrBuf.String(), stderrTailBytes))
 		switch verdict {
 		case sysPromptDelivered:
 			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", true))
 		case sysPromptStartupCrash:
 			fmt.Fprintf(os.Stderr, "[motoko] ⚠️  %s\n", msg)
 			span.SetAttributes(attribute.Bool("motoko.startup_crash", true))
+			stderrAttached = true
 		case sysPromptDeliveryRegression:
 			fmt.Fprintf(os.Stderr, "[motoko] ⚠️  %s\n", msg)
 			span.SetAttributes(attribute.Bool("motoko.system_prompt_delivered", false))
 		}
+	}
+
+	// STDERR ATTRIBUTION for every remaining crash shape: the session JSONL
+	// parsed but has no authoritative run_summary and the run failed — startup
+	// crash with no system prompt configured (guard never ran), mid-run crash,
+	// or a terminal error event. The parser's message ("terminated without
+	// emitting run_summary (likely crash)" etc.) names the SYMPTOM; the CAUSE
+	// is on stderr. Attach it here — skipping only when the guard's startup-
+	// crash verdict already embedded the same tail.
+	if runSummaryPresent, _ := result.ProviderData["motoko_run_summary_present"].(bool); !result.Success && !runSummaryPresent && !stderrAttached {
+		result.Error = attachStderrTail(result.Error, stderrLogPath, stderrBuf.String())
 	}
 
 	// run_summary may carry its own duration_ms (from motoko's internal
