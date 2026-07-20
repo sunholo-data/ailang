@@ -31,6 +31,14 @@ inner-loop skills — it does not duplicate them.
    Doc-only edits (mission doc, log) may proceed; sprint work goes to a coordinator worktree anyway.
 4. Unread inbox messages: triage per agent-inbox skill. A genuine regression or human directive
    OUTRANKS the queue — it becomes this iteration's pick.
+   **CLOSE THE ISSUE WITH THE VERDICT (added 2026-07-20 — external viewers read our stale alarms
+   as open regressions, #417):** the nightly bot files a GitHub issue per regression
+   (`[nightly-eval] Nightly regression: <benchmark>`). Whatever the triage concludes, the issue
+   gets it: **refuted-as-noise → close** with the evidence one-liner; **fixed → close** citing the
+   commit; **recovered without action** (passes in later runs AND not re-flagged by the next
+   nightly) → close as transient; **genuine + persisting → comment** the triage verdict and leave
+   open (it's the pick). Find them: `gh issue list --search "[nightly-eval] in:title" --state open`.
+   Eleven stale alarms accumulated in 5 weeks before this rule; zero is the standard now.
 5. **The bookkeeping issue is BIDIRECTIONAL (added 2026-07-16, Mark: "I could comment on the
    issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
    commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
