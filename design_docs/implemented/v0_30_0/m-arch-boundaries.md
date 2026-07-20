@@ -9,7 +9,7 @@
 > (parser+prompt+fixtures+docs in one evaluated PR); repo splits would tax every iteration.
 
 
-**Status**: Planned
+**Status**: IMPLEMENTED 2026-07-20 (iter 68, Phases 1-3; Phase 4 physical mv deferred to v1.0→v1.1) — PR #420 `ee97fada6`, eval PASS 88/100 r1
 **Target**: v0.7.0
 **Priority**: P1 (Medium)
 **Estimated**: 2-3 days
