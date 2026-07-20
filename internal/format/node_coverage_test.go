@@ -256,7 +256,9 @@ func TestDeclNodeCoverage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mustContain(t, got, "@verify(1)")
+		// @verify re-emits the `depth:` key so the annotation round-trips
+		// (parseVerifyAnnotation requires it).
+		mustContain(t, got, "@verify(depth: 1)")
 	})
 
 	t.Run("FuncDecl_tests", func(t *testing.T) {

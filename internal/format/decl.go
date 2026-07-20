@@ -77,7 +77,21 @@ func (p *printer) funcDecl(d *ast.FuncDecl) error {
 	if eff := formatEffectRow(d.Effects); eff != "" {
 		p.w.write(" " + eff)
 	}
-	if err := p.testsAndProperties(d); err != nil {
+	// FuncDecl.Properties is a mixed-kind slice: RequiresKind/EnsuresKind contract
+	// clauses (parsed by parseContractBlocks, signature position) and PropertyKind
+	// forall properties (parsed from a `properties [...]` block). Partition by Kind
+	// and emit each in the ONLY position the parser accepts:
+	//   - requires/ensures contract clauses go in SIGNATURE position (after the
+	//     effect row, before tests/properties and the body);
+	//   - PropertyKind entries route through the existing `properties [...]` block.
+	requires, ensures, props := partitionProperties(d.Properties)
+	if err := p.contractClauses("requires", requires); err != nil {
+		return err
+	}
+	if err := p.contractClauses("ensures", ensures); err != nil {
+		return err
+	}
+	if err := p.testsAndProperties(d.Tests, props); err != nil {
 		return err
 	}
 	// Extern functions have no body.
@@ -164,39 +178,98 @@ func (p *printer) funcBody(body ast.Expr) error {
 
 func (p *printer) annotation(a *ast.Annotation) error {
 	p.w.write("@" + a.Name)
-	if len(a.Args) > 0 {
-		p.w.write("(")
-		for i, arg := range a.Args {
-			if i > 0 {
-				p.w.write(", ")
-			}
-			if err := p.expr(arg, precLowest); err != nil {
-				return err
-			}
+	if len(a.Args) == 0 {
+		return nil
+	}
+	// @verify parses the surface form `@verify(depth: N)` but stores only the int
+	// literal N in Args (the `depth:` key is dropped by parseVerifyAnnotation). The
+	// generic positional emission below would print `@verify(N)`, which the parser
+	// then rejects (PAR_VERIFY_ATTR_KEY: "expected 'depth' key"). Re-emit the key so
+	// the annotation round-trips.
+	if a.Name == "verify" && len(a.Args) == 1 {
+		p.w.write("(depth: ")
+		if err := p.expr(a.Args[0], precLowest); err != nil {
+			return err
 		}
 		p.w.write(")")
+		return nil
 	}
+	p.w.write("(")
+	for i, arg := range a.Args {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		if err := p.expr(arg, precLowest); err != nil {
+			return err
+		}
+	}
+	p.w.write(")")
+	return nil
+}
+
+// partitionProperties splits a mixed-kind FuncDecl.Properties slice into its
+// requires clauses, ensures clauses, and remaining (PropertyKind) properties,
+// each preserving the original relative order. InvariantKind is not produced by
+// the current grammar; any non-requires/ensures entry is treated as a property
+// so it routes through the `properties [...]` block rather than being silently
+// dropped.
+func partitionProperties(all []*ast.Property) (requires, ensures, props []*ast.Property) {
+	for _, pr := range all {
+		switch pr.Kind {
+		case ast.RequiresKind:
+			requires = append(requires, pr)
+		case ast.EnsuresKind:
+			ensures = append(ensures, pr)
+		default:
+			props = append(props, pr)
+		}
+	}
+	return requires, ensures, props
+}
+
+// contractClauses prints one merged `requires { p1, p2, … }` / `ensures { … }`
+// clause in signature position (column 0, matching the prevailing corpus style),
+// or nothing when the slice is empty. Duplicate requires/ensures blocks are a
+// parse-time diagnostic, so emitting a single merged block per kind is canonical
+// and re-parses to the identical slice order.
+func (p *printer) contractClauses(keyword string, preds []*ast.Property) error {
+	if len(preds) == 0 {
+		return nil
+	}
+	p.w.hardline()
+	p.w.write(keyword + " { ")
+	for i, pr := range preds {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		if err := p.property(pr); err != nil {
+			return err
+		}
+	}
+	p.w.write(" }")
 	return nil
 }
 
 // testsAndProperties prints inline `tests [...]` and `properties [...]` blocks on
-// their own indented lines before the function body.
-func (p *printer) testsAndProperties(d *ast.FuncDecl) error {
-	if len(d.Tests) > 0 {
+// their own indented lines before the function body. props MUST be pre-filtered to
+// PropertyKind entries only (contract clauses are emitted separately in signature
+// position by contractClauses), so this cannot re-emit contract predicates.
+func (p *printer) testsAndProperties(tests []*ast.TestCase, props []*ast.Property) error {
+	if len(tests) > 0 {
 		p.w.hardline()
 		var err error
 		p.w.indented(func() {
-			err = p.testsBlock(d.Tests)
+			err = p.testsBlock(tests)
 		})
 		if err != nil {
 			return err
 		}
 	}
-	if len(d.Properties) > 0 {
+	if len(props) > 0 {
 		p.w.hardline()
 		var err error
 		p.w.indented(func() {
-			err = p.propertiesBlock(d.Properties)
+			err = p.propertiesBlock(props)
 		})
 		if err != nil {
 			return err
