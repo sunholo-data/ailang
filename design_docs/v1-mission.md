@@ -804,11 +804,15 @@ triage evidence = log entry 10.)*
   `*ast.Let.Body` shape of all 28 & correct the Problem-Statement bare-`;` sentence), (2) authorize one more bounded
   quorum round to fold the AST-shape verification in, (3) keep parked. NOT urgent (current behavior safe fail-closed,
   never lossy). Log entry 72. ·
-  **m-fmt-properties-printer-roundtrip** (**[PARKED needs-human-review iter 66 — QUORUM-AT-PICK: R1
-  BLOCKED (unverified `FuncDecl.Properties` consumer blast radius) → Rev-2 resolved (V17 6-site
-  consumer audit + acceptance-gated combined-case integration test) → R2 re-quorum still-BLOCKED by
-  ONE persistent gpt5-6-sol objection (V17 grepped only `internal/`)]** →
-  [planned/v0_30_0/m-fmt-properties-printer-roundtrip.md](planned/v0_30_0/m-fmt-properties-printer-roundtrip.md),
+  **m-fmt-properties-printer-roundtrip** (**[LANDED 2026-07-20 (iter 69) — PR #424 squash `942931816`;
+  UNPARKED by Mark #422 "Continue the AILANG fmt sprint and go to sprint planner"; planner (opus) →
+  executor (opus, worktree) M1–M2 → evaluator (sonnet, generator≠judge) PASS 98/100 r1; contract-clause
+  printer round-trip fix + silent-contract-deletion data-loss fix (`parser_func.go` `=`→append) + 2
+  adjacent Phase-1 printer bugs the full-corpus sweep exposed (precedence-driven `;`-separation;
+  `@verify(depth:)` key re-synthesis) → `preexisting-Phase1-rt-bug` gate 28→0, hardened; 30 contract
+  examples reformatted; doc → `implemented/v0_30_0/`. Was: PARKED needs-human-review iter 66 (quorum R2
+  data-refuted). `metered=$0.00`]** →
+  [implemented/v0_30_0/m-fmt-properties-printer-roundtrip.md](implemented/v0_30_0/m-fmt-properties-printer-roundtrip.md),
   see its ⛔ Quorum Record. **Controller repo-wide re-check DATA-REFUTES the residual objection**: the
   only `ast.FuncDecl.Properties` consumers repo-wide are exactly the V17 sites (`internal/elaborate`
   + `internal/testing`); the `cmd/ailang/test.go` `.Properties` hits are a distinct `[]PropertyResult`
