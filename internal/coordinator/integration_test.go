@@ -2,7 +2,6 @@ package coordinator
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -286,16 +285,33 @@ func TestIntegration_TaskAnalyzerClassification(t *testing.T) {
 	}
 }
 
+// approveWhenRegistered resolves the request as soon as RequestApproval has
+// registered it, retrying instead of sleeping so the test doesn't race the
+// request timeout on a loaded runner.
+func approveWhenRegistered(ctx context.Context, resolve func() error) {
+	for {
+		if err := resolve(); err == nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Millisecond):
+		}
+	}
+}
+
 // TestIntegration_ApprovalCheckpoint tests the approval checkpoint workflow
 func TestIntegration_ApprovalCheckpoint(t *testing.T) {
 	checkpoint := NewApprovalCheckpoint(1 * time.Hour)
 
-	var callbackCalled atomic.Bool
+	callbackCh := make(chan *ApprovalRequest, 1)
 	checkpoint.SetCallback(func(request *ApprovalRequest) {
-		callbackCalled.Store(true)
+		callbackCh <- request
 	})
 
-	// Create approval request
+	// Create approval request. Timeouts are generous: resolution is
+	// event-driven, so they only bound how long a broken run can hang.
 	request := &ApprovalRequest{
 		ID:            "apr-test-1",
 		TaskID:        "task-test-1",
@@ -303,17 +319,15 @@ func TestIntegration_ApprovalCheckpoint(t *testing.T) {
 		Title:         "Test Approval",
 		Description:   "Please approve this test",
 		SourceAgentID: "coordinator",
-		Timeout:       100 * time.Millisecond, // Short timeout for test
+		Timeout:       10 * time.Second,
 	}
 
-	// Submit request with background approval
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	go func() {
-		time.Sleep(30 * time.Millisecond)
-		_ = checkpoint.Approve(request.ID, "test-user")
-	}()
+	go approveWhenRegistered(ctx, func() error {
+		return checkpoint.Approve(request.ID, "test-user")
+	})
 
 	status, err := checkpoint.RequestApproval(ctx, request)
 	if err != nil {
@@ -324,7 +338,14 @@ func TestIntegration_ApprovalCheckpoint(t *testing.T) {
 		t.Errorf("expected status approved, got %s", status)
 	}
 
-	if !callbackCalled.Load() {
+	// resolve() signals the waiter before invoking the callback, so the
+	// callback may fire after RequestApproval returns — wait for it.
+	select {
+	case resolved := <-callbackCh:
+		if resolved.Status != ApprovalStatusApproved {
+			t.Errorf("callback saw status %s, want %s", resolved.Status, ApprovalStatusApproved)
+		}
+	case <-time.After(10 * time.Second):
 		t.Error("expected callback to be called")
 	}
 }
@@ -340,16 +361,15 @@ func TestIntegration_ApprovalCheckpointRejection(t *testing.T) {
 		Title:         "Test Rejection",
 		Description:   "This will be rejected",
 		SourceAgentID: "coordinator",
-		Timeout:       100 * time.Millisecond, // Short timeout for test
+		Timeout:       10 * time.Second,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	go func() {
-		time.Sleep(30 * time.Millisecond)
-		_ = checkpoint.Reject(request.ID, "test-user")
-	}()
+	go approveWhenRegistered(ctx, func() error {
+		return checkpoint.Reject(request.ID, "test-user")
+	})
 
 	status, err := checkpoint.RequestApproval(ctx, request)
 	if err != nil {
