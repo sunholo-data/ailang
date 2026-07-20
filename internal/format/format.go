@@ -172,6 +172,34 @@ func (p *printer) hasFloating(owner any, boundary int) bool {
 	return len(p.att.floating[attKey{owner: owner, index: boundary}]) > 0
 }
 
+// hasAnyAttachment reports whether any leading/floating/trailing comment is attached
+// to any boundary/child of owner. It drives the conditional multi-line let-chain
+// layout (M-AILANG-FMT-INLINE-INTERIOR): a let chain uses the existing inline spelling
+// unless its root owns at least one comment. With att:nil (Source) or an empty index
+// (zero-comment SourceWithComments) it is always false, so comment-free input takes
+// the exact old inline branch — the byte-identity invariant.
+func (p *printer) hasAnyAttachment(owner any) bool {
+	if p.att == nil {
+		return false
+	}
+	for k := range p.att.leading {
+		if k.owner == owner {
+			return true
+		}
+	}
+	for k := range p.att.floating {
+		if k.owner == owner {
+			return true
+		}
+	}
+	for k := range p.att.trailing {
+		if k.owner == owner {
+			return true
+		}
+	}
+	return false
+}
+
 // emitTrailing emits a same-line trailing comment for (owner, child) after the
 // child's text, on the same line (two-space gutter).
 func (p *printer) emitTrailing(owner any, child int) {

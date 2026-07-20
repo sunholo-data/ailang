@@ -3,8 +3,10 @@ package format
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
@@ -273,4 +275,127 @@ func keysOf(m map[string]string) []string {
 		ks = append(ks, k)
 	}
 	return ks
+}
+
+// TestInlineInterior_LetChainPreservedAndIdempotent is the M2 acceptance gate (design
+// §Testing Strategy). It runs the Example-2 source through the full 7-assertion chain:
+// parse OK → SourceWithComments OK → KEEP_INTERIOR exactly once → exact canonical
+// multi-line golden → structural reparse equality (ignore Pos/Span) → SourceWithComments
+// on the output → pass-two bytes == pass-one bytes. It FAILS if the comment is floated
+// to a declaration/block boundary instead of the chain boundary.
+func TestInlineInterior_LetChainPreservedAndIdempotent(t *testing.T) {
+	src := "module demo\n\nexport func main() -> int =\n  let x = 1 in\n  -- KEEP_INTERIOR\n  let y = 2 in\n  x + y\n"
+
+	// (1) Parse OK.
+	p := parser.New(lexer.New(src, "demo"))
+	prog := p.Parse()
+	if errs := p.Errors(); len(errs) > 0 {
+		t.Fatalf("(1) parse: %v", errs[0])
+	}
+
+	// (2) SourceWithComments OK.
+	out, err := SourceWithComments(prog, []byte(src), Options{})
+	if err != nil {
+		t.Fatalf("(2) SourceWithComments: %v", err)
+	}
+	outS := string(out)
+
+	// (3) KEEP_INTERIOR exactly once.
+	if n := strings.Count(outS, "-- KEEP_INTERIOR"); n != 1 {
+		t.Fatalf("(3) KEEP_INTERIOR appears %d times (want 1):\n%s", n, outS)
+	}
+
+	// (4) Exact canonical multi-line golden (the design's Example 2). The comment MUST
+	// sit between the two bindings at the chain boundary — NOT floated to the decl/block.
+	golden := "module demo\n\nexport func main() -> int =\n  let x = 1 in\n  -- KEEP_INTERIOR\n  let y = 2 in\n  x + y\n"
+	if outS != golden {
+		t.Fatalf("(4) canonical golden mismatch:\n--- got ---\n%s\n--- want ---\n%s", outS, golden)
+	}
+	// Guard against a silent regression that stops refusing but floats the comment to a
+	// boundary: the comment line must be immediately BETWEEN the two `let` lines.
+	lines := strings.Split(outS, "\n")
+	var ci = -1
+	for i, l := range lines {
+		if strings.Contains(l, "-- KEEP_INTERIOR") {
+			ci = i
+		}
+	}
+	if ci < 1 || ci+1 >= len(lines) ||
+		!strings.Contains(lines[ci-1], "let x = 1 in") ||
+		!strings.Contains(lines[ci+1], "let y = 2 in") {
+		t.Fatalf("(4b) comment not at the chain boundary (floated?):\n%s", outS)
+	}
+
+	// (5) Reparse output; structural AST equality with the original (ignore Pos/Span).
+	rp := parser.New(lexer.New(outS, "demo"))
+	reprog := rp.Parse()
+	if errs := rp.Errors(); len(errs) > 0 {
+		t.Fatalf("(5) reparse of output failed: %v", errs[0])
+	}
+	if diff := cmp.Diff(prog.File, reprog.File, ignorePosSpan); diff != "" {
+		t.Fatalf("(5) structural round-trip differs (-orig +reparsed):\n%s", diff)
+	}
+
+	// (6)+(7) SourceWithComments on the output; pass-two bytes == pass-one bytes.
+	out2, err := SourceWithComments(reprog, out, Options{})
+	if err != nil {
+		t.Fatalf("(6) second SourceWithComments: %v", err)
+	}
+	if string(out2) != outS {
+		t.Fatalf("(7) not idempotent:\n--- pass 1 ---\n%s\n--- pass 2 ---\n%s", outS, string(out2))
+	}
+}
+
+// TestInlineInterior_TargetsFormatLosslessly is the M2 METRIC probe: every clean
+// target file (all but the deferred-footer carriers) now formats without a refusal and
+// preserves its comment count exactly. This is the CLI-equivalent "refusals for the
+// target set drop to 0" check at the library layer.
+func TestInlineInterior_TargetsFormatLosslessly(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	var ok int
+	for _, rel := range inlineInteriorLetChainTargets {
+		if _, footer := inlineInteriorFooterCarriers[rel]; footer {
+			continue // deferred-class residual comment keeps it refused (M3 verifies)
+		}
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		p := parser.New(lexer.New(string(data), rel))
+		prog := p.Parse()
+		if len(p.Errors()) > 0 || prog == nil || prog.File == nil {
+			t.Fatalf("%s not parse-valid", rel)
+		}
+		out, ferr := SourceWithComments(prog, data, Options{})
+		if ferr != nil {
+			t.Errorf("%s: expected lossless format, got refusal: %v", rel, ferr)
+			continue
+		}
+		in, _ := lexer.CollectComments(data)
+		got, _ := lexer.CollectComments(out)
+		if len(got) != len(in) {
+			t.Errorf("%s: comment count changed %d -> %d (marker loss)", rel, len(in), len(got))
+			continue
+		}
+		// Structural round-trip must hold.
+		rp := parser.New(lexer.New(string(out), rel))
+		reprog := rp.Parse()
+		if len(rp.Errors()) > 0 || reprog == nil || reprog.File == nil {
+			t.Errorf("%s: formatted output did not reparse", rel)
+			continue
+		}
+		if diff := cmp.Diff(prog.File, reprog.File, ignorePosSpan); diff != "" {
+			t.Errorf("%s: structural round-trip broke after formatting", rel)
+			continue
+		}
+		ok++
+	}
+	want := len(inlineInteriorLetChainTargets) - len(inlineInteriorFooterCarriers)
+	t.Logf("M2 LOSSLESS: %d/%d clean target files format losslessly (comment count preserved + round-trip)", ok, want)
+	if ok != want {
+		t.Fatalf("M2: expected %d clean targets to format losslessly, got %d", want, ok)
+	}
 }
