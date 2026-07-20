@@ -92,6 +92,37 @@ fi
 log "rig lock acquired (filler)"
 mkdir -p "$ROLL"   # ensure the rolling dir exists for both passes (was previously only created inside the 4-lang block)
 
+# 3b. RELEASE PICKUP (auto): a release bumps std/VERSION on origin/dev. When the
+# remote version differs from the checkout's, this cycle becomes the handover
+# cycle: update the checkout + reinstall the ailang binary, finalize the outgoing
+# release's history entry, clear ACTIVE models from the rolling accumulator
+# (os-release-snapshot --reset), and END the cycle. The next cycle then banks
+# fresh under the new version with the new binary — no post-release manual step
+# needed for the version trend to pick up a release. The whole handover lives
+# inside ONE compound block: bash parses it fully before executing, so it is safe
+# to run even though `git pull` rewrites this very script file mid-block; that is
+# also why the block must exit rather than fall through to the rest of the cycle.
+OLD_VERSION="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
+git fetch -q origin dev >>"$LOG" 2>&1 || true
+REMOTE_VERSION="$(git show origin/dev:std/VERSION 2>/dev/null | tr -d '[:space:]')"
+if [ -n "$OLD_VERSION" ] && [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "$OLD_VERSION" ]; then
+  log "release pickup: $OLD_VERSION -> $REMOTE_VERSION (pull + reinstall + snapshot/reset)"
+  if git pull --rebase --autostash origin dev >>"$LOG" 2>&1; then
+    make quick-install >>"$LOG" 2>&1 \
+      || log "release pickup: quick-install FAILED — binary may lag checkout (investigate)"
+    # Finalize the outgoing version (its per-version rotation dir is authoritative)
+    # and reset the ACTIVE-model rolling accumulator so "Current data" re-measures
+    # against the new release. Runs at most once per release: after this pull the
+    # version-diff trigger above is gone.
+    bash tools/os-release-snapshot.sh "$OLD_VERSION" --reset >>"$LOG" 2>&1 \
+      || log "release pickup: snapshot/reset for $OLD_VERSION failed — run post-release skill step manually"
+    log "release pickup complete: rig on $REMOTE_VERSION — next cycle banks fresh"
+  else
+    log "release pickup: git pull failed (dirty tree?) — staying on $OLD_VERSION, retry next cycle"
+  fi
+  exit 0
+fi
+
 # The rig is AILANG-FIRST: fill EVERY core+stretch+frontier AILANG benchmark for
 # the current version FIRST; only once that coverage is "in" does it hand rig time
 # to the cross-language (python/javascript/go) pass. A new release banks under a

@@ -5,6 +5,7 @@ description: Open-source / locally-hosted model evals — cross-language (incl. 
 ---
 
 import OSLocalLeaderboard from '@site/src/components/OSLocalLeaderboard';
+import OSReleaseTrend from '@site/src/components/OSReleaseTrend';
 
 # OS / Local-model leaderboard
 
@@ -48,11 +49,31 @@ ailang eval-publish <version> \
 See [the local-Ollama evaluation guide](/docs/guides/evaluation/local-ollama) for how the rotation
 directories get populated.
 
-## Current data
+## Current data (latest release)
 
 <OSLocalLeaderboard />
 
-The historical v0.23.0 snapshots were retired during the benchmark-docs consolidation; the table
-above populates from the latest published local-rig rotation (`/benchmarks/os/latest.json`). Until
-the next rotation publishes, the cloud AILANG-vs-Python leaderboards are on the
+The headline version is the **AILANG release the runs executed against** (results are banked
+per-version on the rig, so rows never mix releases); the `rolling-YYYYMMDD` tag is just the
+rotation snapshot that published them. The table populates from
+`/benchmarks/os/latest.json`. Cloud AILANG-vs-Python leaderboards are on the
 [Model Leaderboard](/docs/benchmarks/performance) and [ELO Ratings](/docs/benchmarks/elo) pages.
+
+## Evolution across releases
+
+How each AILANG release changed local-model performance, from the per-release snapshots in
+`/benchmarks/os/history.json`:
+
+<OSReleaseTrend />
+
+Two things to keep in mind when reading release-over-release change:
+
+- **Compare within a tier, not the overall number.** Rotations differ in which tiers they
+  covered and how many trials they ran (the coverage line under the chart shows both), so the
+  overall pass rate moves with the *mix* of benchmarks, not just model performance.
+- **The AILANG − Python gap is the language-improvement metric.** Python runs as a control on
+  the same model, harness and benchmarks; if AILANG fixes are landing, the gap closes toward
+  0pp independent of how strong the underlying model is.
+
+The same per-release local data also appears as the "Local agent" lines on the
+[Model Leaderboard](/docs/benchmarks/performance) trend charts, alongside the cloud models.

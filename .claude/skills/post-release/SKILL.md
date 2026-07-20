@@ -404,10 +404,17 @@ git push
 
 The **local Ollama rig** (opencode + pi + motoko on local qwen, via the
 os-rotation-filler) measures whether each AILANG release moves the needle for
-local models. Archive this release's local numbers into the version-trend history
-so the website can chart version-over-version evolution:
+local models.
+
+**This step is AUTOMATED since 2026-07-20**: the os-rotation-filler's release-pickup
+step (3b) detects the `std/VERSION` bump on origin/dev within one cycle (~45 min),
+pulls, reinstalls the binary, and runs the snapshot/reset itself. Check
+`/tmp/ailang-os-filler.log` for a `release pickup complete` line. Only run the
+manual command below if the log shows `snapshot/reset ... failed` or the rig was
+down at release time:
 
 ```bash
+# MANUAL FALLBACK — normally done by the filler's release pickup automatically.
 # Snapshot the rig's current numbers as this release, AND reset the active-model
 # accumulator so the rotation re-measures fresh against the NEXT release.
 # (Retired models — anything not matching ACTIVE_PATTERN, default qwen3-6 — stay

@@ -71,7 +71,11 @@ export default function OSLocalLeaderboard() {
   return (
     <div>
       <div style={{ marginBottom: 10, fontSize: '0.88em', color: 'var(--ifm-color-emphasis-700)' }}>
-        {data.version && <strong>{data.version}</strong>}
+        {/* The AILANG release the runs executed against is the headline; the
+            rotation snapshot tag (rolling-YYYYMMDD) is provenance detail. */}
+        {data.ailang_version
+          ? <span><strong>AILANG {data.ailang_version}</strong> · rotation {data.version}</span>
+          : (data.version && <strong>{data.version}</strong>)}
         {data.trials != null && <span> · N={data.trials} trials</span>}
         {data.generated && <span> · {data.generated}</span>}
         {isSample && (
