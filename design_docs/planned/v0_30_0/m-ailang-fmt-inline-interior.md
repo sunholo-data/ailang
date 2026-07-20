@@ -45,8 +45,15 @@ correctly refuses rather than guesses.
 
 The largest coherent refusal class is a parser/printer shape mismatch around `let ... in` chains:
 
-- The parser collapses a source sequence such as `{ let x = v; let y = w; tail }` or an equation
-  body containing sequential lets into nested `*ast.Let` expressions.
+- The parser collapses a `let ... in` continuation sequence — an equation body or a single-expression
+  brace body containing sequential `let x = v in let y = w in tail` bindings — into nested `*ast.Let`
+  expressions (each binding's `Body` is the next `*ast.Let`, terminating in the tail expression).
+  (CORRECTION, M0 2026-07-20: the bare-`;`/newline block form `{ let x = v; let y = w; tail }` does
+  NOT collapse into nested `*ast.Let` — `parseBlockOrExpression` returns `*ast.Block{Exprs:[…]}` when
+  `len(exprs) > 1` (`internal/parser/parser_expr.go:461-468`). The 28 measured targets are exclusively
+  the `let … in` continuation form: M0's `TestInlineInterior_LetChainSurfaceShape` proved all 28 reach
+  a root `*ast.Let` with non-nil `Body`, 0 are `*ast.Block.Exprs`. `Block.Exprs` handling is therefore
+  out of scope — no target needs it.)
 - The Phase-1 printer's `letIn` emitter writes every binding and body inline as
   `let x = v in let y = w in tail`.
 - The Phase-2 attacher registers only child lists that the printer emits multi-line. A nested let
