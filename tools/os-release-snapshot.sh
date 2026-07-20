@@ -31,25 +31,31 @@ HISTORY="docs/static/benchmarks/os/history.json"
 
 command -v ailang >/dev/null || { echo "ailang not on PATH"; exit 1; }
 
-# 1. Refresh latest.json from the accumulator (current rolling snapshot).
-ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" --os-json "$LATEST" >/dev/null \
-  || { echo "eval-publish failed"; exit 1; }
-
-# 2. Snapshot THIS version for the history entry. Prefer the version-scoped
-#    subdir ($ROLL/$VERSION, created by --bank-by-version) so the history point
-#    reflects that version's own numbers, not the mixed multi-version root
-#    accumulator (fixed 2026-07-11 — the mixed-root read was silently
-#    cross-contaminating per-version history entries).
+# 1+2. Publish latest.json AND the history-entry source from the VERSION-scoped
+#    bank dir ONLY ($ROLL/$VERSION, created by --bank-by-version). --summarize
+#    regenerates the dir's summary.json from raw result files first: eval-suite
+#    only finalizes a summary when a suite COMPLETES, so an interrupted rotation
+#    leaves the dir summary-less — and the old silent fallback then published the
+#    ROOT accumulator, which findSummaryFiles walks RECURSIVELY, pooling EVERY
+#    version's summaries into rows attributed to one version (found 2026-07-20:
+#    the v0.30.0 history entry was actually multi-version pooled data).
+#    NO fallback: failing loudly beats publishing misattributed numbers.
+#    --ailang-version pins attribution to $VERSION even when the checkout has
+#    already moved to the next release (the release-pickup snapshot path).
 VER_DIR="$ROLL/$VERSION"
-HIST_SRC="$LATEST"
-if [ -d "$VER_DIR" ]; then
-  VER_JSON="$(mktemp)"
-  if ailang eval-publish "$VERSION" --rotation "$VER_DIR" --os-json "$VER_JSON" >/dev/null 2>&1; then
-    HIST_SRC="$VER_JSON"
-  fi
-else
-  echo "note: no per-version dir $VER_DIR — attributing the mixed accumulator to $VERSION" >&2
+if [ ! -d "$VER_DIR" ]; then
+  echo "ERROR: no per-version rotation dir $VER_DIR — nothing banked for $VERSION yet." >&2
+  echo "       History entry NOT written, latest.json NOT touched. Re-run after the rotation banks results." >&2
+  exit 1
 fi
+VER_JSON="$(mktemp)"
+if ! ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$VER_DIR" --summarize \
+     --ailang-version "$VERSION" --os-json "$VER_JSON" >/dev/null; then
+  echo "ERROR: eval-publish failed for $VER_DIR — history entry NOT written (no root fallback)." >&2
+  exit 1
+fi
+cp "$VER_JSON" "$LATEST"
+HIST_SRC="$VER_JSON"
 
 # 3. Append/replace the <version> entry in history.json (from the per-version snapshot).
 python3 - "$VERSION" "$HIST_SRC" "$HISTORY" <<'PY'
@@ -81,13 +87,19 @@ print("history.json: %d version(s); %s has %d model rows" % (
     len(hist), version, len(entry["rows"])))
 PY
 
-# 3. Optional reset of active-model accumulator files (retired models kept).
+# 3. Optional reset of active-model files in the ROOT accumulator working set
+#    ONLY (retired models kept). Version bank dirs (v*/) are PERMANENT archives —
+#    the old unrestricted find deleted active-model files from them too, which is
+#    what destroyed v0.29.2's raw per-run files on the v0.30.0 release day
+#    (2026-07-19) and would have wiped each version's history at the next release.
 if [ "$RESET" = "1" ]; then
-  n=$(find "$ROLL" -name "*${ACTIVE_PATTERN}*" 2>/dev/null | wc -l | tr -d ' ')
-  find "$ROLL" -name "*${ACTIVE_PATTERN}*" -delete 2>/dev/null || true
-  echo "reset: cleared $n active-model (*${ACTIVE_PATTERN}*) files; retired models kept frozen"
-  # 4. Re-publish so latest.json reflects the cleared (next-version) state.
-  ailang eval-publish "rolling-$(date +%Y%m%d)" --rotation "$ROLL" --os-json "$LATEST" >/dev/null
+  n=$(find "$ROLL" -type d -name "v[0-9]*" -prune -o -type f -name "*${ACTIVE_PATTERN}*" -print 2>/dev/null | wc -l | tr -d ' ')
+  find "$ROLL" -type d -name "v[0-9]*" -prune -o -type f -name "*${ACTIVE_PATTERN}*" -exec rm -f {} + 2>/dev/null || true
+  echo "reset: cleared $n active-model (*${ACTIVE_PATTERN}*) files from the root accumulator; version banks + retired models kept"
+  # latest.json intentionally NOT republished here: it keeps showing this (old)
+  # version's final snapshot until the rotation banks the first results for the
+  # NEW version and the filler's 7b snapshot flips it — always honest about what
+  # the rows were measured on.
 fi
 
 echo "✓ snapshot: $VERSION archived to $HISTORY$([ "$RESET" = 1 ] && echo '; accumulator reset for next release')"

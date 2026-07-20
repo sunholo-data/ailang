@@ -43,6 +43,15 @@ func runEvalPublish() {
 		"Also emit the legacy per-release markdown snapshot (retired from the site; off by default).")
 	minPpDelta := fs.Float64("min-delta-pp", 10.0,
 		"Minimum percentage-point pass-rate delta required for a benchmark to appear in the trend table.")
+	summarize := fs.Bool("summarize", false,
+		"Regenerate <rotation>/summary.json from the raw result files before loading. Use for "+
+			"per-version bank dirs: eval-suite only finalizes a summary when a suite COMPLETES, so an "+
+			"interrupted rotation leaves the dir summary-less — and loading then walks into stale or "+
+			"nested summaries, silently pooling other versions' numbers.")
+	ailangVersion := fs.String("ailang-version", "",
+		"AILANG version to attribute the published rows to (ailang_version field). Defaults to the "+
+			"checkout's std/VERSION — pass explicitly when publishing an OLD version's bank dir after "+
+			"the checkout has moved on (e.g. the release-pickup snapshot).")
 
 	// Split positional release tag from flag args. Go's flag package stops
 	// at the first non-flag token, so we must extract the tag (which can
@@ -76,6 +85,13 @@ func runEvalPublish() {
 		os.Exit(1)
 	}
 
+	if *summarize {
+		if _, err := eval_harness.SummarizeRotation(*rotationDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error summarizing rotation %s: %v\n", *rotationDir, err)
+			os.Exit(1)
+		}
+	}
+
 	current, err := loadReleaseBenchmarks(*rotationDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading current release: %v\n", err)
@@ -96,7 +112,11 @@ func runEvalPublish() {
 	// (M-EVAL-BENCHMARK-UI-CONSOLIDATION). Aggregates the (benchmark, model, lang)
 	// summaries into model x harness rows with per-language pass rates.
 	if *osJSON != "" {
-		data, err := buildOSLeaderboardJSON(releaseTag, readAilangVersion(), current)
+		attributedVersion := *ailangVersion
+		if attributedVersion == "" {
+			attributedVersion = readAilangVersion()
+		}
+		data, err := buildOSLeaderboardJSON(releaseTag, attributedVersion, current)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error building OS JSON: %v\n", err)
 			os.Exit(1)
