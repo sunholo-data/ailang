@@ -5,9 +5,17 @@
 **Target**: v0.30.0 (final item of the "finish off ailang fmt" polish pair)
 **Risk level**: LOW (printer-local; READ-ONLY for `internal/parser` + `internal/ast`)
 **Estimated**: ~1.75 days (~13h) · ~450 LOC (impl + tests)
-**Status**: UNPARKED — Mark 2026-07-20 ("yes lets finish off ailang fmt — proceed on the data, no
+**Status**: IMPLEMENTED — Mark 2026-07-20 ("yes lets finish off ailang fmt — proceed on the data, no
 re-quorum"). Quorum was consumed at mission iteration 67; the R2 objection is DATA-REFUTED for all
 28 target cases. Routed straight to executor after this plan. Do NOT re-run quorum.
+
+> **FINAL RESULT (supersedes the `≤ 31` targets below):** refusals landed at **32/386 (8.29%)**, down
+> from 59 (a 27-file, 45.76% reduction), with the **`let-chain-interior` sub-class fully eliminated
+> (== 0)** — the substantive acceptance goal. The residual is exactly the deferred non-let/no-enclosing
+> classes. The `≤ 31` figure below assumed 28 achievable let-chain reductions; M0 found
+> `examples/runnable/records.ail` carries an *additional* footer comment in the deferred no-enclosing-list
+> class, so its achievable reduction is 27, not 28 → residual 59−27 = **32**. See the design doc header
+> and the sprint JSON `final_metric.note`. Evaluator (sonnet, generator≠judge) PASS 91/100 round 1.
 **Related**: sibling of [m-fmt-properties-printer-roundtrip](m-fmt-properties-printer-roundtrip-sprint-plan.md) (landed #424).
 
 ## Summary

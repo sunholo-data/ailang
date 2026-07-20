@@ -54,16 +54,3 @@ func isSingleLetChainBlock(b *ast.Block) bool {
 	let, ok := b.Exprs[0].(*ast.Let)
 	return ok && let.Body != nil
 }
-
-// chainChildNodes returns the logical child sequence [binding0, binding1, …, tail]
-// as ast.Node values, for boundary indexing.
-func (lc letChain) chainChildNodes() []ast.Node {
-	nodes := make([]ast.Node, 0, len(lc.Bindings)+1)
-	for _, b := range lc.Bindings {
-		nodes = append(nodes, b)
-	}
-	if lc.Tail != nil {
-		nodes = append(nodes, lc.Tail)
-	}
-	return nodes
-}

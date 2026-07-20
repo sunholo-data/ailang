@@ -1,0 +1,19 @@
+-- Demonstrates ailang fmt Phase-2 comment preservation inside multi-line
+-- `let ... in` chains (M-AILANG-FMT-INLINE-INTERIOR, v0.30.0).
+--
+-- Before this feature, a comment sitting strictly between two chained `let`
+-- bindings had no stable printer boundary, so `ailang fmt` fail-closed (exit 2)
+-- rather than risk moving the comment. The formatter now emits the chain
+-- multi-line, giving each interior comment a stable, idempotent home.
+--
+-- Verify: `ailang fmt --check examples/fmt_let_chain_comments.ail` exits 0 and
+-- `fmt(fmt(x)) == fmt(x)` holds.
+module examples/fmt_let_chain_comments
+
+export func main() -> int =
+  let base = 10 in
+  -- interior comment: kept between bindings, not floated to an outer boundary
+  let scaled = base * 3 in
+  -- second interior comment: the chain stays multi-line so both survive
+  let adjusted = scaled - 1 in
+  adjusted
