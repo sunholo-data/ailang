@@ -990,6 +990,14 @@ frozen; contracts projection live).
   fleet's Phase-E table (admission stays a routing-policy decision). ~0.5–1d, metered-cheap,
   no GPU. **HARD-SEQUENCED AFTER m-eval-reasoning-model-fairness** — K3 is always-reasoning;
   measuring it agentically on the pre-fix harness = the broken ruler. Expect quorum-at-pick.
+- **m-mission-loop-heartbeat [NEW, 2026-07-21 — born from the 18h reboot outage]**: a tiny
+  SECOND launchd agent (independent of the loop it watches) that every ~2h checks: newest driver-log
+  line older than ~4h AND no kill switch AND no live pidfile → send a controlplane alert + ⚠ comment
+  on the bookkeeping issue + `launchctl kickstart` the mission job (recovery, not just alarm). The
+  2026-07-20 reboot silenced the loop for 18h and only a human ping caught it — the loop needs a
+  pulse that does not share its failure domain. ~0.5d; pairs with RunAtLoad=true (b5b9899a0: repair)
+  as detect+repair. Also: the driver should DELETE a stale pidfile whose boot-time predates uptime
+  (reboot invalidates PIDs — a reused PID would false-yield every fire; cleared by hand this time).
 - **m-mission-cost-chains** ([planned/v0_30_0](planned/v0_30_0/m-mission-cost-chains.md), 2026-07-18;
   **P1½ — the clause-5 KPI's data substrate**, Mark: "keep an eye on these budgets… that should
   all appear in ailang chains CLI") — VERIFIED live: chains flow for eval (45 chains/50.3M tokens
