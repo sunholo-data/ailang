@@ -68,8 +68,8 @@
     <key>StandardErrorPath</key>
     <string>/tmp/ailang-mission-control.stderr</string>
 
-    <!-- Scheduled one-shot, not a daemon -->
+    <!-- RunAtLoad=true (2026-07-21): fire once at every login/boot so a reboot can never silently kill the cadence (18h outage 07-20); the kill switch still gates deliberate offs. Not a daemon: no KeepAlive. -->
     <key>RunAtLoad</key>
-    <false/>
+    <true/>
 </dict>
 </plist>
