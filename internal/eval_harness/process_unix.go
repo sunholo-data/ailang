@@ -3,6 +3,7 @@
 package eval_harness
 
 import (
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -25,6 +26,20 @@ func KillProcess(pid int) error {
 	return syscall.Kill(pid, syscall.SIGKILL)
 }
 
+// psBinPath returns the ps binary at its fixed system location (/bin/ps on
+// macOS, /usr/bin/ps on most Linux). A fixed path keeps the watchdog working
+// under restricted-PATH contexts (launchd) and avoids PATH-hijack concerns
+// (go:S4036) for a safety-critical sampler. Falls back to PATH lookup only if
+// neither canonical location exists.
+func psBinPath() string {
+	for _, p := range []string{"/bin/ps", "/usr/bin/ps"} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "ps"
+}
+
 // ProcessGroupRSS returns the total resident set size (bytes) of every process
 // in pid's process group. pid must be a group leader started via
 // SetProcessGroup (Setpgid makes pgid == pid). Sampling shells out to
@@ -32,7 +47,7 @@ func KillProcess(pid int) error {
 // option on macOS where RLIMIT_AS is not dependably enforced. ok=false means
 // the sample failed (ps error, or the group has no live members).
 func ProcessGroupRSS(pid int) (int64, bool) {
-	out, err := exec.Command("ps", "-axo", "pgid=,rss=").Output()
+	out, err := exec.Command(psBinPath(), "-axo", "pgid=,rss=").Output()
 	if err != nil {
 		return 0, false
 	}
