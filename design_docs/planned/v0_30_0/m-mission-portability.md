@@ -8,7 +8,9 @@ mv-replace, never in-place on the running script); **M2 (skill repo/verify profi
 risk). Original ask: Mark 2026-07-18, precedes the **Ailang World** mission launch (separate
 repo, same rig/keys/fleet).
 **Target**: v0.30.x — mission infrastructure, P1 (gates the World mission's launch; zero language
-surface)
+surface). **M2+M3 PRIORITY (Mark 2026-07-21: "could we feasibly launch Ailang World now?"): pick
+NEXT after the currently in-flight item — ahead of the backlog triage — so World can bootstrap
+this week.**
 **Estimated**: ~1–1.5d (M1 driver ~0.5d · M2 skill templating ~0.5d · M3 bootstrap kit + dry-run ~0.5d)
 **Dependencies**: none new — parameterizes what exists. The fleet substrate (design-quorum, exec
 lanes incl. clone-over-egress, messages, coordinator) ships IN the `ailang` binary and ports with
@@ -78,7 +80,11 @@ guard, rotation designer, and weekly issue rotation all port UNCHANGED — they 
 repo-agnostic once the state keys are namespaced.
 
 ### M3 — bootstrap kit + dry-run acceptance
-`docs/docs/guides/mission-bootstrap.md` + `design_docs/mission-charter-TEMPLATE.md`:
+**(Mark 2026-07-21: the manual MUST publish to the public website — it is the getting-started
+recipe for launching a mission, and doubles as public documentation of the mission-loop story.)**
+`docs/docs/guides/mission-bootstrap.md` (Docusaurus tree → ships via Deploy-Docs automatically;
+write it PUBLIC-READER-quality: assume the reader has ailang installed and a repo, not our
+context) + `design_docs/mission-charter-TEMPLATE.md`:
 1. New repo prerequisites: **CI workflows exist** (Gate 3b is meaningless without them — hard
    precondition), gh auth = `sunholo-voight-kampff`, `ailang install`, same key env.
 2. Copy driver + plist from the template, write `mission-<name>.env`, create the bookkeeping
