@@ -8,12 +8,12 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.8333333333333334
+        "ailang": 0.8666666666666667
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.8571428571428571
+          "ailang": 0.875
         },
         "frontier": {
           "ailang": 0
@@ -26,36 +26,36 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.65
+        "ailang": 0.6521739130434783
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.8888888888888888
+          "ailang": 0.9
         },
         "frontier": {
           "ailang": 0
         },
         "stretch": {
-          "ailang": 0.7142857142857143
+          "ailang": 0.6666666666666666
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.65
+        "ailang": 0.6956521739130435
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.8571428571428571
+          "ailang": 0.875
         },
         "frontier": {
           "ailang": 0
         },
         "stretch": {
-          "ailang": 0.875
+          "ailang": 0.9
         }
       }
     }
