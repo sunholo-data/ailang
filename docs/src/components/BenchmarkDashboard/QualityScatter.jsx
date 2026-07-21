@@ -212,7 +212,7 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       }
     }
     if (isCost && x <= 0 && passRate > 0 && totalRuns >= minRuns && isLocalModel(name, { agentModels: models })) {
-      omittedFree.push(formatLocalName(name));
+      omittedFree.push({ label: formatLocalName(name), elo: eloOf[name] });
     }
     if (totalRuns < minRuns || passRate <= 0 || x <= 0) continue;
     const elo = eloOf[name];
@@ -375,9 +375,15 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
         {!isCost && ' Faster solutions are leftward; slower (multi-turn agent loops) rightward.'}
         {isCost && omittedFree.length > 0 && (
           <div style={{ marginTop: 6, color: '#c2410c' }}>
-            <strong>Not plotted:</strong> {omittedFree.join(', ')} — on-device, ~$0/run, so
-            cost-per-success is zero and has no position on a cost axis. Switch to the
-            <strong> speed</strong> view to see them.
+            <strong>Off the chart (free):</strong>{' '}
+            {omittedFree.map((f, i) => (
+              <span key={f.label}>
+                {i > 0 ? ', ' : ''}{f.label}{f.elo != null ? ` (ELO ${Math.round(f.elo)})` : ''}
+              </span>
+            ))}
+            {' — '}on-device and ~$0/run, so they have no position on a cost axis rather than a
+            poor one. Compare their ELO against the paid models plotted here: that gap, at zero
+            cost, is the on-device thesis. Slower per solution — see the <strong>speed</strong> view.
           </div>
         )}
       </div>
