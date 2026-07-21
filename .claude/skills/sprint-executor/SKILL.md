@@ -479,10 +479,22 @@ git merge sprint/m5-docs --no-ff -m "Integrate M5: docs"
 #### Step 3.3: Run Full Test Suite
 
 ```bash
-make test          # ALL tests must pass
-make lint          # ALL linting must pass
-make fmt-check     # Formatting must be clean
+make test              # ALL tests must pass
+make lint              # ALL linting must pass
+make fmt-check         # Go formatting must be clean
+make check-file-sizes  # NO file >800 lines (CI-only gate; make test/lint DON'T cover it)
 ```
+
+**Match CI locally before declaring done — `make test`/`lint` are NARROWER than CI**
+(added 2026-07-21 after iter-72 shipped TWO CI-only reds from the same gap — the local
+done-gate missing remote checks): (a) `make check-file-sizes` — a file already near 800
+lines (iter-72: `claude.go` was at 799; a 30-line addition tipped it to 829, red) trips
+this gate invisibly to `make test`/`lint`; fix by extracting a cohesive block to a sibling
+file, not by shaving one line. (b) **Windows** — `test-windows`/`Build windows-latest` run
+the Go suite on Windows you never exercise locally; re-scan new tests for the rule-#10
+path/binary/golden traps (iter-72: a `strings.Contains` of settings JSON vs an unescaped
+hook path passed on Unix, failed on Windows where JSON escapes `\` to `\\`). Two seconds of
+local scan beats a 15-minute CI round-trip per red.
 
 **If integration tests fail:**
 1. Identify which milestone introduced the failure using `git bisect` or selective reverts:
