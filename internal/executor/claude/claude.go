@@ -352,6 +352,36 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				continue
 			}
 
+			// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB): the LANDED
+			// format_ail.sh PostToolUse hook always exits 0 to the CLI but
+			// surfaces its real status via stderr ("✓ Formatted <file>") and
+			// hookSpecificOutput.additionalContext ("ailang fmt failed"/"timed
+			// out"), which Claude Code echoes back into the stream-json (on a
+			// user/tool_result message or a PostToolUse event). claude.go's
+			// switch below only dispatches OnToolResult for stream_event
+			// sub-types — it never processes tool_result/PostToolUse lines — so
+			// the eval_harness fmtHookEventHandler.OnToolResult was dead on this
+			// (active) path. We forward the raw line to any handler that opts in
+			// via the RawStreamLineHandler interface (only the fmt-hook tracker
+			// does), so its detectFmtHookEvent classifier fires. This is
+			// fail-closed: detectFmtHookEvent returns ok=false for any line
+			// without a real hook marker, so a line with no hook output can
+			// never be recorded as a "formatted"/treated event. Dispatching only
+			// to opt-in handlers avoids polluting unrelated handlers (cloud
+			// metrics, debug) with raw JSON as if they were tool results.
+			//
+			// TODO(M2b): verify against a live haiku ON-arm run that the
+			// format_ail.sh markers ("✓ Formatted"/"ailang fmt failed") actually
+			// appear on a raw stdout stream-json line (i.e. Claude Code echoes
+			// the PostToolUse hook's stderr/additionalContext into the
+			// --output-format stream-json stdout, not only into the interactive
+			// TUI). If they do not surface in stdout, fmt_hook_events will stay
+			// empty and the capture point must move to wherever the hook output
+			// does land (e.g. a dedicated hook-event stream or a file sink).
+			if rh, ok := handler.(executor.RawStreamLineHandler); ok {
+				rh.OnRawStreamLine(line)
+			}
+
 			var event map[string]interface{}
 			if err := json.Unmarshal([]byte(line), &event); err != nil {
 				continue

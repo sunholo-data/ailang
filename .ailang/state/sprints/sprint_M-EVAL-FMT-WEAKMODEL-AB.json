@@ -3,7 +3,7 @@
   "created": "2026-07-21",
   "design_doc": "design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab.md",
   "sprint_plan": "design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab-sprint-plan.md",
-  "status": "planned",
+  "status": "in_progress",
   "risk_level": "medium",
   "github_issues": [422],
   "language_surface_change": false,

@@ -146,6 +146,83 @@ func TestApply_OnMissingHookFailsLoud(t *testing.T) {
 	}
 }
 
+// TestDetectFmtHookEvent covers the classifier that maps format_ail.sh's own
+// status markers to a FmtHookEvent (M-EVAL-FMT-WEAKMODEL-AB hook-reality metric).
+// It must classify each of the 4 landed markers and, critically, emit NO event
+// for an unrelated line (fail-closed: an absent hook marker is never counted as
+// a successful format).
+func TestDetectFmtHookEvent(t *testing.T) {
+	const turn = 7
+	cases := []struct {
+		name       string
+		line       string
+		wantOK     bool
+		wantStatus string
+		wantDetail string // "" = don't assert detail
+		wantFile   string // "" = don't assert file
+	}{
+		{
+			name:       "formatted marker → formatted",
+			line:       `{"type":"user","message":"✓ Formatted src/main.ail"}`,
+			wantOK:     true,
+			wantStatus: "formatted",
+			wantFile:   "src/main.ail",
+		},
+		{
+			name:       "fmt failed marker → error",
+			line:       `hookSpecificOutput: ailang fmt failed on foo.ail`,
+			wantOK:     true,
+			wantStatus: "error",
+			wantDetail: "ailang fmt failed",
+		},
+		{
+			name:       "fmt timed out marker → error/timeout",
+			line:       `additionalContext: ailang fmt timed out after 10s`,
+			wantOK:     true,
+			wantStatus: "error",
+			wantDetail: "fmt timed out",
+		},
+		{
+			name:       "jq missing marker → error",
+			line:       `format_ail hook: jq not found, skipping`,
+			wantOK:     true,
+			wantStatus: "error",
+			wantDetail: "jq missing — fmt skipped",
+		},
+		{
+			name:   "unrelated line → no event (fail-closed)",
+			line:   `{"type":"assistant","text":"Let me edit the file"}`,
+			wantOK: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ev, ok := detectFmtHookEvent(tc.line, turn)
+			if ok != tc.wantOK {
+				t.Fatalf("detectFmtHookEvent(%q) ok = %v, want %v", tc.line, ok, tc.wantOK)
+			}
+			if !tc.wantOK {
+				if ev != (FmtHookEvent{}) {
+					t.Errorf("no-match must return zero FmtHookEvent, got %+v", ev)
+				}
+				return
+			}
+			if ev.Turn != turn {
+				t.Errorf("Turn = %d, want %d", ev.Turn, turn)
+			}
+			if ev.Status != tc.wantStatus {
+				t.Errorf("Status = %q, want %q", ev.Status, tc.wantStatus)
+			}
+			if tc.wantDetail != "" && ev.Detail != tc.wantDetail {
+				t.Errorf("Detail = %q, want %q", ev.Detail, tc.wantDetail)
+			}
+			if tc.wantFile != "" && ev.File != tc.wantFile {
+				t.Errorf("File = %q, want %q", ev.File, tc.wantFile)
+			}
+		})
+	}
+}
+
 func jsonContains(t *testing.T, raw []byte, want string) bool {
 	t.Helper()
 	var m map[string]interface{}

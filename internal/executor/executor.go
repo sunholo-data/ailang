@@ -285,6 +285,19 @@ type ContextAwareHandler interface {
 	SetContext(ctx context.Context)
 }
 
+// RawStreamLineHandler is an optional interface for handlers that need to inspect
+// the raw NDJSON stream lines an executor reads, not just the parsed high-level
+// events (turn/text/tool). It exists for out-of-band signals that ride along in
+// the stream but are not modeled as tool results — notably PostToolUse hook
+// output (M-EVAL-FMT-WEAKMODEL-AB), where a workspace hook surfaces its status
+// via stderr/additionalContext that the CLI echoes into the stream-json. When a
+// handler implements this, an executor forwards each raw stdout line to it. Not
+// every executor emits raw lines; handlers must not depend on it firing.
+type RawStreamLineHandler interface {
+	EventHandler
+	OnRawStreamLine(line string)
+}
+
 // MetricsHandler is an optional interface for handlers that want execution metrics.
 // When implemented, the executor calls OnMetrics after parsing the final result,
 // allowing the handler to broadcast cost/token data before the executor returns.

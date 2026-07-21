@@ -458,6 +458,18 @@ func (h *fmtHookEventHandler) OnToolResult(_ string, output string) {
 func (h *fmtHookEventHandler) OnTurnEnd(int) {}
 func (h *fmtHookEventHandler) OnError(error) {}
 
+// OnRawStreamLine implements executor.RawStreamLineHandler. The active claude
+// path (claude.go) never dispatches OnToolResult for the tool_result/PostToolUse
+// lines that carry format_ail.sh's status markers, so we key hook-reality off
+// the raw stream line instead — the same strategy the legacy streaming runner
+// uses. Fail-closed: detectFmtHookEvent returns ok=false for any line without a
+// real marker, so a line with no hook output is never recorded as treated.
+func (h *fmtHookEventHandler) OnRawStreamLine(line string) {
+	if ev, ok := detectFmtHookEvent(line, h.turn); ok {
+		h.events = append(h.events, ev)
+	}
+}
+
 // fmtTrackerEvents safely extracts events from a possibly-nil tracker (OFF arm).
 func fmtTrackerEvents(t *fmtHookEventHandler) []FmtHookEvent {
 	if t == nil {
@@ -537,6 +549,19 @@ func (c *compositeEventHandler) OnTurnEnd(turnNum int) {
 func (c *compositeEventHandler) OnError(err error) {
 	c.primary.OnError(err)
 	c.secondary.OnError(err)
+}
+
+// OnRawStreamLine implements executor.RawStreamLineHandler by forwarding the raw
+// stream line to whichever wrapped handler(s) opt into it. Composites can nest
+// (the ON arm wraps a base composite as primary and the fmt tracker as
+// secondary), so we recurse through the interface rather than assuming a leaf.
+func (c *compositeEventHandler) OnRawStreamLine(line string) {
+	if rh, ok := c.primary.(executor.RawStreamLineHandler); ok {
+		rh.OnRawStreamLine(line)
+	}
+	if rh, ok := c.secondary.(executor.RawStreamLineHandler); ok {
+		rh.OnRawStreamLine(line)
+	}
 }
 
 // ttftEventHandler records the elapsed time until the first output event (text or tool use).
