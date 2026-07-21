@@ -8,12 +8,12 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.8666666666666667
+        "ailang": 0.8888888888888888
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.875
+          "ailang": 0.8888888888888888
         },
         "frontier": {
           "ailang": 0
@@ -26,7 +26,7 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.6521739130434783
+        "ailang": 0.625
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
@@ -37,25 +37,25 @@
           "ailang": 0
         },
         "stretch": {
-          "ailang": 0.6666666666666666
+          "ailang": 0.6
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.6956521739130435
+        "ailang": 0.72
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.875
+          "ailang": 0.8888888888888888
         },
         "frontier": {
           "ailang": 0
         },
         "stretch": {
-          "ailang": 0.9
+          "ailang": 0.9090909090909091
         }
       }
     }
