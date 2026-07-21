@@ -1015,6 +1015,20 @@ frozen; contracts projection live).
   (a headline cost KPI over a $0.0000 tracker is not credible). Expect quorum-at-pick.
 - **m-public-feedback-delivery-audit** ([planned/v0_30_0](planned/v0_30_0/m-public-feedback-delivery-audit.md), 2026-07-12; **P1**) — external user feedback (Kevin's) silently lost: ROOT-CAUSED: dev/prod env split (Mark). Public MCP writes feedback to PROD (`ailang-multivac`) — Kevin's June-30 messages are there, triaged; the rig daemon subscribes to DEV only, so external feedback never pings Discord. Fix = daemon dual-subscribes dev+prod; plus the latent pkg:*-inbox Discord-filter bug. The human-input channel that feeds the data-led loop — prioritize. Requested by Mark.
 
+- **m-mem-budget-runtime** ([planned/v0_31_0](planned/v0_31_0/m-mem-budget-runtime.md), 2026-07-21;
+  **P1 — host-safety, DOC-READY**, Mark: "make a design doc for this to insert into our mission
+  loop sequence") — the 2026-07-20 rig kernel panic (watchdogd starved under swap-thrash; Jetsam:
+  3 model-generated Python procs at ~80-120GB, ailang at 7.7GB) proved generated code WILL
+  occasionally be a memory bomb. AILANG's protection today is incidental (no while/mutation +
+  interpreter speed) — this makes it guaranteed: `--max-mem`/`AILANG_MAX_MEM` → Go soft limit +
+  memguard monitor + cooperative unwind → typed `MEM001` (verified unallocated) instead of host
+  death; harness banks it as a distinct error category (model signal, not rig outage). Extension
+  lane, zero syntax change, `Mem`-as-effect explicitly rejected (A3/A8). Complements (does not
+  replace) the harness-side RSS watchdog task covering the Python/JS/Go lanes. Verification Log
+  complete incl. negative-existence rows; Design Freeze needs quorum ratify of the two frozen
+  decisions (runtime-control-not-effect; default-off CLI / explicit-on harness). ~2-3d. Phase 2
+  (deterministic logical meter, replayable exhaustion) split to a future `m-mem-meter-logical`.
+
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
 clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
 v1_1_0 on 2026-07-11); v0_29_0 docs that appear above gate v1 via the queue, not the folder.
