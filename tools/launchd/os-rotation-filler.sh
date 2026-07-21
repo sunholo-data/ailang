@@ -81,6 +81,20 @@ BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eva
 BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
                                   # set OS_FILLER_PUSH=1 to autonomously push -> docs deploy.
+# M-EVAL-DATA-HOSTING-DECOUPLE W5: the routine per-cycle data commits are RETIRED.
+# The site fetches the benchmark JSONs at runtime from the bucket (step 9), so a
+# git commit + push + full site rebuild every 45 min bought nothing but churn — it
+# only refreshed the in-build FALLBACK copy. That fallback is now refreshed once per
+# release by post-release (W4), which is the provenance snapshot we actually want.
+#
+# Consequence, by design: between releases the working tree carries the 3 regenerated
+# JSONs as modified-but-uncommitted. That drift is the honest signal "the bucket has
+# newer data than HEAD", and the release snapshot sweeps it up. We deliberately do NOT
+# `git checkout` them back — restoring tracked files from an unattended 45-min loop is
+# exactly the kind of destructive git op that must never run without a human.
+#
+# Set BENCH_GIT_COMMIT=1 to restore the old per-cycle commit behaviour.
+BENCH_GIT_COMMIT="${BENCH_GIT_COMMIT:-0}"
 # ELO-driven pick priority (M-EVAL-ELO-PRIORITY-ROTATION): order each lap so
 # non-saturated ("signal") benchmarks bank FIRST and saturated ones (ELO band
 # Trivial in the published ratings) run as a cheap once-per-version
@@ -358,9 +372,9 @@ if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
   fi
 fi
 
-# 7. Regenerate the OS/Local JSON from the CURRENT VERSION's bank dir; commit the
-#    single file every cycle (keeps the tree clean), but only PUSH on a full-pass
-#    wrap to keep deploy churn to ~1/pass. Push uses autostash-rebase for safety.
+# 7. Regenerate the OS/Local JSON from the CURRENT VERSION's bank dir. Publishing is
+#    the BUCKET SYNC in step 9 (runtime fetch, live in ~1 min) — the per-cycle git
+#    commit is retired (W5); see BENCH_GIT_COMMIT above to restore it.
 #    NEVER publish from the rolling ROOT: findSummaryFiles walks recursively, so a
 #    root publish pools EVERY version's summaries into one table (the mixed-
 #    attribution bug found 2026-07-20). --summarize regenerates the bank dir's
@@ -372,6 +386,9 @@ if [ -d "$ROLL/$VERSION" ] && ailang eval-publish "rolling-$(date +%Y%m%d)" --ro
   # untracked files, so on the first cycle (file not yet in git) it would silently
   # skip the commit and the dashboard would never publish. `git add` + --cached
   # detects both new and modified files.
+  if [ "$BENCH_GIT_COMMIT" != "1" ]; then
+    log "os/latest.json refreshed (offset $OFFSET) — bucket sync publishes it; git commit retired (W5)"
+  else
   git add docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
   if ! git diff --cached --quiet -- docs/static/benchmarks/os/latest.json 2>/dev/null; then
     git commit -q -m "data(os): incremental OS/Local rotation (offset $OFFSET)" \
@@ -385,6 +402,7 @@ if [ -d "$ROLL/$VERSION" ] && ailang eval-publish "rolling-$(date +%Y%m%d)" --ro
       log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish)"
     fi
   fi
+  fi
 fi
 
 # 7b. Version-trend: keep docs/static/benchmarks/os/history.json fresh for the
@@ -396,6 +414,9 @@ fi
 #     refreshes it itself as the AILANG-first pass banks results.
 if [ -n "$VERSION" ] && [ -d "$ROLL/$VERSION" ]; then
   if bash tools/os-release-snapshot.sh "$VERSION" >>"$LOG" 2>&1; then
+    if [ "$BENCH_GIT_COMMIT" != "1" ]; then
+      log "version-trend history refreshed (${VERSION}) — bucket sync publishes it; git commit retired (W5)"
+    else
     # snapshot rewrites BOTH history.json and latest.json (per-version source)
     git add docs/static/benchmarks/os/history.json docs/static/benchmarks/os/latest.json 2>>"$LOG" || true
     if ! git diff --cached --quiet -- docs/static/benchmarks/os/history.json docs/static/benchmarks/os/latest.json 2>/dev/null; then
@@ -408,6 +429,7 @@ if [ -n "$VERSION" ] && [ -d "$ROLL/$VERSION" ]; then
       else
         log "version-trend history committed locally (auto-push OFF)"
       fi
+    fi
     fi
   else
     log "version-trend snapshot failed for ${VERSION} (continuing)"
@@ -425,6 +447,9 @@ fi
 AILANG_VER="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
 if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
   if bash tools/publish-unified-dashboard.sh "$AILANG_VER" >>"$LOG" 2>&1; then
+    if [ "$BENCH_GIT_COMMIT" != "1" ]; then
+      log "unified dashboard refreshed (${AILANG_VER}) — bucket sync publishes it; git commit retired (W5)"
+    else
     git add docs/static/benchmarks/latest.json 2>>"$LOG" || true
     if ! git diff --cached --quiet -- docs/static/benchmarks/latest.json 2>/dev/null; then
       git commit -q -m "data(dashboard): unify local rotation into main leaderboard (${AILANG_VER})" \
@@ -437,6 +462,7 @@ if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
         log "unified dashboard committed locally (auto-push OFF)"
       fi
     fi
+    fi
   else
     log "unified dashboard publish skipped/failed for ${AILANG_VER} (continuing)"
   fi
@@ -447,8 +473,11 @@ fi
 # 9. Bucket sync (M-EVAL-DATA-HOSTING-DECOUPLE): push the 3 refreshed JSONs to the
 #    private GCS bucket EVERY cycle so the docs site — which fetches them at runtime
 #    via the dashboard's /benchmarks/ route — shows new data within ~1 min, with no
-#    site rebuild / GitHub Pages deploy. Independent of AUTOPUSH (git stays the
-#    in-build fallback); opt out with BENCH_BUCKET_SYNC=0. Never fails the cycle.
+#    site rebuild / GitHub Pages deploy. This is now the ONLY publish path between
+#    releases (W5 retired the per-cycle git commits); the in-build fallback copy is
+#    refreshed once per release by post-release (W4). Opt out with BENCH_BUCKET_SYNC=0.
+#    Never fails the cycle — but note that with git retired, a sync failure means the
+#    site keeps serving the previous cycle's data rather than silently going stale.
 BENCH_SYNC="${BENCH_BUCKET_SYNC:-1}"
 BENCH_BUCKET="${BENCHMARKS_BUCKET:-ailang-multivac-dev-benchmarks}"
 if [ "$BENCH_SYNC" = "1" ] && command -v gsutil >/dev/null 2>&1; then

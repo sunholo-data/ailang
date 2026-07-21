@@ -134,3 +134,35 @@ Event selected -> separate API call to coordinator.db -> ID format mismatch -> s
 **The fix:** Make TaskHierarchyGraph accept and use the `spans` prop like other views. Transform spans into graph format client-side rather than making separate API calls.
 
 **Design doc:** See `design_docs/planned/v0_7_0/m-task-graph-spans-unification.md`
+
+---
+
+## Benchmark Data Flow (not a database — read this before "fixing" stale numbers)
+
+The benchmark dashboards do **not** read a database. Their data is three JSON files, and they are
+served at **runtime from a GCS bucket**, not from the site build:
+
+```
+rig rotation (~45 min)
+  ├─ regenerates  docs/static/benchmarks/{latest.json, os/latest.json, os/history.json}
+  ├─ gsutil cp  → gs://ailang-multivac-dev-benchmarks        (step 9, EVERY cycle)
+  └─ (no git commit between releases — retired by W5)
+
+browser
+  └─ benchmarkFetch(rel)  docs/src/lib/benchmarkFetch.js
+       ├─ 1st: GET https://ailang-dev-dashboard-…run.app/benchmarks/<rel>   (Cache-Control max-age=60)
+       └─ fallback on non-2xx / CORS: /benchmarks/<rel>  (the in-build copy)
+```
+
+**Consequences that trip people up:**
+
+| Symptom | Cause |
+|---|---|
+| Numbers changed with no commit and no deploy | Working as designed — the bucket is the live path (~1 min) |
+| `git status` permanently shows the 3 JSONs modified | Working as designed — the rig regenerates them; only post-release step 1b commits them |
+| Site shows numbers older than the rig | The bucket sync is failing → grep `bucket sync` in `/tmp/ailang-os-filler.log` |
+| A code change to a benchmark component doesn't appear | Components are **build-time**; only data is runtime. Push to `dev` → Deploy-Docs |
+
+The private bucket is fronted by the dashboard Cloud Run service because the org policy
+`storage.publicAccessPrevention` is *enforced* on `ailang-multivac-dev` — a public bucket is not
+possible. See `design_docs/planned/m-eval-data-hosting-decouple.md`.

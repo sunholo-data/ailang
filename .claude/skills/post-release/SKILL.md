@@ -304,6 +304,39 @@ git push
 
 > Backfilling a missed gap: check out each missed tag in a throwaway `git worktree`, run the same counting logic, and merge the entries into `history` sorted by version. See the v0.15→0.24 backfill (June 2026) for the pattern.
 
+### 1b. Benchmark data provenance snapshot (REQUIRED — this is the ONLY routine commit of this data)
+
+The dashboard fetches the benchmark JSONs at **runtime** from the GCS bucket via the dashboard's
+`/benchmarks/` route (M-EVAL-DATA-HOSTING-DECOUPLE), so the rig no longer commits them every
+45 minutes — W5 retired that churn. The committed copies now serve two purposes only:
+
+1. **The in-build fallback** the site degrades to when the Cloud Run route is unreachable.
+2. **Release provenance** — an immutable record of what the numbers were at vX.X.X.
+
+Between releases the working tree carries these files as modified-but-uncommitted; that drift is
+expected ("the bucket has newer data than HEAD"). **This step is what sweeps it up.** Skip it and
+the fallback copy silently ages another release, so an outage would serve stale numbers.
+
+```bash
+# The rig regenerates these continuously; commit the current state as the release snapshot.
+git add docs/static/benchmarks/latest.json \
+        docs/static/benchmarks/os/latest.json \
+        docs/static/benchmarks/os/history.json
+git commit -m "data(bench): release provenance snapshot for vX.X.X"
+git push
+
+# Verify the runtime path agrees with what you just committed
+curl -s https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app/benchmarks/os/latest.json \
+  | jq -r '.ailang_version, .version, .generated'
+```
+
+- [ ] All 3 JSONs committed and pushed
+- [ ] `latest.json` `ailang_version` shows vX.X.X (not the previous release)
+- [ ] The runtime route returns the same `ailang_version` (bucket and git agree at release time)
+
+> If the runtime route and the committed copy disagree, the bucket sync is failing — check
+> `bucket sync` lines in `/tmp/ailang-os-filler.log` before shipping the release notes.
+
 ### 2. Run Eval Baseline
 
 **🚨 CRITICAL: ALWAYS use --full for releases!**
