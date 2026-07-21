@@ -35,6 +35,8 @@ adding your stamp, move the now-4th stamp to the TOP of the archive file.** Rati
 every iteration re-reads this charter — 30+ stamps were ~500 lines of history tax per
 read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-21 — ITERATION 74: **M2b matched A/B EXECUTED + banked → M2b LANDED (3/5 milestones); treatment delivery PROVEN, headline trends NEUTRAL-at-ceiling** — resumed the active M-EVAL-FMT-WEAKMODEL-AB sprint at its next milestone M2b (the matched haiku ON/OFF run). **Cloud-haiku is API/subscription, NOT GPU → NO rig.lock** (`-no-rig-lock`; sprint-plan rig.lock text superseded by mission commit `69501e6dd`). Build: worktree at origin/dev `3045f92f5` (installed binary `af6ea1d89` PREDATED the iter-73 file-sink fix `ac5e1735e` → rebuilt clean). Benchmarks verified UNCHANGED since frozen SHA `2bb1820d6`. Verify-before-scaling: 1× ON smoke first → banked `fmt_hook_state:on` + a `formatted` fmt event (file-sink capture confirmed live) → then ran both arms. **60 runs banked** (`eval_results/fmt_ab_haiku_M2b/{on,off}/`): 30/arm = 5 trials × 6 benchmarks. Config-diff clean (both arms prompt_version v0.16.3, model claude-haiku-4-5, seed 42, parallel 4, trials 5 — ONLY `fmt_hook_state` differs). **Arm gating**: OFF banked 0 fmt_hook_events (all 30 labeled off); ON delivered treatment in **29/30 runs** (32 `formatted` events) vs the ~8% baseline the prereg flagged → the file-sink fix works end-to-end. **Headline** (M3 does rigorous Wilson CIs): OFF 29/30, ON 30/30, +1-run delta driven entirely by `cli_args` (4/5→5/5) = within noise at haiku near-ceiling → trending **NEUTRAL/NULL-at-ceiling with treatment delivery PROVEN**. All roles quota-bucket/subscription; `metered=$0.00`. **NEXT = M3 analysis + M4 verdict** (no-GPU, on banked data). Detail: log entry 79.
+
 ## STATUS 2026-07-21 — ITERATION 73: **M2b `TODO(M2b)` live-verified → treatment-integrity capture FIXED (file sink); M2b now UNBLOCKED-for-GPU** — resumed the active M-EVAL-FMT-WEAKMODEL-AB sprint at M2b; a subscription-haiku smoke (verify-before-scaling) exposed a data-proven BLOCKER: the hook FIRES (sentinel-proved) + emits `✓ Formatted` on stderr+exit0, but **Claude Code SWALLOWS exit-0 hook stderr** in stream-json → the iter-72 stream-scan capture was structurally always-empty → §5.3 treatment-delivery gate unmeasurable → every M2b verdict would be "unevaluable". Pivoted the deliverable to the unblocker: executor (opus, worktree) moved capture to an **out-of-band file sink** (`<cwd>/.claude/fmt_hook_events.jsonl`, cwd-derived → no env-forward, NON-contaminating — `additionalContext` explicitly rejected as it would corrupt the ON arm); evaluator (sonnet, generator≠judge) PASS **88/100 r1**, no must-fix. Live-verified: ON smoke banks a `formatted` event, OFF banks none. Prereg §Amendments records the MEASUREMENT-only, pre-scored-run correction. Commits `647deadbb`+`8d45e4a63`; PR + squash in log #78. The 60-run A/B is deferred to a GPU slot (config-only now). `metered=$0.00`. Detail: log entry 78.
 
 ## STATUS 2026-07-21 — ITERATION 72: **m-eval-fmt-weakmodel-ab UNPARKED (Mark #422 green-light) → M1 prereg + M2a fmt-hook toggle LANDED** — PR #438 squash `260faa42a`; planner → executor (opus, worktree) M1+M2a → evaluator (sonnet, generator≠judge) PASS **80/100 r1** + round-2 fix; **3 Gate-3b reds all fixed-forward** (check-file-sizes claude.go 799→829, Windows path-assertion, a self-corrected poll-on-non-required-SonarCloud); M2b GPU-gated + M3/M4 deferred; `metered=$0.00`
@@ -983,10 +985,11 @@ frozen; contracts projection live).
   once, run both) · M3 first-class `---` doc-comments as AST nodes (v0.31; dissolves fmt
   attachment at the root for the doc position; sequence AFTER the fmt polish pair) · M4
   contracts-as-docs exemplars (rolling). First measured comment semantics for AI authors.
-- **m-eval-fmt-weakmodel-ab [M1+M2a LANDED iter-72 (PR #438 squash `260faa42a`); M2b UNBLOCKED-for-GPU
-  (iter-73: `TODO(M2b)` live-verified — Claude swallows exit-0 hook stderr → capture moved to an
-  out-of-band file sink, commits `647deadbb`+`8d45e4a63`, `fmt_hook_events` now populates, evaluator
-  88/100); M3/M4 blocked-on-M2b] →
+- **m-eval-fmt-weakmodel-ab [M1+M2a LANDED iter-72 (PR #438 squash `260faa42a`); M2b LANDED iter-74
+  (60 runs banked, 30/arm × 5-trials × 6 frozen benchmarks; cloud-haiku via `claude` CLI on
+  SUBSCRIPTION, NO rig.lock; treatment delivery PROVEN 29/30 ON runs fired the hook vs ~8% baseline;
+  arm gating clean OFF=0 fmt events; headline OFF 29/30 vs ON 30/30 = +1-run in-noise → trending
+  NEUTRAL/NULL-at-ceiling); M3 analysis + M4 verdict NEXT (no-GPU, on banked data)] →
   [planned/v0_31_0](planned/v0_31_0/m-eval-fmt-weakmodel-ab.md)** — Mark #422 "Green light weakmodel
   ab" (2026-07-21) UNPARKED it → planner (opus) → executor (opus, worktree) → evaluator (sonnet,
   80/100 PASS r1) + round-2 fix. **LANDED: M1 preregistration** (`-prereg.md`: 6 `.ail`-editing
@@ -995,11 +998,16 @@ frozen; contracts projection live).
   (`-fmt-hook on|off` CLI flag, default off; `FmtHookMode` on the `microrag_mode.go` precedent; ON
   emits workspace `.claude/settings.json` registering `format_ail.sh` PostToolUse Edit|Write; active
   path `agent_runner_multi.go`; fail-closed hook-reality capture banked as `fmt_hook_events`).
-  **NEXT = M2b** — the GPU-gated matched A/B run (haiku ON vs OFF at N=5 on the 6 frozen benchmarks,
-  `rig.lock` around the eval step only; confirm the `TODO(M2b)`: does `format_ail.sh` stderr surface
-  on stdout stream-json so `fmt_hook_events` populates?) → then **M3 analysis + M4 verdict** (no-GPU,
-  on banked results). SonarCloud new-coverage 39.3% (non-required) is expected for the integration
-  wiring; M2b live-verifies it. (Mark 2026-07-20
+  **M2b DONE (iter-74)**: haiku ON vs OFF ran at N=5 on the 6 frozen benchmarks, banked to
+  `eval_results/fmt_ab_haiku_M2b/{on,off}/` (60 run files). Cloud-haiku is an API/subscription model,
+  NOT GPU → NO rig.lock (`-no-rig-lock`; the sprint-plan's rig.lock text was superseded by mission
+  commit `69501e6dd`). Config-diff clean (both arms prompt_version v0.16.3, model, seed 42, parallel
+  4, trials 5 — only `fmt_hook_state` differs). `TODO(M2b)` RESOLVED: the file-sink capture works —
+  29/30 ON runs banked a `formatted` fmt event (vs ~8% baseline); OFF banked 0 (arm gating).
+  **NEXT = M3 analysis + M4 verdict** (no-GPU, on the banked data): rigorous Wilson-CI deltas,
+  convergence, per-turn fmt exit-code coverage; the headline (OFF 29/30, ON 30/30, +1-run driven by
+  cli_args only) trends NEUTRAL/NULL-at-haiku-ceiling with treatment delivery proven. SonarCloud
+  new-coverage 39.3% (non-required) is expected for the integration wiring. (Mark 2026-07-20
   — "fmt should be a real help for weaker
   models creating AILANG… can we do a test with a weak model to see if its making a difference?"
   + his #422 directive "test it's used by small model such as haiku"): A/B agent-mode evals,
