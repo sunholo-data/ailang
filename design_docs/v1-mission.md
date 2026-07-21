@@ -843,7 +843,9 @@ triage evidence = log entry 10.)*
 - **Flagship + surface**: m-v1-orchestration-flagship (verified AI-pipeline example + orchestration
   benchmarks into rotation + README/site lead, 2–3d; m-contracts-as-code-vertical folds in as the
   worked example) · m-serve-api-live-tool-registry (hot MCP tool registry, 3–4d) ·
-  **m-serveapi-raw-handler-mcp** (**[PARKED needs-human-review iter 57 — QUORUM-AT-PICK BLOCKED ×2]** →
+  **m-serveapi-raw-handler-mcp** (**[DECIDED by Mark 2026-07-20 → ROUTABLE: ship M1 `@nomcp`
+  standalone NOW (closes the live docparse MCP leak); M2 fake-envelope DROPPED — doc Status
+  stamped, no re-quorum. Historical park:]** **[was: PARKED iter 57 — QUORUM-AT-PICK BLOCKED ×2]** →
   [planned/v0_30_0/m-serveapi-raw-handler-mcp.md](planned/v0_30_0/m-serveapi-raw-handler-mcp.md), see its ⛔ Quorum Reblock section;
   M1 `@nomcp` MCP-exclusion annotation — keep a `@route` on HTTP but off the `--mcp-http` tool surface
   (`@noexpose` can't: it also kills HTTP + is overridden by `@route`) — closes the live docparse
@@ -855,7 +857,9 @@ triage evidence = log entry 10.)*
   `{"_transport":"MCP_UNAVAILABLE"}` + require `req.method=="MCP"` branch, OR drop the fake-envelope entirely,
   (3) keep parked. Unblocks docparse quota-hardening item 5. Log entry 62. ~0.5d for M1 alone) ·
   m-agent-step-cancellation (1.5d) ·
-  **m-ai-reasoning-effort** (**[PARKED needs-human-review iter 61 — QUORUM-AT-PICK: R1 BLOCKED
+  **m-ai-reasoning-effort** (**[AUTHORIZED by Mark 2026-07-20 → ROUTABLE: ONE more bounded
+  revision+re-quorum round, scoped to the 2 named R2 objections only — doc front-matter stamped.
+  Historical park:]** **[was: PARKED iter 61 — QUORUM-AT-PICK: R1 BLOCKED
   (no-silent-fallback + missing MaxTokens conflict surface) → codex-designer Rev-1 resolved both
   (fail-loud contract w/ 5 typed errors + capability gating + full Conflict Surface) → R2
   re-quorum BLOCKED on 2 NEW *narrower converging* fixes]** →
