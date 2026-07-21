@@ -229,5 +229,14 @@ func jsonContains(t *testing.T, raw []byte, want string) bool {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatalf("bad json: %v", err)
 	}
-	return strings.Contains(string(raw), want)
+	// Search for the JSON-encoded form of want, not the raw string: json.Marshal
+	// escapes backslashes, so a Windows path (C:\...\format_ail.sh) appears in the
+	// settings as C:\\...\\format_ail.sh. Encoding want the same way keeps this
+	// assertion correct on every OS (no-op on Unix forward-slash paths).
+	enc, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshal want: %v", err)
+	}
+	needle := string(enc[1 : len(enc)-1]) // strip the surrounding quotes
+	return strings.Contains(string(raw), needle)
 }
