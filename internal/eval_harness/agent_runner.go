@@ -33,6 +33,11 @@ type AgentBenchmarkConfig struct {
 	AgentPromptContent string        // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
 	Condition          EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
 	MicroragMode       MicroragMode  // μRAG subprocess env mode (M-BRAIN-MICRORAG): on/off/auto
+	// FmtHook (M-EVAL-FMT-WEAKMODEL-AB): on/off toggle for the LANDED
+	// scripts/hooks/format_ail.sh PostToolUse fmt hook. ON wires it into the
+	// agent workspace via .claude/settings.json + --settings; OFF is
+	// byte-identical to today's path. The ONLY per-arm difference in the fmt A/B.
+	FmtHook FmtHookMode
 
 	// MaxTokensPerBench (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0): hard
 	// token-budget ceiling per benchmark for thrash detection on $0 local
@@ -115,6 +120,27 @@ type AgentBenchmarkResult struct {
 	CompactionCount     int `json:"compaction_count,omitempty"`
 	CompactionFirstStep int `json:"first_compaction_step,omitempty"`
 	CompactionMaxLevel  int `json:"compaction_level_max,omitempty"`
+
+	// Fmt-hook A/B fields (M-EVAL-FMT-WEAKMODEL-AB).
+	// FmtHook is the resolved arm ("on"|"off") for config-diff review.
+	FmtHook string `json:"fmt_hook,omitempty"`
+	// FmtHookEvents is the per-turn hook-reality capture: each PostToolUse fmt
+	// invocation observed in the stream, classified exit-0 / defer(3) / error.
+	// Powers M3's treatment-integrity metric (was the ON arm actually treated?).
+	FmtHookEvents []FmtHookEvent `json:"fmt_hook_events,omitempty"`
+}
+
+// FmtHookEvent is one observed run of the format_ail.sh PostToolUse hook
+// (M-EVAL-FMT-WEAKMODEL-AB hook-reality metric). The hook is non-blocking and
+// always exits 0 to the CLI, surfacing its real status via stderr
+// ("✓ Formatted <file>") or hookSpecificOutput.additionalContext (failure). We
+// classify each observed event so M3 can compute the treatment-delivery rate and
+// compare it to the ~8% fail-closed refusal baseline.
+type FmtHookEvent struct {
+	Turn   int    `json:"turn"`             // Agent turn the hook fired on
+	Status string `json:"status"`           // "formatted" (exit 0) | "deferred" (unparseable, exit 3) | "error" (fmt failed / refusal)
+	File   string `json:"file,omitempty"`   // .ail file the hook targeted, if identifiable
+	Detail string `json:"detail,omitempty"` // additionalContext / stderr excerpt for error/deferred cases
 }
 
 // TokenUsage captures detailed token metrics
@@ -152,6 +178,9 @@ type ClaudeHeadlessResult struct {
 	PermissionDenials []interface{}         `json:"permission_denials"`
 	UUID              string                `json:"uuid"`
 	Transcript        string                `json:"-"` // Full conversation transcript (not in JSON, set by streaming)
+	// FmtHookEvents (M-EVAL-FMT-WEAKMODEL-AB): per-turn fmt PostToolUse hook
+	// reality captured from the stream-json (not part of Claude's JSON).
+	FmtHookEvents []FmtHookEvent `json:"-"`
 }
 
 // RunAgentBenchmark runs a single benchmark using Claude Code headless mode
@@ -307,6 +336,9 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		StdoutOk:  validation.StdoutOk,
 		Stdout:    validation.Stdout,
 		Stderr:    validation.Stderr,
+		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook-reality.
+		FmtHook:       config.FmtHook.ResolvedState(),
+		FmtHookEvents: result.FmtHookEvents,
 	}
 
 	// M-CONTRACT-EVAL: Populate verify fields if verification was run
@@ -355,15 +387,27 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
 
+	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): when ON, emit a workspace
+	// .claude/settings.json registering the LANDED format_ail.sh PostToolUse
+	// hook and pass --settings. When OFF, nothing changes (byte-identical path).
+	fmtSettingsPath, _, fmtErr := config.FmtHook.Apply(workspace)
+	if fmtErr != nil {
+		return nil, fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
+	}
+
 	// Build command: claude -p <prompt> --output-format json --model <model> --session-id <id>
 	// Note: --add-dir grants tool access to workspace directory
-	cmd := exec.Command(config.ClaudePath, "-p", prompt,
+	args := []string{"-p", prompt,
 		"--output-format", "json",
 		"--model", config.ClaudeModel,
 		"--session-id", sessionID,
 		"--add-dir", workspace,
 		"--allowedTools", strings.Join(config.AllowedTools, ","),
-	)
+	}
+	if fmtSettingsPath != "" {
+		args = append(args, "--settings", fmtSettingsPath)
+	}
+	cmd := exec.Command(config.ClaudePath, args...)
 
 	// Set working directory to workspace so relative paths work
 	cmd.Dir = workspace

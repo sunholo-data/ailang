@@ -27,6 +27,11 @@ var evalDevtoolsPromptFlag bool
 // Default auto: respect inherited environment. on/off force the value.
 var evalMicroragMode = eval_harness.MicroragModeAuto
 
+// evalFmtHookMode controls whether the LANDED format_ail.sh PostToolUse fmt hook
+// is wired into agent workspaces (M-EVAL-FMT-WEAKMODEL-AB). Default off preserves
+// today's behaviour; on is the treatment arm of the fmt A/B.
+var evalFmtHookMode = eval_harness.FmtHookModeOff
+
 // discoverBenchmarks finds all .yml files in the benchmark directory
 func discoverBenchmarks() []string {
 	entries, err := os.ReadDir(evalBenchmarkDir)

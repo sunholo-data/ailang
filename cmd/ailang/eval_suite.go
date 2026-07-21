@@ -143,6 +143,13 @@ func runEvalSuite() {
 	// off:  force AILANG_MICRORAG_ENABLED=0 (use for the baseline arm of an A/B run).
 	microragMode := fs.String("microrag", "auto", "μRAG knowledge injection: on | off | auto (default: auto). For A/B comparison, run twice with on/off.")
 
+	// fmt-hook toggle (M-EVAL-FMT-WEAKMODEL-AB)
+	// off: no fmt PostToolUse hook — byte-identical to today's path (DEFAULT).
+	// on:  wire the LANDED scripts/hooks/format_ail.sh PostToolUse hook into the
+	//      agent workspace so `ailang fmt --write` formats every edited .ail file.
+	// For the weak-model fmt A/B, run twice (agent mode) with on/off.
+	fmtHookMode := fs.String("fmt-hook", "off", "fmt PostToolUse hook: on | off (default: off). Agent mode only. For A/B, run twice with on/off.")
+
 	// Message-based coordination flags (M-UNIFIED-AI-CONTROL-PLANE)
 	queueMode := fs.Bool("queue", false, "Run benchmarks via message queue (coordinator processes, crash recovery)")
 	queueInbox := fs.String("queue-inbox", "eval-runner", "Inbox for queue mode benchmark jobs")
@@ -175,6 +182,7 @@ func runEvalSuite() {
 	evalVerifyTimeout = *verifyTimeout
 	evalDevtoolsPromptFlag = *devtoolsPrompt
 	evalMicroragMode = eval_harness.ParseMicroragMode(*microragMode)
+	evalFmtHookMode = eval_harness.ParseFmtHookMode(*fmtHookMode)
 
 	// Parse --conditions flag into a list
 	var conditionList []string
@@ -673,6 +681,7 @@ func runEvalSuite() {
 			DevtoolsPrompt:     devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
 			AgentPromptContent: agentPromptContent, // Agent coding prompt for "agent_prompt" condition
 			MicroragMode:       evalMicroragMode,   // M-BRAIN-MICRORAG: subprocess env mode
+			FmtHook:            evalFmtHookMode,    // M-EVAL-FMT-WEAKMODEL-AB: fmt PostToolUse hook A/B toggle
 		}
 	}
 
