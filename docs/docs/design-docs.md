@@ -10,8 +10,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.30.0
 
+- [Sprint Plan: M-AILANG-FMT-ADOPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-adoption-sprint-plan.md)
+- [M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-adoption.md)
 - [M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-phase2.md)
 - [M-AILANG-FMT: `ailang fmt` — Canonical AILANG Source Formatter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt.md)
+- [Sprint Plan: M-ARCH-BOUNDARIES (Phases 1–3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arch-boundaries-sprint-plan.md)
+- [M-ARCH-BOUNDARIES: Formalize Dashboard/Core Separation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arch-boundaries.md)
 - [Arity-Style Diagnostic (m-arity-style-diagnostic)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arity-style-diagnostic.md)
 - [M-DX-AI-DISCOVERY — Sprint Plan (Executor Handoff)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery-sprint-plan.md)
 - [M-DX-AI-DISCOVERY: One-Shot Stdlib Discovery for AI Agents (RE-SCOPED)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-ai-discovery.md)
@@ -1308,4 +1312,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 947 design documents across 117 versions.*
+*Generated at build time. 951 design documents across 117 versions.*
