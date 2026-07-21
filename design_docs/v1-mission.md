@@ -981,9 +981,14 @@ frozen; contracts projection live).
   once, run both) · M3 first-class `---` doc-comments as AST nodes (v0.31; dissolves fmt
   attachment at the root for the doc position; sequence AFTER the fmt polish pair) · M4
   contracts-as-docs exemplars (rolling). First measured comment semantics for AI authors.
-- **m-eval-fmt-weakmodel-ab [NEW-DOC, Mark 2026-07-20** — "fmt should be a real help for weaker
+- **m-eval-fmt-weakmodel-ab [PARKED — needs-human-review; DOC CREATED iter-71 →
+  [planned/v0_31_0](planned/v0_31_0/m-eval-fmt-weakmodel-ab.md); designer codex:gpt-5.6-sol; quorum
+  gemini-3-1-pro reject→revise→reject (r1 harness-integration-surface fixed by designer; r2
+  verification-log added by controller); automated 1-revision budget exhausted → awaiting human
+  green-light / re-quorum before sprint-planner. Also GPU-rig-gated at execution.]** (Mark 2026-07-20
+  — "fmt should be a real help for weaker
   models creating AILANG… can we do a test with a weak model to see if its making a difference?"
-  + his #422 directive "test it's used by small model such as haiku"**]**: A/B agent-mode evals,
+  + his #422 directive "test it's used by small model such as haiku"): A/B agent-mode evals,
   ONE weak model (haiku first; optionally a local small model as replication), fmt PostToolUse
   hook ON vs OFF, same benchmarks/N-runs. Metrics: pass rate + compile-stuck/green-stability
   convergence (the noisy-agentic-metrics rule: N-run aggregates, never single runs) + per-turn
