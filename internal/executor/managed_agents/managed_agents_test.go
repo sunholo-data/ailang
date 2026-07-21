@@ -107,9 +107,25 @@ func TestExecuteWithFixture(t *testing.T) {
 	if res.InputTokens != 6560 {
 		t.Errorf("InputTokens=%d, want 6560", res.InputTokens)
 	}
-	// OutputTokens = candidates (35) + thoughts (748)
-	if res.OutputTokens != 35+748 {
-		t.Errorf("OutputTokens=%d, want %d", res.OutputTokens, 35+748)
+	// OutputTokens and ReasonTokens are DISJOINT: candidates (35) stay in
+	// OutputTokens, thoughts (748) go to ReasonTokens. Folding thoughts into
+	// OutputTokens made thinking invisible downstream, and would now
+	// double-count once TotalTokens includes reasoning.
+	if res.OutputTokens != 35 {
+		t.Errorf("OutputTokens=%d, want 35 (candidates only, thoughts excluded)", res.OutputTokens)
+	}
+	if res.ReasonTokens != 748 {
+		t.Errorf("ReasonTokens=%d, want 748 (thought tokens)", res.ReasonTokens)
+	}
+
+	// Splitting the fields must NOT change billing: thought tokens are still
+	// billed at the output rate, so cost is computed over output+reason.
+	wantCost := exec.CostModel().CalculateCost(executor.TokenUsage{
+		InputTokens:  6560,
+		OutputTokens: 35 + 748,
+	})
+	if res.CostUSD != wantCost {
+		t.Errorf("CostUSD=%v, want %v (thoughts still billed at output rate)", res.CostUSD, wantCost)
 	}
 
 	// 4. Session/interaction ID extracted

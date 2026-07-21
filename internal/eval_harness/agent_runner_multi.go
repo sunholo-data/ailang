@@ -397,7 +397,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Error:         result.Error,
 		SessionID:     result.SessionID,
 		Result:        result.Output,
-		Usage:         TokenUsage{InputTokens: result.InputTokens, OutputTokens: result.OutputTokens},
+		Usage:         tokenUsageFromResult(result),
 		TTFTSeconds:   ttftTracker.seconds,
 		ModelFamily: func() string {
 			if GlobalModelsConfig != nil {
@@ -646,4 +646,30 @@ func modelMaxOutputTokens(modelName string) int {
 		return m.MaxOutputTokens
 	}
 	return 0
+}
+
+// tokenUsageFromResult maps executor token counts into the banked TokenUsage.
+//
+// This mapping is a proven silent-data-loss point. The standard path had the
+// same shape and dropped reasoning tokens + finish_reason for every provider
+// until 43333e7a8, which is why the whole v0.30.0 standard baseline banked
+// cost figures that understate real spend (see
+// eval_results/baselines/v0.30.0/CAVEATS.md). The agent path dropped them for
+// even longer.
+//
+// It is a named function, not an inline literal, so the boundary itself is
+// covered by a test rather than only the parsers feeding it — a field that is
+// parsed correctly but never copied here is indistinguishable, in the banked
+// data, from a field the provider never reported.
+func tokenUsageFromResult(result *executor.Result) TokenUsage {
+	if result == nil {
+		return TokenUsage{}
+	}
+	return TokenUsage{
+		InputTokens:              result.InputTokens,
+		OutputTokens:             result.OutputTokens,
+		ReasonTokens:             result.ReasonTokens,
+		CacheReadInputTokens:     result.CacheReadInputTokens,
+		CacheCreationInputTokens: result.CacheCreationInputTokens,
+	}
 }

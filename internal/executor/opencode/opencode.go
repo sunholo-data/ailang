@@ -212,7 +212,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var numSteps int
 	var toolCallCount int
 	// opencode emits per-step deltas; sum across step_finish events.
-	var inputTokens, outputTokens int
+	var inputTokens, outputTokens, reasonTokens int
+	// Finish reason of the LAST step_finish: intermediate steps report
+	// "tool-calls" as they hand off to a tool, so only the final one describes
+	// how the run actually ended (notably "length" = truncated at the cap).
+	var lastFinishReason string
 	var totalCostUSD float64
 	var stepSpan trace.Span
 	var stderrBuf strings.Builder
@@ -326,7 +330,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				// Per-step delta: sum across all step_finish events.
 				inputTokens += ev.Part.Tokens.Input
 				outputTokens += ev.Part.Tokens.Output
+				reasonTokens += ev.Part.Tokens.Reasoning
 				totalCostUSD += ev.Part.Cost
+				if ev.Part.Reason != "" {
+					lastFinishReason = ev.Part.Reason
+				}
 
 				// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-step deltas.
 				if task.Budget != nil && (ev.Part.Tokens.Input > 0 || ev.Part.Tokens.Output > 0) {
@@ -398,6 +406,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					DurationMS:     int(duration.Milliseconds()),
 					InputTokens:    inputTokens,
 					OutputTokens:   outputTokens,
+					ReasonTokens:   reasonTokens,
 					CostUSD:        totalCostUSD,
 					NumTurns:       numSteps,
 					ToolCallCount:  toolCallCount,
@@ -408,6 +417,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					FirstAttemptMs: firstAttemptMs,
 					SuccessAtMs:    -1,
 					TokensPerSec:   tokensPerSec,
+					FinishReason:   normalizeOpencodeFinishReason(lastFinishReason),
 				}, nil
 			}
 
@@ -424,6 +434,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				DurationMS:     int(duration.Milliseconds()),
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				ReasonTokens:   reasonTokens,
 				CostUSD:        totalCostUSD,
 				NumTurns:       numSteps,
 				ToolCallCount:  toolCallCount,
@@ -434,6 +445,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 				TokensPerSec:   tokensPerSec,
+				FinishReason:   normalizeOpencodeFinishReason(lastFinishReason),
 			}, nil
 
 		case <-hardTimer.C:
@@ -444,6 +456,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				Error:          fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				ReasonTokens:   reasonTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
@@ -469,6 +482,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					Error:          fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
 					InputTokens:    inputTokens,
 					OutputTokens:   outputTokens,
+					ReasonTokens:   reasonTokens,
 					CostKilledAt:   task.Budget.KilledAt(),
 					FirstAttemptMs: firstAttemptMs,
 					SuccessAtMs:    -1,
@@ -484,6 +498,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				Error:          fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
+				ReasonTokens:   reasonTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
@@ -622,6 +637,31 @@ func computeTokensPerSec(outputTokens int, firstStreamEventAt time.Time) float64
 		return 0
 	}
 	return float64(outputTokens) / gen
+}
+
+// normalizeOpencodeFinishReason maps the opencode/AI-SDK step_finish vocabulary
+// ("stop", "length", "tool-calls", "content-filter", "error", "other") onto the
+// executor.Result.FinishReason vocabulary.
+//
+// "length" is the one that matters: it means the model hit the output cap, and a
+// reasoning model that burns its budget thinking returns "length" with a
+// truncated body. Without it a truncated run is indistinguishable from a model
+// that simply could not solve the task.
+//
+// Unrecognised values pass through underscored rather than being dropped —
+// CategorizeAgentError ignores reasons it does not know, so an unmapped value is
+// inert for classification but still visible in the banked row.
+func normalizeOpencodeFinishReason(r string) string {
+	switch r {
+	case "":
+		return ""
+	case "stop":
+		return "stop"
+	case "length":
+		return "length"
+	default:
+		return strings.ReplaceAll(strings.ToLower(r), "-", "_")
+	}
 }
 
 // opencodeProviderData wraps raw events as Result.ProviderData.
