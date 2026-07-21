@@ -441,11 +441,25 @@ function mergeOSData(data, os) {
     const allLocal = h.models.length > 0 && h.models.every(mm => data.models[mm]?.source === 'local');
     if (h.source === 'local' || allLocal) {
       for (const l of LANG_ORDER) {
-        const rates = h.models
-          .map(mm => data.models[mm]?.languages?.[l]?.agentSuccessRate)
-          .filter(v => v != null);
-        if (rates.length) {
-          h.languages[l] = { successRate: rates.reduce((s, v) => s + v, 0) / rates.length };
+        const langs = h.models
+          .map(mm => data.models[mm]?.languages?.[l])
+          .filter(v => v != null && v.agentSuccessRate != null);
+        if (langs.length) {
+          const mean = (pick) => {
+            const vals = langs.map(pick).filter(v => v != null);
+            return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+          };
+          // Carry adjusted + apiErrorRate through the aggregate. Replacing the object
+          // with successRate ALONE made Cell() fall back to the raw rate for the
+          // harness row while the child model row (which still had them) rendered the
+          // adjusted one — motoko showed 94% aggregate over a 100% only-model, the
+          // same impossible contradiction this block exists to prevent.
+          h.languages[l] = {
+            successRate: mean(v => v.agentSuccessRate),
+            agentSuccessRate: mean(v => v.agentSuccessRate),
+            agentSuccessRateAdjusted: mean(v => v.agentSuccessRateAdjusted),
+            agentApiErrorRate: mean(v => v.agentApiErrorRate),
+          };
         }
       }
       h.avg_cost_usd = 0; // on-device = free
