@@ -38,6 +38,7 @@ make check-file-sizes     # Fails if >800 lines
 | `AILANG_TRACE=off\|standard\|deep` | Tracing tier (v0.12.0+). Default: `standard`. `deep` = per-call spans (~2x overhead) |
 | `AILANG_TRACE_MAX_SPANS=N` | Per-trace span budget (default 500). Overflow emits `trace.truncated` rollup |
 | `AILANG_NO_TRACE=1` | Back-compat alias for `AILANG_TRACE=off` |
+| `AILANG_EVAL_MAX_RSS=8G` | Eval memory cap per generated-code run (process-group RSS, default 8G, `off` disables). Breach → tree killed, banked as `resource_limit` |
 | `--trace-tier off\|standard\|deep` | Tracing tier CLI flag (overrides env) |
 | `--timeout 30s` | Compilation timeout with stack dump (CLI flag) |
 | `--debug-compile` | Phase timing breakdown (CLI flag) |

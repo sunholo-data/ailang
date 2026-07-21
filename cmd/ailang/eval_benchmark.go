@@ -238,7 +238,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		// FinishReason (motoko cost_exhausted, future step_exhausted),
 		// promote that to the canonical ErrorCategory. Otherwise fall back
 		// to the standard compile/runtime/logic classification.
-		errCategory := eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+		// M-EVAL-MEM-GUARD: CategorizeRunError promotes memory-watchdog kills
+		// (marker in validation stderr) to resource_limit.
+		errCategory := eval_harness.CategorizeRunError(result.CompileOk, result.RuntimeOk, result.StdoutOk, result.Stderr)
 		if !result.Success && result.FinishReason != "" {
 			if typed := eval_harness.CategorizeAgentError(nil, result.FinishReason); typed != eval_harness.ErrorCategoryAPI {
 				errCategory = typed
@@ -344,7 +346,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				CompileOk:      result.CompileOk,
 				RuntimeOk:      result.RuntimeOk,
 				StdoutOk:       result.StdoutOk,
-				ErrorCategory:  string(eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)),
+				ErrorCategory:  string(eval_harness.CategorizeRunError(result.CompileOk, result.RuntimeOk, result.StdoutOk, result.Stderr)),
 				FirstAttemptOk: result.Success,
 				PromptVersion:  result.PromptVersion,
 				CodeHash:       telemetry.ShortHash(result.SolutionCode, 8),

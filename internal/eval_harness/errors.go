@@ -37,6 +37,9 @@ const (
 	// Runtime errors - Module system
 	MOD_001 ErrCode = "MOD_001" // Undefined module/entry
 
+	// Runtime errors - Resource limits (M-EVAL-MEM-GUARD)
+	RES_LIMIT ErrCode = "RES_LIMIT" // Memory watchdog killed the process group
+
 	// Contract verification errors (M-CONTRACT-EVAL)
 	VERIFY_COUNTEREXAMPLE ErrCode = "VERIFY_COUNTEREXAMPLE" // Z3 found counterexample
 
@@ -136,6 +139,18 @@ var Rules = []errorRule{
 			Title: "Missing capability",
 			Why:   "Effect calls require explicit capabilities at runtime.",
 			How:   "Declare effects in function signature with explicit type annotation: `let main : Unit -> Unit <IO> = \\() -> { println(...) }`. The type annotation is REQUIRED for effects.",
+		},
+	},
+	{
+		// M-EVAL-MEM-GUARD: matches the harness-written MemKillMarker stderr.
+		// Language-agnostic (the marker never appears in tool output), so it is
+		// safe for every lane, not just AILANG.
+		RES_LIMIT,
+		regexp.MustCompile(`\[resource_limit\]`),
+		RepairHint{
+			Title: "Memory limit exceeded",
+			Why:   "The program's resident memory grew past the eval harness cap, so its process tree was killed. This usually means an unbounded or oversized allocation (building a huge list/string, unbounded recursion accumulating data, or a runaway loop appending forever).",
+			How:   "Rewrite with bounded memory: process input incrementally/streaming instead of materializing everything, cap collection sizes to what the task actually needs, and check loop/recursion termination conditions.",
 		},
 	},
 	{

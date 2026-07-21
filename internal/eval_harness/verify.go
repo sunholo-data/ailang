@@ -45,34 +45,39 @@ func RunAICheck(ailangPath, filePath string, timeout time.Duration) (*AICheckRes
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Run with a generous timeout (ai-check itself has per-function timeout)
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Run()
-	}()
-
-	cmdTimeout := timeout*3 + 10*time.Second // Allow generous time for full run
-	select {
-	case <-time.After(cmdTimeout):
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		<-done
-		return nil, "", fmt.Errorf("ai-check timed out after %v", cmdTimeout)
-	case err := <-done:
-		// ai-check exits 0 even with counterexamples, exits non-zero on errors
-		rawOutput := stdout.String()
-		if rawOutput == "" && err != nil {
-			return nil, stderr.String(), fmt.Errorf("ai-check failed: %w\nstderr: %s", err, stderr.String())
-		}
-
-		var result AICheckResult
-		if jsonErr := json.Unmarshal([]byte(rawOutput), &result); jsonErr != nil {
-			return nil, rawOutput, fmt.Errorf("failed to parse ai-check JSON: %w\noutput: %s", jsonErr, rawOutput)
-		}
-
-		return &result, rawOutput, nil
+	// M-EVAL-MEM-GUARD: ai-check runs the type checker + Z3 over MODEL source,
+	// so guard it like the execution lanes — own process group (kills any
+	// solver children with it) and the memory watchdog.
+	SetProcessGroup(cmd)
+	maxRSS, err := evalMaxRSS()
+	if err != nil {
+		return nil, "", err
 	}
+	if startErr := cmd.Start(); startErr != nil {
+		return nil, "", fmt.Errorf("ai-check failed to start: %w", startErr)
+	}
+
+	cmdTimeout := timeout*3 + 10*time.Second // Allow generous time for full run (ai-check has per-function timeouts)
+	g := waitWithGuards(cmd, cmdTimeout, maxRSS)
+	if g.timedOut {
+		return nil, "", fmt.Errorf("ai-check timed out after %v", cmdTimeout)
+	}
+	if g.memKilled {
+		return nil, "", fmt.Errorf("ai-check killed: %s process group exceeded the %s memory cap", MemKillMarker, EnvEvalMaxRSS)
+	}
+
+	// ai-check exits 0 even with counterexamples, exits non-zero on errors
+	rawOutput := stdout.String()
+	if rawOutput == "" && g.waitErr != nil {
+		return nil, stderr.String(), fmt.Errorf("ai-check failed: %w\nstderr: %s", g.waitErr, stderr.String())
+	}
+
+	var result AICheckResult
+	if jsonErr := json.Unmarshal([]byte(rawOutput), &result); jsonErr != nil {
+		return nil, rawOutput, fmt.Errorf("failed to parse ai-check JSON: %w\noutput: %s", jsonErr, rawOutput)
+	}
+
+	return &result, rawOutput, nil
 }
 
 // PopulateVerifyMetrics fills verify fields in RunMetrics from an AICheckResult

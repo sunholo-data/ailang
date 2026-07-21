@@ -253,6 +253,12 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.ExecuteMs = result.RunResult.ExecuteTime.Milliseconds()
 
 	metrics.ErrorCategory = CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+	// M-EVAL-MEM-GUARD: a memory-watchdog kill is its own bucket — the code
+	// ran but allocated past the cap, which is neither a plain runtime error
+	// nor a host problem.
+	if result.RunResult.MemExceeded {
+		metrics.ErrorCategory = ErrorCategoryResourceLimit
+	}
 	if len(result.ConstraintViolations) > 0 {
 		metrics.ErrorCategory = ErrorCategoryConstraint
 		metrics.ConstraintViolations = result.ConstraintViolations

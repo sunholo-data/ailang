@@ -193,63 +193,18 @@ func (r *MoonbitRunner) Run(code string, timeout time.Duration) (*RunResult, err
 		cmd.Stdin = strings.NewReader(r.spec.Stdin)
 	}
 
-	SetProcessGroup(cmd)
-
-	stdout := NewLimitedWriter(MaxOutputSize)
-	stderr := NewLimitedWriter(MaxOutputSize)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	if err := cmd.Start(); err != nil {
-		return &RunResult{
-			Stderr:    err.Error(),
-			ExitCode:  -1,
-			Duration:  time.Since(start),
-			CompileOk: false,
-			RuntimeOk: false,
-		}, nil
+	res := runGuarded(cmd, timeout, "execution timed out")
+	// `moon run` handles compile+execute in one step. We can't trivially
+	// distinguish compile errors from runtime errors without parsing stderr,
+	// so we mark CompileOk=true when the process exits with a recognised
+	// status; downstream error categorisation in errors.go classifies the
+	// failure mode from stderr patterns. (Timeout/memkill stderr is
+	// harness-written, so the "error:" scan only applies to real runs; the
+	// res.CompileOk gate keeps a start-failure's CompileOk=false intact.)
+	if !res.TimedOut && !res.MemExceeded && res.ExitCode != 0 && res.CompileOk {
+		res.CompileOk = !strings.Contains(res.Stderr, "error:")
 	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-time.After(timeout):
-		_ = KillProcessGroup(cmd.Process.Pid)
-		<-done
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    "execution timed out",
-			ExitCode:  -1,
-			Duration:  timeout,
-			CompileOk: true,
-			RuntimeOk: false,
-			TimedOut:  true,
-		}, nil
-	case err := <-done:
-		duration := time.Since(start)
-		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = -1
-			}
-		}
-		// `moon run` handles compile+execute in one step. We can't trivially
-		// distinguish compile errors from runtime errors without parsing stderr,
-		// so we mark CompileOk=true when the process exits with a recognised
-		// status; downstream error categorisation in errors.go classifies the
-		// failure mode from stderr patterns.
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    stderr.String(),
-			ExitCode:  exitCode,
-			Duration:  duration,
-			CompileOk: exitCode == 0 || !strings.Contains(stderr.String(), "error:"),
-			RuntimeOk: exitCode == 0,
-		}, nil
-	}
+	return res, nil
 }
 
 // AverRunner executes Aver code via `aver run <file>.av`.
@@ -315,53 +270,14 @@ func (r *AverRunner) Run(code string, timeout time.Duration) (*RunResult, error)
 		cmd.Stdin = strings.NewReader(r.spec.Stdin)
 	}
 
-	SetProcessGroup(cmd)
-
-	stdout := NewLimitedWriter(MaxOutputSize)
-	stderr := NewLimitedWriter(MaxOutputSize)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	if err := cmd.Start(); err != nil {
-		return &RunResult{
-			Stderr:    err.Error(),
-			ExitCode:  -1,
-			Duration:  time.Since(start),
-			CompileOk: false,
-			RuntimeOk: false,
-		}, nil
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-time.After(timeout):
-		_ = KillProcessGroup(cmd.Process.Pid)
-		<-done
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    "execution timed out",
-			ExitCode:  -1,
-			Duration:  timeout,
-			CompileOk: true,
-			RuntimeOk: false,
-			TimedOut:  true,
-		}, nil
-	case err := <-done:
-		duration := time.Since(start)
-		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = -1
-			}
-		}
-		stderrText := stderr.String()
+	res := runGuarded(cmd, timeout, "execution timed out")
+	// Timeout/memkill stderr is harness-written, so the compile-error scan and
+	// diagnostics enrichment below only apply to real runs; the res.CompileOk
+	// gate keeps a start-failure's CompileOk=false intact.
+	if !res.TimedOut && !res.MemExceeded && res.ExitCode != 0 && res.CompileOk {
 		// `aver run` reports compile-class failures (parse/type errors, undeclared
 		// effects, non-exhaustive matches) as a terse one-line `error[...]` on stderr.
-		compileErr := strings.Contains(stderrText, "error[")
+		compileErr := strings.Contains(res.Stderr, "error[")
 		// On a compile-class failure, re-run via `aver check` and surface its
 		// structured diagnostics (named categories, `repair:` hints, source
 		// excerpts) instead — far better retry feedback for the LLM. `aver run`
@@ -369,20 +285,14 @@ func (r *AverRunner) Run(code string, timeout time.Duration) (*RunResult, error)
 		// `module` declaration that `run` does not, so gating on it would fail
 		// runnable solutions. We only enrich the message, never change the verdict.
 		// See sunholo-data/ailang#241.
-		if exitCode != 0 && compileErr {
+		if compileErr {
+			res.CompileOk = false
 			if diag := averCheckDiagnostics(tmpFile, tmpDir, timeout); diag != "" {
-				stderrText = diag
+				res.Stderr = diag
 			}
 		}
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    stderrText,
-			ExitCode:  exitCode,
-			Duration:  duration,
-			CompileOk: exitCode == 0 || !compileErr,
-			RuntimeOk: exitCode == 0,
-		}, nil
 	}
+	return res, nil
 }
 
 // averCheckDiagnostics runs `aver check <file>` and returns its rich diagnostic
@@ -408,32 +318,33 @@ func averCheckDiagnostics(file, workDir string, timeout time.Duration) string {
 		return ""
 	}
 
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-time.After(timeout):
-		_ = KillProcessGroup(cmd.Process.Pid)
-		<-done
-		return ""
-	case <-done:
-		// `aver check` writes diagnostics to stdout; stderr is usually empty but
-		// we append it for safety.
-		diag := strings.TrimSpace(stdout.String())
-		if e := strings.TrimSpace(stderr.String()); e != "" {
-			if diag != "" {
-				diag += "\n"
-			}
-			diag += e
-		}
-		return diag
+	// Best-effort enrichment: guard with the same timeout + memory watchdog as
+	// the main run (the type checker also processes adversarial model source),
+	// and fall back to the original `aver run` output on any guard kill.
+	maxRSS, rssErr := evalMaxRSS()
+	if rssErr != nil {
+		maxRSS = 0 // main run already failed loudly on the bad env value
 	}
+	g := waitWithGuards(cmd, timeout, maxRSS)
+	if g.timedOut || g.memKilled {
+		return ""
+	}
+	// `aver check` writes diagnostics to stdout; stderr is usually empty but
+	// we append it for safety.
+	diag := strings.TrimSpace(stdout.String())
+	if e := strings.TrimSpace(stderr.String()); e != "" {
+		if diag != "" {
+			diag += "\n"
+		}
+		diag += e
+	}
+	return diag
 }
 
 // runSubprocess is a shared helper for JSRunner and GoRunner.
-// It starts cmd with the given args, wires stdin/stdout/stderr, and enforces timeout.
+// It runs binary with the given args under the shared guards (process group,
+// output limits, wall-clock timeout, memory watchdog).
 func runSubprocess(binary string, args []string, workDir string, spec *BenchmarkSpec, timeout time.Duration, langLabel string) (*RunResult, error) {
-	start := time.Now()
 	cmd := exec.Command(binary, args...)
 	cmd.Dir = workDir
 
@@ -441,56 +352,5 @@ func runSubprocess(binary string, args []string, workDir string, spec *Benchmark
 		cmd.Stdin = strings.NewReader(spec.Stdin)
 	}
 
-	SetProcessGroup(cmd)
-
-	stdout := NewLimitedWriter(MaxOutputSize)
-	stderr := NewLimitedWriter(MaxOutputSize)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	if err := cmd.Start(); err != nil {
-		return &RunResult{
-			Stderr:    err.Error(),
-			ExitCode:  -1,
-			Duration:  time.Since(start),
-			CompileOk: false,
-			RuntimeOk: false,
-		}, nil
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-time.After(timeout):
-		_ = KillProcessGroup(cmd.Process.Pid)
-		<-done
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    langLabel + " execution timed out",
-			ExitCode:  -1,
-			Duration:  timeout,
-			CompileOk: true,
-			RuntimeOk: false,
-			TimedOut:  true,
-		}, nil
-	case err := <-done:
-		duration := time.Since(start)
-		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = -1
-			}
-		}
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    stderr.String(),
-			ExitCode:  exitCode,
-			Duration:  duration,
-			CompileOk: true,
-			RuntimeOk: exitCode == 0,
-		}, nil
-	}
+	return runGuarded(cmd, timeout, langLabel+" execution timed out"), nil
 }

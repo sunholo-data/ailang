@@ -94,6 +94,7 @@ type RunResult struct {
 	RuntimeOk    bool
 	StdoutOk     bool
 	TimedOut     bool
+	MemExceeded  bool   // Killed by the memory watchdog (banked as resource_limit)
 	CodeHash     string // SHA256 hash of executed code (for validation)
 	WorkspaceDir string // Path to isolated workspace (for debugging)
 }
@@ -158,7 +159,9 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
 	}
 
-	// Execute with timeout
+	// Execute under the shared guards (process group, output limits,
+	// wall-clock timeout, memory watchdog). Python has no separate compile
+	// step, so runGuarded's CompileOk=true default is correct.
 	start := time.Now()
 	cmd, err := newPythonCommand(cmdArgs...)
 	if err != nil {
@@ -177,67 +180,7 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		cmd.Stdin = strings.NewReader(r.spec.Stdin)
 	}
 
-	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
-	SetProcessGroup(cmd)
-
-	// Use limited writers to prevent infinite loop bugs from generating gigabyte-sized output
-	stdout := NewLimitedWriter(MaxOutputSize)
-	stderr := NewLimitedWriter(MaxOutputSize)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	// Start command
-	if err := cmd.Start(); err != nil {
-		return &RunResult{
-			Stderr:    err.Error(),
-			ExitCode:  -1,
-			Duration:  time.Since(start),
-			CompileOk: false,
-			RuntimeOk: false,
-		}, nil
-	}
-
-	// Wait with timeout
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case <-time.After(timeout):
-		// M-EVAL-GUARD: Kill entire process group (negative PID) to prevent orphans
-		_ = KillProcessGroup(cmd.Process.Pid)
-		// Wait for the goroutine to finish after kill to avoid race
-		<-done
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    "execution timed out",
-			ExitCode:  -1,
-			Duration:  timeout,
-			CompileOk: true,
-			RuntimeOk: false,
-			TimedOut:  true,
-		}, nil
-	case err := <-done:
-		duration := time.Since(start)
-		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = -1
-			}
-		}
-
-		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    stderr.String(),
-			ExitCode:  exitCode,
-			Duration:  duration,
-			CompileOk: true, // Python has no separate compile step
-			RuntimeOk: exitCode == 0,
-		}, nil
-	}
+	return runGuarded(cmd, timeout, "execution timed out"), nil
 }
 
 // AILANGRunner executes AILANG code
@@ -364,8 +307,9 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		args = append(args, r.spec.CliArgs...)
 	}
 
-	// Execute with timeout from workspace directory (for module path resolution and stdlib access)
-	start := time.Now()
+	// Execute from workspace directory (for module path resolution and stdlib
+	// access) under the shared guards (process group, output limits, timeout,
+	// memory watchdog).
 	cmd := exec.Command(r.ailangPath, args...)
 	cmd.Dir = workspace // Run from isolated workspace
 
@@ -387,85 +331,20 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	}
 	cmd.Env = env
 
-	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
-	SetProcessGroup(cmd)
+	res := runGuarded(cmd, timeout, "execution timed out")
+	res.CodeHash = codeHashStr
+	res.WorkspaceDir = workspace
 
-	// Use limited writers to prevent infinite loop bugs from generating gigabyte-sized output
-	stdout := NewLimitedWriter(MaxOutputSize)
-	stderr := NewLimitedWriter(MaxOutputSize)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-
-	// Start command
-	if err := cmd.Start(); err != nil {
-		return &RunResult{
-			Stderr:       err.Error(),
-			ExitCode:     -1,
-			Duration:     time.Since(start),
-			CompileOk:    false,
-			RuntimeOk:    false,
-			CodeHash:     codeHashStr,
-			WorkspaceDir: workspace,
-		}, nil
-	}
-
-	// Wait with timeout
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case <-time.After(timeout):
-		// M-EVAL-GUARD: Kill entire process group (negative PID) to prevent orphans
-		_ = KillProcessGroup(cmd.Process.Pid)
-		// Wait for the goroutine to finish after kill to avoid race
-		<-done
-		return &RunResult{
-			Stdout:       stdout.String(),
-			Stderr:       "execution timed out",
-			ExitCode:     -1,
-			Duration:     timeout,
-			CompileOk:    true,
-			RuntimeOk:    false,
-			TimedOut:     true,
-			CodeHash:     codeHashStr,
-			WorkspaceDir: workspace,
-		}, nil
-	case err := <-done:
-		duration := time.Since(start)
-		exitCode := 0
-		compileOk := true
-		runtimeOk := true
-
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = -1
-			}
-			runtimeOk = false
-
-			// Detect compile errors vs runtime errors
-			stderrStr := stderr.String()
-			if strings.Contains(stderrStr, "parse error") ||
-				strings.Contains(stderrStr, "type error") ||
-				strings.Contains(stderrStr, "syntax error") {
-				compileOk = false
-			}
+	// Detect compile errors vs runtime errors (only meaningful when the
+	// process itself failed; timeout/memkill stderr is harness-written).
+	if !res.TimedOut && !res.MemExceeded && res.ExitCode != 0 {
+		if strings.Contains(res.Stderr, "parse error") ||
+			strings.Contains(res.Stderr, "type error") ||
+			strings.Contains(res.Stderr, "syntax error") {
+			res.CompileOk = false
 		}
-
-		return &RunResult{
-			Stdout:       stdout.String(),
-			Stderr:       stderr.String(),
-			ExitCode:     exitCode,
-			Duration:     duration,
-			CompileOk:    compileOk,
-			RuntimeOk:    runtimeOk,
-			CodeHash:     codeHashStr,
-			WorkspaceDir: workspace,
-		}, nil
 	}
+	return res, nil
 }
 
 // CompareOutput checks if actual output matches expected output

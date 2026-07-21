@@ -33,3 +33,10 @@ func KillProcess(pid int) error {
 	}
 	return proc.Kill()
 }
+
+// ProcessGroupRSS is unavailable on Windows (no ps, no process groups).
+// Returning ok=false leaves the memory watchdog inert; the wall-clock
+// timeout still guards runs.
+func ProcessGroupRSS(pid int) (int64, bool) {
+	return 0, false
+}

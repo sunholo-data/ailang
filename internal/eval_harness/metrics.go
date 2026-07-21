@@ -142,6 +142,11 @@ const (
 	ErrorCategoryCostKilled     = "cost_killed"     // Eval-side $ budget exceeded (motoko cost_exhausted, future executor caps)
 	ErrorCategoryStepExhausted  = "step_exhausted"  // Agent ran out of turns / step budget without success
 	ErrorCategoryThrashAborted  = "thrash_aborted"  // M-EVAL-OS-LONGITUDINAL Phase 1: cumulative tokens exceeded MaxTokensPerBench (free $0 models)
+	// M-EVAL-MEM-GUARD: generated code exceeded the AILANG_EVAL_MAX_RSS
+	// resident-memory cap and its process group was killed. A model failure
+	// (unbounded allocation), banked instead of crashing the host — see the
+	// 2026-07-20 rig kernel panic.
+	ErrorCategoryResourceLimit = "resource_limit"
 )
 
 // CategorizeError determines the error category based on execution results

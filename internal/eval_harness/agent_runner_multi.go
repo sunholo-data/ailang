@@ -4,7 +4,6 @@
 package eval_harness
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -529,24 +528,28 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 	if spec.Stdin != "" {
 		cmd.Stdin = strings.NewReader(spec.Stdin)
 	}
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	// Run under the shared guards. This lane previously used CombinedOutput()
+	// with NO timeout, NO process group, and NO memory cap — an unbounded
+	// execution of model code (the class of hole behind the 2026-07-20 rig
+	// kernel panic). 30s matches the JS/Go validation lane above.
+	res := runGuarded(cmd, 30*time.Second, "Python validation timed out")
+	if res.ExitCode != 0 {
 		return ValidationResult{
 			CompileOk: true,
 			RuntimeOk: false,
 			StdoutOk:  false,
-			Stdout:    string(output),
-			Stderr:    fmt.Sprintf("Python execution failed: %v", err),
+			Stdout:    res.Stdout,
+			Stderr:    res.Stderr,
 		}
 	}
 	// Source not needed here: quine grading is AILANG standard-mode only; other
 	// modes (default, prefix_line) ignore the submitted source.
-	stdoutOk := GradeStdout(spec, string(output), "")
+	stdoutOk := GradeStdout(spec, res.Stdout, "")
 	return ValidationResult{
 		CompileOk: true,
 		RuntimeOk: true,
 		StdoutOk:  stdoutOk,
-		Stdout:    string(output),
+		Stdout:    res.Stdout,
 	}
 }
 
@@ -613,20 +616,18 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 	}
 	args = append(args, spec.GradeEntrypoint)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, ailangBin, args...)
+	// Run under the shared guards (process group, output limits, timeout,
+	// memory watchdog) — the probe executes the MODEL's modules, so it is a
+	// generated-code execution path like any other.
+	cmd := exec.Command(ailangBin, args...)
 	cmd.Dir = workspace
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	runErr := cmd.Run()
-	stdout, stderr := outBuf.String(), errBuf.String()
+	res := runGuarded(cmd, 30*time.Second, "grade probe timed out")
+	stdout, stderr := res.Stdout, res.Stderr
 
 	// Classify. The probe is harness-owned and always valid, so a failure here is attributable to
 	// the model (a compile error in its module, or wrong output) — never a missing-entrypoint
 	// artifact, which was the legacy path's flaw.
-	runtimeOk := runErr == nil
+	runtimeOk := res.ExitCode == 0
 	combined := stdout + "\n" + stderr
 	compileOk := !strings.Contains(combined, "type error") &&
 		!strings.Contains(combined, "parse error") &&
