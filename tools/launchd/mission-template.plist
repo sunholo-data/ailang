@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Mission launchd TEMPLATE (M-MISSION-PORTABILITY M1). To launch a new mission:
+     1. sed s/__NAME__/<mission-name>/g < this file > ~/Library/LaunchAgents/dev.ailang.mission-__NAME__.plist
+     2. Write ~/.config/ailang/mission-<name>.env  (MISSION_NAME, MISSION_REPO, MISSION_DOC, MISSION_WORKDIR)
+     3. Seed ~/.ailang/state/mission-<name>-gh-issue with the bookkeeping issue number
+     4. STAGGER StartInterval offsets vs other missions (shared quota); launchctl bootstrap gui/$UID <plist>
+     Prereqs per the bootstrap guide (M3): target repo has CI, gh auth sunholo-voight-kampff, ailang installed. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.ailang.mission-__NAME__</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__WORKDIR__/tools/launchd/mission-control.sh</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>MISSION_PROFILE</key>
+        <string>__NAME__</string>
+    </dict>
+    <!-- RunAtLoad=true: fire once at every login/boot so a reboot can never silently
+         kill the cadence (the 2026-07-20 18h-outage lesson); kill switch gates deliberate offs. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>5400</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/ailang-mission-__NAME__.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ailang-mission-__NAME__.launchd.log</string>
+</dict>
+</plist>

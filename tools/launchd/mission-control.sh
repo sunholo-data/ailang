@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# mission-control.sh — continuous outer-loop iterations for the V1 mission.
+# mission-control.sh — continuous outer-loop iterations for ONE mission (default: V1).
+# PORTABLE (M-MISSION-PORTABILITY M1, 2026-07-21, attended): MISSION_PROFILE=<name>
+# sources ~/.config/ailang/mission-<name>.env (MISSION_NAME/REPO/DOC/...). MISSION_NAME=v1
+# (the default) keeps the LEGACY state paths + log name EXACTLY as before — bit-for-bit,
+# no migration; any other name gets fully namespaced state so two missions never collide.
 #
 # Fires a headless Claude session that runs the mission-control skill:
 # observe mission state → pick top backlog item → route through the inner-loop
@@ -32,11 +36,41 @@
 # Portable to macOS bash 3.2. No GNU timeout on this rig → bash watchdog below.
 set -uo pipefail
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="${MISSION_WORKDIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$REPO" || exit 1
 
 # launchd PATH is restricted; claude lives in ~/.local/bin, go tools in ~/go/bin.
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
+
+# --- MISSION PROFILE + STATE NAMESPACE (M1, 2026-07-21) ----------------------
+[ -n "${MISSION_PROFILE:-}" ] && [ -f "$HOME/.config/ailang/mission-${MISSION_PROFILE}.env" ] \
+  && . "$HOME/.config/ailang/mission-${MISSION_PROFILE}.env"
+MISSION_NAME="${MISSION_NAME:-v1}"
+MISSION_REPO="${MISSION_REPO:-sunholo-data/ailang}"
+MISSION_DOC="${MISSION_DOC:-design_docs/v1-mission.md}"
+export MISSION_NAME MISSION_REPO MISSION_DOC
+STATE_DIR="$HOME/.ailang/state"
+if [ "$MISSION_NAME" = "v1" ]; then
+  # LEGACY paths — bit-for-bit compat with the live V1 loop (no migration).
+  LOG=/tmp/ailang-mission-control.log
+  KILL_SWITCH="$STATE_DIR/mission-control.disabled"
+  PIDFILE="$STATE_DIR/mission-control.pid"
+  OVERRIDE_FILE="$STATE_DIR/mission-model"
+  LAST_MODEL_FILE="$STATE_DIR/mission-model-last"
+  EXEC_ONCE_FILE="$STATE_DIR/mission-executor-model-once"
+  GH_ISSUE_FILE="$STATE_DIR/mission-gh-issue"
+  MSG_FROM="mission-control"
+else
+  LOG="/tmp/ailang-mission-${MISSION_NAME}.log"
+  KILL_SWITCH="$STATE_DIR/mission-${MISSION_NAME}.disabled"
+  PIDFILE="$STATE_DIR/mission-${MISSION_NAME}.pid"
+  OVERRIDE_FILE="$STATE_DIR/mission-${MISSION_NAME}-model"
+  LAST_MODEL_FILE="$STATE_DIR/mission-${MISSION_NAME}-model-last"
+  EXEC_ONCE_FILE="$STATE_DIR/mission-${MISSION_NAME}-executor-model-once"
+  GH_ISSUE_FILE="$STATE_DIR/mission-${MISSION_NAME}-gh-issue"
+  MSG_FROM="mission-${MISSION_NAME}"
+fi
+# -----------------------------------------------------------------------------
 [ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
 
 # BILLING GUARD (2026-07-10): the mission MUST bill the Claude subscription,
@@ -45,7 +79,6 @@ export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 # or CLAUDE_CODE_OAUTH_TOKEN if set). Subscription-or-nothing by construction.
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
 
-LOG=/tmp/ailang-mission-control.log
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # --- stall detection (see the stall watchdog below) -------------------------
@@ -92,8 +125,6 @@ _mc_stalled() {
 
 # --- model selection (fleet Phase A) -----------------------------------------
 PREFS="${MISSION_MODEL_PREFS:-claude-opus-4-8,claude-fable-5}"
-OVERRIDE_FILE="$HOME/.ailang/state/mission-model"
-LAST_MODEL_FILE="$HOME/.ailang/state/mission-model-last"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 
 # _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2)
@@ -151,7 +182,6 @@ STALL_CHILD_AGE="${MISSION_STALL_CHILD_AGE:-2400}" # a descendant alive ≥40m =
 STALL_INTERVAL="${MISSION_STALL_INTERVAL:-120}"  # 2m between samples
 STALL_SAMPLES="${MISSION_STALL_SAMPLES:-3}"      # consecutive idle+long-child hits → kill
 export STALL_CHILD_AGE
-KILL_SWITCH="$HOME/.ailang/state/mission-control.disabled"
 
 # TRANSIENT-RETRY (2026-07-14): Anthropic capacity is flaky some evenings —
 # `claude -p` does its own internal retries then exits rc=1 on a persistent
@@ -191,9 +221,8 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # the skill's Monday-07:00 rotation (aligned to the quota reset) moves threads without a driver
 # edit. Precedence: env pin > state file > 329 (the original thread). Exported so the skill's
 # gh snippets see the same number the driver reports to.
-GH_ISSUE_FILE="$HOME/.ailang/state/mission-gh-issue"
 MISSION_GH_ISSUE="${MISSION_GH_ISSUE:-$(head -1 "$GH_ISSUE_FILE" 2>/dev/null)}"
-MISSION_GH_ISSUE="${MISSION_GH_ISSUE:-329}"
+[ -z "${MISSION_GH_ISSUE:-}" ] && [ "$MISSION_NAME" = "v1" ] && MISSION_GH_ISSUE=329
 export MISSION_GH_ISSUE
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
@@ -232,7 +261,6 @@ fi
 #     human's monitoring shell (`pgrep -f "claude -p Run one mission"` itself!),
 #     which made a kickstarted fire yield against its own observer. A pidfile
 #     + liveness check cannot false-positive.
-PIDFILE="$HOME/.ailang/state/mission-control.pid"
 if [ -f "$PIDFILE" ]; then
   oldpid=$(head -1 "$PIDFILE" 2>/dev/null)
   if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null; then
@@ -245,13 +273,13 @@ fi
 if ! command -v claude >/dev/null 2>&1; then
   log "claude CLI not on PATH — abort"
   ailang messages send controlplane "mission-control driver: claude CLI not found on PATH" \
-    --title "Mission iteration FAILED to start" --from mission-control 2>/dev/null
+    --title "Mission iteration FAILED to start" --from "$MSG_FROM" 2>/dev/null
   exit 1
 fi
 
 # 3. Dry run — verify wiring without spending tokens (no probes fired).
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
-  log "DRY RUN ok: repo=$REPO prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
+  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL"; exit 0
 fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
@@ -260,8 +288,8 @@ if ! select_model; then
   log "NO usable model in prefs ($PREFS) — quota-exhausted across candidates or auth dead. Refusing."
   ailang messages send controlplane \
     "mission-control refused to start: no usable model in prefs ($PREFS). Either every candidate is quota-limited or subscription auth is unavailable (keychain locked / rig at login screen?). Zero tokens spent beyond probes." \
-    --title "Mission iteration blocked: no usable model" --from mission-control 2>/dev/null
-  gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+    --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
+  [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
     --body "⚠️ Mission iteration did not start: **no usable model** in preference list (\`$PREFS\`) — all candidates quota-limited or auth unavailable. Will retry next interval; recovery is automatic when any candidate's probe succeeds." 2>/dev/null
   exit 1
 fi
@@ -272,7 +300,7 @@ if [ -n "$MODEL" ] && [ "$MODEL" != "${PREV_MODEL:-}" ]; then
   printf '%s\n' "$MODEL" > "$LAST_MODEL_FILE"
   if [ -n "${PREV_MODEL:-}" ]; then
     log "controller model change: ${PREV_MODEL} → ${MODEL} (${MODEL_WHY})"
-    gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
       --body "🔁 Controller model: **${PREV_MODEL} → ${MODEL}** (${MODEL_WHY}) at $(date '+%F %H:%M %Z'). Automatic — preference order \`$PREFS\`; reverts when a higher-preference probe succeeds again." 2>/dev/null || true
   fi
 fi
@@ -282,7 +310,6 @@ fi
 # Placed after every early-exit (kill switch, overlap yield, no-model refusal) so a fire that does
 # not actually run can never burn the shot. Arm with e.g.:
 #   echo "codex:gpt-5.6-sol" > ~/.ailang/state/mission-executor-model-once
-EXEC_ONCE_FILE="$HOME/.ailang/state/mission-executor-model-once"
 if [ -f "$EXEC_ONCE_FILE" ]; then
   once=$(head -1 "$EXEC_ONCE_FILE" 2>/dev/null)
   rm -f "$EXEC_ONCE_FILE"
@@ -295,7 +322,7 @@ fi
 log "=== mission iteration starting (controller=$MODEL via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
-design_docs/v1-mission.md and follow its gates. You are a scheduled run; \
+${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill."
 
@@ -369,8 +396,8 @@ if [ "$RC" -ne 0 ]; then
   log "iteration exited rc=$RC"
   ailang messages send controlplane \
     "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-    --title "Mission iteration FAILED (rc=$RC)" --from mission-control 2>/dev/null
-  gh issue comment "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang \
+    --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
+  [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
     --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry." 2>/dev/null
 else
   log "iteration complete (rc=0)"

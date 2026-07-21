@@ -1,8 +1,12 @@
 # M-MISSION-PORTABILITY: extract the mission loop into a portable template — bootstrap kit for the Ailang World mission
 
-**Status**: Planned (Mark 2026-07-18 — "design doc this up and plan it in"; precedes the **Ailang
-World** mission launch: a second big mission, an AILANG OS, in a separate GitHub repo on this rig
-with the same keys/fleet)
+**Status**: **SPLIT-AUTHORIZED by Mark 2026-07-21 (option a)** — iter-68 flagged the live-driver
+self-modification hazard and declined headless execution (correct). Mark's split: **M1 (driver
+parameterization) = ATTENDED-ONLY — executed interactively with the session 2026-07-21** (atomic
+mv-replace, never in-place on the running script); **M2 (skill repo/verify profiles) + M3
+(bootstrap kit + dry-run) = HEADLESS-GREENLIT for the loop** (plain-file work, no live-driver
+risk). Original ask: Mark 2026-07-18, precedes the **Ailang World** mission launch (separate
+repo, same rig/keys/fleet).
 **Target**: v0.30.x — mission infrastructure, P1 (gates the World mission's launch; zero language
 surface)
 **Estimated**: ~1–1.5d (M1 driver ~0.5d · M2 skill templating ~0.5d · M3 bootstrap kit + dry-run ~0.5d)
@@ -35,10 +39,22 @@ checkouts eliminate the shared-working-tree hazard class entirely.
 
 ## Design
 
-### M1 — driver parameterization (backward-compatible; THIS mission's behavior unchanged)
-`mission-control.sh` reads a **mission profile** with defaults equal to today's values:
-- `MISSION_NAME` (default `v1`) → every state file becomes
-  `~/.ailang/state/mission-${MISSION_NAME}-*`; a one-time migration `mv`s the existing files.
+### M1 — driver parameterization — ✅ DONE (attended, 2026-07-21; per Mark's option-a split)
+Landed exactly as specced with ONE deliberate amendment: **no state migration** — instead,
+`MISSION_NAME=v1` (the default) keeps the LEGACY paths bit-for-bit (`mission-control.pid`,
+`/tmp/ailang-mission-control.log`, …) while any other name gets fully namespaced paths
+(`mission-<name>.pid`, `/tmp/ailang-mission-<name>.log`, …). Rationale: migration would have
+violated the acceptance criterion (defaults reproduce today bit-for-bit) AND risked an
+overlap-guard blind window if renamed mid-run. Installed via same-dir atomic `mv` while a live
+iteration ran (old inode preserved; verified unharmed). Acceptance evidence (3 dry-runs,
+2026-07-21): (1) default v1 read the LIVE legacy pidfile and yielded — compat proven;
+(2) `MISSION_NAME=world` ignored v1's live pid, namespaced pidfile — isolation proven;
+(3) `MISSION_PROFILE=worldtest` sourced `mission-worldtest.env` (name/repo/doc all flowed) —
+profile mechanism proven. `tools/launchd/mission-template.plist` added (`__NAME__`/`__WORKDIR__`
+placeholders, RunAtLoad=true, staggered-offset note). gh-comment fallback `329` is now V1-ONLY;
+other missions must seed their gh-issue state file (comments skip with a warning otherwise —
+never cross-post to the wrong repo).
+- `MISSION_NAME` (default `v1`) → legacy paths for v1, `~/.ailang/state/mission-${MISSION_NAME}-*` otherwise (amended from the original migration design, see above).
 - `MISSION_REPO` (default `sunholo-data/ailang`) → replaces the 3 hardcoded `--repo` args.
 - `MISSION_DOC` (default `design_docs/v1-mission.md`) → the PROMPT line.
 - `MISSION_WORKDIR` (default: derived from script path, as today).
