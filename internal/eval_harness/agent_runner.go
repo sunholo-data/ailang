@@ -149,6 +149,9 @@ type TokenUsage struct {
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 	OutputTokens             int `json:"output_tokens"`
+	// ReasonTokens are hidden reasoning tokens, disjoint from OutputTokens.
+	// 0 means the executor does not report a count (see executor.Result).
+	ReasonTokens int `json:"reason_tokens,omitempty"`
 }
 
 // ModelStats captures per-model statistics

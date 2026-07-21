@@ -462,6 +462,93 @@ func TestExecuteStreaming_ParsesFixture(t *testing.T) {
 	if _, ok := result.ProviderData["opencode_events"]; !ok {
 		t.Error("expected 'opencode_events' key in ProviderData")
 	}
+
+	// FinishReason comes from the LAST step_finish. The fixture's first step
+	// reports "tool-calls" (mid-run handoff) and the second "stop" — if an
+	// intermediate step won, every tool-using run would look like it ended on a
+	// tool call.
+	if result.FinishReason != "stop" {
+		t.Errorf("FinishReason = %q, want \"stop\" (last step_finish, not the intermediate \"tool-calls\")", result.FinishReason)
+	}
+
+	// Fixture reports reasoning:0 on both steps.
+	if result.ReasonTokens != 0 {
+		t.Errorf("ReasonTokens = %d, want 0 (fixture reports reasoning:0)", result.ReasonTokens)
+	}
+}
+
+// TestExecuteStreaming_CapturesReasoningAndTruncation guards the call site that
+// silently dropped this data: opencode parsed tokens.reasoning and the
+// step_finish reason for a long time, but neither was ever copied into
+// executor.Result, so agent-mode rows banked reasoning as 0 and finish_reason as
+// empty 100% of the time (see eval_results/baselines/v0.30.0/CAVEATS.md).
+//
+// "length" is the case that matters: it is how a reasoning model that exhausts
+// its budget mid-thought reports itself. Without it, truncation is
+// indistinguishable from a capability gap.
+func TestExecuteStreaming_CapturesReasoningAndTruncation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
+	dir := t.TempDir()
+	events := []string{
+		`{"type":"step_start","timestamp":1,"sessionID":"ses_r","part":{"id":"p1","messageID":"m1","sessionID":"ses_r","type":"step-start"}}`,
+		`{"type":"step_finish","timestamp":2,"sessionID":"ses_r","part":{"id":"p2","reason":"tool-calls","messageID":"m1","sessionID":"ses_r","type":"step-finish","tokens":{"total":900,"input":10,"output":40,"reasoning":850,"cache":{"write":0,"read":0}},"cost":0.001}}`,
+		`{"type":"step_start","timestamp":3,"sessionID":"ses_r","part":{"id":"p3","messageID":"m2","sessionID":"ses_r","type":"step-start"}}`,
+		`{"type":"step_finish","timestamp":4,"sessionID":"ses_r","part":{"id":"p4","reason":"length","messageID":"m2","sessionID":"ses_r","type":"step-finish","tokens":{"total":700,"input":5,"output":15,"reasoning":680,"cache":{"write":0,"read":0}},"cost":0.002}}`,
+	}
+	_ = writeFakeOpenCode(t, dir, events)
+
+	e, err := New(&executor.Config{
+		OpenCodePath:   filepath.Join(dir, "opencode"),
+		OpenCodeModel:  "anthropic/claude-haiku-4-5",
+		TimeoutSeconds: 10,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	result, err := e.ExecuteStreaming(context.Background(), &executor.Task{
+		ID:        "test-reasoning",
+		Directive: "think hard",
+		Workspace: dir,
+		Timeout:   10 * time.Second,
+	}, &collectingHandler{})
+	if err != nil {
+		t.Fatalf("ExecuteStreaming error: %v", err)
+	}
+
+	// Summed across step_finish deltas: 850 + 680.
+	if result.ReasonTokens != 1530 {
+		t.Errorf("ReasonTokens = %d, want 1530 (850+680 summed across steps)", result.ReasonTokens)
+	}
+
+	// Reasoning must stay DISJOINT from OutputTokens — the harness adds both
+	// into TotalTokens, so folding them together would double-count.
+	if result.OutputTokens != 55 {
+		t.Errorf("OutputTokens = %d, want 55 (40+15, reasoning excluded)", result.OutputTokens)
+	}
+
+	if result.FinishReason != "length" {
+		t.Errorf("FinishReason = %q, want \"length\" (truncated at the output cap)", result.FinishReason)
+	}
+}
+
+func TestNormalizeOpencodeFinishReason(t *testing.T) {
+	cases := map[string]string{
+		"":               "",
+		"stop":           "stop",
+		"length":         "length",
+		"tool-calls":     "tool_calls",
+		"content-filter": "content_filter",
+		"error":          "error",
+		"OTHER":          "other",
+	}
+	for in, want := range cases {
+		if got := normalizeOpencodeFinishReason(in); got != want {
+			t.Errorf("normalizeOpencodeFinishReason(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
 func TestExecuteStreaming_NonJSONPreambleTolerated(t *testing.T) {

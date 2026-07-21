@@ -150,6 +150,17 @@ type Result struct {
 	CacheReadInputTokens     int
 	CacheCreationInputTokens int
 
+	// ReasonTokens are hidden reasoning/thinking tokens, billed upstream at the
+	// output rate but reported separately (or not at all) by each agent CLI.
+	// 0 means "not reported by this executor", NOT "the model did not think" —
+	// only opencode and managed_agents surface a count today.
+	//
+	// Must stay DISJOINT from OutputTokens: executors that receive a merged
+	// figure have to subtract it out, or agent-mode totals double-count.
+	// Recorded because a run truncated mid-thought and a run that genuinely
+	// failed are indistinguishable without it (v0.30.0 baseline CAVEATS.md).
+	ReasonTokens int
+
 	// Session info
 	SessionID  string // Provider's session identifier
 	Transcript string // Full conversation log

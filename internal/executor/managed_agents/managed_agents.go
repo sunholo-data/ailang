@@ -257,23 +257,28 @@ func (e *Executor) ExecuteStreaming(
 		turns = 1
 	}
 	res := &executor.Result{
-		Output:                   state.Text.String(),
-		DurationMS:               int(duration.Milliseconds()),
-		NumTurns:                 turns,
-		SessionID:                state.InteractionID,
-		InputTokens:              state.Usage.TotalInputTokens,
-		OutputTokens:             state.Usage.TotalOutputTokens + state.Usage.TotalThoughtTokens,
+		Output:      state.Text.String(),
+		DurationMS:  int(duration.Milliseconds()),
+		NumTurns:    turns,
+		SessionID:   state.InteractionID,
+		InputTokens: state.Usage.TotalInputTokens,
+		// Kept DISJOINT: thought tokens live in ReasonTokens, not folded into
+		// OutputTokens. Merging them made thinking invisible downstream and, now
+		// that TotalTokens counts reasoning, would double-count it.
+		OutputTokens:             state.Usage.TotalOutputTokens,
+		ReasonTokens:             state.Usage.TotalThoughtTokens,
 		CacheReadInputTokens:     0, // Not reported by Managed Agents API
 		CacheCreationInputTokens: 0,
 	}
 
 	// Cost from the API-reported usage. We bill thought tokens at the output
 	// rate because Vertex's gemini-3-5-flash pricing model doesn't separate
-	// them.
+	// them — so they must be added back here even though the fields are now
+	// stored separately.
 	cm := e.CostModel()
 	res.CostUSD = cm.CalculateCost(executor.TokenUsage{
 		InputTokens:  res.InputTokens,
-		OutputTokens: res.OutputTokens,
+		OutputTokens: res.OutputTokens + res.ReasonTokens,
 	})
 
 	// Stash multi-turn handles + unknown events into ProviderData for the

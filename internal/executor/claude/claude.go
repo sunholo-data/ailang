@@ -687,7 +687,31 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			FirstAttemptMs:           firstAttemptMs,
 			SuccessAtMs:              -1,
 			TokensPerSec:             tokensPerSec,
+			FinishReason:             normalizeClaudeFinishReason(finalResult.Subtype),
 		}, nil
+	}
+}
+
+// normalizeClaudeFinishReason maps the Claude Code headless result subtype onto
+// the executor.Result.FinishReason vocabulary.
+//
+// The subtype was already parsed and used for the success boolean, but the
+// reason for a failure was discarded — so a run that burned through its turn
+// budget banked identically to one that failed on the task itself.
+// "error_max_turns" maps to "max_turns", which CategorizeAgentError already
+// aliases to step_exhausted.
+func normalizeClaudeFinishReason(subtype string) string {
+	switch subtype {
+	case "":
+		return ""
+	case "success":
+		return "stop"
+	case "error_max_turns":
+		return "max_turns"
+	case "error_during_execution":
+		return "error"
+	default:
+		return strings.ToLower(subtype)
 	}
 }
 

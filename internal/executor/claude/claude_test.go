@@ -624,3 +624,25 @@ func BenchmarkClaudeNew(b *testing.B) {
 		_, _ = New(cfg)
 	}
 }
+
+// TestNormalizeClaudeFinishReason guards the subtype -> FinishReason mapping.
+//
+// The subtype was already parsed and used to compute the success boolean, but
+// the failure reason was discarded, so claude-executor rows banked an empty
+// finish_reason 100% of the time. "error_max_turns" is the valuable case:
+// CategorizeAgentError already aliases "max_turns" to step_exhausted, so a run
+// that merely ran out of turns had been landing in the generic bucket instead.
+func TestNormalizeClaudeFinishReason(t *testing.T) {
+	cases := map[string]string{
+		"":                       "",
+		"success":                "stop",
+		"error_max_turns":        "max_turns",
+		"error_during_execution": "error",
+		"SOMETHING_NEW":          "something_new",
+	}
+	for in, want := range cases {
+		if got := normalizeClaudeFinishReason(in); got != want {
+			t.Errorf("normalizeClaudeFinishReason(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

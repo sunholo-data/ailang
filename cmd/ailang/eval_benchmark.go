@@ -256,8 +256,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			Seed:         seed,
 			InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 			OutputTokens: result.Usage.OutputTokens,
-			TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
-			CostUSD:      result.Cost,
+			// Hidden reasoning tokens, kept disjoint from OutputTokens but counted
+			// in TotalTokens (upstream bills them at the output rate). 0 = the
+			// executor doesn't report a count, not "the model didn't think".
+			ReasonTokens: result.Usage.ReasonTokens,
+			TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.ReasonTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			// NOT recomputed from tokens: agent CLIs report their own billed cost,
+			// which already includes reasoning. Deriving it here would double-count.
+			CostUSD: result.Cost,
 			// Use standard validation fields from agent runner
 			CompileOk:  result.CompileOk,
 			RuntimeOk:  result.RuntimeOk,
