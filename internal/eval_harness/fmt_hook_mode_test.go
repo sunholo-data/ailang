@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -220,6 +221,118 @@ func TestDetectFmtHookEvent(t *testing.T) {
 				t.Errorf("File = %q, want %q", ev.File, tc.wantFile)
 			}
 		})
+	}
+}
+
+// TestReadFmtHookSink is the M2b regression test: the out-of-band JSONL sink the
+// LANDED format_ail.sh writes must parse back into populated FmtHookEvents with
+// the right status/file. This is the reliable capture path (Claude Code swallows
+// the hook's exit-0 stderr, so the old stream-scan was structurally empty).
+func TestReadFmtHookSink(t *testing.T) {
+	t.Run("missing sink → no events, no error", func(t *testing.T) {
+		ws := t.TempDir()
+		evts, err := ReadFmtHookSink(ws)
+		if err != nil {
+			t.Fatalf("missing sink must not error, got %v", err)
+		}
+		if evts != nil {
+			t.Fatalf("missing sink must yield nil events, got %+v", evts)
+		}
+	})
+
+	t.Run("formatted + error events parse", func(t *testing.T) {
+		ws := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(ws, ".claude"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		sink := FmtHookSinkPath(ws)
+		lines := strings.Join([]string{
+			`{"status":"formatted","file":"benchmark/solution.ail","exit_code":0,"id":"tool_1","detail":""}`,
+			`{"status":"error","file":"benchmark/solution.ail","exit_code":2,"id":"tool_2","detail":"ailang fmt failed: boom"}`,
+			``,                // blank line must be skipped
+			`{not valid json`, // corrupt line must be skipped, not lose the rest
+			`{"status":"formatted","file":"other.ail","exit_code":0,"id":"tool_3","detail":""}`,
+		}, "\n")
+		if err := os.WriteFile(sink, []byte(lines+"\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		evts, err := ReadFmtHookSink(ws)
+		if err != nil {
+			t.Fatalf("ReadFmtHookSink error: %v", err)
+		}
+		if len(evts) != 3 {
+			t.Fatalf("want 3 events (2 formatted + 1 error, corrupt/blank skipped), got %d: %+v", len(evts), evts)
+		}
+		if evts[0].Status != "formatted" || evts[0].File != "benchmark/solution.ail" {
+			t.Errorf("event 0 = %+v, want formatted benchmark/solution.ail", evts[0])
+		}
+		if evts[0].Detail != "" {
+			t.Errorf("formatted event must carry no detail, got %q", evts[0].Detail)
+		}
+		if evts[1].Status != "error" || !strings.Contains(evts[1].Detail, "ailang fmt failed") {
+			t.Errorf("event 1 = %+v, want error with fmt-failed detail", evts[1])
+		}
+		if evts[2].Status != "formatted" || evts[2].File != "other.ail" {
+			t.Errorf("event 2 = %+v, want formatted other.ail", evts[2])
+		}
+	})
+}
+
+// TestFormatAilHookSinkRoundTrip drives the LANDED scripts/hooks/format_ail.sh
+// with a crafted PostToolUse stdin JSON and asserts it appends a "formatted"
+// event to the cwd-derived sink — the true end-to-end capture path. Skips when
+// bash/jq/ailang are unavailable (CI has them; keep the pure-Go test above as the
+// portable minimum).
+func TestFormatAilHookSinkRoundTrip(t *testing.T) {
+	for _, bin := range []string{"bash", "jq", "ailang"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skipf("%s not on PATH — skipping hook round-trip", bin)
+		}
+	}
+	// Locate the LANDED hook relative to the repo root (two dirs up from this
+	// package): internal/eval_harness → repo root.
+	hook, err := filepath.Abs(filepath.Join("..", "..", "scripts", "hooks", "format_ail.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(hook); err != nil {
+		t.Skipf("LANDED hook not found at %s: %v", hook, err)
+	}
+
+	ws := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(ws, ".claude"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// A well-formed .ail file so `ailang fmt --write` exits 0 (formatted).
+	ailFile := filepath.Join(ws, "solution.ail")
+	if err := os.WriteFile(ailFile, []byte("module solution\n\nexport func main() -> () { () }\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin := `{"cwd":"` + ws + `","tool_use_id":"tool_rt_1","tool_input":{"file_path":"` + ailFile + `"}}`
+	cmd := exec.Command("bash", hook)
+	cmd.Stdin = strings.NewReader(stdin)
+	var out, errb strings.Builder
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("hook run failed: %v\nstderr: %s", err, errb.String())
+	}
+
+	evts, err := ReadFmtHookSink(ws)
+	if err != nil {
+		t.Fatalf("ReadFmtHookSink after hook: %v", err)
+	}
+	if len(evts) == 0 {
+		t.Fatalf("hook wrote no sink event (stderr: %s)", errb.String())
+	}
+	last := evts[len(evts)-1]
+	if last.Status != "formatted" {
+		t.Errorf("round-trip status = %q, want formatted (hook stderr: %s)", last.Status, errb.String())
+	}
+	if !strings.HasSuffix(last.File, "solution.ail") {
+		t.Errorf("round-trip file = %q, want *solution.ail", last.File)
 	}
 }
 

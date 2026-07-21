@@ -312,20 +312,33 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			secondary: config.ExtraHandler,
 		}
 	}
-	// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB): only for the ON arm. The
-	// LANDED format_ail.sh surfaces its status via stderr / additionalContext,
-	// which Claude Code echoes into the PostToolUse tool-result stream — captured
-	// here per turn via OnToolResult. Powers M3's treatment-delivery metric.
-	var fmtTracker *fmtHookEventHandler
-	if config.FmtHook == FmtHookModeOn {
-		fmtTracker = &fmtHookEventHandler{}
-		handler = &compositeEventHandler{primary: handler, secondary: fmtTracker}
-	}
-
 	// Execute with streaming
 	result, err := exec.ExecuteStreaming(ctx, task, handler)
 	if err != nil {
 		return nil, fmt.Errorf("execution failed: %w", err)
+	}
+
+	// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB / M2b): only for the ON arm.
+	// The out-of-band file sink is the SOURCE OF TRUTH. Claude Code swallows the
+	// LANDED format_ail.sh hook's exit-0 stderr in stream-json mode, so the
+	// "✓ Formatted" marker reaches NEITHER the stdout stream nor the CLI's own
+	// stderr — the old stream-scan capture was structurally always empty on this
+	// (active claude) path. Instead the hook appends one JSONL event per
+	// invocation to <workspace>/.claude/fmt_hook_events.jsonl (path derived from
+	// the hook stdin's `cwd`, so no env var is forwarded to the subprocess). We
+	// read it here, post-run. This is INVISIBLE to the agent (prereg §4), so the
+	// treatment measured by the A/B is not contaminated.
+	var fmtHookEvents []FmtHookEvent
+	if config.FmtHook == FmtHookModeOn {
+		evts, sinkErr := ReadFmtHookSink(workspace)
+		if sinkErr != nil {
+			// A sink read failure must SURFACE (it means the ON arm's
+			// treatment-delivery metric is unrecoverable for this run), but it
+			// must not abort an otherwise-complete run — the solution was still
+			// produced. Log loudly and continue with whatever parsed.
+			fmt.Fprintf(os.Stderr, "[FMT-HOOK] sink read error: %v\n", sinkErr)
+		}
+		fmtHookEvents = evts
 	}
 
 	// Link observatory session to chain stage if handler supports it
@@ -432,51 +445,21 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		CompactionFirstStep: result.CompactionFirstStep,
 		CompactionMaxLevel:  result.CompactionMaxLevel,
 
-		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + per-turn hook reality.
+		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality read
+		// from the out-of-band file sink (M2b). Empty on the OFF arm (never read).
 		FmtHook:       config.FmtHook.ResolvedState(),
-		FmtHookEvents: fmtTrackerEvents(fmtTracker),
+		FmtHookEvents: fmtHookEvents,
 	}, nil
 }
 
-// fmtHookEventHandler captures format_ail.sh PostToolUse status markers from the
-// executor tool-result stream (M-EVAL-FMT-WEAKMODEL-AB hook-reality metric). Only
-// installed for the ON arm. It records only what the hook actually emitted — it
-// never fabricates a "treated" event.
-type fmtHookEventHandler struct {
-	turn   int
-	events []FmtHookEvent
-}
-
-func (h *fmtHookEventHandler) OnTurnStart(turnNum int)  { h.turn = turnNum }
-func (h *fmtHookEventHandler) OnText(string)            {}
-func (h *fmtHookEventHandler) OnToolUse(string, string) {}
-func (h *fmtHookEventHandler) OnToolResult(_ string, output string) {
-	if ev, ok := detectFmtHookEvent(output, h.turn); ok {
-		h.events = append(h.events, ev)
-	}
-}
-func (h *fmtHookEventHandler) OnTurnEnd(int) {}
-func (h *fmtHookEventHandler) OnError(error) {}
-
-// OnRawStreamLine implements executor.RawStreamLineHandler. The active claude
-// path (claude.go) never dispatches OnToolResult for the tool_result/PostToolUse
-// lines that carry format_ail.sh's status markers, so we key hook-reality off
-// the raw stream line instead — the same strategy the legacy streaming runner
-// uses. Fail-closed: detectFmtHookEvent returns ok=false for any line without a
-// real marker, so a line with no hook output is never recorded as treated.
-func (h *fmtHookEventHandler) OnRawStreamLine(line string) {
-	if ev, ok := detectFmtHookEvent(line, h.turn); ok {
-		h.events = append(h.events, ev)
-	}
-}
-
-// fmtTrackerEvents safely extracts events from a possibly-nil tracker (OFF arm).
-func fmtTrackerEvents(t *fmtHookEventHandler) []FmtHookEvent {
-	if t == nil {
-		return nil
-	}
-	return t.events
-}
+// NOTE (M2b): the old fmtHookEventHandler that scanned the claude stdout stream
+// for format_ail.sh status markers has been REMOVED. Claude Code swallows the
+// hook's exit-0 stderr in stream-json mode, so those markers never reached the
+// stream — the handler was structurally always empty on the active claude path.
+// Hook reality is now read from the out-of-band file sink post-run via
+// ReadFmtHookSink (see the ON-arm block after ExecuteStreaming above). The legacy
+// RunHeadlessSessionStreaming path still uses detectFmtHookEvent directly for
+// executors whose hook stderr DOES surface in the stream.
 
 // debugEventHandler prints streaming events when DEBUG_AGENT is set
 type debugEventHandler struct{}

@@ -1,6 +1,7 @@
 package eval_harness
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -167,6 +168,81 @@ func extractFmtFile(line, marker string) string {
 		return strings.TrimSpace(rest)
 	}
 	return rest[:end]
+}
+
+// fmtHookSinkName is the workspace-relative sink file both the hook and the
+// harness compute independently. The hook derives its dir from the PostToolUse
+// stdin's `cwd` field (= the agent workspace); the harness derives it from the
+// workspace it created. Keeping the two derivations in lock-step (same relative
+// path under .claude/) is what makes the out-of-band capture work with NO env
+// var forwarded to the claude subprocess.
+const fmtHookSinkName = "fmt_hook_events.jsonl"
+
+// FmtHookSinkPath returns the absolute sink path for a given agent workspace.
+// It lives under the same .claude/ dir the ON arm's Apply() creates for
+// settings.json, so a single MkdirAll covers both.
+func FmtHookSinkPath(workspace string) string {
+	return filepath.Join(workspace, ".claude", fmtHookSinkName)
+}
+
+// sinkEvent is the on-disk JSONL shape written by scripts/hooks/format_ail.sh.
+// One line per hook invocation (exit-0 "formatted" or non-0/non-3 "error"; the
+// exit-3 unparseable-mid-edit case is intentionally omitted — contract clause 5).
+type sinkEvent struct {
+	Status   string `json:"status"`
+	File     string `json:"file"`
+	ExitCode int    `json:"exit_code"`
+	ID       string `json:"id"`
+	Detail   string `json:"detail"`
+}
+
+// ReadFmtHookSink reads and parses the out-of-band fmt-hook sink written by
+// scripts/hooks/format_ail.sh in the given workspace, returning the classified
+// events (M-EVAL-FMT-WEAKMODEL-AB / M2b). This is the RELIABLE source of truth
+// for the ON arm: Claude Code swallows the hook's exit-0 stderr in stream-json
+// mode, so the marker never reaches the stdout stream the old capture scanned.
+//
+// A missing sink file is NOT an error — it simply means the hook never fired a
+// recordable event (e.g. the agent wrote no .ail file, or every write was still
+// unparseable at exit-3). Returns nil in that case.
+//
+// The sink has no per-turn structure (the hook cannot know the agent's turn
+// number), so Turn is left 0. Detail is carried through only for error events.
+func ReadFmtHookSink(workspace string) ([]FmtHookEvent, error) {
+	path := FmtHookSinkPath(workspace)
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("fmt-hook: open sink %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	var events []FmtHookEvent
+	scanner := bufio.NewScanner(f)
+	// A pathological fmt failure detail could be large; give the scanner headroom.
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var se sinkEvent
+		if err := json.Unmarshal([]byte(line), &se); err != nil {
+			// A single corrupt line must not lose the rest of the run's events.
+			continue
+		}
+		ev := FmtHookEvent{Status: se.Status, File: se.File}
+		if se.Status != "formatted" {
+			ev.Detail = se.Detail
+		}
+		events = append(events, ev)
+	}
+	if err := scanner.Err(); err != nil {
+		return events, fmt.Errorf("fmt-hook: scan sink %s: %w", path, err)
+	}
+	return events, nil
 }
 
 // resolveFmtHookScript returns the absolute path to the LANDED fmt PostToolUse
