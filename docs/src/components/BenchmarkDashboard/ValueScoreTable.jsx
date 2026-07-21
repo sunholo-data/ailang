@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import styles from './styles.module.css';
+import { excludeFromCostRanking } from '@site/src/lib/localModel';
 
 // Unified formatModelName mirrors v0.15.0 hotfix.
 function formatModelName(name) {
@@ -103,10 +104,22 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage, r
     }
 
     // Pareto frontier: dominated if any other has higher ELO AND lower cost.
+    //
+    // Local models are EXCLUDED from the frontier entirely. Their cost is ~$0, so
+    // `o.costPerSuccess < m.costPerSuccess` can never hold against them: they are
+    // undominated by construction and, worse, they strip the ⭐ from every cloud
+    // model with a lower ELO. That silently corrupts the cloud comparison this
+    // table exists for. (QualityScatter already excludes them for the same reason
+    // — this brings the two views into agreement.)
+    // Two passes: every localExcluded must be assigned BEFORE any `some()` reads it,
+    // or models later in the array still read undefined and count as cloud.
+    for (const m of data) m.localExcluded = excludeFromCostRanking(m.name, { agentModels: models });
     for (const m of data) {
-      m.pareto = !data.some(o =>
-        o.name !== m.name && o.elo >= m.elo && o.costPerSuccess < m.costPerSuccess
-      );
+      m.pareto = m.localExcluded
+        ? false
+        : !data.some(o =>
+          o.name !== m.name && !o.localExcluded && o.elo >= m.elo && o.costPerSuccess < m.costPerSuccess
+        );
     }
 
     // Weighted value score. Quality = ELO normalised to the best model in view
@@ -115,9 +128,14 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage, r
     const maxElo = Math.max(1, ...data.map(m => m.elo || 0));
     for (const m of data) {
       const q = m.elo / maxElo;
-      m.score = costPerSuccessSafe(m) > 0
-        ? Math.pow(q, weighting) / (costPerSuccessSafe(m) * m.timeFactor)
-        : 0;
+      // Local models have ~$0 cost, so costPerSuccessSafe() floors at 1e-6 and the
+      // score comes out 10^4-10^6x every cloud model — a ranking artifact, not a
+      // finding. Score is a COST-efficiency metric and is undefined at zero cost.
+      m.score = m.localExcluded
+        ? null
+        : (costPerSuccessSafe(m) > 0
+          ? Math.pow(q, weighting) / (costPerSuccessSafe(m) * m.timeFactor)
+          : 0);
     }
 
     // Sort
@@ -205,7 +223,10 @@ export default function ValueScoreTable({ models, mode = 'standard', coverage, r
                 <td style={tdNum}>{(m.passRate * 100).toFixed(1)}%</td>
                 <td style={tdNum}>${m.costPerSuccess.toFixed(4)}</td>
                 <td style={tdNum}>{m.ttsSec > 0 ? `${formatSeconds2sf(m.ttsSec)}s` : '—'}</td>
-                <td style={{ ...tdNum, fontWeight: 600 }}>{m.score.toFixed(1)}</td>
+                <td style={{ ...tdNum, fontWeight: 600 }}
+                    title={m.score == null ? 'Cost-efficiency is undefined for on-device models (~$0/run) — see the speed view instead' : undefined}>
+                  {m.score == null ? 'n/a' : m.score.toFixed(1)}
+                </td>
                 <td style={td}>
                   {m.pareto ? (
                     <span title="Non-dominated: no other model is both cheaper AND higher-ELO">⭐ Pareto</span>

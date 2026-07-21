@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { ELO_COVERAGE_FRACTION } from '@site/src/components/BenchmarkDashboard/coverageGate';
 
 // ELO leaderboard + difficulty-banded benchmark view (M-EVAL-DASHBOARD-REDESIGN).
 // Reads the per-mode `ratings` block emitted into latest.json by eval-report:
@@ -127,12 +128,11 @@ export default function EloLeaderboard() {
   // ELO can't be misread as beating a 55-benchmark one. Full ranking is earned
   // once coverage catches up. (M-EVAL-VALIDITY-DISCIPLINE)
   const maxCov = block.maxCoverage || Math.max(1, ...allModels.map((m) => m.benchmarks || 0));
-  // 90%: ELO is only comparable on a near-identical benchmark set. Missing runs
-  // are rarely random — an API-quota death mid-run skips the alphabetical tail,
-  // which is where the hardest (frontier) benchmarks live, inflating the ELO of
-  // exactly the models with holes (v0.30.0: claude-sonnet-5 topped the board on
-  // 44/56 coverage that excluded gauntlet_10/quine/ssa_constant_fold/...).
-  const covThreshold = Math.max(1, Math.ceil(maxCov * 0.9));
+  // ELO_COVERAGE_FRACTION (0.9) — the stricter of the two documented coverage
+  // policies; see coverageGate.js for why a rating needs a near-identical
+  // benchmark set where a pass rate does not. Sourced from there rather than
+  // redeclared here, so the two never silently drift apart again.
+  const covThreshold = Math.max(1, Math.ceil(maxCov * ELO_COVERAGE_FRACTION));
   const isProvisional = (m) => (m.benchmarks || 0) < covThreshold;
   const models = allModels; // all shown; provisional ones are flagged, not hidden
 

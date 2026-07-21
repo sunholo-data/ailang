@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
+import { localRate, formatLocalName } from '@site/src/lib/localModel';
 
 // OS / Local-model leaderboard (M-EVAL-BENCHMARK-UI-CONSOLIDATION phase C).
 // Renders cross-language × harness pass rates for open/locally-hosted models from
@@ -55,6 +56,7 @@ function heat(rate) {
 export default function OSLocalLeaderboard() {
   const [data, setData] = useState(undefined); // undefined=loading, null=absent
   const [coverage, setCoverage] = useState(null); // null => coverage unknown
+  const [main, setMain] = useState(null);         // latest.json — canonical rate source
 
   useEffect(() => {
     benchmarkFetch('os/latest.json')
@@ -69,8 +71,11 @@ export default function OSLocalLeaderboard() {
     // Failure is non-fatal: coverage stays unknown and rows render unbadged.
     benchmarkFetch('latest.json')
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setCoverage(j && j.ratings ? buildCoverage(j.ratings) : null))
-      .catch(() => setCoverage(null));
+      .then((j) => {
+        setMain(j || null);
+        setCoverage(j && j.ratings ? buildCoverage(j.ratings) : null);
+      })
+      .catch(() => { setMain(null); setCoverage(null); });
   }, []);
 
   if (data === undefined) return <p>Loading local-rig data…</p>;
@@ -149,15 +154,25 @@ export default function OSLocalLeaderboard() {
             const nBench = coverage ? coverage.benchmarksFor(row.model) : null;
             return (
               <tr key={i} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.72 : 1 }}>
-                <td style={{ padding: '6px 10px', fontWeight: 600, fontStyle: prov ? 'italic' : 'normal' }}>{row.model}</td>
+                <td style={{ padding: '6px 10px', fontWeight: 600, fontStyle: prov ? 'italic' : 'normal' }}
+                    title={row.model}>
+                  {formatLocalName(row.model)}
+                </td>
                 <td style={{ padding: '6px 10px', color: 'var(--ifm-color-emphasis-700)' }}>{row.harness || '—'}</td>
                 {langs.map((l) => {
-                  const rate = row.lang ? row.lang[l] : null;
+                  // CANONICAL rate: latest.json (runs-based), the same accumulator the
+                  // cloud tables use. os/latest.json's row.lang divides by TRIALS and
+                  // publishes on its own cadence, so it drifts — it produced 88.9% here
+                  // while the performance page showed 92.3% for the same model/release.
+                  // Fall back to the os value only when latest.json has no agent entry.
+                  const canon = main ? localRate(main, row.model, l) : null;
+                  const rate = canon ? canon.rate : (row.lang ? row.lang[l] : null);
                   return (
                     <td key={l} style={{
                       padding: '6px 10px', textAlign: 'center', background: heat(rate),
                       fontWeight: rate >= 0.85 ? 700 : 400,
-                    }}>
+                    }}
+                        title={canon ? `${Math.round(canon.rate * canon.runs)}/${canon.runs} runs` : 'from os/latest.json (trials-based) — no agent entry in latest.json'}>
                       {rate == null ? '—' : `${Math.round(rate * 100)}%`}
                     </td>
                   );

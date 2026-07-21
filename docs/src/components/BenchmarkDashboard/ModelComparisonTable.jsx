@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { localRate, formatLocalName, LOCAL_CAVEAT } from '@site/src/lib/localModel';
 import styles from './styles.module.css';
 
 // Short label for an on-device model string, e.g.
@@ -68,29 +69,43 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
   useEffect(() => {
     if (!showLocalAgent) return;
     let alive = true;
-    benchmarkFetch('os/latest.json')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((os) => {
-        if (!alive || !os || !Array.isArray(os.rows)) return;
+    // The RATE must come from latest.json (runs-based), the same accumulator the
+    // cloud rows in this table use. os/latest.json divides by trials and publishes
+    // on its own cadence, so sourcing the rate there put a drifting, differently-
+    // normalised number in a column of cloud rates. os/* is still the source for
+    // which harnesses exist — latest.json doesn't carry that.
+    Promise.all([
+      benchmarkFetch('os/latest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      benchmarkFetch('latest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+      .then(([os, main]) => {
+        if (!alive || !os || !Array.isArray(os.rows) || !main) return;
         let best = null;
         for (const row of os.rows) {
-          const a = row.lang && row.lang.ailang;
-          if (typeof a !== 'number') continue;
-          if (!best || a > best.ailang) best = { ailang: a, harness: row.harness, model: row.model };
+          const canonical = localRate(main, row.model, 'ailang');
+          if (!canonical) continue;
+          if (!best || canonical.rate > best.canonical.rate) best = { canonical, harness: row.harness, model: row.model };
         }
         if (best) {
           setLocalRow({
-            ailangSuccess: best.ailang * 100,
+            ailangSuccess: best.canonical.rate * 100,
+            runs: best.canonical.runs,
             harness: best.harness || 'agent',
-            model: shortLocalModel(best.model),
+            modelId: best.model,
+            model: formatLocalName(best.model),
             configCount: os.rows.length,
             version: os.ailang_version || os.version || '',
+            benchmarks: coverage ? coverage.benchmarksFor(best.model) : null,
+            provisional: coverage ? coverage.isProvisional(best.model) : false,
           });
         }
       })
       .catch(() => { /* os data optional — omit the row on failure */ });
     return () => { alive = false; };
-  }, [showLocalAgent]);
+    // `coverage` is a dep: it arrives asynchronously with the parent's fetch, and
+    // without it the row would keep whatever gating state it had when coverage was
+    // still null — i.e. render ungated, which is the bug this fix exists for.
+  }, [showLocalAgent, coverage]);
 
   // Transform models data into table rows
   const tableData = Object.entries(models)
@@ -204,16 +219,23 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
         </thead>
         <tbody>
           {localRow && (
-            <tr style={{ background: 'var(--ifm-color-info-contrast-background, rgba(8,145,178,0.10))', borderLeft: '4px solid #0891b2' }}>
+            <tr style={{
+              background: 'var(--ifm-color-info-contrast-background, rgba(8,145,178,0.10))',
+              borderLeft: '4px solid #0891b2',
+              // Same provisional treatment the cloud rows get below — this row used to
+              // render undimmed at full confidence while a better-covered cloud model
+              // beside it was dimmed.
+              ...(localRow.provisional ? { opacity: 0.6, fontStyle: 'italic' } : null),
+            }}>
               <td className={styles.tableModelName}>
                 <span
-                  title={`Best of ${localRow.configCount} on-device agent configs (${localRow.harness} · ${localRow.model}${localRow.version ? ', ' + localRow.version : ''}). Agent-mode, multi-turn, runs on the local GPU at ~$0/run — slow but free. Not directly comparable to the 0-shot cloud rows.`}
+                  title={`Best of ${localRow.configCount} on-device agent configs (${localRow.harness} · ${localRow.model}${localRow.version ? ', ' + localRow.version : ''}). ${LOCAL_CAVEAT}`}
                   style={{ fontWeight: 700, cursor: 'help' }}
                 >
                   🖥️ Local GPU agent
                 </span>
                 <span style={{ marginLeft: 6, fontSize: '0.7em', color: 'var(--ifm-color-emphasis-600)' }}>
-                  {localRow.harness} · {localRow.model} · agent · ~$0
+                  best of {localRow.configCount} · {localRow.harness} · {localRow.model} · agent · ~$0
                 </span>
               </td>
               <td className={styles.tableNumber}>
@@ -221,8 +243,12 @@ export default function ModelComparisonTable({ models, coverage, showLocalAgent 
                   backgroundColor: localRow.ailangSuccess >= 70 ? 'var(--ifm-color-success)' :
                                     localRow.ailangSuccess >= 50 ? 'var(--ifm-color-warning)' :
                                     'var(--ifm-color-danger)'
-                }}>
+                }}
+                  title={localRow.provisional && localRow.benchmarks != null
+                    ? `Provisional: ran ${localRow.benchmarks}/${maxCoverage} benchmarks so far (${localRow.runs} runs) — not comparable to full-coverage rows.`
+                    : `${localRow.runs} runs`}>
                   {localRow.ailangSuccess.toFixed(1)}
+                  {localRow.provisional && <span style={{ marginLeft: 3 }}>⚠</span>}
                 </span>
               </td>
               <td className={styles.tableNumber} title="No token data for on-device runs">—</td>
