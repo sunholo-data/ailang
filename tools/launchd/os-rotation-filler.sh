@@ -60,8 +60,15 @@ CURSOR="$HOME/.ailang/state/os-filler-cursor"
 AILANG_FULL="${OS_FILLER_AILANG_FULL:-1}"
 FULL_TIERS="${OS_FILLER_FULL_TIERS:-core,stretch,frontier}"
 FULL_CHUNK="${OS_FILLER_FULL_CHUNK:-3}"        # benchmarks per cycle for the ailang-only pass
-# FULL_CURSOR / LAP_MARKER are per-VERSION (set in-block below) so a wrap is a true
-# full AILANG lap for that release and coverage resets automatically on a new one.
+# Lap budget: one cursor wrap is NOT proof of coverage — a cycle that times out or
+# api_errors leaves that benchmark unbanked, so lap 1 routinely ends with holes
+# (v0.30.0 sat at 10/56 covered by offset 33). Re-lap to fill them: --skip-existing
+# makes each extra lap cheap, since it only re-runs the cells that never banked.
+# Hand off to cross-language on coverage-complete, or once the lap budget is spent
+# (a benchmark the local model genuinely can't pass must not block forever).
+FULL_MAX_LAPS="${OS_FILLER_FULL_MAX_LAPS:-3}"
+# FULL_CURSOR / LAP_MARKER / LAP_COUNTER are per-VERSION (set in-block below) so laps are
+# true full AILANG laps for that release and coverage resets automatically on a new one.
 
 # CROSS-LANGUAGE pass control. By default the cross-language (python/javascript/go)
 # sweep runs AUTOMATICALLY once AILANG coverage is complete for the version — AILANG
@@ -227,6 +234,7 @@ else
   FULL_TOTAL=${#BENCHES_FULL[@]}
   FULL_CURSOR="$ROLL/${VERSION}/.ailang-full-cursor"   # per-version: a wrap == a true full lap for this release
   LAP_MARKER="$ROLL/${VERSION}/.ailang-full-lapped"
+  LAP_COUNTER="$ROLL/${VERSION}/.ailang-full-laps"     # laps completed for this release
   if [ "$FULL_TOTAL" -eq 0 ]; then
     log "ailang-full: no benchmarks for tiers $FULL_TIERS — skip"
     AILANG_DONE=1
@@ -271,7 +279,20 @@ else
       F_NEXT=$(((F_OFFSET + FULL_CHUNK) % FULL_TOTAL))
       F_WRAPPED=0; [ "$F_NEXT" -le "$F_OFFSET" ] && F_WRAPPED=1
       mkdir -p "$(dirname "$FULL_CURSOR")"; echo "$F_NEXT" > "$FULL_CURSOR"
-      [ "$F_WRAPPED" = "1" ] && : > "$LAP_MARKER"   # first full lap done -> hand off next cycle
+      # A wrap means the cursor visited every benchmark once — NOT that every benchmark
+      # banked. Spend the lap budget re-lapping the holes before handing off.
+      if [ "$F_WRAPPED" = "1" ]; then
+        F_LAPS=$(cat "$LAP_COUNTER" 2>/dev/null || echo 0)
+        case "$F_LAPS" in (*[!0-9]*) F_LAPS=0;; esac
+        F_LAPS=$((F_LAPS + 1))
+        echo "$F_LAPS" > "$LAP_COUNTER"
+        if [ "$F_LAPS" -ge "$FULL_MAX_LAPS" ]; then
+          : > "$LAP_MARKER"
+          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$FULL_TOTAL — lap budget spent, handing off to cross-language"
+        else
+          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$FULL_TOTAL — re-lapping to fill $((FULL_TOTAL - MIN_COV)) holes (--skip-existing)"
+        fi
+      fi
       OFFSET="$F_OFFSET"; WRAPPED="$F_WRAPPED"
       log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, coverage $MIN_COV/$FULL_TOTAL, wrapped=$F_WRAPPED)"
       # --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new
