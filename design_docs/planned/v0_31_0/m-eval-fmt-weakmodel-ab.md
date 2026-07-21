@@ -162,3 +162,17 @@ risk the "Hook reality" metric measures; M1 preregistration re-verifies benchmar
 
 ---
 **Document created**: 2026-07-21 (rotation design; codex:gpt-5.6-sol author, controller-hardened; preregister before execution)
+
+## Lock-scope correction (Mark 2026-07-21: "its blocked 'due to GPU' but its not going to run on GPU?")
+The M2B plan over-applied rig.lock to the PRIMARY haiku arms. The charter's GPU rule is a
+question, not a pattern: **"does this step touch the GPU?"** Haiku is cloud-billed — it does not.
+Corrected: primary arms take NO rig.lock (they must never queue behind local rotations); ONLY the
+optional local-Ollama replication arm locks, around its own eval step. Sprint JSON amended.
+
+## Process lesson (retro-grade, from Mark's "why is it so hard to just get a demo")
+This experiment went design→quorum→park→greenlight→plan→integrity-fix across 3 iterations before
+any model ever ran with the hook on. The rigor is right for the HEADLINE numbers — but the miss
+was not running a 20-minute SMOKE DEMO first (tiny N, no freezing, no lock) to show the effect
+exists and de-risk the wiring. Rule of thumb going forward: **experiment-class items ship a cheap
+smoke demo in the SAME iteration the flag lands; full-rigor A/B follows.** (An interactive smoke
+demo was run 2026-07-21 evening; results recorded below when banked.)

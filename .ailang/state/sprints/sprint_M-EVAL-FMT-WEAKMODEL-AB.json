@@ -5,10 +5,12 @@
   "sprint_plan": "design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab-sprint-plan.md",
   "status": "in_progress",
   "risk_level": "medium",
-  "github_issues": [422],
+  "github_issues": [
+    422
+  ],
   "language_surface_change": false,
   "gpu_gated": true,
-  "notes": "Human green-lit (Mark, 'Green light weakmodel ab'). NOT re-quorumed. A/B of the LANDED format_ail.sh PostToolUse fmt hook (ON vs OFF) with weak model claude-haiku-4-5. KEY FINDING: hook ON/OFF toggle does NOT exist in the harness today (agent_runner_streaming.go passes no --settings, writes no .claude/settings.json) — it must be BUILT (M2a), modeled on internal/eval_harness/microrag_mode.go. GPU (rig.lock) touches ONLY M2b execution + optional local arm; M1/M2a/M3/M4 are no-GPU headless-safe.",
+  "notes": "Human green-lit (Mark, 'Green light weakmodel ab'). NOT re-quorumed. A/B of the LANDED format_ail.sh PostToolUse fmt hook (ON vs OFF) with weak model claude-haiku-4-5. KEY FINDING: hook ON/OFF toggle does NOT exist in the harness today (agent_runner_streaming.go passes no --settings, writes no .claude/settings.json) \u2014 it must be BUILT (M2a), modeled on internal/eval_harness/microrag_mode.go. GPU (rig.lock) touches ONLY M2b execution + optional local arm; M1/M2a/M3/M4 are no-GPU headless-safe.",
   "velocity": {
     "target_loc_per_day": 250,
     "estimated_total_loc": 320,
@@ -39,7 +41,9 @@
       "description": "Build the fmt-hook ON/OFF toggle in the existing agent-mode harness (does NOT exist today). Add FmtHookMode (on/off) modeled on internal/eval_harness/microrag_mode.go; add AgentBenchmarkConfig.FmtHook field; wire a -fmt-hook CLI flag in cmd/ailang/eval_suite.go; when ON, emit workspace .claude/settings.json registering scripts/hooks/format_ail.sh as PostToolUse for Edit/Write and pass --settings to the claude command in BOTH runner paths; record resolved config (fmt_hook field) + log settings for config-diff review; capture per-turn fmt exit status (hook-reality) from stream-json. NO GPU.",
       "estimated_loc": 220,
       "gpu": false,
-      "dependencies": ["M1_PREREGISTRATION"],
+      "dependencies": [
+        "M1_PREREGISTRATION"
+      ],
       "acceptance_criteria": [
         "FmtHookMode type + ParseFmtHookMode + apply + ResolvedState with unit test (mirrors microrag_mode_test.go)",
         "AgentBenchmarkConfig.FmtHook wired from a new -fmt-hook on|off flag (default off = current behaviour)",
@@ -52,14 +56,16 @@
       "passes": true,
       "started": "2026-07-21",
       "completed": "2026-07-21",
-      "notes": "DONE. FmtHookMode (on/off) + ParseFmtHookMode + ResolvedState + Apply + SettingsJSON in internal/eval_harness/fmt_hook_mode.go, unit-tested (fmt_hook_mode_test.go, 6 tests, race-clean). AgentBenchmarkConfig.FmtHook field wired from new -fmt-hook on|off flag (default off) at cmd/ailang/eval_suite.go. KEY CORRECTION vs plan: the ACTIVE suite path is RunAgentBenchmarkWithExecutor (agent_runner_multi.go), NOT the two legacy runners the plan named — the claude executor sets cmd.Dir=workspace and loads .claude/settings.json naturally (internal/executor/claude:165), so ON writes the workspace settings there (no --settings needed on the active path); --settings ALSO wired into both legacy runners (agent_runner.go, agent_runner_streaming.go) for completeness. Resolved arm banked as RunMetrics.fmt_hook_state; per-turn hook reality banked as fmt_hook_events (captured via a composed EventHandler on the active path + stream-line scan on the legacy path, keyed off the LANDED hook's own status markers). make test (targeted) + boundaries green; lint clean on all touched files (1 pre-existing warning in untouched gemini_evaluator_bridge.go). NOTE: exact stream schema for hook additionalContext could not be verified against a live haiku run (no GPU / no API in this iteration) — capture is marker-based and correct-by-construction but its real-world hit rate is verified in M2b."
+      "notes": "DONE. FmtHookMode (on/off) + ParseFmtHookMode + ResolvedState + Apply + SettingsJSON in internal/eval_harness/fmt_hook_mode.go, unit-tested (fmt_hook_mode_test.go, 6 tests, race-clean). AgentBenchmarkConfig.FmtHook field wired from new -fmt-hook on|off flag (default off) at cmd/ailang/eval_suite.go. KEY CORRECTION vs plan: the ACTIVE suite path is RunAgentBenchmarkWithExecutor (agent_runner_multi.go), NOT the two legacy runners the plan named \u2014 the claude executor sets cmd.Dir=workspace and loads .claude/settings.json naturally (internal/executor/claude:165), so ON writes the workspace settings there (no --settings needed on the active path); --settings ALSO wired into both legacy runners (agent_runner.go, agent_runner_streaming.go) for completeness. Resolved arm banked as RunMetrics.fmt_hook_state; per-turn hook reality banked as fmt_hook_events (captured via a composed EventHandler on the active path + stream-line scan on the legacy path, keyed off the LANDED hook's own status markers). make test (targeted) + boundaries green; lint clean on all touched files (1 pre-existing warning in untouched gemini_evaluator_bridge.go). NOTE: exact stream schema for hook additionalContext could not be verified against a live haiku run (no GPU / no API in this iteration) \u2014 capture is marker-based and correct-by-construction but its real-world hit rate is verified in M2b."
     },
     {
       "id": "M2B_MATCHED_EXECUTION",
       "description": "Run the matched A/B. Acquire tools/launchd/rig-lock.sh (rig_lock_acquire wait) around the eval step ONLY. Run claude-haiku-4-5 ON and OFF at frozen N on every frozen benchmark via ailang eval-suite --agent with -fmt-hook on/off, banking per run, everything else fixed. Release lock before analysis. OPTIONAL local Ollama replication arm under same protocol (also GPU, same lock, separated from primary).",
       "estimated_loc": 20,
       "gpu": true,
-      "dependencies": ["M2A_FMT_HOOK_TOGGLE_BUILD"],
+      "dependencies": [
+        "M2A_FMT_HOOK_TOGGLE_BUILD"
+      ],
       "acceptance_criteria": [
         "ON/OFF haiku runs complete under identical conditions except the LANDED PostToolUse hook",
         "N>=5 per arm per benchmark banked",
@@ -77,7 +83,9 @@
       "description": "Aggregate all N runs via existing tools/eval_best_of_n.py-class N-run tooling + native rotation summary path (REUSE, do not fork). Report pass-rate delta (ON-OFF) w/ variance/CIs, convergence traces (edits-to-first-green, green-stability, compile-stuck incidence), per-turn fmt exit-code coverage (exit-0 vs refusal, vs ~8% baseline). Include null result if observed. NO GPU (lock released).",
       "estimated_loc": 20,
       "gpu": false,
-      "dependencies": ["M2B_MATCHED_EXECUTION"],
+      "dependencies": [
+        "M2B_MATCHED_EXECUTION"
+      ],
       "acceptance_criteria": [
         "Aggregate deltas + variance/CIs published",
         "Convergence traces + compile-stuck/green-stability reported",
@@ -92,10 +100,12 @@
     },
     {
       "id": "M4_VERDICT",
-      "description": "State whether the hook helps / is neutral / harms / is unevaluable (last if formatter refusal/no-op prevented treatment delivery — distinguish benefit from delivery failure). Publish positive/negative/null evidence; feed verdict back to mission bookkeeping issue; do NOT change adoption policy off a single benchmark/run. NO GPU.",
+      "description": "State whether the hook helps / is neutral / harms / is unevaluable (last if formatter refusal/no-op prevented treatment delivery \u2014 distinguish benefit from delivery failure). Publish positive/negative/null evidence; feed verdict back to mission bookkeeping issue; do NOT change adoption policy off a single benchmark/run. NO GPU.",
       "estimated_loc": 0,
       "gpu": false,
-      "dependencies": ["M3_ANALYSIS"],
+      "dependencies": [
+        "M3_ANALYSIS"
+      ],
       "acceptance_criteria": [
         "Verdict published: helps / neutral / harms / unevaluable",
         "Distinguishes formatter benefit from treatment-delivery failure caused by refusals/no-ops",
