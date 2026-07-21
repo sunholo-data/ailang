@@ -310,9 +310,23 @@ func TestFormatAilHookSinkRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stdin := `{"cwd":"` + ws + `","tool_use_id":"tool_rt_1","tool_input":{"file_path":"` + ailFile + `"}}`
+	// Build the PostToolUse stdin with json.Marshal, NOT string concatenation:
+	// on Windows t.TempDir() is C:\Users\RUNNER~1\AppData\Local\Temp\..., and
+	// pasting that raw into a JSON string literal produces invalid escapes
+	// (\U, \A, \T) that jq rejects outright ("Invalid escape at line 1").
+	// ToSlash additionally hands the hook C:/... paths, which git-bash treats
+	// unambiguously in `[ -d ]` and in the `>>"$FMT_SINK"` redirect, where a
+	// backslash path is separator-vs-escape ambiguous.
+	payload, err := json.Marshal(map[string]any{
+		"cwd":         filepath.ToSlash(ws),
+		"tool_use_id": "tool_rt_1",
+		"tool_input":  map[string]any{"file_path": filepath.ToSlash(ailFile)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.Command("bash", hook)
-	cmd.Stdin = strings.NewReader(stdin)
+	cmd.Stdin = strings.NewReader(string(payload))
 	var out, errb strings.Builder
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
