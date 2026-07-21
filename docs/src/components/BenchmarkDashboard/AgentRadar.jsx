@@ -1,5 +1,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Tooltip, ResponsiveContainer } from 'recharts';
+import LocalCloudBadge from '@site/src/components/LocalCloudBadge';
+import { isLocalModel, formatLocalName, LOCAL_CAVEAT } from '@site/src/lib/localModel';
 import styles from './styles.module.css';
 
 function execLabel(executor) {
@@ -141,7 +143,18 @@ export default function AgentRadar({ data }) {
                       <span style={{ color: EXECUTOR_COLORS[m.executor] || '#888', fontWeight: 600 }}>
                         {execLabel(m.executor)}
                       </span>
-                      {' / '}{m.model}
+                      {' / '}
+                      {isLocalModel(m.model, data) ? (
+                        <>
+                          <span title={m.model}>{formatLocalName(m.model)}</span>
+                          {/* This table ranks by success rate with no coverage column, so a
+                              16-run on-device model sat next to a 245-run cloud one with
+                              nothing distinguishing them. */}
+                          <span style={{ marginLeft: 6 }} title={LOCAL_CAVEAT}>
+                            <LocalCloudBadge providerType="local" />
+                          </span>
+                        </>
+                      ) : m.model}
                     </td>
                     <td className={styles.tableCell}>{m.runs}</td>
                     <td className={styles.tableCell}>{m.successRate.toFixed(1)}%</td>

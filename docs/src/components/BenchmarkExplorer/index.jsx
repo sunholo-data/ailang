@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
+import LocalCloudBadge from '@site/src/components/LocalCloudBadge';
+import { isLocalModel, formatLocalName, LOCAL_CAVEAT } from '@site/src/lib/localModel';
 import styles from './styles.module.css';
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
@@ -490,6 +493,12 @@ export default function BenchmarkExplorer() {
   if (error) return <p style={{ color: 'red' }}>Failed to load: {error}</p>;
   if (!data) return <p>Loading benchmark data…</p>;
 
+  // Coverage gating. This page ranked a 16-of-56-benchmark on-device model at 100%
+  // (API-error-adjusted) beside cloud models on the full 56 with nothing marking the
+  // difference — the most misleading cell on the site. Same gate the ELO and
+  // performance pages use, so "provisional" means one thing everywhere.
+  const coverage = data.ratings ? buildCoverage(data.ratings) : null;
+
   // Fixed 4-language set for agent mode explorer
   const allLangs = LANG_ORDER;
   const langs = activeLang ? [activeLang] : allLangs;
@@ -639,9 +648,29 @@ export default function BenchmarkExplorer() {
                     const totalCost = m.aggregates?.totalCostUSD || (m.agentStats?.avgCost || 0) * totalRuns || 0;
                     const avgCost = totalRuns > 0 ? totalCost / totalRuns : null;
                     return (
-                      <tr key={`${h}-${modelName}`} style={rowStyle}>
+                      <tr key={`${h}-${modelName}`} style={{
+                        ...rowStyle,
+                        ...(coverage && coverage.isProvisional(modelName) ? { opacity: 0.7, fontStyle: 'italic' } : null),
+                      }}>
                         <td style={{ ...rowHeader, paddingLeft: 32, fontWeight: 400, fontSize: '0.82rem', color: 'var(--ifm-color-emphasis-700)' }}>
-                          ↳ {modelShort(modelName)}
+                          ↳ {isLocalModel(modelName, data) ? formatLocalName(modelName) : modelShort(modelName)}
+                          {isLocalModel(modelName, data) && (
+                            <span style={{ marginLeft: 6 }} title={LOCAL_CAVEAT}>
+                              <LocalCloudBadge providerType="local" />
+                            </span>
+                          )}
+                          {coverage && coverage.benchmarksFor(modelName) != null && (
+                            <span style={{
+                              marginLeft: 6, fontSize: '0.72rem', fontVariantNumeric: 'tabular-nums',
+                              color: coverage.isProvisional(modelName) ? '#b45309' : 'var(--ifm-color-emphasis-500)',
+                              fontWeight: coverage.isProvisional(modelName) ? 700 : 400,
+                            }}
+                              title={coverage.isProvisional(modelName)
+                                ? `Provisional — only ${coverage.benchmarksFor(modelName)} of ${coverage.maxCoverage} benchmarks run so far; this rate is a partial sample and is not comparable to full-coverage rows.`
+                                : `${coverage.benchmarksFor(modelName)} of ${coverage.maxCoverage} benchmarks run`}>
+                              {coverage.benchmarksFor(modelName)}/{coverage.maxCoverage}
+                            </span>
+                          )}
                         </td>
                         {langs.map(l => {
                           const ld = modelLangs[l];

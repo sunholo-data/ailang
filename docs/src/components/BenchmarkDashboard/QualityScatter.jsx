@@ -1,4 +1,5 @@
 import React from 'react';
+import { isLocalModel, formatLocalName } from '@site/src/lib/localModel';
 import {
   Scatter,
   XAxis,
@@ -168,6 +169,12 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
   }
 
   const points = [];
+  // On-device models cost ~$0, so cost-per-success is 0 and the x<=0 guard below
+  // drops them — correct for a cost axis (you cannot plot zero on a log scale, and
+  // they would dominate any frontier by dividing by nothing), but they used to
+  // vanish with no trace on the one chart where "free" is the entire story.
+  // Collect them so the omission is stated rather than silent.
+  const omittedFree = [];
   for (const [name, stats] of Object.entries(models || {})) {
     const agg = stats.aggregates || {};
     const as = stats.agentStats || null;
@@ -203,6 +210,9 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
       } else {
         x = (eff.median_time_to_success_ms || 0) / 1000;
       }
+    }
+    if (isCost && x <= 0 && passRate > 0 && totalRuns >= minRuns && isLocalModel(name, { agentModels: models })) {
+      omittedFree.push(formatLocalName(name));
     }
     if (totalRuns < minRuns || passRate <= 0 || x <= 0) continue;
     const elo = eloOf[name];
@@ -363,6 +373,13 @@ export default function QualityScatter({ models, xMetric = 'cost', mode = 'stand
         labeled; hover any dot for its name, ELO, and {isCost ? 'cost' : 'time'}. Color codes harness.
         {isCost && ' Lower-left corner = cheap but weaker; upper-right = expensive flagships.'}
         {!isCost && ' Faster solutions are leftward; slower (multi-turn agent loops) rightward.'}
+        {isCost && omittedFree.length > 0 && (
+          <div style={{ marginTop: 6, color: '#c2410c' }}>
+            <strong>Not plotted:</strong> {omittedFree.join(', ')} — on-device, ~$0/run, so
+            cost-per-success is zero and has no position on a cost axis. Switch to the
+            <strong> speed</strong> view to see them.
+          </div>
+        )}
       </div>
     </div>
   );
