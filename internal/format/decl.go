@@ -168,6 +168,18 @@ func (p *printer) funcBody(body ast.Expr) error {
 	}
 	if len(blk.Exprs) == 1 {
 		// Equation-form single expression: `= expr`.
+		// M-AILANG-FMT-INLINE-INTERIOR: when that expression is an attached let chain,
+		// introduce continuation layout — write ` =`, hardline, and emit the chain one
+		// indent level deeper (chain siblings hold a constant indent inside letChainMultiline).
+		if let, ok := blk.Exprs[0].(*ast.Let); ok && let.Body != nil && p.hasAnyAttachment(let) {
+			p.w.write(" =")
+			p.w.hardline()
+			var err error
+			p.w.indented(func() {
+				err = p.letChainMultiline(let)
+			})
+			return err
+		}
 		p.w.write(" = ")
 		return p.expr(blk.Exprs[0], precLowest)
 	}
@@ -553,6 +565,18 @@ func (p *printer) topLevelLet(d *ast.Let) error {
 			return err
 		}
 		p.w.write(": " + ts)
+	}
+	// M-AILANG-FMT-INLINE-INTERIOR: when the binding VALUE is an attached let chain
+	// (the comments live inside the value chain, keyed on the value's root let), write
+	// ` =`, hardline, and emit the chain one indent level deeper.
+	if val, ok := d.Value.(*ast.Let); ok && val.Body != nil && p.hasAnyAttachment(val) {
+		p.w.write(" =")
+		p.w.hardline()
+		var err error
+		p.w.indented(func() {
+			err = p.letChainMultiline(val)
+		})
+		return err
 	}
 	p.w.write(" = ")
 	return p.expr(d.Value, precLowest)

@@ -1,8 +1,13 @@
 # M-AILANG-FMT-INLINE-INTERIOR: Stable Multi-Line Let-Chain Comment Boundaries
 
-**Status**: **UNPARKED — Mark 2026-07-20 ("yes lets finish off ailang fmt")**: the R2 objection is
-DATA-REFUTED for all 28 target cases (controller data-check, ⛔ Quorum Record) — proceed on the
-data. Route to sprint-planner; no re-quorum. Part of the finish-fmt set with
+**Status**: **IMPLEMENTED — 2026-07-20** (v0.30.0). Landed as M-AILANG-FMT-INLINE-INTERIOR: the
+printer-local conditional multi-line let-chain emitter (Decision 1, option (a)). Corpus
+comment-unattached refusals **59 → 32** (15.28% → 8.29%); the let-chain-interior refusal class is
+eliminated (0); `marker-fail=0`, `PHASE2-rt-regression=0`, `preexisting-Phase1-rt-bug=0`. M0 proved
+all 28 targets are `let … in` continuation chains (0 `*ast.Block.Exprs`). 27/28 files format
+losslessly; `records.ail` retains a deferred FOOTER comment (out of scope) so it stays fail-closed on
+that comment. `internal/parser` + `internal/ast` untouched. The R2 objection was DATA-REFUTED for all
+28 target cases (controller data-check + M0 proof, ⛔ Quorum Record). Part of the finish-fmt set with
 m-fmt-properties-printer-roundtrip.
 
 ## ⛔ Quorum Record (mission iteration 67, 2026-07-20)
@@ -45,8 +50,15 @@ correctly refuses rather than guesses.
 
 The largest coherent refusal class is a parser/printer shape mismatch around `let ... in` chains:
 
-- The parser collapses a source sequence such as `{ let x = v; let y = w; tail }` or an equation
-  body containing sequential lets into nested `*ast.Let` expressions.
+- The parser collapses a `let ... in` continuation sequence — an equation body or a single-expression
+  brace body containing sequential `let x = v in let y = w in tail` bindings — into nested `*ast.Let`
+  expressions (each binding's `Body` is the next `*ast.Let`, terminating in the tail expression).
+  (CORRECTION, M0 2026-07-20: the bare-`;`/newline block form `{ let x = v; let y = w; tail }` does
+  NOT collapse into nested `*ast.Let` — `parseBlockOrExpression` returns `*ast.Block{Exprs:[…]}` when
+  `len(exprs) > 1` (`internal/parser/parser_expr.go:461-468`). The 28 measured targets are exclusively
+  the `let … in` continuation form: M0's `TestInlineInterior_LetChainSurfaceShape` proved all 28 reach
+  a root `*ast.Let` with non-nil `Body`, 0 are `*ast.Block.Exprs`. `Block.Exprs` handling is therefore
+  out of scope — no target needs it.)
 - The Phase-1 printer's `letIn` emitter writes every binding and body inline as
   `let x = v in let y = w in tail`.
 - The Phase-2 attacher registers only child lists that the printer emits multi-line. A nested let

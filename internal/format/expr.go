@@ -225,7 +225,24 @@ func (p *printer) funcLit(n *ast.FuncLit) error {
 }
 
 // letIn prints an explicit `let name = value in body`.
+//
+// Two paths (M-AILANG-FMT-INLINE-INTERIOR):
+//   - The root let owns NO comment attachment → the EXISTING inline spelling,
+//     byte-for-byte (`let x = v in let y = w in tail`). This preserves comment-free
+//     output and every uncommented/unattached let chain exactly.
+//   - The root let owns ≥1 attachment → flatten the maximal chain and emit it
+//     multi-line, one binding per line, interleaving the attached comments at their
+//     boundaries. The `in` is written BEFORE any trailing comment so a `--` comment
+//     cannot swallow syntax.
 func (p *printer) letIn(n *ast.Let) error {
+	if n.Body != nil && p.hasAnyAttachment(n) {
+		return p.letChainMultiline(n)
+	}
+	return p.letInInline(n)
+}
+
+// letInInline is the original inline let..in spelling (unchanged Phase-1 bytes).
+func (p *printer) letInInline(n *ast.Let) error {
 	p.w.write("let " + n.Name)
 	if n.Type != nil {
 		ts, err := p.typeString(n.Type)
@@ -240,6 +257,82 @@ func (p *printer) letIn(n *ast.Let) error {
 	}
 	p.w.write(" in ")
 	return p.expr(n.Body, precLambda)
+}
+
+// letChainMultiline emits the maximal chain rooted at root as a canonical multi-line
+// layout, interleaving the comments attached to (root, boundary/child). The caller
+// (letIn / funcBody / topLevelLet) has already positioned the cursor at the chain's
+// indentation column. Chain siblings hold a CONSTANT indent — the emitter never
+// increments indentation per nested AST link, because the links are a flat source
+// sequence semantically.
+//
+// Layout, for children [binding0, …, bindingK, tail] and boundaries 0..K+1:
+//
+//	<boundary 0 leading/floating>
+//	let x0 = v0 in  <trailing0>
+//	<boundary 1 leading/floating>
+//	let x1 = v1 in  <trailing1>
+//	…
+//	<tail boundary leading/floating>
+//	tail
+func (p *printer) letChainMultiline(root *ast.Let) error {
+	lc := flattenLetChain(root)
+
+	// Boundary 0: comments before the first binding.
+	p.emitChainBoundary(root, 0)
+
+	for i, b := range lc.Bindings {
+		// Emit `let name[: T] = value in`. The value is a nested expression; if it is
+		// itself an attached let chain it recurses through letIn's multi-line path.
+		p.w.write("let " + b.Name)
+		if b.Type != nil {
+			ts, err := p.typeString(b.Type)
+			if err != nil {
+				return err
+			}
+			p.w.write(": " + ts)
+		}
+		p.w.write(" = ")
+		if err := p.expr(b.Value, precLowest); err != nil {
+			return err
+		}
+		// Write `in` BEFORE any trailing comment so the comment cannot swallow it.
+		p.w.write(" in")
+		p.emitTrailing(root, i)
+		p.w.hardline()
+		// Boundary i+1: comments before the next binding (or the tail).
+		p.emitChainBoundary(root, i+1)
+	}
+
+	// Terminal tail on its own line. Its trailing comment (same line as the tail) keys
+	// on child index len(Bindings) (the tail's logical index).
+	if lc.Tail != nil {
+		if err := p.expr(lc.Tail, precLambda); err != nil {
+			return err
+		}
+		p.emitTrailing(root, len(lc.Bindings))
+	}
+	return nil
+}
+
+// emitChainBoundary emits leading then floating comments attached at (root, boundary),
+// each on its own line, followed by a hardline so the next binding/tail starts fresh.
+// Leading and floating are both emitted line-per-comment; a floating group is
+// blank-line-separated from the preceding binding is NOT required for the canonical
+// let-chain layout (the design's canonical form places the comment directly at the
+// boundary line), so both are emitted contiguously at the boundary.
+func (p *printer) emitChainBoundary(root *ast.Let, boundary int) {
+	if p.att == nil {
+		return
+	}
+	for _, c := range p.att.leading[attKey{owner: root, index: boundary}] {
+		p.w.write(commentText(c))
+		p.w.hardline()
+	}
+	for _, c := range p.att.floating[attKey{owner: root, index: boundary}] {
+		p.w.write(commentText(c))
+		p.w.hardline()
+	}
 }
 
 func (p *printer) letRecIn(n *ast.LetRec) error {

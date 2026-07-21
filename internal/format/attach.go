@@ -69,12 +69,16 @@ type childSpan struct {
 type attacher struct {
 	env   *Envelope
 	lists []childList // all multi-line lists, in discovery order
+	// chainConsumed marks *ast.Let nodes that are the Body link of an ENCLOSING
+	// let-chain root, so they are not re-registered as their own (overlapping suffix)
+	// chain. Only maximal chains are registered (design Let-Chain Discovery).
+	chainConsumed map[*ast.Let]bool
 }
 
 // AttachComments computes the total attachment set for a program. It returns an
 // error (fail-closed) if any comment cannot be attached to exactly one boundary.
 func AttachComments(env *Envelope, f *ast.File) ([]Attachment, error) {
-	a := &attacher{env: env}
+	a := &attacher{env: env, chainConsumed: map[*ast.Let]bool{}}
 	a.collectLists(f)
 	return a.resolve()
 }
@@ -175,12 +179,10 @@ func (a *attacher) walkNode(n ast.Node) {
 			a.walkExpr(v.Body)
 		}
 	case *ast.Let:
-		if v.Value != nil {
-			a.walkExpr(v.Value)
-		}
-		if v.Body != nil {
-			a.walkExpr(v.Body)
-		}
+		// Top-level `let … in` value/body chain (design: top-level let rooted at another
+		// let). Register it as a chain owner, using the decl's own left wall (-1: the
+		// file/top-level has no brace).
+		a.registerLetChainAndRecurse(v, -1)
 	case ast.Expr:
 		a.walkExpr(v)
 	}
@@ -198,8 +200,16 @@ func (a *attacher) walkExpr(e ast.Expr) {
 		// prints as `= expr`, NOT a braced multi-line block (funcBody), so it is not
 		// a multi-line child list. Only register a Block as a list when a real
 		// enclosing `{` is found (openBraceBefore >= 0 AND it is a `{`, not a `[`).
+		//
+		// EXCEPTION (M-AILANG-FMT-INLINE-INTERIOR): a braced block whose SOLE expression
+		// is a let-chain root (a leading-`in` continuation chain, e.g. sharedmem_cache's
+		// `{ let _ = … in let _ = … }`) must NOT register the block as a one-child list.
+		// That block list's single child spans the whole chain and would tie the chain
+		// list on width (same `{` wall, same `}` end), losing the tie-break and trapping
+		// a between-binding comment in the strict-interior guard. Skipping it lets the
+		// chain list (registered when we recurse into the sole expr) own the boundaries.
 		open := a.openBraceBefore(nodes)
-		if open >= 0 && a.env.src[open] == '{' && len(v.Exprs) >= 1 {
+		if open >= 0 && a.env.src[open] == '{' && len(v.Exprs) >= 1 && !isSingleLetChainBlock(v) {
 			a.addList(v, nodes, open)
 		}
 		for _, ex := range v.Exprs {
@@ -231,12 +241,7 @@ func (a *attacher) walkExpr(e ast.Expr) {
 			a.walkExpr(v.Else)
 		}
 	case *ast.Let:
-		if v.Value != nil {
-			a.walkExpr(v.Value)
-		}
-		if v.Body != nil {
-			a.walkExpr(v.Body)
-		}
+		a.registerLetChainAndRecurse(v, -1)
 	case *ast.LetRec:
 		if v.Value != nil {
 			a.walkExpr(v.Value)
@@ -261,6 +266,134 @@ func (a *attacher) walkExpr(e ast.Expr) {
 		a.walkExpr(v.Left)
 		a.walkExpr(v.Right)
 	}
+}
+
+// registerLetChainAndRecurse registers the maximal `let … in` chain rooted at root
+// (unless root is already consumed as an enclosing chain's Body link) as one
+// non-overlapping ordered child list owned by root, then recurses into each binding
+// value and the tail to discover nested lists (blocks, matches, independent chains).
+//
+// wall is the enclosing body's opening delimiter byte (`=` or `{`); pass -1 to have
+// the chain scan left for its own enclosing opener. The list open boundary is that
+// wall so a boundary-0 comment sitting above the first binding (directly after `=`/
+// `{`) is claimed by the chain rather than orphaned.
+func (a *attacher) registerLetChainAndRecurse(root *ast.Let, wall int) {
+	if root == nil {
+		return
+	}
+	// Skip a Let that a parent chain already consumed (no overlapping suffix lists).
+	if a.chainConsumed[root] {
+		if root.Value != nil {
+			a.walkExpr(root.Value)
+		}
+		if root.Body != nil {
+			a.walkExpr(root.Body)
+		}
+		return
+	}
+	// A bare statement-let (Body == nil) is not a chain; recurse normally.
+	if root.Body == nil {
+		if root.Value != nil {
+			a.walkExpr(root.Value)
+		}
+		return
+	}
+
+	lc := flattenLetChain(root)
+	// Mark every binding after the root as consumed so it is not re-registered.
+	for _, b := range lc.Bindings {
+		if b != root {
+			a.chainConsumed[b] = true
+		}
+	}
+
+	// Left wall: the enclosing body opener if given, else scan left for `=`/`{`.
+	openByte := wall
+	if openByte < 0 {
+		openByte = a.enclosingLetWall(root)
+	}
+
+	a.addLetChainList(lc, openByte)
+
+	// Recurse into binding VALUES and the tail (not the binding lets themselves — they
+	// are the chain's own children). A nested independent chain in a value registers
+	// its own maximal list.
+	for _, b := range lc.Bindings {
+		if b.Value != nil {
+			a.walkExpr(b.Value)
+		}
+	}
+	if lc.Tail != nil {
+		a.walkExpr(lc.Tail)
+	}
+}
+
+// enclosingLetWall scans left from the chain root's min anchor for the nearest `=` or
+// `{` at code level (the enclosing equation/brace body opener). Returns that byte, or
+// MinAnchor(root)-1 if none is found (the design's fallback: never claim comments
+// before the root let).
+func (a *attacher) enclosingLetWall(root *ast.Let) int {
+	min, err := a.env.MinAnchor(root)
+	if err != nil {
+		return -1
+	}
+	for j := min - 1; j >= 0; j-- {
+		if a.env.inStringSpan(j) {
+			continue
+		}
+		c := a.env.src[j]
+		if c == '=' || c == '{' {
+			return j
+		}
+	}
+	return min - 1
+}
+
+// addLetChainList records the flattened chain as one childList with EXPLICIT
+// non-overlapping child spans. Unlike the generic addList, a binding child's byte end
+// is subtreeEnd(binding.Value) (NOT subtreeEnd(binding), which would swallow the whole
+// nested body); the tail child spans its own subtree. This creates a stable boundary
+// before each subsequent binding and before the tail.
+func (a *attacher) addLetChainList(lc letChain, openByte int) {
+	cl := childList{owner: lc.Root, openByte: openByte}
+	for _, b := range lc.Bindings {
+		min, err := a.env.MinAnchor(b)
+		if err != nil {
+			return // no anchor → cannot bound a boundary; skip (comments float outward)
+		}
+		min = a.env.WidenLeft(min, openByte)
+		// Binding child end = end of its VALUE subtree; `in` has no AST position (V13).
+		end := min
+		if b.Value != nil {
+			if e := a.subtreeEnd(b.Value); e > end {
+				end = e
+			}
+		}
+		cl.children = append(cl.children, childSpan{
+			node:      b,
+			minByte:   min,
+			startLine: a.lineOf(min),
+			endLine:   a.lineOf(end),
+		})
+	}
+	if lc.Tail != nil {
+		min, err := a.env.MinAnchor(lc.Tail)
+		if err != nil {
+			return
+		}
+		min = a.env.WidenLeft(min, openByte)
+		end := a.subtreeEnd(lc.Tail)
+		cl.children = append(cl.children, childSpan{
+			node:      lc.Tail,
+			minByte:   min,
+			startLine: a.lineOf(min),
+			endLine:   a.lineOf(end),
+		})
+	}
+	if len(cl.children) == 0 {
+		return
+	}
+	a.lists = append(a.lists, cl)
 }
 
 // openBraceBefore returns the byte offset of the `{`/`[` that opens the list
