@@ -135,6 +135,21 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		return nil, err
 	}
 
+	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): this is the ACTIVE executor path.
+	// When ON, write a workspace .claude/settings.json registering the LANDED
+	// format_ail.sh PostToolUse hook. The claude executor sets cmd.Dir = workspace
+	// and loads .claude/settings.json naturally (see internal/executor/claude:165),
+	// so no --settings flag is needed here — writing the file IS the wiring. When
+	// OFF, nothing is written: byte-identical to today's path. This is the ONLY
+	// per-arm difference in the experiment.
+	fmtSettingsPath, fmtSettingsJSON, fmtErr := config.FmtHook.Apply(workspace)
+	if fmtErr != nil {
+		return nil, fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
+	}
+	if fmtSettingsPath != "" {
+		fmt.Fprintf(os.Stderr, "[FMT-HOOK] on (executor path): %s\n%s\n", fmtSettingsPath, string(fmtSettingsJSON))
+	}
+
 	// Create solution file placeholder
 	var solutionPath string
 	var placeholder string
@@ -297,6 +312,15 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			secondary: config.ExtraHandler,
 		}
 	}
+	// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB): only for the ON arm. The
+	// LANDED format_ail.sh surfaces its status via stderr / additionalContext,
+	// which Claude Code echoes into the PostToolUse tool-result stream — captured
+	// here per turn via OnToolResult. Powers M3's treatment-delivery metric.
+	var fmtTracker *fmtHookEventHandler
+	if config.FmtHook == FmtHookModeOn {
+		fmtTracker = &fmtHookEventHandler{}
+		handler = &compositeEventHandler{primary: handler, secondary: fmtTracker}
+	}
 
 	// Execute with streaming
 	result, err := exec.ExecuteStreaming(ctx, task, handler)
@@ -407,7 +431,51 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		CompactionCount:     result.CompactionCount,
 		CompactionFirstStep: result.CompactionFirstStep,
 		CompactionMaxLevel:  result.CompactionMaxLevel,
+
+		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + per-turn hook reality.
+		FmtHook:       config.FmtHook.ResolvedState(),
+		FmtHookEvents: fmtTrackerEvents(fmtTracker),
 	}, nil
+}
+
+// fmtHookEventHandler captures format_ail.sh PostToolUse status markers from the
+// executor tool-result stream (M-EVAL-FMT-WEAKMODEL-AB hook-reality metric). Only
+// installed for the ON arm. It records only what the hook actually emitted — it
+// never fabricates a "treated" event.
+type fmtHookEventHandler struct {
+	turn   int
+	events []FmtHookEvent
+}
+
+func (h *fmtHookEventHandler) OnTurnStart(turnNum int)  { h.turn = turnNum }
+func (h *fmtHookEventHandler) OnText(string)            {}
+func (h *fmtHookEventHandler) OnToolUse(string, string) {}
+func (h *fmtHookEventHandler) OnToolResult(_ string, output string) {
+	if ev, ok := detectFmtHookEvent(output, h.turn); ok {
+		h.events = append(h.events, ev)
+	}
+}
+func (h *fmtHookEventHandler) OnTurnEnd(int) {}
+func (h *fmtHookEventHandler) OnError(error) {}
+
+// OnRawStreamLine implements executor.RawStreamLineHandler. The active claude
+// path (claude.go) never dispatches OnToolResult for the tool_result/PostToolUse
+// lines that carry format_ail.sh's status markers, so we key hook-reality off
+// the raw stream line instead — the same strategy the legacy streaming runner
+// uses. Fail-closed: detectFmtHookEvent returns ok=false for any line without a
+// real marker, so a line with no hook output is never recorded as treated.
+func (h *fmtHookEventHandler) OnRawStreamLine(line string) {
+	if ev, ok := detectFmtHookEvent(line, h.turn); ok {
+		h.events = append(h.events, ev)
+	}
+}
+
+// fmtTrackerEvents safely extracts events from a possibly-nil tracker (OFF arm).
+func fmtTrackerEvents(t *fmtHookEventHandler) []FmtHookEvent {
+	if t == nil {
+		return nil
+	}
+	return t.events
 }
 
 // debugEventHandler prints streaming events when DEBUG_AGENT is set
@@ -481,6 +549,19 @@ func (c *compositeEventHandler) OnTurnEnd(turnNum int) {
 func (c *compositeEventHandler) OnError(err error) {
 	c.primary.OnError(err)
 	c.secondary.OnError(err)
+}
+
+// OnRawStreamLine implements executor.RawStreamLineHandler by forwarding the raw
+// stream line to whichever wrapped handler(s) opt into it. Composites can nest
+// (the ON arm wraps a base composite as primary and the fmt tracker as
+// secondary), so we recurse through the interface rather than assuming a leaf.
+func (c *compositeEventHandler) OnRawStreamLine(line string) {
+	if rh, ok := c.primary.(executor.RawStreamLineHandler); ok {
+		rh.OnRawStreamLine(line)
+	}
+	if rh, ok := c.secondary.(executor.RawStreamLineHandler); ok {
+		rh.OnRawStreamLine(line)
+	}
 }
 
 // ttftEventHandler records the elapsed time until the first output event (text or tool use).

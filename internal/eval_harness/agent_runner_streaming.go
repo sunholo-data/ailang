@@ -33,9 +33,21 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	// -p: Task prompt (benchmark description and expected output)
 	// --output-format stream-json: Get structured JSON events as they happen
 	// --include-partial-messages: Show thinking process token by token
+	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): when ON, emit a workspace
+	// .claude/settings.json registering the LANDED format_ail.sh PostToolUse hook
+	// and pass --settings <path>. When OFF, nothing is emitted and no flag is
+	// added — byte-identical to today's path. This is the ONLY per-arm difference.
+	fmtSettingsPath, fmtSettingsJSON, fmtErr := config.FmtHook.Apply(workspace)
+	if fmtErr != nil {
+		return nil, fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
+	}
+	if fmtSettingsPath != "" {
+		fmt.Fprintf(os.Stderr, "[FMT-HOOK] on: %s\n%s\n", fmtSettingsPath, string(fmtSettingsJSON))
+	}
+
 	// --permission-mode bypassPermissions: Skip approval prompts for automated execution
 	// --verbose: Show detailed execution information
-	cmd := exec.Command(config.ClaudePath,
+	streamArgs := []string{
 		"--system-prompt", systemPrompt,
 		"-p", taskPrompt,
 		"--output-format", "stream-json",
@@ -46,7 +58,11 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 		"--session-id", sessionID,
 		"--add-dir", workspace,
 		"--allowedTools", strings.Join(config.AllowedTools, ","),
-	)
+	}
+	if fmtSettingsPath != "" {
+		streamArgs = append(streamArgs, "--settings", fmtSettingsPath)
+	}
+	cmd := exec.Command(config.ClaudePath, streamArgs...)
 
 	cmd.Dir = workspace
 
@@ -113,6 +129,10 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	var currentMessage strings.Builder
 	var transcriptBuf strings.Builder // Accumulate full conversation for session log
 	var turnNum int
+	// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB): per-turn fmt PostToolUse
+	// events. Only populated when the ON arm wired the hook in.
+	var fmtHookEvents []FmtHookEvent
+	captureFmt := config.FmtHook == FmtHookModeOn
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -141,6 +161,19 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 			}
 
 			eventType, _ := event["type"].(string)
+
+			// Hook-reality capture (M-EVAL-FMT-WEAKMODEL-AB): scan every event for
+			// the LANDED format_ail.sh hook's own status markers. The hook always
+			// exits 0 to the CLI but surfaces its real status via stderr
+			// ("✓ Formatted <file>") and hookSpecificOutput.additionalContext
+			// ("ailang fmt failed"/"timed out") on failure — both of which Claude
+			// Code echoes into the stream (system/user events). We only record what
+			// the hook actually emitted; a run with no markers records no events.
+			if captureFmt {
+				if ev, ok := detectFmtHookEvent(line, turnNum); ok {
+					fmtHookEvents = append(fmtHookEvents, ev)
+				}
+			}
 
 			switch eventType {
 			case "system":
@@ -264,19 +297,22 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nTask Prompt:\n%s\n\nTranscript:\n%s\n",
 			taskPrompt, transcriptBuf.String())
 
+		// Goroutine has finished (done was signalled), so fmtHookEvents is safe to
+		// read here without a data race (M-EVAL-FMT-WEAKMODEL-AB).
 		if err != nil {
 			telemetry.Error() // Report error to collaboration hub
 			fmt.Fprintf(os.Stderr, "\n[ERROR] Claude failed: %v\n", err)
 			// Return partial result even on error, so we can capture transcript
 			result := &ClaudeHeadlessResult{
-				Type:       "result",
-				Subtype:    "error",
-				IsError:    true,
-				Result:     fmt.Sprintf("Claude execution error: %v", err),
-				NumTurns:   turnNum,
-				DurationMS: int(time.Since(time.Now().Add(-time.Duration(timeoutSeconds) * time.Second)).Milliseconds()),
-				SessionID:  sessionID,
-				Transcript: transcript,
+				Type:          "result",
+				Subtype:       "error",
+				IsError:       true,
+				Result:        fmt.Sprintf("Claude execution error: %v", err),
+				NumTurns:      turnNum,
+				DurationMS:    int(time.Since(time.Now().Add(-time.Duration(timeoutSeconds) * time.Second)).Milliseconds()),
+				SessionID:     sessionID,
+				Transcript:    transcript,
+				FmtHookEvents: fmtHookEvents,
 			}
 			return result, nil // Return result, not error, so caller can still log partial data
 		}
@@ -284,16 +320,18 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 		if finalResult == nil {
 			// No structured result, but session completed
 			return &ClaudeHeadlessResult{
-				Type:       "result",
-				IsError:    false,
-				Result:     "Session completed (see workspace for solution.ail)",
-				NumTurns:   turnNum,
-				Transcript: transcript,
+				Type:          "result",
+				IsError:       false,
+				Result:        "Session completed (see workspace for solution.ail)",
+				NumTurns:      turnNum,
+				Transcript:    transcript,
+				FmtHookEvents: fmtHookEvents,
 			}, nil
 		}
 
-		// Attach transcript to finalResult
+		// Attach transcript + hook-reality to finalResult
 		finalResult.Transcript = transcript
+		finalResult.FmtHookEvents = fmtHookEvents
 		return finalResult, nil
 	}
 }

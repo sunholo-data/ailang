@@ -83,6 +83,17 @@ type RunMetrics struct {
 	// Lets eval-report break results down with vs. without JIT knowledge injection.
 	MicroragState string `json:"microrag_state,omitempty"`
 
+	// fmt-hook A/B state for this run (M-EVAL-FMT-WEAKMODEL-AB).
+	// Values: "on" | "off" | "" (non-agent / not set). The resolved arm — the
+	// ONLY per-arm difference in the fmt weak-model experiment — banked so the
+	// required config diff between ON and OFF arms is reviewable from the results.
+	FmtHookState string `json:"fmt_hook_state,omitempty"`
+	// Per-turn fmt PostToolUse hook reality (M-EVAL-FMT-WEAKMODEL-AB). Each entry
+	// is one observed format_ail.sh run classified formatted / deferred / error.
+	// Empty on the OFF arm (and on ON runs where the hook never fired). Powers
+	// M3's treatment-delivery-rate metric vs the ~8% fail-closed refusal baseline.
+	FmtHookEvents []FmtHookEvent `json:"fmt_hook_events,omitempty"`
+
 	// Cross-harness grouping (M-EVAL-CROSS-HARNESS)
 	// Populated from models.yml model_family field. Enables --group-by=model-family
 	// in eval-matrix to compare same model across different harnesses (e.g. claude vs opencode).

@@ -282,6 +282,10 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			AgentTranscript: result.SessionLog,
 			EvalMode:        eval_harness.EvalModeAgent,                    // Mark as agent evaluation
 			MicroragState:   eval_harness.MicroragModeAuto.ResolvedState(), // M-BRAIN-MICRORAG
+			// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality,
+			// banked for the config-diff review and M3's treatment-delivery metric.
+			FmtHookState:  result.FmtHook,
+			FmtHookEvents: result.FmtHookEvents,
 
 			// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1)
 			CostKilledAt:   result.CostKilledAt,
