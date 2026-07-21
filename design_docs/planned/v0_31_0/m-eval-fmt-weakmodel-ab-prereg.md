@@ -179,4 +179,37 @@ status, classified as:
 
 ## Amendments
 
-(none)
+### 2026-07-21 (iteration 73) — treatment-integrity CAPTURE corrected (pre-scored-run; MEASUREMENT-only)
+
+No scored M2b run has banked (the frozen protocol permits pre-scored-run changes). A live
+haiku ON-arm smoke (fizzbuzz, subscription-billed, NOT a scored run) resolved the M2a
+`TODO(M2b)`: **Claude Code SWALLOWS an exit-0 hook's stderr in `--output-format stream-json`
+mode**, so `format_ail.sh`'s `✓ Formatted <file>` marker reaches NEITHER the stdout stream-json
+NOR the CLI's own stderr. The iter-72 stream-scan capture (`OnRawStreamLine` →
+`detectFmtHookEvent`) was therefore **structurally always-empty on the active claude path** — the
+§5.3 treatment-delivery gate was unmeasurable, which would have forced every M2b verdict to
+"unevaluable" by construction. Proven with data: the hook FIRES reliably in headless mode
+(sentinel test), emits the marker + exits 0 (direct test), yet two banked smoke runs showed
+`fmt_hook_state:"on"` with zero `fmt_hook_events`.
+
+**Correction (commits `647deadbb` + `8d45e4a63`, branch `sprint/m-eval-fmt-weakmodel-ab-hooksink`):**
+the capture point moved to an **out-of-band file sink** — `format_ail.sh` appends one JSONL event
+per invocation to `<cwd>/.claude/fmt_hook_events.jsonl` (path derived from the hook stdin's own
+`cwd`, so no env var is forwarded to the subprocess); the harness reads the same workspace-relative
+path post-run and populates `RunMetrics.FmtHookEvents`. Verified: the ON smoke now banks a
+`formatted` event with the correct `.ail` path; the OFF smoke banks none (arm gating via the ON-only
+`.claude/` dir). Evaluator (sonnet, generator≠judge vs the opus executor) PASS 88/100, no must-fix.
+
+**This changes MEASUREMENT ONLY — the TREATMENT is byte-identical** (the sink is invisible to the
+agent: not stdout, not `additionalContext`). §4's "the only per-arm difference is the hook running"
+still holds. `exit 3` (unparseable-mid-edit) remains silent (no sink event, clause 5).
+
+**Treatment-scope clarification (for M3/M4):** the LANDED hook's contract surfaces a HARD fmt
+failure (exit ≠0,≠3) to the model via `additionalContext` — this is PART OF THE TREATMENT (the ON
+arm's designed behavior), not measurement leakage, and the sink records it as an `error` event. On
+the frozen easy→medium set, exit-0 (formatted) and exit-3 (silent defer) dominate; hard failures
+should be rare. M4 must still separate a true formatter effect from a treatment-delivery failure
+per §5.3, now that treatment-delivery is measurable.
+
+**M2b runnability:** M2b must run against a build INCLUDING these commits. The benchmark freeze
+(SHA `2bb1820d6`, §2) is unaffected — no benchmark versions changed.

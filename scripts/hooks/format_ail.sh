@@ -25,6 +25,44 @@ case "$file_path" in
   *) exit 0 ;;
 esac
 
+# Out-of-band eval sink (M-EVAL-FMT-WEAKMODEL-AB / M2b). Claude Code SWALLOWS an
+# exit-0 hook's stderr in stream-json mode, so the "✓ Formatted" marker reaches
+# NEITHER the stdout stream nor the CLI's own stderr — the harness's stream-scan
+# capture was structurally always empty. We instead append one structured JSONL
+# event per invocation to a file the harness reads post-run. This is INVISIBLE to
+# the agent (prereg §4: the only per-arm difference must be the hook running — the
+# fmt status must NOT enter the model's context), so it does NOT go through stdout
+# or additionalContext.
+#
+# Path is derived from the hook stdin's own `cwd` (= the agent workspace) so it
+# needs NO env var forwarded to the claude subprocess. The harness computes the
+# same path independently: <cwd>/.claude/fmt_hook_events.jsonl. It is gated on the
+# .claude/ dir already existing (the ON arm's Apply() creates it when writing
+# settings.json) so a developer running the hook interactively outside eval does
+# not accumulate stray logs.
+hook_cwd=$(echo "$HOOK_JSON" | jq -r '.cwd // ""')
+tool_use_id=$(echo "$HOOK_JSON" | jq -r '.tool_use_id // ""')
+FMT_SINK=""
+if [ -n "$hook_cwd" ] && [ -d "$hook_cwd/.claude" ]; then
+  FMT_SINK="$hook_cwd/.claude/fmt_hook_events.jsonl"
+fi
+
+# emit_sink appends one JSONL event (status, file, exit code, tool_use_id) to the
+# sink when eval mode is active. No-op (silent) when FMT_SINK is unset — the exit-3
+# "not parseable yet" case (contract clause 5) must never call this: it is
+# intentionally silent and must not count as treated or refused.
+emit_sink() {
+  [ -n "$FMT_SINK" ] || return 0
+  jq -cn \
+    --arg status "$1" \
+    --arg file "$file_path" \
+    --argjson code "$2" \
+    --arg id "$tool_use_id" \
+    --arg detail "$3" \
+    '{status: $status, file: $file, exit_code: $code, id: $id, detail: $detail}' \
+    >>"$FMT_SINK" 2>/dev/null
+}
+
 # Bounded run (contract clause 4: never wedge a turn, even on a hung fmt).
 FMT_TIMEOUT_SECS=10
 FMT_TMP=$(mktemp)
@@ -56,9 +94,13 @@ $FMT_OUT"
 fi
 
 case "$FMT_RC" in
-  0) echo "✓ Formatted $file_path" >&2 ;;
-  3) : ;;  # not parseable yet — the ONLY silent case (contract clause 5)
+  0)
+    echo "✓ Formatted $file_path" >&2
+    emit_sink "formatted" 0 ""
+    ;;
+  3) : ;;  # not parseable yet — the ONLY silent case (contract clause 5); NO sink event
   *)
+    emit_sink "error" "$FMT_RC" "$FMT_OUT"
     jq -n --arg ctx "ailang fmt failed (exit $FMT_RC) on $file_path — file left as written:
 $FMT_OUT" '{
       hookSpecificOutput: {
