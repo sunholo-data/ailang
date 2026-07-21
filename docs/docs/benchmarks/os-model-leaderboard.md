@@ -19,6 +19,13 @@ cover **AILANG + Python**, while the multi-language story (**JavaScript, Go**) a
 multi-language sweeps on pay-per-token cloud APIs is expensive, and the local rig does it for
 **zero server cost**.
 
+:::note Which columns you'll see
+The rig runs **AILANG to full coverage first** for each release, then hands its remaining time to
+the cross-language (Python / JavaScript / Go) sweep. So early in a release cycle the table below
+is AILANG-only with a low `cov` count, and the other language columns appear once the AILANG lap
+completes. A low `cov` means the rate is a **partial sample of the release**, not a final score.
+:::
+
 ## Why a separate section
 
 Pay-per-token cloud APIs make N-trial evaluation expensive — you usually see "one shot, one
@@ -58,6 +65,17 @@ per-version on the rig, so rows never mix releases); the `rolling-YYYYMMDD` tag 
 rotation snapshot that published them. The table populates from
 `/benchmarks/os/latest.json`. Cloud AILANG-vs-Python leaderboards are on the
 [Model Leaderboard](/docs/benchmarks/performance) and [ELO Ratings](/docs/benchmarks/elo) pages.
+
+How to read it:
+
+- **`cov`** — distinct benchmarks run so far, of the most any model has run. Rows below half that
+  are **provisional** (italic, dimmed): a partial sample of the release whose rate will move as the
+  rotation fills in. Coverage comes from the ratings block of `/benchmarks/latest.json`.
+- **`N=3 trials`** in the header is trials *per benchmark*, not the number of benchmarks — `cov` is
+  the sample size to judge the rate by.
+- **Tier columns** (`core` / `stretch` / `frontier`) break the headline rate down by difficulty, so
+  a blended number can't hide a tier sitting at 0%. `—` means that tier wasn't run in this rotation;
+  `0%` means it ran and nothing passed.
 
 ## Evolution across releases
 

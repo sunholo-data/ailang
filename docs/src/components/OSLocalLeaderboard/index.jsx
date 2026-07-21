@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
 
 // OS / Local-model leaderboard (M-EVAL-BENCHMARK-UI-CONSOLIDATION phase C).
 // Renders cross-language × harness pass rates for open/locally-hosted models from
@@ -22,6 +23,26 @@ import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
+// Tier breakdown is carried per-row in os/latest.json but was never surfaced: a
+// single blended pass rate hides that (e.g.) frontier is 0% while core is ~89%.
+const TIER_ORDER = ['core', 'stretch', 'frontier', 'vision', 'smoke'];
+
+function tierColumns(rows) {
+  const seen = new Set();
+  for (const r of rows) {
+    for (const t of Object.keys((r && r.tiers) || {})) seen.add(t);
+  }
+  // NOTE: Array.from, never [...new Set()] — the prod Docusaurus Babel config
+  // lowers array-spread to [].concat(), which does NOT spread a Set (dev/SSR use
+  // native spread and never catch it).
+  return Array.from(seen).sort((a, b) => {
+    const ia = TIER_ORDER.indexOf(a), ib = TIER_ORDER.indexOf(b);
+    if (ia < 0 && ib < 0) return a.localeCompare(b);
+    if (ia < 0) return 1; if (ib < 0) return -1;
+    return ia - ib;
+  });
+}
+
 function heat(rate) {
   if (rate == null) return 'transparent';
   if (rate >= 0.85) return 'rgba(34,197,94,0.25)';
@@ -33,12 +54,23 @@ function heat(rate) {
 
 export default function OSLocalLeaderboard() {
   const [data, setData] = useState(undefined); // undefined=loading, null=absent
+  const [coverage, setCoverage] = useState(null); // null => coverage unknown
 
   useEffect(() => {
     benchmarkFetch('os/latest.json')
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => setData(null));
+
+    // os/latest.json carries no denominator, so a partly-filled rotation used to
+    // render as a bare pass rate. The main leaderboard's ratings block already
+    // tracks per-model `benchmarks` + `maxCoverage` for these same model ids —
+    // reuse it so this page gates coverage the same way ELO/performance do.
+    // Failure is non-fatal: coverage stays unknown and rows render unbadged.
+    benchmarkFetch('latest.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setCoverage(j && j.ratings ? buildCoverage(j.ratings) : null))
+      .catch(() => setCoverage(null));
   }, []);
 
   if (data === undefined) return <p>Loading local-rig data…</p>;
@@ -67,6 +99,13 @@ export default function OSLocalLeaderboard() {
     }
   );
   const isSample = typeof data.version === 'string' && data.version.startsWith('sample');
+  const tiers = tierColumns(data.rows);
+  // Tier cells are AILANG-only: the tier breakdown exists to show where the
+  // headline AILANG number comes from, and breaking out every tier x language
+  // would be a 12+ column table.
+  const tierLang = langs.includes('ailang') ? 'ailang' : langs[0];
+  const maxCov = coverage ? coverage.maxCoverage : null;
+  const anyProvisional = coverage && data.rows.some((r) => coverage.isProvisional(r.model));
 
   return (
     <div>
@@ -90,28 +129,82 @@ export default function OSLocalLeaderboard() {
             {langs.map((l) => (
               <th key={l} style={{ padding: '6px 10px', textAlign: 'center' }}>{LANG_LABEL[l] || l}</th>
             ))}
+            {tiers.map((t) => (
+              <th key={`t-${t}`} style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 400, color: 'var(--ifm-color-emphasis-600)' }}
+                  title={`${LANG_LABEL[tierLang] || tierLang} pass rate on the ${t} tier`}>
+                {t}
+              </th>
+            ))}
+            {coverage && (
+              <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }}
+                  title="distinct benchmarks run so far (of the max any model ran)">
+                cov
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
-          {data.rows.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
-              <td style={{ padding: '6px 10px', fontWeight: 600 }}>{row.model}</td>
-              <td style={{ padding: '6px 10px', color: 'var(--ifm-color-emphasis-700)' }}>{row.harness || '—'}</td>
-              {langs.map((l) => {
-                const rate = row.lang ? row.lang[l] : null;
-                return (
-                  <td key={l} style={{
-                    padding: '6px 10px', textAlign: 'center', background: heat(rate),
-                    fontWeight: rate >= 0.85 ? 700 : 400,
-                  }}>
-                    {rate == null ? '—' : `${Math.round(rate * 100)}%`}
+          {data.rows.map((row, i) => {
+            const prov = coverage ? coverage.isProvisional(row.model) : false;
+            const nBench = coverage ? coverage.benchmarksFor(row.model) : null;
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.72 : 1 }}>
+                <td style={{ padding: '6px 10px', fontWeight: 600, fontStyle: prov ? 'italic' : 'normal' }}>{row.model}</td>
+                <td style={{ padding: '6px 10px', color: 'var(--ifm-color-emphasis-700)' }}>{row.harness || '—'}</td>
+                {langs.map((l) => {
+                  const rate = row.lang ? row.lang[l] : null;
+                  return (
+                    <td key={l} style={{
+                      padding: '6px 10px', textAlign: 'center', background: heat(rate),
+                      fontWeight: rate >= 0.85 ? 700 : 400,
+                    }}>
+                      {rate == null ? '—' : `${Math.round(rate * 100)}%`}
+                    </td>
+                  );
+                })}
+                {tiers.map((t) => {
+                  // A tier absent from this row was not run; a tier present with 0
+                  // genuinely scored 0 — these must not render the same way.
+                  const cell = row.tiers && row.tiers[t];
+                  const rate = cell ? cell[tierLang] : null;
+                  return (
+                    <td key={`t-${t}`} style={{
+                      padding: '6px 10px', textAlign: 'center', background: heat(rate),
+                      fontSize: '0.92em', color: rate == null ? 'var(--ifm-color-emphasis-500)' : undefined,
+                    }}
+                        title={rate == null ? `${t}: not run in this rotation` : undefined}>
+                      {rate == null ? '—' : `${Math.round(rate * 100)}%`}
+                    </td>
+                  );
+                })}
+                {coverage && (
+                  <td style={{
+                    padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                    fontSize: '0.85em', color: prov ? '#b45309' : 'var(--ifm-color-emphasis-500)',
+                    fontWeight: prov ? 700 : 400,
+                  }}
+                      title={nBench == null
+                        ? 'coverage unknown for this model'
+                        : (prov
+                          ? `provisional — only ${nBench} of ${maxCov} benchmarks run so far; this rate will move as the rotation fills in`
+                          : `${nBench} of ${maxCov} benchmarks run`)}>
+                    {nBench == null ? '—' : `${nBench}/${maxCov}`}
                   </td>
-                );
-              })}
-            </tr>
-          ))}
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      {anyProvisional && (
+        <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-600)', marginTop: 6 }}>
+          <span style={{ color: '#b45309', fontWeight: 700 }}>Provisional</span> rows (italic, low{' '}
+          <strong>cov</strong>) have run only a fraction of the {maxCov} benchmarks — these rates are
+          a partial sample of the release and will move as the rotation fills coverage in. The rig
+          runs AILANG to full coverage first, so cross-language columns appear only once that lap
+          completes.
+        </p>
+      )}
     </div>
   );
 }
