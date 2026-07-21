@@ -3,6 +3,8 @@
 Newest first. Rotation rule lives in the charter's STATUS section. Full per-iteration
 detail is in v1-mission-log.md — these are the headline stamps only.
 
+## STATUS 2026-07-19 — ITERATION 63: queue pick **m-ailang-fmt-phase2 EXECUTED + LANDED** — PR #414 squash `3815ba617`; executor (opus, worktree) shipped M0–M3, evaluator (sonnet, generator≠judge) PASS **78/100 r1**; `ailang fmt` now preserves comments losslessly on ~85% of the corpus, fail-closed (never lossy) on the rest; `metered=$0.00`
+
 ## STATUS 2026-07-19 — ITERATION 62: HUMAN DIRECTIVE (#399) — Mark UNPARKED m-ailang-fmt-phase2 (option b, commit `c624b456d`) → **routed to sprint-planner (opus); 4-milestone plan produced (M0 = printer child-list audit, interpolation = fail-closed carve-out), READY FOR EXECUTOR** — no re-quorum per Mark; `metered=$0.00`
 
 ## STATUS 2026-07-19 — ITERATION 60: HUMAN DIRECTIVE (#399) — Mark "Yep one more short decision round" → **Rev-3 revision fixed the 4 R2 defects, but the re-quorum surfaced 2 NEW architecture-level objections on phase2 → both fmt docs STILL PARKED needs-human-review** (iter-59's "few fixes from green" REFUTED)
