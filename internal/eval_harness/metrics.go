@@ -63,10 +63,15 @@ type RunMetrics struct {
 	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
 
 	// Agent mode KPIs (M-EVAL-AGENT)
-	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
-	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (agent mode only; validates agentic behavior — the "0 tool calls" signal)
-	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
-	EvalMode        string `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
+	AgentTurns     int `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
+	AgentToolCalls int `json:"agent_tool_calls,omitempty"` // Tool invocations (agent mode only; validates agentic behavior — the "0 tool calls" signal)
+	// AgentToolHistogram breaks the scalar count down by tool name (e.g.
+	// {"bash":5,"edit":2}). Nil when the executor didn't capture names. Answers
+	// "did the agent reach for a discoverable tool like `ailang fmt`" — the scalar
+	// count can't. Added M-EVAL-TOOL-HISTOGRAM (2026-07-22).
+	AgentToolHistogram map[string]int `json:"agent_tool_histogram,omitempty"`
+	AgentTranscript    string         `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
+	EvalMode           string         `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
 
 	// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT, v0.26.0). Leading
 	// indicator of convergence thrash — the agent loop compacting (and so erasing)

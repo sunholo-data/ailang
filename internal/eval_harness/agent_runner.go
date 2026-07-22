@@ -69,9 +69,13 @@ type AgentBenchmarkResult struct {
 	DurationMS    int     // Total time in milliseconds
 	NumTurns      int     // Conversation turns
 	ToolCallCount int     // Number of tool invocations (validates agentic behavior)
-	Error         string  // Error message if failed
-	SessionID     string  // Session ID from executor
-	Result        string  // Final result text from agent
+	// ToolCalls is the per-tool-name histogram (nil if the executor didn't capture
+	// names). Answers "did the agent actually invoke `ailang fmt`" — which the
+	// scalar ToolCallCount cannot.
+	ToolCalls map[string]int
+	Error     string // Error message if failed
+	SessionID string // Session ID from executor
+	Result    string // Final result text from agent
 
 	// Token usage details
 	Usage      TokenUsage            `json:"usage"`

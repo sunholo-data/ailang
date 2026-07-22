@@ -129,6 +129,20 @@ func TestParseSessionJSONL_DP7Rejected(t *testing.T) {
 	if res.NumTurns != 4 {
 		t.Errorf("NumTurns = %d, want 4 (run_summary.steps_executed)", res.NumTurns)
 	}
+	// M-EVAL-TOOL-HISTOGRAM: per-tool-name breakdown rides alongside the count.
+	// This session makes two EditFile calls, so the histogram must agree with
+	// ToolCallCount (2) and name the tool — the whole point is being able to ask
+	// "did the agent invoke `ailang fmt`", which the scalar count can't answer.
+	if got := res.ToolCalls["EditFile"]; got != 2 {
+		t.Errorf("ToolCalls[EditFile] = %d, want 2 (histogram must match the 2 native_tool_calls)", got)
+	}
+	sum := 0
+	for _, n := range res.ToolCalls {
+		sum += n
+	}
+	if sum != res.ToolCallCount {
+		t.Errorf("histogram sum = %d, want %d (must reconcile with ToolCallCount)", sum, res.ToolCallCount)
+	}
 }
 
 // TestParseSessionJSONL_Compaction verifies context-compaction telemetry capture

@@ -173,6 +173,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var rawEvents []map[string]any
 	var numTurns int
 	var toolCallCount int
+	toolCalls := map[string]int{} // per-tool-name histogram (alongside toolCallCount)
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
 	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int
 	var totalCostUSD float64
@@ -265,6 +266,9 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 
 			case "tool_execution_start":
 				toolCallCount++
+				if ev.ToolName != "" {
+					toolCalls[ev.ToolName]++
+				}
 				if os.Getenv("DEBUG_AGENT") != "" {
 					fmt.Fprintf(os.Stderr, "[DEBUG_PI] tool_execution_start: %s\n", ev.ToolName)
 				}
@@ -374,6 +378,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					CostUSD:                  totalCostUSD,
 					NumTurns:                 numTurns,
 					ToolCallCount:            toolCallCount,
+					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
 					ProviderData:             piProviderData(rawEvents),
 					CostKilledAt:             task.Budget.KilledAt(),
@@ -409,6 +414,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				CostUSD:                  totalCostUSD,
 				NumTurns:                 numTurns,
 				ToolCallCount:            toolCallCount,
+				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
 				ProviderData:             piProviderData(rawEvents),
 				CostKilledAt:             task.Budget.KilledAt(),

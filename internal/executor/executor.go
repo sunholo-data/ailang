@@ -139,10 +139,15 @@ type Result struct {
 	Error   string // Error message if failed
 
 	// Metrics
-	DurationMS    int     // Total execution time in milliseconds
-	NumTurns      int     // Conversation turns
-	ToolCallCount int     // Number of tool invocations (file edits, bash, etc.)
-	CostUSD       float64 // Total cost in USD
+	DurationMS    int // Total execution time in milliseconds
+	NumTurns      int // Conversation turns
+	ToolCallCount int // Number of tool invocations (file edits, bash, etc.)
+	// ToolCalls is the per-tool-name invocation histogram (e.g. {"bash":5,"edit":2}).
+	// Nil when the executor did not capture names — ToolCallCount stays the scalar
+	// source of truth. Motivating question: is the agent actually reaching for a
+	// discoverable tool like `ailang fmt`, which the scalar count can't answer.
+	ToolCalls map[string]int
+	CostUSD   float64 // Total cost in USD
 
 	// Token usage
 	InputTokens              int

@@ -211,6 +211,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var rawEvents []map[string]any
 	var numSteps int
 	var toolCallCount int
+	toolCalls := map[string]int{} // per-tool-name histogram (alongside toolCallCount)
 	// opencode emits per-step deltas; sum across step_finish events.
 	var inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens int
 	// Finish reason of the LAST step_finish: intermediate steps report
@@ -312,6 +313,9 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			case "tool_use":
 				toolCallCount++
 				toolName := ev.Part.Tool
+				if toolName != "" {
+					toolCalls[toolName]++
+				}
 				if os.Getenv("DEBUG_AGENT") != "" {
 					fmt.Fprintf(os.Stderr, "[DEBUG_OPENCODE] tool_use: %s status=%s\n", toolName, ev.Part.State.Status)
 				}
@@ -419,6 +423,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					CostUSD:                  totalCostUSD,
 					NumTurns:                 numSteps,
 					ToolCallCount:            toolCallCount,
+					ToolCalls:                toolCalls,
 					SessionID:                lastSessionID,
 					ProviderData:             opencodeProviderData(rawEvents),
 					CostKilledAt:             task.Budget.KilledAt(),
@@ -449,6 +454,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				CostUSD:                  totalCostUSD,
 				NumTurns:                 numSteps,
 				ToolCallCount:            toolCallCount,
+				ToolCalls:                toolCalls,
 				SessionID:                lastSessionID,
 				ProviderData:             opencodeProviderData(rawEvents),
 				CostKilledAt:             task.Budget.KilledAt(),

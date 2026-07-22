@@ -407,6 +407,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		DurationMS:    result.DurationMS,
 		NumTurns:      result.NumTurns,
 		ToolCallCount: result.ToolCallCount,
+		ToolCalls:     result.ToolCalls,
 		Error:         result.Error,
 		SessionID:     result.SessionID,
 		Result:        result.Output,

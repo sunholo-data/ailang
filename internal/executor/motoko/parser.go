@@ -237,6 +237,22 @@ func summarizeToolCall(raw json.RawMessage) string {
 	return name + " " + truncateForTranscript(string(tc.Arguments), 400)
 }
 
+// toolCallName extracts just the tool name from one native tool call, for the
+// per-tool-name histogram. Mirrors summarizeToolCall's empty/unparseable handling
+// so the count and the histogram never disagree on what a call was.
+func toolCallName(raw json.RawMessage) string {
+	var tc struct {
+		Tool string `json:"tool"`
+	}
+	if err := json.Unmarshal(raw, &tc); err != nil {
+		return "(unparseable)"
+	}
+	if tc.Tool == "" {
+		return "(unknown)"
+	}
+	return tc.Tool
+}
+
 // truncateForTranscript bounds a transcript fragment, collapsing newlines so
 // each tool call stays on one line, and appends a byte count when truncated.
 func truncateForTranscript(s string, max int) string {
@@ -276,6 +292,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		sumCostUSD         float64
 		numTurns           int
 		numToolCalls       int
+		toolCalls          = map[string]int{} // per-tool-name histogram (alongside numToolCalls)
 		lastDoneOutput     string
 		lastFinishReason   string
 		gotRunSummary      bool
@@ -350,6 +367,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 				transcript.WriteString("tool_call: ")
 				transcript.WriteString(summarizeToolCall(tc))
 				transcript.WriteByte('\n')
+				toolCalls[toolCallName(tc)]++
 			}
 
 		case "done":
@@ -500,6 +518,9 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 	// Always populated (regardless of run_summary presence).
 	res.ToolCallCount = numToolCalls
+	if len(toolCalls) > 0 {
+		res.ToolCalls = toolCalls
+	}
 	res.CompactionCount = compactionCount
 	res.CompactionFirstStep = compactionFirstStep
 	res.CompactionMaxLevel = compactionMaxLevel
