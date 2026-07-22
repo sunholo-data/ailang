@@ -212,7 +212,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var numSteps int
 	var toolCallCount int
 	// opencode emits per-step deltas; sum across step_finish events.
-	var inputTokens, outputTokens, reasonTokens int
+	var inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens int
 	// Finish reason of the LAST step_finish: intermediate steps report
 	// "tool-calls" as they hand off to a tool, so only the final one describes
 	// how the run actually ended (notably "length" = truncated at the cap).
@@ -331,6 +331,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				inputTokens += ev.Part.Tokens.Input
 				outputTokens += ev.Part.Tokens.Output
 				reasonTokens += ev.Part.Tokens.Reasoning
+				// opencode reports cache tokens EXCLUSIVE of input (verified
+				// against testdata: total == input + output + cache.write +
+				// cache.read exactly, with input as small as 1 on a step that
+				// wrote 17213 cache tokens). Summing them here is therefore
+				// additive, not double-counting.
+				cacheWriteTokens += ev.Part.Tokens.Cache.Write
+				cacheReadTokens += ev.Part.Tokens.Cache.Read
 				totalCostUSD += ev.Part.Cost
 				if ev.Part.Reason != "" {
 					lastFinishReason = ev.Part.Reason
@@ -400,24 +407,26 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 						thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
 				}
 				return &executor.Result{
-					Success:        success,
-					Output:         transcriptBuf.String(),
-					Error:          errMsg,
-					DurationMS:     int(duration.Milliseconds()),
-					InputTokens:    inputTokens,
-					OutputTokens:   outputTokens,
-					ReasonTokens:   reasonTokens,
-					CostUSD:        totalCostUSD,
-					NumTurns:       numSteps,
-					ToolCallCount:  toolCallCount,
-					SessionID:      lastSessionID,
-					ProviderData:   opencodeProviderData(rawEvents),
-					CostKilledAt:   task.Budget.KilledAt(),
-					ThrashKilledAt: thrashKilledAtTokens,
-					FirstAttemptMs: firstAttemptMs,
-					SuccessAtMs:    -1,
-					TokensPerSec:   tokensPerSec,
-					FinishReason:   normalizeOpencodeFinishReason(lastFinishReason),
+					Success:                  success,
+					Output:                   transcriptBuf.String(),
+					Error:                    errMsg,
+					DurationMS:               int(duration.Milliseconds()),
+					InputTokens:              inputTokens,
+					OutputTokens:             outputTokens,
+					ReasonTokens:             reasonTokens,
+					CacheReadInputTokens:     cacheReadTokens,
+					CacheCreationInputTokens: cacheWriteTokens,
+					CostUSD:                  totalCostUSD,
+					NumTurns:                 numSteps,
+					ToolCallCount:            toolCallCount,
+					SessionID:                lastSessionID,
+					ProviderData:             opencodeProviderData(rawEvents),
+					CostKilledAt:             task.Budget.KilledAt(),
+					ThrashKilledAt:           thrashKilledAtTokens,
+					FirstAttemptMs:           firstAttemptMs,
+					SuccessAtMs:              -1,
+					TokensPerSec:             tokensPerSec,
+					FinishReason:             normalizeOpencodeFinishReason(lastFinishReason),
 				}, nil
 			}
 
@@ -429,37 +438,41 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 
 			span.SetStatus(codes.Ok, "")
 			return &executor.Result{
-				Success:        success,
-				Output:         output,
-				DurationMS:     int(duration.Milliseconds()),
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				ReasonTokens:   reasonTokens,
-				CostUSD:        totalCostUSD,
-				NumTurns:       numSteps,
-				ToolCallCount:  toolCallCount,
-				SessionID:      lastSessionID,
-				ProviderData:   opencodeProviderData(rawEvents),
-				CostKilledAt:   task.Budget.KilledAt(),
-				ThrashKilledAt: thrashKilledAtTokens,
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
-				TokensPerSec:   tokensPerSec,
-				FinishReason:   normalizeOpencodeFinishReason(lastFinishReason),
+				Success:                  success,
+				Output:                   output,
+				DurationMS:               int(duration.Milliseconds()),
+				InputTokens:              inputTokens,
+				OutputTokens:             outputTokens,
+				ReasonTokens:             reasonTokens,
+				CacheReadInputTokens:     cacheReadTokens,
+				CacheCreationInputTokens: cacheWriteTokens,
+				CostUSD:                  totalCostUSD,
+				NumTurns:                 numSteps,
+				ToolCallCount:            toolCallCount,
+				SessionID:                lastSessionID,
+				ProviderData:             opencodeProviderData(rawEvents),
+				CostKilledAt:             task.Budget.KilledAt(),
+				ThrashKilledAt:           thrashKilledAtTokens,
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
+				TokensPerSec:             tokensPerSec,
+				FinishReason:             normalizeOpencodeFinishReason(lastFinishReason),
 			}, nil
 
 		case <-hardTimer.C:
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				ReasonTokens:   reasonTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
+				Success:                  false,
+				Error:                    fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
+				InputTokens:              inputTokens,
+				OutputTokens:             outputTokens,
+				ReasonTokens:             reasonTokens,
+				CacheReadInputTokens:     cacheReadTokens,
+				CacheCreationInputTokens: cacheWriteTokens,
+				CostKilledAt:             task.Budget.KilledAt(),
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
 			}, nil
 
 		case <-ttftTimer.C:
@@ -478,14 +491,16 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				_ = cmd.Process.Kill()
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
-					Success:        false,
-					Error:          fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
-					InputTokens:    inputTokens,
-					OutputTokens:   outputTokens,
-					ReasonTokens:   reasonTokens,
-					CostKilledAt:   task.Budget.KilledAt(),
-					FirstAttemptMs: firstAttemptMs,
-					SuccessAtMs:    -1,
+					Success:                  false,
+					Error:                    fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
+					InputTokens:              inputTokens,
+					OutputTokens:             outputTokens,
+					ReasonTokens:             reasonTokens,
+					CacheReadInputTokens:     cacheReadTokens,
+					CacheCreationInputTokens: cacheWriteTokens,
+					CostKilledAt:             task.Budget.KilledAt(),
+					FirstAttemptMs:           firstAttemptMs,
+					SuccessAtMs:              -1,
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - since)
@@ -494,14 +509,16 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			_ = cmd.Process.Kill()
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				ReasonTokens:   reasonTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
+				Success:                  false,
+				Error:                    fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
+				InputTokens:              inputTokens,
+				OutputTokens:             outputTokens,
+				ReasonTokens:             reasonTokens,
+				CacheReadInputTokens:     cacheReadTokens,
+				CacheCreationInputTokens: cacheWriteTokens,
+				CostKilledAt:             task.Budget.KilledAt(),
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
 			}, nil
 		}
 	}

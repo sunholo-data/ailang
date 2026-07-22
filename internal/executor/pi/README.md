@@ -106,6 +106,30 @@ In `message_end` and `turn_end`:
 **Pi reports cost directly** — the executor uses `usage.cost.total` for
 `Result.CostUSD` rather than recomputing from token counts.
 
+### Stop Reason
+
+`message` carries a `stopReason` on `message_start` / `message_end` /
+`turn_end` (and mirrored on `assistantMessageEvent.partial` during
+`message_update`). Values observed in captured fixtures at 0.70.2:
+
+| Value | Meaning | Maps to |
+|---|---|---|
+| `stop` | Model finished its turn | `stop` |
+| `toolUse` | Model stopped to call a tool (**intermediate**) | `tool_calls` |
+
+The executor takes the **last settled** value (`message_end` / `turn_end`
+only — streaming `message_update` events carry cumulative partial state) and
+normalizes it into `Result.FinishReason` via `normalizePiFinishReason`. A
+tool-using run ends `toolUse` mid-run and `stop` at the end, so only the last
+value is meaningful at run level.
+
+The vocabulary is **not documented upstream** and only these two values have
+been observed; unrecognized values are passed through verbatim rather than
+coerced, so they surface in banked eval JSON. An explicit kill
+(cost budget, timeout, cancellation) overrides the stream value — the eval
+harness trusts `FinishReason` over the error string when categorizing.
+Re-check this mapping when bumping the pinned pi version.
+
 ### Parser Strategy
 
 - Use `message_end` (assistant role) as the source of truth for usage / cost.
