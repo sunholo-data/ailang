@@ -20,7 +20,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, or @noexpose")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 
@@ -42,10 +42,14 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	case "noexpose":
 		// @noexpose is a parameterless annotation — hide from HTTP endpoints
 		return &ast.Annotation{Name: "noexpose", Pos: pos}
+	case "nomcp":
+		// @nomcp is a parameterless annotation — hide from the MCP tool surface
+		// only (HTTP, OpenAPI, and A2A remain unaffected).
+		return &ast.Annotation{Name: "nomcp", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @raw, @nowrap, @noexpose", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, or @noexpose")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @raw, @nowrap, @noexpose, @nomcp", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 }

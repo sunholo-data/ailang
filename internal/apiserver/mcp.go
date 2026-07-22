@@ -85,6 +85,9 @@ func (ms *MCPServer) registerTools() {
 			if !ms.server.isExposed(export) {
 				continue
 			}
+			if export.IsNoMCP {
+				continue // @nomcp: served over HTTP/OpenAPI/A2A but absent from MCP
+			}
 
 			dedupKey := export.Name + "|" + export.Type
 			candidate := toolCandidate{modPath, export}

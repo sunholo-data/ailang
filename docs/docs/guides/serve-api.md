@@ -396,7 +396,7 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
 - **Doc comment descriptions** — `--` comment lines immediately above a function are used as the MCP tool description. Functions without doc comments fall back to the type signature.
 - **MCP-compliant tool names** — All names match the strict regex `^[a-zA-Z0-9_-]{1,64}$` required by Claude Desktop and most current MCP clients. Resolution order: (1) `@mcp_name("name")` author override, (2) bare function name when globally unique (e.g. `mcpParse`), (3) `<lastModuleSegment>_<funcName>` fallback for collisions (e.g. `services_parseCsv`), (4) deterministic hash suffix when truncated to 64 chars. Use `@mcp_name("parse")` to control the exact tool name surfaced to MCP clients.
-- **Filtering** — `--routes-only` and `@noexpose` are respected in MCP `tools/list`, consistent with HTTP and OpenAPI. With `--routes-only`, undocumented non-route helpers are also auto-excluded from MCP.
+- **Filtering** — `--routes-only` and `@noexpose` are respected in MCP `tools/list`, consistent with HTTP and OpenAPI. `@nomcp` additionally hides a handler from `tools/list`/`tools/call` while keeping it served over HTTP/OpenAPI/A2A (MCP-only exclusion). With `--routes-only`, undocumented non-route helpers are also auto-excluded from MCP.
 - **Backward compatible** — Tool handlers accept both named parameters (`{"filepath": "doc.pdf"}`) and legacy positional format (`{"args": ["doc.pdf"]}`).
 - **Missing-parameter rejection** — A `tools/call` that omits a declared parameter (absent key) or sends it as JSON `null` is rejected with a structured `missing required parameter(s): <names>` error (`isError: true`) **before** the function runs. The names are listed in declaration order. This is type-agnostic — an omitted `int` param is rejected the same way as a `string`. Without this guard the omitted value bound to `nil`→Unit and crashed deep in stdlib (e.g. `_str_len: expected String, got Unit`) with no actionable message. The legacy positional `{"args": [...]}` form is unaffected (it opts out of named binding entirely).
 
@@ -828,6 +828,7 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@raw` | Receive full `HttpRequest` record (headers, body, method, query) instead of parsed args |
 | `@nowrap` | Return raw JSON instead of the `FunctionCallResponse` envelope |
 | `@noexpose` | Hide exported function from HTTP endpoints (still importable by other modules) |
+| `@nomcp` | Hide from the MCP tool surface ONLY — still served over HTTP, OpenAPI, and A2A (not reset by `@route`) |
 | `@mcp_name("name")` | Override the auto-generated MCP tool name for this function |
 | `@verify(depth: N)` | Runtime contract validation |
 
@@ -1005,6 +1006,40 @@ export func validateApiKey(key: string) -> bool ! {IO}
 - Are **not** included in the OpenAPI spec or A2A Agent Card
 - Are still importable by other AILANG modules via `import`
 - If a function has both `@route` and `@noexpose`, the `@route` takes precedence (it remains exposed)
+
+---
+
+### `@nomcp` — Hide from the MCP Tool Surface Only
+
+Use `@nomcp` on a handler that should be reachable over HTTP (and appear in the OpenAPI spec and A2A card) but should NOT be advertised as an agent-callable MCP tool. This is the right choice for internal/observability endpoints — health probes, metrics, key-usage dumps — that you want a human or a `curl` to hit, but that you do not want an LLM to discover in `tools/list` and call:
+
+```ailang
+module billing/api
+
+-- Public agent tool: appears in MCP tools/list AND served over HTTP.
+@route("GET", "/api/v1/usage")
+export func getUsage(userId: string) -> string ! {IO}
+  lookupUsage(userId)
+
+-- Served over HTTP + OpenAPI + A2A, but ABSENT from the MCP tool surface.
+@nomcp
+@route("GET", "/internal/key-usage")
+export func getKeyUsage() -> string ! {IO}
+  dumpKeyUsage()
+```
+
+`@nomcp` functions:
+- Are **excluded** from MCP `tools/list` and `tools/call` (a call to the excluded tool name errors as unregistered)
+- Are **still** served over HTTP (`GET /internal/key-usage` answers 200)
+- Are **still** present in the OpenAPI spec and the A2A Agent Card
+- Keep `@nomcp` even when combined with `@route` — unlike `@noexpose`, `@route` does **not** reset it
+
+`@noexpose` and `@nomcp` are independent and can be combined. They differ in which surfaces they hide:
+
+| Annotation | HTTP endpoint | OpenAPI / A2A | MCP `tools/list` + `tools/call` | Reset by `@route`? |
+|------------|:-------------:|:-------------:|:-------------------------------:|:------------------:|
+| `@noexpose` | hidden | hidden | hidden | yes (`@route` re-exposes) |
+| `@nomcp` | **served** | **present** | hidden | no (survives `@route`) |
 
 ---
 
