@@ -36,6 +36,17 @@ export pure func health() -> string {
   "ok"
 }
 
+-- @nomcp hides this handler from the MCP tool surface (tools/list AND
+-- tools/call) while keeping it fully served over HTTP, OpenAPI, and the A2A
+-- card. Use it for internal/observability endpoints you want reachable by curl
+-- but NOT advertised as an agent-callable tool. Unlike @noexpose (which hides
+-- from HTTP too), @nomcp is MCP-only and is NOT reset by @route.
+@nomcp
+@route("GET", "/internal/metrics")
+export pure func metrics() -> string {
+  "requests=0"
+}
+
 -- Demo entrypoint for verify-examples: exercises handleWebhook with a
 -- synthetic request so the file both type-checks and runs cleanly.
 export func main() -> () ! {IO} {

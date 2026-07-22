@@ -420,6 +420,92 @@ export func healthCheck(x: int) -> string ! {} { "ok" }`
 	}
 }
 
+// TestNomcpAnnotation_Basic tests @nomcp standalone parses as a
+// parameterless annotation.
+func TestNomcpAnnotation_Basic(t *testing.T) {
+	input := `
+@nomcp
+export func internalTool(x: int) -> int ! {} { x }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	if len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 function, got %d", len(file.Funcs))
+	}
+
+	fn := file.Funcs[0]
+	ann := fn.GetAnnotation("nomcp")
+	if ann == nil {
+		t.Fatal("expected @nomcp annotation")
+	}
+	if len(ann.Args) != 0 {
+		t.Errorf("expected @nomcp to have no args, got %d", len(ann.Args))
+	}
+}
+
+// TestNomcpAnnotation_WithRoute tests @nomcp combined with @route parses
+// cleanly (both annotations present; the runtime keeps IsNoMCP even with @route).
+func TestNomcpAnnotation_WithRoute(t *testing.T) {
+	input := `
+@nomcp
+@route("GET", "/internal/keys")
+export func getKeyUsage(x: int) -> string ! {} { "ok" }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	if fn.GetAnnotation("nomcp") == nil {
+		t.Error("expected @nomcp annotation")
+	}
+	if fn.GetAnnotation("route") == nil {
+		t.Error("expected @route annotation")
+	}
+}
+
+// TestUnknownAnnotation_HardErrors verifies that an unknown annotation (e.g.
+// @nope) still hard-errors with PAR_UNKNOWN_ATTRIBUTE — the @nomcp addition
+// did not loosen the allowlist.
+func TestUnknownAnnotation_HardErrors(t *testing.T) {
+	input := `
+@nope
+export func f(x: int) -> int ! {} { x }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	_ = p.ParseFile()
+
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser error for unknown attribute @nope")
+	}
+	found := false
+	for _, err := range p.Errors() {
+		if strings.Contains(err.Error(), "unknown attribute '@nope'") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected PAR_UNKNOWN_ATTRIBUTE mentioning @nope, got: %v", p.Errors())
+	}
+}
+
 // TestNowrapAnnotation_Basic tests @nowrap standalone.
 func TestNowrapAnnotation_Basic(t *testing.T) {
 	input := `

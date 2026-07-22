@@ -223,6 +223,24 @@ func extractNoExposeAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
+// extractNoMCPAnnotations marks exported functions with @nomcp as hidden from
+// the MCP tool surface (tools/list and tools/call). Unlike @noexpose, @nomcp is
+// NOT reset by @route — the flag is set UNCONDITIONALLY so a @route @nomcp
+// handler is still served over HTTP/OpenAPI/A2A while being absent from MCP.
+func extractNoMCPAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		if fn.GetAnnotation("nomcp") == nil {
+			continue
+		}
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name {
+				modInfo.Exports[i].IsNoMCP = true
+				break
+			}
+		}
+	}
+}
+
 // isExposed returns true if the export should be visible as an HTTP endpoint,
 // considering the server's routesOnly setting and the export's annotations.
 func (s *Server) isExposed(exp ExportInfo) bool {

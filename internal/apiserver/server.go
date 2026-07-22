@@ -142,6 +142,7 @@ type ExportInfo struct {
 	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
 	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
 	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
+	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 }
