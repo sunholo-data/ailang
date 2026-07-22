@@ -1,14 +1,36 @@
 # M-EFFECT-ROW-SHOW-INTERP: Preserve Effect Rows Across Pure Nested Calls
 
-**Status**: **MECHANISM RATIFIED by Mark 2026-07-22 ("386: gemini's replace fix") → route to
-sprint-planner, NO re-quorum** (analysis settled; the quorum's R2 objection is resolved BY this
-decision). The application-local solver's constraint plumbing uses **gemini-3-1-pro's
-replacement mechanism**: solved equality constraints are NOT deleted from `ctx.constraints` —
-each is REPLACED with its flattened `a ~ T` substitution form, so the let-boundary
-`SolveConstraints` replay (which starts from a fresh substitution) re-derives identical facts and
-outer AST nodes can never be left unsubstituted. Any Section-A.3 wording that says "delete" is
-SUPERSEDED by this; the planner's plan and the sprint's regression fixtures must encode
-replace-not-delete explicitly (a delete-based implementation fails acceptance).
+**Status**: **IMPLEMENTED / LANDED 2026-07-22 (mission iteration 82)** — evaluator (sonnet,
+generator≠judge vs opus executor) PASS 95/100 after one round-2 fix. `make verify-examples` green;
+all 4 quarantined #386 examples un-quarantined and `working`; core non-vacuity independently
+verified (the soundness hole `println(show(x))` in an unannotated func is now correctly rejected,
+controls still reject undeclared IO/FS/Env). Sprint branch `sprint/m-effect-row-show-interp`
+(M1 `6c7a92570`, M2+M3 `b690a33e0`, M4 `b85860382`, round-2 `456d05afd`).
+
+**Mechanism as SHIPPED** (a soundness-preserving realization of Mark's ratified "replace-not-delete"):
+the application-local equality solver KEEPS the original equality constraints in `ctx.constraints`
+(never deletes them) and applies the local substitution only to the application's *argument* effect
+rows when they resolve to a *closed* row (`closeIfResolved`). This is **strictly stronger than the
+literal flattened-`a ~ T` replacement** — nothing is dropped, so the let-boundary `SolveConstraints`
+replay still propagates every unification to outer AST nodes (the R2 goal — no outer node left
+unsubstituted; guarded by `TestReplaceNotDelete_LetBoundaryPropagation`). The literal
+replace-the-suffix form was found to break the M-TYPE-LIST-SOUND fixtures + recursive `std/sem`
+(premature binding of shared row vars); the non-deletion realization achieves the identical
+soundness property without that blast radius. `internal/types/row_unification.go` is UNCHANGED and
+no `EffectJoin` was introduced (both ratified structural constraints held). Two secondary root
+causes were also fixed (both the design's in-scope "effects previously erased now surface" change):
+the `ValidateEffects` walker skipped `let`/`letrec` *bodies* (why `println(show(x))` looked pure),
+and `std/stream.ail` + `std/ai/streaming.ail` handler callbacks were made row-polymorphic (`! {e}`,
+mixed `{Stream, e}` outer) so effectful handlers flow through the stream combinators.
+
+**Original ratified design (preserved for the record)**: MECHANISM RATIFIED by Mark 2026-07-22
+("386: gemini's replace fix"). The application-local solver's constraint plumbing uses
+**gemini-3-1-pro's replacement mechanism**: solved equality constraints are NOT deleted from
+`ctx.constraints` — each is REPLACED with its flattened `a ~ T` substitution form, so the
+let-boundary `SolveConstraints` replay (which starts from a fresh substitution) re-derives
+identical facts and outer AST nodes can never be left unsubstituted. Any Section-A.3 wording that
+says "delete" is SUPERSEDED by this; the sprint's regression fixtures encode replace-not-delete
+explicitly (a delete-based implementation fails acceptance — `TestReplaceNotDelete_LetBoundaryPropagation`).
 **Target**: v0.31.0
 **Priority**: P0 (soundness regression / release gate)
 **Estimated**: 1.5–2 days (12–16 hours)
