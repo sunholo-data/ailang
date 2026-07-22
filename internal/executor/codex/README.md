@@ -124,6 +124,49 @@ OpenAI API usage semantics), not per-turn deltas. The parser takes `max(…)`
 rather than summing, so the final totals reflect the cumulative state from the
 last event, not a double-counted sum.
 
+#### Cache counters are a SUBSET of input
+
+`turn.completed.usage.cached_input_tokens` is part of `input_tokens`, not in
+addition to it (OpenAI Responses API semantics) — the **opposite** of opencode,
+whose cache counters are exclusive. The executor therefore *splits* rather than
+adds (`splitCodexInputTokens`):
+
+```
+Result.InputTokens          = input_tokens - cached_input_tokens
+Result.CacheReadInputTokens = cached_input_tokens
+```
+
+This is total-preserving, which matters because the eval harness banks
+agent-mode input as `InputTokens + CacheCreationInputTokens +
+CacheReadInputTokens` — adding the cached count on top would inflate it.
+Codex reports no cache-*creation* counter, so `CacheCreationInputTokens`
+stays 0.
+
+> Not verified against a real codex stream: this repo's only codex fixture is
+> synthetic and carries no `usage` block. Re-check when a real capture lands.
+
+### Finish Reason
+
+**The codex CLI's `exec --json` stream exposes no model-level stop reason**, in
+either schema generation:
+
+- New format: `turn.completed` carries only a `usage` block.
+- Old flat format: `result` carries a `status` field observed only as
+  `"success"` — and only in the synthetic fixture, so the failure vocabulary is
+  unknown. It is not modeled as a typed field; it survives only in
+  `ProviderData["codex_events"]`.
+
+So `Result.FinishReason` from this executor reports what the **executor**
+observed (`stop` = terminal event arrived and the process exited cleanly,
+plus `timeout` / `cost_exhausted` / `error`), never what the **model** decided.
+A codex run that refused the task, tripped a content filter, or truncated at
+the token cap is indistinguishable from a clean finish at this layer — and,
+separately, `Success` is likewise just "a terminal event arrived".
+
+Closing that gap requires capturing a real `codex exec --json` stream including
+a deliberately failing run, not extending the parser against the synthetic
+fixture.
+
 ## Cost Model
 
 `gpt-5-codex`: `$1.25 / $10.00` per 1M tokens (input / output).

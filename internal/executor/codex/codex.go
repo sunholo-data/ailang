@@ -9,7 +9,6 @@ package codex
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -205,7 +204,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var rawEvents []map[string]any
 	var turnNum int
 	var toolCallCount int
-	var inputTokens, outputTokens int
+	var inputTokens, outputTokens, cachedInputTokens int
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
 	sawResult := false
@@ -314,6 +313,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					}
 					if ev.Usage.OutputTokens > outputTokens {
 						outputTokens = ev.Usage.OutputTokens
+					}
+					if ev.Usage.CachedInputTokens > cachedInputTokens {
+						cachedInputTokens = ev.Usage.CachedInputTokens
 					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: per-turn cumulative→delta.
 					if task.Budget != nil {
@@ -474,20 +476,23 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", false),
 			)
+			freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
 			return &executor.Result{
-				Success:        false,
-				Error:          timeoutErr.Error(),
-				DurationMS:     int(time.Since(startTime).Milliseconds()),
-				NumTurns:       turnNum,
-				ToolCallCount:  toolCallCount,
-				SessionID:      sessionID,
-				Transcript:     transcriptBuf.String(),
-				ProviderData:   providerData(rawEvents),
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
+				Success:              false,
+				Error:                timeoutErr.Error(),
+				FinishReason:         executor.FinishTimeout,
+				DurationMS:           int(time.Since(startTime).Milliseconds()),
+				NumTurns:             turnNum,
+				ToolCallCount:        toolCallCount,
+				SessionID:            sessionID,
+				Transcript:           transcriptBuf.String(),
+				ProviderData:         providerData(rawEvents),
+				InputTokens:          freshInput,
+				OutputTokens:         outputTokens,
+				CacheReadInputTokens: cachedInput,
+				CostKilledAt:         task.Budget.KilledAt(),
+				FirstAttemptMs:       firstAttemptMs,
+				SuccessAtMs:          -1,
 			}, nil
 
 		case <-ttftTimer.C:
@@ -503,6 +508,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			return &executor.Result{
 				Success:        false,
 				Error:          ttftErr.Error(),
+				FinishReason:   executor.FinishTimeout,
 				DurationMS:     int(time.Since(startTime).Milliseconds()),
 				NumTurns:       turnNum,
 				ToolCallCount:  toolCallCount,
@@ -526,20 +532,23 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					attribute.Int("task.turns", turnNum),
 					attribute.Bool("task.success", false),
 				)
+				freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
 				return &executor.Result{
-					Success:        false,
-					Error:          idleErr.Error(),
-					DurationMS:     int(time.Since(startTime).Milliseconds()),
-					NumTurns:       turnNum,
-					ToolCallCount:  toolCallCount,
-					SessionID:      sessionID,
-					Transcript:     transcriptBuf.String(),
-					ProviderData:   providerData(rawEvents),
-					InputTokens:    inputTokens,
-					OutputTokens:   outputTokens,
-					CostKilledAt:   task.Budget.KilledAt(),
-					FirstAttemptMs: firstAttemptMs,
-					SuccessAtMs:    -1,
+					Success:              false,
+					Error:                idleErr.Error(),
+					FinishReason:         executor.FinishTimeout,
+					DurationMS:           int(time.Since(startTime).Milliseconds()),
+					NumTurns:             turnNum,
+					ToolCallCount:        toolCallCount,
+					SessionID:            sessionID,
+					Transcript:           transcriptBuf.String(),
+					ProviderData:         providerData(rawEvents),
+					InputTokens:          freshInput,
+					OutputTokens:         outputTokens,
+					CacheReadInputTokens: cachedInput,
+					CostKilledAt:         task.Budget.KilledAt(),
+					FirstAttemptMs:       firstAttemptMs,
+					SuccessAtMs:          -1,
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - idle)
@@ -567,34 +576,55 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				if stderrContent := stderrBuf.String(); stderrContent != "" {
 					errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
 				}
+				// Terminal precedence: a cost kill outranks the generic exit
+				// error, because CategorizeAgentError trusts FinishReason
+				// over the Error string.
+				finishReason := executor.FinishError
 				if costKilled {
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+					finishReason = executor.FinishCostExhausted
 				}
+				freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
 				return &executor.Result{
-					Success:        false,
-					Error:          errMsg,
-					DurationMS:     int(duration.Milliseconds()),
-					NumTurns:       turnNum,
-					ToolCallCount:  toolCallCount,
-					SessionID:      sessionID,
-					Transcript:     transcriptBuf.String(),
-					ProviderData:   providerData(rawEvents),
-					InputTokens:    inputTokens,
-					OutputTokens:   outputTokens,
-					CostKilledAt:   task.Budget.KilledAt(),
-					FirstAttemptMs: firstAttemptMs,
-					SuccessAtMs:    -1,
-					TokensPerSec:   tokensPerSec,
+					Success:              false,
+					Error:                errMsg,
+					FinishReason:         finishReason,
+					DurationMS:           int(duration.Milliseconds()),
+					NumTurns:             turnNum,
+					ToolCallCount:        toolCallCount,
+					SessionID:            sessionID,
+					Transcript:           transcriptBuf.String(),
+					ProviderData:         providerData(rawEvents),
+					InputTokens:          freshInput,
+					OutputTokens:         outputTokens,
+					CacheReadInputTokens: cachedInput,
+					CostKilledAt:         task.Budget.KilledAt(),
+					FirstAttemptMs:       firstAttemptMs,
+					SuccessAtMs:          -1,
+					TokensPerSec:         tokensPerSec,
 				}, nil
 			}
 
+			freshInput, cachedInput := splitCodexInputTokens(inputTokens, cachedInputTokens)
 			cost := e.CostModel().CalculateCost(executor.TokenUsage{
-				InputTokens:  inputTokens,
-				OutputTokens: outputTokens,
+				InputTokens:          freshInput,
+				OutputTokens:         outputTokens,
+				CacheReadInputTokens: cachedInput,
 			})
 			success := sawResult
+			// The codex CLI's --json stream carries NO model-level stop reason
+			// (see the schema note on codexEvent), so "stop" here asserts only
+			// what this executor can actually observe: a terminal event
+			// arrived and the process exited cleanly. A codex run that refused
+			// the task, tripped a content filter, or truncated at the token cap
+			// is indistinguishable from a clean finish at this layer.
+			finishReason := executor.FinishStop
+			if !success {
+				finishReason = executor.FinishError
+			}
 			if costKilled {
 				success = false
+				finishReason = executor.FinishCostExhausted
 			}
 
 			span.SetAttributes(
@@ -612,21 +642,23 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}
 
 			return &executor.Result{
-				Success:        success,
-				Output:         transcriptBuf.String(),
-				DurationMS:     int(duration.Milliseconds()),
-				NumTurns:       turnNum,
-				ToolCallCount:  toolCallCount,
-				CostUSD:        cost,
-				InputTokens:    inputTokens,
-				OutputTokens:   outputTokens,
-				SessionID:      sessionID,
-				Transcript:     transcriptBuf.String(),
-				ProviderData:   providerData(rawEvents),
-				CostKilledAt:   task.Budget.KilledAt(),
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
-				TokensPerSec:   tokensPerSec,
+				Success:              success,
+				FinishReason:         finishReason,
+				Output:               transcriptBuf.String(),
+				DurationMS:           int(duration.Milliseconds()),
+				NumTurns:             turnNum,
+				ToolCallCount:        toolCallCount,
+				CostUSD:              cost,
+				InputTokens:          freshInput,
+				OutputTokens:         outputTokens,
+				CacheReadInputTokens: cachedInput,
+				SessionID:            sessionID,
+				Transcript:           transcriptBuf.String(),
+				ProviderData:         providerData(rawEvents),
+				CostKilledAt:         task.Budget.KilledAt(),
+				FirstAttemptMs:       firstAttemptMs,
+				SuccessAtMs:          -1,
+				TokensPerSec:         tokensPerSec,
 			}, nil
 		}
 	}
@@ -683,94 +715,6 @@ func (e *CodexExecutor) getModel(task *executor.Task) string {
 		return task.Model
 	}
 	return e.model
-}
-
-// codexTokens captures the flat token structure Codex emits.
-type codexTokens struct {
-	Input  int `json:"input"`
-	Output int `json:"output"`
-}
-
-// codexEvent is the normalized Codex NDJSON event shape.
-//
-// Codex CLI v0.1+ emits a thread/item stream format:
-//
-//	{"type":"thread.started","thread_id":"..."}
-//	{"type":"turn.started"}
-//	{"type":"item.started","item":{"id":"...","type":"file_change"|"command_execution"|"agent_message",...}}
-//	{"type":"item.completed","item":{...}}
-//	{"type":"turn.completed","usage":{"input_tokens":N,"cached_input_tokens":N,"output_tokens":N}}
-//
-// Older format (pre-v0.1) used flat records:
-//
-//	{"type":"message","turn_number":N,"text":"...","tokens_used":{"input":N,"output":N}}
-//	{"type":"tool_use","tool_name":"...","parameters":{...}}
-//
-// Both formats are handled. Unknown fields are preserved in Raw for ProviderData.
-type codexEvent struct {
-	Type       string          `json:"type"`
-	TurnNumber int             `json:"turn_number,omitempty"`
-	Text       string          `json:"text,omitempty"`
-	Tokens     codexTokens     `json:"tokens_used,omitempty"`
-	SessionID  string          `json:"session_id,omitempty"`
-	ThreadID   string          `json:"thread_id,omitempty"`
-	ToolName   string          `json:"tool_name,omitempty"`
-	Parameters json.RawMessage `json:"parameters,omitempty"`
-	Output     string          `json:"output,omitempty"`
-	Role       string          `json:"role,omitempty"`
-	Usage      *codexUsage     `json:"usage,omitempty"`
-	Item       *codexItem      `json:"item,omitempty"`
-
-	// Raw preserves the full event map for ProviderData (tolerance to schema drift).
-	Raw map[string]any `json:"-"`
-}
-
-// codexUsage is the token usage block in turn.completed events.
-type codexUsage struct {
-	InputTokens       int `json:"input_tokens"`
-	CachedInputTokens int `json:"cached_input_tokens"`
-	OutputTokens      int `json:"output_tokens"`
-}
-
-// codexItem is the item payload in item.started / item.completed events.
-type codexItem struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"` // "agent_message", "command_execution", "file_change"
-	Text    string `json:"text,omitempty"`
-	Command string `json:"command,omitempty"`
-}
-
-// parseCodexEvent parses a single NDJSON line into a codexEvent.
-// Non-JSON and unparseable lines return an error; callers should skip them
-// rather than fail hard (Codex CLI may emit non-JSON preamble on stdout).
-func parseCodexEvent(line []byte) (*codexEvent, error) {
-	trimmed := strings.TrimSpace(string(line))
-	if trimmed == "" {
-		return nil, fmt.Errorf("empty line")
-	}
-	if trimmed[0] != '{' {
-		return nil, fmt.Errorf("non-JSON line")
-	}
-	var ev codexEvent
-	if err := json.Unmarshal(line, &ev); err != nil {
-		return nil, fmt.Errorf("json: %w", err)
-	}
-	// Tolerate schema drift: always capture the raw map.
-	var raw map[string]any
-	if err := json.Unmarshal(line, &raw); err == nil {
-		ev.Raw = raw
-	}
-	return &ev, nil
-}
-
-// providerData wraps the list of raw events as the Result.ProviderData map.
-func providerData(events []map[string]any) map[string]any {
-	if len(events) == 0 {
-		return nil
-	}
-	return map[string]any{
-		"codex_events": events,
-	}
 }
 
 // Register registers the Codex executor with the global factory.

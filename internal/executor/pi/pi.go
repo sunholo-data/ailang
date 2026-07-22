@@ -25,6 +25,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -178,6 +179,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var sessionID string
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
+	// Last settled stopReason seen on a message_end / turn_end. Streaming
+	// message_update events carry cumulative partial state, so they are
+	// deliberately excluded — only settled events are authoritative.
+	var lastStopReason string
 
 	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
 	// pi emits per-turn token deltas in message_end (role=assistant), so the
@@ -278,6 +283,9 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				handler.OnToolResult(ev.ToolName, output)
 
 			case "message_end":
+				if ev.Message != nil && ev.Message.StopReason != "" {
+					lastStopReason = ev.Message.StopReason
+				}
 				// Per-turn deltas for assistant messages — sum into totals.
 				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage != nil {
 					u := ev.Message.Usage
@@ -296,6 +304,9 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				}
 
 			case "turn_end":
+				if ev.Message != nil && ev.Message.StopReason != "" {
+					lastStopReason = ev.Message.StopReason
+				}
 				if turnSpan != nil {
 					if ev.Message != nil && ev.Message.Usage != nil {
 						u := ev.Message.Usage
@@ -342,11 +353,17 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			if err != nil {
 				span.SetStatus(codes.Error, err.Error())
 				errMsg := fmt.Sprintf("pi exited with error: %v\nstderr: %s", err, stderrBuf.String())
+				// Terminal precedence: a cost kill outranks whatever the last
+				// stream event said, because CategorizeAgentError trusts
+				// FinishReason over the Error string.
+				finishReason := executor.FinishError
 				if costKilled {
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
+					finishReason = executor.FinishCostExhausted
 				}
 				return &executor.Result{
 					Success:                  false,
+					FinishReason:             finishReason,
 					Output:                   transcriptBuf.String(),
 					Error:                    errMsg,
 					DurationMS:               int(duration.Milliseconds()),
@@ -368,13 +385,21 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 
 			output := transcriptBuf.String()
 			success := output != "" || toolCallCount > 0
+			// Clean exit: the stream's own last stop reason is authoritative.
+			// Default to "stop" when pi reported none at all.
+			finishReason := executor.FinishStop
+			if lastStopReason != "" {
+				finishReason = normalizePiFinishReason(lastStopReason)
+			}
 			if costKilled {
 				success = false
+				finishReason = executor.FinishCostExhausted
 			}
 
 			span.SetStatus(codes.Ok, "")
 			return &executor.Result{
 				Success:                  success,
+				FinishReason:             finishReason,
 				Output:                   output,
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,
@@ -398,6 +423,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			return &executor.Result{
 				Success:        false,
 				Error:          fmt.Sprintf("pi exceeded hard timeout (%v)", timeout),
+				FinishReason:   executor.FinishTimeout,
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
@@ -411,6 +437,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			return &executor.Result{
 				Success:        false,
 				Error:          fmt.Sprintf("pi produced no output within %v (prefill timeout)", ttftTimeout),
+				FinishReason:   executor.FinishTimeout,
 				FirstAttemptMs: -1,
 				SuccessAtMs:    -1,
 			}, nil
@@ -423,6 +450,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				return &executor.Result{
 					Success:        false,
 					Error:          fmt.Sprintf("pi idle for %v mid-generation (no output)", since),
+					FinishReason:   executor.FinishTimeout,
 					InputTokens:    inputTokens,
 					OutputTokens:   outputTokens,
 					CostKilledAt:   task.Budget.KilledAt(),
@@ -438,6 +466,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			return &executor.Result{
 				Success:        false,
 				Error:          fmt.Sprintf("pi cancelled: %v", ctx.Err()),
+				FinishReason:   piCancelFinishReason(ctx.Err()),
 				InputTokens:    inputTokens,
 				OutputTokens:   outputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
@@ -549,8 +578,14 @@ type piUsage struct {
 
 // piMessage captures the per-message envelope.
 type piMessage struct {
-	Role  string   `json:"role"`
-	Usage *piUsage `json:"usage,omitempty"`
+	Role string `json:"role"`
+	// StopReason is pi's per-message stop signal, present on message_start /
+	// message_end / turn_end (and mirrored on assistantMessageEvent.partial).
+	// Observed values: "stop", "toolUse" (fixtures, pi 0.70.2). A tool-calling
+	// turn ends "toolUse" and the run's FINAL turn ends "stop", so only the
+	// last value seen is meaningful as a run-level finish reason.
+	StopReason string   `json:"stopReason,omitempty"`
+	Usage      *piUsage `json:"usage,omitempty"`
 }
 
 // piAssistantMessageEvent captures the inner discriminator for message_update.
@@ -629,6 +664,42 @@ func flattenPiToolResult(r *piToolResult) string {
 		b.WriteString(c.Text)
 	}
 	return b.String()
+}
+
+// piCancelFinishReason distinguishes a deadline-driven context cancellation
+// (a timeout by another name) from a caller-driven one (an abort).
+func piCancelFinishReason(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return executor.FinishTimeout
+	}
+	return executor.FinishError
+}
+
+// normalizePiFinishReason maps pi's camelCase stopReason vocabulary onto the
+// canonical executor.Finish* values.
+//
+// Pi is pre-1.0 (0.70.x) and its stop-reason vocabulary is NOT documented
+// upstream; "stop" and "toolUse" are the only values observed in captured
+// fixtures. Rather than guess at the rest, unrecognized values are passed
+// through verbatim so they surface in the banked JSON instead of being
+// silently coerced to "stop" (CategorizeAgentError ignores values it doesn't
+// know, so pass-through cannot misclassify a run). Re-check this mapping when
+// bumping the pinned pi version.
+func normalizePiFinishReason(raw string) string {
+	switch raw {
+	case "stop", "endTurn", "end_turn":
+		return executor.FinishStop
+	case "toolUse", "tool_use", "toolCalls":
+		return executor.FinishToolCalls
+	case "maxTokens", "max_tokens", "length":
+		return executor.FinishLength
+	case "refusal", "safety", "contentFilter":
+		return executor.FinishContentFilter
+	case "aborted", "error":
+		return executor.FinishError
+	default:
+		return raw
+	}
 }
 
 // piProviderData wraps raw events as Result.ProviderData.

@@ -113,6 +113,23 @@ Cost is also per-step; sum `step_finish.part.cost` for total.
 The executor's `CostUSD` field reflects the summed per-step cost (reported by
 opencode directly, not estimated from token counts × pricing).
 
+### Cache counters are EXCLUSIVE of input
+
+`tokens.cache.write` and `tokens.cache.read` are **not** a subset of
+`tokens.input` — unlike OpenAI/codex, where `cached_input_tokens ⊆
+input_tokens`. The fixture proves it:
+
+```
+total 17240 == input 1 + output 26 + cache.write 17213 + cache.read 0
+```
+
+So the four counters sum to `total`, and the executor sums cache into
+`Result.CacheCreationInputTokens` (write) and `Result.CacheReadInputTokens`
+(read) **additively**. This matters because the eval harness banks agent-mode
+input as `InputTokens + CacheCreationInputTokens + CacheReadInputTokens`:
+before this was wired up, a run consuming ~52K tokens banked `input_tokens: 5` —
+the uncached remainder was all that survived.
+
 ## Session Resume
 
 The `sessionID` from any event can be used to resume:

@@ -194,12 +194,47 @@ type Result struct {
 	CompactionMaxLevel  int // Highest structural compaction level/threshold seen (0 = none)
 
 	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) is the structured executor
-	// stop signal: "stop" (normal completion), "cost_exhausted" (motoko cost
-	// cap), "step_exhausted" (agent ran out of turns), "timeout", "error",
-	// or "". The eval harness consumes this via CategorizeAgentError to
+	// stop signal — see the Finish* constants below for the canonical
+	// vocabulary. The eval harness consumes this via CategorizeAgentError to
 	// promote ambiguous api_error rows into typed buckets.
+	//
+	// IMPORTANT (precedence): CategorizeAgentError trusts FinishReason OVER
+	// the Error string. An executor must therefore report how the run ACTUALLY
+	// ended, not merely echo the last stop reason it saw on the wire. A run
+	// killed for cost/thrash/timeout whose final stream event happened to say
+	// "stop" must report the kill, or the kill is misclassified as a clean
+	// finish. See the terminal-precedence ladder in the pi/opencode/codex
+	// executors for the reference implementation.
 	FinishReason string
 }
+
+// Canonical Result.FinishReason vocabulary. Executors normalize their
+// harness-native stop reason into these values; an unrecognized native value
+// is passed through verbatim rather than dropped, so it stays visible in the
+// banked JSON (CategorizeAgentError falls through to its error-string path for
+// anything it doesn't recognize, so pass-through is safe).
+const (
+	// FinishStop is normal completion — the model finished its turn.
+	FinishStop = "stop"
+	// FinishLength means output was truncated at the token cap.
+	FinishLength = "length"
+	// FinishToolCalls means the model stopped to call tools. Normally an
+	// INTERMEDIATE stop; terminal only if the harness loop ended mid-tool.
+	FinishToolCalls = "tool_calls"
+	// FinishContentFilter means a provider content filter stopped generation.
+	FinishContentFilter = "content_filter"
+	// FinishCostExhausted means a cost budget killed the run.
+	FinishCostExhausted = "cost_exhausted"
+	// FinishStepExhausted means the agent ran out of turns/steps.
+	FinishStepExhausted = "step_exhausted"
+	// FinishThrashAborted means a cumulative-token thrash guard killed the run.
+	FinishThrashAborted = "thrash_aborted"
+	// FinishTimeout means a hard/idle/prefill timeout killed the run.
+	FinishTimeout = "timeout"
+	// FinishError means the run terminated abnormally (non-zero exit, crash,
+	// cancellation).
+	FinishError = "error"
+)
 
 // TokenUsage captures token metrics
 type TokenUsage struct {
