@@ -1103,6 +1103,24 @@ frozen; contracts projection live).
   decisions (runtime-control-not-effect; default-off CLI / explicit-on harness). ~2-3d. Phase 2
   (deterministic logical meter, replayable exhaustion) split to a future `m-mem-meter-logical`.
 
+- **m-decision-entropy-monitor** ([planned/v0_31_0](planned/v0_31_0/m-decision-entropy-monitor.md),
+  2026-07-22; **P2 eval/mission-infra, DOC-READY**, Mark: "detect when big decisions (that have
+  large entropy consequences) are made during AILANG code generation — a way to grade when we need
+  to closely examine the decisions") — grade every agent step with a decision-weight `D` from
+  signals already banked (per-edit `typecheck` green→red, move class WriteFile/bash-write vs
+  EditFile/EditDecl, per-path churn) plus the AILANG-native consequence measure: **interface
+  delta** — `ailang iface` already emits normalized signatures+effect rows; the diff over them is
+  the ONE unbuilt piece (V1–V10 verification log in doc, incl. the negative-existence greps).
+  Grounded in green-stability: decision class predicts convergence, so grade the fork-step, not
+  just the post-mortem. M1 offline validation on the labeled docx spiral/converger corpus
+  (prereg + honest-null, fmt-weakmodel-ab template) → M2 `ailang iface --diff` severity
+  none/additive/breaking (additive, independently useful — an agent can check its own blast
+  radius pre-commit) → M3 `decision_profile` on RunMetrics + observatory top-`D` view,
+  **evidence-gated on M1's report + human review**. Extension lane, zero language surface, no
+  motoko-fork changes (pure session-JSONL consumer). Future work under its own evidence bar:
+  best-of-N branching / reasoning-effort escalation AT high-`D` steps (consumer:
+  m-ai-reasoning-effort). ~2.5–3d, no GPU. Expect quorum-at-pick.
+
 **Not gating** (the ~30 non-gating docs (eval-infra rig/harness, cloud-infra, motoko-fork, post-v1)): ship on the normal v0.2x road or post-v1 per the
 clause rule. `planned/v1_0_0/` now contains ONLY gating docs (17 non-gating docs re-bucketed to
 v1_1_0 on 2026-07-11); v0_29_0 docs that appear above gate v1 via the queue, not the folder.
