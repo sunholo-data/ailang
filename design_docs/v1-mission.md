@@ -133,6 +133,15 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 > the API key; fix the leak, don't fall back.
 | Mechanical tasks (doc moves, regen, banking) | Sonnet allowed | Only with deterministic verification; promotion beyond this requires evidence |
 
+**FORUM RULE (Mark 2026-07-21 — "it takes too long to do quick tasks like ab evals… reserve
+this for features"):** the full iteration pipeline (quorum → plan → execute → evaluate → CI) is
+for FEATURE-shaped work: code that ships, with quality risk worth the ceremony. Quick
+EXPERIMENT/EVAL-class tasks (A/Bs, probes, demos, measurements) do NOT ride full iterations —
+they run DIRECT: an interactive session, or a single bounded controller-lane step banking results
++ one evidence row. The fmt A/B's 3-day design→park→greenlight→integrity→execute arc vs the
+58-cent 20-minute interactive demo is the canonical example. In-flight experiments finish as
+planned; new ones default to the direct lane.
+
 **Evidence rule**: every sprint's log entry records `(model, task class, evaluator round-1 score,
 rounds-to-pass, corrections)`. A routing change (either direction) requires ≥3 data points and is
 made in RETRO, recorded here with a dated stamp.
