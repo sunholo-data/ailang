@@ -116,7 +116,7 @@ func TestBuildStepRequest_NoCache_BackcompatGoldenWire(t *testing.T) {
 		},
 		MaxTokens: 100,
 	}
-	apiReq, aiErr := buildStepRequest(req)
+	apiReq, aiErr := buildStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		t.Fatalf("buildStepRequest error: %v", aiErr)
 	}
@@ -148,7 +148,7 @@ func TestBuildStepRequest_SystemCacheHint_StampsCacheControl(t *testing.T) {
 			{Position: "system", TTL: "ephemeral"},
 		},
 	}
-	apiReq, aiErr := buildStepRequest(req)
+	apiReq, aiErr := buildStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		t.Fatalf("buildStepRequest error: %v", aiErr)
 	}
@@ -180,7 +180,7 @@ func TestBuildStepRequest_NoSystemPrompt_NoFieldEvenWithCacheHint(t *testing.T) 
 			{Position: "system", TTL: "ephemeral"},
 		},
 	}
-	apiReq, aiErr := buildStepRequest(req)
+	apiReq, aiErr := buildStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		t.Fatalf("buildStepRequest error: %v", aiErr)
 	}

@@ -47,7 +47,16 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	)
 	defer span.End()
 
-	chatReq, aiErr := openai.BuildChatStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	// OpenRouter routes reasoning through its own reasoning{} block, so pass
+	// ReasoningNone to the shared builder and splice the reasoning fragment below.
+	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	if rErr != nil {
+		recordStepError(span, asAIError(rErr))
+		return nil, rErr
+	}
+
+	chatReq, aiErr := openai.BuildChatStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		recordStepError(span, aiErr)
 		return nil, aiErr
@@ -90,6 +99,14 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 		}
 		extras = append(extras, append([]byte(`"provider":`), pfBytes...))
 	}
+	reasoningFrags, rfErr := reasoningExtras(reasoning)
+	if rfErr != nil {
+		e := ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("openrouter: failed to marshal reasoning field: %v", rfErr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+	extras = append(extras, reasoningFrags...)
 	body, marshalErr := marshalStepBodyWithExtras(chatReq, extras)
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,

@@ -13,6 +13,10 @@ type chatRequest struct {
 	Temperature         float64             `json:"temperature,omitempty"`
 	Seed                *int64              `json:"seed,omitempty"`
 	ResponseFormat      *chatResponseFormat `json:"response_format,omitempty"` // Structured output
+	// ReasoningEffort is OpenAI Chat's native top-level reasoning dial
+	// (M-AI-REASONING-EFFORT, v0.31.0). omitempty keeps the wire body
+	// byte-identical to pre-v0.31.0 when no reasoning control is requested.
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 }
 
 // chatResponseFormat configures structured output for Chat Completions API.

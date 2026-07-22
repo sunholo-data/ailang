@@ -36,7 +36,7 @@ func TestBuildStepRequest_UserImage_RawBase64(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, ai.ReasoningDecision{})
 	if err != nil {
 		t.Fatalf("buildStepRequest error = %v", err)
 	}
@@ -96,7 +96,7 @@ func TestBuildStepRequest_UserImage_DataURI(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, ai.ReasoningDecision{})
 	if err != nil {
 		t.Fatalf("buildStepRequest error = %v", err)
 	}
@@ -127,7 +127,7 @@ func TestBuildStepRequest_UserNoImages_Unchanged(t *testing.T) {
 		Messages: []ai.Message{
 			{Role: "user", Content: "hello"},
 		},
-	})
+	}, ai.ReasoningDecision{})
 	if err != nil {
 		t.Fatalf("buildStepRequest error = %v", err)
 	}

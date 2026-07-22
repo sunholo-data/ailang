@@ -22,7 +22,7 @@ type visionContentPart struct {
 // first so the assertion reflects real wire bytes.
 func buildAndMarshalUserContent(t *testing.T, req *ai.Request) json.RawMessage {
 	t.Helper()
-	apiReq, aiErr := BuildChatStepRequest(req)
+	apiReq, aiErr := BuildChatStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		t.Fatalf("BuildChatStepRequest returned error: %v", aiErr)
 	}

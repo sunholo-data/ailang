@@ -23,7 +23,7 @@ import (
 // The optional HTTP-Referer and X-Title headers are an OpenRouter convention
 // (used for app-leaderboard attribution). They are sent only when the
 // OPENROUTER_HTTP_REFERER and OPENROUTER_X_TITLE environment variables are set.
-func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai.ReasoningDecision) (*ai.Response, error) {
 	// Build messages
 	var messages []chatMessage
 
@@ -61,11 +61,20 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		if seed, ok := req.Options["seed"].(int64); ok {
 			apiReq.Seed = &seed
 		}
-		if effort, ok := req.Options["reasoning_effort"].(string); ok && effort != "" {
-			apiReq.Reasoning = &reasoningField{Effort: effort}
-		} else if rmax, ok := req.Options["reasoning_max_tokens"].(int); ok && rmax > 0 {
-			apiReq.Reasoning = &reasoningField{MaxTokens: rmax}
-		}
+	}
+
+	// M-AI-REASONING-EFFORT (M5): the previous untyped "Effort-wins" branch
+	// (Options["reasoning_effort"] silently beating reasoning_max_tokens, with
+	// no validation) is REPLACED by the shared fail-loud resolver. All four
+	// reasoning inputs are validated with deterministic precedence/conflict
+	// rules before dispatch; effort maps to reasoning.effort, the deprecated
+	// reasoning_max_tokens alone maps to reasoning.max_tokens (today's body),
+	// and any conflicting combination fails loudly.
+	switch reasoning.Kind {
+	case ai.ReasoningEffortKind:
+		apiReq.Reasoning = &reasoningField{Effort: reasoning.Effort}
+	case ai.ReasoningMaxTokensKind:
+		apiReq.Reasoning = &reasoningField{MaxTokens: reasoning.MaxTokensReasoning}
 	}
 
 	// Translate optional routing policy. Nil when no policy or zero policy.

@@ -11,7 +11,7 @@ import (
 )
 
 // generateChat uses the Chat Completions API (/v1/chat/completions).
-func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai.ReasoningDecision) (*ai.Response, error) {
 	// Build messages
 	var messages []chatMessage
 
@@ -54,6 +54,13 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		if seed, ok := req.Options["seed"].(int64); ok {
 			apiReq.Seed = &seed
 		}
+	}
+
+	// M-AI-REASONING-EFFORT: apply the resolved qualitative effort as OpenAI
+	// Chat's native top-level reasoning_effort field. ReasoningNone leaves it
+	// unset (omitempty) => byte-identical body.
+	if reasoning.Kind == ai.ReasoningEffortKind {
+		apiReq.ReasoningEffort = reasoning.Effort
 	}
 
 	// Add structured output configuration

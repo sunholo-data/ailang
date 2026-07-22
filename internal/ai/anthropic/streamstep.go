@@ -50,7 +50,14 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	)
 	defer span.End()
 
-	apiReq, aiErr := buildStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	reasoning, rErr := ai.ResolveReasoning(req, "anthropic", req.Model)
+	if rErr != nil {
+		recordSpanError(span, asAIError(rErr))
+		return nil, rErr
+	}
+
+	apiReq, aiErr := buildStepRequest(req, reasoning)
 	if aiErr != nil {
 		recordSpanError(span, aiErr)
 		return nil, aiErr

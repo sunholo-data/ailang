@@ -77,6 +77,19 @@ type messagesRequest struct {
 	Temperature float64          `json:"temperature,omitempty"`
 	Tools       []toolDef        `json:"tools,omitempty"`
 	ToolChoice  *toolChoice      `json:"tool_choice,omitempty"`
+	// Thinking carries the extended-thinking budget (M-AI-REASONING-EFFORT,
+	// v0.31.0). Nil (omitempty) keeps the wire body byte-identical to
+	// pre-v0.31.0 when no reasoning control is requested.
+	Thinking *thinkingBlock `json:"thinking,omitempty"`
+}
+
+// thinkingBlock is Anthropic's extended-thinking control. Type is "enabled"
+// with a budget_tokens value (>= 1024). Exact disablement ("off"/budget 0) is
+// expressed by omitting the block entirely, so this struct is only emitted for
+// enabled thinking.
+type thinkingBlock struct {
+	Type         string `json:"type"`          // "enabled"
+	BudgetTokens int    `json:"budget_tokens"` // >= 1024
 }
 
 type messageContent struct {
@@ -157,6 +170,17 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	)
 	defer span.End()
 
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE the MaxTokens
+	// defaulting below. Validation MUST use the caller's explicit
+	// Request.MaxTokens (0 = unset) so an enabled-thinking request cannot be
+	// made to appear valid by the client's silent 4096 substitution.
+	reasoning, rErr := ai.ResolveReasoning(req, "anthropic", req.Model)
+	if rErr != nil {
+		span.RecordError(rErr)
+		span.SetStatus(codes.Error, rErr.Error())
+		return nil, rErr
+	}
+
 	// Build request
 	maxTokens := req.MaxTokens
 	if maxTokens <= 0 {
@@ -169,6 +193,9 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		Messages: []messageContent{
 			{Role: "user", Content: req.UserPrompt},
 		},
+	}
+	if tb := thinkingBlockFor(reasoning); tb != nil {
+		apiReq.Thinking = tb
 	}
 
 	if req.SystemPrompt != "" {
@@ -341,6 +368,18 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens,
 		Model:        result.Model,
 	}, nil
+}
+
+// thinkingBlockFor returns the Anthropic extended-thinking block for a resolved
+// reasoning decision, or nil when no enabled-thinking block should be emitted.
+// A budget of 0 ("off"/exact disablement) and ReasoningNone both return nil —
+// exact disablement is expressed by omitting the block (no thinking is sent),
+// keeping the wire body byte-identical when no reasoning control is requested.
+func thinkingBlockFor(d ai.ReasoningDecision) *thinkingBlock {
+	if !d.BudgetSet || d.Budget == 0 {
+		return nil
+	}
+	return &thinkingBlock{Type: "enabled", BudgetTokens: d.Budget}
 }
 
 // Name implements ai.Provider.

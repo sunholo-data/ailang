@@ -46,6 +46,21 @@ type Request struct {
 	// MaxTokens is the maximum number of response tokens (0 = provider default)
 	MaxTokens int
 
+	// ReasoningEffort controls per-call reasoning/thinking-token spend
+	// (M-AI-REASONING-EFFORT, v0.31.0). Valid values are "", "off", "low",
+	// "medium", and "high". Empty preserves the provider's current request body
+	// exactly (the sole compatibility default). Every non-empty value must be
+	// honored exactly by the selected provider/model or request construction
+	// returns a typed ErrUnsupportedReasoningEffort (wrapped in a non-retryable
+	// *AIError) before network dispatch — it is never silently weakened,
+	// omitted, or ignored. See internal/ai/reasoning.go (ResolveReasoning).
+	//
+	// Exact token counts remain available through
+	// Options["thinking_budget_tokens"] (Gemini/Anthropic) and the deprecated
+	// OpenRouter-only Options["reasoning_max_tokens"], subject to the same
+	// validation.
+	ReasoningEffort string
+
 	// Temperature controls randomness (0.0-2.0, 0 = provider default)
 	Temperature float64
 

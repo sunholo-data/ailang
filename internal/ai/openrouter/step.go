@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,8 +48,18 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	)
 	defer span.End()
 
+	// M-AI-REASONING-EFFORT: resolve reasoning controls for OpenRouter BEFORE
+	// building/marshaling. OpenRouter routes reasoning through its own
+	// reasoning{} block (see reasoningExtra), NOT OpenAI's native
+	// reasoning_effort field, so we pass ReasoningNone to the shared builder.
+	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	if rErr != nil {
+		recordStepError(span, asAIError(rErr))
+		return nil, rErr
+	}
+
 	// Build the OpenAI-format Chat Completions body via the shared helper.
-	chatReq, aiErr := openai.BuildChatStepRequest(req)
+	chatReq, aiErr := openai.BuildChatStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		recordStepError(span, aiErr)
 		return nil, aiErr
@@ -75,7 +86,27 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		recordStepError(span, e)
 		return nil, e
 	}
-	body, marshalErr := marshalStepBodyWithProvider(chatReq, provider)
+	var extras [][]byte
+	if provider != nil {
+		provBytes, mErr := json.Marshal(provider)
+		if mErr != nil {
+			e := ai.NewAIError(ai.CodeInternal,
+				fmt.Sprintf("openrouter: failed to marshal provider field: %v", mErr), false)
+			recordStepError(span, e)
+			return nil, e
+		}
+		extras = append(extras, append([]byte(`"provider":`), provBytes...))
+	}
+	reasoningFrags, rfErr := reasoningExtras(reasoning)
+	if rfErr != nil {
+		e := ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("openrouter: failed to marshal reasoning field: %v", rfErr), false)
+		recordStepError(span, e)
+		return nil, e
+	}
+	extras = append(extras, reasoningFrags...)
+
+	body, marshalErr := marshalStepBodyWithExtras(chatReq, extras)
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal request: %v", marshalErr), false)
@@ -174,19 +205,36 @@ func marshalStepBodyWithExtras(chatReq *openai.ChatStepRequest, extraFields [][]
 	return out, nil
 }
 
-// marshalStepBodyWithProvider preserves the original signature for the
-// non-streaming Step path (only injects a provider field). Wraps the
-// new extras-list helper for backward compatibility.
-func marshalStepBodyWithProvider(chatReq *openai.ChatStepRequest, provider *providerField) ([]byte, error) {
-	if provider == nil {
-		return marshalStepBodyWithExtras(chatReq, nil)
+// asAIError extracts the *ai.AIError from a resolver error for span recording.
+// ai.ResolveReasoning always returns a *ai.AIError on failure.
+func asAIError(err error) *ai.AIError {
+	var e *ai.AIError
+	if errors.As(err, &e) {
+		return e
 	}
-	provBytes, err := json.Marshal(provider)
+	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
+}
+
+// reasoningExtras returns the OpenRouter-specific reasoning wire fragment(s)
+// for a resolved reasoning decision, to be spliced into the top-level request
+// body via marshalStepBodyWithExtras. Returns nil for ReasoningNone (no
+// reasoning field emitted — byte-identical to pre-v0.31.0). Marshals the same
+// reasoningField shape the Generate path uses.
+func reasoningExtras(d ai.ReasoningDecision) ([][]byte, error) {
+	var rf *reasoningField
+	switch d.Kind {
+	case ai.ReasoningEffortKind:
+		rf = &reasoningField{Effort: d.Effort}
+	case ai.ReasoningMaxTokensKind:
+		rf = &reasoningField{MaxTokens: d.MaxTokensReasoning}
+	default:
+		return nil, nil
+	}
+	b, err := json.Marshal(rf)
 	if err != nil {
 		return nil, err
 	}
-	field := append([]byte(`"provider":`), provBytes...)
-	return marshalStepBodyWithExtras(chatReq, [][]byte{field})
+	return [][]byte{append([]byte(`"reasoning":`), b...)}, nil
 }
 
 // recordStepError annotates the span with the AIError's code/message and

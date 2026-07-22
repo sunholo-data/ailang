@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,7 +111,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	)
 	defer span.End()
 
-	apiReq, aiErr := BuildChatStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	reasoning, rErr := ai.ResolveReasoning(req, "openai", req.Model)
+	if rErr != nil {
+		recordStepError(span, asAIError(rErr))
+		return nil, rErr
+	}
+
+	apiReq, aiErr := BuildChatStepRequest(req, reasoning)
 	if aiErr != nil {
 		recordStepError(span, aiErr)
 		return nil, aiErr
@@ -202,6 +210,10 @@ type ChatStepRequest struct {
 	// identical to pre-v0.18.7 wire bytes.
 	Stream        bool              `json:"stream,omitempty"`
 	StreamOptions *ChatStreamOption `json:"stream_options,omitempty"`
+	// ReasoningEffort is OpenAI Chat's native top-level reasoning dial
+	// (M-AI-REASONING-EFFORT, v0.31.0). omitempty keeps the Step/StreamStep wire
+	// body byte-identical to pre-v0.31.0 when no reasoning control is requested.
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 }
 
 // ChatStreamOption controls per-stream behaviour. The only field we set is
@@ -341,9 +353,16 @@ type ChatStepErrorEnvelope struct {
 // malformed JSON in a tool's Parameters schema).
 //
 // The translation rules are documented on Client.Step.
-func BuildChatStepRequest(req *ai.Request) (*ChatStepRequest, *ai.AIError) {
+// The reasoning argument is the resolved reasoning decision for OpenAI's native
+// top-level reasoning_effort field. Callers that route reasoning through a
+// different wire shape (OpenRouter's reasoning{} block) pass ai.ReasoningDecision{}
+// (ReasoningNone) here and apply their own reasoning wiring after this builder.
+func BuildChatStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*ChatStepRequest, *ai.AIError) {
 	out := &ChatStepRequest{
 		Model: req.Model,
+	}
+	if reasoning.Kind == ai.ReasoningEffortKind {
+		out.ReasoningEffort = reasoning.Effort
 	}
 	if req.MaxTokens > 0 {
 		// GPT-5+ and o-series require max_completion_tokens; legacy models
@@ -712,6 +731,17 @@ func ClassifyChatHTTPErrorFor(provider string, statusCode int, body []byte) *ai.
 
 // recordStepError annotates the span with the AIError's code/message and
 // marks it as a failure.
+// asAIError extracts the *ai.AIError from a resolver error for span recording.
+// ResolveReasoning always returns a *ai.AIError on failure; this is a safe
+// unwrap that never returns nil for a non-nil input.
+func asAIError(err error) *ai.AIError {
+	var e *ai.AIError
+	if errors.As(err, &e) {
+		return e
+	}
+	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
+}
+
 func recordStepError(span trace.Span, e *ai.AIError) {
 	if e == nil {
 		return

@@ -26,7 +26,7 @@ func marshalUserContent(t *testing.T, m ai.Message) json.RawMessage {
 		Model:    "claude-test",
 		Messages: []ai.Message{m},
 	}
-	apiReq, aiErr := buildStepRequest(req)
+	apiReq, aiErr := buildStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
 		t.Fatalf("buildStepRequest returned error: %v", aiErr)
 	}

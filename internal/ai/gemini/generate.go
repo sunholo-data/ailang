@@ -15,6 +15,12 @@ import (
 
 // generateContent uses the generateContent API.
 func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling/dispatch.
+	reasoning, rErr := ai.ResolveReasoning(req, "gemini", req.Model)
+	if rErr != nil {
+		return nil, rErr
+	}
+
 	// Build request — detect multimodal JSON input and construct proper parts
 	parts := buildParts(req.UserPrompt)
 	apiReq := generateRequest{
@@ -36,7 +42,7 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	}
 
 	// Add generation config if needed
-	needsConfig := req.MaxTokens > 0 || req.Temperature > 0 || req.ResponseFormat == "json" || len(req.ResponseModalities) > 0
+	needsConfig := req.MaxTokens > 0 || req.Temperature > 0 || req.ResponseFormat == "json" || len(req.ResponseModalities) > 0 || reasoningBudgetSet(reasoning)
 	if needsConfig {
 		apiReq.GenerationConfig = &generationConfig{}
 		if req.MaxTokens > 0 {
@@ -55,6 +61,7 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		if len(req.ResponseModalities) > 0 {
 			apiReq.GenerationConfig.ResponseModalities = req.ResponseModalities
 		}
+		applyReasoning(apiReq.GenerationConfig, reasoning)
 	}
 
 	// Build URL based on auth type
@@ -145,6 +152,25 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		FinishReason: normalizeGeminiFinishReason(result.Candidates[0].FinishReason),
 		Model:        req.Model,
 	}, nil
+}
+
+// reasoningBudgetSet reports whether the resolved reasoning decision carries an
+// absolute thinking budget Gemini should emit (an effort mapped to a budget, or
+// an explicit thinking_budget_tokens). ReasoningNone yields false so the config
+// gate and wire body stay byte-identical when no control is requested.
+func reasoningBudgetSet(d ai.ReasoningDecision) bool {
+	return d.BudgetSet
+}
+
+// applyReasoning stamps the resolved thinking budget onto a Gemini
+// generationConfig. No-op for ReasoningNone (preserves the wire body exactly).
+// A budget of 0 is emitted as thinkingBudget:0 (exact disablement).
+func applyReasoning(cfg *generationConfig, d ai.ReasoningDecision) {
+	if !d.BudgetSet {
+		return
+	}
+	budget := d.Budget
+	cfg.ThinkingConfig = &thinkingConfig{ThinkingBudget: &budget}
 }
 
 // normalizeGeminiFinishReason maps the Gemini/Vertex finishReason vocabulary

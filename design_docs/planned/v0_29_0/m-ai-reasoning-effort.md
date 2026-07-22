@@ -236,6 +236,17 @@ This deliberately rejects cases such as Anthropic `ReasoningEffort: "high"` with
 | OpenRouter currently passes a normalized reasoning block | **CODE-VERIFIED** | The request contains `reasoning` and currently models only `max_tokens` ([openrouter/types.go:26-37](../../../internal/ai/openrouter/types.go#L26-L37)); construction populates it only from `Options["reasoning_max_tokens"]` ([openrouter/chat.go:59-66](../../../internal/ai/openrouter/chat.go#L59-L66)). |
 | OpenRouter effort and exact-off pass-through reach the selected upstream model unchanged | **NEEDS-LIVE-SMOKE** | Verify `low`/`medium`/`high`, exact-disable spelling, and routed-provider behavior per model. Unknown or dynamically ambiguous routes reject explicit effort until a deterministic capability contract exists. |
 
+### M0 code-audit (executor, sprint execution) — reuse-vs-replace re-verified at HEAD
+
+| Piece | Evidence (file) | Decision | Verified |
+|-------|-----------------|----------|----------|
+| `AIError{Code,Message,Retryable}` + `NewAIError` + non-retryable `CodeSchemaValidation` | `internal/ai/errors.go` | **REUSE** — 5 sentinels wrap via `reasoningError()` → `*AIError{Code: CodeSchemaValidation, Retryable:false, wrapped: sentinel}`. Added `wrapped error` (unexported, wire shape unchanged) + `Unwrap()` so `errors.Is(err, sentinel)` and `errors.As(err, *AIError)` both work. No new error code. | ✓ |
+| OpenRouter untyped "Effort-wins" branch | `openrouter/chat.go` (Generate only) | **REPLACE** — deleted; routed through `ai.ResolveReasoning`. **Premise refinement:** the Effort-wins branch exists ONLY on OpenRouter **Generate** (`generateChat`). OpenRouter **Step/StreamStep** reuse `openai.BuildChatStepRequest` (OpenAI chat body, no reasoning field) and emitted NO reasoning at all pre-sprint; they now splice a `reasoning{}` block via the existing extras mechanism. | ✓ |
+| Provider/model reasoning capability table | (none existed) | **BUILD FRESH** — `internal/ai/reasoning_capability.go`, EMPTY of live-unverified models. Unknown model + non-empty control ⇒ `ErrUnsupportedReasoningEffort` (fail-loud). Follows the `CodeModelNoVision` capability-gate shape. | ✓ |
+| 12 request constructors invoke ONE resolver | openai/gemini/anthropic/openrouter × Generate/Step/StreamStep | **HOOK POINTS** — each entry point calls `ai.ResolveReasoning(req, provider, model)` immediately after request-validity checks and BEFORE marshal / `http.NewRequest` / the Anthropic `MaxTokens=4096` defaulting (`anthropic/client.go`) / gemini `buildStepRequest` / openai `BuildChatStepRequest`. Proven by `TestAllRequestPathsInvokeResolver` (network-free; invalid effort ⇒ typed error, zero HTTP hits). | ✓ |
+| ollama (5th built-in) | `internal/ai/ollama/` | **OUT OF SCOPE** — not one of the four named providers; no resolver hook. | ✓ |
+| Existing consumer of legacy options | `internal/eval_harness/ai_provider.go` sets `Options["reasoning_effort"]`/`["reasoning_max_tokens"]` (OpenRouter only) | **COMPATIBLE** — each-alone-on-OpenRouter remains valid; only invalid/conflicting/cross-provider uses now fail loudly (the intended contract). | ✓ |
+
 ## Risks and considerations
 
 - **Capability drift:** provider model support changes. Keep capability entries explicit and tested; unknown is an error, not an optimistic pass-through.
