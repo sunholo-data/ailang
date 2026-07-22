@@ -869,7 +869,14 @@ triage evidence = log entry 10.)*
   `{"_transport":"MCP_UNAVAILABLE"}` + require `req.method=="MCP"` branch, OR drop the fake-envelope entirely,
   (3) keep parked. Unblocks docparse quota-hardening item 5. Log entry 62. ~0.5d for M1 alone) ·
   m-agent-step-cancellation (1.5d) ·
-  **m-ai-reasoning-effort** (**[AUTHORIZED by Mark 2026-07-20 → ROUTABLE: ONE more bounded
+  **m-ai-reasoning-effort** (**[PARKED needs-human-review — Mark's authorized bounded round EXECUTED
+  iter 81 (2026-07-22): BOTH named R2 objections RESOLVED (reasoning_max_tokens 4th resolver input;
+  Gemini B=0 MaxTokens exemption); re-quorum gemini→PASS but gpt5-6-sol→REJECT on a NEW out-of-scope
+  "inventory existing AI-package machinery" objection → bounded round consumed → RE-PARKED. Rev-2 doc
+  merged PR #457 → `893873c81` (docs-only, CI green). Human fork: (a) route to sprint-planner folding
+  gpt5-6-sol's inventory ask into planner M0 code-audit [RECOMMENDED]; (b) one more bounded revision;
+  (c) keep parked. Designer=claude-fable-5 ($0), re-quorum metered=$0.062. Log entry 86.]**
+  **[was: AUTHORIZED by Mark 2026-07-20 → ROUTABLE: ONE more bounded
   revision+re-quorum round, scoped to the 2 named R2 objections only — doc front-matter stamped.
   Historical park:]** **[was: PARKED iter 61 — QUORUM-AT-PICK: R1 BLOCKED
   (no-silent-fallback + missing MaxTokens conflict surface) → codex-designer Rev-1 resolved both
