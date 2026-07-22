@@ -869,7 +869,9 @@ triage evidence = log entry 10.)*
   `{"_transport":"MCP_UNAVAILABLE"}` + require `req.method=="MCP"` branch, OR drop the fake-envelope entirely,
   (3) keep parked. Unblocks docparse quota-hardening item 5. Log entry 62. ~0.5d for M1 alone) ·
   m-agent-step-cancellation (1.5d) ·
-  **m-ai-reasoning-effort** (**[PARKED needs-human-review — Mark's authorized bounded round EXECUTED
+  **m-ai-reasoning-effort** (**[Mark 2026-07-22 fork (a) → ROUTE TO SPRINT-PLANNER: both authorized
+  fixes GREEN (gemini PASS); Sol's machinery-inventory ask folds into the planner's mandatory M0
+  code-audit. Doc front-matter stamped. Historical: PARKED — Mark's authorized bounded round EXECUTED
   iter 81 (2026-07-22): BOTH named R2 objections RESOLVED (reasoning_max_tokens 4th resolver input;
   Gemini B=0 MaxTokens exemption); re-quorum gemini→PASS but gpt5-6-sol→REJECT on a NEW out-of-scope
   "inventory existing AI-package machinery" objection → bounded round consumed → RE-PARKED. Rev-2 doc
@@ -900,8 +902,9 @@ triage evidence = log entry 10.)*
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
 
 ### Clause 2 — soundness (near-done; no new holes found in triage)
-- **issue #386 — effect-row inference regression** **[PARKED — needs-human-review; design doc
-  authored + quorum-blocked, iter 80 2026-07-22]** — DESIGN DOC created via codex-rotation
+- **issue #386 — effect-row inference regression** **[MECHANISM RATIFIED by Mark 2026-07-22
+  ("gemini's replace fix") → ROUTE TO SPRINT-PLANNER, no re-quorum: solved equality constraints
+  are REPLACED with flattened `a ~ T` substitutions, never deleted — doc Status stamped]** — DESIGN DOC created via codex-rotation
   designer: `design_docs/planned/v0_31_0/m-effect-row-show-interp.md` (PR #456). Controller
   live-verified + SHARPENED the root cause: NOT show-specific — two interacting mechanisms
   (`combineEffects` tail-drop → nested pure call erases IO [`println(show(x))` accepted as pure];
