@@ -1,21 +1,51 @@
 # M-MANAGED-AGENTS-MODEL-EVAL — Managed Agents as a Gemini agent-mode eval vessel
 
-**Status**: Planned (BLOCKED on external rollout — see Verification Log V4)
-**Target**: v0.31.0 (build) / activation gated on Google server rollout
+**Status**: Planned — **buildable now** via the Gemini Developer API front door (see Getting Started); the Vertex ADC path our current executor uses is still blocked (V4)
+**Target**: v0.31.0
 **Priority**: P2 (Pi already covers the immediate need; this is a second, product-fidelity vessel)
-**Estimated**: ~1.5 days build + ~0.5 day activation when unblocked
-**Dependencies**: existing `internal/executor/managed_agents/` (M-MANAGED-AGENTS, v0.22.0); ADC auth
+**Estimated**: ~1.5 days build (Gemini API path) + a valid AI Studio API key
+**Dependencies**: existing `internal/executor/managed_agents/` (M-MANAGED-AGENTS, v0.22.0); **a valid AI Studio (Gemini Developer API) key** — NOT Vertex ADC (see V6)
 
 ## Summary
 
-Make Vertex **Managed Agents** able to run the antigravity sandbox on a **chosen
-Gemini model** (`gemini-3.6-flash` / `gemini-3.5-flash` / `gemini-3.5-flash-lite`)
-so we can measure **agent-mode model performance** through Google's own managed
-harness. A completed spike (2026-07-22) proved the mechanism exists, is plain
-REST, and is Go-implementable — but the field it requires (`agent_config`) is not
-yet recognized by the server our project reaches. This doc specifies the Go build
-so it lands behind a capability preflight and activates the moment Google ships
-the field to us.
+Make **Managed Agents** run the antigravity sandbox on a **chosen Gemini model**
+(`gemini-3.6-flash` / `gemini-3.5-flash` / `gemini-3.5-flash-lite`) so we can
+measure **agent-mode model performance** through Google's own managed harness.
+
+A completed spike (2026-07-22) established that there are **two front doors**, and
+model selection is shipped on only one:
+
+- **Gemini Developer API** — `POST https://generativelanguage.googleapis.com/v1beta/interactions`,
+  API-key auth (`x-goog-api-key`), `agent_config:{type,model}` passed **at
+  interaction-creation time**. This is the documented, shipped path. We confirmed
+  the endpoint + payload shape are accepted (the only failure was `API_KEY_INVALID`
+  with our non–AI-Studio key). **Buildable now, pending a valid AI Studio key.**
+- **Vertex AI** — `aiplatform.googleapis.com`, ADC auth (what our current executor
+  uses). Here `agent_config` is rejected as an unknown field across every revision
+  and region — not rolled out to our project. Blocked (V4).
+
+So this pivots from "wait for Vertex rollout" to "implement the Gemini Developer
+API path." The Vertex path stays a future fallback for when/if the field ships to
+ADC (or the project is enrolled).
+
+## Getting Started (Gemini Developer API — the shipped path)
+
+1. **Get an AI Studio API key** at https://aistudio.google.com/apikey. (Our
+   existing `GOOGLE_API_KEY` is invalid for `generativelanguage.googleapis.com` —
+   it is a different-scope key. This is the "modern project" enrollment in
+   practice: an AI Studio / Gemini API key, not the Vertex ADC path.)
+2. **Pick the model** via `agent_config` at interaction time. Supported values:
+   `gemini-3.6-flash` (default), `gemini-3.5-flash`, `gemini-3.5-flash-lite`.
+3. **Call** (raw REST — exactly what our Go client will send):
+   ```bash
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/interactions" \
+     -H "Content-Type: application/json" -H "x-goog-api-key: $GEMINI_API_KEY" \
+     -d '{"agent":"antigravity-preview-05-2026","input":"<task>",
+          "environment":"remote",
+          "agent_config":{"type":"antigravity","model":"gemini-3.5-flash-lite"}}'
+   ```
+   SDK equivalent: `genai.Client().interactions.create(agent="antigravity-preview-05-2026",
+   input=..., environment="remote", agent_config={"type":"antigravity","model":"..."})`.
 
 ## Problem Statement
 
@@ -74,23 +104,26 @@ banked per model exactly like standard-mode results.
 
 ### Overview
 
-Move the managed-agents executor from "invoke the one public agent" to a
-**two-phase** flow, exactly as captured from the SDK wire traffic:
+**Primary path — Gemini Developer API (single call, shipped).** Add a managed-
+agents executor variant that authenticates with an AI Studio key and passes
+`agent_config` on the interaction itself — no separate agent-create step:
+```
+POST https://generativelanguage.googleapis.com/v1beta/interactions
+x-goog-api-key: <AI Studio key>
+{ "agent":"antigravity-preview-05-2026", "input":"<task>", "environment":"remote",
+  "agent_config":{"type":"antigravity","model":"gemini-3.5-flash-lite"} }
+```
+The rest of the flow (sandbox, multi-turn, artifact extraction) reuses the
+existing bridge. This is the buildable-now path.
 
-1. **Create** a model-bound agent (idempotent per model):
-   ```
-   POST https://aiplatform.googleapis.com/v1beta1/projects/{proj}/locations/{loc}/agents
-   { "base_agent": "antigravity-preview-05-2026",
-     "agent_config": { "type": "antigravity", "model": "gemini-3.5-flash-lite" },
-     "id": "ailang-eval-gemini-3-5-flash-lite" }
-   ```
-2. **Interact** against the returned agent id (the existing sandbox/streaming
-   path, `agentInteraction.agent = <created id>`), then extract the artifact as
-   the current bridge already does.
-3. **Cleanup** (`DELETE .../agents/{id}`) or reuse across runs.
+**Fallback path — Vertex two-phase (blocked, future).** If/when `agent_config`
+ships to Vertex/ADC (V4), the equivalent is a two-phase create-then-interact:
+`POST aiplatform.../agents {base_agent, agent_config:{type,model}}` → interact
+against the returned agent id → cleanup. Keep this behind the capability preflight
+so the executor prefers whichever front door is available.
 
-This is a superset of today's executor — the fixed-agent path stays as the
-`agent_config`-unavailable fallback.
+Both are supersets of today's fixed-agent executor, which stays as the
+no-model-selection fallback.
 
 ### Architecture
 
@@ -172,8 +205,9 @@ managed_agents: agent_config not available on project ailang-dev
 | V1 | The model is set via `agent_config.model` at agent-CREATE time (not on the interaction) | Introspected `google.genai._gaos.types.agents.AgentConfig` → fields `{type:'antigravity', model, max_total_tokens}` | Confirmed |
 | V2 | The mechanism is plain REST (Go-implementable, no Python needed) | Captured the SDK's actual httpx request: `POST .../v1beta1/projects/ailang-dev/locations/global/agents` with `{base_agent, agent_config:{type,model}}` | Confirmed |
 | V3 | The `agents` create endpoint works on our project | Control: `POST .../agents` WITHOUT agent_config → `OK` (created `ailang-spike-probe`, then DELETEd, 404 confirms gone) | Confirmed |
-| V4 | **BLOCKER**: server rejects `agent_config` on our reachable endpoint | `POST` with agent_config → `400 Unknown name "agent_config"` — **identical to a bogus field `totally_bogus_zzz`** — across v1beta1, Api-Revision {none,2026-05-20,06-20,07-01,07-20,07-22}, regions {global,us-central1,us-east4} | Confirmed BLOCKED (client ahead of backend) |
-| V5 | Legacy fixed-agent path still works (fallback is real) | `POST .../interactions` (flat body, agent=antigravity) → streams | Confirmed |
+| V4 | On the **Vertex** endpoint (ADC), `agent_config` is rejected | `POST aiplatform.../agents` with agent_config → `400 Unknown name "agent_config"` — **identical to a bogus field** — across v1beta1, Api-Revision {none,2026-05-20…07-22}, regions {global,us-central1,us-east4}. Also true via the `google.genai` SDK when `vertexai=True` (same endpoint, same 400) | Confirmed: not rolled out to Vertex/ADC for our project |
+| V5 | Legacy fixed-agent Vertex path still works (fallback is real) | `POST aiplatform.../interactions` (flat body, agent=antigravity) → streams | Confirmed |
+| V6 | The **Gemini Developer API** front door accepts `agent_config` (the shipped path) | `POST generativelanguage.googleapis.com/v1beta/interactions` with `agent_config:{type,model}` → `400 API_KEY_INVALID` only (endpoint + payload shape accepted; failure is auth, not schema). Docs (ai.google.dev antigravity-agent + managed-agents-quickstart) specify this exact shape + `x-goog-api-key` auth | Confirmed shape; needs a valid AI Studio key to run |
 
 ## Testing Strategy
 
@@ -211,7 +245,8 @@ the vessel is live — run the Phase 3 compare.
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| `agent_config` never rolls out to our project / needs preview enrollment | High | Build is cheap and behind a preflight; if it stays blocked, we've lost ~1.5 days and Pi still covers the need. Recheck V4 periodically; ask Google/PM re: preview enrollment for ailang-dev. |
+| `agent_config` never rolls out to Vertex/ADC | Low (was High) | No longer the primary path — the Gemini Developer API front door has it now (V6). Vertex is a future fallback only. |
+| No valid AI Studio key / new auth+billing path | Med | The Gemini API path uses `x-goog-api-key` + AI Studio billing, NOT Vertex ADC. Needs a provisioned key in secret storage and a decision on which billing account. Our existing `GOOGLE_API_KEY` is invalid for `generativelanguage.googleapis.com`. |
 | Model+scaffolding confound misread as pure model ranking | Med | Documented as an explicit Non-Goal; bank results under a `managed-` prefix so they're never pooled with Pi/standard rows. |
 | Per-run agent creation hits rate/cost limits | Med | Lifecycle Design-Freeze decision (reuse per model); idempotent get-before-create. |
 | Cost mislabeled (today's hardcoded gemini-3-5-flash pricing) | Med | Phase 2 makes CostModel read the chosen model's pricing. |
