@@ -912,24 +912,26 @@ models:
   # Google Gemini 3.5 Flash Lite (released July 21, 2026, alongside 3.6 Flash)
   # NOTE the version skew: the July 2026 pair is "Flash 3.6" + "Flash 3.5 LITE".
   # There is no gemini-3.6-flash-lite (404 on Vertex, probed 2026-07-21).
-  # STATUS: access verified, suite promotion DECLINED (2026-07-21).
+  # STATUS: access verified, IN extended_suite as the low-cost FLOOR ANCHOR
+  # (added 2026-07-22, per Mark). See the extended_suite annotation for the role.
   #
-  # Gate summary (standard mode, --langs ailang, N=1), vs the suite incumbent:
-  #   tier      gemini-3-flash(incumbent)   gemini-3-5-flash-lite
-  #   smoke     -                           21/23  ($0.21)
-  #   core      19/19  ($0.47)              14/19  ($0.20)
-  #   frontier   7/16  ($0.78)               1/16  ($0.19)
+  # Full baseline (standard mode, --langs ailang, N=1):
+  #   tier      gemini-3-flash(cheap incumbent)   gemini-3-5-flash-lite
+  #   smoke     -                                 21/23  ($0.21)
+  #   core      19/19  ($0.47)                    14/19  ($0.20)
+  #   stretch   20/21                             9/21   ($0.22)
+  #   frontier   7/16  ($0.78)                    1/16   ($0.19)
   #
-  # Verdict: it is ~2.3x cheaper than the incumbent and burns ZERO thinking
-  # tokens (0 across all 58 gate runs), but it COLLAPSES as difficulty rises —
-  # 5 benchmarks worse on core and 1/16 vs 7/16 on frontier (dominant failure
-  # mode: compile_error, i.e. it stops being able to write valid AILANG).
-  # Cheap-but-can't-code is not a useful suite slot, so gemini-3-flash stays.
-  # Smoke failures were binary_tree_sum (genuine) + dense_operator_program
-  # (the known-bad benchmark the sonnet anchor also fails).
+  # It is ~2.3x cheaper than gemini-3-flash and burns ZERO thinking tokens (0
+  # across all 79 gate runs), but COLLAPSES as difficulty rises — 14/19 core,
+  # 9/21 stretch, 1/16 frontier, dominant failure mode compile_error (it stops
+  # writing valid AILANG). It does NOT displace gemini-3-flash, which stays as
+  # the capable cheap model; flash-lite is a rung BELOW it.
   #
-  # Keep as the opt-in FLOOR model: best current choice when a task is easy and
-  # volume/cost dominates, or as the cheap arm in a thinking-vs-no-thinking A/B.
+  # It is in the suite as a LANGUAGE-IMPROVEMENT TRACKER, not for capability:
+  # its huge headroom + zero thinking-noise + trivial cost make it the most
+  # sensitive gauge of whether stdlib/prompt work makes AILANG easier for weak
+  # models. The numbers above are the 2026-07-22 baseline to lift.
   gemini-3-5-flash-lite:
     api_name: "gemini-3.5-flash-lite"
     provider: "google"
@@ -2646,6 +2648,19 @@ extended_suite:
     # $1.79/run); standard mode was never the problem, and it had drifted into no suite at all.
     # It remains opt-in via `--models gemini-3-5-flash` as the longitudinal comparison point.
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
+  - "gemini-3-5-flash-lite"  # Google cheapest current-gen (Jul 2026), $0.30/$2.50, ZERO thinking tokens.
+    # Added 2026-07-22 (per Mark) as the LOW-COST FLOOR ANCHOR + language-improvement tracker, NOT as
+    # a capable model. Full baseline: smoke 21/23 | core 14/19 | stretch 9/21 | frontier 1/16.
+    # Full core+stretch run costs ~$0.42 (cheapest cloud row in the suite by far).
+    # ⚠️  This model INTENTIONALLY LOWERS the extended_suite aggregate pass rate — it fails ~26% of
+    # core and ~57% of stretch. A baseline dip attributable to this row is BY DESIGN, not an AILANG
+    # regression; read its score IN ISOLATION, not folded into the suite average.
+    # WHY it earns a slot despite low scores: it is the highest-signal language-improvement gauge we
+    # have. It has the most headroom (9/21 stretch, 1/16 frontier), zero thinking-token noise, and
+    # trivial cost, so stdlib/prompt improvements that make AILANG more "trainable-feel" will move
+    # THIS model's scores first and most visibly. The numbers above are the 2026-07-22 baseline to
+    # lift. Same near-miss-watchlist philosophy as the motoko-or-* OS entries, but promoted to a
+    # standing suite slot because Mark wants it tracked every release, not just opt-in.
   - "or-glm-5-2"        # z.ai GLM-5.2 — replaced or-glm-5-1 2026-07-19 (Mark): with 64K
                         # thinking headroom 5.2 beats 5.1 on AILANG (80% vs 77%), Python
                         # (81% vs 79%) and agent (77% vs 73%). 5.1 retired to opt-in.
