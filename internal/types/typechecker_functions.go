@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
@@ -117,6 +118,22 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		if effRow := bodyNode.GetEffectRow(); effRow != nil {
 			funcEffectRow = effRow.(*Row)
 		}
+	}
+
+	// M-EFFECT-ROW-SHOW-INTERP (#386): record the lambda's ORIGINAL explicit
+	// effect annotation (the source-declared row) so the post-solve effect
+	// validator can check it against the body's actually-required effects.
+	// Inference otherwise overwrites the lambda's CoreTI effect row with the
+	// resolved effects, erasing the `! {}` a caller wrote — an inline
+	// `func(x) -> int ! {} { println(show(x)); x*2 }` passed as a combinator
+	// argument would then look effectful in CoreTI and its declared-purity
+	// violation would be invisible. We stash the declared row keyed by lambda
+	// NodeID; pipeline.ValidateEffects reads it via DeclaredLambdaEffectRow.
+	if lambdaHasEffectAnnotation(tc, lam) && funcEffectRow != nil {
+		if tc.declaredLambdaEffects == nil {
+			tc.declaredLambdaEffects = make(map[uint64]*Row)
+		}
+		tc.declaredLambdaEffects[lam.ID()] = funcEffectRow
 	}
 
 	funcType := &TFunc2{
@@ -450,6 +467,29 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 		generalizedTypeVars = append(generalizedTypeVars, v)
 	}
 
+	// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalize every free EffectRow
+	// variable of the WHOLE type (outer + nested callback effect rows, rows
+	// nested in collections/tuples/records/ADTs) that is NOT free in the
+	// environment. This mirrors the type-variable HM side condition above:
+	// enclosing-binder-owned rows must not be generalized. Without this, a
+	// mapE-shaped scheme left its callback/outer row var `e` unquantified, so
+	// Scheme.InstantiateWithConstraints could not freshen it and separate
+	// imported uses shared one row identity — the second half of #386.
+	typeFreeRowVars := freeEffectRowVarsInType(typ)
+	var envFreeRowVars map[string]bool
+	if currentEnv != nil {
+		envFreeRowVars = currentEnv.FreeEffectRowVars()
+	}
+	generalizedRowVars := []string{}
+	for v := range typeFreeRowVars {
+		if envFreeRowVars[v] {
+			// Free in the environment (owned by an enclosing binder) — withhold.
+			continue
+		}
+		generalizedRowVars = append(generalizedRowVars, v)
+	}
+	sort.Strings(generalizedRowVars) // deterministic order
+
 	// Convert class constraints to scheme constraints
 	schemeConstraints := []Constraint{}
 	for _, c := range constraints {
@@ -461,7 +501,7 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 
 	return &Scheme{
 		TypeVars:    generalizedTypeVars,
-		RowVars:     []string{}, // Simplified for now
+		RowVars:     generalizedRowVars,
 		Constraints: schemeConstraints,
 		Type:        typ,
 	}
@@ -469,6 +509,32 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 
 // inferApp infers type of function application
 func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*typedast.TypedApp, *TypeEnv, error) {
+	// M-EFFECT-ROW-SHOW-INTERP (#386) Section A: checkpoint the constraint set
+	// BEFORE inferring the callee and arguments, so the checkpoint covers the
+	// WHOLE application subtree. After adding this application's
+	// funcType ~ expectedFuncType equality we solve the equality constraints in
+	// this suffix LOCALLY and substitute the operand effect rows before combining
+	// them — this prevents combineEffects from prematurely closing an
+	// as-yet-unresolved open effect row to {}.
+	constraintCheckpoint := len(ctx.constraints)
+
+	// Snapshot the type/row variables owned by the ENCLOSING scope (environment)
+	// before inferring this application. The application-local solver must not
+	// bind these: a recursive self-call shares the enclosing function's effect-row
+	// variable, and binding it here leaks a premature/partial resolution into the
+	// enclosing inference ("same row variable with different extensions"). The
+	// local solve is restricted to variables fresh to this application subtree.
+	outerVars := make(map[string]bool)
+	for v := range ctx.env.FreeTypeVars() {
+		outerVars[v] = true
+	}
+	for v := range ctx.env.FreeRowVars() {
+		outerVars[v] = true
+	}
+	for v := range ctx.env.FreeEffectRowVars() {
+		outerVars[v] = true
+	}
+
 	// Infer function type
 	funcNode, _, err := tc.inferCore(ctx, app.Func)
 	if err != nil {
@@ -519,19 +585,80 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Path:  appPath,
 	})
 
+	// M-EFFECT-ROW-SHOW-INTERP (#386) Section A: solve the equality constraints
+	// this application subtree added, LOCALLY, before combining effect rows.
+	// Reuses the same Unifier/RowUnifier as SolveConstraints; adds no new
+	// constraint kind and no join representation, so RowUnifier.UnifyRows only
+	// ever observes ordinary *Row values.
+	localSub, err := ctx.solveLocalEqualities(constraintCheckpoint)
+	if err != nil {
+		return nil, ctx.env, err
+	}
+
+	// Drop any binding of an enclosing-scope variable: those are owned by an outer
+	// binder (e.g. the recursive function's own effect row) and must be resolved
+	// by the enclosing SolveConstraints, not fixed here. Keeping only
+	// application-fresh bindings makes the local solve a pure, side-effect-free
+	// refinement of THIS application's effect operands.
+	for v := range localSub {
+		if outerVars[v] {
+			delete(localSub, v)
+		}
+	}
+
+	// Apply the accumulated substitution to the operands that determine THIS
+	// application's effect — every argEffect and the callee effect row — so the
+	// combined row reflects resolved effects (for known callees this makes
+	// `show`'s row closed {} and `println`'s row closed {IO}, union {IO}).
+	//
+	// REPLACE-NOT-DELETE realised by NON-DELETION: the original equality
+	// constraints that back these bindings are LEFT IN PLACE in ctx.constraints
+	// (we neither delete nor rewrite them). The enclosing/let-boundary
+	// SolveConstraints therefore replays them from its fresh substitution and
+	// re-derives the identical facts, propagating the unification to OUTER AST
+	// nodes and the type environment. This is strictly stronger than replacing
+	// with flattened `a ~ T` forms (nothing is dropped) and, crucially, does NOT
+	// prematurely bind type/row variables that generalization, defaulting, or a
+	// recursive self-call's shared effect row depend on — rewriting the constraint
+	// suffix or substituting the shared funcNode/resultType regressed the
+	// M-TYPE-LIST-SOUND fixtures and recursive multi-effect stdlib functions
+	// (std/sem) with "same row variable with different extensions".
+	if len(localSub) > 0 {
+		for i := range argNodes {
+			argEffects[i] = closeIfResolved(argEffects[i], applySubToEffectRow(localSub, argEffects[i]))
+		}
+		// NOTE: the callee effectRow is intentionally NOT eagerly substituted here.
+		// The #386 defect is that a nested pure ARGUMENT application (e.g. `show(x)`
+		// inside `println(show(x))`) had its open row dropped to closed {} before
+		// its constraint resolved; resolving the ARG effects (above) is what the fix
+		// needs. Eagerly closing the CALLEE row additionally regressed recursive
+		// multi-arm effectful stdlib functions (their self-call effect row is closed
+		// to {SharedMem} in one arm and conflicts with a sibling arm), so the callee
+		// row is left for the whole-program SolveConstraints as before.
+	}
+
 	// CRITICAL FIX: Application effects come from:
 	// 1. Argument evaluation effects (argEffects)
 	// 2. The function's effect row (effectRow, after unification with function type)
 	// DO NOT include getEffectRow(funcNode) - function values themselves are pure!
-	// The effectRow variable will be resolved by the unifier to match the function's type.
+	// The effectRow variable has been resolved by the local solver above.
 	appEffects := append(argEffects, effectRow)
+
+	// M-EFFECT-ROW-SHOW-INTERP (#386) distinct-tail invariant (AC5/AC6): after
+	// the application-local solve, the effect-determining operands must reduce to
+	// closed rows or ONE shared tail. Two distinct unresolved tails here mean a
+	// determining equality was not solved before publishing — fail loudly rather
+	// than let combineEffects silently pick one or invent an implicit join.
+	assertSingleTailAfterAppSolve(appEffects, app)
+
+	appEffectRow := combineEffectList(appEffects)
 
 	return &typedast.TypedApp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    app.ID(),
 			Span:      app.Span(),
 			Type:      resultType,
-			EffectRow: combineEffectList(appEffects),
+			EffectRow: appEffectRow,
 			Core:      app,
 		},
 		Func: funcNode,

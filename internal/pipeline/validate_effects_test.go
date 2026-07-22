@@ -230,14 +230,22 @@ func registerTypesForProgram(prog *core.Program, typeInfo types.CoreTypeInfo) {
 	}
 }
 
-// TestCollectRequiredEffects_LetDoesNotTraverseBody verifies that
-// collectRequiredEffects doesn't traverse Let bodies (the M-PERF1 fix).
-func TestCollectRequiredEffects_LetDoesNotTraverseBody(t *testing.T) {
-	// Create a Let where the body contains an effectful call
-	// If the fix is correct, collectRequiredEffects on Let should NOT see the body's effects
+// TestCollectRequiredEffects_LetTraversesBody verifies that collectRequiredEffects
+// DOES traverse Let bodies.
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386): the previous behavior (skip the body — the
+// old M-PERF1 optimization) was UNSOUND. Block expressions and nested pure calls
+// desugar via ANF into inner lets whose effect lives in the BODY (e.g.
+// `{ println(show(x)); x*2 }` becomes `let _block = (let $tmp = show(x) in
+// println($tmp)) in x*2`); skipping the body silently dropped the `println` IO
+// and accepted an effectful function as pure. The walker now unions value AND
+// body effects. (The M-PERF1 O(m²) concern was about validateDecl walking a chain
+// of TOP-LEVEL decl-lets, which is unaffected — see collectRequiredEffects's
+// *core.Let case.)
+func TestCollectRequiredEffects_LetTraversesBody(t *testing.T) {
 	typeInfo := types.NewCoreTypeInfo()
 
-	// Create a fake effectful function reference in the body
+	// An effectful function reference used in the let BODY.
 	effectfulVar := &core.VarGlobal{Ref: core.GlobalRef{Module: "test", Name: "effectful"}}
 	typeInfo.Set(effectfulVar.ID(), &types.TFunc2{
 		Params:    []types.Type{},
@@ -245,25 +253,24 @@ func TestCollectRequiredEffects_LetDoesNotTraverseBody(t *testing.T) {
 		Return:    &types.TCon{Name: "()"},
 	})
 
-	// Let("x", pure_value, effectful_call)
+	// let x = 42 in effectful()  — the IO is in the BODY.
 	letExpr := &core.Let{
 		Name:  "x",
 		Value: &core.Lit{Value: int64(42)},                            // Pure RHS
 		Body:  &core.App{Func: effectfulVar, Args: []core.CoreExpr{}}, // Effectful body
 	}
 
-	// collectRequiredEffects should only see RHS effects (none), not body effects
-	declaredEffects := make(map[string][]string) // Empty for this test
+	declaredEffects := make(map[string][]string)
 	effects := collectRequiredEffects(letExpr, typeInfo, declaredEffects)
 
-	// With the fix: effects should be nil (only RHS is checked, which is pure)
-	// Without the fix: effects would include IO from the body
-	if effects != nil && len(effects.Labels) > 0 {
+	if effects == nil {
+		t.Fatal("collectRequiredEffects did not traverse the Let body: expected IO, got no effects (#386 regression)")
+	}
+	if _, hasIO := effects.Labels["IO"]; !hasIO {
 		var labels []string
 		for k := range effects.Labels {
 			labels = append(labels, k)
 		}
-		t.Errorf("collectRequiredEffects traversed Let body (found effects: %v)", strings.Join(labels, ", "))
-		t.Error("This indicates the M-PERF1 fix has regressed!")
+		t.Errorf("collectRequiredEffects missed the Let body's IO effect; got: %v", strings.Join(labels, ", "))
 	}
 }

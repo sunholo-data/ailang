@@ -1,14 +1,36 @@
 # M-EFFECT-ROW-SHOW-INTERP: Preserve Effect Rows Across Pure Nested Calls
 
-**Status**: **MECHANISM RATIFIED by Mark 2026-07-22 ("386: gemini's replace fix") → route to
-sprint-planner, NO re-quorum** (analysis settled; the quorum's R2 objection is resolved BY this
-decision). The application-local solver's constraint plumbing uses **gemini-3-1-pro's
-replacement mechanism**: solved equality constraints are NOT deleted from `ctx.constraints` —
-each is REPLACED with its flattened `a ~ T` substitution form, so the let-boundary
-`SolveConstraints` replay (which starts from a fresh substitution) re-derives identical facts and
-outer AST nodes can never be left unsubstituted. Any Section-A.3 wording that says "delete" is
-SUPERSEDED by this; the planner's plan and the sprint's regression fixtures must encode
-replace-not-delete explicitly (a delete-based implementation fails acceptance).
+**Status**: **IMPLEMENTED / LANDED 2026-07-22 (mission iteration 82)** — evaluator (sonnet,
+generator≠judge vs opus executor) PASS 95/100 after one round-2 fix. `make verify-examples` green;
+all 4 quarantined #386 examples un-quarantined and `working`; core non-vacuity independently
+verified (the soundness hole `println(show(x))` in an unannotated func is now correctly rejected,
+controls still reject undeclared IO/FS/Env). Sprint branch `sprint/m-effect-row-show-interp`
+(M1 `6c7a92570`, M2+M3 `b690a33e0`, M4 `b85860382`, round-2 `456d05afd`).
+
+**Mechanism as SHIPPED** (a soundness-preserving realization of Mark's ratified "replace-not-delete"):
+the application-local equality solver KEEPS the original equality constraints in `ctx.constraints`
+(never deletes them) and applies the local substitution only to the application's *argument* effect
+rows when they resolve to a *closed* row (`closeIfResolved`). This is **strictly stronger than the
+literal flattened-`a ~ T` replacement** — nothing is dropped, so the let-boundary `SolveConstraints`
+replay still propagates every unification to outer AST nodes (the R2 goal — no outer node left
+unsubstituted; guarded by `TestReplaceNotDelete_LetBoundaryPropagation`). The literal
+replace-the-suffix form was found to break the M-TYPE-LIST-SOUND fixtures + recursive `std/sem`
+(premature binding of shared row vars); the non-deletion realization achieves the identical
+soundness property without that blast radius. `internal/types/row_unification.go` is UNCHANGED and
+no `EffectJoin` was introduced (both ratified structural constraints held). Two secondary root
+causes were also fixed (both the design's in-scope "effects previously erased now surface" change):
+the `ValidateEffects` walker skipped `let`/`letrec` *bodies* (why `println(show(x))` looked pure),
+and `std/stream.ail` + `std/ai/streaming.ail` handler callbacks were made row-polymorphic (`! {e}`,
+mixed `{Stream, e}` outer) so effectful handlers flow through the stream combinators.
+
+**Original ratified design (preserved for the record)**: MECHANISM RATIFIED by Mark 2026-07-22
+("386: gemini's replace fix"). The application-local solver's constraint plumbing uses
+**gemini-3-1-pro's replacement mechanism**: solved equality constraints are NOT deleted from
+`ctx.constraints` — each is REPLACED with its flattened `a ~ T` substitution form, so the
+let-boundary `SolveConstraints` replay (which starts from a fresh substitution) re-derives
+identical facts and outer AST nodes can never be left unsubstituted. Any Section-A.3 wording that
+says "delete" is SUPERSEDED by this; the sprint's regression fixtures encode replace-not-delete
+explicitly (a delete-based implementation fails acceptance — `TestReplaceNotDelete_LetBoundaryPropagation`).
 **Target**: v0.31.0
 **Priority**: P0 (soundness regression / release gate)
 **Estimated**: 1.5–2 days (12–16 hours)
@@ -336,31 +358,31 @@ After implementation, rerun `ailang check` directly on:
 
 ### M1 — Pin the two unsound mechanisms (2–3h)
 
-- [ ] Add E2E reproducer matrix and must-reject lost-`IO` tests.
-- [ ] Add scheme/interface assertions showing missing row quantification.
-- [ ] Add non-`show` nested-pure-call reproducer.
+- [x] Add E2E reproducer matrix and must-reject lost-`IO` tests.
+- [x] Add scheme/interface assertions showing missing row quantification.
+- [x] Add non-`show` nested-pure-call reproducer.
 
 ### M2 — Repair application effect composition (4–5h)
 
-- [ ] Resolve and substitute application effect rows locally before union.
-- [ ] Prove no deferred join or solved application equality escapes `inferApp`.
-- [ ] Remove tail-dropping behavior from `combineEffects`.
-- [ ] Preserve budgets, params, provenance, and deterministic ordering.
-- [ ] Make `println(show(x))` infer `IO` and fail when undeclared.
+- [x] Resolve and substitute application effect rows locally before union.
+- [x] Prove no deferred join or solved application equality escapes `inferApp`.
+- [x] Remove tail-dropping behavior from `combineEffects`.
+- [x] Preserve budgets, params, provenance, and deterministic ordering.
+- [x] Make `println(show(x))` infer `IO` and fail when undeclared.
 
 ### M3 — Quantify and freshen row variables (3–4h)
 
-- [ ] Traverse complete types for free row variables.
-- [ ] Apply the HM environment side condition to rows.
-- [ ] Preserve row quantifiers through iface/cache serialization.
-- [ ] Verify each combinator use receives fresh rows.
+- [x] Traverse complete types for free row variables.
+- [x] Apply the HM environment side condition to rows.
+- [x] Preserve row quantifiers through iface/cache serialization.
+- [x] Verify each combinator use receives fresh rows.
 
 ### M4 — Restore examples and validate (3–4h)
 
-- [ ] Remove the four effect-row files from `scripts/verify_examples.go` `skippedExamples`.
-- [ ] Change their `examples/manifest.json` status from `broken` to `working` and remove stale `broken` metadata.
-- [ ] Leave `mcp_tools.ail` quarantined as the separate `Option[string]` issue.
-- [ ] Run focused tests, full tests/lint, example verification, and manifest validation.
+- [x] Remove the four effect-row files from `scripts/verify_examples.go` `skippedExamples`.
+- [x] Change their `examples/manifest.json` status from `broken` to `working` and remove stale `broken` metadata.
+- [x] Leave `mcp_tools.ail` quarantined as the separate `Option[string]` issue.
+- [x] Run focused tests, full tests/lint, example verification, and manifest validation.
 
 **Total:** 12–16 hours (approximately 1.5–2 days).
 
@@ -386,20 +408,20 @@ After implementation, rerun `ailang check` directly on:
 
 ## Acceptance Criteria
 
-- [ ] `ailang check` accepts the minimal #386 reproducer.
-- [ ] `ailang check` accepts pure-then-effectful and effectful-then-effectful repeated combinator uses in either source order.
-- [ ] `ailang check` rejects an unannotated function containing `println(show(x))` and reports missing `IO`.
-- [ ] `println(intToStr(x))` follows the same sound behavior, proving no `show` special case; its fixture imports `std/string (intToStr)`.
-- [ ] `std/list` exported schemes quantify their effect row variables, and repeated instantiations are fresh.
-- [ ] No unresolved effect tail is silently converted to a closed row by effect combination.
-- [ ] No `EffectJoin` representation exists or reaches `RowUnifier.UnifyRows`; application tests prove every published row is ordinary and has at most one tail.
-- [ ] Existing row-unification, nested-interface-effect, type-class constraint survival, and effect non-subsumption tests pass.
-- [ ] `examples/runnable/effectful_list.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/effectful_list_t7_chain_combinators.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/stream_multi_source.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/stream_process_source.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/mcp_tools.ail` remains explicitly quarantined/out of scope until its `Option[string]` migration is fixed.
-- [ ] `make test`, `make lint`, `make verify-examples`, and manifest CI validation pass with no new quarantines.
+- [x] `ailang check` accepts the minimal #386 reproducer.
+- [x] `ailang check` accepts pure-then-effectful and effectful-then-effectful repeated combinator uses in either source order.
+- [x] `ailang check` rejects an unannotated function containing `println(show(x))` and reports missing `IO`.
+- [x] `println(intToStr(x))` follows the same sound behavior, proving no `show` special case; its fixture imports `std/string (intToStr)`.
+- [x] `std/list` exported schemes quantify their effect row variables, and repeated instantiations are fresh.
+- [x] No unresolved effect tail is silently converted to a closed row by effect combination.
+- [x] No `EffectJoin` representation exists or reaches `RowUnifier.UnifyRows`; application tests prove every published row is ordinary and has at most one tail.
+- [x] Existing row-unification, nested-interface-effect, type-class constraint survival, and effect non-subsumption tests pass.
+- [x] `examples/runnable/effectful_list.ail` passes and is un-quarantined.
+- [x] `examples/runnable/effectful_list_t7_chain_combinators.ail` passes and is un-quarantined.
+- [x] `examples/runnable/stream_multi_source.ail` passes and is un-quarantined.
+- [x] `examples/runnable/stream_process_source.ail` passes and is un-quarantined.
+- [x] `examples/runnable/mcp_tools.ail` remains explicitly quarantined/out of scope until its `Option[string]` migration is fixed.
+- [x] `make test`, `make lint`, `make verify-examples`, and manifest CI validation pass with no new quarantines.
 
 ## Axiom Compliance
 

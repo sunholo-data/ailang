@@ -169,7 +169,9 @@ export func callStream(
 
 -- Register an event handler for a streaming connection. Handler receives
 -- each StreamEvent and returns true to continue, false to stop the loop.
-export func onEvent(conn: StreamConn, handler: (StreamEvent) -> bool) -> unit ! {Stream} {
+-- Row-polymorphic in the handler's effects (! {e}) so an effectful handler
+-- (e.g. one that calls println ! {IO}) flows through. #386.
+export func onEvent(conn: StreamConn, handler: (StreamEvent) -> bool ! {e}) -> unit ! {Stream, e} {
   Stream.onEvent(conn, handler)
 }
 

@@ -300,6 +300,23 @@ func (tc *CoreTypeChecker) applySubstitutionToTyped(sub Substitution, node typed
 	return node
 }
 
+// applySubToEffectRow applies a substitution to an effect row and coerces the
+// result back to a *Row. M-EFFECT-ROW-SHOW-INTERP (#386): used by inferApp to
+// resolve argument/callee effect rows locally before combining them.
+func applySubToEffectRow(sub Substitution, row *Row) *Row {
+	if row == nil || len(sub) == 0 {
+		return row
+	}
+	switch r := ApplySubstitution(sub, row).(type) {
+	case *Row:
+		return r
+	case *RowVar:
+		return &Row{Kind: r.Kind, Labels: map[string]Type{}, Tail: r}
+	default:
+		return row
+	}
+}
+
 // partitionConstraints separates ground (concrete) from non-ground (polymorphic) constraints
 func (tc *CoreTypeChecker) partitionConstraints(constraints []ClassConstraint) (ground, nonGround []ClassConstraint) {
 	for _, c := range constraints {

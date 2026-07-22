@@ -90,17 +90,14 @@ var skippedExamples = map[string]string{
 	"examples/runnable/secrets/gated_secret.ail":                 "M-SECRET-EFFECT: needs the Secret capability + 1Password op CLI + a human approval to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/leak_attempt.ail":                 "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/secret_demo.ail":                  "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
-	// QUARANTINE (M-DX-EXAMPLES-COVERAGE Phase 1, iter 29): genuine effect-row
-	// inference regression — show() in an effectful-lambda interpolation collapses
-	// the combinator effect row to closed-empty, conflicting with an explicit {IO}.
-	// mcp_tools is a separate regression (getString now returns Option[string]).
-	// Type-system fix is out of scope for this DX sprint (Conflict Surface forbids
-	// internal/types + internal/effects). Owned by the follow-up issue below.
-	"examples/runnable/effectful_list.ail":                      "quarantined: effect-row inference regression — https://github.com/sunholo-data/ailang/issues/386",
-	"examples/runnable/effectful_list_t7_chain_combinators.ail": "quarantined: effect-row inference regression — https://github.com/sunholo-data/ailang/issues/386",
-	"examples/runnable/mcp_tools.ail":                           "quarantined: getString now returns Option[string], example compares to bare string — https://github.com/sunholo-data/ailang/issues/386",
-	"examples/runnable/stream_multi_source.ail":                 "quarantined: effect-row inference regression — https://github.com/sunholo-data/ailang/issues/386",
-	"examples/runnable/stream_process_source.ail":               "quarantined: effect-row inference regression — https://github.com/sunholo-data/ailang/issues/386",
+	// The four #386 effect-row examples (effectful_list, effectful_list_t7,
+	// stream_multi_source, stream_process_source) were un-quarantined by
+	// M-EFFECT-ROW-SHOW-INTERP: effect rows are now preserved across nested pure
+	// calls and imported row-polymorphic combinators get fresh row vars.
+	// mcp_tools remains quarantined — it is a SEPARATE regression (getString now
+	// returns Option[string], the example compares to a bare string) and is
+	// explicitly out of scope for #386.
+	"examples/runnable/mcp_tools.ail": "quarantined: getString now returns Option[string], example compares to bare string (separate from #386) — https://github.com/sunholo-data/ailang/issues/386",
 }
 
 // ailangBinary returns the path to a pre-built ailang binary.

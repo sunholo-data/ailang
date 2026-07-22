@@ -154,3 +154,43 @@ func (env *TypeEnv) collectFreeRowVars(free map[string]bool) {
 		env.parent.collectFreeRowVars(free)
 	}
 }
+
+// FreeEffectRowVars returns every free EffectRow-kinded row variable reachable
+// through the COMPLETE type of each binding in the environment (descending into
+// nested function/collection/record positions), minus each scheme's own
+// quantified row variables.
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalizeWithConstraints uses this
+// as the HM side condition for rows — a row variable free in the environment
+// (owned by an enclosing binder) must NOT be generalized, mirroring the existing
+// type-variable withhold logic.
+func (env *TypeEnv) FreeEffectRowVars() map[string]bool {
+	free := make(map[string]bool)
+	env.collectFreeEffectRowVars(free)
+	return free
+}
+
+func (env *TypeEnv) collectFreeEffectRowVars(free map[string]bool) {
+	visited := make(map[Type]bool)
+	for _, binding := range env.bindings {
+		switch b := binding.(type) {
+		case Type:
+			collectFreeEffectRowVarsInType(b, free, visited)
+		case *Scheme:
+			schemeVars := make(map[string]bool)
+			for _, v := range b.RowVars {
+				schemeVars[v] = true
+			}
+			local := make(map[string]bool)
+			collectFreeEffectRowVarsInType(b.Type, local, visited)
+			for v := range local {
+				if !schemeVars[v] {
+					free[v] = true
+				}
+			}
+		}
+	}
+	if env.parent != nil {
+		env.parent.collectFreeEffectRowVars(free)
+	}
+}

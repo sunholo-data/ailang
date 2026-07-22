@@ -338,7 +338,7 @@ func runPostTypeCheckPhases(
 
 	// Validate effects (M-SOUNDNESS)
 	// Compare declared effects from Surface AST with required effects from Core AST
-	if err := ValidateEffects(unit.Surface, unit.Core, typeChecker.CoreTI); err != nil {
+	if err := ValidateEffects(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.DeclaredLambdaEffectRow); err != nil {
 		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
 	}
 

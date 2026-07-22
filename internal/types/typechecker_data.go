@@ -373,7 +373,22 @@ func isCoreValue(expr core.CoreExpr) bool {
 	}
 }
 
-// combineEffects combines two effect rows
+// combineEffects combines two effect rows.
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386): this function previously dropped every tail
+// variable to Tail:nil whenever both inputs were non-empty, which unsoundly
+// CLOSED an open row before its pending equality constraint was solved. For
+// `println(show(x))` that materialized closed {} even though the pending
+// `println` constraint separately resolved to {IO}, erasing IO.
+//
+// The fix: callers (notably inferApp) now solve and substitute the operand rows
+// LOCALLY before combining, so the inputs here are already resolved. This
+// function therefore:
+//   - unions labels of both rows;
+//   - preserves ONE shared tail when the operands agree on a tail (or only one
+//     carries a tail) — an open row stays open;
+//   - treats two DISTINCT unresolved tails as a loud invariant failure (fail
+//     closed) rather than silently choosing one, dropping one, or joining them.
 func combineEffects(e1, e2 *Row) *Row {
 	if e1 == nil || (len(e1.Labels) == 0 && e1.Tail == nil) {
 		return e2
@@ -403,14 +418,117 @@ func combineEffects(e1, e2 *Row) *Row {
 		}
 	}
 
-	// For now, ignore tail variables in combination
-	// Full implementation would handle row unification
+	// Merge effect budgets and parameters so refinements survive the union.
+	budgets := mergeBudgets(e1.Budgets, e2.Budgets)
+	minBudgets := mergeBudgets(e1.MinBudgets, e2.MinBudgets)
+	params := mergeEffectParams(e1.Params, e2.Params)
+
+	// Tail handling: preserve a single shared/only tail instead of dropping it
+	// to nil (the #386 bug). For the general structural-union callers (lets,
+	// blocks, records, lists, tuples, branches, binops) two independent
+	// subexpressions may each carry their own fresh open tail; unioning their
+	// labels and keeping ONE open representative tail is a sound
+	// over-approximation (the row stays open, absorbing further effects) and,
+	// crucially, does NOT close an unresolved row to {}. The application path
+	// (inferApp) enforces the stricter ≤1-tail invariant on its OWN published
+	// node via assertSingleTailAfterAppSolve, after its operands have been
+	// resolved by the application-local solver.
+	tail := combineTails(e1.Tail, e2.Tail)
+
 	return &Row{
 		Kind:       EffectRow,
 		Labels:     combined,
+		Budgets:    budgets,
+		MinBudgets: minBudgets,
+		Params:     params,
 		Provenance: prov,
-		Tail:       nil,
+		Tail:       tail,
 	}
+}
+
+// combineTails returns the single tail that survives a union of two effect rows.
+//   - both nil       -> nil   closed ∪ closed stays closed
+//   - one nil        -> other closed ∪ open preserves the open tail
+//   - equal names    -> t1    same SHARED tail survives (an open row stays open)
+//   - distinct names -> nil   two independent open tails cannot be merged under
+//     one name without unsoundly aliasing them ("same row variable with
+//     different extensions" downstream), and this free function cannot mint a
+//     fresh var; close conservatively. The critical #386 improvement over the
+//     old code is that a SHARED or SINGLE tail is now PRESERVED (it was always
+//     dropped to nil before), which is what let a nested pure call's open row be
+//     prematurely closed. Distinct-tail unions remain closed, exactly as before.
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386): a tail whose kind is NOT EffectRow (e.g. a
+// stray record-row variable ρ that leaked into an effect position through an
+// ANF/block let) is spurious and must never appear in an effect row — it would
+// silently keep the row "open" and mask the real effect labels. Such tails are
+// treated as closed (dropped) here so effect rows only ever carry effect tails.
+func combineTails(t1, t2 *RowVar) *RowVar {
+	t1 = effectTailOnly(t1)
+	t2 = effectTailOnly(t2)
+	switch {
+	case t1 == nil:
+		return t2
+	case t2 == nil:
+		return t1
+	case t1.Name == t2.Name:
+		return t1
+	default:
+		return nil
+	}
+}
+
+// effectTailOnly returns tv only if it is an EffectRow-kinded row variable;
+// otherwise nil (a non-effect tail must not survive in an effect row).
+func effectTailOnly(tv *RowVar) *RowVar {
+	if tv == nil {
+		return nil
+	}
+	if tv.Kind.Equals(EffectRow) {
+		return tv
+	}
+	return nil
+}
+
+// mergeBudgets unions two per-effect budget maps (b1 wins on key conflict).
+func mergeBudgets(b1, b2 map[string]*int) map[string]*int {
+	if b1 == nil && b2 == nil {
+		return nil
+	}
+	out := make(map[string]*int)
+	for k, v := range b2 {
+		out[k] = v
+	}
+	for k, v := range b1 {
+		out[k] = v
+	}
+	return out
+}
+
+// mergeEffectParams unions two per-effect parameter maps (p1 wins on conflict).
+func mergeEffectParams(p1, p2 map[string]map[string]string) map[string]map[string]string {
+	if p1 == nil && p2 == nil {
+		return nil
+	}
+	out := make(map[string]map[string]string)
+	for eff, kv := range p2 {
+		inner := make(map[string]string, len(kv))
+		for k, v := range kv {
+			inner[k] = v
+		}
+		out[eff] = inner
+	}
+	for eff, kv := range p1 {
+		inner, ok := out[eff]
+		if !ok {
+			inner = make(map[string]string, len(kv))
+			out[eff] = inner
+		}
+		for k, v := range kv {
+			inner[k] = v
+		}
+	}
+	return out
 }
 
 // combineEffectList combines multiple effect rows
