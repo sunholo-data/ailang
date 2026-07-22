@@ -116,8 +116,12 @@ x-goog-api-key: <AI Studio key>
 The rest of the flow (sandbox, multi-turn, artifact extraction) reuses the
 existing bridge. This is the buildable-now path.
 
-**Fallback path — Vertex two-phase (blocked, future).** If/when `agent_config`
-ships to Vertex/ADC (V4), the equivalent is a two-phase create-then-interact:
+**Fallback path — Vertex two-phase (blocked; not proven coming).** As of
+2026-07-22 the Vertex "interact with agents" doc specifies the agent by NAME ONLY
+(no `agent_config` shown), and the ADC endpoint rejects `agent_config` (V4). No
+Google statement says whether model selection will reach Vertex/ADC — treat this
+path as unproven, not scheduled. If it does land, the equivalent is a two-phase
+create-then-interact:
 `POST aiplatform.../agents {base_agent, agent_config:{type,model}}` → interact
 against the returned agent id → cleanup. Keep this behind the capability preflight
 so the executor prefers whichever front door is available.
