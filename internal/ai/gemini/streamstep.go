@@ -47,7 +47,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 		ai.WarnOnceCacheHintIgnored("gemini", "no_explicit_api")
 	}
 
-	apiReq, buildErr := buildStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	reasoning, rErr := ai.ResolveReasoning(req, "gemini", req.Model)
+	if rErr != nil {
+		return nil, rErr
+	}
+
+	apiReq, buildErr := buildStepRequest(req, reasoning)
 	if buildErr != nil {
 		return nil, buildErr
 	}

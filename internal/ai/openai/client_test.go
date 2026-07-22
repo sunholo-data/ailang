@@ -538,34 +538,35 @@ func TestClient_Generate_ResponsesAPI_WithReasoningTokens(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_ResponsesAPI_ReasoningEffort(t *testing.T) {
-	var receivedEffort string
-
+// TestClient_Generate_ResponsesAPI_ReasoningEffort_FailLoud captures the
+// M-AI-REASONING-EFFORT (v0.31.0) behavior change: the legacy untyped
+// Options["reasoning_effort"] is now validated + capability-gated by the shared
+// resolver BEFORE dispatch. An unregistered model with an explicit effort is
+// rejected (ErrUnsupportedReasoningEffort) rather than silently passed through
+// to the wire — no HTTP request is made. (The old test asserted the pre-v0.31.0
+// pass-through and is intentionally replaced per no-backward-compat policy.)
+func TestClient_Generate_ResponsesAPI_ReasoningEffort_FailLoud(t *testing.T) {
+	hit := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var reqBody responsesRequest
-		json.NewDecoder(r.Body).Decode(&reqBody)
-		if reqBody.Reasoning != nil {
-			receivedEffort = reqBody.Reasoning.Effort
-		}
-
-		resp := responsesResponse{
-			Output: []responsesOutputItem{
-				{Type: "message", Role: "assistant", Content: []responsesContent{{Type: "output_text", Text: "ok"}}},
-			},
-		}
-		json.NewEncoder(w).Encode(resp)
+		hit = true
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
 	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
-	client.Generate(context.Background(), &ai.Request{
-		Model:      "test",
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "test", // NOT capability-registered
 		UserPrompt: "test",
 		Options:    map[string]any{"reasoning_effort": "high"},
 	})
-
-	if receivedEffort != "high" {
-		t.Errorf("reasoning_effort = %q, want high", receivedEffort)
+	if err == nil {
+		t.Fatalf("expected fail-loud error for explicit effort on unregistered model, got nil")
+	}
+	if !errors.Is(err, ai.ErrUnsupportedReasoningEffort) {
+		t.Fatalf("error = %v, want ErrUnsupportedReasoningEffort", err)
+	}
+	if hit {
+		t.Fatalf("HTTP request was dispatched; validation must occur before dispatch")
 	}
 }
 

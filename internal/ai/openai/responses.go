@@ -13,7 +13,7 @@ import (
 
 // generateResponses uses the Responses API (/v1/responses).
 // This is used for codex models that support autonomous operation and reasoning.
-func (c *Client) generateResponses(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoning ai.ReasoningDecision) (*ai.Response, error) {
 	// Build input array with developer/user roles
 	var input []responsesInput
 
@@ -43,12 +43,15 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request) (*ai.Re
 	}
 	apiReq.MaxTokens = maxTokens
 
-	// Set reasoning effort from options (default: medium)
+	// Set reasoning effort. The legacy Options["reasoning_effort"] parsing has
+	// moved into the shared resolver (ai.ResolveReasoning), which validates the
+	// value before we reach here. When no reasoning control is supplied
+	// (ReasoningNone) we preserve the historical implicit "medium" block exactly
+	// — the sole compatibility default. A resolved qualitative effort replaces
+	// it with the requested value.
 	effort := "medium"
-	if req.Options != nil {
-		if e, ok := req.Options["reasoning_effort"].(string); ok {
-			effort = e
-		}
+	if reasoning.Kind == ai.ReasoningEffortKind {
+		effort = reasoning.Effort
 	}
 	apiReq.Reasoning = &responsesReasoning{Effort: effort}
 

@@ -130,7 +130,15 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	)
 	defer span.End()
 
-	resp, err := c.generateChat(ctx, req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling/dispatch.
+	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	if rErr != nil {
+		span.RecordError(rErr)
+		span.SetStatus(codes.Error, rErr.Error())
+		return nil, rErr
+	}
+
+	resp, err := c.generateChat(ctx, req, reasoning)
 	if err != nil {
 		span.SetAttributes(
 			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),

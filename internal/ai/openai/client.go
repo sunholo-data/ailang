@@ -77,6 +77,13 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 	apiType := c.detectAPIType(req.Model)
 
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling or
+	// dispatch. Fail loud on any invalid/unsupported/conflicting control.
+	reasoning, rErr := ai.ResolveReasoning(req, "openai", req.Model)
+	if rErr != nil {
+		return nil, rErr
+	}
+
 	// Start OTEL span
 	ctx, span := telemetry.StartSpan(ctx, openaiTracer, "openai.generate",
 		trace.WithAttributes(
@@ -93,9 +100,9 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	switch apiType {
 	case APIResponses:
-		resp, err = c.generateResponses(ctx, req)
+		resp, err = c.generateResponses(ctx, req, reasoning)
 	default:
-		resp, err = c.generateChat(ctx, req)
+		resp, err = c.generateChat(ctx, req, reasoning)
 	}
 
 	if err != nil {

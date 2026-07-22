@@ -53,6 +53,13 @@ type AIError struct {
 	Code      string // one of the Code* constants above
 	Message   string // human-readable, may include provider name verbatim
 	Retryable bool   // caller's retry hint
+
+	// wrapped is an optional underlying sentinel error (unexported so it does
+	// not affect the JSON/record wire shape, which stays {code, message,
+	// retryable}). Set by the reasoning resolver so callers can errors.Is the
+	// typed reasoning sentinels while errors.As still yields *AIError. nil for
+	// all pre-existing AIError constructions.
+	wrapped error
 }
 
 // Error implements the error interface so AIError can flow through Go error
@@ -68,6 +75,16 @@ func (e *AIError) Error() string {
 // at every call site.
 func NewAIError(code, message string, retryable bool) *AIError {
 	return &AIError{Code: code, Message: message, Retryable: retryable}
+}
+
+// Unwrap returns the optional underlying sentinel error so callers can match
+// wrapped reasoning sentinels with errors.Is. Returns nil for AIErrors that
+// were not constructed with a wrapped sentinel (all pre-existing call sites).
+func (e *AIError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.wrapped
 }
 
 // IsRetryable returns the canonical retryable hint for an AIError code.

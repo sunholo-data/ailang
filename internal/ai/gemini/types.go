@@ -86,6 +86,20 @@ type generationConfig struct {
 	ResponseMimeType   string           `json:"responseMimeType,omitempty"`   // "application/json" for structured output
 	ResponseSchema     *json.RawMessage `json:"responseSchema,omitempty"`     // JSON Schema for structured output
 	ResponseModalities []string         `json:"responseModalities,omitempty"` // ["TEXT"], ["IMAGE"], etc.
+	// ThinkingConfig carries the reasoning-token budget (M-AI-REASONING-EFFORT,
+	// v0.31.0). Nil (omitempty) keeps the wire body byte-identical to
+	// pre-v0.31.0 when no reasoning control is requested.
+	ThinkingConfig *thinkingConfig `json:"thinkingConfig,omitempty"`
+}
+
+// thinkingConfig is Gemini's reasoning-budget control. thinkingBudget:0 exactly
+// disables thinking; a positive value caps thinking tokens. Emitted only for
+// capability-registered models via the shared reasoning resolver.
+//
+// ThinkingBudget uses a non-omitempty pointer so a resolved budget of exactly 0
+// ("off"/exact disablement) is emitted as thinkingBudget:0 rather than dropped.
+type thinkingConfig struct {
+	ThinkingBudget *int `json:"thinkingBudget"`
 }
 
 // generateResponse represents the response from generateContent API.

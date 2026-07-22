@@ -44,7 +44,13 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		ai.WarnOnceCacheHintIgnored("gemini", "no_explicit_api")
 	}
 
-	apiReq, err := buildStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	reasoning, rErr := ai.ResolveReasoning(req, "gemini", req.Model)
+	if rErr != nil {
+		return nil, rErr
+	}
+
+	apiReq, err := buildStepRequest(req, reasoning)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +99,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 // buildStepRequest translates req.Messages + req.Tools into the Gemini
 // generateContent body. It also lifts req.SystemPrompt to the top-level
 // systemInstruction field (system-role messages in req.Messages are skipped).
-func buildStepRequest(req *ai.Request) (*generateRequest, error) {
+func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generateRequest, error) {
 	out := &generateRequest{
 		Contents: make([]content, 0, len(req.Messages)),
 	}
@@ -252,7 +258,7 @@ func buildStepRequest(req *ai.Request) (*generateRequest, error) {
 	}
 
 	// Generation config: same defaults as Generate (omit zero values).
-	if req.MaxTokens > 0 || req.Temperature > 0 {
+	if req.MaxTokens > 0 || req.Temperature > 0 || reasoningBudgetSet(reasoning) {
 		out.GenerationConfig = &generationConfig{}
 		if req.MaxTokens > 0 {
 			out.GenerationConfig.MaxOutputTokens = req.MaxTokens
@@ -260,6 +266,7 @@ func buildStepRequest(req *ai.Request) (*generateRequest, error) {
 		if req.Temperature > 0 {
 			out.GenerationConfig.Temperature = req.Temperature
 		}
+		applyReasoning(out.GenerationConfig, reasoning)
 	}
 
 	return out, nil

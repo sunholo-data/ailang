@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,16 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// asAIError extracts the *ai.AIError from a resolver error for span recording.
+// ai.ResolveReasoning always returns a *ai.AIError on failure.
+func asAIError(err error) *ai.AIError {
+	var e *ai.AIError
+	if errors.As(err, &e) {
+		return e
+	}
+	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
+}
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). It translates req.Messages + req.Tools into
@@ -49,7 +60,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	)
 	defer span.End()
 
-	apiReq, aiErr := buildStepRequest(req)
+	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
+	reasoning, rErr := ai.ResolveReasoning(req, "anthropic", req.Model)
+	if rErr != nil {
+		recordSpanError(span, asAIError(rErr))
+		return nil, rErr
+	}
+
+	apiReq, aiErr := buildStepRequest(req, reasoning)
 	if aiErr != nil {
 		recordSpanError(span, aiErr)
 		return nil, aiErr
@@ -167,6 +185,10 @@ type stepMessagesRequest struct {
 	// switch the wire format to SSE. omitempty keeps the non-streaming
 	// Step request bit-for-bit identical to pre-v0.18.7 wire bytes.
 	Stream bool `json:"stream,omitempty"`
+	// Thinking carries the extended-thinking budget (M-AI-REASONING-EFFORT,
+	// v0.31.0). Nil (omitempty) keeps the Step/StreamStep wire body
+	// byte-identical to pre-v0.31.0 when no reasoning control is requested.
+	Thinking *thinkingBlock `json:"thinking,omitempty"`
 }
 
 type stepMessage struct {
@@ -208,7 +230,7 @@ type stepImageSource struct {
 // buildStepRequest translates an ai.Request into the Anthropic Messages API
 // request body. Returns *ai.AIError on translation failure (e.g. malformed
 // JSON in a ToolCall.Arguments).
-func buildStepRequest(req *ai.Request) (*stepMessagesRequest, *ai.AIError) {
+func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMessagesRequest, *ai.AIError) {
 	maxTokens := req.MaxTokens
 	if maxTokens <= 0 {
 		maxTokens = 4096
@@ -217,6 +239,9 @@ func buildStepRequest(req *ai.Request) (*stepMessagesRequest, *ai.AIError) {
 	apiReq := &stepMessagesRequest{
 		Model:     req.Model,
 		MaxTokens: maxTokens,
+	}
+	if tb := thinkingBlockFor(reasoning); tb != nil {
+		apiReq.Thinking = tb
 	}
 	systemField, err := systemFieldFromPrompt(req.SystemPrompt, req.CacheBreakpoints)
 	if err != nil {
