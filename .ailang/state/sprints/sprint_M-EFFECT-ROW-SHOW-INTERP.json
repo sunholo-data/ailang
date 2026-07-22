@@ -6,7 +6,9 @@
   "target_version": "v0.31.0",
   "priority": "P0",
   "risk_level": "high",
-  "github_issues": [386],
+  "github_issues": [
+    386
+  ],
   "design_doc": "design_docs/planned/v0_31_0/m-effect-row-show-interp.md",
   "sprint_plan": "design_docs/planned/v0_31_0/m-effect-row-show-interp-sprint-plan.md",
   "worktree": ".claude/worktrees/effect-row-386",
@@ -52,7 +54,9 @@
       "description": "Repair application effect composition via the application-local equality solver. inferApp checkpoints, solves TypeEq/RowEq locally, substitutes funcNode/argNodes/resultType/argEffects/callee-effectRow BEFORE combineEffectList, and REPLACES (not deletes) solved equalities with flattened a~T forms in ctx.constraints. combineEffects stops dropping tails to nil. NO EffectJoin; row_unification.go unchanged. Files: typechecker_functions.go, typechecker_data.go, inference_helpers.go.",
       "estimated_loc": 220,
       "estimated_hours": 5,
-      "dependencies": ["M1_PIN_UNSOUND_MECHANISMS"],
+      "dependencies": [
+        "M1_PIN_UNSOUND_MECHANISMS"
+      ],
       "acceptance_criteria": [
         "AC1: inferApp checkpoints ctx.constraints, solves the application-subtree TypeEq/RowEq locally (reusing SolveConstraints' Unifier/RowUnifier), does NOT call whole-context SolveConstraints from inferApp",
         "AC2: accumulated substitution applied to funcNode, argNodes, resultType, every argEffect, and callee effectRow before constructing TypedApp.EffectRow",
@@ -74,7 +78,9 @@
       "description": "Section B: replace RowVars: []string{} // Simplified for now with full-type free-row-var collection + HM env side condition, so imported row-polymorphic combinators get fresh row vars per use. Files: typechecker_functions.go (generalizeWithConstraints), inference.go, inference_helpers.go, env.go (FreeRowVars), types_v2.go (InstantiateWithConstraints tests), iface/builder.go (generalizeType/canonicalizeScheme/applyLabelsFromAST/restoreNestedEffectRow), json.go/cache key only if scheme shape changes. std/list.ail NOT edited.",
       "estimated_loc": 200,
       "estimated_hours": 4,
-      "dependencies": ["M2_APP_LOCAL_SOLVER_REPLACE_NOT_DELETE"],
+      "dependencies": [
+        "M2_APP_LOCAL_SOLVER_REPLACE_NOT_DELETE"
+      ],
       "acceptance_criteria": [
         "AC1: free row vars collected across the ENTIRE type: outer fn effect rows, nested callback effect rows, rows nested in collections/tuples/records/ADTs",
         "AC2: quantify rows free in type but NOT free in env (HM side condition mirroring type-var withhold); base-env row vars tracked separately so enclosing-binder rows are never generalized; deterministic sorted RowVars",
@@ -94,7 +100,9 @@
       "description": "Un-quarantine the four #386 effect-row examples and run full validation. Leave mcp_tools.ail quarantined (separate Option[string] issue). Files: scripts/verify_examples.go, examples/manifest.json.",
       "estimated_loc": 40,
       "estimated_hours": 3,
-      "dependencies": ["M3_QUANTIFY_FRESHEN_ROW_VARS"],
+      "dependencies": [
+        "M3_QUANTIFY_FRESHEN_ROW_VARS"
+      ],
       "acceptance_criteria": [
         "AC1: remove the four #386 entries (effectful_list.ail, effectful_list_t7_chain_combinators.ail, stream_multi_source.ail, stream_process_source.ail) from scripts/verify_examples.go skippedExamples; keep mcp_tools.ail quarantined",
         "AC2: flip those four files' examples/manifest.json status broken->working, removing stale broken metadata; mcp_tools.ail stays quarantined",
@@ -104,7 +112,8 @@
       "passes": true,
       "started": "2026-07-22",
       "completed": "2026-07-22",
-      "notes": "All 4 #386 examples removed from scripts/verify_examples.go skippedExamples and flipped to 'working' in examples/manifest.json (broken metadata removed; statistics block updated working 176->180, broken 8->4, coverage 0.9575). mcp_tools.ail STAYS quarantined (Option[string], separate). Live ailang check clean on all 4. make test PASS, make lint PASS (1 pre-existing unused const geminiPassThreshold unrelated to this sprint), make verify-examples PASS (203/0), validate_manifest --ci in-sync, make check-boundaries OK. DEVIATION: to make stream_multi_source/stream_process_source pass, std/stream.ail's event-handler callbacks (selectEvents/onEvent/withStream/withSSE) were made row-polymorphic ((StreamEvent)->bool ! {e}, propagating ! {Stream,e}) — they were declared with a PURE callback, so an effectful handler could not be passed. This is a correctness fix to a row-polymorphic API (NOT std/list.ail); it does not change runtime behavior. Two non-quarantined examples (ai_stream_openai.ail main handler, xml_lenient.ail main) had genuine undeclared-IO that the soundness fix correctly exposed — fixed by adding the missing ! {IO} annotations (the design's 'intentional change: effects previously erased now surface')."
+      "notes": "All 4 #386 examples removed from scripts/verify_examples.go skippedExamples and flipped to 'working' in examples/manifest.json (broken metadata removed; statistics block updated working 176->180, broken 8->4, coverage 0.9575). mcp_tools.ail STAYS quarantined (Option[string], separate). Live ailang check clean on all 4. make test PASS, make lint PASS (1 pre-existing unused const geminiPassThreshold unrelated to this sprint), make verify-examples PASS (203/0), validate_manifest --ci in-sync, make check-boundaries OK. DEVIATION: to make stream_multi_source/stream_process_source pass, std/stream.ail's event-handler callbacks (selectEvents/onEvent/withStream/withSSE) were made row-polymorphic ((StreamEvent)->bool ! {e}, propagating ! {Stream,e}) — they were declared with a PURE callback, so an effectful handler could not be passed. This is a correctness fix to a row-polymorphic API (NOT std/list.ail); it does not change runtime behavior. Two non-quarantined examples (ai_stream_openai.ail main handler, xml_lenient.ail main) had genuine undeclared-IO that the soundness fix correctly exposed — fixed by adding the missing ! {IO} annotations (the design's 'intentional change: effects previously erased now surface'). ROUND-2 (executor r2): round-1's binary was stale when M4 was written — the committed state still FAILED `make verify-examples` (stream_multi_source/stream_process_source: 'incompatible closed rows r1 [] r2 [IO]'; ai_stream_openai: same). Root cause: the outer-effect-row restoration in internal/iface/builder.go (applyLabelsFromAST + the RowVars recompute) only fired for a PURE row-var annotation (isPureRowVarEffects), so std/stream.ail's MIXED `! {Stream, e}` combinators (selectEvents/onEvent/withStream/withSSE) never had `e` re-restored/quantified and an effectful handler could not flow through; separately std/ai/streaming.ail re-exported onEvent with the OLD non-row-poly `(StreamEvent)->bool ! {Stream}`. FIX (preferred path, NO re-quarantine): (1) replaced isPureRowVarEffects with hasRowVarEffects (fires when the annotation contains AT LEAST ONE row var — pure `! {e}` OR mixed `! {Stream, e}`; effectRowFromAST already preserves the concrete Stream label as a row entry AND the row var as the tail) at BOTH call sites; (2) made std/ai/streaming.ail's onEvent row-polymorphic `(StreamEvent)->bool ! {e}` -> `unit ! {Stream, e}`. After fix: all 4 design examples + ai_stream_openai live-check clean; make verify-examples exit 0 (182 modules, 0 drift); make test / make lint / make check-boundaries all green; #386 accept+reject matrices (TestEffectRowShowInterp_MustAccept/MustReject) still PASS.",
+      "round2_executor": true
     }
   ],
   "conflict_surface": {
@@ -143,5 +152,24 @@
     "examples/runnable/stream_multi_source.ail",
     "examples/runnable/stream_process_source.ail"
   ],
-  "final_gates": ["make test", "make lint", "make verify-examples", "go run ./scripts/validate_manifest.go --ci"]
+  "final_gates": [
+    "make test",
+    "make lint",
+    "make verify-examples",
+    "go run ./scripts/validate_manifest.go --ci"
+  ],
+  "round2": {
+    "executor": "sprint-executor r2",
+    "date": "2026-07-22",
+    "path": "preferred fix (no fallback)",
+    "changes": [
+      "internal/iface/builder.go: isPureRowVarEffects -> hasRowVarEffects (broaden outer-row restoration to mixed {Concrete,rowvar} annotations) at both call sites",
+      "std/ai/streaming.ail: onEvent made row-polymorphic ! {e} -> ! {Stream, e}"
+    ],
+    "verify_examples": "exit 0 (182 modules, 0 drift)",
+    "make_test": "pass",
+    "make_lint": "pass",
+    "make_check_boundaries": "pass",
+    "requarantined": []
+  }
 }
