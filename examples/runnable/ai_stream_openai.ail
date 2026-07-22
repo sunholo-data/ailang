@@ -32,8 +32,11 @@
 module examples/runnable/ai_stream_openai
 
 import std/ai/streaming (openaiCompatStream, onEvent, runEventLoop, disconnect)
+
 import std/stream (StreamEvent, SSEData, Closed, StreamError)
+
 import std/io (println)
+
 import std/result (Result, Ok, Err)
 
 -- A messages array as a JSON string. v1 callers serialize manually;
@@ -44,11 +47,13 @@ export func messagesJson() -> string {
 
 -- Event handler: print SSE data events, stop on close or [DONE] sentinel.
 -- Returns false to stop the event loop, true to continue.
-export func handler(event: StreamEvent) -> bool {
+export func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
-    SSEData(eventType, data) =>
-      if data == "[DONE]" then false
-      else { _io_print(data); _io_print("\n"); true },
+    SSEData(eventType, data) => if data == "[DONE]" then false else {
+      _io_print(data)
+      _io_print("\n");
+      true
+    },
     Closed(_, _) => false,
     StreamError(_) => false,
     _ => true
@@ -56,13 +61,12 @@ export func handler(event: StreamEvent) -> bool {
 }
 
 export func main() -> () ! {AI, Stream, Net, IO} {
-  let result = openaiCompatStream("openai-stream-demo", "gpt-4o-mini", messagesJson()) in
-  match result {
+  let result = openaiCompatStream("openai-stream-demo", "gpt-4o-mini", messagesJson(())) in match result {
     Ok(conn) => {
-      println("connected; streaming...");
-      onEvent(conn, handler);
-      runEventLoop(conn);
-      disconnect(conn);
+      println("connected; streaming...")
+      onEvent(conn, handler)
+      runEventLoop(conn)
+      disconnect(conn)
       println("done")
     },
     Err(_) => println("stream failed (provider not registered? check ailang.toml)")

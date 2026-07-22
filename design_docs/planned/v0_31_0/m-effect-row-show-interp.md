@@ -336,31 +336,31 @@ After implementation, rerun `ailang check` directly on:
 
 ### M1 — Pin the two unsound mechanisms (2–3h)
 
-- [ ] Add E2E reproducer matrix and must-reject lost-`IO` tests.
-- [ ] Add scheme/interface assertions showing missing row quantification.
-- [ ] Add non-`show` nested-pure-call reproducer.
+- [x] Add E2E reproducer matrix and must-reject lost-`IO` tests.
+- [x] Add scheme/interface assertions showing missing row quantification.
+- [x] Add non-`show` nested-pure-call reproducer.
 
 ### M2 — Repair application effect composition (4–5h)
 
-- [ ] Resolve and substitute application effect rows locally before union.
-- [ ] Prove no deferred join or solved application equality escapes `inferApp`.
-- [ ] Remove tail-dropping behavior from `combineEffects`.
-- [ ] Preserve budgets, params, provenance, and deterministic ordering.
-- [ ] Make `println(show(x))` infer `IO` and fail when undeclared.
+- [x] Resolve and substitute application effect rows locally before union.
+- [x] Prove no deferred join or solved application equality escapes `inferApp`.
+- [x] Remove tail-dropping behavior from `combineEffects`.
+- [x] Preserve budgets, params, provenance, and deterministic ordering.
+- [x] Make `println(show(x))` infer `IO` and fail when undeclared.
 
 ### M3 — Quantify and freshen row variables (3–4h)
 
-- [ ] Traverse complete types for free row variables.
-- [ ] Apply the HM environment side condition to rows.
-- [ ] Preserve row quantifiers through iface/cache serialization.
-- [ ] Verify each combinator use receives fresh rows.
+- [x] Traverse complete types for free row variables.
+- [x] Apply the HM environment side condition to rows.
+- [x] Preserve row quantifiers through iface/cache serialization.
+- [x] Verify each combinator use receives fresh rows.
 
 ### M4 — Restore examples and validate (3–4h)
 
-- [ ] Remove the four effect-row files from `scripts/verify_examples.go` `skippedExamples`.
-- [ ] Change their `examples/manifest.json` status from `broken` to `working` and remove stale `broken` metadata.
-- [ ] Leave `mcp_tools.ail` quarantined as the separate `Option[string]` issue.
-- [ ] Run focused tests, full tests/lint, example verification, and manifest validation.
+- [x] Remove the four effect-row files from `scripts/verify_examples.go` `skippedExamples`.
+- [x] Change their `examples/manifest.json` status from `broken` to `working` and remove stale `broken` metadata.
+- [x] Leave `mcp_tools.ail` quarantined as the separate `Option[string]` issue.
+- [x] Run focused tests, full tests/lint, example verification, and manifest validation.
 
 **Total:** 12–16 hours (approximately 1.5–2 days).
 
@@ -386,20 +386,20 @@ After implementation, rerun `ailang check` directly on:
 
 ## Acceptance Criteria
 
-- [ ] `ailang check` accepts the minimal #386 reproducer.
-- [ ] `ailang check` accepts pure-then-effectful and effectful-then-effectful repeated combinator uses in either source order.
-- [ ] `ailang check` rejects an unannotated function containing `println(show(x))` and reports missing `IO`.
-- [ ] `println(intToStr(x))` follows the same sound behavior, proving no `show` special case; its fixture imports `std/string (intToStr)`.
-- [ ] `std/list` exported schemes quantify their effect row variables, and repeated instantiations are fresh.
-- [ ] No unresolved effect tail is silently converted to a closed row by effect combination.
-- [ ] No `EffectJoin` representation exists or reaches `RowUnifier.UnifyRows`; application tests prove every published row is ordinary and has at most one tail.
-- [ ] Existing row-unification, nested-interface-effect, type-class constraint survival, and effect non-subsumption tests pass.
-- [ ] `examples/runnable/effectful_list.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/effectful_list_t7_chain_combinators.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/stream_multi_source.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/stream_process_source.ail` passes and is un-quarantined.
-- [ ] `examples/runnable/mcp_tools.ail` remains explicitly quarantined/out of scope until its `Option[string]` migration is fixed.
-- [ ] `make test`, `make lint`, `make verify-examples`, and manifest CI validation pass with no new quarantines.
+- [x] `ailang check` accepts the minimal #386 reproducer.
+- [x] `ailang check` accepts pure-then-effectful and effectful-then-effectful repeated combinator uses in either source order.
+- [x] `ailang check` rejects an unannotated function containing `println(show(x))` and reports missing `IO`.
+- [x] `println(intToStr(x))` follows the same sound behavior, proving no `show` special case; its fixture imports `std/string (intToStr)`.
+- [x] `std/list` exported schemes quantify their effect row variables, and repeated instantiations are fresh.
+- [x] No unresolved effect tail is silently converted to a closed row by effect combination.
+- [x] No `EffectJoin` representation exists or reaches `RowUnifier.UnifyRows`; application tests prove every published row is ordinary and has at most one tail.
+- [x] Existing row-unification, nested-interface-effect, type-class constraint survival, and effect non-subsumption tests pass.
+- [x] `examples/runnable/effectful_list.ail` passes and is un-quarantined.
+- [x] `examples/runnable/effectful_list_t7_chain_combinators.ail` passes and is un-quarantined.
+- [x] `examples/runnable/stream_multi_source.ail` passes and is un-quarantined.
+- [x] `examples/runnable/stream_process_source.ail` passes and is un-quarantined.
+- [x] `examples/runnable/mcp_tools.ail` remains explicitly quarantined/out of scope until its `Option[string]` migration is fixed.
+- [x] `make test`, `make lint`, `make verify-examples`, and manifest CI validation pass with no new quarantines.
 
 ## Axiom Compliance
 

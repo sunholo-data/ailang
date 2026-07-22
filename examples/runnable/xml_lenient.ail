@@ -8,26 +8,24 @@
 module examples/runnable/xml_lenient
 
 import std/xml (parse, parseLenient, sanitizeXml, getText)
+
 import std/io (println)
 
-export func main() -> () {
-  let dirty = "<r><p>Apex Consulting & Partners</p></r>";
-
+export func main() -> () ! {IO} {
+  let dirty = "<r><p>Apex Consulting & Partners</p></r>"
   -- Strict parse rejects the bare '&'
   let strict = match parse(dirty) {
     Ok(_) => "strict: unexpected Ok",
     Err(_) => "strict: rejected (as expected)"
-  };
-  println(strict);
-
+  }
+  println(strict)
   -- Lenient parse recovers the document
   match parseLenient(dirty) {
-    Ok(doc) => println("lenient: ${getText(doc)}"),
-    Err(msg) => println("lenient error: ${msg}")
-  };
-
+    Ok(doc) => println(concat_String("lenient: ", show(getText(doc)))),
+    Err(msg) => println(concat_String("lenient error: ", show(msg)))
+  }
   -- sanitizeXml is exposed for streaming parsers that sanitize before their
   -- own parse call (parseFold / parseElements).
-  let raw = "R&D a=1&b=2 &amp; &#123;";
-  println("sanitized: ${sanitizeXml(raw)}")
+  let raw = "R&D a=1&b=2 &amp; &#123;"
+  println(concat_String("sanitized: ", show(sanitizeXml(raw))))
 }
