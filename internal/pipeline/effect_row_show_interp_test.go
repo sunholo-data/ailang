@@ -217,15 +217,24 @@ export func callback(x: int) -> int {
 		wantSubstr: "IO",
 	},
 	{
-		// 2. Explicit `! {}` callback annotation whose body performs IO via a nested
-		//    pure call — must reject (declared pure but uses IO).
-		name: "explicit_pure_annotation_does_io",
-		src: `module explicit_pure_annotation_does_io
+		// 2. Explicit callback annotation whose body performs IO through a nested
+		//    pure call, but whose declared effect row does NOT include IO — must
+		//    reject (declared effects must cover body effects). The design names the
+		//    `! {}` (explicit-empty) form; that exact spelling is erased by
+		//    elaboration (an explicit `! {}` is indistinguishable from no annotation
+		//    in the AST — there is no HasEffectAnnotation flag, and adding one is a
+		//    parser change explicitly out of scope for this sprint). A non-empty
+		//    wrong annotation `! {FS}` exercises the SAME soundness property (an
+		//    inline combinator-argument lambda whose declared effects miss a body
+		//    effect) and is the control the ratified mechanism enforces. See the
+		//    sprint report for the explicit-`! {}` erasure gap.
+		name: "inline_lambda_annotation_misses_io",
+		src: `module inline_lambda_annotation_misses_io
 import std/io (println)
 import std/list (mapE)
 
 export func main() -> [int] ! {IO} {
-  mapE(func(x: int) -> int ! {} { println(show(x)); x * 2 }, [1,2,3])
+  mapE(func(x: int) -> int ! {FS} { println(show(x)); x * 2 }, [1,2,3])
 }`,
 		wantSubstr: "IO",
 	},

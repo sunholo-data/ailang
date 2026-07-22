@@ -174,10 +174,62 @@ func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
 		}
 		newRet = restoreNestedEffectRow(newRet, fd.ReturnType)
 	}
+
+	// M-EFFECT-ROW-SHOW-INTERP (#386) Section B / M3-AC3: restore the OUTER
+	// function's effect row from the AST's declared effects, at the same boundary
+	// that already restores nested callback effect rows — but ONLY when the outer
+	// declaration is a pure ROW VARIABLE (`! {e}`, row-polymorphic), never when it
+	// names concrete effects. The type checker infers a FRESH outer row name (e.g.
+	// ρ10) that has drifted from the source-level row variable (`e`) still present
+	// on the callback parameter, so callback and outer no longer share the same
+	// name. For a combinator like mapE — `(a)->b ! {e}, xs -> [b] ! {e}` — this
+	// restores the shared `e` in BOTH positions, so it generalizes to ONE
+	// quantified row var and is freshly instantiated per use.
+	//
+	// We deliberately do NOT touch functions whose outer row names concrete
+	// effects (e.g. `! {SharedMem}`): rebuilding those from the AST would discard
+	// the checker's inferred tail/extension and can make an unrelated callback and
+	// the outer row collide ("same row variable with different extensions").
+	outerEffectRow := fn.EffectRow
+	if isPureRowVarEffects(fd.Effects) {
+		outerEffectRow = effectRowFromAST(fd.Effects)
+	}
+
 	return &types.TFunc2{
 		Params:    newParams,
-		EffectRow: fn.EffectRow,
+		EffectRow: outerEffectRow,
 		Return:    newRet,
+	}
+}
+
+// isPureRowVarEffects reports whether an AST effect annotation is exactly a
+// single row variable (`! {e}`) with no concrete effect labels — the shape of a
+// row-polymorphic combinator's outer effect. M-EFFECT-ROW-SHOW-INTERP (#386).
+func isPureRowVarEffects(effects []ast.EffectAnnotation) bool {
+	if len(effects) != 1 {
+		return false
+	}
+	return effects[0].IsRowVar
+}
+
+// effectRowFromAST builds an effect *types.Row from AST effect annotations,
+// preserving a row-variable tail by its SOURCE name (so the same `e` used on a
+// callback and the outer function stays alpha-equivalent). Shared by the outer
+// and nested effect-row restoration paths. M-EFFECT-ROW-SHOW-INTERP (#386).
+func effectRowFromAST(effects []ast.EffectAnnotation) *types.Row {
+	labels := make(map[string]types.Type)
+	var tail *types.RowVar
+	for _, e := range effects {
+		if e.IsRowVar {
+			tail = &types.RowVar{Name: e.Name, Kind: types.EffectRow}
+		} else {
+			labels[e.Name] = types.TUnit
+		}
+	}
+	return &types.Row{
+		Kind:   types.EffectRow,
+		Labels: labels,
+		Tail:   tail,
 	}
 }
 
@@ -313,6 +365,19 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		// this restores them for serialisation. Non-function schemes are unchanged.
 		if fd, ok := funcDecls[name]; ok && scheme != nil {
 			scheme.Type = applyLabelsFromAST(scheme.Type, fd)
+			// M-EFFECT-ROW-SHOW-INTERP (#386) M3-AC3/AC5: when label restoration
+			// renamed the outer effect row back to its source row variable (only
+			// for a pure row-var `! {e}` outer annotation — the mapE-style shared
+			// `e`), the scheme's RowVars computed before restoration are stale.
+			// Recompute them ONLY in that case so the callback+outer `e` is
+			// quantified as ONE variable and freshly instantiated per use; all
+			// other schemes keep exactly the quantifiers generalization produced
+			// (recomputing them unconditionally regressed row-polymorphic functions
+			// with concrete outer effects, e.g. std/sem's `! {SharedMem}`, into
+			// "same row variable with different extensions").
+			if isPureRowVarEffects(fd.Effects) {
+				scheme.RowVars = types.FreeEffectRowVarNames(scheme.Type)
+			}
 		}
 
 		// Determine purity (for now, assume pure unless marked otherwise)

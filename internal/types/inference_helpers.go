@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 )
@@ -169,6 +170,54 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 	}
 }
 
+// solveLocalEqualities solves ONLY the TypeEq/RowEq constraints in the suffix
+// ctx.constraints[from:], starting from a fresh substitution, using the SAME
+// Unifier/RowUnifier as SolveConstraints. It returns the accumulated
+// substitution WITHOUT mutating ctx.constraints.
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386) Section A: inferApp uses this to resolve the
+// equality constraints an application subtree just added (notably the callee's
+// funcType ~ expectedFuncType equality that binds the callee's effect row)
+// BEFORE combining effect rows. This makes `show` resolve to closed {} and
+// `println` to closed {IO} so their union is {IO}, instead of combineEffects
+// prematurely dropping an unresolved open-row tail to closed {}.
+//
+// Class constraints are NOT solved here (they are handled at the normal
+// generalization boundary); only equality constraints are processed so that no
+// join representation is ever created and RowUnifier.UnifyRows only sees
+// ordinary *Row values.
+func (ctx *InferenceContext) solveLocalEqualities(from int) (Substitution, error) {
+	sub := make(Substitution)
+	if from < 0 {
+		from = 0
+	}
+	for _, c := range ctx.constraints[from:] {
+		switch constraint := c.(type) {
+		case TypeEq:
+			var err error
+			sub, err = ctx.unifier.Unify(
+				ApplySubstitution(sub, constraint.Left),
+				ApplySubstitution(sub, constraint.Right),
+				sub,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+			}
+		case RowEq:
+			var err error
+			sub, err = ctx.unifier.rowUnifier.UnifyRows(
+				constraint.Left,
+				constraint.Right,
+				sub,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
+			}
+		}
+	}
+	return sub, nil
+}
+
 // SolveConstraints solves all collected constraints
 func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
 	sub := make(Substitution)
@@ -271,6 +320,101 @@ func collectFreeRowVars(r *Row, free map[string]bool) {
 			}
 		}
 	}
+}
+
+// collectFreeEffectRowVarsInType walks a COMPLETE type tree and records the name
+// of every free EffectRow-kinded row variable it finds: outer function effect
+// rows, nested callback function effect rows, and rows nested inside collections,
+// tuples, maps, records, and type applications (ADTs).
+//
+// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalizeWithConstraints uses this
+// to quantify a scheme's free effect-row variables so each imported
+// row-polymorphic combinator use (mapE/filterE/foldlE/flatMapE/forEachE) receives
+// FRESH row variables. The existing collectFreeRowVars only inspected a single
+// row's tail and record labels — it never descended into function types, so the
+// combinator callback/outer effect rows were missed.
+func collectFreeEffectRowVarsInType(t Type, free map[string]bool, visited map[Type]bool) {
+	if t == nil || visited[t] {
+		return
+	}
+	visited[t] = true
+
+	switch typ := t.(type) {
+	case *TFunc2:
+		for _, p := range typ.Params {
+			collectFreeEffectRowVarsInType(p, free, visited)
+		}
+		collectFreeEffectRowVarsInType(typ.Return, free, visited)
+		if typ.EffectRow != nil {
+			collectFreeEffectRowVarsInRow(typ.EffectRow, free, visited)
+		}
+	case *TList:
+		collectFreeEffectRowVarsInType(typ.Element, free, visited)
+	case *TArray:
+		collectFreeEffectRowVarsInType(typ.Element, free, visited)
+	case *TMap:
+		collectFreeEffectRowVarsInType(typ.Key, free, visited)
+		collectFreeEffectRowVarsInType(typ.Value, free, visited)
+	case *TTuple:
+		for _, e := range typ.Elements {
+			collectFreeEffectRowVarsInType(e, free, visited)
+		}
+	case *TApp:
+		collectFreeEffectRowVarsInType(typ.Constructor, free, visited)
+		for _, a := range typ.Args {
+			collectFreeEffectRowVarsInType(a, free, visited)
+		}
+	case *TRecord:
+		for _, ft := range typ.Fields {
+			collectFreeEffectRowVarsInType(ft, free, visited)
+		}
+		if typ.Row != nil {
+			collectFreeEffectRowVarsInType(typ.Row, free, visited)
+		}
+	case *TRecord2:
+		if typ.Row != nil {
+			collectFreeEffectRowVarsInRow(typ.Row, free, visited)
+		}
+	case *Row:
+		collectFreeEffectRowVarsInRow(typ, free, visited)
+	}
+}
+
+// collectFreeEffectRowVarsInRow records an EffectRow tail var and recurses into
+// the row's label types (which may themselves contain nested function/effect
+// rows). Record-row tails are intentionally NOT collected as effect vars.
+func collectFreeEffectRowVarsInRow(r *Row, free map[string]bool, visited map[Type]bool) {
+	if r == nil {
+		return
+	}
+	if r.Tail != nil && r.Tail.Kind.Equals(EffectRow) {
+		free[r.Tail.Name] = true
+	}
+	for _, lt := range r.Labels {
+		collectFreeEffectRowVarsInType(lt, free, visited)
+	}
+}
+
+// freeEffectRowVarsInType is the convenience wrapper returning the set of free
+// EffectRow-kinded row-variable names in a complete type.
+func freeEffectRowVarsInType(t Type) map[string]bool {
+	free := make(map[string]bool)
+	collectFreeEffectRowVarsInType(t, free, make(map[Type]bool))
+	return free
+}
+
+// FreeEffectRowVarNames returns the sorted set of free EffectRow-kinded
+// row-variable names in a complete type. Exported for the interface builder,
+// which recomputes a scheme's quantified row vars after restoring source-level
+// effect rows from the AST. M-EFFECT-ROW-SHOW-INTERP (#386).
+func FreeEffectRowVarNames(t Type) []string {
+	free := freeEffectRowVarsInType(t)
+	names := make([]string, 0, len(free))
+	for v := range free {
+		names = append(names, v)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // checkLinearCapture analyzes lambda for linear value capture violations

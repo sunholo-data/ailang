@@ -73,11 +73,17 @@ type CoreTypeChecker struct {
 	inferFreshCounter   int                               // M-TVAR-COLLISION-FIX: Persistent counter for InferenceContext freshCounter (prevents TVar name collisions across InferWithConstraints calls)
 	effectAnnots        map[uint64][]string               // Effect annotations from elaboration (NodeID → effects)
 	effectAnnotsFull    map[uint64][]ast.EffectAnnotation // M-CAPABILITY-BUDGETS: Full effect annotations with budgets
-	returnTypeAnnots    map[uint64]Type                   // Return type annotations from elaboration (Lambda NodeID → return type)
-	CoreTI              CoreTypeInfo                      // Core NodeID → inferred types (principal types for lowering)
-	constructorTypes    map[string]string                 // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
-	diagnosticCtorTypes map[string]string                 // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
-	adtTypeParams       map[string]int                    // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
+	// declaredLambdaEffects records the ORIGINAL source-declared effect row of
+	// each explicitly-annotated lambda (keyed by lambda NodeID), captured before
+	// inference overwrites the CoreTI effect row with resolved effects. Read by
+	// the effect validator to enforce closed inline-lambda annotations against
+	// their body effects. M-EFFECT-ROW-SHOW-INTERP (#386).
+	declaredLambdaEffects map[uint64]*Row
+	returnTypeAnnots      map[uint64]Type   // Return type annotations from elaboration (Lambda NodeID → return type)
+	CoreTI                CoreTypeInfo      // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes      map[string]string // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	diagnosticCtorTypes   map[string]string // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
+	adtTypeParams         map[string]int    // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type

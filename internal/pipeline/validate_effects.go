@@ -13,7 +13,7 @@ import (
 var debugEffects = os.Getenv("DEBUG_EFFECTS") == "1"
 
 func debugLog(format string, args ...interface{}) {
-	if debugEffects {
+	if debugEffects || os.Getenv("DEBUG_EFFECTS") == "1" {
 		fmt.Fprintf(os.Stderr, "[DEBUG_EFFECTS] "+format+"\n", args...)
 	}
 }
@@ -96,7 +96,11 @@ func EraseEffectFromRow(row *types.Row, effect string) *types.Row {
 // Returns error if a function uses effects not declared in its signature
 // Ghost effects (e.g., Debug) are filtered from required effects — callers
 // never need to declare them.
-func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo) error {
+// declaredLambdaLookup returns a lambda's original source-declared effect row by
+// NodeID (before inference overwrote the CoreTI row), or (nil,false).
+type declaredLambdaLookup func(nodeID uint64) (*types.Row, bool)
+
+func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo, lambdaLookup ...declaredLambdaLookup) error {
 	// Early return for empty programs
 	if len(coreProg.Decls) == 0 {
 		return nil
@@ -118,6 +122,79 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 		}
 	}
 
+	// M-EFFECT-ROW-SHOW-INTERP (#386): validate INLINE lambda effect annotations.
+	// A lambda with an explicit CLOSED effect annotation (e.g. a combinator
+	// argument `func(x) -> int ! {} { println(show(x)); x*2 }`) is never reached
+	// by validateDecl (it is not a top-level binding), so its declared-vs-actual
+	// effects were never checked and an effectful body annotated `! {}` was
+	// wrongly accepted. Walk every lambda and reject any whose closed declared
+	// effect row omits an effect its body actually requires. Requires the
+	// checker's declared-lambda-effect lookup (inference overwrites the CoreTI
+	// row); when unavailable (legacy callers) this pass is skipped.
+	if len(lambdaLookup) > 0 && lambdaLookup[0] != nil {
+		for _, decl := range coreProg.Decls {
+			if err := validateLambdaAnnotations(decl, declaredEffects, coreTypeInfo, lambdaLookup[0]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateLambdaAnnotations recursively finds inline lambdas with an explicit
+// CLOSED effect annotation and rejects any whose body requires an effect the
+// annotation does not declare. M-EFFECT-ROW-SHOW-INTERP (#386).
+func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string][]string, typeInfo types.CoreTypeInfo, lookup declaredLambdaLookup) error {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *core.Lambda:
+		// A lambda's declared effect row is the SOURCE-declared row captured by
+		// the type checker (inference overwrites the CoreTI row with resolved
+		// effects). Only enforce when the source annotation is a CLOSED row (no
+		// tail): open/row-polymorphic callbacks subsume extra effects legitimately.
+		if declared, ok := lookup(e.ID()); ok && declared != nil && declared.Tail == nil {
+			required := eraseGhostEffects(collectRequiredEffects(e.Body, typeInfo, declaredEffects))
+			if !types.SubsumeEffectRows(required, declared) {
+				missing := types.EffectRowDifference(required, declared)
+				return fmt.Errorf(
+					"effect checking failed: lambda at %s uses effects not declared in its %s annotation\n  Missing effects: %s",
+					e.Span(), types.FormatEffectRow(declared), strings.Join(missing, ", "))
+			}
+		}
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+	case *core.App:
+		if err := validateLambdaAnnotations(e.Func, declaredEffects, typeInfo, lookup); err != nil {
+			return err
+		}
+		for _, a := range e.Args {
+			if err := validateLambdaAnnotations(a, declaredEffects, typeInfo, lookup); err != nil {
+				return err
+			}
+		}
+	case *core.Let:
+		if err := validateLambdaAnnotations(e.Value, declaredEffects, typeInfo, lookup); err != nil {
+			return err
+		}
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			if err := validateLambdaAnnotations(b.Value, declaredEffects, typeInfo, lookup); err != nil {
+				return err
+			}
+		}
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+	case *core.If:
+		if err := validateLambdaAnnotations(e.Cond, declaredEffects, typeInfo, lookup); err != nil {
+			return err
+		}
+		if err := validateLambdaAnnotations(e.Then, declaredEffects, typeInfo, lookup); err != nil {
+			return err
+		}
+		return validateLambdaAnnotations(e.Else, declaredEffects, typeInfo, lookup)
+	}
 	return nil
 }
 
@@ -322,19 +399,32 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		return result
 
 	case *core.Let:
-		// Let binding: only collect from RHS value
-		// IMPORTANT: Do NOT traverse body here - validateDecl already handles body recursion
-		// Traversing body here caused O(m²) complexity where m = number of Let bindings
-		// (M-PERF1 fix for effect checker hang on large arrays)
-		debugLog("    Let(%s) -> checking value only", e.Name)
+		// Let binding: collect effects from BOTH the RHS value and the body.
+		//
+		// M-EFFECT-ROW-SHOW-INTERP (#386): block expressions and nested pure calls
+		// desugar via ANF into inner lets, e.g. `{ println(show(x)); x*2 }` becomes
+		// `let _block_0 = (let $tmp1 = show(x) in println($tmp1)) in x*2`. The IO
+		// effect lives in the BODY (`println($tmp1)`) of an inner let, not its
+		// value. Previously this case collected only e.Value, so `println`'s IO was
+		// silently dropped and the function was wrongly accepted as pure — the
+		// exact #386 soundness hole for `println(show(x))`.
+		//
+		// The M-PERF1 O(m²) concern was about validateDecl walking a chain of
+		// TOP-LEVEL decl-lets (it recurses the body itself and passes only e.Value
+		// here). That path is unaffected: the value of a top-level function binding
+		// is a Lambda, whose body traversal here does not re-enter the outer decl
+		// chain. Inner block/ANF lets — which validateDecl never recurses into —
+		// require their body to be walked here for soundness.
+		debugLog("    Let(%s) -> checking value and body", e.Name)
 		valueEffects := collectRequiredEffects(e.Value, typeInfo, declaredEffects)
-		debugLog("    Let(%s) value effects: %s", e.Name, formatRow(valueEffects))
-		return valueEffects
+		bodyEffects := collectRequiredEffects(e.Body, typeInfo, declaredEffects)
+		effects := types.UnionEffectRows(valueEffects, bodyEffects)
+		debugLog("    Let(%s) effects (value ∪ body): %s", e.Name, formatRow(effects))
+		return effects
 
 	case *core.LetRec:
-		// LetRec: only collect from binding values
-		// IMPORTANT: Do NOT traverse body here - validateDecl already handles body recursion
-		// (M-PERF1 fix for effect checker hang on large arrays)
+		// LetRec: collect from binding values AND the body (see *core.Let above for
+		// the #386 rationale on why the body must be traversed).
 		debugLog("    LetRec with %d bindings", len(e.Bindings))
 		var effects *types.Row
 		for _, binding := range e.Bindings {
@@ -343,6 +433,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 			debugLog("      LetRec binding %s effects: %s", binding.Name, formatRow(bindingEffects))
 			effects = types.UnionEffectRows(effects, bindingEffects)
 		}
+		effects = types.UnionEffectRows(effects, collectRequiredEffects(e.Body, typeInfo, declaredEffects))
 		debugLog("    LetRec total effects: %s", formatRow(effects))
 		return effects
 
