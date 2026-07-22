@@ -712,7 +712,12 @@ models:
 
   # Google Gemini 3.1 Flash Lite (released March 2026)
   gemini-3-1-flash-lite:
-    api_name: "gemini-3.1-flash-lite-preview"
+    # 2026-07-21: was "gemini-3.1-flash-lite-preview", which now 404s on Vertex —
+    # the model went GA and dropped the -preview suffix. Any explicit
+    # `--models gemini-3-1-flash-lite` run was failing. Audited all google
+    # api_names at the same time: only this one had undocumented drift
+    # (gemini-3-pro's 404 is already documented as RETIRED below).
+    api_name: "gemini-3.1-flash-lite"
     provider: "google"
     description: "Gemini 3.1 Flash Lite — ultra-cheap same-gen sibling of 3.1 Pro"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
@@ -762,13 +767,27 @@ models:
   # legacy gemini-cli/gemini-3-flash on the v0.20.0 baseline (avg $1.79 vs
   # $0.11 per run; 93.5% of cost is input-token re-send across many turns).
   #
-  # Entry is kept for explicit `--models gemini-3-5-flash` invocations and is
-  # NOT added to agent_suite / benchmark_suite / extended_suite / dev_models.
+  # The exclusion above is AGENT-MODE ONLY: not in agent_suite, and not run
+  # through the managed_agents path in any suite.
   # Re-evaluate when Google ships either (a) a tools-compatible cache mode,
   # (b) static-prefix caching for system_instruction + tool definitions, or
   # (c) cachedContentTokenCount exposed in /interactions usage payloads.
-  # Standard-mode (direct Vertex generateContent) for gemini-3-5-flash is
-  # UNAFFECTED and remains in the standard baseline (88.2% AILANG).
+  #
+  # STANDARD mode (direct Vertex generateContent) is UNAFFECTED by all of the
+  # above. Opt-in only as of 2026-07-21: gemini-3-6-flash took the extended_suite
+  # Flash slot on a tier-parity + recency basis (see that annotation). 3.5 is
+  # retained as the longitudinal comparison point and is the stronger model on
+  # frontier by an unproven ~6pp (32/48 vs 29/48 at N=3, p~0.25).
+  # ⚠️  2026-07-21 correction: this block previously read "NOT added to
+  # agent_suite / benchmark_suite / extended_suite / dev_models" while ALSO
+  # claiming standard mode "remains in the standard baseline". Those two
+  # statements contradicted each other, and the first one won in practice —
+  # the model had drifted out of every suite, so an agent-mode cost problem
+  # silently removed its standard-mode coverage too. Do not re-merge the two:
+  # agent-mode exclusion must not be restated as a blanket suite exclusion.
+  # benchmark_suite / dev_models still exclude it (gemini-3-1-pro holds the
+  # Google flagship slot; see the extended_suite annotation for the matched
+  # core/stretch/frontier numbers behind that split).
   gemini-3-5-flash:
     api_name: "gemini-3.5-flash"
     provider: "google"
@@ -812,6 +831,138 @@ models:
       core agent runs vs $5 for the same set on gemini-cli). For one-off
       validation, explicit invocation works:
         ailang eval-suite --agent --models gemini-3-5-flash --benchmarks ...
+
+  # Google Gemini 3.6 Flash (released July 21, 2026)
+  # STATUS: access verified, smoke gate PASSED, PROMOTED to extended_suite 2026-07-21.
+  # Not in benchmark_suite (gemini-3-1-pro holds the Google flagship slot), not in
+  # dev_models (gemini-3-flash is the cheap dev model), not in agent_suite.
+  #
+  # Gate summary (standard mode, --langs ailang, N=1):
+  #   tier      3-flash(incumbent)  3-5-flash   3-6-flash(candidate)
+  #   smoke     -                   22/23       22/23
+  #   core      19/19  ($0.47)      19/19       19/19  ($1.26)
+  #   frontier   7/16  ($0.78)      12/16       9/16   ($2.71)
+  #
+  # Why not promoted: smoke AND core are SATURATED for the whole Flash family
+  # (all three tie), so neither tier can rank them — only `--tier frontier`
+  # separates them. Against the actual suite incumbent gemini-3-flash this is a
+  # core tie at 2.7x the cost => "core tie at higher cost, keep the incumbent".
+  #
+  # vs gemini-3-5-flash — SETTLED AT N=3 (2026-07-21, 96 frontier runs):
+  #   pass 1: 3.5=10/16  3.6=10/16
+  #   pass 2: 3.5=10/16  3.6= 9/16
+  #   pass 3: 3.5=12/16  3.6=10/16
+  #   TOTAL:  3.5=32/48 (66.7%) $9.77   3.6=29/48 (60.4%) $6.77
+  # Per-benchmark (of 3 attempts each): 6 benchmarks favour 3.5, 3 favour 3.6,
+  # 7 tie. A sign test on the 9 that differ (6-3) is p~0.25 — NOT significant.
+  # So 3.6 is nominally ~6pp weaker but NOT statistically distinguishable, while
+  # being 31% CHEAPER and using 28% fewer thinking tokens (506k vs 703k).
+  # No truncation on either model (finish=length: 0/96), so the 65536 ceiling
+  # is adequate and is not confounding the comparison.
+  #
+  # ⚠️  RETRACTED: the earlier N=1 claim that 3.6 "lost contract_sorted_merge,
+  # parse_prec_climb, ssa_constant_fold; won none" is WRONG. At N=3,
+  # parse_prec_climb is 3/3 for BOTH, and 3.6 actually WINS ssa_constant_fold
+  # (3/3 vs 2/3), quine (2/3 vs 1/3) and stream_lcg_topk (3/3 vs 2/3).
+  # The real split is a genuine cost/quality trade, not a regression.
+  #
+  # NOTE: neither model has a `--tier stretch` measurement for 3.6, and stretch
+  # is what release baselines actually run. Measure that before any swap of the
+  # extended_suite Flash slot.
+  gemini-3-6-flash:
+    api_name: "gemini-3.6-flash"
+    provider: "google"
+    description: "Gemini 3.6 Flash - successor to 3.5 Flash, same input price with 17% cheaper output"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # VERIFIED empirically 2026-07-21 against the Vertex global endpoint, not guessed:
+    # 65536 ACCEPTED; 131072 REJECTED ("supported range is from 1 to 65535").
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.0015     # $1.50 per 1M = $0.0015 per 1K
+      output_per_1k: 0.0075    # $7.50 per 1M = $0.0075 per 1K (thinking billed as output)
+    notes: |
+      Google's newest Flash model (released July 21, 2026), successor to Gemini 3.5 Flash.
+      1M token input context, 64K max output (65535 hard ceiling, verified via API rejection).
+      Pricing: $1.50/$7.50 per 1M — input unchanged vs 3.5 Flash, output DOWN from $9.00
+      (-17%). Source: ai.google.dev/gemini-api/docs/pricing (Google first-party, not a blog).
+
+      ⚠️  REASONING MODEL — thinks by default. Probed 2026-07-21 with NO reasoning
+      params on a bare prompt: thoughtsTokenCount=739 vs candidatesTokenCount=600, i.e.
+      55% of billed output was thinking. Per Google's pricing page, thinking tokens bill
+      at the OUTPUT rate, so cost projections must use (output + thoughts), and expect
+      roughly 2x the completion tokens of a non-thinking peer. Thinking is left ON —
+      a thinking-tuned model with thinking suppressed is not the model we would be gating.
+      max_output_tokens is set at the declared ceiling (65536) so a long thinking phase
+      cannot silently guillotine the answer (the GLM-5.2 truncation lesson).
+
+      Access verification (2026-07-21): POST to the Vertex global endpoint on project
+      ailang-dev returned HTTP 200, modelVersion "gemini-3.6-flash", finishReason STOP.
+      GA name — there is no gemini-3.6-flash-preview (that name 404s), unlike the 3.x
+      preview-suffixed entries above.
+
+      Standard mode (direct Vertex generateContent): ✅ ready.
+      Agent mode: ❌ NOT wired. The 3.5 Flash agent path goes through Vertex Managed
+      Agents under the public agent name "antigravity-preview-05-2026"; no equivalent
+      agent name has been verified for 3.6, so no agent_cli is declared here rather than
+      guessing one. Also note the 3.5 Flash agent-mode cost caveat above (caching is
+      disabled whenever tools/system_instruction are present) applies to this family.
+
+  # Google Gemini 3.5 Flash Lite (released July 21, 2026, alongside 3.6 Flash)
+  # NOTE the version skew: the July 2026 pair is "Flash 3.6" + "Flash 3.5 LITE".
+  # There is no gemini-3.6-flash-lite (404 on Vertex, probed 2026-07-21).
+  # STATUS: access verified, suite promotion DECLINED (2026-07-21).
+  #
+  # Gate summary (standard mode, --langs ailang, N=1), vs the suite incumbent:
+  #   tier      gemini-3-flash(incumbent)   gemini-3-5-flash-lite
+  #   smoke     -                           21/23  ($0.21)
+  #   core      19/19  ($0.47)              14/19  ($0.20)
+  #   frontier   7/16  ($0.78)               1/16  ($0.19)
+  #
+  # Verdict: it is ~2.3x cheaper than the incumbent and burns ZERO thinking
+  # tokens (0 across all 58 gate runs), but it COLLAPSES as difficulty rises —
+  # 5 benchmarks worse on core and 1/16 vs 7/16 on frontier (dominant failure
+  # mode: compile_error, i.e. it stops being able to write valid AILANG).
+  # Cheap-but-can't-code is not a useful suite slot, so gemini-3-flash stays.
+  # Smoke failures were binary_tree_sum (genuine) + dense_operator_program
+  # (the known-bad benchmark the sonnet anchor also fails).
+  #
+  # Keep as the opt-in FLOOR model: best current choice when a task is easy and
+  # volume/cost dominates, or as the cheap arm in a thinking-vs-no-thinking A/B.
+  gemini-3-5-flash-lite:
+    api_name: "gemini-3.5-flash-lite"
+    provider: "google"
+    description: "Gemini 3.5 Flash Lite - cheapest current-gen Gemini; NO default thinking overhead"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # VERIFIED empirically 2026-07-21: 65536 ACCEPTED, 131072 REJECTED.
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
+      output_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
+    notes: |
+      Cheapest current-generation Gemini (released July 21, 2026).
+      $0.30/$2.50 per 1M — 5x cheaper input / 3x cheaper output than 3.6 Flash,
+      and cheaper than the suite incumbent gemini-3-flash ($0.50/$3.00).
+      Source: ai.google.dev/gemini-api/docs/pricing (Google first-party).
+
+      ✅ DOES NOT THINK BY DEFAULT — this is the headline property. Probed
+      2026-07-21 with no reasoning params on the same prompt used for 3.6 Flash:
+      usageMetadata contained NO thoughtsTokenCount field at all (vs 739 thinking
+      tokens for 3.6 Flash on the identical prompt). This matters because thinking
+      bills at the OUTPUT rate, and thinking cost is exactly why the 3.5 Flash
+      generation was never promoted into the suites: on --tier frontier,
+      gemini-3-5-flash burned 215,540 thinking tokens vs 156,446 for the cheaper
+      gemini-3-flash incumbent. A no-thinking Lite sidesteps that failure mode.
+
+      Access verification (2026-07-21): Vertex global endpoint, project ailang-dev,
+      HTTP 200, modelVersion "gemini-3.5-flash-lite". GA name — the -preview
+      suffixed form 404s.
+
+      Standard mode: ✅ ready. Agent mode: ❌ not wired (no agent_cli declared;
+      no agent name verified for this model rather than guessing one).
 
   # =============================================================================
   # OPENCODE HARNESS MODELS
@@ -2478,6 +2629,22 @@ extended_suite:
     # Narrow N=1 win — kept sonnet-4-6 alongside as the longitudinal anchor, not a replacement.
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
   - "gemini-3-1-pro"    # Google flagship (Feb 2026)
+  - "gemini-3-6-flash"  # Google newest Flash (Jul 2026) — added 2026-07-21, takes the Flash-tier
+    # slot over gemini-3-5-flash. Matched head-to-head (same command, same day, thinking-inclusive):
+    #   smoke 22/23 = 22/23 | core 19/19 = 19/19 | stretch 20/21 = 20/21 (both fail only
+    #   emit_exact_bytes_varied) | frontier N=3: 3.5 32/48 (66.7%) vs 3.6 29/48 (60.4%)
+    # TIED on every tier release baselines run. 3.5 is nominally +6pp on frontier but a sign test
+    # on the 9 differing benchmarks (6-3) is p~0.25 — NOT significant. 3.6 is the newer model,
+    # 31% cheaper on frontier and uses 28% fewer thinking tokens, so it takes the slot for
+    # new-release tracking (same rationale as gpt5-6-luna above).
+    # ⚠️  HONEST CAVEAT: the 31% saving is a FRONTIER number. On stretch — which is what release
+    # baselines actually run — the two are within 3% ($1.88 vs $1.94), so this swap is roughly
+    # cost-NEUTRAL for baselines. It is justified by recency + tier parity, not by big savings.
+    # If frontier ever becomes a routine baseline tier, revisit: 3.5's edge there is unproven but
+    # was directionally consistent (led or tied all 3 passes).
+    # NOTE: gemini-3-5-flash's ONLY exclusion was agent-mode (managed-agents caching makes it
+    # $1.79/run); standard mode was never the problem, and it had drifted into no suite at all.
+    # It remains opt-in via `--models gemini-3-5-flash` as the longitudinal comparison point.
   - "gemini-3-flash"    # Google fast + cheap (Dec 2025)
   - "or-glm-5-2"        # z.ai GLM-5.2 — replaced or-glm-5-1 2026-07-19 (Mark): with 64K
                         # thinking headroom 5.2 beats 5.1 on AILANG (80% vs 77%), Python

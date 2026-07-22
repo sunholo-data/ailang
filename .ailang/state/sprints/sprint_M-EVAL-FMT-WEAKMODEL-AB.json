@@ -10,7 +10,7 @@
   ],
   "language_surface_change": false,
   "gpu_gated": true,
-  "notes": "Human green-lit (Mark, 'Green light weakmodel ab'). NOT re-quorumed. A/B of the LANDED format_ail.sh PostToolUse fmt hook (ON vs OFF) with weak model claude-haiku-4-5. KEY FINDING: hook ON/OFF toggle does NOT exist in the harness today (agent_runner_streaming.go passes no --settings, writes no .claude/settings.json) \u2014 it must be BUILT (M2a), modeled on internal/eval_harness/microrag_mode.go. GPU (rig.lock) touches ONLY M2b execution + optional local arm; M1/M2a/M3/M4 are no-GPU headless-safe.",
+  "notes": "Human green-lit (Mark, 'Green light weakmodel ab'). NOT re-quorumed. A/B of the LANDED format_ail.sh PostToolUse fmt hook (ON vs OFF) with weak model claude-haiku-4-5. KEY FINDING: hook ON/OFF toggle does NOT exist in the harness today (agent_runner_streaming.go passes no --settings, writes no .claude/settings.json) — it must be BUILT (M2a), modeled on internal/eval_harness/microrag_mode.go. GPU (rig.lock) touches ONLY M2b execution + optional local arm; M1/M2a/M3/M4 are no-GPU headless-safe.",
   "velocity": {
     "target_loc_per_day": 250,
     "estimated_total_loc": 320,
@@ -56,7 +56,7 @@
       "passes": true,
       "started": "2026-07-21",
       "completed": "2026-07-21",
-      "notes": "DONE. FmtHookMode (on/off) + ParseFmtHookMode + ResolvedState + Apply + SettingsJSON in internal/eval_harness/fmt_hook_mode.go, unit-tested (fmt_hook_mode_test.go, 6 tests, race-clean). AgentBenchmarkConfig.FmtHook field wired from new -fmt-hook on|off flag (default off) at cmd/ailang/eval_suite.go. KEY CORRECTION vs plan: the ACTIVE suite path is RunAgentBenchmarkWithExecutor (agent_runner_multi.go), NOT the two legacy runners the plan named \u2014 the claude executor sets cmd.Dir=workspace and loads .claude/settings.json naturally (internal/executor/claude:165), so ON writes the workspace settings there (no --settings needed on the active path); --settings ALSO wired into both legacy runners (agent_runner.go, agent_runner_streaming.go) for completeness. Resolved arm banked as RunMetrics.fmt_hook_state; per-turn hook reality banked as fmt_hook_events (captured via a composed EventHandler on the active path + stream-line scan on the legacy path, keyed off the LANDED hook's own status markers). make test (targeted) + boundaries green; lint clean on all touched files (1 pre-existing warning in untouched gemini_evaluator_bridge.go). NOTE: exact stream schema for hook additionalContext could not be verified against a live haiku run (no GPU / no API in this iteration) \u2014 capture is marker-based and correct-by-construction but its real-world hit rate is verified in M2b."
+      "notes": "DONE. FmtHookMode (on/off) + ParseFmtHookMode + ResolvedState + Apply + SettingsJSON in internal/eval_harness/fmt_hook_mode.go, unit-tested (fmt_hook_mode_test.go, 6 tests, race-clean). AgentBenchmarkConfig.FmtHook field wired from new -fmt-hook on|off flag (default off) at cmd/ailang/eval_suite.go. KEY CORRECTION vs plan: the ACTIVE suite path is RunAgentBenchmarkWithExecutor (agent_runner_multi.go), NOT the two legacy runners the plan named — the claude executor sets cmd.Dir=workspace and loads .claude/settings.json naturally (internal/executor/claude:165), so ON writes the workspace settings there (no --settings needed on the active path); --settings ALSO wired into both legacy runners (agent_runner.go, agent_runner_streaming.go) for completeness. Resolved arm banked as RunMetrics.fmt_hook_state; per-turn hook reality banked as fmt_hook_events (captured via a composed EventHandler on the active path + stream-line scan on the legacy path, keyed off the LANDED hook's own status markers). make test (targeted) + boundaries green; lint clean on all touched files (1 pre-existing warning in untouched gemini_evaluator_bridge.go). NOTE: exact stream schema for hook additionalContext could not be verified against a live haiku run (no GPU / no API in this iteration) — capture is marker-based and correct-by-construction but its real-world hit rate is verified in M2b."
     },
     {
       "id": "M2B_MATCHED_EXECUTION",
@@ -100,7 +100,7 @@
     },
     {
       "id": "M4_VERDICT",
-      "description": "State whether the hook helps / is neutral / harms / is unevaluable (last if formatter refusal/no-op prevented treatment delivery \u2014 distinguish benefit from delivery failure). Publish positive/negative/null evidence; feed verdict back to mission bookkeeping issue; do NOT change adoption policy off a single benchmark/run. NO GPU.",
+      "description": "State whether the hook helps / is neutral / harms / is unevaluable (last if formatter refusal/no-op prevented treatment delivery — distinguish benefit from delivery failure). Publish positive/negative/null evidence; feed verdict back to mission bookkeeping issue; do NOT change adoption policy off a single benchmark/run. NO GPU.",
       "estimated_loc": 0,
       "gpu": false,
       "dependencies": [

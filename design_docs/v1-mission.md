@@ -893,6 +893,11 @@ triage evidence = log entry 10.)*
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
 
 ### Clause 2 — soundness (near-done; no new holes found in triage)
+- **issue #386 — effect-row inference regression** (added to clause-2 by the 2026-07-22 issue
+  triage, VERIFIED at HEAD: `ailang check examples/runnable/effectful_list.ail` fails closed-row
+  unification, 5 runnable examples quarantined) — show() inside effectful-lambda interpolation
+  collapses the effect row. Genuine soundness gate; needs a design doc at pick (NEW-DOC, expect
+  quorum). Est ~1.5–2d.
 - **m-check-strict-fallbacks** (now ~2d) **[DECIDED by Mark 2026-07-18 — option 2: post-name-resolution
   pass + curated known-empty-builder registry (catches `Ok(jo([]))`), warning-in-dev / hard-error at
   `check --package`; doc Status stamped UNPARKED → route to sprint-planner, no re-quorum. The historical

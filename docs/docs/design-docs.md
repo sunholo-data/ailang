@@ -12,6 +12,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-AILANG-FMT-ADOPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-adoption-sprint-plan.md)
 - [M-AILANG-FMT-ADOPTION: `ailang fmt` Adoption — Discoverability + Opt-in Harness Hooks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-adoption.md)
+- [Sprint Plan — M-AILANG-FMT-INLINE-INTERIOR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-inline-interior-sprint-plan.md)
+- [M-AILANG-FMT-INLINE-INTERIOR: Stable Multi-Line Let-Chain Comment Boundaries](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-inline-interior.md)
 - [M-AILANG-FMT-PHASE2: Phase 2 — Lossless Comment Preservation for `ailang fmt`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt-phase2.md)
 - [M-AILANG-FMT: `ailang fmt` — Canonical AILANG Source Formatter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-ailang-fmt.md)
 - [Sprint Plan: M-ARCH-BOUNDARIES (Phases 1–3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-arch-boundaries-sprint-plan.md)
@@ -27,6 +29,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-split-argument-warning.md)
 - [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-dx-tapp-trecord-unification.md)
 - [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
+- [m-fmt-properties-printer-roundtrip — Contract-Clause Printer Round-Trip Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-fmt-properties-printer-roundtrip.md)
 - [M-GEMINI-EVALUATOR-DIFF-BRIDGE: inject a sprint diff bundle into a sandboxed gemini evaluator](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-evaluator-diff-bridge.md)
 - [M-GEMINI-EXEC-PROJECT-PLUMBING: Thread GCP Project/Location Env into `ailang exec` Task Construction](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-exec-project-plumbing.md)
 - [M-GEMINI-REPO-MOUNT Phase 2 — Sprint Plan (Clone-over-egress capability)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-gemini-repo-mount-sprint-plan.md)
@@ -1312,4 +1315,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 951 design documents across 117 versions.*
+*Generated at build time. 954 design documents across 117 versions.*

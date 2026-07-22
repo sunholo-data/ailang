@@ -56,15 +56,19 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-AI-STRUCTURED-STEP — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-ai-structured-step-sprint-plan.md)
 - [M-AI-STRUCTURED-STEP — Structured output as an orthogonal option on `step`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-ai-structured-step.md)
 - [M-COMMENTS-FOR-AI-AUTHORS: measured comment semantics for an AI-first language — style guidance, first-class doc-comments, contracts-as-documentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-comments-for-ai-authors.md)
+- [PREREGISTRATION — M-EVAL-FMT-WEAKMODEL-AB](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab-prereg.md)
+- [Sprint Plan: M-EVAL-FMT-WEAKMODEL-AB](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab-sprint-plan.md)
+- [M-EVAL-FMT-WEAKMODEL-AB: measure whether the fmt hook helps a weak model author correct AILANG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab.md)
 - [M-EVAL-KIMI-K3-AGENTIC: onboard Kimi K3 as an agentic suite model (OpenRouter × motoko/pi harnesses)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-eval-kimi-k3-agentic.md)
+- [M-MEM-BUDGET-RUNTIME: Memory as a Budgeted Resource in the AILANG Runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_31_0/m-mem-budget-runtime.md)
 
 ## Planned for v0.30.0
 
-- [M-AILANG-FMT-INLINE-INTERIOR: Stable Multi-Line Let-Chain Comment Boundaries](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-inline-interior.md)
+- [Sprint Plan — M-AILANG-FMT-INLINE-INTERIOR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-inline-interior-sprint-plan.md)
 - [Sprint Plan: M-AILANG-FMT-PHASE2 — Lossless Comment Preservation for `ailang fmt`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-ailang-fmt-phase2-sprint-plan.md)
 - [M-ARCH-BOUNDARIES-EVAL-EXCLUSION-TIGHTEN: scope the `eval` bridge exception file-level](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-arch-boundaries-eval-exclusion-tighten.md)
 - [M-DIAG-PRIMITIVE-FIELD-SUGGESTIONS: Symbol-Specific Enrichment of the Primitive-Field-Access Diagnostic](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-diag-primitive-field-suggestions.md)
-- [m-fmt-properties-printer-roundtrip — Contract-Clause Printer Round-Trip Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-fmt-properties-printer-roundtrip.md)
+- [Sprint Plan — M-FMT-PROPERTIES-PRINTER-ROUNDTRIP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-fmt-properties-printer-roundtrip-sprint-plan.md)
 - [M-MISSION-ADAPTIVE-MULTIPROVIDER-ROUTING: the heterogeneous model fleet — quota-aware selection, design quorums, cross-provider executors, local-GPU lane](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-adaptive-multiprovider-routing.md)
 - [Sprint Plan — M-MISSION-AGENTIC-ROUTING (remaining slice: M1b · M2 · M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-agentic-provider-routing-sprint-plan.md)
 - [M-MISSION-AGENTIC-PROVIDER-ROUTING: enforce per-role AGENTIC cross-provider routing + right-size the roles](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_30_0/m-mission-agentic-provider-routing.md)
@@ -142,4 +146,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 101 planned features across 6 upcoming versions.*
+*Generated at build time. 105 planned features across 6 upcoming versions.*
