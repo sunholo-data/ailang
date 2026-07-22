@@ -1,11 +1,15 @@
 # M-SERVEAPI-RAW-HANDLER-MCP: `@nomcp` exclusion + opt-in `@raw` handlers over MCP
 
-**Status**: **DECIDED by Mark 2026-07-20 ("ship M1 and drop M2 fake envelope for raw MCP")** —
-**M1 SHIPS NOW as a standalone sprint** (`@nomcp` MCP-exclusion annotation; closes the live
-docparse `getKeyUsage`/`requestHistory` MCP leak; clean + unobjected both quorum rounds, no
-re-quorum). **M2 is DROPPED**: no fake request-envelope synthesis for `@raw` handlers over MCP —
-`@raw` routes simply are NOT exposed on the MCP tool surface (that IS the honest contract; both
-quorum objections dissolve with the feature). Route M1 to sprint-planner.
+**Status**: **✅ LANDED 2026-07-22 (mission iteration 78) — M1 shipped; M2 DROPPED → doc COMPLETE.**
+`@nomcp` MCP-exclusion annotation shipped as a standalone sprint (PR #452 squash `ee04f13d0`):
+planner opus → executor opus (`2d6596292`) → evaluator **sonnet** (generator≠judge) **PASS 96/100
+round 1, no defects**; dev CI green per-workflow (19 checks). Closes the live docparse
+`getKeyUsage`/`requestHistory` MCP capability leak. Diff confined to the parser annotation
+allowlist + `internal/apiserver/` — **no eval-core change** (Minimal-Frozen-Core north star). M2
+(`@raw`-over-MCP fake envelope) was **DROPPED by Mark 2026-07-20** ("ship M1 and drop M2"): `@raw`
+routes simply are NOT exposed on the MCP tool surface (the honest contract; both round-2 quorum
+objections dissolve with the feature). With M1 landed and M2 dropped, this doc is fully resolved.
+_(Prior status: DECIDED by Mark 2026-07-20; M1 clean + unobjected both quorum rounds, no re-quorum.)_
 **Target**: v0.30.0
 **Priority**: P1 (Medium) — unblocks docparse quota-hardening item 5; closes a live MCP capability leak
 **Estimated**: 2 days (M1 ~0.5d unchanged, M2 ~1.25d, docs/validation ~0.25d)
