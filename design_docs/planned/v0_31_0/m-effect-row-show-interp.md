@@ -1,6 +1,14 @@
 # M-EFFECT-ROW-SHOW-INTERP: Preserve Effect Rows Across Pure Nested Calls
 
-**Status**: Planned — **QUORUM-BLOCKED, needs human design decision** (see Quorum Review Log). The problem analysis + root causes are verified and stable; the OPEN question is the *constraint-plumbing mechanism* for the application-local solver.
+**Status**: **MECHANISM RATIFIED by Mark 2026-07-22 ("386: gemini's replace fix") → route to
+sprint-planner, NO re-quorum** (analysis settled; the quorum's R2 objection is resolved BY this
+decision). The application-local solver's constraint plumbing uses **gemini-3-1-pro's
+replacement mechanism**: solved equality constraints are NOT deleted from `ctx.constraints` —
+each is REPLACED with its flattened `a ~ T` substitution form, so the let-boundary
+`SolveConstraints` replay (which starts from a fresh substitution) re-derives identical facts and
+outer AST nodes can never be left unsubstituted. Any Section-A.3 wording that says "delete" is
+SUPERSEDED by this; the planner's plan and the sprint's regression fixtures must encode
+replace-not-delete explicitly (a delete-based implementation fails acceptance).
 **Target**: v0.31.0
 **Priority**: P0 (soundness regression / release gate)
 **Estimated**: 1.5–2 days (12–16 hours)
