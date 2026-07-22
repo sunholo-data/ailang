@@ -893,11 +893,18 @@ triage evidence = log entry 10.)*
 - m-cost-per-success-kpi (dashboard KPI flip to cost-per-verified-success + v1.0 measured baseline, 1–2d)
 
 ### Clause 2 — soundness (near-done; no new holes found in triage)
-- **issue #386 — effect-row inference regression** (added to clause-2 by the 2026-07-22 issue
-  triage, VERIFIED at HEAD: `ailang check examples/runnable/effectful_list.ail` fails closed-row
-  unification, 5 runnable examples quarantined) — show() inside effectful-lambda interpolation
-  collapses the effect row. Genuine soundness gate; needs a design doc at pick (NEW-DOC, expect
-  quorum). Est ~1.5–2d.
+- **issue #386 — effect-row inference regression** **[PARKED — needs-human-review; design doc
+  authored + quorum-blocked, iter 80 2026-07-22]** — DESIGN DOC created via codex-rotation
+  designer: `design_docs/planned/v0_31_0/m-effect-row-show-interp.md` (PR #456). Controller
+  live-verified + SHARPENED the root cause: NOT show-specific — two interacting mechanisms
+  (`combineEffects` tail-drop → nested pure call erases IO [`println(show(x))` accepted as pure];
+  `RowVars: []string{}` never generalized → repeated combinator uses collide). Proven: pure
+  `mapE(\x. x*2)` then effectful `foldlE` ALSO fails. Quorum (gemini-3-1-pro, generator≠judge)
+  REJECTED ×2: R1 EffectJoin/UnifyRows gap RESOLVED in revision; **R2 OPEN (the human decision)** —
+  how the application-local solver drains/preserves solved constraints without breaking
+  let-boundary global propagation (gemini: replace, don't delete → flattened-substitution). Parked
+  per Gate-2 bounded-quorum rule (1 revision + 1 re-quorum). **UNPARK:** Mark ratifies the
+  constraint-preservation mechanism → route straight to sprint-planner, no re-quorum. Est ~1.5–2d.
 - **m-check-strict-fallbacks** (now ~2d) **[DECIDED by Mark 2026-07-18 — option 2: post-name-resolution
   pass + curated known-empty-builder registry (catches `Ok(jo([]))`), warning-in-dev / hard-error at
   `check --package`; doc Status stamped UNPARKED → route to sprint-planner, no re-quorum. The historical
