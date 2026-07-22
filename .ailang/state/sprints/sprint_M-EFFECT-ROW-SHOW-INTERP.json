@@ -1,0 +1,147 @@
+{
+  "sprint_id": "M-EFFECT-ROW-SHOW-INTERP",
+  "title": "Preserve Effect Rows Across Pure Nested Calls (#386)",
+  "status": "in_progress",
+  "created": "2026-07-22",
+  "target_version": "v0.31.0",
+  "priority": "P0",
+  "risk_level": "high",
+  "github_issues": [386],
+  "design_doc": "design_docs/planned/v0_31_0/m-effect-row-show-interp.md",
+  "sprint_plan": "design_docs/planned/v0_31_0/m-effect-row-show-interp-sprint-plan.md",
+  "worktree": ".claude/worktrees/effect-row-386",
+  "branch": "sprint/m-effect-row-show-interp",
+  "base_commit": "a6d42a0a4",
+  "ratified_mechanism": {
+    "ratified_by": "Mark",
+    "ratified_date": "2026-07-22",
+    "no_requorum": true,
+    "no_redesign": true,
+    "pillars": [
+      "application-local equality solver (NO EffectJoin type/constraint; row_unification.go UNCHANGED; structural no-join proof + invariant test required)",
+      "constraint plumbing is REPLACE-NOT-DELETE (solved equalities replaced with flattened a~T substitution form so let-boundary SolveConstraints replay re-derives identical facts; delete-based impl FAILS acceptance; regression fixture must distinguish replace from delete at a let boundary)",
+      "Section B: generalize every free row variable in a scheme so each imported row-polymorphic use (mapE/filterE/foldlE/flatMapE/forEachE) gets FRESH row vars"
+    ]
+  },
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 550,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_PIN_UNSOUND_MECHANISMS",
+      "description": "Add RED tests pinning both defects: full 9 must-accept + 4 must-reject matrix in internal/pipeline/effect_row_show_interp_test.go (ModeCheck), the intToStr non-show reproducer, and a scheme/interface assertion showing std/list mapE/foldlE currently have EMPTY row_vars. Non-vacuity anchor: these must be RED before any fix.",
+      "estimated_loc": 180,
+      "estimated_hours": 3,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal/pipeline/effect_row_show_interp_test.go compiles and runs",
+        "9 must-accept fixtures present and currently RED (fail), incl. minimal repro, unannotated-foldlE-lambda, direct println(show(x)), println(intToStr(x)) with import std/string (intToStr), pure-mapE-then-IO-foldlE, effectful mapE then effectful filterE/second mapE, reverse order foldlE-then-mapE, two uses of same combinator with different effects, pure flatMap + top-level show + effectful foldlE",
+        "4 must-reject fixtures present; unannotated println(show(x)) case is RED now (wrongly ACCEPTED), proving the soundness hole",
+        "Scheme/interface assertion shows std/list mapE and foldlE schemes have empty row_vars (RED, flips in M3)",
+        "No production code changed in M1"
+      ],
+      "passes": true,
+      "started": "2026-07-22",
+      "completed": "2026-07-22",
+      "notes": "Added internal/pipeline/effect_row_show_interp_test.go (9 must-accept + 4 must-reject fixtures incl. minimal repro, unannotated/backslash foldlE lambda, direct show, intToStr non-show, pure-mapE-then-IO, effectful mapE+filterE, reverse order, two uses same combinator, pure flatMap control) and internal/types/row_generalization_test.go (RowVars generalization + fresh-instantiation). Confirmed RED: all 9 must-accept fail with 'incompatible closed rows ... extra labels [IO]'; unannotated_show_missing_io + explicit_pure_annotation_does_io wrongly ACCEPTED (soundness hole); RowVars_386 empty. GREEN controls stay green: genuine_missing_io_literal, fs_does_not_absorb_env, InstantiateWithConstraints_FreshRows_386. No production code touched."
+    },
+    {
+      "id": "M2_APP_LOCAL_SOLVER_REPLACE_NOT_DELETE",
+      "description": "Repair application effect composition via the application-local equality solver. inferApp checkpoints, solves TypeEq/RowEq locally, substitutes funcNode/argNodes/resultType/argEffects/callee-effectRow BEFORE combineEffectList, and REPLACES (not deletes) solved equalities with flattened a~T forms in ctx.constraints. combineEffects stops dropping tails to nil. NO EffectJoin; row_unification.go unchanged. Files: typechecker_functions.go, typechecker_data.go, inference_helpers.go.",
+      "estimated_loc": 220,
+      "estimated_hours": 5,
+      "dependencies": ["M1_PIN_UNSOUND_MECHANISMS"],
+      "acceptance_criteria": [
+        "AC1: inferApp checkpoints ctx.constraints, solves the application-subtree TypeEq/RowEq locally (reusing SolveConstraints' Unifier/RowUnifier), does NOT call whole-context SolveConstraints from inferApp",
+        "AC2: accumulated substitution applied to funcNode, argNodes, resultType, every argEffect, and callee effectRow before constructing TypedApp.EffectRow",
+        "AC3 REPLACE-NOT-DELETE: solved equalities REPLACED in ctx.constraints with flattened a~T forms (one per mapped var), NOT deleted; substituted class constraints retained",
+        "AC4: combineEffects never turns an unresolved tail into Tail:nil; unions closed rows directly, preserves one shared tail; budgets/params/provenance/deterministic ordering survive",
+        "AC5: two distinct unresolved tails after local solve = LOUD invariant failure (fail-closed), not a new row / not an implicit join",
+        "AC6 no-join structural proof: after inferApp, TypedApp.EffectRow is ordinary substituted *Row with <=1 tail; ctx.constraints has no deferred join and no un-replaced solved application equality; instrumented RowUnifier.UnifyRows sees only *Row; grep-assert no EffectJoin identifier exists",
+        "AC7 REPLACE-vs-DELETE fixture: a ModeCheck fixture where the fixed application is inside a let whose result must propagate to an OUTER node at the let boundary; PASSES under replace-not-delete, FAILS under a delete-based impl (asserts on the outer node's resolved type / downstream unify)",
+        "AC8: println(show(x)) and println(intToStr(x)) infer {IO} never {}; the unannotated-pure must-reject cases flip to correctly REJECTED with Missing effects: IO; control println(literal) rejection unchanged",
+        "row_unification.go diff is empty; effect_soundness_test.go (IO/FS/Env non-subsumption) stays green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_QUANTIFY_FRESHEN_ROW_VARS",
+      "description": "Section B: replace RowVars: []string{} // Simplified for now with full-type free-row-var collection + HM env side condition, so imported row-polymorphic combinators get fresh row vars per use. Files: typechecker_functions.go (generalizeWithConstraints), inference.go, inference_helpers.go, env.go (FreeRowVars), types_v2.go (InstantiateWithConstraints tests), iface/builder.go (generalizeType/canonicalizeScheme/applyLabelsFromAST/restoreNestedEffectRow), json.go/cache key only if scheme shape changes. std/list.ail NOT edited.",
+      "estimated_loc": 200,
+      "estimated_hours": 4,
+      "dependencies": ["M2_APP_LOCAL_SOLVER_REPLACE_NOT_DELETE"],
+      "acceptance_criteria": [
+        "AC1: free row vars collected across the ENTIRE type: outer fn effect rows, nested callback effect rows, rows nested in collections/tuples/records/ADTs",
+        "AC2: quantify rows free in type but NOT free in env (HM side condition mirroring type-var withhold); base-env row vars tracked separately so enclosing-binder rows are never generalized; deterministic sorted RowVars",
+        "AC3: explicit outer effect row restored from ast.FuncDecl.Effects at the same iface boundary that restores nested ast.FuncType.Effects, preserving source row-var name across callback+outer positions before canonical alpha-renaming",
+        "AC4: Scheme.InstantiateWithConstraints replaces each quantified effect row with a fresh EffectRow-kind RowVar at every local/imported use; two calls produce different row names (unit test)",
+        "AC5: std/list mapE/filterE/foldlE/flatMapE/forEachE ifaces expose non-empty row_vars with source e alpha-equivalent across callback+outer and freshly instantiated per use; std/list.ail unchanged",
+        "AC6: serialized/cached interface round-trip preserves RowVars",
+        "M1 empty-row_vars assertion flips GREEN; fresh-instantiation must-accept fixtures pass; nested_effects_test.go + row_unification_regression_test.go stay green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_RESTORE_EXAMPLES_VALIDATE",
+      "description": "Un-quarantine the four #386 effect-row examples and run full validation. Leave mcp_tools.ail quarantined (separate Option[string] issue). Files: scripts/verify_examples.go, examples/manifest.json.",
+      "estimated_loc": 40,
+      "estimated_hours": 3,
+      "dependencies": ["M3_QUANTIFY_FRESHEN_ROW_VARS"],
+      "acceptance_criteria": [
+        "AC1: remove the four #386 entries (effectful_list.ail, effectful_list_t7_chain_combinators.ail, stream_multi_source.ail, stream_process_source.ail) from scripts/verify_examples.go skippedExamples; keep mcp_tools.ail quarantined",
+        "AC2: flip those four files' examples/manifest.json status broken->working, removing stale broken metadata; mcp_tools.ail stays quarantined",
+        "AC3: live ailang check passes on effectful_list.ail, effectful_list_t7_chain_combinators.ail, stream_multi_source.ail, stream_process_source.ail",
+        "AC4: make test, make lint, make verify-examples, and go run ./scripts/validate_manifest.go --ci all green with NO new quarantines"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "conflict_surface": {
+    "positions_touched": [
+      "application-local equality solving in inferApp",
+      "application effect construction (substituted arg effects union substituted callee effect row)",
+      "sequential/structural effect union via combineEffects/combineEffectList (also lets/blocks, binops, lists, records, tuples, branches)",
+      "let/module generalization (generalizeWithConstraints + interface generation)",
+      "scheme instantiation (freshening quantified vars on local/imported lookup)"
+    ],
+    "must_still_work_programs": [
+      "examples/runnable/effectful_list_t1_mapE_basic.ail",
+      "examples/runnable/effectful_list_t2_filterE_bool.ail",
+      "examples/runnable/effectful_list_t3_foldlE_acc.ail",
+      "examples/runnable/effectful_list_t4_flatMapE_expand.ail",
+      "examples/runnable/effectful_list_t5_forEachE_unit.ail",
+      "examples/runnable/effectful_list_t6_pure_flatMap.ail",
+      "examples/runnable/effectful_list_t8_string_list.ail",
+      "internal/pipeline/list_element_soundness_test.go",
+      "internal/pipeline/effect_soundness_test.go",
+      "internal/types/row_unification_regression_test.go",
+      "internal/iface/nested_effects_test.go"
+    ],
+    "must_not_change": [
+      "internal/types/row_unification.go (Section A: explicitly unchanged)",
+      "std/list.ail signatures/runtime (fixtures only)",
+      "no EffectJoin type or constraint anywhere",
+      "closed-row incompatibility checks not weakened",
+      "mcp_tools.ail stays quarantined (Option[string] issue, out of scope)"
+    ]
+  },
+  "non_vacuity_guard": "Fix must ACCEPT the now-accepted programs (minimal repro + 9 variants + 4 un-quarantined examples) AND still REJECT the controls (unannotated println(show(x)) -> missing IO; explicit !{} body doing IO via nested pure call; genuine incompatible closed rows; existing IO/FS/Env/Stream/Process non-subsumption). M2-AC7 let-boundary fixture must fail under a delete-based impl. A run where controls stop rejecting is a REGRESSION, not a pass.",
+  "live_acceptance": [
+    "examples/runnable/effectful_list.ail",
+    "examples/runnable/effectful_list_t7_chain_combinators.ail",
+    "examples/runnable/stream_multi_source.ail",
+    "examples/runnable/stream_process_source.ail"
+  ],
+  "final_gates": ["make test", "make lint", "make verify-examples", "go run ./scripts/validate_manifest.go --ci"]
+}
