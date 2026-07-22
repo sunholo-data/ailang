@@ -93,10 +93,10 @@
         "Reuses existing eval banking + N-run aggregate tooling (no separate aggregator)",
         "Null result included if observed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "NO GPU. Headless-safe once M2b banks results."
+      "passes": true,
+      "started": "2026-07-22",
+      "completed": "2026-07-22",
+      "notes": "DONE (iter M3). Report: design_docs/planned/v0_31_0/m-eval-fmt-weakmodel-ab-M3-results.md; reusable helper: tools/analyze_fmt_ab.py (stdlib-only Wilson+Newcombe, re-runnable on any two arm dirs). HEADLINE = NULL (published), treatment PROVEN delivered. PRIMARY: ON 30/30 (Wilson95 [0.887,1.000]) vs OFF 29/30 (Wilson95 [0.833,0.994]); delta ON-OFF = +0.033, Newcombe95 CI [-0.083, +0.167] -- CI INCLUDES 0 and point < +0.10 threshold => NULL per prereg §6 (not H1-supported, not harm). Only non-tied benchmark = cli_args (ON 5/5 vs OFF 4/5 compile_error), per-bench CI [-0.264,+0.624] includes 0. GATE: treatment-delivery 32/32 = 100% exit-0 'formatted', 0% refusal (vs ~8% baseline); OFF banked 0 fmt_hook_events (arm-gating clean) => TRUE null, NOT void/unevaluable. prompt_version v0.16.3 identical both arms. SECONDARY: compile-stuck ON 0/30 vs OFF 1/30 (overlapping CIs); edits-to-first-green PROXY (Write+Edit count, NOT true metric) ON 1.13 vs OFF 1.23; green-stability NOT-COMPUTABLE (no per-edit typecheck stream banked). CROSS-CHECK: eval_best_of_n.py structurally can't ingest cloud-claude (harness_of() whitelists only motoko/pi/opencode -> None), so cross-checked against harness model_rollup in summary.json (ON pass_at_1=1, OFF=0.9667) -- exact agreement. Null-at-ceiling: 58/60 runs pass, hook had ~no headroom."
     },
     {
       "id": "M4_VERDICT",
