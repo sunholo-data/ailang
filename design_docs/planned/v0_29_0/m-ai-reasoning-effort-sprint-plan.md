@@ -78,5 +78,30 @@ No premise **errors** that block planning — the OpenRouter drift actually stre
 - `std/ai` `callWithReasoning(prompt, effort)` helper.
 - eval-harness requested-effort baseline column.
 
+---
+
+## Execution status (sprint-executor, 2026-07-22) — COMPLETE
+
+All 7 milestones green. One commit per milestone on `sprint/m-ai-reasoning-effort`:
+
+| M | Commit | Status | Tests (file) |
+|---|--------|--------|--------------|
+| M0 | `08e2aa935` | ✅ | `internal/ai/reasoning_hookpoints_test.go` (all 12 paths invoke resolver, zero HTTP) |
+| M1 | `a172d6dd1` | ✅ | `internal/ai/reasoning_test.go` (resolver matrix, -count=20) |
+| M2 | `c52aef5bd` | ✅ | `internal/ai/gemini/reasoning_test.go` |
+| M3 | `5927d49a2` | ✅ | `internal/ai/openai/reasoning_test.go` |
+| M4 | `4af97e8de` | ✅ | `internal/ai/anthropic/reasoning_test.go` |
+| M5 | `298cd72e3` | ✅ | `internal/ai/openrouter/reasoning_test.go` |
+| M6 | (this commit) | ✅ | CHANGELOG + sprint JSON `status:completed` + `make check-boundaries` green |
+
+**AC coverage:** all 17 satisfied network-free EXCEPT the parked live-smoke rows
+(capability table ships empty → unknown model rejects; entries added only post-M7).
+AC17 (docparse notify) intentionally deferred to the controller at finalize.
+
+**Note on commit granularity:** the resolver, 5 sentinels, capability table,
+typed field, and all 12 provider hook wirings are interdependent (they must
+compile together), so they land in the M0 foundation commit; M1–M5 commits add
+the per-layer test suites. Each commit compiles and its tests pass.
+
 SPRINT_PLAN_PATH: design_docs/planned/v0_29_0/m-ai-reasoning-effort-sprint-plan.md
 SPRINT_JSON_PATH: .ailang/state/sprints/sprint_M-AI-REASONING-EFFORT.json
