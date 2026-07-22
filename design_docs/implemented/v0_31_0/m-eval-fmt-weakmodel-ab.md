@@ -1,13 +1,21 @@
 # M-EVAL-FMT-WEAKMODEL-AB: measure whether the fmt hook helps a weak model author correct AILANG
 
-**Status**: PARKED — needs-human-review (quorum green-light) — created iter-71 (mission 2026-07-21).
-Mark 2026-07-20 — "fmt should be a real help for weaker models creating AILANG… can we do a test
-with a weak model to see if its making a difference?"; #422 directive: "test it's used by small
-model such as haiku". Quorum (gemini-3-1-pro): round-1 reject (harness-integration surface conflated
-with language-surface NONE) → designer revision resolved it; round-2 reject (missing verification
-log) → controller added the Verification log below (all paths repo-confirmed). Automated 1-revision
-budget exhausted → parked for a human green-light / re-quorum before routing to sprint-planner. Do
-NOT execute (also GPU-rig-gated) until unparked.
+**Status**: IMPLEMENTED (verdict = NULL) — all 5 milestones complete, sprint closed iter-77
+(mission 2026-07-22). **Final verdict**: NEUTRAL / true NULL, treatment proven delivered — see
+[`…-M4-verdict.md`](m-eval-fmt-weakmodel-ab-M4-verdict.md) (synthesis of the evaluated
+[`…-M3-results.md`](m-eval-fmt-weakmodel-ab-M3-results.md)). The fmt PostToolUse hook, fully delivered
+(32/32 = 100% exit-0), gave no meaningful pass-rate/convergence advantage to `claude-haiku-4-5` at
+near-ceiling (delta +0.033, Newcombe95 [−0.083, +0.167] includes 0, < +0.10 threshold). No
+adoption-policy change (hook stays opt-in). Original creation-time history below.
+
+_Original creation-time status_: PARKED — needs-human-review (quorum green-light) — created iter-71
+(mission 2026-07-21). Mark 2026-07-20 — "fmt should be a real help for weaker models creating AILANG…
+can we do a test with a weak model to see if its making a difference?"; #422 directive: "test it's
+used by small model such as haiku". Quorum (gemini-3-1-pro): round-1 reject (harness-integration
+surface conflated with language-surface NONE) → designer revision resolved it; round-2 reject (missing
+verification log) → controller added the Verification log below (all paths repo-confirmed). Automated
+1-revision budget exhausted → parked for a human green-light / re-quorum → human-greenlit + planned
+iters 73/74; M1/M2a/M2b executed iters 73–74; M3 evaluated iter-76 (PR #450); M4 verdict iter-77.
 **Target**: v0.31.x — eval infrastructure, no language surface
 **Priority**: P2
 **Estimated**: ~0.5d + eval rig time
