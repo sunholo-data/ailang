@@ -1,10 +1,20 @@
 # M-DX-PACKAGE-DOGFOODING: DX Issues Found Building AILANG Packages in AILANG
 
-**Status**: Planned
+**Status**: Implemented (2026-07-23, mission iteration 90)
 **Target**: v1.0.0
 **Priority**: P1 — these are real friction points AI agents will hit
 **Estimated**: 2-3 days
 **Source**: Discovered while building `sunholo/registry_validator` in AILANG
+
+**Landing evidence** (all three issues resolved):
+- **Issue 1 (hyphens in module paths)** — landed `7d1e4b82a` (M-BILLING DX fixes).
+- **Issue 2 (`++` string/list ambiguity)** — resolved `99f76ec7a` (M-CONCAT-DISAMBIG: `++` is
+  list-only; strings use interpolation/`concat`/`join`, with a fix-carrying diagnostic).
+- **Issue 3 / M2 (`jint`)** — landed `ceecdd0f1` (PR #467): `std/json.jint(n: int) -> Json =
+  JNumber(intToFloat(n))`, CI-guarded by `examples/runnable/json_jint.ail` + manifest, taught in
+  `prompts/v0.16.3.md` (the active embedded prompt). M1's clear-error variant was moot once M2
+  landed the convenience constructor. M3 (polymorphic `++`) was resolved as Issue 2's list-only
+  disambiguation per the doc's own v1.0 recommendation.
 
 ---
 
