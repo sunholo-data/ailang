@@ -109,6 +109,21 @@ New missions default their executor to a **non-Anthropic lane** where possible, 
 concurrent loop does not double the Anthropic burn. The evaluator must differ in provider from the
 executor (generator ≠ judge) — the skill enforces this.
 
+## Step 3.5 — Make the shared skills visible to the new checkout
+
+The mission skills live in the AILANG checkout (`.claude/skills/…`) — one copy, never forked.
+A session working in *your* repo finds them via **user-level symlinks** (edits made through them
+land in the single shared file, so every mission inherits every retro improvement):
+
+```bash
+mkdir -p ~/.claude/skills
+for s in mission-control design-doc-creator sprint-planner sprint-executor sprint-evaluator agent-inbox use-ailang; do
+  ln -s <ailang-checkout>/.claude/skills/$s ~/.claude/skills/$s
+done
+```
+
+Do NOT copy the skill files into your repo — a copy is a fork, and forks stop learning.
+
 ## Step 4 — Install the launchd job
 
 Fill the plist template and load it:
