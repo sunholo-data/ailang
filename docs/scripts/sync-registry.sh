@@ -101,6 +101,14 @@ VENDOREOF
     SHORT_NAME=$(echo "$FULL_NAME" | cut -d/ -f2)
     LATEST=$(echo "$PKG_JSON" | jq -r '.latest')
     AI_SUMMARY=$(echo "$PKG_JSON" | jq -r '.ai_summary // "No description"')
+    # Sanitize the free-text summary before injecting it into MDX. It is untrusted
+    # (comes from the published package), so a bare '<' or '{' is parsed by MDX as an
+    # opening JSX tag / expression and breaks the Docusaurus build for the WHOLE site —
+    # e.g. sunholo/motoko_ext_fmt's "(<workdir>/...)" reddened Docs-Deploy 2026-07-23.
+    #   - Body blockquote: escape '<' '>' '{' '}' to HTML entities (MDX renders them literally).
+    #   - YAML frontmatter description: escape embedded double-quotes so the scalar can't terminate early.
+    AI_SUMMARY_MDX=$(printf '%s' "$AI_SUMMARY" | sed -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/{/\&#123;/g' -e 's/}/\&#125;/g')
+    AI_SUMMARY_YAML=$(printf '%s' "$AI_SUMMARY" | sed -e 's/"/\&quot;/g')
     STABILITY=$(echo "$PKG_JSON" | jq -r '.stability // "experimental"')
     EFFECTS_RAW=$(echo "$PKG_JSON" | jq -r '.effects // [] | if length == 0 then "Pure" else join(", ") end')
     EXPORTS_COUNT=$(echo "$PKG_JSON" | jq -r '.exports | length')
@@ -115,7 +123,7 @@ VENDOREOF
     cat > "$VENDOR_DIR/$SHORT_NAME.mdx" <<PKGEOF
 ---
 title: "${FULL_NAME}"
-description: "${AI_SUMMARY}"
+description: "${AI_SUMMARY_YAML}"
 sidebar_label: "${SHORT_NAME}"
 ---
 
@@ -123,7 +131,7 @@ import PackageDetail from '@site/src/components/PackageExplorer/PackageDetail';
 
 # ${FULL_NAME}
 
-> ${AI_SUMMARY}
+> ${AI_SUMMARY_MDX}
 
 | Field | Value |
 |-------|-------|
