@@ -623,7 +623,7 @@
     },
     "v0.16.3": {
       "file": "prompts/v0.16.3.md",
-      "hash": "39d93a7926f4fa23ef0db112e1a30d51c934e23ec317a4c37b45b16f984fb153",
+      "hash": "b60348c93dd21a8ec33934c841cec87d1c57270412af0619c3227fbd497c5215",
       "description": "v0.16.2 + Formatting section teaching `ailang fmt --write`/`--check` (command usage only, no AILANG code snippet). Makes the canonical formatter discoverable to agents; usage guidance says format after edits type-check. M-AILANG-FMT-ADOPTION (v0.30.0).",
       "created": "2026-07-20",
       "tags": [

@@ -5,7 +5,7 @@ module std/json
 import std/option (Option, Some, None)
 import std/result (Result)
 import std/list (foldl, foldr, map)
-import std/math (floatToInt)
+import std/math (floatToInt, intToFloat)
 
 -- JSON ADT with all JSON types
 export type Json =
@@ -46,6 +46,9 @@ export func jb(b: bool) -> Json {
 export func jnum(x: float) -> Json {
   JNumber(x)
 }
+
+-- jint: convenience constructor for integer JSON numbers (JSON numbers are floats internally)
+export pure func jint(n: int) -> Json = JNumber(intToFloat(n))
 
 export func js(s: string) -> Json {
   JString(s)

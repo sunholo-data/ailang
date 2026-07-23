@@ -1,0 +1,14 @@
+-- json_jint.ail - Integer JSON numbers via the jint() convenience constructor (v1.1.0)
+--
+-- JSON numbers are floats internally (JNumber(float)). Building an integer-valued
+-- number with jnum() means writing jnum(intToFloat(count)); jint(count) is the
+-- one-call convenience that does exactly that: jint(n) == jnum(intToFloat(n)).
+module examples/runnable/json_jint
+
+import std/json (jint, jo, kv, encode)
+import std/io (println)
+
+export func main() -> () ! {IO} = {
+  println("encode(jint(42))                 = ${encode(jint(42))}");
+  println("encode(jo([kv(\"count\", jint(42))])) = ${encode(jo([kv("count", jint(42))]))}")
+}
