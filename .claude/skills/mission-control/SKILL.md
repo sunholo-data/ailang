@@ -35,10 +35,10 @@ Gates 1–3b run its commands instead of `make` literals:
 | Profile | Rebuild-before-check | Full test suite | Binary staleness | Used by |
 |---|---|---|---|---|
 | `go-compiler` | `make quick-install && make build` (BOTH binaries) | `make test` | `~/go/bin/ailang` (PATH) + `bin/ailang` go stale independently — confirm `--version` == `git describe` before trusting output | **V1** (this repo compiles the toolchain) |
-| `ailang-code` | `ailang install` (binary ships prebuilt — nothing to compile) | `ailang check` (types) · `ailang test` (tests) · `ailang ai-check --json` (unified check+verify) | binary is a released artifact, pinned in the mission's lockfile — no `-dirty` staleness class | **Ailang World** (an AILANG-code repo) |
+| `ailang-code` | `ailang install` (binary ships prebuilt — nothing to compile) | `ailang check` (types) · `ailang test` (tests) · `ailang ai-check` (unified check+verify) | binary is a released artifact, pinned in the mission's lockfile — no `-dirty` staleness class | **Ailang World** (an AILANG-code repo) |
 
 Under `ailang-code`, verification IS the binary's own gates: `ailang check` (types), `ailang test`
-(tests), and `ailang ai-check --json` — the UNIFIED check+verify (types + Z3 in one JSON; do **not**
+(tests), and `ailang ai-check` — the UNIFIED check+verify (types + Z3 in one JSON; do **not**
 reinvent a split gate). Gate 2's Go-only steps (`make quick-install`, `bin/ailang` staleness,
 `t.Skip` un-skip) apply to `go-compiler` **only**; under `ailang-code` the shipped binary is the gate.
 
@@ -212,7 +212,7 @@ regression guard (example or test), never bare bookkeeping — that's what makes
 
 **Verification protocol** (added iteration 1 after three same-class frictions). Steps 1–3 are the
 `go-compiler` verify profile (V1); under `ailang-code` the shipped binary IS the gate — skip the
-compile/staleness steps and run `ailang check`/`ailang test`/`ailang ai-check --json` instead (see
+compile/staleness steps and run `ailang check`/`ailang test`/`ailang ai-check` instead (see
 the Repo Profile above):
 1. **Rebuild before any live check** (`go-compiler` only): `make quick-install && make build` — BOTH
    binaries. `~/go/bin/ailang` (PATH) and `bin/ailang` (preferred by test helpers when present) go
@@ -487,7 +487,7 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 2. Routing-policy change? Only with ≥3 evidence rows; stamp it in the mission doc.
 3. Morning report, TWO channels (both required):
    - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
-     --from mission-control`
+     --from "mission-${MISSION_NAME:-control}"`
    - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<markdown report>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
      `~/.ailang/state/mission-gh-issue`, NOT hardcoded). Markdown, lead with the headline,

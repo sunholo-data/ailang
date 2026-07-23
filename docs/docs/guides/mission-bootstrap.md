@@ -68,7 +68,7 @@ point at your own repo's equivalents (or drop them). The two load-bearing sectio
   the **verify profile**. Pick the verify profile that matches the repo:
   - `go-compiler` if the repo compiles a Go toolchain (build both binaries, `make test`).
   - `ailang-code` if the repo is AILANG source — the shipped binary is the whole gate:
-    `ailang check` / `ailang test` / `ailang ai-check --json` (the unified check+verify; do not
+    `ailang check` / `ailang test` / `ailang ai-check` (the unified check+verify; do not
     reinvent a split gate).
 - **The bar** — the concrete, checkable clauses that define "done" for the mission. Number them;
   queue items clause-tag against them.

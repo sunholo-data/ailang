@@ -43,7 +43,7 @@ current behavior.
   BOTH binaries (`make quick-install && make build`) and run `make test`; `~/go/bin/ailang` (PATH)
   and `bin/ailang` go stale independently (confirm `--version` == `git describe`). (The alternative
   profile `ailang-code`, for an AILANG-code repo like Ailang World, uses the shipped binary's own
-  gates — `ailang check` / `ailang test` / `ailang ai-check --json` — with no compile step.)
+  gates — `ailang check` / `ailang test` / `ailang ai-check` — with no compile step.)
 
 ---
 

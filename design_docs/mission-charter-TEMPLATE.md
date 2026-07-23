@@ -40,7 +40,7 @@ of hardcoding.
   - `go-compiler` — the repo compiles a Go toolchain: `make quick-install && make build`, `make test`,
     dual-binary staleness rules.
   - `ailang-code` — the repo is AILANG source: the shipped `ailang` binary IS the gate —
-    `ailang check` (types), `ailang test` (tests), `ailang ai-check --json` (unified check+verify:
+    `ailang check` (types), `ailang test` (tests), `ailang ai-check` (unified check+verify:
     types + Z3 in one JSON — do not reinvent a split gate). No compile step, no `-dirty` staleness.
 
 ---
