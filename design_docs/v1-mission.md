@@ -139,6 +139,8 @@ The v1 hygiene bar (2026-07-10) is absorbed: its clauses are 1–2 below, both e
 > the API key; fix the leak, don't fall back.
 | Mechanical tasks (doc moves, regen, banking) | Sonnet allowed | Only with deterministic verification; promotion beyond this requires evidence |
 
+**DEMAND-EVIDENCE GATE (Mark 2026-07-23 — ?-op, block-let-separator, and |> ALL failed it in one week):** ERGONOMICS-SUGAR items (new operators, syntax conveniences) require DEMONSTRATED DEMAND BEFORE PICK — a 60-second corpus grep (parse-error/usage counts in eval banks) is mandatory Gate-2 evidence; zero-demand items go to EVIDENCE-GATED ICEBOX without spending a quorum round. Technical soundness is not the bar; observed need is.
+
 **FORUM RULE (Mark 2026-07-21 — "it takes too long to do quick tasks like ab evals… reserve
 this for features"):** the full iteration pipeline (quorum → plan → execute → evaluate → CI) is
 for FEATURE-shaped work: code that ships, with quality risk worth the ceremony. Quick
@@ -590,7 +592,9 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   hazard (memory: a hung motoko holding 8080 breaks all later runs), and the same evaluator gate
   as cloud work — no quality discount for free tokens.
 
-**[NEXT-FIRST after the authorized decision set drains — Mark 2026-07-20: FULL BACKLOG RE-TRIAGE]**
+**[NEXT-FIRST — HARD PIN, Mark 2026-07-23: PORTABILITY M2+M3 NOW]** Mark asked "do we have the ability to work on multiple missions yet?" — answer NO, because M2 (skill repo/verify profiles) + M3 (public bootstrap guide) have been skipped for 8 iterations despite the 07-21 priority stamp (triage + CYCLE tail outran them). They are the ONLY blockers to the Ailang World launch. PICK M2 NEXT ITERATION, then M3 (or both in one). Headless-greenlit; no quorum (Mark-ratified split). The triage sweep below is COMPLETE — its NEXT-FIRST is spent:
+
+**[completed 2026-07-23 iters 85–87: FULL BACKLOG RE-TRIAGE]**
 ("lets do another review of the docs in planned and see which we can put into the cycle.") The
 third triage pass, against July reality: fleet live, fmt shipped, v0.30.0 released, arch-boundaries
 landed, quorum-at-pick in force. Sweep **ALL planned/ folders** (~114 docs: root 14 · v0_29_0 38 ·

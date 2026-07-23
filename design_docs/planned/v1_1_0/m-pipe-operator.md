@@ -1,6 +1,6 @@
 # M-PIPE-OPERATOR: Pipe operator and Option chaining
 
-**Status:** PARKED needs-human-review (Rev-1 quorum: 1 pass / 1 reject; the sole remaining objection is REFUTED by controller test — see Quorum History. Unpark is low-risk: route to sprint-planner.)
+**Status:** **EVIDENCE-GATED ICEBOX (Mark 2026-07-23: "I've never seen pipe be an issue, lets icebox it")** — data: ZERO `|>` parse errors AND zero occurrences of any kind across the entire banked eval corpus incl. the v0.30.0 baseline. The design is technically sound (Rev-1 objection refuted at HEAD — preserved in Quorum History) but demonstrated demand is the bar. REOPEN: `|>` appearing in eval banks, or a ratified human-authors audience. Third sibling in the week's pattern (?-op, block-let-separator, |>).
 **Target version:** v1.1.0
 **Priority:** P2 — reduces nested match boilerplate (6 instances of 3-4 levels deep in DocParse)
 **Estimated effort:** 6-8 hours
