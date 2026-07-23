@@ -1651,6 +1651,25 @@
       "description": "Temperature conversion with verified physical constraints"
     },
     {
+      "path": "runnable/json_jint.ail",
+      "status": "working",
+      "tags": [
+        "json",
+        "stdlib",
+        "constructors",
+        "m-dx-package-dogfooding"
+      ],
+      "description": "std/json jint() convenience constructor for integer JSON numbers (M-DX-PACKAGE-DOGFOODING M2)",
+      "expected": {
+        "stdout": "encode(jint(42))                 = 42\nencode(jo([kv(\"count\", jint(42))])) = {\"count\":42}\n",
+        "exit_code": 0
+      },
+      "modules": [
+        "std/io",
+        "std/json"
+      ]
+    },
+    {
       "path": "runnable/effectful_list.ail",
       "status": "working",
       "tags": [
@@ -2606,11 +2625,11 @@
     }
   ],
   "statistics": {
-    "total": 188,
-    "working": 180,
+    "total": 189,
+    "working": 181,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9574468085106383,
+    "coverage": 0.9576719576719577,
     "experimental": 0
   },
   "milestones": {
