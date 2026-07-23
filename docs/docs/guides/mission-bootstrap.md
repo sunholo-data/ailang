@@ -124,15 +124,37 @@ done
 
 Do NOT copy the skill files into your repo — a copy is a fork, and forks stop learning.
 
-## Step 4 — Install the launchd job
+## Step 3.6 — Put the driver in the target repo
 
-Fill the plist template and load it:
+The plist you are about to install points at `__WORKDIR__/tools/launchd/mission-control.sh` —
+**inside your repo's checkout**, so the driver must exist (and be committed) there:
 
 ```bash
+mkdir -p tools/launchd
+cp <ailang-checkout>/tools/launchd/mission-control.sh tools/launchd/
+cp <ailang-checkout>/tools/launchd/mission-template.plist tools/launchd/
+git add tools/ && git commit -m "infra: mission-loop driver (from sunholo-data/ailang)" && git push
+```
+
+The driver is fully parameterized — committing a copy here is *deployment*, not a fork: mission
+behavior comes from the shared skill and your env profile, and driver improvements are synced by
+re-copying on upgrade.
+
+## Step 4 — Install the launchd job
+
+**Set the kill switch FIRST.** The template ships `RunAtLoad=true` (so reboots can never
+silently kill the cadence) — which means `launchctl bootstrap` **fires an iteration immediately**.
+Without the switch, that first fire runs unattended against a not-yet-ratified charter, spending
+real tokens. The proven launch sequence (this is how Ailang World launched on 2026-07-23):
+
+```bash
+touch ~/.ailang/state/mission-<name>.disabled       # armed-but-silent: every fire exits at Gate 0
 sed 's/__NAME__/<name>/g; s#__WORKDIR__#/absolute/path/to/checkout#g' \
   tools/launchd/mission-template.plist > ~/Library/LaunchAgents/dev.ailang.mission-<name>.plist
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/dev.ailang.mission-<name>.plist
 ```
+
+The switch comes off in Step 6, deliberately — never as a side effect.
 
 **Stagger the `StartInterval` offset** against any other live mission so two loops never fire on top
 of each other (they share the rig's quota and would contend for the model). The template sets a
@@ -156,6 +178,13 @@ proof the new loop cannot disturb the V1 loop. Run the V1 dry-run alongside it a
 pidfiles differ.
 
 ## Step 6 — Iteration 0: ratify the charter
+
+Lift the kill switch and fire the first iteration while the human is present:
+
+```bash
+rm ~/.ailang/state/mission-<name>.disabled
+launchctl kickstart gui/$UID/dev.ailang.mission-<name>
+```
 
 The first *real* iteration is not a sprint — it ratifies the charter itself. Run one iteration
 attended, with the human, and put the bar, queue, and guardrails through the design quorum
