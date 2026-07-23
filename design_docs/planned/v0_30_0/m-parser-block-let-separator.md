@@ -1,6 +1,6 @@
 # M-PARSER-BLOCK-LET-SEPARATOR: Consistent statement-separator handling after block-RHS `let`
 
-**Status**: Planned (backlog — evidence-gated)
+**Status**: PARKED (evidence-gated — MEASURED NEGLIGIBLE 2026-07-23, mission iteration 91; stays parked, do not route to a sprint)
 **Target**: TBD (v1.0 clause-3 accessibility, footgun burn-down)
 **Priority**: P3 (minor DX footgun; NOT blocking)
 **Estimated**: 1–2 days (parser change — Conflict Surface mandatory)
@@ -72,6 +72,34 @@ Route only with a measured failure rate: count `PAR_UNEXPECTED_TOKEN ... got X, 
 occurrences attributable to block-RHS-`let` separator elision across recent eval rotations
 (`tools/analyze_run_steps.py` / eval logs). If negligible, this stays parked; if material, it
 routes as a NEW-DOC parser sprint with a mandatory Conflict Surface.
+
+### MEASUREMENT — mission iteration 91 (2026-07-23): NEGLIGIBLE → stays parked
+
+The bug is **REAL at HEAD** (`82084c1a9`) — live-reproduced: a simple-RHS `let y = x+1` tolerates
+separator elision (only fails the unrelated `MOD014`), a block-RHS `let sig = match o {...}` fails
+`PAR_UNEXPECTED_TOKEN: expected next token to be }, got STRING`. Confirmed.
+
+But the **routing evidence is negligible**. Measured across the entire local eval corpus —
+**27,359** result files (all `eval_results/baselines/*` + `eval_results/rotation/*`, all-time):
+
+| Metric | Count |
+|---|---|
+| Files with any `expected next token to be }` error | 540 |
+| Files where the code contains a block-RHS-`let` separator-elision pattern **and** the parser's error line lands on that block's closing brace (±2) | **10 all-time** / **8 in the current era** (v0.29.2 + v0.30.0) |
+| Files where block-RHS-`let` elision is the **decisive** error (first parse error, ≤3 total parse errors — i.e. it uniquely cost an otherwise-parseable run) | **0** |
+
+Every one of the ~10 attributable occurrences sits inside a **catastrophically-broken generation**
+(51 – 1,542 parse errors per file; `compile_ok=false`; the *first* error is always elsewhere on an
+earlier line — `ILLEGAL`/`PAR_FIELD_NAME_EXPECTED`/`PAR_TYPE_UNEXPECTED`/etc.). The `expected }` at
+the footgun line is parser-recovery cascade noise, not the cause of the failure. Fixing this footgun
+would flip **zero** of these runs from fail → pass. The original trigger (`serve_api_webhook.ail`)
+was a hand-authored **example**, not a model eval failure.
+
+**Verdict:** per this gate, negligible → **stays parked**. Routing a *core parser* change
+(default-bias-not-core, PROGRAM.md) against zero decisive eval evidence is not justified. Re-open
+only if a future rotation produces a **decisive** case (block-RHS-`let` elision as the sole/first
+error in an otherwise-parseable file). Method preserved in the mission log (iteration 91); the
+classifier is a ~40-line code-pattern + error-line cross-check (regenerable from the log entry).
 
 ## Key files (for the eventual sprint)
 
