@@ -192,6 +192,35 @@ attended, with the human, and put the bar, queue, and guardrails through the des
 From then on it is autonomous: every subsequent fire is one gate-walk of the inner loop, reported to
 your bookkeeping issue.
 
+## Step 7 — Wire the cross-mission channel (and test it)
+
+Missions on the same machine share one message bus (`ailang messages` — a rig-level store, not
+per-repo), which gives every loop an **upstream lane** to its siblings: defect reports, language-gap
+requests, corroborations. Conventions, learned from the first live use (Ailang World → AILANG v1,
+2026-07-23, received→verified→fixed→acknowledged in under an hour):
+
+- **Send to `controlplane`** (the inbox every loop's Gate-0 triages) and identify as your mission:
+  ```bash
+  ailang messages send controlplane "<summary + repro + issue link>" \
+    --title "<what and where>" --from "mission-<name>"
+  ```
+- **Attach a repro.** The receiving loop applies its ghost discipline (live-repro your claim at its
+  HEAD) before anything enters its queue — a claim without a repro is a rumor.
+- **What your message can and cannot do** (the cross-mission contract, enforced by the shared
+  skill): it **never sets the sibling's priorities** — only their human and genuine regressions
+  outrank their queue. A verified language-gap request enters their queue as a normal item tagged
+  `[<your-mission>-DEMAND]` — and note that a real downstream consumer is the *strongest* demand
+  evidence there is. Soundness bugs and crashes you actually hit triage like regressions on their
+  side — those can outrank.
+- **Expect an acknowledgment** on YOUR bookkeeping issue with the triage verdict (queued / fixed /
+  refuted-with-evidence), so your loop can plan around it.
+- **Respect ownership**: report defects in *shared* machinery (the skill, the driver, the manual)
+  upstream — never edit another mission's files or the shared skill from your loop.
+
+**Smoke-test the channel as part of bootstrap**: send one test message from the new mission and
+confirm the sibling's next triage sees it. Delivery is unconditional (same store), so this is
+really testing your `--from` naming and their triage classification.
+
 ## What ports for free, and what does not
 
 **Ports unchanged** (already repo-agnostic): the directive-author allowlist, quorum-at-pick, the
