@@ -1,6 +1,6 @@
 # M-ERROR-PROP: Error Propagation Operator (`?`)
 
-**Status**: **PARKED — needs-human-review** (2026-07-23, mission iteration 88). Rev-1 (below) fixed the Rev-0 desugaring soundness flaw, but a second quorum round surfaced deeper **implementation-premise** objections that require a code-audit spike + an architecture decision (see "Quorum History & Open Questions" below). Do NOT route to sprint-planner until these are resolved by a human/arni design decision.
+**Status**: **EVIDENCE-GATED ICEBOX (Mark 2026-07-23: "we park ? until 1.1 — its never really been prioritised — do we actually need this?" → answered with DATA: ZERO `?`-parse-errors across the entire banked eval corpus incl. the v0.30.0 baseline — models do not write `?` in AILANG; the prompt-taught match/Result pattern holds)**. REOPEN CONDITION: `?`-parse-errors actually appearing in eval banks. If ever reopened, the load-bearing lang-items/known-constructor question (and the Rev-1 ANF-bind design + quorum record preserved below) is the starting point — an arni-adjacent v1.1+ decision, never a casual pick.
 
 ### Quorum History & Open Questions (mission iter 88)
 

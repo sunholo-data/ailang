@@ -1,6 +1,6 @@
 # M-DECISION-ENTROPY-MONITOR — Per-Step Decision-Weight Grading for AI Code-Generation Monitoring
 
-**Status**: PARKED — needs-human-review (quorum-blocked ×2, iteration 84 2026-07-22; see ⛔ Quorum Record at bottom)
+**Status**: **DECIDED by Mark 2026-07-23 — "(c) then (a)"**: (c) M2 `ailang iface --diff` ships NOW as a standalone item (route to sprint-planner; independently useful — agents check their own blast radius pre-commit; already quorum-unblocked); (a) the PRODUCER change (bank normalized before/after interface JSON + compiler identity at collection time) is the queued follow-up that makes future sessions deterministically gradeable; the D-grade iface feature stays deferred until (a) data exists. Hermetic replay (b) rejected as heavy. Historical park below.
 **Target**: v0.31.0 (monitoring/extension lane — zero language surface)
 **Priority**: P2 (mission/eval infrastructure; not a v1.0 gate)
 **Estimated**: ~2.5–3 days across 3 milestones (M3 evidence-gated on M2)

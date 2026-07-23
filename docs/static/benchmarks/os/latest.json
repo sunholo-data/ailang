@@ -8,58 +8,58 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.9512195121951219
+        "ailang": 0.8412698412698413
       },
       "model": "motoko-local-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.95
+          "ailang": 0.8620689655172413
         },
         "frontier": {
-          "ailang": 0.75
+          "ailang": 0.7142857142857143
         },
         "stretch": {
-          "ailang": 1
+          "ailang": 0.9
         }
       }
     },
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.6808510638297872
+        "ailang": 0.6119402985074627
       },
       "model": "opencode-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.8571428571428571
+          "ailang": 0.8
         },
         "frontier": {
-          "ailang": 0.2857142857142857
+          "ailang": 0.3333333333333333
         },
         "stretch": {
-          "ailang": 0.631578947368421
+          "ailang": 0.5454545454545454
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.8333333333333334
+        "ailang": 0.7205882352941176
       },
       "model": "pi-qwen3-6-35b-a3b-mxfp8",
       "tiers": {
         "core": {
-          "ailang": 0.95
+          "ailang": 0.8620689655172413
         },
         "frontier": {
-          "ailang": 0.375
+          "ailang": 0.35294117647058826
         },
         "stretch": {
-          "ailang": 0.9
+          "ailang": 0.8181818181818182
         }
       }
     }
   ],
-  "trials": 3,
+  "trials": 4,
   "version": "rolling-20260722"
 }
