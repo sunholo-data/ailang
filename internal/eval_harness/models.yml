@@ -1420,6 +1420,22 @@ models:
       matrix, not yet wired into a suite.
       Requires: Ollama running on localhost:11434, qwen3.6:35b-a3b-mxfp8 pulled.
 
+  motoko-local-qwen3-6-fmt:
+    api_name: "qwen3.6:35b-a3b-mxfp8"
+    provider: "ollama"
+    description: "Qwen 3.6 35B-A3B via motoko on the ollama_fmt profile — M-EVAL-FMT-WEAKMODEL-AB M6 ON arm (fmt extension runs ailang fmt --write on .ail writes). OFF arm = motoko-local-qwen3-6-35b-a3b-mxfp8 (profile ollama)."
+    env_var: ""
+    agent_cli: "motoko"
+    motoko_profile: "ollama_fmt"
+    agent_model_name: "ollama/qwen3.6:35b-a3b-mxfp8"
+    model_family: "qwen-3-6"
+    max_output_tokens: 32768
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    budgets:
+      hard_timeout_secs: 1800
+
   motoko-local-qwen3-6-docs:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"

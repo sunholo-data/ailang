@@ -1,9 +1,24 @@
 # M-EVAL-FMT-WEAKMODEL-AB — M6: `motoko_ext_fmt`, a profile-scoped AILANG extension
 
-**Status**: DESIGN (buildable spec) — path validated 2026-07-23.
+**Status**: BUILT + INTEGRATED (firing not yet observed) — 2026-07-23. The extension is published
+and wired into the live fork; the A/B is ready to run but deferred to the next eval release.
 **Supersedes** the risky delivery options in [`…-M5-hardset-results.md`](m-eval-fmt-weakmodel-ab-M5-hardset-results.md).
-**Package home**: `sunholo-data/ailang-packages` → `packages/motoko-ext-fmt/`.
-**Consumer**: `arniwesth/motoko_agent` (our fork, branch `feat/local-eval-profiles`), via a new A/B profile.
+**Package home**: `sunholo-data/ailang-packages` → `packages/motoko-ext-fmt/` (published `0.1.0`, commit `4ab54cd`).
+**Consumer**: `mk-ast` (the fork the rig actually runs — NOT arniwesth), wired at commit `e8719bb`.
+
+## What landed (2026-07-23)
+
+- ✅ **`sunholo/motoko_ext_fmt@0.1.0`** — authored, type-checked, effect-checked, inline test passing, **published** to the registry. `on_tool_handle` intercepts `WriteFile` on `.ail`, does the write, runs `ailang fmt --write`, and appends `{status,file}` to `<workdir>/.claude/fmt_hook_events.jsonl` (the sink `ReadFmtHookSink` consumes). Structurally byte-identical to the proven `motoko-ext-microrag`.
+- ✅ **Wired into mk-ast** (`e8719bb`): added to `[dependencies]` + `[extensions]`, locked, `registry_generated.ail` regenerated (fmt import + `resolve("fmt")` arm), new `ollama_fmt` profile (= `ollama` lean profile + `fmt` in `ext-order`).
+- ✅ **Rotation-safe, verified**: fmt only activates for a profile whose `order` names it; the rotation's `ollama` profile is byte-unchanged. motoko **boots with fmt loaded** (the `run_native_call` effect warning is **pre-existing and non-fatal** — present in every working rotation run).
+- ✅ **A/B model entries** in `models.yml`: `motoko-local-qwen3-6-fmt` (ON, profile `ollama_fmt`) vs `motoko-local-qwen3-6-35b-a3b-mxfp8` (OFF, profile `ollama`).
+
+## What is NOT yet done (deferred to next release)
+
+- ❌ **fmt firing not observed end-to-end.** The treatment-integrity sink was never captured, purely because of **driver friction unrelated to fmt**: motoko's **OpenRouter path hangs** (boots then sits idle, model never returns), and hand-driven local `motoko --headless` smokes stalled on the env-server. The reliable driver is the **eval-harness + local ollama** (what the rotation uses all day).
+- **To finish**: run one bank via `ailang eval-suite --agent --models motoko-local-qwen3-6-fmt --benchmarks fizzbuzz --trials 1` (proven local driver) and confirm `fmt_hook_events > 0`. Then run the real A/B on the **drift-prone set** (`contract_rle_roundtrip`, `config_file_parser`, `contract_roman_numeral`, `contract_sorted_merge`, `log_file_analyzer`, plus frontier benchmarks failing with `compile_error`/`logic_error` — NOT timeouts), ON vs OFF, N≥5, per the M5 prereg's metric + void clause. The first ON bank's `fmt_hook_events` IS the firing proof.
+
+> Note: `ailang fmt` teaching is **already in the served prompt** (v0.16.3), so weak models are *told* about fmt — they just don't invoke it voluntarily (M4/M5: 0 invocations observed). This extension is what would *force* it; until the A/B runs, the fmt-in-prompt path is the only fmt exposure the rotation has.
 
 ## Why this path (recap)
 
