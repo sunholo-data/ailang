@@ -1,6 +1,11 @@
 # M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration
 
-**Status**: Planned
+> **Implemented** (v0.10.0) — legacy `TFunc` deleted, type system unified on `TFunc2`.
+> Landed 2026-03-19 in `b29c391ff` (delete legacy TFunc) + `a314e7fca` (open effect row for
+> unannotated function types). Verified: no bare `TFunc` remains in `internal/types/` (comment
+> references only). Swept planned→implemented in the V1 mission backlog re-triage batch 3 (iter 87).
+
+**Status**: Implemented (v0.10.0)
 **Target**: v1.0.0
 **Priority**: P1 (Medium)
 **Estimated**: 2 days

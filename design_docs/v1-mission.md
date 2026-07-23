@@ -38,6 +38,8 @@ newest 3 to the archive top, newest-first — do not assume exactly one over-cou
 Rationale: every iteration re-reads this charter — 30+ stamps were ~500 lines of history
 tax per read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-23 — ITERATION 87: **FULL BACKLOG RE-TRIAGE batch 3 (v1_1_0 + docparse-billing, 35 docs) — controller-lane, $0 — CLOSES THE FULL PLANNED/ SWEEP** — pick per iter-86's **Next** (batches 1+2 done; Mark 2026-07-20: "another review of the docs in planned"). Gate-0/1 CLEAN (killswitch armed; billing **CLEAN** both Anthropic keys empty; gh `sunholo-voight-kampff`; `MODEL` empty → controller **opus**; `MISSION_METERED_BUDGET_USD=$5`; **#422** this week, comments <80 → no rotation; **no new Mark comment** since watermark `2026-07-22T06:35:08Z` on #422 OR predecessor #399; no `[nightly-eval]` issues; inbox empty). Origin-sync: local dev **4 behind** origin/dev (`b8d50b662` iter-86 + 3 prior) → all state read from origin/dev; work in a **worktree from origin/dev** (`mission/iter87-retriage-batch3`); main tree left dirty w/ benchmark-JSON + stale local divergence, UNTOUCHED (Critical Principle 0). Dev CI green per-workflow @ `b8d50b662`. **Method**: 4 read-only sonnet workers ($0) reality-checked all 35 docs (git-log-grep for landed-claims, code-path probes + live `ailang check` for bug-claims, implemented/ cross-check); controller verified every LANDED commit + folder before moving. **Outcomes**: **4 swept to implemented/** (`m-type-v2-migration`+plan → v0_10_0 `b29c391ff`+`a314e7fca`, TFunc verified gone; `m-executor-variants`+plan → v0_15_0 `721550fdb`+`c07bf73c1`+`af36a00a1`, full doc promoted over the pre-existing rough-draft stub); **0 ghosts**; **11 GATING-candidates queued** VERIFY-FIRST (clause-3: `m-error-propagation`[LIVE bug `?`-op], `m-pipe-operator`, `m-dx-package-dogfooding`[jint stub], `m-call-sugar-optional`, `m-forall-properties-direct-core-eval`; clause-4: `m-effect-handlers`, `m-ai-effect-modes-followups`, `m-agent-safe-runner`[M1 `4effc002d`], `m-agent-loop-architecture`, `m-process-modes`, `m-agent-orchestration`); **9 CYCLE**, **11 POST-V1** (incl. the 5-doc docparse-billing external-SaaS cluster). Full evidence table on #422. **Next (iteration 88)**: the sweep is COMPLETE — start executing GATING-candidates cheapest-first: `m-error-propagation` (clause-3, live bug, ~2d) → `m-pipe-operator` (~6–8h) → `m-dx-package-dogfooding` jint micro. `metered=$0.00` (controller opus + 4 sonnet workers, all quota-bucket; no codex/gemini/quorum lane — triage has no quorum).
+
 ## STATUS 2026-07-23 — ITERATION 85: **FULL BACKLOG RE-TRIAGE batch 1 (root + v0_29_0, 52 docs) — controller-lane, $0** — pick per iter-84's **Next** (authorized decision set DRAINED, entropy-monitor PARKED for Mark, no new directive/unpark → the Mark-2026-07-20 doc sweep begins, oldest folder-group first). Gate-0/1 CLEAN (killswitch armed; billing **CLEAN** both Anthropic keys empty; gh `sunholo-voight-kampff`; `MODEL` empty → controller **opus**; **#422** created Mon 07-20 = this week, comments <80 → no rotation; **no new Mark comment** since watermark `2026-07-22T06:35:08Z` on #422 OR predecessor #399; no `[nightly-eval]` issues; inbox = 1 informational [eval-suite start `0e0f298b`], acked). Origin-sync: local dev 2 behind origin/dev (`8e44a1bba` iter-84 park + `7836dbc18` reasoning-effort) → all state read from origin/dev; work in a **worktree from origin/dev** (main tree dirty w/ benchmark-JSON + stale local m-decision-entropy-monitor.md, untouched — Critical Principle 0). Dev CI green per-workflow @ `8e44a1bba`. **Method**: 4 read-only sonnet workers ($0 subscription) reality-checked all 52 docs (git-log-grep for landed-claims, code/impl-path probes for bug-claims); controller verified every LANDED commit + folder before moving. **Outcomes**: **7 swept to implemented/** (`m-eval-elo-priority-rotation` `b3de7e70f`, `m-eval-local-cloud-unify` `c533bb51c`, `m-eval-regression-detector-contract` `9a1c43f34`, 4 sprint-plan/stub artifacts whose designs already landed incl. `m-ailang-fmt` stub deleted); **4 ghosts archived** to `archive/2026-07/` (`M-TOOLING-DETERMINISTIC` Mark-closed `3df673994`, `m-motoko-editdecl-astedit` A/B-neutral `978bd371a`, `motoko-agent-v0.15.0-migration` + `motoko-integration-sequence` both superseded by internal mk-ast); **5 GATING-candidates queued** (clause-3: `m-pure-prng`, `m-budget-scoping-bug`[bug-claim→VERIFY-first]; clause-4: `m-agent-step-cancellation`, `m-serve-api-live-tool-registry`, `m-contracts-as-code-vertical`) — all tagged VERIFY-FIRST-at-pick (survey-sourced, inherit ghost debt); **18 CYCLE**, **9 POST-V1**, **5 UNSURE** (left in planned, need a cheap probe). Zero GATING-candidate touches core/compiler — all clause-3/4 language/orchestration surface. Full evidence table on #422. **Next**: re-triage batch 2 (v0_30_0 + v0_31_0 + v1_0_0), then v1_1_0 + docparse; GATING-candidates picked on cheapest-impact once verified. `metered=$0.00` (controller opus + 4 sonnet workers, all quota-bucket; no codex/gemini/quorum lane — triage has no quorum).
 
 ## STATUS 2026-07-22 — ITERATION 84: **m-decision-entropy-monitor quorum-blocked ×2 → PARKED needs-human-review (P2 mission-infra) — designer revision resolved R1 but re-quorum surfaced DEEPER A1/A2 + Conflict-Surface blocks needing a human design decision** — pick per iter-83's drained-decision-set handoff (candidates: full-backlog-retriage or this DOC-READY item; chose the concrete full-loop pick). Gate-0/1 CLEAN (killswitch armed; billing **CLEAN** both Anthropic keys empty; gh `sunholo-voight-kampff`; `MODEL` empty → controller **opus**; **#422** created Mon 07-20 = this week, 20 comments <80 → no rotation; **no new Mark comment** since watermark `2026-07-22T06:35:08Z`; no `[nightly-eval]` issues; inbox = 3 informational [eval-suite start + iter-83 land + docparse M7-notice], acked). **Origin-sync caught a DIVERGENCE**: local dev has 3 unpushed sibling commits (managed-agents-model-eval docs) ahead AND origin ahead 1 (`7836dbc18`, iter-83's mission-doc changes, ABSENT locally) → all state read from origin/dev; park done in a **worktree from origin/dev** (main tree + sibling commits untouched, Critical Principle 0). Dev CI green per-workflow @ `7836dbc18`. **QUORUM-AT-PICK** (no prior artifact): R1 controller-PASS but BOTH reviewers reject the SAME real flaw — `ifaceSeverity` needs both files to compile, but the grade targets green→red steps whose post-edit file is broken BY DESIGN → `ailang iface --diff` emits raw diagnostics not JSON → crashes the grader on exactly those steps (no-silent-fallback). **Designer revision** `claude:claude-fable-5` (subscription, $0): always-0 structured-JSON `--diff` contract + partial `iface_status` never coerced-to-0 + M2-before-M1 reorder + bounded timeout + coverage prereg + producer-side V11–V13 (I independently verified V13 broken-file→diagnostics+exit1 and V11 session jsonl exists 1.3MB). **Re-quorum (once) STILL BLOCKED** on deeper blocks: (1) gpt5-6-sol **A1/A2** — grader runs the LIVE binary under a wall-clock timeout on reconstructed single files; sessions bank no compiler-identity/workspace-import closure → non-deterministic across checkouts/binaries/timeouts; (2) gemini **A5** — `ailang iface` needs the workspace to resolve imports, single-file `/tmp` extraction fails module-loading; (3) gemini — Conflict Surface omits the new `tools/analyze_decisions.py` + `metrics.go`, grader overlaps `analyze_stuck.py`/`analyze_run_steps.py`. Per gate (revise-once → re-quorum-once → still-reject → PARK): **PARKED**. Human fork in the doc's ⛔ Quorum Record: **bank iface-JSON + compiler-identity at COLLECTION time** (fixes 1+2, needs a producer change) vs hermetic replay; OR ship **M2 `--diff`-only** (unblocked, independently useful) + defer the `D`-grade iface feature. Fittingly, this doc is *about* flagging high-consequence low-info decisions → routed to Mark, not force-resolved. `metered=$0.138` (2 quorum rounds gpt5-6-sol+gemini-3-1-pro; designer subscription $0; no planner/executor/evaluator — parked before routing).
@@ -702,7 +704,70 @@ v0_30_0 19 · v0_31_0 3 · v1_0_0 5 · v1_1_0 30 · docparse-billing 5). Rules:
     local commits (`ff089b7eb`/`5753897e1`/`faeb16d13`, `m-managed-agents-model-eval` doc) — local
     `dev` has DIVERGED from origin/dev. NOT touched this iteration (Critical Principle 0); flagged
     for human sync.
-  - **Next batch (iteration 87): v1_1_0 (30) + docparse-billing (5)** — closes the full sweep.
+  - **Next batch (iteration 87): v1_1_0 (30) + docparse-billing (5)** — closes the full sweep. **DONE below.**
+
+  **RE-TRIAGE BATCH 3 — v1_1_0 + docparse-billing (iteration 87, 2026-07-23; 35 docs,
+  controller-lane, 4 read-only sonnet workers @ $0).** Full evidence table on #422. **This CLOSES
+  the full planned/ sweep** (batches 1+2+3 = root + v0_29_0 + v0_30_0 + v0_31_0 + v1_0_0 + v1_1_0 +
+  docparse-billing). Outcomes:
+  - **LANDED → swept to implemented/** (4 docs / 2 features): `m-type-v2-migration`(+sprint-plan) →
+    **v0_10_0** (`b29c391ff` delete legacy TFunc + `a314e7fca` open-effect-row fix; verified `TFunc`
+    fully gone from `internal/types/` — comment refs only) · `m-executor-variants`(+sprint-plan) →
+    **v0_15_0** (`721550fdb` M1 wiring + `c07bf73c1` codex/opencode images + `af36a00a1` gemini/eval
+    images; `ExecutorVariant` live in `internal/coordinator/`; the FULL design promoted OVER the
+    rough-draft stub that already lived at v0_15_0 and cross-linked back to planned).
+  - **GHOST/SUPERSEDED**: none this batch — every doc traced to real commits or clearly-open work.
+  - **GATING-candidate → queued (VERIFY-FIRST at pick — survey/bug-claims must live-repro before
+    routing)** (11):
+    - **[GATING clause-3]** accessibility / syntax-ergonomics (5): `m-error-propagation` (`?`
+      operator — **LIVE-CONFIRMED bug at HEAD**: `PAR_NO_PREFIX_PARSE: unexpected token: ?`;
+      LIMITATIONS lists "not yet implemented"; pure desugar ~2d — cheapest high-confidence pick) ·
+      `m-pipe-operator` (`|>` — no `PIPE_GREATER` token / `PipeApp` node; clean design, zero deps,
+      ~6–8h) · `m-dx-package-dogfooding` (**mostly LANDED** — hyphen-path `7d1e4b82a` + `++` list-only
+      `99f76ec7a`; only the `jint` std/json 1-liner remains, ~0.5d micro-pick) · `m-call-sugar-optional`
+      (`f()` optional call sugar — still parse-errors at HEAD; ~1–2d) · `m-forall-properties-direct-
+      core-eval` (`properties [forall(...)]` → "empty program" via the broken source-synthesis path
+      `internal/testing/runner.go`; sibling `ensures`/`requires` fixed `3ebf60b1b`; doc self-labels
+      low-priority "zero users"; ~3–4h).
+    - **[GATING clause-4]** agent-orchestration surface (6): `m-effect-handlers` (Koka-style algebraic
+      effect handlers — enables deterministic AI-mock handlers from `.ail`; Phase 1 ~38h, cross-cuts
+      parser/types/elaborate/eval; LARGE, high-value) · `m-ai-effect-modes-followups` (replay/byok/
+      reroute runtime — TODO at `internal/ai/routing.go:157`; items 1+2+4 close the A1/A2 replay-
+      determinism story ~3–4d; VERIFY-FIRST item-1 vs already-shipped M-AI-TOOL-LOOP) · `m-agent-
+      safe-runner` (safe runner — **M1 policy spike LANDED `4effc002d`** [`internal/policy/`]; M2–M5
+      unstarted ~5–7d; one transitive-import-closure design-freeze item) · `m-agent-loop-architecture`
+      (runTools hook-extension ADTs — design decision A/B/C unresolved, needs arni input; ~5d;
+      VERIFY-FIRST the design freeze first) · `m-process-modes` (`Process[mode=mocked]` runtime replay
+      — parser `[mode=...]` landed but the runtime is absent; ~36h; blocked on M-EFFECT-REFINEMENT
+      full landing) · `m-agent-orchestration` (`std/agent` effect — LARGE ~2–3wk, the big open
+      orchestration surface; DECOMPOSE before executing).
+  - **CYCLE** (net-valuable loop/rig/DX infra, non-gating) (9): `m-oracle-adequacy` (eval evidence-
+    bundles) · `m-trace-feedback` (`ailang trace diagnose`) · `m-entropy-budgets` (design-doc
+    completeness infra) · `m-d4-design-doc-driven-development` (`ailang verify --spec` compliance;
+    budget substrate partial) · `m-pkg-inflight` (cloud/Firestore package events) · `m-zero-language-
+    learnings` (Phase-1 `check --json` landed; Ph1.5–3 rig/DX meta) · `m-eval-finetuning-data-pipeline`
+    (rig fine-tuning loop) · `m-eval-trust-signals` (eval credibility / HumanEval port) · `dx-
+    improvements-from-billing-packages` (partial-landed external DX friction log — FIXED items code-
+    verified, open child items live in their own `m-dx-package-check`/`-test` docs).
+  - **POST-V1** (real but out of the v1 LANGUAGE scope) (11): `m-csp-session-types` (6–8wk session
+    types) · `m-eu-compliance-effects` (author-downgraded, domain lib) · `m-game-engine-effects` (v1.1
+    domain lib) · `m-perf4-bytecode-interpreter` (perf stretch, doc says v2.0) · `m-quasi-typed-
+    quasiquotes` (parse-only lexer/AST, no runtime; 3–4wk) · `m-reflect-structural-reflection` (class/
+    instance parser TODO, 2wk) · `global-collaboration-hub` (cloud infra, Mark-downgraded non-gating)
+    · the **docparse-billing/ cluster** = `m-billing-docparse-billing-agent-payment` +
+    `responsibility-docparse` + `responsibility-multivac` + `responsibility-packages` (external
+    DocParse-billing SaaS spanning `docparse`/`ailang-multivac`/`ailang-packages` repos — NOT AILANG
+    language work).
+  - **Tally**: 4 LANDED / 0 GHOST / 11 GATING-candidate / 9 CYCLE / 11 POST-V1 = 35. Zero GATING-
+    candidate touches the frozen core beyond parser/desugar surface; the clause-4 orchestration items
+    are the heavy ones (effect-handlers, std/agent, safe-runner) and need decomposition before route.
+  - **Sweep-complete → NEXT for iteration 88**: the GATING backlog is now fully surfaced across all
+    three batches. Cheapest-first pickable order (once live-verified at pick): `m-error-propagation`
+    (clause-3, live bug, ~2d) → `m-pipe-operator` (clause-3, ~6–8h) → `m-dx-package-dogfooding` jint
+    micro (clause-3, ~0.5d) → `m-parser-block-let-separator` (batch-2, clause-3, ~1–2d) →
+    `m-pure-prng` (batch-1, clause-3, stdlib-only). clause-4 effect chain (replay→clock/net/fs→scope)
+    stays sequential; the big orchestration items (`std/agent`, effect-handlers) need decomposition
+    iterations first.
 
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
