@@ -98,8 +98,18 @@ Notes:
    - `fmt_on`  — same, plus `fmt` in `ext-order`.
    Everything else — model, ollama_docs, microrag, dp7, budgets — held constant. The **profile is the
    A/B toggle**; no env var needed.
-3. **Build**: `ailang` compiles the `.ail` core + the new ext package (local-path override via
-   `../ailang-packages`, per motoko's `ailang.toml`). Rebuild the `motoko` binary.
+3. **Publish + pin (NOT a local-path override)**: motoko's `ailang.toml` uses **registry-published
+   versions**, not `../ailang-packages` local overrides (they were deliberately removed so external
+   clones / PR review don't need the checkout alongside). So the package must be **`ailang publish`ed**
+   to the registry, then **pinned** in motoko's `[dependencies]` (e.g. `"sunholo/motoko_ext_fmt" =
+   "0.1.0"`) and added to the registry resolver. Only then does a `motoko` rebuild pick it up. Dropping
+   the package into the local checkout alone does nothing.
+   - **Repo-state caveat (2026-07-23)**: the `ailang-packages` checkout is on the unmerged branch
+     `feature/ai-compat-v0.21-migration` (5 commits, no PR — carries the v0.30.0 std/ai images fix). That
+     branch does NOT affect the rotation (registry versions, not the checkout), but the new package
+     should be authored from a **clean branch off `main`** and published, not stacked on the migration
+     branch. Resolving that branch's unmerged/unpublished drift (v0.30.0 images fix + compaction_ai
+     0.3.0) is a separate cleanup, part of the ongoing registry-migration work.
 
 ## Run (the actual A/B)
 
