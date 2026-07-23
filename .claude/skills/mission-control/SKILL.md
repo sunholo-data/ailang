@@ -181,6 +181,25 @@ revision pass first (Gate 3's design-doc-creator lane), then re-quorum ONCE; sti
 `needs-human-review`, park, next item. Skip only for: bookkeeping-only picks, ghost-closes, and
 mission-infra docs the quorum already reviewed. This is a pick-time gate, not a re-litigation —
 one round, bounded.
+**NARROW-REFINEMENT CARVE-OUT (added iter-95, 2nd instance — iter-93 `m-pure-prng` `split` was the
+1st):** twice now the one-revision-one-requorum→park gate parked a doc whose design DIRECTION both
+reviewers accepted, blocking SOLELY on narrow, obviously-resolvable defects the reviewers themselves
+fully specified (iter-93: defer a non-core `split` helper; iter-95 `m-budget-scoping-bug`: a
+deterministic frame-selection tie-break + a Conflict-Surface inventory bullet — both quoted verbatim
+in the reject's `proposed_fix`). Parking these for a human wastes an iteration on a non-judgment
+call. So, AFTER the one re-quorum, IF **every** remaining blocking objection (a) carries a concrete
+reviewer-authored `proposed_fix` AND (b) does NOT dispute the design DIRECTION (only
+completeness / determinism / attribution / a scope-cut of a non-core helper), the controller MAY
+make a **bounded 2nd revision that applies the reviewers' VERBATIM fixes** (their own text — never a
+controller-invented resolution, never overriding an objection) and route straight to sprint-planner,
+recording the applied fixes in the doc's Quorum verification log and the Gate-4 routing-evidence row.
+This SATISFIES the objections; it is NOT force-passing (Standing rule 2 still forbids proceeding over
+a contested design DIRECTION — that still parks). If ANY remaining objection disputes the direction,
+or lacks a concrete fix, or would need controller judgment to resolve → park `needs-human-review` as
+before. **Ratification of first use (iter-95):** because this is a controller-authored gate change,
+the FIRST doc to use the carve-out is surfaced to Mark for a one-time OK before its sprint runs (a
+`--from mission` report line + a parked `(0)` bookkeeping row); once ratified, later iterations
+apply it without re-asking. Record which path was taken in the log's Ruled-out/routing rows.
 A design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc
 said Planned for a month). **Also confirm the item is not ALREADY LANDED on origin** — check the
 `origin/dev` queue tag (`git show origin/dev:design_docs/v1-mission.md | grep`) and any merged PR
