@@ -661,6 +661,49 @@ v0_30_0 19 · v0_31_0 3 · v1_0_0 5 · v1_1_0 30 · docparse-billing 5). Rules:
   - `20251013_auto_caps` intentionally kept in planned (M1 `e542065c0` landed; 3 follow-ups open).
   - **Next batch (iteration 86): v0_30_0 + v0_31_0 + v1_0_0**, then v1_1_0 + docparse.
 
+  **RE-TRIAGE BATCH 2 — v0_30_0 + v0_31_0 + v1_0_0 (iteration 86, 2026-07-23; 30 docs,
+  controller-lane, 4 read-only sonnet workers @ $0).** Full evidence table on #422. Outcomes:
+  - **LANDED → swept to implemented/v0_30_0/** (11): `m-mission-agentic-provider-routing`(+sprint-
+    plan) (M1a `8ee07ef23` · M1b `956fda55c` · M2 `8d12e8e9c`; M3 = parked-with-protocol, the
+    documented outcome) · `m-mission-fleet-ab-sprint-plan` (A `3bee6b6df` + B PR #383 `1186a48e6`;
+    parent `m-mission-adaptive-multiprovider-routing` STAYS planned — C/D/E opt-in open) ·
+    `m-mission-quorum-agentic-verify` (M1-M3 PR #400 `0e83a1b12`; header was stale-PARKED) ·
+    `m-ailang-fmt-phase2-sprint-plan` (`3815ba617` PR #414) · `m-fmt-properties-printer-roundtrip-
+    sprint-plan` (`942931816` PR #424) · `m-smt-callee-sort-gate`(+sprint-plan) (`94e2a5d27` +
+    `efd251f16`) · `m-std-yaml`(+sprint-plan) (`62d681a8e`). Plus `m-ailang-fmt-inline-interior-
+    sprint-plan` planned-copy DELETED (canonical already in implemented/ from PR #434 `3c1cec57d`).
+  - **GHOST/SUPERSEDED**: none this batch — every doc traced to real commits or a live queue item.
+  - **GATING-candidate → queued (VERIFY-FIRST at pick — bug-claims must live-repro before routing)**
+    (6): **[GATING clause-3]** `m-parser-block-let-separator` (block-RHS `let` without `;` still
+    `PAR_UNEXPECTED_TOKEN` at HEAD `55a9fbd61` — live-confirmed bug, cheap ~1–2d) · `m-diag-
+    primitive-field-suggestions` (primitive-field "no methods" hint — severed Part C of the landed
+    footguns-to-diagnostics doc; P3/extension-lane, frozen-core + ADT-name premise still to resolve).
+    **[GATING clause-4]** `m-check-strict-fallbacks` (UNPARKED, architecture decided by Mark
+    2026-07-17, sprint-ready, no code yet) · `m-parmap-effectful` (in-AILANG fan-out for the
+    orchestration flagship; M0 `EffContext.Clone()` fork-safety `22e4c11b7` is a HARD prerequisite —
+    shallow copy panics under concurrency) · `m-effect-replay-contracts` (effect sprint 2/4) ·
+    `m-effect-clock-net-fs-modes` (effect sprint 3/4). `m-effect-scope-params` (sprint 4/4) is a
+    release-gate RE-SCORE candidate (Mark may push to v1.1); `m-effect-refinement` is the decomposed
+    UMBRELLA — stays planned tracking 3 open children (sprints 2/3/4), sweeps only when all ship.
+  - **CYCLE** (net-valuable now, non-gating): `m-mission-adaptive-multiprovider-routing` (phases
+    C/D/E opt-in loop infra) · `m-mission-portability` (M1 done `825e77c64`; M2+M3 gate Ailang
+    World) · `m-mission-cost-chains` (clause-5 cost-per-verified-success substrate) · `m-ai-
+    structured-step`(+sprint-plan) (composable structured output → vision+JSON grading) · `m-
+    comments-for-ai-authors` (M1 = $0 prompt-manager lane, Mark-ratified) · `m-eval-kimi-k3-agentic`
+    (standard done; agentic entries gated on `m-eval-reasoning-model-fairness` P1) · `m-managed-
+    agents-model-eval` (Gemini Developer API pivot design-frozen; blocked only on an AI Studio key)
+    · `m-mem-budget-runtime` (P1 host-safety `MEM001` runtime cap — motivated by the 2026-07-20
+    kernel panic; design complete, no impl).
+  - **POST-V1**: `m-arch-boundaries-eval-exclusion-tighten` (evidence-gated, trigger unmet — no
+    second dashboard `internal/eval` import at HEAD).
+  - **PARKED (leave as-is)**: `m-decision-entropy-monitor` (needs-human-review since iter 84,
+    quorum-blocked ×2). ⚠ INTEGRITY NOTE: the MAIN checkout has UNCOMMITTED in-progress edits to
+    this doc (V11–V13 producer-side evidence rows answering the quorum objections) + 3 unpushed
+    local commits (`ff089b7eb`/`5753897e1`/`faeb16d13`, `m-managed-agents-model-eval` doc) — local
+    `dev` has DIVERGED from origin/dev. NOT touched this iteration (Critical Principle 0); flagged
+    for human sync.
+  - **Next batch (iteration 87): v1_1_0 (30) + docparse-billing (5)** — closes the full sweep.
+
 **[NEXT]** clause-3 accessibility cluster (the bulk of v1.0). Loop ordering within a group:
 P0/unblockers first, then cheapest impact-per-day. The DOC-READY/small diagnostics AND the
 VERIFY-then-route backlog are now EXHAUSTED (module-less/xcheck/json-bool/split-arg landed iters
