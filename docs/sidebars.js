@@ -94,6 +94,7 @@ const sidebars = {
           label: 'Workflows',
           items: [
             'guides/agent-workflows',
+            'guides/mission-bootstrap',
             'guides/state-system-workflow',
             'guides/agent-messaging',
             'guides/cross-project-messaging',

@@ -10,6 +10,43 @@ Run ONE iteration of the mission defined in [`design_docs/v1-mission.md`](../../
 gates are cheap and prevent expensive mistakes. This is the outer loop around the four honed
 inner-loop skills — it does not duplicate them.
 
+## Repo Profile (M-MISSION-PORTABILITY M2)
+
+**One skill runs EVERY mission — never fork it per mission** (a fork undoes the Gate-5 self-
+improvement loop, since retro fixes must benefit all missions). What differs per mission is a small
+**profile**, read from two places:
+
+- **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
+  `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);
+  the bookkeeping-issue number lives in `~/.ailang/state/mission-gh-issue` (V1 falls back to `329`).
+- **The mission doc's charter header** — a `## Repo Profile` block (single source of truth,
+  versioned with the mission): repo slug, bookkeeping-issue state key, the CI workflow names Gate 3b
+  polls, and the **verify profile** name.
+
+Wherever a gate below shows a literal `sunholo-data/ailang`, `design_docs/v1-mission.md`, or `329`,
+that literal is the **V1 default** — use `$MISSION_REPO` / `$MISSION_DOC` /
+`${MISSION_GH_ISSUE:-<the mission's default>}` so the same gate serves any mission. (War-story prose
+below keeps its literal SHAs/issue numbers — only OPERATIVE commands parameterize.)
+
+### Verify profiles — the mission doc names exactly ONE
+
+Gates 1–3b run its commands instead of `make` literals:
+
+| Profile | Rebuild-before-check | Full test suite | Binary staleness | Used by |
+|---|---|---|---|---|
+| `go-compiler` | `make quick-install && make build` (BOTH binaries) | `make test` | `~/go/bin/ailang` (PATH) + `bin/ailang` go stale independently — confirm `--version` == `git describe` before trusting output | **V1** (this repo compiles the toolchain) |
+| `ailang-code` | `ailang install` (binary ships prebuilt — nothing to compile) | `ailang check` (types) · `ailang test` (tests) · `ailang ai-check --json` (unified check+verify) | binary is a released artifact, pinned in the mission's lockfile — no `-dirty` staleness class | **Ailang World** (an AILANG-code repo) |
+
+Under `ailang-code`, verification IS the binary's own gates: `ailang check` (types), `ailang test`
+(tests), and `ailang ai-check --json` — the UNIFIED check+verify (types + Z3 in one JSON; do **not**
+reinvent a split gate). Gate 2's Go-only steps (`make quick-install`, `bin/ailang` staleness,
+`t.Skip` un-skip) apply to `go-compiler` **only**; under `ailang-code` the shipped binary is the gate.
+
+Everything else in this skill is already repo-agnostic and ports UNCHANGED: the directive-author
+allowlist (`MarkEdmondson1234`), quorum-at-pick, the billing tripwire, the pidfile/overlap guard,
+the rotation designer, and the weekly issue rotation. Namespaced state keys (M1) keep two missions
+on one rig from colliding.
+
 ## Current State
 
 - **Kill switch**: !'test -f ~/.ailang/state/mission-control.disabled && echo "DISABLED — STOP" || echo "armed"'
@@ -47,7 +84,7 @@ inner-loop skills — it does not duplicate them.
    # NOTE (fixed iter-54, 3rd-instance bar): gh's `--jq` takes exactly ONE expression arg —
    # `--jq --arg last …` fails with `accepts 1 arg(s), received 4`. Pipe the raw --json to a
    # standalone `jq -r --arg` instead (that's where --arg belongs).
-   gh issue view "${MISSION_GH_ISSUE:-329}" --repo sunholo-data/ailang --json comments \
+   gh issue view "${MISSION_GH_ISSUE:-329}" --repo "${MISSION_REPO:-sunholo-data/ailang}" --json comments \
      | jq -r --arg last "$last" '[.comments[] | select(.author.login == "MarkEdmondson1234")
        | select(.createdAt > $last)] | .[] | "\(.author.login) @ \(.createdAt):\n\(.body)\n---"'
    ```
@@ -101,6 +138,7 @@ had been red for 3h; Build-and-Release and Docs-Deploy were equally invisible �
 frictions, one gap):
 
 ```bash
+# workflow names come from the Repo Profile (V1 defaults shown); --branch is the mission's dev
 for wf in "CI" "Build and Release" "Deploy Documentation to GitHub Pages"; do
   gh run list --workflow "$wf" --branch dev --limit 1 \
     --json conclusion,headSha --jq '.[0] | "'"$wf"': \(.conclusion) @ \(.headSha[0:9])"'
@@ -160,10 +198,13 @@ sourcing review's own Verification Log admitted "footgun list … not re-verifie
 pattern, was tagged NEW-DOC while a full design doc existed). Ghost → close with a CI-enforced
 regression guard (example or test), never bare bookkeeping — that's what makes the close durable.
 
-**Verification protocol** (added iteration 1 after three same-class frictions):
-1. **Rebuild before any live check**: `make quick-install && make build` — BOTH binaries.
-   `~/go/bin/ailang` (PATH) and `bin/ailang` (preferred by test helpers when present) go stale
-   independently; a stale one silently falsifies results (1a: stale installed binary showed
+**Verification protocol** (added iteration 1 after three same-class frictions). Steps 1–3 are the
+`go-compiler` verify profile (V1); under `ailang-code` the shipped binary IS the gate — skip the
+compile/staleness steps and run `ailang check`/`ailang test`/`ailang ai-check --json` instead (see
+the Repo Profile above):
+1. **Rebuild before any live check** (`go-compiler` only): `make quick-install && make build` — BOTH
+   binaries. `~/go/bin/ailang` (PATH) and `bin/ailang` (preferred by test helpers when present) go
+   stale independently; a stale one silently falsifies results (1a: stale installed binary showed
    pre-fix behavior; 1b-eval: Jun-26 `bin/ailang` v0.26.0 broke `make test` with a phantom
    `_io_flush` error). Confirm `--version` matches `git describe` before trusting output.
 2. **A parked test is a claim, not evidence**: `t.Skip`-ed / disabled tests say "nobody
@@ -435,7 +476,7 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 3. Morning report, TWO channels (both required):
    - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
      --from mission-control`
-   - `gh issue comment "$MISSION_GH_ISSUE" --repo sunholo-data/ailang --body "<markdown report>"`
+   - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<markdown report>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
      `~/.ailang/state/mission-gh-issue`, NOT hardcoded). Markdown, lead with the headline,
      link commits by SHA, name anything parked for a human. End the body with:
@@ -446,7 +487,7 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
    bound (#329 hit 120KB/53 comments in 6 days). **Rotate when** (either): the current time is past
    the most recent **Monday 07:00** (the quota-reset boundary) AND the current issue was created
    before that boundary; OR the current issue has >80 comments. To rotate:
-   1. `gh issue create --repo sunholo-data/ailang --title "V1 mission bookkeeping — week of <this
+   1. `gh issue create --repo "${MISSION_REPO:-sunholo-data/ailang}" --title "<mission> bookkeeping — week of <this
       Monday's date>" --body "<5-line state snapshot: queue head · fleet state · parked-for-human
       list · link to predecessor issue #N · directive convention: comments from
       @MarkEdmondson1234 on THIS issue steer the loop>"` — the mention auto-subscribes Mark.

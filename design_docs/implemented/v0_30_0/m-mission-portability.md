@@ -1,6 +1,13 @@
 # M-MISSION-PORTABILITY: extract the mission loop into a portable template — bootstrap kit for the Ailang World mission
 
-**Status**: **SPLIT-AUTHORIZED by Mark 2026-07-21 (option a)** — iter-68 flagged the live-driver
+**Status**: **✅ COMPLETE (M1 attended 2026-07-21; M2+M3 landed iter-92, 2026-07-23)** — the mission
+loop is now portable and the Ailang World launch is unblocked. M2: `## Repo Profile` block in the
+mission-control skill + the mission-doc charter header (verify profiles `go-compiler`/`ailang-code`).
+M3: public `docs/docs/guides/mission-bootstrap.md` + `design_docs/mission-charter-TEMPLATE.md`;
+dry-run isolation acceptance proven (`MISSION_PROFILE=worldtest MISSION_DRY_RUN=1` → distinct
+`mission-worldtest.pid`, v1's live pidfile untouched); evaluator sonnet PASS 83/100. History below.
+
+**Status (historical)**: **SPLIT-AUTHORIZED by Mark 2026-07-21 (option a)** — iter-68 flagged the live-driver
 self-modification hazard and declined headless execution (correct). Mark's split: **M1 (driver
 parameterization) = ATTENDED-ONLY — executed interactively with the session 2026-07-21** (atomic
 mv-replace, never in-place on the running script); **M2 (skill repo/verify profiles) + M3
