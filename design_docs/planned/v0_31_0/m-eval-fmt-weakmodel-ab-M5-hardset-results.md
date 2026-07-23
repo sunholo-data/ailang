@@ -62,4 +62,28 @@ executor, and the fmt hook is Claude-Code-only (`.claude/settings.json` + `--set
 
 M5 cost ~90 fast cloud runs and produced a null — but it **de-risked the local build correctly**: it
 proved the treatment delivers and is inert without drift, and that no cheaper vehicle exists. Building
-opencode fmt delivery is now justified as the only way forward, not a guess.
+local fmt delivery is now justified as the only way forward, not a guess.
+
+## Local fmt-delivery feasibility (verified 2026-07-23 — read before scoping)
+
+The fmt hook is **Claude-Code-only**: `FmtHookMode.Apply` writes `<ws>/.claude/settings.json` and the
+`claude` CLI loads it via `--settings`. All three local harnesses are **separate agent subprocesses**
+whose edit loop is internal — the hook never reaches them. There is **no cheap, zero-risk path**; each
+needs its own delivery mechanism, and each touches infra the **live rotation depends on**:
+
+| Harness | Delivery mechanism | Cost / risk |
+|---|---|---|
+| **opencode** | Install a `postToolUse` plugin (microRAG template exists in-repo but is **NOT installed** — no `plugins` field in `~/.config/opencode/opencode.jsonc`, unverified in the eval subprocess) + register it in the **global** opencode.jsonc | First-time integration; the global config is **shared with the running rotation** — a plugin error could break rotation opencode runs |
+| **motoko** | Modify our fork `/Users/voightkampff/dev/arniwesth/motoko_agent` (TS/bun) to run `ailang fmt --write` post-edit + write the `fmt_hook_events` sink; rebuild + redeploy the `motoko` binary | Separate repo + build/deploy cycle; the rotation **runs that binary** — a bad build breaks it |
+| **pi** | Unverified — pi's post-tool hook surface not investigated | Unknown |
+
+Common to all: gate on an env var (mirror `MicroragMode.ApplyToEnv` → a new `FmtHookMode.ApplyToEnv`
+setting `AILANG_FMT_HOOK_ENABLED`), default off so the rotation is untouched; write events to the
+existing `<ws>/.claude/fmt_hook_events.jsonl` sink so `ReadFmtHookSink` banks identical
+`fmt_hook_events` and the M-void-clause integrity check works.
+
+**Recommendation**: this is a real per-harness feature, not a one-turn build, and it touches the live
+rig. Scope it as its own sprint (M6) — pick ONE harness (motoko is the flagship local model and our own
+fork; opencode unlocks OpenRouter too), build the delivery + env gating + sink logging behind a default-off
+flag, verify treatment integrity on a drift-verified model, THEN run the A/B. Do NOT bolt it onto the
+live rotation's shared config/binary without an isolated verification first.
