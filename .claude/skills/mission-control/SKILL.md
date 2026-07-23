@@ -68,6 +68,18 @@ on one rig from colliding.
    Doc-only edits (mission doc, log) may proceed; sprint work goes to a coordinator worktree anyway.
 4. Unread inbox messages: triage per agent-inbox skill. A genuine regression or human directive
    OUTRANKS the queue — it becomes this iteration's pick.
+   **CROSS-MISSION REQUESTS (added 2026-07-23, the night Ailang World launched):** messages
+   `--from mission-*` (another mission's loop) are a THIRD sender class — neither directive nor
+   noise. Contract: (1) they NEVER auto-outrank the queue (only the human and genuine regressions
+   do — a sibling mission cannot set this mission's priorities); (2) a language-gap/feature
+   request from a sibling gets the ghost discipline (live-repro their claim at HEAD), and if REAL
+   it enters the queue as a normal item tagged **[<mission>-DEMAND]** with the sender's repro
+   attached — note this SATISFIES the demand-evidence gate by construction (a real downstream
+   consumer is the strongest demand signal there is; this is how sugar/features SHOULD earn
+   their place, unlike the iceboxed ?-op/|> which had no consumer); (3) acknowledge the triage
+   verdict back to the sender's bookkeeping issue so their loop can plan around it; (4) genuine
+   BUGS a sibling hits (soundness, crashes) triage exactly like nightly regressions — those CAN
+   outrank.
    **CLOSE THE ISSUE WITH THE VERDICT (added 2026-07-20 — external viewers read our stale alarms
    as open regressions, #417):** the nightly bot files a GitHub issue per regression
    (`[nightly-eval] Nightly regression: <benchmark>`). Whatever the triage concludes, the issue
