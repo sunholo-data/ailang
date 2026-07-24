@@ -205,6 +205,21 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 			continue
 		}
 
+		// M-CHECK-STRICT-FALLBACKS: at the publish boundary an empty/default
+		// `Ok(...)` in a Result-returning function is a HARD ERROR (exit 1) —
+		// fail loudly, don't nag. The same finding is a non-blocking warning in
+		// plain `ailang check`. Suppress per-function with @allow_empty_ok.
+		if sfErrs := checkStrictFallbacks(result); len(sfErrs) > 0 {
+			for _, e := range sfErrs {
+				allErrors = append(allErrors, fmt.Sprintf("%s: %s", rel, e))
+			}
+			failed++
+			if !jsonFlag && !quietFlag {
+				fmt.Printf("  %s %s (STRICT_FALLBACK_001)\n", red("✗"), rel)
+			}
+			continue
+		}
+
 		passed++
 		if !jsonFlag && !quietFlag {
 			fmt.Printf("  %s %s\n", green("✓"), rel)
@@ -389,6 +404,32 @@ func checkInterFunctionRefs(result pipeline.Result) []string {
 		}
 	}
 	return warnings
+}
+
+// checkStrictFallbacks runs the STRICT_FALLBACK_001 detector over each compiled
+// module's Core (with its surface AST for the return-type filter and the
+// @allow_empty_ok suppression) and returns the findings as error strings. In
+// package mode these promote to a hard error (exit 1) — the publish boundary.
+// Mirrors checkInterFunctionRefs. Iterates modules in sorted order for
+// deterministic output.
+func checkStrictFallbacks(result pipeline.Result) []string {
+	modIDs := make([]string, 0, len(result.Modules))
+	for modID := range result.Modules {
+		modIDs = append(modIDs, modID)
+	}
+	sort.Strings(modIDs)
+
+	var errs []string
+	for _, modID := range modIDs {
+		mod := result.Modules[modID]
+		if mod == nil || mod.Core == nil {
+			continue
+		}
+		for _, w := range pipeline.DetectStrictFallbacks(mod.File, mod.Core) {
+			errs = append(errs, w.String())
+		}
+	}
+	return errs
 }
 
 // checkModuleDeclRefs walks module-level declarations and verifies that every
