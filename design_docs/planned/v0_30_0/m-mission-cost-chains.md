@@ -1,8 +1,10 @@
 # M-MISSION-COST-CHAINS: make `ailang chains` the mission's cost tracker — fix $0 attribution + ingest loop activity
 
-**Status**: Planned (Mark 2026-07-18 — "lets keep an eye on these budgets, perhaps a cost
-tracker. I think actually that should all appear in ailang chains CLI... dont know if all this
-activity is still flowing in there" — verified: it is NOT)
+**Status**: IN-SPRINT (iter-100, 2026-07-24 — Mark scoped-inference decision `4e1348adb` folded into
+the M1 normative body by the controller, NO re-quorum; routed to sprint-planner). Originally Planned
+(Mark 2026-07-18 — "lets keep an eye on these budgets, perhaps a cost tracker. I think actually that
+should all appear in ailang chains CLI... dont know if all this activity is still flowing in there"
+— verified: it is NOT)
 **Baseline re-pinned 2026-07-24 (iteration 97 Gate-2 reality-check, binary `v0.30.0-147-g6ed26bebd`)**:
 the original Defect-A HEADLINE ("Total Cost: $0.0000 everywhere") is now STALE — recent eval chains
 DO attribute cost. Live: `chains stats --hours 48` = **$9.5879** over 30 chains; `--hours 336` =
@@ -60,24 +62,46 @@ has tokens + a resolvable model but NO reported cost, compute cost from the mode
 flagged `cost_estimated=true` (never silently, never overwriting a self-reported cost). This closes
 the misleading `$0.0000`-with-tokens rows (pre-fix chains + any non-self-reporting sender).
 
-**Cost provenance (Rev-1):** every stage in the rollup carries `cost_status ∈ {reported, estimated,
-unknown}`. The stage schema (`ChainStage`, `internal/observatory/models_chains.go:82`, `Cost float64`
-at ~:110) has NO provenance field today — $0 and "no data" are indistinguishable in storage — so M1
-uses **CLI-side inference in the rollup** (no schema migration): `cost>0 → reported`;
-`tokens>0 && cost==0 && model resolvable → estimated` (computed tokens×rate); `tokens>0 && cost==0
-&& model unresolvable → unknown`. A persisted `cost_status` stage field can follow later (migration
-would default existing rows to `reported` when cost>0 else `unknown` — back-compatible), but is NOT
-required for M1. Prior art: `computeCost` (`internal/ai/configdriven/provider.go:279`) already
-returns `""` (empty string, NOT 0.0) when no cost data is configured, deliberately distinguishing
-no-cost-data from free — the rollup adopts the same distinction.
+**Cost provenance — SCOPED INFERENCE (Mark decision 2026-07-24, `4e1348adb`; folded from the Status
+header into this normative body by the iter-100 controller, NO re-quorum per the apply-verbatim
+precedent iters 98/99):** the round-2 quorum's convergent objection was that *unscoped* CLI-side
+inference would mis-attribute legitimately-free/quota `$0` stages as estimated metered spend (the
+`float64` schema can't distinguish absent-cost from reported-$0). **Mark resolved this by SCOPING the
+inference, NOT by a schema migration.** The stage schema (`ChainStage`,
+`internal/observatory/models_chains.go:82`, `Cost float64` at ~:110) has NO provenance field today —
+re-verified 2026-07-24 (iter-100): zero `cost_status`/`cost_estimated`/`quota_bucket` references
+anywhere in `internal/observatory/` or `internal/server/`. M1 therefore computes `cost_status ∈
+{reported, estimated, quota, unknown}` at **read time in the rollup** under Mark's SCOPED rule:
+- `cost>0` → **reported** (untouched, never re-estimated).
+- `tokens>0 && cost==0 && stage NOT quota/free-marked && model resolves to a NON-ZERO metered rate`
+  → **estimated** (computed tokens×rate, flagged `cost_estimated=true`).
+- `tokens>0 && cost==0 && model unresolvable` → **unknown** (never presented as `$0.0000`); a model
+  that resolves to a **$0 rate** (free local models) naturally rolls up to `$0` WITHOUT being faked
+  as metered.
+- **Quota-lane stages are `$0`-BY-DESIGN (`cost_status=quota`)** — NEVER estimated, NEVER shown as
+  unknown; subscription burn is bucket-visible (M2/M3), not dollar-faked.
+- **Planner reality-check (the round-2 gemini point Mark's M1 decision did not spell out):** M1's
+  soundness over a store that will ALSO hold M2's mission stages rests on quota lanes carrying NO
+  token count reportable to the mission (Agent-tool / headless-`claude` subscription runs don't
+  surface token usage) — so Mark's `tokens>0` gate excludes them **structurally**, no persisted
+  marker required. The planner MUST verify this holds (M2 posts quota stages `tokens=0,
+  cost_usd=0`); IF any quota stage can carry `tokens>0`, scope estimation by an explicit
+  mission-posted quota signal with NO migration (source-prefix `mission:*` exclusion, or an existing
+  field) — a persisted `cost_status`/`quota_bucket` column stays deferred (Mark: "may follow later;
+  not required for M1").
+Prior art: `computeCost` (`internal/ai/configdriven/provider.go:279`) already returns `""` (empty
+string, NOT 0.0) when no cost data is configured — the rollup adopts the same
+distinguish-no-data-from-free discipline.
 Acceptance: (a) `chains stats` shows a non-zero, `cost_estimated`-flagged cost for a token-bearing
-stage that reported no cost; (b) a stage WITH a self-reported cost is unchanged (no double-count);
-(c) a stage with tokens but no resolvable model is marked `cost_status=unknown` and is never
-presented as $0.0000. Rollups report known reported cost, known estimated cost, and unknown-cost
-stage/token counts separately; budget comparisons emit a visible incomplete-data warning or fail in
-strict mode. No model or rate is guessed. A regression test asserts the rollup estimates rather
-than returns $0 for the token-bearing/no-cost case, and asserts the unknown-model case surfaces as
-`unknown`, not $0.
+stage that reported no cost AND resolves to a non-zero metered rate; (b) a stage WITH a self-reported
+cost is unchanged (no double-count); (c) a stage with tokens but no resolvable model is
+`cost_status=unknown` (and a $0-rate model rolls up to `$0`), never a fabricated metered `$0.0000`;
+(d) **a quota/free-marked stage is NEVER estimated** (Mark scoping — the round-2 soundness fix).
+Rollups report reported / estimated / quota / unknown cost and stage/token counts separately; budget
+comparisons emit a visible incomplete-data warning or fail in strict mode. No model or rate is
+guessed. Regression tests assert: the rollup ESTIMATES (not $0) for the token-bearing/no-cost/
+metered-rate case; surfaces the unresolvable-model case as `unknown` (not $0); and does NOT estimate
+a quota/free-marked stage.
 
 ### M2 — mission-loop ingest (Gap B)
 One chain per mission iteration; stages = the loop's units of spend. NO new infrastructure — POST
@@ -165,28 +189,32 @@ independently):**
   migration, existing readers/writers, and backward compat. gemini adds: **verify `quota_bucket` can
   be stored in `ChainStage` (it is referenced by M2 but never confirmed to exist) or add it.**
 
-**Verdict: PARKED needs-human-review (iteration 97).** The one-revision-one-requorum gate is spent
-(Rev-1 → re-quorum). The residual objection is a **genuine schema-design gap** — it changes M1's
-mechanism (persisted provenance + a DB migration + write-API change, a materially larger conflict
-surface than the doc's ~0.5d estimate) and leaves an unresolved fork the reviewers offered as
-alternatives (pointer-`Cost` vs a `cost_status` field). That is a controller-judgment / architecture
-decision, NOT a reviewer-verbatim refinement — so it is NOT a clean case for the (unratified)
-narrow-refinement carve-out (per the iter-96 precedent: genuine design gaps park; only
-verbatim-applicable refinements fold). **The quorum did its job: it caught a real data-correctness
-bug (free-$0/quota corruption) BEFORE any code was written — the collision is precisely between M1's
-inference and M2's own quota-$0 stages.**
+**Verdict: PARKED needs-human-review (iteration 97) → ✅ RESOLVED by Mark 2026-07-24 (`4e1348adb`).**
+The one-revision-one-requorum gate was spent (Rev-1 → re-quorum), so the residual convergent objection
+went to Mark as a design decision (correctly — it was a genuine schema-design fork, not a
+reviewer-verbatim refinement, so NOT a carve-out case). **Mark chose "scoped inference": estimate ONLY
+for token-bearing / no-cost / no-quota-bucket stages; quota lanes are `$0`-by-design (`cost_status=quota`);
+no schema migration for M1.** This resolves the round-2 soundness objection **by scoping the inference
+so it structurally never touches free/quota stages** (folded into the M1 Design section above),
+overriding the reviewers' "persistence is REQUIRED" conclusion — Mark's prerogative as the human
+principal. **The quorum still did its job: it caught the free-$0/quota-corruption collision BEFORE any
+code was written, which is exactly what the M1 scoping now guards against.**
 
-### ⛔ Human fork for Mark (unblocks routing)
-1. **Pick the M1 provenance-persistence approach** (both reviewers require persistence, not inference):
-   (a) `Cost *float64` pointer (null = no cost data); OR (b) an explicit `cost_status` /
-   `cost_source` stage field. Either way M1 becomes a **schema-migration sprint** (stage write API +
-   `ChainStage` schema + migration + readers/writers + back-compat), not the original CLI-only ~0.5d.
-2. **Confirm/authorize adding `quota_bucket` to `ChainStage`** (M2 references it; not verified present).
-3. Optionally **ratify the narrow-refinement carve-out** — but note it would NOT auto-fold THIS item
-   (genuine design gap, not verbatim); it would help the OTHER parked narrow-refinement items
-   (`m-budget-scoping-bug`, `m-effect-replay-contracts` premise rows).
-Once (1)+(2) are decided, a future iteration folds the converged fix in one revision → sprint-planner
-(opus) → executor (opus, worktree) → evaluator (sonnet). M2/M3 direction is unchanged and unobjected.
+### ✅ RESOLVED by Mark 2026-07-24 — `4e1348adb` (was: ⛔ Human fork for Mark)
+1. **M1 provenance approach** — the reviewers required persistence; **Mark chose SCOPED read-side
+   inference instead** (no migration): estimate only for token-bearing / no-cost / **no-quota-bucket**
+   stages; quota lanes `$0`-by-design (`cost_status=quota`). M1 stays a **CLI-side ~0.5d rollup fix**,
+   not a schema-migration sprint. A persisted `cost_status` field may follow later, not now.
+2. **`quota_bucket` on `ChainStage`** — **DEFERRED, not required for M1** (Mark: no schema migration).
+   Re-verified 2026-07-24: the field does not exist. **M2 planner task:** post quota stages so M1's
+   `tokens>0` gate excludes them structurally (quota lanes carry no reportable token count → post
+   `tokens=0, cost_usd=0`), OR encode the bucket in an existing field / `mission:*` source prefix —
+   no migration. Only escalate back to Mark if the planner proves a no-migration path impossible.
+3. Narrow-refinement carve-out already **ratified** (Mark, iter-98 `m-budget-scoping-bug`); it did NOT
+   apply here (genuine design gap, not verbatim) — Mark's direct decision unblocked this instead.
+**Routing (this fold, iter-100):** controller folded the scoped fix (above), NO re-quorum →
+sprint-planner (opus) → executor (opus, worktree) → evaluator (sonnet). M2/M3 direction unchanged and
+unobjected.
 
 ## Related
 - `m-cost-per-success-kpi` (clause 5 — this is its data substrate; sequence THIS first)
