@@ -97,6 +97,8 @@ This runs:
 - `make check-file-sizes` — No files exceeding 800 lines
 - `make test-coverage-badge` — Coverage metrics
 
+**When the sprint touches `examples/` or `examples/manifest.json`, ALSO run `make verify-examples` (HARD FAIL if red).** `make test` and `make check-file-sizes` do NOT cover the manifest-drift gate — a sprint that adds an example but omits/leaves-stale its manifest `modules` field passes local `go test` yet fails the CI `test` job's `verify-examples` step (`validate_manifest --ci`). Recurrent class ([[project_verify_examples_red_is_usually_manifest_drift]]); 2nd instance of a manifest defect reaching CI *through* a green evaluator verdict (iter-101, PR #479). If drift is found, fix it surgically (populate the `modules` field for the new entry — do NOT run `backfill_manifest_modules.go`, which reserializes the whole file and churns unrelated unicode-escaped entries) or fail the sprint back to the executor.
+
 ### Phase 3: Acceptance Criteria Verification
 
 ```bash

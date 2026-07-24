@@ -1,6 +1,18 @@
 # M-CHECK-STRICT-FALLBACKS — Static detection of "Ok contains default-valued literal" anti-pattern
 
-**Status**: UNPARKED — **ARCHITECTURE DECIDED by Mark 2026-07-17 ("go with 2"): the pass runs
+**Status**: ✅ **LANDED 2026-07-24 (mission iteration 101) → PR #479 squash `1978ab44b`.** Evaluator
+(sonnet, generator≠judge vs opus executor) **PASS 88/100 round 1**; controller independently
+re-verified (build/tests/gates green, 8 real-pipeline e2e tests, local-`jo` soundness confirmed).
+Shipped: `internal/pipeline/strict_fallbacks.go` (Core-level post-name-resolution pass mirroring
+`warn_split_args.go`; `GlobalRef`-keyed known-empty-builder registry; ANF `Let`-env resolver so
+`Ok(jo([]))`/`Ok([])` fire through the atomic-arg indirection), dual channel (dev WARNING exit 0 /
+`check --package` HARD ERROR exit 1), `@allow_empty_ok("rationale")` opt-out, guide + demo +
+CHANGELOG. Stdlib audit: 0 unannotated violations across 45 files. **Open follow-up (D1, LOW,
+tracked below in Future Work):** the design's match-arm-context scoping for bare `Ok("")` is not
+implemented — `Ok("")` flags unconditionally in a Result-returning fn; the `@allow_empty_ok` escape
+hatch covers the legitimate case. **A CI gap was fixed-forward mid-merge** (`bc1c91c5c`): the M5
+manifest entry omitted its `modules` field → `validate_manifest --ci` drift failed `verify-examples`.
+The **decided architecture** (Mark 2026-07-17 "go with 2"): the pass runs
 AFTER name resolution** (resolved-callee identity), with a **curated known-empty-builder registry**
 matched by resolved identity (std/json `jo` with empty args, etc. — never bare name-match, per
 gpt5-6-sol's soundness warning), so `Ok(jo([]))` — the motivating incident — IS caught. Channel
@@ -570,6 +582,13 @@ The fallback `Ok` is constructed from runtime values, not literals. Caller still
 
 ## Future Work
 
+- **D1 (LOW, from iter-101 evaluation) — match-arm-context scoping for bare `Ok("")`** — the design
+  (line ~322) specifies that bare `Ok("")` should flag only outside a match-arm/fallback context; the
+  landed pass flags `Ok("")` unconditionally inside any Result-returning function. Empty collections,
+  records, and registry builders remain unconditional (correct). Fix if the false-positive rate on real
+  code proves annoying: thread an `inMatchArm bool` through `walkStrictFallback` and gate the
+  empty-string case on it. Currently mitigated by the `@allow_empty_ok("rationale")` escape hatch, and
+  the stdlib audit found 0 unannotated violations — so evidence-gated, not urgent.
 - **Inter-procedural detection** (M-CHECK-STRICT-FALLBACKS-INTERPROC) — catch `Err(_) => helperReturningZeros()`.
 - **`STRICT_FALLBACK_002` etc. — other Result anti-patterns** — silent error swallow on chain, ignored `Result` return values, etc.
 - **Doc-comment-as-contract** — parse "Returns Err if X" from doc comments and verify the function body actually returns Err in those cases. Heavier lift; deserves its own design doc.
