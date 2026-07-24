@@ -144,10 +144,13 @@ func TestLoadEffEnv_Defaults(t *testing.T) {
 	os.Unsetenv("LANG")
 	os.Unsetenv("AILANG_FS_SANDBOX")
 
-	env := loadEffEnv()
+	env, seedSet := loadEffEnv()
 
 	if env.Seed != 0 {
 		t.Errorf("expected default Seed=0, got %d", env.Seed)
+	}
+	if seedSet {
+		t.Errorf("expected seedSet=false when AILANG_SEED unset, got true")
 	}
 
 	if env.TZ != "UTC" {
@@ -177,10 +180,13 @@ func TestLoadEffEnv_FromEnvironment(t *testing.T) {
 		os.Unsetenv("AILANG_FS_SANDBOX")
 	}()
 
-	env := loadEffEnv()
+	env, seedSet := loadEffEnv()
 
 	if env.Seed != 42 {
 		t.Errorf("expected Seed=42, got %d", env.Seed)
+	}
+	if !seedSet {
+		t.Errorf("expected seedSet=true when AILANG_SEED=42, got false")
 	}
 
 	if env.TZ != "America/New_York" {
@@ -200,11 +206,15 @@ func TestLoadEffEnv_InvalidSeed(t *testing.T) {
 	os.Setenv("AILANG_SEED", "invalid")
 	defer os.Unsetenv("AILANG_SEED")
 
-	env := loadEffEnv()
+	env, seedSet := loadEffEnv()
 
 	// Should default to 0 on parse error
 	if env.Seed != 0 {
 		t.Errorf("expected Seed=0 for invalid input, got %d", env.Seed)
+	}
+	// Invalid seed → treated as unset (no silent fallback to a valid seed).
+	if seedSet {
+		t.Errorf("expected seedSet=false for invalid AILANG_SEED, got true")
 	}
 }
 

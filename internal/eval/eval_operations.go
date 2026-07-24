@@ -139,6 +139,11 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 			if e.pushBudgetFrameIfAnnotated(fn, funcName) {
 				defer e.deferredPopBudgetFrame(funcName, &err)
 			}
+			// M-EFFECT-REPLAY-CONTRACTS: push the declared non-os Rand mode for the
+			// dynamic extent of this call; unwind-safe pop on every exit path.
+			if mode := e.pushRandModeIfDeclared(fn); mode != "" {
+				defer e.deferredPopRandMode(mode)
+			}
 		}
 
 		// Evaluate body

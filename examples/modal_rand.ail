@@ -1,6 +1,7 @@
 -- examples/modal_rand.ail
 -- Demonstrates parameterised effect syntax (!{E[k=v, ...]}) introduced in
--- M-EFFECT-REFINEMENT Phase 1 (v0.15.0).
+-- M-EFFECT-REFINEMENT Phase 1 (v0.15.0), and the mode-aware RUNTIME dispatch
+-- added in M-EFFECT-REPLAY-CONTRACTS (v1.0.0, Rand pilot).
 --
 -- Rand is the pilot effect: bare !{Rand} desugars to !{Rand[mode=os]} via
 -- the per-effect default-mode table. Authors can opt into explicit modes:
@@ -8,51 +9,62 @@
 --   !{Rand}                       -- default (mode=os, OS entropy)
 --   !{Rand[mode=os]}              -- explicit form of the default
 --   !{Rand[mode=seeded]}          -- deterministic for replay/testing
---   !{Rand[mode=crypto]}          -- cryptographic strength (future)
+--   !{Rand[mode=crypto]}          -- cryptographic strength (crypto/rand)
 --
--- Phase 1 ships the syntax + row algebra + unification scaffolding; the
--- runtime treats all Rand modes identically (all dispatch to the existing
--- _rand_int / _rand_float / _rand_bool builtins). Mode-aware runtime
--- dispatch lands in Phase 3 (replay contract registry).
+-- RUNTIME BEHAVIOUR (v1.0.0, M-EFFECT-REPLAY-CONTRACTS): the three Rand modes
+-- now dispatch to three DIFFERENT sources at runtime — os draws from the global
+-- OS-entropy source (reseedable via rand_seed), seeded draws from a dedicated
+-- deterministic source pinned by the AILANG_SEED environment variable, and
+-- crypto draws from crypto/rand. Trace events for moded Rand ops carry the
+-- resolved mode and its replay-contract label (deterministic/re-sampleable/
+-- opaque). See ailang trace + docs/docs/guides/parameterised-effects.md.
+--
+-- SEEDING CONTRACT (Mark's decision, 2026-07-24): the seeded-mode source is
+-- seeded ONLY by AILANG_SEED (the dedicated explicit path), NEVER by rand_seed.
+-- rand_seed keeps its existing contract: it reseeds the os/global source. A
+-- seeded-mode draw with no AILANG_SEED is a loud typed error (RAND_SEEDED_NO_SEED),
+-- never a silent random fallback.
+--
+-- KNOWN LIMITATION (tracked for a follow-up type-system decision): a function
+-- declared !{Rand[mode=seeded]} or !{Rand[mode=crypto]} cannot yet CALL the
+-- std/rand wrappers (rand_int/rand_float/rand_bool), because those wrappers are
+-- declared bare !{Rand} (= mode=os) and effect modes are invariant under the
+-- current subsumption rule (an os-mode body does not satisfy a seeded/crypto
+-- declaration). The runtime dispatch machinery is in place; wiring seeded/crypto
+-- into a runnable .ail path needs a subsumption decision (does an explicit
+-- declared mode subsume an os-mode required effect?). Until then this example
+-- demonstrates the os path end-to-end and the seeded/crypto forms at the type
+-- level only. See design_docs/planned/v1_0_0/m-effect-replay-contracts.md.
 --
 -- Run with:
 --   ailang run --caps Rand,IO --entry main examples/modal_rand.ail
 --
 -- See:
---   design_docs/planned/v0_15_0/m-effect-refinement-phase1.md
+--   design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md
 --   design_docs/planned/v1_0_0/m-effect-refinement.md (parent, Example 1)
+--   design_docs/planned/v1_0_0/m-effect-replay-contracts.md (Phase 3 dispatch)
 
 module examples/modal_rand
 
-import std/rand (rand_int, rand_seed)
+import std/rand (rand_int)
+
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
--- Existing programs that wrote !{Rand} continue to type-check unchanged.
+-- Existing programs that wrote !{Rand} continue to type-check unchanged and
+-- draw from the global OS-entropy source at runtime.
 export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
 
 -- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
--- Unifies with bare form via the default-desugar match in the unifier.
+-- Unifies with bare form via the default-desugar match in the unifier; draws
+-- from the same global os source.
 export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
 
--- Explicit !{Rand[mode=seeded]} — distinct from mode=os under invariant
--- unification. A function declared with mode=seeded cannot be passed where
--- mode=os is expected (and vice versa) without going through a widening
--- coercion that the language doesn't yet provide.
-export func deterministic_roll() -> int ! {Rand[mode=seeded]} = {
-  rand_seed(42);
-  rand_int(1, 100)
-}
-
--- main demonstrates the three forms together. Each function carries its
--- own mode in its signature; the type checker ensures callers match.
+-- main demonstrates the os-mode forms end-to-end. For determinism across runs,
+-- seed the os source with rand_seed (its documented contract) or pin the whole
+-- program with AILANG_SEED. The seeded/crypto modes differ at runtime once a
+-- moded function can reach them (see KNOWN LIMITATION above).
 export func main() -> () ! {Rand, IO} = {
-  let r1 = roll_d6() in
-  println("roll_d6 (bare Rand): ${show(r1)}");
-
-  let r2 = roll_d20() in
-  println("roll_d20 (Rand[mode=os]): ${show(r2)}");
-
-  let r3 = deterministic_roll() in
-  println("deterministic_roll (Rand[mode=seeded]): ${show(r3)}")
+  let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand → mode=os): ", show(show(r1))))
+  let r2 = roll_d20(()) in println(concat_String("roll_d20 (Rand[mode=os]): ", show(show(r2))))
 }

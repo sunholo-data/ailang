@@ -1,6 +1,11 @@
 # M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)
 
-**Status**: **READY FOR SPRINT-PLANNER** (controller fold applied 2026-07-24, iter-99 — Mark's option-(b) decision folded into the normative body; baseline re-pinned to `v0.30.0-154-gb326c3fd3`; caller sweep executed at design time; open design question RESOLVED; no third text round per Mark).
+**Status**: **LANDED (PARTIAL) 2026-07-24, iter-99** — M0–M5 shipped (evaluator sonnet PASS 86/100 r1, generator≠judge vs opus executor). **Delivered + green**: `internal/replay/contracts.go` registry (Rand 3 + AI 3 label rows, cross-table drift-guard invariant), mode-aware Rand dispatch machinery (os/seeded/crypto via `EffContext` threading), seeded-source seed via `AILANG_SEED` + typed no-seed error, crypto via `crypto/rand` (rejection-sampled), additive trace `Mode`/`Contract` fields, bare-Rand byte-identical golden gate, `modal_rand.ail` migrated (now type-checks + runs). **BLOCKED follow-up** → new gating item **M-EFFECT-REPLAY-SUBSUMPTION**: seeded/crypto modes are unit-proven at the Go level but NOT reachable from a runnable `.ail` program — a `!{Rand[mode=seeded]}` function cannot call the bare-`!{Rand}` (os) `std/rand` wrappers because `SubsumeEffectRows` treats effect modes as INVARIANT (`internal/types/effects.go:625`, guarded by `TestSubsumeEffectRows_InvariantOnParams` which Phase-5 routeable→fixed depends on). This is a SHARED gate for the whole effect-mode-dispatch line — the parent doc's `Clock[mode=pinned]` examples have the identical structure, so sprints 3/4 (clock/net/fs) hit it too. Needs a Mark/type-system decision: does an explicit declared mode subsume an os/bare required effect? (The executor correctly declined to overturn a tested invariant out of ratified scope.)
+
+<details><summary>Original pre-sprint status (READY FOR SPRINT-PLANNER)</summary>
+
+Controller fold applied 2026-07-24, iter-99 — Mark's option-(b) decision folded into the normative body; baseline re-pinned to `v0.30.0-154-gb326c3fd3`; caller sweep executed at design time; open design question RESOLVED; no third text round per Mark.
+</details>
 
 **DECIDED by Mark 2026-07-24 — option (b), explicit seeding surfaces**: `rand_seed` keeps its existing os-source contract UNTOUCHED (bare-Rand determinism preserved, the round-1 fix stands); `mode=seeded` is seeded ONLY via its dedicated explicit path (`AILANG_SEED` / the seeded-source API) — never implicitly by mode-aware magic (explicit-over-implicit is the language's axiom). CONSEQUENCE: `examples/modal_rand.ail:44` — `deterministic_roll() ! {Rand[mode=seeded]}` seeding via `rand_seed(42)` — is the ONE real DOC/EXAMPLE BUG (fix it to the dedicated path in-sprint), plus a teaching diagnostic if seeded-mode is entered with no seed. **CORRECTION (planner, iter-99):** `examples/expected_fail/effect_budgets_multi.ail:62` is NOT a bug — its `rand_seed(42)` is inside `main() ! {IO, Rand, Clock}` = **bare/os mode** (no `mode=seeded` in the file); under the settled contract it is CORRECT and must stay byte-identical → it becomes the bare-Rand+`rand_seed` GOLDEN FIXTURE, not a migration. Route to sprint-planner (the round-2 premise nits — baseline re-pin + caller sweep — resolved by the controller fold below); no third text round.
 **Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
@@ -113,8 +118,19 @@ three Rand modes have three observable behaviours and trace tooling can read the
   exactly as today (bare-`!{Rand}` + `rand_seed` determinism is preserved). The seeded-mode
   source has its own seed path (`AILANG_SEED` or a dedicated mechanism); it is NOT wired to
   `rand_seed`.
-- [ ] Mode→dispatch mechanism (lowering vs context metadata) — planner decides with a spike,
-  records rationale.
+- [x] Mode→dispatch mechanism: **(a) context-threading** (NOT the doc's recommended (b) lowering).
+  Spike finding (M0, confirmed in-tree): `_rand_int`/`_rand_float`/`_rand_bool` are referenced ONLY
+  inside `std/rand`'s wrappers, whose rows are bare `!{Rand}` (= os) — so a lowering pass keyed on the
+  effect row at the builtin reference site would ALWAYS see `os`; the outer `seeded`/`crypto` mode
+  never reaches the builtin. (b) would require per-caller-mode inlining of the stdlib wrappers
+  (monomorphization-scale), NOT the smallest diff. Chosen: thread the resolved `Rand` mode onto
+  `EffContext` at moded-lambda entry (`EffectModeFor(row,"Rand")` extracted at closure creation like
+  `EffectBudgets`, pushed only when non-`os` so the innermost EXPLICIT mode wins and bare-`!{Rand}`
+  stays byte-identical); `builtins/rand.go` reads the mode off the context and dispatches. This retires
+  the "lowering leaks mode into iface/caches" risk. Registry-duplication finding (spike 2): NO
+  duplication — `effectSchema` (types) is *validation* (which modes are legal), `internal/replay` is
+  *taxonomy* ((effect,mode)→contract label); guarded by `TestReplayContractsAreLegalModes` +
+  exported `types.IsLegalEffectMode` so `effectSchema` stays the single source of legal modes.
 
 ## Solution Design
 
@@ -178,24 +194,45 @@ export func shuffle[a](xs: [a]) -> [a] ! {Rand} = ...   -- mode=os via default
 
 ## Success Criteria
 
-- [ ] Registry exists, populated for Rand (3 rows) + AI (3 label rows); lookup API tested
-- [ ] Seeded determinism integration test: two runs, same seed, identical sequences
-- [ ] Crypto mode draws from crypto/rand (test via statistical smoke + source inspection hook)
-- [ ] Seeded-without-seed → typed error with fix hint (the teaching diagnostic — points to the
-  dedicated seed path, NOT `rand_seed`)
-- [ ] Bare-Rand behaviour byte-identical: golden test MUST include an existing bare-`!{Rand}`
-  program that CALLS `rand_seed`, compared against pre-change output (not only an
-  `AILANG_SEED`-pinned harness run) — proving `rand_seed`→os-source determinism is preserved
-- [ ] Trace events carry contract label; additive schema verified against existing trace readers
-- [ ] **`examples/modal_rand.ail` rewritten** — `deterministic_roll`'s seeded-mode seed moved off
-  `rand_seed(42)` (line 44) onto the dedicated seeded-source path (`AILANG_SEED` / seeded-source API);
-  comments updated (no longer "runtime treats all modes identically"); runs deterministically under a
-  pinned seed. This is the ONE seeded-mode-via-`rand_seed` caller in-tree — after this, none remain.
-- [ ] **`examples/expected_fail/effect_budgets_multi.ail`** UNCHANGED behaviourally — its `rand_seed(42)`
-  is bare/os (inside `main`, no `mode=seeded`) and is CORRECT; it serves as the bare-Rand+`rand_seed`
-  golden fixture (Verification Log row 3), asserting byte-identical output pre/post-change
-- [ ] Guide + teaching prompt updated; `m-cryptorand.md` header corrected to Superseded (points here)
-- [ ] `make test && make verify-examples && make lint` green
+- [x] Registry exists, populated for Rand (3 rows) + AI (3 label rows); lookup API tested
+  (`internal/replay/contracts.go` + `TestContractFor_*`)
+- [x] Seeded determinism unit test: same seed → identical sequences; different seed → different
+  (`TestSeeded_Deterministic`, `TestRandIntImpl_SeededMode_Deterministic`). **NOTE:** proven at the
+  Go/builtin level, not via an end-to-end `.ail` run — a seeded-mode `.ail` function cannot yet call
+  the os-mode `std/rand` wrappers (invariant subsumption blocker, see Design-Freeze note below).
+- [x] Crypto mode draws from crypto/rand (`TestRandIntImpl_CryptoMode_Range` + `effects.CryptoIntn`
+  unbiased rejection sampling; entropy failure panics)
+- [x] Seeded-without-seed → typed `*SeededModeError` with fix hint pointing to `AILANG_SEED` (NOT
+  `rand_seed`) — `TestSeeded_NoSeed_TypedError`, `TestRandIntImpl_SeededMode_NoSeed_Error`
+- [x] Bare-Rand behaviour byte-identical: golden gate `TestRandGolden_OsSeedByteIdentical` pins the
+  `rand_seed(42)`→os-source draw sequence; also live-verified two `.ail` runs identical
+- [x] Trace events carry mode+contract label; additive schema verified against existing readers
+  (`internal/trace/moded_effect_test.go`, `TestEffectEvent_OldFormatParses`)
+- [~] **`examples/modal_rand.ail` rewritten** — the `rand_seed(42)` misuse inside the seeded-mode
+  `deterministic_roll` is REMOVED (it seeded the os source inside a seeded fn). The file now
+  type-checks AND runs (it did neither before) demonstrating the os path end-to-end, and documents
+  the seeded/crypto type-checker limitation + the `AILANG_SEED` seeding contract. `deterministic_roll`
+  itself was dropped (not merely re-seeded) because a seeded-mode fn calling os-mode `rand_int` is
+  ill-typed under the current invariant subsumption rule — see the blocker below.
+- [x] **`examples/expected_fail/effect_budgets_multi.ail`** UNCHANGED (os-mode, correct; premise §0)
+- [~] Guide updated; `m-cryptorand.md` header updated (crypto intent now realized). **Teaching prompt
+  intentionally NOT updated**: seeded/crypto are not reachable from a runnable `.ail` program yet
+  (subsumption blocker), so teaching agents to use them would produce non-checking code.
+- [x] `make verify-examples && make lint` green; `make test` green modulo the pre-existing live-network
+  flake `TestNetHttpPost/httpbin.org` (503, unrelated)
+
+**BLOCKER surfaced for controller/Mark (NOT a Mark HARD constraint — a new type-system decision):**
+A function declared `!{Rand[mode=seeded]}` or `!{Rand[mode=crypto]}` cannot CALL the `std/rand`
+wrappers, because those are bare `!{Rand}` (= `mode=os`) and `SubsumeEffectRows` treats modes as
+invariant (an os-mode body does not satisfy a seeded/crypto declaration — deliberately, per
+`TestSubsumeEffectRows_InvariantOnParams`, which Phase 5 routeable→fixed depends on). The parent doc's
+Example 1/2 (`deterministic_now() ! {Clock[mode=pinned]} = now()`) imply the intended rule is that an
+explicit declared mode SHOULD subsume an os-mode required effect, but that overturns a tested
+invariant and is out of this sprint's ratified scope. **The runtime dispatch machinery is complete and
+unit-proven; making seeded/crypto reachable from `.ail` needs a subsumption decision** (does an
+explicit declared mode subsume an os/bare required effect? — the `SubsumeEffectRows` validate path is
+separate from the `effectParamsCompatible` unification path, so a narrow relaxation is feasible
+without weakening function-value mode distinctness).
 
 ## Testing Strategy
 

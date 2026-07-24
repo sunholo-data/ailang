@@ -310,6 +310,7 @@ type FunctionValue struct {
 	Typed            bool            // Whether Body is typed
 	EffectBudgets    map[string]int  // Budget max limits per effect (from @limit annotation)
 	EffectMinBudgets map[string]int  // Budget min limits per effect (from @min annotation, M-DX25 M4)
+	EffectRandMode   string          // Declared Rand mode (os/seeded/crypto) from the effect row; "" / "os" = no mode push (M-EFFECT-REPLAY-CONTRACTS)
 	Preconditions    []*ContractSpec // requires blocks (M-VERIFY-CONTRACTS)
 	Postconditions   []*ContractSpec // ensures blocks (M-VERIFY-CONTRACTS)
 
