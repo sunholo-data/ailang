@@ -1,0 +1,108 @@
+{
+  "sprint_id": "M-CHECK-STRICT-FALLBACKS",
+  "design_doc": "design_docs/planned/v1_0_0/m-check-strict-fallbacks.md",
+  "plan_path": "design_docs/planned/v1_0_0/m-check-strict-fallbacks-sprint-plan.md",
+  "created": "2026-07-24",
+  "scope_note": "Static STRICT_FALLBACK_001 detection: a Result-returning function whose Ok branch carries an empty/default value (Ok(\"\"), Ok([]), Ok({}), all-zero record, zero-ctor, or a known-empty builder like std/json.jo([])). DECIDED architecture (Mark 2026-07-17 'go with 2'): pass runs AFTER name resolution over elaborated Core, mirroring warn_split_args.go; keyed on resolved $adt.make_Result_Ok identity + a module-qualified knownEmptyBuilders registry (NOT bare name). Threads a let-env through the Core walk to resolve ANF-atomic Var args back to the real value (the C3 risk). Channels: WARNING in dev `ailang check` (exit 0), HARD ERROR under `check --package` (exit 1). @allow_empty_ok(\"rationale\") is the opt-out (rationale REQUIRED). Do NOT re-quorum, do NOT re-open the fork.",
+  "github_issues": [],
+  "velocity": "~2 days estimated",
+  "risk_level": "medium",
+  "status": "completed",
+  "baseline_metric": "No static enforcement of NO SILENT FALLBACKS; firestore@0.7.1 Ok(jo([])) shipped to production undetected.",
+  "premise_corrections": "Followed the sprint plan's C1-C9 corrections table (superseding the doc body's surface-AST plan): Core-level pass, not *ast.File-only; keyed on $adt.make_Result_Ok VarGlobal (C2); ANF let-resolver required for Ok([])/Ok(jo([])) since App args are atomic Vars (C3); registry by GlobalRef excludes user-local jo (C4); module pipeline resolves imports to VarGlobal, single-file is a no-op for jo-class (C5); annotations read off surface FuncDecl not Core (C6); lib fixtures import std/result (C7); package channel mirrors checkInterFunctionRefs (C8); changelog at v0.18-current.md (C9).",
+  "non_goals": [
+    "Inter-procedural detection (Err(_) => helperReturningZeros()) — tracked as M-CHECK-STRICT-FALLBACKS-INTERPROC.",
+    "Type-system-level NonEmpty[T]/Required[T] enforcement.",
+    "Dynamic runtime detection."
+  ],
+  "invariants": [
+    "No silent fallbacks: if identity cannot be resolved soundly the pass does NOT guess-flag (user-local jo excluded structurally).",
+    "Deterministic sorted output for stable diagnostics.",
+    "Depth-bounded resolver (no infinite loop on cyclic let-chains)."
+  ],
+  "milestones": [
+    {
+      "id": "M1_PARSER_ANNOTATION",
+      "description": "Parse @allow_empty_ok(\"rationale\") — name-keyed switch case in parseAnnotation(), REQUIRING a non-empty string-literal rationale.",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "files": ["internal/parser/parser_decl.go", "internal/parser/route_attr_test.go"],
+      "acceptance_criteria": [
+        "@allow_empty_ok(\"x\") parses; retrievable via FuncDecl.GetAnnotation(\"allow_empty_ok\") with the rationale.",
+        "@allow_empty_ok() and @allow_empty_ok(\"\") are parse errors.",
+        "go test ./internal/parser/... green."
+      ],
+      "passes": true,
+      "started": "2026-07-24",
+      "completed": "2026-07-24",
+      "notes": "parseAllowEmptyOkAnnotation added; PAR_ALLOW_EMPTY_OK_ARG / PAR_ALLOW_EMPTY_OK_EMPTY diagnostics. 3 parser tests (basic, missing-rationale, empty-rationale). All parser tests green."
+    },
+    {
+      "id": "M2_RESOLVER_CLASSIFIER_REGISTRY",
+      "description": "Pure Core let-chain resolver (resolveAtomic), empty-value classifier (isEmptyValue/isZeroField), and knownEmptyBuilders registry keyed by GlobalRef with joEmpty detector. No wiring.",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "files": ["internal/pipeline/strict_fallbacks.go", "internal/pipeline/strict_fallbacks_test.go"],
+      "acceptance_criteria": [
+        "resolveAtomic walks let t = <val> in ... and returns <val> for Var{t}; depth/cycle bounded.",
+        "Registry lookup keyed by GlobalRef{std/json,jo} fires only on the empty form; jo([kv]) does not.",
+        "Zero false-positive on non-empty/non-literal values and plain-Var-headed apps (user-local jo).",
+        "All-zero record flags; mixed record does not."
+      ],
+      "passes": true,
+      "started": "2026-07-24",
+      "completed": "2026-07-24",
+      "notes": "17 synthetic-Core unit tests cover resolve-through-let, chained/cyclic resolve, jo via registry + via resolved arg, empty/all-zero/mixed records, user-local jo exclusion, and depth bound. Green."
+    },
+    {
+      "id": "M3_PASS_DEV_WARNING",
+      "description": "DetectStrictFallbacks(file, prog) + StrictFallbackWarning; wire into single-file and module pipelines as non-blocking warnings.",
+      "estimated_loc": 140,
+      "dependencies": ["M1_PARSER_ANNOTATION", "M2_RESOLVER_CLASSIFIER_REGISTRY"],
+      "files": ["internal/pipeline/strict_fallbacks.go", "internal/pipeline/pipeline_single.go", "internal/pipeline/pipeline_module.go", "internal/pipeline/strict_fallbacks_e2e_test.go"],
+      "acceptance_criteria": [
+        "ailang check fixture.ail prints STRICT_FALLBACK_001 as a warning and exits 0.",
+        "Negative fixtures (Ok(\"real\"), user-local jo, annotated, non-Result) print nothing.",
+        "go test ./internal/pipeline/... green."
+      ],
+      "passes": true,
+      "started": "2026-07-24",
+      "completed": "2026-07-24",
+      "notes": "8 end-to-end tests via REAL pipeline.Run on a mini-stdlib fixture (NOT synthetic Core) prove Ok([]) (ANF Var) and Ok(jo([])) (registry+VarGlobal) each fire exactly once — the anti-false-green proof. Verified live: ailang check warns on line + exits 0; @allow_empty_ok suppresses."
+    },
+    {
+      "id": "M4_PACKAGE_HARD_ERROR",
+      "description": "checkStrictFallbacks(result) in check_package.go mirroring checkInterFunctionRefs; promote findings to allErrors -> os.Exit(1) at the publish boundary.",
+      "estimated_loc": 50,
+      "dependencies": ["M3_PASS_DEV_WARNING"],
+      "files": ["cmd/ailang/check_package.go", "cmd/ailang/check_package_strict_fallbacks_test.go"],
+      "acceptance_criteria": [
+        "ailang check --package <dir-with-violation> exits 1, lists STRICT_FALLBACK_001.",
+        "ailang check --package <dir-annotated> exits 0.",
+        "Plain ailang check on the same file stays exit-0-with-warning.",
+        "go test ./cmd/ailang/... green."
+      ],
+      "passes": true,
+      "started": "2026-07-24",
+      "completed": "2026-07-24",
+      "notes": "3 exec-driven binary tests (violation exit 1, annotated exit 0, plain-check exit 0 regression guard). Verified live: check --package exits 1 with STRICT_FALLBACK_001."
+    },
+    {
+      "id": "M5_STDLIB_AUDIT_DOCS",
+      "description": "Stdlib audit, demo example, author guide, CHANGELOG.",
+      "estimated_loc": 100,
+      "dependencies": ["M3_PASS_DEV_WARNING", "M4_PACKAGE_HARD_ERROR"],
+      "files": ["examples/strict_fallbacks_demo.ail", "examples/manifest.json", "docs/docs/guides/strict-fallbacks.md", "changelogs/v0.18-current.md"],
+      "acceptance_criteria": [
+        "Pass over stdlib: zero unannotated violations after audit.",
+        "make check-file-sizes + check-boundaries green; verify-examples clean for the demo.",
+        "Example + guide + changelog shipped."
+      ],
+      "passes": true,
+      "started": "2026-07-24",
+      "completed": "2026-07-24",
+      "notes": "Audited all 45 std/*.ail — ZERO unannotated violations (no annotations needed). Demo example checks + runs clean (output: 'response has no fields key' / '{}'), added to manifest with statistics recomputed. Guide docs/docs/guides/strict-fallbacks.md + CHANGELOG entry shipped. verify-examples: only pre-existing ai_modes.ail fails (unrelated AI-effect issue, not in my changes); the demo is in the clean-run set."
+    }
+  ],
+  "final_metric": "STRICT_FALLBACK_001 fires on Ok(\"\")/Ok([])/Ok(jo([]))/all-zero record in Result fns (WARNING dev exit 0, ERROR --package exit 1), soundly excludes user-local jo and non-Result fns, @allow_empty_ok(\"rationale\") suppresses. Stdlib clean. All target tests + CI gates (check-boundaries, check-file-sizes) green."
+}
