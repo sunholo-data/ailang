@@ -259,7 +259,7 @@ func (w *StrictFallbackWarning) Position() (line, col int) {
 func (w *StrictFallbackWarning) String() string {
 	return fmt.Sprintf(
 		"STRICT_FALLBACK_001 at %s\n"+
-			"  Ok branch returns a %s in a Result-returning function.\n"+
+			"  Ok branch returns %s in a Result-returning function.\n"+
 			"  A Result's Ok with a default/empty value can't be distinguished from a\n"+
 			"  populated success: the caller's `Ok(v) =>` arm fires with zero data\n"+
 			"  instead of falling through to its `Err(e) =>` handler.\n"+

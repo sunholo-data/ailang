@@ -197,6 +197,14 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// consistency and future extensibility. Non-blocking.
 	result.Warnings = append(result.Warnings, DetectArgOrderWarnings(coreProg)...)
 
+	// M-CHECK-STRICT-FALLBACKS: warn on empty/default `Ok(...)` in
+	// Result-returning functions. Literal-empty cases (Ok("")/Ok([])/Ok({}))
+	// are caught here; the `std/json.jo`-class registry case needs imports
+	// resolved to VarGlobal, which only the module pipeline provides (a file
+	// with an `import` routes there), so it is a no-op in single-file — the
+	// literal cases still fire. Non-blocking (warning channel).
+	result.Warnings = append(result.Warnings, DetectStrictFallbacks(astFile, coreProg)...)
+
 	// Record Core stats on span
 	elabSpan.SetAttributes(attribute.Int("core.decls", len(coreProg.Decls)))
 	elabSpan.End()
