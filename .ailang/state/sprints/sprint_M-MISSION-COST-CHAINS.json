@@ -1,0 +1,91 @@
+{
+  "sprint_id": "M-MISSION-COST-CHAINS",
+  "created": "2026-07-24",
+  "design_doc": "design_docs/implemented/v0_30_0/m-mission-cost-chains.md",
+  "plan_path": "design_docs/implemented/v0_30_0/m-mission-cost-chains-sprint-plan.md",
+  "worktree": ".claude/worktrees/cost-chains",
+  "branch": "sprint/m-mission-cost-chains",
+  "base_commit": "093f58860",
+  "verify_profile": "go-compiler",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 210,
+    "estimated_total_loc": 420,
+    "estimated_days": 2
+  },
+  "sequencing": "M1 -> M2 -> M3 (M1 independently landable; M2/M3 reuse the M1 classifier)",
+  "reality_checks": {
+    "rc1_quota_marking_no_migration_sound": "YES - mission-control SKILL METERED-SPEND LEDGER (SKILL.md:433-443) tracks metered $ only; quota lanes carry NO reportable token count, so M2 posts them tokens=0,cost_usd=0 and M1's tokens>0 gate excludes them structurally. Bucket encoded in existing free-text field (agent_id/handoff_to). No schema migration required.",
+    "rc2_rate_registry_reachable": "CONFIRMED + PREMISE CORRECTION - internal/observatory/pricing.go:69 CalculateCostFromTokens already wires models.yml (eval_harness) into observatory (called from otlp_receiver.go:359,582). M1 wiring is ALREADY DONE; M1 shrinks to read-side classification.",
+    "rc3_write_path_and_schema": "CONFIRMED - handleCreateChain handlers_chains.go:289; ChainStage models_chains.go:82 Cost float64 @:111; ZERO cost_status/cost_estimated/quota_bucket AND no model column.",
+    "rc4_corrections": "M1 rate-wiring already exists (pricing.go); chain_stages has no model column (resolve from eval_assessment/spans, unresolvable->unknown); rollup is SQL-aggregate today (estimation must be Go per-stage pass); boundary clear (eval_harness=tools layer, apps->tools allowed)."
+  },
+  "features": [
+    {
+      "id": "M1_ROLLUP_FALLBACK",
+      "description": "Read-side scoped-inference cost classifier in internal/observatory: per-stage cost_status in {reported,estimated,quota,unknown} using existing CalculateCostFromTokens; rollup reports reported/estimated/unknown totals + stage/token counts separately via chains stats. Estimation is a Go pass over per-stage rows (NOT the SQL SUM), resolving model from eval_assessment/spans; unresolvable model -> unknown (never faked $0). Quota lanes (tokens==0) NEVER estimated.",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "chains stats shows non-zero cost_estimated-flagged cost for a token-bearing stage with no reported cost that resolves to a non-zero metered rate",
+        "a stage WITH self-reported cost is unchanged (no double-count)",
+        "a stage with tokens but no resolvable model is cost_status=unknown (a $0-rate model rolls up to $0), never a fabricated metered $0.0000",
+        "a quota/free-marked stage (tokens==0) is NEVER estimated",
+        "rollup reports reported/estimated/unknown cost + stage/token counts separately; budget comparison emits a visible incomplete-data warning or fails in strict mode",
+        "regression tests assert estimate / unchanged-reported / unknown / not-estimate-quota"
+      ],
+      "passes": true,
+      "started": "2026-07-24T12:08:28Z",
+      "completed": "2026-07-24T12:08:28Z",
+      "notes": "Shipped internal/observatory/cost_classify.go (ClassifyStageCost + CostRollup), ResolveCostFromTokens in pricing.go (distinguishes unresolvable model from $0 rate), GetCostRollup Go pass in store_chains_query.go wired through Backend interface + all impls, chains_stats.go split output (reported/estimated/quota/unknown) + incomplete-data warning + --strict. Negative-token data-integrity guard -> unknown. Pricing load diagnostic moved to stderr (clean --json). 13 tests pass incl SQL-path integration + real-DB verified ($315.67 reported / $0 estimated-local / 733 quota / 2 unknown over 336h)."
+    },
+    {
+      "id": "M2_MISSION_INGEST",
+      "description": "Gate 4 of mission-control SKILL posts one chain per iteration (source mission:v1/iter-<N>) to EXISTING handleCreateChain/handleCreateStage/UpdateStageMetrics. Metered lanes post cost_usd=<$>+model; quota lanes post tokens=0,cost_usd=0 with bucket in an existing free-text field (no schema change). Bounded+LOUD fail-soft JSONL spool (<=100 entries/size cap, stderr warning on buffer, drop-oldest+notice on overflow) implemented in Go for testability; never blocks the loop.",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_ROLLUP_FALLBACK"
+      ],
+      "acceptance_criteria": [
+        "ailang chains list shows the iteration chain (source mission:v1/iter-<N>)",
+        "chains view <id> shows role stages with $ and quota-bucket attribution via the free-text field",
+        "E2E-class runs (gemini/codex) appear with real metered cost",
+        "spool is bounded+loud: forced server-down path emits stderr warning, respects 100-entry cap, drop-oldest fires with a notice (unit-testable Go component)",
+        "posting never blocks or fails the iteration (fail-soft)"
+      ],
+      "passes": true,
+      "started": "2026-07-24T12:14:11Z",
+      "completed": "2026-07-24T12:14:11Z",
+      "notes": "Shipped cmd/ailang/chains_post.go (chains post-iteration subcommand: reads IterationPost JSON from --file/stdin, flushes spool first, posts, fail-soft spool on failure, exit 0 always), internal/observatory/iteration_post.go (PostIteration writes chain+stages+metrics+model; quota bucket encoded in agent_id; Validate rejects quota-lane-with-tokens), internal/observatory/spool.go (bounded <=100 entries/1MiB, LOUD stderr, drop-oldest). SKILL.md Gate 4 additive posting step added. 6 M2 tests pass; smoke-verified: posted chain shows codex $0.42+tokens + 2 quota lanes (opus/sonnet) in chains view; DB-unreachable path buffers LOUD + exits 0."
+    },
+    {
+      "id": "M3_BY_MISSION_ROLLUP",
+      "description": "Add chains stats --by-mission (and --by-source-prefix) grouping chains by source_ref prefix mission:*; per-mission metered total vs MISSION_METERED_BUDGET_USD, per-bucket quota-stage counts, top-N most expensive stages. Reuses the M1 classifier so metered/estimated/quota are never conflated. CLI only, no dashboard.",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_ROLLUP_FALLBACK",
+        "M2_MISSION_INGEST"
+      ],
+      "acceptance_criteria": [
+        "ailang chains stats --by-mission returns per-mission metered total, budget comparison, per-bucket quota counts, and top-N stages in one command",
+        "--by-mission no longer errors 'flag provided but not defined'",
+        "uses M1 split totals (metered/estimated/quota never conflated)",
+        "MISSION_METERED_BUDGET_USD unset -> shows 'budget unset', never compares against 0 (no silent fallback)"
+      ],
+      "passes": true,
+      "started": "2026-07-24T12:16:11Z",
+      "completed": "2026-07-24T12:16:11Z",
+      "notes": "Shipped chains stats --by-mission / --by-source-prefix (cmd/ailang/chains_stats_mission.go) reusing M1 classifier via GetMissionRollups (internal/observatory/mission_rollup.go): per-mission metered total (reported+estimated split), per-bucket quota counts (opus/sonnet from agent_id), top-N stages. Budget no-silent-fallback: unset -> 'budget unset', never compares vs 0; set -> within/OVER BUDGET. help.go + chains.go usage updated. Smoke-verified end-to-end (grouping, budget set/unset/over, quota buckets, top-N, --json)."
+    }
+  ],
+  "definition_of_done": [
+    "make build && make test green",
+    "go test ./internal/observatory/... ./internal/server/... green",
+    "bash scripts/check_boundaries.sh green",
+    "no schema migration introduced",
+    "no silent $0 (unknown surfaced as unknown; quota surfaced as quota)",
+    "CHANGELOG.md updated; design doc moved planned/ -> implemented/v0_30/ on green"
+  ],
+  "risk_level": "medium",
+  "status": "completed"
+}

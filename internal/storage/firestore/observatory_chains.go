@@ -461,6 +461,51 @@ func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfte
 	return result, nil
 }
 
+// GetCostRollup classifies each stage in the window into
+// reported/estimated/quota/unknown split totals (M-MISSION-COST-CHAINS M1).
+// The model is recovered from the stage's `model` field when present (Firestore
+// flattens eval_assessment.model into `model`); unresolvable -> unknown.
+func (s *ObservatoryStore) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (obs.CostRollup, error) {
+	q := s.client.Collection(collObsChainStages).Query
+	if createdAfter != nil {
+		q = q.Where("started_at", ">=", timeToFirestore(*createdAfter))
+	}
+
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	var rollup obs.CostRollup
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return obs.CostRollup{}, err
+		}
+		data := doc.Data()
+		// NOTE: source-prefix filtering is not applied here (the stage doc does not
+		// carry source_ref); sourcePrefix is honored by the SQLite backend which the
+		// mission uses. Firestore callers pass "" today.
+		stage := &obs.ChainStage{
+			Cost:      getFloat64(data, "cost"),
+			TokensIn:  getInt(data, "tokens_in"),
+			TokensOut: getInt(data, "tokens_out"),
+		}
+		if model := getString(data, "model"); model != "" {
+			stage.EvalAssessment = &obs.EvalAssessment{Model: model}
+		}
+		rollup.AddStage(stage)
+	}
+	return rollup, nil
+}
+
+// GetMissionRollups is not supported on the Firestore backend (the mission loop
+// posts to the SQLite-backed server); returns empty (M3).
+func (s *ObservatoryStore) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]obs.MissionRollup, error) {
+	return nil, nil
+}
+
 func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {
 	if limit <= 0 {
 		limit = 50

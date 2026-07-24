@@ -124,6 +124,13 @@ type Backend interface {
 	GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error)
 	// GetChainStatsByAgent returns per-agent stats in a single SQL query (replaces N+1, M-PERF-OBSERVATORY).
 	GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error)
+	// GetCostRollup returns split reported/estimated/quota/unknown cost totals via a
+	// Go per-stage classification pass (M-MISSION-COST-CHAINS M1). sourcePrefix filters
+	// chains by source_ref prefix ("" = all).
+	GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error)
+	// GetMissionRollups groups chains by mission (source_ref prefix) and returns
+	// per-mission split totals, per-bucket quota counts, and top-N stages (M3).
+	GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]MissionRollup, error)
 
 	// Chain stage operations
 	CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error)
