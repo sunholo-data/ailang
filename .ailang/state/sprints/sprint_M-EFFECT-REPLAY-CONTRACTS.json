@@ -1,0 +1,134 @@
+{
+  "sprint_id": "M-EFFECT-REPLAY-CONTRACTS",
+  "title": "Replay Contract Registry + Mode-Aware Rand Dispatch (Rand pilot)",
+  "design_doc": "design_docs/planned/v1_0_0/m-effect-replay-contracts.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-effect-replay-contracts-sprint-plan.md",
+  "status": "in_progress",
+  "created": "2026-07-24",
+  "baseline": "v0.30.0-155-g541c1950f",
+  "risk_level": "medium",
+  "github_issues": [],
+  "spike_decisions": {
+    "dispatch_mechanism": "(a) context-threading via EffContext \u2014 doc-recommended (b) lowering is INFEASIBLE: _rand_int is referenced only inside os-mode std/rand wrappers, so the outer seeded/crypto mode never reaches the builtin reference site; lowering would require per-caller-mode inlining of std/rand. Thread mode onto EffContext at moded-lambda entry (DeclaredLambdaEffectRow -> EffectModeFor), read it in builtins/rand.go. Retires the iface/cache-leak risk.",
+    "registry_duplication": "No duplication. effectSchema (internal/types/effects.go) = validation (which (effect,mode) are legal, closed set). internal/replay/contracts.go = taxonomy ((effect,mode)->{deterministic,re-sampleable,opaque}). Distinct concerns. Guard: add TestReplayContractsAreLegalModes asserting every replay key is legal per effectSchema \u2014 effectSchema stays the single source of legal modes."
+  },
+  "premise_corrections": [
+    "rand.go line refs: randSource=:19 (not :28), cryptoSeed=:41, SetRandSeed=:51.",
+    "modal_rand.ail: deterministic_roll export=:42, offending rand_seed(42)=:44 (doc said :43). Substance correct: genuine seeded-mode-via-rand_seed bug to fix.",
+    "effect_budgets_multi.ail:62 rand_seed(42) is inside main() ! {IO,Rand,Clock} = BARE/os mode. NO mode=seeded anywhere in file. NOT a bug; must NOT be migrated (would violate bare-Rand golden gate). Repurpose as the bare-Rand+rand_seed golden fixture instead. Only modal_rand was ever a real seeded-mode-via-rand_seed caller."
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 870,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M0_SPIKE_DECISION_RECORD",
+      "description": "Confirm dispatch mechanism (a) context-threading in-tree; record decision (a) + registry-duplication finding in sprint notes and design-doc Design-Freeze checkbox.",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Design-Freeze 'Mode->dispatch mechanism' checkbox resolved to (a) with rationale",
+        "Registry-duplication finding recorded (distinct concerns + cross-table invariant test planned)",
+        "Throwaway probe confirms _rand_int is reached with EffContext mode 'os' from deterministic_roll today"
+      ],
+      "passes": true,
+      "started": "2026-07-24T10:36:12.422517",
+      "completed": "2026-07-24T10:36:12.422517",
+      "notes": "Confirmed decision (a) context-threading in-tree: _rand_int/_float/_bool referenced ONLY inside std/rand os-mode wrappers, so lowering-at-site sees os; (b) infeasible. Registry-duplication: no dup (effectSchema=validation, replay=taxonomy); guard = TestReplayContractsAreLegalModes + exported types.IsLegalEffectMode. Recorded in design-doc Design-Freeze checkbox."
+    },
+    {
+      "id": "M1_REPLAY_CONTRACT_REGISTRY",
+      "description": "internal/replay/contracts.go: static (effect,mode)->{deterministic,re-sampleable,opaque} table + ContractFor(effect,mode) lookup. Populate Rand (seeded/os/crypto) + AI (fixed/routeable/replay-only labels only). Add TestReplayContractsAreLegalModes cross-table invariant.",
+      "estimated_loc": 270,
+      "dependencies": [
+        "M0_SPIKE_DECISION_RECORD"
+      ],
+      "acceptance_criteria": [
+        "Registry exists with 3 Rand rows + 3 AI label rows",
+        "ContractFor lookup API unit-tested",
+        "TestReplayContractsAreLegalModes green (every replay key legal per types.effectSchema)"
+      ],
+      "passes": true,
+      "started": "2026-07-24T10:36:12.422517",
+      "completed": "2026-07-24T10:36:12.422517",
+      "notes": "internal/replay/contracts.go: ContractFor(effect,mode)->{Deterministic,ReSampleable,Opaque}; 3 Rand rows (seeded=det, os=resample, crypto=opaque) + 3 AI label rows. No-fallback ContractFor. Added types.IsLegalEffectMode; TestReplayContractsAreLegalModes cross-table invariant green. 5 unit tests pass."
+    },
+    {
+      "id": "M2_MODE_AWARE_RAND_DISPATCH",
+      "description": "Thread Rand mode onto EffContext at moded-lambda entry (default os); three sources in builtins/rand.go: os (unchanged, incl rand_seed reseed), seeded (dedicated per-context source from AILANG_SEED/dedicated path; no seed -> typed error w/ fix hint), crypto (crypto/rand draws; entropy failure panics loudly).",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M1_REPLAY_CONTRACT_REGISTRY"
+      ],
+      "acceptance_criteria": [
+        "Seeded determinism integration test: two runs same seed identical sequences (incl cross-wrapper deterministic_roll)",
+        "Crypto mode draws from crypto/rand (source-inspection hook + statistical smoke)",
+        "Seeded-without-seed -> typed error with fix hint pointing to dedicated path (NOT rand_seed)",
+        "Per-mode source isolation: seeded sequence unperturbed by interleaved os draws",
+        "os mode + rand_seed behaviour unchanged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_TRACE_INTEGRATION",
+      "description": "Additive Mode + Contract omitempty fields on trace EffectEvent; populate for moded Rand ops from replay.ContractFor; ailang trace surfaces label; comparator test proves old traces still parse.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1_REPLAY_CONTRACT_REGISTRY",
+        "M2_MODE_AWARE_RAND_DISPATCH"
+      ],
+      "acceptance_criteria": [
+        "Moded Rand trace events carry contract label + mode",
+        "Additive schema verified against existing trace readers (comparator test)",
+        "ailang trace surfaces the contract label"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_EXAMPLES_DOCS_BOOKKEEPING",
+      "description": "Migrate modal_rand.ail deterministic_roll seed off rand_seed(42) onto dedicated seeded path + update comments. Do NOT migrate effect_budgets_multi (os-mode, not a bug); repurpose it as bare-Rand+rand_seed golden fixture. Update parameterised-effects guide + teaching prompt; m-cryptorand.md header -> Superseded.",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2_MODE_AWARE_RAND_DISPATCH"
+      ],
+      "acceptance_criteria": [
+        "modal_rand.ail runs deterministically under pinned seed via dedicated path; comments updated",
+        "effect_budgets_multi.ail rand_seed(42) UNCHANGED (os-mode); used as golden fixture",
+        "No seeded-mode-via-rand_seed callers remain in-tree (sweep confirms)",
+        "parameterised-effects guide + teaching prompt updated (modes differ at runtime)",
+        "m-cryptorand.md header corrected to Superseded (points here)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_GOLDEN_GATE_CI",
+      "description": "Bare-!{Rand}+rand_seed golden test: pre-change output byte-identical post-change (HARD GATE). Full CI green.",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2_MODE_AWARE_RAND_DISPATCH",
+        "M4_EXAMPLES_DOCS_BOOKKEEPING"
+      ],
+      "acceptance_criteria": [
+        "Bare-Rand + rand_seed golden identity test green (byte-identical pre/post)",
+        "make test green",
+        "make verify-examples green",
+        "make lint green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
