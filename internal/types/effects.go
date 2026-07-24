@@ -169,6 +169,31 @@ func DefaultModeFor(effectName string) (key, value string, ok bool) {
 	return "", "", false
 }
 
+// IsLegalEffectMode reports whether (effectName, mode) is a legal
+// mode-parameter value under the closed effectSchema — i.e. whether
+// !{effectName[mode=mode]} would pass validateEffectParams.
+//
+// effectSchema is the SINGLE SOURCE OF TRUTH for which (effect, mode) pairs
+// exist (M-EFFECT-MODE-VALIDATION). This exported query lets downstream
+// packages (e.g. internal/replay's contract taxonomy) assert their keys stay
+// a subset of the legal modes WITHOUT copying the schema — preventing drift
+// between the validation table (which modes are legal) and any classification
+// table (what a legal mode means). Returns false for effects with no schema
+// entry (Clock/Net/FS/…), for unknown "mode" keys, and for values outside the
+// closed set.
+func IsLegalEffectMode(effectName, mode string) bool {
+	schema, hasSchema := effectSchema[effectName]
+	if !hasSchema {
+		return false
+	}
+	allowed, keyOK := schema["mode"]
+	if !keyOK {
+		return false
+	}
+	_, valueOK := allowed[mode]
+	return valueOK
+}
+
 // paramsOf returns the param map for an effect in a row, or nil if none.
 // Helper for invariant unification of parameterised effects.
 func paramsOf(r *Row, effectName string) map[string]string {

@@ -113,8 +113,19 @@ three Rand modes have three observable behaviours and trace tooling can read the
   exactly as today (bare-`!{Rand}` + `rand_seed` determinism is preserved). The seeded-mode
   source has its own seed path (`AILANG_SEED` or a dedicated mechanism); it is NOT wired to
   `rand_seed`.
-- [ ] Mode→dispatch mechanism (lowering vs context metadata) — planner decides with a spike,
-  records rationale.
+- [x] Mode→dispatch mechanism: **(a) context-threading** (NOT the doc's recommended (b) lowering).
+  Spike finding (M0, confirmed in-tree): `_rand_int`/`_rand_float`/`_rand_bool` are referenced ONLY
+  inside `std/rand`'s wrappers, whose rows are bare `!{Rand}` (= os) — so a lowering pass keyed on the
+  effect row at the builtin reference site would ALWAYS see `os`; the outer `seeded`/`crypto` mode
+  never reaches the builtin. (b) would require per-caller-mode inlining of the stdlib wrappers
+  (monomorphization-scale), NOT the smallest diff. Chosen: thread the resolved `Rand` mode onto
+  `EffContext` at moded-lambda entry (`EffectModeFor(row,"Rand")` extracted at closure creation like
+  `EffectBudgets`, pushed only when non-`os` so the innermost EXPLICIT mode wins and bare-`!{Rand}`
+  stays byte-identical); `builtins/rand.go` reads the mode off the context and dispatches. This retires
+  the "lowering leaks mode into iface/caches" risk. Registry-duplication finding (spike 2): NO
+  duplication — `effectSchema` (types) is *validation* (which modes are legal), `internal/replay` is
+  *taxonomy* ((effect,mode)→contract label); guarded by `TestReplayContractsAreLegalModes` +
+  exported `types.IsLegalEffectMode` so `effectSchema` stays the single source of legal modes.
 
 ## Solution Design
 
