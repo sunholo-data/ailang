@@ -1,0 +1,58 @@
+-- Demo: STRICT_FALLBACK_001 — "Ok contains a default/empty value".
+--
+-- A Result-returning function whose Ok branch carries an empty/zero value
+-- (Ok(""), Ok([]), Ok({}), an all-zero record, or a known-empty builder like
+-- std/json.jo([])) silently lies about success: the caller's `Ok(v) =>` arm
+-- fires with zero data instead of falling through to `Err(e) =>`.
+--
+-- The check is a WARNING under plain `ailang check` (exit 0) and a HARD ERROR
+-- under `ailang check --package` (exit 1) — advisory in dev, strict at publish.
+--
+-- The VIOLATION (this would emit STRICT_FALLBACK_001):
+--
+--   export func getDocBad(o: Json) -> Result[Json, string] =
+--     match get(o, "fields") {
+--       Some(fields) => Ok(fields),
+--       None         => Ok(jo([]))   -- ← empty object, indistinguishable from success
+--     }
+--
+-- Two correct alternatives are shown live below.
+--
+-- Run: ailang run --caps IO --entry main examples/strict_fallbacks_demo.ail
+--
+-- Expected output:
+--   no 'fields' key
+--   {}
+module examples/strict_fallbacks_demo
+
+import std/result (Result, Ok, Err)
+import std/json (Json, jo, get, encode)
+import std/io (println)
+
+-- FIX 1: return Err with a descriptive message so the caller can react.
+export func getDoc(o: Json) -> Result[Json, string] =
+  match get(o, "fields") {
+    Some(fields) => Ok(fields),
+    None         => Err("response has no 'fields' key")
+  }
+
+-- FIX 2: if the empty-Ok is genuinely correct (an empty collection is a valid
+-- result), annotate the function with a rationale. @allow_empty_ok suppresses
+-- STRICT_FALLBACK_001 and records WHY for reviewers.
+@allow_empty_ok("missing 'documents' key means an empty collection")
+export func listDocs(o: Json) -> Result[Json, string] =
+  match get(o, "documents") {
+    Some(docs) => Ok(docs),
+    None       => Ok(jo([]))
+  }
+
+export func main() -> () ! {IO} =
+  let emptyObj = jo([]) in
+  let _ = match getDoc(emptyObj) {
+    Ok(_)  => println("unexpected Ok"),
+    Err(e) => println(e)
+  } in
+  match listDocs(emptyObj) {
+    Ok(docs) => println(encode(docs)),
+    Err(e)   => println(e)
+  }

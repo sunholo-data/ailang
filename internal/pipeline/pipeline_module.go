@@ -386,6 +386,14 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	sort.Strings(argOrderModIDs)
 	for _, modID := range argOrderModIDs {
 		result.Warnings = append(result.Warnings, DetectArgOrderWarnings(compiledUnits[modID].Core)...)
+		// M-CHECK-STRICT-FALLBACKS: empty/default `Ok(...)` in Result-returning
+		// functions. Here imports ARE resolved to VarGlobal, so the
+		// std/json.jo([])-class registry case fires as well as literal empties.
+		// Non-blocking (warning channel); the publish-boundary hard error is in
+		// cmd/ailang/check_package.go. The surface AST supplies the return-type
+		// filter and the @allow_empty_ok suppression.
+		result.Warnings = append(result.Warnings,
+			DetectStrictFallbacks(compiledUnits[modID].Surface, compiledUnits[modID].Core)...)
 	}
 
 	// Register $adt module after all modules are loaded and their interfaces are built

@@ -2622,14 +2622,35 @@
         "std/result",
         "std/yaml"
       ]
+    },
+    {
+      "path": "strict_fallbacks_demo.ail",
+      "status": "working",
+      "tags": [
+        "result",
+        "check",
+        "strict-fallbacks",
+        "diagnostics",
+        "m-check-strict-fallbacks"
+      ],
+      "description": "STRICT_FALLBACK_001: empty/default Ok(...) detection and the @allow_empty_ok opt-out",
+      "expected": {
+        "stdout": "response has no 'fields' key\n{}\n",
+        "exit_code": 0
+      },
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/result"
+      ]
     }
   ],
   "statistics": {
-    "total": 189,
-    "working": 181,
+    "total": 190,
+    "working": 182,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9576719576719577,
+    "coverage": 0.9578947368421052,
     "experimental": 0
   },
   "milestones": {
