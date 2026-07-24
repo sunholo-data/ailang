@@ -1,6 +1,6 @@
 # M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)
 
-**Status**: Planned
+**Status**: PARKED needs-human-review (2026-07-24, mission iter-96) — see the Quorum verification log; blocks on a program-level seeded-source seeding decision + premise-verification completeness
 **Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
 **Priority**: P1 — Medium (turns mode annotations from documentation into behaviour)
 **Estimated**: ~20 hours (~3 days)
@@ -80,12 +80,14 @@ three Rand modes have three observable behaviours and trace tooling can read the
 - `internal/replay/contracts.go` registry: (effect, mode) → {deterministic, re-sampleable,
   opaque}; populated for Rand (seeded/os/crypto) and AI (fixed/routeable/replay-only — labels
   per the parent doc's Example 4 table; AI *dispatch* already exists via M-AI-EFFECT-MODES).
-- `Rand[mode=seeded]` + `AILANG_SEED` (or `rand_seed`) → identical sequences across runs
-  (integration test).
+- `Rand[mode=seeded]` + `AILANG_SEED` (or a dedicated seeded-mode seed path chosen at plan
+  time — NOT `rand_seed`, which keeps its existing os-source contract) → identical sequences
+  across runs (integration test).
 - `Rand[mode=crypto]` draws from `crypto/rand`; entropy failure panics loudly (existing
   no-silent-fallback stance preserved).
-- `Rand[mode=os]` behaviour unchanged (current global source) — bare `!{Rand}` programs are
-  byte-identical in behaviour.
+- `Rand[mode=os]` behaviour unchanged (current global source, **including** `rand_seed`
+  continuing to reseed it exactly as today) — bare `!{Rand}` programs, with or without
+  `rand_seed` calls, are byte-identical in behaviour.
 - Trace events for moded effect ops carry the contract label; `ailang trace` surfaces it.
 
 ## High-Impact Decisions
@@ -95,7 +97,7 @@ three Rand modes have three observable behaviours and trace tooling can read the
 | How the declared mode reaches the dispatch site: (a) effect-context metadata threaded from the elaborated signature; (b) elaboration lowers moded ops to distinct builtins (`_rand_int` vs `_rand_int_seeded` vs `_rand_int_crypto`); (c) scoped handler config | Defines the pattern every later port (Clock/Net/FS/Process) follows; wrong choice = re-plumb per effect | human-or-planner with rationale; **recommendation: (b) lowering** — it reuses the existing builtin registry, keeps the runtime ignorant of types, and is the smallest diff; (a) is more general but touches eval | plan | high |
 | Per-mode sources: separate PRNG state for seeded vs os | Sharing one source makes seeded sequences perturbable by unrelated os-mode draws — breaks determinism | this doc: **separate sources** | design | med |
 | Contract labels for AI modes: registry entries only vs also wiring AI replay dispatch | AI replay (`mode=replay-only` enforcement) is already scoped in [m-ai-effect-modes-followups](m-ai-effect-modes-followups.md) item 2 — do NOT duplicate | this doc: **registry entries only**; enforcement stays in the followups doc | design | low |
-| Does `mode=seeded` without any seed error or fall back? | Silent fallback to a random seed would make "deterministic" a lie | this doc: **typed error** (`AILANG_SEED` unset AND no `rand_seed` call → loud failure at first draw) | design | med |
+| Does `mode=seeded` without any seed error or fall back? | Silent fallback to a random seed would make "deterministic" a lie | this doc: **typed error** (`AILANG_SEED` unset AND no dedicated seeded-mode seed provided → loud failure at first draw; `rand_seed` does NOT count — it seeds the os source, its existing contract) | design | med |
 
 ### Design Freeze
 
@@ -104,6 +106,10 @@ three Rand modes have three observable behaviours and trace tooling can read the
 - [x] Rand pilot only for dispatch; registry rows for AI (labels), Clock/Net/FS rows land in
   sprint 3.
 - [x] Separate randomness sources per mode; seeded-without-seed is a typed error.
+- [x] `rand_seed`/`_rand_seed` keeps its existing contract: it reseeds the os/global source
+  exactly as today (bare-`!{Rand}` + `rand_seed` determinism is preserved). The seeded-mode
+  source has its own seed path (`AILANG_SEED` or a dedicated mechanism); it is NOT wired to
+  `rand_seed`.
 - [ ] Mode→dispatch mechanism (lowering vs context metadata) — planner decides with a spike,
   records rationale.
 
@@ -115,9 +121,11 @@ three Rand modes have three observable behaviours and trace tooling can read the
    `ContractFor(effect, mode) (Contract, bool)`. Consumed by trace emission now; by replay
    harnesses later.
 2. **Mode-aware Rand dispatch**: three behaviours —
-   - `seeded`: dedicated `math/rand` source initialised from `AILANG_SEED` or the program's
-     `rand_seed` call; no seed → typed error.
-   - `os` (default): existing global source, unchanged.
+   - `seeded`: dedicated `math/rand` source initialised from `AILANG_SEED` (or a dedicated
+     seeded-mode seed path chosen at plan time); it does NOT hijack `rand_seed`, which keeps
+     its existing os-source semantics; no seed → typed error.
+   - `os` (default): existing global source, unchanged — including `rand_seed`/`_rand_seed`
+     continuing to reseed it exactly as today.
    - `crypto`: direct `crypto/rand` draws (uniform, unbiased int range); failure panics
      (matches existing `cryptoSeed` stance).
 3. **Trace integration**: effect events for moded ops carry `contract` (and `mode`) fields;
@@ -131,13 +139,21 @@ Touches `internal/types`/`internal/elaborate` (if lowering) or `internal/eval`/`
 1. **Positions extended**: no syntax. Elaboration of effect ops in moded contexts (if lowering:
    builtin selection becomes mode-dependent).
 2. **Existing constructs in those positions**: `rand_seed` explicitly reseeds the global source
-   — its interaction with per-mode sources MUST be specified: `rand_seed` seeds the *seeded*
-   source; os/crypto sources are never author-seedable (that's their contract).
+   — its interaction with per-mode sources MUST be specified: `rand_seed` CONTINUES to seed
+   the *os/global* source exactly as today. Bare-`!{Rand}` programs that call `rand_seed` for
+   deterministic testing get determinism today and keep it. The *seeded* source is separate,
+   seeded from `AILANG_SEED` (or a dedicated seed path) — not from `rand_seed`. The *crypto*
+   source is never seedable (that's its contract). Precise wording on os seedability: os mode
+   IS author-seedable via `rand_seed` (its existing contract), but os sequences remain
+   perturbable by interleaved draws from other os-mode callers — only `seeded` mode gives an
+   isolated, unperturbable sequence.
    `std/game` and any stdlib user of `_rand_*` (sweep at plan time) stay on bare `!{Rand}` →
    os mode → unchanged.
 3. **Disambiguation**: n/a.
 4. **Programs that MUST still work**: every bare-`!{Rand}` program byte-identical behaviour
-   (os path untouched); `examples/modal_rand.ail` (runs today with identical behaviour across
+   (os path untouched, **including** programs that call `rand_seed` — their determinism-via-
+   reseeding is preserved because `rand_seed` still targets the os/global source);
+   `examples/modal_rand.ail` (runs today with identical behaviour across
    modes — post-sprint it demonstrates *different* behaviour: update its comments);
    `AILANG_SEED`-pinned eval-harness runs (Clock virtual time already keys on it — do not
    change Clock here).
@@ -163,7 +179,9 @@ export func shuffle[a](xs: [a]) -> [a] ! {Rand} = ...   -- mode=os via default
 - [ ] Seeded determinism integration test: two runs, same seed, identical sequences
 - [ ] Crypto mode draws from crypto/rand (test via statistical smoke + source inspection hook)
 - [ ] Seeded-without-seed → typed error with fix hint
-- [ ] Bare-Rand behaviour byte-identical (golden test on a seeded harness run of os-mode program)
+- [ ] Bare-Rand behaviour byte-identical: golden test MUST include an existing bare-`!{Rand}`
+  program that CALLS `rand_seed`, compared against pre-change output (not only an
+  `AILANG_SEED`-pinned harness run) — proving `rand_seed`→os-source determinism is preserved
 - [ ] Trace events carry contract label; additive schema verified against existing trace readers
 - [ ] `examples/modal_rand.ail` comments updated (no longer "runtime treats all modes identically")
 - [ ] Guide + teaching prompt updated; `m-cryptorand.md` header corrected to Superseded (points here)
@@ -175,7 +193,8 @@ export func shuffle[a](xs: [a]) -> [a] ! {Rand} = ...   -- mode=os via default
   interleaved os draws); crypto range uniformity smoke.
 - **Integration**: end-to-end determinism (`AILANG_SEED=42 ailang run` twice, diff empty);
   seeded-error path; trace label presence.
-- **Golden**: os-mode behavioural identity pre/post.
+- **Golden**: os-mode behavioural identity pre/post — including a bare-`!{Rand}` program that
+  calls `rand_seed`, diffed against its pre-change output.
 
 ## Deferred Decisions
 
@@ -207,6 +226,14 @@ sweep + CI.
 | Behavioural change to bare Rand sneaks in | High | Golden identity test is a hard gate |
 | Trace schema change breaks existing readers | Med | Additive fields only; comparator test in `internal/trace` |
 
+## Verification Log
+
+| # | Fact / Requirement | Source | Status |
+|---|--------------------|--------|--------|
+| 1 | `std/rand._rand_seed(n)` → Go `SetRandSeed(int64)` at `internal/builtins/rand.go:51`, which reseeds the SINGLE global `math/rand` source (`globalRand`, guarded by `randMu`, crypto-seeded at process init). Bare `!{Rand}` (os mode) draws from that same global source — so a bare-`!{Rand}` program calling `_rand_seed(42)` IS deterministic today. | Controller probe of `internal/builtins/rand.go` at HEAD v0.30.0 | Verified |
+| 2 | At plan time, sweep ALL in-tree callers of `_rand_seed` / `SetRandSeed` (`grep -rn` across `internal/`, `std/`, `examples/`, `benchmarks/`) and confirm each keeps its current behaviour under this design. | Plan-time task | Required before implementation |
+| 3 | Before/after determinism test on a bare-`!{Rand}` program that calls `rand_seed`: capture its output at pre-change HEAD, assert byte-identical output post-change. This is the hard gate backing Conflict Surface point 4. | Success Criteria golden test | Required before merge |
+
 ## Related Documents
 
 - [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parent (Phase 3); decomposed 2026-07-11
@@ -225,6 +252,48 @@ sweep + CI.
 
 - Replay-harness engines dispatching on contract (pin/redraw/substitute) — incremental after registry
 - Process/AI-tool-loop contract rows (v1.1)
+
+## Quorum verification log
+
+- **Round 1** (2026-07-24): controller PASS; quorum reviewers gpt5-6-sol + gemini-3-1-pro both
+  REJECT on the same convergent objection — the Conflict Surface routed `rand_seed` to the new
+  seeded source and declared the os source "never author-seedable", contradicting the
+  bare-`!{Rand}` byte-identical hard gate (today `rand_seed` reseeds the single global os
+  source, so bare-Rand + `rand_seed` programs are deterministic and would have silently lost
+  that). **This revision resolves it** by preserving os-source seedability: `rand_seed` keeps
+  its existing os/global-source contract; the seeded-mode source is a separate source with its
+  own seed path (`AILANG_SEED` or a dedicated mechanism); the golden test now explicitly covers
+  a `rand_seed`-calling bare-`!{Rand}` program against pre-change output.
+- **Round 2** (2026-07-24): controller PASS; quorum reviewers gpt5-6-sol + gemini-3-1-pro both
+  REJECT again — **but the round-1 objection is RESOLVED** (neither re-raised the `rand_seed`/os
+  contradiction). The NEW objections are premise-verification completeness, and one is a genuine
+  DESIGN gap, so the doc is **PARKED needs-human-review** (the one-revision/one-re-quorum budget is
+  spent and the QUORUM narrow-refinement carve-out is **unratified** — its first use awaits Mark):
+  1. **gpt5-6-sol** — contradictory baselines: the "Verified current state" header is pinned to
+     `v0.28.0-148-g6c25f45e9` while the Verification Log probe (row 1) is `v0.30.0`; wants the whole
+     doc pinned to ONE SHA with re-run probes, plus verification rows for the repo-wide
+     contract-registry search, bare-Rand default-mode resolution, the elaboration→builtin Rand call
+     path, AI mode machinery, `AILANG_SEED` consumers, trace schema/readers, and **whether this
+     static `internal/replay` table DUPLICATES sprint-1's `m-effect-mode-validation` registry
+     (drift-prevention)** — the last is a design question, not a mechanical fix.
+  2. **gemini** — the `_rand_*`/`_rand_seed` caller sweep is deferred to "plan time" while the
+     Conflict Surface already asserts std/game etc "stay on bare `!{Rand}`" unverified; wants the
+     sweep executed at design time with each caller's effect signature.
+  - **Controller reality-check sweep (satisfies gemini's ask; surfaces a real DESIGN gap for Mark):**
+    all `std/rand` exports (`rand_int/float/bool`, `rand_seed`, `uuid4`) carry `Rand[mode=os]` in the
+    iface; `std/rand.ail:24` `rand_seed(seed) ! {Rand}` → `_rand_seed`; the ONLY stdlib Rand user is
+    `std/rand` itself. **BUT** `examples/modal_rand.ail:42-43` defines
+    `deterministic_roll() ! {Rand[mode=seeded]}` whose body calls `rand_seed(42)` — and `rand_seed`
+    is `mode=os`. Under this doc's revised design (`rand_seed` → os source only; the seeded source is
+    seeded by `AILANG_SEED` **or a dedicated path, NOT `rand_seed`**), the doc's OWN showcase seeded
+    function would draw from an unseeded seeded-source and hit the "seeded-without-seed → typed error"
+    — i.e. losing determinism. `examples/expected_fail/effect_budgets_multi.ail:62` also seeds via
+    `rand_seed(42)`. **Open design question for Mark:** how does a program seed the seeded-mode source
+    at author level? (a) a new mode-aware seed builtin (`rand_seed` becomes mode-polymorphic / a
+    `seeded`-context `rand_seed` seeds the seeded source); (b) `AILANG_SEED`-only for seeded (then
+    `modal_rand.ail` must be rewritten and the "author seeds via rand_seed" mental model dropped);
+    (c) rethink. This is a real completeness gap the reviewers correctly flagged — resolving it needs
+    a design decision, so it parks rather than force-passing.
 
 ---
 
