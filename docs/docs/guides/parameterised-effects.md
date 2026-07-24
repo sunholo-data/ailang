@@ -187,21 +187,42 @@ doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/
 
 ## Trace and replay
 
-Phase 1 does not change runtime semantics. `!{Rand[mode=seeded]}` and
-`!{Rand[mode=os]}` both dispatch to the same `_rand_int` /
-`_rand_float` / `_rand_bool` builtins; the trace event shape is
-unchanged. The mode is visible in the function signature and in the
-elaborated effect row, but the runtime cannot yet act on it.
+**Phase 3 (v1.0.0, M-EFFECT-REPLAY-CONTRACTS) makes the Rand modes
+differ at runtime.** The three modes now dispatch to three different
+sources:
 
-Mode-aware runtime dispatch — looking up a per-mode handler at the
-effect-op site — is **Phase 3 of the parent doc** (replay contract
-registry). Phase 1 is the prerequisite that makes Phase 3 a
-runtime-only change rather than a fresh type-system extension.
+| Mode | Runtime source | Replay contract |
+|------|----------------|-----------------|
+| `os` (default) | global OS-entropy PRNG, reseedable via `rand_seed` | re-sampleable |
+| `seeded` | dedicated deterministic PRNG pinned by `AILANG_SEED` | deterministic |
+| `crypto` | `crypto/rand` CSPRNG draws | opaque |
 
-The practical consequence today: authors can start annotating
-functions with `!{Rand[mode=seeded]}` to express intent and to make
-diff review meaningful, but the runtime won't enforce determinism on
-those annotations until Phase 3 ships.
+The resolved mode reaches the `_rand_int` / `_rand_float` /
+`_rand_bool` builtins via the effect context (the declared mode is
+pushed at moded-function entry), not via distinct builtin names. Trace
+events for moded Rand ops now carry the resolved `mode` and its
+`contract` label — the replay-contract taxonomy in `internal/replay`
+maps each legal `(effect, mode)` pair to `{deterministic,
+re-sampleable, opaque}`, so replay tooling can dispatch pin / redraw /
+substitute on the contract rather than the raw effect token.
+
+**Seeding contract.** The `seeded` source is seeded ONLY by the
+dedicated explicit path (`AILANG_SEED`), never by `rand_seed`.
+`rand_seed` keeps its existing contract: it reseeds the **os** source
+(so bare-`!{Rand}` programs that call `rand_seed` for reproducible
+tests are byte-identical to before). A `seeded`-mode draw with no
+`AILANG_SEED` provided is a loud typed error (`RAND_SEEDED_NO_SEED`),
+never a silent random fallback. `crypto` entropy failure panics loudly.
+
+**Current type-checker limitation.** A function declared
+`!{Rand[mode=seeded]}` or `!{Rand[mode=crypto]}` cannot yet *call* the
+`std/rand` wrappers (`rand_int` etc.), because those wrappers are
+declared bare `!{Rand}` (= `mode=os`) and effect modes are invariant
+under the current subsumption rule. The runtime dispatch machinery is
+in place; making seeded/crypto reachable from a runnable `.ail`
+program awaits a subsumption decision (does an explicit declared mode
+subsume an `os`-mode required effect?) — tracked in the
+[Phase 3 design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-contracts.md).
 
 ## Future work
 

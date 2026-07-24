@@ -3,8 +3,11 @@
 **Status**: Superseded — NEVER IMPLEMENTED as specced (no `!{CryptoRand}` token, no
 `std/crypto/rand`, no CSPRNG draw builtins exist in-tree; verified 2026-07-11). This file was
 swept into `implemented/` by the bulk relocation 645467e13 in error. The runtime intent (CSPRNG
-draws for security-sensitive code) is superseded by `Rand[mode=crypto]` dispatch in
-[m-effect-replay-contracts](../../planned/v1_0_0/m-effect-replay-contracts.md); the
+draws for security-sensitive code) is **superseded and now realized** by `Rand[mode=crypto]`
+runtime dispatch shipped in
+[m-effect-replay-contracts](../../planned/v1_0_0/m-effect-replay-contracts.md) (v1.0.0):
+`_rand_int`/`_rand_float`/`_rand_bool` draw from `crypto/rand` when the effect context resolves
+`Rand` to `mode=crypto`, with loud-panic entropy-failure semantics (no silent fallback). The
 forward-compat constraint it imposed on parameterised effects was honoured by
 [M-EFFECT-REFINEMENT-PHASE1](../v0_15_x/m-effect-refinement-phase1.md).
 **Target**: v0.13.0 (historical)
