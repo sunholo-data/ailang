@@ -58,6 +58,18 @@ type EffContext struct {
 	// charge. Without this the per-frame @limit would count each op twice.
 	budgetChargeDepth int
 
+	// M-EFFECT-REPLAY-CONTRACTS: mode-aware Rand dispatch state. Held behind a
+	// pointer (see randModeState) so it is SHARED across WithBudget scopes (same
+	// logical execution) but RESET per request in Clone (per-request isolation).
+	// The mutex lives inside the pointee, so neither Clone's shallow copy nor
+	// WithBudget's field-by-field rebuild ever copies a lock by value.
+	randMode *randModeState
+	// seedSet records whether AILANG_SEED was actually present in the environment
+	// (Env.Seed defaults to 0 when unset, a valid seed value, so the value alone
+	// can't distinguish "unset" from "=0"). Gates the seeded-mode source: a
+	// Rand[mode=seeded] draw with seedSet==false is a typed SeededModeError.
+	seedSet bool
+
 	// M-STREAM-BIDI: Function caller for stream event handlers
 	// Set by the evaluator; allows effects to call AILANG functions without import cycles.
 	FnCaller func(fn eval.Value, arg eval.Value) (eval.Value, error)
@@ -231,9 +243,11 @@ func NewNetContext() *NetContext {
 //	ctx.Grant(NewCapability("Net"))
 //	ctx.Grant(NewCapability("Env"))
 func NewEffContext(args []string) *EffContext {
+	env, seedSet := loadEffEnv()
 	ctx := &EffContext{
 		Caps:         make(map[string]Capability),
-		Env:          loadEffEnv(),
+		Env:          env,
+		seedSet:      seedSet,            // M-EFFECT-REPLAY-CONTRACTS: seeded-mode gate
 		Clock:        NewClockContext(),  // Initialize monotonic time anchor
 		Net:          NewNetContext(),    // Initialize secure network defaults
 		Secret:       NewSecretContext(), // Initialize Secret resolver (1Password CLI)
@@ -426,6 +440,8 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		FnCallerN:      ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
 		GoCtx:          ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
 		SpanWrapper:    ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
+		randMode:       ctx.randMode,    // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
+		seedSet:        ctx.seedSet,     // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
 	}
 }
 
@@ -475,11 +491,13 @@ func (ctx *EffContext) PopBudgetFrame(fnName string, bodyErr error) error {
 //
 // Returns:
 //   - Populated EffEnv with values from environment
-func loadEffEnv() EffEnv {
+func loadEffEnv() (EffEnv, bool) {
 	seed := int64(0)
+	seedSet := false
 	if seedStr := os.Getenv("AILANG_SEED"); seedStr != "" {
 		if s, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
 			seed = s
+			seedSet = true // M-EFFECT-REPLAY-CONTRACTS: AILANG_SEED present → seeded mode may draw
 		}
 	}
 
@@ -488,7 +506,7 @@ func loadEffEnv() EffEnv {
 		TZ:      getEnv("TZ", "UTC"),
 		Locale:  getEnv("LANG", "C"),
 		Sandbox: os.Getenv("AILANG_FS_SANDBOX"),
-	}
+	}, seedSet
 }
 
 // getEnv gets an environment variable with a default fallback
@@ -629,8 +647,15 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 // Clone creates a shallow copy of the EffContext for per-request isolation.
 // Config fields (Caps, Env, Clock, Net, etc.) are shared by reference.
 // FnCaller/FnCallerN will be re-wired by the forked evaluator.
+//
+// M-EFFECT-REPLAY-CONTRACTS: the Rand-mode dispatch state (randMode) is
+// per-request runtime state and is NOT shared across requests — a shallow *ctx
+// copy would alias the mode stack + seeded source between concurrent requests.
+// We nil it so the clone lazily allocates a fresh one. seedSet and Env.Seed
+// (config) are preserved so a cloned request still honours AILANG_SEED.
 func (ctx *EffContext) Clone() interface{} {
-	clone := *ctx // shallow copy
+	clone := *ctx // shallow copy of config + shared references
+	clone.randMode = nil
 	return &clone
 }
 

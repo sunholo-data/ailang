@@ -189,10 +189,30 @@ func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*Funct
 		if t, ok := e.coreTypeInfo[lam.NodeID]; ok {
 			fn.EffectBudgets = extractEffectBudgets(t)
 			fn.EffectMinBudgets = extractEffectMinBudgets(t) // M-DX25 M4
+			fn.EffectRandMode = extractRandMode(t)           // M-EFFECT-REPLAY-CONTRACTS
 		}
 	}
 
 	return fn, nil
+}
+
+// extractRandMode reads the declared Rand mode (os/seeded/crypto) from a
+// function type's effect row, for mode-aware Rand dispatch
+// (M-EFFECT-REPLAY-CONTRACTS). Returns "" when the function has no Rand effect
+// or resolves to the default os mode — in both cases the evaluator pushes
+// nothing, so bare/os-mode functions leave the mode stack untouched and draw
+// from the unchanged global source. Only an explicit non-os mode (seeded/crypto)
+// yields a non-empty result that the evaluator pushes at lambda entry.
+func extractRandMode(t types.Type) string {
+	fn, ok := t.(*types.TFunc2)
+	if !ok || fn.EffectRow == nil {
+		return ""
+	}
+	mode, ok := types.EffectModeFor(fn.EffectRow, "Rand")
+	if !ok || mode == "os" {
+		return ""
+	}
+	return mode
 }
 
 // extractEffectBudgets extracts budget max limits from a function type's effect row
