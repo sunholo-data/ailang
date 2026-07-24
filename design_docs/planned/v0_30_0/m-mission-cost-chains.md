@@ -14,10 +14,12 @@ tokens×rate). M2 (mission ingest) + M3 (`--by-mission`) verified fully UNBUILT 
 `--by-mission` flag absent). All premise numbers below are pinned to this probe unless dated otherwise.
 **Rev-1 2026-07-24 (iteration 97)**: resolved round-1 quorum objections (cost provenance,
 pricing-registry verification, bounded+loud spool).
-**Status → PARKED needs-human-review (iteration 97, 2026-07-24)**: re-quorum round-2 surfaced a
-convergent soundness objection (M1's CLI-side cost inference would corrupt legitimately-free/quota
-$0 stages — incl. M2's own quota-lane stages). Gate spent; genuine schema-design gap, not a verbatim
-refinement → parked. See the ⛔ Human fork for Mark in the Quorum record. M2/M3 direction unobjected.
+**Status → DECIDED by Mark 2026-07-24 ("scoped inference") → route to sprint-planner**: M1's
+tokens×rate estimation applies ONLY to stages with tokens>0 AND no self-reported cost AND no
+quota-bucket marking. Quota-lane stages are $0-BY-DESIGN (`cost_status=quota`, never estimated,
+never presented as unknown) — subscription burn is bucket-visible, not dollar-faked. A persisted
+`cost_status` schema field may follow later as specced; not required for M1. This resolves the
+round-2 soundness objection by scoping, not by schema migration. M2/M3 unchanged (unobjected).
 **Target**: v0.30.x — mission infrastructure / clause-5 substrate
 **Priority**: P1½ — this is the DATA SUBSTRATE for clause 5's `m-cost-per-success-kpi` (the v1.0
 headline "cost-per-verified-success" KPI cannot be credible while the canonical cost CLI shows

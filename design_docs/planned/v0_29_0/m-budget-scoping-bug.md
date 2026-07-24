@@ -1,6 +1,6 @@
 ## M-BUDGET-SCOPING-BUG: `@limit`/`@min` effect budgets are cumulative across the call chain, not per-function
 
-**Status**: PARKED — needs-human-review (design DIRECTION ratified; 2 narrow reviewer-verbatim fixes ready to apply — see [Quorum verification log](#quorum-verification-log-mission-iter-95))
+**Status**: **UNPARKED — Mark 2026-07-24 ("apply and route")**: apply the 2 reviewer-verbatim refinements exactly as quoted in the Quorum verification log (deterministic first-violating-frame innermost-to-outermost with check-then-atomic-increment-all; Conflict Surface names the actual Consume/charge interceptor as REPLACED), then route to sprint-planner. NO re-quorum — the design direction was accepted by both reviewers; the refinements are their own words.
 **Target**: v0.27.x / v0.28.0
 **Priority**: P2 (Medium — makes per-function budget annotations misleading; surfaced a shipped broken example)
 **Estimated**: 1–2 days (hierarchical frame stack + `@min` exit checks + full test migration — see [Estimate rationale](#estimate-rationale))

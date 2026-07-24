@@ -1,6 +1,6 @@
 # M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)
 
-**Status**: PARKED needs-human-review (2026-07-24, mission iter-96) — see the Quorum verification log; blocks on a program-level seeded-source seeding decision + premise-verification completeness
+**Status**: **DECIDED by Mark 2026-07-24 — option (b), explicit seeding surfaces**: `rand_seed` keeps its existing os-source contract UNTOUCHED (bare-Rand determinism preserved, the round-1 fix stands); `mode=seeded` is seeded ONLY via its dedicated explicit path (`AILANG_SEED` / the seeded-source API) — never implicitly by mode-aware magic (explicit-over-implicit is the language's axiom). CONSEQUENCE: `examples/modal_rand.ail:42` (the showcase that seeds seeded-mode via `rand_seed(42)`) is a DOC/EXAMPLE BUG — fix the example to the dedicated path as part of the sprint, plus a teaching diagnostic if seeded-mode is entered with no seed. Route to sprint-planner (the round-2 premise nits — baseline re-pin + caller sweep — were already resolved by the controller); no third text round.
 **Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
 **Priority**: P1 — Medium (turns mode annotations from documentation into behaviour)
 **Estimated**: ~20 hours (~3 days)
