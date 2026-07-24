@@ -247,6 +247,16 @@ func (bc *BudgetContext) CheckAndConsume(effect, position string) error {
 	return nil
 }
 
+// TrackPhysical increments only the physical usage count for an effect.
+//
+// M-BUDGET-SCOPING-BUG: When enforcement is delegated to the per-invocation
+// frame stack, physical usage is still tracked here so --emit-trace budget
+// deltas and the observability report remain accurate. This never enforces a
+// limit and never touches the semantic count.
+func (bc *BudgetContext) TrackPhysical(effect string) {
+	bc.physicalUsed[effect]++
+}
+
 // ChargeSemanticOnly increments only the semantic usage count
 //
 // M-DX25: Used by PopScopeAndChargeCaller to charge the caller's

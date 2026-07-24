@@ -47,35 +47,49 @@ func resolverCovers(chain GlobalResolver, target GlobalResolver) bool {
 	return resolverCovers(fr.Primary, target) || resolverCovers(fr.Secondary, target)
 }
 
-// BudgetEnforcer is implemented by effect contexts that support budget enforcement
-// This interface avoids import cycles between eval and effects packages
-type BudgetEnforcer interface {
-	// WithBudgetLimits creates a new context with the given budget limits
-	// Returns the new context that should be used for evaluation
-	WithBudgetLimits(limits map[string]int) interface{}
+// BudgetFrameEnforcer is implemented by effect contexts that support the
+// hierarchical per-invocation budget frame model (M-BUDGET-SCOPING-BUG).
+//
+// Frames are pushed on entry to any function whose signature carries an
+// @limit/@min annotation, and popped unwind-safe on EVERY exit. The frame stack
+// lives on shared per-execution state so it survives the shallow copy performed
+// by WithBudget — enforcement (bubbling charge + pre-op @limit check) is done by
+// the effects package against every active frame.
+//
+// This interface avoids import cycles between eval and effects packages.
+type BudgetFrameEnforcer interface {
+	// PushBudgetFrame pushes a new per-invocation frame with the given
+	// annotations onto the shared frame stack.
+	PushBudgetFrame(fnName string, limits, mins map[string]int)
+	// PopBudgetFrame pops the innermost frame. If bodyErr is nil (normal exit)
+	// the frame's @min requirements are checked and any violation is returned.
+	// If bodyErr is non-nil (error/exceptional exit) the frame is still popped
+	// but the @min check is SUPPRESSED and bodyErr is returned unchanged.
+	PopBudgetFrame(fnName string, bodyErr error) error
 }
 
-// MinBudgetEnforcer is implemented by effect contexts that support minimum budget requirements
-// M-DX25 M4: Minimum budgets ensure effects were actually exercised.
-type MinBudgetEnforcer interface {
-	// SetMinBudgets sets minimum usage requirements on the context's budget
-	SetMinBudgets(minLimits map[string]int)
+// budgetChargeScoper is implemented by effect contexts that maintain a budget
+// charge-scope depth (M-BUDGET-SCOPING-BUG). The evaluator resets this depth
+// across AILANG function-call boundaries so a builtin's charge scope does not
+// leak into a user callback invoked from inside that builtin.
+type budgetChargeScoper interface {
+	SaveAndResetBudgetChargeScope() int
+	RestoreBudgetChargeScope(prev int)
 }
 
-// MinimumChecker is implemented by effect contexts that can verify minimum usage
-// M-DX25 M4: Called on scope exit to ensure effects were exercised.
-type MinimumChecker interface {
-	// CheckMinimums verifies all minimum requirements are met
-	// Returns nil if all minimums satisfied, error otherwise
-	CheckMinimums(position string) error
-}
-
-// ScopeCharger is implemented by effect contexts that support scoped budget charging
-// M-DX25: When a scoped function returns, the caller is charged the callee's declared budget
-type ScopeCharger interface {
-	// PopScopeAndChargeCaller charges the caller context with declared semantic budgets
-	// Called when restoring old context after function evaluation
-	PopScopeAndChargeCaller()
+// enterBudgetChargeBoundary resets the effect context's budget charge-scope depth
+// on entry to an AILANG function body and returns a restore closure. In the
+// common case (depth already 0, e.g. a normal top-level call) this is a no-op.
+func (e *CoreEvaluator) enterBudgetChargeBoundary() func() {
+	scoper, ok := e.effContext.(budgetChargeScoper)
+	if !ok {
+		return func() {}
+	}
+	prev := scoper.SaveAndResetBudgetChargeScope()
+	if prev == 0 {
+		return func() {}
+	}
+	return func() { scoper.RestoreBudgetChargeScope(prev) }
 }
 
 // TraceRecorder is implemented by effect contexts that support semantic trace collection.
@@ -252,7 +266,7 @@ func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 // Returns:
 //   - The result value from executing the function
 //   - An error if execution fails
-func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, error) {
+func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (retVal Value, err error) {
 	// M-ZERO-ARG-SURFACES (v0.22.0): zero-arg exports (`export func f() -> T`)
 	// compile to a single implicit unit param named "_" (parser convention in
 	// internal/parser/parser_func.go). External callers (apiserver, WASM
@@ -289,21 +303,15 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 		newEnv.Set(param, args[i])
 	}
 
-	// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
-	var oldEffContext interface{}
-	hasBudgetScope := (len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0) && e.effContext != nil
-	if hasBudgetScope {
-		// Use BudgetEnforcer interface to avoid import cycle
-		if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
-			oldEffContext = e.effContext
-			e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
-
-			// M-DX25 M4: Set min budgets if present
-			if len(fn.EffectMinBudgets) > 0 {
-				if minEnforcer, ok := e.effContext.(MinBudgetEnforcer); ok {
-					minEnforcer.SetMinBudgets(fn.EffectMinBudgets)
-				}
-			}
+	// M-BUDGET-SCOPING-BUG: push a per-invocation budget frame if the signature
+	// is annotated. The deferred pop is unwind-safe: it fires on every exit path
+	// (normal, error, precondition early-return) so a callee error can never leak
+	// a stale frame. On normal exit it runs the frame's @min check; on error exit
+	// the @min check is suppressed and the body error propagates unchanged.
+	if e.effContext != nil {
+		defer e.enterBudgetChargeBoundary()()
+		if e.pushBudgetFrameIfAnnotated(fn, "") {
+			defer e.deferredPopBudgetFrame("", &err)
 		}
 	}
 
@@ -312,13 +320,13 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 	e.env = newEnv
 
 	// M-VERIFY-CONTRACTS: Check preconditions before executing body
-	if err := e.checkPreconditions(fn); err != nil {
+	if preErr := e.checkPreconditions(fn); preErr != nil {
 		e.env = oldEnv
+		err = preErr
 		return nil, err
 	}
 
 	var result Value
-	var err error
 	if coreBody, ok := fn.Body.(core.CoreExpr); ok {
 		result, err = e.evalCore(coreBody)
 	} else {
@@ -329,29 +337,48 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 	if err == nil {
 		if postErr := e.checkPostconditions(fn, result); postErr != nil {
 			e.env = oldEnv
-			return nil, postErr
+			err = postErr
+			return nil, err
 		}
 	}
 
 	e.env = oldEnv
 
-	// M-DX25: Handle budget scope exit
-	if oldEffContext != nil {
-		// M-DX25 M4: Check minimums before restoring context (if no error already)
-		if err == nil {
-			if checker, ok := e.effContext.(MinimumChecker); ok {
-				err = checker.CheckMinimums("")
-			}
-		}
-
-		// M-DX25: Charge caller with callee's declared budget
-		if charger, ok := e.effContext.(ScopeCharger); ok {
-			charger.PopScopeAndChargeCaller()
-		}
-		e.effContext = oldEffContext
-	}
-
 	return result, err
+}
+
+// pushBudgetFrameIfAnnotated pushes a per-invocation budget frame when the
+// function's signature carries any @limit/@min annotation (M-BUDGET-SCOPING-BUG).
+//
+// It returns whether a frame was pushed. The caller MUST pair a successful push
+// with a deferred deferredPopBudgetFrame so the frame is popped on EVERY exit
+// path (normal, error, precondition early-return) — the pop is NOT guarded by a
+// manual assignment at the bottom of the function, which historically leaked
+// frames on precondition failure.
+func (e *CoreEvaluator) pushBudgetFrameIfAnnotated(fn *FunctionValue, fnName string) bool {
+	if len(fn.EffectBudgets) == 0 && len(fn.EffectMinBudgets) == 0 {
+		return false
+	}
+	enforcer, ok := e.effContext.(BudgetFrameEnforcer)
+	if !ok {
+		return false
+	}
+	enforcer.PushBudgetFrame(fnName, fn.EffectBudgets, fn.EffectMinBudgets)
+	return true
+}
+
+// deferredPopBudgetFrame pops the innermost budget frame, running the frame's
+// @min check on normal exit and suppressing it on error exit. It merges any
+// @min violation into *errp only when the body did not already error (so a real
+// error is never masked by a @min violation). Intended for use in a defer.
+func (e *CoreEvaluator) deferredPopBudgetFrame(fnName string, errp *error) {
+	enforcer, ok := e.effContext.(BudgetFrameEnforcer)
+	if !ok {
+		return
+	}
+	if popErr := enforcer.PopBudgetFrame(fnName, *errp); popErr != nil {
+		*errp = popErr
+	}
 }
 
 // CallValue calls a function value with a single argument.

@@ -12,7 +12,7 @@ import (
 var debugEvalApp = os.Getenv("DEBUG_EVAL_APP") == "1"
 
 // evalCoreApp evaluates function application
-func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
+func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {
@@ -129,21 +129,15 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			newEnv.Set(param, args[i])
 		}
 
-		// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
-		var oldEffContext interface{}
-		hasBudgetScope := (len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0) && e.effContext != nil
-		if hasBudgetScope {
-			// Use BudgetEnforcer interface to avoid import cycle
-			if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
-				oldEffContext = e.effContext
-				e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
-
-				// M-DX25 M4: Set min budgets if present
-				if len(fn.EffectMinBudgets) > 0 {
-					if minEnforcer, ok := e.effContext.(MinBudgetEnforcer); ok {
-						minEnforcer.SetMinBudgets(fn.EffectMinBudgets)
-					}
-				}
+		// M-BUDGET-SCOPING-BUG: push a per-invocation budget frame if the signature
+		// is annotated. The deferred pop is unwind-safe: it fires on every exit
+		// path (normal, error, precondition early-return) so a callee error can
+		// never leak a stale frame. On normal exit it runs the frame's @min check;
+		// on error exit the @min check is suppressed and the body error propagates.
+		if e.effContext != nil {
+			defer e.enterBudgetChargeBoundary()()
+			if e.pushBudgetFrameIfAnnotated(fn, funcName) {
+				defer e.deferredPopBudgetFrame(funcName, &err)
 			}
 		}
 
@@ -165,12 +159,16 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			}
 		}
 
-		// M-VERIFY-CONTRACTS: Check preconditions before executing body
-		if err := e.checkPreconditions(fn); err != nil {
+		// M-VERIFY-CONTRACTS: Check preconditions before executing body.
+		// Assign the named return `err` (not a shadowed local) so the deferred
+		// budget-frame pop treats a precondition failure as an error exit and
+		// suppresses the frame's @min check.
+		if preErr := e.checkPreconditions(fn); preErr != nil {
 			e.env = oldEnv
 			if oldResolver != nil {
 				e.resolver = oldResolver
 			}
+			err = preErr
 			return nil, err
 		}
 
@@ -182,7 +180,8 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			if oldResolver != nil {
 				e.resolver = oldResolver
 			}
-			return nil, fmt.Errorf("function body is not Core AST")
+			err = fmt.Errorf("function body is not Core AST")
+			return nil, err
 		}
 
 		// M-VERIFY-CONTRACTS: Check postconditions before returning (if no error)
@@ -192,7 +191,8 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 				if oldResolver != nil {
 					e.resolver = oldResolver
 				}
-				return nil, postErr
+				err = postErr
+				return nil, err
 			}
 		}
 
@@ -210,21 +210,8 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			recorder.RecordFunctionExit(funcName, resultStr)
 		}
 
-		// M-DX25: Handle budget scope exit
-		if oldEffContext != nil {
-			// M-DX25 M4: Check minimums before restoring context (if no error already)
-			if err == nil {
-				if checker, ok := e.effContext.(MinimumChecker); ok {
-					err = checker.CheckMinimums("")
-				}
-			}
-
-			// M-DX25: Charge caller with callee's declared budget
-			if charger, ok := e.effContext.(ScopeCharger); ok {
-				charger.PopScopeAndChargeCaller()
-			}
-			e.effContext = oldEffContext
-		}
+		// M-BUDGET-SCOPING-BUG: budget scope exit (frame pop + @min check) is
+		// handled by the deferred deferredPopBudgetFrame registered on entry.
 
 		if debugEvalApp {
 			if result != nil {

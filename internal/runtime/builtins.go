@@ -103,6 +103,12 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 					if err := ctx.RequireCapWithBudget(builtinSpec.Effect, ""); err != nil {
 						return nil, err
 					}
+					// M-BUDGET-SCOPING-BUG: the wrapper is the single budget-charge
+					// point. Open a charge scope so any nested RequireCapWithBudget
+					// inside the Impl (direct or via effects.Call) does a capability
+					// check only and does not double-charge the per-invocation frame.
+					ctx.BeginBudgetChargeScope()
+					defer ctx.EndBudgetChargeScope()
 				}
 
 				result, err := builtinSpec.Impl(ctx, args)
