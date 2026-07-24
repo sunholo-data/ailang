@@ -1,10 +1,44 @@
 # M-BYTECODE-VM-PARITY-BUGS — Remaining VM/Eval Divergences
 
-**Status**: Planned
-**Target**: v0.11.0
+**Status**: Planned — **DRIFTED, RE-SCOPED against fresh data 2026-07-24 (iter-102); SPLIT scope, VM-correctness portion PARKED for Mark's scope ratification** (see "Reality-check refresh" below)
+**Target**: v0.11.0 → **v1.0.0** (clause-2 soundness residue on the V1 mission queue)
 **Priority**: P1 (blocks bytecode parity gate; not blocking M2/M3 of M-BYTECODE-MULTIMODULE)
-**Estimated**: 1–2 days (investigation-heavy)
+**Estimated**: 1–2 days (investigation-heavy) — **STALE; the fresh scope splits into a loop-fixable lane (eval-show + harness hygiene, ~1d) and a hand-holds VM-correctness lane (array/recursion codegen, unestimated — Mark scope call pending)**
 **Dependencies**: M-BYTECODE-MULTIMODULE M1 (surfaced these; M1 complete)
+
+> ## Reality-check refresh (iter-102, 2026-07-24, controller live-repro at `64f1e2924`)
+>
+> The 2026-04-08 body below is **DRIFTED** — rebuilt binaries + a fresh
+> `go run ./scripts/verify_bytecode_parity.go` show **150 MATCH / 2 NON_DET /
+> 6 DIVERGE / 16 EVAL_SKIP** (86.2% MATCH), not the doc's `130 / 2 / 3 / 6`.
+> The DIVERGE set and its **root-cause character both changed**: the old bug #3
+> `string_parsing.ail` now **MATCHes** (fixed since), the surviving pattern_sugar/
+> recursion_quicksort are no longer the same `<List>` show bug, and three new
+> files appeared. Fresh per-file categorization (eval = ground truth):
+>
+> | File | Fresh symptom at HEAD | Class | Lane |
+> |------|-----------------------|-------|------|
+> | `recursion_quicksort.ail` | VM **silently returns `[3]`**; eval returns `[1,1,2,3,4,5,6,9]`. Deterministic (3/3 runs), **no fallback** | **VM correctness (silent wrong result)** — SOUNDNESS | **B — Mark scope call** |
+> | `array_basic.ail` | VM prints `<Closure>` for array length/elements, then `GET_TAG on Closure` VM error → falls back to eval | **VM dispatch bug** (array elem/length compiled as closure) | **B — Mark scope call** |
+> | `pattern_sugar.ail` | **eval** prints `firstPair(...) = <*eval.TupleValue>`; **VM is CORRECT** (`(a, 1)`) | **eval `builtinShow` tuple gap** (VM right, harness ground-truth wrong) | **A — loop-fixable (evaluator, not bytecode)** |
+> | `tar_gzip_reader.ail` | VM bridge `TaggedValue (Result.Err) not yet supported (M-BYTECODE-2E scope)` → **falls back correctly** | Known VM-bridge scope-limit; DIVERGE only because the fallback warning line differs | **A — harness re-categorize as VM_BRIDGE** |
+> | `xml_walk_perf.ail` | `time_ms=42` vs `43` (Clock cap; timing jitter) | **Harness false-positive** | **A — harness exclude timing-bearing perf examples** |
+> | `claude_haiku_call.ail` | Net/API call (non-deterministic upstream) | **Harness false-positive** | **A — harness exclude Net examples** |
+>
+> **Scope split.** Lane **A (loop-fixable, ~1d, no bytecode-VM internals)**: fix
+> the eval tuple-show (`<*eval.TupleValue>`), and make the parity harness honest
+> — exclude timing/Net examples and count a clean eval-fallback (tar_gzip) as
+> VM_BRIDGE not DIVERGE. Lane **B (PARKED for Mark)**: `recursion_quicksort` and
+> `array_basic` are genuine **bytecode-VM codegen/dispatch bugs** in the
+> **"Go/bytecode compilation story" area Mark hand-holds** (mission doc). Mark
+> delegated this item as *"3 small output divergences"* — a **silent wrong
+> quicksort result** is a soundness bug well beyond that framing, so per Standing
+> Rule 2 the loop parks Lane B for a scope call rather than expanding a
+> hand-holds-area sprint unilaterally. **Decision needed** (bookkeeping issue):
+> does the loop fix Lane B, or does Mark hand-hold the VM-correctness bugs?
+>
+> Everything below this box predates the refresh and is retained for the
+> eventual sprint's historical context — treat the table above as authoritative.
 
 ## Problem Statement
 
