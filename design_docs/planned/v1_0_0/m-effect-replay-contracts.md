@@ -2,7 +2,7 @@
 
 **Status**: **READY FOR SPRINT-PLANNER** (controller fold applied 2026-07-24, iter-99 — Mark's option-(b) decision folded into the normative body; baseline re-pinned to `v0.30.0-154-gb326c3fd3`; caller sweep executed at design time; open design question RESOLVED; no third text round per Mark).
 
-**DECIDED by Mark 2026-07-24 — option (b), explicit seeding surfaces**: `rand_seed` keeps its existing os-source contract UNTOUCHED (bare-Rand determinism preserved, the round-1 fix stands); `mode=seeded` is seeded ONLY via its dedicated explicit path (`AILANG_SEED` / the seeded-source API) — never implicitly by mode-aware magic (explicit-over-implicit is the language's axiom). CONSEQUENCE: `examples/modal_rand.ail:43` and `examples/expected_fail/effect_budgets_multi.ail:62` (both seed a seeded-mode function via `rand_seed(42)`) are DOC/EXAMPLE BUGS — fix them to the dedicated path as part of the sprint, plus a teaching diagnostic if seeded-mode is entered with no seed. Route to sprint-planner (the round-2 premise nits — baseline re-pin + caller sweep — resolved by the controller fold below); no third text round.
+**DECIDED by Mark 2026-07-24 — option (b), explicit seeding surfaces**: `rand_seed` keeps its existing os-source contract UNTOUCHED (bare-Rand determinism preserved, the round-1 fix stands); `mode=seeded` is seeded ONLY via its dedicated explicit path (`AILANG_SEED` / the seeded-source API) — never implicitly by mode-aware magic (explicit-over-implicit is the language's axiom). CONSEQUENCE: `examples/modal_rand.ail:44` — `deterministic_roll() ! {Rand[mode=seeded]}` seeding via `rand_seed(42)` — is the ONE real DOC/EXAMPLE BUG (fix it to the dedicated path in-sprint), plus a teaching diagnostic if seeded-mode is entered with no seed. **CORRECTION (planner, iter-99):** `examples/expected_fail/effect_budgets_multi.ail:62` is NOT a bug — its `rand_seed(42)` is inside `main() ! {IO, Rand, Clock}` = **bare/os mode** (no `mode=seeded` in the file); under the settled contract it is CORRECT and must stay byte-identical → it becomes the bare-Rand+`rand_seed` GOLDEN FIXTURE, not a migration. Route to sprint-planner (the round-2 premise nits — baseline re-pin + caller sweep — resolved by the controller fold below); no third text round.
 **Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
 **Priority**: P1 — Medium (turns mode annotations from documentation into behaviour)
 **Estimated**: ~20 hours (~3 days)
@@ -188,11 +188,12 @@ export func shuffle[a](xs: [a]) -> [a] ! {Rand} = ...   -- mode=os via default
   `AILANG_SEED`-pinned harness run) — proving `rand_seed`→os-source determinism is preserved
 - [ ] Trace events carry contract label; additive schema verified against existing trace readers
 - [ ] **`examples/modal_rand.ail` rewritten** — `deterministic_roll`'s seeded-mode seed moved off
-  `rand_seed(42)` onto the dedicated seeded-source path (`AILANG_SEED` / seeded-source API); comments
-  updated (no longer "runtime treats all modes identically"); runs deterministically under a pinned seed
-- [ ] **`examples/expected_fail/effect_budgets_multi.ail:62`** seeded-mode `rand_seed(42)` migrated to
-  the dedicated path (or the example re-cast if the seed is incidental to its budget purpose) — no
-  seeded-mode-via-`rand_seed` callers remain in-tree
+  `rand_seed(42)` (line 44) onto the dedicated seeded-source path (`AILANG_SEED` / seeded-source API);
+  comments updated (no longer "runtime treats all modes identically"); runs deterministically under a
+  pinned seed. This is the ONE seeded-mode-via-`rand_seed` caller in-tree — after this, none remain.
+- [ ] **`examples/expected_fail/effect_budgets_multi.ail`** UNCHANGED behaviourally — its `rand_seed(42)`
+  is bare/os (inside `main`, no `mode=seeded`) and is CORRECT; it serves as the bare-Rand+`rand_seed`
+  golden fixture (Verification Log row 3), asserting byte-identical output pre/post-change
 - [ ] Guide + teaching prompt updated; `m-cryptorand.md` header corrected to Superseded (points here)
 - [ ] `make test && make verify-examples && make lint` green
 
@@ -240,9 +241,9 @@ sweep + CI.
 | # | Fact / Requirement | Source | Status |
 |---|--------------------|--------|--------|
 | 1 | `std/rand._rand_seed(n)` → Go `SetRandSeed(int64)` at `internal/builtins/rand.go:51`, which reseeds the SINGLE global `math/rand` source (`randSource`, guarded by `randMu`, crypto-seeded at process init via `cryptoSeed`). Bare `!{Rand}` (os mode) draws from that same global source — so a bare-`!{Rand}` program calling `_rand_seed(42)` IS deterministic today. | Controller probe of `internal/builtins/rand.go` at `v0.30.0-154-gb326c3fd3` | Verified |
-| 2 | **Caller sweep EXECUTED at design time** (`grep -rn "rand_seed\|SetRandSeed"` across `internal/`, `std/`, `examples/`, `benchmarks/` at `v0.30.0-154-gb326c3fd3`): the ONLY stdlib Rand user is `std/rand` itself (`std/rand.ail:24` `rand_seed(seed) ! {Rand}` → `_rand_seed`; all 5 `std/rand` exports carry `Rand[mode=os]` in the iface — confirmed against `iface.json`). NO `std/game` or other stdlib caller exists. Two EXAMPLE callers seed a **seeded-mode** function via `rand_seed`, both design-bugs to fix in-sprint (see row 4): `examples/modal_rand.ail:43` (`deterministic_roll() ! {Rand[mode=seeded]}` body calls `rand_seed(42)`) and `examples/expected_fail/effect_budgets_multi.ail:62`. Every remaining `rand_seed` usage is bare-`!{Rand}` (os) → unchanged. | Controller design-time sweep (satisfies gemini round-2) | Verified |
-| 3 | Before/after determinism test on a bare-`!{Rand}` program that calls `rand_seed`: capture its output at pre-change HEAD, assert byte-identical output post-change. This is the hard gate backing Conflict Surface point 4. | Success Criteria golden test | Required before merge |
-| 4 | The two seeded-mode-via-`rand_seed` example callers (`modal_rand.ail:43`, `effect_budgets_multi.ail:62`) MUST be rewritten to the dedicated seeded-source seed path (`AILANG_SEED` / the seeded-source API), NOT `rand_seed` — per Mark's option-(b) decision. A new teaching diagnostic fires when a `mode=seeded` op draws with no seed provided (fix hint → the dedicated path). | Mark decision 2026-07-24 + Success Criteria | Required before merge |
+| 2 | **Caller sweep EXECUTED at design time** (`grep -rn "rand_seed\|SetRandSeed"` across `internal/`, `std/`, `examples/`, `benchmarks/`; planner-reverified at `v0.30.0-155-g541c1950f`): the ONLY stdlib Rand user is `std/rand` itself (`std/rand.ail:24` `rand_seed(seed) ! {Rand}` → `_rand_seed`; all 5 `std/rand` exports carry `Rand[mode=os]` in the iface — confirmed against `iface.json`). NO `std/game` or other stdlib caller exists. **Exactly ONE** example caller seeds a **seeded-mode** function via `rand_seed` → design-bug to fix in-sprint (row 4): `examples/modal_rand.ail:44` (`deterministic_roll() ! {Rand[mode=seeded]}` body calls `rand_seed(42)`). `examples/expected_fail/effect_budgets_multi.ail:62` seeds inside `main() ! {IO, Rand, Clock}` = **bare/os** (no `mode=seeded`) → CORRECT under the settled contract, NOT a bug; it becomes the bare-Rand golden fixture (row 3). Every remaining `rand_seed` usage is bare-`!{Rand}` (os) → unchanged. | Controller + planner design-time sweep (satisfies gemini round-2) | Verified |
+| 3 | Before/after determinism test on a bare-`!{Rand}` program that calls `rand_seed`: capture its output at pre-change HEAD, assert byte-identical output post-change. **`effect_budgets_multi.ail` (bare/os + `rand_seed(42)`) is the fixture.** This is the hard gate backing Conflict Surface point 4. | Success Criteria golden test | Required before merge |
+| 4 | The ONE seeded-mode-via-`rand_seed` example caller (`modal_rand.ail:44`) MUST be rewritten to the dedicated seeded-source seed path (`AILANG_SEED` / the seeded-source API), NOT `rand_seed` — per Mark's option-(b) decision. A new teaching diagnostic fires when a `mode=seeded` op draws with no seed provided (fix hint → the dedicated path). | Mark decision 2026-07-24 + Success Criteria | Required before merge |
 
 ## Related Documents
 
@@ -292,10 +293,11 @@ sweep + CI.
   - **Controller reality-check sweep (satisfies gemini's ask):**
     all `std/rand` exports (`rand_int/float/bool`, `rand_seed`, `uuid4`) carry `Rand[mode=os]` in the
     iface; `std/rand.ail:24` `rand_seed(seed) ! {Rand}` → `_rand_seed`; the ONLY stdlib Rand user is
-    `std/rand` itself. `examples/modal_rand.ail:43` defines
-    `deterministic_roll() ! {Rand[mode=seeded]}` whose body calls `rand_seed(42)` — and `rand_seed`
-    is `mode=os`; `examples/expected_fail/effect_budgets_multi.ail:62` likewise. Both are seeded-mode-
-    via-`rand_seed` design-bugs (see Verification Log rows 2 & 4).
+    `std/rand` itself. `examples/modal_rand.ail:44` defines
+    `deterministic_roll() ! {Rand[mode=seeded]}` whose body calls `rand_seed(42)` — `rand_seed` is
+    `mode=os`, so this is the ONE real seeded-mode-via-`rand_seed` design-bug (fix in-sprint).
+    `examples/expected_fail/effect_budgets_multi.ail:62` is bare/os (inside `main`, no `mode=seeded`)
+    → CORRECT, becomes the golden fixture (Verification Log rows 2, 3 & 4).
   - **RESOLVED by Mark 2026-07-24 — option (b), explicit seeding surfaces** (the open design question
     below is now closed): a program seeds the seeded-mode source at author level ONLY via the dedicated
     explicit path (`AILANG_SEED` / the seeded-source API) — NOT via `rand_seed` (which keeps its
