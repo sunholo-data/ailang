@@ -53,10 +53,10 @@
         "spool is bounded+loud: forced server-down path emits stderr warning, respects 100-entry cap, drop-oldest fires with a notice (unit-testable Go component)",
         "posting never blocks or fails the iteration (fail-soft)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Prefer a Go cmd/ailang/chains_post.go subcommand (testable spool/cap) invoked from SKILL.md Gate 4; SKILL edit adds the additive posting step + spool spec."
+      "passes": true,
+      "started": "2026-07-24T12:14:11Z",
+      "completed": "2026-07-24T12:14:11Z",
+      "notes": "Shipped cmd/ailang/chains_post.go (chains post-iteration subcommand: reads IterationPost JSON from --file/stdin, flushes spool first, posts, fail-soft spool on failure, exit 0 always), internal/observatory/iteration_post.go (PostIteration writes chain+stages+metrics+model; quota bucket encoded in agent_id; Validate rejects quota-lane-with-tokens), internal/observatory/spool.go (bounded <=100 entries/1MiB, LOUD stderr, drop-oldest). SKILL.md Gate 4 additive posting step added. 6 M2 tests pass; smoke-verified: posted chain shows codex $0.42+tokens + 2 quota lanes (opus/sonnet) in chains view; DB-unreachable path buffers LOUD + exits 0."
     },
     {
       "id": "M3_BY_MISSION_ROLLUP",

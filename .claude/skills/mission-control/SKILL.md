@@ -442,6 +442,33 @@ these commands, do not explore") is worth ~12× vs exploratory ($0.07 vs $0.87);
 (persist `env_<id>`, never re-clone per round) saves a further ~42%. Both are MANDATORY for
 gemini escalation runs. Record the final tally as a `metered=$X.XX` field in the evidence row.
 
+**POST THE ITERATION CHAIN (M-MISSION-COST-CHAINS M2 — additive, fail-soft):** after writing the
+evidence row (single source of truth → its projection), post ONE chain per iteration so the loop's
+spend shows up in `ailang chains`. Build an `IterationPost` JSON from what actually ran and pipe it
+to the bounded, LOUD, fail-soft Go subcommand — NEVER inline shell spooling:
+
+```bash
+# stages: metered lanes carry $ + model + tokens; quota lanes carry quota_bucket
+# (fable|opus|sonnet) and ZERO tokens/cost (subscription burn is bucket-visible, not dollar-faked).
+cat <<JSON | ailang chains post-iteration || true   # `|| true`: telemetry NEVER blocks the loop
+{
+  "source": "mission:${MISSION_NAME:-v1}/iter-${ITER}",
+  "stages": [
+    {"role":"executor","provider":"codex","model":"<model>","cost_usd":<metered $>,"tokens_in":<n>,"tokens_out":<n>},
+    {"role":"controller","quota_bucket":"opus"},
+    {"role":"evaluator","quota_bucket":"sonnet"}
+  ]
+}
+JSON
+```
+
+The subcommand: (a) flushes any previously-spooled iterations first; (b) writes the chain +
+per-stage cost/tokens/model (metered) or quota bucket (encoded in `agent_id` as `<role>
+(quota:<bucket>)` — NO schema change); (c) if the observatory is unreachable, buffers to a bounded
+JSONL spool (≤100 entries / 1 MiB, drop-oldest, stderr-LOUD) the next iteration flushes. It exits 0
+even on telemetry failure — a broken tracker must never wedge the loop. Review the fleet's spend
+later with `ailang chains stats --by-mission` (M3).
+
 **GPU rule (two-tier)**: default iterations never touch `rig.lock` — it is a GPU mutex only.
 If (and only if) a step drives ollama/local models: `source tools/launchd/rig-lock.sh &&
 rig_lock_acquire wait` around THAT STEP, release immediately after. Ask explicitly at routing

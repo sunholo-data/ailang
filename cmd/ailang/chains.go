@@ -72,6 +72,8 @@ func chainsCommand() {
 		chainsHealthCommand()
 	case "stats":
 		chainsStatsCommand()
+	case "post-iteration":
+		chainsPostIterationCommand()
 	case "active":
 		chainsActiveCommand()
 	case "live":
