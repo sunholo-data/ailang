@@ -3,7 +3,7 @@
   "title": "Replay Contract Registry + Mode-Aware Rand Dispatch (Rand pilot)",
   "design_doc": "design_docs/planned/v1_0_0/m-effect-replay-contracts.md",
   "sprint_plan": "design_docs/planned/v1_0_0/m-effect-replay-contracts-sprint-plan.md",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-07-24",
   "baseline": "v0.30.0-155-g541c1950f",
   "risk_level": "medium",
