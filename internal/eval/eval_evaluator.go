@@ -68,6 +68,18 @@ type BudgetFrameEnforcer interface {
 	PopBudgetFrame(fnName string, bodyErr error) error
 }
 
+// RandModeEnforcer is implemented by effect contexts that support mode-aware
+// Rand dispatch (M-EFFECT-REPLAY-CONTRACTS). A non-os Rand mode (seeded/crypto)
+// declared on a function's effect row is pushed on entry and popped unwind-safe
+// on exit, so the innermost explicit mode is in effect for Rand draws while that
+// function (and any os-mode stdlib wrapper it calls) runs. Bare/os-mode
+// functions push nothing, leaving the global source untouched. This interface
+// avoids import cycles between eval and effects.
+type RandModeEnforcer interface {
+	PushRandMode(mode string)
+	PopRandMode(mode string)
+}
+
 // budgetChargeScoper is implemented by effect contexts that maintain a budget
 // charge-scope depth (M-BUDGET-SCOPING-BUG). The evaluator resets this depth
 // across AILANG function-call boundaries so a builtin's charge scope does not
@@ -313,6 +325,11 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (retVal Va
 		if e.pushBudgetFrameIfAnnotated(fn, "") {
 			defer e.deferredPopBudgetFrame("", &err)
 		}
+		// M-EFFECT-REPLAY-CONTRACTS: push the declared non-os Rand mode for the
+		// dynamic extent of this call; unwind-safe pop on every exit path.
+		if mode := e.pushRandModeIfDeclared(fn); mode != "" {
+			defer e.deferredPopRandMode(mode)
+		}
 	}
 
 	// Evaluate body in new environment
@@ -365,6 +382,36 @@ func (e *CoreEvaluator) pushBudgetFrameIfAnnotated(fn *FunctionValue, fnName str
 	}
 	enforcer.PushBudgetFrame(fnName, fn.EffectBudgets, fn.EffectMinBudgets)
 	return true
+}
+
+// pushRandModeIfDeclared pushes the function's declared non-os Rand mode onto
+// the effect context (M-EFFECT-REPLAY-CONTRACTS) and returns the mode that was
+// pushed (or "" if none). The caller MUST pair a non-empty return with a
+// deferred PopRandMode(mode) so the mode is popped on every exit path. os-mode /
+// mode-less functions push nothing (EffectRandMode is "" for them), so the mode
+// stack stays empty and Rand draws use the unchanged global source.
+func (e *CoreEvaluator) pushRandModeIfDeclared(fn *FunctionValue) string {
+	if fn.EffectRandMode == "" {
+		return ""
+	}
+	enforcer, ok := e.effContext.(RandModeEnforcer)
+	if !ok {
+		return ""
+	}
+	enforcer.PushRandMode(fn.EffectRandMode)
+	return fn.EffectRandMode
+}
+
+// deferredPopRandMode pops a Rand mode pushed by pushRandModeIfDeclared. A no-op
+// when mode is "" (nothing was pushed). Intended for use in a defer so the pop
+// is unwind-safe.
+func (e *CoreEvaluator) deferredPopRandMode(mode string) {
+	if mode == "" {
+		return
+	}
+	if enforcer, ok := e.effContext.(RandModeEnforcer); ok {
+		enforcer.PopRandMode(mode)
+	}
 }
 
 // deferredPopBudgetFrame pops the innermost budget frame, running the frame's

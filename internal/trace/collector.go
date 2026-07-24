@@ -219,6 +219,40 @@ func (c *Collector) RecordEffect(effectName, opName string, args []string, resul
 	c.notify(traceEvt)
 }
 
+// RecordModedEffect records an effect invocation carrying a parameterised-effect
+// mode and its replay-contract label (M-EFFECT-REPLAY-CONTRACTS). Behaves like
+// RecordEffect but additionally attaches mode + contract. Empty mode/contract
+// strings are omitted from the serialised event (omitempty), so this is safe to
+// call for any effect; callers pass "" when a field is not applicable.
+func (c *Collector) RecordModedEffect(effectName, opName string, args []string, result, mode, contract string) {
+	if !c.Enabled() {
+		return
+	}
+	evt := EffectEvent{
+		EffectName: effectName,
+		OpName:     opName,
+		Args:       args,
+		Result:     result,
+		Mode:       mode,
+		Contract:   contract,
+	}
+	if IsNonDeterministic(effectName, opName) {
+		f := false
+		evt.Deterministic = &f
+	}
+	traceEvt := TraceEvent{
+		Version:     traceVersion,
+		Event:       EventEffect,
+		TimestampNS: c.nowNS(),
+		Depth:       c.depth,
+		TraceID:     c.traceID,
+		SpanID:      c.currentSpanID(),
+		Effect:      &evt,
+	}
+	c.events = append(c.events, traceEvt)
+	c.notify(traceEvt)
+}
+
 // RecordAIEffect records an AI effect invocation with optional routing metadata.
 //
 // Behaves like RecordEffect with EffectName="AI" but additionally attaches

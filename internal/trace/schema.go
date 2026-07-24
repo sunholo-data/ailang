@@ -74,6 +74,19 @@ type EffectEvent struct {
 	// provider calls and all non-AI effects. Additive — old trace events
 	// without this field unmarshal correctly with Route == nil.
 	Route *ResolvedRoute `json:"route,omitempty"`
+
+	// Mode is the resolved effect mode for a parameterised effect op (e.g.
+	// "seeded"/"os"/"crypto" for Rand). Empty for effects/ops with no mode.
+	// Additive (M-EFFECT-REPLAY-CONTRACTS) — old trace events without this
+	// field unmarshal correctly with Mode == "".
+	Mode string `json:"mode,omitempty"`
+
+	// Contract is the replay-contract label for a moded effect op
+	// ("deterministic"/"re-sampleable"/"opaque"), from replay.ContractFor.
+	// Lets replay tooling dispatch pin/redraw/substitute on the contract rather
+	// than the raw effect token. Empty for ops with no registered contract.
+	// Additive (M-EFFECT-REPLAY-CONTRACTS) — back-compatible with old traces.
+	Contract string `json:"contract,omitempty"`
 }
 
 // ResolvedRoute captures dynamic-routing metadata for an AI effect event.

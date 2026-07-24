@@ -104,11 +104,49 @@ func randIntImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error)
 		min, max = max, min // Swap if reversed
 	}
 
-	randMu.Lock()
-	result := min + randSource.Intn(max-min+1)
-	randMu.Unlock()
+	// M-EFFECT-REPLAY-CONTRACTS: dispatch on the Rand mode threaded onto the
+	// effect context (os = unchanged global source, seeded = dedicated
+	// deterministic source, crypto = crypto/rand).
+	span := max - min + 1
+	offset, err := randIntn(ctx, "_rand_int", span)
+	if err != nil {
+		return nil, err
+	}
+	return &eval.IntValue{Value: min + offset}, nil
+}
 
-	return &eval.IntValue{Value: result}, nil
+// randIntn returns a random int in [0, n) using the mode currently in effect on
+// ctx (M-EFFECT-REPLAY-CONTRACTS). n must be > 0. os draws from the global
+// source under randMu (unchanged); seeded draws from the per-context
+// deterministic source (typed error if no seed); crypto draws from crypto/rand.
+func randIntn(ctx *effects.EffContext, op string, n int) (int, error) {
+	switch ctx.CurrentRandMode() {
+	case "seeded":
+		return ctx.SeededIntn(op, n)
+	case "crypto":
+		return effects.CryptoIntn(n), nil
+	default: // "os"
+		randMu.Lock()
+		v := randSource.Intn(n)
+		randMu.Unlock()
+		return v, nil
+	}
+}
+
+// randFloat01 returns a random float in [0.0, 1.0) using the mode in effect on
+// ctx (M-EFFECT-REPLAY-CONTRACTS).
+func randFloat01(ctx *effects.EffContext, op string) (float64, error) {
+	switch ctx.CurrentRandMode() {
+	case "seeded":
+		return ctx.SeededFloat64(op)
+	case "crypto":
+		return effects.CryptoFloat64(), nil
+	default: // "os"
+		randMu.Lock()
+		v := randSource.Float64()
+		randMu.Unlock()
+		return v, nil
+	}
 }
 
 // _rand_float: Generate random float in range [min, max)
@@ -161,11 +199,12 @@ func randFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 		min, max = max, min
 	}
 
-	randMu.Lock()
-	result := min + randSource.Float64()*(max-min)
-	randMu.Unlock()
-
-	return &eval.FloatValue{Value: result}, nil
+	// M-EFFECT-REPLAY-CONTRACTS: mode-aware dispatch (see randFloat01).
+	f, err := randFloat01(ctx, "_rand_float")
+	if err != nil {
+		return nil, err
+	}
+	return &eval.FloatValue{Value: min + f*(max-min)}, nil
 }
 
 // _rand_bool: Generate random boolean
@@ -211,11 +250,12 @@ func randBoolImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 		panic("internal invariant violation: _rand_bool expects exactly 1 argument (unit)")
 	}
 
-	randMu.Lock()
-	result := randSource.Intn(2) == 1
-	randMu.Unlock()
-
-	return &eval.BoolValue{Value: result}, nil
+	// M-EFFECT-REPLAY-CONTRACTS: mode-aware dispatch (see randIntn).
+	v, err := randIntn(ctx, "_rand_bool", 2)
+	if err != nil {
+		return nil, err
+	}
+	return &eval.BoolValue{Value: v == 1}, nil
 }
 
 // _rand_seed: Set the random seed for deterministic generation
