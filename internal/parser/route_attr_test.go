@@ -614,3 +614,73 @@ export func parse(content: string) -> string ! {} { content }`
 	}
 	_ = strings.Contains // keep import used
 }
+
+// TestAllowEmptyOkAnnotation_Basic tests @allow_empty_ok("rationale") parsing.
+func TestAllowEmptyOkAnnotation_Basic(t *testing.T) {
+	input := `
+@allow_empty_ok("empty list is a legitimate empty-collection result")
+export func listDocs(coll: string) -> string ! {} { coll }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	if len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 function, got %d", len(file.Funcs))
+	}
+
+	fn := file.Funcs[0]
+	ann := fn.GetAnnotation("allow_empty_ok")
+	if ann == nil {
+		t.Fatal("expected @allow_empty_ok annotation retrievable via GetAnnotation")
+	}
+	if len(ann.Args) != 1 {
+		t.Fatalf("expected 1 arg (rationale), got %d", len(ann.Args))
+	}
+	lit, ok := ann.Args[0].(*ast.Literal)
+	if !ok || lit.Kind != ast.StringLit {
+		t.Fatal("expected rationale to be a string literal")
+	}
+	if lit.Value.(string) != "empty list is a legitimate empty-collection result" {
+		t.Errorf("unexpected rationale: %q", lit.Value)
+	}
+}
+
+// TestAllowEmptyOkAnnotation_RequiresRationale tests parse error when the
+// rationale string is missing.
+func TestAllowEmptyOkAnnotation_RequiresRationale(t *testing.T) {
+	input := `
+@allow_empty_ok()
+export func listDocs(coll: string) -> string ! {} { coll }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	_ = p.ParseFile()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected parser error for @allow_empty_ok() with no rationale")
+	}
+}
+
+// TestAllowEmptyOkAnnotation_EmptyRationaleRejected tests parse error when the
+// rationale string is present but empty.
+func TestAllowEmptyOkAnnotation_EmptyRationaleRejected(t *testing.T) {
+	input := `
+@allow_empty_ok("")
+export func listDocs(coll: string) -> string ! {} { coll }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	_ = p.ParseFile()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected parser error for @allow_empty_ok(\"\") with empty rationale")
+	}
+}

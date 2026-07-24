@@ -33,6 +33,8 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return p.parseRouteAnnotation(pos)
 	case "mcp_name":
 		return p.parseMCPNameAnnotation(pos)
+	case "allow_empty_ok":
+		return p.parseAllowEmptyOkAnnotation(pos)
 	case "raw":
 		// @raw is a parameterless annotation — no arguments to parse
 		return &ast.Annotation{Name: "raw", Pos: pos}
@@ -48,9 +50,51 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return &ast.Annotation{Name: "nomcp", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @raw, @nowrap, @noexpose, @nomcp", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, @noexpose, or @nomcp")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
+	}
+}
+
+// parseAllowEmptyOkAnnotation parses @allow_empty_ok("rationale") into an
+// Annotation. It suppresses STRICT_FALLBACK_001 on the annotated function.
+// A non-empty string-literal rationale is REQUIRED — it is the audit record
+// for why an empty-Ok is legitimate at the publish boundary.
+// Expects the parser to be AT the 'allow_empty_ok' identifier.
+func (p *Parser) parseAllowEmptyOkAnnotation(pos ast.Pos) *ast.Annotation {
+	// Consume 'allow_empty_ok', expect '('
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Expect a string literal for the rationale
+	if !p.expectPeek(lexer.STRING) {
+		p.report("PAR_ALLOW_EMPTY_OK_ARG",
+			"@allow_empty_ok requires a string-literal rationale",
+			"Use @allow_empty_ok(\"why empty-Ok is correct here\")")
+		return nil
+	}
+	rationale := p.curToken.Literal
+
+	// Reject an empty rationale — the whole point is an auditable reason.
+	if rationale == "" {
+		p.report("PAR_ALLOW_EMPTY_OK_EMPTY",
+			"@allow_empty_ok rationale must not be empty",
+			"Use @allow_empty_ok(\"why empty-Ok is correct here\")")
+		return nil
+	}
+
+	// Expect ')'
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	return &ast.Annotation{
+		Name: "allow_empty_ok",
+		Args: []ast.Expr{
+			&ast.Literal{Kind: ast.StringLit, Value: rationale, Pos: pos},
+		},
+		Pos: pos,
 	}
 }
 
