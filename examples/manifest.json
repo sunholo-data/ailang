@@ -2637,7 +2637,12 @@
       "expected": {
         "stdout": "response has no 'fields' key\n{}\n",
         "exit_code": 0
-      }
+      },
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/result"
+      ]
     }
   ],
   "statistics": {
