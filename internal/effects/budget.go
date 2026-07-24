@@ -176,27 +176,6 @@ func (bc *BudgetContext) Minimum(effect string) (int, bool) {
 	return min, ok
 }
 
-// CheckMinimum verifies that minimum usage requirements are met
-//
-// M-DX25 M4: Called on scope exit to ensure effects were exercised.
-// Uses physical usage count (actual calls) for verification.
-//
-// Parameters:
-//   - position: Source position for error reporting (optional)
-//
-// Returns:
-//   - nil if all minimums are met
-//   - BudgetUnderrunError if any minimum is not satisfied
-func (bc *BudgetContext) CheckMinimum(position string) error {
-	for effect, min := range bc.minLimits {
-		physical := bc.physicalUsed[effect]
-		if physical < min {
-			return NewBudgetUnderrunError(effect, min, physical, position)
-		}
-	}
-	return nil
-}
-
 // MinLimitsMap returns a copy of the minimum limits per effect
 //
 // Returns:
@@ -247,17 +226,14 @@ func (bc *BudgetContext) CheckAndConsume(effect, position string) error {
 	return nil
 }
 
-// ChargeSemanticOnly increments only the semantic usage count
+// TrackPhysical increments only the physical usage count for an effect.
 //
-// M-DX25: Used by PopScopeAndChargeCaller to charge the caller's
-// semantic budget with the callee's declared amount. This does NOT
-// increment physical usage (which is tracked separately at builtin invocation).
-//
-// Parameters:
-//   - effect: The effect name
-//   - count: The amount to charge (typically callee's declared @limit)
-func (bc *BudgetContext) ChargeSemanticOnly(effect string, count int) {
-	bc.used[effect] += count
+// M-BUDGET-SCOPING-BUG: When enforcement is delegated to the per-invocation
+// frame stack, physical usage is still tracked here so --emit-trace budget
+// deltas and the observability report remain accurate. This never enforces a
+// limit and never touches the semantic count.
+func (bc *BudgetContext) TrackPhysical(effect string) {
+	bc.physicalUsed[effect]++
 }
 
 // Clone creates a copy of the budget context
@@ -279,50 +255,6 @@ func (bc *BudgetContext) Clone() *BudgetContext {
 		newMinLimits[name] = &val
 	}
 	return NewBudgetContextWithMin(newLimits, newMinLimits)
-}
-
-// Reset clears all usage counters
-//
-// Used when entering a new function scope with per-invocation budget semantics.
-func (bc *BudgetContext) Reset() {
-	bc.used = make(map[string]int)
-}
-
-// Merge combines two budget contexts
-//
-// For budget composition (e.g., nested scopes), limits are summed.
-// Usage is taken from the current context.
-//
-// Parameters:
-//   - other: Another budget context to merge
-//
-// Returns:
-//   - A new BudgetContext with combined limits
-func (bc *BudgetContext) Merge(other *BudgetContext) *BudgetContext {
-	if other == nil {
-		return bc.Clone()
-	}
-
-	merged := make(map[string]*int)
-
-	// Add limits from bc
-	for name, limit := range bc.limits {
-		val := limit
-		merged[name] = &val
-	}
-
-	// Add limits from other (sum if both have the same effect)
-	for name, limit := range other.limits {
-		if existing, ok := merged[name]; ok && existing != nil {
-			sum := *existing + limit
-			merged[name] = &sum
-		} else {
-			val := limit
-			merged[name] = &val
-		}
-	}
-
-	return NewBudgetContext(merged)
 }
 
 // UsageMap returns a copy of the semantic usage counts per effect

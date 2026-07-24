@@ -1,6 +1,8 @@
 ## M-BUDGET-SCOPING-BUG: `@limit`/`@min` effect budgets are cumulative across the call chain, not per-function
 
-**Status**: **ROUTED TO SPRINT-PLANNER — iter-98 (2026-07-24)**. Mark 2026-07-24 ("apply and route") ratified the carve-out first-use and directed applying the 2 reviewer-verbatim refinements. Both applied verbatim iter-98: (1) gpt5-6-sol's deterministic first-violating-frame innermost-to-outermost + check-then-atomic-increment-all rule folded into the `@limit` charging section + new matrix cell 8; (2) gemini-3-1-pro's `BudgetContext.Consume` charge-interceptor bullet added to the Conflict Surface as REPLACED. NO re-quorum (design direction accepted by both reviewers; refinements are their own words). Design is implementation-ready.
+**Status**: **IMPLEMENTED — iter-98 (2026-07-24), sprint-evaluator PASS 87/100 round 1.** Mark 2026-07-24 ("apply and route") ratified the QUORUM narrow-refinement carve-out's first use and directed applying the 2 reviewer-verbatim refinements. Both applied verbatim: (1) gpt5-6-sol's deterministic first-violating-frame innermost-to-outermost + check-then-atomic-increment-all rule folded into the `@limit` charging section + matrix cell 8; (2) gemini-3-1-pro's charge-interceptor bullet added to the Conflict Surface (confirmed target `CheckAndConsume` → the new frame-stack `Charge` in `budget_frame.go`). Implemented as per-invocation budget frames (`internal/effects/budget_frame.go`), defer-guarded unwind-safe pop at both evaluator sites, bubbling charge rule, `@min` suppressed on error exit. Two latent bugs fixed en route (double-charge; LetRec recursion escaping enforcement). All 8 matrix cells + frame-leak tested; demo un-skipped and runs to completion.
+
+**Known follow-up (D1, non-blocking, from the round-1 evaluation — see [Future work](#future-work-d1)):** the budget-exhausted error message does not yet include the tripped frame's **function name** (only its effect/limit/used), which the charging rule requires for full attribution. `FnName` is stored on the frame but not threaded into `BudgetExhaustedError`/`BudgetUnderrunError`. Diagnostic-quality only — enforcement and soundness are unaffected.
 **Target**: v0.27.x / v0.28.0
 **Priority**: P2 (Medium — makes per-function budget annotations misleading; surfaced a shipped broken example)
 **Estimated**: 1–2 days (hierarchical frame stack + `@min` exit checks + full test migration — see [Estimate rationale](#estimate-rationale))
@@ -197,21 +199,27 @@ The mandatory inventory of existing machinery that encodes the cumulative behavi
 
 ## Acceptance Criteria
 
-- [ ] **One regression test per semantics-matrix cell** (8 cells; cells 5 and 7 include their
+- [x] **One regression test per semantics-matrix cell** (8 cells; cells 5 and 7 include their
       listed variants; cell 8 asserts innermost-violator attribution when an op exceeds two
       frames at once), each asserting both outcome and error attribution.
-- [ ] The repro above (cell 1) passes: `limited`'s `@limit=3` bounds only `limited`'s own
+      *(cmd/ailang/budget_scoping_e2e_test.go — binary-driven, all 8 cells + variants green.)*
+- [x] The repro above (cell 1) passes: `limited`'s `@limit=3` bounds only `limited`'s own
       frame; `main`'s preamble spends nothing against it.
-- [ ] `examples/effect_budget_demo.ail` runs to completion under `--caps IO` and is **removed
-      from the `verify-examples-toplevel` run-skip list**.
-- [ ] `internal/effects/budget_test.go` migrated per the conflict surface: no stale cumulative
+- [x] `examples/effect_budget_demo.ail` runs to completion under `--caps IO` and is **removed
+      from the `verify-examples-toplevel` run-skip list**. *(tools/verify_examples.sh skip
+      entry deleted; demo exits 0.)*
+- [x] `internal/effects/budget_test.go` migrated per the conflict surface: no stale cumulative
       `physical: N` assertions; `Merge`-summing and `Reset` tests deleted with their machinery.
-- [ ] `docs/docs/reference/effects.md` "Capability Budgets" describes the hierarchical scoping
+- [x] `docs/docs/reference/effects.md` "Capability Budgets" describes the hierarchical scoping
       precisely: **`@limit` = checked pre-op against every active frame, tightest active limit
       wins; `@min` = own frame's count checked at frame pop on normal exit, suppressed on error
       exit; unannotated functions push no frame; recursion pushes independent frames.**
-- [ ] Frame pop is verified on error paths (a test where a callee error unwinds through an
+- [x] Frame pop is verified on error paths (a test where a callee error unwinds through an
       annotated frame, then a sibling call succeeds — proving no stale frame leaked).
+      *(cmd/ailang: TestBudgetFrame_ErrorUnwind_NoStaleFrame; effects:
+      TestEffContext_ErrorUnwind_NoStaleFrame — direct unit proof.)*
+
+**Status: IMPLEMENTED (sprint M-BUDGET-SCOPING-BUG, 2026-07-24).**
 
 ## Estimate rationale
 
@@ -274,3 +282,20 @@ fixes into the normative sections (NOT a controller-invented resolution — each
 own quoted text): fix 1 → the `@limit` deterministic pre-op rule + matrix cell 8; fix 2 → the
 `BudgetContext.Consume` Conflict Surface bullet. No re-quorum (per Mark + the carve-out — the
 design direction was accepted by both reviewers in round 2). Routed to sprint-planner.
+
+## Future work (D1)
+
+**D1 — function-name attribution in budget errors (medium, non-blocking; from the iter-98
+round-1 evaluation, score 87/100).** The charging rule specifies that a `@limit`/`@min` error
+"must name **which frame** tripped (function name + its limit + its own used count)". The
+implementation stores `FnName` on each `BudgetFrame` and selects the correct (innermost)
+violating frame, but `BudgetExhaustedError`/`BudgetUnderrunError` have no `FnName` field, so the
+surfaced message omits it (`effect 'IO' budget exhausted: semantic limit=2, used=2 …`). The
+matrix-cell tests assert the limit/used values (which uniquely identify the frame in every test
+scenario) but not the function name, so enforcement and soundness are fully correct — this is a
+diagnostic-quality gap only. Fix: add `FnName string` to both error types + their constructors,
+thread `f.FnName` through `Charge`/`CheckMin` (`internal/effects/budget_frame.go`), include it in
+`Error()`, and extend the e2e assertions to check the name appears in stderr. Also (D2, minor):
+`CallFunction` (`eval_evaluator.go`) pushes frames with an empty `fnName` for builtin→AILANG
+callbacks — carry a descriptor from the `FunctionValue` so those frames are named too. Small,
+self-contained; queue as a diagnostic-polish follow-up.

@@ -31,8 +31,8 @@ Traditional capability systems are binary: either you can perform an effect or y
 **Capability budgets give you:**
 - **Compile-time documentation**: See resource usage in function signatures
 - **Runtime enforcement**: Automatic failure when limits exceeded
-- **Per-invocation isolation**: Each function call gets a fresh budget
-- **Composable limits**: Nested calls respect their own budgets
+- **Per-invocation isolation**: Each call to an annotated function is bounded on its own — a caller's earlier effects are not charged against the callee's `@limit`
+- **Composable / bubbling limits**: an effect charges the innermost frame **and** every active ancestor frame, so nested/delegated effects still count toward an annotated caller's budget (the tightest active `@limit` wins). See [Effects → Capability Budgets](/docs/reference/effects#capability-budgets) for the full hierarchical scoping rules.
 
 ## Basic Syntax
 

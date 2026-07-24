@@ -164,15 +164,27 @@ func (e *CoreEvaluator) evalCoreLit(lit *core.Lit) (Value, error) {
 
 // evalCoreLambda evaluates a lambda (creates closure)
 func (e *CoreEvaluator) evalCoreLambda(lam *core.Lambda) (Value, error) {
+	// Capture environment by reference (needed for recursion).
+	fn, err := e.buildClosure(lam, e.env)
+	return fn, err
+}
+
+// buildClosure constructs a FunctionValue for a lambda over the given environment
+// and attaches its effect budgets from type info. Used both by evalCoreLambda and
+// by the LetRec path (eval_patterns.go) — sharing this ensures RECURSIVE functions
+// carry their @limit/@min annotations too. Without the budget extraction here,
+// recursive functions built via LetRec never pushed budget frames and escaped
+// enforcement entirely (M-BUDGET-SCOPING-BUG).
+func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*FunctionValue, error) {
 	fn := &FunctionValue{
 		Params:   lam.Params,
 		Body:     lam.Body,
-		Env:      e.env,      // Capture environment by reference (needed for recursion)
+		Env:      env,
 		Resolver: e.resolver, // M-DX-XPKG-RESOLVE: capture defining module's resolver
 		Typed:    false,
 	}
 
-	// M-CAPABILITY-BUDGETS: Extract effect budgets from type info if available
+	// M-CAPABILITY-BUDGETS: Extract effect budgets from type info if available.
 	if e.coreTypeInfo != nil {
 		if t, ok := e.coreTypeInfo[lam.NodeID]; ok {
 			fn.EffectBudgets = extractEffectBudgets(t)

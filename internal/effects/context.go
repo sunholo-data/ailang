@@ -37,6 +37,7 @@ type EffContext struct {
 	Stream         *StreamContext        // Stream effect state (M-STREAM-BIDI)
 	Process        *ProcessContext       // Process effect state (M-PROCESS)
 	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
+	BudgetFrames   *BudgetFrameStack     // Per-execution stack of per-invocation budget frames (M-BUDGET-SCOPING-BUG)
 	BudgetReport   *BudgetReport         // Budget usage report (--budget-report flag, M-DX25)
 	DisableBudgets bool                  // Bypass budget enforcement (--no-budgets flag)
 	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
@@ -47,9 +48,15 @@ type EffContext struct {
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
 	stdinReader    *bufio.Reader         // Persistent buffered reader for readLine (lazily initialized)
 
-	// M-DX25: Scoped budget charging
-	DeclaredBudgets map[string]int // Callee's declared @limit values (for charging caller on return)
-	CallerContext   *EffContext    // Reference to caller's context (for charging on scope exit)
+	// M-BUDGET-SCOPING-BUG: re-entrancy guard for budget charging. A single
+	// logical effect op must charge the budget exactly ONCE, but each effect
+	// builtin passes through TWO RequireCapWithBudget call-sites: the runtime
+	// builtin wrapper (internal/runtime/builtins.go) AND the builtin's own Impl
+	// (either a direct call or via effects.Call). The wrapper opens a charge
+	// scope around the Impl; nested RequireCapWithBudget calls while this depth
+	// is > 0 do the capability check only and skip the (already-applied) budget
+	// charge. Without this the per-frame @limit would count each op twice.
+	budgetChargeDepth int
 
 	// M-STREAM-BIDI: Function caller for stream event handlers
 	// Set by the evaluator; allows effects to call AILANG functions without import cycles.
@@ -64,6 +71,38 @@ type EffContext struct {
 	// SpanWrapper wraps each effect operation with an OTEL span (nil = no tracing).
 	GoCtx       context.Context
 	SpanWrapper SpanWrapperFunc
+}
+
+// BeginBudgetChargeScope marks the start of a single logical effect op that has
+// already had its budget charged (M-BUDGET-SCOPING-BUG). Nested
+// RequireCapWithBudget calls until the paired EndBudgetChargeScope do a
+// capability check only.
+func (ctx *EffContext) BeginBudgetChargeScope() {
+	ctx.budgetChargeDepth++
+}
+
+// EndBudgetChargeScope closes a scope opened by BeginBudgetChargeScope.
+func (ctx *EffContext) EndBudgetChargeScope() {
+	if ctx.budgetChargeDepth > 0 {
+		ctx.budgetChargeDepth--
+	}
+}
+
+// SaveAndResetBudgetChargeScope zeroes the charge-scope depth and returns the
+// previous value (M-BUDGET-SCOPING-BUG). The evaluator calls this on entry to an
+// AILANG function body so that effects performed by a user callback invoked from
+// inside a builtin (e.g. a Stream event handler) are charged normally — the
+// caller's charge scope must not leak across an AILANG function-call boundary.
+// Paired with RestoreBudgetChargeScope on exit.
+func (ctx *EffContext) SaveAndResetBudgetChargeScope() int {
+	prev := ctx.budgetChargeDepth
+	ctx.budgetChargeDepth = 0
+	return prev
+}
+
+// RestoreBudgetChargeScope restores a depth saved by SaveAndResetBudgetChargeScope.
+func (ctx *EffContext) RestoreBudgetChargeScope(prev int) {
+	ctx.budgetChargeDepth = prev
 }
 
 // SpanWrapperFunc wraps an effect operation with an OTEL span.
@@ -201,6 +240,7 @@ func NewEffContext(args []string) *EffContext {
 		EnvSnapshot:  captureEnvSnapshot(),
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 		Args:         args,
+		BudgetFrames: NewBudgetFrameStack(), // M-BUDGET-SCOPING-BUG: per-execution frame stack
 	}
 	// Debug is a ghost effect — always available, no explicit --caps needed
 	ctx.Grant(NewCapability("Debug"))
@@ -294,12 +334,39 @@ func (ctx *EffContext) RequireCapWithBudget(name, position string) error {
 		return err
 	}
 
-	// Then check and consume budget (if configured)
-	// Skip budget check if DisableBudgets is set (--no-budgets flag)
-	if ctx.Budget != nil && !ctx.DisableBudgets {
+	// M-BUDGET-SCOPING-BUG: re-entrancy guard. If we're already inside a charged
+	// effect op (the runtime builtin wrapper opened a scope before dispatching to
+	// the Impl), do the capability check only — the budget was already charged by
+	// the wrapper. This makes a single logical op charge the frame exactly once.
+	if ctx.budgetChargeDepth > 0 {
+		return nil
+	}
+
+	// M-BUDGET-SCOPING-BUG: enforcement lives in the per-invocation frame stack.
+	// The LIMIT check is applied against every active frame via the bubbling
+	// charge rule. Physical usage stays tracked on ctx.Budget for --emit-trace
+	// budget deltas and the observability report.
+	frameScoped := !ctx.DisableBudgets && ctx.BudgetFrames != nil && ctx.BudgetFrames.HasActiveLimit(name)
+
+	if frameScoped {
+		// Track physical only (never enforces) so trace/report totals stay
+		// accurate; enforcement is done by the frame stack below.
+		if ctx.Budget != nil {
+			ctx.Budget.TrackPhysical(name)
+		}
+		if err := ctx.BudgetFrames.Charge(name, position); err != nil {
+			return err
+		}
+	} else if !ctx.DisableBudgets && ctx.Budget != nil {
+		// Legacy / direct-budget path (no active frame): CheckAndConsume tracks
+		// physical AND enforces on the per-context budget. Used by SetBudget-driven
+		// callers and unit tests.
 		if err := ctx.Budget.CheckAndConsume(name, position); err != nil {
 			return err
 		}
+	} else if ctx.Budget != nil {
+		// --no-budgets: still track physical for the report.
+		ctx.Budget.TrackPhysical(name)
 	}
 
 	// M-DX25: Record usage for budget report (always, even with --no-budgets)
@@ -330,143 +397,72 @@ func (ctx *EffContext) SetBudget(budget *BudgetContext) {
 func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 	// Shallow copy - share all contexts except Budget
 	return &EffContext{
-		Caps:            ctx.Caps,
-		Env:             ctx.Env,
-		Clock:           ctx.Clock,
-		Net:             ctx.Net,
-		Debug:           ctx.Debug,
-		AI:              ctx.AI,
-		DOM:             ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
-		Msg:             ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
-		Cog:             ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
-		SharedMem:       ctx.SharedMem,
-		SharedIndex:     ctx.SharedIndex,
-		Contracts:       ctx.Contracts,
-		Stream:          ctx.Stream,
-		Process:         ctx.Process,
-		Budget:          budget,
-		BudgetReport:    ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
-		DisableBudgets:  ctx.DisableBudgets, // Preserve --no-budgets flag
-		EnvSnapshot:     ctx.EnvSnapshot,
-		EnvAllowlist:    ctx.EnvAllowlist,
-		Args:            ctx.Args,
-		Trace:           ctx.Trace,       // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:        ctx.IOWriter,    // Preserve IO writer across budget scopes
-		IOReader:        ctx.IOReader,    // Preserve IO reader across budget scopes
-		stdinReader:     ctx.stdinReader, // Share persistent buffered reader across scopes
-		DeclaredBudgets: nil,             // Reset for new scope (will be set by WithBudgetLimits)
-		CallerContext:   nil,             // Reset for new scope (will be set by WithBudgetLimits)
-		FnCaller:        ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
-		FnCallerN:       ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
-		GoCtx:           ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
-		SpanWrapper:     ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
+		Caps:           ctx.Caps,
+		Env:            ctx.Env,
+		Clock:          ctx.Clock,
+		Net:            ctx.Net,
+		Debug:          ctx.Debug,
+		AI:             ctx.AI,
+		DOM:            ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
+		Msg:            ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
+		Cog:            ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
+		SharedMem:      ctx.SharedMem,
+		SharedIndex:    ctx.SharedIndex,
+		Contracts:      ctx.Contracts,
+		Stream:         ctx.Stream,
+		Process:        ctx.Process,
+		Budget:         budget,
+		BudgetFrames:   ctx.BudgetFrames,   // M-BUDGET-SCOPING-BUG: SHARE frame stack across budget scopes (per-execution state)
+		BudgetReport:   ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
+		DisableBudgets: ctx.DisableBudgets, // Preserve --no-budgets flag
+		EnvSnapshot:    ctx.EnvSnapshot,
+		EnvAllowlist:   ctx.EnvAllowlist,
+		Args:           ctx.Args,
+		Trace:          ctx.Trace,       // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:       ctx.IOWriter,    // Preserve IO writer across budget scopes
+		IOReader:       ctx.IOReader,    // Preserve IO reader across budget scopes
+		stdinReader:    ctx.stdinReader, // Share persistent buffered reader across scopes
+		FnCaller:       ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:      ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
+		GoCtx:          ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
+		SpanWrapper:    ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
 	}
 }
 
-// WithBudgetLimits creates a new context with budget limits from a map[string]int
-// This implements the eval.BudgetEnforcer interface to avoid import cycles.
+// PushBudgetFrame pushes a per-invocation budget frame onto the shared frame
+// stack (M-BUDGET-SCOPING-BUG). Implements eval.BudgetFrameEnforcer.
 //
-// M-DX25: This creates a scoped budget context that tracks:
-// - DeclaredBudgets: the callee's declared limits (for charging caller on return)
-// - CallerContext: reference to caller for semantic charging on scope exit
-//
-// Parameters:
-//   - limits: Map of effect name to budget limit (e.g., {"IO": 5, "Rand": 10})
-//
-// Returns:
-//   - A new EffContext with the specified budget limits (as interface{})
-func (ctx *EffContext) WithBudgetLimits(limits map[string]int) interface{} {
-	// Convert map[string]int to map[string]*int for NewBudgetContext
-	ptrLimits := make(map[string]*int, len(limits))
-	for effect, limit := range limits {
-		l := limit // capture for pointer
-		ptrLimits[effect] = &l
+// Called by the evaluator on entry to any function whose signature carries an
+// @limit/@min annotation. The frame stack is shared across WithBudget scopes so
+// ancestor frames stay active during the callee's dynamic extent (bubbling).
+func (ctx *EffContext) PushBudgetFrame(fnName string, limits, mins map[string]int) {
+	if ctx.BudgetFrames == nil {
+		ctx.BudgetFrames = NewBudgetFrameStack()
 	}
-	budget := NewBudgetContext(ptrLimits)
-	newCtx := ctx.WithBudget(budget)
-
-	// M-DX25: Store declared budgets and caller reference for scoped charging
-	newCtx.DeclaredBudgets = make(map[string]int, len(limits))
-	for effect, limit := range limits {
-		newCtx.DeclaredBudgets[effect] = limit
-	}
-	newCtx.CallerContext = ctx
-
-	return newCtx
+	ctx.BudgetFrames.Push(fnName, limits, mins)
 }
 
-// PopScopeAndChargeCaller charges the caller context with declared semantic budgets
+// PopBudgetFrame pops the innermost budget frame (M-BUDGET-SCOPING-BUG).
+// Implements eval.BudgetFrameEnforcer.
 //
-// M-DX25: When a scoped function returns, the caller is charged the callee's
-// declared budget (not the actual physical usage). This implements the
-// "charge declared amount" semantic charging model.
-//
-// This method should be called when restoring the old effect context after
-// evaluating a function with declared budgets.
-//
-// If this context has no CallerContext (pass-through mode), this is a no-op.
-func (ctx *EffContext) PopScopeAndChargeCaller() {
-	if ctx.CallerContext == nil || len(ctx.DeclaredBudgets) == 0 {
-		return
+// On normal exit (bodyErr == nil) the frame's @min requirements are checked
+// against the frame's own bubbled semantic count; a violation is returned as a
+// *BudgetUnderrunError. On error/exceptional exit (bodyErr != nil) the frame is
+// still popped but the @min check is SUPPRESSED and bodyErr is returned unchanged
+// (a mid-flight failure must not be masked by a @min violation).
+func (ctx *EffContext) PopBudgetFrame(fnName string, bodyErr error) error {
+	if ctx.BudgetFrames == nil {
+		return bodyErr
 	}
-
-	// Charge caller's semantic budget with declared amounts
-	caller := ctx.CallerContext
-	if caller.Budget != nil {
-		for effect, declared := range ctx.DeclaredBudgets {
-			// Increment caller's semantic usage by declared amount
-			caller.Budget.ChargeSemanticOnly(effect, declared)
-		}
+	frame := ctx.BudgetFrames.Pop()
+	if bodyErr != nil {
+		// Error exit: suppress @min, propagate the original error unchanged.
+		return bodyErr
 	}
-
-	// Also record in budget report if active
-	if caller.BudgetReport != nil {
-		for effect, declared := range ctx.DeclaredBudgets {
-			// Record semantic charge to caller (not physical - that's tracked separately)
-			// For now we record as function attribution when available
-			if caller.BudgetReport.CurrentFunction != "" {
-				if caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction] == nil {
-					caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction] = make(map[string]int)
-				}
-				caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction][effect] += declared
-				caller.BudgetReport.TotalUsage[effect] += declared
-			}
-		}
-	}
-}
-
-// SetMinBudgets sets minimum usage requirements on the context's budget
-//
-// M-DX25 M4: Implements eval.MinBudgetEnforcer interface.
-// Called by evaluator after WithBudgetLimits to set minimum constraints.
-//
-// Parameters:
-//   - minLimits: Map of effect name to minimum required usage
-func (ctx *EffContext) SetMinBudgets(minLimits map[string]int) {
-	if ctx.Budget == nil || len(minLimits) == 0 {
-		return
-	}
-	for effect, min := range minLimits {
-		ctx.Budget.minLimits[effect] = min
-	}
-}
-
-// CheckMinimums verifies all minimum requirements are met
-//
-// M-DX25 M4: Implements eval.MinimumChecker interface.
-// Called by evaluator on scope exit to ensure effects were exercised.
-//
-// Parameters:
-//   - position: Source position for error reporting
-//
-// Returns:
-//   - nil if all minimums satisfied
-//   - BudgetUnderrunError if any minimum is not met
-func (ctx *EffContext) CheckMinimums(position string) error {
-	if ctx.Budget == nil {
+	if frame == nil {
 		return nil
 	}
-	return ctx.Budget.CheckMinimum(position)
+	return frame.CheckMin("")
 }
 
 // loadEffEnv loads effect environment from OS environment variables
