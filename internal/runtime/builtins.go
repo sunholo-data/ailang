@@ -11,7 +11,43 @@ import (
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/replay"
 )
+
+// randTraceOps maps Rand draw builtins to their trace op name. _rand_seed and
+// _uuid4 are intentionally excluded: _rand_seed is not a draw (it reseeds the os
+// source) and _uuid4 has its own crypto source independent of the mode stack.
+var randTraceOps = map[string]string{
+	"_rand_int":   "rand_int",
+	"_rand_float": "rand_float",
+	"_rand_bool":  "rand_bool",
+}
+
+// recordModedRandTrace emits a moded-effect trace event for a Rand draw op,
+// carrying the resolved mode and its replay-contract label
+// (M-EFFECT-REPLAY-CONTRACTS). No-op when tracing is off or the op is not a
+// draw. Contract is left empty (omitted) if the (Rand, mode) pair has no
+// registered contract — no silent fallback label.
+func recordModedRandTrace(ctx *effects.EffContext, builtinName string, args []eval.Value, result eval.Value) {
+	op, isDraw := randTraceOps[builtinName]
+	if !isDraw {
+		return
+	}
+	mode := ctx.CurrentRandMode()
+	contract := ""
+	if c, ok := replay.ContractFor("Rand", mode); ok {
+		contract = string(c)
+	}
+	argStrs := make([]string, len(args))
+	for i, a := range args {
+		argStrs[i] = a.String()
+	}
+	resultStr := ""
+	if result != nil {
+		resultStr = result.String()
+	}
+	ctx.RecordModedEffect("Rand", op, argStrs, resultStr, mode, contract)
+}
 
 var debugConcurrencyBuiltins = os.Getenv("DEBUG_CONCURRENCY") == "1"
 
@@ -114,6 +150,12 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 				result, err := builtinSpec.Impl(ctx, args)
 				if debugConcurrencyBuiltins {
 					log.Printf("[BUILTIN] %s done (goroutine %d, err=%v)", builtinSpec.Name, goid.Get(), err)
+				}
+				// M-EFFECT-REPLAY-CONTRACTS: record a moded effect trace event for
+				// Rand draw ops, carrying the resolved mode + its replay-contract
+				// label. Additive — Rand ops previously emitted no effect events.
+				if err == nil && ctx != nil && builtinSpec.Effect == "Rand" {
+					recordModedRandTrace(ctx, builtinSpec.Name, args, result)
 				}
 				return result, err
 			},

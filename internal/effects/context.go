@@ -696,6 +696,15 @@ func (ctx *EffContext) RecordEffect(effectName, opName string, args []string, re
 	}
 }
 
+// RecordModedEffect delegates to the trace collector, attaching a
+// parameterised-effect mode and its replay-contract label
+// (M-EFFECT-REPLAY-CONTRACTS). No-op when no trace collector is active.
+func (ctx *EffContext) RecordModedEffect(effectName, opName string, args []string, result, mode, contract string) {
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordModedEffect(effectName, opName, args, result, mode, contract)
+	}
+}
+
 // RecordAIEffect delegates to the trace collector with optional routing metadata.
 // Effect name is fixed to "AI". Route may be nil for non-routed AI calls.
 func (ctx *EffContext) RecordAIEffect(opName string, args []string, result string, route *trace.ResolvedRoute) {
