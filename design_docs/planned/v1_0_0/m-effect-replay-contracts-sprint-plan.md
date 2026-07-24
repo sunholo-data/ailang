@@ -1,7 +1,12 @@
 # Sprint Plan: M-EFFECT-REPLAY-CONTRACTS (Rand pilot)
 
 **Design doc**: [m-effect-replay-contracts.md](m-effect-replay-contracts.md)
-**Status**: PLANNED — ready for sprint-executor
+**Status**: EXECUTED — M0–M5 landed on `sprint/m-effect-replay-contracts` (registry, mode-aware
+runtime dispatch, trace, golden gate; all unit-proven). **One blocker surfaced for controller/Mark**:
+seeded/crypto Rand modes are not reachable from a runnable `.ail` program because a moded function
+cannot call the os-mode `std/rand` wrappers under the current invariant subsumption rule — the runtime
+machinery is complete, but a subsumption decision is needed to wire it end-to-end (see design doc
+Success Criteria "BLOCKER" note). Bare-`!{Rand}` behaviour is byte-identical (golden gate).
 **Planned**: 2026-07-24 (iter-99+; baseline `v0.30.0-155-g541c1950f`)
 **Duration**: 3 days (~20h) · **Risk**: Medium
 **Sprint JSON**: `.ailang/state/sprints/sprint_M-EFFECT-REPLAY-CONTRACTS.json`

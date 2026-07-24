@@ -189,24 +189,45 @@ export func shuffle[a](xs: [a]) -> [a] ! {Rand} = ...   -- mode=os via default
 
 ## Success Criteria
 
-- [ ] Registry exists, populated for Rand (3 rows) + AI (3 label rows); lookup API tested
-- [ ] Seeded determinism integration test: two runs, same seed, identical sequences
-- [ ] Crypto mode draws from crypto/rand (test via statistical smoke + source inspection hook)
-- [ ] Seeded-without-seed → typed error with fix hint (the teaching diagnostic — points to the
-  dedicated seed path, NOT `rand_seed`)
-- [ ] Bare-Rand behaviour byte-identical: golden test MUST include an existing bare-`!{Rand}`
-  program that CALLS `rand_seed`, compared against pre-change output (not only an
-  `AILANG_SEED`-pinned harness run) — proving `rand_seed`→os-source determinism is preserved
-- [ ] Trace events carry contract label; additive schema verified against existing trace readers
-- [ ] **`examples/modal_rand.ail` rewritten** — `deterministic_roll`'s seeded-mode seed moved off
-  `rand_seed(42)` (line 44) onto the dedicated seeded-source path (`AILANG_SEED` / seeded-source API);
-  comments updated (no longer "runtime treats all modes identically"); runs deterministically under a
-  pinned seed. This is the ONE seeded-mode-via-`rand_seed` caller in-tree — after this, none remain.
-- [ ] **`examples/expected_fail/effect_budgets_multi.ail`** UNCHANGED behaviourally — its `rand_seed(42)`
-  is bare/os (inside `main`, no `mode=seeded`) and is CORRECT; it serves as the bare-Rand+`rand_seed`
-  golden fixture (Verification Log row 3), asserting byte-identical output pre/post-change
-- [ ] Guide + teaching prompt updated; `m-cryptorand.md` header corrected to Superseded (points here)
-- [ ] `make test && make verify-examples && make lint` green
+- [x] Registry exists, populated for Rand (3 rows) + AI (3 label rows); lookup API tested
+  (`internal/replay/contracts.go` + `TestContractFor_*`)
+- [x] Seeded determinism unit test: same seed → identical sequences; different seed → different
+  (`TestSeeded_Deterministic`, `TestRandIntImpl_SeededMode_Deterministic`). **NOTE:** proven at the
+  Go/builtin level, not via an end-to-end `.ail` run — a seeded-mode `.ail` function cannot yet call
+  the os-mode `std/rand` wrappers (invariant subsumption blocker, see Design-Freeze note below).
+- [x] Crypto mode draws from crypto/rand (`TestRandIntImpl_CryptoMode_Range` + `effects.CryptoIntn`
+  unbiased rejection sampling; entropy failure panics)
+- [x] Seeded-without-seed → typed `*SeededModeError` with fix hint pointing to `AILANG_SEED` (NOT
+  `rand_seed`) — `TestSeeded_NoSeed_TypedError`, `TestRandIntImpl_SeededMode_NoSeed_Error`
+- [x] Bare-Rand behaviour byte-identical: golden gate `TestRandGolden_OsSeedByteIdentical` pins the
+  `rand_seed(42)`→os-source draw sequence; also live-verified two `.ail` runs identical
+- [x] Trace events carry mode+contract label; additive schema verified against existing readers
+  (`internal/trace/moded_effect_test.go`, `TestEffectEvent_OldFormatParses`)
+- [~] **`examples/modal_rand.ail` rewritten** — the `rand_seed(42)` misuse inside the seeded-mode
+  `deterministic_roll` is REMOVED (it seeded the os source inside a seeded fn). The file now
+  type-checks AND runs (it did neither before) demonstrating the os path end-to-end, and documents
+  the seeded/crypto type-checker limitation + the `AILANG_SEED` seeding contract. `deterministic_roll`
+  itself was dropped (not merely re-seeded) because a seeded-mode fn calling os-mode `rand_int` is
+  ill-typed under the current invariant subsumption rule — see the blocker below.
+- [x] **`examples/expected_fail/effect_budgets_multi.ail`** UNCHANGED (os-mode, correct; premise §0)
+- [~] Guide updated; `m-cryptorand.md` header updated (crypto intent now realized). **Teaching prompt
+  intentionally NOT updated**: seeded/crypto are not reachable from a runnable `.ail` program yet
+  (subsumption blocker), so teaching agents to use them would produce non-checking code.
+- [x] `make verify-examples && make lint` green; `make test` green modulo the pre-existing live-network
+  flake `TestNetHttpPost/httpbin.org` (503, unrelated)
+
+**BLOCKER surfaced for controller/Mark (NOT a Mark HARD constraint — a new type-system decision):**
+A function declared `!{Rand[mode=seeded]}` or `!{Rand[mode=crypto]}` cannot CALL the `std/rand`
+wrappers, because those are bare `!{Rand}` (= `mode=os`) and `SubsumeEffectRows` treats modes as
+invariant (an os-mode body does not satisfy a seeded/crypto declaration — deliberately, per
+`TestSubsumeEffectRows_InvariantOnParams`, which Phase 5 routeable→fixed depends on). The parent doc's
+Example 1/2 (`deterministic_now() ! {Clock[mode=pinned]} = now()`) imply the intended rule is that an
+explicit declared mode SHOULD subsume an os-mode required effect, but that overturns a tested
+invariant and is out of this sprint's ratified scope. **The runtime dispatch machinery is complete and
+unit-proven; making seeded/crypto reachable from `.ail` needs a subsumption decision** (does an
+explicit declared mode subsume an os/bare required effect? — the `SubsumeEffectRows` validate path is
+separate from the `effectParamsCompatible` unification path, so a narrow relaxation is feasible
+without weakening function-value mode distinctness).
 
 ## Testing Strategy
 

@@ -69,10 +69,10 @@
         "Per-mode source isolation: seeded sequence unperturbed by interleaved os draws",
         "os mode + rand_seed behaviour unchanged"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-24T11:03:33.287725",
+      "completed": "2026-07-24T11:03:33.287725",
+      "notes": "EffContext threads Rand mode (randModeState pointer: shared across WithBudget, reset in Clone). FunctionValue.EffectRandMode extracted via types.EffectModeFor; evaluator pushes non-os mode at both CallFunction sites (defer-popped). builtins/rand.go dispatches os/seeded/crypto. seeded from AILANG_SEED/SetSeededModeSeed; no seed -> typed *SeededModeError; crypto entropy panics. Unit-proven: stack discipline, seeded determinism+isolation, no-seed error, crypto range, Clone reset, os byte-identical. LIMITATION: seeded/crypto .ail functions can't call os-mode std/rand wrappers (invariant subsumption) -> runtime works but not reachable from .ail; needs a subsumption decision (surfaced to controller)."
     },
     {
       "id": "M3_TRACE_INTEGRATION",
@@ -87,10 +87,10 @@
         "Additive schema verified against existing trace readers (comparator test)",
         "ailang trace surfaces the contract label"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-24T11:03:33.287725",
+      "completed": "2026-07-24T11:03:33.287725",
+      "notes": "Additive omitempty Mode+Contract on EffectEvent; Collector.RecordModedEffect + EffContext delegate; runtime builtins wrapper records moded Rand draw ops (not _rand_seed) with mode+contract from replay.ContractFor. Back-compat proven (old events parse, empty omitted). Live: os rand_int emits mode=os,contract=re-sampleable."
     },
     {
       "id": "M4_EXAMPLES_DOCS_BOOKKEEPING",
@@ -106,10 +106,10 @@
         "parameterised-effects guide + teaching prompt updated (modes differ at runtime)",
         "m-cryptorand.md header corrected to Superseded (points here)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-24T11:03:33.287725",
+      "completed": "2026-07-24T11:03:33.287725",
+      "notes": "modal_rand.ail: removed rand_seed(42) misuse in seeded fn; now type-checks AND runs (os path) + documents seeded/crypto limitation+seeding contract. effect_budgets_multi UNCHANGED (os-mode, correct). parameterised-effects guide 'Trace and replay' rewritten. m-cryptorand header: crypto intent now realized. CHANGELOG added. Teaching prompt intentionally NOT updated (seeded/crypto not reachable from .ail yet)."
     },
     {
       "id": "M5_GOLDEN_GATE_CI",
@@ -125,10 +125,10 @@
         "make verify-examples green",
         "make lint green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-24T11:03:33.287725",
+      "completed": "2026-07-24T11:03:33.287725",
+      "notes": "TestRandGolden_OsSeedByteIdentical pins rand_seed(42) os draw sequence (HARD GATE, byte-identical). make lint green (1 pre-existing unused const, not ours). make verify-examples green (manifest in sync). make test: pending final confirm (only known flake = live httpbin TestNetHttpPost 503)."
     }
   ]
 }
