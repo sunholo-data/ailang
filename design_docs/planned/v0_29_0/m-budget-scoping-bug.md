@@ -1,6 +1,6 @@
 ## M-BUDGET-SCOPING-BUG: `@limit`/`@min` effect budgets are cumulative across the call chain, not per-function
 
-**Status**: **UNPARKED — Mark 2026-07-24 ("apply and route")**: apply the 2 reviewer-verbatim refinements exactly as quoted in the Quorum verification log (deterministic first-violating-frame innermost-to-outermost with check-then-atomic-increment-all; Conflict Surface names the actual Consume/charge interceptor as REPLACED), then route to sprint-planner. NO re-quorum — the design direction was accepted by both reviewers; the refinements are their own words.
+**Status**: **ROUTED TO SPRINT-PLANNER — iter-98 (2026-07-24)**. Mark 2026-07-24 ("apply and route") ratified the carve-out first-use and directed applying the 2 reviewer-verbatim refinements. Both applied verbatim iter-98: (1) gpt5-6-sol's deterministic first-violating-frame innermost-to-outermost + check-then-atomic-increment-all rule folded into the `@limit` charging section + new matrix cell 8; (2) gemini-3-1-pro's `BudgetContext.Consume` charge-interceptor bullet added to the Conflict Surface as REPLACED. NO re-quorum (design direction accepted by both reviewers; refinements are their own words). Design is implementation-ready.
 **Target**: v0.27.x / v0.28.0
 **Priority**: P2 (Medium — makes per-function budget annotations misleading; surfaced a shipped broken example)
 **Estimated**: 1–2 days (hierarchical frame stack + `@min` exit checks + full test migration — see [Estimate rationale](#estimate-rationale))
@@ -104,11 +104,19 @@ charge ALL currently-active ancestor frames** that constrain that effect. Conseq
 ### `@limit[effect]=N` — upper bound, checked before each op
 
 Checked **before** each matching effect operation, against **every active frame** on the
-stack. The op fails if **any** active frame would exceed its limit — i.e. the **tightest
-active limit wins**. This is exactly why a child `@limit=5` cannot bypass a parent
-`@limit=2`: the parent's frame is still active during the child's dynamic extent, is still
-charged, and its check still fires. The error message must name **which frame** tripped
-(function name + its limit + its own used count), not a global running total.
+stack. **Deterministic pre-op rule (gpt5-6-sol, applied verbatim iter-98):** before an effect
+operation of cost C, inspect every active frame constraining that effect **without mutating any
+frame**. A frame violates when `used + C > limit`. If one or more frames violate, select the
+**first violating frame in innermost-to-outermost stack order**, return an error naming that
+frame, **do not increment any frame**, and do not perform the operation. If none violate,
+**atomically increment `used` by C in every matching active frame**, then perform the
+operation. (This makes "tightest active limit wins" deterministic when one op would exceed
+*multiple* active frames — frames have different `used` counts, so the smallest limit is not
+necessarily the binding constraint; innermost-to-outermost first-violator selection pins the
+attribution.) This is exactly why a child `@limit=5` cannot bypass a parent `@limit=2`: the
+parent's frame is still active during the child's dynamic extent, is still charged, and its
+check still fires. The error message must name **which frame** tripped (function name + its
+limit + its own used count), not a global running total.
 
 ### `@min[effect]=N` — lower bound, checked when the frame is popped
 
@@ -138,6 +146,7 @@ Numbers reuse the repro (`main` does 3 own `println`s; `limited` does 2) where p
 | 5 | `@min` on normal exit | `atLeast ! {IO @min=3}` does 2 IO and returns | **Fails at frame pop** with `BudgetMinUnmetError` (`used=2 < min=3`). Variant: 3 ops ⇒ succeeds. Variant: 1 own op + unannotated callee doing 2 ⇒ succeeds (callee ops charge the frame). |
 | 6 | `@min` on error exit | `atLeast ! {IO @min=3}` does 1 IO, then a callee raises | **Original callee error propagates**; the frame is popped; the `@min` check is suppressed (no masking). Regression test asserts the surfaced error is the callee's, not `BudgetMinUnmetError`. |
 | 7 | `@limit` tripped in callee vs in caller | (a) trip inside annotated callee's own frame (callee `@limit=1`, does 2) vs (b) trip a caller frame from inside a callee (cell 2/3 shape) | **Error attribution differs and is asserted**: (a) names the callee and its limit; (b) names the caller whose frame was exceeded. In both, the failing op is **not performed** (check is pre-op). |
+| 8 | Op would exceed **both** caller and callee frames (gpt5-6-sol, iter-98) | `outer ! {IO @limit=1}` does 0 IO, calls `inner ! {IO @limit=1}` which has already done 1 IO and attempts a 2nd | **Fails on `inner`'s 2nd op**, which would violate both `inner`'s frame (1+1 > 1) and `outer`'s frame (1+1 > 1). Deterministic selection picks the **first violating frame innermost-to-outermost** → attribution names **`inner`** (the innermost violator); no frame is incremented; the op is not performed. |
 
 ## Conflict surface (what the fix touches, replace vs reuse)
 
@@ -169,6 +178,15 @@ The mandatory inventory of existing machinery that encodes the cumulative behavi
   `Budget` field's clone-and-carry usage in `WithBudgetLimits`/child contexts is where frame
   push must happen instead. The error message's "physical: N" should report the **tripped
   frame's** physical count, not the global one.
+- **`BudgetContext.Consume` (or the equivalent effect-intercept/charge hook in
+  [internal/effects/budget.go](../../../internal/effects/budget.go)) (gemini-3-1-pro, applied
+  verbatim iter-98)**: **REPLACED.** This is the load-bearing edit site — the function that
+  actually increments usage and returns the exhaustion error at op time. Currently it increments
+  a flat counter and checks a single limit; it must be rewritten to iterate the active frame
+  stack, apply the bubbling charging rule (increment `used` on all active ancestor frames), and
+  fail pre-op per the deterministic first-violating-frame selection rule above. (The executor
+  must first grep `internal/effects/budget.go` to name the exact function — the interceptor is
+  where enforcement lives.)
 - **[internal/effects/budget_test.go:255](../../../internal/effects/budget_test.go#L255) —
   existing assertions**: **MIGRATED, not preserved.** `TestBudgetExhaustedError` hard-codes
   cumulative `physical: 10/15` strings and other tests assert whole-chain running totals —
@@ -179,8 +197,9 @@ The mandatory inventory of existing machinery that encodes the cumulative behavi
 
 ## Acceptance Criteria
 
-- [ ] **One regression test per semantics-matrix cell** (7 cells; cells 5 and 7 include their
-      listed variants), each asserting both outcome and error attribution.
+- [ ] **One regression test per semantics-matrix cell** (8 cells; cells 5 and 7 include their
+      listed variants; cell 8 asserts innermost-violator attribution when an op exceeds two
+      frames at once), each asserting both outcome and error attribution.
 - [ ] The repro above (cell 1) passes: `limited`'s `@limit=3` bounds only `limited`'s own
       frame; `main`'s preamble spends nothing against it.
 - [ ] `examples/effect_budget_demo.ail` runs to completion under `--caps IO` and is **removed
@@ -248,3 +267,10 @@ on a narrow, obviously-resolvable defect on an otherwise-ratified design" → a 
 skill-fix refining the gate to allow a bounded controller-apply-reviewer-verbatim-fix-and-reroute
 for exactly this class (pending Mark ratification of first use). metered (both quorum rounds) =
 $0.0636.
+
+**Resolution (mission iter-98, 2026-07-24):** Mark ratified the narrow-refinement carve-out's
+FIRST USE ("apply and route", commit `4e1348adb`). The controller applied both reviewer-verbatim
+fixes into the normative sections (NOT a controller-invented resolution — each is the reviewer's
+own quoted text): fix 1 → the `@limit` deterministic pre-op rule + matrix cell 8; fix 2 → the
+`BudgetContext.Consume` Conflict Surface bullet. No re-quorum (per Mark + the carve-out — the
+design direction was accepted by both reviewers in round 2). Routed to sprint-planner.
