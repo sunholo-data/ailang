@@ -197,21 +197,27 @@ The mandatory inventory of existing machinery that encodes the cumulative behavi
 
 ## Acceptance Criteria
 
-- [ ] **One regression test per semantics-matrix cell** (8 cells; cells 5 and 7 include their
+- [x] **One regression test per semantics-matrix cell** (8 cells; cells 5 and 7 include their
       listed variants; cell 8 asserts innermost-violator attribution when an op exceeds two
       frames at once), each asserting both outcome and error attribution.
-- [ ] The repro above (cell 1) passes: `limited`'s `@limit=3` bounds only `limited`'s own
+      *(cmd/ailang/budget_scoping_e2e_test.go — binary-driven, all 8 cells + variants green.)*
+- [x] The repro above (cell 1) passes: `limited`'s `@limit=3` bounds only `limited`'s own
       frame; `main`'s preamble spends nothing against it.
-- [ ] `examples/effect_budget_demo.ail` runs to completion under `--caps IO` and is **removed
-      from the `verify-examples-toplevel` run-skip list**.
-- [ ] `internal/effects/budget_test.go` migrated per the conflict surface: no stale cumulative
+- [x] `examples/effect_budget_demo.ail` runs to completion under `--caps IO` and is **removed
+      from the `verify-examples-toplevel` run-skip list**. *(tools/verify_examples.sh skip
+      entry deleted; demo exits 0.)*
+- [x] `internal/effects/budget_test.go` migrated per the conflict surface: no stale cumulative
       `physical: N` assertions; `Merge`-summing and `Reset` tests deleted with their machinery.
-- [ ] `docs/docs/reference/effects.md` "Capability Budgets" describes the hierarchical scoping
+- [x] `docs/docs/reference/effects.md` "Capability Budgets" describes the hierarchical scoping
       precisely: **`@limit` = checked pre-op against every active frame, tightest active limit
       wins; `@min` = own frame's count checked at frame pop on normal exit, suppressed on error
       exit; unannotated functions push no frame; recursion pushes independent frames.**
-- [ ] Frame pop is verified on error paths (a test where a callee error unwinds through an
+- [x] Frame pop is verified on error paths (a test where a callee error unwinds through an
       annotated frame, then a sibling call succeeds — proving no stale frame leaked).
+      *(cmd/ailang: TestBudgetFrame_ErrorUnwind_NoStaleFrame; effects:
+      TestEffContext_ErrorUnwind_NoStaleFrame — direct unit proof.)*
+
+**Status: IMPLEMENTED (sprint M-BUDGET-SCOPING-BUG, 2026-07-24).**
 
 ## Estimate rationale
 

@@ -454,11 +454,43 @@ func bounded() -> () ! {IO @min=1 @limit=3} {
 }
 ```
 
+### Hierarchical scoping semantics
+
+Budgets are **per-invocation and hierarchical**, enforced by a stack of budget
+**frames**:
+
+- **Per-invocation frames.** Each call to an annotated function pushes its own
+  frame recording that invocation's `used` count. `@limit=3` means *this
+  function's own invocation* may perform at most 3 matching effects — the
+  caller's earlier effects are **not** charged against it. (Recursion pushes an
+  independent frame per call.)
+- **Unannotated functions push no frame.** Their effects charge whatever
+  annotated ancestor frames are currently active, so budgets compose through
+  unannotated intermediates — an unannotated helper called from an annotated
+  function still spends the caller's budget.
+- **Bubbling charge.** Every matching effect op charges the current (innermost)
+  frame **and** all active ancestor frames that constrain that effect. A callee's
+  effects therefore count toward an annotated caller's budget (delegation cannot
+  launder effects), while an annotated callee is *also* independently bounded by
+  its own frame.
+- **`@limit=N` — checked pre-op against every active frame.** Before an effect
+  op, every active frame is inspected without being mutated; a frame violates
+  when `used + 1 > limit`. If one or more frames would be exceeded, the op is
+  rejected (nothing is incremented, the op does not run) and the error names the
+  **first violating frame innermost-to-outermost** (its function, its limit, and
+  its own used count) — the tightest *active* limit wins. Otherwise every
+  matching active frame is incremented and the op proceeds.
+- **`@min=N` — checked at frame pop on normal exit only.** When an annotated
+  invocation returns normally, its frame's own bubbled count must be at least N
+  (else `BudgetUnderrunError`). On an **error/exceptional exit** (a callee
+  raised, a `@limit` tripped, any unwind) the frame is still popped but the
+  `@min` check is **suppressed** — the original error propagates unmasked.
+
 **Key features:**
-- **Per-invocation**: Each function call gets a fresh budget
-- **Composable**: Nested calls have their own budgets
-- **Maximum limits** (`@limit=N`): Prevent runaway effects
-- **Minimum requirements** (`@min=N`): Verify effects actually occurred
+- **Per-invocation frames**: each call to an annotated function is bounded on its own
+- **Composable / bubbling**: nested effects charge every active ancestor frame
+- **Maximum limits** (`@limit=N`): checked pre-op, tightest active frame wins
+- **Minimum requirements** (`@min=N`): checked at normal-exit pop, suppressed on error
 - **Bypass for debugging**: Use `--no-budgets` flag
 
 ```bash

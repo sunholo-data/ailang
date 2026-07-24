@@ -779,26 +779,3 @@ func isLambda(expr core.CoreExpr) (*core.Lambda, bool) {
 }
 
 // buildClosure creates a FunctionValue from a Lambda, capturing the given environment
-func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*FunctionValue, error) {
-	fn := &FunctionValue{
-		Params:   lam.Params,
-		Body:     lam.Body,
-		Env:      env,
-		Resolver: e.resolver, // M-DX-XPKG-RESOLVE: capture defining module's resolver
-		Typed:    false,
-	}
-
-	// M-BUDGET-SCOPING-BUG / M-CAPABILITY-BUDGETS: extract effect budgets from
-	// type info, exactly as evalCoreLambda does. Without this, RECURSIVE functions
-	// (built here via LetRec) never carry their @limit/@min annotations, so their
-	// per-invocation budget frames were never pushed and recursion escaped
-	// enforcement entirely.
-	if e.coreTypeInfo != nil {
-		if t, ok := e.coreTypeInfo[lam.NodeID]; ok {
-			fn.EffectBudgets = extractEffectBudgets(t)
-			fn.EffectMinBudgets = extractEffectMinBudgets(t)
-		}
-	}
-
-	return fn, nil
-}
