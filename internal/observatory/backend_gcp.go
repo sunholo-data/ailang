@@ -759,6 +759,14 @@ func (b *GCPTraceBackend) GetChainStatsByAgent(ctx context.Context, createdAfter
 	return nil, nil
 }
 
+func (b *GCPTraceBackend) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error) {
+	return CostRollup{}, nil
+}
+
+func (b *GCPTraceBackend) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]MissionRollup, error) {
+	return nil, nil
+}
+
 func (b *GCPTraceBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
 	return &SpanLitePage{}, nil
 }

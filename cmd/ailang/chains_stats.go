@@ -24,6 +24,19 @@ type chainStatsResult struct {
 	TotalTokens     int64        `json:"total_tokens"`
 	AvgCostPerChain float64      `json:"avg_cost_per_chain"`
 	ByAgent         []agentStats `json:"by_agent,omitempty"`
+
+	// Cost attribution split (M-MISSION-COST-CHAINS M1). reported = self-reported;
+	// estimated = inferred tokens×rate for token-bearing/no-cost/metered stages;
+	// quota = subscription lanes ($0-by-design); unknown = token-bearing but no
+	// resolvable model (surfaced separately, NEVER faked as $0 metered spend).
+	ReportedCost    float64 `json:"reported_cost"`
+	EstimatedCost   float64 `json:"estimated_cost"`
+	KnownCost       float64 `json:"known_cost"` // reported + estimated (the credible total)
+	ReportedStages  int     `json:"reported_stages"`
+	EstimatedStages int     `json:"estimated_stages"`
+	QuotaStages     int     `json:"quota_stages"`
+	UnknownStages   int     `json:"unknown_stages"`
+	IncompleteData  bool    `json:"incomplete_data"`
 }
 
 type agentStats struct {
@@ -41,6 +54,7 @@ func chainsStatsCommand() {
 	hours := fs.Int("hours", 0, "Time window in hours (0 = all time)")
 	byAgent := fs.Bool("by-agent", false, "Show breakdown by agent")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	strict := fs.Bool("strict", false, "Exit non-zero if any stage has unattributable (unknown) cost")
 	fs.Parse(flag.Args()[2:])
 
 	dbPath := observatory.DefaultDatabasePath()
@@ -83,6 +97,24 @@ func chainsStatsCommand() {
 		result.AvgCostPerChain = result.TotalCost / float64(result.TotalChains)
 	}
 
+	// M1: Go per-stage classification pass (the SQL SUM above cannot estimate from
+	// tokens×rate — estimation needs a per-stage model). Splits the total into
+	// reported / estimated / quota / unknown so a token-bearing $0 stage is no
+	// longer a misleading "free" signal.
+	rollup, rollupErr := backend.GetCostRollup(ctx, createdAfter, "")
+	if rollupErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to classify stage costs: %v\n", rollupErr)
+	} else {
+		result.ReportedCost = rollup.ReportedCost
+		result.EstimatedCost = rollup.EstimatedCost
+		result.KnownCost = rollup.TotalKnownCost()
+		result.ReportedStages = rollup.ReportedStages
+		result.EstimatedStages = rollup.EstimatedStages
+		result.QuotaStages = rollup.QuotaStages
+		result.UnknownStages = rollup.UnknownStages
+		result.IncompleteData = rollup.HasIncompleteData()
+	}
+
 	// Single SQL query for per-agent stats (replaces N+1, M-PERF-OBSERVATORY)
 	if *byAgent {
 		agentResults, err := backend.GetChainStatsByAgent(ctx, createdAfter)
@@ -107,6 +139,9 @@ func chainsStatsCommand() {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.Encode(result)
+		if *strict && result.IncompleteData {
+			os.Exit(2)
+		}
 		return
 	}
 
@@ -136,6 +171,22 @@ func chainsStatsCommand() {
 	fmt.Printf("  Avg/Chain:  $%.4f\n", result.AvgCostPerChain)
 	fmt.Printf("  Tokens:     %d\n", result.TotalTokens)
 
+	// M1: cost-attribution split (only shown when the classifier ran).
+	if rollupErr == nil {
+		fmt.Println()
+		fmt.Println("Cost attribution (per-stage):")
+		fmt.Printf("  Reported:   $%.4f  (%d stages, self-reported)\n", result.ReportedCost, result.ReportedStages)
+		fmt.Printf("  Estimated:  $%.4f  (%d stages, tokens×rate)\n", result.EstimatedCost, result.EstimatedStages)
+		fmt.Printf("  Known total:$%.4f  (reported + estimated)\n", result.KnownCost)
+		fmt.Printf("  Quota:      %d stages ($0-by-design, subscription lanes)\n", result.QuotaStages)
+		if result.UnknownStages > 0 {
+			fmt.Printf("  %s %d stages have tokens but no resolvable model — cost NOT attributed (shown as unknown, never $0).\n",
+				yellow("Unknown:"), result.UnknownStages)
+			fmt.Printf("  %s budget totals are INCOMPLETE (%d unattributed stages). Re-run with --strict to fail.\n",
+				yellow("⚠ Warning:"), result.UnknownStages)
+		}
+	}
+
 	if *byAgent && len(result.ByAgent) > 0 {
 		fmt.Println()
 		fmt.Println("By Agent:")
@@ -147,5 +198,9 @@ func chainsStatsCommand() {
 				as.TotalCost, as.TotalTokensIn, as.TotalTokensOut)
 		}
 		w.Flush()
+	}
+
+	if *strict && result.IncompleteData {
+		os.Exit(2)
 	}
 }

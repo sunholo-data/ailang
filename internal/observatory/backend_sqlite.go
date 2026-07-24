@@ -426,6 +426,16 @@ func (b *SQLiteBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *
 	return b.store.GetChainStatsByAgent(ctx, createdAfter)
 }
 
+// GetCostRollup returns split reported/estimated/quota/unknown cost totals (M1).
+func (b *SQLiteBackend) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error) {
+	return b.store.GetCostRollup(ctx, createdAfter, sourcePrefix)
+}
+
+// GetMissionRollups groups chains by mission and returns per-mission rollups (M3).
+func (b *SQLiteBackend) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]MissionRollup, error) {
+	return b.store.GetMissionRollups(ctx, createdAfter, sourcePrefix, topN)
+}
+
 func (b *SQLiteBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
 	return b.store.CreateStage(ctx, req)
 }

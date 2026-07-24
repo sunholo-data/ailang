@@ -250,6 +250,83 @@ func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Tim
 	return results, nil
 }
 
+// GetCostRollup classifies every stage in the window and returns split totals
+// (reported / estimated / quota / unknown). This is the Go read-side pass that the
+// SQL `SUM(cost)` aggregate cannot do: estimation needs a per-stage model, which is
+// not a stage column. The model is recovered from the stage's eval_assessment JSON
+// and, failing that, from any child span's model (a correlated subquery). No model
+// or rate is guessed — unresolvable → unknown (M-MISSION-COST-CHAINS M1).
+//
+// When sourcePrefix is non-empty, only chains whose source_ref begins with that
+// prefix are included (used by `--by-mission` / `--by-source-prefix`).
+func (s *Store) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error) {
+	stages, err := s.getStagesForCost(ctx, createdAfter, sourcePrefix)
+	if err != nil {
+		return CostRollup{}, err
+	}
+	return RollupStages(stages), nil
+}
+
+// getStagesForCost fetches the minimal per-stage columns needed for cost
+// classification, plus a recovered model, scoped to the time window (and optional
+// source prefix). It returns lightweight *ChainStage values carrying only Cost,
+// TokensIn/Out and (via EvalAssessment.Model) the recovered model — enough for
+// ClassifyStageCost.
+func (s *Store) getStagesForCost(ctx context.Context, createdAfter *time.Time, sourcePrefix string) ([]*ChainStage, error) {
+	// The model is recovered in SQL: prefer the eval_assessment JSON model, then the
+	// first non-empty child span model. json_extract is available in the bundled
+	// SQLite (already used elsewhere); a correlated subquery finds a span model.
+	query := `
+		SELECT cs.cost, cs.tokens_in, cs.tokens_out,
+		       COALESCE(json_extract(cs.eval_assessment, '$.model'), '') AS ea_model,
+		       COALESCE((
+		           SELECT sp.model FROM spans sp
+		           WHERE sp.stage_id = cs.id AND sp.model IS NOT NULL AND sp.model != ''
+		           ORDER BY sp.start_time ASC LIMIT 1
+		       ), '') AS span_model
+		FROM chain_stages cs
+		JOIN execution_chains c ON cs.chain_id = c.id
+	`
+	var args []interface{}
+	var conds []string
+	if createdAfter != nil {
+		conds = append(conds, "c.created_at > ?")
+		args = append(args, *createdAfter)
+	}
+	if sourcePrefix != "" {
+		conds = append(conds, "c.source_ref LIKE ?")
+		args = append(args, sourcePrefix+"%")
+	}
+	if len(conds) > 0 {
+		query += " WHERE " + strings.Join(conds, " AND ")
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query stages for cost rollup: %w", err)
+	}
+	defer rows.Close()
+
+	var stages []*ChainStage
+	for rows.Next() {
+		var cost float64
+		var tokensIn, tokensOut int
+		var eaModel, spanModel string
+		if err := rows.Scan(&cost, &tokensIn, &tokensOut, &eaModel, &spanModel); err != nil {
+			return nil, fmt.Errorf("failed to scan cost-rollup row: %w", err)
+		}
+		stage := &ChainStage{Cost: cost, TokensIn: tokensIn, TokensOut: tokensOut}
+		// Fold the recovered model into the shapes ClassifyStageCost reads.
+		if eaModel != "" {
+			stage.EvalAssessment = &EvalAssessment{Model: eaModel}
+		} else if spanModel != "" {
+			stage.Spans = []*Span{{Model: spanModel}}
+		}
+		stages = append(stages, stage)
+	}
+	return stages, rows.Err()
+}
+
 // GetSpanLitesByStageID returns lightweight spans for a stage without the heavy attributes columns.
 // This avoids reading the 3.9GB attributes data when only metadata is needed (M-PERF-OBSERVATORY).
 func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {

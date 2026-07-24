@@ -402,6 +402,14 @@ func (b *JaegerBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *
 	return nil, nil
 }
 
+func (b *JaegerBackend) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error) {
+	return CostRollup{}, nil
+}
+
+func (b *JaegerBackend) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]MissionRollup, error) {
+	return nil, nil
+}
+
 func (b *JaegerBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
 	return &SpanLitePage{}, nil
 }

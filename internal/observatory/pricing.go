@@ -50,12 +50,13 @@ func initPricing() {
 			config, err := eval_harness.LoadModelsConfig(path)
 			if err == nil {
 				pricingConfig = config
-				fmt.Printf("observatory: loaded pricing config from %s (%d models)\n", path, len(config.Models))
+				// Diagnostic goes to stderr so it never corrupts --json stdout.
+				fmt.Fprintf(os.Stderr, "observatory: loaded pricing config from %s (%d models)\n", path, len(config.Models))
 				return
 			}
 		}
 
-		fmt.Printf("observatory: WARNING: pricing config not loaded (models.yml not found), costs will show $0.00\n")
+		fmt.Fprintf(os.Stderr, "observatory: WARNING: pricing config not loaded (models.yml not found), costs will show $0.00\n")
 	})
 }
 
@@ -94,6 +95,47 @@ func CalculateCostFromTokens(model string, tokensIn, tokensOut int64) float64 {
 
 	// Model not found - return 0 (no silent fallbacks per CLAUDE.md)
 	return 0.0
+}
+
+// ResolveCostFromTokens is like CalculateCostFromTokens but distinguishes an
+// UNRESOLVABLE model from a model that resolves to a $0 rate. This distinction is
+// load-bearing for the cost-attribution classifier (M-MISSION-COST-CHAINS): a
+// token-bearing stage whose model cannot be resolved must surface as `unknown`
+// (never a fabricated metered $0), while a model that legitimately resolves to a
+// free/$0 rate rolls up to $0 WITHOUT being faked as metered spend.
+//
+// Returns (cost, resolved):
+//   - resolved=false  → model could not be found in the pricing registry (or the
+//     registry is not loaded). Caller MUST treat this as `unknown`, not $0.
+//   - resolved=true   → the model was found; cost is tokens×rate (may legitimately
+//     be $0 for a free/local model).
+//
+// Zero tokens with an empty model returns (0, false): there is nothing to resolve.
+func ResolveCostFromTokens(model string, tokensIn, tokensOut int64) (float64, bool) {
+	if model == "" {
+		return 0.0, false
+	}
+
+	initPricing()
+	if pricingConfig == nil {
+		return 0.0, false
+	}
+
+	// Try exact match first.
+	if cost, err := pricingConfig.CalculateCostForModel(model, int(tokensIn), int(tokensOut)); err == nil {
+		return cost, true
+	}
+
+	// Try normalized model name (strip date suffixes, map API names, etc.).
+	normalizedModel := normalizeModelName(model)
+	if normalizedModel != model {
+		if cost, err := pricingConfig.CalculateCostForModel(normalizedModel, int(tokensIn), int(tokensOut)); err == nil {
+			return cost, true
+		}
+	}
+
+	// Model not found in the registry — unresolvable. No fabricated rate.
+	return 0.0, false
 }
 
 // normalizeModelName normalizes model names to match models.yml keys.

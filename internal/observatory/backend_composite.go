@@ -492,6 +492,14 @@ func (b *CompositeBackend) GetChainStatsByAgent(ctx context.Context, createdAfte
 	return b.local.GetChainStatsByAgent(ctx, createdAfter)
 }
 
+func (b *CompositeBackend) GetCostRollup(ctx context.Context, createdAfter *time.Time, sourcePrefix string) (CostRollup, error) {
+	return b.local.GetCostRollup(ctx, createdAfter, sourcePrefix)
+}
+
+func (b *CompositeBackend) GetMissionRollups(ctx context.Context, createdAfter *time.Time, sourcePrefix string, topN int) ([]MissionRollup, error) {
+	return b.local.GetMissionRollups(ctx, createdAfter, sourcePrefix, topN)
+}
+
 func (b *CompositeBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
 	return b.local.GetSpanLitesByStageID(ctx, stageID, limit, offset)
 }
