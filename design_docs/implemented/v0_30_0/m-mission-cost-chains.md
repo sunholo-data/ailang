@@ -1,6 +1,12 @@
 # M-MISSION-COST-CHAINS: make `ailang chains` the mission's cost tracker — fix $0 attribution + ingest loop activity
 
-**Status**: IN-SPRINT (iter-100, 2026-07-24 — Mark scoped-inference decision `4e1348adb` folded into
+**Status**: ✅ IMPLEMENTED (iter-100, 2026-07-24) — M1 cost-attribution classifier
+(`internal/observatory/cost_classify.go`), M2 mission ingest + bounded LOUD spool
+(`ailang chains post-iteration`, `internal/observatory/{iteration_post,spool}.go`,
+SKILL Gate 4), M3 `chains stats --by-mission` budget rollup
+(`internal/observatory/mission_rollup.go`) all landed on `sprint/m-mission-cost-chains`.
+No schema migration. All targeted tests + boundaries green; verified end-to-end on the
+real observatory DB. Was: IN-SPRINT (Mark scoped-inference decision `4e1348adb` folded into
 the M1 normative body by the controller, NO re-quorum; routed to sprint-planner). Originally Planned
 (Mark 2026-07-18 — "lets keep an eye on these budgets, perhaps a cost tracker. I think actually that
 should all appear in ailang chains CLI... dont know if all this activity is still flowing in there"

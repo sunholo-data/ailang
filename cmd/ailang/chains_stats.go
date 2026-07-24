@@ -53,9 +53,21 @@ func chainsStatsCommand() {
 	fs := flag.NewFlagSet("chains stats", flag.ExitOnError)
 	hours := fs.Int("hours", 0, "Time window in hours (0 = all time)")
 	byAgent := fs.Bool("by-agent", false, "Show breakdown by agent")
+	byMission := fs.Bool("by-mission", false, "Group by mission (source_ref prefix 'mission:'): per-mission metered total vs MISSION_METERED_BUDGET_USD, per-bucket quota counts, top-N stages")
+	bySourcePrefix := fs.String("by-source-prefix", "", "Group by an arbitrary source_ref prefix (e.g. 'mission:v1/')")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	strict := fs.Bool("strict", false, "Exit non-zero if any stage has unattributable (unknown) cost")
 	fs.Parse(flag.Args()[2:])
+
+	// M3: --by-mission / --by-source-prefix delegate to the mission rollup surface.
+	if *byMission || *bySourcePrefix != "" {
+		prefix := *bySourcePrefix
+		if *byMission && prefix == "" {
+			prefix = "mission:"
+		}
+		chainsStatsByMission(prefix, *hours, *jsonOutput, *strict)
+		return
+	}
 
 	dbPath := observatory.DefaultDatabasePath()
 	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)

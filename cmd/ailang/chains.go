@@ -45,6 +45,8 @@ func chainsCommand() {
 		fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
 		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
 		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
+		fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
+		fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
 		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
 		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
 		fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")

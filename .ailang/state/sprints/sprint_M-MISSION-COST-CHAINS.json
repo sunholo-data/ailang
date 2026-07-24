@@ -1,8 +1,8 @@
 {
   "sprint_id": "M-MISSION-COST-CHAINS",
   "created": "2026-07-24",
-  "design_doc": "design_docs/planned/v0_30_0/m-mission-cost-chains.md",
-  "plan_path": "design_docs/planned/v0_30_0/m-mission-cost-chains-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_30_0/m-mission-cost-chains.md",
+  "plan_path": "design_docs/implemented/v0_30_0/m-mission-cost-chains-sprint-plan.md",
   "worktree": ".claude/worktrees/cost-chains",
   "branch": "sprint/m-mission-cost-chains",
   "base_commit": "093f58860",
@@ -72,10 +72,10 @@
         "uses M1 split totals (metered/estimated/quota never conflated)",
         "MISSION_METERED_BUDGET_USD unset -> shows 'budget unset', never compares against 0 (no silent fallback)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "cmd/ailang/chains_stats.go + source-prefix query helper in store_chains_query.go + help.go."
+      "passes": true,
+      "started": "2026-07-24T12:16:11Z",
+      "completed": "2026-07-24T12:16:11Z",
+      "notes": "Shipped chains stats --by-mission / --by-source-prefix (cmd/ailang/chains_stats_mission.go) reusing M1 classifier via GetMissionRollups (internal/observatory/mission_rollup.go): per-mission metered total (reported+estimated split), per-bucket quota counts (opus/sonnet from agent_id), top-N stages. Budget no-silent-fallback: unset -> 'budget unset', never compares vs 0; set -> within/OVER BUDGET. help.go + chains.go usage updated. Smoke-verified end-to-end (grouping, budget set/unset/over, quota buckets, top-N, --json)."
     }
   ],
   "definition_of_done": [
@@ -87,5 +87,5 @@
     "CHANGELOG.md updated; design doc moved planned/ -> implemented/v0_30/ on green"
   ],
   "risk_level": "medium",
-  "status": "in_progress"
+  "status": "completed"
 }

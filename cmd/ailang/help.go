@@ -186,6 +186,8 @@ func printHelp() {
 	fmt.Printf("    %s                  List all chains\n", cyan("chains list"))
 	fmt.Printf("    %s <chain-id>       View chain stages and details\n", cyan("chains view"))
 	fmt.Printf("    %s <chain-id>       ASCII tree with chat history\n", cyan("chains tree"))
+	fmt.Printf("    %s          Cost summary (add --by-mission for per-mission budget rollup)\n", cyan("chains stats"))
+	fmt.Printf("    %s  Post a mission iteration chain (JSON stdin; fail-soft)\n", cyan("chains post-iteration"))
 	fmt.Printf("    %s <chain-id>  Quick health report for a chain\n", cyan("chains diagnose"))
 	fmt.Printf("    %s              System-wide data capture validation\n", cyan("chains health"))
 	fmt.Printf("  %s <cmd>            Dashboard operations for task visualization\n", cyan("dashboard"))
