@@ -77,19 +77,34 @@ type messagesRequest struct {
 	Temperature float64          `json:"temperature,omitempty"`
 	Tools       []toolDef        `json:"tools,omitempty"`
 	ToolChoice  *toolChoice      `json:"tool_choice,omitempty"`
-	// Thinking carries the extended-thinking budget (M-AI-REASONING-EFFORT,
-	// v0.31.0). Nil (omitempty) keeps the wire body byte-identical to
-	// pre-v0.31.0 when no reasoning control is requested.
+	// Thinking carries the thinking control (M-AI-REASONING-EFFORT, v0.31.0).
+	// Nil (omitempty) keeps the wire body byte-identical to pre-v0.31.0 when no
+	// reasoning control is requested.
 	Thinking *thinkingBlock `json:"thinking,omitempty"`
+	// OutputConfig carries the qualitative effort for adaptive-thinking models
+	// (Opus 4.7 and later). Nil for budget-style models and when unset.
+	OutputConfig *outputConfig `json:"output_config,omitempty"`
 }
 
-// thinkingBlock is Anthropic's extended-thinking control. Type is "enabled"
-// with a budget_tokens value (>= 1024). Exact disablement ("off"/budget 0) is
-// expressed by omitting the block entirely, so this struct is only emitted for
-// enabled thinking.
+// thinkingBlock is Anthropic's thinking control. Which Type is valid depends on
+// the model generation — see thinkingConfigFor:
+//
+//	"enabled"  + budget_tokens (>= 1024) — Opus 4.6 / Sonnet 4.6 and older only
+//	"adaptive"                           — Opus 4.7 and later, paired with output_config.effort
+//	"disabled"                           — explicit no-thinking (adaptive generation)
+//
+// BudgetTokens is omitempty so the adaptive and disabled shapes carry no
+// budget_tokens key; sending one to a 4.7+ model is a hard 400.
 type thinkingBlock struct {
-	Type         string `json:"type"`          // "enabled"
-	BudgetTokens int    `json:"budget_tokens"` // >= 1024
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
+}
+
+// outputConfig carries Anthropic's qualitative effort control. It replaces the
+// removed budget_tokens knob on Opus 4.7 and later. Anthropic's vocabulary is
+// low/medium/high/xhigh/max; this resolver emits only the first three.
+type outputConfig struct {
+	Effort string `json:"effort,omitempty"`
 }
 
 type messageContent struct {
@@ -194,9 +209,14 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			{Role: "user", Content: req.UserPrompt},
 		},
 	}
-	if tb := thinkingBlockFor(reasoning); tb != nil {
-		apiReq.Thinking = tb
+	tb, oc, tErr := thinkingConfigFor(reasoning, req.Model)
+	if tErr != nil {
+		span.RecordError(tErr)
+		span.SetStatus(codes.Error, tErr.Error())
+		return nil, tErr
 	}
+	apiReq.Thinking = tb
+	apiReq.OutputConfig = oc
 
 	if req.SystemPrompt != "" {
 		apiReq.System = req.SystemPrompt
@@ -370,16 +390,76 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}, nil
 }
 
-// thinkingBlockFor returns the Anthropic extended-thinking block for a resolved
-// reasoning decision, or nil when no enabled-thinking block should be emitted.
-// A budget of 0 ("off"/exact disablement) and ReasoningNone both return nil —
-// exact disablement is expressed by omitting the block (no thinking is sent),
-// keeping the wire body byte-identical when no reasoning control is requested.
-func thinkingBlockFor(d ai.ReasoningDecision) *thinkingBlock {
-	if !d.BudgetSet || d.Budget == 0 {
-		return nil
+// thinkingConfigFor translates a resolved reasoning decision into the Anthropic
+// wire controls for a specific model. It returns the thinking block and the
+// output_config block; either may be nil, and both are nil when no reasoning
+// control was requested (ReasoningNone), which keeps the request body
+// byte-identical to pre-v0.31.0.
+//
+// The shape depends on the model's generation (internal/ai/reasoning_anthropic.go):
+//
+//	budget-style (Opus 4.6 / Sonnet 4.6 and older)
+//	  effort off  -> no blocks (disablement is expressed by omission)
+//	  effort low+ -> thinking {type:"enabled", budget_tokens:N}
+//
+//	adaptive-style (Opus 4.7 and later — budget_tokens is a 400 there)
+//	  effort off  -> thinking {type:"disabled"}
+//	  effort low+ -> thinking {type:"adaptive"} + output_config {effort:"..."}
+//
+// An unregistered model is an error, not a guessed shape: picking the wrong
+// generation is exactly the hard 400 the generation table exists to prevent.
+// In practice checkCapability rejects unregistered models first, so this is the
+// backstop for a model registered as reasoning-capable but never classified.
+func thinkingConfigFor(d ai.ReasoningDecision, model string) (*thinkingBlock, *outputConfig, *ai.AIError) {
+	if d.IsNone() {
+		return nil, nil, nil
 	}
-	return &thinkingBlock{Type: "enabled", BudgetTokens: d.Budget}
+
+	style, known := ai.AnthropicThinkingStyleFor(model)
+	if !known {
+		return nil, nil, ai.NewAIError(ai.CodeSchemaValidation,
+			"anthropic: model "+model+" has no registered thinking-control generation; "+
+				"cannot choose between thinking.budget_tokens (Opus 4.6 and older) and "+
+				"thinking.adaptive + output_config.effort (Opus 4.7 and later). "+
+				"Add it to anthropicThinkingStyles in internal/ai/reasoning_anthropic.go", false)
+	}
+
+	// Disablement: BudgetSet with a 0 budget, from either effort "off" or an
+	// explicit thinking_budget_tokens: 0.
+	if d.BudgetSet && d.Budget == 0 {
+		if !style.Adaptive {
+			// Omission IS disablement on this generation. Byte-identical to
+			// pre-v0.31.0.
+			return nil, nil, nil
+		}
+		if !style.CanDisable {
+			return nil, nil, ai.NewAIError(ai.CodeSchemaValidation,
+				"anthropic: model "+model+" runs thinking unconditionally and rejects an explicit "+
+					"thinking:{type:\"disabled\"}; reasoning effort \"off\" cannot be honored on this model", false)
+		}
+		// Adaptive models need EXPLICIT disablement: omitting the block leaves
+		// thinking on by default (Opus 5, Sonnet 5), so omission would silently
+		// mean the opposite of what was asked.
+		return &thinkingBlock{Type: "disabled"}, nil, nil
+	}
+
+	if !style.Adaptive {
+		if !d.BudgetSet {
+			return nil, nil, nil
+		}
+		return &thinkingBlock{Type: "enabled", BudgetTokens: d.Budget}, nil, nil
+	}
+
+	// Adaptive generation with thinking enabled. The mapped Budget is
+	// meaningless on the wire here — only the qualitative effort transfers.
+	level, ok := ai.AnthropicEffortLevel(d.Effort)
+	if !ok {
+		return nil, nil, ai.NewAIError(ai.CodeSchemaValidation,
+			"anthropic: model "+model+" needs a qualitative effort (low/medium/high) to enable adaptive "+
+				"thinking, but the resolved decision carries no effort (a fixed token budget has no "+
+				"equivalent on Opus 4.7 and later)", false)
+	}
+	return &thinkingBlock{Type: "adaptive"}, &outputConfig{Effort: level}, nil
 }
 
 // Name implements ai.Provider.

@@ -285,6 +285,20 @@ func ResolveReasoning(req *Request, provider, model string) (ReasoningDecision, 
 			return none, reasoningError(ErrInvalidThinkingBudget,
 				"anthropic: thinking_budget_tokens must be 0 (disabled) or >= 1024, got %d", budgetTokens)
 		}
+		// Anthropic removed fixed thinking budgets on Opus 4.7 and later: those
+		// models have no way to express "think for exactly N tokens", so an
+		// enabled budget cannot be honored exactly. Reject here with an
+		// actionable message instead of letting the provider return a 400.
+		// Budget 0 is exempt — that is disablement, which IS expressible (as an
+		// explicit thinking:{type:"disabled"}) on all but Fable/Mythos; the
+		// client rejects the remaining case when it builds the wire body.
+		if provider == reasoningProviderAnthropic && budgetTokens >= 1 {
+			if style, known := AnthropicThinkingStyleFor(model); known && style.Adaptive {
+				return none, reasoningError(ErrUnsupportedReasoningEffort,
+					"anthropic: model %q does not support a fixed thinking budget (Anthropic removed thinking.budget_tokens on Opus 4.7 and later); use a reasoning effort (off/low/medium/high) instead of thinking_budget_tokens",
+					model)
+			}
+		}
 		// If an effort is also resolved, the exact budget must equal that
 		// provider's mapped budget — otherwise conflict.
 		if resolvedEffort != "" {

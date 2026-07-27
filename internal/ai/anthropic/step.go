@@ -185,10 +185,13 @@ type stepMessagesRequest struct {
 	// switch the wire format to SSE. omitempty keeps the non-streaming
 	// Step request bit-for-bit identical to pre-v0.18.7 wire bytes.
 	Stream bool `json:"stream,omitempty"`
-	// Thinking carries the extended-thinking budget (M-AI-REASONING-EFFORT,
-	// v0.31.0). Nil (omitempty) keeps the Step/StreamStep wire body
-	// byte-identical to pre-v0.31.0 when no reasoning control is requested.
+	// Thinking carries the thinking control (M-AI-REASONING-EFFORT, v0.31.0).
+	// Nil (omitempty) keeps the Step/StreamStep wire body byte-identical to
+	// pre-v0.31.0 when no reasoning control is requested.
 	Thinking *thinkingBlock `json:"thinking,omitempty"`
+	// OutputConfig carries the qualitative effort for adaptive-thinking models
+	// (Opus 4.7 and later), which no longer accept thinking.budget_tokens.
+	OutputConfig *outputConfig `json:"output_config,omitempty"`
 }
 
 type stepMessage struct {
@@ -240,9 +243,12 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 		Model:     req.Model,
 		MaxTokens: maxTokens,
 	}
-	if tb := thinkingBlockFor(reasoning); tb != nil {
-		apiReq.Thinking = tb
+	tb, oc, tErr := thinkingConfigFor(reasoning, req.Model)
+	if tErr != nil {
+		return nil, tErr
 	}
+	apiReq.Thinking = tb
+	apiReq.OutputConfig = oc
 	systemField, err := systemFieldFromPrompt(req.SystemPrompt, req.CacheBreakpoints)
 	if err != nil {
 		return nil, ai.NewAIError(ai.CodeInternal,
