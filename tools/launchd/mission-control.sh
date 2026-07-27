@@ -78,7 +78,11 @@ fi
 # never API credits. secrets.env exports ANTHROPIC_API_KEY for other tools —
 # strip it so claude's only auth paths are subscription ones (keychain OAuth,
 # or CLAUDE_CODE_OAUTH_TOKEN if set). Subscription-or-nothing by construction.
-unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+# 2026-07-27 extension (same construction, codex lane): secrets.env also exports the
+# METERED OPENAI_API_KEY — strip it so codex's only auth is the ChatGPT-subscription
+# OAuth in ~/.codex/auth.json (auth_mode=chatgpt). Metered OpenAI runs happen outside
+# mission iterations, deliberately.
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY
 
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
