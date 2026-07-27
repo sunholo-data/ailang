@@ -229,6 +229,28 @@ sourcing review's own Verification Log admitted "footgun list … not re-verifie
 pattern, was tagged NEW-DOC while a full design doc existed). Ghost → close with a CI-enforced
 regression guard (example or test), never bare bookkeeping — that's what makes the close durable.
 
+**A finding you did not verify YOURSELF is a claim, however authoritative its author — never
+launder it into an "established fact" for a downstream role** (added 2026-07-27 iteration 105;
+second instance of the inherited-verification-debt class after iteration 25's survey rows). The
+class is the same — a claim from another author, propagated without the controller's own live
+re-check — but the surface is new and more dangerous: it is the controller's OWN reality-check
+sub-agent, whose output feels like first-party evidence. Iteration 105's Gate-2 Explore agent
+reported "verification is already wired for agent mode (`agent_runner.go:316`)" with a plausible
+file:line; the controller handed it to the planner under the heading TREAT AS ESTABLISHED FACT.
+It was FALSE — that call sits in `RunAgentBenchmark`, a function whose only repo reference is a
+comment saying it must NOT be used, while the live path had zero verification. Had the planner
+not re-checked on its own initiative, the sprint would have shipped a cohort-freeze mechanism for
+a headline KPI that could never produce a number, and the next iteration would have spent real
+metered dollars on a cohort run guaranteed to bank a zero denominator. Rules: (a) label every
+handed-down fact with its provenance — `VERIFIED BY ME (<command/file:line>)` vs `UNVERIFIED,
+inherited from <role> — re-check before relying`; (b) any claim that a capability EXISTS, that
+code is REACHABLE, or that a bug is ALREADY FIXED is load-bearing enough to warrant the
+controller's own 2-minute probe (`grep` for callers, not just for the call) before it is routed;
+(c) the cheap probe for "is this code live?" is a CALLER search — a `RunAICheck(` hit proves a
+call site exists, never that anything reaches it; (d) when a sub-agent contradicts a fact you
+handed it, that is a SUCCESS of the loop — record it in Ruled out and fix the provenance habit,
+never wave it through.
+
 **Verification protocol** (added iteration 1 after three same-class frictions). Steps 1–3 are the
 `go-compiler` verify profile (V1); under `ailang-code` the shipped binary IS the gate — skip the
 compile/staleness steps and run `ailang check`/`ailang test`/`ailang ai-check` instead (see
