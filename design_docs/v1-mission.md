@@ -587,8 +587,14 @@ Work these BEFORE returning to the clause queue; one per iteration, cheapest-con
   egress env + have the agent `git clone` the public repo at a SHA itself, then `ailang check`/review
   in-sandbox — no encoder/GCS/inline/mount. Small; directly delivers #399's "gemini can git clone the
   codebase" for the reviewer role. **Recommendation: (d)** (fallbacks: (a) GCS for *private* code, (b)
-  shelve, (c) skill_registry). **Decision for Mark on #399:** greenlight the Phase-2 clone-over-egress
-  decomposition, or shelve. Reproducible probe: `internal/executor/managed_agents/managed_agents_live_test.go`
+  shelve, (c) skill_registry). **DECIDED by Mark 2026-07-27 (attended interactive session, quota-relief
+  directive): GREENLIGHT Phase-2 clone-over-egress.** Scope: wire gemini managed-agents into the
+  DESIGNER rotation via option (d) (egress env + in-sandbox `git clone` of the public repo at a SHA —
+  design docs need only committed HEAD); follow-on under the same greenlight = evaluator-REVIEW lane
+  (executor pushes the sprint branch pre-merge → gemini clones the branch, CI stays the test oracle —
+  the iter-38 uncommitted-worktree objection does not apply to a pushed branch). Same
+  `MISSION_METERED_BUDGET_USD` ceiling; public trace comment on #399. [Historical ask was:
+  greenlight the Phase-2 clone-over-egress decomposition, or shelve.] Reproducible probe: `internal/executor/managed_agents/managed_agents_live_test.go`
   (`AILANG_LIVE_MANAGED_AGENTS_MOUNT=1`, CI-inert, probes O–R). Doc RESHAPED with full VERIFIED-LIVE
   contract. Log 51. **Note:** the blog is the Gemini *Developer* API surface (`ai.google.dev`, API-key) —
   a different contract from the Vertex executor; our-project Developer-API confirm is parked (the available
