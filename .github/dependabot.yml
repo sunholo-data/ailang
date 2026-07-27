@@ -68,6 +68,15 @@ updates:
       # Webpack 5.106 tightened the ProgressPlugin schema in a way Docusaurus
       # 3.10 doesn't match — skip until Docusaurus catches up.
       - dependency-name: "webpack"
+      # @docusaurus/theme-mermaid 3.10.2 declares peerOptional
+      # @mermaid-js/layout-elk@^0.1.9. For a 0.x package a "minor" bump IS
+      # breaking, so 0.1.9 -> 0.2.2 (#488) made `npm install` fail ERESOLVE
+      # outright and took the docs deploy red on dev. Hold minors until
+      # theme-mermaid widens its peer range; patches in 0.1.x stay welcome.
+      - dependency-name: "@mermaid-js/layout-elk"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
 
   # Control-plane / collab-hub UI. Shipped React app.
   - package-ecosystem: npm
