@@ -127,17 +127,51 @@ _mc_stalled() {
 # --- model selection (fleet Phase A) -----------------------------------------
 PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-opus-4-8,claude-fable-5}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
+PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 
-# _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2)
+# _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
+# rc = CMD's rc, or 124 on expiry (mirrors GNU `timeout`, which this rig does not have).
+# Combined stdout+stderr lands in $MC_BOUNDED_OUT.
+#
+# Why (2026-07-27): a model probe is a network call to a third party and CAN hang. Observed that
+# day: `codex exec --model <unknown-model>` ran past 180s with no output. Both probes below used
+# to be unbounded command substitutions, so one hung probe would burn the whole 6h fire before the
+# driver's HARD_TIMEOUT reclaimed it — the exact failure class as mission-control Standing rule 6
+# ("every wait is bounded"), which the loop enforces on itself but the driver did not.
+_mc_bounded() {
+  local secs="$1"; shift
+  local out_f rc deadline pid
+  out_f=$(mktemp -t mc_bounded) || { MC_BOUNDED_OUT=""; return 125; }
+  ( exec "$@" ) >"$out_f" 2>&1 &
+  pid=$!
+  deadline=$(( $(date +%s) + secs ))
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null
+      MC_BOUNDED_OUT="$(cat "$out_f" 2>/dev/null)"; rm -f "$out_f"
+      return 124
+    fi
+    sleep 2
+  done
+  wait "$pid"; rc=$?
+  MC_BOUNDED_OUT="$(cat "$out_f" 2>/dev/null)"; rm -f "$out_f"
+  return "$rc"
+}
+
+# _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2/timeout×2)
 _mc_probe() {
   local m="$1" out rc
-  out=$(claude -p 'reply with exactly: ok' --model "$m" 2>&1); rc=$?
+  _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
+  out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s"
   if printf '%s' "$out" | grep -qiE "$QUOTA_SIG"; then return 1; fi
   # transient? retry once
   sleep 5
-  out=$(claude -p 'reply with exactly: ok' --model "$m" 2>&1); rc=$?
+  _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
+  out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry)"
   printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
   return 2
 }
@@ -242,12 +276,28 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
 export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
 # Codex-lane pre-flight (2026-07-27): subscription quota is invisible until it errors, so probe
-# once per fire. Quota-spent → fall back to opus THIS fire only (logged, never wedged); other
-# codex failures pass through to the skill's recipe, which fails loudly.
+# once per fire. Any probe failure → fall back to opus THIS fire only (logged, never wedged).
+#
+# The probe MUST carry --model (#486, 2026-07-27): without it codex exercises its DEFAULT model,
+# so a pinned-but-unreachable model false-greens the lane. Live evidence that day: codex-cli
+# 0.137.0 answered the model-less probe on gpt-5.5 (rc=0) while `--model gpt-5.6-sol` returned a
+# 400 "requires a newer version of Codex" — the driver exported the codex pin as healthy and the
+# failure only surfaced inside the skill's Gate-3 recipe, one silent fallback later.
+#
+# Fall back on ANY non-zero rc, not just quota signatures: an unusable model pin is exactly as
+# fatal to the lane as a spent quota, and the old quota-only gate is what let #486 through. The
+# skill's Gate-3 recipe re-probes and would fall back anyway; doing it here keeps the EXPORTED
+# env honest, which is what the routing-evidence row reports.
 case "$MISSION_EXECUTOR_MODEL" in codex:*)
-  cx_out=$(codex exec --skip-git-repo-check 'reply with exactly: ok' 2>&1); cx_rc=$?
-  if [ $cx_rc -ne 0 ] && printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then
-    log "codex executor lane quota-limited -> falling back to opus for this fire"
+  cx_model="${MISSION_EXECUTOR_MODEL#codex:}"
+  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
+  cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
+  if [ $cx_rc -ne 0 ]; then
+    if [ $cx_rc -eq 124 ]; then cx_why="probe timed out after ${PROBE_TIMEOUT}s"
+    elif printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then cx_why="quota-limited"
+    else cx_why="probe failed (rc=$cx_rc)"; fi
+    log "codex executor lane $cx_why for model '$cx_model' -> falling back to opus for this fire"
+    log "codex probe output: $(printf '%s' "$cx_out" | tail -3 | tr '\n' ' ')"
     MISSION_EXECUTOR_MODEL="opus"; export MISSION_EXECUTOR_MODEL
   fi
   ;;
