@@ -214,10 +214,14 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # the controller session is launched with a full ID; the sub-agents it spawns are pinned by alias.
 # A "provider:model" value (e.g. codex:gpt-5.6-sol) instead signals cross-provider agent routing via
 # provider_executor (fleet Phase C), which the skill resolves — not the Agent tool.
-# MISSION_EXECUTOR_MODEL specifically accepts EITHER form: an Agent alias (opus, the default) OR a
-# provider:model value (codex:gpt-5.6-sol) which the mission-control Gate-3 recipe routes to a bounded
-# `codex exec` run in the sprint worktree (M1b). The default stays "opus" — codex is OPT-IN per
-# iteration via an env override, so a normal fire never bills metered OpenAI $ by accident.
+# MISSION_EXECUTOR_MODEL specifically accepts EITHER form: an Agent alias (opus) OR a
+# provider:model value (codex:gpt-5.6-sol — the DEFAULT since 2026-07-27) which the mission-control
+# Gate-3 recipe routes to a bounded `codex exec` run in the sprint worktree (M1b). Default flipped
+# to codex 2026-07-27 (Mark, quota relief): codex now authenticates via ChatGPT SUBSCRIPTION
+# (auth.json auth_mode=chatgpt; metered API-key backup at ~/.codex/auth.json.apikey.bak), so it is
+# a quota lane, not metered $ — the old "never bills metered $ by accident" rationale is moot.
+# The pre-flight probe below falls back to opus for the fire when the codex bucket is spent.
+# Generator≠judge holds: evaluator stays sonnet regardless of executor lane.
 # Weekly rolling bookkeeping issue (2026-07-16, Mark): the issue number lives in a state file so
 # the skill's Monday-07:00 rotation (aligned to the quota reset) moves threads without a driver
 # edit. Precedence: env pin > state file > 329 (the original thread). Exported so the skill's
@@ -236,7 +240,18 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5}"
 # NOT counted — this caps dollars, not tokens.
 export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-opus}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
+# Codex-lane pre-flight (2026-07-27): subscription quota is invisible until it errors, so probe
+# once per fire. Quota-spent → fall back to opus THIS fire only (logged, never wedged); other
+# codex failures pass through to the skill's recipe, which fails loudly.
+case "$MISSION_EXECUTOR_MODEL" in codex:*)
+  cx_out=$(codex exec --skip-git-repo-check 'reply with exactly: ok' 2>&1); cx_rc=$?
+  if [ $cx_rc -ne 0 ] && printf '%s' "$cx_out" | grep -qiE "$QUOTA_SIG"; then
+    log "codex executor lane quota-limited -> falling back to opus for this fire"
+    MISSION_EXECUTOR_MODEL="opus"; export MISSION_EXECUTOR_MODEL
+  fi
+  ;;
+esac
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
