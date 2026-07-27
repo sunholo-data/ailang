@@ -351,6 +351,72 @@ make eval-diff
 - Human review before commit
 - Automatic rollback on test failures
 
+## Freezing a baseline cohort
+
+The **cost-per-verified-success** KPI (dollars of benchmark spend per *verified*
+success) is computed over a **frozen cohort**: the set of runs banked under one
+immutable baseline id. Freezing and querying are two commands that share that id.
+
+```bash
+# 1. Freeze + run the cohort (METERED — see the cost caveat below)
+ailang eval-suite --agent --langs ailang --verify \
+  --models agent_suite \
+  --benchmarks contract_bst_validate,contract_leap_year,contract_matrix_determinant,contract_rle_roundtrip,contract_roman_numeral,contract_sorted_merge,prompt_injection \
+  --baseline v1.0 --seed 42 --no-rig-lock
+
+# 2. Reproduce the published KPI from the banked data
+ailang chains stats --cost-per-verified-success --baseline v1.0 --json --strict
+```
+
+Both commands take the **same** `--baseline` value. `--baseline` makes the run write
+`chains.source_ref` as `<baseline>/<taskID>/<mode>[/<cond>]`, and the query selects
+the cohort by that `<baseline>/` prefix.
+
+### Rules
+
+- **`--baseline` requires `--verify`.** Without verification a cohort can only ever
+  report `zero_denominator` (the verified-success predicate needs
+  `verify_verified > 0`), so `eval-suite` refuses *before* spending anything.
+- **Allowed ids**: `^[A-Za-z0-9][A-Za-z0-9.-]*$` — letters, digits, `.` and `-`, not
+  starting with `.` or `-`. `_` and `%` are rejected because the id is used as a SQL
+  `LIKE` prefix where they are wildcards, and `/` is the `source_ref` separator.
+  Good: `v1.0`, `v1.0-rc1`, `os-rolling.2`. Rejected: `v1_0`, `50%`, `v1.0/x`.
+- **Without `--baseline` nothing changes.** The default `source_ref` and output are
+  byte-identical to a normal run, and no manifest is written.
+
+### The cohort manifest
+
+A freeze run writes `<output-dir>/cohort_manifest.json` (the absolute path is
+printed) and fills in its `run_window.completed_at` when the run finishes. It records
+the **resolved** cohort — `models[]` comes from `agent_suite` in
+[`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/dev/internal/eval_harness/models.yml),
+never a list hardcoded in Go — plus the resolved `benchmarks[]`, `seed`,
+`prompt_version`, `trials`, `verify`, `verify_timeout`, the per-model `executors[]`,
+the AILANG version and git commit, the `chain_id`, and a `cohort_hash`.
+
+`cohort_hash` identifies the **cohort**, not the run: it covers the sorted
+models/benchmarks/languages/conditions plus mode, seed, prompt version and trials,
+and excludes timestamps, `git_commit` and `chain_id`. Consequences:
+
+- Re-running the same cohort produces the **same** hash.
+- Editing `agent_suite` in `models.yml` produces a **different** hash, so cohort drift
+  is visible in the artifact instead of silent.
+- **Re-freeze under a new id** (`v1.0-rc2`, …) rather than rewriting a published one.
+
+### Cost-provenance caveat (known limitation)
+
+The KPI's numerator is **not uniformly metered dollars**. Cost classification treats
+any non-zero reported stage cost as authoritative, but the **subscription** `claude`
+CLI reports a non-zero `total_cost_usd` even when nothing is billed — so on a rig with
+no `ANTHROPIC_API_KEY`, `claude`-executor rows are **list-price equivalents, not
+metered spend**, while the OpenRouter lanes (`opencode`, `codex`) are real money. A
+cohort spanning both blends them under one `reported` label.
+
+This is a **known, unaddressed limitation**, pending a product decision on whether a
+subscription lane belongs in a metered KPI at all. Until then, read the manifest's
+per-model `executors[]` to see which rows are subscription lanes before quoting a
+number.
+
 ## Next Steps
 
 Future enhancements could include:

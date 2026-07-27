@@ -11,6 +11,65 @@ non-zero denominator — see Blocking Finding BF-1**
 
 ---
 
+## Execution Record (2026-07-27, branch `sprint/m-cost-kpi-m4a`)
+
+**Status: ✅ ALL MILESTONES COMPLETE.**
+
+| Milestone | Commit | Notes |
+|---|---|---|
+| M4a-0 (extraction, mandatory first) | `37c070dd9` | `eval_suite.go` 790 → 764; pure move |
+| M4a-1 (`--baseline` + BF-2) | `612cb78af` | one validator shared by both sides |
+| M4a-2 (manifest + `cohort_hash`) | `fa4c1d095` | + 4 in-scope defects found while wiring |
+| M4a-3 (BF-1 + BF-3) | `522ad61f1` | promoted CONDITIONAL → **REQUIRED** by the controller |
+| M4a-4 (docs/changelog/design-doc split) | this commit | M4 split into M4a/M4b |
+
+**CONTROLLER AMENDMENT (pre-execution):** the mission controller *independently
+verified* BF-1 at `origin/dev` and promoted **M4a-3 from `CONDITIONAL` to REQUIRED**,
+making it the sprint's critical path — the freeze mechanism (M4a-1/-2) is worthless
+without it, because agent runs could never populate `verify_verified > 0` and the KPI
+would return `zero_denominator` forever. BF-3 was folded in for the same reason (the
+manifest records `verify_timeout`, so a hardcoded value would make the artifact lie).
+BF-1's premise was re-confirmed in this worktree before any edit.
+
+**Deviations from the plan** (all additive, none reduce scope):
+
+1. **M4a-3 executed as REQUIRED** rather than conditional — per the controller amendment.
+2. **The new surface is 3 files, not 1.** The plan put the manifest in
+   `eval_suite_cohort.go`; it went to a sibling `eval_suite_manifest.go` instead
+   (freeze/`source_ref` vs. the manifest artifact are separate concerns), and the
+   agent-config block was extracted to `eval_suite_agent.go` because `eval_suite.go`
+   had crept back to **798/800** against the hard CI gate. Final: 733 lines, 67 headroom.
+3. **Freeze-time manifest write failure is FATAL, not best-effort.** The plan specified
+   best-effort; that is right for the *finalize* rewrite (a completed metered run must
+   never be discarded) but wrong at freeze time, where nothing has been spent yet and
+   running a frozen cohort without its reproducibility artifact is the silent fallback
+   CLAUDE.md §2 forbids. Implemented as an asymmetry, with both halves tested.
+4. **An `ai-check` error is no longer swallowed.** The dead path discarded it with `_`.
+   The gate is otherwise preserved verbatim; a verification that could not run leaves the
+   block all-zero (unverified pass), with the reason printed.
+5. **Four in-scope defects found while wiring** (CLAUDE.md §3), each with a regression test:
+   `cleanResults()` deleted the manifest it had just written; `expandModelSuite`'s
+   hardcoded 7-way switch became one table shared with the manifest recorder; three
+   drifted `trials < 1` clamps collapsed into one; agent-mode `RunMetrics` never carried
+   the 5 `verify_*` fields, so the banked result JSON could not show verification even
+   once it ran.
+
+**Not done, deliberately** (recorded as known limitations):
+
+- `out_of_scope_M4b` — no benchmark suite was run, no `eval-suite` invocation against
+  real models, **zero metered spend**. All tests use a fake verifier; no subprocess, no Z3.
+- `out_of_scope_provenance` — the subscription-vs-metered cost finding is **not fixed**
+  (open product decision). M4a only refuses to hide it: the manifest's per-model
+  `executors[]` makes subscription lanes auditable (verified against the real
+  `agent_suite`: `claude` vs `codex` vs `opencode` are distinguishable), plus a docs caveat.
+- The residual legacy Claude-headless helpers (`RunHeadlessSessionStreaming`,
+  `determineSuccess`, `checkClaudeCLI`, `getErrorMessage`, `ClaudeHeadlessResult`) were
+  **retained**: still test-covered, removing them also touches the fmt-hook A/B machinery,
+  and they carry **no** verification logic, so they cannot drift on the axis BF-1 was about.
+  Follow-up cleanup. A comment at the deletion site records this.
+
+---
+
 ## Sprint Summary
 
 **Goal**: Give `ailang eval-suite` a **first-class, documented cohort-freeze mechanism** so a benchmark
@@ -152,7 +211,7 @@ manifest records the resolved executor per model, which is the audit hook a revi
 
 ## Proposed Milestones
 
-### M4a-1 — `--baseline` cohort freeze flag on `eval-suite`
+### M4a-1 — `--baseline` cohort freeze flag on `eval-suite` — ✅ DONE (`612cb78af`)
 **Estimated**: ~95 impl + ~95 tests = **~190 LOC** · **~2.5 h**
 
 **Design (single mechanism, no second code path):**
@@ -192,17 +251,17 @@ manifest records the resolved executor per model, which is the audit hook a revi
    validator, both sides — closes BF-2).
 
 **Acceptance criteria**
-- [ ] `cohortSourceRef("", "eval-123", "agent", "")` == `"eval-123/agent"` (today's exact string).
-- [ ] `cohortSourceRef("v1.0", "eval-123", "agent", "/full")` == `"v1.0/eval-123/agent/full"`.
-- [ ] **Round-trip invariant test** (the load-bearing one): for a table of baseline ids, the string from
+- [x] `cohortSourceRef("", "eval-123", "agent", "")` == `"eval-123/agent"` (today's exact string).
+- [x] `cohortSourceRef("v1.0", "eval-123", "agent", "/full")` == `"v1.0/eval-123/agent/full"`.
+- [x] **Round-trip invariant test** (the load-bearing one): for a table of baseline ids, the string from
       `cohortSourceRef` matches the `LIKE` prefix produced by `cohortSourceRefPrefix` from
       `chains_stats_cvs.go:84` — i.e. writer and reader provably agree.
-- [ ] `validateBaselineID` rejects `""`, `"v1_0"`, `"50%"`, `"/v1.0"`, `"v1.0/x"`, and accepts `"v1.0"`,
+- [x] `validateBaselineID` rejects `""`, `"v1_0"`, `"50%"`, `"/v1.0"`, `"v1.0/x"`, and accepts `"v1.0"`,
       `"v1.0-rc1"`, `"os-rolling.2"`.
-- [ ] `--baseline` without `--verify` exits non-zero with a message naming `--verify`.
-- [ ] `taskID` / `assignmentID` / `OTEL_RESOURCE_ATTRIBUTES` / `createEvalTask` semantics unchanged
+- [x] `--baseline` without `--verify` exits non-zero with a message naming `--verify`.
+- [x] `taskID` / `assignmentID` / `OTEL_RESOURCE_ATTRIBUTES` / `createEvalTask` semantics unchanged
       (assert the correlation block at `eval_suite.go:52-67` is untouched in the diff).
-- [ ] `make check-file-sizes`, `make check-boundaries`, `make lint`, `go test ./cmd/... ./internal/observatory/...` green.
+- [x] `make check-file-sizes`, `make check-boundaries`, `make lint`, `go test ./cmd/... ./internal/observatory/...` green.
 
 **Risks**
 - **`cmd/ailang/eval_suite.go` is 790/800 lines.** `make check-file-sizes` is a CI gate at a hard 800
@@ -212,7 +271,7 @@ manifest records the resolved executor per model, which is the audit hook a revi
 
 ---
 
-### M4a-2 — Recorded, data-driven cohort manifest
+### M4a-2 — Recorded, data-driven cohort manifest — ✅ DONE (`fa4c1d095`)
 **Estimated**: ~130 impl + ~85 tests = **~215 LOC** · **~2 h**
 
 **Design**: `cohort_manifest.json` written into the run's `outputDir` (which already respects
@@ -257,17 +316,17 @@ of a published one.
    `chain_id` so the hash identifies the *cohort*, not the *run*.
 
 **Acceptance criteria**
-- [ ] No `--baseline` → **no** manifest file written, and the run is otherwise unchanged.
-- [ ] `--baseline v1.0` → `<outputDir>/cohort_manifest.json` exists, parses, and carries every field above.
-- [ ] `models[]` equals `GetAgentSuite()` from `models.yml` for `--models agent_suite`; the test reads
+- [x] No `--baseline` → **no** manifest file written, and the run is otherwise unchanged.
+- [x] `--baseline v1.0` → `<outputDir>/cohort_manifest.json` exists, parses, and carries every field above.
+- [x] `models[]` equals `GetAgentSuite()` from `models.yml` for `--models agent_suite`; the test reads
       `models.yml` rather than asserting a literal 6-name list, so a suite edit does **not** fail the test
       but **does** change the manifest.
-- [ ] `model_suite` records `"agent_suite"`; an explicit comma list records `""` with the same resolved members.
-- [ ] `cohort_hash` is stable across two builds of the same inputs, order-independent for `models`/
+- [x] `model_suite` records `"agent_suite"`; an explicit comma list records `""` with the same resolved members.
+- [x] `cohort_hash` is stable across two builds of the same inputs, order-independent for `models`/
       `benchmarks`, and **changes** when a model or benchmark is added/removed.
-- [ ] `cohort_hash` is **unchanged** by `frozen_at` / `git_commit` / `chain_id` differences.
-- [ ] `run_window.completed_at` is populated after `finalizeSuiteRun`.
-- [ ] `executors[]` distinguishes `claude` from `opencode` / `codex` (the provenance audit hook).
+- [x] `cohort_hash` is **unchanged** by `frozen_at` / `git_commit` / `chain_id` differences.
+- [x] `run_window.completed_at` is populated after `finalizeSuiteRun`.
+- [x] `executors[]` distinguishes `claude` from `opencode` / `codex` (the provenance audit hook).
 
 **Risks**
 - Manifest field creep → keep it to the table above; anything else is a follow-up.
@@ -277,7 +336,7 @@ of a published one.
 
 ---
 
-### M4a-3 — `CONDITIONAL` — move agent-mode verification onto the live path (closes BF-1)
+### M4a-3 — ~~`CONDITIONAL`~~ **REQUIRED** — move agent-mode verification onto the live path (closes BF-1) — ✅ DONE (`522ad61f1`)
 **Estimated**: ~35 impl + ~60 tests = **~95 LOC** · **~1.5 h** · **push to 0.75 day**
 
 Without this, M4a-1/M4a-2 ship a freeze mechanism that provably cannot yield a number. Scoped as a
@@ -301,10 +360,10 @@ Without this, M4a-1/M4a-2 ship a freeze mechanism that provably cannot yield a n
    predicate agree.
 
 **Acceptance criteria**
-- [ ] `grep -rn "RunAICheck" internal/eval_harness/` shows the agent call on the **live** multi-executor path.
-- [ ] No `RunAICheck` call remains behind a caller-less function.
-- [ ] `--verify-timeout` reaches the agent-mode verifier.
-- [ ] `make test` green; `make check-boundaries` green; no benchmark executed.
+- [x] `grep -rn "RunAICheck" internal/eval_harness/` shows the agent call on the **live** multi-executor path.
+- [x] No `RunAICheck` call remains behind a caller-less function.
+- [x] `--verify-timeout` reaches the agent-mode verifier.
+- [x] `make test` green; `make check-boundaries` green; no benchmark executed.
 
 **Risks**
 - Scope objection. Mitigation: it is severable — M4a-1/2/4 are independently mergeable. Record the drop
@@ -313,7 +372,7 @@ Without this, M4a-1/M4a-2 ship a freeze mechanism that provably cannot yield a n
 
 ---
 
-### M4a-4 — Docs + changelog
+### M4a-4 — Docs + changelog — ✅ DONE
 **Estimated**: ~0 code · **~0.5 h**
 
 **Tasks**
@@ -344,11 +403,11 @@ Without this, M4a-1/M4a-2 ship a freeze mechanism that provably cannot yield a n
    / **M4b measured baseline (Mark-gated spend)** — and add BF-1 to Risks & Open Questions.
 
 **Acceptance criteria**
-- [ ] `[Unreleased]` entry present, inside the existing KPI section.
-- [ ] Docs give a copy-pasteable freeze command whose baseline id matches the query command's.
-- [ ] The subscription-cost caveat appears in the docs and is labelled a known, unaddressed limitation.
-- [ ] Design doc M4 split recorded; BF-1 is on the record as an M4b blocker.
-- [ ] `cd docs && npm run build` (or the repo's docs check) passes.
+- [x] `[Unreleased]` entry present, inside the existing KPI section.
+- [x] Docs give a copy-pasteable freeze command whose baseline id matches the query command's.
+- [x] The subscription-cost caveat appears in the docs and is labelled a known, unaddressed limitation.
+- [x] Design doc M4 split recorded; BF-1 is on the record as an M4b blocker.
+- [x] `cd docs && npm run build` (or the repo's docs check) passes.
 
 ---
 

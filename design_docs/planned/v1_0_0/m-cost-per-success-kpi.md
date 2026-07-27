@@ -109,7 +109,19 @@ The existing Value Score and scatter remain secondary diagnostic lenses. Their c
 1. **M1 — Capture and compute (0.5 day):** propagate verification fields and add the strict observatory rollup; acceptance check: fixtures distinguish pass-only, verified success, verifier failure, skipped proof, quota, estimated cost, and unknown cost.
 2. **M2 — Expose and publish (0.25–0.5 day):** add matching CLI/server output and the additive `latest.json` headline object; acceptance check: CLI JSON, HTTP JSON, and published snapshot have identical numerator, denominator, quotient, and completeness fields.
 3. **M3 — Headline dashboard (0.25 day):** render the KPI card on the Mark-approved primary surface and atop ValueDashboard; acceptance check: the metric appears before Value Score/QualityScatter and handles available, zero-denominator, and incomplete states.
-4. **M4 — Measure v1.0 baseline (0.25–0.5 day):** freeze and run the approved contract-bearing agent cohort, publish the measured number, and record the command/output in release documentation; acceptance check: a clean invocation of the documented strict command reproduces the displayed value from banked data.
+4. **M4 — Measure v1.0 baseline.** SPLIT (2026-07-27) once BF-1 showed the write side could not
+   produce a non-zero denominator at all:
+   - **M4a — Cohort freeze mechanism (LANDED, sprint `M-COST-KPI-M4A`, 0.5 day).** `eval-suite
+     --baseline <id>` writes the cohort-prefixed `source_ref` the M1 filter matches; a data-driven
+     `cohort_manifest.json` + `cohort_hash` records the cohort (models resolved from `models.yml`,
+     nothing hardcoded in Go); the baseline-id charset is pinned on both sides; and agent-mode
+     contract verification is moved onto the live multi-executor path so `verify_verified > 0` is
+     reachable at all (see BF-1 below). Zero benchmark executions, zero metered spend.
+   - **M4b — Measured baseline (NOT STARTED, Mark-gated on spend).** Actually run the frozen cohort,
+     publish the measured number, and record the command/output in release documentation; acceptance
+     check: a clean invocation of the documented strict command reproduces the displayed value from
+     banked data. Real metered exposure on the OpenRouter lanes. **Blocked until M4a landed — now
+     satisfied — and still awaiting the human's spend approval.**
 
 ## Conflict Surface
 
@@ -141,6 +153,19 @@ The real conflict surface is limited to:
 
 ## Risks & Open Questions
 
+- **BF-1 (FIXED in M4a, was an absolute M4b blocker) — agent-mode verification was on a DEAD code
+  path.** The only agent-mode `RunAICheck` call lived in `RunAgentBenchmark()`
+  (`internal/eval_harness/agent_runner.go`), which had **no caller**: `cmd/ailang/eval_benchmark.go`
+  always used `RunAgentBenchmarkWithExecutor`, and `grep -n Verify agent_runner_multi.go` returned
+  zero matches. So no agent run could ever bank `verify_verified > 0`, `isVerifiedSuccess()` was
+  permanently false, and the KPI would have returned `available:false, reason:"zero_denominator"`
+  **forever** — meaning an M4b metered run would have spent real money for an unavailable KPI. This
+  also explains why no banked run has ever had positive verification: a harness gap, not a lack of
+  opportunity. Fixed in M4a-3 by moving verification onto the live path and deleting the dead runner.
+  **Any future claim that "verification is wired" must be checked against the LIVE call graph, not
+  the presence of the code.**
+- **BF-3 (FIXED in M4a):** `--verify-timeout` never reached the agent verifier (hardcoded `5s`), so
+  the cohort manifest's `verify_timeout` field would have documented a timeout the run never used.
 - **No currently banked verified cohort:** the present `latest.json` has no verification fields, and checked-in eval results have no positive verification outcomes. M4 must run and bank a new strict cohort; historical pass data cannot be relabeled as verified.
 - **Verification coverage:** only AILANG contract-bearing benchmarks can meet the strict denominator. A small eligible set may make the headline volatile or unrepresentative. The card must display `verified_successes / total_runs` and the frozen benchmark count.
 - **Unknown/unattributed cost:** one unknown stage appeared in the 2026-07-27 14-day chain probe. If an unknown stage falls inside the baseline cohort, publishing a quotient would understate cost; strict mode therefore blocks publication.
@@ -172,7 +197,7 @@ The real conflict surface is limited to:
 - Confirm the pre-change fixture yields unchanged `ValueScoreTable` per-model `$/success`, ELO, Pareto, and speed values.
 - Verify `benchmarkFetch` still loads the runtime GCS `latest.json` and falls back to `docs/static/benchmarks/latest.json` with the same headline rendering.
 
-### M4 — Measured Baseline
+### M4b — Measured Baseline (Mark-gated spend; M4a's mechanism tests are in the sprint plan)
 
 - Run the Mark-approved frozen agent/AILANG/contract cohort with verification enabled and bank every result.
 - Run `ailang chains stats --cost-per-verified-success --baseline v1.0 --json --strict`; require exit 0 and archive its full output.

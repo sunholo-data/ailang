@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-COST-KPI-M4A",
-  "title": "Cost-Per-Verified-Success KPI — M4a (Cohort Freeze Mechanism)",
-  "status": "planned",
+  "title": "Cost-Per-Verified-Success KPI \u2014 M4a (Cohort Freeze Mechanism)",
+  "status": "completed",
   "target_version": "v1.0.0",
   "branch": "sprint/m-cost-kpi-m4a",
   "worktree": ".claude/worktrees/m4a",
@@ -11,7 +11,7 @@
   "scope_note": "M4a = the cohort-FREEZE MECHANISM only (write side). M1-M3 landed 2026-07-27 (9bdc9319c, 2a2a40f31, 2d76b2cc3, merged d869ec12d) and must NOT be re-planned. Zero benchmark executions and zero metered spend in this sprint.",
   "out_of_scope": {
     "out_of_scope_M4b": "Actually RUNNING the baseline cohort and publishing the measured number. Real metered exposure on the OpenRouter lanes; parked on the human's spend approval. HARD-BLOCKED by blocking finding BF-1 until that is closed.",
-    "out_of_scope_provenance": "ClassifyStageCost (internal/observatory/cost_classify.go rule 1) treats any stage.Cost > 0 as authoritative CostStatusReported, but the SUBSCRIPTION claude CLI reports a non-zero total_cost_usd when nothing is billed (live-probed: 10 in / 46 out tokens -> total_cost_usd 0.0108355 with both Anthropic API keys stripped). On this rig ANTHROPIC_API_KEY is absent, so every claude agent run is subscription and its cost is a LIST-PRICE EQUIVALENT, not a metered dollar. The doc's Primary Goal says 'metered'. A cohort spanning claude (notional) + OpenRouter (real) blends both under one 'reported' label. DO NOT design a fix — open product decision. M4a's only obligation is not to hide it (the manifest records the resolved executor per model) plus a docs caveat.",
+    "out_of_scope_provenance": "ClassifyStageCost (internal/observatory/cost_classify.go rule 1) treats any stage.Cost > 0 as authoritative CostStatusReported, but the SUBSCRIPTION claude CLI reports a non-zero total_cost_usd when nothing is billed (live-probed: 10 in / 46 out tokens -> total_cost_usd 0.0108355 with both Anthropic API keys stripped). On this rig ANTHROPIC_API_KEY is absent, so every claude agent run is subscription and its cost is a LIST-PRICE EQUIVALENT, not a metered dollar. The doc's Primary Goal says 'metered'. A cohort spanning claude (notional) + OpenRouter (real) blends both under one 'reported' label. DO NOT design a fix \u2014 open product decision. M4a's only obligation is not to hide it (the manifest records the resolved executor per model) plus a docs caveat.",
     "out_of_scope_hash_enforcement": "Strict-mode COMPARISON of the recorded cohort_hash against the queried cohort. Needs the manifest reachable from the DB (execution_chains has no metadata column -> migration). The hash is RECORDED here; enforcing it is a follow-up.",
     "out_of_scope_db_manifest": "A cohort_manifest column on execution_chains. Schema migration; the manifest file + source_ref pair is sufficient release evidence for M4a.",
     "out_of_scope_placement": "Mark's primary-landing-surface mirror for the KPI card (still Mark-gated from the M1-M3 sprint)."
@@ -21,35 +21,38 @@
       "id": "BF-1",
       "severity": "blocking_for_M4b",
       "premise_contradicted": "Handed-down fact 2 stated agent-mode verification 'is already wired (agent_runner.go:316 + agent_runner_multi.go)'. The agent_runner_multi.go half is FALSE and the agent_runner.go half is on a DEAD path.",
-      "evidence": "The only agent-mode RunAICheck is internal/eval_harness/agent_runner.go:316-317, inside RunAgentBenchmark() (agent_runner.go:195), which has NO caller — `grep -rn 'RunAgentBenchmark(' --include=*.go .` returns only its definition plus the comment at cmd/ailang/eval_benchmark.go:129 ('Always use multi-executor runner -- legacy RunAgentBenchmark() hardcodes Claude and must NOT be used'). The live path is RunAgentBenchmarkWithExecutor (eval_benchmark.go:179 -> agent_runner_multi.go:76); `grep -n Verify internal/eval_harness/agent_runner_multi.go` = ZERO matches. Live RunAICheck sites: repair.go:76 (STANDARD mode only) and the dead agent_runner.go:317.",
-      "consequence": "Even with the freeze mechanism landed and a --verify --agent cohort run executed, every banked eval_assessment carries an all-zero verify block. isVerifiedSuccess (cost_per_verified_success.go:95-105) requires VerifyVerified > 0, so VerifiedSuccesses == 0 and the KPI returns available:false reason:zero_denominator FOREVER. Also explains why no banked run has ever had verify_verified > 0 — a harness gap, not lack of opportunity.",
-      "handling": "Carried as CONDITIONAL milestone M4a-3 (move + delete, per CLAUDE.md systemic-fix rule: one gap, two manifestations). Severable — does not gate M4a-1/2/4. If cut, M4b spend must stay blocked."
+      "evidence": "The only agent-mode RunAICheck is internal/eval_harness/agent_runner.go:316-317, inside RunAgentBenchmark() (agent_runner.go:195), which has NO caller \u2014 `grep -rn 'RunAgentBenchmark(' --include=*.go .` returns only its definition plus the comment at cmd/ailang/eval_benchmark.go:129 ('Always use multi-executor runner -- legacy RunAgentBenchmark() hardcodes Claude and must NOT be used'). The live path is RunAgentBenchmarkWithExecutor (eval_benchmark.go:179 -> agent_runner_multi.go:76); `grep -n Verify internal/eval_harness/agent_runner_multi.go` = ZERO matches. Live RunAICheck sites: repair.go:76 (STANDARD mode only) and the dead agent_runner.go:317.",
+      "consequence": "Even with the freeze mechanism landed and a --verify --agent cohort run executed, every banked eval_assessment carries an all-zero verify block. isVerifiedSuccess (cost_per_verified_success.go:95-105) requires VerifyVerified > 0, so VerifiedSuccesses == 0 and the KPI returns available:false reason:zero_denominator FOREVER. Also explains why no banked run has ever had verify_verified > 0 \u2014 a harness gap, not lack of opportunity.",
+      "handling": "Carried as CONDITIONAL milestone M4a-3 (move + delete, per CLAUDE.md systemic-fix rule: one gap, two manifestations). Severable \u2014 does not gate M4a-1/2/4. If cut, M4b spend must stay blocked.",
+      "resolution": "FIXED in M4a-3 (522ad61f1). Verification moved onto the live multi-executor path as a single funnel (applyAgentVerification); dead RunAgentBenchmark deleted. M4b is no longer hard-blocked by BF-1."
     },
     {
       "id": "BF-2",
       "severity": "non_blocking_in_sprint_hardening",
       "finding": "The baseline id is used as an unescaped SQL LIKE pattern: store_chains_eval.go:96-97 builds `c.source_ref LIKE ?` with SourceRefPrefix+'%' and no ESCAPE clause. SQLite LIKE treats '_' as a single-char wildcard, so a baseline id containing '_' or '%' silently widens the cohort (e.g. 'v1_0' also matches 'v1x0/...').",
-      "handling": "M4a introduces the write side, which is where the charset must be pinned. Validate at freeze time (^[A-Za-z0-9][A-Za-z0-9.-]*$) and reuse the SAME validator on the read side (chains_stats_cvs.go)."
+      "handling": "M4a introduces the write side, which is where the charset must be pinned. Validate at freeze time (^[A-Za-z0-9][A-Za-z0-9.-]*$) and reuse the SAME validator on the read side (chains_stats_cvs.go).",
+      "resolution": "FIXED in M4a-1 (612cb78af). validateBaselineID pins ^[A-Za-z0-9][A-Za-z0-9.-]*$ and is shared by the freeze side and the query side."
     },
     {
       "id": "BF-3",
       "severity": "note_only",
       "finding": "--verify-timeout is ignored on the agent path. eval_suite.go:182 sets evalVerifyTimeout, which reaches only repairRunner.SetVerify (eval.go:166, eval_benchmark.go:561) = standard mode. The agent call hardcodes 5*time.Second (agent_runner.go:317).",
-      "handling": "Fold the plumbing in IFF M4a-3 is executed (one parameter on the moved block); otherwise record as a manifest caveat, since the manifest claims to record verify_timeout."
+      "handling": "Fold the plumbing in IFF M4a-3 is executed (one parameter on the moved block); otherwise record as a manifest caveat, since the manifest claims to record verify_timeout.",
+      "resolution": "FIXED in M4a-3 (522ad61f1). --verify-timeout reaches the agent verifier via AgentBenchmarkConfig.VerifyTimeout; DefaultVerifyTimeout is now the single source of the number."
     }
   ],
   "verified_premises": [
-    "KPI query filters chains on source_ref prefix '<baseline>/' — chains_stats_cvs.go:53 + cohortSourceRefPrefix at :84-92 -> cost_per_verified_success.go:154 -> store_chains_eval.go:95-98",
+    "KPI query filters chains on source_ref prefix '<baseline>/' \u2014 chains_stats_cvs.go:53 + cohortSourceRefPrefix at :84-92 -> cost_per_verified_success.go:154 -> store_chains_eval.go:95-98",
     "eval-suite hardcodes SourceRef at cmd/ailang/eval_suite.go:457 inside the chain-creation block :437-470",
     "taskID from telemetry.ExtractCorrelationIDs() (eval_suite.go:53) or the eval-<UnixNano> fallback (:60)",
     "No --source-ref/--baseline/cohort flag exists on eval-suite (flag block :104-157)",
-    "taskID is ALSO the Observatory Task.ID via createEvalTask(taskID,...) (eval_suite.go:435 -> eval_observatory.go:54) — the OTEL_RESOURCE_ATTRIBUTES hack would collide the task row",
-    "M1's reusable cohort filter exists: EvalQueryOptions.SourceRefPrefix/CreatedAfter/CreatedBefore with a conditional JOIN (store_chains_eval.go:74-106) — REUSE, do not add a second filter path",
+    "taskID is ALSO the Observatory Task.ID via createEvalTask(taskID,...) (eval_suite.go:435 -> eval_observatory.go:54) \u2014 the OTEL_RESOURCE_ATTRIBUTES hack would collide the task row",
+    "M1's reusable cohort filter exists: EvalQueryOptions.SourceRefPrefix/CreatedAfter/CreatedBefore with a conditional JOIN (store_chains_eval.go:74-106) \u2014 REUSE, do not add a second filter path",
     "Exactly 7 contract-bearing benchmarks: contract_bst_validate, contract_leap_year, contract_matrix_determinant, contract_rle_roundtrip, contract_roman_numeral, contract_sorted_merge, prompt_injection",
-    "agent_suite = 6 cloud models at internal/eval_harness/models.yml:2789-2803; accessor GetAgentSuite() (models.go:299-303); suite-token expansion eval_suite_types.go:47-49 — the data-driven manifest source",
+    "agent_suite = 6 cloud models at internal/eval_harness/models.yml:2789-2803; accessor GetAgentSuite() (models.go:299-303); suite-token expansion eval_suite_types.go:47-49 \u2014 the data-driven manifest source",
     "check-file-sizes is a hard 800-line CI gate (make/code-health.mk:122-137) and cmd/ailang/eval_suite.go is at 790"
   ],
-  "started": null,
+  "started": "2026-07-27T09:30:00Z",
   "velocity": {
     "target_loc_per_day": 900,
     "estimated_total_loc": 500,
@@ -59,32 +62,34 @@
     {
       "id": "M4a-1",
       "name": "--baseline cohort freeze flag on eval-suite",
-      "description": "Add --baseline <id> to eval-suite (name symmetric with the read-side chains stats --baseline; no --source-ref alias). source_ref becomes '<baseline>/<taskID>/<mode>[<condRef>]' when set and stays BYTE-IDENTICAL to eval_suite.go:457 when absent. taskID / assignmentID / OTEL_RESOURCE_ATTRIBUTES / createEvalTask are NOT touched — the baseline is a chain cohort label, not a correlation ID. Fail loudly BEFORE any spend on (a) an invalid baseline id charset (BF-2) and (b) --baseline without --verify. MANDATORY FIRST STEP: extract the chain-creation block (eval_suite.go:437-470) into a new cmd/ailang/eval_suite_cohort.go — eval_suite.go is 790/800 and the check-file-sizes CI gate would otherwise break.",
+      "description": "Add --baseline <id> to eval-suite (name symmetric with the read-side chains stats --baseline; no --source-ref alias). source_ref becomes '<baseline>/<taskID>/<mode>[<condRef>]' when set and stays BYTE-IDENTICAL to eval_suite.go:457 when absent. taskID / assignmentID / OTEL_RESOURCE_ATTRIBUTES / createEvalTask are NOT touched \u2014 the baseline is a chain cohort label, not a correlation ID. Fail loudly BEFORE any spend on (a) an invalid baseline id charset (BF-2) and (b) --baseline without --verify. MANDATORY FIRST STEP: extract the chain-creation block (eval_suite.go:437-470) into a new cmd/ailang/eval_suite_cohort.go \u2014 eval_suite.go is 790/800 and the check-file-sizes CI gate would otherwise break.",
       "estimated_loc": 190,
       "estimated_hours": 2.5,
       "dependencies": [],
       "acceptance_criteria": [
         "cohortSourceRef(\"\", \"eval-123\", \"agent\", \"\") == \"eval-123/agent\" (today's exact string)",
         "cohortSourceRef(\"v1.0\", \"eval-123\", \"agent\", \"/full\") == \"v1.0/eval-123/agent/full\"",
-        "ROUND-TRIP INVARIANT TEST (load-bearing): cohortSourceRef output matches the LIKE prefix from cohortSourceRefPrefix (chains_stats_cvs.go:84) for a table of baseline ids — writer and reader provably agree",
+        "ROUND-TRIP INVARIANT TEST (load-bearing): cohortSourceRef output matches the LIKE prefix from cohortSourceRefPrefix (chains_stats_cvs.go:84) for a table of baseline ids \u2014 writer and reader provably agree",
         "validateBaselineID rejects \"\", \"v1_0\", \"50%\", \"/v1.0\", \"v1.0/x\"; accepts \"v1.0\", \"v1.0-rc1\", \"os-rolling.2\"; the SAME validator is reused on the read side (closes BF-2)",
         "--baseline without --verify exits non-zero with a message naming --verify",
         "taskID/assignmentID/OTEL_RESOURCE_ATTRIBUTES/createEvalTask semantics unchanged (correlation block eval_suite.go:52-67 untouched in the diff)",
         "make check-file-sizes green (verify immediately after the extraction, before adding anything)",
         "make check-boundaries, make lint, go test ./cmd/... ./internal/observatory/... green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-27T09:30:00Z",
+      "completed": "2026-07-27T11:30:00Z",
+      "notes": "DONE 612cb78af. --baseline <id> writes source_ref '<id>/<taskID>/<mode>[<condRef>]'; default path byte-identical (proven by test, not inspection). taskID/assignmentID/OTEL_RESOURCE_ATTRIBUTES/createEvalTask untouched \u2014 confirmed by grepping the diff. Fail-loud pre-flight runs FIRST after fs.Parse (before rig lock / API-key check / any spend): invalid charset -> exit 1; --baseline without --verify -> exit 1 naming --verify AND explaining zero_denominator; `--baseline \"\"` is an explicit error via fs.Visit, not a silent no-freeze. BF-2 CLOSED: validateBaselineID pins ^[A-Za-z0-9][A-Za-z0-9.-]*$ and is SHARED with the read side (chains_stats_cvs.go). Round-trip invariant test proves writer output always matches the reader's cohortSourceRefPrefix LIKE prefix across ids x taskIDs x modes x conditions. CLI exit codes asserted against the built binary, so the gate is proven WIRED, not merely implemented."
     },
     {
       "id": "M4a-2",
       "name": "Recorded, data-driven cohort manifest",
-      "description": "Write <outputDir>/cohort_manifest.json (only when --baseline is set) recording baseline_id, source_ref_prefix, frozen_at, run_window{started_at,completed_at}, eval_mode, languages, conditions, model_suite, models[] (RESOLVED via expandModelSuite -> GetAgentSuite, never hardcoded in Go), executors[] per model (GetExecutorForModel — also the out_of_scope_provenance audit hook), benchmarks[] (resolved post-discovery/post---tier), seed, prompt_version, trials, verify, verify_timeout, ailang_version, git_commit, chain_id, and a cohort_hash. Re-freezable per Mark's 2026-07-27 ratification: nothing in Go names a model, so a models.yml edit yields a new manifest and a DIFFERENT cohort_hash (visible drift, not silent), and a re-freeze publishes as a NEW baseline id rather than rewriting a published one. completed_at is filled in by finalizeSuiteRun via a new cohortManifestPath field on suiteSummaryParams.",
+      "description": "Write <outputDir>/cohort_manifest.json (only when --baseline is set) recording baseline_id, source_ref_prefix, frozen_at, run_window{started_at,completed_at}, eval_mode, languages, conditions, model_suite, models[] (RESOLVED via expandModelSuite -> GetAgentSuite, never hardcoded in Go), executors[] per model (GetExecutorForModel \u2014 also the out_of_scope_provenance audit hook), benchmarks[] (resolved post-discovery/post---tier), seed, prompt_version, trials, verify, verify_timeout, ailang_version, git_commit, chain_id, and a cohort_hash. Re-freezable per Mark's 2026-07-27 ratification: nothing in Go names a model, so a models.yml edit yields a new manifest and a DIFFERENT cohort_hash (visible drift, not silent), and a re-freeze publishes as a NEW baseline id rather than rewriting a published one. completed_at is filled in by finalizeSuiteRun via a new cohortManifestPath field on suiteSummaryParams.",
       "estimated_loc": 215,
       "estimated_hours": 2.0,
-      "dependencies": ["M4a-1"],
+      "dependencies": [
+        "M4a-1"
+      ],
       "acceptance_criteria": [
         "No --baseline -> NO manifest file written and the run is otherwise unchanged",
         "--baseline v1.0 -> <outputDir>/cohort_manifest.json exists, parses, and carries every planned field",
@@ -95,17 +100,17 @@
         "run_window.completed_at is populated after finalizeSuiteRun",
         "executors[] distinguishes claude from opencode/codex (the provenance audit hook)",
         "Manifest is built AFTER model/benchmark resolution and the agent-mode model filter, before the run loop",
-        "Manifest write failure prints a note (matching the summary.json convention at eval_suite_finalize.go:79-87) and never discards a completed metered run — but is never silent"
+        "Manifest write failure prints a note (matching the summary.json convention at eval_suite_finalize.go:79-87) and never discards a completed metered run \u2014 but is never silent"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-27T09:30:00Z",
+      "completed": "2026-07-27T11:30:00Z",
+      "notes": "DONE fa4c1d095. cohort_manifest.json + cohort_hash; models[] resolved from models.yml via expandModelSuite -> GetAgentSuite (nothing in Go names a model), so a suite edit changes the manifest AND the hash visibly (re-freezable per Mark's ratification). Hash = SHA-256 over canonical SORTED {eval_mode,languages,conditions,models,benchmarks,seed,prompt_version,trials}; excludes frozen_at/git_commit/chain_id/baseline_id/suite-spelling. Tested: stable across 20 builds, order-independent, changes on all 11 membership/config mutations, unchanged by all 4 run-identity mutations. executors[] verified against the REAL agent_suite: claude vs codex vs opencode distinguishable (the out_of_scope_provenance audit hook). DEVIATION: freeze-time write failure is FATAL (nothing spent yet; running a frozen cohort without its artifact is the silent fallback CLAUDE.md 2 forbids), finalize rewrite is best-effort-but-noisy \u2014 asymmetry, both halves tested. FOUND+FIXED in scope: cleanResults() globbed *.json and ran just after the freeze write, DELETING the manifest it had printed as release evidence; expandModelSuite's hardcoded 7-way switch became one modelSuiteResolvers table shared with the manifest recorder; three drifted `trials<1` clamps collapsed. Also extracted eval_suite_agent.go \u2014 eval_suite.go had crept to 798/800 against the hard CI gate (now 733)."
     },
     {
       "id": "M4a-3",
-      "name": "CONDITIONAL — move agent-mode verification onto the live path (closes BF-1)",
-      "description": "SEVERABLE scope addition surfaced by blocking finding BF-1. Without it, M4a-1/2 ship a freeze mechanism that provably cannot yield a number (zero_denominator forever). Scoped as a MOVE + DELETE, not a new feature: move the verification block (agent_runner.go:314-358 — the RunAICheck gate plus the six agentResult.Verify* assignments) into the live RunAgentBenchmarkWithExecutor result construction in agent_runner_multi.go, preserving the gate verbatim (config.Verify && spec.ContractSpec != \"\" && language == \"ailang\" && validation.CompileOk); DELETE the dead copy (and RunAgentBenchmark() itself if nothing else references it) per the coding-standards rename-with-call-site rule, running make test between the move and the delete; thread verifyTimeout through MultiExecutorConfig instead of the hardcoded 5*time.Second (closes BF-3 and makes the manifest's verify_timeout truthful). NO benchmark is executed.",
+      "name": "REQUIRED (was CONDITIONAL; promoted by controller amendment) \u2014 move agent-mode verification onto the live path (closes BF-1)",
+      "description": "SEVERABLE scope addition surfaced by blocking finding BF-1. Without it, M4a-1/2 ship a freeze mechanism that provably cannot yield a number (zero_denominator forever). Scoped as a MOVE + DELETE, not a new feature: move the verification block (agent_runner.go:314-358 \u2014 the RunAICheck gate plus the six agentResult.Verify* assignments) into the live RunAgentBenchmarkWithExecutor result construction in agent_runner_multi.go, preserving the gate verbatim (config.Verify && spec.ContractSpec != \"\" && language == \"ailang\" && validation.CompileOk); DELETE the dead copy (and RunAgentBenchmark() itself if nothing else references it) per the coding-standards rename-with-call-site rule, running make test between the move and the delete; thread verifyTimeout through MultiExecutorConfig instead of the hardcoded 5*time.Second (closes BF-3 and makes the manifest's verify_timeout truthful). NO benchmark is executed.",
       "estimated_loc": 95,
       "estimated_hours": 1.5,
       "dependencies": [],
@@ -118,18 +123,21 @@
         "Test: a fabricated EvalAssessment from a verified multi-executor result satisfies the M1 isVerifiedSuccess predicate (write side and read side agree)",
         "make test green; make check-boundaries green; make check-file-sizes green (agent_runner_multi.go 659 -> ~694); zero benchmarks executed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "CONDITIONAL: if the controller cuts this on scope-discipline grounds, record the drop decision here and keep out_of_scope_M4b spend HARD-BLOCKED until it lands separately."
+      "passes": true,
+      "started": "2026-07-27T09:30:00Z",
+      "completed": "2026-07-27T11:30:00Z",
+      "notes": "DONE 522ad61f1. BF-1 CLOSED \u2014 the sprint's critical path per the controller amendment. Premise re-confirmed in-worktree first: RunAgentBenchmark had no caller; agent_runner_multi.go had ZERO Verify matches; the only live RunAICheck was repair.go:76 (standard mode). Executed as a MOVE + DELETE (CLAUDE.md 3): applyAgentVerification (verify.go) is the SINGLE agent-mode funnel, called from RunAgentBenchmarkWithExecutor; the dead 171-line RunAgentBenchmark is deleted (agent_runner.go 598 -> 461); make test run BEFORE and AFTER the delete per coding-standards. Gate preserved verbatim (Verify && ContractSpec != \"\" && ailang && CompileOk); any skipped condition leaves the block ALL-ZERO -> verification_missing, never a verified success. BF-3 CLOSED: AgentBenchmarkConfig.VerifyTimeout carries --verify-timeout to the verifier (asserted for 2s/30s/90s); four scattered `5*time.Second` literals collapsed into one DefaultVerifyTimeout so the manifest's recorded value IS the used value. UPGRADE over the dead path: an ai-check error is no longer discarded with `_` \u2014 it is printed and the block stays zero. THIRD SURFACE fixed: agent-mode RunMetrics never carried the 5 verify_* fields, so the banked result JSON (eval-summary/eval-matrix input) could not show verification even once it ran. END-TO-END: internal/observatory/verified_success_writeside_test.go proves an EvalAssessment in the exact shape eval_benchmark.go builds satisfies isVerifiedSuccess, so writer and the M1 predicate provably agree. Tests use a fake verifier: no subprocess, no Z3, no spend. KNOWN LIMITATION: the residual legacy Claude-headless helpers (RunHeadlessSessionStreaming/determineSuccess/checkClaudeCLI/getErrorMessage/ClaudeHeadlessResult) are RETAINED \u2014 still test-covered, removal also touches the fmt-hook A/B machinery, and they carry NO verification logic so they cannot drift on the axis BF-1 was about. Follow-up cleanup; a comment at the deletion site records it."
     },
     {
       "id": "M4a-4",
       "name": "Docs + changelog",
-      "description": "Extend the EXISTING '### Added — Cost-Per-Verified-Success KPI (M-COST-PER-SUCCESS-KPI, M1-M3)' section at changelogs/v0.18-current.md:71 with an M4a bullet group (do not open a competing section). Add a 'Freezing a baseline cohort' section to docs/docs/guides/evaluation/eval-loop.md giving the exact reproducible freeze+query command pair, the manifest path, the allowed baseline-id charset, and the out_of_scope_provenance cost caveat. Add one eval-suite --baseline example to cmd/ailang/help.go near :296-297 (CLI help is the single source of truth). Mark M4 as split in the design doc (M4a mechanism / M4b Mark-gated spend) and add BF-1 to its Risks & Open Questions.",
+      "description": "Extend the EXISTING '### Added \u2014 Cost-Per-Verified-Success KPI (M-COST-PER-SUCCESS-KPI, M1-M3)' section at changelogs/v0.18-current.md:71 with an M4a bullet group (do not open a competing section). Add a 'Freezing a baseline cohort' section to docs/docs/guides/evaluation/eval-loop.md giving the exact reproducible freeze+query command pair, the manifest path, the allowed baseline-id charset, and the out_of_scope_provenance cost caveat. Add one eval-suite --baseline example to cmd/ailang/help.go near :296-297 (CLI help is the single source of truth). Mark M4 as split in the design doc (M4a mechanism / M4b Mark-gated spend) and add BF-1 to its Risks & Open Questions.",
       "estimated_loc": 0,
       "estimated_hours": 0.5,
-      "dependencies": ["M4a-1", "M4a-2"],
+      "dependencies": [
+        "M4a-1",
+        "M4a-2"
+      ],
       "acceptance_criteria": [
         "[Unreleased] entry present INSIDE the existing KPI section, stating: the KPI was previously unreachable (empty_cohort) because no writer could emit a cohort-prefixed source_ref; the default source_ref is unchanged; --baseline requires --verify; the manifest is derived from models.yml",
         "Docs give a copy-pasteable freeze command whose baseline id matches the query command's",
@@ -138,16 +146,45 @@
         "Design doc M4 split recorded; BF-1 on the record as an M4b blocker",
         "docs build passes"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-27T09:30:00Z",
+      "completed": "2026-07-27T11:30:00Z",
+      "notes": "DONE. changelogs/v0.18-current.md [Unreleased]: M4a bullets EXTEND the existing M1-M3 KPI section (no competing section), stating the KPI was previously unreachable (empty_cohort), the default source_ref is unchanged, --baseline requires --verify, the manifest is derived from models.yml, and the out_of_scope_provenance subscription-cost limitation. docs/docs/guides/evaluation/eval-loop.md: new 'Freezing a baseline cohort' section with the copy-pasteable freeze+query pair sharing ONE baseline id, the allowed charset, the manifest/cohort_hash semantics, and a labelled cost-provenance caveat. cmd/ailang/help.go: eval-suite --baseline example. Parent design doc: M4 SPLIT into M4a (mechanism, LANDED) / M4b (measured baseline, Mark-gated spend), BF-1 + BF-3 added to Risks & Open Questions with the lesson that 'verification is wired' must be checked against the LIVE call graph."
     }
   ],
   "open_questions_for_human": [
-    "BF-1 routing: fold M4a-3 into this sprint (recommended — it is a move+delete and it is the difference between a mechanism and a WORKING mechanism), or split it out and block M4b on it?",
+    "BF-1 routing: fold M4a-3 into this sprint (recommended \u2014 it is a move+delete and it is the difference between a mechanism and a WORKING mechanism), or split it out and block M4b on it?",
     "out_of_scope_provenance: does a subscription claude lane belong in a METERED KPI cohort at all? If not, the v1.0 cohort should probably drop claude-haiku-4-5/claude-sonnet-4-6 and the headline becomes an OpenRouter+codex number. This changes the cohort manifest, so answer BEFORE M4b spend.",
     "Baseline id for the release: 'v1.0' exactly, or 'v1.0-rc1' first so a re-freeze after a late agent_suite edit does not need to rewrite a published id?"
   ],
-  "github_issues": []
+  "github_issues": [],
+  "completed": "2026-07-27T11:30:00Z",
+  "controller_amendment": {
+    "date": "2026-07-27",
+    "decision": "M4a-3 promoted from CONDITIONAL to REQUIRED and treated as the sprint's critical path.",
+    "rationale": "The mission controller INDEPENDENTLY VERIFIED BF-1 at origin/dev: RunAgentBenchmark (agent_runner.go) holds the only agent-mode RunAICheck call but has no caller, while the live RunAgentBenchmarkWithExecutor has zero Verify matches. Agent runs therefore could never populate verify_verified > 0, isVerifiedSuccess is always false, and the headline KPI returns zero_denominator forever \u2014 so the M4a-1/-2 freeze mechanism is worthless without M4a-3. BF-3 folded in for the same reason: the manifest records verify_timeout, so a hardcoded 5s would make the artifact lie.",
+    "reconfirmed_in_worktree": true
+  },
+  "commits": {
+    "M4a-0": "37c070dd9",
+    "M4a-1": "612cb78af",
+    "M4a-2": "fa4c1d095",
+    "M4a-3": "522ad61f1"
+  },
+  "gates": {
+    "go_build": "green (excluding the PRE-EXISTING cmd/wasm js/wasm-tagged failure, reproduced on a pristine tree at the sprint base \u2014 CI runs go test, not go build ./...)",
+    "go_test_touched_packages": "green: ./cmd/ailang/ ./internal/eval_harness/ ./internal/observatory/",
+    "make_check_boundaries": "green",
+    "make_check_file_sizes": "green (eval_suite.go 733/800 after two extractions)",
+    "make_lint": "green",
+    "metered_spend_usd": 0,
+    "benchmarks_executed": 0
+  },
+  "out_of_scope_confirmed_not_done": [
+    "out_of_scope_M4b \u2014 no benchmark suite run, no eval-suite invocation against real models, zero metered spend. All verification tests use an injected fake verifier (no ai-check subprocess, no Z3).",
+    "out_of_scope_provenance \u2014 NOT fixed (open product decision). M4a only refuses to hide it: per-model executors[] in the manifest + a labelled docs caveat.",
+    "out_of_scope_hash_enforcement \u2014 cohort_hash is RECORDED, not enforced at query time.",
+    "out_of_scope_db_manifest \u2014 no execution_chains schema migration.",
+    "out_of_scope_placement \u2014 Mark-gated KPI card placement untouched."
+  ]
 }
