@@ -570,6 +570,67 @@ models:
       No smoke tier (smoke is the local OS-model iteration loop; cloud models run core,stretch).
       API access verified 2026-06-09.
 
+  # Anthropic Claude Opus 5 (released July 2026)
+  claude-opus-5:
+    api_name: "claude-opus-5"
+    provider: "anthropic"
+    description: "Claude Opus 5 - Opus-tier flagship (Jul 2026), drop-in at Opus 4.8 pricing"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "claude-opus-5"  # NOT the "opus" alias: verified 2026-07-27 against
+      # installed CLI v2.1.160 that `--model opus` still self-reports claude-opus-4-8 — using
+      # the alias here would silently benchmark the old model under the new model's label
+      # (same trap documented on claude-sonnet-5).
+    model_family: "claude-opus-5"  # Cross-harness grouping: pairs with opencode-claude-opus-5 if added
+    max_output_tokens: 64000   # Standard eval mode calls the NON-streaming Messages API
+      # (internal/ai/anthropic/client.go has no `stream` field); 64K matches every sibling
+      # 4.5+ Anthropic entry. The model's streaming ceiling is 128K (OpenRouter reports
+      # max_completion=128000 on all upstreams), but standard mode here never streams.
+      # ⚠️ Thinking is ON BY DEFAULT on Opus 5 and max_tokens caps thinking + response text
+      # TOGETHER — if benchmarks start banking truncated output (finish=length), raise this
+      # before concluding a capability gap.
+    pricing:
+      input_per_1k: 0.005   # $5.00 per million (identical to Opus 4.8/4.7)
+      output_per_1k: 0.025  # $25.00 per million (identical to Opus 4.8/4.7)
+    notes: |
+      Anthropic's Opus-tier flagship (July 2026). Drop-in at Opus 4.8 pricing
+      ($5/$25 per 1M) with the same feature set: 1M context (default AND maximum),
+      128K max output, adaptive thinking, prompt caching, batch, Files API, vision.
+      Strongest on agentic coding, long-horizon work, and code review/bug-finding;
+      the gap over 4.8 is largest on HARD multi-file tasks, smallest on easy single
+      edits — gate it on the hard end of the tier ladder, not on smoke.
+      API name uses no date suffix: "claude-opus-5".
+
+      Harness-relevant API deltas vs Opus 4.8 (read before debugging a failure):
+        • Thinking is ON BY DEFAULT — omitting the `thinking` field runs ADAPTIVE
+          (on 4.8/4.7 omitting it meant no thinking). Our standard path omits it
+          (internal/ai/anthropic/client.go emits no thinking key unless a reasoning
+          effort is configured), so Opus 5 evals think by default. Expect higher
+          output-token spend per benchmark than the 4.8 row at the same prices.
+        • `thinking:{type:"disabled"}` is accepted only at effort <= high; pairing it
+          with xhigh/max is a 400.
+        • ⚠️ DO NOT set `reasoning_effort` / `thinking_budget_tokens` on this entry.
+          internal/ai/reasoning.go maps those to `thinking:{type:"enabled",budget_tokens:N}`,
+          which Anthropic REMOVED on Opus 4.7 and later — it returns 400, not a degraded
+          run. (Latent for opus-4-7/4-8/fable-5/sonnet-5 too; no Claude entry sets it today.)
+        • Separate rate-limit bucket — Opus 5 does NOT draw from the combined
+          Opus 4.x pool, so shifting volume off 4.8 neither frees nor inherits headroom.
+        • Prompt-cache minimum drops to 512 tokens (1024 on Opus 4.8).
+        • Safety classifiers can return HTTP 200 with stop_reason "refusal" (elevated
+          cyber safeguards). A refusal is NOT an api_error — bank it as such if seen.
+      Fast mode (speed:"fast", $10/$50) is Claude-API-only and unused by this harness.
+
+      Access verified 2026-07-27: listed on OpenRouter as anthropic/claude-opus-5
+      (ctx 1M, max_completion 128K across Anthropic/Bedrock/Google/Azure upstreams),
+      and `claude --model claude-opus-5 -p ...` returns cleanly via the Claude Code CLI.
+      Gate status: PENDING (opt-in only, in NO suite). Standard-mode smoke/core is
+      BLOCKED on this rig — ANTHROPIC_API_KEY is stripped by the billing guard, so
+      only agent mode (subscription CLI, metered $0) can run here. Do NOT promote it
+      into benchmark_suite/extended_suite or displace claude-opus-4-8 until a
+      `--tier core` head-to-head (opus-5 + opus-4-8 + claude-sonnet-4-6 anchor, ONE
+      command) says it matches or beats the incumbent — smoke is saturated and a
+      smoke tie carries zero ranking information (the GLM-5.2 anti-pattern).
+
   claude-opus-4-8:
     api_name: "claude-opus-4-8"
     provider: "anthropic"
@@ -2762,6 +2823,11 @@ local_models:
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
+# - claude-opus-5               # Added 2026-07-27, access verified, gate PENDING. Candidate to replace
+#                               # claude-opus-4-8 in benchmark_suite/extended_suite — decide on --tier core,
+#                               # NOT smoke: ailang eval-suite --models claude-opus-5,claude-opus-4-8,claude-sonnet-4-6 \
+#                               #   --tier core --langs ailang --output /tmp/core_opus5 --parallel 4
+#                               # Needs ANTHROPIC_API_KEY (unavailable on the rig; agent mode works via the CLI).
 # - claude-fable-5              # Opt-in only (~$7/smoke, ~$16/core) — smoke gate first: ailang eval-suite --models claude-fable-5 --tier smoke --langs ailang
 
 # - gpt5              # Superseded by gpt5-5
