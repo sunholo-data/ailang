@@ -16,7 +16,8 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-4-8,claude-fable-5" — OPUS-FIRST
+# MISSION_MODEL_PREFS (default "claude-opus-5,claude-opus-4-8,claude-fable-5"
+# — Opus 5 first since 2026-07-27 (Mark), 4.8 kept as probe fallback — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
 # orchestration session, which burned the weekly Fable bucket at 2h cadence)
@@ -124,7 +125,7 @@ _mc_stalled() {
 # ----------------------------------------------------------------------------
 
 # --- model selection (fleet Phase A) -----------------------------------------
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-4-8,claude-fable-5}"
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,claude-opus-4-8,claude-fable-5}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 
 # _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2)
