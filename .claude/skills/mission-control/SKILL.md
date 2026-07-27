@@ -92,7 +92,19 @@ on one rig from colliding.
    issue myself and that feedback could be acted upon")** — Mark replies to iteration reports by
    commenting on #329 (it's where he reads them, by email). Check for new HUMAN comments:
    ```bash
-   last=$(cat ~/.ailang/state/mission-329-last-seen 2>/dev/null || echo "1970-01-01T00:00:00Z")
+   # The watermark file is ISSUE-SCOPED, and the issue number ROTATES WEEKLY — so it must be
+   # derived, never written as a literal (fixed iter-106, 2nd stale-literal defect in this same
+   # snippet after iter-54's `--jq --arg` bug). Iteration 106 followed a hardcoded
+   # `mission-329-last-seen`, got a 5-day-stale watermark, and a Mark comment the PREVIOUS
+   # iteration had already fully actioned re-surfaced as an unprocessed human directive — which
+   # outranks the queue, so it would have re-run a landed sprint. Only a cross-read of the last
+   # report caught it. Anywhere this skill shows `329`, it is the V1 DEFAULT (see Repo Profile).
+   ISSUE="${MISSION_GH_ISSUE:-329}"
+   WATERMARK="$HOME/.ailang/state/mission-${ISSUE}-last-seen"
+   last=$(cat "$WATERMARK" 2>/dev/null || echo "1970-01-01T00:00:00Z")
+   # Sanity-check before trusting it: a watermark far older than the CURRENT issue's creation date
+   # means you are reading the wrong file (or a rotation just happened — then also read `-prev`,
+   # per the rotation-week catch in Gate 5).
    # NOTE (fixed iter-54, 3rd-instance bar): gh's `--jq` takes exactly ONE expression arg —
    # `--jq --arg last …` fails with `accepts 1 arg(s), received 4`. Pipe the raw --json to a
    # standalone `jq -r --arg` instead (that's where --arg belongs).
@@ -114,9 +126,10 @@ on one rig from colliding.
    message + note it in the report. Never run a nested `claude` in a LEAKED environment even via
    the wrapper-form written above — fix-forward the guard or park. A quota error naming a
    non-Monday reset date is the same tripwire post-hoc: you billed the API; stop, don't fall back. After triaging,
-   write the newest processed `createdAt` to `~/.ailang/state/mission-329-last-seen` — before
-   routing, so a crashed iteration re-reads (re-triage is idempotent; dropping a human answer is
-   not). Acknowledge in this iteration's report which comment(s) were acted on, quoting the ask
+   write the newest processed `createdAt` to `"$WATERMARK"` (i.e.
+   `~/.ailang/state/mission-${MISSION_GH_ISSUE}-last-seen` — the SAME derived path you read, never
+   a literal issue number) — before routing, so a crashed iteration re-reads (re-triage is
+   idempotent; dropping a human answer is not). Acknowledge in this iteration's report which comment(s) were acted on, quoting the ask
    one line each — Mark must SEE the channel worked.
 
 ## Gate 1 — OBSERVE (cheap, read-only)
