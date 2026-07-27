@@ -17,7 +17,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
-	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/version"
@@ -435,39 +434,14 @@ func runEvalSuite() {
 	createEvalTask(taskID, assignmentID, modelList, benchmarkList, langList, totalRuns, *agent)
 
 	// M-EVAL-CHAINS: Create execution chain for ALL eval runs (standard + agent)
-	// Each benchmark × model × language × condition becomes a chain stage
-	var evalChain *EvalChainContext
-	{
-		obsStore, err := observatory.OpenDefaultStore()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s Warning: Could not open observatory database: %v\n", yellow("⚠️"), err)
-			fmt.Fprintf(os.Stderr, "   Eval results will be stored as JSON files only\n")
-		} else {
-			evalMode := "standard"
-			if *agent {
-				evalMode = "agent"
-			}
-			condRef := ""
-			if len(conditionList) == 1 && conditionList[0] != "" {
-				condRef = "/" + conditionList[0]
-			}
-			cwd, _ := os.Getwd()
-			chain, err := obsStore.CreateChain(ctx, &observatory.ChainCreateRequest{
-				SourceType:    observatory.ChainSourceEvalSuite,
-				SourceRef:     fmt.Sprintf("%s/%s%s", taskID, evalMode, condRef),
-				WorkspacePath: cwd,
-			})
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s Warning: Could not create eval chain: %v\n", yellow("⚠️"), err)
-			} else {
-				evalChain = &EvalChainContext{
-					Store:   obsStore,
-					ChainID: chain.ID,
-				}
-				fmt.Printf("  Chain ID: %s\n", chain.ID[:8])
-			}
-		}
-	}
+	// Each benchmark × model × language × condition becomes a chain stage.
+	// See eval_suite_cohort.go for the source_ref composition (the cohort write side).
+	evalMode := evalModeName(*agent)
+	evalChain := createEvalChain(ctx, evalChainParams{
+		taskID:     taskID,
+		evalMode:   evalMode,
+		conditions: conditionList,
+	})
 
 	fmt.Printf("%s AILANG Benchmark Suite\n", cyan("🚀"))
 	fmt.Println("==========================")
