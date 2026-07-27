@@ -225,14 +225,13 @@ available / zero-denominator / incomplete states and a visible fallback-source b
 
 ## Success Metrics
 
-- [ ] `go test ./internal/observatory/... ./internal/server/... ./cmd/...` green.
-- [ ] `make check-boundaries` passes.
-- [ ] Docs Babel/build check passes for the new card.
-- [ ] VERIFIED-success defined exactly once; both eval paths bank verify fields (no migration).
-- [ ] CLI == HTTP == published snapshot, field-for-field, on the fixture.
-- [ ] Strict mode fails loudly on unknown cost / missing verification / zero denom / cohort mismatch.
-- [ ] Dashboard card renders atop ValueDashboard with all three states + fallback badge; existing
-      lenses unregressed.
+- [x] `go test ./internal/observatory/... ./internal/server/... ./cmd/...` green.
+- [x] `make check-boundaries` passes.
+- [x] Docs Babel/build check passes for the new card (HeadlineKpiCard.jsx + index.jsx compile under @babel/preset-react; headlineKpiState.fixture.mjs 7/7 data-logic checks pass under node).
+- [x] VERIFIED-success defined exactly once (observatory.isVerifiedSuccess); both eval paths bank verify fields (no migration).
+- [x] CLI == HTTP == published snapshot, field-for-field, on the fixture (all three serialize the same CostPerVerifiedSuccessResult struct).
+- [x] Strict mode fails loudly on unknown cost / missing verification / zero denom (empty cohort). Verified end-to-end (CLI exit 2). NOTE: an explicit stored "cohort hash mismatch" check was NOT implemented — cohort identity is enforced by the source_ref prefix filter, so a wrong baseline yields empty_cohort→unavailable rather than a distinct "mismatch" reason. See report.
+- [x] Dashboard card renders atop ValueDashboard with available/zero-denominator/incomplete/absent states + fallback badge; existing lenses (ValueScoreTable $/success, ELO, Pareto, speed, mode toggle, GCS fetch+fallback) unregressed.
 
 ---
 

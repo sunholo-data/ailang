@@ -32,3 +32,29 @@ export async function benchmarkFetch(relPath, { cacheBust = false, ...opts } = {
   }
   return fetch(local, opts);
 }
+
+// Source signals for benchmarkFetchWithSource (M-COST-PER-SUCCESS-KPI, M3).
+export const BENCHMARK_SOURCE_GCS = 'gcs';       // runtime Cloud Run / GCS copy (fresh)
+export const BENCHMARK_SOURCE_FALLBACK = 'fallback'; // in-build static copy (possibly stale)
+
+// benchmarkFetchWithSource is the SAME GCS-first / static-fallback-second fetch as
+// benchmarkFetch, but ADDITIVELY reports WHICH source answered so a caller can
+// surface a visible "Fallback / stale data" badge (NO SILENT FALLBACKS — stale
+// release evidence can affect user decisions). benchmarkFetch is left unchanged
+// so existing `.then(r => r.json())` callers keep working.
+//
+// Returns { response, source } where source is BENCHMARK_SOURCE_GCS or
+// BENCHMARK_SOURCE_FALLBACK.
+export async function benchmarkFetchWithSource(relPath, { cacheBust = false, ...opts } = {}) {
+  const rel = String(relPath).replace(/^\/+/, '').replace(/^benchmarks\//, '');
+  const q = cacheBust ? `?v=${Date.now()}` : '';
+  const remote = `${DASHBOARD_BASE}/benchmarks/${rel}${q}`;
+  const local = `/benchmarks/${rel}${q}`;
+  try {
+    const r = await fetch(remote, opts);
+    if (r.ok) return { response: r, source: BENCHMARK_SOURCE_GCS };
+  } catch (e) {
+    // Network/CORS error reaching the dashboard — fall through to the in-build copy.
+  }
+  return { response: await fetch(local, opts), source: BENCHMARK_SOURCE_FALLBACK };
+}

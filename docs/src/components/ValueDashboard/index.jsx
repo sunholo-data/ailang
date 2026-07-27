@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
 import QualityScatter from '@site/src/components/BenchmarkDashboard/QualityScatter';
 import ValueScoreTable from '@site/src/components/BenchmarkDashboard/ValueScoreTable';
+import HeadlineKpiCard from '@site/src/components/ValueDashboard/HeadlineKpiCard';
 import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
 
 import dashboardStyles from '@site/src/components/BenchmarkDashboard/styles.module.css';
@@ -20,12 +21,16 @@ export default function ValueDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [mode, setMode] = useState('standard');
+  // M-COST-PER-SUCCESS-KPI (M3): track WHICH source served latest.json so the
+  // headline card can surface a visible Fallback / stale-data badge.
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
-    benchmarkFetch('latest.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to load benchmark data');
-        return res.json();
+    benchmarkFetchWithSource('latest.json')
+      .then(({ response, source }) => {
+        if (!response.ok) throw new Error('Failed to load benchmark data');
+        setDataSource(source);
+        return response.json();
       })
       .then(setData)
       .catch(err => {
@@ -61,6 +66,11 @@ export default function ValueDashboard() {
 
   return (
     <div>
+      {/* M-COST-PER-SUCCESS-KPI (M3): headline metric ABOVE the Quality-vs-Cost /
+          Value Score lenses. Renders available / zero-denominator / incomplete /
+          absent states + a Fallback / stale-data badge. */}
+      <HeadlineKpiCard latest={data} source={dataSource} />
+
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
         <button style={tab('standard')} onClick={() => setMode('standard')}>Standard</button>
         <button style={tab('agent')} onClick={() => setMode('agent')}>Agent</button>

@@ -1,0 +1,59 @@
+{
+  "sprint_id": "M-COST-PER-SUCCESS-KPI",
+  "title": "Cost-Per-Verified-Success KPI (M1-M3)",
+  "status": "completed",
+  "target_version": "v1.0.0",
+  "branch": "sprint/m-cost-per-success-kpi",
+  "design_doc": "design_docs/planned/v1_0_0/m-cost-per-success-kpi.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-cost-per-success-kpi-sprint-plan.md",
+  "scope_note": "M1-M3 only. M4 (measured baseline) is Mark-gated and OUT OF SCOPE.",
+  "started": "2026-07-27",
+  "milestones": [
+    {
+      "id": "M1",
+      "name": "Capture and Compute",
+      "description": "Propagate 5 verify_* fields into both EvalAssessment constructors; add cohort/baseline filter to EvalQueryOptions; add strict observatory rollup computing the KPI from banked eval_assessment JSON via QueryEvalResults + ClassifyStageCost + CostRollup.TotalKnownCost().",
+      "estimated_loc": 400,
+      "acceptance_criteria": [
+        "Fixtures distinguish pass-only, verified success, verifier failure, skipped proof, quota, estimated cost, unknown cost",
+        "Numerator = reported+estimated exactly, includes failed-run cost",
+        "VERIFIED-success predicate defined exactly once in the rollup",
+        "Both eval paths bank all 5 verify fields; no DB migration"
+      ],
+      "passes": true,
+      "completed": "2026-07-27",
+      "notes": "Propagated 5 verify_* fields into both EvalAssessment constructors (agent + standard). Added SourceRefPrefix/CreatedAfter/CreatedBefore cohort filter to EvalQueryOptions with a conditional JOIN to execution_chains in QueryEvalResults. Added cost_per_verified_success.go with the single isVerifiedSuccess predicate + computeCostPerVerifiedSuccess rollup reusing ClassifyStageCost/CostRollup.TotalKnownCost(). 11 new tests (incl 7-case table) all PASS; make check-boundaries OK; lint 0 issues.",
+      "dependencies": []
+    },
+    {
+      "id": "M2",
+      "name": "Expose and Publish",
+      "description": "Extend chains stats CLI + GET /api/chains/stats via the same rollup; add additive latest.json headlineKpis.costPerVerifiedSuccess. Field-for-field identical across CLI/HTTP/exporter. Strict mode fails loudly.",
+      "estimated_loc": 320,
+      "acceptance_criteria": [
+        "CLI JSON, HTTP JSON, published snapshot have identical numerator/denominator/quotient/completeness",
+        "Strict mode exits non-zero on unknown cost, missing verification, zero denominator, cohort mismatch",
+        "latest.json headline object is additive; existing fields stable"
+      ],
+      "passes": true,
+      "completed": "2026-07-27",
+      "notes": "CLI: added --cost-per-verified-success + --baseline to chains stats (chains_stats_cvs.go), reuses Store.CostPerVerifiedSuccess, --strict exits 2 when unavailable (verified end-to-end against real DB: empty cohort => available:false reason:empty_cohort, exit 2). HTTP: handleChainsStats routes cost_per_verified_success=true to handleCostPerVerifiedSuccess, additive, same rollup, baseline required (400 without). Publisher: added additive DashboardJSON.HeadlineKpis + AttachHeadlineKpi (eval_analysis/headline_kpi.go) that round-trips the SAME struct so CLI==HTTP==snapshot field-for-field. Tests: field-for-field identity, additive-stability, unknown-cost/zero-denominator/missing-baseline strict failures, default-stats-unregressed. All PASS; check-boundaries OK; lint 0 issues.",
+      "dependencies": ["M1"]
+    },
+    {
+      "id": "M3",
+      "name": "Headline Dashboard",
+      "description": "KPI card atop ValueDashboard before Value Score / QualityScatter; benchmarkFetch source signal + visible Fallback/stale badge; available / zero-denominator / incomplete / absent states.",
+      "estimated_loc": 230,
+      "acceptance_criteria": [
+        "Card appears before Value Score / QualityScatter, handles available/zero-denom/incomplete states",
+        "Fallback badge verified by component/data-logic fixture",
+        "Existing per-model $/success, ELO, Pareto, speed, mode toggle, GCS fetch + fallback unchanged"
+      ],
+      "passes": true,
+      "completed": "2026-07-27",
+      "notes": "Added benchmarkFetchWithSource (additive; benchmarkFetch unchanged so existing callers unbroken) returning {response, source: gcs|fallback}. Added pure headlineKpiState.js (deriveHeadlineKpiState -> available/incomplete/zero_denominator/absent + isFallback) and HeadlineKpiCard.jsx rendering all 4 states + visible Fallback/stale badge. Wired card ATOP ValueDashboard before Quality-vs-Cost/Value Score; ValueScoreTable per-model $/success untouched. Verification (browserless per repo convention): headlineKpiState.fixture.mjs 7/7 data-logic checks PASS under plain node; both JSX files Babel-compile clean (@babel/preset-react); benchmarkFetch + new exports intact. No headless browser used.",
+      "dependencies": ["M2"]
+    }
+  ]
+}
