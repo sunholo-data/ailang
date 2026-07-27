@@ -153,12 +153,30 @@ func checkAPIKeys(models []string) {
 	}
 }
 
-// cleanResults removes old result files
+// preservedEvalArtifacts are files in the output dir that are RUN METADATA, not
+// per-benchmark results, and so must survive cleanResults.
+//
+// cleanResults globs "*.json", which used to mean "delete everything". That
+// silently destroyed cohort_manifest.json: M4a writes it at freeze time (before
+// the run loop, so it records the resolved cohort and chain_id) and cleanResults
+// runs a few lines later, so the artifact the run had just printed as release
+// evidence pointed at a deleted file on every non---skip-existing run.
+// summary.json has the same shape (aggregate, not a result) and is listed for the
+// same reason.
+var preservedEvalArtifacts = map[string]bool{
+	cohortManifestFilename: true,
+	"summary.json":         true,
+}
+
+// cleanResults removes old per-benchmark result files, preserving run metadata.
 func cleanResults(outputDir string) {
-	// Remove JSON files but keep directory structure
+	// Remove result JSON files but keep directory structure and run metadata
 	pattern := filepath.Join(outputDir, "*.json")
 	files, _ := filepath.Glob(pattern)
 	for _, f := range files {
+		if preservedEvalArtifacts[filepath.Base(f)] {
+			continue
+		}
 		_ = os.Remove(f)
 	}
 }

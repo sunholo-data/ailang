@@ -27,6 +27,9 @@ type suiteSummaryParams struct {
 	evalChain   *EvalChainContext
 	suiteSpan   oteltrace.Span
 	duration    time.Duration
+	// cohortManifest is non-nil only for a --baseline freeze run (M4a-2). Its
+	// run_window.completed_at is filled in here, at the end of the run.
+	cohortManifest *CohortManifest
 }
 
 // finalizeSuiteRun reports results, emits completion events, updates Observatory
@@ -85,6 +88,22 @@ func finalizeSuiteRun(p suiteSummaryParams) {
 	} else if p.trialsToRun > 1 {
 		fmt.Printf("Summary: aggregated %d result files into %s/summary.json\n",
 			rs.TotalResultFiles, p.outputDir)
+	}
+
+	// M4a-2: close out the frozen cohort's run window. Best-effort but NEVER
+	// silent — the inverse of the freeze-time write, which is fatal. By this point
+	// a metered run has completed and must not be discarded over a manifest
+	// rewrite, but a reviewer must still be told the artifact is incomplete.
+	if p.cohortManifest != nil {
+		if path, err := finalizeCohortManifest(p.outputDir, p.cohortManifest, time.Now()); err != nil {
+			fmt.Printf("Note: failed to close out the cohort manifest run window: %v\n", err)
+			fmt.Printf("      The frozen cohort ran; its manifest is missing run_window.completed_at.\n")
+		} else {
+			fmt.Printf("Cohort: %s (hash %s)\n", p.cohortManifest.BaselineID, p.cohortManifest.CohortHash)
+			fmt.Printf("  - Manifest: %s\n", path)
+			fmt.Printf("  - KPI:      ailang chains stats --cost-per-verified-success --baseline %s --json --strict\n",
+				p.cohortManifest.BaselineID)
+		}
 	}
 
 	fmt.Println("Results:")

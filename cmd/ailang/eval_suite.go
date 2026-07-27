@@ -13,8 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/agentprompt"
-	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/riglock"
@@ -200,6 +198,14 @@ func runEvalSuite() {
 	evalMicroragMode = eval_harness.ParseMicroragMode(*microragMode)
 	evalFmtHookMode = eval_harness.ParseFmtHookMode(*fmtHookMode)
 
+	// M-EVAL-OS-LONGITUDINAL Phase 3: resolve the trial count ONCE here. It is
+	// read by the dry-run planner, the cohort manifest, the job loop and the
+	// finalizer — three separate `if n < 1 { n = 1 }` clamps had drifted apart.
+	trialsToRun := *numTrials
+	if trialsToRun < 1 {
+		trialsToRun = 1
+	}
+
 	// Parse --conditions flag into a list
 	var conditionList []string
 	if *conditions != "" {
@@ -368,13 +374,9 @@ func runEvalSuite() {
 	// Used by M-EXEC-EXPAND to verify agent_suite expands correctly.
 	if *dryRun {
 		// M-EVAL-OS-LONGITUDINAL Phase 3: include trial dimension in count.
-		trials := *numTrials
-		if trials < 1 {
-			trials = 1
-		}
 		fmt.Printf("Dry-run: %d model(s) x %d benchmark(s) x %d language(s) x %d trial(s) = %d planned runs\n",
-			len(modelList), len(benchmarkList), len(langList), trials,
-			len(modelList)*len(benchmarkList)*len(langList)*trials)
+			len(modelList), len(benchmarkList), len(langList), trialsToRun,
+			len(modelList)*len(benchmarkList)*len(langList)*trialsToRun)
 		fmt.Printf("Models:     %s\n", strings.Join(modelList, ", "))
 		fmt.Printf("Benchmarks: %s\n", strings.Join(benchmarkList, ", "))
 		fmt.Printf("Languages:  %s\n", strings.Join(langList, ", "))
@@ -461,6 +463,21 @@ func runEvalSuite() {
 		conditions: conditionList,
 	})
 
+	// M4a-2: record the cohort manifest. Built HERE on purpose — after model and
+	// benchmark resolution plus the agent-mode model filter (so every list is the
+	// RESOLVED one, never a suite token or a pre-discovery guess), after chain
+	// creation (so chain_id is recorded), and before the run loop.
+	var cohortManifest *CohortManifest
+	if baselineSet {
+		cohortManifest = freezeCohortManifest(*outputDir, cohortManifestParams{
+			baselineID: *baseline, modelSuiteTok: cohortModelSuiteToken(*models, *fullSuite),
+			models: modelList, benchmarks: benchmarkList, languages: langList,
+			conditions: conditionList, evalMode: evalMode, seed: *seed,
+			promptVersion: *promptVersion, trials: trialsToRun, verify: *verify,
+			verifyTimeout: *verifyTimeout, chainID: evalChain.chainID(), startedAt: time.Now(),
+		})
+	}
+
 	fmt.Printf("%s AILANG Benchmark Suite\n", cyan("🚀"))
 	fmt.Println("==========================")
 	fmt.Println()
@@ -527,11 +544,7 @@ func runEvalSuite() {
 	// generates the same single-job-per-(model,benchmark,lang,condition) tuple
 	// as before. --trials N > 1 produces N independent invocations per tuple,
 	// each writing its own result JSON with a "trial" field for downstream
-	// aggregation by SummarizeRotation.
-	trialsToRun := *numTrials
-	if trialsToRun < 1 {
-		trialsToRun = 1
-	}
+	// aggregation by SummarizeRotation. (trialsToRun resolved above.)
 	if trialsToRun > 1 {
 		fmt.Printf("📊 N-trial mode: %d trials per (model, benchmark, language)\n", trialsToRun)
 	}
@@ -605,77 +618,14 @@ func runEvalSuite() {
 		fmt.Println("Self-repair ENABLED (default)")
 	}
 
-	// Configure agent mode if requested
-	var agentConfig *eval_harness.AgentBenchmarkConfig
-	if *agent {
-		// Agent CLI model will be determined per-job based on the code generation model
-		// (unless --agent-model is explicitly provided as override)
-		agentModelOverride := *agentModel
-
-		fmt.Println()
-		fmt.Printf("%s Agent mode ENABLED\n", cyan("🤖"))
-		fmt.Printf("  - Models: %v\n", modelList)
-		if agentModelOverride != "" {
-			fmt.Printf("  - Agent CLI model: %s (override)\n", agentModelOverride)
-		} else {
-			fmt.Printf("  - Agent CLI model: per-model lookup from models.yml\n")
-		}
-		// Dispatch parallelism is governed by -parallel (the runBenchmarksParallel
-		// semaphore). Print THAT value so the banner doesn't mislead the user.
-		fmt.Printf("  - Dispatch parallelism: %d (-parallel flag)\n", *maxConcurrent)
-		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
-		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
-		fmt.Println()
-
-		// M-CONTRACT-EVAL: Load devtools prompt if flag is active or "full" condition is requested
-		var devtoolsContent string
-		needDevtools := evalDevtoolsPromptFlag
-		if !needDevtools {
-			for _, c := range conditionList {
-				if c == "full" {
-					needDevtools = true
-					break
-				}
-			}
-		}
-		if needDevtools {
-			var dtErr error
-			devtoolsContent, dtErr = devtoolsprompt.LoadPrompt("v0.8.0-compact")
-			if dtErr != nil {
-				fmt.Fprintf(os.Stderr, "%s Failed to load devtools prompt: %v\n", yellow("⚠️"), dtErr)
-			}
-		}
-
-		// Load agent coding prompt if "agent_prompt" condition is requested
-		var agentPromptContent string
-		for _, c := range conditionList {
-			if c == "agent_prompt" {
-				var apErr error
-				agentPromptContent, apErr = agentprompt.LoadPrompt("latest")
-				if apErr != nil {
-					fmt.Fprintf(os.Stderr, "%s Failed to load agent prompt: %v\n", yellow("⚠️"), apErr)
-				} else {
-					fmt.Printf("  - Agent prompt loaded (%d bytes)\n", len(agentPromptContent))
-				}
-				break
-			}
-		}
-
-		agentConfig = &eval_harness.AgentBenchmarkConfig{
-			MaxTokensPerBench:  *maxTokensPerBench,
-			RequestsPerSecond:  *agentRequestsPerSecond,
-			TimeoutSeconds:     *agentTimeout,
-			WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),
-			AllowedTools:       []string{"Bash", "Read", "Write", "Edit", "Grep"},
-			ClaudePath:         "claude",           // Use PATH
-			ClaudeModel:        agentModelOverride, // Empty unless override specified
-			Verify:             evalVerifyFlag,     // M-CONTRACT-EVAL: enable contract verification
-			DevtoolsPrompt:     devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
-			AgentPromptContent: agentPromptContent, // Agent coding prompt for "agent_prompt" condition
-			MicroragMode:       evalMicroragMode,   // M-BRAIN-MICRORAG: subprocess env mode
-			FmtHook:            evalFmtHookMode,    // M-EVAL-FMT-WEAKMODEL-AB: fmt PostToolUse hook A/B toggle
-		}
-	}
+	// Configure agent mode if requested (see eval_suite_agent.go).
+	agentConfig := buildAgentSuiteConfig(*agent, agentSuiteConfigParams{
+		models: modelList, conditions: conditionList,
+		agentModelOverride: *agentModel, maxConcurrent: *maxConcurrent,
+		requestsPerSecond: *agentRequestsPerSecond, timeoutSeconds: *agentTimeout,
+		maxTokensPerBench: *maxTokensPerBench,
+		verify:            *verify, verifyTimeout: *verifyTimeout,
+	})
 
 	// M-BRAIN-MICRORAG: For executor-based paths (claude/gemini via internal/executor),
 	// the executors call BuildEnvironment() which inherits os.Environ(). Setting the
@@ -768,15 +718,16 @@ func runEvalSuite() {
 	duration := time.Since(startTime)
 
 	finalizeSuiteRun(suiteSummaryParams{
-		ctx:         ctx,
-		results:     results,
-		outputDir:   *outputDir,
-		totalRuns:   totalRuns,
-		trialsToRun: trialsToRun,
-		taskID:      taskID,
-		evalStore:   evalStore,
-		evalChain:   evalChain,
-		suiteSpan:   suiteSpan,
-		duration:    duration,
+		ctx:            ctx,
+		results:        results,
+		outputDir:      *outputDir,
+		totalRuns:      totalRuns,
+		trialsToRun:    trialsToRun,
+		taskID:         taskID,
+		evalStore:      evalStore,
+		evalChain:      evalChain,
+		suiteSpan:      suiteSpan,
+		duration:       duration,
+		cohortManifest: cohortManifest, // nil unless --baseline (M4a-2)
 	})
 }

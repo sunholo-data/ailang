@@ -36,6 +36,30 @@ type EvalChainContext struct {
 	ChainID string
 }
 
+// modelSuiteResolvers maps a `--models` SUITE TOKEN to its accessor on
+// ModelsConfig. This is the SINGLE source of truth for "which tokens name a
+// suite", shared by:
+//   - expandModelSuite        — resolves the token to its members
+//   - isModelSuiteToken       — records the token in the M4a cohort manifest
+//
+// One table, so a suite cannot become resolvable but unrecorded in the manifest
+// (which would make a frozen cohort's provenance silently incomplete).
+var modelSuiteResolvers = map[string]func(*eval_harness.ModelsConfig) []string{
+	"agent_suite":        func(c *eval_harness.ModelsConfig) []string { return c.AgentSuite },
+	"benchmark_suite":    func(c *eval_harness.ModelsConfig) []string { return c.BenchmarkSuite },
+	"extended_suite":     func(c *eval_harness.ModelsConfig) []string { return c.ExtendedSuite },
+	"dev_models":         func(c *eval_harness.ModelsConfig) []string { return c.DevModels },
+	"ollama_suite":       func(c *eval_harness.ModelsConfig) []string { return c.OllamaSuite },
+	"harness_suite":      func(c *eval_harness.ModelsConfig) []string { return c.HarnessSuite },
+	"lang_harness_suite": func(c *eval_harness.ModelsConfig) []string { return c.LangHarnessSuite },
+}
+
+// isModelSuiteToken reports whether value is a known suite name.
+func isModelSuiteToken(value string) bool {
+	_, ok := modelSuiteResolvers[strings.TrimSpace(value)]
+	return ok
+}
+
 // expandModelSuite resolves a --models argument. If the value is a single
 // token matching a known suite name (e.g. "agent_suite", "benchmark_suite",
 // "extended_suite", "dev_models"), it expands to the composite from
@@ -43,34 +67,9 @@ type EvalChainContext struct {
 func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
 	trimmed := strings.TrimSpace(value)
 	if cfg != nil && !strings.Contains(trimmed, ",") {
-		switch trimmed {
-		case "agent_suite":
-			if len(cfg.AgentSuite) > 0 {
-				return cfg.AgentSuite
-			}
-		case "benchmark_suite":
-			if len(cfg.BenchmarkSuite) > 0 {
-				return cfg.BenchmarkSuite
-			}
-		case "extended_suite":
-			if len(cfg.ExtendedSuite) > 0 {
-				return cfg.ExtendedSuite
-			}
-		case "dev_models":
-			if len(cfg.DevModels) > 0 {
-				return cfg.DevModels
-			}
-		case "ollama_suite":
-			if len(cfg.OllamaSuite) > 0 {
-				return cfg.OllamaSuite
-			}
-		case "harness_suite":
-			if len(cfg.HarnessSuite) > 0 {
-				return cfg.HarnessSuite
-			}
-		case "lang_harness_suite":
-			if len(cfg.LangHarnessSuite) > 0 {
-				return cfg.LangHarnessSuite
+		if resolve, ok := modelSuiteResolvers[trimmed]; ok {
+			if members := resolve(cfg); len(members) > 0 {
+				return members
 			}
 		}
 	}

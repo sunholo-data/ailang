@@ -144,6 +144,16 @@ func conditionRef(conditions []string) string {
 	return ""
 }
 
+// chainID returns the chain id, or "" when the observatory was unavailable
+// (createEvalChain returns nil in that case). Nil-safe so the cohort manifest
+// can record "no chain" explicitly instead of crashing a frozen run.
+func (c *EvalChainContext) chainID() string {
+	if c == nil {
+		return ""
+	}
+	return c.ChainID
+}
+
 // createEvalChain opens the M-EVAL-CHAINS execution chain for an eval-suite run.
 // Each benchmark × model × language × condition later becomes a chain stage.
 //
