@@ -1,0 +1,247 @@
+{
+  "sprint_id": "M-EFFECT-REPLAY-SUBSUMPTION",
+  "title": "Validate-Path Effect-Mode Subsumption (Rand seeded/crypto -> os)",
+  "status": "planned",
+  "target_version": "v1.0.0",
+  "branch": "sprint/m-effect-replay-subsumption",
+  "worktree": ".claude/worktrees/effect-subsumption",
+  "design_doc": "design_docs/planned/v1_0_0/m-effect-replay-subsumption.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-effect-replay-subsumption-sprint-plan.md",
+  "predecessor_sprint": "M-EFFECT-REPLAY-CONTRACTS",
+  "planned_at_head": "54d6bd191e1696526052952000279aafc8bfb9bd",
+  "planned_at_version": "v0.30.0-205-g54d6bd191",
+  "scope_note": "Mark's ratification is NARROW: an explicitly declared effect mode subsumes a bare/os requirement in the SubsumeEffectRows VALIDATE path only. Function-value effect-row unification (Unifier.unifyRows -> effectParamsCompatible) stays INVARIANT and must be byte-unchanged in the diff. Only Rand's seeded->os and crypto->os edges are registered. No runtime, replay-label, seed-sourcing, or Clock/Net/FS work.",
+  "out_of_scope": {
+    "out_of_scope_unification": "internal/types/unification_records.go:411-441 and effectParamsCompatible (internal/types/effects.go:251-253) must not change. A test proves a ! {Rand[mode=seeded]} function value still fails to unify where ! {Rand} is expected.",
+    "out_of_scope_ai_edges": "Do NOT register AI subsumption edges (routeable->fixed / replay-only->fixed) even though examples/ai_modes.ail is RED at HEAD with the identical defect. Parked as Q1 for Mark. M2 acceptance asserts the edge table has EXACTLY two entries.",
+    "out_of_scope_clock_net_fs": "No Clock/Net/FS schema rows, modes, edges, or dispatch. Clock[mode=pinned] still rejects with EFF_PARAMS_NOT_SUPPORTED (verified at HEAD).",
+    "out_of_scope_ci_toplevel_gate": "Wiring make verify-examples-toplevel into ci.yml. It is red today on ai_modes.ail, so it is coupled to Q1. Parked as Q2.",
+    "out_of_scope_runtime": "No changes to internal/eval, internal/effects, internal/replay, rand_seed, AILANG_SEED semantics, or trace schema.",
+    "out_of_scope_inference": "If preserving full declared rows cannot be confined to internal/pipeline/validate_effects.go plus existing row elaboration and would require a type-INFERENCE change, STOP and file a prerequisite item. Do not widen."
+  },
+  "blocking_findings": [
+    {
+      "id": "F1",
+      "severity": "scope_question_parked",
+      "finding": "examples/ai_modes.ail is RED at HEAD with the IDENTICAL defect on the AI effect, so the bug is not Rand-specific and one shipped example is already broken.",
+      "evidence": "./tools/verify_examples.sh exits 1 with exactly one failure: 'TYPE-CHECK FAIL: examples/ai_modes.ail ... lambda at examples/ai_modes.ail:53:8 uses effects not declared in its ! {AI[mode=routeable]} annotation' with an empty Missing effects: payload. summarize_routeable (examples/ai_modes.ail:53) declares ! {AI[mode=routeable]} and calls std/ai.call declared bare ! {AI} (std/ai.ail:418, default mode=fixed).",
+      "consequence": "A Rand-only fix leaves ai_modes.ail red. Registering an AI edge would fix it but exceeds the doc's Rand-only instantiation, and internal/types/effects.go:624-626 comments suggest AI invariance may be deliberate.",
+      "handling": "PARKED as Q1. Default: Rand-only; document ai_modes.ail as pre-existing red. M2 AC-1 asserts exactly two edges so the executor cannot drift."
+    },
+    {
+      "id": "F2",
+      "severity": "corrects_design_doc_acceptance_bar",
+      "finding": "The design doc's acceptance gate 'make verify-examples' does NOT cover examples/modal_rand.ail.",
+      "evidence": "make/examples.mk:18-28 runs scripts/verify_examples.go over examples/runnable/ (178 files). modal_rand.ail and ai_modes.ail are top-level examples/*.ail, covered only by make verify-examples-toplevel -> tools/verify_examples.sh. grep -rn verify-examples .github/workflows/ shows ci.yml:216-227 runs only make verify-examples.",
+      "consequence": "M3 could report a green gate that never executed the acceptance surface.",
+      "handling": "M3 AC-6 requires ./tools/verify_examples.sh explicitly, with its pre-existing ai_modes.ail failure reproduced at the sprint base and documented."
+    },
+    {
+      "id": "F3",
+      "severity": "shapes_M3_design",
+      "finding": "tools/verify_examples.sh:65 hardcodes 'ailang run --caps IO,FS,Clock,Rand --entry main'. After this fix an os-declared main may not call a seeded/crypto callee, and a seeded-declared main without AILANG_SEED is a loud RAND_SEEDED_NO_SEED error. Also, because seeded and crypto are incomparable, no single function can invoke both.",
+      "consequence": "modal_rand.ail cannot demonstrate seeded+crypto from main.",
+      "handling": "M3 AC-2: main stays os-only; seeded and crypto get separate entrypoints exercised by a dedicated test."
+    },
+    {
+      "id": "F4",
+      "severity": "blocking_soundness_for_M1",
+      "finding": "UnionEffectRows SILENTLY prefers row 'a' when two rows carry conflicting params for the same effect (internal/types/effects.go:585-598, 'case len(ap) > 0'). Today harmless because callee params are erased; after M1 preserves them, a body calling both a seeded and an os local helper collapses to one mode and the declaration is validated against the survivor.",
+      "consequence": "If os survives, an os declaration wrongly ACCEPTS a seeded callee -- reintroducing exactly the hole M1 exists to close. The quorum log recorded this as a non-blocking catch; it is required.",
+      "handling": "M1 AC-6 makes multi-mode requirement preservation a hard deliverable with tests in both declaration directions plus source-order independence."
+    },
+    {
+      "id": "F5",
+      "severity": "non_blocking_diagnostic_defect",
+      "finding": "The 'Suggested fix' line provably echoes the WRONG mode back at the user: validate_effects.go:565 calls types.UnionEffectRows(declared, required) with declared first, which under F4's prefer-'a' merge returns the declared params.",
+      "handling": "M2 AC-8: drop the suggestion for mode mismatches or emit the REQUIRED mode."
+    },
+    {
+      "id": "F6",
+      "severity": "regression_risk_for_M1",
+      "finding": "ast.EffectNames returns effect-row VARIABLE names as if they were labels, so mapE's declared ! {e} is today a row with a bogus LABEL 'e'. Under ElaborateEffectRowWithBudgets it becomes Labels:{} with Tail:e -- a shape change for 11 stdlib declarations.",
+      "evidence": "internal/ast/ast.go:116-123; std/list.ail:217,228,239,250,261 (declared ! {e}); std/stream.ail:100,146,178,237 (declared ! {Stream, e}); std/smoke.ail:43,62 (dispatchAllTools/dispatchTool declared ! {IO | e}, the pipe-tail spelling). They pass today only because the collected requirement is nil.",
+      "handling": "M1 AC-5 explicit stdlib row-variable guard, landed before anything else."
+    },
+    {
+      "id": "F7",
+      "severity": "ci_gate_headroom",
+      "finding": "internal/types/effects.go is 720/800 and internal/pipeline/validate_effects.go is 570/800; make check-file-sizes (make/code-health.mk:122-137) is a hard 800-line CI gate.",
+      "handling": "M0: new code goes into internal/types/effect_subsumption.go (and internal/pipeline/validate_effects_rows.go if needed), never appended to effects.go."
+    }
+  ],
+  "verified_premises": [
+    "9-fixture matrix reproduced EXACTLY at HEAD 54d6bd191 with freshly rebuilt binaries: blocker=1(empty payload), c1=0, c2=1(empty), c3=0, c4=1(Missing effects: Rand), c6=1(empty), c7=0, c8=0, clock=1(EFF_PARAMS_NOT_SUPPORTED). Exit codes read by direct invocation, no pipes. The design doc's 'modes are not currently invariant' correction STANDS.",
+    "Exactly 3 production SubsumeEffectRows call sites: internal/pipeline/validate_effects.go:160 (lambda), :221 (LetRec), :245 (Let). EffectRowDifference also at :161 and :542.",
+    "Sites :221 and :245 are DOUBLY blind today -- declared is stringSliceToEffectRow(EffectNames(...)) so the DECLARATION's own modes are erased too. That is why every user-visible rejection comes from the lambda site :160.",
+    "declaredEffects map[string][]string built with ast.EffectNames at validate_effects.go:110-114; local-callee row rebuilt at :366-373.",
+    "ast.EffectNames returns names only: internal/ast/ast.go:116-123.",
+    "Bare Rand normalises to mode=os via effectiveParamsOf (internal/types/effects.go:219-232) and DefaultModeFor (:165-170).",
+    "effectSchema is the single source of truth for legal (effect, mode) pairs: internal/types/effects.go:36-48. Rand: os|seeded|crypto. AI: mode fixed|routeable|replay-only, scope byok. Clock/Net/FS have no rows.",
+    "Unification is a separate invariant path: Unifier.unifyRows internal/types/unification_records.go:411, param check :427-441 via effectParamsCompatible (effects.go:251-253).",
+    "TestSubsumeEffectRows_InvariantOnParams at internal/types/effect_params_test.go:372-394 directly tests SubsumeEffectRows (validate path), NOT unification -- rewrite, do not delete.",
+    "types.ElaborateEffectRowWithBudgets exists at internal/types/effects.go:369 and handles params, budgets, min-budgets and row variables; it RETURNS an error for unknown effects and illegal params.",
+    "Runtime dispatch already captures and pushes the declared non-os Rand mode: FunctionValue.EffectRandMode (internal/eval/value.go:313) set from extractRandMode (internal/eval/eval_expressions.go:192,199-215).",
+    "Seeded runtime source and AILANG_SEED plumbing exist: internal/effects/context.go:497-500 (seedSet), internal/effects/rand_mode_test.go (RAND_SEEDED_NO_SEED is a loud typed error, not a silent fallback).",
+    "Replay contract labels unchanged and legal-mode-checked: internal/replay/contracts.go:23-40,67-75.",
+    "ValidateEffects callers: internal/pipeline/pipeline_single.go:412 and pipeline_module_compile.go:341 (both pass typeChecker.DeclaredLambdaEffectRow); internal/repl/repl_eval.go:125 passes surfaceAST=nil with no lambda lookup.",
+    "Reusable fixture harness: check386 at internal/pipeline/effect_row_show_interp_test.go:26-45 runs the FULL module pipeline (Config{RelaxModules:true, NoCache:true}) so 'import std/rand' resolves. compileAndValidateEffects (effect_soundness_test.go:16-39) does NOT resolve imports and is insufficient for blocker/c1/c2/c6.",
+    "Go source tree is clean at HEAD: git diff --stat HEAD -- '*.go' 'go.mod' 'go.sum' 'Makefile' is empty; the -dirty version suffix is only docs/static/benchmarks/*.json."
+  ],
+  "velocity": {
+    "target_loc_per_day": 430,
+    "estimated_total_loc": 1120,
+    "estimated_days": 2.5,
+    "ceiling_days": 3.5,
+    "basis": "Previous mission sprint M-COST-KPI-M4A landed ~500 LOC in 0.75 day at a 900 LOC/day target. This sprint is compiler-core with a soundness direction, so the plan budgets ~2.5x that per-LOC time."
+  },
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "Make room for new code (file-size gate)",
+      "description": "Create internal/types/effect_subsumption.go for the subsumption-edge table, validation predicate and structured diff. If pipeline plumbing exceeds ~150 lines, create internal/pipeline/validate_effects_rows.go. Do NOT append to the 720-line internal/types/effects.go. Folded into M1's day but done FIRST.",
+      "estimated_loc": 20,
+      "estimated_hours": 0.5,
+      "dependencies": [],
+      "files": [
+        "internal/types/effect_subsumption.go (NEW)",
+        "internal/pipeline/validate_effects_rows.go (NEW, conditional)"
+      ],
+      "acceptance_criteria": [
+        "make check-file-sizes green immediately after the extraction, before any behaviour is added",
+        "internal/types/effects.go stays under 800 lines for the whole sprint",
+        "internal/pipeline/validate_effects.go stays under 800 lines for the whole sprint"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1",
+      "name": "Preserve declared rows through validation; pin the pre-relaxation matrix",
+      "description": "Replace the validation-only map[string][]string with map[string]*types.Row built from funcDecl.Effects via types.ElaborateEffectRowWithBudgets. Thread full rows through validateDecl, validateLambdaAnnotations and collectRequiredEffects so BOTH the declaration side (sites :221/:245) and the local-callee side (:366-373) stop erasing modes. Handle F4 multi-mode requirements. Pin the pre-relaxation matrix. NO relaxation yet -- this milestone makes the tree strictly MORE rejecting.",
+      "estimated_loc": 430,
+      "estimated_hours": 6,
+      "dependencies": [
+        "M0"
+      ],
+      "files": [
+        "internal/pipeline/validate_effects.go (:110-114 declared map, :202-255 validateDecl, :148-199 validateLambdaAnnotations, :357-399 collectRequiredEffects App case, :270-285 stringSliceToEffectRow)",
+        "internal/pipeline/validate_effects_rows.go (NEW, conditional)",
+        "internal/pipeline/effect_mode_subsumption_test.go (NEW: c1-c8 + blocker fixtures)",
+        "internal/pipeline/validate_effects_test.go (call-site updates only if signatures move)",
+        "internal/pipeline/effect_soundness_test.go (call-site updates only if signatures move)"
+      ],
+      "acceptance_criteria": [
+        "declaredEffects is map[string]*types.Row built via types.ElaborateEffectRowWithBudgets(funcDecl.Effects); an elaboration error is RETURNED, never swallowed into a nil row (CLAUDE.md no-silent-fallbacks)",
+        "Local-call collection at validate_effects.go:366-373 uses the preserved row; stringSliceToEffectRow is deleted from that site (kept only for the REPL surfaceAST==nil path, with a comment saying why)",
+        "Stored declaration rows are immutable to collection: validating a decl twice yields identical Params/Budgets/MinBudgets on the stored row (explicit test; copy before any union)",
+        "PRE-RELAXATION matrix pinned as a test with exit codes read by direct invocation: c3 flips 0->1, c7 flips 0->1, c8 flips 0->1; blocker/c2/c6 remain 1; c1 remains 0; c4 remains 1 with 'Missing effects: Rand'",
+        "F6 guard: ailang check still passes for every effect-row-variable declaration -- std/list.ail mapE/filterE/foldlE/flatMapE/forEachE, std/stream.ail onEvent/selectEvents/withStream/withSSE, std/smoke.ail:43,62 (! {IO | e} pipe-tail spelling) -- plus a pipeline test importing std/list and using mapE with an effectful callback",
+        "F4 multi-mode: a body calling BOTH a seeded local helper and an os local helper does not collapse to one mode. declared os + demands {seeded,os} REJECTS naming seeded; declared seeded + demands {seeded,os} still rejects at M1 and accepts at M2; imported-callee analogue covered; swapping the two call sites in the source does not change the verdict",
+        "go test ./internal/pipeline/... ./internal/types/... ./internal/repl/... green",
+        "make check-file-sizes, make check-boundaries, make lint green",
+        "Both example gates run at the END of M1 (make verify-examples AND ./tools/verify_examples.sh) and any NEW red is listed before proceeding to M2"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "name": "Validate-only asymmetric subsumption + structured mode diagnostics",
+      "description": "Register Rand's seeded->os and crypto->os subsumption edges alongside effectSchema and have SubsumeEffectRows consult them for the mode key only. All other parameter keys stay invariant; a non-default required mode never passes against a different mode; unregistered modes get no fallback. Replace the label-only EffectRowDifference at both diagnostic sites with a structured difference reporting effect, key, required value and declared value.",
+      "estimated_loc": 460,
+      "estimated_hours": 8,
+      "dependencies": [
+        "M1"
+      ],
+      "files": [
+        "internal/types/effect_subsumption.go (subsumptionEdges, ModeSubsumes, structured EffectRowDiff)",
+        "internal/types/effects.go (SubsumeEffectRows :628-650 consults edges; doc-comment as validation subsumption, NOT function-type compatibility)",
+        "internal/pipeline/validate_effects.go (:158-166 lambda error, :540-570 formatEffectError)",
+        "internal/types/effect_params_test.go (:372-394 rewrite TestSubsumeEffectRows_InvariantOnParams -> TestSubsumeEffectRows_AsymmetricValidationOrdering)",
+        "internal/types/effect_subsumption_test.go (NEW)",
+        "internal/types/unification_invariance_test.go (NEW or folded into existing unification tests)",
+        "internal/pipeline/effect_mode_subsumption_test.go (flip expectations to the final matrix)"
+      ],
+      "acceptance_criteria": [
+        "subsumptionEdges registers ONLY Rand seeded->os and Rand crypto->os; a test asserts the table has EXACTLY those two entries and that AI/Clock/Net/FS have none",
+        "Ordered-pair table test on (declared, required): (os,os) (seeded,seeded) (crypto,crypto) (seeded,os) (crypto,os) PASS; (os,seeded) (os,crypto) (seeded,crypto) (crypto,seeded) FAIL",
+        "Bare vs explicit-os equivalence holds on BOTH sides: bare declared covers explicit-os required and vice versa; bare declared does NOT cover seeded/crypto required",
+        "Non-mode parameter keys stay invariant -- tested with AI scope=byok",
+        "A registered DEFAULT grants no subsumption: AI has DefaultModeFor=fixed and no edges, so declared AI[mode=routeable] does NOT cover required AI[mode=fixed]",
+        "effectParamsCompatible (internal/types/effects.go:251-253) and Unifier.unifyRows (internal/types/unification_records.go:411-441) are byte-unchanged in the diff, and a unification test proves a ! {Rand[mode=seeded]} function value still fails where ! {Rand} is expected",
+        "Structured diagnostic replaces EffectRowDifference at BOTH validate_effects.go:161 and :542, reporting effect name, param key, required value and declared value (e.g. 'Effect mode mismatch: Rand requires mode=seeded; declaration provides mode=os')",
+        "No rejection may EVER print an empty 'Missing effects:' -- asserted by a test that inspects the output of every red fixture. A genuinely absent label still prints 'Missing effects: Rand'",
+        "F5: the Suggested fix line no longer echoes the declared (wrong) mode -- either dropped for mode mismatches or emits the required mode",
+        "FINAL matrix, exit codes by direct invocation: blocker 0, c1 0, c2 0, c3 1 (names Rand, required seeded, declared os), c4 1 (Missing effects: Rand), c6 0, c7 1 (required seeded, declared os), c8 1 (required crypto, declared os)",
+        "make test, make lint, make check-boundaries, make check-file-sizes green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "name": "End-to-end Rand acceptance and documentation",
+      "description": "Delete the KNOWN LIMITATION block from examples/modal_rand.ail (lines 28-37) and add runnable seeded and crypto paths through std/rand. Per F3, main stays os-only and the seeded/crypto demos live in separate entrypoints exercised by a dedicated test. Update the parameterised-effects guide, the parent design doc's status note, and CHANGELOG.",
+      "estimated_loc": 210,
+      "estimated_hours": 6,
+      "dependencies": [
+        "M2"
+      ],
+      "files": [
+        "examples/modal_rand.ail (delete KNOWN LIMITATION lines 28-37; add seeded + crypto funcs and separate entrypoints)",
+        "internal/eval/ or cmd/ailang/ seeded-determinism integration test (NEW)",
+        "docs/docs/guides/parameterised-effects.md",
+        "design_docs/implemented/v0_30_0/m-effect-replay-contracts.md (remove the now-obsolete limitation note only)",
+        "CHANGELOG.md",
+        "design_docs/planned/v1_0_0/m-effect-replay-subsumption.md -> design_docs/implemented/ per repo convention"
+      ],
+      "acceptance_criteria": [
+        "./bin/ailang check examples/modal_rand.ail exits 0",
+        "F3 shape honoured: main stays declared ! {Rand, IO} and calls ONLY os-mode functions (tools/verify_examples.sh:65 hardcodes --entry main, and a seeded main without AILANG_SEED is a loud RAND_SEEDED_NO_SEED error). Seeded and crypto demos are separate entrypoints (e.g. main_seeded, main_crypto) documented in the example header. No single function calls both seeded and crypto -- they are incomparable",
+        "Determinism: two runs of --entry main_seeded with the SAME AILANG_SEED produce byte-identical output",
+        "NON-VACUITY control: a DIFFERENT AILANG_SEED produces DIFFERENT output (without this the determinism test passes on a constant)",
+        "--entry main_crypto runs clean with no AILANG_SEED and is not asserted deterministic",
+        "Trace coverage still reports deterministic for seeded and opaque for crypto",
+        "F2 gate correction: ./tools/verify_examples.sh (make verify-examples-toplevel) is RUN and its output recorded. It is expected to still fail on examples/ai_modes.ail; that failure must be reproduced at the sprint base BEFORE any change and documented as pre-existing. Do NOT register an AI subsumption edge to make it green (see Q1)",
+        "make test, make lint, make verify-examples, make check-boundaries, make check-file-sizes green, or any red reproduced on a pristine base and documented",
+        "CHANGELOG entry under [Unreleased]"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "stop_conditions": [
+    "If preserving full declared rows cannot be confined to internal/pipeline/validate_effects.go plus existing row elaboration and would require changing type INFERENCE, STOP and file a prerequisite item (the design doc's own escalation trigger; recommendation on record is to stop)",
+    "If M1's stricter direction turns more than 2 examples/runnable/ files red, STOP and report the list before 'fixing' them -- that is evidence the erasure was load-bearing somewhere unexpected",
+    "If making the diagnostic structured requires changing types.Row, STOP and report"
+  ],
+  "open_questions_for_human": [
+    "Q1 (scope): examples/ai_modes.ail is RED at HEAD with the IDENTICAL defect on the AI effect -- summarize_routeable (examples/ai_modes.ail:53) declared ! {AI[mode=routeable]} calls std/ai.call declared bare ! {AI} (= mode=fixed) and is rejected with the same empty 'Missing effects:'. Mark's ratified wording was effect-generic ('declared mode subsumes bare/os requirement'); the design doc instantiates it for Rand only. Should this sprint ALSO register AI's routeable->fixed (and replay-only->fixed?) subsumption edges -- which would fix a shipped example that is broken today -- or does AI keep invariant behaviour, leaving ai_modes.ail red until a separate item? Default if unanswered: Rand-only, ai_modes.ail documented as pre-existing red. Counter-argument on record: internal/types/effects.go:624-626 says invariance exists specifically so 'the routeable->fixed example becomes a typecheck rejection', which may be a deliberate AI-specific choice rather than the same bug.",
+    "Q2 (process, low urgency): tools/verify_examples.sh / make verify-examples-toplevel is the ONLY gate covering top-level examples/*.ail (including modal_rand.ail, this sprint's acceptance surface) and it is NOT wired into CI -- ci.yml:216-227 runs only make verify-examples, which covers examples/runnable/. Should it be added to CI? It cannot be added until Q1 is answered because it is red today. Recommendation: not in this sprint; follow-up coupled to Q1."
+  ],
+  "github_issues": [],
+  "gates": {
+    "required": [
+      "make test",
+      "make lint",
+      "make check-boundaries",
+      "make check-file-sizes",
+      "make verify-examples",
+      "./tools/verify_examples.sh (make verify-examples-toplevel) -- expected red on the PRE-EXISTING examples/ai_modes.ail only"
+    ],
+    "metered_spend_usd": 0,
+    "benchmarks_executed": 0
+  },
+  "started": null,
+  "completed": null,
+  "commits": []
+}
