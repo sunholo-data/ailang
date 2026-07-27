@@ -57,7 +57,17 @@ func chainsStatsCommand() {
 	bySourcePrefix := fs.String("by-source-prefix", "", "Group by an arbitrary source_ref prefix (e.g. 'mission:v1/')")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	strict := fs.Bool("strict", false, "Exit non-zero if any stage has unattributable (unknown) cost")
+	costPerVerifiedSuccess := fs.Bool("cost-per-verified-success", false, "Compute the frozen-cohort cost-per-verified-success KPI (M-COST-PER-SUCCESS-KPI)")
+	baseline := fs.String("baseline", "", "Frozen cohort baseline id/source_ref prefix for --cost-per-verified-success (e.g. 'v1.0')")
 	fs.Parse(flag.Args()[2:])
+
+	// M-COST-PER-SUCCESS-KPI: the headline KPI is its own strict surface. It
+	// reuses the observatory rollup (never recomputes cost) and emits the exact
+	// same struct the HTTP handler and latest.json publisher serialize.
+	if *costPerVerifiedSuccess {
+		chainsStatsCostPerVerifiedSuccess(*baseline, *hours, *jsonOutput, *strict)
+		return
+	}
 
 	// M3: --by-mission / --by-source-prefix delegate to the mission rollup surface.
 	if *byMission || *bySourcePrefix != "" {

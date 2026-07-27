@@ -360,6 +360,12 @@ type DashboardJSON struct {
 	// Grading provenance stamp (M-EVAL-OUTPUT-NORMALIZE): tells the page these
 	// numbers are regraded (boolean-case + numeric parity).
 	Grading map[string]interface{} `json:"grading,omitempty"`
+	// M-COST-PER-SUCCESS-KPI (M2): additive headline-KPI snapshot. Currently
+	// carries costPerVerifiedSuccess (the canonical observatory rollup result,
+	// serialized verbatim). Additive + omitempty so every existing consumer
+	// (models/agentModels/aggregates/ratings/efficiency) is byte-stable when the
+	// key is absent. No baseline is materialized until M4 (Mark-gated).
+	HeadlineKpis map[string]interface{} `json:"headlineKpis,omitempty"`
 }
 
 // HistoryEntry represents a single version's data in the history array

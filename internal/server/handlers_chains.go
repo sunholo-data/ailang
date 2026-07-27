@@ -458,6 +458,15 @@ func (s *Server) handleChainsStats(w http.ResponseWriter, r *http.Request) {
 		timeWindow = strconv.Itoa(hours) + " hours"
 	}
 
+	// M-COST-PER-SUCCESS-KPI (M2): additive headline-KPI surface. When requested,
+	// return the canonical cost-per-verified-success result — the EXACT same
+	// struct the CLI (--json) and latest.json publisher serialize, computed by
+	// the SAME observatory rollup (no SQL/cost logic duplicated in the handler).
+	if q.Get("cost_per_verified_success") == "true" {
+		s.handleCostPerVerifiedSuccess(w, r, createdAfter)
+		return
+	}
+
 	// Single SQL query for chain counts by status (replaces fetch-all + Go loop, M-PERF-OBSERVATORY)
 	counts, err := s.obsBackend.GetChainStatusCounts(ctx, createdAfter)
 	if err != nil {
@@ -493,6 +502,53 @@ func (s *Server) handleChainsStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		log.Printf("Failed to encode chain stats: %v", err)
+	}
+}
+
+// handleCostPerVerifiedSuccess serves the additive headline KPI
+// (M-COST-PER-SUCCESS-KPI, M2) for GET /api/chains/stats?cost_per_verified_success=true.
+// Query params:
+//   - baseline: frozen-cohort id / chains.source_ref prefix (required, e.g. "v1.0")
+//   - hours:    optional cohort window (createdAfter is passed by the caller)
+//
+// It calls the SAME observatory rollup as the CLI and publisher and serializes
+// the identical struct. The KPI's own `available`/`reason` fields carry
+// completeness (never a silent $0); an unavailable KPI is still HTTP 200 with
+// available=false so the dashboard can render the Incomplete state.
+func (s *Server) handleCostPerVerifiedSuccess(w http.ResponseWriter, r *http.Request, createdAfter *time.Time) {
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "Cost-per-verified-success requires the SQLite observatory backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	baseline := r.URL.Query().Get("baseline")
+	if baseline == "" {
+		http.Error(w, "baseline query param is required (frozen cohort source_ref prefix, e.g. v1.0)", http.StatusBadRequest)
+		return
+	}
+
+	// Normalize the baseline id into a delimited source_ref prefix so "v1.0"
+	// never accidentally matches "v1.05".
+	sourceRef := baseline
+	if sourceRef[len(sourceRef)-1] != '/' {
+		sourceRef += "/"
+	}
+
+	res, err := sqliteBackend.Store().CostPerVerifiedSuccess(r.Context(), observatory.CostPerVerifiedSuccessOptions{
+		BaselineID:   baseline,
+		SourceRef:    sourceRef,
+		CreatedAfter: createdAfter,
+	})
+	if err != nil {
+		log.Printf("Failed to compute cost-per-verified-success: %v", err)
+		http.Error(w, "Failed to compute cost-per-verified-success", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		log.Printf("Failed to encode cost-per-verified-success: %v", err)
 	}
 }
 
