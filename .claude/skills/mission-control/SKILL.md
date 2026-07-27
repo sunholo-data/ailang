@@ -143,9 +143,33 @@ before the Gate-3b fetch caught it). Before reading ANY local mission state:
 
 ```bash
 git fetch origin
-git rev-parse --short dev origin/dev          # differ? origin is ground truth
+git rev-parse dev origin/dev                  # differ? origin is ground truth. NO --short: see below
 git log --oneline dev..origin/dev             # commits your working tree is missing
 ```
+
+**`git rev-parse --short` accepts exactly ONE revision** (fixed 2026-07-27 iteration 108). This
+snippet carried `--short dev origin/dev` for months; it fails `fatal: Needed a single revision`
+(rc=128) **100% of the time, in every repo** — `--short HEAD HEAD` fails identically, so it is the
+flag, not the refs. Iterations 55/56/57/58 all hit it, and all four concluded it was a *transient
+ref-lock race that self-heals on retry*; iteration 56 explicitly tested `remote.origin.fetch`,
+refuted the snippet-bug hypothesis, and recorded "a race has no code fix". **The retry was a
+different command** — a single-arg `git rev-parse origin/dev` — so each retry silently swapped in a
+valid form and the fix got attributed to elapsed time. Measured at iteration 108: two-arg with
+`--short` rc=128 **5/5**; without `--short` rc=0 **5/5**; single-arg with `--short` rc=0 **5/5**.
+If you want short SHAs from both, use `git rev-parse --short dev; git rev-parse --short origin/dev`
+as separate calls, or drop `--short` as above.
+
+Two general lessons, both cheap and both repeatedly earned:
+
+- **A failed check is not a passed check.** This one fataled to *stderr* and printed nothing to
+  stdout, so it looked exactly like the adjacent `git log dev..origin/dev` printing nothing because
+  the branches are in sync — a broken sync check wearing the all-clear's clothes. Gate 1's whole job
+  is deciding whether local state is trustworthy, so read the **exit code**, not the silence.
+- **"It self-healed on retry" is a claim about your retry, not about time.** Before recording
+  anything as transient, confirm the retry ran the *identical* command; if you changed the
+  instrument, you measured the instrument. Same family as "a parked test is a claim, not evidence"
+  and "exit codes through pipes lie" — the instrument's own validity must be established before its
+  reading counts as evidence. Four iterations paid for this one, each cheaply enough to wave through.
 
 If local dev is behind origin/dev, read the mission doc + log + queue tags FROM ORIGIN
 (`git show origin/dev:design_docs/v1-mission.md`, `…:v1-mission-log.md`) — a GitHub squash/merge
