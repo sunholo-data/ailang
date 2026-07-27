@@ -181,7 +181,20 @@ type EvalQueryOptions struct {
 	EvalMode    string // "standard" or "agent"
 	SuccessOnly bool   // Only passing benchmarks (stdout_ok = true)
 	FailureOnly bool   // Only failing benchmarks (stdout_ok = false)
-	Limit       int
+
+	// Cohort/baseline filter (M-COST-PER-SUCCESS-KPI, M1).
+	//
+	// These select a frozen benchmark cohort by the CHAIN's source_ref and
+	// creation window — NOT by any eval_assessment JSON field. They join to the
+	// parent execution_chains row. The cohort is parameterized only; no v1.0
+	// cohort is materialized until M4 (Mark-gated). SourceRefPrefix matches by
+	// prefix (e.g. "v1.0/") so a whole immutable-baseline family is selectable
+	// while explicitly excluding mission-development spend ("mission:...").
+	SourceRefPrefix string     // Prefix match on chains.source_ref (cohort family)
+	CreatedAfter    *time.Time // chains.created_at > this (cohort window start)
+	CreatedBefore   *time.Time // chains.created_at <= this (cohort window end)
+
+	Limit int
 }
 
 // ChainListOptions specifies filters for listing chains.

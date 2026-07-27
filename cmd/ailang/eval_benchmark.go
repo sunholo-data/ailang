@@ -359,12 +359,20 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				StdoutOk:       result.StdoutOk,
 				ErrorCategory:  string(eval_harness.CategorizeRunError(result.CompileOk, result.RuntimeOk, result.StdoutOk, result.Stderr)),
 				FirstAttemptOk: result.Success,
-				PromptVersion:  result.PromptVersion,
-				CodeHash:       telemetry.ShortHash(result.SolutionCode, 8),
-				Code:           telemetry.Truncate(result.SolutionCode, 2000),
-				Stdout:         telemetry.Truncate(result.Stdout, 500),
-				ExpectedStdout: telemetry.Truncate(spec.ExpectedOut, 500),
-				Stderr:         telemetry.Truncate(result.Stderr, 500),
+				// Contract verification (M-COST-PER-SUCCESS-KPI M1): carry the 5
+				// verify_* fields so the banked eval_assessment can distinguish a
+				// golden-output pass from an independently verified program.
+				VerifyOk:        result.VerifyOk,
+				VerifyVerified:  result.VerifyVerified,
+				VerifyCounterex: result.VerifyCounterex,
+				VerifySkipped:   result.VerifySkipped,
+				VerifyErrors:    result.VerifyErrors,
+				PromptVersion:   result.PromptVersion,
+				CodeHash:        telemetry.ShortHash(result.SolutionCode, 8),
+				Code:            telemetry.Truncate(result.SolutionCode, 2000),
+				Stdout:          telemetry.Truncate(result.Stdout, 500),
+				ExpectedStdout:  telemetry.Truncate(spec.ExpectedOut, 500),
+				Stderr:          telemetry.Truncate(result.Stderr, 500),
 			}
 			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 
@@ -629,12 +637,19 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			FirstAttemptOk: metrics.StdoutOk,
 			RepairUsed:     metrics.RepairUsed,
 			RepairOk:       metrics.RepairOk,
-			PromptVersion:  actualPromptVersion,
-			CodeHash:       telemetry.ShortHash(metrics.Code, 8),
-			Code:           telemetry.Truncate(metrics.Code, 2000),
-			Stdout:         telemetry.Truncate(metrics.Stdout, 500),
-			ExpectedStdout: telemetry.Truncate(spec.ExpectedOut, 500),
-			Stderr:         telemetry.Truncate(metrics.Stderr, 500),
+			// Contract verification (M-COST-PER-SUCCESS-KPI M1): standard-mode
+			// verification evidence, banked identically to the agent path.
+			VerifyOk:        metrics.VerifyOk,
+			VerifyVerified:  metrics.VerifyVerified,
+			VerifyCounterex: metrics.VerifyCounterex,
+			VerifySkipped:   metrics.VerifySkipped,
+			VerifyErrors:    metrics.VerifyErrors,
+			PromptVersion:   actualPromptVersion,
+			CodeHash:        telemetry.ShortHash(metrics.Code, 8),
+			Code:            telemetry.Truncate(metrics.Code, 2000),
+			Stdout:          telemetry.Truncate(metrics.Stdout, 500),
+			ExpectedStdout:  telemetry.Truncate(spec.ExpectedOut, 500),
+			Stderr:          telemetry.Truncate(metrics.Stderr, 500),
 		}
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, metrics.CostUSD,

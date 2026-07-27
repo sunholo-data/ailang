@@ -66,58 +66,83 @@ func (s *Store) GetStageEvalAssessment(ctx context.Context, stageID string) (*Ev
 // QueryEvalResults returns chain stages that have eval assessments, with optional filters.
 // Uses json_extract() for filtering on assessment fields.
 func (s *Store) QueryEvalResults(ctx context.Context, opts EvalQueryOptions) ([]*ChainStage, error) {
+	// The cohort/baseline filter (M-COST-PER-SUCCESS-KPI) selects by the parent
+	// chain's source_ref and creation window, so it requires a JOIN to
+	// execution_chains. We only add the JOIN when a cohort filter is present to
+	// keep the common (assessment-only) path cheap. Columns are qualified with
+	// `cs.` in every case so both shapes scan identically.
+	needChainJoin := opts.SourceRefPrefix != "" || opts.CreatedAfter != nil || opts.CreatedBefore != nil
+
+	from := "FROM chain_stages cs"
+	if needChainJoin {
+		from = "FROM chain_stages cs JOIN execution_chains c ON cs.chain_id = c.id"
+	}
+
 	query := `
-		SELECT id, chain_id, stage_number, agent_id, provider,
-		       message_id, task_id, session_id,
-		       status, approval_status, approval_type,
-		       handoff_to, iteration, human_feedback,
-		       started_at, completed_at,
-		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
-		       error_message, error_count,
-		       eval_assessment
-		FROM chain_stages
-		WHERE eval_assessment IS NOT NULL
+		SELECT cs.id, cs.chain_id, cs.stage_number, cs.agent_id, cs.provider,
+		       cs.message_id, cs.task_id, cs.session_id,
+		       cs.status, cs.approval_status, cs.approval_type,
+		       cs.handoff_to, cs.iteration, cs.human_feedback,
+		       cs.started_at, cs.completed_at,
+		       cs.cost, cs.tokens_in, cs.tokens_out, cs.turns, cs.tool_calls, cs.duration_ms,
+		       cs.error_message, cs.error_count,
+		       cs.eval_assessment
+		` + from + `
+		WHERE cs.eval_assessment IS NOT NULL
 	`
 	var args []interface{}
+
+	if opts.SourceRefPrefix != "" {
+		query += " AND c.source_ref LIKE ?"
+		args = append(args, opts.SourceRefPrefix+"%")
+	}
+	if opts.CreatedAfter != nil {
+		query += " AND c.created_at > ?"
+		args = append(args, *opts.CreatedAfter)
+	}
+	if opts.CreatedBefore != nil {
+		query += " AND c.created_at <= ?"
+		args = append(args, *opts.CreatedBefore)
+	}
 
 	if opts.ChainID != "" {
 		// Support short ID prefix matching (like git)
 		if len(opts.ChainID) < 36 {
-			query += " AND chain_id LIKE ?"
+			query += " AND cs.chain_id LIKE ?"
 			args = append(args, opts.ChainID+"%")
 		} else {
-			query += " AND chain_id = ?"
+			query += " AND cs.chain_id = ?"
 			args = append(args, opts.ChainID)
 		}
 	}
 	if opts.Model != "" {
-		query += " AND json_extract(eval_assessment, '$.model') = ?"
+		query += " AND json_extract(cs.eval_assessment, '$.model') = ?"
 		args = append(args, opts.Model)
 	}
 	if opts.Language != "" {
-		query += " AND json_extract(eval_assessment, '$.language') = ?"
+		query += " AND json_extract(cs.eval_assessment, '$.language') = ?"
 		args = append(args, opts.Language)
 	}
 	if opts.BenchmarkID != "" {
-		query += " AND json_extract(eval_assessment, '$.benchmark_id') = ?"
+		query += " AND json_extract(cs.eval_assessment, '$.benchmark_id') = ?"
 		args = append(args, opts.BenchmarkID)
 	}
 	if opts.Condition != "" {
-		query += " AND json_extract(eval_assessment, '$.condition') = ?"
+		query += " AND json_extract(cs.eval_assessment, '$.condition') = ?"
 		args = append(args, opts.Condition)
 	}
 	if opts.EvalMode != "" {
-		query += " AND json_extract(eval_assessment, '$.eval_mode') = ?"
+		query += " AND json_extract(cs.eval_assessment, '$.eval_mode') = ?"
 		args = append(args, opts.EvalMode)
 	}
 	if opts.SuccessOnly {
-		query += " AND json_extract(eval_assessment, '$.stdout_ok') = 1"
+		query += " AND json_extract(cs.eval_assessment, '$.stdout_ok') = 1"
 	}
 	if opts.FailureOnly {
-		query += " AND json_extract(eval_assessment, '$.stdout_ok') = 0"
+		query += " AND json_extract(cs.eval_assessment, '$.stdout_ok') = 0"
 	}
 
-	query += " ORDER BY stage_number ASC"
+	query += " ORDER BY cs.stage_number ASC"
 
 	if opts.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", opts.Limit)
