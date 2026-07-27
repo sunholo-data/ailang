@@ -32,6 +32,17 @@ func chainsStatsCostPerVerifiedSuccess(baseline string, hours int, jsonOutput, s
 		os.Exit(1)
 	}
 
+	// BF-2: the baseline id becomes an UNESCAPED SQL LIKE pattern in
+	// store_chains_eval.go (`c.source_ref LIKE ?`, no ESCAPE clause), so '_' and
+	// '%' are wildcards that would silently WIDEN the queried cohort. Reuse the
+	// SAME validator the freeze side uses (cmd/ailang/eval_suite_cohort.go) so a
+	// frozen id is always queryable and a queryable id could always have been
+	// frozen — one charset, both sides.
+	if err := validateBaselineID(baseline); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: --baseline: %v\n", err)
+		os.Exit(1)
+	}
+
 	dbPath := observatory.DefaultDatabasePath()
 	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
 	if err != nil {

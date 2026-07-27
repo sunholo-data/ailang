@@ -136,6 +136,13 @@ func runEvalSuite() {
 	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
 	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full,tool_aware). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
 
+	// Cohort freeze (M-COST-PER-SUCCESS-KPI M4a). Name is deliberately symmetric
+	// with the READ side (`ailang chains stats --cost-per-verified-success
+	// --baseline <id>`): the freeze command and the query command use the same
+	// word for the same value. No --source-ref alias — two spellings for one
+	// cohort key is a drift vector.
+	baseline := fs.String("baseline", "", "Bank this run under an immutable baseline cohort ref so `ailang chains stats --cost-per-verified-success --baseline <id>` finds it. Writes chains.source_ref as <id>/<taskID>/<mode>[/<cond>] and a cohort_manifest.json in the output dir. Requires --verify. Charset: "+baselineIDPattern+" (e.g. v1.0, v1.0-rc1). Empty (default) = today's timestamp/correlation source_ref.")
+
 	// μRAG injection toggle (M-BRAIN-MICRORAG)
 	// auto: respect inherited env (default).
 	// on:   force AILANG_MICRORAG_ENABLED=1 in subprocess env.
@@ -156,6 +163,16 @@ func runEvalSuite() {
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Cohort-freeze pre-flight (M-COST-PER-SUCCESS-KPI M4a) — see
+	// validateCohortFreeze in eval_suite_cohort.go. Deliberately the FIRST thing
+	// after flag parsing: both failures it catches would otherwise only surface
+	// after an expensive metered run had already been paid for.
+	baselineSet := flagWasSet(fs, "baseline")
+	if err := validateCohortFreeze(baselineSet, *baseline, *verify); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -438,6 +455,7 @@ func runEvalSuite() {
 	// See eval_suite_cohort.go for the source_ref composition (the cohort write side).
 	evalMode := evalModeName(*agent)
 	evalChain := createEvalChain(ctx, evalChainParams{
+		baselineID: *baseline,
 		taskID:     taskID,
 		evalMode:   evalMode,
 		conditions: conditionList,
