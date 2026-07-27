@@ -58,6 +58,8 @@ newest 3 to the archive top, newest-first — do not assume exactly one over-cou
 Rationale: every iteration re-reads this charter — 30+ stamps were ~500 lines of history
 tax per read, on the scarcest model budget. The append-only history lives in the log + archive.
 
+## STATUS 2026-07-27 — ITERATION 108: **`m-effect-replay-subsumption` **M0+M1 LANDED** via the FULL inner loop in one iteration — planner **opus** → executor **`codex:gpt-5.6-sol`** → evaluator **sonnet PASS 81/100 round 1, zero blocking** (`b8249ef35`). The sprint's real deliverable was **F4**, a soundness trap the quorum had logged NON-BLOCKING and the planner promoted to a hard M1 requirement: preserving effect modes makes `UnionEffectRows`' left-preference able to let an `os` declaration silently ACCEPT a `seeded` callee — *in a build where every fixture is green and the whole suite passes*. Closed and **mutation-tested non-vacuous**. Also: **a four-iteration mis-diagnosis corrected** — Gate 1's `git rev-parse --short dev origin/dev` is not a "transient ref-lock race" (iters 55/56/57/58) but a **100%-deterministic misuse** (`--short` takes ONE revision); every "retry that self-healed" was a *different command*. `metered=$0.00`.**
+
 ## STATUS 2026-07-27 — ITERATION 107: **`m-effect-replay-subsumption` **UNPARKED by Mark's attended ratification** (`4d32c71bb`, landed after iter-106's report) → NEW DESIGN DOC created (designer **`codex:gpt-5.6-sol`**, first turn of the codex rotation entry) + **quorum-cleared** (3 rounds; narrow-refinement carve-out on the final attribution objection) → **[NEXT]** for sprint-planner. Gate-2's own live repro **REFUTED the "modes are invariant" premise** carried by BOTH the parent doc and this queue, and found **2 further defects** beyond the known blocker. `metered=$0.105440`. **Gate-3b GREEN** at `15c28851f` (CI initially red on a `test-windows` flake — re-run with zero code change PASSED; mechanism filed as #494).**
 
 **Picked** = iter-106's **Next (A)** and the (A) slot in iters 104/105/106 — blocked all that time on a Mark type-system decision, now ratified: *"declared mode subsumes bare/os requirement; narrow `SubsumeEffectRows` validate-path relaxation only. Unparks effect sprints 2-4."* The same commit cleared **parity Lane-B (GO A+B)** and approved **M4b ($20 cap)** — M4b still waits, since Mark tied it to the **~2026-08-01** quota reset (today is 07-27).
@@ -1093,9 +1095,25 @@ triage evidence = log entry 10.)*
   implemented/v0_30_0 — Mark option-(b) unparked it; controller fold → planner opus → executor opus/worktree
   → evaluator sonnet PASS 86/100 r1. Registry + os/seeded/crypto dispatch machinery + trace + golden
   gate all GREEN. BUT seeded/crypto not `.ail`-reachable → new gating item below]** ·
-  **m-effect-replay-subsumption [DOC LANDED + quorum-cleared iter-107 → [NEXT] for sprint-planner]**
+  **m-effect-replay-subsumption [M0+M1 LANDED iter-108 `b8249ef35`; M2+M3 [NEXT]]**
   → [planned/v1_0_0/m-effect-replay-subsumption.md](planned/v1_0_0/m-effect-replay-subsumption.md),
-  commit `011da3c81`; P0, ~2.5–3d, 3 milestones. **DECIDED by Mark 2026-07-27 (attended, `4d32c71bb`):
+  doc `011da3c81`, plan [m-effect-replay-subsumption-sprint-plan.md](planned/v1_0_0/m-effect-replay-subsumption-sprint-plan.md)
+  `23a7a8210`; P0, ~2.5–3d, **4** milestones (the planner added M0 — `effects.go` is 720/800 against a
+  hard `check-file-sizes` gate). **M0+M1 landed iter-108**: planner opus → executor `codex:gpt-5.6-sol`
+  → evaluator sonnet **PASS 81/100 r1, zero blocking**. M1 is deliberately a **STRICTNESS increase, not
+  the relaxation** — declarations now carry full elaborated `*types.Row` through validation instead of
+  `ast.EffectNames` name-only erasure, so `c3`/`c7`/`c8` flip 0→1 (controller-verified BEFORE/AFTER with
+  two binaries on its own fixtures); `blocker`/`c2` stay 1, which is M2's job. **The real M1 deliverable
+  turned out to be F4**, which the quorum logged non-blocking and the planner promoted to hard:
+  `UnionEffectRows` prefers its LEFT param map on conflict, so once M1 stopped erasing modes, a body
+  calling both a `seeded` and an `os` helper would collapse to one mode — and if `os` survived, an `os`
+  declaration would wrongly ACCEPT the `seeded` callee, reopening the exact hole M1 closes, in a build
+  where every fixture is green and the suite passes. Closed with a conflict-preserving union;
+  **mutation-tested non-vacuous** (restoring the left-preferring bug compiles and turns all three F4
+  tests RED). **M2 carries two evaluator findings**: a conflict rejection exits 1 but does not NAME the
+  offending mode (it falls into "no specific missing effects identified" — the doc's defect (2) in a new
+  costume), and the conflict set can render as `! {Rand[mode=os|seeded]}` in a Suggested-fix line, which
+  is not valid AILANG. Both are M2's structured-diagnostics deliverable. **DECIDED by Mark 2026-07-27 (attended, `4d32c71bb`):
   YES** — an explicitly declared mode SUBSUMES the bare/os effect requirement; implement as the narrow
   relaxation on the `SubsumeEffectRows` validate path ONLY (function-value mode distinctness unchanged).
   Unparks effect sprints 2–4. (Was: NEW GATING clause-4, PARKED needs-human-review iter-99.)
