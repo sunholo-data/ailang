@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-EFFECT-REPLAY-SUBSUMPTION",
   "title": "Validate-Path Effect-Mode Subsumption (Rand seeded/crypto -> os)",
-  "status": "planned",
+  "status": "in_progress",
   "target_version": "v1.0.0",
   "branch": "sprint/m-effect-replay-subsumption",
   "worktree": ".claude/worktrees/effect-subsumption",
@@ -112,10 +112,13 @@
         "internal/types/effects.go stays under 800 lines for the whole sprint",
         "internal/pipeline/validate_effects.go stays under 800 lines for the whole sprint"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": null,
+      "status": "completed",
+      "completed_at": "2026-07-27",
+      "completed_by": "codex:gpt-5.6-sol (executor), verified controller opus + evaluator sonnet"
     },
     {
       "id": "M1",
@@ -144,10 +147,13 @@
         "make check-file-sizes, make check-boundaries, make lint green",
         "Both example gates run at the END of M1 (make verify-examples AND ./tools/verify_examples.sh) and any NEW red is listed before proceeding to M2"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": null,
+      "status": "completed",
+      "completed_at": "2026-07-27",
+      "completed_by": "codex:gpt-5.6-sol (executor), verified controller opus + evaluator sonnet"
     },
     {
       "id": "M2",
@@ -183,7 +189,8 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": null,
+      "status": "planned"
     },
     {
       "id": "M3",
@@ -216,7 +223,8 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": null,
+      "status": "planned"
     }
   ],
   "stop_conditions": [
@@ -243,5 +251,17 @@
   },
   "started": null,
   "completed": null,
-  "commits": []
+  "commits": [],
+  "evaluation": {
+    "round": 1,
+    "result": "pass",
+    "score": 81,
+    "evaluator_model": "sonnet",
+    "blocking_findings": [],
+    "non_blocking": [
+      "NB-1 AC-6 diagnostic: rejection is correct (exit 1) but the message does not name the conflicting mode; falls into the \"no specific missing effects identified\" branch (validate_effects.go:529). Carried to M2, which owns structured mode diagnostics.",
+      "NB-2 \"os|seeded\" conflict encoding can render as ! {Rand[mode=os|seeded]} in the Suggested-fix line (validate_effects_rows.go:132, validate_effects.go:548-549) \u2014 syntactically invalid AILANG shown to a user. Not a soundness issue; does not reach replay contracts or SubsumeEffectRows. Carried to M2.",
+      "NB-5 internal/types/effect_subsumption.go is an intentional M0 stub pending M2."
+    ]
+  }
 }

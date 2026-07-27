@@ -107,10 +107,14 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 	}
 
 	// Build map of function names to their declared effects from Surface AST
-	declaredEffects := make(map[string][]string)
+	declaredEffects := make(map[string]*types.Row)
 	if surfaceAST != nil {
 		for _, funcDecl := range surfaceAST.Funcs {
-			declaredEffects[funcDecl.Name] = ast.EffectNames(funcDecl.Effects)
+			row, err := types.ElaborateEffectRowWithBudgets(funcDecl.Effects)
+			if err != nil {
+				return fmt.Errorf("elaborate effects for function %q: %w", funcDecl.Name, err)
+			}
+			declaredEffects[funcDecl.Name] = row
 		}
 	}
 
@@ -145,7 +149,7 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 // validateLambdaAnnotations recursively finds inline lambdas with an explicit
 // CLOSED effect annotation and rejects any whose body requires an effect the
 // annotation does not declare. M-EFFECT-ROW-SHOW-INTERP (#386).
-func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string][]string, typeInfo types.CoreTypeInfo, lookup declaredLambdaLookup) error {
+func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo, lookup declaredLambdaLookup) error {
 	if expr == nil {
 		return nil
 	}
@@ -199,16 +203,15 @@ func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string][]
 }
 
 // validateDecl validates a single declaration, handling Let/LetRec specially
-func validateDecl(decl core.CoreExpr, declaredEffects map[string][]string, typeInfo types.CoreTypeInfo) error {
+func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo) error {
 	// If this is a LetRec, validate each binding as a separate function
 	if letRec, ok := decl.(*core.LetRec); ok {
 		for _, binding := range letRec.Bindings {
 			debugLog("=== Validating LetRec binding: %s ===", binding.Name)
 
 			// Get declared effects from Surface AST
-			surfaceDeclaredEffects := declaredEffects[binding.Name]
-			declared := stringSliceToEffectRow(surfaceDeclaredEffects)
-			debugLog("  Declared effects: %v", surfaceDeclaredEffects)
+			declared := declaredEffects[binding.Name]
+			debugLog("  Declared effects: %s", formatRow(declared))
 
 			// Collect required effects from Core AST
 			required := collectRequiredEffects(binding.Value, typeInfo, declaredEffects)
@@ -230,9 +233,8 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string][]string, typeI
 		debugLog("=== Validating Let binding: %s ===", let.Name)
 
 		// Get declared effects from Surface AST
-		surfaceDeclaredEffects := declaredEffects[let.Name]
-		declared := stringSliceToEffectRow(surfaceDeclaredEffects)
-		debugLog("  Declared effects: %v", surfaceDeclaredEffects)
+		declared := declaredEffects[let.Name]
+		debugLog("  Declared effects: %s", formatRow(declared))
 
 		// Collect required effects from Core AST
 		required := collectRequiredEffects(let.Value, typeInfo, declaredEffects)
@@ -263,25 +265,6 @@ func formatRow(r *types.Row) string {
 		labels = append(labels, k)
 	}
 	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
-}
-
-// stringSliceToEffectRow converts a slice of effect label strings to an effect row
-// Returns nil for empty slice (pure function)
-func stringSliceToEffectRow(effects []string) *types.Row {
-	if len(effects) == 0 {
-		return nil // Pure (no effects)
-	}
-
-	labels := make(map[string]types.Type)
-	for _, effect := range effects {
-		labels[effect] = &types.TCon{Name: effect} // Effect labels map to their names as types
-	}
-
-	return &types.Row{
-		Kind:   types.KRow{ElemKind: types.KEffect{}},
-		Labels: labels,
-		Tail:   nil, // Closed row (no extension)
-	}
 }
 
 // extractEffectFromType extracts the effect row from a type
@@ -322,7 +305,7 @@ func extractEffectFromType(t types.Type) *types.Row {
 // collectRequiredEffects recursively walks the expression to collect all required effects
 // Returns the union of all effects used in the expression
 // declaredEffects maps function names to their declared effect signatures from Surface AST
-func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, declaredEffects map[string][]string) *types.Row {
+func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, declaredEffects map[string]*types.Row) *types.Row {
 	if expr == nil {
 		return nil
 	}
@@ -366,7 +349,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		if funcVar, ok := e.Func.(*core.Var); ok {
 			// This is a call to a locally-bound function - use declared effects if available
 			if declaredEff, found := declaredEffects[funcVar.Name]; found {
-				calleeEffects = stringSliceToEffectRow(declaredEff)
+				calleeEffects = cloneEffectRow(declaredEff)
 				usedDeclared = true
 				debugLog("      Callee declared effects (from signature): %s", formatRow(calleeEffects))
 			}
@@ -388,13 +371,13 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		for i, arg := range e.Args {
 			argEff := collectRequiredEffects(arg, typeInfo, declaredEffects)
 			debugLog("      Arg[%d] effects: %s", i, formatRow(argEff))
-			argEffects = types.UnionEffectRows(argEffects, argEff)
+			argEffects = unionRequiredEffectRows(argEffects, argEff)
 		}
 		debugLog("      Combined arg effects: %s", formatRow(argEffects))
 
 		// Union all effects
-		result := types.UnionEffectRows(calleeEffects, funcEffects)
-		result = types.UnionEffectRows(result, argEffects)
+		result := unionRequiredEffectRows(calleeEffects, funcEffects)
+		result = unionRequiredEffectRows(result, argEffects)
 		debugLog("      App total effects: %s", formatRow(result))
 		return result
 
@@ -418,7 +401,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		debugLog("    Let(%s) -> checking value and body", e.Name)
 		valueEffects := collectRequiredEffects(e.Value, typeInfo, declaredEffects)
 		bodyEffects := collectRequiredEffects(e.Body, typeInfo, declaredEffects)
-		effects := types.UnionEffectRows(valueEffects, bodyEffects)
+		effects := unionRequiredEffectRows(valueEffects, bodyEffects)
 		debugLog("    Let(%s) effects (value ∪ body): %s", e.Name, formatRow(effects))
 		return effects
 
@@ -431,9 +414,9 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 			debugLog("      LetRec binding: %s", binding.Name)
 			bindingEffects := collectRequiredEffects(binding.Value, typeInfo, declaredEffects)
 			debugLog("      LetRec binding %s effects: %s", binding.Name, formatRow(bindingEffects))
-			effects = types.UnionEffectRows(effects, bindingEffects)
+			effects = unionRequiredEffectRows(effects, bindingEffects)
 		}
-		effects = types.UnionEffectRows(effects, collectRequiredEffects(e.Body, typeInfo, declaredEffects))
+		effects = unionRequiredEffectRows(effects, collectRequiredEffects(e.Body, typeInfo, declaredEffects))
 		debugLog("    LetRec total effects: %s", formatRow(effects))
 		return effects
 
@@ -443,8 +426,8 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		thenEffects := collectRequiredEffects(e.Then, typeInfo, declaredEffects)
 		elseEffects := collectRequiredEffects(e.Else, typeInfo, declaredEffects)
 
-		result := types.UnionEffectRows(condEffects, thenEffects)
-		result = types.UnionEffectRows(result, elseEffects)
+		result := unionRequiredEffectRows(condEffects, thenEffects)
+		result = unionRequiredEffectRows(result, elseEffects)
 		return result
 
 	case *core.Match:
@@ -454,7 +437,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 
 		for _, arm := range e.Arms {
 			armEffects := collectRequiredEffects(arm.Body, typeInfo, declaredEffects)
-			result = types.UnionEffectRows(result, armEffects)
+			result = unionRequiredEffectRows(result, armEffects)
 		}
 		return result
 
@@ -462,7 +445,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		// Binary operators: union of left and right
 		leftEffects := collectRequiredEffects(e.Left, typeInfo, declaredEffects)
 		rightEffects := collectRequiredEffects(e.Right, typeInfo, declaredEffects)
-		return types.UnionEffectRows(leftEffects, rightEffects)
+		return unionRequiredEffectRows(leftEffects, rightEffects)
 
 	case *core.UnOp:
 		// Unary operators: effects from operand
@@ -473,7 +456,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		var effects *types.Row
 		for _, fieldVal := range e.Fields {
 			fieldEffects := collectRequiredEffects(fieldVal, typeInfo, declaredEffects)
-			effects = types.UnionEffectRows(effects, fieldEffects)
+			effects = unionRequiredEffectRows(effects, fieldEffects)
 		}
 		return effects
 
@@ -487,16 +470,16 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		var updateEffects *types.Row
 		for _, updateVal := range e.Updates {
 			fieldEffects := collectRequiredEffects(updateVal, typeInfo, declaredEffects)
-			updateEffects = types.UnionEffectRows(updateEffects, fieldEffects)
+			updateEffects = unionRequiredEffectRows(updateEffects, fieldEffects)
 		}
-		return types.UnionEffectRows(baseEffects, updateEffects)
+		return unionRequiredEffectRows(baseEffects, updateEffects)
 
 	case *core.List:
 		// Lists: union of all element effects
 		var effects *types.Row
 		for _, elem := range e.Elements {
 			elemEffects := collectRequiredEffects(elem, typeInfo, declaredEffects)
-			effects = types.UnionEffectRows(effects, elemEffects)
+			effects = unionRequiredEffectRows(effects, elemEffects)
 		}
 		return effects
 
@@ -505,7 +488,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		var effects *types.Row
 		for _, elem := range e.Elements {
 			elemEffects := collectRequiredEffects(elem, typeInfo, declaredEffects)
-			effects = types.UnionEffectRows(effects, elemEffects)
+			effects = unionRequiredEffectRows(effects, elemEffects)
 		}
 		return effects
 
@@ -526,9 +509,9 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		var argEffects *types.Row
 		for _, arg := range e.Args {
 			argEff := collectRequiredEffects(arg, typeInfo, declaredEffects)
-			argEffects = types.UnionEffectRows(argEffects, argEff)
+			argEffects = unionRequiredEffectRows(argEffects, argEff)
 		}
-		return types.UnionEffectRows(dictEffects, argEffects)
+		return unionRequiredEffectRows(dictEffects, argEffects)
 
 	default:
 		// Unknown expression type - be conservative and assume no effects

@@ -260,7 +260,7 @@ func TestCollectRequiredEffects_LetTraversesBody(t *testing.T) {
 		Body:  &core.App{Func: effectfulVar, Args: []core.CoreExpr{}}, // Effectful body
 	}
 
-	declaredEffects := make(map[string][]string)
+	declaredEffects := make(map[string]*types.Row)
 	effects := collectRequiredEffects(letExpr, typeInfo, declaredEffects)
 
 	if effects == nil {
