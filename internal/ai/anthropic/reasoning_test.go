@@ -274,3 +274,85 @@ func TestAnthropic_StrictBudget_BeforeDefaulting(t *testing.T) {
 		t.Fatalf("budget==maxtokens: error = %v, want ErrReasoningBudgetExceedsMaxTokens", err)
 	}
 }
+
+// TestAnthropic_Generate_BanksFinishReason pins that the standard-eval path
+// surfaces the stop reason, so a run truncated at max_tokens is distinguishable
+// from a genuine capability failure (M-EVAL-TOKEN-HEADROOM). The agent path
+// already mapped this; Generate silently dropped it, which is why the 2026-07-27
+// Opus 5 gate could not verify that none of its 76 core runs hit the cap.
+func TestAnthropic_Generate_BanksFinishReason(t *testing.T) {
+	tests := []struct {
+		stopReason string
+		want       string
+	}{
+		{"end_turn", "stop"},
+		{"stop_sequence", "stop"},
+		{"max_tokens", "length"}, // the truncation signal
+		{"tool_use", "tool_calls"},
+		{"", ""},
+		// NOTE: "refusal" is deliberately absent. Generate handles it earlier
+		// (client.go:357) by returning a typed "model refused" error, so it never
+		// reaches the response mapping — asserted separately below.
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.stopReason, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				resp := messagesResponse{
+					ID: "m", Type: "message", Role: "assistant", Model: "claude-opus-5",
+					Content:    []contentBlock{{Type: "text", Text: "ok"}},
+					StopReason: tt.stopReason,
+					Usage:      anthropicUsage{InputTokens: 10, OutputTokens: 20},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(resp)
+			}))
+			defer srv.Close()
+
+			c := NewClient("k", WithBaseURL(srv.URL))
+			got, err := c.Generate(context.Background(), &ai.Request{
+				Model: "claude-opus-5", UserPrompt: "hi", MaxTokens: 2048,
+			})
+			if err != nil {
+				t.Fatalf("Generate error = %v", err)
+			}
+			if got.FinishReason != tt.want {
+				t.Errorf("FinishReason = %q, want %q", got.FinishReason, tt.want)
+			}
+			// Anthropic reports no separate thinking-token count, so a non-zero
+			// value here would be fabricated (see design doc V9).
+			if got.ReasonTokens != 0 {
+				t.Errorf("ReasonTokens = %d, want 0 (Anthropic reports no split)", got.ReasonTokens)
+			}
+		})
+	}
+}
+
+// TestAnthropic_Generate_RefusalIsAnError pins the pre-existing refusal path:
+// stop_reason "refusal" short-circuits into a typed error rather than a banked
+// response, so it never reaches the FinishReason mapping. Documented here
+// because the design doc treated refusal-vs-truncation as an open question —
+// for the standard path it is already settled.
+func TestAnthropic_Generate_RefusalIsAnError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := messagesResponse{
+			ID: "m", Type: "message", Role: "assistant", Model: "claude-opus-5",
+			Content: []contentBlock{}, StopReason: "refusal",
+			Usage: anthropicUsage{InputTokens: 10, OutputTokens: 0},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	c := NewClient("k", WithBaseURL(srv.URL))
+	_, err := c.Generate(context.Background(), &ai.Request{
+		Model: "claude-opus-5", UserPrompt: "hi", MaxTokens: 2048,
+	})
+	if err == nil {
+		t.Fatal("refusal returned no error; it must not bank as an ordinary result")
+	}
+	if !strings.Contains(err.Error(), "refus") {
+		t.Errorf("error = %q, want it to name the refusal", err.Error())
+	}
+}

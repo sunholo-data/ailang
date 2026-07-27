@@ -386,6 +386,17 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		InputTokens:  result.Usage.InputTokens,
 		OutputTokens: result.Usage.OutputTokens,
 		TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens,
+		// FinishReason makes truncation visible on the standard-eval path
+		// (M-EVAL-TOKEN-HEADROOM). Without it a run cut off at max_tokens banks
+		// indistinguishably from a genuine capability failure — the confound that
+		// produced the GLM-5.2 misdiagnosis. "max_tokens" normalizes to "length".
+		// The agent path (step.go) has always mapped this; only Generate dropped it.
+		//
+		// NOTE: ReasonTokens is deliberately NOT set. Anthropic reports no separate
+		// thinking-token count — thinking is billed inside Usage.OutputTokens — so
+		// any split here would be fabricated. Leaving it 0 keeps cost math honest
+		// at the price of no thinking/answer decomposition on Anthropic rows.
+		FinishReason: mapStopReason(result.StopReason),
 		Model:        result.Model,
 	}, nil
 }
