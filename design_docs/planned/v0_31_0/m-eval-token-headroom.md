@@ -154,17 +154,38 @@ making the thing we care about observable.
 - [ ] Table-driven test: `end_turn`→`stop`, `max_tokens`→`length`, `refusal`→(see Deferred)
 - [ ] Confirm `finish_reason` appears in a banked standard-mode result (one cheap live run)
 
-**Phase 2: Label thinking state** (~2 hours)
-- [ ] Add `default_thinking: on|off|always_on|none` to the `models.yml` schema + `ModelConfig`
-- [ ] Populate for every entry (Opus 5/Sonnet 5 `on`; Opus 4.8/4.7 `off`; Fable 5/Mythos 5
-      `always_on`; gemini-3-5-flash-lite `none`; or-glm-5-2 `always_on`; …)
-- [ ] Test asserting every entry has an explicit value (no silent default)
+**Phase 2: Label thinking state** (~2 hours) — **DONE 2026-07-27**
+- [x] Add `default_thinking` to `ModelConfig` + all 110 entries. Vocabulary gained a fifth
+      value, **`unknown`**, not in the original plan: forcing a label on every row would have
+      meant guessing for models whose default is undocumented, and a wrong label silently
+      corrupts an efficiency comparison whereas an admission withholds the row from one.
+- [x] Populated **29 rows from citable evidence** (16 Anthropic from the generation table in
+      `internal/ai/reasoning_anthropic.go`; GLM 5.x + Kimi K3 + 5 Gemini/OpenAI rows from
+      notes already in `models.yml`). **81 remain `unknown`** — including `gpt5-6-sol`, a
+      `benchmark_suite` flagship. Reducing that count is follow-up work, not a blocker.
+- [x] Test asserting every entry has an explicit, in-vocabulary value
+      (`TestModels_DefaultThinkingIsExplicit`), mutation-verified
 
-**Phase 3: Equalise headroom** (~4 hours)
-- [ ] Set `max_output_tokens` explicitly on all 7 entries currently falling back to 4096
-- [ ] Apply `min(declared_ceiling, 65536)` to cloud entries; annotate each ceiling-limited row
-- [ ] Test asserting no cloud entry is unset and none exceeds its declared ceiling
-- [ ] Changelog entry recording the baseline discontinuity
+**Phase 3: Equalise headroom** (~4 hours) — **DONE 2026-07-27**
+- [x] ~~Set `max_output_tokens` explicitly on all 7 entries currently falling back to 4096~~
+      **DROPPED — this task was wrong.** All 7 unset entries turned out to be `ollama`
+      (local) rows, which this same doc scopes OUT as VRAM-bound. Nothing to do.
+- [x] Apply `min(declared_ceiling, 65536)` to cloud entries; annotate each ceiling-limited row
+      — 53 entries changed, 15 local rows skipped
+- [x] Test asserting the policy (`TestModels_CloudHeadroomEqualised`), mutation-verified
+- [x] Changelog entry recording the baseline discontinuity
+
+**Measured ceilings (OpenRouter endpoints API, 2026-07-27).** Only two models have a hard
+cap below target across *all* upstreams — `deepseek/deepseek-chat` and
+`qwen/qwen-2.5-72b-instruct`, both 16384. The min/max spread across upstreams is otherwise
+large (e.g. `z-ai/glm-5.2`: 65535 → 1048576 across 28 endpoints), confirming the
+routing-roulette caveat; the target is safe because `or-kimi-k2-7-code` (upstream min 16384)
+and `or-glm-5-2` (min 65535) have both been running at 65536 without error.
+
+**Anthropic is held at 64000, not raised to the target.** The repo encodes the Claude 4.5+
+non-streaming cap as 64000, the client is non-streaming, and the Opus 5 gate ran clean there.
+The residual 2.3% gap is immaterial next to the 8192↔128000 spread this phase removes, and
+closing it could 400 every Anthropic run — unverifiable while the API key is out of quota.
 
 ### Files to Modify/Create
 

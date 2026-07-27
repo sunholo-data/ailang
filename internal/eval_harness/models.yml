@@ -1,8 +1,50 @@
 # AILANG Evaluation Model Configuration
-# Last updated: April 2026
+# Last updated: July 2026
 #
 # This file defines the canonical model names for evaluation benchmarks.
 # Update this file when new model versions are released.
+#
+# =============================================================================
+# TWO FIELD POLICIES (M-EVAL-TOKEN-HEADROOM, 2026-07-27) — read before editing
+# design_docs/planned/v0_31_0/m-eval-token-headroom.md
+# =============================================================================
+#
+# `default_thinking` — REQUIRED on every entry. Enforced by
+# TestModels_DefaultThinkingIsExplicit.
+#
+#   The harness sends NO `thinking` control, so every model runs at its VENDOR
+#   default — and those disagree: Opus 5 / Sonnet 5 think, Opus 4.8 does not,
+#   Fable 5 cannot be stopped, gemini-3-5-flash-lite has no thinking at all.
+#   Without this column you cannot tell whether a row's output tokens are answer
+#   or reasoning — which is exactly how GLM-5.2's truncated thinking was misread
+#   as a capability regression for a month in June 2026.
+#
+#     "on"        thinks when sent no thinking control
+#     "off"       does not think unless explicitly asked
+#     "always_on" cannot be disabled (an explicit disable is an API error)
+#     "none"      no thinking capability at all
+#     "unknown"   NOT YET VERIFIED — do NOT read this row's token counts as
+#                 efficiency data. This value is deliberate and permitted: a
+#                 guess corrupts a comparison silently, an admission does not.
+#                 Upgrade a row only with a citable source, in the comment.
+#
+# `max_output_tokens` — CLOUD entries sit at the 65536 target, or at a lower
+# DOCUMENTED provider ceiling. Enforced by TestModels_CloudHeadroomEqualised.
+#
+#   Unequal headroom is a silent, DIRECTIONAL confound: a thinking model on a
+#   small budget looks like a weak model. Before this policy the suite ranged
+#   from 8192 to 128000. Equalising is also what converts "ran out of tokens"
+#   from a harness artifact into real token-efficiency signal about the model —
+#   which is why it pairs with banking `finish_reason` (a truncated run reports
+#   finish_reason "length").
+#
+#   Ceiling-limited exceptions are listed in the test, each with its source.
+#   Local (ollama) rows are EXEMPT — their cap is VRAM-bound, not policy.
+#
+#   ⚠️ Post-2026-07-27 numbers are NOT comparable to earlier baselines: rows
+#   moved by up to 8x. Pre-v0.30.0 results also lack reason_tokens entirely and
+#   cannot be re-judged for truncation — only re-run.
+# =============================================================================
 
 # Model definitions
 models:
@@ -10,10 +52,11 @@ models:
   gpt5:
     api_name: "gpt-5"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5 full reasoning model"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000  # 128K max output (API limit)
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -26,10 +69,11 @@ models:
   gpt5-mini:
     api_name: "gpt-5-mini"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5 mini (faster, cheaper)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000  # 128K max output (API limit)
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K (~1/5 of GPT-5)
       output_per_1k: 0.002     # $2 per 1M = $0.002 per 1K
@@ -39,10 +83,11 @@ models:
   gpt5-1:
     api_name: "gpt-5.1"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.1 with adaptive reasoning"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000  # 128K max output (API limit)
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -58,10 +103,11 @@ models:
   gpt5-1-instant:
     api_name: "gpt-5.1-chat-latest"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.1 Instant (fast, general purpose)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -77,10 +123,11 @@ models:
   gpt5-2:
     api_name: "gpt-5.2"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.2 Thinking - 40% smarter than GPT-5.1"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -96,10 +143,11 @@ models:
   gpt5-2-instant:
     api_name: "gpt-5.2-chat-latest"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.2 Instant (fast, daily tasks)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -114,11 +162,12 @@ models:
   gpt5-5:
     api_name: "gpt-5.5"
     provider: "openai"
+    default_thinking: "on"  # notes: "reasoning.effort ... (default: medium)" => reasons unless asked not to
     description: "GPT-5.5 - new flagship reasoning model with 1M context"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
     model_family: "gpt5-5"  # Cross-harness grouping: pairs with opencode-gpt5-5
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.005     # $5.00 per 1M = $0.005 per 1K
       output_per_1k: 0.030    # $30.00 per 1M = $0.030 per 1K
@@ -137,12 +186,13 @@ models:
   opencode-gpt5-5:
     api_name: "gpt-5.5"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.5 via opencode harness — cross-harness comparison pair"
     env_var: "OPENAI_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openai/gpt-5.5"  # opencode provider/model format
     model_family: "gpt5-5"               # Cross-harness grouping: pairs with gpt5-5
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.005
       output_per_1k: 0.030
@@ -156,11 +206,12 @@ models:
   gpt5-5-pro:
     api_name: "gpt-5.5-pro"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.5 Pro - high-performance variant (6x base price)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
     model_family: "gpt5-5-pro"  # Cross-harness grouping: pairs with opencode-gpt5-5-pro
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.030     # $30.00 per 1M = $0.030 per 1K
       output_per_1k: 0.180    # $180.00 per 1M = $0.180 per 1K
@@ -177,12 +228,13 @@ models:
   opencode-gpt5-5-pro:
     api_name: "gpt-5.5-pro"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.5 Pro via opencode harness — cross-harness comparison pair"
     env_var: "OPENAI_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openai/gpt-5.5-pro"  # opencode provider/model format
     model_family: "gpt5-5-pro"               # Cross-harness grouping: pairs with gpt5-5-pro
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.030
       output_per_1k: 0.180
@@ -200,10 +252,11 @@ models:
   gpt5-6-sol:
     api_name: "gpt-5.6-sol"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.6 Sol - OpenAI flagship tier (Jul 2026)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.005     # $5.00 per 1M = $0.005 per 1K
       output_per_1k: 0.030    # $30.00 per 1M = $0.030 per 1K
@@ -222,10 +275,11 @@ models:
   gpt5-6-terra:
     api_name: "gpt-5.6-terra"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.6 Terra - balanced mid tier (Jul 2026)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
       output_per_1k: 0.015    # $15.00 per 1M = $0.015 per 1K
@@ -241,10 +295,11 @@ models:
   gpt5-6-luna:
     api_name: "gpt-5.6-luna"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.6 Luna - fast/cheap tier (Jul 2026)"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.001     # $1.00 per 1M = $0.001 per 1K
       output_per_1k: 0.006    # $6.00 per 1M = $0.006 per 1K
@@ -265,11 +320,12 @@ models:
   gpt5-4:
     api_name: "gpt-5.4"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.4 - most powerful OpenAI model with 1M context and computer-use"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
     model_family: "gpt5-4"  # Cross-harness grouping: pairs with opencode-gpt5-4
-    max_output_tokens: 128000  # 128K max output (API limit)
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
       output_per_1k: 0.015    # $15.00 per 1M = $0.015 per 1K
@@ -286,12 +342,13 @@ models:
   opencode-gpt5-4:
     api_name: "gpt-5.4"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.4 via opencode harness — cross-harness comparison pair"
     env_var: "OPENAI_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openai/gpt-5.4"  # opencode provider/model format
     model_family: "gpt5-4"  # Cross-harness grouping: pairs with gpt5-4
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0025
       output_per_1k: 0.015
@@ -303,10 +360,11 @@ models:
   gpt5-4-mini:
     api_name: "gpt-5.4-mini"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.4 Mini — cheaper same-gen sibling of gpt-5.4"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00075   # $0.75 per 1M = $0.00075 per 1K
       output_per_1k: 0.0045   # $4.50 per 1M = $0.0045 per 1K
@@ -330,10 +388,11 @@ models:
   gpt5-4-nano:
     api_name: "gpt-5.4-nano"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.4 Nano — ultra-cheap same-gen model for high-volume tasks"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0002    # $0.20 per 1M = $0.0002 per 1K
       output_per_1k: 0.00125  # $1.25 per 1M = $0.00125 per 1K
@@ -347,10 +406,11 @@ models:
   gpt5-2-codex:
     api_name: "gpt-5.2-codex"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.2-Codex - top-of-the-line agentic coding model"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -368,10 +428,11 @@ models:
   codex-mini-latest:
     api_name: "codex-mini-latest"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Codex-Mini - fast, cheap coding model for simple tasks"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0015    # $1.50 per 1M = $0.0015 per 1K
       output_per_1k: 0.006    # $6 per 1M = $0.006 per 1K
@@ -388,10 +449,11 @@ models:
   gpt5-1-codex-max:
     api_name: "gpt-5.1-codex-max"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.1-Codex-Max - purpose-built for agentic coding"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -409,6 +471,7 @@ models:
   claude-sonnet-5:
     api_name: "claude-sonnet-5"
     provider: "anthropic"
+    default_thinking: "on"
     description: "Claude Sonnet 5 - near-Opus quality on coding/agentic work at Sonnet cost"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -441,6 +504,7 @@ models:
   claude-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Sonnet 4.6 - best combination of speed and intelligence"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -463,6 +527,7 @@ models:
   claude-sonnet-4-5:
     api_name: "claude-sonnet-4-5-20250929"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Sonnet 4.5 - superseded by Sonnet 4.6"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -479,6 +544,7 @@ models:
   claude-haiku-4-5:
     api_name: "claude-haiku-4-5-20251001"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Haiku 4.5 - fastest and most cost-effective"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -505,6 +571,7 @@ models:
   claude-opus-4-5:
     api_name: "claude-opus-4-5-20251101"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Opus 4.5 - most intelligent model"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -525,6 +592,7 @@ models:
   claude-opus-4-6:
     api_name: "claude-opus-4-6"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Opus 4.6 - most capable model with 1M context"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -547,11 +615,12 @@ models:
   claude-fable-5:
     api_name: "claude-fable-5"
     provider: "anthropic"
+    default_thinking: "always_on"
     description: "Claude Fable 5 - most capable widely released model (Mythos-class, June 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "fable"  # Pass to --agent-model flag
-    max_output_tokens: 128000  # 128K max output (higher than Sonnet/Haiku's 64K)
+    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 128000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K
       output_per_1k: 0.050  # $50 per million = $0.050 per 1K
@@ -574,6 +643,7 @@ models:
   claude-opus-5:
     api_name: "claude-opus-5"
     provider: "anthropic"
+    default_thinking: "on"
     description: "Claude Opus 5 - Opus-tier flagship (Jul 2026), drop-in at Opus 4.8 pricing"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -646,6 +716,7 @@ models:
   claude-opus-4-8:
     api_name: "claude-opus-4-8"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Opus 4.8 - latest flagship model (June 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"
@@ -665,6 +736,7 @@ models:
   claude-opus-4-7:
     api_name: "claude-opus-4-7"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Opus 4.7 - flagship model (April 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
@@ -688,6 +760,7 @@ models:
   gemini-2-5-pro:
     api_name: "gemini-2.5-pro"
     provider: "google"
+    default_thinking: "on"  # description: "Gemini 2.5 Pro with thinking"
     description: "Gemini 2.5 Pro with thinking"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     gcp_project: "ailang-dev"
@@ -707,6 +780,7 @@ models:
   gemini-2-5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 2.5 Flash - fast and efficient"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     gcp_project: "ailang-dev"
@@ -726,6 +800,7 @@ models:
   gemini-3-flash-preview:
     api_name: "gemini-3-flash-preview"
     provider: "google"
+    default_thinking: "on"  # notes record per-run thinking-token counts
     description: "Gemini 3 Flash (alias for gemini-3-flash, for use with --ai gemini-3-flash-preview)"
     env_var: ""
     gcp_project: "ailang-dev"
@@ -736,6 +811,7 @@ models:
   gemini-3-flash:
     api_name: "gemini-3-flash-preview"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3 Flash - 3x faster than 2.5 Pro, outperforms it"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     gcp_project: "ailang-dev"
@@ -766,6 +842,7 @@ models:
   gemini-3-pro:
     api_name: "gemini-3-pro-preview"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3 Pro Preview with advanced reasoning"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     gcp_project: "ailang-dev"
@@ -792,6 +869,7 @@ models:
     # (gemini-3-pro's 404 is already documented as RETIRED below).
     api_name: "gemini-3.1-flash-lite"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3.1 Flash Lite — ultra-cheap same-gen sibling of 3.1 Pro"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
     gcp_project: "ailang-dev"
@@ -811,6 +889,7 @@ models:
   gemini-3-1-pro:
     api_name: "gemini-3.1-pro-preview"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3.1 Pro - 2x reasoning over 3 Pro, beats Opus 4.6"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     gcp_project: "ailang-dev"
@@ -864,6 +943,7 @@ models:
   gemini-3-5-flash:
     api_name: "gemini-3.5-flash"
     provider: "google"
+    default_thinking: "on"  # extended_suite annotation compares its thinking-token usage
     description: "Gemini 3.5 Flash - strongest Flash model; agent-mode EXCLUDED from standard suites (caching incompatible with tools)"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
     agent_cli: "managed_agents"                        # Vertex Managed Agents API via ADC (M-MANAGED-AGENTS, v0.22.0)
@@ -945,6 +1025,7 @@ models:
   gemini-3-6-flash:
     api_name: "gemini-3.6-flash"
     provider: "google"
+    default_thinking: "on"  # extended_suite annotation: "28% fewer thinking tokens"
     description: "Gemini 3.6 Flash - successor to 3.5 Flash, same input price with 17% cheaper output"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
     gcp_project: "ailang-dev"
@@ -1008,6 +1089,7 @@ models:
   gemini-3-5-flash-lite:
     api_name: "gemini-3.5-flash-lite"
     provider: "google"
+    default_thinking: "none"
     description: "Gemini 3.5 Flash Lite - cheapest current-gen Gemini; NO default thinking overhead"
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
     gcp_project: "ailang-dev"
@@ -1050,12 +1132,13 @@ models:
   opencode-haiku:
     api_name: "claude-haiku-4-5-20251001"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Haiku 4.5 via opencode harness (multi-provider gateway)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "opencode"                        # Routes to opencode executor
     agent_model_name: "anthropic/claude-haiku-4-5"  # opencode provider/model format
     model_family: "claude-haiku-4-5"             # Cross-harness grouping: pairs with claude-haiku-4-5
-    max_output_tokens: 16000
+    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M
       output_per_1k: 0.00125  # $1.25 per 1M
@@ -1077,6 +1160,7 @@ models:
   opencode-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Sonnet 4.6 via opencode harness — cross-harness comparison pair"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "opencode"
@@ -1095,6 +1179,7 @@ models:
   opencode-gemini-3-flash:
     api_name: "gemini-3-flash-preview"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3 Flash via opencode harness — cross-harness comparison pair"
     env_var: ""
     agent_cli: "opencode"
@@ -1122,12 +1207,13 @@ models:
   pi-claude-haiku-4-5:
     api_name: "claude-haiku-4-5-20251001"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Haiku 4.5 via pi minimal harness — cross-harness comparison"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "pi"
     agent_model_name: "anthropic/claude-haiku-4-5"   # pi provider/model shorthand
     model_family: "claude-haiku-4-5"                 # Cross-harness grouping: pairs with claude-haiku-4-5 + opencode-haiku
-    max_output_tokens: 16000
+    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M
       output_per_1k: 0.00125  # $1.25 per 1M
@@ -1143,6 +1229,7 @@ models:
   pi-claude-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Sonnet 4.6 via pi minimal harness — cross-harness comparison"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "pi"
@@ -1161,12 +1248,13 @@ models:
   pi-gpt5-4:
     api_name: "gpt-5.4"
     provider: "openai"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GPT-5.4 via pi minimal harness — cross-harness comparison"
     env_var: "OPENAI_API_KEY"
     agent_cli: "pi"
     agent_model_name: "openai/gpt-5.4"
     model_family: "gpt5-4"                           # Pairs with gpt5-4 + opencode-gpt5-4
-    max_output_tokens: 128000
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
       input_per_1k: 0.0025
       output_per_1k: 0.015
@@ -1178,6 +1266,7 @@ models:
   pi-gemini-3-flash-preview:
     api_name: "gemini-3-flash-preview"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 3 Flash via pi minimal harness — cross-harness comparison"
     env_var: "GEMINI_API_KEY"
     agent_cli: "pi"
@@ -1208,12 +1297,13 @@ models:
   motoko-claude-haiku-4-5:
     api_name: "claude-haiku-4-5-20251001"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Haiku 4.5 via motoko_agent (AILANG-native harness with DP7 verifier + microRAG context + extensions)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/anthropic/claude-haiku-4-5"
     model_family: "claude-haiku-4-5"                 # Pairs with claude-haiku-4-5 + opencode-haiku + pi-claude-haiku-4-5
-    max_output_tokens: 16000
+    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.00025
       output_per_1k: 0.00125
@@ -1231,6 +1321,7 @@ models:
   motoko-claude-sonnet-4-6:
     api_name: "claude-sonnet-4-6"
     provider: "anthropic"
+    default_thinking: "off"
     description: "Claude Sonnet 4.6 via motoko_agent — premium model + tuned harness ceiling"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
@@ -1251,12 +1342,13 @@ models:
   motoko-glm-5-1:
     api_name: "z-ai/glm-5.1"
     provider: "openrouter"
+    default_thinking: "always_on"
     description: "GLM-5.1 — newest z-ai model (Apr 2026), successor to GLM-5"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/z-ai/glm-5.1"
     model_family: "glm-5"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00098   # $0.98 per 1M
       output_per_1k: 0.00392  # ~$3.92 per 1M (estimated at 4x input)
@@ -1270,12 +1362,13 @@ models:
   motoko-glm-5:
     api_name: "z-ai/glm-5"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GLM-5 (open-weight, top OS-model on AILANG bench) via motoko_agent — cheap-model+tuned-harness lift test"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/z-ai/glm-5"
     model_family: "glm-5"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
       input_per_1k: 0.00060   # $0.60 per 1M
       output_per_1k: 0.00208   # $2.08 per 1M
@@ -1297,12 +1390,13 @@ models:
     # agent_suite reference doesn't need updating.
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B MoE via motoko_agent — open-weight coverage (no first-party Gemma agent CLI exists)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
       input_per_1k: 0.0001
       output_per_1k: 0.0003
@@ -1323,6 +1417,7 @@ models:
   motoko-or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V4 Flash via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
@@ -1344,12 +1439,13 @@ models:
   motoko-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Kimi K2.6 via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/moonshotai/kimi-k2.6"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00057
       output_per_1k: 0.00228
@@ -1365,12 +1461,13 @@ models:
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "MiniMax M3 — latest MiniMax, 1M context"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/minimax/minimax-m3"
     model_family: "minimax"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00030
       output_per_1k: 0.0012
@@ -1384,12 +1481,13 @@ models:
   motoko-or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B MoE via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00006
       output_per_1k: 0.00024
@@ -1410,12 +1508,13 @@ models:
   motoko-or-qwen3-5-35b-a3b:
     api_name: "qwen/qwen3.5-35b-a3b-20260224"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.5 35B-A3B MoE via motoko_agent — low-active-param sweet-spot probe (local-rig candidate)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
     agent_model_name: "openrouter/qwen/qwen3.5-35b-a3b-20260224"
     model_family: "qwen-3-5"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00014   # $0.14 per 1M (verified OpenRouter API 2026-06-02)
       output_per_1k: 0.001    # $1.00 per 1M (verified OpenRouter API 2026-06-02)
@@ -1446,6 +1545,7 @@ models:
   motoko-local-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.5 35B-A3B (mxfp8) via motoko_agent on local Ollama — zero-cost agent eval on M4 Max rig"
     env_var: ""                                        # No API key — local inference
     agent_cli: "motoko"
@@ -1471,6 +1571,7 @@ models:
   motoko-local-qwen3-6-35b-a3b-mxfp8:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B (mxfp8) via motoko_agent on local Ollama — zero-cost agent eval; same tag as pi/opencode rotation"
     env_var: ""                                        # No API key — local inference
     agent_cli: "motoko"
@@ -1496,6 +1597,7 @@ models:
   motoko-local-qwen3-6-fmt:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B via motoko on the ollama_fmt profile — M-EVAL-FMT-WEAKMODEL-AB M6 ON arm (fmt extension runs ailang fmt --write on .ail writes). OFF arm = motoko-local-qwen3-6-35b-a3b-mxfp8 (profile ollama)."
     env_var: ""
     agent_cli: "motoko"
@@ -1512,6 +1614,7 @@ models:
   motoko-local-qwen3-6-docs:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_docs profile (+ailang_docs) — does AILANG-doc tooling lift a local model?"
     env_var: ""
     agent_cli: "motoko"
@@ -1533,6 +1636,7 @@ models:
   motoko-local-qwen3-6-microrag:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B via motoko_agent, lean ollama_microrag profile (+ailang_docs+microrag) — RAG-augmented local agent"
     env_var: ""
     agent_cli: "motoko"
@@ -1554,6 +1658,7 @@ models:
   motoko-local-qwen3-6-dp7:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B via motoko_agent, ollama_dp7 profile — DP7 pre-finalize 'ailang check' gate ON (AILANG-native verification)"
     env_var: ""
     agent_cli: "motoko"
@@ -1578,6 +1683,7 @@ models:
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemini 2.5 Flash via opencode harness — working fallback while gemini-3-flash-preview is not yet provisioned in this GCP project"
     env_var: ""
     agent_cli: "opencode"
@@ -1600,6 +1706,7 @@ models:
   opencode-gemma4-e4b:
     api_name: "gemma4:e4b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 E4B (4.5B active params) via opencode+Ollama — smoke test / 16GB laptop"
     env_var: ""
     agent_cli: "opencode"
@@ -1620,6 +1727,7 @@ models:
   opencode-gemma4-26b:
     api_name: "gemma4:26b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B (Q4_K_M, dense, 17GB) via opencode+Ollama — DEFAULT SAMPLING (Google's temp=1.0). Kept for A/B baseline only; production rotations should use opencode-gemma4-26b-ailang below."
     env_var: ""
     agent_cli: "opencode"
@@ -1650,6 +1758,7 @@ models:
   opencode-gemma4-26b-ailang:
     api_name: "gemma4:26b-ailang"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B with AILANG-tuned sampling (Modelfile + opencode options) — production rotation model as of 2026-05-23"
     env_var: ""
     agent_cli: "opencode"
@@ -1690,6 +1799,7 @@ models:
   opencode-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.5 35B-A3B MoE (MXFP8 8-bit, 38GB) via opencode+Ollama — LOCAL, ACCURACY-FIRST default for the M4 Max rig. 8-bit recovers code-gen quality the 4-bit nvfp4 loses; ~85 tok/s (only ~3B active)."
     env_var: ""
     agent_cli: "opencode"
@@ -1723,6 +1833,7 @@ models:
   pi-qwen3-5-35b-a3b-mxfp8:
     api_name: "qwen3.5:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.5 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness comparison vs opencode (requires ~/.pi/agent/models.json ollama provider)"
     env_var: ""
     agent_cli: "pi"
@@ -1752,6 +1863,7 @@ models:
   opencode-qwen3-6-35b-a3b-mxfp8:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B MoE (MXFP8 8-bit, 38GB) via opencode+Ollama — LOCAL. Onboarded 2026-06-14 as the qwen3.5 successor; OR screen AILANG 83%, TB2.0 0.515 vs incumbent 0.405. ~3B active."
     env_var: ""
     agent_cli: "opencode"
@@ -1774,6 +1886,7 @@ models:
   pi-qwen3-6-35b-a3b-mxfp8:
     api_name: "qwen3.6:35b-a3b-mxfp8"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.6 35B-A3B MXFP8 via pi+Ollama — LOCAL, cross-harness sibling of opencode-qwen3-6-35b-a3b-mxfp8 (requires ~/.pi/agent/models.json ollama provider)"
     env_var: ""
     agent_cli: "pi"
@@ -1796,6 +1909,7 @@ models:
   opencode-qwen3-5-35b-a3b:
     api_name: "qwen3.5:35b-a3b-nvfp4"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 3.5 35B-A3B MoE (Q4, ~24GB) via opencode+Ollama — LOCAL on the M4 Max rig. Local peer to opencode-gemma4-26b; OpenRouter twin (motoko-or-qwen3-5-35b-a3b) scored 17/17 on tier:smoke."
     env_var: ""
     agent_cli: "opencode"
@@ -1859,12 +1973,13 @@ models:
   opencode-or-glm-5:
     api_name: "z-ai/glm-5"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GLM 5 (z.ai) via opencode+OpenRouter — first OS model to PASS full AILANG smoke"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5"
     model_family: "glm-5"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.0006   # $0.60 per 1M
       output_per_1k: 0.00208 # $2.08 per 1M
@@ -1887,12 +2002,13 @@ models:
   opencode-or-glm-5-1:
     api_name: "z-ai/glm-5.1"
     provider: "openrouter"
+    default_thinking: "always_on"
     description: "GLM-5.1 (z.ai, newest) via opencode+OpenRouter — agent companion to or-glm-5-1"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5.1"
     model_family: "glm-5"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00098  # $0.98 per 1M
       output_per_1k: 0.00308 # $3.08 per 1M
@@ -1912,12 +2028,13 @@ models:
   opencode-or-glm-5-2:
     api_name: "z-ai/glm-5.2"
     provider: "openrouter"
+    default_thinking: "always_on"
     description: "GLM-5.2 (z.ai, newest 2026-06-16) via opencode+OpenRouter — replacement candidate for GLM-5.1"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5.2"
     model_family: "glm-5"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.0014   # $1.40 per 1M
       output_per_1k: 0.0044  # $4.40 per 1M
@@ -1935,12 +2052,13 @@ models:
   opencode-or-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "MiniMax M3 (newest) via opencode+OpenRouter — agent companion to or-minimax-m3"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/minimax/minimax-m3"
     model_family: "minimax-m3"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
@@ -1954,12 +2072,13 @@ models:
   opencode-or-minimax-m2-7:
     api_name: "minimax/minimax-m2.7"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "MiniMax M2.7 via opencode+OpenRouter — second OS model to PASS full smoke"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/minimax/minimax-m2.7"
     model_family: "minimax-m2"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
@@ -1981,12 +2100,13 @@ models:
   opencode-or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B via opencode+OpenRouter (NEAR-MISS: 2/3 agent smoke)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
       input_per_1k: 0.00006
       output_per_1k: 0.00033
@@ -2003,6 +2123,7 @@ models:
   opencode-or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V4 Flash via opencode+OpenRouter (NEAR-MISS: 0/3 std → 2/3 agent)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
@@ -2030,6 +2151,7 @@ models:
   opencode-or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V4 Pro via opencode+OpenRouter — re-test on current core (2026-06-04)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
@@ -2051,6 +2173,7 @@ models:
   or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V4 Flash via OpenRouter (standard) — cheapest viable model ($0.10/$0.20 per 1M)"
     env_var: "OPENROUTER_API_KEY"
     model_family: "deepseek-v4"
@@ -2067,6 +2190,7 @@ models:
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V4 Pro via OpenRouter (standard)"
     env_var: "OPENROUTER_API_KEY"
     model_family: "deepseek-v4"
@@ -2088,12 +2212,13 @@ models:
   opencode-or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GLM 4.7 Flash (z.ai) via opencode+OpenRouter — PROMOTED 3/3 PASS 2026-05-05 with v0.15.1 budgets"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-4.7-flash"
     model_family: "glm-4-7"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00006   # $0.06 per 1M (cheapest in spread)
       output_per_1k: 0.0004   # $0.40 per 1M
@@ -2124,12 +2249,13 @@ models:
   opencode-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Kimi K2.6 via opencode+OpenRouter (NEAR-MISS: 2/3 even with 180s csv_to_json budget)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/moonshotai/kimi-k2.6"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00074
       output_per_1k: 0.00349
@@ -2153,12 +2279,13 @@ models:
   opencode-or-kimi-k2-7-code:
     api_name: "moonshotai/kimi-k2.7-code"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Kimi K2.7 Code via opencode+OpenRouter — coding-focused K2.6 successor, smoke gate PENDING"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/moonshotai/kimi-k2.7-code"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.00075   # $0.75 per 1M
       output_per_1k: 0.0035   # $3.50 per 1M
@@ -2178,6 +2305,7 @@ models:
   or-kimi-k2-7-code:
     api_name: "moonshotai/kimi-k2.7-code"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Kimi K2.7 Code via OpenRouter standard mode — companion to opencode-or-kimi-k2-7-code"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
@@ -2200,12 +2328,13 @@ models:
   opencode-or-kimi-k3:
     api_name: "moonshotai/kimi-k3"
     provider: "openrouter"
+    default_thinking: "on"
     description: "Kimi K3 via opencode+OpenRouter — general K2.x successor, 1M ctx, smoke gate PENDING"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "opencode"
     agent_model_name: "openrouter/moonshotai/kimi-k3"
     model_family: "kimi"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     pricing:
       input_per_1k: 0.003    # $3.00 per 1M
       output_per_1k: 0.015   # $15.00 per 1M
@@ -2227,6 +2356,7 @@ models:
   or-kimi-k3:
     api_name: "moonshotai/kimi-k3"
     provider: "openrouter"
+    default_thinking: "on"
     description: "Kimi K3 via OpenRouter standard mode — companion to opencode-or-kimi-k3"
     env_var: "OPENROUTER_API_KEY"
     model_family: "kimi"
@@ -2263,6 +2393,7 @@ models:
   ollama-codellama:
     api_name: "codellama:7b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "CodeLlama 7B - local code generation"
     env_var: ""  # No API key needed
     pricing:
@@ -2276,6 +2407,7 @@ models:
   ollama-deepseek-coder:
     api_name: "deepseek-coder:6.7b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek Coder 6.7B - competitive with GPT-3.5"
     env_var: ""
     pricing:
@@ -2289,6 +2421,7 @@ models:
   ollama-qwen-coder:
     api_name: "qwen2.5-coder:7b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 2.5 Coder 7B - top-tier open model"
     env_var: ""
     pricing:
@@ -2302,6 +2435,7 @@ models:
   ollama-llama3-2:
     api_name: "llama3.2:3b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Llama 3.2 3B - fast local inference"
     env_var: ""
     pricing:
@@ -2315,6 +2449,7 @@ models:
   ollama-gemma3:
     api_name: "gemma3:12b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Google Gemma 3 12B - multimodal open model"
     env_var: ""
     pricing:
@@ -2328,6 +2463,7 @@ models:
   ollama-gemma4-26b:
     api_name: "gemma4:26b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Google Gemma 4 26B (Q4_K_M, thinking mode) - direct Ollama smoke target"
     env_var: ""
     max_output_tokens: 8192
@@ -2347,6 +2483,7 @@ models:
   ollama-granite3-2-vision:
     api_name: "granite3.2-vision:latest"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "IBM Granite 3.2 Vision - document understanding and OCR"
     env_var: ""
     pricing:
@@ -2361,6 +2498,7 @@ models:
   ollama-paddleocr-vl:
     api_name: "MedAIBase/PaddleOCR-VL:0.9b"
     provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "PaddleOCR-VL 0.9B - lightweight OCR vision-language model"
     env_var: ""
     pricing:
@@ -2397,9 +2535,10 @@ models:
   or-deepseek-v3:
     api_name: "deepseek/deepseek-chat"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "DeepSeek V3 (deepseek-chat) via OpenRouter"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
+    max_output_tokens: 16384  # M-EVAL-TOKEN-HEADROOM: was 8192; CEILING-LIMITED: deepseek/deepseek-chat max_completion=16384 across all upstreams
     model_family: "deepseek-v3"
     pricing:
       input_per_1k: 0.00014   # $0.14 per 1M
@@ -2409,9 +2548,10 @@ models:
   or-qwen-2-5-72b:
     api_name: "qwen/qwen-2.5-72b-instruct"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen 2.5 72B Instruct via OpenRouter"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
+    max_output_tokens: 16384  # M-EVAL-TOKEN-HEADROOM: was 8192; CEILING-LIMITED: qwen/qwen-2.5-72b-instruct max_completion=16384 across all upstreams
     model_family: "qwen-2-5"
     pricing:
       input_per_1k: 0.00012   # $0.12 per 1M
@@ -2421,9 +2561,10 @@ models:
   or-mistral-large:
     api_name: "mistralai/mistral-large"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Mistral Large via OpenRouter"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     model_family: "mistral-large"
     pricing:
       input_per_1k: 0.002    # $2.00 per 1M (proprietary; not OS but routed via OR)
@@ -2463,9 +2604,10 @@ models:
   or-glm-5:
     api_name: "z-ai/glm-5"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GLM 5 (z.ai) via OpenRouter — first OS PASS 3/3 smoke (added v0.15.0)"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "glm-5"
     pricing:
       input_per_1k: 0.0006   # $0.60 per 1M
@@ -2484,9 +2626,10 @@ models:
   or-minimax-m2-7:
     api_name: "minimax/minimax-m2.7"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "MiniMax M2.7 via OpenRouter — second OS PASS 3/3 smoke (added v0.15.0)"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "minimax-m2"
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
@@ -2503,9 +2646,10 @@ models:
   or-glm-5-1:
     api_name: "z-ai/glm-5.1"
     provider: "openrouter"
+    default_thinking: "always_on"
     description: "GLM-5.1 via OpenRouter (standard mode) — RETIRED from suites 2026-07-19, opt-in only"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "glm-5"
     pricing:
       input_per_1k: 0.00098  # $0.98 per 1M
@@ -2525,6 +2669,7 @@ models:
   or-glm-5-2:
     api_name: "z-ai/glm-5.2"
     provider: "openrouter"
+    default_thinking: "always_on"
     description: "GLM-5.2 via OpenRouter (standard mode) — newest z-ai (2026-06-16), replacement candidate for GLM-5.1"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # always-thinking model; at 32768 its thinking phase (observed
@@ -2564,6 +2709,7 @@ models:
   or-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "MiniMax M3 via OpenRouter (standard mode) — newest MiniMax, 1M ctx"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536  # thinking headroom (reasons by default; see or-glm-5-2 truncation retraction)
@@ -2581,9 +2727,10 @@ models:
   or-qwen3-6-35b-a3b:
     api_name: "qwen/qwen3.6-35b-a3b"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen3.6 35B-A3B via OpenRouter (standard mode) — OSS screen for on-device upgrade candidate (TB2.0 0.515 vs rig incumbent qwen3.5-35b-a3b 0.405)"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "qwen3-6-35b-a3b"
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M
@@ -2599,9 +2746,10 @@ models:
   or-glm-4-7-flash:
     api_name: "z-ai/glm-4.7-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "GLM-4.7-Flash via OpenRouter (standard mode) — OSS screen, 30B-class on-device candidate"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "glm-4-7-flash"
     pricing:
       input_per_1k: 0.00006   # $0.06 per 1M
@@ -2616,9 +2764,10 @@ models:
   or-laguna-xs-2:
     api_name: "poolside/laguna-xs.2:free"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Poolside Laguna XS.2 (free) via OpenRouter (standard mode) — OSS screen, 33B/3B MoE agentic-coding on-device candidate"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 32768
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
     model_family: "laguna-xs-2"
     pricing:
       input_per_1k: 0.0
@@ -2633,9 +2782,10 @@ models:
   or-gemma-4-26b:
     api_name: "google/gemma-4-26b-a4b-it"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Gemma 4 26B-A4B-IT via OpenRouter — Google MoE (NEAR-MISS: 2/3 smoke 2026-05-04)"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     model_family: "gemma-4"
     pricing:
       input_per_1k: 0.00006   # $0.06 per 1M
@@ -2649,6 +2799,7 @@ models:
   or-qwen3-coder-flash:
     api_name: "qwen/qwen3-coder-flash"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "Qwen3 Coder Flash via OpenRouter (NEAR-MISS: 2/3 smoke 2026-05-04)"
     env_var: "OPENROUTER_API_KEY"
     max_output_tokens: 65536
@@ -2664,9 +2815,10 @@ models:
   or-auto:
     api_name: "openrouter/auto"
     provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
     description: "OpenRouter auto-routing — let OpenRouter pick the best model"
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 8192
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
