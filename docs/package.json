@@ -24,11 +24,11 @@
     "@mdx-js/react": "^3.0.0",
     "@mermaid-js/layout-elk": "^0.2.2",
     "clsx": "^2.0.0",
-    "lucide-react": "^1.25.0",
+    "lucide-react": "^1.27.0",
     "prism-react-renderer": "^2.3.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "recharts": "^3.9.2"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.2",
