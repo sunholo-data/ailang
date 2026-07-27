@@ -533,6 +533,30 @@ while :; do
 done
 ```
 
+**Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
+multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
+hand-rolling a variant because Gate 3b only shipped the single-workflow form above while a real
+push needs CI *and* Build-and-Release). Defect 1: an associative-array "already done" tracker
+whose writes did not persist, so completed workflows re-printed every round and the final summary
+read `INCOMPLETE` for two jobs that had in fact reported. Defect 2: a `set -- $res` positional-split
+poll that printed `TIMEOUT ... — PARK` while its own last reading was `completed success <target-sha>`
+— i.e. it declared a park on a run that was GREEN. A Gate-3b verdict is load-bearing (it decides
+LANDED vs parked), so a poll bug can park a landed item or, worse, green a red one. Rules:
+(a) reuse the snippet above verbatim, once per expected workflow, instead of inventing a combined
+loop; (b) the poll's output is a HINT, never the verdict — before recording Gate 3b, confirm the
+truth directly and cheaply with a per-workflow read, which is also what Gate 1 already prescribes:
+
+```bash
+for wf in "CI" "Build and Release"; do        # only workflows EXPECTED for this diff
+  gh run list --workflow "$wf" --branch dev --limit 1 \
+    --json status,conclusion,headSha --jq '.[0] | "'"$wf"': \(.status)/\(.conclusion // "-") @ \(.headSha[0:9])"'
+done
+git rev-parse --short origin/dev              # the SHA those runs MUST match
+```
+
+(c) never report green from a poll whose own last-seen line contradicts its verdict — re-read and
+believe the direct query.
+
 On timeout, do NOT keep waiting: park the item `needs-human-review` with the last status and
 report (Gate 5), same as for a red run — a timed-out wait is NOT green. Local `make test`/`make
 lint` do NOT cover the remote-only gates (fmt-check, govulncheck, check-file-sizes, docs build).
