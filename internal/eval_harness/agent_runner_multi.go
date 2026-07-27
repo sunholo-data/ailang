@@ -398,7 +398,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// Calculate success
 	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
 
-	return &AgentBenchmarkResult{
+	agentResult := &AgentBenchmarkResult{
 		BenchmarkID:   spec.ID,
 		Executor:      executorName,
 		Success:       success,
@@ -450,7 +450,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		// from the out-of-band file sink (M2b). Empty on the OFF arm (never read).
 		FmtHook:       config.FmtHook.ResolvedState(),
 		FmtHookEvents: fmtHookEvents,
-	}, nil
+	}
+
+	// M-CONTRACT-EVAL + M4a-3 (BF-1): post-hoc contract verification. This is the
+	// LIVE agent path — the only one cmd/ailang/eval_benchmark.go invokes — so this
+	// is where verification has to happen. It previously existed only on the
+	// caller-less legacy RunAgentBenchmark(), which is why no agent run had ever
+	// banked verify_verified > 0 and the cost-per-verified-success KPI was stuck on
+	// zero_denominator. See applyAgentVerification in verify.go for the gate.
+	applyAgentVerification(agentResult, config.AgentBenchmarkConfig, spec, language, solutionPath, validation.CompileOk)
+
+	return agentResult, nil
 }
 
 // NOTE (M2b): the old fmtHookEventHandler that scanned the claude stdout stream

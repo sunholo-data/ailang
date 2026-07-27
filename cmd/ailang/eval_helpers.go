@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -18,7 +17,7 @@ var evalBenchmarkDir = "benchmarks"
 var evalVerifyFlag bool
 
 // evalVerifyTimeout is the per-function Z3 timeout for contract verification.
-var evalVerifyTimeout = 5 * time.Second
+var evalVerifyTimeout = eval_harness.DefaultVerifyTimeout
 
 // evalDevtoolsPromptFlag appends the devtools prompt to agent system prompts.
 var evalDevtoolsPromptFlag bool

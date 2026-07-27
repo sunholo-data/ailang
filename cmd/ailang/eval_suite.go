@@ -130,7 +130,7 @@ func runEvalSuite() {
 	// Contract verification flags (M-CONTRACT-EVAL)
 	benchmarkDir := fs.String("benchmark-dir", "", "Directory containing benchmark YAML files (default: benchmarks/ in CWD)")
 	verify := fs.Bool("verify", false, "Enable contract verification (run ailang ai-check on solutions)")
-	verifyTimeout := fs.Duration("verify-timeout", 5*time.Second, "Per-function Z3 timeout for contract verification")
+	verifyTimeout := fs.Duration("verify-timeout", eval_harness.DefaultVerifyTimeout, "Per-function Z3 timeout for contract verification")
 	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
 	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full,tool_aware). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
 

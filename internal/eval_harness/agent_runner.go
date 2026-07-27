@@ -22,13 +22,19 @@ type AgentBenchmarkConfig struct {
 	// semaphore is the -parallel flag handled in cmd/ailang/eval_parallel.go.
 	// Keeping the field caused recurring user confusion (passing -agent-parallel 1
 	// expecting serial execution and getting -parallel=10 oversubscription).
-	RequestsPerSecond  int           // API rate limit
-	TimeoutSeconds     int           // Timeout per benchmark
-	WorkspaceDir       string        // Base workspace directory
-	AllowedTools       []string      // Tools agent can use
-	ClaudePath         string        // Path to claude CLI
-	ClaudeModel        string        // Claude model to use (haiku, sonnet, opus, or full name)
-	Verify             bool          // Enable contract verification (M-CONTRACT-EVAL)
+	RequestsPerSecond int      // API rate limit
+	TimeoutSeconds    int      // Timeout per benchmark
+	WorkspaceDir      string   // Base workspace directory
+	AllowedTools      []string // Tools agent can use
+	ClaudePath        string   // Path to claude CLI
+	ClaudeModel       string   // Claude model to use (haiku, sonnet, opus, or full name)
+	Verify            bool     // Enable contract verification (M-CONTRACT-EVAL)
+	// VerifyTimeout is the per-function Z3 timeout handed to `ailang ai-check`
+	// (M4a-3 / BF-3). Before this field, --verify-timeout reached only the
+	// standard-mode repair runner while the agent path hardcoded 5s — and the M4a
+	// cohort manifest records verify_timeout, so the artifact would have documented
+	// a timeout the run never used. Zero resolves to DefaultVerifyTimeout.
+	VerifyTimeout      time.Duration
 	DevtoolsPrompt     string        // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
 	AgentPromptContent string        // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
 	Condition          EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
@@ -56,7 +62,19 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 		AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
 		ClaudePath:        "claude", // Use PATH
 		ClaudeModel:       "haiku",  // Default to Haiku for cost efficiency
+		VerifyTimeout:     DefaultVerifyTimeout,
 	}
+}
+
+// ResolvedVerifyTimeout returns the per-function Z3 timeout to hand `ailang
+// ai-check`. A zero value (a hand-built config) resolves to the SAME named
+// default the --verify-timeout flag uses, so ai-check is never invoked with
+// `--timeout 0s` and the value the cohort manifest records is the value used.
+func (c AgentBenchmarkConfig) ResolvedVerifyTimeout() time.Duration {
+	if c.VerifyTimeout > 0 {
+		return c.VerifyTimeout
+	}
+	return DefaultVerifyTimeout
 }
 
 // AgentBenchmarkResult captures agent evaluation outcome
@@ -190,176 +208,21 @@ type ClaudeHeadlessResult struct {
 	FmtHookEvents []FmtHookEvent `json:"-"`
 }
 
-// RunAgentBenchmark runs a single benchmark using Claude Code headless mode
-// language parameter specifies which language to run (ailang, python, etc.)
-func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, language string) (*AgentBenchmarkResult, error) {
-	// Default to ailang if not specified
-	if language == "" {
-		language = "ailang"
-	}
-
-	// Check Claude CLI is available
-	if err := checkClaudeCLI(config.ClaudePath); err != nil {
-		return nil, fmt.Errorf("claude CLI check failed: %w", err)
-	}
-
-	// Create isolated workspace for this benchmark (include language for separation)
-	workspace := filepath.Join(config.WorkspaceDir, fmt.Sprintf("%s_%s_%d", spec.ID, language, os.Getpid()))
-	if err := os.MkdirAll(workspace, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create workspace: %w", err)
-	}
-
-	// Create minimal .git folder so Claude treats workspace as standalone project
-	// This prevents Claude from walking up and finding the parent AILANG repo
-	gitDir := filepath.Join(workspace, ".git")
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create .git folder: %w", err)
-	}
-
-	// Only cleanup workspace if DEBUG_AGENT is not set (allows inspection)
-	if os.Getenv("DEBUG_AGENT") == "" {
-		defer os.RemoveAll(workspace)
-	} else {
-		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
-	}
-
-	// Seed benchmark input files so the agent can actually run/test its solution
-	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
-	if err := seedInputFiles(workspace, spec); err != nil {
-		return nil, err
-	}
-
-	// Create placeholder solution file that Claude will overwrite
-	// For AILANG: Create benchmark/ subdirectory and pre-populate with correct module declaration
-	// For Python: Create solution.py in workspace root
-	var solutionPath string
-	var placeholder string
-
-	if language == "ailang" {
-		// Create benchmark/ subdirectory — AILANG requires module path to match dir
-		benchmarkDir := filepath.Join(workspace, "benchmark")
-		if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create benchmark dir: %w", err)
-		}
-		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
-		placeholder = `module benchmark/solution
-// ⚠️ DO NOT CHANGE THE MODULE DECLARATION ABOVE! ⚠️
-// It MUST match the file path (benchmark/solution.ail)
-// Changing it will cause MOD010 error: "module declaration doesn't match canonical path"
-
-// TODO: Add your solution code below this line
-
-`
-	} else {
-		// All other languages (python, javascript, go, …) — place solution in workspace root.
-		lang, err := langreg.Get(language)
-		if err != nil {
-			return nil, fmt.Errorf("unknown language %q: %w", language, err)
-		}
-		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
-		placeholder = "# TODO: Write your solution here\n"
-	}
-
-	// Generate split prompts: system (language knowledge) + task (benchmark description)
-	// System prompt loaded from prompts/versions.json (versioned teaching prompts)
-	// Task prompt loaded from generic .txt templates
-	// Pass solutionPath so prompt can include full path
-	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config, language, "", solutionPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate prompts: %w", err)
-	}
-
-	if err := os.WriteFile(solutionPath, []byte(placeholder), 0644); err != nil {
-		return nil, fmt.Errorf("failed to create solution placeholder: %w", err)
-	}
-
-	// Run headless Claude session with streaming (always enabled for transcript capture)
-	// Streaming mode captures full conversation log which is essential for debugging failures
-	// Uses --system-prompt flag for language knowledge, -p for task instructions
-	var result *ClaudeHeadlessResult
-	result, err = RunHeadlessSessionStreaming(spec, systemPrompt, taskPrompt, workspace, config)
-	if err != nil {
-		// Still try to capture partial results even if session failed
-		// (though with recent changes, runHeadlessSessionStreaming should return a result, not error)
-		return nil, fmt.Errorf("headless session failed: %w", err)
-	}
-
-	// Parse result and determine success - returns detailed validation results
-	validation := determineSuccess(result, spec, workspace, language)
-
-	// Read solution code from workspace BEFORE defer cleanup runs
-	// Claude should have written to solution.py or solution.ail
-	solutionCode, err := os.ReadFile(solutionPath)
-	if err != nil {
-		// If file doesn't exist or can't be read, solution is empty
-		solutionCode = []byte{}
-		if os.Getenv("DEBUG_AGENT") != "" {
-			fmt.Fprintf(os.Stderr, "[WARN] Could not read solution file %s: %v\n", solutionPath, err)
-		}
-	}
-
-	// Write transcript to file BEFORE defer cleanup (transcript is returned in result.Transcript)
-	// This ensures the file exists when we try to read it back
-	if result.Transcript != "" {
-		sessionLogPath := filepath.Join(workspace, "claude_session.log")
-		if err := os.WriteFile(sessionLogPath, []byte(result.Transcript), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "[WARN] Failed to write session log: %v\n", err)
-		}
-	}
-
-	// Use transcript from result directly (already formatted)
-	sessionLog := result.Transcript
-
-	// M-CONTRACT-EVAL: Post-hoc contract verification for agent mode
-	var verifyResult *AICheckResult
-	var verifyRawJSON string
-	if config.Verify && spec.ContractSpec != "" && language == "ailang" && validation.CompileOk {
-		verifyResult, verifyRawJSON, _ = RunAICheck("", solutionPath, 5*time.Second)
-	}
-
-	// Overall success is when all validations pass
-	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
-
-	agentResult := &AgentBenchmarkResult{
-		BenchmarkID: spec.ID,
-		Executor:    "claude", // Legacy runner always uses Claude Code
-		Success:     success,
-		Iterations:  result.NumTurns,
-		Cost:        result.TotalCostUSD,
-		DurationMS:  result.DurationMS,
-		NumTurns:    result.NumTurns,
-		Error:       getErrorMessage(result),
-		SessionID:   result.SessionID,
-		Result:      result.Result,
-		Usage:       result.Usage,
-		ModelUsage:  result.ModelUsage,
-		// Add solution and session log for inspection
-		SolutionCode:  string(solutionCode),
-		SessionLog:    string(sessionLog),
-		PromptVersion: promptVersion, // Track which prompt version was used
-		// Validation flags (match standard eval format)
-		CompileOk: validation.CompileOk,
-		RuntimeOk: validation.RuntimeOk,
-		StdoutOk:  validation.StdoutOk,
-		Stdout:    validation.Stdout,
-		Stderr:    validation.Stderr,
-		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook-reality.
-		FmtHook:       config.FmtHook.ResolvedState(),
-		FmtHookEvents: result.FmtHookEvents,
-	}
-
-	// M-CONTRACT-EVAL: Populate verify fields if verification was run
-	if verifyResult != nil {
-		agentResult.VerifyVerified = verifyResult.Verify.Verified
-		agentResult.VerifyCounterex = verifyResult.Verify.Counterexample
-		agentResult.VerifySkipped = verifyResult.Verify.Skipped
-		agentResult.VerifyErrors = verifyResult.Verify.Errors
-		agentResult.VerifyOk = verifyResult.Verify.Available && verifyResult.Verify.Counterexample == 0 && verifyResult.Verify.Errors == 0
-		agentResult.VerifyJSON = verifyRawJSON
-	}
-
-	return agentResult, nil
-}
+// NOTE (M4a-3 / BF-1): the legacy RunAgentBenchmark() Claude-headless runner was
+// DELETED here. It had no caller — cmd/ailang/eval_benchmark.go always uses
+// RunAgentBenchmarkWithExecutor (agent_runner_multi.go) because the legacy runner
+// hardcoded Claude — yet it held the ONLY agent-mode contract-verification call.
+// That is why no agent run had ever banked verify_verified > 0 and the
+// cost-per-verified-success KPI was permanently zero_denominator. Verification now
+// lives in exactly one place: applyAgentVerification (verify.go), called from the
+// live multi-executor path. Do not reintroduce a second copy.
+//
+// The Claude-headless helpers below (checkClaudeCLI, determineSuccess,
+// getErrorMessage, ClaudeHeadlessResult, RunHeadlessSessionStreaming) are retained
+// deliberately: they are a self-contained subsystem still covered by tests, and
+// removing them is a separate refactor that also touches the fmt-hook A/B
+// machinery. They no longer carry any verification logic, so they cannot drift
+// from the live path on the axis BF-1 was about.
 
 // checkClaudeCLI verifies Claude CLI is installed and has correct version
 func checkClaudeCLI(claudePath string) error {

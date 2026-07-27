@@ -65,6 +65,7 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 		ClaudePath:         "claude",             // Use PATH
 		ClaudeModel:        p.agentModelOverride, // Empty unless override specified
 		Verify:             p.verify,             // M-CONTRACT-EVAL: enable contract verification
+		VerifyTimeout:      p.verifyTimeout,      // M4a-3 / BF-3: --verify-timeout now reaches the agent verifier
 		DevtoolsPrompt:     loadDevtoolsPrompt(p.conditions),
 		AgentPromptContent: loadAgentCodingPrompt(p.conditions),
 		MicroragMode:       evalMicroragMode, // M-BRAIN-MICRORAG: subprocess env mode

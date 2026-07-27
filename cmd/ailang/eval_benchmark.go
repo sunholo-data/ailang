@@ -126,8 +126,10 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			}
 		}
 
-		// Always use multi-executor runner -- legacy RunAgentBenchmark() hardcodes Claude
-		// and must NOT be used for non-Claude models
+		// Multi-executor runner: the ONLY agent-mode runner. (The legacy
+		// Claude-hardcoded RunAgentBenchmark() was deleted in M4a-3 — it had no
+		// caller yet held the only agent-mode contract-verification call, which is
+		// why no agent run ever banked verify_verified > 0. See BF-1.)
 		multiConfig := eval_harness.MultiExecutorConfig{
 			AgentBenchmarkConfig: sessionConfig,
 			ExecutorName:         executorName,
@@ -269,6 +271,17 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			RuntimeOk:  result.RuntimeOk,
 			StdoutOk:   result.StdoutOk,
 			DurationMs: int64(result.DurationMS),
+			// Contract verification (M4a-3): the banked RESULT JSON now carries the
+			// same 5 verify_* fields the chain assessment does. Standard mode has
+			// always recorded these (via PopulateVerifyMetrics); agent mode dropped
+			// them, so even once verification ran, eval-summary / eval-matrix could
+			// not see it. Same evidence, both surfaces.
+			VerifyOk:        result.VerifyOk,
+			VerifyVerified:  result.VerifyVerified,
+			VerifyCounterex: result.VerifyCounterex,
+			VerifySkipped:   result.VerifySkipped,
+			VerifyErrors:    result.VerifyErrors,
+			VerifyJSON:      result.VerifyJSON,
 			// M-EVAL-SWEET-SPOT: prefers FinishReason-derived category when available
 			ErrorCategory:  errCategory,
 			Stdout:         result.Stdout,
