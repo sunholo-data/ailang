@@ -1,0 +1,87 @@
+// Save this at ~/.config/opencode/opencode.jsonc
+// Edit the "models" map as you add more local models.
+// JSONC format: comments allowed, trailing commas OK.
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama Local",
+      "options": { "baseURL": "http://localhost:11434/v1" },
+      "models": {
+        // Current baseline
+        "gemma4:26b":      { "name": "Gemma 4 26B (local)" },
+
+        // Add new models here as you pull them:
+        // "qwen2.5-coder:32b": { "name": "Qwen 2.5 Coder 32B (local)" },
+        // "qwen3:32b":         { "name": "Qwen3 32B (local)" },
+        // "phi4-reasoning:14b": { "name": "Phi-4 Reasoning 14B (local)" },
+        // "deepseek-coder-v2:16b": { "name": "DeepSeek Coder v2 16B (local)" }
+      }
+    }
+  },
+
+  // Bash command denylist (added 2026-05-23). Deny rules apply EVEN with
+  // --dangerously-skip-permissions, making this the right safety net for
+  // unattended eval runs. Catches pathological filesystem-search loops
+  // (gemma4:26b empirically: `find / -name ailang`, `ls -R /` thrashing
+  // when it couldn't locate the ailang binary).
+  //
+  // Wildcard gotcha: opencode uses simple glob matching. `"ls -R /": "deny"`
+  // matches the literal but NOT `ls -R / | grep ailang` (a pipeline).
+  // Trailing `*` catches pipelines.
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "find / *": "deny",
+      "find /System*": "deny",
+      "find /usr*": "deny",
+      "find /Library*": "deny",
+      "find /Applications*": "deny",
+      "find /Volumes*": "deny",
+      "find /private*": "deny",
+      "find /opt*": "deny",
+      "find /etc*": "deny",
+      "find /var*": "deny",
+      "ls -R /*": "deny",
+      "ls -lR /*": "deny",
+      "ls -Rl /*": "deny",
+      "grep -r /*": "deny",
+      "grep -R /*": "deny",
+      "rm -rf /*": "deny",
+      "sudo *": "deny"
+    }
+  },
+
+  // AILANG remote MCP server (added 2026-05-23). Gives the agent first-class
+  // access to version-locked AILANG knowledge via structured MCP tools
+  // (ailang.prompt_get, ailang.stdlib_search, ailang.example_for_concept,
+  // ailang.limitations_list, ailang.effects_catalog, etc.) instead of
+  // shelling out to local CLI commands. Returns structured JSON — much
+  // better than parsing prose `ailang docs` output for the iterative
+  // check/run/fix loop. Version-locks to the user's CLI version.
+  //
+  // If unreachable, opencode logs the error and continues; the agent can
+  // still shell out to `ailang docs` etc. as a fallback.
+  //
+  // See: design_docs/planned/v0_23_0/m-eval-slim-prompt-self-discovery.md
+  "mcp": {
+    "ailang-docs": {
+      "type": "remote",
+      "url": "https://mcp.ailang.sunholo.com/mcp/",
+      "enabled": true
+    }
+  }
+}
+
+// Verify with: opencode models | grep ollama
+// Expected output (one line per registered model):
+//   ollama/gemma4:26b
+//   ollama/qwen2.5-coder:32b  (if added)
+//   ...
+
+// Troubleshooting:
+// - If opencode doesn't see the model, restart opencode-ai (npm package may cache config)
+// - If "Model not found" at run time, verify ollama has it: ollama list
+// - The /v1 baseURL suffix is required (OpenAI-compatible API surface)

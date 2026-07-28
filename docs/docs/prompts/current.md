@@ -1470,7 +1470,7 @@ export func main() -> () ! {IO} {
 **Common JSON imports (use all you need):**
 ```ailang
 -- For building JSON
-import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
+import std/json (encode, jo, ja, kv, js, jnum, jint, jb, jn)
 
 -- For parsing JSON
 import std/json (decode, get, getString, getInt, getArray, asString, asNumber, asArray)
@@ -1482,7 +1482,8 @@ import std/result (Result, Ok, Err)
 ```ailang
 import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
--- JSON constructors: js(string), jnum(float), jb(bool), jn() for null
+-- JSON constructors: js(string), jnum(float), jint(int), jb(bool), jn() for null
+-- jint(n) is the integer convenience for jnum(intToFloat(n))
 -- jo([kv(k,v)...]) for objects, ja([...]) for arrays
 
 -- Build JSON object with all types

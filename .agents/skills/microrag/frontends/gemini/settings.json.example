@@ -1,0 +1,29 @@
+{
+  "_comment": "Gemini CLI microrag hook registration. Copy to .gemini/settings.json in your project root (or merge with existing). Paths assume ailang install at ~/.ailang/; adjust if different.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|Read|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.ailang/hooks/microrag_context.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.ailang/hooks/microrag_lint.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
