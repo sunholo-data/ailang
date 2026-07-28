@@ -747,3 +747,67 @@ still merge while rolling back — the repo is not lockable by this change.
 - Protection after (4 contexts):
 - PR-B mergeStateStatus under live protection:
 - PR-B merged:
+
+---
+
+## 7. Controller evidence — M4 (BUILD branch), observed
+
+Captured from PR **#501**, head `d89ba78e8` (the hardened commit), squash-merged as `a3e781b26`.
+
+| check-run | status | conclusion |
+|---|---|---|
+| `docs-changes` | completed | **success** |
+| `docs-build` | completed | **success** |
+| `docs-gate` | completed | **success** |
+| `test` / `lint` / `build` | completed | success (existing required checks unregressed) |
+| `deploy` | completed | skipped (correct: PR ref, not `dev`/`main`) |
+
+**The collision is gone** — `[.check_runs[]|select(.name=="build")]|length` → **1**.
+
+Detector log, run `30338782659`, job `90209425470` (verbatim):
+
+```
+docs path drift guard passed for 10 push paths
+Docs-filtered changed files:
+.github/workflows/docusaurus-deploy.yml
+CHANGELOG.md
+docs_changed=true
+```
+
+`gh pr view 501 --json mergeable,mergeStateStatus` → `MERGEABLE/CLEAN` before merge.
+
+### Post-evaluation hardening (commit `d89ba78e8`)
+
+The independent evaluator (sonnet, PASS 88/100 round 1, zero blocking) filed NB-1: the drift
+guard's `awk` matched only single-quoted `on.push.paths` entries, so a future `- "docs/**"` or bare
+`- docs/**` would be **silently skipped** while the guard still reported "passed". Reproduced
+first-party, then fixed — and a **second, unreported defect** surfaced while doing so: the
+`found_push` / `exit 2` arm was **dead code**, because `while read; done < <(awk …) || {…}` tests the
+*while loop's* status, not the process substitution's. Proved directly:
+
+```
+$ while IFS= read -r x; do :; done < <(sh -c 'exit 2') || echo "|| FIRED"
+$ echo $?
+0        # "|| FIRED" never printed => awk's status was being discarded
+```
+
+Guard behaviour, all five vectors run locally against the real file:
+
+| vector | before | after |
+|---|---|---|
+| real file, 10 entries | pass | pass (rc 0) |
+| `- "llms.txt"` double-quoted | **silent pass** | rc 1, `UNPARSEABLE:` |
+| `- llms.txt` bare | **silent pass** | rc 1, `UNPARSEABLE:` |
+| `- 'zzz/**'` genuine drift | rc 1 | rc 1 |
+| no `on.push` block at all | **silent pass** | rc 1 |
+
+Workflow confirmed byte-identical by sha256 (`d4f4b71a…`) before and after the mutation vectors;
+`actionlint` still reports exactly the one pre-existing SC2155 (line shifted 110 → 234).
+
+## 8. This file's own commit IS the M5 skip-branch probe
+
+`design_docs/` is deliberately absent from `.github/docs-build-paths.txt`, so a PR that changes only
+this file must drive `docs_changed=false` → `docs-build` **skipped** → `docs-gate` **success**. That
+is the branch PR #501 could not exercise (its own diff touched the workflow, a listed path), and it
+is the branch that would wedge every PR in the repo if it misbehaved. Evidence lands in the PR
+thread and in #497.
