@@ -418,9 +418,9 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null; echo "codex 30-min cap — FLAG"; break; }
        sleep 15; done; wait "$pid" 2>/dev/null; echo "codex rc=$?"
      ```
-     **TWO FALSE-GREENS this recipe used to carry** (proposed by `world-coordinator` from
-     mission-world iter-26, which shares this skill but cannot edit it; corroborated first-party by
-     iter-111 and iter-112 rather than taken on trust — the sibling-claim ghost discipline).
+     **THREE FALSE-GREENS this recipe used to carry** (all proposed by `world-coordinator` from
+     mission-world, which shares this skill but cannot edit it; each corroborated first-party before
+     being written in, rather than taken on trust — the sibling-claim ghost discipline).
      **(1) stdin was never redirected**: `codex exec` reads stdin IN ADDITION to the positional
      prompt, so under a backgrounded launch with an open (never-EOF) stdin it prints
      `Reading additional input from stdin...` and blocks until the 30-min cap — a hang that *looks*
@@ -429,7 +429,22 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      **(2) delivery was never asserted**, as above. Both are the vacuous-pass class this mission has
      closed twice elsewhere (silent z3 skip, silent `t.Skip`): *an exit code reporting success for
      work never requested*. Iter-112 hit the near-miss live — its first `Write` of the directive file
-     FAILED (pre-existing file) and, unnoticed, would have produced exactly defect (2).
+     FAILED (pre-existing file) and, unnoticed, would have produced exactly defect (2). *(Cheap
+     habit that closes it: give the directive file a per-iteration name, e.g.
+     `/tmp/codex_directive_iter<N>.txt` — `Write` refuses to overwrite a file this session has not
+     Read, so a fixed name collides with the previous iteration's leftover.)*
+     **(3) A GATE VERDICT FROM INSIDE THE SANDBOX IS NOT EVIDENCE.** `workspace-write` DENIES
+     loopback socket binds, so any suite touching `httptest`/servers fails with
+     `bind: operation not permitted` — an infrastructure denial that is **indistinguishable from a
+     real regression** in the exit code. V1 hit this three times (iters 110, 111, 113: `make test`
+     exit 2 each time, **rc=0 with zero FAIL** on the controller's re-run outside the sandbox), and
+     World hit the same wall from the other side — its sandbox panic on a loopback bind *masked* a
+     genuine `io.Pipe` startup deadlock. So it cuts BOTH ways: the sandbox invents failures **and
+     hides real ones**. Rule: the executor MUST label any such result
+     `UNINFORMATIVE UNDER SANDBOX` rather than reporting it as pass or fail (say so in the
+     directive), and the **controller MUST re-run the gates outside the sandbox** before recording
+     any Gate-4 verdict — mandatory whenever the diff touches `host/`, `daemon/`, `cmd/*`, or
+     anything serving a socket. Never bank an executor-reported gate result for those paths.
      **Hygiene, broadcast with it (not a recipe defect):** a shell "is this env var set?" probe
      written `${VAR:+YES}${VAR:-NO}` **prints the variable's value** — World leaked `OPENAI_API_KEY`
      into a transcript this way. Safe form: `[ -n "$VAR" ] && echo SET || echo UNSET`. No preflight

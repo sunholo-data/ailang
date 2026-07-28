@@ -1,6 +1,26 @@
 # M-NIGHTLY-FLAKE-GUARD: Variance Guard for the Nightly Eval Regression Detector
 
-**Status**: Planned
+**Status**: Implemented 2026-07-28 (mission iteration 113) — PR [#504](https://github.com/sunholo-data/ailang/pull/504), squash `038d9322d`, dev CI green. Evaluator sonnet PASS 87/100 round 1, zero blocking.
+
+> **One deliberate deviation from this doc, approved at plan time.** The escalation backstop ships as
+> `consec >= K AND no record in the current consecutive-failure run has class == "regression"`, NOT
+> the literal `consec == K` written below. The literal form loses the escalation *forever* if the
+> classifier misses the Kth night, silently breaking this doc's own "never unpaged past night 3"
+> guarantee. The replacement is still exactly-once and replay-deterministic, and changed no verdict
+> in the live replay; `test_Escalation_missed_third_night_fires_on_fourth` fails under the literal rule.
+>
+> **Two premises below were refuted first-party during the sprint** — corrected here rather than
+> rewritten in place: (1) the false-alarm corpus is **45 issues across 24 distinct benchmarks**, not
+> the 4 `json_parse` issues cited; two more (#499, #500) fired on 2026-07-28 *while the sprint ran*.
+> (2) `/tmp` directories **outlive their contents**, so only **five** nights of real data survived
+> (07-24…07-28), not the six-to-seven a directory count suggests — which also means `--bootstrap`
+> can never fill a W=5 window (ceiling: 4 prior nights).
+>
+> **Landing posture:** night 1 after merge has no JSONL, so the run is loudly DEGRADED and files
+> zero issues, leading the controlplane summary with the warning. Run
+> `python3 tools/nightly_classify.py --bootstrap` once before the next 05:00 nightly for immediate
+> coverage (idempotent).
+
 **Target**: v1.0.0 (mission queue item, iter-105; harness/tooling lane — no compiler change)
 **Priority**: P2 (recurring false-alarm cost: 4 GitHub issues from one bimodal benchmark, each a Gate-0 triage slot + the #417 external-optics problem)
 **Estimated**: ~1.3 days (4 milestones, each independently commit-able; +2h in quorum round 1 for the history-file atomicity/locking contract, +0.5h in round 2 for the ownership-checked lock — see Milestones)
