@@ -180,10 +180,23 @@ if [[ "$RUN_AB" == "1" ]]; then
     log "Monday A/B run: also running microrag=off"
     run_eval "off" "${RESULTS_DIR}_rag_off"
 
-    # Compare
-    PASS_ON=$(grep -oE '[0-9]+/[0-9]+ passed' "${RESULTS_DIR}_rag_on"/../*.log 2>/dev/null | tail -1 | cut -d/ -f1 || \
-              python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_on/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
-    PASS_OFF=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_DIR}_rag_off/agent/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); print(p)" 2>/dev/null || echo "?")
+    # Compare. Both arms MUST be counted the same way — the old PASS_ON had a
+    # grep-first path whose `||` fallback could never fire (the pipeline's exit
+    # status is cut's, which is 0 even when grep matched nothing). It therefore
+    # yielded an EMPTY string, which `${PASS_ON:-0}` below turned into a literal
+    # 0 and banked as a real 0% measurement. That is exactly how the
+    # 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
+    count_passes() {
+        python3 -c "
+import json,glob,sys
+fs=glob.glob('$1/agent/*.json')
+if not fs: sys.exit(3)
+print(sum(1 for f in fs
+          for d in [json.load(open(f))]
+          if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')))" 2>/dev/null
+    }
+    PASS_ON=$(count_passes "${RESULTS_DIR}_rag_on")
+    PASS_OFF=$(count_passes "${RESULTS_DIR}_rag_off")
     log "A/B result: microrag_on=${PASS_ON} microrag_off=${PASS_OFF}"
     if [[ "${PASS_ON:-x}" =~ ^[0-9]+$ && "${PASS_OFF:-x}" =~ ^[0-9]+$ ]]; then
         DELTA=$(( PASS_ON - PASS_OFF ))
@@ -213,6 +226,25 @@ print(json.dumps({
   'on_rate':round(on_p/on_t,4) if on_t else None,
   'off_rate':round(off_p/off_t,4) if off_t else None,
   'delta_pp':round(100*(on_p/on_t-off_p/off_t),1) if on_t and off_t else None}))" 2>/dev/null)
+    # Data integrity: never bank a broken run as a measurement. A zero-pass arm
+    # or a zero-file arm is a HARNESS failure, not a result — banking it poisons
+    # the trend (see the 2026-07-20 row). Loud skip, no silent fallback.
+    AB_VALID=1
+    for pair in "ON:${PASS_ON}:${ON_TOTAL}" "OFF:${PASS_OFF}:${OFF_TOTAL}"; do
+        arm=${pair%%:*}; rest=${pair#*:}; p=${rest%%:*}; t=${rest#*:}
+        if ! [[ "$p" =~ ^[0-9]+$ ]] || ! [[ "$t" =~ ^[0-9]+$ ]] || [[ "$t" -eq 0 ]] || [[ "$p" -eq 0 ]]; then
+            log "A/B INVALID: ${arm} arm pass='${p}' total='${t}' — refusing to bank this week"
+            AB_VALID=0
+        fi
+    done
+
+    if [[ "$AB_VALID" == "0" ]]; then
+        ailang messages send controlplane \
+            "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes or zero result files. This is a harness failure, not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
+            --title "A/B invalid (${DATE})" --from "nightly-eval" 2>/dev/null || true
+        REC=""
+    fi
+
     if [[ -n "$REC" ]]; then
         echo "$REC" >> "$HIST"
         log "μRAG A/B persisted -> docs/static/benchmarks/microrag_ab.jsonl"
@@ -231,6 +263,83 @@ print(json.dumps({
                 log "μRAG A/B history committed locally (push off)"
             fi
         fi
+    fi
+
+    # ------------------------------------------------------------------
+    # Second Monday experiment: motoko fmt extension (M-EVAL-FMT-WEAKMODEL-AB).
+    #
+    # Hypothesis: running `ailang fmt --write` on every .ail write removes
+    # syntax drift, so a WEAK local model re-reads canonical code each turn and
+    # spirals into compile-stuck loops less often. Haiku data is useless here —
+    # both arms sit at ~96%, pure ceiling. The subject has to be the local model.
+    #
+    # Arms are two models.yml entries that differ ONLY by motoko profile:
+    #   ON  = motoko-local-qwen3-6-fmt          (profile ollama_fmt: +fmt)
+    #   OFF = motoko-local-qwen3-6-35b-a3b-mxfp8 (profile ollama)
+    # Both are local/$0 and drive the SAME loaded qwen3.6 — no extra VRAM.
+    #
+    # fmt is deliberately NOT added to the ollama/cloud profiles: doing that
+    # before the A/B concludes would destroy the control.
+    # ------------------------------------------------------------------
+    if [[ "${AILANG_AB_FMT:-1}" == "1" ]]; then
+        log "Monday A/B: motoko fmt extension (on vs off)"
+        for arm in on off; do
+            case "$arm" in
+                on)  m="motoko-local-qwen3-6-fmt" ;;
+                off) m="motoko-local-qwen3-6-35b-a3b-mxfp8" ;;
+            esac
+            log "  fmt=${arm} model=${m}"
+            "$BIN" eval-suite --agent \
+                --models "$m" \
+                --benchmarks "$BENCH_LIST" \
+                --langs ailang \
+                --output "${RESULTS_DIR}_fmt_${arm}" \
+                --parallel 1 \
+                --trials 2 \
+                --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
+                log "  fmt=${arm} eval-suite exited non-zero (see $LOG)"
+        done
+
+        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on")
+        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off")
+        FMT_ON_T=$(find "${RESULTS_DIR}_fmt_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+        FMT_OFF_T=$(find "${RESULTS_DIR}_fmt_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+        log "fmt A/B result: on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T}"
+
+        FMT_VALID=1
+        for pair in "ON:${FMT_ON}:${FMT_ON_T}" "OFF:${FMT_OFF}:${FMT_OFF_T}"; do
+            arm=${pair%%:*}; rest=${pair#*:}; p=${rest%%:*}; t=${rest#*:}
+            if ! [[ "$p" =~ ^[0-9]+$ ]] || ! [[ "$t" =~ ^[0-9]+$ ]] || [[ "$t" -eq 0 ]] || [[ "$p" -eq 0 ]]; then
+                log "fmt A/B INVALID: ${arm} arm pass='${p}' total='${t}' — refusing to bank"
+                FMT_VALID=0
+            fi
+        done
+
+        if [[ "$FMT_VALID" == "1" ]]; then
+            FMT_HIST="$REPO/docs/static/benchmarks/fmt_ab.jsonl"
+            FREC=$(python3 -c "
+import json
+on_p,on_t=${FMT_ON},${FMT_ON_T}; off_p,off_t=${FMT_OFF},${FMT_OFF_T}
+print(json.dumps({
+  'date':'${DATE}','experiment':'motoko_ext_fmt','lang':'ailang','trials':2,
+  'on_model':'motoko-local-qwen3-6-fmt','off_model':'motoko-local-qwen3-6-35b-a3b-mxfp8',
+  'on_pass':on_p,'on_total':on_t,'off_pass':off_p,'off_total':off_t,
+  'on_rate':round(on_p/on_t,4),'off_rate':round(off_p/off_t,4),
+  'delta_pp':round(100*(on_p/on_t-off_p/off_t),1)}))" 2>/dev/null)
+            if [[ -n "$FREC" ]]; then
+                echo "$FREC" >> "$FMT_HIST"
+                log "fmt A/B persisted -> docs/static/benchmarks/fmt_ab.jsonl"
+                if git -C "$REPO" add "$FMT_HIST" 2>>"$LOG" && ! git -C "$REPO" diff --cached --quiet -- "$FMT_HIST" 2>/dev/null; then
+                    git -C "$REPO" commit -q \
+                        -m "data(fmt): weekly A/B ${DATE} (on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T})" \
+                        -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" 2>>"$LOG" || true
+                fi
+            fi
+        fi
+
+        ailang messages send controlplane \
+            "Weekly fmt A/B (${DATE}): on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T} valid=${FMT_VALID}" \
+            --title "motoko fmt A/B (${DATE})" --from "nightly-eval" 2>/dev/null || true
     fi
 fi
 
