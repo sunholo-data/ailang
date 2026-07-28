@@ -4,6 +4,13 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## [Unreleased]
 
+### Fixed
+
+- Added `tools/nightly_classify.py`, a durable variance guard for nightly evals.
+  It records history in `~/.ailang/state/nightly-eval-history.jsonl`, labels noisy
+  flips `SUSPECTED-FLAKE` or `INSUFFICIENT-HISTORY`, and requires the explicit
+  `--bootstrap` flag to seed missing history.
+
 - CI/infra: renamed the documentation build check to `docs-build`, added an
   always-reporting `docs-gate`, and scoped workflow concurrency per ref while
   retaining singleton Pages deployments (#497).

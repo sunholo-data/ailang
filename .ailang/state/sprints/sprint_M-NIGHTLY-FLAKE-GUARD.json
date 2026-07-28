@@ -1,0 +1,163 @@
+{
+  "sprint_id": "M-NIGHTLY-FLAKE-GUARD",
+  "status": "completed",
+  "created": "2026-07-28T12:30:00Z",
+  "branch": "sprint/m-nightly-flake-guard",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/sprint-m-nightly-flake-guard",
+  "base_commit": "fedfdb4e0",
+  "design_doc": "design_docs/planned/v1_0_0/m-nightly-flake-guard.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-nightly-flake-guard-sprint-plan.md",
+  "github_issues": [329],
+  "planner_model": "claude-opus-4-8",
+  "mission_iteration": 113,
+  "execution_environment": "isolated git worktree branched from origin/dev @ fedfdb4e0; NEVER edit the main checkout. PR into dev. No Go code changes; make check-boundaries unaffected.",
+  "metadata": {
+    "scope": "Add a variance/flakiness guard to the nightly eval regression detector. Extract the inline python3 heredoc (tools/launchd/nightly-eval.sh:271-332) into a tested tools/nightly_classify.py; move cross-night memory off /tmp onto ~/.ailang/state/nightly-eval-history.jsonl with an explicit idempotency/atomicity contract and an ownership-checked (PID + token) lock; replace the one-prior-night was_solid_in_prev rule with trailing-window solidity (W=5, MIN 2 nights / 4 trials) plus a label-agnostic K=3 escalation backstop; add SUSPECTED-FLAKE and INSUFFICIENT-HISTORY labels where only REGRESSION reaches --type bug (the thing that creates the GitHub issue); explicit --bootstrap so an absent history file is ALWAYS the loud DEGRADED state.",
+    "non_scope": "Fixing InboxMessageExistsByTitle's archived/deleted exclusion (a messages-send change, different lane, recorded as R-F). Adding stream_death to INFRA_CATEGORIES (doc V15, backlog). Investigating WHY json_parse / csv_to_json_converter are bimodal (eval-gap lane). Multi-model or rag_off history. Any compiler/parser/types change.",
+    "estimated_effort": "1.4 working days (11.5h): M1 2.5h, M2 4h, M3 3h, M4 2h",
+    "estimate_delta_from_doc": "+1h vs the doc's 1.3d. Attributed to M4 (1h -> 2h): the doc's CI wiring was vacuous (make ci is not what GitHub Actions runs) and the replay corpus grew from 1 benchmark to 5 real issues. Stated in the open, not absorbed.",
+    "premises_verified_live": true,
+    "verification_date": "2026-07-28",
+    "verification_binary": "read-only against fedfdb4e0; shell/Go sources read live, GitHub queried via gh, /tmp banked data recomputed with a throwaway python simulation of the proposed D2 rule. No code built or changed during planning.",
+    "read_only_main_checkout": true,
+    "premises_confirmed": [
+      "C1: nightly-eval.sh:244-249 globs /tmp/nightly_eval_*_rag_on/agent, keeps LAST non-today match",
+      "C2: classifier is an inline python3 heredoc at :271-332",
+      "C3: was_solid_in_prev certifies solid from ONE trial - line 326 is exactly `return len(seen) >= 1 and all(seen)`",
+      "C4: only --type bug/feature reach GitHub (knownGitHubTypes, messages_send.go:99-103); --type defaults to \"\", so --type note and the un-typed Discord send create no issue",
+      "C5: both sides of the comparison already use the rag_on arm - the 'like-for-like CONDITIONS' queue bullet is a phantom (doc V8 correct)",
+      "C6: ZERO open [nightly-eval] issues right now"
+    ],
+    "premises_refuted": [
+      "R-A: NOT 4 issues on one benchmark - there are 45 [nightly-eval] Nightly regression issues across 24 DISTINCT benchmarks, all closed. json_parse is 4/45 (9%). The problem is ~11x larger than the doc's framing.",
+      "R-B: Two MORE false alarms fired AFTER the doc was written: #499 contract_bst_validate and #500 list_comprehension, both created 2026-07-28, both closed ~4 min later. Plus #483 higher_order_functions (07-26). The doc's json_parse-only replay corpus is stale and too narrow; the live corpus is 5 issues over 4 nights.",
+      "R-C: THE DOC'S HEADLINE AC IS NO LONGER REPRODUCIBLE. /tmp/nightly_eval_20260723_rag_on/agent is now EMPTY (emptied Jul 28 00:00), as is 20260722. /tmp retains at most 5 nights of FILES (dirs outlive their contents by ~a week), i.e. at most 4 PRIOR nights. Re-deriving 07-25 today gives INSUFFICIENT-HISTORY, not the doc's SUSPECTED-FLAKE. Both suppress, but the label differs. Also: --bootstrap can NEVER fill W=5.",
+      "R-D: `make ci` IS NOT WHAT GITHUB ACTIONS RUNS. ci.yml's test job runs individual targets, never `make ci`. The doc's M4 CI wiring would have been VACUOUS. A ci.yml step + an anti-skip log assertion (precedent: ci.yml:86-91) is required.",
+      "R-E: shellcheck appears in no Makefile and no workflow. The doc's 'shellcheck still clean' AC is local-only, NOT CI-enforced.",
+      "R-F: the doc's unconditional exactly-once-delivery claim has a hole the quorum missed - InboxMessageExistsByTitle (inbox.go:563) excludes status archived/deleted, so archiving a nightly message re-opens the duplicate window. ack only sets 'read', so the ordinary flow is safe; the guarantee is conditional, not absolute."
+    ],
+    "additional_findings": [
+      "F-1: 7 of the 45 issues are titled *_trial2 (json_parse_trial2, binary_tree_sum_trial2, explicit_state_threading_trial2), all dated 2026-06-05..07 - the _trial\\d+ grouping regex broke and each trial became its own single-trial benchmark. Fixed 06-12. This makes trial-grouping a REQUIRED M1 pinning test.",
+      "F-2 (LIVE REPLAY, the sprint's decisive evidence): running the proposed D2 rule over the real banked data 07-24..07-28 gives 5 filed issues -> 2 under the guard (60% reduction), and the guard is non-vacuous three ways: (a) #483 higher_order_functions (07-26, window 4/4 = p-hat 1.0) STILL PAGES SAME NIGHT - a REAL solid->broken control, not the doc's synthetic one; (b) csv_to_json_converter ESCALATES via K=3 on 07-27, a NEW issue today's detector never filed; (c) cli_args hits consec=3 on 07-26 but its window is 0/4 -> GAP -> correctly NOT escalated, proving the GAP exclusion is load-bearing.",
+      "F-3 (the guard's sharpest cost, named): #500 list_comprehension had a window of 7/8 over 4 nights (p-hat 0.875) and is suppressed to SUSPECTED-FLAKE for up to 48h. The D6 concession is not hypothetical - it happened last night."
+    ],
+    "required_design_refinement": "The doc's 'escalate exactly at the 3rd night' (consec == K) is fragile: if the classifier misses the Kth night (crash / rig down / send failure), the escalation is lost forever and D2's own guarantee ('no ever-passing benchmark goes unpaged past its 3rd consecutive failing night') silently breaks. IMPLEMENT INSTEAD: escalate when consec >= K AND no record inside the current consecutive-failure run already carries class == 'regression'. The JSONL schema already has the `class` field, so this needs no new state, stays replay-deterministic, still fires exactly once, and changes no verdict in the live replay. Flagged as a narrow strengthening of D2's escalation clause - controller may override before M3, but then the doc's 'never unpaged past night 3' claim must be softened.",
+    "migration": "Night 1 after landing: JSONL absent, nightly never passes --bootstrap => D5 DEGRADED. Summary body leads with '(warning) history unavailable (file not found) - regression detection DEGRADED tonight'; EVERY persistent failure classifies INSUFFICIENT-HISTORY and is NAMED with its shortfall (~8 benchmarks on 07-28's real data); ZERO GitHub issues; rc=0. The run still writes tonight's records, so MIN_NIGHTS=2 is met by night 3 and W=5 is full by night 6. Seeding: `--bootstrap` from /tmp yields at most 4 prior nights (measured ceiling, R-C) - enough to clear MIN_NIGHTS=2/MIN_TRIALS=4 immediately, never enough to fill W=5 on day one. RECOMMENDED ORDER: merge -> rig pulls -> run --bootstrap manually ONCE the same day before the next 05:00 nightly -> verify via `wc -l ~/.ailang/state/nightly-eval-history.jsonl` and the HEALTH line. Bootstrap is idempotent. ROLLBACK: revert the M1 commit; the JSONL is inert.",
+    "cut_order_if_overrun": [
+      "1. M4.7 deliberate-break probe -> record as a commit-message observation instead (~15 min)",
+      "2. M4a's V9 07-23 provenance row -> keep only the live-derivable INSUFFICIENT-HISTORY assertion (~20 min; COST: the doc's headline AC becomes unassertable and needs an erratum - prefer cut 1)",
+      "NEVER CUT: M2.2 lock-ownership tests (the entire round-2 quorum resolution), M4.2's real solid->broken control (the non-vacuity proof), M4.6's real ci.yml wiring"
+    ],
+    "top_risk": "The lock tests get written against unittest.mock instead of real child processes, so quorum round 2's ownership-checked-lock objection is 'resolved' only on paper - a mocked stale-but-alive test passes against an mtime-only implementation. M2.2 therefore REQUIRES real subprocesses and an asserted elapsed-time bound."
+  },
+  "velocity": {
+    "target_loc_per_day": 500,
+    "estimated_total_loc": 700,
+    "estimated_days": 1.4,
+    "basis": "Last 7d: 283 commits, 319 files, +35334/-4947. Comparable harness/tooling sprints (m-docs-gate, m-cost-per-success-kpi M4a) landed in 1-2 days. ~300 impl LOC (Python+shell) / ~400 test LOC; ratio >1 is deliberate - the whole point is that the classifier stops being untested."
+  },
+  "features": [
+    {
+      "id": "M1_EXTRACT_CLASSIFIER_BEHAVIOR_PRESERVING",
+      "description": "Create tools/nightly_classify.py replicating TODAY's exact logic (trial dedup by (slot, newest-ts), _trial\\d+ stripping, INFRA_CATEGORIES={api_error,timeout,executor_error}, persistent-failure gate >=2 trials/all-fail/>=1 non-infra cat, one-prior-night was_solid_in_prev). Replace the heredoc at nightly-eval.sh:271-332 with one invocation. Create tools/test_nightly_classify.py (stdlib unittest, zero third-party deps - first Python test in tools/). Structure as pure functions (parse_results_dir, classify_bench) + thin CLI so M2/M3 extend without rewriting. stdout contract unchanged: LABEL\\tbench\\t[cat1,cat2], sorted.",
+      "estimated_loc": 260,
+      "estimated_hours": 2.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "M1.1: `python3 tools/test_nightly_classify.py -v` rc=0 and prints `--- PASS` for >=8 named tests covering the v0.29 contract fixture matrix: pass/pass, pass/fail, solid->allfail, all-infra-cats-only, single-trial-tonight-not-persistent, missing-prior-dir, empty-prior-dir, trial-grouping",
+        "M1.2 (BEHAVIOR-PRESERVATION PROOF): committed harness tools/testdata/nightly_classify/compare_legacy.sh runs the PRE-CHANGE heredoc and the new tool over each of /tmp/nightly_eval_2026072{4,5,6,7,8}_rag_on/agent; `diff <(legacy) <(new)` is EMPTY for all 5 nights. Any nonempty diff FAILS M1.",
+        "M1.3 (F-1 pin): fixture dir containing json_parse_ailang_M_1.json (fail) + json_parse_trial2_ailang_M_2.json (fail) produces EXACTLY ONE output line for bench `json_parse`; NO line mentions `json_parse_trial2`. (7 real June issues came from this exact break.)",
+        "M1.4: `shellcheck tools/launchd/nightly-eval.sh` rc=0 with no new warnings vs the pre-change baseline recorded in the commit message. NOTE: shellcheck is LOCAL-ONLY, not CI-enforced (R-E) - do not claim it as CI coverage.",
+        "M1.5: `bash -n tools/launchd/nightly-eval.sh` rc=0 and `AILANG_NIGHTLY_EVAL_DRY_RUN=1 tools/launchd/nightly-eval.sh` rc=0 (dry-run still exits before the eval, doc V26)"
+      ],
+      "passes": true,
+      "started": "2026-07-28T10:00:00Z",
+      "completed": "2026-07-28T10:41:21Z",
+      "notes": "Extracted legacy mode is byte-identical over all five surviving banks (2026-07-24..28); compare_legacy.sh reports equivalent for each date. Trial grouping and the full legacy fixture matrix pass. shellcheck and bash -n pass."
+    },
+    {
+      "id": "M2_DURABLE_HISTORY_D1_CONTRACT_LOUD_DEGRADATION",
+      "description": "Implement D1.1-D1.5 + D5. Substrate only - the classification rule stays M1's, so an M2 failure can never be confused with an M3 failure. D1.1 unique key (date,bench,model,arm), --update-history = load -> drop tonight's keys -> append tonight's -> atomic write-back, duplicates resolve last-in-file-wins and compact. D1.2 window = records with date < tonight, tonight parsed from the --tonight dir name (nightly_eval_(\\d{8})_rag_on), NEVER wall clock. D1.3 ownership-checked lock at ~/.ailang/state/nightly-eval-history.lock.d implemented VERBATIM to gpt5-6-sol's round-2 proposed_fix: atomic os.mkdir; dir stores PID + random ownership token; steal ONLY when os.kill(pid,0) confirms the holder dead; conservative recovery for unreadable/truncated metadata (possibly-live, steal only past a 10-min staleness threshold, log steal+reason at WARN, revert to PID-liveness if metadata becomes readable); verify token AFTER acquisition BEFORE the critical section; release only if the token still matches; 60s bounded wait then FAIL LOUD (non-zero exit). D1.4 write to <history>.tmp.<pid> in the same dir -> flush -> os.fsync -> os.replace; stray temps removed on the next locked update; unparseable lines skipped individually AND counted. D1.5 --bootstrap is an explicit one-off flag the nightly NEVER passes; absent history without it => D5 DEGRADED, never auto-seed. D5 HEALTH line into stdout + log + controlplane summary body. os.makedirs(dirname(history), exist_ok=True) for fresh machines.",
+      "estimated_loc": 180,
+      "estimated_hours": 4,
+      "dependencies": ["M1_EXTRACT_CLASSIFIER_BEHAVIOR_PRESERVING"],
+      "acceptance_criteria": [
+        "M2.1: `python3 tools/test_nightly_classify.py -v -k History` rc=0 with `--- PASS` for test_same_date_rerun_replaces_records, test_rerun_yields_byte_identical_verdicts, test_preseeded_duplicate_keys_last_wins_and_compacts, test_tonight_records_do_not_enter_own_window",
+        "M2.2 (TOP RISK - REAL SUBPROCESSES, NOT MOCKS): `-k Lock` passes test_held_lock_waiter_waits_bounded_then_exits_nonzero (asserts rc!=0 AND elapsed >= bound-epsilon AND <= bound+5s AND history byte-identical before/after), test_stale_but_alive_holder_is_not_stolen_from (lock mtime back-dated past 10 min while the holder PID is GENUINELY ALIVE => waiter must FAIL LOUDLY and must NOT steal), test_old_holder_resuming_after_replacement_detects_token_mismatch_and_does_not_write, test_ownership_checked_release_cannot_delete_another_process_lock, test_unreadable_lock_metadata_conservative_recovery. Any use of unittest.mock for os.kill or the holder process FAILS this criterion - a mocked stale-but-alive test passes against an mtime-only implementation, which is exactly what quorum round 2 rejected.",
+        "M2.3: `-k Atomic` passes test_kill_between_tmpwrite_and_rename_leaves_prior_history_byte_intact (SHA-256 of the pre-crash file EQUALS post-crash) and test_stray_temp_removed_on_next_locked_update",
+        "M2.4 (D1.5 NO AUTO-HEAL): in a sandboxed HOME with /tmp/nightly_eval_* fixtures present, delete the history file and run the classifier exactly as the nightly does (NO --bootstrap) => stdout contains `history unavailable`; the history file STILL DOES NOT EXIST afterwards; ZERO REGRESSION lines; rc=0 (degraded history is a loud classification, not a crash)",
+        "M2.5: a subsequent explicit `--bootstrap` in the same sandbox rc=0; history file exists; >=1 record per (night x persistent-failure bench) found in the fixtures; a SECOND --bootstrap produces a byte-identical file (idempotent)",
+        "M2.6: `HOME=$(mktemp -d)` with no .ailang/state/ => rc=0, ~/.ailang/state/ created, DEGRADED reported, NO traceback on stderr",
+        "M2.7: prepend `{not json` and a truncated line to a valid history => rc=0; HEALTH line reports `2 skipped lines`; verdicts identical to the uncorrupted run; the next --update-history drops both lines"
+      ],
+      "passes": true,
+      "started": "2026-07-28T10:00:00Z",
+      "completed": "2026-07-28T10:41:21Z",
+      "notes": "Durable JSONL, explicit bootstrap, loud no-auto-heal degradation, last-wins compaction, atomic replace, and PID+token lock implemented. Lock acceptance tests use genuine subprocess holders and assert elapsed bounds; no os.kill mocks."
+    },
+    {
+      "id": "M3_GUARD_RULE_LABELS_ROUTING",
+      "description": "D2 window rule (W=5 nights-with-data, MIN_NIGHTS=2, MIN_TRIALS=4, all CLI-tunable via --window-nights/--min-nights/--min-trials/--escalate-after so tests can drive edges), D3 deletion of was_solid_in_prev, D4 routing in the shell. Labels REGRESSION / SUSPECTED-FLAKE / GAP / INSUFFICIENT-HISTORY per D2's table. ESCALATION USES THE REQUIRED REFINEMENT: consec >= K AND no record in the current consecutive-failure run already has class == 'regression' (NOT the doc's literal consec == K - see metadata.required_design_refinement); GAP windows excluded from escalation. Shell routing: REGRESSION -> per-bench --type bug (unchanged) + one Discord ping; SUSPECTED-FLAKE -> ONE aggregated --type note per night carrying per-bench `passes/trials over N nights` AND `failing X/3 toward escalation`; GAP -> aggregated --type note with the existing 'Gap-finder candidates' phrasing BYTE-IDENTICAL (eval-gap-finder is a text-contract consumer); INSUFFICIENT-HISTORY -> named in the summary body with shortfall + counter. Escalated REGRESSION bodies say 'escalated: 3rd consecutive all-fail night' plus the label escalated from.",
+      "estimated_loc": 140,
+      "estimated_hours": 3,
+      "dependencies": ["M2_DURABLE_HISTORY_D1_CONTRACT_LOUD_DEGRADATION"],
+      "acceptance_criteria": [
+        "M3.1: `-k Rule` passes one test per row of D4's table on synthetic windows INCLUDING the boundaries: 2 nights/4 trials all-pass => REGRESSION; 2 nights/3 trials all-pass => INSUFFICIENT-HISTORY (MIN_TRIALS boundary); 1 night/4 trials all-pass => INSUFFICIENT-HISTORY (MIN_NIGHTS boundary)",
+        "M3.2 (THE V4 WEAKNESS IS DEAD, non-vacuously): test_single_trial_prior_night_cannot_certify_solid - one prior night with ONE passing trial + tonight all-fail => INSUFFICIENT-HISTORY, never REGRESSION. The SAME fixture must be asserted to yield REGRESSION under the OLD rule, so the test proves a behavior CHANGE rather than a tautology.",
+        "M3.3 (ESCALATION EXACTLY ONCE + MISSED-NIGHT ROBUSTNESS): `-k Escalat` - 5-night synthetic, mixed window then all-fail n1..n5 => EXACTLY ONE REGRESSION line across the 5 nights, at n3; n4/n5 emit SUSPECTED-FLAKE or GAP. PLUS the missed-night variant: skip the classifier on n3, run on n4 => escalation STILL fires at n4. This second test FAILS under the doc's literal consec == K, which is the point.",
+        "M3.4: test_never_passed_bench_does_not_escalate - window 0/6 over 3 nights + 3 consecutive all-fail => GAP, no escalation (real analogue: cli_args on 07-26)",
+        "M3.5 (D6 CONCESSION PINNED): test_new_benchmark_timeline - pass n1; all-fail n2 => INSUFFICIENT-HISTORY; n3 => SUSPECTED-FLAKE; n4 => escalated REGRESSION exactly once. MUST also assert the INSUFFICIENT-HISTORY line NAMES the benchmark and carries the counter - D5's visibility is what pays for the 48h delay, so it is tested, not promised.",
+        "M3.6 (THE ISSUE-CREATION GATE): `grep -nE -- '--type \"?bug\"?|--github' tools/launchd/nightly-eval.sh` - EVERY match lies inside the REGRESSION branch; ZERO matches in the SUSPECTED-FLAKE, GAP, INSUFFICIENT-HISTORY, or summary branches",
+        "M3.7 (SHELL ROUTING SMOKE): with a stub `ailang` on PATH that logs its argv, run the routing block against a fixture producing 1 REGRESSION + 2 SUSPECTED-FLAKE + 1 GAP + 1 INSUFFICIENT-HISTORY => captured argv shows EXACTLY 1x --type bug, 1x Discord send, EXACTLY ONE aggregated suspected-flake --type note, 1x GAP --type note, and a summary body containing both the HEALTH line and the `insufficient history:` line. A second --type bug FAILS M3.",
+        "M3.8: test_send_titles_embed_date - every generated title matches `.*\\(\\d{4}-\\d{2}-\\d{2}\\)$`. The test DOCSTRING must record the R-F limitation: InboxMessageExistsByTitle (internal/messaging/inbox.go:563) skips archived/deleted rows, so exactly-once delivery holds only while nightly messages are not archived."
+      ],
+      "passes": true,
+      "started": "2026-07-28T10:00:00Z",
+      "completed": "2026-07-28T10:41:21Z",
+      "notes": "Window rule and approved consec>=K/no-prior-regression refinement implemented. Missed-night, exactly-once, GAP exclusion, V4 negative control, routing smoke, and dated-title tests pass. Only line 285 of nightly-eval.sh contains --type bug, inside the REGRESSION branch."
+    },
+    {
+      "id": "M4_REAL_HISTORY_REPLAY_AND_CI_WIRING",
+      "description": "M4a THE REPLAY IS THE ACCEPTANCE EVIDENCE: commit tools/testdata/nightly_classify/replay_2026-07.jsonl - the real banked history for 07-24..07-28 (5 nights, 42 benchmarks, model opencode-qwen3-5-35b-a3b-mxfp8), generated by a COMMITTED extractor tools/testdata/nightly_classify/extract_history.py run over /tmp/nightly_eval_2026072{4..8}_rag_on/agent so the fixture's provenance is reproducible WHILE THE DATA STILL EXISTS (per R-C it will not be re-derivable after ~5 days). Additionally embed the doc's V9 07-23 row (1/2, compile_error) as an EXPLICITLY provenance-annotated, no-longer-verifiable record so the doc's own 07-25 replay can still be run. The committed fixture must NEVER be regenerated from a live /tmp after this sprint. M4b CI WIRING THAT ACTUALLY GATES (R-D): add test-nightly-classifier to make/test.mk running `python3 tools/test_nightly_classify.py -v`, add it to make/ci.mk's ci target, AND add a step to the `test` job in .github/workflows/ci.yml plus an anti-skip assertion in the style of ci.yml:86-91.",
+      "estimated_loc": 120,
+      "estimated_hours": 2,
+      "dependencies": ["M3_GUARD_RULE_LABELS_ROUTING"],
+      "acceptance_criteria": [
+        "M4.1 (SUPPRESSION HALF): `-k Replay` asserts against the committed fixture: 07-25 json_parse (#480) is NOT REGRESSION; 07-27 json_parse (#485) => SUSPECTED-FLAKE (window 4/6 over 3 nights); 07-28 contract_bst_validate (#499) => SUSPECTED-FLAKE (4/8 over 4n); 07-28 list_comprehension (#500) => SUSPECTED-FLAKE (7/8 over 4n). For 07-25 BOTH variants are asserted EXPLICITLY: WITH the V9 07-23 row => SUSPECTED-FLAKE (the doc's literal AC); WITHOUT it (live-derivable data only) => INSUFFICIENT-HISTORY. Both suppress; asserting both labels ensures R-C can never be quietly papered over.",
+        "M4.2 (NON-VACUITY HALF - A REAL CONTROL, NOT SYNTHETIC): 07-26 higher_order_functions (#483) => REGRESSION, ON 07-26 ITSELF (window 4/4 over 2 nights, p-hat=1.0, ZERO added latency). A guard that suppresses everything FAILS this criterion. PLUS the doc's synthetic 5-solid-nights -> all-fail control.",
+        "M4.3: test_replay_csv_to_json_escalates_once - csv_to_json_converter escalates to REGRESSION on 07-27 (consec 3/3, window 1/6) and does NOT re-fire on 07-28",
+        "M4.4 (AGGREGATE, PRINTED BY THE TEST): over 07-25..07-28 the corpus contains 5 real filed issues (#480,#483,#485,#499,#500) and the guard produces exactly 2 REGRESSIONs. Test asserts `regressions == 2` and `suppressed == 4`. Any rule change that moves either number fails visibly.",
+        "M4.5: `make test-nightly-classifier` rc=0",
+        "M4.6 (CI ACTUALLY RUNS IT - R-D): .github/workflows/ci.yml contains a step in the `test` job whose run: includes `make test-nightly-classifier`, AND an assertion step that emits `::error::` and exits 1 if the classifier's `--- PASS` lines are absent from the captured log (mirroring the gated-integration precedent at ci.yml:86-91). Verified post-push via `gh api repos/:owner/:repo/actions/jobs/<test-job-id>/logs | grep -c -- '--- PASS'` >= 20 lines attributable to tools/test_nightly_classify.py. ADDING IT ONLY TO `make ci` DOES NOT SATISFY M4.6 - make ci is never invoked by GitHub Actions.",
+        "M4.7 (ANTI-VACUITY PROOF): on a scratch commit, invert one replay expectation and run `make test-nightly-classifier` => rc!=0 with a NAMED failing test. Revert. Record the observed failure text in this JSON's notes.",
+        "M4.8: CHANGELOG.md [Unreleased] gains an entry naming tools/nightly_classify.py, the two new labels, the --bootstrap flag, and ~/.ailang/state/nightly-eval-history.jsonl; `git diff CHANGELOG.md` non-empty",
+        "M4.9 (VERIFY ONLY, NO EDIT): the doc's V8 mission correction is ALREADY DONE - design_docs/v1-mission.md:1271 carries the 'like-for-like CONDITIONS' text only inside an explicit CORRECTION clause. Confirm with `grep -n 'like-for-like' design_docs/v1-mission.md` and record; no edit required."
+      ],
+      "passes": true,
+      "started": "2026-07-28T10:00:00Z",
+      "completed": "2026-07-28T10:41:21Z",
+      "notes": "Committed fixture contains 211 records (42 benchmarks x 5 live nights plus the provenance-marked, no-longer-verifiable V9 row). Replay prints filed=5 guarded_regressions=2 suppressed=4; higher_order_functions #483 still pages same-night and csv_to_json_converter escalates on 07-27. CI test job runs make test-nightly-classifier and separately requires >=20 explicit PASS lines. Anti-vacuity deliberate-break probe: changing the real-control expectation REGRESSION to GAP produced rc=1 with `FAIL: test_Replay_real_genuine_regression_pages_same_night`; scratch mutation was outside the worktree and no repository revert was needed."
+    }
+  ],
+  "deliverables": [
+    "tools/nightly_classify.py (new, ~440 LOC final)",
+    "tools/test_nightly_classify.py (new, ~600 LOC)",
+    "tools/testdata/nightly_classify/replay_2026-07.jsonl (new, fixture - NEVER regenerate from live /tmp after this sprint)",
+    "tools/testdata/nightly_classify/extract_history.py (new, provenance)",
+    "tools/testdata/nightly_classify/compare_legacy.sh (new, M1.2 harness)",
+    "tools/launchd/nightly-eval.sh (modified: heredoc -> invocation; D4 routing; net ~-40 lines)",
+    "make/test.mk (+ test-nightly-classifier), make/ci.mk (+ to ci)",
+    ".github/workflows/ci.yml (+2 steps in the test job)",
+    "CHANGELOG.md ([Unreleased])",
+    "NO Go changes. NO compiler surface. make check-boundaries unaffected."
+  ],
+  "risks": [
+    {"rank": 1, "risk": "Lock tests written against unittest.mock instead of real child processes => quorum round 2's ownership-checked-lock objection is resolved only on paper; a mocked stale-but-alive test passes against an mtime-only implementation", "mitigation": "M2.2 requires real subprocesses and an asserted elapsed-time bound; the AC names exact test IDs so an evaluator can grep for them"},
+    {"rank": 2, "risk": "CI wiring lands as `make ci` only => the guard is untested on every future PR (the doc literally says 'wired into make ci', which is false-but-plausible)", "mitigation": "M4.6 requires a ci.yml step AND a log-grep observable and explicitly states that make ci alone does not satisfy it"},
+    {"rank": 3, "risk": "The replay fixture is regenerated from /tmp after the data expires and silently weakens (07-23 already gone; 07-24/07-25 follow around 2026-08-02)", "mitigation": "M4a commits the extracted JSONL in git plus the extractor for provenance; M4.1 asserts both the with-07-23 and without-07-23 labels so the divergence stays visible"},
+    {"rank": 4, "risk": "consec == K ships as written and the 'never unpaged past night 3' guarantee quietly breaks on any missed night", "mitigation": "metadata.required_design_refinement + M3.3's missed-night variant, which FAILS under the literal rule"},
+    {"rank": 5, "risk": "The aggregated SUSPECTED-FLAKE note's title collides across nights, or the GAP note's 'Gap-finder candidates' phrasing drifts and breaks eval-gap-finder's text contract", "mitigation": "M3.7 asserts exactly one aggregated note; M3.8 pins the date-suffixed title; the GAP body text must stay byte-identical"},
+    {"rank": 6, "risk": "M1's 'behavior-preserving' claim is asserted rather than measured and a subtle trial-dedup difference changes verdicts (the heredoc has never had a test, doc V15)", "mitigation": "M1.2 diffs old vs new over all 5 real nights; M1.3 pins the historical _trial2 break"},
+    {"rank": 7, "risk": "R-F: a nightly controlplane message is archived, title-dedup stops firing, a rerun files a duplicate issue", "mitigation": "Documented in M3.8's docstring; OUT OF SCOPE to fix (a messages-send change); flagged to the controller"}
+  ]
+}

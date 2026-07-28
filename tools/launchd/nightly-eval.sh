@@ -38,6 +38,7 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 # job — wait for any in-flight rig work, then hold the lock for the whole run so
 # the background os-rotation-filler never overlaps it.
 # shellcheck source=tools/launchd/rig-lock.sh
+# shellcheck disable=SC1091
 source "$(dirname "$0")/rig-lock.sh"
 rig_lock_acquire wait
 
@@ -201,8 +202,8 @@ if [[ "$RUN_AB" == "1" ]]; then
     # detached build worktree we cd'd into. Best-effort: a git failure never
     # touches the eval result.
     HIST="$REPO/docs/static/benchmarks/microrag_ab.jsonl"
-    ON_TOTAL=$(ls "${RESULTS_DIR}_rag_on"/agent/*.json 2>/dev/null | wc -l | tr -d ' ')
-    OFF_TOTAL=$(ls "${RESULTS_DIR}_rag_off"/agent/*.json 2>/dev/null | wc -l | tr -d ' ')
+    ON_TOTAL=$(find "${RESULTS_DIR}_rag_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+    OFF_TOTAL=$(find "${RESULTS_DIR}_rag_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
     REC=$(python3 -c "
 import json
 on_p,on_t=${PASS_ON:-0},${ON_TOTAL:-0}; off_p,off_t=${PASS_OFF:-0},${OFF_TOTAL:-0}
@@ -221,7 +222,11 @@ print(json.dumps({
                 -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>>"$LOG" || true
             if [ "${OS_FILLER_PUSH:-0}" = "1" ]; then
                 git -C "$REPO" pull --rebase --autostash --quiet origin dev >>"$LOG" 2>&1 || true
-                git -C "$REPO" push --quiet origin dev >>"$LOG" 2>&1 && log "μRAG A/B history pushed" || log "μRAG A/B push failed (committed locally)"
+                if git -C "$REPO" push --quiet origin dev >>"$LOG" 2>&1; then
+                    log "μRAG A/B history pushed"
+                else
+                    log "μRAG A/B push failed (committed locally)"
+                fi
             else
                 log "μRAG A/B history committed locally (push off)"
             fi
@@ -237,118 +242,44 @@ RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('$
 
 log "regression check result: ${PASS} (${RATE})"
 
-# Find the most recent PRIOR nightly run (rag_on arm) for the regression
-# comparison. Glob results are lexically sorted and the date (YYYYMMDD) is in the
-# path, so ascending order = chronological — the LAST non-today match is the most
-# recent prior run.
-PREV_RESULTS=""
-for d in /tmp/nightly_eval_*_rag_on/agent; do
-    [[ -d "$d" ]] || continue                 # no matches → literal pattern, skip
-    [[ "$d" == "$RESULTS_AGENT" ]] && continue # skip today's own run
-    PREV_RESULTS="$d"
-done
-if [[ -n "$PREV_RESULTS" ]]; then
-    log "regression baseline: previous run = $PREV_RESULTS"
-else
-    log "regression baseline: no prior run found — flaky failures will NOT alert tonight"
-fi
+# Durable cross-night history is classifier-owned. Absence is deliberately a
+# loud degraded state; only a manual --bootstrap may create the history file.
+HISTORY="$HOME/.ailang/state/nightly-eval-history.jsonl"
+CLASSIFIED=$(python3 "$WT/tools/nightly_classify.py" \
+    --tonight "$RESULTS_AGENT" \
+    --history "$HISTORY" \
+    --model "$MODEL" \
+    --window-nights 5 \
+    --min-nights 2 \
+    --min-trials 4 \
+    --escalate-after 3 \
+    --update-history)
 
-# Classify *persistent* failures (a benchmark whose EVERY trial failed tonight,
-# with >=1 non-infra error category) into REGRESSIONS vs non-alerting GAPS by
-# comparing against the PREVIOUS nightly run:
-#   - REGRESSION: the benchmark passed ALL its trials in the previous run but
-#     fails every trial tonight — a genuine, fresh solid->broken break → Discord.
-#   - GAP: it was NOT solid last night (flaky, already-failing, or never-passed)
-#     → filed quietly to controlplane, NO Discord. This stops flaky benchmarks
-#     (which fail both trials by chance every few nights) from paging — 5 such
-#     false alerts fired on 2026-06-12 under the old "ever passed (has baseline)"
-#     gate. A benchmark that passed >=1 trial TONIGHT is flaky-but-recovered and
-#     is not flagged at all.
-#
-# Result files are named  <bench>[_trialN]_<lang>_<model>_<ts>.json (trial 1 has
-# no _trialN infix). Both trials must collapse to the same benchmark id, else
-# each trial looks like its own single-trial benchmark.
-CLASSIFIED=$(RESULTS_AGENT="$RESULTS_AGENT" PREV_RESULTS="$PREV_RESULTS" python3 - <<'PY'
-import json, glob, os, re
-from collections import defaultdict
-
-# Infra/transport noise (executor hung, API error, timeout) — not a
-# language/prompt/stdlib regression. Surfaces in the pass count + log; never
-# escalated as a bug or gap.
-INFRA_CATEGORIES = {"api_error", "timeout", "executor_error"}
-
-results_agent = os.environ.get("RESULTS_AGENT", "")
-prev_results  = os.environ.get("PREV_RESULTS", "")
-
-# Keep the newest file per (benchmark, trial-slot) so re-runs dedupe while BOTH
-# trials are retained. The trial slot is everything before "_<lang>_<model>_<ts>".
-latest = {}
-for f in glob.glob(f"{results_agent}/*.json"):
-    base = os.path.basename(f)
-    try: ts = int(base.rsplit("_", 1)[1][:-5])
-    except (IndexError, ValueError): continue
-    slot = base.rsplit("_", 1)[0]
-    if slot not in latest or ts > latest[slot][0]:
-        latest[slot] = (ts, f)
-
-# Group trials under their benchmark id by stripping the _trialN infix.
-trials = defaultdict(list)
-for slot,(ts,f) in latest.items():
-    try: d = json.load(open(f))
-    except: continue
-    bench = re.sub(r"_trial\d+$", "", slot.split("_ailang_")[0])
-    ok = d.get("compile_ok") and d.get("runtime_ok") and d.get("stdout_ok")
-    trials[bench].append((ok, d.get("error_category") or "—"))
-
-# Persistent failure = >=2 trials seen, every trial failed, >=1 real category.
-persistent = []
-for bench, results in trials.items():
-    if len(results) >= 2 and all(not ok for ok,_ in results):
-        cats = {c for _,c in results}
-        if cats - INFRA_CATEGORIES:
-            persistent.append((bench, sorted(cats)))
-
-# A benchmark "was solid" if it passed ALL its trials (>=1 seen) in the previous
-# nightly run. Only a solid->broken transition is a genuine regression worth a
-# Discord ping. Missing prior run (e.g. /tmp cleared, first night) fails SAFE to
-# GAP (no alert) — better to miss one alert than to cry wolf on flaky noise.
-def was_solid_in_prev(bench):
-    if not prev_results or not os.path.isdir(prev_results):
-        return False
-    seen = []
-    for f in glob.glob(f"{prev_results}/{bench}_*.json"):
-        b2 = re.sub(r"_trial\d+$", "", os.path.basename(f).split("_ailang_")[0])
-        if b2 != bench:
-            continue
-        try: d = json.load(open(f))
-        except: continue
-        seen.append(bool(d.get("compile_ok") and d.get("runtime_ok") and d.get("stdout_ok")))
-    return len(seen) >= 1 and all(seen)
-
-for bench, cats in sorted(persistent):
-    cls = "REGRESSION" if was_solid_in_prev(bench) else "GAP"
-    print(f"{cls}\t{bench}\t[{','.join(cats)}]")
-PY
-) || true
-
-REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2" "$3}' | sed '/^[[:space:]]*$/d')
-GAPS=$(echo "$CLASSIFIED"        | awk -F'\t' '$1=="GAP"{print $2" "$3}'        | sed '/^[[:space:]]*$/d')
+HEALTH=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="HEALTH"{sub(/^HEALTH\t/,""); print}')
+REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
+SUSPECTED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSPECTED-FLAKE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
+GAPS=$(echo "$CLASSIFIED"        | awk -F'\t' '$1=="GAP"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
+INSUFFICIENT=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INSUFFICIENT-HISTORY"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
+log "$HEALTH"
 
 if [[ -n "$REGRESSIONS" ]]; then
     RCOUNT=$(echo "$REGRESSIONS" | wc -l | tr -d ' ')
-    log "REGRESSIONS (${RCOUNT}): $(echo "$REGRESSIONS" | tr '\n' '; ')"
+    log "REGRESSIONS (${RCOUNT}): $(echo "$REGRESSIONS" | cut -f1 | tr '\n' '; ')"
 
     # File per-regression detail to controlplane (human review).
-    while IFS= read -r failure; do
-        [[ -z "$failure" ]] && continue
-        BENCH=$(echo "$failure" | cut -d' ' -f1)
-        CATS=$(echo "$failure" | grep -oE '\[.*\]' || echo "[unknown]")
+    while IFS=$'\t' read -r BENCH CATS WINDOW NIGHTS CONSEC ESCALATED; do
+        [[ -z "$BENCH" ]] && continue
+        RULE="solid trailing window"
+        if [[ "$ESCALATED" != "-" ]]; then
+            RULE="escalated: 3rd consecutive all-fail night (from ${ESCALATED})"
+        fi
         ailang messages send controlplane \
-            "Nightly eval REGRESSION: benchmark '${BENCH}' passed ALL trials in the previous run but failed BOTH trials on ${DATE}.
+            "Nightly eval REGRESSION: benchmark '${BENCH}' failed BOTH trials on ${DATE}.
 Error category: ${CATS}
+Rule: ${RULE}; prior window ${WINDOW} over ${NIGHTS} nights; failing ${CONSEC}/3.
 Model: ${MODEL} (local, tiers:${BENCH_TIERS})
-Results: ${RESULTS_DIR}  (prev: ${PREV_RESULTS})
-It was solid last night, so this is a fresh solid->broken regression — investigate." \
+Results: ${RESULTS_DIR}
+Investigate this solid-window break or sustained-failure escalation." \
             --title "Nightly regression: ${BENCH} (${DATE})" \
             --from "nightly-eval" \
             --type "bug" 2>/dev/null || true
@@ -360,7 +291,7 @@ It was solid last night, so this is a fresh solid->broken regression — investi
     AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac-dev \
     ailang messages send public-feedback \
         "Nightly eval: ${RCOUNT} REGRESSION(s) on ${DATE} — benchmarks that previously passed now fail.
-Benchmarks: $(echo "$REGRESSIONS" | cut -d' ' -f1 | tr '\n' ' ')
+Benchmarks: $(echo "$REGRESSIONS" | cut -f1 | tr '\n' ' ')
 Model: ${MODEL} | Tiers: ${BENCH_TIERS}
 Details filed to controlplane inbox." \
         --title "Nightly eval: ${RCOUNT} regression(s) (${DATE})" \
@@ -369,15 +300,25 @@ else
     log "no regressions — no previously-solid benchmark broke tonight"
 fi
 
-# Non-regression persistent failures: benchmarks that failed both trials tonight
-# but were NOT solid in the previous run (flaky, already-failing, or never-passed).
-# Not a fresh break → filed once to controlplane for the gap-finder; NO Discord.
+if [[ -n "$SUSPECTED" ]]; then
+    SCOUNT=$(echo "$SUSPECTED" | wc -l | tr -d ' ')
+    SUSPECTED_BODY=$(echo "$SUSPECTED" | awk -F'\t' '{printf "%s (%s over %s nights, failing %s/3 toward escalation)\\n",$1,$3,$4,$5}')
+    log "suspected flakes (${SCOUNT}, no Discord): $(echo "$SUSPECTED" | cut -f1 | tr '\n' '; ')"
+    ailang messages send controlplane \
+        "Nightly eval: ${SCOUNT} suspected flake(s) on ${DATE} (no alert).
+${SUSPECTED_BODY}Model: ${MODEL} | Tiers: ${BENCH_TIERS}" \
+        --title "Nightly eval: ${SCOUNT} suspected-flake(s) (${DATE})" \
+        --from "nightly-eval" \
+        --type "note" 2>/dev/null || true
+fi
+
+# All-fail window remains gap-finder territory; preserve its text contract.
 if [[ -n "$GAPS" ]]; then
     GCOUNT=$(echo "$GAPS" | wc -l | tr -d ' ')
-    log "non-regression failures (${GCOUNT}, no Discord): $(echo "$GAPS" | tr '\n' '; ')"
+    log "non-regression failures (${GCOUNT}, no Discord): $(echo "$GAPS" | cut -f1 | tr '\n' '; ')"
     ailang messages send controlplane \
         "Nightly eval: ${GCOUNT} non-regression failure(s) on ${DATE} (flaky / already-failing / never-passed — no alert).
-Benchmarks: $(echo "$GAPS" | cut -d' ' -f1 | tr '\n' ' ')
+Benchmarks: $(echo "$GAPS" | cut -f1 | tr '\n' ' ')
 Model: ${MODEL} | Tiers: ${BENCH_TIERS}
 Not solid in the previous run → flaky noise or a known capability gap, not a fresh regression. Gap-finder candidates." \
         --title "Nightly eval: ${GCOUNT} non-regression failure(s) (${DATE})" \
@@ -387,13 +328,17 @@ fi
 
 # Broadcast overall summary to controlplane inbox (local, no Discord on success).
 # PASS already carries the "<passed>/<total>" fraction.
-REG_NAMES=$( [[ -n "$REGRESSIONS" ]] && echo "$REGRESSIONS" | cut -d' ' -f1 | tr '\n' ' ' || echo "none" )
-GAP_NAMES=$( [[ -n "$GAPS" ]] && echo "$GAPS" | cut -d' ' -f1 | tr '\n' ' ' || echo "none" )
+REG_NAMES=$( [[ -n "$REGRESSIONS" ]] && echo "$REGRESSIONS" | cut -f1 | tr '\n' ' ' || echo "none" )
+GAP_NAMES=$( [[ -n "$GAPS" ]] && echo "$GAPS" | cut -f1 | tr '\n' ' ' || echo "none" )
+SUSPECTED_NAMES=$( [[ -n "$SUSPECTED" ]] && echo "$SUSPECTED" | cut -f1 | tr '\n' ' ' || echo "none" )
+INSUFFICIENT_BODY=$(echo "$INSUFFICIENT" | awk -F'\t' '{printf "insufficient history: %s (%s over %s nights, failing %s/3 toward escalation)\\n",$1,$3,$4,$5}')
 ailang messages send controlplane \
-    "Nightly eval complete: ${PASS} (${RATE}) on ${DATE}.
+    "${HEALTH}
+Nightly eval complete: ${PASS} (${RATE}) on ${DATE}.
 Build: ${BUILD_VERSION} (committed ${SHORT})
 Model: ${MODEL} | Tiers: ${BENCH_TIERS} | Trials: 2
-Regressions: ${REG_NAMES}| Non-regression failures: ${GAP_NAMES}" \
+Regressions: ${REG_NAMES}| Suspected flakes: ${SUSPECTED_NAMES}| Non-regression failures: ${GAP_NAMES}
+${INSUFFICIENT_BODY}" \
     --title "Nightly eval: ${PASS} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
 

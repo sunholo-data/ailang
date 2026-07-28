@@ -7,6 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
+.PHONY: test-nightly-classifier
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -14,6 +15,9 @@
 test: build ## Run all Go unit tests (builds bin/ailang first)
 	@echo "Running tests..."
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+
+test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
+	@python3 tools/test_nightly_classify.py -v
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
