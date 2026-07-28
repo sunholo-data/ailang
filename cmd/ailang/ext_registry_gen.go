@@ -29,7 +29,7 @@ import {{.RegistryModule}} ({{.RegistryType}})
 import std/string (split, trim){{end}}
 import std/option (Option, Some, None)
 
-{{if .RegistryModule}}func{{else}}export func{{end}} resolve(name: string, cfg: {{.ConfigType}}) -> Option[{{.HooksType}}] {
+{{if .RegistryModule}}func{{else}}export func{{end}} resolve(name: string, cfg: {{.ConfigType}}) -> Option[{{.HooksType}}] ! {{"{"}}{{.EffectRow}}{{"}"}} {
 {{range $i, $pkg := .Packages}}  {{if $i}}else {{end}}if name == "{{$pkg.ShortName}}" then Some(register_{{$pkg.Alias}}(cfg))
 {{end}}  else None
 }
@@ -39,7 +39,7 @@ func with_id(h: {{.HooksType}}, id: string) -> {{.HooksType}} {
   { h | id: id }
 }
 
-func parse_tokens(xs: [string], idx: int, acc: [{{.HooksType}}], cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {Env, FS} {
+func parse_tokens(xs: [string], idx: int, acc: [{{.HooksType}}], cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {{"{"}}{{.EffectRow}}{{"}"}} {
   match xs {
     [] => { hooks: acc },
     raw :: rest => {
@@ -55,7 +55,7 @@ func parse_tokens(xs: [string], idx: int, acc: [{{.HooksType}}], cfg: {{.ConfigT
   }
 }
 
-export func parse_core_ext_order(raw: string, cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {Env, FS} {
+export func parse_core_ext_order(raw: string, cfg: {{.ConfigType}}) -> {{.RegistryType}} ! {{"{"}}{{.EffectRow}}{{"}"}} {
   if trim(raw) == "" then { hooks: [] }
   else parse_tokens(split(raw, ","), 0, [], cfg)
 }
@@ -83,6 +83,33 @@ type extRegistryTemplateData struct {
 	RegistryModule string
 	RegistryType   string
 	Packages       []extPkg
+	// EffectRow is the effect row stamped on the generated dispatch functions
+	// (resolve / parse_tokens / parse_core_ext_order). These functions call
+	// every extension's register_with_config, so their row must be a superset
+	// of what any registered extension declares. It is taken from the
+	// manifest's [effects] max — the project's own declared ceiling — and
+	// falls back to "Env, FS" for manifests that omit the section.
+	//
+	// Hardcoding "Env, FS" here was a latent bug: it happened to hold only
+	// while every extension's register_with_config was itself {Env, FS}.
+	// Once AILANG's effect-row soundness fix (1282767ca) propagated real
+	// effects through the registration path, the generated file stopped
+	// type-checking and motoko_agent could not boot.
+	EffectRow string
+}
+
+// defaultExtRegistryEffectRow is used when the manifest declares no
+// [effects] max — matches the row the generator emitted historically.
+const defaultExtRegistryEffectRow = "Env, FS"
+
+// effectRowFromManifest renders a manifest [effects] max list as an AILANG
+// effect row body (no braces). Order is preserved as declared so the emitted
+// file is stable across runs.
+func effectRowFromManifest(max []string) string {
+	if len(max) == 0 {
+		return defaultExtRegistryEffectRow
+	}
+	return strings.Join(max, ", ")
 }
 
 // deriveShortName converts a package ref to a short identifier.
@@ -215,6 +242,7 @@ func extRegistryGenCommand(args []string) error {
 		RegistryModule: registryModule,
 		RegistryType:   registryType,
 		Packages:       packages,
+		EffectRow:      effectRowFromManifest(m.Effects.Max),
 	}
 
 	tmpl, err := template.New("registry").Parse(extRegistryTemplate)
