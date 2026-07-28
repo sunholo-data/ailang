@@ -34,6 +34,12 @@ type RunMetrics struct {
 	Timestamp      time.Time `json:"timestamp"`
 	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
+	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
+	// failure to measure (dead subject, harness error, wrong config). NIL means
+	// valid — every row banked before v0.31.0 lacks the field, and treating
+	// absent as invalid would erase all of that history. See validity.go.
+	Validity *Validity `json:"validity,omitempty"`
+
 	// Source-constraint violations (constrained-construction benchmarks).
 	// Non-empty means the code was rejected BEFORE execution.
 	ConstraintViolations []string `json:"constraint_violations,omitempty"`

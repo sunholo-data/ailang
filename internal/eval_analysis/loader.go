@@ -15,6 +15,21 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 	return LoadResultsFromDirs(dir)
 }
 
+// LoadResultsIncludingInvalid is LoadResults WITHOUT the validity filter.
+//
+// Use only when investigating the harness itself. Invalid rows are quarantined,
+// never deleted (they are evidence of the bug that produced them), so this is
+// how you reach them. Everything that reports a rate must use LoadResults.
+func LoadResultsIncludingInvalid(dir string) ([]*BenchmarkResult, error) {
+	return loadResultsFromDirs(dir)
+}
+
+// LoadResultsFromDirsIncludingInvalid is LoadResultsFromDirs without the
+// validity filter. See LoadResultsIncludingInvalid.
+func LoadResultsFromDirsIncludingInvalid(dirs ...string) ([]*BenchmarkResult, error) {
+	return loadResultsFromDirs(dirs...)
+}
+
 // LoadResultsFromDirs loads and merges all benchmark results from one or more
 // directories. This is the durable primitive behind `eval-report --merge`:
 // it walks every directory, concatenates the results, and applies a single
@@ -28,7 +43,19 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 // but a directory that simply contains no JSON files is tolerated as long as
 // the combined set across all directories is non-empty (so callers can merge a
 // populated baseline with an empty/absent rotation without failing).
+// Rows that are not MEASUREMENTS (dead subject, harness error, wrong config)
+// are excluded by default — see FilterValidResults for why the default matters.
+// Use LoadResultsFromDirsIncludingInvalid to opt back in.
 func LoadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
+	results, err := loadResultsFromDirs(dirs...)
+	if err != nil {
+		return nil, err
+	}
+	return FilterValidResults(results), nil
+}
+
+// loadResultsFromDirs is the raw walker: no validity filtering.
+func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
 	if len(dirs) == 0 {
 		return nil, fmt.Errorf("no directories provided")
 	}

@@ -5,31 +5,39 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // BenchmarkResult represents the result of a single benchmark execution
 // This mirrors the JSON structure from internal/eval_harness/metrics.go
 type BenchmarkResult struct {
-	ID            string    `json:"id"`
-	Lang          string    `json:"lang"`
-	Model         string    `json:"model"`
-	Executor      string    `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
-	Seed          int64     `json:"seed"`
-	InputTokens   int       `json:"input_tokens"`
-	OutputTokens  int       `json:"output_tokens"`
-	TotalTokens   int       `json:"total_tokens"`
-	CostUSD       float64   `json:"cost_usd"`
-	CompileOk     bool      `json:"compile_ok"`
-	RuntimeOk     bool      `json:"runtime_ok"`
-	StdoutOk      bool      `json:"stdout_ok"`
-	DurationMs    int64     `json:"duration_ms"`
-	CompileMs     int64     `json:"compile_ms"`
-	ExecuteMs     int64     `json:"execute_ms"`
-	ErrorCategory string    `json:"error_category"`
-	Stdout        string    `json:"stdout,omitempty"`
-	Stderr        string    `json:"stderr,omitempty"`
-	Timestamp     time.Time `json:"timestamp"`
-	Code          string    `json:"code,omitempty"`
+	ID            string  `json:"id"`
+	Lang          string  `json:"lang"`
+	Model         string  `json:"model"`
+	Executor      string  `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
+	Seed          int64   `json:"seed"`
+	InputTokens   int     `json:"input_tokens"`
+	OutputTokens  int     `json:"output_tokens"`
+	TotalTokens   int     `json:"total_tokens"`
+	CostUSD       float64 `json:"cost_usd"`
+	CompileOk     bool    `json:"compile_ok"`
+	RuntimeOk     bool    `json:"runtime_ok"`
+	StdoutOk      bool    `json:"stdout_ok"`
+	DurationMs    int64   `json:"duration_ms"`
+	CompileMs     int64   `json:"compile_ms"`
+	ExecuteMs     int64   `json:"execute_ms"`
+	ErrorCategory string  `json:"error_category"`
+
+	// Validity marks whether this row is a MEASUREMENT at all (vs a failure to
+	// measure: dead subject, harness error, wrong config). NIL means valid —
+	// pre-v0.31.0 rows have no such field. See eval_harness/validity.go.
+	Validity *eval_harness.Validity `json:"validity,omitempty"`
+
+	Stdout    string    `json:"stdout,omitempty"`
+	Stderr    string    `json:"stderr,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+	Code      string    `json:"code,omitempty"`
 
 	// Self-repair metrics (M-EVAL-LOOP)
 	FirstAttemptOk  bool   `json:"first_attempt_ok"`
