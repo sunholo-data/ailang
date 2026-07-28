@@ -236,3 +236,75 @@ func TestDeriveShortName(t *testing.T) {
 		}
 	}
 }
+
+// TestExtRegistryGen_EffectRowFromManifest guards the fix for the six-day
+// motoko_agent outage of July 2026: the generator used to hardcode
+// `! {Env, FS}` on the dispatch functions and emit `resolve` with no effect
+// row at all. That is only valid while every extension's register_with_config
+// is itself {Env, FS}. Once AILANG's effect-row soundness fix propagated real
+// effects through the registration path, the generated file stopped
+// type-checking and motoko could not boot.
+//
+// The row must now come from the manifest's own [effects] max — the declared
+// ceiling that is by construction a superset of any extension's row.
+func TestExtRegistryGen_EffectRowFromManifest(t *testing.T) {
+	toml := minimalManifestTOML(`
+[effects]
+max = ["IO", "Env", "AI", "Net", "FS", "Process", "Clock"]
+
+[extensions]
+packages        = ["motoko-ext-compaction@0.2.0", "motoko-ext-exa-search@0.4.1"]
+config_import   = "src/core/config.RuntimeConfig"
+hooks_import    = "src/core/ext/types.ExtensionHooks"
+registry_import = "src/core/ext/types.ExtRegistry"
+output          = "src/core/ext/registry_generated.ail"
+`)
+	dir := writeFixture(t, toml, twoPackageLockJSON)
+	outPath := filepath.Join(dir, "registry_generated.ail")
+
+	if err := extRegistryGenCommand([]string{
+		"-config", filepath.Join(dir, "ailang.toml"),
+		"-output", outPath,
+	}); err != nil {
+		t.Fatalf("extRegistryGenCommand: %v", err)
+	}
+
+	got, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	out := string(got)
+
+	const wantRow = "! {IO, Env, AI, Net, FS, Process, Clock}"
+	// All three generated dispatch functions call into register_with_config
+	// (directly or transitively), so all three must carry the row.
+	for _, fn := range []string{"resolve", "parse_tokens", "parse_core_ext_order"} {
+		idx := strings.Index(out, "func "+fn+"(")
+		if idx < 0 {
+			t.Fatalf("generated file has no %q function:\n%s", fn, out)
+		}
+		line := out[idx:]
+		if nl := strings.IndexByte(line, '\n'); nl >= 0 {
+			line = line[:nl]
+		}
+		if !strings.Contains(line, wantRow) {
+			t.Errorf("%s: want effect row %q, got line:\n  %s", fn, wantRow, line)
+		}
+	}
+
+	// The old hardcoded row must be gone entirely.
+	if strings.Contains(out, "! {Env, FS}") {
+		t.Errorf("generated file still contains the hardcoded {Env, FS} row:\n%s", out)
+	}
+}
+
+// TestExtRegistryGen_EffectRowDefaultsWhenNoEffectsSection keeps manifests that
+// omit [effects] on the historical row rather than silently emitting none.
+func TestExtRegistryGen_EffectRowDefaultsWhenNoEffectsSection(t *testing.T) {
+	if got := effectRowFromManifest(nil); got != defaultExtRegistryEffectRow {
+		t.Errorf("empty max: got %q, want %q", got, defaultExtRegistryEffectRow)
+	}
+	if got := effectRowFromManifest([]string{"IO", "FS"}); got != "IO, FS" {
+		t.Errorf("got %q, want %q", got, "IO, FS")
+	}
+}

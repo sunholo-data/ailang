@@ -10,7 +10,7 @@ import src/core/config (RuntimeConfig)
 import src/core/ext/types (ExtensionHooks)
 import std/option (Option, Some, None)
 
-export func resolve(name: string, cfg: RuntimeConfig) -> Option[ExtensionHooks] {
+export func resolve(name: string, cfg: RuntimeConfig) -> Option[ExtensionHooks] ! {Env, FS} {
   if name == "compaction" then Some(register_compaction(cfg))
   else if name == "exa_search" then Some(register_exa_search(cfg))
   else None
