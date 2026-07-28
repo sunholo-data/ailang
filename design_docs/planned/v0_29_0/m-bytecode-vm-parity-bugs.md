@@ -1,10 +1,57 @@
 # M-BYTECODE-VM-PARITY-BUGS — Three VM soundness bugs surfaced as "output divergences" (Lanes A + B, scope FROZEN)
 
-**Status**: Planned — **SCOPE FROZEN as A+B per Mark's attended GO, 2026-07-27.** Lane B is no
-longer parked. This doc supersedes its own iter-102 refresh box (now itself drifted — see
-"Current state"); plan from THIS version. **Revision 1 (post-quorum)**: both reviewer objections
-(unsafe effect replay mis-filed as benign; Net/Clock inventory arithmetic) confirmed and fixed —
-see Verification Log.
+**Status**: Planned — **SCOPE FROZEN as A+B per Mark's attended GO, 2026-07-27**, but
+**⚠ PARKED `needs-human-review` at iteration 114: Lane A milestone A2 is BLOCKED by the quorum
+after its one permitted revision.** Lane B is no longer parked *as scope*, but nothing may be
+planned from this doc until the A2 question below is answered. This doc supersedes its own
+iter-102 refresh box (now itself drifted — see "Current state"); plan from THIS version.
+**Revision 1 (post-quorum)**: both round-0 objections (unsafe effect replay mis-filed as benign;
+Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verification Log.
+
+> ### ⚠ PARKED — one decision needed from Mark (iteration 114)
+>
+> The re-quorum **still rejects**, on two NEW objections, both aimed at **A2's file-classification
+> mechanism** (not at Lane B, not at the soundness bugs). The loop parks rather than forcing a
+> guardrail (Standing rule 2), and the narrow-refinement carve-out does **not** apply — see why
+> below.
+>
+> **gemini-3-1-pro** (narrow, verbatim-fixable): A2 item 3 claims `vmStdout == evalStdout` proves
+> "the fallback fired before any observable output". That is false — `FS` writes and `Net` calls
+> commit observable effects **without printing**, so a non-printing unsafe replay classifies as a
+> benign bucket and is masked. Its fix is a verbatim honesty note (the check detects
+> *stdout*-visible replay only; true prevention is B4's VM-level policy).
+>
+> **gpt5-6-sol** (NOT narrow — this is what parks it): A2 swaps the drifting **filename** map for
+> `detectCaps`, which **string-sniffs source text** for `! {Net` / `import std/clock`. That is a
+> second non-semantic heuristic — it can silently execute a live or clock-dependent program and
+> misreport its parity. It asks for **semantic** effect extraction from the compiler's resolved
+> effect row, with a loud classification error when resolution fails.
+>
+> **Why this needs a human and not a controller edit.** The reviewer's fix is correct in principle,
+> but `scripts/verify_bytecode_parity.go` **shells out to the `ailang` binary and imports no
+> compiler package at all** (controller-verified). So "use the resolved effect row" is not a
+> reword — it requires either pulling compiler packages into the harness or adding a CLI surface
+> that emits a file's effect row, and then re-sizing A2. The reviewer itself defers that call
+> ("if semantic extraction is genuinely unavailable, explicitly scope and design that extension").
+> That is a design decision with a cost, i.e. exactly the controller-judgment case the carve-out
+> excludes.
+>
+> **Options for Mark (loop recommends C):**
+> - **(A)** Do it properly: A2.1 becomes semantic effect extraction via a new/reused compiler
+>   surface. Correct, but grows A2 beyond its ~0.5d and needs a feasibility spike first.
+> - **(B)** Keep the sniffer, document its limits loudly, revisit later. Cheapest — but both
+>   reviewers say it repeats the exact sin (non-semantic classification) that produced the
+>   `http_simple` drift this doc opens with.
+> - **(C) RECOMMENDED — split the doc and unblock the P0 now.** The blocked question is entirely
+>   about **A2's harness classification**. The **#505 pattern-arity soundness bug (B1+B2) does not
+>   depend on it at all**: its root cause is settled, its repro is minimal, and its acceptance test
+>   (AC8/AC8b) is a table-driven pattern test, not a parity-harness count. Land B1+B2 as their own
+>   sprint immediately; send A2 (and the A1/A2 harness lane) back for a second design round with
+>   the semantic-extraction question answered. This gets a P0 silent-wrong-answer fix moving while
+>   the measurement argument is settled separately.
+>
+> Quorum artifacts: `.ailang/state/mission-quorum/m-bytecode-vm-parity-bugs-*.json`
+> (round 0 and round 1). Related filed bugs: **#505** (pattern arity), **#506** (unsafe replay).
 **Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
 **Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
 `--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback

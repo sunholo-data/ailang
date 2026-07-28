@@ -1214,8 +1214,23 @@ triage evidence = log entry 10.)*
   fork: (1) run after name resolution, (2) narrow the goal (literal-empties only), or (3) curated
   known-empty-builder list; + resolve the warning-vs-error/exit-1 `--package` channel. Doc has the
   full REBLOCK write-up. See log entry 47.
-- **m-bytecode-vm-parity-bugs** (bytecode-VM vs eval output divergences) **[RE-SCOPED + Lane-B PARKED
-  for Mark, iter-102 Gate-2 fresh data at `64f1e2924`]** — live `verify_bytecode_parity.go` shows
+- **m-bytecode-vm-parity-bugs** — **[iter-114: DOC RE-SCOPED A+B then PARKED `needs-human-review`
+  on the A2 classification question; ONE decision needed from Mark, options A/B/**C recommended**,
+  in the doc's header box]**. Not "output divergences" — **three soundness bugs**: **#505** the VM
+  ignores fixed-length **list-pattern length** (`[x]` matches any non-empty list → `recursion_quicksort`
+  silently returns `[3]`; general at n=1,2,3; no error, no fallback), the `arith-on-Closure` dispatch
+  family (`array_basic`, `array_grid`, `module_let_helpers`), and **#506** the VM→eval fallback
+  **restarts the program after committed effects** (`tar_gzip_reader` prints its header twice;
+  duplicates a `println` here, would duplicate an FS write / HTTP POST). Fresh iter-114 data at
+  `33be8f5a7`: **149 / 2 / 7 / 16** — and the **MATCH headline is inflated by 6 fake rows**: the
+  harness passes `--quiet` (`verify_bytecode_parity.go:235`), which suppresses the fallback warning
+  (`run_helpers.go:375`), so the evaluator re-runs and matches itself while the VM never ran the
+  program (6/6 controller-verified). Quorum BLOCKED twice; both round-0 objections were real and
+  reproduced first-party before adoption. **Recommended unblock (C): split — sprint `#505` (B1+B2)
+  now** (root cause settled, minimal repro, acceptance test is a pattern table independent of the
+  harness) and send the A1/A2 harness lane for a 2nd design round on semantic effect extraction.
+  *Superseded below: [RE-SCOPED + Lane-B PARKED
+  for Mark, iter-102 Gate-2 fresh data at `64f1e2924`]* — live `verify_bytecode_parity.go` showed
   **150 MATCH / 2 NON_DET / 6 DIVERGE / 16 EVAL_SKIP** (86.2%). Fresh per-file categorization (doc's
   Reality-check-refresh box is authoritative): old bug #3 `string_parsing` now MATCHes; the character
   changed. **Lane A (loop-fixable, ~1d, NO bytecode internals)**: eval `builtinShow` tuple gap
