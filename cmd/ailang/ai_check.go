@@ -45,7 +45,7 @@ type aiVerifySection struct {
 // with unified JSON output designed for AI/machine consumption.
 func aiCheckCommand() {
 	fs := flag.NewFlagSet("ai-check", flag.ExitOnError)
-	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout")
+	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
@@ -62,7 +62,7 @@ func aiCheckCommand() {
 		fmt.Println("Always outputs JSON (designed for AI/machine consumption).")
 		fmt.Println()
 		fmt.Println("Options:")
-		fmt.Println("  --timeout                 Per-function Z3 timeout (default: 5s)")
+		fmt.Println("  --timeout                 Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --verify-recursive-depth  Bounded recursion depth (default: 2)")
 		fmt.Println("  --relax-modules           Relax MOD010 validation")
 		os.Exit(1)

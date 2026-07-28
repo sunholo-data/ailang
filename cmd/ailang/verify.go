@@ -22,7 +22,7 @@ func verifyCommand() {
 	verboseFlag := fs.Bool("verbose", false, "Show generated SMT-LIB for each function")
 	jsonFlag := fs.Bool("json", false, "Output results in JSON format")
 	strictFlag := fs.Bool("strict", false, "Exit with error if any function cannot be verified")
-	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout")
+	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
@@ -39,7 +39,7 @@ func verifyCommand() {
 		fmt.Println("  --verbose    Show generated SMT-LIB for each function")
 		fmt.Println("  --json            Output results in JSON format")
 		fmt.Println("  --strict          Exit with error if any function cannot be verified")
-		fmt.Println("  --timeout         Per-function Z3 timeout (default: 5s)")
+		fmt.Println("  --timeout         Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")

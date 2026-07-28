@@ -2,12 +2,19 @@ package smt
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+)
+
+const (
+	solverKillGrace     = 2 * time.Second
+	versionProbeTimeout = 5 * time.Second
 )
 
 // SolverStatus represents the result of an SMT solver invocation.
@@ -97,7 +104,10 @@ func FindZ3() (string, error) {
 	return "", fmt.Errorf("Z3 solver not found. Install with: brew install z3 (macOS) or apt install z3 (Linux). Or set AILANG_Z3_PATH")
 }
 
-// Solve runs Z3 on an SMT-LIB program and parses the result.
+// Solve runs Z3 on an SMT-LIB program and parses the result. The solver has a
+// hard wall-clock bound of the greater of the configured timeout and effective
+// Z3 timeout, plus solverKillGrace. Expiry returns StatusUnknown with a
+// "solver timeout" error.
 func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	start := time.Now()
 	result := &SolverResult{
@@ -144,10 +154,28 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 		tmpPath,
 	}
 
-	cmd := exec.Command(z3Path, args...)
+	effectiveTimeout := time.Duration(timeoutSecs) * time.Second
+	hardTimeout := max(config.Timeout, effectiveTimeout) + solverKillGrace
+	ctx, cancel := context.WithTimeout(context.Background(), hardTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, z3Path, args...)
+	setProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		return killProcessGroup(cmd.Process.Pid)
+	}
+	cmd.WaitDelay = solverKillGrace
 	output, err := cmd.CombinedOutput()
 	result.Duration = time.Since(start)
 	result.RawOutput = string(output)
+
+	// Output from a process killed at the deadline is not trustworthy. Classify
+	// the result before parsing so a partial prefix can never report verification.
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		result.Status = StatusUnknown
+		result.Error = "solver timeout"
+		return result, nil
+	}
 
 	// Parse result - Z3 exits 0 for sat/unsat, non-zero for errors
 	// But also exits non-zero when model is unavailable (unsat + get-model)
@@ -263,12 +291,24 @@ func Z3Available() bool {
 }
 
 // Z3Version returns the installed Z3 version string, or empty if not found.
+// Retaining an empty string on timeout is an intentional display-path default;
+// it does not hide a verification result or alter verification semantics.
 func Z3Version() string {
 	z3Path, err := FindZ3()
 	if err != nil {
 		return ""
 	}
-	out, err := exec.Command(z3Path, "--version").Output()
+
+	ctx, cancel := context.WithTimeout(context.Background(), versionProbeTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, z3Path, "--version")
+	setProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		return killProcessGroup(cmd.Process.Pid)
+	}
+	cmd.WaitDelay = solverKillGrace
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
