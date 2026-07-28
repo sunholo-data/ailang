@@ -1,8 +1,12 @@
 # motoko_agent on this machine — the map
 
 **One-line answer:** evals run `/Users/voightkampff/dev/mk-ast`, branch
-`sunholo/eval-canonical`, and every extension comes from the **online registry**
-(`registry.ailang.sunholo.com`). Nothing else is the eval version.
+`integration/sync-ast-20260624`, and every extension comes from the **online
+registry** (`registry.ailang.sunholo.com`). Nothing else is the eval version.
+
+> The branch name is a leftover from a one-off sync and says nothing about what
+> it is. Renaming it to `sunholo/eval-canonical` is pending (the command is in
+> §8); update this file and the `motoko` shim in the same breath.
 
 This file exists because "which motoko are we actually running?" cost a full
 audit once. Read it before touching any `~/dev/mk-*` directory.
@@ -23,9 +27,17 @@ separate checkout, not a separate fork. `git worktree list` is the truth.
 | Path | Branch | What it is |
 |---|---|---|
 | `dev/arniwesth/motoko_agent` | `feat/local-eval-profiles` | the clone; stale branch, do not eval from it |
-| **`dev/mk-ast`** | **`sunholo/eval-canonical`** | **CANONICAL — what `motoko` on PATH runs** |
+| **`dev/mk-ast`** | **`integration/sync-ast-20260624`** | **CANONICAL — what `motoko` on PATH runs** |
 | `dev/mk-prwork` | `fix/reliable-compaction` | PR #97 only |
 | `dev/mk-ast-upstream-fix` | `fix/ailang-0.30-message-images` | PR #96 only |
+| ~~`dev/mk-sync`~~ | `integration/sync-clean-20260624` | fully superseded by mk-ast — worktree pending removal |
+| ~~`dev/mk-integration`~~ | `integration/editdecl-timeout` | fully superseded by mk-ast — worktree pending removal |
+
+"Fully superseded" was verified by commit-subject comparison, and for the one
+commit whose subject was absent (`register ollama/qwen3 context limit =
+262144`) by confirming the same content is present in mk-ast under a different
+lineage. Removing those worktrees deletes no unique work; the branches survive
+regardless.
 
 `dev/sunholo-data/motoko_explore` is an unrelated repo. Ignore it.
 
@@ -126,3 +138,23 @@ keep the merge cheap:
 - Query our delta with `git log origin/main..sunholo/eval-canonical`.
 - Rebase deliberately, not reflexively — check what Arni has in flight first
   (`gh pr list --repo arniwesth/motoko_agent`).
+
+## 8. Pending manual steps
+
+These mutate git refs/worktrees and were left for a human to run:
+
+```bash
+cd /Users/voightkampff/dev/arniwesth/motoko_agent
+git worktree remove --force /Users/voightkampff/dev/mk-sync
+git worktree remove --force /Users/voightkampff/dev/mk-integration
+git branch -m integration/sync-ast-20260624 sunholo/eval-canonical
+```
+
+After the rename, update the branch name in §1 of this file and in the
+`~/go/bin/motoko` shim header.
+
+The clone itself still sits on the stale `feat/local-eval-profiles` with one
+uncommitted line in `src/tui/src/runtime-process.ts`
+(`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` forwarding). That change is **already in
+mk-ast** (line 408), so it is redundant and safe to discard — but it is real
+work, so discarding it is a human's call.
