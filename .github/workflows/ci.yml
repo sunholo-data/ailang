@@ -130,6 +130,19 @@ jobs:
     - name: Run regression guard tests (v0.3.10 prevention)
       run: make test-regression-guards
 
+    - name: Run nightly classifier variance-guard tests
+      run: |
+        set -o pipefail
+        make test-nightly-classifier 2>&1 | tee nightly_classifier.log
+
+    - name: Assert nightly classifier tests ran (no silent skips)
+      run: |
+        PASSES=$(grep -c -- '--- PASS:' nightly_classifier.log || true)
+        if [ "$PASSES" -lt 20 ]; then
+          echo "::error::nightly classifier emitted only $PASSES PASS lines; tests were skipped, renamed, or did not run"
+          exit 1
+        fi
+
     - name: Check compilation with timeout (M-DX11)
       run: |
         # Use timeout to detect compilation hangs
