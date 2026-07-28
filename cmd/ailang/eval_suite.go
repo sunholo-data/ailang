@@ -115,6 +115,7 @@ func runEvalSuite() {
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
+	noCanary := fs.Bool("no-canary", false, "Skip the per-model pre-flight canary (agent mode). The canary proves a subject can actually complete a step; disabling it risks banking phantom failures from a dead subject.")
 	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
 	// NOTE: `-agent-parallel` was historically wired here but never actually
 	// governed dispatch concurrency. The real semaphore is `-parallel` (see
@@ -420,6 +421,31 @@ func runEvalSuite() {
 				yellow("⚠️"), len(skipped), skipped)
 			fmt.Fprintf(os.Stderr, "   These models have no agent_cli configured in models.yml\n")
 			fmt.Println()
+		}
+
+		// Pre-flight canary (m-eval-measurement-contract M1). HealthCheck proves
+		// the CLI exists; the canary proves the SUBJECT works. Between
+		// 2026-07-22 and 07-28 motoko's HealthCheck passed 72 times while its
+		// AILANG core was dead, and the harness banked 72 phantom benchmark
+		// failures. Dropping the model here — rather than deep in the per-run
+		// path — means a dead subject cannot bank a single row, because it
+		// never enters the run matrix at all.
+		if !*noCanary {
+			preCanary := modelList
+			healthy, canarySkipped := eval_harness.FilterCanaryHealthyModels(
+				context.Background(), modelList, eval_harness.RunModelCanary)
+			modelList = healthy
+
+			if len(canarySkipped) > 0 {
+				fmt.Fprintf(os.Stderr, "%s Canary: %d of %d model(s) FAILED pre-flight and were skipped (0 rows banked):\n",
+					red("✗"), len(canarySkipped), len(preCanary))
+				for _, s := range canarySkipped {
+					fmt.Fprintf(os.Stderr, "   %s: %s\n", s.Model, s.Reason)
+				}
+				fmt.Fprintf(os.Stderr, "   A canary failure means the subject could not complete one trivial task.\n")
+				fmt.Fprintf(os.Stderr, "   Check $TMPDIR/motoko-stderr-*.log, or re-run with --no-canary to override.\n")
+				fmt.Println()
+			}
 		}
 
 		if len(modelList) == 0 {
