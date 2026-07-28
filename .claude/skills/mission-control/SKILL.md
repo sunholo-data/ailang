@@ -682,8 +682,14 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 4. **WEEKLY THREAD ROTATION (Mark 2026-07-16 — do this BEFORE posting the report):** the
    bookkeeping thread rolls weekly so neither GitHub's UI nor Gate-0's comment fetch grows without
    bound (#329 hit 120KB/53 comments in 6 days). **Rotate when** (either): the current time is past
-   the most recent **Monday 07:00** (the quota-reset boundary) AND the current issue was created
-   before that boundary; OR the current issue has >80 comments. To rotate:
+   the most recent **Monday 07:00 LOCAL time** (the quota-reset boundary, in the rig's own
+   timezone — NOT UTC; compare with `date` output, not `date -u`) AND the current issue was created
+   before that boundary; OR the current issue has >80 comments. **The timezone is load-bearing, not
+   pedantry** (stamped iteration 114 after iterations 111/112/113 each flagged the omission, the
+   third time verdict-relevantly): `#484` was created `2026-07-27T05:27:49Z`, so read as UTC (07:00Z)
+   the boundary sits BEFORE creation and the issue spuriously rotates at one day old, while read as
+   local CEST (= 05:00Z) it correctly does not. Issue `createdAt` comes back from `gh` in UTC, so
+   convert one side explicitly rather than comparing the two strings as-is. To rotate:
    1. `gh issue create --repo "${MISSION_REPO:-sunholo-data/ailang}" --title "<mission> bookkeeping — week of <this
       Monday's date>" --body "<5-line state snapshot: queue head · fleet state · parked-for-human
       list · link to predecessor issue #N · directive convention: comments from
