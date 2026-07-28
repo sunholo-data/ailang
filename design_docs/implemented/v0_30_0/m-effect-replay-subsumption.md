@@ -1,12 +1,11 @@
 # M-EFFECT-REPLAY-SUBSUMPTION: Validate-Path Effect-Mode Subsumption
 
-**Status**: Ready for sprint planner — Mark's 2026-07-27 ratification is recorded in the
-`design_docs/v1-mission.md` queue row and commit `4d32c71bb` message body
+**Status**: Implemented
 **Target**: v1.0.0, mission clause 4 (orchestration flagship), **SHARED GATE**
 **Priority**: P0 — blocks runnable seeded/crypto Rand and the Clock/Net/FS mode ports
 **Estimated**: 18–22 hours (2.5–3 days)
 **Dependency / Parent**:
-[M-EFFECT-REPLAY-CONTRACTS](../../implemented/v0_30_0/m-effect-replay-contracts.md)
+[M-EFFECT-REPLAY-CONTRACTS](m-effect-replay-contracts.md)
 (landed partial)
 
 ## Framing
@@ -441,9 +440,9 @@ rewriting — that outcome was live, which is why the check was run rather than 
 
 ## Related Documents
 
-- [M-EFFECT-REPLAY-CONTRACTS](../../implemented/v0_30_0/m-effect-replay-contracts.md) — parent
-- [M-EFFECT-CLOCK-NET-FS-MODES](m-effect-clock-net-fs-modes.md) — downstream shared-gate consumer
-- [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parameterised-effect program
+- [M-EFFECT-REPLAY-CONTRACTS](m-effect-replay-contracts.md) — parent
+- [M-EFFECT-CLOCK-NET-FS-MODES](../../planned/v1_0_0/m-effect-clock-net-fs-modes.md) — downstream shared-gate consumer
+- [M-EFFECT-REFINEMENT](../../planned/v1_0_0/m-effect-refinement.md) — parameterised-effect program
 - [Parameterised effects guide](../../../docs/docs/guides/parameterised-effects.md)
 
 ## Verification Log

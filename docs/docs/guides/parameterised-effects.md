@@ -25,7 +25,7 @@ unifier treats the bare and explicit forms as equal. 332/332 example
 ```ailang
 module examples/modal_rand
 
-import std/rand (rand_int, rand_seed)
+import std/rand (rand_int)
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
@@ -34,21 +34,23 @@ export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
 -- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
 export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
 
--- Distinct mode — does NOT unify with mode=os under invariant rules.
-export func deterministic_roll() -> int ! {Rand[mode=seeded]} = {
-  rand_seed(42);
+export func seeded_roll() -> int ! {Rand[mode=seeded]} =
   rand_int(1, 100)
-}
+
+export func crypto_roll() -> int ! {Rand[mode=crypto]} =
+  rand_int(1, 100)
 
 export func main() -> () ! {Rand, IO} = {
-  let r1 = roll_d6() in
-  println("roll_d6 (bare Rand): ${show(r1)}");
+  let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand): ", show(show(r1))))
+  let r2 = roll_d20(()) in println(concat_String("roll_d20 (Rand[mode=os]): ", show(show(r2))))
+}
 
-  let r2 = roll_d20() in
-  println("roll_d20 (Rand[mode=os]): ${show(r2)}");
+export func main_seeded() -> () ! {Rand[mode=seeded], IO} = {
+  let r = seeded_roll(()) in println(concat_String("seeded roll: ", show(show(r))))
+}
 
-  let r3 = deterministic_roll() in
-  println("deterministic_roll (Rand[mode=seeded]): ${show(r3)}")
+export func main_crypto() -> () ! {Rand[mode=crypto], IO} = {
+  let r = crypto_roll(()) in println(concat_String("crypto roll: ", show(show(r))))
 }
 ```
 
@@ -56,6 +58,8 @@ Run it:
 
 ```bash
 ailang run --caps Rand,IO --entry main examples/modal_rand.ail
+AILANG_SEED=42 ailang run --caps Rand,IO --entry main_seeded examples/modal_rand.ail
+ailang run --caps Rand,IO --entry main_crypto examples/modal_rand.ail
 ```
 
 The full file lives at
@@ -147,6 +151,22 @@ back-compat code paths (`stringSliceToEffectRow` in
 rows have desugared `Params`. The bridge consults `DefaultModeFor` to
 fill the gap so the two row sources unify cleanly.
 
+### Validation-path subsumption
+
+Function-value effect-row unification remains invariant. Separately, the
+closed-row **validation path** allows an explicitly declared Rand mode to
+cover a bare or explicit `mode=os` requirement through exactly two registered
+edges:
+
+- declared `Rand[mode=seeded]` covers required `Rand[mode=os]`;
+- declared `Rand[mode=crypto]` covers required `Rand[mode=os]`.
+
+This relation is asymmetric. An os declaration does not cover a seeded or
+crypto requirement, and seeded and crypto do not cover each other. AI, Clock,
+Net, and FS have no subsumption edges. Registering a default mode only
+normalises a bare spelling (for example, bare `Rand` to `mode=os`); a
+registered default grants no subsumption.
+
 ## Mode set is closed
 
 The mode set per effect is **closed and enforced**: authors cannot
@@ -213,16 +233,6 @@ dedicated explicit path (`AILANG_SEED`), never by `rand_seed`.
 tests are byte-identical to before). A `seeded`-mode draw with no
 `AILANG_SEED` provided is a loud typed error (`RAND_SEEDED_NO_SEED`),
 never a silent random fallback. `crypto` entropy failure panics loudly.
-
-**Current type-checker limitation.** A function declared
-`!{Rand[mode=seeded]}` or `!{Rand[mode=crypto]}` cannot yet *call* the
-`std/rand` wrappers (`rand_int` etc.), because those wrappers are
-declared bare `!{Rand}` (= `mode=os`) and effect modes are invariant
-under the current subsumption rule. The runtime dispatch machinery is
-in place; making seeded/crypto reachable from a runnable `.ail`
-program awaits a subsumption decision (does an explicit declared mode
-subsume an `os`-mode required effect?) — tracked in the
-[Phase 3 design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-contracts.md).
 
 ## Future work
 

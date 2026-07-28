@@ -2,6 +2,12 @@
 
 For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-current.md).
 
+## [Unreleased]
+
+- Added end-to-end seeded and crypto Rand examples, backed by asymmetric
+  validation-only subsumption from explicit `seeded`/`crypto` declarations to
+  bare/os requirements.
+
 ## Changelog Archives
 
 The full changelog has been split into themed files for searchability and readability:

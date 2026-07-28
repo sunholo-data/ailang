@@ -25,24 +25,19 @@
 -- seeded-mode draw with no AILANG_SEED is a loud typed error (RAND_SEEDED_NO_SEED),
 -- never a silent random fallback.
 --
--- KNOWN LIMITATION (tracked for a follow-up type-system decision): a function
--- declared !{Rand[mode=seeded]} or !{Rand[mode=crypto]} cannot yet CALL the
--- std/rand wrappers (rand_int/rand_float/rand_bool), because those wrappers are
--- declared bare !{Rand} (= mode=os) and effect modes are invariant under the
--- current subsumption rule (an os-mode body does not satisfy a seeded/crypto
--- declaration). The runtime dispatch machinery is in place; wiring seeded/crypto
--- into a runnable .ail path needs a subsumption decision (does an explicit
--- declared mode subsume an os-mode required effect?). Until then this example
--- demonstrates the os path end-to-end and the seeded/crypto forms at the type
--- level only. See design_docs/planned/v1_0_0/m-effect-replay-contracts.md.
---
 -- Run with:
 --   ailang run --caps Rand,IO --entry main examples/modal_rand.ail
+--   AILANG_SEED=42 ailang run --caps Rand,IO --entry main_seeded examples/modal_rand.ail
+--   ailang run --caps Rand,IO --entry main_crypto examples/modal_rand.ail
+--
+-- main stays os-mode so example verification can run without AILANG_SEED.
+-- Seeded and crypto are separate entrypoints because their modes are
+-- incomparable: no single function may declare a mode that covers both.
 --
 -- See:
 --   design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md
 --   design_docs/planned/v1_0_0/m-effect-refinement.md (parent, Example 1)
---   design_docs/planned/v1_0_0/m-effect-replay-contracts.md (Phase 3 dispatch)
+--   design_docs/implemented/v0_30_0/m-effect-replay-contracts.md (Phase 3 dispatch)
 
 module examples/modal_rand
 
@@ -60,11 +55,27 @@ export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
 -- from the same global os source.
 export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
 
--- main demonstrates the os-mode forms end-to-end. For determinism across runs,
--- seed the os source with rand_seed (its documented contract) or pin the whole
--- program with AILANG_SEED. The seeded/crypto modes differ at runtime once a
--- moded function can reach them (see KNOWN LIMITATION above).
+-- Explicit seeded mode — deterministic across processes for the same
+-- AILANG_SEED. The declared mode covers std/rand's bare/os requirement only
+-- along the validation path; runtime dispatch remains seeded.
+export func seeded_roll() -> int ! {Rand[mode=seeded]} = rand_int(1, 1000000)
+
+-- Explicit crypto mode — draws from crypto/rand and has an opaque replay
+-- contract. It does not read AILANG_SEED.
+export func crypto_roll() -> int ! {Rand[mode=crypto]} = rand_int(1, 1000000)
+
+-- main demonstrates only os-mode forms end-to-end.
 export func main() -> () ! {Rand, IO} = {
   let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand → mode=os): ", show(show(r1))))
   let r2 = roll_d20(()) in println(concat_String("roll_d20 (Rand[mode=os]): ", show(show(r2))))
+}
+
+export func main_seeded() -> () ! {Rand[mode=seeded], IO} = {
+  let r1 = seeded_roll(()) in println(concat_String("seeded roll 1: ", show(show(r1))))
+  let r2 = seeded_roll(()) in println(concat_String("seeded roll 2: ", show(show(r2))))
+  let r3 = seeded_roll(()) in println(concat_String("seeded roll 3: ", show(show(r3))))
+}
+
+export func main_crypto() -> () ! {Rand[mode=crypto], IO} = {
+  let r = crypto_roll(()) in println(concat_String("crypto roll: ", show(show(r))))
 }
