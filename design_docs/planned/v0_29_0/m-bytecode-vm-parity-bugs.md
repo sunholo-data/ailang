@@ -1,12 +1,21 @@
-# M-BYTECODE-VM-PARITY-BUGS — VM/Eval Divergences (Lanes A + B, scope FROZEN)
+# M-BYTECODE-VM-PARITY-BUGS — Three VM soundness bugs surfaced as "output divergences" (Lanes A + B, scope FROZEN)
 
 **Status**: Planned — **SCOPE FROZEN as A+B per Mark's attended GO, 2026-07-27.** Lane B is no
 longer parked. This doc supersedes its own iter-102 refresh box (now itself drifted — see
-"Current state"); plan from THIS version.
+"Current state"); plan from THIS version. **Revision 1 (post-quorum)**: both reviewer objections
+(unsafe effect replay mis-filed as benign; Net/Clock inventory arithmetic) confirmed and fixed —
+see Verification Log.
 **Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
-**Priority**: **P0** — `recursion_quicksort.ail` is a **silent wrong result** under `--bytecode`
-(no error, no fallback, wrong list). Under NO-SILENT-FALLBACKS this outranks everything else here.
-**Estimated**: 3–4 days total (Lane A ~1d; Lane B ~2–3d, investigation-first)
+**Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
+`--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback
+**re-executes programs from the beginning after observable effects have already been committed**
+(unsafe replay — here a duplicated `println`, but the same mechanism would duplicate an FS write,
+an HTTP POST, or a Msg send). Both are direct NO-SILENT-FALLBACKS violations and A1 (determinism)
+violations. The parity harness has been surfacing **genuine soundness defects as cosmetic "stdout
+differs" rows** — "output divergences" was an understatement; this doc's framing is corrected
+accordingly.
+**Estimated**: ~4–5 days total (Lane A ~1d; Lane B ~3–4d, investigation-first). **This exceeds
+the 3–4d sprint box — see "Sprint sizing & proposed split" below; do not silently overrun.**
 **Dependencies**: M-BYTECODE-MULTIMODULE M1 (complete — surfaced these)
 
 ## Current state — measured at HEAD `33be8f5a7`, 2026-07-28
@@ -26,23 +35,49 @@ the harness's exclusion mechanism is a hand-maintained filename map** (`nonDeter
 exclusion rule is therefore **effect-driven** (by declared `Net`/`Clock` effect), not another
 filename entry.
 
+**Revision-1 finding — the MATCH 149 headline is inflated by 6 fake parity rows.** A first-party
+scan of the corpus without `--quiet` (which suppresses the fallback warning — see Verification
+Log) found **8 files that silently fall back to the evaluator with exit 0**: the two DIVERGE rows
+below (#2, #4) **plus 6 files currently counted MATCH** (`array_grid.ail`, `html_parser.ail`,
+`map_basic.ail`, `module_let_helpers.ail`, `std_deflate_pdf_objstm.ail`, `stdlib_gzip.ail`).
+For those 6 the VM emitted no output before falling back, so the evaluator's re-run byte-matches
+the evaluator — **"MATCH" is the evaluator agreeing with itself; the VM never ran the program**.
+Two of them (`array_grid`: `arith MUL on Closure`; `module_let_helpers`: `arith ADD: type
+mismatch Int vs Closure`) are the **same closure-dispatch bug family as `array_basic`** (Lane B3),
+currently laundered as MATCH. This also explains why the VM_BRIDGE/VM_RUNTIME buckets are all 0
+at HEAD: the non-strict fallback structurally converts VM failures into exit-0 evaluator runs,
+so those buckets are near-unreachable. The gate has been measuring the evaluator, not the VM,
+for every fallback file.
+
 ### The 7 DIVERGE files (eval = ground truth, except where noted)
 
 | # | File | Symptom at HEAD | Class | Lane |
 |---|------|-----------------|-------|------|
 | 1 | `recursion_quicksort.ail` | VM **silently** returns `[3]` for BOTH `Quicksort:` and `sortBy:`; eval returns `[1, 1, 2, 3, 4, 5, 6, 9]`. Exit 0, **no error, no fallback** (stderr verified clean) | **VM correctness — SOUNDNESS, silent wrong result** | **B (P0)** |
-| 2 | `array_basic.ail` | VM prints `Length: <Closure>`, `numbers[0] (first): <Closure>`, … then `vm: GET_TAG on Closure (in array_basic.showOpt at array_basic.ail:32)` → **falls back loudly**, evaluator re-runs and re-prints correctly; stdout = wrong prefix + full correct output | **VM dispatch bug** (array length/index produced as unforced closures) — fails loudly, self-heals | **B** |
+| 2 | `array_basic.ail` | VM prints `Length: <Closure>`, `numbers[0] (first): <Closure>`, … then `vm: GET_TAG on Closure (in array_basic.showOpt at array_basic.ail:32)` → falls back, evaluator **re-runs the program from the beginning**, re-performing the already-committed printlns; stdout = wrong prefix + full re-run output | **TWO defects in one file**: VM dispatch bug (array length/index produced as unforced closures, → B3) **and** an unsafe-replay instance (committed IO re-executed by the fallback, → B4) | **B (B3 + B4)** |
 | 3 | `pattern_sugar.ail` | **eval** prints `firstPair(...) = <*eval.TupleValue>`; **VM is CORRECT** (`(a, 1)`). Single-line diff, verified | **eval-side show bug** — harness ground truth is the wrong side | **A** |
-| 4 | `tar_gzip_reader.ail` | VM hits bridge limit (`TaggedValue (Result.Err) not yet supported (M-BYTECODE-2E scope)`) mid-run → falls back → evaluator re-runs → **first stdout line duplicated**. Fallback itself is correct | **VM_BRIDGE mis-filed as DIVERGE** (harness can't see exit-0 fallbacks) | **A** |
+| 4 | `tar_gzip_reader.ail` | VM executes the first `println` (committed IO), then hits bridge limit (`TaggedValue (Result.Err) not yet supported (M-BYTECODE-2E scope)` at `ail:19, ip 9`) → falls back → evaluator **re-runs from the beginning, re-performing the committed effect** → header printed **twice** (eval prints it once; re-verified first-party this revision) | **UNSAFE EFFECT REPLAY — soundness bug in the fallback mechanism itself** (→ B4). Here the duplicated effect is a `println`; the same mechanism would duplicate an FS write, an HTTP POST, or a Msg send. NOT benign, NOT a harness-visibility cosmetic. A2 must classify it `VM_UNSAFE_REPLAY` (loud, red) — never a passing/expected bucket | **B (B4)**; A2 makes it visible |
 | 5 | `http_simple.ail` | `! {IO, Net}`, live httpGet — nondeterministic upstream body | **Harness false-positive** (NEW row; filename-list drift) | **A** |
 | 6 | `claude_haiku_call.ail` | `! {Net, IO}`, live API call | **Harness false-positive** | **A** |
 | 7 | `xml_walk_perf.ail` | `! {IO, Clock}`, prints `time_ms=42` vs `43` (timing jitter) | **Harness false-positive** | **A** |
 
-Load-bearing contrast: **#2 fails LOUDLY and self-heals via fallback; #1 fails SILENTLY with a
-wrong answer.** #1 is the P0. Both collapsing to the same `[3]` (hand-written quicksort AND the
-`sortBy` variant) hints at a shared list/recursion codegen path — but the root cause is **not
-known** and Lane B is investigation-first (Milestone B1). Do not anchor on the 2026-04-08
-hypotheses in the appendix; the symptom has changed since (`<List>` → `[3]`).
+Load-bearing framing: this doc covers **three distinct soundness bugs**, not "output divergences":
+1. **#505 pattern-arity** (#1): fixed-length list patterns match longer lists — silent wrong
+   result, no error, no fallback. P0.
+2. **Closure-dispatch family** (#2 + `array_grid`, `module_let_helpers`): array/`let`-helper
+   values reach arithmetic/dispatch as unforced closures — VM errors out mid-run or pre-run.
+3. **Unsafe effect replay** (#4, and #2's fallback leg): the VM→evaluator fallback **restarts
+   the whole program after observable effects have been committed**, re-performing them. The
+   duplicated effect here is a `println`; the identical mechanism would duplicate an FS write, an
+   HTTP POST, or a Msg send. This is a determinism/soundness bug in the fallback mechanism
+   itself, P0 alongside #505 — not a harness-visibility cosmetic. (Earlier revisions of this doc
+   called the fallback "correct"/benign and routed #4 to Lane A as a VM_BRIDGE re-categorization.
+   That was wrong — quorum objection by gemini-3-1-pro, confirmed by controller, re-verified
+   first-party here.)
+
+The quicksort root cause is #505 (controller box below); `array_basic`'s code-level cause is
+**not known** and Lane B stays investigation-first (Milestone B1). Do not anchor on the
+2026-04-08 hypotheses in the appendix; the symptom has changed since (`<List>` → `[3]`).
 
 ## Verification Log (first-party, this worktree, 2026-07-28)
 
@@ -54,17 +89,47 @@ All behavior claims re-measured here with the worktree `./bin/ailang` + the pari
 | quicksort: VM `[3]`/`[3]`, eval correct, exit 0, **stderr has NO fallback warning** | direct `./bin/ailang run --bytecode` with stderr captured separately |
 | array_basic: `<Closure>` prefix + `GET_TAG on Closure` + mid-run fallback re-print | harness `--only array_basic` (stdout shows wrong prefix + full correct re-run) |
 | pattern_sugar: exactly ONE diff line; eval `<*eval.TupleValue>`, VM `(a, 1)` | unified diff of harness `--only pattern_sugar` outputs |
-| tar_gzip: divergence = duplicated first stdout line from mid-run fallback re-run | harness `--only tar_gzip` (VM stdout = header ×2 then identical) |
-| Effect rows: http_simple `! {IO, Net}`, claude_haiku_call `! {Net, IO}`, xml_walk_perf `! {IO, Clock}` | grep of the three files |
+| tar_gzip: header printed **exactly twice** under `--bytecode` (fallback at `ail:19, ip 9` fires AFTER the first `println` committed), **exactly once** under eval — i.e. a committed IO effect was re-performed by the fallback re-run. **Unsafe replay, not a benign duplicate** | direct `./bin/ailang run --bytecode` vs `run`, stderr captured; grep-counted the header line (2 vs 1) |
+| **`--quiet` suppresses the fallback warning entirely** — emission is guarded by `if !params.quiet` (`cmd/ailang/run_helpers.go`, the block at ~:376) and the harness always passes `--quiet` (`scripts/verify_bytecode_parity.go:235`). Consequence: the stderr-sniff A2 as previously written **could never fire**; A2's VM leg must drop `--quiet` | read of both sites + direct A/B run (with `--quiet`: no marker on stderr; without: marker present) |
+| **8 files fall back with exit 0** at HEAD; 6 of them are currently counted MATCH (`array_grid`, `html_parser`, `map_basic`, `module_let_helpers`, `std_deflate_pdf_objstm`, `stdlib_gzip` — all verified eval-exit-0, hence MATCH not EVAL_SKIP). `array_grid`/`module_let_helpers` fail with closure-in-arithmetic errors (B3 family); the other 4 with bridge-scope errors. **Caveat: lower bound** — the scan ran each file directly with broad caps and no `--entry` detection, so entrypoint-less examples were not exercised; A2's first full run is authoritative | first-party corpus scan without `--quiet`, grepping stderr for `falling back to evaluator` on exit-0 runs |
+| `--strict-bytecode` exists: in strict mode the eval bridge is intentionally NOT wired and any EvalOnly call is a hard VM error (no fallback, no replay) — existing evidence for B4's policy option (a) | read of `cmd/ailang/run_helpers.go` (strict branch above the fallback block) |
+| **Net/Clock-declaring runnable examples = 9 total** (reconciled; table below) | controller machine-generated inventory, re-verified first-party by grepping every effect row of all 11 candidate files |
+| Effect rows of the 2 EVAL_SKIP `ai_call*` files: `ai_call_json_simple_result.ail` and `ai_call_result.ail` declare `! {AI, IO}` — **no Net, no Clock**; they are EVAL_SKIP for an unrelated reason (evaluator exit 1) and are NOT in the effect inventory | grep of both files |
 | eval show gap site: `internal/builtins/show.go` `showValue` has **no `*eval.TupleValue` case**; default at line 173 prints `<%T>` | read of the full switch (lines 27–174) |
 | **No test/golden depends on the broken `<*eval.TupleValue>` output** | repo-wide grep — only design docs/mission log mention it |
 | Harness exclusion = filename map; **no effect-driven exclusion exists** | read `scripts/verify_bytecode_parity.go:58-61,166` |
 | Harness **never inspects vmStderr when vmExit==0** → exit-0 fallbacks invisible | read `verifyOne`, lines 190–218 |
 | Fallback warning emitted to **stderr** at `cmd/ailang/run_helpers.go:376`, text embeds the original vmErr | read of the emission site |
 | `cmd/ailang/run_bytecode_test.go:63` asserts **absence** of `"falling back to evaluator"` in non-fallback runs (pins the warning text) | read of the test |
-| Net/Clock-declaring runnable examples = 9 total; besides the 3 DIVERGE rows: http_put_bytes, stdlib_game, demo_ai_api + 1 ai_call\* currently **MATCH**; ai_stream_openai + 3 ai_call\* are EVAL_SKIP | grep + harness `--only` per file |
 | Regression fixtures cited below exist and currently MATCH | `--only cons_expression`, `--only block_recursion` both MATCH |
 | `tests/golden/bytecode/` exists (golden_test.go etc.) | ls |
+
+### Net/Clock effect inventory (ground truth — replaces the miscounted revision-0 row)
+
+The revision-0 log row claimed "9 total" but enumerated 3 DIVERGE + 4 MATCH + 4 EVAL_SKIP = 11
+(quorum objection by gpt5-6-sol, confirmed). **Provenance of the error, so the correction is
+auditable**: the "3 ai_call\*" EVAL_SKIP entries were counted by FILENAME PREFIX.
+`ai_call_json_simple_result.ail` and `ai_call_result.ail` are indeed EVAL_SKIP, but declare
+`! {AI, IO}` — no Net/Clock — so they do not belong in this inventory. That is precisely the
+filename-vs-effect conflation the A2 effect-driven rule exists to eliminate — committed here as
+an instance of the failure mode being fixed. The reconciled inventory (controller-generated,
+re-verified first-party per file):
+
+| file (examples/runnable/) | declared effects (Net/Clock row) | category at HEAD | post-A2 category |
+|---|---|---|---|
+| `http_simple.ail` | `! {IO, Net}` | DIVERGE | NON_DET (effect-derived) |
+| `claude_haiku_call.ail` | `! {Net, IO}` | DIVERGE | NON_DET (effect-derived) |
+| `xml_walk_perf.ail` | `! {IO, Clock}` | DIVERGE | NON_DET (effect-derived) |
+| `ai_call.ail` | `! {Net}` (on `chatOpenAI`) | MATCH | NON_DET (effect-derived) |
+| `demo_ai_api.ail` | `! {IO, Net}` | MATCH | NON_DET (effect-derived) |
+| `http_put_bytes.ail` | `! {IO, Net}` | MATCH | NON_DET (effect-derived) |
+| `stdlib_game.ail` | `! {IO, Clock}` | MATCH | NON_DET (effect-derived) |
+| `ai_call_stream.ail` | `! {AI, Stream, Net, IO}` | EVAL_SKIP | NON_DET (effect-derived) |
+| `ai_stream_openai.ail` | `! {AI, Stream, Net, IO}` | EVAL_SKIP | NON_DET (effect-derived) |
+
+3 DIVERGE + 4 MATCH + 2 EVAL_SKIP = **9**. ✓ (Post-A2 column assumes the classification
+precedence settled in the Conflict Surface: effect-derived NON_DET is decided from source
+**before either backend runs**, so it outranks EVAL_SKIP.)
 
 ## Solution Design
 
@@ -82,26 +147,58 @@ All behavior claims re-measured here with the worktree `./bin/ailang` + the pari
 1. **Effect-driven exclusion**: a file whose detected caps (the existing `detectCaps` sniffer,
    line 263 — already string-sniffs `! {Net`, `import std/clock`, etc.) include `Net` or `Clock`
    is classified `NON_DET` with reason `"declares <effect> effect"` — *before* either backend
-   runs (also removes live network calls from the parity gate). The filename map stays only for
-   the 2 legacy entries (`uuid.ail`, `stream_process_source.ail`) whose non-determinism is not
-   effect-visible in this rule. **Measured coverage cost (intentional)**: 4 currently-MATCHing
-   files (`http_put_bytes.ail`, `stdlib_game.ail`, `demo_ai_api.ail`, one `ai_call*`) move to
-   NON_DET. They must be **reported in the NON_DET bucket, never silently dropped**.
-2. **Exit-0 fallback detection**: when `vmExit == 0`, scan the VM run's **stderr** for the
-   fallback marker (`"falling back to evaluator"`, emitted at `cmd/ailang/run_helpers.go:376`
-   with the original vmErr embedded). If present, classify by the embedded error using the
-   existing bridge-marker rules: bridge-scope markers (`not yet supported` / `M-BYTECODE-2E` /
-   `TaggedValue`) → `VM_BRIDGE`; **anything else (e.g. `GET_TAG on Closure`) → `VM_RUNTIME`** —
-   NOT MATCH, NOT VM_BRIDGE. This is what keeps `array_basic.ail` visibly red after Lane A.
-   **Do NOT change the warning text** at run_helpers.go:376 — `run_bytecode_test.go:63` asserts
-   its absence in non-fallback runs; the harness sniffs the same string (single source of truth;
-   if it must ever change, change both).
+   runs (also removes live network calls from the parity gate). **This settles the precedence
+   question**: effect-derived NON_DET **outranks EVAL_SKIP**, because it is decided statically
+   from source with no execution at all — running a live-Net example just to learn the evaluator
+   fails is exactly what the rule exists to avoid. The 9 inventory files (table above) all
+   become NON_DET, including the 2 formerly-EVAL_SKIP stream files. The filename map stays only
+   for the 2 legacy entries (`uuid.ail`, `stream_process_source.ail`) whose non-determinism is
+   not effect-visible in this rule. **Measured coverage cost (intentional, re-verified against
+   the inventory)**: 4 currently-MATCHing files (`ai_call.ail`, `demo_ai_api.ail`,
+   `http_put_bytes.ail`, `stdlib_game.ail`) move to NON_DET. All excluded files must be
+   **reported in the NON_DET bucket by name, never silently dropped** — and nothing outside the
+   11 (2 legacy + 9 effect) may land there (the `! {AI, IO}` files must NOT be swept in).
+2. **The VM leg must NOT pass `--quiet`** (eval leg unchanged). Verified this revision: the
+   fallback warning is emitted only `if !params.quiet` (`cmd/ailang/run_helpers.go`), and the
+   harness passes `--quiet` unconditionally (line 235) — so a stderr sniff as revision 0
+   specified it would never fire. Stderr is sniffed, never diffed, so the extra status lines are
+   harmless.
+3. **Exit-0 fallback detection**: when `vmExit == 0`, scan the VM leg's stderr for the fallback
+   marker (`"falling back to evaluator"`, with the original vmErr embedded). If present:
+   - **`vmStdout != evalStdout` → `VM_UNSAFE_REPLAY`** (new status, loud/red): the VM emitted
+     output before falling back, so the evaluator re-run **re-performed committed observable
+     effects** — the divergent prefix is the direct evidence of the replay. Reason embeds the
+     original vmErr so triage can still distinguish bridge-scope from runtime errors. Catches
+     `tar_gzip_reader.ail` AND `array_basic.ail`.
+   - **`vmStdout == evalStdout`** → the fallback fired before any observable output; classify by
+     the embedded error with the existing markers: bridge-scope (`not yet supported` /
+     `M-BYTECODE-2E` / `TaggedValue` / `unsupported eval value type`) → `VM_BRIDGE`; **anything
+     else (closure-in-arith etc.) → `VM_RUNTIME`**. **Never MATCH** — post-A2, MATCH means "the
+     VM itself ran the program to completion and byte-agreed", which is the parity claim the
+     gate exists to make. This exposes the 6 fake-MATCH rows (4 → VM_BRIDGE, 2 → VM_RUNTIME).
+   - **Do NOT change the warning text** — `run_bytecode_test.go:63` asserts its absence in
+     non-fallback runs; the harness sniffs the same string (single source of truth; if it must
+     ever change, change both, and note B4 may legitimately change *when* it is emitted).
 
-**Predicted post-Lane-A state** (expectation, deliberately NOT an acceptance criterion):
-MATCH ~146 (−4 excluded, +1 pattern_sugar) / NON_DET ~9–11 / DIVERGE 1 (quicksort) /
-VM_RUNTIME +1 (array_basic) / VM_BRIDGE +1 (tar_gzip) / EVAL_SKIP ~12.
+**Predicted post-Lane-A state** (A1+A2 landed, no Lane-B fix; expectation, deliberately NOT an
+acceptance criterion — AC11 is the sprint-exit gate). Arithmetic from HEAD 149/2/7/16 (Σ=174):
 
-### Lane B — VM correctness (investigation-FIRST, ~2–3 days)
+| bucket | count | derivation |
+|---|---|---|
+| MATCH | **140** | 149 − 4 (effect rule) − 6 (fake-MATCH exposed) + 1 (pattern_sugar via A1) |
+| NON_DET | **11** | 2 legacy + 9 effect-derived (3 ex-DIVERGE, 4 ex-MATCH, 2 ex-EVAL_SKIP) |
+| EVAL_SKIP | **14** | 16 − 2 (moved to NON_DET by precedence) |
+| VM_BRIDGE | **4** | html_parser, std_deflate_pdf_objstm, map_basic, stdlib_gzip (ex-MATCH) |
+| VM_RUNTIME | **2** | array_grid, module_let_helpers (ex-MATCH; closure family) |
+| VM_UNSAFE_REPLAY | **2** | tar_gzip_reader, array_basic (ex-DIVERGE) |
+| DIVERGE | **1** | recursion_quicksort (the #505 P0) |
+
+Σ = 140+11+14+4+2+2+1 = **174** ✓. Caveat (honest lower bound): the fallback scan could not
+exercise entrypoint-less examples; if A2's first full run finds more exit-0 fallbacks, they move
+MATCH → VM_BRIDGE/VM_RUNTIME/VM_UNSAFE_REPLAY and must be reconciled **by name** in the
+implementation report — never absorbed silently.
+
+### Lane B — VM correctness (investigation-FIRST, ~3–4 days)
 
 > #### ⚠ SEMANTIC root cause of the quicksort-class bug is NOW KNOWN — VERIFIED BY THE CONTROLLER
 >
@@ -147,7 +244,10 @@ elements may still share a list/closure codegen path), B2+B3 merge.
 **B1 — diagnose (no fix).** For each bug:
 - Shrink to a **minimal failing `.ail` repro**. For the quicksort class, start from the
   pattern-arity table above (already minimal — do not re-derive it); for array_basic, from a
-  bare `length(arr)` print.
+  bare `length(arr)` print. The closure family now has **three known members** — `array_basic`
+  (`GET_TAG on Closure`), `array_grid` (`arith MUL on Closure`), `module_let_helpers`
+  (`arith ADD: type mismatch Int vs Closure`) — B1 must say whether they share one root cause
+  (they plausibly do: values reaching dispatch/arith as unforced closures) or not.
 - `ailang disasm` the repro; compare the bytecode against the expected lowering; trace VM
   execution (`DEBUG_STRICT=1`, existing VM tracing) to the first wrong value.
 - Cross-check the eval path on the same Core IR to localize eval-vs-lower-vs-VM.
@@ -159,9 +259,35 @@ elements may still share a list/closure codegen path), B2+B3 merge.
 (`internal/gen/lower/` / `internal/vm/` / `internal/bytecode/`); golden regression test
 asserting the **exact sorted output** under `--bytecode`.
 
-**B3 — fix the array_basic dispatch bug.** Array length/index results must be forced values,
-not closures; regression test asserting exact output under `--bytecode` **with no fallback**
-(assert stderr does not contain `"falling back to evaluator"`).
+**B3 — fix the closure-dispatch family.** Array length/index and `let`-helper results must be
+forced values, not closures; covers whatever subset of {`array_basic`, `array_grid`,
+`module_let_helpers`} B1 attributes to the named cause (if B1 finds distinct causes, B3 fixes
+the array_basic one and the others are explicitly parked with their own root-cause statements —
+not silently dropped). Regression test asserting exact output under `--bytecode` **with no
+fallback** (assert stderr does not contain `"falling back to evaluator"`).
+
+**B4 — the fallback mechanism itself: unsafe effect replay (investigation-FIRST, policy
+decision).** The VM must not silently restart the evaluator once observable effects have been
+committed (Verification Log: tar_gzip's header prints twice; Critical Principle 2 and axiom A1
+both violated). **The fix is NOT designed here** — the policy choice is a genuine design
+question the milestone's investigation must settle with evidence:
+
+- **Option (a) — abort loudly**: once the VM cannot continue, fail with a hard error instead of
+  re-running. Evidence it is feasible: `--strict-bytecode` already implements exactly these
+  semantics today (bridge unwired, EvalOnly call = hard VM error, no fallback, no replay —
+  verified first-party). Trade-off: loses graceful degradation for the (measured) majority of
+  fallback cases — 6 of the 8 known fallbacks fire before any output and currently degrade
+  harmlessly.
+- **Option (b) — restrict fallback to provably pre-effect**: allow the evaluator restart only if
+  no observable effect has been committed yet (needs an effect-commit marker at the capability
+  boundary — what counts as "observable" is part of the investigation); abort loudly otherwise.
+  Trade-off: keeps degradation for the pre-effect majority, adds VM/runtime state and a new
+  invariant to test.
+
+Either option makes the replay impossible; the investigation picks one with evidence (frequency
+data from the A2-instrumented harness, implementation cost at the `run_helpers.go` fallback
+site) and records the decision. Same discipline as B1: investigation first, no speculative
+implementation before the written policy decision.
 
 ## Milestones & Acceptance Criteria
 
@@ -175,23 +301,32 @@ are separable: a Lane-B overrun cannot strand Lane A (A1+A2 land and are gate-ef
   `*eval.TupleValue{("a",1)}` returns `(a, 1)` — fails on HEAD (case absent, default `<%T>`).
 
 ### Milestone A2 — harness honesty (~0.5d)
-- **AC3**: `examples/runnable/tar_gzip_reader.ail` reports `VM_BRIDGE` (not DIVERGE) — fails
-  today because exit-0 fallbacks are invisible to the harness.
-- **AC4**: `http_simple.ail`, `claude_haiku_call.ail`, `xml_walk_perf.ail` report `NON_DET`
-  with an effect-derived reason, and the NON_DET bucket lists every excluded file by name in
-  the text/markdown/JSON reports (silent-drop fails this).
+- **AC3**: `examples/runnable/tar_gzip_reader.ail` reports **`VM_UNSAFE_REPLAY`** — not DIVERGE,
+  not VM_BRIDGE, not MATCH, not any passing/expected bucket — with the original vmErr embedded
+  in the reason. Fails today (reports DIVERGE; the replay is invisible).
+- **AC3b** (fake-MATCH exposure): `html_parser.ail`, `std_deflate_pdf_objstm.ail`,
+  `map_basic.ail`, `stdlib_gzip.ail` report **VM_BRIDGE** (not MATCH) — fails today (all four
+  are counted MATCH while the VM never ran them).
+- **AC4**: the NON_DET bucket contains **exactly** the 11 named files — `uuid.ail`,
+  `stream_process_source.ail` (legacy filename reasons) plus the 9 inventory files (effect-derived
+  reasons) — listed by name in the text/markdown/JSON reports. Fails in either direction:
+  silent-drop of a member, or sweeping in a non-member (e.g. the `! {AI, IO}` files
+  `ai_call_json_simple_result.ail` / `ai_call_result.ail`).
 - **AC5** (anti-vacuous guard): after A2 (with A1 landed, B not landed),
-  `recursion_quicksort.ail` still reports **DIVERGE** and `array_basic.ail` reports
-  **VM_RUNTIME** — i.e. re-categorization did NOT absorb either Lane-B bug. If either goes
-  green without a Lane-B fix commit, A2 is wrong.
+  `recursion_quicksort.ail` still reports **DIVERGE**, `array_basic.ail` reports
+  **VM_UNSAFE_REPLAY** (with `GET_TAG on Closure` embedded), and `array_grid.ail` +
+  `module_let_helpers.ail` report **VM_RUNTIME** (not VM_BRIDGE — their errors are not bridge
+  scope) — i.e. re-categorization did NOT absorb any Lane-B bug into a green or expected bucket.
+  If any of these goes green without a Lane-B fix commit, A2 is wrong.
 
-### Milestone B1 — diagnose both VM bugs, NO fix (~1d)
+### Milestone B1 — diagnose the VM bug families (#505 + closure-dispatch), NO fix (~1d)
 - **AC6**: minimal failing repro for the quicksort `[3]` collapse committed under
   `tests/golden/bytecode/` + a written root-cause naming the defective codegen/VM path
   (in the sprint notes and this doc's implementation report). "It's somewhere in lowering"
   does not pass; a named function/opcode path does.
-- **AC7**: same deliverable for array_basic's `GET_TAG on Closure` (may name the same root
-  cause; must say so explicitly if so).
+- **AC7**: same deliverable for the closure-dispatch family (`array_basic`'s `GET_TAG on
+  Closure`, plus an explicit shared-or-distinct verdict covering `array_grid` and
+  `module_let_helpers`; may name the same root cause as AC6's — must say so explicitly if so).
 
 ### Milestone B2 — quicksort-class fix (P0, ~0.5–1d)
 - **AC8**: golden test asserting `examples/runnable/recursion_quicksort.ail` under `--bytecode`
@@ -208,16 +343,60 @@ are separable: a Lane-B overrun cannot strand Lane A (A1+A2 land and are gate-ef
 - **AC9**: B1's minimal quicksort repro passes under `--bytecode` with **no fallback**
   (stderr asserted free of `"falling back to evaluator"`).
 
-### Milestone B3 — array dispatch fix (~0.5d)
+### Milestone B3 — closure-dispatch family fix (~0.5–1d)
 - **AC10**: `examples/runnable/array_basic.ail` under `--bytecode` prints `Length: 5` /
   `numbers[0] (first): 10` (exact eval output) with no fallback-warning line on stderr —
-  fails on HEAD (`<Closure>` + fallback).
+  fails on HEAD (`<Closure>` + fallback). If B1 attributed `array_grid.ail` and
+  `module_let_helpers.ail` to the same cause, both must also reach MATCH with no fallback; if
+  B1 found distinct causes, their park must be recorded per B3's text (AC11 then cannot claim
+  VM_RUNTIME 0 — see AC11's escape clause).
+
+### Milestone B4 — unsafe-replay fallback policy (investigation-first, ~1d)
+- **AC12**: `examples/runnable/tar_gzip_reader.ail` under
+  `--bytecode --caps IO,FS,Clock,Net` prints the line
+  `== readFromGzip(paper.tar.gz, main.tex) ==` **exactly once** (count == 1; zero also fails) —
+  **fails on HEAD, where it prints twice** (re-verified first-party this revision). Committed as
+  a regression test (`tests/golden/bytecode/` or `cmd/ailang/run_bytecode_test.go`).
+- **AC13**: a **written policy decision** — option (a) abort-loudly vs option (b)
+  pre-effect-only fallback — with the investigation's evidence and the named enforcement site
+  (the `run_helpers.go` fallback block), recorded in sprint notes + this doc's implementation
+  report; and the full parity harness reports **VM_UNSAFE_REPLAY 0**. Anti-laundering (AC5's
+  logic extended, per the quorum): AC13 is INVALID if achieved by weakening or removing the
+  harness's replay detection, or by rewording the fallback warning so the sniffer stops firing —
+  the zero must come from the fallback mechanism no longer replaying, with `tar_gzip_reader.ail`
+  classified loudly (predicted VM_BRIDGE via a non-zero exit, under either policy branch).
 
 ### Sprint-exit gate (whole doc)
-- **AC11**: full parity harness at sprint end reports **DIVERGE 0 and VM_RUNTIME 0**, with
-  MATCH ≥ 146, and no currently-MATCHing file regresses (spot fixtures below). Valid ONLY in
-  conjunction with AC8/AC10 — the count alone is fakeable by re-categorization, which AC5
-  already forbids.
+- **AC11**: full parity harness at sprint end reports, against the 174-file corpus at HEAD
+  `33be8f5a7`:
+  **DIVERGE 0, VM_UNSAFE_REPLAY 0, VM_COMPILE 0, VM_RUNTIME 0**; **NON_DET exactly the 11 files
+  named in AC4**; **EVAL_SKIP 14**; and **MATCH + VM_BRIDGE = 149**, predicted split
+  **MATCH 144 / VM_BRIDGE 5** (144 = 140 post-Lane-A + quicksort + array_basic + array_grid +
+  module_let_helpers; 5 = the 4 pre-effect bridge fallbacks + tar_gzip aborting loudly
+  post-B4). The MATCH/VM_BRIDGE split is scan-derived (lower bound — see A2 caveat): if A2's
+  full run surfaces additional exit-0 fallbacks, the reconciliation must be shown by name and
+  the split re-derived in the implementation report; the zero-buckets and the NON_DET/EVAL_SKIP
+  counts are exact and unconditional. Escape clause: VM_RUNTIME 0 may be relaxed ONLY by B3's
+  explicit distinct-cause park, recorded with its own root-cause statement — never by
+  re-bucketing. No currently-genuinely-MATCHing file regresses (spot fixtures below). Valid
+  ONLY in conjunction with AC8/AC10/AC12 — counts alone are fakeable by re-categorization,
+  which AC5/AC13 forbid.
+
+## Sprint sizing & proposed split
+
+Adding B4 (and B3's family growth) pushes the total to **~4–5 days** (A1 ~2h, A2 ~0.5d, B1 ~1d,
+B2 ~0.5–1d, B3 ~0.5–1d, B4 ~1d). **This no longer fits the 3–4 day sprint box.** Rather than
+silently overrun, the proposal is a split at the already-designed lane seam:
+
+- **Sprint 1 (~2.5–3d)**: A1 + A2 + B1 + B2 — gate honesty plus the silent-wrong-result P0
+  (#505). After sprint 1, the unsafe replay and the closure family are **loudly visible in every
+  harness report** (`VM_UNSAFE_REPLAY 2`, `VM_RUNTIME 2`) — deferral is not hiding; AC5 pins
+  exactly this intermediate state.
+- **Sprint 2 (~1.5–2d)**: B3 + B4 — closure-dispatch family fix + replay policy. AC11 is the
+  whole-doc exit gate and closes only after sprint 2.
+
+Alternative: run it as one 4–5 day sprint if Mark prefers; the split is the recommendation
+because both halves land independently useful, gate-effective states.
 
 ## Conflict Surface (mandatory — codegen)
 
@@ -228,23 +407,34 @@ are separable: a Lane-B overrun cannot strand Lane A (A1+A2 land and are gate-ef
    no test/golden anywhere asserts the current `<*eval.TupleValue>` text. The new rendering must
    match the VM's (`(a, 1)`, elements via recursive `showValue`, strings unquoted per this
    file's existing `StringValue` case) or A1 trades one divergence for another.
-2. `scripts/verify_bytecode_parity.go` — classification precedence changes to:
-   effect/filename NON_DET → EVAL_SKIP → exit≠0 classes → **exit-0 fallback sniff**
-   (VM_BRIDGE vs VM_RUNTIME) → MATCH/DIVERGE. The sniff MUST discriminate on the embedded
-   error, else genuine VM bugs (array_basic) get laundered as VM_BRIDGE (AC5 guards this).
-3. `cmd/ailang/run_helpers.go:376` — the fallback warning is now load-bearing for the harness.
-   Its text is also pinned by `cmd/ailang/run_bytecode_test.go:63` (asserts absence in
-   non-fallback runs). **Constraint: don't reword it**; if reworded, update harness + test
-   together.
+2. `scripts/verify_bytecode_parity.go` — classification precedence is now SETTLED (the counts
+   in A2/AC11 depend on it): **(1) filename NON_DET (2 legacy) → (2) effect-derived NON_DET
+   (static, before any execution — outranks EVAL_SKIP) → (3) eval run, EVAL_SKIP on exit≠0 →
+   (4) VM run, exit≠0 classes (VM_COMPILE/VM_BRIDGE/VM_RUNTIME by error markers) → (5) exit-0
+   fallback sniff (VM_UNSAFE_REPLAY if stdout differs; else VM_BRIDGE/VM_RUNTIME by embedded
+   error) → (6) stdout compare, MATCH/DIVERGE.** The sniff MUST discriminate on the embedded
+   error, else genuine VM bugs (array_grid, module_let_helpers) get laundered as VM_BRIDGE
+   (AC5 guards this). The VM leg drops `--quiet` (A2 item 2); the eval leg keeps it.
+3. `cmd/ailang/run_helpers.go` fallback block (~:376) — now DOUBLY load-bearing: the harness
+   sniffs the warning text (A2), and B4's policy change lands at this exact site (both policy
+   options alter when/whether the evaluator restart happens; the strict-mode branch just above
+   it is option (a)'s existing implementation evidence). The text is pinned by
+   `cmd/ailang/run_bytecode_test.go:63` (asserts absence in non-fallback runs). **Constraint:
+   don't reword it**; if B4 changes when it is emitted, update harness + test in the same
+   commit.
 4. `internal/vm/` / `internal/gen/lower/` / `internal/bytecode/` (Lane B) — exact files unknown
    until B1 names the root cause; whatever changes, the whole-corpus harness is the blast-radius
-   detector. List/closure codegen is shared by *all* list-recursive programs, not just the two
-   red files.
+   detector. List/closure codegen is shared by *all* list-recursive programs, not just the
+   currently-red files.
 5. **Intentional incompatibilities**: (a) eval tuple-show output changes (broken → correct);
-   (b) 4 currently-MATCHing Net/Clock examples (`http_put_bytes.ail`, `stdlib_game.ail`,
-   `demo_ai_api.ail`, one `ai_call*`) move MATCH → NON_DET by the effect rule — a deliberate,
-   reported coverage trade documented in A2; (c) headline MATCH count drops ~149 → ~146 for
-   honest reasons.
+   (b) 4 currently-MATCHing Net/Clock examples (`ai_call.ail`, `demo_ai_api.ail`,
+   `http_put_bytes.ail`, `stdlib_game.ail`) move MATCH → NON_DET by the effect rule — a
+   deliberate, reported coverage trade documented in A2; (c) headline MATCH drops 149 → ~140
+   post-Lane-A (honest: −4 effect rule, −6 fake-MATCH exposure, +1 pattern_sugar), recovering
+   to ~144 post-Lane-B; (d) `tar_gzip_reader.ail` under `--bytecode` **changes behavior by B4's
+   policy**: today it "completes" via unsafe replay (exit 0, header twice); post-B4 it aborts
+   loudly (either policy branch) until the M-BYTECODE-2E bridge gap it hits is closed —
+   an intentional unsound→sound trade.
 
 **Programs that MUST still work post-change (verified to exist; first two verified MATCH at
 HEAD):** `examples/runnable/cons_expression.ail`, `examples/runnable/block_recursion.ail`,
@@ -255,7 +445,8 @@ non-tuple lines of `pattern_sugar.ail`. And `cmd/ailang/run_bytecode_test.go` mu
 
 - Unit: tuple case in `internal/builtins` show tests (AC2); harness classification is exercised
   via the live corpus (the script is `go:build ignore` — no unit harness; ACs 3–5 are its test).
-- Golden: minimal repros from B1 + exact-output goldens (AC8–AC10) under `tests/golden/bytecode/`.
+- Golden: minimal repros from B1 + exact-output goldens (AC8–AC10) under `tests/golden/bytecode/`;
+  the AC12 exactly-once effect-replay regression test (fails on HEAD: header ×2).
 - Whole-corpus: full parity harness before/after every Lane-B change (AC11 + fixture spot-check).
 
 ## Non-Goals
@@ -263,16 +454,23 @@ non-tuple lines of `pattern_sugar.ail`. And `cmd/ailang/run_bytecode_test.go` mu
 - ADT constructor name rendering (M3 of M-BYTECODE-MULTIMODULE scope).
 - Rewriting show dispatch or type-class dictionary lowering (take the targeted fix B1 justifies).
 - The EVAL_SKIP set (evaluator itself fails: missing AI keys / intentional exit codes).
-- Any fix not named by B1 — no speculative VM patches.
+- **Closing the M-BYTECODE-2E bridge gaps themselves** (the ~5 predicted VM_BRIDGE rows:
+  Result.Ok/Err TaggedValue, MapValue, BytesValue). Post-sprint they are the honest, visible
+  backlog — loud non-zero exits, no replay — for a future bridge milestone.
+- Any Lane-B fix not named by B1 (bugs) or B4's written policy decision (fallback) — no
+  speculative VM patches.
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | B1 finds the quicksort cause in a shared lowering path with wide blast radius | High | Whole-corpus harness after every change; fixtures pinned above; B2 lands behind AC8's exact-output golden |
+| Closure family (3 files) turns out to be 2–3 distinct bugs, blowing B3's budget | Medium | B1 delivers the shared-or-distinct verdict BEFORE B3 starts; distinct causes → explicit park with root-cause statements (AC10/AC11 escape clause), never silent re-bucketing |
+| B4's policy needs VM effect-commit tracking (option b) and grows beyond ~1d | Medium | Option (a) is pre-implemented as `--strict-bytecode` semantics — a hard fallback position that satisfies AC12/AC13 at bounded cost; investigation decides with that floor in hand |
+| More exit-0 fallbacks exist among entrypoint-less files (scan lower bound) | Medium | A2's full run is authoritative; AC11 requires by-name reconciliation, forbids silent absorption |
 | Effect-driven exclusion hides a future genuine VM bug in a Net/Clock example | Medium | NON_DET bucket always lists members by name (AC4); coverage trade documented here |
 | Fallback-marker string drifts from harness sniffer | Low | Single source of truth constraint in Conflict Surface #3; both sites named |
-| Lane B overruns the 3–4d budget | Medium | Lanes separable by design; A1+A2 land independently; B1's named root cause makes any handoff/park cheap and concrete |
+| Lane B overruns even the revised budget | Medium | Split proposal above; lanes separable by design; A1+A2 land independently; B1's named root causes make any handoff/park cheap and concrete |
 
 ## Related Documents
 
@@ -285,9 +483,9 @@ non-tuple lines of `pattern_sugar.ail`. And `cmd/ailang/run_bytecode_test.go` mu
 
 | Axiom | Score | Justification |
 |-------|-------|---------------|
-| A1: Determinism | +1 | Silent cross-backend divergence (quicksort) eliminated; backends byte-agree |
-| A7: Machines First | +1 | Parity gate becomes a trustworthy machine signal (no filename-drift false rows) |
-| A11: Structured Failure | +1 | The one *silent* wrong-result path becomes impossible to ship past the gate; exit-0 fallbacks become visible, categorized statuses |
+| A1: Determinism | +1 | Silent cross-backend divergence (quicksort) eliminated; **unsafe re-execution of committed effects made impossible (B4)**; backends byte-agree |
+| A7: Machines First | +1 | Parity gate becomes a trustworthy machine signal (no filename-drift false rows, no fake MATCH via fallback) |
+| A11: Structured Failure | +1 | The *silent* wrong-result path and the *silent* effect-replay path both become impossible to ship past the gate; exit-0 fallbacks become visible, categorized statuses |
 | Others | 0 | No language-surface change |
 
 **Net Score: +3** → **Proceed.**
@@ -311,4 +509,4 @@ Hard violations: none (A1 improves; A3/A4 untouched — no effect or authority c
 ---
 
 **Document created**: 2026-04-08
-**Last updated**: 2026-07-28 (scope freeze A+B; fresh HEAD data; effect-driven Lane A; investigation-first Lane B)
+**Last updated**: 2026-07-28 (revision 1 post-quorum: unsafe-replay soundness bug promoted to P0 + Milestone B4; Net/Clock inventory reconciled to 9 with exact post-A2 totals; fake-MATCH fallback rows exposed; `--quiet`-suppression defect in A2's original sniff design fixed)
