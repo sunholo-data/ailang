@@ -90,9 +90,11 @@ The gate exists. It tests the wrapper, not the subject.
 
 Check off before sprint-executor starts:
 
-- [ ] D1 canary scope confirmed (b)
-- [ ] D2 failure behaviour confirmed (c)
-- [ ] D4 confirmed: quarantine in place, do not delete
+- [x] D1 canary scope confirmed (b) — one trivial end-to-end task *(Mark, 2026-07-28)*
+- [x] D2 failure behaviour confirmed (c) — skip the model, continue the rotation *(Mark, 2026-07-28)*
+- [x] D4 confirmed: quarantine in place, do not delete *(Mark, 2026-07-28)*
+
+**FROZEN 2026-07-28** — sprint-executor may proceed.
 
 ---
 
