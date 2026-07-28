@@ -1,0 +1,13 @@
+# Single source of truth for whether a PR needs the docusaurus build.
+# Consumed by the `docs-changes` job in .github/workflows/docusaurus-deploy.yml.
+# MUST cover every entry in that workflow's `on.push.paths` (enforced by the drift guard).
+docs/
+prompts/
+llms.txt
+CHANGELOG.md
+.github/workflows/docusaurus-deploy.yml
+internal/
+cmd/
+go.mod
+go.sum
+web/
