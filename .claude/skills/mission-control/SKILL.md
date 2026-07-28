@@ -288,6 +288,23 @@ call site exists, never that anything reaches it; (d) when a sub-agent contradic
 handed it, that is a SUCCESS of the loop — record it in Ruled out and fix the provenance habit,
 never wave it through.
 
+**This applies to the EVALUATOR/JUDGE too, and a judge's finding may be UNDER-stated as easily as
+over-stated** (added 2026-07-28 iteration 111; the gap iteration 110 recorded as "watch-item,
+instance 1", now at its second instance). The rule above is written for sub-agents feeding the
+controller *facts*; a judge instead feeds you *findings*, which feel like conclusions rather than
+claims and so slip past the provenance habit. Iteration 110's evaluator reported a mutation that
+survived both suites (true — but reproduced first-party before being acted on). Iteration 111's
+evaluator reported that the public guide taught a function name absent from the example file; that
+was true AND worse than reported — the judge filed it as a maintenance nit, while the guide in fact
+hands the user copy-pasteable commands against the very file lacking the name. Rules: (a) reproduce
+a judge's finding before acting on it, exactly as for any other sub-agent claim; (b) reproduce it
+before DISMISSING it too — a NON-BLOCKING label is the judge's opinion of severity, not a
+measurement, and re-checking is how you discover the finding was bigger than filed; (c) when you
+close a judge's finding by changing code, prove the new guard actually catches the defect (add the
+assertion while the mutation is still applied), then revert and confirm byte-identity; (d) a PASS
+with zero blocking findings is not a reason to skip this — both instances of this class arrived
+inside passing evaluations.
+
 **Verification protocol** (added iteration 1 after three same-class frictions). Steps 1–3 are the
 `go-compiler` verify profile (V1); under `ailang-code` the shipped binary IS the gate — skip the
 compile/staleness steps and run `ailang check`/`ailang test`/`ailang ai-check` instead (see
