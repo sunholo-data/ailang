@@ -6,6 +6,11 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ### Fixed
 
+- Bounded both Z3 solver calls (`Solve` and the `Z3Version` header probe) by
+  killing their process groups and reaping them after a hard deadline. `Solve`
+  uses `max(configured timeout, effective -T seconds) + 2s grace` and preserves
+  the existing `StatusUnknown` / `"solver timeout"` result shape (Fixes #510).
+
 - Added `tools/nightly_classify.py`, a durable variance guard for nightly evals.
   It records history in `~/.ailang/state/nightly-eval-history.jsonl`, labels noisy
   flips `SUSPECTED-FLAKE` or `INSUFFICIENT-HISTORY`, and requires the explicit
