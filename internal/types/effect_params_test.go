@@ -369,7 +369,7 @@ func TestRow_JSON_EmptyParams_OmitEmpty(t *testing.T) {
 	}
 }
 
-func TestSubsumeEffectRows_InvariantOnParams(t *testing.T) {
+func TestSubsumeEffectRows_AsymmetricValidationOrdering(t *testing.T) {
 	mkRow := func(params map[string]map[string]string) *Row {
 		return &Row{
 			Kind:   EffectRow,
@@ -378,18 +378,25 @@ func TestSubsumeEffectRows_InvariantOnParams(t *testing.T) {
 		}
 	}
 
-	// Same params → subsumed.
-	a := mkRow(map[string]map[string]string{"Rand": {"mode": "os"}})
-	b := mkRow(map[string]map[string]string{"Rand": {"mode": "os"}})
-	if !SubsumeEffectRows(a, b) {
-		t.Errorf("Rand[mode=os] should subsume Rand[mode=os]")
-	}
-
-	// Different params → not subsumed (Phase 5 routeable→fixed scenario).
-	a = mkRow(map[string]map[string]string{"Rand": {"mode": "os"}})
-	b = mkRow(map[string]map[string]string{"Rand": {"mode": "seeded"}})
-	if SubsumeEffectRows(a, b) {
-		t.Errorf("Rand[mode=os] should NOT subsume Rand[mode=seeded]")
+	for _, tc := range []struct {
+		required, declared string
+		want               bool
+	}{
+		{"os", "os", true},
+		{"seeded", "seeded", true},
+		{"crypto", "crypto", true},
+		{"os", "seeded", true},
+		{"os", "crypto", true},
+		{"seeded", "os", false},
+		{"crypto", "os", false},
+		{"crypto", "seeded", false},
+		{"seeded", "crypto", false},
+	} {
+		required := mkRow(map[string]map[string]string{"Rand": {"mode": tc.required}})
+		declared := mkRow(map[string]map[string]string{"Rand": {"mode": tc.declared}})
+		if got := SubsumeEffectRows(required, declared); got != tc.want {
+			t.Errorf("declared %s covers required %s = %v, want %v", tc.declared, tc.required, got, tc.want)
+		}
 	}
 }
 

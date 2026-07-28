@@ -162,10 +162,7 @@ func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*t
 		if declared, ok := lookup(e.ID()); ok && declared != nil && declared.Tail == nil {
 			required := eraseGhostEffects(collectRequiredEffects(e.Body, typeInfo, declaredEffects))
 			if !types.SubsumeEffectRows(required, declared) {
-				missing := types.EffectRowDifference(required, declared)
-				return fmt.Errorf(
-					"effect checking failed: lambda at %s uses effects not declared in its %s annotation\n  Missing effects: %s",
-					e.Span(), types.FormatEffectRow(declared), strings.Join(missing, ", "))
+				return formatLambdaEffectError(e.Span().String(), required, declared)
 			}
 		}
 		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
@@ -521,20 +518,14 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 
 // formatEffectError creates a helpful error message for effect violations
 func formatEffectError(funcName string, required *types.Row, declared *types.Row) error {
-	// Find which effects are missing
-	missing := types.EffectRowDifference(required, declared)
-
-	if len(missing) == 0 {
-		// Shouldn't happen if SubsumeEffectRows returned false
-		return fmt.Errorf("effect checking failed for function %s (no specific missing effects identified)", funcName)
-	}
+	diff := types.DiffEffectRows(required, declared)
 
 	// Build helpful error message
 	var msg strings.Builder
 	msg.WriteString(fmt.Sprintf("Effect checking failed for function '%s'\n", funcName))
 	msg.WriteString("  Function uses effects not declared in signature\n")
 	msg.WriteString("\n")
-	msg.WriteString(fmt.Sprintf("  Missing effects: %s\n", strings.Join(missing, ", ")))
+	writeEffectDiff(&msg, diff)
 	msg.WriteString("\n")
 
 	// Show current and suggested signatures
@@ -544,10 +535,31 @@ func formatEffectError(funcName string, required *types.Row, declared *types.Row
 	}
 	msg.WriteString("\n")
 
-	// Suggest fix
-	suggestedEffects := types.UnionEffectRows(declared, required)
-	msg.WriteString(fmt.Sprintf("  Suggested fix:     func %s(...) -> T %s", funcName, types.FormatEffectRow(suggestedEffects)))
-	msg.WriteString("\n")
+	// A union can retain the wrong declared mode or render a conflict set,
+	// neither of which is a valid fix. Only suggest the label-union case.
+	if len(diff.ParamMismatches) == 0 {
+		suggestedEffects := types.UnionEffectRows(declared, required)
+		msg.WriteString(fmt.Sprintf("  Suggested fix:     func %s(...) -> T %s\n", funcName, types.FormatEffectRow(suggestedEffects)))
+	}
 
 	return fmt.Errorf("%s", msg.String())
+}
+
+func formatLambdaEffectError(span string, required, declared *types.Row) error {
+	var msg strings.Builder
+	fmt.Fprintf(&msg, "effect checking failed: lambda at %s uses effects not declared in its %s annotation\n",
+		span, types.FormatEffectRow(declared))
+	writeEffectDiff(&msg, types.DiffEffectRows(required, declared))
+	return fmt.Errorf("%s", msg.String())
+}
+
+func writeEffectDiff(msg *strings.Builder, diff types.EffectRowDiff) {
+	if len(diff.Missing) > 0 {
+		fmt.Fprintf(msg, "  Missing effects: %s\n", strings.Join(diff.Missing, ", "))
+	}
+	for _, mismatch := range diff.ParamMismatches {
+		fmt.Fprintf(msg, "  Effect %s mismatch: %s requires %s=%s; declaration provides %s=%s\n",
+			mismatch.Key, mismatch.Effect, mismatch.Key, mismatch.RequiredValue,
+			mismatch.Key, mismatch.DeclaredValue)
+	}
 }

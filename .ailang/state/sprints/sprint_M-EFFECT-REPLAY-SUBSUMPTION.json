@@ -190,7 +190,8 @@
       "started": null,
       "completed": null,
       "notes": null,
-      "status": "planned"
+      "status": "completed",
+      "completed_note": "M2 landed iteration 110. Executor codex:gpt-5.6-sol in worktree; controller opus verified first-party outside the executor sandbox. Two-binary before->after matrix: blocker 1->0, c1 0->0, c2 1->0, c3 1->1, c4 1->1, c6 1->0, c7 1->1, c8 1->1 \u2014 the three acceptances flip while the four soundness rejections hold, proving the relaxation is asymmetric and not a blanket loosening. M1 evaluator NB-1/NB-2 both closed. Invariant unification path byte-unchanged; effectParamsCompatible definition byte-identical and still called from unification_records.go:436."
     },
     {
       "id": "M3",
@@ -263,5 +264,24 @@
       "NB-2 \"os|seeded\" conflict encoding can render as ! {Rand[mode=os|seeded]} in the Suggested-fix line (validate_effects_rows.go:132, validate_effects.go:548-549) \u2014 syntactically invalid AILANG shown to a user. Not a soundness issue; does not reach replay contracts or SubsumeEffectRows. Carried to M2.",
       "NB-5 internal/types/effect_subsumption.go is an intentional M0 stub pending M2."
     ]
+  },
+  "evaluation_m2": {
+    "round": 1,
+    "result": "pass",
+    "score": 88,
+    "evaluator_model": "sonnet",
+    "generator_judge_split": "sonnet judge vs codex/gpt-5.6-sol executor (cross-provider)",
+    "blocking_findings": [],
+    "non_blocking": [
+      "NB-1 (CLOSED IN THIS COMMIT): evaluator Mutation 4 \u2014 removing the edge.Effect term from the ModeSubsumes lookup passed BOTH the types and pipeline suites. Root cause: AC-1 probed AI/Clock/Net/FS with routeable->fixed, a mode pair present in no edge, so an effect-blind lookup rejects it anyway and the assertion passed vacuously. Controller reproduced the mutation, added assertions using Rand's OWN mode names (seeded->os, crypto->os) WITH the mutation still applied to prove they catch it (rc=1, all four effects flagged), then reverted and confirmed effect_subsumption.go byte-identical by SHA-256.",
+      "NB-2 (CARRIED TO M3): the multi-mode diagnostic renders the requirement set as \"mode=os|seeded\", an internal union spelling that is not writable AILANG annotation syntax. Semantically correct and confined to the message body (never a Suggested fix), but a reader could mistake it for something they can declare. Suggested rephrasing: \"Rand body requires modes [seeded, os]; declaration provides only mode=os\". Changing it requires updating TestConflictingLocalModesAreOrderIndependent."
+    ]
+  },
+  "gates_m2": {
+    "make test": 0,
+    "make lint": 0,
+    "make check-boundaries": 0,
+    "make check-file-sizes": 0,
+    "note": "make test re-run by the controller OUTSIDE the executor sandbox: rc=0, 105 packages, zero FAIL, M2 subtests show explicit --- PASS: lines (not a silent skip). The executor's own exit 2 was its managed sandbox forbidding loopback listeners, not a real failure. lint rc=0 with 1 PRE-EXISTING unused issue (geminiPassThreshold in eval_harness, not in this diff)."
   }
 }

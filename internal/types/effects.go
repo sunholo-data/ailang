@@ -617,14 +617,10 @@ func UnionEffectRows(a, b *Row) *Row {
 	}
 }
 
-// SubsumeEffectRows checks if effect row 'a' is subsumed by effect row 'b'
-// Returns true if all effects in 'a' are present in 'b'
-// Pure (nil) is subsumed by anything
-//
-// Phase 1 (M-EFFECT-REFINEMENT): for parameterised effects the param map
-// is invariant — !{Rand[mode=os]} is NOT subsumed by !{Rand[mode=seeded]}.
-// This is required so the routeable→fixed example becomes a typecheck
-// rejection in Phase 5.
+// SubsumeEffectRows checks validation subsumption: every effect required by a
+// body (a) must be covered by its declaration (b). This asymmetric relation is
+// only for validation; it is NOT function-type compatibility. Function-value
+// effect rows remain invariant in Unifier.unifyRows.
 func SubsumeEffectRows(a, b *Row) bool {
 	if a == nil {
 		return true // Pure is subsumed by anything
@@ -633,19 +629,8 @@ func SubsumeEffectRows(a, b *Row) bool {
 		return a == nil // Only pure is subsumed by pure
 	}
 
-	// All labels in 'a' must be in 'b' with matching params (invariant).
-	// effectParamsCompatible normalises each side via DefaultModeFor so a
-	// row with explicit Rand[mode=os] is compatible with a row whose Rand
-	// has nil params (both desugar to the same effective {mode: os}).
-	for k := range a.Labels {
-		if _, ok := b.Labels[k]; !ok {
-			return false
-		}
-		if !effectParamsCompatible(a, b, k) {
-			return false
-		}
-	}
-	return true
+	diff := DiffEffectRows(a, b)
+	return len(diff.Missing) == 0 && len(diff.ParamMismatches) == 0
 }
 
 // EffectRowDifference returns the effects in 'a' that are not in 'b'
