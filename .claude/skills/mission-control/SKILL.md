@@ -378,7 +378,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      probe with a bounded deadline (Standing rule 6 — never unbounded), and only proceed if it exits 0:
      ```bash
      deadline=$(( $(date +%s) + 120 ))
-     out=$( codex exec --model "$MODEL" 'reply with exactly: ok' 2>&1 & pid=$!
+     out=$( codex exec --model "$MODEL" 'reply with exactly: ok' < /dev/null 2>&1 & pid=$!
             while kill -0 "$pid" 2>/dev/null; do
               [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; break; }
               sleep 2; done
@@ -398,18 +398,42 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      own `date +%s` deadline (Standing rule 6) and notifies you on exit:
      ```bash
      # /tmp/codex_run.sh — launch with Bash run_in_background:true (30-min cap > the 10-min fg limit)
-     WT=<sprint worktree path>; deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
+     WT=<sprint worktree path>; DIRECTIVE=/tmp/codex_directive.txt
+     # ASSERT DELIVERY FIRST (false-green #2 below): an absent/empty directive makes the prompt
+     # expand to "", codex asks "What would you like me to work on?" and exits rc=0 — success
+     # reported for work never requested. Refuse to spawn instead.
+     [ -f "$DIRECTIVE" ] || { echo "FATAL: $DIRECTIVE missing — refusing to spawn a no-op run" >&2; exit 64; }
+     sz=$(wc -c < "$DIRECTIVE" | tr -d ' ')
+     [ "$sz" -ge 200 ] || { echo "FATAL: $DIRECTIVE only ${sz}B — suspected truncation" >&2; exit 64; }
+     PROMPT="$(cat "$DIRECTIVE")"; [ -n "$PROMPT" ] || { echo "FATAL: empty prompt" >&2; exit 64; }
+     deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
      GOCACHE=$(go env GOCACHE); GOMODCACHE=$(go env GOMODCACHE)
      ( exec codex exec --model "$MODEL" \
          --sandbox workspace-write \
          --add-dir "$GOCACHE" --add-dir "$GOMODCACHE" \
          -C "$WT" -o /tmp/codex_last.txt \
-         "$(cat /tmp/codex_directive.txt)" ) > /tmp/codex_out.log 2>&1 &   # exec: the cap's kill reaches codex, not just the subshell
-     pid=$!
+         "$PROMPT" < /dev/null ) > /tmp/codex_out.log 2>&1 &   # exec: the cap's kill reaches codex, not just the subshell
+     pid=$!                                                     # < /dev/null: false-green #1 below
      while kill -0 "$pid" 2>/dev/null; do
        [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null; echo "codex 30-min cap — FLAG"; break; }
        sleep 15; done; wait "$pid" 2>/dev/null; echo "codex rc=$?"
      ```
+     **TWO FALSE-GREENS this recipe used to carry** (proposed by `world-coordinator` from
+     mission-world iter-26, which shares this skill but cannot edit it; corroborated first-party by
+     iter-111 and iter-112 rather than taken on trust — the sibling-claim ghost discipline).
+     **(1) stdin was never redirected**: `codex exec` reads stdin IN ADDITION to the positional
+     prompt, so under a backgrounded launch with an open (never-EOF) stdin it prints
+     `Reading additional input from stdin...` and blocks until the 30-min cap — a hang that *looks*
+     like normal long work (World: 39-byte log, zero diff, 6 minutes). That line appears in
+     iter-111's own `codex_out.log`; the run survived only because stdin happened to EOF.
+     **(2) delivery was never asserted**, as above. Both are the vacuous-pass class this mission has
+     closed twice elsewhere (silent z3 skip, silent `t.Skip`): *an exit code reporting success for
+     work never requested*. Iter-112 hit the near-miss live — its first `Write` of the directive file
+     FAILED (pre-existing file) and, unnoticed, would have produced exactly defect (2).
+     **Hygiene, broadcast with it (not a recipe defect):** a shell "is this env var set?" probe
+     written `${VAR:+YES}${VAR:-NO}` **prints the variable's value** — World leaked `OPENAI_API_KEY`
+     into a transcript this way. Safe form: `[ -n "$VAR" ] && echo SET || echo UNSET`. No preflight
+     check in this loop may use the `${VAR:-…}` form on a secret.
      `--sandbox workspace-write` confines codex to the worktree (blocks escape to the main checkout)
      while `--add-dir GOCACHE/GOMODCACHE` lets `go build`/`go test` write their caches; `-o` captures
      codex's final message. **The codex executor CANNOT commit to the worktree branch itself under
