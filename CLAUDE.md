@@ -177,6 +177,8 @@ Domain-specific rules load automatically when working with matching files:
 ## Reference Documentation
 
 - **AILANG Syntax**: `ailang prompt` or [prompts/](prompts/)
+- **motoko_agent checkouts** (which one do evals run?): [MOTOKO.md](MOTOKO.md) — read
+  BEFORE touching any `~/dev/mk-*` directory or the `motoko` shim
 - **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md)
 - **Development Workflow**: [docs/docs/guides/development-workflow.md](docs/docs/guides/development-workflow.md)
 - **Coordinator**: [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)

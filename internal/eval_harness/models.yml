@@ -1301,6 +1301,7 @@ models:
     description: "Claude Haiku 4.5 via motoko_agent (AILANG-native harness with DP7 verifier + microRAG context + extensions)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/anthropic/claude-haiku-4-5"
     model_family: "claude-haiku-4-5"                 # Pairs with claude-haiku-4-5 + opencode-haiku + pi-claude-haiku-4-5
     max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
@@ -1325,6 +1326,7 @@ models:
     description: "Claude Sonnet 4.6 via motoko_agent — premium model + tuned harness ceiling"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/anthropic/claude-sonnet-4-6"
     model_family: "claude-sonnet-4-6"
     max_output_tokens: 64000
@@ -1346,6 +1348,7 @@ models:
     description: "GLM-5.1 — newest z-ai model (Apr 2026), successor to GLM-5"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/z-ai/glm-5.1"
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
@@ -1366,6 +1369,7 @@ models:
     description: "GLM-5 (open-weight, top OS-model on AILANG bench) via motoko_agent — cheap-model+tuned-harness lift test"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/z-ai/glm-5"
     model_family: "glm-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
@@ -1394,6 +1398,7 @@ models:
     description: "Gemma 4 26B MoE via motoko_agent — open-weight coverage (no first-party Gemma agent CLI exists)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 8192
@@ -1421,6 +1426,7 @@ models:
     description: "DeepSeek V4 Flash via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/deepseek/deepseek-v4-flash"
     model_family: "deepseek-v4"
     max_output_tokens: 65536
@@ -1443,6 +1449,7 @@ models:
     description: "Kimi K2.6 via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/moonshotai/kimi-k2.6"
     model_family: "kimi"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
@@ -1465,6 +1472,7 @@ models:
     description: "MiniMax M3 — latest MiniMax, 1M context"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/minimax/minimax-m3"
     model_family: "minimax"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
@@ -1485,6 +1493,7 @@ models:
     description: "Gemma 4 26B MoE via motoko_agent — cheap-but-slow sweet-spot probe"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/google/gemma-4-26b-a4b-it"
     model_family: "gemma-4"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
@@ -1512,6 +1521,7 @@ models:
     description: "Qwen 3.5 35B-A3B MoE via motoko_agent — low-active-param sweet-spot probe (local-rig candidate)"
     env_var: "OPENROUTER_API_KEY"
     agent_cli: "motoko"
+    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
     agent_model_name: "openrouter/qwen/qwen3.5-35b-a3b-20260224"
     model_family: "qwen-3-5"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 32768
