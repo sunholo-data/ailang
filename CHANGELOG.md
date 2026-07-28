@@ -4,6 +4,9 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## [Unreleased]
 
+- CI/infra: renamed the documentation build check to `docs-build`, added an
+  always-reporting `docs-gate`, and scoped workflow concurrency per ref while
+  retaining singleton Pages deployments (#497).
 - Added end-to-end seeded and crypto Rand examples, backed by asymmetric
   validation-only subsumption from explicit `seeded`/`crypto` declarations to
   bare/os requirements.

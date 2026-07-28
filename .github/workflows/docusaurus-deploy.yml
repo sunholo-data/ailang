@@ -19,20 +19,10 @@ on:
       # Web assets (REPL component, etc.)
       - 'web/**'
 
-  # PRs build (but don't deploy) — gates dependency bumps that would break docs.
+  # PRs always run the gate; path decisions happen in docs-changes because a
+  # path-filtered required workflow would remain Pending when no path matches.
   pull_request:
     branches: ["dev", "main"]
-    paths:
-      - 'docs/**'
-      - 'prompts/**'
-      - 'llms.txt'
-      - 'CHANGELOG.md'
-      - '.github/workflows/docusaurus-deploy.yml'
-      - 'internal/**'
-      - 'cmd/**'
-      - 'go.mod'
-      - 'go.sum'
-      - 'web/**'
 
   # Rebuild daily to pick up newly published packages in the registry
   schedule:
@@ -47,18 +37,135 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+# Separate PR refs after observed cross-PR cancellations; the deploy job alone
+# retains the Pages singleton needed for production deployments.
 concurrency:
-  group: "pages"
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # Build job
-  build:
+  docs-changes:
     runs-on: ubuntu-latest
+    outputs:
+      docs_changed: ${{ steps.detect.outputs.docs_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Guard docs path list against push-path drift
+        run: |
+          set -euo pipefail
+          PUSH_PATHS=()
+          while IFS= read -r push_path; do
+            PUSH_PATHS+=("$push_path")
+          done < <(
+            awk '
+              /^  push:$/ { in_push = 1; found_push = 1; next }
+              /^  pull_request:$/ { in_push = 0 }
+              in_push && /^      - '\''.*'\''$/ {
+                path = $0
+                sub(/^      - '\''/, "", path)
+                sub(/'\''$/, "", path)
+                print path
+              }
+              END {
+                if (!found_push) {
+                  exit 2
+                }
+              }
+            ' .github/workflows/docusaurus-deploy.yml
+          ) || {
+            echo "::error::could not locate the on.push block"
+            exit 1
+          }
+
+          if [ "${#PUSH_PATHS[@]}" -eq 0 ]; then
+            echo "::error::on.push.paths is empty or could not be extracted"
+            exit 1
+          fi
+
+          for push_path in "${PUSH_PATHS[@]}"; do
+            case "$push_path" in
+              */'**') pathspec="${push_path%/**}/" ;;
+              *) pathspec="$push_path" ;;
+            esac
+            if ! grep -Fqx "$pathspec" .github/docs-build-paths.txt; then
+              echo "::error::on.push.paths entry '$push_path' is not covered by docs pathspec '$pathspec'"
+              exit 1
+            fi
+          done
+          echo "docs path drift guard passed for ${#PUSH_PATHS[@]} push paths"
+
+      - name: Detect docs-relevant changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
+            echo "event=$EVENT_NAME; docs_changed=true (full build trigger)"
+            exit 0
+          fi
+
+          if [ -z "$BASE_REF" ]; then
+            echo "::error::pull request base ref is empty"
+            exit 1
+          fi
+
+          if ! git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            git fetch --no-tags origin \
+              "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          fi
+          if ! git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            echo "::error::cannot resolve origin/$BASE_REF"
+            exit 1
+          fi
+
+          MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
+          if [ -z "$MERGE_BASE" ]; then
+            echo "::error::cannot determine merge base for origin/$BASE_REF and HEAD"
+            exit 1
+          fi
+
+          PATHSPECS=()
+          while IFS= read -r pathspec; do
+            PATHSPECS+=("$pathspec")
+          done < <(
+            sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' \
+              .github/docs-build-paths.txt
+          )
+          if [ "${#PATHSPECS[@]}" -eq 0 ]; then
+            echo "::error::.github/docs-build-paths.txt contains no usable pathspecs"
+            exit 1
+          fi
+
+          echo "Changed files since merge base $MERGE_BASE:"
+          git diff --name-only "$MERGE_BASE" HEAD
+          CHANGED=$(git diff --name-only "$MERGE_BASE" HEAD -- "${PATHSPECS[@]}")
+          echo "Docs-filtered changed files:"
+          printf '%s\n' "$CHANGED"
+
+          if [ -n "$CHANGED" ]; then
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
+            echo "docs_changed=true"
+          else
+            echo "docs_changed=false" >> "$GITHUB_OUTPUT"
+            echo "docs_changed=false"
+          fi
+
+  # Docs build job
+  docs-build:
+    runs-on: ubuntu-latest
+    needs: docs-changes
     # Run even if commit has [skip ci] when it's from docs automation
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') || github.actor == 'github-actions[bot]' }}
+    if: >-
+      needs.docs-changes.outputs.docs_changed == 'true' &&
+      (!contains(github.event.head_commit.message, '[skip ci]') || github.actor == 'github-actions[bot]')
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -172,13 +279,49 @@ jobs:
         with:
           path: ./docs/build
 
+  docs-gate:
+    runs-on: ubuntu-latest
+    needs: [docs-changes, docs-build]
+    if: always()
+    steps:
+      - name: Adjudicate docs build
+        env:
+          DETECT_RESULT: ${{ needs.docs-changes.result }}
+          DOCS_CHANGED: ${{ needs.docs-changes.outputs.docs_changed }}
+          BUILD_RESULT: ${{ needs.docs-build.result }}
+        run: |
+          set -euo pipefail
+          echo "detector=$DETECT_RESULT docs_changed=$DOCS_CHANGED docs-build=$BUILD_RESULT"
+
+          if [ "$DETECT_RESULT" != "success" ]; then
+            echo "::error::docs-changes result=$DETECT_RESULT; cannot certify the docs build"
+            exit 1
+          fi
+
+          case "$DOCS_CHANGED" in
+            true)
+              [ "$BUILD_RESULT" = "success" ] && exit 0
+              echo "::error::docs-relevant paths changed but docs-build result=$BUILD_RESULT"
+              exit 1 ;;
+            false)
+              [ "$BUILD_RESULT" = "skipped" ] && exit 0
+              echo "::error::no docs-relevant paths changed but docs-build result=$BUILD_RESULT (expected skipped)"
+              exit 1 ;;
+            *)
+              echo "::error::docs-changes produced an unusable docs_changed value: '$DOCS_CHANGED'"
+              exit 1 ;;
+          esac
+
   # Deployment job
   deploy:
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: docs-build
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     steps:
       - name: Deploy to GitHub Pages
