@@ -1,5 +1,13 @@
 # Sprint Plan: M-Z3-HARD-TIMEOUT
 
+**Status**: ✅ **IMPLEMENTED 2026-07-28** (V1 mission iteration 116) — PR
+[#514](https://github.com/sunholo-data/ailang/pull/514) → squash `9253ec8a8`, dev CI green (all 14
+checks, including `test-windows` and `Build windows-latest`, which matter because this sprint added
+a Windows-tagged file). M1 + M2 complete as planned; M3's follow-up issue filed by the controller as
+[#513](https://github.com/sunholo-data/ailang/issues/513) — the executor drafted the text but had no
+network egress from its sandbox. Evaluator (sonnet; generator≠judge vs the `codex:gpt-5.6-sol`
+executor): **PASS 90/100 round 1, zero blocking findings**.
+
 **Issue**: [#510 — Z3 solver invocation has no hard wall-clock bound](https://github.com/sunholo-data/ailang/issues/510)
 **Design doc**: **none, deliberately** — see §0.
 **Target**: v0.31.0
