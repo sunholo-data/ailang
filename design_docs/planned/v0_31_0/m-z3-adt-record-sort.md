@@ -1,6 +1,6 @@
 # M-Z3-ADT-RECORD-SORT: Declare Reachable ADTs Through Records and Make `ai-check` Honest
 
-**Status**: Planned — **PARKED `needs-human-review`** after quorum round 2 (see "Quorum round 2 — PARKED" below). One decision is outstanding for Mark; the design direction was never contested.
+**Status**: Planned — **DECIDED by Mark 2026-07-28 (attended): OPTION (B)** — sprint `#510` separately and FIRST (small, self-contained, closes the standing-rule violation affecting every `ai-check` caller incl. Ailang World); then THIS doc routes to sprint-planner unchanged with A5 honestly compliant. [Was: PARKED `needs-human-review` after quorum round 2 (see "Quorum round 2 — PARKED" below); the design direction was never contested.]
 **Target**: v0.31.0
 **Priority**: P0
 **Estimated**: 3–4 days
