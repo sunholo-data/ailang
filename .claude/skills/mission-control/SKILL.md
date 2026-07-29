@@ -318,9 +318,17 @@ the Repo Profile above):
 2. **A parked test is a claim, not evidence**: `t.Skip`-ed / disabled tests say "nobody
    re-checked", not "still broken". Un-skip and RUN before treating the bug as open — the
    M-TYPEENV-SUB "open P0" was already fixed; only un-skipping revealed it.
-3. **Exit codes through pipes lie**: `cmd | tail; echo $?` reports tail's status. Use direct
-   invocation or PIPESTATUS.
-3a. **A SEARCH THAT FOUND NOTHING IS A CLAIM, NOT A FACT** (added 2026-07-29 iteration 119; the
+3. **Exit codes through pipes lie**: `cmd | tail; echo $?` reports tail's status. The portable
+   remedy is to capture and read back — `cmd > /tmp/out 2>&1; echo "rc=$?"` — or invoke directly.
+   **Do NOT use `${PIPESTATUS[0]}`: it is bash-only and SILENTLY EMPTY in zsh**, which is the shell
+   both mission rigs actually run (verified 2026-07-29 iteration 120 inside the loop's own tool
+   shell: `false | true; echo "[${PIPESTATUS[0]}]"` prints `[]` here and `[1]` under bash; zsh
+   spells it `${pipestatus[1]}`, lower-case and 1-INDEXED). So the remedy this step prescribes for
+   "exit codes lie" has itself been printing `rc=` — an empty reading that looks like a formatting
+   quirk rather than a failed check, **voiding the very gate it was added to protect**. Reported by
+   mission-world (iter-37, two instances) and reproduced first-party before adoption.
+3a. **A SEARCH THAT FOUND NOTHING IS A CLAIM, NOT A FACT — and so is any probe that came back
+   empty** (added 2026-07-29 iteration 119; widened to all instruments iteration 120; the
    cheapest vacuous pass in the toolbox, and the one this loop keeps buying). An empty `grep` is
    indistinguishable from a `grep` that could never have matched — same silent output, same exit
    path, and it *feels* like evidence of absence. Four recorded instances, two of them in
@@ -334,9 +342,27 @@ the Repo Profile above):
    `RunAICheck(` hit proved a call site existed but never that anything reached it; (d)
    iterations 55–58's `rev-parse --short`, which fataled to stderr and printed nothing to stdout,
    wearing the all-clear's clothes for four iterations.
-   Before a negative search result becomes a fact you act on or hand downstream:
-   **(i) prove the instrument can see a positive** — search for something you KNOW is there and
-   confirm it comes back; a pattern that finds nothing anywhere is broken, not informative;
+   Two more, both from iteration 120 and both showing the class is NOT limited to `grep`:
+   (e) mission-world's unquoted `--include=*.go`, which **zsh glob-expands before `grep` ever
+   runs** (`zsh:1: no matches found`), so the caller reads 0 hits from a command that never
+   executed — it nearly shipped a fabricated "zero callers anywhere" fact to a sprint executor;
+   the real answer was 11 call sites, and only a known-positive control in the same call caught
+   it. (f) iteration 120's own MCP `tools/list` probe returned an EMPTY TOOL LIST for all five
+   flag combinations — not a search at all, but a live protocol handshake that had failed
+   (`rc=1`, `server is closing: EOF`) and whose empty result was indistinguishable from a genuine
+   "no tools registered". It was caught only because a known-present tool was expected in the same
+   output. **A remedy is an instrument and inherits the same burden of proof as the thing it
+   verifies** — which is exactly how step 3's own `PIPESTATUS` advice went four-plus iterations
+   without anyone noticing it printed nothing.
+   Before a negative or empty result from ANY instrument — a search, a probe, a handshake, an
+   exit-code check — becomes a fact you act on or hand downstream:
+   **(i) prove the instrument can see a positive, in the SAME call** — assert something you KNOW
+   is there comes back alongside the absence you are claiming; a pattern or probe that finds
+   nothing anywhere is broken, not informative. Pair the check and its known-positive control so
+   a broken instrument cannot masquerade as a clean result; where this becomes a committed test,
+   an empty result set must FAIL LOUDLY (`t.Fatal("instrument failure")`), never pass;
+   **(i-b) quote anything glob-shaped** — `--include='*.go'`, not `--include=*.go`; under zsh an
+   unquoted glob-shaped flag value aborts the whole command before it runs;
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
