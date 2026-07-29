@@ -63,6 +63,14 @@ type chatUsage struct {
 	CompletionTokensDetails struct {
 		ReasoningTokens int `json:"reasoning_tokens"`
 	} `json:"completion_tokens_details,omitempty"`
+	// PromptTokensDetails.CachedTokens reports OpenAI's AUTOMATIC prompt cache
+	// (prompts >=1024 tokens with a stable prefix). There is no request-side
+	// knob to set — the only thing we control is whether we RECORD it. Without
+	// this the Generate path banked 0 for every OpenAI run and we could not tell
+	// a working cache from a broken one (M-ANTHROPIC-CACHE-HIT-RATE follow-up).
+	PromptTokensDetails struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details,omitempty"`
 }
 
 // errorResponse represents an error response from the API.
@@ -166,6 +174,10 @@ type responsesUsage struct {
 	OutputDetails struct {
 		ReasoningTokens int `json:"reasoning_tokens"`
 	} `json:"output_tokens_details,omitempty"`
+	// See chatUsage.PromptTokensDetails — same automatic cache, Responses-API name.
+	InputDetails struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"input_tokens_details,omitempty"`
 }
 
 // ensureStrictSchemaCompliance makes a JSON Schema compatible with OpenAI's strict

@@ -140,12 +140,13 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 	}
 
 	return &ai.Response{
-		Text:         text,
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: outputTokens,
-		TotalTokens:  result.Usage.TotalTokens,
-		ReasonTokens: reasoningTokens,
-		FinishReason: MapChatFinishReason(result.Choices[0].FinishReason),
-		Model:        result.Model,
+		Text:                 text,
+		InputTokens:          result.Usage.PromptTokens,
+		CacheReadInputTokens: result.Usage.PromptTokensDetails.CachedTokens,
+		OutputTokens:         outputTokens,
+		TotalTokens:          result.Usage.TotalTokens,
+		ReasonTokens:         reasoningTokens,
+		FinishReason:         MapChatFinishReason(result.Choices[0].FinishReason),
+		Model:                result.Model,
 	}, nil
 }
