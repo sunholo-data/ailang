@@ -102,6 +102,24 @@ func (a *AIAgent) GenerateCodeSplit(ctx context.Context, cachedPrefix, task stri
 	return a.adapter.generate(ctx, cachedPrefix, task)
 }
 
+// GenerateCodeWarmup issues a deliberately tiny call whose only purpose is to
+// make the provider prefill — and therefore cache — cachedPrefix
+// (M-ANTHROPIC-CACHE-HIT-RATE, D4).
+//
+// maxTokens caps the output; 1 is enough, because the prefill that writes the
+// cache happens regardless of how much the model is then allowed to say. The
+// result is normally discarded — it is returned so a caller can assert on
+// cache-creation tokens to verify the warm-up actually landed.
+//
+// The adapter's previous budget is restored on return so a warmed agent is not
+// left crippled for real work.
+func (a *AIAgent) GenerateCodeWarmup(ctx context.Context, cachedPrefix, task string, maxTokens int) (*GenerateResult, error) {
+	prev := a.adapter.maxTokens
+	a.adapter.setMaxTokens(maxTokens)
+	defer a.adapter.setMaxTokens(prev)
+	return a.adapter.generate(ctx, cachedPrefix, task)
+}
+
 // GenerateResult contains the result of code generation
 type GenerateResult struct {
 	Code         string

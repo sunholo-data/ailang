@@ -32,6 +32,15 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 		maxConcurrent = 1 // Sequential
 	}
 
+	// Warm the prompt cache BEFORE fanning out. A cache entry only becomes
+	// readable once the first response starts streaming, so without this every
+	// concurrent call in the first wave misses and pays a full cache WRITE for
+	// the same prefix. Non-fatal: failures warn and the suite runs uncached.
+	// (M-ANTHROPIC-CACHE-HIT-RATE D4 — see eval_cache_warmup.go.)
+	if maxConcurrent > 1 {
+		warmPromptCaches(ctx, jobs, timeout)
+	}
+
 	var (
 		wg           sync.WaitGroup
 		results      = make([]SuiteResult, len(jobs))

@@ -154,6 +154,15 @@ func FormatMatrix(matrix *PerformanceMatrix, useColor bool) string {
 	sb.WriteString(fmt.Sprintf("Repairs used:      %d\n", matrix.Aggregates.RepairUsed))
 	sb.WriteString(fmt.Sprintf("Repair success:    %.1f%%\n", matrix.Aggregates.RepairSuccessRate*100))
 	sb.WriteString(fmt.Sprintf("Total tokens:      %d\n", matrix.Aggregates.TotalTokens))
+	// Shown only when some provider actually reported cache activity. Printing
+	// "0.0%" for a run of providers that never report it would read as "caching
+	// is broken" rather than "nothing measured here".
+	if matrix.Aggregates.CacheReadTokens > 0 || matrix.Aggregates.CacheCreationTokens > 0 {
+		sb.WriteString(fmt.Sprintf("Cache hit rate:    %.1f%% (%d read, %d written)\n",
+			matrix.Aggregates.CacheHitRate*100,
+			matrix.Aggregates.CacheReadTokens,
+			matrix.Aggregates.CacheCreationTokens))
+	}
 	sb.WriteString(fmt.Sprintf("Total cost:        $%.4f\n", matrix.Aggregates.TotalCostUSD))
 	sb.WriteString(fmt.Sprintf("Avg duration:      %.0fms\n", matrix.Aggregates.AvgDurationMs))
 	sb.WriteString("\n")

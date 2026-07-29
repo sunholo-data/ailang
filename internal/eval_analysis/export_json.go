@@ -121,13 +121,16 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
-		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
-		"finalSuccess":      matrix.Aggregates.FinalSuccess,
-		"repairUsed":        matrix.Aggregates.RepairUsed,
-		"repairSuccessRate": matrix.Aggregates.RepairSuccessRate,
-		"totalTokens":       matrix.Aggregates.TotalTokens,
-		"totalCostUSD":      matrix.Aggregates.TotalCostUSD,
-		"avgDurationMs":     matrix.Aggregates.AvgDurationMs,
+		"zeroShotSuccess":     matrix.Aggregates.ZeroShotSuccess,
+		"finalSuccess":        matrix.Aggregates.FinalSuccess,
+		"repairUsed":          matrix.Aggregates.RepairUsed,
+		"repairSuccessRate":   matrix.Aggregates.RepairSuccessRate,
+		"totalTokens":         matrix.Aggregates.TotalTokens,
+		"cacheReadTokens":     matrix.Aggregates.CacheReadTokens,
+		"cacheCreationTokens": matrix.Aggregates.CacheCreationTokens,
+		"cacheHitRate":        matrix.Aggregates.CacheHitRate,
+		"totalCostUSD":        matrix.Aggregates.TotalCostUSD,
+		"avgDurationMs":       matrix.Aggregates.AvgDurationMs,
 		// Agent metrics (M-EVAL-AGENT)
 		"agentRuns":        len(agentResults),
 		"agentSuccessRate": agentSuccessRate,
