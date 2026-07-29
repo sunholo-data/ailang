@@ -326,15 +326,36 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
         # so no extension had ever loaded — not even DP7's per-edit `ailang
         # check`. With extensions live, the control arm alone clears that set.
         #
-        # So pre-fix pass rates are a LOWER BOUND on how easy a benchmark now
-        # is, and a set must be chosen to be harder than it looks. These five
-        # are the hardest with n>=4 banked rows, none of which the 07-29 run
-        # touched. docx_reimplement is the deliberate anchor: it is the hardest
-        # benchmark by ELO and it fails ~100% COMPILE-STUCK, which is precisely
-        # the syntax-drift failure mode fmt claims to remove.
-        #   bytecode_vm_trace 17% | dep_resolver_backtrack 25% | docx 39%
-        #   red_black_tree 56%    | csv_to_json_converter 59%   (all pre-fix)
-        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-bytecode_vm_trace,dep_resolver_backtrack,docx_reimplement,red_black_tree,csv_to_json_converter}"
+        # DO NOT PICK THIS SET FROM RAW PASS RATES. That is what produced both
+        # earlier mistakes. A raw rate blends three things — how hard the
+        # benchmark is, how strong the model was, and which harness era the rows
+        # came from — so it moves when any of them moves, which is exactly how a
+        # set chosen at 35-86% arrived at a 10/10 control arm.
+        #
+        # `ailang eval-elo <dir> --json` already solves this: it fits benchmark
+        # difficulty as a latent parameter SEPARATE from model strength, so a
+        # benchmark's ailang_elo is era-robust in a way its pass rate is not.
+        # Selection rule — expected score under the standard ELO logistic:
+        #
+        #   E[pass] = 1 / (1 + 10^((bench_elo - model_elo) / 400))
+        #
+        # and keep benchmarks with E[pass] in ~0.20-0.70, nearest 0.50 first,
+        # because DISCORDANT PAIRS are what McNemar consumes and discordance is
+        # maximised where the outcome is least certain. Both tails are useless:
+        # at E=0.93 both arms pass, at E=0.15 both arms fail, and neither
+        # produces a pair that can move the test.
+        #
+        # Scored against subject ELO 2196 (motoko-local-qwen3-6-*, agent mode,
+        # 69 benchmarks of coverage, non-provisional), the first amendment to
+        # this list was wrong on 3 of 5 IN BOTH DIRECTIONS — red_black_tree
+        # E=0.93 and csv_to_json_converter E=0.81 (raw rates said 56%/59%), and
+        # docx_reimplement E=0.15. docx is deliberately NOT here: it is the
+        # hardest benchmark we have and it fails ~100% compile-stuck, so it is
+        # its own line of work, not an A/B row that can resolve anything.
+        #
+        #   config_file_parser .55 | parse_prec_climb .47 | legal_obligation .44
+        #   ssa_constant_fold  .35 | bytecode_vm_trace .68
+        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-config_file_parser,parse_prec_climb,legal_obligation_engine,ssa_constant_fold,bytecode_vm_trace}"
         # N>=5 per the prereg. The previous 2 was inherited from the microRAG
         # block, not chosen for this experiment.
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
