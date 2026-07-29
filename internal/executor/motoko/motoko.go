@@ -344,6 +344,26 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"MODEL="+e.getModel(task),
 		"MOTOKO_HEADLESS=1", // batch mode (no interactive TUI) — see --headless above
 		"MOTOKO_CONFIG="+effectiveProfile,
+		// MOTOKO_REPO is REQUIRED for profile resolution and has never been set.
+		//
+		// motoko resolves its profile dir from WORKDIR first. The eval harness
+		// points WORKDIR at a per-task scratch dir that carries no
+		// .motoko/config, so resolution fell through to a path that does not
+		// exist and the profile SILENTLY degraded to defaults —
+		// extensions.order=[], no cost_rates. motoko's own config.ail documents
+		// this exact hazard and names the MOTOKO_REPO fallback as the fix "required
+		// by the AILANG eval harness adapter"; the harness simply never set it.
+		//
+		// Consequence, measured 2026-07-29: 39 of 39 recent eval sessions report
+		// loaded_extensions=[] on BOTH the ollama and ollama_fmt profiles. No
+		// motoko extension has been active in ANY eval run — not compaction_ai,
+		// not context_mode, not microrag, not ailang_docs, not fmt. Every A/B arm
+		// whose treatment IS an extension has been comparing a profile against
+		// itself.
+		//
+		// e.motokoRepo is discovered by HealthCheck from `motoko --version`, which
+		// the eval path and the canary both run before Execute.
+		"MOTOKO_REPO="+e.motokoRepo,
 		"MOTOKO_SESSION_ID="+sessionID,
 		"AILANG_CACHE_DIR="+taskCacheDir,
 		// M-MOTOKO-SYSTEM-ROLE: when set, motoko reads its system-role message
