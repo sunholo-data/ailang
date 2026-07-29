@@ -27,7 +27,7 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 
 	input = append(input, responsesInput{
 		Role:    "user",
-		Content: req.UserPrompt,
+		Content: req.FullUserPrompt(),
 	})
 
 	// Build request
@@ -148,11 +148,12 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 	}
 
 	return &ai.Response{
-		Text:         text,
-		InputTokens:  result.Usage.InputTokens,
-		OutputTokens: outputTokens,
-		TotalTokens:  result.Usage.TotalTokens,
-		ReasonTokens: reasoningTokens,
-		Model:        result.Model,
+		Text:                 text,
+		InputTokens:          result.Usage.InputTokens,
+		CacheReadInputTokens: result.Usage.InputDetails.CachedTokens,
+		OutputTokens:         outputTokens,
+		TotalTokens:          result.Usage.TotalTokens,
+		ReasonTokens:         reasoningTokens,
+		Model:                result.Model,
 	}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -69,10 +70,17 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 }
 
 // messagesRequest represents the request body for the Messages API.
+//
+// System and messageContent.Content are json.RawMessage rather than string
+// because Anthropic accepts either a bare string or a content array in both
+// positions, and prompt caching requires the array form (a cache_control marker
+// attaches to a content block, not to a string). Marshalling a plain string
+// through RawMessage produces byte-identical output to the old `string` field,
+// so requests that declare no cache breakpoints are unchanged on the wire.
 type messagesRequest struct {
 	Model       string           `json:"model"`
 	MaxTokens   int              `json:"max_tokens"`
-	System      string           `json:"system,omitempty"`
+	System      json.RawMessage  `json:"system,omitempty"`
 	Messages    []messageContent `json:"messages"`
 	Temperature float64          `json:"temperature,omitempty"`
 	Tools       []toolDef        `json:"tools,omitempty"`
@@ -108,8 +116,17 @@ type outputConfig struct {
 }
 
 type messageContent struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role string `json:"role"`
+	// Content is a bare JSON string in the common case, or a content array when
+	// a prompt-cache breakpoint splits the turn. See userContentFromPrompt.
+	Content json.RawMessage `json:"content"`
+}
+
+// textContent wraps a plain string as the Content field's JSON. Marshalling a
+// string cannot fail, so the error is dropped deliberately.
+func textContent(s string) json.RawMessage {
+	b, _ := json.Marshal(s)
+	return b
 }
 
 // toolDef represents a tool definition for structured output via tool_use.
@@ -202,11 +219,22 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		maxTokens = 4096
 	}
 
+	// M-ANTHROPIC-CACHE-HIT-RATE: build the user turn cache-aware. With no
+	// breakpoints declared this is byte-identical to the pre-v0.31.0 shape.
+	userContent, ucErr := userContentFromPrompt(req.CachedPrefix, req.UserPrompt, req.CacheBreakpoints)
+	if ucErr != nil {
+		wrapped := ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("anthropic: failed to marshal user content: %v", ucErr), false)
+		span.RecordError(wrapped)
+		span.SetStatus(codes.Error, wrapped.Error())
+		return nil, wrapped
+	}
+
 	apiReq := messagesRequest{
 		Model:     req.Model,
 		MaxTokens: maxTokens,
 		Messages: []messageContent{
-			{Role: "user", Content: req.UserPrompt},
+			{Role: "user", Content: userContent},
 		},
 	}
 	tb, oc, tErr := thinkingConfigFor(reasoning, req.Model)
@@ -218,9 +246,20 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	apiReq.Thinking = tb
 	apiReq.OutputConfig = oc
 
-	if req.SystemPrompt != "" {
-		apiReq.System = req.SystemPrompt
+	systemField, sysErr := systemFieldFromPrompt(req.SystemPrompt, req.CacheBreakpoints)
+	if sysErr != nil {
+		wrapped := ai.NewAIError(ai.CodeInternal,
+			fmt.Sprintf("anthropic: failed to marshal system field: %v", sysErr), false)
+		span.RecordError(wrapped)
+		span.SetStatus(codes.Error, wrapped.Error())
+		return nil, wrapped
 	}
+	apiReq.System = systemField
+
+	// Warn once if a declared breakpoint targets a prefix too short for the
+	// model to actually cache. Anthropic accepts the marker and silently skips
+	// caching, so without this the miss is invisible (design doc V8).
+	warnIfCachePrefixTooSmall(req)
 
 	if req.Temperature > 0 {
 		apiReq.Temperature = req.Temperature

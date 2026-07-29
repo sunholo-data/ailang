@@ -99,6 +99,9 @@ func NewDesignGenerator(model string, seed int64) (*DesignGenerator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AI agent: %w", err)
 	}
+	// Design generation is one-shot: there is no second call to read a cache
+	// entry back, so opt out of the ~1.25x cache-write premium.
+	agent.SetExpectedCalls(1)
 
 	// Load template
 	tmplPath := filepath.Join("internal", "eval_analyzer", "templates", "design_template.md")

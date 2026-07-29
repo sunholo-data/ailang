@@ -66,6 +66,17 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	}, nil
 }
 
+// SetExpectedCalls declares how many generation calls this run will make
+// against the model (M-ANTHROPIC-CACHE-HIT-RATE M2).
+//
+// Pass 1 for genuinely one-shot work to opt OUT of prompt caching — a cache
+// write that is never read costs ~1.25x for nothing. Leave it unset for suite
+// runs: Anthropic's cache is server-side and shared across agent instances, so
+// a per-agent call count says nothing about whether the entry gets reused.
+func (a *AIAgent) SetExpectedCalls(n int) {
+	a.adapter.setExpectedCalls(n)
+}
+
 // WithAttribution sets OpenRouter app-attribution overrides for this agent.
 func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
 	a.attribution = attr
@@ -73,19 +84,55 @@ func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
 }
 
 // GenerateCode generates code using the unified provider.
+//
+// The whole prompt is treated as volatile, so nothing is cached. Prefer
+// GenerateCodeSplit when the prompt has a stable teaching-prompt prefix.
 func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.adapter.generate(ctx, prompt)
+	return a.adapter.generate(ctx, "", prompt)
+}
+
+// GenerateCodeSplit generates code from a prompt already split into a stable
+// cacheable prefix and a per-benchmark task (M-ANTHROPIC-CACHE-HIT-RATE M2).
+//
+// The model sees cachedPrefix+task, identical to passing the joined string to
+// GenerateCode. On Anthropic the split additionally lets a cache breakpoint sit
+// at the boundary, so repeat calls in a suite re-read the teaching prompt at
+// ~10% of input price instead of re-paying it in full.
+func (a *AIAgent) GenerateCodeSplit(ctx context.Context, cachedPrefix, task string) (*GenerateResult, error) {
+	return a.adapter.generate(ctx, cachedPrefix, task)
+}
+
+// GenerateCodeWarmup issues a deliberately tiny call whose only purpose is to
+// make the provider prefill — and therefore cache — cachedPrefix
+// (M-ANTHROPIC-CACHE-HIT-RATE, D4).
+//
+// maxTokens caps the output; 1 is enough, because the prefill that writes the
+// cache happens regardless of how much the model is then allowed to say. The
+// result is normally discarded — it is returned so a caller can assert on
+// cache-creation tokens to verify the warm-up actually landed.
+//
+// The adapter's previous budget is restored on return so a warmed agent is not
+// left crippled for real work.
+func (a *AIAgent) GenerateCodeWarmup(ctx context.Context, cachedPrefix, task string, maxTokens int) (*GenerateResult, error) {
+	prev := a.adapter.maxTokens
+	a.adapter.setMaxTokens(maxTokens)
+	defer a.adapter.setMaxTokens(prev)
+	return a.adapter.generate(ctx, cachedPrefix, task)
 }
 
 // GenerateResult contains the result of code generation
 type GenerateResult struct {
 	Code         string
-	InputTokens  int    // Prompt tokens (input to LLM)
-	OutputTokens int    // Completion tokens (generated code, reasoning excluded)
-	ReasonTokens int    // Hidden reasoning/thinking tokens (billed as output)
-	TotalTokens  int    // Total tokens (for billing; includes reasoning)
-	FinishReason string // Normalized stop reason ("stop", "length", ...); "" if unreported
-	Model        string
+	InputTokens  int // Prompt tokens (input to LLM)
+	OutputTokens int // Completion tokens (generated code, reasoning excluded)
+	ReasonTokens int // Hidden reasoning/thinking tokens (billed as output)
+	// Prompt-cache activity, when the provider reports it (Anthropic, OpenAI,
+	// Gemini). Zero means "not reported", not "no cache".
+	CacheReadInputTokens     int
+	CacheCreationInputTokens int
+	TotalTokens              int    // Total tokens (for billing; includes reasoning)
+	FinishReason             string // Normalized stop reason ("stop", "length", ...); "" if unreported
+	Model                    string
 }
 
 // RetryConfig configures retry behavior

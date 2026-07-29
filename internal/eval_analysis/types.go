@@ -12,22 +12,26 @@ import (
 // BenchmarkResult represents the result of a single benchmark execution
 // This mirrors the JSON structure from internal/eval_harness/metrics.go
 type BenchmarkResult struct {
-	ID            string  `json:"id"`
-	Lang          string  `json:"lang"`
-	Model         string  `json:"model"`
-	Executor      string  `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
-	Seed          int64   `json:"seed"`
-	InputTokens   int     `json:"input_tokens"`
-	OutputTokens  int     `json:"output_tokens"`
-	TotalTokens   int     `json:"total_tokens"`
-	CostUSD       float64 `json:"cost_usd"`
-	CompileOk     bool    `json:"compile_ok"`
-	RuntimeOk     bool    `json:"runtime_ok"`
-	StdoutOk      bool    `json:"stdout_ok"`
-	DurationMs    int64   `json:"duration_ms"`
-	CompileMs     int64   `json:"compile_ms"`
-	ExecuteMs     int64   `json:"execute_ms"`
-	ErrorCategory string  `json:"error_category"`
+	ID           string `json:"id"`
+	Lang         string `json:"lang"`
+	Model        string `json:"model"`
+	Executor     string `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
+	Seed         int64  `json:"seed"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
+	TotalTokens  int    `json:"total_tokens"`
+	// Prompt-cache activity as banked by the harness (M-ANTHROPIC-CACHE-HIT-RATE).
+	// Absent in pre-v0.31.0 baselines, where both read as 0.
+	CacheReadInputTokens     int     `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationInputTokens int     `json:"cache_creation_input_tokens,omitempty"`
+	CostUSD                  float64 `json:"cost_usd"`
+	CompileOk                bool    `json:"compile_ok"`
+	RuntimeOk                bool    `json:"runtime_ok"`
+	StdoutOk                 bool    `json:"stdout_ok"`
+	DurationMs               int64   `json:"duration_ms"`
+	CompileMs                int64   `json:"compile_ms"`
+	ExecuteMs                int64   `json:"execute_ms"`
+	ErrorCategory            string  `json:"error_category"`
 
 	// Validity marks whether this row is a MEASUREMENT at all (vs a failure to
 	// measure: dead subject, harness error, wrong config). NIL means valid —
@@ -170,6 +174,14 @@ type Aggregates struct {
 	TotalTokens       int     `json:"total_tokens"`
 	TotalCostUSD      float64 `json:"total_cost_usd"`
 	AvgDurationMs     float64 `json:"avg_duration_ms"`
+	// Prompt-cache aggregates. CacheHitRate is cache reads as a share of ALL
+	// input tokens the model saw (reads + writes + uncached), so it answers "how
+	// much of our input did we avoid paying full price for". 0 means either no
+	// caching or a provider that does not report it — indistinguishable here,
+	// which is why the raw token counts are exposed alongside it.
+	CacheReadTokens     int     `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int     `json:"cache_creation_tokens,omitempty"`
+	CacheHitRate        float64 `json:"cache_hit_rate,omitempty"`
 }
 
 // ModelStats contains per-model performance

@@ -56,6 +56,8 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 	totalTokens := 0
 	totalCost := 0.0
 	totalDuration := int64(0)
+	cacheRead := 0
+	cacheCreate := 0
 
 	for _, r := range results {
 		if r.FirstAttemptOk {
@@ -74,6 +76,8 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 		totalTokens += r.TotalTokens
 		totalCost += r.CostUSD
 		totalDuration += r.DurationMs
+		cacheRead += r.CacheReadInputTokens
+		cacheCreate += r.CacheCreationInputTokens
 	}
 
 	agg.ZeroShotSuccess = safeDiv(float64(firstAttemptSuccess), float64(len(results)))
@@ -83,6 +87,17 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 	agg.TotalTokens = totalTokens
 	agg.TotalCostUSD = totalCost
 	agg.AvgDurationMs = safeDiv(float64(totalDuration), float64(len(results)))
+	agg.CacheReadTokens = cacheRead
+	agg.CacheCreationTokens = cacheCreate
+	// Denominator is every input token the model saw. r.InputTokens is the
+	// UNCACHED remainder only — cached tokens are reported separately — so the
+	// three must be summed. Dividing by InputTokens alone would overstate the
+	// hit rate wildly on a warm run (potentially >100%).
+	totalInput := 0
+	for _, r := range results {
+		totalInput += r.InputTokens + r.CacheReadInputTokens + r.CacheCreationInputTokens
+	}
+	agg.CacheHitRate = safeDiv(float64(cacheRead), float64(totalInput))
 
 	return agg
 }

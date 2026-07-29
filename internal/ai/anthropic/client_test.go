@@ -42,11 +42,15 @@ func TestClient_Generate_Success(t *testing.T) {
 		if reqBody.MaxTokens != 2048 {
 			t.Errorf("MaxTokens = %d, want 2048", reqBody.MaxTokens)
 		}
-		if reqBody.System != "You are helpful." {
-			t.Errorf("System = %s, want 'You are helpful.'", reqBody.System)
+		// System and Content are json.RawMessage since v0.31.0 (prompt caching
+		// needs the content-array form). With no cache breakpoints declared they
+		// must still marshal as bare JSON strings — asserting the raw bytes here
+		// is a stricter back-compat check than the old string comparison.
+		if string(reqBody.System) != `"You are helpful."` {
+			t.Errorf("System = %s, want `\"You are helpful.\"` (bare string, no cache breakpoints)", reqBody.System)
 		}
-		if len(reqBody.Messages) != 1 || reqBody.Messages[0].Content != "Hello" {
-			t.Errorf("Messages = %v, want [{user Hello}]", reqBody.Messages)
+		if len(reqBody.Messages) != 1 || string(reqBody.Messages[0].Content) != `"Hello"` {
+			t.Errorf("Messages = %v, want [{user \"Hello\"}] (bare string content)", reqBody.Messages)
 		}
 
 		// Return response

@@ -144,6 +144,13 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 		return Verdict{Action: ActionFile, Reason: ReasonClassifierError}, nil
 	}
 
+	// No prompt-cache breakpoint here, deliberately (M-ANTHROPIC-CACHE-HIT-RATE
+	// M2, measured 2026-07-29): the classifier prompt is ~439 tokens and the
+	// default classifier model is claude-haiku-4-5, whose minimum cacheable
+	// prefix is 4096 tokens — roughly 9x larger. Declaring a breakpoint would be
+	// accepted by the API and then silently ignored, which is the exact
+	// failure mode this milestone exists to remove. Revisit only if the prompt
+	// grows past the minimum or the model changes tier.
 	req := &ai.Request{
 		Model:          cfg.ClassifierModel,
 		SystemPrompt:   cl.prompt,

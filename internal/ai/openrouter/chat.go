@@ -36,7 +36,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 
 	messages = append(messages, chatMessage{
 		Role:    "user",
-		Content: req.UserPrompt,
+		Content: req.FullUserPrompt(),
 	})
 
 	// Build request. OpenRouter normalizes max_tokens for upstream providers,
@@ -183,17 +183,21 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 	}
 
 	return &ai.Response{
-		Text:             text,
-		InputTokens:      result.Usage.PromptTokens,
-		OutputTokens:     outputTokens,
-		TotalTokens:      result.Usage.TotalTokens,
-		ReasonTokens:     reasoningTokens,
-		FinishReason:     openai.MapChatFinishReason(result.Choices[0].FinishReason),
-		CachedTokens:     result.Usage.PromptTokensDetails.CachedTokens,
-		CostUSD:          costUSD,
-		Model:            result.Model,
-		RequestedModel:   req.Model,
-		ResolvedProvider: result.Provider,
-		FallbackChain:    fallbackChain,
+		Text:         text,
+		InputTokens:  result.Usage.PromptTokens,
+		OutputTokens: outputTokens,
+		TotalTokens:  result.Usage.TotalTokens,
+		ReasonTokens: reasoningTokens,
+		FinishReason: openai.MapChatFinishReason(result.Choices[0].FinishReason),
+		CachedTokens: result.Usage.PromptTokensDetails.CachedTokens,
+		// Also populate the normalized field. Setting only the deprecated
+		// CachedTokens meant banked eval metrics recorded 0 cache reads for every
+		// OpenRouter model, hiding whatever upstream caching was actually working.
+		CacheReadInputTokens: result.Usage.PromptTokensDetails.CachedTokens,
+		CostUSD:              costUSD,
+		Model:                result.Model,
+		RequestedModel:       req.Model,
+		ResolvedProvider:     result.Provider,
+		FallbackChain:        fallbackChain,
 	}, nil
 }

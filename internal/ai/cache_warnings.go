@@ -47,6 +47,28 @@ func WarnOnceCacheHintIgnored(provider, reason string) {
 		provider, reason)
 }
 
+// WarnOnceCachePrefixTooSmall emits a single structured warning per process
+// for a given (model, position) pair when a declared cache breakpoint targets
+// content shorter than the model's minimum cacheable prefix.
+//
+// This failure mode is otherwise INVISIBLE: Anthropic accepts the cache_control
+// marker, returns 200, and simply declines to cache — reporting
+// cache_creation_input_tokens: 0 with no error. The eval harness shipped in
+// exactly that state (a ~70-token system prompt against a 1024-token minimum),
+// which is why the low cache-hit rate had to be reported to us from outside
+// rather than surfacing in our own telemetry.
+//
+// The warning text is greppable as `cache_prefix_too_small_<position>`.
+func WarnOnceCachePrefixTooSmall(model, position string, gotTokens, minTokens int) {
+	key := "prefix_too_small:" + model + ":" + position
+	if _, loaded := cacheWarningsEmitted.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"[ai] cache_prefix_too_small_%s: model %s needs >=%d tokens to cache, breakpoint targets ~%d — Anthropic will accept the marker and silently NOT cache (the call proceeds normally and will not be re-warned this session)\n",
+		position, model, minTokens, gotTokens)
+}
+
 // resetCacheWarningsForTesting clears the dedup set. Test-only — production
 // code never calls this.
 func resetCacheWarningsForTesting() {

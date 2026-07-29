@@ -22,7 +22,7 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	}
 
 	// Build request — detect multimodal JSON input and construct proper parts
-	parts := buildParts(req.UserPrompt)
+	parts := buildParts(req.FullUserPrompt())
 	apiReq := generateRequest{
 		Contents: []content{
 			{
@@ -142,15 +142,20 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	reasoningTokens := result.UsageMetadata.ThoughtsTokenCount
 
 	return &ai.Response{
-		Text:         text,
-		ImageData:    imageData,
-		ImageMIME:    imageMIME,
-		InputTokens:  result.UsageMetadata.PromptTokenCount,
-		OutputTokens: outputTokens,
-		TotalTokens:  result.UsageMetadata.TotalTokenCount,
-		ReasonTokens: reasoningTokens,
-		FinishReason: normalizeGeminiFinishReason(result.Candidates[0].FinishReason),
-		Model:        req.Model,
+		Text:        text,
+		ImageData:   imageData,
+		ImageMIME:   imageMIME,
+		InputTokens: result.UsageMetadata.PromptTokenCount,
+		// Gemini reports both implicit (2.5+, automatic) and explicit
+		// (CachedContent API) cache hits here. Recording it is the only way to
+		// tell whether implicit caching is engaging, since there is no
+		// request-side knob for it.
+		CacheReadInputTokens: result.UsageMetadata.CachedContentTokenCount,
+		OutputTokens:         outputTokens,
+		TotalTokens:          result.UsageMetadata.TotalTokenCount,
+		ReasonTokens:         reasoningTokens,
+		FinishReason:         normalizeGeminiFinishReason(result.Candidates[0].FinishReason),
+		Model:                req.Model,
 	}, nil
 }
 
