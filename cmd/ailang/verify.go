@@ -374,26 +374,10 @@ func verifyCommand() {
 		// references via its params, return type, or body. This prevents cascade failures
 		// where unrelated cross-module types (e.g., Json) poison functions that only use
 		// primitive types (e.g., int → int).
-		funcADTTypes := filterADTTypesForFunction(params, returnSort, innerBody, adtTypes)
-
-		// Demand-driven record-alias and inline-record filtering: same principle.
-		// Without these, every function gets the union of all aliases and inline
-		// records from every imported module, causing cascade Z3 errors when an
-		// unused alias references a sort that the ADT filter correctly dropped.
-		// buildNeededSortSet must see the FULL alias map (not the filtered one)
-		// so that aliases referenced only via inline-record bodies (e.g., TableCell
-		// inside Record_headers_rows) are still detected and pulled into `needed`.
-		needed := buildNeededSortSet(params, returnSort, innerBody, funcADTTypes, recordAliases, adtRecordDecls)
-		funcEncOpts.ExtraDeclarations = filterExtraDeclarationsForFunction(adtRecordDecls, needed)
-		// Filter aliases against the widened needed-set: includes both directly-
-		// referenced aliases AND aliases pulled in by inline-record bodies.
-		widenedAliases := make(map[string]*types.TRecord)
-		for name, rec := range recordAliases {
-			if needed[name] {
-				widenedAliases[name] = rec
-			}
-		}
-		funcEncOpts.RecordTypeAliases = widenedAliases
+		funcADTTypes, funcAliases, funcExtraDecls :=
+			filterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
+		funcEncOpts.RecordTypeAliases = funcAliases
+		funcEncOpts.ExtraDeclarations = funcExtraDecls
 
 		// Encode function to SMT-LIB (with cross-function call support)
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
@@ -401,16 +385,7 @@ func verifyCommand() {
 			// If the error is due to unresolvable cross-module types,
 			// skip gracefully instead of reporting as error
 			if errors.Is(err, smt.ErrUnresolvableTypes) {
-				results = append(results, verifyResult{
-					Function: funcName,
-					Status:   "skipped",
-					Reason:   fmt.Sprintf("Uses cross-module types not yet supported in Z3 encoding (%v)", err),
-					Rejections: []smt.SMTRejectionReason{{
-						Code:    smt.RejectUnencodable,
-						Message: err.Error(),
-						Hint:    "Cross-module record type aliases and recursive ADTs are not yet supported in Z3 verification",
-					}},
-				})
+				results = append(results, unresolvedTypeVerifyResult(funcName, err))
 				skipped++
 				continue
 			}

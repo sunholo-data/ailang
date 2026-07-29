@@ -1579,6 +1579,30 @@
       "description": "Record pattern matching in contracts \u2014 Z3 verifies match expressions that destructure records into field bindings"
     },
     {
+      "path": "runnable/contracts/record_adt_cycle_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "records",
+        "adt",
+        "mutual-recursion"
+      ],
+      "description": "A genuine record/ADT cycle emitted as one mutual SMT datatype group"
+    },
+    {
+      "path": "runnable/contracts/record_adt_sort_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "records",
+        "adt",
+        "lists"
+      ],
+      "description": "A named record containing list[ADT] verifies with dependency-ordered SMT declarations"
+    },
+    {
       "path": "runnable/contracts/record_verify.ail",
       "status": "working",
       "tags": [
@@ -2646,11 +2670,11 @@
     }
   ],
   "statistics": {
-    "total": 190,
-    "working": 182,
+    "total": 192,
+    "working": 184,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9578947368421052,
+    "coverage": 0.9583333333333334,
     "experimental": 0
   },
   "milestones": {

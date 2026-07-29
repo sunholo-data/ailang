@@ -343,7 +343,10 @@ func TestEncodeFunction_WithReturnSort(t *testing.T) {
 	}
 
 	// With explicit return sort
-	result, err := EncodeFunction("f", params, body, "AgeClass", meta, nil)
+	ageClasses := map[string][]ADTVariant{"AgeClass": {
+		{Name: "Child"}, {Name: "Adult"},
+	}}
+	result, err := EncodeFunction("f", params, body, "AgeClass", meta, ageClasses)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

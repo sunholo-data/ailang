@@ -1,0 +1,15 @@
+-- Record aliases may reach user ADTs through sequence fields.
+-- Run: ailang verify examples/runnable/contracts/record_adt_sort_verify.ail
+-- Expect: 1 verified
+
+module examples/runnable/contracts/record_adt_sort_verify
+
+export type Evidence = CompilerOutput(string) | TestReport(string, bool)
+export type Proposal = { name: string, evidence: list[Evidence] }
+
+export func hasName(p: Proposal, n: string) -> bool ! {}
+ensures { result == (p.name == n) } {
+  p.name == n
+}
+
+export func main() -> int ! {} { 0 }

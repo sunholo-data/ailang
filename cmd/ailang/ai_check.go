@@ -155,12 +155,33 @@ func aiCheckCommand() {
 		Verify: verifySection,
 	}
 
+	// The JSON is ALWAYS emitted before the exit decision: `ai-check` is an AI
+	// convergence signal, so a consumer must be able to read the full report even
+	// on the failing exit path.
 	outputAICheck(output)
 
-	// Exit code: 1 if check failed or contract violations found
-	if !checkSection.Passed || verifySection.Counterexample > 0 {
+	if aiCheckExitCode(checkSection, verifySection) != 0 {
 		os.Exit(1)
 	}
+}
+
+// aiCheckExitCode decides `ai-check`'s process exit status from its own JSON report.
+//
+// Extracted from aiCheckCommand so the exit lanes are unit-testable without a
+// subprocess (os.Exit is untestable in-process). The contract, which the eval
+// harness and every agent convergence loop depend on:
+//
+//	check failed        -> 1
+//	counterexample > 0  -> 1
+//	verifier errors > 0 -> 1   (added by M-Z3-ADT-RECORD-SORT; process status must
+//	                            never disagree with the JSON it just printed)
+//	skipped-only        -> 0   (a skip is "not proved", not "disproved")
+//	verified-only       -> 0
+func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
+	if !check.Passed || verify.Counterexample > 0 || verify.Errors > 0 {
+		return 1
+	}
+	return 0
 }
 
 // runVerification runs contract verification on compiled artifacts.
@@ -341,21 +362,15 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		funcEncOpts.Contracts = meta.Contracts
 		funcEncOpts.RecursiveDepth = recursiveDepth
 
-		// Demand-driven ADT filtering (same as verify.go)
-		funcADTTypes := filterADTTypesForFunction(params, returnSort, innerBody, adtTypes)
+		funcADTTypes, funcAliases, funcExtraDecls :=
+			filterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
+		funcEncOpts.RecordTypeAliases = funcAliases
+		funcEncOpts.ExtraDeclarations = funcExtraDecls
 
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
 		if err != nil {
 			if errors.Is(err, smt.ErrUnresolvableTypes) {
-				section.Results = append(section.Results, verifyResult{
-					Function: funcName, Status: "skipped",
-					Reason: fmt.Sprintf("Uses cross-module types not yet supported in Z3 encoding (%v)", err),
-					Rejections: []smt.SMTRejectionReason{{
-						Code:    smt.RejectUnencodable,
-						Message: err.Error(),
-						Hint:    "Cross-module record type aliases and recursive ADTs are not yet supported in Z3 verification",
-					}},
-				})
+				section.Results = append(section.Results, unresolvedTypeVerifyResult(funcName, err))
 				section.Skipped++
 				continue
 			}

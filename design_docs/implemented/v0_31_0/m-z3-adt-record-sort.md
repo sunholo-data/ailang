@@ -1,6 +1,7 @@
 # M-Z3-ADT-RECORD-SORT: Declare Reachable ADTs Through Records and Make `ai-check` Honest
 
-**Status**: Planned — **DECIDED by Mark 2026-07-28 (attended): OPTION (B)** — sprint `#510` separately and FIRST (small, self-contained, closes the standing-rule violation affecting every `ai-check` caller incl. Ailang World); then THIS doc routes to sprint-planner unchanged with A5 honestly compliant. [Was: PARKED `needs-human-review` after quorum round 2 (see "Quorum round 2 — PARKED" below); the design direction was never contested.]
+**Status**: Planned — **DECIDED by Mark 2026-07-28 (attended): OPTION (B)**. Sprint #510
+landed first as `9253ec8a8`, so A5 is now honestly compliant and this sprint can proceed.
 **Target**: v0.31.0
 **Priority**: P0
 **Estimated**: 3–4 days
@@ -20,7 +21,7 @@
 | A2: Replayability | 0 | No trace behavior changes. |
 | A3: Effect Legibility | 0 | No effect semantics change. |
 | A4: Explicit Authority | 0 | No authority change. |
-| A5: Bounded Verification | +1 | Finite declaration construction is followed by a mandatory Z3 `-T:<seconds>` soft timeout; zero, unset, and sub-second configurations floor to 5 seconds. A 1-second adversarial probe returned structured timeout state in 1.159 s. There is no independent hard wall-clock kill, recorded as a bounded residual risk below. |
+| A5: Bounded Verification | +1 | Finite declaration construction is followed by Z3's timeout and an independent hard wall-clock deadline. Both solver probes use `exec.CommandContext`, `WaitDelay`, and `hardTimeout = max(configured timeout, effective timeout) + solverKillGrace` (#510, `9253ec8a8`). |
 | A6: Safe Concurrency | 0 | No concurrency change. |
 | A7: Machines First | +1 | `ai-check` no longer reports process success when its JSON reports a verifier error; unsupported shapes retain a structured rejection. |
 | A8: Minimal Syntax | 0 | No syntax change. |
@@ -117,7 +118,7 @@ below did.
 | V3 | Inherited A3 | Failing script omits `Proposal`; direct ADT and record→`list[string]` scripts contain their datatype declarations | Controller ran `ailang verify -verbose` on all three and supplied verbatim dumps | Relied on; author `ai-check` output independently confirms the omitted-sort consequence. |
 | V4 | Inherited A4; author code read | First alias fixpoint silently abandons unresolved records | Read `internal/smt/codegen.go:213-260`, especially `allFieldsPrimitiveOrDeclared` and `if !progress { break }` | **Confirmed.** Required aliases remain in `remaining` with no error/result. |
 | V5 | **Author contradiction to A4** | The second fixpoint is also a silent give-up | Read `internal/smt/codegen.go:267-363`; `git log -- internal/smt/codegen.go` | **CONTRADICTED at `f495885b1`:** unresolved pending ADT/inline-record declarations go through `findSCCs` and `DeclareDatatypesMutual`; they are not simply dropped. The first fixpoint is the live silent-drop site. |
-| V6 | Author recheck of B1 | A real current `.ail` corpus instance of `ParsedDocument → Block → Record_blocks_kind → Block` exists | `rg -n "ParsedDocument|Record_blocks_kind|type Block|blocks: list\\[Block\\]" --glob '*.ail' --glob '*.go' --glob '*.md'` | **Not found in the `.ail` corpus.** The canonical shape exists in comments and unit fixtures. The comment's “current corpus” implication is unverified and must not justify exclusion. |
+| V6 | Author recheck of B1 | A real `.ail` program can express `Block → Record_blocks_kind → Block` | Construct and verify `type Block = Para(string) \| Container({blocks: list[Block], kind: string})` plus a record alias over `list[Block]` | **Confirmed.** The shape is ordinary AILANG; its earlier absence from the corpus was a coverage gap, now closed by `examples/runnable/contracts/record_adt_cycle_verify.ail`. |
 | V7 | Author recheck of B1 | Z3 4.16.0 accepts the alleged record/ADT cycle as one plural datatype group | Pipe a `Block ↔ Record_blocks_kind` `(declare-datatypes ...)` script to `z3 -in`; `z3 --version` | **Confirmed:** Z3 4.16.0 returns `sat`. |
 | V8 | Author recheck of B1/B2 | Mutual-recursion graph/group machinery already exists and is tested | Read `internal/smt/codegen_mutual.go`; `go test ./internal/smt -run 'Test(DeclareDatatypesMutual\\|FindSCCs\\|SplitDeclareDatatype)' -count=1` | **Confirmed:** Tarjan SCC + plural emitter exist; focused tests pass. This extends A3 and makes reuse feasible. |
 | V9 | Author inventory of B3, corrected in revision 1 | Which record field sorts enter the first silent-drop path | Re-read `MapType`/`MapRecordFields` in `internal/smt/types.go:36-90` and the Step-0 predicate | **Confirmed, with prior wording corrected:** any successfully mapped nonprimitive sort not already declared defers the alias: a direct bare ADT/other `TCon` name, `(Seq ADT)`, or an unresolved named record. “Arbitrary `TCon`” meant an arbitrary **bare constructor name**, not an arbitrary parameterized SMT sort. Type variables/functions/unit fail mapping earlier and are deleted, also silently. Non-list `TApp` is separately flattened to its bare constructor name. |
@@ -146,54 +147,11 @@ below did.
   V9 is corrected to remove the misleading implication that “arbitrary `TCon`” meant arbitrary
   parameterized SMT syntax.
 
-### Quorum round 2 — PARKED `needs-human-review`
+### Quorum round 2 — resolved
 
-Round 2 returned **blocked** again, on two NEW objections. Neither disputes the design
-**direction**; both were reproduced first-party by the controller before being acted on, and they
-did **not** land in the same place.
-
-- **`gemini-3-1-pro` — CLOSED AT DESIGN TIME.** It objected that V15's cross-boundary claim was
-  self-admittedly "not yet empirical" and must not be deferred to implementation. It was right to
-  refuse it, and the controller simply **ran the probe it asked for**: see V15 above —
-  `err=<nil>`, `verify.errors=1` parsed correctly from a child that exited 1. The objection is
-  satisfied by measurement, not by argument.
-
-- **`gpt5-6-sol` — CONFIRMED, AND IT IS THE PARK.** It objected that the design scores axiom A5
-  compliant while knowingly leaving **production** solver execution unbounded. Verified
-  first-party at `internal/smt/solver.go:147-148`:
-
-  ```go
-  cmd := exec.Command(z3Path, args...)
-  output, err := cmd.CombinedOutput()
-  ```
-
-  No `CommandContext`, no deadline, no `Process.Kill`, no process group. The only bound is Z3's
-  **cooperative** `-T:` flag, so a wedged or non-conforming solver hangs `verify`/`ai-check`
-  indefinitely. The reviewer is correct that a cooperative flag plus a test-only watchdog does not
-  discharge a bounded-waits axiom. **Filed independently as `ailang#510`** — it is a real defect
-  in its own right, not merely a documentation gap, and it exists at HEAD regardless of what this
-  doc does.
-
-**Why this parks rather than taking the narrow-refinement carve-out.** The carve-out permits the
-controller to apply reviewers' verbatim fixes only when every remaining objection is free of
-design-direction disputes *and* of controller judgment. `gpt5-6-sol`'s fix is a **scope
-expansion** — adding process-lifecycle management (context deadline, process-group kill, reap,
-fake-solver tests) to a sprint already estimated at 3–4 days. Deciding whether that belongs here,
-or ships as its own item, is precisely the sizing judgment the carve-out excludes. Same reasoning
-as iteration 114.
-
-**Recommended to Mark — option (B):**
-
-- **(A)** Absorb `#510` into this sprint as a fourth milestone. Honest, but pushes the estimate
-  past the sprint-sized bar and couples an encoder fix to a process-lifecycle fix.
-- **(B) — recommended.** Ship this doc as-is, with **A5 scored NON-compliant** and pointing at
-  `#510`, and sprint `#510` **separately and first** (it is small, self-contained, and closes a
-  standing-rule violation that affects every `ai-check` caller — including the sibling Ailang
-  World mission, which gates on `ai-check`). Then this doc's A5 becomes honestly compliant and it
-  routes to sprint-planner unchanged.
-- **(C)** Ship this doc as-is and accept the unbounded wait as a documented residual risk. Cheapest,
-  but it leaves a standing-rule violation open and would be scoring an axiom compliant that
-  demonstrably is not.
+The bounded-wait objection was resolved before this sprint: #510 landed as `9253ec8a8`, adding
+hard wall-clock deadlines and process reaping to both solver probes. V15's nonzero-child JSON
+behavior was also measured and is retained as a permanent regression test in this sprint.
 
 ---
 
@@ -473,10 +431,11 @@ All three milestones are **in scope** for this 3–4 day sprint.
 | File | Purpose | Estimate |
 |---|---|---:|
 | `internal/smt/codegen.go` | unified pending declaration graph; fail-loud validation | +100/−60 |
-| `internal/smt/codegen_mutual.go` | deterministic SCC/member ordering or structured declaration helpers | +30/−10 |
+| `internal/smt/codegen_decl_graph.go` | small declaration staging helpers, keeping codegen.go below 800 lines | +20 |
 | `internal/smt/codegen_*_test.go` | dependency, cycle, determinism, leak-gate unit tests | +250 |
+| `cmd/ailang/verify_filter.go` | shared driver demand closure through record aliases and ADTs | +50/−5 |
 | `cmd/ailang/ai_check.go` | error exit condition; neutral skip reason | +15/−10 |
-| `cmd/ailang/verify.go` | neutral skip reason | +5/−5 |
+| `cmd/ailang/verify.go` | shared demand filter and neutral skip reason | +5/−20 |
 | `cmd/ailang/*_test.go` | end-to-end JSON/status/exit tests | +150 |
 | `internal/eval_harness/verify.go` | correct stale comment only; behavior should remain | +2/−2 |
 | `internal/eval_harness/*_test.go` | empirical nonzero-child JSON parsing test | +60 |
@@ -566,7 +525,6 @@ integration fixtures during implementation rather than referenced by `/tmp` in C
 | Fail-loud gate converts a supported case to skip | Low | Medium | Controls for primitive, sequence, direct ADT, nested record, and mutual groups. |
 | Exit-code change surprises an external caller | Medium | Low | JSON schema/output order unchanged; changelog explicitly documents the correction. |
 | Full test suite binds loopback under sandbox | Medium | Low | Label such failures **UNINFORMATIVE UNDER SANDBOX**; rely on focused non-network suites plus unsandboxed CI for socket tests. |
-| Z3 ignores or fails to honor its soft/per-query `-T:` timeout | Low | High | **Residual risk:** production uses `exec.Command`/`CombinedOutput` with no context deadline, timer, or hard wall-clock process kill. The mandatory `-T:` and timeout regression AC bound normal supported Z3 behavior, but a wedged/nonconforming child can still hang. Queue a hard-kill backstop separately rather than claiming one exists. |
 
 ---
 
@@ -577,8 +535,7 @@ integration fixtures during implementation rather than referenced by `/tmp` in C
   silently discards `ty.Args`, so `Box[int]` and `Box[string]` collapse to the same SMT sort
   `Box`. This distinct correctness issue requires its own backlog item and is not fixed here.
 - Recursive contract reasoning or bounded recursion changes.
-- Changes to Z3 version, solver logic, hard-kill policy, or model extraction; this sprint only
-  regression-tests the existing mandatory soft timeout.
+- Changes to Z3 version, solver logic, hard-kill policy, or model extraction; #510 already landed.
 - Making `ai-check` skips nonzero or adding an `ai-check -strict` flag.
 - A full SMT-LIB parser/typed intermediate representation.
 - Changing eval KPI definitions, benchmark scores, or historical results.
@@ -597,8 +554,6 @@ integration fixtures during implementation rather than referenced by `/tmp` in C
   declaration/sort and must not assert a cross-module-only cause.
 - Parametric non-list ADT encoding/monomorphization for
   `internal/smt/types.go:56-67` — queue separately because type arguments currently collapse.
-- Whether to add an OS-level hard wall-clock kill around Z3 — queue as a separate bounded-
-  verification hardening item; current production has only Z3's mandatory soft `-T:` timeout.
 
 ---
 
@@ -616,7 +571,8 @@ integration fixtures during implementation rather than referenced by `/tmp` in C
 ## Sprint Exit
 
 The sprint is complete only when M1, M2, and M3 acceptance criteria pass, focused
-`go test ./internal/smt ./cmd/ailang ./internal/eval_harness` is green, `go build ./...` is green,
+`go test ./internal/smt ./cmd/ailang ./internal/eval_harness` is green,
+`go build ./cmd/ailang ./internal/...` is green,
 and the changelog documents both the expanded record/ADT verification fragment and
 `ai-check`'s corrected error exit. Any loopback bind failure under this sandbox is recorded as
 **UNINFORMATIVE UNDER SANDBOX**, not as a pass or regression.
