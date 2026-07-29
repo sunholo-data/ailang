@@ -174,7 +174,9 @@ func (sr *SuiteResult) Success() bool {
   - `()` (unit) → constant generator (one line; in-repo occurrence verified: `cross_module_types.ail` `_: ()`).
   - `*ast.TypeApp` over a user type with args → substitute args into the decl's `TypeParams`, bounded by depth.
 - **Recursion bound**: depth budget (default 3) threaded through derivation; at the bound, restrict ADT choice to non-recursive constructors (compute per-constructor recursiveness once per decl); if none exist → return no generator (vacuous skip, loud per Lane A). `NewSizedGenerator` exists if the implementer prefers it.
-- **Value splice** (load-bearing, easy to miss): generated values flow into the harness via `astExprToCore(r.valueToLiteral(v))` (runner.go:393, :510). Verified: `astExprToCore` (harness.go:156) already handles `ast.Record`, `ast.Tuple`, `ast.List`, `ast.FuncCall` (constructor application), `ast.Identifier` — but **`valueToLiteral` (runner.go:691) falls through to a silent unit literal** for anything beyond scalar/list. B1 must add arms: `RecordValue → ast.Record`, `TupleValue → ast.Tuple`, `TaggedValue → ast.FuncCall(Identifier(ctor), fields)` (bare `Identifier` for nullary constructors) — and change the default arm to a loud error (signature becomes `(ast.Expr, error)`; a failure surfaces as a property **Fail**, not a skip). Without this, a derived record generator would silently test `f(())` — the same vacuous-pass bug one layer down.
+- **Value splice** (load-bearing, easy to miss): generated values flow into the harness via `astExprToCore(r.valueToLiteral(v))` (runner.go:393, :510). Verified: `astExprToCore` (harness.go:156) already handles `ast.Record`, `ast.Tuple`, `ast.List`, `ast.FuncCall` (constructor application), `ast.Identifier` — but **`valueToLiteral` (runner.go:691) falls through to a silent unit literal** for anything beyond scalar/list. B1 must add arms: **`UnitValue → ast.Literal{Kind: ast.UnitLit}`**, `RecordValue → ast.Record`, `TupleValue → ast.Tuple`, `TaggedValue → ast.FuncCall(Identifier(ctor), fields)` (bare `Identifier` for nullary constructors) — **all four arms MUST be in place BEFORE** the default arm becomes a loud error (signature becomes `(ast.Expr, error)`; a failure surfaces as a property **Fail**, not a skip). Without this, a derived record generator would silently test `f(())` — the same vacuous-pass bug one layer down.
+
+> **The explicit `UnitValue` arm is mandatory, not optional.** Raised by `gemini-3-1-pro` in quorum round 2 and applied here verbatim under the narrow-refinement carve-out. B1 adds a `()` constant generator (unit bullet above), but today's *silent* default arm is exactly what makes unit work: `runner.go:720-724` returns `&ast.Literal{Kind: ast.UnitLit, Value: struct{}{}}` for everything unrecognised. Converting that default to a loud error **without** an explicit `UnitValue` arm would send every value produced by the new `()` generator down the error path and fail the harness — a direct contradiction between two B1 bullets. **Ordering is the fix: add the arms first, flip the default last.** Controller-verified first-party that `eval.UnitValue` and `ast.UnitLit` both exist and map exactly as written.
 - **Shrinking**: minimal honest scope — per-element `TupleShrinker` and per-field `RecordShrinker` (composing existing field shrinkers); ADTs shrink within-constructor via existing `NewADTShrinker`. Cross-constructor shrinking (e.g. `Dark(n)` → `Light`) is out of scope v1. **Shrinking behaviour for derived generators was NOT investigated beyond code reading — treat quality of shrunk counterexamples as unvalidated until B1's tests exist.**
 
 **B2. User-supplied generator escape hatch — DEFERRED, not in Lane B's shippable scope** (~1 day when unparked) — ask (3) of #517:
@@ -399,6 +401,7 @@ All verified to exist and their current behavior measured (2026-07-29 sweep):
 | B-2 | Anonymous record param `{x: int, y: int}` (e.g. `record_verify.ail`'s `getX`) runs 100 cases | Restrict derivation to named `TypeDecl`s only (drop the direct `*ast.RecordType` arm) |
 | B-3 | ADT-generated `TaggedValue`s pattern-match correctly in `match` inside the function under test (the `level`/`Shade` property passes, both constructors observed across the run) | Restore hardcoded `ModulePath: "test", TypeName: "ADT"` in `ADTGenerator.Generate` |
 | B-4 | `valueToLiteral` on an unknown `eval.Value` produces a property **Fail** with an explicit error, never a silent `()` splice | Restore the silent unit-literal default arm |
+| B-4a | A property with a `_: ()` unit parameter still runs its 100 cases AFTER the default arm becomes a loud error (i.e. the explicit `UnitValue` arm carries it, not the removed fallback) | Delete the explicit `UnitValue → ast.Literal{Kind: ast.UnitLit}` arm — the `()` generator's values then hit the loud-error path and the property fails |
 | B-5 | Recursive ADT (`type Tree = Leaf \| Node(kids: [Tree])`) generation terminates within depth bound; property runs 100 cases | Remove the depth budget (test then hangs/overflows — enforce with a test timeout) |
 | B-7 | Imported named type still vacuous-skips **loudly** (exit 1, existing `no generator for parameter …` message text — the `gen<TypeName>` hint is deferred with B2) | Make unresolvable types silently return a unit-constant generator |
 
@@ -534,7 +537,35 @@ Both objections landed exclusively on Lane B2; neither reviewer objected to Lane
 | gemini-3-1-pro | REJECT | Anonymous/refined-type hint text told users to alias the type to `T` and define `genT` but omitted changing the function's parameter type to `T` — since `gen<TypeName>` discovery only fires on named-type resolution, following the hint re-emits the same error (structurally ineffective instructions; DX trap) | Hint wording in the (deferred) B2 spec now reads `…, define export func genT(seed: int) -> T, and change the parameter type to T`, with the mandatory-clause rationale recorded inline; acceptance criterion B-9 updated to assert the signature-change clause and to name its omission as a red-turning mutation |
 
 Lane A (A1–A6, its acceptance-criteria table, and mutation column) was left **byte-identical** in
-this revision — no reviewer objected to it; it routes to the sprint-planner unchanged.
+this revision — no reviewer objected to it; it routes to the sprint-planner unchanged. Verified by
+`sha256`-comparing the extracted Lane A section before/after (the only differing lines were the
+`### Lane B` heading lines that terminate the range); `A-*` acceptance rows: 7 before, 7 after.
+
+**2026-07-29 — round 2 re-quorum: BLOCKED (rc=3), N−1 DEGRADED; narrow-refinement carve-out applied.**
+Artifact: `.ailang/state/mission-quorum/m-property-generator-coverage-2026-07-29T22-02-53Z.json`.
+
+- ⚠ **`gpt5-6-sol` was ABSENT** in round 2 (`present: false`, `cost_usd: 0`) — recorded by name, never
+  a silent pass. Its round-1 objection had already been resolved by deferral, but it did **not**
+  re-review that resolution. The quorum therefore degraded to N−1 and this is **FLAGGED** in the
+  mission log's routing-evidence row.
+- **`gemini-3-1-pro` — REJECT, a NEW objection, and it is a genuine catch.** B1 adds a `()` constant
+  generator while also mandating that `valueToLiteral`'s default arm become a loud error — but the
+  arm list omitted `UnitValue`, and that silent default *is* what makes unit work today. Every value
+  from the new `()` generator would have hit the error path and failed the harness.
+  **Reproduced first-party before acting on it** (per the judge-findings discipline): doc line 174
+  does add the unit generator, the arm list did omit `UnitValue`, and `runner.go:720-724` is indeed
+  the unit fallback; `eval.UnitValue` and `ast.UnitLit` both exist.
+  **Resolution — carve-out, reviewer's fix verbatim**: the arm list now leads with
+  `UnitValue → ast.Literal{Kind: ast.UnitLit}` and states the ordering constraint (arms first,
+  default last), with the rationale inline; new acceptance row **B-4a** asserts a `_: ()` property
+  still runs 100 cases after the default becomes loud, its red-turning mutation being deletion of the
+  unit arm.
+
+**Carve-out justification (both limbs met):** the sole remaining blocking objection (a) carried a
+concrete reviewer-authored `proposed_fix`, applied verbatim, and (b) disputed **completeness**, not
+the design DIRECTION — it is a missing-arm/ordering defect inside B1, which is **not in this sprint's
+scope** in any case. Lane A remains unobjected across **both** rounds. This is not force-passing: no
+objection was overridden, and no controller-invented resolution was substituted for a reviewer's.
 
 ---
 
