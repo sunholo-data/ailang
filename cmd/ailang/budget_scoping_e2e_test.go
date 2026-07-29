@@ -12,59 +12,20 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"testing"
 )
 
-var (
-	budgetBinOnce sync.Once
-	budgetBinPath string
-	budgetBinErr  error
-)
-
-// budgetBin builds the ailang binary once for the whole matrix into a temp dir
-// that survives across all tests (NOT a per-test t.TempDir, which is removed
-// when the first test returns and would delete the shared binary).
-func budgetBin(t *testing.T) string {
-	t.Helper()
-	budgetBinOnce.Do(func() {
-		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-		if err != nil {
-			budgetBinErr = err
-			return
-		}
-		binName := "ailang-budget-e2e"
-		if runtime.GOOS == "windows" {
-			binName += ".exe"
-		}
-		dir, err := os.MkdirTemp("", "ailang-budget-e2e")
-		if err != nil {
-			budgetBinErr = err
-			return
-		}
-		budgetBinPath = filepath.Join(dir, binName)
-		cmd := exec.Command("go", "build", "-o", budgetBinPath, "./cmd/ailang")
-		cmd.Dir = projectRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			budgetBinErr = err
-			t.Logf("build output:\n%s", out)
-		}
-	})
-	if budgetBinErr != nil {
-		t.Fatalf("ailang binary build failed: %v", budgetBinErr)
-	}
-	return budgetBinPath
-}
+// budgetBin returns the shared ailang test binary. It used to keep its own
+// sync.Once + build of the identical `./cmd/ailang` target; that duplicate is
+// gone so the whole package pays for exactly one `go build` (see buildAilang).
 
 // runBudget writes src to a temp module and runs `main` with --caps IO.
 // Returns combined stdout, stderr, and exit code.
 func runBudget(t *testing.T, name, src string) (stdout, stderr string, exit int) {
 	t.Helper()
-	bin := budgetBin(t)
+	bin := buildAilang(t)
 	dir := t.TempDir()
 	file := filepath.Join(dir, name+".ail")
 	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {

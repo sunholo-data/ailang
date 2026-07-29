@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -425,26 +427,64 @@ func TestSetupNetHandler(t *testing.T) {
 
 // TestCLI_NetAllowHTTPFlag_Exists is a regression test ensuring the
 // --net-allow-http flag is recognized by the CLI (not just documented).
-// buildAilang builds the ailang binary once per test run and returns its path.
-// Uses a compiled binary instead of "go run" so exit codes propagate correctly.
+var (
+	ailangBinOnce sync.Once
+	ailangBinDir  string
+	ailangBinPath string
+	ailangBinErr  error
+)
+
+// buildAilang builds the ailang binary ONCE for the whole test binary and
+// returns its path. Uses a compiled binary instead of "go run" so exit codes
+// propagate correctly.
+//
+// The sync.Once is load-bearing, not an optimisation. This doc comment claimed
+// "once per test run" for months while the body rebuilt on EVERY call: one
+// `go build ./cmd/ailang` costs ~10s, and the package accumulated 14 separate
+// build sites, so ~150s of cmd/ailang's runtime was the same binary compiled
+// over and over. That put the package at ~225s against the 300s Windows CI
+// ceiling and turned dev red on 2026-07-29 when a slow runner crossed 300s.
+//
+// The binary goes in an os.MkdirTemp dir, NOT a per-test t.TempDir: a t.TempDir
+// is removed when the FIRST caller returns, which would delete the shared
+// binary out from under every later test. TestMain removes the dir at exit.
 func buildAilang(t *testing.T) string {
 	t.Helper()
-	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("Failed to get project root: %v", err)
+	ailangBinOnce.Do(func() {
+		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			ailangBinErr = fmt.Errorf("failed to get project root: %w", err)
+			return
+		}
+		binName := "ailang"
+		if runtime.GOOS == "windows" {
+			binName = "ailang.exe"
+		}
+		dir, err := os.MkdirTemp("", "ailang-test-bin")
+		if err != nil {
+			ailangBinErr = fmt.Errorf("failed to create temp dir for test binary: %w", err)
+			return
+		}
+		ailangBinDir = dir
+		ailangBinPath = filepath.Join(dir, binName)
+		cmd := exec.Command("go", "build", "-o", ailangBinPath, "./cmd/ailang")
+		cmd.Dir = projectRoot
+		if out, err := cmd.CombinedOutput(); err != nil {
+			ailangBinErr = fmt.Errorf("failed to build ailang: %w\n%s", err, out)
+		}
+	})
+	if ailangBinErr != nil {
+		t.Fatalf("%v", ailangBinErr)
 	}
-	binName := "ailang"
-	if runtime.GOOS == "windows" {
-		binName = "ailang.exe"
+	return ailangBinPath
+}
+
+// cleanupAilangBin removes the shared test binary's temp dir. Called from
+// TestMain so the os.MkdirTemp above is not leaked on every `go test` run.
+func cleanupAilangBin() {
+	if ailangBinDir != "" {
+		_ = os.RemoveAll(ailangBinDir)
 	}
-	binPath := filepath.Join(t.TempDir(), binName)
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ailang")
-	cmd.Dir = projectRoot
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build ailang: %v\n%s", err, out)
-	}
-	return binPath
 }
 
 // runAilangBin runs a pre-built ailang binary and returns stdout, stderr, exit code.

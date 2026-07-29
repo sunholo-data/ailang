@@ -297,5 +297,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	os.Exit(m.Run())
+	code := m.Run()
+	// Remove the shared ailang test binary built by buildAilang (os.MkdirTemp,
+	// so it outlives every t.TempDir and must be cleaned up explicitly).
+	cleanupAilangBin()
+	os.Exit(code)
 }

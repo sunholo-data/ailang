@@ -312,6 +312,15 @@ jobs:
       # still get caught — a 5min ceiling is well above any healthy test.
       # If a test is genuinely Windows-incompatible (not just slow), fix it or
       # skip it with a `// TODO(windows-ci): <reason>` + tracked GH issue.
+      #
+      # MARGIN, measured — this ceiling has been reached once (red dev
+      # 2026-07-29). cmd/ailang is the long pole: it drifted 157s (07-27) ->
+      # 225s (07-29) and then crossed 300s on a slow runner. Cause was NOT
+      # slow tests but 14 duplicate `go build ./cmd/ailang` sites; collapsing
+      # them onto one sync.Once builder took the package to ~26s locally.
+      # If cmd/ailang creeps back toward ~2min here, look for a NEW per-test
+      # build site before raising this number — the same package already
+      # outgrew a 60s Linux ceiling in July, and raising it just defers the red.
       run: go test -timeout 300s ./...
 
     # Same anti-silent-skip gate as the Linux job (minus z3, which isn't

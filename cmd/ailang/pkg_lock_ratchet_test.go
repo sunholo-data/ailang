@@ -27,9 +27,11 @@ func TestWarnSilentRatchet_WarnWhenVersionBumpsWithoutMessage(t *testing.T) {
 
 	// Point ~/.ailang to a temp dir with an empty DB (no upgrade-available messages).
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	// AILANG_STATE_DIR, not HOME: GetDefaultDatabasePath falls back to
+	// os.UserHomeDir(), which ignores HOME on Windows (it reads %USERPROFILE%),
+	// so a HOME-only override isolated nothing there — these tests opened,
+	// migrated and closed the runner's REAL ~/.ailang DB instead.
+	t.Setenv("AILANG_STATE_DIR", tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 
@@ -66,9 +68,11 @@ func TestWarnSilentRatchet_NoWarnWhenVersionUnchanged(t *testing.T) {
 	os.Stderr = w
 
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	// AILANG_STATE_DIR, not HOME: GetDefaultDatabasePath falls back to
+	// os.UserHomeDir(), which ignores HOME on Windows (it reads %USERPROFILE%),
+	// so a HOME-only override isolated nothing there — these tests opened,
+	// migrated and closed the runner's REAL ~/.ailang DB instead.
+	t.Setenv("AILANG_STATE_DIR", tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 
@@ -95,9 +99,11 @@ func TestWarnSilentRatchet_NoWarnWhenMessageExists(t *testing.T) {
 
 	// Create a temp DB and insert an upgrade-available message for 0.1.1.
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	// AILANG_STATE_DIR, not HOME: GetDefaultDatabasePath falls back to
+	// os.UserHomeDir(), which ignores HOME on Windows (it reads %USERPROFILE%),
+	// so a HOME-only override isolated nothing there — these tests opened,
+	// migrated and closed the runner's REAL ~/.ailang DB instead.
+	t.Setenv("AILANG_STATE_DIR", tmpDir)
 
 	dbPath := messaging.GetDefaultDatabasePath()
 	store, err := messaging.OpenStore(dbPath)
@@ -160,9 +166,11 @@ func TestWarnSilentRatchet_SkipsRegistryDeps(t *testing.T) {
 	os.Stderr = w
 
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	// AILANG_STATE_DIR, not HOME: GetDefaultDatabasePath falls back to
+	// os.UserHomeDir(), which ignores HOME on Windows (it reads %USERPROFILE%),
+	// so a HOME-only override isolated nothing there — these tests opened,
+	// migrated and closed the runner's REAL ~/.ailang DB instead.
+	t.Setenv("AILANG_STATE_DIR", tmpDir)
 
 	warnSilentRatchet(resolved, prevLF)
 
