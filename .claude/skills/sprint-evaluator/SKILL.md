@@ -182,7 +182,13 @@ Report saved to `.ailang/state/evaluations/eval_<sprint-id>_round_<n>.json`
 - **Cloud/coordinator mode** (running via coordinator daemon): use inbox messages
 
 **On PASS (score >= 70, no hard fails):**
-1. Move design doc from `design_docs/planned/` to `design_docs/implemented/<version>/`
+1. Move design doc from `design_docs/planned/` to `design_docs/implemented/<version>/` —
+   **and its companion sprint plans in the same move** (Mark 2026-07-29): any
+   `<doc-stem>-sprint-plan.md` / `<doc-stem>-m*-sprint-plan.md` siblings travel WITH the
+   design doc. A sprint plan left in `planned/` after its parent lands is folder drift —
+   the 2026-07-29 attended triage archived two such strays; don't create more. (Multi-phase
+   docs that stay in `planned/` until a later milestone — e.g. an M4b — keep their plans
+   beside them until the doc itself moves.)
 2. Update design doc status from "Planned" to "Implemented"
 3. Output markers with `EVALUATION_RESULT: pass`
 4. Post congratulatory summary with score breakdown

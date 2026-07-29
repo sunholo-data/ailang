@@ -243,8 +243,9 @@ said Planned for a month). **Also confirm the item is not ALREADY LANDED on orig
 (`gh pr list --search "<item> in:title" --state merged`) BEFORE starting a "resume" — iteration 12
 ran a full redundant re-evaluation of an item that had already merged, because it trusted the stale
 local queue/sprint-JSON (Gate 1's origin-sync now front-runs this, but re-check per item too). If
-already done → the iteration's deliverable is the bookkeeping (move doc to implemented/, update
-queue, log it) and you pick the NEXT item too.
+already done → the iteration's deliverable is the bookkeeping (move doc to implemented/ —
+WITH its `*-sprint-plan.md` companions, Mark 2026-07-29: plans travel with their doc —
+update queue, log it) and you pick the NEXT item too.
 **The already-landed check must run against a FRESH origin, at pick time** (sharpened 2026-07-14
 iteration 28; second instance of the landed-but-invisible class after iteration 12): re-run
 `git fetch origin` immediately before the item-level check and grep `git log origin/dev --grep`
