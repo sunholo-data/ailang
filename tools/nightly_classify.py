@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import shutil
+import statistics
 import sys
 import time
 from dataclasses import dataclass
@@ -98,10 +99,59 @@ def persistent_failures(
         if (
             len(trials) >= 2
             and all(not passed for passed, _ in trials)
-            and set(cats) - INFRA_CATEGORIES
+            and not infra_tainted(trials)
         ):
             failures[bench] = cats
     return failures
+
+
+def infra_tainted(trials: Iterable[tuple[bool, str]]) -> bool:
+    """Return whether any trial carries an infrastructure category."""
+    return any(cat in INFRA_CATEGORIES for _, cat in trials)
+
+
+def run_validity(
+    results: dict[str, list[tuple[bool, str]]], threshold: float
+) -> tuple[bool, str, int, int]:
+    """Classify whether enough of tonight's suite was measurable."""
+    total = len(results)
+    if total == 0:
+        return False, "zero_files", 0, 0
+    tainted = sum(infra_tainted(trials) for trials in results.values())
+    if tainted / total >= threshold:
+        return False, "infra_outage", tainted, total
+    return True, "", tainted, total
+
+
+def pass_rate(results: dict[str, list[tuple[bool, str]]]) -> float:
+    trials = [passed for bench in results.values() for passed, _ in bench]
+    return sum(trials) / len(trials) if trials else 0.0
+
+
+def trailing_median_pass_rate(
+    records: Iterable[dict],
+    model: str,
+    arm: str,
+    tonight: str,
+    window_nights: int,
+) -> float | None:
+    by_date: dict[str, list[int]] = {}
+    for record in records:
+        if (
+            record["model"] == model
+            and record["arm"] == arm
+            and record["date"] < tonight
+        ):
+            totals = by_date.setdefault(record["date"], [0, 0])
+            totals[0] += int(record["passes"])
+            totals[1] += int(record["trials"])
+    dates = sorted(by_date, reverse=True)[:window_nights]
+    rates = [
+        by_date[date][0] / by_date[date][1]
+        for date in dates
+        if by_date[date][1]
+    ]
+    return statistics.median(rates) if rates else None
 
 
 def parse_date(path: str | Path) -> str:
@@ -122,25 +172,29 @@ def infer_model(path: str | Path) -> str:
 
 
 def records_for_dir(
-    path: str | Path, model: str | None = None, arm: str = "rag_on"
+    path: str | Path,
+    model: str | None = None,
+    arm: str = "rag_on",
+    validity: dict | None = None,
 ) -> list[dict]:
     date = parse_date(path)
     model = model or infer_model(path)
     records = []
     for bench, trials in sorted(parse_results_dir(path).items()):
         cats = sorted({cat for passed, cat in trials if not passed})
-        records.append(
-            {
-                "date": date,
-                "bench": bench,
-                "model": model,
-                "arm": arm,
-                "trials": len(trials),
-                "passes": sum(1 for passed, _ in trials if passed),
-                "cats": cats,
-                "class": "",
-            }
-        )
+        record = {
+            "date": date,
+            "bench": bench,
+            "model": model,
+            "arm": arm,
+            "trials": len(trials),
+            "passes": sum(1 for passed, _ in trials if passed),
+            "cats": cats,
+            "class": "",
+        }
+        if validity is not None:
+            record["validity"] = dict(validity)
+        records.append(record)
     return records
 
 
@@ -148,8 +202,28 @@ def record_key(record: dict) -> tuple[str, str, str, str]:
     return tuple(record[field] for field in ("date", "bench", "model", "arm"))
 
 
-def load_history(path: str | Path) -> tuple[list[dict], int]:
-    """Load valid records, resolving duplicate keys last-in-file-wins."""
+def record_is_valid(record: dict) -> bool:
+    """Treat an absent validity marker as valid for backward compatibility.
+
+    A MALFORMED (non-dict) marker is treated as INVALID rather than crashing.
+    This function runs on every history row in the nightly path, which is
+    driven by a `set -euo pipefail` shell: an uncaught AttributeError here
+    aborts the whole run's classification and reporting stage, not just one
+    row. Fail-closed is also the honest reading — a row whose validity marker
+    cannot be parsed has not been certified measurable, so it must not enter a
+    trend. It is still preserved on disk (M-EVAL-MEASUREMENT-CONTRACT D4:
+    never delete data), because only the classification path filters.
+    """
+    validity = record.get("validity")
+    if validity is None:
+        return True
+    if not isinstance(validity, dict):
+        return False
+    return validity.get("valid", True) is not False
+
+
+def load_history_including_invalid(path: str | Path) -> tuple[list[dict], int]:
+    """Load all records, resolving duplicate keys last-in-file-wins."""
     ordered: dict[tuple[str, str, str, str], dict] = {}
     skipped = 0
     with open(path, encoding="utf-8") as handle:
@@ -170,13 +244,24 @@ def load_history(path: str | Path) -> tuple[list[dict], int]:
     return list(ordered.values()), skipped
 
 
+def load_history(path: str | Path) -> tuple[list[dict], int]:
+    """Load valid records, resolving duplicate keys last-in-file-wins."""
+    records, skipped = load_history_including_invalid(path)
+    return [record for record in records if record_is_valid(record)], skipped
+
+
 def history_health(path: str | Path, records: list[dict], skipped: int) -> str:
+    all_records, _ = load_history_including_invalid(path)
+    invalid_dates = {
+        record["date"] for record in all_records if not record_is_valid(record)
+    }
     benches = len({record["bench"] for record in records})
     dates = sorted({record["date"] for record in records})
     newest = dates[-1] if dates else "none"
     return (
         f"history: {path} | {benches} benchmarks, {len(dates)} nights, "
-        f"newest {newest}, {skipped} skipped lines"
+        f"newest {newest}, {skipped} skipped lines, "
+        f"{len(invalid_dates)} invalid nights excluded"
     )
 
 
@@ -192,6 +277,7 @@ def select_window(
         record
         for record in records
         if record["bench"] == bench
+        and record_is_valid(record)
         and record["model"] == model
         and record["arm"] == arm
         and record["date"] < tonight
@@ -211,6 +297,7 @@ def consecutive_failures(
             record
             for record in records
             if record["bench"] == bench
+            and record_is_valid(record)
             and record["model"] == model
             and record["arm"] == arm
             and record["date"] < tonight
@@ -415,7 +502,9 @@ def update_history(
                 stray.unlink()
             except OSError:
                 pass
-        existing, _ = load_history(path) if path.exists() else ([], 0)
+        existing, _ = (
+            load_history_including_invalid(path) if path.exists() else ([], 0)
+        )
         keys = {record_key(record) for record in tonight_records}
         merged = [record for record in existing if record_key(record) not in keys]
         merged.extend(tonight_records)
@@ -432,6 +521,32 @@ def bootstrap_history(path: str | Path, pattern: str) -> None:
     update_history(path, records)
 
 
+def mark_invalid(
+    path: str | Path,
+    date: str,
+    reason: str,
+    note: str = "",
+    lock_timeout: float = 60,
+    stale_after: float = 600,
+) -> None:
+    """Mark every record for one date invalid without deleting evidence."""
+    path = Path(path)
+    lock = HistoryLock(
+        f"{path}.lock.d", timeout=lock_timeout, stale_after=stale_after
+    )
+    with lock:
+        records, _ = load_history_including_invalid(path)
+        matches = [record for record in records if record["date"] == date]
+        if not matches:
+            raise ValueError(f"history contains no records for {date}")
+        marker = {"valid": False, "reason": reason}
+        if note:
+            marker["note"] = note
+        for record in matches:
+            record["validity"] = marker.copy()
+        atomic_write_history(path, records)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tonight")
@@ -442,7 +557,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-nights", type=int, default=2)
     parser.add_argument("--min-trials", type=int, default=4)
     parser.add_argument("--escalate-after", type=int, default=3)
+    parser.add_argument("--invalid-infra-fraction", type=float, default=0.30)
     parser.add_argument("--update-history", action="store_true")
+    parser.add_argument("--mark-invalid")
+    parser.add_argument("--reason")
+    parser.add_argument("--note", default="")
     parser.add_argument("--bootstrap", action="store_true")
     parser.add_argument(
         "--bootstrap-glob", default="/tmp/nightly_eval_*_rag_on/agent"
@@ -461,6 +580,18 @@ def main(argv: list[str] | None = None) -> int:
     history = Path(os.path.expanduser(args.history))
     history.parent.mkdir(parents=True, exist_ok=True)
     try:
+        if args.mark_invalid:
+            if not args.reason:
+                raise ValueError("--reason is required with --mark-invalid")
+            mark_invalid(
+                history,
+                args.mark_invalid,
+                args.reason,
+                args.note,
+                args.lock_timeout,
+                args.stale_after,
+            )
+            return 0
         if args.bootstrap:
             bootstrap_history(history, args.bootstrap_glob)
             records, skipped = load_history(history)
@@ -476,7 +607,11 @@ def main(argv: list[str] | None = None) -> int:
 
         tonight_date = parse_date(args.tonight)
         model = args.model or infer_model(args.tonight)
-        failures = persistent_failures(parse_results_dir(args.tonight))
+        results = parse_results_dir(args.tonight)
+        valid, reason, tainted, total = run_validity(
+            results, args.invalid_infra_fraction
+        )
+        failures = persistent_failures(results)
         unavailable = None
         try:
             records, skipped = load_history(history)
@@ -513,13 +648,26 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 for bench, cats in sorted(failures.items())
             ]
+        if not valid:
+            median = trailing_median_pass_rate(
+                records, model, args.arm, tonight_date, args.window_nights
+            )
+            median_text = f"{median:.3f}" if median is not None else "n/a"
+            print(
+                f"INVALID\t{reason}\t{tainted}/{total}\t"
+                f"{pass_rate(results):.3f}\t{median_text}"
+            )
+            verdicts = []
         for verdict in verdicts:
             print(verdict.tsv())
 
         # Absence/unreadability never auto-heals. Only explicit bootstrap creates
         # a missing history file.
         if args.update_history and not unavailable:
-            tonight_records = records_for_dir(args.tonight, model, args.arm)
+            validity = None if valid else {"valid": False, "reason": reason}
+            tonight_records = records_for_dir(
+                args.tonight, model, args.arm, validity
+            )
             by_bench = {verdict.bench: verdict for verdict in verdicts}
             for record in tonight_records:
                 verdict = by_bench.get(record["bench"])

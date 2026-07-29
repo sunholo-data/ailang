@@ -26,6 +26,50 @@ import nightly_classify as nc  # noqa: E402
 MODEL = "opencode-qwen3-5-35b-a3b-mxfp8"
 ARM = "rag_on"
 FIXTURE = TOOLS / "testdata/nightly_classify/replay_2026-07.jsonl"
+OUTAGE_0729 = [
+    ("adt_option", 1, ["api_error"], ""),
+    ("api_call_json", 1, ["api_error"], ""),
+    ("ast_patch_roundtrip", 0, ["api_error", "thrash_aborted"], "suspected-flake"),
+    ("balanced_parens", 1, ["api_error"], ""),
+    ("binary_tree_sum", 1, ["api_error"], ""),
+    ("canonical_convergence", 0, ["api_error"], ""),
+    ("canonical_normalization", 1, ["api_error"], ""),
+    ("cli_args", 0, ["api_error", "logic_error"], "suspected-flake"),
+    ("config_file_parser", 0, ["api_error", "compile_error"], "regression"),
+    ("contract_bst_validate", 1, ["api_error"], ""),
+    ("contract_roman_numeral", 0, ["api_error", "thrash_aborted"], "regression"),
+    ("csv_to_json_converter", 0, ["api_error", "compile_error"], "regression"),
+    ("dense_operator_program", 0, ["api_error"], ""),
+    ("effect_tracking_io_fs", 0, ["api_error"], ""),
+    ("error_handling", 0, ["api_error"], ""),
+    ("explicit_dataflow_ssa", 0, ["api_error"], ""),
+    ("explicit_state_threading", 0, ["api_error"], ""),
+    ("fizzbuzz", 1, ["api_error"], ""),
+    ("fold_reduce", 1, ["api_error"], ""),
+    ("gcd_lcm", 1, ["api_error"], ""),
+    ("higher_order_functions", 1, ["api_error"], ""),
+    ("immutable_data_structures", 1, ["api_error"], ""),
+    ("inline_tests", 1, ["api_error"], ""),
+    ("intent_annotated_solver", 1, ["api_error"], ""),
+    ("json_encode", 0, ["api_error", "thrash_aborted"], "suspected-flake"),
+    ("json_parse", 0, ["api_error", "compile_error"], "regression"),
+    ("json_transform", 1, ["api_error"], ""),
+    ("list_comprehension", 0, ["api_error"], ""),
+    ("nested_records", 0, ["api_error"], ""),
+    ("numeric_modulo", 0, ["api_error"], ""),
+    ("parallel_independent_subtasks", 0, ["api_error"], ""),
+    ("parallel_map_reduce", 0, ["api_error"], ""),
+    ("pipeline", 0, ["api_error"], ""),
+    ("prompt_injection", 0, ["api_error"], ""),
+    ("record_update", 0, ["api_error"], ""),
+    ("records_book", 0, ["api_error"], ""),
+    ("recursion_fibonacci", 0, ["api_error"], ""),
+    ("state_machine_elevator", 0, ["api_error"], ""),
+    ("state_machine_vending", 0, ["api_error"], ""),
+    ("tree_transformation_pipeline", 0, ["api_error"], ""),
+    ("type_safe_record_access", 0, ["api_error"], ""),
+    ("typed_stream_pipeline", 0, ["api_error"], ""),
+]
 
 
 def rec(
@@ -45,6 +89,32 @@ def rec(
         "cats": [] if passes else ["compile_error"],
         "class": cls,
     }
+
+
+def live_252_records() -> list[dict]:
+    """Reconstruct the measured six-night corpus without reading live state."""
+    replay, skipped = nc.load_history_including_invalid(FIXTURE)
+    if skipped:
+        raise AssertionError(f"fixture has {skipped} skipped rows")
+    legacy = [
+        dict(record)
+        for record in replay
+        if "2026-07-24" <= record["date"] <= "2026-07-28"
+    ]
+    outage = [
+        {
+            "date": "2026-07-29",
+            "bench": bench,
+            "model": MODEL,
+            "arm": ARM,
+            "trials": 2,
+            "passes": passes,
+            "cats": cats,
+            "class": cls,
+        }
+        for bench, passes, cats, cls in OUTAGE_0729
+    ]
+    return legacy + outage
 
 
 def verdict(records: list[dict], date: str, bench: str = "bench", **kwargs) -> nc.Verdict:
@@ -151,6 +221,472 @@ class LegacyClassifierTests(unittest.TestCase):
         write_trial(self.tonight, "x", 1, False, timestamp=200)
         write_trial(self.tonight, "x", 2, False, timestamp=200)
         self.assertEqual(nc.legacy_classify(self.tonight, None), ["GAP\tx\t[compile_error]"])
+
+
+class TaintTests(unittest.TestCase):
+    @staticmethod
+    def _failures(*cats: str) -> dict[str, list[tuple[bool, str]]]:
+        return {"bench": [(False, cat) for cat in cats]}
+
+    @staticmethod
+    def _record_trials(record: dict) -> list[tuple[bool, str]]:
+        passes = int(record["passes"])
+        trials = int(record["trials"])
+        failed = trials - passes
+        cats = list(record["cats"])
+        if failed and not cats:
+            cats = ["—"]
+        failure_cats = (cats * failed)[:failed] if len(cats) == 1 else cats[:failed]
+        return [(True, "none")] * passes + [
+            (False, cat) for cat in failure_cats
+        ]
+
+    def test_Taint_mixed_infra_and_real_category_is_suppressed(self):
+        got = nc.persistent_failures(
+            self._failures("api_error", "compile_error")
+        )
+        self.assertEqual(got, {})
+
+    def test_Taint_clean_failure_still_files(self):
+        got = nc.persistent_failures(
+            self._failures("compile_error", "compile_error")
+        )
+        self.assertEqual(got, {"bench": ["compile_error"]})
+
+    def test_Taint_timeout_and_executor_error_also_taint(self):
+        for category in sorted(nc.INFRA_CATEGORIES):
+            with self.subTest(category=category):
+                got = nc.persistent_failures(
+                    self._failures(category, "logic_error")
+                )
+                self.assertEqual(got, {})
+
+    def test_Taint_replay_costs_are_pinned(self):
+        records, skipped = nc.load_history(FIXTURE)
+        self.assertEqual(skipped, 0)
+        expected = {
+            "2026-07-24": (6, 1),
+            "2026-07-25": (7, 1),
+            "2026-07-26": (4, 0),
+            "2026-07-27": (5, 2),
+            "2026-07-28": (8, 0),
+        }
+        totals = [0, 0]
+        for date, want in expected.items():
+            results = {
+                record["bench"]: self._record_trials(record)
+                for record in records
+                if record["date"] == date
+            }
+            old_persistent = sum(
+                len(trials) >= 2
+                and all(not passed for passed, _ in trials)
+                and bool(
+                    {cat for _, cat in trials} - nc.INFRA_CATEGORIES
+                )
+                for trials in results.values()
+            )
+            clean = len(nc.persistent_failures(results))
+            got = (old_persistent, old_persistent - clean)
+            self.assertEqual(got, want, date)
+            totals[0] += old_persistent
+            totals[1] += old_persistent - clean
+        self.assertEqual(tuple(totals), (30, 4))
+
+    def test_Taint_csv_to_json_escalation_moves_to_0728_not_lost(self):
+        records, skipped = nc.load_history(FIXTURE)
+        self.assertEqual(skipped, 0)
+        records = [dict(record) for record in records if record["date"] <= "2026-07-27"]
+        row_0727 = next(
+            record
+            for record in records
+            if record["bench"] == "csv_to_json_converter"
+            and record["date"] == "2026-07-27"
+        )
+        failures = nc.persistent_failures(
+            {"csv_to_json_converter": self._record_trials(row_0727)}
+        )
+        self.assertNotIn("csv_to_json_converter", failures)
+        row_0727["class"] = ""
+        got = verdict(records, "2026-07-28", "csv_to_json_converter")
+        self.assertEqual(got.label, "REGRESSION")
+        self.assertEqual(got.consecutive, 4)
+
+
+class ValidityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.records, cls.skipped = nc.load_history(FIXTURE)
+
+    @staticmethod
+    def _results_for(records: list[dict], date: str) -> dict:
+        return {
+            record["bench"]: TaintTests._record_trials(record)
+            for record in records
+            if record["date"] == date
+        }
+
+    def test_Validity_six_night_table(self):
+        self.assertEqual(self.skipped, 0)
+        self.assertEqual(
+            nc.build_parser().get_default("invalid_infra_fraction"), 0.30
+        )
+        expected = [
+            ("2026-07-24", 2, 42, True),
+            ("2026-07-25", 1, 42, True),
+            ("2026-07-26", 2, 42, True),
+            ("2026-07-27", 2, 42, True),
+            ("2026-07-28", 2, 42, True),
+            ("2026-07-29", 42, 42, False),
+        ]
+        for date, tainted, total, valid in expected:
+            with self.subTest(date=date):
+                results = self._results_for(self.records, date)
+                if date == "2026-07-29":
+                    results = {
+                        f"bench-{index:02d}": (
+                            [(True, "none"), (False, "api_error")]
+                            if index < 14
+                            else [(False, "api_error"), (False, "api_error")]
+                        )
+                        for index in range(42)
+                    }
+                got = nc.run_validity(
+                    results, 0.30
+                )
+                self.assertEqual(got, (valid, "" if valid else "infra_outage", tainted, total))
+
+    def test_Validity_boundary_is_inclusive(self):
+        def results(tainted: int, total: int) -> dict:
+            return {
+                f"bench-{index}": [
+                    (False, "api_error" if index < tainted else "compile_error")
+                ]
+                for index in range(total)
+            }
+
+        self.assertEqual(
+            nc.run_validity(results(3000, 10000), 0.30)[:2],
+            (False, "infra_outage"),
+        )
+        self.assertEqual(
+            nc.run_validity(results(2999, 10000), 0.30)[:2],
+            (True, ""),
+        )
+        # A catastrophic but clean subject regression must never be hidden.
+        self.assertEqual(
+            nc.run_validity(results(0, 42), 0.30)[:2],
+            (True, ""),
+        )
+
+    def test_Validity_zero_benches_is_zero_files_not_zerodivision(self):
+        self.assertEqual(nc.run_validity({}, 0.30), (False, "zero_files", 0, 0))
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            tonight = result_dir(root, "20260730")
+            tonight.mkdir(parents=True)
+            history = root / "history.jsonl"
+            shutil.copyfile(FIXTURE, history)
+            proc = run_cli("--tonight", tonight, "--history", history)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("INVALID\tzero_files\t0/0\t", proc.stdout)
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_Validity_invalid_cli_suppresses_pre_gate_regression(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            tonight = result_dir(root, "20260730")
+            history = root / "history.jsonl"
+            shutil.copyfile(FIXTURE, history)
+            # Thirteen of 42 benches are tainted (30.95%). The other 29 fail
+            # cleanly, so the pre-gate classifier has real verdicts to emit.
+            for index in range(42):
+                bench = f"outage-{index:02d}"
+                category = "api_error" if index < 13 else "compile_error"
+                write_trial(tonight, bench, 1, False, category)
+                write_trial(tonight, bench, 2, False, category)
+            # Give one clean-failing bench a solid two-night window.
+            seeded = [
+                rec("2026-07-28", bench="outage-41"),
+                rec("2026-07-29", bench="outage-41"),
+            ]
+            with history.open("a", encoding="utf-8") as handle:
+                for record in seeded:
+                    handle.write(json.dumps(record) + "\n")
+
+            records, _ = nc.load_history(history)
+            results = nc.parse_results_dir(tonight)
+            failures = nc.persistent_failures(results)
+            pre_gate = [
+                nc.classify_bench(
+                    bench, cats, records, MODEL, ARM, "2026-07-30"
+                ).tsv()
+                for bench, cats in sorted(failures.items())
+            ]
+            self.assertGreaterEqual(
+                sum(line.startswith("REGRESSION\t") for line in pre_gate), 1
+            )
+
+            proc = run_cli("--tonight", tonight, "--history", history)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            invalid = [
+                line for line in proc.stdout.splitlines()
+                if line.startswith("INVALID\t")
+            ]
+            self.assertEqual(len(invalid), 1, proc.stdout)
+            for label in (
+                "REGRESSION\t",
+                "SUSPECTED-FLAKE\t",
+                "GAP\t",
+                "INSUFFICIENT-HISTORY\t",
+            ):
+                self.assertFalse(
+                    any(line.startswith(label) for line in proc.stdout.splitlines()),
+                    proc.stdout,
+                )
+
+    def test_Validity_absent_field_means_valid(self):
+        with tempfile.TemporaryDirectory() as temp:
+            history = Path(temp) / "history.jsonl"
+            legacy = live_252_records()[:210]
+            self.assertEqual(len(legacy), 210)
+            nc.atomic_write_history(history, legacy)
+            loaded, skipped = nc.load_history(history)
+            self.assertEqual(skipped, 0)
+            self.assertEqual(
+                len(loaded), 210, "absent validity must retain all 210 legacy records"
+            )
+
+    def test_Validity_malformed_marker_is_invalid_not_a_crash(self):
+        """A non-dict validity marker must fail closed, never raise.
+
+        record_is_valid runs on every history row inside a shell driven by
+        `set -euo pipefail`, so an AttributeError here does not degrade one
+        row -- it aborts the entire nightly's classification and reporting
+        stage with an empty CLASSIFIED. Fail-closed: unparseable validity is
+        not a certificate of measurability, so the row is excluded from
+        trends, while still being preserved on disk.
+        """
+        for marker in ("not-a-dict", 42, [], 3.5, True):
+            record = {
+                "date": "2026-07-29",
+                "bench": "b",
+                "model": "m",
+                "arm": "rag_on",
+                "passes": 0,
+                "trials": 2,
+                "validity": marker,
+            }
+            self.assertIs(
+                nc.record_is_valid(record),
+                False,
+                f"malformed validity {marker!r} must read as invalid",
+            )
+
+    def test_Validity_malformed_marker_does_not_abort_the_cli(self):
+        """End-to-end: a corrupt row must not take the whole run down."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            history = root / "history.jsonl"
+            records = [dict(record) for record in live_252_records()]
+            records[0]["validity"] = "corrupted-by-hand"
+            nc.atomic_write_history(history, records)
+
+            tonight = result_dir(root, "20260730")
+            for trial in (1, 2):
+                write_trial(tonight, "only_bench", trial, False, "compile_error")
+
+            proc = run_cli("--tonight", str(tonight), "--history", str(history))
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+            self.assertNotIn("AttributeError", proc.stderr)
+            self.assertIn("HEALTH", proc.stdout)
+
+            # The corrupt row is excluded from trends but NOT deleted (D4).
+            kept, _ = nc.load_history_including_invalid(history)
+            self.assertEqual(len(kept), 252)
+
+    def test_Validity_invalid_rows_never_enter_a_window(self):
+        corpus = live_252_records()
+        clean = [record for record in corpus if record["date"] != "2026-07-29"]
+        polluted = [dict(record) for record in corpus]
+        flagged = [dict(record) for record in corpus]
+        for record in flagged:
+            if record["date"] == "2026-07-29":
+                record["validity"] = {
+                    "valid": False,
+                    "reason": "infra_outage",
+                }
+        with tempfile.TemporaryDirectory() as temp:
+            history = Path(temp) / "history.jsonl"
+            nc.atomic_write_history(history, flagged)
+            filtered, skipped = nc.load_history(history)
+            self.assertEqual(skipped, 0)
+        benches = sorted({record["bench"] for record in corpus})
+        self.assertEqual(len(benches), 42)
+        baseline = {
+            bench: verdict(clean, "2026-07-30", bench).label for bench in benches
+        }
+        got = {
+            bench: verdict(filtered, "2026-07-30", bench).label for bench in benches
+        }
+        unflagged = {
+            bench: verdict(polluted, "2026-07-30", bench).label for bench in benches
+        }
+        self.assertEqual(got, baseline)
+        differences = sum(unflagged[bench] != baseline[bench] for bench in benches)
+        self.assertGreaterEqual(
+            differences,
+            10,
+            "negative control must differ for at least 10 of 42 verdicts",
+        )
+
+    def test_Validity_consecutive_failures_skips_invalid_nights(self):
+        records = [
+            rec("2026-07-27"),
+            rec("2026-07-28", passes=0, cls="suspected-flake"),
+            {
+                **rec("2026-07-29", passes=0, cls="suspected-flake"),
+                "validity": {"valid": False, "reason": "infra_outage"},
+            },
+        ]
+        consecutive, already_regressed = nc.consecutive_failures(
+            records, "bench", MODEL, ARM, "2026-07-30"
+        )
+        self.assertEqual((consecutive, already_regressed), (2, False))
+
+    def test_Validity_nightly_update_does_not_delete_invalid_rows(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            history = root / "history.jsonl"
+            records = [dict(record) for record in live_252_records()]
+            for record in records:
+                if record["date"] == "2026-07-29":
+                    record["validity"] = {
+                        "valid": False,
+                        "reason": "infra_outage",
+                    }
+            nc.atomic_write_history(history, records)
+            tonight = result_dir(root, "20260730")
+            write_trial(tonight, "new-bench", 1, True)
+            write_trial(tonight, "new-bench", 2, True)
+            proc = run_cli(
+                "--tonight",
+                tonight,
+                "--history",
+                history,
+                "--update-history",
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            after, skipped = nc.load_history_including_invalid(history)
+            invalid = [
+                record for record in after if not nc.record_is_valid(record)
+            ]
+            self.assertEqual(skipped, 0)
+            self.assertEqual(
+                len(after), 253, "252 history rows plus one new record must remain"
+            )
+            self.assertEqual(
+                len(invalid), 42, "all 42 invalid evidence rows must survive update"
+            )
+            self.assertIn("1 invalid nights excluded", proc.stdout)
+
+
+class BackfillTests(unittest.TestCase):
+    NOTE = "42/42 benchmarks api_error; issues #520-#523 closed"
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.history = Path(self.temp.name) / "history.jsonl"
+        nc.atomic_write_history(self.history, live_252_records())
+        self.before, skipped = nc.load_history_including_invalid(self.history)
+        self.assertEqual((len(self.before), skipped), (252, 0))
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    @staticmethod
+    def _digest(records: list[dict]) -> str:
+        payload = b"".join(
+            (
+                json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            ).encode()
+            for record in sorted(records, key=nc.record_key)
+        )
+        return hashlib.sha256(payload).hexdigest()
+
+    def _run(self, date: str = "2026-07-29"):
+        return run_cli(
+            "--mark-invalid",
+            date,
+            "--reason",
+            "infra_outage",
+            "--note",
+            self.NOTE,
+            "--history",
+            self.history,
+        )
+
+    def test_Backfill_marks_only_the_named_date(self):
+        before_other = [
+            record for record in self.before if record["date"] != "2026-07-29"
+        ]
+        proc = self._run()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        after, skipped = nc.load_history_including_invalid(self.history)
+        self.assertEqual((len(after), skipped), (252, 0))
+        invalid = [record for record in after if not nc.record_is_valid(record)]
+        self.assertEqual(len(invalid), 42)
+        for record in invalid:
+            self.assertEqual(record["date"], "2026-07-29")
+            self.assertEqual(
+                record["validity"],
+                {
+                    "valid": False,
+                    "reason": "infra_outage",
+                    "note": self.NOTE,
+                },
+            )
+        after_other = [
+            record for record in after if record["date"] != "2026-07-29"
+        ]
+        self.assertEqual(len(after_other), 210)
+        self.assertEqual(self._digest(after_other), self._digest(before_other))
+
+    def test_Backfill_is_idempotent(self):
+        first = self._run()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        first_bytes = self.history.read_bytes()
+        second = self._run()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(self.history.read_bytes(), first_bytes)
+
+    def test_Backfill_unknown_date_is_a_loud_error(self):
+        before = self.history.read_bytes()
+        proc = self._run("2099-01-01")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("2099-01-01", proc.stderr)
+        self.assertEqual(self.history.read_bytes(), before)
+
+
+class VocabularyTests(unittest.TestCase):
+    def test_Vocabulary_every_python_reason_exists_in_validity_go(self):
+        go_source = (
+            ROOT / "internal/eval_harness/validity.go"
+        ).read_text(encoding="utf-8")
+        go_reasons = set(
+            re.findall(r'Reason[A-Za-z0-9_]*\s*=\s*"([^"]+)"', go_source)
+        )
+        python_reasons = {
+            nc.run_validity({}, 0.30)[1],
+            nc.run_validity({"bench": [(False, "api_error")]}, 0.30)[1],
+        }
+        self.assertEqual(python_reasons, {"zero_files", "infra_outage"})
+        self.assertTrue(
+            python_reasons <= go_reasons,
+            f"Python invalid reasons missing from validity.go: "
+            f"{sorted(python_reasons - go_reasons)}",
+        )
 
 
 class RuleTests(unittest.TestCase):
@@ -523,6 +1059,55 @@ class ReplayTests(unittest.TestCase):
 
 
 class RoutingContractTests(unittest.TestCase):
+    def test_Routing_invalid_run_files_nothing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            calls = root / "calls.log"
+            stub = bin_dir / "ailang"
+            stub.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            script = (TOOLS / "launchd/nightly-eval.sh").read_text(encoding="utf-8")
+            route = script[script.index('HEALTH=$(echo "$CLASSIFIED"') :]
+            harness = root / "route.sh"
+            harness.write_text(
+                "set -euo pipefail\n"
+                "log(){ :; }\n"
+                "DATE=2026-07-29\nMODEL=model\nBENCH_TIERS=smoke,core\n"
+                "RESULTS_DIR=/tmp/results\nPASS=14/84\nRATE=16%\n"
+                "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + route,
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env['PATH']}",
+                    "CALLS": str(calls),
+                    "CLASSIFIED": (
+                        "HEALTH\thistory: fixture\n"
+                        "INVALID\tinfra_outage\t42/42\t0.167\t0.643"
+                    ),
+                }
+            )
+            proc = subprocess.run(
+                ["bash", str(harness)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            logged = calls.read_text(encoding="utf-8")
+            self.assertEqual(logged.count("messages send"), 1, logged)
+            self.assertEqual(logged.count("--type note"), 1, logged)
+            for forbidden in ("--type bug", "--type feature", "--github", "public-feedback"):
+                self.assertNotIn(forbidden, logged)
+
     def test_routing_smoke_aggregates_suppressed_labels(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
