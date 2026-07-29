@@ -138,7 +138,7 @@ jobs:
     - name: Assert nightly classifier tests ran (no silent skips)
       run: |
         PASSES=$(grep -c -- '--- PASS:' nightly_classifier.log || true)
-        if [ "$PASSES" -lt 20 ]; then
+        if [ "$PASSES" -lt 45 ]; then
           echo "::error::nightly classifier emitted only $PASSES PASS lines; tests were skipped, renamed, or did not run"
           exit 1
         fi

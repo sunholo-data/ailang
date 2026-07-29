@@ -29,6 +29,12 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
   It records history in `~/.ailang/state/nightly-eval-history.jsonl`, labels noisy
   flips `SUSPECTED-FLAKE` or `INSUFFICIENT-HISTORY`, and requires the explicit
   `--bootstrap` flag to seed missing history.
+- Nightly classification now labels runs `INVALID` when the any-trial
+  infrastructure-taint fraction reaches `--invalid-infra-fraction` (default
+  0.30), suppressing verdicts without confusing infrastructure outages with
+  compiler regressions. History rows may carry a `validity` field, with an
+  absent field meaning valid; `--mark-invalid` backfills affected dates in
+  `~/.ailang/state/nightly-eval-history.jsonl` without deleting evidence.
 
 - CI/infra: renamed the documentation build check to `docs-build`, added an
   always-reporting `docs-gate`, and scoped workflow concurrency per ref while

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-NIGHTLY-RUN-VALIDITY-GATE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-07-29T00:00:00Z",
   "branch": "sprint/m-nightly-run-validity-gate",
   "worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/sprint-m-nightly-validity",
@@ -119,10 +119,10 @@
         "M3.6: `--- PASS:` for test_Backfill_is_idempotent (second run -> byte-identical file) and test_Backfill_unknown_date_is_a_loud_error (rc!=0, NO file written, message names the date - never a silent no-op).",
         "M3.7 (MUTATION PROBE x2): (a) revert update_history to the filtering loader -> M3.4 fails; (b) make absent-validity decode to invalid -> M3.1 fails with a record COUNT in the message. Both reverted; record both failure texts in this file's notes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-29T08:15:00+02:00",
+      "completed": "2026-07-29T08:35:00+02:00",
+      "notes": "M3.1-M3.6 PASS: Validity filter run emitted 8 PASS lines and Backfill emitted 3. Absent validity retained all 210 legacy rows. The non-vacuity control observed >=10 polluted-vs-clean verdict differences across all 42 benches. M3.4 began with 252 records including 42 invalid rows and ended with 253 after one new-date record; all 42 invalid rows remained. Backfill retained 252 total, marked exactly 42 on 2026-07-29, preserved the SHA-256 of the other 210 canonical serialisations, was byte-idempotent, and rejected unknown dates without changing bytes. M3.7(a) mutation form: update_history load_history_including_invalid(path) -> load_history(path), exact pattern count 1 before and after, diff printed, module imported; M3.4 failed with `AssertionError: 211 != 253 : 252 history rows plus one new record must remain`. Restored from cp backup; backup/restored sha256 both 24117e3b239d081f4dc9976e14c827a7a37ea32a02d189d368a2732a43dc081e; M3.4 green. M3.7(b) mutation form: record_is_valid absent-valid expression `validity is None or validity.get(\"valid\", True) is not False` -> `validity is not None and validity.get(\"valid\", False) is not False`, exact pattern count 1 before and after, diff printed, module imported; M3.1 failed with `AssertionError: 0 != 210 : absent validity must retain all 210 legacy records`. Restored from cp backup with the same sha256 byte identity; M3.1 green."
     },
     {
       "id": "M4_VOCABULARY_SINGLE_SOURCING_CI_FLOOR_DOCS",
@@ -139,10 +139,10 @@
         "M4.6: CHANGELOG.md [Unreleased] entry names the INVALID label, --invalid-infra-fraction default 0.30, the any-trial taint rule, the validity field with ABSENT-MEANS-VALID, --mark-invalid, and the history path ~/.ailang/state/nightly-eval-history.jsonl. `git diff CHANGELOG.md` non-empty.",
         "M4.7: the PR body states BOTH flagged items - the deliberate departure from #524 (pass-rate disjunct rejected, with its failure mode) and the refutation of defect 3 (R-A) - so neither is quietly dropped in review."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-29T08:35:00+02:00",
+      "completed": "2026-07-29T08:42:00+02:00",
+      "notes": "M4.1 adds only the documented ReasonInfraOutage const; grep count 1 and gofmt -l empty. M4.2 Vocabulary test PASS and reads validity.go directly as text. Pre-floor full suite emitted 57 PASS lines; final suite emitted 58, so the plan floor 45 is below the measured ceiling and ci.yml was changed 20 -> 45. Full make test-nightly-classifier rc=0, Ran 58 tests, final line OK. make ci was intentionally not run or claimed; enforcement was already wired at ci.yml:133-144, refuting defect 3. CHANGELOG [Unreleased] names INVALID, --invalid-infra-fraction default 0.30, any-trial infra taint, validity absent-means-valid, --mark-invalid, and ~/.ailang/state/nightly-eval-history.jsonl. PR-body-only M4.7 remains for the controller: preserve the deliberate rejection of the pass-rate disjunct and the refutation that classifier tests were absent from CI."
     }
   ]
 }

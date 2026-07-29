@@ -40,6 +40,8 @@ const (
 	ReasonConfigMismatch = "config_mismatch"
 	// ReasonHarnessError: a harness-side failure with no more specific reason.
 	ReasonHarnessError = "harness_error"
+	// ReasonInfraOutage: the nightly classifier could not measure the suite.
+	ReasonInfraOutage = "infra_outage"
 )
 
 // MarkValid returns an explicitly-valid marker.
