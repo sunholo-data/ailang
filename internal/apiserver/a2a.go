@@ -182,7 +182,7 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 	var found bool
 	for _, e := range modInfo.Exports {
 		if e.Name == funcName {
-			found = true
+			found = s.isExposed(e)
 			break
 		}
 	}
