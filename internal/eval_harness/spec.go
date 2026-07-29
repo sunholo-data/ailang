@@ -206,8 +206,27 @@ func (s *BenchmarkSpec) SupportsLanguage(lang string) bool {
 	return false
 }
 
-// PromptForLanguage returns the prompt with language-specific base prompt + task prompt
+// PromptForLanguage returns the prompt with language-specific base prompt + task prompt.
+//
+// Defined as the concatenation of PromptPartsForLanguage so the split form and
+// the joined form cannot drift: any change to prompt assembly lands in one
+// place. Callers that want prompt caching should use the parts version and pass
+// the base as ai.Request.CachedPrefix (M-ANTHROPIC-CACHE-HIT-RATE).
 func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
+	base, task := s.PromptPartsForLanguage(lang)
+	return base + task
+}
+
+// PromptPartsForLanguage returns the prompt split at the boundary between the
+// stable teaching prompt and the per-benchmark task.
+//
+// The split point matters: the base is identical across every benchmark for a
+// given language (~16K tokens for AILANG), while the task differs per
+// benchmark. That is exactly the shape prompt caching needs — a long stable
+// prefix followed by a short volatile suffix. Concatenating base+task must
+// reproduce PromptForLanguage byte-for-byte, which is what keeps eval baselines
+// comparable across the caching change.
+func (s *BenchmarkSpec) PromptPartsForLanguage(lang string) (base, task string) {
 	var basePrompt string
 	var taskDescription string
 
@@ -270,10 +289,12 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 		}
 	}
 
-	// Build full prompt
-	fullPrompt := basePrompt
+	// Build the task section separately from the base so the two can be handed
+	// to a provider as a cacheable prefix + volatile suffix. Joined, they are
+	// byte-identical to the pre-split single string.
+	taskSection := ""
 	if taskDescription != "" {
-		fullPrompt = fullPrompt + "\n\n## Task\n\n" + taskDescription
+		taskSection = "\n\n## Task\n\n" + taskDescription
 	}
 
 	// Normalize language names for <LANG> placeholder
@@ -282,8 +303,11 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 		langName = l.DisplayName()
 	}
 
-	// Replace <LANG> placeholder
-	return replaceAll(fullPrompt, "<LANG>", langName)
+	// Replace <LANG> placeholder in BOTH parts. Doing it per-part rather than on
+	// the joined string is equivalent here because the placeholder never spans
+	// the boundary — the boundary is a literal "\n\n## Task\n\n" we just built.
+	return replaceAll(basePrompt, "<LANG>", langName),
+		replaceAll(taskSection, "<LANG>", langName)
 }
 
 // getDefaultPrompt returns a minimal default prompt for a language

@@ -18,7 +18,15 @@ import (
 
 // providerAdapter wraps ai.Provider for eval harness use.
 type providerAdapter struct {
-	provider           ai.Provider
+	provider ai.Provider
+	// providerType is the RESOLVED provider (models.yml is the source of truth,
+	// falling back to name inference). Retained so cache decisions can be made
+	// without re-guessing from the model string.
+	providerType ai.ProviderType
+	// expectedCalls is 1 when the caller knows this is a one-shot run, and 0
+	// ("undeclared") otherwise. Only 1 disables caching — see cacheBreakpointsFor
+	// for why an adapter-local call count is the wrong thing to gate on.
+	expectedCalls      int
 	model              string
 	maxTokens          int             // Max output tokens; 0 means use defaultMaxTokens
 	reasoningMaxTokens int             // Cap on hidden thinking tokens; 0 = uncapped
@@ -76,11 +84,19 @@ func newProviderAdapter(model string, apiKey string, explicitProvider ai.Provide
 	}
 
 	return &providerAdapter{
-		provider:    provider,
-		model:       model,
-		maxTokens:   0, // 0 => defaultMaxTokens; set via setMaxTokens
-		attribution: nil,
+		provider:     provider,
+		providerType: providerType,
+		model:        model,
+		maxTokens:    0, // 0 => defaultMaxTokens; set via setMaxTokens
+		attribution:  nil,
 	}, nil
+}
+
+// setExpectedCalls records how many generate() calls this adapter will receive
+// in the current run, so caching can be skipped when a write could never be
+// read back. See cacheBreakpointsFor.
+func (p *providerAdapter) setExpectedCalls(n int) {
+	p.expectedCalls = n
 }
 
 // setAttribution sets OpenRouter app-attribution overrides. Retained for the
@@ -111,8 +127,48 @@ func (p *providerAdapter) setReasoningEffort(e string) {
 	p.reasoningEffort = e
 }
 
+// cacheBreakpointsFor decides whether this request declares a prompt-cache
+// breakpoint (M-ANTHROPIC-CACHE-HIT-RATE M2, design decision D3).
+//
+// ON by default rather than behind a flag: opt-in is precisely why our hit rate
+// was near zero — the v0.18.4 mechanism shipped and no Go caller ever set it.
+//
+// Two guards keep it from costing more than it saves:
+//   - Only Anthropic. Other providers no-op on hints (OpenAI auto-caches,
+//     Gemini needs a different API), and declaring one there just emits a
+//     "hint ignored" warning per session for nothing.
+//   - Only when the caller has told us this is a genuinely single-shot run.
+//     A cache WRITE costs ~1.25x, so a prefix read zero times is a small pure
+//     loss; break-even at 5-minute TTL is two requests.
+//
+// The default when nothing is declared (expectedCalls == 0) is to CACHE.
+//
+// That default is deliberate and was corrected during implementation. The
+// obvious-looking rule — "only cache when this adapter will see >= 2 calls" —
+// is wrong here, because Anthropic's cache is SERVER-SIDE and keyed by prompt
+// prefix, not by client object. The eval harness constructs a fresh AIAgent per
+// benchmark (cmd/ailang/eval_benchmark.go, inside runSingleBenchmark), so every
+// adapter sees exactly one generation call, and a >= 2 rule would have disabled
+// caching for the entire suite while looking correct. Benchmark N+1 reads the
+// entry written by benchmark N precisely because the cache does not live in the
+// client. Callers that really are one-shot opt out via SetExpectedCalls(1).
+func cacheBreakpointsFor(providerType ai.ProviderType, cachedPrefix string, expectedCalls int) []ai.CacheBreakpoint {
+	if providerType != ai.ProviderAnthropic || cachedPrefix == "" {
+		return nil
+	}
+	if expectedCalls == 1 {
+		return nil
+	}
+	return []ai.CacheBreakpoint{{Position: "user_prefix", TTL: "ephemeral"}}
+}
+
 // generate calls the unified provider and converts to GenerateResult.
-func (p *providerAdapter) generate(ctx context.Context, prompt string) (*GenerateResult, error) {
+//
+// cachedPrefix is the stable leading chunk of the prompt (the teaching prompt);
+// prompt is the volatile remainder (the benchmark task). The model always sees
+// cachedPrefix+prompt — passing "" for cachedPrefix is exactly the pre-v0.31.0
+// behavior.
+func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt string) (*GenerateResult, error) {
 	systemPrompt := "You are a code generation engine. Output ONLY a complete, runnable program that solves the given task. " +
 		"Do NOT output explanations, markdown formatting, or conversational text. " +
 		"Do NOT output placeholder or stub code — implement the full solution. " +
@@ -126,9 +182,16 @@ func (p *providerAdapter) generate(ctx context.Context, prompt string) (*Generat
 	req := &ai.Request{
 		Model:        p.model,
 		SystemPrompt: systemPrompt,
+		CachedPrefix: cachedPrefix,
 		UserPrompt:   prompt,
 		MaxTokens:    maxTokens,
 		Attribution:  p.attribution,
+		// Note the breakpoint targets the USER prefix, not the system prompt:
+		// systemPrompt above is ~70 tokens, far below every model's minimum
+		// cacheable prefix, so a system breakpoint here would be a silent no-op.
+		// The ~16K-token teaching prompt is what is worth caching, and it lives
+		// in the user turn.
+		CacheBreakpoints: cacheBreakpointsFor(p.providerType, cachedPrefix, p.expectedCalls),
 	}
 	if p.reasoningMaxTokens > 0 || p.reasoningEffort != "" {
 		req.Options = map[string]any{}

@@ -66,6 +66,17 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	}, nil
 }
 
+// SetExpectedCalls declares how many generation calls this run will make
+// against the model (M-ANTHROPIC-CACHE-HIT-RATE M2).
+//
+// Pass 1 for genuinely one-shot work to opt OUT of prompt caching — a cache
+// write that is never read costs ~1.25x for nothing. Leave it unset for suite
+// runs: Anthropic's cache is server-side and shared across agent instances, so
+// a per-agent call count says nothing about whether the entry gets reused.
+func (a *AIAgent) SetExpectedCalls(n int) {
+	a.adapter.setExpectedCalls(n)
+}
+
 // WithAttribution sets OpenRouter app-attribution overrides for this agent.
 func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
 	a.attribution = attr
@@ -73,8 +84,22 @@ func (a *AIAgent) WithAttribution(attr *ai.Attribution) *AIAgent {
 }
 
 // GenerateCode generates code using the unified provider.
+//
+// The whole prompt is treated as volatile, so nothing is cached. Prefer
+// GenerateCodeSplit when the prompt has a stable teaching-prompt prefix.
 func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.adapter.generate(ctx, prompt)
+	return a.adapter.generate(ctx, "", prompt)
+}
+
+// GenerateCodeSplit generates code from a prompt already split into a stable
+// cacheable prefix and a per-benchmark task (M-ANTHROPIC-CACHE-HIT-RATE M2).
+//
+// The model sees cachedPrefix+task, identical to passing the joined string to
+// GenerateCode. On Anthropic the split additionally lets a cache breakpoint sit
+// at the boundary, so repeat calls in a suite re-read the teaching prompt at
+// ~10% of input price instead of re-paying it in full.
+func (a *AIAgent) GenerateCodeSplit(ctx context.Context, cachedPrefix, task string) (*GenerateResult, error) {
+	return a.adapter.generate(ctx, cachedPrefix, task)
 }
 
 // GenerateResult contains the result of code generation

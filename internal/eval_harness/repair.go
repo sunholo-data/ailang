@@ -180,10 +180,37 @@ type attemptResult struct {
 	ConstraintViolations []string // non-empty: source rejected before execution
 }
 
+// splitCacheablePrefix separates the stable teaching prompt from the volatile
+// remainder so a prompt-cache breakpoint can sit at the boundary
+// (M-ANTHROPIC-CACHE-HIT-RATE M2).
+//
+// It asks the spec for its own base rather than searching for a "## Task"
+// sentinel, then only splits when the prompt genuinely STARTS with that base.
+// The callers upstream assemble `prompt` through several branches (custom
+// prompt versions, registry fallbacks, repair-attempt suffixes); anything that
+// does not begin with the known base falls through uncached rather than being
+// guessed at.
+//
+// Because the split is HasPrefix/TrimPrefix, prefix+remainder is the original
+// string by construction — the model cannot see different bytes than before.
+//
+// Repair attempts append to the prompt rather than replacing it, so they still
+// start with the base and still hit the cache.
+func (r *RepairRunner) splitCacheablePrefix(prompt string) (cachedPrefix, remainder string) {
+	base, _ := r.spec.PromptPartsForLanguage(r.runner.Language())
+	if base == "" || !strings.HasPrefix(prompt, base) {
+		return "", prompt
+	}
+	return base, strings.TrimPrefix(prompt, base)
+}
+
 // runSingleAttempt executes one code generation + execution cycle
 func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*attemptResult, error) {
-	// Generate code using AI
-	genResult, err := r.agent.GenerateCode(ctx, prompt)
+	// Generate code using AI. Split off the cacheable teaching prompt so
+	// providers that support prompt caching can re-read it instead of re-paying
+	// for it on every benchmark in the suite.
+	cachedPrefix, remainder := r.splitCacheablePrefix(prompt)
+	genResult, err := r.agent.GenerateCodeSplit(ctx, cachedPrefix, remainder)
 	if err != nil {
 		return nil, fmt.Errorf("code generation failed: %w", err)
 	}
