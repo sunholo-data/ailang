@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
 
 // M-ANTHROPIC-CACHE-HIT-RATE D4: the warm-up must fire exactly where it pays and
 // nowhere else. Getting the grouping wrong is expensive in both directions —
@@ -64,6 +71,99 @@ func TestGroupJobsForWarmup(t *testing.T) {
 		}
 		if len(counts) != 1 {
 			t.Errorf("3 jobs on one model+language should be ONE warm-up group, got %d", len(counts))
+		}
+	})
+}
+
+// The warm-up's failure paths all return BEFORE any network call, which makes
+// them testable without a provider — and they are the paths that matter most,
+// since the whole design promise is "a warm-up can never break a suite".
+
+func TestWarmPromptCaches_NoEligibleGroups(t *testing.T) {
+	// Single-job groups are ineligible, so no spec is loaded and no call made.
+	jobs := []Job{{Model: "claude-sonnet-4-5", Benchmark: "b1", Language: "ailang"}}
+	if got := warmPromptCaches(context.Background(), jobs, time.Second); got != 0 {
+		t.Errorf("warmed %d groups, want 0 — nothing here is eligible", got)
+	}
+}
+
+func TestWarmPromptCaches_EmptyJobs(t *testing.T) {
+	if got := warmPromptCaches(context.Background(), nil, time.Second); got != 0 {
+		t.Errorf("warmed %d groups from no jobs, want 0", got)
+	}
+}
+
+// A missing benchmark spec must degrade to a warning and zero warmed groups —
+// never a panic and never an abort. This is the guarantee the suite depends on.
+func TestWarmPromptCaches_MissingSpecIsNonFatal(t *testing.T) {
+	prev := evalBenchmarkDir
+	evalBenchmarkDir = t.TempDir() // no .yml files at all
+	defer func() { evalBenchmarkDir = prev }()
+
+	jobs := []Job{
+		{Model: "claude-sonnet-4-5", Benchmark: "does-not-exist", Language: "ailang"},
+		{Model: "claude-sonnet-4-5", Benchmark: "also-missing", Language: "ailang"},
+	}
+	got := warmPromptCaches(context.Background(), jobs, time.Second)
+	if got != 0 {
+		t.Errorf("warmed %d groups despite a missing spec, want 0", got)
+	}
+}
+
+func TestWarmOneCache_MissingSpecReturnsError(t *testing.T) {
+	prev := evalBenchmarkDir
+	evalBenchmarkDir = t.TempDir()
+	defer func() { evalBenchmarkDir = prev }()
+
+	key := cacheWarmupKey{model: "claude-sonnet-4-5", language: "ailang"}
+	sample := Job{Model: key.model, Benchmark: "nope", Language: key.language}
+
+	err := warmOneCache(context.Background(), key, sample, time.Second)
+	if err == nil {
+		t.Fatal("expected an error for a missing benchmark spec")
+	}
+	if !strings.Contains(err.Error(), "load spec") {
+		t.Errorf("error = %q, want it to name the load-spec step", err)
+	}
+}
+
+func TestIsAnthropicModel_UnknownModelIsNotAnthropic(t *testing.T) {
+	// Resolution failure must mean "skip the warm-up", not "abort the suite".
+	if isAnthropicModel("no-such-model-xyz") {
+		t.Error("an unresolvable model must not be treated as Anthropic")
+	}
+}
+
+// With a VALID spec the warm-up gets past loading and into prefix derivation
+// and agent construction. Both later failure modes must still be plain errors.
+func TestWarmOneCache_ValidSpecLaterFailuresAreErrors(t *testing.T) {
+	dir := t.TempDir()
+	spec := "id: wu1\nlanguages: [ailang]\ntask_prompt: \"print hello\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "wu1.yml"), []byte(spec), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+	prev := evalBenchmarkDir
+	evalBenchmarkDir = dir
+	defer func() { evalBenchmarkDir = prev }()
+
+	t.Run("unknown language has no cacheable base", func(t *testing.T) {
+		key := cacheWarmupKey{model: "claude-sonnet-4-5", language: "no-such-lang"}
+		err := warmOneCache(context.Background(), key,
+			Job{Model: key.model, Benchmark: "wu1", Language: key.language}, time.Second)
+		if err == nil {
+			t.Fatal("expected an error when there is no base prompt to cache")
+		}
+	})
+
+	t.Run("unresolvable model fails at agent construction", func(t *testing.T) {
+		key := cacheWarmupKey{model: "no-such-model-xyz", language: "ailang"}
+		err := warmOneCache(context.Background(), key,
+			Job{Model: key.model, Benchmark: "wu1", Language: key.language}, time.Second)
+		if err == nil {
+			t.Fatal("expected an error for an unresolvable model")
+		}
+		if !strings.Contains(err.Error(), "create agent") {
+			t.Errorf("error = %q, want it to name the agent-construction step", err)
 		}
 	})
 }

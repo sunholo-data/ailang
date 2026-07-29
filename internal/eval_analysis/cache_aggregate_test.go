@@ -1,6 +1,9 @@
 package eval_analysis
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // M-ANTHROPIC-CACHE-HIT-RATE M3 (deferred item): the hit rate has to be derived
 // from the right denominator or it is worse than no number at all.
@@ -46,5 +49,36 @@ func TestCalculateAggregates_LegacyResultsNoNaN(t *testing.T) {
 	}
 	if agg.CacheReadTokens != 0 || agg.CacheCreationTokens != 0 {
 		t.Error("legacy results should aggregate to zero cache activity")
+	}
+}
+
+// FormatMatrix renders the human-readable summary. The cache line is
+// conditional: it appears only when some provider actually reported activity,
+// because a flat "0.0%" for a fleet that never reports would read as "caching is
+// broken" rather than "nothing measured here".
+func TestFormatMatrix_CacheLineIsConditional(t *testing.T) {
+	withCache := &PerformanceMatrix{
+		Version: "v0.31.0",
+		Aggregates: Aggregates{
+			TotalTokens:         50000,
+			CacheReadTokens:     32000,
+			CacheCreationTokens: 16000,
+			CacheHitRate:        0.646,
+		},
+	}
+	out := FormatMatrix(withCache, false)
+	if !strings.Contains(out, "Cache hit rate") {
+		t.Error("expected a cache hit rate line when cache activity was reported")
+	}
+	if !strings.Contains(out, "64.6%") {
+		t.Errorf("expected the rate rendered as a percentage, got:\n%s", out)
+	}
+
+	noCache := &PerformanceMatrix{
+		Version:    "v0.30.0",
+		Aggregates: Aggregates{TotalTokens: 50000},
+	}
+	if got := FormatMatrix(noCache, false); strings.Contains(got, "Cache hit rate") {
+		t.Error("cache line must be omitted when nothing reported cache activity — a bare 0.0% reads as a broken cache")
 	}
 }
