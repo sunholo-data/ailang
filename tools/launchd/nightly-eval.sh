@@ -315,7 +315,26 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
         # syntax drift to remove — which is the same category of mistake as
         # running the A/B against haiku at a 96% ceiling: a subject that cannot
         # exhibit the failure mode cannot show the remedy working.
-        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-contract_rle_roundtrip,config_file_parser,contract_roman_numeral,contract_sorted_merge,log_file_analyzer}"
+        #
+        # AMENDED 2026-07-29 after the first fully-instrumented run, which made
+        # that exact mistake a THIRD time. The original set
+        # (contract_rle_roundtrip, config_file_parser, contract_roman_numeral,
+        # contract_sorted_merge, log_file_analyzer) was picked from banked rates
+        # of 35-86%, but the OFF arm came in at 10/10 — and 4 of the 5 were 4/4.
+        # P(10/10 | those rates) ~= 0.3%, so the set did not get lucky: THE
+        # BASELINE MOVED. Every pre-2026-07-29 row predates the MOTOKO_REPO fix,
+        # so no extension had ever loaded — not even DP7's per-edit `ailang
+        # check`. With extensions live, the control arm alone clears that set.
+        #
+        # So pre-fix pass rates are a LOWER BOUND on how easy a benchmark now
+        # is, and a set must be chosen to be harder than it looks. These five
+        # are the hardest with n>=4 banked rows, none of which the 07-29 run
+        # touched. docx_reimplement is the deliberate anchor: it is the hardest
+        # benchmark by ELO and it fails ~100% COMPILE-STUCK, which is precisely
+        # the syntax-drift failure mode fmt claims to remove.
+        #   bytecode_vm_trace 17% | dep_resolver_backtrack 25% | docx 39%
+        #   red_black_tree 56%    | csv_to_json_converter 59%   (all pre-fix)
+        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-bytecode_vm_trace,dep_resolver_backtrack,docx_reimplement,red_black_tree,csv_to_json_converter}"
         # N>=5 per the prereg. The previous 2 was inherited from the microRAG
         # block, not chosen for this experiment.
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
@@ -365,7 +384,7 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
 import json
 on_p,on_t=${FMT_ON},${FMT_ON_T}; off_p,off_t=${FMT_OFF},${FMT_OFF_T}
 print(json.dumps({
-  'date':'${DATE}','experiment':'motoko_ext_fmt','lang':'ailang','trials':2,
+  'date':'${DATE}','experiment':'motoko_ext_fmt','lang':'ailang','trials':${FMT_TRIALS},
   'on_model':'motoko-local-qwen3-6-fmt','off_model':'motoko-local-qwen3-6-35b-a3b-mxfp8',
   'on_pass':on_p,'on_total':on_t,'off_pass':off_p,'off_total':off_t,
   'on_rate':round(on_p/on_t,4),'off_rate':round(off_p/off_t,4),

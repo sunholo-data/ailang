@@ -1619,7 +1619,15 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
     budgets:
-      hard_timeout_secs: 1800
+      # MUST equal the OFF arm (motoko-local-qwen3-6-35b-a3b-mxfp8: 3600). This
+      # was 1800 — half the OFF arm's budget — which is a confound, not a
+      # setting: a timeout kill is banked as a FAILURE, so the ON arm would be
+      # charged for losses that are really the harness giving it less time. It
+      # never bit while the set was easy (every 07-29 row finished well inside
+      # 30 min), but the amended set is anchored on docx_reimplement, which is
+      # long and fails ~100% compile-stuck. The single permitted difference
+      # between these two entries is motoko_profile.
+      hard_timeout_secs: 3600
 
   motoko-local-qwen3-6-docs:
     api_name: "qwen3.6:35b-a3b-mxfp8"
@@ -2864,13 +2872,14 @@ benchmark_suite:
     # tokens (~816K, identical) dominate at core-tier prompt sizes.
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
 
-# Extended suite - flagship frontier + modern open-source (11 models)
+# Extended suite - flagship frontier + modern open-source (18 models)
 # Use for: Release baselines, comprehensive comparisons, cloud-vs-OS cost/quality.
 # Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
-# OS roster refreshed 2026-06-04: glm-5→glm-5.1, minimax-m2.7→m3, +deepseek-v4
-# flash/pro (both 75% std / 100% agent-smoke; the May 0/3 cut was harness-immaturity).
+# OS roster: glm-5.2 (replaced 5.1 2026-07-19), minimax-m3, kimi k2.7-code + k3,
+# deepseek-v4 flash/pro. Roster last changed 2026-07-27 (claude-opus-5 in, 4.8 out);
+# see the per-entry annotations below for each gate record.
 extended_suite:
   - "gpt5-6-sol"        # OpenAI flagship (Jul 2026) — gated 2026-07-11: core 26/26 N=1, tie 25/26 with gpt5-5
     # after N=3 de-flake of explicit_dataflow_ssa (both fail it 3/3; every OpenAI model fails it).
@@ -2995,7 +3004,7 @@ harness_suite:
   - "gpt5-5"                   # GPT-5.5 via Codex CLI harness (Apr 2026)
   - "opencode-gpt5-5"          # GPT-5.5 via opencode harness (cross-harness comparison)
 
-# Local models - free, offline, privacy-preserving (4 models)
+# Local models - free, offline, privacy-preserving (7 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
 # Cost: $0.00 (runs locally via Ollama)
 # Requires: ollama serve running locally
@@ -3026,7 +3035,7 @@ local_models:
 # - gpt5-1-instant    # Superseded by gpt5-4-mini in dev_models (Apr 2026)
 # - gpt5-1-codex-max  # Superseded by gpt5-2-codex (Jan 2026)
 # - gpt5-2            # GPT-5.2 flagship (superseded by gpt5-4)
-# - gpt5-2-codex      # Still in extended_suite for agentic coding comparison
+# - gpt5-2-codex      # Agentic-coding comparison point — NOT in any suite (drifted out; opt-in via --models)
 # - gpt5-mini         # Cheaper but slower than gpt5-4-mini
 # - gpt5-2-instant    # Fast variant of GPT-5.2
 # - gpt5-4-nano       # Ultra-cheap ($0.20/M) — run with --models gpt5-4-nano
