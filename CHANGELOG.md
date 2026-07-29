@@ -4,8 +4,17 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ## [Unreleased]
 
+### Added
+
+- `serve-api --no-feedback-tool` can suppress the built-in
+  `submit_feedback` MCP tool for an exact caller-selected surface. Existing
+  invocations keep the tool by default (refs #498).
+
 ### Fixed
 
+- A2A `tasks/send` now applies the same `--routes-only` / `@noexpose`
+  projection as the agent card, so hidden functions are not callable and
+  remain indistinguishable from absent functions (refs #528).
 - SMT verification now closes declarations through named record fields into
   user ADTs, including `list[ADT]` and mutual record/ADT cycles.
 - `ai-check` now uses the same per-function type-demand filtering as `verify`,

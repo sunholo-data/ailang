@@ -505,18 +505,18 @@ one PR inside a day. This is in family.
 
 ## 9. Acceptance criteria
 
-- [ ] `serve-api --mcp --no-feedback-tool DIR` → `tools/list` has **no** `submit_feedback` and **does** have the user's exports.
-- [ ] `serve-api --mcp --routes-only --no-feedback-tool DIR` → `tools/list` is **exactly** the `@route` set.
-- [ ] `serve-api --mcp DIR` (no flag) → `submit_feedback` still present. **Default is unchanged.**
-- [ ] `--mcp-http` behaves identically to `--mcp` (same `NewMCPServer` path; asserted in M1, no separate transport test needed).
-- [ ] `tools/call submit_feedback` errors when suppressed.
-- [ ] Every new test carries a positive control; no absence assertion can pass on an empty list.
-- [ ] All named mutations (MUT-1a/1b/1c, M2, M3) observed **red**, then reverted — with the failing test names quoted in the sprint report.
-- [ ] `--routes-only` semantics unchanged; `filtering_test.go` and `mcp_schema_test.go` pass unmodified.
-- [ ] Docs state: `--caps` gates execution not discovery; `--routes-only` filters exports not built-ins; `--no-feedback-tool` exists.
-- [ ] `go test ./internal/apiserver/` green; `make lint`, `gofmt -l`, `make check-file-sizes` clean.
-- [ ] CHANGELOG `[Unreleased]` updated; `refs #498` on every commit; **no** `Fixes #498`.
-- [ ] Sprint report states explicitly which milestones were cut, if any, and what was filed instead.
+- [x] `serve-api --mcp --no-feedback-tool DIR` → `tools/list` has **no** `submit_feedback` and **does** have the user's exports.
+- [x] `serve-api --mcp --routes-only --no-feedback-tool DIR` → `tools/list` is **exactly** the `@route` set.
+- [x] `serve-api --mcp DIR` (no flag) → `submit_feedback` still present. **Default is unchanged.**
+- [x] `--mcp-http` behaves identically to `--mcp` (same `NewMCPServer` path; asserted in M1, no separate transport test needed).
+- [x] `tools/call submit_feedback` errors when suppressed.
+- [x] Every new test carries a positive control; no absence assertion can pass on an empty list.
+- [x] All named mutations (MUT-1a/1b/1c, M2, M3) observed **red**, then reverted — with the failing test names quoted in the sprint report.
+- [x] `--routes-only` semantics unchanged; `filtering_test.go` and `mcp_schema_test.go` pass unmodified.
+- [x] Docs state: `--caps` gates execution not discovery; `--routes-only` filters exports not built-ins; `--no-feedback-tool` exists.
+- [x] `go test ./internal/apiserver/` green; `make lint`, `gofmt -l`, `make check-file-sizes` clean.
+- [x] CHANGELOG `[Unreleased]` updated; `refs #498` on every commit; **no** `Fixes #498`.
+- [x] Sprint report states explicitly which milestones were cut, if any, and what was filed instead.
 
 ---
 
