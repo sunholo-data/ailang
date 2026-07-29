@@ -11,28 +11,38 @@ import (
 
 // RunMetrics captures the results of a single benchmark run
 type RunMetrics struct {
-	ID             string    `json:"id"`
-	Lang           string    `json:"lang"`
-	Model          string    `json:"model"`
-	Executor       string    `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode only)
-	Seed           int64     `json:"seed"`
-	InputTokens    int       `json:"input_tokens"`            // Prompt tokens (recorded but not primary metric)
-	OutputTokens   int       `json:"output_tokens"`           // Generated code tokens (PRIMARY METRIC; reasoning excluded)
-	ReasonTokens   int       `json:"reason_tokens,omitempty"` // Hidden reasoning/thinking tokens (billed as output)
-	TotalTokens    int       `json:"total_tokens"`            // Total for billing (includes reasoning)
-	CostUSD        float64   `json:"cost_usd"`
-	CompileOk      bool      `json:"compile_ok"`
-	RuntimeOk      bool      `json:"runtime_ok"`
-	StdoutOk       bool      `json:"stdout_ok"`
-	DurationMs     int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
-	CompileMs      int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
-	ExecuteMs      int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
-	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
-	Stdout         string    `json:"stdout,omitempty"`
-	Stderr         string    `json:"stderr,omitempty"`
-	ExpectedStdout string    `json:"expected_stdout,omitempty"`
-	Timestamp      time.Time `json:"timestamp"`
-	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+	ID           string `json:"id"`
+	Lang         string `json:"lang"`
+	Model        string `json:"model"`
+	Executor     string `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode only)
+	Seed         int64  `json:"seed"`
+	InputTokens  int    `json:"input_tokens"`            // Prompt tokens (recorded but not primary metric)
+	OutputTokens int    `json:"output_tokens"`           // Generated code tokens (PRIMARY METRIC; reasoning excluded)
+	ReasonTokens int    `json:"reason_tokens,omitempty"` // Hidden reasoning/thinking tokens (billed as output)
+	// CacheReadInputTokens / CacheCreationInputTokens record prompt-cache
+	// activity (M-ANTHROPIC-CACHE-HIT-RATE M3). Before v0.31.0 these were
+	// modelled on ai.Response but never persisted, so NONE of the 28,139 banked
+	// result files carried them and our own cache hit rate was unmeasurable from
+	// our own data — the low rate had to be reported to us from outside.
+	//
+	// omitempty keeps pre-v0.31.0 baselines parsing unchanged (absent reads as 0)
+	// and keeps rows for providers without cache reporting free of noise.
+	CacheReadInputTokens     int       `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationInputTokens int       `json:"cache_creation_input_tokens,omitempty"`
+	TotalTokens              int       `json:"total_tokens"` // Total for billing (includes reasoning)
+	CostUSD                  float64   `json:"cost_usd"`
+	CompileOk                bool      `json:"compile_ok"`
+	RuntimeOk                bool      `json:"runtime_ok"`
+	StdoutOk                 bool      `json:"stdout_ok"`
+	DurationMs               int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
+	CompileMs                int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
+	ExecuteMs                int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	ErrorCategory            string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
+	Stdout                   string    `json:"stdout,omitempty"`
+	Stderr                   string    `json:"stderr,omitempty"`
+	ExpectedStdout           string    `json:"expected_stdout,omitempty"`
+	Timestamp                time.Time `json:"timestamp"`
+	Code                     string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means

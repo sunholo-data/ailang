@@ -105,12 +105,16 @@ func (a *AIAgent) GenerateCodeSplit(ctx context.Context, cachedPrefix, task stri
 // GenerateResult contains the result of code generation
 type GenerateResult struct {
 	Code         string
-	InputTokens  int    // Prompt tokens (input to LLM)
-	OutputTokens int    // Completion tokens (generated code, reasoning excluded)
-	ReasonTokens int    // Hidden reasoning/thinking tokens (billed as output)
-	TotalTokens  int    // Total tokens (for billing; includes reasoning)
-	FinishReason string // Normalized stop reason ("stop", "length", ...); "" if unreported
-	Model        string
+	InputTokens  int // Prompt tokens (input to LLM)
+	OutputTokens int // Completion tokens (generated code, reasoning excluded)
+	ReasonTokens int // Hidden reasoning/thinking tokens (billed as output)
+	// Prompt-cache activity, when the provider reports it (Anthropic, OpenAI,
+	// Gemini). Zero means "not reported", not "no cache".
+	CacheReadInputTokens     int
+	CacheCreationInputTokens int
+	TotalTokens              int    // Total tokens (for billing; includes reasoning)
+	FinishReason             string // Normalized stop reason ("stop", "length", ...); "" if unreported
+	Model                    string
 }
 
 // RetryConfig configures retry behavior

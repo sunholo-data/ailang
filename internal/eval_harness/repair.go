@@ -152,6 +152,8 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		metrics.ErrorCategory = "none"
 		// Add repair tokens to totals (reasoning included — billed as output)
 		metrics.InputTokens += repairResult.InputTokens
+		metrics.CacheReadInputTokens += repairResult.CacheReadTokens
+		metrics.CacheCreationInputTokens += repairResult.CacheCreationTokens
 		metrics.OutputTokens += repairResult.OutputTokens
 		metrics.ReasonTokens += repairResult.ReasonTokens
 		metrics.TotalTokens += repairResult.InputTokens + repairResult.OutputTokens + repairResult.ReasonTokens
@@ -172,6 +174,8 @@ type attemptResult struct {
 	InputTokens          int
 	OutputTokens         int
 	ReasonTokens         int    // hidden reasoning/thinking tokens (billed as output)
+	CacheReadTokens      int    // prompt-cache tokens served from cache (0 = not reported)
+	CacheCreationTokens  int    // prompt-cache tokens written this call
 	FinishReason         string // normalized stop reason; "length" = output truncated at cap
 	RunResult            *RunResult
 	CompileOk            bool
@@ -224,6 +228,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 			return &attemptResult{
 				Code:                 genResult.Code,
 				InputTokens:          genResult.InputTokens,
+				CacheReadTokens:      genResult.CacheReadInputTokens,
+				CacheCreationTokens:  genResult.CacheCreationInputTokens,
 				OutputTokens:         genResult.OutputTokens,
 				ReasonTokens:         genResult.ReasonTokens,
 				FinishReason:         genResult.FinishReason,
@@ -247,21 +253,25 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 	stdoutOk := GradeStdout(r.spec, runResult.Stdout, genResult.Code)
 
 	return &attemptResult{
-		Code:         genResult.Code,
-		InputTokens:  genResult.InputTokens,
-		OutputTokens: genResult.OutputTokens,
-		ReasonTokens: genResult.ReasonTokens,
-		FinishReason: genResult.FinishReason,
-		RunResult:    runResult,
-		CompileOk:    runResult.CompileOk,
-		RuntimeOk:    runResult.RuntimeOk,
-		StdoutOk:     stdoutOk,
+		Code:                genResult.Code,
+		InputTokens:         genResult.InputTokens,
+		CacheReadTokens:     genResult.CacheReadInputTokens,
+		CacheCreationTokens: genResult.CacheCreationInputTokens,
+		OutputTokens:        genResult.OutputTokens,
+		ReasonTokens:        genResult.ReasonTokens,
+		FinishReason:        genResult.FinishReason,
+		RunResult:           runResult,
+		CompileOk:           runResult.CompileOk,
+		RuntimeOk:           runResult.RuntimeOk,
+		StdoutOk:            stdoutOk,
 	}, nil
 }
 
 // populateMetrics fills in RunMetrics from an attemptResult
 func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResult) {
 	metrics.InputTokens = result.InputTokens
+	metrics.CacheReadInputTokens = result.CacheReadTokens
+	metrics.CacheCreationInputTokens = result.CacheCreationTokens
 	metrics.OutputTokens = result.OutputTokens
 	metrics.ReasonTokens = result.ReasonTokens
 	metrics.FinishReason = result.FinishReason

@@ -209,13 +209,15 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 	}
 
 	return &GenerateResult{
-		Code:         extractCodeFromMarkdown(resp.Text),
-		InputTokens:  resp.InputTokens,
-		OutputTokens: resp.OutputTokens,
-		ReasonTokens: resp.ReasonTokens,
-		TotalTokens:  resp.TotalTokens,
-		FinishReason: resp.FinishReason,
-		Model:        resp.Model,
+		Code:                     extractCodeFromMarkdown(resp.Text),
+		InputTokens:              resp.InputTokens,
+		OutputTokens:             resp.OutputTokens,
+		ReasonTokens:             resp.ReasonTokens,
+		CacheReadInputTokens:     resp.CacheReadInputTokens,
+		CacheCreationInputTokens: resp.CacheCreationInputTokens,
+		TotalTokens:              resp.TotalTokens,
+		FinishReason:             resp.FinishReason,
+		Model:                    resp.Model,
 	}, nil
 }
 
