@@ -602,8 +602,11 @@ unbounded poll — an `until COND; do sleep 30; done` whose condition never came
 there is no GNU `timeout` on the rig):
 
 ```bash
-rid=$(gh run list --branch dev --workflow CI --limit 1 --json databaseId --jq '.[0].databaseId')
-[ -n "$rid" ] || echo "Gate 3b: no CI run for HEAD yet — re-list a few times, still bounded"
+# PIN THE POLL TARGET TO THE SHA YOU PUSHED — never `--limit 1` (see the war story below).
+target=$(git rev-parse origin/dev)            # FULL sha; no `--short` (Gate 1's rev-parse lesson)
+rid=$(gh run list --branch dev --workflow CI --limit 10 --json databaseId,headSha \
+      | jq -r --arg t "$target" '[.[] | select(.headSha == $t)][0].databaseId // empty')
+[ -n "$rid" ] || echo "Gate 3b: no CI run for $target yet — re-list a few times, still bounded"
 deadline=$(( $(date +%s) + 1800 ))            # 30-min cap; CI is ~15-20m — never open-ended
 while :; do
   st=$(gh run view "$rid" --json status,conclusion --jq '.status + " " + (.conclusion // "")')
@@ -612,6 +615,24 @@ while :; do
   sleep 30
 done
 ```
+
+**The poll target must be SHA-PINNED, because `--limit 1` silently watches the WRONG RUN** (added
+2026-07-29 iteration 117; the 4th recorded instance of the stale-instrument class, and the 2nd
+landing squarely on Gate 3b's own verdict). The old snippet selected the newest run on the branch
+and then polled *that* id, while its own adjacent comment claimed it was "for HEAD" — a lie the
+reader had to catch. On a branch with any recent prior run, or when a sibling merges while you
+poll, `--limit 1` returns a run that PREDATES your push. Both directions have now been observed
+live: the sibling Ailang World mission's iteration 33 got `completed failure` for the *previous*
+commit's run on a push it had never seen (a **red verdict for a green landing**), and V1's own
+iteration 115 was outrun by a sibling merge and reported **TIMEOUT on a landing that was green**.
+Iteration 116 worked around it ad hoc by reading `gh api repos/.../commits/<sha>/check-runs`
+instead — correct, but a workaround the snippet did not teach. Since a Gate-3b verdict decides
+LANDED vs parked, an unpinned selector can park a landed item or green a red one, which is the
+exact failure mode rule (c) below exists to catch. The pin above closes it at the selection step
+rather than relying on the reader to notice; `// empty` plus the re-list keeps it bounded when the
+run has not been created yet. **When you want maximum certainty, skip run-id selection entirely
+and read the merge commit directly** — `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`
+is SHA-addressed by construction and cannot drift.
 
 **Poll SEVERAL workflows with THIS snippet, run once per workflow — do NOT hand-roll a
 multi-workflow loop** (added 2026-07-27 iteration 107; TWO defects in one iteration, both from
