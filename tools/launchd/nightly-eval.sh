@@ -214,6 +214,19 @@ print(sum(1 for f in fs
     # one-line append). Write to the MAIN repo working tree ($REPO), NOT the
     # detached build worktree we cd'd into. Best-effort: a git failure never
     # touches the eval result.
+    # Paired per-benchmark outcomes + McNemar (m-eval-measurement-contract M3).
+    # Aggregate rate deltas cannot resolve anything at n=84 (unpaired SE ~6.8pp,
+    # so only effects >~13pp reach significance). Pairing on the benchmark
+    # cancels the between-benchmark variance and costs no extra GPU time — it is
+    # a better reading of runs we already do. Computed in Go, not shell: the old
+    # shell arithmetic is what produced the 2026-07-20 artefact.
+    PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_rag_on" "${RESULTS_DIR}_rag_off" 2>>"$LOG" || echo "")
+    if [[ -n "$PAIRED" ]]; then
+        log "paired: $(echo "$PAIRED" | python3 -c 'import json,sys; d=json.load(sys.stdin); m=d["mcnemar"]; print(f"b={d[\"only_on_passed\"]} c={d[\"only_off_passed\"]} unpaired={d[\"unpaired\"]} " + (f"p={m[\"p_value\"]:.4f} ({m[\"method\"]})" if m["reportable"] else "no p-value: " + m["note"]))' 2>/dev/null || echo 'parse failed')"
+    else
+        log "paired: eval-paired produced no output (see $LOG)"
+    fi
+
     HIST="$REPO/docs/static/benchmarks/microrag_ab.jsonl"
     ON_TOTAL=$(find "${RESULTS_DIR}_rag_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
     OFF_TOTAL=$(find "${RESULTS_DIR}_rag_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -243,6 +256,20 @@ print(json.dumps({
             "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes or zero result files. This is a harness failure, not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
             --title "A/B invalid (${DATE})" --from "nightly-eval" 2>/dev/null || true
         REC=""
+    fi
+
+    # Fold the paired analysis into the banked row so the test is recomputable
+    # from history without re-running the eval.
+    if [[ -n "$REC" && -n "$PAIRED" ]]; then
+        REC=$(python3 -c "
+import json,sys
+rec=json.loads(sys.argv[1]); paired=json.loads(sys.argv[2])
+rec['pairs']=paired.get('pairs')
+rec['only_on_passed']=paired.get('only_on_passed')
+rec['only_off_passed']=paired.get('only_off_passed')
+rec['unpaired']=paired.get('unpaired')
+rec['mcnemar']=paired.get('mcnemar')
+print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
     fi
 
     if [[ -n "$REC" ]]; then

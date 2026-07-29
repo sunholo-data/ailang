@@ -1,0 +1,674 @@
+[
+ {
+  "id": "adt_option",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "adt_option",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "api_call_json",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false
+ },
+ {
+  "id": "api_call_json",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "ast_patch_roundtrip",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "ast_patch_roundtrip",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "balanced_parens",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "balanced_parens",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "binary_tree_sum",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "binary_tree_sum",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "canonical_convergence",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "canonical_convergence",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "canonical_normalization",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "canonical_normalization",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "cli_args",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "cli_args",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false
+ },
+ {
+  "id": "config_file_parser",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "config_file_parser",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "contract_bst_validate",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "contract_bst_validate",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "contract_roman_numeral",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "contract_roman_numeral",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "csv_to_json_converter",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "csv_to_json_converter",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "dense_operator_program",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "dense_operator_program",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "effect_tracking_io_fs",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "effect_tracking_io_fs",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "error_handling",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "error_handling",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "explicit_dataflow_ssa",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "explicit_dataflow_ssa",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false
+ },
+ {
+  "id": "explicit_state_threading",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "explicit_state_threading",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "fizzbuzz",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "fizzbuzz",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "fold_reduce",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "fold_reduce",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "gcd_lcm",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "gcd_lcm",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "higher_order_functions",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "higher_order_functions",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "immutable_data_structures",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "immutable_data_structures",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "inline_tests",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "inline_tests",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "intent_annotated_solver",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false
+ },
+ {
+  "id": "intent_annotated_solver",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "json_encode",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "json_encode",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "json_parse",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "json_parse",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "json_transform",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "json_transform",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "list_comprehension",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "list_comprehension",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "nested_records",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "nested_records",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "numeric_modulo",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "numeric_modulo",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "parallel_independent_subtasks",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "parallel_independent_subtasks",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "parallel_map_reduce",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "parallel_map_reduce",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "pipeline",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false
+ },
+ {
+  "id": "pipeline",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "prompt_injection",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "prompt_injection",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "record_update",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "record_update",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "records_book",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "records_book",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "recursion_fibonacci",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "recursion_fibonacci",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "state_machine_elevator",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "state_machine_elevator",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "state_machine_vending",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "state_machine_vending",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "tree_transformation_pipeline",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "tree_transformation_pipeline",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "type_safe_record_access",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "type_safe_record_access",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false
+ },
+ {
+  "id": "typed_stream_pipeline",
+  "lang": "ailang",
+  "trial": 1,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ },
+ {
+  "id": "typed_stream_pipeline",
+  "lang": "ailang",
+  "trial": 2,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true
+ }
+]

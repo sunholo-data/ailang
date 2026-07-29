@@ -167,6 +167,109 @@ func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
 	return deduped, nil
 }
 
+// loadResultsFromDirsNoDedup walks and parses WITHOUT the re-run dedup, so
+// every trial survives. Used by paired analysis; see LoadArmForPairing.
+func loadResultsFromDirsNoDedup(dirs ...string) ([]*BenchmarkResult, error) {
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("no directories provided")
+	}
+
+	var allMatches []string
+
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return nil, fmt.Errorf("directory not found: %s", dir)
+		}
+
+		// Walk directory tree to find all .json files
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil // Skip inaccessible dirs
+			}
+			if !d.IsDir() && filepath.Ext(path) == ".json" {
+				allMatches = append(allMatches, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
+		}
+	}
+
+	if len(allMatches) == 0 {
+		return nil, fmt.Errorf("no JSON files found in %v", dirs)
+	}
+
+	// Dedupe identical file paths (e.g. a --merge dir nested under the primary,
+	// or the same dir passed twice) so a file is loaded at most once.
+	if len(dirs) > 1 {
+		seenPath := make(map[string]struct{}, len(allMatches))
+		uniq := allMatches[:0]
+		for _, p := range allMatches {
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				abs = p
+			}
+			if _, dup := seenPath[abs]; dup {
+				continue
+			}
+			seenPath[abs] = struct{}{}
+			uniq = append(uniq, p)
+		}
+		allMatches = uniq
+	}
+
+	var results []*BenchmarkResult
+	var errors []string
+
+	for _, path := range allMatches {
+		// Skip baseline.json metadata file
+		if filepath.Base(path) == "baseline.json" {
+			continue
+		}
+
+		result, err := LoadResult(path)
+		if err != nil {
+			// Collect errors but don't fail completely
+			errors = append(errors, fmt.Sprintf("%s: %v", filepath.Base(path), err))
+			continue
+		}
+
+		results = append(results, result)
+	}
+
+	// Report errors if some files failed to load
+	if len(errors) > 0 && len(results) == 0 {
+		return nil, fmt.Errorf("failed to load any results: %v", errors)
+	}
+
+	// Sort by timestamp (newest first)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Timestamp.After(results[j].Timestamp)
+	})
+
+	return results, nil
+}
+
+// LoadArmForPairing loads ONE A/B arm WITHOUT the re-run dedup.
+//
+// The dedup key is (model, id, lang, seed, mode) and deliberately omits Trial,
+// so for a --trials N run it keeps only the newest trial per slot: an 84-file
+// arm loads as 42 rows. For aggregate reporting that is a (separate, pre-
+// existing) problem; for PAIRED analysis it is fatal twice over — half the
+// observations vanish, and the surviving trial can differ between arms, so the
+// rows no longer line up and land in Unpaired.
+//
+// Paired analysis therefore reads arms raw. Validity filtering still applies:
+// a non-measurement must not enter a comparison either.
+func LoadArmForPairing(dir string) ([]*BenchmarkResult, error) {
+	results, err := loadResultsFromDirsNoDedup(dir)
+	if err != nil {
+		return nil, err
+	}
+	return FilterValidResults(results), nil
+}
+
 // LoadResult loads a single benchmark result from a JSON file
 func LoadResult(path string) (*BenchmarkResult, error) {
 	data, err := os.ReadFile(path)

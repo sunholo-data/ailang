@@ -51,7 +51,16 @@ type BenchmarkResult struct {
 	PromptVersion string `json:"prompt_version,omitempty"`
 
 	// Agent evaluation metrics (M-EVAL-AGENT)
-	EvalMode        string `json:"eval_mode,omitempty"`        // "standard" or "agent"
+	EvalMode string `json:"eval_mode,omitempty"` // "standard" or "agent"
+
+	// Trial is the 1-based repetition index within a multi-trial run. It is
+	// REQUIRED for paired A/B analysis: both trials of a benchmark share
+	// (id, lang, seed), so a join that omits Trial would pair trial 1 of one
+	// arm against trial 2 of the other and quietly report noise as signal.
+	Trial int `json:"trial,omitempty"`
+
+	// MicroRAGState records which A/B arm produced this row ("on"/"off").
+	MicroRAGState   string `json:"microrag_state,omitempty"`
 	Condition       string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
 	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (validates agentic behavior)

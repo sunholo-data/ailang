@@ -227,6 +227,9 @@ func main() {
 	case "eval-compare":
 		runEvalCompare()
 
+	case "eval-paired":
+		runEvalPaired()
+
 	case "eval-matrix":
 		runEvalMatrix()
 

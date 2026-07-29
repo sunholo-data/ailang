@@ -103,6 +103,7 @@ func printHelp() {
 	fmt.Printf("  %s  Analyze eval results and generate design docs\n", cyan("eval-analyze [flags]"))
 	fmt.Printf("  %s <results_dir> <version>   Generate comprehensive eval report\n", cyan("eval-report"))
 	fmt.Printf("  %s <baseline> <new>    Compare two eval runs\n", cyan("eval-compare"))
+	fmt.Printf("  %s <on-dir> <off-dir>   Paired A/B comparison + McNemar (not aggregate rates)\n", cyan("eval-paired"))
 	fmt.Printf("  %s <results_dir> <version>    Performance matrix with stats\n", cyan("eval-matrix"))
 	fmt.Printf("  %s <results_dir>     Cost-vs-time-vs-success sweet-spot ranking\n", cyan("eval-sweet-spot"))
 	fmt.Printf("  %s <results_dir>        Summarize eval results\n", cyan("eval-summary"))
