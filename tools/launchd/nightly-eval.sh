@@ -153,12 +153,32 @@ fi
 
 # Run the eval in A/B mode: microRAG ON then OFF, same smoke set.
 # Results land in separate subdirs so analysis can diff them.
-# A/B is weekly (Mondays) to avoid doubling the nightly wall-clock every day.
-# On non-Monday nights: microRAG=on only (regression guard, no comparison overhead).
+#
+# EACH EXPERIMENT GETS ITS OWN NIGHT (Mark, 2026-07-29). Both A/Bs used to hang
+# off one Monday gate, which meant Monday paid for both: the microRAG comparison
+# AND the fmt comparison in a single night, each needing its own OFF arm. Two
+# full comparisons do not fit one night, so they were competing for the same rig
+# hours and neither got the trial count it needs.
+#
+#   Monday    -> microRAG A/B  (on vs off)
+#   Wednesday -> fmt A/B       (ollama_fmt vs ollama)
+#
+# Every other night: microRAG=on only, as a regression guard with no comparison
+# overhead. Both A/Bs pool across weeks — see the fmt block's note on why
+# McNemar needs accumulation rather than one big night.
 DAY_OF_WEEK=$(date +%u)  # 1=Mon … 7=Sun
-RUN_AB=0
-[[ "${AILANG_FORCE_AB:-0}" == "1" ]] && RUN_AB=1
-[[ "$DAY_OF_WEEK" == "1" ]] && RUN_AB=1
+RUN_AB_MICRORAG=0
+RUN_AB_FMT=0
+[[ "$DAY_OF_WEEK" == "1" ]] && RUN_AB_MICRORAG=1
+[[ "$DAY_OF_WEEK" == "3" ]] && RUN_AB_FMT=1
+# AILANG_FORCE_AB=1 forces BOTH (kept for back-compat); the per-experiment
+# overrides below force just one, which is what a manual catch-up run wants.
+[[ "${AILANG_FORCE_AB:-0}" == "1" ]] && { RUN_AB_MICRORAG=1; RUN_AB_FMT=1; }
+[[ "${AILANG_FORCE_AB_MICRORAG:-0}" == "1" ]] && RUN_AB_MICRORAG=1
+[[ "${AILANG_FORCE_AB_FMT:-0}" == "1" ]] && RUN_AB_FMT=1
+# Opt OUT of one on its own night (e.g. to give the other the whole rig).
+[[ "${AILANG_AB_MICRORAG:-1}" == "0" ]] && RUN_AB_MICRORAG=0
+[[ "${AILANG_AB_FMT:-1}" == "0" ]] && RUN_AB_FMT=0
 
 run_eval() {
     local mode="$1" outdir="$2"
@@ -176,8 +196,14 @@ run_eval() {
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
 
-if [[ "$RUN_AB" == "1" ]]; then
-    log "Monday A/B run: also running microrag=off"
+if [[ "$RUN_AB_MICRORAG" == "1" || "$RUN_AB_FMT" == "1" ]]; then
+
+# --- microRAG A/B (Mondays) -------------------------------------------------
+# Guarded WITHOUT re-indenting the ~110-line body: reindentation would bury a
+# two-line control-flow change in a whole-block diff. Closing `fi` is marked
+# "end microRAG A/B" below.
+if [[ "$RUN_AB_MICRORAG" == "1" ]]; then
+    log "microRAG A/B night: also running microrag=off"
     run_eval "off" "${RESULTS_DIR}_rag_off"
 
     # Compare. Both arms MUST be counted the same way — the old PASS_ON had a
@@ -291,9 +317,10 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
             fi
         fi
     fi
+fi  # end microRAG A/B
 
     # ------------------------------------------------------------------
-    # Second Monday experiment: motoko fmt extension (M-EVAL-FMT-WEAKMODEL-AB).
+    # Wednesday experiment: motoko fmt extension (M-EVAL-FMT-WEAKMODEL-AB).
     #
     # Hypothesis: running `ailang fmt --write` on every .ail write removes
     # syntax drift, so a WEAK local model re-reads canonical code each turn and
@@ -308,7 +335,7 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
     # fmt is deliberately NOT added to the ollama/cloud profiles: doing that
     # before the A/B concludes would destroy the control.
     # ------------------------------------------------------------------
-    if [[ "${AILANG_AB_FMT:-1}" == "1" ]]; then
+    if [[ "$RUN_AB_FMT" == "1" ]]; then
         # PREREGISTERED scope (M5 hardset prereg / M6). NOT the smoke+core set:
         # fmt removes syntax drift, so the experiment has to run where drift
         # actually occurs. The smoke set is largely drift-free — fizzbuzz has no
@@ -359,7 +386,7 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
         # N>=5 per the prereg. The previous 2 was inherited from the microRAG
         # block, not chosen for this experiment.
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
-        log "Monday A/B: motoko fmt extension (on vs off) — preregistered set, N=${FMT_TRIALS}"
+        log "Wednesday A/B: motoko fmt extension (on vs off) — ELO-selected set, N=${FMT_TRIALS}"
         log "  benchmarks: ${FMT_BENCH_LIST}"
         for arm in on off; do
             case "$arm" in
