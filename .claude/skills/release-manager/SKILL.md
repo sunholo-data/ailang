@@ -365,6 +365,38 @@ The smoke gate requires the **test** MCP to serve the released version, so **`st
 must equal the tag** (the gate fails the release otherwise — this is intentional: it catches
 tagging without bumping `std/VERSION`).
 
+**Where the build actually runs — `europe-west3`.** Cloud Build triggers and builds live
+in **`europe-west3`**, in project `ailang-multivac-deploy`. This is NOT the same as
+`_REGION=europe-west1` in the break-glass below — that substitution is the *deploy target*
+(Cloud Run + Artifact Registry), not the build's execution region. `gcloud builds list`
+defaults to `global` and shows **nothing**, which reads as "the trigger never fired" when
+it did. Always pass `--region=europe-west3`:
+
+```bash
+# Did the release build fire, and what happened to it?
+gcloud builds list --project=ailang-multivac-deploy --region=europe-west3 \
+  --limit=5 --sort-by=~createTime --format="value(id,status,createTime,substitutions.TAG_NAME)"
+
+# Why did it fail? (step-level log)
+gcloud builds log <BUILD_ID> --project=ailang-multivac-deploy --region=europe-west3
+
+# Confirm the triggers exist
+gcloud builds triggers list --project=ailang-multivac-deploy --region=europe-west3
+```
+
+**Do not conclude "the trigger is missing" from an empty list** until you have run the
+above with `--region=europe-west3`. (v0.31.0: a region-less search returned zero across
+five other regions and produced a wrong root-cause report — the trigger was healthy and
+had fired.)
+
+**`ci-gate` can fail on a fast tag push.** Step 0 of `cloudbuild-release.yaml` polls GitHub
+for workflow `CI` (job `test`) on the tagged SHA, 60 × 15s = **15 min**, then fails closed.
+Recent CI runs take **19–23 min**, so the gate only passes when CI was already green for
+that SHA *before* the tag was pushed. Push `dev`, let CI finish, then push the tag — or the
+release fails at step 0 with `CI did not complete in ~15min` and prod is left on the previous
+version. Recovery is **Retry build** once CI is green (it re-runs the full gated pipeline,
+smoke gate included) — not the break-glass.
+
 **Per-environment:**
 - **dev** (`ailang-dev-mcp`) — `ailang-core-dev` trigger on every `dev` push. No action.
 - **test** (`ailang-test-mcp`) — deployed as step 2 of the gated release pipeline on each `v*`

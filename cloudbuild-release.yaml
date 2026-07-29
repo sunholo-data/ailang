@@ -41,8 +41,13 @@ steps:
         TOKEN=$$(gcloud secrets versions access latest --secret=${_PROD_PREFIX}-github-token --project=$_PROD_PROJECT)
         SHA="$COMMIT_SHA"
         API="https://api.github.com/repos/sunholo-data/ailang/commits/$$SHA/check-runs?per_page=100"
+        # 160 polls x 15s = 40min. CI on dev runs 19-23min, so the previous
+        # 60-poll (15min) budget could only pass when CI was already green for
+        # this SHA before the tag was pushed; pushing branch+tag together always
+        # failed here (v0.31.0). Build timeout is 3600s and steps 1-6 run in
+        # parallel with this gate (~16min), so 40min still leaves headroom.
         echo "CI gate: requiring workflow 'CI' (job 'test') == success for $$SHA"
-        for i in $$(seq 1 60); do
+        for i in $$(seq 1 160); do
           RESP=$$(curl -fsS -H "Authorization: Bearer $$TOKEN" -H "Accept: application/vnd.github+json" "$$API")
           VERDICT=$$(echo "$$RESP" | python3 -c "import sys,json; rs=[r for r in json.load(sys.stdin).get('check_runs',[]) if r.get('name')=='test']; print('pending' if not rs or rs[0].get('status')!='completed' else ('success' if rs[0].get('conclusion')=='success' else 'failed'))")
           echo "  [$$i] CI: $$VERDICT"
@@ -52,7 +57,7 @@ steps:
             *)       sleep 15 ;;
           esac
         done
-        echo "CI did not complete in ~15min — aborting (fail-closed)"; exit 1
+        echo "CI did not complete in ~40min — aborting (fail-closed)"; exit 1
     waitFor: ['-']
 
   # ── (1) Build core images → TEST registry ──────────────────────
