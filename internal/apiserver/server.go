@@ -74,15 +74,16 @@ type Server struct {
 	watchPaths []string // absolute paths of loaded .ail files (for reload mapping)
 
 	// Protocol support
-	mcpEnabled    bool                // serve MCP at /mcp/
-	mcpOnly       bool                // stdio-only MCP mode (no HTTP)
-	a2aEnabled    bool                // serve A2A at /.well-known/agent.json and /a2a/
-	maxUploadSize int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
-	apiKeyHeader  string              // HTTP header name for API key auth
-	apiKeyEnv     string              // env var containing expected API key
-	effCtx        *effects.EffContext // for Debug output collection
-	logLevel      int                 // minimum severity for Debug output
-	routesOnly    bool                // only expose @route-annotated functions
+	mcpEnabled     bool                // serve MCP at /mcp/
+	mcpOnly        bool                // stdio-only MCP mode (no HTTP)
+	a2aEnabled     bool                // serve A2A at /.well-known/agent.json and /a2a/
+	maxUploadSize  int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
+	apiKeyHeader   string              // HTTP header name for API key auth
+	apiKeyEnv      string              // env var containing expected API key
+	effCtx         *effects.EffContext // for Debug output collection
+	logLevel       int                 // minimum severity for Debug output
+	routesOnly     bool                // only expose @route-annotated functions
+	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -149,20 +150,21 @@ type ExportInfo struct {
 
 // Config holds configuration for the API server.
 type Config struct {
-	Port          string
-	CORS          bool
-	FrontendPath  string      // optional: React project path for Vite proxy
-	StaticPath    string      // optional: built frontend files
-	Watch         bool        // enable file watching for hot reload
-	EffCtx        interface{} // optional: pre-configured effect context (*effects.EffContext)
-	MCP           bool        // enable MCP endpoint at /mcp/
-	MCPOnly       bool        // run as MCP stdio server only (no HTTP)
-	A2A           bool        // enable A2A endpoints (/.well-known/agent.json, /a2a/)
-	MaxUploadSize int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
-	APIKeyHeader  string      // HTTP header for API key auth (empty = no auth)
-	APIKeyEnv     string      // env var containing expected API key
-	LogLevel      int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
-	RoutesOnly    bool        // only expose @route-annotated functions as HTTP endpoints
+	Port           string
+	CORS           bool
+	FrontendPath   string      // optional: React project path for Vite proxy
+	StaticPath     string      // optional: built frontend files
+	Watch          bool        // enable file watching for hot reload
+	EffCtx         interface{} // optional: pre-configured effect context (*effects.EffContext)
+	MCP            bool        // enable MCP endpoint at /mcp/
+	MCPOnly        bool        // run as MCP stdio server only (no HTTP)
+	A2A            bool        // enable A2A endpoints (/.well-known/agent.json, /a2a/)
+	MaxUploadSize  int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
+	APIKeyHeader   string      // HTTP header for API key auth (empty = no auth)
+	APIKeyEnv      string      // env var containing expected API key
+	LogLevel       int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
+	RoutesOnly     bool        // only expose @route-annotated functions as HTTP endpoints
+	NoFeedbackTool bool        // suppress the built-in submit_feedback MCP tool; user exports unaffected
 }
 
 // New creates a new API server.
@@ -216,6 +218,7 @@ func New(basePath string, cfg Config) *Server {
 		effCtx:             storedEffCtx,
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
+		noFeedbackTool:     cfg.NoFeedbackTool,
 	}
 }
 

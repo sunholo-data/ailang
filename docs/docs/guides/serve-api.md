@@ -396,7 +396,8 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
 - **Doc comment descriptions** — `--` comment lines immediately above a function are used as the MCP tool description. Functions without doc comments fall back to the type signature.
 - **MCP-compliant tool names** — All names match the strict regex `^[a-zA-Z0-9_-]{1,64}$` required by Claude Desktop and most current MCP clients. Resolution order: (1) `@mcp_name("name")` author override, (2) bare function name when globally unique (e.g. `mcpParse`), (3) `<lastModuleSegment>_<funcName>` fallback for collisions (e.g. `services_parseCsv`), (4) deterministic hash suffix when truncated to 64 chars. Use `@mcp_name("parse")` to control the exact tool name surfaced to MCP clients.
-- **Filtering** — `--routes-only` and `@noexpose` are respected in MCP `tools/list`, consistent with HTTP and OpenAPI. `@nomcp` additionally hides a handler from `tools/list`/`tools/call` while keeping it served over HTTP/OpenAPI/A2A (MCP-only exclusion). With `--routes-only`, undocumented non-route helpers are also auto-excluded from MCP.
+- **Filtering** — `--routes-only` and `@noexpose` filter module exports in MCP `tools/list`, consistent with HTTP and OpenAPI. `@nomcp` additionally hides an export from `tools/list`/`tools/call` while keeping it served over HTTP/OpenAPI/A2A (MCP-only exclusion). The Go-side built-in `submit_feedback` is not a module export, so these filters do not affect it; use `--no-feedback-tool` to remove it. With `--routes-only`, undocumented non-route helpers are auto-excluded from MCP.
+- **Capabilities versus discovery** — `--caps` gates effect execution, not tool discovery. Exports remain advertised in `tools/list` when their effects are not granted and fail only when called. Even `--caps ''` leaves the tool list unchanged. Use `--routes-only`, `@noexpose`, `@nomcp`, and `--no-feedback-tool` to control discovery.
 - **Backward compatible** — Tool handlers accept both named parameters (`{"filepath": "doc.pdf"}`) and legacy positional format (`{"args": ["doc.pdf"]}`).
 - **Missing-parameter rejection** — A `tools/call` that omits a declared parameter (absent key) or sends it as JSON `null` is rejected with a structured `missing required parameter(s): <names>` error (`isError: true`) **before** the function runs. The names are listed in declaration order. This is type-agnostic — an omitted `int` param is rejected the same way as a `string`. Without this guard the omitted value bound to `nil`→Unit and crashed deep in stdlib (e.g. `_str_len: expected String, got Unit`) with no actionable message. The legacy positional `{"args": [...]}` form is unaffected (it opts out of named binding entirely).
 
@@ -523,6 +524,7 @@ Flags:
   --api-key-header H   HTTP header name for API key authentication
   --api-key-env VAR    Environment variable containing the expected API key
   --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)
+  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
 
 Arguments:
   <path...>            One or more .ail files or directories
@@ -724,6 +726,12 @@ ailang serve-api --caps IO,AI --ai gemini-2-5-flash ./api/
 # Use stub AI handler for testing (returns fixed responses)
 ailang serve-api --caps IO,AI --ai-stub ./api/
 ```
+
+`--caps` controls which effects may execute; it does not filter HTTP endpoints or
+MCP discovery. A function whose effects are not granted is still advertised in
+`tools/list` and fails at call time. In particular, `--caps ''` leaves the tool
+list unchanged. For discovery filtering, use `--routes-only`, `@noexpose`,
+`@nomcp`, and `--no-feedback-tool`.
 
 #### Capability Reference
 
@@ -1086,6 +1094,21 @@ This is useful when your project has many exported functions for cross-module us
 - `--routes-only` hides **all** non-`@route` exports
 - `@noexpose` hides **specific** exports regardless of `--routes-only`
 - `@route` functions are always exposed
+
+### `--no-feedback-tool` — Exact MCP Tool Surface
+
+AILANG normally registers the Go-side `submit_feedback` built-in in addition to
+module exports. Pass `--no-feedback-tool` to suppress that built-in without
+changing which user exports are exposed:
+
+```bash
+ailang serve-api --mcp --routes-only --no-feedback-tool ./api/
+```
+
+This combination produces exactly the `@route` export set. The flag behaves
+identically for stdio `--mcp` and HTTP `--mcp-http`, because both use the same
+MCP server construction path. A2A agent-card skills never include the
+MCP-only built-in.
 
 ---
 

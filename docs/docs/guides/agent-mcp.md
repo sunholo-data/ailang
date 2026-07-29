@@ -126,6 +126,7 @@ If you ask for a version that isn't in the snapshot, you get `{error: "unknown_v
 
 - Cloud Run service runs `ailang serve-api --mcp-http --routes-only --caps FS,Env`
 - `--routes-only` means only `@mcp_name`/`@route` exports register as tools — no helper leakage
+- The public service intentionally keeps the Go-side `submit_feedback` built-in despite `--routes-only`; self-hosted operators who need an exact export-only surface add `--no-feedback-tool`
 - `--caps FS,Env` is the only ambient authority (filesystem reads from the baked snapshot, env reads for snapshot dir config). `Net` is added in v0.15+ when `submit_feedback` publishes to the existing `ailang-messages` Pub/Sub topic
 - Tool replies are deterministic for a given image SHA — replays are byte-identical
 

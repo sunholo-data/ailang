@@ -31,6 +31,7 @@ func serveAPICommand(args []string) error {
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
 	routesOnlyFlag := fs.Bool("routes-only", false, "Only expose @route-annotated functions as HTTP endpoints")
+	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
@@ -124,20 +125,21 @@ func serveAPICommand(args []string) error {
 	}
 
 	cfg := apiserver.Config{
-		Port:          *portFlag,
-		CORS:          *corsFlag,
-		FrontendPath:  *frontendFlag,
-		StaticPath:    *staticFlag,
-		Watch:         *watchFlag,
-		EffCtx:        effCtx,
-		MCP:           *mcpHTTPFlag,
-		MCPOnly:       *mcpFlag,
-		A2A:           *a2aFlag,
-		MaxUploadSize: *maxUploadFlag,
-		APIKeyHeader:  *apiKeyHeaderFlag,
-		APIKeyEnv:     *apiKeyEnvFlag,
-		LogLevel:      debugLogLevel,
-		RoutesOnly:    *routesOnlyFlag,
+		Port:           *portFlag,
+		CORS:           *corsFlag,
+		FrontendPath:   *frontendFlag,
+		StaticPath:     *staticFlag,
+		Watch:          *watchFlag,
+		EffCtx:         effCtx,
+		MCP:            *mcpHTTPFlag,
+		MCPOnly:        *mcpFlag,
+		A2A:            *a2aFlag,
+		MaxUploadSize:  *maxUploadFlag,
+		APIKeyHeader:   *apiKeyHeaderFlag,
+		APIKeyEnv:      *apiKeyEnvFlag,
+		LogLevel:       debugLogLevel,
+		RoutesOnly:     *routesOnlyFlag,
+		NoFeedbackTool: *noFeedbackToolFlag,
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -256,6 +258,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
 	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
+	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Route annotations:")
