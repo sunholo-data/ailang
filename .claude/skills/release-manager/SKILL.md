@@ -287,13 +287,27 @@ git tag -a vX.X.X -m "Release vX.X.X"
 git describe --tags --exact-match HEAD  # Must output "vX.X.X"
 
 # 3. VERIFY binary version matches BEFORE pushing
-go install -ldflags "-X main.Version=$(git describe --tags --always) -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" ./cmd/ailang/
+make install
 ailang --version  # Must show "AILANG vX.X.X"
 
 # 4. Only push AFTER verification passes
 git push origin dev
 git push origin vX.X.X
 ```
+
+**Use `make install` for step 3 — do not hand-roll the ldflags.** The version
+symbol lives at `github.com/sunholo-data/ailang/internal/version.Version`, not
+`main.Version` (see `Makefile` `LDFLAGS` and `.github/workflows/release.yml`).
+This step previously documented `-X main.Version=…`, which silently sets nothing:
+the binary reports `AILANG dev` while `Commit:` still looks right, because Go
+stamps the commit automatically from VCS info. That makes the check read as a
+release-blocking failure on a perfectly good tag. (Hit during v0.31.0.)
+
+**A `-dirty` suffix here is expected when the working tree has unrelated
+uncommitted files** (e.g. an in-flight mission-control iteration). `make install`
+stamps `git describe --tags --always --dirty`. Only the version core must match —
+`v0.31.0-dirty` is a pass. Released binaries never carry it: `release.yml` derives
+`VERSION=${GITHUB_REF#refs/tags/}` from the tag itself on a clean checkout.
 
 **If `git describe` doesn't show the expected version:**
 - The tag is on a different commit than HEAD — DELETE the tag and re-tag on HEAD
