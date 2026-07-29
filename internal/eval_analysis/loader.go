@@ -141,12 +141,20 @@ func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
 	// (e.g. claude-sonnet-4-6, gpt5-4-mini) has a legitimately-distinct result per
 	// mode for the same (benchmark, lang, seed); without mode in the key one of them
 	// is silently dropped, removing the model from that mode's leaderboard.
+	// Trial is part of the key. Both trials of a benchmark share
+	// (model, id, lang, seed, mode), so omitting it made a --trials N run
+	// collapse to its newest trial per slot — an 84-row arm loaded as 42, and
+	// every multi-trial rate was computed from half the data. Re-runs still
+	// dedup correctly: a repeat of trial 1 has the same key, newest wins.
+	// Legacy rows (no `trial` field) all carry Trial=0, so they behave exactly
+	// as before.
 	type dedupKey struct {
 		Model string
 		ID    string
 		Lang  string
 		Seed  int64
 		Mode  string
+		Trial int
 	}
 	mode := func(r *BenchmarkResult) string {
 		if r.EvalMode == "agent" {
@@ -157,7 +165,7 @@ func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
 	seen := make(map[dedupKey]struct{}, len(results))
 	deduped := results[:0]
 	for _, r := range results { // already newest-first, so first seen = latest
-		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed, Mode: mode(r)}
+		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed, Mode: mode(r), Trial: r.Trial}
 		if _, exists := seen[k]; !exists {
 			seen[k] = struct{}{}
 			deduped = append(deduped, r)
@@ -167,107 +175,17 @@ func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
 	return deduped, nil
 }
 
-// loadResultsFromDirsNoDedup walks and parses WITHOUT the re-run dedup, so
-// every trial survives. Used by paired analysis; see LoadArmForPairing.
-func loadResultsFromDirsNoDedup(dirs ...string) ([]*BenchmarkResult, error) {
-	if len(dirs) == 0 {
-		return nil, fmt.Errorf("no directories provided")
-	}
-
-	var allMatches []string
-
-	for _, dir := range dirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			return nil, fmt.Errorf("directory not found: %s", dir)
-		}
-
-		// Walk directory tree to find all .json files
-		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil // Skip inaccessible dirs
-			}
-			if !d.IsDir() && filepath.Ext(path) == ".json" {
-				allMatches = append(allMatches, path)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
-		}
-	}
-
-	if len(allMatches) == 0 {
-		return nil, fmt.Errorf("no JSON files found in %v", dirs)
-	}
-
-	// Dedupe identical file paths (e.g. a --merge dir nested under the primary,
-	// or the same dir passed twice) so a file is loaded at most once.
-	if len(dirs) > 1 {
-		seenPath := make(map[string]struct{}, len(allMatches))
-		uniq := allMatches[:0]
-		for _, p := range allMatches {
-			abs, err := filepath.Abs(p)
-			if err != nil {
-				abs = p
-			}
-			if _, dup := seenPath[abs]; dup {
-				continue
-			}
-			seenPath[abs] = struct{}{}
-			uniq = append(uniq, p)
-		}
-		allMatches = uniq
-	}
-
-	var results []*BenchmarkResult
-	var errors []string
-
-	for _, path := range allMatches {
-		// Skip baseline.json metadata file
-		if filepath.Base(path) == "baseline.json" {
-			continue
-		}
-
-		result, err := LoadResult(path)
-		if err != nil {
-			// Collect errors but don't fail completely
-			errors = append(errors, fmt.Sprintf("%s: %v", filepath.Base(path), err))
-			continue
-		}
-
-		results = append(results, result)
-	}
-
-	// Report errors if some files failed to load
-	if len(errors) > 0 && len(results) == 0 {
-		return nil, fmt.Errorf("failed to load any results: %v", errors)
-	}
-
-	// Sort by timestamp (newest first)
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Timestamp.After(results[j].Timestamp)
-	})
-
-	return results, nil
-}
-
 // LoadArmForPairing loads ONE A/B arm WITHOUT the re-run dedup.
 //
-// The dedup key is (model, id, lang, seed, mode) and deliberately omits Trial,
-// so for a --trials N run it keeps only the newest trial per slot: an 84-file
-// arm loads as 42 rows. For aggregate reporting that is a (separate, pre-
-// existing) problem; for PAIRED analysis it is fatal twice over — half the
-// observations vanish, and the surviving trial can differ between arms, so the
-// rows no longer line up and land in Unpaired.
-//
-// Paired analysis therefore reads arms raw. Validity filtering still applies:
-// a non-measurement must not enter a comparison either.
+// This is LoadResultsFromDirs today — kept as a named entry point because
+// paired analysis has a requirement the general loader must never quietly lose:
+// every TRIAL must survive. Until 2026-07-29 the dedup key omitted Trial, so an
+// 84-row arm loaded as 42 AND the surviving trial could differ between arms,
+// silently producing delta=9.5/unpaired=46 instead of the correct
+// delta=13.1/unpaired=0. Trial is now part of the key; this name documents the
+// dependency so it is not re-broken.
 func LoadArmForPairing(dir string) ([]*BenchmarkResult, error) {
-	results, err := loadResultsFromDirsNoDedup(dir)
-	if err != nil {
-		return nil, err
-	}
-	return FilterValidResults(results), nil
+	return LoadResultsFromDirs(dir)
 }
 
 // LoadResult loads a single benchmark result from a JSON file

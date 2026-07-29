@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -82,5 +83,63 @@ func TestLoadResults_LegacyRowsSurvive(t *testing.T) {
 	}
 	if len(results) != 3 {
 		t.Fatalf("got %d legacy rows, want 3 — absent validity must never drop a row", len(results))
+	}
+}
+
+// --- dedup key semantics (2026-07-29: Trial added to the key) --------------
+
+// TestDedup_PreservesTrials: both trials of a benchmark share
+// (model, id, lang, seed, mode). Before Trial joined the key a --trials 2 run
+// collapsed to its newest trial per slot, so every multi-trial rate was
+// computed from HALF the data. This is the guard against re-breaking it.
+func TestDedup_PreservesTrials(t *testing.T) {
+	dir := t.TempDir()
+	writeResult(t, dir, "t1", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true})
+	writeResult(t, dir, "t2", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 2, StdoutOk: true})
+
+	results, err := LoadResults(dir)
+	if err != nil {
+		t.Fatalf("LoadResults: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d rows, want 2 — both trials are distinct observations, not re-runs", len(results))
+	}
+}
+
+// TestDedup_StillCollapsesGenuineReruns: the dedup must keep doing its job.
+// A repeat of the SAME trial (e.g. a debug run followed by a clean suite run)
+// is a re-run, and only the newest should count.
+func TestDedup_StillCollapsesGenuineReruns(t *testing.T) {
+	dir := t.TempDir()
+	older := time.Now().Add(-time.Hour)
+	newer := time.Now()
+	writeResult(t, dir, "old", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, Timestamp: older})
+	writeResult(t, dir, "new", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true, CompileOk: true, RuntimeOk: true, Timestamp: newer})
+
+	results, err := LoadResults(dir)
+	if err != nil {
+		t.Fatalf("LoadResults: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("got %d rows, want 1 — same trial re-run must still collapse", len(results))
+	}
+	if !results[0].StdoutOk {
+		t.Error("dedup kept the OLDER re-run; newest must win")
+	}
+}
+
+// TestDedup_LegacyRowsUnaffected: pre-trial-field data has Trial=0 across the
+// board, so its dedup behaviour must be byte-identical to before.
+func TestDedup_LegacyRowsUnaffected(t *testing.T) {
+	dir := t.TempDir()
+	writeResult(t, dir, "a", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now().Add(-time.Hour)})
+	writeResult(t, dir, "b", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now()})
+
+	results, err := LoadResults(dir)
+	if err != nil {
+		t.Fatalf("LoadResults: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("got %d legacy rows, want 1 — legacy dedup behaviour must be unchanged", len(results))
 	}
 }
