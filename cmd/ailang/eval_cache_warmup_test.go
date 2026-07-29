@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,4 +167,84 @@ func TestWarmOneCache_ValidSpecLaterFailuresAreErrors(t *testing.T) {
 			t.Errorf("error = %q, want it to name the agent-construction step", err)
 		}
 	})
+}
+
+// withStubWarmupCall swaps the prefill for a stub and restores it afterwards.
+func withStubWarmupCall(t *testing.T, fn func(ctx context.Context, model, prefix, task string, maxTokens int) error) {
+	t.Helper()
+	prev := warmupCallFn
+	warmupCallFn = fn
+	t.Cleanup(func() { warmupCallFn = prev })
+}
+
+// writeWarmupSpec drops a minimal valid benchmark spec and points the harness at it.
+func writeWarmupSpec(t *testing.T, ids ...string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, id := range ids {
+		body := "id: " + id + "\nlanguages: [ailang]\ntask_prompt: \"print hello\"\n"
+		if err := os.WriteFile(filepath.Join(dir, id+".yml"), []byte(body), 0o644); err != nil {
+			t.Fatalf("write spec %s: %v", id, err)
+		}
+	}
+	prev := evalBenchmarkDir
+	evalBenchmarkDir = dir
+	t.Cleanup(func() { evalBenchmarkDir = prev })
+}
+
+// The success path: one warm-up per eligible group, carrying the cacheable base
+// (not the task) and the cheap token budget.
+func TestWarmPromptCaches_WarmsEligibleGroupOnce(t *testing.T) {
+	writeWarmupSpec(t, "b1", "b2")
+
+	var calls int
+	var gotModel, gotPrefix string
+	var gotMaxTokens int
+	withStubWarmupCall(t, func(_ context.Context, model, prefix, task string, maxTokens int) error {
+		calls++
+		gotModel, gotPrefix, gotMaxTokens = model, prefix, maxTokens
+		if task != warmupTask {
+			t.Errorf("task = %q, want the fixed warm-up task", task)
+		}
+		return nil
+	})
+
+	jobs := []Job{
+		{Model: "claude-sonnet-4-5", Benchmark: "b1", Language: "ailang"},
+		{Model: "claude-sonnet-4-5", Benchmark: "b2", Language: "ailang"},
+	}
+	if got := warmPromptCaches(context.Background(), jobs, time.Second); got != 1 {
+		t.Errorf("warmed %d groups, want 1", got)
+	}
+	if calls != 1 {
+		t.Errorf("made %d prefill calls for one group, want exactly 1 — a per-benchmark warm-up would cost more than it saves", calls)
+	}
+	if gotModel != "claude-sonnet-4-5" {
+		t.Errorf("warmed model %q, want claude-sonnet-4-5", gotModel)
+	}
+	if gotMaxTokens != warmupMaxTokens {
+		t.Errorf("warm-up used MaxTokens=%d, want %d", gotMaxTokens, warmupMaxTokens)
+	}
+	if gotPrefix == "" {
+		t.Error("warm-up sent an empty prefix — there would be nothing to cache")
+	}
+	if strings.Contains(gotPrefix, "print hello") {
+		t.Error("task text leaked into the warmed prefix; the cached span must be the stable base only")
+	}
+}
+
+// A failing prefill must be swallowed: the suite runs uncached rather than dying.
+func TestWarmPromptCaches_PrefillFailureIsNonFatal(t *testing.T) {
+	writeWarmupSpec(t, "b1", "b2")
+	withStubWarmupCall(t, func(_ context.Context, _, _, _ string, _ int) error {
+		return errors.New("provider exploded")
+	})
+
+	jobs := []Job{
+		{Model: "claude-sonnet-4-5", Benchmark: "b1", Language: "ailang"},
+		{Model: "claude-sonnet-4-5", Benchmark: "b2", Language: "ailang"},
+	}
+	if got := warmPromptCaches(context.Background(), jobs, time.Second); got != 0 {
+		t.Errorf("warmed %d groups despite a failing prefill, want 0", got)
+	}
 }

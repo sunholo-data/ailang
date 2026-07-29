@@ -139,15 +139,24 @@ func warmOneCache(ctx context.Context, key cacheWarmupKey, sample Job, timeout t
 		return fmt.Errorf("no cacheable base prompt for language %q", key.language)
 	}
 
-	agent, err := eval_harness.NewAIAgent(key.model, 0)
-	if err != nil {
-		return fmt.Errorf("create agent: %w", err)
-	}
-
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	if _, err := agent.GenerateCodeWarmup(callCtx, base, warmupTask, warmupMaxTokens); err != nil {
+	return warmupCallFn(callCtx, key.model, base, warmupTask, warmupMaxTokens)
+}
+
+// warmupCallFn performs the actual prefill request. It is a package-level var so
+// tests can exercise the ORCHESTRATION around it — grouping, spec loading,
+// prefix derivation, error propagation, the warmed counter — without a provider,
+// an API key, or a network. The network call itself is covered by the live,
+// key-gated probe in internal/ai/anthropic (TestLiveGeneratePromptCache); there
+// is nothing this indirection hides that a unit test could have checked anyway.
+var warmupCallFn = func(ctx context.Context, model, cachedPrefix, task string, maxTokens int) error {
+	agent, err := eval_harness.NewAIAgent(model, 0)
+	if err != nil {
+		return fmt.Errorf("create agent: %w", err)
+	}
+	if _, err := agent.GenerateCodeWarmup(ctx, cachedPrefix, task, maxTokens); err != nil {
 		return fmt.Errorf("prefill call: %w", err)
 	}
 	return nil
