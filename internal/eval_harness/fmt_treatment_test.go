@@ -33,6 +33,21 @@ func TestResolveFmtArm(t *testing.T) {
 			extensions: "compaction_ai,context_mode,fmt", want: "on",
 		},
 		{
+			// The REAL on-the-wire format: the registry stamps "<name>#<index>".
+			// Matching the bare name against "fmt#2" failed, so a live ON arm was
+			// labelled off and then falsely reported as a contaminated control.
+			name: "registry id format with index suffix", flagMode: FmtHookModeOff,
+			extensions: "compaction_ai#0,context_mode#1,fmt#2", want: "on",
+		},
+		{
+			name: "indexed ids without fmt", flagMode: FmtHookModeOff,
+			extensions: "compaction_ai#0,context_mode#1", want: "off",
+		},
+		{
+			name: "indexed lookalike does not count", flagMode: FmtHookModeOff,
+			extensions: "fmtx#0,not_fmt_really#1", want: "off",
+		},
+		{
 			name: "motoko without fmt extension", flagMode: FmtHookModeOff,
 			extensions: "compaction_ai,context_mode", want: "off",
 		},

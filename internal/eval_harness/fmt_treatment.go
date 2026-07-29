@@ -30,9 +30,15 @@ func ResolveFmtArm(flagMode FmtHookMode, resolvedExtensions string) string {
 		return "on"
 	}
 	for _, id := range strings.Split(resolvedExtensions, ",") {
-		// Exact match, not substring: "fmtx" and "not_fmt_really" are different
-		// extensions that merely contain the letters.
-		if strings.TrimSpace(id) == fmtExtensionID {
+		// The registry stamps each hook as "<name>#<index>" (see with_id in
+		// registry_generated.ail), so a live row reads
+		// "compaction_ai#0,context_mode#1,fmt#2". Compare the NAME only.
+		//
+		// Still an exact name match, not a substring test: "fmtx#0" and
+		// "not_fmt_really#1" are different extensions that merely contain the
+		// letters, and treating them as the treatment would mislabel the arm.
+		name, _, _ := strings.Cut(strings.TrimSpace(id), "#")
+		if name == fmtExtensionID {
 			return "on"
 		}
 	}
