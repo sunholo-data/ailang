@@ -309,7 +309,18 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
     # before the A/B concludes would destroy the control.
     # ------------------------------------------------------------------
     if [[ "${AILANG_AB_FMT:-1}" == "1" ]]; then
-        log "Monday A/B: motoko fmt extension (on vs off)"
+        # PREREGISTERED scope (M5 hardset prereg / M6). NOT the smoke+core set:
+        # fmt removes syntax drift, so the experiment has to run where drift
+        # actually occurs. The smoke set is largely drift-free — fizzbuzz has no
+        # syntax drift to remove — which is the same category of mistake as
+        # running the A/B against haiku at a 96% ceiling: a subject that cannot
+        # exhibit the failure mode cannot show the remedy working.
+        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-contract_rle_roundtrip,config_file_parser,contract_roman_numeral,contract_sorted_merge,log_file_analyzer}"
+        # N>=5 per the prereg. The previous 2 was inherited from the microRAG
+        # block, not chosen for this experiment.
+        FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
+        log "Monday A/B: motoko fmt extension (on vs off) — preregistered set, N=${FMT_TRIALS}"
+        log "  benchmarks: ${FMT_BENCH_LIST}"
         for arm in on off; do
             case "$arm" in
                 on)  m="motoko-local-qwen3-6-fmt" ;;
@@ -318,11 +329,11 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
             log "  fmt=${arm} model=${m}"
             "$BIN" eval-suite --agent \
                 --models "$m" \
-                --benchmarks "$BENCH_LIST" \
+                --benchmarks "$FMT_BENCH_LIST" \
                 --langs ailang \
                 --output "${RESULTS_DIR}_fmt_${arm}" \
                 --parallel 1 \
-                --trials 2 \
+                --trials "$FMT_TRIALS" \
                 --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
                 log "  fmt=${arm} eval-suite exited non-zero (see $LOG)"
         done
