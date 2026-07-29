@@ -6229,3 +6229,26 @@ Somebody already decided "nothing ran" must be loud; the guard simply does not f
 
 ---
 
+### Addendum to iteration 118 (same session, after the record above was merged)
+
+Tonight's nightly fired at 05:00 **during** this iteration and filed four `[nightly-eval]` regression issues (`#520`–`#523`). Gate 0 requires every nightly alarm to be closed with a verdict, so they were triaged rather than left for iteration 119.
+
+**All four are noise, and the run itself is invalid.** Category counts per night, from the history file:
+
+```
+2026-07-24  api_error=2   compile_error=4  logic_error=3  thrash_aborted=17
+2026-07-25  api_error=1   compile_error=8  logic_error=2  thrash_aborted=16
+2026-07-26  api_error=2   compile_error=6  logic_error=2  thrash_aborted=11
+2026-07-27  api_error=2   compile_error=5  logic_error=3  thrash_aborted=6
+2026-07-28  api_error=2   compile_error=3  logic_error=6  thrash_aborted=13
+2026-07-29  api_error=42  compile_error=3  logic_error=1  thrash_aborted=3
+```
+
+42 of 42 benchmarks hit `api_error`; passes fell `52/54/61/65/54` → `14/84`. All four issues closed with this evidence; the detector defect filed as **`#524`** and queued as **`m-nightly-run-validity-gate`**.
+
+**A hypothesis of mine was refuted, and it is worth recording because it was the *plausible* one.** These benchmarks were the first to run against `5998f4039`, which had made `ai-check` exit non-zero on `verify.errors > 0` — a deliberately BREAKING change for shell callers, landed hours earlier by the sprint this very iteration was recovering. `contract_roman_numeral` sitting in the regression list made "we broke it this morning" the obvious read, and I went looking for that. The category data killed it in one query: an exit-code change cannot produce `api_error` on all 42 benchmarks, including ones with no contracts. **Read the error stream, not the pass rate** — the same rule that says a zero-pass row is not evidence of model incapacity.
+
+Also worth naming: this is the **fourth** vacuous-measurement finding in one iteration — `ailang#517` (properties reporting success having run zero cases), the empty-issue-list all-clear I refused to accept at Gate 1, `#524` (a detector believing a run in which nothing ran), and the unexercised Gate-3b selector. They are the same shape, and the shape is *an instrument reporting a result it did not measure*. That is now four independent instances inside a single session, which is a stronger signal about where this codebase's defects live than any one of them is on its own.
+
+---
+
