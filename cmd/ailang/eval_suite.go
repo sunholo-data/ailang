@@ -615,16 +615,14 @@ func runEvalSuite() {
 							// Also check root directory for legacy results
 							patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
 
-							foundExisting := false
-							for _, pattern := range patterns {
-								matches, _ := filepath.Glob(pattern)
-								if len(matches) > 0 {
-									foundExisting = true
-									break
-								}
-							}
-
-							if foundExisting {
+							// Only a VALID row counts as banked. A crashed run still
+							// wrote a file, so the old existence-only check made the
+							// harness's own failure permanent: skip forever, never
+							// retry. Most local failures are exactly that shape
+							// (api_error = "motoko terminated without emitting
+							// run_summary"). A FAILING but valid row still counts —
+							// otherwise a genuinely hard benchmark retries forever.
+							if hasValidBankedResult(patterns) {
 								skippedCount++
 								continue // Skip this job
 							}
