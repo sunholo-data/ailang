@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/smt"
@@ -67,7 +69,7 @@ func TestFilterRecordAliasesForFunction_OnlyDirectlyUsed(t *testing.T) {
 // TestFilterRecordAliasesForFunction_TransitiveClosure verifies that a function
 // using ParsedDocument transitively pulls in DocMetadata (which ParsedDocument
 // references via its metadata field). Block (an ADT) is OUT of scope for this
-// test — it's filtered separately via filterADTTypesForFunction.
+// test — the combined alias+ADT closure lives in filterSMTInputsForFunction.
 func TestFilterRecordAliasesForFunction_TransitiveClosure(t *testing.T) {
 	allAliases := map[string]*types.TRecord{
 		"DocMetadata": {
@@ -114,6 +116,30 @@ func TestFilterRecordAliasesForFunction_EmptyInput(t *testing.T) {
 	got := filterRecordAliasesForFunction(nil, "Int", nil, nil, nil)
 	if len(got) != 0 {
 		t.Errorf("expected empty result for nil aliases, got: %v", keysOf(got))
+	}
+}
+
+func TestFilterSMTInputs_WalksRecordAliasIntoADT(t *testing.T) {
+	params := []smt.FunctionParam{{Name: "p", Type: &types.TCon{Name: "Proposal"}}}
+	aliases := map[string]*types.TRecord{"Proposal": {Fields: map[string]types.Type{
+		"evidence": &types.TList{Element: &types.TCon{Name: "Evidence"}},
+	}}}
+	adts := map[string][]smt.ADTVariant{"Evidence": {{Name: "CompilerOutput"}}}
+
+	gotADTs, gotAliases, _ := filterSMTInputsForFunction(params, "", nil, adts, aliases, nil)
+	if _, ok := gotADTs["Evidence"]; !ok {
+		t.Fatalf("Evidence missing from ADT closure: %v", gotADTs)
+	}
+	if _, ok := gotAliases["Proposal"]; !ok {
+		t.Fatalf("Proposal missing from alias closure: %v", gotAliases)
+	}
+}
+
+func TestUnresolvedTypeVerifyResult_IsNeutral(t *testing.T) {
+	got := unresolvedTypeVerifyResult("f", fmt.Errorf("%w: sort Missing", smt.ErrUnresolvableTypes))
+	text := strings.ToLower(got.Reason + " " + got.Rejections[0].Message + " " + got.Rejections[0].Hint)
+	if strings.Contains(text, "cross-module") || !strings.Contains(text, "missing") {
+		t.Fatalf("non-neutral or non-contextual result: %+v", got)
 	}
 }
 

@@ -77,7 +77,8 @@ func RunAICheck(ailangPath, filePath string, timeout time.Duration) (*AICheckRes
 		return nil, "", fmt.Errorf("ai-check killed: %s process group exceeded the %s memory cap", MemKillMarker, EnvEvalMaxRSS)
 	}
 
-	// ai-check exits 0 even with counterexamples, exits non-zero on errors
+	// Counterexamples and verifier errors make ai-check exit nonzero; complete
+	// nonempty stdout is still parsed so callers retain the structured result.
 	rawOutput := stdout.String()
 	if rawOutput == "" && g.waitErr != nil {
 		return nil, stderr.String(), fmt.Errorf("ai-check failed: %w\nstderr: %s", g.waitErr, stderr.String())

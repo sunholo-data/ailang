@@ -1,0 +1,15 @@
+-- A genuine inline-record/user-ADT cycle must use one mutual SMT datatype group.
+-- Run: ailang verify examples/runnable/contracts/record_adt_cycle_verify.ail
+-- Expect: 1 verified
+
+module examples/runnable/contracts/record_adt_cycle_verify
+
+export type Block = Para(string) | Container({ blocks: list[Block], kind: string })
+export type Doc = { title: string, blocks: list[Block] }
+
+export func titleOf(d: Doc) -> string ! {}
+ensures { result == d.title } {
+  d.title
+}
+
+export func main() -> int ! {} { 0 }

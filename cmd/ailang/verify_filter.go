@@ -14,12 +14,26 @@ package main
 // follow-up (v0.14.3) to keep verify.go under the 800-line organisation budget.
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/smt"
 	"github.com/sunholo-data/ailang/internal/types"
 )
+
+func unresolvedTypeVerifyResult(funcName string, err error) verifyResult {
+	return verifyResult{
+		Function: funcName,
+		Status:   "skipped",
+		Reason:   fmt.Sprintf("SMT declaration closure could not resolve a required sort (%v)", err),
+		Rejections: []smt.SMTRejectionReason{{
+			Code:    smt.RejectUnencodable,
+			Message: err.Error(),
+			Hint:    "The function uses a type shape whose required SMT sorts cannot be declared",
+		}},
+	}
+}
 
 // buildNeededSortSet returns the set of sort names reachable from the function's
 // seeds (params, return, body) through ADT variant fields, record-alias field
@@ -127,8 +141,8 @@ func extractReferencedSorts(decl string, adtTypes map[string][]smt.ADTVariant, a
 //
 // The transitive closure walks alias field types to find further aliases that
 // must be retained. ADT types referenced from alias fields are NOT pulled in
-// here — those are handled separately by filterADTTypesForFunction. The seed
-// set should already include any ADT types reachable from the function body.
+// here — filterSMTInputsForFunction owns the combined alias+ADT closure and is
+// the single entry point that BOTH `verify` and `ai-check` call.
 func filterRecordAliasesForFunction(
 	params []smt.FunctionParam,
 	returnSort string,
@@ -223,62 +237,31 @@ func filterExtraDeclarationsForFunction(allDecls []string, needed map[string]boo
 	return out
 }
 
-// filterADTTypesForFunction returns only the ADT types that a function actually
-// references through its parameter types, return type, and body expressions.
-// This prevents cross-module type pollution where unrelated ADTs (e.g., Json)
-// cause cascade Z3 errors for functions that only use primitive types.
-func filterADTTypesForFunction(
+// filterSMTInputsForFunction applies the same demand closure for every CLI
+// verification driver. The full maps must remain visible while computing the
+// closure; filtering an input before the walk can hide a transitive dependency.
+func filterSMTInputsForFunction(
 	params []smt.FunctionParam,
 	returnSort string,
 	body core.CoreExpr,
 	allADTTypes map[string][]smt.ADTVariant,
-) map[string][]smt.ADTVariant {
-	if len(allADTTypes) == 0 {
-		return allADTTypes
-	}
-
-	// Collect sort names referenced by this function
-	seeds := collectSortSeeds(params, returnSort, body)
-
-	// If no non-primitive sorts referenced, return empty map
-	if len(seeds) == 0 {
-		return map[string][]smt.ADTVariant{}
-	}
-
-	// Compute transitive closure: ADT variants may reference other ADT types
-	needed := make(map[string]bool)
-	queue := make([]string, 0, len(seeds))
-	for s := range seeds {
-		queue = append(queue, s)
-	}
-	for len(queue) > 0 {
-		sort := queue[0]
-		queue = queue[1:]
-		if needed[sort] {
-			continue
-		}
-		needed[sort] = true
-		// Check if this sort is an ADT; if so, collect sorts from its variant fields
-		if variants, ok := allADTTypes[sort]; ok {
-			for _, v := range variants {
-				for _, f := range v.Fields {
-					dep := extractBaseSortName(f.Sort)
-					if !needed[dep] && !isPrimitiveSMTSort(dep) {
-						queue = append(queue, dep)
-					}
-				}
-			}
-		}
-	}
-
-	// Filter ADT types to only those needed
-	result := make(map[string][]smt.ADTVariant, len(needed))
+	allAliases map[string]*types.TRecord,
+	allExtraDecls []string,
+) (map[string][]smt.ADTVariant, map[string]*types.TRecord, []string) {
+	needed := buildNeededSortSet(params, returnSort, body, allADTTypes, allAliases, allExtraDecls)
+	adts := make(map[string][]smt.ADTVariant)
 	for name, variants := range allADTTypes {
 		if needed[name] {
-			result[name] = variants
+			adts[name] = variants
 		}
 	}
-	return result
+	aliases := make(map[string]*types.TRecord)
+	for name, rec := range allAliases {
+		if needed[name] {
+			aliases[name] = rec
+		}
+	}
+	return adts, aliases, filterExtraDeclarationsForFunction(allExtraDecls, needed)
 }
 
 // collectSortSeeds gathers non-primitive sort names from function params, return type, and body.

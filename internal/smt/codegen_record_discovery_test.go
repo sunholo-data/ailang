@@ -260,7 +260,7 @@ func TestEncodeFunction_ReturnOnlyRecord(t *testing.T) {
 		Contracts:  meta.Contracts,
 	}
 
-	result, err := EncodeFunction("makePoint", params, body, "Rec_x_y", meta, nil, opts)
+	result, err := EncodeFunction("makePoint", params, body, "Record_x_y", meta, nil, opts)
 	if err != nil {
 		t.Fatalf("EncodeFunction with return-only record: unexpected error: %v", err)
 	}

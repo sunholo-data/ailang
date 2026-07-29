@@ -6,6 +6,20 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 
 ### Fixed
 
+- SMT verification now closes declarations through named record fields into
+  user ADTs, including `list[ADT]` and mutual record/ADT cycles.
+- `ai-check` now uses the same per-function type-demand filtering as `verify`,
+  so unrelated declarations no longer cascade otherwise verifiable functions
+  into skips. This changes the verification KPI population (the measured corpus
+  moved from 76→79 verified and 10→7 skipped) and must not be read as a model
+  quality improvement.
+
+### Changed
+
+- **Breaking for out-of-repo shell callers:** `ai-check` now exits 1 when its
+  emitted JSON reports `verify.errors > 0`; complete JSON is still written
+  before the exit decision. Skips remain exit 0.
+
 - Bounded both Z3 solver calls (`Solve` and the `Z3Version` header probe) by
   killing their process groups and reaping them after a hard deadline. `Solve`
   uses `max(configured timeout, effective -T seconds) + 2s grace` and preserves
