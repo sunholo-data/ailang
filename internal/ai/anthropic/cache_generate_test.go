@@ -350,3 +350,45 @@ func TestGenerate_CachedPrefixWithoutBreakpoint_StillReachesModel(t *testing.T) 
 		t.Errorf("message content = %q, want %q — the prefix must not be dropped", got, want)
 	}
 }
+
+// warnIfCachePrefixTooSmall walks both breakpoint positions. Exercising each
+// keeps the silent-no-op detector itself from rotting untested — it is the only
+// thing standing between us and a repeat of the 70-token-system-prompt miss.
+func TestWarnIfCachePrefixTooSmall_BothPositions(t *testing.T) {
+	cases := []struct {
+		name string
+		req  *ai.Request
+	}{
+		{"no_breakpoints_returns_early", &ai.Request{Model: "claude-sonnet-5", SystemPrompt: "short"}},
+		{
+			name: "system_breakpoint_too_small",
+			req: &ai.Request{
+				Model:            "claude-sonnet-5",
+				SystemPrompt:     "far too short to cache",
+				CacheBreakpoints: []ai.CacheBreakpoint{{Position: "system", TTL: "ephemeral"}},
+			},
+		},
+		{
+			name: "user_prefix_breakpoint_too_small",
+			req: &ai.Request{
+				Model:            "claude-sonnet-5",
+				CachedPrefix:     "also far too short",
+				CacheBreakpoints: []ai.CacheBreakpoint{{Position: "user_prefix", TTL: "ephemeral"}},
+			},
+		},
+		{
+			name: "large_prefix_does_not_warn",
+			req: &ai.Request{
+				Model:            "claude-sonnet-5",
+				CachedPrefix:     strings.Repeat("x", 64*1024),
+				CacheBreakpoints: []ai.CacheBreakpoint{{Position: "user_prefix", TTL: "ephemeral"}},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Diagnostic only — it must never panic and never alter the request.
+			warnIfCachePrefixTooSmall(tc.req)
+		})
+	}
+}

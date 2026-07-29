@@ -1,6 +1,9 @@
 package eval_analysis
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -80,5 +83,40 @@ func TestFormatMatrix_CacheLineIsConditional(t *testing.T) {
 	}
 	if got := FormatMatrix(noCache, false); strings.Contains(got, "Cache hit rate") {
 		t.Error("cache line must be omitted when nothing reported cache activity — a bare 0.0% reads as a broken cache")
+	}
+}
+
+// The JSON export is the dashboard feed — it is how the cache hit rate actually
+// reaches a human. Pin that the three cache keys are emitted, so a rename or a
+// dropped line shows up here rather than as a silently missing dashboard panel.
+func TestExportBenchmarkJSON_EmitsCacheKeys(t *testing.T) {
+	matrix := &PerformanceMatrix{
+		Version: "v0.31.0",
+		Aggregates: Aggregates{
+			TotalTokens:         50000,
+			CacheReadTokens:     32000,
+			CacheCreationTokens: 16000,
+			CacheHitRate:        0.646,
+		},
+	}
+	out := filepath.Join(t.TempDir(), "latest.json")
+	if _, err := ExportBenchmarkJSON(matrix, nil, nil, out); err != nil {
+		t.Fatalf("export failed: %v", err)
+	}
+
+	blob, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read export: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(blob, &got); err != nil {
+		t.Fatalf("export is not valid JSON: %v", err)
+	}
+
+	body := string(blob)
+	for _, key := range []string{"cacheReadTokens", "cacheCreationTokens", "cacheHitRate"} {
+		if !strings.Contains(body, key) {
+			t.Errorf("dashboard export is missing %q — the hit rate would never reach the dashboard", key)
+		}
 	}
 }
