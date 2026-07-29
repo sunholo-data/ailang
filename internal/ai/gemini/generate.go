@@ -22,7 +22,7 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	}
 
 	// Build request — detect multimodal JSON input and construct proper parts
-	parts := buildParts(req.UserPrompt)
+	parts := buildParts(req.FullUserPrompt())
 	apiReq := generateRequest{
 		Contents: []content{
 			{

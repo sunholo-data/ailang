@@ -24,7 +24,7 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 
 	messages = append(messages, chatMessage{
 		Role:    "user",
-		Content: req.UserPrompt,
+		Content: req.FullUserPrompt(),
 	})
 
 	// Build request

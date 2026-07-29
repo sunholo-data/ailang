@@ -188,7 +188,7 @@ func TestAnthropic_ThinkingWireShape_PerGeneration(t *testing.T) {
 			body, mErr := json.Marshal(messagesRequest{
 				Model:        tt.model,
 				MaxTokens:    64000,
-				Messages:     []messageContent{{Role: "user", Content: "hi"}},
+				Messages:     []messageContent{{Role: "user", Content: textContent("hi")}},
 				Thinking:     tb,
 				OutputConfig: oc,
 			})

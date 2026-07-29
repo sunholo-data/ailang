@@ -83,6 +83,28 @@ type Request struct {
 	// Options contains provider-specific options
 	Options map[string]any
 
+	// CachedPrefix is a stable leading chunk of the user turn, split out so a
+	// prompt-cache breakpoint can be placed at the boundary between it and the
+	// volatile remainder (M-ANTHROPIC-CACHE-HIT-RATE, v0.31.0).
+	//
+	// The provider-neutral contract is that the model always sees
+	// CachedPrefix + UserPrompt. Only the ENCODING differs by provider:
+	//
+	//   - Anthropic: when a CacheBreakpoint with Position "user_prefix" is also
+	//     declared, the user turn is emitted as a two-block content array with
+	//     cache_control on the first block. Without that breakpoint, the two
+	//     strings are concatenated and the wire shape is unchanged.
+	//   - Every other provider: concatenated, byte-identical to pre-v0.31.0.
+	//
+	// Empty (the zero value) means "no split" and is bit-for-bit identical to
+	// the pre-v0.31.0 wire shape on every provider.
+	//
+	// Why a separate field rather than markers inside UserPrompt: the split
+	// point is structural, not textual. Keeping it typed means non-Anthropic
+	// providers can ignore caching entirely while still sending the full prompt,
+	// and no provider has to parse sentinel strings out of user content.
+	CachedPrefix string
+
 	// Routing is an optional dynamic-routing policy. When set with HasRouting()
 	// returning true, only providers that support routing (currently: openrouter)
 	// will accept the request. Other providers return ErrRoutingNotSupported.
@@ -192,14 +214,41 @@ func (StreamUsage) streamChunkMarker() {
 	// Marker method — intentionally empty. See StreamContentDelta.
 }
 
+// FullUserPrompt returns the complete user-turn text the model must see:
+// CachedPrefix followed by UserPrompt.
+//
+// Every provider that does NOT implement prompt-cache splitting must send this
+// rather than UserPrompt alone — otherwise setting CachedPrefix would silently
+// truncate the prompt. Providers that DO implement splitting (currently only
+// Anthropic) encode the same text as separate content blocks instead.
+//
+// Keeping this as one method means a new provider cannot forget the prefix by
+// reaching for the more obvious req.UserPrompt field: the contract lives in one
+// place with one doc comment.
+func (r *Request) FullUserPrompt() string {
+	if r.CachedPrefix == "" {
+		return r.UserPrompt
+	}
+	return r.CachedPrefix + r.UserPrompt
+}
+
 // CacheBreakpoint is a single opt-in prompt-cache hint. Mirrors the AILANG
 // `std/ai.CacheBreakpoint` record shape byte-for-byte.
 //
-//	Position : "system" | "last_user" | "tool_result"
-//	           Phase 1 supports "system" only; others reserved for Phase 2.
+//	Position : "system" | "user_prefix" | "last_user" | "tool_result"
+//	           "system"      — cache the system prompt (v0.18.4).
+//	           "user_prefix" — cache Request.CachedPrefix, the stable leading
+//	                           chunk of the user turn (v0.31.0). Use this when
+//	                           the reusable content is large but lives in the
+//	                           user message, which is the common shape for
+//	                           teaching-prompt-plus-task requests.
+//	           "last_user" / "tool_result" — reserved, still unimplemented.
 //	TTL      : "ephemeral" | "5m"
 //	           Anthropic ephemeral = ~5min server TTL; longer Anthropic tiers TBD.
 //	           Providers that don't expose TTL choices ignore this field.
+//
+// A breakpoint whose Position names nothing cacheable in the request (e.g.
+// "user_prefix" with an empty CachedPrefix) is a no-op, not an error.
 type CacheBreakpoint struct {
 	Position string
 	TTL      string

@@ -27,7 +27,7 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 
 	input = append(input, responsesInput{
 		Role:    "user",
-		Content: req.UserPrompt,
+		Content: req.FullUserPrompt(),
 	})
 
 	// Build request

@@ -126,7 +126,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	messages = append(messages, ollamaapi.Message{
 		Role:    "user",
-		Content: req.UserPrompt,
+		Content: req.FullUserPrompt(),
 	})
 
 	// Build options
