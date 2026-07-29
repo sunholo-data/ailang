@@ -203,9 +203,23 @@ def record_key(record: dict) -> tuple[str, str, str, str]:
 
 
 def record_is_valid(record: dict) -> bool:
-    """Treat an absent validity marker as valid for backward compatibility."""
+    """Treat an absent validity marker as valid for backward compatibility.
+
+    A MALFORMED (non-dict) marker is treated as INVALID rather than crashing.
+    This function runs on every history row in the nightly path, which is
+    driven by a `set -euo pipefail` shell: an uncaught AttributeError here
+    aborts the whole run's classification and reporting stage, not just one
+    row. Fail-closed is also the honest reading — a row whose validity marker
+    cannot be parsed has not been certified measurable, so it must not enter a
+    trend. It is still preserved on disk (M-EVAL-MEASUREMENT-CONTRACT D4:
+    never delete data), because only the classification path filters.
+    """
     validity = record.get("validity")
-    return validity is None or validity.get("valid", True) is not False
+    if validity is None:
+        return True
+    if not isinstance(validity, dict):
+        return False
+    return validity.get("valid", True) is not False
 
 
 def load_history_including_invalid(path: str | Path) -> tuple[list[dict], int]:

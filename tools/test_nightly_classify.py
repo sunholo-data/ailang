@@ -457,6 +457,55 @@ class ValidityTests(unittest.TestCase):
                 len(loaded), 210, "absent validity must retain all 210 legacy records"
             )
 
+    def test_Validity_malformed_marker_is_invalid_not_a_crash(self):
+        """A non-dict validity marker must fail closed, never raise.
+
+        record_is_valid runs on every history row inside a shell driven by
+        `set -euo pipefail`, so an AttributeError here does not degrade one
+        row -- it aborts the entire nightly's classification and reporting
+        stage with an empty CLASSIFIED. Fail-closed: unparseable validity is
+        not a certificate of measurability, so the row is excluded from
+        trends, while still being preserved on disk.
+        """
+        for marker in ("not-a-dict", 42, [], 3.5, True):
+            record = {
+                "date": "2026-07-29",
+                "bench": "b",
+                "model": "m",
+                "arm": "rag_on",
+                "passes": 0,
+                "trials": 2,
+                "validity": marker,
+            }
+            self.assertIs(
+                nc.record_is_valid(record),
+                False,
+                f"malformed validity {marker!r} must read as invalid",
+            )
+
+    def test_Validity_malformed_marker_does_not_abort_the_cli(self):
+        """End-to-end: a corrupt row must not take the whole run down."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            history = root / "history.jsonl"
+            records = [dict(record) for record in live_252_records()]
+            records[0]["validity"] = "corrupted-by-hand"
+            nc.atomic_write_history(history, records)
+
+            tonight = result_dir(root, "20260730")
+            for trial in (1, 2):
+                write_trial(tonight, "only_bench", trial, False, "compile_error")
+
+            proc = run_cli("--tonight", str(tonight), "--history", str(history))
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+            self.assertNotIn("AttributeError", proc.stderr)
+            self.assertIn("HEALTH", proc.stdout)
+
+            # The corrupt row is excluded from trends but NOT deleted (D4).
+            kept, _ = nc.load_history_including_invalid(history)
+            self.assertEqual(len(kept), 252)
+
     def test_Validity_invalid_rows_never_enter_a_window(self):
         corpus = live_252_records()
         clean = [record for record in corpus if record["date"] != "2026-07-29"]
