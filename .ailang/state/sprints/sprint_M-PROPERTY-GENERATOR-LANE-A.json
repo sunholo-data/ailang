@@ -128,7 +128,7 @@
     {
       "id": "M5_CLOSEOUT_CHANGELOG_AND_FOLLOWUPS",
       "description": "Closeout: CHANGELOG breaking-change entry in changelogs/v0.18-current.md [Unreleased]; mark Lane A landed in design_docs/planned/v0_31_0/m-property-generator-coverage.md and record the plan's corrections there (R-2 especially, so the stale before/after table does not mislead Lane B's planner); file follow-ups F1/F2/F3 WITHOUT implementing them.",
-      "estimated_loc": 0,
+      "estimated_loc": 80,
       "dependencies": [
         "M4_A5_JSON_IS_JSON"
       ],
