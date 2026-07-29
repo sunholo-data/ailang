@@ -572,6 +572,11 @@ func (e *MotokoExecutor) Close() error {
 }
 
 func (e *MotokoExecutor) getModel(task *executor.Task) string {
+	// Defensive: a nil task used to segfault the entire eval suite from the
+	// canary path. A missing task means "no override", not a crash.
+	if task == nil {
+		return e.model
+	}
 	if task.Model != "" {
 		return task.Model
 	}

@@ -92,15 +92,15 @@ type brokenSubject struct{ executor.Executor }
 
 func (b *brokenSubject) Name() string { return "broken-subject" }
 func (b *brokenSubject) Close() error { return nil }
-func (b *brokenSubject) CanaryCheck(context.Context) error {
+func (b *brokenSubject) CanaryCheck(context.Context, executor.CanarySubject) error {
 	return errors.New("canary ran no steps (subject started but executed nothing — typically a module-load failure)")
 }
 
 type healthySubject struct{ executor.Executor }
 
-func (h *healthySubject) Name() string                      { return "healthy-subject" }
-func (h *healthySubject) Close() error                      { return nil }
-func (h *healthySubject) CanaryCheck(context.Context) error { return nil }
+func (h *healthySubject) Name() string                                              { return "healthy-subject" }
+func (h *healthySubject) Close() error                                              { return nil }
+func (h *healthySubject) CanaryCheck(context.Context, executor.CanarySubject) error { return nil }
 
 // TestRunModelCanary_EndToEnd drives the production resolver: models.yml lookup
 // -> executor factory -> RunCanary -> CanaryError. This is the wiring that

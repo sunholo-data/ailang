@@ -327,6 +327,12 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
                 log "  fmt=${arm} eval-suite exited non-zero (see $LOG)"
         done
 
+        # Paired analysis for the fmt arm too. Banking aggregates only would
+        # leave THIS experiment — the one the pairing work was motivated by —
+        # stuck with the same ~13pp detection floor that made the microRAG
+        # weekly unable to conclude anything.
+        FMT_PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_fmt_on" "${RESULTS_DIR}_fmt_off" 2>>"$LOG" || echo "")
+
         FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on")
         FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off")
         FMT_ON_T=$(find "${RESULTS_DIR}_fmt_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -353,6 +359,15 @@ print(json.dumps({
   'on_pass':on_p,'on_total':on_t,'off_pass':off_p,'off_total':off_t,
   'on_rate':round(on_p/on_t,4),'off_rate':round(off_p/off_t,4),
   'delta_pp':round(100*(on_p/on_t-off_p/off_t),1)}))" 2>/dev/null)
+            if [[ -n "$FREC" && -n "$FMT_PAIRED" ]]; then
+                FREC=$(python3 -c "
+import json,sys
+rec=json.loads(sys.argv[1]); paired=json.loads(sys.argv[2])
+for k in ('pairs','only_on_passed','only_off_passed','unpaired','mcnemar','headroom'):
+    rec[k]=paired.get(k)
+print(json.dumps(rec))" "$FREC" "$FMT_PAIRED" 2>/dev/null || echo "$FREC")
+            fi
+
             if [[ -n "$FREC" ]]; then
                 echo "$FREC" >> "$FMT_HIST"
                 log "fmt A/B persisted -> docs/static/benchmarks/fmt_ab.jsonl"

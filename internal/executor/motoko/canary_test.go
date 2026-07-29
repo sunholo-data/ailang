@@ -97,3 +97,23 @@ func TestCanaryTaskIsTrivial(t *testing.T) {
 		t.Error("canary needs a directive")
 	}
 }
+
+// TestGetModel_NilTaskDoesNotPanic guards a real regression: the canary called
+// getModel(nil), which dereferenced the task and segfaulted the WHOLE eval
+// suite the first time a canary ran against a real executor. The unit tests
+// missed it because they exercised newCanaryTask in isolation and never reached
+// the Execute path — a gap the measurement contract itself then caught, by
+// making the first real fmt A/B run fail loudly instead of silently.
+func TestGetModel_NilTaskDoesNotPanic(t *testing.T) {
+	e := &MotokoExecutor{model: "fallback-model"}
+
+	if got := e.getModel(nil); got != "fallback-model" {
+		t.Errorf("getModel(nil) = %q, want the executor default", got)
+	}
+	if got := e.getModel(&executor.Task{}); got != "fallback-model" {
+		t.Errorf("getModel(empty task) = %q, want the executor default", got)
+	}
+	if got := e.getModel(&executor.Task{Model: "override"}); got != "override" {
+		t.Errorf("getModel(task with model) = %q, want the override", got)
+	}
+}

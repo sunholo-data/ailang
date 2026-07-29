@@ -34,7 +34,29 @@ type CanaryChecker interface {
 	// CanaryCheck runs one trivial end-to-end task and returns nil only if the
 	// subject demonstrably works. Implementations MUST bound their own runtime
 	// and MUST respect ctx cancellation.
-	CanaryCheck(ctx context.Context) error
+	CanaryCheck(ctx context.Context, subject CanarySubject) error
+}
+
+// CanarySubject identifies WHICH configuration to canary.
+//
+// This must describe the exact subject the benchmarks will run, not an
+// executor default. The first real canary run proved why: it built the
+// executor from factory defaults (profile "dogfood", a cloud model) and so
+// probed a completely different configuration than the local ollama_fmt one
+// under test — reporting a failure that told you nothing about the subject.
+// A gate that checks the wrong thing is worse than no gate, because you
+// believe it.
+//
+// Options carries executor-specific settings, mirroring how the real run
+// passes them (motoko reads "motoko_profile"). Keeping it a string map rather
+// than executor-typed fields is deliberate: this interface is meant to serve
+// every executor and every experiment, so it must not grow a field per
+// executor.
+type CanarySubject struct {
+	// Model is the model identifier to run (e.g. "ollama/qwen3.6:35b-a3b-mxfp8").
+	Model string
+	// Options are executor-specific settings, e.g. {"motoko_profile": "ollama_fmt"}.
+	Options map[string]string
 }
 
 // CanaryError reports that an executor's canary failed. It is a distinct type
@@ -61,12 +83,12 @@ func (e *CanaryError) Unwrap() error { return e.Err }
 // is deliberate: the gate must be adoptable per-executor without a flag day.
 // A nil return therefore means "not known to be broken", not "verified alive"
 // — only an executor that implements CanaryChecker gives the stronger promise.
-func RunCanary(ctx context.Context, exec Executor) error {
+func RunCanary(ctx context.Context, exec Executor, subject CanarySubject) error {
 	checker, ok := exec.(CanaryChecker)
 	if !ok {
 		return nil
 	}
-	if err := checker.CanaryCheck(ctx); err != nil {
+	if err := checker.CanaryCheck(ctx, subject); err != nil {
 		return &CanaryError{Executor: exec.Name(), Err: err}
 	}
 	return nil

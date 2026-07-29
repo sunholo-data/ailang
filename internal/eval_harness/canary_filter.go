@@ -56,7 +56,7 @@ func runModelCanary(ctx context.Context, model string) error {
 	if GlobalModelsConfig == nil {
 		return nil
 	}
-	executorName, _, err := GlobalModelsConfig.GetExecutorForModel(model)
+	executorName, agentModelName, err := GlobalModelsConfig.GetExecutorForModel(model)
 	if err != nil {
 		return nil // not a canary failure; let the normal path report it
 	}
@@ -66,7 +66,17 @@ func runModelCanary(ctx context.Context, model string) error {
 	}
 	defer func() { _ = exec.Close() }()
 
-	if err := executor.RunCanary(ctx, exec); err != nil {
+	// Describe the SUBJECT precisely. The factory hands back an executor built
+	// from global defaults (profile "dogfood", a cloud model), so canarying it
+	// as-is probes a different configuration than the benchmarks will run — the
+	// first real run failed exactly that way. The profile travels the same route
+	// the real path uses: task metadata.
+	subject := executor.CanarySubject{Model: agentModelName}
+	if mc, err := GlobalModelsConfig.GetModel(model); err == nil && mc.MotokoProfile != "" {
+		subject.Options = map[string]string{"motoko_profile": mc.MotokoProfile}
+	}
+
+	if err := executor.RunCanary(ctx, exec, subject); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	return nil

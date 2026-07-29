@@ -17,7 +17,7 @@ type canaryStub struct {
 }
 
 func (c *canaryStub) Name() string { return c.name }
-func (c *canaryStub) CanaryCheck(ctx context.Context) error {
+func (c *canaryStub) CanaryCheck(ctx context.Context, _ CanarySubject) error {
 	if c.calls != nil {
 		*c.calls++
 	}
@@ -37,14 +37,14 @@ func (n *noCanaryStub) Name() string { return n.name }
 // executors that have not opted in (claude, codex, pi, opencode,
 // managed_agents) must be completely unaffected by the gate.
 func TestRunCanary_NotImplemented_IsNoOp(t *testing.T) {
-	if err := RunCanary(context.Background(), &noCanaryStub{name: "claude"}); err != nil {
+	if err := RunCanary(context.Background(), &noCanaryStub{name: "claude"}, CanarySubject{}); err != nil {
 		t.Fatalf("executor without CanaryCheck must pass by default, got: %v", err)
 	}
 }
 
 func TestRunCanary_Pass(t *testing.T) {
 	calls := 0
-	if err := RunCanary(context.Background(), &canaryStub{name: "motoko", err: nil, calls: &calls}); err != nil {
+	if err := RunCanary(context.Background(), &canaryStub{name: "motoko", err: nil, calls: &calls}, CanarySubject{}); err != nil {
 		t.Fatalf("healthy canary should pass, got: %v", err)
 	}
 	if calls != 1 {
@@ -57,7 +57,7 @@ func TestRunCanary_Pass(t *testing.T) {
 // reason as canary_failed rather than a generic harness error.
 func TestRunCanary_Fail_WrapsAsCanaryError(t *testing.T) {
 	underlying := errors.New("effect checking failed in src/core/tool_runtime: Missing effects: Env")
-	err := RunCanary(context.Background(), &canaryStub{name: "motoko", err: underlying})
+	err := RunCanary(context.Background(), &canaryStub{name: "motoko", err: underlying}, CanarySubject{})
 	if err == nil {
 		t.Fatal("failing canary must return an error")
 	}
@@ -83,7 +83,7 @@ func TestRunCanary_Fail_WrapsAsCanaryError(t *testing.T) {
 func TestRunCanary_RespectsContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := RunCanary(ctx, &canaryStub{name: "motoko", err: ctx.Err()})
+	err := RunCanary(ctx, &canaryStub{name: "motoko", err: ctx.Err()}, CanarySubject{})
 	if err == nil {
 		t.Fatal("cancelled context must produce an error")
 	}

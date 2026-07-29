@@ -12,14 +12,18 @@ import (
 )
 
 const (
-	// canaryTimeout bounds a single canary attempt. Generous enough for a cold
-	// local model to load, tight enough that a wedged subject fails fast.
-	canaryTimeout = 90 * time.Second
+	// canaryTimeout bounds a single canary attempt.
+	//
+	// 90s was too tight and skipped a HEALTHY model: a cold local 35B has to be
+	// pulled into memory before it emits a token, and the same ollama_fmt
+	// configuration completed the identical task fine when run by hand. That is
+	// risk R4 from the sprint plan landing in practice — a gate that skips good
+	// subjects is worse than no gate, because you stop trusting it. 4 minutes
+	// still fails far faster than the full night a dead subject used to burn.
+	canaryTimeout = 4 * time.Minute
 
-	// canaryMaxTimeout is the hard ceiling a canary task may declare. Enforced
-	// by test: the gate's value comes from failing FAST — a canary that can run
-	// for minutes gets disabled by whoever is waiting on the suite.
-	canaryMaxTimeout = 2 * time.Minute
+	// canaryMaxTimeout is the hard ceiling a canary task may declare.
+	canaryMaxTimeout = 5 * time.Minute
 
 	// canaryDirective is deliberately the most trivial task that still proves
 	// the properties benchmarks depend on: the subject must READ a file (module
@@ -37,8 +41,8 @@ const (
 // On an ambiguous failure (context deadline — i.e. slow rather than broken) the
 // canary retries ONCE before condemning the model. A gate that skips healthy
 // models under load is worse than no gate: it would be turned off.
-func (e *MotokoExecutor) CanaryCheck(ctx context.Context) error {
-	err := e.runCanaryOnce(ctx)
+func (e *MotokoExecutor) CanaryCheck(ctx context.Context, subject executor.CanarySubject) error {
+	err := e.runCanaryOnce(ctx, subject)
 	if err == nil {
 		return nil
 	}
@@ -48,13 +52,13 @@ func (e *MotokoExecutor) CanaryCheck(ctx context.Context) error {
 		return err // caller cancelled; do not burn another attempt
 	}
 	if isTimeout(err) {
-		return e.runCanaryOnce(ctx)
+		return e.runCanaryOnce(ctx, subject)
 	}
 	return err
 }
 
 // runCanaryOnce performs a single canary attempt in a throwaway workspace.
-func (e *MotokoExecutor) runCanaryOnce(ctx context.Context) error {
+func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.CanarySubject) error {
 	workspace, err := os.MkdirTemp("", "motoko-canary-*")
 	if err != nil {
 		return fmt.Errorf("canary: cannot create workspace: %w", err)
@@ -69,7 +73,31 @@ func (e *MotokoExecutor) runCanaryOnce(ctx context.Context) error {
 	runCtx, cancel := context.WithTimeout(ctx, canaryTimeout)
 	defer cancel()
 
-	result, execErr := e.Execute(runCtx, newCanaryTask(workspace, e.getModel(nil)))
+	// Run the SUBJECT's configuration, not the executor default. The profile
+	// travels on task metadata exactly as the real benchmark path sends it
+	// (see agent_runner_multi), so the canary probes the same thing the
+	// benchmarks will.
+	model := subject.Model
+	if model == "" {
+		model = e.model
+	}
+	task := newCanaryTask(workspace, model)
+	if len(subject.Options) > 0 {
+		task.Metadata = make(map[string]string, len(subject.Options))
+		for k, v := range subject.Options {
+			task.Metadata[k] = v
+		}
+	}
+	result, execErr := e.Execute(runCtx, task)
+
+	// A deadline must surface AS a deadline. Execute returns a zero-turn result
+	// rather than an error when it is cut short, so without this the ambiguous
+	// "slow" case was reported as the unambiguous "subject executed nothing" —
+	// which both misdiagnoses a healthy model and defeats the retry that exists
+	// precisely for this case.
+	if runCtx.Err() != nil && (result == nil || result.NumTurns == 0) {
+		return fmt.Errorf("canary did not finish within %s: %w", canaryTimeout, runCtx.Err())
+	}
 	return evaluateCanaryResult(result, execErr)
 }
 

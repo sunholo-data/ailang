@@ -115,7 +115,17 @@ func runEvalSuite() {
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
-	noCanary := fs.Bool("no-canary", false, "Skip the per-model pre-flight canary (agent mode). The canary proves a subject can actually complete a step; disabling it risks banking phantom failures from a dead subject.")
+	// OPT-IN, not opt-out, until the local-motoko false negative is fixed.
+	// 2026-07-29: the canary reports "ran no steps" for every local motoko model
+	// (fmt arm AND the nightly baseline) even though the identical
+	// configuration completes the identical task when run by hand. Left on by
+	// default it would skip motoko entirely and bank nothing — turning a gate
+	// meant to prevent phantom data into a cause of missing data. By the
+	// measurement contract's own logic a gate you cannot trust is worse than no
+	// gate, so it stays off until it earns the default.
+	canary := fs.Bool("canary", false, "Run the per-model pre-flight canary (agent mode). Proves a subject can complete a step before any benchmark runs. Currently OPT-IN: known false negative on local motoko models.")
+	noCanary := fs.Bool("no-canary", false, "Deprecated no-op: the canary is opt-in via --canary.")
+	_ = noCanary
 	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
 	// NOTE: `-agent-parallel` was historically wired here but never actually
 	// governed dispatch concurrency. The real semaphore is `-parallel` (see
@@ -430,7 +440,7 @@ func runEvalSuite() {
 		// failures. Dropping the model here — rather than deep in the per-run
 		// path — means a dead subject cannot bank a single row, because it
 		// never enters the run matrix at all.
-		if !*noCanary {
+		if *canary {
 			preCanary := modelList
 			healthy, canarySkipped := eval_harness.FilterCanaryHealthyModels(
 				context.Background(), modelList, eval_harness.RunModelCanary)
