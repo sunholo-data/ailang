@@ -256,6 +256,16 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		}
 		configValidity := eval_harness.AssertResolvedProfile(claimedProfile, result.ResolvedProfile)
 
+		// Treatment integrity (M6 verification gate + M5 void clause). An arm
+		// that cannot demonstrate its treatment applied — or a control showing
+		// the treatment leaked in — does not measure what it claims, so it is
+		// quarantined rather than reported as a null. Config mismatch takes
+		// precedence: if the run loaded the wrong profile entirely, that is the
+		// more fundamental problem to report.
+		if configValidity == nil {
+			configValidity = eval_harness.AssertFmtTreatmentIntegrity(result.FmtHook, result.FmtHookEvents)
+		}
+
 		errCategory := eval_harness.CategorizeRunError(result.CompileOk, result.RuntimeOk, result.StdoutOk, result.Stderr)
 		if !result.Success && result.FinishReason != "" {
 			if typed := eval_harness.CategorizeAgentError(nil, result.FinishReason); typed != eval_harness.ErrorCategoryAPI {
@@ -319,8 +329,10 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			MicroragState:      eval_harness.MicroragModeAuto.ResolvedState(), // M-BRAIN-MICRORAG
 			// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality,
 			// banked for the config-diff review and M3's treatment-delivery metric.
-			FmtHookState:  result.FmtHook,
-			FmtHookEvents: result.FmtHookEvents,
+			ResolvedProfile:    result.ResolvedProfile,
+			ResolvedExtensions: result.ResolvedExtensions,
+			FmtHookState:       result.FmtHook,
+			FmtHookEvents:      result.FmtHookEvents,
 
 			// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1)
 			CostKilledAt:   result.CostKilledAt,

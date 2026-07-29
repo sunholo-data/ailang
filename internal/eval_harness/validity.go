@@ -49,6 +49,11 @@ const (
 	ReasonHarnessError = "harness_error"
 	// ReasonInfraOutage: the nightly classifier could not measure the suite.
 	ReasonInfraOutage = "infra_outage"
+	// ReasonTreatmentUnproven: an experiment arm cannot demonstrate that its
+	// treatment actually applied (or a control shows it leaked in). The run may
+	// be perfectly healthy — it simply does not measure what it claims, so a
+	// null result from it would be meaningless. Void by preregistration.
+	ReasonTreatmentUnproven = "treatment_unproven"
 )
 
 // MarkValid returns an explicitly-valid marker.

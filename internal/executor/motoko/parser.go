@@ -303,6 +303,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		dp7RejectionsCount int
 		systemMDState      string          // 'set'/'unset' from runtime_config_resolved (M-RIG-RELIABILITY)
 		resolvedProfile    string          // MOTOKO_CONFIG the run ACTUALLY loaded (M-EVAL-MEASUREMENT-CONTRACT M4)
+		resolvedExtensions string          // extension ids actually LOADED — treatment-integrity evidence
 		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
 
 		// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT). Counts every
@@ -397,6 +398,12 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 				if s, ok := raw["profile"].(string); ok {
 					resolvedProfile = s
 				}
+				// Which extensions were LIVE. A profile name is a request; this
+				// is the outcome. An eval arm whose treatment IS an extension
+				// needs the outcome, not the request.
+				if s, ok := raw["extensions"].(string); ok {
+					resolvedExtensions = s
+				}
 			}
 
 		case "dp7_verifier_rejected":
@@ -487,6 +494,9 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 	res.ProviderData["system_md"] = systemMDState
 	if resolvedProfile != "" {
 		res.ProviderData["resolved_profile"] = resolvedProfile
+	}
+	if resolvedExtensions != "" {
+		res.ProviderData["resolved_extensions"] = resolvedExtensions
 	}
 	res.ProviderData["motoko_run_summary_present"] = gotRunSummary
 

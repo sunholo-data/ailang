@@ -328,17 +328,19 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// the hook stdin's `cwd`, so no env var is forwarded to the subprocess). We
 	// read it here, post-run. This is INVISIBLE to the agent (prereg §4), so the
 	// treatment measured by the A/B is not contaminated.
-	var fmtHookEvents []FmtHookEvent
-	if config.FmtHook == FmtHookModeOn {
-		evts, sinkErr := ReadFmtHookSink(workspace)
-		if sinkErr != nil {
-			// A sink read failure must SURFACE (it means the ON arm's
-			// treatment-delivery metric is unrecoverable for this run), but it
-			// must not abort an otherwise-complete run — the solution was still
-			// produced. Log loudly and continue with whatever parsed.
-			fmt.Fprintf(os.Stderr, "[FMT-HOOK] sink read error: %v\n", sinkErr)
-		}
-		fmtHookEvents = evts
+	//
+	// Read UNCONDITIONALLY. This was gated on config.FmtHook == On — the CLAUDE
+	// flag — which meant the motoko_ext_fmt arm never had its sink read at all:
+	// the extension wrote fmt_hook_events.jsonl and the harness discarded it. An
+	// ON arm that cannot show the treatment fired is void by M5's clause, so the
+	// gate was quietly making the whole experiment unprovable.
+	fmtHookEvents, sinkErr := ReadFmtHookSink(workspace)
+	if sinkErr != nil {
+		// A sink read failure must SURFACE (it means the ON arm's
+		// treatment-delivery metric is unrecoverable for this run), but it
+		// must not abort an otherwise-complete run — the solution was still
+		// produced. Log loudly and continue with whatever parsed.
+		fmt.Fprintf(os.Stderr, "[FMT-HOOK] sink read error: %v\n", sinkErr)
 	}
 
 	// Link observatory session to chain stage if handler supports it
@@ -399,23 +401,36 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
 
 	resolvedProfile, _ := result.ProviderData["resolved_profile"].(string)
+	resolvedExtensions, _ := result.ProviderData["resolved_extensions"].(string)
+
+	// Treatment-integrity capture for the fmt experiment.
+	//
+	// The sink is read UNCONDITIONALLY, not only when the Claude -fmt-hook flag
+	// is on. There are two fmt mechanisms and this path serves the other one:
+	// motoko_ext_fmt writes the same fmt_hook_events.jsonl, but the streaming
+	// (Claude) runner was the only reader — so every motoko-extension event was
+	// written and discarded. Reading it here is what lets an ON arm PROVE the
+	// treatment fired, which M6's verification gate requires and M5's void
+	// clause makes mandatory.
+	fmtArm := ResolveFmtArm(config.FmtHook, resolvedExtensions)
 
 	agentResult := &AgentBenchmarkResult{
-		BenchmarkID:     spec.ID,
-		ResolvedProfile: resolvedProfile,
-		Executor:        executorName,
-		Success:         success,
-		Iterations:      result.NumTurns,
-		Cost:            result.CostUSD,
-		DurationMS:      result.DurationMS,
-		NumTurns:        result.NumTurns,
-		ToolCallCount:   result.ToolCallCount,
-		ToolCalls:       result.ToolCalls,
-		Error:           result.Error,
-		SessionID:       result.SessionID,
-		Result:          result.Output,
-		Usage:           tokenUsageFromResult(result),
-		TTFTSeconds:     ttftTracker.seconds,
+		BenchmarkID:        spec.ID,
+		ResolvedProfile:    resolvedProfile,
+		ResolvedExtensions: resolvedExtensions,
+		Executor:           executorName,
+		Success:            success,
+		Iterations:         result.NumTurns,
+		Cost:               result.CostUSD,
+		DurationMS:         result.DurationMS,
+		NumTurns:           result.NumTurns,
+		ToolCallCount:      result.ToolCallCount,
+		ToolCalls:          result.ToolCalls,
+		Error:              result.Error,
+		SessionID:          result.SessionID,
+		Result:             result.Output,
+		Usage:              tokenUsageFromResult(result),
+		TTFTSeconds:        ttftTracker.seconds,
 		ModelFamily: func() string {
 			if GlobalModelsConfig != nil {
 				if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
@@ -451,7 +466,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality read
 		// from the out-of-band file sink (M2b). Empty on the OFF arm (never read).
-		FmtHook:       config.FmtHook.ResolvedState(),
+		FmtHook:       fmtArm,
 		FmtHookEvents: fmtHookEvents,
 	}
 

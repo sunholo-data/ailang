@@ -34,6 +34,14 @@ type RunMetrics struct {
 	Timestamp      time.Time `json:"timestamp"`
 	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
+	// ResolvedProfile / ResolvedExtensions record what the SUBJECT reports it
+	// actually loaded, from its own step-0 broadcast — not what we asked for.
+	// Banking them is what makes a row auditable after the fact; asserting on
+	// them in-flight without recording them (as M4 first did) leaves no evidence
+	// behind.
+	ResolvedProfile    string `json:"resolved_profile,omitempty"`
+	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
+
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means
 	// valid — every row banked before v0.31.0 lacks the field, and treating

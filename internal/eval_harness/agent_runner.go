@@ -123,6 +123,10 @@ type AgentBenchmarkResult struct {
 	// different profile is quarantined rather than counted (M4). Empty means
 	// the executor does not broadcast one, which is not an error.
 	ResolvedProfile string `json:"resolved_profile,omitempty"`
+	// ResolvedExtensions is the comma-separated list of extension ids the
+	// subject reports it actually LOADED. Treatment-integrity evidence for any
+	// experiment whose treatment IS an extension.
+	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
 
 	// Contract verification results (M-CONTRACT-EVAL)
 	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
