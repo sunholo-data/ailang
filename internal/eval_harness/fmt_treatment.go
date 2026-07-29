@@ -65,6 +65,23 @@ func AssertFmtTreatmentIntegrity(arm string, events []FmtHookEvent) *Validity {
 			v.Detail = "fmt ON arm banked zero fmt_hook_events: the treatment cannot be shown to have applied, so a null result here would be meaningless (M-EVAL-FMT-WEAKMODEL-AB M6 verification gate)"
 			return v
 		}
+		// FIRING is not DELIVERING. A run where fmt was invoked 24 times and
+		// errored on all 24 has banked plenty of events while never once
+		// canonically formatting the file — the treatment did nothing, and
+		// counting events alone would wave it through. Observed live on
+		// run_length_encode (17 formatted / 7 error), which is what prompted
+		// this: the healthy case has formats, so require at least one.
+		formatted := 0
+		for _, e := range events {
+			if e.Status == "formatted" {
+				formatted++
+			}
+		}
+		if formatted == 0 {
+			v := MarkInvalid(ReasonTreatmentUnproven)
+			v.Detail = fmt.Sprintf("fmt ON arm banked %d fmt_hook_event(s) but ZERO with status=formatted: the hook fired and failed every time, so no file was ever canonically formatted and the treatment did not actually apply", len(events))
+			return v
+		}
 	case "off":
 		if len(events) > 0 {
 			v := MarkInvalid(ReasonTreatmentUnproven)

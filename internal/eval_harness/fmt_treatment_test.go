@@ -77,6 +77,8 @@ func TestResolveFmtArm(t *testing.T) {
 // it is not a result at all.
 func TestAssertFmtTreatmentIntegrity(t *testing.T) {
 	oneEvent := []FmtHookEvent{{Status: "formatted"}}
+	allErrors := []FmtHookEvent{{Status: "error"}, {Status: "error"}, {Status: "error"}}
+	mixed := []FmtHookEvent{{Status: "error"}, {Status: "formatted"}, {Status: "error"}}
 
 	tests := []struct {
 		name       string
@@ -92,6 +94,18 @@ func TestAssertFmtTreatmentIntegrity(t *testing.T) {
 			wantValid: false, wantReason: ReasonTreatmentUnproven,
 		},
 		{name: "off arm with no events is correct", arm: "off", events: nil, wantValid: true},
+		{
+			// Firing is not delivering. Events exist, but nothing was ever
+			// formatted — the treatment did not apply.
+			name: "on arm where every invocation errored is void", arm: "on", events: allErrors,
+			wantValid: false, wantReason: ReasonTreatmentUnproven,
+		},
+		{
+			// The real shape observed on run_length_encode: some errors, but
+			// formats did happen, so the treatment demonstrably applied.
+			name: "on arm with mixed errors and formats is proven", arm: "on", events: mixed,
+			wantValid: true,
+		},
 		{
 			// Contamination: the control arm was supposed to have no treatment.
 			name: "off arm WITH events is contaminated", arm: "off", events: oneEvent,
