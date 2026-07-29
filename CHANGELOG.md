@@ -10,6 +10,20 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
   `submit_feedback` MCP tool for an exact caller-selected surface. Existing
   invocations keep the tool by default (refs #498).
 
+- Managed Agents: live contract probe for the 2026-07 feature drop
+  (`internal/executor/managed_agents/managed_agents_features_live_test.go`,
+  ADC-gated behind `AILANG_LIVE_MA_FEATURES=1`, never run in CI). Records what
+  the Gemini Developer API docs advertise vs what **Vertex** — the surface this
+  executor uses — actually does. Headline: `agent_config` is now accepted on
+  Vertex (the earlier "unknown field" was a missing `"type"` discriminator, not
+  an absent feature), but `max_total_tokens` is **validated and then ignored**
+  (a cap of 64 ran to completion at 216,843 tokens), `agent_config.model`
+  accepts a nonexistent model id and is not echoed anywhere on the wire, hooks
+  have no delivery path (`inline` sources still rejected; `/` not writable;
+  a self-installed `/workspace/.agents/hooks.json` is never consulted), and the
+  Environments API returns `Method not found`. Findings and their evidence are
+  tabulated in `internal/executor/managed_agents/README.md`.
+
 ### Fixed
 
 - A2A `tasks/send` now applies the same `--routes-only` / `@noexpose`
@@ -51,6 +65,16 @@ For the latest version, see [changelogs/v0.18-current.md](changelogs/v0.18-curre
 - Added end-to-end seeded and crypto Rand examples, backed by asymmetric
   validation-only subsumption from explicit `seeded`/`crypto` declarations to
   bare/os requirements.
+- Eval docs: de-staled the `post-release` skill and `models.yml` suite headers
+  against the current roster. The skill still named `claude-opus-4-8`,
+  `or-glm-5-1`/`opencode-or-glm-5-1` and "7 production models" for an
+  `extended_suite` that is now 18, and claimed the motoko harness "currently
+  hangs" — obsolete since it was re-added to `ollama_suite` 2026-06-15. Also
+  corrected the tier breakdown (19 core + 21 stretch + 16 frontier, not
+  19/29/8), the `harness_suite` count (8, not 6), consolidated the three
+  contradictory cost tables into one flagged-stale table, and documented the
+  Anthropic-quota coverage-hole failure mode that produced v0.30.0's 43 missing
+  standard rows and zero Claude agent rows.
 
 ## Changelog Archives
 

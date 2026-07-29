@@ -124,6 +124,64 @@ The Managed Agents API reports `total_thought_tokens` separately in
 `usage`; we bill them at the output rate because Vertex's pricing model
 doesn't distinguish reasoning from candidate tokens.
 
+## The 2026-07 feature drop is Gemini-Developer-API-only (probed 2026-07-28)
+
+Google's "Managed Agents: 3.6 Flash, hooks and more" announcement and the
+[agent-hooks docs](https://ai.google.dev/gemini-api/docs/agent-hooks) describe
+the **Gemini Developer API** surface (`generativelanguage.googleapis.com`,
+API-key auth). This executor is on **Vertex**. Probes S/T/U in
+[managed_agents_features_live_test.go](managed_agents_features_live_test.go)
+tested each advertised feature against the surface we actually use:
+
+| Feature | Vertex status | Evidence |
+|---|---|---|
+| `agent_config` container | **Accepted** (needs `"type":"antigravity"`) | S1 |
+| `agent_config.max_total_tokens` | **Parsed, validated, NOT ENFORCED** | S5/S6/S9/S10 |
+| `agent_config.model` | Accepted; effect **unverified** | S2/S3/S4 |
+| Hooks (`.agents/hooks.json`) | **No delivery path** | T1/T2/T3 |
+| Environments API (list/get/delete) | **Absent** (`Method not found`) | U |
+
+Details that matter before anyone builds on these:
+
+- **`max_total_tokens` is a trap.** It is a real, strictly-validated field —
+  a non-numeric value 400s with `The value is invalid for
+  'agent_config.max_total_tokens'`, and an unknown sibling key 400s as
+  `Unknown parameter` — so the request *looks* like it set a cost ceiling.
+  It is then ignored: a cap of `64` (probed in both string and integer form)
+  ran to `status:"completed"` at **216,843** and **87,828** tokens
+  respectively. Do NOT wire this in as a budget control; a silently
+  non-functional ceiling is worse than the honest post-hoc reporting below,
+  because it reads as a guarantee.
+- **`agent_config.model` cannot be verified from our side.** A nonexistent id
+  (`gemini-9.9-does-not-exist`) is accepted without complaint, and the SSE
+  stream carries no model echo — the only `model` substring in a full raw dump
+  is the `model_output` step type, and `interactions.get` does not echo
+  `agent_config` either. Asking the sandbox which model it runs is not
+  evidence (it self-reported `gemini-1.5-pro`, which no documentation
+  supports). So we must not record a pinned model as fact in eval metadata.
+  A behavioural discriminator (latency / thought-token distribution across
+  pinned tiers, n>1) is the open follow-up.
+- **Hooks have no route in.** `inline` sources are still rejected
+  (`Unsupported environment data source type: INLINE. Must be one of:
+  [gcs, skill_registry]`), the sandbox cannot create `/.agents` (root is
+  read-only, `sudo` blocked by `no_new_privs`), no `/.agents` ships in the
+  image, and a config self-installed at `/workspace/.agents/hooks.json` is
+  never consulted — the gate script denied correctly when piped by hand, then
+  the matching `code_execution` ran anyway. **Untested:** a `gcs` source
+  mounting `.agents/` at boot, which is the one remaining delivery path if
+  discovery is boot-time-only.
+- **Fail-open, if hooks ever land here.** Per the docs a hook that crashes,
+  times out, or returns non-2xx is treated as `allow`. A broken gate is
+  therefore indistinguishable from "the gate didn't help" unless the deny path
+  is asserted positively — build the probe before building the gate.
+
+Why we care about hooks at all: a `pre_tool_execution` hook can deny a tool
+call *with a reason the model then adapts to*. That is a feedback channel — it
+would let us reject a proposed `.ail` edit that does not type-check, with the
+compiler diagnostic as the reason, which is the per-edit convergence lever
+that works elsewhere in this repo. That prize is why the delivery gap is worth
+re-probing when Google moves these to Vertex.
+
 ## Limits and known gaps
 
 - **Cost budget is post-hoc, not mid-stream.** The Managed Agents API only

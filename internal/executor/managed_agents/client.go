@@ -70,6 +70,10 @@ func buildInteractionsURL(project, location string) string {
 // body for SSE parsing. The body is the live response stream — callers must
 // close it (this function does NOT close it for them).
 //
+// body is typed `any` (production always passes *interactionRequest) so that
+// live contract probes can POST a verbatim raw-JSON body through the exact
+// same auth + header path, instead of duplicating it and drifting.
+//
 // On non-2xx responses the body is drained and an error returned containing
 // the API's error message (parsed as errorPayload when possible).
 func sendInteraction(
@@ -77,7 +81,7 @@ func sendInteraction(
 	client httpClient,
 	tokens tokenSource,
 	project, location string,
-	body *interactionRequest,
+	body any,
 ) (io.ReadCloser, error) {
 	if project == "" {
 		return nil, fmt.Errorf("managed_agents: GCP project not set (Task.GCPProject or executor config)")

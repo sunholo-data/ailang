@@ -55,6 +55,7 @@ type probeResult struct {
 	stepCount    int
 	agentText    string
 	unknownCount int
+	usage        Usage
 	err          error
 }
 
