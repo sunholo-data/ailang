@@ -10,6 +10,40 @@
 
 ---
 
+## Status (updated 2026-07-29)
+
+**All three milestones implemented and committed** — `b9dcdf796` (M1), `9f99ad6be` (M2),
+`449839532` (M3). ~920 LOC including 17 new tests. `make lint` / `fmt-check` /
+`check-boundaries` / `check-file-sizes` all green.
+
+**The sprint is NOT closed out**, because its headline claim is unverified:
+
+| Item | State |
+|---|---|
+| Generate emits `cache_control` | ✅ done, wire-shape tested |
+| Teaching prompt cached in place, bytes unchanged | ✅ done, byte-equality asserted |
+| Cache tokens banked | ✅ done, round-trip + back-compat tested |
+| **A real cache hit against the live API** | ❌ **unverified** — no `ANTHROPIC_API_KEY` this window (quota returns ~2026-08-01). `TestLiveGeneratePromptCache` is written and gated on `AILANG_LIVE_ANTHROPIC_CACHE=1` |
+| Pre-fan-out warm-up (D4) | ⏸ deferred — worth ~34pp of the saving; needs suite orchestration + a `max_tokens:0` prefill path `Generate` does not yet express |
+| `eval-report` hit-rate column | ⏸ deferred — presentation only; the data is banked and queryable |
+
+**To close this out** when the API key returns:
+1. `AILANG_LIVE_ANTHROPIC_CACHE=1 go test ./internal/ai/anthropic/ -run TestLiveGeneratePromptCache -v`
+2. Run one 2-benchmark Anthropic suite; confirm banked `cache_read_input_tokens > 0`
+3. Cross-check the Anthropic Console hit rate moved
+
+**Correction made during execution** (recorded so the reasoning is not lost): the planned
+"only cache when this adapter will see ≥2 calls" guard was wrong and would have shipped the
+feature dead — the harness builds a fresh `AIAgent` per benchmark, so every adapter sees exactly
+one call, while Anthropic's cache is server-side and keyed by prefix. The guard is inverted:
+cache unless a caller declares itself one-shot.
+
+**M1's HIGH risk rating did not materialise** — it assumed the new content-block branch would join
+`step.go`'s tool_result/vision chain. `Generate` builds its own single user message, so no ordering
+hazard existed. Both guard tests verified unmodified and passing.
+
+---
+
 ## Goal
 
 Make our Anthropic API traffic cache-capable end to end. Today the `Generate` path — which
