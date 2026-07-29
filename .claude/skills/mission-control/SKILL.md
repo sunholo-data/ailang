@@ -319,6 +319,31 @@ the Repo Profile above):
    M-TYPEENV-SUB "open P0" was already fixed; only un-skipping revealed it.
 3. **Exit codes through pipes lie**: `cmd | tail; echo $?` reports tail's status. Use direct
    invocation or PIPESTATUS.
+3a. **A SEARCH THAT FOUND NOTHING IS A CLAIM, NOT A FACT** (added 2026-07-29 iteration 119; the
+   cheapest vacuous pass in the toolbox, and the one this loop keeps buying). An empty `grep` is
+   indistinguishable from a `grep` that could never have matched — same silent output, same exit
+   path, and it *feels* like evidence of absence. Four recorded instances, two of them in
+   iteration 119 alone: (a) iteration 119 told its own planner, under an explicit VERIFIED-BY-ME
+   label, that a 603-line test suite "runs nowhere in CI", from a grep of the root `Makefile` and
+   `.github/workflows/` — the root `Makefile` is a ten-line `include` shell, `make/test.mk:19`
+   defines the target and `ci.yml:133-144` runs it *with an anti-vacuity floor*; the planner had
+   to refute it and delete a fabricated milestone; (b) the same iteration, ten minutes later,
+   grepped `PASSES -lt` against a file reading `"$PASSES" -lt 45` and briefly believed its
+   executor had claimed a change it never made; (c) iteration 105's `RunAgentBenchmark`, where a
+   `RunAICheck(` hit proved a call site existed but never that anything reached it; (d)
+   iterations 55–58's `rev-parse --short`, which fataled to stderr and printed nothing to stdout,
+   wearing the all-clear's clothes for four iterations.
+   Before a negative search result becomes a fact you act on or hand downstream:
+   **(i) prove the instrument can see a positive** — search for something you KNOW is there and
+   confirm it comes back; a pattern that finds nothing anywhere is broken, not informative;
+   **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
+   directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
+   a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
+   over grepping makefiles, a language server or `go list` over grepping for callers, `gh api
+   .../check-runs` over listing runs; **(iv) label it honestly** — "grep found no X" is not
+   "there is no X", and the difference is exactly the provenance distinction Gate 2 already
+   demands. The tell that you are about to pay for this: you are about to write "there is no…",
+   "it runs nowhere", or "nothing calls it" on the strength of one command that printed nothing.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`
