@@ -242,6 +242,20 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		// to the standard compile/runtime/logic classification.
 		// M-EVAL-MEM-GUARD: CategorizeRunError promotes memory-watchdog kills
 		// (marker in validation stderr) to resource_limit.
+		// M4 (m-eval-measurement-contract): assert the run measured what
+		// models.yml said it would. Compares the CLAIMED motoko_profile
+		// against the profile the subject reports it actually loaded; a
+		// contradiction quarantines the row instead of counting it. Ten cloud
+		// motoko entries silently ran `dogfood` for weeks while advertising
+		// microRAG+DP7, and nothing noticed because nothing compared them.
+		var claimedProfile string
+		if eval_harness.GlobalModelsConfig != nil {
+			if mc, err := eval_harness.GlobalModelsConfig.GetModel(model); err == nil {
+				claimedProfile = mc.MotokoProfile
+			}
+		}
+		configValidity := eval_harness.AssertResolvedProfile(claimedProfile, result.ResolvedProfile)
+
 		errCategory := eval_harness.CategorizeRunError(result.CompileOk, result.RuntimeOk, result.StdoutOk, result.Stderr)
 		if !result.Success && result.FinishReason != "" {
 			if typed := eval_harness.CategorizeAgentError(nil, result.FinishReason); typed != eval_harness.ErrorCategoryAPI {
@@ -250,6 +264,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		}
 
 		metrics := &eval_harness.RunMetrics{
+			Validity:     configValidity,
 			ID:           result.BenchmarkID,
 			Lang:         lang,
 			Model:        model,

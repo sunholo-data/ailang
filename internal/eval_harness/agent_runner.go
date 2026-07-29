@@ -117,6 +117,13 @@ type AgentBenchmarkResult struct {
 	// Cross-harness grouping
 	ModelFamily string `json:"model_family,omitempty"` // Logical model family (e.g. "claude-sonnet-4-6"); empty = no grouping
 
+	// ResolvedProfile is the profile the SUBJECT reports it actually loaded,
+	// read from its step-0 broadcast — not the one we asked for. Asserted
+	// against the models.yml claim at bank time so a run that silently used a
+	// different profile is quarantined rather than counted (M4). Empty means
+	// the executor does not broadcast one, which is not an error.
+	ResolvedProfile string `json:"resolved_profile,omitempty"`
+
 	// Contract verification results (M-CONTRACT-EVAL)
 	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
 	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions

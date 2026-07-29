@@ -398,21 +398,24 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// Calculate success
 	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
 
+	resolvedProfile, _ := result.ProviderData["resolved_profile"].(string)
+
 	agentResult := &AgentBenchmarkResult{
-		BenchmarkID:   spec.ID,
-		Executor:      executorName,
-		Success:       success,
-		Iterations:    result.NumTurns,
-		Cost:          result.CostUSD,
-		DurationMS:    result.DurationMS,
-		NumTurns:      result.NumTurns,
-		ToolCallCount: result.ToolCallCount,
-		ToolCalls:     result.ToolCalls,
-		Error:         result.Error,
-		SessionID:     result.SessionID,
-		Result:        result.Output,
-		Usage:         tokenUsageFromResult(result),
-		TTFTSeconds:   ttftTracker.seconds,
+		BenchmarkID:     spec.ID,
+		ResolvedProfile: resolvedProfile,
+		Executor:        executorName,
+		Success:         success,
+		Iterations:      result.NumTurns,
+		Cost:            result.CostUSD,
+		DurationMS:      result.DurationMS,
+		NumTurns:        result.NumTurns,
+		ToolCallCount:   result.ToolCallCount,
+		ToolCalls:       result.ToolCalls,
+		Error:           result.Error,
+		SessionID:       result.SessionID,
+		Result:          result.Output,
+		Usage:           tokenUsageFromResult(result),
+		TTFTSeconds:     ttftTracker.seconds,
 		ModelFamily: func() string {
 			if GlobalModelsConfig != nil {
 				if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {

@@ -21,7 +21,14 @@ type Validity struct {
 	// Valid reports whether this row is a real measurement.
 	Valid bool `json:"valid"`
 	// Reason explains an invalid row. Always set when Valid is false.
+	// This is the MACHINE-readable enum that analysis filters on — keep the
+	// vocabulary small and stable.
 	Reason string `json:"reason,omitempty"`
+	// Detail carries the human-readable specifics for this particular row
+	// (e.g. which two profiles disagreed). Optional, never filtered on: it
+	// exists so an operator reading a quarantined row can see what happened
+	// without re-deriving it from two other files.
+	Detail string `json:"detail,omitempty"`
 }
 
 // Invalid-reason constants. Keep these stable: they are written to disk and

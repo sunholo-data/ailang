@@ -302,6 +302,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		motokoModel        string
 		dp7RejectionsCount int
 		systemMDState      string          // 'set'/'unset' from runtime_config_resolved (M-RIG-RELIABILITY)
+		resolvedProfile    string          // MOTOKO_CONFIG the run ACTUALLY loaded (M-EVAL-MEASUREMENT-CONTRACT M4)
 		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
 
 		// Context-compaction telemetry (M-AILANG-SEMANTIC-CONTEXT). Counts every
@@ -389,6 +390,12 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 			if raw != nil {
 				if s, ok := raw["system_md"].(string); ok {
 					systemMDState = s
+				}
+				// The profile the subject actually loaded. Banked and asserted
+				// against the models.yml claim so a model silently running the
+				// wrong profile is caught (M4).
+				if s, ok := raw["profile"].(string); ok {
+					resolvedProfile = s
 				}
 			}
 
@@ -478,6 +485,9 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 	// motoko.go, which uses motoko_run_summary_present below to tell the two
 	// apart).
 	res.ProviderData["system_md"] = systemMDState
+	if resolvedProfile != "" {
+		res.ProviderData["resolved_profile"] = resolvedProfile
+	}
 	res.ProviderData["motoko_run_summary_present"] = gotRunSummary
 
 	// If run_summary is missing, fall back to summed totals + infer success
