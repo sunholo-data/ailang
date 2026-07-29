@@ -99,6 +99,9 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Check changelog index hygiene
+      run: make check-changelog
+
     - name: Check coverage gate (M-P2)
       run: make test-coverage-gate
 
