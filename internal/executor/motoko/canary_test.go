@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -95,6 +96,34 @@ func TestCanaryTaskIsTrivial(t *testing.T) {
 	}
 	if task.Directive == "" {
 		t.Error("canary needs a directive")
+	}
+
+	// THE bug that made the canary condemn healthy subjects: Task.TTFTTimeout
+	// defaults to 30s, and a cold local 35B needs longer than that just to emit
+	// its first event. The executor killed motoko before anything was parsed
+	// and reported "ran no steps" — while the abandoned process went on to
+	// complete the task correctly.
+	if task.TTFTTimeout < time.Minute {
+		t.Errorf("TTFTTimeout = %v; must be generous enough for a COLD local model to reach first token, or the gate kills healthy subjects", task.TTFTTimeout)
+	}
+	if task.IdleTimeout < time.Minute {
+		t.Errorf("IdleTimeout = %v; too tight for a slow local model mid-run", task.IdleTimeout)
+	}
+}
+
+// TestCanaryTaskIDsAreUnique guards the second bug found in the same run:
+// motoko names its session log after the task ID, so a constant "canary" made
+// every attempt APPEND to one shared session_canary.jsonl — four runs deep by
+// the time it was noticed. Repeated or concurrent canaries would parse each
+// other's events.
+func TestCanaryTaskIDsAreUnique(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 50; i++ {
+		id := newCanaryTask("/tmp/w", "m").ID
+		if seen[id] {
+			t.Fatalf("duplicate canary task ID %q — session logs would collide", id)
+		}
+		seen[id] = true
 	}
 }
 

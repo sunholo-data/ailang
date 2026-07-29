@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -29,6 +31,20 @@ const (
 	// the properties benchmarks depend on: the subject must READ a file (module
 	// load + step 0 + tool dispatch all have to work to get this far).
 	canaryDirective = "Read the file canary.txt and report its contents. Do not modify anything."
+
+	// canaryTTFT is the prefill budget — how long the subject may take to emit
+	// its FIRST event before being killed.
+	//
+	// THIS WAS THE BUG. Task.TTFTTimeout defaults to 30s, and the canary never
+	// set it. A cold local 35B needs longer than that just to load and begin
+	// emitting, so the executor killed motoko before any event was parsed and
+	// reported "ran no steps" — while the abandoned process went on to finish
+	// the task correctly (steps_executed=2, ReadFile dispatched, right answer).
+	// The gate was condemning healthy subjects for being cold.
+	canaryTTFT = 3 * time.Minute
+
+	// canaryIdle bounds silence AFTER the first event.
+	canaryIdle = 3 * time.Minute
 )
 
 // CanaryCheck implements executor.CanaryChecker.
@@ -42,6 +58,16 @@ const (
 // canary retries ONCE before condemning the model. A gate that skips healthy
 // models under load is worse than no gate: it would be turned off.
 func (e *MotokoExecutor) CanaryCheck(ctx context.Context, subject executor.CanarySubject) error {
+	// HealthCheck FIRST — not just for its own sake. It is what populates
+	// e.motokoRepo from `motoko --version`, and findSessionJSONL needs that to
+	// locate the session log: motoko's wrapper cd's into the repo, so the JSONL
+	// lands there and NOT in our temp workspace. Skipping it made every canary
+	// look in an empty temp dir, find nothing, and report a healthy subject as
+	// broken.
+	if err := e.HealthCheck(ctx); err != nil {
+		return fmt.Errorf("canary pre-flight: %w", err)
+	}
+
 	err := e.runCanaryOnce(ctx, subject)
 	if err == nil {
 		return nil
@@ -101,15 +127,28 @@ func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.Can
 	return evaluateCanaryResult(result, execErr)
 }
 
+// canarySeq makes every canary task ID unique within a process. A wall-clock
+// timestamp alone is NOT sufficient: consecutive calls can land in the same
+// nanosecond, which a test caught immediately.
+var canarySeq atomic.Int64
+
 // newCanaryTask builds the canary task. Extracted so a test can assert it stays
 // trivial and bounded without executing anything.
 func newCanaryTask(workspace, model string) *executor.Task {
 	return &executor.Task{
-		ID:        "canary",
+		// Unique per attempt: motoko names its session log after the task ID, so
+		// a constant "canary" made every run APPEND to one shared
+		// session_canary.jsonl. Concurrent or repeated canaries would then parse
+		// each other's events.
+		ID:        "canary-" + strconv.FormatInt(canarySeq.Add(1), 36) + "-" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		Directive: canaryDirective,
 		Workspace: workspace,
 		Model:     model,
 		Timeout:   canaryTimeout,
+		// Without these the 30s TTFT default kills a cold local model before it
+		// emits anything. See canaryTTFT.
+		TTFTTimeout: canaryTTFT,
+		IdleTimeout: canaryIdle,
 	}
 }
 
@@ -128,6 +167,16 @@ func evaluateCanaryResult(result *executor.Result, execErr error) error {
 	}
 	if result == nil {
 		return fmt.Errorf("canary produced no result (subject did not return)")
+	}
+	// Surface the executor's OWN diagnosis before falling back to a generic
+	// one. motoko reports failures IN the Result (Success=false + Error) with a
+	// nil Go error, so a bare NumTurns==0 check swallowed messages as specific
+	// as "no session JSONL found" and replaced them with "executed nothing" —
+	// which sent the investigation at the model for hours when the actual fault
+	// was the harness looking in the wrong directory. A gate that hides its own
+	// cause is barely better than no gate.
+	if !result.Success && result.Error != "" {
+		return fmt.Errorf("canary failed: %s", result.Error)
 	}
 	if result.NumTurns == 0 {
 		return fmt.Errorf("canary ran no steps (subject started but executed nothing — typically a module-load or startup failure; check $TMPDIR/motoko-stderr-*.log)")
