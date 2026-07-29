@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import shutil
+import statistics
 import sys
 import time
 from dataclasses import dataclass
@@ -98,10 +99,59 @@ def persistent_failures(
         if (
             len(trials) >= 2
             and all(not passed for passed, _ in trials)
-            and set(cats) - INFRA_CATEGORIES
+            and not infra_tainted(trials)
         ):
             failures[bench] = cats
     return failures
+
+
+def infra_tainted(trials: Iterable[tuple[bool, str]]) -> bool:
+    """Return whether any trial carries an infrastructure category."""
+    return any(cat in INFRA_CATEGORIES for _, cat in trials)
+
+
+def run_validity(
+    results: dict[str, list[tuple[bool, str]]], threshold: float
+) -> tuple[bool, str, int, int]:
+    """Classify whether enough of tonight's suite was measurable."""
+    total = len(results)
+    if total == 0:
+        return False, "zero_files", 0, 0
+    tainted = sum(infra_tainted(trials) for trials in results.values())
+    if tainted / total >= threshold:
+        return False, "infra_outage", tainted, total
+    return True, "", tainted, total
+
+
+def pass_rate(results: dict[str, list[tuple[bool, str]]]) -> float:
+    trials = [passed for bench in results.values() for passed, _ in bench]
+    return sum(trials) / len(trials) if trials else 0.0
+
+
+def trailing_median_pass_rate(
+    records: Iterable[dict],
+    model: str,
+    arm: str,
+    tonight: str,
+    window_nights: int,
+) -> float | None:
+    by_date: dict[str, list[int]] = {}
+    for record in records:
+        if (
+            record["model"] == model
+            and record["arm"] == arm
+            and record["date"] < tonight
+        ):
+            totals = by_date.setdefault(record["date"], [0, 0])
+            totals[0] += int(record["passes"])
+            totals[1] += int(record["trials"])
+    dates = sorted(by_date, reverse=True)[:window_nights]
+    rates = [
+        by_date[date][0] / by_date[date][1]
+        for date in dates
+        if by_date[date][1]
+    ]
+    return statistics.median(rates) if rates else None
 
 
 def parse_date(path: str | Path) -> str:
@@ -442,6 +492,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-nights", type=int, default=2)
     parser.add_argument("--min-trials", type=int, default=4)
     parser.add_argument("--escalate-after", type=int, default=3)
+    parser.add_argument("--invalid-infra-fraction", type=float, default=0.30)
     parser.add_argument("--update-history", action="store_true")
     parser.add_argument("--bootstrap", action="store_true")
     parser.add_argument(
@@ -476,7 +527,11 @@ def main(argv: list[str] | None = None) -> int:
 
         tonight_date = parse_date(args.tonight)
         model = args.model or infer_model(args.tonight)
-        failures = persistent_failures(parse_results_dir(args.tonight))
+        results = parse_results_dir(args.tonight)
+        valid, reason, tainted, total = run_validity(
+            results, args.invalid_infra_fraction
+        )
+        failures = persistent_failures(results)
         unavailable = None
         try:
             records, skipped = load_history(history)
@@ -513,6 +568,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 for bench, cats in sorted(failures.items())
             ]
+        if not valid:
+            median = trailing_median_pass_rate(
+                records, model, args.arm, tonight_date, args.window_nights
+            )
+            median_text = f"{median:.3f}" if median is not None else "n/a"
+            print(
+                f"INVALID\t{reason}\t{tainted}/{total}\t"
+                f"{pass_rate(results):.3f}\t{median_text}"
+            )
+            verdicts = []
         for verdict in verdicts:
             print(verdict.tsv())
 

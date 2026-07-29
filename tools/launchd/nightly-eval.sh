@@ -365,12 +365,26 @@ CLASSIFIED=$(python3 "$WT/tools/nightly_classify.py" \
     --update-history)
 
 HEALTH=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="HEALTH"{sub(/^HEALTH\t/,""); print}')
+INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5}')
 REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSPECTED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSPECTED-FLAKE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
 GAPS=$(echo "$CLASSIFIED"        | awk -F'\t' '$1=="GAP"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
 INSUFFICIENT=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INSUFFICIENT-HISTORY"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
 log "$HEALTH"
 
+if [[ -n "$INVALID" ]]; then
+    IFS=$'\t' read -r INVALID_REASON INVALID_TAINT INVALID_RATE INVALID_MEDIAN <<< "$INVALID"
+    INVALID_BANNER="INVALID nightly run: ${INVALID_REASON}; infra-tainted ${INVALID_TAINT}; pass rate ${INVALID_RATE} vs trailing median ${INVALID_MEDIAN}."
+    log "$INVALID_BANNER"
+    ailang messages send controlplane \
+        "${INVALID_BANNER}
+${HEALTH}
+No per-benchmark verdicts were filed.
+Model: ${MODEL} | Tiers: ${BENCH_TIERS} | Results: ${RESULTS_DIR}" \
+        --title "Nightly eval INVALID (${DATE})" \
+        --from "nightly-eval" \
+        --type "note" 2>/dev/null || true
+else
 if [[ -n "$REGRESSIONS" ]]; then
     RCOUNT=$(echo "$REGRESSIONS" | wc -l | tr -d ' ')
     log "REGRESSIONS (${RCOUNT}): $(echo "$REGRESSIONS" | cut -f1 | tr '\n' '; ')"
@@ -450,5 +464,6 @@ Regressions: ${REG_NAMES}| Suspected flakes: ${SUSPECTED_NAMES}| Non-regression 
 ${INSUFFICIENT_BODY}" \
     --title "Nightly eval: ${PASS} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
+fi
 
 log "=== nightly eval done ==="

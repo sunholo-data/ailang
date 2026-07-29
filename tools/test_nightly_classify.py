@@ -153,6 +153,229 @@ class LegacyClassifierTests(unittest.TestCase):
         self.assertEqual(nc.legacy_classify(self.tonight, None), ["GAP\tx\t[compile_error]"])
 
 
+class TaintTests(unittest.TestCase):
+    @staticmethod
+    def _failures(*cats: str) -> dict[str, list[tuple[bool, str]]]:
+        return {"bench": [(False, cat) for cat in cats]}
+
+    @staticmethod
+    def _record_trials(record: dict) -> list[tuple[bool, str]]:
+        passes = int(record["passes"])
+        trials = int(record["trials"])
+        failed = trials - passes
+        cats = list(record["cats"])
+        if failed and not cats:
+            cats = ["—"]
+        failure_cats = (cats * failed)[:failed] if len(cats) == 1 else cats[:failed]
+        return [(True, "none")] * passes + [
+            (False, cat) for cat in failure_cats
+        ]
+
+    def test_Taint_mixed_infra_and_real_category_is_suppressed(self):
+        got = nc.persistent_failures(
+            self._failures("api_error", "compile_error")
+        )
+        self.assertEqual(got, {})
+
+    def test_Taint_clean_failure_still_files(self):
+        got = nc.persistent_failures(
+            self._failures("compile_error", "compile_error")
+        )
+        self.assertEqual(got, {"bench": ["compile_error"]})
+
+    def test_Taint_timeout_and_executor_error_also_taint(self):
+        for category in sorted(nc.INFRA_CATEGORIES):
+            with self.subTest(category=category):
+                got = nc.persistent_failures(
+                    self._failures(category, "logic_error")
+                )
+                self.assertEqual(got, {})
+
+    def test_Taint_replay_costs_are_pinned(self):
+        records, skipped = nc.load_history(FIXTURE)
+        self.assertEqual(skipped, 0)
+        expected = {
+            "2026-07-24": (6, 1),
+            "2026-07-25": (7, 1),
+            "2026-07-26": (4, 0),
+            "2026-07-27": (5, 2),
+            "2026-07-28": (8, 0),
+        }
+        totals = [0, 0]
+        for date, want in expected.items():
+            results = {
+                record["bench"]: self._record_trials(record)
+                for record in records
+                if record["date"] == date
+            }
+            old_persistent = sum(
+                len(trials) >= 2
+                and all(not passed for passed, _ in trials)
+                and bool(
+                    {cat for _, cat in trials} - nc.INFRA_CATEGORIES
+                )
+                for trials in results.values()
+            )
+            clean = len(nc.persistent_failures(results))
+            got = (old_persistent, old_persistent - clean)
+            self.assertEqual(got, want, date)
+            totals[0] += old_persistent
+            totals[1] += old_persistent - clean
+        self.assertEqual(tuple(totals), (30, 4))
+
+    def test_Taint_csv_to_json_escalation_moves_to_0728_not_lost(self):
+        records, skipped = nc.load_history(FIXTURE)
+        self.assertEqual(skipped, 0)
+        records = [dict(record) for record in records if record["date"] <= "2026-07-27"]
+        row_0727 = next(
+            record
+            for record in records
+            if record["bench"] == "csv_to_json_converter"
+            and record["date"] == "2026-07-27"
+        )
+        failures = nc.persistent_failures(
+            {"csv_to_json_converter": self._record_trials(row_0727)}
+        )
+        self.assertNotIn("csv_to_json_converter", failures)
+        row_0727["class"] = ""
+        got = verdict(records, "2026-07-28", "csv_to_json_converter")
+        self.assertEqual(got.label, "REGRESSION")
+        self.assertEqual(got.consecutive, 4)
+
+
+class ValidityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.records, cls.skipped = nc.load_history(FIXTURE)
+
+    @staticmethod
+    def _results_for(records: list[dict], date: str) -> dict:
+        return {
+            record["bench"]: TaintTests._record_trials(record)
+            for record in records
+            if record["date"] == date
+        }
+
+    def test_Validity_six_night_table(self):
+        self.assertEqual(self.skipped, 0)
+        self.assertEqual(
+            nc.build_parser().get_default("invalid_infra_fraction"), 0.30
+        )
+        expected = [
+            ("2026-07-24", 2, 42, True),
+            ("2026-07-25", 1, 42, True),
+            ("2026-07-26", 2, 42, True),
+            ("2026-07-27", 2, 42, True),
+            ("2026-07-28", 2, 42, True),
+            ("2026-07-29", 42, 42, False),
+        ]
+        for date, tainted, total, valid in expected:
+            with self.subTest(date=date):
+                results = self._results_for(self.records, date)
+                if date == "2026-07-29":
+                    results = {
+                        f"bench-{index:02d}": (
+                            [(True, "none"), (False, "api_error")]
+                            if index < 14
+                            else [(False, "api_error"), (False, "api_error")]
+                        )
+                        for index in range(42)
+                    }
+                got = nc.run_validity(
+                    results, 0.30
+                )
+                self.assertEqual(got, (valid, "" if valid else "infra_outage", tainted, total))
+
+    def test_Validity_boundary_is_inclusive(self):
+        def results(tainted: int, total: int) -> dict:
+            return {
+                f"bench-{index}": [
+                    (False, "api_error" if index < tainted else "compile_error")
+                ]
+                for index in range(total)
+            }
+
+        self.assertEqual(
+            nc.run_validity(results(3000, 10000), 0.30)[:2],
+            (False, "infra_outage"),
+        )
+        self.assertEqual(
+            nc.run_validity(results(2999, 10000), 0.30)[:2],
+            (True, ""),
+        )
+        # A catastrophic but clean subject regression must never be hidden.
+        self.assertEqual(
+            nc.run_validity(results(0, 42), 0.30)[:2],
+            (True, ""),
+        )
+
+    def test_Validity_zero_benches_is_zero_files_not_zerodivision(self):
+        self.assertEqual(nc.run_validity({}, 0.30), (False, "zero_files", 0, 0))
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            tonight = result_dir(root, "20260730")
+            tonight.mkdir(parents=True)
+            history = root / "history.jsonl"
+            shutil.copyfile(FIXTURE, history)
+            proc = run_cli("--tonight", tonight, "--history", history)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("INVALID\tzero_files\t0/0\t", proc.stdout)
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_Validity_invalid_cli_suppresses_pre_gate_regression(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            tonight = result_dir(root, "20260730")
+            history = root / "history.jsonl"
+            shutil.copyfile(FIXTURE, history)
+            # Thirteen of 42 benches are tainted (30.95%). The other 29 fail
+            # cleanly, so the pre-gate classifier has real verdicts to emit.
+            for index in range(42):
+                bench = f"outage-{index:02d}"
+                category = "api_error" if index < 13 else "compile_error"
+                write_trial(tonight, bench, 1, False, category)
+                write_trial(tonight, bench, 2, False, category)
+            # Give one clean-failing bench a solid two-night window.
+            seeded = [
+                rec("2026-07-28", bench="outage-41"),
+                rec("2026-07-29", bench="outage-41"),
+            ]
+            with history.open("a", encoding="utf-8") as handle:
+                for record in seeded:
+                    handle.write(json.dumps(record) + "\n")
+
+            records, _ = nc.load_history(history)
+            results = nc.parse_results_dir(tonight)
+            failures = nc.persistent_failures(results)
+            pre_gate = [
+                nc.classify_bench(
+                    bench, cats, records, MODEL, ARM, "2026-07-30"
+                ).tsv()
+                for bench, cats in sorted(failures.items())
+            ]
+            self.assertGreaterEqual(
+                sum(line.startswith("REGRESSION\t") for line in pre_gate), 1
+            )
+
+            proc = run_cli("--tonight", tonight, "--history", history)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            invalid = [
+                line for line in proc.stdout.splitlines()
+                if line.startswith("INVALID\t")
+            ]
+            self.assertEqual(len(invalid), 1, proc.stdout)
+            for label in (
+                "REGRESSION\t",
+                "SUSPECTED-FLAKE\t",
+                "GAP\t",
+                "INSUFFICIENT-HISTORY\t",
+            ):
+                self.assertFalse(
+                    any(line.startswith(label) for line in proc.stdout.splitlines()),
+                    proc.stdout,
+                )
+
+
 class RuleTests(unittest.TestCase):
     def test_Rule_solid_window_regresses(self):
         records = [rec("2026-07-24"), rec("2026-07-25")]
@@ -523,6 +746,55 @@ class ReplayTests(unittest.TestCase):
 
 
 class RoutingContractTests(unittest.TestCase):
+    def test_Routing_invalid_run_files_nothing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            calls = root / "calls.log"
+            stub = bin_dir / "ailang"
+            stub.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            script = (TOOLS / "launchd/nightly-eval.sh").read_text(encoding="utf-8")
+            route = script[script.index('HEALTH=$(echo "$CLASSIFIED"') :]
+            harness = root / "route.sh"
+            harness.write_text(
+                "set -euo pipefail\n"
+                "log(){ :; }\n"
+                "DATE=2026-07-29\nMODEL=model\nBENCH_TIERS=smoke,core\n"
+                "RESULTS_DIR=/tmp/results\nPASS=14/84\nRATE=16%\n"
+                "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + route,
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env['PATH']}",
+                    "CALLS": str(calls),
+                    "CLASSIFIED": (
+                        "HEALTH\thistory: fixture\n"
+                        "INVALID\tinfra_outage\t42/42\t0.167\t0.643"
+                    ),
+                }
+            )
+            proc = subprocess.run(
+                ["bash", str(harness)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            logged = calls.read_text(encoding="utf-8")
+            self.assertEqual(logged.count("messages send"), 1, logged)
+            self.assertEqual(logged.count("--type note"), 1, logged)
+            for forbidden in ("--type bug", "--type feature", "--github", "public-feedback"):
+                self.assertNotIn(forbidden, logged)
+
     def test_routing_smoke_aggregates_suppressed_labels(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
