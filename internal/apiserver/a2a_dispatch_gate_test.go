@@ -37,8 +37,18 @@ func requireA2ANotFound(t *testing.T, resp map[string]any) {
 	if got := errObj["code"]; got != float64(-32602) {
 		t.Fatalf("error code = %v, want -32602; response: %#v", got, resp)
 	}
-	if msg, _ := errObj["message"].(string); !strings.Contains(msg, "not found in module") {
+	msg, _ := errObj["message"].(string)
+	if !strings.Contains(msg, "not found in module") {
 		t.Errorf("error message = %q, want existing indistinguishable not-found shape", msg)
+	}
+	// The point of reusing -32602 is that a hidden function is
+	// indistinguishable from an absent one. The HTTP not-found path appends
+	// an "(available: [...])" list; if that ever gets copied onto the A2A
+	// path it would enumerate the visible surface to a caller who was
+	// explicitly denied it, turning the gate into a disclosure channel.
+	// Assert the leak is absent, not merely that the prefix is right.
+	if strings.Contains(msg, "available:") {
+		t.Errorf("error message = %q leaks the visible function list; hidden must stay indistinguishable from absent", msg)
 	}
 }
 
