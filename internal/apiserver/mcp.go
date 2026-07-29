@@ -23,7 +23,8 @@ type MCPServer struct {
 // NewMCPServer creates an MCP server from an apiserver.Server.
 // All loaded modules' exported functions are registered as MCP tools.
 //
-// The submit_feedback tool is rate-limited per-client-IP via env vars
+// Unless suppressed by Config.NoFeedbackTool, the submit_feedback tool is
+// registered and rate-limited per-client-IP via env vars
 // (AILANG_RATELIMIT_RPM, AILANG_RATELIMIT_BURST). Read-only tools are not
 // throttled — they're idempotent and cacheable.
 func NewMCPServer(srv *Server) *MCPServer {
@@ -40,7 +41,12 @@ func NewMCPServer(srv *Server) *MCPServer {
 
 	ms.registerTools()
 	ms.registerResources()
-	ms.registerFeedbackTool()
+	if !srv.noFeedbackTool {
+		if srv.routesOnly {
+			log.Printf("MCP tool submit_feedback remains enabled with --routes-only; use --no-feedback-tool to suppress it")
+		}
+		ms.registerFeedbackTool()
+	}
 
 	return ms
 }
