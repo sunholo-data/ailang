@@ -1,6 +1,6 @@
 # M-EVAL-MEASUREMENT-CONTRACT: Distinguish "Measured Badly" from "Failed to Measure"
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.31.0
 **Priority**: P0
 **Estimated**: 4 days
@@ -225,13 +225,13 @@ Today that same condition silently banks 12 "failures" per night for six nights.
 
 ## Success Criteria
 
-- [ ] A deliberately-broken motoko causes `canary_failed` in <60s and banks zero benchmark rows (integration test)
-- [ ] `Validity` present on every banked agent result; `eval_analysis` aggregates exclude invalid by default
-- [ ] `paired.go` reproduces the aggregate delta AND reports discordant pairs on the existing 2026-07-27 data
-- [ ] A profile mismatch between `models.yml` and `runtime_config_resolved` yields `config_mismatch`
-- [ ] The 2026-07-20 row is quarantined in place, not deleted
-- [ ] `make test` green; `make check-boundaries` green
-- [ ] MOTOKO.md + eval guide document the contract
+- [x] A canary-failing subject causes `canary_failed` and banks zero benchmark rows (integration test uses a registered fake, not a broken mk-ast worktree — see sprint plan M1)
+- [x] `Validity` present on every banked agent result; `eval_analysis` aggregates exclude invalid by default
+- [x] `paired.go` reproduces the aggregate delta AND reports discordant pairs on the existing 2026-07-27 data
+- [x] A profile mismatch between `models.yml` and `runtime_config_resolved` yields `config_mismatch` *(profile only; extensions/verification deferred — see sprint plan M4)*
+- [x] The 2026-07-20 row is quarantined in place, not deleted
+- [x] `make test` green; `make check-boundaries` green
+- [x] MOTOKO.md + eval guide document the contract
 
 ## Testing Strategy
 

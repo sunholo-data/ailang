@@ -4,7 +4,7 @@
 **Target**: v0.31.0
 **Milestones**: 5 (M1–M2 P0 · M3–M4 P1 · M5 P2)
 **Estimate**: **~3.5 working days (28h)** — down from the doc's 4d, because M1's hook point turned out to be an existing filter pattern rather than new plumbing (see §0). M5 is explicitly droppable.
-**Risk**: Medium — one material design correction (§0), and M1's integration test needs a deliberately-broken subject.
+**Status**: COMPLETE (2026-07-29) · **Risk was**: Medium — one material design correction (§0), and M1's integration test needs a deliberately-broken subject.
 **Branch**: `dev` (no compiler surface touched; `make check-boundaries` applies)
 
 ---
@@ -61,10 +61,10 @@ The milestone that would have prevented the six-day outage.
 4. `--no-canary` escape hatch for iteration.
 
 **Acceptance criteria**
-- [ ] A deliberately-broken motoko (worktree with the `Env` row reverted on `run_native_call`) is skipped in <60s with reason `canary_failed`, and **zero** result JSON files are written for it.
-- [ ] A healthy motoko passes the canary and the suite proceeds normally.
-- [ ] claude/codex/managed_agents are unaffected (default no-op) — proven by their existing tests still passing untouched.
-- [ ] Canary runs exactly **once per model per suite**, asserted by a call-counter in the test.
+- [~] **DEVIATED** — a canary-failing subject is skipped and banks zero rows (`TestRunModelCanary_EndToEnd`), but via a *registered fake*, not a deliberately-broken mk-ast worktree. Reproducing the true outage needs mk-ast + bun + ollama, which CI does not have; a local-only test would go stale. The true-condition check remains a manual/rig-only follow-up.
+- [x] A healthy motoko passes the canary and the suite proceeds normally.
+- [x] claude/codex/managed_agents are unaffected (default no-op) — proven by their existing tests still passing untouched.
+- [x] Canary runs exactly **once per model per suite**, asserted by a call-counter in the test.
 
 **Risks** — canary flakiness would block good runs. Mitigation: retry once on ambiguous failure (timeout/empty output), and only a *clean* reproducible failure causes a skip.
 
@@ -77,10 +77,10 @@ The milestone that would have prevented the six-day outage.
 4. Quarantine the 2026-07-20 row in `docs/static/benchmarks/microrag_ab.jsonl` **in place** (D4 — annotate, never delete).
 
 **Acceptance criteria**
-- [ ] Round-trip test: `Validity` survives write→read with and without a reason.
-- [ ] An aggregate over a fixture containing one invalid row excludes it by default and includes it under `--include-invalid`.
-- [ ] The 2026-07-20 row carries `validity.valid=false, reason=zero_pass_all`; the microRAG trend then reads −3.1 / −4.8 / +13.1.
-- [ ] Back-compat: rows with **no** `validity` field are treated as valid (absent ≠ invalid), so historical data doesn't vanish.
+- [x] Round-trip test: `Validity` survives write→read with and without a reason.
+- [x] An aggregate over a fixture containing one invalid row excludes it by default and includes it under `--include-invalid`.
+- [x] The 2026-07-20 row carries `validity.valid=false, reason=zero_pass_all`; the microRAG trend then reads −3.1 / −4.8 / +13.1.
+- [x] Back-compat: rows with **no** `validity` field are treated as valid (absent ≠ invalid), so historical data doesn't vanish.
 
 ### M3 — Paired A/B analysis + McNemar (~8h, ~200 LOC + ~170 test LOC) **P1**
 
@@ -93,10 +93,10 @@ Largest milestone; the one that makes future A/Bs able to answer anything.
 4. Emit `pairs` from `tools/launchd/nightly-eval.sh` for both weekly A/Bs.
 
 **Acceptance criteria**
-- [ ] Replaying the banked 2026-07-27 microRAG data reproduces the historical aggregate `delta_pp = +13.1` **exactly** (regression against real data, not a fixture).
-- [ ] McNemar matches hand-computed values on at least 3 fixtures including the `b+c=0` degenerate case.
-- [ ] **No p-value is reported when `b+c < 10`** — output states the evidence base is too small (design-doc risk mitigation, enforced by test).
-- [ ] Aggregate delta is still emitted (additive change, nothing removed).
+- [x] Replaying the banked 2026-07-27 microRAG data reproduces the historical aggregate `delta_pp = +13.1` **exactly** (regression against real data, not a fixture).
+- [x] McNemar matches hand-computed values on at least 3 fixtures including the `b+c=0` degenerate case.
+- [x] **No p-value is reported when `b+c < 10`** — output states the evidence base is too small (design-doc risk mitigation, enforced by test).
+- [x] Aggregate delta is still emitted (additive change, nothing removed).
 
 **Risks** — trial-index alignment across arms may not be stable if a benchmark errored in one arm only. Mitigation: unmatched benchmarks are reported as an explicit `unpaired` count rather than silently dropped.
 
@@ -107,18 +107,18 @@ Largest milestone; the one that makes future A/Bs able to answer anything.
 2. Assert against the `models.yml` claim (`motoko_profile`); mismatch ⇒ `validity: invalid(config_mismatch)`.
 
 **Acceptance criteria**
-- [ ] A row produced with `motoko_profile: cloud` records `resolved_profile: cloud` and the 4 cloud extensions.
-- [ ] A deliberate mismatch (claim `cloud`, run `ollama`) yields `config_mismatch` and is excluded from aggregates.
-- [ ] Executors that don't broadcast a resolved config are unaffected (absent ⇒ no assertion, not a failure).
+- [~] **PARTIAL** — `resolved_profile` is recorded and asserted. **Extensions are NOT**: the design assumed the step-0 broadcast already carried them; it carries only model, step_budget, 7 env flags and system_md. Adding the profile was a one-line motoko change (mk-ast `f7bbe8d`); extensions need real plumbing (the runtime config is not in scope at the emit site). The profile alone catches the motivating bug. Follow-up filed in the guide's Known gaps.
+- [x] A deliberate mismatch (claim `cloud`, run `ollama`) yields `config_mismatch` and is excluded from aggregates.
+- [x] Executors that don't broadcast a resolved config are unaffected (absent ⇒ no assertion, not a failure).
 
 ### M5 — Subject-selection headroom rule (~2.5h, ~45 LOC + ~40 test LOC) **P2 — DROPPABLE**
 
 **Tasks** — warn at A/B setup when the control arm's historical pass rate exceeds a configurable ceiling (default 90%), since a small effect cannot be resolved there. Document the rule in the eval guide.
 
 **Acceptance criteria**
-- [ ] Configuring an A/B whose control has a ≥90% historical rate emits a loud warning naming the ceiling problem.
-- [ ] The haiku-fmt configuration (both arms ~96%) triggers it.
-- [ ] Warning only — never blocks a run.
+- [x] Configuring an A/B whose control has a ≥90% historical rate emits a loud warning naming the ceiling problem.
+- [x] The haiku-fmt configuration (both arms ~96%) triggers it.
+- [x] Warning only — never blocks a run.
 
 **Drop condition**: if M1–M4 run past day 3, cut M5 and file it separately. It prevents a *future* mistake; M1–M4 fix *current* broken data.
 

@@ -64,6 +64,10 @@ type PairedResult struct {
 	Unpaired int `json:"unpaired"`
 
 	McNemar McNemarResult `json:"mcnemar"`
+
+	// Headroom flags a control arm with too little room to move for the
+	// comparison to resolve anything. Advisory; never blocks.
+	Headroom Headroom `json:"headroom"`
 }
 
 // McNemarResult reports the test over the discordant pairs.
@@ -152,6 +156,9 @@ func PairArms(on, off []*BenchmarkResult) *PairedResult {
 	}
 
 	res.McNemar = McNemar(res.OnlyOnPassed, res.OnlyOffPassed)
+	// The OFF arm is the control: it is the baseline the treatment is measured
+	// against, so its ceiling is what bounds what this comparison can detect.
+	res.Headroom = CheckHeadroom(res.OffPass, res.OffTotal, DefaultHeadroomCeiling)
 	return res
 }
 

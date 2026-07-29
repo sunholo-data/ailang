@@ -46,6 +46,18 @@ func runEvalPaired() {
 	}
 
 	result := eval_analysis.PairArms(on, off)
+
+	// Loud on stderr so it is seen by whoever runs the comparison, while stdout
+	// stays clean JSON for the nightly script to bank. Advisory only — a
+	// saturated control arm is a reason to doubt a null result, not a reason to
+	// refuse to measure.
+	if result.Headroom.Warn {
+		fmt.Fprintf(os.Stderr, "WARNING: %s\n", result.Headroom.Message)
+	}
+	if result.Unpaired > 0 {
+		fmt.Fprintf(os.Stderr, "WARNING: %d row(s) could not be paired — one arm is missing benchmarks the other ran. The comparison is over the %d pairs that matched.\n",
+			result.Unpaired, len(result.Pairs))
+	}
 	if !*withPairs {
 		result.Pairs = nil
 	}
