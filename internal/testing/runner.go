@@ -247,6 +247,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		gen, shrink := r.createGeneratorForType(binder.Type)
 		if gen == nil {
 			result.Status = StatusSkip
+			result.SkipKind = SkipKindNoGenerator
 			result.Error = fmt.Sprintf("no generator for type %v", binder.Type)
 			result.Duration = time.Since(start)
 			return result
@@ -329,6 +330,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 
 	if propCase.Function == nil {
 		result.Status = StatusSkip
+		result.SkipKind = SkipKindUnsupported
 		result.Error = "ensures property has no function context (top-level ensures not supported)"
 		result.Duration = time.Since(start)
 		return result
@@ -371,6 +373,7 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 		gen, _ := r.createGeneratorForType(p.Type)
 		if gen == nil {
 			result.Status = StatusSkip
+			result.SkipKind = SkipKindNoGenerator
 			result.Error = fmt.Sprintf("no generator for parameter %s: %v", p.Name, p.Type)
 			result.Duration = time.Since(start)
 			return result
@@ -452,6 +455,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 
 	if propCase.Function == nil {
 		result.Status = StatusSkip
+		result.SkipKind = SkipKindUnsupported
 		result.Error = "requires property has no function context (top-level requires not supported)"
 		result.Duration = time.Since(start)
 		return result
@@ -488,6 +492,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 		gen, _ := r.createGeneratorForType(p.Type)
 		if gen == nil {
 			result.Status = StatusSkip
+			result.SkipKind = SkipKindNoGenerator
 			result.Error = fmt.Sprintf("no generator for parameter %s: %v", p.Name, p.Type)
 			result.Duration = time.Since(start)
 			return result
@@ -534,6 +539,7 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 			// We mark the property Skipped (not Fail) because random inputs that
 			// violate `requires` aren't a function bug.
 			result.Status = StatusSkip
+			result.SkipKind = SkipKindOutOfContract
 			result.Error = fmt.Sprintf("requires not satisfied by random input (consider tighter generators): %s", formatEnsuresInputs(params, generatedValues))
 			result.TestsRun = testNum + 1
 			result.Duration = time.Since(start)
@@ -643,6 +649,16 @@ func (r *Runner) createGeneratorForType(typ ast.Type) (Generator, Shrinker) {
 			config := DefaultConfig()
 			return NewStringGenerator(0, config.MaxSize, ""), NewStringShrinker()
 		}
+	}
+
+	// The parser represents both [a] and list[a] as TypeApp.
+	if app, ok := typ.(*ast.TypeApp); ok && app.Constructor == "list" && len(app.Args) == 1 {
+		elemGen, elemShrink := r.createGeneratorForType(app.Args[0])
+		if elemGen == nil {
+			return nil, nil
+		}
+		config := DefaultConfig()
+		return NewListGenerator(elemGen, 0, config.MaxSize), NewListShrinker(elemShrink)
 	}
 
 	// Check for list types [a]

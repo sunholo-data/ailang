@@ -14,6 +14,12 @@ const (
 	StatusSkip TestStatus = "skip"
 )
 
+const (
+	SkipKindNoGenerator   = "no_generator"
+	SkipKindUnsupported   = "unsupported"
+	SkipKindOutOfContract = "out_of_contract"
+)
+
 // TestResult represents the outcome of a single test execution.
 type TestResult struct {
 	Name     string        // Test name
@@ -32,6 +38,7 @@ type PropertyResult struct {
 	FailingInput string        // Minimal failing input (if failed)
 	Error        string        // Error message (if failed)
 	Location     string        // Source location
+	SkipKind     string        // Machine-readable reason when StatusSkip
 }
 
 // SuiteResult aggregates results from all tests in a test suite.
@@ -43,6 +50,7 @@ type SuiteResult struct {
 	PassedTests   int              // Number of passing tests
 	FailedTests   int              // Number of failing tests
 	SkippedTests  int              // Number of skipped tests
+	VacuousSkips  int              // Skipped properties that executed no meaningful cases
 	TotalDuration time.Duration    // Total execution time
 }
 
@@ -89,6 +97,9 @@ func (sr *SuiteResult) AddPropertyResult(result PropertyResult) {
 		sr.FailedTests++
 	case StatusSkip:
 		sr.SkippedTests++
+		if result.SkipKind != SkipKindOutOfContract {
+			sr.VacuousSkips++
+		}
 	}
 }
 
@@ -96,7 +107,7 @@ func (sr *SuiteResult) AddPropertyResult(result PropertyResult) {
 // An all-skipped suite (run==0, skipped>0) is NOT success — it exits non-zero.
 func (sr *SuiteResult) Success() bool {
 	ran := sr.PassedTests + sr.FailedTests
-	return ran > 0 && sr.FailedTests == 0
+	return ran > 0 && sr.FailedTests == 0 && sr.VacuousSkips == 0
 }
 
 // AllSkipped returns true when every recorded test was skipped and at least

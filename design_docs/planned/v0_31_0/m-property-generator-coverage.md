@@ -272,12 +272,24 @@ export func genPoint(seed: int) -> Point ! {}
 ### Files to Modify/Create
 
 **Lane A:**
-- `internal/testing/runner.go` (+25/-5) — TypeApp list arm; SkipKind at 4 skip sites
+
+> **Implementation status (2026-07-30): LANDED on
+> `sprint/m-property-generator-lane-a`.** Lane A uses a total six-site property
+> skip taxonomy: `no_generator`, `unsupported`, and `out_of_contract`.
+> `unsupported` is vacuous/failing because a written contract that executes
+> zero cases must fail closed, although its two defensive runner sites are
+> currently unreachable from parsed programs. An empty or future unknown
+> `skip_kind` also fails closed. Lane B remains unimplemented.
+
+- `internal/testing/runner.go` — reachable TypeApp list arm; SkipKind at all 6 skip sites
 - `internal/testing/result.go` (+15/-3) — `SkipKind`, `VacuousSkips`, `Success()` change
 - `internal/testing/reporter.go` (+25/-2) — JSON fields; human skip reasons + summary branch
 - `cmd/ailang/test.go` (+15/-5) — aggregate `VacuousSkips`; preamble→stderr in JSON mode
-- `internal/testing/result_test.go`, `reporter_test.go`, `named_test_test.go` — new mixed-shape tests + **deliberate** updates to tests asserting old semantics (enumerated in Conflict Surface)
-- `examples/runnable/contracts/` — mixed-shape fixture file (new, small)
+- New focused `internal/testing/*_test.go` files and
+  `cmd/ailang/test_json_output_test.go` — taxonomy, verdict, reporter, and CLI
+  regressions; no existing assertion was widened or removed.
+- Mixed-shape fixtures are written under `t.TempDir()` by Go tests; no
+  `examples/runnable/` manifest entry is added.
 
 **Lane B (B1 only — B2 file impact deferred with B2):**
 - `internal/testing/derive.go` (new, ~200 LOC) — type resolution, structural derivation, depth budget (`gen<TypeName>` lookup deferred with B2)
@@ -327,7 +339,14 @@ ensures { result == x }
 
 Verified current output: `shiftX_property_1` skip (`no generator for parameter p: Point`), `level_property_1` skip (`s: Shade`), `fst2_property_1` skip (`pair: (int, int)`), `anchor_property_1` pass ×100 — `success=true`, rc=0.
 
-**Before/after, Lane A** (the `mixed` module from Problem Statement):
+**Before/after, Lane A** (corrected implementation fixture):
+
+The earlier table incorrectly used only `dbl` plus `headOr`. Once A1 supplies
+the list generator, that shape has no vacuous property and correctly remains
+green. The implemented regression fixture instead uses `anchor(x: int)`
+(passes), `shiftX(p: Point, dx: int)` (still vacuous), and
+`headOr(xs: list[int], d: int)` (passes after A1). It therefore retains two
+passing siblings while isolating one vacuous property.
 
 | | Before | After |
 |---|---|---|
@@ -579,6 +598,16 @@ objection was overridden, and no controller-invented resolution was substituted 
 
 ## Future Work
 
+- **F1 — out-of-contract discard threshold:** `out_of_contract` remains
+  forgiven even when a property discards after only 1–2 of 100 intended cases.
+  Lane A makes the reason and `tests_run` count visible but does not choose a
+  threshold. `list_recursive_verify.ail` consequently moves rc 1 → 0 with four
+  near-unvalidated properties. Choosing a minimum executed-case/discard-rate
+  policy is a human-owned semantic decision.
+- **F2 — positional flag parsing:** issue #534 already tracks flags silently
+  ignored after the positional path. Lane A does not duplicate or implement it.
+- **F3 — structural generators:** Lane B1 remains the fix for the six corpus
+  files still vacuous after Lane A (records, ADTs, tuples, and related shapes).
 - **Evaluator step-fuel budget** (deterministic total-work bound: fuel charged per evaluation reduction and function application, not just call depth) — **now the named BLOCKING DEPENDENCY for deferred B2** (quorum 2026-07-29): the depth guard bounds recursive divergence, not total work. Benefits the whole test harness (function-under-test calls share the same exposure), not just generators. When it lands, B2 unparks with no semantic change to its retained spec (exhaustion is already specced as structured Fail).
 - Typechecker-env-based type resolution (unlocks imported types) — supersedes the same-file bound
 - Refinement-aware generation for `string<...>` taint/refined types

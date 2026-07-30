@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PROPERTY-GENERATOR-LANE-A",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-07-30T00:00:00Z",
   "design_doc": "design_docs/planned/v0_31_0/m-property-generator-coverage.md",
   "sprint_plan": "design_docs/planned/v0_31_0/m-property-generator-coverage-lane-a-sprint-plan.md",
@@ -56,10 +56,10 @@
         "make check-file-sizes green (runner.go must stay <= 800 lines; it is 774 today, 26 headroom).",
         "Commands use flags BEFORE the path (#534). go test ./cmd/ailang/... reported as UNINFORMATIVE UNDER SANDBOX."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-30T00:00:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Added reachable TypeApp list generation with recursive no-fallback behavior; informative internal/testing and file-size gates passed; corpus probes confirmed list properties execute."
     },
     {
       "id": "M2_A2_TOTAL_SKIP_TAXONOMY",
@@ -78,10 +78,10 @@
         "go test ./internal/testing/... -count=1 green; make check-file-sizes green.",
         "No existing test assertion modified (A-10 precondition)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-30T00:04:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Added total six-site skip taxonomy, fail-closed VacuousSkips accounting, and both CLI aggregation merges without changing Success semantics."
     },
     {
       "id": "M3_A3_A4_EXIT_SEMANTICS_AND_REPORTER",
@@ -101,10 +101,10 @@
         "A-10 (NEW, refutes the doc's 'deliberately updated tests' requirement): `git diff -U0 -- '*_test.go'` shows NO REMOVED LINES in pre-existing test files. Measured: the set of tests needing updates is EMPTY - every existing Success()/AllSkipped()/SuccessAllowingSkips() test (result_test.go:126,137,145; named_test_test.go:161,164,175,185,299,309) builds its suite with AddTestResult, and TestResult has no SkipKind, so VacuousSkips stays 0 and all verdicts hold. Additive JSON fields are safe too: reporter_test.go reads output[\"success\"].(bool) by key and integration_test.go:113-125 uses strings.Contains - neither asserts a closed key set.",
         "go test ./internal/testing/... -count=1 green; make check-file-sizes green."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-30T00:06:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Vacuous mixed suites now fail by default, --allow-skips remains permissive, JSON exposes taxonomy, and human reports show skipped-property reasons and case counts."
     },
     {
       "id": "M4_A5_JSON_IS_JSON",
@@ -120,10 +120,10 @@
         "Human mode preamble is UNCHANGED on stdout: `ailang test F` still prints `-> Running tests in F` to stdout.",
         "go test ./internal/testing/... -count=1 green; make check-file-sizes green."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-30T00:08:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Routed all four JSON-mode preamble writes to stderr and added temp-directory subprocess coverage for single-file and package modes."
     },
     {
       "id": "M5_CLOSEOUT_CHANGELOG_AND_FOLLOWUPS",
@@ -141,10 +141,10 @@
         "make check-file-sizes, make lint, go test ./internal/testing/... -count=1 all green; make verify-examples green (should be unaffected - it invokes `ailang run`, never `ailang test`).",
         "Executor reports, per milestone, exactly which files changed and why, and leaves a clean reviewable working diff for the controller to commit (executor cannot commit in this worktree)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-07-30T00:11:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Documented the breaking change, Lane A landing and plan corrections, plus follow-ups F1/F2/F3; final quality gates recorded by executor."
     }
   ],
   "discrepancies_found": [

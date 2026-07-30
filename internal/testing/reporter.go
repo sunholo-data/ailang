@@ -52,6 +52,7 @@ func (r *Reporter) reportJSON(result *SuiteResult) error {
 		"passed_tests":   result.PassedTests,
 		"failed_tests":   result.FailedTests,
 		"skipped_tests":  result.SkippedTests,
+		"vacuous_skips":  result.VacuousSkips,
 		"total_duration": result.TotalDuration.String(),
 		"success":        result.Success(),
 		"tests":          r.formatTestsJSON(result.Tests),
@@ -90,6 +91,7 @@ func (r *Reporter) formatPropertiesJSON(properties []PropertyResult) []map[strin
 			"duration":  prop.Duration.String(),
 			"tests_run": prop.TestsRun,
 			"location":  prop.Location,
+			"skip_kind": prop.SkipKind,
 		}
 		if prop.Error != "" {
 			output[i]["error"] = prop.Error
@@ -177,16 +179,20 @@ func (r *Reporter) reportPropertyHuman(prop PropertyResult) {
 
 	fmt.Fprintln(r.writer)
 
-	// Show error details if property failed
-	if prop.Status == StatusFail {
+	// Show error details for failed and skipped properties.
+	if prop.Status == StatusFail || prop.Status == StatusSkip {
+		lineColor := colorRed
+		if prop.Status == StatusSkip {
+			lineColor = colorYellow
+		}
 		if prop.FailingInput != "" {
 			fmt.Fprintf(r.writer, "      %s: %s\n",
-				r.color(colorRed, "Failing input"), prop.FailingInput)
+				r.color(lineColor, "Failing input"), prop.FailingInput)
 		}
 		if prop.Error != "" {
 			errorLines := strings.Split(prop.Error, "\n")
 			for _, line := range errorLines {
-				fmt.Fprintf(r.writer, "      %s\n", r.color(colorRed, line))
+				fmt.Fprintf(r.writer, "      %s\n", r.color(lineColor, line))
 			}
 		}
 	}
@@ -207,6 +213,12 @@ func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 		fmt.Fprintf(r.writer, "%s %s\n",
 			r.color(colorYellow, "⚠"),
 			r.color(colorBold, fmt.Sprintf("NO TESTS RAN (%d skipped)", result.SkippedTests)))
+	case result.VacuousSkips > 0 && result.FailedTests == 0:
+		fmt.Fprintf(r.writer, "%s %s\n",
+			r.color(colorRed, "✗"),
+			r.color(colorBold, fmt.Sprintf(
+				"%d properties never ran (no generator) — use --allow-skips to permit",
+				result.VacuousSkips)))
 	case result.Success():
 		// ran>0 && failed==0 (may include skips)
 		fmt.Fprintf(r.writer, "%s %s\n",

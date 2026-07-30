@@ -15,7 +15,11 @@ import (
 // runTestsV2 executes all tests in the given path.
 // Replaces the stub implementation in main.go.
 func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips bool) {
-	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)
+	preambleWriter := os.Stdout
+	if formatStr == "json" {
+		preambleWriter = os.Stderr
+	}
+	fmt.Fprintf(preambleWriter, "%s Running tests in %s\n", cyan("→"), path)
 
 	// Collect all test files
 	var testFiles []string
@@ -55,6 +59,7 @@ func runTestsV2(path string, formatStr string, colorEnabled bool, allowSkips boo
 			aggregateResults.PassedTests += fileResult.PassedTests
 			aggregateResults.FailedTests += fileResult.FailedTests
 			aggregateResults.SkippedTests += fileResult.SkippedTests
+			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 		}
 	}
@@ -160,8 +165,12 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 	}
 
 	// Print package info
-	fmt.Printf("%s Package %s\n", cyan("→"), bold(manifest.Package.Name))
-	fmt.Printf("  %s source modules, %s test files\n",
+	preambleWriter := os.Stdout
+	if formatStr == "json" {
+		preambleWriter = os.Stderr
+	}
+	fmt.Fprintf(preambleWriter, "%s Package %s\n", cyan("→"), bold(manifest.Package.Name))
+	fmt.Fprintf(preambleWriter, "  %s source modules, %s test files\n",
 		cyan(fmt.Sprintf("%d", len(sourceFiles))),
 		cyan(fmt.Sprintf("%d", len(testFiles))))
 
@@ -170,7 +179,7 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 		os.Exit(0)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(preambleWriter)
 
 	// Aggregate results across all test files
 	aggregateResults := ailangTesting.NewSuiteResult(manifest.Package.Name)
@@ -184,6 +193,7 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 			aggregateResults.PassedTests += fileResult.PassedTests
 			aggregateResults.FailedTests += fileResult.FailedTests
 			aggregateResults.SkippedTests += fileResult.SkippedTests
+			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 		}
 	}
