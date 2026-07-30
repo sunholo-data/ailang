@@ -309,7 +309,7 @@ class TaintTests(unittest.TestCase):
         self.assertNotIn("csv_to_json_converter", failures)
         row_0727["class"] = ""
         got = verdict(records, "2026-07-28", "csv_to_json_converter")
-        self.assertEqual(got.label, "REGRESSION")
+        self.assertEqual(got.label, "SUSTAINED-FAILURE")
         self.assertEqual(got.consecutive, 4)
 
 
@@ -688,6 +688,21 @@ class VocabularyTests(unittest.TestCase):
             f"{sorted(python_reasons - go_reasons)}",
         )
 
+    def test_Vocabulary_every_label_is_routed(self):
+        classifier = (TOOLS / "nightly_classify.py").read_text(encoding="utf-8")
+        shell = (TOOLS / "launchd/nightly-eval.sh").read_text(encoding="utf-8")
+        emitted = set(re.findall(r'label = "([A-Z-]+)"', classifier))
+        routed = set(re.findall(r'\$1=="([A-Z-]+)"', shell)) - {"HEALTH", "INVALID"}
+        self.assertEqual(emitted, routed)
+        # Known-negative mutation: removing one extractor must make equality fail.
+        needle = '$1=="SUSTAINED-FAILURE"'
+        self.assertEqual(shell.count(needle), 1)
+        mutated = shell.replace(needle, '$1=="UNROUTED-LABEL"', 1)
+        mutated_routed = (
+            set(re.findall(r'\$1=="([A-Z-]+)"', mutated)) - {"HEALTH", "INVALID"}
+        )
+        self.assertNotEqual(emitted, mutated_routed)
+
 
 class RuleTests(unittest.TestCase):
     def test_Rule_solid_window_regresses(self):
@@ -730,6 +745,24 @@ class RuleTests(unittest.TestCase):
         got = verdict(records, "2026-07-27")
         self.assertEqual(got.label, "GAP")
         self.assertGreaterEqual(got.consecutive, 3)
+        # m-nightly-flake-guard.md D2: never-passed work remains gap-finder territory.
+        self.assertNotEqual(got.label, "SUSTAINED-FAILURE")
+
+    def test_Sustained_escalation_is_not_labelled_regression(self):
+        records = [
+            rec(f"2026-07-{day:02d}", passes=1 if day == 20 else 0)
+            for day in range(20, 25)
+        ]
+        got = verdict(records, "2026-07-25")
+        self.assertEqual(got.label, "SUSTAINED-FAILURE")
+        self.assertEqual(got.escalated_from, "SUSPECTED-FLAKE")
+        self.assertEqual((got.passes, got.trials), (1, 10))
+
+    def test_Sustained_solid_window_positive_control(self):
+        records = [rec(f"2026-07-{day:02d}") for day in range(20, 25)]
+        got = verdict(records, "2026-07-25")
+        self.assertEqual(got.label, "REGRESSION")
+        self.assertEqual(got.escalated_from, "")
 
     def test_new_benchmark_timeline(self):
         records = [rec("2026-07-20")]
@@ -742,11 +775,53 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(n3.label, "SUSPECTED-FLAKE")
         records.append(rec("2026-07-22", passes=0, cls=n3.label.lower()))
         n4 = verdict(records, "2026-07-23")
-        self.assertEqual(n4.label, "REGRESSION")
+        self.assertEqual(n4.label, "SUSTAINED-FAILURE")
         self.assertEqual(n4.escalated_from, "SUSPECTED-FLAKE")
 
 
 class EscalationTests(unittest.TestCase):
+    def test_Sustained_pages_at_most_once_per_run_when_pass_stays_in_window(self):
+        records = [rec("2026-07-24"), rec("2026-07-25", passes=1)]
+        labels = []
+        for day in range(26, 32):
+            date = f"2026-07-{day:02d}"
+            got = verdict(records, date)
+            labels.append(got.label)
+            records.append(rec(date, passes=0, cls=got.label.lower()))
+        self.assertEqual(labels.count("SUSTAINED-FAILURE"), 1, labels)
+
+    def test_Sustained_legacy_regression_class_still_suppresses(self):
+        records = [
+            rec("2026-07-24"),
+            rec("2026-07-25", passes=1),
+            rec("2026-07-26", passes=0, cls="suspected-flake"),
+            rec("2026-07-27", passes=0, cls="regression"),
+        ]
+        got = verdict(records, "2026-07-28")
+        self.assertNotIn(got.label, {"REGRESSION", "SUSTAINED-FAILURE"})
+        self.assertGreaterEqual(got.consecutive, 3)
+
+    def test_Sustained_live_config_shape_is_suppressed_after_legacy_page(self):
+        records = live_252_records()
+        outage = next(
+            record
+            for record in records
+            if record["bench"] == "config_file_parser"
+            and record["date"] == "2026-07-29"
+        )
+        outage["validity"] = {"valid": False, "reason": "infra_outage"}
+        records.append(
+            rec(
+                "2026-07-30",
+                bench="config_file_parser",
+                passes=0,
+                cls="regression",
+            )
+        )
+        got = verdict(records, "2026-07-31", "config_file_parser")
+        self.assertNotIn(got.label, {"REGRESSION", "SUSTAINED-FAILURE"})
+        self.assertEqual(got.consecutive, 4)
+
     def test_Escalation_fires_exactly_once(self):
         records = [rec("2026-07-19"), rec("2026-07-20", passes=1)]
         labels = []
@@ -755,8 +830,8 @@ class EscalationTests(unittest.TestCase):
             got = verdict(records, date)
             labels.append(got.label)
             records.append(rec(date, passes=0, cls=got.label.lower()))
-        self.assertEqual(labels.count("REGRESSION"), 1)
-        self.assertEqual(labels[2], "REGRESSION")
+        self.assertEqual(labels.count("SUSTAINED-FAILURE"), 1)
+        self.assertEqual(labels[2], "SUSTAINED-FAILURE")
 
     def test_Escalation_missed_third_night_fires_on_fourth(self):
         records = [
@@ -768,7 +843,7 @@ class EscalationTests(unittest.TestCase):
             rec("2026-07-23", passes=0, cls=""),
         ]
         got = verdict(records, "2026-07-24")
-        self.assertEqual(got.label, "REGRESSION")
+        self.assertEqual(got.label, "SUSTAINED-FAILURE")
         self.assertGreater(got.consecutive, 3)  # fails under literal consec == K
 
 
@@ -1029,10 +1104,28 @@ class ReplayTests(unittest.TestCase):
         synthetic = [rec(f"2026-07-{day:02d}") for day in range(20, 25)]
         self.assertEqual(verdict(synthetic, "2026-07-25").label, "REGRESSION")
 
+    def test_Invariant_regression_implies_solid_window(self):
+        violations = []
+        keys = sorted(
+            {
+                (record["bench"], record["model"], record["arm"], record["date"])
+                for record in self.records
+                if int(record["passes"]) == 0 and int(record["trials"]) >= 2
+            }
+        )
+        self.assertGreater(len(keys), 0)
+        for bench, model, arm, date in keys:
+            got = nc.classify_bench(
+                bench, ["compile_error"], self.records, model, arm, date
+            )
+            if got.label == "REGRESSION" and got.passes != got.trials:
+                violations.append((bench, date, got.passes, got.trials))
+        self.assertEqual(violations, [], f"non-solid REGRESSION verdicts: {violations}")
+
     def test_replay_csv_to_json_escalates_once(self):
         records = [dict(r) for r in self.records if r["date"] <= "2026-07-26"]
         n3 = verdict(records, "2026-07-27", "csv_to_json_converter")
-        self.assertEqual(n3.label, "REGRESSION")
+        self.assertEqual(n3.label, "SUSTAINED-FAILURE")
         self.assertEqual(n3.consecutive, 3)
         for record in self.records:
             if record["bench"] == "csv_to_json_converter" and record["date"] == "2026-07-27":
@@ -1040,7 +1133,7 @@ class ReplayTests(unittest.TestCase):
                 current["class"] = "regression"
                 records.append(current)
         n4 = verdict(records, "2026-07-28", "csv_to_json_converter")
-        self.assertNotEqual(n4.label, "REGRESSION")
+        self.assertNotEqual(n4.label, "SUSTAINED-FAILURE")
 
     def test_Replay_aggregate_is_five_today_vs_two_guarded(self):
         filed = [
@@ -1051,14 +1144,108 @@ class ReplayTests(unittest.TestCase):
             ("list_comprehension", "2026-07-28"),
         ]
         labels = [self.replay(bench, date, False).label for bench, date in filed]
-        regressions = labels.count("REGRESSION") + 1  # csv_to_json K=3 escalation
+        regressions = labels.count("REGRESSION")
+        sustained = 1  # csv_to_json K=3 escalation
         suppressed = len(filed) - labels.count("REGRESSION")
-        print(f"REPLAY SUMMARY: filed=5 guarded_regressions={regressions} suppressed={suppressed}")
-        self.assertEqual(regressions, 2)
+        print(
+            f"REPLAY SUMMARY: filed=5 guarded_regressions={regressions} "
+            f"sustained={sustained} suppressed={suppressed}"
+        )
+        self.assertEqual(regressions, 1)
+        self.assertEqual(sustained, 1)
+        self.assertEqual(regressions + sustained, 2)
         self.assertEqual(suppressed, 4)
 
 
 class RoutingContractTests(unittest.TestCase):
+    def _run_route(self, classified: str) -> str:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            calls = root / "calls.log"
+            stub = bin_dir / "ailang"
+            stub.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n",
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            script = (TOOLS / "launchd/nightly-eval.sh").read_text(encoding="utf-8")
+            route = script[script.index('HEALTH=$(echo "$CLASSIFIED"') :]
+            harness = root / "route.sh"
+            harness.write_text(
+                "set -euo pipefail\n"
+                "log(){ :; }\n"
+                "DATE=2026-07-30\nMODEL=model\nBENCH_TIERS=smoke,core\n"
+                "RESULTS_DIR=/tmp/results\nPASS=1/10\nRATE=10%\n"
+                "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + route,
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env['PATH']}",
+                    "CALLS": str(calls),
+                    "CLASSIFIED": classified,
+                }
+            )
+            proc = subprocess.run(
+                ["bash", str(harness)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            return calls.read_text(encoding="utf-8")
+
+    def test_Routing_sustained_failure_files_one_bug(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "SUSTAINED-FAILURE\tchronic\t[compile_error]\t1/10\t5\t3\tSUSPECTED-FLAKE"
+        )
+        self.assertEqual(logged.count("--type bug"), 1, logged)
+        self.assertIn("Sustained failures: chronic", logged)
+        self.assertIn("Nightly eval:", logged)  # known-positive summary control
+
+    def test_Routing_sustained_body_claims_no_break(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "SUSTAINED-FAILURE\tchronic\t[compile_error]\t1/10\t5\t3\tSUSPECTED-FLAKE"
+        )
+        self.assertIn("prior window 1/10", logged)
+        self.assertIn("failing 3/3", logged)
+        self.assertIn("SUSPECTED-FLAKE", logged)
+        self.assertRegex(
+            logged, r"--title Nightly sustained failure: chronic \(2026-07-30\)"
+        )
+        body = next(line for line in logged.splitlines() if "--type bug" in line)
+        for false_claim in ("solid-window break", "regression", "never green"):
+            self.assertNotIn(false_claim, body.lower())
+
+    def test_Routing_sustained_failure_has_no_discord(self):
+        sustained = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "SUSTAINED-FAILURE\tchronic\t[compile_error]\t1/10\t5\t3\tSUSPECTED-FLAKE"
+        )
+        regression = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "REGRESSION\tfresh_break\t[compile_error]\t10/10\t5\t1\t-"
+        )
+        self.assertEqual(sustained.count("--type bug"), 1, sustained)
+        self.assertEqual(sustained.count("messages send public-feedback"), 0, sustained)
+        self.assertEqual(regression.count("--type bug"), 1, regression)
+        self.assertEqual(regression.count("messages send public-feedback"), 1, regression)
+
+    def test_Routing_regression_body_is_solid_window_only(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "REGRESSION\tfresh_break\t[compile_error]\t10/10\t5\t1\t-"
+        )
+        self.assertIn("solid-window break", logged)
+        self.assertNotIn("sustained-failure escalation", logged)
+
     def test_Routing_invalid_run_files_nothing(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -1126,6 +1313,7 @@ class RoutingContractTests(unittest.TestCase):
                 [
                     "HEALTH\thistory: fixture | 5 benchmarks, 3 nights, newest 2026-07-27, 0 skipped lines",
                     "REGRESSION\treg\t[compile_error]\t4/4\t2\t1\t-",
+                    "SUSTAINED-FAILURE\tsustained\t[compile_error]\t1/10\t5\t3\tSUSPECTED-FLAKE",
                     "SUSPECTED-FLAKE\tflake1\t[compile_error]\t3/4\t2\t1\t-",
                     "SUSPECTED-FLAKE\tflake2\t[logic_error]\t2/4\t2\t2\t-",
                     "GAP\tgap\t[logic_error]\t0/4\t2\t3\t-",
@@ -1155,12 +1343,14 @@ class RoutingContractTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stderr)
             logged = calls.read_text(encoding="utf-8")
-            self.assertEqual(logged.count("--type bug"), 1, logged)
+            self.assertEqual(logged.count("--type bug"), 2, logged)
             self.assertEqual(logged.count("--type note"), 2)
             self.assertEqual(logged.count("messages send public-feedback"), 1)
             self.assertEqual(logged.count("suspected-flake(s)"), 1)
             self.assertIn("history: fixture", logged)
             self.assertIn("insufficient history: new", logged)
+            for bench in ("reg", "sustained", "flake1", "flake2", "gap", "new"):
+                self.assertIn(bench, logged)
 
     def test_send_titles_embed_date(self):
         """Exactly-once is conditional: archived/deleted inbox rows are excluded."""

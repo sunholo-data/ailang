@@ -487,6 +487,7 @@ CLASSIFIED=$(python3 "$WT/tools/nightly_classify.py" \
 HEALTH=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="HEALTH"{sub(/^HEALTH\t/,""); print}')
 INVALID=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INVALID"{print $2"\t"$3"\t"$4"\t"$5}')
 REGRESSIONS=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="REGRESSION"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
+SUSTAINED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSTAINED-FAILURE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}' | sed '/^[[:space:]]*$/d')
 SUSPECTED=$(echo "$CLASSIFIED"   | awk -F'\t' '$1=="SUSPECTED-FLAKE"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
 GAPS=$(echo "$CLASSIFIED"        | awk -F'\t' '$1=="GAP"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
 INSUFFICIENT=$(echo "$CLASSIFIED" | awk -F'\t' '$1=="INSUFFICIENT-HISTORY"{print $2"\t"$3"\t"$4"\t"$5"\t"$6}' | sed '/^[[:space:]]*$/d')
@@ -510,19 +511,15 @@ if [[ -n "$REGRESSIONS" ]]; then
     log "REGRESSIONS (${RCOUNT}): $(echo "$REGRESSIONS" | cut -f1 | tr '\n' '; ')"
 
     # File per-regression detail to controlplane (human review).
-    while IFS=$'\t' read -r BENCH CATS WINDOW NIGHTS CONSEC ESCALATED; do
+    while IFS=$'\t' read -r BENCH CATS WINDOW NIGHTS CONSEC _ESCALATED; do
         [[ -z "$BENCH" ]] && continue
-        RULE="solid trailing window"
-        if [[ "$ESCALATED" != "-" ]]; then
-            RULE="escalated: 3rd consecutive all-fail night (from ${ESCALATED})"
-        fi
         ailang messages send controlplane \
             "Nightly eval REGRESSION: benchmark '${BENCH}' failed BOTH trials on ${DATE}.
 Error category: ${CATS}
-Rule: ${RULE}; prior window ${WINDOW} over ${NIGHTS} nights; failing ${CONSEC}/3.
+Rule: solid trailing window; prior window ${WINDOW} over ${NIGHTS} nights; failing ${CONSEC}/3.
 Model: ${MODEL} (local, tiers:${BENCH_TIERS})
 Results: ${RESULTS_DIR}
-Investigate this solid-window break or sustained-failure escalation." \
+Investigate this solid-window break." \
             --title "Nightly regression: ${BENCH} (${DATE})" \
             --from "nightly-eval" \
             --type "bug" 2>/dev/null || true
@@ -541,6 +538,25 @@ Details filed to controlplane inbox." \
         --from "nightly-eval" 2>/dev/null || true
 else
     log "no regressions — no previously-solid benchmark broke tonight"
+fi
+
+if [[ -n "$SUSTAINED" ]]; then
+    SFCOUNT=$(echo "$SUSTAINED" | wc -l | tr -d ' ')
+    log "SUSTAINED FAILURES (${SFCOUNT}, no Discord): $(echo "$SUSTAINED" | cut -f1 | tr '\n' '; ')"
+    while IFS=$'\t' read -r BENCH CATS WINDOW NIGHTS CONSEC ESCALATED; do
+        [[ -z "$BENCH" ]] && continue
+        ailang messages send controlplane \
+            "Nightly eval SUSTAINED FAILURE: benchmark '${BENCH}' failed all trials for ${CONSEC} consecutive nights.
+Error category: ${CATS}
+prior window ${WINDOW} over ${NIGHTS} nights is NOT solid; failing ${CONSEC}/3; escalated from ${ESCALATED}.
+This is not a certified fresh break — triage as sustained failure / capability gap.
+Model: ${MODEL} (local, tiers:${BENCH_TIERS})
+Results: ${RESULTS_DIR}" \
+            --title "Nightly sustained failure: ${BENCH} (${DATE})" \
+            --from "nightly-eval" \
+            --type "bug" 2>/dev/null || true
+        log "  filed sustained failure to controlplane: ${BENCH}"
+    done <<< "$SUSTAINED"
 fi
 
 if [[ -n "$SUSPECTED" ]]; then
@@ -572,6 +588,7 @@ fi
 # Broadcast overall summary to controlplane inbox (local, no Discord on success).
 # PASS already carries the "<passed>/<total>" fraction.
 REG_NAMES=$( [[ -n "$REGRESSIONS" ]] && echo "$REGRESSIONS" | cut -f1 | tr '\n' ' ' || echo "none" )
+SUSTAINED_NAMES=$( [[ -n "$SUSTAINED" ]] && echo "$SUSTAINED" | cut -f1 | tr '\n' ' ' || echo "none" )
 GAP_NAMES=$( [[ -n "$GAPS" ]] && echo "$GAPS" | cut -f1 | tr '\n' ' ' || echo "none" )
 SUSPECTED_NAMES=$( [[ -n "$SUSPECTED" ]] && echo "$SUSPECTED" | cut -f1 | tr '\n' ' ' || echo "none" )
 INSUFFICIENT_BODY=$(echo "$INSUFFICIENT" | awk -F'\t' '{printf "insufficient history: %s (%s over %s nights, failing %s/3 toward escalation)\\n",$1,$3,$4,$5}')
@@ -580,7 +597,7 @@ ailang messages send controlplane \
 Nightly eval complete: ${PASS} (${RATE}) on ${DATE}.
 Build: ${BUILD_VERSION} (committed ${SHORT})
 Model: ${MODEL} | Tiers: ${BENCH_TIERS} | Trials: 2
-Regressions: ${REG_NAMES}| Suspected flakes: ${SUSPECTED_NAMES}| Non-regression failures: ${GAP_NAMES}
+Regressions: ${REG_NAMES}| Sustained failures: ${SUSTAINED_NAMES}| Suspected flakes: ${SUSPECTED_NAMES}| Non-regression failures: ${GAP_NAMES}
 ${INSUFFICIENT_BODY}" \
     --title "Nightly eval: ${PASS} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
