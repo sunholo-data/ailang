@@ -6415,3 +6415,126 @@ This violates **Principle 4** in the test runner itself, makes `ailang test` uns
 **Parked for human**: unchanged — **`#535`'s fix direction** (deterministic-by-default is Mark's semantic call), iteration 114's A2 classification gating `#505`/`#506`, the `cost>0`-never-means-billed KPI question, and the sibling's release ask. **Nothing new parked this iteration.**
 
 **Next**: iteration 123 → **(A)** `#541`, the 3-line nightly-summary fix — trivial, and it is noise a human reads every morning. **(B)** `#539` wrong-dialect keyword diagnostics (parser-touching → NEW-DOC + Conflict Surface + quorum; `PAR_MATCH_ARROW` is the in-repo template, and `struct`/`class` degrading to a *type* error is the worst sub-case). **(C)** `#535` seed determinism, once Mark rules. **(D)** `m-property-generator-coverage` Lane B1. **(E)** `#534` systemic flag-position fix. **(F)** AC1.3/AC3.3 guards owed by iteration 117. **(G)** `m-mcp-exact-tool-surface` Lane B. **(H)** `#540` — decide whether `config_file_parser`'s trial-2 `MaxTokensPerBench` should rise, since three consecutive trial-2s died on budget and are therefore measuring the budget rather than the model.
+
+## 128 — 2026-07-30 — Iteration 123: `#541` **LANDED** — the nightly summary stops printing an empty line and a literal `\n` every morning. **The instrument that hid the bug was the same shape as the bug**: zsh's `echo` interprets `\n`, so my own known-positive control read as fixed until `od -c` showed bytes `5c 6e`.
+
+**Picked**: `#541` `m-nightly-summary-text-fix` — queue-head `[NEXT]`, and the item iteration 122's
+**Next** field named first. Chosen over `#539` (needs a new doc + quorum, ~1–2d) and Lane B1
+(blocked-in-sequence behind `#535`, which is **PARKED on Mark**) because it is ~3 lines against
+noise a human reads every single morning, and Gate 0 found nothing that outranks the queue: dev CI
+green (14 success / 1 neutral, SHA-addressed), **zero** open `[nightly-eval]` alarms, no new
+`MarkEdmondson1234` comment, billing tripwire CLEAN. Two cross-mission messages arrived and neither
+outranked (correct per the Gate-0 contract) — see Retro lane.
+
+**Reality check**: the row is a claim, so both defects were re-measured first-party against the
+**live 06:47 2026-07-30 inbox message** before routing, not read from source:
+`insufficient history:  ( over  nights, failing /3 toward escalation)\n`. Census of all of
+`tools/` found **exactly the two sites** the issue names and no others; D1 (missing `-n` guard) is
+unique to `INSUFFICIENT_BODY`, whose five siblings at 496/509/543/562/575 all have it, while D2
+(`\\n` in a single-quoted awk program) hits both. Fresh-`origin` already-landed re-check clear (no
+commit, no PR, `--grep` control-verified). **Local `dev` was 2 commits behind `origin/dev`**, so all
+mission state was read from `origin` and the sprint worktree was branched from `origin/dev` — the
+local checkout's `ci.yml` still said floor 55 / suite 60 against the real 67 / 71, which would have
+produced a wrong floor had I trusted it.
+
+**Shipped**: PR **#543** → 2 commits on `sprint/m-nightly-summary-text-fix`: `1af55abc4` (the fix +
+3 guards + floor) and `465688350` (changelog, from the evaluator's NOB-1). Suite **71 → 74**, CI
+anti-vacuity floor **67 → 70** with the comment's stated suite size updated with it. Evaluator
+**sonnet PASS 81/100 round 1, zero blocking**, worktree left clean and sha256-verified. All four
+mutations re-run by the controller **outside the codex sandbox** — RED on exactly their target test,
+every restore sha256-identical — and the evaluator independently reproduced all four plus every
+claimed gate. Gates outside the sandbox: 74 PASS rc=0, `bash -n` rc=0, `shellcheck` rc=0,
+`git diff --check` rc=0. End-to-end render over several classified shapes confirms tomorrow's
+summary drops the bogus line and the flake message breaks before `Model:`. **Because the new tests
+assert REAL newlines and CI runs on ubuntu (mawk/gawk, not the rig's BSD awk), Gate 3b green doubles
+as the cross-awk portability proof** — the failure mode where a shell fix works locally and breaks
+in CI.
+
+**Routing evidence**: model=opus task-class=execute round1-score=81 rounds=1 corrections=1
+  provider=codex agent=codex cost=unknown (**85,774 tokens** for the executor run + 20,829 for the
+  probe; codex reported no dollar figure, so recorded UNKNOWN rather than a fabricated 0 —
+  Critical Principle 2, same call iteration 122 made. `$5` ceiling never approached.)
+  · controller=opus (session) quota-bucket:weekly-opus — triage/pick/verify/mutate/record
+  · executor=`codex:gpt-5.6-sol` per `$MISSION_EXECUTOR_MODEL`, probe rc=0, bounded 30-min wrapper,
+    directive delivery asserted (6,628 B) with a per-iteration filename
+  · evaluator=**sonnet** per `$MISSION_EVALUATOR_MODEL` quota-bucket:weekly-sonnet —
+    generator≠judge HOLDS by provider (OpenAI executor vs Anthropic judge), and distinct from the
+    opus controller that verified
+  · designer **NOT fired** (no new doc needed — `#541` is a 3-line fix), so
+    `~/.ailang/state/mission-designer-rotation` correctly did **not** advance; still
+    `claude:claude-fable-5`. Fable billed **zero** this iteration.
+  · planner **NOT fired** — deliberate and recorded: the queue row was authored by iteration 122's
+    *planner* as its finding F-4 and already carried planner-grade detail (both defects, both line
+    numbers, the fix shape). Spawning a planner to re-derive it would have been ceremony. Flagged
+    here rather than buried, since a skipped role is exactly what this row exists to surface.
+
+**Ruled out**:
+- **My own fix directive was WRONG, and the executor refuted it.** `\\n` → `\n` alone is NOT
+  sufficient at the suspected-flake site: command substitution strips trailing newlines, so
+  `${SUSPECTED_BODY}` loses its final newline and the old literal `\n` was what separated the last
+  row from `Model:`. The template needed a real newline. Confirmed first-party by **MUT-4** (my
+  addition): revert *only* the template newline, keep the awk fix → the test still reds. A directive
+  that had been "verified" only by reading source, refuted by the role that had to run it.
+- **NOB-5 REFUTED by measurement.** The evaluator suggested adding `assertNotIn("\\n")` to the
+  no-insufficient-rows test. Measured: with **both** D2 mutations applied simultaneously, that
+  test's scenario (HEALTH + GAP) contains **no literal `\n` anywhere** — the GAP/summary paths use
+  `cut`/`tr`, not an awk printf. The assertion could therefore never fail from the class it
+  purports to guard: an **unreachable guard**, the shape iteration 122 flagged three times.
+  Declined deliberately, with the measurement, rather than added as cheap-looking insurance.
+- **NOB-1's stated rationale narrowed, and the finding was BIGGER than filed.** The evaluator called
+  the missing changelog defensible because "comparable commits have omitted it". Measured across the
+  five nearest commits the split is not random: both changes in *this file family* updated a
+  changelog (`df9466c0d` #542 — the direct predecessor, same file, same suite/floor sentence — and
+  `a089a6fe7` #524), while the three that skipped it were eval A/B scheduling and release tooling.
+  2 of 2 for `nightly-eval.sh`. Acted on rather than waved through at the judge's severity.
+- **The `.agents/` mirror is NOT V1-code-affecting** — audited, zero committed shell carries the
+  colon defect (see Retro lane); the harm is latent and conditional on a consumer existing, and it
+  is filed that way rather than as an active break.
+- **A "completed exit 0" background task was NOT a Gate-3b verdict.** My second poll was launched
+  with an inner `&` inside an already-backgrounded call, so the wrapper returned immediately and the
+  task reported **exit 0 while 10 checks were still pending**. Caught by reading the poll's own last
+  line instead of its exit code — precisely the Gate-3b rule (c) failure it exists to prevent, met
+  from a new direction (the harness's success, not the poll's). Relaunched without the inner `&`.
+
+**Retro lane**: **skill fix — ONE, spent on Gate 2 rule 3a clause (i-c): the SHELL is an instrument
+too, and zsh silently rewrites two shapes.** Evidence bar met twice over in one iteration, both
+corroborated first-party against a `bash` control on identical input before adoption:
+- **Instance 3 (`world-coordinator`, PROPOSED upstream — it shares this skill but cannot edit it):**
+  unbraced `"$var:suffix"` applies zsh's `:h`/`:t`/`:r`/`:e` as **history modifiers**. Reproduced on
+  this rig: `"$c:host/x"` → `.ost/x`, `:tail/x` → `abc123ail/x`, `:runtime/x` → `abc123untime/x`,
+  `:extra/x` → `xtra/x`; bash literal for all four; `"${c}:host/x"` literal in both. Load-bearing
+  because **Gate 1 itself prescribes `git show origin/dev:path`** — safe only while the rev is a
+  literal, so the natural parameterisation breaks it, on the first letter of the path, silently into
+  a plausible number under `grep -c`. **V1's committed shell audited CLEAN** (matcher
+  control-verified, scope widened, worktrees excluded) → controller-instrument rule, not a code fix.
+  Verdict acknowledged on `ailang-world#9` per the cross-mission contract.
+- **Instance 4 (first-party, V1, this iteration):** zsh's builtin `echo` **interprets** backslash
+  escapes, so a literal two-character `\n` prints as a newline. Hit *inside the verification of this
+  iteration's own pick* — `#541`'s defect **is** a literal `\n`, and my known-positive control
+  appeared to emit real newlines until `od -c` showed `5c 6e`. The instrument hid exactly the bug
+  under test. Read bytes with `printf '%s'` / `od -c` / `cat -A`; never `echo`. (Corollary earned
+  the same hour: `cat -A` is **GNU-only** — BSD `cat` rejects it; use `cat -v` or `od -c` on macOS.)
+- **backlog (no edit spent): `#544` filed** — `.claude/skills/` and `.agents/skills/` are duplicated
+  and **31 of 38 diverged**; the `.agents/` mission-control copy is ~20 KB behind and still carries
+  the hardcoded-`329` watermark bug **iteration 106 fixed**, and lacks iteration 117's SHA-pinned
+  Gate 3b. Added 2026-07-28 by commit `7b8bd9eff` ("codex i guess") from a Jul-24 snapshot — stale
+  on arrival. Iteration 116 recorded the one-file version as instance 1; this is the measured,
+  widened instance 2. **Note the honest wrinkle: this iteration's skill edit lands only in the live
+  `.claude/` copy, so it widens the divergence it just filed** — deliberately, because choosing
+  delete-vs-symlink-vs-CI-gate is `#544`'s decision, not a controller call.
+- **process note, no edit (instance 1):** a third instrument failed this iteration — my message-render
+  harness captured `$1`/`$2` (`messages`/`send`) instead of the body at `$3`/`$4`. Caught only
+  because the output was obvious nonsense. Different class from 3a (wrong-argument, not
+  empty-result); recorded, not acted on.
+
+**Next**: `#539` dialect-keyword diagnostics (NEW-DOC + quorum, parser-touching so a Conflict
+Surface is required; demand evidence deliberately weak — one observed occurrence, and the
+`config_file_parser` link was already refuted) | `#535` wall-clock property seeding **still parked on
+Mark** and it gates Lane B1 | Lane B1 structural generators (must route additions to a NEW file —
+`runner.go` is 790/800) | `#544` skill-mirror decision (cheap, needs a human's delete-vs-symlink
+call) | `#534` flags-after-positional | iteration 117's AC1.3/AC3.3 guards | `#540`'s trial-2
+token-budget question. Watch-item, instance 1: the *trailing blank line* residual in the summary
+when there are no insufficient rows — deliberately out of `#541`'s scope, but it is the same
+"noise a human reads daily" family, so if anything else touches that message it should go too.
+
+---

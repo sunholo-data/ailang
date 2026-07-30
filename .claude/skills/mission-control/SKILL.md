@@ -363,6 +363,28 @@ the Repo Profile above):
    an empty result set must FAIL LOUDLY (`t.Fatal("instrument failure")`), never pass;
    **(i-b) quote anything glob-shaped** — `--include='*.go'`, not `--include=*.go`; under zsh an
    unquoted glob-shaped flag value aborts the whole command before it runs;
+   **(i-c) the SHELL is an instrument too, and zsh silently rewrites two shapes** (added
+   2026-07-30 iteration 123; instances 3 and 4 of the zsh class after (i-b)'s glob and step 3's
+   `PIPESTATUS`, each corroborated first-party against a `bash` control on the identical string
+   before adoption). **Brace any variable followed by a colon** — in zsh, `"$rev:path"` applies
+   `:h`/`:t`/`:r`/`:e` as HISTORY MODIFIERS and rewrites the string: measured on the rig with
+   `c=abc123`, `"$c:host/x"` → `.ost/x` (`:h`=dirname), `":tail/x"` → `abc123ail/x`,
+   `":runtime/x"` → `abc123untime/x`, `":extra/x"` → `xtra/x`, while bash returns all four literal
+   and `"${c}:host/x"` is literal in both. This one is worse than the glob because `git show
+   "$rev:path"` is THE git-archaeology idiom and **Gate 1 PRESCRIBES that exact shape** — its
+   literal form is safe only because the rev is a literal, so the natural generalisation (put the
+   rev in a variable) breaks it, **on the first letter of the path**, silently, into a plausible
+   number when piped to `grep -c` (mission-world read `total_tables=0` for the commit that CREATED
+   the schema). Reported by `world-coordinator`, which shares this skill but cannot edit it; V1's
+   committed shell was audited CLEAN for this shape (matcher control-verified, scope widened,
+   worktrees excluded), so it is a CONTROLLER-instrument rule here, not a code defect.
+   **And `echo` is not a byte-faithful reader** — zsh's builtin `echo` INTERPRETS backslash
+   escapes, so a literal two-character `\n` prints as a real newline. Iteration 123 hit this
+   *inside the verification of its own pick*: `#541`'s defect WAS a literal `\n`, and the
+   controller's known-positive control appeared to emit real newlines until `od -c` showed the
+   bytes `5c 6e` — the instrument hid precisely the bug under test. To read bytes use
+   `printf '%s'`, `od -c`, or `cat -v`; never `echo`. (`cat -A` is GNU-only — BSD `cat` rejects
+   it, earned the same hour.) Both shapes are silent and both survive `set -euo pipefail`;
    **(ii) widen once before concluding** — drop the quoting, the anchors, the file filter, and the
    directory scope (a root `Makefile` includes; a workflow calls a make target; a caller lives in
    a file type your `--include` excluded); **(iii) prefer the tool that cannot miss** — `make -pn`
