@@ -1311,6 +1311,20 @@ frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted 
 frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
+- **[NEXT-ON-RESUME, Mark directive 2026-07-30 (attended): QUOTA OFFLOADS — pick these FIRST
+  when the loops re-arm 2026-08-03 07:00, before M4b and effect sprints 3/4]** — two sibling
+  recipe/lane items (mission infra, not language changes; neither gates v1.0 but both protect
+  its timeline — capacity multipliers land before capacity consumers):
+  **(1) m-planner-codex-lane** — route `MISSION_PLANNER_MODEL` through the hardened
+  `PROVIDER=codex` spawn recipe (M1b machinery; stdin `< /dev/null` + directive-delivery
+  assertion per codex-spawn-recipe-false-greens): planner moves to the ChatGPT-subscription
+  bucket, opus remains controller-only. **(2) m-evaluator-gemini-review-lane** — the #399
+  Phase-2 follow-on Mark greenlit 2026-07-27: evaluator-as-reviewer over a PRE-MERGE PUSHED
+  sprint branch via managed-agents clone-over-egress (CI stays the test oracle;
+  generator≠judge preserved — gemini judges codex/opus executors; sonnet remains the fallback
+  evaluator when the gemini lane is unavailable). Rationale: the opus bucket dried Thursday
+  this week at ~55% duty cycle; these two move the remaining Anthropic-heavy sub-agent roles
+  off-bucket so the week stretches toward Monday-to-Monday.
 - **[NEW 2026-07-29, Mark directive (attended)] m-outage-triage-lane** (NEW-DOC needed; P3
   resilience — design-only until a second outage recurs; does NOT gate v1.0): when ALL Anthropic
   controller probes fail with a SERVER-error signature (500 Internal / 529 Overloaded — distinct
