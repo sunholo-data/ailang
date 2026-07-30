@@ -6538,3 +6538,32 @@ when there are no insufficient rows — deliberately out of `#541`'s scope, but 
 "noise a human reads daily" family, so if anything else touches that message it should go too.
 
 ---
+
+### Iteration 123 addendum — the metered ledger silently DROPPED this iteration's token count
+
+Found while posting the Gate-4 chain, and measured rather than assumed. `codex` reported a token
+**TOTAL** (85,774) with **no in/out split** and **no dollar figure**. `IterationPost`
+(`cmd/ailang/chains_post.go:12-21`) accepts only `cost_usd` / `tokens_in` / `tokens_out`, so there
+is no field for a bare total and none for "cost unknown". Rather than fabricate a split or a `$0`
+(Critical Principle 2), the post carried `tokens_total` — and it was **silently discarded**:
+`ailang chains post-iteration` printed `Posted iteration chain … (3 stages)` and exited 0, while
+`ailang chains view` shows `Total Tokens: 0`. Cause confirmed by source: **`DisallowUnknownFields`
+appears NOWHERE in the repo** (control-verified: the pattern has zero matches repo-wide), so Go's
+default decoder ignores unknown fields. A success message for data that was thrown away — the same
+vacuous-pass class as iteration 122's routing block silently dropping unrecognised labels.
+
+Two corrections to my own first reading, both caught before they were acted on: (1) `ailang chains
+list` shows `STAGES 0` for this chain, which I briefly read as the stages not being recorded —
+`view` shows all three present, so that column counts something else (iterations 122 and world/41
+show `0` too); (2) the `$0.00` in the list is **not** wrong for the control chain I compared
+against — that eval ran a local model, so `$0` is true there.
+
+**Lane: recorded, NOT patched, and deliberately no edit spent.** Iteration 116 already logged the
+token-split + false-`$0` gap as instance 3 with the explicit call that it "should be designed
+together with standing parked item **(0-kpi-b)**, not patched twice". This is the third face of that
+same gap (unknown-total, unknown-cost, silent-drop) and it strengthens the case for designing it
+once: whatever lands should add a `tokens_total`/`cost_unknown` representation **and**
+`DisallowUnknownFields` so a future mis-keyed post fails LOUDLY instead of reporting success. Until
+then the ledger's authoritative record for this iteration is the **log entry above**, not the chain.
+
+---
