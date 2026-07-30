@@ -1,0 +1,267 @@
+{
+  "sprint_id": "M-PROPERTY-GENERATOR-LANE-A",
+  "status": "completed",
+  "created": "2026-07-30T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_31_0/m-property-generator-coverage.md",
+  "sprint_plan": "design_docs/planned/v0_31_0/m-property-generator-coverage-lane-a-sprint-plan.md",
+  "github_issues": [
+    517
+  ],
+  "risk_level": "medium",
+  "metadata": {
+    "planner-model": "claude-opus-4-8",
+    "mission_iteration": 121,
+    "scope": "Lane A ONLY (A1-A6) of m-property-generator-coverage. IN: A1 reachable list generator (ast.TypeApp{\"list\"} arm), A2 total skip taxonomy (SkipKind over all SIX StatusSkip sites), A3 Success() gains VacuousSkips==0, A4 reporter honesty (property skip reasons + new summary branch), A5 --format json preamble to stderr, A6 mixed-shape regression fixtures. OUT: Lane B entirely (B1 structural derivation, B2 deferred on evaluator fuel budget). Lane A ships without any part of Lane B - verified: A1's list arm recurses into createGeneratorForType for the element type and returns nil,nil for non-derivable elements (probe-verified on list[Tree]).",
+    "estimated_effort": "1.0 day (doc says ~0.5d; +0.5d is measured A1 triage the doc assigned to Lane B)",
+    "base_commit": "6c70a6c36826dc3b992d407e739a3d9f75c1a116",
+    "base_note": "= 4ebd85873 + 2 doc-only commits. `git diff 4ebd85873 HEAD -- internal/testing cmd/ailang/test.go` is EMPTY, so every controller measurement taken at 4ebd85873 transfers unchanged.",
+    "premises_verified_live": true,
+    "verification_binary": "/tmp/ailang_planner121 built from this worktree via `go build -o /tmp/ailang_planner121 ./cmd/ailang` (reports commit 4ebd858-dirty: known go-build-in-worktree VCS-stamp quirk; verified behaviourally, not by stamp)",
+    "verification_date": "2026-07-30",
+    "read_only_main_checkout": true,
+    "worktree_left_clean": true,
+    "a1_probe": "The A1 patch was applied to a scratch copy of internal/testing/runner.go, built to /tmp/ailang_probeA1, measured, then runner.go was restored byte-identically (sha256 prefix 72398a36013964db before and after; `git status --short` empty). No git operations were used.",
+    "six_skip_sites": "grep -n StatusSkip internal/testing/runner.go -> 249, 331, 373, 454, 490, 536. ALL SIX are PropertyResult sites. TestResult is NEVER assigned StatusSkip anywhere in non-test Go under internal/ or cmd/ - so the six-site taxonomy is EXHAUSTIVE and totality (A-8) is a checkable invariant.",
+    "taxonomy_hole_resolution": "Sites 331/454 get the class name `unsupported` and FAIL the suite (counted into VacuousSkips alongside no_generator). Reasons: (1) a contract that ran ZERO cases is vacuous by definition, identically to no_generator - out_of_contract is categorically different because the contract DID execute (TestsRun>=1) and an input was discarded; (2) zero live blast radius, because those two sites are proven unreachable from any parsed AILANG program (see refutation R-1), so `fail` costs nothing today and installs the honest default for when the parser grows top-level contracts; (3) default-deny - the defect being fixed IS an 'unclassified => forgiven' default, so AddPropertyResult treats an empty SkipKind on a StatusSkip property as vacuous (fail-closed) and A-8 asserts totality so that arm is never reached. NOT deferred: cost is ~2 LOC plus one white-box unit test constructing PropertyCase{Property:&ast.Property{Kind:ast.EnsuresKind}, Function:nil}. No .ail fixture and no triage budget is spent, because R-1 proves there is no live bug there.",
+    "sandbox_gates": "INFORMATIVE: `go test ./internal/testing/... -count=1` (binds no sockets). UNINFORMATIVE UNDER SANDBOX (must be labelled as such, never pass/fail): `go test ./cmd/ailang/...` and `make test` (= go test ./...), because cmd/ailang has 6 socket-binding test files: configdriven_callstream_test.go, configdriven_dispatch_test.go, configdriven_harvest_test.go, configdriven_streaming_span_snapshot_test.go, configdriven_streaming_test.go, messages_send_test.go.",
+    "executor_cannot_commit": "Executor is codex gpt-5.6-sol under --sandbox workspace-write and cannot commit in this linked worktree. Leave a clean reviewable working diff and report per-milestone file changes; the controller commits each milestone separately.",
+    "flags_before_path": "MANDATORY. `ailang test f.ail --format json` silently ignores --format (measured: human text, rc=0) because Go's flag stops at the first non-flag arg (cmd/ailang/main.go:120). Filed as #534, OUT OF SCOPE. Every command in the plan is flags-first.",
+    "file_size_gate": "internal/testing/runner.go = 774 lines; make check-file-sizes fails >800 (make/code-health.mk:123). Only 26 lines of headroom. SkipKind constants and any classification helper go in internal/testing/result.go (122 lines) if needed.",
+    "no_examples_dir_files": "Do NOT add files under examples/runnable/ - that reds make verify-examples via scripts/validate_manifest.go --ci (make/examples.mk:24) unless examples/manifest.json gains a matching entry. Fixtures go in Go tests via t.TempDir() + os.WriteFile, the convention at internal/testing/runner_ensures_test.go:19-21. Coding-standards' 'every language feature needs an example' does not bite: Lane A adds zero syntax (doc's own A8 score = 0).",
+    "no_ci_gate_reds": "Re-verified with positive control: ZERO `ailang test` invocations across make/, Makefile, .github/workflows/, tools/, scripts/ (positive control: 8 `ailang check` hits). Sole programmatic consumer is cmd/ailang/coordinator_cloud.go:586, itself guarded by len(testFiles)>0 over *_test.ail at :583-584 - so the escalate-to-AI flip only reaches packages that actually ship test files.",
+    "net_exit_code_change": "Exactly 4 in-repo files flip rc 0 -> 1 at M3: inbox_injection_v2.ail, inbox_v2_app.ail, park.ail, record_discovery_verify.ail. cross_module_functions_lib.ail MUST stay rc 0 (out_of_contract forgiven) - the single most important false-red guard in the sprint. At M1 alone, 3 files change: hof_verify rc 1->0, list_verify success true->false with a genuine failure surfaced, list_recursive_verify rc 1->0 (see H1).",
+    "gitignore_note": "`.ailang/` is gitignored (.gitignore:77) but sprint JSONs are tracked. The controller MUST use `git add -f .ailang/state/sprints/sprint_M-PROPERTY-GENERATOR-LANE-A.json` or this file is silently dropped from the commit.",
+    "bounded_waits": "`timeout` is NOT on PATH on this rig (returns rc 127). Five contract examples (recursive_verify, scoring, showcase, string_verify, temperature) are pathologically slow under `ailang test` - recursive_verify.ail emitted only the preamble and no JSON after several minutes. Exclude them from per-milestone gate sweeps and report UNMEASURED (exceeds bounded wait); never let a slow example block a gate."
+  },
+  "velocity": {
+    "target_loc_per_day": 397,
+    "estimated_total_loc": 397,
+    "estimated_days": 1,
+    "loc_note": "397 = 107 impl + 290 test. Deliberately test-heavy: impl is small (a generator arm, a string field, one boolean term, four Printf stream changes), and the value is in the mutation-backed acceptance suite plus the totality invariant. The 1-day budget is gated by M1's measured triage of 16 newly-executing properties, not by typing volume."
+  },
+  "features": [
+    {
+      "id": "M1_A1_REACHABLE_LIST_GENERATOR",
+      "description": "A1: add a *ast.TypeApp arm to createGeneratorForType (internal/testing/runner.go:629) matching Constructor==\"list\" && len(Args)==1, recursing into createGeneratorForType(app.Args[0]) and returning nil,nil when the element generator is nil. [T]/list[T] has parsed to ast.TypeApp{Constructor:\"list\"} since DX-17 Phase 2 (internal/parser/parser_type.go:56,:112), so the existing *ast.ListType arm is unreachable from parsed programs (ZERO non-test constructors under internal/, cmd/, scripts/; positive control: 21 constructions in _test.go). KEEP the ListType arm - deleting it breaks those 21 test constructions for no benefit (coding-standards: never delete because the linter says unused). Ordered FIRST deliberately: it shrinks the vacuous surface before M3 flips exit codes, so M3's measured blast radius is the final one. Includes 0.4d triage of 16 previously-never-executed properties across 5 files.",
+      "estimated_loc": 72,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A-3: mixed fixture's headOr(xs: [int], d: int) ensures-property runs 100 cases and passes (probe-verified: skip/0 -> pass/100). Red-turning mutation: delete the new *ast.TypeApp \"list\" arm.",
+        "A-9 (NEW): list[Tree] in examples/runnable/contracts/cross_module_types.ail remains a no_generator vacuous skip - the element ADT is non-derivable and the arm must return nil,nil. Red-turning mutation: substitute a default int/unit generator when the element generator is nil (CLAUDE.md principle 2 - a silent fallback here would test wrong values).",
+        "The *ast.ListType arm is still present and go test ./internal/testing/... -count=1 is green (its 21 test-only constructors still work).",
+        "examples/runnable/contracts/hof_verify.ail: rc 1 -> 0 (both list[int] properties pass 100 cases). MEASURED via probe.",
+        "examples/runnable/contracts/list_verify.ail: rc stays 1 but success flips true -> false with a GENUINE failure surfaced (brokenAllPositive_property_2, 2 cases) - deliberate latent-bug detection, not a regression. MEASURED via probe.",
+        "examples/runnable/contracts/list_recursive_verify.ail: rc 1 -> 0 with 2 pass + 4 out_of_contract skips - DISCLOSED, see H1. Must be recorded in the executor report, not silently accepted. MEASURED via probe.",
+        "examples/runnable/contracts/invoice.ail: 2 list[int] properties now run; 13 nogen vacuous skips remain.",
+        "make check-file-sizes green (runner.go must stay <= 800 lines; it is 774 today, 26 headroom).",
+        "Commands use flags BEFORE the path (#534). go test ./cmd/ailang/... reported as UNINFORMATIVE UNDER SANDBOX."
+      ],
+      "passes": true,
+      "started": "2026-07-30T00:00:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Added reachable TypeApp list generation with recursive no-fallback behavior; informative internal/testing and file-size gates passed; corpus probes confirmed list properties execute."
+    },
+    {
+      "id": "M2_A2_TOTAL_SKIP_TAXONOMY",
+      "description": "A2: add PropertyResult.SkipKind string (result.go:27-35) with named constants SkipKindNoGenerator=\"no_generator\", SkipKindUnsupported=\"unsupported\", SkipKindOutOfContract=\"out_of_contract\" declared in result.go (keeps runner.go under the 800-line gate). Assign at ALL SIX StatusSkip sites: 249/373/490 -> no_generator; 331/454 -> unsupported; 536 -> out_of_contract. Add SuiteResult.VacuousSkips int, incremented in AddPropertyResult when Status==StatusSkip && SkipKind != SkipKindOutOfContract (so no_generator, unsupported, AND fail-closed for an unexpected empty kind). Merge VacuousSkips in BOTH aggregation loops: cmd/ailang/test.go:52-58 (single-file) and :181-187 (package mode) - missing either silently zeroes the counter for that mode. Success() is NOT touched here: M2 must be provably behaviour-inert.",
+      "estimated_loc": 125,
+      "dependencies": [
+        "M1_A1_REACHABLE_LIST_GENERATOR"
+      ],
+      "acceptance_criteria": [
+        "A-8 (NEW, closes the six-sites hole permanently): a table-driven test asserts every StatusSkip PropertyResult the runner can produce carries a non-empty SkipKind, covering all six sites. Sites 331/454 are reached by constructing PropertyCase{Property:&ast.Property{Kind:ast.EnsuresKind|ast.RequiresKind}, Function:nil} directly - the only way, since they are unreachable from parsed programs (R-1). Red-turning mutation: remove the SkipKind assignment at ANY ONE of the six sites.",
+        "Sites 331 and 454 classify as SkipKindUnsupported and are counted into VacuousSkips (the stated decision; see metadata.taxonomy_hole_resolution for the reason).",
+        "An unexpected empty SkipKind on a StatusSkip PropertyResult is counted as VACUOUS (fail-closed), never forgiven. Red-turning mutation: change the AddPropertyResult condition to == SkipKindNoGenerator only.",
+        "A-4 classification: examples/runnable/contracts/cross_module_functions_lib.ail's single skip has skip_kind==\"out_of_contract\" and vacuous_skips==0. Red-turning mutation: set SkipKind = SkipKindNoGenerator at runner.go:536.",
+        "BOTH aggregation loops merge VacuousSkips - assert non-zero VacuousSkips reaches the reporter in single-file mode AND in --package mode. Red-turning mutation: delete the merge line from either loop.",
+        "INERTNESS PROOF: re-run the 33-file examples/runnable/contracts sweep and diff against M1's table - exit codes and success values must be BYTE-IDENTICAL to M1 (Success() is unchanged in this milestone).",
+        "go test ./internal/testing/... -count=1 green; make check-file-sizes green.",
+        "No existing test assertion modified (A-10 precondition)."
+      ],
+      "passes": true,
+      "started": "2026-07-30T00:04:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Added total six-site skip taxonomy, fail-closed VacuousSkips accounting, and both CLI aggregation merges without changing Success semantics."
+    },
+    {
+      "id": "M3_A3_A4_EXIT_SEMANTICS_AND_REPORTER",
+      "description": "A3: result.go:97 Success() becomes `ran > 0 && sr.FailedTests == 0 && sr.VacuousSkips == 0`. AllSkipped() (:104) and SuccessAllowingSkips() (:110) stay UNCHANGED, so --allow-skips forgives vacuous skips for free via the existing `succeeded := Success() || (allowSkips && SuccessAllowingSkips())` at test.go:80 and :208 - no new flag. A4: reporter.go:47-64 JSON gains top-level \"vacuous_skips\" and per-property \"skip_kind\" (\"success\" at :56 tracks A3 automatically); reporter.go:181 widens `if prop.Status == StatusFail` to `|| prop.Status == StatusSkip`, mirroring the existing test-side condition at :148; reporter.go:205-219 gains a summary branch BETWEEN case result.AllSkipped() and case result.Success() naming the count and --allow-skips.",
+      "estimated_loc": 155,
+      "dependencies": [
+        "M2_A2_TOTAL_SKIP_TAXONOMY"
+      ],
+      "acceptance_criteria": [
+        "A-1 (CORRECTED fixture - see refutation R-2): mixed fixture anchor(x: int) [pass] + shiftX(p: Point, dx: int) [vacuous record] + headOr(xs: [int], d: int) [pass after A1] gives `ailang test --format json F` -> rc 1, success=false, vacuous_skips=1, with 2 passing siblings. The doc's own `mixed` module (dbl + headOr) is UNUSABLE for this: probe-measured post-A1 it yields 2 pass / 0 skip / success=true / rc 0. Red-turning mutation: revert Success() to `ran > 0 && FailedTests == 0`.",
+        "A-2: same fixture with `ailang test --allow-skips --format json F` -> rc 0. Flags BEFORE the path (#534). Note this criterion is non-discriminating before M3 (the fixture already exits 0 today) - assert it only now. Red-turning mutation: make the allow-skips branch also require VacuousSkips == 0.",
+        "A-4: examples/runnable/contracts/cross_module_functions_lib.ail stays rc 0 with vacuous_skips=0 and skip_kind==\"out_of_contract\". THE false-red guard: out-of-contract skips must not acquire a vacuous label. Red-turning mutation: set SkipKind = SkipKindNoGenerator at runner.go:536.",
+        "A-6: human output for the mixed fixture contains `no generator for parameter` and does NOT contain `All tests passed!`. Assert the *parameter* form specifically - TWO distinct texts exist (site 249 emits `no generator for type %v`; :373/:490 emit `no generator for parameter %s: %v`), so a generic \"no generator\" substring assertion is forbidden. Both texts stay byte-unchanged; skip_kind carries the machine signal. Red-turning mutation: revert reporter.go:181 to StatusFail-only (drops the reason) / remove the new summary branch (restores the headline).",
+        "A-7 (MUTATION CORRECTED): an all-skipped suite whose only skip is out_of_contract still prints `NO TESTS RAN` and exits 1. Unit-level SuiteResult fixture (no in-repo file has this shape). Red-turning mutation: DROP the `ran > 0` term from Success(), leaving `FailedTests == 0 && VacuousSkips == 0`. The doc's mutation (Success() returns FailedTests == 0) also turns A-1 red and therefore does not isolate A-7; and the fixture must be out-of-contract-only, because a no_generator all-skipped suite stays red via VacuousSkips regardless of ran > 0.",
+        "H1 DISCLOSURE: verify the widened reporter.go:181 condition surfaces the reason AND the (N cases) count for out_of_contract skips too, not only no_generator. list_recursive_verify.ail stays rc 0 with 4 near-unvalidated properties; that must be legible in human output.",
+        "Full 33-file sweep matches the plan's 'after M3' column: EXACTLY 4 files flip rc 0 -> 1 (inbox_injection_v2, inbox_v2_app, park, record_discovery_verify) and cross_module_functions_lib stays rc 0.",
+        "A-10 (NEW, refutes the doc's 'deliberately updated tests' requirement): `git diff -U0 -- '*_test.go'` shows NO REMOVED LINES in pre-existing test files. Measured: the set of tests needing updates is EMPTY - every existing Success()/AllSkipped()/SuccessAllowingSkips() test (result_test.go:126,137,145; named_test_test.go:161,164,175,185,299,309) builds its suite with AddTestResult, and TestResult has no SkipKind, so VacuousSkips stays 0 and all verdicts hold. Additive JSON fields are safe too: reporter_test.go reads output[\"success\"].(bool) by key and integration_test.go:113-125 uses strings.Contains - neither asserts a closed key set.",
+        "go test ./internal/testing/... -count=1 green; make check-file-sizes green."
+      ],
+      "passes": true,
+      "started": "2026-07-30T00:06:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Vacuous mixed suites now fail by default, --allow-skips remains permissive, JSON exposes taxonomy, and human reports show skipped-property reasons and case counts."
+    },
+    {
+      "id": "M4_A5_JSON_IS_JSON",
+      "description": "A5: route preamble lines to stderr when formatStr==\"json\" (human mode unchanged). FOUR write sites, not one: cmd/ailang/test.go:18 (`-> Running tests in %s`, single-file mode) and :163, :164, :173 (package mode: `-> Package %s`, the `%s source modules, %s test files` line, and the trailing blank fmt.Println()). Moving only the first leaves package-mode stdout unparseable.",
+      "estimated_loc": 45,
+      "dependencies": [
+        "M3_A3_A4_EXIT_SEMANTICS_AND_REPORTER"
+      ],
+      "acceptance_criteria": [
+        "A-5: `ailang test --format json F 2>/dev/null | jq .` parses on raw stdout with ZERO preprocessing, in single-file mode. Verified failing today (jq: parse error at line 1 column 4). Red-turning mutation: restore any preamble fmt.Printf to stdout in JSON mode.",
+        "A-5 package mode: `ailang test --package --format json . 2>/dev/null | jq .` also parses - all three package-mode preamble writes moved.",
+        "Assert on STDOUT ONLY. Do NOT assert stderr is empty: a legitimate `Warning: stdlib version mismatch: ...` (166 bytes, internal/loader/stdlib_resolver.go:310) already writes to stderr for some files. The controller's '0 bytes stderr' measurement was taken on a file without that warning.",
+        "Human mode preamble is UNCHANGED on stdout: `ailang test F` still prints `-> Running tests in F` to stdout.",
+        "go test ./internal/testing/... -count=1 green; make check-file-sizes green."
+      ],
+      "passes": true,
+      "started": "2026-07-30T00:08:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Routed all four JSON-mode preamble writes to stderr and added temp-directory subprocess coverage for single-file and package modes."
+    },
+    {
+      "id": "M5_CLOSEOUT_CHANGELOG_AND_FOLLOWUPS",
+      "description": "Closeout: CHANGELOG breaking-change entry in changelogs/v0.18-current.md [Unreleased]; mark Lane A landed in design_docs/planned/v0_31_0/m-property-generator-coverage.md and record the plan's corrections there (R-2 especially, so the stale before/after table does not mislead Lane B's planner); file follow-ups F1/F2/F3 WITHOUT implementing them.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M4_A5_JSON_IS_JSON"
+      ],
+      "acceptance_criteria": [
+        "changelogs/v0.18-current.md [Unreleased] has a BREAKING entry: mixed suites with no_generator/unsupported property skips now exit 1 (escape: --allow-skips); additive JSON fields vacuous_skips + skip_kind; JSON-mode stdout is now pure JSON; [T]/list[T] parameters now get generators. Names the 4 in-repo files that flip rc 0 -> 1.",
+        "The design doc records: Lane A landed; the R-2 before/after-table correction; the `unsupported` class decision and its reason; that the six-site taxonomy is exhaustive (R-3).",
+        "F1 filed (NOT implemented): out-of-contract discard rate is a generator-quality vacuous pass (H1). A property that out_of_contract-skips after 1-2 of 100 cases is near-unvalidated yet forgiven; list_recursive_verify.ail goes rc 1 -> 0 under it. Needs a threshold policy = a human-owned semantic decision outside Lane A.",
+        "F2 filed: #534 already exists - reference it, do not re-file.",
+        "F3 filed/noted: Lane B1 structural derivation remains the fix for the 6 files still vacuous after Lane A.",
+        "make check-file-sizes, make lint, go test ./internal/testing/... -count=1 all green; make verify-examples green (should be unaffected - it invokes `ailang run`, never `ailang test`).",
+        "Executor reports, per milestone, exactly which files changed and why, and leaves a clean reviewable working diff for the controller to commit (executor cannot commit in this worktree)."
+      ],
+      "passes": true,
+      "started": "2026-07-30T00:11:00Z",
+      "completed": "2026-07-30T00:13:28Z",
+      "notes": "Documented the breaking change, Lane A landing and plan corrections, plus follow-ups F1/F2/F3; final quality gates recorded by executor."
+    }
+  ],
+  "discrepancies_found": [
+    {
+      "id": "R-1",
+      "severity": "high",
+      "doc_claim": "CONTROLLER directive item 7: sites 331 and 454 are an unclassified class that A2 would silently treat as non-vacuous, and 'That is very likely the same bug one layer over: the user wrote a contract, it never ran, and the suite reports success.'",
+      "finding": "REFUTES THE CONTROLLER'S INFERENCE (the measurement is upheld). Sites 331/454 are UNREACHABLE from any parsed AILANG program. (1) runEnsuresProperty/runRequiresProperty are entered only from runProperty's dispatch on Property.Kind in {EnsuresKind, RequiresKind} (runner.go:225-228). (2) The only producer of those Kinds is parseContractPredicate (parser_contracts.go:129-148, the sole ast.Property{} construction in the parser that sets Kind), reached only via parseContractBlocks (:22), called only from parseFunctionDeclaration (parser_func.go:121), whose results are appended to fn.Properties (parser_func.go:124-125) - always inside a FuncDecl. (3) The collector has exactly three PropertyCase{} sites (collector.go:48/84/138; ZERO in _test.go); the only one leaving Function nil is collectPropertyDecl (:84), fed by *ast.PropertyDecl, and parsePropertyDecl (parser_test_decl.go:75-118) builds its Property via parseProperty (parser_testing.go:235-301) which sets NO Kind => PropertyKind, the zero value (ast_decl.go:93). (4) BEHAVIORAL PROOF: a module with a passing ensures sibling plus a top-level `property \"commutes\" { forall(a: int, b: int) => a + b == b + a }` - the only construct producing Function==nil - routes to the FORALL path and reports status: fail, error: 'test 0: evaluation failed: empty program', rc=1. It does NOT emit 'top-level ensures not supported'.",
+      "action": "Still classify them as `unsupported` and FAIL the suite (future-proofing + default-deny; see metadata.taxonomy_hole_resolution), but spend NO .ail fixture and NO triage budget on a live bug that does not exist. A-8 reaches the sites via a white-box Go unit test. The evaluator must not expect a live repro."
+    },
+    {
+      "id": "R-2",
+      "severity": "high",
+      "doc_claim": "Design doc lines 330-341, Lane A before/after table: uses the `mixed` module (dbl(x: int) + headOr(xs: [int], d: int)) and claims in the same After column both `vacuous_skips: 1` / exit 1 AND `headOr ([int]) -> pass, 100 cases (list-arm fix)`.",
+      "finding": "INTERNALLY CONTRADICTORY, and it survived BOTH quorum rounds in the section certified byte-identical and unobjected. Probe-measured with the A1 patch applied, that module yields 2 pass, 0 skip, success=true, rc=0 - A1 removes the file's ONLY vacuous skip, so it cannot also demonstrate a vacuous-pass exit-1. A-1 would have been unimplementable as specified.",
+      "action": "The A-1 fixture must carry a shape Lane A does NOT derive. Use anchor(x: int) [pass] + shiftX(p: Point, dx: int) [vacuous record] + headOr(xs: [int], d: int) [pass after A1] -> 2 pass + 1 vacuous, rc 1, vacuous_skips=1, mixed shape with 2 passing siblings, and it pins A-3 in the same file. Record the correction in the design doc at M5."
+    },
+    {
+      "id": "R-3",
+      "severity": "medium",
+      "doc_claim": "Design doc 'Programs that MUST still work' #3: 'examples/runnable/contracts/unencodable_callee_skip.ail - the Z3-unencodable skip class; must remain unaffected by property-skip taxonomy.'",
+      "finding": "REFUTED. The file exists, but its single skip is measured as `requires not satisfied by random input (consider tighter generators): x=-65.42045367635684` - site 536, out_of_contract - and the file already fails (1 real property failure, rc 1). There is NO Z3-unencodable skip class in `ailang test` at all: all six StatusSkip assignments in the entire non-test Go tree under internal/ + cmd/ are PropertyResult sites in runner.go, and TestResult is NEVER assigned StatusSkip anywhere (reporter.go:148's test-skip branch is dead code today).",
+      "action": "Replace the fixture assertion with: its skip classifies out_of_contract and it stays rc 1. Upside: the six-site taxonomy is EXHAUSTIVE, which is exactly what makes A-8's totality invariant checkable rather than best-effort."
+    },
+    {
+      "id": "R-4",
+      "severity": "medium",
+      "doc_claim": "Doc: 'Five files currently exhibit the fully-silent mixed shape' (inbox_injection_v2 10, inbox_v2_app 10, list_verify 6, park 6, record_discovery_verify 6). Controller item 6: 17 files with skipping properties, listing invoice 2/18, basic 1/3, inbox_injection 4/2, cross_module_functions 2/2, cross_module_functions_lib 2/1 as such, plus '6 all-skipped files that already exit 1' (naming 8).",
+      "finding": "CORRECTED by a first-party sweep of all 33 files in examples/runnable/contracts/ (not 17). (a) The genuinely silent set (success=true with >=1 skip) is SIX files, not five - the doc's five PLUS cross_module_functions_lib.ail (2 pass / 1 skip), which the doc missed and which is the out_of_contract shape that must STAY GREEN. (b) Counts differ: park has 7 skips (doc: 6), record_discovery_verify has 8 (doc: 6). (c) Files the controller implied were silent-green but which are ALREADY rc 1 today: basic (4 fails), invoice (1), inbox_injection (4), cross_module_functions (1), finance (1), quantifier_verify (3), per_function_depth_verify (4) - their exit codes cannot flip. (d) quantifier_verify's 4 skips are all out_of_contract, not a mysterious 'non-generator class', and because it already has 3 failures the doc's 'must still exit as today' assertion is non-discriminating.",
+      "action": "Use the plan's measured per-file table as the M1/M2/M3 gate. Net semantic change at M3 is EXACTLY 4 files flipping rc 0 -> 1. Use cross_module_functions_lib.ail (not quantifier_verify) as the out_of_contract-stays-green regression fixture."
+    },
+    {
+      "id": "R-5",
+      "severity": "medium",
+      "doc_claim": "Doc Conflict Surface + controller UNVERIFIED list: 'Tests asserting Success()==true for pass+skip mixes without kind classification: updated deliberately - the executor enumerates each in the sprint log; anything updated beyond that list is a regression.'",
+      "finding": "THE SET IS EMPTY. Every existing test touching Success()/AllSkipped()/SuccessAllowingSkips() (result_test.go:126,137,145; named_test_test.go:161,164,175,185,299,309) builds its suite with AddTestResult, and TestResult has no SkipKind, so VacuousSkips stays 0 and every verdict holds unchanged. The nearest candidate, TestSuiteResult_AllSkipped_False_HasPassed (named_test_test.go:170-178), asserts only AllSkipped()==false, never Success(). Additive JSON fields are also safe: reporter_test.go reads output[\"success\"].(bool) by key, integration_test.go:113-125 uses strings.Contains - neither asserts a closed key set.",
+      "action": "Upgrade the soft 'enumerate what you touched' requirement to the HARD checkable invariant A-10: `git diff -U0 -- '*_test.go'` must show NO REMOVED LINES in pre-existing test files. Any removal is a regression signal for the evaluator."
+    },
+    {
+      "id": "H1",
+      "severity": "high",
+      "doc_claim": "Doc success metric: 'Requires-out-of-contract skips (deliberate semantics, runner.go:532-540) still exit 0 - no false reds introduced.' Doc attributes the latent-bug-detector / newly-running-properties risk to Lane B only.",
+      "finding": "NEW HONESTY DEFECT THAT LANE A ITSELF INTRODUCES - live and reachable, unlike sites 331/454. With the A1 patch applied, examples/runnable/contracts/list_recursive_verify.ail goes rc 1 -> rc 0, success=true - from honestly-red ('NO TESTS RAN', all 6 properties vacuous) to GREEN - while 4 of its 6 properties are out_of_contract skips that executed only 1-2 of 100 cases (containsImpliesNonEmpty_property_1 skip/1, extractBounded_property_1 skip/2, _2 skip/1, _3 skip/2). It STAYS green after M3 because out_of_contract is deliberately forgiven. This sprint therefore converts an honest red into a green suite in which two-thirds of the contracts are essentially unvalidated - the #517 class, one layer over. Separately, A1 starts executing 16 previously-never-executed properties across 5 files, triage the doc budgeted only for Lane B.",
+      "action": "Bounded resolution inside Lane A: (a) do NOT change out_of_contract's exit semantics - a human-owned High-Impact Decision, and flipping it would red 8+ in-repo files; (b) A4's reporter widening already surfaces the reason AND the (N cases) count for these skips - the plan REQUIRES this be verified for out_of_contract, not just no_generator; (c) skip_kind + existing tests_run make the class machine-countable, so no new counter; (d) the rc 1 -> 0 transition is recorded explicitly in the plan's per-file table so the evaluator reads it as DISCLOSED, not accidental; (e) filed as follow-up F1 - a discard-rate threshold is a semantic decision outside Lane A's remit. Plus 0.5d triage budget added to M1."
+    },
+    {
+      "id": "R-6",
+      "severity": "medium",
+      "doc_claim": "Doc Files to Modify: internal/testing/runner.go (+25/-5). No mention of the file-size gate.",
+      "finding": "internal/testing/runner.go is 774 lines and make check-file-sizes fails at >800 (make/code-health.mk:123, over find internal cmd -name '*.go'). The doc's budget lands at ~794 - SIX lines of margin. Lane B's additional +40/-10 would definitively blow it.",
+      "action": "make check-file-sizes is a gate on EVERY milestone. SkipKind constants and any classification helper go in internal/testing/result.go (122 lines), not runner.go."
+    },
+    {
+      "id": "R-7",
+      "severity": "medium",
+      "doc_claim": "Controller directive item 4: 'internal/testing and cmd/ailang/test.go are unlikely to bind sockets, but cmd/ailang's package tests may - flag it if so.'",
+      "finding": "CONFIRMED AND SHARPENED. internal/testing has ZERO socket-binding test files. cmd/ailang has SIX: configdriven_callstream_test.go, configdriven_dispatch_test.go, configdriven_harvest_test.go, configdriven_streaming_span_snapshot_test.go, configdriven_streaming_test.go, messages_send_test.go. make test is `go test ./...` (make/test.mk:15-17) so it includes them.",
+      "action": "`go test ./internal/testing/... -count=1` is the INFORMATIVE gate. `go test ./cmd/ailang/...` and `make test` MUST be reported as UNINFORMATIVE UNDER SANDBOX, never pass/fail; the controller re-runs them outside the sandbox."
+    },
+    {
+      "id": "R-8",
+      "severity": "medium",
+      "doc_claim": "Doc Files to Modify: 'examples/runnable/contracts/ - mixed-shape fixture file (new, small)'.",
+      "finding": "TRAP. Adding any .ail file under examples/runnable/ reds make verify-examples via its manifest-drift gate (scripts/validate_manifest.go --ci, make/examples.mk:24) unless examples/manifest.json gains a matching entry (path/status/tags/description/modules), and verify_examples.go will also try to `ailang run` it. Meanwhile internal/testing already has an established fixture convention: t.TempDir() + os.WriteFile (runner_ensures_test.go:19-21); there is no testdata/ dir.",
+      "action": "Lane A fixtures live as in-test sources via t.TempDir() + os.WriteFile. Coding-standards' 'every language feature needs examples/feature_name.ail' does not bite: Lane A adds ZERO syntax (the doc's own A8 axiom score is 0). If the executor adds an examples/ file anyway it MUST add the manifest entry and run make verify-examples."
+    },
+    {
+      "id": "V-OK",
+      "severity": "info",
+      "doc_claim": "Controller VERIFIED items 1, 2, 3, 4, 5, 8, 9 and the UNVERIFIED inherited line numbers.",
+      "finding": "ALL UPHELD first-party. (1) createGeneratorForType has exactly two arms (runner.go:629-661); ast.ListType{} has ZERO non-test constructors (positive control: 21 in _test.go). (2) mixed-shape file -> success=true, rc 0, tests: [] with properties[] a separate array. (3) all-skipped -> rc 1, 'NO TESTS RAN (1 skipped)'; Success() at result.go:97 is ran>0 && FailedTests==0; AllSkipped() :104, SuccessAllowingSkips() :110. (4) A5 reproduced: jq fails on raw stdout. (5) no CI/Makefile/tools/scripts consumer of `ailang test` (positive control: 8 `ailang check` hits); sole consumer cmd/ailang/coordinator_cloud.go:586, additionally guarded by len(testFiles)>0 at :583-584. (8) two distinct no-generator texts confirmed (:249 `no generator for type %v`; :373/:490 `no generator for parameter %s: %v`). (9) :536 is out_of_contract with TestsRun>=1; its full text ends `: %s` with the formatted inputs. Inherited line numbers: aggregation loops are test.go:52-58 and :181-187 (doc said 52-59 / 181-188); reporter hooks confirmed at :56, :181, :205, :210.",
+      "action": "No action - recorded so the evaluator can see these were re-checked, not inherited."
+    },
+    {
+      "id": "R-9",
+      "severity": "low",
+      "doc_claim": "Doc/controller treat the examples/runnable/contracts sweep as a cheap, complete measurement (17 files quoted).",
+      "finding": "Five of the 33 files are pathologically slow under `ailang test`: recursive_verify.ail emitted only the `-> Running tests in ...` preamble and produced NO JSON after several minutes (run killed). scoring, showcase, string_verify, temperature behave the same. Also: `timeout` is NOT on PATH on this rig (rc 127), so a naive bounded sweep silently reports nothing.",
+      "action": "Exclude those five from the per-milestone gate sweep and report them as UNMEASURED (exceeds bounded wait), never pass/fail. Use gtimeout or a perl alarm for bounded waits, not `timeout`. Do not let a slow example block a milestone gate."
+    }
+  ],
+  "risks": [
+    {
+      "id": "RISK-1",
+      "risk": "M1's list-arm fix starts executing 16 previously-never-executed properties across 5 files; some fail on real latent bugs.",
+      "impact": "sprint time",
+      "mitigation": "0.5d triage budget in M1. Outcomes for the three list-dominated files are already probe-measured (hof_verify rc 1->0; list_verify surfaces a genuine deliberate failure; list_recursive_verify rc 1->0). Failures are the feature working - do not treat as regressions."
+    },
+    {
+      "id": "RISK-2",
+      "risk": "Exit-code strictness produces a false red on the deliberate requires-out-of-contract semantics.",
+      "impact": "high if missed",
+      "mitigation": "A-4 pins it at the CLI level using the in-repo file cross_module_functions_lib.ail (2 pass + 1 out_of_contract skip, rc 0 today, must stay rc 0). Taxonomy is per-site explicit, never inferred from message text."
+    },
+    {
+      "id": "RISK-3",
+      "risk": "H1: A1 turns an honest red (list_recursive_verify.ail all-skipped) into a green suite with 4 near-unvalidated out_of_contract properties.",
+      "impact": "medium (honesty)",
+      "mitigation": "Disclosed in the plan's per-file table; reason + case count surfaced in human output by A4; skip_kind + tests_run make it machine-countable; follow-up F1 filed. out_of_contract exit semantics deliberately NOT changed (human-owned decision)."
+    },
+    {
+      "id": "RISK-4",
+      "risk": "runner.go crosses the 800-line CI gate (774 today, 26 headroom).",
+      "impact": "medium (gate red)",
+      "mitigation": "make check-file-sizes on every milestone; SkipKind constants and helpers go in result.go."
+    },
+    {
+      "id": "RISK-5",
+      "risk": "Acceptance commands written flags-last silently test nothing (#534).",
+      "impact": "high (false green on the sprint's own gates)",
+      "mitigation": "Every command in the plan is flags-first; stated as executor constraint 0.1."
+    },
+    {
+      "id": "RISK-6",
+      "risk": "Sandbox denies loopback binds, so cmd/ailang and make test results are meaningless.",
+      "impact": "medium (misread gate)",
+      "mitigation": "Label them UNINFORMATIVE UNDER SANDBOX; go test ./internal/testing/... is the informative gate; controller re-runs the rest outside the sandbox."
+    }
+  ]
+}
