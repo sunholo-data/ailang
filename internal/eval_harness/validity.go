@@ -1,5 +1,7 @@
 package eval_harness
 
+import "strings"
+
 // Validity records whether a banked datapoint is a MEASUREMENT at all.
 //
 // # THE DISTINCTION THIS EXISTS TO MAKE
@@ -94,6 +96,71 @@ func (m *RunMetrics) InvalidReason() string {
 		return ""
 	}
 	return m.Validity.Reason
+}
+
+// applyValidityBackstop marks a row invalid when it failed for a reason the
+// harness could not identify. Called from MetricsLogger.Log, the single point
+// every banked row passes through.
+//
+// # WHY THIS EXISTS
+//
+// The validity framework shipped with its CONSUMERS wired and its PRODUCER
+// missing. MarkInvalid was called from exactly two places — fmt_treatment.go
+// and config_assert.go — so the dominant failure mode on the local rig, a
+// motoko crash banked as error_category=api_error, was recorded as a VALID
+// model failure. Four things silently depended on that being right:
+//
+//  1. A/B arms counted harness crashes against the treatment. The 2026-07-30
+//     fmt run had 2 of its first 3 rows die in the harness, both banked as
+//     model failures.
+//  2. --skip-existing only retries INVALID rows, so it never retried anything:
+//     every crash looked like a completed measurement and the gap became
+//     permanent.
+//  3. ELO fits benchmark difficulty from pass rates, so crash-prone benchmarks
+//     were rated "hard" when they were merely broken — and set selection
+//     built on that then picked the broken ones on purpose.
+//  4. Published pass rates carried the crash rate inside them.
+//
+// api_error is safe to treat this way because the taxonomy defines it as the
+// fallback "when no more specific cause is known": every identifiable MODEL
+// failure has its own category (compile_error, runtime_error, logic_error,
+// refused, step_exhausted, thrash_aborted, resource_limit, timeout, ...). So
+// reaching api_error means the harness genuinely does not know what happened,
+// which is the definition of a failure to measure rather than a measurement.
+//
+// The direction is deliberately conservative: an unknown failure is charged to
+// us and retried, never to the model.
+func (m *RunMetrics) applyValidityBackstop() {
+	// An earlier stage that actively ruled on this row wins — including a stage
+	// that marked it explicitly VALID.
+	if m.Validity != nil {
+		return
+	}
+	if m.ErrorCategory != ErrorCategoryAPI {
+		return
+	}
+	v := MarkInvalid(ReasonHarnessError)
+	v.Detail = validityDetailFromStderr(m.Stderr)
+	m.Validity = v
+}
+
+// validityDetailFromStderr picks the last non-empty stderr line as the
+// human-readable specifics for a quarantined row, so an operator can see WHICH
+// harness failure this was without opening the transcript.
+func validityDetailFromStderr(stderr string) string {
+	const maxDetail = 300
+	lines := strings.Split(stderr, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if len(line) > maxDetail {
+			line = line[:maxDetail] + "…"
+		}
+		return line
+	}
+	return "no stderr captured"
 }
 
 // FilterValid returns only the rows that count toward aggregates.

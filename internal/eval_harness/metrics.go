@@ -243,6 +243,14 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 		m.MicroragState = MicroragModeAuto.ResolvedState()
 	}
 
+	// M-EVAL-MEASUREMENT-CONTRACT: a row that failed for an unidentifiable
+	// reason is not a measurement. Applied HERE, at the single point every
+	// banked row passes through, rather than at each construction site — the
+	// framework's first version wired only its consumers and left this gap, so
+	// harness crashes were banked as valid model failures for six weeks. See
+	// applyValidityBackstop for what depended on that being wrong.
+	m.applyValidityBackstop()
+
 	// Determine subdirectory based on eval mode
 	var targetDir string
 	switch m.EvalMode {
