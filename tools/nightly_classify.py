@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Iterable
 
 INFRA_CATEGORIES = {"api_error", "timeout", "executor_error"}
+PAGING_CLASSES = {"regression", "sustained-failure"}
 DATE_RE = re.compile(r"nightly_eval_(\d{8})_rag_on")
 MODEL_RE = re.compile(r"_ailang_(.+)_\d+$")
 TRIAL_RE = re.compile(r"_trial\d+$")
@@ -306,13 +307,13 @@ def consecutive_failures(
         reverse=True,
     )
     count = 1  # tonight is a persistent all-fail
-    already_regressed = False
+    already_paged = False
     for record in relevant:
         if int(record["trials"]) < 2 or int(record["passes"]) != 0:
             break
         count += 1
-        already_regressed |= str(record.get("class", "")).lower() == "regression"
-    return count, already_regressed
+        already_paged |= str(record.get("class", "")).lower() in PAGING_CLASSES
+    return count, already_paged
 
 
 def classify_bench(
@@ -331,7 +332,7 @@ def classify_bench(
     passes = sum(int(record["passes"]) for record in window)
     trials = sum(int(record["trials"]) for record in window)
     nights = len({record["date"] for record in window})
-    consecutive, already_regressed = consecutive_failures(
+    consecutive, already_paged = consecutive_failures(
         records, bench, model, arm, tonight
     )
 
@@ -348,10 +349,10 @@ def classify_bench(
     if (
         label not in {"REGRESSION", "GAP"}
         and consecutive >= escalate_after
-        and not already_regressed
+        and not already_paged
     ):
         escalated_from = label
-        label = "REGRESSION"
+        label = "SUSTAINED-FAILURE"
     return Verdict(
         label, bench, cats, passes, trials, nights, consecutive, escalated_from
     )
