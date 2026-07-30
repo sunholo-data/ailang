@@ -320,6 +320,22 @@ insufficient-history) so triage knows which rule fired.
 > retains its same-night bug plus one Discord ping. SUSPECTED-FLAKE, GAP, and
 > INSUFFICIENT-HISTORY routing is unchanged. Both `regression` (legacy history)
 > and `sustained-failure` suppress repeat paging within one all-fail run.
+>
+> **Reachability correction to the D4 text above.** The claim that the backstop is
+> "label-agnostic across SUSPECTED-FLAKE and INSUFFICIENT-HISTORY" is *defensive,
+> not active*: at the current thresholds the INSUFFICIENT-HISTORY path **cannot
+> fire**. Reaching `consecutive >= 3` requires three nights with `trials >= 2`,
+> which yields `nights >= 3 >= min_nights` and `trials >= 6 >= min_trials`, so the
+> benchmark has always graduated past INSUFFICIENT-HISTORY before it can escalate.
+> Measured by brute-forcing 19,607 synthetic streams (1–5 prior nights × passes
+> 0–2 × trials 0–3): the only `(label, escalated_from)` escalation pair ever
+> observed is `(SUSTAINED-FAILURE, SUSPECTED-FLAKE)`, with a positive control
+> confirming SUSTAINED-FAILURE is reachable. So the quorum-round-1 widening that
+> motivated this wording — "the original SUSPECTED-FLAKE-only backstop left
+> low-history chains unbounded" — addressed a state that cannot occur. The
+> condition is kept because it stays correct if `min_nights`/`min_trials`/`K` are
+> ever retuned, but **do not design against the INSUFFICIENT-HISTORY path, and do
+> not read the escalated-from field as evidence that it fires.**
 
 ### D5 — NO SILENT FALLBACKS (mission Critical Principle 2)
 
