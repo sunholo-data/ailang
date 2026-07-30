@@ -313,6 +313,14 @@ The GitHub-issue cut happens entirely in the script's label→`--type` mapping �
 consecutive all-fail night" plus the window label it escalated from (suspected-flake or
 insufficient-history) so triage knows which rule fired.
 
+> **2026-07-30 amendment (refs #538):** the K=3 backstop now emits
+> **SUSTAINED-FAILURE**, not REGRESSION. It still files a per-benchmark
+> `--type bug`, but sends no Discord ping; the body states that the prior window
+> is not solid. **REGRESSION** is now reserved for a solid trailing window and
+> retains its same-night bug plus one Discord ping. SUSPECTED-FLAKE, GAP, and
+> INSUFFICIENT-HISTORY routing is unchanged. Both `regression` (legacy history)
+> and `sustained-failure` suppress repeat paging within one all-fail run.
+
 ### D5 — NO SILENT FALLBACKS (mission Critical Principle 2)
 
 Today's behaviour: missing prior run logs loudly (`nightly-eval.sh:253` — acceptable) but the
