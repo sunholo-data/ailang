@@ -1209,6 +1209,38 @@ class RoutingContractTests(unittest.TestCase):
         self.assertIn("Sustained failures: chronic", logged)
         self.assertIn("Nightly eval:", logged)  # known-positive summary control
 
+    def test_Routing_summary_omits_empty_insufficient_history(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "GAP\tknown_gap\t[compile_error]\t0/10\t5\t2"
+        )
+        self.assertIn("Nightly eval complete:", logged)
+        self.assertNotIn("insufficient history:", logged)
+
+    def test_Routing_summary_separates_insufficient_history_rows(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "INSUFFICIENT-HISTORY\tnew_one\t[compile_error]\t2/2\t1\t1\n"
+            "INSUFFICIENT-HISTORY\tnew_two\t[compile_error]\t3/3\t1\t2"
+        )
+        first = "insufficient history: new_one (2/2 over 1 nights, failing 1/3 toward escalation)"
+        second = "insufficient history: new_two (3/3 over 1 nights, failing 2/3 toward escalation)"
+        self.assertIn(first, logged)
+        self.assertIn(second, logged)
+        self.assertIn(f"{first}\n{second}", logged)
+        self.assertNotIn("\\n", logged)
+
+    def test_Routing_suspected_flake_body_has_real_newline_before_model(self):
+        logged = self._run_route(
+            "HEALTH\thistory: fixture\n"
+            "SUSPECTED-FLAKE\tpipeline\t[compile_error]\t6/10\t5\t1"
+        )
+        self.assertIn(
+            "pipeline (6/10 over 5 nights, failing 1/3 toward escalation)\nModel:",
+            logged,
+        )
+        self.assertNotIn("\\n", logged)
+
     def test_Routing_sustained_body_claims_no_break(self):
         logged = self._run_route(
             "HEALTH\thistory: fixture\n"
