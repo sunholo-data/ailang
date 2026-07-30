@@ -561,11 +561,12 @@ fi
 
 if [[ -n "$SUSPECTED" ]]; then
     SCOUNT=$(echo "$SUSPECTED" | wc -l | tr -d ' ')
-    SUSPECTED_BODY=$(echo "$SUSPECTED" | awk -F'\t' '{printf "%s (%s over %s nights, failing %s/3 toward escalation)\\n",$1,$3,$4,$5}')
+    SUSPECTED_BODY=$(echo "$SUSPECTED" | awk -F'\t' '{printf "%s (%s over %s nights, failing %s/3 toward escalation)\n",$1,$3,$4,$5}')
     log "suspected flakes (${SCOUNT}, no Discord): $(echo "$SUSPECTED" | cut -f1 | tr '\n' '; ')"
     ailang messages send controlplane \
         "Nightly eval: ${SCOUNT} suspected flake(s) on ${DATE} (no alert).
-${SUSPECTED_BODY}Model: ${MODEL} | Tiers: ${BENCH_TIERS}" \
+${SUSPECTED_BODY}
+Model: ${MODEL} | Tiers: ${BENCH_TIERS}" \
         --title "Nightly eval: ${SCOUNT} suspected-flake(s) (${DATE})" \
         --from "nightly-eval" \
         --type "note" 2>/dev/null || true
@@ -591,7 +592,10 @@ REG_NAMES=$( [[ -n "$REGRESSIONS" ]] && echo "$REGRESSIONS" | cut -f1 | tr '\n' 
 SUSTAINED_NAMES=$( [[ -n "$SUSTAINED" ]] && echo "$SUSTAINED" | cut -f1 | tr '\n' ' ' || echo "none" )
 GAP_NAMES=$( [[ -n "$GAPS" ]] && echo "$GAPS" | cut -f1 | tr '\n' ' ' || echo "none" )
 SUSPECTED_NAMES=$( [[ -n "$SUSPECTED" ]] && echo "$SUSPECTED" | cut -f1 | tr '\n' ' ' || echo "none" )
-INSUFFICIENT_BODY=$(echo "$INSUFFICIENT" | awk -F'\t' '{printf "insufficient history: %s (%s over %s nights, failing %s/3 toward escalation)\\n",$1,$3,$4,$5}')
+INSUFFICIENT_BODY=""
+if [[ -n "$INSUFFICIENT" ]]; then
+    INSUFFICIENT_BODY=$(echo "$INSUFFICIENT" | awk -F'\t' '{printf "insufficient history: %s (%s over %s nights, failing %s/3 toward escalation)\n",$1,$3,$4,$5}')
+fi
 ailang messages send controlplane \
     "${HEALTH}
 Nightly eval complete: ${PASS} (${RATE}) on ${DATE}.
