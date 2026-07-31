@@ -16,6 +16,28 @@ inner-loop skills — it does not duplicate them.
 improvement loop, since retro fixes must benefit all missions). What differs per mission is a small
 **profile**, read from two places:
 
+> **⚠ A SKILL EDIT IS LIVE FOR EVERY MISSION THE INSTANT YOU SAVE IT — there is no sync step, and
+> no "the sibling is insulated" grace period** (added 2026-07-31 iteration 125; instances: iter-123
+> filed `#544` after finding `.claude/skills/` vs `.agents/skills/` duplicated with **31 of 38
+> diverged**, and iter-125's planner refuted the controller's own cross-mission blast-radius claim).
+> Measured on the rig, and the measurement corrected the first draft of this very note:
+> `~/.claude/skills/mission-control` is a **SYMLINK to `<repo>/.claude/skills/mission-control`**
+> (`readlink` confirms; both paths report the **same inode**). So the "global copy" and the "repo
+> copy" are **ONE FILE**, not two — `ls -la` on the *file* hides this, because the symlink is on the
+> *directory*. Editing the repo copy is instantly live for every mission on the rig, and
+> `ailang-world` has **no repo-local `.claude/skills/` directory at all**, so it resolves through
+> that same symlink. A **third**, genuinely separate, git-tracked and already-drifted copy sits at
+> `<repo>/.agents/skills/mission-control/SKILL.md` (44,067 B vs 72,254 B) — that one is a real
+> divergence and is what `#544` tracks. Two consequences: **(a)** a Gate-5 skill edit needs no
+> copy-sync, but it DOES take effect for the sibling mission's next fire with no review gate of its
+> own, so write it to be true for every mission, not just this one; **(b)** never infer
+> cross-mission blast radius from the DRIVER alone — the drivers really are two byte-identical
+> files (`diff -q` silent), and iter-125 cited that true fact for a broader "blast radius = zero
+> until synced" claim that is FALSE, because the skill is shared by symlink. That is a Gate-2
+> rule-3b **scope** error: a green check quoted for a sentence wider than it supports. Check the
+> skill path separately from the driver — `readlink` before concluding anything about copies — or
+> say "driver-only" and mean it.
+
 - **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
   `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);
   the bookkeeping-issue number lives in `~/.ailang/state/mission-gh-issue` (V1 falls back to `329`).

@@ -6657,3 +6657,104 @@ war story).
 drain locally, no interface change; avoid **(a)**). On an answer this unparks straight to
 sprint-planner — the doc is otherwise plan-ready and the patch is verified green. If Mark prefers,
 `#539 m-dialect-keyword-diagnostics` and the two quota-offload items are untouched and pickable.
+
+## 130 — 2026-07-31 — Iteration 125: `m-planner-codex-lane` **doc + sprint plan LANDED, execution PARKED to Mark's 08-03 re-arm**. The quorum caught a `declare -A` that would have **wedged the loop on the next launchd fire** — then the planner refuted the fix's own rollback, and one of my commit-message claims.
+
+**Picked** — Mark's quota-offload #1. `#546` (`m-recorded-stream-api`) stayed **PARKED**: his a/b/c
+scope call from iteration 124 is still unanswered, and Standing rule 2 forbids forcing a park.
+Gate 0 found nothing outranking the queue — dev CI 12/13 complete / **0 failures** SHA-addressed,
+**zero** open `[nightly-eval]` alarms, billing CLEAN, no thread rotation due (`#484` was created
+Mon 07:27 **CEST**, i.e. *after* the 07:00 local boundary — the timezone that iteration 114
+stamped as load-bearing). Both "nothing found" readings were run with known-positive controls:
+the nightly search returned 5 CLOSED issues, and Mark's single `#484` comment sits **exactly at**
+the watermark, so its exclusion is correct rather than a broken query.
+
+**Feasibility probed BEFORE spending a designer run.** `codex exec --model gpt-5.6-sol` rc=0;
+the driver's codex probe/fallback is `case "$MISSION_EXECUTOR_MODEL"` — **executor-only**, the
+planner gets none; codex authenticates via ChatGPT **subscription**, so the offload is a genuine
+quota move at $0 metered; and `sprint-planner` needs **zero** `gh`/`curl`, so iteration 122's
+measured "`gh auth` fails inside the codex sandbox" blocker does **not** apply to this role.
+
+**THE FIND — a loop-wedging defect, caught by a reviewer and confirmed stronger than filed.**
+`gemini-3-1-pro` rejected R1 because the proposed driver loop used `declare -A`. Verified
+first-party rather than taken on trust: the driver's `#!/usr/bin/env bash` resolves to
+`/bin/bash` **3.2.57**, and **no 4.x bash exists on this rig at all** — `/opt/homebrew/bin/bash`
+and `/usr/local/bin/bash` are both absent, which is *exactly why* the launchd `PATH` listing
+those two dirs looked safe. Live repro emits both `declare: -A: invalid option` **and** bash 3.2
+arithmetic-evaluating the model name (`gpt-5.6-sol: syntax error: invalid arithmetic operator
+(error token is ".6-sol")`); a script carrying the driver's own shebang prints
+`ASSOC UNSUPPORTED`. It would have died **before any role spawned**, with no self-recovery.
+Second `declare -A` defect in this loop after iteration 107. The designer, given the confirmation,
+then found a **second** Bash-4.0-ism neither reviewer caught — `${role,,}` → `bad substitution` —
+which I also reproduced.
+
+**Quorum BLOCKED ×2; the design DIRECTION was never contested in either round.** R1: gemini as
+above; `gpt5-6-sol` that D2's independence carve-out was enforced by *controller judgement*, not
+deterministically. I added a constraint neither reviewer could have known — **the driver exports
+roles once per fire, BEFORE a queue item is picked**, so no driver-side classifier can see the
+sprint's doc — which forced a genuine two-stage design instead of a paper fix. R2: `gpt5-6-sol`
+that the new classifier was **denylist-, not allowlist-based** (so unlisted or future language
+paths silently got the same-model planner+executor pairing D2 claims to prohibit), and gemini
+that `derive-planner-lane.sh` ignored `$MISSION_PLANNER_MODEL`, **breaking the doc's own D6
+rollback**. Both carried concrete reviewer-authored `proposed_fix` text and neither touched the
+direction → **narrow-refinement carve-out**: their verbatim fixes applied, no controller-invented
+resolution substituted. The designer correctly **flagged rather than resolved** a contradiction
+the new allowlist created (it fail-closes this very doc, whose Files-to-Modify lists `~/.claude/`
+and the World copy); my ruling was to fix the *declaration*, never weaken the allowlist.
+
+**Then the opus planner refuted FIVE premises — the two decisive ones controller-verified.**
+**R1: D6's "rollback is one env var" is a NO-OP FOR V1, and BOTH quorum rounds accepted it.**
+`~/.config/ailang/mission-v1.env` does not exist (control: `mission-world.env` does, so the path
+is right), and the driver sources the profile file only under `$MISSION_PROFILE`, which the V1
+plist never sets — it works for World, the mission the doc called insulated. **R4: "World blast
+radius = zero until synced" is FALSE** — `ailang-world` has **no repo-local `.claude/skills/`
+directory at all**, so it loads the GLOBAL skill copy D4 mandates editing, reaching World at its
+next fire. R2: AC1/AC2/AC7 are unrunnable as written (the overlap guard at line 334 yields
+*before* the dry-run exit at 351, so the ACs reproduce the very vacuous-pass class D5 exists to
+kill). R3: AC4 can never pass (the main checkout is chronically rig-dirty). R5: my
+Files-to-Modify ruling is necessary but not sufficient (fixture prose backticks
+`internal/parser/...`).
+
+**My own error, recorded rather than quietly fixed.** R4 refutes a sentence in *my* commit
+message for `e980c72d5`. I verified the **driver** was byte-identical (true) and cited that fact
+for a broader **blast-radius** claim (false) — a **rule-3b SCOPE error**, committed in the same
+iteration I was applying that rule to others' evidence. The instrument was green and honest; the
+sentence it was attached to was wider than the command supported.
+
+**Ruled out**: (a) that `#546` could proceed — refuted, the human decision is genuinely
+outstanding and Standing rule 2 governs; (b) that the codex sandbox's `gh` block would obstruct
+the planner — refuted by measurement, `sprint-planner` uses no `gh`; (c) that a green Gate 3b
+would evidence this change — refuted, `tools/launchd/` has **zero** CI coverage (no workflow, no
+shellcheck/`bash -n` gate, no test file; control-verified, since the same grep DID find `tools/`
+in two workflows); (d) that AC3a's placeholder guard was tripping on a real defect — refuted by
+measurement, it **false-positives on its own description** (1 hit whole-file, **0** scoped,
+`validate_sprint_json.sh` rc=0), and the executor was handed the scoped form.
+
+**Why execution is PARKED — a scheduling call on evidence, not caution.** With no CI over the
+driver, the ACs are the only real gate, and the point of no return is **M2, not M4**: it edits
+the file launchd fires every 5400 s, and its revert is a *code* revert, because an env var cannot
+un-break a driver that fails to parse. Landing that unattended on a Friday before a quiet weekend
+buys **zero** capacity — the offload exists to stretch the week Monday-to-Monday, which is the
+date Mark set. The plan is written to be picked up cold; **no `plan_ready` handoff was sent**, so
+no executor is armed.
+
+**Also surfaced**: only **1 of 102** planned docs carries a `Planner-Lane` field and 8 heading
+spellings exist, so the lane engages only on newly authored infra docs — stated plainly rather
+than sold as immediate; the header template lives in
+`design-doc-creator/resources/design_doc_structure.md`, not its `SKILL.md`; and a **third**
+git-tracked skill copy (`.agents/`, 44067 B vs 70544 B) is already drifted, corroborating
+iteration 123's `#544`.
+
+**Routing evidence**: controller=**opus** (session) quota-bucket — triage/pick/probe/verify/
+record; designer=**`claude:claude-fable-5`** per the ROTATION (probe rc=0; **three** bounded runs
+— initial, revision, carve-out — directive delivery asserted at 8,459 B / 8,431 B / 5,389 B, all
+per-iteration filenames with `< /dev/null`), rotation state advanced; planner=**opus**, fired and
+decisive; quorum reviewers `gpt5-6-sol` + `gemini-3-1-pro` + controller across two rounds,
+**metered $0.0777 (R1) + $0.1108 (R2) = $0.189** of the `$5` ceiling. Executor and evaluator
+**NOT fired** — deliberate and recorded, since the item parked at the sprint gate; generator≠judge
+is therefore moot this iteration. Fable billed **zero metered** (subscription wrapper only).
+
+**Next**: at the 2026-08-03 re-arm, `m-planner-codex-lane` goes straight to sprint-executor —
+plan-ready, validator rc=0, **no human decision owed**. Offload (2)
+`m-evaluator-gemini-review-lane` follows. `#546` unparks the moment Mark answers a/b/c
+(controller's read remains **(c)**, avoid **(a)**).
