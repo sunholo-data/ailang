@@ -398,7 +398,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	// Strip out non-pure functions
-	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
+	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile, functionName)
 
 	pipelineFilename := e.modulePath
 	if sourceFile.Module == nil {
@@ -465,92 +465,6 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
-}
-
-// stripNonPureFunctions removes functions with effects and test/property
-// declaration blocks from source code.  Test blocks (test "name" { ... }) are
-// stripped because they are already collected into TestCase.Body and would
-// otherwise be re-elaborated as duplicate Core declarations — causing
-// evaluation of the wrong expression or type conflicts in EvalCoreProgram.
-func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
-	var nonPureFunctions []string
-	for _, f := range file.Funcs {
-		if !f.IsPure {
-			nonPureFunctions = append(nonPureFunctions, f.Name)
-		}
-	}
-
-	// Collect line ranges occupied by test/property declarations.
-	// We use a brace-depth counter to find the closing } of each block.
-	type lineRange struct{ start, end int }
-	var skipRanges []lineRange
-
-	sourceLines := splitLines(source)
-	for _, decl := range file.Decls {
-		var startLine int
-		switch d := decl.(type) {
-		case *ast.TestDecl:
-			startLine = d.Pos.Line
-		case *ast.PropertyDecl:
-			startLine = d.Pos.Line
-		default:
-			continue
-		}
-
-		// Find the closing brace by scanning from startLine.
-		depth := 0
-		endLine := startLine
-		for i := startLine - 1; i < len(sourceLines); i++ {
-			for _, ch := range sourceLines[i] {
-				if ch == '{' {
-					depth++
-				} else if ch == '}' {
-					depth--
-					if depth == 0 {
-						endLine = i + 1 // 1-based
-						goto foundEnd
-					}
-				}
-			}
-		}
-	foundEnd:
-		skipRanges = append(skipRanges, lineRange{startLine, endLine})
-	}
-
-	inSkipRange := func(lineNum int) bool {
-		for _, r := range skipRanges {
-			if lineNum >= r.start && lineNum <= r.end {
-				return true
-			}
-		}
-		return false
-	}
-
-	lines := []string{}
-	for i, line := range sourceLines {
-		lineNum := i + 1 // 1-based
-		skip := false
-
-		// Skip lines inside test/property declaration blocks.
-		if inSkipRange(lineNum) {
-			skip = true
-		}
-
-		if !skip {
-			for _, funcName := range nonPureFunctions {
-				if containsPattern(line, "export func "+funcName) || containsPattern(line, "func "+funcName) {
-					skip = true
-					break
-				}
-			}
-		}
-
-		if !skip {
-			lines = append(lines, line)
-		}
-	}
-
-	return joinLines(lines)
 }
 
 // EvaluateLiteral converts an AST literal expression to an eval.Value.
@@ -679,13 +593,14 @@ func (e *Executor) ExtractPureClusterForFunction(
 		return nil, nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
-
 	cfg := pipeline.Config{
 		Mode: pipeline.ModeEval,
 	}
 	src := pipeline.Source{
-		Code:     strippedSource,
+		// With a filename, the module pipeline reloads source from disk
+		// (internal/pipeline/pipeline.go), so an in-memory strip here would be dead.
+		// Keep Code truthful for the file.size_bytes telemetry attribute.
+		Code:     string(sourceCode),
 		Filename: e.modulePath,
 		IsREPL:   false,
 	}

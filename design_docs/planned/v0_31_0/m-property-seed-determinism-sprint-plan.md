@@ -80,6 +80,18 @@ named `test` block and a contract-bearing function has a broken named-test path 
 
 ### 0.3 REFUTED — AC9's fixture does not parse; AC9 needs a new fixture
 
+> **DISCHARGED 2026-08-01 (iteration 127) — AC9 IS NO LONGER BLOCKED. Do not re-derive this.**
+> The cause was never the contract form. `stripNonPureFunctions` deleted a single line of a
+> declaration that spans several, and treated "not declared `pure`" as non-pure — so the function
+> under extraction was cut out of the temp module and its `requires`/`ensures` were left orphaned.
+> Fixed by the declaration-aware strip in `internal/testing/source_strip.go`.
+> **AC9's fixture below, verbatim and unmodified, now passes.** Paired measurement:
+> pre-fix binary → `rc=1`, `PAR_NO_PREFIX_PARSE at ...:3:1: unexpected token in expression: ensures`;
+> post-fix binary → `rc=0`, `1 tests: 1 passed, 0 failed, 0 skipped`.
+> Committed regression fixture: `internal/testing/testdata/strip/moduleless_contract.ail`.
+> **M2 may keep AC9 exactly as originally written** — no restatement over a module-bearing file is
+> needed, so §5.4's fallback is moot. The rest of this section is kept as the historical record.
+
 AC9's fixture is module-less by design (it exists to prove module-less identity derivation):
 
 ```ailang
@@ -588,13 +600,17 @@ captured once in `cmd/ailang/main.go` before path walking.
 
 Design-doc AC5, AC6, AC7 verbatim, plus the `--seed 42` forms of AC1/AC3/AC8 restored.
 
-### 5.3 M2/M3 blocker to resolve at re-arm
+### 5.3 M2/M3 blocker to resolve at re-arm — ✅ RESOLVED 2026-08-01, NOTHING OWED
 
-AC9 is **unimplementable as written** (§0.3). Before M2 starts, the re-arm session must either
-produce a module-less contract fixture that survives `ExtractFunctionBinding`'s temp-file round-trip,
-or restate AC9 over a module-bearing file at the same workspace-relative path under two absolute
-roots. Do not start M2 with AC9 unresolved — it is the only criterion that proves `WorkspaceRoot`
-actually reached the derivation, and it is the highest-risk part of M2.
+**This blocker is discharged; M2 starts unblocked.** Iteration 127 landed the declaration-aware
+strip (`internal/testing/source_strip.go`), and AC9's original module-less fixture now parses and
+exits 0 — verified with a paired pre-fix/post-fix control (§0.3). **Keep AC9 as written**; do not
+spend re-arm time producing a substitute fixture or restating it over a module-bearing file.
+Regression cover: `internal/testing/testdata/strip/moduleless_contract.ail`.
+
+Historical statement of the blocker, retained: AC9 was **unimplementable as written** (§0.3), and
+M2 was not to start until it was resolved, it being the only criterion proving `WorkspaceRoot`
+actually reached the derivation.
 
 ### 5.4 What "M1 only" leaves in the tree — precisely
 
@@ -656,7 +672,7 @@ the safe direction and is exactly what tonight ships.
 |---|---|---|---|
 | B1 | AC1/AC3/AC8 use `--seed 42`, which M1 does not add | **was blocking** | RESOLVED — §4 restates them seed-free; probabilistic margins computed in §0.4 |
 | B2 | AC3 fixture unparseable (`assert`) + named-test synthesizer breaks on contract files | **was blocking** | RESOLVED — §4 AC3-M1 uses a second contract function instead. Underlying bug routed OUT of scope; file a new issue at landing |
-| B3 | AC9 fixture does not parse | blocking **for M2**, not M1 | PARKED — must be resolved at the 2026-08-03 re-arm before M2 starts (§5.3) |
+| B3 | AC9 fixture does not parse | blocking **for M2**, not M1 | ✅ RESOLVED 2026-08-01 (iter 127) — declaration-aware strip landed; AC9's original fixture passes, keep it as written (§0.3, §5.3) |
 | R1 | `runner.go` 10 lines from the 800 cap | high | §3.1 pure-move-first, enforced by AC10-M1's `-le 700` |
 | R2 | 1,000-attempt cap × sparse list domains is slow | medium | AC13-M1 wall-clock bound; do **not** lower the cap |
 | R3 | Filtering hides a real failure | high | AC2-M1's `x=[1-9][0-9]{2,}` counterexample assertion + T4 |
