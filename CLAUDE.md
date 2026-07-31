@@ -8,23 +8,11 @@ every improvement is routed to exactly one lane — an **AILANG fix**, a **motok
 then route it. **Default bias: if it can be an extension, it is an extension — not a core change.** The
 living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) lives in PROGRAM.md.
 
-## Session Start Routine
+## Session start
 
-**At the start of EVERY session, check for agent messages.**
-
-1. **SessionStart hook runs automatically** — injects unread messages into system reminders
-2. **If no messages in reminders**, manually check: `ailang messages list --unread`
-3. **When messages exist**: Summarize to user, ask what to do
-4. **After handling**: `ailang messages ack --all`
-5. **If task fails**: `ailang messages unack MSG_ID` (moves back for retry)
-
-**Essential message commands:**
-```bash
-ailang messages list --unread              # Check for new messages
-ailang messages read MSG_ID                # Read full message
-ailang messages ack --all                  # Mark all as read
-ailang messages send INBOX "msg" --title "Title" --from "agent-name"
-```
+The SessionStart hook injects unread agent messages automatically. If there are any: summarize to the
+user, ask what to do, then `ailang messages ack --all`. If a task fails, `ailang messages unack MSG_ID`.
+Full command reference: `ailang messages --help`.
 
 ---
 
@@ -58,12 +46,11 @@ gh auth switch --user sunholo-voight-kampff  # Switch if needed
 
 ### 1. ALWAYS USE EXISTING TOOLS FIRST
 
-Before writing ANY new script or code:
-1. Check `make help` for existing targets
-2. Check `tools/` directory for existing scripts
-3. Search codebase: `grep -r "function_name" internal/`
+Before writing ANY new script or code: check `make help`, check `tools/`, then
+`grep -r "function_name" internal/`.
 
-**The `ailang` CLI exists to make YOUR life easier.** Use `ailang chains`, `ailang messages`, `ailang eval-*`, and `ailang dashboard` instead of raw SQLite queries or ad-hoc scripts.
+**The `ailang` CLI exists to make YOUR life easier.** Use `ailang chains`, `ailang messages`,
+`ailang eval-*`, and `ailang dashboard` instead of raw SQLite queries or ad-hoc scripts.
 
 **Look the question up, not the tool.** Knowing a tool exists is not the same as knowing
 which question it answers — the gap between those two is where we rebuild worse versions of
@@ -71,16 +58,13 @@ what we already have.
 
 | Question | Instrument |
 |----------|-----------|
-| **What was the agent actually told?** | `ailang chains chat <chain-id> --stage N`. The banked `agent_transcript` holds tool **calls only** — no results. The tool RESULTS live in motoko's session JSONL (`<motoko-repo>/.motoko/logfile/session_*.jsonl`) and in the observatory via `internal/observatory/importer_motoko.go` (`ailang chains import-motoko <file>`). |
+| **What was the agent actually told?** | `ailang chains chat <chain-id> --stage N`. The banked `agent_transcript` holds tool **calls only** — no results. The tool RESULTS live in motoko's session JSONL (`<motoko-repo>/.motoko/logfile/session_*.jsonl`) and in the observatory via `ailang chains import-motoko <file>`. |
 | How hard is a benchmark, really? | `ailang eval-elo <dir> --json` — fits difficulty separately from model strength, so it survives baseline shifts that raw pass rates do not. |
 | Did an A/B actually measure anything? | `ailang eval-paired <on> <off>` — reports discordant pairs and a headroom warning, not just aggregate rates. |
 | Why did a run fail? | `error_category` on the banked row FIRST. `api_error` is the catch-all meaning "cause unknown", not "model failed". |
 
-**A 2026-07-31 example of getting this wrong:** `ailang fmt` was telling every eval model its
-correct code was non-canonical, ~15 times per run, for two weeks. The message was in the
-session JSONL the whole time. It was invisible because the eval harness banks its own weaker
-transcript, and nobody asked "what was the agent told?" — we asked "what did the agent do?"
-and inferred the rest, wrongly.
+Asking "what did the agent DO?" and inferring the rest is how `ailang fmt` spent two weeks telling every
+eval model its correct code was non-canonical — the message was in the session JSONL the whole time.
 
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
@@ -98,112 +82,27 @@ Before fixing a bug, ALWAYS ask: "Is this part of a larger pattern?" Search for 
 ## Project Overview
 
 **AILANG is a deterministic language designed for autonomous AI code synthesis and reasoning.**
+File extension: `.ail`. Priorities: machine decidability, semantic transparency, compositional determinism.
 
-Priorities: Machine decidability, semantic transparency, compositional determinism. File extension: `.ail`.
+Design principles: **explicit effects** (all side effects declared in signatures) · **everything is an
+expression** (no statements) · **type safety** (Hindley-Milner + row polymorphism) · **deterministic**
+(all non-determinism explicit) · **AI-friendly** (structured execution traces).
 
-### Key Design Principles
-1. **Explicit Effects** — All side effects declared in function signatures
-2. **Everything is an Expression** — No statements, only expressions
-3. **Type Safety** — Hindley-Milner inference + row polymorphism
-4. **Deterministic** — All non-determinism must be explicit
-5. **AI-Friendly** — Structured execution traces for training
-
-### AI Provider vs Executor Architecture
-
-| Package | Purpose | Use For |
-|---------|---------|---------|
-| `internal/ai/` | Text generation via HTTP APIs | Research, docs, Q&A |
-| `internal/executor/` | Agentic coding with file editing | Bug fixes, features, refactoring |
-
-### Architecture boundaries (agents)
-
-`internal/` is organized into logical layers. Know which one you're touching:
-
-- **core** (compiler/runtime): `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}`
-- **dashboard/apps** (services + UI): `internal/{server,coordinator,observatory,messaging}` (+ `ui/`)
-- **bridge**: `internal/embed` — the ONLY sanctioned path from dashboard → compiler.
-
-**Never cross these import directions:**
-1. A **core** package must NOT import a **dashboard** package.
-2. A **dashboard** package must NOT import the compiler surface
-   (`parser`/`types`/`core`/`elaborate`/`pipeline`) directly — go through `internal/embed`.
-
-Run `make check-boundaries` before committing any cross-cutting change (it's a
-CI gate). Full rationale + the allow/deny table live in [ARCHITECTURE.md](ARCHITECTURE.md#architecture-boundaries).
-
----
-
-## Available Skills
-
-- **use-ailang** — Write correct AILANG code
-- **mission-control** — One outer-loop mission iteration (default: V1 mission → v1.0.0)
-- **skill-builder** — Create new skills (meta-skill)
-- **release-manager** / **post-release** — Release workflow
-- **sprint-planner** / **sprint-executor** / **sprint-evaluator** — Sprint workflow (plan, execute, evaluate)
-- **collaboration-hub** — Collaboration Hub UI (React)
-- **codebase-organizer** — Refactor large files
-- **design-spec-auditor** — Verify code matches specs
-- **github-issue-triage** — Triage GitHub issues
-- **test-coverage-guardian** — Analyze test coverage
-- **perf-reviewer** — Performance review and benchmarks
-- **trace-debugger** — Debug via OTEL traces
-- **builtin-developer** — Add builtin functions
-- **parser-developer** — Parser development
-- **eval-analyzer** / **benchmark-manager** — Eval tools
-- **coordinator-helper** — Manage coordinator tasks
-
-**Docs**: [.claude/skills/README.md](.claude/skills/README.md)
-
----
-
-## Claude Code Plugins (LSP)
-
-This repo ships a local Claude Code marketplace at [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) with:
-
-- **ailang-go-lsp** — runs `gopls` so Claude gets real-time Go diagnostics, go-to-definition, find-references, and hover types instead of grepping the codebase. Requires `gopls` on PATH (`go install golang.org/x/tools/gopls@latest`).
-- **ailang-lsp** — runs `ailang lsp --stdio` so Claude gets the same capabilities for `.ail` files (diagnostics, hover types with effect rows, go-to-def, references, document symbols). Requires the `ailang` binary on PATH (`make install` from this repo).
-
-One-time install (per developer):
-
-```
-/plugin marketplace add /Users/mark/dev/sunholo/ailang
-/plugin install ailang-go-lsp@ailang-tools
-/plugin install ailang-lsp@ailang-tools
-```
-
-Verify with `/plugin` (both should show under Installed, no entries under Errors). User guide: [docs/docs/guides/lsp.md](docs/docs/guides/lsp.md).
-
----
-
-## Conditional Rules (`.claude/rules/`)
-
-Domain-specific rules load automatically when working with matching files:
-
-| Rule File | Loads When Touching |
-|-----------|-------------------|
-| `parser.md` | `internal/parser/`, `internal/lexer/`, `internal/ast/` |
-| `type-system.md` | `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/pipeline/` |
-| `coordinator.md` | `internal/coordinator/`, `internal/executor/`, `internal/server/`, `ui/` |
-| `eval.md` | `internal/eval_harness/`, `benchmarks/`, `eval_results/` |
-| `ailang-syntax.md` | `examples/*.ail`, `stdlib/`, `prompts/` |
-| `coding-standards.md` | Always loaded |
-| `dev-workflow.md` | Always loaded |
+For syntax, run `ailang prompt` — never write AILANG from memory, and verify any syntax claim with
+`ailang check` before putting it in a prompt or doc.
 
 ---
 
 ## Reference Documentation
 
-- **AILANG Syntax**: `ailang prompt` or [prompts/](prompts/)
-- **motoko_agent checkouts** (which one do evals run?): [MOTOKO.md](MOTOKO.md) — read
-  BEFORE touching any `~/dev/mk-*` directory or the `motoko` shim
-- **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md)
-- **Development Workflow**: [docs/docs/guides/development-workflow.md](docs/docs/guides/development-workflow.md)
-- **Coordinator**: [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
-- **Messaging**: [docs/docs/guides/agent-messaging.md](docs/docs/guides/agent-messaging.md)
-- **Evaluation**: [docs/docs/guides/evaluation/](docs/docs/guides/evaluation/)
-- **Telemetry**: [docs/docs/guides/telemetry.md](docs/docs/guides/telemetry.md)
-- **Debugging**: [docs/docs/guides/debugging.md](docs/docs/guides/debugging.md)
-- **Collaboration Hub**: [docs/docs/guides/collaboration-hub.md](docs/docs/guides/collaboration-hub.md)
-- **Database Architecture**: [docs/docs/guides/database-architecture.md](docs/docs/guides/database-architecture.md)
-- **Design Docs**: [design_docs/](design_docs/)
-- **Examples**: [examples/](examples/)
+Skills and path-scoped rules (`.claude/rules/`) load themselves when relevant — you don't need to
+look them up. These are the docs you would NOT think to look for:
+
+- **[MOTOKO.md](MOTOKO.md)** — which motoko_agent checkout do evals actually use? Read BEFORE
+  touching any `~/dev/mk-*` directory or the `motoko` shim.
+- **[design_docs/PROGRAM.md](design_docs/PROGRAM.md)** — the living roadmap and routing lanes.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — layer map and enforced import directions.
+- **[docs/LIMITATIONS.md](docs/LIMITATIONS.md)** — what AILANG genuinely cannot do yet.
+- **[docs/docs/guides/](docs/docs/guides/)** — development-workflow, coordinator, agent-messaging,
+  evaluation, telemetry, debugging, collaboration-hub, database-architecture, lsp.
+- **[design_docs/](design_docs/)** · **[examples/](examples/)**

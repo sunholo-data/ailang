@@ -30,6 +30,40 @@ The brain operates at two levels, matching the `ailang messages` scoping pattern
 
 By default, searches query both tiers. Project-local results get a small relevance boost (+0.05) since they're more likely to be contextually relevant.
 
+The **user** tier is populated only by hand — `--scope user` on a write, or
+`ailang cache promote <key>` to lift a project frame. Nothing automates it, by
+design: cross-project knowledge is a curation decision, not a side effect. An
+empty user tier is the normal state, not a fault.
+
+### Git worktrees share the main brain
+
+`.ailang/state/{evaluations,sprints}/*.json` are git-tracked, so every linked
+worktree materialises a `.ailang/` directory. The project-root walk used to stop
+there and open an *empty* brain, shadowing the main checkout's — which silently
+gave a cold brain to worktree-isolated agent sessions, the ones that most need a
+warm one. `ailang cache` now detects a linked worktree (a `.git` **file** holding
+`gitdir: …/.git/worktrees/<name>`) and resolves to the main worktree's brain, so
+learning accumulates in one place instead of fragmenting per branch and
+vanishing when the worktree is removed.
+
+### Injection tuning
+
+Two hooks inject brain content into Claude Code sessions on `UserPromptSubmit`.
+Both fire on every turn, so their relevance floors are the main control on
+per-session token cost:
+
+| Hook | Env var | Default | Searches |
+|------|---------|---------|----------|
+| `scripts/hooks/brain_on_prompt.sh` | `AILANG_BRAIN_MIN_SCORE` | `0.70` | all namespaces, top 3 |
+| μRAG (`ailang micro-rag user-prompt`) | `AILANG_MICRORAG_USERPROMPT_FLOOR` | `0.70` | `ailang-syntax` + `ailang-builtins`, top 1 |
+
+Both floors were calibrated on 2026-07-31 against a labelled prompt panel; see
+the comment on `userPromptRelevanceFloor` in `internal/microrag/userprompt.go`
+for the measurements and the trade-off. They are corpus-dependent — re-run
+`TestUserPrompt_FloorSeparatesCalibrationPanel` after any reindex. Set either
+env var to re-tune without a rebuild; out-of-range values fall back to the
+default rather than widening the gate.
+
 ### Controlling Scope
 
 ```bash

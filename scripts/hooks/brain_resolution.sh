@@ -48,6 +48,30 @@ if ! git rev-parse --is-inside-work-tree &>/dev/null; then
     exit 0
 fi
 
+# Only bank when HEAD has ACTUALLY moved since the last banked frame.
+#
+# The grep above matches "git commit" anywhere in the command string — including
+# inside an echo, a grep pattern, or a heredoc that never committed anything. And
+# `ailang cache put-resolution` keys frames by timestamp (append-only, by design),
+# so without this guard every Bash call that merely mentions "git commit" banks a
+# duplicate frame of whatever HEAD already was. Observed: 2 duplicate frames of a
+# stale commit from a single command that only *contained* the phrase.
+#
+# The marker lives in the common git dir so all linked worktrees share one
+# high-water mark, matching the shared brain they all write to.
+HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
+if [ -z "$HEAD_SHA" ]; then
+    exit 0
+fi
+
+GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+if [ -n "$GIT_COMMON" ]; then
+    MARKER="${GIT_COMMON}/ailang_last_resolution"
+    if [ -f "$MARKER" ] && [ "$(cat "$MARKER" 2>/dev/null)" = "$HEAD_SHA" ]; then
+        exit 0   # already banked this commit
+    fi
+fi
+
 # Try to get the latest commit message
 COMMIT_MSG=$(git log -1 --format="%s" 2>/dev/null || echo "")
 if [ -z "$COMMIT_MSG" ]; then
@@ -157,5 +181,11 @@ Full document: ${doc}"
         --embed \
         >/dev/null 2>&1 &
 done
+
+# Mark this commit as banked. Written after dispatch, so a crash before this
+# point retries on the next commit rather than silently dropping the frame.
+if [ -n "$GIT_COMMON" ]; then
+    printf '%s' "$HEAD_SHA" > "${GIT_COMMON}/ailang_last_resolution" 2>/dev/null || true
+fi
 
 exit 0

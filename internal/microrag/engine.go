@@ -19,6 +19,10 @@ const (
 	EnvRoutes  = "AILANG_MICRORAG_ROUTES"
 	EnvDryrun  = "AILANG_MICRORAG_DRYRUN"
 	EnvSession = "AILANG_MICRORAG_SESSION"
+	// EnvUserPromptFloor overrides userPromptRelevanceFloor without a rebuild.
+	// The floor is corpus-dependent (see the calibration note in userprompt.go),
+	// so re-tuning after a reindex must not require shipping a binary.
+	EnvUserPromptFloor = "AILANG_MICRORAG_USERPROMPT_FLOOR"
 
 	searchCacheTTLSecs = 240
 	embedCacheTTLDays  = 1
