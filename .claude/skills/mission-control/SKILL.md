@@ -393,6 +393,34 @@ the Repo Profile above):
    "there is no X", and the difference is exactly the provenance distinction Gate 2 already
    demands. The tell that you are about to pay for this: you are about to write "there is no…",
    "it runs nowhere", or "nothing calls it" on the strength of one command that printed nothing.
+3b. **A PASSING check is a claim too — match its SCOPE and its VERSION to the sentence you cite it
+   for** (added 2026-07-31 iteration 124; the mirror of 3a, which only covers *empty* results).
+   3a stops you trusting a check that found nothing. This one stops you over-reading a check that
+   came back **green**: the command really ran, really passed, and still does not support the
+   claim attached to it. Both instances below came from ONE quorum round, both were caught by the
+   reviewer rather than the author, and one of them was the controller's own evidence:
+   (a) **Scope.** A sandbox port-bind denial blocked `go test ./internal/effects`, so the
+   controller isolated the new tests — `-run 'Recorded|StreamRecorded'` → 4/4 PASS — and cited
+   that while routing the patch. `gemini-3-1-pro` correctly rejected it: running the patch's OWN
+   tests proves the new code works, never that it **breaks nothing existing**. That claim needed
+   the whole suite minus the denied test
+   (`go test ./internal/effects -skip TestNetHTTPRequestBytes_RoundTripSHA` → rc=0, **658 PASS**)
+   — a different command answering a different question.
+   (b) **Version.** The designer verified an example with `ailang prompt --version v0.16.2` and
+   cited it as evidence of correctness at the **v0.31.0** target. Green, honest, and worthless for
+   that sentence — the instrument was fifteen minor versions stale. This is the stale-binary class
+   step 1 already guards for *builds*, but nobody re-checks it for *tools invoked with an explicit
+   `--version`*.
+   Before a green result becomes evidence: **(i)** name the sentence it supports, then check the
+   command's scope actually covers that sentence — "does X still work" and "did I break anything"
+   are never the same command; **(ii)** when a `-run`/`-skip`/`--version`/single-package filter
+   narrowed the run, the narrowing is PART of the finding and travels with it — never dropped when
+   the result is quoted downstream; **(iii)** a denial, skip, or flake that forced the narrowing is
+   UNINFORMATIVE, so re-run the widest form that excludes only the denied item rather than quietly
+   citing the narrow one; **(iv)** use the negative framing as the acceptance test — "what would
+   this command still pass under, if the thing I am claiming were false?" The tell: you are about
+   to write "the tests pass" or "it checks clean" while the command you actually ran carried a
+   `-run`, a `-skip`, a `--version`, or a single package.
 4. **The shared main checkout is mutable mid-iteration** (added 2026-07-10 iteration 4, TWO
    frictions: a sibling agent opened a conflicted merge in the main tree mid-iteration, turning
    the Gate-2 rebuild `-dirty` — binaries built from a half-merged tree; and a persisted `cd`

@@ -1311,6 +1311,18 @@ frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted 
 frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
+- **[NEW 2026-07-31, iter-124 retro] m-vuln-allowlist-expiry-warning** (P3, ~2–3h, no design doc
+  needed — a flag on `tools/govulncheck-filter`): the allowlist gate fails **ON** the expiry date
+  with zero advance warning, so all 8 Ollama entries — which shared a single `expires: 2026-07-31`
+  — fired together at midnight and took dev CI red before any human or loop was looking. Iter-124
+  re-armed them (`73f4e38bf`) after verifying upstream is still unpatched, but the *mechanism* is
+  the finding: an expiry that only ever announces itself by breaking `dev` converts routine
+  hygiene into an outage. Fix shape: warn (non-fatal) when any entry is within N days of expiring
+  so it surfaces in a normal green run, and have the nightly or `post-release` path report
+  upcoming expiries; optionally stagger the dates so a whole cohort cannot fire at once. Note the
+  file header already claims "Reviewed: post-release skill prompts a check of expiries" — that
+  prompt only fires around releases, which is not often enough to catch a dated fuse. **Demand
+  evidence: 1 real outage (this one)** — deliberately P3, and it should NOT be oversold beyond it.
 - **[PARKED needs-human-review 2026-07-31 (iter-124) — DESIGN DOC LANDED, quorum BLOCKED ×2, ONE
   SCOPE CALL OWED BY MARK.** Doc → [planned/v0_31_0/m-recorded-stream-api.md](planned/v0_31_0/m-recorded-stream-api.md),
   commit `d85934df4`. **Ghost discipline: NOT a ghost — the claim is REAL and understated.**
