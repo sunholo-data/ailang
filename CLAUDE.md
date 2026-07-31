@@ -65,6 +65,23 @@ Before writing ANY new script or code:
 
 **The `ailang` CLI exists to make YOUR life easier.** Use `ailang chains`, `ailang messages`, `ailang eval-*`, and `ailang dashboard` instead of raw SQLite queries or ad-hoc scripts.
 
+**Look the question up, not the tool.** Knowing a tool exists is not the same as knowing
+which question it answers — the gap between those two is where we rebuild worse versions of
+what we already have.
+
+| Question | Instrument |
+|----------|-----------|
+| **What was the agent actually told?** | `ailang chains chat <chain-id> --stage N`. The banked `agent_transcript` holds tool **calls only** — no results. The tool RESULTS live in motoko's session JSONL (`<motoko-repo>/.motoko/logfile/session_*.jsonl`) and in the observatory via `internal/observatory/importer_motoko.go` (`ailang chains import-motoko <file>`). |
+| How hard is a benchmark, really? | `ailang eval-elo <dir> --json` — fits difficulty separately from model strength, so it survives baseline shifts that raw pass rates do not. |
+| Did an A/B actually measure anything? | `ailang eval-paired <on> <off>` — reports discordant pairs and a headroom warning, not just aggregate rates. |
+| Why did a run fail? | `error_category` on the banked row FIRST. `api_error` is the catch-all meaning "cause unknown", not "model failed". |
+
+**A 2026-07-31 example of getting this wrong:** `ailang fmt` was telling every eval model its
+correct code was non-canonical, ~15 times per run, for two weeks. The message was in the
+session JSONL the whole time. It was invisible because the eval harness banks its own weaker
+transcript, and nobody asked "what was the agent told?" — we asked "what did the agent do?"
+and inferred the rest, wrongly.
+
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
 If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
