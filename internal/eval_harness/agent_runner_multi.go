@@ -281,6 +281,21 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if maxCost := cfg.ResolvedMaxCostUSD(); maxCost > 0 {
 				task.Budget = executor.NewCostBudget(maxCost, cfg.Pricing.InputPer1K, cfg.Pricing.OutputPer1K)
 			}
+			// Report cost at the SAME per-model rates the budget enforces at.
+			// Set unconditionally: Budget exists only when enforcement is on
+			// (maxCost > 0), but a cost_usd is banked either way, and before
+			// this the two came from different price tables — a codex row could
+			// bank $0.34 while the budget that spared it saw $0.27.
+			task.Pricing = &executor.CostModel{
+				ProviderName:    cfg.Provider,
+				InputTokenCost:  cfg.Pricing.InputPer1K,
+				OutputTokenCost: cfg.Pricing.OutputPer1K,
+			}
+			// The WORK gate. A per-model budgets:max_tokens_per_bench overrides
+			// the global --max-tokens-per-bench flag; this is what makes the
+			// agent suite comparable, because the dollar gate above buys work
+			// in inverse proportion to price (see Budgets doc).
+			task.MaxTokensPerBench = cfg.ResolvedMaxTokensPerBench(config.MaxTokensPerBench)
 			// M-EVAL-LOCAL-OLLAMA (v0.22.0): take the MAX of spec.Timeout and
 			// model.HardTimeoutSecs rather than letting spec.Timeout veto. The
 			// benchmark spec timeout is cloud-tuned (Sonnet 4.6 speeds); local
@@ -422,6 +437,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Success:            success,
 		Iterations:         result.NumTurns,
 		Cost:               result.CostUSD,
+		CostProvenance:     string(result.CostProvenance),
 		DurationMS:         result.DurationMS,
 		NumTurns:           result.NumTurns,
 		ToolCallCount:      result.ToolCallCount,

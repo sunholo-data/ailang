@@ -695,7 +695,7 @@ func (b *GCPTraceBackend) UpdateStageSession(ctx context.Context, stageID, sessi
 	return nil
 }
 
-func (b *GCPTraceBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+func (b *GCPTraceBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
 	return nil
 }
 

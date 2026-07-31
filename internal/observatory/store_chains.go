@@ -352,6 +352,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 		       handoff_to, iteration, human_feedback,
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
+		       COALESCE(cost_provenance, ''),
 		       error_message, error_count,
 		       eval_assessment
 		FROM chain_stages
@@ -379,6 +380,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 			&handoffTo, &stage.Iteration, &humanFeedback,
 			&startedAt, &completedAt,
 			&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
+			&stage.CostProvenance,
 			&errorMessage, &stage.ErrorCount,
 			&evalAssessmentJSON,
 		)
@@ -467,6 +469,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		       handoff_to, iteration, human_feedback,
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
+		       COALESCE(cost_provenance, ''),
 		       error_message, error_count
 		FROM chain_stages WHERE id = ?
 	`, id).Scan(
@@ -476,6 +479,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		&handoffTo, &stage.Iteration, &humanFeedback,
 		&startedAt, &completedAt,
 		&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
+		&stage.CostProvenance,
 		&errorMessage, &stage.ErrorCount,
 	)
 	if err == sql.ErrNoRows {
@@ -632,7 +636,7 @@ func (s *Store) UpdateStageApproval(ctx context.Context, stageID string, status 
 }
 
 // UpdateStageMetrics updates the denormalized metrics on a stage.
-func (s *Store) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+func (s *Store) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
 	if stageID == "" {
 		return fmt.Errorf("stage_id is required")
 	}
@@ -644,9 +648,13 @@ func (s *Store) UpdateStageMetrics(ctx context.Context, stageID string, cost flo
 		    tokens_out = tokens_out + ?,
 		    turns = turns + ?,
 		    tool_calls = tool_calls + ?,
-		    duration_ms = duration_ms + ?
+		    duration_ms = duration_ms + ?,
+		    -- Keep the first non-empty label. Stage metrics accumulate across
+		    -- calls; a later caller that cannot classify must not erase what an
+		    -- earlier one established.
+		    cost_provenance = COALESCE(NULLIF(cost_provenance, ''), NULLIF(?, ''))
 		WHERE id = ?
-	`, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, stageID)
+	`, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance, stageID)
 	if err != nil {
 		return fmt.Errorf("failed to update stage metrics: %w", err)
 	}

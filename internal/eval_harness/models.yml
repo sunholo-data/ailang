@@ -249,6 +249,15 @@ models:
   # knowledge cutoff Feb 16 2026, programmatic tool calling (Responses API),
   # explicit prompt-cache breakpoints (30-min minimum cache life),
   # reasoning.effort none/low/medium/high/xhigh/max.
+  #
+  # 💰 PRICE CUT 2026-07-30 (OpenAI, ~3 weeks post-launch): Luna -80%
+  # ($1/$6 → $0.20/$1.20), Terra -20% ($2.50/$15 → $2/$12), Sol UNCHANGED
+  # ($5/$30). Cached input is 10% of input across all three tiers
+  # (Sol $0.50, Terra $0.20, Luna $0.02 per 1M); cache WRITES bill at 1.25x
+  # uncached input. All tiers: >272K-token prompts bill at 2x input / 1.5x
+  # output for the whole request. Source: developers.openai.com/api/docs/models/.
+  # Any banked Terra/Luna cost figure dated before 2026-07-30 used the old
+  # prices — normalize before comparing across that boundary.
   gpt5-6-sol:
     api_name: "gpt-5.6-sol"
     provider: "openai"
@@ -262,7 +271,10 @@ models:
       output_per_1k: 0.030    # $30.00 per 1M = $0.030 per 1K
     notes: |
       GPT-5.6 Sol — flagship tier of the GPT-5.6 family (July 9, 2026).
-      Same pricing as gpt-5.5 ($5/$30 per 1M).
+      Same pricing as gpt-5.5 ($5/$30 per 1M) — NOT cut on 2026-07-30 when
+      Terra/Luna were. That announcement did add a "fast" service tier for Sol
+      (up to 2.5x faster) at 2x the price; this row is standard-tier pricing, so
+      if a fast-tier Sol is ever wired up it needs its own entry at $10/$60.
       Gated 2026-07-11: smoke 21/23 (anchor-normalized clean — sonnet-4-6 also
       failed the same 2), core 26/26 N=1 → 25/26 after N=3 de-flake of
       explicit_dataflow_ssa (both Sol and gpt5-5 fail it 3/3). Core TIE with
@@ -281,15 +293,22 @@ models:
     agent_cli: "codex"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
-      input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
-      output_per_1k: 0.015    # $15.00 per 1M = $0.015 per 1K
+      # PRICE CUT 2026-07-30 (-20%): was $2.50/$15 per 1M.
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.012    # $12.00 per 1M = $0.012 per 1K
     notes: |
       GPT-5.6 Terra — balanced tier (July 9, 2026). OpenAI claims competitive
-      with GPT-5.5 at 2x cheaper. Same pricing as gpt-5.4 ($2.50/$15 per 1M).
+      with GPT-5.5 at 2x cheaper.
+      💰 2026-07-30: OpenAI cut Terra 20% → $2/$12 per 1M (cached input $0.20/1M,
+      per developers.openai.com/api/docs/models/gpt-5.6-terra). Now cheaper than
+      gpt-5.4 ($2.50/$15), which it previously matched.
       Gated 2026-07-11: smoke 21/23 (anchor-normalized clean), core 24/26 at
       $1.82 — ties the claude-sonnet-4-6 anchor (24/26, $2.52) at ~70% of its
       cost, 1 behind gpt5-5/sol. Strong value. In extended_suite since
       2026-07-11 (new-release tracking, per Mark).
+      ⚠️ That $1.82 was measured at PRE-CUT prices — the same run is ~$1.46 now
+      (~58% of the anchor). Do not compare post-07-30 costs against pre-07-30
+      banked Terra costs without normalizing.
       Uses max_completion_tokens instead of max_tokens.
 
   gpt5-6-luna:
@@ -301,19 +320,71 @@ models:
     agent_cli: "codex"
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM: was 128000
     pricing:
-      input_per_1k: 0.001     # $1.00 per 1M = $0.001 per 1K
-      output_per_1k: 0.006    # $6.00 per 1M = $0.006 per 1K
+      # PRICE CUT 2026-07-30 (-80%): was $1.00/$6.00 per 1M.
+      input_per_1k: 0.0002    # $0.20 per 1M = $0.0002 per 1K
+      output_per_1k: 0.0012   # $1.20 per 1M = $0.0012 per 1K
     budgets:
-      max_cost_usd: 0.30      # tier parity: every other cheap-tier agent model has an
-      hard_timeout_secs: 600  # explicit $0.30; the default formula gave luna only $0.256
-                              # and cost-killed 3 agent benchmarks in the v0.30.0 baseline
+      # RAISED 2026-07-31 (Mark): $0.30 -> $0.75. NOT a spend increase — codex on this
+      # rig authenticates by ChatGPT subscription (auth_mode: chatgpt), so this gate buys
+      # WORK, not dollars. At the post-07-30 rates $0.75 is ~3.0M blended tokens, sized
+      # from the largest observed completion profile for the benchmarks luna was killed
+      # on (gauntlet_10, ~2.26M) plus ~33% headroom.
+      #
+      # Why the old $0.30 was wrong TWICE over: it cost-killed 18 of 56 agent benchmarks
+      # in the v0.30.0 baseline (all 19 failures were the cap, not the model — see notes),
+      # and it was calibrated when luna cost 5x more, so the price cut silently changed
+      # how much work it bought. Never read this number as spend; read it as tokens.
+      # Do NOT delete the override: the default formula resolves to $0.051 at these rates.
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # $0.75 is the dollar equivalent of that 3.0M gate at the post-07-30 rates,
+      # kept as a redundant backstop. Subscription lane — not spend.
+      max_cost_usd: 0.75
+      hard_timeout_secs: 600
     notes: |
       GPT-5.6 Luna — fast/affordable tier (July 9, 2026).
+      💰 2026-07-30: OpenAI cut Luna 80% → $0.20/$1.20 per 1M (cached input
+      $0.02/1M, per developers.openai.com/api/docs/models/gpt-5.6-luna).
       Gated 2026-07-11: smoke 21/23 (anchor-normalized clean), core 23/26 at
       $0.73 — LOST to incumbent gpt5-4-mini (25/26, $0.55) on both quality and
       cost, so dev_models/lang_harness_suite keep mini. In extended_suite since
-      2026-07-11 for new-release longitudinal tracking (per Mark); re-gate the
-      mini slot if OpenAI retires the 5.4 line.
+      2026-07-11 for new-release longitudinal tracking (per Mark).
+      ⚠️ RE-GATE PENDING (2026-07-30): the price cut flips half that verdict.
+      Luna is now $0.20/$1.20 vs mini's $0.75/$4.50 — 3.75x cheaper on both
+      axes, so the $0.73 core run re-prices to ~$0.15 vs mini's $0.55. Quality
+      is still 23/26 vs 25/26 on N=1, which remains the reason mini holds the
+      slot. Per model-manager step 5.5, settle it with an N>=3 `--tier core`
+      run of luna+mini+anchor in ONE command before moving the dev_models /
+      lang_harness_suite slot. Also re-gate if OpenAI retires the 5.4 line.
+      The cost half of that comparison is robust to the v0.30.0 cost defect
+      (CAVEATS.md): luna is cheaper than mini on BOTH axes at near-identical
+      token usage, and the unrecorded reasoning bills at the output rate where
+      luna is 3.75x cheaper — so the mini/luna ratio holds at ~3.8x for any
+      reasoning volume. Correcting the defect widens luna's lead, never flips it.
+      ⚠️ AGENT-MODE 37/56 IS NOT A CAPABILITY NUMBER (found 2026-07-30). All 19
+      v0.30.0 agent failures were 18x `cost budget exceeded` + 1 logic_error —
+      i.e. the $0.30 cap fired, not the model. Do NOT quote 37/56 as luna's
+      agent capability; only a re-run can produce one.
+      The price cut DOES move those kills. The kill threshold is enforced by
+      `executor.CostBudget`, built in agent_runner_multi.go from THIS `pricing:`
+      block — so the 18 kills were assessed at luna's real (then $1/$6) rates,
+      and at $0.20/$1.20 the same token volumes land at $0.065–$0.222, all under
+      the unchanged $0.30 cap. Re-run before quoting any agent number.
+      Separately, the banked `cost_usd` on those rows was NOT from this block:
+      the codex executor billed every model it ran at hardcoded gpt-5-codex rates
+      ($1.25/$10 per 1M) until fixed 2026-07-30 (executor.ResolveCostModel now
+      prefers Task.Pricing). v0.30.0 agent rows therefore carry a cost from one
+      price table and a kill threshold from another — luna/graph_bfs banked
+      $0.34259 (codex rates) while the budget that spared it saw $0.26980
+      (luna rates). Do not compare `cost_usd` against `max_cost_usd` on any
+      pre-fix agent row.
+      Also: codex on this rig authenticates via `~/.codex/auth.json`
+      (`auth_mode: chatgpt`, ChatGPT subscription — probe-verified 2026-07-30 that
+      a deliberately invalid OPENAI_API_KEY in the env does NOT override it), so
+      agent-mode `cost_usd` is a list-price equivalent, never billed spend.
       Uses max_completion_tokens instead of max_tokens.
 
   # OpenAI GPT-5.4 (released March 5, 2026)
@@ -514,6 +585,26 @@ models:
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+    budgets:
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # ⚠️ THIS MODEL WAS THE WORST-HIT BY THE DOLLAR GATE. It had no budgets block at
+      # all, so it fell through to the default formula — min($0.50, in*64 + out*32) —
+      # which at $3/$15 bought just 0.14M tokens: the TIGHTEST gate in the suite, 4%
+      # of what opencode-or-deepseek-v4-flash got from the same $0.50. It is the
+      # LONGITUDINAL ANCHOR every other model is scored against, so it was the single
+      # most iteration-starved row in a suite asking "does the agent loop rescue weak
+      # models". Purely accidental; found in the 2026-07-31 gate audit.
+      #
+      # $10.80 is the dollar equivalent of the 3.0M token gate at $3/$15, set so the
+      # TOKEN gate binds first. Not spend on this rig (OAuth). ⚠️ Under
+      # AILANG_AUTH_MODE=apikey (cloud dispatch) claude IS metered and this is the
+      # per-benchmark exposure ceiling — revisit before running the suite that way.
+      max_cost_usd: 10.80
+      hard_timeout_secs: 600
     notes: |
       Anthropic's best combination of speed and intelligence (Feb 17, 2026).
       200K context window (1M available in beta).
@@ -556,10 +647,19 @@ models:
       output_per_1k: 0.005  # $5.00 per million = $0.005 per 1K
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1 retro): cheap-model agent budget.
     # Default formula = $0.224 — close to ceiling but multi-turn loops blow
-    # past it. Explicit $0.30 keeps haiku-class agents from being killed
+    # past it. Explicit $0.30 kept haiku-class agents from being killed
     # mid-stream while still capping runaway costs.
     budgets:
-      max_cost_usd: 0.30
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # $3.60 is the dollar equivalent of that 3.0M gate at $1/$5 — raised from $0.30
+      # (which bought only 0.25M) so the TOKEN gate is the one that binds. On this rig
+      # claude runs on OAuth, so this is not spend. ⚠️ Under AILANG_AUTH_MODE=apikey
+      # (cloud dispatch) it IS metered — this is the per-benchmark exposure ceiling.
+      max_cost_usd: 3.60
       hard_timeout_secs: 600
     notes: |
       Anthropic's fastest and most cost-effective model.
@@ -1146,7 +1246,17 @@ models:
     # Default formula = $0.056 — too tight. opencode harness compounds the
     # issue with internal Haiku compaction calls. Explicit $0.30.
     budgets:
-      max_cost_usd: 0.30
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # $3.60 is the dollar equivalent of the 3.0M token gate at $1/$5 — raised from
+      # $0.30 (which bought only 0.25M) so the TOKEN gate is the one that binds.
+      # On this rig claude runs on OAuth, so this is not spend. ⚠️ Under
+      # AILANG_AUTH_MODE=apikey (cloud dispatch) it IS metered — this is the
+      # per-benchmark exposure ceiling in that configuration.
+      max_cost_usd: 3.60
       hard_timeout_secs: 600
     notes: |
       Claude Haiku 4.5 evaluated via the opencode CLI harness.
@@ -2057,6 +2167,15 @@ models:
       input_per_1k: 0.0014   # $1.40 per 1M
       output_per_1k: 0.0044  # $4.40 per 1M
     budgets:
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # METERED lane (OpenRouter credits). The dollar cap stays a REAL spend control
+      # and is deliberately NOT raised to match the token gate — 3.0M tokens here
+      # would cost real money. Whichever bound binds first wins, so this model's
+      # comparison stays cost-limited, but for a stated reason rather than by accident.
       max_cost_usd: 0.30
       hard_timeout_secs: 600
     notes: |
@@ -2155,6 +2274,15 @@ models:
     # Cheap model (~$0.003/benchmark) — 50¢ cap is 150x typical cost.
     # hard_timeout_secs is a network-hang safety net, not a cost proxy.
     budgets:
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # METERED lane (OpenRouter credits). The dollar cap stays a REAL spend control
+      # and is deliberately NOT raised to match the token gate — 3.0M tokens here
+      # would cost real money. Whichever bound binds first wins, so this model's
+      # comparison stays cost-limited, but for a stated reason rather than by accident.
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
     notes: |
@@ -2180,6 +2308,15 @@ models:
       input_per_1k: 0.00043
       output_per_1k: 0.00087
     budgets:
+      # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
+      # agent_suite, so every model gets the same number of iterations. A dollar cap
+      # cannot do this — it buys work in inverse proportion to price, which is how a
+      # flat $0.30/$0.50 came to span 24x in actual tokens across this suite.
+      max_tokens_per_bench: 3000000
+      # METERED lane (OpenRouter credits). The dollar cap stays a REAL spend control
+      # and is deliberately NOT raised to match the token gate — 3.0M tokens here
+      # would cost real money. Whichever bound binds first wins, so this model's
+      # comparison stays cost-limited, but for a stated reason rather than by accident.
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
     notes: |

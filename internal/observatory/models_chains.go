@@ -108,12 +108,17 @@ type ChainStage struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
 	// Summary (denormalized from spans)
-	Cost       float64 `json:"cost"`
-	TokensIn   int     `json:"tokens_in"`
-	TokensOut  int     `json:"tokens_out"`
-	Turns      int     `json:"turns"`
-	ToolCalls  int     `json:"tool_calls"`
-	DurationMs int64   `json:"duration_ms"`
+	Cost float64 `json:"cost"`
+	// CostProvenance says whether Cost was actually billed: "metered",
+	// "list-price-equivalent" (subscription lane — real arithmetic, zero spend),
+	// "free-local", or "unknown". Empty = the stage predates the column and its
+	// provenance is unknown; it must NOT be read as metered.
+	CostProvenance string `json:"cost_provenance,omitempty"`
+	TokensIn       int    `json:"tokens_in"`
+	TokensOut      int    `json:"tokens_out"`
+	Turns          int    `json:"turns"`
+	ToolCalls      int    `json:"tool_calls"`
+	DurationMs     int64  `json:"duration_ms"`
 
 	// Error tracking
 	ErrorMessage string `json:"error_message,omitempty"`

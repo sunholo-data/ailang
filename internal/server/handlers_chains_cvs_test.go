@@ -74,7 +74,7 @@ func newKPITestServer(t *testing.T, sourceRef string, stages []cvsStage) (*Serve
 		if err := store.UpdateStageEvalAssessment(ctx, stage.ID, a); err != nil {
 			t.Fatalf("bank assessment %d: %v", i, err)
 		}
-		if err := store.UpdateStageMetrics(ctx, stage.ID, s.cost, s.tokensIn, s.tokensOut, 0, 0, 0); err != nil {
+		if err := store.UpdateStageMetrics(ctx, stage.ID, s.cost, s.tokensIn, s.tokensOut, 0, 0, 0, ""); err != nil {
 			t.Fatalf("bank metrics %d: %v", i, err)
 		}
 	}

@@ -56,12 +56,18 @@ type SweetSpotRow struct {
 	// Efficiency (mirrors EfficiencyAggregates, but flattened for table output).
 	MedianTTSMs        float64 `json:"median_tts_ms"`
 	MedianTokensPerSec float64 `json:"median_tokens_per_sec"`
-	P90CostPerSuccess  float64 `json:"p90_cost_per_success"`
-	SpeedEfficiency    float64 `json:"speed_efficiency"`
+	// P90CostPerSuccess is list-price, same caveat as DollarsPerPass below.
+	P90CostPerSuccess float64 `json:"p90_cost_per_success"`
+	SpeedEfficiency   float64 `json:"speed_efficiency"`
 
 	// DollarsPerPass is total $ across all runs / number of passes. The
 	// headline economic metric for the dashboard. 0 when no passes.
 	// M-EVAL-SWEET-SPOT-WEBSITE-INTEGRATION (v0.19.0).
+	//
+	// LIST-PRICE dollars, not spend. Agent-mode rows from a subscription lane
+	// (codex auth_mode chatgpt, claude OAuth) contribute a cost nobody was
+	// billed. Read alongside Aggregates.CostProvenance before calling this
+	// money; the v1.0 metered-dollars KPI must not take it at face value.
 	DollarsPerPass float64 `json:"dollars_per_pass"`
 
 	// CostOverheadVsBest is the median ratio (this_model_cost / best_passer_cost)
@@ -71,6 +77,9 @@ type SweetSpotRow struct {
 	// per-benchmark min(CostUSD) across all models that passed THAT benchmark.
 	// Captures "if a perfect router picked the cheapest model per benchmark, how
 	// much more would this model cost than that router?"
+	//
+	// Ratio of LIST-PRICE figures. It stays meaningful across provenances (both
+	// sides are list price), but it does NOT say the overhead was paid.
 	CostOverheadVsBest float64 `json:"cost_overhead_vs_best"`
 
 	// TokenOverheadVsBest is the same shape but for TotalTokens. Distinguishes

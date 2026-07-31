@@ -93,6 +93,80 @@ func (b *CostBudget) KilledAt() float64 {
 	return math.Float64frombits(bits)
 }
 
+// CostProvenance records whether a Result's CostUSD is money anyone was
+// actually charged. Without it, a subscription run and a metered run are
+// indistinguishable once both land in the same column — and the v1.0
+// cost-per-verified-success KPI, whose numerator is "attributable METERED
+// dollars", silently aggregates both.
+//
+// This is orthogonal to accuracy. A list-price-equivalent figure can be
+// perfectly computed and still represent zero spend.
+type CostProvenance string
+
+const (
+	// CostMetered: the account is genuinely charged per token (API key,
+	// OpenRouter credits, Vertex ADC). The only provenance admissible in a
+	// metered-dollars KPI.
+	CostMetered CostProvenance = "metered"
+	// CostListPriceEquivalent: the figure is real arithmetic over real tokens,
+	// but the run went through a subscription/OAuth lane and was never billed.
+	// Reproducible and comparable; just not spend.
+	CostListPriceEquivalent CostProvenance = "list-price-equivalent"
+	// CostFreeLocal: an on-device model with zero marginal token cost.
+	// Distinct from a $0 metered figure, which would mean "billed nothing".
+	CostFreeLocal CostProvenance = "free-local"
+	// CostProvenanceUnknown: the auth lane could not be determined. Surfaced
+	// rather than assumed — guessing "metered" is what this type exists to stop.
+	CostProvenanceUnknown CostProvenance = "unknown"
+)
+
+// AuthLane is an executor's determination of how the current run authenticates.
+type AuthLane int
+
+const (
+	// AuthLaneUnknown: could not be determined; do not assume either way.
+	AuthLaneUnknown AuthLane = iota
+	// AuthLaneBilled: per-token charges land on an account.
+	AuthLaneBilled
+	// AuthLaneSubscription: a seat/plan covers the run; no per-token charge.
+	AuthLaneSubscription
+)
+
+// ResolveCostProvenance classifies a task's cost given the executor's auth lane.
+//
+// Zero resolved rates win over the lane: a local Ollama model is free-local
+// whatever the auth story, because there is no per-token charge to attribute.
+func ResolveCostProvenance(task *Task, lane AuthLane) CostProvenance {
+	if task != nil && task.Pricing != nil &&
+		task.Pricing.InputTokenCost == 0 && task.Pricing.OutputTokenCost == 0 {
+		return CostFreeLocal
+	}
+	switch lane {
+	case AuthLaneBilled:
+		return CostMetered
+	case AuthLaneSubscription:
+		return CostListPriceEquivalent
+	default:
+		return CostProvenanceUnknown
+	}
+}
+
+// ResolveCostModel picks the pricing an executor should bill a task at.
+//
+// Task.Pricing (the per-model rates from models.yml) wins whenever it is
+// present; fallback is the executor's own CostModel(), which names a single
+// default model and is therefore only correct when that is what actually ran.
+//
+// A present-but-zero Task.Pricing is honoured, not treated as missing: local
+// Ollama models are genuinely free, and falling back to a cloud price table
+// for them would invent spend that never happened.
+func ResolveCostModel(task *Task, fallback *CostModel) *CostModel {
+	if task != nil && task.Pricing != nil {
+		return task.Pricing
+	}
+	return fallback
+}
+
 // DefaultMaxCostUSD computes the fallback budget used when models.yml
 // omits a per-model `budgets:` block.
 //

@@ -338,7 +338,7 @@ func (b *JaegerBackend) UpdateStageSession(ctx context.Context, stageID, session
 	return nil
 }
 
-func (b *JaegerBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+func (b *JaegerBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
 	return nil
 }
 

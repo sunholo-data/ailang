@@ -320,6 +320,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var firstAttemptMs int64 = -1
 	var firstStreamEventAt time.Time
 	var costKilled bool
+	// The WORK gate (M-EVAL-OS-LONGITUDINAL Phase 1, extended to claude 2026-07-31).
+	// A dollar budget buys work in inverse proportion to model price: at $3/$15,
+	// claude-sonnet-4-6 — the suite's longitudinal ANCHOR — got 0.14M tokens from
+	// the same $0.50 that bought deepseek-v4-flash 3.40M. On the rig's OAuth lane
+	// there is also no spend to control, so tokens are the only meaningful gate.
+	var thrashKilled bool
+	var thrashKilledAtTokens int
 	// runningInputTokens / runningOutputTokens track the cumulative usage
 	// reported in message_delta events; we feed deltas into Budget.Add().
 	// Claude emits cumulative output_tokens in message_delta and the full
@@ -457,6 +464,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 								_ = cmd.Process.Kill()
 							}
 						}
+						if task.MaxTokensPerBench > 0 && !thrashKilled &&
+							runningInputTokens+runningOutputTokens > task.MaxTokensPerBench {
+							thrashKilled = true
+							thrashKilledAtTokens = runningInputTokens + runningOutputTokens
+							_ = cmd.Process.Kill()
+						}
 					}
 
 				case "content_block_stop":
@@ -517,13 +530,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				// This lets cloud handlers broadcast metrics before the executor returns.
 				if mh, ok := handler.(executor.MetricsHandler); ok && finalResult != nil {
 					mh.OnMetrics(executor.ExecutionMetrics{
-						NumTurns:     finalResult.NumTurns,
-						InputTokens:  finalResult.Usage.InputTokens,
-						OutputTokens: finalResult.Usage.OutputTokens,
-						CostUSD:      finalResult.TotalCostUSD,
-						DurationMS:   finalResult.DurationMS,
-						SessionID:    finalResult.SessionID,
-						Success:      !finalResult.IsError,
+						NumTurns:       finalResult.NumTurns,
+						InputTokens:    finalResult.Usage.InputTokens,
+						OutputTokens:   finalResult.Usage.OutputTokens,
+						CostUSD:        finalResult.TotalCostUSD,
+						CostProvenance: executor.ResolveCostProvenance(task, e.authLane()),
+						DurationMS:     finalResult.DurationMS,
+						SessionID:      finalResult.SessionID,
+						Success:        !finalResult.IsError,
 					})
 				}
 			}
@@ -565,6 +579,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    runningInputTokens,
 			OutputTokens:   runningOutputTokens,
 			CostKilledAt:   task.Budget.KilledAt(),
+			ThrashKilledAt: thrashKilledAtTokens,
 			FirstAttemptMs: firstAttemptMs,
 			SuccessAtMs:    -1,
 		}, nil
@@ -584,6 +599,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			if costKilled {
 				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 			}
+			// Token gate outranks the cost gate — on OAuth the dollars are notional.
+			if thrashKilled {
+				errMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d — %s",
+					thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
+			}
 			return &executor.Result{
 				Success:        false,
 				Error:          errMsg,
@@ -595,6 +615,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				InputTokens:    runningInputTokens,
 				OutputTokens:   runningOutputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
+				ThrashKilledAt: thrashKilledAtTokens,
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 			}, nil
@@ -618,6 +639,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				InputTokens:    runningInputTokens,
 				OutputTokens:   runningOutputTokens,
 				CostKilledAt:   task.Budget.KilledAt(),
+				ThrashKilledAt: thrashKilledAtTokens,
 				FirstAttemptMs: firstAttemptMs,
 				SuccessAtMs:    -1,
 			}, nil
@@ -649,6 +671,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			errorMsg = fmt.Sprintf("cost budget exceeded ($%.4f)", task.Budget.KilledAt())
 			success = false
 		}
+		if thrashKilled {
+			errorMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d",
+				thrashKilledAtTokens, task.MaxTokensPerBench)
+			success = false
+		}
 
 		if !success {
 			span.SetStatus(codes.Error, errorMsg)
@@ -677,6 +704,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			NumTurns:                 finalResult.NumTurns,
 			ToolCallCount:            toolCallCount,
 			CostUSD:                  finalResult.TotalCostUSD,
+			CostProvenance:           executor.ResolveCostProvenance(task, e.authLane()),
 			InputTokens:              finalResult.Usage.InputTokens,
 			OutputTokens:             finalResult.Usage.OutputTokens,
 			CacheReadInputTokens:     finalResult.Usage.CacheReadInputTokens,
@@ -684,6 +712,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			SessionID:                sessionID,
 			Transcript:               transcriptBuf.String(),
 			CostKilledAt:             task.Budget.KilledAt(),
+			ThrashKilledAt:           thrashKilledAtTokens,
 			FirstAttemptMs:           firstAttemptMs,
 			SuccessAtMs:              -1,
 			TokensPerSec:             tokensPerSec,
@@ -725,7 +754,28 @@ func (e *ClaudeExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns pricing information for cost calculations
+// authLane reports whether claude runs are charged per token.
+//
+// Mirrors the M-CLOUD-DUAL-AUTH branch in Execute: AILANG_AUTH_MODE=apikey means
+// ANTHROPIC_API_KEY drives a metered account; anything else is the OAuth
+// subscription lane, where the CLI still emits a non-zero total_cost_usd that
+// nobody is charged. On the eval rig the key is deliberately stripped, so the
+// default is the common case, not an edge case.
+func (e *ClaudeExecutor) authLane() executor.AuthLane {
+	if os.Getenv("AILANG_AUTH_MODE") == "apikey" {
+		return executor.AuthLaneBilled
+	}
+	return executor.AuthLaneSubscription
+}
+
+// CostModel returns pricing information for cost calculations.
+//
+// NOT used for Result.CostUSD: the claude CLI reports its own
+// total_cost_usd and the executor banks that figure directly. Kept because
+// the Executor interface requires it and callers may use it for pre-flight
+// estimates. Audited 2026-07-30 — do not assume this table is what gets
+// banked. Note the CLI's figure is itself a list-price equivalent when the
+// rig authenticates via OAuth subscription, not metered spend.
 func (e *ClaudeExecutor) CostModel() *executor.CostModel {
 	// Default to Haiku pricing
 	return &executor.CostModel{

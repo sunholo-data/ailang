@@ -139,7 +139,11 @@ type Backend interface {
 	UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
 	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
 	UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error
-	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error
+	// UpdateStageMetrics accumulates a stage's denormalized metrics.
+	// costProvenance labels whether `cost` was actually billed (see
+	// executor.CostProvenance); pass "" when the caller cannot classify it —
+	// that reads as unknown and never overwrites a label already recorded.
+	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error
 	UpdateStageError(ctx context.Context, stageID, errorMessage string) error
 	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
 	// GetSpanLitesByStageID returns lightweight spans without attributes (M-PERF-OBSERVATORY).

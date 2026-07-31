@@ -274,3 +274,54 @@ func TestRollupStages_SplitsTotals(t *testing.T) {
 		t.Fatalf("TotalKnownCost must be reported+estimated only")
 	}
 }
+
+// TestClassifyStageCost_Subscription pins the 2026-07-30 fix: a non-zero cost
+// from a subscription lane is real arithmetic over real tokens that NOBODY was
+// billed for, and must not land in a metered-dollars total.
+func TestClassifyStageCost_Subscription(t *testing.T) {
+	tests := []struct {
+		name       string
+		provenance string
+		wantStatus CostStatus
+	}{
+		{"subscription lane splits out", "list-price-equivalent", CostStatusSubscription},
+		{"metered stays reported", "metered", CostStatusReported},
+		// Every row banked before the column existed. Unlabelled is NOT proof of
+		// metering — but downgrading all history to unknown would destroy the
+		// rollup, so it stays `reported` and the doc says what that means.
+		{"unlabelled legacy row stays reported", "", CostStatusReported},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ClassifyStageCost(&ChainStage{
+				Cost: 0.34259375, TokensIn: 256987, TokensOut: 2136,
+				CostProvenance: tt.provenance,
+			})
+			if got.Status != tt.wantStatus {
+				t.Errorf("status = %q, want %q", got.Status, tt.wantStatus)
+			}
+			if got.CostUSD != 0.34259375 {
+				t.Errorf("cost = %v, want the stored figure preserved", got.CostUSD)
+			}
+		})
+	}
+}
+
+// TestCostRollup_SubscriptionExcludedFromKnownCost is the KPI guard: a cohort
+// mixing a subscription stage with a metered one must not report their sum as
+// spend. TotalKnownCost is the metered-dollars numerator.
+func TestCostRollup_SubscriptionExcludedFromKnownCost(t *testing.T) {
+	r := RollupStages([]*ChainStage{
+		{Cost: 2.00, TokensIn: 1000, TokensOut: 100, CostProvenance: "metered"},
+		{Cost: 8.36, TokensIn: 6241312, TokensOut: 55679, CostProvenance: "list-price-equivalent"},
+	})
+	if r.TotalKnownCost() != 2.00 {
+		t.Errorf("TotalKnownCost = %v, want 2.00 (subscription must be excluded)", r.TotalKnownCost())
+	}
+	if r.SubscriptionCost != 8.36 {
+		t.Errorf("SubscriptionCost = %v, want 8.36 (surfaced, not discarded)", r.SubscriptionCost)
+	}
+	if r.SubscriptionStages != 1 || r.ReportedStages != 1 {
+		t.Errorf("stage split = %d subscription / %d reported, want 1/1", r.SubscriptionStages, r.ReportedStages)
+	}
+}

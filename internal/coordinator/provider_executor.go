@@ -144,6 +144,7 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 	result.Output = execResult.Output
 	result.Error = execResult.Error
 	result.Cost = execResult.CostUSD
+	result.CostProvenance = string(execResult.CostProvenance)
 	result.InputTokens = execResult.InputTokens
 	result.OutputTokens = execResult.OutputTokens
 	result.TokensUsed = execResult.InputTokens + execResult.OutputTokens

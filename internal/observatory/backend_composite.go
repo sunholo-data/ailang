@@ -428,8 +428,8 @@ func (b *CompositeBackend) UpdateStageSession(ctx context.Context, stageID, sess
 	return b.local.UpdateStageSession(ctx, stageID, sessionID)
 }
 
-func (b *CompositeBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
-	return b.local.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
+func (b *CompositeBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return b.local.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance)
 }
 
 func (b *CompositeBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {

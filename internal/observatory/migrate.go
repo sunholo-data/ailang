@@ -496,6 +496,14 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		}
 	}
 
+	// Migration v17: chain_stages.cost_provenance (metered vs subscription).
+	if currentVersion < 17 {
+		currentVersion, err = migrateV17(db, currentVersion)
+		if err != nil {
+			return currentVersion, err
+		}
+	}
+
 	return currentVersion, nil
 }
 

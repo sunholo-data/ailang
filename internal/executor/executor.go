@@ -96,6 +96,24 @@ type Task struct {
 	// Nil = legacy behaviour (wall-clock-only).
 	Budget *CostBudget
 
+	// Pricing carries the PER-MODEL rates from models.yml so an executor that
+	// computes Result.CostUSD from token counts bills the model it actually ran.
+	//
+	// Without this, such an executor can only fall back to its own hardcoded
+	// table, which names one model but is applied to every model the harness
+	// routes through that CLI — e.g. every codex-run model was billed at
+	// gpt-5-codex's $1.25/$10 per 1M regardless of its real price (found
+	// 2026-07-30). Task.Budget already carried the correct per-model rates, so
+	// the kill threshold and the banked cost were computed from two different
+	// price tables and were not comparable.
+	//
+	// Deliberately separate from Budget: Budget exists only when cost
+	// ENFORCEMENT is on (ResolvedMaxCostUSD() > 0), while pricing is needed for
+	// REPORTING either way. Nil = no per-model rates supplied; executors fall
+	// back to their own CostModel(). Zero rates are meaningful, not missing
+	// (local Ollama models are genuinely free) — see ResolveCostModel.
+	Pricing *CostModel
+
 	// MaxTokensPerBench (M-EVAL-OS-LONGITUDINAL Phase 1, v0.23.0): hard token
 	// ceiling per benchmark for thrash detection on free (pricing=0) local
 	// models. When cumulative input+output tokens exceed this value mid-stream,
@@ -148,6 +166,10 @@ type Result struct {
 	// discoverable tool like `ailang fmt`, which the scalar count can't answer.
 	ToolCalls map[string]int
 	CostUSD   float64 // Total cost in USD
+	// CostProvenance says whether CostUSD is money anyone was charged.
+	// Empty means the executor did not classify it — read as "unknown",
+	// never as "metered". See executor.ResolveCostProvenance.
+	CostProvenance CostProvenance
 
 	// Token usage
 	InputTokens              int
@@ -364,9 +386,14 @@ type ExecutionMetrics struct {
 	InputTokens  int
 	OutputTokens int
 	CostUSD      float64
-	DurationMS   int
-	SessionID    string
-	Success      bool
+	// CostProvenance labels CostUSD for live observers the same way
+	// Result.CostProvenance does for banked rows — these metrics reach the
+	// control plane and dashboard, which must not render subscription
+	// arithmetic as metered spend.
+	CostProvenance CostProvenance
+	DurationMS     int
+	SessionID      string
+	Success        bool
 }
 
 // CostModel contains pricing information

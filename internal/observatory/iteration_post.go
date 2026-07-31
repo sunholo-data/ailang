@@ -111,7 +111,8 @@ func PostIteration(ctx context.Context, backend *SQLiteBackend, p *IterationPost
 		}
 		// Metrics: cost + tokens (quota lanes post zeros, which is a no-op add).
 		if st.CostUSD != 0 || st.TokensIn != 0 || st.TokensOut != 0 {
-			if err := store.UpdateStageMetrics(ctx, stage.ID, st.CostUSD, st.TokensIn, st.TokensOut, 0, 0, 0); err != nil {
+			// "" = provenance not classified by this poster; reads as unknown.
+			if err := store.UpdateStageMetrics(ctx, stage.ID, st.CostUSD, st.TokensIn, st.TokensOut, 0, 0, 0, ""); err != nil {
 				return chain.ID, fmt.Errorf("update stage %d metrics: %w", i, err)
 			}
 		}

@@ -25,13 +25,18 @@ type BenchmarkResult struct {
 	CacheReadInputTokens     int     `json:"cache_read_input_tokens,omitempty"`
 	CacheCreationInputTokens int     `json:"cache_creation_input_tokens,omitempty"`
 	CostUSD                  float64 `json:"cost_usd"`
-	CompileOk                bool    `json:"compile_ok"`
-	RuntimeOk                bool    `json:"runtime_ok"`
-	StdoutOk                 bool    `json:"stdout_ok"`
-	DurationMs               int64   `json:"duration_ms"`
-	CompileMs                int64   `json:"compile_ms"`
-	ExecuteMs                int64   `json:"execute_ms"`
-	ErrorCategory            string  `json:"error_category"`
+	// CostProvenance says whether CostUSD was actually billed: "metered",
+	// "list-price-equivalent" (subscription lane — real arithmetic, zero spend),
+	// "free-local", or "unknown". Absent in baselines banked before 2026-07-30,
+	// where it reads "" — unmeasured, NOT metered.
+	CostProvenance string `json:"cost_provenance,omitempty"`
+	CompileOk      bool   `json:"compile_ok"`
+	RuntimeOk      bool   `json:"runtime_ok"`
+	StdoutOk       bool   `json:"stdout_ok"`
+	DurationMs     int64  `json:"duration_ms"`
+	CompileMs      int64  `json:"compile_ms"`
+	ExecuteMs      int64  `json:"execute_ms"`
+	ErrorCategory  string `json:"error_category"`
 
 	// Validity marks whether this row is a MEASUREMENT at all (vs a failure to
 	// measure: dead subject, harness error, wrong config). NIL means valid —
@@ -172,8 +177,16 @@ type Aggregates struct {
 	RepairUsed        int     `json:"repair_used"`         // Number of repairs attempted
 	RepairSuccessRate float64 `json:"repair_success_rate"` // Repair success rate
 	TotalTokens       int     `json:"total_tokens"`
-	TotalCostUSD      float64 `json:"total_cost_usd"`
-	AvgDurationMs     float64 `json:"avg_duration_ms"`
+	// TotalCostUSD sums cost_usd across EVERY run in the cohort regardless of
+	// provenance, so it is a LIST-PRICE total, not spend. On a subscription rig
+	// most agent-mode dollars here were never billed. Use CostProvenance to see
+	// the split before quoting this as money.
+	TotalCostUSD float64 `json:"total_cost_usd"`
+	// CostProvenance counts runs by how their cost arose (metered /
+	// list-price-equivalent / free-local / unknown). "unknown" includes every
+	// row banked before 2026-07-30, when the label did not exist.
+	CostProvenance map[string]int `json:"cost_provenance,omitempty"`
+	AvgDurationMs  float64        `json:"avg_duration_ms"`
 	// Prompt-cache aggregates. CacheHitRate is cache reads as a share of ALL
 	// input tokens the model saw (reads + writes + uncached), so it answers "how
 	// much of our input did we avoid paying full price for". 0 means either no
