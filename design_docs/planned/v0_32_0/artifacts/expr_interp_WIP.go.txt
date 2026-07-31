@@ -1,0 +1,657 @@
+package format
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/sunholo-data/ailang/internal/ast"
+)
+
+// expr.go prints expression nodes. Each printer receives the parent binding
+// power (parentPrec) and reconstructs parentheses whenever omitting them could
+// re-associate the parsed AST. Because the AST has no ParenExpr node, redundant
+// source parentheses are simply absent from the tree and therefore dropped.
+
+// expr renders an expression into the writer. parentPrec is the minimum binding
+// power the enclosing context imposes: if the expression's own precedence is
+// lower, it must be wrapped in parentheses.
+func (p *printer) expr(e ast.Expr, parentPrec int) error {
+	if e == nil {
+		return fmt.Errorf("nil expression node")
+	}
+	switch n := e.(type) {
+	case *ast.Identifier:
+		p.w.write(n.Name)
+		return nil
+	case *ast.Literal:
+		s, err := literalString(n)
+		if err != nil {
+			return err
+		}
+		p.w.write(s)
+		return nil
+	case *ast.BinaryOp:
+		return p.binaryOp(n, parentPrec)
+	case *ast.UnaryOp:
+		return p.unaryOp(n, parentPrec)
+	case *ast.FuncCall:
+		return p.funcCall(n, parentPrec)
+	case *ast.RecordAccess:
+		return p.recordAccess(n, parentPrec)
+	case *ast.Lambda:
+		return p.wrap(parentPrec, precLambda, func() error { return p.lambda(n) })
+	case *ast.FuncLit:
+		return p.wrap(parentPrec, precAtom, func() error { return p.funcLit(n) })
+	case *ast.Let:
+		// A nil-Body let is a statement binding; it should only appear inside a
+		// block statement list, printed by the block emitter. Reaching it here
+		// (as a value expression) means it is an explicit let..in with a Body, or
+		// a malformed tree. Explicit let..in binds loosely, like a lambda.
+		return p.wrap(parentPrec, precLambda, func() error { return p.letIn(n) })
+	case *ast.LetRec:
+		return p.wrap(parentPrec, precLambda, func() error { return p.letRecIn(n) })
+	case *ast.Block:
+		return p.block(n)
+	case *ast.If:
+		return p.wrap(parentPrec, precLambda, func() error { return p.ifExpr(n) })
+	case *ast.Match:
+		return p.wrap(parentPrec, precLambda, func() error { return p.match(n) })
+	case *ast.List:
+		return p.seq("[", "]", n.Elements)
+	case *ast.Array:
+		return p.seq("#[", "]", n.Elements)
+	case *ast.Tuple:
+		return p.tuple(n)
+	case *ast.Record:
+		return p.record(n)
+	case *ast.RecordUpdate:
+		return p.recordUpdate(n)
+	case *ast.QuasiQuote:
+		return p.quasiQuote(n)
+	case *ast.Send:
+		return p.wrap(parentPrec, precLowest+1, func() error { return p.send(n) })
+	case *ast.Recv:
+		return p.wrap(parentPrec, precPrefix, func() error { return p.recv(n) })
+	case *ast.ForallExpr:
+		return p.wrap(parentPrec, precLambda, func() error { return p.forall(n) })
+	case *ast.AssertStmt:
+		// AssertStmt implements exprNode() for use inside test bodies.
+		return p.assertExpr(n)
+	case *ast.Error:
+		return fmt.Errorf("cannot format ast.Error node: %s", n.Msg)
+	default:
+		return fmt.Errorf("unsupported expression node: %T", e)
+	}
+}
+
+// wrap runs emit, surrounding it with parentheses when the node's own precedence
+// (selfPrec) is lower than the parent context requires.
+func (p *printer) wrap(parentPrec, selfPrec int, emit func() error) error {
+	paren := selfPrec < parentPrec
+	if paren {
+		p.w.write("(")
+	}
+	if err := emit(); err != nil {
+		return err
+	}
+	if paren {
+		p.w.write(")")
+	}
+	return nil
+}
+
+func (p *printer) binaryOp(n *ast.BinaryOp, parentPrec int) error {
+	prec := binaryPrecedence(n.Op)
+	return p.wrap(parentPrec, prec, func() error {
+		// For left-associative ops, the left operand may share the same
+		// precedence without parens; the right operand needs prec+1. Cons (::)
+		// is right-associative, so the sides swap.
+		var leftMin, rightMin int
+		if rightAssociative(n.Op) {
+			leftMin = prec + 1
+			rightMin = prec
+		} else {
+			leftMin = prec
+			rightMin = prec + 1
+		}
+		if err := p.expr(n.Left, leftMin); err != nil {
+			return err
+		}
+		p.w.write(" " + n.Op + " ")
+		return p.expr(n.Right, rightMin)
+	})
+}
+
+func (p *printer) unaryOp(n *ast.UnaryOp, parentPrec int) error {
+	return p.wrap(parentPrec, precPrefix, func() error {
+		// `not` is an alphabetic operator and needs a trailing space; symbolic
+		// operators (-, !, ~) bind directly to their operand.
+		if isWordOperator(n.Op) {
+			p.w.write(n.Op + " ")
+		} else {
+			p.w.write(n.Op)
+		}
+		return p.expr(n.Expr, precPrefix)
+	})
+}
+
+// isWordOperator reports whether a unary operator is spelled with letters and
+// therefore needs a separating space before its operand.
+func isWordOperator(op string) bool {
+	for _, r := range op {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *printer) funcCall(n *ast.FuncCall, parentPrec int) error {
+	// The cons operator `a :: b` desugars to FuncCall{Func: `::`, Args: [a, b]}.
+	// `::` is an infix-only operator: the parser has no prefix/call form for it,
+	// so `::(a, b)` does NOT re-parse. It must be re-emitted in infix form to
+	// round-trip. Cons is right-associative at precCons.
+	if id, ok := n.Func.(*ast.Identifier); ok && id.Name == "::" && len(n.Args) == 2 {
+		return p.wrap(parentPrec, precCons, func() error {
+			if err := p.expr(n.Args[0], precCons+1); err != nil {
+				return err
+			}
+			p.w.write(" :: ")
+			return p.expr(n.Args[1], precCons)
+		})
+	}
+	// String interpolation `"a ${x} b"` desugars to a left-associative chain of
+	// concat_String(acc, part) with each interpolated expression wrapped in
+	// show() (parser_literals.go). Nothing in the AST records that it was
+	// written as an interpolation, so — exactly like cons above — the surface
+	// form has to be reconstructed or it is lost.
+	//
+	// Losing it is not cosmetic. `ailang prompt` teaches `"${expr}"` and uses it
+	// in nearly every example; printing the desugared chain told models that
+	//     println("${name} is ${show(age)} years old")
+	// should canonically be
+	//     println(concat_String(concat_String(concat_String(show(name), " is "),
+	//                                         show(show(age))), " years old"))
+	// This was the single largest divergence in the 2026-07-31 audit of fmt
+	// against the teaching prompt: ~25 of 30 real token-level differences.
+	//
+	// Only a chain whose leaves are ALL string literals or show(e) re-sugars —
+	// a hand-written concat_String(a, b) has no show() wrapper and is left alone.
+	if s, ok := p.interpolationString(n); ok {
+		return p.wrap(parentPrec, precAtom, func() error {
+			p.w.write(s)
+			return nil
+		})
+	}
+	return p.wrap(parentPrec, precCall, func() error {
+		// The callee binds at call precedence; a lower-precedence callee (e.g. a
+		// lambda) is parenthesised by its own printer via precCall.
+		if err := p.expr(n.Func, precCall); err != nil {
+			return err
+		}
+		p.w.write("(")
+		for i, a := range n.Args {
+			if i > 0 {
+				p.w.write(", ")
+			}
+			if err := p.expr(a, precLowest); err != nil {
+				return err
+			}
+		}
+		p.w.write(")")
+		return nil
+	})
+}
+
+func (p *printer) recordAccess(n *ast.RecordAccess, parentPrec int) error {
+	return p.wrap(parentPrec, precDotAccess, func() error {
+		if err := p.expr(n.Record, precDotAccess); err != nil {
+			return err
+		}
+		p.w.write("." + n.Field)
+		return nil
+	})
+}
+
+func (p *printer) lambda(n *ast.Lambda) error {
+	p.w.write("\\")
+	for i, param := range n.Params {
+		if i > 0 {
+			p.w.write(" ")
+		}
+		p.w.write(param.Name)
+	}
+	p.w.write(". ")
+	return p.expr(n.Body, precLambda)
+}
+
+func (p *printer) funcLit(n *ast.FuncLit) error {
+	p.w.write("func(")
+	if err := p.params(n.Params); err != nil {
+		return err
+	}
+	p.w.write(")")
+	if n.ReturnType != nil {
+		rt, err := p.typeString(n.ReturnType)
+		if err != nil {
+			return err
+		}
+		p.w.write(" -> " + rt)
+	}
+	if eff := formatEffectRow(n.Effects); eff != "" {
+		p.w.write(" " + eff)
+	}
+	p.w.write(" ")
+	// A func literal body is a single expression; wrap in a braced block only if
+	// it is itself a multi-expression block.
+	return p.bodyBraced(n.Body)
+}
+
+// letIn prints an explicit `let name = value in body`.
+//
+// Two paths (M-AILANG-FMT-INLINE-INTERIOR):
+//   - The root let owns NO comment attachment → the EXISTING inline spelling,
+//     byte-for-byte (`let x = v in let y = w in tail`). This preserves comment-free
+//     output and every uncommented/unattached let chain exactly.
+//   - The root let owns ≥1 attachment → flatten the maximal chain and emit it
+//     multi-line, one binding per line, interleaving the attached comments at their
+//     boundaries. The `in` is written BEFORE any trailing comment so a `--` comment
+//     cannot swallow syntax.
+func (p *printer) letIn(n *ast.Let) error {
+	if n.Body != nil && p.hasAnyAttachment(n) {
+		return p.letChainMultiline(n)
+	}
+	return p.letInInline(n)
+}
+
+// letInInline is the original inline let..in spelling (unchanged Phase-1 bytes).
+func (p *printer) letInInline(n *ast.Let) error {
+	p.w.write("let " + n.Name)
+	if n.Type != nil {
+		ts, err := p.typeString(n.Type)
+		if err != nil {
+			return err
+		}
+		p.w.write(": " + ts)
+	}
+	p.w.write(" = ")
+	if err := p.expr(n.Value, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" in ")
+	return p.expr(n.Body, precLambda)
+}
+
+// letChainMultiline emits the maximal chain rooted at root as a canonical multi-line
+// layout, interleaving the comments attached to (root, boundary/child). The caller
+// (letIn / funcBody / topLevelLet) has already positioned the cursor at the chain's
+// indentation column. Chain siblings hold a CONSTANT indent — the emitter never
+// increments indentation per nested AST link, because the links are a flat source
+// sequence semantically.
+//
+// Layout, for children [binding0, …, bindingK, tail] and boundaries 0..K+1:
+//
+//	<boundary 0 leading/floating>
+//	let x0 = v0 in  <trailing0>
+//	<boundary 1 leading/floating>
+//	let x1 = v1 in  <trailing1>
+//	…
+//	<tail boundary leading/floating>
+//	tail
+func (p *printer) letChainMultiline(root *ast.Let) error {
+	lc := flattenLetChain(root)
+
+	// Boundary 0: comments before the first binding.
+	p.emitChainBoundary(root, 0)
+
+	for i, b := range lc.Bindings {
+		// Emit `let name[: T] = value in`. The value is a nested expression; if it is
+		// itself an attached let chain it recurses through letIn's multi-line path.
+		p.w.write("let " + b.Name)
+		if b.Type != nil {
+			ts, err := p.typeString(b.Type)
+			if err != nil {
+				return err
+			}
+			p.w.write(": " + ts)
+		}
+		p.w.write(" = ")
+		if err := p.expr(b.Value, precLowest); err != nil {
+			return err
+		}
+		// Write `in` BEFORE any trailing comment so the comment cannot swallow it.
+		p.w.write(" in")
+		p.emitTrailing(root, i)
+		p.w.hardline()
+		// Boundary i+1: comments before the next binding (or the tail).
+		p.emitChainBoundary(root, i+1)
+	}
+
+	// Terminal tail on its own line. Its trailing comment (same line as the tail) keys
+	// on child index len(Bindings) (the tail's logical index).
+	if lc.Tail != nil {
+		if err := p.expr(lc.Tail, precLambda); err != nil {
+			return err
+		}
+		p.emitTrailing(root, len(lc.Bindings))
+	}
+	return nil
+}
+
+// emitChainBoundary emits leading then floating comments attached at (root, boundary),
+// each on its own line, followed by a hardline so the next binding/tail starts fresh.
+// Leading and floating are both emitted line-per-comment; a floating group is
+// blank-line-separated from the preceding binding is NOT required for the canonical
+// let-chain layout (the design's canonical form places the comment directly at the
+// boundary line), so both are emitted contiguously at the boundary.
+func (p *printer) emitChainBoundary(root *ast.Let, boundary int) {
+	if p.att == nil {
+		return
+	}
+	for _, c := range p.att.leading[attKey{owner: root, index: boundary}] {
+		p.w.write(commentText(c))
+		p.w.hardline()
+	}
+	for _, c := range p.att.floating[attKey{owner: root, index: boundary}] {
+		p.w.write(commentText(c))
+		p.w.hardline()
+	}
+}
+
+func (p *printer) letRecIn(n *ast.LetRec) error {
+	p.w.write("letrec " + n.Name)
+	if n.Type != nil {
+		ts, err := p.typeString(n.Type)
+		if err != nil {
+			return err
+		}
+		p.w.write(": " + ts)
+	}
+	p.w.write(" = ")
+	if err := p.expr(n.Value, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" in ")
+	return p.expr(n.Body, precLambda)
+}
+
+func (p *printer) ifExpr(n *ast.If) error {
+	p.w.write("if ")
+	if err := p.expr(n.Condition, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" then ")
+	if err := p.expr(n.Then, precLambda); err != nil {
+		return err
+	}
+	p.w.write(" else ")
+	return p.expr(n.Else, precLambda)
+}
+
+func (p *printer) match(n *ast.Match) error {
+	p.w.write("match ")
+	if err := p.expr(n.Expr, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" {")
+	p.w.hardline()
+	// Emit cases at one indentation level, comma-separated per source grammar.
+	var caseErr error
+	p.w.indented(func() {
+		for i, c := range n.Cases {
+			if caseErr != nil {
+				return
+			}
+			// Boundary i: leading + floating comments before case i. The attacher
+			// keys match-case boundaries on the case Body node (see collectLists).
+			p.emitLeading(n, i)
+			if p.hasFloating(n, i) {
+				p.emitFloating(n, i)
+				p.w.hardline()
+			}
+			pat, err := p.patternString(c.Pattern)
+			if err != nil {
+				caseErr = err
+				return
+			}
+			p.w.write(pat)
+			if c.Guard != nil {
+				p.w.write(" if ")
+				if err := p.expr(c.Guard, precLowest); err != nil {
+					caseErr = err
+					return
+				}
+			}
+			p.w.write(" => ")
+			if err := p.expr(c.Body, precLambda); err != nil {
+				caseErr = err
+				return
+			}
+			if i < len(n.Cases)-1 {
+				p.w.write(",")
+			}
+			p.emitTrailing(n, i)
+			p.w.hardline()
+		}
+		if p.hasFloating(n, len(n.Cases)) {
+			p.emitFloating(n, len(n.Cases))
+			p.w.hardline()
+		}
+		p.emitLeading(n, len(n.Cases))
+	})
+	if caseErr != nil {
+		return caseErr
+	}
+	p.w.write("}")
+	return nil
+}
+
+// seq prints a bracketed, comma-separated element sequence on one line.
+func (p *printer) seq(open, close string, elems []ast.Expr) error {
+	p.w.write(open)
+	for i, e := range elems {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		if err := p.expr(e, precLowest); err != nil {
+			return err
+		}
+	}
+	p.w.write(close)
+	return nil
+}
+
+func (p *printer) tuple(n *ast.Tuple) error {
+	// A tuple always prints with parentheses; a 1-tuple keeps a trailing comma so
+	// it does not re-parse as a grouped expression.
+	p.w.write("(")
+	for i, e := range n.Elements {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		if err := p.expr(e, precLowest); err != nil {
+			return err
+		}
+	}
+	if len(n.Elements) == 1 {
+		p.w.write(",")
+	}
+	p.w.write(")")
+	return nil
+}
+
+func (p *printer) record(n *ast.Record) error {
+	if len(n.Fields) == 0 {
+		p.w.write("{}")
+		return nil
+	}
+	p.w.write("{ ")
+	for i, f := range n.Fields {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		p.w.write(f.Name + ": ")
+		if err := p.expr(f.Value, precLowest); err != nil {
+			return err
+		}
+	}
+	p.w.write(" }")
+	return nil
+}
+
+func (p *printer) recordUpdate(n *ast.RecordUpdate) error {
+	p.w.write("{ ")
+	if err := p.expr(n.Base, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" | ")
+	for i, f := range n.Fields {
+		if i > 0 {
+			p.w.write(", ")
+		}
+		p.w.write(f.Name + ": ")
+		if err := p.expr(f.Value, precLowest); err != nil {
+			return err
+		}
+	}
+	p.w.write(" }")
+	return nil
+}
+
+func (p *printer) quasiQuote(n *ast.QuasiQuote) error {
+	// Quasiquote template contents are never reinterpreted: emit verbatim between
+	// the kind keyword and the triple-quote delimiters.
+	if strings.Contains(n.Template, `"""`) {
+		return fmt.Errorf("quasiquote template contains triple-quote delimiter; cannot format losslessly")
+	}
+	p.w.write(n.Kind + `"""` + n.Template + `"""`)
+	return nil
+}
+
+func (p *printer) send(n *ast.Send) error {
+	if err := p.expr(n.Channel, precLowest+1); err != nil {
+		return err
+	}
+	p.w.write(" <- ")
+	return p.expr(n.Value, precLowest+1)
+}
+
+func (p *printer) recv(n *ast.Recv) error {
+	p.w.write("<- ")
+	return p.expr(n.Channel, precPrefix)
+}
+
+func (p *printer) forall(n *ast.ForallExpr) error {
+	p.w.write("forall " + n.Var + ": ")
+	if err := p.expr(n.Lo, precLowest); err != nil {
+		return err
+	}
+	p.w.write("..")
+	if err := p.expr(n.Hi, precLowest); err != nil {
+		return err
+	}
+	p.w.write(" => ")
+	return p.expr(n.Body, precLambda)
+}
+
+func (p *printer) assertExpr(n *ast.AssertStmt) error {
+	p.w.write("assert ")
+	if err := p.expr(n.Condition, precLowest); err != nil {
+		return err
+	}
+	if n.Message != "" {
+		p.w.write(", " + escapeString(n.Message))
+	}
+	return nil
+}
+
+// interpolationString reconstructs `"a ${x} b"` from the concat_String chain the
+// parser desugars it into, returning ok=false when the shape does not match.
+//
+// The parser folds interpolation left-associatively:
+//   concat_String(concat_String(lit, show(e)), lit)
+// with every interpolated expression wrapped in show(). Both conditions must
+// hold for every leaf, which is what keeps a hand-written concat_String(a, b)
+// from being rewritten into a string literal.
+func (p *printer) interpolationString(n *ast.FuncCall) (string, bool) {
+	parts, ok := flattenConcatChain(n)
+	if !ok || len(parts) < 2 {
+		return "", false
+	}
+	var sb strings.Builder
+	sb.WriteString(`"`)
+	for _, part := range parts {
+		switch t := part.(type) {
+		case *ast.Literal:
+			if t.Kind != ast.StringLit {
+				return "", false
+			}
+			sb.WriteString(escapeInterpText(fmt.Sprintf("%v", t.Value)))
+		case *ast.FuncCall:
+			id, isID := t.Func.(*ast.Identifier)
+			if !isID || id.Name != "show" || len(t.Args) != 1 {
+				return "", false
+			}
+			// Render the interpolated expression with a fresh printer so its
+			// output is a self-contained fragment rather than appended mid-stream.
+			inner, err := p.subExpr(t.Args[0])
+			if err != nil {
+				return "", false
+			}
+			sb.WriteString("${")
+			sb.WriteString(inner)
+			sb.WriteString("}")
+		default:
+			return "", false
+		}
+	}
+	sb.WriteString(`"`)
+	return sb.String(), true
+}
+
+// flattenConcatChain walks the LEFT spine of nested concat_String calls and
+// returns the leaves in source order.
+func flattenConcatChain(e ast.Expr) ([]ast.Expr, bool) {
+	call, ok := e.(*ast.FuncCall)
+	if !ok {
+		return []ast.Expr{e}, true
+	}
+	id, isID := call.Func.(*ast.Identifier)
+	if !isID || id.Name != "concat_String" || len(call.Args) != 2 {
+		return []ast.Expr{e}, true
+	}
+	left, ok := flattenConcatChain(call.Args[0])
+	if !ok {
+		return nil, false
+	}
+	return append(left, call.Args[1]), true
+}
+
+// escapeInterpText escapes a literal segment so it survives being placed back
+// inside a `"..."`. `${` is escaped too: an interpolation that produced a
+// literal containing it must not re-parse as a new interpolation.
+func escapeInterpText(s string) string {
+	r := strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		"\n", `\n`,
+		"\t", `\t`,
+		"${", `\${`,
+	)
+	return r.Replace(s)
+}
+
+// subExpr renders an expression to a standalone string using a fresh writer, so
+// the result can be embedded inside a literal (e.g. between `${` and `}`) rather
+// than appended to the main output stream mid-construction.
+//
+// Comment attachments are deliberately NOT carried over: a comment cannot live
+// inside a string interpolation, and re-sugaring only fires on chains whose
+// leaves are literals and show() calls, which own no attachments.
+func (p *printer) subExpr(e ast.Expr) (string, error) {
+	sub := &printer{w: newWriter(p.w.indent)}
+	if err := sub.expr(e, precLowest); err != nil {
+		return "", err
+	}
+	return sub.w.buf.String(), nil
+}
