@@ -210,3 +210,59 @@ func TestNewlineDoesNotSplitAContinuedExpression(t *testing.T) {
 		})
 	}
 }
+
+// TestHeaderBlockMatchesTeachingPrompt locks the module/import header shape.
+//
+// # WHY THIS IS NOT COVERED BY THE DRIFT GATE
+//
+// TestFmtDoesNotDriftFromTeachingPrompt compares token MULTISETS, deliberately,
+// so that pure layout changes do not register as dialect drift. A blank line
+// contributes no tokens, so blank-line drift is structurally invisible to it.
+//
+// That blind spot cost real signal. The motoko fmt extension diffs LINES, not
+// tokens: it runs `ailang fmt <path>` and shows the model the changed lines. When
+// fmt emitted a blank line after `module` and between imports — which the prompt
+// never does — every file a model wrote came back marked non-canonical. Worse,
+// because the only difference WAS a blank line, the rendered diff body was empty:
+// measured live on 2026-07-31 (session_recursion_fibonacci_151c55bc), the model
+// received "Canonical AILANG would differ here:" followed by nothing at all.
+//
+// The prompt's convention, counted over the active version: module directly
+// followed by import in 21 examples vs 2 blank-separated; import directly
+// followed by import in 55 vs ZERO. The header is one contiguous block.
+func TestHeaderBlockMatchesTeachingPrompt(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{
+			"module and single import stay contiguous",
+			"module m\nimport std/io (println)\n\nexport func main() -> () ! {IO} = println(\"x\")\n",
+			"module m\nimport std/io (println)\n",
+		},
+		{
+			"consecutive imports stay contiguous",
+			"module m\nimport std/io (println)\nimport std/list (map)\n\nexport func main() -> () ! {IO} = println(\"x\")\n",
+			"module m\nimport std/io (println)\nimport std/list (map)\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := fmtExpr(t, tc.src)
+			if !strings.HasPrefix(out, tc.want) {
+				t.Errorf("header block not contiguous.\nwant prefix:\n%q\ngot:\n%q", tc.want, out)
+			}
+		})
+	}
+}
+
+// TestFmtIsAByteNoOpOnPromptHeaderShape is the end-to-end property the fmt
+// extension actually keys on: a file written the way the prompt teaches must
+// come back byte-identical, so the extension emits NOTHING. Any difference —
+// including one that renders as an empty diff — tells the model its correct code
+// is non-canonical.
+func TestFmtIsAByteNoOpOnPromptHeaderShape(t *testing.T) {
+	src := "module benchmark/solution\nimport std/io (println)\n\npure func fib(n: int) -> int = if n == 0 then 0 else if n == 1 then 1 else fib(n - 1) + fib(n - 2)\n\nexport func main() -> () ! {IO} = println(show(fib(20)))\n"
+	out := fmtExpr(t, src)
+	if out != src {
+		t.Errorf("fmt is not a byte no-op on prompt-shaped source; the fmt extension would\n"+
+			"tell the model its file is non-canonical.\n--- want ---\n%q\n--- got ---\n%q", src, out)
+	}
+}

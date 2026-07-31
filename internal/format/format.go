@@ -220,9 +220,32 @@ func (p *printer) file(f *ast.File) error {
 	// is a multi-line ordered child list (M0 site #1): comments interleave at its
 	// boundaries. Owner is the *ast.File; boundary k is before top-level child k.
 	first := true
-	sep := func() {
+	// sep separates two consecutive top-level units. `tight` selects a plain line
+	// break instead of a blank line, which is how the module declaration and the
+	// import block are joined.
+	//
+	// WHY: the active teaching prompt writes the header as ONE contiguous block —
+	// `module` directly followed by `import` in 21 examples (2 blank-separated),
+	// and `import` directly followed by `import` in 55 examples (ZERO
+	// blank-separated). Emitting a blank line at each of those boundaries made
+	// `ailang fmt` disagree with the prompt on essentially every file a model
+	// writes, which is the same class of contradiction as `[int]`→`list[int]`.
+	//
+	// It was invisible to TestFmtDoesNotDriftFromTeachingPrompt because that gate
+	// compares token MULTISETS and a blank line contributes no tokens — but the
+	// motoko fmt extension diffs LINES, so the model was told "Canonical AILANG
+	// would differ here" with a diff body that rendered empty. Measured live on
+	// 2026-07-31 (session_recursion_fibonacci_151c55bc): a "your file is
+	// non-canonical" message carrying no visible change at all, on a file whose
+	// ONLY difference from canonical was this blank line. That is strictly worse
+	// than saying nothing. See TestHeaderBlockMatchesTeachingPrompt.
+	sep := func(tight bool) {
 		if !first {
-			p.w.blankline()
+			if tight {
+				p.w.hardline()
+			} else {
+				p.w.blankline()
+			}
 		}
 		first = false
 	}
@@ -236,11 +259,11 @@ func (p *printer) file(f *ast.File) error {
 	// separates them).
 	boundaryComments := func() {
 		if p.hasFloating(f, idx) {
-			sep()
+			sep(false)
 			p.emitFloating(f, idx)
 		}
 		if p.att != nil && len(p.att.leading[attKey{owner: f, index: idx}]) > 0 {
-			sep()
+			sep(false)
 			p.emitLeading(f, idx)
 			// Leading comments are directly above their unit: no blank between them
 			// and the unit, so mark the run as "already open" — the unit follows on
@@ -249,9 +272,9 @@ func (p *printer) file(f *ast.File) error {
 		}
 	}
 
-	emitUnit := func(emit func() error) error {
+	emitUnit := func(tight bool, emit func() error) error {
 		boundaryComments()
-		sep()
+		sep(tight)
 		if err := emit(); err != nil {
 			return err
 		}
@@ -261,26 +284,27 @@ func (p *printer) file(f *ast.File) error {
 	}
 
 	if f.Module != nil {
-		if err := emitUnit(func() error { p.w.write("module " + f.Module.Path); return nil }); err != nil {
+		if err := emitUnit(false, func() error { p.w.write("module " + f.Module.Path); return nil }); err != nil {
 			return err
 		}
 	}
 	for _, imp := range f.Imports {
 		imp := imp
-		if err := emitUnit(func() error { p.importDecl(imp); return nil }); err != nil {
+		// Imports sit tight against the module decl and each other.
+		if err := emitUnit(true, func() error { p.importDecl(imp); return nil }); err != nil {
 			return err
 		}
 	}
 	for _, d := range f.Decls {
 		d := d
-		if err := emitUnit(func() error { return p.decl(d) }); err != nil {
+		if err := emitUnit(false, func() error { return p.decl(d) }); err != nil {
 			return err
 		}
 	}
 
 	// Trailing comments after the last top-level node (boundary len) — rule 4 tail.
 	if p.hasFloating(f, idx) || (p.att != nil && len(p.att.leading[attKey{owner: f, index: idx}]) > 0) {
-		sep()
+		sep(false)
 		p.emitFloating(f, idx)
 		p.emitLeading(f, idx)
 	}
