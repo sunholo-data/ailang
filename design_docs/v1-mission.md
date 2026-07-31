@@ -1317,8 +1317,15 @@ frozen; contracts projection live).
   IMPLEMENTATION OFFERED): `std/ai.stepWithStream`'s contract (unit-returning `{IO}`-closed
   callback; `Result[StepResult, AIError]` carries no chunks) makes live-streaming and
   chunk-recording mutually exclusive — motoko's deterministic-replay testing needs BOTH at once.
-  Arni ships a fork branch (`arniwesth/ailang spike/motoko-009-prototype-v031`, compare link in
-  the issue) + a patch verified `git apply --check`-clean against v0.31.0. The iteration should
+  Arni ships the reference implementation as a PR on his fork —
+  **https://github.com/arniwesth/ailang/pull/2** (branch `spike/motoko-009-prototype-v031`) —
+  plus a patch verified `git apply --check`-clean against v0.31.0. REQUIRED design context
+  (Arni, Discord 2026-07-31): the two motoko DST ADRs this must serve —
+  Project 009 Deterministic Test-World Architecture:
+  https://github.com/arniwesth/motoko_agent/blob/arniwesth/mot-44-motoko_dst_execution_primer/.agent/projects/009_motoko_dst_execution/ADR-001-deterministic-test-world-architecture.md
+  and Project 007 DST definition/taxonomy:
+  https://github.com/arniwesth/motoko_agent/blob/arniwesth/mot-44-motoko_dst_execution_primer/.agent/projects/007_dst_consolidation/ADR-001-motoko-dst-definition-and-taxonomy.md
+  — the designer/quorum read BOTH before judging the patch. The iteration should
   (1) ghost-discipline the repro at HEAD, (2) evaluate ADOPTING the offered implementation
   (review-the-patch lane — do not reinvent; quorum reviews the DESIGN it embodies, incl. the
   core-vs-extension routing call on a std/ai surface change), (3) credit authorship in the
