@@ -765,13 +765,30 @@ mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
    - **process fix** — edit the mission doc (guardrails/ordering/routing policy per its rules).
    - **backlog** — new design doc via design-doc-creator, or re-prioritize the queue.
 2. Routing-policy change? Only with ≥3 evidence rows; stamp it in the mission doc.
-3. Morning report, TWO channels (both required):
-   - `ailang messages send controlplane "<summary>" --title "Mission iteration N: <headline>"
+3. Morning report, TWO channels (both required). **DIGEST FORMAT, HARD-CAPPED (Mark directive
+   2026-07-31: "the github progress issues are very verbose … we could work on more conciseness").**
+   The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own
+   reports (Gate 0 filters for Mark's comments only); the full record lives in the charter STATUS
+   + mission log, which Gate 4 already wrote. Do NOT mirror the STATUS entry into the issue.
+   - `ailang messages send controlplane "<digest>" --title "Mission iteration N: <headline>"
      --from "mission-${MISSION_NAME:-control}"`
-   - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<markdown report>"`
+   - `gh issue comment "$MISSION_GH_ISSUE" --repo "${MISSION_REPO:-sunholo-data/ailang}" --body "<digest>"`
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
-     `~/.ailang/state/mission-gh-issue`, NOT hardcoded). Markdown, lead with the headline,
-     link commits by SHA, name anything parked for a human. End the body with:
+     `~/.ailang/state/mission-gh-issue`, NOT hardcoded).
+   **The digest — ≤20 lines / ≤1,500 chars, exactly these sections, nothing else:**
+   ```
+   **Iteration N — <one-line headline>**
+   - **Pick**: <item> (<why in ≤1 clause, only if not the queue head>)
+   - **Outcome**: LANDED/PARKED/none · evaluator <score> · <commit SHAs as links>
+   - **Key find**: <≤2 sentences — only if genuinely load-bearing, else omit the row>
+   - **Cost**: metered $<x> · quota buckets <list>
+   - **Next**: <one line>
+   - **DECISIONS FOR MARK**: <bulleted asks phrased for one-word replies, or "none">
+   Full record: <link to the charter STATUS entry / log>
+   ```
+   The DECISIONS row is first-class — it is the one section Mark acts on; never bury an ask in
+   prose. No gate-by-gate narration, no routing-evidence dump, no war stories (those belong in
+   Gate 4's charter/log record). End the body with:
      `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 
 4. **WEEKLY THREAD ROTATION (Mark 2026-07-16 — do this BEFORE posting the report):** the
