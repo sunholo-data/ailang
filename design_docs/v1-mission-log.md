@@ -6647,6 +6647,12 @@ moot this iteration (no executor ran). The codex designer correctly self-labelle
 `internal/effects` run as a **sandbox denial rather than a failure**, and the controller re-ran
 every gate outside the sandbox — the documented false-green #3 behaved exactly as the recipe says.
 
+**Gate 3b GREEN**: all 15 checks complete on `73f4e38bf`, **0 failures**, `govulncheck (vuln gate):
+completed/success` — SHA-addressed, so the CI fix is LANDED and verified, not merely pushed. The
+sprint worktree was removed and its branch deleted, since the doc landed on `dev` directly (an
+unmerged branch holding a design doc is invisible to Gate 2's already-landed check — the iter-121
+war story).
+
 **Next**: Mark answers the a/b/c scope call in the doc header (controller's read: **(c)** bound the
 drain locally, no interface change; avoid **(a)**). On an answer this unparks straight to
 sprint-planner — the doc is otherwise plan-ready and the patch is verified green. If Mark prefers,
