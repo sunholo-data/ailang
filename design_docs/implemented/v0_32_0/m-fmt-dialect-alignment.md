@@ -1,9 +1,13 @@
 # M-FMT-DIALECT-ALIGNMENT
 
-**Status:** planned
+**Status:** implemented 2026-07-31 (W1–W4 landed; AC5 pending the scheduled run)
 **Created:** 2026-07-31
-**Deadline:** before Wednesday 2026-08-05 03:00 (the scheduled fmt A/B)
+**Deadline:** before Wednesday 2026-08-05 03:00 (the scheduled fmt A/B) — **MET**
 **Owner:** next session — this doc exists so nothing below has to be re-derived
+
+> **Wednesday decision: let the A/B run.** W1 landed, so `AILANG_AB_FMT` stays at
+> its default of 1 (`tools/launchd/nightly-eval.sh:181`, day gate `%u == 3`). The
+> abort clause at the bottom of this doc does NOT fire. See the Verification Log.
 
 ---
 
@@ -171,6 +175,131 @@ The scheduled fmt A/B fires **Wed 2026-08-05 03:00** (`tools/launchd/nightly-eva
 `RUN_AB_FMT`, day gate `%u == 3`). If W1 has not landed, set `AILANG_AB_FMT=0` — otherwise
 it burns ~4h of rig measuring a formatter that still contradicts the prompt, and produces a
 fourth ambiguous null.
+
+---
+
+## Verification Log (2026-07-31)
+
+### The failing shape, finally isolated — it was never in the formatter
+
+W1 said "the failing shape has NOT been isolated — that is the first task." It is
+now, and the answer is that **the WIP was not the bug**. The 6 corpus files
+(the doc said 7; the measured count is 6) did not fail a round-trip *comparison* —
+their formatted output **did not re-parse at all**:
+
+```
+PAR_UNEXPECTED_TOKEN: expected next token to be }, got STRING_PART
+```
+
+Minimal repro, with no formatter involved:
+
+```ailang
+export func f() -> string {
+  let a = "x"
+  "${a} y"        -- expected }, got STRING_PART
+}
+```
+
+`ailang fmt` drops `;` and relies on the R2 newline soft separator
+(`peekStartsNewlineBlockStatement`), whose statement-starter set was
+`let/letrec/if/match/identifier` — **every literal was excluded**. So a block
+whose last statement began with a literal did not parse. It failed for `"s"`,
+`"${a}"`, `42`, `3.5`, `true` alike; only re-sugaring made fmt start *emitting*
+that shape. The fix adds the literal starters (`internal/parser/parser_func.go`,
+`peekIsLiteralStatementStart`). `(`, `[`, `{` stay excluded — they genuinely
+continue an expression (call / indexing / record-update), the M-GAP2 ambiguity R2
+was built around; `a\n+ 2` and `a\n++ "y"` are still one expression, and that is
+tested.
+
+This also means a model taught both newline separators and `"${x}"` was hitting an
+unactionable parse error. That is a dialect trap of exactly the kind this doc exists
+to remove.
+
+### The stored WIP had four latent bugs beyond that
+
+`artifacts/expr_interp_WIP.go.txt` was re-derived from scratch rather than copied,
+which turned out to matter. The WIP re-sugared any left-spine chain of literals and
+`show()` calls with `len(parts) >= 2` and no further conditions. Missing:
+
+1. **No "at least one hole" check.** `concat_String("a", "b")` — hand-written, no
+   interpolation — would have been rewritten to `"ab"`. Silent corruption.
+2. **No adjacent-literal check.** `concat_String(concat_String("a","b"), show(n))`
+   → `"ab${n}"`, which re-parses with ONE text part. Round-trip break.
+3. **No empty-literal check.** The parser *elides* empty parts, so a hand-written
+   empty segment would vanish.
+4. **No newline / `--` refusal** when rendering a hole.
+
+It also hand-rolled its escaping instead of reusing `escapeString`, so it dropped
+`\r` and the `\u{...}` control-character forms. None of these caused the corpus
+failure — the parser gap did — but all four are in the shipped guards, each with a
+test in `internal/format/interp_test.go`.
+
+### Divergence inventory, closed out
+
+Scoped to ACTIVE prompt versions. Five spellings realigned; in every case both
+spellings parse to an **identical** AST, which is what makes emitting the taught
+one round-trip exactly:
+
+| # | Divergence | Status |
+|---|---|---|
+| 1 | `[int]` → `list[int]` | FIXED — `ca3d04cd8` |
+| 2 | `h :: t` → `::(h, t)` | FIXED — `ca3d04cd8` |
+| 3 | `"${x}"` → `concat_String(...)` | **FIXED** — `internal/format/interp.go` |
+| 4 | `_r0` row variable leaking | **FIXED** — `{ email: string, ... }` |
+| 5 | `int -> int` → `(int) -> int` | **FIXED** — 10 prompt blocks, the second-largest divergence and NOT in the original inventory |
+| 6 | `now()` → `now(())` | **FIXED** — 5 prompt blocks, also not in the original inventory |
+| 7 | `{name, age}` → `{name: name, age: age}` | **FIXED** — 2 prompt blocks, also not in the original inventory |
+
+Divergences 5–7 were invisible because `knownDivergence` excused any block whose
+output gained a `concat_String` — which waved through blocks drifting for
+interpolation **and** another reason. The true residual was **16, not 9**. The
+allowlist is deleted; an allowlist that excuses nothing is a rubber stamp.
+
+### Acceptance criteria
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | `go test ./internal/format/` green incl. `TestCorpusComment` + drift gate | ✅ green; `./internal/parser/` green too |
+| 2 | `knownDrift` lowered from 9 | ✅ **9 → 4** |
+| 3 | `ailang fmt` a no-op on prompt interpolation examples | ✅ verified on the installed binary — returns `println("${n} x")`, byte-identical input/output |
+| 4 | `make install` succeeds, `ailang --version` matches HEAD | ✅ `v0.31.0-21-g349d28c2e`, commit `349d28c` = HEAD. The stated blocker (`UpdateStageMetrics` arity) was resolved independently and did not recur. |
+| 5 | Re-run the A/B, report paired Wilcoxon on tokens | ⏳ **NOT DONE — a ~4h rig run.** Fires Wed 2026-08-05 03:00. This is the first run that measures fmt rather than measuring our own confusion. |
+
+`go test ./...` is otherwise green. Two unrelated failures were confirmed not to
+be from this work: `TestNetHttpPost` (httpbin.org returned 503) and
+`TestSolve_HardTimeout_FakeSolverIgnoringT` (passes on re-run; flaky child-pid
+race). Neither package carries any change from this sprint.
+
+### The 4 remaining drifts — diagnosed, not unknown
+
+Recorded in full at `internal/format/dialect_drift_test.go`:
+
+- **#19** — a block containing the prompt's own ❌-WRONG example, which fmt
+  reformats. Nothing to fix in fmt. *(Side finding: it parses today, so the
+  prompt's "parse error" claim is stale — that belongs to prompt-manager.)*
+- **#63** — `=> { -- comment \n expr }` unwraps to `=> expr`; the block existed
+  only to host a comment, and `Source()` drops comments by construction.
+- **#71** — the prompt writes `Result[List[string], string]`, fmt emits
+  `Result[[string], string]`. `[T]` is taught 64 times, but `List[T]` is what
+  `std/json.ail:146` actually writes, so "fix the prompt" would put it at odds
+  with stdlib source. **Needs a decision on which spelling is canonical** — not a
+  formatter change. Deliberately not touched: perturbing the active prompt days
+  before the A/B would confound its control text.
+- **#86** — `price - (price * pct) / 100` → `price - price * pct / 100`. The AST
+  has no ParenExpr node (design V20), so redundant source parens are absent from
+  the tree and unrecoverable. Semantically identical.
+
+### W3 — tool results now reach eval data
+
+`internal/executor/motoko/motoko.go` already resolved the session JSONL path
+(`findSessionJSONL`) and threw it away. It now travels as
+`ProviderData["motoko_session_jsonl"]` → `AgentBenchmarkResult.SessionJSONLPath` →
+`ImportMotokoSession` in `cmd/ailang/eval_benchmark.go`, as a sibling to the Claude
+`claudehistory` branch that was already there. Best-effort by design: a failed
+import reports on stderr and never fails a benchmark row — it is diagnostics, not
+measurement. This is the blind spot that hid the bug for two weeks.
+
+---
 
 ## References
 

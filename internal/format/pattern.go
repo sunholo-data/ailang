@@ -84,12 +84,26 @@ func (p *printer) listPatternString(n *ast.ListPattern) (string, error) {
 	return "[" + strings.Join(parts, ", ") + "]", nil
 }
 
+// recordPatternString renders a record pattern, preferring the punning
+// shorthand `{name, age}` over the explicit `{name: name, age: age}`.
+//
+// Both spellings parse to the identical FieldPattern{Name: "name", Pattern:
+// Identifier{"name"}}, so the shorthand round-trips exactly. Only the shorthand
+// is taught: the active prompt writes `{name, age}` and never the self-naming
+// explicit form, so expanding it told models their correct pattern was
+// non-canonical — the same divergence class as `h :: t` → `::(h, t)`.
+// A field bound to a DIFFERENT name (`{port: p}`) or to a non-identifier
+// sub-pattern (`{user: {email: e}}`) has no shorthand and keeps `name: pattern`.
 func (p *printer) recordPatternString(n *ast.RecordPattern) (string, error) {
 	fields := make([]string, 0, len(n.Fields)+1)
 	for _, f := range n.Fields {
 		sub, err := p.patternString(f.Pattern)
 		if err != nil {
 			return "", err
+		}
+		if id, ok := f.Pattern.(*ast.Identifier); ok && id.Name == f.Name {
+			fields = append(fields, f.Name)
+			continue
 		}
 		fields = append(fields, f.Name+": "+sub)
 	}

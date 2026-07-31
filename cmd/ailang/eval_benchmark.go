@@ -449,6 +449,32 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 					fmt.Fprintf(os.Stderr, "[eval] imported %d chat messages for session %s\n", n, result.SessionID)
 				}
 			}
+
+			// motoko: import the session JSONL, which carries tool RESULTS.
+			//
+			// This is the motoko sibling of the Claude branch above, and it was
+			// missing. The eval harness banks its own agent_transcript containing
+			// tool CALLS only, so what the agent was TOLD — every compiler
+			// diagnostic, and the fmt hook's "canonical AILANG would differ here"
+			// message — never reached eval data. ImportMotokoSession has parsed
+			// tool_result all along, but only ran from `ailang chains
+			// import-motoko` by hand. The result: `ailang fmt` contradicted the
+			// teaching prompt on every write for two weeks, at a measured +62%
+			// output tokens, and three sessions of analysis blamed the model for
+			// syntax it had been instructed to use.
+			//
+			// Best-effort by design: a failed import must never fail a benchmark
+			// row. It is diagnostics, not measurement — but it is reported on
+			// stderr rather than swallowed, so a silently-empty transcript cannot
+			// recur unnoticed.
+			if executorName == "motoko" && result.SessionJSONLPath != "" {
+				if imp, importErr := evalChain.Store.ImportMotokoSession(ctx, result.SessionJSONLPath); importErr != nil {
+					fmt.Fprintf(os.Stderr, "[eval] motoko session import for %s: %v\n", result.SessionJSONLPath, importErr)
+				} else if os.Getenv("DEBUG_AGENT") != "" {
+					fmt.Fprintf(os.Stderr, "[eval] imported motoko session %s -> chain %s (%d steps, %d tool calls)\n",
+						imp.SessionLabel, imp.ChainID, imp.Steps, imp.ToolCalls)
+				}
+			}
 		}
 
 		// Record success attributes on span

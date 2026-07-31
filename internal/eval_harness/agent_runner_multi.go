@@ -402,6 +402,10 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	resolvedProfile, _ := result.ProviderData["resolved_profile"].(string)
 	resolvedExtensions, _ := result.ProviderData["resolved_extensions"].(string)
+	// The executor's own session log, when it keeps one (motoko does). Carries
+	// tool RESULTS, which the banked agent_transcript does not — see
+	// AgentBenchmarkResult.SessionJSONLPath.
+	sessionJSONLPath, _ := result.ProviderData["motoko_session_jsonl"].(string)
 
 	// Treatment-integrity capture for the fmt experiment.
 	//
@@ -418,6 +422,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		BenchmarkID:        spec.ID,
 		ResolvedProfile:    resolvedProfile,
 		ResolvedExtensions: resolvedExtensions,
+		SessionJSONLPath:   sessionJSONLPath,
 		Executor:           executorName,
 		Success:            success,
 		Iterations:         result.NumTurns,

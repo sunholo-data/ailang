@@ -496,6 +496,17 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}, nil
 	}
 
+	// Carry the session JSONL path out to the caller. It is the ONLY record of
+	// what the agent was actually told: the eval harness banks an
+	// `agent_transcript` of tool CALLS, while tool RESULTS — the fmt hook's
+	// "canonical AILANG would differ here", every compiler diagnostic the agent
+	// saw — exist only in this file. Eval runs create chains but never imported
+	// it, so for two weeks the fmt dialect bug was invisible in eval data and
+	// three sessions of analysis blamed the model for syntax it had been told to
+	// use. internal/observatory.ImportMotokoSession parses this file INCLUDING
+	// tool_result; the eval path calls it with this value.
+	result.ProviderData["motoko_session_jsonl"] = jsonlPath
+
 	// END-TO-END SYSTEM-PROMPT DELIVERY GUARD (M-RIG-RELIABILITY) — see
 	// guardSystemPromptDelivery for the full rationale. It distinguishes the
 	// recurring delivery regression from a motoko startup crash before step 0
