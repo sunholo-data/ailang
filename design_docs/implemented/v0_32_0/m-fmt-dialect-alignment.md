@@ -260,7 +260,7 @@ allowlist is deleted; an allowlist that excuses nothing is a rubber stamp.
 | # | Criterion | Result |
 |---|---|---|
 | 1 | `go test ./internal/format/` green incl. `TestCorpusComment` + drift gate | ✅ green; `./internal/parser/` green too |
-| 2 | `knownDrift` lowered from 9 | ✅ **9 → 4** |
+| 2 | `knownDrift` lowered from 9 | ✅ **9 → 2** (9→4 formatter, 4→2 prompt v0.16.4) |
 | 3 | `ailang fmt` a no-op on prompt interpolation examples | ✅ verified on the installed binary — returns `println("${n} x")`, byte-identical input/output |
 | 4 | `make install` succeeds, `ailang --version` matches HEAD | ✅ `v0.31.0-21-g349d28c2e`, commit `349d28c` = HEAD. The stated blocker (`UpdateStageMetrics` arity) was resolved independently and did not recur. |
 | 5 | Re-run the A/B, report paired Wilcoxon on tokens | ⏳ **NOT DONE — a ~4h rig run.** Fires Wed 2026-08-05 03:00. This is the first run that measures fmt rather than measuring our own confusion. |
@@ -288,6 +288,53 @@ Recorded in full at `internal/format/dialect_drift_test.go`:
 - **#86** — `price - (price * pct) / 100` → `price - price * pct / 100`. The AST
   has no ParenExpr node (design V20), so redundant source parens are absent from
   the tree and unrecoverable. Semantically identical.
+
+### End-to-end verification (2026-07-31, after the code landed)
+
+Unit tests are not evidence that the loop works, so both halves were run for real.
+
+**fmt, against the exact input from the bug report.** Piping the original
+`contains` function through the actual `scripts/hooks/format_ail.sh`:
+
+| | before (the bug) | now |
+|---|---|---|
+| `xs: [int]` | → `list[int]` | **preserved** |
+| `h :: t` | → `::(h, t)` | **preserved** |
+| `"${n}: ${show(..)}"` | → `concat_String(..)` chain | **preserved** |
+
+The only remaining changes are layout (`match` pulled onto the `=` line, a space
+after commas) — precisely what the drift gate's token-MULTISET rule exists to
+allow.
+
+**W3, by running a motoko benchmark.** `ailang eval-suite --agent --models
+motoko-gemma-4 --benchmarks recursion_fibonacci`. A `motoko:session_*` chain
+appeared with NO manual `ailang chains import-motoko`, and `ailang chains chat
+<id> --stage 1` shows what was previously absent:
+
+```
+─── Turn 1 (assistant) ───   [tool] ReadFile
+─── Turn 2 (user) ───        [result] {"tool":"ReadFile","path":"..."}
+─── Turn 3 (assistant) ───   [tool] BashExec
+─── Turn 4 (user) ───        [result] {"tool":"BashExec","cmd":"cat ..."}
+```
+
+The `[result]` turns are the point. Before this, the banked transcript held only
+the `[tool]` lines.
+
+**And the run found a gap the unit tests could not.** A second run was killed at
+the wall clock, and produced NO `motoko:` chain. Cause: when the executor returns
+a Go error, `RunAgentBenchmarkWithExecutor` returned `nil` for the result, so
+`SessionJSONLPath` never reached the caller — the import could not fire on
+crashed or thrashing runs, which are exactly the runs whose transcript you need,
+and are how this bug was found in the first place. Fixed: the two post-execution
+error paths now return a diagnostics-only result carrying the session path and
+nothing else, and the caller banks the transcript before writing the `api_error`
+row. Half-closing this blind spot would have repeated the original mistake.
+
+**Not covered by this run:** the `cloud` motoko profile does not load
+`motoko_ext_fmt`, so the transcript contains zero fmt messages. This verified
+transcript banking, NOT fmt-inside-the-agent-loop; the latter is verified
+directly against the binary above, and measured by AC5 on Wednesday.
 
 ### W3 — tool results now reach eval data
 

@@ -369,20 +369,40 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		}
 	}
 
+	// The executor's own session log, when it keeps one (motoko does). Carries
+	// tool RESULTS, which the banked agent_transcript does not — see
+	// AgentBenchmarkResult.SessionJSONLPath. Extracted BEFORE the failure
+	// returns below, because a run that crashed or thrashed is precisely the one
+	// whose transcript you need, and both of those paths used to discard it.
+	sessionJSONLPath, _ := result.ProviderData["motoko_session_jsonl"].(string)
+
+	// diagnosticsOnly carries the session log out ALONGSIDE an error return so
+	// the caller can still bank the transcript of a run that produced no usable
+	// measurement. Every other field is deliberately zero: this value is NOT a
+	// result and must never be counted as one.
+	diagnosticsOnly := func() *AgentBenchmarkResult {
+		return &AgentBenchmarkResult{
+			BenchmarkID:      spec.ID,
+			Executor:         executorName,
+			SessionID:        result.SessionID,
+			SessionJSONLPath: sessionJSONLPath,
+		}
+	}
+
 	// Check for executor-level failure (crash, timeout, non-zero exit).
 	// Executors return (Result{Success:false}, nil) on these failures --
 	// the error is in Result.Error, NOT the Go error return value.
 	// We check this BEFORE agentic validation to provide clear "executor crashed"
 	// errors instead of misleading "non-agentic result" messages.
 	if !result.Success && result.Error != "" {
-		return nil, fmt.Errorf("executor %q failed for model %q: %s",
+		return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
 			executorName, modelName, result.Error)
 	}
 
 	// Validate agent behavior - NO SILENT FALLBACKS
 	// Agent mode must produce multi-turn agentic behavior, not 0-shot text generation
 	if result.NumTurns <= 1 && result.ToolCallCount == 0 {
-		return nil, fmt.Errorf("executor %q produced non-agentic result: "+
+		return diagnosticsOnly(), fmt.Errorf("executor %q produced non-agentic result: "+
 			"%d turns, %d tool calls. This looks like 0-shot generation, not agent mode. "+
 			"Check that the CLI is configured for agentic coding (tool use, file editing). "+
 			"Model: %s", executorName, result.NumTurns, result.ToolCallCount, modelName)
@@ -402,10 +422,6 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	resolvedProfile, _ := result.ProviderData["resolved_profile"].(string)
 	resolvedExtensions, _ := result.ProviderData["resolved_extensions"].(string)
-	// The executor's own session log, when it keeps one (motoko does). Carries
-	// tool RESULTS, which the banked agent_transcript does not — see
-	// AgentBenchmarkResult.SessionJSONLPath.
-	sessionJSONLPath, _ := result.ProviderData["motoko_session_jsonl"].(string)
 
 	// Treatment-integrity capture for the fmt experiment.
 	//

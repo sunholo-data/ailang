@@ -99,24 +99,28 @@ func TestFmtDoesNotDriftFromTeachingPrompt(t *testing.T) {
 	// allowlist is gone — it now excuses nothing, and an allowlist that excuses
 	// nothing is a rubber stamp.
 	//
-	// The 4 that remain are diagnosed, not unknown:
+	// 2026-07-31, second pass: 4 → 2. Two of those four were the PROMPT being
+	// wrong, not fmt, and were fixed by cutting prompt v0.16.4:
 	//
-	//	#19  a block containing the prompt's own ❌-WRONG example, which fmt
-	//	     reformats. Nothing to fix in fmt; the example is deliberately invalid.
-	//	     (It does parse today, so the prompt's "parse error" claim is stale —
-	//	     that belongs to prompt-manager.)
+	//	#19  v0.16.3 taught that `letrec` with a `= ...` body is a PARSE ERROR. It
+	//	     type-checks AND runs (verified with `ailang check` + `ailang run`);
+	//	     the claim went stale when M-SYNTAX-AI-FORGIVING R1 made an equation
+	//	     body a `;`-separated statement sequence. Teaching a model to avoid
+	//	     valid syntax is the same failure class as fmt contradicting the prompt.
+	//	#71  `Result[List[string], string]` → `Result[[string], string]`. `[T]` is
+	//	     taught 64 times and is what fmt emits, so `List[T]` was a spelling fmt
+	//	     would rewrite. Both parse to the identical TypeApp.
+	//
+	// The 2 that remain are diagnosed, and neither is fixable in the formatter:
+	//
 	//	#63  `=> { -- comment \n expr }` unwraps to `=> expr`. The block existed
-	//	     only to host a comment; Source() drops comments by construction.
-	//	#71  the prompt writes `Result[List[string], string]`; fmt emits
-	//	     `Result[[string], string]`. `[T]` is what the prompt teaches 64 times,
-	//	     but `List[T]` is what std/json.ail:146 actually writes, so "fix the
-	//	     prompt" would put it at odds with stdlib source. Needs a decision on
-	//	     which spelling is canonical, not a formatter change.
+	//	     only to host a comment; Source() drops comments by construction, so
+	//	     the wrapper has nothing left to hold.
 	//	#86  `price - (price * pct) / 100` → `price - price * pct / 100`. The AST
 	//	     has no ParenExpr node (design V20), so redundant source parens are
 	//	     simply absent from the tree and cannot be recovered. Unfixable without
 	//	     changing the AST; semantically identical.
-	const knownDrift = 4
+	const knownDrift = 2
 	if len(drifted) > knownDrift {
 		t.Errorf("`ailang fmt` now rewrites %d teaching-prompt examples into a different dialect, up from %d: %v\n\n"+
 			"A NEW divergence has landed. Every one of these tells a model its correct code is\n"+

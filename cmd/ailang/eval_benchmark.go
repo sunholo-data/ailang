@@ -195,6 +195,23 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			// FinishReason here.
 			errCategory := eval_harness.CategorizeAgentError(err, "")
 
+			// Bank the executor's session transcript even though the run produced
+			// no usable measurement. A crashed or thrashing run is EXACTLY the one
+			// whose tool RESULTS you need — the fmt dialect bug was found in a run
+			// that thrashed — and this path used to discard them. RunAgentBenchmark-
+			// WithExecutor returns a diagnostics-only result (identifying fields and
+			// the session path, nothing else) once the executor has actually run;
+			// it is nil for the earlier setup failures, where no session exists.
+			if result != nil && executorName == "motoko" && result.SessionJSONLPath != "" &&
+				evalChain != nil && evalChain.Store != nil {
+				if imp, impErr := evalChain.Store.ImportMotokoSession(ctx, result.SessionJSONLPath); impErr != nil {
+					fmt.Fprintf(os.Stderr, "[eval] motoko session import (failed run) for %s: %v\n", result.SessionJSONLPath, impErr)
+				} else {
+					fmt.Fprintf(os.Stderr, "[eval] banked transcript of FAILED run: %s -> chain %s (%d steps, %d tool calls)\n",
+						imp.SessionLabel, imp.ChainID, imp.Steps, imp.ToolCalls)
+				}
+			}
+
 			apiErrorMetrics := &eval_harness.RunMetrics{
 				ID:             spec.ID,
 				Lang:           lang,
