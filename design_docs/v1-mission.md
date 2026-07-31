@@ -1311,6 +1311,20 @@ frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted 
 frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
+- **[NEXT-ON-RESUME #1, Mark directive 2026-07-31 (attended): MOTOKO DEMAND — pick FIRST at the
+  2026-08-03 re-arm, ahead of the offloads] m-recorded-stream-api** (`ailang#546`, filed by
+  arniwesth 2026-07-31 — the STRONGEST demand class: a real external consumer with a WORKING
+  IMPLEMENTATION OFFERED): `std/ai.stepWithStream`'s contract (unit-returning `{IO}`-closed
+  callback; `Result[StepResult, AIError]` carries no chunks) makes live-streaming and
+  chunk-recording mutually exclusive — motoko's deterministic-replay testing needs BOTH at once.
+  Arni ships a fork branch (`arniwesth/ailang spike/motoko-009-prototype-v031`, compare link in
+  the issue) + a patch verified `git apply --check`-clean against v0.31.0. The iteration should
+  (1) ghost-discipline the repro at HEAD, (2) evaluate ADOPTING the offered implementation
+  (review-the-patch lane — do not reinvent; quorum reviews the DESIGN it embodies, incl. the
+  core-vs-extension routing call on a std/ai surface change), (3) credit authorship in the
+  commit. Ack posted on #546. Note: the five upstream motoko PRs (#73/#76/#96/#97/#98) are all
+  green as of 2026-07-31 (the #98 AILANG_REF guard fixed attended, `324d86d`) and await ARNI's
+  review — not our work.
 - **[NEXT-ON-RESUME, Mark directive 2026-07-30 (attended): QUOTA OFFLOADS — pick these FIRST
   when the loops re-arm 2026-08-03 07:00, before M4b and effect sprints 3/4]** — two sibling
   recipe/lane items (mission infra, not language changes; neither gates v1.0 but both protect
