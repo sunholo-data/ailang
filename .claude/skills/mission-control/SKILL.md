@@ -660,6 +660,30 @@ Sonnet, inline, is fine.
   2026-07-14 iteration 26; 2 of 2 recent NEW-DOC tags were wrong: m-lambda-open-record-pattern
   had a full doc at planned/v0_29_0 since May [iter 25], m-xmod-alias-poly likewise [iter 26] —
   both times the grep found it in seconds and saved a redundant design-doc-creator run).
+  **THE DESIGNER DIRECTIVE MUST DEMAND A VERIFICATION ROW PER CODEBASE CLAIM — a cross-provider
+  designer CANNOT READ THIS REPO'S SKILLS, so any gate you leave implicit does not exist for it**
+  (added 2026-07-31 iteration 126; two instances in ONE doc, and they cost both quorum rounds).
+  Gate 2's rules 3a/3b are written for the *controller's* instruments; nothing was aimed at the
+  *designer*, and the designer is the role that writes the most load-bearing "the codebase
+  currently does X" sentences. Iteration 126's doc was BLOCKED twice, and both blocks were the
+  same defect wearing different clothes: R1 asserted "lowered Core metadata can enumerate every
+  requires clause" and R2 asserted "the CLI defines `workspaceRoot` and passes it into test
+  configuration". Neither carried a command. The controller measured both — the first came back
+  **better** than assumed (repeated `requires` blocks are impossible by construction, which SHRANK
+  scope) and the second came back **false** (zero matches, known-positive control firing, the
+  field had to be designed in and the Conflict Surface widened). A quorum round costs real money
+  and a designer re-spawn costs real wall-clock, so this is not a style note. Concretely:
+  **(a)** the spawn directive states that every sentence claiming the codebase currently does X
+  needs a Verification Log row with the command AND its observed output — and that an empty or
+  negative result is a CLAIM, not a fact, so it needs a known-positive control in the same call
+  (rule 3a, restated *to the designer* rather than assumed);
+  **(b)** when a quorum objection is "unverified premise", the controller RUNS the check itself
+  before routing the revision, and hands the designer the measurement rather than the objection —
+  otherwise the designer re-asserts and you buy a third round;
+  **(c)** if two rounds block on this same class, name the PATTERN in the revision directive, not
+  just the two fixes. Iteration 126 did exactly that on round 3 and got 21 verification rows.
+  This applies to EVERY provider lane, but it is load-bearing for `codex:`/`gemini:` designers,
+  which never see `design-doc-creator/SKILL.md` at all — for them the directive IS the gate.
 - Design doc but no plan → **sprint-planner** as a `$MISSION_PLANNER_MODEL`-pinned Agent sub-agent
   → sprint JSON + handoff.
 - Plan exists → **sprint-executor** as a `$MISSION_EXECUTOR_MODEL`-pinned Agent sub-agent, in an
