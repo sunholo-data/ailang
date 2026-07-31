@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,5 +181,23 @@ func TestLogAppliesBackstop(t *testing.T) {
 	}
 	if banked.Validity.Detail == "" {
 		t.Error("banked row carries no detail; an operator cannot see which failure this was")
+	}
+}
+
+// TestNonAgenticIsItsOwnCategory: a 0-shot answer on an agentic task is an
+// IDENTIFIABLE outcome, so it must not sit in the api_error catch-all — where
+// the validity backstop would then quarantine it as harness_error and the arm
+// would look like it crashed. Six control rows did exactly that on 2026-07-30.
+func TestNonAgenticIsItsOwnCategory(t *testing.T) {
+	err := errors.New(`executor "motoko" produced non-agentic result: 1 turns, 0 tool calls. ` +
+		`This looks like 0-shot generation, not agent mode.`)
+	if got := CategorizeAgentError(err, ""); got != ErrorCategoryNonAgentic {
+		t.Errorf("CategorizeAgentError = %q, want %q", got, ErrorCategoryNonAgentic)
+	}
+	// And so it must survive the backstop as a real measurement.
+	m := RunMetrics{ErrorCategory: ErrorCategoryNonAgentic}
+	m.applyValidityBackstop()
+	if !m.IsValid() {
+		t.Error("non_agentic was quarantined as a harness failure; it is a known outcome")
 	}
 }

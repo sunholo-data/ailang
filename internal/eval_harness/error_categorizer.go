@@ -2,6 +2,21 @@ package eval_harness
 
 import "strings"
 
+// ErrorCategoryNonAgentic: the executor returned a 0-shot answer — one turn,
+// zero tool calls — on a task that requires editing files. The run happened and
+// the cause is KNOWN; it simply was not agentic. A MODEL behaviour (or a
+// tool-delivery problem), never an unexplained failure, so it must not sit in
+// the api_error catch-all where it reads as "the harness broke".
+//
+// Six control-arm rows landed there on 2026-07-30 and were mistaken for motoko
+// crashes, costing a third of that experiment's sample and briefly looking like
+// rig instability.
+//
+// Declared here rather than beside the other ErrorCategory constants in
+// metrics.go only to keep this change self-contained while that file carries
+// another agent's in-flight work.
+const ErrorCategoryNonAgentic = "non_agentic"
+
 // CategorizeAgentError classifies an agent-mode failure into one of the typed
 // ErrorCategory* values defined in metrics.go (M-EVAL-SWEET-SPOT, v0.19.0).
 //
@@ -21,6 +36,7 @@ import "strings"
 //
 // Pure function — safe to invoke for offline re-categorization of historical
 // result JSONs.
+
 func CategorizeAgentError(err error, finishReason string) string {
 	// Structured finish signals from the executor are authoritative.
 	switch finishReason {
@@ -68,6 +84,18 @@ func CategorizeAgentError(err error, finishReason string) string {
 		"turn budget exhausted",
 	) {
 		return ErrorCategoryStepExhausted
+	}
+
+	// Non-agentic result: the executor returned one turn and zero tool calls on
+	// a task that requires editing files (agent_runner_multi.go). The run
+	// HAPPENED and the cause is known — it simply was not agentic — so it must
+	// not fall through to the api_error catch-all, where it reads as "the
+	// harness broke". Six control-arm rows landed there on 2026-07-30 and were
+	// mistaken for motoko crashes, costing a third of that experiment's sample
+	// and briefly looking like rig instability. Third instance of this bug class
+	// after step_exhausted and max_steps (M-RIG-RELIABILITY M2).
+	if containsAny(msg, "non-agentic result") {
+		return ErrorCategoryNonAgentic
 	}
 
 	// API-level model refusal (Anthropic stop_reason "refusal"): a model
