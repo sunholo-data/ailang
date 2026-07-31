@@ -3,6 +3,7 @@ package testing
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -118,9 +119,24 @@ ensures { result == true } { false }
 	if property.Status != StatusFail || !strings.Contains(property.Error, "ensures violated") {
 		t.Fatalf("property = %+v, want genuine ensures failure", property)
 	}
+	// The counterexample must SATISFY `requires { x > 100 }` — that is the whole
+	// point of the negative control: it proves the fix still reports genuine
+	// in-domain violations, rather than discarding everything.
+	//
+	// This assertion previously only rejected negatives and "0", so a counterexample
+	// of e.g. 50 would have passed while failing the very condition the assertion's
+	// own message claims to prove (evaluator F1, iteration 126). Parse and compare.
 	input := strings.TrimPrefix(property.Error, "ensures violated for input: x=")
-	if input == property.Error || strings.HasPrefix(input, "-") || input == "0" {
-		t.Fatalf("counterexample %q does not prove requires x > 100", property.Error)
+	if input == property.Error {
+		t.Fatalf("counterexample %q is not in the expected `x=<int>` form", property.Error)
+	}
+	x, err := strconv.Atoi(strings.TrimSpace(input))
+	if err != nil {
+		t.Fatalf("counterexample %q: cannot parse x: %v", property.Error, err)
+	}
+	if x <= 100 {
+		t.Fatalf("counterexample x=%d does NOT satisfy requires { x > 100 }; the reported "+
+			"violation is out-of-domain and the discard filter is not working", x)
 	}
 }
 
