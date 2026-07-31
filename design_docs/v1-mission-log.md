@@ -6758,3 +6758,162 @@ is therefore moot this iteration. Fable billed **zero metered** (subscription wr
 plan-ready, validator rc=0, **no human decision owed**. Offload (2)
 `m-evaluator-gemini-review-lane` follows. `#546` unparks the moment Mark answers a/b/c
 (controller's read remains **(c)**, avoid **(a)**).
+
+---
+
+## 131 — 2026-07-31 — Iteration 126: `m-property-test-trust` **M1 LANDED**. The pick was `#535`; the find was **`#547`** — `ailang test` has been reporting `ensures violated` for inputs the contract's own `requires` **excludes**. A vacuous FAILURE, the mirror of the vacuous-pass class `#517` closed.
+
+**Picked** — `m-property-test-trust`, covering `#535` + the new `#547`. Not the literal queue
+head, and the reason matters: `#546` is **PARKED** on Mark's a/b/c scope call (Standing rule 2
+forbids forcing a park), and **both quota offloads are date-gated by Mark to the 2026-08-03
+re-arm**. That left `m-property-generator-coverage LANE B1` as the live `[NEXT]` — and B1's own
+queue row names `#535` as the thing that must land **first or alongside**, because B1 multiplies
+the number of properties executing and every one would inherit a non-reproducible verdict.
+
+**Gate 0/1** — kill switch armed, billing **CLEAN**, gh account `sunholo-voight-kampff`, dev in
+sync with origin, dev CI **GREEN** SHA-addressed on `386cf6d15` (Docs-Deploy on an older SHA =
+path-filtered N/A, not pending). **Zero** open `[nightly-eval]` alarms, control-verified against
+closed ones. No new Mark comment — and that negative was **control-verified** rather than
+assumed: exactly **1** comment from `MarkEdmondson1234` exists on `#484`, at
+`2026-07-27T07:53:53Z`, which **equals the watermark**, i.e. already processed. No rotation due
+(`#484` created Mon **07:27 CEST**, after the 07:00 local boundary; 40 comments < 80).
+
+**Ghost discipline → the find.** `#535` reproduced 5/5 at HEAD on a freshly built binary: same
+binary, same file, exit codes **1,0,0,1,1**. Chasing *which* property was flipping produced the
+real defect. `containsImpliesNonEmpty` was failing with `ensures violated for input: xs=[],
+elem=379` — but its precondition is `requires { _list_contains(xs, elem) == true }`, and `[]`
+contains nothing. Reading `runEnsuresProperty` (runner.go:388-427) confirmed it: the loop
+generates values, evaluates the postcondition, and **never evaluates the `requires` predicate at
+all**. No discard step exists.
+
+**The decisive argument is an asymmetry inside the same file.** `runRequiresProperty`
+(runner.go:540-543) meets the *identical* condition — a generated input violating `requires` —
+and reports `skip`, with its own comment stating such inputs "aren't a function bug". Same
+condition, opposite verdict. The skip side already established the intended semantics, so this
+was not a design question. Minimal repro, 6/6 deterministic: `requires { x > 100 }` with body
+`x > 100` reported counterexamples at x=-416/-700/-522/-17/-527/-405 — **every one excluded by
+the precondition**. Filed **`#547`**.
+
+**This corrected a standing read.** `list_recursive_verify.ail`'s ~50% failure was a **false
+positive**, not a genuine contract violation. The designer reached that conclusion
+**independently, before being told** — two parties, same finding.
+
+**Coupling, and why it is load-bearing.** Pinning the seed (`#535`) *without* the discard filter
+would have frozen the false positive into a **permanent deterministic failure**. So `#547` is M1
+and `#535` stays **OPEN** as M2. The randomness was the only thing making the bug intermittent.
+
+**Quorum — BLOCKED ×2, direction NEVER contested, resolved under the narrow-refinement carve-out**
+with both reviewers' verbatim fixes (no controller-invented resolution).
+- R1 `gpt5-6-sol`: unverified metadata-enumeration premise. The controller **ran the requested
+  check first-party**, and it came back **better than the objection assumed and SHRANK scope** —
+  repeated `requires` blocks are **impossible by construction** (`PAR_DUPLICATE_REQUIRES`: "only
+  one requires block per function"), and comma-separated conditions enumerate in **source order**
+  (measured `g_property_1` col 12, `g_property_2` col 19; zero-requires `h` unaffected and passing).
+- R1 `gemini-3-1-pro`: deriving the seed from an **absolute path** breaks cross-machine
+  determinism. Genuinely decisive — it would have reintroduced the exact class the doc exists to
+  remove. Fixed to workspace-relative, per the reviewer's own option.
+- R2 `gpt5-6-sol`: `--random-seed`'s per-property seeds are **not replayable** by any single
+  `--seed N`. Took the reviewer's option 2 — one reported master seed, one versioned derivation,
+  all three modes identical.
+- R2 `gemini-3-1-pro`: `TestConfig.WorkspaceRoot` asserted as existing. **Controller measured it
+  does NOT exist** (zero matches in `internal/testing/` and `cmd/ailang/test.go`; known-positive
+  control `GenConfig` fired; no `config.go`). Premise FALSE; the field is now designed in.
+
+**PROCESS FINDING — both quorum rounds blocked on the SAME root cause.** Not two unrelated
+objections: R1 and R2 were each *a codebase premise asserted rather than measured*. The designer
+wrote "the metadata can enumerate…" and then "the CLI defines `workspaceRoot`…", neither with a
+verification row. This is the inherited-verification-debt class aimed at the **designer** rather
+than the controller. The round-3 directive named the pattern explicitly rather than just handing
+over the two fixes, and the result was 21 verification rows with commands and outputs. Recorded
+here because one more instance makes it a skill edit.
+
+**Planner (opus) refuted THREE doc premises, one fatal.** (1) AC1/AC3/AC8 were written against a
+`--seed 42` flag **M1 does not add** — as written, **none of M1's acceptance criteria could have
+run**, silently breaking the "M1 must be independently landable" constraint. (2) AC3's fixture
+cannot pass: `assert` is a reserved keyword, and even corrected it fails because of a
+**pre-existing unreported bug** the planner isolated with four one-variable fixtures — filed as
+**`#548`**. (3) AC9's module-less fixture does not parse, which blocks M2 (it is the only
+criterion proving `WorkspaceRoot` reaches the derivation). All 11 controller premises were
+**confirmed**, including an independent `#547` repro 3/3.
+
+**`#548`** — a named `test` block beside a contract-bearing function breaks the named-test path:
+`stripNonPureFunctions` leaves orphaned `requires`/`ensures` at top level in the generated
+`_namedtest_body_*.ail`, so it dies on `PAR_NO_PREFIX_PARSE` against a file the user never wrote.
+Reproduced first-party (control: a test block alone passes). **Blast radius honestly bounded at
+0 in-repo files** (control: 5 files have named test blocks, none also carry a contract) — a
+latent user trap, not a live breakage, which is presumably why it went unnoticed.
+
+**Gates re-run OUTSIDE the codex sandbox — mandatory, and it mattered.** The executor's
+`go test ./cmd/ailang/...` was denied a loopback bind and it **correctly labelled the result
+`UNINFORMATIVE UNDER SANDBOX`** rather than reporting pass or fail. Outside the sandbox: **rc=0
+in 214.9s**. Infrastructure, not a regression — exactly what that label exists to prevent.
+Also outside: `go test ./internal/testing/...` rc=0, `make check-file-sizes` rc=0.
+`runner.go` **790 → 670**, which **relieves LANE B1's 10-lines-from-the-cap constraint**.
+
+**Mutation testing.** Controller: filter-never-discards → **RED** (4 named tests); a first attempt
+that merely broke the build (`requiresHold` unused) was **discarded as an uninformative red** —
+a compile failure is not evidence a guard works. Evaluator ran 8 independent mutations, 7 killed.
+
+**A SURVIVING mutation, recorded not buried.** Relaxing the guard to `TestsRun < requiredAccepted-1`
+— accepting exactly 99 as a pass — **SURVIVED**. The test named
+`TestEnsuresNinetyNineAcceptedIsNotAPass` claimed to pin that boundary but uses `x > 900`, ~5%
+acceptance, so `TestsRun` settles near 50 and **never reaches 99**. Renamed
+`TestEnsuresSparseDomainIsSkipNotPass` with the gap and its cause written into the test. Pinning
+the exact boundary requires landing on exactly 99 accepted, which is **not constructible while
+generation is wall-clock seeded** — so it is genuinely blocked on `#535`/M2. Same rule-3b shape
+as the sprint plan's own row, which described it as "mutation guard on the accepted < 100
+boundary".
+
+**Evaluator sonnet PASS 95/100 r1, zero blocking. Its NON-BLOCKING F1 was ACTED ON anyway** — a
+severity label is the judge's opinion, not a measurement. The negative control
+(`TestEnsuresGenuineViolationStillFails`) only rejected negatives and `"0"`, so a counterexample
+of `50` would have passed an assertion whose **own failure message claimed to prove `x > 100`**.
+Strengthened to parse and compare, then **proven to catch** the evaluator's mutation 8 (flip the
+discard so out-of-contract inputs are accepted) → fails with `counterexample x=-612`. The
+evaluator had measured that the old assertion did **not** catch that mutation. Source restored
+sha256-identical.
+
+**Behaviour change, surfaced not buried.** `list_recursive_verify.ail` goes from flaky
+`1,0,0,1,1` to a stable **0 pass / 0 fail / 6 skip**. The false failure is gone; `extractBounded`
+is now honestly reported **unverified** rather than passing on out-of-domain inputs. **No CI
+impact** — `make verify-examples` runs `ailang run`, never `ailang test`
+(`scripts/verify_examples.go:108-115`, all three exec forms). That verification is also what made
+the seed pin low-risk, and it is worth keeping in mind: **`ailang test` has no CI coverage over
+the example corpus at all.**
+
+**Gate 3b — GREEN, SHA-addressed on `3ebd4d19a`; merged as squash `a9e26ffd6`.** All FOUR
+required contexts green (`test`, `lint`, `build`, `docs-gate` — read from branch protection, not
+assumed): 13 success + 5 skipped/N-A. ⚠ **SonarCloud went RED and it is recorded, not hidden**:
+77.9% coverage on new code (gate ≥80%) and 4.6% duplication (gate ≤3%). Sonar is **not** in the
+required set, so UNSTABLE ≠ BLOCKED — but the duplication is a genuine consequence of splitting
+the ensures path out of `runner.go`, and M2 should collapse the shared shape rather than let it
+compound. The poll was SHA-pinned throughout; note that the tally moved 18 → 20 checks mid-poll as
+late jobs registered, which is exactly why a count-based "all complete" test must be re-read
+against the head SHA rather than trusted once.
+
+**Ruled out**
+- *`#535` is a simple default-seed change* — REFUTED. Fixing seeding alone would have frozen a
+  false positive into a permanent failure.
+- *`list_recursive_verify.ail` exposes a genuine contract violation* — REFUTED by measurement;
+  the counterexample violates the precondition.
+- *Repeated `requires` blocks must be handled* — REFUTED; the parser rejects them.
+- *`TestConfig.WorkspaceRoot` exists* — REFUTED; zero matches with a firing control.
+- *M1's acceptance criteria were runnable as written* — REFUTED by the planner; they required a
+  flag M1 never adds.
+- *The 99-accepted boundary is pinned by the suite* — REFUTED by a surviving mutation.
+- *The negative control proved its counterexample was in-domain* — REFUTED; it accepted any
+  non-negative value.
+
+**Routing evidence** — designer `codex:gpt-5.6-sol` (**rotation advanced** claude → codex; 3 bounded
+runs: author, fold-in, quorum-revision), quorum reviewers `gpt5-6-sol` + `gemini-3-1-pro`
+(2 rounds), planner **opus**, executor `codex:gpt-5.6-sol`, evaluator **sonnet** — generator≠judge
+holds (OpenAI executor vs Anthropic judge). `metered=$0.1323` of the `$5` ceiling (quorum only:
+$0.0596 R1 + $0.0727 R2); planner/controller/evaluator on quota buckets, codex on the ChatGPT
+subscription bucket. No Fable spend (designer rotated off it).
+
+**Next** — M2 (`#535` deterministic seeding) is plan-ready but **blocked on AC9's module-less
+fixture parse failure**, which must be resolved first. Then M3, then LANE B1 (now with 130 lines
+of `runner.go` headroom). `#546` unparks the moment Mark answers a/b/c (controller's read remains
+**(c)**, avoid **(a)**). Both quota offloads remain date-gated to the 08-03 re-arm.
+
+**Parked for human** — nothing new. `#546`'s a/b/c scope call remains the single open ask.
