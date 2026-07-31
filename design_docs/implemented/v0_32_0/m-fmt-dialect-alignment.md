@@ -348,6 +348,45 @@ measurement. This is the blind spot that hid the bug for two weeks.
 
 ---
 
+## AC5 — first post-fix A/B measurements (2026-07-31, ahead of the scheduled run)
+
+Run on demand ("can we run it and confirm we get signals"), on a
+confidence-selected set (E[pass] 0.49–0.63 vs subject 1789) after seeding the
+ratings DB — see the eval-elo silent-flag fix, without which no ELO-based
+selection was possible at all.
+
+**Pass/fail: saturated even here.** Both arms 6/6; 0 discordant pairs; the
+headroom warning fired correctly. For THIS subject on single trials, pass/fail
+has no headroom left — consistent with the extension-fix having moved the local
+baseline.
+
+**Tokens-to-pass (the original hypothesis): first signal, and the sign has
+flipped.** Paired per-benchmark, same six benchmarks, arms differ only by the
+fmt extension:
+
+| benchmark | ON tokens | OFF tokens | Δ | turns ON/OFF |
+|---|---|---|---|---|
+| log_file_analyzer | 262,670 | 3,388,603 | **−92%** | 8/48 |
+| emit_exact_bytes_varied | 536,156 | 1,553,294 | −65% | 13/28 |
+| numeric_modulo | 135,111 | 276,590 | −51% | 4/8 |
+| immutable_data_structures | 136,615 | 137,846 | −1% | 4/4 |
+| decision_block_capture | 136,449 | 137,752 | −1% | 4/4 |
+| binary_tree_sum | 244,484 | 140,282 | +74% | 7/4 |
+| **TOTAL** | **1,451,485** | **5,634,367** | **−74%** | |
+
+ON cheaper on 5/6; output tokens −47%. The pre-fix measurement of the SAME
+extension was **+62% output tokens (p=0.0112)** — the direction reversed once
+fmt stopped contradicting the prompt. The log_file_analyzer OFF run was watched
+live: the model thrashed 35+ steps (48 turns) on a task the ON arm walked
+through in 8.
+
+**Claim strength: direction, not proof.** n=1 per pair (5/6 by sign test,
+p≈0.11 one-sided); the total is dominated by one benchmark; same-model run
+variance is real. The follow-up is running as this is written: the hard band
+(config_file_parser .35 / lfu_cache_trace .31 / contract_rle_roundtrip .29 /
+binary_strings_1e18 .28), 2 trials per cell, then the microRAG A/B queued on the
+same protocol.
+
 ## References
 
 - `ca3d04cd8` fmt dialect fix · `6d96994da` drift ratchet · `d7140fe7b` non_agentic ·
