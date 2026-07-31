@@ -72,6 +72,24 @@ func (p *printer) typeString(t ast.Type) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		// `[T]` is normalized to TypeApp{Constructor:"list"} at parse time
+		// (parser_type.go, DX-17 Phase 2) so the compiler has one internal
+		// representation. The surface sugar is erased there, which meant the
+		// formatter printed the generic `Constructor[args]` form and turned
+		// every `[int]` a user wrote into `list[int]`.
+		//
+		// That is not cosmetic. `ailang prompt` — the canonical teaching text
+		// every eval model is given — uses `[int]` 64 times and `list[...]`
+		// ZERO times. So `ailang fmt` was telling models their correct code was
+		// non-canonical and handing them a dialect the prompt never taught.
+		// Measured 2026-07-30: a weak local model followed that advice, switched
+		// dialect mid-run, broke working code, and burned ~60% more tokens.
+		//
+		// The ast.ListType case above is unreachable for parsed input for the
+		// same reason; it is kept for hand-built ASTs.
+		if n.Constructor == "list" && len(args) == 1 {
+			return "[" + args[0] + "]", nil
+		}
 		return n.Constructor + "[" + strings.Join(args, ", ") + "]", nil
 	case *ast.FuncType:
 		return p.funcTypeString(n)

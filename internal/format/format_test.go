@@ -282,3 +282,53 @@ func TestExamplesGoldens(t *testing.T) {
 		})
 	}
 }
+
+// TestConsPatternRendersInfix is the PATTERN half of TestConsRendersInfix.
+//
+// A cons pattern parses to ConstructorPattern{Name:"::"} just as a cons
+// expression parses to FuncCall{"::"}. The expression half was fixed and
+// guarded; the pattern half was not, so `h :: t` was re-emitted as `::(h, t)`.
+//
+// That is not cosmetic. `ailang prompt` — the teaching text every eval model
+// receives — uses `h :: t` and never the prefix form, so fmt was telling models
+// their correct pattern was non-canonical and handing them an untaught dialect.
+func TestConsPatternRendersInfix(t *testing.T) {
+	got := formatSrc(t, "module m\npure func f(xs: [int]) -> int =\n  match xs {\n    [] => 0,\n    h :: t => h + f(t)\n  }")
+	if strings.Contains(got, "::(") {
+		t.Errorf("cons PATTERN must render infix, not as a call; got:\n%s", got)
+	}
+	if !strings.Contains(got, "h :: t") {
+		t.Errorf("expected `h :: t`, got:\n%s", got)
+	}
+}
+
+// TestListTypeRendersSugar: `[T]` is normalized to TypeApp{Constructor:"list"}
+// at parse time, which made fmt print `list[int]` for every `[int]` written.
+// The teaching prompt uses `[int]` 64 times and `list[...]` zero times.
+func TestListTypeRendersSugar(t *testing.T) {
+	got := formatSrc(t, "module m\npure func f(xs: [int]) -> [string] = []")
+	if strings.Contains(got, "list[") {
+		t.Errorf("list type must render as [T] sugar, not list[T]; got:\n%s", got)
+	}
+	if !strings.Contains(got, "xs: [int]") || !strings.Contains(got, "-> [string]") {
+		t.Errorf("expected `[int]` and `[string]`, got:\n%s", got)
+	}
+}
+
+// TestFmtOutputMatchesTaughtDialect guards the invariant that actually matters:
+// whatever fmt emits, a model was taught to write. Both spellings parse, so a
+// type-check cannot catch this — only a dialect assertion can.
+func TestFmtOutputMatchesTaughtDialect(t *testing.T) {
+	src := "module m\npure func f(xs: [int]) -> int =\n  match xs {\n    [] => 0,\n    h :: t => h + f(t)\n  }"
+	got := formatSrc(t, src)
+	for _, untaught := range []string{"list[", "::("} {
+		if strings.Contains(got, untaught) {
+			t.Errorf("fmt emitted %q, which `ailang prompt` never teaches:\n%s", untaught, got)
+		}
+	}
+	// Idempotence: formatting the output again must not reintroduce drift.
+	again := formatSrc(t, got)
+	if again != got {
+		t.Errorf("fmt not idempotent:\nfirst:\n%s\nsecond:\n%s", got, again)
+	}
+}

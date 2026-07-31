@@ -110,5 +110,28 @@ func (p *printer) constructorPatternString(n *ast.ConstructorPattern) (string, e
 	if err != nil {
 		return "", err
 	}
+	// A cons PATTERN parses to ConstructorPattern{Name: "::"} (parser_pattern.go),
+	// exactly as a cons EXPRESSION parses to FuncCall{"::"}. The expression side
+	// is already re-emitted infix and guarded by TestConsRendersInfix — the
+	// pattern side was missed, so `h :: t` came back out as `::(h, t)`.
+	//
+	// Same reason as the list-type sugar in types.go: `ailang prompt` teaches
+	// `h :: t` and never the prefix call form, so emitting `::(h, t)` told models
+	// their correct pattern was non-canonical. Both halves of one dialect.
+	if n.Name == "::" && len(parts) == 2 {
+		head := parts[0]
+		// Cons is right-associative, so a cons in the TAIL needs no parens
+		// (`a :: b :: c`), but one nested in the HEAD does.
+		if isConsPattern(n.Patterns[0]) {
+			head = "(" + head + ")"
+		}
+		return head + " :: " + parts[1], nil
+	}
 	return n.Name + "(" + strings.Join(parts, ", ") + ")", nil
+}
+
+// isConsPattern reports whether a pattern is itself an infix-rendered cons.
+func isConsPattern(pat ast.Pattern) bool {
+	c, ok := pat.(*ast.ConstructorPattern)
+	return ok && c.Name == "::" && len(c.Patterns) == 2
 }
