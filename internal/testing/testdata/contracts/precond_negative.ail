@@ -1,0 +1,7 @@
+module internal/testing/testdata/contracts/precond_negative
+export func broken(x: int) -> bool ! {}
+requires { x > 100 }
+ensures { result == true } {
+  false
+}
+export func main() -> int ! {} { if broken(500) then 1 else 0 }
