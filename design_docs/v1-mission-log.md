@@ -6567,3 +6567,87 @@ once: whatever lands should add a `tokens_total`/`cost_unknown` representation *
 then the ledger's authoritative record for this iteration is the **log entry above**, not the chain.
 
 ---
+
+## 129 — 2026-07-31 — Iteration 124: dev CI was **RED before I picked anything** (8 govulncheck allowlist entries all expired at midnight) — **FIXED and green**; and `#546` is **NOT a ghost**: the design doc landed with an ADOPT verdict but is **PARKED**, because the quorum found an unbounded wait whose only real fix breaks the one property the adoption argument rests on.
+
+**Picked**: Mark's `[NEXT-ON-RESUME #1]` directive item `m-recorded-stream-api` (`ailang#546`,
+motoko-DEMAND, offered implementation from @arniwesth). But Gate 1 found something that outranks
+the queue first, so this iteration has **two** deliverables.
+
+**The red that outranked the queue.** `govulncheck (vuln gate)` was `completed/failure` on dev.
+Root cause: all **8** allowlist entries in `.govulncheck-allow.yml` carried `expires: 2026-07-31`
+and fired together at midnight. Confirmed it was NOT fallout from any merge by checking the same
+gate across five recent SHAs — it fails on **docs-only** commits (`b9d7ea79c`, `71c0a103c`) too,
+which is the signature of a time-bomb rather than a regression. This is the class the skill warns
+about: time-based reds hit whoever observes next.
+
+**I did not blanket-bump the dates.** The expiry mechanism exists to force a re-review, so I did
+the review, first-party: (1) `govulncheck -format json ./...` reports those 8 as the **complete**
+reachable set — the allowlist matches reality exactly, no drift, nothing new hiding behind it;
+(2) all 8 report **no fixed version** in their OSV ranges, i.e. still genuinely unpatched upstream,
+so there is no fix to take; (3) `go.mod` is already on `ollama v0.32.5`, which `go list -m
+-versions` confirms is the newest published release. The original reason therefore still holds
+verbatim, so the entries were re-armed 90 days with that evidence recorded inline and an
+instruction to the next reviewer to re-run the three checks. **Non-vacuous before/after against the
+same real scan JSON**: old allowlist → rc=1 reproducing CI's exact "8 expired allowlist entr(ies)";
+new → rc=0, "8 finding(s), all allowlisted and unexpired." Commit `73f4e38bf`; `govulncheck (vuln
+gate): completed/success` observed SHA-addressed on the pushed commit.
+
+**Ghost discipline on `#546` — REAL, and understated.** Rebuilt both binaries first (both were
+stale: `bf10f6017`/`7ce83f299` vs HEAD) and probed with a positive control beside the negative:
+an `{IO}` rendering callback checks rc=0; an `{FS}` callback that appends chunks to a file — the
+cheapest way to record while still streaming — fails rc=1 with `incompatible closed rows: r1 has
+extra labels [IO], r2 has extra labels [FS]`. `StepResult` carries no chunks and `std/io` has no
+file write, so there is no `{IO}`-legal side-channel either. Live-streaming and recording ARE
+mutually exclusive. **ADR-009 line 134 independently reproduces this against v0.30.0** with its own
+negative probes — two parties, same conclusion, which is the strongest demand evidence this queue
+has seen.
+
+**BONUS DEFECT (found while verifying, not while looking for it).** The repo actively teaches the
+workaround that cannot work: `std/ai.ail:324` says "the callback's effect row is open (`!{IO}` is
+typical but not required)" — sitting **directly above** the closed-row declaration that contradicts
+it — and `examples/runnable/ai_streaming.ail:40-42` promises websocket/TUI/metrics side-channels,
+all of which need `{Net}`/`{FS}` and none of which type-check. Adopting the recorded sibling does
+**not** widen the row, so these stay false unless explicitly fixed; folded into the design doc as a
+required milestone rather than shipped separately, because the adoption patch touches the same file.
+
+**Why it is PARKED.** Doc `d85934df4`, verdict **ADOPT with productionization**, routing judged
+**core, not extension**. Quorum blocked twice and the design **direction was never contested** in
+either round. R1: gemini caught an UNVERIFIED premise (the "4 offered tests pass" claim was
+pre-read hearsay after a sandbox port-bind denial) — a fair hit, resolved by me running them
+outside the sandbox with `-run` isolation, all 4 PASS; gpt5-6-sol caught that silently skipping
+unencodable chunks contradicts "lossless" and Critical Principle 2 — accepted, designer moved to
+FAIL-LOUD. R2: gemini caught that **my own** `-run` isolation was too narrow to prove the patch
+breaks nothing existing — resolved, `go test ./internal/effects -skip
+TestNetHTTPRequestBytes_RoundTripSHA` → rc=0, **658 PASS**. The survivor is gpt5-6-sol's: the
+fail-loud drain is **unbounded**. Its proposed fix is conditional — *"if `AIHandler.StepWithStream`
+cannot be cancelled or bounded, make that provider-interface change a blocking dependency"* — and
+**the conditional fires**: `internal/effects/ai.go:87` takes no `context.Context` (known-positive
+control: the same search finds `context.Context` freely in `internal/notify/`, so the absence is
+real), with **7 implementers across 6 files including `cmd/wasm/effects.go`**.
+
+**Ruled out**: (a) that the CI red came from a sprint or merge — refuted, it fails on docs-only
+commits; (b) that a dependency upgrade could fix the vulns — refuted, we are already on the newest
+ollama and none has a published fix; (c) that "mutually exclusive" might be overstated because an
+`{FS}`/`{Net}` side-channel could record — refuted live by the closed-row unification error;
+(d) that the **narrow-refinement carve-out** could close R2 — refuted deliberately: both objections
+carry concrete reviewer-authored `proposed_fix` text, but gpt5-6-sol's changes SCOPE (it destroys
+the "purely additive, no existing line modified" property that the ADOPT verdict and the 1.x
+stability claim rest on), and the carve-out covers only objections leaving the design DIRECTION
+intact. Standing rule 2 → park, do not force through.
+
+**Routing evidence**: controller=**opus** (session) quota-bucket:weekly-opus — triage/pick/probe/
+verify/record; designer=**`codex:gpt-5.6-sol`** per the ROTATION (probe rc=0, two bounded runs —
+initial + one revision — directive delivery asserted at 6,733 B and 4,645 B, per-iteration
+filenames, `< /dev/null`), rotation state advanced to `codex:gpt-5.6-sol`; quorum reviewers
+`gpt5-6-sol` + `gemini-3-1-pro` + controller, **metered $0.0508 (R1) + $0.0578 (R2) = $0.1086** of
+the `$5` ceiling; planner/executor/evaluator **NOT fired** — deliberate and recorded, since the item
+parked at the design gate and never reached a sprint. Fable billed **zero**. generator≠judge is
+moot this iteration (no executor ran). The codex designer correctly self-labelled its blocked
+`internal/effects` run as a **sandbox denial rather than a failure**, and the controller re-ran
+every gate outside the sandbox — the documented false-green #3 behaved exactly as the recipe says.
+
+**Next**: Mark answers the a/b/c scope call in the doc header (controller's read: **(c)** bound the
+drain locally, no interface change; avoid **(a)**). On an answer this unparks straight to
+sprint-planner — the doc is otherwise plan-ready and the patch is verified green. If Mark prefers,
+`#539 m-dialect-keyword-diagnostics` and the two quota-offload items are untouched and pickable.

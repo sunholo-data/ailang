@@ -1311,7 +1311,36 @@ frame-budget as the VM's standing flagship KPI. Go source codegen stays demoted 
 frozen; contracts projection live).
 
 **Mission-infrastructure backlog** (improves HOW the loop runs; not a v1.0 gate):
-- **[NEXT-ON-RESUME #1, Mark directive 2026-07-31 (attended): MOTOKO DEMAND — pick FIRST at the
+- **[PARKED needs-human-review 2026-07-31 (iter-124) — DESIGN DOC LANDED, quorum BLOCKED ×2, ONE
+  SCOPE CALL OWED BY MARK.** Doc → [planned/v0_31_0/m-recorded-stream-api.md](planned/v0_31_0/m-recorded-stream-api.md),
+  commit `d85934df4`. **Ghost discipline: NOT a ghost — the claim is REAL and understated.**
+  Verified first-party at HEAD `130ad1da2` on a freshly rebuilt binary, positive control beside the
+  negative probe: an `{IO}` rendering callback checks (rc=0), an `{FS}` recording callback FAILS
+  rc=1 with `incompatible closed rows: r1 has extra labels [IO], r2 has extra labels [FS]`;
+  `StepResult` carries no chunks; `std/io` has no file write. So live-streaming and chunk-recording
+  ARE mutually exclusive. **ADR-009 line 134 independently reproduces the same result against
+  v0.30.0** — two parties, same finding. **BONUS DEFECT, folded in as a milestone**: the repo
+  TEACHES the opposite in two live places — `std/ai.ail:324` ("the callback's effect row is open")
+  sits directly above the closed-row declaration contradicting it, and
+  `examples/runnable/ai_streaming.ail:40-42` promises websocket/TUI/metrics side-channels that
+  cannot type-check; adopting the recorded sibling does NOT widen the row, so both stay false
+  unless fixed. Designer `codex:gpt-5.6-sol` (rotation advanced). Verdict **ADOPT with
+  productionization**, routing judged **core, not extension**. **Quorum R1 BLOCKED** (gemini: an
+  UNVERIFIED premise — fair, resolved by the controller running the 4 offered tests outside the
+  sandbox, all PASS; gpt5-6-sol: silently skipping unencodable chunks contradicts "lossless" and
+  Critical Principle 2 — accepted, designer chose FAIL-LOUD, est. 3–4d → 4–5d). **R2 BLOCKED**
+  (gemini: my own `-run` isolation was too narrow — resolved,
+  `go test ./internal/effects -skip TestNetHTTPRequestBytes_RoundTripSHA` rc=0 with **658 PASS**,
+  the patch breaks nothing; **gpt5-6-sol: the fail-loud drain is UNBOUNDED** — and its fix's own
+  conditional FIRES, because `internal/effects/ai.go:87` takes **no `context.Context`** and has
+  **7 implementers across 6 files including `cmd/wasm`**, so closing it destroys the "purely
+  additive" property the ADOPT verdict rests on). **Deliberately NOT force-passed and NOT taken
+  under the narrow-refinement carve-out** — that carve-out covers only objections leaving the
+  design DIRECTION intact, and this one changes scope; Standing rule 2 → park. **THE ASK (a/b/c in
+  the doc header): (a) land now with a documented unbounded-drain caveat, (b) take the `AIHandler`
+  cancellation change as a blocking dependency, or (c) bound the drain locally inside the recorded
+  op with no interface change — controller's read is (c), avoid (a).** Quorum metered $0.1086 of
+  the $5 ceiling. Was:] **[NEXT-ON-RESUME #1, Mark directive 2026-07-31 (attended): MOTOKO DEMAND — pick FIRST at the
   2026-08-03 re-arm, ahead of the offloads] m-recorded-stream-api** (`ailang#546`, filed by
   arniwesth 2026-07-31 — the STRONGEST demand class: a real external consumer with a WORKING
   IMPLEMENTATION OFFERED): `std/ai.stepWithStream`'s contract (unit-returning `{IO}`-closed
