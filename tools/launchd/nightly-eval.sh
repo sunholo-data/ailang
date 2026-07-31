@@ -180,12 +180,42 @@ RUN_AB_FMT=0
 [[ "${AILANG_AB_MICRORAG:-1}" == "0" ]] && RUN_AB_MICRORAG=0
 [[ "${AILANG_AB_FMT:-1}" == "0" ]] && RUN_AB_FMT=0
 
+# select_ab_benchmarks <model> <max> -- echo a comma-separated benchmark set chosen
+# by CONFIDENCE from the ratings DB, or nothing if selection is unavailable.
+#
+# WHY THIS EXISTS. Both A/Bs used to pick their benchmarks by hand:
+# microRAG took every smoke+core benchmark (tier is a proxy for "cheap", not for
+# "informative"), and fmt used a list frozen at selection time. Measured against
+# the seeded agent ratings on 2026-07-31, 17 of the 32 rated smoke+core
+# benchmarks sit in the Trivial band -- every model passes, so the pair is always
+# concordant and contributes exactly ZERO to McNemar. That is over half the
+# night's GPU buying no information, and it is the mechanism behind the recurring
+# "both arms ~100%, 0 discordant pairs, no p-value" nulls.
+#
+# `--benchmarks-by-confidence` drops the saturated band and ranks the rest by
+# proximity to the field's median rating, which is where discordance -- the thing
+# McNemar actually consumes -- is maximised. It only became usable once
+# `eval-elo --persist` stopped being a silent no-op (see cmd/ailang/eval_elo.go);
+# before that the ratings DB had zero agent rows and this path could not run.
+#
+# NO SILENT FALLBACK: if selection fails, the caller SKIPS its A/B rather than
+# quietly running a stale or saturated set. A null from the wrong benchmarks is
+# indistinguishable from a null from a working treatment, and we have already
+# spent weeks on that ambiguity.
+select_ab_benchmarks() {
+    local model="$1" max="$2"
+    "$BIN" eval-suite --agent --models "$model" \
+        --benchmarks-by-confidence auto --max-benchmarks "$max" \
+        --langs ailang --dry-run 2>/dev/null \
+        | grep '^Benchmarks:' | sed 's/^Benchmarks:[[:space:]]*//' | tr -d ' '
+}
+
 run_eval() {
     local mode="$1" outdir="$2"
     log "running smoke: microrag=${mode} → ${outdir}"
     "$BIN" eval-suite --agent \
         --models "$MODEL" \
-        --benchmarks "$BENCH_LIST" \
+        --benchmarks "${RAG_BENCH_LIST:-$BENCH_LIST}" \
         --langs ailang \
         --microrag "$mode" \
         --output "$outdir" \
@@ -193,6 +223,17 @@ run_eval() {
         --trials 2 \
         --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
 }
+
+# microRAG arm set: confidence-selected, not the smoke+core tier dump.
+    RAG_BENCH_LIST="${AILANG_AB_MICRORAG_BENCHMARKS:-$(select_ab_benchmarks "$MODEL" "${AILANG_AB_MICRORAG_N:-12}")}"
+    if [[ -z "$RAG_BENCH_LIST" ]]; then
+        log "microRAG A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
+        ailang messages send controlplane \
+            "microRAG A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running the saturated tier set would produce another uninterpretable null." \
+            --title "microRAG A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
+        RUN_AB_MICRORAG=0
+    fi
+    log "microRAG arm set (confidence-selected): ${RAG_BENCH_LIST}"
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
 
@@ -382,7 +423,20 @@ fi  # end microRAG A/B
         #
         #   config_file_parser .55 | parse_prec_climb .47 | legal_obligation .44
         #   ssa_constant_fold  .35 | bytecode_vm_trace .68
-        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-config_file_parser,parse_prec_climb,legal_obligation_engine,ssa_constant_fold,bytecode_vm_trace}"
+        # Confidence-selected, not frozen. The list below WAS hand-picked by the
+        # ELO rule above, against subject ELO 2196 -- but a hardcoded set silently
+        # goes stale the moment the subject's rating moves, which is exactly the
+        # failure this comment warns about one paragraph earlier. Selecting at run
+        # time from the ratings DB makes the rule self-applying instead of a
+        # snapshot someone has to remember to redo.
+        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-$(select_ab_benchmarks "motoko-local-qwen3-6-fmt" "${AILANG_AB_FMT_N:-6}")}"
+        if [[ -z "$FMT_BENCH_LIST" ]]; then
+            log "fmt A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
+            ailang messages send controlplane \
+                "fmt A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running a stale set would produce another uninterpretable null." \
+                --title "fmt A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
+            RUN_AB_FMT=0
+        fi
         # N>=5 per the prereg. The previous 2 was inherited from the microRAG
         # block, not chosen for this experiment.
         FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
