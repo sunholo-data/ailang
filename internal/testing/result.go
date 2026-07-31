@@ -31,14 +31,16 @@ type TestResult struct {
 
 // PropertyResult represents the outcome of a property-based test.
 type PropertyResult struct {
-	Name         string        // Property name
-	Status       TestStatus    // Pass/fail/skip
-	Duration     time.Duration // Total execution time
-	TestsRun     int           // Number of test cases generated
-	FailingInput string        // Minimal failing input (if failed)
-	Error        string        // Error message (if failed)
-	Location     string        // Source location
-	SkipKind     string        // Machine-readable reason when StatusSkip
+	Name            string        // Property name
+	Status          TestStatus    // Pass/fail/skip
+	Duration        time.Duration // Total execution time
+	TestsRun        int           // Number of test cases generated
+	GeneratedInputs int           // Number of input tuples generated
+	DiscardedInputs int           // Number of generated tuples rejected by requires
+	FailingInput    string        // Minimal failing input (if failed)
+	Error           string        // Error message (if failed)
+	Location        string        // Source location
+	SkipKind        string        // Machine-readable reason when StatusSkip
 }
 
 // SuiteResult aggregates results from all tests in a test suite.

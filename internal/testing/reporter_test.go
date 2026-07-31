@@ -181,6 +181,69 @@ func TestReporter_JSON_PropertyResult(t *testing.T) {
 	}
 }
 
+func TestReporter_JSONIncludesDiscardCounters(t *testing.T) {
+	result := NewSuiteResult("test.ail")
+	result.AddPropertyResult(PropertyResult{
+		Name:            "pass",
+		Status:          StatusPass,
+		TestsRun:        100,
+		GeneratedInputs: 120,
+		DiscardedInputs: 20,
+	})
+	result.AddPropertyResult(PropertyResult{
+		Name:            "fail",
+		Status:          StatusFail,
+		TestsRun:        1,
+		GeneratedInputs: 2,
+		DiscardedInputs: 1,
+	})
+	result.AddPropertyResult(PropertyResult{
+		Name:            "skip",
+		Status:          StatusSkip,
+		SkipKind:        SkipKindOutOfContract,
+		GeneratedInputs: 1000,
+		DiscardedInputs: 1000,
+	})
+
+	var buf bytes.Buffer
+	if err := NewReporter(FormatJSON, &buf, false).Report(result); err != nil {
+		t.Fatalf("Report() error: %v", err)
+	}
+	var output struct {
+		Properties []struct {
+			GeneratedInputs int `json:"generated_inputs"`
+			DiscardedInputs int `json:"discarded_inputs"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+		t.Fatalf("Invalid JSON output: %v", err)
+	}
+	want := [][2]int{{120, 20}, {2, 1}, {1000, 1000}}
+	for i, property := range output.Properties {
+		if got := [2]int{property.GeneratedInputs, property.DiscardedInputs}; got != want[i] {
+			t.Errorf("property %d counters = %v, want %v", i, got, want[i])
+		}
+	}
+}
+
+func TestReporter_HumanIncludesDiscardCounters(t *testing.T) {
+	result := NewSuiteResult("test.ail")
+	result.AddPropertyResult(PropertyResult{
+		Name:            "filtered",
+		Status:          StatusPass,
+		TestsRun:        100,
+		GeneratedInputs: 125,
+		DiscardedInputs: 25,
+	})
+	var buf bytes.Buffer
+	if err := NewReporter(FormatHuman, &buf, false).Report(result); err != nil {
+		t.Fatalf("Report() error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "accepted 100, discarded 25, generated 125") {
+		t.Fatalf("human output missing discard counters:\n%s", buf.String())
+	}
+}
+
 func TestReporter_Human_Empty(t *testing.T) {
 	result := NewSuiteResult("test.ail")
 
